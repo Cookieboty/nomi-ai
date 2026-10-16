@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Nomi·诺米各版本更新日志。" />
+  <meta name="theme-color" content="#FCEFE1" />
+  <meta property="og:title" content="更新日志 — Nomi·诺米" />
+  <meta property="og:description" content="Nomi·诺米各版本更新日志。" />
+  <meta property="og:image" content="https://withnomi.app/assets/brand/nomi-brand-avatar.png" />
+  <title>更新日志 — Nomi·诺米</title>
+  <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body data-page="changelog" id="top">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo" href="index.html" data-i18n-aria-label="logo.home">
+        <img class="mark" src="assets/brand/nomi-mark.svg" alt="" width="36" height="36" />
+        <span class="logo-lockup" aria-hidden="true">
+          <span class="logo-en">Nomi</span>
+          <span class="logo-zh">诺米</span>
+        </span>
+      </a>
+      <div class="header-actions">
+        <div class="lang-toggle" role="group" data-i18n-aria-label="nav.lang">
+          <button type="button" class="lang-btn" data-lang="zh" aria-pressed="true">中文</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+        </div>
+        <button class="nav-toggle" type="button" data-i18n-aria-label="nav.openMenu" aria-expanded="false" aria-controls="site-nav">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
+          <a href="index.html" data-i18n="nav.home">首页</a>
+          <a href="changelog.html" aria-current="page" data-i18n="nav.changelog">更新日志</a>
+          <a class="nav-cta" href="index.html#download" data-i18n="nav.cta">下载 Nomi</a>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="cl.label">更新日志</span></span>
+        <h1 data-i18n="cl.title">更新日志</h1>
+        <p class="lead" data-i18n="cl.lead">Nomi·诺米 每个版本的更新内容，最新版本在前。</p>
+      </div>
+    </section>
+
+    <section class="section section-tight">
+      <div class="container changelog">
+        <article class="release" id="v101">
+          <header class="release-head">
+            <h2 data-i18n="cl.v101.title">v1.0.1 — 补丁版本</h2>
+            <time datetime="2026-10-16">2026-10-16</time>
+          </header>
+          <ul class="release-list">
+            <li data-i18n="cl.v101.i1">修复 Windows 上脚本类 CLI 的编码助手接入：启动时设置 ELECTRON_RUN_AS_NODE，不再因此无法启动。</li>
+            <li data-i18n="cl.v101.i2">补齐语音（本地 sherpa TTS）与编码助手界面的英文文案。</li>
+            <li data-i18n="cl.v101.i3">提升 Windows 上自动化测试的稳定性（离线 TTS 不再拖垮测试环境，对话气泡等待更可靠）。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v1.0.1" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+        <article class="release" id="v100">
+          <header class="release-head">
+            <h2 data-i18n="cl.v100.title">v1.0.0 — 首个正式版</h2>
+            <time datetime="2026-10-16">2026-10-16</time>
+          </header>
+          <ul class="release-list">
+            <li data-i18n="cl.v100.i1">首个正式版：Windows / macOS（Apple Silicon 与 Intel）/ Linux 官方安装包均由 GitHub Actions 构建发布。</li>
+            <li data-i18n="cl.v100.i2">编码助手：Nomi、Claude Code、Codex 作为可切换的接入端点；对话标签页可并发运行（默认并行上限 3，超出排队），每个标签页有独立会话与工作目录；可检测、安装并更新各 CLI 版本。</li>
+            <li data-i18n="cl.v100.i3">本地 CLI 路由：在 Anthropic Messages、OpenAI Chat Completions、OpenAI Responses 与 Gemini 之间转换流式与非流式回复，包含工具调用、停止原因与用量。</li>
+            <li data-i18n="cl.v100.i4">对话：普通 / 开发者模式、按端点隔离的会话、会话模糊搜索（Cmd/Ctrl+F）、会话行重命名与删除、分叉为新对话、可随时停止生成。</li>
+            <li data-i18n="cl.v100.i5">桌面伙伴：Nomi 拥有 41 个命名动作，并锁定品牌形象；任务结果、思考、工具调用与文件拖入会触发合适的动作，并尊重“减少动态效果”设置。</li>
+            <li data-i18n="cl.v100.i6">效率：Cmd/Ctrl+K 命令面板，新建对话、聚焦输入框、设置等快捷键均可在设置中查看与重新绑定。</li>
+            <li data-i18n="cl.v100.i7">体验与可访问性：对话框焦点管理、统一的空 / 错误 / 加载状态（含重试）、首次使用引导、设置页与侧边面板按需加载。</li>
+            <li data-i18n="cl.v100.i8">安全：CSP 同样作用于打包后的 file:// 页面，私有地址检查更严格，TTS 下载防 DNS 重绑定，加固 IPC、本地 CLI 路由、浏览器与 MCP 连接。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v1.0.0" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <a class="logo" href="index.html">
+            <img class="mark" src="assets/brand/nomi-mark.svg" alt="" width="32" height="32" />
+            <span class="logo-text">Nomi·诺米</span>
+          </a>
+          <p data-i18n="footer.tagline">你的桌面 AI 伙伴。住在桌面，懂你所想，帮你做到。</p>
+        </div>
+        <div class="footer-col">
+          <h4 data-i18n="footer.product">产品</h4>
+          <ul>
+            <li><a href="index.html#download" data-i18n="nav.download">下载</a></li>
+            <li><a href="changelog.html" data-i18n="nav.changelog">更新日志</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4 data-i18n="footer.community">社区</h4>
+          <ul>
+            <li><a href="https://github.com/Cookieboty/nomi-ai" rel="noopener noreferrer" target="_blank">GitHub</a></li>
+            <li><a href="https://github.com/Cookieboty/nomi-ai/issues" rel="noopener noreferrer" target="_blank">Issues</a></li>
+            <li><a href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Releases</a></li>
+            <li><a href="https://github.com/Cookieboty/nomi-ai/blob/main/LICENSE" rel="noopener noreferrer" target="_blank">MIT License</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span data-i18n="footer.copy">© Nomi·诺米 · MIT</span>
+        <span><a href="https://github.com/Cookieboty/nomi-ai">Cookieboty/nomi-ai</a></span>
+      </div>
+    </div>
+  </footer>
+  <script src="js/i18n.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

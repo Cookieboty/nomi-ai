@@ -1128,3 +1128,26 @@ code {
   pointer-events: none;
   border: none;
 }
+
+/* ——— Changelog ——— */
+.changelog { max-width: 760px; }
+.release {
+  background: var(--nomi-card);
+  border: 1px solid var(--nomi-border);
+  border-radius: var(--radius);
+  padding: 1.6rem 1.75rem;
+  margin-bottom: 1.5rem;
+}
+.release-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.9rem;
+}
+.release-head h2 { font-size: 1.35rem; margin: 0; }
+.release-head time { color: var(--nomi-warm-gray); font-size: 0.9rem; }
+.release-list { margin: 0 0 1.1rem; padding-left: 1.2rem; line-height: 1.65; color: var(--nomi-ink); }
+.release-list li { margin-bottom: 0.45rem; }
+.release-list li::marker { color: var(--nomi-orange); }

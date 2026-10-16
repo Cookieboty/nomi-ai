@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#FCEFE1" />
   <meta property="og:title" content="Nomi·诺米 — 你的桌面 AI 伙伴" />
   <meta property="og:description" content="住在桌面，懂你所想，帮你做到。本地优先的桌面 AI 伙伴。" />
-  <meta property="og:image" content="assets/brand/nomi-brand-avatar.png" />
+  <meta property="og:image" content="https://withnomi.app/assets/brand/nomi-brand-avatar.png" />
   <title>Nomi·诺米 — 你的桌面 AI 伙伴</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -15,7 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
-<body data-page="home">
+<body data-page="home" id="top">
   <header class="site-header">
     <div class="container header-inner">
       <a class="logo" href="index.html" data-i18n-aria-label="logo.home">
@@ -35,11 +35,8 @@
         </button>
         <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
           <a href="index.html" aria-current="page" data-i18n="nav.home">首页</a>
-          <a href="features.html" data-i18n="nav.features">功能</a>
-          <a href="download.html" data-i18n="nav.download">下载</a>
-          <a href="docs.html" data-i18n="nav.docs">文档</a>
-          <a href="privacy.html" data-i18n="nav.privacy">隐私</a>
-          <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
+          <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
+          <a class="nav-cta" href="index.html#download" data-i18n="nav.cta">下载 Nomi</a>
         </nav>
       </div>
     </div>
@@ -54,7 +51,7 @@
           <p class="hero-slogan" data-i18n="hero.slogan">你的桌面 AI 伙伴</p>
           <p class="hero-promise" data-i18n="hero.promise">住在桌面，懂你所想，帮你做到。</p>
           <div class="hero-actions">
-            <a class="btn btn-primary btn-lg" href="download.html" data-i18n="hero.download">立即下载</a>
+            <a class="btn btn-primary btn-lg" href="#download" data-i18n="hero.download">立即下载</a>
             <a class="btn btn-secondary btn-lg" href="https://github.com/Cookieboty/nomi-ai" rel="noopener noreferrer" target="_blank" data-i18n="hero.github">在 GitHub 查看</a>
           </div>
           <div class="hero-meta">
@@ -111,7 +108,6 @@
             <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="features.mascot.title">桌面伙伴</span></span>
             <h2 id="spot-title" data-i18n="spot.companion.title">住在桌面的伙伴</h2>
             <p data-i18n="spot.companion.desc">分层立绘会眨眼、呼吸、说话。摸头互动，拖文件总结——她就站在你工作区的边角。</p>
-            <a class="link-arrow" href="features.html#mascot" data-i18n="spot.companion.cta">了解桌面伙伴 →</a>
           </div>
           <div class="spotlight-media">
             <img src="assets/screenshots/mascot.png" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="640" height="400" loading="lazy" />
@@ -122,7 +118,6 @@
             <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="nav.privacy">隐私</span></span>
             <h2 data-i18n="spot.local.title">本地优先，随你掌控</h2>
             <p data-i18n="spot.local.desc">对话与记忆留在本机；Key 加密；可开启仅本地模型。有用之外，还要让你安心。</p>
-            <a class="link-arrow" href="privacy.html" data-i18n="spot.local.cta">阅读隐私承诺 →</a>
           </div>
           <div class="spotlight-media">
             <img src="assets/screenshots/chat.png" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="640" height="400" loading="lazy" />
@@ -180,7 +175,6 @@
             <p data-i18n="features.voice.desc">本地语音输入、TTS 播报与口型同步；主题、图标、快捷键与中英文。</p>
           </article>
         </div>
-        <p class="note"><a href="features.html" data-i18n="features.more">查看完整功能列表 →</a></p>
       </div>
     </section>
 
@@ -219,21 +213,45 @@
             <h2 data-i18n="privacy.band.title">隐私是品牌的一部分</h2>
             <p data-i18n="privacy.band.desc">对话、记忆、知识库与日程都只保存在你的电脑上。可开启「仅本地模型」，敏感内容不发往云端。</p>
           </div>
-          <a class="btn btn-primary" href="privacy.html" data-i18n="privacy.band.cta">了解隐私承诺</a>
         </div>
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="download" aria-labelledby="download-title">
       <div class="container">
-        <div class="cta-band">
-          <h2 data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
+        <div class="section-head">
+          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="page.download.label">下载</span></span>
+          <h2 id="download-title" data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
           <p class="lead" data-i18n="cta.lead">安装后跟着引导选语言、主题和模型，几分钟就能开始对话。</p>
-          <div class="hero-actions">
-            <a class="btn btn-primary btn-lg" href="download.html" data-i18n="cta.download">前往下载</a>
-            <a class="btn btn-ghost btn-lg" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="cta.releases">GitHub Releases</a>
-          </div>
         </div>
+        <div class="platform-grid">
+          <article class="platform-card">
+            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
+            <h3>Windows</h3>
+            <p class="pkg">Nomi-Setup-1.0.1.exe</p>
+            <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
+            <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.1/Nomi-Setup-1.0.1.exe" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
+          </article>
+          <article class="platform-card">
+            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
+            <h3>macOS</h3>
+            <p class="pkg">Nomi-1.0.1-arm64.dmg<br />Nomi-1.0.1.dmg</p>
+            <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
+            <div class="dl-row">
+              <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.1/Nomi-1.0.1-arm64.dmg" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
+              <a class="btn btn-primary" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.1/Nomi-1.0.1.dmg" rel="noopener noreferrer" target="_blank">Intel</a>
+            </div>
+          </article>
+          <article class="platform-card">
+            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
+            <h3>Linux</h3>
+            <p class="pkg">Nomi-1.0.1.AppImage</p>
+            <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
+            <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.1/Nomi-1.0.1.AppImage" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
+          </article>
+        </div>
+        
+        <p class="note"><span data-i18n="dl.note">Linux、Windows 与 macOS 安装包均可下载。也可打开</span> <a id="dl-release" href="https://github.com/Cookieboty/nomi-ai/releases/latest" rel="noopener noreferrer" target="_blank" data-i18n="dl.latest">GitHub 最新 Release</a>。</p>
       </div>
     </section>
   </main>
@@ -251,10 +269,8 @@
         <div class="footer-col">
           <h4 data-i18n="footer.product">产品</h4>
           <ul>
-            <li><a href="features.html" data-i18n="nav.features">功能</a></li>
-            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
-            <li><a href="docs.html" data-i18n="nav.docs">文档</a></li>
-            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
+            <li><a href="index.html#download" data-i18n="nav.download">下载</a></li>
+            <li><a href="changelog.html" data-i18n="nav.changelog">更新日志</a></li>
           </ul>
         </div>
         <div class="footer-col">
