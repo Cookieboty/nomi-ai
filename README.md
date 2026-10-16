@@ -2,7 +2,7 @@
 
 静态多页站点，面向 [Cookieboty/nomi-ai](https://github.com/Cookieboty/nomi-ai)。品牌规范来自仓库 `docs/BRAND.md`。
 
-部署目标：`gh-pages` 分支 → GitHub Pages。下载页已接 v1.0.0 Linux / Windows / macOS 官方 Release 资源。
+部署目标：`gh-pages` 分支 → GitHub Pages。下载页已接 v1.0.1 Linux / Windows / macOS 官方 Release 资源。
 
 ## 本地预览
 
@@ -77,7 +77,7 @@ git push -u origin gh-pages
 
 ## 占位与约定
 
-- 下载页：Linux / Windows / macOS 链到 Release v1.0.0 真实资源（Actions 产物）。
+- 下载页：Linux / Windows / macOS 链到 Release v1.0.1 真实资源（Actions 产物）。
 - 文档页只做枢纽，正文链到 GitHub `docs/`。
 - 未编造星标数或用户评价。
 - 橙色按钮上的文字使用墨色，不用白色。
