@@ -745,7 +745,7 @@ h3 { font-size: 1.25rem; letter-spacing: -0.02em; }
 .gallery-item img {
   display: block;
   width: 100%;
-  aspect-ratio: 11 / 8; /* app screenshots are ~4:3; contain = never cropped */
+  aspect-ratio: 16 / 10; /* app screenshots are 1280×800 (16:10); contain = never cropped */
   object-fit: contain;
   background: #1a1410;
 }
@@ -844,9 +844,9 @@ h3 { font-size: 1.25rem; letter-spacing: -0.02em; }
   position: sticky;
   top: calc(var(--header-h) + 1rem);
 }
-.caps:not(.is-enhanced) { grid-template-columns: 1fr; }
-.caps:not(.is-enhanced) .cap-tablist { display: none; }
-.caps:not(.is-enhanced) .cap-panels { display: grid; gap: 1.25rem; }
+html:not(.js) .caps { grid-template-columns: 1fr; }
+html:not(.js) .cap-tablist { display: none; }
+html:not(.js) .cap-panels { display: grid; gap: 1.25rem; }
 .cap-tab {
   display: flex;
   align-items: center;
@@ -892,6 +892,8 @@ h3 { font-size: 1.25rem; letter-spacing: -0.02em; }
 }
 @media (min-width: 961px) { .cap-panel { min-height: 23rem; } }
 .cap-panel[hidden] { display: none; }
+/* before features.js enhances: show only the first panel (no layout shift); without JS all panels stay stacked */
+.js .caps:not(.is-enhanced) .cap-panel + .cap-panel { display: none; }
 .cap-panel:focus-visible { outline: 3px solid var(--nomi-hover); outline-offset: 3px; }
 .cap-visual {
   margin: 0;

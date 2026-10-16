@@ -8,7 +8,8 @@
   <title>功能 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261016b" />
+  <script>document.documentElement.className+=" js"</script>
+  <link rel="stylesheet" href="css/styles.css?v=20261016c" />
 </head>
 <body data-page="features">
   <header class="site-header">
@@ -75,7 +76,7 @@
           <div class="cap-panels">
           <section class="cap-panel" role="tabpanel" id="panel-companion" aria-labelledby="tab-companion" tabindex="0">
             <figure class="cap-visual cap-visual--soft">
-              <img src="assets/screenshots/mascot.webp" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="330" height="355" decoding="async" />
+              <img src="assets/screenshots/mascot.webp" srcset="assets/screenshots/mascot-330.webp 330w, assets/screenshots/mascot.webp 660w, assets/screenshots/mascot-2x.webp 990w" sizes="15rem" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 的立绘、对话气泡与语音工具栏" width="660" height="710" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.companion.t">桌面伙伴与语音</h3>
@@ -88,7 +89,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-chat" aria-labelledby="tab-chat" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/chat.webp" srcset="assets/screenshots/chat-640.webp 640w, assets/screenshots/chat.webp 1000w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="1000" height="760" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/chat.webp" srcset="assets/screenshots/chat-640.webp 640w, assets/screenshots/chat.webp 1280w, assets/screenshots/chat-2x.webp 2560w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口：左侧是会话列表，右侧是整理今日待办的对话" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.chat.t">对话与屏幕问答</h3>
@@ -101,7 +102,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-memory" aria-labelledby="tab-memory" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/command-palette.webp" srcset="assets/screenshots/command-palette-640.webp 640w, assets/screenshots/command-palette.webp 1100w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.paletteAlt" alt="命令面板 Ctrl/⌘+K" width="1100" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/knowledge.webp" srcset="assets/screenshots/knowledge-640.webp 640w, assets/screenshots/knowledge.webp 1280w, assets/screenshots/knowledge-2x.webp 2560w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.knowledgeAlt" alt="本地知识库检索：按关键词命中文件夹里的笔记，并标出来源文档" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.memory.t">知识库与长期记忆</h3>
@@ -113,8 +114,8 @@
             </div>
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-tools" aria-labelledby="tab-tools" tabindex="0">
-            <figure class="cap-visual cap-visual--soft">
-              <img src="assets/brand/nomi-brand-avatar-440.webp" srcset="assets/brand/nomi-brand-avatar-440.webp 440w, assets/brand/nomi-brand-avatar-880.webp 880w" sizes="(max-width: 860px) 60vw, 280px" data-i18n-alt="hero.avatarAlt" alt="Nomi·诺米 官方品牌立绘" width="440" height="440" loading="lazy" decoding="async" />
+            <figure class="cap-visual cap-visual--shot">
+              <img src="assets/screenshots/tools.webp" srcset="assets/screenshots/tools-640.webp 640w, assets/screenshots/tools.webp 1280w, assets/screenshots/tools-2x.webp 2560w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.toolsAlt" alt="桌面工具权限：只读工具默认允许，写入需确认，删除需逐次确认" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.tools.t">自动化与 MCP</h3>
@@ -127,7 +128,7 @@
           </section>
           <section class="cap-panel" role="tabpanel" id="panel-local" aria-labelledby="tab-local" tabindex="0">
             <figure class="cap-visual cap-visual--shot">
-              <img src="assets/screenshots/settings-providers.webp" srcset="assets/screenshots/settings-providers-640.webp 640w, assets/screenshots/settings-providers.webp 1100w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.providersAlt" alt="供应商与模型设置" width="1100" height="800" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/settings-providers.webp" srcset="assets/screenshots/settings-providers-640.webp 640w, assets/screenshots/settings-providers.webp 1280w, assets/screenshots/settings-providers-2x.webp 2560w" sizes="(max-width: 860px) calc(100vw - 2.5rem), 480px" data-i18n-alt="gallery.providersAlt" alt="AI 供应商面板：DeepSeek、OpenAI、Anthropic、Gemini 与本地 Ollama" width="1280" height="800" loading="lazy" decoding="async" />
             </figure>
             <div class="cap-copy">
               <h3 data-i18n="ft.local.t">本地优先，模型自由</h3>
@@ -212,8 +213,8 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261016b"></script>
-  <script src="js/main.js?v=20261016b"></script>
-  <script src="js/features.js?v=20261016b"></script>
+  <script src="js/i18n.js?v=20261016c"></script>
+  <script src="js/main.js?v=20261016c"></script>
+  <script src="js/features.js?v=20261016c"></script>
 </body>
 </html>
