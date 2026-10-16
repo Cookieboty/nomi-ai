@@ -1,3 +1,12 @@
+/* Nunito (latin, wght 700–800) self-hosted — no external font request; text renders immediately with system fallback. */
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 700 800;
+  font-display: swap;
+  src: url("../assets/fonts/nunito-latin.woff2") format("woff2");
+}
+
 /* Nomi·诺米 marketing site styles */
 :root {
   --nomi-orange: #FB9466;

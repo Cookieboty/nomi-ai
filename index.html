@@ -7,12 +7,11 @@
   <meta name="theme-color" content="#FCEFE1" />
   <meta property="og:title" content="Nomi·诺米 — 你的桌面 AI 伙伴" />
   <meta property="og:description" content="住在桌面，懂你所想，帮你做到。本地优先的桌面 AI 伙伴。" />
-  <meta property="og:image" content="https://withnomi.app/assets/brand/nomi-brand-avatar.png" />
+  <meta property="og:image" content="https://withnomi.app/assets/brand/nomi-brand-avatar.jpg" />
   <title>Nomi·诺米 — 你的桌面 AI 伙伴</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" as="image" href="assets/brand/nomi-brand-avatar-440.webp" imagesrcset="assets/brand/nomi-brand-avatar-440.webp 440w, assets/brand/nomi-brand-avatar-880.webp 880w" imagesizes="(max-width: 500px) calc(100vw - 6rem), 413px" fetchpriority="high" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body data-page="home" id="top">
@@ -35,8 +34,11 @@
         </button>
         <nav class="nav" id="site-nav" data-i18n-aria-label="nav.main">
           <a href="index.html" aria-current="page" data-i18n="nav.home">首页</a>
+          <a href="features.html" data-i18n="nav.features">功能</a>
+          <a href="download.html" data-i18n="nav.download">下载</a>
+          <a href="docs.html" data-i18n="nav.docs">文档</a>
           <a href="changelog.html" data-i18n="nav.changelog">更新日志</a>
-          <a class="nav-cta" href="index.html#download" data-i18n="nav.cta">下载 Nomi</a>
+          <a class="nav-cta" href="download.html" data-i18n="nav.cta">下载 Nomi</a>
         </nav>
       </div>
     </div>
@@ -66,7 +68,7 @@
             <span class="hero-float-star hero-float-star--2" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span>
             <div class="hero-stage-ring" aria-hidden="true"></div>
             <div class="hero-stage-inner">
-              <img src="assets/brand/nomi-brand-avatar.png" data-i18n-alt="hero.avatarAlt" alt="Nomi·诺米 官方品牌立绘" width="440" height="440" />
+              <img src="assets/brand/nomi-brand-avatar-440.webp" srcset="assets/brand/nomi-brand-avatar-440.webp 440w, assets/brand/nomi-brand-avatar-880.webp 880w" sizes="(max-width: 500px) calc(100vw - 6rem), 413px" data-i18n-alt="hero.avatarAlt" alt="Nomi·诺米 官方品牌立绘" width="440" height="440" fetchpriority="high" decoding="async" />
             </div>
           </div>
           <blockquote class="hero-quote" data-i18n="hero.quote">「我在这里，陪你把每一个任务都变成小小的成就。」</blockquote>
@@ -110,7 +112,7 @@
             <p data-i18n="spot.companion.desc">分层立绘会眨眼、呼吸、说话。摸头互动，拖文件总结——她就站在你工作区的边角。</p>
           </div>
           <div class="spotlight-media">
-            <img src="assets/screenshots/mascot.png" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/mascot.webp" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="640" height="400" loading="lazy" decoding="async" />
           </div>
         </div>
         <div class="spotlight spotlight--flip">
@@ -120,7 +122,7 @@
             <p data-i18n="spot.local.desc">对话与记忆留在本机；Key 加密；可开启仅本地模型。有用之外，还要让你安心。</p>
           </div>
           <div class="spotlight-media">
-            <img src="assets/screenshots/chat.png" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/chat.webp" srcset="assets/screenshots/chat-640.webp 640w, assets/screenshots/chat.webp 1000w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="640" height="400" loading="lazy" decoding="async" />
           </div>
         </div>
       </div>
@@ -187,19 +189,19 @@
         </div>
         <div class="gallery">
           <figure class="gallery-item">
-            <img src="assets/screenshots/mascot.png" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/mascot.webp" data-i18n-alt="gallery.mascotAlt" alt="桌面伙伴 Nomi 立绘界面" width="640" height="400" loading="lazy" decoding="async" />
             <figcaption data-i18n="gallery.mascot">桌面伙伴</figcaption>
           </figure>
           <figure class="gallery-item">
-            <img src="assets/screenshots/chat.png" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/chat.webp" srcset="assets/screenshots/chat-640.webp 640w, assets/screenshots/chat.webp 1000w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.chatAlt" alt="Nomi 对话窗口" width="640" height="400" loading="lazy" decoding="async" />
             <figcaption data-i18n="gallery.chat">对话窗口</figcaption>
           </figure>
           <figure class="gallery-item">
-            <img src="assets/screenshots/command-palette.png" data-i18n-alt="gallery.paletteAlt" alt="命令面板 Ctrl/⌘+K" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/command-palette.webp" srcset="assets/screenshots/command-palette-640.webp 640w, assets/screenshots/command-palette.webp 1100w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.paletteAlt" alt="命令面板 Ctrl/⌘+K" width="640" height="400" loading="lazy" decoding="async" />
             <figcaption data-i18n="gallery.palette">命令面板（Ctrl/⌘+K）</figcaption>
           </figure>
           <figure class="gallery-item">
-            <img src="assets/screenshots/settings-providers.png" data-i18n-alt="gallery.providersAlt" alt="供应商与模型设置" width="640" height="400" loading="lazy" />
+            <img src="assets/screenshots/settings-providers.webp" srcset="assets/screenshots/settings-providers-640.webp 640w, assets/screenshots/settings-providers.webp 1100w" sizes="(max-width: 800px) calc(100vw - 2.5rem), 560px" data-i18n-alt="gallery.providersAlt" alt="供应商与模型设置" width="640" height="400" loading="lazy" decoding="async" />
             <figcaption data-i18n="gallery.providers">供应商与模型</figcaption>
           </figure>
         </div>
@@ -269,8 +271,11 @@
         <div class="footer-col">
           <h4 data-i18n="footer.product">产品</h4>
           <ul>
-            <li><a href="index.html#download" data-i18n="nav.download">下载</a></li>
+            <li><a href="features.html" data-i18n="nav.features">功能</a></li>
+            <li><a href="download.html" data-i18n="nav.download">下载</a></li>
+            <li><a href="docs.html" data-i18n="nav.docs">文档</a></li>
             <li><a href="changelog.html" data-i18n="nav.changelog">更新日志</a></li>
+            <li><a href="privacy.html" data-i18n="nav.privacy">隐私</a></li>
           </ul>
         </div>
         <div class="footer-col">

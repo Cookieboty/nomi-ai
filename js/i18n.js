@@ -9,6 +9,14 @@
     zh: {
       "meta.home.title": "Nomi·诺米 — 你的桌面 AI 伙伴",
       "meta.home.desc": "Nomi·诺米 — 你的桌面 AI 伙伴。住在桌面，懂你所想，帮你做到。本地优先，Windows / macOS / Linux。",
+      "meta.features.title": "功能 — Nomi·诺米",
+      "meta.features.desc": "Nomi·诺米完整功能：桌面伙伴、对话、供应商、知识库、记忆、日程、屏幕问答、MCP、本地模型、自动化、语音等。",
+      "meta.download.title": "下载 — Nomi·诺米",
+      "meta.download.desc": "下载 Nomi·诺米最新版：Linux AppImage、Windows 安装包与 macOS DMG。",
+      "meta.docs.title": "文档 — Nomi·诺米",
+      "meta.docs.desc": "Nomi·诺米文档中心：快速开始、功能说明、品牌规范与发布说明。",
+      "meta.privacy.title": "隐私 — Nomi·诺米",
+      "meta.privacy.desc": "Nomi·诺米隐私承诺：本地优先，对话与记忆只保存在你的电脑上。",
 
       "nav.home": "首页",
       "nav.features": "功能",
@@ -90,6 +98,15 @@
       "footer.product": "产品",
       "footer.community": "社区",
       "footer.copy": "© Nomi·诺米 · MIT",
+      "page.features.label": "功能",
+      "page.features.title": "Nomi 能帮你做什么",
+      "page.features.lead": "一位会动、会说话的桌面伙伴，加上干净好用的对话与自动化能力。",
+      "page.features.ctaTitle": "想亲自试试？",
+      "page.features.ctaLead": "从 GitHub Releases 下载对应平台安装包即可。",
+      "page.features.ctaDocs": "阅读文档",
+      "page.features.note": "更细的说明见",
+      "page.features.noteHub": "文档中心",
+      "page.features.noteOr": "，或直接阅读仓库内",
 
 
       "fg.mascot": "桌面伙伴",
@@ -203,6 +220,8 @@
       "fg.privacy.2.d": "可开启「仅本地模型」，敏感内容不发往云端。",
 
       "page.download.label": "下载",
+      "page.download.title": "安装 Nomi·诺米",
+      "page.download.lead": "最新版本：Linux、Windows 与 macOS 均可下载。",
       "dl.windows.req": "Windows 10 及以上",
       "dl.mac.req": "Apple Silicon / Intel",
       "dl.linux.req": "x64 AppImage",
@@ -223,6 +242,9 @@
       "dl.build.title": "更想从源码构建？",
       "dl.build.desc": "需要 Node.js ≥ 22.12 与 pnpm 9。克隆仓库后 pnpm install && pnpm dev 即可开发模式运行。",
       "dl.build.cta": "打开仓库",
+      "page.docs.label": "文档",
+      "page.docs.title": "文档中心",
+      "page.docs.lead": "本页汇总仓库内文档入口；详细内容在 GitHub 上维护，不在此复制全文。",
 
       "docs.getting.title": "入门与规范",
       "docs.features.title": "功能文档",
@@ -274,6 +296,9 @@
       "docs.d.build.d": "从源码构建与打包。",
       "docs.d.test": "测试",
       "docs.d.test.d": "测试方式与约定。",
+      "page.privacy.label": "隐私",
+      "page.privacy.title": "隐私是品牌的一部分",
+      "page.privacy.lead": "放心，我们的对话和记忆都只留在这台电脑上。",
 
       "priv.h1": "本地优先",
       "priv.p1": "Nomi 把数据留在你自己的电脑上。对话、记忆、知识库与日程默认保存在本机，而不是上传到 Nomi 的服务器（本项目也不运营这样的云端账户体系）。",
@@ -324,6 +349,14 @@
     en: {
       "meta.home.title": "Nomi — Your desktop AI companion",
       "meta.home.desc": "Nomi — Your desktop AI companion. Lives on your desktop, gets what you mean, and gets it done. Local-first. Windows / macOS / Linux.",
+      "meta.features.title": "Features — Nomi",
+      "meta.features.desc": "Nomi features: desktop companion, chat, providers, knowledge base, memory, scheduling, screen Q&A, MCP, local models, automation, voice, and more.",
+      "meta.download.title": "Download — Nomi",
+      "meta.download.desc": "Download the latest Nomi for Linux, Windows, and macOS.",
+      "meta.docs.title": "Docs — Nomi",
+      "meta.docs.desc": "Nomi docs hub: getting started, feature guides, brand guidelines, and release notes.",
+      "meta.privacy.title": "Privacy — Nomi",
+      "meta.privacy.desc": "Nomi privacy promise: local-first. Chats and memory stay on your computer.",
 
       "nav.home": "Home",
       "nav.features": "Features",
@@ -405,6 +438,15 @@
       "footer.product": "Product",
       "footer.community": "Community",
       "footer.copy": "© Nomi·诺米 · MIT",
+      "page.features.label": "Features",
+      "page.features.title": "What Nomi can do for you",
+      "page.features.lead": "A living, talking desktop companion plus clean chat and automation.",
+      "page.features.ctaTitle": "Want to try it yourself?",
+      "page.features.ctaLead": "Grab the installer for your platform from GitHub Releases.",
+      "page.features.ctaDocs": "Read the docs",
+      "page.features.note": "For more detail, see the",
+      "page.features.noteHub": "docs hub",
+      "page.features.noteOr": ", or browse",
 
 
       "fg.mascot": "Desktop companion",
@@ -518,6 +560,8 @@
       "fg.privacy.2.d": "Enable local-only mode so sensitive content never goes to the cloud.",
 
       "page.download.label": "Download",
+      "page.download.title": "Install Nomi",
+      "page.download.lead": "Latest release: Linux, Windows, and macOS available.",
       "dl.windows.req": "Windows 10 and later",
       "dl.mac.req": "Apple Silicon / Intel",
       "dl.linux.req": "x64 AppImage",
@@ -538,6 +582,9 @@
       "dl.build.title": "Prefer building from source?",
       "dl.build.desc": "Needs Node.js ≥ 22.12 and pnpm 9. Clone, then pnpm install && pnpm dev for development mode.",
       "dl.build.cta": "Open the repo",
+      "page.docs.label": "Docs",
+      "page.docs.title": "Documentation hub",
+      "page.docs.lead": "Entry points into the repo docs. Full text lives on GitHub — we don’t duplicate it here.",
 
       "docs.getting.title": "Getting started & guidelines",
       "docs.features.title": "Feature docs",
@@ -589,6 +636,9 @@
       "docs.d.build.d": "Build and package from source.",
       "docs.d.test": "Testing",
       "docs.d.test.d": "Test approach and conventions.",
+      "page.privacy.label": "Privacy",
+      "page.privacy.title": "Privacy is part of the brand",
+      "page.privacy.lead": "Relax — our chats and memories stay on this computer.",
 
       "priv.h1": "Local-first",
       "priv.p1": "Nomi keeps data on your own machine. Chats, memory, knowledge base, and schedules default to local storage — not uploaded to a Nomi cloud (this project doesn’t run that kind of account system).",
