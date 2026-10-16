@@ -830,11 +830,11 @@ h3 { font-size: 1.25rem; letter-spacing: -0.02em; }
 }
 .page-hero .lead { margin-inline: auto; }
 
-/* ——— Features page: capability tabs; "cap-" prefix so it never collides with the home .caps grid ——— */
+/* ——— Features page: capability tabs; "cap-" prefix so it never collides with the home .pillars grid ——— */
 .page-hero--features .hero-actions { justify-content: center; margin: 1.5rem 0 0; }
 .caps {
   display: grid;
-  grid-template-columns: 17rem minmax(0, 1fr);
+  grid-template-columns: 14.5rem minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
 }
@@ -881,16 +881,15 @@ html:not(.js) .cap-panels { display: grid; gap: 1.25rem; }
 .cap-tab[aria-selected="true"] .cap-num { color: var(--nomi-ink-on-accent); opacity: 0.7; }
 .cap-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-  gap: clamp(1.25rem, 3vw, 2rem);
-  align-items: center;
-  padding: clamp(1.1rem, 2.5vw, 1.75rem);
+  grid-template-columns: minmax(0, 1fr); /* big visual on top so screenshots stay readable; bullets below */
+  gap: 1.25rem;
+  align-items: start;
+  padding: clamp(0.9rem, 2vw, 1.25rem);
   background: var(--nomi-card);
   border: 1px solid var(--nomi-border);
   border-radius: var(--radius);
   box-shadow: var(--nomi-shadow);
 }
-@media (min-width: 961px) { .cap-panel { min-height: 23rem; } }
 .cap-panel[hidden] { display: none; }
 /* before features.js enhances: show only the first panel (no layout shift); without JS all panels stay stacked */
 .js .caps:not(.is-enhanced) .cap-panel + .cap-panel { display: none; }
@@ -903,18 +902,19 @@ html:not(.js) .cap-panels { display: grid; gap: 1.25rem; }
   align-items: center;
   justify-content: center;
 }
+.cap-visual { aspect-ratio: 16 / 10; }
 .cap-visual--shot { background: #1a1410; box-shadow: var(--nomi-shadow-lg); }
-.cap-visual--shot img { width: 100%; height: auto; display: block; }
+.cap-visual--shot img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .cap-visual--soft {
   background:
     radial-gradient(ellipse 70% 70% at 50% 40%, rgba(251, 148, 102, 0.22) 0%, transparent 70%),
     var(--nomi-cream);
   padding: 1rem;
-  min-height: 15rem;
-}
-.cap-visual--soft img { width: auto; max-width: 100%; height: 15rem; object-fit: contain; }
-.cap-copy h3 { font-size: 1.4rem; margin-bottom: 0.9rem; }
-.cap-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.7rem; }
+  }
+.cap-visual--soft img { width: auto; max-width: 100%; height: 100%; object-fit: contain; }
+.cap-copy h3 { font-size: 1.3rem; margin-bottom: 0.75rem; }
+.cap-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.7rem 1.5rem; }
+@media (max-width: 1100px) { .cap-list { grid-template-columns: 1fr; } }
 .cap-list li {
   position: relative;
   padding-left: 1.5rem;
