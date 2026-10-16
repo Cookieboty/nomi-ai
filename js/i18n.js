@@ -10,7 +10,7 @@
       "meta.home.title": "Nomi·诺米 — 你的桌面 AI 伙伴",
       "meta.home.desc": "Nomi·诺米 — 你的桌面 AI 伙伴。住在桌面，懂你所想，帮你做到。本地优先，Windows / macOS / Linux。",
       "meta.features.title": "功能 — Nomi·诺米",
-      "meta.features.desc": "Nomi·诺米完整功能：桌面伙伴、对话、供应商、知识库、记忆、日程、屏幕问答、MCP、本地模型、自动化、语音等。",
+      "meta.features.desc": "Nomi·诺米核心能力：桌面伙伴与语音、对话与屏幕问答、知识库与记忆、自动化与 MCP、本地优先与模型自由。",
       "meta.download.title": "下载 — Nomi·诺米",
       "meta.download.desc": "下载 Nomi·诺米最新版：Linux AppImage、Windows 安装包与 macOS DMG。",
       "meta.docs.title": "文档 — Nomi·诺米",
@@ -71,7 +71,6 @@
       "features.auto.desc": "受控读写文件、浏览器与代码沙箱；图形界面管理 MCP 与技能包。",
       "features.voice.title": "语音与个性化",
       "features.voice.desc": "本地语音输入、TTS 播报与口型同步；主题、图标、快捷键与中英文。",
-      "features.more": "查看完整功能列表 →",
 
       "showcase.label": "产品一览",
       "showcase.title": "看看 Nomi 长什么样",
@@ -100,124 +99,42 @@
       "footer.copy": "© Nomi·诺米 · MIT",
       "page.features.label": "功能",
       "page.features.title": "Nomi 能帮你做什么",
-      "page.features.lead": "一位会动、会说话的桌面伙伴，加上干净好用的对话与自动化能力。",
+      "page.features.lead": "会动、会说话的桌面伙伴，记得你，也能动手帮你。",
       "page.features.ctaTitle": "想亲自试试？",
       "page.features.ctaLead": "从 GitHub Releases 下载对应平台安装包即可。",
       "page.features.ctaDocs": "阅读文档",
-      "page.features.note": "更细的说明见",
       "page.features.noteHub": "文档中心",
-      "page.features.noteOr": "，或直接阅读仓库内",
-
-
-      "fg.mascot": "桌面伙伴",
-      "fg.mascot.1.t": "会呼吸的角色",
-      "fg.mascot.1.d": "分层立绘驱动的伪 3D：眨眼、视线跟随、呼吸、头发摆动、说话口型同步。",
-      "fg.mascot.2.t": "表情与互动",
-      "fg.mascot.2.d": "表情随对话与任务切换；摸头、单击、双击各有反应；可沿屏幕底边散步，支持多显示器。",
-      "fg.mascot.3.t": "透明不挡事",
-      "fg.mascot.3.d": "只有角色本身可点击，其余区域鼠标穿透；回复以气泡显示在身边。",
-      "fg.mascot.4.t": "换形象与拖文件",
-      "fg.mascot.4.d": "可导入 VRM 模型；把文件拖到 Nomi 身上直接总结。",
-
-      "fg.chat": "对话",
-      "fg.chat.1.t": "简洁对话窗口",
-      "fg.chat.1.d": "平静简洁的布局，流式输出，会话列表与可收起侧栏。",
-      "fg.chat.2.t": "图片与截图提问",
-      "fg.chat.2.d": "Ctrl/⌘+Alt+A 框选屏幕任意区域，直接带图提问。",
-      "fg.chat.3.t": "快捷命令与引导",
-      "fg.chat.3.d": "输入框按 / 打开命令；首次引导完成语言、主题、角色、模型与隐私设置。",
-
-      "fg.providers": "供应商",
-      "fg.providers.1.t": "一键切换",
-      "fg.providers.1.d": "在对话工具栏或托盘直接切换供应商与模型，立即生效。",
-      "fg.providers.2.t": "内置预设",
-      "fg.providers.2.d": "OpenAI、Anthropic、Gemini、DeepSeek、Kimi、智谱、通义、豆包、Ollama、LM Studio 等，也可自定义。",
-      "fg.providers.3.t": "多 Key 与加密",
-      "fg.providers.3.d": "主备 Key 自动切换；API Key 用系统钥匙串加密，界面只显示掩码。",
-      "fg.providers.4.t": "按任务分配模型",
-      "fg.providers.4.d": "对话、工具调用、摘要可分别指定不同供应商与模型。",
-
-      "fg.knowledge": "知识库",
-      "fg.knowledge.1.t": "文件夹与笔记",
-      "fg.knowledge.1.d": "基于你选的文件夹或笔记回答，并标出可点击的引用来源。",
-      "fg.knowledge.2.t": "多格式与 OCR",
-      "fg.knowledge.2.d": "支持 txt、Markdown、PDF、Word，以及图片里的文字（本地 OCR）。",
-      "fg.knowledge.3.t": "增量索引",
-      "fg.knowledge.3.d": "增量更新；可选本地或云端向量模型提升检索效果。",
-
-      "fg.memory": "记忆",
-      "fg.memory.1.t": "长期记忆",
-      "fg.memory.1.d": "对话结束后自动整理成记忆，相关话题时自然想起。",
-      "fg.memory.2.t": "个人档案",
-      "fg.memory.2.d": "称呼与偏好随时可看、可改、可删、可导出。",
-
-      "fg.schedule": "日程",
-      "fg.schedule.1.t": "提醒与定时任务",
-      "fg.schedule.1.d": "支持重复规则；错过的提醒下次启动补上；可做每日简报等。",
-      "fg.schedule.2.t": "主动聊天",
-      "fg.schedule.2.d": "默认关闭；按频率、活跃时段与免打扰偶尔搭话。",
-      "fg.schedule.3.t": "系统日历",
-      "fg.schedule.3.d": "连接 macOS / Windows / Linux 日历，或导入 .ics、订阅链接、CalDAV。",
-
-      "fg.screen": "屏幕问答",
-      "fg.screen.1.t": "框选提问",
-      "fg.screen.1.d": "框选屏幕直接提问。",
-      "fg.screen.2.t": "屏幕记忆",
-      "fg.screen.2.d": "默认关闭；定时截屏并本机识别文字，之后可问刚才看过的内容；可排除应用与自动清理。",
-
-      "fg.mcp": "MCP 与技能",
-      "fg.mcp.1.t": "MCP 服务器",
-      "fg.mcp.1.d": "图形界面添加、连接、管理；敏感工具调用前会请你确认。",
-      "fg.mcp.2.t": "技能包",
-      "fg.mcp.2.d": "支持 SKILL.md：启用、编辑、新建，或从文件夹导入。",
-
-      "fg.local": "本地模型",
-      "fg.local.1.t": "一键本机运行",
-      "fg.local.1.d": "下载开源小模型并在本机运行，自动注册为可用供应商。",
-      "fg.local.2.t": "Ollama 管理",
-      "fg.local.2.d": "列出、拉取、删除本机 Ollama 模型；完全离线也能聊天与知识库问答。",
-
-      "fg.automation": "自动化",
-      "fg.automation.1.t": "桌面文件",
-      "fg.automation.1.d": "授权后可列出、搜索、阅读、总结；写入需确认，删除进回收站可撤销。",
-      "fg.automation.2.t": "受控浏览器与沙箱",
-      "fg.automation.2.d": "独立无痕窗口浏览公开网页；隔离目录运行 JS / Python 片段。",
-      "fg.automation.3.t": "审计日志",
-      "fg.automation.3.d": "所有操作都有本地审计日志。",
-
-      "fg.voice": "语音",
-      "fg.voice.1.t": "语音输入",
-      "fg.voice.1.d": "本地离线识别，或使用你配置的在线服务；支持免按键对话。",
-      "fg.voice.2.t": "语音播报",
-      "fg.voice.2.d": "系统语音或自建 TTS（支持参考音频克隆）；口型随声音同步。",
-
-      "fg.coding": "编程助手监视",
-      "fg.coding.1.t": "发现本机助手",
-      "fg.coding.1.d": "自动发现 Claude Code、Codex、Cursor、Aider、Cline、Continue 等。",
-      "fg.coding.2.t": "气泡提醒",
-      "fg.coding.2.d": "任务完成或需要你操作时用气泡提醒；只读本机已有日志与会话文件。",
-
-      "fg.island": "灵动岛",
-      "fg.island.1.t": "macOS 灵动岛",
-      "fg.island.1.d": "消息、编程助手进度与提醒以刘海处样式出现；其他平台以顶部胶囊显示。",
-
-      "fg.personalization": "个性化",
-      "fg.personalization.1.t": "主题与图标",
-      "fg.personalization.1.d": "暖墨、石墨、纸白、冷雾；多款应用图标，窗口与托盘即时更新。",
-      "fg.personalization.2.t": "快捷键",
-      "fg.personalization.2.d": "Ctrl/⌘+K 命令面板等全部可改键，并提示冲突。",
-      "fg.personalization.3.t": "中英文与无障碍",
-      "fg.personalization.3.d": "界面可跟随系统；完整键盘操作，尊重「减少动态效果」。",
-
-      "fg.update": "自动更新",
-      "fg.update.1.t": "后台检查",
-      "fg.update.1.d": "安装版后台检查并下载新版本，经你确认后才重启安装。",
-
-      "fg.privacy": "隐私",
-      "fg.privacy.1.t": "本地优先",
-      "fg.privacy.1.d": "对话、记忆、知识库、日程都保存在本机；可一键导出全部本地数据。",
-      "fg.privacy.2.t": "仅本地模型",
-      "fg.privacy.2.d": "可开启「仅本地模型」，敏感内容不发往云端。",
+      "ft.local.3": "数据留在本机，API Key 加密保存。",
+      "ft.local.2": "可完全离线：本机小模型，或「仅本地模型」。",
+      "ft.local.1": "OpenAI、Anthropic、Gemini、DeepSeek、Ollama 等一键切换。",
+      "ft.local.t": "本地优先，模型自由",
+      "ft.tools.3": "敏感操作先确认，删除可撤销，全程有审计日志。",
+      "ft.tools.2": "图形界面管理 MCP 服务器与 SKILL.md 技能包。",
+      "ft.tools.1": "授权后读取、搜索、总结本机文件。",
+      "ft.tools.t": "自动化与 MCP",
+      "ft.memory.3": "记忆与个人档案，可看、可改、可删。",
+      "ft.memory.2": "支持 PDF、Word、Markdown，图片文字本地 OCR。",
+      "ft.memory.1": "基于你的文件夹与笔记回答，引用可点击。",
+      "ft.memory.t": "知识库与长期记忆",
+      "ft.chat.3": "可选屏幕记忆（默认关闭），本机识别文字。",
+      "ft.chat.2": "Ctrl/⌘+Alt+A 框选屏幕，直接带图提问。",
+      "ft.chat.1": "流式对话，会话与侧栏清爽不打扰。",
+      "ft.chat.t": "对话与屏幕问答",
+      "ft.companion.3": "本地离线语音输入，或接入自己的 TTS。",
+      "ft.companion.2": "摸头、点击各有反应，可导入 VRM 换形象。",
+      "ft.companion.1": "会眨眼、会呼吸，口型随语音同步。",
+      "ft.companion.t": "桌面伙伴与语音",
+      "ft.more.update": "自动更新",
+      "ft.more.theme": "主题与快捷键",
+      "ft.more.island": "灵动岛",
+      "ft.more.agent": "编程助手监视",
+      "ft.more.skills": "技能包",
+      "ft.more.cal": "系统日历",
+      "ft.more.sched": "日程与提醒",
+      "ft.more.all": "全部文档 →",
+      "ft.more.lead": "按需开启，详情见文档。",
+      "ft.more.title": "更多能力",
+      "ft.tabs.aria": "核心能力",
 
       "page.download.label": "下载",
       "page.download.title": "安装 Nomi·诺米",
@@ -247,9 +164,11 @@
       "page.docs.lead": "本页汇总仓库内文档入口；详细内容在 GitHub 上维护，不在此复制全文。",
 
       "docs.getting.title": "入门与规范",
+      "docs.getting.lead": "安装、配置与品牌规范。",
       "docs.features.title": "功能文档",
       "docs.features.lead": "每一项能力的详细说明（链接至仓库）。",
       "docs.dev.title": "开发",
+      "docs.dev.lead": "从源码构建、测试与了解架构。",
       "docs.gs.title": "快速开始",
       "docs.gs.desc": "安装、首次引导、接模型与开始对话。",
       "docs.index.title": "文档索引",
@@ -350,7 +269,7 @@
       "meta.home.title": "Nomi — Your desktop AI companion",
       "meta.home.desc": "Nomi — Your desktop AI companion. Lives on your desktop, gets what you mean, and gets it done. Local-first. Windows / macOS / Linux.",
       "meta.features.title": "Features — Nomi",
-      "meta.features.desc": "Nomi features: desktop companion, chat, providers, knowledge base, memory, scheduling, screen Q&A, MCP, local models, automation, voice, and more.",
+      "meta.features.desc": "Nomi core capabilities: desktop companion & voice, chat & screen Q&A, knowledge & memory, automation & MCP, local-first with any model.",
       "meta.download.title": "Download — Nomi",
       "meta.download.desc": "Download the latest Nomi for Linux, Windows, and macOS.",
       "meta.docs.title": "Docs — Nomi",
@@ -411,7 +330,6 @@
       "features.auto.desc": "Controlled file I/O, browser, and code sandbox; GUI for MCP servers and skill packs.",
       "features.voice.title": "Voice & personalization",
       "features.voice.desc": "Local voice input, TTS with lip sync; themes, icons, shortcuts, and zh/en UI.",
-      "features.more": "See all features →",
 
       "showcase.label": "Product tour",
       "showcase.title": "See what Nomi looks like",
@@ -440,124 +358,42 @@
       "footer.copy": "© Nomi·诺米 · MIT",
       "page.features.label": "Features",
       "page.features.title": "What Nomi can do for you",
-      "page.features.lead": "A living, talking desktop companion plus clean chat and automation.",
+      "page.features.lead": "A living desktop companion that remembers you and gets things done.",
       "page.features.ctaTitle": "Want to try it yourself?",
       "page.features.ctaLead": "Grab the installer for your platform from GitHub Releases.",
       "page.features.ctaDocs": "Read the docs",
-      "page.features.note": "For more detail, see the",
       "page.features.noteHub": "docs hub",
-      "page.features.noteOr": ", or browse",
-
-
-      "fg.mascot": "Desktop companion",
-      "fg.mascot.1.t": "A character that breathes",
-      "fg.mascot.1.d": "Pseudo-3D layered art: blinks, gaze follow, breathing, hair sway, lip sync while speaking.",
-      "fg.mascot.2.t": "Expression & interaction",
-      "fg.mascot.2.d": "Expressions follow chat and tasks; head pats, click, double-click; walks along the screen edge; multi-monitor.",
-      "fg.mascot.3.t": "Transparent, never in the way",
-      "fg.mascot.3.d": "Only the character is clickable; the rest passes clicks through. Replies appear as bubbles nearby.",
-      "fg.mascot.4.t": "Avatars & drag-to-summarize",
-      "fg.mascot.4.d": "Import VRM models; drop files onto Nomi to summarize them.",
-
-      "fg.chat": "Chat",
-      "fg.chat.1.t": "Calm chat window",
-      "fg.chat.1.d": "A calm, focused layout with streaming output, a session list, and a collapsible sidebar.",
-      "fg.chat.2.t": "Images & screen capture",
-      "fg.chat.2.d": "Ctrl/⌘+Alt+A to select any screen region and ask with the image attached.",
-      "fg.chat.3.t": "Commands & onboarding",
-      "fg.chat.3.d": "Type / in the input for commands; first-run guides language, theme, character, model, and privacy.",
-
-      "fg.providers": "Providers",
-      "fg.providers.1.t": "One-click switch",
-      "fg.providers.1.d": "Switch provider and model from the chat toolbar or tray — takes effect immediately.",
-      "fg.providers.2.t": "Built-in presets",
-      "fg.providers.2.d": "OpenAI, Anthropic, Gemini, DeepSeek, Kimi, Zhipu, Tongyi, Doubao, Ollama, LM Studio, and custom endpoints.",
-      "fg.providers.3.t": "Multi-key & encryption",
-      "fg.providers.3.d": "Primary/backup keys auto-failover; API keys encrypted in the system keychain; UI shows masks only.",
-      "fg.providers.4.t": "Per-task models",
-      "fg.providers.4.d": "Assign different providers/models for chat, tool calls, and summarization.",
-
-      "fg.knowledge": "Knowledge base",
-      "fg.knowledge.1.t": "Folders & notes",
-      "fg.knowledge.1.d": "Answers from folders or notes you choose, with clickable citations.",
-      "fg.knowledge.2.t": "Formats & OCR",
-      "fg.knowledge.2.d": "txt, Markdown, PDF, Word, plus text in images via local OCR.",
-      "fg.knowledge.3.t": "Incremental indexing",
-      "fg.knowledge.3.d": "Incremental updates; optional local or cloud embedding models for better retrieval.",
-
-      "fg.memory": "Memory",
-      "fg.memory.1.t": "Long-term memory",
-      "fg.memory.1.d": "After chats, memories are distilled and recalled naturally on related topics.",
-      "fg.memory.2.t": "Personal profile",
-      "fg.memory.2.d": "Name and preferences — view, edit, delete, or export anytime.",
-
-      "fg.schedule": "Scheduling",
-      "fg.schedule.1.t": "Reminders & timed tasks",
-      "fg.schedule.1.d": "Recurrence rules; missed reminders catch up on next launch; daily briefs and more.",
-      "fg.schedule.2.t": "Proactive chat",
-      "fg.schedule.2.d": "Off by default; occasional check-ins by frequency, active hours, and do-not-disturb.",
-      "fg.schedule.3.t": "System calendar",
-      "fg.schedule.3.d": "Connect macOS / Windows / Linux calendars, or import .ics, feeds, CalDAV.",
-
-      "fg.screen": "Screen Q&A",
-      "fg.screen.1.t": "Region select & ask",
-      "fg.screen.1.d": "Select any screen region and ask about it.",
-      "fg.screen.2.t": "Screen memory",
-      "fg.screen.2.d": "Off by default; timed screenshots with local OCR so you can ask about what you just saw; exclude apps and auto-clean.",
-
-      "fg.mcp": "MCP & skills",
-      "fg.mcp.1.t": "MCP servers",
-      "fg.mcp.1.d": "Add, connect, and manage in a GUI; sensitive tools ask for confirmation first.",
-      "fg.mcp.2.t": "Skill packs",
-      "fg.mcp.2.d": "SKILL.md support: enable, edit, create, or import from a folder.",
-
-      "fg.local": "Local models",
-      "fg.local.1.t": "One-click on-device",
-      "fg.local.1.d": "Download small open models and run locally — auto-registered as a provider.",
-      "fg.local.2.t": "Ollama management",
-      "fg.local.2.d": "List, pull, and delete local Ollama models; chat and RAG fully offline.",
-
-      "fg.automation": "Automation",
-      "fg.automation.1.t": "Desktop files",
-      "fg.automation.1.d": "With permission: list, search, read, summarize; writes need confirm; deletes go to trash and can be undone.",
-      "fg.automation.2.t": "Browser & sandbox",
-      "fg.automation.2.d": "Isolated private window for public pages; JS / Python snippets in a sandboxed directory.",
-      "fg.automation.3.t": "Audit log",
-      "fg.automation.3.d": "Every action is logged locally.",
-
-      "fg.voice": "Voice",
-      "fg.voice.1.t": "Voice input",
-      "fg.voice.1.d": "Local offline recognition or your configured online service; hands-free conversation supported.",
-      "fg.voice.2.t": "Voice playback",
-      "fg.voice.2.d": "System voice or self-hosted TTS (reference-audio cloning); lips sync to audio.",
-
-      "fg.coding": "Coding-agent monitor",
-      "fg.coding.1.t": "Discover local agents",
-      "fg.coding.1.d": "Finds Claude Code, Codex, Cursor, Aider, Cline, Continue, and more.",
-      "fg.coding.2.t": "Bubble alerts",
-      "fg.coding.2.d": "Bubbles when a task finishes or needs you; read-only access to existing local logs and sessions.",
-
-      "fg.island": "Dynamic Island",
-      "fg.island.1.t": "macOS Dynamic Island",
-      "fg.island.1.d": "Messages, agent progress, and reminders in the notch style; other platforms use a top capsule.",
-
-      "fg.personalization": "Personalization",
-      "fg.personalization.1.t": "Themes & icons",
-      "fg.personalization.1.d": "Warm Ink, Graphite, Paper White, Cool Mist; multiple app icons update window and tray instantly.",
-      "fg.personalization.2.t": "Shortcuts",
-      "fg.personalization.2.d": "Ctrl/⌘+K command palette and more — all remappable with conflict hints.",
-      "fg.personalization.3.t": "Language & a11y",
-      "fg.personalization.3.d": "UI can follow the system; full keyboard use; respects Reduce Motion.",
-
-      "fg.update": "Auto-update",
-      "fg.update.1.t": "Background checks",
-      "fg.update.1.d": "Installed builds check and download updates in the background; restart only after you confirm.",
-
-      "fg.privacy": "Privacy",
-      "fg.privacy.1.t": "Local-first",
-      "fg.privacy.1.d": "Chats, memory, knowledge base, and schedules stay on-device; one-click export of all local data.",
-      "fg.privacy.2.t": "Local-only models",
-      "fg.privacy.2.d": "Enable local-only mode so sensitive content never goes to the cloud.",
+      "ft.local.3": "Data stays on your machine; API keys are encrypted.",
+      "ft.local.2": "Go fully offline with local models or “local-only” mode.",
+      "ft.local.1": "Switch OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and more.",
+      "ft.local.t": "Local-first, any model",
+      "ft.tools.3": "Sensitive actions ask first; deletes are undoable and audited.",
+      "ft.tools.2": "Manage MCP servers and SKILL.md skill packs in a GUI.",
+      "ft.tools.1": "Read, search, and summarize files you authorize.",
+      "ft.tools.t": "Automation & MCP",
+      "ft.memory.3": "Memories and profile you can view, edit, and delete.",
+      "ft.memory.2": "PDF, Word, Markdown, and on-device OCR for images.",
+      "ft.memory.1": "Answers from your folders and notes, with clickable citations.",
+      "ft.memory.t": "Knowledge & memory",
+      "ft.chat.3": "Optional screen memory (off by default), OCR on-device.",
+      "ft.chat.2": "Press Ctrl/⌘+Alt+A to select the screen and ask.",
+      "ft.chat.1": "Streaming chat in a calm, uncluttered window.",
+      "ft.chat.t": "Chat & screen Q&A",
+      "ft.companion.3": "Offline voice input, or plug in your own TTS.",
+      "ft.companion.2": "Reacts to taps and pats; import a VRM to change looks.",
+      "ft.companion.1": "Blinks and breathes, with lip-sync to speech.",
+      "ft.companion.t": "Companion & voice",
+      "ft.more.update": "Auto-update",
+      "ft.more.theme": "Themes & shortcuts",
+      "ft.more.island": "Dynamic island",
+      "ft.more.agent": "Coding-agent monitor",
+      "ft.more.skills": "Skill packs",
+      "ft.more.cal": "System calendar",
+      "ft.more.sched": "Scheduling & reminders",
+      "ft.more.all": "All docs →",
+      "ft.more.lead": "Use what you need — details are in the docs.",
+      "ft.more.title": "More",
+      "ft.tabs.aria": "Core capabilities",
 
       "page.download.label": "Download",
       "page.download.title": "Install Nomi",
@@ -587,9 +423,11 @@
       "page.docs.lead": "Entry points into the repo docs. Full text lives on GitHub — we don’t duplicate it here.",
 
       "docs.getting.title": "Getting started & guidelines",
+      "docs.getting.lead": "Install, configure, and follow the brand guidelines.",
       "docs.features.title": "Feature docs",
       "docs.features.lead": "Detailed guides for each capability (links into the repo).",
       "docs.dev.title": "Development",
+      "docs.dev.lead": "Build from source, run tests, and learn the architecture.",
       "docs.gs.title": "Getting started",
       "docs.gs.desc": "Install, onboarding, connect a model, start chatting.",
       "docs.index.title": "Docs index",
@@ -712,6 +550,7 @@
       var key = el.getAttribute("data-i18n");
       if (!key) return;
       var val = t(lang, key);
+      if (val === key) return; // unknown key: keep the authored fallback text, never render a raw key
       if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
         el.value = val;
       } else {
@@ -722,19 +561,23 @@
     document.querySelectorAll("[data-i18n-html]").forEach(function (el) {
       var key = el.getAttribute("data-i18n-html");
       if (!key) return;
-      el.innerHTML = t(lang, key);
+      var html = t(lang, key);
+      if (html !== key) el.innerHTML = html;
     });
 
     document.querySelectorAll("[data-i18n-aria-label]").forEach(function (el) {
-      el.setAttribute("aria-label", t(lang, el.getAttribute("data-i18n-aria-label")));
+      var k = el.getAttribute("data-i18n-aria-label"), v = t(lang, k);
+      if (v !== k) el.setAttribute("aria-label", v);
     });
 
     document.querySelectorAll("[data-i18n-alt]").forEach(function (el) {
-      el.setAttribute("alt", t(lang, el.getAttribute("data-i18n-alt")));
+      var k = el.getAttribute("data-i18n-alt"), v = t(lang, k);
+      if (v !== k) el.setAttribute("alt", v);
     });
 
     document.querySelectorAll("[data-i18n-title]").forEach(function (el) {
-      el.setAttribute("title", t(lang, el.getAttribute("data-i18n-title")));
+      var k = el.getAttribute("data-i18n-title"), v = t(lang, k);
+      if (v !== k) el.setAttribute("title", v);
     });
 
     var page = document.body.getAttribute("data-page") || "home";
