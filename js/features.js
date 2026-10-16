@@ -1,6 +1,6 @@
 /* Features page: progressive-enhancement tabs (ARIA tablist). Without JS every panel is shown stacked. */
 (function () {
-  var root = document.getElementById("pillars");
+  var root = document.getElementById("caps");
   if (!root) return;
   var tabs = Array.prototype.slice.call(root.querySelectorAll('[role="tab"]'));
   var panels = tabs.map(function (t) { return document.getElementById(t.getAttribute("aria-controls")); });
