@@ -93,4 +93,13 @@ describe('运行中继续输入（排队）', () => {
     fireEvent.click(getByTestId('stop-button'));
     expect(onStop).toHaveBeenCalled();
   });
+
+  it('编程助手标签空闲（busyOverride=false）时即使提供 onStop 也不显示停止键', () => {
+    const onStop = vi.fn();
+    const { queryByTestId, getByLabelText } = render(
+      <MessageInput busyOverride={false} queue={{ onQueue: vi.fn(), onStop }} />,
+    );
+    expect(queryByTestId('stop-button')).toBeNull();
+    expect(getByLabelText('发送')).toBeTruthy();
+  });
 });

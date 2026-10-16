@@ -564,6 +564,17 @@ export class CliHarnessService {
     if (backend !== tab.backend) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
+      // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
+      // 否则空会话从 Grok 切到 Codex 后欢迎标题 / 占位符仍显示 Grok；用户手动重命名的标题保留
+      const oldDefault = BACKEND_TITLE[tab.backend];
+      const rest = tab.title.startsWith(oldDefault) ? tab.title.slice(oldDefault.length) : null;
+      const isDefaultTitle = rest === '' || /^ \d+$/.test(rest ?? '');
+      if (isDefaultTitle) {
+        const sameKind = [...this.tabs.values()].filter(
+          (x) => x.id !== id && x.backend === backend,
+        ).length;
+        tab.title = sameKind ? `${BACKEND_TITLE[backend]} ${sameKind + 1}` : BACKEND_TITLE[backend];
+      }
     }
     tab.backend = backend;
     this.changed();
@@ -622,14 +633,11 @@ export class CliHarnessService {
     }
     this.stopRequested.add(id);
     this.teardownClaudeLive(id);
-    // Codex/dsh：无 claudeLive，仍按 children 杀
+    // Codex/dsh/grok：无 claudeLive，仍按 children 杀；必须杀整棵进程树，
+    // 这些 CLI 会派生子孙（node 包装脚本 / 工具 / MCP），单层 child.kill() 会留下孤儿进程
     const child = this.children.get(id);
     if (child) {
-      try {
-        child.kill();
-      } catch {
-        /* */
-      }
+      killProcessTree(child);
       this.children.delete(id);
       this.clearPermissionTimeouts(id);
     }

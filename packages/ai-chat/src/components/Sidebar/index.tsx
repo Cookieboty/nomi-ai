@@ -590,8 +590,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
+  // 磁盘历史扫描仅支持 claude/codex/dsh（HISTORY_BACKENDS）；grok 暂无转录扫描，
+  // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
+  const histScopeSupported =
+    histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
   const histItems: HistorySession[] =
-    view === 'by-endpoint' && endpointFilter === 'nomi' ? [] : history.items(histScope);
+    !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
+      ? []
+      : history.items(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   const openHistory = async (h: HistorySession) => {
@@ -693,7 +699,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         cwd: (m.tabId ? tabById.get(m.tabId)?.cwd : '') ?? '',
       });
     }
-    if (isDev && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
+    if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
       // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
       for (const h of [...history.items(histScope), ...searchIndex.items]) {
         if (histScope && h.backend !== histScope) continue;
@@ -712,6 +718,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     endpointFilter,
     history.items,
     histScope,
+    histScopeSupported,
     searchIndex.items,
     debounced,
     firstUserMessage,
@@ -1074,14 +1081,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Icon icon={RefreshCw} size={14} />
                 </button>
               </div>
-              {histItems.length === 0 && history.loaded && !history.loading && (
-                <div className={styles.empty} data-testid="cli-history-empty">
-                  {t('没有找到本机的历史会话')}
-                </div>
-              )}
-              {histItems.length === 0 && history.loading && !history.loaded && (
-                <div className={styles.empty}>{t('正在扫描历史会话…')}</div>
-              )}
+              {histItems.length === 0 &&
+                (!histScopeSupported || (history.loaded && !history.loading)) && (
+                  <div className={styles.empty} data-testid="cli-history-empty">
+                    {t('没有找到本机的历史会话')}
+                  </div>
+                )}
+              {histScopeSupported &&
+                histItems.length === 0 &&
+                history.loading &&
+                !history.loaded && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
               {histItems.map((h) => (
                 <div
                   key={h.key}
@@ -1122,7 +1131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                 </div>
               ))}
-              {history.hasMore(histScope) && (
+              {histScopeSupported && history.hasMore(histScope) && (
                 <button
                   type="button"
                   className={styles.histMore}

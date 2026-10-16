@@ -326,7 +326,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         ? actions.stopGeneration
         : undefined
       : queue?.onStop;
-  const canStop = !!stopFn && (!queue || !busy || (!message.trim() && !images.length));
+  // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
+  // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
+  const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);

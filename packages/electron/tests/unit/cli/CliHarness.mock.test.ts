@@ -316,6 +316,25 @@ describe('CliHarnessService mock CLI', () => {
     expect(h.state().toolsDisabled).toBe(false);
   });
 
+  it('同步空会话切换后端时的默认标题，但保留用户自定义重命名', () => {
+    const h = track(
+      new CliHarnessService({
+        root: path.join(os.tmpdir(), `harness-title-${Date.now()}`),
+        logger: { info() {}, warn() {} },
+      }),
+    );
+    const tab = h.createTab({ backend: 'grok' });
+    expect(tab.title).toBe('Grok');
+    const switched = h.setTabBackend(tab.id, 'codex');
+    expect(switched.backend).toBe('codex');
+    expect(switched.title).toBe('Codex');
+
+    h.renameTab(tab.id, '我的项目');
+    const switched2 = h.setTabBackend(tab.id, 'grok');
+    expect(switched2.backend).toBe('grok');
+    expect(switched2.title).toBe('我的项目');
+  });
+
   it('reuses one Claude process across turns (session-level live)', async () => {
     const boot = path.join(os.tmpdir(), `claude-boot-${Date.now()}.log`);
     const prev = process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
