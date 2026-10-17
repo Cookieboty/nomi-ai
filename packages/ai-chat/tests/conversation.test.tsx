@@ -22,7 +22,6 @@ const CliConversation: React.FC<{
   live?: TabLive;
   onPermission?: (id: string, allow: boolean) => void;
   queued?: string[];
-  onStop?: () => void;
   onRetry?: (id: string) => void;
   onEdit?: (id: string, text: string) => void;
 }> = ({ tab, messages, live, ...rest }) => (
@@ -340,7 +339,7 @@ describe('Markdown 组件', () => {
     const a = container.querySelector('a')!;
     expect(a.getAttribute('target')).toBe('_blank');
     expect(a.getAttribute('rel')).toContain('noopener');
+    // react-markdown skipHtml=true 直接丢弃 raw HTML，既不渲染也不作为文本输出 —— 不会生成 <script> 元素
     expect(container.querySelector('script')).toBeNull();
-    expect(container.textContent).toContain('<script>alert(1)</script>');
   });
 });

@@ -155,6 +155,8 @@ export const LocalPanel: React.FC<{
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void load();
     const offs = [
       localClient.onChanged(() => void load()),
@@ -162,13 +164,17 @@ export const LocalPanel: React.FC<{
       hubClient.onChanged(() => void loadCal()),
       hubClient.onClips(() => void loadClips()),
     ];
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => offs.forEach((f) => f());
   }, [isVisible, load, loadCal, loadClips]);
   useEffect(() => {
     if (!isVisible) return;
+    // 切 Tab 时按需拉取（内部通过 await 后 setState，等效外部数据同步），豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (tab === 'ollama' && ollama === null) void loadOllama();
     if (tab === 'calendar') void loadCal();
     if (tab === 'clipboard') void loadClips();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [isVisible, tab, ollama, loadOllama, loadCal, loadClips]);
   // Alt+数字只在「可见标签」里切换；只有 1 个可见标签（标签栏已隐藏）时不响应
   const shownKey = shown.join(',');

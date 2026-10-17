@@ -69,6 +69,7 @@ export const ScreenPanel: React.FC<{
   const [pick, setPick] = useState<ScreenEntry | null>(null);
   const [newEx, setNewEx] = useState('');
   const [msg, setMsg] = useState('');
+  const [pausedExpired, setPausedExpired] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -90,12 +91,29 @@ export const ScreenPanel: React.FC<{
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void load();
     void search('');
     return screenClient.onChanged((s) => {
       setSt(s);
     });
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [isVisible, load, search]);
+
+  // 根据 pausedUntil 的时间点驱动「暂停已过期」标志，避免在渲染期调用 Date.now()
+  useEffect(() => {
+    const until = st?.settings.pausedUntil ?? 0;
+    const delay = until - Date.now();
+    if (delay <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPausedExpired(true);
+      return;
+    }
+    setPausedExpired(false);
+    const tid = window.setTimeout(() => setPausedExpired(true), delay);
+    return () => window.clearTimeout(tid);
+  }, [st?.settings.pausedUntil]);
 
   useEffect(() => {
     if (!isVisible || tab !== 'memory') return;
@@ -128,7 +146,8 @@ export const ScreenPanel: React.FC<{
   };
 
   const s = st?.settings;
-  const paused = !!s && s.pausedUntil > Date.now();
+  // pausedExpired 由上面 effect 根据 pausedUntil 到期切为 true；paused 表示仍在暂停窗口内
+  const paused = !!s && s.pausedUntil > 0 && !pausedExpired;
   const model = st?.chat?.model;
 
   const header = st && s?.enabled && (

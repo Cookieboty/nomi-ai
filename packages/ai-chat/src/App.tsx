@@ -91,10 +91,12 @@ const AiChatContent: React.FC = () => {
     backend: ConversationBackend;
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  // 切到普通模式时关掉已打开的「分叉到其他端」选择框
-  useEffect(() => {
-    if (!isDev) setForkCross(null);
-  }, [isDev]);
+  // 切到普通模式时关掉已打开的「分叉到其他端」选择框（渲染期根据 isDev 变化重置，避免 effect 内 setState 触发级联渲染）
+  const [prevIsDev, setPrevIsDev] = useState(isDev);
+  if (prevIsDev !== isDev) {
+    setPrevIsDev(isDev);
+    if (!isDev && forkCross !== null) setForkCross(null);
+  }
   useEffect(() => {
     if (!toast) return;
     const tid = window.setTimeout(() => setToast(null), 2400);
@@ -134,6 +136,7 @@ const AiChatContent: React.FC = () => {
   const [showExt, setShowExt] = useState(false);
   const [showLocal, setShowLocal] = useState(false);
   const [screenSt, setScreenSt] = useState<ScreenState | null>(null);
+  const [screenPausedExpired, setScreenPausedExpired] = useState(false);
   useEffect(() => {
     if (!screenClient.available()) return;
     void screenClient
@@ -147,7 +150,22 @@ const AiChatContent: React.FC = () => {
       off2();
     };
   }, []);
-  const screenActive = !!screenSt?.settings.enabled && screenSt.settings.pausedUntil <= Date.now();
+  // 根据 pausedUntil 的时间点驱动「暂停已过期」标志，避免在渲染期调用 Date.now()
+  useEffect(() => {
+    const until = screenSt?.settings.pausedUntil ?? 0;
+    const delay = until - Date.now();
+    if (delay <= 0) {
+      // 已过期：异步切到 true，避免同步 setState 触发级联渲染
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScreenPausedExpired(true);
+      return;
+    }
+    // 未到期：先置 false，再在到期后翻为 true
+    setScreenPausedExpired(false);
+    const tid = window.setTimeout(() => setScreenPausedExpired(true), delay);
+    return () => window.clearTimeout(tid);
+  }, [screenSt?.settings.pausedUntil]);
+  const screenActive = !!screenSt?.settings.enabled && screenPausedExpired;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 720);
   // 窗口变窄时自动收起侧栏，避免挤压对话区
   useEffect(() => {
@@ -372,179 +390,178 @@ const AiChatContent: React.FC = () => {
     <CommandPalette open={palette} onClose={() => setPalette(false)} commands={paletteCommands} />
   );
 
-  if (settings) {
-    return (
-      <div className="ai-chat-app">
-        <AppTitleBar />
-        <SettingsView
-          section={settings}
-          deepLink={settingsLink}
-          onSection={setSettings}
-          onClose={() => setSettings(null)}
-        />
-        {paletteEl}
-      </div>
-    );
-  }
-
   return (
     <div className="ai-chat-app">
       <AppTitleBar />
-      {/* 侧边栏 */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onNewChat={handleNewChat}
-        onSettings={() => openSettings()}
-        onForkRequest={onForkRequest}
-        onNotice={setToast}
-      />
-
-      {/* 主内容区域 */}
-      <div className="main-content">
-        <ChatHeader
-          onHub={() => setShowHub(true)}
-          onExt={() => setShowExt(true)}
-          onLocal={() => setShowLocal(true)}
-          onSettings={() => openSettings()}
+      {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
+          草稿/滚动位置丢失与 IPC 订阅重建 */}
+      <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
+        {/* 侧边栏 */}
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           onNewChat={handleNewChat}
-          onCustomize={() => openSettings('general')}
-        >
-          {screenActive && (
-            <button
-              type="button"
-              className="screen-mem-indicator"
-              onClick={() => setShowScreen(true)}
-              title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
-              data-testid="screen-mem-indicator"
-            >
-              <span className="screen-mem-dot" />
-              {t('屏幕记忆中')}
-            </button>
-          )}
-        </ChatHeader>
-        {isDev && (
-          <ChatTabs
-            renameRequest={tabRename}
-            newTabRequest={tabNew}
-            mainLoading={state.isLoading}
-            onForkTab={(tabId, mode) => {
-              const meta = state.ipcClient.conversationStore?.()?.findByTabId(tabId);
-              if (meta) onForkRequest(meta.id, mode);
-            }}
-          />
-        )}
-        {/* 对话区域 */}
-        <main className="chat-container">
-          {isDev && tabs.isCliTab ? (
-            <>
-              {tabs.messages.length === 0 &&
-              !tabs.live[tabs.activeTab!.id] &&
-              tabs.activeTab!.status === 'idle' ? (
-                <div className="welcome-screen" data-testid="cli-tab-empty">
-                  <div className="welcome-content">
-                    <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
-                    <p className="welcome-subtitle">
-                      {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <ConversationView
-                  scopeId={tabs.activeTab!.id}
-                  messages={cliConvMessages}
-                  live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
-                  phase={
-                    tabs.activeTab!.status === 'running'
-                      ? 'running'
-                      : tabs.activeTab!.status === 'queued'
-                        ? 'queued'
-                        : 'idle'
-                  }
-                  queued={tabs.queues[tabs.activeTab!.id]}
-                  onRemoveQueued={tabs.removeQueued}
-                  onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
-                  onStop={() => void tabs.cancel()}
-                  onRetry={(id) => {
-                    const u = precedingUser(tabs.messages, id);
-                    if (u) void tabs.send(u.content);
-                  }}
-                  onEdit={(_, text) => void tabs.send(text)}
-                />
-              )}
-            </>
-          ) : state.messages.length === 0 ? (
-            <div className="welcome-screen" data-testid="welcome-screen">
-              <div className="welcome-content">
-                <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
-                <div className="quick-actions">
-                  {[
-                    [t('你好，请介绍一下自己'), t('打个招呼')],
-                    [t('帮我写一段代码'), t('写一段代码')],
-                    [t('帮我整理今天的待办'), t('整理今天的待办')],
-                  ].map(([prompt, label]) => (
-                    <button
-                      key={label}
-                      className="quick-action-btn"
-                      onClick={() => actions.sendMessage(prompt)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="welcome-subtitle">
-                  {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <ConversationView
-              scopeId={`nomi:${state.messages[0]?.id ?? 'new'}`}
-              messages={nomiConv.messages}
-              live={nomiConv.live}
-              phase={state.isLoading ? 'running' : 'idle'}
-              queued={nomiQueue.queue}
-              onRemoveQueued={nomiQueue.remove}
-              onStop={state.streaming ? actions.stopGeneration : undefined}
-              onRetry={(id) => {
-                const u = precedingUser(state.messages, id);
-                if (u) void actions.resendFrom(u.id);
+          onSettings={() => openSettings()}
+          onForkRequest={onForkRequest}
+          onNotice={setToast}
+        />
+
+        {/* 主内容区域 */}
+        <div className="main-content">
+          <ChatHeader
+            onHub={() => setShowHub(true)}
+            onExt={() => setShowExt(true)}
+            onLocal={() => setShowLocal(true)}
+            onSettings={() => openSettings()}
+            onNewChat={handleNewChat}
+            onCustomize={() => openSettings('general')}
+          >
+            {screenActive && (
+              <button
+                type="button"
+                className="screen-mem-indicator"
+                onClick={() => setShowScreen(true)}
+                title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
+                data-testid="screen-mem-indicator"
+              >
+                <span className="screen-mem-dot" />
+                {t('屏幕记忆中')}
+              </button>
+            )}
+          </ChatHeader>
+          {isDev && (
+            <ChatTabs
+              renameRequest={tabRename}
+              newTabRequest={tabNew}
+              mainLoading={state.isLoading}
+              onForkTab={(tabId, mode) => {
+                const meta = state.ipcClient.conversationStore?.()?.findByTabId(tabId);
+                if (meta) onForkRequest(meta.id, mode);
               }}
-              onEdit={(id, text) => void actions.resendFrom(id, text)}
-              slots={nomiSlots}
             />
           )}
-        </main>
+          {/* 对话区域 */}
+          <main className="chat-container">
+            {isDev && tabs.isCliTab ? (
+              <>
+                {tabs.messages.length === 0 &&
+                !tabs.live[tabs.activeTab!.id] &&
+                tabs.activeTab!.status === 'idle' ? (
+                  <div className="welcome-screen" data-testid="cli-tab-empty">
+                    <div className="welcome-content">
+                      <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
+                      <p className="welcome-subtitle">
+                        {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <ConversationView
+                    scopeId={tabs.activeTab!.id}
+                    messages={cliConvMessages}
+                    live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
+                    phase={
+                      tabs.activeTab!.status === 'running'
+                        ? 'running'
+                        : tabs.activeTab!.status === 'queued'
+                          ? 'queued'
+                          : 'idle'
+                    }
+                    queued={tabs.queues[tabs.activeTab!.id]}
+                    onRemoveQueued={tabs.removeQueued}
+                    onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
+                    onRetry={(id) => {
+                      const u = precedingUser(tabs.messages, id);
+                      if (u) void tabs.send(u.content);
+                    }}
+                    onEdit={(_, text) => void tabs.send(text)}
+                  />
+                )}
+              </>
+            ) : state.messages.length === 0 ? (
+              <div className="welcome-screen" data-testid="welcome-screen">
+                <div className="welcome-content">
+                  <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
+                  <div className="quick-actions">
+                    {[
+                      [t('你好，请介绍一下自己'), t('打个招呼')],
+                      [t('帮我写一段代码'), t('写一段代码')],
+                      [t('帮我整理今天的待办'), t('整理今天的待办')],
+                    ].map(([prompt, label]) => (
+                      <button
+                        key={label}
+                        className="quick-action-btn"
+                        onClick={() => actions.sendMessage(prompt)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="welcome-subtitle">
+                    {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ConversationView
+                scopeId={`nomi:${state.messages[0]?.id ?? 'new'}`}
+                messages={nomiConv.messages}
+                live={nomiConv.live}
+                phase={state.isLoading ? 'running' : 'idle'}
+                queued={nomiQueue.queue}
+                onRemoveQueued={nomiQueue.remove}
+                onRetry={(id) => {
+                  const u = precedingUser(state.messages, id);
+                  if (u) void actions.resendFrom(u.id);
+                }}
+                onEdit={(id, text) => void actions.resendFrom(id, text)}
+                slots={nomiSlots}
+              />
+            )}
+          </main>
 
-        {/* 输入区域 */}
-        <footer className="input-container">
-          <MessageInput
-            {...(isDev && tabs.isCliTab
-              ? {
-                  onSend: (text: string) => void tabs.send(text),
-                  busyOverride:
-                    tabs.activeTab!.status === 'running' || tabs.activeTab!.status === 'queued',
-                  placeholder: cliTabPlaceholder(tabs.activeTab!),
-                  queue: {
-                    onQueue: (text: string) => void tabs.send(text),
-                    onStop: () => void tabs.cancel(),
-                  },
-                }
-              : { queue: { onQueue: nomiQueue.enqueue } })}
-            onConfigClick={() => setShowConfig(true)}
-            onProvidersClick={() => setShowProviders(true)}
-            onSettingsClick={(sec, endpoint) => {
-              if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
-              openSettings(sec);
-            }}
-            onDesktopClick={() => setShowDesktop(true)}
-            onHubClick={() => setShowHub(true)}
-            onScreenClick={() => setShowScreen(true)}
-            onExtClick={() => setShowExt(true)}
-            onLocalClick={() => setShowLocal(true)}
-          />
-        </footer>
+          {/* 输入区域 */}
+          <footer className="input-container">
+            <MessageInput
+              {...(isDev && tabs.isCliTab
+                ? {
+                    onSend: (text: string) => void tabs.send(text),
+                    busyOverride:
+                      tabs.activeTab!.status === 'running' || tabs.activeTab!.status === 'queued',
+                    placeholder: cliTabPlaceholder(tabs.activeTab!),
+                    queue: {
+                      onQueue: (text: string) => void tabs.send(text),
+                      onStop: () => void tabs.cancel(),
+                    },
+                  }
+                : { queue: { onQueue: nomiQueue.enqueue } })}
+              onConfigClick={() => setShowConfig(true)}
+              onProvidersClick={() => setShowProviders(true)}
+              onSettingsClick={(sec, endpoint) => {
+                if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
+                openSettings(sec);
+              }}
+              onDesktopClick={() => setShowDesktop(true)}
+              onHubClick={() => setShowHub(true)}
+              onScreenClick={() => setShowScreen(true)}
+              onExtClick={() => setShowExt(true)}
+              onLocalClick={() => setShowLocal(true)}
+            />
+          </footer>
+        </div>
       </div>
+
+      {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}
+      {settings && (
+        <div className="settings-overlay">
+          <SettingsView
+            section={settings}
+            deepLink={settingsLink}
+            onSection={setSettings}
+            onClose={() => setSettings(null)}
+          />
+        </div>
+      )}
 
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}

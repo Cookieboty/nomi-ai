@@ -59,6 +59,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     return desktopClient.onChanged(() => void refresh());
   }, [isVisible, refresh]);

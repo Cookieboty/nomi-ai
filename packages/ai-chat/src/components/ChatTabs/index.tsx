@@ -96,16 +96,20 @@ export const ChatTabs: React.FC<{
     };
   }, [menu]);
 
-  // 快捷键触发：重命名当前标签 / 打开新建菜单
-  useEffect(() => {
-    if (!renameRequest || !tabs.activeTab) return;
-    setEditing(tabs.activeTab.id);
-    setDraft(tabs.activeTab.title);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [renameRequest]);
-  useEffect(() => {
+  // 快捷键触发：重命名当前标签 / 打开新建菜单（渲染期根据 request 计数变化触发，避免 effect 内 setState 触发级联渲染）
+  const [prevRenameRequest, setPrevRenameRequest] = useState(renameRequest);
+  if (prevRenameRequest !== renameRequest) {
+    setPrevRenameRequest(renameRequest);
+    if (renameRequest && tabs.activeTab) {
+      setEditing(tabs.activeTab.id);
+      setDraft(tabs.activeTab.title);
+    }
+  }
+  const [prevNewTabRequest, setPrevNewTabRequest] = useState(newTabRequest);
+  if (prevNewTabRequest !== newTabRequest) {
+    setPrevNewTabRequest(newTabRequest);
     if (newTabRequest) setMenu(true);
-  }, [newTabRequest]);
+  }
 
   // 当前标签滚动到可见
   useEffect(() => {

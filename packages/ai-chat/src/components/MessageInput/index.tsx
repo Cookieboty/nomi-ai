@@ -332,7 +332,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);
-  busyRef.current = isDisabled || busy;
+  useEffect(() => {
+    busyRef.current = isDisabled || busy;
+  }, [isDisabled, busy]);
   const onVoiceText = useCallback(
     (text: string, autoSend: boolean) => {
       if (autoSend && !busyRef.current) {
@@ -364,7 +366,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     /** 出现在 ＋ 菜单里（其余只走 / 命令、快捷键与顶栏/设置） */
     menu?: boolean;
   };
-  const commands: Cmd[] = [
+  // 命令项的 run 函数捕获了 textareaRef 等用于事件处理，react-hooks/refs 对此过度推断，豁免此处
+  const allCommands: Cmd[] = [
     {
       id: 'kb',
       icon: <AppIcon icon={FEATURE_ICONS.kb} />,
@@ -458,7 +461,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       show: !!onSettingsClick,
       menu: true,
     },
-  ].filter((c) => c.show);
+  ];
+  // allCommands 的 run 函数捕获了 textareaRef / busyRef 等事件处理用的 ref，
+  // react-hooks/refs 据此把整个数组推断为 ref-like，这里是事件处理层的派生，豁免
+  // eslint-disable-next-line react-hooks/refs
+  const commands: Cmd[] = allCommands.filter((c) => c.show);
   const slashQuery = /^\/(\S*)$/.exec(message)?.[1];
   const slashMatches =
     slashQuery === undefined
@@ -472,6 +479,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const slashOpen = slashMatches.length > 0;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
+  // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
+  // eslint-disable-next-line react-hooks/refs
   cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
   useEffect(() => {
     const on = (e: Event) => {

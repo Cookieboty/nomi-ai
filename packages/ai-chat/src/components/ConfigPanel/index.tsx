@@ -1,7 +1,7 @@
 import { createLogger, t } from '@nomi-ai/ui';
 import { Badge, Button, Card, EmptyState, FormField, Input, Modal, Switch } from '@nomi-ai/ui';
 import { Bot } from 'lucide-react';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
 import { type AIModelConfig } from '../../types/config';
@@ -20,11 +20,12 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
   const [editingModel, setEditingModel] = useState<AIModelConfig | null>(null);
   const [formData, setFormData] = useState<Partial<AIModelConfig>>({});
 
-  useEffect(() => {
-    if (editingModel) {
-      setFormData({ ...editingModel });
-    }
-  }, [editingModel]);
+  // 开始编辑某个模型时同步表单初值（渲染期根据 editingModel 跳变处理，避免 effect 内 setState 触发级联渲染）
+  const [prevEditingModel, setPrevEditingModel] = useState<AIModelConfig | null>(editingModel);
+  if (prevEditingModel !== editingModel) {
+    setPrevEditingModel(editingModel);
+    if (editingModel) setFormData({ ...editingModel });
+  }
 
   const handleEditModel = (model: AIModelConfig) => {
     setEditingModel(model);

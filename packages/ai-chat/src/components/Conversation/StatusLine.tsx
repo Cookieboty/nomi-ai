@@ -1,5 +1,5 @@
-/** 运行中的等待态状态行：图标 + 明确文案 + 已用时 + 停止按钮 */
-import { Icon, t } from '@nomi-ai/ui';
+/** 运行中的等待态状态行：图标 + 明确文案 + 已用时 */
+import { Icon } from '@nomi-ai/ui';
 import {
   Bot,
   Brain,
@@ -10,7 +10,6 @@ import {
   RefreshCw,
   ShieldAlert,
   Shrink,
-  Square,
   Unplug,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -42,8 +41,7 @@ const WARN = new Set<StatusKind>(['permission', 'retry', 'reconnect']);
 export const StatusLine: React.FC<{
   status: StatusInfo;
   startedAt?: number;
-  onStop?: () => void;
-}> = ({ status, startedAt, onStop }) => {
+}> = ({ status, startedAt }) => {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!startedAt) return;
@@ -63,12 +61,6 @@ export const StatusLine: React.FC<{
         <span className={styles.statusTime}>
           {formatDuration(Math.floor(elapsed / 1000) * 1000)}
         </span>
-      )}
-      {onStop && (
-        <button type="button" className={styles.stop} onClick={onStop} data-testid="conv-stop">
-          <Icon icon={Square} size={11} />
-          {t('停止')}
-        </button>
       )}
     </div>
   );

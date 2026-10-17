@@ -214,6 +214,12 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const [state, setState] = useState<ProviderState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: 'list' });
+  // 使用 setState-during-render 模式：面板从隐藏切到可见时，渲染期同步重置视图回「列表」
+  const [lastVisibleKey, setLastVisibleKey] = useState(isVisible);
+  if (lastVisibleKey !== isVisible) {
+    setLastVisibleKey(isVisible);
+    if (isVisible && view.kind !== 'list') setView({ kind: 'list' });
+  }
 
   const onError = useCallback(
     (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
@@ -232,7 +238,8 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
-    setView({ kind: 'list' });
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     return providerClient.onChanged((s) => setState(s));
   }, [isVisible, refresh]);

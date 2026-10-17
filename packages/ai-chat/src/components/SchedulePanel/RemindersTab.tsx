@@ -85,6 +85,8 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
     }
   }, [all]);
   useEffect(() => {
+    // 初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     return desktopClient.onP2Changed((k) => k === 'reminders' && void load());
   }, [load]);

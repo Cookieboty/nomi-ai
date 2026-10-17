@@ -177,20 +177,18 @@ describe('消息操作', () => {
     expect(queryByTestId('msg-edit-input')).toBeNull();
   });
 
-  it('运行中不能编辑；停止按钮在状态行里', () => {
-    const onStop = vi.fn();
-    const { queryAllByTestId, getByTestId } = render(
+  it('运行中不能编辑', () => {
+    const { queryAllByTestId } = render(
       view({
         messages: [user('u1', 'x')],
         phase: 'running',
         live: { text: '', startedAt: 1 },
         onEdit: vi.fn(),
-        onStop,
       }),
     );
     expect(queryAllByTestId('msg-edit')).toHaveLength(0);
-    fireEvent.click(getByTestId('conv-stop'));
-    expect(onStop).toHaveBeenCalled();
+    // 状态行不再放停止按钮（统一由底部输入框的停止键处理）
+    expect(queryAllByTestId('conv-stop')).toHaveLength(0);
   });
 
   it('错误卡片：失败原因 + 重试；部分内容保留', () => {

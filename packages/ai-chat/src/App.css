@@ -21,6 +21,26 @@ body {
   position: relative;
 }
 
+/* 会话树保活：正常态 display:contents 让 Sidebar / 主区仍是 .ai-chat-app 的直接 flex 子项，
+   布局与原先完全一致；打开设置时切到 display:none 仅隐藏而不卸载子树 */
+.chat-keepalive {
+  display: contents;
+}
+.chat-keepalive-hidden {
+  display: none;
+}
+/* 设置全屏覆盖层：盖住保活的会话树（位于标题栏下方），关闭即瞬时回到原会话、无重挂载 */
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  top: var(--cd-titlebar-h, 0);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background: var(--cd-color-bg);
+  overflow: hidden;
+}
+
 .ai-chat-app::before {
   content: '';
   position: absolute;

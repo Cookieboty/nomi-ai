@@ -112,7 +112,6 @@ export interface ConversationViewProps {
   queued?: readonly string[];
   onRemoveQueued?: (index: number) => void;
   onPermission?: (requestId: string, allow: boolean) => void;
-  onStop?: () => void;
   /** 重新生成 / 重试（传入出错或最后一条助手消息的 id） */
   onRetry?: (assistantId: string) => void;
   /** 编辑某条用户消息并重新发送 */
@@ -128,7 +127,6 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   queued,
   onRemoveQueued,
   onPermission,
-  onStop,
   onRetry,
   onEdit,
   slots,
@@ -264,11 +262,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               )}
               {running && live?.text.trim() && <Markdown text={live.text} />}
               {status && (
-                <StatusLine
-                  status={status}
-                  startedAt={running ? live?.startedAt : undefined}
-                  onStop={running ? onStop : undefined}
-                />
+                <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
               )}
             </div>
           )}

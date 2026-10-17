@@ -11,14 +11,19 @@ export function useSendQueue(
 ) {
   const [queue, setQueue] = useState<string[]>([]);
   const sendRef = useRef(send);
-  sendRef.current = send;
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
   /** 已派发但还没观察到进入忙碌态：防止状态更新前重复派发 */
   const inflight = useRef(false);
   const [tick, setTick] = useState(0);
 
-  useEffect(() => {
-    setQueue((q) => (q.length ? [] : q));
-  }, [resetKey]);
+  // 变化时清空队列：使用 React 官方 setState-during-render 模式（避免 effect 内 setState 的级联渲染）
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    if (queue.length) setQueue([]);
+  }
 
   useEffect(() => {
     if (busy) {

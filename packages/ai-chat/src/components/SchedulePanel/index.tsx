@@ -194,6 +194,8 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     }
   }, []);
   useEffect(() => {
+    // 初次拉取 + 订阅后端变更 + 定时刷新：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const off = schedClient.onChanged(() => void refresh());
     const t = setInterval(() => void refresh(), 15_000);
