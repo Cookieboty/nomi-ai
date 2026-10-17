@@ -285,6 +285,12 @@ class Scene:
         caps = [arm.cap_image(FIG) for arm in self.arms.values()]
         flank_l = image('body-flank-l', FIG); flank_r = image('body-flank-r', FIG)
         body = image('body-noarm', FIG)
+        # The official composite contains the exact neutral sleeves and jacket
+        # seams from the supplied sheet. Keep it as the idle plate so the
+        # neutral pose is pixel-faithful; action clips fade it out and reveal
+        # the rigged arm meshes underneath.
+        body_full = image('body', FIG, opacity=1.0)
+        self.bodyFull = body_full
         self.badge = node('badge.idle', tuple(P_BY['badge']['pivot']), FIG); self.badge.add(image('badge', tuple(P_BY['badge']['pivot'])))
         self.strap = node('strap-r.idle', tuple(P_BY['strap-r']['pivot']), FIG); self.strap.add(image('strap-r', tuple(P_BY['strap-r']['pivot'])))
         # head
@@ -321,7 +327,7 @@ class Scene:
                       mouth, mouth_open, mouth_o, mouth_frown, image('bangs', NECK),
                       image('clip', NECK), self.ribbon, image('earring', NECK))
         # z: back -> front
-        back_to_front(self.figAct, flank_l, flank_r, *rigs, *back_meshes, *caps, body, self.strap, self.badge, self.headIdle, *front_meshes)
+        back_to_front(self.figAct, body_full, flank_l, flank_r, *rigs, *back_meshes, *caps, body, self.strap, self.badge, self.headIdle, *front_meshes)
         ab.add(self.figIdle)
         if os.environ.get('RC_BG'):   # review renders only: opaque cream backdrop so CLI frames match the canvas rig's bg
             bg = El('Shape', 'review.bg', ident=True, x=0, y=0)
@@ -345,7 +351,15 @@ class FullScene:
     """
 
     def __init__(self):
-        self.ab = El('Artboard', 'Nomi-full', width=AB_W, height=AB_H, x=1100, y=0, styleId='0:6')
+        # Keep the artboard origin at (0,0): the renderer and CLI select this
+        # artboard directly, so an editor-stage offset would place its pixels
+        # outside the capture viewport.
+        self.ab = El('Artboard', 'Nomi-full', width=AB_W, height=AB_H, styleId='0:6')
+        # Keep the runtime artboard in the same local viewport as the half-body
+        # board. Without explicit coordinates the CLI lays the second board out
+        # at x=1100 to avoid editor overlap, which makes screenshot/runtime
+        # capture select an empty 960px viewport.
+        self.ab.attrs['x'] = 0; self.ab.attrs['y'] = 0
         self.ab.attrs['id'] = '0:3'; self.ab.id = '0:3'
         self.ab.add(El('LayoutComponentStyle', 'Artboard Style Full', id='0:6'))
         self.pose = node('full.pose', (0, 0), (0, 0))
@@ -357,11 +371,14 @@ class FullScene:
             path = PROJ / 'fullbody' / f'{name}.png'
             with Image.open(path) as im:
                 width, height = im.size
+            # Rive Image x/y is the local top-left when originX/originY are 0.
+            # The previous center-origin placement put the full-body plates
+            # outside the selected artboard, producing a blank screenshot.
             x = (AB_W - width * scale) / 2
             y = (AB_H - height * scale) / 2
             a = asset(f'full-{name}', f'fullbody/{name}.png')
             el = El('Image', f'full.{name}', ident=True, assetId=a.need_id(), x=x, y=y,
-                    originX=width / 2, originY=height / 2, scaleX=scale, scaleY=scale,
+                    originX=0, originY=0, scaleX=scale, scaleY=scale,
                     opacity=1.0 if name == 'neutral' else 0.0)
             self.plates[name] = el
         back_to_front(self.pose, self.plates['neutral'], self.plates['wave'], self.plates['cheer'])
@@ -488,6 +505,9 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
     an.key(sc.headAct, 'rotation', [(f, v, 'l') for f, v in track([r['headRot'] for r in rows], 0.004)])
     if 'r' in sides:
         an.key(sc.strap, 'opacity', [(f, 1 - min(1.0, v), 'l') for f, v in track([r['rOn'] for r in rows], 0.02)])
+    # Reveal the rigged action arms for this clip; the official composite is
+    # restored by the shared rest animation after the one-shot completes.
+    an.key(sc.bodyFull, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
     return an
 
 def build_idle(sc: Scene):
