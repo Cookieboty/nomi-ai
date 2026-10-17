@@ -4,7 +4,11 @@ import path from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createRiveBackend, RIVE_POC_MOTIONS } from '../../src/mascot/backends/rive';
+import {
+  createRiveBackend,
+  RIVE_EXPRESSIONS,
+  RIVE_POC_MOTIONS,
+} from '../../src/mascot/backends/rive';
 import { RIVE_FLAG_KEY, isRiveExperimentEnabled } from '../../src/mascot/riveFlag';
 
 /**
@@ -20,6 +24,7 @@ describe('rive experiment flag', () => {
     expect(isRiveExperimentEnabled('', empty)).toBe(false);
     expect(isRiveExperimentEnabled('?rive=0', empty)).toBe(false);
     expect(isRiveExperimentEnabled('?rive=1', empty)).toBe(true);
+    expect(isRiveExperimentEnabled('?rive=full', empty)).toBe(true);
     expect(
       isRiveExperimentEnabled('', { getItem: (k) => (k === RIVE_FLAG_KEY ? '1' : null) }),
     ).toBe(true);
@@ -42,6 +47,22 @@ describe('rive backend', () => {
   it('is a no-op while the Rive instance is not ready', () => {
     const b = createRiveBackend(() => null);
     expect(b.playMotion('wave')).toBe(false);
+  });
+
+  it('drives expression, talking, and thresholded lip-sync triggers', () => {
+    const fired: string[] = [];
+    const b = createRiveBackend(() => ({
+      trigger: (name) => ({ trigger: () => fired.push(name) }),
+    }));
+    b.setExpression('happy');
+    b.setExpression('happy'); // no duplicate trigger while the expression is held
+    b.setMouthOpen(0.5);
+    b.setMouthOpen(0.6); // thresholded, does not spam a trigger every audio frame
+    b.setTalking(true);
+    b.setTalking(false);
+    expect(fired).toEqual(['expr-happy', 'mouth-open', 'talking', 'mouth-close']);
+    expect(b.capabilities().expressions).toEqual([...RIVE_EXPRESSIONS]);
+    expect(b.capabilities().lipSync).toBe(true);
   });
 });
 

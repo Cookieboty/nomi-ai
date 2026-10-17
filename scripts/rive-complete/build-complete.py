@@ -10,6 +10,7 @@ Run:  python3 scripts/rive-complete/make_sleeve_solid.py && make_arm_parts.py &&
 from __future__ import annotations
 import base64, json, math, os, sys
 from pathlib import Path
+from PIL import Image
 sys.path.insert(0, str(Path(__file__).parent)); sys.path.insert(0, str(Path(__file__).parents[1] / 'rive-eval'))
 from rml import El
 from rc_common import *
@@ -301,10 +302,23 @@ class Scene:
             look.add(image(f'iris-{sd}', ep))
             back_to_front(blink, image(f'eye-white-{sd}', ep), look, image(f'lash-{sd}', ep))
             feats.append(blink); self.eye[sd] = dict(blink=blink, look=look)
+        # Face plates are kept as separate official rasters.  The runtime drives their
+        # opacity through the state machine instead of recolouring pixels, so every
+        # expression stays byte-identical to the supplied character sheet.
         mouth = image('mouth', NECK)
+        mouth_open = image('mouth-open', NECK); mouth_open.attrs['opacity'] = 0
+        mouth_o = image('mouth-o', NECK); mouth_o.attrs['opacity'] = 0
+        mouth_frown = image('mouth-frown', NECK); mouth_frown.attrs['opacity'] = 0
+        self.mouth = {
+            'base': mouth,
+            'open': mouth_open,
+            'o': mouth_o,
+            'frown': mouth_frown,
+        }
         self.ribbon = node('ribbon.idle', tuple(PJ['joints']['ribbonKnot']), NECK)
         self.ribbon.add(image('ribbon', tuple(PJ['joints']['ribbonKnot'])))
-        back_to_front(self.headAct, *tail_nodes, image('head', NECK), image('crown', NECK), *feats, mouth, image('bangs', NECK),
+        back_to_front(self.headAct, *tail_nodes, image('head', NECK), image('crown', NECK), *feats,
+                      mouth, mouth_open, mouth_o, mouth_frown, image('bangs', NECK),
                       image('clip', NECK), self.ribbon, image('earring', NECK))
         # z: back -> front
         back_to_front(self.figAct, flank_l, flank_r, *rigs, *back_meshes, *caps, body, self.strap, self.badge, self.headIdle, *front_meshes)
@@ -319,6 +333,69 @@ class Scene:
     def rest_of(self, el, prop):
         if prop in el.attrs: return float(el.attrs[prop])
         return {'scaleX': 1, 'scaleY': 1, 'opacity': 1}.get(prop, 0.0)
+
+
+class FullScene:
+    """Full-body pose plates generated from the supplied character reference.
+
+    The plates are deliberately kept as separate rasters so the face, costume,
+    hands and shoes stay pixel-stable while Rive crossfades between neutral,
+    wave and cheer poses.  This gives the renderer a usable full-body mode
+    without mixing generated pixels into the official half-body layers above.
+    """
+
+    def __init__(self):
+        self.ab = El('Artboard', 'Nomi-full', width=AB_W, height=AB_H, x=1100, y=0, styleId='0:6')
+        self.ab.attrs['id'] = '0:3'; self.ab.id = '0:3'
+        self.ab.add(El('LayoutComponentStyle', 'Artboard Style Full', id='0:6'))
+        self.pose = node('full.pose', (0, 0), (0, 0))
+        self.plates = {}
+        # The generated plates are 1024x1536 and share the same framing.  The
+        # fixed scale leaves a small breathing margin on the 960x1300 artboard.
+        scale = 0.82
+        for name in ('neutral', 'wave', 'cheer'):
+            path = PROJ / 'fullbody' / f'{name}.png'
+            with Image.open(path) as im:
+                width, height = im.size
+            x = (AB_W - width * scale) / 2
+            y = (AB_H - height * scale) / 2
+            a = asset(f'full-{name}', f'fullbody/{name}.png')
+            el = El('Image', f'full.{name}', ident=True, assetId=a.need_id(), x=x, y=y,
+                    originX=width / 2, originY=height / 2, scaleX=scale, scaleY=scale,
+                    opacity=1.0 if name == 'neutral' else 0.0)
+            self.plates[name] = el
+        back_to_front(self.pose, self.plates['neutral'], self.plates['wave'], self.plates['cheer'])
+        self.ab.add(self.pose)
+
+    def rest_of(self, el, prop):
+        if prop in el.attrs: return float(el.attrs[prop])
+        return {'scaleX': 1, 'scaleY': 1, 'opacity': 1}.get(prop, 0.0)
+
+
+def build_full_action(sc: FullScene, name: str, plate: str):
+    n = 72 if plate == 'wave' else 84
+    an = Anim(f'full.{name}', n, False)
+    for key, el in sc.plates.items():
+        if key == 'neutral':
+            values = [(0, 1.0 if plate == 'neutral' else 0.0, 'l'),
+                      (4, 1.0 if plate == 'neutral' else 0.0, 'io'),
+                      (n, 1.0 if plate == 'neutral' else 0.0, 'l')]
+        else:
+            values = [(0, 1.0 if key == plate else 0.0, 'l'),
+                      (4, 1.0 if key == plate else 0.0, 'io'),
+                      (n, 1.0 if key == plate else 0.0, 'l')]
+        an.key(el, 'opacity', values)
+    # A tiny settle makes the full-body action read as an animation even when
+    # the source plate itself is a single high-resolution frame.
+    an.key(sc.pose, 'scaleY', [(0, 1.0, 'io'), (n // 2, 1.008, 'io'), (n, 1.0, 'io')])
+    return an
+
+
+def build_full_idle(sc: FullScene):
+    n = 216; an = Anim('full.idle', n, True)
+    an.key(sc.plates['neutral'], 'opacity', [(0, 1.0, 'l'), (n, 1.0, 'l')])
+    an.key(sc.pose, 'scaleY', [(0, 1.0, 'io'), (n // 2, 1.006, 'io'), (n, 1.0, 'io')])
+    return [an]
 
 # ---------------------------------------------------------------- actions from the canvas rig's own tracks
 def load_rows(name):
@@ -421,11 +498,60 @@ def build_idle(sc: Scene):
     a.key(sc.headIdle, 'rotation', [(0, -0.012, 'io'), (n // 2, 0.014, 'io'), (n, -0.012, 'io')])
     a.key(sc.badge, 'rotation', swing(n, 1, 0.05, 0.6)); a.key(sc.strap, 'rotation', swing(n, 1, 0.012, 1.2))
     out.append(a)
+    # A short loop with two natural blinks.  The eye groups are already isolated at
+    # their upper-lid pivots, so this preserves the iris and lash artwork while the
+    # rest of the character continues its breathing loop.
+    n = 180; a = Anim('idle.blink', n, True)
+    for side in ('l', 'r'):
+        eye = sc.eye[side]['blink']
+        a.key(eye, 'scaleY', [
+            (0, 1.0, 'l'), (42, 1.0, 'l'), (46, 0.08, 'io'),
+            (52, 1.0, 'io'), (112, 1.0, 'l'), (116, 0.08, 'io'),
+            (122, 1.0, 'io'), (n, 1.0, 'l'),
+        ])
+    out.append(a)
     n = 264; a = Anim('idle.hair', n, True)
     a.key(sc.tails['l'], 'rotation', swing(n, 2, 0.05, 0.0)); a.key(sc.tails['r'], 'rotation', swing(n, 2, 0.05, 1.4))
     a.key(sc.ribbon, 'rotation', swing(n, 3, 0.035, 0.7))
     out.append(a)
     return out
+
+
+def build_expression(sc: Scene, name: str):
+    """Build a one-shot expression from the official mouth plates and face pose.
+
+    Rive's state machine blends these tracks with the body action layer.  Keeping
+    the mouth plates as opacity tracks gives us stable lip-sync fallbacks while
+    leaving all brand pixels untouched.
+    """
+    n = 24
+    an = Anim(f'expr.{name}', n, False)
+    mouth = sc.mouth
+    variant = {
+        'neutral': 'base', 'happy': 'open', 'angry': 'frown',
+        'sad': 'frown', 'relaxed': 'base', 'surprised': 'o',
+    }.get(name, 'base')
+    for key, el in mouth.items():
+        an.key(el, 'opacity', [(0, 1.0 if key == variant else 0.0, 'l'),
+                               (n, 1.0 if key == variant else 0.0, 'l')])
+    # Subtle head accents make the expression readable in a small desktop window.
+    # The supplied head artwork remains unchanged.
+    tilt = {'happy': -0.035, 'angry': 0.025, 'sad': 0.045,
+            'relaxed': -0.015, 'surprised': -0.02}.get(name, 0.0)
+    an.key(sc.headAct, 'rotation', [(0, tilt, 'io'), (12, tilt * 0.65, 'io'), (n, 0.0, 'io')])
+    if name in ('relaxed', 'sad'):
+        for side in ('l', 'r'):
+            an.key(sc.eye[side]['blink'], 'scaleY', [(0, 0.82, 'io'), (12, 0.88, 'io'), (n, 1.0, 'io')])
+    return an
+
+
+def build_face_action(sc: Scene, name: str, mouth_variant: str):
+    """Short mouth action used by the talking bridge when RMS crosses a threshold."""
+    n = 12; an = Anim(name, n, False)
+    for key, el in sc.mouth.items():
+        on = 1.0 if key == mouth_variant else 0.0
+        an.key(el, 'opacity', [(0, on, 'io'), (n, on, 'l')])
+    return an
 
 def build_rest(sc, acts):
     rest = Anim('rest', 1, True); touched = {}
@@ -439,14 +565,14 @@ def build_rest(sc, acts):
     return rest
 
 VM_ID, VM_INST = '0:9000', '0:9001'
-def build_sm(idle, acts, rest):
-    vm = El('ViewModel', 'Mascot', id=VM_ID); vm.attrs['defaultInstanceId'] = VM_INST
-    inst = El('ViewModelInstance', 'Default', id=VM_INST, exports=True); props = {}
+def build_sm(idle, acts, rest, *, name='Nomi', vm_name='Mascot', vm_id=VM_ID, vm_inst=VM_INST, sm_id='0:7'):
+    vm = El('ViewModel', vm_name, id=vm_id); vm.attrs['defaultInstanceId'] = vm_inst
+    inst = El('ViewModelInstance', 'Default', id=vm_inst, exports=True); props = {}
     for an in acts:
         pr = El('ViewModelPropertyTrigger', an.name, ident=True); vm.add(pr); props[an.name] = pr
         inst.add(El('ViewModelInstanceTrigger', viewModelPropertyId=pr.id))
     vm.add(inst)
-    sm = El('StateMachine', 'Nomi', id='0:7')
+    sm = El('StateMachine', name, id=sm_id)
     for k, an in enumerate(idle):
         ly = El('StateMachineLayer', an.name, ident=True)
         st = El('AnimationState', ident=True, x=200, y=100 * k, animationId=an.el.id)
@@ -459,7 +585,7 @@ def build_sm(idle, acts, rest):
     for nm, st in states.items():
         tr = El('StateTransition', stateToId=st.id, duration=0)
         c = El('TransitionViewModelCondition'); cmp_ = El('TransitionPropertyViewModelComparator'); bp = El('BindablePropertyTrigger')
-        bp.add(El('DataBindContext', sourcePathIds=f'{VM_ID}-{props[nm].id}', propertyKey=686)); cmp_.add(bp)
+        bp.add(El('DataBindContext', sourcePathIds=f'{vm_id}-{props[nm].id}', propertyKey=686)); cmp_.add(bp)
         c.add(cmp_, El('TransitionValueTriggerComparator')); tr.add(c); rest_st.add(tr)
         st.add(El('StateTransition', stateToId=rest_st.id, duration=0, enableExitTime=True, exitTimeIsPercetange=True, exitTime=100))
     ly.add(El('AnyState', x=0, y=-100), El('ExitState', x=400, y=-100), entry, rest_st, *states.values()); sm.add(ly)
@@ -470,16 +596,42 @@ def main():
     idle = build_idle(sc)
     wave = build_action(sc, 'wave', 'wave', {'r': 'r'}, 'bent')
     cheer = build_action(sc, 'cheer', 'celebrate', {'r': 'r', 'l': 'l'}, 'bent')
-    acts = [wave, cheer]
+    # Aliases keep the existing mascot command vocabulary useful on Rive while
+    # sharing the same high-fidelity baked arm tracks.
+    hello = build_action(sc, 'hello', 'wave', {'r': 'r'}, 'bent')
+    celebrate = build_action(sc, 'celebrate', 'celebrate', {'r': 'r', 'l': 'l'}, 'bent')
+    acts = [wave, cheer, hello, celebrate]
+    acts.extend(build_expression(sc, name) for name in
+                ('neutral', 'happy', 'angry', 'sad', 'relaxed', 'surprised'))
+    acts.extend([
+        build_face_action(sc, 'mouth-open', 'open'),
+        build_face_action(sc, 'mouth-close', 'base'),
+        build_face_action(sc, 'talking', 'open'),
+    ])
     rest = build_rest(sc, acts)
     vm, sm = build_sm(idle, acts, rest)
     for an in [*idle, rest, *acts]: sc.ab.add(an.finish())
     sc.ab.add(sm); sc.ab.attrs['defaultStateMachineId'] = '0:7'; sc.ab.attrs['viewModelId'] = VM_ID
+    # Full-body artboard: the generated plates are kept in a separate state
+    # machine so the renderer can opt into it with ?rive=full.
+    full = FullScene()
+    full_idle = build_full_idle(full)
+    full_wave = build_full_action(full, 'wave', 'wave')
+    full_cheer = build_full_action(full, 'cheer', 'cheer')
+    full_hello = build_full_action(full, 'hello', 'wave')
+    full_celebrate = build_full_action(full, 'celebrate', 'cheer')
+    full_acts = [full_wave, full_cheer, full_hello, full_celebrate]
+    full_rest = build_rest(full, full_acts)
+    full_vm, full_sm = build_sm(full_idle, full_acts, full_rest,
+                                name='NomiFull', vm_name='MascotFull',
+                                vm_id='0:9100', vm_inst='0:9101', sm_id='0:8')
+    for an in [*full_idle, full_rest, *full_acts]: full.ab.add(an.finish())
+    full.ab.add(full_sm); full.ab.attrs['defaultStateMachineId'] = '0:8'; full.ab.attrs['viewModelId'] = '0:9100'
     PROJ.mkdir(parents=True, exist_ok=True)
     (PROJ / 'rive.yaml').write_text('name: nomi-complete\nlogs:\n  file: build/rive.log\n  problems: build/problems.log\n')
     body = '<Rive version="1" kind="fragment">\n'
     for a_ in assets.values(): body += a_.emit(1)
-    body += vm.emit(1) + sc.ab.emit(1) + '</Rive>\n'
+    body += vm.emit(1) + full_vm.emit(1) + sc.ab.emit(1) + full.ab.emit(1) + '</Rive>\n'
     (PROJ / 'scene.rml').write_text(body)
     print('wrote scene.rml; mesh verts', {s: {k: v.verts for k, v in a.states.items()} for s, a in sc.arms.items()}, 'assets', len(assets), 'wave frames', wave.frames, 'cheer', cheer.frames)
 

@@ -1,5 +1,5 @@
 {
- "note": "r3/r4: AI-generated arm/sleeve/hand pose-state art supplied by the project owner (generated outside the box because the GenerateImage MCP was unavailable). Brand lock: hairclip N logo, badge, jacket body, face, hairband, choker are the official layers (sha256-checked by brand-check.py); the AI art is limited to arm pieces.",
+ "note": "r3/r4: AI-generated arm/sleeve/hand pose-state art supplied by the project owner (generated outside the box because the GenerateImage MCP was unavailable). Brand lock: hairclip N logo, badge, jacket body, face, hairband, choker are the official layers (sha256-checked by brand-check.py); the AI art is limited to arm pieces. Full-body pose plates are isolated to Nomi-full; source reference upload to relay-1 was explicitly authorized by the project owner.",
  "generateImage_status": "owner-supplied",
  "license_file": "rive/nomi-complete/LICENSE",
  "assets": {
@@ -284,6 +284,39 @@
    "derived_from": "parts/ai/arm-bent-l.png",
    "method": "front copy: hand + cuff region only (alpha mask), drawn above the head group while the arm is raised",
    "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
+  },
+  "fullbody/neutral.png": {
+   "sha256": "df5bbff86ac689d6fac75b0cf08bac5db467da0da3b5b4996537a69ec4324309",
+   "bytes": 923538,
+   "ai_generated": true,
+   "source": "relay-1",
+   "model": "gpt-image-2.5-flare",
+   "prompt_file": "prompts/rive-fullbody-neutral.txt",
+   "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
+   "in_scene": true,
+   "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
+  },
+  "fullbody/wave.png": {
+   "sha256": "fbf5bfde3cd94044b8f1aa3d52bd8ec907e70aef7ee9eed7c58668834dd9c9c3",
+   "bytes": 996077,
+   "ai_generated": true,
+   "source": "relay-1",
+   "model": "gpt-image-2.5-flare",
+   "prompt_file": "prompts/rive-fullbody-wave.txt",
+   "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
+   "in_scene": true,
+   "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
+  },
+  "fullbody/cheer.png": {
+   "sha256": "562336d999edc808e4d9f598cd5051cb2dd9e31af300fab91d21a9805f0defca",
+   "bytes": 1017632,
+   "ai_generated": true,
+   "source": "relay-1",
+   "model": "gpt-image-2.5-flare",
+   "prompt_file": "prompts/rive-fullbody-cheer.txt",
+   "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
+   "in_scene": true,
+   "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
   }
  }
-}
+}\n

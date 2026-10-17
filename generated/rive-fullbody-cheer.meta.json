@@ -1,0 +1,54 @@
+{
+  "mode": "edit",
+  "model": "gpt-image-2.5-flare",
+  "size": "1024x1536",
+  "quality": "high",
+  "output_format": "png",
+  "output": "C:\\Users\\Administrator\\.codex\\worktrees\\mascot-rive-high-fidelity\\nomi-ai\\generated\\rive-fullbody-cheer.png",
+  "dimensions": {
+    "output": "C:\\Users\\Administrator\\.codex\\worktrees\\mascot-rive-high-fidelity\\nomi-ai\\generated\\rive-fullbody-cheer.png",
+    "width": 1024,
+    "height": 1536,
+    "bytes": 1763271,
+    "requested_size": "1024x1536",
+    "size_ok": true
+  },
+  "prompt": null,
+  "prompt_file": "C:\\Users\\Administrator\\.codex\\worktrees\\mascot-rive-high-fidelity\\nomi-ai\\prompts\\rive-fullbody-cheer.txt",
+  "prompt_snapshot": "Use case: stylized-concept\nAsset type: high-resolution transparent action plate for a Rive 2D animation artboard\nPrimary request: Recreate the Nomi character from the supplied reference sheet in a joyful full-body cheer pose. Keep the exact face, short dark bob, white N hair clip, orange bow, choker, black N-logo top, oversized white-orange-black jacket, belt, ID badge, thigh strap, and sneakers. Lift both arms beside the head with elbows bent outward and open celebratory hands, matching the friendly anime proportions in the sheet.\nInput images: Image 1 is the character sheet and the only identity/style reference.\nComposition/framing: centered full body from hair tip to shoe soles, transparent margin, clean silhouette and clearly separated hands and sleeves for Rive mesh slicing.\nLighting/mood: bright celebratory expression, crisp high-resolution anime illustration, detailed cloth folds and orange accents.\nColor palette: warm white, charcoal black, copper orange, peach skin, dark brown hair.\nConstraints: transparent background; no text, labels, props, watermark, or extra characters; keep logos and costume details unchanged; anatomically correct hands and feet.\nAvoid: cropped shoes, fused arms, extra fingers, background scenery, redesigned clothing, low resolution.\n",
+  "images": [
+    {
+      "original": "C:\\Users\\Administrator\\AppData\\Local\\Temp\\codex-clipboard-51d01f18-fe8a-4841-b2d2-e9a3e76e80e6.png",
+      "prepared": true,
+      "prepared_temporary": true,
+      "original_width": 1024,
+      "original_height": 1536,
+      "used_width": 1024,
+      "used_height": 1536,
+      "max_input_edge": 2048,
+      "prepared_copy": "temporary_deleted_after_run"
+    }
+  ],
+  "config_path": "ccswitch:C:\\Users\\Administrator\\.cc-switch\\cc-switch.db:codex:95545c8d-f5a4-444b-a90a-b406b579768a",
+  "config_source": "ccswitch",
+  "codex_provider": null,
+  "ccswitch_provider": "sub2",
+  "base_url": "https://sub2.xytoken.xyb2b.com/v1",
+  "route": {
+    "selected_source": "relay-1",
+    "attempts": [
+      {
+        "source": "relay-1",
+        "model": "gpt-image-2.5-flare",
+        "base_url": "https://sub2.xytoken.xyb2b.com/v1",
+        "status": "success",
+        "elapsed_seconds": 48.83
+      }
+    ],
+    "stream": false,
+    "partial_images": 0,
+    "partial_files": []
+  },
+  "elapsed_seconds": 48.84,
+  "created_at": "2026-10-17T13:28:14"
+}

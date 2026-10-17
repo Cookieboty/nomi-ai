@@ -7,19 +7,23 @@ import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 
 export interface RiveCanvasProps {
-  /** URL of the .riv (default: the PoC under public/assets/models/rive) */
+  /** URL of the high-fidelity .riv (default: public/assets/models/rive/nomi-complete.riv). */
   src?: string;
   style?: React.CSSProperties;
 }
 
-const DEFAULT_SRC = './assets/models/rive/nomi-poc.riv';
+const DEFAULT_SRC = './assets/models/rive/nomi-complete.riv';
+const FULL_SRC = './assets/models/rive/nomi-complete.riv';
 
 /**
- * EXPERIMENTAL Rive renderer (hidden behind isRiveExperimentEnabled()). The wasm is bundled — the
+ * Rive renderer (still opt-in behind isRiveExperimentEnabled()). The wasm is bundled — the
  * runtime's default CDN URL would be blocked by the app CSP (connect-src 'self') — and the page CSP
  * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-eval.md).
  */
 export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style }) => {
+  const fullBody = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rive') === 'full';
+  const resolvedSrc = src === DEFAULT_SRC && fullBody ? FULL_SRC : src;
+  const stateMachine = fullBody ? 'NomiFull' : 'Nomi';
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +48,12 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     place();
     try {
       rive = new Rive({
-        src,
+        src: resolvedSrc,
+        artboard: fullBody ? 'Nomi-full' : 'Nomi',
         canvas,
         autoplay: true,
         autoBind: true,
-        stateMachines: 'Nomi',
+        stateMachines: stateMachine,
         layout: new Layout({ fit: Fit.Contain, alignment: Alignment.BottomCenter }),
         onLoad: () => {
           place();
@@ -70,7 +75,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
       detach?.();
       rive?.cleanup();
     };
-  }, [src]);
+  }, [resolvedSrc, stateMachine]);
 
   return (
     <div
