@@ -78,6 +78,7 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 ### Development
 
 - [Architecture](development/architecture.md)
+- [Frontend engineering standards](development/frontend-standards.md)
 - [Building](development/building.md)
 - [Testing](development/testing.md)
 - [Release](RELEASE.md): packaging, signing & notarization (incl. CI secret names)
