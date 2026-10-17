@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Standalone test page for the Rive "complete parts" Nomi. NOT part of the app (the app CSP blocks wasm).
+<!-- Standalone test page for the Rive full-body Nomi rig. NOT part of the app (the app CSP blocks wasm).
      Serve with:  node scripts/rive-complete/web/serve.mjs   then open http://localhost:8123/ -->
 <html>
   <body style="margin: 0; background: #f6efe8; font: 13px sans-serif">
@@ -26,7 +26,8 @@
       const r = new rive.Rive({
         src: '/riv/nomi-complete.riv',
         canvas: cv,
-        stateMachines: 'Nomi',
+        artboard: 'Nomi-full',
+        stateMachines: 'NomiFull',
         autoplay: true,
         autoBind: true,
         layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),

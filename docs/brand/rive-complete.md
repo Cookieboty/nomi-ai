@@ -35,14 +35,14 @@ cannot select a detached-arm asset.
 
 ## Skeleton and animation surface
 
-The view model exposes idle breathing/blink/hair loops, wave, hello, cheer,
-celebrate, nod, flinch, poke, shake, clap, think, work, expression clips and
-mouth/talking clips. Actions are sampled from the existing canvas rig and
-transition through timed state-machine blends. The torso and neck anchors stay
-fixed while arm bones move. The visible sleeves are parented to shoulder pivots
-in the same artboard space; action offsets are added to their authored absolute
-coordinates, so changing Rive fit or zoom scales the complete hierarchy rather
-than separating the hands, cuffs or shoulders.
+The view model exposes the full-body action triggers wave, hello, cheer,
+celebrate, nod, flinch, poke, shake, clap, think and work. The idle timeline
+keeps a subtle breathing scale while action timelines transition through timed
+state-machine blends. The torso and neck anchors stay fixed while upper-arm,
+forearm and hand bones move. The visible sleeves are parented to shoulder
+pivots in the same artboard space; action offsets are added to their authored
+absolute coordinates, so changing Rive fit or zoom scales the complete
+hierarchy rather than separating the hands, cuffs or shoulders.
 
 The production source preserves the raster fabric and face texture inside the
 SVG mother. Rive root bones are authored for the full-body hierarchy and the
