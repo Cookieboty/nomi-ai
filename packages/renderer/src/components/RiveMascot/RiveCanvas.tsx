@@ -111,7 +111,16 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     >
       <canvas
         ref={canvasRef}
-        style={{ position: 'absolute', display: 'block', touchAction: 'none' }}
+        // Keep the canvas the sole pointer target for both the Rive runtime and
+        // InteractionLite.  Explicit pointer-events avoids transparent-window
+        // CSS resets in host pages disabling pointerdown/capture on Chromium.
+        style={{
+          position: 'absolute',
+          display: 'block',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          userSelect: 'none',
+        }}
       />
       <MascotInteractionLayerLite
         canvasRef={canvasRef}

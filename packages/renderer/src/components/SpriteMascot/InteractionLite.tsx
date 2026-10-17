@@ -173,7 +173,11 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       }
     };
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || e.target !== canvas) return;
+      // Rive installs its own pointer handlers on the canvas.  Use the current
+      // target rather than requiring the event target to be the exact canvas
+      // node; this keeps the interaction path alive when a runtime wrapper or
+      // a browser accessibility layer retargets the event.
+      if (e.button !== 0 || e.currentTarget !== canvas) return;
       if (!hitTest(e.clientX, e.clientY, true)) return;
       s.buttonHeld = true;
       gate.press(e.clientX, e.clientY, performance.now());
@@ -209,11 +213,20 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       // pointerup can be swallowed after a lost capture; the compat mouseup still arrives
       if (e.button === 0 && (s.dragging || s.down)) finish(true, 'mouseup');
     };
-    canvas.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
-    window.addEventListener('blur', onCancel);
+    // Capture the pointer lifecycle before Rive's own canvas listeners and
+    // keep the mouse compatibility path.  Chromium/Electron can emit a
+    // mousemove/mouseup after a transparent-window toggle and omit the
+    // corresponding pointer event; without these listeners a drag remains
+    // stuck at its initial position and the next click is swallowed.
+    const capture = { capture: true } as const;
+    canvas.addEventListener('pointerdown', onDown, capture);
+    window.addEventListener('pointermove', onMove, capture);
+    window.addEventListener('mousemove', onMove, capture);
+    window.addEventListener('pointerup', onUp, capture);
+    window.addEventListener('mouseup', onMouseUp, capture);
+    window.addEventListener('pointercancel', onCancel, capture);
+    window.addEventListener('blur', onCancel, capture);
+    canvas.addEventListener('lostpointercapture', onCancel, capture);
 
     let raf = 0;
     let headAt = 0;
@@ -350,14 +363,14 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       offCursor?.();
       offEvt?.();
       classifier.dispose();
-      canvas.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
-      window.removeEventListener('blur', onCancel);
-      window.removeEventListener('mouseup', onMouseUp);
-      canvas.removeEventListener('lostpointercapture', onCancel);
+      canvas.removeEventListener('pointerdown', onDown, capture);
+      window.removeEventListener('pointermove', onMove, capture);
+      window.removeEventListener('mousemove', onMove, capture);
+      window.removeEventListener('pointerup', onUp, capture);
+      window.removeEventListener('mouseup', onMouseUp, capture);
+      window.removeEventListener('pointercancel', onCancel, capture);
+      window.removeEventListener('blur', onCancel, capture);
+      canvas.removeEventListener('lostpointercapture', onCancel, capture);
       if (s.dragging) api?.dragEnd();
       layoutStore.setHead(null);
     };

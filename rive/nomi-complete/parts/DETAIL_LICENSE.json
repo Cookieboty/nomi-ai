@@ -1,344 +1,47 @@
 {
-  "note": "r3/r4: AI-generated arm/sleeve/hand pose-state art supplied by the project owner (generated outside the box because the GenerateImage MCP was unavailable). Brand lock: hairclip N logo, badge, jacket body, face, hairband, choker are the official layers (sha256-checked by brand-check.py); the AI art is limited to arm pieces. Full-body pose plates are isolated to Nomi-full; source reference upload to relay-1 was explicitly authorized by the project owner.",
-  "generateImage_status": "owner-supplied",
-  "license_file": "rive/nomi-complete/LICENSE",
+  "note": "Production Rive scene uses only the official Nomi layer set, official-derived arm textures and official-derived hand crops. Generated pose plates and AI arm assets were removed.",
   "assets": {
-    "arm-l-complete.png": {
-      "sha256": "ecb145cd8a85f4c3eca6019be005a5faf04e0e3073b4c12c929a9d5bd87eb0cf",
-      "bytes": 186572,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "arm-l-generated-mask.png": {
-      "sha256": "7ae2b1387e141f1f57212bbdeeeac37518ded5d438eb3e84a811e888ad1ec048",
-      "bytes": 3772,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "arm-l-official.png": {
+    "parts/arm-l-official.png": {
       "sha256": "24a7769c4aeda41ac93a81de55b5d97506e8a37950fb937c7fd45c58b2935a30",
       "bytes": 252814,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
+      "in_scene": true,
+      "method": "official source crop/rig preparation"
     },
-    "arm-r-complete.png": {
-      "sha256": "45541be1058d037b217914cf25cb43ab46a5900d25d4c2f73b79c39e398cd59c",
-      "bytes": 182510,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "arm-r-generated-mask.png": {
-      "sha256": "6ba7965f703e0cf42e776ef7e6744a03da67c31f9d8bf3d2742beb22289575e5",
-      "bytes": 3936,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "arm-r-official.png": {
+    "parts/arm-r-official.png": {
       "sha256": "8223ce7007d369dace5729c238e8cbe6ea5fe8eec1266ef9374a25f17baf4204",
       "bytes": 260540,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
+      "in_scene": true,
+      "method": "official source crop/rig preparation"
     },
-    "cuff-overlay-l.png": {
-      "sha256": "21fd447f1178cfd750702e0fb9a9abcd991d781608d90f1327ecec66a7db2935",
-      "bytes": 26537,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "cuff-overlay-r.png": {
-      "sha256": "5daa4c0f302d83af17472e6d2497bd98c595683b16580cc41dc3de28814b192b",
-      "bytes": 27608,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "elbow-bent-patch-l.png": {
-      "sha256": "5777cda38eb5c27e9544ba350245314858c626aa9be016016f8f0a47573c1d92",
-      "bytes": 46643,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "elbow-bent-patch-r.png": {
-      "sha256": "22554cbf1c7dc11d4ee6d72c02354ceb7a4670b6b39eb494d76269b07e264099",
-      "bytes": 42773,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "hand-fist.png": {
+    "parts/hand-fist.png": {
       "sha256": "d9557c469904b8e071a16a865fd67184259394958b2ae3bd4d217f0bbfa6ac23",
       "bytes": 41160,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
       "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
+      "method": "official source crop/rig preparation"
     },
-    "hand-rest.png": {
+    "parts/hand-rest.png": {
       "sha256": "74ef3409ec1a00b7a574955dfad560c8dacbae00838d65545f35bdfbeb30b8c7",
       "bytes": 61876,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
       "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
+      "method": "official source crop/rig preparation"
     },
-    "hand-wave.png": {
+    "parts/hand-wave.png": {
       "sha256": "224a476ca9000e0416bf26640d3e61286d0144f58171d5ecc0ce4fef97e6fdeb",
       "bytes": 84077,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
+      "in_scene": true,
+      "method": "official source crop/rig preparation"
     },
-    "shoulder-gusset-l-raised.png": {
-      "sha256": "c7752ac94aba81e9e968a6541c72d2a1da62647be0f0e9d870deaab49f0597b4",
-      "bytes": 41828,
+    "source-nomi-master.png": {
+      "sha256": "eb207f69425036b226883598871c8d4001761d29b2a49fbea323b59d0d900828",
+      "bytes": 4050607,
       "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "shoulder-gusset-r-raised.png": {
-      "sha256": "2a8f748aaa826a794676797d8d60be6d574b35eac8a0e0175422db08431b54d1",
-      "bytes": 41714,
-      "ai_generated": false,
-      "method": "cut-restore from official layers/draft + procedural tone/unsharp; GenerateImage MCP unavailable",
-      "in_scene": false,
-      "note": "r2 official cut/restore texture; superseded by the AI pose-state art in r3 (kept for the r2 build script)"
-    },
-    "gen-src/gen-arm-hang.jpg": {
-      "sha256": "85118c75cc0b0e669808a47d90718843b4c0fe54ce99f8880b7df9e419ca5299",
-      "bytes": 106544,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": null,
-      "method": "owner-generated with AI image tools (reference: official half-body + earlier generated parts); green #00FF00 background, 1280x720",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/gen-arm-hang.png": {
-      "sha256": "59e40f7cfaa0f993d7e5ba4a70ff1ecb986cce44773b0892530691effd1a9d50",
-      "bytes": 580837,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "gen-src/gen-arm-hang.jpg",
-      "method": "chroma-key (green dominance alpha, despill, speck removal), native resolution, no resampling",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-hang-r.png": {
-      "sha256": "86a4a7816166713f6ec61ad110608241feadb33b9d3ab32c5855bcfbd628bbab",
-      "bytes": 138353,
-      "ai_generated": true,
       "in_scene": true,
-      "derived_from": "parts/ai/gen-arm-hang.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-hang-l.png": {
-      "sha256": "3a1401f0c1256a9d75d52e6cb2e87cc66bb01fe9d8a2874e417103e1a4cf65cc",
-      "bytes": 138310,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/gen-arm-hang.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official, horizontal mirror (rig screen-left arm)",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "gen-src/gen-arm-wave-bent.jpg": {
-      "sha256": "f5ad3e63723b4eed577b2aa3e125aa293ca36900752a27a0541be2cc9f1a4a3f",
-      "bytes": 173663,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": null,
-      "method": "owner-generated with AI image tools (reference: official half-body + earlier generated parts); green #00FF00 background, 1280x720",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/gen-arm-wave-bent.png": {
-      "sha256": "a4f7014a261ba074be7362c9978c6869a9c3729eaf775c95131e5b9169b2a153",
-      "bytes": 847753,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "gen-src/gen-arm-wave-bent.jpg",
-      "method": "chroma-key (green dominance alpha, despill, speck removal), native resolution, no resampling",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-bent-r.png": {
-      "sha256": "01b16d7f24279cc6d37d0f793eea281406bb08cc21894fab2b56b0d04e1e60bc",
-      "bytes": 253820,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/gen-arm-wave-bent.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-bent-l.png": {
-      "sha256": "633807d652232981e130a75e086773bae27ce70cc4055f0303ea02817ad42d37",
-      "bytes": 253583,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/gen-arm-wave-bent.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official, horizontal mirror (rig screen-left arm)",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "gen-src/gen-arm-cheer-up.jpg": {
-      "sha256": "a6e956b3a17a164541b4913ac37149de4f641432d3c4a018352f8dd2ac09932c",
-      "bytes": 124400,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": null,
-      "method": "owner-generated with AI image tools (reference: official half-body + earlier generated parts); green #00FF00 background, 1280x720",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/gen-arm-cheer-up.png": {
-      "sha256": "ea7037af9686463cd550635970814cc506db1922baeb339288e65dd762172c57",
-      "bytes": 660477,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "gen-src/gen-arm-cheer-up.jpg",
-      "method": "chroma-key (green dominance alpha, despill, speck removal), native resolution, no resampling",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-up-r.png": {
-      "sha256": "d11b8dff5cebe05050defa488c47f28dd7b998c8b7058faf6398f1ac930461d8",
-      "bytes": 166362,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "parts/ai/gen-arm-cheer-up.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-up-l.png": {
-      "sha256": "3e79dc43d48eece2e6e7770042190594065aac5e9d36a5ec7bf3f5512d6f4378",
-      "bytes": 166217,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "parts/ai/gen-arm-cheer-up.png",
-      "method": "crop to arm/hand/cuff (torso pocket/hood/collar removed), colour-match white point/orange/cuff/skin to official, horizontal mirror (rig screen-left arm)",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-bent-r-hand.png": {
-      "sha256": "11da32f837678da69fbc9c7ba9e9364c54a6a7f5b6f15537e555addeae5afef7",
-      "bytes": 248792,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/arm-bent-r.png",
-      "method": "front copy: hand + cuff region only (alpha mask), drawn above the head group while the arm is raised",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-up-r-hand.png": {
-      "sha256": "a742ede80e9a02b237eb6571371685110b6833df16724958503bad97f9d957d8",
-      "bytes": 163711,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "parts/ai/arm-up-r.png",
-      "method": "front copy: hand + cuff region only (alpha mask), drawn above the head group while the arm is raised",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-hang-r-cap.png": {
-      "sha256": "b6a38f90a000a13c187bfb50c72821f9115abcd763231e465543806237c231d8",
-      "bytes": 15783,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/arm-hang-r.png",
-      "method": "shoulder cap: top of the hang sleeve with faded lower edge, static, under the jacket",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-up-l-hand.png": {
-      "sha256": "0681ffab7750aa85ff2a2d4e34b21de1cc61055a0773127ac131f2214fb69556",
-      "bytes": 163612,
-      "ai_generated": true,
-      "in_scene": false,
-      "derived_from": "parts/ai/arm-up-l.png",
-      "method": "front copy: hand + cuff region only (alpha mask), drawn above the head group while the arm is raised",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-hang-l-cap.png": {
-      "sha256": "493a0bcef09a20ca364cd325065c01c6e7f5da03c5b904ed24e61e7dc9b5912d",
-      "bytes": 15792,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/arm-hang-l.png",
-      "method": "shoulder cap: top of the hang sleeve with faded lower edge, static, under the jacket",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "parts/ai/arm-bent-l-hand.png": {
-      "sha256": "be2a87298a2ba01bf8719fdb6a5e0974c3b3a7f7d78e02c383cac6be67b49adc",
-      "bytes": 248736,
-      "ai_generated": true,
-      "in_scene": true,
-      "derived_from": "parts/ai/arm-bent-l.png",
-      "method": "front copy: hand + cuff region only (alpha mask), drawn above the head group while the arm is raised",
-      "scope": "sleeve / forearm / hand / cuff only - no head, hair, hairclip, N logo, badge, jacket body or face pixels"
-    },
-    "fullbody/neutral.png": {
-      "sha256": "df5bbff86ac689d6fac75b0cf08bac5db467da0da3b5b4996537a69ec4324309",
-      "bytes": 923538,
-      "ai_generated": true,
-      "source": "relay-1",
-      "model": "gpt-image-2.5-flare",
-      "prompt_file": "prompts/rive-fullbody-neutral.txt",
-      "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
-      "in_scene": true,
-      "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
-    },
-    "fullbody/wave.png": {
-      "sha256": "fbf5bfde3cd94044b8f1aa3d52bd8ec907e70aef7ee9eed7c58668834dd9c9c3",
-      "bytes": 996077,
-      "ai_generated": true,
-      "source": "relay-1",
-      "model": "gpt-image-2.5-flare",
-      "prompt_file": "prompts/rive-fullbody-wave.txt",
-      "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
-      "in_scene": true,
-      "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
-    },
-    "fullbody/cheer.png": {
-      "sha256": "562336d999edc808e4d9f598cd5051cb2dd9e31af300fab91d21a9805f0defca",
-      "bytes": 1017632,
-      "ai_generated": true,
-      "source": "relay-1",
-      "model": "gpt-image-2.5-flare",
-      "prompt_file": "prompts/rive-fullbody-cheer.txt",
-      "method": "relay image edit from the supplied Nomi reference, then rembg u2net segmentation to transparent PNG",
-      "in_scene": true,
-      "scope": "full-body pose plate; generated pixels are isolated to the separate Nomi-full artboard"
-    },
-    "fullbody/half-torso-neutral.png": {
-      "sha256": "25917a2d9a46978ea5e988d14d7bbcecdae4f0032f2eb7350e878308fbb26d6e",
-      "bytes": 878393,
-      "ai_generated": true,
-      "source": "relay-1",
-      "model": "gpt-image-2.5-flare",
-      "prompt_file": "prompts/nomi-halfbody-shoulder-fidelity.txt",
-      "method": "relay image edit from supplied Nomi character sheets, dark-background segmentation, cropped to neutral torso plate",
-      "in_scene": true,
-      "scope": "high-fidelity neutral shoulder/arm/torso plate; generated pixels are isolated to the Nomi half-body neutral state"
-    },
-    "fullbody/half-wave-torso.png": {
-      "sha256": "8524e43b98d109f9255b94e4856deff821c621ae6a2987c88ac406835342f819",
-      "bytes": 1262949,
-      "ai_generated": true,
-      "source": "relay-1",
-      "model": "gpt-image-2.5-flare",
-      "prompt_file": "prompts/nomi-halfbody-wave-fidelity.txt",
-      "method": "relay image edit, GrabCut dark-background segmentation with filled garment interior, cropped above the official head layer",
-      "in_scene": true,
-      "scope": "high-fidelity half-body wave torso and complete raised hand plate; official head/hair layers remain shared across states"
+      "method": "user supplied mother reference; authorized project source"
     }
   }
 }
