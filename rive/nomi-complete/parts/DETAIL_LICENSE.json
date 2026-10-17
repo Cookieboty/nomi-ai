@@ -49,6 +49,69 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "user approved high-fidelity half-body mother reference"
+    },
+    "reference/rig/base.png": {
+      "sha256": "36a72f4dfc10ea54af17a1cee10e41c55c76f4ec3411f032b3f4a32bd1d31c80",
+      "bytes": 1819367,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-l.png": {
+      "sha256": "f0f0f51b938e6bae20740e9dcc3f7733da2db85c88b46a2a7673c1c01e9949b6",
+      "bytes": 217256,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-r.png": {
+      "sha256": "f17dfcc78c0710dac82c09243fe30bca4a8a84505a502d8e071567ad026e18de",
+      "bytes": 225506,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-l-upper.png": {
+      "sha256": "90d883fdc8ba49a664d061faabf8d690d7872fd04296bfce9f46cc101726d0d3",
+      "bytes": 102950,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-l-fore.png": {
+      "sha256": "db74cea1bc84a750a5282cf8b0f0052c4e5a98571a8ca2fd0d891ada78cc1b04",
+      "bytes": 99861,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-l-hand.png": {
+      "sha256": "815bb358ff5a81e30eed1752c3ac2e2a24b4bf36ff7c41e48167e176f166e6dd",
+      "bytes": 34874,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-r-upper.png": {
+      "sha256": "3b2e900159cc7194dd0afe47def1a38d0c922d5fb05c6e1afc4737881e41db37",
+      "bytes": 100410,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-r-fore.png": {
+      "sha256": "43bfb2fc64d4fd4c09c24f2a3850723765efbc35697acf57fd44887562b1e4e3",
+      "bytes": 103326,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/rig/arm-r-hand.png": {
+      "sha256": "64d0a7560253a54a559dc4074ccf9ce972bc9c536689c116f765c4bbb1f0551b",
+      "bytes": 33999,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic overlapping alpha cut from user approved mother reference"
     }
   }
 }

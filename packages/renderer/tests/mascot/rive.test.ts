@@ -16,8 +16,8 @@ import { RIVE_FLAG_KEY, isRiveExperimentEnabled } from '../../src/mascot/riveFla
  * Production Rive renderer (docs/brand/rive-complete.md) — guard rails:
  *  1. it is OFF unless explicitly opted in,
  *  2. the backend only fires known view-model triggers,
- *  3. SOURCE LOCK: the production scene embeds the approved mother reference
- *     and the official arm/hand crops byte-for-byte.
+ *  3. SOURCE LOCK: the production scene embeds the deterministic rig cutouts
+ *     from the approved mother and the official arm/hand crops byte-for-byte.
  */
 describe('rive experiment flag', () => {
   it('is off by default and only on for ?rive=1 or the localStorage opt-in', () => {
@@ -104,6 +104,9 @@ describe('source lock: production Rive scene', () => {
     const embedded = new Set(pngs.map((p) => createHash('sha256').update(p).digest('hex')));
     for (const file of [
       'rive/nomi-complete/source-nomi-master.png',
+      'rive/nomi-complete/reference/rig/base.png',
+      'rive/nomi-complete/reference/rig/arm-l.png',
+      'rive/nomi-complete/reference/rig/arm-r.png',
       'rive/nomi-complete/parts/arm-l-official.png',
       'rive/nomi-complete/parts/arm-r-official.png',
       'rive/nomi-complete/parts/hand-wave.png',

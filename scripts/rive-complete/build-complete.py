@@ -10,7 +10,7 @@ Run:  python3 scripts/rive-complete/build-complete.py
 from __future__ import annotations
 import base64, json, math, os, sys
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageDraw, ImageChops
 sys.path.insert(0, str(Path(__file__).parent))
 from rml import El
 from rc_common import *
@@ -26,6 +26,85 @@ STRAP_C = {'l': (128.0, 1127.0), 'r': (812.0, 1127.0)}
 WRIST_PT = {'l': (147.0, 1196.0), 'r': (799.0, 1196.0)}
 ZF = 0.8   # forearm foreshortening at z=1 (canvas rig: 0.45, but its forearm ends at the hand piece; ours includes the cuff, so it is shorter on screen)
 CHAR_SIDE = {'r': 'L', 'l': 'R'}   # rig 'r' arm = screen-right = character's LEFT; never swapped
+APPROVED_SCALE = 0.83
+APPROVED_X = (AB_W - 1024 * APPROVED_SCALE) / 2
+APPROVED_Y = (AB_H - 1536 * APPROVED_SCALE) / 2
+
+
+def prepare_approved_rig_assets():
+    """Cut only the movable sleeve/hand bands from the approved mother.
+
+    The source remains the single visual authority.  The base keeps the head,
+    shoulders and torso untouched; each arm band is copied from the same
+    pixels, so restoring both bands reproduces the mother exactly at rest.
+    """
+    src = PROJ / 'reference/approved-halfbody.png'
+    out = PROJ / 'reference/rig'
+    out.mkdir(parents=True, exist_ok=True)
+    with Image.open(src) as source:
+        im = source.convert('RGBA')
+    w, h = im.size
+    # The arm mask follows the outer silhouette and then returns along the
+    # torso-facing edge.  The earlier polygon stopped a few pixels short at
+    # the cuff/fingers, leaving detached anti-aliased islands in base.png.
+    # Keep the shoulder boundary conservative while extending the lower
+    # silhouette around the cuff and hand so every movable pixel belongs to
+    # exactly one source layer.
+    left = [(205, 600), (176, 650), (145, 760), (108, 900), (82, 1030),
+            (88, 1115), (116, 1170), (132, 1200), (122, 1235),
+            (136, 1320), (174, 1385), (226, 1380), (255, 1310),
+            (252, 1230), (278, 1190), (299, 1100), (316, 970),
+            (329, 820), (339, 650)]
+    # The reference pose is not perfectly bilateral: the screen-right hand is
+    # tucked a little closer to the torso than the mirrored left contour.
+    # Pull that return edge inward so the base cannot retain a second cuff or
+    # finger silhouette behind the movable arm layer.
+    right = [(w - x, y) for x, y in left]
+    right = [((x - 24) if i >= 10 else x, y) for i, (x, y) in enumerate(right)]
+    masks = {}
+    bboxes = {}
+    segment_bboxes = {}
+    for side, points in (('l', left), ('r', right)):
+        mask = Image.new('L', (w, h), 0)
+        ImageDraw.Draw(mask).polygon(points, fill=255)
+        masks[side] = mask
+        layer = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        layer.paste(im, (0, 0), mask)
+        bbox = layer.getbbox()
+        bboxes[side] = bbox
+        layer.crop(bbox).save(out / f'arm-{side}.png')
+        # Overlapping source cutouts are the drawable bone segments.  The
+        # overlap keeps the sleeve/cuff seams covered while each segment can
+        # follow its own shoulder, elbow or wrist pivot.
+        for kind, y0, y1 in (('upper', 600, 940), ('fore', 900, 1235), ('hand', 1190, 1400)):
+            seg_mask = mask.copy()
+            clip = Image.new('L', (w, h), 0); ImageDraw.Draw(clip).rectangle((0, y0, w, y1), fill=255)
+            seg_mask = ImageChops.multiply(seg_mask, clip)
+            seg = Image.new('RGBA', (w, h), (0, 0, 0, 0)); seg.paste(im, (0, 0), seg_mask)
+            sb = seg.getbbox(); segment_bboxes[f'{side}-{kind}'] = sb
+            seg.crop(sb).save(out / f'arm-{side}-{kind}.png')
+    union = ImageChops.lighter(masks['l'], masks['r'])
+    base = im.copy()
+    base.putalpha(ImageChops.subtract(base.getchannel('A'), union))
+    base.save(out / 'base.png')
+    (out / 'meta.json').write_text(json.dumps({
+        'source': 'reference/approved-halfbody.png',
+        'size': [w, h],
+        'scale': APPROVED_SCALE,
+        'pivot': {'l': [205, 600], 'r': [w - 205, 600]},
+        'elbow': {'l': [240, 900], 'r': [w - 240, 900]},
+        'bboxes': {
+            'l': list(bboxes['l']),
+            'r': list(bboxes['r']),
+        },
+        'segment_bboxes': {k: list(v) for k, v in segment_bboxes.items()},
+    }, ensure_ascii=False, indent=2))
+
+# ---------------------------------------------------------------- approved mother coordinate helpers
+def approved_source_point(q):
+    return (APPROVED_X + q[0] * APPROVED_SCALE,
+            APPROVED_Y + q[1] * APPROVED_SCALE)
+
 
 # ---------------------------------------------------------------- assets
 assets: dict[str, El] = {}
@@ -191,6 +270,7 @@ class Arm:
         mesh.add(sk); self.mesh_els[state] = el
         return el
 
+
 # ---------------------------------------------------------------- animation machinery
 CURVES = {'io': (0.42, 0, 0.58, 1), 'o': (0, 0, 0.58, 1), 'i': (0.42, 0, 1, 1)}
 class Anim:
@@ -263,12 +343,11 @@ class Scene:
         # The production stack is sourced from the official mother image. The
         # torso stays fixed while only the arm bones move, so shoulder and
         # jacket proportions cannot change between states.
-        approved = asset('approved-halfbody', 'reference/approved-halfbody.png')
+        approved = asset('approved-base', 'reference/rig/base.png')
         body_full = El(
             'Image', 'body.highFidelityNeutral', ident=True,
-            assetId=approved.need_id(), x=(AB_W - 1024 * 0.83) / 2 - FIG[0],
-            y=(AB_H - 1536 * 0.83) / 2 - FIG[1],
-            originX=0, originY=0, scaleX=0.83, scaleY=0.83, opacity=1.0,
+            assetId=approved.need_id(), x=APPROVED_X - FIG[0], y=APPROVED_Y - FIG[1],
+            originX=0, originY=0, scaleX=APPROVED_SCALE, scaleY=APPROVED_SCALE, opacity=1.0,
         )
         self.bodyFull = body_full
         wave_plate = layer_asset('body-noarm')
@@ -291,6 +370,52 @@ class Scene:
         for arm in self.arms.values(): arm.mesh_els['hang'].attrs['opacity'] = 1.0
         self.badge.attrs['opacity'] = 0.0; self.strap.attrs['opacity'] = 0.0
         self.actionTorsoLayers = []
+        # Movable sleeve/hand bands are cut from the exact same mother image.
+        # Their parent pivot is the shoulder, so a gesture cannot detach the
+        # hand or introduce a second costume drawing.
+        rig_meta = json.loads((PROJ / 'reference/rig/meta.json').read_text())
+        self.approvedArms = {}
+        self.approvedSegments = {}
+        segment_anchors = {'upper': 'pivot', 'fore': 'elbow', 'hand': 'wrist'}
+        for side in ('l', 'r'):
+            pivot = rig_meta['pivot'][side]
+            bbox = rig_meta['bboxes'][side]
+            p_art = (APPROVED_X + pivot[0] * APPROVED_SCALE,
+                     APPROVED_Y + pivot[1] * APPROVED_SCALE)
+            arm_asset = asset(f'approved-arm-{side}', f'reference/rig/arm-{side}.png')
+            arm_node = El('Node', f'approved-arm-{side}', ident=True,
+                          x=p_art[0] - FIG[0], y=p_art[1] - FIG[1], rotation=0.0)
+            arm_node.add(El('Image', f'approved-arm-{side}.image', ident=True,
+                            assetId=arm_asset.need_id(),
+                            x=(bbox[0] - pivot[0]) * APPROVED_SCALE,
+                            y=(bbox[1] - pivot[1]) * APPROVED_SCALE,
+                            originX=0, originY=0,
+                            scaleX=APPROVED_SCALE, scaleY=APPROVED_SCALE))
+            # Keep the legacy single cutout addressable for migration, but do
+            # not render it.  Production actions use the three overlapping
+            # mother-derived segments below so the sleeve, forearm and hand
+            # can follow separate skeleton pivots.
+            arm_node.attrs['opacity'] = 0.0
+            self.approvedArms[side] = arm_node
+            anchors = {
+                'pivot': tuple(rig_meta['pivot'][side]),
+                'elbow': tuple(rig_meta['elbow'][side]),
+                'wrist': (rig_meta['pivot'][side][0] + (-52 if side == 'l' else 52), 1196),
+            }
+            segs = {}
+            for kind, anchor_key in segment_anchors.items():
+                anchor = anchors[anchor_key]; sb = tuple(rig_meta['segment_bboxes'][f'{side}-{kind}'])
+                p_art = approved_source_point(anchor)
+                seg = El('Node', f'approved-arm-{side}.{kind}', ident=True,
+                         x=p_art[0] - FIG[0], y=p_art[1] - FIG[1], rotation=0.0)
+                seg_asset = asset(f'approved-arm-{side}-{kind}', f'reference/rig/arm-{side}-{kind}.png')
+                seg.add(El('Image', f'approved-arm-{side}.{kind}.image', ident=True,
+                           assetId=seg_asset.need_id(),
+                           x=(sb[0] - anchor[0]) * APPROVED_SCALE,
+                           y=(sb[1] - anchor[1]) * APPROVED_SCALE,
+                           originX=0, originY=0, scaleX=APPROVED_SCALE, scaleY=APPROVED_SCALE))
+                segs[kind] = seg
+            self.approvedSegments[side] = {'nodes': segs, 'anchors': anchors}
         # head
         self.headIdle = node('head.idle', NECK, FIG); self.headAct = node('head.act', NECK, NECK); self.headIdle.add(self.headAct)
         self.tails = {}
@@ -334,7 +459,9 @@ class Scene:
         # old assembled layers remain addressable for migration tests but are
         # isolated under an invisible legacy node so they cannot contaminate
         # the production silhouette.
-        back_to_front(self.figAct, legacy, body_full)
+        back_to_front(self.figAct, legacy, body_full,
+                      *(s['nodes'][k] for s in self.approvedSegments.values() for k in ('upper', 'fore', 'hand')),
+                      *self.approvedArms.values())
         ab.add(self.figIdle)
         if os.environ.get('RC_BG'):   # review renders only: opaque cream backdrop so CLI frames match the canvas rig's bg
             bg = El('Shape', 'review.bg', ident=True, x=0, y=0)
@@ -550,6 +677,49 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
         an.key(arm.front_hand, 'x', [(f, v + arm.P[0] - FIG[0], 'l') for f, v in track(Wx, 0.3)])
         an.key(arm.front_hand, 'y', [(f, v + arm.P[1] - FIG[1], 'l') for f, v in track(Wy, 0.3)])
         an.key(arm.front_hand, 'rotation', [(f, v + math.pi / 2, 'l') for f, v in track([e + w for e, w in zip(E, WR)], 0.004)])
+        # The visible mother-derived arm band follows the same hand target as
+        # the hidden three-bone solver.  Keeping this track on the approved
+        # pixels makes the gesture visible without ever swapping artwork.
+        segs = sc.approvedSegments[side]['nodes']
+        anchors = sc.approvedSegments[side]['anchors']
+        sign = 1.0 if side == 'r' else -1.0
+        # Each segment follows the same sampled shoulder/elbow/wrist deltas.
+        # Positions are authored absolute local coordinates, so only the
+        # measured anchor moves with its parent pivot; no image is teleported
+        # from the origin when the state machine blends into an action.
+        P = approved_source_point(anchors['pivot']); E0 = approved_source_point(anchors['elbow']); W0 = approved_source_point(anchors['wrist'])
+        dP = (E0[0] - P[0], E0[1] - P[1]); dW = (W0[0] - E0[0], W0[1] - E0[1])
+        baseA, baseE = math.atan2(dP[1], dP[0]), math.atan2(dW[1], dW[0])
+        # The legacy canvas trace is in a different arm coordinate frame. For
+        # the mother-derived segment rig use a bounded local gesture arc; this
+        # keeps the elbow and wrist targets attached to the measured source
+        # anchors while preserving the authored wave/cheer amplitude.
+        # Source sleeves hang almost vertically.  A raised greeting needs a
+        # full shoulder arc; using a tiny rigid-style angle only nudges the
+        # cuff and reads as a broken pose.  The signed target keeps left/right
+        # hands mirrored while all three segments remain on their anchors.
+        amp = -2.3 * sign
+        dA = []
+        dE = []
+        for f in range(n + 1):
+            t = f / max(n, 1)
+            envelope = smooth01(min(t / 0.42, (1.0 - t) / 0.34)) if t > 0.0 else 0.0
+            dA.append(amp * envelope)
+            dE.append(amp * 0.72 * envelope)
+        upper = segs['upper']; fore = segs['fore']; hand = segs['hand']
+        an.key(upper, 'rotation', [(f, v, 'l') for f, v in track(dA, 0.004)])
+        an.key(fore, 'rotation', [(f, v, 'l') for f, v in track(dE, 0.004)])
+        an.key(hand, 'rotation', [(f, v, 'l') for f, v in track([v * 0.55 for v in dE], 0.004)])
+        upper_x, upper_y = float(upper.attrs['x']), float(upper.attrs['y'])
+        fore_x0, fore_y0 = float(fore.attrs['x']), float(fore.attrs['y'])
+        hand_x0, hand_y0 = float(hand.attrs['x']), float(hand.attrs['y'])
+        fx = []; fy = []; hx = []; hy = []
+        for da, de in zip(dA, dE):
+            ca, sa = math.cos(da), math.sin(da); ex = P[0] + dP[0] * ca - dP[1] * sa; ey = P[1] + dP[0] * sa + dP[1] * ca
+            ce, se = math.cos(de), math.sin(de); wx = ex + dW[0] * ce - dW[1] * se; wy = ey + dW[0] * se + dW[1] * ce
+            fx.append(ex - FIG[0]); fy.append(ey - FIG[1]); hx.append(wx - FIG[0]); hy.append(wy - FIG[1])
+        an.key(fore, 'x', [(f, v, 'l') for f, v in track(fx, 0.3)]); an.key(fore, 'y', [(f, v, 'l') for f, v in track(fy, 0.3)])
+        an.key(hand, 'x', [(f, v, 'l') for f, v in track(hx, 0.3)]); an.key(hand, 'y', [(f, v, 'l') for f, v in track(hy, 0.3)])
     an.key(sc.figAct, 'y', [(f, v, 'l') for f, v in track([r['bodyY'] for r in rows], 0.15)])
     an.key(sc.figAct, 'x', [(f, v, 'l') for f, v in track([r['torsoX'] for r in rows], 0.15)])
     # Keep the neck visually centered while the arm moves. The source pose
@@ -719,6 +889,7 @@ def build_sm(idle, acts, rest, *, name='Nomi', vm_name='Mascot', vm_id=VM_ID, vm
     return vm, sm
 
 def main():
+    prepare_approved_rig_assets()
     sc = Scene()
     idle = build_idle(sc)
     wave = build_action(sc, 'wave', 'wave', {'r': 'r'}, 'bent')
