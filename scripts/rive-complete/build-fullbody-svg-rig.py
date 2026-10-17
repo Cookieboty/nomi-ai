@@ -55,8 +55,11 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     )
     left_fore = mask_polygon(
         (width, height),
-        [(350, 540), (245, 560), (215, 700), (250, 780), (320, 805),
-         (350, 735), (360, 600)],
+        # Keep a generous inner overlap at the elbow.  The sleeve edge reaches
+        # into the torso around y=600; stopping at x=360 leaves a triangular
+        # transparent bite in the neutral render.
+        [(420, 535), (245, 560), (215, 700), (250, 780), (320, 805),
+         (365, 760), (430, 690), (435, 600)],
     )
     left_hand = mask_polygon(
         (width, height),
@@ -65,7 +68,7 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     )
     mirror = lambda points: [(width - x, y) for x, y in points]
     right_upper = mask_polygon((width, height), mirror([(432, 260), (300, 265), (225, 350), (210, 500), (245, 590), (365, 585), (420, 500), (445, 330)]))
-    right_fore = mask_polygon((width, height), mirror([(365, 540), (245, 560), (215, 700), (250, 780), (330, 805), (390, 735), (405, 600)]))
+    right_fore = mask_polygon((width, height), mirror([(420, 535), (245, 560), (215, 700), (250, 780), (320, 805), (365, 760), (430, 690), (435, 600)]))
     right_hand = mask_polygon((width, height), mirror([(330, 710), (250, 740), (250, 820), (290, 900), (345, 920), (380, 850), (370, 760)]))
     left_arm = ImageChops.lighter(ImageChops.lighter(left_upper, left_fore), left_hand)
     right_arm = ImageChops.lighter(ImageChops.lighter(right_upper, right_fore), right_hand)
@@ -150,15 +153,132 @@ def main() -> None:
                 "artboardOffset": artboard_offset,
                 "bones": [
                     "full.root",
+                    "full.pelvis",
                     "full.torso",
+                    "full.spine",
+                    "full.neck",
                     "full.head",
+                    "full.face",
+                    "full.eye.l",
+                    "full.eye.r",
+                    "full.brow.l",
+                    "full.brow.r",
+                    "full.mouth",
+                    "full.hair.l",
+                    "full.hair.r",
+                    "full.hair.back.l",
+                    "full.hair.back.r",
+                    "full.shoulder.l",
+                    "full.shoulder.r",
+                    "full.clavicle.l",
+                    "full.clavicle.r",
                     "full.arm-l.upper",
                     "full.arm-l.fore",
                     "full.arm-l.hand",
+                    "full.arm-l.thumb", "full.arm-l.thumb.1", "full.arm-l.thumb.2",
+                    "full.arm-l.index", "full.arm-l.index.1", "full.arm-l.index.2",
+                    "full.arm-l.middle", "full.arm-l.middle.1", "full.arm-l.middle.2",
+                    "full.arm-l.ring", "full.arm-l.ring.1", "full.arm-l.ring.2",
+                    "full.arm-l.little", "full.arm-l.little.1", "full.arm-l.little.2",
                     "full.arm-r.upper",
                     "full.arm-r.fore",
                     "full.arm-r.hand",
+                    "full.arm-r.thumb", "full.arm-r.thumb.1", "full.arm-r.thumb.2",
+                    "full.arm-r.index", "full.arm-r.index.1", "full.arm-r.index.2",
+                    "full.arm-r.middle", "full.arm-r.middle.1", "full.arm-r.middle.2",
+                    "full.arm-r.ring", "full.arm-r.ring.1", "full.arm-r.ring.2",
+                    "full.arm-r.little", "full.arm-r.little.1", "full.arm-r.little.2",
+                    "full.leg-l.upper", "full.leg-l.knee",
+                    "full.leg-l.lower",
+                    "full.leg-l.ankle", "full.leg-l.foot", "full.leg-l.toe.l", "full.leg-l.toe.m", "full.leg-l.toe.r",
+                    "full.leg-r.upper", "full.leg-r.knee",
+                    "full.leg-r.lower",
+                    "full.leg-r.ankle", "full.leg-r.foot", "full.leg-r.toe.l", "full.leg-r.toe.m", "full.leg-r.toe.r",
+                    "full.coat-l",
+                    "full.coat-r",
+                    "full.coat-l.front",
+                    "full.coat-r.front",
                 ],
+                "skeleton": {
+                    "root": "full.root",
+                    "neutralPolicy": "all visual layers remain sourced from source-nomi-master.png",
+                    "anchorOnly": [
+                        "full.pelvis", "full.spine", "full.face", "full.eye.l", "full.eye.r",
+                        "full.brow.l", "full.brow.r", "full.mouth", "full.hair.l", "full.hair.r",
+                        "full.hair.back.l", "full.hair.back.r", "full.shoulder.l",
+                        "full.shoulder.r", "full.clavicle.l", "full.clavicle.r", "full.coat-l.front",
+                        "full.coat-r.front", "full.leg-l.knee", "full.leg-l.ankle",
+                        "full.leg-l.toe.l", "full.leg-l.toe.m", "full.leg-l.toe.r",
+                        "full.leg-r.knee", "full.leg-r.ankle", "full.leg-r.toe.l",
+                        "full.leg-r.toe.m", "full.leg-r.toe.r",
+                        "full.arm-l.thumb", "full.arm-l.thumb.1", "full.arm-l.thumb.2",
+                        "full.arm-l.index", "full.arm-l.index.1", "full.arm-l.index.2",
+                        "full.arm-l.middle", "full.arm-l.middle.1", "full.arm-l.middle.2",
+                        "full.arm-l.ring", "full.arm-l.ring.1", "full.arm-l.ring.2",
+                        "full.arm-l.little", "full.arm-l.little.1", "full.arm-l.little.2",
+                        "full.arm-r.thumb", "full.arm-r.thumb.1", "full.arm-r.thumb.2",
+                        "full.arm-r.index", "full.arm-r.index.1", "full.arm-r.index.2",
+                        "full.arm-r.middle", "full.arm-r.middle.1", "full.arm-r.middle.2",
+                        "full.arm-r.ring", "full.arm-r.ring.1", "full.arm-r.ring.2",
+                        "full.arm-r.little", "full.arm-r.little.1", "full.arm-r.little.2",
+                    ],
+                    "visualBones": [
+                        "full.torso", "full.neck", "full.head", "full.arm-l.upper", "full.arm-l.fore",
+                        "full.arm-l.hand", "full.arm-r.upper", "full.arm-r.fore", "full.arm-r.hand",
+                        "full.leg-l.upper", "full.leg-l.lower", "full.leg-l.foot", "full.leg-r.upper",
+                        "full.leg-r.lower", "full.leg-r.foot", "full.coat-l", "full.coat-r",
+                    ],
+                },
+                "materialLayers": {
+                    "full.neutral": {
+                        "asset": "reference/svg-rig/fullbody-base-no-head-arms.png",
+                        "bone": "full.torso",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-backfill",
+                    },
+                    "full.head": {
+                        "asset": "reference/svg-rig/head.png",
+                        "bone": "full.head",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-crop",
+                    },
+                    "full.arm-l": {
+                        "asset": "reference/svg-rig/arm-l-upper.png,arm-l-fore.png,arm-l-hand.png",
+                        "bone": "full.arm-l.upper>full.arm-l.fore>full.arm-l.hand",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-segments",
+                    },
+                    "full.arm-r": {
+                        "asset": "reference/svg-rig/arm-r-upper.png,arm-r-fore.png,arm-r-hand.png",
+                        "bone": "full.arm-r.upper>full.arm-r.fore>full.arm-r.hand",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-segments",
+                    },
+                    "full.face": {
+                        "asset": "reference/svg-rig/head.png",
+                        "bone": "full.face/full.eye.l/full.eye.r/full.brow.l/full.brow.r/full.mouth",
+                        "source": "source-nomi-master.png",
+                        "kind": "anchor-only-until-feature-mattes-are-authored",
+                    },
+                    "full.hair": {
+                        "asset": "reference/svg-rig/head.png",
+                        "bone": "full.hair.l/full.hair.r",
+                        "source": "source-nomi-master.png",
+                        "kind": "anchor-only-until-strand-mattes-are-authored",
+                    },
+                    "full.lower-body": {
+                        "asset": "reference/svg-rig/fullbody-base-no-head-arms.png",
+                        "bone": "full.pelvis/full.leg-l.upper>full.leg-l.lower>full.leg-l.foot/full.leg-r.upper>full.leg-r.lower>full.leg-r.foot",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-backfill",
+                    },
+                    "full.coat": {
+                        "asset": "reference/svg-rig/fullbody-base-no-head-arms.png",
+                        "bone": "full.coat-l/full.coat-r",
+                        "source": "source-nomi-master.png",
+                        "kind": "anchor-only-front-panels",
+                    },
+                },
             },
             indent=2,
         )

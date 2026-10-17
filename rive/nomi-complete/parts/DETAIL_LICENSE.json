@@ -23,8 +23,8 @@
       "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-l-fore.png": {
-      "sha256": "34c954aab8405b074a81d1bcfe33fe3a7b531a0d53711cedb6b0e2b90ecf4992",
-      "bytes": 130619,
+      "sha256": "4d02cd5be24060dfd6071ebf6e8e2b59d60162978c84c2d2220b111e60976844",
+      "bytes": 131365,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic SVG-backed full-body rig asset"
@@ -44,8 +44,8 @@
       "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-r-fore.png": {
-      "sha256": "87acbc7882b12d644122c8e611e2773c67c0ce6bcf93c79a4f70573506e933e7",
-      "bytes": 129731,
+      "sha256": "2490e62710734c57cd1cfa3b72bc745bd3fdadb089383305ed224c5d59aa2fe1",
+      "bytes": 129764,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic SVG-backed full-body rig asset"
@@ -58,8 +58,8 @@
       "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "8a86bda18e3411fda38e35dbeb3bff04a6e735a6afa0e666bc2fba4ca3e6c00f",
-      "bytes": 1490814,
+      "sha256": "40a10e4b74a6c4c65714875dfe4ccde03b33495b0f8f3a58ee163f934eb2b0ae",
+      "bytes": 1490089,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic SVG-backed full-body rig asset"

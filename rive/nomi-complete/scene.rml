@@ -45,11 +45,62 @@
             <Image name="full.wave" assetId="0:9200" x="46.93333" y="0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" opacity="0" id="0:193"/>
             <Image name="full.neutral" assetId="0:9200" x="46.93333" y="0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" opacity="1" id="0:192"/>
             <RootBone name="full.root" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9210">
+                <RootBone name="full.pelvis" x="480" y="700" rotation="0" length="1" scaleX="1" id="0:9260"/>
                 <RootBone name="full.torso" x="480" y="660" rotation="0" length="1" scaleX="1" id="0:9211">
-                    <RootBone name="full.head" x="0" y="-406.1" rotation="0" length="1" scaleX="1" id="0:9212">
+                    <RootBone name="full.spine" x="0" y="-220" rotation="0" length="1" scaleX="1" id="0:9261"/>
+                    <RootBone name="full.neck" x="0" y="-406.1" rotation="0" length="1" scaleX="1" id="0:9230">
+                    <RootBone name="full.head" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9212">
                         <Image name="full.head.image" assetId="0:9207" x="-221.7" y="-253.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9225"/>
                         <Image name="full.face.smile" assetId="0:9209" x="-48.3" y="-97.4" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" opacity="0" id="0:9226"/>
+                        <RootBone name="full.face" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9266">
+                            <RootBone name="full.brow.l" x="-55" y="-177" rotation="0" length="1" scaleX="1" id="0:9267"/>
+                            <RootBone name="full.brow.r" x="55" y="-177" rotation="0" length="1" scaleX="1" id="0:9268"/>
+                            <RootBone name="full.mouth" x="0" y="-93" rotation="0" length="1" scaleX="1" id="0:9269"/>
+                        </RootBone>
+                        <RootBone name="full.eye.l" x="-55" y="-140" rotation="0" length="1" scaleX="1" id="0:9231"/>
+                        <RootBone name="full.eye.r" x="55" y="-140" rotation="0" length="1" scaleX="1" id="0:9232"/>
+                        <RootBone name="full.hair.l" x="-145" y="-120" rotation="0" length="1" scaleX="1" id="0:9233"/>
+                        <RootBone name="full.hair.r" x="145" y="-120" rotation="0" length="1" scaleX="1" id="0:9234"/>
+                        <RootBone name="full.hair.back.l" x="-180" y="-80" rotation="0" length="1" scaleX="1" id="0:9270"/>
+                        <RootBone name="full.hair.back.r" x="180" y="-80" rotation="0" length="1" scaleX="1" id="0:9271"/>
                     </RootBone>
+                    </RootBone>
+                </RootBone>
+                <RootBone name="full.leg-l.upper" x="430" y="720" rotation="0" length="1" scaleX="1" id="0:9235">
+                    <RootBone name="full.leg-l.knee" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9280"/>
+                    <RootBone name="full.leg-l.lower" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9236">
+                        <RootBone name="full.leg-l.ankle" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9281">
+                            <RootBone name="full.leg-l.foot" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9237">
+                                <RootBone name="full.leg-l.toe.l" x="-36" y="70" rotation="0" length="1" scaleX="1" id="0:9282"/>
+                                <RootBone name="full.leg-l.toe.m" x="0" y="72" rotation="0" length="1" scaleX="1" id="0:9283"/>
+                                <RootBone name="full.leg-l.toe.r" x="36" y="70" rotation="0" length="1" scaleX="1" id="0:9284"/>
+                            </RootBone>
+                        </RootBone>
+                    </RootBone>
+                </RootBone>
+                <RootBone name="full.leg-r.upper" x="530" y="720" rotation="0" length="1" scaleX="1" id="0:9238">
+                    <RootBone name="full.leg-r.knee" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9285"/>
+                    <RootBone name="full.leg-r.lower" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9239">
+                        <RootBone name="full.leg-r.ankle" x="0" y="300" rotation="0" length="1" scaleX="1" id="0:9286">
+                            <RootBone name="full.leg-r.foot" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9240">
+                                <RootBone name="full.leg-r.toe.l" x="-36" y="70" rotation="0" length="1" scaleX="1" id="0:9287"/>
+                                <RootBone name="full.leg-r.toe.m" x="0" y="72" rotation="0" length="1" scaleX="1" id="0:9288"/>
+                                <RootBone name="full.leg-r.toe.r" x="36" y="70" rotation="0" length="1" scaleX="1" id="0:9289"/>
+                            </RootBone>
+                        </RootBone>
+                    </RootBone>
+                </RootBone>
+                <RootBone name="full.coat-l" x="350" y="560" rotation="0" length="1" scaleX="1" id="0:9241">
+                    <RootBone name="full.coat-l.front" x="0" y="40" rotation="0" length="1" scaleX="1" id="0:9272"/>
+                </RootBone>
+                <RootBone name="full.coat-r" x="610" y="560" rotation="0" length="1" scaleX="1" id="0:9242">
+                    <RootBone name="full.coat-r.front" x="0" y="40" rotation="0" length="1" scaleX="1" id="0:9273"/>
+                </RootBone>
+                <RootBone name="full.shoulder.l" x="317.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9262">
+                    <RootBone name="full.clavicle.l" x="24" y="10" rotation="0" length="1" scaleX="1" id="0:9263"/>
+                </RootBone>
+                <RootBone name="full.shoulder.r" x="642.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9264">
+                    <RootBone name="full.clavicle.r" x="-24" y="10" rotation="0" length="1" scaleX="1" id="0:9265"/>
                 </RootBone>
                 <RootBone name="full.arm-l.upper" x="317.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9213">
                     <Image name="full.arm-l.upper.image" assetId="0:9201" x="-118.5" y="-76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9214"/>
@@ -57,6 +108,26 @@
                         <Image name="full.arm-l.fore.image" assetId="0:9202" x="-97.4" y="-88.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9216"/>
                         <RootBone name="full.arm-l.hand" x="-17" y="174.3" rotation="0" length="1" scaleX="1" id="0:9217">
                             <Image name="full.arm-l.hand.image" assetId="0:9203" x="-59.2" y="-110.0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9218"/>
+                            <RootBone name="full.arm-l.thumb" x="-34" y="72" rotation="0" length="1" scaleX="1" id="0:9243">
+                                <RootBone name="full.arm-l.thumb.1" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9290"/>
+                                <RootBone name="full.arm-l.thumb.2" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9291"/>
+                            </RootBone>
+                            <RootBone name="full.arm-l.index" x="-10" y="96" rotation="0" length="1" scaleX="1" id="0:9244">
+                                <RootBone name="full.arm-l.index.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9292"/>
+                                <RootBone name="full.arm-l.index.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9293"/>
+                            </RootBone>
+                            <RootBone name="full.arm-l.middle" x="8" y="102" rotation="0" length="1" scaleX="1" id="0:9245">
+                                <RootBone name="full.arm-l.middle.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9294"/>
+                                <RootBone name="full.arm-l.middle.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9295"/>
+                            </RootBone>
+                            <RootBone name="full.arm-l.ring" x="22" y="98" rotation="0" length="1" scaleX="1" id="0:9246">
+                                <RootBone name="full.arm-l.ring.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9296"/>
+                                <RootBone name="full.arm-l.ring.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9297"/>
+                            </RootBone>
+                            <RootBone name="full.arm-l.little" x="34" y="88" rotation="0" length="1" scaleX="1" id="0:9247">
+                                <RootBone name="full.arm-l.little.1" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9298"/>
+                                <RootBone name="full.arm-l.little.2" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9299"/>
+                            </RootBone>
                         </RootBone>
                     </RootBone>
                 </RootBone>
@@ -66,6 +137,26 @@
                         <Image name="full.arm-r.fore.image" assetId="0:9205" x="-131.2" y="-88.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9222"/>
                         <RootBone name="full.arm-r.hand" x="17" y="174.3" rotation="0" length="1" scaleX="1" id="0:9223">
                             <Image name="full.arm-r.hand.image" assetId="0:9206" x="-135.4" y="-110.0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9224"/>
+                            <RootBone name="full.arm-r.thumb" x="34" y="72" rotation="0" length="1" scaleX="1" id="0:9248">
+                                <RootBone name="full.arm-r.thumb.1" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9300"/>
+                                <RootBone name="full.arm-r.thumb.2" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9301"/>
+                            </RootBone>
+                            <RootBone name="full.arm-r.index" x="10" y="96" rotation="0" length="1" scaleX="1" id="0:9249">
+                                <RootBone name="full.arm-r.index.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9302"/>
+                                <RootBone name="full.arm-r.index.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9303"/>
+                            </RootBone>
+                            <RootBone name="full.arm-r.middle" x="-8" y="102" rotation="0" length="1" scaleX="1" id="0:9250">
+                                <RootBone name="full.arm-r.middle.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9304"/>
+                                <RootBone name="full.arm-r.middle.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9305"/>
+                            </RootBone>
+                            <RootBone name="full.arm-r.ring" x="-22" y="98" rotation="0" length="1" scaleX="1" id="0:9251">
+                                <RootBone name="full.arm-r.ring.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9306"/>
+                                <RootBone name="full.arm-r.ring.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9307"/>
+                            </RootBone>
+                            <RootBone name="full.arm-r.little" x="-34" y="88" rotation="0" length="1" scaleX="1" id="0:9252">
+                                <RootBone name="full.arm-r.little.1" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9308"/>
+                                <RootBone name="full.arm-r.little.2" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9309"/>
+                            </RootBone>
                         </RootBone>
                     </RootBone>
                 </RootBone>
