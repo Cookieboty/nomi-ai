@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses only the official Nomi layer set, official-derived arm textures and official-derived hand crops. Generated pose plates and AI arm assets were removed.",
+  "note": "Production Rive scene uses the approved half-body mother plus the official Nomi layer set and official-derived arm textures. Generated pose plates and AI arm assets were removed.",
   "assets": {
     "parts/arm-l-official.png": {
       "sha256": "24a7769c4aeda41ac93a81de55b5d97506e8a37950fb937c7fd45c58b2935a30",
@@ -42,6 +42,13 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "user supplied mother reference; authorized project source"
+    },
+    "reference/approved-halfbody.png": {
+      "sha256": "b09c22193b001b3a055b2e9856d29d75b5e82e9a03933d3c7e4b3a82eb97600c",
+      "bytes": 1819680,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "user approved high-fidelity half-body mother reference"
     }
   }
 }

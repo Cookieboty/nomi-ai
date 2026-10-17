@@ -22,7 +22,7 @@ const FULL_SRC = './assets/models/rive/nomi-complete.riv';
 /**
  * Rive renderer. The wasm is bundled — the
  * runtime's default CDN URL would be blocked by the app CSP (connect-src 'self') — and the page CSP
- * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-eval.md).
+ * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-complete.md).
  */
 export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style }) => {
   const fullBody = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rive') === 'full';

@@ -1,9 +1,0 @@
-Use case: stylized-concept
-Asset type: high-resolution transparent character plate for a Rive 2D animation artboard
-Primary request: Recreate the Nomi character from the supplied reference sheet as a full-body front-facing neutral standing pose. Preserve the exact identity and outfit design: short dark brown bob with warm orange highlights, white N hair clip, orange bow, black choker with star pendant, black sleeveless top with the white N logo, oversized white jacket with orange lining and black straps, black shorts, thigh strap, Nomi ID badge, and black-white-orange high-top sneakers.
-Input images: Image 1 is the character sheet and the only identity/style reference.
-Composition/framing: centered full body from hair tip to shoe soles, straight camera, generous transparent margin, anatomy and clothing proportions matching the sheet.
-Lighting/mood: clean soft studio light, crisp anime illustration edges, high-detail fabric folds and shoe hardware.
-Color palette: warm white, charcoal black, copper orange, peach skin, dark brown hair.
-Constraints: transparent background; no text, no labels, no extra props, no watermark; keep the N logos and badge legible and in the same locations; do not redesign the costume or face.
-Avoid: cropped feet, extra characters, scenery, color shifts, simplified clothing, blurry hands, deformed fingers.

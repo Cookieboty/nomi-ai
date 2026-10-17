@@ -11,7 +11,7 @@ from __future__ import annotations
 import base64, json, math, os, sys
 from pathlib import Path
 from PIL import Image
-sys.path.insert(0, str(Path(__file__).parent)); sys.path.insert(0, str(Path(__file__).parents[1] / 'rive-eval'))
+sys.path.insert(0, str(Path(__file__).parent))
 from rml import El
 from rc_common import *
 
@@ -263,11 +263,12 @@ class Scene:
         # The production stack is sourced from the official mother image. The
         # torso stays fixed while only the arm bones move, so shoulder and
         # jacket proportions cannot change between states.
-        plate = layer_asset('body-noarm')
+        approved = asset('approved-halfbody', 'reference/approved-halfbody.png')
         body_full = El(
             'Image', 'body.highFidelityNeutral', ident=True,
-            assetId=plate.need_id(), x=-408.5, y=-745.0,
-            originX=0, originY=0, scaleX=1.0, scaleY=1.0, opacity=1.0,
+            assetId=approved.need_id(), x=(AB_W - 1024 * 0.83) / 2 - FIG[0],
+            y=(AB_H - 1536 * 0.83) / 2 - FIG[1],
+            originX=0, originY=0, scaleX=0.83, scaleY=0.83, opacity=1.0,
         )
         self.bodyFull = body_full
         wave_plate = layer_asset('body-noarm')
@@ -283,13 +284,13 @@ class Scene:
         # The official torso and the hang arm meshes are the rest pose.  Keep
         # this stack active for every clip so an action only moves bones; a
         # generated full torso plate would introduce a visible shoulder jump.
-        body_full.attrs['opacity'] = 0.0
-        body.attrs['opacity'] = 1.0
+        body_full.attrs['opacity'] = 1.0
+        body.attrs['opacity'] = 0.0
         flank_l.attrs['opacity'] = 0.0; flank_r.attrs['opacity'] = 0.0
         for cap in caps: cap.attrs['opacity'] = 0.0
         for arm in self.arms.values(): arm.mesh_els['hang'].attrs['opacity'] = 1.0
         self.badge.attrs['opacity'] = 0.0; self.strap.attrs['opacity'] = 0.0
-        self.actionTorsoLayers = [body]
+        self.actionTorsoLayers = []
         # head
         self.headIdle = node('head.idle', NECK, FIG); self.headAct = node('head.act', NECK, NECK); self.headIdle.add(self.headAct)
         self.tails = {}
@@ -324,10 +325,16 @@ class Scene:
                       mouth, mouth_open, mouth_o, mouth_frown, image('bangs', NECK),
                       image('clip', NECK), self.ribbon, image('earring', NECK))
         # z: back -> front
-        back_to_front(self.figAct, self.bodyWave, body_full, flank_l, flank_r,
-                      *rigs,
+        legacy = El('Node', 'legacy.rig', ident=True, opacity=0.0)
+        back_to_front(legacy, self.bodyWave, flank_l, flank_r, *rigs,
                       *back_meshes, *caps, body, self.strap, self.badge,
                       self.headIdle, *front_hands)
+        self.legacy = legacy
+        # The approved mother image is the only visible half-body source. The
+        # old assembled layers remain addressable for migration tests but are
+        # isolated under an invisible legacy node so they cannot contaminate
+        # the production silhouette.
+        back_to_front(self.figAct, legacy, body_full)
         ab.add(self.figIdle)
         if os.environ.get('RC_BG'):   # review renders only: opaque cream backdrop so CLI frames match the canvas rig's bg
             bg = El('Shape', 'review.bg', ident=True, x=0, y=0)
@@ -364,18 +371,19 @@ class FullScene:
         self.ab.add(El('LayoutComponentStyle', 'Artboard Style Full', id='0:6'))
         self.pose = node('full.pose', (0, 0), (0, 0))
         self.plates = {}
-        # The generated plates are 1024x1536 and share the same framing.  The
-        # fixed scale leaves a small breathing margin on the 960x1300 artboard.
-        scale = 0.82
+        # Fit the supplied mother reference to the full artboard.  The source
+        # is portrait (1285x4092), so a fixed scale crops the head and shoes
+        # when the optional full-body board is selected.  Keep a small, stable
+        # margin on every side and derive the placement from the actual source
+        # dimensions so future approved masters cannot drift out of frame.
+        path = ROOT / 'rive/nomi-complete/source-nomi-master.png'
+        with Image.open(path) as im:
+            width, height = im.size
+        scale = min((AB_W - 24) / width, (AB_H - 24) / height)
+        x = (AB_W - width * scale) / 2
+        y = (AB_H - height * scale) / 2
         for name in ('neutral', 'wave', 'cheer'):
-            path = ROOT / 'rive/nomi-complete/source-nomi-master.png'
-            with Image.open(path) as im:
-                width, height = im.size
             # Rive Image x/y is the local top-left when originX/originY are 0.
-            # The previous center-origin placement put the full-body plates
-            # outside the selected artboard, producing a blank screenshot.
-            x = (AB_W - width * scale) / 2
-            y = (AB_H - height * scale) / 2
             a = asset('source-nomi-master', 'source-nomi-master.png')
             el = El('Image', f'full.{name}', ident=True, assetId=a.need_id(), x=x, y=y,
                     originX=0, originY=0, scaleX=scale, scaleY=scale,
@@ -552,7 +560,9 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
         an.key(sc.strap, 'opacity', [(f, 1 - min(1.0, v), 'l') for f, v in track([r['rOn'] for r in rows], 0.02)])
     # Reveal the rigged action arms for this clip; the official composite is
     # restored by the shared rest animation after the one-shot completes.
-    an.key(sc.bodyFull, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
+    # The approved half-body mother remains visible throughout every action;
+    # swapping a torso plate is what caused the old shoulder jumps.
+    an.key(sc.bodyFull, 'opacity', [(0, 1.0, 'l'), (n, 1.0, 'l')])
     # Keep every production gesture on the shared torso plus the three-bone
     # arm rig. Swapping a full raster here would make the head and shoulders jump.
     plate_action = False

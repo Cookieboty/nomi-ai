@@ -75,3 +75,13 @@ e2e-headed/.cache/
 # Source of truth for packaging: NOMI_SHERPA_TTS_MODEL_DIR or ../../models/<id>
 # (relative to packages/electron). Do not commit these weights.
 packages/electron/resources/tts-models/
+
+# Local Windows / pnpm caches created by the desktop development environment.
+.localappdata/
+.npm-cache-local/
+.pnpm-home/
+.pnpm-localappdata/
+.trae/
+AppData/
+**/__pycache__/
+*.pyc

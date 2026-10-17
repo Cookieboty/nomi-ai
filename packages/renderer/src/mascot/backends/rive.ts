@@ -1,7 +1,7 @@
 import type { MascotBackend, MascotCapabilities, MotionOptions } from '../MascotBackend';
 
-/** Motions exposed by the high-fidelity Rive scene. */
-export const RIVE_MOTIONS = [
+/** Native clips authored in the high-fidelity Rive scene. */
+export const RIVE_NATIVE_MOTIONS = [
   'wave',
   'hello',
   'celebrate',
@@ -15,16 +15,59 @@ export const RIVE_MOTIONS = [
   'work',
 ] as const;
 
-/** Backwards-compatible name used by the existing renderer tests and commands. */
-export const RIVE_POC_MOTIONS = RIVE_MOTIONS;
-
-// The shared interaction/AI vocabulary contains a few sprite-only gestures.
-// Keep those commands useful on the Rive scene by routing them to the closest
-// authored high-fidelity clip; the capabilities list still exposes only the
-// four clips that are actually present in the .riv file.
-const LEGACY_MOTION_ALIASES: Record<string, (typeof RIVE_MOTIONS)[number]> = {
+/**
+ * Shared AI / interaction vocabulary. Rive keeps one visual source of truth,
+ * so commands without a dedicated clip intentionally route to the closest
+ * authored gesture instead of disappearing at the backend boundary.
+ */
+export const RIVE_MOTION_ALIASES: Record<string, (typeof RIVE_NATIVE_MOTIONS)[number]> = {
   greet: 'hello',
+  bow: 'nod',
+  shake_head: 'shake',
+  salute: 'hello',
+  pray: 'clap',
+  ok_hand: 'cheer',
+  explain: 'think',
+  eureka: 'cheer',
+  puzzled: 'think',
+  look_around: 'shake',
+  look_lr: 'shake',
+  peek: 'think',
+  heart: 'celebrate',
+  blow_kiss: 'hello',
+  shy: 'nod',
+  cover_face: 'flinch',
+  sorry: 'nod',
+  surprise: 'flinch',
+  sigh: 'nod',
+  smug: 'think',
+  aggrieved: 'shake',
+  tears: 'flinch',
+  angry: 'shake',
+  cold_sweat: 'flinch',
+  daze: 'think',
+  thumbs_up: 'cheer',
+  peace: 'wave',
+  hop: 'cheer',
+  wink: 'nod',
+  tongue: 'wave',
+  cute: 'clap',
+  yawn: 'think',
+  stretch: 'cheer',
+  goodnight: 'nod',
+  listen: 'think',
+  peek_note: 'think',
+  interact: 'nod',
 };
+
+/** All accepted names shown to the motion menu and exposed to AI callers. */
+export const RIVE_MOTIONS = [
+  ...RIVE_NATIVE_MOTIONS,
+  ...Object.keys(RIVE_MOTION_ALIASES),
+] as const;
+
+/** Backwards-compatible name used by existing renderer tests and commands. */
+export const RIVE_POC_MOTIONS = RIVE_MOTIONS;
 
 export const RIVE_EXPRESSIONS = [
   'neutral',
@@ -83,8 +126,8 @@ export function createRiveBackend(host: () => RiveTriggerHost | null | undefined
         name === 'random'
           ? RIVE_POC_MOTIONS[Math.floor(Math.random() * RIVE_POC_MOTIONS.length)]
           : name;
-      const id = LEGACY_MOTION_ALIASES[requested] ?? requested;
-      if (!(RIVE_POC_MOTIONS as readonly string[]).includes(id)) return false;
+      const id = RIVE_MOTION_ALIASES[requested] ?? requested;
+      if (!(RIVE_NATIVE_MOTIONS as readonly string[]).includes(id)) return false;
       return fire(id);
     },
     setTalking(value) {

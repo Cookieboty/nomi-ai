@@ -1,9 +1,0 @@
-Use case: stylized-concept
-Asset type: high-resolution transparent action plate for a Rive 2D animation artboard
-Primary request: Recreate the Nomi character from the supplied reference sheet in a full-body friendly wave pose. Keep the exact face, hair, white N hair clip, orange bow, choker, black N-logo top, white-orange-black jacket, belt, badge, thigh strap, and sneakers. Raise the character's screen-right arm with a relaxed open waving hand; keep the other arm hanging naturally. Preserve the reference character's proportions and clothing construction.
-Input images: Image 1 is the character sheet and the only identity/style reference.
-Composition/framing: centered full body, feet visible, transparent margin, readable silhouette, arm pose suitable for a Rive sprite mesh.
-Lighting/mood: bright welcoming expression, crisp anime linework, high-detail jacket folds and cuff hardware.
-Color palette: warm white, charcoal black, copper orange, peach skin, dark brown hair.
-Constraints: transparent background; no text, labels, props, watermark, or extra characters; do not change the costume, logos, or face identity; five fingers on the waving hand.
-Avoid: cropped shoes, fused fingers, extra limbs, bent anatomy, giant hand, background scenery, low resolution.

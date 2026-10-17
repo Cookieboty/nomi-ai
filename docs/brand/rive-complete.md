@@ -1,9 +1,10 @@
 # Rive Nomi production scene
 
-The production Rive scene is generated from the official Nomi layer set and the
-user supplied mother reference. The default `Nomi` artboard is a layered
-half-body character with a shared torso, isolated face layers, and independent
-shoulder, elbow, and wrist bones for both arms.
+The production Rive scene is generated from the approved half-body mother image
+at `rive/nomi-complete/reference/approved-halfbody.png`. The two character
+sheets beside it are reference-only guides for proportions and future cuts. The
+default `Nomi` artboard keeps the approved mother pixels intact while the
+legacy experimental layer stack is isolated from the render path.
 
 ## Build and verify
 
@@ -23,9 +24,7 @@ workflow.
 
 ## Asset rule
 
-All arm poses reuse the same official arm texture and move through three bones.
-Official hand crops are used for the raised front hand. The scene contains no
-AI pose images, generated arm plates, or old full-body pose plates. Every
+The scene contains no old AI pose plates or legacy full-body pose images. Every
 non-official file is listed with a SHA-256 hash in
 `rive/nomi-complete/parts/DETAIL_LICENSE.json`.
 

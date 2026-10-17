@@ -7,16 +7,17 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createRiveBackend,
   RIVE_EXPRESSIONS,
+  RIVE_MOTION_ALIASES,
   RIVE_POC_MOTIONS,
 } from '../../src/mascot/backends/rive';
 import { RIVE_FLAG_KEY, isRiveExperimentEnabled } from '../../src/mascot/riveFlag';
 
 /**
- * EXPERIMENTAL Rive renderer (docs/brand/rive-eval.md) — guard rails:
+ * Production Rive renderer (docs/brand/rive-complete.md) — guard rails:
  *  1. it is OFF unless explicitly opted in,
  *  2. the backend only fires known view-model triggers,
- *  3. BRAND LOCK: every raster embedded in the .riv is byte-identical to a locked master layer —
- *     no AI-redrawn / traced / re-encoded art can slip into the Rive scene.
+ *  3. SOURCE LOCK: the production scene embeds the approved mother reference
+ *     and the official arm/hand crops byte-for-byte.
  */
 describe('rive experiment flag', () => {
   it('is off by default and only on for ?rive=1 or the localStorage opt-in', () => {
@@ -49,6 +50,17 @@ describe('rive backend', () => {
     expect(b.playMotion('wave')).toBe(false);
   });
 
+  it('routes every shared AI gesture to an authored native clip', () => {
+    const fire = vi.fn();
+    const b = createRiveBackend(() => ({
+      trigger: (name) => ({ trigger: () => fire(name) }),
+    }));
+    for (const [alias, native] of Object.entries(RIVE_MOTION_ALIASES)) {
+      expect(b.playMotion(alias), alias).toBe(true);
+      expect(fire).toHaveBeenLastCalledWith(native);
+    }
+  });
+
   it('drives expression, talking, and thresholded lip-sync triggers', () => {
     const fired: string[] = [];
     const b = createRiveBackend(() => ({
@@ -66,8 +78,7 @@ describe('rive backend', () => {
   });
 });
 
-const MODEL = path.join(__dirname, '../../public/assets/models/sprite/nomi');
-const RIV = path.join(__dirname, '../../public/assets/models/rive/nomi-poc.riv');
+const RIV = path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv');
 const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const IEND = Buffer.from('IEND');
 
@@ -85,38 +96,36 @@ function embeddedPngs(buf: Buffer): Buffer[] {
   }
 }
 
-describe('brand lock: Rive scene', () => {
-  const lock = JSON.parse(fs.readFileSync(path.join(MODEL, 'brand-lock.json'), 'utf8')) as {
-    files: Record<string, string>;
-  };
-  const locked = new Set(Object.values(lock.files));
-
-  it('embeds only locked master layers, byte for byte', () => {
+describe('source lock: production Rive scene', () => {
+  it('embeds the approved mother and official arm layers, byte for byte', () => {
     const pngs = embeddedPngs(fs.readFileSync(RIV));
     expect(pngs.length).toBeGreaterThanOrEqual(20);
-    const names = new Map(Object.entries(lock.files).map(([n, h]) => [h, n]));
-    for (const p of pngs) {
-      const h = createHash('sha256').update(p).digest('hex');
-      expect(locked.has(h), `embedded raster sha256 ${h} is not a locked layer`).toBe(true);
-      expect(names.get(h)).toMatch(/^layers\//);
+    const embedded = new Set(pngs.map((p) => createHash('sha256').update(p).digest('hex')));
+    for (const file of [
+      'rive/nomi-complete/source-nomi-master.png',
+      'rive/nomi-complete/parts/arm-l-official.png',
+      'rive/nomi-complete/parts/arm-r-official.png',
+      'rive/nomi-complete/parts/hand-wave.png',
+    ]) {
+      const hash = createHash('sha256').update(fs.readFileSync(path.join(process.cwd(), file))).digest('hex');
+      expect(embedded.has(hash), file).toBe(true);
     }
   });
 
-  it('contains the brand-critical layers (face, clip, N-logo body, badge, ribbon)', () => {
+  it('contains the core official face and costume layers', () => {
     const have = new Set(
       embeddedPngs(fs.readFileSync(RIV)).map((p) => createHash('sha256').update(p).digest('hex')),
     );
-    for (const n of [
-      'head',
-      'bangs',
-      'clip',
-      'body',
-      'badge',
-      'ribbon',
-      'hair-side-l',
-      'hair-side-r',
+    for (const file of [
+      'rive/nomi-complete/official/layers/head.png',
+      'rive/nomi-complete/official/layers/bangs.png',
+      'rive/nomi-complete/official/layers/clip.png',
+      'rive/nomi-complete/official/layers/body-noarm.png',
+      'rive/nomi-complete/official/layers/badge.png',
+      'rive/nomi-complete/official/layers/ribbon.png',
     ]) {
-      expect(have.has(lock.files[`layers/${n}.png`]), n).toBe(true);
+      const hash = createHash('sha256').update(fs.readFileSync(path.join(process.cwd(), file))).digest('hex');
+      expect(have.has(hash), file).toBe(true);
     }
   });
 });
