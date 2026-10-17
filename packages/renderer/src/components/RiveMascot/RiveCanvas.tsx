@@ -6,6 +6,10 @@ import { createRiveBackend } from '../../mascot/backends/rive';
 import { mascotRegistry } from '../../mascot/MascotBackend';
 import { characterBox } from '../../mascot/spriteLayout';
 
+import MascotInteractionLayerLite, {
+  type SpriteGeometry,
+} from '../SpriteMascot/InteractionLite';
+
 export interface RiveCanvasProps {
   /** URL of the high-fidelity .riv (default: public/assets/models/rive/nomi-complete.riv). */
   src?: string;
@@ -16,7 +20,7 @@ const DEFAULT_SRC = './assets/models/rive/nomi-complete.riv';
 const FULL_SRC = './assets/models/rive/nomi-complete.riv';
 
 /**
- * Rive renderer (still opt-in behind isRiveExperimentEnabled()). The wasm is bundled — the
+ * Rive renderer. The wasm is bundled — the
  * runtime's default CDN URL would be blocked by the app CSP (connect-src 'self') — and the page CSP
  * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-eval.md).
  */
@@ -26,6 +30,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
   const stateMachine = fullBody ? 'NomiFull' : 'Nomi';
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const geometry = useRef<SpriteGeometry>({ head: null, body: null });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,6 +48,21 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
         width: `${b.w}px`,
         height: `${b.h}px`,
       });
+      // Rive draws into the positioned canvas, so keep the same window-space
+      // geometry contract used by SpriteCanvas. This is also the fallback hit
+      // region when the GPU/runtime canvas has no readable alpha channel.
+      const r = canvas.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        geometry.current = {
+          head: {
+            left: r.left + r.width * 0.16,
+            right: r.right - r.width * 0.16,
+            top: r.top + r.height * 0.04,
+            bottom: r.top + r.height * 0.42,
+          },
+          body: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
+        };
+      }
       rive?.resizeDrawingSurfaceToCanvas();
     };
     place();
@@ -89,7 +109,15 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
         ...style,
       }}
     >
-      <canvas ref={canvasRef} style={{ position: 'absolute', display: 'block' }} />
+      <canvas
+        ref={canvasRef}
+        style={{ position: 'absolute', display: 'block', touchAction: 'none' }}
+      />
+      <MascotInteractionLayerLite
+        canvasRef={canvasRef}
+        geometry={geometry}
+        registry={mascotRegistry}
+      />
       {error && (
         <div
           style={{

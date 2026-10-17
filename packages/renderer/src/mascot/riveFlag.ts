@@ -1,8 +1,6 @@
 /**
- * EXPERIMENTAL — Rive renderer for the Nomi mascot (docs/brand/rive-eval.md).
- * Off by default: the layered canvas rig stays the only shipped renderer. Opt in per machine with
- *   localStorage.setItem('nomi.experimental.rive', '1')   (then reload)
- * or per page with `?rive=1` (half-body) / `?rive=full` (full-body).
+ * Legacy Rive rollout flag retained for callers and tests that still need to detect
+ * an explicit Rive URL or stored preference. MascotHost now uses Rive by default.
  */
 export const RIVE_FLAG_KEY = 'nomi.experimental.rive';
 

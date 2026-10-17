@@ -6,10 +6,25 @@ export const RIVE_MOTIONS = [
   'hello',
   'celebrate',
   'cheer',
+  'nod',
+  'flinch',
+  'poke',
+  'shake',
+  'clap',
+  'think',
+  'work',
 ] as const;
 
 /** Backwards-compatible name used by the existing renderer tests and commands. */
 export const RIVE_POC_MOTIONS = RIVE_MOTIONS;
+
+// The shared interaction/AI vocabulary contains a few sprite-only gestures.
+// Keep those commands useful on the Rive scene by routing them to the closest
+// authored high-fidelity clip; the capabilities list still exposes only the
+// four clips that are actually present in the .riv file.
+const LEGACY_MOTION_ALIASES: Record<string, (typeof RIVE_MOTIONS)[number]> = {
+  greet: 'hello',
+};
 
 export const RIVE_EXPRESSIONS = [
   'neutral',
@@ -64,10 +79,11 @@ export function createRiveBackend(host: () => RiveTriggerHost | null | undefined
       fire('expr-relaxed');
     },
     playMotion(name: string, _opts?: MotionOptions): boolean {
-      const id =
+      const requested =
         name === 'random'
           ? RIVE_POC_MOTIONS[Math.floor(Math.random() * RIVE_POC_MOTIONS.length)]
           : name;
+      const id = LEGACY_MOTION_ALIASES[requested] ?? requested;
       if (!(RIVE_POC_MOTIONS as readonly string[]).includes(id)) return false;
       return fire(id);
     },

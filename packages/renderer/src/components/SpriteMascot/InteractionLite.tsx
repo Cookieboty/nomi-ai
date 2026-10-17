@@ -121,6 +121,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       if (inPaddedRects(x, y, uiRects(), UI_PAD)) return true;
       if (tainted) return geomHit(x, y);
       const a = alphaAt(x, y, hitRadius(currentlyHit));
+      // Rive's canvas may be GPU-backed or transparent even while the scene is
+      // visible, so its pixels are not a reliable hit-test source. Use the
+      // measured character geometry for that backend and keep alpha testing for
+      // the legacy sprite renderer.
+      const kind = (registry.current() as { kind?: string } | null)?.kind;
+      if (kind === 'rive') return geomHit(x, y);
       return a < 0 ? geomHit(x, y) : a >= ALPHA_HIT;
     };
 

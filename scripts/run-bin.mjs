@@ -16,7 +16,7 @@
  *   node ../../scripts/run-bin.mjs rimraf dist
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,10 +81,21 @@ function resolveBin(name) {
 }
 
 const binPath = resolveBin(binName);
+const childEnv = { ...process.env };
+// Turbo runs package scripts through pnpm. On restricted Windows sandboxes pnpm's
+// bundled runtime can fail while realpath-resolving the user temp directory; keep
+// the build's transient files inside the workspace instead.
+if (binName === 'turbo') {
+  const workspaceTmp = path.join(root, '.tmp', 'turbo-runtime');
+  mkdirSync(workspaceTmp, { recursive: true });
+  childEnv.TEMP = workspaceTmp;
+  childEnv.TMP = workspaceTmp;
+}
+
 const result = spawnSync(process.execPath, [binPath, ...argv], {
   stdio: 'inherit',
   cwd: process.cwd(),
-  env: process.env,
+  env: childEnv,
   windowsHide: true,
 });
 if (result.error) {

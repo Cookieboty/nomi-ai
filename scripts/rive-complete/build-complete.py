@@ -301,24 +301,26 @@ class Scene:
         wave_plate = asset('half-wave-torso', 'fullbody/half-wave-torso.png')
         self.bodyWave = El(
             'Image', 'body.highFidelityWave', ident=True,
-            # The wave source is a 1000px-tall plate whose top is aligned to
-            # source y=250.  Keeping the torso rows at their former world
-            # coordinates while extending upward preserves the shoulder fit
-            # and restores the complete raised hand.
-            assetId=wave_plate.need_id(), x=-440.0, y=-889.0,
+            # Align the generated wave plate to the neutral plate's shared
+            # torso features.  SIFT/RANSAC calibration gives a translation of
+            # (-3.3, -173.8) source pixels; applying that anchor in the common
+            # figure space keeps the neckline, N logo and belt stationary while
+            # the raised hand remains above the shoulder.
+            assetId=wave_plate.need_id(), x=-411.8, y=-918.8,
             originX=0, originY=0, scaleX=1.0, scaleY=1.0, opacity=0.0,
         )
         self.badge = node('badge.idle', tuple(P_BY['badge']['pivot']), FIG); self.badge.add(image('badge', tuple(P_BY['badge']['pivot'])))
         self.strap = node('strap-r.idle', tuple(P_BY['strap-r']['pivot']), FIG); self.strap.add(image('strap-r', tuple(P_BY['strap-r']['pivot'])))
-        # The regenerated neutral plate already contains the torso, jacket,
-        # cuffs, hands, badge and strap. Hide those legacy layers until an
-        # action clip explicitly reveals the rigged versions.
-        body.attrs['opacity'] = 0.0
+        # The official torso and the hang arm meshes are the rest pose.  Keep
+        # this stack active for every clip so an action only moves bones; a
+        # generated full torso plate would introduce a visible shoulder jump.
+        body_full.attrs['opacity'] = 0.0
+        body.attrs['opacity'] = 1.0
         flank_l.attrs['opacity'] = 0.0; flank_r.attrs['opacity'] = 0.0
         for cap in caps: cap.attrs['opacity'] = 0.0
-        for arm in self.arms.values(): arm.mesh_els['hang'].attrs['opacity'] = 0.0
+        for arm in self.arms.values(): arm.mesh_els['hang'].attrs['opacity'] = 1.0
         self.badge.attrs['opacity'] = 0.0; self.strap.attrs['opacity'] = 0.0
-        self.actionTorsoLayers = [body, flank_l, flank_r, *caps, self.badge, self.strap]
+        self.actionTorsoLayers = [body]
         # head
         self.headIdle = node('head.idle', NECK, FIG); self.headAct = node('head.act', NECK, NECK); self.headIdle.add(self.headAct)
         self.tails = {}
@@ -419,14 +421,18 @@ def build_full_action(sc: FullScene, name: str, plate: str):
     n = 72 if plate == 'wave' else 84
     an = Anim(f'full.{name}', n, False)
     for key, el in sc.plates.items():
+        # Full-body boards are compatibility art and still use authored pose
+        # plates.  Blend them over the neutral plate for 16 frames so a state
+        # transition never exposes a one-frame cut or a floating head.  The
+        # runtime state-machine transition then blends back into `rest`.
         if key == 'neutral':
-            values = [(0, 1.0 if plate == 'neutral' else 0.0, 'l'),
-                      (4, 1.0 if plate == 'neutral' else 0.0, 'io'),
-                      (n, 1.0 if plate == 'neutral' else 0.0, 'l')]
+            values = [(0, 1.0, 'l'), (8, 0.35, 'io'), (18, 0.0, 'io'),
+                      (n, 0.0, 'l')]
+        elif key == plate:
+            values = [(0, 0.0, 'l'), (8, 0.65, 'io'), (18, 1.0, 'io'),
+                      (n, 1.0, 'l')]
         else:
-            values = [(0, 1.0 if key == plate else 0.0, 'l'),
-                      (4, 1.0 if key == plate else 0.0, 'io'),
-                      (n, 1.0 if key == plate else 0.0, 'l')]
+            values = [(0, 0.0, 'l'), (n, 0.0, 'l')]
         an.key(el, 'opacity', values)
     # A tiny settle makes the full-body action read as an animation even when
     # the source plate itself is a single high-resolution frame.
@@ -439,6 +445,39 @@ def build_full_idle(sc: FullScene):
     an.key(sc.plates['neutral'], 'opacity', [(0, 1.0, 'l'), (n, 1.0, 'l')])
     an.key(sc.pose, 'scaleY', [(0, 1.0, 'io'), (n // 2, 1.006, 'io'), (n, 1.0, 'io')])
     return [an]
+
+
+def build_full_micro(sc: FullScene, name: str):
+    """Small reactions for the optional full-body compatibility board.
+
+    The plates keep one stable origin so feet and head never swim during a
+    reaction.  The production default is the layered Nomi board above.
+    """
+    n = 60
+    an = Anim(f'full.{name}', n, False)
+    if name == 'nod':
+        an.key(sc.pose, 'rotation', [(0, 0.0, 'io'), (18, -0.025, 'io'),
+                                     (36, 0.02, 'io'), (n, 0.0, 'io')])
+    elif name == 'flinch':
+        an.key(sc.pose, 'scaleX', [(0, 1.0, 'io'), (10, 0.97, 'io'),
+                                   (24, 1.0, 'io'), (n, 1.0, 'io')])
+        an.key(sc.pose, 'scaleY', [(0, 1.0, 'io'), (10, 1.018, 'io'),
+                                   (24, 1.0, 'io'), (n, 1.0, 'io')])
+    elif name == 'poke':
+        an.key(sc.pose, 'x', [(0, 0.0, 'io'), (14, -8.0, 'io'),
+                              (30, 0.0, 'io'), (n, 0.0, 'io')])
+    elif name == 'shake':
+        an.key(sc.pose, 'rotation', [(0, 0.0, 'io'), (12, -0.025, 'io'),
+                                     (24, 0.025, 'io'), (36, -0.015, 'io'),
+                                     (n, 0.0, 'io')])
+    elif name == 'clap':
+        an.key(sc.pose, 'scaleY', [(0, 1.0, 'io'), (20, 1.012, 'io'),
+                                   (40, 1.0, 'io'), (n, 1.0, 'io')])
+    elif name in ('think', 'work'):
+        an.key(sc.pose, 'rotation', [(0, 0.0, 'io'),
+                                     (20, 0.018 if name == 'think' else -0.015, 'io'),
+                                     (42, 0.0, 'io'), (n, 0.0, 'io')])
+    return an
 
 # ---------------------------------------------------------------- actions from the canvas rig's own tracks
 def load_rows(name):
@@ -521,11 +560,16 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
         for bn, xs, ys in (('el', ex, ey), ('wr', Wx, Wy)):
             an.key(arm.bones[bn], 'x', [(f, v, 'l') for f, v in track(xs, 0.3)])
             an.key(arm.bones[bn], 'y', [(f, v, 'l') for f, v in track(ys, 0.3)])
-        # crossfade hang art -> raised-state art (hang stays underneath until the raised art is fully opaque)
-        alpha = [1.0 if w >= 0.56 else 0.0 for w in k["w"]]   # hard switch: no double-exposed hands/sleeves
-        an.key(arm.mesh_els[state], 'opacity', [(f, v, 'l') for f, v in track(alpha, 0.02)])
-        an.key(arm.front_els[state], 'opacity', [(f, v, 'l') for f, v in track(alpha, 0.02)])
-        an.key(arm.mesh_els['hang'], 'opacity', [(f, v, 'l') for f, v in track([1.0 if a_ < 0.999 else 0.0 for a_ in alpha], 0.02)])
+        # Crossfade the authored sleeve/hand state over a short raise window.
+        # The previous binary switch (at w == 0.56) made the shoulder pop one
+        # frame before the arm reached its IK target.  A smoothstep keeps the
+        # neutral sleeve visible at the shoulder while the bent mesh settles,
+        # then hands off without a visible cut.  The raised layer is retained
+        # underneath the front hand copy so the cuff seam remains continuous.
+        alpha = [smooth01((w - 0.30) / 0.42) for w in k["w"]]
+        an.key(arm.mesh_els[state], 'opacity', [(f, v, 'io') for f, v in track(alpha, 0.008)])
+        an.key(arm.front_els[state], 'opacity', [(f, v, 'io') for f, v in track(alpha, 0.008)])
+        an.key(arm.mesh_els['hang'], 'opacity', [(f, 1.0 - v, 'io') for f, v in track(alpha, 0.008)])
     an.key(sc.figAct, 'y', [(f, v, 'l') for f, v in track([r['bodyY'] for r in rows], 0.15)])
     an.key(sc.figAct, 'x', [(f, v, 'l') for f, v in track([r['torsoX'] for r in rows], 0.15)])
     # Keep the neck visually centered while the arm moves.  The source pose
@@ -539,7 +583,10 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
     # Reveal the rigged action arms for this clip; the official composite is
     # restored by the shared rest animation after the one-shot completes.
     an.key(sc.bodyFull, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
-    plate_action = name in ('wave', 'hello')
+    # Keep every production gesture on the shared torso plus the three-bone
+    # arm rig.  The generated wave torso is retained as a calibration asset,
+    # but swapping a full raster here makes the head and shoulders jump.
+    plate_action = False
     an.key(sc.bodyWave, 'opacity', [(0, 1.0 if plate_action else 0.0, 'l'),
                                     (n, 1.0 if plate_action else 0.0, 'l')])
     for layer in sc.actionTorsoLayers:
@@ -554,6 +601,35 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
         for arm in sc.arms.values():
             for mesh in (*arm.mesh_els.values(), *arm.front_els.values()):
                 an.key(mesh, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
+    return an
+
+
+def build_micro_action(sc: Scene, name: str):
+    """Small authored reactions for commands that used to exist only on the
+    canvas rig. They deliberately animate the shared skeleton/root nodes, so
+    the head and torso anchor stays fixed while the reaction reads at desktop
+    scale instead of silently doing nothing on Rive.
+    """
+    n = 60
+    an = Anim(name, n, False)
+    if name == 'nod':
+        an.key(sc.headAct, 'rotation', [(0, 0.0, 'io'), (18, -0.045, 'io'),
+                                        (36, 0.035, 'io'), (n, 0.0, 'io')])
+    elif name == 'flinch':
+        an.key(sc.figAct, 'scaleX', [(0, 1.0, 'io'), (10, 0.965, 'io'), (24, 1.0, 'io'), (n, 1.0, 'io')])
+        an.key(sc.figAct, 'scaleY', [(0, 1.0, 'io'), (10, 1.018, 'io'), (24, 1.0, 'io'), (n, 1.0, 'io')])
+        an.key(sc.headAct, 'rotation', [(0, 0.0, 'io'), (10, -0.03, 'io'), (24, 0.0, 'io'), (n, 0.0, 'io')])
+    elif name == 'poke':
+        an.key(sc.figAct, 'x', [(0, 0.0, 'io'), (14, -8.0, 'io'), (30, 0.0, 'io'), (n, 0.0, 'io')])
+    elif name == 'shake':
+        an.key(sc.figAct, 'rotation', [(0, 0.0, 'io'), (12, -0.035, 'io'), (24, 0.035, 'io'), (36, -0.02, 'io'), (n, 0.0, 'io')])
+    elif name == 'clap':
+        an.key(sc.figAct, 'scaleX', [(0, 1.0, 'io'), (20, 0.985, 'io'), (40, 1.0, 'io'), (n, 1.0, 'io')])
+        an.key(sc.figAct, 'scaleY', [(0, 1.0, 'io'), (20, 1.012, 'io'), (40, 1.0, 'io'), (n, 1.0, 'io')])
+    elif name in ('think', 'work'):
+        an.key(sc.headAct, 'rotation', [(0, 0.0, 'io'), (20, 0.025 if name == 'think' else -0.02, 'io'),
+                                        (42, 0.0, 'io'), (n, 0.0, 'io')])
+        an.key(sc.figAct, 'y', [(0, 0.0, 'io'), (20, -3.0, 'io'), (42, 0.0, 'io'), (n, 0.0, 'io')])
     return an
 
 def build_idle(sc: Scene):
@@ -649,11 +725,17 @@ def build_sm(idle, acts, rest, *, name='Nomi', vm_name='Mascot', vm_id=VM_ID, vm
     states = {an.name: El('AnimationState', ident=True, x=520, y=-160 + i * 100, animationId=an.el.id) for i, an in enumerate(acts)}
     entry = El('EntryState'); entry.add(El('StateTransition', stateToId=rest_st.id))
     for nm, st in states.items():
-        tr = El('StateTransition', stateToId=st.id, duration=0)
+        # Rive transition durations are milliseconds (the animation duration
+        # itself is in frames). A zero duration made every gesture snap from
+        # rest to the first raised pose, which is especially visible when the
+        # generated torso plate replaces the arm layers.
+        blend_ms = 140 if nm in ('wave', 'hello', 'cheer', 'celebrate') else 80
+        tr = El('StateTransition', stateToId=st.id, duration=blend_ms)
         c = El('TransitionViewModelCondition'); cmp_ = El('TransitionPropertyViewModelComparator'); bp = El('BindablePropertyTrigger')
         bp.add(El('DataBindContext', sourcePathIds=f'{vm_id}-{props[nm].id}', propertyKey=686)); cmp_.add(bp)
         c.add(cmp_, El('TransitionValueTriggerComparator')); tr.add(c); rest_st.add(tr)
-        st.add(El('StateTransition', stateToId=rest_st.id, duration=0, enableExitTime=True, exitTimeIsPercetange=True, exitTime=100))
+        return_ms = 180 if nm in ('wave', 'hello', 'cheer', 'celebrate') else 100
+        st.add(El('StateTransition', stateToId=rest_st.id, duration=return_ms, enableExitTime=True, exitTimeIsPercetange=True, exitTime=100))
     ly.add(El('AnyState', x=0, y=-100), El('ExitState', x=400, y=-100), entry, rest_st, *states.values()); sm.add(ly)
     return vm, sm
 
@@ -666,7 +748,9 @@ def main():
     # sharing the same high-fidelity baked arm tracks.
     hello = build_action(sc, 'hello', 'wave', {'r': 'r'}, 'bent')
     celebrate = build_action(sc, 'celebrate', 'celebrate', {'r': 'r', 'l': 'l'}, 'bent')
-    acts = [wave, cheer, hello, celebrate]
+    micro = [build_micro_action(sc, name) for name in
+             ('nod', 'flinch', 'poke', 'shake', 'clap', 'think', 'work')]
+    acts = [wave, cheer, hello, celebrate, *micro]
     acts.extend(build_expression(sc, name) for name in
                 ('neutral', 'happy', 'angry', 'sad', 'relaxed', 'surprised'))
     acts.extend([
@@ -686,7 +770,9 @@ def main():
     full_cheer = build_full_action(full, 'cheer', 'cheer')
     full_hello = build_full_action(full, 'hello', 'wave')
     full_celebrate = build_full_action(full, 'celebrate', 'cheer')
-    full_acts = [full_wave, full_cheer, full_hello, full_celebrate]
+    full_micro = [build_full_micro(full, name) for name in
+                  ('nod', 'flinch', 'poke', 'shake', 'clap', 'think', 'work')]
+    full_acts = [full_wave, full_cheer, full_hello, full_celebrate, *full_micro]
     full_rest = build_rest(full, full_acts)
     full_vm, full_sm = build_sm(full_idle, full_acts, full_rest,
                                 name='NomiFull', vm_name='MascotFull',
