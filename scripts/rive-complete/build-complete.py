@@ -285,14 +285,40 @@ class Scene:
         caps = [arm.cap_image(FIG) for arm in self.arms.values()]
         flank_l = image('body-flank-l', FIG); flank_r = image('body-flank-r', FIG)
         body = image('body-noarm', FIG)
-        # The official composite contains the exact neutral sleeves and jacket
-        # seams from the supplied sheet. Keep it as the idle plate so the
-        # neutral pose is pixel-faithful; action clips fade it out and reveal
-        # the rigged arm meshes underneath.
-        body_full = image('body', FIG, opacity=1.0)
+        self.bodyNoArm = body
+        # The supplied sheet has a wider, lower shoulder silhouette than the
+        # old arm meshes. Use the regenerated high-resolution torso plate for
+        # the neutral state; action clips fade it out and reveal the rigged
+        # arm meshes underneath. The face remains separately layered above it
+        # so blink, mouth and expression triggers keep working.
+        plate = asset('half-neutral', 'fullbody/half-torso-neutral.png')
+        body_full = El(
+            'Image', 'body.highFidelityNeutral', ident=True,
+            assetId=plate.need_id(), x=-408.5, y=-745.0,
+            originX=0, originY=0, scaleX=1.0, scaleY=1.0, opacity=1.0,
+        )
         self.bodyFull = body_full
+        wave_plate = asset('half-wave-torso', 'fullbody/half-wave-torso.png')
+        self.bodyWave = El(
+            'Image', 'body.highFidelityWave', ident=True,
+            # The wave source is a 1000px-tall plate whose top is aligned to
+            # source y=250.  Keeping the torso rows at their former world
+            # coordinates while extending upward preserves the shoulder fit
+            # and restores the complete raised hand.
+            assetId=wave_plate.need_id(), x=-440.0, y=-889.0,
+            originX=0, originY=0, scaleX=1.0, scaleY=1.0, opacity=0.0,
+        )
         self.badge = node('badge.idle', tuple(P_BY['badge']['pivot']), FIG); self.badge.add(image('badge', tuple(P_BY['badge']['pivot'])))
         self.strap = node('strap-r.idle', tuple(P_BY['strap-r']['pivot']), FIG); self.strap.add(image('strap-r', tuple(P_BY['strap-r']['pivot'])))
+        # The regenerated neutral plate already contains the torso, jacket,
+        # cuffs, hands, badge and strap. Hide those legacy layers until an
+        # action clip explicitly reveals the rigged versions.
+        body.attrs['opacity'] = 0.0
+        flank_l.attrs['opacity'] = 0.0; flank_r.attrs['opacity'] = 0.0
+        for cap in caps: cap.attrs['opacity'] = 0.0
+        for arm in self.arms.values(): arm.mesh_els['hang'].attrs['opacity'] = 0.0
+        self.badge.attrs['opacity'] = 0.0; self.strap.attrs['opacity'] = 0.0
+        self.actionTorsoLayers = [body, flank_l, flank_r, *caps, self.badge, self.strap]
         # head
         self.headIdle = node('head.idle', NECK, FIG); self.headAct = node('head.act', NECK, NECK); self.headIdle.add(self.headAct)
         self.tails = {}
@@ -327,7 +353,7 @@ class Scene:
                       mouth, mouth_open, mouth_o, mouth_frown, image('bangs', NECK),
                       image('clip', NECK), self.ribbon, image('earring', NECK))
         # z: back -> front
-        back_to_front(self.figAct, body_full, flank_l, flank_r, *rigs, *back_meshes, *caps, body, self.strap, self.badge, self.headIdle, *front_meshes)
+        back_to_front(self.figAct, self.bodyWave, body_full, flank_l, flank_r, *rigs, *back_meshes, *caps, body, self.strap, self.badge, self.headIdle, *front_meshes)
         ab.add(self.figIdle)
         if os.environ.get('RC_BG'):   # review renders only: opaque cream backdrop so CLI frames match the canvas rig's bg
             bg = El('Shape', 'review.bg', ident=True, x=0, y=0)
@@ -502,12 +528,32 @@ def build_action(sc: Scene, name: str, src: str, sides: dict[str, str], state: s
         an.key(arm.mesh_els['hang'], 'opacity', [(f, v, 'l') for f, v in track([1.0 if a_ < 0.999 else 0.0 for a_ in alpha], 0.02)])
     an.key(sc.figAct, 'y', [(f, v, 'l') for f, v in track([r['bodyY'] for r in rows], 0.15)])
     an.key(sc.figAct, 'x', [(f, v, 'l') for f, v in track([r['torsoX'] for r in rows], 0.15)])
-    an.key(sc.headAct, 'rotation', [(f, v, 'l') for f, v in track([r['headRot'] for r in rows], 0.004)])
+    # Keep the neck visually centered while the arm moves.  The source pose
+    # trace contains a 4–5° head swing that reads as a crooked neck once the
+    # official head is composited over the generated torso plate, so retain
+    # only a restrained 0.86° accent.
+    head_rot = [max(-0.015, min(0.015, r['headRot'])) for r in rows]
+    an.key(sc.headAct, 'rotation', [(f, v, 'l') for f, v in track(head_rot, 0.002)])
     if 'r' in sides:
         an.key(sc.strap, 'opacity', [(f, 1 - min(1.0, v), 'l') for f, v in track([r['rOn'] for r in rows], 0.02)])
     # Reveal the rigged action arms for this clip; the official composite is
     # restored by the shared rest animation after the one-shot completes.
     an.key(sc.bodyFull, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
+    plate_action = name in ('wave', 'hello')
+    an.key(sc.bodyWave, 'opacity', [(0, 1.0 if plate_action else 0.0, 'l'),
+                                    (n, 1.0 if plate_action else 0.0, 'l')])
+    for layer in sc.actionTorsoLayers:
+        visible = 0.0 if plate_action else 1.0
+        an.key(layer, 'opacity', [(0, visible, 'l'), (n, visible, 'l')])
+    an.key(sc.bodyNoArm, 'opacity', [(0, 1.0, 'l'), (n, 1.0, 'l')])
+    if plate_action:
+        # The generated wave plate contains its own official bridge strip;
+        # keep the full legacy torso hidden so it cannot cover the high-
+        # fidelity action art.
+        an.key(sc.bodyNoArm, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
+        for arm in sc.arms.values():
+            for mesh in (*arm.mesh_els.values(), *arm.front_els.values()):
+                an.key(mesh, 'opacity', [(0, 0.0, 'l'), (n, 0.0, 'l')])
     return an
 
 def build_idle(sc: Scene):
