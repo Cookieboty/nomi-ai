@@ -7,19 +7,19 @@ module.exports = {
     {
       dir: 'packages/ai-chat/src',
       importFrom: '@nomi-ai/ui',
-      dict: 'packages/ui/src/locales/en.json',
+      dict: 'packages/ui/src/locales/en',
     },
     {
       dir: 'packages/renderer/src',
       importFrom: '@nomi-ai/ui',
-      dict: 'packages/ui/src/locales/en.json',
+      dict: 'packages/ui/src/locales/en',
     },
     {
       dir: 'packages/voice/src',
       importFrom: '@nomi-ai/ui',
-      dict: 'packages/ui/src/locales/en.json',
+      dict: 'packages/ui/src/locales/en',
     },
-    { dir: 'packages/ui/src', importFrom: './i18n', dict: 'packages/ui/src/locales/en.json' },
+    { dir: 'packages/ui/src', importFrom: './i18n', dict: 'packages/ui/src/locales/en' },
     {
       dir: 'packages/electron/src',
       importFrom: '<rel>/i18n',

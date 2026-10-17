@@ -14,6 +14,7 @@ import {
   ModalHostContext,
   Notice,
   Select,
+  SectionTitle,
   ToastProvider,
 } from '@nomi-ai/ui';
 import { CloudCog, Plus, TriangleAlert, Zap } from 'lucide-react';
@@ -363,7 +364,7 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   />
                 ))}
               <section>
-                <h3 className="cd-section-title">{t('任务路由（可选，默认都跟随当前供应商）')}</h3>
+                <SectionTitle>{t('任务路由（可选，默认都跟随当前供应商）')}</SectionTitle>
                 <RoutesTable state={state} onError={onError} />
                 <p className="cd-muted">
                   {t(

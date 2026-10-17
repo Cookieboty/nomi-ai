@@ -21,6 +21,7 @@ import {
   ModalHostContext,
   Notice,
   Select,
+  SectionTitle,
   Switch,
   Tabs,
   ToastProvider,
@@ -32,6 +33,13 @@ import {
 afterEach(cleanup);
 
 describe('@nomi-ai/ui', () => {
+  it('SectionTitle keeps the requested heading level and shared class', () => {
+    const { rerender } = render(<SectionTitle level={2}>Overview</SectionTitle>);
+    expect(screen.getByRole('heading', { level: 2 }).className).toContain('cd-section-title');
+    rerender(<SectionTitle level={4}>Details</SectionTitle>);
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Details');
+  });
+
   it('EmptyState: lucide icon sits in the rounded tinted container (no emoji)', () => {
     const { container } = render(<EmptyState icon={Inbox} title="还没有内容" />);
     const box = container.querySelector('.cd-empty__icon');
@@ -308,7 +316,7 @@ describe('Modal close button + title bar offset', () => {
   });
 
   it('overlay (drawer and dialog) starts below the title bar and is not a drag region', () => {
-    const css = fs.readFileSync(path.resolve(__dirname, '../src/styles.css'), 'utf8');
+    const css = fs.readFileSync(path.resolve(__dirname, '../src/styles/base.css'), 'utf8');
     const rule = (sel: string) => {
       const i = css.indexOf(`${sel} {`);
       return css.slice(i, css.indexOf('}', i));

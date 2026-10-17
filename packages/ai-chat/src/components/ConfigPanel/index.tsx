@@ -1,5 +1,15 @@
 import { createLogger, t } from '@nomi-ai/ui';
-import { Badge, Button, Card, EmptyState, FormField, Input, Modal, Switch } from '@nomi-ai/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FormField,
+  Input,
+  Modal,
+  SectionTitle,
+  Switch,
+} from '@nomi-ai/ui';
 import { Bot } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -79,9 +89,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
     <Modal open onClose={onClose} title={t('AI模型配置')} closeOnOverlay={false}>
       {editingModel ? (
         <div className={styles.editForm}>
-          <h3 className="cd-section-title">
+          <SectionTitle>
             {t('编辑模型:')} {t(editingModel.name)}
-          </h3>
+          </SectionTitle>
           <FormField label={t('模型名称')}>
             <Input
               type="text"
@@ -146,7 +156,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
         </div>
       ) : (
         <div className={styles.modelList}>
-          <h3 className="cd-section-title">{t('可用模型')}</h3>
+          <SectionTitle>{t('可用模型')}</SectionTitle>
           {state.models.length === 0 && <EmptyState icon={Bot} title={t('暂无模型')} />}
           {state.models.map((model) => (
             <Card
