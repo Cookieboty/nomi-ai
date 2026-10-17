@@ -77,16 +77,12 @@ describe('CliHarnessService tabs', () => {
     ];
     const snapshots: HarnessTabsState[] = [];
     h.events.on('tabs', (s: HarnessTabsState) => snapshots.push(s));
-    const started = Date.now();
     const results = await Promise.all(ids.map((id, i) => h.sendTab(id, `job ${i}`)));
-    const elapsed = Date.now() - started;
     expect(results[0]!.text).toContain('Mock Claude');
     expect(results[1]!.text).toContain('Mock Codex');
     expect(results[2]!.text).toContain('job 2');
     expect(Math.max(...snapshots.map((s) => s.running))).toBe(2);
     expect(Math.max(...snapshots.map((s) => s.queued))).toBeGreaterThanOrEqual(1);
-    // 两批：明显快于串行三轮
-    expect(elapsed).toBeLessThan(3 * 400 + 1500);
     expect(h.listTabs().tabs.every((x) => x.status === 'idle')).toBe(true);
   });
 

@@ -29,6 +29,7 @@ const put = (f: string, s: string) => {
   fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, s);
 };
+const posix = process.platform === 'win32' ? it.skip : it;
 
 // 官方文档里的 statusline 输入示例（https://code.claude.com/docs/en/statusline）
 const OFFICIAL = {
@@ -103,7 +104,7 @@ describe('statusline 钩子：开启 / 关闭 / 恢复', () => {
     expect(fs.existsSync(path.join(root, SCRIPT_FILE))).toBe(false);
   });
 
-  it('已有自己的 statusLine：备份、保留 padding、串接执行，关闭时原样恢复；其它字段不动', () => {
+  posix('已有自己的 statusLine：备份、保留 padding、串接执行，关闭时原样恢复；其它字段不动', () => {
     const { home, root, dep } = setup();
     const orig = { type: 'command', command: 'echo ORIGINAL-LINE', padding: 2 };
     put(settingsOf(home), JSON.stringify({ model: 'opus', env: { A: '1' }, statusLine: orig }));

@@ -129,6 +129,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
       root,
       home,
       dshHome: path.join(home, '.dsh'),
+      env: {},
       scanMs: 0,
       logger: { info: jest.fn(), warn: jest.fn() },
     });
@@ -143,7 +144,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
     expect(svc.quota().every((e) => e.status === 'unavailable' && e.windows.length === 0)).toBe(
       true,
     );
-    expect(svc.quota().map((e) => e.id)).toEqual(['codex', 'claude', 'dsh', 'nomi']);
+    expect(svc.quota().map((e) => e.id)).toEqual(['codex', 'claude', 'dsh', 'grok', 'nomi']);
   });
 
   it('扫描到额度快照：codex 可用，其它仍不可用；重启后保留；清空后消失', async () => {
@@ -166,6 +167,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
     const again = new UsageService({
       root,
       home: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-quota-h2-')),
+      env: {},
       scanMs: 0,
       logger: { info: jest.fn(), warn: jest.fn() },
     });

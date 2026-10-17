@@ -161,9 +161,7 @@ export class UsageLogScanner {
     this.env = d.env ?? process.env;
     this.dshHome =
       d.dshHome ??
-      (process.env.DSH_HOME?.trim()
-        ? path.resolve(process.env.DSH_HOME)
-        : path.join(this.home, '.dsh'));
+      (this.env.DSH_HOME?.trim() ? path.resolve(this.env.DSH_HOME) : path.join(this.home, '.dsh'));
     this.grokHome = d.grokHome ?? grokHomeDir(this.home, this.env);
   }
 

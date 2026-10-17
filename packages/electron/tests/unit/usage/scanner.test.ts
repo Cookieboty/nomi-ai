@@ -18,6 +18,7 @@ const mk = () => {
     ledger,
     home,
     dshHome: path.join(home, '.dsh'),
+    env: {},
     retention: () => '1y',
     clearedAt: () => clearedAt,
     routeBusy: () => busy,
@@ -167,6 +168,7 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
       ledger,
       home,
       dshHome: path.join(home, '.dsh'),
+      env: {},
       retention: () => '1y',
       onNew: (r) => seen.push(r.key),
     });
@@ -198,7 +200,7 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     const old = new Date(Date.now() - 3_600_000).toISOString();
     fs.writeFileSync(f, asst('msg_old', 1, old));
     setCleared(Date.now() - 1_000);
-    fs.appendFileSync(f, asst('msg_new', 2));
+    fs.appendFileSync(f, asst('msg_new', 2, new Date().toISOString()));
     await scanner.scan();
     expect(ledger.all().map((r) => r.key)).toEqual(['claude:msg_new']);
   });
