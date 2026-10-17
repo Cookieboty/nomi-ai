@@ -25,16 +25,20 @@ print(f'[1] official layers checked: {n}, mismatches: {bad}'); ok &= bad == 0
 scene = (R / 'scene.rml').read_text()
 files = re.findall(r'file="([^"]+)"', scene)
 off = [f for f in files if f.startswith('official/')]; ai = [f for f in files if f.startswith('parts/ai/')]
-other = [f for f in files if not f.startswith('official/') and not f.startswith('parts/ai/')]
+full = [f for f in files if f.startswith('fullbody/')]
+other = [f for f in files if not f.startswith('official/') and not f.startswith('parts/ai/') and not f.startswith('fullbody/')]
 brand = ['clip', 'badge', 'body-noarm', 'body-flank-l', 'body-flank-r', 'head', 'bangs', 'crown', 'ribbon', 'earring', 'strap-r', 'hair-tail-l', 'hair-tail-r']
 pid = {p['id']: p['file'] for p in parts['parts']}
 miss = [b for b in brand if 'official/' + pid.get(b, '?') not in files]
-print(f'[2] scene assets: official {len(off)}, parts/ai {len(ai)}, other {len(other)} {other}; brand parts not official: {miss}')
+print(f'[2] scene assets: official {len(off)}, parts/ai {len(ai)}, fullbody {len(full)}, other {len(other)} {other}; brand parts not official: {miss}')
 ok &= not other and not miss
 lic = json.loads((R / 'parts/DETAIL_LICENSE.json').read_text())['assets']
 badl = 0
 for f in ai:
     rel = f[len('parts/'):] if False else f
+    e = lic.get(f)
+    if not e or e.get('ai_generated') is not True or e.get('sha256') != sha(R / f): badl += 1; print('LICENSE/SHA problem', f)
+for f in full:
     e = lic.get(f)
     if not e or e.get('ai_generated') is not True or e.get('sha256') != sha(R / f): badl += 1; print('LICENSE/SHA problem', f)
 for k, e in lic.items():
