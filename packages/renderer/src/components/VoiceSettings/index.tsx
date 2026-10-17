@@ -55,9 +55,12 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板显隐时初次拉取并订阅系统 voices 变更：外部数据同步模式，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     setSettings(voiceService.getSettings());
     refreshCharacter();
     refreshVoices();
+    /* eslint-enable react-hooks/set-state-in-effect */
     const synth = window.speechSynthesis;
     synth?.addEventListener('voiceschanged', refreshVoices);
     const t = setTimeout(refreshVoices, 300);

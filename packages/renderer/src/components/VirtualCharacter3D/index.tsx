@@ -54,6 +54,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
     };
 
     initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在模型路径变化时重初始化，回调更稳定
   }, [modelPath]); // 移除store函数和callback依赖
 
   // 处理模型加载成功

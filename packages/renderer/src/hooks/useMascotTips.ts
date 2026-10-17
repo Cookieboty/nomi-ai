@@ -10,7 +10,10 @@ const IDLE_AFTER_MS = 45_000;
 export function useMascotTips(): void {
   const { showMessage } = useWaifuMessage();
   const showRef = useRef(showMessage);
-  showRef.current = showMessage;
+  // 渲染期不写 ref：通过 effect 同步最新 showMessage，供 window 事件回调读取
+  useEffect(() => {
+    showRef.current = showMessage;
+  }, [showMessage]);
 
   useEffect(() => {
     const say = (t: string | string[], timeout = 4000, priority = 8) =>

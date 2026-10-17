@@ -54,6 +54,8 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     let cancelled = false;
     let detach: (() => void) | null = null;
     const url = modelPath || DEFAULT_VRM_MODEL_PATH;
+    // VRM 加载流程是外部数据同步：挂载 / 切换 modelPath 时初次拉取并派生 loading / fallback 状态
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!url) {
       // no bundled VRM: only user/store models reach the 3D path
       setUseFallback(true);
@@ -63,6 +65,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     loader.register((parser) => new VRMLoaderPlugin(parser));
     setUseFallback(false);
     setIsLoaded(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
     loader
       .loadAsync(url)
       .then((gltf) => {
@@ -116,6 +119,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
       backendRef.current = null;
       const vrm = vrmRef.current;
       if (vrm) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup 期间访问 group 是 three.js 的回收需求
         groupRef.current?.remove(vrm.scene);
         VRMUtils.deepDispose(vrm.scene);
         vrmRef.current = null;

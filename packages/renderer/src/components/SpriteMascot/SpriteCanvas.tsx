@@ -56,8 +56,11 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     let cancelled = false;
     let detach: (() => void) | null = null;
     let raf = 0;
+    // 切换 manifestPath 时重置就绪态与错误；外部数据同步模式，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     setReady(false);
     setError(null);
+    /* eslint-enable react-hooks/set-state-in-effect */
     loadSpriteManifest(manifestPath)
       .then(({ manifest, baseUrl }) => {
         if (cancelled) return;

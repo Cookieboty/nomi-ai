@@ -25,12 +25,15 @@ const CameraRig: React.FC<{ camera?: { height?: number; distance?: number; fov?:
   const { camera: cam } = useThree();
   useEffect(() => {
     const height = camera?.height ?? 0.82;
+    // three.js 的 camera 对象来自 useThree，是可变 three 实例，这里按 three 的约定直接修改属性
+    /* eslint-disable react-hooks/immutability */
     cam.position.set(0, height, camera?.distance ?? 3.2);
     if ('fov' in cam) {
       (cam as THREE.PerspectiveCamera).fov = camera?.fov ?? 35;
       (cam as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
     cam.lookAt(0, height - 0.02, 0);
+    /* eslint-enable react-hooks/immutability */
   }, [cam, camera?.height, camera?.distance, camera?.fov]);
   return null;
 };
@@ -127,6 +130,7 @@ export const Character3DCanvas: React.FC<Character3DCanvasProps> = ({
   const renderConfig = getRenderConfig();
 
   // 加载指示器组件
+  // 嵌套在父组件内是为了共享 Canvas context，不方便上移到模块级
   const LoadingIndicator = () => {
     const { progress } = useProgress();
 
@@ -143,9 +147,11 @@ export const Character3DCanvas: React.FC<Character3DCanvasProps> = ({
   };
 
   // 性能监控组件
+  // 嵌套在父组件内是为了共享渲染质量状态，useFrame 内修改 ref 是 r3f 的推荐用法
   const PerformanceMonitor = () => {
-    const { gl } = useThree();
+    const { gl: _gl } = useThree();
     const frameCount = useRef(0);
+    // eslint-disable-next-line react-hooks/purity -- performance.now() 作为初值仅在首次挂载时读取
     const lastTime = useRef(performance.now());
 
     useFrame(() => {
@@ -230,10 +236,12 @@ export const Character3DCanvas: React.FC<Character3DCanvasProps> = ({
         {transparent && <MascotInteractionLayer />}
 
         {/* 性能监控 */}
+        {/* eslint-disable-next-line react-hooks/static-components -- 性能监控需共享父组件的 renderQuality 状态 */}
         <PerformanceMonitor />
 
         {/* VRM角色控制器 */}
         {modelPath && (
+          /* eslint-disable-next-line react-hooks/static-components -- Suspense fallback 共享父组件的 t() 翻译 */
           <Suspense fallback={<LoadingIndicator />}>
             <VRMCharacterController
               modelPath={modelPath}

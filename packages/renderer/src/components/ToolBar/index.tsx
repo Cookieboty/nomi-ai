@@ -446,6 +446,8 @@ export const ToolBar: React.FC = () => {
   const wantVisible = near || hoverWin || focusWithin || menuOpen || showVoiceSettings;
   useEffect(() => {
     clearTimeout(hideTimer.current);
+    // 悬浮状态变化时立即显隐工具栏；外部交互驱动的派生状态，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (wantVisible) setVisible(true);
     else hideTimer.current = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
     return () => clearTimeout(hideTimer.current);

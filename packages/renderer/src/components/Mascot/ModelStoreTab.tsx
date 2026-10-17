@@ -40,9 +40,12 @@ export const ModelStoreTab: React.FC = () => {
   );
 
   useEffect(() => {
+    // 挂载 / api 变化时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void load(true);
     const offP = api?.onProgress((p) => setProgress((prev) => ({ ...prev, [p.id]: p })));
     const offC = api?.onChanged(() => void load(false));
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       offP?.();
       offC?.();
