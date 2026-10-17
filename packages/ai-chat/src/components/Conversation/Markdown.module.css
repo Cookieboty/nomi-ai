@@ -142,3 +142,57 @@
   background: var(--cd-color-surface-sunken);
   font-weight: var(--cd-font-weight-medium);
 }
+
+/* rehype-highlight 产出的 .hljs-* class：映射到当前主题的 token 颜色，
+   不依赖具体明暗主题的硬编码色值。*/
+.codePre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.codePre .hljs-comment,
+.codePre .hljs-quote,
+.codePre .hljs-meta {
+  color: var(--cd-color-text-muted);
+  font-style: italic;
+}
+.codePre .hljs-keyword,
+.codePre .hljs-selector-tag,
+.codePre .hljs-literal,
+.codePre .hljs-section,
+.codePre .hljs-link,
+.codePre .hljs-doctag {
+  color: var(--cd-color-accent-2, #c678dd);
+  font-weight: var(--cd-font-weight-medium);
+}
+.codePre .hljs-string,
+.codePre .hljs-title,
+.codePre .hljs-name,
+.codePre .hljs-type,
+.codePre .hljs-attribute,
+.codePre .hljs-symbol,
+.codePre .hljs-bullet,
+.codePre .hljs-addition,
+.codePre .hljs-variable,
+.codePre .hljs-template-tag,
+.codePre .hljs-template-variable {
+  color: var(--cd-color-success, #98c379);
+}
+.codePre .hljs-number,
+.codePre .hljs-regexp,
+.codePre .hljs-built_in,
+.codePre .hljs-class .hljs-title,
+.codePre .hljs-params {
+  color: var(--cd-color-warning, #d19a66);
+}
+.codePre .hljs-deletion {
+  color: var(--cd-color-danger, #e06c75);
+}
+.codePre .hljs-emphasis {
+  font-style: italic;
+}
+.codePre .hljs-strong {
+  font-weight: var(--cd-font-weight-bold);
+}

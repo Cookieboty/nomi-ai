@@ -12,6 +12,7 @@ import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
 import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
+import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -167,6 +168,9 @@ export class Application implements IApplication {
       const models = getModelService(this.logger);
       models.registerProtocol();
       models.registerIpc();
+
+      // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
+      registerChatAssetProtocol();
 
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
       const updates = getUpdateService(this.logger);

@@ -7,6 +7,7 @@ import * as path from 'path';
 
 import { app, BrowserWindow } from 'electron';
 
+import { registerChatAssetSchemePrivileges } from './chat/assetProtocol';
 import { Application } from './core/Application';
 import { registerModelSchemePrivileges } from './models/ModelService';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
@@ -80,6 +81,8 @@ if (isPrimaryInstance && !app.isPackaged) {
 
 // cdmodel://（远程 / 用户模型文件）需在 app ready 之前注册为特权协议
 registerModelSchemePrivileges();
+// chat-asset://（会话 Markdown 图片）同样需在 app ready 之前完成特权注册
+registerChatAssetSchemePrivileges();
 
 // 全局应用实例
 let application: Application | null = null;
