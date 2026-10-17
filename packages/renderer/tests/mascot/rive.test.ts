@@ -79,6 +79,7 @@ describe('rive backend', () => {
 });
 
 const RIV = path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv');
+const REPO = path.join(__dirname, '../../../..');
 const PNG_SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const IEND = Buffer.from('IEND');
 
@@ -107,7 +108,7 @@ describe('source lock: production Rive scene', () => {
       'rive/nomi-complete/parts/arm-r-official.png',
       'rive/nomi-complete/parts/hand-wave.png',
     ]) {
-      const hash = createHash('sha256').update(fs.readFileSync(path.join(process.cwd(), file))).digest('hex');
+      const hash = createHash('sha256').update(fs.readFileSync(path.join(REPO, file))).digest('hex');
       expect(embedded.has(hash), file).toBe(true);
     }
   });
@@ -124,7 +125,7 @@ describe('source lock: production Rive scene', () => {
       'rive/nomi-complete/official/layers/badge.png',
       'rive/nomi-complete/official/layers/ribbon.png',
     ]) {
-      const hash = createHash('sha256').update(fs.readFileSync(path.join(process.cwd(), file))).digest('hex');
+      const hash = createHash('sha256').update(fs.readFileSync(path.join(REPO, file))).digest('hex');
       expect(have.has(hash), file).toBe(true);
     }
   });
