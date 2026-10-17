@@ -1,12 +1,13 @@
 # Rive Nomi production scene
 
-The production Rive scene is generated from the approved half-body mother image
-at `rive/nomi-complete/reference/approved-halfbody.png`. The two character
-sheets beside it are reference-only guides for proportions and future cuts. The
-default `Nomi` artboard uses one deterministic source of truth: `base.png`,
-`arm-l.png` and `arm-r.png` are alpha cutouts from that mother image, all placed
-in the same 960×1300 artboard coordinate system. The old experimental layer
-stack is isolated under `legacy.rig` and cannot affect the rendered silhouette.
+The production Rive scene keeps the approved half-body mother at
+`rive/nomi-complete/reference/approved-halfbody.png` and uses the supplied
+full-body mother at `rive/nomi-complete/source-nomi-master.png`. The full-body
+mother is embedded byte-for-byte in
+`reference/svg-rig/nomi-fullbody-mother.svg`; Rive CLI bundles that SVG as the
+source asset while the runtime uses the same pixels for its raster draw. The
+`Nomi-full` artboard and its root/torso/head/upper-arm/forearm/hand bones share
+one 960×1300 coordinate system, so fit and zoom scale the complete hierarchy.
 
 ## Build and verify
 
@@ -30,10 +31,9 @@ The scene contains no old AI pose plates or legacy full-body pose images. Every
 non-official file is listed with a SHA-256 hash in
 `rive/nomi-complete/parts/DETAIL_LICENSE.json`.
 
-The optional `Nomi-full` artboard is a stable preview of the supplied mother
-reference. It remains a separate full-body plate until the source is split into
-head, torso, arms and legs; the interactive default remains the high-fidelity
-half-body rig.
+The `Nomi-full` artboard is the supplied full-body mother preview with a
+CLI-embedded SVG source and an authored skeleton. The half-body `Nomi` artboard
+continues to use its approved mother and deterministic cutouts.
 
 ## Skeleton and animation surface
 
@@ -46,11 +46,12 @@ in the same artboard space; action offsets are added to their authored absolute
 coordinates, so changing Rive fit or zoom scales the complete hierarchy rather
 than separating the hands, cuffs or shoulders.
 
-The production source is deliberately raster for the fabric and face texture.
-Rive meshes and bones are used where deformation is needed; SVG is reserved for
-future geometry-only details. New actions must reuse the three source cutouts or
-their bone-bound derivatives instead of importing a separately generated pose
-plate, which would break the source lock and introduce costume drift.
+The production source preserves the raster fabric and face texture inside the
+SVG mother. Rive root bones are authored for the full-body hierarchy and the
+derived arm crops are kept in the same source coordinate system. New actions
+must reuse this SVG-backed mother and its bone-bound derivatives instead of
+importing a separately generated pose plate, which would break the source lock
+and introduce costume drift.
 
 ## Visual QA
 

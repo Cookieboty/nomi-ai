@@ -132,4 +132,10 @@ describe('source lock: production Rive scene', () => {
       expect(have.has(hash), file).toBe(true);
     }
   });
+
+  it('embeds the full-body mother SVG byte-for-byte', () => {
+    const riv = fs.readFileSync(RIV);
+    const svg = fs.readFileSync(path.join(REPO, 'rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg'));
+    expect(riv.includes(svg)).toBe(true);
+  });
 });

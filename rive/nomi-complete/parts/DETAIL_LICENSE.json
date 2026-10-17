@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the approved half-body mother plus the official Nomi layer set and official-derived arm textures. Generated pose plates and AI arm assets were removed.",
+  "note": "Production Rive scene uses the approved half-body mother, the supplied full-body mother embedded byte-for-byte in SVG, and the official Nomi layer set. Generated pose plates and AI arm assets were removed.",
   "assets": {
     "parts/arm-l-official.png": {
       "sha256": "24a7769c4aeda41ac93a81de55b5d97506e8a37950fb937c7fd45c58b2935a30",
@@ -37,11 +37,11 @@
       "method": "official source crop/rig preparation"
     },
     "source-nomi-master.png": {
-      "sha256": "eb207f69425036b226883598871c8d4001761d29b2a49fbea323b59d0d900828",
-      "bytes": 4050607,
+      "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
+      "bytes": 1523724,
       "ai_generated": false,
       "in_scene": true,
-      "method": "user supplied mother reference; authorized project source"
+      "method": "user supplied mother reference"
     },
     "reference/approved-halfbody.png": {
       "sha256": "b09c22193b001b3a055b2e9856d29d75b5e82e9a03933d3c7e4b3a82eb97600c",
@@ -112,6 +112,62 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic overlapping alpha cut from user approved mother reference"
+    },
+    "reference/svg-rig/nomi-fullbody-mother.svg": {
+      "sha256": "6e3ff6b1cf67d28b5498ab6b1d5f935bf3ab8d12a05b02952e38da9f0986faf5",
+      "bytes": 4063580,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/fullbody-base-no-arms.png": {
+      "sha256": "681bc82568049ad733e40d830f64ac5c917a2c31383cff70fd93c554313dc2c4",
+      "bytes": 1499516,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-l-upper.png": {
+      "sha256": "aa0249007cc6da647f216c8cc6bfdba1f615e294271806f935508151d1bf9f63",
+      "bytes": 128211,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-l-fore.png": {
+      "sha256": "4a1d8f86f997ea7d0971b14f82b923a141f369749ef374b7f2ba93b56363d7b1",
+      "bytes": 132064,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-l-hand.png": {
+      "sha256": "b8d2b6f94d17d69218f4ca2a917c2809d56dd8d216838789388a20e9378189fe",
+      "bytes": 89617,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-r-upper.png": {
+      "sha256": "65f838e94f952e071208fd4da09823709b382cb1bf211075057482587c68c94f",
+      "bytes": 125213,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-r-fore.png": {
+      "sha256": "6f90af306ca91a0ba0213734fbfbcb4bb5ce25884cacd81edc433248a82ff277",
+      "bytes": 130861,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+    },
+    "reference/svg-rig/arm-r-hand.png": {
+      "sha256": "d86c123c4680381f7115e48a5c0ec45512c36a41a32541504b478bc16c94c332",
+      "bytes": 87357,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
     }
   }
 }

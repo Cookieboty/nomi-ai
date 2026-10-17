@@ -1,0 +1,62 @@
+{
+  "source": "rive/nomi-complete/source-nomi-master.png",
+  "size": [
+    1024,
+    1536
+  ],
+  "svg": "nomi-fullbody-mother.svg",
+  "boxes": {
+    "arm-l-upper": [
+      180,
+      230,
+      450,
+      570
+    ],
+    "arm-l-fore": [
+      175,
+      470,
+      445,
+      790
+    ],
+    "arm-l-hand": [
+      200,
+      650,
+      430,
+      930
+    ],
+    "arm-r-upper": [
+      574,
+      230,
+      844,
+      570
+    ],
+    "arm-r-fore": [
+      579,
+      470,
+      849,
+      790
+    ],
+    "arm-r-hand": [
+      594,
+      650,
+      824,
+      930
+    ]
+  },
+  "artboardScale": 0.8463541666666666,
+  "artboardOffset": [
+    46.666666666666686,
+    0.0
+  ],
+  "bones": [
+    "full.root",
+    "full.torso",
+    "full.head",
+    "full.arm-l.upper",
+    "full.arm-l.fore",
+    "full.arm-l.hand",
+    "full.arm-r.upper",
+    "full.arm-r.fore",
+    "full.arm-r.hand"
+  ]
+}
