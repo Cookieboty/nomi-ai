@@ -33,6 +33,7 @@
     "prepare": "husky",
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:i18n": "node scripts/i18n/check.cjs",
+    "check:frontend": "node scripts/check-frontend-standards.mjs",
     "changelog": "node scripts/release/changelog.mjs",
     "changelog:check": "node scripts/release/changelog.mjs --check"
   },

@@ -37,6 +37,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 ### 开发
 
 - [架构概览](development/architecture.md)
+- [前端工程规范](development/frontend-standards.md)
 - [构建与运行](development/building.md)
 - [测试](development/testing.md)
 - [发布](RELEASE.md)：打包、签名与公证（含 CI secret 名称）
