@@ -17,7 +17,6 @@ export interface RiveCanvasProps {
 }
 
 const DEFAULT_SRC = './assets/models/rive/nomi-complete.riv';
-const FULL_SRC = './assets/models/rive/nomi-complete.riv';
 
 /**
  * Rive renderer. The wasm is bundled — the
@@ -25,9 +24,11 @@ const FULL_SRC = './assets/models/rive/nomi-complete.riv';
  * needs 'wasm-unsafe-eval' for it to compile (see docs/brand/rive-complete.md).
  */
 export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style }) => {
-  const fullBody = typeof location !== 'undefined' && new URLSearchParams(location.search).get('rive') === 'full';
-  const resolvedSrc = src === DEFAULT_SRC && fullBody ? FULL_SRC : src;
-  const stateMachine = fullBody ? 'NomiFull' : 'Nomi';
+  // The production scene has one source of truth: the full-body SVG-backed rig.
+  // Keep the artboard selection unconditional so the removed half-body rig cannot
+  // be selected by a stale query string or an old local preference.
+  const resolvedSrc = src;
+  const stateMachine = 'NomiFull';
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const geometry = useRef<SpriteGeometry>({ head: null, body: null });
@@ -69,7 +70,7 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     try {
       rive = new Rive({
         src: resolvedSrc,
-        artboard: fullBody ? 'Nomi-full' : 'Nomi',
+        artboard: 'Nomi-full',
         canvas,
         autoplay: true,
         autoBind: true,

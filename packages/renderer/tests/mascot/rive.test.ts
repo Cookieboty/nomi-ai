@@ -16,8 +16,8 @@ import { RIVE_FLAG_KEY, isRiveExperimentEnabled } from '../../src/mascot/riveFla
  * Production Rive renderer (docs/brand/rive-complete.md) — guard rails:
  *  1. it is OFF unless explicitly opted in,
  *  2. the backend only fires known view-model triggers,
- *  3. SOURCE LOCK: the production scene embeds the deterministic rig cutouts
- *     from the approved mother and the official arm/hand crops byte-for-byte.
+ *  3. SOURCE LOCK: the production scene embeds the supplied full-body mother
+ *     and the SVG-backed full-body rig byte-for-byte.
  */
 describe('rive experiment flag', () => {
   it('is off by default and only on for ?rive=1 or the localStorage opt-in', () => {
@@ -98,38 +98,13 @@ function embeddedPngs(buf: Buffer): Buffer[] {
 }
 
 describe('source lock: production Rive scene', () => {
-  it('embeds the approved mother and official arm layers, byte for byte', () => {
+  it('embeds the supplied full-body mother byte for byte', () => {
     const pngs = embeddedPngs(fs.readFileSync(RIV));
-    expect(pngs.length).toBeGreaterThanOrEqual(20);
+    expect(pngs.length).toBeGreaterThanOrEqual(7);
     const embedded = new Set(pngs.map((p) => createHash('sha256').update(p).digest('hex')));
-    for (const file of [
-      'rive/nomi-complete/source-nomi-master.png',
-      'rive/nomi-complete/reference/rig/base.png',
-      'rive/nomi-complete/reference/rig/arm-l.png',
-      'rive/nomi-complete/reference/rig/arm-r.png',
-      'rive/nomi-complete/parts/arm-l-official.png',
-      'rive/nomi-complete/parts/arm-r-official.png',
-      'rive/nomi-complete/parts/hand-wave.png',
-    ]) {
+    for (const file of ['rive/nomi-complete/source-nomi-master.png']) {
       const hash = createHash('sha256').update(fs.readFileSync(path.join(REPO, file))).digest('hex');
       expect(embedded.has(hash), file).toBe(true);
-    }
-  });
-
-  it('contains the core official face and costume layers', () => {
-    const have = new Set(
-      embeddedPngs(fs.readFileSync(RIV)).map((p) => createHash('sha256').update(p).digest('hex')),
-    );
-    for (const file of [
-      'rive/nomi-complete/official/layers/head.png',
-      'rive/nomi-complete/official/layers/bangs.png',
-      'rive/nomi-complete/official/layers/clip.png',
-      'rive/nomi-complete/official/layers/body-noarm.png',
-      'rive/nomi-complete/official/layers/badge.png',
-      'rive/nomi-complete/official/layers/ribbon.png',
-    ]) {
-      const hash = createHash('sha256').update(fs.readFileSync(path.join(REPO, file))).digest('hex');
-      expect(have.has(hash), file).toBe(true);
     }
   });
 

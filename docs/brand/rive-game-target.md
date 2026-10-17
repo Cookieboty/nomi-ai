@@ -7,8 +7,8 @@ shared rig.
 
 ## Acceptance target
 
-- The default `Nomi` artboard uses the supplied transparent layers for the
-  head, face, torso, jacket and hands.
+- The only production artboard is `Nomi-full`, rendered from the supplied
+  full-body mother and its SVG-backed rig.
 - Shoulder, elbow and wrist are independently addressable for both arms.
 - Wave, hello, cheer and celebrate are sampled from the existing canvas rig and
   drive those bones with a continuous transition. The hand remains visible at
@@ -25,14 +25,10 @@ shared rig.
 
 ## Layer rule
 
-The default artboard never changes a complete character plate during a gesture.
-Every arm pose reuses the same official arm texture and changes only the
-shoulder, elbow and wrist bones. Generated pose plates, AI arm images and
-shoulder patches are excluded from the production scene.
-
-The optional `Nomi-full` artboard is a stable preview of the supplied mother
-reference. It is kept separate from the production half-body rig until the
-full-body source has been split into head, torso, arms and legs.
+The production artboard uses one full-body mother source. The SVG source is
+embedded byte-for-byte and the authored root, torso, head, upper-arm, forearm
+and hand bones share the same 960×1300 coordinate system. The previous
+half-body artboard and detached layer stack were removed.
 
 ## Vector and texture policy
 
@@ -47,7 +43,7 @@ because it creates jagged silhouettes and loses the reference shading.
 Run the following before shipping a mascot change:
 
 ```powershell
-python scripts/rive-complete/build-complete.py
+python scripts/rive-complete/build-fullbody-svg-rig.py
 rive/nomi-complete --verify
 rive/nomi-complete --once
 node scripts/rive-complete/brand-check.py

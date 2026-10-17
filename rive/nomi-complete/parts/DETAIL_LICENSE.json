@@ -1,173 +1,68 @@
 {
-  "note": "Production Rive scene uses the approved half-body mother, the supplied full-body mother embedded byte-for-byte in SVG, and the official Nomi layer set. Generated pose plates and AI arm assets were removed.",
+  "note": "Production Rive scene uses only the supplied full-body mother and its deterministic SVG-backed rig assets. The previous half-body and official layer stack was removed.",
   "assets": {
-    "parts/arm-l-official.png": {
-      "sha256": "24a7769c4aeda41ac93a81de55b5d97506e8a37950fb937c7fd45c58b2935a30",
-      "bytes": 252814,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "official source crop/rig preparation"
-    },
-    "parts/arm-r-official.png": {
-      "sha256": "8223ce7007d369dace5729c238e8cbe6ea5fe8eec1266ef9374a25f17baf4204",
-      "bytes": 260540,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "official source crop/rig preparation"
-    },
-    "parts/hand-fist.png": {
-      "sha256": "d9557c469904b8e071a16a865fd67184259394958b2ae3bd4d217f0bbfa6ac23",
-      "bytes": 41160,
-      "ai_generated": false,
-      "in_scene": false,
-      "method": "official source crop/rig preparation"
-    },
-    "parts/hand-rest.png": {
-      "sha256": "74ef3409ec1a00b7a574955dfad560c8dacbae00838d65545f35bdfbeb30b8c7",
-      "bytes": 61876,
-      "ai_generated": false,
-      "in_scene": false,
-      "method": "official source crop/rig preparation"
-    },
-    "parts/hand-wave.png": {
-      "sha256": "224a476ca9000e0416bf26640d3e61286d0144f58171d5ecc0ce4fef97e6fdeb",
-      "bytes": 84077,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "official source crop/rig preparation"
-    },
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
       "bytes": 1523724,
       "ai_generated": false,
       "in_scene": true,
-      "method": "user supplied mother reference"
-    },
-    "reference/approved-halfbody.png": {
-      "sha256": "b09c22193b001b3a055b2e9856d29d75b5e82e9a03933d3c7e4b3a82eb97600c",
-      "bytes": 1819680,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "user approved high-fidelity half-body mother reference"
-    },
-    "reference/rig/base.png": {
-      "sha256": "36a72f4dfc10ea54af17a1cee10e41c55c76f4ec3411f032b3f4a32bd1d31c80",
-      "bytes": 1819367,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-l.png": {
-      "sha256": "f0f0f51b938e6bae20740e9dcc3f7733da2db85c88b46a2a7673c1c01e9949b6",
-      "bytes": 217256,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-r.png": {
-      "sha256": "f17dfcc78c0710dac82c09243fe30bca4a8a84505a502d8e071567ad026e18de",
-      "bytes": 225506,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-l-upper.png": {
-      "sha256": "90d883fdc8ba49a664d061faabf8d690d7872fd04296bfce9f46cc101726d0d3",
-      "bytes": 102950,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-l-fore.png": {
-      "sha256": "db74cea1bc84a750a5282cf8b0f0052c4e5a98571a8ca2fd0d891ada78cc1b04",
-      "bytes": 99861,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-l-hand.png": {
-      "sha256": "815bb358ff5a81e30eed1752c3ac2e2a24b4bf36ff7c41e48167e176f166e6dd",
-      "bytes": 34874,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-r-upper.png": {
-      "sha256": "3b2e900159cc7194dd0afe47def1a38d0c922d5fb05c6e1afc4737881e41db37",
-      "bytes": 100410,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-r-fore.png": {
-      "sha256": "43bfb2fc64d4fd4c09c24f2a3850723765efbc35697acf57fd44887562b1e4e3",
-      "bytes": 103326,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
-    },
-    "reference/rig/arm-r-hand.png": {
-      "sha256": "64d0a7560253a54a559dc4074ccf9ce972bc9c536689c116f765c4bbb1f0551b",
-      "bytes": 33999,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic overlapping alpha cut from user approved mother reference"
+      "method": "user supplied full-body mother"
     },
     "reference/svg-rig/nomi-fullbody-mother.svg": {
       "sha256": "6e3ff6b1cf67d28b5498ab6b1d5f935bf3ab8d12a05b02952e38da9f0986faf5",
       "bytes": 4063580,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/fullbody-base-no-arms.png": {
       "sha256": "681bc82568049ad733e40d830f64ac5c917a2c31383cff70fd93c554313dc2c4",
       "bytes": 1499516,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-l-upper.png": {
       "sha256": "aa0249007cc6da647f216c8cc6bfdba1f615e294271806f935508151d1bf9f63",
       "bytes": 128211,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-l-fore.png": {
       "sha256": "4a1d8f86f997ea7d0971b14f82b923a141f369749ef374b7f2ba93b56363d7b1",
       "bytes": 132064,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-l-hand.png": {
       "sha256": "b8d2b6f94d17d69218f4ca2a917c2809d56dd8d216838789388a20e9378189fe",
       "bytes": 89617,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-r-upper.png": {
       "sha256": "65f838e94f952e071208fd4da09823709b382cb1bf211075057482587c68c94f",
       "bytes": 125213,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-r-fore.png": {
       "sha256": "6f90af306ca91a0ba0213734fbfbcb4bb5ce25884cacd81edc433248a82ff277",
       "bytes": 130861,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     },
     "reference/svg-rig/arm-r-hand.png": {
       "sha256": "d86c123c4680381f7115e48a5c0ec45512c36a41a32541504b478bc16c94c332",
       "bytes": 87357,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic SVG-backed rig asset generated from user supplied mother reference"
+      "method": "deterministic SVG-backed full-body rig asset"
     }
   }
 }

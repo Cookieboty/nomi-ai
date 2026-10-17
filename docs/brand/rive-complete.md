@@ -1,19 +1,17 @@
 # Rive Nomi production scene
 
-The production Rive scene keeps the approved half-body mother at
-`rive/nomi-complete/reference/approved-halfbody.png` and uses the supplied
-full-body mother at `rive/nomi-complete/source-nomi-master.png`. The full-body
-mother is embedded byte-for-byte in
-`reference/svg-rig/nomi-fullbody-mother.svg`; Rive CLI bundles that SVG as the
-source asset while the runtime uses the same pixels for its raster draw. The
-`Nomi-full` artboard and its root/torso/head/upper-arm/forearm/hand bones share
-one 960×1300 coordinate system, so fit and zoom scale the complete hierarchy.
+The production Rive scene uses only the supplied full-body mother at
+`rive/nomi-complete/source-nomi-master.png`. The mother is embedded byte-for-byte
+in `reference/svg-rig/nomi-fullbody-mother.svg`; Rive CLI bundles that SVG as
+the source asset while the runtime draws the same pixels. The `Nomi-full`
+artboard and its root/torso/head/upper-arm/forearm/hand bones share one 960×1300
+coordinate system, so fit and zoom scale the complete hierarchy.
 
 ## Build and verify
 
 ```powershell
 & "$env:USERPROFILE/.rive/bin/rive.exe" doctor
-& "$env:USERPROFILE/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" scripts/rive-complete/build-complete.py
+& "$env:USERPROFILE/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe" scripts/rive-complete/build-fullbody-svg-rig.py
 Push-Location rive/nomi-complete
 & "$env:USERPROFILE/.rive/bin/rive.exe" . --verify
 & "$env:USERPROFILE/.rive/bin/rive.exe" . --once
@@ -31,9 +29,9 @@ The scene contains no old AI pose plates or legacy full-body pose images. Every
 non-official file is listed with a SHA-256 hash in
 `rive/nomi-complete/parts/DETAIL_LICENSE.json`.
 
-The `Nomi-full` artboard is the supplied full-body mother preview with a
-CLI-embedded SVG source and an authored skeleton. The half-body `Nomi` artboard
-continues to use its approved mother and deterministic cutouts.
+The `Nomi-full` artboard is the only production artboard. The previous half-body
+artboard, layer stack and generated pose plates were removed so a stale renderer
+cannot select a detached-arm asset.
 
 ## Skeleton and animation surface
 
