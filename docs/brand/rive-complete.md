@@ -31,18 +31,20 @@ non-official file is listed with a SHA-256 hash in
 
 The `Nomi-full` artboard is the only production artboard. The previous half-body
 artboard, layer stack and generated pose plates were removed so a stale renderer
-cannot select a detached-arm asset.
+cannot select a detached-arm asset. The full-body source is split into a body,
+head, six sleeve/forearm/hand layers and a small smile overlay; the head image is
+parented to `full.head` at the neck pivot.
 
 ## Skeleton and animation surface
 
 The view model exposes the full-body action triggers wave, hello, cheer,
-celebrate, nod, flinch, poke, shake, clap, think and work. The idle timeline
+celebrate, nod, flinch, poke, shake, clap, think, work and smile. The idle timeline
 keeps a subtle breathing scale while action timelines transition through timed
 state-machine blends. The torso and neck anchors stay fixed while upper-arm,
 forearm and hand bones move. The visible sleeves are parented to shoulder
 pivots in the same artboard space; action offsets are added to their authored
 absolute coordinates, so changing Rive fit or zoom scales the complete
-hierarchy rather than separating the hands, cuffs or shoulders.
+hierarchy rather than separating the hands, cuffs, shoulders or head.
 
 The production source preserves the raster fabric and face texture inside the
 SVG mother. Rive root bones are authored for the full-body hierarchy and the

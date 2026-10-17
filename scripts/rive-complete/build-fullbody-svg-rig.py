@@ -46,25 +46,50 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     image = Image.open(source).convert("RGBA")
     width, height = image.size
 
-    # The polygons cover only the arm and jacket silhouettes. They intentionally overlap
-    # at the joints so no transparent seam appears when a bone rotates.
-    left_arm = mask_polygon(
+    # Arm masks stop at the sleeve/hand silhouettes. The previous broad masks also
+    # captured the long orange coat tails, which detached when a shoulder bone rotated.
+    left_upper = mask_polygon(
         (width, height),
-        [(430, 260), (300, 265), (220, 360), (195, 535), (215, 710),
-         (220, 870), (420, 900), (440, 700), (445, 470)],
+        [(432, 260), (300, 265), (225, 350), (210, 500), (245, 590),
+         (365, 585), (420, 500), (445, 330)],
     )
-    right_arm = mask_polygon(
+    left_fore = mask_polygon(
         (width, height),
-        [(594, 260), (724, 265), (804, 360), (829, 535), (809, 710),
-         (804, 870), (604, 900), (584, 700), (579, 470)],
+        [(350, 540), (245, 560), (215, 700), (250, 780), (320, 805),
+         (350, 735), (360, 600)],
     )
-    combined = ImageChops.lighter(left_arm, right_arm)
+    left_hand = mask_polygon(
+        (width, height),
+        [(320, 710), (250, 740), (250, 820), (290, 900), (325, 920),
+         (340, 850), (335, 760)],
+    )
+    mirror = lambda points: [(width - x, y) for x, y in points]
+    right_upper = mask_polygon((width, height), mirror([(432, 260), (300, 265), (225, 350), (210, 500), (245, 590), (365, 585), (420, 500), (445, 330)]))
+    right_fore = mask_polygon((width, height), mirror([(365, 540), (245, 560), (215, 700), (250, 780), (330, 805), (390, 735), (405, 600)]))
+    right_hand = mask_polygon((width, height), mirror([(330, 710), (250, 740), (250, 820), (290, 900), (345, 920), (380, 850), (370, 760)]))
+    left_arm = ImageChops.lighter(ImageChops.lighter(left_upper, left_fore), left_hand)
+    right_arm = ImageChops.lighter(ImageChops.lighter(right_upper, right_fore), right_hand)
+    head = mask_polygon(
+        (width, height),
+        [
+            (512, 0), (430, 0), (350, 42), (300, 112), (270, 200),
+            (286, 278), (340, 320), (410, 334), (430, 358), (594, 358),
+            (614, 334), (684, 320), (738, 278), (754, 200), (724, 112),
+            (674, 42), (594, 0),
+        ],
+    )
+    combined = ImageChops.lighter(ImageChops.lighter(left_arm, right_arm), head)
     # Keep the original alpha outside the arm masks and remove the arm pixels from the body.
     base = image.copy()
     alpha = base.getchannel("A")
     alpha = Image.composite(Image.new("L", (width, height), 0), alpha, combined)
     base.putalpha(alpha)
-    base.save(out / "fullbody-base-no-arms.png")
+    base.save(out / "fullbody-base-no-head-arms.png")
+    # Remove the superseded pre-head split so a rebuild cannot leave a stale layer
+    # that looks like a production asset.
+    old_base = out / "fullbody-base-no-arms.png"
+    if old_base.exists():
+        old_base.unlink()
 
     boxes = {
         "arm-l-upper": [180, 230, 450, 570],
@@ -73,9 +98,36 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         "arm-r-upper": [574, 230, width - 180, 570],
         "arm-r-fore": [579, 470, width - 175, 790],
         "arm-r-hand": [594, 650, width - 200, 930],
+        "head": [250, 0, 780, 370],
+    }
+    masks = {
+        "arm-l-upper": left_upper,
+        "arm-l-fore": left_fore,
+        "arm-l-hand": left_hand,
+        "arm-r-upper": right_upper,
+        "arm-r-fore": right_fore,
+        "arm-r-hand": right_hand,
     }
     for name, box in boxes.items():
-        image.crop(tuple(box)).save(out / f"{name}.png")
+        crop = image.crop(tuple(box))
+        if name in masks:
+            crop.putalpha(ImageChops.multiply(crop.getchannel("A"), masks[name].crop(tuple(box))))
+        crop.save(out / f"{name}.png")
+    # The mother already contains a faithful neutral smile. This tiny transparent
+    # overlay deepens the same mouth curve during the happy expression without
+    # regenerating or repainting the character's face.
+    S = 4
+    smile = Image.new("RGBA", (120 * S, 70 * S), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(smile)
+    points = []
+    for index in range(41):
+        t = index / 40
+        x = (42 + 54 * t) * S
+        y = (34 + 13 * (1 - (2 * t - 1) ** 2)) * S
+        points.append((round(x), round(y)))
+    draw.line(points, fill=(104, 35, 32, 235), width=2 * S, joint="curve")
+    draw.line([(56 * S, 47 * S), (82 * S, 47 * S)], fill=(245, 171, 157, 190), width=S)
+    smile.resize((120, 70), Image.Resampling.LANCZOS).save(out / "face-smile.png")
     return boxes
 
 

@@ -72,7 +72,7 @@ describe('rive backend', () => {
     b.setMouthOpen(0.6); // thresholded, does not spam a trigger every audio frame
     b.setTalking(true);
     b.setTalking(false);
-    expect(fired).toEqual(['expr-happy', 'mouth-open', 'talking', 'mouth-close']);
+    expect(fired).toEqual(['smile', 'mouth-open', 'talking', 'mouth-close']);
     expect(b.capabilities().expressions).toEqual([...RIVE_EXPRESSIONS]);
     expect(b.capabilities().lipSync).toBe(true);
   });

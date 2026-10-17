@@ -85,8 +85,9 @@ export interface RiveTriggerHost {
 
 /**
  * Rive backend over the high-fidelity state machine. Expressions and mouth actions
- * are trigger-based because the scene deliberately keeps the source rasters locked.
- * Look-at is left to the layered renderer until a vector eye rig is authored.
+ * are trigger-based. The happy expression is backed by the full-body rig's
+ * authored smile overlay; look-at remains on the layered renderer until a vector
+ * eye rig is authored.
  */
 export function createRiveBackend(host: () => RiveTriggerHost | null | undefined): MascotBackend {
   let expression = 'neutral';
@@ -107,7 +108,8 @@ export function createRiveBackend(host: () => RiveTriggerHost | null | undefined
         : 'neutral';
       if (next === expression) return;
       expression = next;
-      fire(`expr-${next}`);
+      if (next === 'happy') fire('smile');
+      else fire(`expr-${next}`);
     },
     setMouthOpen(value) {
       const next = Number.isFinite(value) && value > 0.22;
