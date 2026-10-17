@@ -5,6 +5,11 @@ import type { HarnessTabMeta } from './harnessClient';
 export type HistoryBackend = 'claude' | 'codex' | 'dsh';
 export const HISTORY_BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh'];
 
+/** 列表 / 搜索索引每页条数（须与主进程 SessionHistoryService.HISTORY_PAGE_SIZE 一致） */
+export const HISTORY_PAGE_SIZE = 20;
+/** 历史会话最多展示条数（须与主进程 HISTORY_MAX_ITEMS 一致，按 mtime 取最近 N 条） */
+export const HISTORY_MAX_ITEMS = 100;
+
 export interface HistorySession {
   key: string;
   backend: HistoryBackend;
@@ -17,6 +22,7 @@ export interface HistorySession {
 
 export interface HistoryPage {
   items: HistorySession[];
+  /** 主进程返回的不透明游标；调用方不应假设它对应文件下标。 */
   nextOffset: number | null;
   hasMore: boolean;
 }

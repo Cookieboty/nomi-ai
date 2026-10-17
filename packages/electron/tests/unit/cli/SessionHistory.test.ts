@@ -304,38 +304,85 @@ describe('SessionHistoryService', () => {
     expect(page.items.map((x) => x.sessionId)).toEqual(['mixed']);
   });
 
-  it('pages 50 at a time per endpoint', async () => {
-    for (let i = 0; i < 120; i++)
+  it('pages 20 at a time per endpoint', async () => {
+    for (let i = 0; i < 45; i++)
       writeClaude(`s${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 + i * 1000);
     const svc = mk();
     const p1 = await svc.list('claude');
-    expect(p1.items).toHaveLength(50);
+    expect(p1.items).toHaveLength(20);
     expect(p1.hasMore).toBe(true);
-    expect(p1.items[0]!.sessionId).toBe('s119');
+    expect(p1.items[0]!.sessionId).toBe('s044');
     const p2 = await svc.list('claude', { offset: p1.nextOffset! });
-    expect(p2.items).toHaveLength(50);
-    expect(p2.items[0]!.sessionId).toBe('s069');
+    expect(p2.items).toHaveLength(20);
+    expect(p2.items[0]!.sessionId).toBe('s024');
     const p3 = await svc.list('claude', { offset: p2.nextOffset! });
-    expect(p3.items).toHaveLength(20);
+    expect(p3.items).toHaveLength(5);
     expect(p3.hasMore).toBe(false);
     const ids = new Set([...p1.items, ...p2.items, ...p3.items].map((x) => x.sessionId));
-    expect(ids.size).toBe(120);
+    expect(ids.size).toBe(45);
   });
 
-  it('index: hands out compact entries in big, resumable chunks (for sidebar search)', async () => {
-    for (let i = 0; i < 120; i++)
+  it('只返回最近 100 条（硬上限），更早的会话不再翻页', async () => {
+    for (let i = 0; i < 130; i++)
       writeClaude(`s${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 + i * 1000);
     const svc = mk();
+    const seen: string[] = [];
+    let offset: number | undefined;
+    for (let guard = 0; guard < 20; guard++) {
+      const page = await svc.list('claude', { offset });
+      seen.push(...page.items.map((x) => x.sessionId));
+      if (!page.hasMore) break;
+      offset = page.nextOffset ?? undefined;
+    }
+    expect(seen).toHaveLength(100);
+    expect(seen).toContain('s129');
+    expect(seen).toContain('s030');
+    expect(seen).not.toContain('s029');
+    expect(seen).not.toContain('s000');
+  });
+
+  it('无标题 / sidechain 文件不会占满 100 条可见历史的上限', async () => {
+    for (let i = 0; i < 12; i++) {
+      const p = path.join(claudeDir(), `sub-${String(i).padStart(3, '0')}.jsonl`);
+      fs.writeFileSync(
+        p,
+        `{"type":"user","isSidechain":true,"sessionId":"sub-${i}","message":{"role":"user","content":"sub"}}\n`,
+      );
+      touch(p, 2_000_000 - i);
+    }
+    for (let i = 0; i < 100; i++)
+      writeClaude(`visible-${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 - i);
+    const svc = mk();
+    const seen: string[] = [];
+    let offset: number | undefined;
+    for (let guard = 0; guard < 10; guard++) {
+      const page = await svc.list('claude', { offset });
+      seen.push(...page.items.map((x) => x.sessionId));
+      if (!page.hasMore) break;
+      offset = page.nextOffset ?? undefined;
+    }
+    expect(seen).toHaveLength(100);
+    expect(seen).toContain('visible-000');
+    expect(seen).toContain('visible-099');
+  });
+
+  it('index: hands out compact entries in 20-item resumable pages (for sidebar search)', async () => {
+    for (let i = 0; i < 45; i++)
+      writeClaude(`s${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 + i * 1000);
+    const svc = mk();
+    // 显式要更大的页也会被夹到 20
     const a = await svc.index('claude', { limit: 70 });
-    expect(a.items).toHaveLength(70);
+    expect(a.items).toHaveLength(20);
     expect(a.hasMore).toBe(true);
     expect(a.items.every((x) => x.cwdMissing === false)).toBe(true);
     const b = await svc.index('claude', { offset: a.nextOffset! });
-    expect(b.items).toHaveLength(50);
-    expect(b.hasMore).toBe(false);
-    expect(new Set([...a.items, ...b.items].map((x) => x.key)).size).toBe(120);
-    // 一次拿完（默认 500 条一块）
-    expect((await mk().index('claude')).items).toHaveLength(120);
+    expect(b.items).toHaveLength(20);
+    const c = await svc.index('claude', { offset: b.nextOffset! });
+    expect(c.items).toHaveLength(5);
+    expect(c.hasMore).toBe(false);
+    expect(new Set([...a.items, ...b.items, ...c.items].map((x) => x.key)).size).toBe(45);
+    // 默认一页 20 条
+    expect((await mk().index('claude')).items).toHaveLength(20);
   });
 
   it('is incremental: unchanged files are not re-read, changed files are', async () => {

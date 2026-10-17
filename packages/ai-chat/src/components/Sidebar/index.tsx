@@ -9,7 +9,7 @@ import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
-import { useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
+import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
@@ -57,6 +57,9 @@ function liveOf(tab: HarnessTabMeta | undefined): string {
   return tab.unread > 0 ? 'unread' : '';
 }
 
+/** 第一条用户消息缓存（跨 Sidebar 实例共享，key = `${id}:${updatedAt}`） */
+const firstUserMessageCache = new Map<string, string>();
+
 /** 把命中区间渲染成 <mark>（区间基于折叠后的文本，与原文等长） */
 const Highlight: React.FC<{ text: string; ranges?: Range[] }> = ({ text, ranges }) => {
   if (!ranges?.length) return <>{text}</>;
@@ -93,8 +96,6 @@ const fieldsOf = (e: SearchEntry): SearchField[] =>
         { text: e.h.cwd ?? '', weight: 1.5 },
         { text: ENDPOINT_FULL[e.h.backend](), weight: 1 },
       ];
-
-const MAX_RESULTS = 200;
 
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
@@ -646,7 +647,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const debounced = useDebounced(query, 150);
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
-  const firstMsgCache = useRef(new Map<string, string>());
 
   useEffect(() => {
     const onEvent = () => {
@@ -659,14 +659,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
-  // 普通 / 开发模式切换后端点范围变了，丢掉光标
-  useEffect(() => setActiveIdx(0), [debounced, isDev, view, endpointFilter]);
+  // 普通 / 开发模式切换后端点范围变了，丢掉光标（在渲染期根据键变化重置，避免 effect 内 setState 触发级联渲染）
+  const activeIdxKey = `${debounced}\u0001${isDev ? 1 : 0}\u0001${view}\u0001${endpointFilter}`;
+  const [prevActiveIdxKey, setPrevActiveIdxKey] = useState(activeIdxKey);
+  if (prevActiveIdxKey !== activeIdxKey) {
+    setPrevActiveIdxKey(activeIdxKey);
+    if (activeIdx !== 0) setActiveIdx(0);
+  }
 
   const firstUserMessage = useCallback(
     (m: Meta): string => {
       if (m.tabId) return '';
       const k = `${m.id}:${m.updatedAt}`;
-      const hit = firstMsgCache.current.get(k);
+      const hit = firstUserMessageCache.get(k);
       if (hit !== undefined) return hit;
       let text = '';
       try {
@@ -677,8 +682,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       } catch {
         /* 取不到就只搜标题 */
       }
-      if (firstMsgCache.current.size > 2000) firstMsgCache.current.clear();
-      firstMsgCache.current.set(k, text);
+      if (firstUserMessageCache.size > 2000) firstUserMessageCache.clear();
+      firstUserMessageCache.set(k, text);
       return text;
     },
     [ipc],
@@ -716,7 +721,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isDev,
     view,
     endpointFilter,
-    history.items,
+    history,
     histScope,
     histScopeSupported,
     searchIndex.items,
