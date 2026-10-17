@@ -1,6 +1,6 @@
 /**
  * 轻量 i18n（仅 zh-CN / en）。
- * - 以中文原文作为 key（gettext 风格）：`t('开始新对话')`；zh-CN 原样返回，en 查 locales/en.json。
+ * - 以中文原文作为 key（gettext 风格）：`t('开始新对话')`；zh-CN 原样返回，en 查 locales/en/*。
  * - 插值：`t('已检测 {0} 个', n)` / `t('你好 {name}', { name })`。
  * - 语言选择：跟随系统（zh* → zh-CN，其余 → en）/ 中文 / English；桌面端经主进程 `ai:locale:*`
  *   持久化与广播（托盘、原生对话框、通知同步），切换无需重启。
@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from 'react';
 
-import en from './locales/en.json';
+import en from './locales/en';
 
 export type Locale = 'zh-CN' | 'en';
 export type LocalePref = Locale | 'system';

@@ -2,8 +2,9 @@
  * DesktopPanel —— 桌面能力设置：授权文件夹（系统选择框）、工具权限、隐私（仅本地模型 / 云端提示）、
  * 操作记录（审计日志）与撤销。全部数据只保存在本机 userData。
  */
-import { t as tr } from '@nomi-ai/ui';
+import { t as tr, Icon } from '@nomi-ai/ui';
 import { Badge, Button, Card, EmptyState, Modal, Notice, Select, Switch, Tabs } from '@nomi-ai/ui';
+import { FolderLock, ScrollText, Lock, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -18,15 +19,13 @@ import {
 } from '../../services/desktopClient';
 
 import styles from './index.module.css';
-import { NotesTab } from './NotesTab';
-import { RemindersTab } from './RemindersTab';
 
 interface Props {
   isVisible: boolean;
   onClose: () => void;
 }
 
-type Tab = 'folders' | 'notes' | 'reminders' | 'tools' | 'privacy' | 'log';
+type Tab = 'folders' | 'tools' | 'cloud' | 'log';
 
 const DECISION_LABEL: Record<string, string> = {
   auto: '自动',
@@ -60,6 +59,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     return desktopClient.onChanged(() => void refresh());
   }, [isVisible, refresh]);
@@ -81,9 +82,9 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   return (
     <Modal open onClose={onClose} title={tr('桌面能力')} size="lg" data-testid="desktop-panel">
       <div className={styles.stack}>
-        <Notice>
+        <Notice icon={Lock}>
           {tr(
-            '🔒 授权、权限、操作记录都只保存在本机。Nomi 只能访问你在这里授权的文件夹；删除一律进回收站，可撤销。',
+            '授权、权限、操作记录都只保存在本机。Nomi 只能访问你在这里授权的文件夹；删除一律进回收站，可撤销。',
           )}
         </Notice>
         <Tabs
@@ -91,10 +92,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
           onChange={(v) => setTab(v as Tab)}
           items={[
             { value: 'folders', label: tr('授权文件夹') },
-            { value: 'notes', label: tr('笔记') },
-            { value: 'reminders', label: tr('提醒') },
             { value: 'tools', label: tr('工具权限') },
-            { value: 'privacy', label: tr('隐私') },
+            { value: 'cloud', label: tr('云端与仅本地') },
             { value: 'log', label: tr('操作记录') },
           ]}
         />
@@ -112,18 +111,21 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 onClick={() => void grant('read')}
                 data-testid="desktop-grant-read"
               >
-                {tr('＋ 授权文件夹（只读）')}
+                <Icon icon={Plus} size={14} />
+                {tr('授权文件夹（只读）')}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => void grant('read-write')}
                 data-testid="desktop-grant-rw"
               >
-                {tr('＋ 授权文件夹（读写）')}
+                <Icon icon={Plus} size={14} />
+                {tr('授权文件夹（读写）')}
               </Button>
             </div>
             {state && state.scopes.length === 0 ? (
               <EmptyState
+                icon={FolderLock}
                 title={tr('还没有授权任何文件夹')}
                 description={tr('默认 Nomi 看不到你的任何文件。')}
               />
@@ -165,8 +167,6 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
           </div>
         )}
 
-        {tab === 'notes' && <NotesTab onMsg={setMsg} />}
-        {tab === 'reminders' && <RemindersTab onMsg={setMsg} />}
         {tab === 'tools' && state && (
           <table className={styles.table} data-testid="desktop-tools">
             <thead>
@@ -225,8 +225,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
           </table>
         )}
 
-        {tab === 'privacy' && state && (
-          <div className={styles.stack} data-testid="desktop-privacy">
+        {tab === 'cloud' && state && (
+          <div className={styles.stack} data-testid="desktop-cloud">
             <Switch
               checked={state.localOnly}
               onChange={(v) => void desktopClient.setLocalOnly(v)}
@@ -297,7 +297,7 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
             )}
             <h4 className={styles.h4}>{tr('审计日志')}</h4>
             {audit.length === 0 ? (
-              <EmptyState title={tr('还没有记录')} />
+              <EmptyState icon={ScrollText} title={tr('还没有记录')} />
             ) : (
               <table className={styles.table} data-testid="desktop-audit">
                 <thead>

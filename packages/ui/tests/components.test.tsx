@@ -1,4 +1,8 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { Inbox, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,21 +14,54 @@ import {
   Card,
   EmptyState,
   FormField,
+  Icon,
   IconButton,
   Input,
   Modal,
+  ModalHostContext,
   Notice,
   Select,
+  SectionTitle,
   Switch,
   Tabs,
   ToastProvider,
   Tooltip,
+  applyLocale,
   useToast,
 } from '../src';
 
 afterEach(cleanup);
 
 describe('@nomi-ai/ui', () => {
+  it('SectionTitle keeps the requested heading level and shared class', () => {
+    const { rerender } = render(<SectionTitle level={2}>Overview</SectionTitle>);
+    expect(screen.getByRole('heading', { level: 2 }).className).toContain('cd-section-title');
+    rerender(<SectionTitle level={4}>Details</SectionTitle>);
+    expect(screen.getByRole('heading', { level: 4 }).textContent).toBe('Details');
+  });
+
+  it('EmptyState: lucide icon sits in the rounded tinted container (no emoji)', () => {
+    const { container } = render(<EmptyState icon={Inbox} title="还没有内容" />);
+    const box = container.querySelector('.cd-empty__icon');
+    expect(box).toBeTruthy();
+    const svg = box!.querySelector('svg');
+    expect(svg?.getAttribute('stroke-width')).toBe('1.75');
+    expect(svg?.getAttribute('stroke')).toBe('currentColor');
+    expect(svg?.getAttribute('width')).toBe('22');
+    expect(svg?.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('Icon: presets map to nav 18 / inline 16', () => {
+    const { container } = render(
+      <>
+        <Icon icon={Settings} size="nav" />
+        <Icon icon={Settings} />
+      </>,
+    );
+    const w = [...container.querySelectorAll('svg')].map((n) => n.getAttribute('width'));
+    expect(w).toEqual(['18', '16']);
+  });
+
   it('Button: variants map to classes, default type=button, passes data-testid', () => {
     render(
       <Button variant="primary" size="sm" data-testid="b">
@@ -37,7 +74,7 @@ describe('@nomi-ai/ui', () => {
   });
 
   it('IconButton: label becomes aria-label and title', () => {
-    render(<IconButton label="设置" icon="⚙" />);
+    render(<IconButton label="设置" icon={<Icon icon={Settings} />} />);
     const b = screen.getByRole('button', { name: '设置' });
     expect(b.getAttribute('title')).toBe('设置');
     expect(b.className).toContain('cd-icon-btn');
@@ -242,5 +279,49 @@ describe('@nomi-ai/ui', () => {
     cleanup();
     render(<Trigger />);
     expect(() => fireEvent.click(screen.getByText('go'))).not.toThrow();
+  });
+});
+
+describe('Modal close button + title bar offset', () => {
+  const Drawer: React.FC<{ onClose: () => void }> = ({ onClose }) => (
+    <ModalHostContext.Provider value={{ mode: 'drawer' }}>
+      <Modal open onClose={onClose} title="T" data-testid="m">
+        body
+      </Modal>
+    </ModalHostContext.Provider>
+  );
+
+  it('close is a compact text button「关闭」(no icon), keeps aria-label; en shows Close', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(<Drawer onClose={onClose} />);
+    const btn = screen.getByRole('button', { name: '关闭' });
+    expect(btn.textContent).toBe('关闭');
+    expect(btn.getAttribute('aria-label')).toBe('关闭');
+    expect(btn.querySelector('svg')).toBeNull();
+    expect(btn.className).toContain('cd-modal__close');
+    expect(btn.className).not.toContain('cd-icon-btn');
+    fireEvent.click(btn);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    fireEvent.click(screen.getByTestId('m-overlay'));
+    expect(onClose).toHaveBeenCalledTimes(3);
+    act(() => applyLocale('en'));
+    try {
+      rerender(<Drawer onClose={onClose} />);
+      const en = screen.getByRole('button', { name: 'Close' });
+      expect(en.textContent).toBe('Close');
+    } finally {
+      act(() => applyLocale('zh-CN'));
+    }
+  });
+
+  it('overlay (drawer and dialog) starts below the title bar and is not a drag region', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, '../src/styles/base.css'), 'utf8');
+    const rule = (sel: string) => {
+      const i = css.indexOf(`${sel} {`);
+      return css.slice(i, css.indexOf('}', i));
+    };
+    expect(rule('.cd-modal-overlay')).toMatch(/inset:\s*var\(--cd-titlebar-h, 0px\) 0 0 0/);
+    expect(rule('.cd-modal-overlay--drawer')).not.toMatch(/app-region|inset|top:/);
   });
 });

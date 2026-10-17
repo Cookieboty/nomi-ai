@@ -92,7 +92,7 @@ export const IslandSettings: React.FC = () => {
       </div>
       <p className={styles.muted}>
         {t(
-          '免打扰时段（日程与提醒 → 免打扰）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。',
+          '免打扰时段（日程与日历 → 日程提醒 → 免打扰与通知）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。',
         )}
       </p>
       <div className={styles.actions}>

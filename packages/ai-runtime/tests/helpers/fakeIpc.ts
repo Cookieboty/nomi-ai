@@ -23,6 +23,8 @@ export interface FakeIpcAdapter extends IpcAdapter {
   webContents: FakeWebContents[];
   handlers: Map<string, IpcHandler>;
   senderStreams: Map<number, Array<{ channel: string; payload: unknown }>>;
+  /** 模拟发送方窗口被销毁：之后对它 send 会抛错（同 Electron "Object has been destroyed"） */
+  destroySender(senderId: number): void;
 }
 
 export function createFakeIpcAdapter(): FakeIpcAdapter {
@@ -30,12 +32,15 @@ export function createFakeIpcAdapter(): FakeIpcAdapter {
   const listeners = new Map<string, Set<(event: IpcInvokeEvent, ...args: unknown[]) => void>>();
   const webContents: FakeWebContents[] = [];
   const senderStreams = new Map<number, Array<{ channel: string; payload: unknown }>>();
+  const destroyed = new Set<number>();
   let nextId = 100;
 
   const makeEvent = (senderId: number): IpcInvokeEvent => ({
     senderId,
     senderUrl: `test://sender/${senderId}`,
+    isDestroyed: () => destroyed.has(senderId),
     send(channel, payload) {
+      if (destroyed.has(senderId)) throw new Error('Object has been destroyed');
       let bucket = senderStreams.get(senderId);
       if (!bucket) {
         bucket = [];
@@ -49,6 +54,9 @@ export function createFakeIpcAdapter(): FakeIpcAdapter {
     handlers,
     webContents,
     senderStreams,
+    destroySender(id) {
+      destroyed.add(id);
+    },
     handle(channel, handler) {
       if (handlers.has(channel)) throw new Error(`handle already registered: ${channel}`);
       handlers.set(channel, handler);

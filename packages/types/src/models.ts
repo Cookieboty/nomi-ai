@@ -199,6 +199,17 @@ export interface ShapeRect {
   height: number;
 }
 
+/** 看板娘大小（主进程按屏幕可用区域夹紧，窗口随之调整，脚底中心不动） */
+export interface MascotScaleState {
+  scale: number;
+  min: number;
+  max: number;
+  hardMax: number;
+  default: number;
+  step: number;
+  window: { width: number; height: number };
+}
+
 export interface MascotWindowApi {
   /** process.platform（Linux 用窗口形状实现点击穿透） */
   platform: string;
@@ -212,6 +223,13 @@ export interface MascotWindowApi {
   dragEnd(): void;
   setConfig(cfg: Partial<MascotInteractionConfig>): void;
   wanderNow(): void;
+  scaleGet(): Promise<MascotScaleState>;
+  scaleSet(scale: number): Promise<MascotScaleState>;
+  scaleStep(dir: 1 | -1): Promise<MascotScaleState>;
+  /** Ctrl/⌘+滚轮：累计的 deltaY（向上滚 = 放大） */
+  scaleWheel(deltaY: number, deltaMode?: number): Promise<MascotScaleState>;
+  scaleReset(): Promise<MascotScaleState>;
+  onScale(cb: (s: MascotScaleState) => void): () => void;
   snapshot(): Promise<{
     body: { x: number; y: number; vx: number; vy: number; mode: string };
     ignoring: boolean;
@@ -240,10 +258,23 @@ export interface DesktopConfirmRequest {
   expiresAt: number;
 }
 
+/**
+ * 主进程推给看板娘的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
+ * - full：朗读整段气泡文字（总结播报）
+ * - cue：只播一句简短固定台词 + 音效，不朗读气泡文字
+ * - none：只显示气泡，不出声也不放音效
+ * kind 明确事件类型（不再从文案推断）：digest = 定时汇总，done / fail = 任务结束。
+ */
+export interface DesktopBubble {
+  text: string;
+  voice?: 'full' | 'cue' | 'none';
+  kind?: 'digest' | 'done' | 'fail';
+}
+
 export interface DesktopApi {
   onConfirmRequest(cb: (req: DesktopConfirmRequest) => void): () => void;
   onConfirmCancel(cb: (id: string) => void): () => void;
-  onBubble(cb: (p: { text: string }) => void): () => void;
+  onBubble(cb: (p: DesktopBubble) => void): () => void;
   answer(id: string, allow: boolean, remember: boolean): void;
   dropFile(file: File): boolean;
   onReminder(cb: (p: DesktopReminderEvent) => void): () => void;

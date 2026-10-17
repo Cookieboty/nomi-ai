@@ -13,6 +13,7 @@ import {
   RoutedLLMRegistry,
   TrackedProvider,
   createSafeStorageCipher,
+  estimateTokens,
   isKeyError,
   maskSecret,
   plaintextCipher,
@@ -185,6 +186,136 @@ describe('ProviderStore', () => {
     ]) {
       expect(ids).toContain(id);
     }
+  });
+});
+
+describe('TrackedProvider 调用明细（用量与计费）', () => {
+  const sinkOf = () => ({ recordUsage: vi.fn(), recordCall: vi.fn() });
+
+  it('chat：记模型 / 时间 / token / 缓存；有 usage 时不标估算', async () => {
+    const sink = sinkOf();
+    const p = new TrackedProvider(
+      'p1',
+      [
+        {
+          ...fakeProvider('k1'),
+          chat: async (r) => ({
+            reqId: r.reqId,
+            provider: 'k1',
+            model: r.model,
+            content: 'ok',
+            finishReason: 'stop',
+            usage: {
+              promptTokens: 100,
+              completionTokens: 7,
+              totalTokens: 107,
+              cacheReadTokens: 60,
+              cacheWriteTokens: 5,
+            },
+          }),
+        },
+      ],
+      sink,
+    );
+    await p.chat(req({ model: 'gpt-4o' }));
+    expect(sink.recordCall).toHaveBeenCalledTimes(1);
+    expect(sink.recordCall.mock.calls[0]![0]).toMatchObject({
+      providerId: 'p1',
+      model: 'gpt-4o',
+      inputTokens: 100,
+      outputTokens: 7,
+      cacheReadTokens: 60,
+      cacheWriteTokens: 5,
+      estimated: false,
+      reqId: 'r1',
+    });
+    expect(typeof sink.recordCall.mock.calls[0]![0].at).toBe('number');
+  });
+
+  it('上游没返回 usage：按文本估算并标 estimated；模型缺省回落到 provider 默认模型', async () => {
+    const sink = sinkOf();
+    const noUsage: LLMProvider = {
+      ...fakeProvider('k1'),
+      chat: async (r) => ({
+        reqId: r.reqId,
+        provider: 'k1',
+        model: '',
+        content: '你好，世界！这是一段回复。',
+        finishReason: 'stop',
+      }),
+    };
+    const p = new TrackedProvider('p1', [noUsage], sink, 'deepseek-chat');
+    await p.chat(req({ model: '', messages: [{ role: 'user', content: 'hello there' }] }));
+    const e = sink.recordCall.mock.calls[0]![0];
+    expect(e.estimated).toBe(true);
+    expect(e.model).toBe('deepseek-chat');
+    expect(e.inputTokens).toBe(estimateTokens('hello there'));
+    expect(e.outputTokens).toBe(estimateTokens('你好，世界！这是一段回复。'));
+    expect(e.outputTokens).toBeGreaterThan(0);
+  });
+
+  it('stream：取 usage 末包与模型；失败的调用不记明细；key 回退只记最终成功的一次', async () => {
+    const sink = sinkOf();
+    const p = new TrackedProvider(
+      'p1',
+      [fakeProvider('k1', { fail: '401 Unauthorized' }), fakeProvider('k2')],
+      sink,
+    );
+    for await (const c of p.stream(req({ stream: true }))) void c;
+    expect(sink.recordCall).toHaveBeenCalledTimes(1);
+    expect(sink.recordCall.mock.calls[0]![0]).toMatchObject({
+      inputTokens: 4,
+      outputTokens: 6,
+      estimated: false,
+    });
+
+    const sink2 = sinkOf();
+    const bad = new TrackedProvider('p2', [fakeProvider('k1', { fail: 'model not found' })], sink2);
+    await expect(bad.chat(req())).rejects.toThrow();
+    expect(sink2.recordCall).not.toHaveBeenCalled();
+  });
+
+  it('记账回调抛错不影响对话；ProviderStore.onCall 吞掉回调异常', async () => {
+    const sink = {
+      recordUsage: vi.fn(),
+      recordCall: vi.fn(() => {
+        throw new Error('boom');
+      }),
+    };
+    const p = new TrackedProvider('p1', [fakeProvider('k1')], sink);
+    await expect(p.chat(req())).resolves.toMatchObject({ content: 'from k1' });
+
+    const seen: string[] = [];
+    const store = new ProviderStore({
+      cipher: plaintextCipher,
+      onCall: (e) => {
+        seen.push(e.model);
+        throw new Error('x');
+      },
+    });
+    expect(() =>
+      store.recordCall({
+        providerId: 'p',
+        model: 'm',
+        at: 1,
+        durationMs: 1,
+        inputTokens: 1,
+        outputTokens: 1,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        estimated: false,
+      }),
+    ).not.toThrow();
+    expect(seen).toEqual(['m']);
+  });
+});
+
+describe('estimateTokens', () => {
+  it('英文约 4 字符 / token，中文约 1.5 字 / token，空串为 0', () => {
+    expect(estimateTokens('')).toBe(0);
+    expect(estimateTokens('abcdefgh')).toBe(2);
+    expect(estimateTokens('你好世界你好')).toBe(4);
+    expect(estimateTokens('a')).toBe(1);
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * CLI 版本检测、安装与白名单更新（Claude Code / Codex / dsh 都可在应用内安装 / 更新；Cursor 仅检测）。
+ * CLI 版本检测、安装与白名单更新（Claude Code / Codex / dsh / Grok 都可在应用内安装 / 更新；Cursor 仅检测）。
  *
  * - 安装 / 更新只会执行固定 argv 的白名单命令（`npm install -g <包>@latest [--prefix ~/.local]`、
  *   `claude|codex update`），永不经 shell 拼接；Windows 的 npm.cmd 例外地经 shell 执行，参数同样来自白名单。
@@ -7,7 +7,7 @@
  * - 全局目录没有写权限时**不会**偷偷用 sudo：提示用户改装到用户目录（`--prefix ~/.local`，不需要管理员权限）
  *   或自行在终端处理。
  * - 输出按行通过 `ai:cli-update:event` 推给界面（进度 / 日志 / 错误）。
- * - dsh 没有自更新命令，只走 npm 全局安装。
+ * - dsh 没有自更新命令，只走 npm 全局安装；Grok 支持 `grok update` 与 npm。
  */
 import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -52,7 +52,7 @@ export interface CliUpdateCache {
 
 /** 允许执行的命令模板（argv 固定，禁止任意 shell） */
 export type UpdateRecipe =
-  | { kind: 'claude' | 'codex'; via: 'self'; argv: string[] }
+  | { kind: 'claude' | 'codex' | 'grok'; via: 'self'; argv: string[] }
   | { kind: UpdatableCli; via: 'npm'; argv: string[] };
 
 const isWin = () => process.platform === 'win32';
@@ -75,8 +75,8 @@ export function updateRecipes(
   scope: CliInstallScope = 'global',
 ): UpdateRecipe[] {
   const recipes: UpdateRecipe[] = [];
-  if (bin && kind !== 'dsh' && (method === 'native' || method === 'unknown')) {
-    recipes.push({ kind, via: 'self', argv: [bin, 'update'] });
+  if (bin && kind !== 'dsh' && (method === 'native' || method === 'unknown' || kind === 'grok')) {
+    recipes.push({ kind: kind as 'claude' | 'codex' | 'grok', via: 'self', argv: [bin, 'update'] });
   }
   recipes.push({
     kind,
@@ -101,7 +101,12 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
     .toLowerCase();
   // claude update / codex update
   if (
-    (base === 'claude' || base === 'codex' || cmd.endsWith('claude') || cmd.endsWith('codex')) &&
+    (base === 'claude' ||
+      base === 'codex' ||
+      base === 'grok' ||
+      cmd.endsWith('claude') ||
+      cmd.endsWith('codex') ||
+      cmd.endsWith('grok')) &&
     rest.length === 1 &&
     rest[0] === 'update'
   ) {
@@ -114,7 +119,8 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
     const pkgOk =
       pkg === '@anthropic-ai/claude-code@latest' ||
       pkg === '@openai/codex@latest' ||
-      pkg === '@deepseek-ai/dsh@latest';
+      pkg === '@deepseek-ai/dsh@latest' ||
+      pkg === '@xai-official/grok@latest';
     if (!pkgOk) return false;
     if (rest.length === 3) return true;
     return rest.length === 5 && rest[3] === '--prefix' && rest[4] === userPrefix();
@@ -123,11 +129,11 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
 }
 
 export function isUpdatable(kind: CliKind): kind is UpdatableCli {
-  return kind === 'claude' || kind === 'codex' || kind === 'dsh';
+  return kind === 'claude' || kind === 'codex' || kind === 'dsh' || kind === 'grok';
 }
 
 function toUpdatable(kind: unknown): UpdatableCli {
-  return kind === 'codex' || kind === 'dsh' ? kind : 'claude';
+  return kind === 'codex' || kind === 'dsh' || kind === 'grok' ? kind : 'claude';
 }
 
 function toScope(v: unknown): CliInstallScope {
@@ -265,17 +271,18 @@ export class CliUpdateService {
   }
 
   async inspect(refreshLatest = false): Promise<CliInstallInfo[]> {
-    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'cursor'];
+    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'cursor'];
     try {
       if (refreshLatest || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
-        const [cl, cx, ds] = await Promise.all([
+        const [cl, cx, ds, gk] = await Promise.all([
           fetchNpmLatest(NPM_PKG.claude),
           fetchNpmLatest(NPM_PKG.codex),
           fetchNpmLatest(NPM_PKG.dsh),
+          fetchNpmLatest(NPM_PKG.grok),
         ]);
         this.cache = {
           checkedAt: Date.now(),
-          latest: { claude: cl, codex: cx, dsh: ds, cursor: null },
+          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, cursor: null },
         };
         try {
           this.save();

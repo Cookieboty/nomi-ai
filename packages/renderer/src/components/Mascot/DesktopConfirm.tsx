@@ -79,6 +79,8 @@ export const DesktopConfirm: React.FC = () => {
   }, []);
 
   useLayoutEffect(() => {
+    // 位置计算需要同步在布局阶段完成，避免首帧闪烁；豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (cur) compute();
   }, [cur, compute]);
 
@@ -116,13 +118,18 @@ export const DesktopConfirm: React.FC = () => {
     return () => clearInterval(t);
   }, [cur]);
 
-  useEffect(() => {
+  // 切换到新的确认请求时渲染期同步重置记住 / 展开详情，避免 effect 内 setState 的级联渲染
+  const [lastCurId, setLastCurId] = useState<string | undefined>(cur?.id);
+  if (lastCurId !== cur?.id) {
+    setLastCurId(cur?.id);
     setRemember(false);
     setDetail(false);
-  }, [cur?.id]);
+  }
 
   useEffect(() => {
     if (!detail) return;
+    // 展开详情时先锁定按钮 1s 再放开，防误触：此处 setState 后立即安装定时器，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setArmed(false);
     const t = setTimeout(() => setArmed(true), 1000);
     return () => clearTimeout(t);

@@ -87,7 +87,7 @@ describe('install plan', () => {
 
   it('missing node / npm are reported, never silently ignored', async () => {
     const plan = await make(probe({ nodeVersion: () => null, npmBin: () => null })).previewUpdate(
-      'codex',
+      'dsh',
     );
     expect(plan.blockers).toHaveLength(2);
     expect(plan.requirements.find((r) => r.id === 'npm')?.ok).toBe(false);

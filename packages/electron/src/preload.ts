@@ -1,5 +1,5 @@
 import { mkAiPreload } from '@nomi-ai/ai-sdk-client/preload';
-import { type IpcApi } from '@nomi-ai/types';
+import { type DesktopBubble, type IpcApi } from '@nomi-ai/types';
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 // 挂载 ai IPC 桥：`window.aiIPC.invoke/on/off` 走白名单校验的 `ai:` 通道。
@@ -64,8 +64,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.removeListener('desktop:confirm-cancel', l);
       };
     },
-    onBubble: (cb: (p: { text: string }) => void) => {
-      const l = (_: unknown, p: { text: string }) => cb(p);
+    onBubble: (cb: (p: DesktopBubble) => void) => {
+      const l = (_: unknown, p: DesktopBubble) => cb(p);
       ipcRenderer.on('desktop:bubble', l);
       return () => {
         ipcRenderer.removeListener('desktop:bubble', l);
@@ -101,6 +101,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     dragEnd: () => ipcRenderer.send('mascot:drag-end'),
     setConfig: (cfg: unknown) => ipcRenderer.send('mascot:interaction-config', cfg),
     wanderNow: () => ipcRenderer.send('mascot:wander-now'),
+    /** 大小：读取 / 设置 / 步进（±1）/ 滚轮（累计 deltaY）/ 重置 */
+    scaleGet: () => ipcRenderer.invoke('mascot:scale-get'),
+    scaleSet: (scale: number) => ipcRenderer.invoke('mascot:scale-set', scale),
+    scaleStep: (dir: 1 | -1) => ipcRenderer.invoke('mascot:scale-step', dir),
+    scaleWheel: (deltaY: number, deltaMode?: number) =>
+      ipcRenderer.invoke('mascot:scale-wheel', deltaY, deltaMode),
+    scaleReset: () => ipcRenderer.invoke('mascot:scale-reset'),
+    onScale: (cb: (s: unknown) => void) => {
+      const l = (_: unknown, s: unknown) => cb(s);
+      ipcRenderer.on('mascot:scale-changed', l);
+      return () => {
+        ipcRenderer.removeListener('mascot:scale-changed', l);
+      };
+    },
     snapshot: () => ipcRenderer.invoke('mascot:debug-snapshot'),
     onCursor: (cb: (p: unknown) => void) => {
       const l = (_: unknown, p: unknown) => cb(p);

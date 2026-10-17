@@ -42,6 +42,19 @@ export interface AiSdkMcpServiceOptions {
   guardTool?: McpToolGuard;
   /** Override for tests. */
   createClient?: CreateMcpClient;
+  /** 握手（initialize）与 listTools 各自的超时，默认 30s。超时按失败处理并释放子进程 / 连接 */
+  connectTimeoutMs?: number;
+}
+
+const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
+
+/** 给一个不一定守时的 promise 加上硬超时（底层 SDK 的超时参数未必对所有 transport 生效） */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => timer && clearTimeout(timer));
 }
 
 interface LiveServer {
@@ -162,49 +175,79 @@ export class AiSdkMcpService implements McpService {
     }
 
     const createClient = this.opts.createClient ?? createMCPClient;
-    const { transport, displayUrl } = await buildTransport(cfg);
-    const client = await createClient({ transport });
-
-    const listed = await client.listTools();
+    const timeoutMs = this.opts.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
     const registry = this.opts.getRegistry();
     const prefix = this.opts.prefixToolNames !== false;
     const toolNames: string[] = [];
+    let client: MCPClient | undefined;
+    let builtTransport: MCPClientConfig['transport'] | undefined;
+    let displayUrl: string;
 
-    for (const t of listed.tools ?? []) {
-      const registeredName = toolNameFor(cfg.id, t.name, prefix);
-      const mcpName = t.name;
-      const inputSchema = (t.inputSchema ?? { type: 'object', properties: {} }) as Record<
-        string,
-        unknown
-      >;
-      if (!inputSchema.type) inputSchema.type = 'object';
+    try {
+      const built = await buildTransport(cfg);
+      builtTransport = built.transport;
+      displayUrl = built.displayUrl;
+      // initializationOptions.timeout：SDK 超时会自行关闭 transport；下面的硬超时兜底
+      // （此时 client 尚未返回，由 finally 式清理里的 transport.close() 终止 stdio 子进程）
+      client = await withTimeout(
+        createClient({ transport: built.transport, initializationOptions: { timeout: timeoutMs } }),
+        timeoutMs + 1_000,
+        `mcp connect (${cfg.id})`,
+      );
 
-      const def: ToolDefinition = {
-        name: registeredName,
-        description: t.description ?? t.title ?? registeredName,
-        input: jsonSchema(inputSchema as never),
-        dangerous: inferToolDanger(t, cfg.transport),
-        readOnly: t.annotations?.readOnlyHint === true,
-        execute: async (input, { signal }) => {
-          const result = await client.callTool({
-            name: mcpName,
-            arguments: (input ?? {}) as Record<string, unknown>,
-            options: signal ? { signal } : undefined,
-          });
-          return formatMcpToolResult(result as never);
-        },
-      };
+      const listed = await withTimeout(
+        client.listTools({ options: { timeout: timeoutMs } }),
+        timeoutMs,
+        `mcp listTools (${cfg.id})`,
+      );
+      const live = client;
 
-      const registered = this.opts.guardTool ? this.opts.guardTool(cfg, def) : def;
+      for (const t of listed.tools ?? []) {
+        const registeredName = toolNameFor(cfg.id, t.name, prefix);
+        const mcpName = t.name;
+        const inputSchema = (t.inputSchema ?? { type: 'object', properties: {} }) as Record<
+          string,
+          unknown
+        >;
+        if (!inputSchema.type) inputSchema.type = 'object';
 
-      if (!registry) {
-        this.opts.logger?.warn(
-          `MCP tools discovered but ToolRegistry missing; skip register (${registeredName})`,
-        );
-      } else {
-        registry.register(registered);
+        const def: ToolDefinition = {
+          name: registeredName,
+          description: t.description ?? t.title ?? registeredName,
+          input: jsonSchema(inputSchema as never),
+          dangerous: inferToolDanger(t, cfg.transport),
+          readOnly: t.annotations?.readOnlyHint === true,
+          execute: async (input, { signal }) => {
+            const result = await live.callTool({
+              name: mcpName,
+              arguments: (input ?? {}) as Record<string, unknown>,
+              options: signal ? { signal } : undefined,
+            });
+            return formatMcpToolResult(result as never);
+          },
+        };
+
+        const registered = this.opts.guardTool ? this.opts.guardTool(cfg, def) : def;
+
+        if (!registry) {
+          this.opts.logger?.warn(
+            `MCP tools discovered but ToolRegistry missing; skip register (${registeredName})`,
+          );
+        } else {
+          registry.register(registered);
+        }
+        toolNames.push(registeredName);
       }
-      toolNames.push(registeredName);
+    } catch (err) {
+      // 握手 / listTools / 注册任一步失败或超时：撤销已注册的工具，关闭 client 与 transport
+      //（stdio 的 transport.close() 会中止子进程；否则失败的 server 会留下僵尸子进程）
+      for (const name of toolNames) registry?.unregister?.(name);
+      await client?.close().catch(() => undefined);
+      const t = builtTransport as { close?: () => Promise<void> | void } | undefined;
+      if (t && typeof t.close === 'function') {
+        await Promise.resolve(t.close()).catch(() => undefined);
+      }
+      throw err;
     }
 
     const info: McpServerInfo = {
@@ -214,7 +257,7 @@ export class AiSdkMcpService implements McpService {
       connected: true,
       toolNames: [...toolNames],
     };
-    this.servers.set(cfg.id, { info, client, toolNames });
+    this.servers.set(cfg.id, { info, client: client!, toolNames });
     this.fire('server:up', info);
     this.opts.logger?.info(`mcp connected: ${cfg.id} (tools: ${toolNames.join(', ') || 'none'})`);
 

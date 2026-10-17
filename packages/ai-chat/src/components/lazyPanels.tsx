@@ -9,14 +9,17 @@ import React, { Suspense, lazy, useRef, useState, type ComponentType } from 'rea
 import type { ConfigPanel as ConfigPanelT } from './ConfigPanel';
 import type { DesktopPanel as DesktopPanelT } from './DesktopPanel';
 import type { ExtensionsPanel as ExtensionsPanelT } from './ExtensionsPanel';
+import type { HubPanel as HubPanelT } from './HubPanel';
 import type { KnowledgePanel as KnowledgePanelT } from './KnowledgePanel';
 import type { LocalPanel as LocalPanelT } from './LocalPanel';
 import type { MemoryPanel as MemoryPanelT } from './MemoryPanel';
+import type { NotesPanel as NotesPanelT } from './NotesPanel';
 import { PanelFallback } from './PanelFallback';
 import type { ProviderPanel as ProviderPanelT } from './ProviderPanel';
 import type { SchedulePanel as SchedulePanelT } from './SchedulePanel';
 import type { ScreenPanel as ScreenPanelT } from './ScreenPanel';
 import type { SettingsView as SettingsViewT } from './SettingsView';
+import type { UsagePanel as UsagePanelT } from './UsagePanel';
 
 type PropsOf<T> = T extends React.ComponentType<infer P> ? P : never;
 
@@ -100,6 +103,12 @@ export const KnowledgePanel: React.FC<PropsOf<typeof KnowledgePanelT>> = lazyPan
 export const MemoryPanel: React.FC<PropsOf<typeof MemoryPanelT>> = lazyPanel(() =>
   import('./MemoryPanel').then((m) => m.MemoryPanel),
 );
+export const NotesPanel: React.FC<PropsOf<typeof NotesPanelT>> = lazyPanel(() =>
+  import('./NotesPanel').then((m) => m.NotesPanel),
+);
+export const HubPanel: React.FC<PropsOf<typeof HubPanelT>> = lazyPanel(() =>
+  import('./HubPanel').then((m) => m.HubPanel),
+);
 export const SchedulePanel: React.FC<PropsOf<typeof SchedulePanelT>> = lazyPanel(() =>
   import('./SchedulePanel').then((m) => m.SchedulePanel),
 );
@@ -111,4 +120,7 @@ export const ExtensionsPanel: React.FC<PropsOf<typeof ExtensionsPanelT>> = lazyP
 );
 export const LocalPanel: React.FC<PropsOf<typeof LocalPanelT>> = lazyPanel(() =>
   import('./LocalPanel').then((m) => m.LocalPanel),
+);
+export const UsagePanel: React.FC<PropsOf<typeof UsagePanelT>> = lazyComponent(() =>
+  import('./UsagePanel').then((m) => m.UsagePanel),
 );

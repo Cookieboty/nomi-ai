@@ -1,0 +1,4 @@
+{"type": "llm.request", "time": 1792000001000, "modelAlias": "kimi-code/kimi-for-coding"}
+{"type": "context.append_loop_event", "time": 1792000010000, "event": {"type": "step.end", "uuid": "step-1", "messageId": "msg-code-1", "usage": {"inputOther": 200, "output": 50, "inputCacheRead": 1000, "inputCacheCreation": 10}}}
+{"type": "step.end", "uuid": "step-2", "time": 1792000020000, "usage": {"inputOther": 10, "output": 5, "inputCacheRead": 0, "inputCacheCreation": 0}}
+{"type": "turn.ended", "time": 1792000021000}

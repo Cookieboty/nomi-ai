@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 
 import { MessageBubble } from '../MessageBubble/MessageBubble';
 import { ToolBar } from '../ToolBar';
@@ -8,6 +8,7 @@ import { Credits } from './Credits';
 import { DesktopConfirm } from './DesktopConfirm';
 import { InteractionSettings } from './InteractionSettings';
 import { MascotAiCueBridge, MascotAudioBridge } from './MascotAudioBridge';
+import { MascotContextMenu } from './MascotContextMenu';
 import { ModelPicker } from './ModelPicker';
 import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
@@ -20,6 +21,7 @@ import { useMascot } from '@/contexts/MascotContext';
 import { useFileDropSummarize } from '@/hooks/useFileDropSummarize';
 import { useMascotTips } from '@/hooks/useMascotTips';
 import MascotDriver from '@/mascot/MascotDriver';
+import { useMascotZoomInput } from '@/mascot/scaleStore';
 import { characterBox } from '@/mascot/spriteLayout';
 
 // three / VRM 体积较大：按需加载
@@ -43,6 +45,14 @@ export const MascotHost: React.FC = () => {
   const { currentModel } = useMascot();
   const aiReady = useMemo(() => isAiIpcReady(), []);
   useMascotTips();
+  useMascotZoomInput();
+  // 窗口被缩放（Ctrl/⌘+滚轮 / 菜单 / 设置滑块）：VRM 的角色框要跟着重算
+  const [, setViewport] = useState(0);
+  useEffect(() => {
+    const on = () => setViewport((n) => n + 1);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   useFileDropSummarize('mascot-canvas');
 
   return (
@@ -68,6 +78,7 @@ export const MascotHost: React.FC = () => {
       <MotionMenu />
       <Credits />
       <InteractionSettings />
+      <MascotContextMenu />
       <DesktopConfirm />
       <ReminderCard />
       <div id="mascot-canvas" className={styles.stage} data-testid="mascot-canvas">

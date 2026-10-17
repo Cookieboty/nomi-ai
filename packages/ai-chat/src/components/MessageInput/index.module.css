@@ -465,6 +465,9 @@
   background: rgba(var(--cd-accent-rgb), 0.12);
 }
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
   padding: 3px 10px;
   border-radius: 999px;

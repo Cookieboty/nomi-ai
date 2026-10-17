@@ -2,7 +2,7 @@
  * KnowledgePanel —— 本地知识库管理：来源（文件夹 / 笔记）、索引进度、文档列表、检索测试、
  * 向量 / 重排模型（可选，OpenAI 兼容）、OCR 语言数据（按需下载，显示许可、进度、可取消）。
  */
-import { ErrorState, LoadingState, t as tr } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -16,6 +16,7 @@ import {
   Switch,
   Tabs,
 } from '@nomi-ai/ui';
+import { FolderOpen, SearchX, Folder, Lock, NotebookPen, Plus, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -411,12 +412,15 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void refresh();
     const offs = [
       kbClient.onChanged(() => void refresh()),
       kbClient.onProgress((p) => setSt((s) => (s ? { ...s, progress: p } : s))),
       kbClient.onDownload((p) => setDl((d) => ({ ...d, [p.id]: p }))),
     ];
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => offs.forEach((o) => o());
   }, [isVisible, refresh]);
 
@@ -463,11 +467,11 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const hasNotes = st?.sources.some((s) => s.kind === 'notes');
 
   return (
-    <Modal open onClose={onClose} title={tr('📚 本地知识库')} size="lg" data-testid="kb-panel">
+    <Modal open onClose={onClose} title={tr('本地知识库')} size="lg" data-testid="kb-panel">
       <div className={styles.stack}>
-        <Notice>
+        <Notice icon={Lock}>
           {tr(
-            '🔒 索引只保存在本机。只会读取你在这里加入的文件夹（同时授予只读权限）和本地笔记；云端模型参与前会先征求同意。',
+            '索引只保存在本机。只会读取你在这里加入的文件夹（同时授予只读权限）和本地笔记；云端模型参与前会先征求同意。',
           )}
         </Notice>
         {err && (
@@ -517,7 +521,8 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     onClick={() => void addFolder()}
                     data-testid="kb-add-folder"
                   >
-                    {tr('＋ 加入文件夹')}
+                    <Icon icon={Plus} size={14} />
+                    {tr('加入文件夹')}
                   </Button>
                   {!hasNotes && (
                     <Button
@@ -525,7 +530,8 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                       onClick={() => void kbClient.addNotes()}
                       data-testid="kb-add-notes"
                     >
-                      {tr('＋ 加入我的笔记')}
+                      <Icon icon={Plus} size={14} />
+                      {tr('加入我的笔记')}
                     </Button>
                   )}
                   <span className={styles.grow} />
@@ -537,7 +543,8 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     title="Ctrl/Cmd+R"
                     data-testid="kb-reindex"
                   >
-                    {tr('↻ 更新索引')}
+                    <Icon icon={RefreshCw} size={14} />
+                    {tr('更新索引')}
                   </Button>
                   <Button
                     size="sm"
@@ -550,7 +557,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 </div>
                 {st.sources.length === 0 ? (
                   <EmptyState
-                    icon="📂"
+                    icon={FolderOpen}
                     title={tr('知识库还是空的')}
                     description={tr(
                       '加入一个文件夹（支持 txt / md / pdf / docx / odt / rtf / xlsx / csv，开启 OCR 后还能识别图片），Nomi 就能基于你的资料回答并标注出处。',
@@ -567,7 +574,10 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                       key={s.id}
                       data-testid="kb-source"
                       title={
-                        s.kind === 'notes' ? tr('📝 我的笔记') : `📁 ${shortPath(s.path ?? '')}`
+                        <span className={styles.row}>
+                          <Icon icon={s.kind === 'notes' ? NotebookPen : Folder} size={14} />
+                          {s.kind === 'notes' ? tr('我的笔记') : shortPath(s.path ?? '')}
+                        </span>
                       }
                       subtitle={tr(
                         '{0} 个文件 · {1} 段{2} · 最近索引 {3}',
@@ -645,6 +655,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   </p>
                 ) : hits.hits.length === 0 ? (
                   <EmptyState
+                    icon={SearchX}
                     title={tr('没有找到相关片段')}
                     description={tr('换个关键词，或检查来源是否已建立索引。')}
                   />

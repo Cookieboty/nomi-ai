@@ -153,3 +153,16 @@
   color: var(--cd-color-text);
   white-space: pre-wrap;
 }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cd-font-size-sm);
+}
+.table th,
+.table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--cd-color-border);
+  vertical-align: top;
+}

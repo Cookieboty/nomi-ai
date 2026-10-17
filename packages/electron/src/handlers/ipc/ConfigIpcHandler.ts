@@ -15,7 +15,7 @@ import {
 import { app } from 'electron';
 
 import { t } from '../../i18n';
-import { type IConfigService, type VoiceSettings } from '../../services/ConfigService';
+import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
 import { getFishTtsService } from '../../tts/fish';
 import { validateTtsConfig } from '../../tts/fish/validateTtsConfig';
@@ -104,29 +104,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
 
     // 获取语音设置 - 已移至VoiceIpcHandler
 
-    // 保存语音设置
-    this.registerListener('save-voice-settings', (_, settings: VoiceSettings) => {
-      this.validateArgs([settings], 1, ['object']);
-
-      try {
-        const currentSettings = this.configService.get<VoiceSettings>('voiceSettings');
-        const updatedSettings = { ...currentSettings, ...settings };
-
-        this.configService.set('voiceSettings', updatedSettings);
-        this.configService.save().catch((error) => {
-          this.logger.error('保存语音设置失败', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-
-        this.logger.info('语音设置已保存', { settings: updatedSettings });
-      } catch (error) {
-        this.logger.error('保存语音设置失败', {
-          error: error instanceof Error ? error.message : String(error),
-          settings,
-        });
-      }
-    });
+    // 保存语音设置：由 VoiceIpcHandler 统一注册（同名通道只能有一个所有者）
 
     // 旧版本的显示模式（Live2D / 自定义图片）已移除：清理持久化的 displayMode，统一为 3D 看板娘
     this.migrateLegacyDisplayMode();

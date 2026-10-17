@@ -1,4 +1,8 @@
+import { createLogger, Icon } from '@nomi-ai/ui';
+import { UserRound } from 'lucide-react';
 import React from 'react';
+
+const log = createLogger('canvas-boundary');
 
 /**
  * 3D 画布错误边界：WebGL 不可用（驱动 / 虚拟显示）时只让角色区域降级，
@@ -15,7 +19,7 @@ export class CanvasBoundary extends React.Component<
   }
 
   componentDidCatch(error: unknown): void {
-    console.error('[CanvasBoundary] 3D 渲染失败，已降级', error);
+    log.error('3D 渲染失败，已降级', error);
   }
 
   render(): React.ReactNode {
@@ -28,10 +32,10 @@ export class CanvasBoundary extends React.Component<
             inset: 0,
             display: 'grid',
             placeItems: 'center',
-            fontSize: 48,
+            color: 'var(--cd-color-text-subtle, #94a3b8)',
           }}
         >
-          🙂
+          <Icon icon={UserRound} size={56} />
         </div>
       );
     }

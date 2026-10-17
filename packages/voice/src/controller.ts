@@ -72,6 +72,12 @@ export class VoiceController {
   private seg: Segmenter | null = null;
   private awakeUntil = 0;
   private queue: Promise<void> = Promise.resolve();
+  /**
+   * 会话代次：每次开始 / 停止一个会话（PTT 或免按键）都 +1。
+   * 排队中的麦克风帧、飞行中的 VAD / 识别结果带着发起时的代次回来，代次不一致就丢弃，
+   * 避免「停止后马上重新开始」时旧会话的帧 / 识别文本串到新会话里（仅比较 mode 不够：新会话 mode 可能相同）。
+   */
+  private gen = 0;
   private settings: { vadThreshold: number; wakePhrase: string; wakeWindowSec: number } = {
     vadThreshold: 0.5,
     wakePhrase: '',
@@ -137,6 +143,7 @@ export class VoiceController {
     if (this.st.phase === 'recording' || this.st.phase === 'starting') return;
     if (this.st.mode !== 'off' && this.st.mode !== 'ptt') await this.stopContinuous();
     this.chunks = [];
+    this.gen += 1;
     this.set({ mode: 'ptt', phase: 'starting', error: null, elapsedMs: 0 });
     try {
       await this.mic.start({
@@ -158,6 +165,7 @@ export class VoiceController {
   async pttStop(cancel = false): Promise<string> {
     if (this.st.mode !== 'ptt') return '';
     const ms = this.now() - this.startedAt;
+    const gen = this.gen;
     await this.mic.stop();
     const audio = concatFloat32(this.chunks);
     this.chunks = [];
@@ -176,7 +184,8 @@ export class VoiceController {
     }
     this.set({ phase: 'transcribing', level: 0 });
     const text = await this.recognize(audio, 'command');
-    this.set({ mode: 'off', phase: 'idle' });
+    // 识别期间已开始新会话：别把新会话的状态重置掉（识别出的文本照常交付）
+    if (gen === this.gen) this.set({ mode: 'off', phase: 'idle' });
     if (text) this.emit(text, 'ptt');
     return text;
   }
@@ -199,6 +208,8 @@ export class VoiceController {
   ): Promise<void> {
     if (this.st.mode === mode) return;
     await this.stopContinuous();
+    // 先 stop 再取代次：await 期间可能有别的 start/stop，以最后一次为准
+    const gen = ++this.gen;
     this.settings = { ...this.settings, ...settings };
     this.set({ mode, phase: 'starting', error: null });
     try {
@@ -212,7 +223,10 @@ export class VoiceController {
       });
       await this.mic.start({
         onFrame: (f) => {
-          this.queue = this.queue.then(() => this.onContinuousFrame(f)).catch((e) => this.fail(e));
+          if (gen !== this.gen) return;
+          this.queue = this.queue
+            .then(() => this.onContinuousFrame(f, gen))
+            .catch((e) => this.fail(e));
         },
         onLevel: (level) => this.set({ level }),
       });
@@ -227,6 +241,7 @@ export class VoiceController {
 
   async stopContinuous(): Promise<void> {
     if (this.st.mode !== 'handsfree' && this.st.mode !== 'wake') return;
+    this.gen += 1; // 之后到达的旧会话帧 / 识别结果一律丢弃
     await this.mic.stop();
     this.vad?.dispose();
     this.vad = null;
@@ -240,13 +255,14 @@ export class VoiceController {
     return 'listening';
   }
 
-  private async onContinuousFrame(f: Float32Array): Promise<void> {
+  private async onContinuousFrame(f: Float32Array, gen: number): Promise<void> {
+    if (gen !== this.gen) return;
     const vad = this.vad;
     const seg = this.seg;
     if (!vad || !seg) return;
     const p = await vad.prob(f);
     // 等待推理期间可能已经停止 / 重新开始：只处理同一会话
-    if (this.seg !== seg) return;
+    if (this.seg !== seg || gen !== this.gen) return;
     if (this.st.mode === 'wake' && this.st.phase === 'awake' && this.now() >= this.awakeUntil)
       this.set({ phase: 'wake-armed' });
     for (const ev of seg.push(f, p)) {
@@ -254,17 +270,17 @@ export class VoiceController {
         if (this.st.mode === 'handsfree' || this.st.phase === 'awake')
           this.set({ phase: 'hearing' });
       } else if (ev.type === 'end') {
-        void this.handleSegment(ev.audio);
+        void this.handleSegment(ev.audio, gen);
       }
     }
   }
 
-  private async handleSegment(audio: Float32Array): Promise<void> {
+  private async handleSegment(audio: Float32Array, gen: number): Promise<void> {
     const mode = this.st.mode;
     if (mode === 'handsfree') {
       this.set({ phase: 'transcribing' });
       const text = await this.recognize(audio, 'command');
-      if (this.st.mode !== mode) return;
+      if (gen !== this.gen || this.st.mode !== mode) return;
       this.set({ phase: 'listening' });
       if (text) this.emit(text, 'handsfree');
       return;
@@ -274,6 +290,7 @@ export class VoiceController {
     if (awake) {
       this.set({ phase: 'transcribing' });
       const text = await this.recognize(audio, 'command');
+      if (gen !== this.gen) return;
       this.awakeUntil = 0;
       if (this.st.mode !== 'wake') return;
       this.set({ phase: 'wake-armed' });
@@ -282,7 +299,7 @@ export class VoiceController {
     }
     // 未唤醒：只做本地短句检查，不打扰 UI（不显示「识别中」）
     const text = await this.recognize(audio, 'wake', true);
-    if (this.st.mode !== 'wake' || !text) return;
+    if (gen !== this.gen || this.st.mode !== 'wake' || !text) return;
     const m = matchWakePhrase(text, this.settings.wakePhrase);
     if (!m.matched) return;
     if (m.rest.length >= 2) {

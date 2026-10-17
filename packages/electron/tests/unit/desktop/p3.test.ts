@@ -73,7 +73,15 @@ describe('CodeSandbox', () => {
 });
 
 describe('P3 tools', () => {
-  function setup(opts: { local?: boolean; localOnly?: boolean; allow?: boolean } = {}) {
+  function setup(
+    opts: {
+      local?: boolean;
+      localOnly?: boolean;
+      allow?: boolean;
+      /** 按第几次询问（从 1 起）决定是否允许，优先于 allow */
+      answer?: (n: number) => boolean;
+    } = {},
+  ) {
     const root = tmp('p3-');
     const data = path.join(root, 'data');
     const broker = new PermissionBroker(
@@ -91,7 +99,11 @@ describe('P3 tools', () => {
     broker.ui = {
       request: (r) => {
         asks.push(r);
-        setTimeout(() => broker.answer(r.id, opts.allow ?? true, false), 0);
+        const n = asks.length;
+        setTimeout(
+          () => broker.answer(r.id, opts.answer ? opts.answer(n) : (opts.allow ?? true), false),
+          0,
+        );
       },
       cancel: () => undefined,
     };
@@ -129,7 +141,7 @@ describe('P3 tools', () => {
       p3: {
         browser,
         code: {
-          available: async () => ['javascript'],
+          available: async () => ['javascript', 'python'],
           run: async (_l, code) => {
             ran.push(code);
             return {
@@ -146,7 +158,7 @@ describe('P3 tools', () => {
     });
     const call = async (name: string, input: unknown) =>
       (await tools.find((t) => t.name === name)!.execute(input, {})) as R;
-    return { call, asks, opened, ran, data };
+    return { call, asks, opened, ran, data, tools };
   }
 
   it('asks before every browser action, every time', async () => {
@@ -187,6 +199,37 @@ describe('P3 tools', () => {
     const log = files.map((f) => fs.readFileSync(path.join(s.data, 'audit', f), 'utf8')).join('');
     expect(log).toContain('code_run');
     expect(log).not.toContain('secret-ish');
+  });
+
+  it('python 没有系统级隔离：需要两次对话框确认，且文案如实说明', async () => {
+    const s = setup();
+    const r = await s.call('code_run', { language: 'python', code: 'print(6*7)' });
+    expect(r.ok).toBe(true);
+    expect(s.asks).toHaveLength(2);
+    for (const a of s.asks)
+      expect(a).toMatchObject({ tool: 'code_run', dialog: true, rememberable: false });
+    expect(s.asks[0].summary).toContain('没有系统级隔离');
+    expect(s.asks[1].summary).toContain('二次确认');
+    expect(s.asks[1].summary).toContain('没有系统级隔离');
+    expect(s.ran).toEqual(['print(6*7)']);
+  });
+
+  it('python 第二次确认被拒绝 → 不运行', async () => {
+    const s = setup({ answer: (n) => n === 1 });
+    const r = await s.call('code_run', { language: 'python', code: 'print(1)' });
+    expect(r.error?.code).toBe('user_denied');
+    expect(s.asks).toHaveLength(2);
+    expect(s.ran).toHaveLength(0);
+  });
+
+  it('javascript 仍只需一次确认；工具描述不再宣称 Python 是隔离沙箱', async () => {
+    const s = setup();
+    await s.call('code_run', { language: 'javascript', code: 'console.log(1)' });
+    expect(s.asks).toHaveLength(1);
+    expect(s.asks[0].summary).not.toContain('没有系统级隔离');
+    const d = s.tools.find((t) => t.name === 'code_run')!.description;
+    expect(d).not.toContain('隔离沙箱');
+    expect(d).toContain('Python 没有系统级隔离');
   });
 
   it('respects local-only mode with a cloud model', async () => {

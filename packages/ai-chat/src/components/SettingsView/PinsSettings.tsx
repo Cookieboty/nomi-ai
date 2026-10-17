@@ -1,5 +1,6 @@
 /** 设置 → 通用 → 常驻入口：勾选要固定到左上角的功能，拖拽或 Alt+↑/↓ 排序，可恢复默认。 */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
+import { GripVertical } from 'lucide-react';
 import React, { useState } from 'react';
 
 import {
@@ -79,7 +80,7 @@ export const PinsSettings: React.FC = () => {
                   data-testid={`pin-order-${id}`}
                 >
                   <span className={styles.grip} aria-hidden>
-                    ⋮⋮
+                    <Icon icon={GripVertical} size={14} />
                   </span>
                   <span aria-hidden>
                     <AppIcon icon={d.icon} size={16} />

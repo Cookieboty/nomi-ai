@@ -7,7 +7,25 @@
   <b>Your desktop AI companion</b> — lives on your desktop, gets what you mean, and gets it done.
 </p>
 
-<p align="center">Linux · Windows · macOS（即将提供）　|　MIT</p>
+<p align="center">macOS · Windows · Linux　|　MIT</p>
+
+<p align="center">
+  <a href="https://github.com/Cookieboty/nomi-ai/stargazers"><img src="https://img.shields.io/github/stars/Cookieboty/nomi-ai?style=flat&logo=github" alt="GitHub stars"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/issues"><img src="https://img.shields.io/github/issues/Cookieboty/nomi-ai?style=flat" alt="Open issues"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/releases"><img src="https://img.shields.io/github/downloads/Cookieboty/nomi-ai/total?style=flat" alt="Total downloads"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/releases/latest"><img src="https://img.shields.io/github/v/release/Cookieboty/nomi-ai?style=flat" alt="Latest release"></a>
+  <a href="https://github.com/Cookieboty/nomi-ai/commits/main"><img src="https://img.shields.io/github/last-commit/Cookieboty/nomi-ai?style=flat" alt="Last commit"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Cookieboty/nomi-ai?style=flat" alt="License: MIT"></a>
+</p>
+
+<p align="center">
+  <a href="https://withnomi.app">官网 / Website</a> ·
+  <a href="https://github.com/Cookieboty/nomi-ai/releases/latest">下载 / Download</a> ·
+  <a href="https://withnomi.app/features">功能 / Features</a> ·
+  <a href="docs/README.md">文档 / Docs</a> ·
+  <a href="https://withnomi.app/changelog">更新日志 / Changelog</a> ·
+  <a href="https://withnomi.app/privacy">隐私 / Privacy</a>
+</p>
 
 <p align="center"><a href="#中文">中文</a> · <a href="#english">English</a></p>
 
@@ -15,14 +33,14 @@
 
 <table>
   <tr>
-    <td align="center" width="32%"><img src="docs/screenshots/mascot.png" alt="Nomi on the desktop with chat bubble"><br><sub>桌面伙伴 / Desktop companion</sub></td>
-    <td align="center"><img src="docs/screenshots/chat.png" alt="Chat window"><br><sub>对话窗口 / Chat</sub></td>
+    <td align="center" width="30%"><img src="docs/screenshots/mascot.webp" alt="Nomi on the desktop with a chat bubble"><br><sub>桌面伙伴 / Desktop companion</sub></td>
+    <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>对话窗口 / Chat</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/command-palette.png" alt="Command palette" width="49%"> <img src="docs/screenshots/settings-providers.png" alt="Provider settings" width="49%"><br><sub>命令面板（Ctrl/⌘+K）· 供应商与模型 / Command palette · Providers & models</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/command-palette.webp" alt="Command palette" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Provider settings" width="49%"><br><sub>命令面板（Ctrl/⌘+K）· 供应商与模型 / Command palette · Providers & models</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/settings-en.png" alt="English UI" width="66%"><br><sub>English UI</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/knowledge.webp" alt="Knowledge base" width="32%"> <img src="docs/screenshots/tools.webp" alt="Tools and MCP" width="32%"> <img src="docs/screenshots/local-models.webp" alt="Local models" width="32%"><br><sub>知识库 · 工具与 MCP · 本地模型 / Knowledge base · Tools & MCP · Local models</sub></td>
   </tr>
 </table>
 
@@ -139,13 +157,24 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 
 ### 📦 下载安装
 
-从 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases) 下载安装包（**v1.0.0**：Linux / Windows；macOS 即将提供）：
+前往 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest) 页面，按你的系统下载对应安装包（macOS 按芯片选 `.dmg`，Windows 选 `.exe`，Linux 选 `.AppImage`），安装即用。文件名里的 `<版本号>` 即 Release 的版本号。
 
-| 平台                           | 安装包                                                                                                            | 状态     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------- |
-| Linux（x64）                   | [`Nomi-1.0.0.AppImage`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi-1.0.0.AppImage)       | 已发布   |
-| Windows 10+                    | [`Nomi Setup 1.0.0.exe`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi%20Setup%201.0.0.exe) | 已发布   |
-| macOS（Apple Silicon / Intel） | —                                                                                                                 | 即将提供 |
+| 系统                         | 安装包                    | 说明                                         |
+| ---------------------------- | ------------------------- | -------------------------------------------- |
+| macOS · Apple 芯片（M 系列） | `Nomi-<版本号>-arm64.dmg` | 打开后把 Nomi 拖进「应用程序」               |
+| macOS · Intel 芯片           | `Nomi-<版本号>.dmg`       | 同上                                         |
+| Windows 10+（x64）           | `Nomi-Setup-<版本号>.exe` | 双击运行安装向导                             |
+| Linux（x64）                 | `Nomi-<版本号>.AppImage`  | `chmod +x Nomi-<版本号>.AppImage` 后直接运行 |
+
+> 💡 **macOS 提示「已损坏」或无法打开？** 当前安装包尚未经过 Apple 公证（notarize），Gatekeeper 可能拦截从网上下载的应用。先把 Nomi 拖到「应用程序」，再在终端执行：
+>
+> ```bash
+> sudo xattr -dr com.apple.quarantine /Applications/Nomi.app
+> ```
+>
+> 然后重新打开即可。
+>
+> 💡 **Windows 弹出 SmartScreen？** 当前安装包尚未做代码签名，确认下载来源是本仓库 Releases 后，点「更多信息 → 仍要运行」即可。
 
 ### 🚀 快速开始
 
@@ -190,9 +219,11 @@ Nomi 构建在这些优秀的开源项目之上：
 
 ### 🔗 链接
 
+- [官网](https://withnomi.app)
 - [问题反馈](https://github.com/Cookieboty/nomi-ai/issues)
-- [更新日志](CHANGELOG.md)
+- [更新日志](CHANGELOG.md) · [官网更新日志](https://withnomi.app/changelog)
 - [文档](docs/README.md)：功能说明、开发与测试
+- [隐私](https://withnomi.app/privacy)
 
 ---
 
@@ -307,13 +338,24 @@ Connect the cloud models you already like, or go fully offline with local models
 
 ### 📦 Download
 
-Grab the installer from [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases) (**v1.0.0**: Linux / Windows; macOS coming soon):
+Open the [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest) page and download the installer for your system (macOS: pick the `.dmg` for your chip; Windows: `.exe`; Linux: `.AppImage`), then install. `<version>` in the file names is the Release version.
 
-| Platform                      | Package                                                                                                           | Status      |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------- |
-| Linux (x64)                   | [`Nomi-1.0.0.AppImage`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi-1.0.0.AppImage)       | Available   |
-| Windows 10+                   | [`Nomi Setup 1.0.0.exe`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi%20Setup%201.0.0.exe) | Available   |
-| macOS (Apple Silicon / Intel) | —                                                                                                                 | Coming soon |
+| System                           | Installer                  | Notes                                        |
+| -------------------------------- | -------------------------- | -------------------------------------------- |
+| macOS · Apple Silicon (M-series) | `Nomi-<version>-arm64.dmg` | Open it and drag Nomi into Applications      |
+| macOS · Intel                    | `Nomi-<version>.dmg`       | Same as above                                |
+| Windows 10+ (x64)                | `Nomi-Setup-<version>.exe` | Run it to start the installer                |
+| Linux (x64)                      | `Nomi-<version>.AppImage`  | `chmod +x Nomi-<version>.AppImage`, then run |
+
+> 💡 **macOS says Nomi “is damaged” or won’t open?** The current build is not Apple-notarized, so Gatekeeper may block apps downloaded from the internet. Move Nomi into Applications, then run this in Terminal:
+>
+> ```bash
+> sudo xattr -dr com.apple.quarantine /Applications/Nomi.app
+> ```
+>
+> Then open it again.
+>
+> 💡 **Windows shows SmartScreen?** The current installer is not code-signed. After confirming you downloaded it from this repo’s Releases, click “More info → Run anyway”.
 
 ### 🚀 Quick start
 
@@ -358,6 +400,8 @@ Authors and licenses for characters, motions, and icons are also listed in the i
 
 ### 🔗 Links
 
+- [Website](https://withnomi.app)
 - [Issues](https://github.com/Cookieboty/nomi-ai/issues)
-- [Changelog](CHANGELOG.md)
+- [Changelog](CHANGELOG.md) · [Website changelog](https://withnomi.app/changelog)
 - [Docs](docs/README.md): features, development, and testing
+- [Privacy](https://withnomi.app/privacy)

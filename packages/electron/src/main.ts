@@ -7,6 +7,7 @@ import * as path from 'path';
 
 import { app, BrowserWindow } from 'electron';
 
+import { registerChatAssetSchemePrivileges } from './chat/assetProtocol';
 import { Application } from './core/Application';
 import { registerModelSchemePrivileges } from './models/ModelService';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
@@ -80,6 +81,8 @@ if (isPrimaryInstance && !app.isPackaged) {
 
 // cdmodel://（远程 / 用户模型文件）需在 app ready 之前注册为特权协议
 registerModelSchemePrivileges();
+// chat-asset://（会话 Markdown 图片）同样需在 app ready 之前完成特权注册
+registerChatAssetSchemePrivileges();
 
 // 全局应用实例
 let application: Application | null = null;
@@ -103,17 +106,7 @@ async function main(): Promise<void> {
   }
 }
 
-// 优雅关闭处理
-async function gracefulShutdown(): Promise<void> {
-  if (application) {
-    await application.stop();
-  }
-  process.exit(0);
-}
-
-// 进程信号处理
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+// 退出（before-quit / SIGTERM / SIGINT）统一由 Application 处理，这里不再注册信号监听
 
 // 启动应用（仅主实例）
 if (isPrimaryInstance)

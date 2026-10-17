@@ -10,6 +10,7 @@ import { type IConfigService } from '../../services/ConfigService';
 import { type ILoggerService } from '../../services/LoggerService';
 
 import { type BaseIpcHandler } from './BaseIpcHandler';
+import { listIpcChannels } from './channelRegistry';
 import { ConfigIpcHandler } from './ConfigIpcHandler';
 import { VoiceIpcHandler } from './VoiceIpcHandler';
 import { WindowIpcHandler } from './WindowIpcHandler';
@@ -189,6 +190,13 @@ export class IpcRegistry implements IIpcRegistry {
       });
       return false;
     }
+  }
+
+  /**
+   * 全部已注册通道（含不经 IpcRegistry、由各服务经 guardedHandle 注册的 ai:* 通道）
+   */
+  getAllRegisteredChannels(): string[] {
+    return listIpcChannels();
   }
 
   /**

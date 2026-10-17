@@ -2,7 +2,7 @@
  * MemoryPanel —— 长期记忆：对话记忆（摘要，可编辑 / 置顶 / 删除）、关于我（事实）、
  * 用户档案（persona.md）、设置与导出。数据全部在本机 userData/memory。
  */
-import { ErrorState, LoadingState, t as tr } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -17,6 +17,7 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
+import { Brain, UserRound, Lock, Pin } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
@@ -70,7 +71,11 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
       data-testid="mem-episode"
       title={
         <span className={styles.row}>
-          {e.pinned && <span title={tr('已置顶')}>📌</span>}
+          {e.pinned && (
+            <span title={tr('已置顶')}>
+              <Icon icon={Pin} size={14} />
+            </span>
+          )}
           {tr(e.title)}
         </span>
       }
@@ -362,12 +367,10 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <Modal open onClose={closeGuard} title={tr('🧠 长期记忆')} size="lg" data-testid="mem-panel">
+    <Modal open onClose={closeGuard} title={tr('长期记忆')} size="lg" data-testid="mem-panel">
       <div className={styles.stack}>
-        <Notice>
-          {tr(
-            '🔒 记忆只保存在本机。整理摘要使用当前对话模型；开启知识库的向量检索后，回忆会更准确。',
-          )}
+        <Notice icon={Lock}>
+          {tr('记忆只保存在本机。整理摘要使用当前对话模型；开启知识库的向量检索后，回忆会更准确。')}
         </Notice>
         {err && (
           <ErrorState detail={err} onRetry={() => void refresh()} data-testid="panel-error" />
@@ -461,7 +464,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {tab === 'episodes' &&
               (data.episodes.length === 0 ? (
                 <EmptyState
-                  icon="🫧"
+                  icon={Brain}
                   title={filter ? tr('没有匹配的记忆') : tr('还没有对话记忆')}
                   description={
                     filter
@@ -512,7 +515,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 </div>
                 {data.facts.length === 0 ? (
                   <EmptyState
-                    icon="🙂"
+                    icon={UserRound}
                     title={filter ? tr('没有匹配的条目') : tr('还不了解你')}
                     description={tr(
                       '整理对话时会自动提取你明确说过的长期信息（称呼、偏好、目标…）。也可以直接对 Nomi 说「记住…」。',

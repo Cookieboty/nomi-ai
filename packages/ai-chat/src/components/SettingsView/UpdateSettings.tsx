@@ -1,5 +1,5 @@
 /**
- * Settings → Updates: check / download / install (with consent) + auto-check toggle.
+ * Settings → General → Updates: check / download / install (with consent) + auto-check toggle.
  * Talks to main-process UpdateService over window.electronAPI.updates.
  */
 import { Button, Switch, t } from '@nomi-ai/ui';

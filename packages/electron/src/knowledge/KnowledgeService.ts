@@ -110,6 +110,11 @@ export class KnowledgeService {
     idle?: ReturnType<typeof setTimeout>;
   } | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
+  /** start() 里的首次延迟索引定时器 */
+  private bootTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 取消订阅权限变更广播 */
+  private offBroker: (() => void) | null = null;
+  private started = false;
   private ipcDone = false;
 
   constructor(private readonly d: KnowledgeDeps) {
@@ -925,17 +930,34 @@ export class KnowledgeService {
     ];
   }
 
+  /** 幂等：重复调用不会叠加定时器 / 订阅 */
   start(): void {
+    if (this.started) return;
+    this.started = true;
     // 启动后稍等再做一次增量索引，之后每 30 分钟一次
-    setTimeout(() => void this.reindex(), 20_000);
+    this.bootTimer = setTimeout(() => {
+      this.bootTimer = null;
+      void this.reindex();
+    }, 20_000);
     this.timer = setInterval(() => void this.reindex(), 30 * 60_000);
-    this.d.desktop.broker.onChange(() => this.broadcast('ai:kb:changed', null));
+    // 定时器不应拖住进程退出
+    (this.bootTimer as { unref?: () => void }).unref?.();
+    (this.timer as { unref?: () => void }).unref?.();
+    this.offBroker = this.d.desktop.broker.onChange(() => this.broadcast('ai:kb:changed', null));
   }
 
-  dispose(): void {
+  /** 应用退出：停定时器、取消索引与下载、退订、终止 OCR worker；幂等，之后可再 start() */
+  async dispose(): Promise<void> {
+    this.started = false;
+    if (this.bootTimer) clearTimeout(this.bootTimer);
+    this.bootTimer = null;
     if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.offBroker?.();
+    this.offBroker = null;
     this.job?.ctrl.abort();
-    void this.disposeOcr();
+    for (const d of this.downloads.values()) d.ctrl.abort();
+    await this.disposeOcr();
   }
 
   private broadcast(ch: string, payload: unknown): void {

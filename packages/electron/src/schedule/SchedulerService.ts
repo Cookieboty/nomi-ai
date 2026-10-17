@@ -406,7 +406,7 @@ export class SchedulerService {
     this.d.desktop.say(tr('{0}{1}：{2}', r.catchUp ? tr('（补上）') : '', r.name, short));
     notifyIsland({ kind: 'reminder', title: r.name, body: short });
     broadcastMascotCommand({ type: 'motion', name: 'wave' });
-    if (this.data.settings.osNotify) this.notify(`📋 ${r.name}`, short);
+    if (this.data.settings.osNotify) this.notify(r.name, short);
   }
 
   private notify(title: string, body: string) {

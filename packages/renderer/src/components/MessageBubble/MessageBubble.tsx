@@ -41,6 +41,8 @@ export const MessageBubble: React.FC = () => {
   const active = !!live;
 
   useLayoutEffect(() => {
+    // hold 根据最新消息派生，setState 立即触发级联渲染是预期的（UI 需同步跟随新消息）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHold((prev) => holdOnMessage(prev, incoming, incomingMore));
     if (incoming.trim()) return undefined;
     const timer = setTimeout(() => setHold(holdOnHidden()), 300);

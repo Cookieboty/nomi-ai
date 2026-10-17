@@ -2,8 +2,18 @@
  * 对话窗口顶栏（参考 Codex app：右上角放常用入口，下面是对话）。
  * 图标打开右侧快速视图（抽屉），详细配置在「设置」里。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import { Tooltip } from '@nomi-ai/ui';
+import {
+  Ellipsis,
+  Pin,
+  Settings2,
+  Blocks,
+  Cpu,
+  LibraryBig,
+  Settings,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { extClient } from '../../services/extClient';
@@ -17,38 +27,16 @@ import { ChatModeSwitch } from '../ChatModeSwitch';
 
 import styles from './index.module.css';
 
-const I: Record<string, React.ReactNode> = {
-  memory: (
-    <path d="M12 3a4 4 0 0 0-4 4 4 4 0 0 0-3 6.5A3.5 3.5 0 0 0 8.5 19H12m0-16a4 4 0 0 1 4 4 4 4 0 0 1 3 6.5 3.5 3.5 0 0 1-3.5 5.5H12m0-16v16" />
-  ),
-  kb: <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zm0 0v16M8 7h7" />,
-  sched: (
-    <>
-      <rect x="3.5" y="5" width="17" height="15" rx="2.5" />
-      <path d="M8 3v4M16 3v4M3.5 10h17M8 14l2 2 4-4" />
-    </>
-  ),
-  ext: (
-    <path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4H4a2 2 0 1 1 0-4h2V6h4z" />
-  ),
-  local: (
-    <>
-      <rect x="3" y="4" width="18" height="12" rx="2" />
-      <path d="M8 20h8M12 16v4" />
-    </>
-  ),
-  settings: (
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-    </>
-  ),
+const I: Record<string, LucideIcon> = {
+  hub: LibraryBig,
+  ext: Blocks,
+  local: Cpu,
+  settings: Settings,
 };
 
 interface Props {
-  onMemory: () => void;
-  onKnowledge: () => void;
-  onSchedule: () => void;
+  /** 知识 · 记忆 · 日程 快速视图 */
+  onHub: () => void;
   onExt: () => void;
   onLocal: () => void;
   onSettings: () => void;
@@ -62,31 +50,13 @@ export const ChatHeader: React.FC<Props> = (p) => {
   const bindings = useShortcutBindings();
   const items = [
     {
-      k: 'memory',
-      tip: t('记忆'),
-      key: formatCombo(bindings.memory),
-      id: 'open-mem-panel',
-      pin: 'memory',
-      on: p.onMemory,
-      show: memClient.available(),
-    },
-    {
-      k: 'kb',
-      tip: t('知识库'),
-      key: formatCombo(bindings.kb),
-      id: 'open-kb-panel',
-      pin: 'kbm',
-      on: p.onKnowledge,
-      show: kbClient.available(),
-    },
-    {
-      k: 'sched',
-      tip: t('日程与提醒'),
-      key: formatCombo(bindings.schedule),
-      id: 'open-sched-panel',
-      pin: 'schedule',
-      on: p.onSchedule,
-      show: schedClient.available(),
+      k: 'hub',
+      tip: t('知识 · 记忆 · 日程'),
+      key: formatCombo(bindings.hub),
+      id: 'open-hub-panel',
+      pin: 'hub',
+      on: p.onHub,
+      show: memClient.available() || kbClient.available() || schedClient.available(),
     },
     {
       k: 'ext',
@@ -99,7 +69,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
     },
     {
       k: 'local',
-      tip: t('本机管理（日历 · 剪贴板 · 小模型）'),
+      tip: t('本机管理（剪贴板 · 导出 · 小模型 · Ollama）'),
       key: formatCombo(bindings.local),
       id: 'open-local-panel',
       pin: 'local',
@@ -204,7 +174,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
               title={t('更多入口')}
               data-testid="pins-overflow"
             >
-              ⋯
+              <Icon icon={Ellipsis} />
             </button>
             {more && (
               <div className={styles.popup} role="menu" data-pin-popup>
@@ -253,7 +223,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
             }}
             data-testid={ctxPinned ? 'pin-unpin' : 'pin-pin'}
           >
-            📌{' '}
+            <Icon icon={Pin} />
             {ctxPinned
               ? t('取消固定')
               : ctxFull
@@ -270,7 +240,8 @@ export const ChatHeader: React.FC<Props> = (p) => {
             }}
             data-testid="pin-customize"
           >
-            {t('⚙️ 自定义常驻入口…')}
+            <Icon icon={Settings2} />
+            {t('自定义常驻入口…')}
           </button>
         </div>
       )}
@@ -285,19 +256,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
               aria-label={t(i.tip)}
               data-testid={i.id}
             >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden
-              >
-                {I[i.k]}
-              </svg>
+              <Icon icon={I[i.k]!} size={17} />
             </button>
           </Tooltip>
         ))}

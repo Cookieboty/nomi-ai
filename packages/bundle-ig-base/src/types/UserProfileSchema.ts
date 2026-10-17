@@ -84,11 +84,3 @@ export const userProfileSchema = z
   .strict();
 
 export type ValidatedUserProfile = z.infer<typeof userProfileSchema>;
-
-/** 供 PreferenceDistiller 使用：只允许更新 preferences.* 与 dislikes；不允许改 identity */
-export const userProfilePatchByDistillerSchema = z
-  .object({
-    preferences: preferencesSchema.partial().optional(),
-    dislikes: z.array(z.string().max(64)).max(128).optional(),
-  })
-  .strict();

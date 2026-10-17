@@ -24,8 +24,8 @@ describe('pins store', () => {
     expect(DEFAULT_PINS.length).toBeLessThanOrEqual(4);
     expect(normalizePins(['kb', 'kb', 'nope', 'snip'])).toEqual(['kb', 'snip']);
     expect(normalizePins(PIN_POOL.map((p) => p.id))).toHaveLength(MAX_PINS);
-    savePins(['memory', 'desktop']);
-    expect(loadPins()).toEqual(['memory', 'desktop']);
+    savePins(['hub', 'desktop']);
+    expect(loadPins()).toEqual(['hub', 'desktop']);
     savePins([]);
     expect(loadPins()).toEqual([]);
   });

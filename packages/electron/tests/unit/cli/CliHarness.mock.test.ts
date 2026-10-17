@@ -81,6 +81,95 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 15_000);
 
+  it('stores duration and usage on the assistant message; IPC-slim result has no raw events', async () => {
+    const h = track(
+      new CliHarnessService({
+        root: path.join(os.tmpdir(), `harness-usage-${Date.now()}`),
+        logger: { info() {}, warn() {} },
+        defaultCwd: process.cwd(),
+      }),
+    );
+    const tab = h.createTab({ backend: 'claude' });
+    const r = await h.sendTab(tab.id, 'hello');
+    expect(r.usage).toMatchObject({ inputTokens: 1200, outputTokens: 340, costUsd: 0.0123 });
+    const a = h
+      .tabMessages(tab.id)
+      .filter((m) => m.role === 'assistant')
+      .pop()!;
+    expect(a.usage).toMatchObject({ inputTokens: 1200, outputTokens: 340 });
+    expect(a.durationMs).toBeGreaterThan(0);
+  }, 15_000);
+
+  it('stop keeps the partial text and trace as a stopped (not error) message', async () => {
+    const prev = { t: process.env.NOMI_MOCK_TOOLS, s: process.env.NOMI_MOCK_STEP_MS };
+    process.env.NOMI_MOCK_TOOLS = 'rich';
+    process.env.NOMI_MOCK_STEP_MS = '150';
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-stop-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      const tab = h.createTab({ backend: 'claude' });
+      let started = 0;
+      h.events.on('event', (p: { event: { type: string; status?: string } }) => {
+        if (p.event.type === 'tool' && p.event.status === 'start') started++;
+      });
+      const run = h.sendTab(tab.id, 'go').catch((e: Error) => e);
+      for (let i = 0; i < 100 && started < 2; i++) await new Promise((r) => setTimeout(r, 50));
+      expect(started).toBeGreaterThanOrEqual(2);
+      expect(h.cancelTab(tab.id)).toBe(true);
+      await run;
+      const msgs = h.tabMessages(tab.id);
+      const a = msgs[msgs.length - 1]!;
+      expect(a).toMatchObject({ role: 'assistant', stopped: true });
+      expect(a.error).toBeUndefined();
+      expect(a.trace?.some((e) => e.type === 'tool')).toBe(true);
+      expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.status).toBe('idle');
+    } finally {
+      if (prev.t === undefined) delete process.env.NOMI_MOCK_TOOLS;
+      else process.env.NOMI_MOCK_TOOLS = prev.t;
+      if (prev.s === undefined) delete process.env.NOMI_MOCK_STEP_MS;
+      else process.env.NOMI_MOCK_STEP_MS = prev.s;
+    }
+  }, 20_000);
+
+  it('stopping a queued tab leaves the wait queue immediately', async () => {
+    const prev = { t: process.env.NOMI_MOCK_TOOLS, s: process.env.NOMI_MOCK_STEP_MS };
+    process.env.NOMI_MOCK_TOOLS = 'rich';
+    process.env.NOMI_MOCK_STEP_MS = '200';
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-queue-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      h.setMaxConcurrent(1);
+      const a = h.createTab({ backend: 'claude' });
+      const b = h.createTab({ backend: 'claude' });
+      const runA = h.sendTab(a.id, 'one').catch((e: Error) => e);
+      await new Promise((r) => setTimeout(r, 300));
+      const runB = h.sendTab(b.id, 'two').catch((e: Error) => e);
+      await new Promise((r) => setTimeout(r, 100));
+      expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('queued');
+      expect(h.cancelTab(b.id)).toBe(true);
+      await runB;
+      expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('idle');
+      expect(h.tabMessages(b.id).pop()).toMatchObject({ role: 'assistant', stopped: true });
+      h.cancelTab(a.id);
+      await runA;
+    } finally {
+      if (prev.t === undefined) delete process.env.NOMI_MOCK_TOOLS;
+      else process.env.NOMI_MOCK_TOOLS = prev.t;
+      if (prev.s === undefined) delete process.env.NOMI_MOCK_STEP_MS;
+      else process.env.NOMI_MOCK_STEP_MS = prev.s;
+    }
+  }, 20_000);
+
   it('forwards to mock codex', async () => {
     const h = track(
       new CliHarnessService({
@@ -225,6 +314,25 @@ describe('CliHarnessService mock CLI', () => {
     );
     expect(h.state().backend).toBe('nomi');
     expect(h.state().toolsDisabled).toBe(false);
+  });
+
+  it('同步空会话切换后端时的默认标题，但保留用户自定义重命名', () => {
+    const h = track(
+      new CliHarnessService({
+        root: path.join(os.tmpdir(), `harness-title-${Date.now()}`),
+        logger: { info() {}, warn() {} },
+      }),
+    );
+    const tab = h.createTab({ backend: 'grok' });
+    expect(tab.title).toBe('Grok');
+    const switched = h.setTabBackend(tab.id, 'codex');
+    expect(switched.backend).toBe('codex');
+    expect(switched.title).toBe('Codex');
+
+    h.renameTab(tab.id, '我的项目');
+    const switched2 = h.setTabBackend(tab.id, 'grok');
+    expect(switched2.backend).toBe('grok');
+    expect(switched2.title).toBe('我的项目');
   });
 
   it('reuses one Claude process across turns (session-level live)', async () => {
@@ -375,8 +483,20 @@ describe('CliHarnessService session handling', () => {
       expect(r1.sessionId).toBe('session-mock-dsh-1');
       expect(r1.events).toEqual(
         expect.arrayContaining([
-          { type: 'tool', name: 'read_file', status: 'start', detail: 'call_1' },
-          { type: 'tool', name: 'read_file', status: 'done', detail: 'call_1' },
+          expect.objectContaining({
+            type: 'tool',
+            name: 'read_file',
+            status: 'start',
+            detail: 'call_1',
+            input: '{"path":"README.md"}',
+          }),
+          expect.objectContaining({
+            type: 'tool',
+            name: 'read_file',
+            status: 'done',
+            detail: 'call_1',
+            output: 'ok',
+          }),
         ]),
       );
       expect(h.state().cliSessionId).toBe('session-mock-dsh-1');

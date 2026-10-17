@@ -1,6 +1,6 @@
 {
   "name": "@nomi-ai/electron",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Electron主进程和预加载脚本",
   "main": "dist/main.js",
   "scripts": {

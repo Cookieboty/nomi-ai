@@ -5,7 +5,7 @@
  *   dsh         $DSH_HOME/sessions/<cwd>/session-<uuid>/session.v4.jsonl(.zstd)
  *
  * - 增量：目录列表 3 秒内复用；每个文件的元信息按 (mtime, size) 缓存，只重解析变化的文件。
- * - 分页：按修改时间倒序，每页 50 条（offset 是候选文件序号，过滤掉的不占名额）。
+ * - 分页：按修改时间倒序，每页 20 条，最多展示最近 100 条可见会话。
  * - 去重：已经在 Nomi 标签里打开的会话（backend + cliSessionId 相同）不再列出。
  * - 打开：读出可见对话（尽力而为，失败则为空并给提示），交给 CliHarnessService 新建 / 复用标签，
  *   下一条消息按各 CLI 的续接参数（claude --resume / codex exec resume / dsh --session-id）继续。
@@ -29,7 +29,9 @@ import { t } from '../i18n';
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import type { HarnessTabMessage, HarnessTabMeta } from './types';
 
-export const HISTORY_PAGE_SIZE = 50;
+export const HISTORY_PAGE_SIZE = 20;
+/** 历史会话最多展示的条数（列表与搜索索引共同的硬上限，按 mtime 取最近的 N 条） */
+export const HISTORY_MAX_ITEMS = 100;
 const LIST_TTL_MS = 3000;
 const MAX_PARSED_CACHE = 6000;
 const MAX_TRANSCRIPT_BYTES = 12 * 1024 * 1024;
@@ -49,7 +51,7 @@ export interface HistorySession {
 
 export interface HistoryPage {
   items: HistorySession[];
-  /** 下一页的 offset（候选文件序号）；没有更多时为 null */
+  /** 下一页的可见会话 offset；没有更多时为 null */
   nextOffset: number | null;
   hasMore: boolean;
 }
@@ -157,7 +159,7 @@ async function statAll(paths: Array<{ path: string; dirId?: string }>): Promise<
   return out;
 }
 
-function zstdDecode(buf: Buffer): Promise<string> {
+export function zstdDecode(buf: Buffer): Promise<string> {
   const native = (zlib as unknown as { zstdDecompressSync?: (b: Buffer) => Buffer })
     .zstdDecompressSync;
   if (native) {
@@ -308,53 +310,66 @@ export class SessionHistoryService {
     backend: HistoryBackend,
     o: { offset?: number; limit?: number; force?: boolean } = {},
   ): Promise<HistoryPage> {
-    return this.page(backend, o, 200, false);
+    return this.page(backend, o, false);
   }
 
   /**
-   * 搜索用的紧凑索引：与 list 同一套去重 / 增量解析（只重读变化的文件），但一次可取更多条
-   * （最多 1000），并且不为每条检查工作目录是否存在。匹配在界面里做（防抖后过滤），这里只负责
-   * 「分页地把标题 / 路径交出去」，不会把整盘会话一次性读完。
+   * 搜索用的紧凑索引：与 list 同一套去重 / 增量解析（只重读变化的文件），同样按页取，
+   * 且不为每条检查工作目录是否存在。匹配在界面里做（防抖后过滤），这里只负责
+   * 「分页地把标题 / 路径交出去」。列表与索引都只覆盖最近 {@link HISTORY_MAX_ITEMS} 条可见会话。
    */
   async index(
     backend: HistoryBackend,
     o: { offset?: number; limit?: number; force?: boolean } = {},
   ): Promise<HistoryPage> {
-    return this.page(backend, { ...o, limit: o.limit ?? 500 }, 1000, true);
+    return this.page(backend, o, true);
   }
 
   private async page(
     backend: HistoryBackend,
     o: { offset?: number; limit?: number; force?: boolean },
-    cap: number,
     cheap: boolean,
   ): Promise<HistoryPage> {
     if (!BACKENDS.includes(backend)) throw new Error(t('未知后端'));
-    const limit = Math.min(cap, Math.max(1, Math.round(o.limit ?? HISTORY_PAGE_SIZE)));
-    let i = Math.max(0, Math.round(o.offset ?? 0));
+    const limit = Math.min(
+      HISTORY_PAGE_SIZE,
+      Math.max(1, Math.round(o.limit ?? HISTORY_PAGE_SIZE)),
+    );
+    // The cursor is the number of visible sessions already returned. Keeping it
+    // independent from the raw file index means empty / sidechain files do not
+    // consume the 100-session window or leave the caller with short pages.
+    const offset = Math.max(0, Math.round(o.offset ?? 0));
     const entries = await this.candidates(backend, Boolean(o.force));
+    if (offset >= HISTORY_MAX_ITEMS) return { items: [], nextOffset: null, hasMore: false };
     const open = this.d.openKeys?.() ?? new Set<string>();
-    const items: HistorySession[] = [];
+    // Read one extra visible item so hasMore is accurate even when the tail is
+    // made up of empty, sidechain, duplicate, or currently open files.
+    const target = Math.min(HISTORY_MAX_ITEMS, offset + limit + 1);
+    const visible: HistorySession[] = [];
+    let scan = 0;
     // 分批并行解析，避免一个个串行读文件
-    while (i < entries.length && items.length < limit) {
-      const batch = entries.slice(i, i + Math.max(8, limit - items.length));
+    while (scan < entries.length && visible.length < target) {
+      const batch = entries.slice(scan, scan + Math.max(8, target - visible.length));
       const metas = await Promise.all(batch.map((f) => this.parsedOf(backend, f)));
       for (let k = 0; k < batch.length; k++) {
         const m = metas[k];
-        i++;
+        const f = batch[k]!;
+        scan++;
         if (!m || open.has(m.key)) continue;
         // 同一会话的旧文件不再单列（只有「最新的那个文件」才是这条会话）
-        if (this.byKey.get(m.key)?.path !== batch[k]!.path) continue;
-        items.push({
+        if (this.byKey.get(m.key)?.path !== f.path) continue;
+        visible.push({
           ...m,
           cwdMissing: !cheap && m.cwd ? !isDir(m.cwd) : false,
-          updatedAt: batch[k]!.mtime,
+          updatedAt: f.mtime,
         });
-        if (items.length >= limit) break;
+        if (visible.length >= target) break;
       }
     }
-    const hasMore = i < entries.length;
-    return { items, nextOffset: hasMore ? i : null, hasMore };
+    const items = visible.slice(offset, offset + limit);
+    const pageEnd = offset + items.length;
+    const hasMore = visible.length > pageEnd && pageEnd < HISTORY_MAX_ITEMS;
+    return { items, nextOffset: hasMore ? pageEnd : null, hasMore };
   }
 
   /** 读出可见对话；失败时返回空数组与提示 */

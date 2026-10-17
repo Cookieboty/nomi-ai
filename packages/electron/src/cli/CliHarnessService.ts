@@ -1,5 +1,5 @@
 /**
- * 对话后端：Nomi | Claude Code | Codex | dsh，按「标签」并发运行。
+ * 对话后端：Nomi | Claude Code | Codex | dsh | Grok，按「标签」并发运行。
  *
  * - 标签 'main'：原有对话，后端可为 Nomi 或任一 CLI；消息由渲染层存进 Nomi 历史。
  *   旧的单会话接口（state / setBackend / setCwd / send）都作用于它。
@@ -14,16 +14,32 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { buildCliEnv } from './cliEnv';
 import { DSH_MIN_NODE_MAJOR, readPathNodeVersion, resolveCliBin } from './detect';
-import { createClaudeParser, createDshParser, parseCodexLine } from './streamParse';
+import { EventBatcher } from './eventBatcher';
+import { killProcessTree } from './processTree';
+import {
+  createClaudeParser,
+  createDshParser,
+  createGrokParser,
+  parseCodexLine,
+} from './streamParse';
+import {
+  MAX_TAB_FILE_BYTES,
+  buildTrace,
+  compactOldTraces,
+  mergeUsage,
+  stampEvent,
+} from './traceBuilder';
 import type {
   HarnessBackend,
   HarnessEvent,
+  HarnessSendReply,
   HarnessSendResult,
   HarnessSessionState,
   HarnessTabMessage,
@@ -42,7 +58,7 @@ const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
 
-const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh'];
+const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok'];
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -53,6 +69,7 @@ const BACKEND_TITLE: Record<HarnessBackend, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
+  grok: 'Grok',
 };
 
 function mockDir(): string {
@@ -94,6 +111,16 @@ export class CliHarnessService {
   private readonly tabs = new Map<string, HarnessTabMeta>();
   private readonly messages = new Map<string, HarnessTabMessage[]>();
   private readonly children = new Map<string, ChildProcessWithoutNullStreams>();
+  /** tabId → 当前这一轮最近的输出 / 步骤（轻量进度提示，仅内存；供监视器定时汇总用） */
+  private readonly progress = new Map<string, { kind: 'text' | 'tool'; value: string }>();
+  /** 每个运行中标签这一轮已收到的文本 / 轨迹事件：中断或失败时据此保留已有进度 */
+  private readonly partial = new Map<string, { text: string; events: HarnessEvent[] }>();
+  /** 用户在排队 / 运行期间点了停止的标签 */
+  private readonly stopRequested = new Set<string>();
+  /** 实时事件按帧合批后再广播（见 eventBatcher） */
+  private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
+    this.broadcast('ai:harness:events', batch),
+  );
   /** tabId → requestId → timer；超时自动拒绝 */
   private readonly pendingPermissions = new Map<
     string,
@@ -105,7 +132,11 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
-  private readonly waiters: Array<() => void> = [];
+  private readonly waiters: Array<{
+    tabId: string;
+    resume: () => void;
+    abort: (e: Error) => void;
+  }> = [];
   private running = 0;
   private activeTabId = MAIN_TAB_ID;
   private maxConcurrent = DEFAULT_MAX_CONCURRENT;
@@ -125,6 +156,8 @@ export class CliHarnessService {
       defaultCwd?: string;
       /** 启动 dsh 时注入的额外环境变量（例如启用档案的 NOMI_DSH_API_KEY） */
       dshEnv?: () => Record<string, string>;
+      /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
+      grokEnv?: () => Record<string, string>;
     },
   ) {
     this.home = d.home ?? os.homedir();
@@ -283,7 +316,10 @@ export class CliHarnessService {
     list.push(msg);
     if (list.length > MAX_TAB_MESSAGES) list.splice(0, list.length - MAX_TAB_MESSAGES);
     try {
-      fs.writeFileSync(this.messagesPath(id), JSON.stringify(list), 'utf8');
+      let json = JSON.stringify(list);
+      // 文件过大：较早消息的轨迹只保留骨架，避免每条消息都整文件同步写几十 MB
+      if (json.length > MAX_TAB_FILE_BYTES && compactOldTraces(list)) json = JSON.stringify(list);
+      fs.writeFileSync(this.messagesPath(id), json, 'utf8');
     } catch (e) {
       this.d.logger.warn('harness tab messages write failed', e);
     }
@@ -304,6 +340,7 @@ export class CliHarnessService {
         claude: resolveHarnessBin('claude'),
         codex: resolveHarnessBin('codex'),
         dsh: resolveHarnessBin('dsh'),
+        grok: resolveHarnessBin('grok'),
       },
     };
   }
@@ -394,6 +431,7 @@ export class CliHarnessService {
             timestamp: typeof m.timestamp === 'number' ? m.timestamp : now,
             ...(m.error ? { error: true as const } : {}),
             ...(Array.isArray(m.tools) ? { tools: m.tools } : {}),
+            ...seedExtras(m),
           }))
       : [];
     this.messages.set(tab.id, seeded);
@@ -460,6 +498,7 @@ export class CliHarnessService {
         timestamp: typeof m.timestamp === 'number' ? m.timestamp : Date.now(),
         ...(m.error ? { error: true as const } : {}),
         ...(Array.isArray(m.tools) ? { tools: m.tools } : {}),
+        ...seedExtras(m),
       }));
     this.messages.set(id, seeded);
     try {
@@ -481,6 +520,7 @@ export class CliHarnessService {
     const idx = order.indexOf(id);
     this.tabs.delete(id);
     this.messages.delete(id);
+    this.progress.delete(id);
     try {
       fs.rmSync(this.messagesPath(id), { force: true });
     } catch {
@@ -524,6 +564,17 @@ export class CliHarnessService {
     if (backend !== tab.backend) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
+      // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
+      // 否则空会话从 Grok 切到 Codex 后欢迎标题 / 占位符仍显示 Grok；用户手动重命名的标题保留
+      const oldDefault = BACKEND_TITLE[tab.backend];
+      const rest = tab.title.startsWith(oldDefault) ? tab.title.slice(oldDefault.length) : null;
+      const isDefaultTitle = rest === '' || /^ \d+$/.test(rest ?? '');
+      if (isDefaultTitle) {
+        const sameKind = [...this.tabs.values()].filter(
+          (x) => x.id !== id && x.backend === backend,
+        ).length;
+        tab.title = sameKind ? `${BACKEND_TITLE[backend]} ${sameKind + 1}` : BACKEND_TITLE[backend];
+      }
     }
     tab.backend = backend;
     this.changed();
@@ -564,38 +615,44 @@ export class CliHarnessService {
 
   /** 中止标签当前轮次；Claude 长驻进程一并拆除（下一轮可 --resume） */
   cancelTab(id: string): boolean {
+    const queued = this.tabs.get(id)?.status === 'queued';
+    if (queued) this.stopRequested.add(id);
     const live = this.claudeLive.get(id);
     if (live?.turn) {
       this.writeClaudeControl(live, { subtype: 'interrupt' });
     }
-    if (!this.children.has(id) && !live) return false;
+    if (!this.children.has(id) && !live) {
+      if (queued) {
+        // 还在排队：直接退出等待队列
+        const i = this.waiters.findIndex((w) => w.tabId === id);
+        if (i >= 0) this.waiters.splice(i, 1)[0]!.abort(new Error(t('已停止')));
+        return true;
+      }
+      this.stopRequested.delete(id);
+      return false;
+    }
+    this.stopRequested.add(id);
     this.teardownClaudeLive(id);
-    // Codex/dsh：无 claudeLive，仍按 children 杀
+    // Codex/dsh/grok：无 claudeLive，仍按 children 杀；必须杀整棵进程树，
+    // 这些 CLI 会派生子孙（node 包装脚本 / 工具 / MCP），单层 child.kill() 会留下孤儿进程
     const child = this.children.get(id);
     if (child) {
-      try {
-        child.kill();
-      } catch {
-        /* */
-      }
+      killProcessTree(child);
       this.children.delete(id);
       this.clearPermissionTimeouts(id);
     }
     return true;
   }
 
-  /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程 */
+  /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
+    this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
     for (const [id, child] of [...this.children.entries()]) {
-      try {
-        child.kill();
-      } catch {
-        /* */
-      }
+      killProcessTree(child);
       this.children.delete(id);
-      this.clearPermissionTimeouts(id);
     }
+    for (const id of [...this.pendingPermissions.keys()]) this.clearPermissionTimeouts(id);
   }
 
   /** 发送一轮到指定标签；多个标签并发，超出上限排队 */
@@ -615,13 +672,33 @@ export class CliHarnessService {
     tab.status = 'queued';
     tab.lastError = undefined;
     this.changed();
-    await this.acquire();
+    try {
+      await this.acquire(id);
+    } catch (e) {
+      // 排队时被用户停止
+      this.stopRequested.delete(id);
+      if (this.tabs.has(id)) {
+        tab.status = 'idle';
+        this.appendMessage(id, {
+          id: randomUUID(),
+          role: 'assistant',
+          content: '',
+          timestamp: Date.now(),
+          stopped: true,
+        });
+        this.progress.delete(id);
+        this.changed();
+      }
+      throw e;
+    }
     // 排队期间标签可能被关闭
     if (!this.tabs.has(id)) {
       this.release();
       throw new Error(t('标签已关闭'));
     }
     tab.status = 'running';
+    const startedAt = Date.now();
+    this.partial.set(id, { text: '', events: [] });
     this.changed();
     try {
       const result =
@@ -629,7 +706,9 @@ export class CliHarnessService {
           ? await this.runClaude(tab, text)
           : backend === 'dsh'
             ? await this.runDsh(tab, text)
-            : await this.runCodex(tab, text);
+            : backend === 'grok'
+              ? await this.runGrok(tab, text)
+              : await this.runCodex(tab, text);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
       tab.status = 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
@@ -649,36 +728,67 @@ export class CliHarnessService {
           tools.push(label);
         }
       }
+      const trace = buildTrace(result.events);
+      const usage = mergeUsage(result.events);
+      const durationMs = Date.now() - startedAt;
       this.appendMessage(id, {
         id: randomUUID(),
         role: 'assistant',
         content: result.text,
         timestamp: Date.now(),
+        durationMs,
+        ...(usage ? { usage } : {}),
         ...(tools.length ? { tools } : {}),
+        ...(trace.length ? { trace } : {}),
       });
       this.finish(tab, true, result.text);
-      return result;
+      return { ...result, trace, durationMs, ...(usage ? { usage } : {}) };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      const stopped = this.stopRequested.delete(id);
+      const part = this.partial.get(id);
+      const trace = part ? buildTrace(part.events) : [];
+      const durationMs = Date.now() - startedAt;
       if (this.tabs.has(id)) {
-        tab.status = 'error';
-        tab.lastError = message;
-        this.appendMessage(id, {
-          id: randomUUID(),
-          role: 'assistant',
-          content: message,
-          timestamp: Date.now(),
-          error: true,
-        });
-        this.finish(tab, false, '', message);
+        if (stopped) {
+          // 用户中断：保留已生成的文本与轨迹，标记「已停止」，不算错误
+          tab.status = 'idle';
+          this.appendMessage(id, {
+            id: randomUUID(),
+            role: 'assistant',
+            content: part?.text ?? '',
+            timestamp: Date.now(),
+            durationMs,
+            stopped: true,
+            ...(trace.length ? { trace } : {}),
+          });
+          this.progress.delete(id);
+          this.changed();
+        } else {
+          tab.status = 'error';
+          tab.lastError = message;
+          this.appendMessage(id, {
+            id: randomUUID(),
+            role: 'assistant',
+            content: message,
+            timestamp: Date.now(),
+            error: true,
+            durationMs,
+            ...(trace.length ? { trace } : {}),
+          });
+          this.finish(tab, false, '', message);
+        }
       }
       throw e;
     } finally {
+      this.partial.delete(id);
+      this.stopRequested.delete(id);
       this.release();
     }
   }
 
   private finish(tab: HarnessTabMeta, ok: boolean, text: string, error?: string) {
+    this.progress.delete(tab.id);
     const background = this.activeTabId !== tab.id || !anyWindowFocused();
     if (background && tab.id !== MAIN_TAB_ID) tab.unread += 1;
     this.changed();
@@ -696,15 +806,19 @@ export class CliHarnessService {
 
   // ───────────────────────── 并发控制 ─────────────────────────
 
-  private acquire(): Promise<void> {
+  private acquire(tabId: string): Promise<void> {
     if (this.running < this.maxConcurrent) {
       this.running += 1;
       return Promise.resolve();
     }
-    return new Promise((resolve) => {
-      this.waiters.push(() => {
-        this.running += 1;
-        resolve();
+    return new Promise((resolve, reject) => {
+      this.waiters.push({
+        tabId,
+        resume: () => {
+          this.running += 1;
+          resolve();
+        },
+        abort: reject,
       });
     });
   }
@@ -715,7 +829,7 @@ export class CliHarnessService {
   }
 
   private pump() {
-    while (this.running < this.maxConcurrent && this.waiters.length) this.waiters.shift()!();
+    while (this.running < this.maxConcurrent && this.waiters.length) this.waiters.shift()!.resume();
   }
 
   // ───────────────────────── CLI 适配器 ─────────────────────────
@@ -873,8 +987,10 @@ export class CliHarnessService {
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
     const turn = live.turn;
     for (const ev of live.parseLine(line)) {
+      stampEvent(ev);
       if (turn) {
-        turn.events.push(ev);
+        // 流式文本片段已累计在 turn.text 里，不再逐条留存（长回答会有上万个）
+        if (ev.type !== 'text-delta') turn.events.push(ev);
         if (ev.type === 'text-delta' || ev.type === 'text') turn.text += ev.text;
         if (ev.type === 'error') turn.lastError = ev.message;
         if (ev.type === 'done') {
@@ -893,6 +1009,16 @@ export class CliHarnessService {
           summary: ev.summary,
           background: this.activeTabId !== tabId || !anyWindowFocused(),
         });
+      }
+      // 一轮失败（result.is_error / error 事件）：结束当前 Promise，进程保持长驻供下一轮
+      if (ev.type === 'error' && turn && live.turn === turn) {
+        live.turn = null;
+        this.children.delete(tabId);
+        if (!turn.settled) {
+          turn.settled = true;
+          turn.reject(new Error(ev.message));
+        }
+        continue;
       }
       // 一轮 result：结束当前 Promise，但保持 stdin 打开供下一轮
       if (ev.type === 'done' && turn && live.turn === turn) {
@@ -934,7 +1060,7 @@ export class CliHarnessService {
     }
     try {
       if (!child.killed && child.exitCode === null) {
-        child.kill('SIGKILL');
+        killProcessTree(child);
       }
     } catch {
       /* */
@@ -994,6 +1120,42 @@ export class CliHarnessService {
     });
   }
 
+  /**
+   * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update [--yolo]`。
+   * 续接：`--resume <sessionId>`。权限在接管场景默认 `--yolo`（与 Codex/dsh 一致：UI 侧不弹交互确认；
+   * 真实权限事件格式未在真机验证，见文档「未验证」）。
+   * 官方：docs.x.ai/build/cli/headless-scripting 。
+   */
+  private runGrok(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+    const bin = resolveHarnessBin('grok');
+    if (!bin) return Promise.reject(new Error(t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')));
+    const useNode = isScript(bin);
+    const argv = [
+      '-p',
+      prompt.startsWith('-') ? ` ${prompt}` : prompt,
+      '--output-format',
+      'streaming-json',
+      '--no-auto-update',
+      '--yolo',
+    ];
+    if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
+    if (tab.cwd) argv.push('--cwd', tab.cwd);
+    let extraEnv: Record<string, string> = {};
+    try {
+      extraEnv = this.d.grokEnv?.() ?? {};
+    } catch (e) {
+      this.d.logger.warn('harness grok env failed', e);
+    }
+    return this.spawnCollect(tab, {
+      cmd: useNode ? process.execPath : bin,
+      argv: useNode ? [bin, ...argv] : argv,
+      parseLine: createGrokParser(),
+      kind: 'grok',
+      env: extraEnv,
+      asNode: useNode,
+    });
+  }
+
   private spawnCollect(
     tab: HarnessTabMeta,
     opts: {
@@ -1028,7 +1190,8 @@ export class CliHarnessService {
 
       const take = (line: string, live: boolean) => {
         for (const ev of opts.parseLine(line)) {
-          events.push(ev);
+          stampEvent(ev);
+          if (ev.type !== 'text-delta') events.push(ev);
           if (live) this.emitEvent(tab.id, ev);
           if (ev.type === 'permission') {
             this.armPermissionTimeout(tab.id, ev.id);
@@ -1103,6 +1266,12 @@ export class CliHarnessService {
   // ───────────────────────── 广播 / IPC ─────────────────────────
 
   private post(channel: string, payload: unknown) {
+    // 其它通道的消息（tab-message / tabs / changed）必须排在已入队的实时事件之后
+    this.eventBatcher.flush();
+    this.broadcast(channel, payload);
+  }
+
+  private broadcast(channel: string, payload: unknown) {
     for (const w of BrowserWindow.getAllWindows()) {
       try {
         w.webContents.send(channel, payload);
@@ -1112,8 +1281,40 @@ export class CliHarnessService {
     }
   }
 
+  /** 记下一轮里最近的文本 / 工具步骤，不做任何额外计算或模型调用 */
+  private trackProgress(tabId: string, ev: HarnessEvent) {
+    const prev = this.progress.get(tabId);
+    if (ev.type === 'text-delta' || ev.type === 'text') {
+      const base = prev?.kind === 'text' ? prev.value : '';
+      this.progress.set(tabId, {
+        kind: 'text',
+        value: (ev.type === 'text' ? ev.text : base + ev.text).slice(-400),
+      });
+    } else if (ev.type === 'tool' && ev.status === 'start') {
+      this.progress.set(tabId, {
+        kind: 'tool',
+        value: (ev.detail ? `${ev.name} ${ev.detail}` : ev.name).slice(0, 160),
+      });
+    }
+  }
+
+  /** 标签当前这一轮的进度提示（最近一段文本或「正在执行 工具」）；没有则 undefined */
+  progressHint(tabId: string): string | undefined {
+    const p = this.progress.get(tabId);
+    if (!p?.value.trim()) return undefined;
+    const v = p.value.replace(/\s+/g, ' ').trim();
+    return p.kind === 'tool' ? t('正在执行 {0}', v) : v;
+  }
+
   private emitEvent(tabId: string, ev: HarnessEvent) {
-    this.post('ai:harness:event', { ...ev, tabId });
+    this.trackProgress(tabId, ev);
+    const part = this.partial.get(tabId);
+    if (part) {
+      if (ev.type === 'text-delta') part.text += ev.text;
+      else if (ev.type === 'text') part.text = ev.text;
+      else if (ev.type === 'tool' || ev.type === 'thinking') part.events.push(ev);
+    }
+    this.eventBatcher.push({ ...ev, tabId });
     this.events.emit('event', { tabId, event: ev });
   }
 
@@ -1157,12 +1358,12 @@ export class CliHarnessService {
     }
     const prev = m.get(requestId);
     if (prev) clearTimeout(prev);
-    m.set(
-      requestId,
-      setTimeout(() => {
-        this.replyPermission(tabId, requestId, false);
-      }, PERMISSION_TIMEOUT_MS),
-    );
+    const timer = setTimeout(() => {
+      this.replyPermission(tabId, requestId, false);
+    }, PERMISSION_TIMEOUT_MS);
+    // 权限卡 120s 超时不应拖住进程退出
+    (timer as { unref?: () => void }).unref?.();
+    m.set(requestId, timer);
   }
 
   private clearOnePermissionTimeout(tabId: string, requestId: string) {
@@ -1181,21 +1382,13 @@ export class CliHarnessService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'CliHarnessService' });
     handle('ai:harness:state', () => this.state());
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
     handle('ai:harness:set-cwd', (c) => this.setCwd(String(c)));
     handle('ai:harness:pick-cwd', () => this.pickCwd());
-    handle('ai:harness:send', (p) => this.send(String(p ?? '')));
+    handle('ai:harness:send', async (p) => slimResult(await this.send(String(p ?? ''))));
     handle('ai:harness:tabs', () => this.listTabs());
     handle('ai:harness:tab-create', (o) =>
       this.createTab(
@@ -1221,7 +1414,9 @@ export class CliHarnessService {
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
     handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
-    handle('ai:harness:tab-send', (id, p) => this.sendTab(String(id), String(p ?? '')));
+    handle('ai:harness:tab-send', async (id, p) =>
+      slimResult(await this.sendTab(String(id), String(p ?? ''))),
+    );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     handle('ai:harness:reply-permission', (tabId, requestId, allow) =>
@@ -1291,4 +1486,19 @@ export function initCliHarnessService(
 }
 export function getCliHarnessService(): CliHarnessService | null {
   return inst;
+}
+
+function slimResult(r: HarnessSendResult): HarnessSendReply {
+  const { events: _events, ...rest } = r;
+  return rest;
+}
+
+/** 播种（分叉 / 历史恢复）消息时保留的结构化字段：轨迹、耗时、用量、中断标记 */
+function seedExtras(m: HarnessTabMessage): Partial<HarnessTabMessage> {
+  return {
+    ...(Array.isArray(m.trace) && m.trace.length ? { trace: m.trace.slice(0, 300) } : {}),
+    ...(typeof m.durationMs === 'number' ? { durationMs: m.durationMs } : {}),
+    ...(m.usage && typeof m.usage === 'object' ? { usage: m.usage } : {}),
+    ...(m.stopped ? { stopped: true as const } : {}),
+  };
 }

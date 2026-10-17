@@ -24,6 +24,7 @@ import {
   islandWindowRect,
   NOTCH_WIDTH,
 } from '../../../src/island/geometry';
+import { ISLAND_ICON_NODES } from '../../../src/island/islandIcons';
 import { islandHtml } from '../../../src/island/islandPage';
 import { IslandService, sanitizeIsland } from '../../../src/island/IslandService';
 
@@ -84,6 +85,27 @@ describe('island geometry', () => {
     expect(html).toContain("dsh: 'dsh'");
     expect(html).toContain('STATUS_ICON');
     expect(html).toContain("#island[data-status='failed']");
+  });
+
+  it('kind / status / spark icons are lucide stroke icons, not emoji', () => {
+    const html = islandHtml(islandGeometry('darwin', notchMac));
+    expect(html).toContain('paintIcon');
+    expect(html).toContain("'stroke-width': 1.75");
+    expect(html).toContain("stroke: 'currentColor'");
+    for (const key of [
+      'message',
+      'agent',
+      'reminder',
+      'info',
+      'done',
+      'failed',
+      'attention',
+      'running',
+      'spark',
+    ]) {
+      expect(ISLAND_ICON_NODES[key]?.length ?? 0).toBeGreaterThan(0);
+    }
+    expect(html).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u2726]/u);
   });
 });
 

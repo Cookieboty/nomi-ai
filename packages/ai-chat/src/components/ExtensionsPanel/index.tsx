@@ -2,7 +2,7 @@
  * ExtensionsPanel —— 扩展：MCP 服务器（添加 / 预设 / 导入 JSON / 连接 / 工具与信任级别）
  * 和 SKILL.md 技能包（启用、编辑、新建、从文件夹导入）。
  */
-import { ErrorState, LoadingState, t as tr } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -16,6 +16,7 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
+import { Blocks, BookOpen, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -124,6 +125,8 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
   }, []);
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     return extClient.onChanged(() => void load());
   }, [isVisible, load]);
@@ -248,7 +251,8 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                 onClick={() => setDraft(emptyDraft())}
                 data-testid="mcp-add"
               >
-                {tr('＋ 添加服务器')}
+                <Icon icon={Plus} size={14} />
+                {tr('添加服务器')}
               </Button>
             </div>
             {!list.ready && (
@@ -257,7 +261,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             {servers.length === 0 && list.env.length === 0 ? (
               <>
                 <EmptyState
-                  icon="🧩"
+                  icon={Blocks}
                   title={tr('还没有 MCP 服务器')}
                   description={tr('从下面的常用服务器开始，或添加自己的。')}
                 />
@@ -293,7 +297,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                         onClick={() => setOpen(open === s.id ? null : s.id)}
                         aria-expanded={open === s.id}
                       >
-                        {open === s.id ? '▾' : '▸'}
+                        <Icon icon={open === s.id ? ChevronDown : ChevronRight} />
                       </button>
                       <b className={styles.grow}>{tr(s.name)}</b>
                       <Badge tone={tone(s.status)} data-testid="mcp-status">
@@ -428,12 +432,13 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                 }
                 data-testid="skill-new"
               >
-                {tr('＋ 新建技能')}
+                <Icon icon={Plus} size={14} />
+                {tr('新建技能')}
               </Button>
             </div>
             {skills.length === 0 ? (
               <EmptyState
-                icon="📘"
+                icon={BookOpen}
                 title={tr('还没有技能')}
                 description={tr('新建一个，或导入包含 SKILL.md 的文件夹。')}
               />

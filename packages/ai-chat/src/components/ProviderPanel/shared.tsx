@@ -1,5 +1,6 @@
 import { t as tr } from '@nomi-ai/ui';
 import { Badge, BrandIcon, hasBrandIcon } from '@nomi-ai/ui';
+import { Check, X, type LucideIcon } from 'lucide-react';
 import React from 'react';
 
 import type { FetchModelsResult, TestResult } from '../../services/providerClient';
@@ -38,12 +39,12 @@ export const TestBadge: React.FC<{ r?: TestResult | 'pending' }> = ({ r }) => {
   if (!r) return null;
   if (r === 'pending') return <Badge tone="neutral">{tr('测速中…')}</Badge>;
   return r.ok ? (
-    <Badge tone="success" data-testid="test-ok" title={r.endpoint}>
-      {tr('✓ 连通')} {r.latencyMs}ms
+    <Badge tone="success" icon={Check} data-testid="test-ok" title={r.endpoint}>
+      {tr('连通')} {r.latencyMs}ms
     </Badge>
   ) : (
-    <Badge tone="danger" data-testid="test-fail" title={r.error}>
-      ✗ {r.error?.slice(0, 80)}
+    <Badge tone="danger" icon={X} data-testid="test-fail" title={r.error}>
+      {r.error?.slice(0, 80)}
     </Badge>
   );
 };
@@ -52,12 +53,12 @@ export const FetchBadge: React.FC<{ r?: FetchModelsResult | 'pending' }> = ({ r 
   if (!r) return null;
   if (r === 'pending') return <Badge tone="neutral">{tr('获取中…')}</Badge>;
   return r.ok ? (
-    <Badge tone="success" data-testid="fetch-ok" title={r.url}>
-      ✓ {r.models.length} {tr('个模型 ·')} {r.latencyMs}ms
+    <Badge tone="success" icon={Check} data-testid="fetch-ok" title={r.url}>
+      {r.models.length} {tr('个模型 ·')} {r.latencyMs}ms
     </Badge>
   ) : (
-    <Badge tone="danger" data-testid="fetch-fail" title={`${r.url}\n${r.error ?? ''}`}>
-      {tr('✗ 获取失败：')}
+    <Badge tone="danger" icon={X} data-testid="fetch-fail" title={`${r.url}\n${r.error ?? ''}`}>
+      {tr('获取失败：')}
       {r.error?.slice(0, 60)}
     </Badge>
   );
@@ -73,8 +74,11 @@ export function brandOf(id?: string): string | undefined {
 }
 
 /** 供应商头像：有开源授权的品牌图标就用图标，否则首字母 */
-export const Monogram: React.FC<{ name: string; size?: number; brand?: string }> = ({
-  name,
-  size = 32,
-  brand,
-}) => <BrandIcon brand={brandOf(brand)} name={name} size={size} />;
+export const Monogram: React.FC<{
+  name: string;
+  size?: number;
+  brand?: string;
+  fallbackIcon?: LucideIcon;
+}> = ({ name, size = 32, brand, fallbackIcon }) => (
+  <BrandIcon brand={brandOf(brand)} name={name} size={size} fallbackIcon={fallbackIcon} />
+);

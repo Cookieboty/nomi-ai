@@ -17,6 +17,9 @@ const log = createLogger('Character3D');
  */
 interface Character3DStore extends Character3DState, Character3DActions {}
 
+/** 自动调整渲染质量的评估间隔 */
+export const PERF_ADJUST_INTERVAL_MS = 5000;
+
 export const useCharacter3DStore = create<Character3DStore>()(
   subscribeWithSelector(
     immer((set, get) => ({
@@ -165,7 +168,7 @@ export const useCharacter3DStore = create<Character3DStore>()(
 
           const now = Date.now();
 
-          // 添加到性能历史
+          // 添加到性能历史（调用方每秒写入一次，5 分钟最多约 300 条）
           state.performanceHistory.push({
             ...metrics,
             timestamp: now,
@@ -177,27 +180,34 @@ export const useCharacter3DStore = create<Character3DStore>()(
             (record) => (record.timestamp ?? 0) > fiveMinutesAgo,
           );
 
+          // 自动调整质量：每 5 秒评估一次。必须先用「上一次评估时间」判断间隔，再更新它——
+          // 此前先写入 now 再比较，差值恒为 0，自动降质从未生效。
+          if (now - state.lastPerformanceCheck <= PERF_ADJUST_INTERVAL_MS) return;
+          const prevCheck = state.lastPerformanceCheck;
           state.lastPerformanceCheck = now;
 
-          // 自动调整质量
-          const shouldAutoAdjust = now - state.lastPerformanceCheck > 5000; // 5秒间隔
-          if (shouldAutoAdjust) {
-            if (metrics.fps < 25 && state.renderQuality !== 'low') {
-              log.info('性能监控: 帧率过低，自动降低渲染质量');
-              const newQuality =
-                state.renderQuality === 'ultra'
-                  ? 'high'
-                  : state.renderQuality === 'high'
-                    ? 'medium'
-                    : 'low';
-              state.renderQuality = newQuality;
-            } else if (metrics.fps > 55 && metrics.memoryMB < 100) {
-              // 性能良好时可以适当提升质量
-              if (state.renderQuality === 'low') {
-                state.renderQuality = 'medium';
-              } else if (state.renderQuality === 'medium' && metrics.memoryMB < 50) {
-                state.renderQuality = 'high';
-              }
+          // 用评估窗口内的平均值，而不是单个样本，避免一次卡顿就降质
+          const windowRecords = state.performanceHistory.filter(
+            (r) => (r.timestamp ?? 0) > prevCheck,
+          );
+          if (windowRecords.length === 0) return;
+          const avgFps = windowRecords.reduce((a, r) => a + r.fps, 0) / windowRecords.length;
+          const avgMem = windowRecords.reduce((a, r) => a + r.memoryMB, 0) / windowRecords.length;
+
+          if (avgFps < 25 && state.renderQuality !== 'low') {
+            log.info('性能监控: 帧率过低，自动降低渲染质量');
+            state.renderQuality =
+              state.renderQuality === 'ultra'
+                ? 'high'
+                : state.renderQuality === 'high'
+                  ? 'medium'
+                  : 'low';
+          } else if (avgFps > 55 && avgMem < 100) {
+            // 性能良好时可以适当提升质量
+            if (state.renderQuality === 'low') {
+              state.renderQuality = 'medium';
+            } else if (state.renderQuality === 'medium' && avgMem < 50) {
+              state.renderQuality = 'high';
             }
           }
         }),
@@ -293,7 +303,7 @@ useCharacter3DStore.subscribe(
   (frameRate) => {
     // 如果帧率过低，发出警告
     if (frameRate < 20) {
-      console.warn(`性能警告: 当前帧率 ${frameRate.toFixed(1)} FPS 过低`);
+      log.warn(`性能警告: 当前帧率 ${frameRate.toFixed(1)} FPS 过低`);
     }
   },
 );
@@ -304,7 +314,7 @@ useCharacter3DStore.subscribe(
   (memoryUsage) => {
     // 如果内存使用过高，发出警告
     if (memoryUsage > 200) {
-      console.warn(`内存警告: 当前内存使用 ${memoryUsage.toFixed(1)} MB 过高`);
+      log.warn(`内存警告: 当前内存使用 ${memoryUsage.toFixed(1)} MB 过高`);
     }
   },
 );

@@ -4,7 +4,8 @@
  * 只读取该后端自己的档案库（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
  * 没有启用的档案时显示「CLI 默认 / 已登录」。快速切换只在本后端的档案里选。
  */
-import { Select, t } from '@nomi-ai/ui';
+import { Select, t, Icon } from '@nomi-ai/ui';
+import { KeyRound } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -135,7 +136,7 @@ export const CliProviderChip: React.FC<{
           title={t('打开 {0} 的供应商设置', backendName(backend))}
           aria-label={t('打开 {0} 的供应商设置', backendName(backend))}
         >
-          🔑
+          <Icon icon={KeyRound} size={14} />
         </button>
       )}
     </span>
@@ -143,5 +144,11 @@ export const CliProviderChip: React.FC<{
 };
 
 function backendName(b: CliProviderKind): string {
-  return b === 'claude' ? t('Claude Code') : b === 'codex' ? t('Codex') : 'dsh';
+  return b === 'claude'
+    ? t('Claude Code')
+    : b === 'codex'
+      ? t('Codex')
+      : b === 'grok'
+        ? 'Grok'
+        : 'dsh';
 }

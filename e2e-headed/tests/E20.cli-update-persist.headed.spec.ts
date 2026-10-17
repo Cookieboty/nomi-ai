@@ -131,7 +131,7 @@ esac
     await expect(log).toContainText('step 1');
     await expect(action).toBeDisabled();
     // 退出设置再进来
-    await chat.getByText('‹ 返回对话').click();
+    await chat.locator('[data-testid="settings-back"]').click();
     await openCodex();
     await expect(log).toContainText('step 1');
     await expect(action).toBeDisabled();

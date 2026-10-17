@@ -5,31 +5,32 @@ import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ChatHeader } from './components/ChatHeader';
-import { ChatTabs, CliTabLive, cliTabPlaceholder } from './components/ChatTabs';
+import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
+import { ConversationView } from './components/Conversation';
+import { nomiSlots } from './components/Conversation/nomiSlots';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
+import type { HubTab } from './components/HubPanel';
 import {
   ConfigPanel,
   DesktopPanel,
   ExtensionsPanel,
-  KnowledgePanel,
+  HubPanel,
   LocalPanel,
-  MemoryPanel,
   ProviderPanel,
-  SchedulePanel,
   ScreenPanel,
   SettingsView,
   prefetchPanels,
 } from './components/lazyPanels';
 import { MessageInput } from './components/MessageInput';
-import { MessageList } from './components/MessageList';
 import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
 import {
+  LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
-  resolveSection,
   type SettingsSection,
+  type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
 import { AppTitleBar } from './components/TitleBar';
@@ -37,6 +38,7 @@ import { AiChatContextProvider } from './contexts/AiChatContext';
 import { useAiChat } from './contexts/AiChatContext';
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
@@ -53,22 +55,48 @@ import {
 } from './services/shortcuts';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
-import { type ChatMessage } from './types/chat';
+import { fromHarnessMessage, splitNomiMessages, tabLiveToConv } from './utils/convAdapters';
 import './App.css';
 
 const AiChatContent: React.FC = () => {
   const { state, actions } = useAiChat();
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
+  // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
+  const nomiConv = useMemo(
+    () => splitNomiMessages(state.messages, state.isLoading),
+    [state.messages, state.isLoading],
+  );
+  const cliBackend = tabs.activeTab?.backend ?? 'claude';
+  const cliConvMessages = useMemo(
+    () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
+    [tabs.isCliTab, tabs.messages, cliBackend],
+  );
+  const nomiQueue = useSendQueue(
+    state.isLoading,
+    (text) => actions.sendStreamMessage(text),
+    state.messages[0]?.id,
+  );
+  /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
+  const precedingUser = <T extends { id: string; role: string }>(
+    list: readonly T[],
+    id: string,
+  ) => {
+    const i = list.findIndex((m) => m.id === id);
+    for (let k = i - 1; k >= 0; k--) if (list[k]!.role === 'user') return list[k]!;
+    return undefined;
+  };
   const [forkCross, setForkCross] = useState<{
     id: string;
     backend: ConversationBackend;
   } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  // 切到普通模式时关掉已打开的「分叉到其他端」选择框
-  useEffect(() => {
-    if (!isDev) setForkCross(null);
-  }, [isDev]);
+  // 切到普通模式时关掉已打开的「分叉到其他端」选择框（渲染期根据 isDev 变化重置，避免 effect 内 setState 触发级联渲染）
+  const [prevIsDev, setPrevIsDev] = useState(isDev);
+  if (prevIsDev !== isDev) {
+    setPrevIsDev(isDev);
+    if (!isDev && forkCross !== null) setForkCross(null);
+  }
   useEffect(() => {
     if (!toast) return;
     const tid = window.setTimeout(() => setToast(null), 2400);
@@ -76,26 +104,6 @@ const AiChatContent: React.FC = () => {
   }, [toast]);
   const [tabRename, setTabRename] = useState(0);
   const [tabNew, setTabNew] = useState(0);
-  const cliMessages = useMemo<ChatMessage[]>(
-    () =>
-      tabs.messages.map((m) => {
-        const toolsLine =
-          !m.error && m.tools && m.tools.length
-            ? `${m.tools.map((n) => `⚙ ${n}`).join(' · ')}
-
-`
-            : '';
-        return {
-          id: m.id,
-          role: m.role,
-          content: m.error ? '' : `${toolsLine}${m.content}`,
-          timestamp: m.timestamp,
-          modelId: m.role === 'assistant' ? tabs.activeTab?.backend : undefined,
-          ...(m.error ? { error: m.content } : {}),
-        };
-      }),
-    [tabs.messages, tabs.activeTab?.backend],
-  );
   const [showConfig, setShowConfig] = useState(false);
   const [showProviders, setShowProviders] = useState(false);
 
@@ -122,13 +130,13 @@ const AiChatContent: React.FC = () => {
   const [showDesktop, setShowDesktop] = useState(false);
   // 托盘「桌面能力…」→ 打开桌面能力面板
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
-  const [showKb, setShowKb] = useState(false);
-  const [showMem, setShowMem] = useState(false);
-  const [showSched, setShowSched] = useState(false);
+  const [showHub, setShowHub] = useState(false);
+  const [hubTab, setHubTab] = useState<HubTab>('kb');
   const [showScreen, setShowScreen] = useState(false);
   const [showExt, setShowExt] = useState(false);
   const [showLocal, setShowLocal] = useState(false);
   const [screenSt, setScreenSt] = useState<ScreenState | null>(null);
+  const [screenPausedExpired, setScreenPausedExpired] = useState(false);
   useEffect(() => {
     if (!screenClient.available()) return;
     void screenClient
@@ -142,7 +150,22 @@ const AiChatContent: React.FC = () => {
       off2();
     };
   }, []);
-  const screenActive = !!screenSt?.settings.enabled && screenSt.settings.pausedUntil <= Date.now();
+  // 根据 pausedUntil 的时间点驱动「暂停已过期」标志，避免在渲染期调用 Date.now()
+  useEffect(() => {
+    const until = screenSt?.settings.pausedUntil ?? 0;
+    const delay = until - Date.now();
+    if (delay <= 0) {
+      // 已过期：异步切到 true，避免同步 setState 触发级联渲染
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setScreenPausedExpired(true);
+      return;
+    }
+    // 未到期：先置 false，再在到期后翻为 true
+    setScreenPausedExpired(false);
+    const tid = window.setTimeout(() => setScreenPausedExpired(true), delay);
+    return () => window.clearTimeout(tid);
+  }, [screenSt?.settings.pausedUntil]);
+  const screenActive = !!screenSt?.settings.enabled && screenPausedExpired;
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.innerWidth < 720);
   // 窗口变窄时自动收起侧栏，避免挤压对话区
   useEffect(() => {
@@ -158,13 +181,10 @@ const AiChatContent: React.FC = () => {
   }, [isDev, tabs.isCliTab, tabs]);
 
   const [settings, setSettings] = useState<SettingsSection | null>(null);
-  const openSettings = useCallback((raw: SettingsSection | string = 'general') => {
-    // 旧入口（providers / agents）折叠到「编程助手」；agents 落在「监视与会话」标签
-    const { section: sec, tab } = resolveSection(raw);
-    if (tab) setProviderEndpoint(tab);
-    setShowKb(false);
-    setShowMem(false);
-    setShowSched(false);
+  const [settingsLink, setSettingsLink] = useState<{ tab?: SettingsTab } | undefined>();
+  const openSettings = useCallback((sec: SettingsSection = 'general', tab?: SettingsTab) => {
+    setSettingsLink(tab ? { tab } : undefined);
+    setShowHub(false);
     setShowScreen(false);
     setShowExt(false);
     setShowLocal(false);
@@ -266,9 +286,7 @@ const AiChatContent: React.FC = () => {
       focusInput,
       settings: () => setSettings((s) => (s ? null : 'general')),
       sidebar: () => setSidebarCollapsed((v) => !v),
-      kb: () => setShowKb((v) => !v),
-      memory: () => setShowMem((v) => !v),
-      schedule: () => setShowSched((v) => !v),
+      hub: () => setShowHub((v) => !v),
       ext: () => setShowExt((v) => !v),
       local: () => setShowLocal((v) => !v),
       screen: () => setShowScreen((v) => !v),
@@ -334,17 +352,14 @@ const AiChatContent: React.FC = () => {
   }, [bindings, shortcutActions, tabs, isDev]);
   // 快速视图：右侧抽屉 + 「在设置中打开」
   const drawerHost = useMemo(() => {
-    const mk = (sec: SettingsSection): ModalHost => ({
+    const mk = (sec: SettingsSection, tab?: SettingsTab): ModalHost => ({
       mode: 'drawer',
-      onOpenSettings: () => openSettings(sec),
+      onOpenSettings: () => openSettings(sec, tab),
     });
     return {
-      kb: mk('kb'),
-      memory: mk('memory'),
-      schedule: mk('schedule'),
-      screen: mk('screen'),
+      screen: mk('senses', 'screen'),
       ext: mk('ext'),
-      desktop: mk('desktop'),
+      desktop: mk('privacy', 'desktop'),
       local: mk('local'),
     };
   }, [openSettings]);
@@ -375,143 +390,178 @@ const AiChatContent: React.FC = () => {
     <CommandPalette open={palette} onClose={() => setPalette(false)} commands={paletteCommands} />
   );
 
-  if (settings) {
-    return (
-      <div className="ai-chat-app">
-        <AppTitleBar />
-        <SettingsView
-          section={settings}
-          onSection={setSettings}
-          onClose={() => setSettings(null)}
-        />
-        {paletteEl}
-      </div>
-    );
-  }
-
   return (
     <div className="ai-chat-app">
       <AppTitleBar />
-      {/* 侧边栏 */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onNewChat={handleNewChat}
-        onSettings={() => openSettings()}
-        onForkRequest={onForkRequest}
-        onNotice={setToast}
-      />
-
-      {/* 主内容区域 */}
-      <div className="main-content">
-        <ChatHeader
-          onMemory={() => setShowMem(true)}
-          onKnowledge={() => setShowKb(true)}
-          onSchedule={() => setShowSched(true)}
-          onExt={() => setShowExt(true)}
-          onLocal={() => setShowLocal(true)}
-          onSettings={() => openSettings()}
+      {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
+          草稿/滚动位置丢失与 IPC 订阅重建 */}
+      <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
+        {/* 侧边栏 */}
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           onNewChat={handleNewChat}
-          onCustomize={() => openSettings('general')}
-        >
-          {screenActive && (
-            <button
-              type="button"
-              className="screen-mem-indicator"
-              onClick={() => setShowScreen(true)}
-              title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
-              data-testid="screen-mem-indicator"
-            >
-              <span className="screen-mem-dot" />
-              {t('屏幕记忆中')}
-            </button>
-          )}
-        </ChatHeader>
-        {isDev && (
-          <ChatTabs
-            renameRequest={tabRename}
-            newTabRequest={tabNew}
-            mainLoading={state.isLoading}
-            onForkTab={(tabId, mode) => {
-              const meta = state.ipcClient.conversationStore?.()?.findByTabId(tabId);
-              if (meta) onForkRequest(meta.id, mode);
-            }}
-          />
-        )}
-        {/* 对话区域 */}
-        <main className="chat-container">
-          {isDev && tabs.isCliTab ? (
-            <>
-              {cliMessages.length === 0 && !tabs.live[tabs.activeTab!.id] ? (
-                <div className="welcome-screen" data-testid="cli-tab-empty">
-                  <div className="welcome-content">
-                    <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
-                    <p className="welcome-subtitle">
-                      {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <MessageList messages={cliMessages} />
-              )}
-              <CliTabLive />
-            </>
-          ) : state.messages.length === 0 ? (
-            <div className="welcome-screen" data-testid="welcome-screen">
-              <div className="welcome-content">
-                <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
-                <div className="quick-actions">
-                  {[
-                    [t('你好，请介绍一下自己'), t('打个招呼')],
-                    [t('帮我写一段代码'), t('写一段代码')],
-                    [t('帮我整理今天的待办'), t('整理今天的待办')],
-                  ].map(([prompt, label]) => (
-                    <button
-                      key={label}
-                      className="quick-action-btn"
-                      onClick={() => actions.sendMessage(prompt)}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <p className="welcome-subtitle">
-                  {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <MessageList messages={state.messages} isLoading={state.isLoading} />
-          )}
-        </main>
+          onSettings={() => openSettings()}
+          onForkRequest={onForkRequest}
+          onNotice={setToast}
+        />
 
-        {/* 输入区域 */}
-        <footer className="input-container">
-          <MessageInput
-            {...(isDev && tabs.isCliTab
-              ? {
-                  onSend: (text: string) => void tabs.send(text),
-                  busyOverride:
-                    tabs.activeTab!.status === 'running' || tabs.activeTab!.status === 'queued',
-                  placeholder: cliTabPlaceholder(tabs.activeTab!),
-                }
-              : {})}
-            onConfigClick={() => setShowConfig(true)}
-            onProvidersClick={() => setShowProviders(true)}
-            onSettingsClick={(sec, endpoint) => {
-              if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
-              openSettings(sec);
-            }}
-            onDesktopClick={() => setShowDesktop(true)}
-            onKnowledgeClick={() => setShowKb(true)}
-            onMemoryClick={() => setShowMem(true)}
-            onScheduleClick={() => setShowSched(true)}
-            onScreenClick={() => setShowScreen(true)}
-            onExtClick={() => setShowExt(true)}
-            onLocalClick={() => setShowLocal(true)}
-          />
-        </footer>
+        {/* 主内容区域 */}
+        <div className="main-content">
+          <ChatHeader
+            onHub={() => setShowHub(true)}
+            onExt={() => setShowExt(true)}
+            onLocal={() => setShowLocal(true)}
+            onSettings={() => openSettings()}
+            onNewChat={handleNewChat}
+            onCustomize={() => openSettings('general')}
+          >
+            {screenActive && (
+              <button
+                type="button"
+                className="screen-mem-indicator"
+                onClick={() => setShowScreen(true)}
+                title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
+                data-testid="screen-mem-indicator"
+              >
+                <span className="screen-mem-dot" />
+                {t('屏幕记忆中')}
+              </button>
+            )}
+          </ChatHeader>
+          {isDev && (
+            <ChatTabs
+              renameRequest={tabRename}
+              newTabRequest={tabNew}
+              mainLoading={state.isLoading}
+              onForkTab={(tabId, mode) => {
+                const meta = state.ipcClient.conversationStore?.()?.findByTabId(tabId);
+                if (meta) onForkRequest(meta.id, mode);
+              }}
+            />
+          )}
+          {/* 对话区域 */}
+          <main className="chat-container">
+            {isDev && tabs.isCliTab ? (
+              <>
+                {tabs.messages.length === 0 &&
+                !tabs.live[tabs.activeTab!.id] &&
+                tabs.activeTab!.status === 'idle' ? (
+                  <div className="welcome-screen" data-testid="cli-tab-empty">
+                    <div className="welcome-content">
+                      <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
+                      <p className="welcome-subtitle">
+                        {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <ConversationView
+                    scopeId={tabs.activeTab!.id}
+                    messages={cliConvMessages}
+                    live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
+                    phase={
+                      tabs.activeTab!.status === 'running'
+                        ? 'running'
+                        : tabs.activeTab!.status === 'queued'
+                          ? 'queued'
+                          : 'idle'
+                    }
+                    queued={tabs.queues[tabs.activeTab!.id]}
+                    onRemoveQueued={tabs.removeQueued}
+                    onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
+                    onRetry={(id) => {
+                      const u = precedingUser(tabs.messages, id);
+                      if (u) void tabs.send(u.content);
+                    }}
+                    onEdit={(_, text) => void tabs.send(text)}
+                  />
+                )}
+              </>
+            ) : state.messages.length === 0 ? (
+              <div className="welcome-screen" data-testid="welcome-screen">
+                <div className="welcome-content">
+                  <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
+                  <div className="quick-actions">
+                    {[
+                      [t('你好，请介绍一下自己'), t('打个招呼')],
+                      [t('帮我写一段代码'), t('写一段代码')],
+                      [t('帮我整理今天的待办'), t('整理今天的待办')],
+                    ].map(([prompt, label]) => (
+                      <button
+                        key={label}
+                        className="quick-action-btn"
+                        onClick={() => actions.sendMessage(prompt)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="welcome-subtitle">
+                    {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ConversationView
+                scopeId={`nomi:${state.messages[0]?.id ?? 'new'}`}
+                messages={nomiConv.messages}
+                live={nomiConv.live}
+                phase={state.isLoading ? 'running' : 'idle'}
+                queued={nomiQueue.queue}
+                onRemoveQueued={nomiQueue.remove}
+                onRetry={(id) => {
+                  const u = precedingUser(state.messages, id);
+                  if (u) void actions.resendFrom(u.id);
+                }}
+                onEdit={(id, text) => void actions.resendFrom(id, text)}
+                slots={nomiSlots}
+              />
+            )}
+          </main>
+
+          {/* 输入区域 */}
+          <footer className="input-container">
+            <MessageInput
+              {...(isDev && tabs.isCliTab
+                ? {
+                    onSend: (text: string) => void tabs.send(text),
+                    busyOverride:
+                      tabs.activeTab!.status === 'running' || tabs.activeTab!.status === 'queued',
+                    placeholder: cliTabPlaceholder(tabs.activeTab!),
+                    queue: {
+                      onQueue: (text: string) => void tabs.send(text),
+                      onStop: () => void tabs.cancel(),
+                    },
+                  }
+                : { queue: { onQueue: nomiQueue.enqueue } })}
+              onConfigClick={() => setShowConfig(true)}
+              onProvidersClick={() => setShowProviders(true)}
+              onSettingsClick={(sec, endpoint) => {
+                if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
+                openSettings(sec);
+              }}
+              onDesktopClick={() => setShowDesktop(true)}
+              onHubClick={() => setShowHub(true)}
+              onScreenClick={() => setShowScreen(true)}
+              onExtClick={() => setShowExt(true)}
+              onLocalClick={() => setShowLocal(true)}
+            />
+          </footer>
+        </div>
       </div>
+
+      {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}
+      {settings && (
+        <div className="settings-overlay">
+          <SettingsView
+            section={settings}
+            deepLink={settingsLink}
+            onSection={setSettings}
+            onClose={() => setSettings(null)}
+          />
+        </div>
+      )}
 
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}
@@ -520,15 +570,13 @@ const AiChatContent: React.FC = () => {
       <ModalHostContext.Provider value={drawerHost.desktop}>
         <DesktopPanel isVisible={showDesktop} onClose={() => setShowDesktop(false)} />
       </ModalHostContext.Provider>
-      <ModalHostContext.Provider value={drawerHost.kb}>
-        <KnowledgePanel isVisible={showKb} onClose={() => setShowKb(false)} />
-      </ModalHostContext.Provider>
-      <ModalHostContext.Provider value={drawerHost.memory}>
-        <MemoryPanel isVisible={showMem} onClose={() => setShowMem(false)} />
-      </ModalHostContext.Provider>
-      <ModalHostContext.Provider value={drawerHost.schedule}>
-        <SchedulePanel isVisible={showSched} onClose={() => setShowSched(false)} />
-      </ModalHostContext.Provider>
+      <HubPanel
+        isVisible={showHub}
+        onClose={() => setShowHub(false)}
+        tab={hubTab}
+        onTab={setHubTab}
+        onOpenSettings={openSettings}
+      />
       <ModalHostContext.Provider value={drawerHost.screen}>
         <ScreenPanel isVisible={showScreen} onClose={() => setShowScreen(false)} />
       </ModalHostContext.Provider>
@@ -536,7 +584,11 @@ const AiChatContent: React.FC = () => {
         <ExtensionsPanel isVisible={showExt} onClose={() => setShowExt(false)} />
       </ModalHostContext.Provider>
       <ModalHostContext.Provider value={drawerHost.local}>
-        <LocalPanel isVisible={showLocal} onClose={() => setShowLocal(false)} />
+        <LocalPanel
+          isVisible={showLocal}
+          onClose={() => setShowLocal(false)}
+          tabs={[...LOCAL_MANAGE_TABS]}
+        />
       </ModalHostContext.Provider>
       <ForkTargetMenu
         open={!!forkCross}

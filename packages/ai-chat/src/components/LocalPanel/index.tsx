@@ -2,7 +2,7 @@
  * LocalPanel —— 本地中心：本机模型（llama.cpp 按需下载 / 启停 / 删除 / 设为聊天模型、Ollama）、
  * 本地日历（.ics / 订阅 / CalDAV）、剪贴板历史、全部数据导出。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -17,6 +17,7 @@ import {
   Switch,
   Tabs,
 } from '@nomi-ai/ui';
+import { Cpu, CalendarDays, ClipboardList, MapPin, Plus, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -80,8 +81,11 @@ export const LocalPanel: React.FC<{
   isVisible: boolean;
   onClose: () => void;
   initialTab?: Tab;
-}> = ({ isVisible, onClose, initialTab }) => {
-  const [tab, setTab] = useState<Tab>(initialTab ?? 'calendar');
+  /** 只显示这些标签（默认全部）；设置页把「日历」与「本机管理」拆开用 */
+  tabs?: Tab[];
+}> = ({ isVisible, onClose, initialTab, tabs: only }) => {
+  const shown = TABS.filter((x) => !only || only.includes(x));
+  const [tab, setTab] = useState<Tab>(initialTab ?? shown[0] ?? 'calendar');
   const [st, setSt] = useState<LocalState | null>(null);
   const [prog, setProg] = useState<Record<string, Progress>>({});
   const [err, setErr] = useState('');
@@ -151,6 +155,8 @@ export const LocalPanel: React.FC<{
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void load();
     const offs = [
       localClient.onChanged(() => void load()),
@@ -158,26 +164,34 @@ export const LocalPanel: React.FC<{
       hubClient.onChanged(() => void loadCal()),
       hubClient.onClips(() => void loadClips()),
     ];
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => offs.forEach((f) => f());
   }, [isVisible, load, loadCal, loadClips]);
   useEffect(() => {
     if (!isVisible) return;
+    // 切 Tab 时按需拉取（内部通过 await 后 setState，等效外部数据同步），豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (tab === 'ollama' && ollama === null) void loadOllama();
     if (tab === 'calendar') void loadCal();
     if (tab === 'clipboard') void loadClips();
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [isVisible, tab, ollama, loadOllama, loadCal, loadClips]);
+  // Alt+数字只在「可见标签」里切换；只有 1 个可见标签（标签栏已隐藏）时不响应
+  const shownKey = shown.join(',');
   useEffect(() => {
     if (!isVisible) return;
+    const visible = shownKey.split(',') as Tab[];
+    if (visible.length < 2) return;
     const onKey = (e: KeyboardEvent) => {
       const n = Number(e.key);
-      if (e.altKey && n >= 1 && n <= TABS.length) {
+      if (e.altKey && n >= 1 && n <= visible.length) {
         e.preventDefault();
-        setTab(TABS[n - 1]);
+        setTab(visible[n - 1]!);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isVisible]);
+  }, [isVisible, shownKey]);
 
   const run = async (key: string, fn: () => Promise<unknown>, after?: () => unknown) => {
     setBusy(key);
@@ -493,7 +507,7 @@ export const LocalPanel: React.FC<{
       ) : ollama.length === 0 ? (
         !ollamaErr && (
           <EmptyState
-            icon="🦙"
+            icon={Cpu}
             title={t('Ollama 里还没有模型')}
             description={t('输入模型名拉取一个吧。')}
           />
@@ -576,7 +590,8 @@ export const LocalPanel: React.FC<{
           onClick={() => setNewEv({ summary: '', date: ymd, time: '10:00', mins: '60', rrule: '' })}
           data-testid="cal-new"
         >
-          {t('＋ 新日程')}
+          <Icon icon={Plus} size={14} />
+          {t('新日程')}
         </Button>
       </div>
       {newEv && (
@@ -793,7 +808,7 @@ export const LocalPanel: React.FC<{
         <SkeletonList rows={3} />
       ) : events.length === 0 ? (
         <EmptyState
-          icon="📅"
+          icon={CalendarDays}
           title={t('接下来两周没有日程')}
           description={t('新建一个，或导入 / 订阅已有的日历。')}
         />
@@ -814,11 +829,15 @@ export const LocalPanel: React.FC<{
                     }
                     aria-label={t('删除 {0}', o.summary)}
                   >
-                    ✕
+                    <Icon icon={X} />
                   </Button>
                 )}
               </div>
-              {o.location && <div className={styles.meta}>📍 {o.location}</div>}
+              {o.location && (
+                <div className={styles.meta}>
+                  <Icon icon={MapPin} size={12} /> {o.location}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -868,7 +887,7 @@ export const LocalPanel: React.FC<{
         <SkeletonList rows={3} />
       ) : clips.items.length === 0 ? (
         <EmptyState
-          icon="📋"
+          icon={ClipboardList}
           title={clips.settings.enabled ? t('还没有复制过内容') : t('剪贴板历史未开启')}
           description={
             clips.settings.enabled
@@ -951,7 +970,7 @@ export const LocalPanel: React.FC<{
                   }
                   aria-label={t('删除')}
                 >
-                  ✕
+                  <Icon icon={X} />
                 </Button>
               </div>
             </div>
@@ -1017,26 +1036,36 @@ export const LocalPanel: React.FC<{
         if (confirm) return setConfirm(null);
         onClose();
       }}
-      title={t('本地中心（日历 / 剪贴板；本机小模型为辅助）')}
+      title={
+        shown.length === 1 && shown[0] === 'calendar'
+          ? t('日历')
+          : !shown.includes('calendar')
+            ? t('本机管理')
+            : t('本地中心（日历 / 剪贴板；本机小模型为辅助）')
+      }
       size="lg"
       data-testid="local-panel"
     >
       <div className={styles.stack}>
-        <Tabs<Tab>
-          items={[
-            { value: 'calendar', label: t('日历') },
-            { value: 'clipboard', label: t('剪贴板') },
-            { value: 'export', label: t('数据导出') },
-            {
-              value: 'models',
-              label: running ? t('本机小模型 · 运行中') : t('本机小模型（辅助）'),
-            },
-            { value: 'ollama', label: t('Ollama（可选）') },
-          ]}
-          value={tab}
-          onChange={setTab}
-          aria-label={t('本地中心')}
-        />
+        {shown.length > 1 && (
+          <Tabs<Tab>
+            items={(
+              [
+                { value: 'calendar', label: t('日历') },
+                { value: 'clipboard', label: t('剪贴板') },
+                { value: 'export', label: t('数据导出') },
+                {
+                  value: 'models',
+                  label: running ? t('本机小模型 · 运行中') : t('本机小模型（辅助）'),
+                },
+                { value: 'ollama', label: t('Ollama（可选）') },
+              ] as Array<{ value: Tab; label: string }>
+            ).filter((x) => shown.includes(x.value))}
+            value={tab}
+            onChange={setTab}
+            aria-label={t('本地中心')}
+          />
+        )}
         {err && <ErrorState data-testid="local-error" detail={err} onRetry={() => void load()} />}
         {!st && !err && <LoadingState rows={3} />}
         {st && tab === 'models' && models}

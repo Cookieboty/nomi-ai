@@ -4,6 +4,7 @@
  */
 import { t } from '@nomi-ai/ui';
 import { Input } from '@nomi-ai/ui';
+import { SlidersHorizontal } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import {
@@ -42,7 +43,7 @@ export const AddProvider: React.FC<{
       <Input
         autoFocus
         data-testid="preset-search"
-        placeholder={t('🔍 搜索名称或网址，例如 kimi、智谱、openrouter')}
+        placeholder={t('搜索名称或网址，例如 kimi、智谱、openrouter')}
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -77,7 +78,11 @@ export const AddProvider: React.FC<{
                       data-testid={`preset-${p.id}`}
                       onClick={() => onPick(p)}
                     >
-                      <Monogram name={p.id === 'custom' ? '⚙' : p.name} brand={p.id} />
+                      <Monogram
+                        name={p.name}
+                        brand={p.id}
+                        fallbackIcon={p.id === 'custom' ? SlidersHorizontal : undefined}
+                      />
                       <span className={styles.presetText}>
                         <span className={styles.presetName}>{t(p.name)}</span>
                         <span className="cd-muted">

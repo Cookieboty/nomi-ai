@@ -21,6 +21,20 @@ const aiChatAPI = {
     test: () => ipcRenderer.invoke('island:test'),
   },
 
+  /** 设置 → 通用：看板娘大小（mascot/MascotWindowController.ts，mascot:scale-*） */
+  mascot: {
+    scaleGet: () => ipcRenderer.invoke('mascot:scale-get'),
+    scaleSet: (scale: number) => ipcRenderer.invoke('mascot:scale-set', scale),
+    scaleReset: () => ipcRenderer.invoke('mascot:scale-reset'),
+    onScale: (cb: (s: unknown) => void) => {
+      const l = (_: unknown, s: unknown) => cb(s);
+      ipcRenderer.on('mascot:scale-changed', l);
+      return () => {
+        ipcRenderer.removeListener('mascot:scale-changed', l);
+      };
+    },
+  },
+
   updates: {
     get: () => ipcRenderer.invoke('updates:get'),
     check: () => ipcRenderer.invoke('updates:check'),

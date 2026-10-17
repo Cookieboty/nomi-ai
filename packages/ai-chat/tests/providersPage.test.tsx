@@ -53,6 +53,7 @@ const AGENTS = {
     stallMs: 1,
     cooldownMs: 1,
     osNotify: false,
+    summaryEnabled: false,
     tools: {
       codex: true,
       claude: true,
@@ -154,8 +155,8 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-ep-intro').textContent).toContain(
       '~/.codex/config.toml'.replace('~', '/home/u'),
     );
-    // 四个端点 + 「监视与会话」
-    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(5);
+    // 五个端点 + 「监视与会话」
+    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(6);
   });
 
   it('只显示该端点自己的档案，未启用时显示 CLI 自带登录', async () => {
@@ -370,6 +371,17 @@ describe('ProvidersPage', () => {
     await waitFor(() => r.getByTestId('coding-monitor'));
     await waitFor(() => r.getByTestId('agents-enabled'));
     expect(r.getByTestId('agents-os-notify')).toBeTruthy();
+    // 总结播报：默认关，打开后持久化到监视设置
+    fireEvent.click(r.getByTestId('agents-summary'));
+    await waitFor(() =>
+      expect(
+        calls.some(
+          ([c, p]) =>
+            c === 'ai:agents:set-settings' &&
+            (p as Array<{ summaryEnabled?: boolean }>)[0]?.summaryEnabled === true,
+        ),
+      ).toBe(true),
+    );
     expect(r.getByTestId('agents-tool-claude')).toBeTruthy();
     fireEvent.click(r.getByTestId('agents-scan'));
     await waitFor(() => expect(calls.some(([c]) => c === 'ai:agents:scan')).toBe(true));

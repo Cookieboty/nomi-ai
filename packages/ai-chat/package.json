@@ -18,9 +18,14 @@
     "@nomi-ai/ai-sdk-client": "workspace:*",
     "@nomi-ai/ui": "workspace:*",
     "@nomi-ai/voice": "workspace:*",
+    "highlight.js": "^11",
+    "lucide-react": "^1.55.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "react-window": "^2.3.3"
+    "react-markdown": "^10",
+    "react-window": "^2.3.3",
+    "rehype-highlight": "^7",
+    "remark-gfm": "^4"
   },
   "devDependencies": {
     "@nomi-ai/types": "workspace:*",

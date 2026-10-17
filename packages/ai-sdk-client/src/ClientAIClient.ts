@@ -214,6 +214,11 @@ export class ClientAIClient {
     let error: SDKError | undefined;
     let resolver: (() => void) | undefined;
     let unsub: IpcUnsubscribe | undefined;
+    let reqId: string | undefined;
+    // 服务端已自然收尾（done / 出错）：之后的 return() 不必再通知中止
+    let finishedByServer = false;
+    // chat 流被消费方提前放弃（break / return / throw）时，要通知主进程中止上游请求
+    const abortable = spec.facade === 'chat';
 
     const scheduleWake = () => {
       const r = resolver;
@@ -231,15 +236,17 @@ export class ClientAIClient {
       this.assertLive();
       // 生成 reqId（若首参已带则复用），随后订阅 chunk 通道。
       const first = args[0] as { reqId?: string } | undefined;
-      const reqId = first?.reqId ?? cryptoRandomId();
+      reqId = first?.reqId ?? cryptoRandomId();
+      const id = reqId;
       if (first && typeof first === 'object') {
         (first as { reqId?: string }).reqId = reqId;
       } else {
-        args = [{ reqId }, ...args];
+        args = [{ reqId: id }, ...args];
       }
       unsub = this.bridge.on<StreamChunkEnvelope>(chunkCh, (env) => {
-        if (!env || env.reqId !== reqId) return;
+        if (!env || env.reqId !== id) return;
         if (env.done) {
+          finishedByServer = true;
           if (env.error) error = new SDKError(SDKErrorCodes.IPC_STREAM_ABORTED, env.error);
           ended = true;
           scheduleWake();
@@ -260,6 +267,22 @@ export class ClientAIClient {
     // 立即启动 subscribe + invoke；调用方后续 iterate 时按 buffer 消费。
     const started = kickOff();
 
+    // 消费方提前结束：退订 chunk、唤醒挂起的 next()，并 fire-and-forget 通知主进程中止
+    const release = () => {
+      const alreadyEnded = ended;
+      ended = true;
+      unsub?.();
+      scheduleWake();
+      if (abortable && !alreadyEnded && !finishedByServer && reqId) {
+        const abortSpec = IPC_METHOD_INDEX.get('chat.abort');
+        if (abortSpec && !this.disposed) {
+          void Promise.resolve(this.bridge.invoke(channelName(abortSpec), reqId)).catch(
+            () => undefined,
+          );
+        }
+      }
+    };
+
     const iterator: AsyncIterator<unknown> = {
       next: async (): Promise<IteratorResult<unknown>> => {
         await started;
@@ -272,13 +295,11 @@ export class ClientAIClient {
         return { value: undefined, done: true };
       },
       return: async () => {
-        ended = true;
-        unsub?.();
+        release();
         return { value: undefined, done: true };
       },
       throw: async (err) => {
-        ended = true;
-        unsub?.();
+        release();
         throw err;
       },
     };

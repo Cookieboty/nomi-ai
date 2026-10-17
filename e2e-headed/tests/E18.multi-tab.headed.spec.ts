@@ -135,7 +135,7 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await expect(chat.locator('[data-testid="chat-tabs-max-concurrent"]')).toHaveValue('2');
     await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(2);
     await expect(chat.locator('[role="tab"][data-status="queued"]')).toHaveCount(1);
-    await expect(chat.locator('[data-testid="cli-tab-live"]')).toContainText('排队中');
+    await expect(chat.locator('[data-testid="conv-live"]')).toContainText('排队等待');
     await shot(chat, '03-concurrent-running-queued');
 
     // 全部完成：concurrency 控件常驻，等 running/queued 归零（勿断言 chat-tabs-load 消失）

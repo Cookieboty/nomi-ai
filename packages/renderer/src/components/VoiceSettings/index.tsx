@@ -1,7 +1,7 @@
 import type { ModelVoiceConfig } from '@nomi-ai/types';
 import { type VoiceSettings as VoiceSettingsType } from '@nomi-ai/types';
-import { t as tr } from '@nomi-ai/ui';
-import { Modal, Switch } from '@nomi-ai/ui';
+import { createLogger, t as tr } from '@nomi-ai/ui';
+import { Modal, SectionTitle, Switch } from '@nomi-ai/ui';
 import React, { useState, useEffect, useCallback } from 'react';
 
 import {
@@ -19,6 +19,8 @@ import { listSoftVoiceChoices } from '../../mascot/softSpeech';
 import { type VoiceService } from '../../services/VoiceService';
 
 import styles from './style.module.css';
+
+const log = createLogger('voice-settings');
 
 interface VoiceSettingsProps {
   voiceService: VoiceService;
@@ -53,9 +55,12 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板显隐时初次拉取并订阅系统 voices 变更：外部数据同步模式，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     setSettings(voiceService.getSettings());
     refreshCharacter();
     refreshVoices();
+    /* eslint-enable react-hooks/set-state-in-effect */
     const synth = window.speechSynthesis;
     synth?.addEventListener('voiceschanged', refreshVoices);
     const t = setTimeout(refreshVoices, 300);
@@ -77,7 +82,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       await voiceService.updateSettings({ [key]: value });
       onSettingsChange?.();
     } catch (error) {
-      console.error('更新设置失败:', error);
+      log.error('更新设置失败:', error);
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +123,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       data-testid="voice-settings"
     >
       <section className={styles.group}>
-        <h4 className="cd-section-title">{tr('基本设置')}</h4>
+        <SectionTitle level={4}>{tr('基本设置')}</SectionTitle>
         <Switch
           checked={settings.enabled}
           onChange={(v) => handleSettingChange('enabled', v)}
@@ -152,7 +157,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group}>
-        <h4 className="cd-section-title">{tr('当前角色音色')}</h4>
+        <SectionTitle level={4}>{tr('当前角色音色')}</SectionTitle>
         <p
           className="cd-muted"
           style={{ marginBottom: 8, fontSize: 12 }}
@@ -243,7 +248,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group}>
-        <h4 className="cd-section-title">{tr('全局柔和偏好')}</h4>
+        <SectionTitle level={4}>{tr('全局柔和偏好')}</SectionTitle>
         <Switch
           checked={soft.preferNeural}
           onChange={(v) => patchGlobal({ preferNeural: v })}
@@ -258,7 +263,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group}>
-        <h4 className="cd-section-title">{tr('功能设置')}</h4>
+        <SectionTitle level={4}>{tr('功能设置')}</SectionTitle>
         <Switch
           checked={settings.timeAnnouncement}
           onChange={(v) => handleSettingChange('timeAnnouncement', v)}
@@ -268,7 +273,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group} data-testid="fish-voice-note">
-        <h4 className="cd-section-title">{tr('语音播报引擎')}</h4>
+        <SectionTitle level={4}>{tr('语音播报引擎')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
           {tr(
             '默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时自动回退下方系统音色。Fish Audio 为可选高级引擎，不提供上传克隆。',
@@ -280,7 +285,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group}>
-        <h4 className="cd-section-title">{tr('使用说明')}</h4>
+        <SectionTitle level={4}>{tr('使用说明')}</SectionTitle>
         <ul className={styles.help}>
           <li>
             <strong>{tr('按角色绑定')}</strong>

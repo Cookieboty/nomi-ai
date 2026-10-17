@@ -2,13 +2,22 @@
  * 本地路由：把 Claude Code / Codex 的原生请求转到真实上游，并按档案 apiFormat 做协议转换。
  * 默认监听 127.0.0.1:18721（仅本机）。
  */
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
-import type { AddressInfo } from 'node:net';
+import type { AddressInfo, Socket } from 'node:net';
 import path from 'node:path';
 
-import { ipcMain } from 'electron';
-
+import { guardedHandle } from '../../security/guardedIpc';
+import {
+  emptySniffed,
+  hasTokens,
+  mergeUsage,
+  SseUsageTap,
+  usageFromObject,
+} from '../../usage/sniff';
+import { getUsageService } from '../../usage/UsageService';
+import { writePrivateFile } from '../../utils/privateFile';
 import {
   type ClaudeApiFormat,
   type CodexApiFormat,
@@ -70,6 +79,45 @@ const DEFAULTS: RouteSettings = {
   codex: false,
 };
 
+/** 本地路由只允许监听回环地址：0.0.0.0 / 局域网 / 外网地址会把用户的上游密钥暴露给别的机器 */
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '::1'] as const;
+
+export function isLoopbackHost(host: unknown): host is (typeof LOOPBACK_HOSTS)[number] {
+  return typeof host === 'string' && (LOOPBACK_HOSTS as readonly string[]).includes(host);
+}
+
+/** URL 里的主机段：IPv6 需要方括号 */
+function urlHost(host: string): string {
+  return host.includes(':') ? `[${host}]` : host;
+}
+
+/**
+ * Host 头校验（防 DNS 重绑定）：主机名必须是回环名，端口必须是本服务监听的端口。
+ * 浏览器里的恶意页面经重绑定访问 127.0.0.1 时，Host 仍是攻击者的域名，在这里被拒绝。
+ */
+export function isAllowedHostHeader(hostHeader: string | undefined, port: number): boolean {
+  if (!hostHeader) return false;
+  const m = /^(\[[0-9a-fA-F:]+\]|[^:]+)(?::(\d+))?$/.exec(hostHeader.trim());
+  if (!m) return false;
+  const name = m[1]!.replace(/^\[|\]$/g, '').toLowerCase();
+  if (!isLoopbackHost(name)) return false;
+  return m[2] === undefined ? port === 80 : Number(m[2]) === port;
+}
+
+function bearerOrApiKey(req: http.IncomingMessage): string {
+  const x = req.headers['x-api-key'];
+  if (typeof x === 'string' && x) return x;
+  const a = req.headers.authorization;
+  if (typeof a === 'string') return a.replace(/^Bearer\s+/i, '');
+  return '';
+}
+
+function tokenEquals(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ba.length === bb.length && timingSafeEqual(ba, bb);
+}
+
 function readJson(req: http.IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
@@ -118,6 +166,15 @@ function nativeStreamPlan(
     : { from: 'responses', to: 'responses' };
 }
 
+/** 上游地址的主机名（用量面板里作为「供应商」显示） */
+function hostOf(baseUrl: string): string | undefined {
+  try {
+    return new URL(baseUrl).host || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function trimSlash(u: string): string {
   return u.replace(/\/+$/, '');
 }
@@ -131,7 +188,11 @@ function joinUrl(base: string, p: string): string {
 export class CliRouteService {
   private settings: RouteSettings;
   private server: http.Server | null = null;
+  /** 当前打开的连接（含 keep-alive 空闲连接）：停止时要一并销毁，否则 server.close() 迟迟不返回 */
+  private readonly sockets = new Set<Socket>();
   private readonly settingsPath: string;
+  private readonly tokenPath: string;
+  private token: string;
   private resolveUpstream: (kind: 'claude' | 'codex') => RouteUpstream | null;
 
   constructor(
@@ -142,14 +203,45 @@ export class CliRouteService {
     },
   ) {
     this.settingsPath = path.join(d.root, 'routing.json');
+    this.tokenPath = path.join(d.root, 'routing.token');
     this.resolveUpstream = d.resolveUpstream;
     this.settings = this.load();
+    this.token = this.loadOrCreateToken();
+  }
+
+  /**
+   * 本地路由令牌：首次生成后以 0600 落盘并复用（CLI 配置里写的就是它，重启应用不应让已配置的 CLI 失效）。
+   * 请求必须带上它（Claude 的 x-api-key / Codex 的 Authorization: Bearer），否则 401。
+   */
+  private loadOrCreateToken(): string {
+    try {
+      const raw = fs.readFileSync(this.tokenPath, 'utf8').trim();
+      if (/^nomi-route-[0-9a-f]{48}$/.test(raw)) return raw;
+    } catch {
+      /* 首次运行 */
+    }
+    const token = `nomi-route-${randomBytes(24).toString('hex')}`;
+    try {
+      fs.mkdirSync(path.dirname(this.tokenPath), { recursive: true });
+      writePrivateFile(this.tokenPath, token);
+    } catch (e) {
+      this.d.logger.warn('route token persist failed', e);
+    }
+    return token;
+  }
+
+  /** 写进 CLI 配置的本地路由令牌（仅主进程内部使用，不经 IPC 返回给渲染进程） */
+  authToken(): string {
+    return this.token;
   }
 
   private load(): RouteSettings {
     try {
       const raw = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8')) as Partial<RouteSettings>;
-      return { ...DEFAULTS, ...raw };
+      const merged = { ...DEFAULTS, ...raw };
+      // 历史配置里若有非回环地址，回退到默认，不再对外监听
+      if (!isLoopbackHost(merged.host)) merged.host = DEFAULTS.host;
+      return merged;
     } catch {
       return { ...DEFAULTS };
     }
@@ -170,19 +262,22 @@ export class CliRouteService {
 
   listenUrl(): string | null {
     if (!this.server?.listening) return null;
-    return `http://${this.settings.host}:${this.settings.port}`;
+    return `http://${urlHost(this.settings.host)}:${this.settings.port}`;
   }
 
   /** CLI 配置应写入的 base（含 /v1 视应用而定） */
   cliBaseUrl(kind: 'claude' | 'codex'): string | null {
     if (!this.settings.enabled || !this.settings[kind]) return null;
-    const base = `http://${this.settings.host}:${this.settings.port}`;
+    const base = `http://${urlHost(this.settings.host)}:${this.settings.port}`;
     return kind === 'codex' ? `${base}/v1` : base;
   }
 
   setSettings(
     patch: Partial<RouteSettings>,
   ): RouteSettings & { listening: boolean; listenUrl: string | null } {
+    if (patch.host !== undefined && patch.host !== '' && !isLoopbackHost(patch.host)) {
+      throw new Error(`本地路由只能监听 127.0.0.1 / localhost / ::1（收到 ${String(patch.host)}）`);
+    }
     this.settings = {
       ...this.settings,
       ...patch,
@@ -204,24 +299,43 @@ export class CliRouteService {
   async start(): Promise<void> {
     if (this.server?.listening) return;
     this.stop();
-    this.server = http.createServer((req, res) => {
+    const server = http.createServer((req, res) => {
       void this.handle(req, res);
     });
+    this.server = server;
+    server.on('connection', (socket) => {
+      this.sockets.add(socket);
+      socket.once('close', () => this.sockets.delete(socket));
+    });
     await new Promise<void>((resolve, reject) => {
-      this.server!.once('error', reject);
-      this.server!.listen(this.settings.port, this.settings.host, () => resolve());
+      server.once('error', reject);
+      server.listen(this.settings.port, this.settings.host, () => resolve());
     });
     this.d.logger.info('cli route listening', this.listenUrl());
   }
 
+  /** 停止监听并断开所有连接（含 keep-alive 空闲连接与进行中的流） */
   stop(): void {
-    if (!this.server) return;
-    try {
-      this.server.close();
-    } catch {
-      /* */
-    }
+    const server = this.server;
     this.server = null;
+    if (server) {
+      try {
+        server.close();
+      } catch {
+        /* */
+      }
+      try {
+        server.closeAllConnections?.();
+      } catch {
+        /* */
+      }
+    }
+    for (const s of this.sockets) s.destroy();
+    this.sockets.clear();
+  }
+
+  dispose(): void {
+    this.stop();
   }
 
   private detectKind(req: http.IncomingMessage, url: string): 'claude' | 'codex' | null {
@@ -236,9 +350,24 @@ export class CliRouteService {
   }
 
   private async handle(req: http.IncomingMessage, res: http.ServerResponse) {
+    // 用量与计费：记录经过本地路由的请求（响应里的 usage；取不到就不记，避免编造）
+    let track: { kind: 'claude' | 'codex'; startedAt: number; up: RouteUpstream } | null = null;
+    let sniffed = emptySniffed();
     try {
+      // 防 DNS 重绑定：Host 必须是回环名 + 本服务端口
+      if (!isAllowedHostHeader(req.headers.host, this.settings.port)) {
+        sendJson(res, 421, { error: 'misdirected request: invalid Host header' });
+        return;
+      }
       if (req.method === 'GET' && (req.url === '/' || req.url === '/health')) {
-        sendJson(res, 200, { ok: true, service: 'nomi-cli-route', settings: this.getSettings() });
+        sendJson(res, 200, { ok: true, service: 'nomi-cli-route' });
+        return;
+      }
+      if (!tokenEquals(bearerOrApiKey(req), this.token)) {
+        sendJson(res, 401, {
+          error:
+            'unauthorized: missing or wrong local route token (re-activate the provider profile in Nomi to refresh the CLI config)',
+        });
         return;
       }
       if (req.method !== 'POST') {
@@ -263,6 +392,8 @@ export class CliRouteService {
       if (formatNeedsRouting(kind, up.apiFormat) === false && kind === 'claude') {
         // native passthrough still ok via route
       }
+      track = { kind, startedAt: Date.now(), up };
+      getUsageService()?.routeBegin(kind);
       const body = await readJson(req);
       const wantsStream =
         Boolean(body) && typeof body === 'object' && (body as { stream?: unknown }).stream === true;
@@ -309,7 +440,9 @@ export class CliRouteService {
       });
       const isSse = (upstreamRes.headers.get('content-type') ?? '').includes('text/event-stream');
       if (wantsStream && upstreamRes.ok && isSse && upstreamRes.body) {
-        await this.pipeStream(upstreamRes.body, res, stream, convOpts);
+        const tap = new SseUsageTap();
+        await this.pipeStream(upstreamRes.body, res, stream, convOpts, tap);
+        sniffed = tap.end();
         return;
       }
       const text = await upstreamRes.text();
@@ -318,6 +451,10 @@ export class CliRouteService {
         parsed = JSON.parse(text);
       } catch {
         /* keep text */
+      }
+      if (upstreamRes.ok) {
+        const part = usageFromObject(parsed);
+        if (part) sniffed = mergeUsage(sniffed, part);
       }
       if (!upstreamRes.ok) {
         res.writeHead(upstreamRes.status, { 'Content-Type': 'application/json' });
@@ -348,6 +485,16 @@ export class CliRouteService {
         return;
       }
       sendJson(res, 500, { error: e instanceof Error ? e.message : String(e) });
+    } finally {
+      if (track) {
+        const t = track;
+        getUsageService()?.routeEnd(t.kind, {
+          startedAt: t.startedAt,
+          provider: hostOf(t.up.baseUrl),
+          model: t.up.model,
+          usage: hasTokens(sniffed) ? sniffed : null,
+        });
+      }
     }
   }
 
@@ -357,6 +504,7 @@ export class CliRouteService {
     res: http.ServerResponse,
     stream: StreamPlan,
     convOpts: { model?: string; customTools?: ReadonlySet<string> },
+    tap?: SseUsageTap,
   ): Promise<void> {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -371,11 +519,13 @@ export class CliRouteService {
         const { done, value } = await reader.read();
         if (done) break;
         if (res.destroyed) return;
+        const text = tap || conv ? decoder.decode(value, { stream: true }) : '';
+        tap?.push(text);
         if (!conv) {
           res.write(Buffer.from(value));
           continue;
         }
-        const outChunk = conv.push(decoder.decode(value, { stream: true }));
+        const outChunk = conv.push(text);
         if (outChunk) res.write(outChunk);
       }
       if (conv) {
@@ -490,16 +640,8 @@ export class CliRouteService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'CliRouteService' });
     handle('ai:cli-route:state', () => this.getSettings());
     handle('ai:cli-route:set', (p) => this.setSettings((p ?? {}) as Partial<RouteSettings>));
     handle('ai:cli-route:start', () => this.start().then(() => this.getSettings()));

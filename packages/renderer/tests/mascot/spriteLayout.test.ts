@@ -54,7 +54,7 @@ describe('mascot size (half-size default)', () => {
       mascotScale: 0.8,
       migrated: false,
     });
-    expect(migrateMascotSize({ mascotScale: 9 }).mascotScale).toBe(1);
+    expect(migrateMascotSize({ mascotScale: 9 }).mascotScale).toBe(1.5);
     expect(migrateMascotSize(null)).toMatchObject({ mascotScale: 0.5, migrated: false });
   });
 });
@@ -113,4 +113,40 @@ describe('sprite geometry + bubble', () => {
     expect(regionInSprite(body.left + 2, head.bottom + 30, head, body)).toBe('hands');
     expect(regionInSprite(cx, body.bottom - 2, head, body)).toBe('skirt');
   });
+});
+
+describe('layout at every supported scale (0.3–1.5)', () => {
+  for (const scale of [0.3, 0.5, 1, 1.5]) {
+    it(`scale ${scale}: character box is exactly BASE·scale, bubble never covers the face`, () => {
+      const win = mascotWindowSize(scale);
+      const cb = characterBox(win.width, win.height);
+      expect([cb.x, cb.y]).toEqual([MASCOT_PAD.x, MASCOT_PAD.top]);
+      expect(Math.abs(cb.w - 420 * scale)).toBeLessThanOrEqual(1);
+      expect(Math.abs(cb.h - 450 * scale)).toBeLessThanOrEqual(1);
+      const v = rigTransform(rig, win.width, win.height, cb);
+      const head = rigHeadBox(rig, imgs, null, v)!;
+      const body = rigBodyBox(rig, imgs, v, win.width, win.height)!;
+      // the figure stays inside the window and its feet at (or above) the bottom edge
+      expect(body.bottom).toBeLessThanOrEqual(win.height);
+      expect(body.left).toBeGreaterThanOrEqual(0);
+      expect(body.right).toBeLessThanOrEqual(win.width);
+      for (const lines of [1, 3, 6]) {
+        for (const winX of [0, 700, 1700 - win.width]) {
+          const p = placeBubble({
+            head,
+            view: win,
+            measure: () => 22 * lines + 16,
+            preferAbove: true,
+            screen: { winX, availLeft: 0, availWidth: 1920 },
+            gutter: { left: body.right + 12, right: body.right + 48, top: 150, bottom: 300 },
+          });
+          const r = { left: p.x, top: p.y, right: p.x + p.width, bottom: p.y + p.height };
+          expect(intersects(r, head)).toBe(false);
+          expect(r.left).toBeGreaterThanOrEqual(0);
+          expect(r.right).toBeLessThanOrEqual(win.width);
+          expect(r.top).toBeGreaterThanOrEqual(0);
+        }
+      }
+    });
+  }
 });

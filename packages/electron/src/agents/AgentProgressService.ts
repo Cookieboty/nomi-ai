@@ -7,13 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, Notification, ipcMain } from 'electron';
+import { BrowserWindow, Notification } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { iconImage } from '../core/appIcon';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { notifyIsland } from '../island/IslandService';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   type AgentKind,
@@ -42,6 +43,8 @@ export interface AgentWatchSettings {
   /** 同工具同状态最短提醒间隔 */
   cooldownMs: number;
   osNotify: boolean;
+  /** 总结播报：定时汇总附带进度摘要、任务结束时播报完成总结（语音走 TTS，默认关） */
+  summaryEnabled: boolean;
   tools: Record<AgentKind, boolean>;
 }
 
@@ -50,10 +53,12 @@ export const DEFAULT_AGENT_WATCH: AgentWatchSettings = {
   stallMs: 5 * 60_000,
   cooldownMs: 90_000,
   osNotify: false,
+  summaryEnabled: false,
   tools: {
     codex: true,
     claude: true,
     dsh: true,
+    grok: true,
     aider: true,
     cline: true,
     continue: true,
@@ -61,6 +66,13 @@ export const DEFAULT_AGENT_WATCH: AgentWatchSettings = {
     gemini: true,
   },
 };
+
+/** 监听开启后，每隔多久汇总一次「还有几个任务进行中」 */
+export const DIGEST_INTERVAL_MS = 10 * 60_000;
+/** 刚发过结束 / 权限 / 卡住等提示后的这段时间内跳过汇总，避免刷屏 */
+export const DIGEST_QUIET_AFTER_REMIND_MS = 60_000;
+/** 汇总里最多逐条列出几个任务的进度（总结播报开启时） */
+const DIGEST_MAX_DETAIL = 2;
 
 /** 已结束的会话在列表里保留多久 */
 export const ENDED_VISIBLE_MS = 30 * 60_000;
@@ -94,6 +106,16 @@ export interface AgentSessionView {
   /** 最后活动时间（文件写入 / 事件时间戳） */
   mtime: number;
   updatedAt: number;
+  /** 这个会话累计的 Token / 费用（用量统计开着、且能对上会话时才有） */
+  usage?: SessionUsageView;
+}
+
+/** 会话累计用量（来自用量统计；costUsd 为 null = 全部来自未定价模型） */
+export interface SessionUsageView {
+  tokens: number;
+  costUsd: number | null;
+  calls: number;
+  unpriced: boolean;
 }
 
 export interface AgentWatchState {
@@ -130,21 +152,33 @@ type Deps = {
   platform?: NodeJS.Platform;
   /** dsh 家目录（默认 DSH_HOME 或 ~/.dsh） */
   dshHome?: string;
+  /** Grok 家目录（默认 GROK_HOME 或 ~/.grok） */
+  grokHome?: string;
   /** 测试注入：被 flock 持有的 inode；null = 无法判断 */
   lockedInodes?: () => Set<number> | null;
+  /** 免打扰中：定时汇总不弹（结束 / 权限提示不受影响） */
+  isQuiet?: () => boolean;
+  /** 汇总间隔（默认 DIGEST_INTERVAL_MS），测试可调 */
+  digestMs?: number;
+  /** 会话累计用量（CodingMonitor 显示）；source = claude / codex / dsh */
+  usageOf?: (source: string, session: string) => SessionUsageView | null;
+  /** 任务结束播报附带的「本次花费」一句话；总结播报开着时才会调用 */
+  taskCost?: (q: { source: string; session?: string; since: number }) => Promise<string | null>;
 };
 
 /** Nomi 对话标签（来自 CliHarnessService），避免 agents 依赖 cli 模块 */
 export interface WatchedTab {
   id: string;
   title: string;
-  backend: 'nomi' | 'claude' | 'codex' | 'dsh';
+  backend: 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
   cwd: string;
   cliSessionId: string | null;
   status: 'idle' | 'queued' | 'running' | 'error';
   unread: number;
   updatedAt: number;
   lastError?: string;
+  /** 这一轮最近的输出 / 步骤（轻量进度提示，可选） */
+  progress?: string;
 }
 
 /** 某个端点的一轮结束 / 需要注意（由 harness 推送） */
@@ -171,6 +205,7 @@ const LABEL: Record<AgentKind, string> = {
   codex: 'Codex',
   claude: 'Claude Code',
   dsh: 'dsh',
+  grok: 'Grok',
   aider: 'Aider',
   cline: 'Cline',
   continue: 'Continue',
@@ -253,10 +288,12 @@ export function sanitizeAgentWatch(raw: unknown, base = DEFAULT_AGENT_WATCH): Ag
     stallMs: n(o.stallMs, base.stallMs),
     cooldownMs: n(o.cooldownMs, base.cooldownMs),
     osNotify: b(o.osNotify, base.osNotify),
+    summaryEnabled: b(o.summaryEnabled, base.summaryEnabled),
     tools: {
       codex: b(tools.codex, true),
       claude: b(tools.claude, true),
       dsh: b(tools.dsh, true),
+      grok: b(tools.grok, true),
       aider: b(tools.aider, true),
       cline: b(tools.cline, true),
       continue: b(tools.continue, true),
@@ -273,19 +310,25 @@ export class AgentProgressService {
   };
   private tracked = new Map<string, Tracked>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  private digestTimer: ReturnType<typeof setInterval> | null = null;
   private lastRemindAt = 0;
   private readonly home: string;
   private readonly now: () => number;
   private readonly pollMs: number;
+  /** 会话 / 标签这一轮开始跑的时间（算「本次花费」的起点） */
+  private readonly runStart = new Map<string, number>();
+  private readonly digestMs: number;
   private readonly settingsPath: string;
   /** 最近一次进程快照（异步刷新）；null = 无法判断 */
   private procs: AgentProc[] | null = null;
   private procsAt = 0;
   private procRefreshing = false;
   private readonly dshHome: string;
+  private readonly grokHome: string;
   /** 本轮 tick 的 flock 快照（dsh）；null = 无法判断 */
   private dshLocks: Set<number> | null = null;
   private tabs: () => WatchedTab[] = () => [];
+  private tabProgress: (tabId: string) => string | undefined = () => undefined;
 
   constructor(private readonly d: Deps) {
     this.home = d.home ?? os.homedir();
@@ -294,8 +337,14 @@ export class AgentProgressService {
       (process.env.DSH_HOME?.trim()
         ? path.resolve(process.env.DSH_HOME)
         : path.join(this.home, '.dsh'));
+    this.grokHome =
+      d.grokHome ??
+      (process.env.GROK_HOME?.trim()
+        ? path.resolve(process.env.GROK_HOME)
+        : path.join(this.home, '.grok'));
     this.now = d.now ?? (() => Date.now());
     this.pollMs = d.pollMs ?? 8_000;
+    this.digestMs = d.digestMs ?? DIGEST_INTERVAL_MS;
     this.settingsPath = path.join(d.root, 'settings.json');
     fs.mkdirSync(d.root, { recursive: true });
     this.load();
@@ -327,6 +376,7 @@ export class AgentProgressService {
         source: 'file',
       }))
       .concat(tabs.map((t) => tabView(t)))
+      .map((v) => this.withUsage(v, tabs))
       .sort((a, b) => rank(a.status) - rank(b.status) || b.mtime - a.mtime);
     return {
       settings: this.settings,
@@ -334,6 +384,29 @@ export class AgentProgressService {
       detected: this.detectKinds(),
       lastRemindAt: this.lastRemindAt,
     };
+  }
+
+  /** 附上会话累计用量：文件会话按「工具:会话 id」对，Nomi 标签按它接管的 CLI 会话 id 对 */
+  private withUsage(v: AgentSessionView, tabs: WatchedTab[]): AgentSessionView {
+    const of = this.d.usageOf;
+    if (!of) return v;
+    let source: string | undefined;
+    let session: string | undefined;
+    if (v.source === 'tab') {
+      const t = tabs.find((x) => x.id === v.tabId);
+      source = t?.backend;
+      session = t?.cliSessionId ?? undefined;
+    } else {
+      source = v.kind;
+      session = v.id.startsWith(`${v.kind}:`) ? v.id.slice(v.kind.length + 1) : undefined;
+    }
+    if (!source || !session || !USAGE_KINDS.has(source)) return v;
+    try {
+      const usage = of(source, session);
+      return usage ? { ...v, usage } : v;
+    } catch {
+      return v;
+    }
   }
 
   setSettings(
@@ -357,6 +430,7 @@ export class AgentProgressService {
     if (fs.existsSync(path.join(h, '.codex'))) found.push('codex');
     if (fs.existsSync(path.join(h, '.claude'))) found.push('claude');
     if (fs.existsSync(path.join(this.dshHome, 'sessions'))) found.push('dsh');
+    if (fs.existsSync(path.join(this.grokHome, 'sessions'))) found.push('grok');
     if (
       fs.existsSync(path.join(h, '.aider')) ||
       fs.existsSync(path.join(h, '.aider.chat.history.md'))
@@ -396,6 +470,13 @@ export class AgentProgressService {
           (n) => n === 'session.lock' || /^session\.v\d+\.jsonl/.test(n),
           2,
         ),
+      );
+    }
+    if (tools.grok) {
+      // ~/.grok/sessions/<cwd>/<uuid>/updates.jsonl — 用 mtime 推断活跃；细解析见用量模块
+      add(
+        'grok',
+        listFiles(path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 3),
       );
     }
     if (tools.gemini)
@@ -481,6 +562,18 @@ export class AgentProgressService {
         detail: lockHeld ? tr('运行中') : undefined,
       };
       return { key: `dsh:${id}`, kind, path: filePath, mtime, info, lockHeld };
+    } else if (kind === 'grok') {
+      // 会话目录名即 uuid；不深读 ACP 内容（用量走 updates.jsonl 解析器）
+      const dir = path.dirname(filePath);
+      const id = path.basename(dir);
+      let cwd: string | undefined;
+      try {
+        cwd = decodeURIComponent(path.basename(path.dirname(dir)));
+      } catch {
+        cwd = path.basename(path.dirname(dir));
+      }
+      info = { phase: 'working', sessionId: id, cwd };
+      return { key: `grok:${id}`, kind, path: filePath, mtime, info };
     } else if (kind === 'gemini') {
       info = parseGeminiSession(readSlice(filePath, 'head', 4 * 1024 * 1024));
     } else if (kind === 'cursor') {
@@ -660,24 +753,31 @@ export class AgentProgressService {
         lastRemindAt: prev?.lastRemindAt ?? 0,
       };
       this.tracked.set(c.key, next);
+      if (next.status === 'running' && !this.runStart.has(c.key))
+        this.runStart.set(c.key, now - 2 * this.pollMs);
       this.maybeRemind(prev, next);
+      if (next.status !== 'running') this.runStart.delete(c.key);
     }
 
     for (const id of [...this.tracked.keys()]) {
-      if (!seen.has(id)) this.tracked.delete(id);
+      if (!seen.has(id)) {
+        this.tracked.delete(id);
+        this.runStart.delete(id);
+      }
     }
     this.broadcast();
   }
 
   private maybeRemind(prev: Tracked | undefined, next: Tracked) {
-    if (next.status === 'idle') return;
-    // 首次发现：只有「正在跑」才打招呼，历史 / 等待 / 卡住都不打扰（启动时不刷屏）
-    if (!prev && next.status !== 'running') return;
+    // 「开始 / 进行中」不主动打扰（气泡 / 语音 / 音效 / 灵动岛都不弹）：
+    // 只在 CodingMonitor 面板被动展示，并由定时汇总告知还有几个在跑
+    if (next.status === 'idle' || next.status === 'running') return;
+    // 首次发现的历史 / 等待 / 卡住都不打扰（启动时不刷屏）
+    if (!prev) return;
     // 等你回复：只在刚从 running 切过来时提醒
-    if (next.status === 'waiting' && prev?.status !== 'running') return;
-    const changed = !prev || prev.status !== next.status;
+    if (next.status === 'waiting' && prev.status !== 'running') return;
+    const changed = prev.status !== next.status;
     if (!changed && next.status !== 'stalled') return;
-    if (next.status === 'running' && prev?.status === 'running') return;
     if (
       next.lastRemindStatus === next.status &&
       nowGap(next.lastRemindAt, this.now()) < this.settings.cooldownMs
@@ -685,9 +785,23 @@ export class AgentProgressService {
       return;
 
     const who = next.project ? `${next.label}（${next.project}）` : next.label;
-    const text = REMIND[next.status](who, next.summary);
+    const finished = next.status === 'completed' || next.status === 'failed';
+    const summary = this.settings.summaryEnabled && finished;
+    const text = summary
+      ? finishSummary(next.label, next.title, next.status === 'completed', next.summary)
+      : REMIND[next.status](who, next.summary);
     if (!text) return;
-    this.d.desktop.say(text.slice(0, 140));
+    this.sayWithCost(
+      text,
+      finishedBubbleOpts(next.status, summary),
+      finished && USAGE_KINDS.has(next.kind) && this.runStart.has(next.id)
+        ? {
+            source: next.kind,
+            session: next.id.slice(next.kind.length + 1),
+            since: this.runStart.get(next.id)!,
+          }
+        : undefined,
+    );
     notifyIsland({
       kind: 'agent',
       endpoint: next.kind,
@@ -696,9 +810,7 @@ export class AgentProgressService {
           ? 'failed'
           : next.status === 'stalled' || next.status === 'waiting'
             ? 'attention'
-            : next.status === 'completed'
-              ? 'done'
-              : 'running',
+            : 'done',
       title: who,
       body: next.title,
     });
@@ -723,9 +835,18 @@ export class AgentProgressService {
     onTabs: (fn: () => void) => void;
     onFinished: (fn: (e: EndpointFinished) => void) => void;
     onPermission?: (fn: (e: EndpointPermissionNeeded) => void) => void;
+    /** 标签这一轮最近的输出 / 步骤（轻量进度提示，没有则不传） */
+    progress?: (tabId: string) => string | undefined;
   }): void {
     this.tabs = h.tabs;
-    h.onTabs(() => this.broadcast());
+    this.tabProgress = h.progress ?? (() => undefined);
+    h.onTabs(() => {
+      const now = this.now();
+      for (const t of this.safeTabs())
+        if ((t.status === 'running' || t.status === 'queued') && !this.runStart.has(`tab:${t.id}`))
+          this.runStart.set(`tab:${t.id}`, now);
+      this.broadcast();
+    });
     h.onFinished((e) => this.onEndpointFinished(e));
     h.onPermission?.((e) => this.onPermissionNeeded(e));
   }
@@ -775,8 +896,26 @@ export class AgentProgressService {
     const label = ENDPOINT_LABEL[e.backend];
     const who = `${label}（${e.title}）`;
     const brief = (e.ok ? e.text : e.error || '').replace(/\s+/g, ' ').trim().slice(0, 60);
-    const text = e.ok ? REMIND.completed(who, brief) : REMIND.failed(who, brief);
-    this.d.desktop.say(text.slice(0, 140));
+    const summary = this.settings.summaryEnabled;
+    const text = summary
+      ? finishSummary(label, e.title, e.ok, e.ok ? e.text : e.error)
+      : e.ok
+        ? REMIND.completed(who, brief)
+        : REMIND.failed(who, brief);
+    const since = this.runStart.get(`tab:${e.tabId}`);
+    this.runStart.delete(`tab:${e.tabId}`);
+    const tab = this.safeTabs().find((t) => t.id === e.tabId);
+    this.sayWithCost(
+      text,
+      finishedBubbleOpts(e.ok ? 'completed' : 'failed', summary),
+      since === undefined
+        ? undefined
+        : e.backend === 'nomi'
+          ? { source: 'nomi', since }
+          : tab?.cliSessionId
+            ? { source: e.backend, session: tab.cliSessionId, since }
+            : undefined,
+    );
     notifyIsland({
       kind: 'agent',
       endpoint: e.backend,
@@ -791,10 +930,38 @@ export class AgentProgressService {
     this.broadcast();
   }
 
+  /**
+   * 说出结束播报。总结播报开着且能查到「本次花费」时，在末尾补一句（最多等 3 秒，
+   * 查不到 / 超时就照常播原文，不让播报被用量统计拖住）。
+   */
+  private sayWithCost(
+    text: string,
+    opts: ReturnType<typeof finishedBubbleOpts>,
+    q?: { source: string; session?: string; since: number },
+  ): void {
+    const send = (cost: string | null) => this.d.desktop.say(withCost(text, cost), opts);
+    if (!q || !this.settings.summaryEnabled || !this.d.taskCost) return send(null);
+    let done = false;
+    const once = (cost: string | null) => {
+      if (done) return;
+      done = true;
+      send(cost);
+    };
+    const timer = setTimeout(() => once(null), COST_WAIT_MS);
+    if (typeof timer === 'object' && 'unref' in timer) timer.unref();
+    this.d
+      .taskCost(q)
+      .then(
+        (c) => once(c),
+        () => once(null),
+      )
+      .finally(() => clearTimeout(timer));
+  }
+
   private notify(title: string, body: string) {
     try {
       if (!Notification.isSupported()) return;
-      new Notification({ title: `🛠 ${title}`, body: body.slice(0, 180), icon: iconImage() }).show();
+      new Notification({ title, body: body.slice(0, 180), icon: iconImage() }).show();
     } catch (e) {
       this.d.logger.warn('agent notify failed', String(e));
     }
@@ -818,24 +985,100 @@ export class AgentProgressService {
       }
     }, this.pollMs);
     if (typeof this.timer === 'object' && 'unref' in this.timer) this.timer.unref();
+    this.startDigest();
   }
 
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.stopDigest();
+  }
+
+  private startDigest(): void {
+    if (this.digestTimer) return;
+    this.digestTimer = setInterval(() => {
+      try {
+        this.digest();
+      } catch (e) {
+        this.d.logger.warn('agent-progress digest', String(e));
+      }
+    }, this.digestMs);
+    if (typeof this.digestTimer === 'object' && 'unref' in this.digestTimer)
+      this.digestTimer.unref();
+  }
+
+  private stopDigest(): void {
+    if (this.digestTimer) clearInterval(this.digestTimer);
+    this.digestTimer = null;
+  }
+
+  /**
+   * 定时汇总：重新扫描一次，若有进行中的编程任务，被动告知「还有 N 个任务进行中」
+   * （按工具分组）。总结播报开启时附带最近进度并朗读；关闭时只出气泡 / 灵动岛，不出声。
+   * 0 个不提示；刚发过结束 / 权限等提示、免打扰中也跳过。返回是否发出了汇总。
+   */
+  digest(): boolean {
+    if (!this.settings.enabled) return false;
+    try {
+      this.tick(false);
+    } catch (e) {
+      this.d.logger.warn('agent-progress digest scan', String(e));
+    }
+    const running = this.runningTasks();
+    if (!running.length) return false;
+    if (this.d.isQuiet?.()) return false;
+    if (this.lastRemindAt && nowGap(this.lastRemindAt, this.now()) < DIGEST_QUIET_AFTER_REMIND_MS)
+      return false;
+
+    const groups = new Map<string, number>();
+    for (const r of running) groups.set(r.label, (groups.get(r.label) ?? 0) + 1);
+    const breakdown = [...groups].map(([l, n]) => `${l} ${n}`).join(' · ');
+    const head = tr('还有 {0} 个编程任务进行中（{1}）', running.length, breakdown);
+    const summary = this.settings.summaryEnabled;
+    let text = head;
+    if (summary) {
+      const lines = running
+        .slice(0, DIGEST_MAX_DETAIL)
+        .map((r) => {
+          const step = brief(r.summary, 36);
+          return step ? `「${brief(r.title, 16)}」${step}` : `「${brief(r.title, 16)}」`;
+        })
+        .join('；');
+      if (lines) text = `${head}：${lines}`;
+    }
+    this.d.desktop.say(text.slice(0, 140), {
+      kind: 'digest',
+      voice: summary ? 'full' : 'none',
+    });
+    const kinds = new Set(running.map((r) => r.kind));
+    notifyIsland({
+      kind: 'agent',
+      endpoint: kinds.size === 1 ? [...kinds][0] : undefined,
+      status: 'running',
+      title: tr('{0} 个编程任务进行中', running.length),
+      body: summary ? text.slice(head.length + 1) || breakdown : breakdown,
+    });
+    this.d.logger.info('agent-progress digest', { running: running.length, summary });
+    return true;
+  }
+
+  /** 进行中的编程任务（不含 Nomi 原生对话；已被关闭监视的工具不计） */
+  private runningTasks(): Array<{ kind: string; label: string; title: string; summary?: string }> {
+    return this.state()
+      .sessions.filter((s) => s.status === 'running' && s.kind !== 'nomi')
+      .filter((s) => this.settings.tools[s.kind as AgentKind] !== false)
+      .map((s) => ({
+        kind: s.kind,
+        label: s.kind === 'nomi' ? s.label : LABEL[s.kind as AgentKind],
+        title: s.title,
+        summary:
+          s.source === 'tab' && s.tabId ? (this.tabProgress(s.tabId) ?? s.summary) : s.summary,
+      }));
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, (_e, ...a) => {
-        try {
-          return fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'AgentProgressService' });
     handle('ai:agents:state', () => this.state());
     handle('ai:agents:set-settings', (p) =>
       this.setSettings((p ?? {}) as Partial<AgentWatchSettings>),
@@ -852,6 +1095,7 @@ const ENDPOINT_LABEL: Record<WatchedTab['backend'], string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
+  grok: 'Grok',
 };
 
 /** Nomi 标签 → 监视视图条目 */
@@ -893,6 +1137,48 @@ const RANK: Record<AgentStatus, number> = {
 };
 function rank(s: AgentStatus) {
   return RANK[s];
+}
+
+/** 压成一行短文本：去代码围栏 / 换行，超长截断加省略号 */
+function brief(text: string | undefined, max: number): string {
+  const v = (text ?? '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return v.length > max ? `${v.slice(0, Math.max(1, max - 1))}…` : v;
+}
+
+/** 任务结束的完成总结：做了什么（任务标题）+ 结果成败 + 结果摘要 */
+function finishSummary(label: string, title: string, ok: boolean, detail?: string): string {
+  const task = brief(title, 24);
+  const d = brief(detail, 60);
+  return ok
+    ? tr('{0} 完成了任务「{1}」，结果：{2}', label, task, d || tr('顺利完成'))
+    : tr('{0} 的任务「{1}」失败了：{2}', label, task, d || tr('请看看终端'));
+}
+
+/** 有会话级用量日志的工具 */
+const USAGE_KINDS = new Set<string>(['claude', 'codex', 'dsh', 'grok']);
+/** 等「本次花费」最多这么久，超时就照常播报 */
+const COST_WAIT_MS = 3000;
+const BUBBLE_MAX = 140;
+
+/** 气泡文字加上「本次花费」一句：总长不超过 140，超出的部分截掉原文末尾 */
+export function withCost(text: string, cost: string | null): string {
+  if (!cost) return text.slice(0, BUBBLE_MAX);
+  const room = BUBBLE_MAX - cost.length - 1;
+  if (room <= 0) return cost.slice(0, BUBBLE_MAX);
+  const head = text.length > room ? `${text.slice(0, Math.max(0, room - 1)).trimEnd()}…` : text;
+  return `${head} ${cost}`;
+}
+
+/** 结束气泡的出声方式：总结播报开 → 朗读总结；关 → 只播一句简短固定台词 + 音效 */
+function finishedBubbleOpts(
+  status: AgentStatus,
+  summary: boolean,
+): { kind?: 'done' | 'fail'; voice?: 'full' | 'cue' } {
+  if (status !== 'completed' && status !== 'failed') return {};
+  return { kind: status === 'completed' ? 'done' : 'fail', voice: summary ? 'full' : 'cue' };
 }
 
 function nowGap(from: number, to: number) {

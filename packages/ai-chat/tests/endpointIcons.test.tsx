@@ -13,7 +13,13 @@ describe('EndpointIcon', () => {
     for (const b of CONVERSATION_BACKENDS) {
       const r = render(<EndpointIcon backend={b} />);
       const icon = r.getByTestId(`endpoint-icon-${b}`);
-      const name = { nomi: 'Nomi', claude: 'Claude Code', codex: 'Codex', dsh: 'dsh' }[b];
+      const name = {
+        nomi: 'Nomi',
+        claude: 'Claude Code',
+        codex: 'Codex',
+        dsh: 'dsh',
+        grok: 'Grok',
+      }[b];
       expect(icon.getAttribute('role')).toBe('img');
       expect(icon.getAttribute('aria-label')).toBe(name);
       expect(icon.querySelector('title')?.textContent).toBe(name);

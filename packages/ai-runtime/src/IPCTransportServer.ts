@@ -117,19 +117,50 @@ export class IPCTransportServer {
     }
 
     const iterable = fn(...args) as AsyncIterable<unknown>;
+    // 窗口已关闭 / 已销毁：向它 send 会抛 "Object has been destroyed"。停止推送并中止上游生成。
+    const gone = (): boolean => {
+      try {
+        return event.isDestroyed?.() === true;
+      } catch {
+        return true;
+      }
+    };
+    const safeSend = (payload: unknown): boolean => {
+      if (gone()) return false;
+      try {
+        event.send(chunkCh, payload);
+        return true;
+      } catch {
+        return false;
+      }
+    };
     (async () => {
       try {
         for await (const value of iterable) {
-          event.send(chunkCh, { reqId, done: false, value });
+          if (!safeSend({ reqId, done: false, value })) {
+            this.abortUpstream(spec, reqId);
+            return; // for-await 提前退出，会调用迭代器的 return() 释放上游
+          }
         }
-        event.send(chunkCh, { reqId, done: true });
+        safeSend({ reqId, done: true });
       } catch (err) {
         this.logger.warn(`stream ${spec.facade}.${spec.method} threw`, err);
-        event.send(chunkCh, { reqId, done: true, error: (err as Error).message });
+        safeSend({ reqId, done: true, error: (err as Error).message });
       }
     })().catch((err) => this.logger.error('unhandled stream error', err));
 
     return { ok: true, reqId };
+  }
+
+  /** chat 类流式请求：窗口没了就让上游 provider 停止生成，别白白烧 token */
+  private abortUpstream(spec: IpcMethodSpec, reqId: string): void {
+    if (spec.facade !== 'chat') return;
+    try {
+      const chat = this.resolveFacade('chat');
+      if (typeof chat.abort === 'function') (chat.abort as (id: string) => void)(reqId);
+    } catch (err) {
+      this.logger.warn('abort upstream failed', err);
+    }
   }
 
   private resolveFacade(name: string): FacadeLike {

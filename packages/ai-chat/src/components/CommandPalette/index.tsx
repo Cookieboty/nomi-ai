@@ -21,12 +21,15 @@ export const CommandPalette: React.FC<{
   const [q, setQ] = useState('');
   const [sel, setSel] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
-  useEffect(() => {
+  // 打开面板时重置输入与选中项（渲染期根据 open 跳变处理，避免 effect 内 setState 触发级联渲染）
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
-      setQ('');
-      setSel(0);
+      if (q !== '') setQ('');
+      if (sel !== 0) setSel(0);
     }
-  }, [open]);
+  }
   const items = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return commands;

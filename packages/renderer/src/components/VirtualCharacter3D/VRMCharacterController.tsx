@@ -1,6 +1,5 @@
 /* eslint-disable react/no-unknown-property -- react-three-fiber 的 JSX 元素属性 */
-import { t } from '@nomi-ai/ui';
-import { perfMark } from '@nomi-ai/ui';
+import { createLogger, perfMark, t } from '@nomi-ai/ui';
 import { type VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { useFrame, useThree } from '@react-three/fiber';
 import React, { useEffect, useRef, useState } from 'react';
@@ -17,9 +16,14 @@ import { type VRMCharacterControllerProps } from '../../types/character3d';
 
 import VRMModelFallback from './VRMModelFallback';
 
+const log = createLogger('vrm-controller');
+
 /**
  * VRM 角色控制器：加载模型，并把它包装成 MascotBackend（口型/表情/眨眼/视线/待机）挂到 mascotRegistry。
  */
+/** 性能指标写入 store 的间隔（秒） */
+const PERF_REPORT_INTERVAL_S = 1;
+
 export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
   modelPath,
   modelConfig,
@@ -39,12 +43,19 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
   const [useFallback, setUseFallback] = useState(false);
 
   const { scene } = useThree();
-  const { currentExpression, setIsLoaded, updatePerformanceMetrics } = useCharacter3DStore();
+  // 用选择器分别订阅：整仓订阅会让性能指标的每次写入都重渲染本组件
+  const currentExpression = useCharacter3DStore((s) => s.currentExpression);
+  const setIsLoaded = useCharacter3DStore((s) => s.setIsLoaded);
+  const updatePerformanceMetrics = useCharacter3DStore((s) => s.updatePerformanceMetrics);
+  // 帧率统计累加在 ref 里，每秒才写入一次 store（逐帧 set 会触发 60Hz 的 store 更新）
+  const perfAcc = useRef({ frames: 0, elapsed: 0 });
 
   useEffect(() => {
     let cancelled = false;
     let detach: (() => void) | null = null;
     const url = modelPath || DEFAULT_VRM_MODEL_PATH;
+    // VRM 加载流程是外部数据同步：挂载 / 切换 modelPath 时初次拉取并派生 loading / fallback 状态
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!url) {
       // no bundled VRM: only user/store models reach the 3D path
       setUseFallback(true);
@@ -54,6 +65,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     loader.register((parser) => new VRMLoaderPlugin(parser));
     setUseFallback(false);
     setIsLoaded(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
     loader
       .loadAsync(url)
       .then((gltf) => {
@@ -87,7 +99,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
             mascotRegistry.refresh();
             perfMark('mascot-motions-loaded');
           })
-          .catch((err) => console.warn('VRMCharacterController: 动作库加载失败', err));
+          .catch((err) => log.warn('动作库加载失败', err));
         setIsLoaded(true);
         onModelLoaded?.(vrm);
         perfMark('mascot-model-loaded');
@@ -95,7 +107,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
       })
       .catch((err) => {
         if (cancelled) return;
-        console.warn('VRMCharacterController: VRM 加载失败，使用占位角色', err);
+        log.warn('VRM 加载失败，使用占位角色', err);
         setUseFallback(true);
         setIsLoaded(true);
         onError?.(err instanceof Error ? err.message : String(err));
@@ -107,6 +119,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
       backendRef.current = null;
       const vrm = vrmRef.current;
       if (vrm) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup 期间访问 group 是 three.js 的回收需求
         groupRef.current?.remove(vrm.scene);
         VRMUtils.deepDispose(vrm.scene);
         vrmRef.current = null;
@@ -140,14 +153,22 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     // If we somehow stalled, still advance once so the pose doesn't freeze
     if (steps === 0) vrm.update(dt);
     onAnimationUpdate?.(vrm, dt);
-    updatePerformanceMetrics({
-      fps: 1 / Math.max(raw, 1e-4),
-      memoryMB:
-        ((performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
-          ?.usedJSHeapSize ?? 0) /
-        1024 /
-        1024,
-    });
+    // 用未截断的真实帧间隔统计平均帧率（raw 被截到 1/20，会掩盖真正的卡顿）
+    const acc = perfAcc.current;
+    acc.frames += 1;
+    acc.elapsed += Math.max(delta, 0);
+    if (acc.elapsed >= PERF_REPORT_INTERVAL_S) {
+      updatePerformanceMetrics({
+        fps: acc.frames / acc.elapsed,
+        memoryMB:
+          ((performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
+            ?.usedJSHeapSize ?? 0) /
+          1024 /
+          1024,
+      });
+      acc.frames = 0;
+      acc.elapsed = 0;
+    }
   });
 
   if (useFallback) {

@@ -49,6 +49,14 @@ describe('ScreenPanel', () => {
     expect(r.getByText('本地')).toBeTruthy();
   });
 
+  it('initialTab 指定首次落在哪个内层标签', async () => {
+    mockIpc();
+    const r = render(<ScreenPanel isVisible onClose={() => undefined} initialTab="privacy" />);
+    await waitFor(() => expect(r.getByRole('tab', { name: '隐私与排除' })).toBeTruthy());
+    expect(r.getByRole('tab', { name: '隐私与排除' }).getAttribute('aria-selected')).toBe('true');
+    expect(r.getByRole('tab', { name: '截图提问' }).getAttribute('aria-selected')).toBe('false');
+  });
+
   it('screen memory is off by default and can be enabled', async () => {
     const invoke = mockIpc();
     const r = render(<ScreenPanel isVisible onClose={() => undefined} />);

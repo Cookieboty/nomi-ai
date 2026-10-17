@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { DesktopBubble } from '@nomi-ai/types';
 import {
   app,
   BrowserWindow,
@@ -138,8 +139,8 @@ export class DesktopService {
     });
   }
 
-  say(text: string): void {
-    this.main()?.webContents.send('desktop:bubble', { text });
+  say(text: string, opts: Omit<DesktopBubble, 'text'> = {}): void {
+    this.main()?.webContents.send('desktop:bubble', { text, ...opts });
   }
 
   /** 到点：看板娘挥手 + 提醒卡片（气泡）+ 系统通知 */
@@ -196,7 +197,7 @@ export class DesktopService {
     try {
       if (osNotify && Notification.isSupported()) {
         const n = new Notification({
-          title: tr('⏰ 提醒'),
+          title: tr('提醒'),
           body: r.text,
           silent: false,
           icon: iconImage(),

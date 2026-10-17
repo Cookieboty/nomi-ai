@@ -1,0 +1,198 @@
+.md {
+  font-size: var(--cd-font-size-md);
+  line-height: 1.7;
+  color: var(--cd-color-text);
+  overflow-wrap: anywhere;
+}
+.md > :first-child {
+  margin-top: 0;
+}
+.md > :last-child {
+  margin-bottom: 0;
+}
+.md p {
+  margin: 0 0 0.7em;
+}
+.md h2,
+.md h3,
+.md h4,
+.md h5,
+.md h6 {
+  margin: 1.1em 0 0.45em;
+  line-height: 1.35;
+  font-weight: var(--cd-font-weight-bold);
+}
+.md h2 {
+  font-size: 1.25em;
+}
+.md h3 {
+  font-size: 1.12em;
+}
+.md h4,
+.md h5,
+.md h6 {
+  font-size: 1em;
+}
+.md ul,
+.md ol {
+  margin: 0 0 0.7em;
+  padding-left: 1.4em;
+}
+.md li {
+  margin: 0.2em 0;
+}
+.md li > p {
+  margin: 0;
+}
+.md li > ul,
+.md li > ol {
+  margin: 0.2em 0 0;
+}
+.task {
+  list-style: none;
+  margin-left: -1.2em;
+}
+.task input {
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+.md a {
+  color: var(--cd-bubble-link, var(--cd-color-accent-2));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.md blockquote {
+  margin: 0 0 0.7em;
+  padding: 0 0 0 12px;
+  border-left: 3px solid var(--cd-color-border-strong);
+  color: var(--cd-color-text-muted);
+}
+.md hr {
+  border: none;
+  border-top: 1px solid var(--cd-color-border);
+  margin: 1em 0;
+}
+.inlineCode {
+  font-family: var(--cd-font-mono);
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+}
+.codeBlock {
+  margin: 0 0 0.8em;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  overflow: hidden;
+}
+.codeHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 6px 3px 10px;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+  border-bottom: 1px solid var(--cd-color-border);
+}
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--cd-radius-xs);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.copyBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.copyBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent);
+}
+.codePre {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 420px;
+  overflow: auto;
+  font-family: var(--cd-font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+}
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 0 0.8em;
+}
+.md table {
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.md th,
+.md td {
+  padding: 4px 10px;
+  border: 1px solid var(--cd-color-border);
+}
+.md th {
+  background: var(--cd-color-surface-sunken);
+  font-weight: var(--cd-font-weight-medium);
+}
+
+/* rehype-highlight 产出的 .hljs-* class：映射到当前主题的 token 颜色，
+   不依赖具体明暗主题的硬编码色值。*/
+.codePre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+}
+.codePre .hljs-comment,
+.codePre .hljs-quote,
+.codePre .hljs-meta {
+  color: var(--cd-color-text-muted);
+  font-style: italic;
+}
+.codePre .hljs-keyword,
+.codePre .hljs-selector-tag,
+.codePre .hljs-literal,
+.codePre .hljs-section,
+.codePre .hljs-link,
+.codePre .hljs-doctag {
+  color: var(--cd-color-accent-2, #c678dd);
+  font-weight: var(--cd-font-weight-medium);
+}
+.codePre .hljs-string,
+.codePre .hljs-title,
+.codePre .hljs-name,
+.codePre .hljs-type,
+.codePre .hljs-attribute,
+.codePre .hljs-symbol,
+.codePre .hljs-bullet,
+.codePre .hljs-addition,
+.codePre .hljs-variable,
+.codePre .hljs-template-tag,
+.codePre .hljs-template-variable {
+  color: var(--cd-color-success, #98c379);
+}
+.codePre .hljs-number,
+.codePre .hljs-regexp,
+.codePre .hljs-built_in,
+.codePre .hljs-class .hljs-title,
+.codePre .hljs-params {
+  color: var(--cd-color-warning, #d19a66);
+}
+.codePre .hljs-deletion {
+  color: var(--cd-color-danger, #e06c75);
+}
+.codePre .hljs-emphasis {
+  font-style: italic;
+}
+.codePre .hljs-strong {
+  font-weight: var(--cd-font-weight-bold);
+}

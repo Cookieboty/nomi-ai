@@ -1,5 +1,6 @@
-import { t as tr } from '@nomi-ai/ui';
+import { t as tr, Icon } from '@nomi-ai/ui';
 import { Badge, Button, Input } from '@nomi-ai/ui';
+import { Lock, TriangleAlert } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { providerClient, type ProviderView, type TestResult } from '../../services/providerClient';
@@ -36,10 +37,12 @@ export const KeyManager: React.FC<{ p: ProviderView; onError: (e: unknown) => vo
             {i === 0 ? tr('主') : tr('备用 {0}', i)}
           </Badge>
           {k.encryption === 'none' ? (
-            <Badge tone="warning">{tr('⚠️ 未加密')}</Badge>
+            <Badge tone="warning" icon={TriangleAlert}>
+              {tr('未加密')}
+            </Badge>
           ) : (
             <span className="cd-muted" title={tr('safeStorage 加密')}>
-              🔒
+              <Icon icon={Lock} size={14} />
             </span>
           )}
           {k.lastError && (

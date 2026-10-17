@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import React, {
   createContext,
   useCallback,
@@ -10,6 +11,7 @@ import React, {
 
 import { cx } from './cx';
 import { t as tr } from './i18n';
+import { Icon } from './icons';
 
 export type ToastTone = 'info' | 'success' | 'warning' | 'danger';
 
@@ -49,7 +51,7 @@ export const Toast: React.FC<{
         aria-label={tr('关闭提示')}
         onClick={onClose}
       >
-        ✕
+        <Icon icon={X} />
       </button>
     )}
   </div>

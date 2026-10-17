@@ -1,0 +1,688 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* 图表语义色：全部走主题 token，换主题自动跟随 */
+  --usage-in: var(--cd-color-accent);
+  --usage-out: var(--cd-color-accent-3);
+  --usage-cost: var(--cd-color-accent-2);
+}
+.head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.h2 {
+  font-size: var(--cd-font-size-lg);
+  font-weight: 600;
+  margin: 4px 0;
+  color: var(--cd-color-text);
+}
+.grow {
+  flex: 1;
+}
+.sub {
+  margin: -6px 0 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+  line-height: 1.7;
+}
+.dim {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+p.dim {
+  line-height: 1.7;
+  margin: 6px 0;
+}
+.panel > p.dim,
+.panel > .err {
+  margin: 0;
+}
+.err {
+  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  font-size: var(--cd-font-size-sm);
+  margin: 6px 0;
+}
+.ok {
+  color: var(--cd-color-success);
+  font-size: var(--cd-font-size-sm);
+}
+.up {
+  color: var(--cd-color-warning);
+}
+.down {
+  color: var(--cd-color-success);
+}
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--cd-color-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tabsSm {
+  font-size: var(--cd-font-size-xs);
+}
+
+/* 摘要卡片 */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 14px 10px;
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  overflow: hidden;
+  min-width: 0;
+}
+.cardLabel {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.cardValue {
+  font-size: var(--cd-font-size-2xl);
+  font-weight: 600;
+  color: var(--cd-color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.cardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-size: var(--cd-font-size-xs);
+  min-height: 18px;
+}
+.spark {
+  width: 100%;
+  height: 32px;
+  margin-top: 4px;
+}
+.sparkLine {
+  fill: none;
+  stroke: var(--usage-in);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.sparkArea {
+  fill: var(--cd-color-accent-soft);
+  stroke: none;
+}
+
+/* 面板 */
+.panel {
+  /* 卡片内统一用 gap 排垂直间距：子元素之间 12px，卡片内边距 14px 16px */
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  min-width: 0;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.panelHead h3 {
+  margin: 0;
+  flex: 1;
+  font-size: var(--cd-font-size-md);
+  font-weight: 600;
+  color: var(--cd-color-text);
+}
+.two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 900px) {
+  .two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 趋势图 */
+.trendTip {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  min-height: 20px;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.trendTip b {
+  color: var(--cd-color-text);
+  font-weight: 600;
+}
+.trendSvg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.grid {
+  stroke: var(--cd-color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.axis {
+  fill: var(--cd-color-text-subtle);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.barIn {
+  fill: var(--usage-in);
+}
+.barOut {
+  fill: var(--usage-out);
+}
+.barCost {
+  fill: var(--usage-cost);
+}
+.barOn rect:not([fill='transparent']) {
+  opacity: 0.8;
+}
+.legend {
+  display: flex;
+  gap: 14px;
+  justify-content: flex-end;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dotIn,
+.dotOut {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.dotIn {
+  background: var(--usage-in);
+}
+.dotOut {
+  background: var(--usage-out);
+}
+
+/* 分布 / 排行 */
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--cd-font-size-sm);
+  min-width: 0;
+}
+.rank {
+  width: 16px;
+  text-align: center;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text);
+}
+.rowNum,
+.rowShare,
+.rowCost {
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-muted);
+  text-align: right;
+  white-space: nowrap;
+}
+.rowNum {
+  min-width: 52px;
+}
+.rowShare {
+  min-width: 40px;
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.rowCost {
+  min-width: 64px;
+  color: var(--cd-color-text);
+}
+.warnMark {
+  color: var(--cd-color-warning);
+  margin-left: 2px;
+}
+.bar {
+  margin-top: 5px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--cd-color-hover);
+  overflow: hidden;
+}
+.bar i {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--usage-in);
+}
+
+/* 热力图 */
+.heatWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.heatGrid {
+  --heat-label-w: 26px;
+  display: grid;
+  gap: 2px;
+  justify-content: start;
+  max-width: 100%;
+}
+.heatMonth {
+  grid-row: 1;
+  height: 16px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+  overflow: visible;
+}
+.heatWeekday {
+  grid-column: 1;
+  align-self: center;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+}
+.heatGrid .heatCell {
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  aspect-ratio: 1;
+}
+.heatCell {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-block;
+}
+i.heatCell {
+  cursor: default;
+}
+.heatCell:focus-visible,
+.heatSel {
+  outline: 2px solid var(--cd-color-text);
+  outline-offset: 1px;
+}
+.lv0 {
+  background: var(--cd-color-hover);
+  box-shadow: inset 0 0 0 1px var(--cd-color-border);
+}
+.lv1 {
+  background: rgba(var(--cd-accent-rgb), 0.28);
+}
+.lv2 {
+  background: rgba(var(--cd-accent-rgb), 0.5);
+}
+.lv3 {
+  background: rgba(var(--cd-accent-rgb), 0.75);
+}
+.lv4 {
+  background: rgb(var(--cd-accent-rgb));
+}
+.heatLegend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  font-size: 11px;
+  color: var(--cd-color-text-subtle);
+}
+.dayBox {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 12px;
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-hover);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.dayBox b {
+  color: var(--cd-color-text);
+}
+
+/* 明细 / 价格表 */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.tableWrap {
+  container-type: inline-size;
+  overflow-x: auto;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cd-font-size-sm);
+}
+.table th,
+.table td {
+  padding: 7px 9px;
+  text-align: left;
+  border-bottom: 1px solid var(--cd-color-border);
+  vertical-align: middle;
+}
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+.table th {
+  font-weight: 500;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+  background: var(--cd-color-bg-subtle);
+}
+.table tbody tr:hover {
+  background: var(--cd-color-hover);
+}
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.mono {
+  font-family: var(--cd-font-mono, monospace);
+  font-size: var(--cd-font-size-xs);
+  white-space: nowrap;
+}
+.sortBtn {
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.sortBtn:hover {
+  color: var(--cd-color-text);
+}
+.srcCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.estBadge {
+  margin-left: 6px;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.fxRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.rate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.rate input {
+  width: 84px;
+}
+.priceIn {
+  width: 92px;
+  min-width: 56px;
+  max-width: 100%;
+  text-align: right;
+}
+.actionsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border-radius: var(--cd-radius-full);
+  border: 1px solid var(--cd-color-border-strong);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--cd-color-hover);
+}
+
+.filterSel {
+  width: 168px;
+  flex: none;
+}
+.sessCell {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub2 {
+  font-size: 11px;
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.budgetGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px 16px;
+}
+.budgetField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.amount {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cd-color-text-muted);
+}
+.amount input {
+  flex: 1;
+  min-width: 0;
+}
+.switchCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 订阅额度 */
+.quotaEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+}
+.quotaName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.quotaList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px 20px;
+}
+.quotaWin {
+  min-width: 0;
+}
+.quotaWinHead {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.quotaWinHead b {
+  color: var(--cd-color-text);
+  font-weight: 600;
+}
+.quotaBar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cd-color-hover);
+  overflow: hidden;
+}
+.quotaBar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--usage-in);
+}
+.quotaMid i {
+  background: var(--cd-color-warning);
+}
+.quotaHigh i {
+  background: var(--cd-color-danger);
+}
+.quotaNone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.quotaNotes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--cd-font-size-sm);
+}
+.quotaHook {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-hover);
+}
+.quotaHook > p {
+  margin: 0;
+}
+
+/* 明细表随容器宽度收起次要列（缓存 / 合计），保证不出现横向滚动 */
+@container (max-width: 700px) {
+  .colCache {
+    display: none;
+  }
+}
+@container (max-width: 640px) {
+  .colTotal {
+    display: none;
+  }
+}
+@container (max-width: 600px) {
+  .table th,
+  .table td {
+    padding: 6px 5px;
+  }
+  .colTime {
+    white-space: normal;
+    min-width: 64px;
+  }
+  .srcText {
+    display: none;
+  }
+  .sub2 {
+    max-width: 120px;
+  }
+}

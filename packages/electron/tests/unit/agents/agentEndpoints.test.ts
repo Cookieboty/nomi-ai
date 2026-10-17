@@ -231,7 +231,10 @@ describe('Nomi tabs in the aggregated monitor', () => {
       text: 'All tests pass',
       background: true,
     });
-    expect(say).toHaveBeenCalledWith(expect.stringContaining('Codex'));
+    expect(say).toHaveBeenCalledWith(expect.stringContaining('Codex'), {
+      kind: 'done',
+      voice: 'cue',
+    });
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({ kind: 'agent', endpoint: 'codex', status: 'done' }),
     );

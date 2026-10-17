@@ -1,7 +1,9 @@
+import type { LucideIcon } from 'lucide-react';
 import React from 'react';
 
 import { BRAND_ICONS } from './brand/icons';
 import { cx } from './cx';
+import { Icon } from './icons';
 
 export interface BrandIconProps {
   /** 品牌 id（见 brand/icons.ts）；未知时回退为首字母 */
@@ -10,6 +12,8 @@ export interface BrandIconProps {
   name: string;
   size?: number;
   className?: string;
+  /** 没有品牌图标时用 lucide 图标代替首字母（如「自定义」） */
+  fallbackIcon?: LucideIcon;
 }
 
 function initials(name: string): string {
@@ -29,9 +33,21 @@ export function hasBrandIcon(brand?: string): boolean {
  * 供应商品牌图标。SVG 来自 @lobehub/icons-static-svg（MIT），以 data URI 渲染（不使用 innerHTML）；
  * 单色图标用 CSS mask 跟随 currentColor。没有图标时显示首字母头像。
  */
-export function BrandIcon({ brand, name, size = 28, className }: BrandIconProps) {
+export function BrandIcon({ brand, name, size = 28, className, fallbackIcon }: BrandIconProps) {
   const icon = brand ? BRAND_ICONS[brand] : undefined;
   const box: React.CSSProperties = { width: size, height: size };
+  if (!icon && fallbackIcon) {
+    return (
+      <span
+        className={cx('cd-brand cd-brand--initials', className)}
+        style={box}
+        aria-hidden
+        data-brand="fallback-icon"
+      >
+        <Icon icon={fallbackIcon} size={Math.round(size * 0.55)} />
+      </span>
+    );
+  }
   if (!icon) {
     return (
       <span

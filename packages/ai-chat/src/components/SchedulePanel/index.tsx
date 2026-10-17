@@ -1,7 +1,7 @@
 /**
  * SchedulePanel —— 主动日程：提醒（含重复）、定时任务（每日简报等）、主动聊天、免打扰与通知。
  */
-import { ErrorState, LoadingState, t as tr } from '@nomi-ai/ui';
+import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -15,6 +15,7 @@ import {
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
+import { ListChecks, Bell, MessageCircle, Moon, Plus, Sun } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { describeRepeat, type RepeatRule } from '../../services/desktopClient';
@@ -26,9 +27,9 @@ import {
   type SchedTask,
   type TaskResult,
 } from '../../services/schedClient';
-import { RemindersTab } from '../DesktopPanel/RemindersTab';
 
 import styles from './index.module.css';
+import { RemindersTab } from './RemindersTab';
 
 type Tab = 'reminders' | 'tasks' | 'proactive' | 'quiet';
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -168,20 +169,17 @@ const TaskEditor: React.FC<{
   );
 };
 
-export type ScheduleTab = Tab;
 export const SchedulePanel: React.FC<{
   isVisible: boolean;
   onClose: () => void;
-  initialTab?: Tab;
-}> = ({ isVisible, onClose, initialTab }) =>
-  isVisible ? <Body onClose={onClose} initialTab={initialTab} /> : null;
+}> = ({ isVisible, onClose }) => (isVisible ? <Body onClose={onClose} /> : null);
 
-const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, initialTab }) => {
+const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [st, setSt] = useState<SchedState | null>(null);
   const [results, setResults] = useState<TaskResult[]>([]);
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
-  const [tab, setTab] = useState<Tab>(initialTab ?? 'reminders');
+  const [tab, setTab] = useState<Tab>('reminders');
   const [editing, setEditing] = useState<SchedTask | 'new' | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -196,6 +194,8 @@ const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, in
     }
   }, []);
   useEffect(() => {
+    // 初次拉取 + 订阅后端变更 + 定时刷新：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     const off = schedClient.onChanged(() => void refresh());
     const t = setInterval(() => void refresh(), 15_000);
@@ -247,13 +247,7 @@ const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, in
   };
 
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={tr('🗓️ 日程与主动提醒')}
-      size="lg"
-      data-testid="sched-panel"
-    >
+    <Modal open onClose={onClose} title={tr('日程与主动提醒')} size="lg" data-testid="sched-panel">
       <div className={styles.stack}>
         {err && (
           <ErrorState detail={err} onRetry={() => void refresh()} data-testid="panel-error" />
@@ -262,23 +256,25 @@ const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, in
         {st && (
           <>
             <div className={styles.statusRow}>
-              <Badge tone={st.quietNow ? 'warning' : 'success'} data-testid="quiet-badge">
-                {st.quietNow
-                  ? tr('🌙 免打扰中（至 {0}）', st.settings.quiet.end)
-                  : tr('🔔 正常提醒')}
+              <Badge
+                tone={st.quietNow ? 'warning' : 'success'}
+                icon={st.quietNow ? Moon : Bell}
+                data-testid="quiet-badge"
+              >
+                {st.quietNow ? tr('免打扰中（至 {0}）', st.settings.quiet.end) : tr('正常提醒')}
               </Badge>
               {st.deferred > 0 && (
                 <Badge tone="warning">
                   {st.deferred} {tr('条提醒待补报')}
                 </Badge>
               )}
-              <Badge>
+              <Badge icon={MessageCircle}>
                 {st.settings.proactive.enabled
-                  ? tr('💬 主动聊天：今天 {0} 次', st.proactive.today)
-                  : tr('💬 主动聊天：关')}
+                  ? tr('主动聊天：今天 {0} 次', st.proactive.today)
+                  : tr('主动聊天：关')}
               </Badge>
-              <Badge>
-                {tr('📋 定时任务')} {st.tasks.filter((t) => t.enabled).length} {tr('个')}
+              <Badge icon={ListChecks}>
+                {tr('定时任务')} {st.tasks.filter((t) => t.enabled).length} {tr('个')}
               </Badge>
             </div>
             <Tabs
@@ -319,7 +315,8 @@ const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, in
                       onClick={() => setEditing('new')}
                       data-testid="task-new"
                     >
-                      {tr('＋ 新建任务')}
+                      <Icon icon={Plus} size={14} />
+                      {tr('新建任务')}
                     </Button>
                     {!st.tasks.some((t) => t.template === 'briefing') && (
                       <Button
@@ -327,14 +324,15 @@ const Body: React.FC<{ onClose: () => void; initialTab?: Tab }> = ({ onClose, in
                         onClick={() => void addBriefing()}
                         data-testid="task-add-briefing"
                       >
-                        {tr('☀️ 添加每日简报')}
+                        <Icon icon={Sun} size={14} />
+                        {tr('添加每日简报')}
                       </Button>
                     )}
                   </div>
                 )}
                 {st.tasks.length === 0 && !editing ? (
                   <EmptyState
-                    icon="📋"
+                    icon={ListChecks}
                     title={tr('还没有定时任务')}
                     description={tr('让 Nomi 每天早上给你一份简报，或者每周五提醒你写周报。')}
                   />

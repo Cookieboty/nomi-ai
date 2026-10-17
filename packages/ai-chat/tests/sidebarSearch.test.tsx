@@ -87,12 +87,13 @@ function mockIpc() {
       };
     }
     if (ch === 'ai:history:index') {
-      const [b, o] = args as [string, { offset?: number }];
+      const [b, o] = args as [string, { offset?: number; limit?: number }];
       const pages = indexPages[b] ?? [[]];
-      const i = o.offset ?? 0;
-      const items = pages[i] ?? [];
-      const more = i + 1 < pages.length;
-      return { items, nextOffset: more ? i + 1 : null, hasMore: more };
+      // offset 是文件游标：每页 20 条（与后端 HISTORY_PAGE_SIZE 一致）
+      const pi = (o.offset ?? 0) / 20;
+      const items = pages[pi] ?? [];
+      const more = pi + 1 < pages.length;
+      return { items, nextOffset: more ? (o.offset ?? 0) + 20 : null, hasMore: more };
     }
     if (ch === 'ai:history:open') return { ok: true };
     return {};
@@ -225,18 +226,16 @@ describe('sidebar search', () => {
     expect(keys.filter((k) => k === 'claude-1')).toHaveLength(1);
   });
 
-  it('no match: empty state, and "搜索更早的历史" fetches the next index chunk', async () => {
+  it('no match: empty state, and "搜索更早的历史" fetches the next page', async () => {
     indexPages.claude = [[h('claude', 1)], [h('claude', 7, { title: 'ancient zebra migration' })]];
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    // 自动取块上限很大，这里让第二块留给按钮：只取第一块后停（用 hasMore 状态判断）
+    // 第一页没有 zebra → 空态且可加载更早（等第一页加载完、按钮出现）
     await type(r, 'zebra');
-    await waitFor(() =>
-      expect(titles(r).length + (r.queryByTestId('sidebar-search-empty') ? 1 : 0)).toBeGreaterThan(
-        0,
-      ),
-    );
-    // 自动取块会继续到第二块 → 最终命中
+    await waitFor(() => r.getByTestId('sidebar-search-more'));
+    expect(r.getByTestId('sidebar-search-empty').textContent).toBe('没有匹配的会话');
+    // 点「搜索更早的历史」取下一页 → 命中
+    fireEvent.click(r.getByTestId('sidebar-search-more'));
     await waitFor(() => expect(titles(r).some((t) => t.includes('zebra'))).toBe(true));
     fireEvent.change(r.getByTestId('sidebar-search-input'), { target: { value: 'qqqqzzzz' } });
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
@@ -268,40 +267,62 @@ describe('sidebar search', () => {
 });
 
 describe('large history', () => {
-  it('auto-indexes up to 2000 per endpoint, then "搜索更早的历史" pulls the next chunk', async () => {
+  it('搜索时先取第一页（20），「搜索更早的历史」逐页加载，最多索引到每端 100 条', async () => {
     const page = (p: number) =>
-      Array.from({ length: 500 }, (_, i) => h('claude', p * 500 + i, { title: `bulk ${p}-${i}` }));
+      Array.from({ length: 20 }, (_, i) => h('claude', p * 20 + i, { title: `bulk ${p}-${i}` }));
+    // 6 页 × 20，但前端只索引到第 100 条（5 页）
     indexPages = { claude: [0, 1, 2, 3, 4, 5].map(page), codex: [[]] };
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'qqqzzzxxx');
-    await waitFor(
-      () =>
-        expect((r.getByTestId('sidebar-search-more') as HTMLButtonElement).disabled).toBe(false),
-      { timeout: 5000 },
-    );
-    // 自动索引在每端 2000 条（4 块）处停下
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(4);
-    const before = calls.filter(([c]) => c === 'ai:history:index').length;
-    fireEvent.click(r.getByTestId('sidebar-search-more'));
-    await waitFor(() =>
-      expect(calls.filter(([c]) => c === 'ai:history:index').length).toBeGreaterThan(before),
-    );
-    const last = calls.filter(([c]) => c === 'ai:history:index').at(-1)!;
-    expect((last[1][1] as { offset?: number }).offset).toBe(4);
+    // 第一页取回后按钮可点（共 6 页）
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
+    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(1);
+    // 逐页点到第 5 页（offset=80）为止：累计 100 条后前端主动收尾，按钮消失。
+    // loading 期间按钮是 disabled，需要等它恢复可用再点
+    const clickMoreWhenEnabled = async () => {
+      await waitFor(() =>
+        expect((r.getByTestId('sidebar-search-more') as HTMLButtonElement).disabled).toBe(false),
+      );
+      fireEvent.click(r.getByTestId('sidebar-search-more'));
+    };
+    for (const off of [20, 40, 60, 80]) {
+      await clickMoreWhenEnabled();
+      await waitFor(() =>
+        expect(
+          calls.filter(
+            ([c, a]) => c === 'ai:history:index' && (a[1] as { offset?: number }).offset === off,
+          ),
+        ).toHaveLength(1),
+      );
+    }
+    // 累计 5 次（首页 + 4 次更多），到 100 条硬上限；第 6 页不会再被请求
+    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(5);
+    await waitFor(() => expect(r.queryByTestId('sidebar-search-more')).toBeNull());
   });
 
-  it('renders at most 200 results and says so', async () => {
-    indexPages = {
-      claude: [Array.from({ length: 400 }, (_, i) => h('claude', i, { title: `same title ${i}` }))],
-      codex: [[]],
-    };
+  it('renders at most 100 results and says so', async () => {
+    // claude 与 codex 各 5 页 × 20 = 各 100 条同名命中 → 合并候选 200 条，超过渲染上限 100
+    const makePages = (backend: 'claude' | 'codex') =>
+      [0, 1, 2, 3, 4].map((p) =>
+        Array.from({ length: 20 }, (_, i) =>
+          h(backend, p * 20 + i, {
+            key: `${backend}:${p * 20 + i}`,
+            title: `same title ${p * 20 + i}`,
+          }),
+        ),
+      );
+    indexPages = { claude: makePages('claude'), codex: makePages('codex') };
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'same title');
+    // 首页自动取（各 20），再点 4 次「更早」把两端都取满到 100；每次点击前按钮须仍在
+    for (let n = 0; n < 4; n++) {
+      await waitFor(() => r.getByTestId('sidebar-search-more'));
+      fireEvent.click(r.getByTestId('sidebar-search-more'));
+    }
     await waitFor(() => r.getByTestId('sidebar-search-capped'), { timeout: 5000 });
-    expect(r.getAllByTestId('search-result')).toHaveLength(200);
+    expect(r.getAllByTestId('search-result')).toHaveLength(100);
   });
 });
 

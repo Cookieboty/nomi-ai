@@ -4,7 +4,8 @@
  * 没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
  * 进度与日志来自主进程按行推送的事件；失败原因原样展示。
  */
-import { Button, Modal, Notice, t } from '@nomi-ai/ui';
+import { Button, Modal, Notice, t, Icon } from '@nomi-ai/ui';
+import { CircleCheck, CircleX } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -23,6 +24,7 @@ const NAME: Record<CliUpdatableKind, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
+  grok: 'Grok',
 };
 
 export type VersionState = 'missing' | 'outdated' | 'current' | 'unknown';
@@ -45,6 +47,15 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   const [result, setResult] = useState<CliRunResult | null>(null);
   const [error, setError] = useState('');
   const logRef = useRef<HTMLPreElement>(null);
+  // kind 切换时渲染期同步清空本卡片的瞬态状态（setState-during-render 模式）
+  const [lastKind, setLastKind] = useState(kind);
+  if (lastKind !== kind) {
+    setLastKind(kind);
+    setInfo(null);
+    setResult(null);
+    setLines([]);
+    setRunning(false);
+  }
 
   const load = useCallback(
     async (refreshLatest: boolean) => {
@@ -70,10 +81,8 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   }, []);
 
   useEffect(() => {
-    setInfo(null);
-    setResult(null);
-    setLines([]);
-    setRunning(false);
+    // 挂载 / kind 变化时初次拉取 + 订阅主进程事件：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(false);
     let alive = true;
     const off = cliUpdateClient.onEvent((e) => {
@@ -303,6 +312,11 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
                     data-testid={`cli-version-req-${r.id}`}
                     data-ok={r.ok ? '1' : '0'}
                   >
+                    <Icon
+                      icon={r.ok ? CircleCheck : CircleX}
+                      size={14}
+                      className={styles.reqIcon}
+                    />
                     {r.label} — {r.detail}
                   </li>
                 ))}

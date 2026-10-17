@@ -40,6 +40,13 @@ function startUpstream(
   });
 }
 
+/** 带上本地路由令牌的 fetch（路由要求 x-api-key / Bearer 令牌） */
+const routeFetch = (svc: CliRouteService, input: string, init: RequestInit = {}) =>
+  fetch(input, {
+    ...init,
+    headers: { 'x-api-key': svc.authToken(), ...((init.headers as Record<string, string>) ?? {}) },
+  });
+
 async function startRoute(kind: 'claude' | 'codex', baseUrl: string, apiFormat: CliApiFormat) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-route-'));
   const probe = http.createServer();
@@ -97,7 +104,7 @@ describe('CliRouteService streaming', () => {
     const { svc, url } = await startRoute('claude', up.base, 'openai_chat_completions');
     cleanup.push(up.close, () => svc.stop());
 
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({
         model: 'x',
@@ -133,7 +140,7 @@ describe('CliRouteService streaming', () => {
       'gemini_generate_content' as CliApiFormat,
     );
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, messages: [{ role: 'user', content: 'hi' }] }),
     });
@@ -166,7 +173,7 @@ describe('CliRouteService streaming', () => {
     const up = await startUpstream((_r, res) => writeSlowly(res, raw));
     const { svc, url } = await startRoute('codex', up.base, 'anthropic_messages');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, input: [{ role: 'user', content: 'hi' }] }),
     });
@@ -182,7 +189,7 @@ describe('CliRouteService streaming', () => {
     const up = await startUpstream((_r, res) => writeSlowly(res, raw, 4));
     const { svc, url } = await startRoute('codex', up.base, 'openai_responses');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, input: [] }),
     });
@@ -197,7 +204,7 @@ describe('CliRouteService streaming', () => {
     });
     const { svc, url } = await startRoute('codex', up.base, 'openai_chat_completions');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, input: [{ role: 'user', content: 'hi' }] }),
     });
@@ -212,7 +219,7 @@ describe('CliRouteService streaming', () => {
     });
     const { svc, url } = await startRoute('claude', up.base, 'openai_responses');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, messages: [] }),
     });
@@ -252,7 +259,7 @@ describe('CliRouteService JSON → SSE fallback', () => {
     );
     const { svc, url } = await startRoute('claude', up.base, 'openai_chat_completions');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, messages: [{ role: 'user', content: 'hi' }] }),
     });
@@ -289,7 +296,7 @@ describe('CliRouteService JSON → SSE fallback', () => {
     );
     const { svc, url } = await startRoute('codex', up.base, 'anthropic_messages');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, input: 'hi' }),
     });
@@ -309,7 +316,7 @@ describe('CliRouteService JSON → SSE fallback', () => {
     );
     const { svc, url } = await startRoute('codex', up.base, 'openai_responses');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({ stream: true, input: 'hi' }),
     });
@@ -322,7 +329,7 @@ describe('CliRouteService JSON → SSE fallback', () => {
     const up = await startUpstream(json({ id: 'c', choices: [{ message: { content: 'pong' } }] }));
     const { svc, url } = await startRoute('claude', up.base, 'openai_chat_completions');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] }),
     });
@@ -355,7 +362,7 @@ describe('CliRouteService non-streaming conversion', () => {
     });
     const { svc, url } = await startRoute('claude', up.base, 'openai_chat_completions');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/messages`, {
+    const res = await routeFetch(svc, `${url}/v1/messages`, {
       method: 'POST',
       body: JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] }),
     });
@@ -386,7 +393,7 @@ describe('CliRouteService custom tools', () => {
     });
     const { svc, url } = await startRoute('codex', up.base, 'anthropic_messages');
     cleanup.push(up.close, () => svc.stop());
-    const res = await fetch(`${url}/v1/responses`, {
+    const res = await routeFetch(svc, `${url}/v1/responses`, {
       method: 'POST',
       body: JSON.stringify({
         input: 'hi',

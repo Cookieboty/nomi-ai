@@ -10,7 +10,7 @@
  * 目的：让 P8 消费方（renderer / ai-chat）能快速迁移，同时保持极小 API 面积。
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { SDKError, SDKErrorCodes } from '../errors';
 
@@ -53,6 +53,20 @@ export function useChat(): UseChatResult {
     stream: (opts: unknown) => AsyncIterable<unknown>;
     abort: (reqId: string) => void;
   };
+
+  // 组件卸载时放弃仍在进行的流，避免主进程继续生成无人接收的内容
+  useEffect(
+    () => () => {
+      const id = reqIdRef.current;
+      if (!id) return;
+      try {
+        chatFacade.abort(id);
+      } catch {
+        /* 卸载阶段不再上报 */
+      }
+    },
+    [chatFacade],
+  );
 
   const runStream = useCallback(
     async (userText: string, opts?: UseChatSendOptions) => {

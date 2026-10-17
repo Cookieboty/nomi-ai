@@ -1,0 +1,4 @@
+---
+---
+
+feat(usage): manual price sync from models.dev — a "Sync prices" button in Usage & cost → Pricing downloads the public price table (`https://models.dev/api.json`, `Accept-Encoding: br, gzip`, ETag / `If-None-Match` so unchanged data is not downloaded again) only when you click it; nothing about your usage is uploaded and there is no background polling. Only first-party providers are used (no resellers); only input / output / cache read / cache write and context tiers are kept; negative / non-numeric / incomplete entries are dropped, deprecated models never override built-in prices and built-in models are never removed. The result is cached in userData as an overlay (falls back to the built-in table on failure); priority is custom > synced > built-in, and the panel shows the table date and last sync time. Long-context tiers (e.g. > 272K) are applied per request (prompt tokens incl. cache), not per day; the built-in table now carries these tiers too.

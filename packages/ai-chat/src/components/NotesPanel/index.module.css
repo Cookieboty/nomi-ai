@@ -1,0 +1,57 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3, 12px);
+}
+
+.row {
+  display: flex;
+  gap: var(--cd-space-2, 8px);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hint {
+  font-size: var(--cd-font-size-xs, 12px);
+  color: var(--cd-color-text-muted, #9aa3b2);
+  margin: 0;
+}
+
+.msg {
+  font-size: var(--cd-font-size-sm, 13px);
+  color: var(--cd-color-text, #e6e9ef);
+}
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cardItem {
+  border: 1px solid var(--cd-color-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--cd-radius-md, 10px);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cardBtn {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--cd-font-size-sm, 13px);
+  color: var(--cd-color-text, #e6e9ef);
+}
+.cardBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent, #8ab4f8);
+  outline-offset: 2px;
+}
+.snippet {
+  font-size: var(--cd-font-size-xs, 12px);
+  color: var(--cd-color-text-muted, #9aa3b2);
+}

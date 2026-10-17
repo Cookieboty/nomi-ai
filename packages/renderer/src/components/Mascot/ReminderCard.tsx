@@ -1,6 +1,7 @@
 import type { DesktopReminderEvent } from '@nomi-ai/types';
-import { t as tr } from '@nomi-ai/ui';
+import { t as tr, Icon } from '@nomi-ai/ui';
 import { Button } from '@nomi-ai/ui';
+import { BellRing } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import styles from './DesktopConfirm.module.css';
@@ -24,7 +25,7 @@ export const ReminderCard: React.FC = () => {
       window.dispatchEvent(new CustomEvent('mascot:say', { detail: { text, ms, priority: 11 } }));
     const off1 = api.onReminder((r) => {
       setQueue((q) => [...q.filter((x) => x.id !== r.id), r]);
-      say(tr('⏰ 提醒：{0}', r.text));
+      say(tr('提醒：{0}', r.text));
     });
     // 关闭期间错过的提醒：挂载后拉取一次
     void api.takeMissedReminders().then((items) => {
@@ -63,7 +64,8 @@ export const ReminderCard: React.FC = () => {
       aria-label={tr('提醒')}
     >
       <p className={styles.text}>
-        {cur.missed ? tr('错过的提醒') : tr('⏰ 提醒')}（{time(cur.dueAt)}）：{tr(cur.text)}
+        <Icon icon={BellRing} size={14} /> {cur.missed ? tr('错过的提醒') : tr('提醒')}（
+        {time(cur.dueAt)}）：{tr(cur.text)}
       </p>
       <div className={styles.actions}>
         {queue.length > 1 && (

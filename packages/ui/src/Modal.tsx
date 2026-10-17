@@ -12,7 +12,7 @@ export interface ModalProps {
   size?: 'md' | 'lg';
   /** 点击遮罩关闭（默认 true） */
   closeOnOverlay?: boolean;
-  /** 关闭按钮的无障碍名称（默认「关闭」） */
+  /** 关闭按钮的无障碍名称（默认「关闭」；按钮可见文字固定为「关闭」） */
   closeLabel?: string;
   className?: string;
   bodyClassName?: string;
@@ -81,6 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       className={cx('cd-modal-overlay', drawer && 'cd-modal-overlay--drawer')}
+      data-testid={testId ? `${testId}-overlay` : undefined}
       onClick={closeOnOverlay ? onClose : undefined}
     >
       <div
@@ -113,12 +114,11 @@ export const Modal: React.FC<ModalProps> = ({
           )}
           <button
             type="button"
-            className="cd-btn cd-btn--ghost cd-btn--sm cd-icon-btn"
+            className="cd-btn cd-btn--ghost cd-btn--sm cd-modal__close"
             aria-label={closeLabel}
-            title={closeLabel}
             onClick={onClose}
           >
-            ✕
+            {t('关闭')}
           </button>
         </div>
         {body}

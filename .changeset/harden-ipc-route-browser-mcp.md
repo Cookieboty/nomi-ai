@@ -1,0 +1,4 @@
+---
+---
+
+fix(electron): the CLI harness, CLI provider, local route and agent-progress IPC channels now verify the sender like every other ai:* channel. fix(electron): the local CLI route only listens on loopback (0.0.0.0 / LAN hosts are rejected), validates the Host header and requires a random per-install token, which is written into the Claude Code / Codex config (re-activate a routed provider profile once to refresh it). fix(electron): the agent browser now blocks sub-resource requests (images, scripts, XHR, WebSocket, iframes) and redirects to private, link-local and cloud-metadata addresses, not only top-level navigations. fix(runtime): a failed or timed-out MCP connect now closes the client and its stdio child process instead of leaking it. fix(electron): the chat stream stops pushing chunks (and cancels generation) once the window that asked for it is destroyed.

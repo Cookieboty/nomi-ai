@@ -1,6 +1,8 @@
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
+import { isPrivateHost } from '../security/netGuard';
+
 import type { Danger } from './consent';
 import { ToolError } from './toolError';
 
@@ -99,7 +101,9 @@ export function checkUrl(raw: string): URL {
     /^169\.254\./.test(h) ||
     /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||
     /^f[cd][0-9a-f]{2}:/.test(h) ||
-    /^fe80:/.test(h);
+    /^fe80:/.test(h) ||
+    // 非常规写法（十进制 / 八进制 / 十六进制 IPv4、IPv4-mapped IPv6 等）也一并拦截
+    isPrivateHost(h);
   if (priv) throw new ToolError('blocked_url', '出于安全考虑，不能打开本机或局域网地址');
   return u;
 }
@@ -111,6 +115,10 @@ export function wrapWeb(url: string, text: string): string {
 export function wrapOutput(text: string): string {
   return `<code_output trust="untrusted">\n${text.replace(/<\/code_output>/gi, '</code_output_>')}\n</code_output>`;
 }
+
+/** Python 执行的真实隔离程度（界面与工具描述都用这句，避免「沙箱」的误导） */
+export const PYTHON_NO_ISOLATION =
+  'Python 执行没有系统级隔离：代码以你当前用户的权限运行，可读写你账户能访问的文件并访问网络，仅有临时工作目录与精简环境变量。';
 
 const LANG_LABEL: Record<CodeLanguage, string> = { javascript: 'JavaScript', python: 'Python' };
 
@@ -246,21 +254,35 @@ export function createP3Tools(
     }),
     def(
       'code_run',
-      '在隔离沙箱中运行一段 JavaScript 或 Python 代码（临时目录、无网络凭据、超时自动终止）。每次运行都必须由用户在对话框中查看代码并确认。适合计算、数据转换等。',
+      '运行一段 JavaScript 或 Python 代码（临时工作目录、精简环境变量、超时自动终止、输出截断）。JavaScript 受 Node 权限模型限制，只能读写临时目录、不能起子进程；Python 没有系统级隔离，代码以当前用户身份运行，可读写该用户有权访问的文件并访问网络。每次运行都必须由用户在对话框中查看代码并确认，Python 需要二次确认。适合计算、数据转换等。',
       codeIn,
       async (i, signal) => {
         const langs = await d.code.available();
         if (!langs.includes(i.language))
           throw new ToolError('unavailable', `本机没有可用的 ${LANG_LABEL[i.language]} 运行环境`);
         await beforeSend(signal);
+        const lines = i.code.split('\n').length;
         const decision = await confirm(
           'code_run',
-          `运行一段 ${LANG_LABEL[i.language]} 代码（${i.code.split('\n').length} 行，最长 ${i.timeoutSec} 秒）？`,
+          i.language === 'python'
+            ? `运行一段 Python 代码（${lines} 行，最长 ${i.timeoutSec} 秒）？⚠ ${PYTHON_NO_ISOLATION}`
+            : `运行一段 JavaScript 代码（${lines} 行，最长 ${i.timeoutSec} 秒）？`,
           { language: i.language, code: i.code, timeoutSec: i.timeoutSec },
           signal,
           i.code,
           { dialog: true },
         );
+        // Python 没有系统级隔离：第一次确认之后必须再明确确认一次风险（两次都通过才会运行）
+        if (i.language === 'python') {
+          await confirm(
+            'code_run',
+            `二次确认：${PYTHON_NO_ISOLATION}确定仍要运行这段 Python 代码吗？`,
+            { language: i.language, code: i.code, timeoutSec: i.timeoutSec, isolation: 'none' },
+            signal,
+            i.code,
+            { dialog: true },
+          );
+        }
         const r = await d.code.run(
           i.language,
           i.code,

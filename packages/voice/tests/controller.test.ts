@@ -181,4 +181,66 @@ describe('VoiceController continuous', () => {
     expect(c.state.error).toBeNull();
     expect(c.state.phase).toBe('idle');
   });
+
+  it('代次：停止后立即重新开始，旧会话飞行中的识别结果被丢弃，不串到新会话', async () => {
+    const f = fakes();
+    const utter = [...Array(12).fill(0.9), ...Array(25).fill(0)];
+    const c = new VoiceController({
+      api: f.api,
+      source: 'mascot',
+      mic: () => f.mic,
+      now: f.now,
+      createVad: async () => scriptedVad([...utter, ...utter]),
+    });
+    let resolveOld: (v: { ok: true; text: string }) => void = () => {};
+    const transcribe = f.api.transcribe as ReturnType<typeof vi.fn>;
+    transcribe.mockImplementationOnce(
+      () => new Promise((r) => (resolveOld = r as typeof resolveOld)),
+    );
+    const got: string[] = [];
+    c.onTranscript((t) => got.push(t));
+    await c.startContinuous('handsfree');
+    f.push(37);
+    await vi.waitFor(() => expect(transcribe).toHaveBeenCalledTimes(1)); // 旧会话的识别还在飞
+    await c.stopContinuous();
+    await c.startContinuous('handsfree'); // 同一 mode 的新会话
+    expect(c.state.phase).toBe('listening');
+    resolveOld({ ok: true, text: '旧会话的话' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(got).toEqual([]); // 之前只比较 mode，这里会被误交付
+    expect(c.state.phase).toBe('listening');
+    await c.stopContinuous();
+  });
+
+  it('代次：停止后旧会话遗留的排队帧不会喂给新会话的 VAD', async () => {
+    const f = fakes();
+    const probs: number[] = [];
+    const c = new VoiceController({
+      api: f.api,
+      source: 'mascot',
+      mic: () => f.mic,
+      now: f.now,
+      createVad: async () => ({
+        kind: 'silero' as const,
+        prob: async () => {
+          probs.push(1);
+          return 0;
+        },
+        reset() {},
+        dispose() {},
+      }),
+    });
+    let onFrame: (f: Float32Array) => void = () => {};
+    f.mic.start.mockImplementation(async (h: { onFrame(f: Float32Array): void }) => {
+      onFrame = h.onFrame;
+    });
+    await c.startContinuous('handsfree');
+    const stale = onFrame; // 旧会话的回调
+    await c.stopContinuous();
+    await c.startContinuous('handsfree');
+    stale(new Float32Array(512)); // 旧回调晚到
+    await new Promise((r) => setTimeout(r, 10));
+    expect(probs).toHaveLength(0);
+    await c.stopContinuous();
+  });
 });

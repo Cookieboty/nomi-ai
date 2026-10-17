@@ -14,6 +14,7 @@ import { interactionSettings } from '../../mascot/interaction/settings';
 import { alphaSpans, rectsKey, type Rect } from '../../mascot/interaction/shape';
 import { layoutStore, type Box } from '../../mascot/layoutStore';
 import { regionInSprite, type MascotRegistryLike } from '../../mascot/spriteInteraction';
+import { onWindowResized } from '../../mascot/windowResize';
 
 const ALPHA_HIT = 24;
 const UI_PAD = 16;
@@ -216,6 +217,13 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
 
     let raf = 0;
     let headAt = 0;
+    // 窗口被缩放：尽快重新上报包围盒 / 头部框 / 形状（见 windowResize.ts）
+    const offResize = onWindowResized(() => {
+      s.geomAt = 0;
+      s.shapeAt = 0;
+      s.lastGeom = '';
+      headAt = 0;
+    });
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
       const g = geometry.current;
@@ -338,6 +346,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
 
     return () => {
       cancelAnimationFrame(raf);
+      offResize();
       offCursor?.();
       offEvt?.();
       classifier.dispose();

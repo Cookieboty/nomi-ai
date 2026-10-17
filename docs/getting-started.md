@@ -8,15 +8,18 @@
 
 ### 安装
 
-从 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases) 下载（**v1.0.0**：Linux / Windows；macOS 即将提供）：
+从 [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest) 下载对应系统的安装包（`<版本号>` 即 Release 的版本号）：
 
-| 平台                           | 安装包                                                                                                            | 状态     |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- | -------- |
-| Linux（x64）                   | [`Nomi-1.0.0.AppImage`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi-1.0.0.AppImage)       | 已发布   |
-| Windows 10+                    | [`Nomi Setup 1.0.0.exe`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi%20Setup%201.0.0.exe) | 已发布   |
-| macOS（Apple Silicon / Intel） | —                                                                                                                 | 即将提供 |
+| 系统                         | 安装包                    |
+| ---------------------------- | ------------------------- |
+| macOS · Apple 芯片（M 系列） | `Nomi-<版本号>-arm64.dmg` |
+| macOS · Intel 芯片           | `Nomi-<版本号>.dmg`       |
+| Windows 10+（x64）           | `Nomi-Setup-<版本号>.exe` |
+| Linux（x64）                 | `Nomi-<版本号>.AppImage`  |
 
-Linux AppImage：`chmod +x Nomi-1.0.0.AppImage && ./Nomi-1.0.0.AppImage`。未签名的 Windows 安装包可能被 SmartScreen 提示，确认来源后继续即可。
+Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppImage`。
+
+当前安装包尚未经过签名 / 公证：Windows 若弹出 SmartScreen，点「更多信息 → 仍要运行」；macOS 若提示「已损坏」，先把 Nomi 拖到「应用程序」，再执行 `sudo xattr -dr com.apple.quarantine /Applications/Nomi.app`。
 
 ### 首次引导
 
@@ -53,15 +56,18 @@ Linux AppImage：`chmod +x Nomi-1.0.0.AppImage && ./Nomi-1.0.0.AppImage`。未�
 
 ### Install
 
-Download from [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases) (**v1.0.0**: Linux / Windows; macOS coming soon):
+Download the installer for your system from [GitHub Releases](https://github.com/Cookieboty/nomi-ai/releases/latest) (`<version>` is the Release version):
 
-| Platform                      | Package                                                                                                           | Status      |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------- |
-| Linux (x64)                   | [`Nomi-1.0.0.AppImage`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi-1.0.0.AppImage)       | Available   |
-| Windows 10+                   | [`Nomi Setup 1.0.0.exe`](https://github.com/Cookieboty/nomi-ai/releases/download/v1.0.0/Nomi%20Setup%201.0.0.exe) | Available   |
-| macOS (Apple Silicon / Intel) | —                                                                                                                 | Coming soon |
+| System                           | Installer                  |
+| -------------------------------- | -------------------------- |
+| macOS · Apple Silicon (M-series) | `Nomi-<version>-arm64.dmg` |
+| macOS · Intel                    | `Nomi-<version>.dmg`       |
+| Windows 10+ (x64)                | `Nomi-Setup-<version>.exe` |
+| Linux (x64)                      | `Nomi-<version>.AppImage`  |
 
-Linux: `chmod +x Nomi-1.0.0.AppImage && ./Nomi-1.0.0.AppImage`. Unsigned Windows builds may trigger SmartScreen — confirm the source and continue.
+Linux: `chmod +x Nomi-<version>.AppImage && ./Nomi-<version>.AppImage`.
+
+The current builds are not signed / notarized. If Windows shows SmartScreen, click “More info → Run anyway”. If macOS says Nomi “is damaged”, move it into Applications, then run `sudo xattr -dr com.apple.quarantine /Applications/Nomi.app`.
 
 ### First-run onboarding
 

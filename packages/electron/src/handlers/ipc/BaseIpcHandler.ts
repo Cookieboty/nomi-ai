@@ -8,6 +8,8 @@ import { ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron';
 import { t } from '../../i18n';
 import { type ILoggerService } from '../../services/LoggerService';
 
+import { claimIpcChannel, releaseIpcChannel } from './channelRegistry';
+
 export abstract class BaseIpcHandler {
   protected logger: ILoggerService;
   protected registeredHandlers: Set<string> = new Set();
@@ -27,6 +29,9 @@ export abstract class BaseIpcHandler {
   cleanup(): void {
     for (const channel of this.registeredHandlers) {
       ipcMain.removeAllListeners(channel);
+      // handle() 注册的通道要用 removeHandler 才能移除；否则重新初始化会因重复注册而抛错
+      ipcMain.removeHandler?.(channel);
+      releaseIpcChannel(channel, this.getName());
     }
     this.registeredHandlers.clear();
     this.logger.info(`${this.constructor.name} 已清理`);
@@ -39,6 +44,8 @@ export abstract class BaseIpcHandler {
     channel: string,
     handler: (event: IpcMainInvokeEvent, ...args: any[]) => Promise<any>,
   ): void {
+    // 全局重名检测：与其他 Handler / 服务重名时在启动阶段就抛错
+    claimIpcChannel(channel, this.getName());
     ipcMain.handle(channel, async (event, ...args) => {
       try {
         this.logger.debug(`IPC请求: ${channel}`, { args });
@@ -65,6 +72,7 @@ export abstract class BaseIpcHandler {
     channel: string,
     handler: (event: IpcMainEvent, ...args: any[]) => void,
   ): void {
+    claimIpcChannel(channel, this.getName());
     ipcMain.on(channel, (event, ...args) => {
       try {
         this.logger.debug(`IPC事件: ${channel}`, { args });

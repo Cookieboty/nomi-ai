@@ -5,13 +5,14 @@
 
 import path from 'node:path';
 
-import { app, ipcMain, session } from 'electron';
+import { app, session } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
 import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
+import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -22,7 +23,7 @@ import { initExtensionsService } from '../extensions/ExtensionsService';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
-import { getIslandService, initIslandService } from '../island/IslandService';
+import { getIslandService, initIslandService, notifyIsland } from '../island/IslandService';
 import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
@@ -38,6 +39,7 @@ import { ConfigService } from '../services/ConfigService';
 import { LoggerService, LogLevel } from '../services/LoggerService';
 import { getUpdateService } from '../services/UpdateService';
 import { ThemeService } from '../theme/ThemeService';
+import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
 import { getVoiceService } from '../voice/VoiceService';
@@ -45,10 +47,14 @@ import { getVoiceService } from '../voice/VoiceService';
 import { initAppIcon } from './appIcon';
 import { BootstrapManager } from './BootstrapManager';
 import { eventBus } from './EventBus';
+import { createShutdown, LifecycleRegistry } from './lifecycle';
 import { ServiceContainer, type IServiceContainer } from './ServiceContainer';
 import { applyTitleBarTheme } from './titleBar';
 import { TrayManager } from './TrayManager';
 import { WindowManager } from './WindowManager';
+
+/** stop() 的总超时：超过后放弃等待，直接退出 */
+export const STOP_TIMEOUT_MS = 5000;
 
 export interface IApplication {
   initialize(): Promise<void>;
@@ -70,6 +76,16 @@ export class Application implements IApplication {
   private clipboardGateway?: ClipboardGateway;
   private trayManager?: TrayManager;
   private isInitialized = false;
+  /** 有后台定时器 / 子进程 / 监听端口 / worker 的服务，退出时统一 stop */
+  private readonly lifecycle = new LifecycleRegistry();
+  /** 统一退出：stop() 重入守卫 + 5s 超时；before-quit / 信号共用 requestQuit()（stop → app.exit(0)） */
+  private readonly shutdown = createShutdown({
+    work: () => this.doStop(),
+    timeoutMs: STOP_TIMEOUT_MS,
+    exit: () => app.exit(0),
+    onTimeout: () =>
+      this.logger?.warn('停止应用超时，强制继续退出', { timeoutMs: STOP_TIMEOUT_MS }),
+  });
 
   constructor() {
     this.container = new ServiceContainer();
@@ -153,6 +169,9 @@ export class Application implements IApplication {
       models.registerProtocol();
       models.registerIpc();
 
+      // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
+      registerChatAssetProtocol();
+
       // Auto-update (electron-updater → GitHub Releases). Packaged builds only.
       const updates = getUpdateService(this.logger);
       updates.registerIpc();
@@ -186,6 +205,8 @@ export class Application implements IApplication {
         },
       });
       kb.registerIpc();
+      this.lifecycle.register({ name: 'knowledge', stop: () => kb.dispose() });
+      this.lifecycle.register({ name: 'reminders', stop: () => desktop.reminders.stop() });
 
       // 长期记忆：对话摘要 + 召回（复用知识库的 BM25 / 向量服务），工具随桌面工具注册
       const mem = initMemoryService({
@@ -320,10 +341,37 @@ export class Application implements IApplication {
       });
       island.registerIpc();
 
+      // 用量与计费：Nomi 对话 / 本地路由 / 编程工具会话日志，全部只存本机
+      const usage = initUsageService({
+        root: path.join(app.getPath('userData'), 'usage'),
+        logger: this.logger as never,
+        providerName: (id) => this.aiRuntime?.listProviders().find((p) => p.id === id)?.name,
+        // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）+ 灵动岛；免打扰中不弹，稍后重试
+        alert: (a) => {
+          if (desktop.notifyPolicy?.quiet() ?? false) return false;
+          desktop.say(a.text.slice(0, 140), { voice: 'none' });
+          notifyIsland({ kind: 'info', status: 'attention', title: a.title, body: a.text });
+          return true;
+        },
+      });
+      usage.registerIpc();
+      usage.start();
+
       const agents = initAgentProgressService({
         root: path.join(app.getPath('userData'), 'agents'),
         logger: this.logger as never,
         desktop,
+        isQuiet: () => desktop.notifyPolicy?.quiet() ?? false,
+        // CodingMonitor 显示会话累计用量；任务结束播报（总结播报开着时）附带「本次花费」
+        usageOf: (source, session) =>
+          getUsageService()?.sessionUsage(source as never, session) ?? null,
+        taskCost: async (q) => {
+          const u = getUsageService();
+          if (!u) return null;
+          // 日志有延迟：先追平一次再算（路由 / Nomi 对话的记录本来就是即时的）
+          await u.scan().catch(() => undefined);
+          return u.taskCostLine({ source: q.source as never, session: q.session, since: q.since });
+        },
       });
       agents.registerIpc();
       if (agents.state().settings.enabled) agents.start();
@@ -345,14 +393,17 @@ export class Application implements IApplication {
       });
       cliProviders.registerIpc();
       cliRoute.registerIpc();
+      this.lifecycle.register({ name: 'cli-route', stop: () => cliRoute.stop() });
       if (cliRoute.getSettings().enabled) void cliRoute.start().catch(() => undefined);
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,
         defaultCwd: app.getPath('documents'),
         dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
+        grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
       });
       harness.registerIpc();
+      this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
@@ -364,6 +415,7 @@ export class Application implements IApplication {
         onTabs: (fn) => harness.events.on('tabs', fn),
         onFinished: (fn) => harness.events.on('tab-finished', fn),
         onPermission: (fn) => harness.events.on('permission-needed', fn),
+        progress: (id) => harness.progressHint(id),
       });
 
       // 启动 AI runtime（在窗口创建之前，preload 到 renderer 时 IPC 通道已就绪）
@@ -514,8 +566,11 @@ export class Application implements IApplication {
       /* not started */
     }
     getAgentProgressService()?.stop();
+    getUsageService()?.stop();
     this.trayManager?.dispose();
     this.trayManager = undefined;
+    // 其余有后台资源的服务（CLI 子进程树、本地路由监听、知识库索引 / OCR worker、缓存定时器…）
+    await this.lifecycle.stopAll(this.logger);
     if (!this.aiRuntime) return;
     const handle = this.aiRuntime;
     this.aiRuntime = undefined;
@@ -534,9 +589,14 @@ export class Application implements IApplication {
   }
 
   /**
-   * 停止应用
+   * 停止应用。重入安全（并发 / 重复调用共用同一次执行），并带 5s 超时兜底：
+   * 某个服务卡住时放弃等待，不让退出被无限拖住。
    */
-  async stop(): Promise<void> {
+  stop(): Promise<void> {
+    return this.shutdown.stop();
+  }
+
+  private async doStop(): Promise<void> {
     try {
       this.logger.info('停止应用...');
 
@@ -592,6 +652,7 @@ export class Application implements IApplication {
       return new CacheService({ maxSize: 500, defaultTtl: 10 * 60 * 1000 }, this.logger);
     });
     this.cacheService = this.container.get<CacheService>('cache');
+    this.lifecycle.register({ name: 'cache', stop: () => this.cacheService.destroy() });
 
     // 注册错误处理器（单例）
     this.container.registerSingleton('errorHandler', () => {
@@ -742,9 +803,12 @@ export class Application implements IApplication {
       }
     });
 
-    // 应用退出前
-    app.on('before-quit', async () => {
-      await this.stop();
+    // 应用退出前：必须同步 preventDefault，等 stop() 真正完成后再 app.exit(0)；
+    // 否则 async 监听器返回后 Electron 立刻退出，子进程 / 端口 / 配置保存都来不及收尾。
+    // app.exit() 不会再触发 before-quit，因此不会循环。
+    app.on('before-quit', (event) => {
+      event.preventDefault();
+      this.shutdown.requestQuit();
     });
 
     // 事件总线事件
@@ -771,20 +835,13 @@ export class Application implements IApplication {
       this.logger.error('未处理的Promise拒绝', { reason, promise });
     });
 
-    // 优雅关闭
-    process.on('SIGTERM', () => {
-      this.logger.info('收到SIGTERM信号，开始优雅关闭...');
-      this.stop().then(() => {
-        process.exit(0);
+    // 优雅关闭：信号注册只在这里一处（main.ts 不再注册），与 before-quit 共用同一条退出路径
+    for (const sig of ['SIGTERM', 'SIGINT'] as const) {
+      process.on(sig, () => {
+        this.logger.info(`收到${sig}信号，开始优雅关闭...`);
+        this.shutdown.requestQuit();
       });
-    });
-
-    process.on('SIGINT', () => {
-      this.logger.info('收到SIGINT信号，开始优雅关闭...');
-      this.stop().then(() => {
-        process.exit(0);
-      });
-    });
+    }
   }
 
   /**

@@ -1,7 +1,7 @@
 /**
  * 探测本机 Claude Code / Codex / Cursor 可执行文件与版本。
  * 可通过环境变量覆盖路径（测试 / Mock）：
- *   NOMI_CLAUDE_BIN · NOMI_CODEX_BIN · NOMI_DSH_BIN · NOMI_CURSOR_BIN
+ *   NOMI_CLAUDE_BIN · NOMI_CODEX_BIN · NOMI_DSH_BIN · NOMI_GROK_BIN · NOMI_CURSOR_BIN
  */
 import { execFileSync, execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,6 +15,7 @@ const ENV_BIN: Record<CliKind, string> = {
   claude: 'NOMI_CLAUDE_BIN',
   codex: 'NOMI_CODEX_BIN',
   dsh: 'NOMI_DSH_BIN',
+  grok: 'NOMI_GROK_BIN',
   cursor: 'NOMI_CURSOR_BIN',
 };
 
@@ -22,6 +23,7 @@ const CANDIDATES: Record<CliKind, string[]> = {
   claude: ['claude'],
   codex: ['codex'],
   dsh: ['dsh'],
+  grok: ['grok'],
   cursor: ['cursor-agent', 'agent'],
 };
 
@@ -32,9 +34,10 @@ const CANDIDATES: Record<CliKind, string[]> = {
 export function cliSearchDirs(home = os.homedir(), platform = process.platform): string[] {
   if (platform === 'win32') {
     const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
-    return [path.join(appData, 'npm'), path.join(home, '.local')];
+    return [path.join(home, '.grok', 'bin'), path.join(appData, 'npm'), path.join(home, '.local')];
   }
   return [
+    path.join(home, '.grok', 'bin'),
     path.join(home, '.local', 'bin'),
     path.join(home, '.npm-global', 'bin'),
     path.join(home, '.local', 'npm-global', 'bin'),
@@ -153,10 +156,16 @@ export const NPM_PKG: Record<UpdatableCli, string> = {
   claude: '@anthropic-ai/claude-code',
   codex: '@openai/codex',
   dsh: '@deepseek-ai/dsh',
+  grok: '@xai-official/grok',
 };
 
 /** 各 CLI 运行所需的最低 Node 主版本（claude-code engines ≥ 22；codex ≥ 16；dsh 需要 24） */
-export const CLI_MIN_NODE_MAJOR: Record<UpdatableCli, number> = { claude: 22, codex: 16, dsh: 24 };
+export const CLI_MIN_NODE_MAJOR: Record<UpdatableCli, number> = {
+  claude: 22,
+  codex: 16,
+  dsh: 24,
+  grok: 18,
+};
 
 /** dsh 依赖 Node ≥ 24（import.meta.main）；更低版本下静默无输出 */
 export const DSH_MIN_NODE_MAJOR = 24;

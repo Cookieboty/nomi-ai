@@ -89,6 +89,45 @@ describe('IPCTransportServer', () => {
     expect(last.done).toBe(true);
   });
 
+  it('窗口中途销毁：停止推送 chunk，并中止上游生成（不抛未处理异常）', async () => {
+    const ctx = createFakeSdkCtx();
+    const llm = createFakeLLM('fake');
+    const gate: { release?: () => void } = {};
+    llm.stream = (req) => {
+      llm.streamCalls.push(req);
+      return (async function* () {
+        yield { type: 'delta', content: 'a' } as never;
+        await new Promise<void>((r) => (gate.release = r));
+        yield { type: 'delta', content: 'b' } as never;
+        yield { type: 'delta', content: 'c' } as never;
+      })();
+    };
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(llm));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const adapter = createFakeIpcAdapter();
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+    }).start();
+
+    const ack = (await adapter.invoke(7, 'ai:chat:stream', {
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'hi' }],
+    })) as { reqId: string };
+    await new Promise((r) => setTimeout(r, 5));
+    adapter.destroySender(7);
+    gate.release?.();
+    await new Promise((r) => setTimeout(r, 10));
+
+    const sent = (adapter.senderStreams.get(7) ?? []).map(
+      (s) => (s.payload as { value?: { content?: string } }).value?.content,
+    );
+    expect(sent).toEqual(['a']); // 销毁之后的 b / c / done 都不再发送
+    expect(llm.aborted).toContain(ack.reqId);
+  });
+
   it('scenario#4 · isSenderAllowed=false → reject with error', async () => {
     const ctx = createFakeSdkCtx();
     ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM()));

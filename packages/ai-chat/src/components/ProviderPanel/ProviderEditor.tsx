@@ -4,7 +4,7 @@
  *   · 默认模型（获取模型列表 → 勾选启用）· 高级选项（上游格式 / 模型映射 / 思考 / UA / Headers）
  * 编辑正在使用的供应商时提示「保存后立即生效」。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -17,6 +17,18 @@ import {
   SkeletonList,
   useToast,
 } from '@nomi-ai/ui';
+import {
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Link,
+  Lock,
+  Plus,
+  X,
+  Zap,
+  ChevronDown,
+  ChevronRight,
+} from 'lucide-react';
 import React, { useMemo, useRef, useState } from 'react';
 
 import {
@@ -220,7 +232,7 @@ export const ProviderEditor: React.FC<{
           aria-label={t('返回')}
           data-testid="editor-back"
         >
-          ‹
+          <Icon icon={ChevronLeft} size={18} />
         </button>
         <h3>{title}</h3>
         <span className="cd-muted">{t(PROTOCOL_LABELS[protocol])}</span>
@@ -289,7 +301,7 @@ export const ProviderEditor: React.FC<{
             className={styles.full}
             hint={
               <span data-testid="local-only-notice">
-                🔒 {LOCAL_ONLY_NOTICE}
+                <Icon icon={Lock} size={12} /> {LOCAL_ONLY_NOTICE}
                 {preset?.apiKeyUrl && (
                   <>
                     {' '}
@@ -323,7 +335,7 @@ export const ProviderEditor: React.FC<{
                   onClick={() => setShowKey(!showKey)}
                   aria-label={t('显示 / 隐藏')}
                 >
-                  {showKey ? '🙈' : '👁'}
+                  <Icon icon={showKey ? EyeOff : Eye} />
                 </Button>
               </div>
             )}
@@ -337,7 +349,8 @@ export const ProviderEditor: React.FC<{
                   {t('API 请求地址')} <span className={styles.req}>*</span>
                 </span>
                 <span className={styles.pill}>
-                  {t('🔗 完整 URL')}
+                  <Icon icon={Link} size={14} />
+                  {t('完整 URL')}
                   <Switch
                     data-testid="draft-fullurl"
                     checked={fullUrl}
@@ -361,7 +374,8 @@ export const ProviderEditor: React.FC<{
                       });
                   }}
                 >
-                  {t('⚡ 管理与测速')}
+                  <Icon icon={Zap} size={14} />
+                  {t('管理与测速')}
                 </Button>
                 <TestBadge r={test} />
               </span>
@@ -517,7 +531,7 @@ export const ProviderEditor: React.FC<{
               aria-expanded={advanced}
             >
               <span>
-                {advanced ? '⌄' : '›'} {t('高级选项')}
+                <Icon icon={advanced ? ChevronDown : ChevronRight} size={14} /> {t('高级选项')}
               </span>
               <span className="cd-muted">
                 {t('包含上游格式、模型映射、思考能力、自定义 User-Agent 与 Headers。')}
@@ -576,7 +590,7 @@ export const ProviderEditor: React.FC<{
                             aria-label={t('删除映射')}
                             onClick={() => setModelMap(modelMap.filter((_, j) => j !== i))}
                           >
-                            ✕
+                            <Icon icon={X} />
                           </Button>
                         </div>
                       ))}
@@ -586,7 +600,8 @@ export const ProviderEditor: React.FC<{
                         data-testid="map-add"
                         onClick={() => setModelMap([...modelMap, { from: '', to: '' }])}
                       >
-                        {t('＋ 添加映射')}
+                        <Icon icon={Plus} size={14} />
+                        {t('添加映射')}
                       </Button>
                     </div>
                   )}
@@ -600,7 +615,7 @@ export const ProviderEditor: React.FC<{
                       data-testid="draft-thinking"
                       checked={thinking}
                       onChange={setThinking}
-                      label={thinking ? t('开启') : t('关闭')}
+                      label={thinking ? t('已开启') : t('已关闭')}
                     />
                   )}
                 </FormField>

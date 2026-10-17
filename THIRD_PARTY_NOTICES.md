@@ -88,6 +88,29 @@ Node.js permission model (both MIT, already listed). No code from Open Interpret
 or other copyleft agents was used; no new dependencies were added. Python, when used, is the
 user's own system interpreter and is not redistributed.
 
+## Subscription quota readers
+
+Clean-room TypeScript in `packages/electron/src/usage/`; no dependencies added. The restricted
+`claude -p /usage` subprocess and the reset-time parser are written from scratch against the
+official CLIs' documented behaviour. Codex quota is read through the official `codex app-server`
+JSON-RPC (`account/rateLimits/read`), so credentials never leave the CLI.
+
+## Usage & cost data sources
+
+The usage readers, parsers and cost maths in `packages/electron/src/usage/` are original TypeScript
+(MIT); no dependencies were added (SQLite sources use Node's built-in `node:sqlite`, read-only).
+Three open-source projects informed the work — **no code was copied** from any of them:
+
+| Project                                                   | Licence | How it is used                                                                                                                                                                                    |
+| --------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [models.dev](https://github.com/sst/models.dev)           | MIT     | Public model price table. Downloaded only when the user clicks "Sync prices" (`https://models.dev/api.json`); cached locally as an overlay on the built-in table. © SST / models.dev contributors |
+| [TokenTracker](https://github.com/mm7894215/TokenTracker) | MIT     | Reference for which local coding-tool log locations and accounting fields exist (ideas only; parsers are independently written)                                                                   |
+| [vibe-usage](https://github.com/vibe-cafe/vibe-usage)     | MIT     | Reference for per-tool token-field semantics and de-duplication ideas (ideas only; parsers are independently written)                                                                             |
+
+Token field names for Qwen Code, OpenCode, GitHub Copilot CLI and Kimi come from public documentation
+and the projects above; they are marked as not yet verified against every real installation in
+`docs/features/privacy-security.md`.
+
 ## Production dependencies (generated with `pnpm licenses list --prod -r`)
 
 | Package                                                   | Version(s)    | Licence                   |

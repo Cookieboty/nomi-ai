@@ -3,9 +3,10 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { MemoryPanel } from '../src/components/MemoryPanel';
-import { MessageBubble } from '../src/components/MessageList/MessageBubble';
 import { AiChatContextProvider } from '../src/contexts/AiChatContext';
 import { ingestConversation, memoryContext } from '../src/services/memClient';
+
+import { NomiConversation } from './nomiRender';
 
 afterEach(() => {
   cleanup();
@@ -130,14 +131,16 @@ describe('memory panel', () => {
 
   it('shows recalled memory tag on assistant bubble', () => {
     const r = render(
-      <MessageBubble
-        message={{
-          id: 'a',
-          role: 'assistant',
-          content: 'hi',
-          timestamp: 0,
-          memories: [{ id: 'e1', kind: 'episode', title: '杭州搬家' }],
-        }}
+      <NomiConversation
+        messages={[
+          {
+            id: 'a',
+            role: 'assistant',
+            content: 'hi',
+            timestamp: 0,
+            memories: [{ id: 'e1', kind: 'episode', title: '杭州搬家' }],
+          },
+        ]}
       />,
     );
     expect(r.getByTestId('memory-tag').textContent).toContain('1 条记忆');

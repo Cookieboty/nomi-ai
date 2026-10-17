@@ -15,6 +15,7 @@ import type {
   ChatChunk,
   ChatRequest,
   ChatResponse,
+  ChatUsage,
   LLMProvider,
   LLMRegistry,
   ToolDefinition,
@@ -22,7 +23,9 @@ import type {
 
 import { AiSdkLlmProvider, type AiSdkLlmProviderOptions } from '../ai-sdk/AiSdkLlmProvider';
 
+import { estimateTokens } from './estimate';
 import type { ProviderRole, ProviderStore, StoredProvider } from './ProviderStore';
+import type { UsageCallEvent } from './usageEvent';
 
 type ToolRunner = {
   chat: (req: ChatRequest) => Promise<ChatResponse>;
@@ -44,6 +47,8 @@ export interface UsageSink {
     ok: boolean,
   ): void;
   markKey?(id: string, keyIndex: number, error?: string): void;
+  /** 每次成功调用一条明细（含模型 / 时间 / 缓存 token） */
+  recordCall?(e: UsageCallEvent): void;
 }
 
 /** 认证 / 限流 / 额度类错误：换下一个 key 有意义。 */
@@ -62,6 +67,8 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     readonly id: string,
     private readonly candidates: LLMProvider[],
     private readonly sink?: UsageSink,
+    /** provider 的默认模型（请求未指定模型时记账用） */
+    private readonly defaultModel?: string,
   ) {
     if (candidates.length === 0) throw new Error(`[${id}] no candidates`);
   }
@@ -94,10 +101,12 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     call: (p: LLMProvider) => Promise<ChatResponse>,
   ): Promise<ChatResponse> {
     let lastErr: unknown;
+    const startedAt = Date.now();
     for (let i = 0; i < this.candidates.length; i++) {
       try {
         const res = await call(this.candidates[i]!);
         this.sink?.markKey?.(this.id, i);
+        this.emitCall(req, startedAt, res.model, res.usage, res.content);
         this.sink?.recordUsage(
           this.id,
           res.usage
@@ -122,12 +131,56 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     throw lastErr;
   }
 
+  /** 记一条调用明细：上游有 usage 用 usage，没有才按文本估算并标记 estimated */
+  private emitCall(
+    req: ChatRequest,
+    startedAt: number,
+    resModel: string | undefined,
+    usage: ChatUsage | undefined,
+    outText: string,
+  ): void {
+    if (!this.sink?.recordCall) return;
+    try {
+      const model = req.model || resModel || this.defaultModel || 'unknown';
+      const base = { providerId: this.id, model, at: startedAt, reqId: req.reqId };
+      const durationMs = Math.max(0, Date.now() - startedAt);
+      if (usage && (usage.promptTokens || usage.completionTokens)) {
+        this.sink.recordCall({
+          ...base,
+          durationMs,
+          inputTokens: usage.promptTokens,
+          outputTokens: usage.completionTokens,
+          cacheReadTokens: usage.cacheReadTokens ?? 0,
+          cacheWriteTokens: usage.cacheWriteTokens ?? 0,
+          estimated: false,
+        });
+        return;
+      }
+      const inText = req.messages.map((m) => m.content).join('\n');
+      this.sink.recordCall({
+        ...base,
+        durationMs,
+        inputTokens: estimateTokens(inText),
+        outputTokens: estimateTokens(outText),
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        estimated: true,
+      });
+    } catch {
+      /* 记账失败不能影响对话 */
+    }
+  }
+
   private async *runStream(
     req: ChatRequest,
     call: (p: LLMProvider) => AsyncIterable<ChatChunk>,
   ): AsyncIterable<ChatChunk> {
+    const startedAt = Date.now();
     for (let i = 0; i < this.candidates.length; i++) {
       let emitted = false;
+      let outText = '';
+      let usedModel: string | undefined;
+      let fullUsage: ChatUsage | undefined;
       let usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined;
       let failed: string | undefined;
       const more = i < this.candidates.length - 1;
@@ -139,19 +192,28 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
           yield chunk;
           continue;
         }
+        if (chunk.type === 'delta') outText += chunk.content;
         if (chunk.type === 'usage') {
+          fullUsage = chunk.usage;
+          usedModel = chunk.model;
           usage = {
             inputTokens: chunk.usage.promptTokens,
             outputTokens: chunk.usage.completionTokens,
             totalTokens: chunk.usage.totalTokens,
           };
         }
-        if (chunk.type === 'delta' || chunk.type === 'tool_call.delta') emitted = true;
+        if (
+          chunk.type === 'delta' ||
+          chunk.type === 'tool_call.delta' ||
+          chunk.type === 'reasoning'
+        )
+          emitted = true;
         yield chunk;
       }
       this.sink?.markKey?.(this.id, i, failed);
       if (failed && !emitted && more && isKeyError(failed) && !req.signal?.aborted) continue;
       this.sink?.recordUsage(this.id, usage, !failed);
+      if (!failed) this.emitCall(req, startedAt, usedModel, fullUsage, outText);
       return;
     }
   }
@@ -185,7 +247,7 @@ export function buildStoredProvider(
       ? keys.map((apiKey) => factory({ ...base, apiKey }))
       : // 无 key（本地 Ollama / 自建网关）：允许不带 Authorization
         [factory({ ...base, requiresApiKey: false })];
-  return new TrackedProvider(p.id, candidates, sink);
+  return new TrackedProvider(p.id, candidates, sink, p.defaultModel);
 }
 
 export interface ResolvedProvider {

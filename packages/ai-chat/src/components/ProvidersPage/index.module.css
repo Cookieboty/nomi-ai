@@ -254,13 +254,19 @@
   gap: 4px;
   font-size: 13px;
 }
-.reqOk::before {
-  content: '✓ ';
-  color: var(--cd-success, #16a34a);
+.reqList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.reqBad::before {
-  content: '✗ ';
-  color: var(--cd-danger, #dc2626);
+.reqIcon {
+  flex: none;
+}
+.reqOk .reqIcon {
+  color: var(--cd-color-success, #16a34a);
+}
+.reqBad .reqIcon {
+  color: var(--cd-color-danger, #dc2626);
 }
 .logBox {
   max-height: 160px;

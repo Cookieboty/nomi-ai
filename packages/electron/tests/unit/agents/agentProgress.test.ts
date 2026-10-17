@@ -11,6 +11,11 @@ jest.mock('electron', () => ({
   ),
 }));
 
+const island = jest.fn();
+jest.mock('../../../src/island/IslandService', () => ({
+  notifyIsland: (n: unknown) => island(n),
+}));
+
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -260,7 +265,7 @@ describe('AgentProgressService', () => {
     expect(svc.state().sessions).toHaveLength(0);
   });
 
-  it('codex: remind on running → waiting, dedupe by session id', () => {
+  it('codex: no start reminder; remind when running → waiting, dedupe by session id', () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();
     const svc = new AgentProgressService({
@@ -283,7 +288,9 @@ describe('AgentProgressService', () => {
     expect(svc.detectKinds()).toContain('codex');
     expect(svc.state().sessions).toHaveLength(1);
     expect(svc.state().sessions[0]).toMatchObject({ status: 'running', project: 'nomi' });
-    expect(say).toHaveBeenCalled();
+    // 任务开始不主动提示（气泡 / 灵动岛都不弹），只在面板里被动展示
+    expect(say).not.toHaveBeenCalled();
+    expect(island).not.toHaveBeenCalled();
 
     say.mockClear();
     now += 1000;

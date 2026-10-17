@@ -1,11 +1,24 @@
-import { t } from '@nomi-ai/ui';
-import { Badge, Button, Card, EmptyState, FormField, Input, Modal, Switch } from '@nomi-ai/ui';
-import React, { useState, useEffect } from 'react';
+import { createLogger, t } from '@nomi-ai/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  FormField,
+  Input,
+  Modal,
+  SectionTitle,
+  Switch,
+} from '@nomi-ai/ui';
+import { Bot } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
 import { type AIModelConfig } from '../../types/config';
 
 import styles from './index.module.css';
+
+const log = createLogger('config-panel');
 
 interface ConfigPanelProps {
   isVisible: boolean;
@@ -17,11 +30,12 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
   const [editingModel, setEditingModel] = useState<AIModelConfig | null>(null);
   const [formData, setFormData] = useState<Partial<AIModelConfig>>({});
 
-  useEffect(() => {
-    if (editingModel) {
-      setFormData({ ...editingModel });
-    }
-  }, [editingModel]);
+  // 开始编辑某个模型时同步表单初值（渲染期根据 editingModel 跳变处理，避免 effect 内 setState 触发级联渲染）
+  const [prevEditingModel, setPrevEditingModel] = useState<AIModelConfig | null>(editingModel);
+  if (prevEditingModel !== editingModel) {
+    setPrevEditingModel(editingModel);
+    if (editingModel) setFormData({ ...editingModel });
+  }
 
   const handleEditModel = (model: AIModelConfig) => {
     setEditingModel(model);
@@ -39,7 +53,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
 
       alert(t('模型配置已保存'));
     } catch (error) {
-      console.error('保存模型配置失败:', error);
+      log.error('保存模型配置失败:', error);
       alert(t('保存失败: {0}', error));
     }
   };
@@ -75,9 +89,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
     <Modal open onClose={onClose} title={t('AI模型配置')} closeOnOverlay={false}>
       {editingModel ? (
         <div className={styles.editForm}>
-          <h3 className="cd-section-title">
+          <SectionTitle>
             {t('编辑模型:')} {t(editingModel.name)}
-          </h3>
+          </SectionTitle>
           <FormField label={t('模型名称')}>
             <Input
               type="text"
@@ -142,8 +156,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ isVisible, onClose }) 
         </div>
       ) : (
         <div className={styles.modelList}>
-          <h3 className="cd-section-title">{t('可用模型')}</h3>
-          {state.models.length === 0 && <EmptyState icon="🤖" title={t('暂无模型')} />}
+          <SectionTitle>{t('可用模型')}</SectionTitle>
+          {state.models.length === 0 && <EmptyState icon={Bot} title={t('暂无模型')} />}
           {state.models.map((model) => (
             <Card
               key={model.id}

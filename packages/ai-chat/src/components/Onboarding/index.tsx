@@ -15,7 +15,9 @@ import {
   useLocale,
   type LocalePref,
   type ThemePref,
+  Icon,
 } from '@nomi-ai/ui';
+import { Cloud, FolderLock, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ProviderPanel } from '../ProviderPanel';
@@ -266,7 +268,9 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
                 </button>
               ))}
             </div>
-            <p className={styles.note}>{t('点一下就能试听；之后可在「设置 → 语音」细调。')}</p>
+            <p className={styles.note}>
+              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}
+            </p>
           </>
         );
       case 'persona':
@@ -325,21 +329,21 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
         return (
           <ul className={styles.privacy}>
             <li>
-              <span aria-hidden>🔒</span>
+              <Icon icon={Lock} />
               {t('对话、记忆、知识库和屏幕记忆只保存在本机，不做云同步。')}
             </li>
             <li>
-              <span aria-hidden>🔑</span>
+              <Icon icon={KeyRound} />
               {t('API 密钥用系统安全存储加密保存，不会上传。')}
             </li>
             <li>
-              <span aria-hidden>☁️</span>
+              <Icon icon={Cloud} />
               {t(
                 '只有你选择的模型服务商会收到对话内容；第一次把文件或图片发给云端模型前会先问你。',
               )}
             </li>
             <li>
-              <span aria-hidden>📁</span>
+              <Icon icon={FolderLock} />
               {t('她看不到你的文件，除非你逐个文件夹授权；所有操作都有记录，可撤销。')}
             </li>
           </ul>

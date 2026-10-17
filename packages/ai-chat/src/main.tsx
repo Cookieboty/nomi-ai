@@ -1,5 +1,5 @@
 import { AIProvider } from '@nomi-ai/ai-sdk-client/react';
-import { LocaleRoot, initLocale, initTheme } from '@nomi-ai/ui';
+import { createLogger, LocaleRoot, initLocale, initTheme } from '@nomi-ai/ui';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
@@ -7,6 +7,8 @@ import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
 import { SnipOverlay } from './components/SnipOverlay';
+
+const log = createLogger('main');
 
 // 主题（默认 Warm Ink；设置 → 通用 → 主题）与界面语言（默认跟随系统；设置 → 通用 → 语言）
 initTheme();
@@ -22,7 +24,7 @@ initLocale();
 const hasAiIpc = typeof window !== 'undefined' && Boolean((window as { aiIPC?: unknown }).aiIPC);
 
 if (!hasAiIpc) {
-  console.warn('当前运行在开发模式：window.aiIPC 未就绪，将使用 Mock 数据');
+  log.warn('当前运行在开发模式：window.aiIPC 未就绪，将使用 Mock 数据');
 }
 
 const root = ReactDOM.createRoot(document.getElementById('root')!);

@@ -205,3 +205,82 @@ describe('defaultAiSdkPlugins MCP wiring', () => {
     await booter.dispose?.();
   });
 });
+
+describe('AiSdkMcpService · 连接失败时释放资源', () => {
+  const cfg: McpServerConfig = {
+    id: 'demo',
+    name: 'Demo',
+    transport: 'http',
+    url: 'https://example.com/mcp',
+  };
+
+  it('listTools 失败：关闭 client 并把错误抛出', async () => {
+    const close = vi.fn(async () => {});
+    const svc = new AiSdkMcpService({
+      getRegistry: () => mockRegistry(),
+      createClient: (async () => ({
+        listTools: async () => {
+          throw new Error('list boom');
+        },
+        close,
+      })) as never,
+    });
+    await expect(svc.connect(cfg)).rejects.toThrow(/list boom/);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(svc.listServers()).toEqual([]);
+  });
+
+  it('listTools 超时：按失败处理并关闭 client', async () => {
+    const close = vi.fn(async () => {});
+    const svc = new AiSdkMcpService({
+      getRegistry: () => mockRegistry(),
+      connectTimeoutMs: 20,
+      createClient: (async () => ({
+        listTools: () => new Promise(() => {}),
+        close,
+      })) as never,
+    });
+    await expect(svc.connect(cfg)).rejects.toThrow(/timed out/);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('注册阶段（guardTool）抛错：撤销已注册的工具并关闭 client', async () => {
+    const registry = mockRegistry();
+    const close = vi.fn(async () => {});
+    let n = 0;
+    const svc = new AiSdkMcpService({
+      getRegistry: () => registry,
+      guardTool: (_s, def) => {
+        if (++n === 2) throw new Error('guard boom');
+        return def;
+      },
+      createClient: (async () => ({
+        listTools: async () => ({
+          tools: [
+            { name: 'a', inputSchema: { type: 'object' } },
+            { name: 'b', inputSchema: { type: 'object' } },
+          ],
+        }),
+        close,
+      })) as never,
+    });
+    await expect(svc.connect(cfg)).rejects.toThrow(/guard boom/);
+    expect(registry.list()).toEqual([]);
+    expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('握手失败（stdio）：显式关闭 transport 以终止子进程', async () => {
+    const seen: { close?: ReturnType<typeof vi.fn> } = {};
+    const svc = new AiSdkMcpService({
+      getRegistry: () => mockRegistry(),
+      createClient: (async ({ transport }: { transport: { close: () => Promise<void> } }) => {
+        seen.close = vi.spyOn(transport, 'close');
+        throw new Error('handshake boom');
+      }) as never,
+    });
+    await expect(
+      svc.connect({ id: 's', name: 'S', transport: 'stdio', command: 'node', args: ['-v'] }),
+    ).rejects.toThrow(/handshake boom/);
+    expect(seen.close).toHaveBeenCalledTimes(1);
+  });
+});

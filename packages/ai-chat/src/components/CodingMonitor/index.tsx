@@ -3,7 +3,18 @@
  * + 活跃会话列表（按端点筛选；Nomi 标签可直接打开）。
  * 只读本地日志与进程列表，不登录、不抓取任何账号。通知样式与灵动岛在「通知 / 灵动岛」里设置。
  */
-import { Badge, Button, Card, EmptyState, Notice, Switch, t as tr } from '@nomi-ai/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  createLogger,
+  EmptyState,
+  Notice,
+  Switch,
+  t as tr,
+  Icon,
+} from '@nomi-ai/ui';
+import { SquareTerminal, Check } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -17,9 +28,14 @@ import {
   type EndpointFilter,
 } from '../../services/agentsClient';
 import { harnessClient } from '../../services/harnessClient';
+import { usageClient } from '../../services/usageClient';
 import { EndpointIcon } from '../EndpointIcon';
+import { sessionUsageText } from '../UsagePanel/format';
+import { useUsageFx } from '../UsagePanel/useFx';
 
 import styles from './index.module.css';
+
+const log = createLogger('coding-monitor');
 
 /** 相对时间：刚刚 / N 分钟前 / N 小时前 / 日期 */
 export function relTime(ms: number, now = Date.now()): string {
@@ -38,6 +54,7 @@ export const CodingMonitor: React.FC<{
 }> = ({ onOpenedTab, onOpenNotify }) => {
   const [agents, setAgents] = useState<AgentWatchState | null>(null);
   const [agentFilter, setAgentFilter] = useState<EndpointFilter>('all');
+  const fx = useUsageFx();
 
   const loadAgents = useCallback(() => {
     if (!agentsClient.available()) return;
@@ -46,12 +63,18 @@ export const CodingMonitor: React.FC<{
       .then(setAgents)
       .catch((e) => {
         // 主进程未就绪时不污染整页错误条
-        console.warn('[agents]', e instanceof Error ? e.message : String(e));
+        log.warn(e instanceof Error ? e.message : String(e));
       });
   }, []);
   useEffect(() => {
     loadAgents();
-    return agentsClient.onChanged(() => loadAgents());
+    const offAgents = agentsClient.onChanged(() => loadAgents());
+    // 用量变化（节流过的广播）时刷新，会话累计 Token / 费用才会跟着走
+    const offUsage = usageClient.onChanged(() => loadAgents());
+    return () => {
+      offAgents();
+      offUsage();
+    };
   }, [loadAgents]);
 
   return (
@@ -80,8 +103,22 @@ export const CodingMonitor: React.FC<{
               label={tr('任务完成 / 卡住时发送系统通知')}
               data-testid="agents-os-notify"
             />
+            <Switch
+              checked={agents.settings.summaryEnabled}
+              disabled={!agents.settings.enabled}
+              onChange={(v) =>
+                void agentsClient.setSettings({ summaryEnabled: v }).then(loadAgents)
+              }
+              label={tr('总结播报（语音播报任务进度与完成总结）')}
+              data-testid="agents-summary"
+            />
             <p className={styles.hint}>
-              {tr('灵动岛样式、通知类型与免打扰在「通知 / 灵动岛」和「日程与提醒」里设置。')}{' '}
+              {tr(
+                '开启后，每 10 分钟的汇总会附带当前任务进度并朗读，任务结束时朗读完成总结；关闭时只显示气泡 / 灵动岛的简短提示，不出声。遵守语音开关与静音。',
+              )}
+            </p>
+            <p className={styles.hint}>
+              {tr('灵动岛样式、通知类型与免打扰在「通知 / 灵动岛」和「日程与日历」里设置。')}{' '}
               {onOpenNotify && (
                 <Button
                   size="sm"
@@ -110,7 +147,7 @@ export const CodingMonitor: React.FC<{
                     data-testid={`agents-tool-${k}`}
                   />
                   {tr(AGENT_LABEL[k])}
-                  {agents.detected.includes(k) ? ' ✓' : ''}
+                  {agents.detected.includes(k) ? <Icon icon={Check} size={14} /> : null}
                 </label>
               ))}
             </div>
@@ -149,7 +186,7 @@ export const CodingMonitor: React.FC<{
                     data-testid={`agents-filter-${k}`}
                     onClick={() => setAgentFilter(k)}
                   >
-                    {k === 'claude' || k === 'codex' || k === 'dsh' ? (
+                    {k === 'claude' || k === 'codex' || k === 'dsh' || k === 'grok' ? (
                       <EndpointIcon backend={k} size={14} decorative />
                     ) : null}
                     {k === 'all'
@@ -164,6 +201,7 @@ export const CodingMonitor: React.FC<{
             )}
             {agents.sessions.length === 0 ? (
               <EmptyState
+                icon={SquareTerminal}
                 title={tr('暂无活跃会话')}
                 description={tr(
                   '启动 Claude Code、Codex、dsh 等工具或打开编程助手标签后会出现在这里。',
@@ -213,7 +251,13 @@ export const CodingMonitor: React.FC<{
                         )}
                       </div>
                       <p className={styles.hint} data-testid="agents-session-meta">
-                        {[s.label, s.project, tr('最后活动 {0}', relTime(s.mtime)), s.summary]
+                        {[
+                          s.label,
+                          s.project,
+                          tr('最后活动 {0}', relTime(s.mtime)),
+                          s.usage ? sessionUsageText(s.usage, fx.currency, fx.rate) : '',
+                          s.summary,
+                        ]
                           .filter(Boolean)
                           .join(' · ')}
                       </p>

@@ -16,7 +16,7 @@
 | §5 多标签并发 / 排队 / 未读 / 持久化 | `HarnessTabs.test.ts`；e2e `E18`；`chatTabs.test.tsx`（含并发上限 1–8 UI）                                                    | 标签栏 `chat-tabs-max-concurrent`                                                                    |
 | §5 输入框 CLI 提示                   | `chatTabs.test.tsx`（`cliTabPlaceholder`）                                                                                    |                                                                                                      |
 | §6 监视器 / 端点完成 → 看板娘·岛     | `agentEndpoints.test.ts`                                                                                                      | 含 **权限待确认 → island attention + think**                                                         |
-| Claude 权限桥                        | `streamParse.test.ts`、`CliHarness.mock.test.ts`（`NOMI_MOCK_ASK_PERMISSION`）；UI `cli-permission-card`                      | 真机需 Claude CLI + API Key；本机 CLI 2.1.299 有 `--permission-prompt-tool`，**无 Key 未做真机冒烟** |
+| Claude 权限桥                        | `streamParse.test.ts`、`CliHarness.mock.test.ts`（`NOMI_MOCK_ASK_PERMISSION`）；UI `conv-permission-card`                     | 真机需 Claude CLI + API Key；本机 CLI 2.1.299 有 `--permission-prompt-tool`，**无 Key 未做真机冒烟** |
 | Claude 会话级长驻 / 复用             | `CliHarness.mock.test.ts`：`reuses one Claude process across turns`、`tears down Claude live on cancel and respawns`          | mock 断言同一 pid 跨两轮；取消后重拉；**无 API Key，未做真机长驻冒烟**                               |
 | Claude 工具完成态                    | `streamParse.test.ts`（`createClaudeParser`）、`CliHarness.mock.test.ts`（`NOMI_MOCK_TOOLS`）；直播时间线 `cli-tool-timeline` |                                                                                                      |
 | Codex 交互权限                       | 查证结论写入 `coding-agent-harness.md` §5（exec JSON 无 approval 回写；app-server 才有）                                      | **不做假 UI**；本环境 Codex 0.162.1                                                                  |
@@ -28,7 +28,7 @@
 
 ## 1. 版本检查与更新
 
-- [ ] 设置 → 编程助手 → Claude Code / Codex / dsh 各自顶部有「版本」卡片：已装版本或「未安装」、npm 最新版本；「检查更新」可手动刷新。（日程页不再有版本区。）
+- [ ] 设置 → 编程助手 → Claude Code / Codex / dsh 各自顶部有「版本」卡片：已装版本或「未安装」、npm 最新版本；「检查更新」可手动刷新。（「日程与日历」里没有版本区。）
 - [ ] 有新版本时显示「有更新」和「更新」按钮；点击后先弹窗显示将执行的命令，确认后执行，完成后版本号刷新。
 - [ ] 更新只走白名单命令（`claude update` / `codex update` / `npm install -g …@latest`），失败时显示错误原因。
 - [ ] 未安装的 CLI 显示「未安装」，界面不报错。
@@ -120,7 +120,7 @@
 - [ ] 每个端点独立显示：当前生效供应商、来源（本应用写入 / CLI 自带）、上游格式、模型、路由是否需要及原因。
 - [ ] 新增 / 编辑 / 删除 / 测速 / 启用 / 停用 在各端点都可用；测速只探测 `/models`，显示耗时或失败原因；高级项折叠。
 - [ ] 页面说明配置写到哪里（`~/.claude/settings.json`、`~/.codex/config.toml`、`~/.dsh/cordis.patch.yml`）。
-- [ ] 任务路由只出现在 Nomi 分区。日程与提醒页没有编程助手标签，也没有第二份配置界面。
+- [ ] 任务路由只出现在 Nomi 分区。「日程与日历」没有编程助手标签，也没有第二份配置界面。
 
 ## 12. 菜单与快捷键
 
@@ -143,8 +143,8 @@
 - [ ] **编程助手页**：设置左侧是「编程助手」（不再叫供应商与模型）；Claude Code / Codex / dsh 标签与 Nomi 一样有卡片列表、「添加供应商」预设网格、编辑 / 删除（先确认）/ 测速 / 启用；默认选中「CLI 自带登录 / 默认配置」。
 - [ ] 启用某个第三方档案后，CLI 实际使用该档案（Claude 写 settings.json env，Codex 写 config.toml，dsh 写补丁区块）；点「改用 CLI 自带登录」恢复。四个端点互不影响。
 - [ ] **版本卡片**：三个 CLI 的页面都有「版本」卡片；点「更新 / 安装」先弹确认框，显示完整命令与需求检查（dsh 需要 Node ≥ 24，不满足时拦截并说明）；执行中有实时日志；全局目录不可写时只提供「安装到 ~/.local」备选，不会静默 sudo；失败显示原因。
-- [ ] **日程与提醒**页没有「编程助手」标签；「编程助手 → 监视与会话」里有监视开关、系统通知开关、已检测工具、立即扫描、会话列表（按端点筛选、打开标签），并有按钮直达「通知 / 灵动岛」。
-- [ ] 旧入口兼容：从输入栏供应商芯片「管理」、命令面板的「供应商」仍能落到对应端点页。
+- [ ] **日程与日历**没有「编程助手」标签；「编程助手 → 监视与会话」里有监视开关、系统通知开关、已检测工具、立即扫描、会话列表（按端点筛选、打开标签），并有按钮直达「通知 / 灵动岛」。
+- [ ] 输入栏供应商芯片「管理」、命令面板的「供应商」能落到对应端点页。
 - [ ] **更新进度不丢**：在 Codex（或 Claude Code / dsh）页点更新并确认，运行中切到其他端点页、退出设置再回来：日志与「进行中」仍在；结束后结果保留，直到点「关闭结果」；同一端点再点更新不会起第二个任务。
 - [ ] **历史会话不重复**：Codex 会话续接后产生多个 rollout 文件时，侧栏只列一条（取最新），控制台没有「same key」警告。
 

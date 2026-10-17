@@ -18,6 +18,7 @@ import {
   type Protocol,
 } from './protocol';
 import { maskSecret, type SecretCipher } from './secretCipher';
+import type { UsageCallEvent } from './usageEvent';
 
 export const PROVIDER_ROLES = ['chat', 'agent-tools', 'summary'] as const;
 export type ProviderRole = (typeof PROVIDER_ROLES)[number];
@@ -123,6 +124,8 @@ export interface ProviderStoreOptions {
   now?: () => number;
   /** usage 写盘节流（ms），默认 2000 */
   usageFlushMs?: number;
+  /** 每次成功调用的明细回调（用量与计费面板）；回调内抛错会被吞掉 */
+  onCall?: (e: UsageCallEvent) => void;
 }
 
 const emptyUsage = (): ProviderUsage => ({
@@ -505,6 +508,14 @@ export class ProviderStore {
     cur.lastUsedAt = this.now();
     this.data.usage[id] = cur;
     this.scheduleUsageFlush();
+  }
+
+  recordCall(e: UsageCallEvent): void {
+    try {
+      this.opts.onCall?.(e);
+    } catch {
+      /* 记账失败不影响对话 */
+    }
   }
 
   resetUsage(id?: string): void {

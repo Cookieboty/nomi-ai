@@ -124,7 +124,8 @@ describe('CliProviderBridge separate stores', () => {
     expect(r.usedRouting).toBe(true);
     const settings = JSON.parse(fs.readFileSync(claudeSettingsPath(home), 'utf8'));
     expect(settings.env.ANTHROPIC_BASE_URL).toContain(`127.0.0.1:${port}`);
-    expect(settings.env.ANTHROPIC_API_KEY).toBe('nomi-route');
+    expect(settings.env.ANTHROPIC_API_KEY).toBe(route.authToken());
+    expect(settings.env.ANTHROPIC_API_KEY).toMatch(/^nomi-route-[0-9a-f]{48}$/);
     route.stop();
   });
 

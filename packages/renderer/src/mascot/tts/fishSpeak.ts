@@ -5,9 +5,13 @@
  * No preview / upload-clone UI — character binding uses built-in referenceId (e.g. nomi).
  */
 
+import { createLogger } from '@nomi-ai/ui';
+
 import { lipSyncStore } from '../../ai/lipSyncStore';
 import { stopSoftSpeech } from '../softSpeech';
 import { registerSpeechStopper } from '../speechStop';
+
+const log = createLogger('fish-speak');
 
 export interface FishSpeakOptions {
   referenceId?: string;
@@ -163,7 +167,7 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
     await audio.play();
     return true;
   } catch (err) {
-    console.warn('[fishSpeak] failed, will fall back to system speech', err);
+    log.warn('failed, will fall back to system speech', err);
     cleanupAudio();
     return false;
   }

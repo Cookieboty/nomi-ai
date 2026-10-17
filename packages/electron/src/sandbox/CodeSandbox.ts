@@ -16,10 +16,12 @@ export function minimalEnv(tmp: string, extra: Record<string, string> = {}): Nod
 }
 
 /**
- * 代码沙箱（自研）：
+ * 代码执行器（自研，隔离程度因语言而异）：
  * - JavaScript：用 Electron 自带的 Node（ELECTRON_RUN_AS_NODE）+ Node 权限模型 `--permission`，
  *   只允许读写本次的临时目录，禁止子进程 / worker / 原生插件
- * - Python：系统 python3，隔离模式 `-I`，在临时目录里运行（无权限模型，界面上会说明）
+ * - Python：系统 python3，`-I`（只是 Python 自身的「隔离模式」：忽略用户 site / 环境变量，**不是**安全隔离），
+ *   在临时目录里运行。**没有系统级隔离**——代码以当前用户权限运行，可读写用户文件、访问网络。
+ *   真正的平台沙箱（sandbox-exec / bwrap / AppContainer）尚未实现，因此上层必须对 Python 二次确认并如实告知。
  * - 共同：最小化环境变量、超时强制终止、输出截断、运行后删除临时目录
  */
 export class CodeSandbox implements CodeSandboxApi {

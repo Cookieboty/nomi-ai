@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { VrmBackend } from '../backends/vrm';
 import { layoutStore } from '../layoutStore';
 import { mascotRegistry } from '../MascotBackend';
+import { onWindowResized } from '../windowResize';
 
 import { ClickClassifier, PatDetector } from './gestures';
 import { DragGate, HitHysteresis, hitRadius, inPaddedRects } from './pointerPolicy';
@@ -20,10 +21,51 @@ const UI_PAD = 16;
 /** 悬停需停留这么久才触发悬停反应 */
 const HOVER_DWELL_MS = 600;
 const SAMPLE = 21; // alpha 采样窗口边长（覆盖最大膨胀半径 10）
+/** readPixels 同步回读很贵：光标命中测试最多 ~30Hz，帧间复用上一次结果 */
+const HIT_MIN_GAP_S = 1 / 30;
+/** canvas 包围盒 / UI 矩形缓存有效期（缩放 / 布局变化时最多延迟这点时间生效） */
+const RECT_TTL_MS = 250;
+const UI_RECT_TTL_MS = 150;
 
 function vrmBackend(): VrmBackend | null {
   const b = mascotRegistry.current() as VrmBackend | null;
   return b && typeof b.colliders === 'function' ? b : null;
+}
+
+/** canvas 包围盒带 TTL 缓存（每帧 getBoundingClientRect 会强制同步布局） */
+interface RectCache {
+  rect: DOMRect | null;
+  at: number;
+}
+function getCachedRect(cache: RectCache, canvas: HTMLCanvasElement): DOMRect {
+  const now = performance.now();
+  if (!cache.rect || now - cache.at > RECT_TTL_MS) {
+    cache.rect = canvas.getBoundingClientRect();
+    cache.at = now;
+  }
+  return cache.rect;
+}
+
+/** 可见看板娘 UI 矩形，带短 TTL 缓存（querySelectorAll + getComputedStyle 很重） */
+interface UiRectCache {
+  rects: DOMRect[];
+  at: number;
+}
+function getCachedUiRects(cache: UiRectCache): DOMRect[] {
+  const now = performance.now();
+  if (now - cache.at > UI_RECT_TTL_MS) {
+    const out: DOMRect[] = [];
+    document.querySelectorAll<HTMLElement>('[data-mascot-ui]').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === 'hidden' || Number(cs.opacity) < 0.05) return;
+      out.push(r);
+    });
+    cache.rects = out;
+    cache.at = now;
+  }
+  return cache.rects;
 }
 
 /**
@@ -55,7 +97,15 @@ const MascotInteractionLayer: FC = () => {
     headAt: 0,
     shapeAt: 0,
     lastShape: '',
+    hitAt: -1e9,
   });
+  /** canvas 包围盒缓存（窗口缩放 / 角色缩放时 TTL 内自动失效） */
+  const rectCache = useRef<RectCache>({ rect: null, at: 0 });
+  /** UI 矩形缓存（querySelectorAll + getComputedStyle 很重，不能每帧/每光标事件跑） */
+  const uiCache = useRef<UiRectCache>({ rects: [], at: 0 });
+
+  const getCanvasRect = () => getCachedRect(rectCache.current, canvas);
+  const getUiRects = () => getCachedUiRects(uiCache.current);
   const ray = useRef(new THREE.Raycaster());
   const ndc = useRef(new THREE.Vector2());
   const pat = useRef(new PatDetector());
@@ -70,7 +120,7 @@ const MascotInteractionLayer: FC = () => {
   const pickAt = (x: number, y: number): BodyRegion | null => {
     const b = vrmBackend();
     if (!b) return null;
-    const r = canvas.getBoundingClientRect();
+    const r = getCanvasRect();
     if (r.width <= 0 || r.height <= 0) return null;
     ndc.current.set(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
     ray.current.setFromCamera(ndc.current, camera);
@@ -80,7 +130,7 @@ const MascotInteractionLayer: FC = () => {
 
   /** 画布在 (x, y) 附近 (2·rad+1)² 像素内的最大 alpha（膨胀轮廓，抗锯齿边缘也算） */
   const alphaAt = (x: number, y: number, rad = 2): number => {
-    const r = canvas.getBoundingClientRect();
+    const r = getCanvasRect();
     const ctx = gl.getContext();
     const sx = canvas.width / Math.max(1, r.width);
     const sy = canvas.height / Math.max(1, r.height);
@@ -99,25 +149,12 @@ const MascotInteractionLayer: FC = () => {
     return a;
   };
 
-  /** 可见的看板娘 UI（工具栏 / 气泡 / 卡片）矩形 */
-  const uiRects = () => {
-    const out: Array<{ left: number; top: number; right: number; bottom: number }> = [];
-    document.querySelectorAll<HTMLElement>('[data-mascot-ui]').forEach((el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width <= 0 || r.height <= 0) return;
-      const cs = getComputedStyle(el);
-      if (cs.visibility === 'hidden' || Number(cs.opacity) < 0.05) return;
-      out.push(r);
-    });
-    return out;
-  };
-
   const hitTest = (x: number, y: number, currentlyHit = false): boolean => {
     if (x < 0 || y < 0 || x >= window.innerWidth || y >= window.innerHeight) return false;
     const el = document.elementFromPoint(x, y);
     // 工具栏 / 气泡 / 弹窗等 UI：不是画布本身、也不是画布的祖先容器
     if (el && el !== canvas && !el.contains(canvas)) return true;
-    if (inPaddedRects(x, y, uiRects(), UI_PAD)) return true;
+    if (inPaddedRects(x, y, getUiRects(), UI_PAD)) return true;
     return alphaAt(x, y, hitRadius(currentlyHit)) >= ALPHA_HIT || pickAt(x, y) !== null;
   };
 
@@ -126,6 +163,13 @@ const MascotInteractionLayer: FC = () => {
     const api = window.electronAPI?.mascotWindow;
     interactionSettings.push();
     const classifier = new ClickClassifier((region, kind) => react(kind, region));
+    // 窗口被缩放：尽快重新上报包围盒（见 windowResize.ts），并失效矩形缓存
+    const offResize = onWindowResized(() => {
+      s.geomAt = -1e9;
+      s.lastGeom = '';
+      rectCache.current.at = 0;
+      uiCache.current.at = 0;
+    });
 
     const offCursor = api?.onCursor((p) => {
       s.cursor = { x: p.x, y: p.y, inside: p.inside, fresh: true };
@@ -205,6 +249,7 @@ const MascotInteractionLayer: FC = () => {
     window.addEventListener('pointercancel', onCancel);
     window.addEventListener('blur', onCancel);
     return () => {
+      offResize();
       offCursor?.();
       offBody?.();
       offEvt?.();
@@ -229,7 +274,7 @@ const MascotInteractionLayer: FC = () => {
     if (!b) return;
     const cfg = interactionSettings.get();
     const now = state.clock.elapsedTime;
-    const rect = canvas.getBoundingClientRect();
+    const rect = getCanvasRect();
     const toScreen = (p: { x: number; y: number; z: number }) => {
       tmp.current.set(p.x, p.y, p.z).project(camera);
       return {
@@ -364,11 +409,17 @@ const MascotInteractionLayer: FC = () => {
     }
 
     if (!c.fresh) return;
+
+    // 命中测试含 readPixels 同步回读，限到 ~30Hz；帧间保留 fresh 等下个间隔再算。
+    // 拖拽 / 按住期间不节流，保证起拖与点击穿透切换即时。
+    const forced = s.dragging || !!s.down;
+    if (!forced && now - s.hitAt < HIT_MIN_GAP_S) return;
+    s.hitAt = now;
     c.fresh = false;
 
     // ---- 命中测试 → 点击穿透（膨胀轮廓 + 120ms 离开去抖；按住期间始终可交互）----
     const nowMs = performance.now();
-    const hit = s.dragging || !!s.down || hitTest(c.x, c.y, hyst.current.value);
+    const hit = forced || hitTest(c.x, c.y, hyst.current.value);
     const effective = hyst.current.feed(hit, nowMs);
     if (effective !== s.hit) {
       s.hit = effective;

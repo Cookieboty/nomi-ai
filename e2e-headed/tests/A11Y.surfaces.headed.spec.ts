@@ -194,11 +194,7 @@ test.describe('A11y: names, focus trap, Esc, reduced motion', () => {
     await chat.emulateMedia({ reducedMotion: 'no-preference' });
 
     // ---- 弹窗：焦点陷阱 + Esc + 焦点归还（模型配置弹窗） ----
-    const trigger = chat
-      .locator(
-        '[data-testid="open-mem-panel"]:visible, [data-testid="open-kb-panel"]:visible, [data-testid="open-sched-panel"]:visible',
-      )
-      .first();
+    const trigger = chat.locator('[data-testid="open-hub-panel"]:visible').first();
     expect(await trigger.count(), 'no visible dialog trigger in chat header').toBeGreaterThan(0);
     {
       await trigger.focus();

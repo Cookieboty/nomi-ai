@@ -1,6 +1,6 @@
 /**
- * 开发模式侧栏的「编程助手历史会话」：每个端点各自分页（50 条 / 页，「加载更多」），
- * 数据来自主进程对本机 CLI 会话文件的增量扫描。
+ * 开发模式侧栏的「编程助手历史会话」：每个端点各自分页（20 条 / 页，「加载更多」），
+ * 最多展示最近 100 条，数据来自主进程对本机 CLI 会话文件的增量扫描。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -118,13 +118,15 @@ export function useCliHistory(
 
   const loadMore = useCallback(
     (b?: HistoryBackend) => {
+      const my = seq.current;
       for (const ep of b ? [b] : active) {
         const cur = state[ep];
         if (!cur.hasMore || cur.nextOffset == null || cur.loading) continue;
         patch(ep, { loading: true });
         void historyClient
           .list(ep, { offset: cur.nextOffset })
-          .then((page) =>
+          .then((page) => {
+            if (my !== seq.current) return;
             setState((s) => ({
               ...s,
               [ep]: {
@@ -133,9 +135,11 @@ export function useCliHistory(
                 hasMore: !!page?.hasMore,
                 loading: false,
               },
-            })),
-          )
-          .catch(() => patch(ep, { loading: false }));
+            }));
+          })
+          .catch(() => {
+            if (my === seq.current) patch(ep, { loading: false });
+          });
       }
     },
     [active, state, patch],

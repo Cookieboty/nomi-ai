@@ -19,9 +19,7 @@ export type ShortcutId =
   | 'kbAsk'
   | 'snip'
   | 'handsFree'
-  | 'memory'
-  | 'kb'
-  | 'schedule'
+  | 'hub'
   | 'ext'
   | 'local'
   | 'screen'
@@ -48,9 +46,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'kbAsk', label: '知识库问答开关', combo: 'Mod+Shift+K' },
   { id: 'snip', label: '截图提问', combo: 'Mod+Shift+S' },
   { id: 'handsFree', label: '免按键对话开关', combo: 'Mod+Shift+H' },
-  { id: 'memory', label: '记忆', combo: 'Mod+Shift+M' },
-  { id: 'kb', label: '知识库', combo: 'Mod+Shift+L' },
-  { id: 'schedule', label: '日程与提醒', combo: 'Mod+Shift+D' },
+  { id: 'hub', label: '知识 · 记忆 · 日程', combo: 'Mod+Shift+M' },
   { id: 'ext', label: '扩展 / MCP', combo: 'Mod+Shift+E' },
   { id: 'local', label: '本机管理', combo: 'Mod+Shift+J' },
   { id: 'screen', label: '屏幕记忆', combo: 'Mod+Shift+O' },

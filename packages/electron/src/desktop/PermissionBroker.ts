@@ -292,7 +292,7 @@ export class PermissionBroker {
       summary: t('{0}将发送给「{1}」进行处理，可以吗？', what, provider.name),
       args: { provider: provider.name },
       preview: t(
-        '这是第一次把本地{0}发送给云端模型「{1}」。\n{2}会离开本机，由该服务商处理。\n可以在「桌面能力 → 隐私」里开启「仅本地模型可读文件」。',
+        '这是第一次把本地{0}发送给云端模型「{1}」。\n{2}会离开本机，由该服务商处理。\n可以在「桌面能力 → 云端与仅本地」里开启「仅本地模型可读文件」。',
         what,
         provider.name,
         what,

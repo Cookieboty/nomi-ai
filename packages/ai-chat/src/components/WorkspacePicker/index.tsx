@@ -2,7 +2,8 @@
  * 工作目录选择：显示当前目录（缩短 + tooltip 完整路径），下拉里是最近使用的目录 + 「选择文件夹…」原生选择器。
  * 受控组件：由调用方决定如何应用（更改正在运行的 CLI 会话 / 新建标签时的初始目录）。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
+import { Check, Folder, FolderOpen } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -88,7 +89,7 @@ export const WorkspacePicker: React.FC<{
         data-testid={`${testId}-button`}
         onClick={() => setOpen((v) => !v)}
       >
-        <span aria-hidden>📁</span>
+        <Icon icon={Folder} />
         {label && <span className={styles.label}>{label}</span>}
         <span className={styles.path} data-testid={`${testId}-path`}>
           {shortenPath(value) || t('选择目录')}
@@ -115,7 +116,9 @@ export const WorkspacePicker: React.FC<{
                 data-testid="workspace-recent-item"
                 onClick={() => apply(p)}
               >
-                <span className={styles.check}>{p === value ? '✓' : ''}</span>
+                <span className={styles.check}>
+                  {p === value ? <Icon icon={Check} size={14} /> : null}
+                </span>
                 <span className={styles.itemPath}>{shortenPath(p, 44)}</span>
               </button>
             ))}
@@ -126,7 +129,9 @@ export const WorkspacePicker: React.FC<{
               data-testid="workspace-browse"
               onClick={() => void browse()}
             >
-              <span className={styles.check}>…</span>
+              <span className={styles.check}>
+                <Icon icon={FolderOpen} size={14} />
+              </span>
               {t('选择文件夹…')}
             </button>
           </div>,

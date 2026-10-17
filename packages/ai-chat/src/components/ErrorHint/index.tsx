@@ -1,6 +1,7 @@
 import { toErrorHint, type ErrorAction } from '@nomi-ai/ai-sdk-client';
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import { Button, IconButton } from '@nomi-ai/ui';
+import { TriangleAlert, X } from 'lucide-react';
 import React from 'react';
 
 import styles from './index.module.css';
@@ -28,7 +29,7 @@ export const ErrorHint: React.FC<ErrorHintProps> = ({ error, onAction, onDismiss
     <div className={styles.errorHint} role="alert" data-code={hint.code}>
       <div className={styles.errorHintHeader}>
         <span className={styles.errorHintIcon} aria-hidden>
-          ⚠️
+          <Icon icon={TriangleAlert} size={18} />
         </span>
         <strong className={styles.errorHintTitle}>{t(hint.title)}</strong>
         {onDismiss && (
@@ -36,7 +37,7 @@ export const ErrorHint: React.FC<ErrorHintProps> = ({ error, onAction, onDismiss
             size="sm"
             className={styles.errorHintDismiss}
             label={t('关闭错误提示')}
-            icon="×"
+            icon={<Icon icon={X} />}
             onClick={onDismiss}
           />
         )}

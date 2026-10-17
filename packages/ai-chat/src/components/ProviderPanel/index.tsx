@@ -4,7 +4,7 @@
  *   任务路由：chat / agent-tools / summary 从各供应商已启用（或已获取）的模型里选。
  * 明文 key 只单向提交给主进程；界面只显示掩码。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
@@ -14,8 +14,10 @@ import {
   ModalHostContext,
   Notice,
   Select,
+  SectionTitle,
   ToastProvider,
 } from '@nomi-ai/ui';
+import { CloudCog, Plus, TriangleAlert, Zap } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -102,7 +104,8 @@ const ProviderRow: React.FC<{
               setTest(await providerClient.test(p.id));
             })}
           >
-            {t('⚡ 测速')}
+            <Icon icon={Zap} size={14} />
+            {t('测速')}
           </Button>
           <Button size="sm" data-testid={`edit-${p.id}`} onClick={onEdit}>
             {t('编辑')}
@@ -212,6 +215,12 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const [state, setState] = useState<ProviderState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>({ kind: 'list' });
+  // 使用 setState-during-render 模式：面板从隐藏切到可见时，渲染期同步重置视图回「列表」
+  const [lastVisibleKey, setLastVisibleKey] = useState(isVisible);
+  if (lastVisibleKey !== isVisible) {
+    setLastVisibleKey(isVisible);
+    if (isVisible && view.kind !== 'list') setView({ kind: 'list' });
+  }
 
   const onError = useCallback(
     (e: unknown) => setError(e instanceof Error ? e.message : String(e)),
@@ -230,7 +239,8 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
-    setView({ kind: 'list' });
+    // 面板可见时初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
     return providerClient.onChanged((s) => setState(s));
   }, [isVisible, refresh]);
@@ -260,9 +270,9 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
             </Notice>
           )}
           {state?.encryption === 'none' && (
-            <Notice tone="warning" data-testid="encryption-warning">
+            <Notice tone="warning" icon={TriangleAlert} data-testid="encryption-warning">
               {t(
-                '⚠️ 当前系统不支持安全存储（safeStorage 不可用），Token 仅以编码形式保存在本机，未加密。',
+                '当前系统不支持安全存储（safeStorage 不可用），Token 仅以编码形式保存在本机，未加密。',
               )}
             </Notice>
           )}
@@ -294,12 +304,13 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   data-testid="add-provider-btn"
                   onClick={() => setView({ kind: 'add' })}
                 >
-                  {t('＋ 添加供应商')}
+                  <Icon icon={Plus} size={14} />
+                  {t('添加供应商')}
                 </Button>
               </div>
               {state.providers.length + state.envProviders.length === 0 && (
                 <EmptyState
-                  icon="🔌"
+                  icon={CloudCog}
                   title={t('还没有供应商')}
                   description={t('点「添加供应商」，选择预设或自定义配置')}
                 />
@@ -353,7 +364,7 @@ export const ProviderPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   />
                 ))}
               <section>
-                <h3 className="cd-section-title">{t('任务路由（可选，默认都跟随当前供应商）')}</h3>
+                <SectionTitle>{t('任务路由（可选，默认都跟随当前供应商）')}</SectionTitle>
                 <RoutesTable state={state} onError={onError} />
                 <p className="cd-muted">
                   {t(

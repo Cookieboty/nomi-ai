@@ -13,7 +13,9 @@ import {
   Notice,
   ToastProvider,
   t,
+  Icon,
 } from '@nomi-ai/ui';
+import { CloudCog, Plus, Zap } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -45,6 +47,7 @@ const NAME: Record<CliProviderKind, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
+  grok: 'Grok',
 };
 
 /** 本地没有预设服务（非桌面环境）时，添加页至少有「自定义配置」 */
@@ -74,6 +77,7 @@ export function routingStatus(
   route: CliRouteSettings | null,
 ): { mode: 'none' | 'direct' | 'routed' | 'blocked' | 'n/a'; text: string } {
   if (kind === 'dsh') return { mode: 'n/a', text: t('无需路由：dsh 原生支持三种上游协议') };
+  if (kind === 'grok') return { mode: 'n/a', text: t('无需路由：Grok 原生支持三种上游协议') };
   if (!active) return { mode: 'none', text: t('—（沿用 CLI 自带配置，不经过 Nomi）') };
   if (!active.needsRouting) {
     return {
@@ -151,9 +155,17 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
       ? state?.claudeSettings
       : kind === 'codex'
         ? state?.codexConfig
-        : state?.dshConfig;
+        : kind === 'grok'
+          ? state?.grokConfig
+          : state?.dshConfig;
   const store =
-    kind === 'claude' ? state?.claudeStore : kind === 'codex' ? state?.codexStore : state?.dshStore;
+    kind === 'claude'
+      ? state?.claudeStore
+      : kind === 'codex'
+        ? state?.codexStore
+        : kind === 'grok'
+          ? state?.grokStore
+          : state?.dshStore;
   const rs = routingStatus(kind, active, route);
 
   const guard = async (fn: () => Promise<void>) => {
@@ -217,10 +229,15 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
             '启用档案时只改写 {0}（model、model_provider 与 [model_providers.nomi]）和同目录 auth.json 的 OPENAI_API_KEY，其它内容原样保留，改写前自动备份。',
             writes ?? '~/.codex/config.toml',
           )
-        : t(
-            '启用档案时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
-            writes ?? '~/.dsh/cordis.patch.yml',
-          );
+        : kind === 'grok'
+          ? t(
+              '启用档案时只写入 {0} 里带 Nomi 标记的 [model.nomi] 区块并设置 default；密钥不落盘，只在 Nomi 启动 Grok 时通过环境变量注入。',
+              writes ?? '~/.grok/config.toml',
+            )
+          : t(
+              '启用档案时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
+              writes ?? '~/.dsh/cordis.patch.yml',
+            );
 
   const activeBrand = (p: CliProviderProfile) =>
     p.presetId && p.presetId !== 'custom' ? p.presetId : inferBrand(p.baseUrl);
@@ -259,7 +276,8 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
                 data-testid="cli-add-provider"
                 onClick={() => setView({ kind: 'add' })}
               >
-                {t('＋ 添加供应商')}
+                <Icon icon={Plus} size={14} />
+                {t('添加供应商')}
               </Button>
             </div>
             <dl className={styles.facts}>
@@ -307,7 +325,7 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
 
             {profiles.length === 0 && (
               <EmptyState
-                icon="🔌"
+                icon={CloudCog}
                 title={t('还没有第三方供应商')}
                 description={t('点「添加供应商」，选择预设模板或自定义配置')}
               />
@@ -371,7 +389,8 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
                         data-testid="cli-provider-test"
                         onClick={() => void test(p)}
                       >
-                        {t('⚡ 测速')}
+                        <Icon icon={Zap} size={14} />
+                        {t('测速')}
                       </Button>
                       <Button
                         size="sm"
@@ -457,11 +476,15 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         <details className={styles.advanced} data-testid="cli-route-advanced">
           <summary>{t('高级')}</summary>
           <div className={styles.advBody}>
-            {kind === 'dsh' ? (
+            {kind === 'dsh' || kind === 'grok' ? (
               <p className={styles.sub}>
-                {t(
-                  'dsh 原生支持 openai-completions / openai-responses / anthropic-messages，不需要本地路由。',
-                )}
+                {kind === 'grok'
+                  ? t(
+                      'Grok 原生支持 responses / chat_completions / messages（api_backend），不需要本地路由。',
+                    )
+                  : t(
+                      'dsh 原生支持 openai-completions / openai-responses / anthropic-messages，不需要本地路由。',
+                    )}
               </p>
             ) : (
               <>

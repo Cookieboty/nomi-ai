@@ -1,4 +1,5 @@
-import { t as tr } from '@nomi-ai/ui';
+import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
+import { BookOpen, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, { useCallback, useEffect, useState, useRef, type KeyboardEvent } from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
@@ -17,13 +18,21 @@ import {
   type RawAttachment,
   type ImageAttachment,
 } from '../../services/screenClient';
-import { getBindings, matchShortcut } from '../../services/shortcuts';
+import {
+  formatCombo,
+  getBindings,
+  matchShortcut,
+  useShortcutBindings,
+} from '../../services/shortcuts';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import type { SettingsSection } from '../SettingsView/sections';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import styles from './index.module.css';
+
+const log = createLogger('message-input');
 
 interface MessageInputProps {
   onSend?: (message: string) => void;
@@ -31,36 +40,40 @@ interface MessageInputProps {
   busyOverride?: boolean;
   /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
   placeholder?: string;
+  /**
+   * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
+   * 不传则保持原行为（运行中禁用输入）。
+   */
+  queue?: { onQueue: (text: string) => void; onStop?: () => void };
   disabled?: boolean;
   onConfigClick?: () => void;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
-  onKnowledgeClick?: () => void;
-  onMemoryClick?: () => void;
-  onScheduleClick?: () => void;
+  /** 打开「知识 · 记忆 · 日程」快速视图 */
+  onHubClick?: () => void;
   onScreenClick?: () => void;
   onExtClick?: () => void;
   onLocalClick?: () => void;
   /** 打开统一设置页的某个分区 */
-  onSettingsClick?: (section?: string, endpoint?: string) => void;
+  onSettingsClick?: (section?: SettingsSection, endpoint?: string) => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
   placeholder = tr('输入消息...'),
+  queue,
   disabled = false,
   onConfigClick,
   onProvidersClick,
   onDesktopClick,
-  onKnowledgeClick,
-  onMemoryClick,
-  onScheduleClick,
+  onHubClick,
   onScreenClick,
   onExtClick,
   onLocalClick,
   onSettingsClick,
 }) => {
+  const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const { pins, update: updatePins } = usePins();
@@ -193,7 +206,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   const handleSend = async () => {
     const trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
-    if (!trimmedMessage || (busyOverride ?? state.isLoading)) return;
+    if (!trimmedMessage) return;
+    if (busy) {
+      // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
+      if (queue && !images.length) {
+        queue.onQueue(trimmedMessage);
+        setMessage('');
+        if (textareaRef.current) textareaRef.current.style.height = 'auto';
+      }
+      return;
+    }
     const sendImages = images;
 
     try {
@@ -215,7 +237,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         await actions.sendStreamMessage(trimmedMessage);
       }
     } catch (error) {
-      console.error('发送消息失败:', error);
+      log.error('发送消息失败:', error);
     }
   };
 
@@ -286,13 +308,33 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
   };
 
+  const busy = busyOverride ?? state.isLoading;
   const isDisabled =
     disabled ||
-    (busyOverride !== undefined ? busyOverride : state.isLoading || !state.currentModelId);
+    (busyOverride !== undefined
+      ? queue
+        ? false
+        : busyOverride
+      : queue
+        ? !state.currentModelId
+        : state.isLoading || !state.currentModelId);
+
+  // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
+  const stopFn =
+    busyOverride === undefined
+      ? state.streaming
+        ? actions.stopGeneration
+        : undefined
+      : queue?.onStop;
+  // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
+  // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
+  const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);
-  busyRef.current = isDisabled;
+  useEffect(() => {
+    busyRef.current = isDisabled || busy;
+  }, [isDisabled, busy]);
   const onVoiceText = useCallback(
     (text: string, autoSend: boolean) => {
       if (autoSend && !busyRef.current) {
@@ -324,12 +366,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     /** 出现在 ＋ 菜单里（其余只走 / 命令、快捷键与顶栏/设置） */
     menu?: boolean;
   };
-  const commands: Cmd[] = [
+  // 命令项的 run 函数捕获了 textareaRef 等用于事件处理，react-hooks/refs 对此过度推断，豁免此处
+  const allCommands: Cmd[] = [
     {
       id: 'kb',
       icon: <AppIcon icon={FEATURE_ICONS.kb} />,
       label: kbMode ? tr('知识库问答：开') : tr('知识库问答：关'),
-      hint: '⌘/Ctrl+Shift+K',
+      hint: formatCombo(bindings.kbAsk),
       testId: 'kb-mode-toggle',
       menu: true,
       run: toggleKb,
@@ -338,9 +381,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
     {
       id: 'snip',
-      icon: <AppIcon icon={FEATURE_ICONS.fork} />,
+      icon: <AppIcon icon={FEATURE_ICONS.snip} />,
       label: tr('截图提问'),
-      hint: '⌘/Ctrl+Shift+S',
+      hint: formatCombo(bindings.snip),
       testId: 'snip-button',
       menu: true,
       run: () => void snip(),
@@ -348,7 +391,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
     {
       id: 'model',
-      icon: <AppIcon icon={FEATURE_ICONS.settings} />,
+      icon: <AppIcon icon={FEATURE_ICONS.model} />,
       label: provOk ? tr('供应商与模型') : tr('配置模型'),
       testId: 'open-config',
       menu: true,
@@ -365,37 +408,19 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       show: cv.v.available,
     },
     {
-      id: 'kbm',
-      icon: <AppIcon icon={FEATURE_ICONS.files} />,
-      label: tr('知识库管理'),
-      hint: '⌘/Ctrl+Shift+L',
-      testId: 'open-kb-panel',
-      run: () => onKnowledgeClick?.(),
-      show: !!onKnowledgeClick && kbAvailable,
-    },
-    {
-      id: 'memory',
-      icon: <AppIcon icon={FEATURE_ICONS.memory} />,
-      label: tr('长期记忆'),
-      hint: '⌘/Ctrl+Shift+M',
-      testId: 'open-mem-panel',
-      run: () => onMemoryClick?.(),
-      show: !!onMemoryClick && memClient.available(),
-    },
-    {
-      id: 'schedule',
-      icon: <AppIcon icon={FEATURE_ICONS.schedule} />,
-      label: tr('日程 · 提醒 · 编程助手'),
-      hint: '⌘/Ctrl+Shift+D',
-      testId: 'open-sched-panel',
-      run: () => onScheduleClick?.(),
-      show: !!onScheduleClick && schedClient.available(),
+      id: 'hub',
+      icon: <AppIcon icon={FEATURE_ICONS.hub} />,
+      label: tr('知识 · 记忆 · 日程'),
+      hint: formatCombo(bindings.hub),
+      testId: 'open-hub-panel',
+      run: () => onHubClick?.(),
+      show: !!onHubClick && (kbAvailable || memClient.available() || schedClient.available()),
     },
     {
       id: 'screen',
       icon: <AppIcon icon={FEATURE_ICONS.screen} />,
       label: tr('截图与屏幕记忆'),
-      hint: '⌘/Ctrl+Shift+O',
+      hint: formatCombo(bindings.screen),
       testId: 'open-screen-panel',
       run: () => onScreenClick?.(),
       show: !!onScreenClick && screenOk,
@@ -404,7 +429,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       id: 'ext',
       icon: <AppIcon icon={FEATURE_ICONS.ext} />,
       label: tr('扩展：MCP 与技能'),
-      hint: '⌘/Ctrl+Shift+E',
+      hint: formatCombo(bindings.ext),
       testId: 'open-ext-panel',
       run: () => onExtClick?.(),
       show: !!onExtClick && extClient.available(),
@@ -421,22 +446,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       id: 'local',
       icon: <AppIcon icon={FEATURE_ICONS.local} />,
       label: tr('本地中心（辅助）'),
-      hint: '⌘/Ctrl+Shift+J',
+      hint: formatCombo(bindings.local),
       testId: 'open-local-panel',
       run: () => onLocalClick?.(),
       show: !!onLocalClick && extClient.available(),
     },
     {
       id: 'settings',
-      icon: <AppIcon icon={FEATURE_ICONS.appSettings} />,
+      icon: <AppIcon icon={FEATURE_ICONS.settings} />,
       label: tr('全部设置…'),
-      hint: '⌘/Ctrl+,',
+      hint: formatCombo(bindings.settings),
       testId: 'composer-settings',
       run: () => onSettingsClick?.(),
       show: !!onSettingsClick,
       menu: true,
     },
-  ].filter((c) => c.show);
+  ];
+  // allCommands 的 run 函数捕获了 textareaRef / busyRef 等事件处理用的 ref，
+  // react-hooks/refs 据此把整个数组推断为 ref-like，这里是事件处理层的派生，豁免
+  // eslint-disable-next-line react-hooks/refs
+  const commands: Cmd[] = allCommands.filter((c) => c.show);
   const slashQuery = /^\/(\S*)$/.exec(message)?.[1];
   const slashMatches =
     slashQuery === undefined
@@ -450,6 +479,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const slashOpen = slashMatches.length > 0;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
+  // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
+  // eslint-disable-next-line react-hooks/refs
   cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
   useEffect(() => {
     const on = (e: Event) => {
@@ -522,7 +553,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             aria-pressed={pinned}
             data-testid={`pin-toggle-${c.id}`}
           >
-            📌
+            <Icon icon={Pin} size={14} />
           </button>
         </div>
       );
@@ -546,7 +577,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
                 aria-label={tr('移除图片')}
                 onClick={() => setImages((c) => c.filter((x) => x.id !== i.id))}
               >
-                ×
+                <Icon icon={X} size={12} />
               </button>
             </div>
           ))}
@@ -603,13 +634,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             }
           }}
           placeholder={
-            busyOverride !== undefined
-              ? placeholder
-              : isDisabled
-                ? tr('请先选择AI模型...')
-                : kbMode && kbAvailable
-                  ? tr('向知识库提问，回答会标注出处…')
-                  : placeholder
+            queue && busy
+              ? tr('运行中，继续输入会排队，完成后自动发送…')
+              : busyOverride !== undefined
+                ? placeholder
+                : isDisabled
+                  ? tr('请先选择AI模型...')
+                  : kbMode && kbAvailable
+                    ? tr('向知识库提问，回答会标注出处…')
+                    : placeholder
           }
           disabled={isDisabled}
           className={styles.messageTextarea}
@@ -630,9 +663,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               aria-label={tr('更多功能')}
               data-testid="composer-more"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11 5h2v14h-2zM5 11h14v2H5z" />
-              </svg>
+              <Icon icon={Plus} />
             </button>
             {menuOpen && (
               <div className={styles.menu} role="menu" data-testid="composer-menu">
@@ -651,7 +682,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               title={tr('知识库问答已开启，点击关闭')}
               data-testid="kb-mode-chip"
             >
-              {tr('📚 知识库')}
+              <Icon icon={BookOpen} size={14} />
+              {tr('知识库')}
             </button>
           )}
           <div className={styles.modelStatus}>
@@ -673,21 +705,35 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           </div>
           <span className={styles.spacer} />
           <VoiceButtons cv={cv} disabled={disabled || !state.currentModelId} />
-          <button
-            onClick={handleSend}
-            disabled={isDisabled || (!message.trim() && !images.length)}
-            className={styles.sendButton}
-            title={tr('发送消息 (Enter)')}
-            aria-label={tr('发送')}
-          >
-            {(busyOverride ?? state.isLoading) ? (
-              <div className={styles.loadingSpinner} />
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 4l-7 7 1.4 1.4L11 7.8V20h2V7.8l4.6 4.6L19 11z" />
-              </svg>
-            )}
-          </button>
+          {canStop ? (
+            <button
+              type="button"
+              onClick={stopFn}
+              className={styles.sendButton}
+              title={tr('停止生成')}
+              aria-label={tr('停止生成')}
+              data-testid="stop-button"
+            >
+              <Icon icon={Square} />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={isDisabled || (!message.trim() && !images.length)}
+              className={styles.sendButton}
+              title={queue && busy ? tr('排队发送 (Enter)') : tr('发送消息 (Enter)')}
+              aria-label={queue && busy ? tr('排队') : tr('发送')}
+              data-testid={queue && busy ? 'queue-button' : 'send-button'}
+            >
+              {queue && busy ? (
+                <Icon icon={ListPlus} />
+              ) : busy ? (
+                <div className={styles.loadingSpinner} />
+              ) : (
+                <Icon icon={ArrowUp} />
+              )}
+            </button>
+          )}
         </div>
       </div>
       <VoiceSettingsModal cv={cv} />

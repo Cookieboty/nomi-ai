@@ -4,7 +4,8 @@ export type ClaudeApiFormat =
   'anthropic_messages' | 'openai_chat_completions' | 'openai_responses' | 'gemini_generate_content';
 export type CodexApiFormat = 'openai_responses' | 'openai_chat_completions' | 'anthropic_messages';
 export type DshApiFormat = CodexApiFormat;
-export type CliProviderKind = 'claude' | 'codex' | 'dsh';
+export type GrokApiFormat = CodexApiFormat;
+export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok';
 
 export interface CliProviderProfile {
   id: string;
@@ -12,7 +13,7 @@ export interface CliProviderProfile {
   name: string;
   baseUrl: string;
   model: string;
-  apiFormat: ClaudeApiFormat | CodexApiFormat;
+  apiFormat: ClaudeApiFormat | CodexApiFormat | DshApiFormat | GrokApiFormat;
   needsRouting: boolean;
   hasKey: boolean;
   keyHint: string;
@@ -46,6 +47,8 @@ export interface CliProviderState {
   codexConfig: string;
   dshStore?: string;
   dshConfig?: string;
+  grokStore?: string;
+  grokConfig?: string;
   routing: CliRouteSettings | null;
 }
 

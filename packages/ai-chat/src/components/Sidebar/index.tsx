@@ -1,4 +1,5 @@
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
+import { RefreshCw, X, Ellipsis, PanelLeft, Pencil, Search, SquarePen, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List, type RowComponentProps } from 'react-window';
 
@@ -8,7 +9,7 @@ import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
-import { useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
+import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
@@ -22,7 +23,7 @@ import type { ConversationBackend, ChatSession } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems, type Range, type SearchField } from '../../utils/fuzzy';
-import { AppIcon, SETTINGS_ICONS } from '../AppIcons';
+import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
@@ -55,6 +56,9 @@ function liveOf(tab: HarnessTabMeta | undefined): string {
     return tab.status;
   return tab.unread > 0 ? 'unread' : '';
 }
+
+/** 第一条用户消息缓存（跨 Sidebar 实例共享，key = `${id}:${updatedAt}`） */
+const firstUserMessageCache = new Map<string, string>();
 
 /** 把命中区间渲染成 <mark>（区间基于折叠后的文本，与原文等长） */
 const Highlight: React.FC<{ text: string; ranges?: Range[] }> = ({ text, ranges }) => {
@@ -93,8 +97,6 @@ const fieldsOf = (e: SearchEntry): SearchField[] =>
         { text: ENDPOINT_FULL[e.h.backend](), weight: 1 },
       ];
 
-const MAX_RESULTS = 200;
-
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -104,53 +106,12 @@ function useDebounced<T>(value: T, ms: number): T {
   return v;
 }
 
-const SearchIcon = () => (
-  <svg
-    width="15"
-    height="15"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.8"
-  >
-    <circle cx="11" cy="11" r="6.5" />
-    <path d="m20 20-3.8-3.8" />
-  </svg>
-);
+const SearchIcon = () => <Icon icon={Search} size={15} />;
 
 /** 行内操作的图标（描边，随文字色） */
-const PenIcon = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.9"
-  >
-    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" strokeLinejoin="round" />
-    <path d="m13.5 6.5 4 4" />
-  </svg>
-);
-const TrashIcon = () => (
-  <svg
-    width="13"
-    height="13"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.9"
-  >
-    <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" strokeLinejoin="round" strokeLinecap="round" />
-  </svg>
-);
-const MoreIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="5" cy="12" r="1.8" />
-    <circle cx="12" cy="12" r="1.8" />
-    <circle cx="19" cy="12" r="1.8" />
-  </svg>
-);
+const PenIcon = () => <Icon icon={Pencil} size={14} />;
+const TrashIcon = () => <Icon icon={Trash2} size={14} />;
+const MoreIcon = () => <Icon icon={Ellipsis} size={14} />;
 
 export interface RowActionHandlers {
   onRename?: () => void;
@@ -478,7 +439,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   const counts = useMemo(() => {
-    const c: Record<ConversationBackend, number> = { nomi: 0, claude: 0, codex: 0, dsh: 0 };
+    const c: Record<ConversationBackend, number> = {
+      nomi: 0,
+      claude: 0,
+      codex: 0,
+      dsh: 0,
+      grok: 0,
+    };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
   }, [navList]);
@@ -624,8 +591,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
+  // 磁盘历史扫描仅支持 claude/codex/dsh（HISTORY_BACKENDS）；grok 暂无转录扫描，
+  // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
+  const histScopeSupported =
+    histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
   const histItems: HistorySession[] =
-    view === 'by-endpoint' && endpointFilter === 'nomi' ? [] : history.items(histScope);
+    !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
+      ? []
+      : history.items(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   const openHistory = async (h: HistorySession) => {
@@ -674,7 +647,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const debounced = useDebounced(query, 150);
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
-  const firstMsgCache = useRef(new Map<string, string>());
 
   useEffect(() => {
     const onEvent = () => {
@@ -687,14 +659,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
-  // 普通 / 开发模式切换后端点范围变了，丢掉光标
-  useEffect(() => setActiveIdx(0), [debounced, isDev, view, endpointFilter]);
+  // 普通 / 开发模式切换后端点范围变了，丢掉光标（在渲染期根据键变化重置，避免 effect 内 setState 触发级联渲染）
+  const activeIdxKey = `${debounced}\u0001${isDev ? 1 : 0}\u0001${view}\u0001${endpointFilter}`;
+  const [prevActiveIdxKey, setPrevActiveIdxKey] = useState(activeIdxKey);
+  if (prevActiveIdxKey !== activeIdxKey) {
+    setPrevActiveIdxKey(activeIdxKey);
+    if (activeIdx !== 0) setActiveIdx(0);
+  }
 
   const firstUserMessage = useCallback(
     (m: Meta): string => {
       if (m.tabId) return '';
       const k = `${m.id}:${m.updatedAt}`;
-      const hit = firstMsgCache.current.get(k);
+      const hit = firstUserMessageCache.get(k);
       if (hit !== undefined) return hit;
       let text = '';
       try {
@@ -705,8 +682,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       } catch {
         /* 取不到就只搜标题 */
       }
-      if (firstMsgCache.current.size > 2000) firstMsgCache.current.clear();
-      firstMsgCache.current.set(k, text);
+      if (firstUserMessageCache.size > 2000) firstUserMessageCache.clear();
+      firstUserMessageCache.set(k, text);
       return text;
     },
     [ipc],
@@ -727,7 +704,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         cwd: (m.tabId ? tabById.get(m.tabId)?.cwd : '') ?? '',
       });
     }
-    if (isDev && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
+    if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
       // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
       for (const h of [...history.items(histScope), ...searchIndex.items]) {
         if (histScope && h.backend !== histScope) continue;
@@ -744,8 +721,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isDev,
     view,
     endpointFilter,
-    history.items,
+    history,
     histScope,
+    histScopeSupported,
     searchIndex.items,
     debounced,
     firstUserMessage,
@@ -802,16 +780,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         aria-expanded={isDev && view === 'all' ? newMenu : undefined}
         data-testid="new-chat"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-        </svg>
+        <Icon icon={SquarePen} />
       </button>
       {newMenu && !collapsed && (
         <NewChatMenu
@@ -839,17 +808,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           aria-label={collapsed ? t('展开侧边栏') : t('收起侧边栏')}
           data-testid="sidebar-toggle"
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          >
-            <rect x="3" y="4" width="18" height="16" rx="3" />
-            <path d="M9 4v16" />
-          </svg>
+          <Icon icon={PanelLeft} />
         </button>
         {!collapsed && searchOpen && (
           <div className={styles.searchBox} role="search" data-testid="sidebar-search">
@@ -884,7 +843,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               data-testid="sidebar-search-clear"
               onClick={() => (query ? (setQuery(''), inputRef.current?.focus()) : closeSearch())}
             >
-              ×
+              <Icon icon={X} size={14} />
             </button>
           </div>
         )}
@@ -1124,17 +1083,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   aria-label={t('刷新历史会话')}
                   data-testid="cli-history-refresh"
                 >
-                  ↻
+                  <Icon icon={RefreshCw} size={14} />
                 </button>
               </div>
-              {histItems.length === 0 && history.loaded && !history.loading && (
-                <div className={styles.empty} data-testid="cli-history-empty">
-                  {t('没有找到本机的历史会话')}
-                </div>
-              )}
-              {histItems.length === 0 && history.loading && !history.loaded && (
-                <div className={styles.empty}>{t('正在扫描历史会话…')}</div>
-              )}
+              {histItems.length === 0 &&
+                (!histScopeSupported || (history.loaded && !history.loading)) && (
+                  <div className={styles.empty} data-testid="cli-history-empty">
+                    {t('没有找到本机的历史会话')}
+                  </div>
+                )}
+              {histScopeSupported &&
+                histItems.length === 0 &&
+                history.loading &&
+                !history.loaded && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
               {histItems.map((h) => (
                 <div
                   key={h.key}
@@ -1175,7 +1136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                 </div>
               ))}
-              {history.hasMore(histScope) && (
+              {histScopeSupported && history.hasMore(histScope) && (
                 <button
                   type="button"
                   className={styles.histMore}
@@ -1228,7 +1189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           data-testid="sidebar-settings"
         >
           <span aria-hidden>
-            <AppIcon icon={SETTINGS_ICONS.general} size={16} />
+            <AppIcon icon={FEATURE_ICONS.settings} size={16} />
           </span>
           {!collapsed && <span>{t('设置')}</span>}
         </button>

@@ -49,11 +49,12 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
         const errorMessage = err instanceof Error ? err.message : t('初始化失败');
         setError(errorMessage);
         onError?.(errorMessage);
-        console.error('VirtualCharacter3D: 初始化失败:', err);
+        log.error('初始化失败:', err);
       }
     };
 
     initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在模型路径变化时重初始化，回调更稳定
   }, [modelPath]); // 移除store函数和callback依赖
 
   // 处理模型加载成功
@@ -73,7 +74,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
   const handleError = (errorMessage: string) => {
     setError(errorMessage);
     onError?.(errorMessage);
-    console.error('VirtualCharacter3D: 错误:', errorMessage);
+    log.error('错误:', errorMessage);
   };
 
   // 如果出现错误，显示错误状态

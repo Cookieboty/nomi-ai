@@ -1,5 +1,6 @@
-import { t as tr } from '@nomi-ai/ui';
+import { t as tr, Icon } from '@nomi-ai/ui';
 import { Badge, Button, Modal, Tabs } from '@nomi-ai/ui';
+import { Plus, Settings } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { ImportTab } from './ImportTab';
@@ -98,7 +99,7 @@ export const ModelPicker: React.FC = () => {
                     title={tr('设置 / 替换 / 删除')}
                     onClick={() => setEditing(m.name)}
                   >
-                    ⚙
+                    <Icon icon={Settings} />
                   </button>
                 )}
               </div>
@@ -114,7 +115,7 @@ export const ModelPicker: React.FC = () => {
                 onClick={() => setTab('import')}
               >
                 <div className={`${styles.thumb} ${styles.uploadThumb}`} aria-hidden>
-                  ＋
+                  <Icon icon={Plus} size={22} />
                 </div>
                 <span className={styles.name}>{tr('上传自定义模型')}</span>
                 <span className={styles.badges}>

@@ -1,3 +1,4 @@
+import { Check as CheckIcon, ChevronDown } from 'lucide-react';
 import React, {
   forwardRef,
   useCallback,
@@ -13,6 +14,7 @@ import { createPortal } from 'react-dom';
 
 import { cx } from './cx';
 import { t as tr } from './i18n';
+import { Icon } from './icons';
 
 export interface SelectOption {
   value: string;
@@ -80,30 +82,8 @@ function optionsFromChildren(children: React.ReactNode, group?: string): SelectO
   return out;
 }
 
-const Chevron = () => (
-  <svg className="cd-dropdown__chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden>
-    <path
-      d="M4 6l4 4 4-4"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const Check = () => (
-  <svg className="cd-dropdown__check" viewBox="0 0 16 16" width="14" height="14" aria-hidden>
-    <path
-      d="M3.5 8.5l3 3 6-7"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
+const Chevron = () => <Icon icon={ChevronDown} className="cd-dropdown__chevron" size={14} />;
+const Check = () => <Icon icon={CheckIcon} className="cd-dropdown__check" size={14} />;
 
 interface MenuPos {
   left: number;

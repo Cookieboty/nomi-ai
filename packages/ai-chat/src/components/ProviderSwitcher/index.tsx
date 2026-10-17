@@ -1,8 +1,9 @@
 /**
  * 工具栏上的 provider 一键切换（与托盘菜单、面板共享主进程状态，实时同步）。
  */
-import { t } from '@nomi-ai/ui';
+import { t, Icon } from '@nomi-ai/ui';
 import { IconButton, Select } from '@nomi-ai/ui';
+import { KeyRound } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -89,7 +90,7 @@ export const ProviderSwitcher: React.FC<{ onManage: () => void; className?: stri
         data-testid="open-provider-panel"
         onClick={onManage}
         label={t('供应商与 Token 管理')}
-        icon="🔑"
+        icon={<Icon icon={KeyRound} />}
       />
     </span>
   );

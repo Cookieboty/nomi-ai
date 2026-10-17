@@ -2,7 +2,8 @@
  * CLI 端点的供应商表单：与 Nomi 的 ProviderEditor 同一套版式（名称 / API Key / 请求地址 / 模型 / 上游格式），
  * 保存时写入该端点自己的档案库。预设只是预填模板，所有字段都可改。
  */
-import { Badge, Button, FormField, Input, Notice, Select, t } from '@nomi-ai/ui';
+import { Badge, Button, FormField, Input, Notice, Select, t, Icon } from '@nomi-ai/ui';
+import { ChevronLeft, Lock } from 'lucide-react';
 import React, { useState } from 'react';
 
 import {
@@ -42,11 +43,17 @@ export const CLI_FORMATS: Record<CliProviderKind, Array<{ value: string; label: 
     { value: 'openai_chat_completions', label: 'OpenAI Chat Completions（原生）' },
     { value: 'anthropic_messages', label: 'Anthropic Messages（原生）' },
   ],
+  grok: [
+    { value: 'openai_responses', label: 'OpenAI Responses（原生）' },
+    { value: 'openai_chat_completions', label: 'OpenAI Chat Completions（原生）' },
+    { value: 'anthropic_messages', label: 'Anthropic Messages（原生）' },
+  ],
 };
 export const CLI_DEFAULT_FORMAT: Record<CliProviderKind, string> = {
   claude: 'anthropic_messages',
   codex: 'openai_responses',
   dsh: 'openai_responses',
+  grok: 'openai_responses',
 };
 
 export type CliEditorTarget =
@@ -140,7 +147,7 @@ export const CliProviderEditor: React.FC<{
           aria-label={t('返回')}
           data-testid="cli-editor-back"
         >
-          ‹
+          <Icon icon={ChevronLeft} size={18} />
         </button>
         <h3>{title}</h3>
         <span className="cd-muted">{t(fmtLabel(apiFormat))}</span>
@@ -192,7 +199,7 @@ export const CliProviderEditor: React.FC<{
             className={ppStyles.full}
             hint={
               <span data-testid="cli-local-only-notice">
-                🔒 {t(LOCAL_ONLY_NOTICE)}
+                <Icon icon={Lock} size={12} /> {t(LOCAL_ONLY_NOTICE)}
                 {preset?.apiKeyUrl && (
                   <>
                     {' '}
@@ -251,7 +258,13 @@ export const CliProviderEditor: React.FC<{
             label={t('模型')}
             hint={t(
               '{0} 启动时使用的模型；可从上游获取列表，也可手填 ID。',
-              endpoint === 'claude' ? 'Claude Code' : endpoint === 'codex' ? 'Codex' : 'dsh',
+              endpoint === 'claude'
+                ? 'Claude Code'
+                : endpoint === 'codex'
+                  ? 'Codex'
+                  : endpoint === 'grok'
+                    ? 'Grok'
+                    : 'dsh',
             )}
           >
             {({ id }) => (

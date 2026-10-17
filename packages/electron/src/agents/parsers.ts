@@ -15,11 +15,12 @@
  * - Aider        <repo>/.aider.chat.history.md、~/.aider/analytics.jsonl
  * - Cline        ~/.cline/**（job.json / NDJSON，CLI 模式）
  * - Continue     ~/.continue/sessions/<id>.json
+ * - Grok Build   ~/.grok/sessions/<cwd>/<uuid>/updates.jsonl（mtime；内容解析见用量模块）
  * - Cursor       cursor-agent CLI：~/.cursor/chats/<hash>/<id>/（SQLite store.db，无公开格式）
  *                ——只用 mtime + 进程存活判断，不解析内容。
  */
 export type AgentKind =
-  'codex' | 'claude' | 'dsh' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
+  'codex' | 'claude' | 'dsh' | 'grok' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
 
 /**
  * running   正在干活（模型在输出或工具在跑）

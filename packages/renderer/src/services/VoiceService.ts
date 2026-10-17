@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy untyped window.electronAPI bridge */
 import { type VoiceConfig, type VoiceSettings, type VoiceContribute } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 
 import { HOURLY_LINES } from '../mascot/tips';
-import { toFileUrl } from '../utils/fileUrl';
+
+const log = createLogger('voice');
 
 /**
  * 语音服务类
@@ -37,7 +38,6 @@ export class VoiceService {
   private voiceSettings: VoiceSettings | null = null;
   private timeAnnouncementInterval: NodeJS.Timeout | null = null;
   private lastAnnouncementTime: number = 0;
-  private audioContext: AudioContext | null = null;
   private currentAudio: HTMLAudioElement | null = null;
   private isInitialized: boolean = false;
   private initPromise: Promise<void> | null = null;
@@ -70,21 +70,18 @@ export class VoiceService {
       // 0. 等待electronAPI准备就绪
       await this.waitForElectronAPI();
 
-      // 1. 设置音频播放监听
-      this.setupAudioListener();
-
-      // 2. 加载语音配置
+      // 1. 加载语音配置
       await this.loadVoiceConfig();
 
-      // 3. 加载语音设置
+      // 2. 加载语音设置
       await this.loadVoiceSettings();
 
-      // 4. 启动定时播报
+      // 3. 启动定时播报
       this.startTimeAnnouncement();
 
       this.isInitialized = true;
     } catch (error) {
-      console.error('VoiceService: 初始化失败:', error);
+      log.error('初始化失败:', error);
       this.isInitialized = false;
     }
   }
@@ -104,7 +101,7 @@ export class VoiceService {
         if (electronAPI) {
           resolve();
         } else if (attempts >= maxAttempts) {
-          console.error('VoiceService: 等待electronAPI超时');
+          log.error('等待electronAPI超时');
           reject(new Error(t('electronAPI准备超时')));
         } else {
           setTimeout(checkAPI, 100);
@@ -135,24 +132,11 @@ export class VoiceService {
       if (electronAPI) {
         this.voiceSettings = await electronAPI.getVoiceSettings();
       } else {
-        console.error('VoiceService: electronAPI 不可用，无法加载语音设置');
+        log.error('electronAPI 不可用，无法加载语音设置');
       }
     } catch (error) {
-      console.error('VoiceService: 加载语音设置失败:', error);
+      log.error('加载语音设置失败:', error);
     }
-  }
-
-  /**
-   * 设置音频播放监听
-   */
-  private setupAudioListener() {
-    const electronAPI = (window as any).electronAPI;
-    if (!electronAPI) return;
-
-    // 注意：这个监听器现在不再需要，因为我们直接在playVoice中处理音频播放
-    // electronAPI.onPlayAudioFile((filePath: string, volume: number) => {
-    //   this.playAudioFile(filePath, volume);
-    // });
   }
 
   /**
@@ -179,185 +163,7 @@ export class VoiceService {
       if (this.voiceSettings?.volume != null) prefs.volume = this.voiceSettings.volume;
       speakForActiveCharacter(line, { prefs });
     } catch (error) {
-      console.error('VoiceService: 朗读失败:', error);
-    }
-  }
-
-  /**
-   * 从URL播放音频（开发环境）
-   */
-  private playAudioFromUrl(audioUrl: string, volume: number) {
-    try {
-      // 停止当前播放的音频
-      if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-      }
-
-      // 创建新的音频元素
-      this.currentAudio = new Audio();
-      this.currentAudio.src = audioUrl;
-      this.currentAudio.volume = Math.max(0, Math.min(1, volume));
-
-      // 添加事件监听器
-      this.currentAudio.addEventListener('error', (e) => {
-        console.error('VoiceService: 音频加载失败:', e, '路径:', audioUrl);
-      });
-
-      // 播放音频
-      this.currentAudio.play().catch((error) => {
-        console.error('VoiceService: 播放音频失败:', error);
-      });
-
-      // 播放完成后清理
-      this.currentAudio.addEventListener('ended', () => {
-        this.currentAudio = null;
-      });
-    } catch (error) {
-      console.error('VoiceService: 播放音频失败:', error);
-    }
-  }
-
-  /**
-   * 从二进制数据播放音频（生产环境）
-   */
-  private playAudioFromData(audioData: ArrayBuffer | string | Buffer, volume: number) {
-    try {
-      // 停止当前播放的音频
-      if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-      }
-
-      let buffer: ArrayBuffer;
-
-      // 处理不同类型的数据
-      if (audioData instanceof ArrayBuffer) {
-        buffer = audioData;
-      } else if (typeof audioData === 'string') {
-        // 检查是否是data URL，直接使用
-        if (audioData.startsWith('data:')) {
-          this.currentAudio = new Audio();
-          this.currentAudio.src = audioData;
-          this.currentAudio.volume = Math.max(0, Math.min(1, volume));
-
-          this.currentAudio.addEventListener('error', (e) => {
-            console.error('VoiceService: 音频播放失败:', e);
-          });
-
-          this.currentAudio.play().catch((error) => {
-            console.error('VoiceService: 播放data URL音频失败:', error);
-          });
-
-          return;
-        } else {
-          // 尝试作为base64解码
-          try {
-            const binaryString = atob(audioData);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            buffer = bytes.buffer;
-          } catch (error) {
-            console.error('VoiceService: base64解码失败:', error);
-            // 如果解码失败，尝试直接作为二进制字符串处理
-            const bytes = new Uint8Array(audioData.length);
-            for (let i = 0; i < audioData.length; i++) {
-              bytes[i] = audioData.charCodeAt(i);
-            }
-            buffer = bytes.buffer;
-          }
-        }
-      } else if (audioData && typeof audioData === 'object' && 'buffer' in audioData) {
-        // 处理Node.js Buffer对象
-        const bufferData = audioData as any;
-        buffer = bufferData.buffer.slice(
-          bufferData.byteOffset,
-          bufferData.byteOffset + bufferData.byteLength,
-        ) as ArrayBuffer;
-      } else {
-        console.error('VoiceService: 不支持的音频数据类型:', typeof audioData);
-        return;
-      }
-
-      // 创建Blob URL
-      const blob = new Blob([buffer], { type: 'audio/mpeg' });
-      const audioUrl = URL.createObjectURL(blob);
-
-      // 创建新的音频元素
-      this.currentAudio = new Audio();
-      this.currentAudio.src = audioUrl;
-      this.currentAudio.volume = Math.max(0, Math.min(1, volume));
-
-      // 添加事件监听器
-      this.currentAudio.addEventListener('error', (e) => {
-        console.error('VoiceService: 音频播放失败:', e);
-        URL.revokeObjectURL(audioUrl); // 清理Blob URL
-      });
-
-      // 播放音频
-      this.currentAudio.play().catch((error) => {
-        console.error('VoiceService: 播放音频数据失败:', error);
-        URL.revokeObjectURL(audioUrl); // 清理Blob URL
-      });
-
-      // 播放完成后清理
-      this.currentAudio.addEventListener('ended', () => {
-        URL.revokeObjectURL(audioUrl); // 清理Blob URL
-        this.currentAudio = null;
-      });
-    } catch (error) {
-      console.error('VoiceService: 播放音频数据失败:', error);
-    }
-  }
-
-  /**
-   * 播放音频文件（通过HTML5 Audio）
-   */
-  private playAudioFile(filePath: string, volume: number) {
-    try {
-      // 停止当前播放的音频
-      if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-      }
-
-      // 创建新的音频元素
-      this.currentAudio = new Audio();
-
-      // 处理文件路径 - 在Electron中需要特殊处理
-      // 绝对路径（含 Windows 盘符 / UNC）转为 file:// URL，URL 原样使用
-      const audioSrc = toFileUrl(filePath);
-
-      this.currentAudio.src = audioSrc;
-      this.currentAudio.volume = Math.max(0, Math.min(1, volume));
-
-      // 添加错误处理
-      this.currentAudio.addEventListener('error', (e) => {
-        console.error('音频加载失败:', e, '路径:', audioSrc);
-      });
-
-      // 播放音频
-      this.currentAudio.play().catch((error) => {
-        console.error('VoiceService: 播放音频失败:', error);
-
-        // 尝试使用不同的路径格式
-        if (audioSrc.startsWith('file://')) {
-          const alternativeSrc = filePath.replace(/\\/g, '/');
-          this.currentAudio!.src = alternativeSrc;
-          this.currentAudio!.play().catch((err) => {
-            console.error('VoiceService: 备用路径也失败:', err);
-          });
-        }
-      });
-
-      // 播放完成后清理
-      this.currentAudio.addEventListener('ended', () => {
-        this.currentAudio = null;
-      });
-    } catch (error) {
-      console.error('VoiceService: 播放音频文件失败:', error);
+      log.error('朗读失败:', error);
     }
   }
 
@@ -451,7 +257,7 @@ export class VoiceService {
         }
       }
     } catch (error) {
-      console.error('更新语音设置失败:', error);
+      log.error('更新语音设置失败:', error);
     }
   }
 

@@ -3,6 +3,7 @@
  * 不修改 mascot/**；互动 SPEAK_KINDS 已由 reactions 朗读，此处只加音效。
  */
 import { useAIEvents } from '@nomi-ai/ai-sdk-client/react';
+import type { DesktopBubble } from '@nomi-ai/types';
 import { createLogger, t as tr } from '@nomi-ai/ui';
 import { useEffect, useRef } from 'react';
 import type { FC } from 'react';
@@ -67,6 +68,12 @@ function inferAgentCue(text: string): CueEvent | null {
   if (/\u4e13\u6ce8/.test(text)) return 'focus';
   return null;
 }
+
+/** 主进程气泡明确标注的事件类型 → 台词事件（digest 单独处理） */
+const BUBBLE_KIND_CUE: Partial<Record<NonNullable<DesktopBubble['kind']>, CueEvent>> = {
+  done: 'agent:done',
+  fail: 'agent:fail',
+};
 
 const MOTION_SPEECH: Record<string, CueEvent> = {
   wave: 'wave',
@@ -170,7 +177,19 @@ export const MascotAudioBridge: FC = () => {
     const off = api.onBubble((p) => {
       const text = typeof p?.text === 'string' ? p.text : '';
       if (!text) return;
-      const cue = inferAgentCue(text);
+      // 只显示气泡：不朗读、不放音效（编程助手的定时汇总在「总结播报」关闭时）
+      if (p.voice === 'none') return;
+      const explicit = p.kind ? BUBBLE_KIND_CUE[p.kind] : undefined;
+      // 只播一句简短固定台词 + 音效，不朗读气泡文字（任务结束、总结播报关闭时）
+      if (p.voice === 'cue' && explicit) {
+        mascotCueService.trigger(explicit);
+        return;
+      }
+      if (p.kind === 'digest') {
+        mascotCueService.trigger('wave', { text: text.slice(0, 120), sfx: false });
+        return;
+      }
+      const cue = explicit ?? inferAgentCue(text);
       if (cue) {
         mascotCueService.trigger(cue, { text: text.slice(0, 120) });
       } else {

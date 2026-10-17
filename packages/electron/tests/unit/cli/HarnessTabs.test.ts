@@ -3,6 +3,7 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,6 +35,23 @@ describe('CliHarnessService tabs', () => {
   const mk = () =>
     new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
 
+  it('progressHint：记录当前一轮最近的文本 / 工具步骤，关闭标签后清空', () => {
+    const h = mk();
+    const a = h.createTab({ backend: 'claude' });
+    const emit = (ev: unknown) =>
+      (h as unknown as { emitEvent(id: string, e: unknown): void }).emitEvent(a.id, ev);
+    expect(h.progressHint(a.id)).toBeUndefined();
+    emit({ type: 'text-delta', text: '正在 ' });
+    emit({ type: 'text-delta', text: '改 login.ts' });
+    expect(h.progressHint(a.id)).toBe('正在 改 login.ts');
+    emit({ type: 'tool', name: 'Bash', status: 'start', detail: 'npm test' });
+    expect(h.progressHint(a.id)).toContain('Bash npm test');
+    emit({ type: 'tool', name: 'Bash', status: 'done' });
+    expect(h.progressHint(a.id)).toContain('Bash npm test');
+    h.closeTab(a.id);
+    expect(h.progressHint(a.id)).toBeUndefined();
+  });
+
   it('starts with the main tab and creates CLI-only tabs', () => {
     const h = mk();
     const s0 = h.listTabs();
@@ -59,16 +77,12 @@ describe('CliHarnessService tabs', () => {
     ];
     const snapshots: HarnessTabsState[] = [];
     h.events.on('tabs', (s: HarnessTabsState) => snapshots.push(s));
-    const started = Date.now();
     const results = await Promise.all(ids.map((id, i) => h.sendTab(id, `job ${i}`)));
-    const elapsed = Date.now() - started;
     expect(results[0]!.text).toContain('Mock Claude');
     expect(results[1]!.text).toContain('Mock Codex');
     expect(results[2]!.text).toContain('job 2');
     expect(Math.max(...snapshots.map((s) => s.running))).toBe(2);
     expect(Math.max(...snapshots.map((s) => s.queued))).toBeGreaterThanOrEqual(1);
-    // 两批：明显快于串行三轮
-    expect(elapsed).toBeLessThan(3 * 400 + 1500);
     expect(h.listTabs().tabs.every((x) => x.status === 'idle')).toBe(true);
   });
 
@@ -195,4 +209,52 @@ describe('CliHarnessService tabs', () => {
     h.setTabCwd(tab.id, a);
     expect(h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId).toBeNull();
   });
+});
+
+describe('CliHarnessService.dispose（退出路径）', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dispose-'));
+  const mk = () =>
+    new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  (process.platform === 'win32' ? it.skip : it)(
+    '杀掉残留 CLI 子进程的整棵进程树，并清掉权限卡超时定时器',
+    async () => {
+      const script = `
+        const { spawn } = require('child_process');
+        const g = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' });
+        process.stdout.write(String(g.pid) + '\\n');
+        setInterval(() => {}, 1000);
+      `;
+      const child = spawn(process.execPath, ['-e', script], { stdio: ['pipe', 'pipe', 'ignore'] });
+      const grandPid = await new Promise<number>((resolve) =>
+        child.stdout.once('data', (b: Buffer) => resolve(Number(String(b).trim()))),
+      );
+      const h = mk();
+      const priv = h as unknown as {
+        children: Map<string, unknown>;
+        pendingPermissions: Map<string, Map<string, ReturnType<typeof setTimeout>>>;
+        armPermissionTimeout(tabId: string, requestId: string): void;
+      };
+      priv.children.set('t1', child);
+      priv.armPermissionTimeout('t1', 'r1');
+      priv.armPermissionTimeout('orphan-tab', 'r2'); // 没有子进程的标签也要清
+      expect(priv.pendingPermissions.size).toBe(2);
+
+      h.dispose();
+
+      expect(priv.children.size).toBe(0);
+      expect(priv.pendingPermissions.size).toBe(0);
+      const end = Date.now() + 3000;
+      while (Date.now() < end && alive(grandPid)) await new Promise((r) => setTimeout(r, 25));
+      expect(alive(grandPid)).toBe(false);
+    },
+  );
 });

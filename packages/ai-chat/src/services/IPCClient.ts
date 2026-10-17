@@ -9,7 +9,8 @@ import {
   type ConversationBackend,
 } from '../types/chat';
 import { type AIModelConfig } from '../types/config';
-import { type IPCClient, type ElectronAPI } from '../types/ipc';
+import { type IPCClient, type ElectronAPI, type StreamSendOptions } from '../types/ipc';
+import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { ConversationStore } from './conversationStore';
 import { buildProviderMessages } from './history';
@@ -212,31 +213,72 @@ export class SdkIPCClient implements IPCClient {
     history?: ChatMessage[],
     extraSystem?: string,
     images?: Array<{ mime: string; data: string }>,
+    streamOpts?: StreamSendOptions,
   ): Promise<void> {
+    const reqId = streamOpts?.reqId;
+    const signal = streamOpts?.signal;
     try {
       const opts = {
         provider: this.currentModelId(modelId),
         messages: await this.buildMessages(message, history, extraSystem, images),
+        ...(reqId ? { reqId } : {}),
       };
+      if (signal?.aborted) return;
       // 对话走工具循环（role 仍是 chat，按 chat 路由选 provider）
       const iterable =
         typeof this.chat.agentStream === 'function'
           ? this.chat.agentStream({ ...opts, role: 'chat' })
           : this.chat.stream(opts);
-      for await (const chunk of iterable) {
-        if (!chunk || typeof chunk !== 'object') continue;
-        const c = chunk as SdkChatChunk;
-        if (c.type === 'delta' && typeof (c as { content?: string }).content === 'string') {
-          onChunk?.((c as { content: string }).content);
-        } else if (c.type === 'error') {
-          throw new Error((c as { error: string }).error);
+      const it = iterable[Symbol.asyncIterator]();
+      // 中止：通知主进程中止上游请求，同时让本地循环立即退出（不依赖上游及时收尾）
+      let onAbort: (() => void) | undefined;
+      const aborted = new Promise<'aborted'>((resolve) => {
+        onAbort = () => {
+          if (reqId) this.abortStream(reqId);
+          resolve('aborted');
+        };
+        if (signal) signal.addEventListener('abort', onAbort, { once: true });
+      });
+      try {
+        for (;;) {
+          const r = await Promise.race([it.next(), aborted]);
+          if (r === 'aborted' || signal?.aborted) break;
+          if (r.done) break;
+          const chunk = r.value;
+          if (!chunk || typeof chunk !== 'object') continue;
+          const c = chunk as SdkChatChunk;
+          if (c.type === 'delta' && typeof (c as { content?: string }).content === 'string') {
+            onChunk?.((c as { content: string }).content);
+          } else if (c.type === 'error') {
+            throw new Error((c as { error: string }).error);
+          } else if (streamOpts?.onTrace || streamOpts?.onUsage) {
+            const ev = chunkToTrace(c);
+            if (ev) streamOpts.onTrace?.(ev);
+            const u = chunkToUsage(c);
+            if (u) streamOpts.onUsage?.(u);
+          }
         }
+      } catch (error) {
+        // 主动中止时上游常以 abort 错误收尾：不是失败
+        if (!signal?.aborted) throw error;
+      } finally {
+        if (onAbort) signal?.removeEventListener('abort', onAbort);
+        // 通知迭代器清理（ClientAIClient.return 会再发一次 ai:chat:abort 并退订 chunk）
+        void Promise.resolve(it.return?.()).catch(() => undefined);
       }
     } catch (error) {
       throw Object.assign(
         new Error(t('发送流式消息失败: {0}', (error as Error).message ?? String(error))),
         { cause: error },
       );
+    }
+  }
+
+  abortStream(reqId: string): void {
+    try {
+      this.chat.abort(reqId);
+    } catch (e) {
+      log.warn('abort failed', e);
     }
   }
 
@@ -251,6 +293,17 @@ export class SdkIPCClient implements IPCClient {
   async saveMessage(message: ChatMessage): Promise<void> {
     this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
     this.store.append(message, this.store.ensureCurrent());
+  }
+
+  async saveMessageTo(message: ChatMessage, conversationId: string): Promise<void> {
+    this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
+    // 会话在流式期间被删除：不要复活它，也不要把消息写进别的会话
+    if (!this.store.get(conversationId)) return;
+    this.store.append(message, conversationId);
+  }
+
+  ensureConversationId(): string {
+    return this.store.ensureCurrent();
   }
 
   async listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>> {
@@ -460,6 +513,6 @@ export const createIPCClient = (client?: ClientAIClient): IPCClient => {
   if (typeof window !== 'undefined' && (window as { aiIPC?: unknown }).aiIPC) {
     return new SdkIPCClient();
   }
-  console.warn('window.aiIPC 未就绪，使用 Mock 客户端（开发/测试模式）');
+  log.warn('window.aiIPC 未就绪，使用 Mock 客户端（开发/测试模式）');
   return new MockIPCClient();
 };

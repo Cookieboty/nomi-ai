@@ -37,13 +37,13 @@ Workflow 文件：[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)。
 
 ## What users see · 用户侧
 
-| Step         | 中文                                                          | English                                                                       |
-| ------------ | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Launch       | 启动约 15 秒后静默检查；也可在 **设置 → 更新** 点「检查更新」 | Silent check ~15s after launch; or **Settings → Updates → Check for updates** |
-| Available    | 自动开始下载；设置页显示进度                                  | Download starts automatically; Settings shows progress                        |
-| Ready        | 「更新已下载，重启后安装」→ 点「重启并安装」→ 确认            | “Update downloaded” → **Restart and install** → confirm                       |
-| Consent      | **不会**在你未确认时退出安装（`autoInstallOnAppQuit=false`）  | Never quits to install without your confirmation                              |
-| Dev / source | 设置页显示「仅在安装版中可用」                                | Settings shows updates are unavailable for unpackaged builds                  |
+| Step         | 中文                                                                 | English                                                                                 |
+| ------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Launch       | 启动约 15 秒后静默检查；也可在 **设置 → 通用 → 更新** 点「检查更新」 | Silent check ~15s after launch; or **Settings → General → Updates → Check for updates** |
+| Available    | 自动开始下载；设置页显示进度                                         | Download starts automatically; Settings shows progress                                  |
+| Ready        | 「更新已下载，重启后安装」→ 点「重启并安装」→ 确认                   | “Update downloaded” → **Restart and install** → confirm                                 |
+| Consent      | **不会**在你未确认时退出安装（`autoInstallOnAppQuit=false`）         | Never quits to install without your confirmation                                        |
+| Dev / source | 设置页显示「仅在安装版中可用」                                       | Settings shows updates are unavailable for unpackaged builds                            |
 
 Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours while the app runs.
 
@@ -77,7 +77,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
    - macOS: `.dmg` (and/or zip) + `latest-mac.yml`
    - Linux: `.AppImage` + `latest-linux.yml`
-6. Install a previous build, open **Settings → Updates → Check for updates**, confirm download + consent install.
+6. Install a previous build, open **Settings → General → Updates → Check for updates**, confirm download + consent install.
 
 ### Dry-run without notifying users
 

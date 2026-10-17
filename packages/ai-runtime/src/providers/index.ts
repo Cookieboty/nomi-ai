@@ -5,3 +5,5 @@ export * from './ProviderRouter';
 export * from './ProviderService';
 export * from './ProviderIpcServer';
 export * from './protocol';
+export * from './estimate';
+export * from './usageEvent';

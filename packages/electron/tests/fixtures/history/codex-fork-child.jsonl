@@ -1,0 +1,7 @@
+{"timestamp": "2026-10-14T11:00:00.000Z", "type": "session_meta", "payload": {"id": "child-0002", "forked_from_id": "parent-0001", "cwd": "/w/proj", "model_provider": "openai"}}
+{"timestamp": "2026-10-14T11:00:00.002Z", "type": "session_meta", "payload": {"id": "parent-0001", "cwd": "/w/proj", "model_provider": "openai"}}
+{"timestamp": "2026-10-14T11:00:00.003Z", "type": "turn_context", "payload": {"model": "gpt-5-codex", "cwd": "/w/proj"}}
+{"timestamp": "2026-10-14T11:00:00.004Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"total_tokens": 1100}, "last_token_usage": {"input_tokens": 1000, "cached_input_tokens": 200, "output_tokens": 100}}}}
+{"timestamp": "2026-10-14T11:00:00.006Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"total_tokens": 2400}, "last_token_usage": {"input_tokens": 1200, "cached_input_tokens": 300, "output_tokens": 100}}}}
+{"timestamp": "2026-10-14T11:00:09.000Z", "type": "turn_context", "payload": {"model": "gpt-5-codex", "cwd": "/w/proj"}}
+{"timestamp": "2026-10-14T11:00:15.000Z", "type": "event_msg", "payload": {"type": "token_count", "info": {"total_token_usage": {"total_tokens": 3000}, "last_token_usage": {"input_tokens": 500, "cached_input_tokens": 100, "output_tokens": 100}}}}

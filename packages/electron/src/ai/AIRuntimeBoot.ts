@@ -44,6 +44,7 @@ import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
 import { isTrustedAiSender } from '../security/ipcSenderGuard';
 import type { ILoggerService } from '../services/LoggerService';
+import { getUsageService } from '../usage/UsageService';
 
 import { mascotIgPlugins } from './mascotBridge';
 import type { TtsProvider } from './TtsElectronNativeProvider';
@@ -154,6 +155,22 @@ export async function startAIRuntime(
   const providerStore = new ProviderStore({
     filePath: path.join(app.getPath('userData'), 'ai-providers.json'),
     cipher,
+    // 用量与计费：每次成功调用记一条（响应 usage；没有才估算并标「估算」）
+    onCall: (e) =>
+      getUsageService()?.record({
+        ts: e.at,
+        dur: e.durationMs,
+        source: 'nomi',
+        via: 'chat',
+        provider: e.providerId,
+        model: e.model,
+        promptTokens: e.inputTokens,
+        outputTokens: e.outputTokens,
+        cacheRead: e.cacheReadTokens,
+        cacheWrite: e.cacheWriteTokens,
+        est: e.estimated,
+        key: e.reqId ? `nomi:${e.reqId}:${e.at}` : undefined,
+      }),
   });
   if (cipher.kind === 'none') {
     logger.warn(

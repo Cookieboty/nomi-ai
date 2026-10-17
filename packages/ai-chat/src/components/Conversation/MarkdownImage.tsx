@@ -1,0 +1,50 @@
+/** 助手 Markdown 中的图片：协议白名单 + 懒加载 + 加载失败兜底 + 点击放大。*/
+import { Modal, t } from '@nomi-ai/ui';
+import React, { memo, useState } from 'react';
+
+import { sanitizeImgSrc } from './Markdown.helpers';
+import styles from './MarkdownImage.module.css';
+
+export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ src, alt }) => {
+  const safe = sanitizeImgSrc(src);
+  const [failed, setFailed] = useState(false);
+  const [open, setOpen] = useState(false);
+  if (!safe) {
+    return <span className={styles.unsafe}>[{t('不支持的图片链接')}]</span>;
+  }
+  if (failed) {
+    return <span className={styles.failed}>[{t('图片加载失败')}]</span>;
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.imgBtn}
+        onClick={() => setOpen(true)}
+        aria-label={t('查看大图')}
+        title={t('查看大图')}
+        data-testid="md-img"
+      >
+        <img
+          src={safe}
+          alt={alt ?? ''}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+          className={styles.img}
+        />
+      </button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        size="lg"
+        bodyClassName={styles.previewBody}
+        data-testid="md-img-preview"
+      >
+        <img src={safe} alt={alt ?? ''} referrerPolicy="no-referrer" className={styles.preview} />
+      </Modal>
+    </>
+  );
+});
+MarkdownImage.displayName = 'MarkdownImage';

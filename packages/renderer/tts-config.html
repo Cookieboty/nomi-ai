@@ -13,13 +13,14 @@
         <h1>TTS 语音配置</h1>
         <p>
           默认使用内置<strong>离线语音</strong>（sherpa-onnx，本机合成，模型随安装包分发，无需联网/外部服务）。
-          模型缺失或合成失败时自动回退系统语音。
-          Fish Audio 为可选高级引擎；不提供用户上传/克隆任意音色；仍可自行接入外部 TTS（legacy）。
+          模型缺失或合成失败时自动回退系统语音。 Fish Audio
+          为可选高级引擎；不提供用户上传/克隆任意音色；仍可自行接入外部 TTS（legacy）。
         </p>
         <p class="cd-notice" data-testid="fish-attribution" style="margin-top: 8px">
-          <strong>Built with Fish Audio</strong> —
-          研究/非商用免费；年营收 &lt; USD 500k 可社区商用；Hosted Service（对外自助 TTS/克隆 API）需另签；
-          不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。详见仓库 NOTICE / THIRD_PARTY_NOTICES。
+          <strong>Built with Fish Audio</strong> — 研究/非商用免费；年营收 &lt; USD 500k
+          可社区商用；Hosted Service（对外自助 TTS/克隆 API）需另签；
+          不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。详见仓库 NOTICE /
+          THIRD_PARTY_NOTICES。
         </p>
       </header>
 
@@ -47,22 +48,28 @@
           <p class="cd-muted" style="font-size: 12px; margin: 4px 0 8px">
             声线 sid 0，语速 1.0（固定默认，不加速）。模型约 133 MB，随安装包分发到
             <code>resources/tts-models/</code>。开发态可用环境变量
-            <code>NOMI_SHERPA_TTS_MODEL_DIR</code>，或仓库同级 <code>../models/vits-zh-hf-theresa</code>。
+            <code>NOMI_SHERPA_TTS_MODEL_DIR</code>，或仓库同级
+            <code>../models/vits-zh-hf-theresa</code>。
           </p>
           <p id="sherpa-model-text" class="cd-muted">模型状态：检测中…</p>
         </div>
 
         <div id="fish-fields">
           <label class="cd-field__label" for="baseUrl">服务地址</label>
-          <input id="baseUrl" class="cd-textarea" style="min-height: auto; height: 36px" placeholder="http://127.0.0.1:8080" />
+          <input
+            id="baseUrl"
+            class="cd-textarea"
+            style="min-height: auto; height: 36px"
+            placeholder="http://127.0.0.1:8080"
+          />
 
           <label class="cd-field__label" for="referenceId">内置声线预设</label>
           <select id="referenceId" class="cd-textarea" style="min-height: auto; height: 36px">
             <option value="nomi">Nomi（可爱）</option>
           </select>
           <p class="cd-muted" style="font-size: 12px; margin: 4px 0 8px">
-            应用已内置 Nomi 可爱种子，合成时自动以 <code>reference_audio</code> 发给本地 Fish，无需手动拷贝。
-            不提供「上传我的音色」入口。
+            应用已内置 Nomi 可爱种子，合成时自动以 <code>reference_audio</code> 发给本地
+            Fish，无需手动拷贝。 不提供「上传我的音色」入口。
           </p>
 
           <label class="cd-field__label" for="format">音频格式</label>
@@ -73,8 +80,17 @@
           </select>
 
           <div id="cloud-fields" style="display: none">
-            <label class="cd-field__label" for="apiKey">Fish 云 API Key（仅存主进程，safeStorage）</label>
-            <input id="apiKey" type="password" class="cd-textarea" style="min-height: auto; height: 36px" placeholder="留空则保留已保存的 Key" autocomplete="off" />
+            <label class="cd-field__label" for="apiKey"
+              >Fish 云 API Key（仅存主进程，safeStorage）</label
+            >
+            <input
+              id="apiKey"
+              type="password"
+              class="cd-textarea"
+              style="min-height: auto; height: 36px"
+              placeholder="留空则保留已保存的 Key"
+              autocomplete="off"
+            />
             <label class="cd-field__label" style="margin-top: 6px">
               <input type="checkbox" id="clearApiKey" /> 清除已保存的 Key
             </label>
@@ -83,14 +99,23 @@
         </div>
 
         <div id="legacy-fields" style="display: none">
-          <p class="cd-muted" style="font-size: 12px">外部自建 TTS（hostname / port / path / audioUrl / promptText）。JSON 高级编辑见下方。</p>
+          <p class="cd-muted" style="font-size: 12px">
+            外部自建 TTS（hostname / port / path / audioUrl / promptText）。JSON 高级编辑见下方。
+          </p>
           <label class="cd-field__label" for="hostname">hostname</label>
           <input id="hostname" class="cd-textarea" style="min-height: auto; height: 36px" />
           <label class="cd-field__label" for="port">port</label>
-          <input id="port" type="number" class="cd-textarea" style="min-height: auto; height: 36px" />
+          <input
+            id="port"
+            type="number"
+            class="cd-textarea"
+            style="min-height: auto; height: 36px"
+          />
           <label class="cd-field__label" for="path">path</label>
           <input id="path" class="cd-textarea" style="min-height: auto; height: 36px" />
-          <label class="cd-field__label" for="audioUrl">audioUrl（服务侧参考音频 URL，非本机上传）</label>
+          <label class="cd-field__label" for="audioUrl"
+            >audioUrl（服务侧参考音频 URL，非本机上传）</label
+          >
           <input id="audioUrl" class="cd-textarea" style="min-height: auto; height: 36px" />
           <label class="cd-field__label" for="promptText">promptText</label>
           <input id="promptText" class="cd-textarea" style="min-height: auto; height: 36px" />
@@ -99,7 +124,12 @@
 
       <details class="editor-section cd-field" style="margin-top: 12px">
         <summary class="cd-field__label">高级：原始 JSON</summary>
-        <textarea id="config-editor" class="json-editor cd-textarea" spellcheck="false" rows="10"></textarea>
+        <textarea
+          id="config-editor"
+          class="json-editor cd-textarea"
+          spellcheck="false"
+          rows="10"
+        ></textarea>
         <div id="error-message" class="error-message" style="display: none"></div>
       </details>
 
@@ -109,8 +139,12 @@
           <span id="health-icon">🔗</span>
           <span id="health-text">检测连接</span>
         </button>
-        <button id="save-btn" class="cd-btn cd-btn--primary btn-wide" type="button"><span>保存配置</span></button>
-        <button id="reset-btn" class="cd-btn cd-btn--danger btn-wide" type="button"><span>重置为内置默认</span></button>
+        <button id="save-btn" class="cd-btn cd-btn--primary btn-wide" type="button">
+          <span>保存配置</span>
+        </button>
+        <button id="reset-btn" class="cd-btn cd-btn--danger btn-wide" type="button">
+          <span>重置为内置默认</span>
+        </button>
       </div>
 
       <div id="result-message" style="display: none"></div>
@@ -119,8 +153,8 @@
         <strong>怎么用</strong><br />
         1. 默认「内置离线语音」：模型随安装包分发，完全本机合成，无需联网。<br />
         2. 模型缺失 / 合成出错时，看板娘自动回退系统语音，无需试听步骤。<br />
-        3. 高级：Fish 本地（Docker / uv 启动 fish-speech，监听 <code>127.0.0.1:8080</code>）或 Fish 云（自备 API Key，
-        不捆绑 Research-only 权重）。<br />
+        3. 高级：Fish 本地（Docker / uv 启动 fish-speech，监听 <code>127.0.0.1:8080</code>）或 Fish
+        云（自备 API Key， 不捆绑 Research-only 权重）。<br />
         4. 需要对接其它克隆 API 时，选择「自行接入外部 TTS（legacy）」。
       </div>
     </main>
@@ -214,7 +248,10 @@
         } else if (c.provider === 'sherpa-theresa') {
           updateStatus('valid', '内置离线语音（sherpa-onnx）· 模型未就绪则回退系统语音');
         } else if (c.provider === 'fish-local') {
-          updateStatus('valid', 'Fish 本地（高级） · 预设 ' + (c.referenceId || 'nomi') + '（未就绪则回退系统语音）');
+          updateStatus(
+            'valid',
+            'Fish 本地（高级） · 预设 ' + (c.referenceId || 'nomi') + '（未就绪则回退系统语音）',
+          );
         } else if (c.provider === 'fish-cloud') {
           updateStatus('valid', 'Fish 云 · ' + (c.hasApiKey ? '已配置 Key' : '需填写 API Key'));
         } else {
@@ -227,9 +264,13 @@
         const text = $('sherpa-model-text');
         if (st.state === 'ready') {
           const where =
-            st.source === 'dev' ? '（开发目录）' :
-            st.source === 'env' ? '（环境变量目录）' :
-            st.source === 'resources' ? '（安装包）' : '';
+            st.source === 'dev'
+              ? '（开发目录）'
+              : st.source === 'env'
+                ? '（环境变量目录）'
+                : st.source === 'resources'
+                  ? '（安装包）'
+                  : '';
           text.textContent = '模型已就绪' + where;
         } else if (st.state === 'error') {
           text.textContent = '模型不可用：' + (st.message || '未知错误') + '（当前使用系统语音）';
@@ -250,9 +291,12 @@
       function showResult(message, ok) {
         const el = $('result-message');
         el.textContent = message;
-        el.className = 'result-message cd-notice ' + (ok ? 'cd-notice--success' : 'cd-notice--danger');
+        el.className =
+          'result-message cd-notice ' + (ok ? 'cd-notice--success' : 'cd-notice--danger');
         el.style.display = 'block';
-        setTimeout(() => { el.style.display = 'none'; }, 5000);
+        setTimeout(() => {
+          el.style.display = 'none';
+        }, 5000);
       }
 
       function showError(msg) {
@@ -293,7 +337,10 @@
           $('health-text').textContent = '检测中…';
           const result = await window.electronAPI.testTTSConnection(cfg);
           if (result.success) {
-            updateStatus('valid', result.message + (result.latency != null ? ' · ' + result.latency + 'ms' : ''));
+            updateStatus(
+              'valid',
+              result.message + (result.latency != null ? ' · ' + result.latency + 'ms' : ''),
+            );
             showResult(result.message, true);
           } else {
             updateStatus('invalid', result.message || '不可达，将回退系统语音');
@@ -362,9 +409,26 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         loadCurrentConfig();
-        ['enabled', 'provider', 'baseUrl', 'referenceId', 'format', 'hostname', 'port', 'path', 'audioUrl', 'promptText'].forEach((id) => {
-          $(id).addEventListener('change', () => { syncVisibility(); syncEditorFromForm(); updateStatusFromConfig(formToConfig()); });
-          $(id).addEventListener('input', () => { syncEditorFromForm(); });
+        [
+          'enabled',
+          'provider',
+          'baseUrl',
+          'referenceId',
+          'format',
+          'hostname',
+          'port',
+          'path',
+          'audioUrl',
+          'promptText',
+        ].forEach((id) => {
+          $(id).addEventListener('change', () => {
+            syncVisibility();
+            syncEditorFromForm();
+            updateStatusFromConfig(formToConfig());
+          });
+          $(id).addEventListener('input', () => {
+            syncEditorFromForm();
+          });
         });
         $('provider').addEventListener('change', syncVisibility);
         $('config-editor').addEventListener('change', applyEditorToForm);

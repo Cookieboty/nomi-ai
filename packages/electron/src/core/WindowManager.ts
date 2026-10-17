@@ -8,7 +8,7 @@ import * as url from 'url';
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
 import { t } from '../i18n';
-import { mascotWindowSize } from '../mascot/mascotSize';
+import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
 import { type IConfigService } from '../services/ConfigService';
@@ -56,6 +56,8 @@ export class WindowManager implements IWindowManager {
   chromeTheme: () => ChromeTheme = () => 'ink';
   private mainWindow: BrowserWindow | null = null;
   private aiChatWindow: BrowserWindow | null = null;
+  /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
+  private aiChatWindowPromise?: Promise<BrowserWindow>;
   private ttsConfigWindow: BrowserWindow | null = null;
   private logger: ILoggerService;
   private configService: IConfigService;
@@ -83,7 +85,12 @@ export class WindowManager implements IWindowManager {
       let y = config.windowPosition.y;
 
       // 窗口 = 角色框（默认原尺寸的一半）+ 工具栏 / 气泡的透明边距（逐像素点击穿透）
-      const size = mascotWindowSize(config.mascotScale);
+      // 缩放按屏幕可用区域夹紧（小屏幕上不会超出工作区）；偏好值不改写
+      const scale = fitMascotScale(
+        config.mascotScale,
+        maxScaleForArea(screen.getPrimaryDisplay().workArea),
+      );
+      const size = mascotWindowSize(scale);
       if (x <= 0 || x >= width || y <= 0 || y >= height) {
         x = width - size.width;
         y = height - size.height;
@@ -130,7 +137,14 @@ export class WindowManager implements IWindowManager {
       this.aiChatWindow.show();
       return this.aiChatWindow;
     }
+    // 创建过程是异步的（await createWindow / 加载页面）：并发调用共用同一次创建，避免开出两个窗口
+    this.aiChatWindowPromise ??= this.buildAiChatWindow().finally(() => {
+      this.aiChatWindowPromise = undefined;
+    });
+    return this.aiChatWindowPromise;
+  }
 
+  private async buildAiChatWindow(): Promise<BrowserWindow> {
     try {
       const primaryDisplay = screen.getPrimaryDisplay();
       const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
@@ -417,7 +431,33 @@ export class WindowManager implements IWindowManager {
 
     // 桌面互动：点击穿透 / 拖拽 / 重力 / 漫步 / 全局光标
     this.mascotController?.dispose();
-    this.mascotController = new MascotWindowController(window, this.logger);
+    let scaleSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    this.mascotController = new MascotWindowController(window, this.logger, Math.random, {
+      get: () => this.configService.getConfig().mascotScale,
+      save: (scale) => {
+        // 滚轮缩放时每秒很多次：防抖后连同新位置（脚底中心不动，左上角会变）一起落盘
+        this.configService.set('mascotScale', scale);
+        if (scaleSaveTimer) clearTimeout(scaleSaveTimer);
+        scaleSaveTimer = setTimeout(() => {
+          if (window.isDestroyed()) return;
+          const [px, py] = window.getPosition();
+          this.configService.set('windowPosition.x', px);
+          this.configService.set('windowPosition.y', py);
+          this.configService.save().catch((error) => {
+            this.logger.error('保存看板娘大小失败', { error: error.message });
+          });
+        }, 400);
+      },
+      changed: (state) => {
+        const chat = this.aiChatWindow;
+        if (chat && !chat.isDestroyed()) chat.webContents.send('mascot:scale-changed', state);
+      },
+      trusted: (sender) =>
+        sender === window.webContents ||
+        (!!this.aiChatWindow &&
+          !this.aiChatWindow.isDestroyed() &&
+          sender === this.aiChatWindow.webContents),
+    });
     this.mascotController.start();
 
     // 窗口关闭事件

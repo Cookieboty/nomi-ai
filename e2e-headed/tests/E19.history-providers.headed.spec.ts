@@ -350,7 +350,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="sidebar-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(5);
+    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(6);
     await expect(chat.locator('[data-testid="providers-section-nomi"]')).toBeVisible();
     await shot(chat, '09-providers-nomi');
 
@@ -411,10 +411,11 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await shot(chat, '13-providers-dsh');
 
     // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的档案 + 模型；Codex 标签显示默认
-    await chat.getByText('‹ 返回对话').click();
+    await chat.locator('[data-testid="settings-back"]').click();
 
-    // 日程与提醒页不再有「编程助手」标签
-    await chat.click('[data-testid="open-sched-panel"]');
+    // 顶栏「知识 · 记忆 · 日程」→ 日程标签：没有「编程助手」标签
+    await chat.click('[data-testid="open-hub-panel"]');
+    await chat.click('[data-testid="hub-tab-schedule"]');
     await expect(chat.locator('[data-testid="sched-panel"]')).toBeVisible();
     await expect(chat.locator('[data-testid="sched-panel"]').getByText('编程助手')).toHaveCount(0);
     await shot(chat, '16-schedule-no-coding-tab');
@@ -451,7 +452,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     expect(readFileSync(settingsPath, 'utf8')).not.toContain('ANTHROPIC_BASE_URL');
 
     // ── 普通模式：侧栏只剩 Nomi 会话，没有「全部 / 按端」与 CLI 历史 ─────────────
-    await chat.getByText('‹ 返回对话').click();
+    await chat.locator('[data-testid="settings-back"]').click();
     await chat.click('[data-testid="chat-mode-normal"]');
     await expect(chat.locator('[data-testid="list-view-all"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="cli-history"]')).toHaveCount(0);

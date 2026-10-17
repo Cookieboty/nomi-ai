@@ -56,6 +56,44 @@ describe('ClientAIClient · IPC 通道映射', () => {
     expect(collected).toEqual([{ deltaText: 'hi ' }, { deltaText: 'nya' }]);
   });
 
+  it('chat.stream 被消费方提前放弃（return）时通知主进程 ai:chat:abort，并唤醒挂起的 next()', async () => {
+    const bridge = new FakeBridge();
+    const specStream = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
+    const chunkCh = chunkChannelName(specStream);
+    bridge.handle(channelName(specStream), async () => ({ ok: true }));
+    const aborted: unknown[] = [];
+    bridge.handle('ai:chat:abort', (id) => {
+      aborted.push(id);
+    });
+    const client = new ClientAIClient({ bridge });
+    const chat = client.chat as { stream: (o: unknown) => AsyncIterable<unknown> };
+    const it = chat.stream({ reqId: 'r-abort', messages: [] })[Symbol.asyncIterator]();
+    bridge.emit(chunkCh, { reqId: 'r-abort', done: false, value: { n: 1 } });
+    await expect(it.next()).resolves.toEqual({ value: { n: 1 }, done: false });
+    const pending = it.next(); // 挂起：没有更多 chunk
+    await it.return?.();
+    await expect(pending).resolves.toEqual({ value: undefined, done: true });
+    await Promise.resolve();
+    expect(aborted).toEqual(['r-abort']);
+  });
+
+  it('chat.stream 自然结束后 return() 不再发 abort', async () => {
+    const bridge = new FakeBridge();
+    const specStream = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
+    const chunkCh = chunkChannelName(specStream);
+    bridge.handle(channelName(specStream), async () => {
+      queueMicrotask(() => bridge.emit(chunkCh, { reqId: 'r-ok', done: true }));
+      return { ok: true };
+    });
+    bridge.handle('ai:chat:abort', () => undefined);
+    const client = new ClientAIClient({ bridge });
+    const chat = client.chat as { stream: (o: unknown) => AsyncIterable<unknown> };
+    const it = chat.stream({ reqId: 'r-ok', messages: [] })[Symbol.asyncIterator]();
+    await expect(it.next()).resolves.toMatchObject({ done: true });
+    await it.return?.();
+    expect(bridge.invokeLog.some((c) => c.channel === 'ai:chat:abort')).toBe(false);
+  });
+
   it('stream 结束时如带 error，则 iterator 抛 SDKError', async () => {
     const bridge = new FakeBridge();
     const spec = IPC_METHODS.find((s) => s.facade === 'tts' && s.method === 'stream');

@@ -1,8 +1,9 @@
 import { BrowserWindow, session } from 'electron';
 
 import type { AgentBrowserApi, PageSnapshot } from '../desktop/p3tools';
-import { checkUrl } from '../desktop/p3tools';
 import { ToolError } from '../desktop/toolError';
+
+import { checkRequestUrlSync, createRequestGuard } from './agentBrowserGuard';
 
 const PARTITION = 'agent-browser'; // 非 persist：仅内存，关闭应用即清除
 
@@ -12,6 +13,7 @@ const PARTITION = 'agent-browser'; // 非 persist：仅内存，关闭应用即�
  */
 export class AgentBrowser implements AgentBrowserApi {
   private win: BrowserWindow | null = null;
+  private readonly requestGuard = createRequestGuard();
 
   private ensure(): BrowserWindow {
     if (this.win && !this.win.isDestroyed()) return this.win;
@@ -19,6 +21,27 @@ export class AgentBrowser implements AgentBrowserApi {
     ses.setPermissionRequestHandler((_wc, _p, cb) => cb(false));
     ses.setPermissionCheckHandler(() => false);
     ses.on('will-download', (e) => e.preventDefault());
+    // 子资源（图片 / 脚本 / XHR / fetch / WebSocket / iframe）与导航（含重定向每一跳）同一判定：
+    // 主机名解析出的每个地址都必须是公网；拒绝内网 / 链路本地 / 云元数据地址
+    ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, cb) => {
+      this.requestGuard.decideRequest(details.url).then(
+        (v) => cb({ cancel: v.cancel }),
+        () => cb({ cancel: true }),
+      );
+    });
+    // 兜底（DNS 重绑定）：实际连接的对端 IP 是内网 → 立即停止加载并拉黑该主机。
+    // details.ip 在部分 Electron 版本的类型里没有声明，运行时由 Chromium 提供，取不到时这层不生效
+    // （此时仍有上面 onBeforeRequest 的逐请求 DNS 校验）。
+    const onPeer = (details: { url: string }) => {
+      const ip = (details as { ip?: string }).ip;
+      if (this.requestGuard.onConnected(details.url, ip)) {
+        const w = this.win;
+        if (w && !w.isDestroyed()) w.webContents.stop();
+      }
+    };
+    ses.webRequest.onBeforeRedirect({ urls: ['<all_urls>'] }, onPeer);
+    ses.webRequest.onResponseStarted({ urls: ['<all_urls>'] }, onPeer);
+    ses.webRequest.onCompleted({ urls: ['<all_urls>'] }, onPeer);
     const win = new BrowserWindow({
       width: 1024,
       height: 720,
@@ -36,11 +59,8 @@ export class AgentBrowser implements AgentBrowserApi {
     win.setMenuBarVisibility(false);
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     const guard = (e: Electron.Event, url: string) => {
-      try {
-        checkUrl(url);
-      } catch {
-        e.preventDefault();
-      }
+      // 必须同步决定；异步的 DNS 校验由 onBeforeRequest 负责
+      if (checkRequestUrlSync(url).cancel) e.preventDefault();
     };
     win.webContents.on('will-navigate', guard);
     win.webContents.on('will-redirect', guard);

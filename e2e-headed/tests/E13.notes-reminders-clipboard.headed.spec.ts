@@ -225,14 +225,11 @@ test.describe('E13 · real app · notes / reminders / clipboard', () => {
     await scrollChat(chat);
     await chat.screenshot(shot('01-chat-notes.png'));
 
-    // 设置面板 → 笔记页能看到、能搜到
-    // 桌面权限在统一设置页里（⌘/Ctrl+, → 桌面权限）
+    // 设置 → 知识与记忆 → 笔记：能看到、能搜到
     await chat.click('[data-testid="open-settings"]', { timeout: 30_000 });
-    await chat.click('[data-testid="settings-nav-desktop"]');
-    await chat.waitForSelector('[data-testid="desktop-panel"]', { timeout: 30_000 });
-    await chat
-      .getByRole('tab', { name: '笔记' })
-      .click({ force: true, noWaitAfter: true, timeout: 30_000 });
+    await chat.click('[data-testid="settings-nav-knowledge"]');
+    await chat.click('[data-testid="settings-knowledge-tab-notes"]', { timeout: 30_000 });
+    await chat.waitForSelector('[data-testid="notes-panel"]', { timeout: 30_000 });
     await expect(chat.locator('[data-testid="notes-list"]')).toContainText('Groceries');
     await chat.fill('[data-testid="notes-search"]', 'TOKENNOTE9');
     await expect(chat.locator('[data-testid="notes-list"]')).toContainText('Groceries');
@@ -259,11 +256,10 @@ test.describe('E13 · real app · notes / reminders / clipboard', () => {
     await main.click('[data-testid="reminder-dismiss"]');
     await expect(card).toHaveCount(0);
 
-    // 面板里的提醒页（显示已结束）
-    // 桌面权限在统一设置页里（⌘/Ctrl+, → 桌面权限）
+    // 设置 → 日程与日历 → 日程提醒（默认标签，里面的「提醒」子标签也是默认）
     await chat.click('[data-testid="open-settings"]');
-    await chat.click('[data-testid="settings-nav-desktop"]');
-    await chat.getByRole('tab', { name: '提醒' }).click();
+    await chat.click('[data-testid="settings-nav-schedule"]');
+    await chat.waitForSelector('[data-testid="sched-panel"]');
     await chat.fill('[data-testid="reminder-text"]', 'Water the plants');
     await chat.click('[data-testid="reminder-add"]');
     await expect(chat.locator('[data-testid="reminders-list"]')).toContainText('Water the plants');

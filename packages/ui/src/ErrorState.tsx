@@ -1,8 +1,10 @@
+import { TriangleAlert } from 'lucide-react';
 import React from 'react';
 
 import { Button } from './Button';
 import { cx } from './cx';
 import { t } from './i18n';
+import { Icon } from './icons';
 import { SkeletonList } from './Skeleton';
 
 export interface ErrorStateProps {
@@ -41,7 +43,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     data-testid={testId}
   >
     <span className="cd-error-state__icon" aria-hidden>
-      ⚠
+      <Icon icon={TriangleAlert} size={18} />
     </span>
     <div className="cd-error-state__text">
       <p className="cd-error-state__title">{title ?? t('出错了')}</p>

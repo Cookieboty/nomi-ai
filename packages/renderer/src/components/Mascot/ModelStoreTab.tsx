@@ -1,6 +1,7 @@
 import type { ModelDownloadProgress, StoreEntryView, StoreStateView } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { Badge, Button, EmptyState, ErrorState, LoadingState, Notice } from '@nomi-ai/ui';
+import { PackageOpen, Store } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import styles from './style.module.css';
@@ -39,16 +40,19 @@ export const ModelStoreTab: React.FC = () => {
   );
 
   useEffect(() => {
+    // 挂载 / api 变化时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void load(true);
     const offP = api?.onProgress((p) => setProgress((prev) => ({ ...prev, [p.id]: p })));
     const offC = api?.onChanged(() => void load(false));
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       offP?.();
       offC?.();
     };
   }, [api, load]);
 
-  if (!api) return <EmptyState title={t('模型商店仅在桌面应用中可用')} />;
+  if (!api) return <EmptyState icon={Store} title={t('模型商店仅在桌面应用中可用')} />;
 
   const install = async (e: StoreEntryView) => {
     setProgress((p) => ({
@@ -93,7 +97,9 @@ export const ModelStoreTab: React.FC = () => {
           {t('已忽略')} {state.rejectedCount} {t('个不符合许可 / 安全要求的条目。')}
         </Notice>
       )}
-      {state && !state.entries.length && !state.error && <EmptyState title={t('目录为空')} />}
+      {state && !state.entries.length && !state.error && (
+        <EmptyState icon={PackageOpen} title={t('目录为空')} />
+      )}
       <div className={styles.storeList}>
         {state?.entries.map((e) => {
           const p = progress[e.id];

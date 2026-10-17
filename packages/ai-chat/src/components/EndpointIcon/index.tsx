@@ -1,5 +1,5 @@
 /**
- * 端点图标：Nomi（应用图标）/ Claude Code（星芒）/ Codex（OpenAI 标志）/ dsh（DeepSeek 鲸鱼标志）。
+ * 端点图标：Nomi（应用图标）/ Claude Code（星芒）/ Codex（OpenAI 标志）/ dsh（DeepSeek 鲸鱼标志）/ Grok（xAI 标志）。
  * 数据与许可见 @nomi-ai/ui 的 brand/endpointGlyphs.ts（lobe-icons MIT；商标归各自所有者，仅作指示性使用）。
  * 名称通过 aria-label + 悬停提示给出。颜色与灵动岛（electron/src/island/islandPage.ts）保持一致。
  */
