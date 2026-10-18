@@ -12,6 +12,7 @@ import {
   SLASH_SOURCE_ORDER,
   type SlashCommand,
   type SlashContext,
+  type SlashKind,
   type SlashOutcome,
   type SlashSource,
 } from './types';
@@ -132,7 +133,7 @@ export const flattenGroups = (g: readonly SlashGroup[]): SlashHit[] => g.flatMap
 
 export type ExecResult =
   | { handled: false; text?: string }
-  | { handled: true; outcome: SlashOutcome; command: string; name: string };
+  | { handled: true; outcome: SlashOutcome; command: string; name: string; kind?: SlashKind };
 
 /**
  * 执行一条输入：
@@ -162,7 +163,13 @@ export async function executeSlash(
       },
     };
   try {
-    return { handled: true, name: c.name, command: raw, outcome: await c.run(args, ctx) };
+    return {
+      handled: true,
+      name: c.name,
+      kind: c.kind,
+      command: raw,
+      outcome: await c.run(args, ctx),
+    };
   } catch (e) {
     return {
       handled: true,

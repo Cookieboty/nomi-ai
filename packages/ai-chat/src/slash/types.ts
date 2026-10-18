@@ -200,3 +200,13 @@ export interface AdapterInput {
   /** Nomi 自带 Skills（仅 nomi） */
   nomiSkills?: ReadonlyArray<{ name: string; description: string }>;
 }
+
+/** MessageInput 与会话层之间的桥：输入框只管弹面板与回车，命令怎么跑由会话层决定 */
+export interface SlashBridge {
+  /** 当前端命令 + 输入框自带的界面命令 → 合并去重后的注册表 */
+  compose: (extra: SlashCommand[]) => SlashCommand[];
+  /** 用户刚输入 `/`：重新读一次项目 / 用户命令目录（文件可能刚改过） */
+  refresh: () => void;
+  /** 执行一条输入。handled=false 表示不是命令（text 存在时为去掉 `//` 转义后的文字） */
+  run: (text: string, all: SlashCommand[]) => Promise<{ handled: boolean; text?: string }>;
+}

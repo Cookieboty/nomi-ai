@@ -106,8 +106,9 @@ export function estimateContext(
 }
 
 export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 100_000 ? 0 : 1)}K`;
+  const trim = (x: number, digits: number) => x.toFixed(digits).replace(/\.0$/, '');
+  if (n >= 1_000_000) return `${trim(n / 1_000_000, n >= 10_000_000 ? 0 : 1)}M`;
+  if (n >= 1000) return `${trim(n / 1000, n >= 100_000 ? 0 : 1)}K`;
   return String(Math.round(n));
 }
 

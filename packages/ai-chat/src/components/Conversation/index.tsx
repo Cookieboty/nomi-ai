@@ -8,10 +8,12 @@ import { Icon, t } from '@nomi-ai/ui';
 import { ArrowDown, ChevronsUp, ShieldAlert, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
 import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
+import { SystemCardView } from '../SystemCards';
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
@@ -121,6 +123,9 @@ export interface ConversationViewProps {
   onEdit?: (userId: string, text: string) => void;
   /** 来源特有的扩展内容（Nomi 的记忆 / 图片 / 引用来源等） */
   slots?: ConvSlots;
+  /** 斜杠命令的结果卡片：按 afterId 插在对应消息之后（不属于任何一轮模型回复） */
+  cards?: readonly SlashCard[];
+  onDismissCard?: (id: string) => void;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -133,6 +138,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   onRetry,
   onEdit,
   slots,
+  cards,
+  onDismissCard,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
@@ -146,6 +153,21 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const start = Math.max(fullStart, messages.length - eagerCount);
   const shown = start > 0 ? messages.slice(start) : messages;
   const labels = useMemo(() => timeLabels(messages), [messages]);
+  // 卡片归位：afterId 命中某条消息 → 紧跟其后；null → 会话开头；找不到（消息被删 / 重试）→ 末尾
+  const cardPlan = useMemo(() => {
+    const byMsg = new Map<string, SlashCard[]>();
+    const head: SlashCard[] = [];
+    const tail: SlashCard[] = [];
+    const ids = new Set(messages.map((m) => m.id));
+    for (const c of cards ?? []) {
+      if (c.afterId === null) head.push(c);
+      else if (ids.has(c.afterId)) byMsg.set(c.afterId, [...(byMsg.get(c.afterId) ?? []), c]);
+      else tail.push(c);
+    }
+    return { byMsg, head, tail };
+  }, [cards, messages]);
+  const renderCards = (list: readonly SlashCard[] | undefined) =>
+    list?.map((c) => <SystemCardView key={c.id} card={c} onDismiss={onDismissCard} />);
   /** 点「显示更早」前的 scrollHeight：加载后据此保持视口不跳 */
   const anchorRef = useRef<number | null>(null);
 
@@ -218,6 +240,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     live?.permission?.id,
     live?.status?.kind,
     queued?.length,
+    cards?.length,
     phase,
     scrollToBottom,
   ]);
@@ -248,27 +271,30 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               {t('显示更早的 {0} 条消息', start)}
             </button>
           )}
-          {shown.map((m) =>
-            m.role === 'user' ? (
-              <UserMessage
-                key={m.id}
-                message={m}
-                timeLabel={labels.get(m.id)}
-                canEdit={idle}
-                onEdit={onEdit}
-                slots={slots}
-              />
-            ) : (
-              <AssistantMessage
-                key={m.id}
-                message={m}
-                timeLabel={labels.get(m.id)}
-                canRetry={idle && m.id === lastAssistantId}
-                onRetry={onRetry}
-                slots={slots}
-              />
-            ),
-          )}
+          {start === 0 && renderCards(cardPlan.head)}
+          {shown.map((m) => (
+            <React.Fragment key={m.id}>
+              {m.role === 'user' ? (
+                <UserMessage
+                  message={m}
+                  timeLabel={labels.get(m.id)}
+                  canEdit={idle}
+                  onEdit={onEdit}
+                  slots={slots}
+                />
+              ) : (
+                <AssistantMessage
+                  message={m}
+                  timeLabel={labels.get(m.id)}
+                  canRetry={idle && m.id === lastAssistantId}
+                  onRetry={onRetry}
+                  slots={slots}
+                />
+              )}
+              {renderCards(cardPlan.byMsg.get(m.id))}
+            </React.Fragment>
+          ))}
+          {renderCards(cardPlan.tail)}
           {showLive && (
             <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
               {running && <ToolTimeline items={liveItems} />}

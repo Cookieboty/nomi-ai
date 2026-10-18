@@ -6,6 +6,7 @@ import voice_mascot from './voice-mascot.json';
 import mascot_theme from './mascot-theme.json';
 import cli_monitor from './cli-monitor.json';
 import usage_tools from './usage-tools.json';
+import slash_commands from './slash-commands.json';
 
 const en = {
   ...foundation,
@@ -16,6 +17,7 @@ const en = {
   ...mascot_theme,
   ...cli_monitor,
   ...usage_tools,
+  ...slash_commands,
 };
 
 export default en;

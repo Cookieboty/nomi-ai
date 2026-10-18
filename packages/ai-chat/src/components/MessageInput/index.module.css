@@ -563,3 +563,25 @@
   background: var(--cd-color-active);
   color: var(--cd-color-text-subtle);
 }
+
+/* 斜杠命令：命令名已定、正在输参数时的提示条 */
+.slashHint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+  min-width: 0;
+}
+.slashHint code {
+  flex: none;
+  font-family: var(--cd-font-mono);
+  color: var(--cd-color-accent);
+}
+.slashHint span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

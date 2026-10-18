@@ -1,5 +1,5 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
-import { BookOpen, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
+import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
   useCallback,
   useEffect,
@@ -31,10 +31,14 @@ import {
   matchShortcut,
   useShortcutBindings,
 } from '../../services/shortcuts';
+import { argPhase, paletteQuery } from '../../slash/parse';
+import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
+import type { SlashBridge, SlashCommand } from '../../slash/types';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
 import type { SettingsSection } from '../SettingsView/sections';
+import { SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import styles from './index.module.css';
@@ -65,6 +69,10 @@ interface MessageInputProps {
   onLocalClick?: () => void;
   /** 打开统一设置页的某个分区 */
   onSettingsClick?: (section?: SettingsSection, endpoint?: string) => void;
+  /** 斜杠命令桥：传入后输入 / 弹出统一命令面板并接管执行；不传则只有输入框自带的界面命令 */
+  slash?: SlashBridge;
+  /** 打开「插件 / 命令」只读面板 */
+  onPluginsClick?: () => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
@@ -80,6 +88,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onExtClick,
   onLocalClick,
   onSettingsClick,
+  slash,
+  onPluginsClick,
 }) => {
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
@@ -219,8 +229,17 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const visionWarn = images.length > 0 && !likelyVision(chatModel);
 
   const handleSend = async () => {
-    const trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
+    let trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
     if (!trimmedMessage) return;
+    // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
+    if (slash && !images.length && trimmedMessage.startsWith('/')) {
+      const r = await slash.run(trimmedMessage, getRegistry());
+      if (r.handled) {
+        setMessage('');
+        return;
+      }
+      if (r.text !== undefined) trimmedMessage = r.text;
+    }
     if (busy) {
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
@@ -258,17 +277,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     // 处理输入法组合状态
     if (isComposing) return;
 
-    // 斜杠命令：↑↓ 选择，Enter/Tab 执行，Esc 关闭
+    // 斜杠命令：↑↓ 选择，Enter 执行（需要参数的先补全），Tab 补全，Esc 关闭
     if (slashOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const n = slashFlat.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
         e.preventDefault();
         const d = e.key === 'ArrowDown' ? 1 : -1;
-        setSlashIdx((i) => (i + d + slashMatches.length) % slashMatches.length);
+        setSlashIdx((i) => (i + d + n) % n);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        runCommand(slashMatches[Math.min(slashIdx, slashMatches.length - 1)]);
+        const c = slashFlat[Math.min(slashIdx, n - 1)]?.command;
+        if (c) pickCommand(c, e.key === 'Tab' ? 'complete' : 'run');
+        // 没有匹配：交给发送流程，由它拦下并显示「未知命令」卡片（不会发给模型）
+        else if (e.key === 'Enter') void handleSend();
         return;
       }
       if (e.key === 'Escape') {
@@ -313,6 +336,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     setSlashIdx(0);
+    // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
+    if (e.target.value === '/') slash?.refresh();
   };
 
   const busy = busyOverride ?? state.isLoading;
@@ -466,17 +491,30 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   // react-hooks/refs 据此把整个数组推断为 ref-like，这里是事件处理层的派生，豁免
 
   const commands: Cmd[] = allCommands.filter((c) => c.show);
-  const slashQuery = /^\/(\S*)$/.exec(message)?.[1];
-  const slashMatches =
-    slashQuery === undefined
-      ? []
-      : commands.filter(
-          (c) =>
-            c.id.startsWith(slashQuery.toLowerCase()) ||
-            c.label.includes(slashQuery) ||
-            tr(c.label).toLowerCase().includes(slashQuery.toLowerCase()),
-        );
-  const slashOpen = slashMatches.length > 0;
+  // 输入框自带的界面命令 → 统一命令模型（「供应商与模型」改名 /providers，把 /model 让给原生的模型切换）
+  const uiSlash: SlashCommand[] = commands.map((c) => ({
+    id: `ui:${c.id}`,
+    name: c.id === 'model' ? 'providers' : c.id,
+    label: tr(c.label),
+    description: tr(c.label),
+    source: 'ui',
+    kind: 'ui',
+    run: () => {
+      c.run();
+      return { type: 'noop' };
+    },
+  }));
+  const getRegistry = () => (slash ? slash.compose(uiSlash) : buildRegistry(uiSlash));
+  const inSlash = message.startsWith('/');
+  const registry = inSlash ? getRegistry() : [];
+  const slashQuery = paletteQuery(message);
+  const slashGroups = slashQuery === null ? [] : searchCommands(registry, slashQuery);
+  const slashFlat = flattenGroups(slashGroups);
+  const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
+  const argState = slash ? argPhase(message) : null;
+  const argCmd = argState ? findCommand(registry, argState.name) : null;
+  // 命令名已定、正在输参数：显示参数提示
+  const argHint = argCmd?.args && !argState?.args ? argCmd : null;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
   // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
@@ -497,6 +535,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setMessage('');
     c.run();
   }
+  /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
+  function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
+    const needsArgs =
+      !!c.args && (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
+    if (mode === 'complete' || (needsArgs && slash)) {
+      setMessage(`/${c.name} `);
+      setSlashIdx(0);
+      textareaRef.current?.focus();
+      return;
+    }
+    setMenuOpen(false);
+    setMessage('');
+    if (slash) void slash.run(`/${c.name}`, getRegistry());
+    else void c.run('', undefined as never);
+  }
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -511,26 +564,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     };
   }, [menuOpen]);
 
-  const renderItems = (list: Cmd[], slash: boolean) =>
-    list.map((c, i) => {
+  const renderItems = (list: Cmd[]) =>
+    list.map((c) => {
       const item = (
         <button
           key={c.id}
           type="button"
           role="menuitem"
-          className={`${styles.menuItem} ${slash && i === slashIdx ? styles.menuItemActive : ''}`}
+          className={styles.menuItem}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => runCommand(c)}
-          data-testid={slash ? `slash-${c.id}` : c.testId}
+          data-testid={c.testId}
           aria-pressed={c.active}
           title={tr(c.label)}
         >
           <span className={styles.menuIcon}>{c.icon}</span>
-          <span className={styles.menuLabel}>{slash ? `/${c.id}` : tr(c.label)}</span>
-          <span className={styles.menuHint}>{slash ? tr(c.label) : tr(c.hint)}</span>
+          <span className={styles.menuLabel}>{tr(c.label)}</span>
+          <span className={styles.menuHint}>{tr(c.hint)}</span>
         </button>
       );
-      if (slash || !pinDef(c.id)) return item;
+      if (!pinDef(c.id)) return item;
       const pinned = pins.includes(c.id);
       const full = !pinned && pins.length >= MAX_PINS;
       return (
@@ -615,8 +668,20 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         }}
       >
         {slashOpen && (
-          <div className={styles.menu} role="menu" data-testid="slash-menu">
-            {renderItems(slashMatches, true)}
+          <SlashPalette
+            groups={slashGroups}
+            active={Math.min(slashIdx, Math.max(0, slashFlat.length - 1))}
+            query={slashQuery ?? ''}
+            onPick={(c) => pickCommand(c, 'run')}
+            onHover={setSlashIdx}
+          />
+        )}
+        {argHint?.args && (
+          <div className={styles.slashHint} data-testid="slash-arg-hint">
+            <code>
+              /{argHint.name} {argHint.args.hint}
+            </code>
+            <span>{argHint.description}</span>
           </div>
         )}
         <textarea
@@ -665,10 +730,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
             {menuOpen && (
               <div className={styles.menu} role="menu" data-testid="composer-menu">
-                {renderItems(
-                  commands.filter((c) => c.menu),
-                  false,
-                )}
+                {renderItems(commands.filter((c) => c.menu))}
               </div>
             )}
           </div>
@@ -682,6 +744,18 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             >
               <Icon icon={BookOpen} size={14} />
               {tr('知识库')}
+            </button>
+          )}
+          {onPluginsClick && (
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={onPluginsClick}
+              title={tr('插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）')}
+              aria-label={tr('插件 / 命令')}
+              data-testid="plugin-panel-open"
+            >
+              <Icon icon={Blocks} size={16} />
             </button>
           )}
           <div className={styles.modelStatus}>

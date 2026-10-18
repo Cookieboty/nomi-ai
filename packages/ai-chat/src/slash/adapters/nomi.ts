@@ -21,7 +21,12 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
         if (!body) return { type: 'send', text: a };
         return {
           type: 'send',
-          text: `${t('请按下面的技能说明完成任务。')}\n\n---\n${body.trim()}\n---\n${a ? `\n${a}` : ''}`,
+          text:
+            t('请按下面的技能说明完成任务。') +
+            '\n\n---\n' +
+            body.trim() +
+            '\n---\n' +
+            (a ? '\n' + a : ''),
         };
       },
     }),

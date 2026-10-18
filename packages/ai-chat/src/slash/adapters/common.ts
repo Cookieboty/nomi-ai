@@ -223,7 +223,7 @@ export function promptTemplates(): SlashCommand[] {
         text:
           t(
             '请审查当前工作目录里尚未提交的更改（可以用 git status / git diff 查看）：指出行为变化、潜在缺陷、遗漏的测试和可读性问题，按严重程度排序，并给出具体修改建议。不要直接改文件。',
-          ) + (a ? `\n\n${t('重点关注：{0}', a)}` : ''),
+          ) + (a ? '\n\n' + t('重点关注：{0}', a) : ''),
       }),
     }),
     cmd({

@@ -20,7 +20,7 @@ describe('tokens', () => {
     expect(formatTokens(999)).toBe('999');
     expect(formatTokens(12_345)).toBe('12.3K');
     expect(formatTokens(200_000)).toBe('200K');
-    expect(formatTokens(1_000_000)).toBe('1.0M');
+    expect(formatTokens(1_000_000)).toBe('1M');
     expect(formatUsd(0)).toBe('$0');
     expect(formatUsd(0.004)).toBe('<$0.01');
     expect(formatUsd(1.234)).toBe('$1.23');
