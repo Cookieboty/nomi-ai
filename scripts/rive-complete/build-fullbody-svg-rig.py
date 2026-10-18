@@ -67,6 +67,51 @@ def intersect(*masks: Image.Image) -> Image.Image:
     return result
 
 
+def remove_small_alpha_components(image: Image.Image, minimum_area: int) -> Image.Image:
+    """Drop isolated matte islands from a moving crop.
+
+    A few legacy shoulder crops contain one-pixel source remnants outside the
+    actual silhouette. They are invisible in the neutral pose but become obvious
+    when the shoulder rotates. Keep the original RGB pixels and remove only alpha
+    components smaller than the requested area.
+    """
+
+    alpha = image.getchannel("A")
+    width, height = image.size
+    pixels = alpha.load()
+    visited: set[tuple[int, int]] = set()
+    keep = Image.new("L", image.size, 0)
+    keep_pixels = keep.load()
+    for y in range(height):
+        for x in range(width):
+            if (x, y) in visited or pixels[x, y] < 32:
+                continue
+            stack = [(x, y)]
+            visited.add((x, y))
+            component: list[tuple[int, int]] = []
+            while stack:
+                px, py = stack.pop()
+                component.append((px, py))
+                for nx, ny in (
+                    (px - 1, py - 1), (px, py - 1), (px + 1, py - 1),
+                    (px - 1, py),                     (px + 1, py),
+                    (px - 1, py + 1), (px, py + 1), (px + 1, py + 1),
+                ):
+                    if (
+                        0 <= nx < width
+                        and 0 <= ny < height
+                        and (nx, ny) not in visited
+                        and pixels[nx, ny] >= 32
+                    ):
+                        visited.add((nx, ny))
+                        stack.append((nx, ny))
+            if len(component) >= minimum_area:
+                for px, py in component:
+                    keep_pixels[px, py] = 255
+    image.putalpha(ImageChops.multiply(alpha, keep))
+    return image
+
+
 def component_mask(
     size: tuple[int, int],
     points: list[tuple[int, int]],
@@ -208,6 +253,19 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         mask_polygon((width, height), mirror_points([(325, 500), (382, 500), (382, 820), (344, 820)], width)),
     )
     skin_colors = skin_tone_mask(image)
+    # The inner sleeve edge is bright fabric immediately beside the dark tank
+    # top.  The broad sleeve polygon intentionally stops short of the torso,
+    # but that left a narrow white seam outside the moving matte.  Keep this
+    # source-pixel corridor with the sleeve so the base cutout cannot expose a
+    # dark horizontal gap at the shoulder.
+    white_fabric = Image.new("L", (width, height), 0)
+    white_px = white_fabric.load()
+    src_px = image.load()
+    for yy in range(height):
+        for xx in range(width):
+            red, green, blue, alpha_value = src_px[xx, yy]
+            if alpha_value >= 128 and red >= 165 and green >= 165 and blue >= 165 and max(red, green, blue) - min(red, green, blue) <= 48:
+                white_px[xx, yy] = 255
     left_skin = intersect(mask_polygon(
         (width, height),
         # Capture the complete exposed shoulder/upper-arm silhouette.  The old
@@ -269,6 +327,14 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
          (274, 551), (250, 470)],
     )
     left_sleeve_upper = left_sleeve_upper.filter(ImageFilter.MaxFilter(7))
+    left_sleeve_upper = ImageChops.lighter(
+        left_sleeve_upper,
+        intersect(
+            mask_polygon((width, height), [(392, 425), (435, 435), (438, 510),
+                                            (430, 550), (398, 548), (394, 490)]),
+            white_fabric,
+        ),
+    )
     left_coat_shoulder = ImageChops.subtract(left_coat_shoulder, left_sleeve_upper)
     left_sleeve_lower = mask_polygon(
         (width, height),
@@ -297,6 +363,14 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     right_coat_shoulder = right_coat_shoulder.filter(ImageFilter.MaxFilter(7))
     right_sleeve_upper = mask_polygon((width, height), mirror_points([(282, 425), (395, 418), (405, 470), (385, 555), (330, 590), (274, 551), (250, 470)], width))
     right_sleeve_upper = right_sleeve_upper.filter(ImageFilter.MaxFilter(7))
+    right_sleeve_upper = ImageChops.lighter(
+        right_sleeve_upper,
+        intersect(
+            mask_polygon((width, height), mirror_points([(392, 425), (435, 435), (438, 510),
+                                                         (430, 550), (398, 548), (394, 490)], width)),
+            white_fabric,
+        ),
+    )
     right_coat_shoulder = ImageChops.subtract(right_coat_shoulder, right_sleeve_upper)
     right_sleeve_lower = mask_polygon((width, height), mirror_points([(250, 500), (410, 525), (410, 625), (400, 706), (350, 741), (270, 718), (232, 650), (224, 565)], width))
     right_hand_detail = mask_polygon((width, height), mirror_points([(277, 731), (326, 726), (351, 770), (347, 835), (326, 884), (297, 866), (280, 820)], width))
@@ -344,11 +418,16 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     orange_pixels = detail_tone_mask(image, "orange")
 
     def partition(mask: Image.Image) -> tuple[Image.Image, Image.Image, Image.Image]:
-        dark = intersect(mask, dark_pixels)
-        orange = intersect(mask, orange_pixels)
-        detail = ImageChops.lighter(dark, orange)
-        main = ImageChops.subtract(mask, detail)
-        return main, dark, orange
+        """Keep one source-pixel layer per deforming garment.
+
+        Splitting a sleeve into separate dark/orange rasters made every isolated
+        buckle, outline, and highlight become an independent drawable. During a
+        bend those tiny drawables exposed as floating shards around the cuff and
+        shoulder. The mesh needs the complete mother-image crop so all details
+        preserve their exact relative positions. The legacy detail outputs stay
+        present as transparent compatibility assets for old scene references.
+        """
+        return mask, Image.new("L", mask.size, 0), Image.new("L", mask.size, 0)
 
     left_coat_shoulder_main, left_coat_shoulder_dark, left_coat_shoulder_orange = partition(left_coat_shoulder)
     right_coat_shoulder_main, right_coat_shoulder_dark, right_coat_shoulder_orange = partition(right_coat_shoulder)
@@ -551,6 +630,16 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         if name in masks:
             crop.putalpha(ImageChops.multiply(crop.getchannel("A"), masks[name].crop(tuple(box))))
         crop.save(out / f"{name}.png")
+    # Remove tiny disconnected remnants from the moving upper-arm skin matte;
+    # the torso-locked shoulder cap is exported separately above.
+    for name, minimum_area in (
+        ("arm-l-upper-skin", 100),
+        ("arm-r-upper-skin", 100),
+    ):
+        layer_path = out / f"{name}.png"
+        if layer_path.exists():
+            cleaned = remove_small_alpha_components(Image.open(layer_path).convert("RGBA"), minimum_area)
+            cleaned.save(layer_path)
     # Remove the superseded broad crops so the project cannot accidentally keep
     # using a sleeve-plus-hand image after this rebuild.
     for old_name in (

@@ -43,8 +43,6 @@
     <ImageAsset name="fullbody-sleeve-r-lower-orange" file="reference/svg-rig/sleeve-r-lower-orange.png" id="0:9411"/>
     <ImageAsset name="fullbody-arm-l-upper-skin" file="reference/svg-rig/arm-l-upper-skin.png" id="0:9412"/>
     <ImageAsset name="fullbody-arm-r-upper-skin" file="reference/svg-rig/arm-r-upper-skin.png" id="0:9413"/>
-    <ImageAsset name="fullbody-arm-l-shoulder-move" file="reference/svg-rig/arm-l-shoulder-move.png" id="0:9456"/>
-    <ImageAsset name="fullbody-arm-r-shoulder-move" file="reference/svg-rig/arm-r-shoulder-move.png" id="0:9457"/>
     <ViewModel name="MascotFull" id="0:9100" defaultInstanceId="0:9101">
         <ViewModelPropertyTrigger name="wave" id="0:208"/>
         <ViewModelPropertyTrigger name="cheer" id="0:209"/>
@@ -141,13 +139,13 @@
             <RootBone name="full.root" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9210">
 <RootBone name="full.arm-l.rig" x="317.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9378">
                     <RootBone name="full.arm-l.upper" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9213">
-                    <Image name="full.arm-l.shoulder-move.image" assetId="0:9456" x="-59.3" y="-76.1" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9458"/>
+                    <Image name="full.arm-l.coat-shoulder.image" assetId="0:9322" x="-29.7" y="-16.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9458"/>
                     <Image name="full.arm-l.upper-skin.image" assetId="0:9412" x="8.4" y="-59.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9440"/>
 
 
                     
                     <RootBone name="full.sleeve-l.upper" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9361">
-                        <Image name="full.sleeve-l.upper.image" assetId="0:9323" x="-76.2" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9340"><Mesh triangleIndexBytes="AAECAQMCAgMEAwUEBAUGBQcG" name="sleeve-l-upper.mesh" id="0:9604"><ContourMeshVertex x="0" y="0.0000" u="0" v="0.000000" name="sleeve-l-upper.l0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="190" y="0.0000" u="1" v="0.000000" name="sleeve-l-upper.r0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="0" y="81.6667" u="0" v="0.333333" name="sleeve-l-upper.l1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="190" y="81.6667" u="1" v="0.333333" name="sleeve-l-upper.r1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="163.3333" u="0" v="0.666667" name="sleeve-l-upper.l2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="190" y="163.3333" u="1" v="0.666667" name="sleeve-l-upper.r2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="245.0000" u="0" v="1.000000" name="sleeve-l-upper.l3"><Weight values="255" indices="2"/></ContourMeshVertex><ContourMeshVertex x="190" y="245.0000" u="1" v="1.000000" name="sleeve-l-upper.r3"><Weight values="255" indices="2"/></ContourMeshVertex><Skin name="sleeve-l-upper.skin" id="0:9605"><Tendon boneId="0:9213" tx="90.0332" ty="-45.1348" name="sleeve-l-upper.a"/><Tendon boneId="0:9215" tx="60.0222" ty="209.4868" name="sleeve-l-upper.b"/></Skin></Mesh></Image>
+                        <Image name="full.sleeve-l.upper.image" assetId="0:9323" x="-76.2" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9340"></Image>
                         <RootBone name="full.sleeve-l.upper.dark" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9522">
                         <Image name="full.sleeve-l.upper.dark.image" assetId="0:9402" x="-76.2" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9422"/>
                         </RootBone>
@@ -185,8 +183,9 @@
                             </RootBone>
                         </RootBone>
 
-                        <RootBone name="full.sleeve-l.lower" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9362">
-                            <Image name="full.sleeve-l.lower.image" assetId="0:9324" x="-71.9" y="-75.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9216"><Mesh triangleIndexBytes="AAECAQMCAgMEAwUEBAUGBQcG" name="sleeve-l-lower.mesh" id="0:9606"><ContourMeshVertex x="0" y="0.0000" u="0" v="0.000000" name="sleeve-l-lower.l0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="210" y="0.0000" u="1" v="0.000000" name="sleeve-l-lower.r0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="0" y="91.6667" u="0" v="0.333333" name="sleeve-l-lower.l1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="210" y="91.6667" u="1" v="0.333333" name="sleeve-l-lower.r1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="183.3333" u="0" v="0.666667" name="sleeve-l-lower.l2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="210" y="183.3333" u="1" v="0.666667" name="sleeve-l-lower.r2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="275.0000" u="0" v="1.000000" name="sleeve-l-lower.l3"><Weight values="255" indices="2"/></ContourMeshVertex><ContourMeshVertex x="210" y="275.0000" u="1" v="1.000000" name="sleeve-l-lower.r3"><Weight values="255" indices="2"/></ContourMeshVertex><Skin name="sleeve-l-lower.skin" id="0:9607"><Tendon boneId="0:9215" tx="84.9526" ty="89.5606" name="sleeve-l-lower.a"/><Tendon boneId="0:9217" tx="64.8665" ty="295.5028" name="sleeve-l-lower.b"/></Skin></Mesh></Image>
+                        
+                    <RootBone name="full.sleeve-l.lower" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9362">
+                            <Image name="full.sleeve-l.lower.image" assetId="0:9324" x="-71.9" y="-75.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9216"/>
                             <RootBone name="full.sleeve-l.lower.dark" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9524">
                                 <Image name="full.sleeve-l.lower.dark.image" assetId="0:9404" x="-71.9" y="-75.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9424"/>
                             </RootBone>
@@ -197,18 +196,18 @@
                                 <Image name="full.arm-l.cuff.image" assetId="0:9204" x="-63.5" y="76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9319"/>
                             </RootBone>
                         </RootBone>
-                    </RootBone>
+</RootBone>
                 </RootBone>
                 </RootBone>
 <RootBone name="full.arm-r.rig" x="642.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9379">
                     <RootBone name="full.arm-r.upper" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9219">
-                    <Image name="full.arm-r.shoulder-move.image" assetId="0:9457" x="-127.1" y="-76.1" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9459"/>
+                    <Image name="full.arm-r.coat-shoulder.image" assetId="0:9331" x="-110.0" y="-16.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9459"/>
                     <Image name="full.arm-r.upper-skin.image" assetId="0:9413" x="-127" y="-59.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9441"/>
 
 
                     
                     <RootBone name="full.sleeve-r.upper" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9365">
-                        <Image name="full.sleeve-r.upper.image" assetId="0:9332" x="-85.9" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9346"><Mesh triangleIndexBytes="AAECAQMCAgMEAwUEBAUGBQcG" name="sleeve-r-upper.mesh" id="0:9614"><ContourMeshVertex x="0" y="0.0000" u="0" v="0.000000" name="sleeve-r-upper.l0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="190" y="0.0000" u="1" v="0.000000" name="sleeve-r-upper.r0"><Weight values="255" indices="1"/></ContourMeshVertex><ContourMeshVertex x="0" y="81.6667" u="0" v="0.333333" name="sleeve-r-upper.l1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="190" y="81.6667" u="1" v="0.333333" name="sleeve-r-upper.r1"><Weight values="16320" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="163.3333" u="0" v="0.666667" name="sleeve-r-upper.l2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="190" y="163.3333" u="1" v="0.666667" name="sleeve-r-upper.r2"><Weight values="48960" indices="513"/></ContourMeshVertex><ContourMeshVertex x="0" y="245.0000" u="0" v="1.000000" name="sleeve-r-upper.l3"><Weight values="255" indices="2"/></ContourMeshVertex><ContourMeshVertex x="190" y="245.0000" u="1" v="1.000000" name="sleeve-r-upper.r3"><Weight values="255" indices="2"/></ContourMeshVertex><Skin name="sleeve-r-upper.skin" id="0:9615"><Tendon boneId="0:9219" tx="101.4942" ty="-45.1348" name="sleeve-r-upper.a"/><Tendon boneId="0:9221" tx="131.5053" ty="209.4868" name="sleeve-r-upper.b"/></Skin></Mesh></Image>
+                        <Image name="full.sleeve-r.upper.image" assetId="0:9332" x="-85.9" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9346"></Image>
                         <RootBone name="full.sleeve-r.upper.dark" x="0" y="0" rotation="0" length="1" scaleX="1" id="0:9528">
                         <Image name="full.sleeve-r.upper.dark.image" assetId="0:9408" x="-85.9" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9428"/>
                         </RootBone>
@@ -316,6 +315,11 @@
                     <Image name="full.coat-r.tail.image" assetId="0:9315" x="-103" y="-204" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9317"/>
                     <RootBone name="full.coat-r.front" x="0" y="40" rotation="0" length="1" scaleX="1" id="0:9273"/>
                 </RootBone>
+                <!-- The shoulder cap is torso-locked. Only the upper-arm skin and
+                     sleeve follow the arm bone, preventing shoulder inflation
+                     when a hand crosses the chest. -->
+                <Image name="full.arm-l.shoulder-skin.static" assetId="0:9201" x="313.6" y="211.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9632"/>
+                <Image name="full.arm-r.shoulder-skin.static" assetId="0:9310" x="515.9" y="211.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9633"/>
                         </RootBone>
             <!-- Rive paints the first sibling on top. Keep the mother and its
                  torso backfill behind the bone-driven layers so a raised arm
@@ -380,160 +384,109 @@
         <LinearAnimation name="full.wave" loopValue="oneShot" duration="96" fps="60" id="0:196">
             <KeyedObject objectId="0:9213">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.3" frame="14" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.58" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.46" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.62" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.46" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
             <KeyedObject objectId="0:9215">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.12" frame="14" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.28" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.18" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.28" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.18" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.8" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="3" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="1.8" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="3" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.8" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
             <KeyedObject objectId="0:9217">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.18" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.14" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.18" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.14" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
             <KeyedObject objectId="0:9243">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.18" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.12" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.18" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.12" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
             <KeyedObject objectId="0:9244">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.12" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.16" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.12" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.16" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
             <KeyedObject objectId="0:9245">
                 <KeyedProperty property="rotation">
-                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.16" frame="28" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.2" frame="42" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="-0.16" frame="58" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0.2" frame="74" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
-                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic">
-                        <CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>
-                    </KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
                 </KeyedProperty>
             </KeyedObject>
+            <KeyedObject objectId="0:9632">
+                <KeyedProperty property="x">
+                    <KeyFrameDouble value="313.6" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="305" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="295" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="295" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="295" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="295" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="305" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="313.6" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble value="0.846354" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.846354" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble value="0.846354" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9" frame="14" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="28" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="42" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="58" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.98" frame="74" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.9" frame="90" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble value="0.846354" frame="96" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                </KeyedProperty>
+            </KeyedObject>
+
         </LinearAnimation>
         <LinearAnimation name="full.cheer" loopValue="oneShot" duration="96" fps="60" id="0:197">
             <KeyedObject objectId="0:9213">
