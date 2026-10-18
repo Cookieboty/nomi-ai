@@ -104,6 +104,9 @@ const mock = {
   NOMI_MOCK_SCENARIO: 'rich',
 };
 
+// 停止按钮：统一输入框后是 MessageInput 的 stop-button（旧的 conv-stop 已移除，保留兼容）
+const STOP = '[data-testid="stop-button"], [data-testid="conv-stop"]';
+
 test.describe('E25 · unified conversation view', () => {
   let app: ElectronApplication | null = null;
   let userData = '';
@@ -179,7 +182,7 @@ test.describe('E25 · unified conversation view', () => {
 
     // 第二轮：停止
     await expect(status).toBeVisible({ timeout: 30_000 });
-    await chat.locator('[data-testid="conv-stop"]').click();
+    await chat.locator(STOP).first().click();
     await expect(chat.locator('[data-testid="stopped-note"]')).toBeVisible({ timeout: 30_000 });
     await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 30_000 });
     await shot(chat, '27-stopped');
@@ -205,7 +208,7 @@ test.describe('E25 · unified conversation view', () => {
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(before + 1, {
       timeout: 20_000,
     });
-    await chat.locator('[data-testid="conv-stop"]').click();
+    await chat.locator(STOP).first().click();
     await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 30_000 });
 
     // 编辑并重新发送
@@ -217,7 +220,7 @@ test.describe('E25 · unified conversation view', () => {
     await expect(chat.locator('[data-testid="msg-user"]').last()).toContainText('编辑后的任务', {
       timeout: 20_000,
     });
-    await chat.locator('[data-testid="conv-stop"]').click();
+    await chat.locator(STOP).first().click();
   });
 
   test('B · failure shows an error card with retry', async () => {
@@ -318,7 +321,7 @@ test.describe('E25 · unified conversation view', () => {
       await expect(first.locator('[data-testid="conv-turn-summary"]')).toContainText('输入 120');
       await shot(chat, '32-nomi-done');
       // 第二轮：停止
-      await chat.locator('[data-testid="conv-stop"], [data-testid="stop-button"]').first().click();
+      await chat.locator(STOP).first().click();
       await expect(chat.locator('[data-testid="stopped-note"]')).toBeVisible({ timeout: 30_000 });
       await shot(chat, '33-nomi-stopped');
       // 重新生成：最后一条助手消息被替换为新的回答
