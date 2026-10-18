@@ -177,12 +177,13 @@ export const MascotAudioBridge: FC = () => {
     const off = api.onBubble((p) => {
       const text = typeof p?.text === 'string' ? p.text : '';
       if (!text) return;
-      // 只显示气泡：不朗读、不放音效（编程助手的定时汇总在「总结播报」关闭时）
+      // voice=none：只显示气泡；编程助手的定时汇总关闭语音播报时使用此模式。
       if (p.voice === 'none') return;
       const explicit = p.kind ? BUBBLE_KIND_CUE[p.kind] : undefined;
-      // 只播一句简短固定台词 + 音效，不朗读气泡文字（任务结束、总结播报关闭时）
-      if (p.voice === 'cue' && explicit) {
-        mascotCueService.trigger(explicit);
+      // 编程助手提示关闭语音播报时仍保留对应提示音，但不调用 TTS。
+      if (p.voice === 'cue') {
+        const cue = explicit ?? inferAgentCue(text);
+        if (cue) mascotCueService.trigger(cue, { sfxOnly: true });
         return;
       }
       if (p.kind === 'digest') {

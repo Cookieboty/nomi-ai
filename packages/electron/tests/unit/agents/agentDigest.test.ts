@@ -267,7 +267,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
       ...over,
     });
 
-    it('总结播报关：简短气泡 + 仅固定台词（voice=cue），不朗读总结', () => {
+    it('消息语音播报关：简短气泡 + 仅提示音（voice=cue），不朗读总结', () => {
       const svc = make();
       svc.onEndpointFinished(fin());
       expect(say).toHaveBeenCalledWith(expect.stringContaining('Claude Code'), {
@@ -282,7 +282,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
       expect(island).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'failed' }));
     });
 
-    it('总结播报开：完成总结含任务、成败与结果，朗读（voice=full）', () => {
+    it('消息语音播报开：完成总结含任务、成败与结果，朗读（voice=full）', () => {
       const svc = make({ summaryEnabled: true });
       svc.onEndpointFinished(fin());
       let [text, opts] = say.mock.calls[0]!;
@@ -296,7 +296,19 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
       expect(opts).toEqual({ kind: 'fail', voice: 'full' });
     });
 
-    it('权限请求提示保持不变（无 voice 限制）', () => {
+    it('消息语音播报开：权限提示也朗读文字', () => {
+      const svc = make({ summaryEnabled: true });
+      permission({
+        tabId: 'a',
+        title: 'x',
+        backend: 'claude',
+        summary: 'Bash: ls',
+        background: true,
+      } as never);
+      expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'full' });
+    });
+
+    it('权限请求提示关闭语音播报时只保留提示音', () => {
       const svc = make();
       svc.onPermissionNeeded({
         tabId: 'a',
@@ -305,7 +317,7 @@ describe('编程助手：开始不打扰 + 每 10 分钟汇总 + 总结播报', 
         summary: 'Bash: ls',
         background: true,
       });
-      expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'));
+      expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
       expect(island).toHaveBeenCalledWith(expect.objectContaining({ status: 'attention' }));
     });
   });

@@ -260,8 +260,8 @@ export interface DesktopConfirmRequest {
 
 /**
  * 主进程推给看板娘的气泡。voice 决定要不要出声（默认 full = 朗读气泡文字）：
- * - full：朗读整段气泡文字（总结播报）
- * - cue：只播一句简短固定台词 + 音效，不朗读气泡文字
+ * - full：朗读整段气泡文字
+ * - cue：只播放事件提示音，不朗读气泡文字
  * - none：只显示气泡，不出声也不放音效
  * kind 明确事件类型（不再从文案推断）：digest = 定时汇总，done / fail = 任务结束。
  */

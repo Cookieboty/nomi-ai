@@ -210,7 +210,7 @@ describe('Nomi tabs in the aggregated monitor', () => {
       summary: 'Bash: ls -la',
       background: true,
     });
-    expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'));
+    expect(say).toHaveBeenCalledWith(expect.stringContaining('工具权限'), { voice: 'cue' });
     expect(island).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: 'agent',

@@ -109,12 +109,12 @@ export const CodingMonitor: React.FC<{
               onChange={(v) =>
                 void agentsClient.setSettings({ summaryEnabled: v }).then(loadAgents)
               }
-              label={tr('总结播报（语音播报任务进度与完成总结）')}
+              label={tr('编程助手消息语音播报（Codex 等）')}
               data-testid="agents-summary"
             />
             <p className={styles.hint}>
               {tr(
-                '开启后，每 10 分钟的汇总会附带当前任务进度并朗读，任务结束时朗读完成总结；关闭时只显示气泡 / 灵动岛的简短提示，不出声。遵守语音开关与静音。',
+                '开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时只显示提示并播放提示音。遵守语音开关与静音。',
               )}
             </p>
             <p className={styles.hint}>
