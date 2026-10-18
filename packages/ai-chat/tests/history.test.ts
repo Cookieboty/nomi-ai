@@ -66,6 +66,34 @@ describe('ConversationStore', () => {
     expect(reopened.getMessages(second)[0]!.content).toBe('other');
   });
 
+  it('caches loaded messages until the conversation is changed', () => {
+    const base = createMemoryStorage();
+    base.setItem(
+      'ai-chat:conversations',
+      JSON.stringify([{ id: 'c1', name: 'cached', createdAt: 1, updatedAt: 1, backend: 'nomi' }]),
+    );
+    base.setItem('ai-chat:conversation:c1', JSON.stringify([msg('1', 'user', 'hello')]));
+    let reads = 0;
+    const storage = {
+      getItem: (key: string) => {
+        reads++;
+        return base.getItem(key);
+      },
+      setItem: base.setItem,
+      removeItem: base.removeItem,
+    };
+    const s = new ConversationStore({ storage });
+    reads = 0;
+
+    expect(s.getMessages('c1')).toHaveLength(1);
+    expect(reads).toBe(1);
+    expect(s.getMessages('c1')).toHaveLength(1);
+    expect(reads).toBe(1);
+
+    s.append(msg('2', 'assistant', 'world'), 'c1');
+    expect(s.getMessages('c1').map((m) => m.content)).toEqual(['hello', 'world']);
+  });
+
   it('trims to maxMessages and migrates the legacy single-history key', () => {
     const storage = createMemoryStorage();
     storage.setItem(
