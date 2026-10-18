@@ -714,88 +714,91 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           rows={1}
         />
 
-        <div className={styles.composerBar}>
-          <div className={styles.moreWrap} ref={menuRef}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              title={tr('更多：知识库问答、截图、模型、设置（也可输入 / ）')}
-              aria-label={tr('更多功能')}
-              data-testid="composer-more"
-            >
-              <Icon icon={Plus} />
-            </button>
-            {menuOpen && (
-              <div className={styles.menu} role="menu" data-testid="composer-menu">
-                {renderItems(commands.filter((c) => c.menu))}
-              </div>
+        <div className={styles.composerBar} data-testid="composer-bar">
+          <div className={styles.composerLeft} data-zone="left">
+            <div className={styles.moreWrap} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title={tr('更多：知识库问答、截图、模型、设置（也可输入 / ）')}
+                aria-label={tr('更多功能')}
+                data-testid="composer-more"
+              >
+                <Icon icon={Plus} />
+              </button>
+              {menuOpen && (
+                <div className={styles.menu} role="menu" data-testid="composer-menu">
+                  {renderItems(commands.filter((c) => c.menu))}
+                </div>
+              )}
+            </div>
+            {kbMode && kbAvailable && (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={toggleKb}
+                title={tr('知识库问答已开启，点击关闭')}
+                data-testid="kb-mode-chip"
+              >
+                <Icon icon={BookOpen} size={14} />
+                {tr('知识库')}
+              </button>
+            )}
+            {onPluginsClick && (
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={onPluginsClick}
+                title={tr('插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）')}
+                aria-label={tr('插件 / 命令')}
+                data-testid="plugin-panel-open"
+              >
+                <Icon icon={Blocks} size={16} />
+              </button>
+            )}
+            <div className={styles.modelStatus}>
+              <EndpointControls
+                className={styles.currentModel}
+                onManageNomi={() => onProvidersClick?.()}
+                onManageCli={(b) => onSettingsClick?.('coding', b)}
+              />
+            </div>
+          </div>
+          <div className={styles.composerRight} data-zone="right">
+            <VoiceButtons cv={cv} disabled={disabled} />
+            {canStop ? (
+              <button
+                type="button"
+                onClick={stopFn}
+                className={styles.sendButton}
+                title={tr('停止生成')}
+                aria-label={tr('停止生成')}
+                data-testid="stop-button"
+              >
+                <Icon icon={Square} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={isDisabled || (!message.trim() && !images.length)}
+                className={styles.sendButton}
+                title={queue && busy ? tr('排队发送 (Enter)') : tr('发送消息 (Enter)')}
+                aria-label={queue && busy ? tr('排队') : tr('发送')}
+                data-testid={queue && busy ? 'queue-button' : 'send-button'}
+              >
+                {queue && busy ? (
+                  <Icon icon={ListPlus} />
+                ) : busy ? (
+                  <div className={styles.loadingSpinner} />
+                ) : (
+                  <Icon icon={ArrowUp} />
+                )}
+              </button>
             )}
           </div>
-          {kbMode && kbAvailable && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={toggleKb}
-              title={tr('知识库问答已开启，点击关闭')}
-              data-testid="kb-mode-chip"
-            >
-              <Icon icon={BookOpen} size={14} />
-              {tr('知识库')}
-            </button>
-          )}
-          {onPluginsClick && (
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={onPluginsClick}
-              title={tr('插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）')}
-              aria-label={tr('插件 / 命令')}
-              data-testid="plugin-panel-open"
-            >
-              <Icon icon={Blocks} size={16} />
-            </button>
-          )}
-          <div className={styles.modelStatus}>
-            <EndpointControls
-              className={styles.currentModel}
-              onManageNomi={() => onProvidersClick?.()}
-              onManageCli={(b) => onSettingsClick?.('coding', b)}
-            />
-          </div>
-          <span className={styles.spacer} />
-          <VoiceButtons cv={cv} disabled={disabled} />
-          {canStop ? (
-            <button
-              type="button"
-              onClick={stopFn}
-              className={styles.sendButton}
-              title={tr('停止生成')}
-              aria-label={tr('停止生成')}
-              data-testid="stop-button"
-            >
-              <Icon icon={Square} />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={isDisabled || (!message.trim() && !images.length)}
-              className={styles.sendButton}
-              title={queue && busy ? tr('排队发送 (Enter)') : tr('发送消息 (Enter)')}
-              aria-label={queue && busy ? tr('排队') : tr('发送')}
-              data-testid={queue && busy ? 'queue-button' : 'send-button'}
-            >
-              {queue && busy ? (
-                <Icon icon={ListPlus} />
-              ) : busy ? (
-                <div className={styles.loadingSpinner} />
-              ) : (
-                <Icon icon={ArrowUp} />
-              )}
-            </button>
-          )}
         </div>
       </div>
       <VoiceSettingsModal cv={cv} />

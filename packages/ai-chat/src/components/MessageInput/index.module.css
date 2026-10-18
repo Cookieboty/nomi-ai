@@ -411,18 +411,36 @@
 }
 .composerBar {
   display: flex;
-  flex-wrap: wrap;
+  /* 永不换行：发送 / 语音按钮固定在右侧同一行，左侧选择器自己收缩 */
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: 36px;
+  min-width: 0;
+  /* 供下面的 @container 按「工具栏自身宽度」折叠选择器（比窗口宽度更准：侧栏展开 / 收起都适用） */
+  container-type: inline-size;
+  container-name: composer;
 }
-.spacer {
-  flex: 1;
+.composerLeft {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.composerLeft > :not(.modelStatus) {
+  flex: none;
+}
+.composerRight {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
 }
 .composerBar .modelStatus {
   margin: 0;
   min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
 }
 .composerBar .currentModel {
@@ -430,6 +448,10 @@
   color: var(--cd-color-text-subtle);
   background: transparent;
   border: none;
+  box-shadow: none;
+  padding: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 .iconButton {
   width: 30px;
@@ -551,13 +573,73 @@
   cursor: not-allowed;
   opacity: 0.1 !important;
 }
-/* 窄窗口：模型切换器先收缩，不压住语音 / 发送按钮 */
+/* 窄窗口：左侧选择器区先收缩（省略号），再按工具栏宽度折叠成图标；右侧按钮组永远不被挤走 */
 .composerBar .modelStatus {
-  flex: 0 1 auto;
+  flex: 1 1 0;
   overflow: hidden;
+  /* overflow:hidden 会切掉聚焦环：留一圈内边距 */
+  padding: 3px 2px;
+  margin: -3px -2px;
 }
-.composerBar > :not(.modelStatus):not(.spacer) {
-  flex-shrink: 0;
+.composerBar .modelStatus > * {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.composerBar .modelStatus :global(.cd-dropdown) {
+  min-width: 48px;
+}
+/* 后端切换器的内联 minWidth 112 在窄栏里是挤爆的主因 */
+.composerBar .modelStatus [data-testid='backend-switcher'] {
+  flex: 0 0 auto;
+}
+.composerBar .modelStatus [data-testid='backend-switcher'] :global(.cd-dropdown) {
+  min-width: 0 !important;
+  width: auto !important;
+}
+.composerBar .modelStatus [data-testid='cli-workspace'] {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.composerBar .modelStatus [data-testid='cli-workspace'] button {
+  min-width: 0;
+}
+.composerBar .modelStatus [data-testid='cli-workspace'] button svg {
+  flex: none;
+}
+.composerBar .modelStatus [data-testid='open-cli-provider-panel'] {
+  height: 28px;
+  padding: 0 6px;
+}
+.composerBar .modelStatus [data-testid='cli-model-label'] {
+  min-width: 0;
+  flex: 0 3 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composerBar .modelStatus [data-testid='open-cli-provider-panel'],
+.composerBar .modelStatus [data-testid='open-provider-panel'] {
+  flex: none;
+}
+@container composer (max-width: 600px) {
+  /* 后端切换器只留图标 + 箭头；模型名（下拉里已有）与「Nomi 工具已关闭」提示先隐藏 */
+  .composerBar .modelStatus [data-testid='backend-switcher'] :global(.cd-dropdown__value),
+  .composerBar .modelStatus [data-testid='harness-tools-off'],
+  .composerBar .modelStatus [data-testid='cli-model-label'] {
+    display: none;
+  }
+}
+@container composer (max-width: 480px) {
+  /* 更窄：工作目录只留文件夹图标（完整路径在 title / 无障碍名称里） */
+  .composerBar .modelStatus [data-testid='cli-workspace-path'] {
+    display: none;
+  }
+}
+@container composer (max-width: 440px) {
+  /* 极窄：供应商管理入口（设置里仍可进入）让位给选择器 */
+  .composerBar .modelStatus [data-testid='open-cli-provider-panel'],
+  .composerBar .modelStatus [data-testid='open-provider-panel'] {
+    display: none;
+  }
 }
 .composerBar .sendButton:disabled {
   background: var(--cd-color-active);
