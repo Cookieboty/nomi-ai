@@ -118,9 +118,47 @@ async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   return r;
 }
 
+/** 斜杠命令 / skill / 插件的只读发现结果（主进程只读文件名与 frontmatter；见 cli/slashDiscovery） */
+export interface SlashDiscoveryEntry {
+  id: string;
+  name: string;
+  kind: 'command' | 'skill' | 'agent' | 'plugin' | 'mcp';
+  scope: 'project' | 'user' | 'plugin';
+  description: string;
+  argumentHint?: string;
+  userInvocable: boolean;
+  plugin?: string;
+  /** 相对项目 / 用户目录的位置，用于展示（不含绝对路径） */
+  where: string;
+  transport?: string;
+}
+export interface SlashDiscoveryResult {
+  backend: string;
+  entries: SlashDiscoveryEntry[];
+  supported: boolean;
+}
+export interface SlashExpansion {
+  text: string;
+  /** 模板里含 !`cmd` 动态注入：Nomi 不执行，原样保留并提示 */
+  shellInjection: boolean;
+}
+export interface GitDiffResult {
+  ok: boolean;
+  status: string;
+  stat: string;
+  diff: string;
+  truncated: boolean;
+  error?: string;
+}
+
 export const harnessClient = {
   available: () => !!bridge(),
   state: () => call<HarnessState>('state'),
+  slashDiscover: (backend: string, cwd: string) =>
+    call<SlashDiscoveryResult>('slash-discover', backend, cwd),
+  slashExpand: (backend: string, cwd: string, id: string, args: string) =>
+    call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
+  gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   setCwd: (c: string) => call<HarnessState>('set-cwd', c),
   pickCwd: () => call<HarnessState>('pick-cwd'),
