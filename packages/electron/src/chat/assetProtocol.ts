@@ -45,21 +45,17 @@ export function chatAssetMimeFor(file: string): string {
   return IMG_MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
 }
 
-/** 必须在 app ready 之前调用：让 chat-asset:// 支持 fetch 与 <img> 加载。*/
-export function registerChatAssetSchemePrivileges(): void {
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: CHAT_ASSET_SCHEME,
-      privileges: {
-        standard: true,
-        secure: true,
-        supportFetchAPI: true,
-        corsEnabled: true,
-        stream: true,
-      },
-    },
-  ]);
-}
+/** chat-asset:// 的特权声明：支持 fetch 与 <img> 加载。由 registerAppSchemePrivileges 统一注册 */
+export const CHAT_ASSET_SCHEME_PRIVILEGES: Electron.CustomScheme = {
+  scheme: CHAT_ASSET_SCHEME,
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+    stream: true,
+  },
+};
 
 /** app ready 后调用：响应 chat-asset:// 请求，根为 userData/chat。*/
 export function registerChatAssetProtocol(): void {
