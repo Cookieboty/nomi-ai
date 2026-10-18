@@ -1,5 +1,5 @@
 /**
- * E28 · 编程助手长驻进程空闲回收（真实 dist 应用 + Mock Claude）
+ * E29 · 编程助手长驻进程空闲回收（真实 dist 应用 + Mock Claude）
  *
  * 1. 新建 Claude Code 标签并发一条消息 → 回复完成；
  * 2. 空闲超过阈值（NOMI_HARNESS_IDLE_MS=2000）后进程被回收：标签圆点变为「已休眠」，会话里出现提示，转录仍在；
@@ -17,7 +17,7 @@ import { safeRm } from '../fixtures/fsutil';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 
-test.describe('E28 · idle recycling of coding-assistant processes · mock CLI', () => {
+test.describe('E29 · idle recycling of coding-assistant processes · mock CLI', () => {
   let app: ElectronApplication | null = null;
   let userData = '';
   test.beforeAll(() => {
