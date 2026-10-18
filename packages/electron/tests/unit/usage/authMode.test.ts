@@ -15,6 +15,7 @@ import {
   claudeAuthFromConfig,
   codexAuthFromConfig,
   grokAuthFromConfig,
+  hasGrokAuthFile,
   hasCustomGrokConfiguration,
   parseClaudeAuthStatus,
   parseCodexLoginStatus,
@@ -134,6 +135,13 @@ describe('本地兜底：只看键名 / 字段，不读凭据值', () => {
       '# >>> nomi managed (grok provider) >>>\n[model.nomi]\nenv_key = "NOMI_GROK_API_KEY"\n',
     );
     expect(grokAuthFromConfig(home, {})).toBe('api');
+  });
+
+  it('Grok：CLI 暂时不可用时，只凭 auth.json 文件存在保留订阅入口，不读取内容', () => {
+    const home = tmpHome();
+    expect(hasGrokAuthFile(home, {})).toBe(false);
+    write(path.join(home, '.grok', 'auth.json'), '{opaque credentials}');
+    expect(hasGrokAuthFile(home, {})).toBe(true);
   });
 });
 

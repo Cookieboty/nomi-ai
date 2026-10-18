@@ -18,12 +18,14 @@ describe('parseGrokBilling', () => {
       Date.parse('2026-10-18T00:00:00.000Z'),
     );
     expect(r).toEqual({
-      windows: [{
-        id: 'USAGE_PERIOD_TYPE_WEEKLY',
-        usedPercent: 37.5,
-        windowMinutes: 10080,
-        resetAt: Date.parse('2026-10-19T00:00:00.000Z'),
-      }],
+      windows: [
+        {
+          id: 'USAGE_PERIOD_TYPE_WEEKLY',
+          usedPercent: 37.5,
+          windowMinutes: 10080,
+          resetAt: Date.parse('2026-10-19T00:00:00.000Z'),
+        },
+      ],
       updatedAt: Date.parse('2026-10-18T00:00:00.000Z'),
       origin: 'grok-acp',
       plan: 'SuperGrok Heavy',

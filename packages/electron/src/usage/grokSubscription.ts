@@ -36,7 +36,9 @@ export function parseGrokBilling(raw: unknown, now = Date.now()): QuotaReading |
   const period = obj(config?.currentPeriod);
   const used = config?.creditUsagePercent;
   const usedPercent =
-    typeof used === 'number' && Number.isFinite(used) && used >= 0 ? Math.min(100, used) : undefined;
+    typeof used === 'number' && Number.isFinite(used) && used >= 0
+      ? Math.min(100, used)
+      : undefined;
   const start = dateMs(period?.start);
   const end = dateMs(period?.end);
   if (usedPercent === undefined || start === undefined || end === undefined || end <= start)
@@ -95,69 +97,90 @@ export class GrokBillingFetcher {
     try {
       child = await new Promise<ChildProcess | null>((resolve) => {
         try {
-          resolve((this.d.spawnFn ?? spawn)(file, args, {
-            cwd: dir,
-            env: { ...env, NO_COLOR: '1' },
-            stdio: ['pipe', 'pipe', 'ignore'],
-            windowsHide: true,
-            windowsVerbatimArguments: file !== bin,
-          }));
+          resolve(
+            (this.d.spawnFn ?? spawn)(file, args, {
+              cwd: dir,
+              env: { ...env, NO_COLOR: '1' },
+              stdio: ['pipe', 'pipe', 'ignore'],
+              windowsHide: true,
+              windowsVerbatimArguments: file !== bin,
+            }),
+          );
         } catch {
           resolve(null);
         }
       });
       if (!child) return { kind: 'transient', reason: 'spawn-failed' };
       const now = this.d.now ? this.d.now() : Date.now();
-      const result = await new Promise<{ raw?: unknown; error?: Obj; timedOut?: boolean }>((resolve) => {
-        let settled = false;
-        let bytes = 0;
-        let buf = '';
-        const finish = (v: { raw?: unknown; error?: Obj; timedOut?: boolean }) => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          resolve(v);
-        };
-        const timer = setTimeout(() => finish({ timedOut: true }), this.d.timeoutMs ?? GROK_BILLING_TIMEOUT_MS);
-        child!.once('error', () => finish({}));
-        child!.once('close', () => finish({}));
-        child!.stdout?.setEncoding?.('utf8');
-        let billingSent = false;
-        const send = (message: Obj) => {
-          try { child!.stdin?.write(`${JSON.stringify(message)}\n`); } catch { finish({}); }
-        };
-        child!.stdout?.on('data', (chunk: string | Buffer) => {
-          const s = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
-          bytes += Buffer.byteLength(s);
-          if (bytes > STDOUT_LIMIT) return finish({});
-          buf += s;
-          let i: number;
-          while ((i = buf.indexOf('\n')) >= 0) {
-            const line = buf.slice(0, i);
-            buf = buf.slice(i + 1);
-            let message: any;
-            try { message = JSON.parse(line); } catch { continue; }
-            if (message?.id === 1 && message.error && typeof message.error === 'object') {
-              finish({ error: message.error });
-              return;
+      const result = await new Promise<{ raw?: unknown; error?: Obj; timedOut?: boolean }>(
+        (resolve) => {
+          let settled = false;
+          let bytes = 0;
+          let buf = '';
+          const finish = (v: { raw?: unknown; error?: Obj; timedOut?: boolean }) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(v);
+          };
+          const timer = setTimeout(
+            () => finish({ timedOut: true }),
+            this.d.timeoutMs ?? GROK_BILLING_TIMEOUT_MS,
+          );
+          child!.once('error', () => finish({}));
+          child!.once('close', () => finish({}));
+          child!.stdout?.setEncoding?.('utf8');
+          let billingSent = false;
+          const send = (message: Obj) => {
+            try {
+              child!.stdin?.write(`${JSON.stringify(message)}\n`);
+            } catch {
+              finish({});
             }
-            if (message?.id === 1 && message.result && !billingSent) {
-              billingSent = true;
-              send({ jsonrpc: '2.0', method: 'initialized', params: {} });
-              send({ jsonrpc: '2.0', id: 2, method: '_x.ai/billing', params: {} });
-            } else if (message?.id === 2) {
-              if (message.error && typeof message.error === 'object') finish({ error: message.error });
-              else finish({ raw: message.result });
-              return;
+          };
+          child!.stdout?.on('data', (chunk: string | Buffer) => {
+            const s = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+            bytes += Buffer.byteLength(s);
+            if (bytes > STDOUT_LIMIT) return finish({});
+            buf += s;
+            let i: number;
+            while ((i = buf.indexOf('\n')) >= 0) {
+              const line = buf.slice(0, i);
+              buf = buf.slice(i + 1);
+              let message: any;
+              try {
+                message = JSON.parse(line);
+              } catch {
+                continue;
+              }
+              if (message?.id === 1 && message.error && typeof message.error === 'object') {
+                finish({ error: message.error });
+                return;
+              }
+              if (message?.id === 1 && message.result && !billingSent) {
+                billingSent = true;
+                send({ jsonrpc: '2.0', method: 'initialized', params: {} });
+                send({ jsonrpc: '2.0', id: 2, method: '_x.ai/billing', params: {} });
+              } else if (message?.id === 2) {
+                if (message.error && typeof message.error === 'object')
+                  finish({ error: message.error });
+                else finish({ raw: message.result });
+                return;
+              }
             }
-          }
-        });
-        send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {
-          protocolVersion: 1,
-          clientInfo: { name: 'nomi_usage', title: 'Nomi', version: '1.0.0' },
-          clientCapabilities: {},
-        }});
-      });
+          });
+          send({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'initialize',
+            params: {
+              protocolVersion: 1,
+              clientInfo: { name: 'nomi_usage', title: 'Nomi', version: '1.0.0' },
+              clientCapabilities: {},
+            },
+          });
+        },
+      );
       if (result.timedOut) return { kind: 'transient', reason: 'timeout' };
       if (result.error) {
         if (result.error.code === -32601) {
@@ -172,7 +195,11 @@ export class GrokBillingFetcher {
       return { kind: 'transient', reason: 'spawn-failed' };
     } finally {
       if (child) killTree(child, 200);
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best effort */ }
+      try {
+        fs.rmSync(dir, { recursive: true, force: true });
+      } catch {
+        /* best effort */
+      }
     }
   }
 }

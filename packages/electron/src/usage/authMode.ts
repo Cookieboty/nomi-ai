@@ -203,6 +203,16 @@ export function grokAuthFromConfig(home: string, env: NodeJS.ProcessEnv): AuthMo
   return hasCustomGrokConfiguration(home, env) ? 'api' : null;
 }
 
+/** 只检查官方凭据文件是否存在，不读取内容；CLI 暂时不可执行时用于保留订阅入口。 */
+export function hasGrokAuthFile(home: string, env: NodeJS.ProcessEnv): boolean {
+  try {
+    const stat = fs.statSync(path.join(grokHomeDir(home, env), 'auth.json'));
+    return stat.isFile() && stat.size > 0;
+  } catch {
+    return false;
+  }
+}
+
 export interface AuthDeps {
   home?: string;
   env?: NodeJS.ProcessEnv;
@@ -329,6 +339,7 @@ export class AuthModeDetector {
           ? codexAuthFromConfig(home, env)
           : grokAuthFromConfig(home, env);
     if (cfg) return { mode: cfg, fp: null };
+    if (id === 'grok' && hasGrokAuthFile(home, env)) return { mode: 'subscription', fp: null };
     if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
     return { mode: 'unknown', fp: null };
   }
@@ -349,8 +360,7 @@ export function applyAuthModes(
   for (const e of entries) {
     const auth = modes[e.id] ?? 'unknown';
     if (e.id === 'nomi') continue;
-    // 没检测到这个工具的本机痕迹，也没有额度数据：不出现
-    if (e.status !== 'ok' && !detected.has(e.id)) continue;
+    if (e.status !== 'ok' && auth !== 'subscription' && !detected.has(e.id)) continue;
     if (auth === 'api') out.push({ ...e, status: 'api', windows: [], auth });
     else if (auth === 'subscription') out.push({ ...e, auth });
     else if (e.status === 'ok') out.push({ ...e, auth });
