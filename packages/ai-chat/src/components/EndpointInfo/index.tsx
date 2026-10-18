@@ -84,11 +84,20 @@ function installedOf(
   return info.cli ? !!info.cli.path : null;
 }
 
+/** 用量里解析失败时写入的占位，不当成模型名显示 */
+const knownModel = (key: string | undefined): string | undefined => {
+  const k = key?.trim();
+  return k && k !== 'unknown' ? k : undefined;
+};
+
 /** 当前模型 · 供应商：优先 CLI 里激活的供应商，其次近 7 天用量最高的模型 */
 function modelLine(info: EndpointInfo): string | null {
   const active = info.providers?.profiles.find((p) => p.kind === info.backend && p.active);
-  if (active) return [active.model, active.name].filter(Boolean).join(' · ') || null;
-  const m = info.usage?.byModel[0]?.key;
+  if (active) {
+    const model = knownModel(active.model);
+    return [model, active.name].filter(Boolean).join(' · ') || null;
+  }
+  const m = knownModel(info.usage?.byModel.find((r) => knownModel(r.key))?.key);
   if (!m) return null;
   const v = info.usage?.byProvider[0]?.key;
   return v ? `${m} · ${v}` : m;
@@ -430,27 +439,30 @@ const EndpointDrawer: React.FC<{
             {t('按模型 · 供应商')}
             <span className={styles.dim}>{t('近 7 天')}</span>
           </h3>
-          {usage && usage.byModel.length > 0 ? (
+          {usage && usage.byModel.some((r) => knownModel(r.key)) ? (
             <ul className={styles.models}>
-              {usage.byModel.slice(0, 6).map((r) => (
-                <li key={r.key}>
-                  <div className={styles.modelHead}>
-                    <span className={styles.ellipsis} title={r.key}>
-                      {r.key}
-                    </span>
-                    <span className={styles.dim}>{formatTokens(r.tokens)}</span>
-                    <span className={styles.dim}>{share(r.tokens, totalModelTokens)}</span>
-                    <b>{r.hasUnpriced && r.costUsd === 0 ? t('未定价') : money(r.costUsd)}</b>
-                  </div>
-                  <div className={styles.bar} aria-hidden>
-                    <i
-                      style={{
-                        width: `${Math.max(1, totalModelTokens ? (r.tokens / totalModelTokens) * 100 : 0)}%`,
-                      }}
-                    />
-                  </div>
-                </li>
-              ))}
+              {usage.byModel
+                .filter((r) => knownModel(r.key))
+                .slice(0, 6)
+                .map((r) => (
+                  <li key={r.key}>
+                    <div className={styles.modelHead}>
+                      <span className={styles.ellipsis} title={r.key}>
+                        {r.key}
+                      </span>
+                      <span className={styles.dim}>{formatTokens(r.tokens)}</span>
+                      <span className={styles.dim}>{share(r.tokens, totalModelTokens)}</span>
+                      <b>{r.hasUnpriced && r.costUsd === 0 ? t('未定价') : money(r.costUsd)}</b>
+                    </div>
+                    <div className={styles.bar} aria-hidden>
+                      <i
+                        style={{
+                          width: `${Math.max(1, totalModelTokens ? (r.tokens / totalModelTokens) * 100 : 0)}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
             </ul>
           ) : (
             <span className={styles.dim}>{t('近 7 天还没有读到该工具的用量。')}</span>

@@ -98,10 +98,12 @@ export class UsageLedger {
   upsert(r: UsageRecord): boolean {
     const prev = this.recs.get(r.key);
     if (prev) {
-      // 同一次调用的后续分段：token 只增不减
+      // 同一次调用的后续分段：token 只增不减。模型名只从 unknown 升级到真实 id，不回退。
+      const model = r.model && r.model !== 'unknown' ? r.model : prev.model;
       const merged: UsageRecord = {
         ...prev,
         ...r,
+        model,
         input: Math.max(prev.input, r.input),
         output: Math.max(prev.output, r.output),
         cacheRead: Math.max(prev.cacheRead, r.cacheRead),
@@ -120,7 +122,8 @@ export class UsageLedger {
         merged.cacheRead === prev.cacheRead &&
         merged.cacheWrite === prev.cacheWrite &&
         (merged.cacheWrite1h ?? 0) === (prev.cacheWrite1h ?? 0) &&
-        !!merged.fast === !!prev.fast
+        !!merged.fast === !!prev.fast &&
+        merged.model === prev.model
       )
         return false;
       r = merged;

@@ -33,6 +33,16 @@ describe('UsageLedger', () => {
     expect(l.all()[0]!.output).toBe(9);
   });
 
+  it('模型名可以从 unknown 升级，但不能被 unknown 盖掉', () => {
+    const root = tmp();
+    const l = new UsageLedger({ root });
+    expect(l.upsert(rec({ model: 'unknown' }))).toBe(true);
+    expect(l.upsert(rec({ model: 'grok-4.7-build' }))).toBe(true);
+    expect(l.all()[0]!.model).toBe('grok-4.7-build');
+    expect(l.upsert(rec({ model: 'unknown' }))).toBe(false);
+    expect(l.all()[0]!.model).toBe('grok-4.7-build');
+  });
+
   it('新字段兼容：cacheWrite1h / fast 只增不减；旧记录（无字段）读出来仍是旧口径，落盘后保持', () => {
     const root = tmp();
     const l = new UsageLedger({ root });

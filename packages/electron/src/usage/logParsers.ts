@@ -296,11 +296,24 @@ export function parseDshChunk(text: string, state: ParseState): UsageRecord[] {
 /**
  * `$GROK_HOME/sessions/<cwd>/<uuid>/updates.jsonl`：只计 `sessionUpdate === "turn_completed"`
  * 且带 usage 的行（与公开资料 / ccusage 描述一致；官方 headless 文档确认 sessions 目录与 streaming-json，
- * 字段名以本地样本与社区文档为准，真机未逐字段核对 → 见调研结论）。
+ * 字段名以本机 `updates.jsonl` 为准：模型在 `usage.modelUsage` 的键上（如 grok-4.7-build），
+ * 不在 update 顶层。旧夹具把 modelUsage 放在 update 上，两种都认。
  *
  * 口径：inputTokens **含**缓存（OpenAI 风格）→ 拆成 uncached = input - cacheRead - cacheWrite；
  * reasoningTokens 是 output 子集，不另加。
  */
+function grokModelName(...nodes: Array<Record<string, unknown> | undefined>): string | undefined {
+  for (const node of nodes) {
+    if (!node) continue;
+    const mu = obj(node.modelUsage);
+    const key = mu && Object.keys(mu).find((k) => k && k !== 'unknown');
+    if (key) return key;
+    const mid = str(node.model);
+    if (mid && mid !== 'unknown') return mid;
+  }
+  return undefined;
+}
+
 export function parseGrokChunk(text: string, state: ParseState): UsageRecord[] {
   const out: UsageRecord[] = [];
   for (const o of lines(text)) {
@@ -309,20 +322,12 @@ export function parseGrokChunk(text: string, state: ParseState): UsageRecord[] {
     const update = obj(params?.update) ?? params;
     const sessionUpdate =
       str(update?.sessionUpdate) ?? str(params?.sessionUpdate) ?? str(o.sessionUpdate);
-    if (sessionUpdate !== 'turn_completed') {
-      // 顺带记下模型（summary / modelUsage）
-      const mu = obj(update?.modelUsage) ?? obj(params?.modelUsage);
-      if (mu) {
-        const keys = Object.keys(mu);
-        if (keys[0]) state.model = keys[0];
-      }
-      const mid = str(update?.model) ?? str(params?.model) ?? str(o.model);
-      if (mid) state.model = mid;
-      const sid = str(o.sessionId) ?? str(params?.sessionId) ?? str(update?.sessionId);
-      if (sid) state.sid = sid;
-      continue;
-    }
     const usage = obj(update?.usage) ?? obj(params?.usage) ?? obj(o.usage);
+    const seen = grokModelName(usage, update, params, o);
+    if (seen) state.model = seen;
+    const sidEarly = str(o.sessionId) ?? str(params?.sessionId) ?? str(update?.sessionId);
+    if (sidEarly) state.sid = sidEarly;
+    if (sessionUpdate !== 'turn_completed') continue;
     if (!usage) continue;
     const cacheRead = num(usage.cachedReadTokens ?? usage.cacheReadTokens);
     const cacheWrite = num(usage.cacheCreationTokens ?? usage.cacheWriteTokens);
@@ -339,16 +344,15 @@ export function parseGrokChunk(text: string, state: ParseState): UsageRecord[] {
       str(params?.prompt_id) ??
       str(meta?.promptId) ??
       String(num(o.seq) || parseTs(o.timestamp ?? o.time ?? update?.timestamp));
-    const sid = (state.sid as string | undefined) ?? str(o.sessionId) ?? 'unknown';
-    const modelFromUsage = obj(update?.modelUsage) ?? obj(params?.modelUsage);
-    const modelKeys = modelFromUsage ? Object.keys(modelFromUsage) : [];
+    const sid = (state.sid as string | undefined) ?? 'unknown';
+    const carried = state.model as string | undefined;
     out.push({
       key: `grok:${sid}:${promptId}`,
       ts: parseTs(o.timestamp ?? o.time ?? update?.timestamp),
       source: 'grok',
       via: 'log',
       provider: 'xai',
-      model: modelKeys[0] ?? (state.model as string | undefined) ?? 'unknown',
+      model: seen ?? (carried && carried !== 'unknown' ? carried : 'unknown'),
       ...rec,
       session: sid === 'unknown' ? undefined : sid,
       project: base(state.cwd),
