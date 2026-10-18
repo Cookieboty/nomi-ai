@@ -100,7 +100,15 @@ export function materializeGeneratedImages(
     process.env.GROK_HOME ? path.join(process.env.GROK_HOME, 'sessions') : '',
   ]
     .filter(Boolean)
-    .map((x) => path.resolve(x));
+    .map((x) => {
+      const resolved = path.resolve(x);
+      // 候选路径会做 realpath；根目录也要 realpath，否则 HOME 经符号链接（macOS 的 /var → /private/var）时合法图片会被拒掉
+      try {
+        return fs.realpathSync(resolved);
+      } catch {
+        return resolved;
+      }
+    });
   const destDir = path.join(chatRoot, 'images');
   let changed = false;
   for (const raw of paths) {
