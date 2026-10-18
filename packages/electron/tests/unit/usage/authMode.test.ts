@@ -14,9 +14,13 @@ import {
   applyAuthModes,
   claudeAuthFromConfig,
   codexAuthFromConfig,
+  grokAuthFromConfig,
+  hasGrokAuthFile,
+  hasCustomGrokConfiguration,
   parseClaudeAuthStatus,
   parseCodexLoginStatus,
 } from '../../../src/usage/authMode';
+import { parseGrokAuthStatus } from '../../../src/usage/grokAuth';
 import type { QuotaEntry } from '../../../src/usage/quota';
 
 const tmpHome = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-auth-'));
@@ -48,6 +52,44 @@ describe('parseCodexLoginStatus：官方 `codex login status`', () => {
     expect(parseCodexLoginStatus('Logged in using an API key - sk-proj-***abcd')).toBe('api');
     expect(parseCodexLoginStatus('Not logged in')).toBe('unknown');
     expect(parseCodexLoginStatus('something else')).toBeNull();
+  });
+});
+
+describe('parseGrokAuthStatus：官方 ACP initialize', () => {
+  it('cached_token = 官方账号登录；API key = API；登录入口本身保持未知', () => {
+    const base = {
+      authMethods: [
+        { id: 'cached_token', description: 'Cached token from ~/.grok/auth.json' },
+        { id: 'grok.com', description: 'Sign in with Grok' },
+      ],
+    };
+    expect(
+      parseGrokAuthStatus(
+        JSON.stringify({
+          id: 1,
+          result: { ...base, _meta: { defaultAuthMethodId: 'cached_token' } },
+        }),
+      ),
+    ).toBe('subscription');
+    expect(
+      parseGrokAuthStatus(
+        JSON.stringify({ result: { ...base, _meta: { defaultAuthMethodId: 'api_key' } } }),
+      ),
+    ).toBe('api');
+    expect(
+      parseGrokAuthStatus(
+        JSON.stringify({ result: { ...base, _meta: { defaultAuthMethodId: 'grok.com' } } }),
+      ),
+    ).toBeNull();
+  });
+
+  it('只接受 ACP JSON，忽略日志行，不读取 token 内容', () => {
+    expect(
+      parseGrokAuthStatus(
+        `warn: starting\n${JSON.stringify({ result: { authMethods: [{ id: 'cached_token' }] } })}`,
+      ),
+    ).toBe('subscription');
+    expect(parseGrokAuthStatus('not json')).toBeNull();
   });
 });
 
@@ -83,16 +125,51 @@ describe('本地兜底：只看键名 / 字段，不读凭据值', () => {
     write(path.join(home, '.codex', 'config.toml'), '[profiles.x]\nmodel_provider = "other"\n');
     expect(codexAuthFromConfig(home, {})).toBeNull();
   });
+
+  it('Grok：API key / Nomi provider 配置 → api；普通官方配置不误判', () => {
+    const home = tmpHome();
+    expect(grokAuthFromConfig(home, {})).toBeNull();
+    expect(hasCustomGrokConfiguration(home, { XAI_API_KEY: 'x' })).toBe(true);
+    write(
+      path.join(home, '.grok', 'config.toml'),
+      '# >>> nomi managed (grok provider) >>>\n[model.nomi]\nenv_key = "NOMI_GROK_API_KEY"\n',
+    );
+    expect(grokAuthFromConfig(home, {})).toBe('api');
+  });
+
+  it('Grok：本机有 config/sessions 才认为装过 CLI（不碰凭据文件）', () => {
+    const home = tmpHome();
+    expect(hasGrokAuthFile(home, {})).toBe(false);
+    write(path.join(home, '.grok', 'config.toml'), '# empty\n');
+    expect(hasGrokAuthFile(home, {})).toBe(true);
+  });
 });
 
 describe('AuthModeDetector', () => {
-  it('nomi / dsh 固定 API，不调用任何命令', async () => {
+  it('nomi / dsh 固定 API；未知工具不调用任何命令', async () => {
     const run = jest.fn();
     const d = new AuthModeDetector({ home: tmpHome(), env: {}, run });
     expect(await d.detect('nomi')).toBe('api');
     expect(await d.detect('dsh')).toBe('api');
     expect(await d.detect('cursor')).toBe('unknown');
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it('Grok 官方 ACP 返回 cached_token 时识别为订阅登录', async () => {
+    const home = tmpHome();
+    // 与生产一致：本机需有 Grok 配置/会话痕迹才会拉起 ACP
+    write(path.join(home, '.grok', 'config.toml'), '# empty\n');
+    const grokRun = jest.fn(async () =>
+      JSON.stringify({
+        result: {
+          authMethods: [{ id: 'cached_token' }],
+          _meta: { defaultAuthMethodId: 'cached_token' },
+        },
+      }),
+    );
+    const d = new AuthModeDetector({ home, env: {}, grokRun });
+    expect(await d.detect('grok')).toBe('subscription');
+    expect(grokRun).toHaveBeenCalledTimes(1);
   });
 
   it('官方命令结论优先；5 分钟内缓存；invalidate 后重新探测', async () => {

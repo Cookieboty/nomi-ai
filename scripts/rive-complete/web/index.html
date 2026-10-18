@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Standalone test page for the Rive full-body Nomi rig. NOT part of the app (the app CSP blocks wasm).
+     Serve with:  node scripts/rive-complete/web/serve.mjs   then open http://localhost:8123/ -->
+<html>
+  <body style="margin: 0; background: #f6efe8; font: 13px sans-serif">
+    <canvas
+      id="c"
+      width="480"
+      height="560"
+      style="width: 480px; height: 560px; display: block"
+    ></canvas>
+    <div style="position: absolute; left: 490px; top: 8px">
+      <button onclick="fire('wave')">wave</button> <button onclick="fire('cheer')">cheer</button>
+      <label><input type="checkbox" id="auto" /> loop wave/cheer</label>
+      <pre id="hud">loading…</pre>
+    </div>
+    <script src="/rt/rive.js"></script>
+    <script>
+      const q = new URLSearchParams(location.search);
+      const cv = document.getElementById('c');
+      window.frames = 0;
+      (function tick() {
+        window.frames++;
+        requestAnimationFrame(tick);
+      })();
+      const r = new rive.Rive({
+        src: '/riv/nomi-complete.riv',
+        canvas: cv,
+        artboard: 'Nomi-full',
+        stateMachines: 'NomiFull',
+        autoplay: true,
+        autoBind: true,
+        layout: new rive.Layout({ fit: rive.Fit.Contain, alignment: rive.Alignment.Center }),
+        onLoad: () => {
+          r.resizeDrawingSurfaceToCanvas();
+          window.ready = true;
+        },
+        onLoadError: (e) => (window.err = String(e)),
+      });
+      window.R = r;
+      window.fire = (n) => r.viewModelInstance.trigger(n).trigger();
+      const seq = ['wave', 'cheer'];
+      let k = 0;
+      window.loopActions = (ms) => setInterval(() => fire(seq[k++ % seq.length]), ms);
+      document.getElementById('auto').onchange = (e) => {
+        if (e.target.checked) window._i = loopActions(3000);
+        else clearInterval(window._i);
+      };
+      let last = performance.now(),
+        n0 = 0;
+      setInterval(() => {
+        const t = performance.now();
+        document.getElementById('hud').textContent =
+          `fps ${(((window.frames - n0) * 1000) / (t - last)).toFixed(1)}`;
+        last = t;
+        n0 = window.frames;
+      }, 1000);
+    </script>
+  </body>
+</html>

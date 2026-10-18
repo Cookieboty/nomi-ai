@@ -15,7 +15,7 @@ export interface MicButtonProps {
   onStop(cancel: boolean): void;
   size?: 'sm' | 'md';
   tooltip?: string;
-  tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+  tooltipPlacement?: 'top' | 'top-end' | 'bottom' | 'left' | 'right';
   className?: string;
   'data-testid'?: string;
 }

@@ -1,7 +1,9 @@
-import { t as tr } from '@nomi-ai/ui';
+import { createLogger, t as tr } from '@nomi-ai/ui';
 /**
  * 长期记忆客户端：`ai:mem:*` IPC（经 preload 的 window.aiIPC）。数据只在主进程 userData/memory。
  */
+
+const log = createLogger('memory');
 export type FactKind = 'identity' | 'preference' | 'goal' | 'dislike' | 'habit' | 'note';
 
 export const FACT_KIND_LABEL: Record<FactKind, string> = {
@@ -133,5 +135,5 @@ export function ingestConversation(id: string | undefined, msgs: Turn[]): void {
   if (!id || !memClient.available()) return;
   const turns = msgs.filter((m) => m.role === 'user' || m.role === 'assistant');
   if (turns.length < 2) return;
-  void memClient.ingest(id, turns).catch((e) => console.warn('[memory] summarize failed', e));
+  void memClient.ingest(id, turns).catch((e) => log.warn('summarize failed', e));
 }

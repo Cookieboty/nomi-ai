@@ -1,5 +1,6 @@
 .sidebar {
-  width: 268px;
+  /* 主文字 14px、时间 13px 后，加宽一档，避免标题被时间列挤没。 */
+  width: 296px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -21,7 +22,7 @@
   padding: 0 2px;
 }
 .brand {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   color: var(--cd-color-text);
   white-space: nowrap;
@@ -47,7 +48,7 @@
 .searchBox {
   flex: 1;
   min-width: 0;
-  height: 30px;
+  height: 32px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -73,7 +74,7 @@
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 .searchClear {
   width: 22px;
@@ -108,7 +109,7 @@
   min-height: 24px;
 }
 .sectionTitleInline {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   padding-left: 8px;
   white-space: nowrap;
@@ -139,9 +140,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 34px;
+  height: 36px;
   padding: 0 9px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--cd-color-text);
   position: relative;
 }
@@ -168,9 +169,9 @@
   flex-shrink: 0;
 }
 .segBtn {
-  height: 20px;
+  height: 24px;
   padding: 0 9px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 550;
   border-radius: 7px;
 }
@@ -188,9 +189,9 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 24px;
+  height: 28px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   border: 1px solid transparent;
 }
@@ -217,12 +218,12 @@
   flex: 1;
 }
 .sectionTitle {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   padding: 4px 10px 6px;
 }
 .empty {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   padding: 4px 10px;
 }
@@ -231,9 +232,9 @@
   grid-template-columns: 8px 14px minmax(0, 1fr) auto;
   column-gap: 8px;
   align-items: center;
-  padding: 7px 10px;
+  padding: 8px 10px;
   text-align: left;
-  font-size: 13px;
+  font-size: 14px;
 }
 .threadActive {
   background: rgba(var(--cd-accent-rgb), 0.12);
@@ -259,6 +260,9 @@
 .dot[data-live='error'] {
   background: #ff6b6b;
 }
+.dot[data-live='dormant'] {
+  box-shadow: inset 0 0 0 1.5px var(--cd-color-border-strong);
+}
 @keyframes pulse {
   50% {
     opacity: 0.55;
@@ -270,22 +274,18 @@
   white-space: nowrap;
 }
 .threadTime {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
   margin-left: auto;
 }
 .badge {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 650;
   padding: 1px 6px;
   border-radius: 999px;
   letter-spacing: 0.01em;
   flex-shrink: 0;
-}
-.bottom {
-  margin-top: auto;
-  color: var(--cd-color-text-muted);
 }
 .newMenu {
   position: absolute;
@@ -298,14 +298,14 @@
 .renameInput {
   flex: 1;
   min-width: 0;
-  height: 24px;
+  height: 28px;
   padding: 0 6px;
   border: 1px solid var(--cd-color-accent);
   border-radius: 6px;
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .histSection {
@@ -337,7 +337,7 @@
 }
 .histRow {
   content-visibility: auto;
-  contain-intrinsic-size: auto 34px;
+  contain-intrinsic-size: auto 36px;
 }
 .histRow[data-cwd-missing] {
   opacity: 0.55;
@@ -354,7 +354,7 @@
   background: transparent;
   color: var(--cd-color-text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 .histMore:hover:not(:disabled) {
@@ -373,7 +373,7 @@
 }
 .row .thread {
   width: 100%;
-  grid-template-columns: 8px 14px minmax(0, 1fr) 72px;
+  grid-template-columns: 8px 14px minmax(0, 1fr) 84px;
   background: transparent;
 }
 .row .thread:hover {
@@ -460,7 +460,7 @@
 .rowBtnText {
   width: auto;
   padding: 0 7px;
-  font-size: 11.5px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .rowBtnText.rowBtnDanger {

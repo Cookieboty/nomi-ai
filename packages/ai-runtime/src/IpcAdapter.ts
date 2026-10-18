@@ -71,6 +71,13 @@ export function createElectronIpcAdapter(): IpcAdapter {
     isDestroyed: () => e.sender.isDestroyed?.() ?? false,
   });
 
+  // on 注册到 ipcMain 的是包装函数，off 必须用同一个引用才能注销；
+  // 按 (listener, channel) 记录包装函数，否则监听器会泄漏
+  const wrappedListeners = new WeakMap<
+    (event: IpcInvokeEvent, ...args: unknown[]) => void,
+    Map<string, (event: unknown, ...args: unknown[]) => void>
+  >();
+
   return {
     handle(channel, handler) {
       ipcMain.handle(channel, async (e, ...args) => handler(wrap(e as never), ...args));
@@ -79,10 +86,25 @@ export function createElectronIpcAdapter(): IpcAdapter {
       ipcMain.removeHandler(channel);
     },
     on(channel, listener) {
-      ipcMain.on(channel, (e, ...args) => listener(wrap(e as never), ...args));
+      let byChannel = wrappedListeners.get(listener);
+      if (!byChannel) {
+        byChannel = new Map();
+        wrappedListeners.set(listener, byChannel);
+      }
+      // 同一 (channel, listener) 重复注册：先摘掉旧包装函数，
+      // 否则 Map 覆盖后旧监听器仍挂在 ipcMain 上，无法再注销
+      const prev = byChannel.get(channel);
+      if (prev) ipcMain.off(channel, prev);
+      const wrapped = (e: unknown, ...args: unknown[]) => listener(wrap(e as never), ...args);
+      byChannel.set(channel, wrapped);
+      ipcMain.on(channel, wrapped);
     },
     off(channel, listener) {
-      ipcMain.off(channel, listener as never);
+      const wrapped = wrappedListeners.get(listener)?.get(channel);
+      if (wrapped) {
+        ipcMain.off(channel, wrapped);
+        wrappedListeners.get(listener)?.delete(channel);
+      }
     },
     getAllWebContents() {
       return webContents.getAllWebContents();

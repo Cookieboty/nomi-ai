@@ -1,7 +1,7 @@
 import { t, Icon } from '@nomi-ai/ui';
-import { RefreshCw, X, Ellipsis, PanelLeft, Pencil, Search, SquarePen, Trash2 } from 'lucide-react';
+import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { List, type RowComponentProps } from 'react-window';
+import { List } from 'react-window';
 
 import { useAiChat } from '../../contexts/AiChatContext';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -9,8 +9,9 @@ import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
-import { useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
+import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
@@ -19,346 +20,46 @@ import {
   type HistorySession,
 } from '../../services/historyClient';
 import { SEARCH_CHATS_EVENT, formatCombo, useShortcutBindings } from '../../services/shortcuts';
-import type { ConversationBackend, ChatSession } from '../../types/chat';
+import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
-import { rankItems, type Range, type SearchField } from '../../utils/fuzzy';
-import { AppIcon, FEATURE_ICONS } from '../AppIcons';
+import { rankItems } from '../../utils/fuzzy';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
+import { EndpointInfoCard } from '../EndpointInfo';
 import { NewChatMenu } from '../NewChatMenu';
 
 import styles from './index.module.css';
+import {
+  firstUserMessageCache,
+  Highlight,
+  fieldsOf,
+  useDebounced,
+  SearchIcon,
+  type SearchEntry,
+} from './searchSupport';
+import { rel, liveOf, RowActions, ThreadItem, VirtualRow } from './SidebarRows';
+import type { Meta } from './types';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onNewChat: () => void;
-  onSettings?: () => void;
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
+  /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
+  onOpenSettings?: (section: 'coding' | 'usage') => void;
 }
-
-type Meta = Omit<ChatSession, 'messages'>;
-
-const rel = (ts: number) => {
-  const d = Date.now() - ts;
-  if (d < 60_000) return t('刚刚');
-  if (d < 3_600_000) return t('{0} 分钟前', Math.floor(d / 60_000));
-  if (d < 86_400_000) return t('{0} 小时前', Math.floor(d / 3_600_000));
-  return t('{0} 天前', Math.floor(d / 86_400_000));
-};
-
-function liveOf(tab: HarnessTabMeta | undefined): string {
-  if (!tab) return '';
-  if (tab.status === 'running' || tab.status === 'queued' || tab.status === 'error')
-    return tab.status;
-  return tab.unread > 0 ? 'unread' : '';
-}
-
-/** 把命中区间渲染成 <mark>（区间基于折叠后的文本，与原文等长） */
-const Highlight: React.FC<{ text: string; ranges?: Range[] }> = ({ text, ranges }) => {
-  if (!ranges?.length) return <>{text}</>;
-  const out: React.ReactNode[] = [];
-  let at = 0;
-  ranges.forEach(([a, b], i) => {
-    if (a >= text.length) return;
-    if (a > at) out.push(text.slice(at, a));
-    out.push(
-      <mark key={i} className={styles.hit}>
-        {text.slice(a, Math.min(b, text.length))}
-      </mark>,
-    );
-    at = Math.min(b, text.length);
-  });
-  if (at < text.length) out.push(text.slice(at));
-  return <>{out}</>;
-};
-
-type SearchEntry =
-  | { kind: 'conv'; id: string; meta: Meta; title: string; first: string; cwd: string }
-  | { kind: 'hist'; id: string; h: HistorySession };
-
-const fieldsOf = (e: SearchEntry): SearchField[] =>
-  e.kind === 'conv'
-    ? [
-        { text: e.title, weight: 3, highlight: true },
-        { text: e.first, weight: 2 },
-        { text: e.cwd, weight: 1.5 },
-        { text: ENDPOINT_FULL[e.meta.backend](), weight: 1 },
-      ]
-    : [
-        { text: e.h.title, weight: 3, highlight: true },
-        { text: e.h.cwd ?? '', weight: 1.5 },
-        { text: ENDPOINT_FULL[e.h.backend](), weight: 1 },
-      ];
-
-const MAX_RESULTS = 200;
-
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const id = window.setTimeout(() => setV(value), ms);
-    return () => window.clearTimeout(id);
-  }, [value, ms]);
-  return v;
-}
-
-const SearchIcon = () => <Icon icon={Search} size={15} />;
-
-/** 行内操作的图标（描边，随文字色） */
-const PenIcon = () => <Icon icon={Pencil} size={14} />;
-const TrashIcon = () => <Icon icon={Trash2} size={14} />;
-const MoreIcon = () => <Icon icon={Ellipsis} size={14} />;
-
-export interface RowActionHandlers {
-  onRename?: () => void;
-  /** Nomi 对话：删除（两步确认）；CLI 标签：关闭标签 */
-  onDelete?: () => void;
-  onCancelDelete?: () => void;
-  onMore: (anchor: DOMRect) => void;
-}
-
-/**
- * 行尾三个图标按钮：重命名 / 删除（或关闭标签）/ 更多。悬浮、行内键盘焦点、选中行时显示；
- * 「更多」只触发父级按需渲染的菜单（与右键菜单共用 ConversationMenu），行内不常驻挂载菜单。
- */
-const RowActions: React.FC<
-  RowActionHandlers & { kind: 'conv' | 'tab' | 'hist'; confirming?: boolean }
-> = ({ kind, confirming, onRename, onDelete, onCancelDelete, onMore }) => {
-  const delLabel = kind === 'tab' ? t('关闭标签') : t('删除对话');
-  return (
-    <div
-      className={styles.rowActions}
-      role="group"
-      aria-label={t('对话操作')}
-      data-testid="row-actions"
-      data-confirming={confirming || undefined}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape' && confirming) {
-          e.stopPropagation();
-          onCancelDelete?.();
-        }
-      }}
-    >
-      {confirming ? (
-        <>
-          <button
-            type="button"
-            className={`${styles.rowBtn} ${styles.rowBtnDanger} ${styles.rowBtnText}`}
-            onClick={onDelete}
-            data-testid="row-delete-confirm"
-            autoFocus
-          >
-            {t('确认删除')}
-          </button>
-          <button
-            type="button"
-            className={`${styles.rowBtn} ${styles.rowBtnText}`}
-            onClick={onCancelDelete}
-            data-testid="row-delete-cancel"
-          >
-            {t('取消')}
-          </button>
-        </>
-      ) : (
-        <>
-          {onRename && (
-            <button
-              type="button"
-              className={styles.rowBtn}
-              title={t('重命名')}
-              aria-label={t('重命名')}
-              onClick={onRename}
-              data-testid="row-rename"
-            >
-              <PenIcon />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              className={`${styles.rowBtn} ${styles.rowBtnDanger}`}
-              title={delLabel}
-              aria-label={delLabel}
-              onClick={onDelete}
-              data-testid="row-delete"
-            >
-              <TrashIcon />
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.rowBtn}
-            title={t('更多操作')}
-            aria-label={t('更多操作')}
-            aria-haspopup="menu"
-            onClick={(e) => onMore(e.currentTarget.getBoundingClientRect())}
-            data-testid="row-more"
-          >
-            <MoreIcon />
-          </button>
-        </>
-      )}
-    </div>
-  );
-};
-
-const ThreadItem: React.FC<{
-  c: Meta;
-  active: boolean;
-  tab?: HarnessTabMeta;
-  onOpen: (id: string) => void;
-  onCtx: (id: string, e: React.MouseEvent) => void;
-  renaming?: boolean;
-  onRename?: (id: string, name: string | null) => void;
-  confirming?: boolean;
-  onRenameStart?: (id: string) => void;
-  onDeleteRequest?: (id: string) => void;
-  onDeleteCancel?: () => void;
-  onMore?: (id: string, anchor: DOMRect) => void;
-  style?: React.CSSProperties;
-}> = ({
-  c,
-  active,
-  tab,
-  onOpen,
-  onCtx,
-  renaming,
-  onRename,
-  confirming,
-  onRenameStart,
-  onDeleteRequest,
-  onDeleteCancel,
-  onMore,
-  style,
-}) => {
-  const cls = `${styles.thread} ${active ? styles.threadActive : ''}`;
-  const lead = (
-    <>
-      <span className={styles.dot} data-live={liveOf(tab) || undefined} aria-hidden />
-      <EndpointIcon backend={c.backend} size={14} />
-    </>
-  );
-  if (renaming) {
-    return (
-      <div className={cls} style={style} data-testid="history-item" data-backend={c.backend}>
-        {lead}
-        <input
-          className={styles.renameInput}
-          data-testid="conversation-rename-input"
-          defaultValue={c.name ? t(c.name) : ''}
-          aria-label={t('重命名')}
-          maxLength={60}
-          autoFocus
-          onFocus={(e) => e.currentTarget.select()}
-          onBlur={(e) => onRename?.(c.id, e.currentTarget.value.trim() || null)}
-          onKeyDown={(e) => {
-            e.stopPropagation();
-            if (e.key === 'Enter') onRename?.(c.id, e.currentTarget.value.trim() || null);
-            if (e.key === 'Escape') onRename?.(c.id, null);
-          }}
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className={styles.row}
-      style={style}
-      data-active={active || undefined}
-      data-confirming={confirming || undefined}
-      data-testid="conversation-row"
-    >
-      <button
-        className={cls}
-        onClick={() => void onOpen(c.id)}
-        onContextMenu={(e) => onCtx(c.id, e)}
-        title={t(c.name)}
-        data-testid="history-item"
-        data-backend={c.backend}
-        data-conversation-id={c.id}
-      >
-        {lead}
-        <span className={styles.threadName}>{c.name ? t(c.name) : t('新对话')}</span>
-        <span className={styles.threadTime}>{rel(c.updatedAt)}</span>
-      </button>
-      {onMore && (
-        <RowActions
-          kind={c.tabId ? 'tab' : 'conv'}
-          confirming={confirming}
-          onRename={() => onRenameStart?.(c.id)}
-          onDelete={() => onDeleteRequest?.(c.id)}
-          onCancelDelete={onDeleteCancel}
-          onMore={(r) => onMore(c.id, r)}
-        />
-      )}
-    </div>
-  );
-};
-
-type VirtualProps = {
-  items: Meta[];
-  current?: string;
-  tabById: Map<string, HarnessTabMeta>;
-  open: (id: string) => void;
-  onCtx: (id: string, e: React.MouseEvent) => void;
-  renamingId: string | null;
-  onRename: (id: string, name: string | null) => void;
-  confirmId: string | null;
-  onRenameStart: (id: string) => void;
-  onDeleteRequest: (id: string) => void;
-  onDeleteCancel: () => void;
-  onMore: (id: string, anchor: DOMRect) => void;
-};
-
-const VirtualRow = ({
-  index,
-  style,
-  items,
-  current,
-  tabById,
-  open,
-  onCtx,
-  renamingId,
-  onRename,
-  confirmId,
-  onRenameStart,
-  onDeleteRequest,
-  onDeleteCancel,
-  onMore,
-  ariaAttributes,
-}: RowComponentProps<VirtualProps>) => {
-  const c = items[index]!;
-  return (
-    <div style={style} {...ariaAttributes}>
-      <ThreadItem
-        c={c}
-        active={c.id === current}
-        tab={c.tabId ? tabById.get(c.tabId) : undefined}
-        onOpen={open}
-        onCtx={onCtx}
-        renaming={renamingId === c.id}
-        onRename={onRename}
-        confirming={confirmId === c.id}
-        onRenameStart={onRenameStart}
-        onDeleteRequest={onDeleteRequest}
-        onDeleteCancel={onDeleteCancel}
-        onMore={onMore}
-      />
-    </div>
-  );
-};
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
 export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggle,
   onNewChat,
-  onSettings,
   onForkRequest,
   onNotice,
+  onOpenSettings,
 }) => {
   const { state, actions } = useAiChat();
   const ipc = state.ipcClient;
@@ -399,8 +100,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [ipc]);
 
   useCliTabSync(refresh);
+  // 分叉等外部操作改了会话列表：立即刷新（否则要等下一次消息数 / 加载状态变化）
+  useEffect(() => {
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
+  }, [refresh]);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
-  useEffect(refresh, [refresh, state.messages.length, state.isLoading, tabs.state]);
+  useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
 
   useEffect(() => {
     if (!harnessClient.available()) return;
@@ -438,10 +144,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   );
 
   const counts = useMemo(() => {
-    const c: Record<ConversationBackend, number> = { nomi: 0, claude: 0, codex: 0, dsh: 0 };
+    const c: Record<ConversationBackend, number> = {
+      nomi: 0,
+      claude: 0,
+      codex: 0,
+      dsh: 0,
+      grok: 0,
+    };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
   }, [navList]);
+
+  // 当前端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
+  const { endpointRunning, endpointLastTab } = useMemo(() => {
+    let running = 0;
+    let last: number | null = null;
+    for (const x of tabs.state?.tabs ?? []) {
+      if (x.backend !== endpointFilter) continue;
+      if (x.status === 'running' || x.status === 'queued') running++;
+      if (last == null || x.updatedAt > last) last = x.updatedAt;
+    }
+    return { endpointRunning: running, endpointLastTab: last };
+  }, [tabs.state, endpointFilter]);
 
   const visible = useMemo(() => {
     if (view === 'by-endpoint') return navList.filter((x) => x.backend === endpointFilter);
@@ -458,20 +182,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       if (meta.backend !== 'nomi' && meta.tabId) {
         if (!isDev) setMode('dev');
-        await tabs.activate(meta.tabId);
+        const activated = tabs.activate(meta.tabId);
         await ipc.switchConversation(id).catch(() => undefined);
+        await activated;
         refresh();
         return;
       }
 
-      if (tabs.available) await tabs.activate(MAIN_TAB_ID);
-      if (harnessClient.available()) {
-        await harnessClient.setBackend('nomi').catch(() => undefined);
-      }
+      // 先把主进程侧的标签 / 后端切换发出去（已经在 Nomi 主标签时完全不发），
+      // 本地会话切换与消息加载不等它们，两边并行
+      const mainTab = tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID);
+      const pending: Promise<unknown>[] = [];
+      if (tabs.available && tabs.state?.activeTabId !== MAIN_TAB_ID)
+        pending.push(tabs.activate(MAIN_TAB_ID));
+      if (harnessClient.available() && mainTab?.backend !== 'nomi')
+        pending.push(harnessClient.setBackend('nomi').catch(() => undefined));
       if (id !== current) {
         await ipc.switchConversation(id);
         await actions.loadChatHistory();
       }
+      await Promise.all(pending);
       refresh();
     },
     [ipc, list, isDev, setMode, tabs, refresh, current, actions],
@@ -584,8 +314,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
+  // 磁盘历史扫描仅支持 claude/codex/dsh（HISTORY_BACKENDS）；grok 暂无转录扫描，
+  // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
+  const histScopeSupported =
+    histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
   const histItems: HistorySession[] =
-    view === 'by-endpoint' && endpointFilter === 'nomi' ? [] : history.items(histScope);
+    !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
+      ? []
+      : history.items(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   const openHistory = async (h: HistorySession) => {
@@ -634,7 +370,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const debounced = useDebounced(query, 150);
   const searching = !collapsed && searchOpen && debounced.trim() !== '';
   const searchIndex = useHistorySearchIndex(isDev && searching, histBackends, tabsKey);
-  const firstMsgCache = useRef(new Map<string, string>());
 
   useEffect(() => {
     const onEvent = () => {
@@ -647,26 +382,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
-  // 普通 / 开发模式切换后端点范围变了，丢掉光标
-  useEffect(() => setActiveIdx(0), [debounced, isDev, view, endpointFilter]);
+  // 普通 / 开发模式切换后端点范围变了，丢掉光标（在渲染期根据键变化重置，避免 effect 内 setState 触发级联渲染）
+  const activeIdxKey = `${debounced}\u0001${isDev ? 1 : 0}\u0001${view}\u0001${endpointFilter}`;
+  const [prevActiveIdxKey, setPrevActiveIdxKey] = useState(activeIdxKey);
+  if (prevActiveIdxKey !== activeIdxKey) {
+    setPrevActiveIdxKey(activeIdxKey);
+    if (activeIdx !== 0) setActiveIdx(0);
+  }
 
   const firstUserMessage = useCallback(
     (m: Meta): string => {
       if (m.tabId) return '';
       const k = `${m.id}:${m.updatedAt}`;
-      const hit = firstMsgCache.current.get(k);
+      const hit = firstUserMessageCache.get(k);
       if (hit !== undefined) return hit;
       let text = '';
       try {
-        const msgs = ipc?.conversationStore?.()?.getMessages(m.id) ?? [];
-        text = (
-          msgs.find((x: { role: string; content?: string }) => x.role === 'user')?.content ?? ''
-        ).slice(0, 300);
+        // 只取预览。getMessages 会把整段历史留在缓存里，搜索一次就会钉住列表里的全部对话。
+        text = ipc?.conversationStore?.()?.firstUserPreview?.(m.id) ?? '';
       } catch {
         /* 取不到就只搜标题 */
       }
-      if (firstMsgCache.current.size > 2000) firstMsgCache.current.clear();
-      firstMsgCache.current.set(k, text);
+      if (firstUserMessageCache.size > 2000) firstUserMessageCache.clear();
+      firstUserMessageCache.set(k, text);
       return text;
     },
     [ipc],
@@ -687,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         cwd: (m.tabId ? tabById.get(m.tabId)?.cwd : '') ?? '',
       });
     }
-    if (isDev && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
+    if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
       // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
       for (const h of [...history.items(histScope), ...searchIndex.items]) {
         if (histScope && h.backend !== histScope) continue;
@@ -704,8 +442,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isDev,
     view,
     endpointFilter,
-    history.items,
+    history,
     histScope,
+    histScopeSupported,
     searchIndex.items,
     debounced,
     firstUserMessage,
@@ -1068,14 +807,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Icon icon={RefreshCw} size={14} />
                 </button>
               </div>
-              {histItems.length === 0 && history.loaded && !history.loading && (
-                <div className={styles.empty} data-testid="cli-history-empty">
-                  {t('没有找到本机的历史会话')}
-                </div>
-              )}
-              {histItems.length === 0 && history.loading && !history.loaded && (
-                <div className={styles.empty}>{t('正在扫描历史会话…')}</div>
-              )}
+              {histItems.length === 0 &&
+                (!histScopeSupported || (history.loaded && !history.loading)) && (
+                  <div className={styles.empty} data-testid="cli-history-empty">
+                    {t('没有找到本机的历史会话')}
+                  </div>
+                )}
+              {histScopeSupported &&
+                histItems.length === 0 &&
+                history.loading &&
+                !history.loaded && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
               {histItems.map((h) => (
                 <div
                   key={h.key}
@@ -1116,7 +857,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   />
                 </div>
               ))}
-              {history.hasMore(histScope) && (
+              {histScopeSupported && history.hasMore(histScope) && (
                 <button
                   type="button"
                   className={styles.histMore}
@@ -1130,6 +871,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </nav>
+      )}
+
+      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉） */}
+      {!collapsed && !searching && isDev && view === 'by-endpoint' && (
+        <EndpointInfoCard
+          backend={endpointFilter}
+          running={endpointRunning}
+          lastTabActivity={endpointLastTab}
+          bin={
+            endpointFilter === 'nomi'
+              ? undefined
+              : (bins[endpointFilter] ?? (endpointFilter in bins ? null : undefined))
+          }
+          onOpenSettings={onOpenSettings}
+        />
       )}
 
       {ctx &&
@@ -1159,20 +915,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onDismiss={() => setHistMenu(null)}
           onOpen={() => void openHistory(histMenu.h)}
         />
-      )}
-
-      {onSettings && (
-        <button
-          className={`${styles.newChat} ${styles.bottom}`}
-          onClick={onSettings}
-          title={t('设置 (⌘/Ctrl+,)')}
-          data-testid="sidebar-settings"
-        >
-          <span aria-hidden>
-            <AppIcon icon={FEATURE_ICONS.settings} size={16} />
-          </span>
-          {!collapsed && <span>{t('设置')}</span>}
-        </button>
       )}
     </aside>
   );

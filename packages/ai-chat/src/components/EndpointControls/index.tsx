@@ -21,7 +21,7 @@ import { WorkspacePicker } from '../WorkspacePicker';
 export const EndpointControls: React.FC<{
   className?: string;
   onManageNomi: () => void;
-  onManageCli: (backend: 'claude' | 'codex' | 'dsh') => void;
+  onManageCli: (backend: 'claude' | 'codex' | 'dsh' | 'grok') => void;
 }> = ({ className, onManageNomi, onManageCli }) => {
   const { isDev } = useChatMode();
   const tabs = useHarnessTabs();

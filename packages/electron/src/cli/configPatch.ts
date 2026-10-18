@@ -246,3 +246,112 @@ export function patchDshYaml(raw: string | null, patch: DshPatch | null): string
   }
   return kept.length ? `${kept.join('\n')}\n` : '';
 }
+
+/** Grok Build 家目录：GROK_HOME 或 ~/.grok */
+export function grokHomePath(home = os.homedir(), env: NodeJS.ProcessEnv = process.env): string {
+  const fromEnv = env.GROK_HOME?.trim();
+  if (fromEnv) {
+    if (fromEnv === '~') return home;
+    if (fromEnv.startsWith('~/') || fromEnv.startsWith('~\\'))
+      return path.join(home, fromEnv.slice(2));
+    return path.resolve(fromEnv);
+  }
+  return path.join(home, '.grok');
+}
+
+export function grokConfigPath(home = os.homedir(), env: NodeJS.ProcessEnv = process.env): string {
+  return path.join(grokHomePath(home, env), 'config.toml');
+}
+
+export const GROK_MARK_BEGIN = '# >>> nomi managed (grok provider) >>>';
+export const GROK_MARK_END = '# <<< nomi managed (grok provider) <<<';
+/** 密钥不写盘：Grok 从该环境变量读取（config 里 env_key），由接管服务在启动时注入 */
+export const GROK_KEY_ENV = 'NOMI_GROK_API_KEY';
+
+export interface GrokPatch {
+  /** config.toml 的 api_backend：responses | chat_completions | messages */
+  apiBackend: 'responses' | 'chat_completions' | 'messages';
+  baseUrl: string;
+  model: string;
+  /** [model.<id>] 段名，默认 nomi */
+  id?: string;
+}
+
+/**
+ * 在 ~/.grok/config.toml 里替换 / 移除 Nomi 管理的标记区块，并设置 [models].default = "nomi"。
+ * 其余内容原样保留。patch 为 null 时只移除标记区块。
+ */
+export function patchGrokToml(raw: string | null, patch: GrokPatch | null): string {
+  const id = patch?.id ?? 'nomi';
+  const lines = (raw ?? '').replace(/\r\n/g, '\n').split('\n');
+  const kept: string[] = [];
+  let inMarked = false;
+  let skipModel = false;
+  for (const line of lines) {
+    const t = line.trim();
+    if (t === GROK_MARK_BEGIN) {
+      inMarked = true;
+      continue;
+    }
+    if (t === GROK_MARK_END) {
+      inMarked = false;
+      continue;
+    }
+    if (inMarked) continue;
+    if (t.startsWith('[') && t.endsWith(']')) {
+      skipModel = t === `[model.${id}]`;
+      if (skipModel) continue;
+    } else if (skipModel) {
+      continue;
+    }
+    kept.push(line);
+  }
+  while (kept.length && kept[kept.length - 1] === '') kept.pop();
+  if (!patch) {
+    // 兼容旧写入：标记外残留的 [models] + default = "nomi"
+    const cleaned: string[] = [];
+    let inModels = false;
+    let modelsBuf: string[] = [];
+    const flushModels = () => {
+      const body = modelsBuf.filter((l) => !/^default\s*=\s*"nomi"\s*$/.test(l.trim()));
+      if (body.length) {
+        cleaned.push('[models]');
+        cleaned.push(...body);
+      }
+      modelsBuf = [];
+    };
+    for (const line of kept) {
+      const t = line.trim();
+      if (t.startsWith('[') && t.endsWith(']')) {
+        if (inModels) flushModels();
+        inModels = t === '[models]';
+        if (!inModels) cleaned.push(line);
+        continue;
+      }
+      if (inModels) {
+        if (t) modelsBuf.push(line);
+        continue;
+      }
+      cleaned.push(line);
+    }
+    if (inModels) flushModels();
+    while (cleaned.length && cleaned[cleaned.length - 1] === '') cleaned.pop();
+    return cleaned.length ? `${cleaned.join('\n')}\n` : '';
+  }
+  const block = [
+    '',
+    GROK_MARK_BEGIN,
+    `[model.${id}]`,
+    `model = "${escapeToml(patch.model)}"`,
+    `base_url = "${escapeToml(patch.baseUrl)}"`,
+    `name = "Nomi"`,
+    `env_key = "${GROK_KEY_ENV}"`,
+    `api_backend = "${patch.apiBackend}"`,
+    '',
+    '[models]',
+    `default = "${id}"`,
+    GROK_MARK_END,
+    '',
+  ];
+  return `${kept.join('\n')}${kept.length ? '\n' : ''}${block.join('\n')}`;
+}

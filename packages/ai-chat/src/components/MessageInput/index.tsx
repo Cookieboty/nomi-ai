@@ -1,13 +1,20 @@
-import { t as tr, Icon } from '@nomi-ai/ui';
-import { BookOpen, Pin, X, ArrowUp, Plus, Square } from 'lucide-react';
-import React, { useCallback, useEffect, useState, useRef, type KeyboardEvent } from 'react';
+import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
+import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useRef,
+  type KeyboardEvent,
+} from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
-import { providerClientAvailable } from '../../services/providerClient';
+import { effectiveProviderLabel } from '../../services/providerClient';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -24,13 +31,22 @@ import {
   matchShortcut,
   useShortcutBindings,
 } from '../../services/shortcuts';
+import { argPhase, paletteQuery } from '../../slash/parse';
+import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
+import type { SlashBridge, SlashCommand } from '../../slash/types';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
 import type { SettingsSection } from '../SettingsView/sections';
+import { SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import styles from './index.module.css';
+
+const log = createLogger('message-input');
+
+/** 发文框最高高度。再长的内容在框内滚动，不再把输入区撑高。 */
+export const COMPOSER_MAX_HEIGHT_PX = 200;
 
 interface MessageInputProps {
   onSend?: (message: string) => void;
@@ -38,8 +54,12 @@ interface MessageInputProps {
   busyOverride?: boolean;
   /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
   placeholder?: string;
+  /**
+   * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
+   * 不传则保持原行为（运行中禁用输入）。
+   */
+  queue?: { onQueue: (text: string) => void; onStop?: () => void };
   disabled?: boolean;
-  onConfigClick?: () => void;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
   /** 打开「知识 · 记忆 · 日程」快速视图 */
@@ -49,14 +69,18 @@ interface MessageInputProps {
   onLocalClick?: () => void;
   /** 打开统一设置页的某个分区 */
   onSettingsClick?: (section?: SettingsSection, endpoint?: string) => void;
+  /** 斜杠命令桥：传入后输入 / 弹出统一命令面板并接管执行；不传则只有输入框自带的界面命令 */
+  slash?: SlashBridge;
+  /** 打开「插件 / 命令」只读面板 */
+  onPluginsClick?: () => void;
 }
 
 export const MessageInput: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
   placeholder = tr('输入消息...'),
+  queue,
   disabled = false,
-  onConfigClick,
   onProvidersClick,
   onDesktopClick,
   onHubClick,
@@ -64,6 +88,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onExtClick,
   onLocalClick,
   onSettingsClick,
+  slash,
+  onPluginsClick,
 }) => {
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
@@ -73,6 +99,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.maxHeight = `${COMPOSER_MAX_HEIGHT_PX}px`;
+    el.style.height = '0px';
+    const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
+    el.style.height = next > 0 ? `${next}px` : '';
+  }, [message]);
   const { state, actions } = useAiChat();
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   const [kbMode, setKbMode] = useState(() => {
@@ -190,15 +225,29 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [screenOk, snip]);
-  const chatModel = state.currentModelId ?? '';
-  const visionWarn =
-    images.length > 0 &&
-    !likelyVision(chatModel) &&
-    !likelyVision(state.models.find((m) => m.id === chatModel)?.name);
+  const chatModel = effectiveProviderLabel() ?? '';
+  const visionWarn = images.length > 0 && !likelyVision(chatModel);
 
   const handleSend = async () => {
-    const trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
-    if (!trimmedMessage || (busyOverride ?? state.isLoading)) return;
+    let trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
+    if (!trimmedMessage) return;
+    // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
+    if (slash && !images.length && trimmedMessage.startsWith('/')) {
+      const r = await slash.run(trimmedMessage, getRegistry());
+      if (r.handled) {
+        setMessage('');
+        return;
+      }
+      if (r.text !== undefined) trimmedMessage = r.text;
+    }
+    if (busy) {
+      // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
+      if (queue && !images.length) {
+        queue.onQueue(trimmedMessage);
+        setMessage('');
+      }
+      return;
+    }
     const sendImages = images;
 
     try {
@@ -220,7 +269,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         await actions.sendStreamMessage(trimmedMessage);
       }
     } catch (error) {
-      console.error('发送消息失败:', error);
+      log.error('发送消息失败:', error);
     }
   };
 
@@ -228,17 +277,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     // 处理输入法组合状态
     if (isComposing) return;
 
-    // 斜杠命令：↑↓ 选择，Enter/Tab 执行，Esc 关闭
+    // 斜杠命令：↑↓ 选择，Enter 执行（需要参数的先补全），Tab 补全，Esc 关闭
     if (slashOpen) {
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      const n = slashFlat.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
         e.preventDefault();
         const d = e.key === 'ArrowDown' ? 1 : -1;
-        setSlashIdx((i) => (i + d + slashMatches.length) % slashMatches.length);
+        setSlashIdx((i) => (i + d + n) % n);
         return;
       }
       if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        runCommand(slashMatches[Math.min(slashIdx, slashMatches.length - 1)]);
+        const c = slashFlat[Math.min(slashIdx, n - 1)]?.command;
+        if (c) pickCommand(c, e.key === 'Tab' ? 'complete' : 'run');
+        // 没有匹配：交给发送流程，由它拦下并显示「未知命令」卡片（不会发给模型）
+        else if (e.key === 'Enter') void handleSend();
         return;
       }
       if (e.key === 'Escape') {
@@ -283,24 +336,31 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     setSlashIdx(0);
-
-    // 自动调整高度
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
+    // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
+    if (e.target.value === '/') slash?.refresh();
   };
 
+  const busy = busyOverride ?? state.isLoading;
   const isDisabled =
     disabled ||
-    (busyOverride !== undefined ? busyOverride : state.isLoading || !state.currentModelId);
+    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : state.isLoading);
 
-  // Nomi 流式生成中：发送键变为「停止」（CLI 标签自带忙碌状态，不走这里）
-  const canStop = busyOverride === undefined && state.streaming;
+  // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
+  const stopFn =
+    busyOverride === undefined
+      ? state.streaming
+        ? actions.stopGeneration
+        : undefined
+      : queue?.onStop;
+  // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
+  // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
+  const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
 
   // 语音：自动发送（对话空闲时）或填入输入框
   const busyRef = useRef(false);
-  busyRef.current = isDisabled;
+  useEffect(() => {
+    busyRef.current = isDisabled || busy;
+  }, [isDisabled, busy]);
   const onVoiceText = useCallback(
     (text: string, autoSend: boolean) => {
       if (autoSend && !busyRef.current) {
@@ -316,10 +376,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
     [onSend, actions, kbMode, kbAvailable],
   );
-  const cv = useChatVoice({ disabled: disabled || !state.currentModelId, onText: onVoiceText });
+  const cv = useChatVoice({ disabled, onText: onVoiceText });
 
-  const provOk = providerClientAvailable();
-  const openModels = provOk ? () => onProvidersClick?.() : onConfigClick;
+  const openModels = () => onProvidersClick?.();
   type Cmd = {
     id: string;
     icon: React.ReactNode;
@@ -332,7 +391,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     /** 出现在 ＋ 菜单里（其余只走 / 命令、快捷键与顶栏/设置） */
     menu?: boolean;
   };
-  const commands: Cmd[] = [
+  // 命令项的 run 函数捕获了 textareaRef 等用于事件处理，react-hooks/refs 对此过度推断，豁免此处
+  const allCommands: Cmd[] = [
     {
       id: 'kb',
       icon: <AppIcon icon={FEATURE_ICONS.kb} />,
@@ -357,10 +417,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     {
       id: 'model',
       icon: <AppIcon icon={FEATURE_ICONS.model} />,
-      label: provOk ? tr('供应商与模型') : tr('配置模型'),
-      testId: 'open-config',
+      label: tr('供应商与模型'),
+      testId: 'open-providers',
       menu: true,
-      run: () => openModels?.(),
+      run: () => openModels(),
       show: true,
     },
     {
@@ -426,20 +486,45 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       show: !!onSettingsClick,
       menu: true,
     },
-  ].filter((c) => c.show);
-  const slashQuery = /^\/(\S*)$/.exec(message)?.[1];
-  const slashMatches =
-    slashQuery === undefined
-      ? []
-      : commands.filter(
-          (c) =>
-            c.id.startsWith(slashQuery.toLowerCase()) ||
-            c.label.includes(slashQuery) ||
-            tr(c.label).toLowerCase().includes(slashQuery.toLowerCase()),
-        );
-  const slashOpen = slashMatches.length > 0;
+  ];
+  // allCommands 的 run 函数捕获了 textareaRef / busyRef 等事件处理用的 ref，
+  // react-hooks/refs 据此把整个数组推断为 ref-like，这里是事件处理层的派生，豁免
+
+  const commands: Cmd[] = allCommands.filter((c) => c.show);
+  // 输入框自带的界面命令 → 统一命令模型（「供应商与模型」改名 /providers，把 /model 让给原生的模型切换）
+  const uiSlash: SlashCommand[] = commands.map((c) => ({
+    id: `ui:${c.id}`,
+    name: c.id === 'model' ? 'providers' : c.id,
+    label: tr(c.label),
+    description: tr(c.label),
+    source: 'ui',
+    kind: 'ui',
+    run: () => {
+      c.run();
+      return { type: 'noop' };
+    },
+  }));
+  const getRegistry = () => (slash ? slash.compose(uiSlash) : buildRegistry(uiSlash));
+  const inSlash = message.startsWith('/');
+  const registry = inSlash ? getRegistry() : [];
+  const slashQuery = paletteQuery(message);
+  const slashGroups = slashQuery === null ? [] : searchCommands(registry, slashQuery);
+  const slashFlat = flattenGroups(slashGroups);
+  const blockedSlash =
+    slashQuery &&
+    slashFlat.length === 0 &&
+    findCommand(registry, slashQuery)?.kind === 'unsupported'
+      ? slashQuery
+      : undefined;
+  const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
+  const argState = slash ? argPhase(message) : null;
+  const argCmd = argState ? findCommand(registry, argState.name) : null;
+  // 命令名已定、正在输参数：显示参数提示
+  const argHint = argCmd?.args && !argState?.args ? argCmd : null;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
+  // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
+
   cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
   useEffect(() => {
     const on = (e: Event) => {
@@ -456,6 +541,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     setMessage('');
     c.run();
   }
+  /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
+  function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
+    const needsArgs =
+      !!c.args && (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
+    if (mode === 'complete' || (needsArgs && slash)) {
+      setMessage(`/${c.name} `);
+      setSlashIdx(0);
+      textareaRef.current?.focus();
+      return;
+    }
+    setMenuOpen(false);
+    setMessage('');
+    if (slash) void slash.run(`/${c.name}`, getRegistry());
+    else void c.run('', undefined as never);
+  }
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: MouseEvent) => {
@@ -470,26 +570,26 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     };
   }, [menuOpen]);
 
-  const renderItems = (list: Cmd[], slash: boolean) =>
-    list.map((c, i) => {
+  const renderItems = (list: Cmd[]) =>
+    list.map((c) => {
       const item = (
         <button
           key={c.id}
           type="button"
           role="menuitem"
-          className={`${styles.menuItem} ${slash && i === slashIdx ? styles.menuItemActive : ''}`}
+          className={styles.menuItem}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => runCommand(c)}
-          data-testid={slash ? `slash-${c.id}` : c.testId}
+          data-testid={c.testId}
           aria-pressed={c.active}
           title={tr(c.label)}
         >
           <span className={styles.menuIcon}>{c.icon}</span>
-          <span className={styles.menuLabel}>{slash ? `/${c.id}` : tr(c.label)}</span>
-          <span className={styles.menuHint}>{slash ? tr(c.label) : tr(c.hint)}</span>
+          <span className={styles.menuLabel}>{tr(c.label)}</span>
+          <span className={styles.menuHint}>{tr(c.hint)}</span>
         </button>
       );
-      if (slash || !pinDef(c.id)) return item;
+      if (!pinDef(c.id)) return item;
       const pinned = pins.includes(c.id);
       const full = !pinned && pins.length >= MAX_PINS;
       return (
@@ -574,8 +674,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         }}
       >
         {slashOpen && (
-          <div className={styles.menu} role="menu" data-testid="slash-menu">
-            {renderItems(slashMatches, true)}
+          <SlashPalette
+            groups={slashGroups}
+            active={Math.min(slashIdx, Math.max(0, slashFlat.length - 1))}
+            query={slashQuery ?? ''}
+            {...(blockedSlash ? { blocked: blockedSlash } : {})}
+            onPick={(c) => pickCommand(c, 'run')}
+            onHover={setSlashIdx}
+          />
+        )}
+        {argHint?.args && (
+          <div className={styles.slashHint} data-testid="slash-arg-hint">
+            <code>
+              /{argHint.name} {argHint.args.hint}
+            </code>
+            <span>{argHint.description}</span>
           </div>
         )}
         <textarea
@@ -593,10 +706,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             }
           }}
           placeholder={
-            busyOverride !== undefined
-              ? placeholder
-              : isDisabled
-                ? tr('请先选择AI模型...')
+            queue && busy
+              ? tr('运行中，继续输入会排队，完成后自动发送…')
+              : busyOverride !== undefined
+                ? placeholder
                 : kbMode && kbAvailable
                   ? tr('向知识库提问，回答会标注出处…')
                   : placeholder
@@ -608,86 +721,91 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           rows={1}
         />
 
-        <div className={styles.composerBar}>
-          <div className={styles.moreWrap} ref={menuRef}>
-            <button
-              type="button"
-              className={styles.iconButton}
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              title={tr('更多：知识库问答、截图、模型、设置（也可输入 / ）')}
-              aria-label={tr('更多功能')}
-              data-testid="composer-more"
-            >
-              <Icon icon={Plus} />
-            </button>
-            {menuOpen && (
-              <div className={styles.menu} role="menu" data-testid="composer-menu">
-                {renderItems(
-                  commands.filter((c) => c.menu),
-                  false,
-                )}
-              </div>
-            )}
-          </div>
-          {kbMode && kbAvailable && (
-            <button
-              type="button"
-              className={styles.chip}
-              onClick={toggleKb}
-              title={tr('知识库问答已开启，点击关闭')}
-              data-testid="kb-mode-chip"
-            >
-              <Icon icon={BookOpen} size={14} />
-              {tr('知识库')}
-            </button>
-          )}
-          <div className={styles.modelStatus}>
-            {provOk ? (
-              <>
-                <EndpointControls
-                  className={styles.currentModel}
-                  onManageNomi={() => onProvidersClick?.()}
-                  onManageCli={(b) => onSettingsClick?.('coding', b)}
-                />
-              </>
-            ) : state.models.filter((m) => m.enabled).length === 0 ? (
-              <span className={styles.noModel}>{tr('没有可用的AI模型')}</span>
-            ) : (
-              <span className={styles.currentModel}>
-                {state.models.find((m) => m.id === state.currentModelId)?.name || 'DeepSeek Chat'}
-              </span>
-            )}
-          </div>
-          <span className={styles.spacer} />
-          <VoiceButtons cv={cv} disabled={disabled || !state.currentModelId} />
-          {canStop ? (
-            <button
-              type="button"
-              onClick={actions.stopGeneration}
-              className={styles.sendButton}
-              title={tr('停止生成')}
-              aria-label={tr('停止生成')}
-              data-testid="stop-button"
-            >
-              <Icon icon={Square} />
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={isDisabled || (!message.trim() && !images.length)}
-              className={styles.sendButton}
-              title={tr('发送消息 (Enter)')}
-              aria-label={tr('发送')}
-            >
-              {(busyOverride ?? state.isLoading) ? (
-                <div className={styles.loadingSpinner} />
-              ) : (
-                <Icon icon={ArrowUp} />
+        <div className={styles.composerBar} data-testid="composer-bar">
+          <div className={styles.composerLeft} data-zone="left">
+            <div className={styles.moreWrap} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                title={tr('更多：知识库问答、截图、模型、设置（也可输入 / ）')}
+                aria-label={tr('更多功能')}
+                data-testid="composer-more"
+              >
+                <Icon icon={Plus} />
+              </button>
+              {menuOpen && (
+                <div className={styles.menu} role="menu" data-testid="composer-menu">
+                  {renderItems(commands.filter((c) => c.menu))}
+                </div>
               )}
-            </button>
-          )}
+            </div>
+            {kbMode && kbAvailable && (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={toggleKb}
+                title={tr('知识库问答已开启，点击关闭')}
+                data-testid="kb-mode-chip"
+              >
+                <Icon icon={BookOpen} size={14} />
+                {tr('知识库')}
+              </button>
+            )}
+            {onPluginsClick && (
+              <button
+                type="button"
+                className={styles.iconButton}
+                onClick={onPluginsClick}
+                title={tr('插件 / 命令：当前端的命令、Skills、插件、MCP（也可输入 /）')}
+                aria-label={tr('插件 / 命令')}
+                data-testid="plugin-panel-open"
+              >
+                <Icon icon={Blocks} size={16} />
+              </button>
+            )}
+            <div className={styles.modelStatus}>
+              <EndpointControls
+                className={styles.currentModel}
+                onManageNomi={() => onProvidersClick?.()}
+                onManageCli={(b) => onSettingsClick?.('coding', b)}
+              />
+            </div>
+          </div>
+          <div className={styles.composerRight} data-zone="right">
+            <VoiceButtons cv={cv} disabled={disabled} />
+            {canStop ? (
+              <button
+                type="button"
+                onClick={stopFn}
+                className={styles.sendButton}
+                title={tr('停止生成')}
+                aria-label={tr('停止生成')}
+                data-testid="stop-button"
+              >
+                <Icon icon={Square} />
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={isDisabled || (!message.trim() && !images.length)}
+                className={styles.sendButton}
+                title={queue && busy ? tr('排队发送 (Enter)') : tr('发送消息 (Enter)')}
+                aria-label={queue && busy ? tr('排队') : tr('发送')}
+                data-testid={queue && busy ? 'queue-button' : 'send-button'}
+              >
+                {queue && busy ? (
+                  <Icon icon={ListPlus} />
+                ) : busy ? (
+                  <div className={styles.loadingSpinner} />
+                ) : (
+                  <Icon icon={ArrowUp} />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <VoiceSettingsModal cv={cv} />

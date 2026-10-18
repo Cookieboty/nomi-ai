@@ -23,6 +23,18 @@ import { characterBox } from '../../mascot/spriteLayout';
 
 import MascotInteractionLayerLite, { type SpriteGeometry } from './InteractionLite';
 
+/** 丢掉已解码的位图。只换 Map 的话，旧 Image 仍可能被未完成的 onload 写回来。 */
+function releaseImages(map: { values(): Iterable<unknown>; clear(): void }): void {
+  for (const img of map.values()) {
+    if (!img || typeof img !== 'object') continue;
+    const el = img as HTMLImageElement;
+    el.onload = null;
+    el.onerror = null;
+    if (typeof el.src === 'string') el.src = '';
+  }
+  map.clear();
+}
+
 export interface SpriteCanvasProps {
   /** URL to manifest.json */
   manifestPath: string;
@@ -56,8 +68,11 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     let cancelled = false;
     let detach: (() => void) | null = null;
     let raf = 0;
+    // 切换 manifestPath 时重置就绪态与错误；外部数据同步模式，豁免 set-state-in-effect
     setReady(false);
     setError(null);
+    releaseImages(imgs.current);
+    releaseImages(rigImgs.current);
     loadSpriteManifest(manifestPath)
       .then(({ manifest, baseUrl }) => {
         if (cancelled) return;
@@ -90,6 +105,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
             new Promise<void>((resolve) => {
               const img = new Image();
               img.onload = () => {
+                if (cancelled) return;
                 rigImgs.current.set(key, img);
                 resolve();
               };
@@ -124,6 +140,7 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
             new Promise<void>((resolve) => {
               const img = new Image();
               img.onload = () => {
+                if (cancelled) return;
                 imgs.current.set(`${baseUrl}${f}`, img);
                 resolve();
               };
@@ -160,6 +177,11 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     let probeAction = '';
     let frameMs = 0;
     let frameN = 0;
+    // canvas 视口矩形缓存：窗口缩放时失效（位置移动不影响 client 坐标）
+    let cachedRect: DOMRect | null = null;
+    const onResize = () => {
+      cachedRect = null;
+    };
     const tick = (now: number) => {
       // pause entirely while the window is hidden / minimised (resumed by visibilitychange)
       if (document.hidden) {
@@ -235,7 +257,9 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
           ds.mascotPaintMs = frameMs.toFixed(2);
         }
         const view = rigTransform(rig, w, h, box);
-        const r = canvas.getBoundingClientRect();
+        // canvas 固定铺满窗口，位置只在窗口移动/缩放时变；缓存避免每帧强制布局
+        cachedRect ??= canvas.getBoundingClientRect();
+        const r = cachedRect;
         const shift = (b: { left: number; right: number; top: number; bottom: number } | null) =>
           b && {
             left: b.left + r.left,
@@ -303,25 +327,32 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     };
     // greet shortly after the rig finishes loading
     const greetTimer = window.setTimeout(tryGreet, 900);
+    let visTimer = 0;
     const onVis = () => {
       if (!document.hidden && !raf && !cancelled) {
         last = performance.now();
         raf = requestAnimationFrame(tick);
         // re-arm a greet when returning from a long hide
         if (greeted) greeted = false;
-        window.setTimeout(tryGreet, 400);
+        window.clearTimeout(visTimer);
+        visTimer = window.setTimeout(tryGreet, 400);
       }
     };
     document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('resize', onResize);
 
     return () => {
       cancelled = true;
       window.clearTimeout(greetTimer);
+      window.clearTimeout(visTimer);
       document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('resize', onResize);
       cancelAnimationFrame(raf);
       detach?.();
       backendRef.current?.dispose();
       backendRef.current = null;
+      releaseImages(imgs.current);
+      releaseImages(rigImgs.current);
       delete document.documentElement.dataset.mascotRig;
     };
   }, [manifestPath]);

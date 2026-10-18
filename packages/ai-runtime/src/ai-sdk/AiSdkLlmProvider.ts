@@ -146,6 +146,21 @@ function usageOf(
   };
 }
 
+/** 工具输出 → 展示用字符串（字符串原样，其它序列化；过长截断，避免把整份检索结果塞进 IPC） */
+export function stringifyToolOutput(v: unknown, max = 6000): string | undefined {
+  if (v === undefined || v === null) return undefined;
+  let s: string;
+  if (typeof v === 'string') s = v;
+  else {
+    try {
+      s = JSON.stringify(v) ?? String(v);
+    } catch {
+      s = String(v);
+    }
+  }
+  return s.length > max ? `${s.slice(0, max)}\n… (+${s.length - max})` : s;
+}
+
 function finishOf(raw: string | undefined): ChatResponse['finishReason'] {
   switch (raw) {
     case 'length':
@@ -326,12 +341,30 @@ export class AiSdkLlmProvider implements LLMProvider {
       for await (const part of result.fullStream) {
         if (part.type === 'text-delta') {
           yield { type: 'delta', content: part.text };
+        } else if (part.type === 'reasoning-delta') {
+          if (part.text) yield { type: 'reasoning', content: part.text };
         } else if (part.type === 'tool-call') {
           yield {
             type: 'tool_call.delta',
             index: 0,
             name: part.toolName,
             argumentsJson: JSON.stringify(part.input ?? {}),
+            id: part.toolCallId,
+          };
+        } else if (part.type === 'tool-result') {
+          if (!part.preliminary)
+            yield {
+              type: 'tool_call.result',
+              id: part.toolCallId,
+              name: part.toolName,
+              output: stringifyToolOutput(part.output),
+            };
+        } else if (part.type === 'tool-error') {
+          yield {
+            type: 'tool_call.result',
+            id: part.toolCallId,
+            name: part.toolName,
+            error: part.error instanceof Error ? part.error.message : String(part.error),
           };
         } else if (part.type === 'finish') {
           const u = usageOf(part.totalUsage);

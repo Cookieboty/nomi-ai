@@ -164,3 +164,12 @@ export function resetText(resetAt: number, now: number): string {
   if (d < 86_400_000) return t('约 {0} 小时后重置', Math.round(d / 3_600_000));
   return t('约 {0} 天后重置', Math.round(d / 86_400_000));
 }
+
+/** 额度窗口短名（迷你进度条用）：300 分钟 → 5 小时，10080 → 每周 */
+export function quotaWindowShort(id: string, minutes?: number): string {
+  if (!minutes) return id === 'secondary' ? t('长周期') : t('短周期');
+  if (minutes === 10080) return t('每周');
+  if (minutes < 60) return t('{0} 分钟', Math.round(minutes));
+  if (minutes < 1440) return t('{0} 小时', Number((minutes / 60).toFixed(1)));
+  return t('{0} 天', Number((minutes / 1440).toFixed(1)));
+}

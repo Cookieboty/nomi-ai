@@ -155,8 +155,8 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('cli-ep-intro').textContent).toContain(
       '~/.codex/config.toml'.replace('~', '/home/u'),
     );
-    // 四个端点 + 「监视与会话」
-    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(5);
+    // 五个端点 + 「监视与会话」
+    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(6);
   });
 
   it('只显示该端点自己的档案，未启用时显示 CLI 自带登录', async () => {
@@ -301,6 +301,31 @@ describe('ProvidersPage', () => {
         kind: 'dsh',
         apiFormat: 'openai_responses',
       });
+    });
+  });
+
+  it('编辑正在使用的档案并保存时，重新写入该端点配置', async () => {
+    const calls = setup([
+      prof({
+        id: 'd1',
+        kind: 'dsh',
+        name: 'Amux',
+        model: 'deepseek/deepseek-v4.1-flash',
+        apiFormat: 'openai_responses',
+        active: true,
+      }),
+    ]);
+    localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
+    const r = render(<ProvidersPage />);
+    await waitFor(() => r.getByTestId('cli-provider-edit'));
+    fireEvent.click(r.getByTestId('cli-provider-edit'));
+    await waitFor(() => r.getByTestId('cli-provider-save'));
+    fireEvent.click(r.getByTestId('cli-provider-save'));
+    await waitFor(() => {
+      expect(calls.some(([c]) => c === 'ai:cli-provider:upsert')).toBe(true);
+      expect(calls.some(([c, a]) => c === 'ai:cli-provider:activate' && a[0] === 'new1')).toBe(
+        true,
+      );
     });
   });
 

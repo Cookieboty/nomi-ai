@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports, no-console -- 构建期 Node 脚本（CommonJS） */
 /**
- * CI 检查：源码里每个面向用户的中文字符串（t() 的 key、以及其余中文字面量）都必须在对应 en.json 中有英文。
+ * CI 检查：源码里每个面向用户的中文字符串（t() 的 key、以及其余中文字面量）都必须在对应英文词典中有翻译。
  * 故意保留中文的文件见 config.cjs keepZh；单行豁免写 `// i18n-ignore`。
- * 反向检查：en.json 里的 key 必须仍出现在某处源码中（否则是死 key，退出码 1）。
+ * 反向检查：词典里的 key 必须仍出现在某处源码中（否则是死 key，退出码 1）。
  * 用法：node scripts/i18n/check.cjs [--missing out.json] [--fix-dead]   缺失 / 死 key 时退出码 1
  */
 const ts = require(require.resolve('typescript', { paths: [process.cwd(), __dirname + '/../..'] }));
@@ -67,10 +67,54 @@ function keysOf(file, all = false) {
   return out;
 }
 
+function dictionaryFiles(relPath) {
+  const full = path.join(root, relPath);
+  if (!fs.statSync(full).isDirectory()) return [full];
+  return fs
+    .readdirSync(full)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => path.join(full, name));
+}
+
+function readDictionary(relPath) {
+  const dict = {};
+  for (const file of dictionaryFiles(relPath)) {
+    const part = JSON.parse(fs.readFileSync(file, 'utf8'));
+    for (const [key, value] of Object.entries(part)) {
+      if (dict[key] !== undefined)
+        throw new Error(`Duplicate i18n key ${JSON.stringify(key)} in ${relPath}`);
+      dict[key] = value;
+    }
+  }
+  return dict;
+}
+
+function removeKeys(relPath, keys) {
+  const dead = new Set(keys);
+  for (const file of dictionaryFiles(relPath)) {
+    const part = JSON.parse(fs.readFileSync(file, 'utf8'));
+    let changed = false;
+    for (const key of dead) {
+      if (Object.prototype.hasOwnProperty.call(part, key)) {
+        delete part[key];
+        changed = true;
+      }
+    }
+    if (changed) fs.writeFileSync(file, JSON.stringify(part, null, 2) + '\n');
+  }
+}
+
+const dictionaries = new Map();
+const getDictionary = (relPath) => {
+  if (!dictionaries.has(relPath)) dictionaries.set(relPath, readDictionary(relPath));
+  return dictionaries.get(relPath);
+};
+
 const missing = {};
 let count = 0;
 for (const pkg of cfg.packages) {
-  const dict = JSON.parse(fs.readFileSync(path.join(root, pkg.dict), 'utf8'));
+  const dict = getDictionary(pkg.dict);
   const files = [];
   walk(path.join(root, pkg.dir), files);
   for (const f of files) {
@@ -91,14 +135,11 @@ for (const d of srcDirs) {
 }
 const dead = {};
 for (const dictPath of new Set(cfg.packages.map((p) => p.dict))) {
-  const dict = JSON.parse(fs.readFileSync(path.join(root, dictPath), 'utf8'));
+  const dict = getDictionary(dictPath);
   const d = Object.keys(dict).filter((k) => !used.has(k));
   if (!d.length) continue;
   dead[dictPath] = d;
-  if (process.argv.includes('--fix-dead')) {
-    for (const k of d) delete dict[k];
-    fs.writeFileSync(path.join(root, dictPath), JSON.stringify(dict, null, 2) + '\n');
-  }
+  if (process.argv.includes('--fix-dead')) removeKeys(dictPath, d);
 }
 const deadN = process.argv.includes('--fix-dead')
   ? 0

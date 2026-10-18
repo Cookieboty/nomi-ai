@@ -28,6 +28,15 @@
     visibility 0s linear 0s;
 }
 
+.root :global(.cd-tooltip__bubble) {
+  /* 长提示在窗口边缘处换行而不是被裁掉；宽度上限由工具栏按剩余空间设置 */
+  width: max-content;
+  max-width: var(--tb-tip-max, 200px);
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+
 /* 跟随应用主题（默认）：全部取自 @nomi-ai/ui 主题令牌 */
 .root[data-palette='theme'] {
   --tb-bg: color-mix(in srgb, var(--cd-color-surface-raised) 86%, transparent);
@@ -205,12 +214,48 @@
 }
 
 .menuRow {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
   color: var(--tb-fg-muted);
+}
+
+.sizeCtl {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.sizeValue {
+  min-width: 38px;
+  text-align: center;
+  color: var(--tb-fg);
+  font-variant-numeric: tabular-nums;
+}
+.miniBtn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--tb-fg);
+  cursor: pointer;
+}
+.miniBtn:hover:not(:disabled) {
+  background: var(--tb-hover);
+}
+.miniBtn:focus-visible {
+  outline: 2px solid var(--tb-ring);
+  outline-offset: 1px;
+}
+.miniBtn:disabled {
+  opacity: 0.38;
+  cursor: default;
 }
 
 .swatches {

@@ -2,7 +2,7 @@
  * Optional (advanced) Fish TTS orchestration for the main process.
  * No longer the product default (sherpa-onnx offline TTS is; see ../ttsRouter.ts).
  * When selected: fish-local + cute nomi seed (bundled sample.wav inlined as reference_audio).
- * On failure / disabled / system provider → fallbackToSystem (renderer uses Web Speech).
+ * On failure / disabled provider → silent result; renderer does not use Web Speech.
  * Does not expose user voice-upload cloning.
  */
 
@@ -40,34 +40,34 @@ export class FishTtsService {
 
   /**
    * Synthesize via Fish when enabled and provider is fish-*.
-   * Never throws to IPC callers for "not configured" — returns fallbackToSystem.
+   * Never throws to IPC callers for "not configured" — returns a silent result.
    */
   async speak(req: TTSSpeakRequest): Promise<TTSSpeakResult> {
     const text = req.text?.trim();
     if (!text) {
-      return { success: false, via: 'none', fallbackToSystem: true, message: 'empty text' };
+      return { success: false, via: 'none', fallbackToSystem: false, message: 'empty text' };
     }
 
     const cfg = this.store.load();
-    if (!cfg.enabled || cfg.provider === 'system') {
-      return { success: false, via: 'none', fallbackToSystem: true, message: 'system provider' };
+    if (!cfg.enabled) {
+      return { success: false, via: 'none', fallbackToSystem: false, message: 'tts disabled' };
     }
 
     if (cfg.provider === 'sherpa-theresa') {
-      return { success: false, via: 'none', fallbackToSystem: true, message: 'handled by sherpa' };
+      return { success: false, via: 'none', fallbackToSystem: false, message: 'handled by sherpa' };
     }
 
     if (cfg.provider === 'legacy') {
       return {
         success: false,
         via: 'legacy',
-        fallbackToSystem: true,
+        fallbackToSystem: false,
         message: 'use legacy player',
       };
     }
 
     if (cfg.provider !== 'fish-local' && cfg.provider !== 'fish-cloud') {
-      return { success: false, via: 'none', fallbackToSystem: true, message: 'unknown provider' };
+      return { success: false, via: 'none', fallbackToSystem: false, message: 'unknown provider' };
     }
 
     // Skip long synthesize when recent health failed (keeps barge-in snappy).
@@ -75,8 +75,8 @@ export class FishTtsService {
       return {
         success: false,
         via: 'none',
-        fallbackToSystem: true,
-        message: 'Fish TTS unreachable; falling back to system speech',
+        fallbackToSystem: false,
+        message: 'Fish TTS unreachable',
       };
     }
 
@@ -108,11 +108,11 @@ export class FishTtsService {
     } catch (err) {
       this.healthCache = { at: Date.now(), ok: false };
       const message = err instanceof Error ? err.message : String(err);
-      log.warn('Fish synthesize failed, fallback to system', { message });
+      log.warn('Fish synthesize failed; staying silent', { message });
       return {
         success: false,
         via: 'none',
-        fallbackToSystem: true,
+        fallbackToSystem: false,
         message,
       };
     }

@@ -412,12 +412,15 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   useEffect(() => {
     if (!isVisible) return;
+    // 面板可见时初次拉取 + 订阅后端变更/进度：属于外部数据同步，豁免 set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     void refresh();
     const offs = [
       kbClient.onChanged(() => void refresh()),
       kbClient.onProgress((p) => setSt((s) => (s ? { ...s, progress: p } : s))),
       kbClient.onDownload((p) => setDl((d) => ({ ...d, [p.id]: p }))),
     ];
+    /* eslint-enable react-hooks/set-state-in-effect */
     return () => offs.forEach((o) => o());
   }, [isVisible, refresh]);
 

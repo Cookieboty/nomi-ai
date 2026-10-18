@@ -1,10 +1,12 @@
+import type { HarnessTraceEvent } from '../services/harnessClient';
+import type { StreamUsage } from '../utils/chunkTrace';
+
 import {
   type ChatMessage,
   type ChatConfig,
   type ChatSession,
   type ConversationBackend,
 } from './chat';
-import { type AIModelConfig } from './config';
 
 /** 流式发送的附加选项 */
 export interface StreamSendOptions {
@@ -12,20 +14,18 @@ export interface StreamSendOptions {
   reqId?: string;
   /** 中止信号：aborted 后尽快结束循环，并通知主进程中止上游请求；已收到的内容照常交给调用方 */
   signal?: AbortSignal;
+  /** 工具调用 / 思考事件（Nomi 自己的 MCP / 知识库 / 搜索等工具）：与编程助手同一种轨迹事件 */
+  onTrace?: (event: HarnessTraceEvent) => void;
+  /** 本轮 token 用量（上游返回时） */
+  onUsage?: (usage: StreamUsage) => void;
 }
 
 export interface IPCClient {
   // 消息相关：history 为本轮之前的会话消息，与本轮输入一起发给模型（多轮上下文）
-  sendMessage(
-    message: string,
-    modelId?: string,
-    history?: ChatMessage[],
-    extraSystem?: string,
-  ): Promise<string>;
+  sendMessage(message: string, history?: ChatMessage[], extraSystem?: string): Promise<string>;
   /** extraSystem：追加在 system prompt 后的上下文（长期记忆召回等） */
   sendStreamMessage(
     message: string,
-    modelId?: string,
     onChunk?: (chunk: string) => void,
     history?: ChatMessage[],
     extraSystem?: string,
@@ -80,13 +80,6 @@ export interface IPCClient {
   // 配置相关
   getConfig(): Promise<ChatConfig>;
   updateConfig(config: Partial<ChatConfig>): Promise<void>;
-
-  // 模型相关
-  getAvailableModels(): Promise<AIModelConfig[]>;
-  addModel(model: AIModelConfig): Promise<void>;
-  removeModel(modelId: string): Promise<void>;
-  updateModel(modelId: string, updates: Partial<AIModelConfig>): Promise<void>;
-  testModelConnection(modelId: string): Promise<boolean>;
 }
 
 export interface UpdateStateView {

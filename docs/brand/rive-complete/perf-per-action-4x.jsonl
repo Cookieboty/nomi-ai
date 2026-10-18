@@ -1,0 +1,4 @@
+{"kind":"rive","action":"wave","cpuThrottle":4,"secs":10,"rafFrames":601,"fps":60,"mainThreadMsPerFrame":2.57,"jsHeapMB":5.1}
+{"kind":"rive","action":"cheer","cpuThrottle":4,"secs":10,"rafFrames":601,"fps":60,"mainThreadMsPerFrame":2.68,"jsHeapMB":3.9}
+{"kind":"canvas","action":"wave","cpuThrottle":4,"secs":10,"rafFrames":545,"fps":54.4,"mainThreadMsPerFrame":6.8,"drawMsPerFrame":4.61,"jsHeapMB":3.2}
+{"kind":"canvas","action":"cheer","cpuThrottle":4,"secs":10,"rafFrames":487,"fps":48.6,"mainThreadMsPerFrame":9.2,"drawMsPerFrame":6.75,"jsHeapMB":4.5}

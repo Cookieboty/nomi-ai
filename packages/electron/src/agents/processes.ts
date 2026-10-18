@@ -66,6 +66,13 @@ const RULES: Array<{ kind: AgentKind; test: (name: string, cmd: string) => boole
       /@deepseek-ai[\\/]dsh[\\/]/i.test(c) ||
       /(^|[\\/\s])dsh(\.exe)?(\s|$)/i.test(c),
   },
+  {
+    kind: 'grok',
+    test: (n, c) =>
+      /^grok(\.exe)?$/i.test(n) ||
+      /@xai-official[\\/]grok/i.test(c) ||
+      /(^|[\\/\s])grok(\.exe)?(\s|$)/i.test(c),
+  },
   { kind: 'cline', test: (n, c) => /^cline(\.exe)?$/i.test(n) || /[\\/]cline[\\/].*cli/i.test(c) },
 ];
 

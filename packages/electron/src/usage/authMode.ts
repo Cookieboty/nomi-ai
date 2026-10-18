@@ -12,7 +12,10 @@
  *   以及 env 里的 ANTHROPIC_API_KEY / AUTH_TOKEN / BASE_URL / 云厂商开关 → API；
  *   Codex：<CODEX_HOME 或 ~/.codex>/config.toml 的 forced_login_method / 自定义 model_provider；
  *   日志里有带套餐的 rate_limits → 订阅。绝不打开 auth.json / .credentials.json / 系统钥匙串。
- * - dsh（DeepSeek 官方接口 / 自配供应商）与 Nomi 对话都走 API Key：固定 API。
+ * - dsh 与 Nomi 对话固定走 API Key。
+ * - Grok 通过官方 ACP `initialize` 判断是否有 cached OAuth 登录态；额度由官方 CLI
+ *   的 `_x.ai/billing` 扩展按需读取。
+ *   因此官方登录只会显示「暂未返回可用额度」，不会误报为 API 计费。
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -22,7 +25,8 @@ import { promisify } from 'node:util';
 
 import { resolveCliBinAsync, withCliPath } from '../cli/detect';
 
-import { claudeConfigDir, codexHomeDir } from './cliHomes';
+import { claudeConfigDir, codexHomeDir, grokHomeDir } from './cliHomes';
+import { parseGrokAuthStatus, readGrokAuthStatus } from './grokAuth';
 import type { QuotaEntry } from './quota';
 import { fingerprint } from './quotaIdentity';
 
@@ -165,14 +169,72 @@ export function codexAuthFromConfig(home: string, env: NodeJS.ProcessEnv): AuthM
   return null;
 }
 
+const GROK_API_KEYS = ['XAI_API_KEY', 'GROK_API_KEY', 'GROK_DEPLOYMENT_KEY', 'NOMI_GROK_API_KEY'];
+
+/** Grok 环境变量 / Nomi 写入的 provider 配置表示 API 计费；不读取 auth.json。 */
+export function hasManagedGrokConfiguration(home: string, env: NodeJS.ProcessEnv): boolean {
+  try {
+    const config = fs.readFileSync(
+      path.join(grokHomeDir(home, env as NodeJS.ProcessEnv), 'config.toml'),
+      'utf8',
+    );
+    return (
+      config.includes('# >>> nomi managed (grok provider) >>>') ||
+      /(^|\n)\s*env_key\s*=\s*"(?:XAI_API_KEY|GROK_API_KEY|GROK_DEPLOYMENT_KEY|NOMI_GROK_API_KEY)"/i.test(
+        config,
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function hasCustomGrokConfiguration(
+  home: string,
+  env: NodeJS.ProcessEnv | Record<string, unknown>,
+): boolean {
+  return (
+    GROK_API_KEYS.some((k) => isConfigured(env[k])) ||
+    hasManagedGrokConfiguration(home, env as NodeJS.ProcessEnv)
+  );
+}
+
+export function grokAuthFromConfig(home: string, env: NodeJS.ProcessEnv): AuthMode | null {
+  return hasCustomGrokConfiguration(home, env) ? 'api' : null;
+}
+
+/**
+ * Grok 本机是否像装过 / 用过官方 CLI（配置或会话目录），不涉及凭据文件。
+ * 用于避免在完全没装 Grok 时每次刷新都拉起 ACP；真正的登录方式仍只看 ACP initialize。
+ */
+export function hasGrokLocalPresence(home: string, env: NodeJS.ProcessEnv): boolean {
+  const dir = grokHomeDir(home, env);
+  try {
+    if (fs.existsSync(path.join(dir, 'config.toml'))) return true;
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (fs.existsSync(path.join(dir, 'sessions'))) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+/** @deprecated 使用 hasGrokLocalPresence；保留别名以免外部测试瞬时断裂 */
+export const hasGrokAuthFile = hasGrokLocalPresence;
+
 export interface AuthDeps {
   home?: string;
   env?: NodeJS.ProcessEnv;
   now?: () => number;
   /** 运行官方「登录状态」命令，返回 stdout+stderr；没有 CLI / 超时 / 出错返回 null。可注入（测试）。 */
   run?: (kind: 'claude' | 'codex') => Promise<string | null>;
+  /** Grok ACP 登录状态探测（测试注入）；默认调用官方 `grok agent stdio`。 */
+  grokRun?: () => Promise<string | null>;
   /** 兜底之外的本地线索：来源里已经有带套餐的额度快照 */
-  hasSubscriptionData?: (id: 'claude' | 'codex') => boolean;
+  hasSubscriptionData?: (id: 'claude' | 'codex' | 'grok') => boolean;
   /** 身份指纹用的本机随机盐（见 quotaIdentity.ts）；不给则不产生指纹 */
   salt?: () => string;
 }
@@ -187,7 +249,8 @@ export interface AuthInfo {
 
 const TTL_MS = 5 * 60_000;
 
-async function runStatus(kind: 'claude' | 'codex'): Promise<string | null> {
+async function runStatus(kind: 'claude' | 'codex' | 'grok'): Promise<string | null> {
+  if (kind === 'grok') return readGrokAuthStatus();
   const bin = await resolveCliBinAsync(kind);
   if (!bin) return null;
   const args = kind === 'claude' ? ['auth', 'status'] : ['login', 'status'];
@@ -219,7 +282,7 @@ export class AuthModeDetector {
     return this.d.now ? this.d.now() : Date.now();
   }
 
-  /** nomi / dsh 固定 API；claude / codex 先问官方命令，再用本地配置兜底 */
+  /** nomi / dsh 固定 API；Claude / Codex / Grok 先问官方接口，再用本地配置兜底 */
   async detect(id: string): Promise<AuthMode> {
     return (await this.detectFull(id)).mode;
   }
@@ -227,7 +290,8 @@ export class AuthModeDetector {
   /** 同 detect，同时带上身份指纹 / 套餐（来自同一次官方命令输出，不额外起进程） */
   detectFull(id: string): Promise<AuthInfo> {
     if (id === 'nomi' || id === 'dsh') return Promise.resolve({ mode: 'api', fp: null });
-    if (id !== 'claude' && id !== 'codex') return Promise.resolve({ mode: 'unknown', fp: null });
+    if (id !== 'claude' && id !== 'codex' && id !== 'grok')
+      return Promise.resolve({ mode: 'unknown', fp: null });
     const hit = this.cache.get(id);
     if (hit && this.now() - hit.at < TTL_MS) return Promise.resolve(hit.info);
     const pending = this.inflight.get(id);
@@ -242,21 +306,34 @@ export class AuthModeDetector {
     return p;
   }
 
-  invalidate(): void {
-    this.cache.clear();
+  /** 不带参数：清掉全部；带工具 id：只清该工具的登录状态缓存（单工具刷新用） */
+  invalidate(id?: string): void {
+    if (id) this.cache.delete(id);
+    else this.cache.clear();
   }
 
-  private async probe(id: 'claude' | 'codex'): Promise<AuthInfo> {
+  private async probe(id: 'claude' | 'codex' | 'grok'): Promise<AuthInfo> {
     const home = this.d.home ?? os.homedir();
     const env = this.d.env ?? process.env;
-    // Claude：配置里指向了自定义供应商 / apiKeyHelper → 一律按 API（不再调用 CLI）
+    // 自定义供应商 / API Key → 一律按 API（不再调用官方状态命令）
     if (id === 'claude' && claudeAuthFromConfig(home, env) === 'api')
       return { mode: 'api', fp: null };
-    const text: string | null = await (this.d.run ?? runStatus)(id).catch(() => null);
+    // Nomi 管理的 Grok provider 明确覆盖官方登录；单独的 XAI_API_KEY 则交给
+    // Grok 自己的优先级（已登录 OAuth 时官方文档规定 OAuth 优先）。
+    if (id === 'grok' && hasManagedGrokConfiguration(home, env)) return { mode: 'api', fp: null };
+    // 本机完全没有 Grok 配置/会话、也不是 API 配置时，不为每次刷新都拉起 ACP。
+    if (id === 'grok' && !hasGrokLocalPresence(home, env) && !hasCustomGrokConfiguration(home, env))
+      return { mode: 'unknown', fp: null };
+    const text: string | null =
+      id === 'grok'
+        ? await (this.d.grokRun ?? readGrokAuthStatus)().catch(() => null)
+        : await (this.d.run ?? runStatus)(id).catch(() => null);
     const fromCli = text
       ? id === 'claude'
         ? parseClaudeAuthStatus(text)
-        : parseCodexLoginStatus(text)
+        : id === 'codex'
+          ? parseCodexLoginStatus(text)
+          : parseGrokAuthStatus(text)
       : null;
     // 官方命令说「没登录」时，仍允许下面的兜底再判断（例如只用环境变量的 API Key）
     if (fromCli && fromCli !== 'unknown') {
@@ -264,7 +341,12 @@ export class AuthModeDetector {
         id === 'claude' && text && this.d.salt ? parseClaudeIdentity(text, this.d.salt()) : null;
       return { mode: fromCli, fp: ident?.fp ?? null, ...(ident?.plan ? { plan: ident.plan } : {}) };
     }
-    const cfg = id === 'claude' ? claudeAuthFromConfig(home, env) : codexAuthFromConfig(home, env);
+    const cfg =
+      id === 'claude'
+        ? claudeAuthFromConfig(home, env)
+        : id === 'codex'
+          ? codexAuthFromConfig(home, env)
+          : grokAuthFromConfig(home, env);
     if (cfg) return { mode: cfg, fp: null };
     if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
     return { mode: 'unknown', fp: null };
@@ -286,8 +368,7 @@ export function applyAuthModes(
   for (const e of entries) {
     const auth = modes[e.id] ?? 'unknown';
     if (e.id === 'nomi') continue;
-    // 没检测到这个工具的本机痕迹，也没有额度数据：不出现
-    if (e.status !== 'ok' && !detected.has(e.id)) continue;
+    if (e.status !== 'ok' && auth !== 'subscription' && !detected.has(e.id)) continue;
     if (auth === 'api') out.push({ ...e, status: 'api', windows: [], auth });
     else if (auth === 'subscription') out.push({ ...e, auth });
     else if (e.status === 'ok') out.push({ ...e, auth });

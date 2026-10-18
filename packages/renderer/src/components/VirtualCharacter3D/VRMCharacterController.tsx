@@ -1,6 +1,5 @@
 /* eslint-disable react/no-unknown-property -- react-three-fiber 的 JSX 元素属性 */
-import { t } from '@nomi-ai/ui';
-import { perfMark } from '@nomi-ai/ui';
+import { createLogger, perfMark, t } from '@nomi-ai/ui';
 import { type VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { useFrame, useThree } from '@react-three/fiber';
 import React, { useEffect, useRef, useState } from 'react';
@@ -16,6 +15,8 @@ import { useCharacter3DStore } from '../../stores/character3DStore';
 import { type VRMCharacterControllerProps } from '../../types/character3d';
 
 import VRMModelFallback from './VRMModelFallback';
+
+const log = createLogger('vrm-controller');
 
 /**
  * VRM 角色控制器：加载模型，并把它包装成 MascotBackend（口型/表情/眨眼/视线/待机）挂到 mascotRegistry。
@@ -53,6 +54,8 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     let cancelled = false;
     let detach: (() => void) | null = null;
     const url = modelPath || DEFAULT_VRM_MODEL_PATH;
+    // VRM 加载流程是外部数据同步：挂载 / 切换 modelPath 时初次拉取并派生 loading / fallback 状态
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!url) {
       // no bundled VRM: only user/store models reach the 3D path
       setUseFallback(true);
@@ -62,6 +65,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
     loader.register((parser) => new VRMLoaderPlugin(parser));
     setUseFallback(false);
     setIsLoaded(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
     loader
       .loadAsync(url)
       .then((gltf) => {
@@ -95,7 +99,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
             mascotRegistry.refresh();
             perfMark('mascot-motions-loaded');
           })
-          .catch((err) => console.warn('VRMCharacterController: 动作库加载失败', err));
+          .catch((err) => log.warn('动作库加载失败', err));
         setIsLoaded(true);
         onModelLoaded?.(vrm);
         perfMark('mascot-model-loaded');
@@ -103,7 +107,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
       })
       .catch((err) => {
         if (cancelled) return;
-        console.warn('VRMCharacterController: VRM 加载失败，使用占位角色', err);
+        log.warn('VRM 加载失败，使用占位角色', err);
         setUseFallback(true);
         setIsLoaded(true);
         onError?.(err instanceof Error ? err.message : String(err));
@@ -115,6 +119,7 @@ export const VRMCharacterController: React.FC<VRMCharacterControllerProps> = ({
       backendRef.current = null;
       const vrm = vrmRef.current;
       if (vrm) {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- cleanup 期间访问 group 是 three.js 的回收需求
         groupRef.current?.remove(vrm.scene);
         VRMUtils.deepDispose(vrm.scene);
         vrmRef.current = null;

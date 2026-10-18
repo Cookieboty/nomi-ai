@@ -21,7 +21,7 @@ export interface IpcApi {
   saveTTSConfig: (config: TTSConfig) => Promise<void>;
   testTTSConnection: (config: TTSConfig) => Promise<TTSTestResult>;
   resetTTSConfig: () => Promise<void>;
-  /** Main-process Fish synthesize; on failure renderer falls back to Web Speech */
+  /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
   /** sherpa 离线 TTS 模型状态（bundled / env / 缺失） */
@@ -71,9 +71,9 @@ export interface VoiceSettings {
 
 /**
  * TTS provider: built-in sherpa-onnx offline (default), optional Fish (advanced),
- * legacy external clone API, or system Web Speech.
+ * legacy external clone API. System Web Speech is intentionally unsupported.
  */
-export type TTSProvider = 'sherpa-theresa' | 'fish-local' | 'fish-cloud' | 'legacy' | 'system';
+export type TTSProvider = 'sherpa-theresa' | 'fish-local' | 'fish-cloud' | 'legacy';
 
 /** Audio format requested from Fish /v1/tts */
 export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
@@ -89,7 +89,7 @@ export type TTSAudioFormat = 'mp3' | 'wav' | 'opus' | 'pcm';
  */
 export interface TTSConfig {
   enabled: boolean;
-  /** Default: sherpa-theresa (offline; falls back to system speech if model missing / failed). */
+  /** Default: sherpa-theresa (offline; missing / failed TTS stays silent). */
   provider: TTSProvider;
   /** sherpa speaker id (default 0). */
   sherpaSid?: number;
@@ -160,6 +160,8 @@ export interface TTSSpeakRequest {
   /** Override referenceId for this utterance (character binding). */
   referenceId?: string;
   volume?: number;
+  /** Per-character playback speed for local sherpa (0.5..1.5). */
+  speed?: number;
 }
 
 export interface TTSSpeakResult {
@@ -167,9 +169,10 @@ export interface TTSSpeakResult {
   /** base64 audio when success; renderer plays it */
   audioBase64?: string;
   mimeType?: string;
-  /** 'sherpa' | 'fish' | 'legacy' | 'none' — none means caller should use Web Speech */
+  /** 'sherpa' | 'fish' | 'legacy' | 'none' — none means no audio was produced */
   via?: 'sherpa' | 'fish' | 'legacy' | 'none';
   message?: string;
+  /** Kept for wire compatibility; always false because system speech is disabled. */
   fallbackToSystem?: boolean;
 }
 

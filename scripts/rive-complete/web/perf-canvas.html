@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- perf baseline: the existing canvas 2D layered rig (polish branch bundle), same 480x560 canvas as the Rive page -->
+<html>
+  <body style="margin: 0; background: #f6efe8">
+    <canvas
+      id="c"
+      width="480"
+      height="560"
+      style="width: 480px; height: 560px; display: block"
+    ></canvas>
+    <script src="/h2d/bundle.js"></script>
+    <script src="/h2d/lib.js"></script>
+    <script>
+      (async () => {
+        const dir = '/nomi-2d-polish/packages/renderer/public/assets/models/sprite/nomi';
+        const { rig, imgs } = await loadModel(dir);
+        const cv = document.getElementById('c'),
+          ctx = cv.getContext('2d');
+        const base = {
+          expression: 'neutral',
+          mouth: 0,
+          talking: false,
+          blink: 0,
+          lookX: 0,
+          lookY: 0,
+          reducedMotion: false,
+        };
+        const a = new H.RigAnimator(11);
+        let t = 0,
+          last = performance.now(),
+          gid = 0,
+          pending = null,
+          tick0 = performance.now();
+        window.frames = 0;
+        window.drawMs = 0;
+        window.drawn = 0;
+        window.fire = (n) => {
+          pending = { name: n, id: ++gid };
+        };
+        window.loopActions = (names, ms) => {
+          let k = 0;
+          window.fire(names[k++ % names.length]);
+          return setInterval(() => window.fire(names[k++ % names.length]), ms);
+        };
+        for (let i = 0; i < 90; i++) {
+          a.step(1 / 60, t, base);
+          t += 1 / 60;
+        }
+        (function loop(now) {
+          window.frames++;
+          const dt = Math.min(0.05, (now - last) / 1000);
+          last = now;
+          const p = a.step(dt, t, { ...base, gesture: pending || undefined });
+          pending = null;
+          t += dt;
+          const s0 = performance.now();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.clearRect(0, 0, 480, 560);
+          ctx.scale(480 / rig.size[0], 560 / rig.size[1]);
+          H.drawRig(ctx, rig, imgs, p);
+          window.drawMs += performance.now() - s0;
+          window.drawn++;
+          requestAnimationFrame(loop);
+        })(performance.now());
+        window.ready = true;
+      })();
+    </script>
+  </body>
+</html>

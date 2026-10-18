@@ -10,7 +10,10 @@ import path from 'node:path';
 import { isAllowedUpdateArgv, updateRecipes } from '../../../src/cli/CliUpdateService';
 import {
   DSH_MARK_BEGIN,
+  GROK_MARK_BEGIN,
+  GROK_KEY_ENV,
   patchDshYaml,
+  patchGrokToml,
   backupFile,
   patchClaudeSettings,
   patchCodexAuth,
@@ -21,6 +24,7 @@ import {
   codexFormatNeedsRouting,
   defaultFormat,
   formatNeedsRouting,
+  grokApiBackend,
 } from '../../../src/cli/formats';
 
 describe('configPatch', () => {
@@ -103,9 +107,11 @@ describe('api formats routing flags', () => {
     expect(defaultFormat('claude')).toBe('anthropic_messages');
     expect(defaultFormat('codex')).toBe('openai_responses');
     expect(defaultFormat('dsh')).toBe('openai_responses');
+    expect(defaultFormat('grok')).toBe('openai_responses');
     expect(formatNeedsRouting('claude', defaultFormat('claude'))).toBe(false);
     expect(formatNeedsRouting('codex', defaultFormat('codex'))).toBe(false);
     expect(formatNeedsRouting('dsh', defaultFormat('dsh'))).toBe(false);
+    expect(formatNeedsRouting('grok', defaultFormat('grok'))).toBe(false);
   });
 });
 
@@ -113,9 +119,11 @@ describe('update whitelist', () => {
   it('allows only known argv', () => {
     expect(isAllowedUpdateArgv(['claude', 'update'])).toBe(true);
     expect(isAllowedUpdateArgv(['codex', 'update'])).toBe(true);
+    expect(isAllowedUpdateArgv(['grok', 'update'])).toBe(true);
     expect(isAllowedUpdateArgv(['npm', 'install', '-g', '@anthropic-ai/claude-code@latest'])).toBe(
       true,
     );
+    expect(isAllowedUpdateArgv(['npm', 'install', '-g', '@xai-official/grok@latest'])).toBe(true);
     expect(isAllowedUpdateArgv(['npm', 'install', '-g', 'evil'])).toBe(false);
     expect(isAllowedUpdateArgv(['bash', '-c', 'rm -rf /'])).toBe(false);
   });
@@ -163,5 +171,55 @@ describe('patchDshYaml', () => {
   it('removes only the block', () => {
     expect(patchDshYaml(patchDshYaml('- id: mine\n', patch), null)).toBe('- id: mine\n');
     expect(patchDshYaml(patchDshYaml(null, patch), null)).toBe('');
+  });
+});
+
+describe('grok formats', () => {
+  it('defaultFormat is openai_responses and never needs routing', () => {
+    expect(defaultFormat('grok')).toBe('openai_responses');
+    expect(formatNeedsRouting('grok', defaultFormat('grok'))).toBe(false);
+    expect(grokApiBackend('openai_responses')).toBe('responses');
+    expect(grokApiBackend('openai_chat_completions')).toBe('chat_completions');
+    expect(grokApiBackend('anthropic_messages')).toBe('messages');
+  });
+});
+
+describe('grok update recipe', () => {
+  it('prefers grok update then npm', () => {
+    const r = updateRecipes('grok', '/usr/local/bin/grok', 'native');
+    expect(r[0]!.via).toBe('self');
+    expect(r[0]!.argv).toEqual(['/usr/local/bin/grok', 'update']);
+    expect(isAllowedUpdateArgv(r[0]!.argv)).toBe(true);
+    expect(r[1]!.via).toBe('npm');
+    expect(r[1]!.argv.slice(1)).toEqual(['install', '-g', '@xai-official/grok@latest']);
+    expect(isAllowedUpdateArgv(r[1]!.argv)).toBe(true);
+  });
+});
+
+describe('patchGrokToml', () => {
+  const patch = {
+    apiBackend: 'responses' as const,
+    baseUrl: 'https://api.x.ai/v1',
+    model: 'grok-4',
+  };
+  it('creates the managed block and sets default', () => {
+    const out = patchGrokToml(null, patch);
+    expect(out).toContain(GROK_MARK_BEGIN);
+    expect(out).toContain('[model.nomi]');
+    expect(out).toContain(`env_key = "${GROK_KEY_ENV}"`);
+    expect(out).toContain('api_backend = "responses"');
+    expect(out).toContain('default = "nomi"');
+  });
+  it('replaces an existing block and keeps user content', () => {
+    const first = patchGrokToml('# keep\n', patch);
+    const second = patchGrokToml(first, { ...patch, model: 'grok-4.5' });
+    expect(second.match(/nomi managed/g)).toHaveLength(2);
+    expect(second).toContain('# keep');
+    expect(second).toContain('grok-4.5');
+    expect(second).not.toContain('model = "grok-4"');
+  });
+  it('removes only the marked block', () => {
+    expect(patchGrokToml(patchGrokToml('# keep\n', patch), null)).toContain('# keep');
+    expect(patchGrokToml(patchGrokToml(null, patch), null)).toBe('');
   });
 });

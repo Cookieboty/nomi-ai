@@ -40,6 +40,8 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
 
   const load = useCallback(async () => setItems(await desktopClient.notes(query)), [query]);
   useEffect(() => {
+    // 初次拉取 + 订阅后端变更：属于外部数据同步，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
     return desktopClient.onP2Changed((k) => k === 'notes' && void load());
   }, [load]);

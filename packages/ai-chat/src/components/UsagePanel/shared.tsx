@@ -15,7 +15,7 @@ export interface Fx {
 
 export const moneyOf = (fx: Fx) => (usd: number) => formatMoney(usd, fx.currency, fx.rate);
 
-const BACKENDS = new Set(['nomi', 'claude', 'codex', 'dsh']);
+const BACKENDS = new Set(['nomi', 'claude', 'codex', 'dsh', 'grok']);
 
 /** 来源图标：Nomi / Claude Code / Codex / dsh 用端点品牌图标，其余用通用 lucide 图标 */
 export const SourceIcon: React.FC<{ source: string; size?: number }> = ({ source, size = 16 }) =>

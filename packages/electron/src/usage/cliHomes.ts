@@ -1,6 +1,6 @@
 /**
  * 官方 CLI 的配置目录：尊重各工具的 HOME 类环境变量（CLAUDE_CONFIG_DIR / CODEX_HOME / GEMINI_CLI_HOME /
- * QWEN_HOME / OPENCODE_HOME / XDG_DATA_HOME / COPILOT_HOME / KIMI_HOME / KIMI_CODE_HOME，支持 `~` 与 `~/…`），否则用默认目录。
+ * QWEN_HOME / OPENCODE_HOME / XDG_DATA_HOME / COPILOT_HOME / KIMI_HOME / KIMI_CODE_HOME / GROK_HOME，支持 `~` 与 `~/…`），否则用默认目录。
  * 只算路径，不读任何文件。
  */
 import os from 'node:os';
@@ -53,4 +53,9 @@ export function kimiDirs(home: string = os.homedir(), env: Env = process.env): s
     expand(env.KIMI_HOME, home) ?? path.join(home, '.kimi'),
     expand(env.KIMI_CODE_HOME, home) ?? path.join(home, '.kimi-code'),
   ];
+}
+
+/** Grok Build：GROK_HOME（默认 ~/.grok）；会话在 sessions/，配置为 config.toml */
+export function grokHomeDir(home: string = os.homedir(), env: Env = process.env) {
+  return expand(env.GROK_HOME, home) ?? path.join(home, '.grok');
 }

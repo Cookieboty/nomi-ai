@@ -14,6 +14,7 @@ import { interactionSettings } from '../../mascot/interaction/settings';
 import { alphaSpans, rectsKey, type Rect } from '../../mascot/interaction/shape';
 import { layoutStore, type Box } from '../../mascot/layoutStore';
 import { regionInSprite, type MascotRegistryLike } from '../../mascot/spriteInteraction';
+import { onWindowResized } from '../../mascot/windowResize';
 
 const ALPHA_HIT = 24;
 const UI_PAD = 16;
@@ -121,6 +122,12 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       if (inPaddedRects(x, y, uiRects(), UI_PAD)) return true;
       if (tainted) return geomHit(x, y);
       const a = alphaAt(x, y, hitRadius(currentlyHit));
+      // Rive's canvas may be GPU-backed or transparent even while the scene is
+      // visible, so its pixels are not a reliable hit-test source. Use the
+      // measured character geometry for that backend and keep alpha testing for
+      // the legacy sprite renderer.
+      const kind = (registry.current() as { kind?: string } | null)?.kind;
+      if (kind === 'rive') return geomHit(x, y);
       return a < 0 ? geomHit(x, y) : a >= ALPHA_HIT;
     };
 
@@ -166,7 +173,11 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       }
     };
     const onDown = (e: PointerEvent) => {
-      if (e.button !== 0 || e.target !== canvas) return;
+      // Rive installs its own pointer handlers on the canvas.  Use the current
+      // target rather than requiring the event target to be the exact canvas
+      // node; this keeps the interaction path alive when a runtime wrapper or
+      // a browser accessibility layer retargets the event.
+      if (e.button !== 0 || e.currentTarget !== canvas) return;
       if (!hitTest(e.clientX, e.clientY, true)) return;
       s.buttonHeld = true;
       gate.press(e.clientX, e.clientY, performance.now());
@@ -202,14 +213,30 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       // pointerup can be swallowed after a lost capture; the compat mouseup still arrives
       if (e.button === 0 && (s.dragging || s.down)) finish(true, 'mouseup');
     };
-    canvas.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
-    window.addEventListener('blur', onCancel);
+    // Capture the pointer lifecycle before Rive's own canvas listeners and
+    // keep the mouse compatibility path.  Chromium/Electron can emit a
+    // mousemove/mouseup after a transparent-window toggle and omit the
+    // corresponding pointer event; without these listeners a drag remains
+    // stuck at its initial position and the next click is swallowed.
+    const capture = { capture: true } as const;
+    canvas.addEventListener('pointerdown', onDown, capture);
+    window.addEventListener('pointermove', onMove, capture);
+    window.addEventListener('mousemove', onMove, capture);
+    window.addEventListener('pointerup', onUp, capture);
+    window.addEventListener('mouseup', onMouseUp, capture);
+    window.addEventListener('pointercancel', onCancel, capture);
+    window.addEventListener('blur', onCancel, capture);
+    canvas.addEventListener('lostpointercapture', onCancel, capture);
 
     let raf = 0;
     let headAt = 0;
+    // 窗口被缩放：尽快重新上报包围盒 / 头部框 / 形状（见 windowResize.ts）
+    const offResize = onWindowResized(() => {
+      s.geomAt = 0;
+      s.shapeAt = 0;
+      s.lastGeom = '';
+      headAt = 0;
+    });
     const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
       const g = geometry.current;
@@ -302,7 +329,10 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           api.setShape(rects);
         }
       }
-      if (!c.fresh) return;
+      // A cursor that stops right after leaving the character sends no further events, so the leave
+      // debounce (HitHysteresis) must keep being fed until it settles; otherwise the transparent
+      // area stays clickable (no click-through) until the next mouse move.
+      if (!c.fresh && !hyst.leaving) return;
       c.fresh = false;
       // hit → click-through (held / dragging always interactive)
       const t = performance.now();
@@ -332,17 +362,18 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
 
     return () => {
       cancelAnimationFrame(raf);
+      offResize();
       offCursor?.();
       offEvt?.();
       classifier.dispose();
-      canvas.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
-      window.removeEventListener('blur', onCancel);
-      window.removeEventListener('mouseup', onMouseUp);
-      canvas.removeEventListener('lostpointercapture', onCancel);
+      canvas.removeEventListener('pointerdown', onDown, capture);
+      window.removeEventListener('pointermove', onMove, capture);
+      window.removeEventListener('mousemove', onMove, capture);
+      window.removeEventListener('pointerup', onUp, capture);
+      window.removeEventListener('mouseup', onMouseUp, capture);
+      window.removeEventListener('pointercancel', onCancel, capture);
+      window.removeEventListener('blur', onCancel, capture);
+      canvas.removeEventListener('lostpointercapture', onCancel, capture);
       if (s.dragging) api?.dragEnd();
       layoutStore.setHead(null);
     };

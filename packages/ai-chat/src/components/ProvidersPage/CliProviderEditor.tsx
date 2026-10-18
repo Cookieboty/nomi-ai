@@ -43,11 +43,17 @@ export const CLI_FORMATS: Record<CliProviderKind, Array<{ value: string; label: 
     { value: 'openai_chat_completions', label: 'OpenAI Chat Completions（原生）' },
     { value: 'anthropic_messages', label: 'Anthropic Messages（原生）' },
   ],
+  grok: [
+    { value: 'openai_responses', label: 'OpenAI Responses（原生）' },
+    { value: 'openai_chat_completions', label: 'OpenAI Chat Completions（原生）' },
+    { value: 'anthropic_messages', label: 'Anthropic Messages（原生）' },
+  ],
 };
 export const CLI_DEFAULT_FORMAT: Record<CliProviderKind, string> = {
   claude: 'anthropic_messages',
   codex: 'openai_responses',
   dsh: 'openai_responses',
+  grok: 'openai_responses',
 };
 
 export type CliEditorTarget =
@@ -252,7 +258,13 @@ export const CliProviderEditor: React.FC<{
             label={t('模型')}
             hint={t(
               '{0} 启动时使用的模型；可从上游获取列表，也可手填 ID。',
-              endpoint === 'claude' ? 'Claude Code' : endpoint === 'codex' ? 'Codex' : 'dsh',
+              endpoint === 'claude'
+                ? 'Claude Code'
+                : endpoint === 'codex'
+                  ? 'Codex'
+                  : endpoint === 'grok'
+                    ? 'Grok'
+                    : 'dsh',
             )}
           >
             {({ id }) => (
@@ -318,7 +330,7 @@ export const CliProviderEditor: React.FC<{
           variant="primary"
           data-testid={saved ? 'cli-provider-save' : 'cli-provider-save-activate'}
           disabled={busy || missing}
-          onClick={() => void save(!saved)}
+          onClick={() => void save(Boolean(saved?.active) || !saved)}
         >
           {saved ? t('保存') : t('保存并设为当前')}
         </Button>

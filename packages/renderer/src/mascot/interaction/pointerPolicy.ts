@@ -82,6 +82,11 @@ export class HitHysteresis {
     return this.state;
   }
 
+  /** 已经没命中、正在等 leaveMs 过期：此时即使没有新的光标事件也要继续喂 */
+  get leaving(): boolean {
+    return this.missSince !== null;
+  }
+
   /** 输入原始命中，返回去抖后的命中 */
   feed(raw: boolean, t: number): boolean {
     if (raw) {

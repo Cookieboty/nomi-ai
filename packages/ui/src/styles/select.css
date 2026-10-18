@@ -1,0 +1,214 @@
+/* ---------------------------------------------------------------- Select / Dropdown */
+.cd-dropdown {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  width: 100%;
+}
+.cd-dropdown__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+.cd-dropdown__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  min-width: 0;
+  height: var(--cd-control-h-md);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-text);
+  font: var(--cd-text-body);
+  font-size: var(--cd-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+.cd-dropdown--sm .cd-dropdown__trigger {
+  height: var(--cd-control-h-sm);
+  padding: 0 6px 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+}
+.cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: var(--cd-color-border-strong);
+}
+.cd-dropdown__trigger:focus-visible,
+.cd-dropdown[data-open] .cd-dropdown__trigger {
+  outline: none;
+  border-color: var(--cd-color-accent-2);
+  box-shadow: 0 0 0 3px rgba(var(--cd-accent-2-rgb), 0.22);
+}
+.cd-dropdown__trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cd-dropdown__value {
+  flex: 1;
+}
+.cd-dropdown__value.is-placeholder {
+  color: var(--cd-color-text-subtle);
+}
+.cd-dropdown__chevron {
+  flex: none;
+  color: var(--cd-color-text-muted);
+  transition: transform 0.15s ease;
+}
+.cd-dropdown[data-open] .cd-dropdown__chevron {
+  transform: rotate(180deg);
+}
+.cd-dropdown__menu {
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  display: flex;
+  flex-direction: column;
+  padding: var(--cd-space-1);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-lg);
+  color: var(--cd-color-text);
+  outline: none;
+  animation: cd-pop-in 0.12s ease-out;
+}
+.cd-dropdown__menu--top {
+  transform-origin: bottom;
+}
+@keyframes cd-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.cd-dropdown__search {
+  padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
+  border-bottom: 1px solid var(--cd-color-border);
+  margin-bottom: var(--cd-space-1);
+}
+.cd-dropdown__search .cd-input {
+  width: 100%;
+}
+.cd-dropdown__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cd-dropdown__group {
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-1);
+  font: var(--cd-text-caption);
+  font-weight: var(--cd-font-weight-medium);
+  letter-spacing: var(--cd-tracking-wide);
+  color: var(--cd-color-text-subtle);
+}
+.cd-dropdown__option {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-height: 32px;
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-sm);
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.cd-dropdown__option.is-active {
+  background: rgba(148, 163, 184, 0.12);
+}
+.cd-dropdown__option.is-selected {
+  color: var(--cd-color-accent-2);
+  font-weight: var(--cd-font-weight-medium);
+}
+.cd-dropdown__option[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cd-dropdown__label {
+  flex: 1;
+}
+.cd-dropdown__desc {
+  flex: none;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.cd-dropdown__icon {
+  display: inline-flex;
+  flex: none;
+}
+.cd-dropdown__checkslot {
+  display: inline-flex;
+  width: 14px;
+  flex: none;
+}
+.cd-dropdown__empty {
+  padding: var(--cd-space-3);
+  text-align: center;
+  font: var(--cd-text-caption);
+  color: var(--cd-color-text-subtle);
+}
+.cd-card__head {
+  gap: var(--cd-space-3);
+}
+.cd-card__actions {
+  flex: none;
+  flex-wrap: nowrap;
+}
+
+/* 抽屉：从右侧滑出的快速视图 */
+.cd-modal-overlay--drawer {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+.cd-modal--drawer {
+  width: min(560px, 92vw);
+  max-width: none;
+  max-height: none;
+  height: 100%;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+}
+/* 内嵌：设置页里的分区，无遮罩、无阴影 */
+.cd-modal--inline {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  animation: none;
+}
+.cd-modal--inline > .cd-modal__header {
+  padding-left: 0;
+  padding-right: 0;
+}
+.cd-modal--inline > .cd-modal__body {
+  padding-left: 0;
+  padding-right: 0;
+  overflow: visible;
+}
+.cd-modal--drawer .cd-modal__title {
+  flex: 1;
+}
+/* 紧凑文字关闭按钮（「关闭」两个字，代替图标） */
+.cd-modal__close {
+  flex: none;
+  min-width: 0;
+  padding-inline: var(--cd-space-2);
+  white-space: nowrap;
+}
+.cd-modal--drawer.cd-modal--lg {
+  width: min(720px, 96vw);
+}

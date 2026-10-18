@@ -1,6 +1,6 @@
 import { t } from '@nomi-ai/ui';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh';
+export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
 
 export interface HarnessState {
   backend: HarnessBackend;
@@ -24,6 +24,8 @@ export interface HarnessTabMeta {
   createdAt: number;
   updatedAt: number;
   lastError?: string;
+  /** 编程助手进程因空闲被回收；下一条消息会自动续接会话 */
+  dormant?: boolean;
 }
 
 export interface HarnessTabsState {
@@ -41,12 +43,53 @@ export interface HarnessTabMessage {
   timestamp: number;
   error?: boolean;
   tools?: string[];
+  /** 本轮工具调用 / 思考的结构化轨迹 */
+  trace?: HarnessTraceEvent[];
+  /** 助手正文里后一段消息的起始下标 */
+  textBreaks?: number[];
+  durationMs?: number;
+  usage?: HarnessUsage;
+  stopped?: true;
 }
+
+export interface HarnessUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  costUsd?: number;
+  durationMs?: number;
+}
+
+/** 工具调用 / 思考事件（主进程 stampEvent 带 at 时间戳；detail 为调用 id，codex 为命令行） */
+export type HarnessTraceEvent =
+  | {
+      type: 'tool';
+      name: string;
+      status: 'start' | 'done' | 'error';
+      detail?: string;
+      id?: string;
+      input?: string;
+      output?: string;
+      parentId?: string;
+      at?: number;
+      /** 事件发生时助手正文的字符下标 */
+      textAt?: number;
+    }
+  | { type: 'thinking'; text: string; at?: number; textAt?: number };
 
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
-  | { tabId: string; type: 'tool'; name: string; status: 'start' | 'done' | 'error' }
-  | { tabId: string; type: 'done'; text: string; sessionId?: string }
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'tool' }>)
+  | ({ tabId: string } & Extract<HarnessTraceEvent, { type: 'thinking' }>)
+  | {
+      tabId: string;
+      type: 'status';
+      kind: 'retry' | 'reconnect' | 'compact' | 'clear';
+      text?: string;
+      attempt?: number;
+      max?: number;
+    }
+  | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }
   | { tabId: string; type: 'error'; message: string }
   | { tabId: string; type: 'permission'; id: string; summary: string };
 
@@ -55,6 +98,10 @@ export const MAIN_TAB_ID = 'main';
 export interface HarnessSendResult {
   text: string;
   sessionId: string | null;
+  /** 本轮轨迹 / 耗时 / 用量（主进程 sendTab 填充） */
+  trace?: HarnessTraceEvent[];
+  durationMs?: number;
+  usage?: HarnessUsage;
 }
 
 interface AiBridge {
@@ -77,9 +124,47 @@ async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   return r;
 }
 
+/** 斜杠命令 / skill / 插件的只读发现结果（主进程只读文件名与 frontmatter；见 cli/slashDiscovery） */
+export interface SlashDiscoveryEntry {
+  id: string;
+  name: string;
+  kind: 'command' | 'skill' | 'agent' | 'plugin' | 'mcp';
+  scope: 'project' | 'user' | 'plugin' | 'bundled';
+  description: string;
+  argumentHint?: string;
+  userInvocable: boolean;
+  plugin?: string;
+  /** 相对项目 / 用户目录的位置，用于展示（不含绝对路径） */
+  where: string;
+  transport?: string;
+}
+export interface SlashDiscoveryResult {
+  backend: string;
+  entries: SlashDiscoveryEntry[];
+  supported: boolean;
+}
+export interface SlashExpansion {
+  text: string;
+  /** 模板里含 !`cmd` 动态注入：Nomi 不执行，原样保留并提示 */
+  shellInjection: boolean;
+}
+export interface GitDiffResult {
+  ok: boolean;
+  status: string;
+  stat: string;
+  diff: string;
+  truncated: boolean;
+  error?: string;
+}
+
 export const harnessClient = {
   available: () => !!bridge(),
   state: () => call<HarnessState>('state'),
+  slashDiscover: (backend: string, cwd: string) =>
+    call<SlashDiscoveryResult>('slash-discover', backend, cwd),
+  slashExpand: (backend: string, cwd: string, id: string, args: string) =>
+    call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
+  gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   setCwd: (c: string) => call<HarnessState>('set-cwd', c),
   pickCwd: () => call<HarnessState>('pick-cwd'),
@@ -87,6 +172,11 @@ export const harnessClient = {
   onChanged: (fn: (s: HarnessState) => void) =>
     bridge()?.on('ai:harness:changed', (p) => fn(p as HarnessState)) ?? (() => undefined),
   onEvent: (fn: (e: unknown) => void) => bridge()?.on('ai:harness:event', fn) ?? (() => undefined),
+  /** 主进程按帧合批后的实时事件（相邻 text-delta 已拼接） */
+  onEvents: (fn: (batch: unknown[]) => void) =>
+    bridge()?.on('ai:harness:events', (p) => {
+      if (Array.isArray(p)) fn(p);
+    }) ?? (() => undefined),
   tabs: () => call<HarnessTabsState>('tabs'),
   createTab: (o: {
     backend: HarnessBackend;

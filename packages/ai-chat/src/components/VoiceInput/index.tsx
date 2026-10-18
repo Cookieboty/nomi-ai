@@ -92,7 +92,9 @@ export const VoiceButtons: React.FC<{ cv: ChatVoice; disabled?: boolean }> = ({ 
         tooltip={t('按住说话（F2）')}
         data-testid="voice-mic"
       />
+      {/* top-end：按钮贴着输入区右缘，居中的提示会被窗口右边裁掉 */}
       <Tooltip
+        placement="top-end"
         content={
           handsFree ? t('关闭免按键（Ctrl+Shift+H）') : t('免按键：说完自动识别（Ctrl+Shift+H）')
         }

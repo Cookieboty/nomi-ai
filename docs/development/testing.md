@@ -34,11 +34,23 @@ xvfb-run -a pnpm test:e2e:headed
 - 合并到同一个 Playwright 配置需要把 Vitest 用例改写为 Playwright 的 test/expect，并让所有 headless 运行也执行下载测试模型的 globalSetup，收益只是少一个配置文件。
 - CI 里无界面 E2E 每个平台 1–2 分钟，真实应用 E2E 5–9 分钟；分成两个 job 可以并行，先给出快速信号。
 
+## 性能基准与体积预算
+
+先 `pnpm build && node packages/electron/scripts/copy-renderer.js`，Linux 无显示器时前面加 `xvfb-run -a`：
+
+```bash
+node scripts/measure-session-switch.mjs [--scenario nomi|cli] [--cpu 4]   # 切换会话：点击 → 内容绘制耗时、长任务、主线程脚本 / 布局
+node scripts/measure-stream-render.mjs [--chars 8000] [--cps 320]         # 流式输出长代码块：主线程忙碌占比、渲染次数
+node scripts/check-bundle-budget.mjs [--strict]                           # 首屏 JS / CSS 体积预算（scripts/bundle-budgets.json）
+```
+
+体积预算按 `dist/index.html` 的入口 script + modulepreload + stylesheet 统计，并禁止语法高亮器 / three.js 出现在首屏 chunk。CI 里只报告（`::warning` 注解 + job summary，`continue-on-error`），不会变红；加 `--strict` 才失败。调高预算要在 PR 里写明原因。
+
 ## CI
 
 `.github/workflows/ci.yml`：
 
-- `quality`（Ubuntu / Windows / macOS）：许可、i18n、typecheck、lint、单元测试、构建
+- `quality`（Ubuntu / Windows / macOS）：许可、i18n、typecheck、lint、单元测试、构建；Ubuntu 上追加首屏体积预算报告（不阻塞）
 - `e2e-headless`、`e2e-headed`（Ubuntu / Windows）
 - `dev-smoke`（Ubuntu）
 - `changeset status`

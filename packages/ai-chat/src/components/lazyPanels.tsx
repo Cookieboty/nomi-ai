@@ -6,7 +6,7 @@
  */
 import React, { Suspense, lazy, useRef, useState, type ComponentType } from 'react';
 
-import type { ConfigPanel as ConfigPanelT } from './ConfigPanel';
+import { loadHighlighter } from './Conversation/markdownHighlight';
 import type { DesktopPanel as DesktopPanelT } from './DesktopPanel';
 import type { ExtensionsPanel as ExtensionsPanelT } from './ExtensionsPanel';
 import type { HubPanel as HubPanelT } from './HubPanel';
@@ -48,6 +48,7 @@ const prefetchers: Array<() => Promise<unknown>> = [];
 
 /** 首屏空闲后预取全部面板 chunk，之后打开设置 / 面板不再等网络与解析。 */
 export function prefetchPanels(): void {
+  void loadHighlighter();
   for (const p of prefetchers) void p().catch(() => undefined);
 }
 
@@ -87,9 +88,6 @@ export function lazyPanel<P extends { isVisible: boolean }>(load: Loader<P>): Re
 
 export const SettingsView: React.FC<PropsOf<typeof SettingsViewT>> = lazyComponent(() =>
   import('./SettingsView').then((m) => m.SettingsView),
-);
-export const ConfigPanel: React.FC<PropsOf<typeof ConfigPanelT>> = lazyPanel(() =>
-  import('./ConfigPanel').then((m) => m.ConfigPanel),
 );
 export const ProviderPanel: React.FC<PropsOf<typeof ProviderPanelT>> = lazyPanel(() =>
   import('./ProviderPanel').then((m) => m.ProviderPanel),

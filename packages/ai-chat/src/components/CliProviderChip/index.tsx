@@ -111,7 +111,7 @@ export const CliProviderChip: React.FC<{
       {active?.model && (
         <span
           data-testid="cli-model-label"
-          style={{ fontSize: 12, opacity: 0.8, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 14, opacity: 0.8, whiteSpace: 'nowrap' }}
           title={t('模型')}
         >
           {active.model}
@@ -121,7 +121,7 @@ export const CliProviderChip: React.FC<{
         <span
           role="alert"
           data-testid="cli-provider-err"
-          style={{ fontSize: 11, color: '#e5534b' }}
+          style={{ fontSize: 13, color: '#e5534b' }}
         >
           {err}
         </span>
@@ -131,7 +131,7 @@ export const CliProviderChip: React.FC<{
           type="button"
           className="cd-btn cd-btn-ghost"
           data-testid="open-cli-provider-panel"
-          style={{ fontSize: 12 }}
+          style={{ fontSize: 14 }}
           onClick={onManage}
           title={t('打开 {0} 的供应商设置', backendName(backend))}
           aria-label={t('打开 {0} 的供应商设置', backendName(backend))}
@@ -144,5 +144,11 @@ export const CliProviderChip: React.FC<{
 };
 
 function backendName(b: CliProviderKind): string {
-  return b === 'claude' ? t('Claude Code') : b === 'codex' ? t('Codex') : 'dsh';
+  return b === 'claude'
+    ? t('Claude Code')
+    : b === 'codex'
+      ? t('Codex')
+      : b === 'grok'
+        ? 'Grok'
+        : 'dsh';
 }

@@ -38,7 +38,7 @@ export interface MCPServerConfig {
  */
 const DEFAULT_CONFIG: MCPServerConfig = {
   voice: {
-    voiceMode: 'fixed', // 默认使用系统语音
+    voiceMode: 'fixed', // 默认使用固定音频
     enableProjectSummary: true,
     ttsApiConfig: undefined, // 不设置默认TTS配置
   },

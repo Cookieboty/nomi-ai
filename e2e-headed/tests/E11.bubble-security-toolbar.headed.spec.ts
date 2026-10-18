@@ -13,7 +13,7 @@ import { safeRm } from '../fixtures/fsutil';
 
 /**
  * E11 · 真实应用 · 气泡安全 + 工具栏
- * 1. 看板娘窗口带 CSP（script-src 'self'），内联脚本被拦截；
+ * 1. 看板娘窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
  * 2. AI 回复 / mascot:say 里的 HTML / 脚本在气泡里按字面显示，不执行、不生成元素；
  * 3. 工具栏：在角色旁的槽位、不与角色包围盒重叠、命中测试算它、更多菜单 / 收起 / 配色、
  *    窗口贴右侧屏幕边缘时翻到左侧、空闲自动隐藏。
@@ -35,6 +35,18 @@ async function charBox(p: Page): Promise<Rect | null> {
   if (!k) return null;
   const [left, right, top, bottom] = k.split(',').map(Number) as [number, number, number, number];
   return { left, right, top, bottom };
+}
+
+/**
+ * Scripts: app files only, plus 'wasm-unsafe-eval', which the bundled Rive wasm needs to compile.
+ * Still no 'unsafe-inline' / 'unsafe-eval' / remote origins (the inline <script> probes in the
+ * test prove inline code stays blocked at runtime).
+ */
+function expectStrictScriptSrc(csp: string): void {
+  const scriptSrc = (/(?:^|;\s*)script-src\s+([^;]*)/.exec(csp)?.[1] ?? '').trim().split(/\s+/);
+  expect(scriptSrc.slice().sort()).toEqual(["'self'", "'wasm-unsafe-eval'"]);
+  expect(csp).not.toMatch(/'unsafe-eval'/);
+  expect(scriptSrc.join(' ')).not.toMatch(/'unsafe-inline'|https?:|\*/);
 }
 
 test.describe('E11 · bubble security + toolbar', () => {
@@ -122,7 +134,7 @@ test.describe('E11 · bubble security + toolbar', () => {
           .querySelector('meta[http-equiv="Content-Security-Policy"]')
           ?.getAttribute('content') ?? '',
     );
-    expect(csp).toMatch(/script-src 'self'(;|$)/);
+    expectStrictScriptSrc(csp);
     expect(csp).toContain("object-src 'none'");
     const inline = await main.evaluate(async () => {
       let violations = 0;
@@ -183,7 +195,7 @@ test.describe('E11 · bubble security + toolbar', () => {
       };
     });
     expect(chatCsp.protocol).toBe('file:');
-    expect(chatCsp.csp).toMatch(/script-src 'self'(;|$)/);
+    expectStrictScriptSrc(chatCsp.csp);
     expect(chatCsp.csp).toContain("object-src 'none'");
     expect(chatCsp.ran).toBeUndefined();
     expect(chatCsp.violations).toBeGreaterThan(0);

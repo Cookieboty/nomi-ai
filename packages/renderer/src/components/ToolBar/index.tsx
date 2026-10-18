@@ -1,4 +1,4 @@
-import { t as tr } from '@nomi-ai/ui';
+import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
@@ -9,11 +9,14 @@ import {
   Mic,
   Pin,
   PinOff,
+  RotateCcw,
   Settings2,
   UserRound,
   Volume2,
   VolumeX,
   X,
+  ZoomIn,
+  ZoomOut,
   type LucideIcon,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -34,10 +37,13 @@ import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
 import { nextModel } from '@/mascot/catalog';
 import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
+import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper } from '@/mascot/speechStop';
 import { MESSAGES } from '@/mascot/tips';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { getCache, setCache } from '@/utils/cache';
+
+const log = createLogger('toolbar');
 
 /**
  * 看板娘工具栏。
@@ -52,6 +58,8 @@ let globalVoiceService: VoiceService | null = null;
 /** 光标离角色包围盒多近（px）算“靠近” */
 const NEAR_PX = 72;
 const HIDE_DELAY_MS = 1500;
+
+const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
 
 export const ToolBar: React.FC = () => {
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
@@ -73,6 +81,7 @@ export const ToolBar: React.FC = () => {
   const [voiceMode, setVoiceMode] = useState<'fixed' | 'tts'>('fixed');
   const [prefs, setPrefs] = useState<ToolbarPrefs>(loadToolbarPrefs);
   const [menuOpen, setMenuOpen] = useState(false);
+  const size = useMascotScale();
   const [near, setNear] = useState(false);
   const [hoverWin, setHoverWin] = useState(process.env.NODE_ENV === 'development');
   const [focusWithin, setFocusWithin] = useState(false);
@@ -136,7 +145,7 @@ export const ToolBar: React.FC = () => {
         setVoiceEnabled(actualEnabled);
         setVoiceMode(actualVoiceMode as 'fixed' | 'tts');
       } catch (error) {
-        console.error('ToolBar: 初始化语音服务失败:', error);
+        log.error('初始化语音服务失败:', error);
         // 即使失败也要设置状态，避免组件卡住
         setVoiceService(globalVoiceService);
         setVoiceEnabled(false);
@@ -153,7 +162,7 @@ export const ToolBar: React.FC = () => {
         const currentState = (await getCache<boolean>('waifu-always-on-top')) === true;
         setAlwaysOnTop(currentState);
       } catch (error) {
-        console.error('ToolBar: 加载置顶状态失败:', error);
+        log.error('加载置顶状态失败:', error);
       }
     };
 
@@ -202,7 +211,7 @@ export const ToolBar: React.FC = () => {
 
       showMessage(tr('照好了，保存在下载目录了'));
     } catch (error) {
-      console.error('截图失败:', error);
+      log.error('截图失败:', error);
       showMessage(tr('截图失败'));
     }
   }, [showMessage]);
@@ -283,7 +292,7 @@ export const ToolBar: React.FC = () => {
       const modeText = newMode === 'fixed' ? tr('固定语音') : tr('TTS语音');
       showMessage(tr('已切换到{0}模式', modeText));
     } catch (error) {
-      console.error('ToolBar: 语音模式切换失败:', error);
+      log.error('语音模式切换失败:', error);
       showMessage(tr('语音模式切换失败，请重试'));
       // 回滚状态
       setVoiceMode(voiceMode);
@@ -348,11 +357,11 @@ export const ToolBar: React.FC = () => {
               })
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
               .catch((error: any) => {
-                console.error('打开TTS配置窗口失败:', error);
+                log.error('打开TTS配置窗口失败:', error);
                 showMessage(tr('打开TTS配置窗口失败，请稍后再试'));
               });
           } else {
-            console.warn('Electron API不可用，无法打开TTS配置窗口');
+            log.warn('Electron API不可用，无法打开TTS配置窗口');
             showMessage(tr('TTS配置功能需要在Electron环境中运行'));
           }
         };
@@ -373,11 +382,11 @@ export const ToolBar: React.FC = () => {
               })
               // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
               .catch((error: any) => {
-                console.error('打开AI对话窗口失败:', error);
+                log.error('打开AI对话窗口失败:', error);
                 showMessage(tr('打开AI对话窗口失败，请稍后再试'));
               });
           } else {
-            console.warn('Electron API不可用，无法打开AI对话窗口');
+            log.warn('Electron API不可用，无法打开AI对话窗口');
             showMessage(tr('AI对话功能需要在Electron环境中运行'));
           }
         };
@@ -439,6 +448,8 @@ export const ToolBar: React.FC = () => {
   const wantVisible = near || hoverWin || focusWithin || menuOpen || showVoiceSettings;
   useEffect(() => {
     clearTimeout(hideTimer.current);
+    // 悬浮状态变化时立即显隐工具栏；外部交互驱动的派生状态，豁免 set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (wantVisible) setVisible(true);
     else hideTimer.current = setTimeout(() => setVisible(false), HIDE_DELAY_MS);
     return () => clearTimeout(hideTimer.current);
@@ -605,6 +616,13 @@ export const ToolBar: React.FC = () => {
 
   // Tooltips open toward the mascot (left of the vertical bar when bar is on the right).
   const tipSide = place?.side === 'left' ? 'right' : 'left';
+  // 提示的可用宽度 = 工具栏到窗口边缘的距离；超出就换行，不被窗口边缘裁掉
+  const tipMax = place
+    ? Math.max(
+        96,
+        tipSide === 'left' ? place.x - 10 : window.innerWidth - (place.x + TIP_BAR_WIDTH) - 10,
+      )
+    : 200;
 
   const iconButton = (toolId: string) => {
     if (toolId === 'voice-input')
@@ -655,9 +673,10 @@ export const ToolBar: React.FC = () => {
     );
   };
 
-  const style: React.CSSProperties = place
-    ? { left: place.x, top: place.y }
-    : { right: 8, top: '30%' };
+  const style: React.CSSProperties & Record<string, string | number> = {
+    ...(place ? { left: place.x, top: place.y } : { right: 8, top: '30%' }),
+    '--tb-tip-max': `${tipMax}px`,
+  };
 
   return (
     <>
@@ -720,6 +739,49 @@ export const ToolBar: React.FC = () => {
                 data-testid="toolbar-compact"
               />
             </div>
+            {size && (
+              <div className={styles.menuRow} role="group" aria-label={tr('看板娘大小')}>
+                <span>{tr('大小')}</span>
+                <div className={styles.sizeCtl}>
+                  <button
+                    type="button"
+                    className={styles.miniBtn}
+                    aria-label={tr('缩小')}
+                    title={tr('缩小')}
+                    data-testid="toolbar-zoom-out"
+                    disabled={size.scale <= size.min + 1e-6}
+                    onClick={() => scaleStore.step(-1)}
+                  >
+                    <ZoomOut size={15} strokeWidth={1.75} aria-hidden />
+                  </button>
+                  <span className={styles.sizeValue} data-testid="toolbar-scale-value">
+                    {scalePercent(size.scale)}%
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.miniBtn}
+                    aria-label={tr('放大')}
+                    title={tr('放大')}
+                    data-testid="toolbar-zoom-in"
+                    disabled={size.scale >= size.max - 1e-6}
+                    onClick={() => scaleStore.step(1)}
+                  >
+                    <ZoomIn size={15} strokeWidth={1.75} aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.miniBtn}
+                    aria-label={tr('重置大小')}
+                    title={tr('重置大小')}
+                    data-testid="toolbar-zoom-reset"
+                    disabled={Math.abs(size.scale - size.default) < 1e-6}
+                    onClick={() => scaleStore.reset()}
+                  >
+                    <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
+                  </button>
+                </div>
+              </div>
+            )}
             <div className={styles.menuRow}>
               <span>{tr('配色')}</span>
               <div className={styles.swatches} role="radiogroup" aria-label={tr('工具栏配色')}>

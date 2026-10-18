@@ -1,0 +1,51 @@
+/* 看板娘右键菜单：磨砂面板，颜色全部取自主题令牌 */
+.menu {
+  position: fixed;
+  z-index: 99995;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 144px;
+  padding: 6px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: 12px;
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-md);
+  color: var(--cd-color-text);
+  font-family: var(--cd-font-sans);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  -webkit-app-region: no-drag;
+}
+
+.title {
+  padding: 4px 10px 6px;
+  color: var(--cd-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.item:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+}
+.item:focus-visible {
+  outline: 2px solid rgba(var(--cd-accent-rgb), 0.6);
+  outline-offset: 1px;
+}
+.item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

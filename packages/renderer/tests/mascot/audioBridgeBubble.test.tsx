@@ -47,15 +47,17 @@ describe('MascotAudioBridge: 编程助手气泡的出声方式', () => {
     expect(trigger).not.toHaveBeenCalled();
   });
 
-  it('voice=cue（总结播报关）：只触发固定台词事件，不带气泡文字', () => {
+  it('voice=cue（消息语音播报关）：只播放事件提示音，不朗读气泡文字', () => {
     emit({ text: 'Claude Code 完成了任务「x」', kind: 'done', voice: 'cue' });
     expect(trigger).toHaveBeenCalledTimes(1);
-    expect(trigger).toHaveBeenCalledWith('agent:done');
+    expect(trigger).toHaveBeenCalledWith('agent:done', { sfxOnly: true });
     emit({ text: 'x 失败了：权限不足', kind: 'fail', voice: 'cue' });
-    expect(trigger).toHaveBeenLastCalledWith('agent:fail');
+    expect(trigger).toHaveBeenLastCalledWith('agent:fail', { sfxOnly: true });
+    emit({ text: 'Codex 好像卡住了，要不要去看看？', voice: 'cue' });
+    expect(trigger).toHaveBeenLastCalledWith('agent:stalled', { sfxOnly: true });
   });
 
-  it('voice=full（总结播报开）：朗读总结文字', () => {
+  it('voice=full（消息语音播报开）：朗读通知文字', () => {
     emit({ text: 'Claude Code 完成了任务「x」，结果：好了', kind: 'done', voice: 'full' });
     expect(trigger).toHaveBeenCalledWith(
       'agent:done',

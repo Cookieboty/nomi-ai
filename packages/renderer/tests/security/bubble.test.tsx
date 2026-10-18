@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import { toBubbleText } from '../../src/security/bubbleText';
+import { stripMarkdown, toBubbleText } from '../../src/security/bubbleText';
 
 const PAYLOAD =
   '<img src=x onerror="window.__pwned=1"><script>window.__pwned=2</script><b>粗体</b> & "引号"';
@@ -37,5 +37,28 @@ describe('mascot bubble renders untrusted text literally', () => {
     const long = toBubbleText('字'.repeat(1000), 10);
     expect(Array.from(long)).toHaveLength(10);
     expect(long.endsWith('…')).toBe(true);
+  });
+});
+
+describe('bubble text drops Markdown markers (D2)', () => {
+  it('bold / italic / strike / code / links / headings read as plain text', () => {
+    expect(toBubbleText('这是 **重点** 内容')).toBe('这是 重点 内容');
+    expect(toBubbleText('***粗斜*** 与 *斜体* 与 ~~删除~~')).toBe('粗斜 与 斜体 与 删除');
+    expect(toBubbleText('运行 `pnpm test` 即可')).toBe('运行 pnpm test 即可');
+    expect(toBubbleText('见 [文档](https://example.com/a) 与 ![图](x.png)')).toBe('见 文档 与 图');
+    expect(toBubbleText('## 标题\n> 引用')).toBe('标题\n引用');
+    expect(toBubbleText('- 一\n* 二\n+ 三')).toBe('• 一\n• 二\n• 三');
+    expect(toBubbleText('```ts\nconst a = 1;\n```')).toBe('const a = 1;');
+  });
+
+  it('keeps snake_case, math-ish asterisks and HTML-looking text intact', () => {
+    expect(toBubbleText('call my_func_name now')).toBe('call my_func_name now');
+    expect(toBubbleText('2 * 3 * 4')).toBe('2 * 3 * 4');
+    expect(toBubbleText('<b>hi</b>')).toBe('<b>hi</b>');
+  });
+
+  it('removes a dangling ** left by truncation and never leaves ** in output', () => {
+    expect(stripMarkdown('完成了 **重点')).toBe('完成了 重点');
+    expect(toBubbleText('**加粗**，**再来一个**')).not.toContain('*');
   });
 });

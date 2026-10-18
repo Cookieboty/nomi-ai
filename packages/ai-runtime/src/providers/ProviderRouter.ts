@@ -202,7 +202,12 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
             totalTokens: chunk.usage.totalTokens,
           };
         }
-        if (chunk.type === 'delta' || chunk.type === 'tool_call.delta') emitted = true;
+        if (
+          chunk.type === 'delta' ||
+          chunk.type === 'tool_call.delta' ||
+          chunk.type === 'reasoning'
+        )
+          emitted = true;
         yield chunk;
       }
       this.sink?.markKey?.(this.id, i, failed);

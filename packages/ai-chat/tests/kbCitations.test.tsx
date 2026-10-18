@@ -2,10 +2,11 @@
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { splitCitations } from '../src/components/MessageList/Citations';
-import { MessageBubble } from '../src/components/MessageList/MessageBubble';
+import { splitCitations } from '../src/components/Conversation/Citations';
 import { shortPath } from '../src/services/kbClient';
 import type { ChatMessage } from '../src/types/chat';
+
+import { NomiConversation } from './nomiRender';
 
 afterEach(() => {
   cleanup();
@@ -44,7 +45,7 @@ describe('knowledge citations', () => {
       kb: true,
       sources: [src(1, 'C:\\Docs\\报销.docx'), src(2, '/srv/policy.pdf', 3)],
     };
-    const { getAllByTestId, getByTestId, getByText } = render(<MessageBubble message={m} />);
+    const { getAllByTestId, getByTestId, getByText } = render(<NomiConversation messages={[m]} />);
     expect(getAllByTestId('kb-cite')).toHaveLength(2);
     expect(getAllByTestId('kb-source-chip')).toHaveLength(2);
     expect(getByText('第 3 页')).toBeTruthy();

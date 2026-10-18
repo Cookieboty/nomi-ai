@@ -1,8 +1,8 @@
 /**
  * 订阅额度（尽力而为）。
  *
- * 原则：只用「本机已经有的数据」或「官方公开文档、且不需要读取用户凭据的接口」。
- * 读取额度如果必须走未文档接口或登录凭据，就不做，显示「暂未返回可用额度」——不编造、不猜。
+ * 原则：只用本机已经有的数据，或让官方 CLI 自己读取登录态后返回的额度结果。
+ * 不读取凭据文件，不把原始 billing 响应写入磁盘或日志。
  * 来源：Codex 自己写进会话日志的额度快照；Claude Code 官方 statusline 输入里的 rate_limits
  *（需用户在面板里主动开启，由本机脚本落一份快照，见 claudeStatusline.ts）。
  * 只有「订阅 / 账号登录」的工具才会展示额度，API 计费的工具见 authMode.ts。
@@ -23,7 +23,7 @@ export interface QuotaWindow {
 }
 
 /** 额度数据从哪来（面板上标出来，让用户知道这份数字是怎么得到的） */
-export type QuotaOrigin = 'statusline' | 'usage-cmd' | 'session-log' | 'app-server';
+export type QuotaOrigin = 'statusline' | 'usage-cmd' | 'session-log' | 'app-server' | 'grok-acp';
 
 /** 来源读到的原始额度快照 */
 export interface QuotaReading {

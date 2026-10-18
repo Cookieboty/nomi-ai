@@ -13,8 +13,6 @@ import {
 export interface UserPreferenceMemoryConfig {
   /** 允许 LLM 直接调用 set/get/list/forget 偏好工具 */
   exposeAsTools?: boolean;
-  /** 保留字段：后续 Distiller 的 LLM adapter id */
-  distillerLlmId?: string;
 }
 
 interface UserMessagePayload {

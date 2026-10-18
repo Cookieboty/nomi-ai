@@ -43,6 +43,7 @@ import {
 } from './claudeStatusline';
 import { ClaudeUsageFetcher, type ClaudeFetcherDeps } from './claudeSubscription';
 import { CodexRateLimitReader, type CodexRpcDeps } from './codexRateLimits';
+import { GrokBillingFetcher, type GrokBillingDeps } from './grokSubscription';
 import { formatAmount, formatMoney, formatTokens } from './money';
 import { PriceSync, type PriceSyncResult } from './priceSync';
 import {
@@ -165,6 +166,7 @@ type Deps = {
   /** 主动刷新额度所用的官方 CLI 调用（测试注入） */
   claudeUsage?: ClaudeFetcherDeps;
   codexRpc?: Partial<CodexRpcDeps>;
+  grokBilling?: GrokBillingDeps;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
 };
@@ -178,9 +180,11 @@ export type ToolRefresh =
   | { state: 'auth'; reason: string }
   | { state: 'skipped'; reason: 'disabled' | 'not-subscription' };
 
+export type QuotaToolId = 'claude' | 'codex' | 'grok';
+
 export interface QuotaRefreshReport {
   entries: QuotaEntry[];
-  tools: Partial<Record<'claude' | 'codex', ToolRefresh>>;
+  tools: Partial<Record<'claude' | 'codex' | 'grok', ToolRefresh>>;
 }
 
 /** 本机已有的额度快照多久算「还新」：更新鲜就不拉起官方 CLI */
@@ -214,6 +218,7 @@ const SOURCE_LABEL: Record<string, string> = {
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
+  grok: 'Grok',
   gemini: 'Gemini CLI',
   qwen: 'Qwen Code',
   opencode: 'OpenCode',
@@ -308,7 +313,12 @@ export class UsageService {
   private readonly codexCache: IdentityQuotaCache;
   private readonly claudeFetcher: ClaudeUsageFetcher;
   private readonly codexReader: CodexRateLimitReader;
+  private readonly grokFetcher: GrokBillingFetcher;
+  private readonly grokCache: IdentityQuotaCache;
   private refreshing: Promise<QuotaRefreshReport> | null = null;
+  private readonly toolRefreshing = new Map<QuotaToolId, Promise<QuotaRefreshReport>>();
+  private readonly toolCore = new Map<QuotaToolId, Promise<ToolRefresh | undefined>>();
+  private scanShared: Promise<void> | null = null;
   readonly quotaSources = new QuotaRegistry();
   private readonly auth: AuthModeDetector;
   private sessionCache: {
@@ -341,6 +351,8 @@ export class UsageService {
       salt: () => this.salt,
       ...d.codexRpc,
     });
+    this.grokFetcher = new GrokBillingFetcher({ now: d.now, ...d.grokBilling });
+    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.auth = new AuthModeDetector({
       home: d.home,
       env: d.env,
@@ -349,7 +361,13 @@ export class UsageService {
       salt: () => this.salt,
       // 日志 / 快照里已经有带额度的数据，说明是订阅登录
       hasSubscriptionData: (id) =>
-        id === 'codex' ? !!this.codexQuota?.plan : !!readStatuslineSnapshot(d.root),
+        id === 'codex'
+          ? !!this.codexQuota?.plan
+          : id === 'claude'
+            ? !!readStatuslineSnapshot(d.root)
+            : id === 'grok'
+              ? !!this.grokCache.get()?.windows.length
+              : false,
     });
     this.quotaSources.register({
       id: 'codex',
@@ -381,6 +399,14 @@ export class UsageService {
         const cmd = this.claudeCache.get();
         if (snapR && cmd) return snapR.updatedAt >= cmd.updatedAt ? snapR : cmd;
         return snapR ?? cmd;
+      },
+    });
+    this.quotaSources.register({
+      id: 'grok',
+      label: 'Grok',
+      read: () => {
+        if (!this.settings.enabled) return null;
+        return this.grokCache.get();
       },
     });
     this.ledger = new UsageLedger({ root: d.root, logger: d.logger, now: d.now });
@@ -518,6 +544,7 @@ export class UsageService {
       { id: 'claude', label: 'Claude Code' },
       { id: 'codex', label: 'Codex' },
       { id: 'dsh', label: 'dsh' },
+      { id: 'grok', label: 'Grok' },
       { id: 'nomi', label: 'Nomi' },
     ]);
   }
@@ -528,7 +555,7 @@ export class UsageService {
    */
   async quotaView(): Promise<QuotaEntry[]> {
     const modes: Record<string, AuthMode> = {};
-    for (const id of ['claude', 'codex', 'dsh', 'nomi']) {
+    for (const id of ['claude', 'codex', 'dsh', 'grok', 'nomi']) {
       const info = await this.auth.detectFull(id).catch(() => null);
       modes[id] = info?.mode ?? 'unknown';
       if (id === 'claude' && info) this.observeClaudeIdentity(info.fp);
@@ -539,11 +566,13 @@ export class UsageService {
   /**
    * 用户点「刷新」：先重读本机已有的数据（会话日志）；快照缺失 / 过期 / 超过 5 分钟才会拉起官方 CLI：
    * - Claude Code：`claude -p /usage --output-format json`；
-   * - Codex：`codex app-server` 的 `account/rateLimits/read`。
-   * 两者都是官方 CLI 用自己的登录态去取，Nomi 不接触凭据；每个来源 60 秒内最多真实拉取一次；
+   * - Codex：`codex app-server` 的 `account/rateLimits/read`；
+   * - Grok：官方 CLI ACP 的 `_x.ai/billing` 扩展。
+   * 三者都是官方 CLI 用自己的登录态去取，Nomi 不接触凭据；每个来源 60 秒内最多真实拉取一次；
    * 「主动刷新额度」关闭时一律不拉起 CLI。从不自动轮询，只在这里被调用时才会触发。
    */
-  refreshQuota(): Promise<QuotaRefreshReport> {
+  refreshQuota(tool?: QuotaToolId): Promise<QuotaRefreshReport> {
+    if (tool) return this.refreshQuotaTool(tool);
     if (this.refreshing) return this.refreshing;
     const p = this.doRefreshQuota();
     this.refreshing = p;
@@ -553,6 +582,29 @@ export class UsageService {
       })
       .catch(() => undefined);
     return p;
+  }
+
+  /**
+   * 单个工具刷新（卡片自己的刷新按钮）：只拉起这一个工具的官方 CLI，
+   * 同一工具并发点击合并；不同工具之间互不等待、互不阻塞。
+   */
+  private refreshQuotaTool(tool: QuotaToolId): Promise<QuotaRefreshReport> {
+    const hit = this.toolRefreshing.get(tool);
+    if (hit) return hit;
+    const p = this.doRefreshTool(tool);
+    this.toolRefreshing.set(tool, p);
+    void p
+      .finally(() => {
+        if (this.toolRefreshing.get(tool) === p) this.toolRefreshing.delete(tool);
+      })
+      .catch(() => undefined);
+    return p;
+  }
+
+  private async doRefreshTool(tool: QuotaToolId): Promise<QuotaRefreshReport> {
+    const res = await this.runToolRefresh(tool);
+    this.changed();
+    return { entries: await this.quotaView(), tools: res ? { [tool]: res } : {} };
   }
 
   private fresh(r: QuotaReading | null): boolean {
@@ -576,34 +628,82 @@ export class UsageService {
   }
 
   private async doRefreshQuota(): Promise<QuotaRefreshReport> {
+    // 三个工具并行：各自的官方 CLI 互不等待（单个超时不拖慢其他工具）
+    const ids: QuotaToolId[] = ['claude', 'codex', 'grok'];
+    const results = await Promise.all(ids.map((id) => this.runToolRefresh(id)));
     const tools: QuotaRefreshReport['tools'] = {};
-    if (this.settings.enabled && this.settings.readToolLogs)
-      await this.scan().catch(() => undefined);
-    // 重新问一遍官方登录状态（换号 / 退出登录马上生效）
-    this.auth.invalidate();
-    const active = this.settings.enabled && this.settings.activeQuotaRefresh;
+    ids.forEach((id, i) => {
+      const r = results[i];
+      if (r) tools[id] = r;
+    });
+    this.changed();
+    return { entries: await this.quotaView(), tools };
+  }
 
+  /** 同一工具的刷新合并成一次；和「全部刷新」共用，避免重复拉起 CLI */
+  private runToolRefresh(tool: QuotaToolId): Promise<ToolRefresh | undefined> {
+    const hit = this.toolCore.get(tool);
+    if (hit) return hit;
+    const p = this.coreToolRefresh(tool);
+    this.toolCore.set(tool, p);
+    void p
+      .finally(() => {
+        if (this.toolCore.get(tool) === p) this.toolCore.delete(tool);
+      })
+      .catch(() => undefined);
+    return p;
+  }
+
+  private async coreToolRefresh(tool: QuotaToolId): Promise<ToolRefresh | undefined> {
+    await this.scanForRefresh();
+    this.auth.invalidate(tool);
+    const active = this.settings.enabled && this.settings.activeQuotaRefresh;
+    return tool === 'claude'
+      ? this.refreshClaude(active)
+      : tool === 'codex'
+        ? this.refreshCodex(active)
+        : this.refreshGrok(active);
+  }
+
+  /** 刷新前先重读一遍本机日志；并发的刷新共用同一次扫描 */
+  private scanForRefresh(): Promise<void> {
+    if (!(this.settings.enabled && this.settings.readToolLogs)) return Promise.resolve();
+    if (!this.scanShared) {
+      const p = this.scan()
+        .then(() => undefined)
+        .catch(() => undefined)
+        .finally(() => {
+          if (this.scanShared === p) this.scanShared = null;
+        });
+      this.scanShared = p;
+    }
+    return this.scanShared;
+  }
+
+  private async refreshClaude(active: boolean): Promise<ToolRefresh | undefined> {
     const cl = await this.auth.detectFull('claude').catch(() => null);
     if (cl) this.observeClaudeIdentity(cl.fp);
     if (cl?.mode === 'subscription') {
-      if (!active) tools.claude = { state: 'skipped', reason: 'disabled' };
+      if (!active) return { state: 'skipped', reason: 'disabled' };
       else {
         const snap = readStatuslineSnapshot(this.d.root);
-        if (this.fresh(snap) || this.fresh(this.claudeCache.get()))
-          tools.claude = { state: 'fresh-local' };
+        if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
         else {
           const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
           if (r.state === 'auth') this.dropClaudeQuota();
-          tools.claude = this.mapRefresh(r, this.claudeCache);
+          return this.mapRefresh(r, this.claudeCache);
         }
       }
-    } else if (cl) tools.claude = { state: 'skipped', reason: 'not-subscription' };
+    } else if (cl) return { state: 'skipped', reason: 'not-subscription' };
+    return undefined;
+  }
 
+  private async refreshCodex(active: boolean): Promise<ToolRefresh | undefined> {
     const cx = await this.auth.detectFull('codex').catch(() => null);
     if (cx?.mode === 'subscription') {
-      if (!active) tools.codex = { state: 'skipped', reason: 'disabled' };
+      if (!active) return { state: 'skipped', reason: 'disabled' };
       else if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
-        tools.codex = { state: 'fresh-local' };
+        return { state: 'fresh-local' };
       else {
         const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
         if (r.state === 'auth') {
@@ -627,12 +727,23 @@ export class UsageService {
             });
           }
         }
-        tools.codex = this.mapRefresh(r, this.codexCache);
+        return this.mapRefresh(r, this.codexCache);
       }
-    } else if (cx) tools.codex = { state: 'skipped', reason: 'not-subscription' };
+    } else if (cx) return { state: 'skipped', reason: 'not-subscription' };
+    return undefined;
+  }
 
-    this.changed();
-    return { entries: await this.quotaView(), tools };
+  private async refreshGrok(active: boolean): Promise<ToolRefresh | undefined> {
+    const gx = await this.auth.detectFull('grok').catch(() => null);
+    if (gx?.mode === 'subscription') {
+      if (!active) return { state: 'skipped', reason: 'disabled' };
+      else if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
+      else {
+        const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
+        return this.mapRefresh(r, this.grokCache);
+      }
+    } else if (gx) return { state: 'skipped', reason: 'not-subscription' };
+    return undefined;
   }
 
   quotaHookStatus(): HookStatus {
@@ -1100,6 +1211,28 @@ export class UsageService {
     };
   }
 
+  /**
+   * 「按端」信息卡用：某一个端（nomi / claude / codex / dsh / grok）的今日 / 近 7 天用量、
+   * 按天趋势、模型与供应商分布。只聚合本机账本，不读任何凭据。
+   */
+  endpointUsage(source: string) {
+    const now = this.now();
+    const priceOf = this.priceOf();
+    const week = rangeOf('7d', now);
+    const today = rangeOf('today', now);
+    const recs = this.ledger.range(week.from, week.to).filter((r) => r.source === source);
+    const todayRecs = recs.filter((r) => r.ts >= today.from);
+    return {
+      source,
+      today: summarize(todayRecs, priceOf),
+      week: summarize(recs, priceOf),
+      series: series(recs, week, priceOf),
+      byModel: breakdown(recs, 'model', priceOf, this.labels()),
+      byProvider: breakdown(recs, 'provider', priceOf, this.labels()),
+      lastActivityAt: this.ledger.lastTs(source),
+    };
+  }
+
   heatmap() {
     const now = this.now();
     const days = heatmap(this.ledger.all(), now, this.priceOf());
@@ -1193,11 +1326,12 @@ export class UsageService {
     handle('ai:usage:state', () => this.state());
     handle('ai:usage:query', (r) => this.query(rid(r)));
     handle('ai:usage:heatmap', () => this.heatmap());
+    handle('ai:usage:endpoint', (id) => this.endpointUsage(endpointSourceOf(id)));
     handle('ai:usage:details', (q) => this.details(dq(q)));
     handle('ai:usage:csv', (q) => this.csv(dq(q)));
     handle('ai:usage:set-settings', (p) => this.setSettings((p ?? {}) as Partial<UsageSettings>));
     handle('ai:usage:quota', () => this.quotaView());
-    handle('ai:usage:quota-refresh', () => this.refreshQuota());
+    handle('ai:usage:quota-refresh', (tool) => this.refreshQuota(quotaToolOf(tool)));
     handle('ai:usage:quota-hook', () => this.quotaHookStatus());
     handle('ai:usage:quota-hook-set', (v) => this.setQuotaHook(v === true));
     handle('ai:usage:price-sync', () => this.syncPrices());
@@ -1211,6 +1345,14 @@ export class UsageService {
     });
   }
 }
+
+/** IPC 参数校验：只接受已知工具 id；其他（含缺省）= 全部刷新 */
+export const quotaToolOf = (v: unknown): QuotaToolId | undefined =>
+  v === 'claude' || v === 'codex' || v === 'grok' ? v : undefined;
+
+/** 「按端」只接受五个已知端；其他值一律按 nomi 处理，避免任意字符串进入查询 */
+export const endpointSourceOf = (v: unknown): string =>
+  v === 'claude' || v === 'codex' || v === 'dsh' || v === 'grok' ? v : 'nomi';
 
 let inst: UsageService | null = null;
 export function initUsageService(d: Deps): UsageService {

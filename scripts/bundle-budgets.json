@@ -1,0 +1,29 @@
+{
+  "_comment": "Initial-load (first paint) size budgets per window. 'initial' = entry <script> + modulepreload chunks (JS) and linked stylesheets, read from dist/index.html. Raise a number only with a reason in the PR; see docs/development/testing.md.",
+  "windows": {
+    "ai-chat": {
+      "dist": "packages/ai-chat/dist",
+      "initialJsRawKB": 930,
+      "initialJsGzipKB": 315,
+      "initialCssRawKB": 135,
+      "forbiddenInInitialJs": [
+        {
+          "marker": "did you forget to load/include a language module",
+          "why": "syntax highlighter (lowlight / highlight.js) must be a lazily loaded chunk"
+        }
+      ]
+    },
+    "renderer": {
+      "dist": "packages/renderer/dist",
+      "initialJsRawKB": 560,
+      "initialJsGzipKB": 197,
+      "initialCssRawKB": 60,
+      "forbiddenInInitialJs": [
+        {
+          "marker": "THREE.WebGLRenderer",
+          "why": "three.js must only load for the 3D character"
+        }
+      ]
+    }
+  }
+}

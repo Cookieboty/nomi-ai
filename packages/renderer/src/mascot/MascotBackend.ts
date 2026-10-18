@@ -18,7 +18,7 @@ export const MASCOT_EXPRESSIONS: readonly MascotExpression[] = [
   'surprised',
 ];
 
-export type MascotBackendKind = 'vrm' | 'sprite';
+export type MascotBackendKind = 'vrm' | 'sprite' | 'rive';
 
 export interface MascotCapabilities {
   /** 模型实际支持的表情（预设 + 自定义） */

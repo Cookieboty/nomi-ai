@@ -87,7 +87,7 @@ export function loadSherpaAddon<T = unknown>(deps: AddonLoaderDeps = {}): T {
 
   if (!SUPPORTED.has(key)) {
     throw new SherpaAddonLoadError(
-      `sherpa-onnx 不支持当前平台 ${platform}-${arch}（支持：${[...SUPPORTED].join(', ')}），将使用系统语音`,
+      `sherpa-onnx 不支持当前平台 ${platform}-${arch}（支持：${[...SUPPORTED].join(', ')}）`,
       { platform, arch },
     );
   }

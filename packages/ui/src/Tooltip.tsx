@@ -4,7 +4,8 @@ import { cx } from './cx';
 
 export interface TooltipProps {
   content: React.ReactNode;
-  placement?: 'top' | 'bottom' | 'left' | 'right';
+  /** top-end：在触发元素上方、与其右缘对齐（触发元素贴近容器右边缘时不被裁切） */
+  placement?: 'top' | 'top-end' | 'bottom' | 'left' | 'right';
   className?: string;
   children: React.ReactElement;
 }

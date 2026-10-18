@@ -6,6 +6,7 @@ export type UsageSource =
   | 'claude'
   | 'codex'
   | 'dsh'
+  | 'grok'
   | 'gemini'
   | 'qwen'
   | 'opencode'

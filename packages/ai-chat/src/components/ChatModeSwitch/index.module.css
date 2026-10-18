@@ -4,7 +4,7 @@
   gap: 6px;
   flex-shrink: 0;
   min-width: 0;
-  height: 32px;
+  height: 36px;
 }
 .seg {
   display: inline-flex;
@@ -13,7 +13,7 @@
   border-radius: 9px;
   background: var(--cd-color-bg-subtle);
   border: 1px solid var(--cd-color-border);
-  height: 28px;
+  height: 32px;
   box-sizing: border-box;
 }
 .btn {
@@ -21,7 +21,7 @@
   background: transparent;
   color: var(--cd-color-text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 550;
   padding: 0 10px;
   border-radius: 7px;
@@ -38,14 +38,14 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 .badge {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 999px;
   background: rgba(120, 170, 255, 0.22);
   color: var(--cd-color-text);
   white-space: nowrap;
-  max-width: 88px;
+  max-width: 104px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

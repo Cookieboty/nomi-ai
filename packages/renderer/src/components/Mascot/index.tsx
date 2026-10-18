@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useMemo } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 
 import { MessageBubble } from '../MessageBubble/MessageBubble';
 import { ToolBar } from '../ToolBar';
@@ -8,6 +8,7 @@ import { Credits } from './Credits';
 import { DesktopConfirm } from './DesktopConfirm';
 import { InteractionSettings } from './InteractionSettings';
 import { MascotAiCueBridge, MascotAudioBridge } from './MascotAudioBridge';
+import { MascotContextMenu } from './MascotContextMenu';
 import { ModelPicker } from './ModelPicker';
 import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
@@ -20,6 +21,7 @@ import { useMascot } from '@/contexts/MascotContext';
 import { useFileDropSummarize } from '@/hooks/useFileDropSummarize';
 import { useMascotTips } from '@/hooks/useMascotTips';
 import MascotDriver from '@/mascot/MascotDriver';
+import { useMascotZoomInput } from '@/mascot/scaleStore';
 import { characterBox } from '@/mascot/spriteLayout';
 
 // three / VRM 体积较大：按需加载
@@ -29,7 +31,10 @@ function vrmBoxStyle(): React.CSSProperties {
   return { position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h };
 }
 
-const SpriteCanvas = lazy(() => import('../SpriteMascot/SpriteCanvas'));
+// Rive is the default 2D mascot renderer (with the layered 2D rig as fallback if it cannot start).
+// The scene embeds the locked Nomi art layers and is loaded lazily so VRM-only installations do
+// not pay the startup cost.
+const Nomi2DCanvas = lazy(() => import('./Nomi2DCanvas'));
 const MascotAIBridge = lazy(() => import('@/mascot/MascotAIBridge'));
 const MascotVoiceBridge = lazy(() => import('@/mascot/voice/MascotVoice'));
 
@@ -41,6 +46,14 @@ export const MascotHost: React.FC = () => {
   const { currentModel } = useMascot();
   const aiReady = useMemo(() => isAiIpcReady(), []);
   useMascotTips();
+  useMascotZoomInput();
+  // 窗口被缩放（Ctrl/⌘+滚轮 / 菜单 / 设置滑块）：VRM 的角色框要跟着重算
+  const [, setViewport] = useState(0);
+  useEffect(() => {
+    const on = () => setViewport((n) => n + 1);
+    window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
   useFileDropSummarize('mascot-canvas');
 
   return (
@@ -66,6 +79,7 @@ export const MascotHost: React.FC = () => {
       <MotionMenu />
       <Credits />
       <InteractionSettings />
+      <MascotContextMenu />
       <DesktopConfirm />
       <ReminderCard />
       <div id="mascot-canvas" className={styles.stage} data-testid="mascot-canvas">
@@ -76,7 +90,7 @@ export const MascotHost: React.FC = () => {
               currentModel.path.endsWith('manifest.json') ||
               currentModel.tags?.includes('sprite') ? (
                 // symmetric margins are built into the sprite layout (spriteLayout.ts)
-                <SpriteCanvas manifestPath={currentModel.path} transparent />
+                <Nomi2DCanvas manifestPath={currentModel.path} />
               ) : (
                 // user / store VRM: same character box as Nomi (half size, room for bubble + toolbar)
                 <div style={vrmBoxStyle()}>

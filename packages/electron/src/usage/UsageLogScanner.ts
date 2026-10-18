@@ -18,6 +18,7 @@ import {
   codexHomeDir,
   copilotDir,
   geminiDir,
+  grokHomeDir,
   kimiDirs,
   opencodeDir,
   qwenDir,
@@ -28,6 +29,7 @@ import {
   parseCodexChunk,
   parseCodexRateLimits,
   parseDshChunk,
+  parseGrokChunk,
   parseGeminiFile,
   parseKimiChunk,
   parseQwenChunk,
@@ -42,6 +44,8 @@ import { RETENTION_MS, type Retention, type UsageLedger } from './UsageLedger';
 
 type Logger = { info?(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
+/** Grok 日志改读 usage.modelUsage 后，旧游标里的 unknown 要整文件重读一次。 */
+const GROK_LOG_REV = 2;
 /** 单个文件一轮最多读多少字节（超大日志分多轮追平，避免一次占太多内存） */
 const MAX_READ_PER_PASS = 8 * 1024 * 1024;
 /** 整份解析（JSON / zstd）的体积上限 */
@@ -54,6 +58,7 @@ export interface ScannerDeps {
   ledger: UsageLedger;
   home?: string;
   dshHome?: string;
+  grokHome?: string;
   /** 环境变量（测试注入）：CODEX_HOME / KIMI_HOME / OPENCODE_HOME … 默认 process.env */
   env?: NodeJS.ProcessEnv;
   now?: () => number;
@@ -149,6 +154,7 @@ const tick = () => new Promise<void>((r) => setImmediate(r));
 export class UsageLogScanner {
   private readonly home: string;
   private readonly dshHome: string;
+  private readonly grokHome: string;
   private readonly env: NodeJS.ProcessEnv;
   private running = false;
 
@@ -157,9 +163,8 @@ export class UsageLogScanner {
     this.env = d.env ?? process.env;
     this.dshHome =
       d.dshHome ??
-      (process.env.DSH_HOME?.trim()
-        ? path.resolve(process.env.DSH_HOME)
-        : path.join(this.home, '.dsh'));
+      (this.env.DSH_HOME?.trim() ? path.resolve(this.env.DSH_HOME) : path.join(this.home, '.dsh'));
+    this.grokHome = d.grokHome ?? grokHomeDir(this.home, this.env);
   }
 
   private now(): number {
@@ -173,6 +178,7 @@ export class UsageLogScanner {
     if (fs.existsSync(this.claudeDir())) out.push('claude');
     if (fs.existsSync(this.codexDir())) out.push('codex');
     if (fs.existsSync(path.join(this.dshHome, 'sessions'))) out.push('dsh');
+    if (fs.existsSync(path.join(this.grokHome, 'sessions'))) out.push('grok');
     if (fs.existsSync(geminiDir(h, this.env))) out.push('gemini');
     if (fs.existsSync(qwenDir(h, this.env))) out.push('qwen');
     if (fs.existsSync(this.opencodeDb())) out.push('opencode');
@@ -238,6 +244,12 @@ export class UsageLogScanner {
       'dsh',
       'whole',
       dshFiles.filter((f) => f.path.endsWith('.zstd')),
+    );
+    // Grok Build：sessions/<cwd>/<uuid>/updates.jsonl（turn_completed + usage）
+    add(
+      'grok',
+      'jsonl',
+      walk(path.join(this.grokHome, 'sessions'), (n) => n === 'updates.jsonl', 4, since),
     );
     // Gemini：chats/session-*.json(l)；subagent 在 chats/<父id>/<子id>.jsonl（要递归）
     add(
@@ -346,6 +358,8 @@ export class UsageLogScanner {
       }
       case 'dsh':
         return parseDshChunk(text, state);
+      case 'grok':
+        return parseGrokChunk(text, state);
       case 'qwen':
         return parseQwenChunk(text);
       case 'kimi':
@@ -364,6 +378,8 @@ export class UsageLogScanner {
     if (!st) return -1;
     let cur = ledger.cursor(f.path);
     if (cur && st.size < cur.offset) cur = undefined; // 被截断 / 替换：从头读
+    // 解析口径变了：丢掉旧偏移，把已经记成 unknown 的 Grok 轮次重读出来
+    if (f.source === 'grok' && cur?.state?.rev !== GROK_LOG_REV) cur = undefined;
     if (cur && cur.offset >= st.size) {
       if (cur.size !== st.size || cur.mtimeMs !== st.mtimeMs)
         ledger.setCursor(f.path, { ...cur, size: st.size, mtimeMs: st.mtimeMs });
@@ -371,6 +387,16 @@ export class UsageLogScanner {
     }
     const state: ParseState = { ...(cur?.state ?? {}) };
     if (f.source === 'kimi' && !state.sid) state.sid = kimiSessionId(f.path);
+    if (f.source === 'grok') state.rev = GROK_LOG_REV;
+    if (f.source === 'grok' && !state.sid) {
+      // .../sessions/<cwd>/<uuid>/updates.jsonl
+      state.sid = path.basename(path.dirname(f.path));
+      try {
+        state.cwd = decodeURIComponent(path.basename(path.dirname(path.dirname(f.path))));
+      } catch {
+        /* keep encoded */
+      }
+    }
     const startOffset = cur?.offset ?? 0;
     let offset = startOffset; // 已处理到的位置（只落在完整行末尾）
     let readPos = startOffset;

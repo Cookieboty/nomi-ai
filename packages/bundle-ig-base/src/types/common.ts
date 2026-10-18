@@ -48,7 +48,18 @@ export interface ChatResponse {
 
 export type ChatChunk =
   | { type: 'delta'; content: string }
-  | { type: 'tool_call.delta'; index: number; name?: string; argumentsJson?: string }
+  | {
+      type: 'tool_call.delta';
+      index: number;
+      name?: string;
+      argumentsJson?: string;
+      /** 工具调用 id（与随后的 tool_call.result 配对） */
+      id?: string;
+    }
+  /** 工具执行结果（MCP / 知识库 / 搜索等 Nomi 自己的工具）；error 有值表示失败 */
+  | { type: 'tool_call.result'; id: string; name: string; output?: string; error?: string }
+  /** 模型的推理 / 思考文本片段 */
+  | { type: 'reasoning'; content: string }
   | { type: 'usage'; usage: ChatUsage; /** 实际使用的上游模型名 */ model?: string }
   | { type: 'done'; finishReason: ChatResponse['finishReason'] }
   | { type: 'error'; error: string };

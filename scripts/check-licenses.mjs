@@ -59,11 +59,22 @@ export function spdxAllowed(expr, allow) {
 
 function checkDeps() {
   let out;
+  const env = { ...process.env };
+  // pnpm's Windows executable probes the default user temp path through
+  // realpathSync. In restricted sandboxes that path can return EPERM even
+  // though the workspace is writable, so keep its transient files local.
+  if (process.platform === 'win32') {
+    const workspaceTmp = path.join(ROOT, '.tmp', 'pnpm-runtime');
+    fs.mkdirSync(workspaceTmp, { recursive: true });
+    env.TEMP = workspaceTmp;
+    env.TMP = workspaceTmp;
+  }
   try {
     out = execFileSync('pnpm', ['licenses', 'list', '--prod', '-r', '--json'], {
       cwd: ROOT,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
+      env,
       shell: process.platform === 'win32',
       stdio: ['ignore', 'pipe', 'ignore'],
     });

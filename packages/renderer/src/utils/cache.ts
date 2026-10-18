@@ -36,7 +36,7 @@ export async function getCache<T>(key: string, defaultValue?: T): Promise<T | nu
       }
     }
   } catch (err) {
-    console.warn(`[Cache] 从Electron获取缓存失败: ${key}`, err);
+    log.warn(`从Electron获取缓存失败: ${key}`, err);
   }
 
   // 回退到localStorage
@@ -45,7 +45,7 @@ export async function getCache<T>(key: string, defaultValue?: T): Promise<T | nu
     if (!data) return defaultValue ?? null;
     return JSON.parse(data) as T;
   } catch (error) {
-    console.error('[Cache] 从localStorage获取缓存失败:', error);
+    log.error('从localStorage获取缓存失败:', error);
     return defaultValue ?? null;
   }
 }
@@ -70,7 +70,7 @@ export async function setCache<T>(key: string, data: T): Promise<boolean> {
       }
     }
   } catch (err) {
-    console.warn(`[Cache] 保存到Electron配置失败: ${key}`, err);
+    log.warn(`保存到Electron配置失败: ${key}`, err);
     success = false;
   }
 
@@ -79,7 +79,7 @@ export async function setCache<T>(key: string, data: T): Promise<boolean> {
     localStorage.setItem(`${CACHE_PREFIX}${key}`, JSON.stringify(data));
     log.info(`[Cache] 保存到localStorage成功: ${key}`);
   } catch (error) {
-    console.error('[Cache] 保存到localStorage失败:', error);
+    log.error('保存到localStorage失败:', error);
     success = false;
   }
 
@@ -101,7 +101,7 @@ export async function removeCache(key: string): Promise<boolean> {
       log.info(`[Cache] 从Electron删除缓存成功: ${key}`);
     }
   } catch (err) {
-    console.warn(`[Cache] 从Electron删除缓存失败: ${key}`, err);
+    log.warn(`从Electron删除缓存失败: ${key}`, err);
     success = false;
   }
 
@@ -110,7 +110,7 @@ export async function removeCache(key: string): Promise<boolean> {
     localStorage.removeItem(`${CACHE_PREFIX}${key}`);
     log.info(`[Cache] 从localStorage删除缓存成功: ${key}`);
   } catch (error) {
-    console.error('[Cache] 从localStorage删除缓存失败:', error);
+    log.error('从localStorage删除缓存失败:', error);
     success = false;
   }
 
@@ -131,7 +131,7 @@ export async function clearAllCache(): Promise<boolean> {
       log.info('[Cache] 从Electron清除模型成功');
     }
   } catch (err) {
-    console.warn('[Cache] 从Electron清除模型失败:', err);
+    log.warn('从Electron清除模型失败:', err);
     success = false;
   }
 
@@ -145,7 +145,7 @@ export async function clearAllCache(): Promise<boolean> {
     }
     log.info('[Cache] 从localStorage清除所有缓存成功');
   } catch (error) {
-    console.error('[Cache] 从localStorage清除所有缓存失败:', error);
+    log.error('从localStorage清除所有缓存失败:', error);
     success = false;
   }
 

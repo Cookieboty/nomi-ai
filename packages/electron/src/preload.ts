@@ -101,6 +101,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     dragEnd: () => ipcRenderer.send('mascot:drag-end'),
     setConfig: (cfg: unknown) => ipcRenderer.send('mascot:interaction-config', cfg),
     wanderNow: () => ipcRenderer.send('mascot:wander-now'),
+    /** 大小：读取 / 设置 / 步进（±1）/ 滚轮（累计 deltaY）/ 重置 */
+    scaleGet: () => ipcRenderer.invoke('mascot:scale-get'),
+    scaleSet: (scale: number) => ipcRenderer.invoke('mascot:scale-set', scale),
+    scaleStep: (dir: 1 | -1) => ipcRenderer.invoke('mascot:scale-step', dir),
+    scaleWheel: (deltaY: number, deltaMode?: number) =>
+      ipcRenderer.invoke('mascot:scale-wheel', deltaY, deltaMode),
+    scaleReset: () => ipcRenderer.invoke('mascot:scale-reset'),
+    onScale: (cb: (s: unknown) => void) => {
+      const l = (_: unknown, s: unknown) => cb(s);
+      ipcRenderer.on('mascot:scale-changed', l);
+      return () => {
+        ipcRenderer.removeListener('mascot:scale-changed', l);
+      };
+    },
     snapshot: () => ipcRenderer.invoke('mascot:debug-snapshot'),
     onCursor: (cb: (p: unknown) => void) => {
       const l = (_: unknown, p: unknown) => cb(p);

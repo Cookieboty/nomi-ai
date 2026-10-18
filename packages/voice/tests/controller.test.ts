@@ -119,11 +119,11 @@ describe('VoiceController continuous', () => {
     const transcribe = f.api.transcribe as ReturnType<typeof vi.fn>;
     transcribe
       .mockResolvedValueOnce({ ok: true, text: '今天好累' })
-      .mockResolvedValueOnce({ ok: true, text: '你好小桌' })
+      .mockResolvedValueOnce({ ok: true, text: '你好诺米' })
       .mockResolvedValueOnce({ ok: true, text: '讲个笑话' });
     const got: string[] = [];
     c.onTranscript((t) => got.push(t));
-    await c.startContinuous('wake', { wakePhrase: '你好小桌', wakeWindowSec: 10 });
+    await c.startContinuous('wake', { wakePhrase: '你好，诺米', wakeWindowSec: 10 });
     expect(c.state.phase).toBe('wake-armed');
     f.push(37);
     await vi.waitFor(() => expect(transcribe).toHaveBeenCalledTimes(1));
@@ -148,12 +148,12 @@ describe('VoiceController continuous', () => {
       createVad: async () => scriptedVad([...utter, ...utter]),
     });
     const transcribe = f.api.transcribe as ReturnType<typeof vi.fn>;
-    transcribe.mockResolvedValue({ ok: true, text: '小桌小桌' });
-    await c.startContinuous('wake', { wakePhrase: '你好小桌', wakeWindowSec: 10 });
+    transcribe.mockResolvedValue({ ok: true, text: '诺米诺米' });
+    await c.startContinuous('wake', { wakePhrase: '你好，诺米', wakeWindowSec: 10 });
     f.push(37);
     await vi.waitFor(() => expect(transcribe).toHaveBeenCalledTimes(1));
     expect(c.state.phase).toBe('wake-armed');
-    c.updateSettings({ wakePhrase: '小桌小桌' });
+    c.updateSettings({ wakePhrase: '诺米诺米' });
     f.push(37);
     await vi.waitFor(() => expect(c.state.phase).toBe('awake'));
   });

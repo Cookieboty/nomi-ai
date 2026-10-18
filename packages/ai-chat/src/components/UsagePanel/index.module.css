@@ -575,78 +575,6 @@ i.heatCell {
 }
 
 /* 订阅额度 */
-.quotaEntry {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0;
-}
-.quotaName {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text);
-}
-.quotaList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px 20px;
-}
-.quotaWin {
-  min-width: 0;
-}
-.quotaWinHead {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
-}
-.quotaWinHead b {
-  color: var(--cd-color-text);
-  font-weight: 600;
-}
-.quotaBar {
-  margin-top: 6px;
-  height: 6px;
-  border-radius: 3px;
-  background: var(--cd-color-hover);
-  overflow: hidden;
-}
-.quotaBar i {
-  display: block;
-  height: 100%;
-  border-radius: 3px;
-  background: var(--usage-in);
-}
-.quotaMid i {
-  background: var(--cd-color-warning);
-}
-.quotaHigh i {
-  background: var(--cd-color-danger);
-}
-.quotaNone {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 0;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
-}
-.quotaNotes {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: var(--cd-font-size-sm);
-}
 .quotaHook {
   display: flex;
   flex-direction: column;
@@ -684,5 +612,86 @@ i.heatCell {
   }
   .sub2 {
     max-width: 120px;
+  }
+}
+
+.toolUsageRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.toolUsageRow b {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 订阅额度 · 工具卡片（网格，样式沿用概览的 card / rows / bar） */
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.toolCard {
+  gap: 10px;
+  padding: 12px 14px;
+  overflow: visible;
+}
+.toolHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.toolName {
+  font-size: var(--cd-font-size-md);
+  color: var(--cd-color-text);
+}
+.grow {
+  flex: 1;
+}
+.toolBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.toolBody .cardLabel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.toolFoot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--cd-color-border);
+  font-size: var(--cd-font-size-xs);
+}
+.toolFoot .err {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+}
+.barMid i {
+  background: var(--cd-color-warning);
+}
+.barHigh i {
+  background: var(--cd-color-danger);
+}
+.spin {
+  animation: usage-spin 1s linear infinite;
+}
+@keyframes usage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
   }
 }

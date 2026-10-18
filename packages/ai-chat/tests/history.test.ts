@@ -66,6 +66,76 @@ describe('ConversationStore', () => {
     expect(reopened.getMessages(second)[0]!.content).toBe('other');
   });
 
+  it('caches loaded messages until the conversation is changed', () => {
+    const base = createMemoryStorage();
+    base.setItem(
+      'ai-chat:conversations',
+      JSON.stringify([{ id: 'c1', name: 'cached', createdAt: 1, updatedAt: 1, backend: 'nomi' }]),
+    );
+    base.setItem('ai-chat:conversation:c1', JSON.stringify([msg('1', 'user', 'hello')]));
+    let reads = 0;
+    const storage = {
+      getItem: (key: string) => {
+        reads++;
+        return base.getItem(key);
+      },
+      setItem: base.setItem,
+      removeItem: base.removeItem,
+    };
+    const s = new ConversationStore({ storage });
+    reads = 0;
+
+    expect(s.getMessages('c1')).toHaveLength(1);
+    // 一次读消息，一次读当前会话 id（淘汰时要保住当前会话）
+    expect(reads).toBe(2);
+    expect(s.getMessages('c1')).toHaveLength(1);
+    expect(reads).toBe(2);
+
+    s.append(msg('2', 'assistant', 'world'), 'c1');
+    expect(s.getMessages('c1').map((m) => m.content)).toEqual(['hello', 'world']);
+  });
+
+  it('evicts old message caches, keeps the current one, and previews without caching', () => {
+    const base = createMemoryStorage();
+    let reads = 0;
+    const storage = {
+      getItem: (key: string) => {
+        if (key.startsWith('ai-chat:conversation:')) reads++;
+        return base.getItem(key);
+      },
+      setItem: base.setItem.bind(base),
+      removeItem: base.removeItem.bind(base),
+    };
+    let n = 0;
+    const s = new ConversationStore({
+      storage,
+      maxCachedConversations: 2,
+      now: () => 1,
+      newId: () => `c${++n}`,
+    });
+    const a = s.create({ name: 'A' }).id;
+    s.append(msg('1', 'user', 'alpha message'), a);
+    const b = s.create({ name: 'B' }).id;
+    s.append(msg('2', 'user', 'beta'), b);
+    const c = s.create({ name: 'C' }).id;
+    s.append(msg('3', 'user', 'gamma'), c);
+
+    reads = 0;
+    expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
+    expect(s.getMessages(b).map((m) => m.content)).toEqual(['beta']);
+    expect(reads).toBe(0);
+
+    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
+    expect(reads).toBe(1);
+
+    reads = 0;
+    expect(s.firstUserPreview(b)).toBe('beta');
+    expect(reads).toBe(1);
+    expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
+    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
+    expect(reads).toBe(1);
+  });
+
   it('trims to maxMessages and migrates the legacy single-history key', () => {
     const storage = createMemoryStorage();
     storage.setItem(
@@ -229,9 +299,9 @@ describe('SdkIPCClient · multi-turn', () => {
     const ipc = new SdkIPCClient(client as never);
     const history = [msg('1', 'user', 'q1'), msg('2', 'assistant', 'a1')];
 
-    await expect(ipc.sendMessage('q2', 'openai', history)).resolves.toBe('reply');
+    await expect(ipc.sendMessage('q2', history)).resolves.toBe('reply');
     const chunks: string[] = [];
-    await ipc.sendStreamMessage('q3', 'openai', (c) => chunks.push(c), [
+    await ipc.sendStreamMessage('q3', (c) => chunks.push(c), [
       ...history,
       msg('3', 'user', 'q2'),
       msg('4', 'assistant', 'reply'),
@@ -239,7 +309,6 @@ describe('SdkIPCClient · multi-turn', () => {
 
     expect(chunks).toEqual(['str']);
     const [send, stream] = calls;
-    expect(send!.opts.provider).toBe('openai');
     expect(send!.opts.messages).toEqual([
       { role: 'system', content: expect.stringContaining('Nomi') },
       { role: 'user', content: 'q1' },

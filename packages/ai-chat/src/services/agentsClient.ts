@@ -1,7 +1,7 @@
 import { t } from '@nomi-ai/ui';
 /** 编程助手进度客户端：`ai:agents:*` IPC（经 preload 的 window.aiIPC） */
 export type AgentKind =
-  'codex' | 'claude' | 'dsh' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
+  'codex' | 'claude' | 'dsh' | 'grok' | 'aider' | 'cline' | 'continue' | 'cursor' | 'gemini';
 export type AgentStatus = 'running' | 'waiting' | 'completed' | 'failed' | 'stalled' | 'idle';
 
 export interface AgentWatchSettings {
@@ -54,6 +54,7 @@ export const AGENT_LABEL: Record<AgentKind, string> = {
   codex: 'Codex',
   claude: 'Claude Code',
   dsh: 'dsh',
+  grok: 'Grok',
   aider: 'Aider',
   cline: 'Cline',
   continue: 'Continue',

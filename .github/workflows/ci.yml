@@ -63,6 +63,9 @@ jobs:
       - name: i18n check (every user-facing string has an English translation)
         run: pnpm check:i18n
 
+      - name: Frontend architecture check (file budgets and registered exceptions)
+        run: pnpm check:frontend
+
       - name: Turbo cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -76,6 +79,12 @@ jobs:
 
       - name: Root script tests
         run: pnpm run test:root
+
+      # 首屏体积预算：只报告（::warning 注解 + job summary），不让 CI 变红；要强制失败加 --strict
+      - name: Bundle size budget (informational)
+        if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
+        run: node scripts/check-bundle-budget.mjs
 
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest'

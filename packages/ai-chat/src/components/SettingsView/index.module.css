@@ -377,3 +377,23 @@
   gap: 10px;
   margin: 12px 0;
 }
+
+.sizeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.range {
+  flex: 1;
+  min-width: 120px;
+  max-width: 360px;
+  accent-color: var(--cd-color-accent);
+}
+.sizeValue {
+  min-width: 48px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text);
+  font-size: 13px;
+}

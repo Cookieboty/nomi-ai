@@ -8,9 +8,8 @@ import { ChevronLeft } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { cliProviderClient } from '../../services/cliProviderClient';
-import { providerClientAvailable } from '../../services/providerClient';
 import { AppIcon } from '../AppIcons';
-import { ConfigPanel, ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
+import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
 import type { ScreenTab } from '../ScreenPanel';
@@ -20,6 +19,7 @@ import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
+import { MascotSizeSettings } from './MascotSizeSettings';
 import { PinsSettings } from './PinsSettings';
 import { PrivacySection } from './PrivacySection';
 import { ScheduleSection } from './ScheduleSection';
@@ -94,6 +94,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <>
             <LanguageSettings />
             <AppIconSettings />
+            <MascotSizeSettings />
             <UpdateSettings />
             <section className={styles.block}>
               <h2 className={styles.h2}>{t('新手引导')}</h2>
@@ -114,13 +115,12 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             </section>
             <ThemeSettings />
             <PinsSettings />
-            <ConfigPanel isVisible onClose={noop} />
           </>
         );
       case 'shortcuts':
         return <ShortcutSettings />;
       case 'coding':
-        return providerClientAvailable() || cliProviderClient.available() ? (
+        return cliProviderClient.available() ? (
           <ProvidersPage onOpenedTab={onClose} onOpenNotify={() => onSection('notify')} />
         ) : (
           <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>

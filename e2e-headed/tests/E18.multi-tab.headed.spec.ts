@@ -135,7 +135,7 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await expect(chat.locator('[data-testid="chat-tabs-max-concurrent"]')).toHaveValue('2');
     await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(2);
     await expect(chat.locator('[role="tab"][data-status="queued"]')).toHaveCount(1);
-    await expect(chat.locator('[data-testid="cli-tab-live"]')).toContainText('排队中');
+    await expect(chat.locator('[data-testid="conv-live"]')).toContainText('排队等待');
     await shot(chat, '03-concurrent-running-queued');
 
     // 全部完成：concurrency 控件常驻，等 running/queued 归零（勿断言 chat-tabs-load 消失）
@@ -170,7 +170,7 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await expect(tabs.nth(2)).toContainText('Tests');
 
     // 监视器汇总：设置 → 编程助手 → 监视与会话 → Nomi 标签
-    await chat.click('[data-testid="sidebar-settings"]');
+    await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await chat.click('[data-testid="providers-endpoint-monitor"]');
     await expect(chat.locator('[data-testid="agents-endpoints"]')).toBeVisible({

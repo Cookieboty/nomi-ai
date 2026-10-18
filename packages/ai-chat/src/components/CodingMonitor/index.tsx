@@ -3,7 +3,17 @@
  * + 活跃会话列表（按端点筛选；Nomi 标签可直接打开）。
  * 只读本地日志与进程列表，不登录、不抓取任何账号。通知样式与灵动岛在「通知 / 灵动岛」里设置。
  */
-import { Badge, Button, Card, EmptyState, Notice, Switch, t as tr, Icon } from '@nomi-ai/ui';
+import {
+  Badge,
+  Button,
+  Card,
+  createLogger,
+  EmptyState,
+  Notice,
+  Switch,
+  t as tr,
+  Icon,
+} from '@nomi-ai/ui';
 import { SquareTerminal, Check } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -24,6 +34,8 @@ import { sessionUsageText } from '../UsagePanel/format';
 import { useUsageFx } from '../UsagePanel/useFx';
 
 import styles from './index.module.css';
+
+const log = createLogger('coding-monitor');
 
 /** 相对时间：刚刚 / N 分钟前 / N 小时前 / 日期 */
 export function relTime(ms: number, now = Date.now()): string {
@@ -51,7 +63,7 @@ export const CodingMonitor: React.FC<{
       .then(setAgents)
       .catch((e) => {
         // 主进程未就绪时不污染整页错误条
-        console.warn('[agents]', e instanceof Error ? e.message : String(e));
+        log.warn(e instanceof Error ? e.message : String(e));
       });
   }, []);
   useEffect(() => {
@@ -97,12 +109,12 @@ export const CodingMonitor: React.FC<{
               onChange={(v) =>
                 void agentsClient.setSettings({ summaryEnabled: v }).then(loadAgents)
               }
-              label={tr('总结播报（语音播报任务进度与完成总结）')}
+              label={tr('编程助手消息语音播报（Codex 等）')}
               data-testid="agents-summary"
             />
             <p className={styles.hint}>
               {tr(
-                '开启后，每 10 分钟的汇总会附带当前任务进度并朗读，任务结束时朗读完成总结；关闭时只显示气泡 / 灵动岛的简短提示，不出声。遵守语音开关与静音。',
+                '开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时任务状态提示保留提示音，定时汇总只显示提示。遵守语音开关与静音。',
               )}
             </p>
             <p className={styles.hint}>
@@ -174,7 +186,7 @@ export const CodingMonitor: React.FC<{
                     data-testid={`agents-filter-${k}`}
                     onClick={() => setAgentFilter(k)}
                   >
-                    {k === 'claude' || k === 'codex' || k === 'dsh' ? (
+                    {k === 'claude' || k === 'codex' || k === 'dsh' || k === 'grok' ? (
                       <EndpointIcon backend={k} size={14} decorative />
                     ) : null}
                     {k === 'all'

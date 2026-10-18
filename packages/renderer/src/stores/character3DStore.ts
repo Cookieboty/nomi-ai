@@ -303,7 +303,7 @@ useCharacter3DStore.subscribe(
   (frameRate) => {
     // 如果帧率过低，发出警告
     if (frameRate < 20) {
-      console.warn(`性能警告: 当前帧率 ${frameRate.toFixed(1)} FPS 过低`);
+      log.warn(`性能警告: 当前帧率 ${frameRate.toFixed(1)} FPS 过低`);
     }
   },
 );
@@ -314,7 +314,7 @@ useCharacter3DStore.subscribe(
   (memoryUsage) => {
     // 如果内存使用过高，发出警告
     if (memoryUsage > 200) {
-      console.warn(`内存警告: 当前内存使用 ${memoryUsage.toFixed(1)} MB 过高`);
+      log.warn(`内存警告: 当前内存使用 ${memoryUsage.toFixed(1)} MB 过高`);
     }
   },
 );

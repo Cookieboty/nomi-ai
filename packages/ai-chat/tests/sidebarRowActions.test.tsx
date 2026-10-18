@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
+import { CONVERSATIONS_CHANGED_EVENT } from '../src/services/conversationStore';
 import type { HistorySession } from '../src/services/historyClient';
 
 const now = Date.now();
@@ -120,6 +121,20 @@ afterEach(() => {
 });
 
 describe('sidebar row actions', () => {
+  it('列表在外部改动（如分叉）后收到 conversations-changed 立即刷新（D1 回归）', async () => {
+    setChatMode('normal');
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-item'));
+    expect(r.container.querySelector('[data-conversation-id="n3"]')).toBeNull();
+    convs = [conv('n3', '周报 (副本)', 'nomi', 0), ...convs];
+    act(() => {
+      window.dispatchEvent(new Event(CONVERSATIONS_CHANGED_EVENT));
+    });
+    await waitFor(() =>
+      expect(r.container.querySelector('[data-conversation-id="n3"]')).not.toBeNull(),
+    );
+  });
+
   it('every conversation row carries rename / delete / more icon buttons with tooltips + aria-labels', async () => {
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));

@@ -4,10 +4,11 @@ import { MASCOT_CSP, mascotCspString } from '../../src/security/csp';
 
 describe('mascot window CSP', () => {
   it('scripts only from the app itself', () => {
-    expect(MASCOT_CSP['script-src']).toEqual(["'self'"]);
+    expect(MASCOT_CSP['script-src']).toEqual(["'self'", "'wasm-unsafe-eval'"]);
     const csp = mascotCspString();
     const script = csp.split('; ').find((d) => d.startsWith('script-src'))!;
-    expect(script).not.toMatch(/unsafe-inline|unsafe-eval|https?:|\*/);
+    expect(script).toContain("'wasm-unsafe-eval'");
+    expect(script).not.toMatch(/'unsafe-inline'|'unsafe-eval'|https?:|\*/);
   });
   it('locks down plugins, frames, base and forms', () => {
     expect(MASCOT_CSP['object-src']).toEqual(["'none'"]);

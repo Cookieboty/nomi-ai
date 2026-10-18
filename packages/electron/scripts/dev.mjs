@@ -77,6 +77,12 @@ const electron = require('electron'); // 首次运行会自动下载对应平台
 log(`starting Electron (${electron})`);
 // 额外的 Electron/Chromium 参数（例如 CI / xvfb 下的 --enable-unsafe-swiftshader、--user-data-dir=...）
 const extra = (process.env.ELECTRON_ARGS ?? '').split(/\s+/).filter(Boolean);
+// Codex's Windows AppContainer cannot traverse arbitrary host paths, so Electron's
+// Chromium sandbox exits before the dev window is created. Keep this dev-only
+// fallback scoped to that environment; normal local development remains sandboxed.
+if (process.env.CODEX_WINDOWS_SANDBOX_PACKAGE_FAMILY && !extra.includes('--no-sandbox')) {
+  extra.unshift('--no-sandbox');
+}
 const app = start(electron, ['.', ...extra], { NODE_ENV: 'development' });
 const stop = (code) => {
   for (const c of children) if (!c.killed) c.kill();

@@ -1,7 +1,9 @@
+import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, ipcMain, screen } from 'electron';
 
 import {
   advance,
+  areaUnder,
   anchorOnBoxChange,
   clampToWorld,
   pickWanderTarget,
@@ -13,6 +15,20 @@ import {
   type PhysicsEvent,
   type Rect,
 } from './desktopPhysics';
+import {
+  DEFAULT_MASCOT_SCALE,
+  MASCOT_BASE,
+  MASCOT_PAD,
+  MASCOT_SCALE_STEP,
+  MAX_MASCOT_SCALE,
+  MIN_MASCOT_SCALE,
+  fitMascotScale,
+  maxScaleForArea,
+  resizeMascotBounds,
+  roundMascotScale,
+  stepMascotScale,
+  wheelMascotScale,
+} from './mascotSize';
 
 export interface InteractionConfig {
   /** 透明区域点击穿透 */
@@ -35,13 +51,32 @@ export const DEFAULT_INTERACTION: InteractionConfig = {
   globalLook: true,
 };
 
+export interface MascotScaleHooks {
+  /** 用户偏好（持久化值） */
+  get(): number;
+  /** 用户操作后持久化（主进程防抖落盘） */
+  save(scale: number): void;
+  /** 状态变化后广播给其它窗口（设置页） */
+  changed?(state: MascotScaleState): void;
+  /** 允许调用缩放 IPC 的窗口；默认只有看板娘窗口自己 */
+  trusted?(sender: Electron.WebContents): boolean;
+}
+
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 const TICK_MS = 1000 / 60;
+/** 空闲（无拖拽 / 无物理运动 / 光标静止）时降频，避免 60Hz 永久空转占主线程。
+ *  取 ~8Hz：光标“第一动”最长 120ms 后即提频，视线跟随无可察觉延迟 */
+const IDLE_TICK_MS = 120;
+/** 窗口隐藏 / 最小化时的保活间隔 */
+const HIDDEN_TICK_MS = 1000;
+/** 最后一次活动后继续保持高频的时长 */
+const ACTIVE_HOLD_MS = 400;
 /** Linux 用窗口形状做点击穿透（见 setShape） */
 const SHAPE_MODE = process.platform === 'linux';
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const CURSOR_EVERY = 2; // 每 2 帧（~30Hz）同步一次光标
+/** 光标同步节流：~30Hz。用时间而非帧计数，保证空闲低频 tick 下移动首帧也能立即发出 */
+const CURSOR_MS = 1000 / 30;
 
 /**
  * 看板娘窗口控制器（主进程）：
@@ -56,7 +91,9 @@ export class MascotWindowController {
   private body: BodyState = { x: 0, y: 0, vx: 0, vy: 0, mode: 'idle' };
   private box: CharacterBox | null = null;
   private workAreas: Rect[] = [];
-  private timer: ReturnType<typeof setInterval> | null = null;
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  /** 最近一次活动（拖拽 / 物理运动 / 光标移动）时间，用于空闲降频 */
+  private lastActivityAt = 0;
   private last = 0;
   private acc = 0;
   private frame = 0;
@@ -70,19 +107,35 @@ export class MascotWindowController {
   private prevV = { vx: 0, vy: 0 };
   private nextWanderAt = 0;
   private lastCursor = { x: NaN, y: NaN };
+  private lastCursorAt = 0;
   private readonly disposers: Array<() => void> = [];
 
   constructor(
     private readonly win: BrowserWindow,
     private readonly logger: Logger,
     private readonly rnd: () => number = Math.random,
+    private readonly scaleHooks?: MascotScaleHooks,
   ) {}
+
+  /** 生效缩放（窗口当前大小对应的 scale）与用户偏好（屏幕变小时只临时压低，不改写偏好） */
+  private scale = DEFAULT_MASCOT_SCALE;
+  private pref = DEFAULT_MASCOT_SCALE;
 
   start(): void {
     this.refreshDisplays();
+    {
+      const [w] = this.win.getSize();
+      this.scale = roundMascotScale((w - 2 * MASCOT_PAD.x) / MASCOT_BASE.width);
+      this.pref = this.scaleHooks?.get() ?? this.scale;
+    }
     const [x, y] = this.win.getPosition();
     this.body = { x, y, vx: 0, vy: 0, mode: 'idle' };
-    const onDisplays = () => this.refreshDisplays();
+    const onDisplays = () => {
+      this.refreshDisplays();
+      // 屏幕变小 / 拔掉外接屏：临时压低到可见范围；回到大屏后恢复偏好值
+      const want = fitMascotScale(this.pref, this.capNow());
+      if (want !== this.scale && !this.win.isDestroyed()) this.applyScale(want, false, true);
+    };
     screen.on('display-added', onDisplays);
     screen.on('display-removed', onDisplays);
     screen.on('display-metrics-changed', onDisplays);
@@ -112,18 +165,108 @@ export class MascotWindowController {
     on('mascot:interaction-config', (_e, cfg) => this.setConfig(cfg));
     on('mascot:wander-now', () => this.startWander());
 
+    // 大小：Ctrl/⌘+滚轮、菜单、设置页滑块、快捷键
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
+      ipcMain.removeHandler(ch);
+      ipcMain.handle(ch, (e, ...a) => {
+        const ok = this.scaleHooks?.trusted
+          ? this.scaleHooks.trusted(e.sender)
+          : e.sender === this.win.webContents;
+        return ok ? fn(...a) : this.scaleState();
+      });
+      this.disposers.push(() => ipcMain.removeHandler(ch));
+    };
+    handle('mascot:scale-get', () => this.scaleState());
+    handle('mascot:scale-set', (v) =>
+      num(v) === null ? this.scaleState() : this.setScale(num(v)!),
+    );
+    handle('mascot:scale-step', (d) =>
+      this.setScale(stepMascotScale(this.scale, d === -1 ? -1 : 1, this.capNow())),
+    );
+    handle('mascot:scale-wheel', (dy, mode) =>
+      num(dy) === null
+        ? this.scaleState()
+        : this.setScale(wheelMascotScale(this.scale, num(dy)!, num(mode) ?? 0, this.capNow())),
+    );
+    handle('mascot:scale-reset', () => this.setScale(DEFAULT_MASCOT_SCALE));
+
+    // Ctrl/⌘ + =/+ 在部分键盘布局下会被 Chromium 的默认菜单当作 zoomIn accelerator
+    // 吃掉，不派发到 renderer 的 keydown。before-input-event 在页面与内置快捷键之前触发，
+    // preventDefault() 后由我们直接走窗口尺寸缩放，保证 +/-/0 快捷键在任意布局下都生效。
+    const wc = this.win.webContents;
+    try {
+      wc.setVisualZoomLevelLimits(1, 1);
+    } catch (err) {
+      this.logger.warn('锁定 Chromium 页面缩放失败', { error: String(err) });
+    }
+    const onBeforeInput = (event: Electron.Event, input: Electron.Input) => {
+      if (input.type !== 'keyDown') return;
+      if (input.alt || !(input.control || input.meta)) return;
+      const code = input.code;
+      const key = input.key;
+      let action: 'up' | 'down' | 'reset';
+      if (
+        code === 'Equal' ||
+        code === 'NumpadAdd' ||
+        code === 'BracketRight' ||
+        key === '+' ||
+        key === '='
+      )
+        action = 'up';
+      else if (
+        code === 'Minus' ||
+        code === 'NumpadSubtract' ||
+        code === 'Slash' ||
+        key === '-' ||
+        key === '_'
+      )
+        action = 'down';
+      else if (code === 'Digit0' || code === 'Numpad0' || key === '0') action = 'reset';
+      else return;
+      event.preventDefault();
+      if (action === 'reset') this.setScale(DEFAULT_MASCOT_SCALE);
+      else this.setScale(stepMascotScale(this.scale, action === 'up' ? 1 : -1, this.capNow()));
+    };
+    wc.on('before-input-event', onBeforeInput);
+    this.disposers.push(() => {
+      if (this.win.isDestroyed()) return;
+      wc.off('before-input-event', onBeforeInput);
+    });
+
     // 只读快照（e2e / 调试）
     ipcMain.removeHandler('mascot:debug-snapshot');
     ipcMain.handle('mascot:debug-snapshot', () => this.snapshot());
     this.disposers.push(() => ipcMain.removeHandler('mascot:debug-snapshot'));
     this.win.on('closed', () => this.dispose());
+    // 从隐藏 / 最小化恢复：立即提频，不必等下一个 1s 保活 tick
+    const wake = () => {
+      if (this.win.isDestroyed()) return;
+      this.last = performance.now();
+      this.lastActivityAt = this.last;
+      this.schedule(TICK_MS);
+    };
+    this.win.on('show', wake);
+    this.win.on('restore', wake);
+    this.disposers.push(() => {
+      if (this.win.isDestroyed()) return;
+      this.win.off('show', wake);
+      this.win.off('restore', wake);
+    });
     this.last = performance.now();
+    this.lastActivityAt = this.last;
     this.nextWanderAt = this.last + 15000;
-    this.timer = setInterval(() => this.tick(), TICK_MS);
+    this.schedule(TICK_MS);
+  }
+
+  private schedule(delay: number): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => this.tick(), delay);
+    // 定时器不应阻止 app 空闲退出（与其它常驻服务一致）
+    if (typeof this.timer === 'object' && 'unref' in this.timer) this.timer.unref();
   }
 
   dispose(): void {
-    if (this.timer) clearInterval(this.timer);
+    if (this.timer) clearTimeout(this.timer);
     this.timer = null;
     for (const d of this.disposers.splice(0)) d();
   }
@@ -144,6 +287,83 @@ export class MascotWindowController {
     if (!this.cfg.wander && this.body.mode === 'walking')
       this.body = { ...this.body, mode: 'idle', vx: 0 };
     this.logger.info('Nomi 互动设置', this.cfg);
+  }
+
+  /** 角色脚底所在显示器允许的最大缩放 */
+  private capNow(): number {
+    const [wx] = this.win.getPosition();
+    const [w] = this.win.getSize();
+    const cx = this.box ? wx + (this.box.left + this.box.right) / 2 : wx + w / 2;
+    return maxScaleForArea(this.workAreas.length ? areaUnder(this.workAreas, cx) : null);
+  }
+
+  scaleState(): MascotScaleState {
+    const [width, height] = this.win.isDestroyed() ? [0, 0] : this.win.getSize();
+    return {
+      scale: this.scale,
+      min: MIN_MASCOT_SCALE,
+      max: this.capNow(),
+      hardMax: MAX_MASCOT_SCALE,
+      default: DEFAULT_MASCOT_SCALE,
+      step: MASCOT_SCALE_STEP,
+      window: { width, height },
+    };
+  }
+
+  /** 用户设置大小：夹紧到屏幕范围、保持脚底中心不动、持久化、通知 */
+  setScale(raw: number): MascotScaleState {
+    return this.applyScale(fitMascotScale(raw, this.capNow()), true, true);
+  }
+
+  private applyScale(target: number, userPref: boolean, notify: boolean): MascotScaleState {
+    if (this.win.isDestroyed()) return this.scaleState();
+    if (userPref) this.pref = target;
+    if (target !== this.scale) {
+      const b = this.win.getBounds();
+      const from = this.scale;
+      const nb = resizeMascotBounds({
+        bounds: b,
+        fromScale: from,
+        toScale: target,
+        box: this.box,
+        workAreas: this.workAreas,
+      });
+      try {
+        // Linux(GTK) 的不可缩放窗口会把尺寸提示锁死；程序化缩放时临时放开
+        const lock = process.platform === 'linux' && !this.win.isResizable();
+        if (lock) this.win.setResizable(true);
+        this.win.setBounds(nb);
+        if (lock) this.win.setResizable(false);
+      } catch (err) {
+        this.logger.warn('缩放看板娘窗口失败', { error: String(err) });
+        return this.scaleState();
+      }
+      const r = target / from;
+      if (this.box) {
+        const k = (v: number, pad: number, max: number) =>
+          Math.max(0, Math.min(max, pad + (v - pad) * r));
+        this.box = {
+          left: k(this.box.left, MASCOT_PAD.x, nb.width),
+          right: k(this.box.right, MASCOT_PAD.x, nb.width),
+          top: k(this.box.top, MASCOT_PAD.top, nb.height),
+          bottom: k(this.box.bottom, MASCOT_PAD.top, nb.height),
+        };
+      }
+      if (this.drag) {
+        // 拖拽中缩放：指针保持在角色同一位置
+        this.drag = { dx: this.drag.dx - (nb.x - b.x), dy: this.drag.dy - (nb.y - b.y) };
+      }
+      this.body = { ...this.body, x: nb.x, y: nb.y };
+      this.scale = target;
+      this.hitKnown = false;
+    }
+    const state = this.scaleState();
+    if (userPref) this.scaleHooks?.save(this.pref);
+    if (notify) {
+      this.send('mascot:scale-changed', state);
+      this.scaleHooks?.changed?.(state);
+    }
+    return state;
   }
 
   private refreshDisplays(): void {
@@ -233,6 +453,9 @@ export class MascotWindowController {
   }
 
   private dragStart(sx: number | null, sy: number | null): void {
+    // 立即切回高频，不等下一个空闲 tick（起拖不能有延迟）
+    this.lastActivityAt = performance.now();
+    this.schedule(TICK_MS);
     const c = sx !== null && sy !== null ? { x: sx, y: sy } : screen.getCursorScreenPoint();
     this.dragPoint = c;
     const [x, y] = this.win.getPosition();
@@ -272,14 +495,18 @@ export class MascotWindowController {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
-    // 窗口隐藏 / 最小化：暂停物理与光标同步
-    if (!this.win.isVisible() || this.win.isMinimized()) return;
+    // 窗口隐藏 / 最小化：暂停物理与光标同步，仅以低频保活（可见性恢复后立即提速）
+    if (!this.win.isVisible() || this.win.isMinimized()) {
+      this.schedule(HIDDEN_TICK_MS);
+      return;
+    }
     this.frame += 1;
 
     const cursor = screen.getCursorScreenPoint();
     const env = this.env();
     let events: PhysicsEvent[] = [];
     if (this.drag) {
+      this.lastActivityAt = now;
       const p = this.dragPoint ?? cursor;
       const tx = p.x - this.drag.dx;
       const ty = p.y - this.drag.dy;
@@ -304,13 +531,17 @@ export class MascotWindowController {
     const [wx, wy] = this.win.getPosition();
     const nx = Math.round(this.body.x);
     const ny = Math.round(this.body.y);
-    if (nx !== wx || ny !== wy) this.win.setPosition(nx, ny);
+    if (nx !== wx || ny !== wy) {
+      this.win.setPosition(nx, ny);
+      this.lastActivityAt = now;
+    }
 
     // 运动状态 → 渲染进程（弹簧骨骼惯性 / 悬空姿态 / 走路动画）
     const ax = (this.body.vx - this.prevV.vx) / Math.max(dt, 1e-3);
     const ay = (this.body.vy - this.prevV.vy) / Math.max(dt, 1e-3);
     this.prevV = { vx: this.body.vx, vy: this.body.vy };
     const moving = this.body.mode !== 'idle' || Math.abs(this.body.vx) + Math.abs(this.body.vy) > 1;
+    if (moving) this.lastActivityAt = now;
     if (moving || this.frame % 30 === 0) {
       this.send('mascot:body', {
         mode: this.body.mode,
@@ -323,10 +554,14 @@ export class MascotWindowController {
     }
     for (const e of events) this.send('mascot:physics-event', e);
 
-    if (this.frame % CURSOR_EVERY === 0) {
-      const rx = cursor.x - nx;
-      const ry = cursor.y - ny;
-      if (rx !== this.lastCursor.x || ry !== this.lastCursor.y) {
+    const rx = cursor.x - nx;
+    const ry = cursor.y - ny;
+    if (rx !== this.lastCursor.x || ry !== this.lastCursor.y) {
+      // 光标在移动：视线跟随需要，保持高频；静止后自然降到空闲频率。
+      // 时间节流（非帧取模），空闲低频下首个移动 tick 也能立即发出，不再丢首帧。
+      this.lastActivityAt = now;
+      if (now - this.lastCursorAt >= CURSOR_MS || Number.isNaN(this.lastCursor.x)) {
+        this.lastCursorAt = now;
         this.lastCursor = { x: rx, y: ry };
         const [w, h] = this.win.getSize();
         this.send('mascot:cursor', {
@@ -338,6 +573,10 @@ export class MascotWindowController {
     }
     // 渲染进程还没回报过命中：保持可交互，避免“点不到”
     if (!this.hitKnown && this.ignoring) this.applyIgnore(false);
+
+    // 自适应调度：拖拽 / 物理运动 / 光标移动后短时间内保持 60Hz，空闲降到 ~8Hz
+    const busy = this.drag !== null || moving || now - this.lastActivityAt < ACTIVE_HOLD_MS;
+    this.schedule(busy ? TICK_MS : IDLE_TICK_MS);
   }
 
   private send(ch: string, payload: unknown): void {

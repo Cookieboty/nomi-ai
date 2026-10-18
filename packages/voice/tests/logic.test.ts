@@ -66,24 +66,24 @@ describe('segmenter', () => {
 
 describe('wake word', () => {
   it('normalizes punctuation, case and traditional chars', () => {
-    expect(normalizeForWake('妳好，小桌！')).toBe('你好小桌');
-    expect(normalizeForWake('Hey, Desk.')).toBe('heydesk');
+    expect(normalizeForWake('妳好，诺米！')).toBe('你好诺米');
+    expect(normalizeForWake('Hey, Nomi.')).toBe('heynomi');
   });
   it('matches with tolerance and returns the rest as a command', () => {
-    expect(matchWakePhrase('你好小桌。', '你好小桌')).toEqual({ matched: true, rest: '' });
-    expect(matchWakePhrase('你好，小卓，明天天气怎么样？', '你好小桌')).toEqual({
+    expect(matchWakePhrase('你好诺米。', '你好，诺米')).toEqual({ matched: true, rest: '' });
+    expect(matchWakePhrase('你好，诺咪，明天天气怎么样？', '你好，诺米')).toEqual({
       matched: true,
       rest: '明天天气怎么样？',
     });
-    expect(matchWakePhrase('Hey desk, open notes', 'hey desk').rest).toBe('open notes');
+    expect(matchWakePhrase('Hey nomi, open notes', 'hey nomi').rest).toBe('open notes');
   });
   it('does not match unrelated speech or phrase deep inside a sentence', () => {
-    expect(matchWakePhrase('今天吃什么', '你好小桌').matched).toBe(false);
-    expect(matchWakePhrase('我刚才跟同事说了一句你好小桌', '你好小桌').matched).toBe(false);
-    expect(matchWakePhrase('', '你好小桌').matched).toBe(false);
+    expect(matchWakePhrase('今天吃什么', '你好，诺米').matched).toBe(false);
+    expect(matchWakePhrase('我刚才跟同事说了一句你好诺米', '你好，诺米').matched).toBe(false);
+    expect(matchWakePhrase('', '你好，诺米').matched).toBe(false);
   });
   it('matches right after a sentence boundary (speech merged into one segment)', () => {
-    expect(matchWakePhrase('刚才那个不算。你好小桌，放首歌', '你好小桌')).toEqual({
+    expect(matchWakePhrase('刚才那个不算。你好诺米，放首歌', '你好，诺米')).toEqual({
       matched: true,
       rest: '放首歌',
     });

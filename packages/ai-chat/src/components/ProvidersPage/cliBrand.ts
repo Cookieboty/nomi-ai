@@ -46,6 +46,6 @@ export function presetFormat(protocol: Protocol): Fmt {
 
 /** 该端点的原生上游格式 */
 export function nativeFormat(kind: CliProviderKind, f: string): boolean {
-  if (kind === 'dsh') return true;
+  if (kind === 'dsh' || kind === 'grok') return true;
   return kind === 'claude' ? f === 'anthropic_messages' : f === 'openai_responses';
 }

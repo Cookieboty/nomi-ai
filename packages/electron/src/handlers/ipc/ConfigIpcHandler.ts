@@ -253,7 +253,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         // downloading / superseded 属预期情形，由逐请求结果日志 + 服务内限频进度日志覆盖，避免刷屏
         if (code === 'downloading' || code === 'superseded') return;
         const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn('sherpa TTS 不可用，回退系统语音', { code, message });
+        this.logger.warn('sherpa TTS 不可用，保持静默', { code, message });
       },
       // 每条 tts:speak 都必有一条结果日志：success / fallback / error + provider
       onOutcome: (o) => {
@@ -321,8 +321,6 @@ export class ConfigIpcHandler extends BaseIpcHandler {
           result = await this.checkSherpaHealth();
         } else if (config.provider === 'fish-local' || config.provider === 'fish-cloud') {
           result = await fish.checkHealth(config);
-        } else if (config.provider === 'system') {
-          result = { success: true, message: t('系统语音模式，无需连接 TTS 服务') };
         } else {
           result = await this.testLegacyTTSConnection(config);
         }
@@ -354,7 +352,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 合成路由：sherpa（默认）/ Fish（可选）；渲染层播放，失败则回退系统语音
+    // 合成路由：sherpa（默认）/ Fish（可选）；渲染层播放，失败则静默
     this.registerHandler('tts:speak', async (_, req: TTSSpeakRequest) => {
       this.validateArgs([req], 1, ['object']);
       try {
@@ -365,7 +363,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
         return {
           success: false,
           via: 'none',
-          fallbackToSystem: true,
+          fallbackToSystem: false,
           message: errorMessage,
         };
       }
@@ -491,10 +489,10 @@ export class ConfigIpcHandler extends BaseIpcHandler {
           success: false,
           message: status.message
             ? t('离线语音模型不可用: {0}', status.message)
-            : t('离线语音模型缺失，当前使用系统语音'),
+            : t('离线语音模型缺失，当前没有可用 TTS'),
         };
       }
-      return { success: false, message: t('离线语音引擎加载失败，将回退系统语音: {0}', msg) };
+      return { success: false, message: t('离线语音引擎加载失败，没有可用 TTS: {0}', msg) };
     }
   }
 

@@ -1,12 +1,12 @@
 /**
- * 端点图标数据（Nomi / Claude Code / Codex / dsh），在 16×16 的圆角方块里绘制。
+ * 端点图标数据（Nomi / Claude Code / Codex / dsh / Grok），在 16×16 的圆角方块里绘制。
  * - nomi：应用图标本身（奶油底 + 品牌 N 字标，取自 docs/brand/nomi-app-icon.svg，项目自有素材）。
  * - claude：原有的星芒（保持不变）。
- * - codex：OpenAI 标志；dsh：DeepSeek 鲸鱼标志。路径取自 @lobehub/icons-static-svg v1.95.1
+ * - codex：OpenAI 标志；dsh：DeepSeek 鲸鱼标志；grok：xAI 标志。路径取自 @lobehub/icons-static-svg v1.95.1
  *   （MIT © 2023 LobeHub），与 brand/icons.ts 同源；Logo 商标归各自所有者，仅作指示性使用。
  * 灵动岛页面（packages/electron/src/island/islandPage.ts）内嵌了同一份数据，改这里请同步。
  */
-export type EndpointGlyphKey = 'nomi' | 'claude' | 'codex' | 'dsh';
+export type EndpointGlyphKey = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
 
 export interface GlyphPath {
   d: string;
@@ -76,6 +76,17 @@ export const ENDPOINT_GLYPHS: Readonly<Record<EndpointGlyphKey, EndpointGlyph>> 
     tileStroke: 'rgba(77,107,254,0.35)',
     paths: [{ d: DEEPSEEK_D, fill: '#4D6BFE', transform: 'translate(2.4 2.4) scale(0.4667)' }],
   },
+  grok: {
+    tile: '#111111',
+    tileStroke: 'rgba(255,255,255,0.22)',
+    paths: [
+      {
+        d: 'M6.469 8.776L16.512 23h-4.464L2.005 8.776H6.47zm-.004 7.9l2.233 3.164L6.467 23H2l4.465-6.324zM22 2.582V23h-3.659V7.764L22 2.582zM22 1l-9.952 14.095-2.233-3.163L17.533 1H22z',
+        fill: '#fff',
+        transform: 'translate(3 3) scale(0.4167)',
+      },
+    ],
+  },
 };
 
 /** 各端点的代表色（徽标、边框等） */
@@ -84,4 +95,5 @@ export const ENDPOINT_COLOR: Readonly<Record<EndpointGlyphKey, string>> = {
   claude: '#d97757',
   codex: '#111111',
   dsh: '#4D6BFE',
+  grok: '#111111',
 };

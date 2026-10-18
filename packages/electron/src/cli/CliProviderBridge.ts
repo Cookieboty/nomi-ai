@@ -1,8 +1,8 @@
 /**
- * Claude Code / Codex / dsh **各自独立** 的供应商档案。
- * - 存储：userData/cli-providers/{claude,codex,dsh}/store.json
+ * Claude Code / Codex / dsh / Grok **各自独立** 的供应商档案。
+ * - 存储：userData/cli-providers/{claude,codex,dsh,grok}/store.json
  * - 写入：Claude → ~/.claude/settings.json；Codex → ~/.codex/config.toml + auth.json；
- *   dsh → $DSH_HOME/cordis.patch.yml 中的 Nomi 管理区块（密钥只经环境变量注入）
+ *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）
  * - 与 Nomi 自有 ProviderStore（ai-providers.json）完全隔离
  */
 import { randomUUID } from 'node:crypto';
@@ -22,12 +22,15 @@ import {
   codexAuthPath,
   codexConfigPath,
   DSH_KEY_ENV,
+  GROK_KEY_ENV,
   dshPatchPath,
+  grokConfigPath,
   ensureDir,
   patchClaudeSettings,
   patchCodexAuth,
   patchCodexToml,
   patchDshYaml,
+  patchGrokToml,
   unpatchCodexAuth,
   unpatchCodexToml,
 } from './configPatch';
@@ -36,9 +39,11 @@ import {
   defaultFormat,
   dshApiName,
   formatNeedsRouting,
+  grokApiBackend,
   isClaudeApiFormat,
   isCodexApiFormat,
   isDshApiFormat,
+  isGrokApiFormat,
 } from './formats';
 import { getCliRouteService, type RouteUpstream } from './routing/CliRouteService';
 import type { CliProviderInput, CliProviderKind, CliProviderProfile } from './types';
@@ -126,12 +131,13 @@ export function buildProbeRequest(
   return { url: `${base}/models`, headers: key ? { authorization: `Bearer ${key}` } : {} };
 }
 
-const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh'];
+const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh', 'grok'];
 
 function normalizeFormat(kind: CliProviderKind, raw: unknown): CliApiFormat {
   if (kind === 'claude' && isClaudeApiFormat(raw)) return raw;
   if (kind === 'codex' && isCodexApiFormat(raw)) return raw;
   if (kind === 'dsh' && isDshApiFormat(raw)) return raw;
+  if (kind === 'grok' && isGrokApiFormat(raw)) return raw;
   return defaultFormat(kind);
 }
 
@@ -143,7 +149,11 @@ export class CliProviderBridge {
     claude: { profiles: [] },
     codex: { profiles: [] },
     dsh: { profiles: [] },
+    grok: { profiles: [] },
   };
+
+  /** 配置已写入 CLI 启动时才会读的文件。由 harness 悄悄换下一轮进程。 */
+  private onApplied: ((kind: CliProviderKind) => void) | null = null;
 
   constructor(private readonly d: { root: string; logger: Logger; home?: string }) {
     this.home = d.home ?? os.homedir();
@@ -152,10 +162,24 @@ export class CliProviderBridge {
       claude: path.join(d.root, 'claude', 'store.json'),
       codex: path.join(d.root, 'codex', 'store.json'),
       dsh: path.join(d.root, 'dsh', 'store.json'),
+      grok: path.join(d.root, 'grok', 'store.json'),
     };
     // migrate legacy single store.json if present
     this.migrateLegacy(path.join(d.root, 'store.json'));
     for (const k of KINDS) this.loadKind(k);
+  }
+
+  /** 启用或停用成功之后调用。失败的写入不会调用。 */
+  setOnApplied(fn: (kind: CliProviderKind) => void): void {
+    this.onApplied = fn;
+  }
+
+  private applied(kind: CliProviderKind) {
+    try {
+      this.onApplied?.(kind);
+    } catch (e) {
+      this.d.logger.warn('cli provider applied hook failed', e);
+    }
   }
 
   private migrateLegacy(legacyPath: string) {
@@ -242,6 +266,16 @@ export class CliProviderBridge {
     return { [DSH_KEY_ENV]: decrypt(p.keyEnc) || 'nomi-local' };
   }
 
+  /**
+   * 启动 Grok 时注入的环境变量：仅当 Grok 档案启用时提供 NOMI_GROK_API_KEY。
+   * 无密钥的本机上游也给占位值，避免 Grok 因变量缺失拒绝启动。
+   */
+  grokEnv(): Record<string, string> {
+    const p = this.data.grok.profiles.find((x) => x.active);
+    if (!p) return {};
+    return { [GROK_KEY_ENV]: decrypt(p.keyEnc) || 'nomi-local' };
+  }
+
   /** 停用 dsh 档案：移除 Nomi 区块，回到 dsh 自身的默认供应商 */
   deactivateDsh(): { ok: boolean; backups: string[]; error?: string } {
     const file = dshPatchPath(this.home);
@@ -256,6 +290,7 @@ export class CliProviderBridge {
       for (const x of this.data.dsh.profiles) x.active = false;
       this.saveKind('dsh');
       this.broadcast();
+      this.applied('dsh');
       return { ok: true, backups };
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
@@ -266,8 +301,30 @@ export class CliProviderBridge {
    * 停用某个后端的档案：只移除 Nomi 写入的连接字段，回到 CLI 自带登录 / 默认配置。
    * 先备份；其余内容原样保留。
    */
+  /** 停用 Grok 档案：移除 Nomi 标记区块，回到 Grok 自身登录 / 默认配置 */
+  deactivateGrok(): { ok: boolean; backups: string[]; error?: string } {
+    const file = grokConfigPath(this.home);
+    const backups: string[] = [];
+    try {
+      if (fs.existsSync(file)) {
+        const ts = new Date().toISOString().replace(/[:.]/g, '-');
+        const b = backupFile(file, path.join(this.backupRoot, ts), 'grok-config.toml');
+        if (b) backups.push(b);
+        fs.writeFileSync(file, patchGrokToml(fs.readFileSync(file, 'utf8'), null), 'utf8');
+      }
+      for (const x of this.data.grok.profiles) x.active = false;
+      this.saveKind('grok');
+      this.broadcast();
+      this.applied('grok');
+      return { ok: true, backups };
+    } catch (e) {
+      return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   deactivate(kind: CliProviderKind): { ok: boolean; backups: string[]; error?: string } {
     if (kind === 'dsh') return this.deactivateDsh();
+    if (kind === 'grok') return this.deactivateGrok();
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const backups: string[] = [];
     const active = this.data[kind].profiles.find((x) => x.active);
@@ -308,6 +365,7 @@ export class CliProviderBridge {
       for (const x of this.data[kind].profiles) x.active = false;
       this.saveKind(kind);
       this.broadcast();
+      this.applied(kind);
       return { ok: true, backups };
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
@@ -371,6 +429,8 @@ export class CliProviderBridge {
       codexConfig: codexConfigPath(this.home),
       dshStore: this.storePaths.dsh,
       dshConfig: dshPatchPath(this.home),
+      grokStore: this.storePaths.grok,
+      grokConfig: grokConfigPath(this.home),
       routing: route ?? null,
     };
   }
@@ -433,7 +493,10 @@ export class CliProviderBridge {
     const route = getCliRouteService();
     const routeSettings = route?.getSettings();
     const routingOn = Boolean(
-      p.kind !== 'dsh' && routeSettings?.enabled && routeSettings?.[p.kind],
+      p.kind !== 'dsh' &&
+      p.kind !== 'grok' &&
+      routeSettings?.enabled &&
+      routeSettings?.[p.kind as 'claude' | 'codex'],
     );
     if (needs && !routingOn) {
       return {
@@ -445,6 +508,17 @@ export class CliProviderBridge {
       };
     }
     const useRoute = needs;
+    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
+    // 下一轮直接报 “has no provider/model”。
+    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
+      return {
+        ok: false,
+        backups: [],
+        restartRequired: false,
+        usedRouting: false,
+        error: t('请先填写模型，再设为当前'),
+      };
+    }
     // 本地路由令牌：CLI 请求本地路由时必须携带（路由不再接受任意来源的匿名请求）
     const routeKey = route?.authToken() ?? 'nomi-route';
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -460,6 +534,22 @@ export class CliProviderBridge {
         fs.writeFileSync(
           file,
           patchDshYaml(raw, { api: dshApiName(fmt), baseURL: p.baseUrl, model: p.model }),
+          'utf8',
+        );
+      } else if (p.kind === 'grok') {
+        const file = grokConfigPath(this.home);
+        const b = backupFile(file, path.join(this.backupRoot, ts), 'grok-config.toml');
+        if (b) backups.push(b);
+        ensureDir(file);
+        const raw = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+        const fmt = isGrokApiFormat(p.apiFormat) ? p.apiFormat : 'openai_responses';
+        fs.writeFileSync(
+          file,
+          patchGrokToml(raw, {
+            apiBackend: grokApiBackend(fmt),
+            baseUrl: p.baseUrl,
+            model: p.model,
+          }),
           'utf8',
         );
       } else if (p.kind === 'claude') {
@@ -504,10 +594,12 @@ export class CliProviderBridge {
       for (const x of this.data[p.kind].profiles) x.active = x.id === id;
       this.saveKind(p.kind);
       this.broadcast();
+      // 下一轮会自己拉起新进程读这份配置，不再提示用户重启会话。
+      this.applied(p.kind);
       return {
         ok: true,
         backups,
-        restartRequired: p.kind === 'codex' && !useRoute,
+        restartRequired: false,
         usedRouting: Boolean(useRoute),
       };
     } catch (e) {
@@ -529,9 +621,14 @@ export class CliProviderBridge {
       const ct = path.join(root, 'codex-config.toml');
       const ca = path.join(root, 'codex-auth.json');
       const dp = path.join(root, 'dsh-cordis.patch.yml');
+      const gk = path.join(root, 'grok-config.toml');
       if (fs.existsSync(dp)) {
         ensureDir(dshPatchPath(this.home));
         fs.copyFileSync(dp, dshPatchPath(this.home));
+      }
+      if (fs.existsSync(gk)) {
+        ensureDir(grokConfigPath(this.home));
+        fs.copyFileSync(gk, grokConfigPath(this.home));
       }
       if (fs.existsSync(cl)) {
         ensureDir(claudeSettingsPath(this.home));

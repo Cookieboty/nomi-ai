@@ -1,5 +1,5 @@
 /**
- * 对话后端切换：Nomi（默认）| Claude Code | Codex | dsh。
+ * 对话后端切换：Nomi（默认）| Claude Code | Codex | dsh | Grok。
  * 有消息的会话切换后端时不改写身份：为新后端新建会话 / CLI 标签（可随后分叉复制历史）。
  * 空会话可原地切换。CLI 标签不含 Nomi。
  */
@@ -21,6 +21,7 @@ const LABELS: Record<HarnessBackend, () => string> = {
   claude: () => t('Claude Code'),
   codex: () => t('Codex'),
   dsh: () => 'dsh',
+  grok: () => 'Grok',
 };
 
 export const BackendSwitcher: React.FC<{ className?: string }> = ({ className }) => {
@@ -125,7 +126,7 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
       {!tab && state.toolsDisabled && (
         <span
           data-testid="harness-tools-off"
-          style={{ fontSize: 11, opacity: 0.75, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 13, opacity: 0.75, whiteSpace: 'nowrap' }}
         >
           {t('Nomi 工具已关闭')}
         </span>

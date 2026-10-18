@@ -13,6 +13,7 @@ import {
   parseClaudeChunk,
   parseCodexChunk,
   parseDshChunk,
+  parseGrokChunk,
   parseGeminiFile,
 } from '../../../src/usage/logParsers';
 
@@ -519,5 +520,68 @@ describe('Qwen Code / Kimi / OpenCode / Copilot 解析（字段来自调研，�
     })!;
     expect(bad).toMatchObject({ input: 0, cacheRead: 10, cacheWrite: 0 });
     expect(copilotRowToRecord({ id: 1, input_tokens: 5, created_at: 1792000000 })).toBeNull();
+  });
+});
+
+describe('Grok Build 日志解析', () => {
+  it('turn_completed：input 含缓存时拆出 uncached', () => {
+    const text = line({
+      sessionId: 'sess-1',
+      timestamp: '2026-10-16T12:00:00.000Z',
+      params: {
+        update: {
+          sessionUpdate: 'turn_completed',
+          prompt_id: 'p1',
+          usage: {
+            inputTokens: 1000,
+            outputTokens: 50,
+            cachedReadTokens: 200,
+            cacheCreationTokens: 100,
+          },
+          modelUsage: { 'grok-4': {} },
+        },
+      },
+    });
+    const [r] = parseGrokChunk(text, {});
+    expect(r).toMatchObject({
+      source: 'grok',
+      via: 'log',
+      model: 'grok-4',
+      input: 700,
+      output: 50,
+      cacheRead: 200,
+      cacheWrite: 100,
+      session: 'sess-1',
+      key: 'grok:sess-1:p1',
+    });
+  });
+
+  it('真机 updates.jsonl：模型名在 usage.modelUsage 的键上，不再记成 unknown', () => {
+    const text = line({
+      timestamp: '2026-10-18T10:00:00.000Z',
+      params: {
+        update: {
+          sessionUpdate: 'turn_completed',
+          prompt_id: 'p9',
+          usage: {
+            inputTokens: 100,
+            outputTokens: 20,
+            cachedReadTokens: 0,
+            cacheCreationTokens: 0,
+            modelUsage: { 'grok-4.7-build': { inputTokens: 100, outputTokens: 20 } },
+          },
+        },
+      },
+    });
+    const [r] = parseGrokChunk(text, { sid: 'sess-9' });
+    expect(r?.model).toBe('grok-4.7-build');
+    expect(r?.key).toBe('grok:sess-9:p9');
+  });
+
+  it('忽略非 turn_completed 行', () => {
+    const text = line({
+      params: { update: { sessionUpdate: 'agent_message_chunk', content: { text: 'hi' } } },
+    });
+    expect(parseGrokChunk(text, {})).toEqual([]);
   });
 });

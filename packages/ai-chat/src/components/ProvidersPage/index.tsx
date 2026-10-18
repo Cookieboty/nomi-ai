@@ -1,7 +1,7 @@
 /**
- * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / 监视与会话。
+ * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / 监视与会话。
  * - 四个端点各自独立：Nomi 是自有 AI 的供应商 + 任务路由（存于 ai-providers.json）；
- *   Claude Code / Codex / dsh 用与 Nomi 相同的供应商卡片交互（预设模板、添加 / 编辑 / 启用 / 测速 / 删除），
+ *   Claude Code / Codex / dsh / Grok 用与 Nomi 相同的供应商卡片交互（预设模板、添加 / 编辑 / 启用 / 测速 / 删除），
  *   默认「使用 CLI 自带登录/默认配置」；每个 CLI 端点还有「版本」卡片（检测 / 更新 / 安装）与「高级」（本地路由）。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
@@ -48,7 +48,7 @@ export const ProvidersPage: React.FC<{
         <h2 className={styles.title}>{t('编程助手')}</h2>
         <p className={styles.sub}>
           {t(
-            '管理 Nomi 和 Claude Code / Codex / dsh：版本、第三方供应商与本地路由，以及本机编程助手的进度监视。每个端点的配置互相独立，在这里切换只是换一个视图。',
+            '管理 Nomi 和 Claude Code / Codex / dsh / Grok：版本、第三方供应商与本地路由，以及本机编程助手的进度监视。每个端点的配置互相独立，在这里切换只是换一个视图。',
           )}
         </p>
         <div
@@ -97,7 +97,7 @@ export const ProvidersPage: React.FC<{
           <div className={styles.intro}>
             <p>
               {t(
-                'Nomi 自有 AI 的供应商，配置存在 Nomi 自己的 ai-providers.json（密钥加密保存）。Claude Code / Codex / dsh 不会读取这里，这里也不会写它们的配置。',
+                'Nomi 自有 AI 的供应商，配置存在 Nomi 自己的 ai-providers.json（密钥加密保存）。Claude Code / Codex / dsh / Grok 不会读取这里，这里也不会写它们的配置。',
               )}
             </p>
             <p>{t('任务路由（对话 / 工具 / 摘要）只属于 Nomi，在下方「任务路由」里设置。')}</p>
