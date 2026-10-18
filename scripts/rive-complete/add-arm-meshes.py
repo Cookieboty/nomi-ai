@@ -10,10 +10,13 @@ Tendons tear at the elbow). This script:
    into scaleX warps mother-crop rest poses (unlike r3 AI straight-sleeve art).
 2. Remounts sleeve / shoulder / cuff / skin images under arm.rig (not under a
    rotating bone) and adds a grid Mesh+Skin with Tendon rotation matrices.
-3. Leaves palm/finger images parented to the hand bone (rigid).
+3. Leaves palm/finger images parented to the hand bone (rigid), drawn AFTER
+   sleeves so clap palms sit on top of cuffs (ROUND3 z-order).
+4. ROUND3 uses continuous sleeve-full mother crops with denser Mesh (GRID=16)
+   and a three-bone elbow blend; orange punch-through layers are dropped.
 
 Safe to re-run. After running, apply relative clips via animate-fullbody.mjs then
-bake-arm-fk-anims.py once (idempotent).
+bake-arm-fk-anims.py once (idempotent). Then run inject-bent-elbow-solo.py.
 """
 from __future__ import annotations
 
@@ -28,7 +31,7 @@ SCENE = ROOT / "rive" / "nomi-complete" / "scene.rml"
 META = ROOT / "rive" / "nomi-complete" / "reference" / "svg-rig" / "rig-meta.json"
 SCALE = 0.8463541666666666
 OX, OY = 46.666666666666686, 0.0
-GRID = 28.0  # artboard px between mesh samples (~ denser than r3's 30 art-px)
+GRID = 16.0  # ROUND3 denser mesh (~r3 elbow density)
 
 # Rest offsets (arm.rig local) — match authored scene.
 ARM = {
@@ -173,7 +176,7 @@ def make_grid_mesh(
             nlen = math.hypot(*nb) or 1.0
             nb = (nb[0] / nlen, nb[1] / nlen)
             u_el = (rx - ex) * nb[0] + (ry - ey) * nb[1]
-            B = 55.0
+            B = 85.0  # ROUND3 wider elbow blend
             w1 = smooth01((u_el + B) / (2 * B))  # weight on fore
             w0 = 1.0 - w1
             return pack_weights([w0, w1])
@@ -186,6 +189,30 @@ def make_grid_mesh(
             w1 = smooth01((u_w + 40) / 80.0)  # hand takes cuff/near-wrist
             w0 = 1.0 - w1
             return pack_weights([w0, w1])
+        if blend == "upper_fore_hand":
+            # three tendons: upper, fore, hand — continuous sleeve
+            (_id0, a0, L0, bx0, by0) = bones[0]
+            (_id1, a1, L1, bx1, by1) = bones[1]
+            (_id2, a2, L2, bx2, by2) = bones[2]
+            ex, ey = bx1, by1
+            wx, wy = bx2, by2
+            d0 = (math.cos(a0), math.sin(a0))
+            d1 = (math.cos(a1), math.sin(a1))
+            nb = (d0[0] + d1[0], d0[1] + d1[1])
+            nlen = math.hypot(*nb) or 1.0
+            nb = (nb[0] / nlen, nb[1] / nlen)
+            u_el = (rx - ex) * nb[0] + (ry - ey) * nb[1]
+            B = 85.0
+            w_fore_vs_upper = smooth01((u_el + B) / (2 * B))
+            d_fore = (math.cos(a1), math.sin(a1))
+            u_w = (rx - wx) * d_fore[0] + (ry - wy) * d_fore[1]
+            w_hand = smooth01((u_w + 45) / 90.0)
+            # remaining split between upper and fore
+            w_uf = 1.0 - w_hand
+            w0 = w_uf * (1.0 - w_fore_vs_upper)
+            w1 = w_uf * w_fore_vs_upper
+            w2 = w_hand
+            return pack_weights([w0, w1, w2])
         if blend == "upper_only":
             return 255, 1
         raise SystemExit(f"unknown blend {blend}")
@@ -243,31 +270,34 @@ def make_grid_mesh(
 
 # Image specs: (image_name, box_key, side, blend, mesh_id, skin_id, asset stays)
 # blend upper_fore uses upper+fore; fore_hand uses fore+hand; upper_only = shoulder cap
+# ROUND3: bent-sleeve Solo art is bound at clap peak FK so deform≈identity there.
+CLAP_BIND = {
+    "l": {"upper_d": -0.55, "fore_d": -1.05},
+    "r": {"upper_d": 0.58, "fore_d": 1.08},
+}
+
 MESH_IDS_START = 9700
 
 
 def image_specs(meta_boxes: dict) -> list[dict]:
     specs = []
     mid = MESH_IDS_START
+    # ROUND3: continuous sleeve-full (mother upper∪lower) with 3-bone blend;
+    # dark strap overlay only (no orange punch-through layers); coat + skin + cuff.
+    # Bent Solo children are injected separately in rebuild_arm_rig.
     layers = [
-        ("full.sleeve-l.upper.image", "sleeve-l-upper", "l", "upper_fore"),
-        ("full.sleeve-l.upper.dark.image", "sleeve-l-upper-dark", "l", "upper_fore"),
-        ("full.sleeve-l.upper.orange.image", "sleeve-l-upper-orange", "l", "upper_fore"),
-        ("full.sleeve-l.lower.image", "sleeve-l-lower", "l", "fore_hand"),
-        ("full.sleeve-l.lower.dark.image", "sleeve-l-lower-dark", "l", "fore_hand"),
-        ("full.sleeve-l.lower.orange.image", "sleeve-l-lower-orange", "l", "fore_hand"),
-        ("full.arm-l.cuff.image", "arm-l-cuff", "l", "fore_hand"),
-        ("full.arm-l.coat-shoulder.image", "coat-l-shoulder", "l", "upper_fore"),
         ("full.arm-l.upper-skin.image", "arm-l-upper-skin", "l", "upper_only"),
-        ("full.sleeve-r.upper.image", "sleeve-r-upper", "r", "upper_fore"),
-        ("full.sleeve-r.upper.dark.image", "sleeve-r-upper-dark", "r", "upper_fore"),
-        ("full.sleeve-r.upper.orange.image", "sleeve-r-upper-orange", "r", "upper_fore"),
-        ("full.sleeve-r.lower.image", "sleeve-r-lower", "r", "fore_hand"),
-        ("full.sleeve-r.lower.dark.image", "sleeve-r-lower-dark", "r", "fore_hand"),
-        ("full.sleeve-r.lower.orange.image", "sleeve-r-lower-orange", "r", "fore_hand"),
-        ("full.arm-r.cuff.image", "arm-r-cuff", "r", "fore_hand"),
-        ("full.arm-r.coat-shoulder.image", "coat-r-shoulder", "r", "upper_fore"),
+        ("full.arm-l.coat-shoulder.image", "coat-l-shoulder", "l", "upper_only"),
+        ("full.sleeve-l.full.image", "sleeve-l-full", "l", "upper_fore_hand"),
+        ("full.sleeve-l.full.dark.image", "sleeve-l-full-dark", "l", "upper_fore_hand"),
+        ("full.sleeve-l.bent.image", "sleeve-l-bent", "l", "upper_fore_hand"),
+        ("full.arm-l.cuff.image", "arm-l-cuff", "l", "fore_hand"),
         ("full.arm-r.upper-skin.image", "arm-r-upper-skin", "r", "upper_only"),
+        ("full.arm-r.coat-shoulder.image", "coat-r-shoulder", "r", "upper_only"),
+        ("full.sleeve-r.full.image", "sleeve-r-full", "r", "upper_fore_hand"),
+        ("full.sleeve-r.full.dark.image", "sleeve-r-full-dark", "r", "upper_fore_hand"),
+        ("full.sleeve-r.bent.image", "sleeve-r-bent", "r", "upper_fore_hand"),
+        ("full.arm-r.cuff.image", "arm-r-cuff", "r", "fore_hand"),
     ]
     for img_name, box_key, side, blend in layers:
         x0, y0, x1, y1 = meta_boxes[box_key]
@@ -353,11 +383,12 @@ def rebuild_arm_rig(scene: str, side: str, skinned_images: list[str], hand_xml: 
 
     skinned_block = "\n".join(skinned_images)
 
+    # ROUND3 draw order: bones → skinned fabric → cuff already in skinned → HAND LAST (on top)
     new_rig = f'''<RootBone name="full.arm-{side}.rig" x="{a["rig"][0]}" y="{a["rig"][1]}" rotation="0" length="1" scaleX="1" id="{a["rig_id"]}">
                     <RootBone name="full.arm-{side}.upper" x="0" y="0" rotation="{a1:.6f}" length="1" scaleX="1" id="{a["upper_id"]}"/>
                     <RootBone name="full.arm-{side}.fore" x="{fx}" y="{fy}" rotation="{a2:.6f}" length="1" scaleX="1" id="{a["fore_id"]}"/>
-                    {hand_xml2}
 {skinned_block}
+                    {hand_xml2}
                 </RootBone>'''
 
     # Find and replace old arm.rig block
@@ -409,10 +440,44 @@ def build_skinned_image(scene: str, spec: dict, rest: dict) -> str:
     image_id = imid.group(1) if imid else ""
     side = spec["side"]
     a = ARM[side]
-    if spec["blend"] == "upper_fore":
+    # Bent art: bind at clap peak absolute angles/positions (deform≈identity mid-clap).
+    is_bent = "bent" in spec["name"]
+    if is_bent:
+        d = CLAP_BIND[side]
+        a1b = rest["a1"] + d["upper_d"]
+        a2b = rest["a2"] + d["fore_d"]
+        # Fore/hand tips from absolute FK at clap (same as bake-arm-fk-anims).
+        fx = rest["L1"] * math.cos(a1b)
+        fy = rest["L1"] * math.sin(a1b)
+        # hand relative angle stayed 0 in relative clips; absolute hand rot = 0 at rest
+        # but clap keys hand rotation separately — use rest hand axis from fore.
+        hx_off, hy_off = ARM[side]["hand_off"]
+        # hand tip from fore tip along rest hand direction rotated by fore absolute
+        # After bake: hand at fore_tip + R(hand_abs)*hand_rest_local. Simplified:
+        # place hand at fore_tip + rotated hand_off by (a2b - rest a2) roughly.
+        # hand_off is in arm.rig space at rest (added to fore_off). At bent, rotate
+        # the fore→hand vector by fore delta.
+        rest_hand_vec = (rest["hand_pos"][0] - rest["fore_pos"][0], rest["hand_pos"][1] - rest["fore_pos"][1])
+        da = a2b - rest["a2"]
+        ca, sa = math.cos(da), math.sin(da)
+        hvx = ca * rest_hand_vec[0] - sa * rest_hand_vec[1]
+        hvy = sa * rest_hand_vec[0] + ca * rest_hand_vec[1]
+        hand_pos_b = (fx + hvx, fy + hvy)
+        bones = [
+            (a["upper_id"], a1b, rest["L1"], 0.0, 0.0),
+            (a["fore_id"], a2b, rest["L2"], fx, fy),
+            (a["hand_id"], 0.0, 1.0, hand_pos_b[0], hand_pos_b[1]),
+        ]
+    elif spec["blend"] == "upper_fore":
         bones = [
             (a["upper_id"], rest["a1"], rest["L1"], 0.0, 0.0),
             (a["fore_id"], rest["a2"], rest["L2"], rest["fore_pos"][0], rest["fore_pos"][1]),
+        ]
+    elif spec["blend"] == "upper_fore_hand":
+        bones = [
+            (a["upper_id"], rest["a1"], rest["L1"], 0.0, 0.0),
+            (a["fore_id"], rest["a2"], rest["L2"], rest["fore_pos"][0], rest["fore_pos"][1]),
+            (a["hand_id"], 0.0, 1.0, rest["hand_pos"][0], rest["hand_pos"][1]),
         ]
     elif spec["blend"] == "fore_hand":
         bones = [
@@ -444,19 +509,7 @@ def build_skinned_image(scene: str, spec: dict, rest: dict) -> str:
 
 
 def clean_orphan_closes(scene: str) -> str:
-    """Remove accidental double </RootBone> left after arm rebuild near torso."""
-    # Pattern: </RootBone>\\n                </RootBone>\\n                <RootBone name="full.pelvis"
-    scene = re.sub(
-        r"</RootBone>\s*</RootBone>(\s*<RootBone name=\"full\.pelvis\")",
-        r"</RootBone>\1",
-        scene,
-    )
-    # between arms
-    scene = re.sub(
-        r"(</RootBone>)\s*</RootBone>(\s*<RootBone name=\"full\.arm-r\.rig\")",
-        r"\1\2",
-        scene,
-    )
+    """No-op in ROUND3 (hand-after-sleeve needs the double close before pelvis)."""
     return scene
 
 

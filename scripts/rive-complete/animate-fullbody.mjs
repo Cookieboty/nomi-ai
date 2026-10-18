@@ -13,6 +13,16 @@ const frames = (values) =>
     .join('\n');
 const track = (objectId, property, values) =>
   `            <KeyedObject objectId="0:${objectId}">\n                <KeyedProperty property="${property}">\n${frames(values)}\n                </KeyedProperty>\n            </KeyedObject>`;
+const idFrames = (values) =>
+  values
+    .map(
+      ([frame, value]) =>
+        `                    <KeyFrameId value="${value}" frame="${frame}" interpolationType="hold"/>`,
+    )
+    .join('\n');
+const idTrack = (objectId, property, values) =>
+  `            <KeyedObject objectId="0:${objectId}">\n                <KeyedProperty property="${property}">\n${idFrames(values)}\n                </KeyedProperty>\n            </KeyedObject>`;
+
 const anim = (name, id, duration, tracks) =>
   `        <LinearAnimation name="full.${name}" loopValue="oneShot" duration="${duration}" fps="60" id="0:${id}">\n${tracks.join('\n')}\n        </LinearAnimation>`;
 
@@ -21,6 +31,10 @@ const clips = {
   // left unkeyed here: a second rotation on a raster sleeve is what produced
   // the black slivers and detached cuffs in the earlier build.
   wave: anim('wave', 196, 96, [
+    idTrack(9821, 'activeComponentId', [
+      [0, '0:9823'],
+      [96, '0:9823'],
+    ]),
     track(9219, 'rotation', [
       [0, 0],
       [12, 0.1],
@@ -371,28 +385,37 @@ const clips = {
     ]),
   ]),
   clap: anim('clap', 204, 96, [
-    // Length-bone clap: relative rotations (baked to absolute FK after mesh migrate).
-    // arm.rig x pulls both arms to chest; fore bends inward; wrists face palms together.
+    // ROUND3: less arm.rig chest pull (reduces jacket tear); Solo bent sleeves at peak.
+    // hang Solo children: 0:9822 / 0:9823; bent: 0:9824 / 0:9825.
+    // ROUND3: keep hang continuous sleeve (bent Solo child reserved; warp art still tears).
+    idTrack(9820, 'activeComponentId', [
+      [0, '0:9822'],
+      [96, '0:9822'],
+    ]),
+    idTrack(9821, 'activeComponentId', [
+      [0, '0:9823'],
+      [96, '0:9823'],
+    ]),
     track(9378, 'x', [
       [0, 317.8],
-      [28, 338],
-      [40, 333],
-      [52, 338],
+      [28, 332],
+      [40, 330],
+      [52, 332],
       [82, 317.8],
       [96, 317.8],
     ]),
     track(9379, 'x', [
       [0, 642.8],
-      [28, 622],
-      [40, 627],
-      [52, 622],
+      [28, 628],
+      [40, 630],
+      [52, 628],
       [82, 642.8],
       [96, 642.8],
     ]),
     track(9213, 'rotation', [
       [0, 0],
-      [28, -0.42],
-      [52, -0.42],
+      [28, -0.55],
+      [52, -0.55],
       [96, 0],
     ]),
     track(9215, 'rotation', [
@@ -407,8 +430,8 @@ const clips = {
     ]),
     track(9219, 'rotation', [
       [0, 0],
-      [28, 0.45],
-      [52, 0.45],
+      [28, 0.58],
+      [52, 0.58],
       [96, 0],
     ]),
     track(9221, 'rotation', [

@@ -90,3 +90,12 @@ link length into `scaleX` (as r3 does for AI straight-sleeve art) warped the res
 `scripts/rive-complete/bake-arm-fk-anims.py` converts relative rotation keys into
 absolute FK (`rotation` + fore/hand `x`/`y`). It is idempotent. Elbow overlap in
 `build-fullbody-svg-rig.py` was widened so upper/lower sleeves share a blend zone.
+
+### ROUND3 — continuous sleeve + Solo bent scaffold
+
+`partition()` keeps the full garment matte in the base layer (no orange/dark
+punch-holes). Arms use mother-derived `sleeve-{l,r}-full` crops with a denser
+three-bone Mesh (GRID=16, elbow blend ±85 artboard px). Palm/fingers draw after
+the cuff. A Solo hang/bent pair is authored (`sleeve-*-bent.png` = mother-pixel
+forearm warp); clap/wave currently stay on hang because the warp art is not yet
+cleaner than continuous skin at peak bend. Clap uses less `arm.rig` chest pull.
