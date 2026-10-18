@@ -258,6 +258,16 @@ describe('@nomi-ai/ui', () => {
     );
   });
 
+  it('Tooltip top-end anchors the bubble to the trigger right edge (no clipping at container edge)', () => {
+    render(
+      <Tooltip content="靠右按钮" placement="top-end">
+        <button>edge</button>
+      </Tooltip>,
+    );
+    const bubble = screen.getByRole('tooltip', { hidden: true });
+    expect(bubble.className).toContain('cd-tooltip__bubble--top-end');
+  });
+
   it('Toast: show + auto dismiss; useToast is a no-op outside provider', () => {
     vi.useFakeTimers();
     const Trigger = () => {

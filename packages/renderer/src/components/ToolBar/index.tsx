@@ -59,6 +59,8 @@ let globalVoiceService: VoiceService | null = null;
 const NEAR_PX = 72;
 const HIDE_DELAY_MS = 1500;
 
+const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
+
 export const ToolBar: React.FC = () => {
   const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const {
@@ -614,6 +616,13 @@ export const ToolBar: React.FC = () => {
 
   // Tooltips open toward the mascot (left of the vertical bar when bar is on the right).
   const tipSide = place?.side === 'left' ? 'right' : 'left';
+  // 提示的可用宽度 = 工具栏到窗口边缘的距离；超出就换行，不被窗口边缘裁掉
+  const tipMax = place
+    ? Math.max(
+        96,
+        tipSide === 'left' ? place.x - 10 : window.innerWidth - (place.x + TIP_BAR_WIDTH) - 10,
+      )
+    : 200;
 
   const iconButton = (toolId: string) => {
     if (toolId === 'voice-input')
@@ -664,9 +673,10 @@ export const ToolBar: React.FC = () => {
     );
   };
 
-  const style: React.CSSProperties = place
-    ? { left: place.x, top: place.y }
-    : { right: 8, top: '30%' };
+  const style: React.CSSProperties & Record<string, string | number> = {
+    ...(place ? { left: place.x, top: place.y } : { right: 8, top: '30%' }),
+    '--tb-tip-max': `${tipMax}px`,
+  };
 
   return (
     <>

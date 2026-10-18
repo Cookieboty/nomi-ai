@@ -28,6 +28,15 @@
     visibility 0s linear 0s;
 }
 
+.root :global(.cd-tooltip__bubble) {
+  /* 长提示在窗口边缘处换行而不是被裁掉；宽度上限由工具栏按剩余空间设置 */
+  width: max-content;
+  max-width: var(--tb-tip-max, 200px);
+  white-space: normal;
+  text-align: left;
+  line-height: 1.35;
+}
+
 /* 跟随应用主题（默认）：全部取自 @nomi-ai/ui 主题令牌 */
 .root[data-palette='theme'] {
   --tb-bg: color-mix(in srgb, var(--cd-color-surface-raised) 86%, transparent);

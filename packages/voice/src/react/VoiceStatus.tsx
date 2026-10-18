@@ -1,7 +1,7 @@
 /** 语音状态条：聆听 / 识别中 / 等待唤醒…；出错时给出可操作的提示。麦克风打开时始终可见（隐私指示）。 */
 import { t } from '@nomi-ai/ui';
 import { cx } from '@nomi-ai/ui';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 import type { VoiceState } from '../controller';
 
@@ -24,6 +24,10 @@ const NEEDS_SETUP = new Set([
   'local_only',
 ]);
 
+/** 错误提示自动消失的时间；需要去设置的错误留得久一些，让用户来得及点 */
+export const ERROR_AUTO_DISMISS_MS = 6000;
+export const SETUP_ERROR_AUTO_DISMISS_MS = 15000;
+
 export const VoiceStatus: React.FC<VoiceStatusProps> = ({
   state,
   wakePhrase,
@@ -33,6 +37,20 @@ export const VoiceStatus: React.FC<VoiceStatusProps> = ({
   className,
 }) => {
   const text = phaseLabel(state, wakePhrase);
+  const errCode = state.error?.code;
+  const errMessage = state.error?.message;
+  // 回调每次渲染都是新函数：放进 ref，避免父组件重渲染把倒计时重置
+  const dismissRef = useRef(onDismissError);
+  useEffect(() => {
+    dismissRef.current = onDismissError;
+  });
+  const dismissible = !!onDismissError;
+  useEffect(() => {
+    if (!errCode || !dismissible) return undefined;
+    const ms = NEEDS_SETUP.has(errCode) ? SETUP_ERROR_AUTO_DISMISS_MS : ERROR_AUTO_DISMISS_MS;
+    const timer = setTimeout(() => dismissRef.current?.(), ms);
+    return () => clearTimeout(timer);
+  }, [errCode, errMessage, dismissible]);
   if (state.error) {
     return (
       <div
