@@ -9,7 +9,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { UsageService, sanitizeUsageSettings } from '../../../src/usage/UsageService';
+import {
+  UsageService,
+  endpointSourceOf,
+  sanitizeUsageSettings,
+} from '../../../src/usage/UsageService';
 
 const mk = (now = () => Date.now()) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-svc-'));
@@ -201,5 +205,43 @@ describe('UsageService：手动价格同步', () => {
     expect(cost()).toBeCloseTo(1, 6); // 失败不影响已同步的覆盖层
     svc.setSettings({ customPrices: [{ model: 'gpt-4o', input: 7, output: 0 }] });
     expect(cost()).toBeCloseTo(7, 6); // 自定义最优先
+  });
+});
+
+describe('UsageService：按端信息（endpointUsage）', () => {
+  it('只聚合指定端：今日 / 近 7 天 / 按天趋势 / 模型与供应商 / 最近活动', () => {
+    const { svc } = mk();
+    const now = Date.now();
+    svc.record({ ...call, ts: now - 1000, source: 'codex', provider: undefined, model: 'gpt-5' });
+    svc.record({
+      ...call,
+      ts: now - 2 * 86_400_000,
+      source: 'codex',
+      provider: undefined,
+      model: 'gpt-5',
+    });
+    svc.record({
+      ...call,
+      ts: now - 500,
+      source: 'claude',
+      provider: undefined,
+      model: 'claude-sonnet-4',
+    });
+    const r = svc.endpointUsage('codex');
+    expect(r.source).toBe('codex');
+    expect(r.today.calls).toBe(1);
+    expect(r.week.calls).toBe(2);
+    expect(r.series).toHaveLength(7);
+    expect(r.byModel.map((m) => m.key)).toEqual(['gpt-5']);
+    expect(r.byProvider.map((m) => m.key)).toEqual(['OpenAI']);
+    expect(r.lastActivityAt).toBe(now - 1000);
+    expect(svc.endpointUsage('dsh')).toMatchObject({ lastActivityAt: null });
+    expect(svc.endpointUsage('dsh').week.calls).toBe(0);
+  });
+
+  it('IPC 参数校验：未知值回落到 nomi', () => {
+    expect(endpointSourceOf('grok')).toBe('grok');
+    expect(endpointSourceOf('__proto__')).toBe('nomi');
+    expect(endpointSourceOf(undefined)).toBe('nomi');
   });
 });

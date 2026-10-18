@@ -175,6 +175,13 @@ export class UsageLedger {
     return out;
   }
 
+  /** 某个来源最近一条记录的时间（没有返回 null；从最新往回找，不拷贝整本账） */
+  lastTs(source: string): number | null {
+    const arr = this.snapshot();
+    for (let i = arr.length - 1; i >= 0; i--) if (arr[i]!.source === source) return arr[i]!.ts;
+    return null;
+  }
+
   all(): UsageRecord[] {
     return this.snapshot().slice();
   }
