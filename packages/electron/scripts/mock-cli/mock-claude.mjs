@@ -68,7 +68,7 @@ function extractUserText(line) {
 async function runOnce(_prompt) {
   sleep();
   // 固定回复，便于既有单测断言；续接「外会话」时带 session id
-  const text =
+  let text =
     process.env.NOMI_MOCK_CLAUDE_REPLY ||
     (foreign ? `【Mock Claude】已续接会话 ${resumed}` : '【Mock Claude】已收到，并完成演示回复。');
 
@@ -162,8 +162,23 @@ async function runOnce(_prompt) {
   if (process.env.NOMI_MOCK_TOOLS === 'rich') await richScenario();
   if (process.env.NOMI_MOCK_TOOLS === 'stress') await stressScenario();
 
-  const chunks = text.match(/.{1,8}/gs) || [text];
+  // 流式渲染压测：NOMI_MOCK_CODEBLOCK_CHARS 把回复换成一个这么长的 TS 围栏代码块（末尾闭合并带一句结论），
+  // NOMI_MOCK_STREAM_CPS 按「字符 / 秒」匀速吐字（模拟真实模型的吐字速率，而不是尽快发完）
+  const codeChars = Number(process.env.NOMI_MOCK_CODEBLOCK_CHARS || 0);
+  if (codeChars > 0) {
+    const fn = (k) =>
+      `export async function handler${k}(input: Request, ctx: Context): Promise<Result> {\n  const value = ctx.cache.get('key-${k}') ?? (await compute(input.body, ${k}));\n  return ctx.store.save({ id: 'item-${k}', value }).then((r) => r.ok);\n}\n\n`;
+    let code = '';
+    for (let k = 0; code.length < codeChars; k++) code += fn(k);
+    text = `下面是实现：\n\n\`\`\`ts\n${code.slice(0, codeChars)}\n\`\`\`\n\n以上就是完整代码。`;
+  }
+  const cps = Number(process.env.NOMI_MOCK_STREAM_CPS || 0);
+  const chunks =
+    cps > 0
+      ? text.match(new RegExp(`.{1,${Math.max(1, Math.round(cps / 20))}}`, 'gs')) || [text]
+      : text.match(/.{1,8}/gs) || [text];
   for (const c of chunks) {
+    if (cps > 0) await new Promise((r) => setTimeout(r, 50));
     emit({
       type: 'stream_event',
       session_id: sessionId,

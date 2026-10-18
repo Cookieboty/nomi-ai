@@ -304,7 +304,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                   onReply={(allow) => onPermission(live.permission!.id, allow)}
                 />
               )}
-              {running && live?.text.trim() && <Markdown text={live.text} />}
+              {running && live?.text.trim() && <Markdown text={live.text} streaming />}
               {status && (
                 <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
               )}
