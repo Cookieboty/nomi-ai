@@ -19,6 +19,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
+import { isolatedHomeEnv } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.SLASH_SHOTS_DIR;
@@ -77,8 +78,7 @@ async function launch(
 ): Promise<{ app: ElectronApplication; chat: Page }> {
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
-    HOME: home,
-    USERPROFILE: home,
+    ...isolatedHomeEnv(home),
     CD_LOCALE: 'zh',
     CD_ONBOARDING: 'off',
     CD_TTS: 'off',
