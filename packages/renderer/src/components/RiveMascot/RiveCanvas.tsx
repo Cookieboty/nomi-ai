@@ -128,6 +128,15 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
           perfMark('mascot-model-loaded');
           perfMark('rive-model-loaded');
         },
+        // e2e / diagnostics probe, same contract as the layered rig: <html data-mascot-action="wave">
+        // while a named clip plays, empty at rest. The state machine reports `full.<clip>` / `rest`.
+        onStateChange: (e) => {
+          const names = Array.isArray(e.data) ? (e.data as unknown[]) : [];
+          const clip = names.find(
+            (n): n is string => typeof n === 'string' && n.startsWith('full.') && n !== 'full.idle',
+          );
+          document.documentElement.dataset.mascotAction = clip ? clip.slice('full.'.length) : '';
+        },
         onLoadError: () => fail('Rive load failed'),
       });
       loadTimer = setTimeout(() => fail('Rive did not load in time'), RIVE_LOAD_TIMEOUT_MS);
