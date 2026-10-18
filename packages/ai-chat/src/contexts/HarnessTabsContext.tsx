@@ -219,7 +219,10 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     try {
       await harnessClient.activateTab(id);
     } catch (error) {
-      void harnessClient.tabs().then(setState).catch(() => undefined);
+      void harnessClient
+        .tabs()
+        .then(setState)
+        .catch(() => undefined);
       throw error;
     }
   }, []);

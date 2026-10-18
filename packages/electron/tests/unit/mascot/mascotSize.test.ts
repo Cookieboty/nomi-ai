@@ -7,6 +7,7 @@ import {
   clampMascotScale,
   fitMascotScale,
   mascotWindowSize,
+  MASCOT_FIT_SLACK,
   maxScaleForArea,
   migrateMascotSize,
   resizeMascotBounds,
@@ -42,6 +43,18 @@ describe('mascot scale range', () => {
     const laptop = maxScaleForArea({ width: 1366, height: 728 });
     expect(laptop).toBeLessThan(1.5);
     expect(mascotWindowSize(laptop).height).toBeLessThanOrEqual(728);
+    // never fills the work area completely: a window exactly as tall as the area ends up 1px too
+    // tall after the OS rounds DIP ⇄ physical pixels (Windows E23 flake: bottom 721 > 720)
+    for (let h = 560; h <= 1400; h += 1) {
+      const c = maxScaleForArea({ width: 5000, height: h });
+      if (c > 0.3 && c < 1.5) {
+        expect(mascotWindowSize(c).height).toBeLessThanOrEqual(h - MASCOT_FIT_SLACK + 1);
+        expect(mascotWindowSize(c).height).toBeLessThan(h);
+      }
+    }
+    expect(mascotWindowSize(maxScaleForArea({ width: 1280, height: 720 })).height).toBeLessThan(
+      720,
+    );
     // tiny / odd areas
     expect(maxScaleForArea({ width: 400, height: 200 })).toBe(0.3);
     expect(maxScaleForArea(null)).toBe(1.5);

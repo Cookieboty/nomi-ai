@@ -34,6 +34,13 @@ export interface AreaRect {
 }
 
 /**
+ * Vertical slack (DIP) kept between the biggest window and the work area. A window that is exactly
+ * as tall as the work area ends up 1px too tall once the OS converts DIP ⇄ physical pixels
+ * (fractional display scaling on Windows), so the cap never fills the area completely.
+ */
+export const MASCOT_FIT_SLACK = 4;
+
+/**
  * Largest scale that still fits a display work area: the whole window (character + bubble slot)
  * must fit vertically and the character may take at most half of the width. On a 1366×768 laptop
  * this is ≈1.3, on 1080p and above the hard cap (1.5) applies.
@@ -42,7 +49,7 @@ export function maxScaleForArea(
   area: Pick<AreaRect, 'width' | 'height'> | null | undefined,
 ): number {
   if (!area || !(area.width > 0) || !(area.height > 0)) return MAX_MASCOT_SCALE;
-  const byHeight = (area.height - MASCOT_PAD.top) / MASCOT_BASE.height;
+  const byHeight = (area.height - MASCOT_PAD.top - MASCOT_FIT_SLACK) / MASCOT_BASE.height;
   const byWidth = (area.width * 0.5) / MASCOT_BASE.width;
   const cap = Math.floor(Math.min(byHeight, byWidth) * 100) / 100;
   return Math.min(MAX_MASCOT_SCALE, Math.max(MIN_MASCOT_SCALE, cap));

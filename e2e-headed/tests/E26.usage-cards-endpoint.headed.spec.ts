@@ -222,7 +222,15 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
 
     // ── 3. 按端信息卡
     await chat.click('[data-testid="settings-back"]');
-    await chat.locator('[data-testid="list-view-by-endpoint"]').click({ timeout: 15_000 });
+    // 切到「按端」视图：点击偶尔在 Windows 上卡在 performing click（状态其实已切换），
+    // 所以按 aria-pressed 判断、短超时重试，而不是一次长超时点击
+    const byEndpoint = chat.locator('[data-testid="list-view-by-endpoint"]');
+    await expect(byEndpoint).toBeVisible({ timeout: 20_000 });
+    await expect(async () => {
+      if ((await byEndpoint.getAttribute('aria-pressed')) !== 'true')
+        await byEndpoint.click({ timeout: 5_000 });
+      await expect(byEndpoint).toHaveAttribute('aria-pressed', 'true', { timeout: 3_000 });
+    }).toPass({ timeout: 60_000 });
     await chat.locator('[data-testid="endpoint-filter-codex"]').click();
     const card = chat.locator('[data-testid="endpoint-info-card"]');
     await expect(card).toBeVisible({ timeout: 20_000 });

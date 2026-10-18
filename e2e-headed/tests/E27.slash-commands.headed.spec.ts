@@ -159,10 +159,24 @@ async function newTab(chat: Page, backend: 'claude' | 'codex' | 'grok') {
 const input = (chat: Page) => chat.locator('[data-testid="chat-input"]');
 const cards = (chat: Page) => chat.locator('[data-testid="slash-card"]');
 
+/** 两帧：让 React 把刚输入的文本提交到受控输入框 / 菜单状态（Windows 慢机上 Enter 会读到旧状态） */
+async function settle(chat: Page) {
+  await chat.evaluate(
+    () =>
+      new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))),
+  );
+}
+
 async function run(chat: Page, text: string) {
+  await expect(input(chat)).toBeEnabled({ timeout: 30_000 });
   await input(chat).fill(text);
+  await expect(input(chat)).toHaveValue(text);
+  await settle(chat);
   await input(chat).press('Enter');
 }
+
+/** 卡片是异步生成的（要读用量 / 探测 CLI），Windows 上给足时间 */
+const SLOW = { timeout: 30_000 } as const;
 
 test.describe('E27 · slash commands', () => {
   let app: ElectronApplication | null = null;
@@ -205,8 +219,10 @@ test.describe('E27 · slash commands', () => {
     await shot(chat, '02-palette-fuzzy');
 
     // 3) /context 出卡片（空会话也直接显示），不产生用户消息
+    await expect(input(chat)).toHaveValue('/cnt');
+    await settle(chat);
     await input(chat).press('Enter');
-    await expect(cards(chat)).toHaveCount(1);
+    await expect(cards(chat)).toHaveCount(1, SLOW);
     await expect(chat.locator('[data-testid="ctx-bar"]')).toBeVisible();
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(0);
     await expect(input(chat)).toHaveValue('');
@@ -220,7 +236,7 @@ test.describe('E27 · slash commands', () => {
       },
     );
     await run(chat, '/context');
-    await expect(cards(chat)).toHaveCount(2);
+    await expect(cards(chat)).toHaveCount(2, SLOW);
     await expect(cards(chat).nth(1)).toContainText('真实用量');
     await shot(chat, '03-context-card');
     await run(chat, '/cost');
