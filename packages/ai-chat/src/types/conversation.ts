@@ -12,6 +12,8 @@ export interface ConvMessage {
   at: number;
   /** 工具调用 / 思考轨迹（与来源无关的同一种事件） */
   trace?: HarnessTraceEvent[];
+  /** 正文分段起点：后一段从这里开始 */
+  textBreaks?: number[];
   /** 旧版只存了工具名的消息 */
   legacyTools?: string[];
   /** 本轮失败：错误文本（text 为失败前已生成的部分） */
@@ -31,6 +33,8 @@ export interface ConvMessage {
 export interface ConvLive {
   text: string;
   trace?: HarnessTraceEvent[];
+  /** 正文分段起点 */
+  textBreaks?: number[];
   startedAt?: number;
   /** 收到第一个输出事件的时间；undefined 表示仍在等待模型首字 */
   firstEventAt?: number;

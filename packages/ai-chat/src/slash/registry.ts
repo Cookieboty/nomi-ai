@@ -1,7 +1,7 @@
 /**
  * 注册表：合并各 adapter 的命令 → 解决重名 → 搜索 / 分组 → 执行。
  *
- * 重名规则（设计见文档 §3.3）：内置 / 当前端 / 界面命令永远保留裸名；自定义命令重名时
+ * 重名规则：当前端优先于 Nomi 内置，同名时只留当前端的裸名。自定义命令重名时
  * 按 scopeOrder 先到先得，后来者改名为 `<scope>:<name>`（项目 → `project:x`，用户 → `user:x`）。
  */
 import { rankItems, type Range } from '../utils/fuzzy';
@@ -17,17 +17,17 @@ import {
   type SlashSource,
 } from './types';
 
-type Scope = 'project' | 'user' | 'plugin';
+type Scope = 'project' | 'user' | 'plugin' | 'bundled';
 
 const FIXED_RANK: Partial<Record<SlashSource, number>> = {
-  builtin: 0,
-  endpoint: 1,
+  endpoint: 0,
+  builtin: 1,
   ui: 2,
 };
 
 export function buildRegistry(
   commands: readonly SlashCommand[],
-  scopeOrder: readonly Scope[] = ['project', 'user', 'plugin'],
+  scopeOrder: readonly Scope[] = ['project', 'user', 'plugin', 'bundled'],
 ): SlashCommand[] {
   const rank = (c: SlashCommand) => {
     const fixed = FIXED_RANK[c.source];
@@ -96,10 +96,18 @@ export interface SlashGroup {
   items: SlashHit[];
 }
 
-/** 模糊搜索 + 分组。空查询返回全部；组内按匹配分排序，完全相同的名字排最前 */
+/**
+ * 面板和 /help 只列出真正能用的命令。
+ * `unsupported` 仍留在注册表里：打出来会被拦下，但不当成一条可选命令。
+ */
+export function offeredCommands(commands: readonly SlashCommand[]): SlashCommand[] {
+  return commands.filter((c) => c.kind !== 'unsupported');
+}
+
+/** 模糊搜索 + 分组。空查询返回全部可选项；组内按匹配分排序，完全相同的名字排最前 */
 export function searchCommands(commands: readonly SlashCommand[], query: string): SlashGroup[] {
   const q = query.trim();
-  const ranked = rankItems(commands, q, (c) => [
+  const ranked = rankItems(offeredCommands(commands), q, (c) => [
     { text: c.name, weight: 3, highlight: true },
     ...(c.aliases ?? []).map((a) => ({ text: a, weight: 2.5 })),
     { text: c.label, weight: 1.5 },

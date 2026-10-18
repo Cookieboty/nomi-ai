@@ -513,7 +513,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               reqId,
               signal: controller.signal,
               onTrace: (ev) => {
-                trace.push(ev);
+                trace.push(ev.textAt === undefined ? { ...ev, textAt: accumulated.length } : ev);
                 scheduleUi();
               },
               onUsage: (u) => {

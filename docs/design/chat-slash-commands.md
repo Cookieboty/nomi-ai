@@ -48,7 +48,7 @@
 
 来源：<https://docs.x.ai/build/modes-and-commands>、<https://docs.x.ai/build/features/skills-plugins-marketplaces>、<https://docs.x.ai/build/cli/headless-scripting>、`xai-org/grok-build` 仓库的 `04-slash-commands.md`、`09-plugins.md`。
 
-- **接入方式**：`grok -p <prompt> --output-format streaming-json`（无头）。文档**没有**把斜杠命令列为无头参数；斜杠命令是 TUI 能力。
+- **接入方式**：`grok -p <prompt> --output-format streaming-json`（无头）。`grok -p` 会执行 `available_commands` 里的 shell 内置和 user-invocable skills（实测 `/workflow` 由命令分发，不是模型作文）。分页器才有的命令（`/theme`、`/find`、`/quit` 等）这种接入没有界面。
 - **命令来源三层**：pager 内置（TUI 本地动作）、shell 内置（会话 / 代理动作，经 **ACP `AvailableCommandsUpdate`** 告诉 TUI）、user-invocable skills。内置名永远赢得裸名，冲突的 skill 用 `/local:name`、`/user:name`、`/<plugin>:name`。
 - **skills**：`./.grok/skills/`（向上到仓库根）、`~/.grok/skills/`、启用插件的 `skills/`；`SKILL.md` frontmatter：`name`、`description`、`when-to-use`、`argument-hint`、`user-invocable`（只有字面量 `true` 算）、`disable-model-invocation`、`metadata`。`commands/` 下的扁平 `*.md` 也成为斜杠命令（兼容旧 Claude 布局）。
 - **插件**：`./.grok/plugins/`、`~/.grok/plugins/`（含 `skills/`、`commands/`、`agents/`、`hooks/hooks.json`、`.mcp.json`、`.lsp.json`，可选 `plugin.json`）；`grok plugin list|install|enable|disable|details`、`grok inspect --json` 是文档化的 CLI 管理入口。
@@ -62,33 +62,33 @@
 
 图例：**N** = Nomi 原生（卡片）；**P** = 透传给 CLI；**X** = Nomi 提示词展开后发送；**D** = 文档化协议方法（当前未接入，写明方法名）；**✗** = 不支持（卡片说明）。
 
-| 命令                                                                                            | Nomi                                     | Claude Code                                  | Codex                                 | Grok                      | dsh                 |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------- | ------------------------------------- | ------------------------- | ------------------- |
-| `/help`                                                                                         | N                                        | N                                            | N                                     | N                         | N                   |
-| `/context`                                                                                      | N（会话 token 估算 + 上次真实用量）      | N                                            | N（D: `thread/tokenUsage/updated`）   | N                         | N                   |
-| `/cost`（`/usage` `/stats`）                                                                    | N                                        | N（别名同官方）                              | N（D: `account/rateLimits/read`）     | N                         | N                   |
-| `/status`                                                                                       | N                                        | N                                            | N                                     | N                         | N                   |
-| `/model`                                                                                        | N（供应商 / 模型切换）                   | N（供应商档案切换）                          | N（D: `model/list`）                  | N                         | N                   |
-| `/clear` `/new`                                                                                 | N（新会话）                              | N（新标签，旧会话保留）                      | N                                     | N                         | N                   |
-| `/compact`                                                                                      | ✗（Nomi 对话暂无压缩）                   | **P**（SDK 文档化，`compact_boundary`）      | ✗（D: `thread/compact/start`）        | ✗（TUI 命令，无头无文档） | ✗                   |
-| `/diff`                                                                                         | —                                        | N（`git diff`，只读）                        | N                                     | N                         | N                   |
-| `/review`                                                                                       | —                                        | **P**（捆绑 skill，别名 `/code-review`）     | **X**（Nomi 模板；D: `review/start`） | **X**                     | **X**               |
-| `/init`                                                                                         | —                                        | **P**                                        | **X**（生成 `AGENTS.md` 的模板）      | **X**                     | **X**               |
-| `/security-review`                                                                              | —                                        | **P**                                        | —                                     | —                         | —                   |
-| `/effort` `/config k=v`                                                                         | —                                        | **P**（文档化：可带参数）                    | ✗                                     | ✗                         | ✗                   |
-| `/mcp` `/skills` `/plugins` `/agents`                                                           | N（打开「插件面板」）                    | N（面板只读展示）                            | N                                     | N                         | N（说明无公开目录） |
-| 项目 / 用户自定义命令                                                                           | N/A                                      | **P**（`/name args`，CLI 展开）              | —                                     | **X**                     | —                   |
-| skills                                                                                          | N（Nomi 技能：展开）                     | **P**（`/skill`）                            | **X**（`$skill` 的等价展开）          | **X**                     | —                   |
-| `/memory` `/permissions` `/login` `/logout` `/theme` `/vim` `/terminal-setup` `/ide` `/doctor`… | ✗                                        | ✗（交互式终端界面，headless 文档明确不可用） | ✗（TUI 配置界面）                     | ✗                         | ✗                   |
-| `/mention`                                                                                      | ✗                                        | ✗                                            | ✗（Nomi 输入框直接写路径即可）        | ✗                         | ✗                   |
-| 其它未知 `/xxx`                                                                                 | ✗ 卡片：未知命令，可选"作为普通文字发送" | 同                                           | 同                                    | 同                        | 同                  |
+| 命令                                                                                            | Nomi                                     | Claude Code                                  | Codex                               | Grok                      | dsh                 |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------- | ----------------------------------- | ------------------------- | ------------------- |
+| `/help`                                                                                         | N                                        | N                                            | N                                   | N                         | N                   |
+| `/context`                                                                                      | N（会话 token 估算 + 上次真实用量）      | N                                            | N（D: `thread/tokenUsage/updated`） | **P**（Grok 自己的命令）  | N                   |
+| `/cost`（`/usage` `/stats`）                                                                    | N                                        | N（别名同官方）                              | N（D: `account/rateLimits/read`）   | N                         | N                   |
+| `/status`                                                                                       | N                                        | N                                            | N                                   | N                         | N                   |
+| `/model`                                                                                        | N（供应商 / 模型切换）                   | N（供应商档案切换）                          | N（D: `model/list`）                | N                         | N                   |
+| `/clear` `/new`                                                                                 | N（新会话）                              | N（新标签，旧会话保留）                      | N                                   | N                         | N                   |
+| `/compact`                                                                                      | ✗（Nomi 对话暂无压缩）                   | **P**（SDK 文档化，`compact_boundary`）      | ✗（D: `thread/compact/start`）      | **P**（`grok -p` 会执行） | ✗                   |
+| `/diff`                                                                                         | —                                        | N（`git diff`，只读）                        | N                                   | N                         | N                   |
+| `/review`                                                                                       | —                                        | **P**（捆绑 skill，别名 `/code-review`）     | ✗（D: `review/start`）              | **P**（自带 skill）       | ✗                   |
+| `/init`                                                                                         | —                                        | **P**                                        | ✗                                   | ✗（无头列表里没有）       | ✗                   |
+| `/security-review`                                                                              | —                                        | **P**                                        | —                                   | —                         | —                   |
+| `/effort` `/config k=v`                                                                         | —                                        | **P**（文档化：可带参数）                    | ✗                                   | ✗                         | ✗                   |
+| `/mcp` `/skills` `/plugins` `/agents`                                                           | N（打开「插件面板」）                    | N（面板只读展示）                            | N                                   | N                         | N（说明无公开目录） |
+| 项目 / 用户自定义命令                                                                           | N/A                                      | **P**（`/name args`，CLI 展开）              | —                                   | **P**（`/name args`）     | —                   |
+| skills                                                                                          | N（Nomi 技能：展开）                     | **P**（`/skill`）                            | **X**（`$skill` 的等价展开）        | **P**（`/name args`）     | —                   |
+| `/memory` `/permissions` `/login` `/logout` `/theme` `/vim` `/terminal-setup` `/ide` `/doctor`… | ✗                                        | ✗（交互式终端界面，headless 文档明确不可用） | ✗（TUI 配置界面）                   | ✗                         | ✗                   |
+| `/mention`                                                                                      | ✗                                        | ✗                                            | ✗（Nomi 输入框直接写路径即可）      | ✗                         | ✗                   |
+| 其它未知 `/xxx`                                                                                 | ✗ 卡片：未知命令，可选"作为普通文字发送" | 同                                           | 同                                  | 同                        | 同                  |
 
 说明：
 
-- **N 优先于 P**：官方也有 `/context` `/cost` `/status` 这些命令，但它们要么是 TUI 画面（彩色格子、设置面板），要么在 `-p` 下无文档。Nomi 直接用本地账本算，**不起模型轮次、不花钱、即时**。
-- **P 只给文档明确说可用的**：Claude 的 `/compact`、`/init`、`/code-review`、`/security-review`、`/effort`、`/config key=value`、用户 skills / 命令文件。其余内置命令一律走 ✗，宁可明确提示也不把命令当文字发给模型。
+- **N 优先于 P**：官方也有 `/context` `/cost` `/status` 这些命令，但它们要么是 TUI 画面，要么在 `-p` 下无文档。Nomi 直接用本地账本算，**不起模型轮次、不花钱、即时**。例外：Grok 的 `/context` 在 `grok -p` 的命令列表里，原样发送，不再用 Nomi 卡片占用这个名字。`/status` 无头列表里的名字是 `/session-info`，所以 `/status` 仍是 Nomi 卡片。
+- **P 只给这种接入真能执行的**：Claude 的 `/compact`、`/init`、`/code-review`、`/security-review`、`/effort`、`/config key=value`、用户 skills / 命令文件；Grok 的 shell 内置（`/compact`、`/context`、`/always-approve`、`/session-info`、`/feedback`、`/deep-research`、`/workflow`、`/goal`、`/loop`）和发现到的 skills / 工作流。其余内置命令一律走 ✗，宁可明确提示也不把命令当文字发给模型。
 - **X 的边界**：展开只做占位符替换（`$ARGUMENTS`、`$N`、`$name`、`${CLAUDE_SKILL_DIR}`…不替换），`` !`cmd` `` **不执行**（原样保留并在卡片里提示"Nomi 不运行嵌入的 shell 命令"），避免通过命令文件绕过 CLI 的权限模型。
-- **dsh**：没有任何文档化来源，所以 CLI 相关命令只有 N；`/review` `/init` 是 Nomi 的纯提示词模板（X），不依赖 dsh 的任何命令。
+- **dsh**：没有任何文档化来源，所以 CLI 相关命令只有 N。`/review` `/init` 不做成 Nomi 提示词。
 
 ## 3. 开源方案对比与选型
 
@@ -107,8 +107,8 @@
 **选型：以 ACP 的命令元数据模型为骨架，吸收三家的细节。**
 
 1. **注册模型 = ACP `AvailableCommand` 的超集**。每条命令至少有 `name`、`description`、可选 `input.hint`（ACP 形状），再加 Nomi 自己需要的 `source`（分组）、`kind`（原生 / 透传 / 展开 / 不支持）、`handler`。理由：ACP 是 Grok 已经在用的、多代理的共同形状；以后 Nomi 若接 ACP 代理，`available_commands_update` 可以**零转换**注册进来（整表替换语义也直接复用）；未知字段保留（`meta`），符合 ACP 对客户端的要求。
-2. **每个端一个 adapter，注册表合并**（借鉴 OpenCode 的"同一注册表、后来者覆盖"和 Grok 的"内置名赢得裸名"）：同名时内置赢裸名，自定义命令以限定名 `/project:name`、`/user:name`、`/<plugin>:name` 出现；不静默覆盖，菜单上同时显示两条并带来源徽标。
-3. **分组 + 来源徽标**（借鉴 OpenCode 弹层的 `source` badge、Claude 的来源标注）：「内置 / 当前端命令 / 项目自定义 / 用户自定义 / 插件 / Skills / 界面」。
+2. **每个端一个 adapter，注册表合并**（借鉴 OpenCode 的"同一注册表、后来者覆盖"和 Grok 的"内置名赢得裸名"）：同名时当前端赢过 Nomi，自定义命令以限定名 `/project:name`、`/user:name`、`/<plugin>:name` 出现；不静默覆盖，菜单上同时显示两条并带来源徽标。
+3. **分组 + 来源徽标**（借鉴 OpenCode 弹层的 `source` badge、Claude 的来源标注）：「当前端命令 / 项目自定义 / 用户自定义 / 插件 / Skills / Nomi / 界面」。当前端与 Nomi 同名时只展示当前端。
 4. **参数提示**用 ACP `input.hint` + 命令文件的 `argument-hint`；不做 Open WebUI 那样的类型化表单（我们的命令参数都是一行文本，表单过重）；Zed 的"参数补全"思路用在 `/model <名>`：参数位置补全该端可选的模型 / 档案。
 5. **搜索**沿用仓库已有的 `utils/fuzzy.ts`（词 AND、子串 > 子序列、中文友好），按名字 > 别名 > 描述加权。借鉴 Claude 的细节：打错字时**不静默提交**——`Enter` 在没有匹配项时走"未知命令"卡片而不是发给模型。
 6. **结果呈现**：原生命令的结果是会话流里的**系统消息卡片**（本机展示，不进 CLI 历史、不发给模型）；透传 / 展开的结果走普通流式输出。这是 ACP / OpenCode / Open WebUI 共同的做法（"命令 = 提示词前缀"）在无头 CLI 上的对应物。
@@ -208,18 +208,18 @@ sequenceDiagram
 - `/status`：端、模型 · 供应商、工作目录、登录方式（额度条目 `auth`，主进程按官方登录状态命令判断，不读凭据）、CLI 版本（`cli-update inspect`）、会话 id、运行中标签数。
 - `/model`：无参数 → 列出该端可选的供应商 / 档案（可点击切换）；`/model <名>` → 按名字 / 模型匹配并切换（Nomi：`providerClient.setActive`；CLI：已有的 `cliProviderClient.activate`，与输入栏芯片同一条路径）。
 - `/clear`、`/new`：Nomi 主对话 → `newConversation`；CLI 标签 → 在同端同目录新开标签，旧标签保留。
-- `/compact`：Claude 透传；其余端卡片说明。
+- `/compact`：Claude 与 Grok 透传；其余端卡片说明。
 
 ### 4.5 自定义命令 / skills / 插件发现（主进程，只读）
 
 `slashDiscovery.discover(backend, cwd)` 返回元数据列表 `{ id, name, description, argumentHint, source, kind: 'command'|'skill'|'plugin-skill', scope, path, plugin? }`：
 
-| 端     | 扫描位置（仅这些）                                                                                                                                                                                                                                |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Claude | 项目：`<cwd>` 向上到含 `.git` 的目录（含）每层的 `.claude/commands/**/*.md`、`.claude/skills/*/SKILL.md`；用户：`~/.claude/commands`、`~/.claude/skills`；agents：`.claude/agents/*.md`、`~/.claude/agents`；MCP：`<cwd 向上>/.mcp.json` 的服务名 |
-| Codex  | `$CWD/.agents/skills`、各级父目录到仓库根的 `.agents/skills`、`~/.agents/skills`                                                                                                                                                                  |
-| Grok   | `.grok/skills`（向上）、`~/.grok/skills`、`.grok/commands`、`~/.grok/commands`、`.grok/plugins/*`、`~/.grok/plugins/*`（插件内 `skills/`、`commands/`、`plugin.json` 的 name / description）                                                      |
-| dsh    | 不扫描（无公开文档）                                                                                                                                                                                                                              |
+| 端     | 扫描位置（仅这些）                                                                                                                                                                                                                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude | 项目：`<cwd>` 向上到含 `.git` 的目录（含）每层的 `.claude/commands/**/*.md`、`.claude/skills/*/SKILL.md`；用户：`~/.claude/commands`、`~/.claude/skills`；agents：`.claude/agents/*.md`、`~/.claude/agents`；MCP：`<cwd 向上>/.mcp.json` 的服务名                                                                                         |
+| Codex  | `$CWD/.agents/skills`、各级父目录到仓库根的 `.agents/skills`、`~/.agents/skills`                                                                                                                                                                                                                                                          |
+| Grok   | `.grok/skills`（向上）、`~/.grok/skills`、`.grok/commands`、`~/.grok/commands`、`.grok/workflows`、`~/.grok/workflows`、`~/.grok/bundled/skills`、`~/.grok/bundled/workflows`、`.grok/plugins/*`、`~/.grok/plugins/*`（插件内 `skills/`、`commands/`、`plugin.json` 的 name / description）。自带条目排在项目和用户之后，重名时让出裸名。 |
+| dsh    | 不扫描（无公开文档）                                                                                                                                                                                                                                                                                                                      |
 
 限制：每个目录最多读 200 个条目、递归深度 ≤ 3、每个文件只读前 8 KB 解析 frontmatter（简易 YAML：`key: value`，不引入 YAML 依赖）；跳过符号链接指向目录之外的条目、`.trash`、`synced` 外的隐藏目录；**不会读取**任何名为 `.credentials*`、`auth.json`、`.env*`、`*.key`、`settings*.json`、`config.toml` 的文件。展开 `slash-expand(id, args)` 只接受发现结果里存在的 id，由主进程按 id 找到路径再读该文件正文（≤ 64 KB），渲染进程不能传路径。
 
@@ -232,7 +232,7 @@ sequenceDiagram
 - 只在输入**以 `/` 开头且还没出现空白**时弹出面板；`/usr/bin` 这类含第二个 `/` 的输入视为路径，按普通文字发送；`//x` 发送字面的 `/x`。
 - Enter：执行高亮命令。passthrough / expand 命令有参数提示（或提示以 `<` 开头）时，第一次 Enter 先补全成 `/名字 `；Tab 总是只补全；Esc 关闭并清空。
 - 未知命令：阻止发送，出现"未知命令"卡片（带相近命令建议和"作为普通文字发送"按钮），**不会发给模型**。
-- 重名：内置 / 端自带 / UI 命令占用裸名；自定义命令降为 `<scope>:<name>`（先分配真名再分配别名；Claude 作用域优先级 user > project > plugin，其余端 project > user > plugin；同作用域 skill 优先于命令文件）。
+- 重名：当前端优先于 Nomi，同名时只留当前端的裸名；自定义命令降为 `<scope>:<name>`（先分配真名再分配别名；Claude 作用域优先级 user > project > plugin，其余端 project > user > plugin；同作用域 skill 优先于命令文件）。
 - 原有的"model"UI 命令（打开供应商设置）改名为 `/providers`，`/model` 让位给原生的模型切换。
 - 数据按需加载：只有执行命令时才调 `cli-update inspect`、`usage endpoint / quota`（缓存，不联网）、`cli-provider state`、`provider state`。
 
@@ -251,7 +251,7 @@ sequenceDiagram
 - **上下文窗口表是经验值**：`/context` 的窗口大小来自按模型名匹配的内置表（公开标称值），可能与实际不符；识别不了的模型用 128K。卡片上始终标注来源，分类占比始终是估算。CLI 用自带账号登录时，Nomi 不知道实际模型名（模型取自 Nomi 档案或本机用量账本），此时按默认窗口估算。
 - **`/model` 只切换 Nomi 里配置的供应商档案**：不改 CLI 自带账号登录时 CLI 自己选的模型；写入 CLI 配置由已有的 `cli-provider activate` 完成（会备份），下一轮生效。
 - **启停插件不做**：没有稳定、公开的非交互接口；面板只读。
-- **expand 后的提示词会作为用户气泡出现**：Codex / Grok 的自定义命令展开后整段显示在用户消息里（并留一张"已展开并发送"提示卡）；长 skill 会比较长。
+- **expand 后的提示词会作为用户气泡出现**：Codex 的自定义命令展开后整段显示在用户消息里（并留一张"已展开并发送"提示卡）；长 skill 会比较长。Grok 的自定义命令原样发送 `/name args`，由 Grok 自己展开。
 - **Nomi 新对话里的卡片**：空对话（`nomi:new`）里产生的卡片在发出第一条消息后不跟随（对话 scope 改变）。
 - **`!\`cmd\`` 动态注入**：Codex / Grok 展开时不执行，原样保留并提示；Claude 透传时由 CLI 自己按其权限模型处理。
 - **Windows / macOS 路径与 HOME**：发现逻辑按 `os.homedir()` 与 `path` 实现，e2e 只在 Linux（xvfb）验证。

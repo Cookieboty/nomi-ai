@@ -4,6 +4,7 @@
  */
 import { t } from '@nomi-ai/ui';
 
+import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import type { AdapterInput, SlashCommand } from '../types';
 
 import { cmd, discoveredCommands, nativeCommands, unsupportedCommands, U } from './common';
@@ -22,6 +23,7 @@ const pass = (
     description,
     source: 'endpoint',
     kind: 'passthrough',
+    badge: ENDPOINT_FULL.claude(),
     ...(hint ? { hint } : {}),
     run: (a) => ({ type: 'send', text: a ? `/${name} ${a}` : `/${name}` }),
   });

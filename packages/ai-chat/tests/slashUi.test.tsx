@@ -158,6 +158,28 @@ describe('斜杠命令面板（接线到 MessageInput + ConversationView）', ()
     expect(send).toHaveBeenCalledWith('/nope');
   });
 
+  it('Grok：压缩和上下文在菜单里，回车原样发给 Grok；分页器命令仍只出说明', async () => {
+    const { getByTestId, queryByTestId, findByTestId, container } = render(<Host backend="grok" />);
+    const input = getByTestId('chat-input');
+    typeIn(input, '/');
+    const groups = container.querySelectorAll('[data-group]');
+    expect(groups[0]?.getAttribute('data-group')).toBe('endpoint');
+    expect(getByTestId('slash-compact').textContent).toContain('Grok');
+    expect(getByTestId('slash-compact').textContent).toContain('转给 CLI');
+    expect(getByTestId('slash-context').textContent).toContain('转给 CLI');
+    expect(getByTestId('slash-workflow')).toBeTruthy();
+    expect(queryByTestId('slash-init')).toBeNull();
+    typeIn(input, '/compact');
+    key(input, 'Enter');
+    await waitFor(() => expect(send).toHaveBeenCalledWith('/compact'));
+    typeIn(input, '/init');
+    expect(getByTestId('slash-empty').textContent).toContain('CLI');
+    key(input, 'Enter');
+    const card = await findByTestId('slash-card-notice');
+    expect(card.textContent).toContain('init');
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
   it('不支持的命令：明确提示原因，不发送', async () => {
     const { getByTestId, findByTestId } = render(<Host backend="claude" />);
     const input = getByTestId('chat-input');

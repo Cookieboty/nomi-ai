@@ -37,6 +37,7 @@ import {
   createGrokParser,
   parseCodexLine,
 } from './streamParse';
+import { foldAssistantEvent } from './textCursor';
 import {
   MAX_TAB_FILE_BYTES,
   buildTrace,
@@ -274,7 +275,10 @@ export class CliHarnessService {
   /** tabId → 当前这一轮最近的输出 / 步骤（轻量进度提示，仅内存；供监视器定时汇总用） */
   private readonly progress = new Map<string, { kind: 'text' | 'tool'; value: string }>();
   /** 每个运行中标签这一轮已收到的文本 / 轨迹事件：中断或失败时据此保留已有进度 */
-  private readonly partial = new Map<string, { text: string; events: HarnessEvent[] }>();
+  private readonly partial = new Map<
+    string,
+    { text: string; breaks: number[]; events: HarnessEvent[] }
+  >();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
@@ -909,7 +913,7 @@ export class CliHarnessService {
     }
     tab.status = 'running';
     const startedAt = Date.now();
-    this.partial.set(id, { text: '', events: [] });
+    this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
     try {
       const result =
@@ -951,6 +955,7 @@ export class CliHarnessService {
         ...(usage ? { usage } : {}),
         ...(tools.length ? { tools } : {}),
         ...(trace.length ? { trace } : {}),
+        ...(result.textBreaks?.length ? { textBreaks: result.textBreaks } : {}),
       });
       this.finish(tab, true, result.text);
       return { ...result, trace, durationMs, ...(usage ? { usage } : {}) };
@@ -972,6 +977,7 @@ export class CliHarnessService {
             durationMs,
             stopped: true,
             ...(trace.length ? { trace } : {}),
+            ...(part?.breaks.length ? { textBreaks: part.breaks } : {}),
           });
           this.progress.delete(id);
           this.changed();
@@ -1063,6 +1069,7 @@ export class CliHarnessService {
         reject,
         events: [],
         text: '',
+        breaks: [],
         sessionId: tab.cliSessionId,
         lastError: null,
         settled: false,
@@ -1202,17 +1209,17 @@ export class CliHarnessService {
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
     const turn = live.turn;
     live.lastActivityAt = Date.now();
-    for (const ev of live.parseLine(line)) {
-      stampEvent(ev);
+    for (const raw of live.parseLine(line)) {
+      let ev = stampEvent(raw);
       if (turn) {
+        const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
+        turn.text = folded.text;
+        turn.breaks = folded.breaks;
+        ev = folded.ev;
         // 流式文本片段已累计在 turn.text 里，不再逐条留存（长回答会有上万个）
         if (ev.type !== 'text-delta') turn.events.push(ev);
-        if (ev.type === 'text-delta' || ev.type === 'text') turn.text += ev.text;
         if (ev.type === 'error') turn.lastError = ev.message;
-        if (ev.type === 'done') {
-          if (ev.text) turn.text = ev.text;
-          if (ev.sessionId) turn.sessionId = ev.sessionId;
-        }
+        if (ev.type === 'done' && ev.sessionId) turn.sessionId = ev.sessionId;
       }
       if (liveEmit) this.emitEvent(tabId, ev);
       if (ev.type === 'permission') {
@@ -1246,6 +1253,7 @@ export class CliHarnessService {
             text: turn.text || t('（无文本输出）'),
             sessionId: turn.sessionId,
             events: turn.events,
+            ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
           });
         }
       }
@@ -1438,6 +1446,7 @@ export class CliHarnessService {
     return new Promise((resolve, reject) => {
       const events: HarnessEvent[] = [];
       let text = '';
+      let breaks: number[] = [];
       let sessionId: string | null = tab.cliSessionId;
       let buf = '';
       let lastError: string | null = null;
@@ -1467,7 +1476,11 @@ export class CliHarnessService {
             const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
             if (text !== ev.text) ev = { ...ev, text };
           }
-          stampEvent(ev);
+          ev = stampEvent(ev);
+          const folded = foldAssistantEvent(text, breaks, ev);
+          text = folded.text;
+          breaks = folded.breaks;
+          ev = folded.ev;
           if (ev.type !== 'text-delta') events.push(ev);
           if (live) this.emitEvent(tab.id, ev);
           if (ev.type === 'permission') {
@@ -1480,10 +1493,8 @@ export class CliHarnessService {
               background: this.activeTabId !== tab.id || !anyWindowFocused(),
             });
           }
-          if (ev.type === 'text-delta' || ev.type === 'text') text += ev.text;
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
-            if (ev.text) text = ev.text;
             if (ev.sessionId) sessionId = ev.sessionId;
             // 一轮结束：若仍开着 stdin，补 EOF，避免 CLI 空等
             if (opts.keepStdin && child.stdin.writable) {
@@ -1539,6 +1550,7 @@ export class CliHarnessService {
           text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
           sessionId,
           events,
+          ...(breaks.length ? { textBreaks: breaks } : {}),
         });
       });
     });
@@ -1590,13 +1602,16 @@ export class CliHarnessService {
   private emitEvent(tabId: string, ev: HarnessEvent) {
     this.trackProgress(tabId, ev);
     const part = this.partial.get(tabId);
+    let outgoing = ev;
     if (part) {
-      if (ev.type === 'text-delta') part.text += ev.text;
-      else if (ev.type === 'text') part.text = ev.text;
-      else if (ev.type === 'tool' || ev.type === 'thinking') part.events.push(ev);
+      const folded = foldAssistantEvent(part.text, part.breaks, ev);
+      part.text = folded.text;
+      part.breaks = folded.breaks;
+      outgoing = folded.ev;
+      if (outgoing.type === 'tool' || outgoing.type === 'thinking') part.events.push(outgoing);
     }
-    this.eventBatcher.push({ ...ev, tabId });
-    this.events.emit('event', { tabId, event: ev });
+    this.eventBatcher.push({ ...outgoing, tabId });
+    this.events.emit('event', { tabId, event: outgoing });
   }
 
   private changed() {
@@ -1730,6 +1745,7 @@ type ClaudeTurnWaiter = {
   reject: (e: Error) => void;
   events: HarnessEvent[];
   text: string;
+  breaks: number[];
   sessionId: string | null;
   lastError: string | null;
   settled: boolean;

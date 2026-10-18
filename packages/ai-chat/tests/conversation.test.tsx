@@ -198,6 +198,60 @@ describe('CliConversation 历史消息', () => {
   });
 });
 
+describe('CliConversation 分段', () => {
+  it('一次发送是一轮，工具插在两段文字之间', () => {
+    const first = '先看一下。';
+    const at = first.length;
+    const { container } = render(
+      <CliConversation
+        tab={tab()}
+        messages={[
+          { id: 'u1', role: 'user', content: '第一问', timestamp: 1 },
+          {
+            id: 'a1',
+            role: 'assistant',
+            content: `${first}\n\n改好了。`,
+            timestamp: 2,
+            textBreaks: [at + 2],
+            trace: [
+              { type: 'thinking', text: '想', at: 1, textAt: at },
+              {
+                type: 'tool',
+                name: 'read_file',
+                status: 'start',
+                id: 'r1',
+                input: '{"path":"a.ts"}',
+                at: 2,
+                textAt: at,
+              },
+              { type: 'tool', name: 'read_file', status: 'done', id: 'r1', output: 'x', at: 3 },
+            ],
+          },
+          { id: 'u2', role: 'user', content: '第二问', timestamp: 4 },
+          { id: 'a2', role: 'assistant', content: '好的。', timestamp: 5 },
+        ]}
+        onPermission={() => undefined}
+      />,
+    );
+    expect(container.querySelectorAll('[data-testid="conv-turn"]')).toHaveLength(2);
+    const order = [
+      ...container.querySelectorAll(
+        '[data-testid="markdown"], [data-testid="tool-thinking"], [data-testid="tool-row"]',
+      ),
+    ];
+    expect(order.map((n) => n.getAttribute('data-testid'))).toEqual([
+      'markdown',
+      'tool-thinking',
+      'tool-row',
+      'markdown',
+      'markdown',
+    ]);
+    expect(order[0]?.textContent).toContain('先看一下');
+    expect(order[3]?.textContent).toContain('改好了');
+    expect(order[4]?.textContent).toContain('好的');
+  });
+});
+
 describe('CliConversation 运行中', () => {
   const liveBase: TabLive = {
     text: '正在写',

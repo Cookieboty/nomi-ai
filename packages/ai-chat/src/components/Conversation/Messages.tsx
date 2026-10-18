@@ -5,8 +5,9 @@ import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';
+import { segmentBody } from '../../utils/convSegments';
 import { formatFullTime, turnSummary } from '../../utils/convTime';
-import { buildTimeline, entriesFromLegacyTools, reduceTrace } from '../../utils/toolTrace';
+import { entriesFromLegacyTools, hasRunning, reduceTrace } from '../../utils/toolTrace';
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
@@ -106,6 +107,56 @@ export const ErrorCard: React.FC<{
     </div>
   </div>
 );
+
+/** 助手正文：文字段和工具按发生位置穿插，而不是把工具全部堆在最上面 */
+export const AssistantBody: React.FC<{
+  text: string;
+  trace?: ConvMessage['trace'];
+  legacyTools?: string[];
+  breaks?: readonly number[];
+  live?: boolean;
+  streaming?: boolean;
+  endedAt?: number;
+  extra?: React.ReactNode;
+}> = ({ text, trace, legacyTools, breaks, live, streaming, endedAt, extra }) => {
+  const entries = useMemo(() => {
+    if (trace?.length) return reduceTrace(trace);
+    if (legacyTools?.length) return entriesFromLegacyTools(legacyTools);
+    return [];
+  }, [trace, legacyTools]);
+  const segments = useMemo(
+    () => segmentBody(text, entries, !!live, endedAt, breaks),
+    [text, entries, live, endedAt, breaks],
+  );
+  if (!segments.length && !extra) return null;
+  let lastText = -1;
+  let runningAt = -1;
+  segments.forEach((s, i) => {
+    if (s.type === 'text') lastText = i;
+    else if (hasRunning(s.items)) runningAt = i;
+  });
+  return (
+    <>
+      {segments.map((seg, i) =>
+        seg.type === 'text' ? (
+          <div key={`t-${i}`} className={styles.segment} data-testid="conv-segment">
+            <Markdown
+              text={seg.text}
+              settled={!streaming || i !== lastText}
+              streaming={!!streaming && i === lastText}
+            />
+          </div>
+        ) : (
+          <React.Fragment key={`a-${i}`}>
+            <ToolTimeline items={seg.items} />
+            {extra && i === runningAt ? extra : null}
+          </React.Fragment>
+        ),
+      )}
+      {extra && runningAt < 0 ? extra : null}
+    </>
+  );
+};
 
 export const UserMessage = memo(function UserMessage({
   message,
@@ -215,22 +266,20 @@ export const AssistantMessage = memo(function AssistantMessage({
   onRetry?: (id: string) => void;
   slots?: ConvSlots;
 }) {
-  const items = useMemo(() => {
-    const entries = message.trace?.length
-      ? reduceTrace(message.trace)
-      : message.legacyTools?.length
-        ? entriesFromLegacyTools(message.legacyTools)
-        : [];
-    return buildTimeline(entries, false, message.at);
-  }, [message.trace, message.legacyTools, message.at]);
   const full = formatFullTime(message.at);
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   return (
     <div className={styles.assistant} data-testid="msg-assistant">
       {slots?.before?.(message)}
-      <ToolTimeline items={items} />
-      {message.text.trim() && (body ?? <Markdown text={message.text} settled />)}
+      <AssistantBody
+        text={body ? '' : message.text}
+        trace={message.trace}
+        legacyTools={message.legacyTools}
+        breaks={body ? undefined : message.textBreaks}
+        endedAt={message.at}
+      />
+      {body}
       {message.error && <ErrorCard message={message.error} onRetry={retry} />}
       {message.stopped && (
         <div className={styles.stopped} data-testid="stopped-note">

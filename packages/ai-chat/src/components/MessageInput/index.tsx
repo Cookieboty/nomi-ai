@@ -510,6 +510,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const slashQuery = paletteQuery(message);
   const slashGroups = slashQuery === null ? [] : searchCommands(registry, slashQuery);
   const slashFlat = flattenGroups(slashGroups);
+  const blockedSlash =
+    slashQuery &&
+    slashFlat.length === 0 &&
+    findCommand(registry, slashQuery)?.kind === 'unsupported'
+      ? slashQuery
+      : undefined;
   const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
@@ -672,6 +678,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             groups={slashGroups}
             active={Math.min(slashIdx, Math.max(0, slashFlat.length - 1))}
             query={slashQuery ?? ''}
+            {...(blockedSlash ? { blocked: blockedSlash } : {})}
             onPick={(c) => pickCommand(c, 'run')}
             onHover={setSlashIdx}
           />

@@ -27,6 +27,10 @@ export function adapterFor(backend: ConversationBackend, input: AdapterInput): S
  * 重名时谁保留不带前缀的名字：Claude 文档规定 个人 > 项目；其它端沿用 OpenCode / Continue
  * 的惯例 项目 > 用户。插件命令本身已带「插件名:」前缀，不参与。
  */
-export function scopeOrderFor(backend: ConversationBackend): Array<'project' | 'user' | 'plugin'> {
-  return backend === 'claude' ? ['user', 'project', 'plugin'] : ['project', 'user', 'plugin'];
+export function scopeOrderFor(
+  backend: ConversationBackend,
+): Array<'project' | 'user' | 'plugin' | 'bundled'> {
+  return backend === 'claude'
+    ? ['user', 'project', 'plugin']
+    : ['project', 'user', 'plugin', 'bundled'];
 }

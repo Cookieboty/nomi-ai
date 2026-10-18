@@ -203,44 +203,21 @@ export const U = {
     alt: () => t('在左侧历史里点开旧会话即可继续。'),
   }),
   compact: (why: () => string): Unsupported => ({ name: 'compact', reason: why }),
+  /** CLI 自己的审查 / 初始化。非交互模式没有对应命令时，不拿 Nomi 提示词冒充。 */
+  review: (): Unsupported => ({
+    name: 'review',
+    aliases: ['code-review'],
+    reason: () =>
+      t('代码审查是这个 CLI 自己的命令。非交互接入用不了，Nomi 不会另做一套提示词来冒充。'),
+    alt: () => t('请在该 CLI 的交互界面里使用 /review，或直接用文字说明要审查什么。'),
+  }),
+  init: (file: string): Unsupported => ({
+    name: 'init',
+    reason: () =>
+      t('生成项目说明是这个 CLI 自己的命令。非交互接入用不了，Nomi 不会另做一套提示词来冒充。'),
+    alt: () => t('请在该 CLI 的交互界面里使用 /init，或直接编辑项目里的 {0}。', file),
+  }),
 };
-
-// ───────────────────────── 提示词模板（X） ─────────────────────────
-
-/** /review 与 /init：普通提示词，由 Nomi 展开后发给模型 */
-export function promptTemplates(): SlashCommand[] {
-  return [
-    cmd({
-      name: 'review',
-      aliases: ['code-review'],
-      label: t('代码审查'),
-      description: t('让助手审查当前目录尚未提交的更改（Nomi 提示词模板）'),
-      source: 'endpoint',
-      kind: 'expand',
-      hint: t('[关注点]'),
-      run: (a) => ({
-        type: 'send',
-        text:
-          t(
-            '请审查当前工作目录里尚未提交的更改（可以用 git status / git diff 查看）：指出行为变化、潜在缺陷、遗漏的测试和可读性问题，按严重程度排序，并给出具体修改建议。不要直接改文件。',
-          ) + (a ? '\n\n' + t('重点关注：{0}', a) : ''),
-      }),
-    }),
-    cmd({
-      name: 'init',
-      label: t('生成 AGENTS.md'),
-      description: t('让助手阅读项目并生成 / 更新 AGENTS.md（Nomi 提示词模板）'),
-      source: 'endpoint',
-      kind: 'expand',
-      run: () => ({
-        type: 'send',
-        text: t(
-          '请阅读当前项目的结构、构建与测试方式和代码约定，在项目根目录创建或更新 AGENTS.md：包含常用命令、目录说明、代码风格和需要注意的坑。保持简短、只写你确认过的内容。',
-        ),
-      }),
-    }),
-  ];
-}
 
 // ───────────────────────── 发现的自定义条目 ─────────────────────────
 
@@ -248,6 +225,7 @@ const SCOPE_BADGE: Record<SlashDiscoveryEntry['scope'], () => string> = {
   project: () => t('项目'),
   user: () => t('用户'),
   plugin: () => t('插件'),
+  bundled: () => 'Grok',
 };
 
 /**
@@ -263,7 +241,13 @@ export function discoveredCommands(
     if (e.kind !== 'command' && e.kind !== 'skill') continue;
     if (!e.userInvocable) continue;
     const source: SlashSource =
-      e.kind === 'skill' ? 'skill' : e.scope === 'plugin' ? 'plugin' : e.scope;
+      e.kind === 'skill'
+        ? 'skill'
+        : e.scope === 'plugin'
+          ? 'plugin'
+          : e.scope === 'bundled'
+            ? 'endpoint'
+            : e.scope;
     out.push(
       cmd({
         name: e.name,
@@ -272,7 +256,12 @@ export function discoveredCommands(
         source,
         kind: mode,
         scope: e.scope,
-        badge: e.scope === 'plugin' && e.plugin ? e.plugin : SCOPE_BADGE[e.scope](),
+        badge:
+          e.scope === 'bundled'
+            ? 'Grok'
+            : e.scope === 'plugin' && e.plugin
+              ? e.plugin
+              : SCOPE_BADGE[e.scope](),
         ...(e.argumentHint ? { hint: e.argumentHint } : {}),
         run:
           mode === 'passthrough'

@@ -27,10 +27,18 @@
 .inner {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-4);
+  gap: 32px;
   max-width: 820px;
   margin: 0 auto;
   padding-bottom: var(--cd-space-5);
+}
+
+/* 一次发送一轮：轮与轮之间留白，轮内的用户消息和回复靠得更近 */
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
 .user {
@@ -54,7 +62,10 @@
 .assistant {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
+  min-width: 0;
+}
+.segment {
   min-width: 0;
 }
 

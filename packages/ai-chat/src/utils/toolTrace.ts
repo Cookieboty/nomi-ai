@@ -26,8 +26,8 @@ export interface ToolCall {
 }
 
 export type TraceEntry =
-  | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number }
-  | { type: 'tool'; call: ToolCall };
+  | { type: 'thinking'; id: string; text: string; at?: number; lastAt?: number; textAt?: number }
+  | { type: 'tool'; call: ToolCall; textAt?: number };
 
 /** 分组桶：同桶的连续调用折叠成一组 */
 export type Bucket = 'explore' | 'command' | 'edit' | 'other';
@@ -68,7 +68,7 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
   for (const ev of events) {
     if (ev.type === 'thinking') {
       const last = entries[entries.length - 1];
-      if (last?.type === 'thinking') {
+      if (last?.type === 'thinking' && last.textAt === ev.textAt) {
         last.text += ev.text;
         if (ev.at !== undefined) last.lastAt = ev.at;
       } else
@@ -78,6 +78,7 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
           text: ev.text,
           at: ev.at,
           lastAt: ev.at,
+          ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
         });
       continue;
     }
@@ -99,7 +100,11 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
       };
       if (key) byKey.set(key, call);
       running.push(call);
-      entries.push({ type: 'tool', call });
+      entries.push({
+        type: 'tool',
+        call,
+        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+      });
       continue;
     }
     // done / error
@@ -127,7 +132,11 @@ export function reduceTrace(events: readonly HarnessTraceEvent[]): TraceEntry[] 
         parentId: ev.parentId,
       };
       if (key) byKey.set(key, call);
-      entries.push({ type: 'tool', call });
+      entries.push({
+        type: 'tool',
+        call,
+        ...(ev.textAt !== undefined ? { textAt: ev.textAt } : {}),
+      });
     }
   }
   return entries;

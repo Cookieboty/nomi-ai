@@ -92,11 +92,14 @@ describe('history transcript parsers (fixtures)', () => {
         ['tool', 'Read:done'],
       ],
     );
-    const start = a.trace![1] as { input?: string; at?: number };
+    const start = a.trace![1] as { input?: string; at?: number; textAt?: number };
     const done = a.trace![2] as { output?: string; id?: string; at?: number };
     expect(JSON.parse(start.input!)).toEqual({ file_path: '/work/app/login.test.ts' });
     expect(done.output).toBe('file contents');
     expect(done.at! - start.at!).toBe(1000);
+    expect((a.trace![0] as { textAt?: number }).textAt).toBe(0);
+    expect(start.textAt).toBe('Let me look at the test.'.length);
+    expect(a.textBreaks).toEqual(['Let me look at the test.'.length + 2]);
     // 整轮耗时：用户提问（10:00:01）→ 最后一个助手事件（10:00:06）
     expect(a.durationMs).toBe(5000);
   });

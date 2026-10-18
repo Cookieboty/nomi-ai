@@ -5,6 +5,7 @@ import {
   executeSlash,
   findCommand,
   flattenGroups,
+  offeredCommands,
   searchCommands,
 } from '../src/slash/registry';
 import type { SlashCommand } from '../src/slash/types';
@@ -49,6 +50,13 @@ describe('buildRegistry 重名规则', () => {
     const r = buildRegistry([cmdFile, skill]);
     expect(r.find((c) => c.name === 'x')!.source).toBe('skill');
   });
+  it('当前端与 Nomi 同名时保留当前端', () => {
+    const r = buildRegistry([
+      mk({ name: 'context', source: 'builtin' }),
+      mk({ name: 'context', source: 'endpoint', kind: 'passthrough' }),
+    ]);
+    expect(r.map((c) => [c.name, c.source])).toEqual([['context', 'endpoint']]);
+  });
   it('别名冲突被丢弃，不抢别人的名字', () => {
     const r = buildRegistry([
       mk({ name: 'cost', aliases: ['usage'] }),
@@ -76,13 +84,18 @@ describe('searchCommands', () => {
       }),
     ],
   });
-  it('空查询：按组顺序返回全部', () => {
+  it('空查询：当前端在前，Nomi 在后', () => {
     const g = searchCommands(commands, '');
-    expect(g[0]!.source).toBe('builtin');
-    expect(g.map((x) => x.source)).toEqual(
-      expect.arrayContaining(['builtin', 'endpoint', 'project', 'skill']),
-    );
-    expect(flattenGroups(g).length).toBe(commands.length);
+    const sources = g.map((x) => x.source);
+    expect(sources[0]).toBe('endpoint');
+    expect(sources.indexOf('endpoint')).toBeLessThan(sources.indexOf('builtin'));
+    expect(sources).toEqual(expect.arrayContaining(['builtin', 'endpoint', 'project', 'skill']));
+    const nomi = searchCommands(makeCtx('nomi').commands, '');
+    expect(nomi[0]!.source).toBe('builtin');
+    const offered = offeredCommands(commands);
+    expect(flattenGroups(g).length).toBe(offered.length);
+    expect(flattenGroups(g).some((h) => h.command.kind === 'unsupported')).toBe(false);
+    expect(offered.length).toBeLessThan(commands.length);
   });
   it('前缀 / 子序列 / 描述 / 别名都能命中', () => {
     const names = (q: string) =>
