@@ -43,6 +43,7 @@ import {
 } from './claudeStatusline';
 import { ClaudeUsageFetcher, type ClaudeFetcherDeps } from './claudeSubscription';
 import { CodexRateLimitReader, type CodexRpcDeps } from './codexRateLimits';
+import { GrokBillingFetcher, type GrokBillingDeps } from './grokSubscription';
 import { formatAmount, formatMoney, formatTokens } from './money';
 import { PriceSync, type PriceSyncResult } from './priceSync';
 import {
@@ -165,6 +166,7 @@ type Deps = {
   /** 主动刷新额度所用的官方 CLI 调用（测试注入） */
   claudeUsage?: ClaudeFetcherDeps;
   codexRpc?: Partial<CodexRpcDeps>;
+  grokBilling?: GrokBillingDeps;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
 };
@@ -180,7 +182,7 @@ export type ToolRefresh =
 
 export interface QuotaRefreshReport {
   entries: QuotaEntry[];
-  tools: Partial<Record<'claude' | 'codex', ToolRefresh>>;
+  tools: Partial<Record<'claude' | 'codex' | 'grok', ToolRefresh>>;
 }
 
 /** 本机已有的额度快照多久算「还新」：更新鲜就不拉起官方 CLI */
@@ -309,6 +311,8 @@ export class UsageService {
   private readonly codexCache: IdentityQuotaCache;
   private readonly claudeFetcher: ClaudeUsageFetcher;
   private readonly codexReader: CodexRateLimitReader;
+  private readonly grokFetcher: GrokBillingFetcher;
+  private readonly grokCache: IdentityQuotaCache;
   private refreshing: Promise<QuotaRefreshReport> | null = null;
   readonly quotaSources = new QuotaRegistry();
   private readonly auth: AuthModeDetector;
@@ -342,6 +346,8 @@ export class UsageService {
       salt: () => this.salt,
       ...d.codexRpc,
     });
+    this.grokFetcher = new GrokBillingFetcher({ now: d.now, ...d.grokBilling });
+    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.auth = new AuthModeDetector({
       home: d.home,
       env: d.env,
@@ -350,7 +356,13 @@ export class UsageService {
       salt: () => this.salt,
       // 日志 / 快照里已经有带额度的数据，说明是订阅登录
       hasSubscriptionData: (id) =>
-        id === 'codex' ? !!this.codexQuota?.plan : !!readStatuslineSnapshot(d.root),
+        id === 'codex'
+          ? !!this.codexQuota?.plan
+          : id === 'claude'
+            ? !!readStatuslineSnapshot(d.root)
+            : id === 'grok'
+              ? !!this.grokCache.get()?.windows.length
+              : false,
     });
     this.quotaSources.register({
       id: 'codex',
@@ -382,6 +394,14 @@ export class UsageService {
         const cmd = this.claudeCache.get();
         if (snapR && cmd) return snapR.updatedAt >= cmd.updatedAt ? snapR : cmd;
         return snapR ?? cmd;
+      },
+    });
+    this.quotaSources.register({
+      id: 'grok',
+      label: 'Grok',
+      read: () => {
+        if (!this.settings.enabled) return null;
+        return this.grokCache.get();
       },
     });
     this.ledger = new UsageLedger({ root: d.root, logger: d.logger, now: d.now });
@@ -541,8 +561,9 @@ export class UsageService {
   /**
    * 用户点「刷新」：先重读本机已有的数据（会话日志）；快照缺失 / 过期 / 超过 5 分钟才会拉起官方 CLI：
    * - Claude Code：`claude -p /usage --output-format json`；
-   * - Codex：`codex app-server` 的 `account/rateLimits/read`。
-   * 两者都是官方 CLI 用自己的登录态去取，Nomi 不接触凭据；每个来源 60 秒内最多真实拉取一次；
+   * - Codex：`codex app-server` 的 `account/rateLimits/read`；
+   * - Grok：官方 CLI ACP 的 `_x.ai/billing` 扩展。
+   * 三者都是官方 CLI 用自己的登录态去取，Nomi 不接触凭据；每个来源 60 秒内最多真实拉取一次；
    * 「主动刷新额度」关闭时一律不拉起 CLI。从不自动轮询，只在这里被调用时才会触发。
    */
   refreshQuota(): Promise<QuotaRefreshReport> {
@@ -632,6 +653,16 @@ export class UsageService {
         tools.codex = this.mapRefresh(r, this.codexCache);
       }
     } else if (cx) tools.codex = { state: 'skipped', reason: 'not-subscription' };
+
+    const gx = await this.auth.detectFull('grok').catch(() => null);
+    if (gx?.mode === 'subscription') {
+      if (!active) tools.grok = { state: 'skipped', reason: 'disabled' };
+      else if (this.fresh(this.grokCache.get())) tools.grok = { state: 'fresh-local' };
+      else {
+        const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
+        tools.grok = this.mapRefresh(r, this.grokCache);
+      }
+    } else if (gx) tools.grok = { state: 'skipped', reason: 'not-subscription' };
 
     this.changed();
     return { entries: await this.quotaView(), tools };

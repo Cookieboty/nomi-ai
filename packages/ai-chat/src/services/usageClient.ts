@@ -172,8 +172,8 @@ export interface UsageQuotaEntry {
   windows: UsageQuotaWindow[];
   updatedAt?: number;
   plan?: string;
-  /** 这份数字的来源：状态栏快照 / claude /usage / Codex 会话日志 / codex app-server */
-  origin?: 'statusline' | 'usage-cmd' | 'session-log' | 'app-server';
+  /** 这份数字的来源：状态栏快照 / claude /usage / Codex app-server / Grok ACP */
+  origin?: 'statusline' | 'usage-cmd' | 'session-log' | 'app-server' | 'grok-acp';
   /** 最近一次刷新暂时失败，显示的是更早读到的值 */
   stale?: boolean;
 }
@@ -189,7 +189,7 @@ export type UsageToolRefresh =
 
 export interface UsageQuotaRefresh {
   entries: UsageQuotaEntry[];
-  tools: Partial<Record<'claude' | 'codex', UsageToolRefresh>>;
+  tools: Partial<Record<'claude' | 'codex' | 'grok', UsageToolRefresh>>;
 }
 
 /** Claude Code 额度来源：用户可选开启的 statusline 快照 */

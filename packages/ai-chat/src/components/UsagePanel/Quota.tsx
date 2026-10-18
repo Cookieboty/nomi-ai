@@ -4,7 +4,7 @@
  * Nomi 对话走 API，不出现在这里。额度只来自两类来源：本机已有的数据（Codex 的会话日志、Claude Code 官方
  * statusline 输入里的 rate_limits，后者需要用户主动开启），以及用户点「刷新」时由官方 CLI 自己用自己的登录态
  * 去取（claude -p /usage、codex app-server）；读不到就写「暂未返回可用额度」，不估算、不编造。
- * 登录方式由主进程用官方「登录状态」命令 / 本地配置判断；Nomi 不读取、不上传任何登录凭据。
+ * 登录方式由主进程用官方「登录状态」命令 / ACP initialize / 本地配置判断；Nomi 不读取、不上传任何登录凭据。
  */
 import { Badge, Button, t } from '@nomi-ai/ui';
 import { Gauge, RefreshCw } from 'lucide-react';
@@ -35,14 +35,15 @@ const ORIGIN_LABEL: Record<NonNullable<UsageQuotaEntry['origin']>, string> = {
   'usage-cmd': '来源：claude /usage（官方 CLI）',
   'session-log': '来源：Codex 会话日志',
   'app-server': '来源：codex app-server（官方 CLI）',
+  'grok-acp': '来源：Grok ACP billing（官方 CLI）',
 };
 
 type Note = { text: string; tone: 'ok' | 'dim' | 'err' };
 
 /** 把一次刷新结果翻译成给用户看的一句话（不含任何账号信息） */
 export function refreshNote(id: string, r: UsageToolRefresh): Note | null {
-  const name = id === 'claude' ? 'Claude Code' : 'Codex';
-  const cli = id === 'claude' ? 'claude -p /usage' : 'codex app-server';
+  const name = id === 'claude' ? 'Claude Code' : id === 'codex' ? 'Codex' : 'Grok';
+  const cli = id === 'claude' ? 'claude -p /usage' : id === 'codex' ? 'codex app-server' : 'grok ACP billing';
   switch (r.state) {
     case 'ok':
       return { tone: 'ok', text: t('{0}：已让官方 CLI（{1}）刷新。', name, cli) };
@@ -236,7 +237,7 @@ export const QuotaCard: React.FC = () => {
         setRows(r.entries);
         setNow(Date.now());
         const out: Note[] = [];
-        for (const id of ['claude', 'codex'] as const) {
+        for (const id of ['claude', 'codex', 'grok'] as const) {
           const res = r.tools[id];
           const n = res ? refreshNote(id, res) : null;
           if (n) out.push(n);
@@ -335,7 +336,11 @@ export const QuotaCard: React.FC = () => {
         >
           <SourceIcon source={e.id} size={16} />
           <span>{nameOf(e)}</span>
-          <span className={styles.dim}>{t('暂未返回可用额度')}</span>
+          <span className={styles.dim}>
+            {e.id === 'grok'
+              ? t('Grok 已识别为官方账号登录，但当前 CLI 没有返回可用额度。请点击刷新重试。')
+              : t('暂未返回可用额度')}
+          </span>
         </div>
       ))}
       {hook && sub.some((e) => e.id === 'claude') && (
@@ -365,7 +370,7 @@ export const QuotaCard: React.FC = () => {
       </p>
       <p className={styles.dim} data-testid="usage-quota-privacy">
         {t(
-          '隐私：Nomi 不读取、不保存、不上传任何登录凭据（不打开 auth.json、.credentials.json 或系统钥匙串），不调用未公开接口，也不估算。点「刷新」时，快照过期才会临时启动官方 CLI（claude -p /usage、codex app-server），由它用自己的登录态去取，Nomi 只保留百分比、窗口、重置时间和套餐；注意 Codex 会因此向 OpenAI 发一次请求。不会自动轮询，同一工具 60 秒内最多刷新一次；可在「隐私与数据」里关闭「主动刷新额度」。',
+          '隐私：Nomi 不读取、不保存、不上传任何登录凭据（不打开 auth.json、.credentials.json 或系统钥匙串）。点「刷新」时，快照过期才会临时启动官方 CLI（claude -p /usage、codex app-server、Grok ACP billing），由它用自己的登录态去取，Nomi 只保留百分比、窗口、重置时间和套餐；不会自动轮询，同一工具 60 秒内最多刷新一次；可在「隐私与数据」里关闭「主动刷新额度」。',
         )}
       </p>
     </section>
