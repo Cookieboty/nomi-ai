@@ -153,6 +153,41 @@ describe('slashDiscovery', () => {
     expect(by('acme:go')?.kind).toBe('command');
     expect(by('lin')).toMatchObject({ kind: 'mcp', transport: 'http', plugin: 'acme' });
     expect(JSON.stringify(g)).not.toContain('"S"');
+
+    write(
+      path.join(home, '.grok/bundled/skills/review/SKILL.md'),
+      '---\nname: review\ndescription: bundled review\nuser-invocable: true\n---\n',
+    );
+    write(
+      path.join(home, '.grok/bundled/skills/docx/SKILL.md'),
+      '---\nname: docx\ndescription: office\nuser-invocable: false\n---\n',
+    );
+    write(
+      path.join(home, '.grok/skills/review/SKILL.md'),
+      '---\nname: review\ndescription: mine\nuser-invocable: true\n---\n',
+    );
+    write(
+      path.join(home, '.grok/bundled/workflows/deep-research.rhai'),
+      'let meta = #{\n    name: "deep-research",\n    description: "Research a query",\n};\n',
+    );
+    write(
+      path.join(proj, '.grok/workflows/survey.rhai'),
+      'let meta = #{\n    name: "survey",\n    description: "Survey the repo",\n};\n',
+    );
+    const g2 = discoverSlash('grok', proj, home);
+    const reviews = g2.entries.filter((e) => e.name === 'review');
+    expect(reviews.map((e) => e.scope).sort()).toEqual(['bundled', 'user']);
+    expect(g2.entries.find((e) => e.name === 'docx')?.userInvocable).toBe(false);
+    expect(g2.entries.find((e) => e.id === 'bundled:workflow::deep-research')).toMatchObject({
+      kind: 'command',
+      scope: 'bundled',
+      description: 'Research a query',
+    });
+    expect(g2.entries.find((e) => e.id === 'project:workflow::survey')).toMatchObject({
+      description: 'Survey the repo',
+      scope: 'project',
+    });
+    expect(expandSlash('grok', proj, 'project:workflow::survey', 'now', home)).toBeNull();
   });
 
   it('dsh / nomi have no public layout: nothing scanned', () => {

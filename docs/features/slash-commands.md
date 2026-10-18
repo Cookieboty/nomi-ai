@@ -18,7 +18,7 @@
 | `//xxx`             | 发送字面的 `/xxx`（不当作命令）                                                   |
 | `/usr/bin` 这类路径 | 当作普通文字发送                                                                  |
 
-面板按组排列：**内置**、**当前端**（该 CLI 自己的命令）、**项目自定义**、**用户自定义**、**插件**、**Skills**。切换标签（不同 CLI）后命令集随之切换。右侧小标签表示接管方式：`Nomi 内置`（本机直接执行）、`转给 CLI`、`已展开`（Nomi 读取命令文件展开后发送）、`不支持`。
+面板按组排列：**当前端**（该 CLI 自己的命令）、**项目自定义**、**用户自定义**、**插件**、**Skills**，然后才是 **Nomi**。Nomi 对话里没有「当前端」这一组，所以仍从 Nomi 的命令开始。切换标签后命令集随之切换。右侧小标签表示接管方式：`Nomi 内置`（本机直接执行）、`转给 CLI`、`已展开`（Nomi 读取命令文件展开后发送）、`不支持`。
 
 ## 内置的原生命令（本机执行，不占用一轮模型对话）
 
@@ -36,12 +36,13 @@
 ## 转给 CLI / 展开的命令
 
 - **Claude Code**：文档化的 `/compact`、`/init`、`/code-review`、`/security-review`、`/effort`、`/config` 等以 `-p` 方式转给 CLI；项目 / 用户的 `.claude/commands`、`.claude/skills` 里的自定义命令和 Skills 也会列出来，选中后原样转给 CLI。
-- **Codex / Grok**：Nomi 在主进程按 id 读取对应命令 / Skill 文件，展开（`$ARGUMENTS`、`$1` …）后作为用户消息发送，并留一张"已展开并发送"提示卡。`/review`、`/init` 为 Nomi 内置的提示词模板。
+- **Grok**：`grok -p` 能执行的命令原样发送，徽标是 Grok。包括 `/compact`、`/context`、`/workflow`、`/goal`、`/loop`，以及项目、用户和 `~/.grok/bundled` 里的 skills / 工作流（例如 `/review`）。不在本地展开成提示词。
+- **Codex**：`codex exec` 没有斜杠入口。项目 / 用户 skills 由主进程展开（`$ARGUMENTS`、`$1` …）后作为用户消息发送，并留一张"已展开并发送"提示卡。`/compact`、`/review`、`/init` 不做成 Nomi 提示词。
 - **dsh**：只有原生命令和模板（dsh 没有公开文档化的命令来源）。
 
 ## 不支持与未知命令
 
-交互式才有的命令（如 `/memory`、`/permissions`、`/login`）会出现在面板里并标"不支持"，执行后给出原因和替代做法；输入不存在的 `/xxx` 时**不会发给模型**，而是提示未知命令，并提供"作为普通文字发送"按钮。
+当前这种接入用不了的 CLI 自带命令（如 `/memory`、`/permissions`、`/login`）不进菜单。打出全名时说明它是 CLI 自己的命令，回车只出原因和替代做法。输入不存在的 `/xxx` 时**不会发给模型**，而是提示未知命令，并提供"作为普通文字发送"按钮。
 
 ## 插件 / 命令面板（只读）
 
@@ -59,4 +60,4 @@
 
 - 未用真实 CLI 二进制回归：Claude 透传命令的输出、Grok 的目录布局以官方文档 + mock CLI 验证。
 - 看不到 Claude 的用户级 MCP、Codex 的 MCP / 插件列表（它们在凭据 / 配置文件里，不读取）。
-- `/compact` 在 Nomi 对话、Codex、Grok、dsh 上不支持（只有 Claude 有文档化的非交互入口）。
+- `/compact` 在 Nomi 对话、Codex、dsh 上不支持。Claude 和 Grok 会把 `/compact` 原样交给各自的 CLI。

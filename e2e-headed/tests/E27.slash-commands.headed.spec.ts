@@ -1,11 +1,13 @@
 /**
  * E27 · 斜杠命令面板（真实 dist 应用 + Mock CLI）
  *
- * A. Claude 标签：`/` 弹出分组面板（内置 / 当前端 / 项目 / 用户 / Skills），模糊搜索；
+ * A. Claude 标签：`/` 弹出分组面板（当前端在前，然后是项目 / 用户 / Skills，Nomi 在后），模糊搜索；
  *    /context /cost /status 以卡片显示且不发给 CLI；/model 切换供应商档案；
  *    项目自定义命令（参数提示 → 透传 `/fix 42`）；不支持（/memory）与未知命令只出提示卡片；
  *    /plugins 只读面板（不泄漏 .mcp.json 里的 env 值）；/new 开新标签。
- * B. Grok / Codex 标签：项目命令、skill 由主进程展开后再发送（用户气泡里是展开后的提示词）。
+ * B. Grok 标签：项目命令和自带 skill 以 `/name args` 原样发给 Grok（不在本地展开）。
+ *    `/compact` 这类 Grok 自己能跑的命令出现在菜单里，徽标是 Grok。
+ *    Codex 标签：项目 skill 仍由主进程展开后再发送。分页器才有的命令打出来只出说明。
  * C. Nomi 普通对话：空对话里 /status /context /model /help 也能直接出卡片。
  *
  * 全程 HOME 指向临时目录（不读真实用户的 CLI 配置 / 凭据）；截图目录：SLASH_SHOTS_DIR（可选）。
@@ -59,6 +61,10 @@ function fixtures() {
   put(
     join(project, '.grok/commands/deploy.md'),
     '---\ndescription: Deploy the app\nargument-hint: [env]\n---\nDeploy the app to $ARGUMENTS and report the result.\n',
+  );
+  put(
+    join(home, '.grok/bundled/skills/review/SKILL.md'),
+    '---\nname: review\ndescription: Review changes\nuser-invocable: true\nargument-hint: "[focus]"\n---\nReview $ARGUMENTS carefully.\n',
   );
   put(
     join(project, '.agents/skills/lint/SKILL.md'),
@@ -183,6 +189,9 @@ test.describe('E27 · slash commands', () => {
     await expect(chat.locator('[data-testid="slash-menu"]')).toBeVisible();
     for (const id of ['context', 'status', 'model', 'compact', 'fix', 'greet', 'review-pr'])
       await expect(chat.locator(`[data-testid="slash-${id}"]`)).toBeVisible();
+    await expect(chat.locator('[data-testid="slash-compact"]')).toContainText('转给 CLI');
+    await expect(chat.locator('[data-testid="slash-compact"]')).toContainText('Claude Code');
+    await expect(chat.locator('[data-testid="slash-memory"]')).toHaveCount(0);
     for (const g of ['builtin', 'endpoint', 'project', 'user', 'skill'])
       await expect(chat.locator(`[data-group="${g}"]`)).toBeVisible();
     // 项目命令带参数提示
@@ -307,7 +316,7 @@ test.describe('E27 · slash commands', () => {
     await expect(chat.locator('[data-testid="cli-tab-empty"]')).toBeVisible();
   });
 
-  test('B · Grok / Codex tabs: project commands and skills are expanded locally before sending', async () => {
+  test('B · Grok sends its own slash text; Codex still expands skills locally', async () => {
     test.setTimeout(240_000);
     const fx = fixtures();
     root = fx.root;
@@ -319,10 +328,11 @@ test.describe('E27 · slash commands', () => {
     await newTab(chat, 'grok');
     await input(chat).fill('/');
     await expect(chat.locator('[data-testid="slash-deploy"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="slash-deploy"]')).toContainText('展开为提示词');
-    // Grok 没有 Claude 的透传命令
-    await expect(chat.locator('[data-testid="slash-compact"]')).toBeVisible(); // 不支持项仍列出
-    await expect(chat.locator('[data-testid="slash-compact"]')).toContainText('不支持');
+    await expect(chat.locator('[data-testid="slash-deploy"]')).toContainText('转给 CLI');
+    await expect(chat.locator('[data-testid="slash-compact"]')).toContainText('Grok');
+    await expect(chat.locator('[data-testid="slash-compact"]')).toContainText('转给 CLI');
+    await expect(chat.locator('[data-testid="slash-review"]')).toContainText('转给 CLI');
+    await expect(chat.locator('[data-testid="slash-init"]')).toHaveCount(0);
     await shot(chat, '13-palette-grok');
     await input(chat).fill('/deploy');
     await input(chat).press('Enter');
@@ -330,21 +340,18 @@ test.describe('E27 · slash commands', () => {
     await input(chat).fill('/deploy staging');
     await input(chat).press('Enter');
     const sent = chat.locator('[data-testid="msg-user"]').last();
-    await expect(sent).toContainText('Deploy the app to staging and report the result.', {
-      timeout: 30_000,
-    });
-    await expect(sent).not.toContainText('$ARGUMENTS');
-    await expect(chat.locator('[data-testid="slash-card-notice"]').last()).toContainText(
-      '已把命令展开',
-    );
+    await expect(sent).toContainText('/deploy staging', { timeout: 30_000 });
+    await expect(sent).not.toContainText('Deploy the app to staging');
     await expect(chat.locator('[data-testid="msg-assistant"]').first()).toContainText('Mock Grok', {
       timeout: 30_000,
     });
-    await shot(chat, '14-grok-expanded');
+    await shot(chat, '14-grok-passthrough');
 
-    // /review 模板（Nomi 提示词）
+    // /review 是 Grok 自带 skill，原样发送，不拿 Nomi 提示词冒充
+    const usersBeforeReview = await chat.locator('[data-testid="msg-user"]').count();
     await run(chat, '/review 并发');
-    await expect(chat.locator('[data-testid="msg-user"]').last()).toContainText('重点关注：并发');
+    await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(usersBeforeReview + 1);
+    await expect(chat.locator('[data-testid="msg-user"]').last()).toContainText('/review 并发');
 
     await newTab(chat, 'codex');
     await input(chat).fill('/lint');

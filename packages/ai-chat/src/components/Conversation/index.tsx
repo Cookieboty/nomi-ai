@@ -1,8 +1,8 @@
 /**
  * 统一会话视图（Codex Desktop 式交互思路）：Nomi 普通对话与 Claude Code / Codex / Grok / dsh 标签共用。
- * 用户消息右对齐气泡；助手消息 = 工具时间线 + Markdown 正文 + 元信息（时间 / 耗时 / token / 费用）；
- * 运行中：实时时间线 / 流式正文 / 权限卡 / 等待态状态行；贴底自动跟随，上滑不抢滚动条；
- * 长对话分页；消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
+ * 每一次发送是一轮：用户消息在上，助手回复按发生顺序分成文字段和工具，工具插在对应的文字之间。
+ * 运行中同样穿插；贴底自动跟随，上滑不抢滚动条；长对话分页。
+ * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
 import { Icon, t } from '@nomi-ai/ui';
 import { ArrowDown, ChevronsUp, ShieldAlert, X } from 'lucide-react';
@@ -16,10 +16,8 @@ import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
 import styles from './index.module.css';
-import { Markdown } from './Markdown';
-import { AssistantMessage, type ConvSlots, UserMessage } from './Messages';
+import { AssistantBody, AssistantMessage, type ConvSlots, UserMessage } from './Messages';
 import { StatusLine } from './StatusLine';
-import { ToolTimeline } from './ToolTimeline';
 
 export type { ConvSlots } from './Messages';
 
@@ -90,6 +88,19 @@ function messageWeight(m: Pick<ConvMessage, 'text' | 'trace' | 'error'>): number
  * 长对话分页：从末尾往前取，直到条数达到 limit 或体量预算用完（至少 1 条）；返回起始下标。
  * `extra` 为用户点「显示更早的消息」追加的条数。
  */
+/** 一次发送一轮：用户消息领起，随后的助手消息直到下一条用户消息都算这一轮 */
+export function groupTurns(
+  messages: readonly ConvMessage[],
+): { key: string; messages: ConvMessage[] }[] {
+  const turns: { key: string; messages: ConvMessage[] }[] = [];
+  for (const m of messages) {
+    const last = turns[turns.length - 1];
+    if (m.role === 'user' || !last) turns.push({ key: m.id, messages: [m] });
+    else last.messages.push(m);
+  }
+  return turns;
+}
+
 export function windowStart(
   messages: readonly Pick<ConvMessage, 'text' | 'trace' | 'error'>[],
   extra = 0,
@@ -155,6 +166,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
   const start = Math.max(fullStart, messages.length - eagerCount);
   const shown = start > 0 ? messages.slice(start) : messages;
+  const turns = useMemo(() => groupTurns(shown), [shown]);
   const labels = useMemo(() => timeLabels(messages), [messages]);
   // 卡片归位：afterId 命中某条消息 → 紧跟其后；null → 会话开头；找不到（消息被删 / 重试）→ 末尾
   const cardPlan = useMemo(() => {
@@ -275,44 +287,81 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             </button>
           )}
           {start === 0 && renderCards(cardPlan.head)}
-          {shown.map((m) => (
-            <React.Fragment key={m.id}>
-              {m.role === 'user' ? (
-                <UserMessage
-                  message={m}
-                  timeLabel={labels.get(m.id)}
-                  canEdit={idle}
-                  onEdit={onEdit}
-                  slots={slots}
-                />
-              ) : (
-                <AssistantMessage
-                  message={m}
-                  timeLabel={labels.get(m.id)}
-                  canRetry={idle && m.id === lastAssistantId}
-                  onRetry={onRetry}
-                  slots={slots}
-                />
+          {turns.map((turn, i) => (
+            <section key={turn.key} className={styles.turn} data-testid="conv-turn">
+              {turn.messages.map((m) => (
+                <React.Fragment key={m.id}>
+                  {m.role === 'user' ? (
+                    <UserMessage
+                      message={m}
+                      timeLabel={labels.get(m.id)}
+                      canEdit={idle}
+                      onEdit={onEdit}
+                      slots={slots}
+                    />
+                  ) : (
+                    <AssistantMessage
+                      message={m}
+                      timeLabel={labels.get(m.id)}
+                      canRetry={idle && m.id === lastAssistantId}
+                      onRetry={onRetry}
+                      slots={slots}
+                    />
+                  )}
+                  {renderCards(cardPlan.byMsg.get(m.id))}
+                </React.Fragment>
+              ))}
+              {i === turns.length - 1 && showLive && (
+                <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
+                  {running && (
+                    <AssistantBody
+                      text={live?.text ?? ''}
+                      trace={live?.trace}
+                      breaks={live?.textBreaks}
+                      live
+                      streaming
+                      extra={
+                        live?.permission && onPermission ? (
+                          <PermissionCard
+                            summary={live.permission.summary}
+                            onReply={(allow) => onPermission(live.permission!.id, allow)}
+                          />
+                        ) : null
+                      }
+                    />
+                  )}
+                  {status && (
+                    <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
+                  )}
+                </div>
               )}
-              {renderCards(cardPlan.byMsg.get(m.id))}
-            </React.Fragment>
+            </section>
           ))}
-          {renderCards(cardPlan.tail)}
-          {showLive && (
+          {turns.length === 0 && showLive && (
             <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
-              {running && <ToolTimeline items={liveItems} />}
-              {running && live?.permission && onPermission && (
-                <PermissionCard
-                  summary={live.permission.summary}
-                  onReply={(allow) => onPermission(live.permission!.id, allow)}
+              {running && (
+                <AssistantBody
+                  text={live?.text ?? ''}
+                  trace={live?.trace}
+                  breaks={live?.textBreaks}
+                  live
+                  streaming
+                  extra={
+                    live?.permission && onPermission ? (
+                      <PermissionCard
+                        summary={live.permission.summary}
+                        onReply={(allow) => onPermission(live.permission!.id, allow)}
+                      />
+                    ) : null
+                  }
                 />
               )}
-              {running && live?.text.trim() && <Markdown text={live.text} streaming />}
               {status && (
                 <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
               )}
             </div>
           )}
+          {renderCards(cardPlan.tail)}
           {queued?.map((text, i) => (
             <div className={styles.pending} key={`${i}-${text}`} data-testid="conv-queued">
               <span className={styles.pendingText}>{text}</span>

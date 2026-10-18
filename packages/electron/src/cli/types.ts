@@ -85,8 +85,10 @@ export type HarnessEvent =
       parentId?: string;
       /** 主进程收到该事件的时间（ms） */
       at?: number;
+      /** 事件发生时助手正文的字符下标，用来把工具插回文字中间 */
+      textAt?: number;
     }
-  | { type: 'thinking'; text: string; at?: number }
+  | { type: 'thinking'; text: string; at?: number; textAt?: number }
   | { type: 'permission'; id: string; summary: string }
   /** 非文本的等待 / 恢复状态：重试、重连、上下文压缩（clear 表示恢复正常） */
   | {
@@ -113,6 +115,8 @@ export interface HarnessSendResult {
   text: string;
   sessionId: string | null;
   events: HarnessEvent[];
+  /** 正文分段起点，与 text 一起落盘 */
+  textBreaks?: number[];
   /** 本轮轨迹 / 耗时 / 用量（sendTab 填充；IPC 只返回这些，不返回 events） */
   trace?: HarnessTraceEvent[];
   durationMs?: number;
@@ -134,6 +138,8 @@ export interface HarnessTabMessage {
   tools?: string[];
   /** 本轮工具调用 / 思考的结构化轨迹（会话视图据此渲染分组、diff、耗时） */
   trace?: HarnessTraceEvent[];
+  /** 助手正文里后一段消息的起始下标 */
+  textBreaks?: number[];
   /** 本轮耗时（ms，从发出到结束） */
   durationMs?: number;
   /** 本轮用量（CLI 上报时才有） */

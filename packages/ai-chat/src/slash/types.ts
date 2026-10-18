@@ -12,16 +12,16 @@ import type { UsageEndpointInfo, UsageQuotaEntry } from '../services/usageClient
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
 
-/** 面板分组（也是展示顺序） */
+/** 面板分组（也是展示顺序）。当前端的命令在前，Nomi 的命令在后。 */
 export type SlashSource = 'builtin' | 'endpoint' | 'project' | 'user' | 'plugin' | 'skill' | 'ui';
 
 export const SLASH_SOURCE_ORDER: readonly SlashSource[] = [
-  'builtin',
   'endpoint',
   'project',
   'user',
   'plugin',
   'skill',
+  'builtin',
   'ui',
 ];
 
@@ -52,8 +52,8 @@ export interface SlashCommand {
   source: SlashSource;
   kind: SlashKind;
   args?: SlashArgSpec;
-  /** 项目 / 用户 / 插件（自定义命令与 skill 才有）；重名时用它当限定前缀 */
-  scope?: 'project' | 'user' | 'plugin';
+  /** 项目 / 用户 / 插件 / Grok 自带（自定义命令与 skill 才有）；重名时用它当限定前缀 */
+  scope?: 'project' | 'user' | 'plugin' | 'bundled';
   /** 来源补充：项目 / 用户 / 插件名 / 位置等，面板里作为小标签 */
   badge?: string;
   /** 与内置命令重名，因而被改成了限定名 */

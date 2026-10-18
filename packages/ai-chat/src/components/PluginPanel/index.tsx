@@ -30,6 +30,7 @@ const SCOPE: Record<SlashDiscoveryEntry['scope'], () => string> = {
   project: () => tr('项目'),
   user: () => tr('用户'),
   plugin: () => tr('插件'),
+  bundled: () => tr('Grok 自带'),
 };
 
 const toRow = (e: SlashDiscoveryEntry): Row => ({

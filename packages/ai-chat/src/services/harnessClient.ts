@@ -45,6 +45,8 @@ export interface HarnessTabMessage {
   tools?: string[];
   /** 本轮工具调用 / 思考的结构化轨迹 */
   trace?: HarnessTraceEvent[];
+  /** 助手正文里后一段消息的起始下标 */
+  textBreaks?: number[];
   durationMs?: number;
   usage?: HarnessUsage;
   stopped?: true;
@@ -70,8 +72,10 @@ export type HarnessTraceEvent =
       output?: string;
       parentId?: string;
       at?: number;
+      /** 事件发生时助手正文的字符下标 */
+      textAt?: number;
     }
-  | { type: 'thinking'; text: string; at?: number };
+  | { type: 'thinking'; text: string; at?: number; textAt?: number };
 
 export type HarnessLiveEvent =
   | { tabId: string; type: 'text-delta' | 'text'; text: string }
@@ -125,7 +129,7 @@ export interface SlashDiscoveryEntry {
   id: string;
   name: string;
   kind: 'command' | 'skill' | 'agent' | 'plugin' | 'mcp';
-  scope: 'project' | 'user' | 'plugin';
+  scope: 'project' | 'user' | 'plugin' | 'bundled';
   description: string;
   argumentHint?: string;
   userInvocable: boolean;

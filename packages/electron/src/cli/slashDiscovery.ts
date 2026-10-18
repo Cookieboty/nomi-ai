@@ -13,7 +13,7 @@ import path from 'node:path';
 
 export type SlashBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
 export type SlashEntryKind = 'command' | 'skill' | 'agent' | 'plugin' | 'mcp';
-export type SlashEntryScope = 'project' | 'user' | 'plugin';
+export type SlashEntryScope = 'project' | 'user' | 'plugin' | 'bundled';
 
 export interface SlashEntry {
   /** 稳定 id：`<scope>:<kind>:<plugin?>:<name>`；展开时凭它在主进程里找回路径 */
@@ -125,6 +125,21 @@ function firstLine(body: string): string {
 }
 
 const clip = (s: string, n = DESC_MAX) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+/** 与输入框命令名规则一致，保证发现出来的名字打得出来 */
+const SAFE_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.:-]*$/;
+
+/** 工作流文件开头的 name / description。只认文本，不执行。 */
+function workflowMeta(text: string): { name?: string; description?: string } {
+  const field = (key: string) => {
+    const m = new RegExp(
+      `(?:^|\\n)\\s*(?:\\*\\s*)?${key}:\\s*(?:"([^"]*)"|'([^']*)'|([^\\n]+))`,
+    ).exec(text);
+    const v = (m?.[1] ?? m?.[2] ?? m?.[3] ?? '').trim().replace(/,\s*$/, '');
+    return v || undefined;
+  };
+  return { name: field('name'), description: field('description') };
+}
 
 function listDir(dir: string): fs.Dirent[] {
   try {
@@ -320,6 +335,39 @@ class Collector {
     }
   }
 
+  /**
+   * Grok 工作流：`workflows/*.(rhai|js)`。Grok 用 `/<name>` 启动。
+   * 只读开头的 name / description，不执行文件。id 用 workflow 段，避免和同名命令文件撞车。
+   */
+  workflows(dir: string, scope: SlashEntryScope) {
+    for (const d of listDir(dir)) {
+      if (d.name.startsWith('.') || d.isDirectory()) continue;
+      const full = path.join(dir, d.name);
+      if (d.isSymbolicLink() && isDir(full)) continue;
+      const lower = d.name.toLowerCase();
+      if (!lower.endsWith('.rhai') && !lower.endsWith('.js')) continue;
+      const head = readHead(full, HEAD_BYTES);
+      if (head === null) continue;
+      const meta = workflowMeta(head);
+      const stem = d.name.replace(/\.(rhai|js)$/i, '');
+      const raw = meta.name?.trim() || stem;
+      const base = SAFE_NAME.test(raw) ? raw : SAFE_NAME.test(stem) ? stem : '';
+      if (!base) continue;
+      this.add({
+        file: full,
+        entry: {
+          id: `${scope}:workflow::${base}`,
+          name: base,
+          kind: 'command',
+          scope,
+          description: clip(meta.description ?? ''),
+          userInvocable: true,
+          where: this.where(full),
+        },
+      });
+    }
+  }
+
   /** Grok 插件：`plugins/<name>/`，可选 plugin.json（只取 name / description） */
   plugins(dir: string, scope: SlashEntryScope) {
     for (const d of listDir(dir)) {
@@ -379,10 +427,16 @@ function collect(backend: SlashBackend, cwd: string, home: string): Collector {
       c.skills(path.join(dir, '.grok', 'skills'), 'project', undefined, { strictInvocable: true });
       c.commands(path.join(dir, '.grok', 'commands'), 'project');
       c.plugins(path.join(dir, '.grok', 'plugins'), 'project');
+      c.workflows(path.join(dir, '.grok', 'workflows'), 'project');
     }
     c.skills(path.join(home, '.grok', 'skills'), 'user', undefined, { strictInvocable: true });
     c.commands(path.join(home, '.grok', 'commands'), 'user');
     c.plugins(path.join(home, '.grok', 'plugins'), 'user');
+    c.workflows(path.join(home, '.grok', 'workflows'), 'user');
+    c.skills(path.join(home, '.grok', 'bundled', 'skills'), 'bundled', undefined, {
+      strictInvocable: true,
+    });
+    c.workflows(path.join(home, '.grok', 'bundled', 'workflows'), 'bundled');
   }
   return c;
 }
@@ -466,6 +520,8 @@ export function expandSlash(
   if (!hasPublicLayout(backend)) return null;
   const hit = collect(backend, cwd, home).items.find((i) => i.entry.id === id);
   if (!hit || (hit.entry.kind !== 'command' && hit.entry.kind !== 'skill')) return null;
+  // 工作流是脚本，展开会把源码当提示词发出去。Grok 自己执行 `/name`。
+  if (hit.entry.id.split(':')[1] === 'workflow') return null;
   const raw = readHead(hit.file, BODY_BYTES);
   if (raw === null) return null;
   const { meta, body } = parseFrontmatter(raw);

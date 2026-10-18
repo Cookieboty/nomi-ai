@@ -354,7 +354,7 @@ const KIND_LABEL: Record<SlashKind, () => string> = {
 export const kindLabel = (k: SlashKind): string => KIND_LABEL[k]();
 
 const SOURCE_LABEL: Record<string, () => string> = {
-  builtin: () => t('内置'),
+  builtin: () => 'Nomi',
   endpoint: () => t('当前端'),
   project: () => t('项目命令'),
   user: () => t('用户命令'),
@@ -367,7 +367,7 @@ export const sourceLabel = (s: string): string => SOURCE_LABEL[s]?.() ?? s;
 export function helpCard(cmds: readonly SlashCommand[]): SlashCardInput {
   const items: CardListItem[] = [];
   for (const src of SLASH_SOURCE_ORDER)
-    for (const c of cmds.filter((x) => x.source === src))
+    for (const c of cmds.filter((x) => x.source === src && x.kind !== 'unsupported'))
       items.push({
         group: sourceLabel(src),
         label: `/${c.name}`,
@@ -392,10 +392,11 @@ export function unknownCard(
   rawText: string,
   sendPlain: (text: string) => void,
 ): SlashCardInput {
-  const near = rankItems(cmds, name, (c) => [
-    { text: c.name, weight: 3 },
-    ...(c.aliases ?? []).map((a) => ({ text: a, weight: 2 })),
-  ]).slice(0, 4);
+  const near = rankItems(
+    cmds.filter((c) => c.kind !== 'unsupported'),
+    name,
+    (c) => [{ text: c.name, weight: 3 }, ...(c.aliases ?? []).map((a) => ({ text: a, weight: 2 }))],
+  ).slice(0, 4);
   return notice(t('未知命令'), t('没有叫 /{0} 的命令，已拦下，没有发给模型。', name), 'warn', {
     ...(near.length
       ? { detail: t('你可能想输入：{0}', near.map((r) => `/${r.item.name}`).join('  ')) }

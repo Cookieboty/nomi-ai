@@ -20,7 +20,8 @@ export function buildTrace(events: HarnessEvent[]): HarnessTraceEvent[] {
     if (!isTraceEvent(ev)) continue;
     const prev = out[out.length - 1];
     // 连续的思考片段合并
-    if (ev.type === 'thinking' && prev?.type === 'thinking') {
+    // 中间插过正文的思考不要并成一块，否则会丢掉后一段的位置
+    if (ev.type === 'thinking' && prev?.type === 'thinking' && prev.textAt === ev.textAt) {
       out[out.length - 1] = { ...prev, text: `${prev.text}${ev.text}`.slice(0, 8000) };
       continue;
     }

@@ -4,6 +4,8 @@
  */
 import type { HarnessLiveEvent, HarnessTraceEvent } from '../services/harnessClient';
 
+import { mergeAssistantText } from './textCursor';
+
 /** 等待 / 恢复状态（来自 CLI 的重试、重连、上下文压缩提示） */
 export interface LiveStatus {
   kind: 'retry' | 'reconnect' | 'compact';
@@ -19,6 +21,8 @@ export interface TabLive {
   toolStatus?: 'start' | 'done' | 'error';
   /** 本轮的工具调用 / 思考事件（按到达顺序；会话视图据此归并成时间线） */
   trace?: HarnessTraceEvent[];
+  /** 正文分段起点（后一段模型消息从这里开始） */
+  textBreaks?: number[];
   /** 本轮开始时间（ms），用于「已处理 N 秒」 */
   startedAt?: number;
   /** 收到本轮第一个输出事件（文本 / 工具 / 思考）的时间；未收到时为「等待首字」 */
@@ -49,14 +53,20 @@ export function applyLiveEvents(
         next.text += e.text;
         touch();
         break;
-      case 'text':
-        next.text = e.text;
+      case 'text': {
+        const folded = mergeAssistantText(next.text, e.text, next.textBreaks ?? [], 'segment');
+        next.text = folded.text;
+        if (folded.breaks.length) next.textBreaks = folded.breaks;
+        else delete next.textBreaks;
         touch();
         break;
+      }
       case 'tool':
       case 'thinking': {
-        const { tabId: _id, ...ev } = e;
-        (added ??= []).push(ev.at === undefined ? { ...ev, at: now } : ev);
+        const { tabId: _id, ...rest } = e;
+        const stamped = rest.textAt === undefined ? { ...rest, textAt: next.text.length } : rest;
+        const ev = stamped.at === undefined ? { ...stamped, at: now } : stamped;
+        (added ??= []).push(ev);
         if (e.type === 'tool') {
           next.tool = e.name;
           next.toolStatus = e.status;

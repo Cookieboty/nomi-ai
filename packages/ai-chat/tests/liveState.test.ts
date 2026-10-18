@@ -65,6 +65,24 @@ describe('applyLiveEvents', () => {
     expect(s.status).toBeUndefined();
   });
 
+  it('keeps a later agent message as its own segment and stamps the tool cursor', () => {
+    const s = applyLiveEvents(
+      undefined,
+      [
+        { tabId: 't', type: 'text', text: '先看一下。' },
+        { tabId: 't', type: 'tool', name: 'Read', status: 'start', id: 'c1' },
+        { tabId: 't', type: 'text', text: '改好了。' },
+      ],
+      5,
+    );
+    expect(s.text).toBe('先看一下。\n\n改好了。');
+    expect(s.textBreaks).toEqual(['先看一下。'.length + 2]);
+    expect(s.trace?.[0]).toMatchObject({ textAt: '先看一下。'.length, at: 5 });
+    const again = applyLiveEvents(s, [{ tabId: 't', type: 'text', text: '改好了。' }]);
+    expect(again.text).toBe(s.text);
+    expect(again.textBreaks).toEqual(s.textBreaks);
+  });
+
   it('a batch of 20k deltas stays cheap (single string append, no array copies)', () => {
     const batch: HarnessLiveEvent[] = Array.from({ length: 20000 }, () => ({
       tabId: 't',

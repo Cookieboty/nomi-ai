@@ -27,6 +27,7 @@ function buildHarness(m: HarnessTabMessage, backend: string): ConvMessage {
     text: m.error ? '' : m.content,
     at: m.timestamp,
     ...(m.trace?.length ? { trace: m.trace } : {}),
+    ...(m.textBreaks?.length ? { textBreaks: m.textBreaks } : {}),
     ...(m.tools?.length ? { legacyTools: m.tools } : {}),
     ...(m.error ? { error: m.content } : {}),
     ...(m.stopped ? { stopped: true } : {}),
@@ -67,6 +68,7 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
   return {
     text: l.text,
     ...(l.trace ? { trace: l.trace } : {}),
+    ...(l.textBreaks?.length ? { textBreaks: l.textBreaks } : {}),
     ...(l.startedAt !== undefined ? { startedAt: l.startedAt } : {}),
     ...(l.firstEventAt !== undefined ? { firstEventAt: l.firstEventAt } : {}),
     ...(l.permission ? { permission: l.permission } : {}),

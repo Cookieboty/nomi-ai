@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { CliProviderState } from '../src/services/cliProviderClient';
 import type { CliInstallInfo } from '../src/services/cliUpdateClient';
 import type { ProviderState } from '../src/services/providerClient';
-import { executeSlash, findCommand } from '../src/slash/registry';
+import { executeSlash, findCommand, flattenGroups, searchCommands } from '../src/slash/registry';
 
 import { asst, entry, makeCtx, user } from './slashHelpers';
 
@@ -42,6 +42,10 @@ describe('各端命令集', () => {
         expect(findCommand(commands, n), `${b}:${n}`).toBeTruthy();
       expect(!!findCommand(commands, 'diff')).toBe(b !== 'nomi');
     }
+    // Grok 的 /context 由 CLI 自己执行，其它端仍是 Nomi 卡片
+    expect(findCommand(makeCtx('grok').commands, 'context')!.kind).toBe('passthrough');
+    for (const b of ['nomi', 'claude', 'codex', 'dsh'] as const)
+      expect(findCommand(makeCtx(b).commands, 'context')!.kind).toBe('native');
   });
   it('Claude：官方非交互命令透传，review 别名可用', async () => {
     const { r } = await run('claude', '/code-review 看看 auth');
@@ -66,15 +70,20 @@ describe('各端命令集', () => {
     expect(findCommand(commands, 'status')!.source).toBe('builtin');
     expect(findCommand(commands, 'project:status')!.qualified).toBe(true);
   });
-  it('Codex / Grok：自定义命令由主进程按 id 展开后发送', async () => {
-    for (const b of ['codex', 'grok'] as const) {
-      const { ctx, commands, actions } = makeCtx(b, { discovered: custom });
-      actions.expand.mockResolvedValueOnce({ text: '展开后的提示词 123', shellInjection: true });
-      const r = await executeSlash('/fix 123', commands, ctx);
-      expect(actions.expand).toHaveBeenCalledWith('project:command::fix', '123');
-      expect(r.handled && r.outcome).toMatchObject({ type: 'send', text: '展开后的提示词 123' });
-      expect(r.handled && r.outcome.type === 'send' && r.outcome.note).toBeTruthy();
-    }
+  it('Codex：自定义命令由主进程按 id 展开后发送', async () => {
+    const { ctx, commands, actions } = makeCtx('codex', { discovered: custom });
+    actions.expand.mockResolvedValueOnce({ text: '展开后的提示词 123', shellInjection: true });
+    const r = await executeSlash('/fix 123', commands, ctx);
+    expect(actions.expand).toHaveBeenCalledWith('project:command::fix', '123');
+    expect(r.handled && r.outcome).toMatchObject({ type: 'send', text: '展开后的提示词 123' });
+    expect(r.handled && r.outcome.type === 'send' && r.outcome.note).toBeTruthy();
+  });
+  it('Grok：自定义命令和 skill 原样发给 Grok，不在本地展开', async () => {
+    const { ctx, commands, actions } = makeCtx('grok', { discovered: custom });
+    const r = await executeSlash('/fix 123', commands, ctx);
+    expect(actions.expand).not.toHaveBeenCalled();
+    expect(r.handled && r.outcome).toEqual({ type: 'send', text: '/fix 123' });
+    expect(findCommand(commands, 'pdf')!.kind).toBe('passthrough');
   });
   it('展开失败（文件已删除）→ 提示卡片，不发送', async () => {
     const { r } = await run('codex', '/fix', { discovered: custom });
@@ -85,13 +94,92 @@ describe('各端命令集', () => {
     expect(findCommand(commands, 'fix')).toBeNull();
     expect(commands.some((c) => c.kind === 'passthrough')).toBe(false);
   });
-  it('Codex / Grok / dsh 的 /review 与 /init 是提示词模板', async () => {
-    for (const b of ['codex', 'grok', 'dsh'] as const) {
+  it('Codex / dsh 不把 /review /init /compact 做成 Nomi 命令', async () => {
+    for (const b of ['codex', 'dsh'] as const) {
+      const { commands } = makeCtx(b);
+      const shown = flattenGroups(searchCommands(commands, '')).map((h) => h.command.name);
+      for (const n of ['review', 'init', 'compact'] as const) {
+        expect(shown, `${b}:${n}`).not.toContain(n);
+        expect(findCommand(commands, n)!.kind).toBe('unsupported');
+      }
       const { r } = await run(b, '/review 并发问题');
-      expect(r.handled && r.outcome.type).toBe('send');
-      expect(r.handled && r.outcome.type === 'send' && r.outcome.text).toContain('并发问题');
-      expect(r.handled && r.outcome.type === 'send' && r.outcome.text).not.toMatch(/^\/review/);
+      const c = cardOf(r);
+      expect(c.kind).toBe('notice');
+      expect(c.kind === 'notice' && c.title).toContain('review');
     }
+  });
+  it('Grok：无头模式能跑的命令原样发送，分页器命令仍然拦下', async () => {
+    const { commands } = makeCtx('grok');
+    const shown = flattenGroups(searchCommands(commands, '')).map((h) => h.command.name);
+    for (const n of [
+      'compact',
+      'context',
+      'always-approve',
+      'session-info',
+      'feedback',
+      'deep-research',
+      'workflow',
+      'goal',
+      'loop',
+    ]) {
+      expect(shown, n).toContain(n);
+      expect(findCommand(commands, n), n).toMatchObject({
+        kind: 'passthrough',
+        source: 'endpoint',
+        badge: 'Grok',
+      });
+    }
+    expect(shown).not.toContain('init');
+    expect(findCommand(commands, 'init')!.kind).toBe('unsupported');
+    expect(findCommand(commands, 'status')!.kind).toBe('native');
+    expect(findCommand(commands, 'feedback')!.kind).toBe('passthrough');
+    const sent = await run('grok', '/compact');
+    expect(sent.r.handled && sent.r.outcome).toEqual({ type: 'send', text: '/compact' });
+    const researched = await run('grok', '/deep-research postgres');
+    expect(researched.r.handled && researched.r.outcome).toEqual({
+      type: 'send',
+      text: '/deep-research postgres',
+    });
+    const listed = await run('grok', '/workflow list');
+    expect(listed.r.handled && listed.r.outcome).toEqual({ type: 'send', text: '/workflow list' });
+    const blocked = await run('grok', '/init');
+    expect(cardOf(blocked.r).kind).toBe('notice');
+  });
+  it('Grok：项目 skill 压过同名的自带 skill，两条都留在菜单里', () => {
+    const { commands } = makeCtx('grok', {
+      discovered: [
+        entry({
+          id: 'bundled:skill::review',
+          name: 'review',
+          kind: 'skill',
+          scope: 'bundled',
+          description: '自带',
+        }),
+        entry({
+          id: 'project:skill::review',
+          name: 'review',
+          kind: 'skill',
+          scope: 'project',
+          description: '项目',
+        }),
+      ],
+    });
+    expect(findCommand(commands, 'review')).toMatchObject({
+      scope: 'project',
+      kind: 'passthrough',
+      description: '项目',
+    });
+    expect(findCommand(commands, 'bundled:review')).toMatchObject({
+      scope: 'bundled',
+      kind: 'passthrough',
+    });
+  });
+  it('Claude 的 /compact 是 CLI 命令，不是 Nomi 内置', () => {
+    const { commands } = makeCtx('claude');
+    const hit = flattenGroups(searchCommands(commands, 'compact'))[0]!;
+    expect(hit.command.kind).toBe('passthrough');
+    expect(hit.command.source).toBe('endpoint');
+    expect(hit.command.badge).toBe('Claude Code');
   });
   it('不支持的命令：说明原因 + 替代方案，不发送', async () => {
     for (const [b, n] of [
@@ -146,8 +234,10 @@ describe('/help /diff', () => {
     const c = cardOf(r);
     if (c.kind !== 'list') throw new Error('list');
     const names = c.items.map((i) => i.label);
-    expect(names).toEqual(expect.arrayContaining(['/context', '/compact', '/memory']));
-    expect(c.items.find((i) => i.label === '/compact')!.badge).toBeTruthy();
+    expect(names).toEqual(expect.arrayContaining(['/context', '/compact']));
+    expect(names.indexOf('/compact')).toBeLessThan(names.indexOf('/context'));
+    expect(names).not.toContain('/memory');
+    expect(c.items.find((i) => i.label === '/compact')!.badge).toBe('转给 CLI');
   });
   it('/diff 走只读 gitDiff', async () => {
     const { r, actions } = await run('claude', '/diff');

@@ -126,7 +126,13 @@ class Builder {
     const content = text.trim();
     if (!content && !tools.length && !usage) return;
     const m = this.current(at);
-    if (content) m.content = `${m.content ? `${m.content}\n\n` : ''}${content}`.slice(0, MAX_TEXT);
+    if (content) {
+      if (m.content) {
+        const atBreak = m.content.length + 2;
+        m.content = `${m.content}\n\n${content}`.slice(0, MAX_TEXT);
+        if (atBreak < m.content.length) (m.textBreaks ??= []).push(atBreak);
+      } else m.content = content.slice(0, MAX_TEXT);
+    }
     if (tools.length) m.tools = [...(m.tools ?? []), ...tools];
     if (usage) m.usage = addUsage(m.usage, usage);
     m.timestamp = at;
@@ -136,7 +142,12 @@ class Builder {
     const t = text.trim();
     if (!t) return;
     const m = this.current(at);
-    (m.trace ??= []).push({ type: 'thinking', text: t.slice(0, 8000), at });
+    (m.trace ??= []).push({
+      type: 'thinking',
+      text: t.slice(0, 8000),
+      at,
+      textAt: m.content.length,
+    });
     m.timestamp = at;
   }
 
@@ -152,6 +163,7 @@ class Builder {
       ...(input !== undefined ? { input } : {}),
       ...(c.parentId ? { parentId: c.parentId } : {}),
       at: c.at,
+      textAt: m.content.length,
     });
     m.timestamp = c.at;
   }
@@ -221,6 +233,41 @@ function feedBlocks(b: Builder, content: unknown, at: number, parentId?: string)
   }
 }
 
+/** 按内容块的原顺序写入：文字、思考、工具交错，后一段文字另起一段 */
+function walkAssistant(b: Builder, content: unknown, at: number, usage?: HarnessUsage): void {
+  if (!Array.isArray(content)) {
+    b.assistant(typeof content === 'string' ? content : '', [], at, usage);
+    return;
+  }
+  const names: string[] = [];
+  for (const c of content) {
+    const o = (c ?? {}) as Json;
+    const type = String(o.type ?? '');
+    if ((type === 'text' || type === 'input_text' || type === 'output_text') && str(o.text))
+      b.assistant(String(o.text), [], at);
+    else if (type === 'thinking' && str(o.thinking)) b.thinking(String(o.thinking), at);
+    else if (type === 'reasoning' && str(o.text)) b.thinking(String(o.text), at);
+    else if (type === 'tool_use' || type === 'tool-call' || type === 'tool_call') {
+      const name = str(o.name) ?? str(o.tool) ?? str(o.toolName);
+      if (!name) continue;
+      const id = str(o.id) ?? str(o.toolCallId) ?? str(o.call_id) ?? `t-${at}-${name}`;
+      b.toolStart({ id, name, input: o.input ?? o.args ?? o.arguments, at });
+      names.push(name);
+    } else if (type === 'tool_result' || type === 'tool-result') {
+      const id = str(o.tool_use_id) ?? str(o.toolCallId) ?? str(o.call_id);
+      if (id)
+        b.toolEnd({
+          id,
+          output: o.content ?? o.output ?? o.result,
+          error: o.is_error === true || o.isError === true,
+          at,
+        });
+    }
+  }
+  if (names.length) b.assistant('', names, at);
+  if (usage) b.assistant('', [], at, usage);
+}
+
 export function parseClaudeTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
   const b = new Builder();
   for (const e of lines(text)) {
@@ -235,11 +282,7 @@ export function parseClaudeTranscript(text: string, fallbackAt = 0): HarnessTabM
       if (t) b.user(t, at);
     } else if (e.type === 'assistant') {
       if (e.isApiErrorMessage === true) continue;
-      const { text: t, tools } = blocks(msg.content);
-      feedBlocks(b, msg.content, at);
-      const u = (msg.usage ?? {}) as Json;
-      const usage = usageOf(u);
-      b.assistant(t, tools, at, usage);
+      walkAssistant(b, msg.content, at, usageOf((msg.usage ?? {}) as Json));
     }
   }
   return b.result();
@@ -333,10 +376,7 @@ export function parseDshTranscript(text: string, fallbackAt = 0): HarnessTabMess
       b.user(blocks(data.content).text, at);
     } else if (e.type === 'assistant/message') {
       const m = (data.message ?? {}) as Json;
-      const { text: t, tools } = blocks(m.content);
-      // 工具调用 / 思考块（dsh 的块形态与 Claude 相近；真实工具样本缺失，尽力而为）
-      feedBlocks(b, m.content, at);
-      b.assistant(t, tools, at, usageOf((data.usage ?? {}) as Json));
+      walkAssistant(b, m.content, at, usageOf((data.usage ?? {}) as Json));
     } else if (typeof e.type === 'string' && /^tool[/_-]?(result|end|output)/i.test(e.type)) {
       const id = str(data.toolCallId) ?? str(data.callId) ?? str(data.id);
       if (id)
