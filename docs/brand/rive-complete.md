@@ -59,3 +59,30 @@ Capture neutral and wave frames with the same viewport and inspect the shoulder,
 elbow, wrist, hand and neck anchors. Also test a pointer drag after changing
 zoom. `brand-check.py` must report zero stale generated references and zero
 license problems before committing.
+
+## Full-bone crop pass (feat/mascot-rive-full-bone-rig)
+
+Rebuild the arm/hand crops from `source-nomi-master.png` so each moving layer is a
+true silhouette matte (shoulder / upper sleeve / lower sleeve / cuff / palm /
+five fingers per side). Dark and orange garment detail passes are restored as
+separate mother-pixel layers that share the arm bones with the base fabric.
+
+The right thumb is occluded in the mother rest pose; the build script mirrors the
+left-thumb mother pixels into `hand-r-thumb.png` and composites any native sliver
+on top (registered in `parts/DETAIL_LICENSE.json`).
+
+### Animation fixes
+
+- **clap**: both `full.arm-*.rig` translate toward the chest while elbows bend
+  inward and wrists rotate so palms face each other (no left/right cross-through).
+- **wave / cheer / idle**: retimed on the production bone ids; idle adds a soft
+  torso/arm sway on top of the breathing scale.
+
+### Mesh+Skin follow-up
+
+A 4-row Image Mesh with identity Tendons was prototyped (`scripts/rive-complete/add-arm-meshes.py`)
+but **not** left enabled: on the current `length=1` / `scaleX=1` bones it shattered
+sleeves during bends (parented meshes double-transform; root-level meshes still
+tore at the elbow with strip weights). The proven continuous-arm pattern lives on
+`feat/mascot-rive-complete-parts` (length-encoded bones + Tendon rotation/scale
+matrices). Port that bind model onto these mother crops before re-enabling meshes.

@@ -352,7 +352,7 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
          (287, 830)],
     )
     left_fingers = {
-        "thumb": mask_polygon((width, height), [(284, 775), (302, 785), (303, 839), (289, 855), (278, 820)]),
+        "thumb": mask_polygon((width, height), [(276, 770), (308, 778), (312, 845), (295, 868), (274, 830)]),
         "index": mask_polygon((width, height), [(305, 758), (319, 758), (320, 812), (311, 838), (303, 812)]),
         "middle": mask_polygon((width, height), [(319, 755), (333, 758), (335, 815), (326, 843), (318, 813)]),
         "ring": mask_polygon((width, height), [(331, 763), (345, 772), (344, 820), (334, 846), (327, 814)]),
@@ -418,16 +418,20 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     orange_pixels = detail_tone_mask(image, "orange")
 
     def partition(mask: Image.Image) -> tuple[Image.Image, Image.Image, Image.Image]:
-        """Keep one source-pixel layer per deforming garment.
+        """Split a garment matte into base fabric plus dark/orange detail passes.
 
-        Splitting a sleeve into separate dark/orange rasters made every isolated
-        buckle, outline, and highlight become an independent drawable. During a
-        bend those tiny drawables exposed as floating shards around the cuff and
-        shoulder. The mesh needs the complete mother-image crop so all details
-        preserve their exact relative positions. The legacy detail outputs stay
-        present as transparent compatibility assets for old scene references.
+        All three layers stay mother-pixel sourced. Dark straps and orange trim
+        follow the same bones as the base; Image Mesh+Skin keeps them from
+        floating as rigid shards when the elbow bends.
         """
-        return mask, Image.new("L", mask.size, 0), Image.new("L", mask.size, 0)
+        dark = intersect(mask, dark_pixels)
+        orange = intersect(mask, orange_pixels)
+        # Base keeps everything that is not exclusively dark/orange so neutral
+        # still reconstructs the mother crop when the three layers stack.
+        main = ImageChops.subtract(mask, ImageChops.lighter(dark, orange))
+        # Overlap a thin halo so seams never open during a bend.
+        main = ImageChops.lighter(main, mask.filter(ImageFilter.MinFilter(3)))
+        return main, dark, orange
 
     left_coat_shoulder_main, left_coat_shoulder_dark, left_coat_shoulder_orange = partition(left_coat_shoulder)
     right_coat_shoulder_main, right_coat_shoulder_dark, right_coat_shoulder_orange = partition(right_coat_shoulder)
@@ -640,6 +644,20 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         if layer_path.exists():
             cleaned = remove_small_alpha_components(Image.open(layer_path).convert("RGBA"), minimum_area)
             cleaned.save(layer_path)
+    # The mother pose occludes the right thumb behind the palm.  Mirror the left
+    # thumb mother-pixels into the right thumb slot so clap/wave finger bones
+    # have a visible silhouette (still 100% mother-derived pixels).
+    left_thumb = out / "hand-l-thumb.png"
+    right_thumb = out / "hand-r-thumb.png"
+    if left_thumb.exists() and right_thumb.exists():
+        lt = Image.open(left_thumb).convert("RGBA")
+        rt = Image.open(right_thumb).convert("RGBA")
+        opaque = sum(1 for p in rt.getchannel("A").getdata() if p > 10)
+        if opaque < 40:
+            mirrored = ImageOps.mirror(lt)
+            # Keep any genuine right-thumb sliver on top of the mirrored fill.
+            rt = Image.alpha_composite(mirrored, rt)
+            rt.save(right_thumb)
     # Remove the superseded broad crops so the project cannot accidentally keep
     # using a sleeve-plus-hand image after this rebuild.
     for old_name in (
