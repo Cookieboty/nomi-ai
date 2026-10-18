@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-muted);
   font-weight: var(--cd-font-weight-medium);
   padding: 0 var(--cd-space-1);
@@ -42,7 +42,7 @@
 
 .timestamp {
   color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--conv-meta, 13px);
 }
 
 .model,
@@ -51,7 +51,7 @@
   color: var(--cd-color-accent-2);
   padding: 2px 8px;
   border-radius: var(--cd-radius-full);
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--conv-meta, 13px);
   font-weight: var(--cd-font-weight-medium);
   border: 1px solid var(--cd-color-border);
 }
@@ -85,7 +85,7 @@
 
 .contentText {
   white-space: pre-wrap;
-  font-size: var(--cd-font-size-md);
+  font-size: var(--conv-text, 16px);
   line-height: 1.65;
   margin: 0;
 }
@@ -141,7 +141,7 @@
 .messageHeader {
   opacity: 0;
   transition: opacity 0.15s;
-  font-size: 11px;
+  font-size: var(--conv-meta, 13px);
   margin: 2px 0 0;
 }
 .messageContainer:hover .messageHeader {
@@ -176,7 +176,7 @@
   color: var(--cd-color-danger-text);
 }
 .stepRow {
-  font-size: 12px;
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
   margin: 2px 0;
 }
@@ -213,6 +213,6 @@
 }
 .stoppedNote {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
 }

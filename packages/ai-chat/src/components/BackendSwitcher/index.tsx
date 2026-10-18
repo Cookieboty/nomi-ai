@@ -126,7 +126,7 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
       {!tab && state.toolsDisabled && (
         <span
           data-testid="harness-tools-off"
-          style={{ fontSize: 11, opacity: 0.75, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 13, opacity: 0.75, whiteSpace: 'nowrap' }}
         >
           {t('Nomi 工具已关闭')}
         </span>
