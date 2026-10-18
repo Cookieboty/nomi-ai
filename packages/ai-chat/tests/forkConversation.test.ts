@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationStore, createMemoryStorage } from '../src/services/conversationStore';
+import {
+  CONVERSATIONS_CHANGED_EVENT,
+  ConversationStore,
+  createMemoryStorage,
+} from '../src/services/conversationStore';
 import { forkCrossBackend, forkSameBackend } from '../src/services/forkConversation';
 import type { ChatMessage } from '../src/types/chat';
 
@@ -46,6 +50,19 @@ describe('forkConversation', () => {
       now: () => 1000 + ++n,
       newId: () => `c${++n}`,
     });
+  });
+
+  it('同端分叉广播 conversations-changed（侧栏据此立即刷新，D1 回归）', async () => {
+    const src = store.create({ name: '周报', backend: 'nomi' });
+    store.append(msg('1', 'user', '你好'));
+    const onChange = vi.fn();
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, onChange);
+    try {
+      await forkSameBackend(store, src.id);
+      expect(onChange).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, onChange);
+    }
   });
 
   it('forks same-backend Nomi with copied messages', async () => {

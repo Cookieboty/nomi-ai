@@ -7,7 +7,7 @@ import type { ChatMessage, ConversationBackend } from '../types/chat';
 import { ENDPOINT_FULL, isCliBackend } from '../utils/endpointBadge';
 import { buildCliContextPreface, compactTranscript } from '../utils/forkTranscript';
 
-import type { ConversationStore } from './conversationStore';
+import { notifyConversationsChanged, type ConversationStore } from './conversationStore';
 import {
   MAIN_TAB_ID,
   harnessClient,
@@ -81,6 +81,7 @@ export async function forkSameBackend(
       updatedAt: tab.updatedAt,
     });
     store.switchTo(created.id);
+    notifyConversationsChanged();
     return {
       conversationId: created.id,
       tabId: tab.id,
@@ -98,6 +99,7 @@ export async function forkSameBackend(
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
     await harnessClient.setBackend('nomi').catch(() => undefined);
   }
+  notifyConversationsChanged();
   return {
     conversationId: forked.id,
     backend: 'nomi',
@@ -143,6 +145,7 @@ export async function forkCrossBackend(
       updatedAt: tab.updatedAt,
     });
     store.switchTo(created.id);
+    notifyConversationsChanged();
     return {
       conversationId: created.id,
       tabId: tab.id,
@@ -160,6 +163,7 @@ export async function forkCrossBackend(
     await harnessClient.activateTab(MAIN_TAB_ID).catch(() => undefined);
     await harnessClient.setBackend('nomi').catch(() => undefined);
   }
+  notifyConversationsChanged();
   return {
     conversationId: forked.id,
     backend: 'nomi',

@@ -76,6 +76,14 @@ export interface ForkConversationOpts {
   messages?: ChatMessage[];
 }
 
+/** 会话列表被外部改动（分叉等）后在 window 上广播，侧栏据此立即刷新 */
+export const CONVERSATIONS_CHANGED_EVENT = 'nomi:conversations-changed';
+
+export function notifyConversationsChanged(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(CONVERSATIONS_CHANGED_EVENT));
+}
+
 export class ConversationStore {
   private readonly storage: KeyValueStorage;
   private readonly now: () => number;

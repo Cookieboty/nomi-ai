@@ -41,6 +41,7 @@ import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
+import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { providerClient } from './services/providerClient';
@@ -260,6 +261,8 @@ const AiChatContent: React.FC = () => {
           if (tabs.available) await tabs.activate('main');
           await actions.loadChatHistory();
         }
+        // 激活 / 重载后再广播一次：侧栏列表只在消息数变化时才会自刷新
+        notifyConversationsChanged();
         setToast(t('已分叉为「{0}」', r.title));
       } catch (e) {
         setToast(e instanceof Error ? e.message : String(e));
@@ -281,6 +284,7 @@ const AiChatContent: React.FC = () => {
           if (tabs.available) await tabs.activate('main');
           await actions.loadChatHistory();
         }
+        notifyConversationsChanged();
         setToast(t('已分叉到 {0}', r.title));
       } catch (e) {
         setToast(e instanceof Error ? e.message : String(e));

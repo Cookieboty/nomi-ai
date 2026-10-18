@@ -11,6 +11,7 @@ import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
@@ -99,6 +100,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [ipc]);
 
   useCliTabSync(refresh);
+  // 分叉等外部操作改了会话列表：立即刷新（否则要等下一次消息数 / 加载状态变化）
+  useEffect(() => {
+    window.addEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
+  }, [refresh]);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
   useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
 
