@@ -517,6 +517,7 @@ const AiChatContent: React.FC = () => {
                     onEdit={(_, text) => void tabs.send(text)}
                     cards={slash.cards}
                     onDismissCard={slash.dismissCard}
+                    dormant={tabs.activeTab!.dormant}
                   />
                 )}
               </>

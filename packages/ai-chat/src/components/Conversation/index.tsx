@@ -126,6 +126,8 @@ export interface ConversationViewProps {
   /** 斜杠命令的结果卡片：按 afterId 插在对应消息之后（不属于任何一轮模型回复） */
   cards?: readonly SlashCard[];
   onDismissCard?: (id: string) => void;
+  /** 编程助手进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
+  dormant?: boolean;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -140,6 +142,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   slots,
   cards,
   onDismissCard,
+  dormant,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
@@ -328,6 +331,11 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               )}
             </div>
           ))}
+          {dormant && !running && (
+            <div className={styles.dormant} data-testid="conv-dormant" role="status">
+              {t('编程助手进程空闲已休眠，发送下一条消息会自动续接会话')}
+            </div>
+          )}
         </div>
       </div>
       {away && (

@@ -259,6 +259,9 @@
 .dot[data-live='error'] {
   background: #ff6b6b;
 }
+.dot[data-live='dormant'] {
+  box-shadow: inset 0 0 0 1.5px var(--cd-color-border-strong);
+}
 @keyframes pulse {
   50% {
     opacity: 0.55;

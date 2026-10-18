@@ -370,6 +370,14 @@
   color: var(--cd-color-text-subtle);
 }
 
+/* 编程助手进程已休眠的提示 */
+.dormant {
+  align-self: center;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--cd-color-text-subtle);
+}
+
 /* 底部状态行：等待态（排队 / 权限 / 压缩 / 重试 / 子代理 / 思考 / 等待首字…） */
 .status {
   display: flex;

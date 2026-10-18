@@ -28,6 +28,7 @@ import {
   resolveCliBinCached,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
+import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import { killProcessTree } from './processTree';
 import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
@@ -292,6 +293,10 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
+  private readonly dormant = new Set<string>();
+  private idleReclaimMs: number;
+  private idleTimer: ReturnType<typeof setInterval> | null = null;
   private readonly waiters: Array<{
     tabId: string;
     resume: () => void;
@@ -318,8 +323,11 @@ export class CliHarnessService {
       dshEnv?: () => Record<string, string>;
       /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
+      /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
+      idleReclaimMs?: number;
     },
   ) {
+    this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
     this.home = d.home ?? os.homedir();
     this.statePath = path.join(d.root, 'session.json');
     this.tabsPath = path.join(d.root, 'tabs.json');
@@ -574,7 +582,7 @@ export class CliHarnessService {
   listTabs(): HarnessTabsState {
     const tabs = [...this.tabs.values()];
     return {
-      tabs: tabs.map((x) => ({ ...x })),
+      tabs: tabs.map((x) => (this.dormant.has(x.id) ? { ...x, dormant: true } : { ...x })),
       activeTabId: this.activeTabId,
       maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
@@ -848,6 +856,7 @@ export class CliHarnessService {
 
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
+    this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
     for (const [id, child] of [...this.children.entries()]) {
@@ -1059,6 +1068,7 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
       try {
         this.writeClaudeUser(live, prompt);
@@ -1115,8 +1125,11 @@ export class CliHarnessService {
       buf: '',
       turn: null,
       cwd: tab.cwd,
+      lastActivityAt: Date.now(),
     };
     this.claudeLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
 
     child.stdout.on('data', (chunk: Buffer) => {
       live.buf += chunk.toString('utf8');
@@ -1188,6 +1201,7 @@ export class CliHarnessService {
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
     const turn = live.turn;
+    live.lastActivityAt = Date.now();
     for (const ev of live.parseLine(line)) {
       stampEvent(ev);
       if (turn) {
@@ -1238,8 +1252,57 @@ export class CliHarnessService {
     }
   }
 
+  // ───────────────────────── 空闲回收 ─────────────────────────
+
+  /** 有长驻进程时才巡检；定时器不阻止进程退出 */
+  private startIdleSweep() {
+    if (this.idleTimer || this.idleReclaimMs <= 0) return;
+    this.idleTimer = setInterval(() => this.reclaimIdle(), sweepIntervalMs(this.idleReclaimMs));
+    this.idleTimer.unref?.();
+  }
+
+  private stopIdleSweep() {
+    if (this.idleTimer) clearInterval(this.idleTimer);
+    this.idleTimer = null;
+  }
+
+  /** 修改空闲回收阈值（毫秒，0 = 关闭）；立即生效 */
+  setIdleReclaimMs(ms: number): void {
+    this.idleReclaimMs = resolveIdleReclaimMs(ms, undefined);
+    this.stopIdleSweep();
+    if (this.claudeLive.size) this.startIdleSweep();
+  }
+
+  /**
+   * 回收空闲的长驻进程（无进行中的轮次 / 待处理权限，且已有可 --resume 的会话），
+   * 标记为「休眠」并通知界面。返回被回收的标签 id。
+   */
+  reclaimIdle(now = Date.now()): string[] {
+    const picked = pickIdle(
+      [...this.claudeLive.entries()].map(([id, live]) => ({
+        id,
+        lastActivityAt: live.lastActivityAt,
+        turnActive: live.turn !== null,
+        permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
+        tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+        resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+      })),
+      now,
+      this.idleReclaimMs,
+    );
+    for (const id of picked) {
+      this.teardownClaudeLive(id);
+      this.dormant.add(id);
+      this.d.logger.info('harness idle process reclaimed', { tabId: id });
+    }
+    if (picked.length) this.changed();
+    if (!this.claudeLive.size) this.stopIdleSweep();
+    return picked;
+  }
+
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
+    this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
     this.claudeLive.delete(tabId);
@@ -1678,6 +1741,8 @@ type ClaudeLiveSession = {
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
+  /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
+  lastActivityAt: number;
 };
 
 function isScript(bin: string) {

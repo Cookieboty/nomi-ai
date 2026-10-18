@@ -24,6 +24,8 @@ export interface HarnessTabMeta {
   createdAt: number;
   updatedAt: number;
   lastError?: string;
+  /** 编程助手进程因空闲被回收；下一条消息会自动续接会话 */
+  dormant?: boolean;
 }
 
 export interface HarnessTabsState {

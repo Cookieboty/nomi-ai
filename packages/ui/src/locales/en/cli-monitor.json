@@ -248,5 +248,8 @@
   "眯一会儿…呼…": "Just a nap… zzz…",
   "站起来走走～": "Stand up and stretch~",
   "给你竖大拇指～": "Thumbs up for you~",
-  "编程进行中…": "Coding in progress…"
+  "编程进行中…": "Coding in progress…",
+  "已休眠": "Dormant",
+  "编程助手进程空闲已休眠，发送下一条消息会自动续接会话": "The coding assistant process went dormant after being idle; your next message resumes the session automatically",
+  "{0} · 已休眠": "{0} · dormant"
 }

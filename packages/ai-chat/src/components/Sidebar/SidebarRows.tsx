@@ -21,7 +21,8 @@ export function liveOf(tab: HarnessTabMeta | undefined): string {
   if (!tab) return '';
   if (tab.status === 'running' || tab.status === 'queued' || tab.status === 'error')
     return tab.status;
-  return tab.unread > 0 ? 'unread' : '';
+  if (tab.unread > 0) return 'unread';
+  return tab.dormant ? 'dormant' : '';
 }
 
 /** 行内操作的图标（描边，随文字色） */
@@ -192,7 +193,7 @@ export const ThreadItem: React.FC<{
         className={cls}
         onClick={() => void onOpen(c.id)}
         onContextMenu={(e) => onCtx(c.id, e)}
-        title={t(c.name)}
+        title={tab?.dormant ? t('{0} · 已休眠', t(c.name)) : t(c.name)}
         data-testid="history-item"
         data-backend={c.backend}
         data-conversation-id={c.id}
