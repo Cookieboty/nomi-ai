@@ -152,6 +152,9 @@ export class CliProviderBridge {
     grok: { profiles: [] },
   };
 
+  /** 配置已写入 CLI 启动时才会读的文件。由 harness 悄悄换下一轮进程。 */
+  private onApplied: ((kind: CliProviderKind) => void) | null = null;
+
   constructor(private readonly d: { root: string; logger: Logger; home?: string }) {
     this.home = d.home ?? os.homedir();
     this.backupRoot = path.join(d.root, 'backups');
@@ -164,6 +167,19 @@ export class CliProviderBridge {
     // migrate legacy single store.json if present
     this.migrateLegacy(path.join(d.root, 'store.json'));
     for (const k of KINDS) this.loadKind(k);
+  }
+
+  /** 启用或停用成功之后调用。失败的写入不会调用。 */
+  setOnApplied(fn: (kind: CliProviderKind) => void): void {
+    this.onApplied = fn;
+  }
+
+  private applied(kind: CliProviderKind) {
+    try {
+      this.onApplied?.(kind);
+    } catch (e) {
+      this.d.logger.warn('cli provider applied hook failed', e);
+    }
   }
 
   private migrateLegacy(legacyPath: string) {
@@ -274,6 +290,7 @@ export class CliProviderBridge {
       for (const x of this.data.dsh.profiles) x.active = false;
       this.saveKind('dsh');
       this.broadcast();
+      this.applied('dsh');
       return { ok: true, backups };
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
@@ -298,6 +315,7 @@ export class CliProviderBridge {
       for (const x of this.data.grok.profiles) x.active = false;
       this.saveKind('grok');
       this.broadcast();
+      this.applied('grok');
       return { ok: true, backups };
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
@@ -347,6 +365,7 @@ export class CliProviderBridge {
       for (const x of this.data[kind].profiles) x.active = false;
       this.saveKind(kind);
       this.broadcast();
+      this.applied(kind);
       return { ok: true, backups };
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
@@ -489,6 +508,17 @@ export class CliProviderBridge {
       };
     }
     const useRoute = needs;
+    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
+    // 下一轮直接报 “has no provider/model”。
+    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
+      return {
+        ok: false,
+        backups: [],
+        restartRequired: false,
+        usedRouting: false,
+        error: t('请先填写模型，再设为当前'),
+      };
+    }
     // 本地路由令牌：CLI 请求本地路由时必须携带（路由不再接受任意来源的匿名请求）
     const routeKey = route?.authToken() ?? 'nomi-route';
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -564,10 +594,12 @@ export class CliProviderBridge {
       for (const x of this.data[p.kind].profiles) x.active = x.id === id;
       this.saveKind(p.kind);
       this.broadcast();
+      // 下一轮会自己拉起新进程读这份配置，不再提示用户重启会话。
+      this.applied(p.kind);
       return {
         ok: true,
         backups,
-        restartRequired: p.kind === 'codex' && !useRoute,
+        restartRequired: false,
         usedRouting: Boolean(useRoute),
       };
     } catch (e) {

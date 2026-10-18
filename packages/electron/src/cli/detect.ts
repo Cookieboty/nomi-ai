@@ -67,6 +67,25 @@ export function withCliPath(base: NodeJS.ProcessEnv = process.env): NodeJS.Proce
   return { ...base, [key]: [...cur, ...extra].join(path.delimiter) };
 }
 
+/**
+ * Windows 的 npm 全局包会同时放下无扩展名的 shell 脚本和 `.cmd` 垫片。
+ * `where` 先返回无扩展名路径，Node 的 spawn 对它报 ENOENT。
+ * 旁边有 `.exe` / `.cmd` / `.bat` 时改用那个。
+ */
+export function windowsExecutable(
+  bin: string,
+  platform: NodeJS.Platform = process.platform,
+  exists: (p: string) => boolean = fs.existsSync,
+): string {
+  if (platform !== 'win32') return bin;
+  if (/\.(?:exe|cmd|bat|com)$/i.test(bin)) return bin;
+  for (const ext of ['.exe', '.cmd', '.bat']) {
+    const next = `${bin}${ext}`;
+    if (exists(next)) return next;
+  }
+  return bin;
+}
+
 /** npm 可执行文件（NOMI_NPM_BIN 可覆盖，供测试 / 特殊安装）；找不到返回 null */
 export function resolveNpmBin(): string | null {
   const env = process.env.NOMI_NPM_BIN?.trim();
@@ -76,7 +95,7 @@ export function resolveNpmBin(): string | null {
 
 function which(cmd: string): string | null {
   try {
-    const out = execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], {
+    const lines = execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], {
       encoding: 'utf8',
       timeout: 3000,
       windowsHide: true,
@@ -84,11 +103,32 @@ function which(cmd: string): string | null {
     })
       .split(/\r?\n/)
       .map((s) => s.trim())
-      .find(Boolean);
-    return out && fs.existsSync(out) ? out : null;
+      .filter(Boolean);
+    for (const line of lines) {
+      const found = windowsExecutable(line);
+      if (fs.existsSync(found)) return found;
+    }
+    return null;
   } catch {
     return null;
   }
+}
+
+let nodeBinCache: { bin: string | null; at: number } | null = null;
+
+/** PATH 上的 node 可执行文件（绝对路径）。Windows 解开 .cmd 后用它 spawn，避免再靠短 PATH。 */
+export function resolveNodeBin(): string | null {
+  if (
+    nodeBinCache &&
+    Date.now() - nodeBinCache.at < 30_000 &&
+    (nodeBinCache.bin === null || fs.existsSync(nodeBinCache.bin))
+  ) {
+    return nodeBinCache.bin;
+  }
+  const name = process.platform === 'win32' ? 'node.exe' : 'node';
+  const bin = which(name) ?? (name === 'node.exe' ? which('node') : null);
+  nodeBinCache = { bin, at: Date.now() };
+  return bin;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,8 +149,8 @@ function cacheBin(kind: CliKind, bin: string | null): string | null {
 /** 缓存里的探测结果；未缓存 / 已过期 / 文件已不存在返回 undefined（调用方自行决定是否重新探测） */
 export function peekCliBin(kind: CliKind): string | null | undefined {
   // 环境变量覆盖（测试 / Mock / 特殊安装）始终优先且改了立即生效，不经缓存
-  const env = process.env[ENV_BIN[kind]]?.trim();
-  if (env && fs.existsSync(env)) return env;
+  const env = pickedBin(process.env[ENV_BIN[kind]]);
+  if (env) return env;
   const hit = binCache.get(kind);
   if (!hit) return undefined;
   if (hit.bin) {
@@ -146,11 +186,20 @@ export function refreshCliBin(kind: CliKind): Promise<string | null> {
 export function resetCliBinCache(): void {
   binCache.clear();
   inflight.clear();
+  nodeBinCache = null;
+}
+
+/** 环境变量里的路径若指向 npm 的无扩展名脚本，改成旁边可 spawn 的垫片 */
+function pickedBin(raw: string | undefined): string | null {
+  const env = raw?.trim();
+  if (!env) return null;
+  const chosen = windowsExecutable(env);
+  return fs.existsSync(chosen) ? chosen : null;
 }
 
 export function resolveCliBin(kind: CliKind): string | null {
-  const env = process.env[ENV_BIN[kind]]?.trim();
-  if (env && fs.existsSync(env)) return env;
+  const env = pickedBin(process.env[ENV_BIN[kind]]);
+  if (env) return env;
   for (const c of CANDIDATES[kind]) {
     const p = which(c);
     if (p) return p;
@@ -283,11 +332,15 @@ async function whichAsync(cmd: string): Promise<string | null> {
       windowsHide: true,
       env: withCliPath(),
     });
-    const out = String(stdout)
+    const lines = String(stdout)
       .split(/\r?\n/)
       .map((x) => x.trim())
-      .find(Boolean);
-    return out && fs.existsSync(out) ? out : null;
+      .filter(Boolean);
+    for (const line of lines) {
+      const found = windowsExecutable(line);
+      if (fs.existsSync(found)) return found;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -307,8 +360,8 @@ export async function resolveCliBinAsync(kind: CliKind): Promise<string | null> 
 }
 
 async function probeCliBinAsync(kind: CliKind): Promise<string | null> {
-  const env = process.env[ENV_BIN[kind]]?.trim();
-  if (env && fs.existsSync(env)) return env;
+  const env = pickedBin(process.env[ENV_BIN[kind]]);
+  if (env) return env;
   for (const c of CANDIDATES[kind]) {
     const p = await whichAsync(c);
     if (p) return p;

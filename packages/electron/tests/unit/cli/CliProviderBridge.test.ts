@@ -144,9 +144,45 @@ describe('CliProviderBridge separate stores', () => {
     });
     const r = b.activate(p.id);
     expect(r.ok).toBe(true);
+    expect(r.restartRequired).toBe(false);
     const conf = fs.readFileSync(codexConfigPath(home), 'utf8');
     expect(conf).toContain('qwen2.5:0.5b');
     expect(conf).toContain('[model_providers.nomi]');
+  });
+
+  it('notifies only after a provider write succeeds', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-home-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-root-'));
+    const b = new CliProviderBridge({ root, home, logger: { info() {}, warn() {} } });
+    const applied: string[] = [];
+    b.setOnApplied((k) => applied.push(k));
+    const claude = b.upsert({
+      kind: 'claude',
+      name: 'C',
+      baseUrl: 'https://api.example.com',
+      model: 'claude-test',
+      apiKey: 'sk-test-key',
+      apiFormat: 'anthropic_messages',
+    });
+    const r = b.activate(claude.id);
+    expect(r).toMatchObject({ ok: true, restartRequired: false });
+    expect(b.deactivate('claude').ok).toBe(true);
+    expect(applied).toEqual(['claude', 'claude']);
+
+    const blank = b.upsert({
+      kind: 'dsh',
+      name: 'Blank',
+      baseUrl: 'https://gateway.example/v1',
+      model: '   ',
+      apiFormat: 'openai_responses',
+    });
+    expect(b.activate(blank.id).ok).toBe(false);
+    expect(applied).toEqual(['claude', 'claude']);
+
+    b.setOnApplied(() => {
+      throw new Error('boom');
+    });
+    expect(b.deactivate('claude').ok).toBe(true);
   });
 });
 
@@ -196,6 +232,29 @@ describe('CliProviderBridge dsh store (#4)', () => {
 
       const off = b.deactivateDsh();
       expect(off.ok).toBe(true);
+      expect(fs.readFileSync(patchFile, 'utf8')).toBe('- id: user-plugin\n  config: { a: 1 }\n');
+      expect(b.dshEnv()).toEqual({});
+    } finally {
+      restore();
+    }
+  });
+
+  it('refuses to activate dsh when the model is blank', () => {
+    const { home, b, restore } = setup();
+    try {
+      const patchFile = path.join(home, '.dsh', 'cordis.patch.yml');
+      fs.mkdirSync(path.dirname(patchFile), { recursive: true });
+      fs.writeFileSync(patchFile, '- id: user-plugin\n  config: { a: 1 }\n');
+      const p = b.upsert({
+        kind: 'dsh',
+        name: 'Blank',
+        baseUrl: 'https://gateway.example/v1',
+        model: '   ',
+        apiFormat: 'openai_responses',
+      });
+      const r = b.activate(p.id);
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('模型');
       expect(fs.readFileSync(patchFile, 'utf8')).toBe('- id: user-plugin\n  config: { a: 1 }\n');
       expect(b.dshEnv()).toEqual({});
     } finally {

@@ -402,6 +402,8 @@ export class Application implements IApplication {
         dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
       });
+      // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
+      cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({

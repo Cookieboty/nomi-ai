@@ -390,6 +390,93 @@ describe('CliHarnessService mock CLI', () => {
       else process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = prev;
     }
   }, 20_000);
+
+  it('quietly drops an idle Claude process when its provider changes', async () => {
+    const boot = path.join(os.tmpdir(), `claude-boot-recycle-${Date.now()}.log`);
+    const prev = process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-recycle-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      const tab = h.createTab({ backend: 'claude' });
+      await h.sendTab(tab.id, 'one');
+      const sid = h.listTabs().tabs.find((t) => t.id === tab.id)?.cliSessionId;
+      expect(sid).toBeTruthy();
+      const before = h.tabMessages(tab.id).map((m) => m.content);
+      let tabEvents = 0;
+      h.events.on('tabs', () => {
+        tabEvents += 1;
+      });
+      h.recycleBackend('codex');
+      const bootsAfterOther = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
+      expect(bootsAfterOther).toHaveLength(1);
+      h.recycleBackend('claude');
+      expect(tabEvents).toBe(0);
+      expect(h.tabMessages(tab.id).map((m) => m.content)).toEqual(before);
+      expect(h.tabMessages(tab.id).some((m) => m.stopped || m.error)).toBe(false);
+      expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.dormant).toBeFalsy();
+      expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.cliSessionId).toBe(sid);
+      const r2 = await h.sendTab(tab.id, 'two');
+      expect(r2.text).toContain('Mock Claude');
+      expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.cliSessionId).toBe(sid);
+      const boots = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
+      expect(boots).toHaveLength(2);
+    } finally {
+      if (prev === undefined) delete process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
+      else process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = prev;
+    }
+  }, 20_000);
+
+  it('waits for the current Claude reply before recycling the process', async () => {
+    const boot = path.join(os.tmpdir(), `claude-boot-recycle-live-${Date.now()}.log`);
+    const prevBoot = process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
+    const prevAsk = process.env.NOMI_MOCK_ASK_PERMISSION;
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_ASK_PERMISSION = '1';
+    process.env.NOMI_MOCK_PERMISSION_ID = 'perm-recycle-1';
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-recycle-live-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      const tab = h.createTab({ backend: 'claude' });
+      let recycled = false;
+      h.events.on('event', (p: { tabId: string; event: { type: string; id?: string } }) => {
+        if (p.event.type !== 'permission') return;
+        if (!recycled) {
+          recycled = true;
+          h.recycleBackend('claude');
+          const mid = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
+          expect(mid).toHaveLength(1);
+          expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.dormant).toBeFalsy();
+        }
+        h.replyPermission(p.tabId, p.event.id!, true);
+      });
+      const r1 = await h.sendTab(tab.id, 'one');
+      expect(r1.text).toContain('Mock Claude');
+      expect(r1.text).not.toContain('已中止');
+      const sid = h.listTabs().tabs.find((t) => t.id === tab.id)?.cliSessionId;
+      expect(h.tabMessages(tab.id).some((m) => m.stopped || m.error)).toBe(false);
+      expect(fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean)).toHaveLength(1);
+      await h.sendTab(tab.id, 'two');
+      expect(h.listTabs().tabs.find((t) => t.id === tab.id)?.cliSessionId).toBe(sid);
+      expect(fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean)).toHaveLength(2);
+    } finally {
+      if (prevBoot === undefined) delete process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
+      else process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = prevBoot;
+      if (prevAsk === undefined) delete process.env.NOMI_MOCK_ASK_PERMISSION;
+      else process.env.NOMI_MOCK_ASK_PERMISSION = prevAsk;
+      delete process.env.NOMI_MOCK_PERMISSION_ID;
+    }
+  }, 20_000);
 });
 
 describe('CliHarnessService session handling', () => {

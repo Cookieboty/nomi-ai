@@ -119,6 +119,7 @@
   "点「添加供应商」，选择预设模板或自定义配置": "Click “Add provider” and pick a preset template or a custom configuration",
   "删除供应商「{0}」及其 Token？": "Delete provider “{0}” and its token?",
   "ⓘ 这是正在使用的供应商。保存后会立即重新写入该端点的配置。": "ⓘ This provider is in use. Saving rewrites this endpoint's configuration right away.",
+  "请先填写模型，再设为当前": "Enter a model before making this the current provider.",
   "已保存 {0}（留空则不修改）": "Saved {0} (leave blank to keep it)",
   "{0} 启动时使用的模型；可从上游获取列表，也可手填 ID。": "The model {0} starts with; fetch the list from the upstream or type an ID.",
   "「{0}」不是该端点的原生格式：CLI 仍发原生协议，由本机路由转换后再转发。启用前请先在页面底部的「高级」里开启本地路由。": "“{0}” is not this endpoint's native format: the CLI still speaks its native protocol and the local router converts it before forwarding. Turn on local routing under “Advanced” at the bottom of the page before enabling.",

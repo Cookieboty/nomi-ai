@@ -330,7 +330,7 @@ export const CliProviderEditor: React.FC<{
           variant="primary"
           data-testid={saved ? 'cli-provider-save' : 'cli-provider-save-activate'}
           disabled={busy || missing}
-          onClick={() => void save(!saved)}
+          onClick={() => void save(Boolean(saved?.active) || !saved)}
         >
           {saved ? t('保存') : t('保存并设为当前')}
         </Button>

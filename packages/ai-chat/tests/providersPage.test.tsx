@@ -304,6 +304,31 @@ describe('ProvidersPage', () => {
     });
   });
 
+  it('编辑正在使用的档案并保存时，重新写入该端点配置', async () => {
+    const calls = setup([
+      prof({
+        id: 'd1',
+        kind: 'dsh',
+        name: 'Amux',
+        model: 'deepseek/deepseek-v4.1-flash',
+        apiFormat: 'openai_responses',
+        active: true,
+      }),
+    ]);
+    localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
+    const r = render(<ProvidersPage />);
+    await waitFor(() => r.getByTestId('cli-provider-edit'));
+    fireEvent.click(r.getByTestId('cli-provider-edit'));
+    await waitFor(() => r.getByTestId('cli-provider-save'));
+    fireEvent.click(r.getByTestId('cli-provider-save'));
+    await waitFor(() => {
+      expect(calls.some(([c]) => c === 'ai:cli-provider:upsert')).toBe(true);
+      expect(calls.some(([c, a]) => c === 'ai:cli-provider:activate' && a[0] === 'new1')).toBe(
+        true,
+      );
+    });
+  });
+
   it('Anthropic 预设 + Claude Code：原生格式，不提示路由', async () => {
     setup([]);
     localStorage.setItem('ai-chat:providerEndpoint', 'claude');

@@ -20,6 +20,7 @@ import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { buildCliEnv } from './cliEnv';
+import { resolveHarnessLaunch } from './cliLaunch';
 import {
   DSH_MIN_NODE_MAJOR,
   peekCliBin,
@@ -1117,15 +1118,10 @@ export class CliHarnessService {
       'stdio',
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
-    const child: ChildProcessWithoutNullStreams = spawn(
-      useNode ? process.execPath : bin,
-      useNode ? [bin, ...argv] : argv,
-      {
-        cwd: tab.cwd,
-        env: cliChildEnv(useNode),
-        windowsHide: true,
-      },
-    );
+    const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
+      cwd: tab.cwd,
+      env: cliChildEnv(useNode),
+    });
     const live: ClaudeLiveSession = {
       child,
       parseLine: createClaudeParser(),
@@ -1209,6 +1205,7 @@ export class CliHarnessService {
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
     const turn = live.turn;
     live.lastActivityAt = Date.now();
+    let dropAfter = false;
     for (const raw of live.parseLine(line)) {
       let ev = stampEvent(raw);
       if (turn) {
@@ -1241,6 +1238,7 @@ export class CliHarnessService {
           turn.settled = true;
           turn.reject(new Error(ev.message));
         }
+        if (live.recycleAfterTurn) dropAfter = true;
         continue;
       }
       // 一轮 result：结束当前 Promise，但保持 stdin 打开供下一轮
@@ -1256,8 +1254,10 @@ export class CliHarnessService {
             ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
           });
         }
+        if (live.recycleAfterTurn) dropAfter = true;
       }
     }
+    if (dropAfter) this.dropRecycledClaude(tabId, live);
   }
 
   // ───────────────────────── 空闲回收 ─────────────────────────
@@ -1306,6 +1306,33 @@ export class CliHarnessService {
     if (picked.length) this.changed();
     if (!this.claudeLive.size) this.stopIdleSweep();
     return picked;
+  }
+
+  /**
+   * 供应商配置已经落到磁盘。正在跑的进程不会重读环境变量和配置文件。
+   * Claude 是唯一跨轮长驻的进程：空闲的悄悄拆掉，下一轮用原来的 cliSessionId
+   * 带 --resume 重拉。这一轮还在输出时先记下，等它正常结束再拆，避免「已中止」或休眠条。
+   * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
+   */
+  recycleBackend(kind: HarnessBackend): void {
+    if (kind !== 'claude') return;
+    for (const [id, live] of [...this.claudeLive.entries()]) {
+      if (live.turn && !live.turn.settled) {
+        live.recycleAfterTurn = true;
+        continue;
+      }
+      this.teardownClaudeLive(id);
+    }
+    if (!this.claudeLive.size) this.stopIdleSweep();
+  }
+
+  /** 供应商已换且这一轮已经结束：拆掉长驻进程，不标记休眠、不改会话。 */
+  private dropRecycledClaude(tabId: string, live: ClaudeLiveSession) {
+    if (!live.recycleAfterTurn || live.turn) return;
+    live.recycleAfterTurn = false;
+    if (this.claudeLive.get(tabId) !== live) return;
+    this.teardownClaudeLive(tabId);
+    if (!this.claudeLive.size) this.stopIdleSweep();
   }
 
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
@@ -1452,12 +1479,11 @@ export class CliHarnessService {
       let lastError: string | null = null;
       const chatRoot = path.join(path.dirname(this.d.root), 'chat');
       const imageAliases = loadImageAliases(chatRoot);
-      const child: ChildProcessWithoutNullStreams = spawn(opts.cmd, opts.argv, {
+      const child = spawnHarness(opts.cmd, opts.argv, {
         cwd: tab.cwd,
         // 剔除 Nomi 内部变量；只有该后端自己的档案（opts.env）才会注入额外变量
         // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
         env: cliChildEnv(Boolean(opts.asNode), opts.env),
-        windowsHide: true,
       });
       this.children.set(tab.id, child);
 
@@ -1759,10 +1785,27 @@ type ClaudeLiveSession = {
   cwd: string;
   /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
   lastActivityAt: number;
+  /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
+  recycleAfterTurn?: boolean;
 };
 
 function isScript(bin: string) {
   return bin.endsWith('.mjs') || bin.endsWith('.js');
+}
+
+/** spawn 一个 CLI。Windows 的 npm 垫片先解开，避免对无扩展名脚本报 ENOENT。 */
+function spawnHarness(
+  command: string,
+  args: string[],
+  opts: { cwd: string; env: NodeJS.ProcessEnv },
+): ChildProcessWithoutNullStreams {
+  const launch = resolveHarnessLaunch(command, args, opts.env);
+  return spawn(launch.file, launch.args, {
+    cwd: opts.cwd,
+    env: launch.env,
+    windowsHide: true,
+    ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
+  });
 }
 
 /**

@@ -69,6 +69,14 @@ describe('CLI 可执行文件探测缓存', () => {
     expect(peekCliBin('dsh')).toBe(found);
   });
 
+  it('Windows 上优先 .cmd 垫片，而不是 npm 的无扩展名脚本', () => {
+    if (process.platform !== 'win32') return;
+    fs.writeFileSync(path.join(dir, 'dsh.cmd'), '@echo off\r\n');
+    resetCliBinCache();
+    const found = resolveCliBinCached('dsh');
+    expect(found && path.basename(found).toLowerCase()).toBe('dsh.cmd');
+  });
+
   it('环境变量覆盖始终优先、立即生效，不受缓存影响', () => {
     expect(resolveCliBinCached('dsh')).toBeTruthy();
     const other = path.join(dir, 'other-dsh');
@@ -81,8 +89,15 @@ describe('CLI 可执行文件探测缓存', () => {
   it('「未找到」只缓存很短时间，之后会重新探测', async () => {
     fs.rmSync(bin);
     process.env.PATH = '/nonexistent';
-    const home = process.env.HOME;
-    process.env.HOME = dir; // 避免命中用户级目录里真实安装的 dsh
+    // withCliPath 会补上 %APPDATA%\npm。Windows 上只改 HOME 仍会命中真实安装的 dsh。
+    const savedEnv = {
+      HOME: process.env.HOME,
+      USERPROFILE: process.env.USERPROFILE,
+      APPDATA: process.env.APPDATA,
+    };
+    process.env.HOME = dir;
+    process.env.USERPROFILE = dir;
+    process.env.APPDATA = dir;
     const spy = jest.spyOn(Date, 'now');
     try {
       const now = 1_000_000;
@@ -93,7 +108,9 @@ describe('CLI 可执行文件探测缓存', () => {
       expect(peekCliBin('dsh')).toBeUndefined();
     } finally {
       spy.mockRestore();
-      process.env.HOME = home;
+      process.env.HOME = savedEnv.HOME;
+      process.env.USERPROFILE = savedEnv.USERPROFILE;
+      process.env.APPDATA = savedEnv.APPDATA;
     }
   });
 });
