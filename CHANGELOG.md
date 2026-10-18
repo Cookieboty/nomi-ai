@@ -57,6 +57,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - **security:** private-address check covers IPv4-mapped/compatible IPv6, NAT64, decimal/octal/hex IPv4, 100.64.0.0/10 and 0.0.0.0/8; TTS downloads resolve DNS first and pin the checked address (rebinding mitigation).
 - **usage:** more accurate usage billing from coding-tool logs. Gemini CLI: new `session-*.jsonl` logs (and subagent logs under `chats/<parent>/<child>.jsonl`) are scanned, repeated lines of the same message id keep the last one, cached tokens are subtracted from input. Codex: forked / subagent rollouts that replay the parent's history are no longer counted twice. Claude: cache writes are priced per tier (1h ≈ 2× input, 5m remainder), `speed: "fast"` requests are billed at 2×, and duplicated message ids keep the max usage. dsh: `inputTokens` is now treated as excluding cache (checked against the repo fixture only — not yet verified against real dsh logs); V0 `session.jsonl` is matched too. Existing ledger records keep their old accounting (missing fields mean the old basis).
 - 修复用户导入 / 商店下载的 VRM 看板娘无法加载（`cdmodel://` 协议被后注册的 `chat-asset://` 特权声明覆盖，现统一一次性注册）；Rive 看板娘启动失败（wasm / 场景加载失败或 20 秒未就绪）时自动回退到分层 2D 渲染器，并补上 `mascot-model-loaded` 就绪信号；修复滚轮缩放看板娘时脚底锚点漂移（上报给主进程的包围盒落后一次窗口缩放）。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch)
+- 光标移出看板娘后立刻停住时，窗口会一直保持可点击（离开去抖没有后续事件来结算），现在去抖在无新事件时也会继续结算，透明区域恢复点击穿透；Grok 生成图片的 session 根目录改按 realpath 比较（macOS 下 HOME 经 /var → /private/var 符号链接时图片被误拒）。 (`@nomi-ai/renderer` patch, `@nomi-ai/electron` patch)
 
 ### Performance
 
