@@ -109,8 +109,13 @@ export class EventBroadcaster {
   private broadcast<E extends AIClientEvent>(evt: E, data: AIClientEventMap[E]): void {
     const payload = { evt, data };
     const wcs = this.opts.adapter.getAllWebContents();
+    const live = new Set<number>();
     for (const wc of wcs) {
-      if (wc.isDestroyed()) continue;
+      if (wc.isDestroyed()) {
+        this.filters.delete(wc.id);
+        continue;
+      }
+      live.add(wc.id);
       const filter = this.filters.get(wc.id);
       if (filter && !passesFilter(evt, filter)) continue;
       try {
@@ -118,6 +123,10 @@ export class EventBroadcaster {
       } catch (err) {
         this.logger.warn(`send to wc#${wc.id} threw`, err);
       }
+    }
+    // 已关闭的窗口通常不会再出现在 getAllWebContents 里，退订消息也发不出来
+    for (const id of this.filters.keys()) {
+      if (!live.has(id)) this.filters.delete(id);
     }
     // observability 桥接：broadcast 之后再喂 bridge，避免副作用阻塞 IPC。
     if (this.bridge) {

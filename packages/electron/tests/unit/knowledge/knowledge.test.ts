@@ -143,6 +143,11 @@ describe('KnowledgeIndex', () => {
     idx.save();
     const again = new KnowledgeIndex(file);
     expect(again.search('审批')[0].docId).toBe('expense');
+    expect(
+      again
+        .search('unrelated', { queryVec: Float32Array.from([1, 0]), embedModel: 'p:m' })
+        .some((h) => h.docId === 'vec'),
+    ).toBe(true);
     expect(again.removeSource('s2')).toBe(1);
     expect(again.list()).toHaveLength(2);
   });

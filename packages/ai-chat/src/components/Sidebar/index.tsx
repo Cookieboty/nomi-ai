@@ -386,10 +386,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       if (hit !== undefined) return hit;
       let text = '';
       try {
-        const msgs = ipc?.conversationStore?.()?.getMessages(m.id) ?? [];
-        text = (
-          msgs.find((x: { role: string; content?: string }) => x.role === 'user')?.content ?? ''
-        ).slice(0, 300);
+        // 只取预览。getMessages 会把整段历史留在缓存里，搜索一次就会钉住列表里的全部对话。
+        text = ipc?.conversationStore?.()?.firstUserPreview?.(m.id) ?? '';
       } catch {
         /* 取不到就只搜标题 */
       }
