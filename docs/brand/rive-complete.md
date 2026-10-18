@@ -78,11 +78,15 @@ on top (registered in `parts/DETAIL_LICENSE.json`).
 - **wave / cheer / idle**: retimed on the production bone ids; idle adds a soft
   torso/arm sway on top of the breathing scale.
 
-### Mesh+Skin follow-up
+### Mesh+Skin (ROUND2)
 
-A 4-row Image Mesh with identity Tendons was prototyped (`scripts/rive-complete/add-arm-meshes.py`)
-but **not** left enabled: on the current `length=1` / `scaleX=1` bones it shattered
-sleeves during bends (parented meshes double-transform; root-level meshes still
-tore at the elbow with strip weights). The proven continuous-arm pattern lives on
-`feat/mascot-rive-complete-parts` (length-encoded bones + Tendon rotation/scale
-matrices). Port that bind model onto these mother crops before re-enabling meshes.
+`scripts/rive-complete/add-arm-meshes.py` migrates each arm to three independent
+RootBones (`upper` / `fore` / `hand`) under `arm.rig` with **rest rotation = limb
+angle** (r3 pattern). Sleeve / coat-shoulder / cuff / upper-skin Images are remounted
+under `arm.rig` (not under a rotating bone) and carry a grid `Mesh` + `Skin` with
+Tendon **rotation matrices**. `bone.scaleX` stays `1` on mother crops: putting the
+link length into `scaleX` (as r3 does for AI straight-sleeve art) warped the rest pose.
+
+`scripts/rive-complete/bake-arm-fk-anims.py` converts relative rotation keys into
+absolute FK (`rotation` + fore/hand `x`/`y`). It is idempotent. Elbow overlap in
+`build-fullbody-svg-rig.py` was widened so upper/lower sleeves share a blend zone.

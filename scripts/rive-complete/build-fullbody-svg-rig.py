@@ -323,8 +323,9 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     left_coat_shoulder = left_coat_shoulder.filter(ImageFilter.MaxFilter(7))
     left_sleeve_upper = mask_polygon(
         (width, height),
-        [(282, 425), (395, 418), (405, 470), (385, 555), (330, 590),
-         (274, 551), (250, 470)],
+        # Extended past the elbow (y≈535–560) so upper/fore share a soft blend zone.
+        [(282, 425), (395, 418), (410, 470), (400, 555), (360, 620), (300, 630),
+         (260, 590), (250, 470)],
     )
     left_sleeve_upper = left_sleeve_upper.filter(ImageFilter.MaxFilter(7))
     left_sleeve_upper = ImageChops.lighter(
@@ -338,8 +339,9 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     left_coat_shoulder = ImageChops.subtract(left_coat_shoulder, left_sleeve_upper)
     left_sleeve_lower = mask_polygon(
         (width, height),
-        [(250, 500), (385, 525), (390, 625), (372, 706), (326, 741),
-         (270, 718), (232, 650), (224, 565)],
+        # Start higher so it overlaps the extended upper sleeve by ~80–100 px.
+        [(245, 470), (395, 485), (400, 560), (390, 625), (372, 706), (326, 741),
+         (270, 718), (232, 650), (220, 545)],
     ).filter(ImageFilter.MaxFilter(7))
     left_hand_detail = mask_polygon(
         (width, height),
@@ -361,7 +363,7 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
 
     right_coat_shoulder = mask_polygon((width, height), mirror_points([(308, 358), (350, 326), (402, 349), (428, 382), (407, 427), (365, 440), (330, 424), (298, 398)], width))
     right_coat_shoulder = right_coat_shoulder.filter(ImageFilter.MaxFilter(7))
-    right_sleeve_upper = mask_polygon((width, height), mirror_points([(282, 425), (395, 418), (405, 470), (385, 555), (330, 590), (274, 551), (250, 470)], width))
+    right_sleeve_upper = mask_polygon((width, height), mirror_points([(282, 425), (395, 418), (410, 470), (400, 555), (360, 620), (300, 630), (260, 590), (250, 470)], width))
     right_sleeve_upper = right_sleeve_upper.filter(ImageFilter.MaxFilter(7))
     right_sleeve_upper = ImageChops.lighter(
         right_sleeve_upper,
@@ -372,7 +374,7 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         ),
     )
     right_coat_shoulder = ImageChops.subtract(right_coat_shoulder, right_sleeve_upper)
-    right_sleeve_lower = mask_polygon((width, height), mirror_points([(250, 500), (410, 525), (410, 625), (400, 706), (350, 741), (270, 718), (232, 650), (224, 565)], width))
+    right_sleeve_lower = mask_polygon((width, height), mirror_points([(245, 470), (395, 485), (400, 560), (390, 625), (372, 706), (326, 741), (270, 718), (232, 650), (220, 545)], width))
     right_hand_detail = mask_polygon((width, height), mirror_points([(277, 731), (326, 726), (351, 770), (347, 835), (326, 884), (297, 866), (280, 820)], width))
     right_palm = mask_polygon((width, height), mirror_points([(284, 760), (330, 756), (342, 800), (333, 842), (309, 862), (287, 830)], width))
     # Mirror the left finger masks without duplicating their point tables.
@@ -563,12 +565,12 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         "coat-l-shoulder": [285, 300, 450, 495],
         "coat-l-shoulder-dark": [285, 300, 450, 495],
         "coat-l-shoulder-orange": [285, 300, 450, 495],
-        "sleeve-l-upper": [230, 365, 420, 610],
-        "sleeve-l-upper-dark": [230, 365, 420, 610],
-        "sleeve-l-upper-orange": [230, 365, 420, 610],
-        "sleeve-l-lower": [205, 485, 415, 760],
-        "sleeve-l-lower-dark": [205, 485, 415, 760],
-        "sleeve-l-lower-orange": [205, 485, 415, 760],
+        "sleeve-l-upper": [230, 365, 430, 650],
+        "sleeve-l-upper-dark": [230, 365, 430, 650],
+        "sleeve-l-upper-orange": [230, 365, 430, 650],
+        "sleeve-l-lower": [205, 455, 420, 760],
+        "sleeve-l-lower-dark": [205, 455, 420, 760],
+        "sleeve-l-lower-orange": [205, 455, 420, 760],
         "hand-l-palm": [265, 740, 360, 885],
         "coat-l-tail": [300, 420, 480, 1020],
         "arm-r-shoulder-skin": [width - 470, 250, width - 315, 465],
@@ -577,12 +579,12 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         "coat-r-shoulder": [width - 450, 300, width - 285, 495],
         "coat-r-shoulder-dark": [width - 450, 300, width - 285, 495],
         "coat-r-shoulder-orange": [width - 450, 300, width - 285, 495],
-        "sleeve-r-upper": [width - 420, 365, width - 230, 610],
-        "sleeve-r-upper-dark": [width - 420, 365, width - 230, 610],
-        "sleeve-r-upper-orange": [width - 420, 365, width - 230, 610],
-        "sleeve-r-lower": [width - 415, 485, width - 205, 760],
-        "sleeve-r-lower-dark": [width - 415, 485, width - 205, 760],
-        "sleeve-r-lower-orange": [width - 415, 485, width - 205, 760],
+        "sleeve-r-upper": [width - 430, 365, width - 230, 650],
+        "sleeve-r-upper-dark": [width - 430, 365, width - 230, 650],
+        "sleeve-r-upper-orange": [width - 430, 365, width - 230, 650],
+        "sleeve-r-lower": [width - 420, 455, width - 205, 760],
+        "sleeve-r-lower-dark": [width - 420, 455, width - 205, 760],
+        "sleeve-r-lower-orange": [width - 420, 455, width - 205, 760],
         "hand-r-palm": [width - 360, 740, width - 265, 885],
         "coat-r-tail": [width - 480, 420, width - 300, 1020],
         "head": [250, 0, 780, 370],

@@ -371,78 +371,78 @@ const clips = {
     ]),
   ]),
   clap: anim('clap', 204, 96, [
-    // Moderate inward clap: bring palms to chest without extreme elbow fold.
-    // arm.rig translation closes the remaining gap so sleeves stay continuous.
+    // Length-bone clap: relative rotations (baked to absolute FK after mesh migrate).
+    // arm.rig x pulls both arms to chest; fore bends inward; wrists face palms together.
     track(9378, 'x', [
       [0, 317.8],
-      [28, 360],
-      [40, 350],
-      [52, 360],
+      [28, 338],
+      [40, 333],
+      [52, 338],
       [82, 317.8],
       [96, 317.8],
     ]),
     track(9379, 'x', [
       [0, 642.8],
-      [28, 600],
-      [40, 610],
-      [52, 600],
+      [28, 622],
+      [40, 627],
+      [52, 622],
       [82, 642.8],
       [96, 642.8],
     ]),
     track(9213, 'rotation', [
       [0, 0],
-      [28, -0.12],
-      [52, -0.12],
+      [28, -0.42],
+      [52, -0.42],
       [96, 0],
     ]),
     track(9215, 'rotation', [
       [0, 0],
-      [14, -0.45],
-      [28, -0.85],
-      [40, -0.7],
-      [52, -0.85],
-      [66, -0.45],
+      [14, -0.55],
+      [28, -1.05],
+      [40, -0.88],
+      [52, -1.05],
+      [66, -0.55],
       [82, 0],
       [96, 0],
     ]),
     track(9219, 'rotation', [
       [0, 0],
-      [28, 0.14],
-      [52, 0.14],
+      [28, 0.45],
+      [52, 0.45],
       [96, 0],
     ]),
     track(9221, 'rotation', [
       [0, 0],
-      [14, 0.45],
-      [28, 0.88],
-      [40, 0.72],
-      [52, 0.88],
-      [66, 0.45],
+      [14, 0.55],
+      [28, 1.08],
+      [40, 0.9],
+      [52, 1.08],
+      [66, 0.55],
       [82, 0],
       [96, 0],
     ]),
     track(9217, 'rotation', [
       [0, 0],
-      [28, 0.4],
-      [52, 0.4],
+      [28, 0.55],
+      [52, 0.55],
       [96, 0],
     ]),
     track(9223, 'rotation', [
       [0, 0],
-      [28, -0.4],
-      [52, -0.4],
+      [28, -0.55],
+      [52, -0.55],
       [96, 0],
     ]),
     track(9243, 'rotation', [
       [0, 0],
-      [28, 0.25],
-      [52, 0.25],
+      [28, 0.35],
+      [52, 0.35],
       [96, 0],
     ]),
     track(9248, 'rotation', [
       [0, 0],
-      [28, -0.25],
-      [52, -0.25],
+      [28, -0.35],
+      [52, -0.35],
       [96, 0],
     ]),
   ]),
@@ -529,10 +529,10 @@ const clips = {
 
 for (const [name, replacement] of Object.entries(clips)) {
   const re = new RegExp(
-    `        <LinearAnimation name="full\\.${name}"[\\s\\S]*?        </LinearAnimation>`,
+    '[ \t]*<LinearAnimation name="full\\.' + name + '"[\\s\\S]*?<\\/LinearAnimation>',
   );
-  if (!re.test(scene)) throw new Error(`animation not found: ${name}`);
-  scene = scene.replace(re, replacement);
+  if (!re.test(scene)) throw new Error('animation not found: ' + name);
+  scene = scene.replace(re, replacement.trimEnd());
 }
 
 fs.writeFileSync(path, scene);
