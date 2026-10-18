@@ -114,7 +114,7 @@ export const CodingMonitor: React.FC<{
             />
             <p className={styles.hint}>
               {tr(
-                '开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时只显示提示并播放提示音。遵守语音开关与静音。',
+                '开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时任务状态提示保留提示音，定时汇总只显示提示。遵守语音开关与静音。',
               )}
             </p>
             <p className={styles.hint}>
