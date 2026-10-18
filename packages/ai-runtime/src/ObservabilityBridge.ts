@@ -103,7 +103,7 @@ export function createObservabilityBridge(
 
   const closeTurn = (state: TurnState, ok: boolean, reason?: string): void => {
     if (metricsOn) {
-      AI_METRICS.agentStepsPerTurn.observe(state.steps, { sessionId: state.sessionId });
+      AI_METRICS.agentStepsPerTurn.observe(state.steps);
     }
     if (tracingOn && state.span.isRecording()) {
       state.span.setAttribute('chat.agent.steps', state.steps);
@@ -166,7 +166,6 @@ export function createObservabilityBridge(
               {
                 provider: usage.provider ?? 'unknown',
                 model: usage.model ?? 'unknown',
-                sessionId: usage.sessionId ?? 'unknown',
               },
               usage.promptTokens,
             );
@@ -259,12 +258,11 @@ interface UsageMeta {
   ttfbMs?: number;
   provider?: string;
   model?: string;
-  sessionId?: string;
 }
 
 /**
  * 从 `message:complete` payload 里尝试挖 usage 信息。目前只识别几种常见形状：
- * - `message.meta.usage = { promptTokens, completionTokens, provider, model, sessionId, ttfbMs }`
+ * - `message.meta.usage = { promptTokens, completionTokens, provider, model, ttfbMs }`
  * - `message.meta.tokens = { prompt, completion }`（Anthropic 风格）
  *
  * 找不到就返回 undefined，metrics 不 inc。
@@ -285,7 +283,6 @@ function extractUsage(payload: AIClientEventMap['message:complete']): UsageMeta 
     ttfbMs: num(m.ttfbMs) ?? num(m.ttfb_ms),
     provider: str(m.provider),
     model: str(m.model),
-    sessionId: str(m.sessionId) ?? str(m.session_id),
   };
 }
 

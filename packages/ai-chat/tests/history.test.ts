@@ -86,12 +86,54 @@ describe('ConversationStore', () => {
     reads = 0;
 
     expect(s.getMessages('c1')).toHaveLength(1);
-    expect(reads).toBe(1);
+    // 一次读消息，一次读当前会话 id（淘汰时要保住当前会话）
+    expect(reads).toBe(2);
     expect(s.getMessages('c1')).toHaveLength(1);
-    expect(reads).toBe(1);
+    expect(reads).toBe(2);
 
     s.append(msg('2', 'assistant', 'world'), 'c1');
     expect(s.getMessages('c1').map((m) => m.content)).toEqual(['hello', 'world']);
+  });
+
+  it('evicts old message caches, keeps the current one, and previews without caching', () => {
+    const base = createMemoryStorage();
+    let reads = 0;
+    const storage = {
+      getItem: (key: string) => {
+        if (key.startsWith('ai-chat:conversation:')) reads++;
+        return base.getItem(key);
+      },
+      setItem: base.setItem.bind(base),
+      removeItem: base.removeItem.bind(base),
+    };
+    let n = 0;
+    const s = new ConversationStore({
+      storage,
+      maxCachedConversations: 2,
+      now: () => 1,
+      newId: () => `c${++n}`,
+    });
+    const a = s.create({ name: 'A' }).id;
+    s.append(msg('1', 'user', 'alpha message'), a);
+    const b = s.create({ name: 'B' }).id;
+    s.append(msg('2', 'user', 'beta'), b);
+    const c = s.create({ name: 'C' }).id;
+    s.append(msg('3', 'user', 'gamma'), c);
+
+    reads = 0;
+    expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
+    expect(s.getMessages(b).map((m) => m.content)).toEqual(['beta']);
+    expect(reads).toBe(0);
+
+    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
+    expect(reads).toBe(1);
+
+    reads = 0;
+    expect(s.firstUserPreview(b)).toBe('beta');
+    expect(reads).toBe(1);
+    expect(s.getMessages(c).map((m) => m.content)).toEqual(['gamma']);
+    expect(s.getMessages(a).map((m) => m.content)).toEqual(['alpha message']);
+    expect(reads).toBe(1);
   });
 
   it('trims to maxMessages and migrates the legacy single-history key', () => {

@@ -26,6 +26,8 @@ let currentUrl: string | null = null;
 let analyserRaf = 0;
 let audioCtx: AudioContext | null = null;
 let stopperRegistered = false;
+/** 连在常驻 AudioContext 上的节点。不 disconnect 的话，每句 TTS 都会留下一条音频图。 */
+let graph: { source: AudioNode; analyser: AudioNode } | null = null;
 
 function ensureStopper(): void {
   if (stopperRegistered) return;
@@ -41,8 +43,24 @@ function stopAnalyser(): void {
   lipSyncStore.reset();
 }
 
+function disconnectGraph(): void {
+  if (!graph) return;
+  try {
+    graph.analyser.disconnect();
+  } catch {
+    /* already disconnected */
+  }
+  try {
+    graph.source.disconnect();
+  } catch {
+    /* already disconnected */
+  }
+  graph = null;
+}
+
 function cleanupAudio(): void {
   stopAnalyser();
+  disconnectGraph();
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -90,25 +108,33 @@ async function attachVolumeEnvelope(audio: HTMLAudioElement): Promise<void> {
       // Leave the <audio> on its default output path so playback is still audible.
       return;
     }
-    const source = ctx.createMediaElementSource(audio);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyser.connect(ctx.destination);
-    const data = new Uint8Array(analyser.frequencyBinCount);
+    let wired = false;
+    try {
+      const source = ctx.createMediaElementSource(audio);
+      const analyser = ctx.createAnalyser();
+      graph = { source, analyser };
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      wired = true;
+      const data = new Uint8Array(analyser.frequencyBinCount);
 
-    const tick = () => {
-      analyser.getByteTimeDomainData(data);
-      let sum = 0;
-      for (let i = 0; i < data.length; i++) {
-        const v = (data[i]! - 128) / 128;
-        sum += v * v;
-      }
-      const rms = Math.sqrt(sum / data.length);
-      lipSyncStore.set(Math.min(1, rms * 3));
+      const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sum = 0;
+        for (let i = 0; i < data.length; i++) {
+          const v = (data[i]! - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / data.length);
+        lipSyncStore.set(Math.min(1, rms * 3));
+        analyserRaf = requestAnimationFrame(tick);
+      };
       analyserRaf = requestAnimationFrame(tick);
-    };
-    analyserRaf = requestAnimationFrame(tick);
+    } catch {
+      // 还没连上 destination 的节点会留在 AudioContext 上。已经连上的图要留着，否则这句没有出声路径。
+      if (!wired) disconnectGraph();
+    }
   } catch {
     /* Autoplay / CORS / already connected — lip sync optional; element keeps default output if we never connected */
   }

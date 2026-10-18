@@ -39,6 +39,7 @@ vi.mock('../src/contexts/AiChatContext', () => ({
           get: (id: string) => convs.find((x) => x.id === id),
           updateMeta: () => undefined,
           getMessages: (id: string) => (FIRST[id] ? [{ role: 'user', content: FIRST[id] }] : []),
+          firstUserPreview: (id: string) => FIRST[id] ?? '',
         }),
       },
     },

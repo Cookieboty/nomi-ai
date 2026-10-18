@@ -210,17 +210,19 @@ describe('AI_METRICS · P9-2 内置 8 指标', () => {
     );
   });
 
-  it('chatTokensPrompt 支持 sessionId / provider / model 三维度', () => {
+  it('chatTokensPrompt 按 provider / model 聚合，忽略 sessionId', () => {
     AI_METRICS.chatTokensPrompt.inc({ provider: 'openai', model: 'gpt-4', sessionId: 's1' }, 120);
-    AI_METRICS.chatTokensPrompt.inc({ provider: 'openai', model: 'gpt-4', sessionId: 's1' }, 80);
+    AI_METRICS.chatTokensPrompt.inc({ provider: 'openai', model: 'gpt-4', sessionId: 's2' }, 80);
     AI_METRICS.chatTokensPrompt.inc(
-      { provider: 'anthropic', model: 'claude', sessionId: 's2' },
+      { provider: 'anthropic', model: 'claude', sessionId: 's3' },
       50,
     );
     const snap = defaultRegistry
       .snapshot()
       .find((m) => m.name === 'ai_chat_tokens_prompt') as CounterSnapshot;
+    expect(snap.values).toHaveLength(2);
     expect(snap.values.map((v) => v.value).sort((a, b) => a - b)).toEqual([50, 200]);
+    expect(snap.values.every((v) => !('sessionId' in v.labels))).toBe(true);
   });
 
   it('toolErrorCount 与 P9-4 错误码表 (E_TOOL_DENIED) 打通', () => {

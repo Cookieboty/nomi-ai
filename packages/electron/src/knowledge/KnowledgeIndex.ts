@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import { Bm25Index } from './bm25';
-import { b64ToVec, cosine, rrf } from './vector';
+import { b64ToVec, cosine, rrf, vecToB64 } from './vector';
 
 export interface ChunkRec {
   id: string;
@@ -54,7 +54,8 @@ export class KnowledgeIndex {
   private docs = new Map<string, DocRec>();
   private readonly chunkDoc = new Map<string, string>();
   private readonly chunkById = new Map<string, ChunkRec>();
-  private vecCache = new Map<string, Float32Array>();
+  /** 解码后的向量。命中后会清掉 chunk 上的 base64，避免同一向量占两份堆。 */
+  private readonly decoded = new WeakMap<ChunkRec, Float32Array>();
   private bm25 = new Bm25Index();
   private dirty = false;
 
@@ -78,13 +79,9 @@ export class KnowledgeIndex {
     if (!this.file || !this.dirty) return;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(
-      tmp,
-      JSON.stringify({ v: 1, docs: [...this.docs.values()] } satisfies IndexFile),
-      {
-        mode: 0o600,
-      },
-    );
+    fs.writeFileSync(tmp, JSON.stringify({ v: 1, docs: this.docsForDisk() } satisfies IndexFile), {
+      mode: 0o600,
+    });
     fs.renameSync(tmp, this.file);
     this.dirty = false;
   }
@@ -118,7 +115,6 @@ export class KnowledgeIndex {
     for (const c of d.chunks) {
       this.chunkDoc.delete(c.id);
       this.chunkById.delete(c.id);
-      this.vecCache.delete(c.id);
       this.bm25.remove(c.id);
     }
     this.docs.delete(id);
@@ -135,7 +131,6 @@ export class KnowledgeIndex {
     this.docs.clear();
     this.chunkDoc.clear();
     this.chunkById.clear();
-    this.vecCache.clear();
     this.bm25 = new Bm25Index();
     this.dirty = true;
   }
@@ -146,20 +141,33 @@ export class KnowledgeIndex {
     let errors = 0;
     for (const d of this.docs.values()) {
       chunks += d.chunks.length;
-      vectors += d.chunks.filter((c) => c.vec).length;
+      vectors += d.chunks.filter((c) => c.vec || this.decoded.has(c)).length;
       if (d.status === 'error') errors++;
     }
     return { docs: this.docs.size, chunks, vectors, errors };
   }
 
   private vec(c: ChunkRec): Float32Array | null {
+    const hit = this.decoded.get(c);
+    if (hit) return hit;
     if (!c.vec) return null;
-    let v = this.vecCache.get(c.id);
-    if (!v) {
-      v = b64ToVec(c.vec);
-      this.vecCache.set(c.id, v);
-    }
+    const v = b64ToVec(c.vec);
+    this.decoded.set(c, v);
+    // base64 只为落盘保留；内存里留下 Float32，保存时再编码回去
+    c.vec = undefined;
     return v;
+  }
+
+  /** 落盘前把已解码的向量编回 base64。不写回 chunk，避免内存里又同时留着两份。 */
+  private docsForDisk(): DocRec[] {
+    return [...this.docs.values()].map((d) => ({
+      ...d,
+      chunks: d.chunks.map((c) => {
+        const decoded = this.decoded.get(c);
+        if (!decoded) return c;
+        return { ...c, vec: c.vec ?? vecToB64(decoded) };
+      }),
+    }));
   }
 
   search(

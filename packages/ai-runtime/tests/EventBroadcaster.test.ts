@@ -85,6 +85,20 @@ describe('EventBroadcaster', () => {
     expect(wcFiltered.sent.some((m) => m.channel === EVENT_BROADCAST_CHANNEL)).toBe(false);
   });
 
+  it('drops a subscribe filter after its window is gone', async () => {
+    const { ctx, adapter } = bootstrap();
+    const wc = adapter.addWebContents(7);
+    adapter.emitTo(7, EVENT_SUBSCRIBE_CHANNEL, { include: ['tts:end'] });
+    const idx = adapter.webContents.indexOf(wc);
+    adapter.webContents.splice(idx, 1);
+
+    await ctx.triggerEvent('agent/turn-end', { sessionId: 's', turnId: 't', ok: true });
+
+    const again = adapter.addWebContents(7);
+    await ctx.triggerEvent('agent/turn-end', { sessionId: 's2', turnId: 't2', ok: true });
+    expect(again.sent.some((m) => m.channel === EVENT_BROADCAST_CHANNEL)).toBe(true);
+  });
+
   it('stop() detaches listeners', async () => {
     const { ctx, adapter, broadcaster } = bootstrap();
     const wc = adapter.addWebContents(1);

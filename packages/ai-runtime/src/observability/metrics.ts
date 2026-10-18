@@ -3,14 +3,14 @@
  *
  * 目标：给 [AIClient](file:///../../../ai-sdk/src/AIClient.ts) 与 插件宿主 Waterfall hook
  * 提供一个**零依赖**的进程内 metrics 采集器，覆盖 P9 计划 §P9-2 列出的 8 个内置指标：
- * - `ai.chat.tokens.prompt` (Counter · provider/model/sessionId)
+ * - `ai.chat.tokens.prompt` (Counter · provider/model)
  * - `ai.chat.tokens.completion` (Counter · provider/model)
  * - `ai.chat.latency.ttfb` (Histogram · provider/model)
  * - `ai.tool.exec.duration` (Histogram · tool)
  * - `ai.tool.error.count` (Counter · tool/code)
  * - `ai.tts.latency.first_chunk` (Histogram · provider)
  * - `ai.asr.latency.final` (Histogram · provider)
- * - `ai.agent.steps.per_turn` (Histogram · sessionId)
+ * - `ai.agent.steps.per_turn` (Histogram)
  *
  * 设计要点：
  * - **零依赖**：不引 prom-client / OpenTelemetry SDK；仅暴露纯函数 API + snapshot，
@@ -398,8 +398,8 @@ export const defaultRegistry = new MetricsRegistry();
 export const AI_METRICS = {
   chatTokensPrompt: defaultRegistry.createCounter({
     name: 'ai_chat_tokens_prompt',
-    help: 'LLM prompt tokens consumed per (provider, model, sessionId).',
-    labelNames: ['provider', 'model', 'sessionId'],
+    help: 'LLM prompt tokens consumed per (provider, model).',
+    labelNames: ['provider', 'model'],
   }),
   chatTokensCompletion: defaultRegistry.createCounter({
     name: 'ai_chat_tokens_completion',
@@ -438,7 +438,6 @@ export const AI_METRICS = {
   agentStepsPerTurn: defaultRegistry.createHistogram({
     name: 'ai_agent_steps_per_turn',
     help: 'Number of agent steps per completed turn.',
-    labelNames: ['sessionId'],
     buckets: DEFAULT_TOKEN_BUCKETS,
   }),
 } as const;
