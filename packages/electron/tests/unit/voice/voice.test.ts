@@ -72,7 +72,7 @@ describe('voice settings', () => {
     expect(s.vadThreshold).toBe(0.9);
     expect(s.customBaseURL).toBe('');
     expect(s.language).toBe(DEFAULT_VOICE_SETTINGS.language);
-    expect(s.wakeWord.phrase).toBe('你好小桌');
+    expect(s.wakeWord.phrase).toBe('你好，诺米');
     expect(s.wakeWord.windowSec).toBe(30);
   });
   it('cloud target id', () => {
