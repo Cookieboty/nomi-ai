@@ -31,10 +31,21 @@ const CANDIDATES: Record<CliKind, string[]> = {
  * 从 Dock / 开始菜单启动的应用拿到的 PATH 往往很短（macOS 没有 /opt/homebrew/bin、/usr/local/bin），
  * 探测与安装 CLI 时补上常见的 Node / npm / CLI 目录（只补不删，保持用户 PATH 的优先级）。
  */
-export function cliSearchDirs(home = os.homedir(), platform = process.platform): string[] {
+export function cliSearchDirs(
+  home = os.homedir(),
+  platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
   if (platform === 'win32') {
-    const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
-    return [path.join(home, '.grok', 'bin'), path.join(appData, 'npm'), path.join(home, '.local')];
+    // GUI-launched Electron often has a short PATH; prefer USERPROFILE + APPDATA from the
+    // env we will actually spawn with (not a stale process.env snapshot).
+    const winHome = env.USERPROFILE?.trim() || home;
+    const appData = env.APPDATA?.trim() || path.join(winHome, 'AppData', 'Roaming');
+    return [
+      path.join(winHome, '.grok', 'bin'),
+      path.join(appData, 'npm'),
+      path.join(winHome, '.local'),
+    ];
   }
   return [
     path.join(home, '.grok', 'bin'),
@@ -49,7 +60,10 @@ export function cliSearchDirs(home = os.homedir(), platform = process.platform):
 export function withCliPath(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
   const key = Object.keys(base).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
   const cur = (base[key] ?? '').split(path.delimiter).filter(Boolean);
-  const extra = cliSearchDirs().filter((d) => !cur.includes(d) && fs.existsSync(d));
+  const home = base.USERPROFILE?.trim() || base.HOME?.trim() || os.homedir();
+  const extra = cliSearchDirs(home, process.platform, base).filter(
+    (d) => !cur.includes(d) && fs.existsSync(d),
+  );
   return { ...base, [key]: [...cur, ...extra].join(path.delimiter) };
 }
 

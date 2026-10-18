@@ -144,7 +144,7 @@ describe('UsageService.quota：从 Codex 日志读额度快照', () => {
     expect(svc.quota().every((e) => e.status === 'unavailable' && e.windows.length === 0)).toBe(
       true,
     );
-    expect(svc.quota().map((e) => e.id)).toEqual(['codex', 'claude', 'dsh', 'grok', 'nomi']);
+    expect(svc.quota().map((e) => e.id)).toEqual(['codex', 'claude', 'grok', 'dsh', 'nomi']);
   });
 
   it('扫描到额度快照：codex 可用，其它仍不可用；重启后保留；清空后消失', async () => {

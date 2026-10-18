@@ -188,7 +188,7 @@ export const UsagePanel: React.FC = () => {
               }}
             />
           )}
-          {tab === 'overview' && <QuotaCard />}
+          {tab === 'overview' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
           {tab === 'pricing' && (
             <Pricing

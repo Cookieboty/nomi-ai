@@ -300,5 +300,16 @@
   "已思考": "Thought",
   "已思考 {0} 秒": "Thought for {0}s",
   "已思考 {0} 分 {1} 秒": "Thought for {0}m {1}s",
-  "模型正在推理…": "Model is reasoning…"
+  "模型正在推理…": "Model is reasoning…",
+  "账号登录": "Account sign-in",
+  "未确认登录方式": "Sign-in method unknown",
+  "可扩展工具卡片": "Extensible tool card",
+  "登录方式": "Sign-in method",
+  "当前按 API Key / 第三方供应商计费，不展示订阅额度，只统计用量与费用。": "Billed via API key / third-party provider: no subscription quota; only usage and cost are tracked.",
+  "尚未确认登录方式；有额度快照时仍会展示。": "Sign-in method not confirmed yet; quota is still shown when a snapshot exists.",
+  "当前为账号 / 订阅登录，可展示官方 CLI 返回的订阅额度。": "Signed in with an account / subscription; quota from the official CLI can be shown.",
+  "近 7 天": "Last 7 days",
+  "近 7 天还没有读到该工具的用量。": "No usage from this tool in the last 7 days.",
+  "点顶部「刷新」时，才会让官方 CLI 按需取额度；不会自动轮询。": "Quota is fetched by the official CLI only when you click Refresh at the top; there is no automatic polling.",
+  "编程工具": "Coding tools"
 }

@@ -1,18 +1,19 @@
 /**
- * 订阅额度卡片（尽力而为）。
- * 只对「订阅 / 账号登录」的工具显示额度；API Key / 第三方供应商 / 本地路由的工具只标「API 计费，无订阅额度」，
- * Nomi 对话走 API，不出现在这里。额度只来自两类来源：本机已有的数据（Codex 的会话日志、Claude Code 官方
- * statusline 输入里的 rate_limits，后者需要用户主动开启），以及用户点「刷新」时由官方 CLI 自己用自己的登录态
- * 去取（claude -p /usage、codex app-server、Grok ACP billing）；读不到就写「暂未返回可用额度」，不估算、不编造。
- * 登录方式由主进程用官方「登录状态」命令 / ACP initialize / 本地配置判断；Nomi 不读取、不上传任何登录凭据。
+ * 订阅额度 / 工具卡片（尽力而为）。
+ * 每个编程工具一张可扩展卡片，顶部用 Tabs 切换工具。
+ * 卡片区块：工具名与图标、登录方式（账号 vs API Key）、额度（仅账号登录）、
+ * 用量与费用（USD/当前币种）、状态、刷新说明；Claude 另有 statusline 钩子。
+ * 额度只来自本机已有数据与用户点「刷新」时官方 CLI 自己取到的结果；
+ * Nomi 不读取、不上传任何登录凭据。
  */
-import { Badge, Button, t } from '@nomi-ai/ui';
-import { Gauge, RefreshCw } from 'lucide-react';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Badge, Button, Card, Tabs, t } from '@nomi-ai/ui';
+import { Gauge, KeyRound, RefreshCw, UserRound } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   USAGE_SOURCE_LABEL,
   usageClient,
+  type UsageBreakdownRow,
   type UsageQuotaEntry,
   type UsageQuotaHook,
   type UsageQuotaWindow,
@@ -21,9 +22,9 @@ import {
 import { AppIcon } from '../AppIcons';
 import { relTime } from '../CodingMonitor';
 
-import { quotaWindowLabel, resetText } from './format';
+import { formatTokens, quotaWindowLabel, resetText } from './format';
 import styles from './index.module.css';
-import { SourceIcon } from './shared';
+import { moneyOf, SourceIcon, type Fx } from './shared';
 
 const nameOf = (e: UsageQuotaEntry) => {
   const k = USAGE_SOURCE_LABEL[e.id];
@@ -179,7 +180,150 @@ const ClaudeHook: React.FC<{
   </div>
 );
 
-export const QuotaCard: React.FC = () => {
+function authLabel(e: UsageQuotaEntry): { text: string; tone: 'neutral' | 'success' | 'warning' } {
+  if (e.status === 'api' || e.auth === 'api') return { text: t('API 密钥'), tone: 'warning' };
+  if (e.auth === 'subscription') return { text: t('账号登录'), tone: 'success' };
+  // 旧快照可能没带 auth：有额度窗口时按账号登录展示
+  if (e.status === 'ok') return { text: t('账号登录'), tone: 'success' };
+  return { text: t('未确认登录方式'), tone: 'neutral' };
+}
+
+const ToolCard: React.FC<{
+  entry: UsageQuotaEntry;
+  usage: UsageBreakdownRow | null;
+  fx: Fx;
+  now: number;
+  note: Note | null;
+  hook: UsageQuotaHook | null;
+  hookBusy: boolean;
+  hookErr: string | null;
+  onToggleHook: (on: boolean) => void;
+}> = ({ entry: e, usage, fx, now, note, hook, hookBusy, hookErr, onToggleHook }) => {
+  const auth = authLabel(e);
+  const money = moneyOf(fx);
+  const isApi = e.status === 'api' || e.auth === 'api';
+  const showQuota = !isApi;
+  const statusAttr = e.status === 'api' ? 'api' : e.status === 'ok' ? 'ok' : 'unavailable';
+
+  return (
+    <Card
+      className={styles.toolCard}
+      data-testid={`usage-quota-${e.id}`}
+      data-status={statusAttr}
+      title={
+        <span className={styles.toolCardTitle}>
+          <SourceIcon source={e.id} size={18} />
+          <b>{nameOf(e)}</b>
+          {e.plan ? <Badge tone="neutral">{e.plan}</Badge> : null}
+          <Badge tone={auth.tone}>{auth.text}</Badge>
+          {e.stale ? <Badge tone="warning">{t('上次读取')}</Badge> : null}
+        </span>
+      }
+      subtitle={e.updatedAt ? t('更新于 {0}', relTime(e.updatedAt, now)) : t('可扩展工具卡片')}
+    >
+      <div className={styles.toolSections}>
+        <section className={styles.toolSection} data-testid={`usage-tool-auth-${e.id}`}>
+          <header className={styles.toolSectionHead}>
+            <AppIcon icon={isApi ? KeyRound : UserRound} size={14} />
+            <h4>{t('登录方式')}</h4>
+          </header>
+          <p className={styles.dim}>
+            {isApi
+              ? t('当前按 API Key / 第三方供应商计费，不展示订阅额度，只统计用量与费用。')
+              : e.auth === 'unknown'
+                ? t('尚未确认登录方式；有额度快照时仍会展示。')
+                : t('当前为账号 / 订阅登录，可展示官方 CLI 返回的订阅额度。')}
+          </p>
+        </section>
+
+        {showQuota && (
+          <section className={styles.toolSection} data-testid={`usage-tool-quota-${e.id}`}>
+            <header className={styles.toolSectionHead}>
+              <AppIcon icon={Gauge} size={14} />
+              <h4>{t('订阅额度')}</h4>
+            </header>
+            {e.origin ? (
+              <div className={styles.dim} data-testid={`usage-quota-origin-${e.id}`}>
+                {t(ORIGIN_LABEL[e.origin])}
+              </div>
+            ) : null}
+            {e.status === 'ok' ? (
+              <ul className={styles.quotaList} aria-label={t('{0}额度窗口', nameOf(e))}>
+                {e.windows.map((w) => (
+                  <Window key={w.id} w={w} now={now} />
+                ))}
+              </ul>
+            ) : (
+              <span className={styles.dim}>
+                {e.id === 'grok'
+                  ? t('Grok 已识别为官方账号登录，但当前 CLI 没有返回可用额度。请点击刷新重试。')
+                  : t('暂未返回可用额度')}
+              </span>
+            )}
+          </section>
+        )}
+
+        {isApi && (
+          <section className={styles.toolSection} data-testid={`usage-tool-quota-${e.id}`}>
+            <header className={styles.toolSectionHead}>
+              <AppIcon icon={Gauge} size={14} />
+              <h4>{t('订阅额度')}</h4>
+            </header>
+            <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
+          </section>
+        )}
+
+        <section className={styles.toolSection} data-testid={`usage-tool-usage-${e.id}`}>
+          <header className={styles.toolSectionHead}>
+            <h4>{t('用量与费用')}</h4>
+            <span className={styles.dim}>{t('近 7 天')}</span>
+          </header>
+          {usage && usage.calls > 0 ? (
+            <div className={styles.toolUsageRow}>
+              <span>
+                {t('总 Token')} <b>{formatTokens(usage.tokens)}</b>
+              </span>
+              <span>
+                {t('费用')} <b>{money(usage.costUsd)}</b>
+              </span>
+              <span className={styles.dim}>{t('{0} 次调用', usage.calls)}</span>
+            </div>
+          ) : (
+            <span className={styles.dim}>{t('近 7 天还没有读到该工具的用量。')}</span>
+          )}
+        </section>
+
+        <section className={styles.toolSection} data-testid={`usage-tool-status-${e.id}`}>
+          <header className={styles.toolSectionHead}>
+            <h4>{t('状态')}</h4>
+          </header>
+          {note ? (
+            <p className={note.tone === 'err' ? styles.err : styles.dim}>{note.text}</p>
+          ) : (
+            <p className={styles.dim}>
+              {t('点顶部「刷新」时，才会让官方 CLI 按需取额度；不会自动轮询。')}
+            </p>
+          )}
+        </section>
+
+        {hook && e.id === 'claude' && showQuota && (
+          <ClaudeHook hook={hook} busy={hookBusy} err={hookErr} onToggle={onToggleHook} />
+        )}
+      </div>
+    </Card>
+  );
+};
+
+export interface QuotaCardProps {
+  /** 概览已查询的 bySource；传入后不再单独 query，避免重复 IPC */
+  usageBySource?: UsageBreakdownRow[];
+  fx?: Fx;
+}
+
+export const QuotaCard: React.FC<QuotaCardProps> = ({
+  usageBySource,
+  fx = { currency: 'USD', rate: 7.2 },
+}) => {
   const [rows, setRows] = useState<UsageQuotaEntry[] | null>(null);
   const [hook, setHook] = useState<UsageQuotaHook | null>(null);
   const [hookBusy, setHookBusy] = useState(false);
@@ -188,15 +332,21 @@ export const QuotaCard: React.FC = () => {
   const [active, setActive] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [tab, setTab] = useState<string>('');
+
+  const usageById = useMemo(() => {
+    const map: Record<string, UsageBreakdownRow> = {};
+    for (const row of usageBySource ?? []) map[row.key] = row;
+    return map;
+  }, [usageBySource]);
 
   const load = useCallback(
     () =>
-      usageClient
-        .quota()
-        .then((r) => {
+      Promise.all([usageClient.quota(), usageClient.state().catch(() => null)])
+        .then(([r, st]) => {
           setRows(r);
           setNow(Date.now());
-          // 只有 Claude Code 是订阅登录时才需要钩子状态
+          if (st) setActive(st.settings.activeQuotaRefresh !== false);
           if (r.some((e) => e.id === 'claude' && (e.auth ?? 'subscription') === 'subscription'))
             return usageClient.quotaHook().then(setHook);
           setHook(null);
@@ -212,14 +362,7 @@ export const QuotaCard: React.FC = () => {
       if (alive) void load();
     };
     run();
-    void usageClient
-      .state()
-      .then((st) => {
-        if (alive) setActive(st.settings.activeQuotaRefresh !== false);
-      })
-      .catch(() => undefined);
     const off = usageClient.onChanged(run);
-    // statusline 快照由 Claude Code 在后台写入，没有事件通知，轮询一下
     const timer = setInterval(run, 30_000);
     return () => {
       alive = false;
@@ -228,7 +371,16 @@ export const QuotaCard: React.FC = () => {
     };
   }, [load]);
 
-  /** 只在用户点击时触发：重读本机数据；快照过期才让官方 CLI 去取（见主进程 refreshQuota） */
+  const tools = useMemo(() => rows ?? [], [rows]);
+
+  useEffect(() => {
+    if (!tools.length) {
+      setTab('');
+      return;
+    }
+    if (!tab || !tools.some((e) => e.id === tab)) setTab(tools[0]!.id);
+  }, [tools, tab]);
+
   const refresh = () => {
     setRefreshing(true);
     setNotes([]);
@@ -270,114 +422,94 @@ export const QuotaCard: React.FC = () => {
   };
 
   if (!rows) return null;
-  const sub = rows.filter((r) => r.status !== 'api' && (r.auth ?? 'subscription') !== 'api');
-  const ok = sub.filter((r) => r.status === 'ok');
-  const none = sub.filter((r) => r.status !== 'ok');
-  const api = rows.filter((r) => r.status === 'api');
+
+  const noteFor = (id: string): Note | null => {
+    const name =
+      id === 'claude' ? 'Claude Code' : id === 'codex' ? 'Codex' : id === 'grok' ? 'Grok' : '';
+    return notes.find((n) => (name ? n.text.startsWith(name) : false)) ?? null;
+  };
+
+  const current = tools.find((e) => e.id === tab) ?? tools[0] ?? null;
 
   return (
-    <>
-      <section className={styles.panel} data-testid="usage-quota-card">
-        <header className={styles.panelHead}>
-          <h3>{t('订阅额度')}</h3>
-          <Badge tone="neutral">{t('尽力而为')}</Badge>
-          <Button
-            size="sm"
-            disabled={refreshing}
-            onClick={refresh}
-            aria-label={t('刷新额度')}
-            title={
-              active
-                ? t('只在点击时才让官方 CLI 去取额度，不会自动轮询')
-                : t('已关闭「主动刷新额度」：只重读本机已有的数据')
-            }
-            data-testid="usage-quota-refresh"
-          >
-            <AppIcon icon={RefreshCw} /> {refreshing ? t('刷新中…') : t('刷新')}
-          </Button>
-          <AppIcon icon={Gauge} />
-        </header>
-        {notes.length > 0 && (
-          <ul className={styles.quotaNotes} data-testid="usage-quota-notes" role="status">
-            {notes.map((n, i) => (
-              <li key={i} className={n.tone === 'err' ? styles.err : styles.dim}>
-                {n.text}
-              </li>
-            ))}
-          </ul>
-        )}
-        {ok.map((e) => (
-          <article key={e.id} className={styles.quotaEntry} data-testid={`usage-quota-${e.id}`}>
-            <div className={styles.quotaName}>
-              <SourceIcon source={e.id} size={16} />
-              <b>{nameOf(e)}</b>
-              {e.plan ? <Badge tone="neutral">{e.plan}</Badge> : null}
-              {e.stale ? <Badge tone="warning">{t('上次读取')}</Badge> : null}
-              {e.updatedAt ? (
-                <span className={styles.dim}>{t('更新于 {0}', relTime(e.updatedAt, now))}</span>
-              ) : null}
-            </div>
-            {e.origin ? (
-              <div className={styles.dim} data-testid={`usage-quota-origin-${e.id}`}>
-                {t(ORIGIN_LABEL[e.origin])}
-              </div>
-            ) : null}
-            <ul className={styles.quotaList} aria-label={t('{0}额度窗口', nameOf(e))}>
-              {e.windows.map((w) => (
-                <Window key={w.id} w={w} now={now} />
-              ))}
-            </ul>
-          </article>
-        ))}
-        {none.map((e) => (
-          <article
-            key={e.id}
-            className={`${styles.quotaEntry} ${styles.quotaUnavailable}`}
-            data-testid={`usage-quota-${e.id}`}
-            data-status="unavailable"
-          >
-            <div className={styles.quotaName}>
-              <SourceIcon source={e.id} size={16} />
-              <b>{nameOf(e)}</b>
-            </div>
-            <span className={styles.dim}>
-              {e.id === 'grok'
-                ? t('Grok 已识别为官方账号登录，但当前 CLI 没有返回可用额度。请点击刷新重试。')
-                : t('暂未返回可用额度')}
-            </span>
-          </article>
-        ))}
-        {hook && sub.some((e) => e.id === 'claude') && (
-          <ClaudeHook hook={hook} busy={hookBusy} err={hookErr} onToggle={toggle} />
-        )}
-        {ok.length + none.length === 0 && (
-          <p className={styles.dim} data-testid="usage-quota-empty">
-            {t('没有检测到以账号 / 订阅登录的编程工具。')}
-          </p>
-        )}
-        {api.map((e) => (
-          <div
-            key={e.id}
-            className={styles.quotaNone}
-            data-testid={`usage-quota-${e.id}`}
-            data-status="api"
-          >
-            <SourceIcon source={e.id} size={16} />
-            <b>{nameOf(e)}</b>
-            <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
-          </div>
-        ))}
-        <p className={styles.dim}>
-          {t(
-            '只有以账号 / 订阅登录的工具才有额度；用 API Key、第三方供应商或本地路由的工具（包括 Nomi 对话）按量计费，只统计用量与费用。额度只来自这台电脑上已有的数据，以及你点「刷新」时官方 CLI 自己取到的结果；登录方式也只看官方的登录状态。',
-          )}
+    <section className={styles.panel} data-testid="usage-quota-card">
+      <header className={styles.panelHead}>
+        <h3>{t('订阅额度')}</h3>
+        <Badge tone="neutral">{t('尽力而为')}</Badge>
+        <Button
+          size="sm"
+          disabled={refreshing}
+          onClick={refresh}
+          aria-label={t('刷新额度')}
+          title={
+            active
+              ? t('只在点击时才让官方 CLI 去取额度，不会自动轮询')
+              : t('已关闭「主动刷新额度」：只重读本机已有的数据')
+          }
+          data-testid="usage-quota-refresh"
+        >
+          <AppIcon icon={RefreshCw} /> {refreshing ? t('刷新中…') : t('刷新')}
+        </Button>
+        <AppIcon icon={Gauge} />
+      </header>
+
+      {notes.length > 0 && (
+        <ul className={styles.quotaNotes} data-testid="usage-quota-notes" role="status">
+          {notes.map((n, i) => (
+            <li key={i} className={n.tone === 'err' ? styles.err : styles.dim}>
+              {n.text}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {tools.length === 0 ? (
+        <p className={styles.dim} data-testid="usage-quota-empty">
+          {t('没有检测到以账号 / 订阅登录的编程工具。')}
         </p>
-        <p className={styles.dim} data-testid="usage-quota-privacy">
-          {t(
-            '隐私：Nomi 不读取、不保存、不上传任何登录凭据（不打开 auth.json、.credentials.json 或系统钥匙串）。点「刷新」时，快照过期才会临时启动官方 CLI（claude -p /usage、codex app-server、Grok ACP billing），由它用自己的登录态去取，Nomi 只保留百分比、窗口、重置时间和套餐；注意 Codex 会因此向 OpenAI 发一次请求。不会自动轮询，同一工具 60 秒内最多刷新一次；可在「隐私与数据」里关闭「主动刷新额度」。',
+      ) : (
+        <>
+          <Tabs
+            aria-label={t('编程工具')}
+            value={tab || tools[0]!.id}
+            onChange={setTab}
+            items={tools.map((e) => ({
+              value: e.id,
+              label: (
+                <span className={styles.toolTabLabel}>
+                  <SourceIcon source={e.id} size={14} />
+                  {nameOf(e)}
+                </span>
+              ),
+            }))}
+            data-testid="usage-quota-tabs"
+          />
+          {current && (
+            <ToolCard
+              entry={current}
+              usage={usageById[current.id] ?? null}
+              fx={fx}
+              now={now}
+              note={noteFor(current.id)}
+              hook={hook}
+              hookBusy={hookBusy}
+              hookErr={hookErr}
+              onToggleHook={toggle}
+            />
           )}
-        </p>
-      </section>
-    </>
+        </>
+      )}
+
+      <p className={styles.dim}>
+        {t(
+          '只有以账号 / 订阅登录的工具才有额度；用 API Key、第三方供应商或本地路由的工具（包括 Nomi 对话）按量计费，只统计用量与费用。额度只来自这台电脑上已有的数据，以及你点「刷新」时官方 CLI 自己取到的结果；登录方式也只看官方的登录状态。',
+        )}
+      </p>
+      <p className={styles.dim} data-testid="usage-quota-privacy">
+        {t(
+          '隐私：Nomi 不读取、不保存、不上传任何登录凭据（不打开 auth.json、.credentials.json 或系统钥匙串）。点「刷新」时，快照过期才会临时启动官方 CLI（claude -p /usage、codex app-server、Grok ACP billing），由它用自己的登录态去取，Nomi 只保留百分比、窗口、重置时间和套餐；注意 Codex 会因此向 OpenAI 发一次请求。不会自动轮询，同一工具 60 秒内最多刷新一次；可在「隐私与数据」里关闭「主动刷新额度」。',
+        )}
+      </p>
+    </section>
   );
 };

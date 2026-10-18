@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import { resolveCliBinAsync, withCliPath } from '../cli/detect';
 
-import { killTree, STDOUT_LIMIT, windowsShimLaunch } from './limitedProcess';
+import { killTree, STDOUT_LIMIT, resolveCliLaunch } from './limitedProcess';
 
 export type GrokAuthMode = 'subscription' | 'api' | 'unknown';
 
@@ -97,26 +97,23 @@ export async function readGrokAuthStatus(d: GrokAuthReaderDeps = {}): Promise<st
   const dir = fs.mkdtempSync(path.join(d.tmpRoot ?? os.tmpdir(), 'nomi-grok-auth-'));
   const env = (d.env ?? withCliPath)();
   const platform = d.platform ?? process.platform;
-  let file = bin;
-  let args = GROK_AGENT_ARGS;
-  if (platform === 'win32' && /\.(cmd|bat)$/i.test(bin)) {
-    const launch = windowsShimLaunch(bin, args, env);
-    if (!launch) {
-      fs.rmSync(dir, { recursive: true, force: true });
-      return null;
-    }
-    file = launch.file;
-    args = launch.args;
+  const launch = resolveCliLaunch(bin, GROK_AGENT_ARGS, env, platform);
+  if (!launch) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    return null;
   }
+  const file = launch.file;
+  const args = launch.args;
   const child = await new Promise<ChildProcess | null>((resolve) => {
     try {
       resolve(
         (d.spawnFn ?? spawn)(file, args, {
           cwd: dir,
+          // Keep USERPROFILE / HOME / GROK_HOME so the CLI finds ~/.grok on Windows GUI launches
           env: { ...env, NO_COLOR: '1' },
           stdio: ['pipe', 'pipe', 'ignore'],
           windowsHide: true,
-          windowsVerbatimArguments: file !== bin,
+          windowsVerbatimArguments: launch.via === 'cmd-shim',
         }),
       );
     } catch {

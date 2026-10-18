@@ -47,7 +47,7 @@
 
 ### 3.3 Grok Build（`@xai-official/grok`）
 
-详见 [cli-harness-grok.md](cli-harness-grok.md)：headless `-p` + `streaming-json`；供应商写 `~/.grok/config.toml`（`api_backend`）；用量读 `updates.jsonl` 的 `turn_completed`；订阅额度暂不支持。
+详见 [cli-harness-grok.md](cli-harness-grok.md)：headless `-p` + `streaming-json`；供应商写 `~/.grok/config.toml`（`api_backend`）；用量读 `updates.jsonl` 的 `turn_completed`；账号登录可通过官方 ACP `_x.ai/billing` 读订阅额度（API Key 仍只统计用量）。
 
 ### 3.4 Cursor Agent CLI
 

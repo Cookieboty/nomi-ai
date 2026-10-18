@@ -203,15 +203,27 @@ export function grokAuthFromConfig(home: string, env: NodeJS.ProcessEnv): AuthMo
   return hasCustomGrokConfiguration(home, env) ? 'api' : null;
 }
 
-/** 只检查官方凭据文件是否存在，不读取内容；CLI 暂时不可执行时用于保留订阅入口。 */
-export function hasGrokAuthFile(home: string, env: NodeJS.ProcessEnv): boolean {
+/**
+ * Grok 本机是否像装过 / 用过官方 CLI（配置或会话目录），不涉及凭据文件。
+ * 用于避免在完全没装 Grok 时每次刷新都拉起 ACP；真正的登录方式仍只看 ACP initialize。
+ */
+export function hasGrokLocalPresence(home: string, env: NodeJS.ProcessEnv): boolean {
+  const dir = grokHomeDir(home, env);
   try {
-    const stat = fs.statSync(path.join(grokHomeDir(home, env), 'auth.json'));
-    return stat.isFile() && stat.size > 0;
+    if (fs.existsSync(path.join(dir, 'config.toml'))) return true;
   } catch {
-    return false;
+    /* ignore */
   }
+  try {
+    if (fs.existsSync(path.join(dir, 'sessions'))) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
+
+/** @deprecated 使用 hasGrokLocalPresence；保留别名以免外部测试瞬时断裂 */
+export const hasGrokAuthFile = hasGrokLocalPresence;
 
 export interface AuthDeps {
   home?: string;
@@ -307,13 +319,8 @@ export class AuthModeDetector {
     // Nomi 管理的 Grok provider 明确覆盖官方登录；单独的 XAI_API_KEY 则交给
     // Grok 自己的优先级（已登录 OAuth 时官方文档规定 OAuth 优先）。
     if (id === 'grok' && hasManagedGrokConfiguration(home, env)) return { mode: 'api', fp: null };
-    // 没有 Grok 登录文件或 API 配置时，不为每个额度面板刷新都启动全局 CLI。
-    // 官方 cached_token 登录态由该文件提供；文件内容仍不读取。
-    if (
-      id === 'grok' &&
-      !fs.existsSync(path.join(grokHomeDir(home, env), 'auth.json')) &&
-      !hasCustomGrokConfiguration(home, env)
-    )
+    // 本机完全没有 Grok 配置/会话、也不是 API 配置时，不为每次刷新都拉起 ACP。
+    if (id === 'grok' && !hasGrokLocalPresence(home, env) && !hasCustomGrokConfiguration(home, env))
       return { mode: 'unknown', fp: null };
     const text: string | null =
       id === 'grok'
@@ -339,7 +346,6 @@ export class AuthModeDetector {
           ? codexAuthFromConfig(home, env)
           : grokAuthFromConfig(home, env);
     if (cfg) return { mode: cfg, fp: null };
-    if (id === 'grok' && hasGrokAuthFile(home, env)) return { mode: 'subscription', fp: null };
     if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
     return { mode: 'unknown', fp: null };
   }

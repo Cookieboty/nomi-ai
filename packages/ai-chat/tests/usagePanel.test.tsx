@@ -262,6 +262,19 @@ afterEach(() => {
 
 const queries = () => calls.filter((c) => c[0] === 'ai:usage:query').map((c) => c[1]);
 
+/** 额度区按工具 Tabs：切到指定工具卡 */
+const openToolTab = async (name: string) => {
+  const tab = await waitFor(() => {
+    const el = Array.from(document.querySelectorAll('[role="tab"]')).find((n) =>
+      (n.textContent ?? '').includes(name),
+    );
+    if (!el) throw new Error(`tab ${name} not ready`);
+    return el as HTMLElement;
+  });
+  fireEvent.click(tab);
+  await waitFor(() => expect(tab.getAttribute('aria-selected')).toBe('true'));
+};
+
 describe('UsagePanel 概览', () => {
   it('四张摘要卡片 + 未定价提示 + 估算提示 + 趋势 / 分布 / 排行 / 热力图', async () => {
     const { findByTestId, getByTestId } = render(<UsagePanel />);
@@ -598,10 +611,12 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     const notes = await findByTestId('usage-quota-notes');
     expect(notes.textContent).toContain('Claude Code：已让官方 CLI（claude -p /usage）刷新。');
     expect(notes.textContent).toContain('显示的是上次读到的值');
+    await openToolTab('Claude Code');
     expect(getByTestId('usage-quota-origin-claude').textContent).toContain('claude /usage');
+    expect(getByTestId('usage-quota-claude').textContent).not.toContain('上次读取');
+    await openToolTab('Codex');
     expect(getByTestId('usage-quota-origin-codex').textContent).toContain('codex app-server');
     expect(getByTestId('usage-quota-codex').textContent).toContain('上次读取');
-    expect(getByTestId('usage-quota-claude').textContent).not.toContain('上次读取');
   });
 
   it('各种结果说明：认证失效 / 节流 / 本机数据够新 / 已关闭主动刷新 / 版本不支持', async () => {
@@ -669,7 +684,10 @@ describe('UsagePanel 订阅额度', () => {
     const { findByTestId, getByTestId } = render(<UsagePanel />);
     const card = await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-codex').getAttribute('data-status')).toBe('unavailable');
-    expect(card.textContent?.match(/暂未返回可用额度/g)).toHaveLength(2);
+    expect(getByTestId('usage-quota-codex').textContent).toContain('暂未返回可用额度');
+    await openToolTab('Claude Code');
+    expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('unavailable');
+    expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
     expect(card.textContent).not.toMatch(/已用 \d/);
   });
@@ -696,7 +714,7 @@ describe('UsagePanel 订阅额度', () => {
       },
       { id: 'claude', label: 'Claude Code', status: 'unavailable', windows: [] },
     ];
-    const { findByTestId, getAllByTestId } = render(<UsagePanel />);
+    const { findByTestId, getAllByTestId, getByTestId } = render(<UsagePanel />);
     const card = await findByTestId('usage-quota-card');
     const wins = getAllByTestId('usage-quota-window');
     expect(wins).toHaveLength(2);
@@ -710,7 +728,8 @@ describe('UsagePanel 订阅额度', () => {
     expect(wins[1]!.textContent).toContain('窗口已重置');
     expect(wins[1]!.textContent).not.toContain('80%');
     expect(card.textContent).toContain('plus');
-    expect(card.textContent?.match(/暂未返回可用额度/g)).toHaveLength(1); // 只剩 Claude Code
+    await openToolTab('Claude Code');
+    expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');
   });
 
   it('额度接口出错：卡片不显示，不影响其它内容', async () => {
@@ -735,8 +754,13 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
     quota = [E('claude', 'api', 'api'), E('codex', 'api', 'api'), E('dsh', 'api', 'api')];
     const { findByTestId, getByTestId } = render(<UsagePanel />);
     const card = await findByTestId('usage-quota-card');
+    expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('api');
+    expect(getByTestId('usage-quota-claude').textContent).toContain('API 计费，无订阅额度');
+    await openToolTab('Codex');
+    expect(getByTestId('usage-quota-codex').textContent).toContain('API 计费，无订阅额度');
+    await openToolTab('dsh');
     expect(getByTestId('usage-quota-dsh').getAttribute('data-status')).toBe('api');
-    expect(card.textContent?.match(/API 计费，无订阅额度/g)).toHaveLength(3);
+    expect(getByTestId('usage-quota-dsh').textContent).toContain('API 计费，无订阅额度');
     expect(card.textContent).not.toContain('暂未返回可用额度');
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
     // API 登录不需要 Claude 钩子
@@ -754,6 +778,8 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
       E('dsh', 'api', 'api'),
     ];
     const { findByTestId, getByTestId, queryByTestId } = render(<UsagePanel />);
+    await findByTestId('usage-quota-card');
+    await openToolTab('Claude Code');
     const box = await findByTestId('usage-quota-hook');
     expect(box.textContent).toContain('不读取凭据');
     expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');

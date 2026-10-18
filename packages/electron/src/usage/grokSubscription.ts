@@ -12,9 +12,9 @@ import path from 'node:path';
 
 import { resolveCliBinAsync, withCliPath } from '../cli/detect';
 
-import { killTree, STDOUT_LIMIT, windowsShimLaunch } from './limitedProcess';
-import type { FetchOutcome } from './quotaCache';
+import { killTree, STDOUT_LIMIT, resolveCliLaunch } from './limitedProcess';
 import type { QuotaReading, QuotaWindow } from './quota';
+import type { FetchOutcome } from './quotaCache';
 
 export const GROK_BILLING_ARGS = ['agent', 'stdio'];
 export const GROK_BILLING_TIMEOUT_MS = 15_000;
@@ -34,11 +34,14 @@ export function parseGrokBilling(raw: unknown, now = Date.now()): QuotaReading |
   const root = obj(raw);
   const config = obj(root?.config);
   const period = obj(config?.currentPeriod);
-  const used = config?.creditUsagePercent;
-  const usedPercent =
-    typeof used === 'number' && Number.isFinite(used) && used >= 0
-      ? Math.min(100, used)
-      : undefined;
+  const usedRaw = config?.creditUsagePercent;
+  const used =
+    typeof usedRaw === 'number'
+      ? usedRaw
+      : typeof usedRaw === 'string' && usedRaw.trim()
+        ? Number(usedRaw)
+        : NaN;
+  const usedPercent = Number.isFinite(used) && used >= 0 ? Math.min(100, used) : undefined;
   const start = dateMs(period?.start);
   const end = dateMs(period?.end);
   if (usedPercent === undefined || start === undefined || end === undefined || end <= start)
@@ -82,17 +85,13 @@ export class GrokBillingFetcher {
     const dir = fs.mkdtempSync(path.join(this.d.tmpRoot ?? os.tmpdir(), 'nomi-grok-billing-'));
     const env = (this.d.env ?? withCliPath)();
     const platform = this.d.platform ?? process.platform;
-    let file = bin;
-    let args = GROK_BILLING_ARGS;
-    if (platform === 'win32' && /\.(cmd|bat)$/i.test(bin)) {
-      const launch = windowsShimLaunch(bin, args, env);
-      if (!launch) {
-        fs.rmSync(dir, { recursive: true, force: true });
-        return { kind: 'transient', reason: 'spawn-failed' };
-      }
-      file = launch.file;
-      args = launch.args;
+    const launch = resolveCliLaunch(bin, GROK_BILLING_ARGS, env, platform);
+    if (!launch) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return { kind: 'transient', reason: 'spawn-failed' };
     }
+    const file = launch.file;
+    const args = launch.args;
     let child: ChildProcess | null = null;
     try {
       child = await new Promise<ChildProcess | null>((resolve) => {
@@ -103,7 +102,7 @@ export class GrokBillingFetcher {
               env: { ...env, NO_COLOR: '1' },
               stdio: ['pipe', 'pipe', 'ignore'],
               windowsHide: true,
-              windowsVerbatimArguments: file !== bin,
+              windowsVerbatimArguments: launch.via === 'cmd-shim',
             }),
           );
         } catch {

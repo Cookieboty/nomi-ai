@@ -12,7 +12,7 @@
 | 供应商   | `~/.grok/config.toml` 的 `[model.*]` + `api_backend`（`responses` / `chat_completions` / `messages`）；密钥可用 `env_key` | docs.x.ai/build/settings                                             |
 | 鉴权     | `XAI_API_KEY` 或 CLI 登录写入的 `auth.json`（**Nomi 不读凭据内容**）                                                      | 公开文档                                                             |
 | 用量日志 | `sessions/**/updates.jsonl` 中 `sessionUpdate == "turn_completed"` + `usage`（input 含缓存）                              | 社区 ccusage / 公开会话布局；**字段名未用真机二进制逐条核对**        |
-| 订阅额度 | 无安全、已文档化的只读额度 API 可接入                                                                                     | **暂不支持额度卡**                                                   |
+| 订阅额度 | 官方 CLI ACP：`grok agent stdio` → `initialize` / `_x.ai/billing`（CLI 自带登录态；Nomi 不读凭据）                        | 账号登录显示额度卡；API Key 只统计用量与费用                         |
 
 硬约束：不读凭据、不调未文档接口、不碰看板娘 rig 动画内部。
 
@@ -22,12 +22,13 @@
 - **Harness**：`CliHarnessService.runGrok` — `-p`、`streaming-json`、`--no-auto-update`、`--yolo`、可选 `--resume` / `--cwd`；流解析 `parseGrokLine`。
 - **供应商**：独立 `cli-providers/grok/store.json`；启用时 `patchGrokToml` 写标记区块 + `env_key = NOMI_GROK_API_KEY`（密钥仅启动时注入）。
 - **监视**：`updates.jsonl` mtime；进程名 `grok`。
-- **用量**：`parseGrokChunk` 读 `turn_completed`；额度按 API 计费展示。
+- **用量**：`parseGrokChunk` 读 `turn_completed`。
+- **额度**：账号 / OAuth（ACP `cached_token`）走 `GrokBillingFetcher`（`_x.ai/billing`）；API Key 只显示「API 计费，无订阅额度」。Windows 上优先把 `grok.cmd` 解成 `node.exe + script.js` 再 spawn，避免 `cmd.exe /c` 打断 ACP stdin。
 - **历史侧栏**：本轮**未**接入（transcript 形状未真机核对）。
 
 ## 未验证项
 
 1. 真机 `updates.jsonl` 字段名与嵌套（`params.update` vs 顶层）是否与测试夹具完全一致。
 2. `costUsdTicks` / 长上下文计价边界。
-3. Windows `.cmd` 垫片与 `grok update` 行为。
-4. ACP `grok agent stdio`（本轮仅 headless `-p`）。
+3. Windows 真机上 `grok.cmd` 解包后的 ACP billing 往返（单测已覆盖解包与解析）。
+4. 真机 `subscription_tier` / `creditUsagePercent` 字段口径。

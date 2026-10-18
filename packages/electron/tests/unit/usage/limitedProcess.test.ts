@@ -1,7 +1,13 @@
 jest.unmock('fs');
 jest.unmock('path');
 
-import { ProcessFailure, runLimited, windowsShimLaunch } from '../../../src/usage/limitedProcess';
+import {
+  ProcessFailure,
+  resolveCliLaunch,
+  runLimited,
+  unwrapWindowsCmdShim,
+  windowsShimLaunch,
+} from '../../../src/usage/limitedProcess';
 
 const node = process.execPath;
 const base = { cwd: process.cwd(), env: { ...process.env }, timeoutMs: 5000, maxBytes: 1024 };
@@ -68,5 +74,56 @@ describe('Windows .cmd 垫片：逐参数加引号（空参数不丢）', () => 
     expect(windowsShimLaunch('a.cmd', ['x"y'], {})).toBeNull();
     expect(windowsShimLaunch('a%PATH%.cmd', [], {})).toBeNull();
     expect(windowsShimLaunch('a.cmd', ['x\ny'], {})).toBeNull();
+  });
+});
+
+describe('unwrapWindowsCmdShim / resolveCliLaunch：Windows ACP stdin', () => {
+  it('把 npm .cmd 垫片解成 node + script（stdin ACP 可用）', () => {
+    const dir = '/tmp/npm-shim';
+    const script = `${dir}/node_modules/@xai-official/grok/bin/grok.js`;
+    const node = `${dir}/node.exe`;
+    const files = new Set([script, node]);
+    const u = unwrapWindowsCmdShim(`${dir}/grok.cmd`, {
+      readFile: () =>
+        'endLocal & "%_prog%"  "%dp0%\\node_modules\\@xai-official\\grok\\bin\\grok.js" %*\n',
+      exists: (p) => files.has(p),
+    });
+    expect(u).toEqual({ node, script });
+  });
+
+  it('resolveCliLaunch：win32 优先 node-script，非 Windows 保持原命令', () => {
+    const dir = '/tmp/npm-shim2';
+    const script = `${dir}/node_modules/@xai-official/grok/bin/grok.js`;
+    const launch = resolveCliLaunch(
+      `${dir}/grok.cmd`,
+      ['agent', 'stdio'],
+      { ComSpec: 'C:\\Windows\\System32\\cmd.exe' },
+      'win32',
+      {
+        readFile: () => '"%_prog%"  "%dp0%/node_modules/@xai-official/grok/bin/grok.js" %*',
+        exists: (p) => p === script,
+      },
+    )!;
+    expect(launch.via).toBe('node-script');
+    expect(launch.args).toEqual([script, 'agent', 'stdio']);
+    expect(launch.file).toBe('node.exe');
+
+    expect(resolveCliLaunch('/usr/local/bin/grok', ['agent', 'stdio'], {}, 'linux')).toEqual({
+      file: '/usr/local/bin/grok',
+      args: ['agent', 'stdio'],
+      via: 'direct',
+    });
+  });
+
+  it('解不出脚本时回退到 cmd.exe /c 垫片', () => {
+    const launch = resolveCliLaunch(
+      'C:\\npm\\grok.cmd',
+      ['agent', 'stdio'],
+      { ComSpec: 'C:\\Windows\\System32\\cmd.exe' },
+      'win32',
+      { readFile: () => '@echo off', exists: () => false },
+    )!;
+    expect(launch.via).toBe('cmd-shim');
+    expect(launch.file).toBe('C:\\Windows\\System32\\cmd.exe');
   });
 });

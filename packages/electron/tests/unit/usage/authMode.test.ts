@@ -137,10 +137,10 @@ describe('本地兜底：只看键名 / 字段，不读凭据值', () => {
     expect(grokAuthFromConfig(home, {})).toBe('api');
   });
 
-  it('Grok：CLI 暂时不可用时，只凭 auth.json 文件存在保留订阅入口，不读取内容', () => {
+  it('Grok：本机有 config/sessions 才认为装过 CLI（不碰凭据文件）', () => {
     const home = tmpHome();
     expect(hasGrokAuthFile(home, {})).toBe(false);
-    write(path.join(home, '.grok', 'auth.json'), '{opaque credentials}');
+    write(path.join(home, '.grok', 'config.toml'), '# empty\n');
     expect(hasGrokAuthFile(home, {})).toBe(true);
   });
 });
@@ -156,6 +156,9 @@ describe('AuthModeDetector', () => {
   });
 
   it('Grok 官方 ACP 返回 cached_token 时识别为订阅登录', async () => {
+    const home = tmpHome();
+    // 与生产一致：本机需有 Grok 配置/会话痕迹才会拉起 ACP
+    write(path.join(home, '.grok', 'config.toml'), '# empty\n');
     const grokRun = jest.fn(async () =>
       JSON.stringify({
         result: {
@@ -164,7 +167,7 @@ describe('AuthModeDetector', () => {
         },
       }),
     );
-    const d = new AuthModeDetector({ home: tmpHome(), env: {}, grokRun });
+    const d = new AuthModeDetector({ home, env: {}, grokRun });
     expect(await d.detect('grok')).toBe('subscription');
     expect(grokRun).toHaveBeenCalledTimes(1);
   });

@@ -696,3 +696,55 @@ i.heatCell {
     max-width: 120px;
   }
 }
+
+/* 工具卡片（额度 Tabs） */
+.toolTabLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolCard {
+  margin-top: 4px;
+}
+.toolCardTitle {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.toolSections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.toolSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-background, var(--cd-color-surface));
+}
+.toolSectionHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.toolSectionHead h4 {
+  margin: 0;
+  flex: 1;
+  font-size: var(--cd-font-size-sm);
+  font-weight: 600;
+  color: var(--cd-color-text);
+}
+.toolUsageRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+}
+.toolUsageRow b {
+  font-variant-numeric: tabular-nums;
+}
