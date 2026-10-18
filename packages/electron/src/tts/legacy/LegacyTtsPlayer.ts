@@ -218,21 +218,16 @@ export class VoiceService {
       } catch (error) {
         console.error('MCP: 语音克隆API调用失败:', error);
 
-        // 网络错误时fallback到系统TTS
+        // 网络错误时保持静默；系统语音不是 TTS 的兜底。
         const errorMessage = (error as any)?.message || String(error);
         const isNetworkError =
           errorMessage.includes('ENOTFOUND') ||
           errorMessage.includes('ECONNREFUSED') ||
           errorMessage.includes('timeout');
 
-        if (isNetworkError) {
-          log.info('MCP: 网络错误，fallback到系统TTS');
-          this.fallbackToSystemTTS(text);
-          setTimeout(resolve, 2000);
-        } else {
-          console.error('MCP: 语音克隆API错误，不使用fallback TTS');
-          resolve();
-        }
+        if (isNetworkError) log.info('MCP: 网络错误，TTS 保持静默');
+        else console.error('MCP: 语音克隆API错误，TTS 保持静默');
+        resolve();
       }
     });
   }
@@ -389,24 +384,6 @@ export class VoiceService {
     } else {
       // 生产环境
       return path.join(process.resourcesPath, 'app', 'assets', selectedFile);
-    }
-  }
-
-  /**
-   * 系统TTS fallback
-   */
-  private fallbackToSystemTTS(text: string): void {
-    try {
-      if (process.platform === 'darwin') {
-        spawn('say', ['-v', 'Ting-Ting', text]);
-      } else if (process.platform === 'win32') {
-        const script = `Add-Type -AssemblyName System.speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Speak(${psQuote(text)})`;
-        spawn('powershell', ['-Command', script]);
-      } else {
-        spawn('espeak', [text]);
-      }
-    } catch (error) {
-      console.error('MCP: 系统TTS也失败:', error);
     }
   }
 

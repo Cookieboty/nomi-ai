@@ -4,7 +4,7 @@
 
 export type ModelOrigin = 'bundled' | 'remote' | 'user';
 
-/** Per-character soft TTS binding (Web Speech + Fish reference preference). */
+/** Per-character TTS binding (local/remote TTS voice preference). */
 export interface ModelVoiceConfig {
   /** speechSynthesis.voiceURI or empty for auto soft pick (system fallback) */
   voiceURI?: string;

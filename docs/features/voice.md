@@ -17,20 +17,19 @@
 Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)，本机 CPU 合成，不需要联网或外部服务）。
 合成发生在 Electron 主进程；渲染层只拿到一段 WAV 播放并驱动口型。
 
-| 提供方（`provider`）         | 说明                                                                                                        |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `sherpa-theresa`（**默认**） | 内置离线 TTS：sherpa-onnx 原生 addon + 中文 VITS 模型，`sid=0`、`speed=1.0`（不加速）                       |
-| `fish-local`                 | 高级 / 可选：本机 [fish-speech](https://github.com/fishaudio/fish-speech) HTTP API，`http://127.0.0.1:8080` |
-| `fish-cloud`                 | 高级 / 可选：[Fish Audio 云](https://fish.audio) `https://api.fish.audio/v1/tts`，**你自己的** API Key      |
-| `legacy`                     | 保留：自行接入外部 TTS（hostname/port/path/audioUrl/promptText）                                            |
-| `system`                     | 仅系统 Web Speech                                                                                           |
+| 提供方（`provider`）         | 说明                                                                                                         |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `sherpa-theresa`（**默认**） | 内置离线 TTS：sherpa-onnx 原生 addon + 中文 VITS 模型，`sid=0`、全局 `speed=1.0`；当前角色的语速设置会覆盖它 |
+| `fish-local`                 | 高级 / 可选：本机 [fish-speech](https://github.com/fishaudio/fish-speech) HTTP API，`http://127.0.0.1:8080`  |
+| `fish-cloud`                 | 高级 / 可选：[Fish Audio 云](https://fish.audio) `https://api.fish.audio/v1/tts`，**你自己的** API Key       |
+| `legacy`                     | 保留：自行接入外部 TTS（hostname/port/path/audioUrl/promptText）                                             |
 
 **行为**
 
 - 没有保存过配置时默认就是 `sherpa-theresa`。
 - **旧配置迁移**：磁盘上若仍是「未改过的」Fish 时代产品默认（`fish-local` + `nomi` + `http://127.0.0.1:8080`），加载时一次性改写为 `sherpa-theresa` 并写回；自定义过 Fish 地址/声线的配置保持原样。
-- 路由（`packages/electron/src/tts/ttsRouter.ts`）：`sherpa-theresa` → sherpa；`fish-*` → Fish，失败再试 sherpa；`legacy` → 遗留播放器；`system` / 关闭 → 系统语音。
-- **回退**：sherpa 模型缺失 / 原生库加载失败 / 合成出错 → **系统语音**（Web Speech）。Fish 不可达时优先走 sherpa，避免 Linux 等环境下系统语音无中文音色导致「完全没声」。
+- 路由（`packages/electron/src/tts/ttsRouter.ts`）：`sherpa-theresa` → sherpa；`fish-*` → Fish，失败再试 sherpa；`legacy` → 遗留播放器；关闭或 TTS 失败 → 静默。
+- **回退**：sherpa 模型缺失 / 原生库加载失败 / 合成出错时不调用系统 Web Speech。Fish 不可达时优先走 sherpa，两者都不可用则静默。
 - 角色说话时主进程分句合成并拼接成一段 WAV（`audio/wav`，22.05 kHz mono），经 IPC `tts:speak` 以 base64 返回；渲染层沿用原有播放 / 口型 / 打断逻辑。
 - **不提供**「上传我的音色 / 任意参考音频克隆」入口。产品内角色自己说话 ≠ Hosted Service；不要把本应用做成对外自助 TTS 平台。
 
@@ -42,7 +41,7 @@ Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fs
 2. 源目录解析顺序：`NOMI_SHERPA_TTS_MODEL_DIR` → 仓库同级 `../models/<id>` → 仓库内 `models/<id>`。文件清单、归档 URL / sha256 与字节数钉死在 `packages/electron/src/tts/sherpa/manifest.ts`（与 sync 脚本一致）。
 3. 运行时定位顺序：环境变量 → `process.resourcesPath/tts-models/<id>`（打包）→ 开发态上述目录 → `userData/tts-models/<id>`。
 4. **`pnpm i` / `pnpm dev` 自动准备**：`packages/electron/scripts/ensure-tts-model.mjs`（纯 Node、跨平台）在 electron 包 `postinstall` 时下载并解压模型到 `<repo>/../models/vits-zh-hf-theresa`（Windows 例：`D:\self_git\models\vits-zh-hf-theresa`）；`pnpm dev` 启动前再校验一遍兜底。幂等（清单逐文件字节校验，完整则毫秒级跳过）；带空闲超时（30 s）/ 重试（每地址 3 次）/ 多镜像回退 / sha256 校验 / 进度输出；自动清理 0KB `.part`、残留 `.download`、`.partial`；**失败只报错、退出码 0**，不阻塞 `pnpm i` 与 dev（`--strict` 才非 0）。手动执行：`pnpm --filter @nomi-ai/electron ensure-tts-model`（`--check` 只校验，`--force` 重装）。
-5. **运行时后台下载（兜底）**：若启动后模型仍缺失，`SherpaTtsService` 在**后台**异步下载（单飞，并发请求不会重复下载）；下载 / 解压期间每条 `tts:speak` 立即回退系统语音，并限频（5 s）打印「模型下载中 x%」；下载完成后下一条自动走 sherpa。下载失败 120 s 内不重试（回退并带上次错误），之后自动重试。
+5. **运行时后台下载（兜底）**：若启动后模型仍缺失，`SherpaTtsService` 在**后台**异步下载（单飞，并发请求不会重复下载）；下载 / 解压期间每条 `tts:speak` 保持静默，并限频（5 s）打印「模型下载中 x%」；下载完成后下一条自动走 sherpa。下载失败 120 s 内不重试（静默并带上次错误），之后自动重试。
 6. IPC：`tts:sherpa:status`（ready / missing / error，下载中时 message 带进度）；设置页只展示状态，无下载进度条。
 
 #### 环境变量
@@ -75,8 +74,8 @@ Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fs
 - **Windows x64 原生库**：需要平台包 `sherpa-onnx-win-x64`（`sherpa-onnx-node` 的 optionalDependency，须在 Windows 本机 `pnpm install` 安装，不要拷贝 Linux 的 node_modules）及其 `onnxruntime.dll` / `sherpa-onnx-c-api.dll`。加载前代码会把平台包目录加入 `PATH`；`sherpa-onnx-node` 自带 loader 会吞掉真实 dlopen 错误，`nativeAddon.ts` 失败后会诊断（平台包缺失 / DLL 缺失 / 真实 dlopen 错误）并给出提示：未装 **VC++ 2015-2022 x64 运行库**（<https://aka.ms/vs/17/release/vc_redist.x64.exe>）、`System32` 下旧版 `onnxruntime.dll` 抢先加载、杀毒软件拦截。
 - 懒加载 + 单例：首次合成时才 `require` addon 并加载模型（约 0.7–1.5 s）；推理用 `createAsync` / `generateAsync`，不阻塞主进程事件循环；同一时刻只跑一个合成，新请求会让旧请求在句间退出（对应打断）。
 - 参考参数（同 `/workspace/tts-samples/gen.py`）：`numThreads=4`、`provider=cpu`、`maxNumSentences=1`、`ruleFsts=phone/date/number/new_heteronym`、`dictDir=dict/`。CPU 实时率约 0.15–0.2。
-- 每条 `tts:speak` 都有一条结果日志：`tts:speak success|fallback|error`（含 provider / via / 耗时 / code / message）；单次请求 90 s 总超时，超时回退系统语音，IPC 不会永久挂起。
-- 单次文本上限 1500 字符（超出回退系统语音）；引擎加载失败后 60 s 内不重试，直接回退。
+- 每条 `tts:speak` 都有一条结果日志：`tts:speak success|fallback|error`（含 provider / via / 耗时 / code / message）；单次请求 90 s 总超时，超时静默，IPC 不会永久挂起。
+- 单次文本上限 1500 字符（超出静默）；引擎加载失败后 60 s 内不重试，直接静默。
 
 ### 本地验证
 
@@ -91,14 +90,14 @@ NOMI_SHERPA_TTS_MODEL_DIR=/path/to/extracted-model pnpm dev
 
 ### 设置页
 
-- 「TTS 语音配置」：默认「内置离线语音」；模型状态；高级可切换 Fish 本地 / 云、legacy、系统；检测连接；**Built with Fish Audio** 标注（仅选用 Fish 时适用，文案保留）。
-- 「语音设置」：系统回退音色、语速/音高、音量；说明引擎优先级。
+- 「TTS 语音配置」：默认「内置离线语音」；模型状态；高级可切换 Fish 本地 / 云、legacy；检测连接；**Built with Fish Audio** 标注（仅选用 Fish 时适用，文案保留）。
+- 「语音设置」：当前角色 TTS 语速、音量；没有可用 TTS 时保持静默。
 
 ## 高级：Fish Audio（可选，Built with Fish Audio）
 
 Fish 代码与合规文案保留，但**不再默认启用**。选择 `fish-local` / `fish-cloud` 后：
 
-- 主进程调用 Fish `/v1/tts`；失败或服务未就绪时自动回退系统语音。
+- 主进程调用 Fish `/v1/tts`；失败或服务未就绪时先尝试 sherpa，仍失败则静默。
 - Nomi 默认 `referenceId` / `voiceHint` = `nomi`（内置可爱预设）。
 - 应用已内置种子 `packages/electron/assets/tts/references/nomi/{sample.wav,sample.lab}`，合成时以 `reference_audio`（base64）+ `reference_text` 发给本地 Fish，**无需**拷进 fish-speech 的 `references/`。
 

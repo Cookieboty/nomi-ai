@@ -13,7 +13,7 @@
         <h1>TTS 语音配置</h1>
         <p>
           默认使用内置<strong>离线语音</strong>（sherpa-onnx，本机合成，模型随安装包分发，无需联网/外部服务）。
-          模型缺失或合成失败时自动回退系统语音。 Fish Audio
+          模型缺失或合成失败时保持静默。 Fish Audio
           为可选高级引擎；不提供用户上传/克隆任意音色；仍可自行接入外部 TTS（legacy）。
         </p>
         <p class="cd-notice" data-testid="fish-attribution" style="margin-top: 8px">
@@ -32,7 +32,7 @@
       <section class="editor-section cd-field" data-testid="fish-section">
         <h2 class="cd-section-title">语音引擎</h2>
         <label class="cd-field__label">
-          <input type="checkbox" id="enabled" /> 启用高质量播报（关闭则仅用系统语音）
+          <input type="checkbox" id="enabled" /> 启用 TTS 播报（关闭则保持静默）
         </label>
 
         <label class="cd-field__label" for="provider">提供方</label>
@@ -41,7 +41,6 @@
           <option value="fish-local">高级：Fish 本地（fish-speech）</option>
           <option value="fish-cloud">高级：Fish 云 API（自备 Key）</option>
           <option value="legacy">自行接入外部 TTS（legacy，自建克隆服务）</option>
-          <option value="system">仅系统语音（Web Speech）</option>
         </select>
 
         <div id="sherpa-fields" data-testid="sherpa-section">
@@ -152,7 +151,7 @@
       <div class="help-text cd-notice">
         <strong>怎么用</strong><br />
         1. 默认「内置离线语音」：模型随安装包分发，完全本机合成，无需联网。<br />
-        2. 模型缺失 / 合成出错时，看板娘自动回退系统语音，无需试听步骤。<br />
+        2. 模型缺失 / 合成出错时，看板娘保持静默，无需试听步骤。<br />
         3. 高级：Fish 本地（Docker / uv 启动 fish-speech，监听 <code>127.0.0.1:8080</code>）或 Fish
         云（自备 API Key， 不捆绑 Research-only 权重）。<br />
         4. 需要对接其它克隆 API 时，选择「自行接入外部 TTS（legacy）」。
@@ -243,14 +242,14 @@
       }
 
       function updateStatusFromConfig(c) {
-        if (!c || c.enabled === false || c.provider === 'system') {
-          updateStatus('none', '使用系统语音（Web Speech）');
+        if (!c || c.enabled === false) {
+          updateStatus('none', 'TTS 已关闭（保持静默）');
         } else if (c.provider === 'sherpa-theresa') {
-          updateStatus('valid', '内置离线语音（sherpa-onnx）· 模型未就绪则回退系统语音');
+          updateStatus('valid', '内置离线语音（sherpa-onnx）· 模型未就绪则保持静默');
         } else if (c.provider === 'fish-local') {
           updateStatus(
             'valid',
-            'Fish 本地（高级） · 预设 ' + (c.referenceId || 'nomi') + '（未就绪则回退系统语音）',
+            'Fish 本地（高级） · 预设 ' + (c.referenceId || 'nomi') + '（未就绪则保持静默）',
           );
         } else if (c.provider === 'fish-cloud') {
           updateStatus('valid', 'Fish 云 · ' + (c.hasApiKey ? '已配置 Key' : '需填写 API Key'));
@@ -273,9 +272,9 @@
                   : '';
           text.textContent = '模型已就绪' + where;
         } else if (st.state === 'error') {
-          text.textContent = '模型不可用：' + (st.message || '未知错误') + '（当前使用系统语音）';
+          text.textContent = '模型不可用：' + (st.message || '未知错误') + '（当前没有可用 TTS）';
         } else {
-          text.textContent = '模型缺失（当前使用系统语音）';
+          text.textContent = '模型缺失（当前没有可用 TTS）';
         }
       }
 
@@ -343,7 +342,7 @@
             );
             showResult(result.message, true);
           } else {
-            updateStatus('invalid', result.message || '不可达，将回退系统语音');
+            updateStatus('invalid', result.message || '不可达，当前没有可用 TTS');
             showResult(result.message || '检测失败', false);
           }
         } catch (e) {
@@ -370,7 +369,7 @@
       }
 
       async function resetConfig() {
-        if (!confirm('重置为内置 Fish 默认（可爱 Nomi 预设）？将清除已保存配置与云 Key。')) return;
+        if (!confirm('重置为内置离线默认？将清除已保存配置与云 Key。')) return;
         if (!window.electronAPI) {
           configToForm(defaultConfig);
           return;

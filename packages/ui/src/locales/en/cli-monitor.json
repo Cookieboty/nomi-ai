@@ -179,7 +179,7 @@
   "同时运行的编程助手标签上限（1–8）": "Max concurrent coding-agent tabs (1–8)",
   "并发上限": "Concurrency limit",
   "语音播报引擎": "Speech engine",
-  "默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时自动回退下方系统音色。Fish Audio 为可选高级引擎，不提供上传克隆。": "Uses the built-in offline voice (sherpa-onnx, synthesized on this device, shipped with the app). If the model is missing or synthesis fails, it falls back to the system voices below. Fish Audio is an optional advanced engine; voice-clone uploads are not provided.",
+  "默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。": "Uses the built-in offline voice (sherpa-onnx, synthesized on this device, shipped with the app). If the model is missing or synthesis fails, it stays silent. Fish Audio is an optional remote engine; voice-clone uploads are not provided.",
   "动作音效": "Action sound effects",
   "点击、拖拽、任务完成等动作的短提示音（程序合成，可关）。": "Short cues for clicks, drag, task done, etc. (synthesized; can disable).",
   "下次温柔一点嘛。": "Be gentler next time.",

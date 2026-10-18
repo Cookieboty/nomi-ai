@@ -5,7 +5,7 @@
 import type { TTSConfig, TTSProvider } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 
-const PROVIDERS: TTSProvider[] = ['sherpa-theresa', 'fish-local', 'fish-cloud', 'legacy', 'system'];
+const PROVIDERS: TTSProvider[] = ['sherpa-theresa', 'fish-local', 'fish-cloud', 'legacy'];
 const SHERPA_MAX_SID = 803;
 const SHERPA_SPEED_MIN = 0.5;
 const SHERPA_SPEED_MAX = 1.5;
@@ -76,7 +76,7 @@ function inferProvider(raw: Partial<TTSConfig>): TTSProvider {
 /**
  * Pre-sherpa product default was fish-local + nomi @ 127.0.0.1:8080.
  * Untouched copies of that default should move to sherpa-theresa so `pnpm dev`
- * is not stuck on Fish (unreachable → silent Web Speech on many Linux setups).
+ * is not stuck on Fish (unreachable → silent TTS on many Linux setups).
  * Custom Fish baseUrl / referenceId / cloud are left alone.
  */
 export function isLegacyFishProductDefault(raw: Partial<TTSConfig> | null | undefined): boolean {
@@ -108,7 +108,7 @@ export function validateTtsConfig(config: TTSConfig): TtsValidation {
     errors.push('enabled must be boolean');
   }
   if (!PROVIDERS.includes(config.provider)) {
-    errors.push('provider must be sherpa-theresa | fish-local | fish-cloud | legacy | system');
+    errors.push('provider must be sherpa-theresa | fish-local | fish-cloud | legacy');
   }
 
   if (config.provider === 'sherpa-theresa') {

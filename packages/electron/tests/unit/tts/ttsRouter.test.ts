@@ -38,9 +38,8 @@ describe('selectEngine', () => {
     expect(selectEngine(cfg({ provider: 'fish-local' }))).toBe('fish');
     expect(selectEngine(cfg({ provider: 'fish-cloud' }))).toBe('fish');
     expect(selectEngine(cfg({ provider: 'legacy' }))).toBe('legacy');
-    expect(selectEngine(cfg({ provider: 'system' }))).toBe('system');
-    expect(selectEngine(cfg({ enabled: false }))).toBe('system');
-    expect(selectEngine({ enabled: true, provider: 'nope' as never })).toBe('system');
+    expect(selectEngine(cfg({ enabled: false }))).toBe('none');
+    expect(selectEngine({ enabled: true, provider: 'nope' as never })).toBe('none');
   });
 });
 
@@ -59,21 +58,33 @@ describe('TtsRouter.speak', () => {
     expect(fish.speak).not.toHaveBeenCalled();
   });
 
-  it('sherpa not ready / failure → fallbackToSystem (never Fish)', async () => {
+  it('uses per-request speed when supplied by the active character', async () => {
+    const { router, sherpa } = setup(cfg({ sherpaSpeed: 1.0 }));
+    await router.speak({ text: '你好', speed: 0.82 });
+    expect(sherpa.synthesize).toHaveBeenCalledWith('你好', { sid: 0, speed: 0.82 });
+  });
+
+  it('clamps malformed per-request speed before it reaches sherpa', async () => {
+    const { router, sherpa } = setup(cfg({ sherpaSpeed: 1.0 }));
+    await router.speak({ text: '你好', speed: 99 });
+    expect(sherpa.synthesize).toHaveBeenCalledWith('你好', { sid: 0, speed: 1.5 });
+  });
+
+  it('sherpa not ready / failure stays silent (never Fish)', async () => {
     const { router, sherpa, fish, onSherpaFailure } = setup(cfg());
     sherpa.synthesize.mockRejectedValueOnce(new SherpaTtsError('not_ready', 'model missing'));
     const r = await router.speak({ text: '你好' });
-    expect(r).toMatchObject({ success: false, via: 'none', fallbackToSystem: true });
+    expect(r).toMatchObject({ success: false, via: 'none', fallbackToSystem: false });
     expect(r.message).toMatch(/model missing/);
     expect(onSherpaFailure).toHaveBeenCalledTimes(1);
 
     sherpa.synthesize.mockRejectedValueOnce(new Error('addon dlopen failed'));
     const r2 = await router.speak({ text: '你好' });
-    expect(r2.fallbackToSystem).toBe(true);
+    expect(r2.fallbackToSystem).toBe(false);
     expect(fish.speak).not.toHaveBeenCalled();
   });
 
-  it('superseded sherpa request does not trigger system speech', async () => {
+  it('superseded sherpa request stays silent', async () => {
     const { router, sherpa } = setup(cfg());
     sherpa.synthesize.mockRejectedValueOnce(new SherpaTtsError('superseded', 'newer'));
     const r = await router.speak({ text: '你好' });
@@ -88,12 +99,12 @@ describe('TtsRouter.speak', () => {
     expect(sherpa.synthesize).not.toHaveBeenCalled();
   });
 
-  it('Fish failure → try sherpa before system speech (legacy fish-local configs)', async () => {
+  it('Fish failure → try sherpa before staying silent (legacy fish-local configs)', async () => {
     const { router, sherpa, fish } = setup(cfg({ provider: 'fish-local' }));
     fish.speak.mockResolvedValueOnce({
       success: false,
       via: 'none',
-      fallbackToSystem: true,
+      fallbackToSystem: false,
       message: 'Fish TTS unreachable',
     });
     const r = await router.speak({ text: '你好' });
@@ -102,35 +113,31 @@ describe('TtsRouter.speak', () => {
     expect(r).toMatchObject({ success: true, via: 'sherpa', fallbackToSystem: false });
   });
 
-  it('Fish and sherpa both fail → fallbackToSystem', async () => {
+  it('Fish and sherpa both fail → stay silent', async () => {
     const { router, sherpa, fish } = setup(cfg({ provider: 'fish-local' }));
     fish.speak.mockResolvedValueOnce({
       success: false,
       via: 'none',
-      fallbackToSystem: true,
+      fallbackToSystem: false,
       message: 'Fish TTS unreachable',
     });
     sherpa.synthesize.mockRejectedValueOnce(new SherpaTtsError('not_ready', 'model missing'));
     const r = await router.speak({ text: '你好' });
-    expect(r).toMatchObject({ success: false, fallbackToSystem: true });
+    expect(r).toMatchObject({ success: false, fallbackToSystem: false });
     expect(r.message).toMatch(/Fish TTS unreachable|model missing/);
   });
 
-  it('system / disabled / legacy / empty text never synthesize', async () => {
-    for (const patch of [
-      { provider: 'system' as const },
-      { enabled: false },
-      { provider: 'legacy' as const },
-    ]) {
+  it('disabled / legacy / empty text never synthesize', async () => {
+    for (const patch of [{ enabled: false }, { provider: 'legacy' as const }]) {
       const { router, sherpa, fish } = setup(cfg(patch));
       const r = await router.speak({ text: '你好' });
       expect(r.success).toBe(false);
-      expect(r.fallbackToSystem).toBe(true);
+      expect(r.fallbackToSystem).toBe(false);
       expect(sherpa.synthesize).not.toHaveBeenCalled();
       expect(fish.speak).not.toHaveBeenCalled();
     }
     const { router, sherpa } = setup(cfg());
-    expect((await router.speak({ text: '   ' })).fallbackToSystem).toBe(true);
+    expect((await router.speak({ text: '   ' })).fallbackToSystem).toBe(false);
     expect(sherpa.synthesize).not.toHaveBeenCalled();
   });
 
@@ -144,7 +151,7 @@ describe('TtsRouter.speak', () => {
       await router.speak({ text: '你好' });
       sherpa.synthesize.mockRejectedValueOnce(new SherpaTtsError('downloading', '模型下载中 37%'));
       const r = await router.speak({ text: '你好' });
-      expect(r).toMatchObject({ success: false, fallbackToSystem: true, via: 'none' });
+      expect(r).toMatchObject({ success: false, fallbackToSystem: false, via: 'none' });
       await router.speak({ text: '  ' });
       expect(onOutcome).toHaveBeenCalledTimes(3);
       expect(onOutcome.mock.calls[0]![0]).toMatchObject({
@@ -161,7 +168,7 @@ describe('TtsRouter.speak', () => {
       expect(onOutcome.mock.calls[2]![0]).toMatchObject({ outcome: 'fallback' });
     });
 
-    it('a hung synthesize cannot hang the IPC: times out → system fallback + logged', async () => {
+    it('a hung synthesize cannot hang the IPC: times out → stays silent + logged', async () => {
       const onOutcome = jest.fn();
       const sherpa = { synthesize: jest.fn(() => new Promise<never>(() => undefined)) };
       const router = new TtsRouter({
@@ -172,7 +179,7 @@ describe('TtsRouter.speak', () => {
         speakTimeoutMs: 30,
       });
       const r = await router.speak({ text: '你好' });
-      expect(r).toMatchObject({ success: false, fallbackToSystem: true });
+      expect(r).toMatchObject({ success: false, fallbackToSystem: false });
       expect(onOutcome).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'fallback', code: 'timeout' }),
       );
@@ -202,7 +209,7 @@ describe('applyTtsEnvOverride (CD_TTS=off for e2e)', () => {
     expect(applyTtsEnvOverride(c, {})).toBe(c);
   });
 
-  it('disables synthesis: no sherpa call, falls back to system voice', async () => {
+  it('disables synthesis: no sherpa call, stays silent', async () => {
     const { sherpa, fish } = setup(cfg());
     const router = new TtsRouter({
       getConfig: () => applyTtsEnvOverride(cfg(), { CD_TTS: 'off' }),
@@ -210,7 +217,7 @@ describe('applyTtsEnvOverride (CD_TTS=off for e2e)', () => {
       fish,
     });
     const r = await router.speak({ text: '你好' });
-    expect(r.fallbackToSystem).toBe(true);
+    expect(r.fallbackToSystem).toBe(false);
     expect(sherpa.synthesize).not.toHaveBeenCalled();
     expect(fish.speak).not.toHaveBeenCalled();
   });

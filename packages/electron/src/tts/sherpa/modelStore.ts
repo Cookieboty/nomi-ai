@@ -137,7 +137,7 @@ const rmQuiet = (p: string, recursive = false): void => {
 /**
  * 下载（sha256 校验，多镜像 × 重试 × 空闲超时）→ 解压到 `<id>.partial` → 逐文件校验大小 →
  * 原子改名（Windows 带重试）为 `<id>`。
- * 任一步失败都清理临时文件并抛 SherpaInstallError（带阶段；调用方回退系统语音）。
+ * 任一步失败都清理临时文件并抛 SherpaInstallError（带阶段；调用方保持静默）。
  */
 export async function installModel(opts: InstallOptions): Promise<string> {
   const manifest = opts.manifest ?? SHERPA_MANIFEST;

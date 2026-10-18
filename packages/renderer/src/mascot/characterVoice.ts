@@ -4,14 +4,11 @@
  * Overrides persist in localStorage; user-imported models also try models.updateConfig({ voice }).
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
-import { t } from '@nomi-ai/ui';
 
 import {
   DEFAULT_SOFT_SPEECH,
   loadSoftSpeechPrefs,
-  pickSoftVoice,
   saveSoftSpeechPrefs,
-  speakSoft,
   type SoftSpeechPrefs,
   type SpeakSoftOptions,
 } from './softSpeech';
@@ -21,7 +18,7 @@ const OVERRIDE_KEY = 'mascot.characterVoice.v1';
 /** Built-in softer defaults by model id / tag family. */
 export const CHARACTER_VOICE_DEFAULTS: Record<string, ModelVoiceConfig> = {
   nomi: {
-    /** Built-in Fish cute preset id (local references/nomi); system fallback still soft-picks. */
+    /** Built-in Fish cute preset id (local references/nomi). */
     voiceHint: 'nomi',
     fishReferenceId: 'nomi',
     rate: 0.92,
@@ -147,21 +144,24 @@ export function speakForActiveCharacter(text: string, opts: SpeakSoftOptions = {
   const referenceId =
     voice.fishReferenceId ||
     (voice.voiceHint && fishPresets.has(voice.voiceHint) ? voice.voiceHint : undefined);
+  const configuredRate = Number.isFinite(merged.rate) ? merged.rate : 0.92;
+  const speed = Math.min(1.5, Math.max(0.5, configuredRate));
 
-  // Built-in Fish path (no preview UI): async synthesize; fall back to Web Speech on failure.
+  // Main-process TTS path (local sherpa or remote provider). TTS failures stay silent.
   void (async () => {
     try {
       const { speakWithFish } = await import('./tts/fishSpeak');
       const ok = await speakWithFish(text, {
         referenceId,
         volume: merged.volume,
+        speed,
         onEnd: opts.onEnd,
       });
       if (ok) return;
     } catch {
-      /* fall through */
+      // Keep the cue state consistent if the TTS module itself cannot load.
+      opts.onEnd?.();
     }
-    speakSoft(text, { ...opts, prefs: merged });
   })();
   return true;
 }
@@ -206,13 +206,6 @@ export function clearCharacterVoiceOverride(modelName: string): void {
   writeOverrides(map);
 }
 
-/** Preview pick for UI: show which OS voice would be used. */
-export function previewVoiceName(prefs: SoftSpeechPrefs): string {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return t('（无系统语音）');
-  const v = pickSoftVoice(window.speechSynthesis.getVoices(), prefs);
-  return v ? v.name : t('自动柔和女声');
-}
-
-// Re-export for settings that still tweak global preferNeural / volume
+// Keep the preference types available to existing settings integrations.
 export { saveSoftSpeechPrefs, loadSoftSpeechPrefs, DEFAULT_SOFT_SPEECH };
 export type { SoftSpeechPrefs, SpeakSoftOptions };

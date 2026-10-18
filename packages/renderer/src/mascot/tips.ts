@@ -56,7 +56,7 @@ export function greetingFor(hour: number): string {
   return TIME_GREETINGS.find((g) => hour >= g.from && hour <= g.to)?.text ?? MESSAGES.welcome;
 }
 
-/** 键盘关键词触发的台词（取代旧的固定语音 mp3）。由 TTS / 系统语音朗读。 */
+/** 键盘关键词触发的台词（取代旧的固定语音 mp3）。由 TTS 朗读。 */
 export const KEYWORD_LINES: Array<{ keywords: string[]; lines: string[] }> = [
   { keywords: ['function', 'def ', 'func '], lines: ['又写了一个函数呢。', '函数名起得不错！'] },
   { keywords: ['if'], lines: ['小心别漏了边界条件哦。'] },

@@ -1,7 +1,7 @@
 /**
  * TTS playback in the renderer (sherpa / Fish / any engine returning audio via IPC).
  * Calls main `tts:speak`, plays returned audio, drives lipSyncStore RMS when possible.
- * On failure returns false so callers fall back to Web Speech.
+ * On failure returns false; callers keep the request silent when no TTS is available.
  * No preview / upload-clone UI — character binding uses built-in referenceId (e.g. nomi).
  */
 
@@ -16,6 +16,7 @@ const log = createLogger('fish-speak');
 export interface FishSpeakOptions {
   referenceId?: string;
   volume?: number;
+  speed?: number;
   onEnd?: () => void;
 }
 
@@ -115,15 +116,21 @@ async function attachVolumeEnvelope(audio: HTMLAudioElement): Promise<void> {
 
 /**
  * Try Fish synthesize + play. Returns true if Fish audio started (or completed setup).
- * Returns false when caller should use Web Speech.
+ * Returns false when no TTS audio was produced.
  */
 export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): Promise<boolean> {
   ensureStopper();
   const trimmed = text.trim();
-  if (!trimmed) return false;
+  if (!trimmed) {
+    opts.onEnd?.();
+    return false;
+  }
 
   const api = typeof window !== 'undefined' ? window.electronAPI : undefined;
-  if (!api?.ttsSpeak) return false;
+  if (!api?.ttsSpeak) {
+    opts.onEnd?.();
+    return false;
+  }
 
   const gen = ++generation;
   stopSoftSpeech();
@@ -134,9 +141,11 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
       text: trimmed,
       referenceId: opts.referenceId,
       volume: opts.volume,
+      speed: opts.speed,
     });
     if (gen !== generation) return true; // cancelled
     if (!result?.success || !result.audioBase64) {
+      opts.onEnd?.();
       return false;
     }
 
@@ -167,8 +176,9 @@ export async function speakWithFish(text: string, opts: FishSpeakOptions = {}): 
     await audio.play();
     return true;
   } catch (err) {
-    log.warn('failed, will fall back to system speech', err);
+    log.warn('TTS playback failed; staying silent', err);
     cleanupAudio();
+    if (gen === generation) opts.onEnd?.();
     return false;
   }
 }

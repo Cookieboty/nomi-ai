@@ -74,13 +74,14 @@ describe('validateTtsConfig', () => {
     expect(v.errors.length).toBeGreaterThan(0);
   });
 
-  it('system provider needs no fish fields', () => {
+  it('legacy system provider is migrated to the local TTS default', () => {
     const cfg = normalizeTtsConfig({
       ...DEFAULT_TTS_CONFIG,
       provider: 'system',
       enabled: true,
       lastModified: 1,
-    });
+    } as any);
+    expect(cfg.provider).toBe('sherpa-theresa');
     expect(validateTtsConfig(cfg).isValid).toBe(true);
   });
 

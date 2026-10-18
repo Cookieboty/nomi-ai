@@ -113,7 +113,7 @@ export class VoiceService {
   }
 
   /**
-   * 加载语音配置：使用内置原创台词（src/mascot/tips.ts），由系统语音朗读。
+   * 加载语音配置：使用内置原创台词（src/mascot/tips.ts），由 TTS 朗读。
    * （旧版的第三方 mp3 语音包许可不明，已移除）
    */
   private async loadVoiceConfig() {
@@ -152,7 +152,7 @@ export class VoiceService {
   }
 
   /**
-   * 朗读一句台词（Web Speech API，系统自带语音，无需音频资源）。
+   * 朗读一句台词（走当前角色配置的本地或远程 TTS）。
    */
   private async playVoice(line: string) {
     try {

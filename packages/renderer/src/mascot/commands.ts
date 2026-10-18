@@ -2,7 +2,7 @@ import { getActiveCharacter, saveCharacterVoice, speakForActiveCharacter } from 
 import { MASCOT_EXPRESSIONS, type MascotExpression } from './MascotBackend';
 import { applyDirective, playMotionNow } from './mood';
 
-/** 新手引导里可选的声音风格（作用于当前角色的系统语音；off = 关闭语音） */
+/** 新手引导里可选的声音风格（作用于当前角色的 TTS；off = 关闭语音） */
 export const VOICE_STYLES = {
   soft: { rate: 0.95, pitch: 1.1 },
   lively: { rate: 1.1, pitch: 1.25 },

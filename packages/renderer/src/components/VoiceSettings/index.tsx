@@ -7,15 +7,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   clearCharacterVoiceOverride,
   getActiveCharacter,
-  loadSoftSpeechPrefs,
-  previewVoiceName,
   resolvePrefsForCharacter,
   saveCharacterVoice,
-  saveSoftSpeechPrefs,
   speakForActiveCharacter,
   type SoftSpeechPrefs,
 } from '../../mascot/characterVoice';
-import { listSoftVoiceChoices } from '../../mascot/softSpeech';
 import { type VoiceService } from '../../services/VoiceService';
 
 import styles from './style.module.css';
@@ -36,39 +32,24 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   onSettingsChange,
 }) => {
   const [settings, setSettings] = useState<VoiceSettingsType | null>(null);
-  const [soft, setSoft] = useState<SoftSpeechPrefs>(() => loadSoftSpeechPrefs());
   const [charPrefs, setCharPrefs] = useState<SoftSpeechPrefs>(() => resolvePrefsForCharacter());
   const [charName, setCharName] = useState<string | null>(null);
-  const [voices, setVoices] = useState<ReturnType<typeof listSoftVoiceChoices>>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  const refreshVoices = useCallback(() => {
-    setVoices(listSoftVoiceChoices());
-  }, []);
 
   const refreshCharacter = useCallback(() => {
     const { name, config } = getActiveCharacter();
     setCharName(name);
     setCharPrefs(resolvePrefsForCharacter(name, config));
-    setSoft(loadSoftSpeechPrefs());
   }, []);
 
   useEffect(() => {
     if (!isVisible) return;
-    // 面板显隐时初次拉取并订阅系统 voices 变更：外部数据同步模式，豁免 set-state-in-effect
+    // 面板显隐时初次拉取外部设置：外部数据同步模式，豁免 set-state-in-effect
     /* eslint-disable react-hooks/set-state-in-effect */
     setSettings(voiceService.getSettings());
     refreshCharacter();
-    refreshVoices();
     /* eslint-enable react-hooks/set-state-in-effect */
-    const synth = window.speechSynthesis;
-    synth?.addEventListener('voiceschanged', refreshVoices);
-    const t = setTimeout(refreshVoices, 300);
-    return () => {
-      synth?.removeEventListener('voiceschanged', refreshVoices);
-      clearTimeout(t);
-    };
-  }, [isVisible, voiceService, refreshVoices, refreshCharacter]);
+  }, [isVisible, voiceService, refreshCharacter]);
 
   const handleSettingChange = async (
     key: keyof VoiceSettingsType,
@@ -86,10 +67,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const patchGlobal = (patch: Partial<SoftSpeechPrefs>) => {
-    setSoft(saveSoftSpeechPrefs(patch));
   };
 
   const patchCharacter = async (patch: ModelVoiceConfig) => {
@@ -112,8 +89,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
   }
 
   const off = isLoading || !settings.enabled;
-  const preview = previewVoiceName(charPrefs);
-
   return (
     <Modal
       open
@@ -167,26 +142,8 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           <strong>{charName ?? tr('（未选择）')}</strong>
           <br />
           {tr('将使用：')}
-          {preview}
+          {tr('当前配置的本地或远程 TTS')}
         </p>
-        <label className={styles.range}>
-          <span>{tr('音色（本角色）')}</span>
-          <select
-            data-testid="char-speech-voice"
-            value={charPrefs.voiceURI}
-            disabled={off || !charName}
-            onChange={(e) => void patchCharacter({ voiceURI: e.target.value })}
-            style={{ width: '100%', marginTop: 4 }}
-          >
-            <option value="">{tr('自动（角色默认 / 柔和女声）')}</option>
-            {voices.map((v) => (
-              <option key={v.voiceURI} value={v.voiceURI}>
-                {v.neural ? '✦ ' : ''}
-                {tr(v.name)} ({v.lang})
-              </option>
-            ))}
-          </select>
-        </label>
         <label className={styles.range}>
           <span>
             {tr('语速:')} {charPrefs.rate.toFixed(2)}×
@@ -199,21 +156,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
             value={charPrefs.rate}
             data-testid="char-speech-rate"
             onChange={(e) => void patchCharacter({ rate: parseFloat(e.target.value) })}
-            disabled={off || !charName}
-          />
-        </label>
-        <label className={styles.range}>
-          <span>
-            {tr('音高:')} {charPrefs.pitch.toFixed(2)}
-          </span>
-          <input
-            type="range"
-            min="0.85"
-            max="1.25"
-            step="0.01"
-            value={charPrefs.pitch}
-            data-testid="char-speech-pitch"
-            onChange={(e) => void patchCharacter({ pitch: parseFloat(e.target.value) })}
             disabled={off || !charName}
           />
         </label>
@@ -248,21 +190,6 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
       </section>
 
       <section className={styles.group}>
-        <SectionTitle level={4}>{tr('全局柔和偏好')}</SectionTitle>
-        <Switch
-          checked={soft.preferNeural}
-          onChange={(v) => patchGlobal({ preferNeural: v })}
-          disabled={off}
-          label={tr('优先 Edge / 在线自然语音（Neural）')}
-        />
-        <p className="cd-muted" style={{ fontSize: 12 }}>
-          {tr(
-            '全局偏好影响「自动」选声；语速/音高以当前角色绑定为准（见上）。详见 docs/features/voice.md。',
-          )}
-        </p>
-      </section>
-
-      <section className={styles.group}>
         <SectionTitle level={4}>{tr('功能设置')}</SectionTitle>
         <Switch
           checked={settings.timeAnnouncement}
@@ -276,7 +203,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         <SectionTitle level={4}>{tr('语音播报引擎')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
           {tr(
-            '默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时自动回退下方系统音色。Fish Audio 为可选高级引擎，不提供上传克隆。',
+            '默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。',
           )}
         </p>
         <p className="cd-notice" style={{ fontSize: 12 }} data-testid="fish-attribution">
@@ -289,7 +216,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         <ul className={styles.help}>
           <li>
             <strong>{tr('按角色绑定')}</strong>
-            {tr('：每个模型可有独立 OS 音色 + 语速/音高；切换角色自动切换。')}
+            {tr('：每个模型可有独立 TTS 语速；切换角色自动切换。')}
           </li>
           <li>
             <strong>{tr('持久化')}</strong>
@@ -297,7 +224,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
           </li>
           <li>
             <strong>{tr('定时播报')}</strong>
-            {tr('：同样走当前角色的柔和朗读。')}
+            {tr('：同样走当前角色的 TTS。')}
           </li>
         </ul>
       </section>

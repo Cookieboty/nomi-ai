@@ -3,9 +3,9 @@
  * - 原生 addon（sherpa-onnx-node，N-API）懒加载；模型懒加载；单例；推理走 *Async（不阻塞主进程事件循环）。
  * - 分句合成后拼接成一段 16-bit mono WAV，交给渲染进程 <audio> 播放（沿用 tts:speak 的 base64 协议）。
  * - 模型随安装包 extraResources 分发；开发态缺失时在**后台**异步下载到约定目录（单飞、日志进度，无安装器 UI）：
- *   下载期间 synthesize 立即以 'downloading' 拒绝（上层回退系统语音），绝不 await 下载；下载完成后下一条自动走 sherpa。
+ *   下载期间 synthesize 立即以 'downloading' 拒绝（上层保持静默），绝不 await 下载；下载完成后下一条自动走 sherpa。
  * - Electron 下必须 enableExternalBuffer:false，否则 V8 内存笼会拒绝 external ArrayBuffer。
- * - 任何失败都抛 SherpaTtsError，上层路由回退系统语音。
+ * - 任何失败都抛 SherpaTtsError，上层路由保持静默。
  */
 import path from 'node:path';
 
@@ -34,7 +34,7 @@ import { concatSamples, encodeWavPcm16 } from './wav';
 
 export type SherpaErrorCode =
   | 'not_ready'
-  /** 模型正在后台下载：调用方应立即回退系统语音，下载完成后自动恢复 */
+  /** 模型正在后台下载：调用方应立即保持静默，下载完成后自动恢复 */
   | 'downloading'
   | 'engine_failed'
   | 'too_long'
@@ -116,7 +116,7 @@ const DOWNLOAD_RETRY_COOLDOWN_MS = 120_000;
 const DOWNLOAD_LOG_INTERVAL_MS = 5_000;
 
 function defaultLoadAddon(): SherpaAddon {
-  // 懒加载：只有真正用到 sherpa 才 dlopen 原生库；缺平台包 / 加载失败时抛错（带诊断）→ 回退系统语音
+  // 懒加载：只有真正用到 sherpa 才 dlopen 原生库；缺平台包 / 加载失败时抛错（带诊断）
   return loadSherpaAddon<SherpaAddon>();
 }
 
@@ -195,8 +195,8 @@ export class SherpaTtsService {
     const d = this.dl;
     if (!d) return 'sherpa model downloading';
     return d.phase === 'extract'
-      ? '模型解压中，暂用系统语音（完成后自动切换到离线语音）'
-      : `模型下载中 ${d.pct}%，暂用系统语音（完成后自动切换到离线语音）`;
+      ? '模型解压中，当前保持静默（完成后自动切换到离线语音）'
+      : `模型下载中 ${d.pct}%，当前保持静默（完成后自动切换到离线语音）`;
   }
 
   /**
@@ -327,8 +327,8 @@ export class SherpaTtsService {
     const d = this.dl;
     this.log(
       d?.phase === 'extract'
-        ? '模型解压中，tts:speak 回退系统语音'
-        : `模型下载中 ${d?.pct ?? 0}%，tts:speak 回退系统语音`,
+        ? '模型解压中，tts:speak 保持静默'
+        : `模型下载中 ${d?.pct ?? 0}%，tts:speak 保持静默`,
       d ? { received: d.received, total: d.total, elapsedMs: t - d.startedAt } : undefined,
     );
   }
