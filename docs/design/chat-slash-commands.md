@@ -1,6 +1,6 @@
 # 会话斜杠命令 / 插件接管设计
 
-状态：设计 + 实现稿（分支 `feat/v1.0.4`）。调研日期 2026-10-18，所有结论只依据各项目**公开文档**；实现里没有读取任何凭据文件，也没有调用未文档化接口。关联：[统一会话视图](../features/coding-agent-harness.md)、[端信息卡](endpoint-info-card.md)、[用量卡片](usage-quota-cards.md)。
+状态：设计 + 实现稿（分支 `feat/v1.0.3`）。调研日期 2026-10-18，所有结论只依据各项目**公开文档**；实现里没有读取任何凭据文件，也没有调用未文档化接口。关联：[统一会话视图](../features/coding-agent-harness.md)、[端信息卡](endpoint-info-card.md)、[用量卡片](usage-quota-cards.md)。
 
 ## 0. 要解决的问题
 
