@@ -61,6 +61,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Root [`CHANGELOG.md`](../CHANGELOG.md) is generated from `.changeset/*.md`: `pnpm changelog`
      refreshes the _Unreleased_ section (CI runs `pnpm changelog:check`); `pnpm changeset:version`
      first turns _Unreleased_ into `## x.y.z — date`, then consumes the changesets.
+   - Write the release notes (EN + 中文, same shape as the previous Release body) in `docs/releases/vX.Y.Z.md`; paste it as the GitHub Release body after the tag build finishes.
 2. **Commit** on `main` (or a release PR), wait for CI green on all three platforms.
 3. **Tag and push** (example for 1.0.0 — only when you are ready):
 
