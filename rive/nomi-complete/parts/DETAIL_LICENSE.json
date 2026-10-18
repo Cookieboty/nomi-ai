@@ -9,11 +9,18 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "7f42efcbcc866a6cc8f1b87232f4374144b2cea85f0be2b75ba3efec3d391488",
-      "bytes": 1487997,
+      "sha256": "d163807a70227811c3203f271fbe6f4d5d31a508b13c02aa3afcffa4fa97ba00",
+      "bytes": 1479002,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/body-backfill.png": {
+      "sha256": "ca454761ddbd79d705a53dad55e1c2a1f3256754529cdd339348ac849397ef64",
+      "bytes": 1475156,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel torso underlay derived from user supplied full-body mother"
     },
     "reference/svg-rig/arm-l-shoulder-skin.png": {
       "sha256": "f075a438892275ba7f8e810eff1ba1a6609d0205025cfcaeedd271a7b5033c21",

@@ -12,7 +12,7 @@ import base64
 import json
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -275,12 +275,53 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
             (674, 42), (594, 0),
         ],
     )
-    combined = head
+    # The base layer must not carry a second, static copy of any movable part.
+    # Earlier builds removed only the head, so the raster body still contained
+    # sleeves, hands, and coat shoulders underneath the bone-driven crops. That
+    # made an animated arm look detached because the old arm remained visible.
+    # Use the exact visual mattes here; the broad arm polygons are only overlap
+    # guides and would incorrectly erase the torso if used as the cutout.
+    left_visual = left_coat
+    for layer in (left_skin, left_coat_shoulder, left_sleeve_upper,
+                  left_sleeve_lower, left_cuff, left_hand_detail, left_palm,
+                  *left_fingers.values()):
+        left_visual = ImageChops.lighter(left_visual, layer)
+    right_visual = right_coat
+    for layer in (right_skin, right_coat_shoulder, right_sleeve_upper,
+                  right_sleeve_lower, right_cuff, right_hand_detail, right_palm,
+                  *right_fingers.values()):
+        right_visual = ImageChops.lighter(right_visual, layer)
+    combined = ImageChops.lighter(head, left_visual)
+    combined = ImageChops.lighter(combined, right_visual)
     base = image.copy()
     alpha = base.getchannel("A")
     alpha = Image.composite(Image.new("L", (width, height), 0), alpha, combined)
     base.putalpha(alpha)
     base.save(out / "fullbody-base-no-head-arms.png")
+    # Keep a mother-derived torso/side backfill beneath the movable arms.  The
+    # source image has no hidden pixels behind the sleeves, so this central mask
+    # preserves the visible tank top, belt, and shorts edge when an arm swings
+    # away instead of exposing a black hole.  It is clipped away from the outer
+    # sleeve silhouette and is drawn below the arm bones in the Rive scene.
+    backfill_mask = mask_polygon(
+        (width, height),
+        [(350, 245), (674, 245), (685, 330), (670, 570), (660, 830),
+         (364, 830), (354, 570), (339, 330)],
+    ).filter(ImageFilter.MaxFilter(61))
+    backfill = image.copy()
+    # Only retain the dark torso/shorts pixels in this underlay.  Bright sleeve
+    # and skin pixels are already owned by the moving layers; copying them into
+    # the stationary underlay would create a ghost arm when it swings outward.
+    dark = Image.new("L", (width, height), 0)
+    dark_px = dark.load()
+    rgba_px = image.load()
+    for yy in range(height):
+        for xx in range(width):
+            red, green, blue, alpha_value = rgba_px[xx, yy]
+            if alpha_value >= 128 and max(red, green, blue) <= 115:
+                dark_px[xx, yy] = 255
+    backfill.putalpha(ImageChops.multiply(backfill.getchannel("A"), ImageChops.multiply(backfill_mask, dark)))
+    backfill.save(out / "body-backfill.png")
     # Remove the superseded pre-head split so a rebuild cannot leave a stale layer
     # that looks like a production asset.
     old_base = out / "fullbody-base-no-arms.png"
@@ -402,16 +443,22 @@ def main() -> None:
                     "full.shoulder.r",
                     "full.clavicle.l",
                     "full.clavicle.r",
+                    "full.arm-l.rig",
                     "full.arm-l.upper",
+                    "full.coat-l.shoulder", "full.sleeve-l.upper",
                     "full.arm-l.fore",
+                    "full.sleeve-l.lower", "full.sleeve-l.cuff",
                     "full.arm-l.hand",
                     "full.arm-l.thumb", "full.arm-l.thumb.1", "full.arm-l.thumb.2",
                     "full.arm-l.index", "full.arm-l.index.1", "full.arm-l.index.2",
                     "full.arm-l.middle", "full.arm-l.middle.1", "full.arm-l.middle.2",
                     "full.arm-l.ring", "full.arm-l.ring.1", "full.arm-l.ring.2",
                     "full.arm-l.little", "full.arm-l.little.1", "full.arm-l.little.2",
+                    "full.arm-r.rig",
                     "full.arm-r.upper",
+                    "full.coat-r.shoulder", "full.sleeve-r.upper",
                     "full.arm-r.fore",
+                    "full.sleeve-r.lower", "full.sleeve-r.cuff",
                     "full.arm-r.hand",
                     "full.arm-r.thumb", "full.arm-r.thumb.1", "full.arm-r.thumb.2",
                     "full.arm-r.index", "full.arm-r.index.1", "full.arm-r.index.2",
@@ -453,8 +500,11 @@ def main() -> None:
                         "full.arm-r.little", "full.arm-r.little.1", "full.arm-r.little.2",
                     ],
                     "visualBones": [
-                        "full.torso", "full.neck", "full.head", "full.arm-l.upper", "full.arm-l.fore",
-                        "full.arm-l.hand", "full.arm-r.upper", "full.arm-r.fore", "full.arm-r.hand",
+                        "full.torso", "full.neck", "full.head", "full.arm-l.rig", "full.arm-l.upper",
+                        "full.coat-l.shoulder", "full.sleeve-l.upper", "full.arm-l.fore", "full.sleeve-l.lower",
+                        "full.sleeve-l.cuff", "full.arm-l.hand", "full.arm-r.rig", "full.arm-r.upper",
+                        "full.coat-r.shoulder", "full.sleeve-r.upper", "full.arm-r.fore", "full.sleeve-r.lower",
+                        "full.sleeve-r.cuff", "full.arm-r.hand",
                         "full.leg-l.upper", "full.leg-l.lower", "full.leg-l.foot", "full.leg-r.upper",
                         "full.leg-r.lower", "full.leg-r.foot", "full.coat-l", "full.coat-r",
                     ],
@@ -466,6 +516,12 @@ def main() -> None:
                         "source": "source-nomi-master.png",
                         "kind": "mother-derived-backfill",
                     },
+                    "full.body.backfill": {
+                        "asset": "reference/svg-rig/body-backfill.png",
+                        "bone": "full.root",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-torso-underlay",
+                    },
                     "full.head": {
                         "asset": "reference/svg-rig/head.png",
                         "bone": "full.head",
@@ -474,15 +530,21 @@ def main() -> None:
                     },
                     "full.arm-l": {
                         "asset": "reference/svg-rig/arm-l-shoulder-skin.png,coat-l-shoulder.png,sleeve-l-upper.png,sleeve-l-lower.png,arm-l-cuff.png,hand-l-palm.png,hand-l-thumb.png,hand-l-index.png,hand-l-middle.png,hand-l-ring.png,hand-l-little.png",
-                        "bone": "full.arm-l.upper>full.arm-l.fore>full.arm-l.hand/full.arm-l.thumb|index|middle|ring|little",
+                        "bone": "full.arm-l.rig>full.arm-l.upper/full.coat-l.shoulder/full.sleeve-l.upper>full.arm-l.fore/full.sleeve-l.lower/full.sleeve-l.cuff>full.arm-l.hand/full.arm-l.thumb|index|middle|ring|little",
                         "source": "source-nomi-master.png",
                         "kind": "mother-derived-segments-with-independent-clothing",
                     },
                     "full.arm-r": {
                         "asset": "reference/svg-rig/arm-r-shoulder-skin.png,coat-r-shoulder.png,sleeve-r-upper.png,sleeve-r-lower.png,arm-r-cuff.png,hand-r-palm.png,hand-r-thumb.png,hand-r-index.png,hand-r-middle.png,hand-r-ring.png,hand-r-little.png",
-                        "bone": "full.arm-r.upper>full.arm-r.fore>full.arm-r.hand/full.arm-r.thumb|index|middle|ring|little",
+                        "bone": "full.arm-r.rig>full.arm-r.upper/full.coat-r.shoulder/full.sleeve-r.upper>full.arm-r.fore/full.sleeve-r.lower/full.sleeve-r.cuff>full.arm-r.hand/full.arm-r.thumb|index|middle|ring|little",
                         "source": "source-nomi-master.png",
                         "kind": "mother-derived-segments-with-independent-clothing",
+                    },
+                    "full.clothing": {
+                        "asset": "reference/svg-rig/coat-l-shoulder.png,coat-r-shoulder.png,sleeve-l-upper.png,sleeve-l-lower.png,arm-l-cuff.png,sleeve-r-upper.png,sleeve-r-lower.png,arm-r-cuff.png",
+                        "bone": "full.coat-l.shoulder/full.sleeve-l.upper/full.sleeve-l.lower/full.sleeve-l.cuff/full.coat-r.shoulder/full.sleeve-r.upper/full.sleeve-r.lower/full.sleeve-r.cuff",
+                        "source": "source-nomi-master.png",
+                        "kind": "mother-derived-independent-clothing-bones",
                     },
                     "full.face": {
                         "asset": "reference/svg-rig/head.png",
