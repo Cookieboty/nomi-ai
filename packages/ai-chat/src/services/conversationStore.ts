@@ -75,6 +75,8 @@ export class ConversationStore {
   private readonly storage: KeyValueStorage;
   private readonly now: () => number;
   private readonly newId: () => string;
+  /** 避免每次切换会话都在渲染线程重复 JSON.parse 整段历史。 */
+  private readonly messagesCache = new Map<string, ChatMessage[]>();
   maxMessages: number;
 
   constructor(opts: ConversationStoreOptions = {}) {
@@ -132,6 +134,7 @@ export class ConversationStore {
     };
     this.write(INDEX_KEY, [...this.list(), meta]);
     this.write(messagesKey(meta.id), []);
+    this.messagesCache.set(meta.id, []);
     if (opts.activate !== false) this.write(CURRENT_KEY, meta.id);
     return meta;
   }
@@ -143,24 +146,32 @@ export class ConversationStore {
 
   getMessages(id: string | undefined = this.currentId()): ChatMessage[] {
     if (!id) return [];
-    return this.read<ChatMessage[]>(messagesKey(id)) ?? [];
+    const cached = this.messagesCache.get(id);
+    if (cached) return cached;
+    const messages = this.read<ChatMessage[]>(messagesKey(id)) ?? [];
+    this.messagesCache.set(id, messages);
+    return messages;
   }
 
   setMessages(id: string, messages: ChatMessage[]): void {
-    this.write(messagesKey(id), messages.slice(-this.maxMessages));
+    const next = messages.slice(-this.maxMessages);
+    this.messagesCache.set(id, next);
+    this.write(messagesKey(id), next);
     this.touch(id);
   }
 
   append(message: ChatMessage, id: string | undefined = this.currentId()): void {
     if (!id) return;
-    const next = [...this.getMessages(id), message];
-    this.write(messagesKey(id), next.slice(-this.maxMessages));
+    const next = [...this.getMessages(id), message].slice(-this.maxMessages);
+    this.messagesCache.set(id, next);
+    this.write(messagesKey(id), next);
     this.touch(id, message);
   }
 
   /** 清空会话消息（会话本身保留） */
   clear(id: string | undefined = this.currentId()): void {
     if (!id) return;
+    this.messagesCache.set(id, []);
     this.write(messagesKey(id), []);
     this.touch(id);
   }
@@ -252,7 +263,9 @@ export class ConversationStore {
         ...m,
         id: `${meta.id}_${i}_${m.id}`,
       }));
-      this.write(messagesKey(meta.id), copied.slice(-this.maxMessages));
+      const copiedMessages = copied.slice(-this.maxMessages);
+      this.messagesCache.set(meta.id, copiedMessages);
+      this.write(messagesKey(meta.id), copiedMessages);
       this.touch(meta.id);
     }
     return this.get(meta.id)!;
@@ -263,6 +276,7 @@ export class ConversationStore {
     const remaining = this.list().filter((c) => c.id !== id);
     this.write(INDEX_KEY, remaining);
     this.storage.removeItem(messagesKey(id));
+    this.messagesCache.delete(id);
     if (this.read<string>(CURRENT_KEY) !== id) return;
     // 当前会话被删：优先切到同后端最近更新的会话；没有则留空（不隐式新建 / 不跨端跳）
     const sameBackend = removed
@@ -309,7 +323,9 @@ export class ConversationStore {
     this.storage.removeItem(LEGACY_HISTORY_KEY);
     if (legacy.length === 0) return;
     const meta = this.create(t('历史对话'));
-    this.write(messagesKey(meta.id), legacy.slice(-this.maxMessages));
+    const messages = legacy.slice(-this.maxMessages);
+    this.messagesCache.set(meta.id, messages);
+    this.write(messagesKey(meta.id), messages);
   }
 
   private read<T>(key: string): T | undefined {

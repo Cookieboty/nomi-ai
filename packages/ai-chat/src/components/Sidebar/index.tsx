@@ -398,7 +398,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   useCliTabSync(refresh);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
-  useEffect(refresh, [refresh, state.messages.length, state.isLoading, tabs.state]);
+  useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
 
   useEffect(() => {
     if (!harnessClient.available()) return;

@@ -210,24 +210,34 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const rename = useCallback(async (id: string, title: string) => {
     await harnessClient.renameTab(id, title);
   }, []);
+  /** 先更新当前视图，再让主进程持久化；失败时重新读取权威状态。 */
   const activate = useCallback(async (id: string) => {
-    await harnessClient.activateTab(id);
+    setState((cur) => {
+      if (!cur || cur.activeTabId === id || !cur.tabs.some((tab) => tab.id === id)) return cur;
+      return { ...cur, activeTabId: id };
+    });
+    try {
+      await harnessClient.activateTab(id);
+    } catch (error) {
+      void harnessClient.tabs().then(setState).catch(() => undefined);
+      throw error;
+    }
   }, []);
   const ids = useMemo(() => state?.tabs.map((t) => t.id) ?? [], [state]);
   const cycle = useCallback(
     (dir: 1 | -1) => {
       if (ids.length < 2) return;
       const i = ids.indexOf(activeId);
-      void harnessClient.activateTab(ids[(i + dir + ids.length) % ids.length]!);
+      void activate(ids[(i + dir + ids.length) % ids.length]!);
     },
-    [ids, activeId],
+    [ids, activeId, activate],
   );
   const selectIndex = useCallback(
     (i: number) => {
       const id = i >= 8 ? ids[ids.length - 1] : ids[i];
-      if (id) void harnessClient.activateTab(id);
+      if (id) void activate(id);
     },
-    [ids],
+    [ids, activate],
   );
   const dispatchSend = useCallback(async (tabId: string, text: string) => {
     setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
