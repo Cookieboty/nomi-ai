@@ -60,6 +60,22 @@ describe('HitHysteresis', () => {
     expect(h.feed(false, 271)).toBe(false);
   });
 
+  it('reports `leaving` while the leave debounce is pending, so a stopped cursor still settles', () => {
+    const h = new HitHysteresis(120);
+    expect(h.leaving).toBe(false);
+    h.feed(true, 0);
+    expect(h.leaving).toBe(false);
+    h.feed(false, 10);
+    expect(h.leaving).toBe(true);
+    h.feed(false, 140);
+    expect(h.value).toBe(false);
+    expect(h.leaving).toBe(false);
+    h.feed(true, 150);
+    h.feed(false, 160);
+    h.feed(true, 170); // jitter back: no longer leaving
+    expect(h.leaving).toBe(false);
+  });
+
   it('dilates more while hit (leave margin > enter margin)', () => {
     expect(hitRadius(true)).toBeGreaterThan(hitRadius(false));
   });

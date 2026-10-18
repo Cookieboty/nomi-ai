@@ -329,7 +329,10 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           api.setShape(rects);
         }
       }
-      if (!c.fresh) return;
+      // A cursor that stops right after leaving the character sends no further events, so the leave
+      // debounce (HitHysteresis) must keep being fed until it settles; otherwise the transparent
+      // area stays clickable (no click-through) until the next mouse move.
+      if (!c.fresh && !hyst.leaving) return;
       c.fresh = false;
       // hit → click-through (held / dragging always interactive)
       const t = performance.now();
