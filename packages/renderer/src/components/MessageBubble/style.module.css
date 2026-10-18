@@ -36,7 +36,9 @@
   max-height: calc(var(--bubble-max-h, 200px) - 2px);
   padding: 8px 12px;
   overflow-x: hidden;
-  overflow-y: auto;
+  /* 默认不出滚动条：测量与实际渲染存在亚像素差异，容易为单行文本错误触发 auto 滚动条。
+     真正溢出时由 JS 置 data-scroll，再启用 overflow-y:auto（见下方 .active[data-scroll]）。 */
+  overflow-y: hidden;
   overscroll-behavior: contain;
   scrollbar-width: thin;
 }
@@ -109,6 +111,10 @@
 .active[data-scroll] .scroll,
 .active .more {
   pointer-events: auto;
+}
+/* 仅在确认有溢出时才显示滚动条（JS 判定后置 data-scroll） */
+.active[data-scroll] .scroll {
+  overflow-y: auto;
 }
 
 .measure {
