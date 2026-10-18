@@ -256,7 +256,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.mouse.move(5, 5);
     await histRow.locator('[data-testid="history-session-item"]').focus();
     await expect(histActions).toHaveCSS('opacity', '1');
-    await chat.locator('[data-testid="sidebar-settings"]').focus();
+    await chat.locator('[data-testid="open-settings"]').focus();
     // 空对话不再隐式创建：通过「新建对话 → Nomi」显式建一个，它会成为选中行
     await chat.click('[data-testid="new-chat"]');
     await chat.click('[data-testid="new-chat-nomi"]');
@@ -347,7 +347,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.keyboard.press('Escape');
 
     // ── 5. 供应商页 ─────────────────────────────────────────────────────
-    await chat.click('[data-testid="sidebar-settings"]');
+    await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
     await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(6);

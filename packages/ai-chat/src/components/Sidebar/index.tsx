@@ -23,7 +23,6 @@ import type { ConversationBackend, ChatSession } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems, type Range, type SearchField } from '../../utils/fuzzy';
-import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
@@ -34,7 +33,6 @@ interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onNewChat: () => void;
-  onSettings?: () => void;
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -357,7 +355,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   onToggle,
   onNewChat,
-  onSettings,
   onForkRequest,
   onNotice,
 }) => {
@@ -1181,19 +1178,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      {onSettings && (
-        <button
-          className={`${styles.newChat} ${styles.bottom}`}
-          onClick={onSettings}
-          title={t('设置 (⌘/Ctrl+,)')}
-          data-testid="sidebar-settings"
-        >
-          <span aria-hidden>
-            <AppIcon icon={FEATURE_ICONS.settings} size={16} />
-          </span>
-          {!collapsed && <span>{t('设置')}</span>}
-        </button>
-      )}
     </aside>
   );
 };

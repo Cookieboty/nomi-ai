@@ -107,7 +107,7 @@ esac
     await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
 
     const openCodex = async () => {
-      await chat.click('[data-testid="sidebar-settings"]');
+      await chat.click('[data-testid="open-settings"]');
       await chat.click('[data-testid="settings-nav-coding"]');
       await chat.click('[data-testid="providers-endpoint-codex"]');
     };

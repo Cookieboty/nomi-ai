@@ -401,7 +401,6 @@ const AiChatContent: React.FC = () => {
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           onNewChat={handleNewChat}
-          onSettings={() => openSettings()}
           onForkRequest={onForkRequest}
           onNotice={setToast}
         />

@@ -57,11 +57,147 @@ const MAX_TAB_MESSAGES = 300;
 const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
+const CHAT_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+const MAX_GENERATED_IMAGE_BYTES = 20 * 1024 * 1024;
+const IMAGE_ALIAS_FILE = 'image-aliases.json';
 
 const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok'];
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
+}
+
+/** Grok image_gen 返回本地图片路径；复制到 chat-asset 根目录后才能被渲染进程安全加载。 */
+export function materializeGeneratedImages(
+  rawOutput: string,
+  home: string,
+  chatRoot: string,
+  aliases: Map<string, string>,
+): void {
+  let value: unknown;
+  try {
+    value = JSON.parse(rawOutput);
+  } catch {
+    return;
+  }
+  const paths = new Set<string>();
+  const visit = (v: unknown, depth = 0): void => {
+    if (depth > 6 || v === null || v === undefined) return;
+    if (Array.isArray(v)) {
+      for (const x of v) visit(x, depth + 1);
+      return;
+    }
+    if (typeof v !== 'object') return;
+    const o = v as Record<string, unknown>;
+    if (typeof o.path === 'string') paths.add(o.path);
+    for (const key of ['content', 'rawOutput', 'output', 'result', 'data'])
+      visit(o[key], depth + 1);
+  };
+  visit(value);
+  if (!paths.size) return;
+  const roots = [
+    path.join(home, '.grok', 'sessions'),
+    process.env.GROK_HOME ? path.join(process.env.GROK_HOME, 'sessions') : '',
+  ]
+    .filter(Boolean)
+    .map((x) => path.resolve(x));
+  const destDir = path.join(chatRoot, 'images');
+  let changed = false;
+  for (const raw of paths) {
+    const ext = path.extname(raw).toLowerCase();
+    if (!CHAT_IMAGE_EXTS.has(ext)) continue;
+    const normalized = raw.replaceAll('\\', '/').replace(/^\.\//, '');
+    const marker = normalized.lastIndexOf('/images/');
+    const shortAlias = marker >= 0 ? normalized.slice(marker + 1) : normalized;
+    // 仅按完整源路径复用；不同 session 都可能使用 images/1.jpg，不能跨 session 误绑定。
+    const existing = aliases.get(normalized) ?? aliases.get(raw);
+    if (existing && materializedImageExists(chatRoot, existing)) {
+      aliases.set(normalized, existing);
+      aliases.set(raw, existing);
+      aliases.set(shortAlias, existing);
+      continue;
+    }
+    const candidate = path.isAbsolute(raw)
+      ? path.resolve(raw)
+      : path.resolve(roots[0] ?? path.join(home, '.grok', 'sessions'), raw);
+    let real: string;
+    try {
+      real = fs.realpathSync(candidate);
+      const stat = fs.statSync(real);
+      if (!stat.isFile() || stat.size > MAX_GENERATED_IMAGE_BYTES) continue;
+    } catch {
+      continue;
+    }
+    if (!roots.some((root) => real === root || real.startsWith(`${root}${path.sep}`))) continue;
+    const file = `grok-${randomUUID()}${ext}`;
+    const dest = path.join(destDir, file);
+    try {
+      fs.mkdirSync(destDir, { recursive: true });
+      fs.copyFileSync(real, dest);
+    } catch {
+      continue;
+    }
+    const url = `chat-asset://images/${file}`;
+    aliases.set(normalized, url);
+    aliases.set(raw, url);
+    aliases.set(shortAlias, url);
+    changed = true;
+  }
+  if (changed) persistImageAliases(chatRoot, aliases);
+}
+
+function materializedImageExists(chatRoot: string, url: string): boolean {
+  const match = /^chat-asset:\/\/images\/([^/]+)$/.exec(url);
+  if (!match) return false;
+  const file = path.resolve(chatRoot, 'images', match[1]!);
+  return file.startsWith(`${path.resolve(chatRoot, 'images')}${path.sep}`) && fs.existsSync(file);
+}
+
+function loadImageAliases(chatRoot: string): Map<string, string> {
+  try {
+    const value = JSON.parse(
+      fs.readFileSync(path.join(chatRoot, IMAGE_ALIAS_FILE), 'utf8'),
+    ) as unknown;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return new Map();
+    return new Map(
+      Object.entries(value as Record<string, unknown>).filter(
+        (entry): entry is [string, string] =>
+          typeof entry[0] === 'string' &&
+          typeof entry[1] === 'string' &&
+          /^chat-asset:\/\/images\/[A-Za-z0-9._-]+$/.test(entry[1]),
+      ),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+function persistImageAliases(chatRoot: string, aliases: Map<string, string>): void {
+  try {
+    fs.mkdirSync(chatRoot, { recursive: true });
+    fs.writeFileSync(
+      path.join(chatRoot, IMAGE_ALIAS_FILE),
+      JSON.stringify(Object.fromEntries(aliases)),
+      'utf8',
+    );
+  } catch {
+    /* 图片已经复制成功；索引写入失败不影响当前轮显示。 */
+  }
+}
+
+export function rewriteGeneratedImageLinks(text: string, aliases: Map<string, string>): string {
+  if (!aliases.size || !text.includes('![')) return text;
+  return text.replace(/(!\[[^\]]*\]\()([^\)]+)(\))/g, (full, before, rawUrl, after) => {
+    const key = String(rawUrl).trim();
+    let decoded = key;
+    try {
+      decoded = decodeURIComponent(key);
+    } catch {
+      /* 保留原始 key；畸形百分号编码不应中断整轮输出。 */
+    }
+    const url = aliases.get(key) ?? aliases.get(decoded);
+    return url ? `${before}${url}${after}` : full;
+  });
 }
 
 const BACKEND_TITLE: Record<HarnessBackend, string> = {
@@ -126,6 +262,7 @@ export class CliHarnessService {
     string,
     Map<string, ReturnType<typeof setTimeout>>
   >();
+  private readonly migratedImageTabs = new Set<string>();
   /**
    * Claude 会话级长驻进程：同一标签多轮复用同一子进程（stdin stream-json）。
    * 进程在空闲时仍存活；换 cwd / 后端 / 关标签 / 取消当前轮时拆除。
@@ -305,7 +442,35 @@ export class CliHarnessService {
       }
       this.messages.set(id, list);
     }
+    if (!this.migratedImageTabs.has(id)) {
+      this.migrateStoredImageLinks(id, list);
+      this.migratedImageTabs.add(id);
+    }
     return list;
+  }
+
+  /** 兼容修复前已经落库的 images/<name> 链接；工具轨迹仍保留原始路径，可重新建立安全别名。 */
+  private migrateStoredImageLinks(id: string, list: HarnessTabMessage[]): void {
+    const chatRoot = path.join(path.dirname(this.d.root), 'chat');
+    const aliases = loadImageAliases(chatRoot);
+    let changed = false;
+    for (const message of list) {
+      for (const event of message.trace ?? []) {
+        if (event.type === 'tool' && event.output)
+          materializeGeneratedImages(event.output, this.home, chatRoot, aliases);
+      }
+      const content = rewriteGeneratedImageLinks(message.content, aliases);
+      if (content !== message.content) {
+        message.content = content;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    try {
+      fs.writeFileSync(this.messagesPath(id), JSON.stringify(list), 'utf8');
+    } catch (e) {
+      this.d.logger.warn('harness image link migration failed', e);
+    }
   }
 
   private appendMessage(id: string, msg: HarnessTabMessage) {
@@ -1176,6 +1341,8 @@ export class CliHarnessService {
       let sessionId: string | null = tab.cliSessionId;
       let buf = '';
       let lastError: string | null = null;
+      const chatRoot = path.join(path.dirname(this.d.root), 'chat');
+      const imageAliases = loadImageAliases(chatRoot);
       const child: ChildProcessWithoutNullStreams = spawn(opts.cmd, opts.argv, {
         cwd: tab.cwd,
         // 剔除 Nomi 内部变量；只有该后端自己的档案（opts.env）才会注入额外变量
@@ -1189,7 +1356,17 @@ export class CliHarnessService {
       if (!opts.keepStdin) child.stdin.end();
 
       const take = (line: string, live: boolean) => {
-        for (const ev of opts.parseLine(line)) {
+        for (const rawEv of opts.parseLine(line)) {
+          let ev = rawEv;
+          if (ev.type === 'tool' && ev.output) {
+            materializeGeneratedImages(ev.output, this.home, chatRoot, imageAliases);
+            // 某些 CLI 会先发 assistant 文本、后发 tool 完成事件；别名建立后同步修正已累计文本。
+            text = rewriteGeneratedImageLinks(text, imageAliases);
+          }
+          if (ev.type === 'text-delta' || ev.type === 'text' || ev.type === 'done') {
+            const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
+            if (text !== ev.text) ev = { ...ev, text };
+          }
           stampEvent(ev);
           if (ev.type !== 'text-delta') events.push(ev);
           if (live) this.emitEvent(tab.id, ev);
@@ -1258,7 +1435,11 @@ export class CliHarnessService {
           reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
           return;
         }
-        resolve({ text: text || t('（无文本输出）'), sessionId, events });
+        resolve({
+          text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
+          sessionId,
+          events,
+        });
       });
     });
   }

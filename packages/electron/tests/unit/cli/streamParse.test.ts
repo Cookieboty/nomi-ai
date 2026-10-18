@@ -202,6 +202,160 @@ describe('parseGrokLine', () => {
     expect(p({ type: 'usage', usage: {} })).toEqual([]);
     expect(parseGrokLine('not json')).toEqual([]);
   });
+
+  it('converts generated image payloads to renderable Markdown data URLs', () => {
+    const b64 = 'iVBORw0KGgo=';
+    expect(
+      p({
+        type: 'tool_call',
+        toolCallId: 'img-1',
+        toolName: 'image_generation',
+        status: 'completed',
+        rawOutput: { images: [{ b64_json: b64, mime_type: 'image/png' }] },
+      }).at(-1),
+    ).toEqual({
+      type: 'text-delta',
+      text: `![Generated image 1](data:image/png;base64,${b64})\n\n`,
+    });
+    expect(
+      p({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } }),
+    ).toEqual([
+      { type: 'text-delta', text: `![Generated image 1](data:image/jpeg;base64,${b64})\n\n` },
+    ]);
+  });
+
+  it('keeps ordinary text unchanged while accepting image URLs from image tools', () => {
+    expect(p({ type: 'text', data: 'https://example.com/readme' })).toEqual([
+      { type: 'text-delta', text: 'https://example.com/readme' },
+    ]);
+    expect(
+      p({
+        type: 'tool_call_update',
+        toolCallId: 'img-2',
+        toolName: 'generate_image',
+        status: 'completed',
+        rawOutput: { image_url: { url: 'https://example.com/generated.png' } },
+      }).at(-1),
+    ).toEqual({
+      type: 'text-delta',
+      text: '![Generated image 1](https://example.com/generated.png)\n\n',
+    });
+  });
+});
+
+describe('image blocks from Claude, Codex and dsh', () => {
+  const b64 = 'iVBORw0KGgo=';
+  it('Claude image content blocks become Markdown data URLs', () => {
+    const events = parseClaudeLine(
+      JSON.stringify({
+        type: 'assistant',
+        message: {
+          content: [
+            { type: 'text', text: 'Here is the image.' },
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: b64 } },
+          ],
+        },
+      }),
+    );
+    expect(events).toContainEqual({ type: 'text', text: 'Here is the image.' });
+    expect(events.at(-1)).toEqual({
+      type: 'text-delta',
+      text: `![Generated image 1](data:image/png;base64,${b64})\n\n`,
+    });
+  });
+
+  it('Claude tool results preserve image content', () => {
+    const events = parseClaudeLine(
+      JSON.stringify({
+        type: 'user',
+        message: {
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_1',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    expect(events.at(-1)).toEqual({
+      type: 'text-delta',
+      text: `![Generated image 1](data:image/jpeg;base64,${b64})\n\n`,
+    });
+  });
+
+  it('Codex image_generation_call and dsh structured results become images', () => {
+    expect(
+      parseCodexLine(
+        JSON.stringify({
+          type: 'item.completed',
+          item: { type: 'image_generation_call', id: 'ig_1', status: 'completed', result: b64 },
+        }),
+      ).at(-1),
+    ).toEqual({
+      type: 'text-delta',
+      text: `![Generated image 1](data:image/png;base64,${b64})\n\n`,
+    });
+    expect(
+      parseDshLine(
+        JSON.stringify({
+          type: 'final',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/webp', data: b64 } },
+          ],
+        }),
+      ),
+    ).toEqual([
+      {
+        type: 'done',
+        text: `![Generated image 1](data:image/webp;base64,${b64})`,
+      },
+    ]);
+  });
+
+  it('keeps images in each backend final event so persistence does not drop them', () => {
+    const image = `![Generated image 1](data:image/png;base64,${b64})`;
+    expect(
+      parseClaudeLine(
+        JSON.stringify({
+          type: 'result',
+          result: [
+            { type: 'text', text: 'Claude' },
+            { type: 'image', source: { data: b64 } },
+          ],
+        }),
+      ),
+    ).toEqual([{ type: 'done', text: `Claude\n\n${image}` }]);
+    expect(
+      parseCodexLine(
+        JSON.stringify({
+          type: 'item.completed',
+          item: {
+            type: 'agent_message',
+            content: [
+              { type: 'text', text: 'Codex' },
+              { type: 'image', data: b64 },
+            ],
+          },
+        }),
+      ),
+    ).toEqual([
+      { type: 'text', text: 'Codex' },
+      { type: 'done', text: `Codex\n\n${image}` },
+    ]);
+    expect(
+      parseGrokLine(
+        JSON.stringify({
+          type: 'end',
+          text: 'Grok',
+          output: { images: [{ b64_json: b64 }] },
+        }),
+      ),
+    ).toEqual([{ type: 'done', text: `Grok\n\n${image}` }]);
+  });
 });
 
 describe('createGrokParser', () => {

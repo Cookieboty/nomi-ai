@@ -283,10 +283,6 @@
   letter-spacing: 0.01em;
   flex-shrink: 0;
 }
-.bottom {
-  margin-top: auto;
-  color: var(--cd-color-text-muted);
-}
 .newMenu {
   position: absolute;
   right: 0;
