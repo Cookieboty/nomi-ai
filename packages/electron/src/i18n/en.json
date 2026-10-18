@@ -534,5 +534,6 @@
   "本地路由只能监听 127.0.0.1 / localhost / ::1（收到 {0}）": "The local route can only listen on 127.0.0.1 / localhost / ::1 (got {0})",
   "未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）": "Grok not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "Grok 错误": "Grok error",
-  "已停止": "Stopped"
+  "已停止": "Stopped",
+  "请先填写模型，再设为当前": "Enter a model before making this the current provider."
 }
