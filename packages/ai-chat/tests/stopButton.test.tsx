@@ -14,8 +14,6 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   useAiChat: () => ({
     state: {
       messages: [],
-      models: [],
-      currentModelId: 'm',
       isLoading: streaming,
       streaming,
     },

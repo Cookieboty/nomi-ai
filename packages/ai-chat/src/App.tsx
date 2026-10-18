@@ -13,7 +13,6 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
 import {
-  ConfigPanel,
   DesktopPanel,
   ExtensionsPanel,
   HubPanel,
@@ -104,7 +103,6 @@ const AiChatContent: React.FC = () => {
   }, [toast]);
   const [tabRename, setTabRename] = useState(0);
   const [tabNew, setTabNew] = useState(0);
-  const [showConfig, setShowConfig] = useState(false);
   const [showProviders, setShowProviders] = useState(false);
 
   // 托盘「Provider 设置…」→ 主进程通知打开面板
@@ -156,7 +154,7 @@ const AiChatContent: React.FC = () => {
     const delay = until - Date.now();
     if (delay <= 0) {
       // 已过期：异步切到 true，避免同步 setState 触发级联渲染
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       setScreenPausedExpired(true);
       return;
     }
@@ -189,7 +187,6 @@ const AiChatContent: React.FC = () => {
     setShowExt(false);
     setShowLocal(false);
     setShowDesktop(false);
-    setShowConfig(false);
     setShowProviders(false);
     setSettings(sec);
   }, []);
@@ -535,7 +532,6 @@ const AiChatContent: React.FC = () => {
                     },
                   }
                 : { queue: { onQueue: nomiQueue.enqueue } })}
-              onConfigClick={() => setShowConfig(true)}
               onProvidersClick={() => setShowProviders(true)}
               onSettingsClick={(sec, endpoint) => {
                 if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
@@ -565,7 +561,6 @@ const AiChatContent: React.FC = () => {
 
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}
-      <ConfigPanel isVisible={showConfig} onClose={() => setShowConfig(false)} />
       <ProviderPanel isVisible={showProviders} onClose={() => setShowProviders(false)} />
       <ModalHostContext.Provider value={drawerHost.desktop}>
         <DesktopPanel isVisible={showDesktop} onClose={() => setShowDesktop(false)} />

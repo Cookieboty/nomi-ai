@@ -22,22 +22,15 @@ import {
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
-import { effectiveProviderLabel, providerClientAvailable } from '../services/providerClient';
+import { effectiveProviderLabel } from '../services/providerClient';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
-import { type AIModelConfig } from '../types/config';
 import { type IPCClient } from '../types/ipc';
-
-/** 消息上的模型标签：主进程路由时显示当前生效 provider，否则沿用本地模型 id */
-const messageModelTag = (currentModelId?: string): string | undefined =>
-  providerClientAvailable() ? effectiveProviderLabel() : currentModelId;
 
 interface AiChatState {
   messages: ChatMessage[];
   config: ChatConfig;
-  models: AIModelConfig[];
-  currentModelId?: string;
   isLoading: boolean;
   /** 正在流式生成且可中止（Nomi 后端；CLI 后端的整段转发不可中止） */
   streaming: boolean;
@@ -53,8 +46,6 @@ type AiChatAction =
   | { type: 'UPSERT_MESSAGES'; payload: ChatMessage[] }
   | { type: 'SET_STREAMING'; payload: boolean }
   | { type: 'SET_CONFIG'; payload: ChatConfig }
-  | { type: 'SET_MODELS'; payload: AIModelConfig[] }
-  | { type: 'SET_CURRENT_MODEL'; payload: string }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | undefined }
   | { type: 'SET_IPC_CLIENT'; payload: IPCClient }
@@ -62,27 +53,6 @@ type AiChatAction =
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
-
-const LOCAL_CURRENT_MODEL_KEY = 'ai-chat:currentModel';
-
-const readCurrentModelId = (): string | undefined => {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return undefined;
-    const raw = window.localStorage.getItem(LOCAL_CURRENT_MODEL_KEY);
-    return raw ? (JSON.parse(raw) as string) : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const persistCurrentModelId = (id: string): void => {
-  try {
-    if (typeof window === 'undefined' || !window.localStorage) return;
-    window.localStorage.setItem(LOCAL_CURRENT_MODEL_KEY, JSON.stringify(id));
-  } catch {
-    /* ignore */
-  }
-};
 
 const buildInitialState = (): AiChatState => ({
   messages: [],
@@ -93,8 +63,6 @@ const buildInitialState = (): AiChatState => ({
     autoSave: true,
     maxHistoryLength: 1000,
   },
-  models: [],
-  currentModelId: readCurrentModelId(),
   isLoading: false,
   streaming: false,
   ipcClient: createIPCClient(),
@@ -126,11 +94,6 @@ function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
       return { ...state, streaming: action.payload };
     case 'SET_CONFIG':
       return { ...state, config: action.payload };
-    case 'SET_MODELS':
-      return { ...state, models: action.payload };
-    case 'SET_CURRENT_MODEL':
-      persistCurrentModelId(action.payload);
-      return { ...state, currentModelId: action.payload };
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
@@ -167,9 +130,6 @@ interface AiChatContextType {
     newConversation: () => Promise<void>;
     loadConfig: () => Promise<void>;
     updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
-    loadModels: () => Promise<void>;
-    updateModel: (modelId: string, updates: Partial<AIModelConfig>) => Promise<void>;
-    setCurrentModel: (modelId: string) => void;
   };
 }
 
@@ -333,7 +293,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: messageModelTag(s.currentModelId),
+          modelId: effectiveProviderLabel(),
         };
         // 本轮之前的会话消息作为多轮上下文（state.messages 尚未包含本轮 userMessage）
         const history = s.messages;
@@ -360,19 +320,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         }
 
         const mem = await memoryContext(content);
-        const response = await s.ipcClient.sendMessage(
-          content,
-          s.currentModelId,
-          history,
-          mem.text,
-        );
+        const response = await s.ipcClient.sendMessage(content, history, mem.text);
 
         const aiMessage: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content: response,
           timestamp: Date.now(),
-          modelId: messageModelTag(s.currentModelId),
+          modelId: effectiveProviderLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -414,7 +369,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         role: 'assistant',
         content: r.answer,
         timestamp: Date.now(),
-        modelId: messageModelTag(s.currentModelId),
+        modelId: effectiveProviderLabel(),
         sources: r.sources,
         kb: true,
       };
@@ -459,7 +414,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: messageModelTag(s.currentModelId),
+          modelId: effectiveProviderLabel(),
           ...(images?.length
             ? {
                 images: images.map((i) => ({
@@ -504,7 +459,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: '',
           timestamp: Date.now(),
-          modelId: messageModelTag(s.currentModelId),
+          modelId: effectiveProviderLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -547,7 +502,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         try {
           await client.sendStreamMessage(
             content,
-            s.currentModelId,
             (chunk: string) => {
               accumulated += chunk;
               scheduleUi();
@@ -694,46 +648,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     }
   }, []);
 
-  // 加载模型列表
-  const loadModels = useCallback(async () => {
-    try {
-      const models = await stateRef.current.ipcClient.getAvailableModels();
-      dispatch({ type: 'SET_MODELS', payload: models });
-
-      if (!stateRef.current.currentModelId && models.length > 0) {
-        const enabledModel = models.find((m: AIModelConfig) => m.enabled) || models[0];
-        dispatch({ type: 'SET_CURRENT_MODEL', payload: enabledModel.id });
-      }
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-    }
-  }, []);
-
-  // 更新模型配置
-  const updateModel = useCallback(
-    async (modelId: string, updates: Partial<AIModelConfig>) => {
-      try {
-        await stateRef.current.ipcClient.updateModel(modelId, updates);
-        await loadModels();
-      } catch (error) {
-        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-        throw error;
-      }
-    },
-    [loadModels],
-  );
-
-  // 设置当前模型
-  const setCurrentModel = useCallback((modelId: string) => {
-    dispatch({ type: 'SET_CURRENT_MODEL', payload: modelId });
-  }, []);
-
   // 初始化数据（ipcClient 变化时重新加载，保证 SDK client 就绪后拉到最新数据）
   useEffect(() => {
     loadConfig();
-    loadModels();
     loadChatHistory();
-  }, [state.ipcClient, loadConfig, loadModels, loadChatHistory]);
+  }, [state.ipcClient, loadConfig, loadChatHistory]);
 
   const actions = useMemo(
     () => ({
@@ -747,9 +666,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       newConversation,
       loadConfig,
       updateConfig,
-      loadModels,
-      updateModel,
-      setCurrentModel,
     }),
     [
       sendMessage,
@@ -762,9 +678,6 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       newConversation,
       loadConfig,
       updateConfig,
-      loadModels,
-      updateModel,
-      setCurrentModel,
     ],
   );
 
