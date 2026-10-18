@@ -99,3 +99,13 @@ three-bone Mesh (GRID=16, elbow blend ±85 artboard px). Palm/fingers draw after
 the cuff. A Solo hang/bent pair is authored (`sleeve-*-bent.png` = mother-pixel
 forearm warp); clap/wave currently stay on hang because the warp art is not yet
 cleaner than continuous skin at peak bend. Clap uses less `arm.rig` chest pull.
+
+### ROUND4 — shoulder seam + torso-locked collar
+
+Coat/sleeve hard-subtract left **zero overlap**, so orange collar sawteeth and cream
+gaps appeared as soon as meshes diverged. Crops now keep a ~12–20px soft underlap
+(sleeve core eroded before subtract) and absorb collar-band orange into the coat
+matte. `coat-*-shoulder` is **torso-locked** (static under `full.root`, drawn after
+arm.rig) so clap `arm.rig` chest pull cannot tear the orange collar off the jacket
+body; sleeves still slide underneath. Clap arm.rig translation further reduced.
+Coat shoulder alpha is lightly feathered to reduce polygon sawteeth.

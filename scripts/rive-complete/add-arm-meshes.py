@@ -11,7 +11,9 @@ Tendons tear at the elbow). This script:
 2. Remounts sleeve / shoulder / cuff / skin images under arm.rig (not under a
    rotating bone) and adds a grid Mesh+Skin with Tendon rotation matrices.
 3. Leaves palm/finger images parented to the hand bone (rigid), drawn AFTER
-   sleeves so clap palms sit on top of cuffs (ROUND3 z-order).
+   sleeves/coat so clap palms sit on top of cuffs (ROUND3/4 z-order).
+   ROUND4: coat-shoulder draws after the sleeve Solo so orange collar sits on
+   the soft white underlap.
 4. ROUND3 uses continuous sleeve-full mother crops with denser Mesh (GRID=16)
    and a three-bone elbow blend; orange punch-through layers are dropped.
 
@@ -285,15 +287,16 @@ def image_specs(meta_boxes: dict) -> list[dict]:
     # ROUND3: continuous sleeve-full (mother upper∪lower) with 3-bone blend;
     # dark strap overlay only (no orange punch-through layers); coat + skin + cuff.
     # Bent Solo children are injected separately in rebuild_arm_rig.
+    # ROUND4 draw order under arm.rig: skin → sleeve Solo → cuff → hand.
+    # Coat-shoulder is torso-locked (static sibling under full.root) so clap
+    # arm.rig translation cannot tear the orange collar off the jacket body.
     layers = [
         ("full.arm-l.upper-skin.image", "arm-l-upper-skin", "l", "upper_only"),
-        ("full.arm-l.coat-shoulder.image", "coat-l-shoulder", "l", "upper_only"),
         ("full.sleeve-l.full.image", "sleeve-l-full", "l", "upper_fore_hand"),
         ("full.sleeve-l.full.dark.image", "sleeve-l-full-dark", "l", "upper_fore_hand"),
         ("full.sleeve-l.bent.image", "sleeve-l-bent", "l", "upper_fore_hand"),
         ("full.arm-l.cuff.image", "arm-l-cuff", "l", "fore_hand"),
         ("full.arm-r.upper-skin.image", "arm-r-upper-skin", "r", "upper_only"),
-        ("full.arm-r.coat-shoulder.image", "coat-r-shoulder", "r", "upper_only"),
         ("full.sleeve-r.full.image", "sleeve-r-full", "r", "upper_fore_hand"),
         ("full.sleeve-r.full.dark.image", "sleeve-r-full-dark", "r", "upper_fore_hand"),
         ("full.sleeve-r.bent.image", "sleeve-r-bent", "r", "upper_fore_hand"),
@@ -513,6 +516,57 @@ def clean_orphan_closes(scene: str) -> str:
     return scene
 
 
+def mount_static_coat_shoulders(scene: str, boxes: dict) -> str:
+    """ROUND4: torso-lock coat shoulder/collar outside arm.rig.
+
+    Soft sleeve underlap still moves with the arm; the orange collar stays on the
+    jacket body so clap arm.rig translation cannot open a shoulder gap. Drawn
+    after arm.rig (next to static clavicle skins) so the collar sits on top.
+    """
+    specs = [
+        ("l", "coat-l-shoulder", "0:9322", "0:9458", "full.arm-l.coat-shoulder.static"),
+        ("r", "coat-r-shoulder", "0:9331", "0:9459", "full.arm-r.coat-shoulder.static"),
+    ]
+    # Drop any prior skinned or static coat-shoulder images (under arm or root).
+    for name in (
+        "full.arm-l.coat-shoulder.static",
+        "full.arm-r.coat-shoulder.static",
+        "full.arm-l.coat-shoulder.image",
+        "full.arm-r.coat-shoulder.image",
+    ):
+        scene = re.sub(
+            rf'<Image\b[^>]*\bname="{re.escape(name)}"[^>]*?(?:/>|>.*?</Image>)\s*',
+            "",
+            scene,
+            count=1,
+            flags=re.DOTALL,
+        )
+
+    blocks = []
+    for side, box_key, asset_id, image_id, name in specs:
+        x0, y0, x1, y1 = boxes[box_key]
+        ax, ay = src_to_art(x0, y0)
+        blocks.append(
+            f'<Image name="{name}" assetId="{asset_id}" '
+            f'x="{ax:.4f}" y="{ay:.4f}" originX="0" originY="0" '
+            f'scaleX="{SCALE}" scaleY="{SCALE}" id="{image_id}"/>'
+        )
+    insert = (
+        "                <!-- ROUND4: torso-locked coat collar/shoulder (above sleeves). -->\n"
+        + "\n".join("                " + b for b in blocks)
+        + "\n"
+    )
+    # Insert after static shoulder skins
+    anchor = 'name="full.arm-r.shoulder-skin.static"'
+    idx = scene.find(anchor)
+    if idx < 0:
+        raise SystemExit("static shoulder skins missing")
+    end = scene.find("/>", idx) + 2
+    scene = scene[:end] + "\n" + insert + scene[end:]
+    return scene
+
+
+
 def main() -> None:
     meta = json.loads(META.read_text())
     boxes = meta["boxes"]
@@ -531,6 +585,7 @@ def main() -> None:
     scene = rebuild_arm_rig(scene, "l", by_side["l"], hand_l)
     scene = rebuild_arm_rig(scene, "r", by_side["r"], hand_r)
     scene = clean_orphan_closes(scene)
+    scene = mount_static_coat_shoulders(scene, boxes)
 
     SCENE.write_text(scene, encoding="utf-8")
     print(
