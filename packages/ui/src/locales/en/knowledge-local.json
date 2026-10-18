@@ -227,7 +227,6 @@
   "知识库问答：关": "Knowledge base Q&A: off",
   "截图提问": "Ask about a screenshot",
   "供应商与模型": "Providers & models",
-  "配置模型": "Configure models",
   "语音设置": "Voice settings",
   "F2 说话": "F2 to talk",
   "长期记忆": "Long-term memory",
@@ -241,12 +240,10 @@
   "移除图片": "Remove image",
   "当前模型可能不支持看图，建议切换到视觉模型（如 qwen2.5vl、llava、gpt-4o）": "The current model may not support images; consider switching to a vision model (e.g. qwen2.5vl, llava, gpt-4o)",
   "图片将随这条消息发送 · 原图不会保存在聊天记录里": "Images are sent with this message · originals aren't saved in chat history",
-  "请先选择AI模型...": "Please select an AI model first...",
   "向知识库提问，回答会标注出处…": "Ask the knowledge base; answers include citations…",
   "更多：知识库问答、截图、模型、设置（也可输入 / ）": "More: knowledge base Q&A, screenshot, models, settings (or type /)",
   "更多功能": "More",
   "知识库问答已开启，点击关闭": "Knowledge base Q&A is on, click to turn off",
-  "没有可用的AI模型": "No AI models available",
   "发送消息 (Enter)": "Send message (Enter)",
   "发送": "Send"
 }

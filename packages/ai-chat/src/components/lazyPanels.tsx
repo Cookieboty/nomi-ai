@@ -6,7 +6,6 @@
  */
 import React, { Suspense, lazy, useRef, useState, type ComponentType } from 'react';
 
-import type { ConfigPanel as ConfigPanelT } from './ConfigPanel';
 import type { DesktopPanel as DesktopPanelT } from './DesktopPanel';
 import type { ExtensionsPanel as ExtensionsPanelT } from './ExtensionsPanel';
 import type { HubPanel as HubPanelT } from './HubPanel';
@@ -87,9 +86,6 @@ export function lazyPanel<P extends { isVisible: boolean }>(load: Loader<P>): Re
 
 export const SettingsView: React.FC<PropsOf<typeof SettingsViewT>> = lazyComponent(() =>
   import('./SettingsView').then((m) => m.SettingsView),
-);
-export const ConfigPanel: React.FC<PropsOf<typeof ConfigPanelT>> = lazyPanel(() =>
-  import('./ConfigPanel').then((m) => m.ConfigPanel),
 );
 export const ProviderPanel: React.FC<PropsOf<typeof ProviderPanelT>> = lazyPanel(() =>
   import('./ProviderPanel').then((m) => m.ProviderPanel),

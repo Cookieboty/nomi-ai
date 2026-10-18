@@ -299,9 +299,9 @@ describe('SdkIPCClient · multi-turn', () => {
     const ipc = new SdkIPCClient(client as never);
     const history = [msg('1', 'user', 'q1'), msg('2', 'assistant', 'a1')];
 
-    await expect(ipc.sendMessage('q2', 'openai', history)).resolves.toBe('reply');
+    await expect(ipc.sendMessage('q2', history)).resolves.toBe('reply');
     const chunks: string[] = [];
-    await ipc.sendStreamMessage('q3', 'openai', (c) => chunks.push(c), [
+    await ipc.sendStreamMessage('q3', (c) => chunks.push(c), [
       ...history,
       msg('3', 'user', 'q2'),
       msg('4', 'assistant', 'reply'),
@@ -309,7 +309,6 @@ describe('SdkIPCClient · multi-turn', () => {
 
     expect(chunks).toEqual(['str']);
     const [send, stream] = calls;
-    expect(send!.opts.provider).toBe('openai');
     expect(send!.opts.messages).toEqual([
       { role: 'system', content: expect.stringContaining('Nomi') },
       { role: 'user', content: 'q1' },

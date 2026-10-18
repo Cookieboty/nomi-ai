@@ -7,7 +7,7 @@ import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
-import { providerClientAvailable } from '../../services/providerClient';
+import { effectiveProviderLabel } from '../../services/providerClient';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -46,7 +46,6 @@ interface MessageInputProps {
    */
   queue?: { onQueue: (text: string) => void; onStop?: () => void };
   disabled?: boolean;
-  onConfigClick?: () => void;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
   /** 打开「知识 · 记忆 · 日程」快速视图 */
@@ -64,7 +63,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   placeholder = tr('输入消息...'),
   queue,
   disabled = false,
-  onConfigClick,
   onProvidersClick,
   onDesktopClick,
   onHubClick,
@@ -198,11 +196,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [screenOk, snip]);
-  const chatModel = state.currentModelId ?? '';
-  const visionWarn =
-    images.length > 0 &&
-    !likelyVision(chatModel) &&
-    !likelyVision(state.models.find((m) => m.id === chatModel)?.name);
+  const chatModel = effectiveProviderLabel() ?? '';
+  const visionWarn = images.length > 0 && !likelyVision(chatModel);
 
   const handleSend = async () => {
     const trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
@@ -311,13 +306,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const busy = busyOverride ?? state.isLoading;
   const isDisabled =
     disabled ||
-    (busyOverride !== undefined
-      ? queue
-        ? false
-        : busyOverride
-      : queue
-        ? !state.currentModelId
-        : state.isLoading || !state.currentModelId);
+    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : state.isLoading);
 
   // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
@@ -350,10 +339,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     },
     [onSend, actions, kbMode, kbAvailable],
   );
-  const cv = useChatVoice({ disabled: disabled || !state.currentModelId, onText: onVoiceText });
+  const cv = useChatVoice({ disabled, onText: onVoiceText });
 
-  const provOk = providerClientAvailable();
-  const openModels = provOk ? () => onProvidersClick?.() : onConfigClick;
+  const openModels = () => onProvidersClick?.();
   type Cmd = {
     id: string;
     icon: React.ReactNode;
@@ -392,10 +380,10 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     {
       id: 'model',
       icon: <AppIcon icon={FEATURE_ICONS.model} />,
-      label: provOk ? tr('供应商与模型') : tr('配置模型'),
-      testId: 'open-config',
+      label: tr('供应商与模型'),
+      testId: 'open-providers',
       menu: true,
-      run: () => openModels?.(),
+      run: () => openModels(),
       show: true,
     },
     {
@@ -464,7 +452,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   ];
   // allCommands 的 run 函数捕获了 textareaRef / busyRef 等事件处理用的 ref，
   // react-hooks/refs 据此把整个数组推断为 ref-like，这里是事件处理层的派生，豁免
-  // eslint-disable-next-line react-hooks/refs
+
   const commands: Cmd[] = allCommands.filter((c) => c.show);
   const slashQuery = /^\/(\S*)$/.exec(message)?.[1];
   const slashMatches =
@@ -480,7 +468,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
   // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
-  // eslint-disable-next-line react-hooks/refs
+
   cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
   useEffect(() => {
     const on = (e: Event) => {
@@ -638,11 +626,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               ? tr('运行中，继续输入会排队，完成后自动发送…')
               : busyOverride !== undefined
                 ? placeholder
-                : isDisabled
-                  ? tr('请先选择AI模型...')
-                  : kbMode && kbAvailable
-                    ? tr('向知识库提问，回答会标注出处…')
-                    : placeholder
+                : kbMode && kbAvailable
+                  ? tr('向知识库提问，回答会标注出处…')
+                  : placeholder
           }
           disabled={isDisabled}
           className={styles.messageTextarea}
@@ -687,24 +673,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
             </button>
           )}
           <div className={styles.modelStatus}>
-            {provOk ? (
-              <>
-                <EndpointControls
-                  className={styles.currentModel}
-                  onManageNomi={() => onProvidersClick?.()}
-                  onManageCli={(b) => onSettingsClick?.('coding', b)}
-                />
-              </>
-            ) : state.models.filter((m) => m.enabled).length === 0 ? (
-              <span className={styles.noModel}>{tr('没有可用的AI模型')}</span>
-            ) : (
-              <span className={styles.currentModel}>
-                {state.models.find((m) => m.id === state.currentModelId)?.name || 'DeepSeek Chat'}
-              </span>
-            )}
+            <EndpointControls
+              className={styles.currentModel}
+              onManageNomi={() => onProvidersClick?.()}
+              onManageCli={(b) => onSettingsClick?.('coding', b)}
+            />
           </div>
           <span className={styles.spacer} />
-          <VoiceButtons cv={cv} disabled={disabled || !state.currentModelId} />
+          <VoiceButtons cv={cv} disabled={disabled} />
           {canStop ? (
             <button
               type="button"

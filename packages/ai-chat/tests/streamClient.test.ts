@@ -63,7 +63,6 @@ describe('SdkIPCClient.sendStreamMessage · abort', () => {
     const got: string[] = [];
     await ipc.sendStreamMessage(
       'q',
-      undefined,
       (c) => {
         got.push(c);
         if (got.length === 3) setTimeout(() => ctl.abort(), 0);

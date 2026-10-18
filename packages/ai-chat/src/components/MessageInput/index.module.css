@@ -178,19 +178,6 @@
   box-shadow: 0 2px 8px rgba(var(--cd-accent-rgb), 0.2);
 }
 
-.noModel {
-  background: rgba(127, 29, 29, 0.8);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--cd-color-danger-text);
-  padding: 6px 14px;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: var(--cd-font-size-sm);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
-}
-
 .configButton {
   display: flex;
   align-items: center;
@@ -271,11 +258,6 @@
   }
 
   .currentModel {
-    font-size: var(--cd-font-size-xs);
-    padding: 5px 12px;
-  }
-
-  .noModel {
     font-size: var(--cd-font-size-xs);
     padding: 5px 12px;
   }
