@@ -42,7 +42,7 @@ describe('CLI 可执行文件探测缓存', () => {
 
   it('同步探测一次后写入缓存，之后直接命中（PATH 变了也不再 spawn）', () => {
     const first = resolveCliBinCached('dsh');
-    expect(first && fs.realpathSync(first)).toBe(fs.realpathSync(bin));
+    expect(first && fs.realpathSync.native(first)).toBe(fs.realpathSync.native(bin));
     process.env.PATH = '/nonexistent';
     expect(peekCliBin('dsh')).toBe(first);
     expect(resolveCliBinCached('dsh')).toBe(first);
@@ -59,7 +59,7 @@ describe('CLI 可执行文件探测缓存', () => {
     const b = refreshCliBin('dsh');
     expect(a).toBe(b);
     const found = await a;
-    expect(found && fs.realpathSync(found)).toBe(fs.realpathSync(bin));
+    expect(found && fs.realpathSync.native(found)).toBe(fs.realpathSync.native(bin));
     expect(peekCliBin('dsh')).toBe(found);
   });
 
