@@ -23,6 +23,7 @@ import { buildCliEnv } from './cliEnv';
 import { DSH_MIN_NODE_MAJOR, readPathNodeVersion, resolveCliBin } from './detect';
 import { EventBatcher } from './eventBatcher';
 import { killProcessTree } from './processTree';
+import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
   createClaudeParser,
   createDshParser,
@@ -1608,6 +1609,19 @@ export class CliHarnessService {
     );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
+    // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
+    handle('ai:harness:slash-discover', (b, cwd) =>
+      discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),
+    );
+    handle('ai:harness:slash-expand', (b, cwd, id, args) =>
+      expandSlash(
+        asSlashBackend(b),
+        validDir(String(cwd ?? '')),
+        String(id ?? ''),
+        String(args ?? '').slice(0, 4000),
+      ),
+    );
+    handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
     handle('ai:harness:reply-permission', (tabId, requestId, allow) =>
       this.replyPermission(String(tabId), String(requestId), Boolean(allow)),
     );
@@ -1664,6 +1678,10 @@ function anyWindowFocused(): boolean {
   } catch {
     return false;
   }
+}
+
+function asSlashBackend(b: unknown): SlashBackend {
+  return b === 'claude' || b === 'codex' || b === 'grok' || b === 'dsh' ? b : 'nomi';
 }
 
 let inst: CliHarnessService | null = null;
