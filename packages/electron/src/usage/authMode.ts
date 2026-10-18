@@ -306,8 +306,10 @@ export class AuthModeDetector {
     return p;
   }
 
-  invalidate(): void {
-    this.cache.clear();
+  /** 不带参数：清掉全部；带工具 id：只清该工具的登录状态缓存（单工具刷新用） */
+  invalidate(id?: string): void {
+    if (id) this.cache.delete(id);
+    else this.cache.clear();
   }
 
   private async probe(id: 'claude' | 'codex' | 'grok'): Promise<AuthInfo> {

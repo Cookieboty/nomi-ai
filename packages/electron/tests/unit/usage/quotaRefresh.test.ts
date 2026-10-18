@@ -10,7 +10,11 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { SNAPSHOT_FILE } from '../../../src/usage/claudeStatusline';
-import { UsageService, type QuotaRefreshReport } from '../../../src/usage/UsageService';
+import {
+  UsageService,
+  quotaToolOf,
+  type QuotaRefreshReport,
+} from '../../../src/usage/UsageService';
 
 import { fakeServer, type Handler } from './fakeCodexServer';
 
@@ -413,5 +417,64 @@ describe('刷新额度 · Codex', () => {
     const r = await t.svc.quotaView();
     expect(r.find((e) => e.id === 'codex')).toMatchObject({ status: 'unavailable', windows: [] });
     expect(r.find((e) => e.id === 'claude')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+});
+
+describe('刷新额度 · 单工具（IPC 参数化）', () => {
+  it('只刷新指定工具：codex 不拉起 claude；返回只含该工具的结果', async () => {
+    const t = setup();
+    const r = await t.svc.refreshQuota('codex');
+    expect(t.spawnFn).toHaveBeenCalledTimes(1);
+    expect(t.claudeRun).not.toHaveBeenCalled();
+    expect(Object.keys(r.tools)).toEqual(['codex']);
+    expect(r.tools.codex).toEqual({ state: 'ok' });
+    // entries 仍是完整视图（卡片靠它合并）
+    expect(t.entry(r, 'codex')).toMatchObject({ status: 'ok', origin: 'app-server' });
+    expect(t.entry(r, 'claude')).toBeDefined();
+  });
+
+  it('claude 单刷不影响 codex；同一工具并发点击只拉起一次', async () => {
+    const t = setup();
+    await Promise.all([t.svc.refreshQuota('claude'), t.svc.refreshQuota('claude')]);
+    expect(t.claudeRun).toHaveBeenCalledTimes(1);
+    expect(t.spawnFn).not.toHaveBeenCalled();
+  });
+
+  it('一个工具卡住时，另一个工具的刷新不被阻塞', async () => {
+    const t = setup();
+    let release: (v: { stdout: string; code: number }) => void = () => undefined;
+    t.claudeRun.mockImplementationOnce(
+      () => new Promise((res) => (release = res as typeof release)),
+    );
+    const slow = t.svc.refreshQuota('claude');
+    // claude 还在等官方 CLI 时，codex 已经能独立完成
+    const codex = await t.svc.refreshQuota('codex');
+    expect(codex.tools.codex).toEqual({ state: 'ok' });
+    release({ stdout: USAGE_OK, code: 0 });
+    const r = await slow;
+    expect(r.tools.claude).toEqual({ state: 'ok' });
+  });
+
+  it('单工具与「全部刷新」并发：不会重复拉起同一个 CLI', async () => {
+    const t = setup();
+    await Promise.all([t.svc.refreshQuota('codex'), t.svc.refreshQuota()]);
+    expect(t.spawnFn).toHaveBeenCalledTimes(1);
+    expect(t.claudeRun).toHaveBeenCalledTimes(1);
+  });
+
+  it('IPC 参数校验：只接受 claude / codex / grok，其他当作全部刷新', () => {
+    expect(quotaToolOf('codex')).toBe('codex');
+    expect(quotaToolOf('grok')).toBe('grok');
+    expect(quotaToolOf('dsh')).toBeUndefined();
+    expect(quotaToolOf('../etc')).toBeUndefined();
+    expect(quotaToolOf(undefined)).toBeUndefined();
+  });
+
+  it('单工具刷新同样遵守「主动刷新额度」开关与登录方式', async () => {
+    const t = setup();
+    t.svc.setSettings({ activeQuotaRefresh: false });
+    const r = await t.svc.refreshQuota('claude');
+    expect(r.tools.claude).toEqual({ state: 'skipped', reason: 'disabled' });
+    expect(t.claudeRun).not.toHaveBeenCalled();
   });
 });

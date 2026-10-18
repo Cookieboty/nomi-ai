@@ -403,6 +403,7 @@ const AiChatContent: React.FC = () => {
           onNewChat={handleNewChat}
           onForkRequest={onForkRequest}
           onNotice={setToast}
+          onOpenSettings={(sec) => openSettings(sec)}
         />
 
         {/* 主内容区域 */}

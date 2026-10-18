@@ -187,9 +187,25 @@ export type UsageToolRefresh =
   | { state: 'auth'; reason: string }
   | { state: 'skipped'; reason: 'disabled' | 'not-subscription' };
 
+/** 支持单独刷新额度的工具（官方 CLI 能返回订阅额度的几个） */
+export type UsageQuotaTool = 'claude' | 'codex' | 'grok';
+export const USAGE_QUOTA_TOOLS: readonly UsageQuotaTool[] = ['claude', 'codex', 'grok'];
+
 export interface UsageQuotaRefresh {
   entries: UsageQuotaEntry[];
-  tools: Partial<Record<'claude' | 'codex' | 'grok', UsageToolRefresh>>;
+  tools: Partial<Record<UsageQuotaTool, UsageToolRefresh>>;
+}
+
+/** 某一端（nomi / claude / codex / dsh / grok）的用量聚合，供「按端」信息卡 / 详情抽屉使用 */
+export interface UsageEndpointInfo {
+  source: string;
+  today: UsageSummary;
+  week: UsageSummary;
+  /** 近 7 天按天（旧 → 新） */
+  series: UsageSeriesPoint[];
+  byModel: UsageBreakdownRow[];
+  byProvider: UsageBreakdownRow[];
+  lastActivityAt: number | null;
 }
 
 /** Claude Code 额度来源：用户可选开启的 statusline 快照 */
@@ -234,7 +250,12 @@ export const usageClient = {
   syncPrices: () => call<UsageState & { result: UsagePriceSyncResult }>('price-sync'),
   clear: () => call<UsageState>('clear'),
   quota: () => call<UsageQuotaEntry[]>('quota'),
-  quotaRefresh: () => call<UsageQuotaRefresh>('quota-refresh'),
+  /** 不带参数 = 全部刷新（并行）；带工具 id = 只刷新这一个工具，互不阻塞 */
+  quotaRefresh: (tool?: UsageQuotaTool) =>
+    tool
+      ? call<UsageQuotaRefresh>('quota-refresh', tool)
+      : call<UsageQuotaRefresh>('quota-refresh'),
+  endpoint: (source: string) => call<UsageEndpointInfo>('endpoint', source),
   quotaHook: () => call<UsageQuotaHook>('quota-hook'),
   setQuotaHook: (enabled: boolean) => call<UsageQuotaHook>('quota-hook-set', enabled),
   onChanged: (fn: () => void) => bridge()?.on('ai:usage:changed', () => fn()) ?? (() => undefined),

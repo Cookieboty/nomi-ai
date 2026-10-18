@@ -180,6 +180,8 @@ let emptyData = false;
 let quota: unknown[] = [];
 let refreshTools: Record<string, unknown> = {};
 let refreshEntries: unknown[] | null = null;
+let refreshGate: { tool: string; promise: Promise<void> } | null = null;
+let refreshFail: string | null = null;
 let hook: Record<string, unknown> = {
   supported: true,
   enabled: false,
@@ -217,7 +219,14 @@ function install() {
           return quota;
         case 'ai:usage:quota-refresh':
           if (refreshEntries) quota = refreshEntries;
-          return { entries: quota, tools: refreshTools };
+          if (refreshGate && a[0] === refreshGate.tool) await refreshGate.promise;
+          if (refreshFail && a[0] === refreshFail) throw new Error('boom');
+          return {
+            entries: quota,
+            tools: a[0]
+              ? Object.fromEntries(Object.entries(refreshTools).filter(([k]) => k === a[0]))
+              : refreshTools,
+          };
         case 'ai:usage:quota-hook':
           return hook;
         case 'ai:usage:quota-hook-set':
@@ -248,6 +257,8 @@ beforeEach(() => {
   emptyData = false;
   refreshTools = {};
   refreshEntries = null;
+  refreshGate = null;
+  refreshFail = null;
   hook = { supported: true, enabled: false, hadOwnStatusLine: false, hasSnapshot: false };
   quota = [
     { id: 'codex', label: 'Codex', status: 'unavailable', windows: [] },
@@ -261,19 +272,6 @@ afterEach(() => {
 });
 
 const queries = () => calls.filter((c) => c[0] === 'ai:usage:query').map((c) => c[1]);
-
-/** 额度区按工具 Tabs：切到指定工具卡 */
-const openToolTab = async (name: string) => {
-  const tab = await waitFor(() => {
-    const el = Array.from(document.querySelectorAll('[role="tab"]')).find((n) =>
-      (n.textContent ?? '').includes(name),
-    );
-    if (!el) throw new Error(`tab ${name} not ready`);
-    return el as HTMLElement;
-  });
-  fireEvent.click(tab);
-  await waitFor(() => expect(tab.getAttribute('aria-selected')).toBe('true'));
-};
 
 describe('UsagePanel 概览', () => {
   it('四张摘要卡片 + 未定价提示 + 估算提示 + 趋势 / 分布 / 排行 / 热力图', async () => {
@@ -608,13 +606,14 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     const { findByTestId, getByTestId } = render(<UsagePanel />);
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
-    const notes = await findByTestId('usage-quota-notes');
-    expect(notes.textContent).toContain('Claude Code：已让官方 CLI（claude -p /usage）刷新。');
-    expect(notes.textContent).toContain('显示的是上次读到的值');
-    await openToolTab('Claude Code');
+    await waitFor(() =>
+      expect(getByTestId('usage-tool-status-claude').textContent).toContain(
+        'Claude Code：已让官方 CLI（claude -p /usage）刷新。',
+      ),
+    );
+    expect(getByTestId('usage-tool-status-codex').textContent).toContain('显示的是上次读到的值');
     expect(getByTestId('usage-quota-origin-claude').textContent).toContain('claude /usage');
     expect(getByTestId('usage-quota-claude').textContent).not.toContain('上次读取');
-    await openToolTab('Codex');
     expect(getByTestId('usage-quota-origin-codex').textContent).toContain('codex app-server');
     expect(getByTestId('usage-quota-codex').textContent).toContain('上次读取');
   });
@@ -627,9 +626,12 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     const { findByTestId, getByTestId } = render(<UsagePanel />);
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
-    let notes = await findByTestId('usage-quota-notes');
-    expect(notes.textContent).toContain('已清除旧额度');
-    expect(notes.textContent).toContain('42 秒后可再次刷新');
+    await waitFor(() =>
+      expect(getByTestId('usage-tool-status-claude').textContent).toContain('已清除旧额度'),
+    );
+    expect(getByTestId('usage-tool-status-claude').getAttribute('role')).toBe('status');
+    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('error');
+    expect(getByTestId('usage-tool-status-codex').textContent).toContain('42 秒后可再次刷新');
 
     refreshTools = {
       claude: { state: 'transient', reason: 'unsupported', stale: false },
@@ -637,15 +639,14 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
     };
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
-      expect(getByTestId('usage-quota-notes').textContent).toContain('不支持非交互读取额度'),
+      expect(getByTestId('usage-tool-status-claude').textContent).toContain('不支持非交互读取额度'),
     );
-    notes = getByTestId('usage-quota-notes');
-    expect(notes.textContent).toContain('已关闭「主动刷新额度」');
+    expect(getByTestId('usage-tool-status-codex').textContent).toContain('已关闭「主动刷新额度」');
 
     refreshTools = { claude: { state: 'fresh-local' } };
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
-      expect(getByTestId('usage-quota-notes').textContent).toContain('没有拉起官方 CLI'),
+      expect(getByTestId('usage-tool-status-claude').textContent).toContain('没有拉起官方 CLI'),
     );
   });
 
@@ -685,7 +686,6 @@ describe('UsagePanel 订阅额度', () => {
     const card = await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-codex').getAttribute('data-status')).toBe('unavailable');
     expect(getByTestId('usage-quota-codex').textContent).toContain('暂未返回可用额度');
-    await openToolTab('Claude Code');
     expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('unavailable');
     expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
@@ -728,7 +728,6 @@ describe('UsagePanel 订阅额度', () => {
     expect(wins[1]!.textContent).toContain('窗口已重置');
     expect(wins[1]!.textContent).not.toContain('80%');
     expect(card.textContent).toContain('plus');
-    await openToolTab('Claude Code');
     expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');
   });
 
@@ -756,9 +755,7 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
     const card = await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('api');
     expect(getByTestId('usage-quota-claude').textContent).toContain('API 计费，无订阅额度');
-    await openToolTab('Codex');
     expect(getByTestId('usage-quota-codex').textContent).toContain('API 计费，无订阅额度');
-    await openToolTab('dsh');
     expect(getByTestId('usage-quota-dsh').getAttribute('data-status')).toBe('api');
     expect(getByTestId('usage-quota-dsh').textContent).toContain('API 计费，无订阅额度');
     expect(card.textContent).not.toContain('暂未返回可用额度');
@@ -779,7 +776,6 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
     ];
     const { findByTestId, getByTestId, queryByTestId } = render(<UsagePanel />);
     await findByTestId('usage-quota-card');
-    await openToolTab('Claude Code');
     const box = await findByTestId('usage-quota-hook');
     expect(box.textContent).toContain('不读取凭据');
     expect(getByTestId('usage-quota-claude').textContent).toContain('暂未返回可用额度');
@@ -851,5 +847,124 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
     const empty = await findByTestId('usage-quota-empty');
     expect(empty.textContent).toContain('没有检测到');
     expect((await findByTestId('usage-quota-card')).textContent).not.toContain('暂未返回可用额度');
+  });
+});
+
+describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => {
+  const now = Date.now();
+  const OK = (id: string, pct: number) => ({
+    id,
+    label: id,
+    status: 'ok',
+    auth: 'subscription',
+    plan: 'Max',
+    updatedAt: now - 60_000,
+    windows: [
+      { id: 'five_hour', usedPercent: pct, windowMinutes: 300, resetAt: now + 3_600_000 },
+      { id: 'seven_day', usedPercent: 75, windowMinutes: 10080, resetAt: now + 86_400_000 },
+    ],
+  });
+  const refreshCalls = () => calls.filter((c) => c[0] === 'ai:usage:quota-refresh');
+
+  beforeEach(() => {
+    quota = [OK('claude', 20), OK('codex', 95), OK('grok', 5)];
+  });
+
+  it('每个工具一张卡片（网格），不再有工具 Tabs；卡片头部含图标 / 名称 / 套餐 / 登录方式', async () => {
+    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const grid = await findByTestId('usage-quota-grid');
+    expect(grid.querySelectorAll('article')).toHaveLength(3);
+    expect(document.querySelector('[data-testid="usage-quota-tabs"]')).toBeNull();
+    const codex = getByTestId('usage-quota-codex');
+    expect(codex.querySelector('[data-testid="endpoint-icon-codex"]')).toBeTruthy();
+    expect(codex.textContent).toContain('Codex');
+    expect(codex.textContent).toContain('Max');
+    expect(codex.textContent).toContain('账号登录');
+    // 多窗口进度条：5 小时 + 每周，各带重置倒计时；高占用着色
+    const wins = codex.querySelectorAll('[data-testid="usage-quota-window"]');
+    expect(wins).toHaveLength(2);
+    expect(wins[0]!.textContent).toContain('已用 95%');
+    expect(wins[0]!.textContent).toContain('后重置');
+    expect(codex.querySelector('[role="progressbar"]')!.className).toMatch(/barHigh/);
+    expect(getByTestId('usage-tool-updated-codex').textContent).toContain('更新于');
+  });
+
+  it('单卡刷新：只带该工具参数调用 IPC，其他卡片不进入加载态', async () => {
+    let release: () => void = () => undefined;
+    refreshGate = { tool: 'codex', promise: new Promise<void>((r) => (release = r)) };
+    refreshTools = { codex: { state: 'ok' }, claude: { state: 'ok' } };
+    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    await findByTestId('usage-quota-grid');
+    fireEvent.click(getByTestId('usage-quota-refresh-codex'));
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('loading'),
+    );
+    expect(refreshCalls()).toEqual([['ai:usage:quota-refresh', 'codex']]);
+    expect((getByTestId('usage-quota-refresh-codex') as HTMLButtonElement).disabled).toBe(true);
+    expect(getByTestId('usage-tool-status-codex').textContent).toContain('正在刷新');
+    // 其他卡片不受影响：按钮可点、不在加载态
+    expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('idle');
+    expect((getByTestId('usage-quota-refresh-claude') as HTMLButtonElement).disabled).toBe(false);
+    // codex 卡住时 claude 仍可独立刷新完成
+    fireEvent.click(getByTestId('usage-quota-refresh-claude'));
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('ok'),
+    );
+    expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('loading');
+    release();
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('ok'),
+    );
+    expect(refreshCalls().map((c) => c[1])).toEqual(['codex', 'claude']);
+  });
+
+  it('单卡失败：只有这张卡显示错误与最后更新时间，其他卡片保持原样', async () => {
+    refreshFail = 'grok';
+    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    await findByTestId('usage-quota-grid');
+    fireEvent.click(getByTestId('usage-quota-refresh-grok'));
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-grok').getAttribute('data-phase')).toBe('error'),
+    );
+    expect(getByTestId('usage-tool-status-grok').textContent).toContain('boom');
+    expect(getByTestId('usage-tool-updated-grok').textContent).toContain('更新于');
+    expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('idle');
+    // 失败后可再次点击重试
+    expect((getByTestId('usage-quota-refresh-grok') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('「全部刷新」是次要入口：不带工具参数，所有卡片同时进入加载态', async () => {
+    let release: () => void = () => undefined;
+    refreshGate = {
+      tool: undefined as unknown as string,
+      promise: new Promise<void>((r) => (release = r)),
+    };
+    refreshTools = { claude: { state: 'ok' }, codex: { state: 'ok' }, grok: { state: 'ok' } };
+    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    await findByTestId('usage-quota-grid');
+    const all = getByTestId('usage-quota-refresh');
+    expect(all.className).toContain('cd-btn--ghost');
+    expect(all.textContent).toContain('全部刷新');
+    fireEvent.click(all);
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-claude').getAttribute('data-phase')).toBe('loading'),
+    );
+    expect(getByTestId('usage-quota-codex').getAttribute('data-phase')).toBe('loading');
+    expect(refreshCalls()).toEqual([['ai:usage:quota-refresh']]);
+    release();
+    await waitFor(() =>
+      expect(getByTestId('usage-quota-grok').getAttribute('data-phase')).toBe('ok'),
+    );
+  });
+
+  it('API 计费的工具卡片仍可单独刷新（重新探测登录方式），dsh 没有刷新按钮', async () => {
+    quota = [
+      { id: 'claude', label: 'Claude Code', status: 'api', auth: 'api', windows: [] },
+      { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] },
+    ];
+    const { findByTestId, getByTestId, queryByTestId } = render(<UsagePanel />);
+    await findByTestId('usage-quota-grid');
+    expect(getByTestId('usage-quota-refresh-claude')).toBeTruthy();
+    expect(queryByTestId('usage-quota-refresh-dsh')).toBeNull();
   });
 });
