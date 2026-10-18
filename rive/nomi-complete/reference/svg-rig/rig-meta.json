@@ -6,47 +6,155 @@
   ],
   "svg": "nomi-fullbody-mother.svg",
   "boxes": {
-    "arm-l-upper": [
-      180,
-      230,
+    "arm-l-shoulder-skin": [
+      315,
+      250,
+      470,
+      465
+    ],
+    "arm-l-cuff": [
+      215,
+      665,
+      390,
+      815
+    ],
+    "coat-l-shoulder": [
+      285,
+      300,
       450,
-      570
+      495
     ],
-    "arm-l-fore": [
-      175,
-      470,
-      445,
-      790
-    ],
-    "arm-l-hand": [
-      200,
-      650,
-      430,
-      930
-    ],
-    "arm-r-upper": [
-      574,
+    "sleeve-l-upper": [
       230,
-      844,
-      570
+      365,
+      420,
+      610
     ],
-    "arm-r-fore": [
-      579,
-      470,
-      849,
-      790
+    "sleeve-l-lower": [
+      205,
+      485,
+      415,
+      760
     ],
-    "arm-r-hand": [
-      594,
-      650,
-      824,
-      930
+    "hand-l-palm": [
+      265,
+      740,
+      360,
+      885
+    ],
+    "coat-l-tail": [
+      300,
+      420,
+      480,
+      1020
+    ],
+    "arm-r-shoulder-skin": [
+      554,
+      250,
+      709,
+      465
+    ],
+    "arm-r-cuff": [
+      634,
+      665,
+      809,
+      815
+    ],
+    "coat-r-shoulder": [
+      574,
+      300,
+      739,
+      495
+    ],
+    "sleeve-r-upper": [
+      604,
+      365,
+      794,
+      610
+    ],
+    "sleeve-r-lower": [
+      609,
+      485,
+      819,
+      760
+    ],
+    "hand-r-palm": [
+      664,
+      740,
+      759,
+      885
+    ],
+    "coat-r-tail": [
+      544,
+      420,
+      724,
+      1020
     ],
     "head": [
       250,
       0,
       780,
       370
+    ],
+    "hand-l-thumb": [
+      265,
+      740,
+      365,
+      890
+    ],
+    "hand-l-index": [
+      265,
+      740,
+      365,
+      890
+    ],
+    "hand-l-middle": [
+      265,
+      740,
+      365,
+      890
+    ],
+    "hand-l-ring": [
+      265,
+      740,
+      365,
+      890
+    ],
+    "hand-l-little": [
+      265,
+      740,
+      365,
+      890
+    ],
+    "hand-r-thumb": [
+      659,
+      740,
+      759,
+      890
+    ],
+    "hand-r-index": [
+      659,
+      740,
+      759,
+      890
+    ],
+    "hand-r-middle": [
+      659,
+      740,
+      759,
+      890
+    ],
+    "hand-r-ring": [
+      659,
+      740,
+      759,
+      890
+    ],
+    "hand-r-little": [
+      659,
+      740,
+      759,
+      890
     ]
   },
   "artboardScale": 0.8463541666666666,
@@ -229,16 +337,16 @@
       "kind": "mother-derived-crop"
     },
     "full.arm-l": {
-      "asset": "reference/svg-rig/arm-l-upper.png,arm-l-fore.png,arm-l-hand.png",
-      "bone": "full.arm-l.upper>full.arm-l.fore>full.arm-l.hand",
+      "asset": "reference/svg-rig/arm-l-shoulder-skin.png,coat-l-shoulder.png,sleeve-l-upper.png,sleeve-l-lower.png,arm-l-cuff.png,hand-l-palm.png,hand-l-thumb.png,hand-l-index.png,hand-l-middle.png,hand-l-ring.png,hand-l-little.png",
+      "bone": "full.arm-l.upper>full.arm-l.fore>full.arm-l.hand/full.arm-l.thumb|index|middle|ring|little",
       "source": "source-nomi-master.png",
-      "kind": "mother-derived-segments"
+      "kind": "mother-derived-segments-with-independent-clothing"
     },
     "full.arm-r": {
-      "asset": "reference/svg-rig/arm-r-upper.png,arm-r-fore.png,arm-r-hand.png",
-      "bone": "full.arm-r.upper>full.arm-r.fore>full.arm-r.hand",
+      "asset": "reference/svg-rig/arm-r-shoulder-skin.png,coat-r-shoulder.png,sleeve-r-upper.png,sleeve-r-lower.png,arm-r-cuff.png,hand-r-palm.png,hand-r-thumb.png,hand-r-index.png,hand-r-middle.png,hand-r-ring.png,hand-r-little.png",
+      "bone": "full.arm-r.upper>full.arm-r.fore>full.arm-r.hand/full.arm-r.thumb|index|middle|ring|little",
       "source": "source-nomi-master.png",
-      "kind": "mother-derived-segments"
+      "kind": "mother-derived-segments-with-independent-clothing"
     },
     "full.face": {
       "asset": "reference/svg-rig/head.png",
@@ -259,10 +367,10 @@
       "kind": "mother-derived-backfill"
     },
     "full.coat": {
-      "asset": "reference/svg-rig/fullbody-base-no-head-arms.png",
+      "asset": "reference/svg-rig/coat-l-tail.png,coat-r-tail.png",
       "bone": "full.coat-l/full.coat-r",
       "source": "source-nomi-master.png",
-      "kind": "anchor-only-front-panels"
+      "kind": "independent-mother-derived-tail-panels"
     }
   }
 }

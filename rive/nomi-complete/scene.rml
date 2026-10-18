@@ -1,15 +1,33 @@
 <Rive version="1" kind="fragment">
     <ImageAsset name="source-nomi-master" file="source-nomi-master.png" id="0:191"/>
     <ImageAsset name="fullbody-base-no-head-arms" file="reference/svg-rig/fullbody-base-no-head-arms.png" id="0:9200"/>
-    <ImageAsset name="fullbody-arm-l-upper" file="reference/svg-rig/arm-l-upper.png" id="0:9201"/>
-    <ImageAsset name="fullbody-arm-l-fore" file="reference/svg-rig/arm-l-fore.png" id="0:9202"/>
-    <ImageAsset name="fullbody-arm-l-hand" file="reference/svg-rig/arm-l-hand.png" id="0:9203"/>
-    <ImageAsset name="fullbody-arm-r-upper" file="reference/svg-rig/arm-r-upper.png" id="0:9204"/>
-    <ImageAsset name="fullbody-arm-r-fore" file="reference/svg-rig/arm-r-fore.png" id="0:9205"/>
-    <ImageAsset name="fullbody-arm-r-hand" file="reference/svg-rig/arm-r-hand.png" id="0:9206"/>
+    <ImageAsset name="fullbody-arm-l-shoulder-skin" file="reference/svg-rig/arm-l-shoulder-skin.png" id="0:9201"/>
+    <ImageAsset name="fullbody-arm-l-cuff" file="reference/svg-rig/arm-l-cuff.png" id="0:9204"/>
+    <ImageAsset name="fullbody-coat-l-tail" file="reference/svg-rig/coat-l-tail.png" id="0:9206"/>
     <ImageAsset name="fullbody-head" file="reference/svg-rig/head.png" id="0:9207"/>
     <BlobAsset name="nomi-fullbody-mother-svg" file="reference/svg-rig/nomi-fullbody-mother.svg" id="0:9208"/>
     <ImageAsset name="face-smile" file="reference/svg-rig/face-smile.png" id="0:9209"/>
+    <ImageAsset name="fullbody-arm-r-shoulder-skin" file="reference/svg-rig/arm-r-shoulder-skin.png" id="0:9310"/>
+    <ImageAsset name="fullbody-arm-r-cuff" file="reference/svg-rig/arm-r-cuff.png" id="0:9313"/>
+    <ImageAsset name="fullbody-coat-r-tail" file="reference/svg-rig/coat-r-tail.png" id="0:9315"/>
+    <ImageAsset name="fullbody-coat-l-shoulder" file="reference/svg-rig/coat-l-shoulder.png" id="0:9322"/>
+    <ImageAsset name="fullbody-sleeve-l-upper" file="reference/svg-rig/sleeve-l-upper.png" id="0:9323"/>
+    <ImageAsset name="fullbody-sleeve-l-lower" file="reference/svg-rig/sleeve-l-lower.png" id="0:9324"/>
+    <ImageAsset name="fullbody-hand-l-palm" file="reference/svg-rig/hand-l-palm.png" id="0:9325"/>
+    <ImageAsset name="fullbody-hand-l-thumb" file="reference/svg-rig/hand-l-thumb.png" id="0:9326"/>
+    <ImageAsset name="fullbody-hand-l-index" file="reference/svg-rig/hand-l-index.png" id="0:9327"/>
+    <ImageAsset name="fullbody-hand-l-middle" file="reference/svg-rig/hand-l-middle.png" id="0:9328"/>
+    <ImageAsset name="fullbody-hand-l-ring" file="reference/svg-rig/hand-l-ring.png" id="0:9329"/>
+    <ImageAsset name="fullbody-hand-l-little" file="reference/svg-rig/hand-l-little.png" id="0:9330"/>
+    <ImageAsset name="fullbody-coat-r-shoulder" file="reference/svg-rig/coat-r-shoulder.png" id="0:9331"/>
+    <ImageAsset name="fullbody-sleeve-r-upper" file="reference/svg-rig/sleeve-r-upper.png" id="0:9332"/>
+    <ImageAsset name="fullbody-sleeve-r-lower" file="reference/svg-rig/sleeve-r-lower.png" id="0:9333"/>
+    <ImageAsset name="fullbody-hand-r-palm" file="reference/svg-rig/hand-r-palm.png" id="0:9334"/>
+    <ImageAsset name="fullbody-hand-r-thumb" file="reference/svg-rig/hand-r-thumb.png" id="0:9335"/>
+    <ImageAsset name="fullbody-hand-r-index" file="reference/svg-rig/hand-r-index.png" id="0:9336"/>
+    <ImageAsset name="fullbody-hand-r-middle" file="reference/svg-rig/hand-r-middle.png" id="0:9337"/>
+    <ImageAsset name="fullbody-hand-r-ring" file="reference/svg-rig/hand-r-ring.png" id="0:9338"/>
+    <ImageAsset name="fullbody-hand-r-little" file="reference/svg-rig/hand-r-little.png" id="0:9339"/>
     <ViewModel name="MascotFull" id="0:9100" defaultInstanceId="0:9101">
         <ViewModelPropertyTrigger name="wave" id="0:208"/>
         <ViewModelPropertyTrigger name="cheer" id="0:209"/>
@@ -91,9 +109,11 @@
                     </RootBone>
                 </RootBone>
                 <RootBone name="full.coat-l" x="350" y="560" rotation="0" length="1" scaleX="1" id="0:9241">
+                    <Image name="full.coat-l.tail.image" assetId="0:9206" x="-49" y="-204" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9316"/>
                     <RootBone name="full.coat-l.front" x="0" y="40" rotation="0" length="1" scaleX="1" id="0:9272"/>
                 </RootBone>
                 <RootBone name="full.coat-r" x="610" y="560" rotation="0" length="1" scaleX="1" id="0:9242">
+                    <Image name="full.coat-r.tail.image" assetId="0:9315" x="-103" y="-204" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9317"/>
                     <RootBone name="full.coat-r.front" x="0" y="40" rotation="0" length="1" scaleX="1" id="0:9273"/>
                 </RootBone>
                 <RootBone name="full.shoulder.l" x="317.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9262">
@@ -103,28 +123,36 @@
                     <RootBone name="full.clavicle.r" x="-24" y="10" rotation="0" length="1" scaleX="1" id="0:9265"/>
                 </RootBone>
                 <RootBone name="full.arm-l.upper" x="317.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9213">
-                    <Image name="full.arm-l.upper.image" assetId="0:9201" x="-118.5" y="-76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9214"/>
+                    <Image name="full.arm-l.shoulder-skin.image" assetId="0:9201" x="-4.2" y="-59.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9214"/>
+                    <Image name="full.coat-l.shoulder.image" assetId="0:9322" x="-29.6" y="-16.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9318"/>
+                    <Image name="full.sleeve-l.upper.image" assetId="0:9323" x="-76.2" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9340"/>
                     <RootBone name="full.arm-l.fore" x="-25.4" y="215.5" rotation="0" length="1" scaleX="1" id="0:9215">
-                        <Image name="full.arm-l.fore.image" assetId="0:9202" x="-97.4" y="-88.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9216"/>
+                        <Image name="full.sleeve-l.lower.image" assetId="0:9324" x="-71.9" y="-75.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9216"/>
+                        <Image name="full.arm-l.cuff.image" assetId="0:9204" x="-63.5" y="76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9319"/>
                         <RootBone name="full.arm-l.hand" x="-17" y="174.3" rotation="0" length="1" scaleX="1" id="0:9217">
-                            <Image name="full.arm-l.hand.image" assetId="0:9203" x="-59.2" y="-110.0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9218"/>
+                            <Image name="full.hand-l.palm.image" assetId="0:9325" x="-4.2" y="-33.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9218"/>
                             <RootBone name="full.arm-l.thumb" x="-34" y="72" rotation="0" length="1" scaleX="1" id="0:9243">
+                                <Image name="full.hand-l.thumb.image" assetId="0:9326" x="29.6" y="-105.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9341"/>
                                 <RootBone name="full.arm-l.thumb.1" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9290"/>
                                 <RootBone name="full.arm-l.thumb.2" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9291"/>
                             </RootBone>
                             <RootBone name="full.arm-l.index" x="-10" y="96" rotation="0" length="1" scaleX="1" id="0:9244">
+                                <Image name="full.hand-l.index.image" assetId="0:9327" x="5.9" y="-129.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9342"/>
                                 <RootBone name="full.arm-l.index.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9292"/>
                                 <RootBone name="full.arm-l.index.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9293"/>
                             </RootBone>
                             <RootBone name="full.arm-l.middle" x="8" y="102" rotation="0" length="1" scaleX="1" id="0:9245">
+                                <Image name="full.hand-l.middle.image" assetId="0:9328" x="-12.3" y="-136" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9343"/>
                                 <RootBone name="full.arm-l.middle.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9294"/>
                                 <RootBone name="full.arm-l.middle.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9295"/>
                             </RootBone>
                             <RootBone name="full.arm-l.ring" x="22" y="98" rotation="0" length="1" scaleX="1" id="0:9246">
+                                <Image name="full.hand-l.ring.image" assetId="0:9329" x="-26.2" y="-131.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9344"/>
                                 <RootBone name="full.arm-l.ring.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9296"/>
                                 <RootBone name="full.arm-l.ring.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9297"/>
                             </RootBone>
                             <RootBone name="full.arm-l.little" x="34" y="88" rotation="0" length="1" scaleX="1" id="0:9247">
+                                <Image name="full.hand-l.little.image" assetId="0:9330" x="-38.1" y="-122" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9345"/>
                                 <RootBone name="full.arm-l.little.1" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9298"/>
                                 <RootBone name="full.arm-l.little.2" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9299"/>
                             </RootBone>
@@ -132,28 +160,36 @@
                     </RootBone>
                 </RootBone>
                 <RootBone name="full.arm-r.upper" x="642.8" y="270.8" rotation="0" length="1" scaleX="1" id="0:9219">
-                    <Image name="full.arm-r.upper.image" assetId="0:9204" x="-110.0" y="-76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9220"/>
+                    <Image name="full.arm-r.shoulder-skin.image" assetId="0:9310" x="-127" y="-59.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9220"/>
+                    <Image name="full.coat-r.shoulder.image" assetId="0:9331" x="-110.6" y="-16.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9320"/>
+                    <Image name="full.sleeve-r.upper.image" assetId="0:9332" x="-85.9" y="38.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9346"/>
                     <RootBone name="full.arm-r.fore" x="25.4" y="215.5" rotation="0" length="1" scaleX="1" id="0:9221">
-                        <Image name="full.arm-r.fore.image" assetId="0:9205" x="-131.2" y="-88.6" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9222"/>
+                        <Image name="full.sleeve-r.lower.image" assetId="0:9333" x="-105.8" y="-75.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9222"/>
+                        <Image name="full.arm-r.cuff.image" assetId="0:9313" x="-84.6" y="76.2" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9321"/>
                         <RootBone name="full.arm-r.hand" x="17" y="174.3" rotation="0" length="1" scaleX="1" id="0:9223">
-                            <Image name="full.arm-r.hand.image" assetId="0:9206" x="-135.4" y="-110.0" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9224"/>
+                            <Image name="full.hand-r.palm.image" assetId="0:9334" x="-82" y="-33.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9224"/>
                             <RootBone name="full.arm-r.thumb" x="34" y="72" rotation="0" length="1" scaleX="1" id="0:9248">
+                                <Image name="full.hand-r.thumb.image" assetId="0:9335" x="-112.4" y="-105.8" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9347"/>
                                 <RootBone name="full.arm-r.thumb.1" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9300"/>
                                 <RootBone name="full.arm-r.thumb.2" x="0" y="14" rotation="0" length="1" scaleX="1" id="0:9301"/>
                             </RootBone>
                             <RootBone name="full.arm-r.index" x="10" y="96" rotation="0" length="1" scaleX="1" id="0:9249">
+                                <Image name="full.hand-r.index.image" assetId="0:9336" x="-88.1" y="-129.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9348"/>
                                 <RootBone name="full.arm-r.index.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9302"/>
                                 <RootBone name="full.arm-r.index.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9303"/>
                             </RootBone>
                             <RootBone name="full.arm-r.middle" x="-8" y="102" rotation="0" length="1" scaleX="1" id="0:9250">
+                                <Image name="full.hand-r.middle.image" assetId="0:9337" x="-70.3" y="-136" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9349"/>
                                 <RootBone name="full.arm-r.middle.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9304"/>
                                 <RootBone name="full.arm-r.middle.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9305"/>
                             </RootBone>
                             <RootBone name="full.arm-r.ring" x="-22" y="98" rotation="0" length="1" scaleX="1" id="0:9251">
+                                <Image name="full.hand-r.ring.image" assetId="0:9338" x="-56.4" y="-131.9" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9350"/>
                                 <RootBone name="full.arm-r.ring.1" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9306"/>
                                 <RootBone name="full.arm-r.ring.2" x="0" y="16" rotation="0" length="1" scaleX="1" id="0:9307"/>
                             </RootBone>
                             <RootBone name="full.arm-r.little" x="-34" y="88" rotation="0" length="1" scaleX="1" id="0:9252">
+                                <Image name="full.hand-r.little.image" assetId="0:9339" x="-44.4" y="-122" originX="0" originY="0" scaleX="0.846354" scaleY="0.846354" id="0:9351"/>
                                 <RootBone name="full.arm-r.little.1" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9308"/>
                                 <RootBone name="full.arm-r.little.2" x="0" y="15" rotation="0" length="1" scaleX="1" id="0:9309"/>
                             </RootBone>

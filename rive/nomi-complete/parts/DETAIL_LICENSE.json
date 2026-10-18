@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses only the supplied full-body mother and its deterministic SVG-backed rig assets. The previous half-body and official layer stack was removed.",
+  "note": "Production Rive scene uses only the supplied full-body mother and deterministic source-pixel rig layers. Segmented clothing, sleeve, cuff, palm and finger mattes are derived from the same mother image.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -8,6 +8,41 @@
       "in_scene": true,
       "method": "user supplied full-body mother"
     },
+    "reference/svg-rig/fullbody-base-no-head-arms.png": {
+      "sha256": "7f42efcbcc866a6cc8f1b87232f4374144b2cea85f0be2b75ba3efec3d391488",
+      "bytes": 1487997,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/arm-l-shoulder-skin.png": {
+      "sha256": "f075a438892275ba7f8e810eff1ba1a6609d0205025cfcaeedd271a7b5033c21",
+      "bytes": 55774,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/arm-l-cuff.png": {
+      "sha256": "7e8368ef2db5c151d61bebe575b342c33dec1b135cce7694332352d337a02376",
+      "bytes": 43729,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-tail.png": {
+      "sha256": "6b4e1b7dbf7f4d8af3cc318f3aa8d917c1aae321460b2669e9e7cd7e551f45c0",
+      "bytes": 168078,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/head.png": {
+      "sha256": "7da1028ddf5087226fab52445a564d28614d02d54439630a75b2169d31c22eb4",
+      "bytes": 275595,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
     "reference/svg-rig/nomi-fullbody-mother.svg": {
       "sha256": "6e3ff6b1cf67d28b5498ab6b1d5f935bf3ab8d12a05b02952e38da9f0986faf5",
       "bytes": 4063580,
@@ -15,68 +50,159 @@
       "in_scene": true,
       "method": "deterministic SVG-backed full-body rig asset"
     },
-    "reference/svg-rig/arm-l-upper.png": {
-      "sha256": "6dfbd3492c4bce1d18c05017b930a771544fd64903a7c2ca852e67613aec9eb4",
-      "bytes": 126864,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/arm-l-fore.png": {
-      "sha256": "4d02cd5be24060dfd6071ebf6e8e2b59d60162978c84c2d2220b111e60976844",
-      "bytes": 131365,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/arm-l-hand.png": {
-      "sha256": "aaa61a3aabf249bb6014fe9d486bf40daf316b89393f16604321a57f5b45cc44",
-      "bytes": 86164,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/arm-r-upper.png": {
-      "sha256": "848979fb3ee42a0ad7ccaa8985a547317ea0c8d0da2f7f1525c07d1e38aff1e8",
-      "bytes": 124420,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/arm-r-fore.png": {
-      "sha256": "2490e62710734c57cd1cfa3b72bc745bd3fdadb089383305ed224c5d59aa2fe1",
-      "bytes": 129764,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/arm-r-hand.png": {
-      "sha256": "9dccee18e0e2e36ccacc8164490b07c34a9d250fcb23a0a94d50d1f94aa9a5d2",
-      "bytes": 84983,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "40a10e4b74a6c4c65714875dfe4ccde03b33495b0f8f3a58ee163f934eb2b0ae",
-      "bytes": 1490089,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
-    "reference/svg-rig/head.png": {
-      "sha256": "45c7f1aece5b81620bd17931cb74e46122af130c33b665e43d814626c8311a2f",
-      "bytes": 281405,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic head crop from user supplied full-body mother"
-    },
     "reference/svg-rig/face-smile.png": {
       "sha256": "a341446a13291c5ae427dfa92eb94ce7ebdebf136b13fc3f2df4ab30f34829e3",
       "bytes": 1405,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic smile overlay from the supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/arm-r-shoulder-skin.png": {
+      "sha256": "ad9f0949cc4cc51447a16607e2bebd4d36fccf3785c93bafb88c348dd25954e6",
+      "bytes": 55811,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/arm-r-cuff.png": {
+      "sha256": "0161a4772bca6012666ec69f4f61e6443d4678a12505d1472ddd6f2d7026eb10",
+      "bytes": 41336,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-r-tail.png": {
+      "sha256": "1680a7498eb0d1fea0ae61120a25c1261c332b3acd91bda9ba5acfd14197aff7",
+      "bytes": 165570,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-shoulder.png": {
+      "sha256": "7692dc4d5b608546c561958df0a9ee972c5380aa20f06f30935b82dad1ca399b",
+      "bytes": 55153,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-l-upper.png": {
+      "sha256": "0c5ee5dbb6d33d9cfc6b1dd845e77699ba944dbc7e10e5a5cfb349321bd2282e",
+      "bytes": 76251,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-l-lower.png": {
+      "sha256": "4fee750c43647308d6fe152a7a36a8906ef3a4bca8526020d7b15aba9cadbc3f",
+      "bytes": 89261,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-palm.png": {
+      "sha256": "70466ec154d7aa438efd68063e548fb85308bf824f5c0ead91980292a697819a",
+      "bytes": 20859,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-thumb.png": {
+      "sha256": "da28a7b1f18fd2b430bec7fd9e1dd45fd17f84fbb3aec067fe91d682ff56d2a5",
+      "bytes": 21453,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-index.png": {
+      "sha256": "03abd8459849130224cdec86721961f2471b5b8d075411c2d0ab49dfb614305c",
+      "bytes": 21646,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-middle.png": {
+      "sha256": "d5ec01df38c3ce002c37fc178c97c7e72f96e2ffaa211cc439d650be6f35446d",
+      "bytes": 21678,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-ring.png": {
+      "sha256": "6eb84213b9559f707c6cdf1189909604c3a756ebf047e6163b14a500290b3792",
+      "bytes": 21751,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-little.png": {
+      "sha256": "8a12c1ce2bf214a4fe30156beab57b03ff684b044d5b37368902292499daeddf",
+      "bytes": 21685,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-r-shoulder.png": {
+      "sha256": "5b6b85205bf7a89037b7ba3def353711e0865ff7fad9d2ca468a6192c735f150",
+      "bytes": 53726,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-r-upper.png": {
+      "sha256": "c1ea8343347e0d43d2810111fa9ec445cf2bef4091c5382215b67591055dc8d5",
+      "bytes": 73850,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-r-lower.png": {
+      "sha256": "9a9da40ca782355ece154c9c86853be915bce7e843e22331a2cd0a0045f2f565",
+      "bytes": 89492,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-palm.png": {
+      "sha256": "e5de53e8e094316b281e7b4d4c1dac7214c4694c90ea742672bca57b5152110c",
+      "bytes": 19412,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-thumb.png": {
+      "sha256": "f5decc67a8e95a4c4e8cf0af0b316c20840a69325380ffed0705f7042448e2ca",
+      "bytes": 20434,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-index.png": {
+      "sha256": "387973ca3b57ae597c4f394f8abf8e0c9c13c2cf771d123ce46cb66d6b162854",
+      "bytes": 20591,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-middle.png": {
+      "sha256": "44db35947f04869b7b169fd9ed8549b3e6316d03da419c0ce4df0bead96d1726",
+      "bytes": 20807,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-ring.png": {
+      "sha256": "a38517dc3a795447efee33dcf17c2dfa535a0de2ef0b736538fc01cafca392f0",
+      "bytes": 20756,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-little.png": {
+      "sha256": "849d5c550e8bcf030a53069e46bd5d266b3e95750b0ae08a3f852b5647c4dd8b",
+      "bytes": 20596,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     }
   }
 }
