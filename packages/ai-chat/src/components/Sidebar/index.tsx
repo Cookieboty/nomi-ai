@@ -25,6 +25,7 @@ import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems, type Range, type SearchField } from '../../utils/fuzzy';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
+import { EndpointInfoCard } from '../EndpointInfo';
 import { NewChatMenu } from '../NewChatMenu';
 
 import styles from './index.module.css';
@@ -36,6 +37,8 @@ interface SidebarProps {
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
+  /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
+  onOpenSettings?: (section: 'coding' | 'usage') => void;
 }
 
 type Meta = Omit<ChatSession, 'messages'>;
@@ -357,6 +360,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNewChat,
   onForkRequest,
   onNotice,
+  onOpenSettings,
 }) => {
   const { state, actions } = useAiChat();
   const ipc = state.ipcClient;
@@ -446,6 +450,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
   }, [navList]);
+
+  // 当前端的运行中 / 排队中标签数与最近一次标签活动（信息卡用）
+  const { endpointRunning, endpointLastTab } = useMemo(() => {
+    let running = 0;
+    let last: number | null = null;
+    for (const x of tabs.state?.tabs ?? []) {
+      if (x.backend !== endpointFilter) continue;
+      if (x.status === 'running' || x.status === 'queued') running++;
+      if (last == null || x.updatedAt > last) last = x.updatedAt;
+    }
+    return { endpointRunning: running, endpointLastTab: last };
+  }, [tabs.state, endpointFilter]);
 
   const visible = useMemo(() => {
     if (view === 'by-endpoint') return navList.filter((x) => x.backend === endpointFilter);
@@ -1149,6 +1165,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       )}
 
+      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉） */}
+      {!collapsed && !searching && isDev && view === 'by-endpoint' && (
+        <EndpointInfoCard
+          backend={endpointFilter}
+          running={endpointRunning}
+          lastTabActivity={endpointLastTab}
+          onOpenSettings={onOpenSettings}
+        />
+      )}
+
       {ctx &&
         (() => {
           const meta = list.find((x) => x.id === ctx.id);
@@ -1177,7 +1203,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpen={() => void openHistory(histMenu.h)}
         />
       )}
-
     </aside>
   );
 };

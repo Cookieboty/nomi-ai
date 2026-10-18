@@ -131,6 +131,34 @@ describe('CLI history in the sidebar', () => {
     expect(r.queryByTestId('cli-history-more')).toBeNull();
   });
 
+  it('按端信息卡：只在「开发模式 + 按端」时出现，并跟随所选端；历史区仍可滚动', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'claude');
+    mockIpc();
+    const r = mount();
+    const card = await r.findByTestId('endpoint-info-card');
+    expect(card.getAttribute('data-endpoint')).toBe('claude');
+    // 卡片在可滚动的会话列表（含「编程助手历史会话」）之外，固定在侧栏底部
+    expect(r.getByTestId('conversation-list').contains(card)).toBe(false);
+    expect(r.getByTestId('cli-history')).toBeTruthy();
+    fireEvent.click(r.getByTestId('endpoint-filter-codex'));
+    await waitFor(() =>
+      expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex'),
+    );
+    // 切到「全部」后消失
+    fireEvent.click(r.getByTestId('list-view-all'));
+    await waitFor(() => expect(r.queryByTestId('endpoint-info-card')).toBeNull());
+  });
+
+  it('普通模式不显示按端信息卡', async () => {
+    setChatMode('normal');
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    mockIpc();
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-item'));
+    expect(r.queryByTestId('endpoint-info-card')).toBeNull();
+  });
+
   it('clicking a row opens it through the main process and reports problems', async () => {
     const onNotice = vi.fn();
     const calls = mockIpc({ openResult: { ok: false, error: '原工作目录已不存在：/work/app' } });

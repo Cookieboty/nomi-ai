@@ -46,9 +46,9 @@ export function useToolQuota(opts: { poll?: boolean } = {}) {
       Promise.all([usageClient.quota(), usageClient.state().catch(() => null)])
         .then(([r, st]) => {
           if (!alive.current) return;
-          setRows(r);
+          setRows(Array.isArray(r) ? r : []);
           setNow(Date.now());
-          if (st) setActive(st.settings.activeQuotaRefresh !== false);
+          if (st?.settings) setActive(st.settings.activeQuotaRefresh !== false);
         })
         .catch(() => {
           if (alive.current) setRows((p) => p ?? []);
