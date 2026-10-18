@@ -76,6 +76,9 @@ const editable = (t: EventTarget | null): boolean => {
 /**
  * 缩放输入：Ctrl/⌘ + 滚轮（含触控板捏合），Ctrl/⌘ + 加号 / 减号 / 0。
  * 只会在窗口真正收到事件时触发：透明区域点击穿透，事件落到下面的窗口，不会误缩放。
+ * 真实 Electron 运行时还有主进程 before-input-event 兜底（见 MascotWindowController）：
+ * Chromium 在部分键盘布局下会把 Ctrl+Shift+= 当作内置 zoomIn 吃掉，preventDefault 后
+ * renderer 这里不会二次收到；本层仍然保留，用于浏览器预览 / 测试等无主进程兜底的场景。
  */
 export function useMascotZoomInput(): void {
   useEffect(() => {
@@ -88,17 +91,23 @@ export function useMascotZoomInput(): void {
     };
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey) || e.altKey || editable(e.target)) return;
-      if (e.key === '=' || e.key === '+') scaleStore.step(1);
-      else if (e.key === '-' || e.key === '_') scaleStore.step(-1);
-      else if (e.key === '0') scaleStore.reset();
+      const { code, key } = e;
+      let action: 1 | -1 | 'reset';
+      if (code === 'Equal' || code === 'NumpadAdd' || key === '=' || key === '+') action = 1;
+      else if (code === 'Minus' || code === 'NumpadSubtract' || key === '-' || key === '_')
+        action = -1;
+      else if (code === 'Digit0' || code === 'Numpad0' || key === '0') action = 'reset';
       else return;
       e.preventDefault();
+      if (action === 'reset') scaleStore.reset();
+      else scaleStore.step(action);
     };
     window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('keydown', onKey);
+    // capture 阶段：抢在业务组件之前拿到键盘事件，避免被 stopPropagation 吞掉
+    window.addEventListener('keydown', onKey, { capture: true });
     return () => {
       window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, { capture: true });
     };
   }, []);
 }

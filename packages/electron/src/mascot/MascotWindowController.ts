@@ -190,6 +190,49 @@ export class MascotWindowController {
     );
     handle('mascot:scale-reset', () => this.setScale(DEFAULT_MASCOT_SCALE));
 
+    // Ctrl/⌘ + =/+ 在部分键盘布局下会被 Chromium 的默认菜单当作 zoomIn accelerator
+    // 吃掉，不派发到 renderer 的 keydown。before-input-event 在页面与内置快捷键之前触发，
+    // preventDefault() 后由我们直接走窗口尺寸缩放，保证 +/-/0 快捷键在任意布局下都生效。
+    const wc = this.win.webContents;
+    try {
+      wc.setVisualZoomLevelLimits(1, 1);
+    } catch (err) {
+      this.logger.warn('锁定 Chromium 页面缩放失败', { error: String(err) });
+    }
+    const onBeforeInput = (event: Electron.Event, input: Electron.Input) => {
+      if (input.type !== 'keyDown') return;
+      if (input.alt || !(input.control || input.meta)) return;
+      const code = input.code;
+      const key = input.key;
+      let action: 'up' | 'down' | 'reset';
+      if (
+        code === 'Equal' ||
+        code === 'NumpadAdd' ||
+        code === 'BracketRight' ||
+        key === '+' ||
+        key === '='
+      )
+        action = 'up';
+      else if (
+        code === 'Minus' ||
+        code === 'NumpadSubtract' ||
+        code === 'Slash' ||
+        key === '-' ||
+        key === '_'
+      )
+        action = 'down';
+      else if (code === 'Digit0' || code === 'Numpad0' || key === '0') action = 'reset';
+      else return;
+      event.preventDefault();
+      if (action === 'reset') this.setScale(DEFAULT_MASCOT_SCALE);
+      else this.setScale(stepMascotScale(this.scale, action === 'up' ? 1 : -1, this.capNow()));
+    };
+    wc.on('before-input-event', onBeforeInput);
+    this.disposers.push(() => {
+      if (this.win.isDestroyed()) return;
+      wc.off('before-input-event', onBeforeInput);
+    });
+
     // 只读快照（e2e / 调试）
     ipcMain.removeHandler('mascot:debug-snapshot');
     ipcMain.handle('mascot:debug-snapshot', () => this.snapshot());
@@ -278,9 +321,6 @@ export class MascotWindowController {
     if (target !== this.scale) {
       const b = this.win.getBounds();
       const from = this.scale;
-      const feet = this.box
-        ? { x: (this.box.left + this.box.right) / 2, y: this.box.bottom }
-        : null;
       const nb = resizeMascotBounds({
         bounds: b,
         fromScale: from,

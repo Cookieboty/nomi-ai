@@ -25,7 +25,20 @@ function fakeWindow(scale: number, x: number, y: number) {
   const size = mascotWindowSize(scale);
   const b = { x, y, ...size };
   const sent: Array<[string, unknown]> = [];
-  const wc = { send: (ch: string, p: unknown) => sent.push([ch, p]) };
+  const inputListeners: Array<(e: unknown, i: unknown) => void> = [];
+  const wc = {
+    send: (ch: string, p: unknown) => sent.push([ch, p]),
+    setVisualZoomLevelLimits: jest.fn(),
+    on: jest.fn((ch: string, fn: (e: unknown, i: unknown) => void) => {
+      if (ch === 'before-input-event') inputListeners.push(fn);
+    }),
+    off: jest.fn((ch: string, fn: (e: unknown, i: unknown) => void) => {
+      if (ch === 'before-input-event') {
+        const i = inputListeners.indexOf(fn);
+        if (i >= 0) inputListeners.splice(i, 1);
+      }
+    }),
+  };
   const win = {
     webContents: wc,
     getPosition: () => [b.x, b.y],
@@ -43,7 +56,17 @@ function fakeWindow(scale: number, x: number, y: number) {
     setIgnoreMouseEvents: jest.fn(),
     setShape: jest.fn(),
   };
-  return { win: win as unknown as BrowserWindow, raw: win, b, sent, wc };
+  const fireInput = (input: Record<string, unknown>) => {
+    const ev = { preventDefault: jest.fn(), defaultPrevented: false };
+    const prevent = ev.preventDefault;
+    ev.preventDefault = jest.fn(() => {
+      ev.defaultPrevented = true;
+      prevent();
+    });
+    for (const fn of inputListeners.slice()) fn(ev, input);
+    return ev;
+  };
+  return { win: win as unknown as BrowserWindow, raw: win, b, sent, wc, fireInput };
 }
 
 const logger = { info: jest.fn(), warn: jest.fn() };
@@ -129,5 +152,42 @@ describe('MascotWindowController scale IPC', () => {
     screen.getAllDisplays.mockReturnValue([
       { workArea: { x: 0, y: 0, width: 1920, height: 1040 } },
     ]);
+  });
+
+  it('before-input-event fallback: Ctrl+Shift+=, Ctrl+-, Ctrl+0 (incl. Numpad) all resize', () => {
+    const s = setup();
+    // 启动时锁死 Chromium 页面缩放
+    expect(s.wc.setVisualZoomLevelLimits).toHaveBeenCalledWith(1, 1);
+    const base = { type: 'keyDown', control: true, meta: false, alt: false, shift: false };
+
+    // Ctrl + Shift + '=' (美式键盘上的 "Ctrl +")
+    const ev1 = s.fireInput({ ...base, key: '+', code: 'Equal', shift: true });
+    expect(ev1.preventDefault).toHaveBeenCalledTimes(1);
+    expect(s.b.width).toBe(mascotWindowSize(0.6).width);
+
+    // Numpad +
+    const ev2 = s.fireInput({ ...base, key: '+', code: 'NumpadAdd' });
+    expect(ev2.preventDefault).toHaveBeenCalledTimes(1);
+    expect(s.b.width).toBe(mascotWindowSize(0.7).width);
+
+    // Ctrl + '-'
+    const ev3 = s.fireInput({ ...base, key: '-', code: 'Minus' });
+    expect(ev3.preventDefault).toHaveBeenCalledTimes(1);
+    expect(s.b.width).toBe(mascotWindowSize(0.6).width);
+
+    // Ctrl + '0'（重置到默认）
+    const ev4 = s.fireInput({ ...base, key: '0', code: 'Digit0' });
+    expect(ev4.preventDefault).toHaveBeenCalledTimes(1);
+    expect(s.b.width).toBe(mascotWindowSize(0.5).width);
+
+    // 其它键 / keyUp / 带 Alt 都不该被拦下
+    const noop = s.fireInput({ ...base, key: 'a', code: 'KeyA' });
+    expect(noop.preventDefault).not.toHaveBeenCalled();
+    const alt = s.fireInput({ ...base, key: '+', code: 'Equal', alt: true, shift: true });
+    expect(alt.preventDefault).not.toHaveBeenCalled();
+    const keyUp = s.fireInput({ ...base, type: 'keyUp', key: '-', code: 'Minus' });
+    expect(keyUp.preventDefault).not.toHaveBeenCalled();
+
+    s.c.dispose();
   });
 });
