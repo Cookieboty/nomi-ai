@@ -25,7 +25,7 @@ Nomi 是本地优先的：你的数据留在你的电脑上。
 
 ## 订阅额度与登录凭据
 
-设置 → 用量与费用 → 概览里的「订阅额度」按工具 Tabs + 卡片展示（Claude Code、Codex、Grok 等）。只有账号 / 订阅登录才显示额度条；用 API Key、第三方供应商或本地路由的工具只标「API 计费，无订阅额度」，并仍展示近 7 天用量与费用。
+设置 → 用量与费用 → 概览里的「订阅额度」按工具卡片网格展示（Claude Code、Codex、Grok 各一张，不是 Tabs；样式与「概览明细」一致）。每张卡有自己的「刷新」与刷新中 / 失败 / 更新于状态，只拉起该工具自己的官方 CLI；另有「全部刷新」。对话窗「开发」→ 按端的左下角还有端点信息卡与详情抽屉（同样只读本机数据，配置只显示路径，不读凭据）。设计见 [usage-quota-cards](../design/usage-quota-cards.md)、[endpoint-info-card](../design/endpoint-info-card.md)。只有账号 / 订阅登录才显示额度条；用 API Key、第三方供应商或本地路由的工具只标「API 计费，无订阅额度」，并仍展示近 7 天用量与费用。
 
 - **Nomi 不碰登录凭据**：不读取、不保存、不上传 `auth.json`、`.credentials.json`、系统钥匙串里的任何登录信息，不调用 `chatgpt.com`、`api.anthropic.com` 的未公开接口，也不经任何第三方带凭据的网络请求；额度从不估算。
 - **额度只来自两类来源**：本机已有的数据（Codex 写进会话日志的额度快照；Claude Code 官方状态栏输入里的 `rate_limits`，需要你在卡片里主动开启；Grok 账号登录时由官方 CLI ACP `_x.ai/billing` 返回），以及你点「刷新」时官方 CLI 自己用自己的登录态取到的结果。

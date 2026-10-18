@@ -135,11 +135,15 @@ afterEach(() => {
   delete (window as unknown as { aiIPC?: unknown }).aiIPC;
 });
 
-const renderCard = (backend: 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' = 'codex') => {
+const renderCard = (
+  backend: 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' = 'codex',
+  bin?: string | null,
+) => {
   const onOpenSettings = vi.fn();
   const r = render(
     <EndpointInfoCard
       backend={backend}
+      bin={bin}
       running={1}
       lastTabActivity={NOW - 60_000}
       onOpenSettings={onOpenSettings}
@@ -210,6 +214,18 @@ describe('按端信息卡（左下角）', () => {
     expect(card.textContent).toContain('设置 → 编程助手');
     expect(queryByTestId('endpoint-card-refresh')).toBeNull();
     expect(card.querySelector('[role="progressbar"]')).toBeNull();
+  });
+
+  it('安装状态以编程助手接入检测为准（mock / 自定义路径时 CLI 版本信息里没有路径也算已安装）', async () => {
+    cli = [CLI('codex', { path: null, version: null, updateAvailable: false })];
+    const { findByTestId, getByTestId } = renderCard('codex', '/mock/mock-codex.mjs');
+    await findByTestId('endpoint-info-card');
+    await waitFor(() => expect(getByTestId('endpoint-card-install').textContent).toBe('已安装'));
+    cleanup();
+    const second = renderCard('codex', null);
+    await waitFor(() =>
+      expect(second.getByTestId('endpoint-card-install').textContent).toBe('未安装'),
+    );
   });
 
   it('用量读取失败：卡片上显示错误提示', async () => {

@@ -30,6 +30,8 @@ export interface EndpointInfoProps {
   running: number;
   /** 该端标签里最近一次活动时间（毫秒） */
   lastTabActivity: number | null;
+  /** 编程助手接入检测到的 CLI 路径：string = 已安装，null = 未找到，undefined = 还没检测（回退到 CLI 版本信息） */
+  bin?: string | null;
   /** 跳转设置：编程助手 / 用量与费用 */
   onOpenSettings?: (section: 'coding' | 'usage') => void;
 }
@@ -71,6 +73,17 @@ const MiniBars: React.FC<{ windows: UsageQuotaWindow[] }> = ({ windows }) => (
   </div>
 );
 
+/** 安装状态：Nomi 内置；其余优先用编程助手接入的检测结果，没有时看 CLI 版本信息；都没有 = 未知（null） */
+function installedOf(
+  b: ConversationBackend,
+  bin: string | null | undefined,
+  info: EndpointInfo,
+): boolean | null {
+  if (b === 'nomi') return true;
+  if (bin !== undefined) return !!bin;
+  return info.cli ? !!info.cli.path : null;
+}
+
 /** 当前模型 · 供应商：优先 CLI 里激活的供应商，其次近 7 天用量最高的模型 */
 function modelLine(info: EndpointInfo): string | null {
   const active = info.providers?.profiles.find((p) => p.kind === info.backend && p.active);
@@ -95,12 +108,12 @@ const RefreshGlyph: React.FC<{ busy: boolean }> = ({ busy }) => (
 );
 
 export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
-  const { backend, running, lastTabActivity, onOpenSettings } = props;
+  const { backend, running, lastTabActivity, bin, onOpenSettings } = props;
   const info = useEndpointInfo(backend);
   const fx = useUsageFx();
   const [open, setOpen] = useState(false);
   const name = ENDPOINT_FULL[backend]();
-  const installed = backend === 'nomi' ? true : info.cli ? !!info.cli.path : null;
+  const installed = installedOf(backend, bin, info);
   const auth = authOf(backend, info.quota);
   const wins = shownWindows(info.quota);
   const isApi = info.quota?.status === 'api' || info.quota?.auth === 'api';
@@ -132,7 +145,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             {backend === 'nomi' ? <span className={styles.ver}>{t('内置')}</span> : null}
           </span>
           <span className={styles.badges}>
-            {installed === false ? (
+            {backend === 'nomi' ? null : installed === false ? (
               <Badge tone="warning" data-testid="endpoint-card-install">
                 {t('未安装')}
               </Badge>
@@ -211,6 +224,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
       {open && (
         <EndpointDrawer
           info={info}
+          installed={installed}
           running={running}
           last={last}
           onClose={() => setOpen(false)}
@@ -226,11 +240,12 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
 
 const EndpointDrawer: React.FC<{
   info: EndpointInfo;
+  installed: boolean | null;
   running: number;
   last: number | null;
   onClose: () => void;
   onOpenSettings: (s: 'coding' | 'usage') => void;
-}> = ({ info, running, last, onClose, onOpenSettings }) => {
+}> = ({ info, installed, running, last, onClose, onOpenSettings }) => {
   const { backend, cli, quota, usage, now } = info;
   const fx = useUsageFx();
   const name = ENDPOINT_FULL[backend]();
@@ -284,11 +299,11 @@ const EndpointDrawer: React.FC<{
           <div className={styles.badges}>
             {backend === 'nomi' ? (
               <Badge tone="success">{t('内置')}</Badge>
-            ) : cli?.path ? (
+            ) : installed ? (
               <Badge tone="success">{t('已安装')}</Badge>
-            ) : (
+            ) : installed === false ? (
               <Badge tone="warning">{t('未安装')}</Badge>
-            )}
+            ) : null}
             {cli?.version ? <Badge tone="neutral">v{cli.version}</Badge> : null}
             {cli?.updateAvailable && cli.latest ? (
               <Badge tone="warning" data-testid="endpoint-update-available">

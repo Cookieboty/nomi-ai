@@ -79,3 +79,10 @@ flowchart LR
 - 不展示邮箱 / 账号 id / Token；不读 `auth.json`、`.credentials.json`、钥匙串。
 - 不新增自动轮询；额度仍只在用户点刷新时才让官方 CLI 去取（同一工具 60 秒节流）。
 - 不改动画 / 看板娘 / rig 相关文件。
+
+## 5. 实现与验证
+
+- 实现：`packages/ai-chat/src/components/EndpointInfo/`（卡片 + 抽屉）、`hooks/useEndpointInfo.ts`、主进程 `ai:usage:endpoint`（只读本机账本）。安装状态以编程助手接入检测（`bins`）为准，缺省才回退到 CLI 版本信息。
+- 单测：`packages/ai-chat/tests/endpointInfo.test.tsx`、`historySidebar.test.tsx`；主进程 `UsageService.test.ts`、`quotaRefresh.test.ts`。
+- 有头 e2e：`e2e-headed/tests/E26.usage-cards-endpoint.headed.spec.ts`（`xvfb-run`，`CD_TTS=off`，种子数据写在临时 `CODEX_HOME` / userData，不碰真实 CLI 配置）；截图目录用 `USAGE_CARDS_SHOTS_DIR` 指定。
+- 未验证：真实 CLI（`codex app-server` / `claude -p /usage` / Grok ACP）在真机上的单卡刷新；Windows / macOS；检查更新实际访问 npm。

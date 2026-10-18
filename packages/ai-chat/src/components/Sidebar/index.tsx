@@ -1171,6 +1171,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           backend={endpointFilter}
           running={endpointRunning}
           lastTabActivity={endpointLastTab}
+          bin={
+            endpointFilter === 'nomi'
+              ? undefined
+              : (bins[endpointFilter] ?? (endpointFilter in bins ? null : undefined))
+          }
           onOpenSettings={onOpenSettings}
         />
       )}
