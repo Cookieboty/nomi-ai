@@ -31,9 +31,10 @@ function vrmBoxStyle(): React.CSSProperties {
   return { position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h };
 }
 
-// Rive is the default 2D mascot renderer. The scene embeds the locked Nomi art
-// layers and is loaded lazily so VRM-only installations do not pay the startup cost.
-const RiveCanvas = lazy(() => import('../RiveMascot/RiveCanvas'));
+// Rive is the default 2D mascot renderer (with the layered 2D rig as fallback if it cannot start).
+// The scene embeds the locked Nomi art layers and is loaded lazily so VRM-only installations do
+// not pay the startup cost.
+const Nomi2DCanvas = lazy(() => import('./Nomi2DCanvas'));
 const MascotAIBridge = lazy(() => import('@/mascot/MascotAIBridge'));
 const MascotVoiceBridge = lazy(() => import('@/mascot/voice/MascotVoice'));
 
@@ -89,7 +90,7 @@ export const MascotHost: React.FC = () => {
               currentModel.path.endsWith('manifest.json') ||
               currentModel.tags?.includes('sprite') ? (
                 // symmetric margins are built into the sprite layout (spriteLayout.ts)
-                <RiveCanvas />
+                <Nomi2DCanvas manifestPath={currentModel.path} />
               ) : (
                 // user / store VRM: same character box as Nomi (half size, room for bubble + toolbar)
                 <div style={vrmBoxStyle()}>
