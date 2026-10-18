@@ -6,7 +6,7 @@
  */
 import { Icon, t } from '@nomi-ai/ui';
 import { ArrowDown, ChevronsUp, ShieldAlert, X } from 'lucide-react';
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
@@ -72,6 +72,9 @@ const PermissionCard: React.FC<{
 export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
+/** 会话视图首帧渲染的末尾消息条数，以及之后每批往上补多少条 */
+export const INITIAL_RENDER = 6;
+export const RENDER_STEP = 6;
 
 /** 估算一条消息的渲染成本：正文每 400 字符 1，每个轨迹事件 0.5，至少 1 */
 function messageWeight(m: Pick<ConvMessage, 'text' | 'trace' | 'error'>): number {
@@ -137,7 +140,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const [away, setAway] = useState(false);
   const running = phase === 'running';
   const [extra, setExtra] = useState(0);
-  const start = useMemo(() => windowStart(messages, extra), [messages, extra]);
+  const fullStart = useMemo(() => windowStart(messages, extra), [messages, extra]);
+  // 切换会话 / 首次挂载：先只渲染末尾几条（首帧尽快出现），其余按帧分批往上补，主线程不会被一次性占满
+  const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
+  const start = Math.max(fullStart, messages.length - eagerCount);
   const shown = start > 0 ? messages.slice(start) : messages;
   const labels = useMemo(() => timeLabels(messages), [messages]);
   /** 点「显示更早」前的 scrollHeight：加载后据此保持视口不跳 */
@@ -152,6 +158,17 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     () => deriveStatus({ phase, live, items: liveItems }),
     [phase, live, liveItems],
   );
+
+  useEffect(() => {
+    if (start <= fullStart) return;
+    const id = window.setTimeout(() => {
+      const el = scrollRef.current;
+      // 没有贴底（用户已上滑）时，记下高度，补完后据此保持视口不跳
+      if (el && !followRef.current) anchorRef.current = el.scrollHeight;
+      setEagerCount((n) => n + RENDER_STEP);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [start, fullStart]);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -194,6 +211,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (followRef.current) scrollToBottom();
   }, [
     messages.length,
+    start,
     last?.id,
     live?.text,
     live?.trace?.length,
@@ -216,7 +234,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     <div className={styles.root} data-testid="conversation" data-status={phase}>
       <div className={styles.scroll} ref={scrollRef} onScroll={onScroll} data-testid="conv-scroll">
         <div className={styles.inner}>
-          {start > 0 && (
+          {start > 0 && start === fullStart && (
             <button
               type="button"
               className={styles.earlier}

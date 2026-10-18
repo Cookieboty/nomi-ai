@@ -4,13 +4,13 @@ import { Icon, t } from '@nomi-ai/ui';
 import { Check, Copy } from 'lucide-react';
 import React, { memo, useMemo, useState } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
 import { splitMarkdownChunks } from '../../utils/markdown';
 
 import { sanitizeHref, urlTransform } from './Markdown.helpers';
 import styles from './Markdown.module.css';
+import { rehypeHighlightShared } from './markdownHighlight';
 import { MarkdownImage } from './MarkdownImage';
 
 const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string }> = ({
@@ -178,30 +178,78 @@ function serializeHljsChildren(nodes: React.ReactNode): string {
 }
 
 /** 一段（块边界之间）的渲染：文本不变就不重新解析 / 渲染；流式输出时只有最后一段在变 */
-const MarkdownChunk = memo(function MarkdownChunk({ text }: { text: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
-      urlTransform={urlTransform}
-      components={components}
-      skipHtml
-    >
-      {text}
-    </ReactMarkdown>
-  );
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeHighlightShared];
+
+function renderChunk(text: string): React.ReactElement {
+  // ReactMarkdown 是不含 hook 的同步函数组件：直接调用拿到元素树，便于按文本缓存
+  return ReactMarkdown({
+    remarkPlugins: REMARK_PLUGINS,
+    rehypePlugins: REHYPE_PLUGINS,
+    urlTransform,
+    components,
+    skipHtml: true,
+    children: text,
+  });
+}
+
+/**
+ * 已定稿正文的解析结果缓存（按文本，LRU，限总字符数）：切回看过的会话时不再重新解析 / 高亮。
+ * 流式中的正文每个 token 文本都不同，不进缓存（否则会把有用的条目挤掉）。
+ */
+const CACHE_CHAR_BUDGET = 600_000;
+const chunkCache = new Map<string, React.ReactElement>();
+let cacheChars = 0;
+
+export function renderChunkCached(text: string): React.ReactElement {
+  const hit = chunkCache.get(text);
+  if (hit) {
+    chunkCache.delete(text);
+    chunkCache.set(text, hit);
+    return hit;
+  }
+  const el = renderChunk(text);
+  if (text.length <= CACHE_CHAR_BUDGET / 4) {
+    chunkCache.set(text, el);
+    cacheChars += text.length;
+    for (const [k] of chunkCache) {
+      if (cacheChars <= CACHE_CHAR_BUDGET) break;
+      chunkCache.delete(k);
+      cacheChars -= k.length;
+    }
+  }
+  return el;
+}
+
+/** 测试用：清空缓存 */
+export function resetChunkCache(): void {
+  chunkCache.clear();
+  cacheChars = 0;
+}
+
+const MarkdownChunk = memo(function MarkdownChunk({
+  text,
+  settled,
+}: {
+  text: string;
+  settled: boolean;
+}) {
+  return settled ? renderChunkCached(text) : renderChunk(text);
 });
 
-export const Markdown: React.FC<{ text: string; className?: string }> = memo(
-  ({ text, className }) => {
-    const chunks = useMemo(() => splitMarkdownChunks(text), [text]);
-    return (
-      <div className={`${styles.md} ${className ?? ''}`} data-testid="markdown">
-        {chunks.map((c, i) => (
-          <MarkdownChunk key={i} text={c} />
-        ))}
-      </div>
-    );
-  },
-);
+export const Markdown: React.FC<{
+  text: string;
+  className?: string;
+  /** 正文已定稿（非流式）：解析结果可按文本缓存 */
+  settled?: boolean;
+}> = memo(({ text, className, settled = false }) => {
+  const chunks = useMemo(() => splitMarkdownChunks(text), [text]);
+  return (
+    <div className={`${styles.md} ${className ?? ''}`} data-testid="markdown">
+      {chunks.map((c, i) => (
+        <MarkdownChunk key={i} text={c} settled={settled} />
+      ))}
+    </div>
+  );
+});
 Markdown.displayName = 'Markdown';

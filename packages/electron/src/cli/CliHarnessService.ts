@@ -20,7 +20,13 @@ import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { buildCliEnv } from './cliEnv';
-import { DSH_MIN_NODE_MAJOR, readPathNodeVersion, resolveCliBin } from './detect';
+import {
+  DSH_MIN_NODE_MAJOR,
+  peekCliBin,
+  readPathNodeVersion,
+  refreshCliBin,
+  resolveCliBinCached,
+} from './detect';
 import { EventBatcher } from './eventBatcher';
 import { killProcessTree } from './processTree';
 import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
@@ -235,7 +241,15 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   if (process.env.NOMI_USE_MOCK_CLI === '1') {
     return path.join(mockDir(), `mock-${backend}.mjs`);
   }
-  return resolveCliBin(backend);
+  return resolveCliBinCached(backend);
+}
+
+const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+
+/** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
+function peekHarnessBin(backend: CliBackend): string | null {
+  if (process.env.NOMI_USE_MOCK_CLI === '1') return resolveHarnessBin(backend);
+  return peekCliBin(backend) ?? null;
 }
 
 /** 标签结束一轮 / 出错时发给主进程订阅者（看板娘、灵动岛、监视器） */
@@ -511,12 +525,22 @@ export class CliHarnessService {
       busy: m.status === 'running' || m.status === 'queued',
       toolsDisabled: m.backend !== 'nomi',
       bins: {
-        claude: resolveHarnessBin('claude'),
-        codex: resolveHarnessBin('codex'),
-        dsh: resolveHarnessBin('dsh'),
-        grok: resolveHarnessBin('grok'),
+        claude: peekHarnessBin('claude'),
+        codex: peekHarnessBin('codex'),
+        dsh: peekHarnessBin('dsh'),
+        grok: peekHarnessBin('grok'),
       },
     };
+  }
+
+  /** 把还没有（或已过期）的可执行文件探测结果异步补齐；有变化就通知渲染进程 */
+  private refreshBins(): Promise<void> {
+    if (process.env.NOMI_USE_MOCK_CLI === '1') return Promise.resolve();
+    const stale = CLI_BACKENDS.filter((b) => peekCliBin(b) === undefined);
+    if (!stale.length) return Promise.resolve();
+    return Promise.all(stale.map((b) => refreshCliBin(b))).then(() => {
+      this.post('ai:harness:changed', this.state());
+    });
   }
 
   setBackend(backend: HarnessBackend): State {
@@ -721,6 +745,8 @@ export class CliHarnessService {
 
   setActiveTab(id: string): HarnessTabsState {
     const tab = this.requireTab(id);
+    // 已经是当前标签且没有未读：不必落盘 / 广播（侧栏切回当前会话时会再激活一次）
+    if (this.activeTabId === tab.id && tab.unread === 0) return this.listTabs();
     this.activeTabId = tab.id;
     tab.unread = 0;
     this.changed();
@@ -734,8 +760,9 @@ export class CliHarnessService {
       throw new Error(t('新标签只能绑定编程助手后端'));
     }
     if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
+    const switched = backend !== tab.backend;
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
-    if (backend !== tab.backend) {
+    if (switched) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
       // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
@@ -751,7 +778,8 @@ export class CliHarnessService {
       }
     }
     tab.backend = backend;
-    this.changed();
+    // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
+    if (switched) this.changed();
     return { ...tab };
   }
 
@@ -1574,7 +1602,12 @@ export class CliHarnessService {
   registerIpc(): void {
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'CliHarnessService' });
-    handle('ai:harness:state', () => this.state());
+    // 启动时就在后台把各 CLI 的可执行文件探测好，之后的状态读取都只读缓存
+    void this.refreshBins().catch(() => undefined);
+    handle('ai:harness:state', async () => {
+      await this.refreshBins().catch(() => undefined);
+      return this.state();
+    });
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
     handle('ai:harness:set-cwd', (c) => this.setCwd(String(c)));
     handle('ai:harness:pick-cwd', () => this.pickCwd());

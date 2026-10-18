@@ -176,20 +176,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       if (meta.backend !== 'nomi' && meta.tabId) {
         if (!isDev) setMode('dev');
-        await tabs.activate(meta.tabId);
+        const activated = tabs.activate(meta.tabId);
         await ipc.switchConversation(id).catch(() => undefined);
+        await activated;
         refresh();
         return;
       }
 
-      if (tabs.available) await tabs.activate(MAIN_TAB_ID);
-      if (harnessClient.available()) {
-        await harnessClient.setBackend('nomi').catch(() => undefined);
-      }
+      // 先把主进程侧的标签 / 后端切换发出去（已经在 Nomi 主标签时完全不发），
+      // 本地会话切换与消息加载不等它们，两边并行
+      const mainTab = tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID);
+      const pending: Promise<unknown>[] = [];
+      if (tabs.available && tabs.state?.activeTabId !== MAIN_TAB_ID)
+        pending.push(tabs.activate(MAIN_TAB_ID));
+      if (harnessClient.available() && mainTab?.backend !== 'nomi')
+        pending.push(harnessClient.setBackend('nomi').catch(() => undefined));
       if (id !== current) {
         await ipc.switchConversation(id);
         await actions.loadChatHistory();
       }
+      await Promise.all(pending);
       refresh();
     },
     [ipc, list, isDev, setMode, tabs, refresh, current, actions],
