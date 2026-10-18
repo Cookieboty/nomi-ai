@@ -103,14 +103,22 @@ describe('source lock: production Rive scene', () => {
     expect(pngs.length).toBeGreaterThanOrEqual(7);
     const embedded = new Set(pngs.map((p) => createHash('sha256').update(p).digest('hex')));
     for (const file of ['rive/nomi-complete/source-nomi-master.png']) {
-      const hash = createHash('sha256').update(fs.readFileSync(path.join(REPO, file))).digest('hex');
+      const hash = createHash('sha256')
+        .update(fs.readFileSync(path.join(REPO, file)))
+        .digest('hex');
       expect(embedded.has(hash), file).toBe(true);
     }
   });
 
   it('embeds the full-body mother SVG byte-for-byte', () => {
     const riv = fs.readFileSync(RIV);
-    const svg = fs.readFileSync(path.join(REPO, 'rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg'));
-    expect(riv.includes(svg)).toBe(true);
+    const svg = fs.readFileSync(
+      path.join(REPO, 'rive/nomi-complete/reference/svg-rig/nomi-fullbody-mother.svg'),
+    );
+    // The repo normalises text files to LF (.gitattributes `* text=auto eol=lf`), but the .riv
+    // was exported on a machine that checked the SVG out with CRLF line endings. Same bytes
+    // apart from the line terminators, so accept either form.
+    const svgCrlf = Buffer.from(svg.toString('latin1').replace(/\r?\n/g, '\r\n'), 'latin1');
+    expect(riv.includes(svg) || riv.includes(svgCrlf)).toBe(true);
   });
 });

@@ -20,9 +20,17 @@ import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 
 import { buildCliEnv } from './cliEnv';
-import { DSH_MIN_NODE_MAJOR, readPathNodeVersion, resolveCliBin } from './detect';
+import {
+  DSH_MIN_NODE_MAJOR,
+  peekCliBin,
+  readPathNodeVersion,
+  refreshCliBin,
+  resolveCliBinCached,
+} from './detect';
 import { EventBatcher } from './eventBatcher';
+import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import { killProcessTree } from './processTree';
+import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
   createClaudeParser,
   createDshParser,
@@ -100,7 +108,15 @@ export function materializeGeneratedImages(
     process.env.GROK_HOME ? path.join(process.env.GROK_HOME, 'sessions') : '',
   ]
     .filter(Boolean)
-    .map((x) => path.resolve(x));
+    .map((x) => {
+      const resolved = path.resolve(x);
+      // 候选路径会做 realpath；根目录也要 realpath，否则 HOME 经符号链接（macOS 的 /var → /private/var）时合法图片会被拒掉
+      try {
+        return fs.realpathSync(resolved);
+      } catch {
+        return resolved;
+      }
+    });
   const destDir = path.join(chatRoot, 'images');
   let changed = false;
   for (const raw of paths) {
@@ -226,7 +242,15 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   if (process.env.NOMI_USE_MOCK_CLI === '1') {
     return path.join(mockDir(), `mock-${backend}.mjs`);
   }
-  return resolveCliBin(backend);
+  return resolveCliBinCached(backend);
+}
+
+const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+
+/** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
+function peekHarnessBin(backend: CliBackend): string | null {
+  if (process.env.NOMI_USE_MOCK_CLI === '1') return resolveHarnessBin(backend);
+  return peekCliBin(backend) ?? null;
 }
 
 /** 标签结束一轮 / 出错时发给主进程订阅者（看板娘、灵动岛、监视器） */
@@ -269,6 +293,10 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
+  private readonly dormant = new Set<string>();
+  private idleReclaimMs: number;
+  private idleTimer: ReturnType<typeof setInterval> | null = null;
   private readonly waiters: Array<{
     tabId: string;
     resume: () => void;
@@ -295,8 +323,11 @@ export class CliHarnessService {
       dshEnv?: () => Record<string, string>;
       /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
+      /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
+      idleReclaimMs?: number;
     },
   ) {
+    this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
     this.home = d.home ?? os.homedir();
     this.statePath = path.join(d.root, 'session.json');
     this.tabsPath = path.join(d.root, 'tabs.json');
@@ -502,12 +533,22 @@ export class CliHarnessService {
       busy: m.status === 'running' || m.status === 'queued',
       toolsDisabled: m.backend !== 'nomi',
       bins: {
-        claude: resolveHarnessBin('claude'),
-        codex: resolveHarnessBin('codex'),
-        dsh: resolveHarnessBin('dsh'),
-        grok: resolveHarnessBin('grok'),
+        claude: peekHarnessBin('claude'),
+        codex: peekHarnessBin('codex'),
+        dsh: peekHarnessBin('dsh'),
+        grok: peekHarnessBin('grok'),
       },
     };
+  }
+
+  /** 把还没有（或已过期）的可执行文件探测结果异步补齐；有变化就通知渲染进程 */
+  private refreshBins(): Promise<void> {
+    if (process.env.NOMI_USE_MOCK_CLI === '1') return Promise.resolve();
+    const stale = CLI_BACKENDS.filter((b) => peekCliBin(b) === undefined);
+    if (!stale.length) return Promise.resolve();
+    return Promise.all(stale.map((b) => refreshCliBin(b))).then(() => {
+      this.post('ai:harness:changed', this.state());
+    });
   }
 
   setBackend(backend: HarnessBackend): State {
@@ -541,7 +582,7 @@ export class CliHarnessService {
   listTabs(): HarnessTabsState {
     const tabs = [...this.tabs.values()];
     return {
-      tabs: tabs.map((x) => ({ ...x })),
+      tabs: tabs.map((x) => (this.dormant.has(x.id) ? { ...x, dormant: true } : { ...x })),
       activeTabId: this.activeTabId,
       maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
@@ -712,6 +753,8 @@ export class CliHarnessService {
 
   setActiveTab(id: string): HarnessTabsState {
     const tab = this.requireTab(id);
+    // 已经是当前标签且没有未读：不必落盘 / 广播（侧栏切回当前会话时会再激活一次）
+    if (this.activeTabId === tab.id && tab.unread === 0) return this.listTabs();
     this.activeTabId = tab.id;
     tab.unread = 0;
     this.changed();
@@ -725,8 +768,9 @@ export class CliHarnessService {
       throw new Error(t('新标签只能绑定编程助手后端'));
     }
     if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
+    const switched = backend !== tab.backend;
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
-    if (backend !== tab.backend) {
+    if (switched) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
       // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
@@ -742,7 +786,8 @@ export class CliHarnessService {
       }
     }
     tab.backend = backend;
-    this.changed();
+    // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
+    if (switched) this.changed();
     return { ...tab };
   }
 
@@ -811,6 +856,7 @@ export class CliHarnessService {
 
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
+    this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
     for (const [id, child] of [...this.children.entries()]) {
@@ -1022,6 +1068,7 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
       try {
         this.writeClaudeUser(live, prompt);
@@ -1078,8 +1125,11 @@ export class CliHarnessService {
       buf: '',
       turn: null,
       cwd: tab.cwd,
+      lastActivityAt: Date.now(),
     };
     this.claudeLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
 
     child.stdout.on('data', (chunk: Buffer) => {
       live.buf += chunk.toString('utf8');
@@ -1151,6 +1201,7 @@ export class CliHarnessService {
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
     const turn = live.turn;
+    live.lastActivityAt = Date.now();
     for (const ev of live.parseLine(line)) {
       stampEvent(ev);
       if (turn) {
@@ -1201,8 +1252,57 @@ export class CliHarnessService {
     }
   }
 
+  // ───────────────────────── 空闲回收 ─────────────────────────
+
+  /** 有长驻进程时才巡检；定时器不阻止进程退出 */
+  private startIdleSweep() {
+    if (this.idleTimer || this.idleReclaimMs <= 0) return;
+    this.idleTimer = setInterval(() => this.reclaimIdle(), sweepIntervalMs(this.idleReclaimMs));
+    this.idleTimer.unref?.();
+  }
+
+  private stopIdleSweep() {
+    if (this.idleTimer) clearInterval(this.idleTimer);
+    this.idleTimer = null;
+  }
+
+  /** 修改空闲回收阈值（毫秒，0 = 关闭）；立即生效 */
+  setIdleReclaimMs(ms: number): void {
+    this.idleReclaimMs = resolveIdleReclaimMs(ms, undefined);
+    this.stopIdleSweep();
+    if (this.claudeLive.size) this.startIdleSweep();
+  }
+
+  /**
+   * 回收空闲的长驻进程（无进行中的轮次 / 待处理权限，且已有可 --resume 的会话），
+   * 标记为「休眠」并通知界面。返回被回收的标签 id。
+   */
+  reclaimIdle(now = Date.now()): string[] {
+    const picked = pickIdle(
+      [...this.claudeLive.entries()].map(([id, live]) => ({
+        id,
+        lastActivityAt: live.lastActivityAt,
+        turnActive: live.turn !== null,
+        permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
+        tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+        resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+      })),
+      now,
+      this.idleReclaimMs,
+    );
+    for (const id of picked) {
+      this.teardownClaudeLive(id);
+      this.dormant.add(id);
+      this.d.logger.info('harness idle process reclaimed', { tabId: id });
+    }
+    if (picked.length) this.changed();
+    if (!this.claudeLive.size) this.stopIdleSweep();
+    return picked;
+  }
+
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
+    this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
     this.claudeLive.delete(tabId);
@@ -1565,7 +1665,12 @@ export class CliHarnessService {
   registerIpc(): void {
     const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
       guardedHandle(ch, fn, { owner: 'CliHarnessService' });
-    handle('ai:harness:state', () => this.state());
+    // 启动时就在后台把各 CLI 的可执行文件探测好，之后的状态读取都只读缓存
+    void this.refreshBins().catch(() => undefined);
+    handle('ai:harness:state', async () => {
+      await this.refreshBins().catch(() => undefined);
+      return this.state();
+    });
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
     handle('ai:harness:set-cwd', (c) => this.setCwd(String(c)));
     handle('ai:harness:pick-cwd', () => this.pickCwd());
@@ -1600,6 +1705,19 @@ export class CliHarnessService {
     );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
+    // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
+    handle('ai:harness:slash-discover', (b, cwd) =>
+      discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),
+    );
+    handle('ai:harness:slash-expand', (b, cwd, id, args) =>
+      expandSlash(
+        asSlashBackend(b),
+        validDir(String(cwd ?? '')),
+        String(id ?? ''),
+        String(args ?? '').slice(0, 4000),
+      ),
+    );
+    handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
     handle('ai:harness:reply-permission', (tabId, requestId, allow) =>
       this.replyPermission(String(tabId), String(requestId), Boolean(allow)),
     );
@@ -1623,6 +1741,8 @@ type ClaudeLiveSession = {
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
+  /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
+  lastActivityAt: number;
 };
 
 function isScript(bin: string) {
@@ -1656,6 +1776,10 @@ function anyWindowFocused(): boolean {
   } catch {
     return false;
   }
+}
+
+function asSlashBackend(b: unknown): SlashBackend {
+  return b === 'claude' || b === 'codex' || b === 'grok' || b === 'dsh' ? b : 'nomi';
 }
 
 let inst: CliHarnessService | null = null;

@@ -6,12 +6,14 @@
  */
 import { Icon, t } from '@nomi-ai/ui';
 import { ArrowDown, ChevronsUp, ShieldAlert, X } from 'lucide-react';
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import type { SlashCard } from '../../slash/types';
 import type { ConvLive, ConvMessage, ConvPhase } from '../../types/conversation';
 import { deriveStatus } from '../../utils/convStatus';
 import { timeLabels } from '../../utils/convTime';
 import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
+import { SystemCardView } from '../SystemCards';
 
 import styles from './index.module.css';
 import { Markdown } from './Markdown';
@@ -72,6 +74,9 @@ const PermissionCard: React.FC<{
 export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
+/** 会话视图首帧渲染的末尾消息条数，以及之后每批往上补多少条 */
+export const INITIAL_RENDER = 6;
+export const RENDER_STEP = 6;
 
 /** 估算一条消息的渲染成本：正文每 400 字符 1，每个轨迹事件 0.5，至少 1 */
 function messageWeight(m: Pick<ConvMessage, 'text' | 'trace' | 'error'>): number {
@@ -118,6 +123,11 @@ export interface ConversationViewProps {
   onEdit?: (userId: string, text: string) => void;
   /** 来源特有的扩展内容（Nomi 的记忆 / 图片 / 引用来源等） */
   slots?: ConvSlots;
+  /** 斜杠命令的结果卡片：按 afterId 插在对应消息之后（不属于任何一轮模型回复） */
+  cards?: readonly SlashCard[];
+  onDismissCard?: (id: string) => void;
+  /** 编程助手进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
+  dormant?: boolean;
 }
 
 const ConversationInner: React.FC<ConversationViewProps> = ({
@@ -130,6 +140,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   onRetry,
   onEdit,
   slots,
+  cards,
+  onDismissCard,
+  dormant,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
@@ -137,9 +150,27 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const [away, setAway] = useState(false);
   const running = phase === 'running';
   const [extra, setExtra] = useState(0);
-  const start = useMemo(() => windowStart(messages, extra), [messages, extra]);
+  const fullStart = useMemo(() => windowStart(messages, extra), [messages, extra]);
+  // 切换会话 / 首次挂载：先只渲染末尾几条（首帧尽快出现），其余按帧分批往上补，主线程不会被一次性占满
+  const [eagerCount, setEagerCount] = useState(INITIAL_RENDER);
+  const start = Math.max(fullStart, messages.length - eagerCount);
   const shown = start > 0 ? messages.slice(start) : messages;
   const labels = useMemo(() => timeLabels(messages), [messages]);
+  // 卡片归位：afterId 命中某条消息 → 紧跟其后；null → 会话开头；找不到（消息被删 / 重试）→ 末尾
+  const cardPlan = useMemo(() => {
+    const byMsg = new Map<string, SlashCard[]>();
+    const head: SlashCard[] = [];
+    const tail: SlashCard[] = [];
+    const ids = new Set(messages.map((m) => m.id));
+    for (const c of cards ?? []) {
+      if (c.afterId === null) head.push(c);
+      else if (ids.has(c.afterId)) byMsg.set(c.afterId, [...(byMsg.get(c.afterId) ?? []), c]);
+      else tail.push(c);
+    }
+    return { byMsg, head, tail };
+  }, [cards, messages]);
+  const renderCards = (list: readonly SlashCard[] | undefined) =>
+    list?.map((c) => <SystemCardView key={c.id} card={c} onDismiss={onDismissCard} />);
   /** 点「显示更早」前的 scrollHeight：加载后据此保持视口不跳 */
   const anchorRef = useRef<number | null>(null);
 
@@ -152,6 +183,17 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     () => deriveStatus({ phase, live, items: liveItems }),
     [phase, live, liveItems],
   );
+
+  useEffect(() => {
+    if (start <= fullStart) return;
+    const id = window.setTimeout(() => {
+      const el = scrollRef.current;
+      // 没有贴底（用户已上滑）时，记下高度，补完后据此保持视口不跳
+      if (el && !followRef.current) anchorRef.current = el.scrollHeight;
+      setEagerCount((n) => n + RENDER_STEP);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [start, fullStart]);
 
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
@@ -194,12 +236,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (followRef.current) scrollToBottom();
   }, [
     messages.length,
+    start,
     last?.id,
     live?.text,
     live?.trace?.length,
     live?.permission?.id,
     live?.status?.kind,
     queued?.length,
+    cards?.length,
     phase,
     scrollToBottom,
   ]);
@@ -216,7 +260,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     <div className={styles.root} data-testid="conversation" data-status={phase}>
       <div className={styles.scroll} ref={scrollRef} onScroll={onScroll} data-testid="conv-scroll">
         <div className={styles.inner}>
-          {start > 0 && (
+          {start > 0 && start === fullStart && (
             <button
               type="button"
               className={styles.earlier}
@@ -230,27 +274,30 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               {t('显示更早的 {0} 条消息', start)}
             </button>
           )}
-          {shown.map((m) =>
-            m.role === 'user' ? (
-              <UserMessage
-                key={m.id}
-                message={m}
-                timeLabel={labels.get(m.id)}
-                canEdit={idle}
-                onEdit={onEdit}
-                slots={slots}
-              />
-            ) : (
-              <AssistantMessage
-                key={m.id}
-                message={m}
-                timeLabel={labels.get(m.id)}
-                canRetry={idle && m.id === lastAssistantId}
-                onRetry={onRetry}
-                slots={slots}
-              />
-            ),
-          )}
+          {start === 0 && renderCards(cardPlan.head)}
+          {shown.map((m) => (
+            <React.Fragment key={m.id}>
+              {m.role === 'user' ? (
+                <UserMessage
+                  message={m}
+                  timeLabel={labels.get(m.id)}
+                  canEdit={idle}
+                  onEdit={onEdit}
+                  slots={slots}
+                />
+              ) : (
+                <AssistantMessage
+                  message={m}
+                  timeLabel={labels.get(m.id)}
+                  canRetry={idle && m.id === lastAssistantId}
+                  onRetry={onRetry}
+                  slots={slots}
+                />
+              )}
+              {renderCards(cardPlan.byMsg.get(m.id))}
+            </React.Fragment>
+          ))}
+          {renderCards(cardPlan.tail)}
           {showLive && (
             <div className={styles.assistant} data-testid="conv-live" aria-live="polite">
               {running && <ToolTimeline items={liveItems} />}
@@ -260,7 +307,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                   onReply={(allow) => onPermission(live.permission!.id, allow)}
                 />
               )}
-              {running && live?.text.trim() && <Markdown text={live.text} />}
+              {running && live?.text.trim() && <Markdown text={live.text} streaming />}
               {status && (
                 <StatusLine status={status} startedAt={running ? live?.startedAt : undefined} />
               )}
@@ -284,6 +331,11 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               )}
             </div>
           ))}
+          {dormant && !running && (
+            <div className={styles.dormant} data-testid="conv-dormant" role="status">
+              {t('编程助手进程空闲已休眠，发送下一条消息会自动续接会话')}
+            </div>
+          )}
         </div>
       </div>
       {away && (

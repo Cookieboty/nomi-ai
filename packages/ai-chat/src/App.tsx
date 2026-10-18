@@ -25,6 +25,7 @@ import {
 import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
+import { PluginPanel } from './components/PluginPanel';
 import {
   LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
@@ -37,6 +38,7 @@ import { AiChatContextProvider } from './contexts/AiChatContext';
 import { useAiChat } from './contexts/AiChatContext';
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
+import { useHarnessState } from './hooks/useHarnessState';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { desktopClient } from './services/desktopClient';
@@ -52,6 +54,7 @@ import {
   useShortcutBindings,
   type ShortcutId,
 } from './services/shortcuts';
+import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
 import { fromHarnessMessage, splitNomiMessages, tabLiveToConv } from './utils/convAdapters';
@@ -190,6 +193,45 @@ const AiChatContent: React.FC = () => {
     setShowProviders(false);
     setSettings(sec);
   }, []);
+  // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
+  const harness = useHarnessState();
+  const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  const slashBackend: ConversationBackend = !isDev
+    ? 'nomi'
+    : (slashTab?.backend ?? harness?.backend ?? 'nomi');
+  const slashCwd = slashBackend === 'nomi' ? '' : slashTab ? slashTab.cwd : (harness?.cwd ?? '');
+  const slashScope = slashTab ? slashTab.id : `nomi:${state.messages[0]?.id ?? 'new'}`;
+  const [showPlugins, setShowPlugins] = useState(false);
+  const slash = useSlashCommands({
+    backend: slashBackend,
+    cwd: slashCwd,
+    scopeKey: slashScope,
+    messages: slashTab ? cliConvMessages : nomiConv.messages,
+    session:
+      slashBackend === 'nomi'
+        ? null
+        : slashTab
+          ? {
+              id: slashTab.cliSessionId,
+              running: slashTab.status === 'running' || slashTab.status === 'queued',
+            }
+          : { id: harness?.cliSessionId ?? null, running: !!harness?.busy },
+    send: (text) => {
+      if (slashTab) void tabs.send(text);
+      else if (state.isLoading) nomiQueue.enqueue(text);
+      else void actions.sendStreamMessage(text);
+    },
+    newSession: () => {
+      if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
+      else void actions.newConversation();
+    },
+    onOpenPlugins: () => setShowPlugins(true),
+    onOpenProviders: () => setShowProviders(true),
+    onOpenSettings: () => {
+      if (slashBackend !== 'nomi') setProviderEndpoint(slashBackend);
+      openSettings('coding');
+    },
+  });
   // ---- 快捷键（可在设置 → 快捷键 改绑）+ ⌘/Ctrl+K 命令面板 ----
   const bindings = useShortcutBindings();
   const [palette, setPalette] = useState(false);
@@ -443,6 +485,7 @@ const AiChatContent: React.FC = () => {
               <>
                 {tabs.messages.length === 0 &&
                 !tabs.live[tabs.activeTab!.id] &&
+                slash.cards.length === 0 &&
                 tabs.activeTab!.status === 'idle' ? (
                   <div className="welcome-screen" data-testid="cli-tab-empty">
                     <div className="welcome-content">
@@ -472,10 +515,13 @@ const AiChatContent: React.FC = () => {
                       if (u) void tabs.send(u.content);
                     }}
                     onEdit={(_, text) => void tabs.send(text)}
+                    cards={slash.cards}
+                    onDismissCard={slash.dismissCard}
+                    dormant={tabs.activeTab!.dormant}
                   />
                 )}
               </>
-            ) : state.messages.length === 0 ? (
+            ) : state.messages.length === 0 && slash.cards.length === 0 ? (
               <div className="welcome-screen" data-testid="welcome-screen">
                 <div className="welcome-content">
                   <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
@@ -513,6 +559,8 @@ const AiChatContent: React.FC = () => {
                 }}
                 onEdit={(id, text) => void actions.resendFrom(id, text)}
                 slots={nomiSlots}
+                cards={slash.cards}
+                onDismissCard={slash.dismissCard}
               />
             )}
           </main>
@@ -532,6 +580,8 @@ const AiChatContent: React.FC = () => {
                     },
                   }
                 : { queue: { onQueue: nomiQueue.enqueue } })}
+              slash={slash.bridge}
+              onPluginsClick={() => setShowPlugins(true)}
               onProvidersClick={() => setShowProviders(true)}
               onSettingsClick={(sec, endpoint) => {
                 if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
@@ -561,6 +611,18 @@ const AiChatContent: React.FC = () => {
 
       {/* 模型配置保持为弹窗；日常功能为右侧抽屉（快速视图） */}
       {paletteEl}
+      <PluginPanel
+        isVisible={showPlugins}
+        onClose={() => setShowPlugins(false)}
+        backend={slashBackend}
+        cwd={slashCwd}
+        entries={slash.discovered}
+        onRefresh={slash.bridge.refresh}
+        onManageNomi={() => {
+          setShowPlugins(false);
+          setShowExt(true);
+        }}
+      />
       <ProviderPanel isVisible={showProviders} onClose={() => setShowProviders(false)} />
       <ModalHostContext.Provider value={drawerHost.desktop}>
         <DesktopPanel isVisible={showDesktop} onClose={() => setShowDesktop(false)} />

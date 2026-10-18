@@ -46,6 +46,29 @@ describe('Grok generated image materialization', () => {
     expect(rewriteGeneratedImageLinks('![cat](images/1.jpg)', aliases)).toBe(`![cat](${url})`);
   });
 
+  (process.platform === 'win32' ? it.skip : it)(
+    'accepts a session image when HOME is reached through a symlink (macOS /var → /private/var)',
+    () => {
+      const real = path.join(root, 'real-home');
+      const link = path.join(root, 'link-home');
+      const source = path.join(real, '.grok', 'sessions', 'session-1', 'images', '2.png');
+      fs.mkdirSync(path.dirname(source), { recursive: true });
+      fs.writeFileSync(source, 'png bytes');
+      fs.symlinkSync(real, link, 'dir');
+
+      const aliases = new Map<string, string>();
+      materializeGeneratedImages(
+        JSON.stringify({
+          path: path.join(link, '.grok', 'sessions', 'session-1', 'images', '2.png'),
+        }),
+        link,
+        path.join(root, 'chat'),
+        aliases,
+      );
+      expect(aliases.get('images/2.png')).toMatch(/^chat-asset:\/\/images\/grok-/);
+    },
+  );
+
   it('does not copy paths outside the Grok session root', () => {
     const outside = path.join(root, 'outside.png');
     const chatRoot = path.join(root, 'chat');

@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { act, cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConversationView } from '../src/components/Conversation';
+import { ConversationView, INITIAL_RENDER } from '../src/components/Conversation';
 import type { ChatMessage } from '../src/types/chat';
 import type { ConvLive, ConvMessage } from '../src/types/conversation';
 import { splitNomiMessages } from '../src/utils/convAdapters';
@@ -319,20 +319,34 @@ describe('Nomi 对话走同一套视图', () => {
     expect(getByTestId('conv-status').getAttribute('data-kind')).toBe('first-token');
   });
 
-  it('长对话分页：只渲染末尾窗口，「显示更早」加载更多', () => {
+  it('长对话分页：只渲染末尾窗口，「显示更早」加载更多', async () => {
     const many = Array.from({ length: 120 }, (_, i) =>
       chat({ id: `m${i}`, role: i % 2 ? 'assistant' : 'user', content: `消息${i}` }),
     );
-    const { container, getByTestId } = render(<NomiConversation messages={many} />);
-    const n = container.querySelectorAll(
-      '[data-testid="msg-user"],[data-testid="msg-assistant"]',
-    ).length;
+    const { container, findByTestId } = render(<NomiConversation messages={many} />);
+    const rows = () =>
+      container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]');
+    // 窗口分批补齐后才出现「显示更早」
+    const earlier = await findByTestId('conv-load-earlier');
+    const n = rows().length;
     expect(n).toBeLessThan(120);
     expect(container.textContent).toContain('消息119');
     expect(container.textContent).not.toContain('消息0消息');
-    fireEvent.click(getByTestId('conv-load-earlier'));
-    expect(
-      container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]').length,
-    ).toBeGreaterThan(n);
+    fireEvent.click(earlier);
+    await waitFor(() => expect(rows().length).toBeGreaterThan(n));
+  });
+
+  it('切换会话（首次挂载）先只渲染末尾几条，其余分批往上补齐', async () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      chat({ id: `p${i}`, role: i % 2 ? 'assistant' : 'user', content: `条目${i}` }),
+    );
+    const { container } = render(<NomiConversation messages={many} />);
+    const rows = () =>
+      container.querySelectorAll('[data-testid="msg-user"],[data-testid="msg-assistant"]');
+    expect(rows().length).toBe(INITIAL_RENDER);
+    expect(container.textContent).toContain('条目19');
+    expect(container.textContent).not.toContain('条目0条');
+    await waitFor(() => expect(rows().length).toBe(20));
+    expect(container.textContent).toContain('条目0');
   });
 });

@@ -230,7 +230,7 @@ export const AssistantMessage = memo(function AssistantMessage({
     <div className={styles.assistant} data-testid="msg-assistant">
       {slots?.before?.(message)}
       <ToolTimeline items={items} />
-      {message.text.trim() && (body ?? <Markdown text={message.text} />)}
+      {message.text.trim() && (body ?? <Markdown text={message.text} settled />)}
       {message.error && <ErrorCard message={message.error} onRetry={retry} />}
       {message.stopped && (
         <div className={styles.stopped} data-testid="stopped-note">

@@ -2,15 +2,22 @@
  *  components 覆盖以维持代码块复制按钮、链接协议白名单、图片放大能力。 */
 import { Icon, t } from '@nomi-ai/ui';
 import { Check, Copy } from 'lucide-react';
-import React, { memo, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 
-import { splitMarkdownChunks } from '../../utils/markdown';
+import { useThrottledText } from '../../hooks/useThrottledText';
+import { hasLangFence, hasOpenFence, splitMarkdownChunks } from '../../utils/markdown';
+import { streamRenderIntervalMs } from '../../utils/streamPolicy';
 
 import { sanitizeHref, urlTransform } from './Markdown.helpers';
 import styles from './Markdown.module.css';
+import {
+  isHighlighterReady,
+  loadHighlighter,
+  rehypeHighlightShared,
+  subscribeHighlighter,
+} from './markdownHighlight';
 import { MarkdownImage } from './MarkdownImage';
 
 const CodeBlock: React.FC<{ lang: string; code: string; highlightedHtml?: string }> = ({
@@ -178,30 +185,111 @@ function serializeHljsChildren(nodes: React.ReactNode): string {
 }
 
 /** 一段（块边界之间）的渲染：文本不变就不重新解析 / 渲染；流式输出时只有最后一段在变 */
-const MarkdownChunk = memo(function MarkdownChunk({ text }: { text: string }) {
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
-      urlTransform={urlTransform}
-      components={components}
-      skipHtml
-    >
-      {text}
-    </ReactMarkdown>
-  );
+const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_HIGHLIGHT = [rehypeHighlightShared];
+const REHYPE_NONE: never[] = [];
+
+function renderChunk(text: string, highlight: boolean): React.ReactElement {
+  // ReactMarkdown 是不含 hook 的同步函数组件：直接调用拿到元素树，便于按文本缓存
+  return ReactMarkdown({
+    remarkPlugins: REMARK_PLUGINS,
+    rehypePlugins: highlight ? REHYPE_HIGHLIGHT : REHYPE_NONE,
+    urlTransform,
+    components,
+    skipHtml: true,
+    children: text,
+  });
+}
+
+/**
+ * 已定稿文本块的解析结果缓存（按文本 + 是否高亮，LRU，限总字符数）：切回看过的会话时不再重新解析 / 高亮。
+ * 流式中的最后一块每个 token 文本都不同，不进缓存（否则会把有用的条目挤掉）。
+ */
+const CACHE_CHAR_BUDGET = 600_000;
+const chunkCache = new Map<string, React.ReactElement>();
+let cacheChars = 0;
+
+export function renderChunkCached(text: string, highlight = true): React.ReactElement {
+  const key = `${highlight ? 1 : 0}${text}`;
+  const hit = chunkCache.get(key);
+  if (hit) {
+    chunkCache.delete(key);
+    chunkCache.set(key, hit);
+    return hit;
+  }
+  const el = renderChunk(text, highlight);
+  if (text.length <= CACHE_CHAR_BUDGET / 4) {
+    chunkCache.set(key, el);
+    cacheChars += key.length;
+    for (const [k] of chunkCache) {
+      if (cacheChars <= CACHE_CHAR_BUDGET) break;
+      chunkCache.delete(k);
+      cacheChars -= k.length;
+    }
+  }
+  return el;
+}
+
+/** 测试用：清空缓存 */
+export function resetChunkCache(): void {
+  chunkCache.clear();
+  cacheChars = 0;
+}
+
+const MarkdownChunk = memo(function MarkdownChunk({
+  text,
+  settled,
+  highlight,
+}: {
+  text: string;
+  settled: boolean;
+  highlight: boolean;
+}) {
+  return settled ? renderChunkCached(text, highlight) : renderChunk(text, highlight);
 });
 
-export const Markdown: React.FC<{ text: string; className?: string }> = memo(
-  ({ text, className }) => {
-    const chunks = useMemo(() => splitMarkdownChunks(text), [text]);
-    return (
-      <div className={`${styles.md} ${className ?? ''}`} data-testid="markdown">
-        {chunks.map((c, i) => (
-          <MarkdownChunk key={i} text={c} />
-        ))}
-      </div>
-    );
-  },
-);
+/** 语法高亮器是否已加载（加载好后订阅者重渲染，带语言的代码块这时才上色） */
+function useHighlighterReady(): boolean {
+  return useSyncExternalStore(subscribeHighlighter, isHighlighterReady, () => false);
+}
+
+export const Markdown: React.FC<{
+  text: string;
+  className?: string;
+  /** 正文已定稿（非流式）：解析结果可按文本缓存 */
+  settled?: boolean;
+  /**
+   * 正文正在流式输出：渲染按长度 / 核数分档限频；停在未闭合代码围栏里的最后一块不高亮；
+   * 前面已成型的块仍走缓存。回合结束（streaming 变 false）时立即用最终文本渲染并高亮一次。
+   */
+  streaming?: boolean;
+}> = memo(({ text: source, className, settled = false, streaming = false }) => {
+  const text = useThrottledText(
+    source,
+    streaming ? streamRenderIntervalMs(source.length) : 0,
+    streaming,
+  );
+  const ready = useHighlighterReady();
+  const wantsHighlight = useMemo(() => hasLangFence(text), [text]);
+  useEffect(() => {
+    if (wantsHighlight && !ready) void loadHighlighter();
+  }, [wantsHighlight, ready]);
+  const chunks = useMemo(() => splitMarkdownChunks(text), [text]);
+  const lastOpen = streaming && hasOpenFence(chunks[chunks.length - 1] ?? '');
+  return (
+    <div className={`${styles.md} ${className ?? ''}`} data-testid="markdown">
+      {chunks.map((c, i) => {
+        const last = i === chunks.length - 1;
+        return (
+          <MarkdownChunk
+            key={i}
+            text={c}
+            settled={settled || !last}
+            highlight={ready && !(last && lastOpen)}
+          />
+        );
+      })}
+    </div>
+  );
+});
 Markdown.displayName = 'Markdown';

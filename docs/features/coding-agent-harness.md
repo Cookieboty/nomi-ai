@@ -160,6 +160,8 @@ Aggregation（多上游合并）仍为 **P2**。
 - Nomi 实现为**会话级进程复用**（一标签一进程），不是全局单例 daemon；中断发 `control_request{subtype:interrupt}` 后 `SIGKILL`，下一轮 `--resume`。
 - 若本机 Claude 在 stream-json 下仍每轮退出：harness 会在下一发送时自动重拉并带 `--resume`，功能不丢，只是少了「免冷启动」；以 mock 单测断言「同一 pid 跨两轮」为回归护栏。
 
+**空闲回收（2026-10-18）：** 长驻进程会一直占内存，所以空闲超过阈值（默认 30 分钟；环境变量 `NOMI_HARNESS_IDLE_MS`，`0` 关闭）就回收：只回收「没有进行中的轮次、没有待处理的权限请求、标签不在 running / queued、已有可续接的 `cliSessionId`」的进程（策略见 `cli/idleReclaim.ts`）。被回收的标签在 `ai:harness:tabs` 里带 `dormant: true`（仅内存，不落盘）：侧栏 / 标签的圆点显示空心、会话底部提示「已休眠」，转录与会话 id 都保留；下一条消息走原有的 `--resume <cliSessionId>` 重拉，休眠标记随之清除。Codex / dsh / Grok 本来每轮一个进程，不需要回收。
+
 **权限桥：** Claude Code 使用 `--permission-prompt-tool stdio`：`control_request`（`can_use_tool`）→ IPC → 对话区允许/拒绝卡片 → `control_response` 写回 stdin；120s 无操作自动拒绝。长驻模式下权限通道与多轮共用同一 stdin。
 
 **Codex 交互权限（查证 2026-10-15，CLI 0.162.1）：**

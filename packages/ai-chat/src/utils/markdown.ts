@@ -51,3 +51,22 @@ export function splitMarkdownChunks(src: string): string[] {
   chunks.push(lines.slice(start).join('\n'));
   return chunks;
 }
+
+/** 文本末尾是否停在一个还没闭合的围栏代码块里（流式输出中途的典型状态） */
+export function hasOpenFence(src: string): boolean {
+  let fence: RegExp | null = null;
+  for (const line of src.replace(/\r\n?/g, '\n').split('\n')) {
+    if (fence) {
+      if (fence.test(line)) fence = null;
+      continue;
+    }
+    const open = FENCE_OPEN.exec(line);
+    if (open) fence = new RegExp(`^ {0,3}${open[1]![0]}{${open[1]!.length},}\\s*$`);
+  }
+  return fence !== null;
+}
+
+/** 文本里是否有带语言标记的围栏代码块（决定要不要去加载语法高亮器） */
+export function hasLangFence(src: string): boolean {
+  return /^ {0,3}(?:`{3,}|~{3,})[ \t]*[\w+#.-]/m.test(src);
+}

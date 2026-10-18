@@ -161,6 +161,8 @@ export interface HarnessTabMeta {
   createdAt: number;
   updatedAt: number;
   lastError?: string;
+  /** 长驻 CLI 进程因空闲被回收（仅广播用，不落盘）；下一条消息会 --resume 自动续接 */
+  dormant?: boolean;
 }
 
 export interface HarnessTabsState {

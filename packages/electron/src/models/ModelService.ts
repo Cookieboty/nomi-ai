@@ -22,21 +22,17 @@ import { UserModels } from './UserModels';
 export const MODELS_CHANGED = 'models:changed';
 export const MODELS_PROGRESS = 'models:progress';
 
-/** 必须在 app ready 之前调用：让 cdmodel:// 支持 fetch（GLTFLoader）与 CORS */
-export function registerModelSchemePrivileges(): void {
-  protocol.registerSchemesAsPrivileged([
-    {
-      scheme: MODEL_SCHEME,
-      privileges: {
-        standard: true,
-        secure: true,
-        supportFetchAPI: true,
-        corsEnabled: true,
-        stream: true,
-      },
-    },
-  ]);
-}
+/** cdmodel:// 的特权声明：支持 fetch（GLTFLoader）与 CORS。由 registerAppSchemePrivileges 统一注册 */
+export const MODEL_SCHEME_PRIVILEGES: Electron.CustomScheme = {
+  scheme: MODEL_SCHEME,
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: true,
+    stream: true,
+  },
+};
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 

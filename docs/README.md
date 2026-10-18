@@ -14,25 +14,26 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 
 ### 功能
 
-| 模块                                                       | 说明                                               |
-| ---------------------------------------------------------- | -------------------------------------------------- |
-| [桌面伙伴 Nomi](features/mascot.md)                        | 角色、表情与互动，模型商店与导入自己的 VRM         |
-| [AI 对话](features/chat.md)                                | 对话窗口、图片与截图提问、命令面板                 |
-| [供应商与 Token](features/providers.md)                    | 预设、一键切换、获取模型、测速、多 Key、任务路由   |
-| [知识库](features/knowledge-base.md)                       | 基于你的文件夹与笔记回答，并给出引用               |
-| [长期记忆](features/memory.md)                             | 对话记忆、关于我、用户档案                         |
-| [日程与日历](features/scheduling-calendar.md)              | 提醒、定时任务、主动聊天、免打扰、系统日历         |
-| [屏幕问答](features/screen-qa.md)                          | 截图提问、图片附件、屏幕记忆                       |
-| [MCP 与技能](features/mcp-skills.md)                       | MCP 服务器管理、SKILL.md 技能包                    |
-| [本地模型](features/local-models.md)                       | 一键下载运行开源小模型、Ollama 管理、离线模式      |
-| [自动化与桌面能力](features/automation.md)                 | 文件、笔记、提醒、剪贴板、受控浏览器、代码沙箱     |
-| [语音](features/voice.md)                                  | 语音输入、免按键对话、唤醒词、语音播报与自定义 TTS |
-| [编程助手监视](features/agent-monitor.md)                  | Claude Code、Codex、Cursor 等的进度提醒            |
-| [编程助手接入（设计稿）](features/coding-agent-harness.md) | 会话接管、CLI 供应商切换、版本更新（待审）         |
-| [灵动岛通知](features/dynamic-island.md)                   | macOS 刘海处的通知                                 |
-| [个性化](features/personalization.md)                      | 主题、应用图标、快捷键、语言、无障碍               |
-| [自动更新](features/auto-update.md)                        | 后台检查与确认安装                                 |
-| [隐私与安全](features/privacy-security.md)                 | 数据保存位置、仅本地模式、权限确认、数据导出       |
+| 模块                                                       | 说明                                                 |
+| ---------------------------------------------------------- | ---------------------------------------------------- |
+| [桌面伙伴 Nomi](features/mascot.md)                        | 角色、表情与互动，模型商店与导入自己的 VRM           |
+| [AI 对话](features/chat.md)                                | 对话窗口、图片与截图提问、命令面板                   |
+| [斜杠命令](features/slash-commands.md)                     | 输入 / 弹出命令面板，/context /status 等在界面内执行 |
+| [供应商与 Token](features/providers.md)                    | 预设、一键切换、获取模型、测速、多 Key、任务路由     |
+| [知识库](features/knowledge-base.md)                       | 基于你的文件夹与笔记回答，并给出引用                 |
+| [长期记忆](features/memory.md)                             | 对话记忆、关于我、用户档案                           |
+| [日程与日历](features/scheduling-calendar.md)              | 提醒、定时任务、主动聊天、免打扰、系统日历           |
+| [屏幕问答](features/screen-qa.md)                          | 截图提问、图片附件、屏幕记忆                         |
+| [MCP 与技能](features/mcp-skills.md)                       | MCP 服务器管理、SKILL.md 技能包                      |
+| [本地模型](features/local-models.md)                       | 一键下载运行开源小模型、Ollama 管理、离线模式        |
+| [自动化与桌面能力](features/automation.md)                 | 文件、笔记、提醒、剪贴板、受控浏览器、代码沙箱       |
+| [语音](features/voice.md)                                  | 语音输入、免按键对话、唤醒词、语音播报与自定义 TTS   |
+| [编程助手监视](features/agent-monitor.md)                  | Claude Code、Codex、Cursor 等的进度提醒              |
+| [编程助手接入（设计稿）](features/coding-agent-harness.md) | 会话接管、CLI 供应商切换、版本更新（待审）           |
+| [灵动岛通知](features/dynamic-island.md)                   | macOS 刘海处的通知                                   |
+| [个性化](features/personalization.md)                      | 主题、应用图标、快捷键、语言、无障碍                 |
+| [自动更新](features/auto-update.md)                        | 后台检查与确认安装                                   |
+| [隐私与安全](features/privacy-security.md)                 | 数据保存位置、仅本地模式、权限确认、数据导出         |
 
 ### 开发
 
@@ -60,6 +61,7 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
 | [Desktop companion Nomi](features/mascot.md)                      | Character, expressions & interaction; model store & import VRM       |
 | [AI chat](features/chat.md)                                       | Chat window, image & screenshot Q&A, command palette                 |
+| [Slash commands](features/slash-commands.md)                      | `/` palette; /context, /status etc. run inside the UI                |
 | [Providers & tokens](features/providers.md)                       | Presets, one-click switch, fetch models, latency, multi-key, routing |
 | [Knowledge base](features/knowledge-base.md)                      | Answer from your folders & notes with citations                      |
 | [Long-term memory](features/memory.md)                            | Chat memories, About me, user profile                                |

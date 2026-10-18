@@ -6,6 +6,7 @@
  */
 import React, { Suspense, lazy, useRef, useState, type ComponentType } from 'react';
 
+import { loadHighlighter } from './Conversation/markdownHighlight';
 import type { DesktopPanel as DesktopPanelT } from './DesktopPanel';
 import type { ExtensionsPanel as ExtensionsPanelT } from './ExtensionsPanel';
 import type { HubPanel as HubPanelT } from './HubPanel';
@@ -47,6 +48,7 @@ const prefetchers: Array<() => Promise<unknown>> = [];
 
 /** 首屏空闲后预取全部面板 chunk，之后打开设置 / 面板不再等网络与解析。 */
 export function prefetchPanels(): void {
+  void loadHighlighter();
   for (const p of prefetchers) void p().catch(() => undefined);
 }
 

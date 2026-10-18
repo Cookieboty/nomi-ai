@@ -167,9 +167,27 @@ test.describe('E15 · Nomi only', () => {
     await sleep(300);
     const before = await pos();
     grab('04-drag-before', screen.width, screen.height);
+    // Grab point on the body, nearest to the chest (just below the face) that is not covered by
+    // the speech bubble: the bubble sits beside the head and may overlap the torso, and a press on
+    // the bubble is a press on UI, not on the character.
     const hit = await page.evaluate(() => {
-      const v = document.documentElement.dataset.mascotHead!.split(',').map(Number);
-      return { x: (v[0] + v[1]) / 2, y: v[3] + 30 }; // chest, just below the face
+      const d = document.documentElement.dataset;
+      const v = d.mascotHead!.split(',').map(Number);
+      const b = d.mascotBox!.split(',').map(Number); // left,right,top,bottom
+      const want = { x: (v[0] + v[1]) / 2, y: v[3] + 30 };
+      let best = want;
+      let bestDist = Infinity;
+      for (let x = b[0] + 8; x <= b[1] - 8; x += 6) {
+        for (let y = v[3] + 8; y <= b[3] - 8; y += 6) {
+          if (document.elementFromPoint(x, y)?.tagName !== 'CANVAS') continue;
+          const dist = Math.hypot(x - want.x, y - want.y);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = { x, y };
+          }
+        }
+      }
+      return best;
     });
     await page.mouse.move(hit.x, hit.y);
     await expect

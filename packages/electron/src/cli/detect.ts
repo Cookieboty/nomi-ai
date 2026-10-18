@@ -91,6 +91,63 @@ function which(cmd: string): string | null {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 探测结果缓存：resolveCliBin 每个候选名都会同步 spawn `which` / `where`。
+// 切换会话 / 标签、每次标签状态变化（changed → state()）都会走到这里，
+// 实测 Linux 上 4 个后端累计 ~30ms 阻塞主进程（Windows 的 where 更慢），所有窗口一起停顿。
+// 命中且文件仍在就直接返回；「未找到」只缓存很短时间，保证刚装好的 CLI 能很快被发现。
+// ---------------------------------------------------------------------------
+
+const MISSING_TTL_MS = 10_000;
+const binCache = new Map<CliKind, { bin: string | null; at: number }>();
+
+function cacheBin(kind: CliKind, bin: string | null): string | null {
+  binCache.set(kind, { bin, at: Date.now() });
+  return bin;
+}
+
+/** 缓存里的探测结果；未缓存 / 已过期 / 文件已不存在返回 undefined（调用方自行决定是否重新探测） */
+export function peekCliBin(kind: CliKind): string | null | undefined {
+  // 环境变量覆盖（测试 / Mock / 特殊安装）始终优先且改了立即生效，不经缓存
+  const env = process.env[ENV_BIN[kind]]?.trim();
+  if (env && fs.existsSync(env)) return env;
+  const hit = binCache.get(kind);
+  if (!hit) return undefined;
+  if (hit.bin) {
+    if (fs.existsSync(hit.bin)) return hit.bin;
+    binCache.delete(kind);
+    return undefined;
+  }
+  if (Date.now() - hit.at > MISSING_TTL_MS) {
+    binCache.delete(kind);
+    return undefined;
+  }
+  return null;
+}
+
+/** 同步版：先看缓存，未命中才真正探测（spawn 前取可执行文件用） */
+export function resolveCliBinCached(kind: CliKind): string | null {
+  const hit = peekCliBin(kind);
+  return hit !== undefined ? hit : cacheBin(kind, resolveCliBin(kind));
+}
+
+const inflight = new Map<CliKind, Promise<string | null>>();
+
+/** 异步探测并写入缓存（同一后端的并发请求合并） */
+export function refreshCliBin(kind: CliKind): Promise<string | null> {
+  const pending = inflight.get(kind);
+  if (pending) return pending;
+  const p = resolveCliBinAsync(kind).finally(() => inflight.delete(kind));
+  inflight.set(kind, p);
+  return p;
+}
+
+/** 测试用：清空探测缓存 */
+export function resetCliBinCache(): void {
+  binCache.clear();
+  inflight.clear();
+}
+
 export function resolveCliBin(kind: CliKind): string | null {
   const env = process.env[ENV_BIN[kind]]?.trim();
   if (env && fs.existsSync(env)) return env;
@@ -246,6 +303,10 @@ export async function resolveNpmBinAsync(): Promise<string | null> {
 }
 
 export async function resolveCliBinAsync(kind: CliKind): Promise<string | null> {
+  return cacheBin(kind, await probeCliBinAsync(kind));
+}
+
+async function probeCliBinAsync(kind: CliKind): Promise<string | null> {
   const env = process.env[ENV_BIN[kind]]?.trim();
   if (env && fs.existsSync(env)) return env;
   for (const c of CANDIDATES[kind]) {

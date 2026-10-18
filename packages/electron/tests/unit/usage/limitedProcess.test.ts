@@ -1,6 +1,8 @@
 jest.unmock('fs');
 jest.unmock('path');
 
+import path from 'node:path';
+
 import {
   ProcessFailure,
   resolveCliLaunch,
@@ -79,9 +81,10 @@ describe('Windows .cmd 垫片：逐参数加引号（空参数不丢）', () => 
 
 describe('unwrapWindowsCmdShim / resolveCliLaunch：Windows ACP stdin', () => {
   it('把 npm .cmd 垫片解成 node + script（stdin ACP 可用）', () => {
+    // unwrap normalises separators for the host OS, so build the expectations the same way
     const dir = '/tmp/npm-shim';
-    const script = `${dir}/node_modules/@xai-official/grok/bin/grok.js`;
-    const node = `${dir}/node.exe`;
+    const script = path.join(dir, 'node_modules', '@xai-official', 'grok', 'bin', 'grok.js');
+    const node = path.join(dir, 'node.exe');
     const files = new Set([script, node]);
     const u = unwrapWindowsCmdShim(`${dir}/grok.cmd`, {
       readFile: () =>
@@ -93,7 +96,7 @@ describe('unwrapWindowsCmdShim / resolveCliLaunch：Windows ACP stdin', () => {
 
   it('resolveCliLaunch：win32 优先 node-script，非 Windows 保持原命令', () => {
     const dir = '/tmp/npm-shim2';
-    const script = `${dir}/node_modules/@xai-official/grok/bin/grok.js`;
+    const script = path.join(dir, 'node_modules', '@xai-official', 'grok', 'bin', 'grok.js');
     const launch = resolveCliLaunch(
       `${dir}/grok.cmd`,
       ['agent', 'stdio'],
