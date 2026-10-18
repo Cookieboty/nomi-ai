@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { MessageInput } from '../src/components/MessageInput';
+import { COMPOSER_MAX_HEIGHT_PX, MessageInput } from '../src/components/MessageInput';
 
 import { NomiConversation } from './nomiRender';
 
@@ -90,6 +90,33 @@ describe('运行中继续输入（排队）', () => {
     );
     fireEvent.click(getByTestId('stop-button'));
     expect(onStop).toHaveBeenCalled();
+  });
+
+  it('输入框高度跟着文字增减', () => {
+    const { getByTestId } = render(<MessageInput />);
+    const input = getByTestId('chat-input') as HTMLTextAreaElement;
+    Object.defineProperty(input, 'scrollHeight', {
+      configurable: true,
+      get() {
+        return this.value.split('\n').length * 24;
+      },
+    });
+    fireEvent.change(input, { target: { value: '第一行\n第二行\n第三行' } });
+    expect(input.style.height).toBe('72px');
+    fireEvent.change(input, { target: { value: '只剩一行' } });
+    expect(input.style.height).toBe('24px');
+  });
+
+  it('输入再长也不会超过高度上限', () => {
+    const { getByTestId } = render(<MessageInput />);
+    const input = getByTestId('chat-input') as HTMLTextAreaElement;
+    Object.defineProperty(input, 'scrollHeight', {
+      configurable: true,
+      get: () => 1000,
+    });
+    fireEvent.change(input, { target: { value: '很长的一段\n'.repeat(40) } });
+    expect(input.style.height).toBe(`${COMPOSER_MAX_HEIGHT_PX}px`);
+    expect(input.style.maxHeight).toBe(`${COMPOSER_MAX_HEIGHT_PX}px`);
   });
 
   it('编程助手标签空闲（busyOverride=false）时即使提供 onStop 也不显示停止键', () => {

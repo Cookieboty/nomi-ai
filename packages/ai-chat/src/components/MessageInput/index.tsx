@@ -1,6 +1,13 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
 import { BookOpen, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
-import React, { useCallback, useEffect, useState, useRef, type KeyboardEvent } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useRef,
+  type KeyboardEvent,
+} from 'react';
 
 import { useAiChat } from '../../contexts/AiChatContext';
 import { extClient } from '../../services/extClient';
@@ -33,6 +40,9 @@ import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '
 import styles from './index.module.css';
 
 const log = createLogger('message-input');
+
+/** 发文框最高高度。再长的内容在框内滚动，不再把输入区撑高。 */
+export const COMPOSER_MAX_HEIGHT_PX = 200;
 
 interface MessageInputProps {
   onSend?: (message: string) => void;
@@ -79,6 +89,15 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.maxHeight = `${COMPOSER_MAX_HEIGHT_PX}px`;
+    el.style.height = '0px';
+    const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
+    el.style.height = next > 0 ? `${next}px` : '';
+  }, [message]);
   const { state, actions } = useAiChat();
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   const [kbMode, setKbMode] = useState(() => {
@@ -207,7 +226,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       if (queue && !images.length) {
         queue.onQueue(trimmedMessage);
         setMessage('');
-        if (textareaRef.current) textareaRef.current.style.height = 'auto';
       }
       return;
     }
@@ -295,12 +313,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     setSlashIdx(0);
-
-    // 自动调整高度
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
   };
 
   const busy = busyOverride ?? state.isLoading;

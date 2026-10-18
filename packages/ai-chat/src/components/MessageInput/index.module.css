@@ -35,7 +35,8 @@
 }
 
 .messageTextarea {
-  flex: 1;
+  width: 100%;
+  flex: none;
   border: none;
   outline: none;
   background: transparent;
@@ -43,7 +44,7 @@
   font-size: var(--cd-font-size-lg);
   line-height: 1.6;
   min-height: 24px;
-  max-height: 120px;
+  max-height: 200px;
   overflow-y: auto;
   font-family: inherit;
   color: var(--cd-color-text);
@@ -405,6 +406,7 @@
 }
 .messageTextarea {
   font-size: var(--cd-font-size-md, 14px);
+  /* 与 COMPOSER_MAX_HEIGHT_PX 一致：到顶后内部滚动 */
   max-height: 200px;
 }
 .composerBar {
