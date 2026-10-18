@@ -100,10 +100,47 @@ def skin_tone_mask(image: Image.Image) -> Image.Image:
                 and red >= 150
                 and green >= 100
                 and blue >= 80
-                and red - green >= 5
-                and green - blue >= 3
+                and red - green >= 12
+                and green - blue >= 6
+                and red - blue >= 20
                 and blue * 100 >= green * 78
             ):
+                output[x, y] = 255
+    return mask
+
+
+def detail_tone_mask(image: Image.Image, kind: str) -> Image.Image:
+    """Select garment detail pixels without inventing new artwork.
+
+    The mother image is painterly, so a hard vector trace would destroy the
+    fabric shading.  These mattes keep the exact source pixels while allowing
+    dark straps, orange panels and their highlights to live on separate Rive
+    bones.  The alpha threshold prevents the surrounding glow/background from
+    being mistaken for a garment detail.
+    """
+
+    rgba = image.load()
+    mask = Image.new("L", image.size, 0)
+    output = mask.load()
+    for y in range(image.height):
+        for x in range(image.width):
+            red, green, blue, alpha = rgba[x, y]
+            if alpha < 128:
+                continue
+            if kind == "dark":
+                # Buckles, straps and ink outlines. Keep warm orange out of the
+                # dark pass even where its shadow is close to black.
+                selected = max(red, green, blue) <= 112 and red - blue <= 28
+            elif kind == "orange":
+                selected = (
+                    red >= 128
+                    and red >= green * 1.16
+                    and green >= blue * 1.35
+                    and red - blue >= 45
+                )
+            else:
+                raise ValueError(f"unknown detail tone: {kind}")
+            if selected:
                 output[x, y] = 255
     return mask
 
@@ -173,19 +210,34 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     skin_colors = skin_tone_mask(image)
     left_skin = intersect(mask_polygon(
         (width, height),
-        # Exposed upper-arm skin sits between the orange shoulder cap and the
-        # black torso.  The earlier narrow polygon left a skin crescent inside
-        # the coat crop, which became a visible ghost when the coat moved.
-        [(375, 275), (415, 280), (420, 315), (416, 350), (405, 378),
-         (390, 388), (372, 378), (360, 350), (360, 310)],
+        # Capture the complete exposed shoulder/upper-arm silhouette.  The old
+        # narrow polygon stopped before the outside shoulder edge, leaving a
+        # skin shard inside coat-l-shoulder when the sleeve rotated.
+        [(350, 245), (430, 245), (455, 285), (454, 335), (442, 385),
+         (428, 425), (395, 435), (365, 405), (345, 360), (345, 300)],
     ), skin_colors)
     # Stop at the sleeve opening; the pale triangular fabric below this line is
     # owned by the sleeve layer and must not travel with the upper-arm skin.
     left_skin = ImageChops.subtract(
         left_skin,
-        mask_polygon((width, height), [(340, 375), (435, 375), (435, 450), (340, 450)]),
+        mask_polygon((width, height), [(340, 382), (445, 382), (445, 450), (340, 450)]),
     )
     right_skin = ImageOps.mirror(left_skin)
+    # Keep a compact shoulder cap on the clavicle and let the outer upper-arm
+    # skin follow the sleeve root.  Using one broad skin crop for both made a
+    # raised arm leave a pale wing attached to the torso.
+    left_skin_static = intersect(
+        # Keep only the clavicle cap on the torso.  The outer shoulder and
+        # upper-arm skin must travel with the arm root; a broad static cap
+        # becomes a detached pale wing as soon as the arm is raised.
+        mask_polygon((width, height), [(378, 250), (425, 250), (435, 280),
+                                        (430, 315), (414, 338), (392, 342),
+                                        (380, 320), (372, 282)]),
+        skin_colors,
+    )
+    right_skin_static = ImageOps.mirror(left_skin_static)
+    left_skin_moving = ImageChops.subtract(left_skin, left_skin_static)
+    right_skin_moving = ImageChops.subtract(right_skin, right_skin_static)
     left_upper_cloth = ImageChops.subtract(left_upper, left_skin)
     right_upper_cloth = ImageChops.subtract(right_upper, right_skin)
     left_fore_sleeve = mask_polygon(
@@ -194,8 +246,8 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
          (345, 730), (270, 744), (218, 690), (200, 575)],
     )
     right_fore_sleeve = mask_polygon((width, height), [(width - x, y) for x, y in [(205, 470), (365, 470), (350, 550), (328, 625), (325, 700), (345, 730), (270, 744), (218, 690), (200, 575)]])
-    left_cuff = mask_polygon((width, height), [(240, 690), (365, 690), (370, 752), (350, 782), (250, 782), (230, 750)])
-    right_cuff = mask_polygon((width, height), [(width - x, y) for x, y in [(240, 690), (365, 690), (370, 752), (350, 782), (250, 782), (230, 750)]])
+    left_cuff = mask_polygon((width, height), [(215, 670), (380, 670), (390, 760), (365, 810), (235, 810), (205, 755)])
+    right_cuff = mask_polygon((width, height), [(width - x, y) for x, y in [(215, 670), (380, 670), (390, 760), (365, 810), (235, 810), (205, 755)]])
     # Fine visual layers.  These overlap by a few pixels at seams so a rotated
     # bone never exposes a triangular hole.  They are still all sampled from the
     # mother image; the overlap is source-pixel duplication, not repainting.
@@ -204,19 +256,25 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
         [(308, 358), (350, 326), (402, 349), (428, 382), (407, 427),
          (365, 440), (330, 424), (298, 398)],
     )
-    left_coat_shoulder = ImageChops.subtract(left_coat_shoulder, left_skin)
+    # Remove every skin-coloured source pixel from garment crops.  A geometric
+    # subtraction alone still left a pale shoulder crescent in the coat layer
+    # where the painted silhouette crossed the polygon edge.
+    # Do not remove warm white fabric with the skin heuristic.  Keeping the
+    # source pixels across this seam gives the moving shoulder a continuous
+    # silhouette; the static clavicle cap is drawn underneath at neutral.
+    left_coat_shoulder = left_coat_shoulder.filter(ImageFilter.MaxFilter(7))
     left_sleeve_upper = mask_polygon(
         (width, height),
         [(282, 425), (395, 418), (405, 470), (385, 555), (330, 590),
          (274, 551), (250, 470)],
     )
-    left_sleeve_upper = ImageChops.subtract(left_sleeve_upper, left_skin)
+    left_sleeve_upper = left_sleeve_upper.filter(ImageFilter.MaxFilter(7))
     left_coat_shoulder = ImageChops.subtract(left_coat_shoulder, left_sleeve_upper)
     left_sleeve_lower = mask_polygon(
         (width, height),
         [(250, 500), (385, 525), (390, 625), (372, 706), (326, 741),
          (270, 718), (232, 650), (224, 565)],
-    )
+    ).filter(ImageFilter.MaxFilter(7))
     left_hand_detail = mask_polygon(
         (width, height),
         [(277, 731), (326, 726), (351, 770), (347, 835), (326, 884),
@@ -236,15 +294,68 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     }
 
     right_coat_shoulder = mask_polygon((width, height), mirror_points([(308, 358), (350, 326), (402, 349), (428, 382), (407, 427), (365, 440), (330, 424), (298, 398)], width))
-    right_coat_shoulder = ImageChops.subtract(right_coat_shoulder, right_skin)
+    right_coat_shoulder = right_coat_shoulder.filter(ImageFilter.MaxFilter(7))
     right_sleeve_upper = mask_polygon((width, height), mirror_points([(282, 425), (395, 418), (405, 470), (385, 555), (330, 590), (274, 551), (250, 470)], width))
-    right_sleeve_upper = ImageChops.subtract(right_sleeve_upper, right_skin)
+    right_sleeve_upper = right_sleeve_upper.filter(ImageFilter.MaxFilter(7))
     right_coat_shoulder = ImageChops.subtract(right_coat_shoulder, right_sleeve_upper)
-    right_sleeve_lower = mask_polygon((width, height), mirror_points([(250, 500), (385, 525), (390, 625), (372, 706), (326, 741), (270, 718), (232, 650), (224, 565)], width))
+    right_sleeve_lower = mask_polygon((width, height), mirror_points([(250, 500), (410, 525), (410, 625), (400, 706), (350, 741), (270, 718), (232, 650), (224, 565)], width))
     right_hand_detail = mask_polygon((width, height), mirror_points([(277, 731), (326, 726), (351, 770), (347, 835), (326, 884), (297, 866), (280, 820)], width))
     right_palm = mask_polygon((width, height), mirror_points([(284, 760), (330, 756), (342, 800), (333, 842), (309, 862), (287, 830)], width))
     # Mirror the left finger masks without duplicating their point tables.
     right_fingers = {name: ImageOps.mirror(mask) for name, mask in left_fingers.items()}
+
+    # The coat-tail polygon overlaps the sleeve in the source image.  If it is
+    # exported as one broad crop, moving an arm carries a rectangular sleeve or
+    # a detached hand along with the supposedly static tail.  Keep the tail
+    # source pixels, but explicitly subtract every movable arm matte before
+    # writing the tail asset.  This preserves the exact mother pixels while
+    # making the tail a torso-side layer that can safely remain behind the arms.
+    left_coat_tail = left_coat.copy()
+    for layer in (
+        # `left_arm` is the broad source silhouette; the finer mattes below
+        # handle seams, but this pass is what removes the outer sleeve edge
+        # that falls outside those seam polygons.
+        left_arm,
+        left_skin,
+        left_coat_shoulder,
+        left_sleeve_upper,
+        left_sleeve_lower,
+        left_cuff,
+        left_hand_detail,
+    ):
+        left_coat_tail = ImageChops.subtract(left_coat_tail, layer)
+    right_coat_tail = right_coat.copy()
+    for layer in (
+        right_arm,
+        right_skin,
+        right_coat_shoulder,
+        right_sleeve_upper,
+        right_sleeve_lower,
+        right_cuff,
+        right_hand_detail,
+    ):
+        right_coat_tail = ImageChops.subtract(right_coat_tail, layer)
+
+    # Partition each garment crop into a light fabric base plus source-pixel
+    # detail passes.  The union is exactly the old crop, so neutral remains
+    # faithful while the dark straps, orange trim and shoulder cap can be
+    # addressed as their own child bones during motion.
+    dark_pixels = detail_tone_mask(image, "dark")
+    orange_pixels = detail_tone_mask(image, "orange")
+
+    def partition(mask: Image.Image) -> tuple[Image.Image, Image.Image, Image.Image]:
+        dark = intersect(mask, dark_pixels)
+        orange = intersect(mask, orange_pixels)
+        detail = ImageChops.lighter(dark, orange)
+        main = ImageChops.subtract(mask, detail)
+        return main, dark, orange
+
+    left_coat_shoulder_main, left_coat_shoulder_dark, left_coat_shoulder_orange = partition(left_coat_shoulder)
+    right_coat_shoulder_main, right_coat_shoulder_dark, right_coat_shoulder_orange = partition(right_coat_shoulder)
+    left_sleeve_upper_main, left_sleeve_upper_dark, left_sleeve_upper_orange = partition(left_sleeve_upper)
+    right_sleeve_upper_main, right_sleeve_upper_dark, right_sleeve_upper_orange = partition(right_sleeve_upper)
+    left_sleeve_lower_main, left_sleeve_lower_dark, left_sleeve_lower_orange = partition(left_sleeve_lower)
+    right_sleeve_lower_main, right_sleeve_lower_dark, right_sleeve_lower_orange = partition(right_sleeve_lower)
 
     left_movable = left_arm
     for layer in (
@@ -281,21 +392,52 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     # made an animated arm look detached because the old arm remained visible.
     # Use the exact visual mattes here; the broad arm polygons are only overlap
     # guides and would incorrectly erase the torso if used as the cutout.
-    left_visual = left_coat
+    # Keep torso-side coat panels, straps, and tails in the stationary mother
+    # layer.  `left_coat` is a broad side-of-body guide used to author the tail
+    # crop; using it as the base cutout removes body-locked details that have no
+    # matching moving drawable, which leaves black gaps in the neutral pose.
+    # Only the visual mattes that are actually parented to arm bones belong in
+    # this subtraction.
+    left_visual = Image.new("L", (width, height), 0)
     for layer in (left_skin, left_coat_shoulder, left_sleeve_upper,
                   left_sleeve_lower, left_cuff, left_hand_detail, left_palm,
                   *left_fingers.values()):
         left_visual = ImageChops.lighter(left_visual, layer)
-    right_visual = right_coat
+    right_visual = Image.new("L", (width, height), 0)
     for layer in (right_skin, right_coat_shoulder, right_sleeve_upper,
                   right_sleeve_lower, right_cuff, right_hand_detail, right_palm,
                   *right_fingers.values()):
         right_visual = ImageChops.lighter(right_visual, layer)
-    combined = ImageChops.lighter(head, left_visual)
-    combined = ImageChops.lighter(combined, right_visual)
+    # `Image.composite` accepts RGBA masks, but uses their colour channels as
+    # the selector on some Pillow builds.  The source crops then remain fully
+    # opaque even though the matte looks correct when inspected as alpha.  Keep
+    # the cutout explicitly in L mode so the static base cannot carry a second
+    # copy of the head, sleeves, hands, or coat shoulders behind the bones.
+    head_mask = intersect(head, foreground)
+    left_visual_mask = intersect(left_visual, foreground)
+    right_visual_mask = intersect(right_visual, foreground)
+    cutout = ImageChops.lighter(head_mask, left_visual_mask)
+    cutout = ImageChops.lighter(cutout, right_visual_mask)
+    # The mother image has a warm white sleeve edge immediately inside the
+    # outer arm.  It is outside the broad matte at its elbow and otherwise
+    # survives in the static base, so an inward arm swing leaves a frozen white
+    # strip behind.  Remove only low-saturation fabric pixels in that sleeve
+    # corridor; the torso remains untouched and the moving sleeve owns the
+    # neutral pixels.
+    white_fabric = Image.new("L", (width, height), 0)
+    white_px = white_fabric.load()
+    src_px = image.load()
+    for yy in range(height):
+        for xx in range(width):
+            red, green, blue, alpha_value = src_px[xx, yy]
+            if alpha_value >= 128 and red >= 165 and green >= 165 and blue >= 165 and max(red, green, blue) - min(red, green, blue) <= 48:
+                white_px[xx, yy] = 255
+    left_white_corridor = mask_polygon((width, height), [(360, 430), (425, 450), (425, 730), (390, 750), (360, 650)])
+    right_white_corridor = mask_polygon((width, height), mirror_points([(360, 430), (425, 450), (425, 730), (390, 750), (360, 650)], width))
+    cutout = ImageChops.lighter(cutout, intersect(left_white_corridor, white_fabric))
+    cutout = ImageChops.lighter(cutout, intersect(right_white_corridor, white_fabric))
     base = image.copy()
-    alpha = base.getchannel("A")
-    alpha = Image.composite(Image.new("L", (width, height), 0), alpha, combined)
+    alpha = ImageChops.subtract(base.getchannel("A"), cutout)
     base.putalpha(alpha)
     base.save(out / "fullbody-base-no-head-arms.png")
     # Keep a mother-derived torso/side backfill beneath the movable arms.  The
@@ -305,9 +447,12 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     # sleeve silhouette and is drawn below the arm bones in the Rive scene.
     backfill_mask = mask_polygon(
         (width, height),
-        [(350, 245), (674, 245), (685, 330), (670, 570), (660, 830),
-         (364, 830), (354, 570), (339, 330)],
-    ).filter(ImageFilter.MaxFilter(61))
+        # Keep the underlay inside the torso silhouette.  The arm layers own
+        # the outer sleeve corridors; copying those pixels here would leave
+        # detached dark straps when an arm opens outward.
+        [(420, 340), (604, 340), (604, 650),
+         (420, 650)],
+    )
     backfill = image.copy()
     # Only retain the dark torso/shorts pixels in this underlay.  Bright sleeve
     # and skin pixels are already owned by the moving layers; copying them into
@@ -330,36 +475,64 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
 
     boxes = {
         "arm-l-shoulder-skin": [315, 250, 470, 465],
+        "arm-l-upper-skin": [330, 250, 470, 440],
         "arm-l-cuff": [215, 665, 390, 815],
         "coat-l-shoulder": [285, 300, 450, 495],
+        "coat-l-shoulder-dark": [285, 300, 450, 495],
+        "coat-l-shoulder-orange": [285, 300, 450, 495],
         "sleeve-l-upper": [230, 365, 420, 610],
+        "sleeve-l-upper-dark": [230, 365, 420, 610],
+        "sleeve-l-upper-orange": [230, 365, 420, 610],
         "sleeve-l-lower": [205, 485, 415, 760],
+        "sleeve-l-lower-dark": [205, 485, 415, 760],
+        "sleeve-l-lower-orange": [205, 485, 415, 760],
         "hand-l-palm": [265, 740, 360, 885],
         "coat-l-tail": [300, 420, 480, 1020],
         "arm-r-shoulder-skin": [width - 470, 250, width - 315, 465],
+        "arm-r-upper-skin": [width - 470, 250, width - 330, 440],
         "arm-r-cuff": [width - 390, 665, width - 215, 815],
         "coat-r-shoulder": [width - 450, 300, width - 285, 495],
+        "coat-r-shoulder-dark": [width - 450, 300, width - 285, 495],
+        "coat-r-shoulder-orange": [width - 450, 300, width - 285, 495],
         "sleeve-r-upper": [width - 420, 365, width - 230, 610],
+        "sleeve-r-upper-dark": [width - 420, 365, width - 230, 610],
+        "sleeve-r-upper-orange": [width - 420, 365, width - 230, 610],
         "sleeve-r-lower": [width - 415, 485, width - 205, 760],
+        "sleeve-r-lower-dark": [width - 415, 485, width - 205, 760],
+        "sleeve-r-lower-orange": [width - 415, 485, width - 205, 760],
         "hand-r-palm": [width - 360, 740, width - 265, 885],
         "coat-r-tail": [width - 480, 420, width - 300, 1020],
         "head": [250, 0, 780, 370],
     }
     masks = {
-        "arm-l-shoulder-skin": left_skin,
+        "arm-l-shoulder-skin": left_skin_static,
+        "arm-l-upper-skin": left_skin_moving,
         "arm-l-cuff": left_cuff,
-        "coat-l-shoulder": left_coat_shoulder,
-        "sleeve-l-upper": left_sleeve_upper,
-        "sleeve-l-lower": left_sleeve_lower,
+        "coat-l-shoulder": left_coat_shoulder_main,
+        "coat-l-shoulder-dark": left_coat_shoulder_dark,
+        "coat-l-shoulder-orange": left_coat_shoulder_orange,
+        "sleeve-l-upper": left_sleeve_upper_main,
+        "sleeve-l-upper-dark": left_sleeve_upper_dark,
+        "sleeve-l-upper-orange": left_sleeve_upper_orange,
+        "sleeve-l-lower": left_sleeve_lower_main,
+        "sleeve-l-lower-dark": left_sleeve_lower_dark,
+        "sleeve-l-lower-orange": left_sleeve_lower_orange,
         "hand-l-palm": left_palm,
-        "coat-l-tail": left_coat,
-        "arm-r-shoulder-skin": right_skin,
+        "coat-l-tail": left_coat_tail,
+        "arm-r-shoulder-skin": right_skin_static,
+        "arm-r-upper-skin": right_skin_moving,
         "arm-r-cuff": right_cuff,
-        "coat-r-shoulder": right_coat_shoulder,
-        "sleeve-r-upper": right_sleeve_upper,
-        "sleeve-r-lower": right_sleeve_lower,
+        "coat-r-shoulder": right_coat_shoulder_main,
+        "coat-r-shoulder-dark": right_coat_shoulder_dark,
+        "coat-r-shoulder-orange": right_coat_shoulder_orange,
+        "sleeve-r-upper": right_sleeve_upper_main,
+        "sleeve-r-upper-dark": right_sleeve_upper_dark,
+        "sleeve-r-upper-orange": right_sleeve_upper_orange,
+        "sleeve-r-lower": right_sleeve_lower_main,
+        "sleeve-r-lower-dark": right_sleeve_lower_dark,
+        "sleeve-r-lower-orange": right_sleeve_lower_orange,
         "hand-r-palm": right_palm,
-        "coat-r-tail": right_coat,
+        "coat-r-tail": right_coat_tail,
     }
     # Finger mattes are deliberately separate source crops.  They are not
     # painted replacements; each one is the exact mother-image pixels under the

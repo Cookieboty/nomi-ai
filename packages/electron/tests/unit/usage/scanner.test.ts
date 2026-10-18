@@ -194,6 +194,55 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     expect(ledger.size()).toBe(1);
   });
 
+  it('Grok 旧游标重读 usage.modelUsage，把 unknown 换成真实模型', async () => {
+    const { home, ledger, scanner } = mk();
+    const dir = path.join(home, '.grok', 'sessions', 'cwd', 'sess-1');
+    fs.mkdirSync(dir, { recursive: true });
+    const f = path.join(dir, 'updates.jsonl');
+    const ts = new Date().toISOString();
+    fs.writeFileSync(
+      f,
+      `${JSON.stringify({
+        timestamp: ts,
+        params: {
+          update: {
+            sessionUpdate: 'turn_completed',
+            prompt_id: 'p1',
+            usage: {
+              inputTokens: 10,
+              outputTokens: 4,
+              modelUsage: { 'grok-4.7-build': { inputTokens: 10, outputTokens: 4 } },
+            },
+          },
+        },
+      })}\n`,
+    );
+    const st = fs.statSync(f);
+    ledger.upsert({
+      key: 'grok:sess-1:p1',
+      ts: Date.parse(ts),
+      source: 'grok',
+      via: 'log',
+      provider: 'xai',
+      model: 'unknown',
+      input: 10,
+      output: 4,
+      cacheRead: 0,
+      cacheWrite: 0,
+      session: 'sess-1',
+    });
+    ledger.setCursor(f, {
+      offset: st.size,
+      size: st.size,
+      mtimeMs: st.mtimeMs,
+      state: { sid: 'sess-1' },
+    });
+    expect((await scanner.scan()).added).toBeGreaterThan(0);
+    expect(ledger.all().find((r) => r.key === 'grok:sess-1:p1')?.model).toBe('grok-4.7-build');
+    expect(ledger.cursor(f)?.state?.rev).toBe(2);
+    expect((await scanner.scan()).added).toBe(0);
+  });
+
   it('一键清空之前的内容不再导入', async () => {
     const { home, ledger, scanner, setCleared } = mk();
     const f = claudeFile(home);

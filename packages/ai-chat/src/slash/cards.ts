@@ -56,8 +56,11 @@ export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
     };
   }
   const active = data.cliProviders?.profiles.find((p) => p.kind === ctx.backend && p.active);
-  if (active) return { model: active.model, provider: active.name, profile: true };
-  const used = data.usage?.byModel?.[0]?.key;
+  if (active) {
+    const model = active.model && active.model !== 'unknown' ? active.model : undefined;
+    return { ...(model ? { model } : {}), provider: active.name, profile: true };
+  }
+  const used = data.usage?.byModel?.find((r) => r.key && r.key !== 'unknown')?.key;
   return { ...(used ? { model: used } : {}), profile: false };
 }
 

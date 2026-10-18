@@ -1,6 +1,6 @@
 .md {
-  font-size: var(--cd-font-size-md);
-  line-height: 1.7;
+  font-size: var(--conv-text, 16px);
+  line-height: var(--conv-leading, 24px);
   color: var(--cd-color-text);
   overflow-wrap: anywhere;
 }
@@ -74,7 +74,7 @@
 }
 .inlineCode {
   font-family: var(--cd-font-mono);
-  font-size: 0.88em;
+  font-size: 0.875em;
   padding: 1px 5px;
   border-radius: var(--cd-radius-xs);
   background: var(--cd-color-surface-sunken);
@@ -92,7 +92,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 3px 6px 3px 10px;
-  font-size: var(--cd-font-size-xs);
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
   border-bottom: 1px solid var(--cd-color-border);
 }
@@ -121,7 +121,7 @@
   max-height: 420px;
   overflow: auto;
   font-family: var(--cd-font-mono);
-  font-size: 12.5px;
+  font-size: var(--conv-code, 14px);
   line-height: 1.55;
   white-space: pre;
 }

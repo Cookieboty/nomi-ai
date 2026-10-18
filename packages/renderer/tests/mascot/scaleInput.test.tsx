@@ -86,15 +86,35 @@ describe('mascot zoom input', () => {
       return <input data-testid="in" />;
     };
     const { getByTestId } = render(<Probe />);
-    fireEvent.keyDown(window, { key: '=', ctrlKey: true });
-    fireEvent.keyDown(window, { key: '-', metaKey: true });
-    fireEvent.keyDown(window, { key: '0', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '=', code: 'Equal', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '-', code: 'Minus', metaKey: true });
+    fireEvent.keyDown(window, { key: '0', code: 'Digit0', ctrlKey: true });
     expect(api.scaleStep).toHaveBeenNthCalledWith(1, 1);
     expect(api.scaleStep).toHaveBeenNthCalledWith(2, -1);
     expect(api.scaleReset).toHaveBeenCalledTimes(1);
-    fireEvent.keyDown(getByTestId('in'), { key: '=', ctrlKey: true });
-    fireEvent.keyDown(window, { key: '=' });
+    fireEvent.keyDown(getByTestId('in'), { key: '=', code: 'Equal', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '=', code: 'Equal' });
     expect(api.scaleStep).toHaveBeenCalledTimes(2);
+  });
+
+  it('Ctrl+Shift+= and Numpad +/-/0 all map to step/reset via e.code', async () => {
+    const { api } = install();
+    const { useMascotZoomInput } = await import('../../src/mascot/scaleStore');
+    const Probe: React.FC = () => {
+      useMascotZoomInput();
+      return null;
+    };
+    render(<Probe />);
+    // 美式键盘上的 Ctrl + "加号" 实际按下的是 Ctrl + Shift + '='（key 为 '+'，code 为 'Equal'）
+    fireEvent.keyDown(window, { key: '+', code: 'Equal', ctrlKey: true, shiftKey: true });
+    // 数字小键盘：独立的 +/-/0 键
+    fireEvent.keyDown(window, { key: '+', code: 'NumpadAdd', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '-', code: 'NumpadSubtract', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '0', code: 'Numpad0', ctrlKey: true });
+    expect(api.scaleStep).toHaveBeenNthCalledWith(1, 1);
+    expect(api.scaleStep).toHaveBeenNthCalledWith(2, 1);
+    expect(api.scaleStep).toHaveBeenNthCalledWith(3, -1);
+    expect(api.scaleReset).toHaveBeenCalledTimes(1);
   });
 });
 

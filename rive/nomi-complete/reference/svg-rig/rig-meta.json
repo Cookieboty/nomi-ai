@@ -1,167 +1,50 @@
 {
   "source": "rive/nomi-complete/source-nomi-master.png",
-  "size": [
-    1024,
-    1536
-  ],
+  "size": [1024, 1536],
   "svg": "nomi-fullbody-mother.svg",
   "boxes": {
-    "arm-l-shoulder-skin": [
-      315,
-      250,
-      470,
-      465
-    ],
-    "arm-l-cuff": [
-      215,
-      665,
-      390,
-      815
-    ],
-    "coat-l-shoulder": [
-      285,
-      300,
-      450,
-      495
-    ],
-    "sleeve-l-upper": [
-      230,
-      365,
-      420,
-      610
-    ],
-    "sleeve-l-lower": [
-      205,
-      485,
-      415,
-      760
-    ],
-    "hand-l-palm": [
-      265,
-      740,
-      360,
-      885
-    ],
-    "coat-l-tail": [
-      300,
-      420,
-      480,
-      1020
-    ],
-    "arm-r-shoulder-skin": [
-      554,
-      250,
-      709,
-      465
-    ],
-    "arm-r-cuff": [
-      634,
-      665,
-      809,
-      815
-    ],
-    "coat-r-shoulder": [
-      574,
-      300,
-      739,
-      495
-    ],
-    "sleeve-r-upper": [
-      604,
-      365,
-      794,
-      610
-    ],
-    "sleeve-r-lower": [
-      609,
-      485,
-      819,
-      760
-    ],
-    "hand-r-palm": [
-      664,
-      740,
-      759,
-      885
-    ],
-    "coat-r-tail": [
-      544,
-      420,
-      724,
-      1020
-    ],
-    "head": [
-      250,
-      0,
-      780,
-      370
-    ],
-    "hand-l-thumb": [
-      265,
-      740,
-      365,
-      890
-    ],
-    "hand-l-index": [
-      265,
-      740,
-      365,
-      890
-    ],
-    "hand-l-middle": [
-      265,
-      740,
-      365,
-      890
-    ],
-    "hand-l-ring": [
-      265,
-      740,
-      365,
-      890
-    ],
-    "hand-l-little": [
-      265,
-      740,
-      365,
-      890
-    ],
-    "hand-r-thumb": [
-      659,
-      740,
-      759,
-      890
-    ],
-    "hand-r-index": [
-      659,
-      740,
-      759,
-      890
-    ],
-    "hand-r-middle": [
-      659,
-      740,
-      759,
-      890
-    ],
-    "hand-r-ring": [
-      659,
-      740,
-      759,
-      890
-    ],
-    "hand-r-little": [
-      659,
-      740,
-      759,
-      890
-    ]
+    "arm-l-shoulder-skin": [315, 250, 470, 465],
+    "arm-l-upper-skin": [330, 250, 470, 440],
+    "arm-l-cuff": [215, 665, 390, 815],
+    "coat-l-shoulder": [285, 300, 450, 495],
+    "coat-l-shoulder-dark": [285, 300, 450, 495],
+    "coat-l-shoulder-orange": [285, 300, 450, 495],
+    "sleeve-l-upper": [230, 365, 420, 610],
+    "sleeve-l-upper-dark": [230, 365, 420, 610],
+    "sleeve-l-upper-orange": [230, 365, 420, 610],
+    "sleeve-l-lower": [205, 485, 415, 760],
+    "sleeve-l-lower-dark": [205, 485, 415, 760],
+    "sleeve-l-lower-orange": [205, 485, 415, 760],
+    "hand-l-palm": [265, 740, 360, 885],
+    "coat-l-tail": [300, 420, 480, 1020],
+    "arm-r-shoulder-skin": [554, 250, 709, 465],
+    "arm-r-upper-skin": [554, 250, 694, 440],
+    "arm-r-cuff": [634, 665, 809, 815],
+    "coat-r-shoulder": [574, 300, 739, 495],
+    "coat-r-shoulder-dark": [574, 300, 739, 495],
+    "coat-r-shoulder-orange": [574, 300, 739, 495],
+    "sleeve-r-upper": [604, 365, 794, 610],
+    "sleeve-r-upper-dark": [604, 365, 794, 610],
+    "sleeve-r-upper-orange": [604, 365, 794, 610],
+    "sleeve-r-lower": [609, 485, 819, 760],
+    "sleeve-r-lower-dark": [609, 485, 819, 760],
+    "sleeve-r-lower-orange": [609, 485, 819, 760],
+    "hand-r-palm": [664, 740, 759, 885],
+    "coat-r-tail": [544, 420, 724, 1020],
+    "head": [250, 0, 780, 370],
+    "hand-l-thumb": [265, 740, 365, 890],
+    "hand-l-index": [265, 740, 365, 890],
+    "hand-l-middle": [265, 740, 365, 890],
+    "hand-l-ring": [265, 740, 365, 890],
+    "hand-l-little": [265, 740, 365, 890],
+    "hand-r-thumb": [659, 740, 759, 890],
+    "hand-r-index": [659, 740, 759, 890],
+    "hand-r-middle": [659, 740, 759, 890],
+    "hand-r-ring": [659, 740, 759, 890],
+    "hand-r-little": [659, 740, 759, 890]
   },
   "artboardScale": 0.8463541666666666,
-  "artboardOffset": [
-    46.666666666666686,
-    0
-  ],
+  "artboardOffset": [46.666666666666686, 0.0],
   "bones": [
     "full.root",
     "full.pelvis",
@@ -187,9 +70,9 @@
     "full.arm-l.upper",
     "full.coat-l.shoulder",
     "full.sleeve-l.upper",
+    "full.arm-l.fore",
     "full.sleeve-l.lower",
     "full.sleeve-l.cuff",
-    "full.arm-l.fore",
     "full.arm-l.hand",
     "full.arm-l.thumb",
     "full.arm-l.thumb.1",
@@ -210,9 +93,9 @@
     "full.arm-r.upper",
     "full.coat-r.shoulder",
     "full.sleeve-r.upper",
+    "full.arm-r.fore",
     "full.sleeve-r.lower",
     "full.sleeve-r.cuff",
-    "full.arm-r.fore",
     "full.arm-r.hand",
     "full.arm-r.thumb",
     "full.arm-r.thumb.1",
@@ -314,11 +197,10 @@
       "full.arm-r.little.2"
     ],
     "visualBones": [
-      "full.arm-l.rig",
-      "full.arm-r.rig",
       "full.torso",
       "full.neck",
       "full.head",
+      "full.arm-l.rig",
       "full.arm-l.upper",
       "full.coat-l.shoulder",
       "full.sleeve-l.upper",
@@ -326,6 +208,7 @@
       "full.sleeve-l.lower",
       "full.sleeve-l.cuff",
       "full.arm-l.hand",
+      "full.arm-r.rig",
       "full.arm-r.upper",
       "full.coat-r.shoulder",
       "full.sleeve-r.upper",

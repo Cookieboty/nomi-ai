@@ -4,7 +4,7 @@
   border-radius: var(--cd-radius-lg);
   border: 1px solid var(--cd-color-border);
   background: var(--cd-color-surface-sunken);
-  font-size: 13px;
+  font-size: var(--conv-ui, 14px);
   color: var(--cd-color-text);
   min-width: 0;
 }
@@ -41,7 +41,7 @@
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-hover);
   font-family: var(--cd-font-mono);
-  font-size: 11.5px;
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-muted);
   max-width: 260px;
   overflow: hidden;
@@ -80,14 +80,14 @@
 }
 .note {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--conv-meta, 13px);
   line-height: 1.55;
   color: var(--cd-color-text-muted);
   overflow-wrap: anywhere;
 }
 .muted {
   color: var(--cd-color-text-muted);
-  font-size: 12px;
+  font-size: var(--conv-meta, 13px);
 }
 .err {
   color: var(--cd-color-danger-text);
@@ -96,7 +96,7 @@
   padding: 0 6px;
   border-radius: 999px;
   border: 1px solid var(--cd-color-border);
-  font-size: 11px;
+  font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-muted);
   white-space: nowrap;
 }
@@ -110,7 +110,7 @@
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--conv-ui, 14px);
   cursor: pointer;
 }
 .btn:hover:not(:disabled) {
@@ -220,7 +220,7 @@
 }
 .table thead th {
   color: var(--cd-color-text-muted);
-  font-size: 11.5px;
+  font-size: var(--conv-meta, 13px);
 }
 .table tbody th {
   color: var(--cd-color-text-muted);
@@ -261,7 +261,7 @@
 .groupHead {
   margin-top: 6px;
   padding: 2px 0;
-  font-size: 11px;
+  font-size: var(--conv-meta, 13px);
   letter-spacing: 0.04em;
   color: var(--cd-color-text-subtle);
 }
@@ -277,7 +277,7 @@
 }
 .itemLabel {
   font-family: var(--cd-font-mono);
-  font-size: 12.5px;
+  font-size: var(--conv-ui, 14px);
   white-space: nowrap;
 }
 .hint {
@@ -290,7 +290,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--cd-color-text-muted);
-  font-size: 12px;
+  font-size: var(--conv-meta, 13px);
 }
 .item > :first-child:last-child,
 .item .itemLabel:only-child {
@@ -307,7 +307,7 @@
   border: 1px solid var(--cd-color-border);
   background: var(--cd-color-surface);
   font-family: var(--cd-font-mono);
-  font-size: 12px;
+  font-size: var(--conv-code, 14px);
   line-height: 1.5;
   white-space: pre;
 }

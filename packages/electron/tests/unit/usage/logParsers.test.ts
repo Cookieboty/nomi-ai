@@ -556,6 +556,28 @@ describe('Grok Build 日志解析', () => {
     });
   });
 
+  it('真机 updates.jsonl：模型名在 usage.modelUsage 的键上，不再记成 unknown', () => {
+    const text = line({
+      timestamp: '2026-10-18T10:00:00.000Z',
+      params: {
+        update: {
+          sessionUpdate: 'turn_completed',
+          prompt_id: 'p9',
+          usage: {
+            inputTokens: 100,
+            outputTokens: 20,
+            cachedReadTokens: 0,
+            cacheCreationTokens: 0,
+            modelUsage: { 'grok-4.7-build': { inputTokens: 100, outputTokens: 20 } },
+          },
+        },
+      },
+    });
+    const [r] = parseGrokChunk(text, { sid: 'sess-9' });
+    expect(r?.model).toBe('grok-4.7-build');
+    expect(r?.key).toBe('grok:sess-9:p9');
+  });
+
   it('忽略非 turn_completed 行', () => {
     const text = line({
       params: { update: { sessionUpdate: 'agent_message_chunk', content: { text: 'hi' } } },

@@ -4,7 +4,8 @@
   gap: 4px;
   padding: 4px var(--cd-space-3) 0;
   border-bottom: 1px solid var(--cd-color-border);
-  min-height: 36px;
+  /* Codex Desktop 基础界面约 14px。标签原先 12.5px，贴着 16px 的会话区显小。 */
+  min-height: 40px;
   overflow: hidden;
 }
 
@@ -26,15 +27,15 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 30px;
-  max-width: 220px;
+  height: 34px;
+  max-width: 240px;
   padding: 0 6px 0 10px;
   border: 1px solid transparent;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   background: transparent;
   color: var(--cd-color-text-muted);
-  font-size: 12.5px;
+  font-size: 14px;
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
@@ -125,21 +126,21 @@
 }
 
 .badge {
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border-radius: 999px;
   background: var(--cd-color-accent);
   color: var(--cd-color-text-on-accent);
-  font-size: 10px;
-  line-height: 16px;
+  font-size: 12px;
+  line-height: 18px;
   text-align: center;
   flex-shrink: 0;
 }
 
 .close {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border: none;
   border-radius: 4px;
   background: transparent;
@@ -165,8 +166,8 @@
   flex-shrink: 0;
 }
 .addBtn {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -181,7 +182,7 @@
 
 .menu {
   position: absolute;
-  top: 32px;
+  top: 34px;
   right: 0;
   z-index: 50;
 }
@@ -191,12 +192,13 @@
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
 }
 .limitSelect {
-  font-size: 11px;
+  font-size: 13px;
+  height: 24px;
   padding: 0 2px;
   border-radius: 4px;
   border: 1px solid var(--cd-color-border);
@@ -215,11 +217,11 @@
   padding: 10px 14px;
   border-radius: 12px;
   background: var(--cd-color-bg-subtle);
-  font-size: 13px;
+  font-size: 14px;
   white-space: pre-wrap;
 }
 .liveTool {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
 }
 
@@ -233,11 +235,11 @@
   background: var(--cd-color-bg);
 }
 .permTitle {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 .permSummary {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
   word-break: break-all;
 }
@@ -246,7 +248,7 @@
   gap: 8px;
 }
 .permActions button {
-  font-size: 12px;
+  font-size: 13px;
   padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--cd-color-border);
@@ -266,7 +268,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--cd-color-text-subtle);
 }
 .toolList li[data-status='done'] {
