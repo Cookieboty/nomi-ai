@@ -13,7 +13,7 @@ const MASCOT_CONFIG: MascotConfig = {
     'voice-mode-toggle',
     'tts-config',
     'motion',
-    'toggle-top',
+    'close-mascot',
     'quit',
   ],
   drag: true,

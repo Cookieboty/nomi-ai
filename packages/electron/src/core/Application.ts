@@ -197,6 +197,7 @@ export class Application implements IApplication {
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
         openChat: () => this.windowManager.createAiChatWindow(),
+        mascotHidden: () => this.windowManager.mascotHidden(),
       });
 
       // 本地知识库：先于 AI runtime 创建（kb_search 工具随桌面工具注册），LLM 调用延迟绑定
@@ -351,6 +352,14 @@ export class Application implements IApplication {
       const startup = new StartupService(path.join(app.getPath('userData'), 'startup.json'));
       startup.registerIpc();
       this.startupService = startup;
+      // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
+      this.windowManager.mascotHidden = () => !startup.get().showMascot;
+      let showMascot = startup.get().showMascot;
+      startup.onChange((st) => {
+        if (st.showMascot === showMascot) return;
+        showMascot = st.showMascot;
+        this.windowManager.setMascotVisible(showMascot);
+      });
 
       // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
       registerTtsModel(this.configService).start();

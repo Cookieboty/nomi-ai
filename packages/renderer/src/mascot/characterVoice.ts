@@ -5,6 +5,7 @@
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
 
+import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
   loadSoftSpeechPrefs,
@@ -136,6 +137,11 @@ export function resolvePrefsForCharacter(
 }
 
 export function speakForActiveCharacter(text: string, opts: SpeakSoftOptions = {}): boolean {
+  // 看板娘已关闭：不再播放语音
+  if (isMascotMuted()) {
+    opts.onEnd?.();
+    return false;
+  }
   const prefs = resolvePrefsForCharacter();
   const merged = opts.prefs ? { ...prefs, ...opts.prefs } : prefs;
   const voice = resolveCharacterVoice(activeModelName, activeModelConfig);

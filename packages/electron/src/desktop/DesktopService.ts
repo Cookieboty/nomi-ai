@@ -52,6 +52,8 @@ export interface DesktopRuntimeHooks {
 export interface DesktopWindows {
   main(): BrowserWindow | null;
   openChat(): Promise<BrowserWindow>;
+  /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
+  mascotHidden?(): boolean;
 }
 
 export const DESKTOP_CHANGED = 'ai:desktop:changed';
@@ -106,7 +108,10 @@ export class DesktopService {
     }
     this.broker.ui = {
       request: (req) => this.sendConfirm(req),
-      cancel: (id) => this.main()?.webContents.send('desktop:confirm-cancel', id),
+      cancel: (id) => {
+        this.main()?.webContents.send('desktop:confirm-cancel', id);
+        this.rehideMascotIfIdle();
+      },
     };
     this.broker.onChange(() => this.broadcast(DESKTOP_CHANGED, this.state()));
   }
@@ -122,6 +127,17 @@ export class DesktopService {
   private main(): BrowserWindow | null {
     const w = this.windows?.main();
     return w && !w.isDestroyed() ? w : null;
+  }
+
+  private mascotHidden(): boolean {
+    return this.windows?.mascotHidden?.() ?? false;
+  }
+
+  /** 看板娘已关闭时，确认框全部处理完就把临时显示的窗口再藏起来 */
+  private rehideMascotIfIdle(): void {
+    if (!this.mascotHidden() || this.broker.pendingRequests().length > 0) return;
+    const w = this.main();
+    if (w?.isVisible()) w.hide();
   }
 
   private broadcast(ch: string, payload: unknown): void {
@@ -187,7 +203,7 @@ export class DesktopService {
     const w = this.main();
     this.logger.info('提醒触发', { id: r.id, hasWindow: !!w });
     if (w) {
-      if (!w.isVisible()) w.showInactive();
+      if (!w.isVisible() && !this.mascotHidden()) w.showInactive();
       w.webContents.send('desktop:reminder', {
         id: r.id,
         text: r.text,
@@ -207,7 +223,7 @@ export class DesktopService {
         });
         n.on('click', () => {
           const mw = this.main();
-          if (mw && !mw.isVisible()) mw.showInactive();
+          if (mw && !mw.isVisible() && !this.mascotHidden()) mw.showInactive();
         });
         n.show();
       }
@@ -665,6 +681,7 @@ export class DesktopService {
         return;
       }
       if (typeof id === 'string') this.broker.answer(id, allow === true, remember === true);
+      this.rehideMascotIfIdle();
     });
     ipcMain.on('desktop:drop-file', (e, p) => {
       if (e.sender !== this.main()?.webContents || typeof p !== 'string' || !p) return;

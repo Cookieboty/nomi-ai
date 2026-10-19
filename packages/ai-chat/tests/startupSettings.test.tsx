@@ -136,6 +136,31 @@ describe('Settings → General → startup default view', () => {
     );
   });
 
+  it('desktop mascot switch: locked on while the mascot is the default view', async () => {
+    render(<StartupSettings />);
+    const sw = await screen.findByTestId('startup-show-mascot');
+    expect(sw.getAttribute('aria-checked')).toBe('true');
+    expect((sw as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(sw);
+    await act(async () => undefined);
+    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+  });
+
+  it('desktop mascot switch: closes / reopens with the main window as default view', async () => {
+    stored = { defaultView: 'main', closeMain: 'hide', showMascot: true };
+    render(<StartupSettings />);
+    const sw = await screen.findByTestId('startup-show-mascot');
+    expect(sw.textContent).toContain('显示看板娘');
+    fireEvent.click(sw);
+    await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
+    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    // 切回看板娘为默认：开关自动打开并锁定
+    fireEvent.click(screen.getByTestId('startup-view-mascot'));
+    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
+    expect((sw as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('renders nothing without the desktop bridge (browser preview)', () => {
     delete (window as unknown as { aiIPC?: unknown }).aiIPC;
     const { container } = render(<StartupSettings />);

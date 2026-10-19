@@ -6,6 +6,7 @@ jest.mock('electron', () => ({
     removeHandler: jest.fn(),
   },
   app: { isPackaged: true },
+  BrowserWindow: { getAllWindows: () => [] },
 }));
 
 import fs from 'node:fs';
@@ -18,16 +19,25 @@ const file = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'startup-')),
 
 describe('StartupService', () => {
   it('defaults to mascot when the file does not exist (existing users / fresh install)', () => {
-    expect(new StartupService(file()).get()).toEqual({ defaultView: 'mascot', closeMain: 'hide' });
+    expect(new StartupService(file()).get()).toEqual({
+      defaultView: 'mascot',
+      closeMain: 'hide',
+      showMascot: true,
+    });
   });
 
   it('persists the choice and reloads it on the next launch', () => {
     const f = file();
     const s = new StartupService(f);
-    expect(s.set({ defaultView: 'main' })).toEqual({ defaultView: 'main', closeMain: 'hide' });
+    expect(s.set({ defaultView: 'main' })).toEqual({
+      defaultView: 'main',
+      closeMain: 'hide',
+      showMascot: true,
+    });
     expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({
       defaultView: 'main',
       closeMain: 'hide',
+      showMascot: true,
     });
     expect(new StartupService(f).get().defaultView).toBe('main');
     s.set({ defaultView: 'mascot' });
@@ -58,13 +68,48 @@ describe('StartupService', () => {
     const f = file();
     fs.writeFileSync(f, JSON.stringify({ defaultView: 'main' }));
     const s = new StartupService(f);
-    expect(s.get()).toEqual({ defaultView: 'main', closeMain: 'hide' });
-    expect(s.set({ closeMain: 'quit' })).toEqual({ defaultView: 'main', closeMain: 'quit' });
+    expect(s.get()).toEqual({ defaultView: 'main', closeMain: 'hide', showMascot: true });
+    expect(s.set({ closeMain: 'quit' })).toEqual({
+      defaultView: 'main',
+      closeMain: 'quit',
+      showMascot: true,
+    });
     expect(new StartupService(f).get().closeMain).toBe('quit');
     expect(() => s.set({ closeMain: 'minimize' })).toThrow(/unknown close action/);
     expect(() => s.set({ defaultView: 'main', closeMain: 'bad' })).toThrow();
     expect(() => s.set({})).toThrow(/empty/);
-    expect(new StartupService(f).get()).toEqual({ defaultView: 'main', closeMain: 'quit' });
+    expect(new StartupService(f).get()).toEqual({
+      defaultView: 'main',
+      closeMain: 'quit',
+      showMascot: true,
+    });
+  });
+
+  it('closes / reopens the mascot only with the main window as default view', () => {
+    const f = file();
+    const s = new StartupService(f);
+    const seen: boolean[] = [];
+    const off = s.onChange((st) => seen.push(st.showMascot));
+    // 默认看板娘：她是进入主界面的入口，不能关
+    expect(() => s.set({ showMascot: false })).toThrow(/cannot be closed/);
+    expect(s.get().showMascot).toBe(true);
+    s.set({ defaultView: 'main' });
+    expect(s.set({ showMascot: false }).showMascot).toBe(false);
+    expect(new StartupService(f).get().showMascot).toBe(false);
+    expect(() => s.set({ showMascot: 'no' })).toThrow(/invalid showMascot/);
+    // 切回看板娘 → 自动重新打开
+    expect(s.set({ defaultView: 'mascot' }).showMascot).toBe(true);
+    off();
+    s.set({ defaultView: 'main' });
+    expect(seen).toEqual([true, false, true]);
+  });
+
+  it('ignores a hand-edited showMascot:false while the mascot is the default view', () => {
+    const f = file();
+    fs.writeFileSync(f, JSON.stringify({ defaultView: 'mascot', showMascot: false }));
+    expect(new StartupService(f).get().showMascot).toBe(true);
+    fs.writeFileSync(f, JSON.stringify({ defaultView: 'main', showMascot: false }));
+    expect(new StartupService(f).get().showMascot).toBe(false);
   });
 
   it('exposes ai:startup:get / ai:startup:set over IPC', () => {

@@ -1,8 +1,8 @@
 /**
- * 设置 → 通用 → 启动 Nomi 后默认显示：看板娘（默认）/ 软件主界面。
+ * 设置 → 通用 → 启动 Nomi 后默认显示：看板娘（默认）/ 软件主界面；桌面看板娘显示开关。
  * 主进程 startup/StartupService（ai:startup:*）持久化，下次启动生效；首次引导里有同一个选项。
  */
-import { t, useLocale } from '@nomi-ai/ui';
+import { Switch, t, useLocale } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -44,17 +44,29 @@ export const StartupSettings: React.FC = () => {
   useLocale();
   const [view, setView] = useState<StartupView | null>(null);
   const [closeMain, setCloseMain] = useState<CloseMainAction | null>(null);
+  const [showMascot, setShowMascot] = useState<boolean | null>(null);
   useEffect(() => {
     let alive = true;
+    let off: () => void = () => undefined;
     if (startupClient.available()) {
       void startupClient.get().then((v) => alive && setView(v));
       void startupClient.getCloseMain().then((v) => alive && setCloseMain(v));
+      void startupClient.getShowMascot().then((v) => alive && setShowMascot(v));
+      // 看板娘工具栏里「关闭看板娘」后，这里同步成关闭
+      off = startupClient.onShowMascotChange((v) => alive && setShowMascot(v));
     }
     return () => {
       alive = false;
+      off();
     };
   }, []);
-  if (!startupClient.available() || !view || !closeMain) return null;
+  if (!startupClient.available() || !view || !closeMain || showMascot === null) return null;
+
+  const toggleMascot = (next: boolean) => {
+    const prev = showMascot;
+    setShowMascot(next);
+    void startupClient.setShowMascot(next).then((saved) => setShowMascot(saved ?? prev));
+  };
 
   const chooseClose = (next: CloseMainAction) => {
     if (next === closeMain) return;
@@ -67,6 +79,8 @@ export const StartupSettings: React.FC = () => {
     if (next === view) return;
     const prev = view;
     setView(next);
+    // 切回看板娘：主进程会自动重新打开她（她是进入主界面的入口）
+    if (next === 'mascot') setShowMascot(true);
     // 保存失败：回滚到主进程里实际生效的值
     void startupClient.set(next).then((saved) => setView(saved ?? prev));
   };
@@ -91,6 +105,23 @@ export const StartupSettings: React.FC = () => {
         ))}
       </div>
       <p className={base.muted}>{t('下次启动生效。')}</p>
+      <h2 className={base.h2}>{t('桌面看板娘')}</h2>
+      <Switch
+        checked={showMascot}
+        disabled={view === 'mascot'}
+        onChange={toggleMascot}
+        label={t('显示看板娘')}
+        data-testid="startup-show-mascot"
+      />
+      <p className={base.muted}>
+        {view === 'mascot'
+          ? t(
+              '默认显示看板娘时，她是进入主界面的入口，不能关闭；要关闭请先把默认显示改为「软件主界面」。',
+            )
+          : t(
+              '关闭后看板娘从桌面隐藏、不再播放语音；灵动岛和系统通知照常提醒。看板娘工具栏里的「关闭看板娘」也会关掉这里，随时可在此重新打开。',
+            )}
+      </p>
       <h2 className={base.h2}>{t('关闭主界面时')}</h2>
       <div
         className={styles.opts}

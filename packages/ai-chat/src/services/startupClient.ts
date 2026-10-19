@@ -10,12 +10,18 @@ export const DEFAULT_CLOSE_MAIN: CloseMainAction = 'hide';
 
 interface Bridge {
   invoke(ch: string, ...a: unknown[]): Promise<unknown>;
+  on?(ch: string, fn: (payload: unknown) => void): () => void;
 }
 const bridge = (): Bridge | undefined => (window as unknown as { aiIPC?: Bridge }).aiIPC;
 
 const pick = (r: unknown): StartupView | null => {
   const v = (r as { defaultView?: unknown } | null)?.defaultView;
   return v === 'main' || v === 'mascot' ? v : null;
+};
+
+const pickShowMascot = (r: unknown): boolean | null => {
+  const v = (r as { showMascot?: unknown } | null)?.showMascot;
+  return typeof v === 'boolean' ? v : null;
 };
 
 const pickClose = (r: unknown): CloseMainAction | null => {
@@ -45,6 +51,29 @@ export const startupClient = {
       ?.invoke('ai:startup:set', { closeMain })
       .catch(() => null);
     return pickClose(r);
+  },
+  /** 是否显示桌面看板娘；读取失败 / 老配置回落到显示 */
+  async getShowMascot(): Promise<boolean> {
+    const r = await bridge()
+      ?.invoke('ai:startup:get')
+      .catch(() => null);
+    return pickShowMascot(r) ?? true;
+  },
+  /** 立即显示 / 关闭看板娘；返回主进程确认后的值，失败时返回 null */
+  async setShowMascot(showMascot: boolean): Promise<boolean | null> {
+    const r = await bridge()
+      ?.invoke('ai:startup:set', { showMascot })
+      .catch(() => null);
+    return pickShowMascot(r);
+  },
+  /** 看板娘工具栏「关闭看板娘」等外部改动；返回取消订阅 */
+  onShowMascotChange(fn: (showMascot: boolean) => void): () => void {
+    const b = bridge();
+    if (!b?.on) return () => undefined;
+    return b.on('ai:startup:changed', (r) => {
+      const v = pickShowMascot(r);
+      if (v !== null) fn(v);
+    });
   },
   /** 返回主进程确认后的值；失败时返回 null（调用方回滚界面） */
   async set(defaultView: StartupView): Promise<StartupView | null> {

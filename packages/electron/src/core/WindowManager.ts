@@ -58,6 +58,8 @@ export interface IWindowManager {
   getTTSConfigWindow(): BrowserWindow | null;
   closeAllWindows(): void;
   setAlwaysOnTop(windowType: 'main' | 'aiChat' | 'ttsConfig', flag: boolean): void;
+  /** 显示 / 隐藏桌面看板娘；隐藏时窗口保留（提醒、确认框仍有宿主）但静音 */
+  setMascotVisible(visible: boolean): void;
 }
 
 export class WindowManager implements IWindowManager {
@@ -65,6 +67,8 @@ export class WindowManager implements IWindowManager {
   chromeTheme: () => ChromeTheme = () => 'sunset';
   /** 主界面关闭后是否退出整个应用（「关闭主界面时：退出 Nomi」；Application 注入，默认不退出） */
   shouldQuitOnChatClose: () => boolean = () => false;
+  /** 看板娘是否被关闭（「关闭看板娘」/ 设置；Application 注入，默认显示） */
+  mascotHidden: () => boolean = () => false;
   private mainWindow: BrowserWindow | null = null;
   private aiChatWindow: BrowserWindow | null = null;
   /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
@@ -83,7 +87,7 @@ export class WindowManager implements IWindowManager {
    */
   async createMainWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     if (this.mainWindow) {
-      this.mainWindow.focus();
+      if (!this.mascotHidden()) this.mainWindow.focus();
       return this.mainWindow;
     }
 
@@ -122,6 +126,8 @@ export class WindowManager implements IWindowManager {
       };
 
       this.mainWindow = await this.createWindow(windowOptions, 'main');
+      // 看板娘已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
+      this.mainWindow.webContents.setAudioMuted(this.mascotHidden());
 
       // 设置窗口事件监听
       this.setupMainWindowEvents(this.mainWindow);
@@ -319,6 +325,18 @@ export class WindowManager implements IWindowManager {
     }
   }
 
+  setMascotVisible(visible: boolean): void {
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) {
+      if (visible) void this.createMainWindow({ activate: false });
+      return;
+    }
+    win.webContents.setAudioMuted(!visible);
+    if (visible) win.showInactive();
+    else win.hide();
+    this.logger.info(visible ? '看板娘已显示' : '看板娘已关闭');
+  }
+
   /**
    * 设置窗口置顶状态
    */
@@ -405,7 +423,10 @@ export class WindowManager implements IWindowManager {
     // 通用窗口事件
     window.once('ready-to-show', () => {
       perfMark(`${type}-shown`);
-      if (options.showInactive) window.showInactive();
+      // 看板娘已关闭：窗口保持隐藏（已静音），设置里重新打开时再显示
+      const keepHidden = type === 'main' && this.mascotHidden();
+      if (keepHidden) this.logger.info('看板娘已关闭，窗口保持隐藏');
+      else if (options.showInactive) window.showInactive();
       else window.show();
 
       // 开发环境打开开发者工具

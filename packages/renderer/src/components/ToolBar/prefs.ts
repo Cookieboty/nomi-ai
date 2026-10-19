@@ -19,7 +19,7 @@ export const PRIMARY_TOOLS = [
   'switch-model',
   'motion',
   'voice-settings',
-  'toggle-top',
+  'close-mascot',
 ];
 
 const KEY = 'mascot-toolbar-prefs';
