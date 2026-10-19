@@ -265,6 +265,48 @@ describe('MemoryService', () => {
       expect(out[1]!.ran).toBe(true);
     });
 
+    // 会话存储最多保留 1000 条：再往后条数不变、开头被裁掉
+    const slide = (from: number, to: number) => msgsOf(to).slice(from - 1, to);
+
+    it('keeps summarizing after the 1000-message storage cap (count stays 1000)', async () => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      const ran = async (m: ReturnType<typeof msgsOf>) => {
+        const before = complete.mock.calls.length;
+        await svc.ingest('c1', m);
+        return complete.mock.calls.length > before;
+      };
+      expect(await ran(slide(1, 1000))).toBe(true);
+      expect(await ran(slide(3, 1002))).toBe(true); // +2，条数仍是 1000
+      expect(await ran(slide(4, 1003))).toBe(false); // +1
+      expect(await ran(slide(5, 1004))).toBe(true); // 距上次摘要 +2
+      expect(JSON.stringify((complete.mock.calls.at(-1) as unknown[])[0])).toContain('消息 #1004');
+    });
+
+    it('re-summarizes when the last reply is regenerated or edited (same count)', async () => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      const m = msgsOf(40);
+      await svc.ingest('c1', m);
+      const regenerated = [
+        ...m.slice(0, -1),
+        { role: 'assistant' as const, content: '重新生成的回答' },
+      ];
+      expect((await svc.ingest('c1', regenerated)).episode).toBeTruthy();
+      expect(await svc.ingest('c1', regenerated)).toEqual({ skipped: 'no-new' });
+    });
+
+    it('legacy episodes (no window signature) at the storage cap are re-summarized once', async () => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      await svc.ingest('c1', slide(1, 1000));
+      const ep = (svc as unknown as { data: { episodes: Array<{ windowSig?: string }> } }).data
+        .episodes[0]!;
+      delete ep.windowSig;
+      expect((await svc.ingest('c1', slide(2, 1001))).episode).toBeTruthy();
+      expect(await svc.ingest('c1', slide(2, 1001))).toEqual({ skipped: 'no-new' });
+    });
+
     it('a manually edited summary is still never overwritten automatically', async () => {
       const { svc } = await ingestSeq([90]);
       await svc.updateEpisode(svc.list().episodes[0]!.id, { summary: '我改过' });

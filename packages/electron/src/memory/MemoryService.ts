@@ -211,11 +211,8 @@ export class MemoryService {
     const clean = all.slice(-SUMMARY_WINDOW);
     const prev = this.data.episodes.find((e) => e.conversationId === conversationId);
     if (total < (opts.force ? 2 : this.settings.minMessages)) return { skipped: 'too-short' };
-    // 新增不足 2 条才跳过；历史比上次摘要时更短（被裁剪 / 删除 / 重新生成）说明内容变了，不跳过
-    if (prev && !opts.force) {
-      const added = total - prev.messageCount;
-      if (added >= 0 && added < 2) return { skipped: 'no-new' };
-    }
+    const sig = windowSig(all, total - 1);
+    if (prev && !opts.force && newSinceLast(all, prev) < 2) return { skipped: 'no-new' };
     if (prev?.edited && !opts.force) return { skipped: 'edited' };
     if (this.busy.has(conversationId)) return { skipped: 'busy' };
     this.busy.add(conversationId);
@@ -232,6 +229,7 @@ export class MemoryService {
             ...p,
             updatedAt: now,
             messageCount: total,
+            windowSig: sig,
             edited: false,
             vec: undefined,
           }
@@ -244,6 +242,7 @@ export class MemoryService {
             createdAt: now,
             updatedAt: now,
             messageCount: total,
+            windowSig: sig,
             pinned: false,
             edited: false,
           };
@@ -678,4 +677,37 @@ export function initMemoryService(d: MemoryDeps): MemoryService {
 }
 export function getMemoryService(): MemoryService | null {
   return instance;
+}
+
+/** 会话存储默认最多保留的消息数（electron/config/default.json 的 maxMessages）：到上限后条数不再增长 */
+const HISTORY_CAP = 1000;
+/** 回找上次摘要位置时最多往前看的消息数 */
+const RESYNC_LOOKBACK = 200;
+
+const msgHash = (m: TurnMsg) => createHash('sha1').update(`${m.role}\0${m.content}`).digest('hex');
+
+/** 以 end 结尾的最近 SUMMARY_WINDOW 条消息的指纹 */
+function windowSig(all: TurnMsg[], end: number, hashes?: string[]): string {
+  const from = Math.max(0, end - SUMMARY_WINDOW + 1);
+  const h = createHash('sha1');
+  for (let i = from; i <= end; i++) h.update(hashes ? hashes[i]! : msgHash(all[i]!));
+  return h.digest('hex');
+}
+
+/**
+ * 上次摘要之后新增了多少条；历史被编辑 / 重新生成（找不到上次的窗口）返回 Infinity。
+ * 旧数据没有 windowSig：按条数判断，但条数已到存储上限时无从判断，视为有新内容（迁移一次）。
+ */
+function newSinceLast(all: TurnMsg[], prev: Episode): number {
+  if (!prev.windowSig) {
+    const added = all.length - prev.messageCount;
+    if (added < 0 || all.length >= HISTORY_CAP) return Infinity;
+    return added;
+  }
+  const hashes = all.map(msgHash);
+  const stop = Math.max(0, all.length - 1 - RESYNC_LOOKBACK);
+  for (let end = all.length - 1; end >= stop; end--) {
+    if (windowSig(all, end, hashes) === prev.windowSig) return all.length - 1 - end;
+  }
+  return Infinity;
 }

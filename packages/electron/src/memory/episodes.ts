@@ -26,6 +26,11 @@ export interface Episode {
   updatedAt: number;
   /** 摘要时对话的消息数（同一会话再次摘要时用来判断是否有新内容） */
   messageCount: number;
+  /**
+   * 摘要时最近 SUMMARY_WINDOW 条消息的内容指纹（#28）。会话被存储上限裁掉开头时条数不再增长，
+   * 只看条数会永久停更；据此找回「上次摘要到哪条」，并识别编辑 / 重新生成。旧数据没有该字段。
+   */
+  windowSig?: string;
   pinned: boolean;
   /** 用户手动改过：自动摘要不再覆盖 */
   edited: boolean;
