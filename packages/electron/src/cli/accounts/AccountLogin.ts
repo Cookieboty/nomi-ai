@@ -243,7 +243,12 @@ export class AccountLogin {
           state: 'waiting',
           message: t('已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。'),
         });
-        await conn.request('authenticate', { methodId: 'oauth-personal' });
+        // Gemini 自己的浏览器回调 5 分钟超时；多留 1 分钟余量，整体还有 LOGIN_TIMEOUT_MS 兜底
+        await conn.request(
+          'authenticate',
+          { methodId: 'oauth-personal' },
+          { timeoutMs: 6 * 60_000 },
+        );
         if (s.finished) return;
         this.send(s, { state: 'verifying' });
         await this.collect(s);

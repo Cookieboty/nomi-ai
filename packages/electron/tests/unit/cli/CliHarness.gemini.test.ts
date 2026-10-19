@@ -114,9 +114,10 @@ describe('CliHarnessService Gemini backend', () => {
       else process.env[k] = saved[k];
     }
   });
-  const mk = () => {
+  const mk = (extra: { geminiPromptIdleMs?: number } = {}) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-gemini-'));
     const h = new CliHarnessService({
+      ...extra,
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: root,
@@ -198,6 +199,17 @@ describe('CliHarnessService Gemini backend', () => {
     const { h } = mk();
     const tab = h.createTab({ backend: 'gemini' });
     await expect(h.sendTab(tab.id, 'hi')).resolves.toMatchObject({ text: 'Mock Gemini: hi' });
+  }, 15_000);
+
+  it('a turn with no activity times out, sends session/cancel and shows a translated error', async () => {
+    process.env.NOMI_MOCK_DELAY_MS = '5000';
+    const { h, root } = mk({ geminiPromptIdleMs: 400 });
+    const log = path.join(root, 'acp.log');
+    process.env.NOMI_MOCK_GEMINI_LOG = log;
+    const tab = h.createTab({ backend: 'gemini' });
+    const err = (await h.sendTab(tab.id, 'stuck').catch((e: Error) => e)) as Error;
+    expect(err.message).toContain('Gemini 响应超时');
+    expect(readLog(log).some((c) => c.method === 'session/cancel')).toBe(true);
   }, 15_000);
 
   it('routes permission requests through replyPermission', async () => {

@@ -88,6 +88,9 @@ const IMAGE_ALIAS_FILE = 'image-aliases.json';
 
 const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini'];
 
+/** Gemini 一轮 5 分钟没有任何输出：多半卡在网络或上游，取消这一轮 */
+const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
+
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
 }
@@ -354,6 +357,8 @@ export class CliHarnessService {
       geminiEnv?: () => Record<string, string>;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
+      /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
+      geminiPromptIdleMs?: number;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -1663,7 +1668,20 @@ export class CliHarnessService {
       const r = await live.conn.request<{
         stopReason?: string;
         _meta?: { quota?: { token_count?: { input_tokens?: number; output_tokens?: number } } };
-      }>('session/prompt', { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] });
+      }>(
+        'session/prompt',
+        { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] },
+        {
+          // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
+          idle: true,
+          timeoutMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
+          onTimeout: () => {
+            this.cancelGeminiTurn(live);
+            // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
+            live.recycleAfterTurn = true;
+          },
+        },
+      );
       this.onGeminiEvents(tab.id, live, turn.mapper.flush());
       if (r?.stopReason === 'cancelled') throw new Error(t('已中止'));
       const tc = r?._meta?.quota?.token_count;

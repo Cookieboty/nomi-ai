@@ -624,5 +624,6 @@
   "豆包语音识别请求参数无效": "Invalid Doubao speech recognition request parameters",
   "豆包语音识别服务出错": "Doubao speech recognition service error",
   "连接被关闭": "connection closed",
-  "Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。请在终端里进入该文件夹运行一次 `gemini` 并选择「信任此文件夹」，或把它加入 Gemini 的受信任文件夹列表后重试。": "Gemini CLI does not trust this folder ({0}) and refused to run here. Open a terminal in that folder, run `gemini` once and choose \"Trust folder\" (or add it to Gemini's trusted folders), then try again."
+  "Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。请在终端里进入该文件夹运行一次 `gemini` 并选择「信任此文件夹」，或把它加入 Gemini 的受信任文件夹列表后重试。": "Gemini CLI does not trust this folder ({0}) and refused to run here. Open a terminal in that folder, run `gemini` once and choose \"Trust folder\" (or add it to Gemini's trusted folders), then try again.",
+  "Gemini 响应超时（{0} 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。": "Gemini did not respond for {0} seconds, so the request was cancelled. Please try again; if it keeps happening, check your network or restart the session."
 }
