@@ -273,7 +273,7 @@
   "首次开启声音会下载离线语音模型（约 115 MB），下载完成后才能试听。": "The first time you turn on a voice, the offline voice model (about 115 MB) is downloaded; preview plays once it finishes.",
   "模型下载中…（完成后自动可用）": "Model downloading… (available automatically when done)",
   "模型未下载：在主界面「设置 → 语音与屏幕 → 语音」开启语音即可下载": "Model not downloaded: turn on voice in the main window under Settings → Voice & Screen → Voice to download it",
-  "1. 默认「内置离线语音」：模型随安装包分发，完全本机合成，无需联网。": "1. Default \"Built-in offline voice\": the model ships with the installer and speech is synthesized entirely on this computer, no network needed.",
+  "1. 默认「内置离线语音」：开启语音时下载模型到本机，之后完全本机合成，无需联网。": "1. Default \"Built-in offline voice\": the model is downloaded to this computer when you turn on voice; after that speech is synthesized entirely locally, no network needed.",
   "2. 模型缺失 / 合成出错时，看板娘保持静默，无需试听步骤。": "2. If the model is missing or synthesis fails, the mascot simply stays silent; there's no test-listen step.",
   "3. 高级：Fish 本地（Docker / uv 启动 fish-speech，监听 {0}）或 Fish 云（自备 API Key，不捆绑 Research-only 权重）。": "3. Advanced: local Fish (run fish-speech with Docker / uv, listening on {0}) or Fish cloud (bring your own API key; Research-only weights are not bundled).",
   "4. 需要对接其它克隆 API 时，选择「自行接入外部 TTS（legacy）」。": "4. To connect another voice-cloning API, choose \"Connect your own external TTS (legacy)\".",
@@ -313,7 +313,7 @@
   "高级：Fish 云 API（自备 Key）": "Advanced: Fish cloud API (your own key)",
   "高级：Fish 本地（fish-speech）": "Advanced: local Fish (fish-speech)",
   "高级：原始 JSON": "Advanced: raw JSON",
-  "默认使用内置{0}（sherpa-onnx，本机合成，模型随安装包分发，无需联网/外部服务）。模型缺失或合成失败时保持静默。Fish Audio 为可选高级引擎；不提供用户上传/克隆任意音色；仍可自行接入外部 TTS（legacy）。": "Uses the built-in {0} by default (sherpa-onnx, synthesized on this computer, model shipped with the installer, no network or external service needed). If the model is missing or synthesis fails, it stays silent. Fish Audio is an optional advanced engine; uploading or cloning arbitrary voices is not offered; you can still connect your own external TTS (legacy).",
+  "默认使用内置{0}（sherpa-onnx，本机合成，模型在开启语音时下载到本机，之后无需联网/外部服务）。模型缺失或合成失败时保持静默。Fish Audio 为可选高级引擎；不提供用户上传/克隆任意音色；仍可自行接入外部 TTS（legacy）。": "Uses the built-in {0} by default (sherpa-onnx, synthesized on this computer; the model is downloaded when you turn on voice, after which no network or external service is needed). If the model is missing or synthesis fails, it stays silent. Fish Audio is an optional advanced engine; uploading or cloning arbitrary voices is not offered; you can still connect your own external TTS (legacy).",
   "声线 sid 0，语速 1.0（固定默认，不加速）。模型约 115 MB（下载）/ 133 MB（解压），不随安装包分发：在主界面「设置 → 语音与屏幕 → 语音」开启语音时下载到本机。开发态可用环境变量 {0}，或仓库同级 {1}。": "Voice sid 0, rate 1.0 (fixed default, not sped up). The model (about 115 MB download / 133 MB extracted) isn't shipped with the installer: it's downloaded to this computer when you turn on voice in the main window under Settings → Voice & Screen → Voice. In development, use the {0} environment variable or {1} next to the repository.",
   "模型已就绪（已下载到本机）": "Model ready (downloaded to this computer)"
 }
