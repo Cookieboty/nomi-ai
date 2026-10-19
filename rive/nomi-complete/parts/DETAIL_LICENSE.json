@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -37,8 +37,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/head.png": {
-      "sha256": "51c35c02031bbb6c76c1e6ae041834a983f9eba909752f2b0512e8790d5cd230",
-      "bytes": 270574,
+      "sha256": "5d6d273b9d51bb797f2bc4dd081505c9c15f29d1896da263c74c6503eaa31538",
+      "bytes": 268165,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -268,29 +268,29 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-l.png": {
-      "sha256": "26660f64b58d54b61cdd0537683819855371bd73b18a19f206bff8611e444529",
-      "bytes": 26587,
+      "sha256": "a72a617803ac6a255d01f5677f86efb34faf5f64d9a182750f812d9b09b9d203",
+      "bytes": 19912,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-r.png": {
-      "sha256": "bdea02de30fe80f8f582be757bbd57aaf9881b9a5988b210e79cfdecc49d8d22",
-      "bytes": 27106,
+      "sha256": "16d8c0290806b4c7fd31930aa7339297ab26eea01d57d96314b542d968d6c37b",
+      "bytes": 19461,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/brow-l.png": {
-      "sha256": "4fee2cf98dbf7ef2ed4df81bfe6ea0d501b1251d0198bcaef245c2976653c808",
-      "bytes": 10537,
+      "sha256": "09a338330b897e5a877c7700159826186fa9c7e21df8e11707517efd2255b515",
+      "bytes": 9425,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/brow-r.png": {
-      "sha256": "8c537e6fe5e7fcda9991ab079325e4e99872a3861b0b25a90463f2a912103f0c",
-      "bytes": 11683,
+      "sha256": "5e38ab88b0e45fb3f242674675a6f858eb7ea68180f065d82f0438a1edb52c05",
+      "bytes": 10745,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -303,22 +303,22 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-l.png": {
-      "sha256": "f5e85b32cb7b3f566dc5fbfe425ef5e96d4232161325f7c760ef202ba2f9b767",
-      "bytes": 79717,
+      "sha256": "b4c055892c62e8ce7e423ae84d3a1dc1a3c416ee4437549cd50ade2f37539fa9",
+      "bytes": 61348,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-r.png": {
-      "sha256": "6dc904df170af2488cd77049aafc9ed9a81516fb35437309be95928463cbce3a",
-      "bytes": 76416,
+      "sha256": "66ca584ea994ad940e9d11e551b334c8263dcc67db13743953e103b432a77610",
+      "bytes": 62288,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-back-l.png": {
-      "sha256": "3c933c1f945403d8aa1273ba16fb802fa99d432f477c841a7306b96beca3c7d5",
-      "bytes": 23066,
+      "sha256": "10ca5e7cdb9dee469a01db9082af390122a404958631dcb51cce54f6c653cb66",
+      "bytes": 22717,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -331,15 +331,15 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-clip.png": {
-      "sha256": "719bfd21cbf8501727b5911f76c1ecc6beb2dccd6a4d2a1f635b1a1c5ef7f29c",
-      "bytes": 33350,
+      "sha256": "86eacf432c15f8d352142d2781d8362ced33d83fd1228c925aeb8a3236aed503",
+      "bytes": 25698,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-bow.png": {
-      "sha256": "ceedfc88c4ec4f19c72308dcd627c1edb5c0e8887273093676883fe5e2d49502",
-      "bytes": 29815,
+      "sha256": "e9335d50cce794206c91c923b49d078c975d7d8f726a03282581c23e33bcc8b1",
+      "bytes": 26774,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -522,6 +522,20 @@
     "reference/svg-rig/hand-r-thumb.png": {
       "sha256": "c1ab8d477029949232ba799d4723c070ca6cec0d17a3e201364bb3f61d2594e1",
       "bytes": 10426,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-lock-l.png": {
+      "sha256": "221949be8f6f9ef3ca655a1a25b7e1a52908d65952fae3cb5b32ca90a0bfd87e",
+      "bytes": 23455,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-lock-r.png": {
+      "sha256": "0a466699bc176a146f51093b40af7532c7a689ed303dcf160fb4bfacb4861fda",
+      "bytes": 19948,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
