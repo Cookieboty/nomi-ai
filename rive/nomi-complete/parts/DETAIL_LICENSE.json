@@ -471,8 +471,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hand-l-thumb.png": {
-      "sha256": "1064bb780884ffa4bed07b0b030e627531a282379b05542fedadffde8383a819",
-      "bytes": 10955,
+      "sha256": "60cfdc5ebe42cec7ba71fe4b4674de975192fd2912565be41acc42c8226d6002",
+      "bytes": 10937,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -520,8 +520,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hand-r-thumb.png": {
-      "sha256": "c1ab8d477029949232ba799d4723c070ca6cec0d17a3e201364bb3f61d2594e1",
-      "bytes": 10426,
+      "sha256": "bfd5bfb274e5e2b3e283dd1ebe374b8f4337f8f31f852eb31bd1bf489fbac63d",
+      "bytes": 10378,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"

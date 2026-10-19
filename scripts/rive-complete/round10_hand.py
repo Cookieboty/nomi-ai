@@ -222,6 +222,8 @@ def build_pieces(side: str):
             if nm == "palm" and oj != "thumb":
                 src = src & (geo[oj][1] <= PALM_SKIRT_ALONG)   # only the finger root: a folded finger must not leave a stub behind
             cov = np.maximum(cov, np.where(src, band, 0.0))
+        if nm == "thumb":
+            cov = drop_detached(cov, own[nm], a0)
         t = tex.copy()
         t[..., 3] = np.round(a0 * cov * 255).astype(np.uint8)
         pieces[nm] = Piece(nm, t, ["hand", "fore"] if nm == "palm" else [(nm, 0), (nm, 1), (nm, 2)])
@@ -231,6 +233,23 @@ def build_pieces(side: str):
     for p in pieces.values():
         p.cells = cells_of(p.tex[..., 3], cols, rows)
     return pieces
+
+
+def drop_detached(cov: np.ndarray, own: np.ndarray, a0: np.ndarray) -> np.ndarray:
+    """ROUND15: the skirt band is measured in straight-line distance, so it can jump a transparent notch of the mother
+    art and leave an island of neighbour texels that is not attached to the piece.  On the thumb (drawn on top) such an
+    island travels with the thumb when it swings (clap), away from the texels it duplicates, and together with the thumb
+    body it walls in a ~4x4 px pocket of the notch -> a flickering see-through hole.  Islands carry no owned texel, so
+    they never close a seam of their own piece: drop them (hidden duplicates at rest, so the rest pose is unchanged)."""
+    al = np.round(a0 * cov * 255)
+    solid = (al >= 128).astype(np.uint8)          # islands linked to the body only by faint AA texels count as detached
+    n, lab = cv2.connectedComponents(solid, connectivity=8)
+    keep = np.zeros(n, bool)
+    keep[np.unique(lab[own & (solid > 0)])] = True
+    keep[0] = False
+    body = keep[lab]
+    near = cv2.dilate(body.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0     # keep the body's own 1 px AA fringe
+    return np.where(body | (near & (al > 0)) | own, cov, 0.0)
 
 
 def cells_of(alpha: np.ndarray, cols: int, rows: int) -> np.ndarray:
