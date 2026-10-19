@@ -23,6 +23,13 @@ const log = createMainLogger('FishTTS-config');
 
 const API_KEY_FILE = 'tts.fish.apiKey.bin';
 
+/**
+ * tts-config.json 的格式版本。新写入一律带当前版本；缺失版本号 = 旧版本写出的文件，
+ * 只有这类文件才会跑「fish-local 旧产品默认 → sherpa」一次性迁移，
+ * 用户在新版本里主动保存的 Fish 默认组合不会再被改回去。
+ */
+const CONFIG_SCHEMA_VERSION = 1;
+
 export class FishTtsConfigStore {
   private configPath(): string {
     return path.join(app.getPath('userData'), 'tts-config.json');
@@ -40,16 +47,28 @@ export class FishTtsConfigStore {
       }
       const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as Partial<TTSConfig>;
       // Never keep apiKey from disk JSON
-      const { apiKey: _drop, ...rest } = raw;
-      const { config, migrated } = migrateTtsConfigProvider(rest);
+      const {
+        apiKey: _drop,
+        schemaVersion,
+        ...rest
+      } = raw as Partial<TTSConfig> & {
+        schemaVersion?: unknown;
+      };
+      // 只迁移没有版本号的旧文件；带版本号的文件里的 provider 是用户（或迁移）的明确结果
+      const { config, migrated } =
+        typeof schemaVersion === 'number'
+          ? { config: normalizeTtsConfig(rest), migrated: false }
+          : migrateTtsConfigProvider(rest);
       if (migrated) {
-        // Persist so next boot stays on sherpa; intentional Fish users with custom
-        // baseUrl/referenceId are not migrated (see isLegacyFishProductDefault).
+        // Persist (with the current schemaVersion) so the migration runs exactly once;
+        // intentional Fish users with custom baseUrl/referenceId are not migrated
+        // (see isLegacyFishProductDefault).
         // Write directly (avoid save→loadPublic→load recursion).
         try {
           log.info('migrated legacy fish-local product default → sherpa-theresa');
           const toDisk: Record<string, unknown> = {
             ...config,
+            schemaVersion: CONFIG_SCHEMA_VERSION,
             lastModified: Date.now(),
           };
           delete toDisk.apiKey;
@@ -94,6 +113,7 @@ export class FishTtsConfigStore {
 
     const toDisk: Record<string, unknown> = {
       ...normalized,
+      schemaVersion: CONFIG_SCHEMA_VERSION,
       lastModified: Date.now(),
     };
     delete toDisk.apiKey;
