@@ -117,17 +117,35 @@ export function parseImport(text: string, existing: string[] = []): McpServerEnt
 
 const SECRET_KEY = /(key|token|secret|password|passwd|auth|cookie|credential)/i;
 
+/**
+ * 取值本身像凭据（字段名不一定带 key / token）：带账号口令的 URL、Bearer / Basic、常见令牌前缀、
+ * 或 ≥ 32 个字符、只含令牌字符且至少 4 个数字的随机串。用于落盘加密与打码（导入其他工具的配置时尤其需要，#58）。
+ */
+export function isSecretValue(v: string): boolean {
+  if (!v) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]+@/i.test(v)) return true;
+  if (/^(bearer|basic)\s+\S{8,}/i.test(v)) return true;
+  if (/^(sk-|ghp_|gho_|ghu_|github_pat_|glpat-|xox[abprs]-|AKIA|AIza|ya29\.)/.test(v)) return true;
+  // 长度 ≥ 32、只有 token 字符、至少 4 个数字：像随机令牌而不是普通单词 / 路径
+  return (
+    v.length >= 32 &&
+    /^[A-Za-z0-9_\-+=.~]+$/.test(v) &&
+    (v.match(/\d/g)?.length ?? 0) >= 4 &&
+    /[A-Za-z]/.test(v)
+  );
+}
+
 /** 给界面看的版本：敏感值打码 */
 export function maskServer(e: McpServerEntry): McpServerEntry {
-  const mask = (m?: Record<string, string>) =>
+  const mask = (m?: Record<string, string>, all = false) =>
     m &&
     Object.fromEntries(
       Object.entries(m).map(([k, v]) => [
         k,
-        SECRET_KEY.test(k) && v ? `${v.slice(0, 2)}••••••` : v,
+        (all || SECRET_KEY.test(k) || isSecretValue(v)) && v ? `${v.slice(0, 2)}••••••` : v,
       ]),
     );
-  return { ...e, env: mask(e.env), headers: mask(e.headers) };
+  return { ...e, env: mask(e.env), headers: mask(e.headers, true) };
 }
 
 /** 编辑时：打码值原样回传 → 保留旧值 */

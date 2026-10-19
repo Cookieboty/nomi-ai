@@ -48,11 +48,11 @@ const MAX_WALK_UP = 12;
 const DESC_MAX = 300;
 
 /** 这些文件名一律不读（词法路径与符号链接解析后的真实路径都要过这一关） */
-const DENY =
+export const DENY =
   /(^|\/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|.*\.(p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.netrc|_netrc|\.npmrc|\.pypirc|\.git-credentials|\.dockercfg|kubeconfig|credentials(\.json)?|settings(\.local)?\.json|config\.toml|\.claude\.json|service[-_]?account.*\.json|.*\.tfvars(\.json)?|secrets?(\.[\w-]+)?\.(json|ya?ml|toml|env|txt)|\.htpasswd|.*\.kdbx|history\.jsonl|\.[\w-]*_history)$/i;
 
 /** 真实路径落在这些目录里一律不读（链接到 ~/.ssh、.git/config 之类） */
-const DENY_DIR =
+export const DENY_DIR =
   /(^|\/)(\.ssh|\.aws|\.gnupg|\.kube|\.azure|\.docker|\.git|\.password-store|Keychains)(\/|$)|(^|\/)\.config\/(gcloud|gh|git)(\/|$)/i;
 
 /** 用户级 agent 目录里会被发现的内容子目录：项目条目的符号链接只能指到这些地方 */
