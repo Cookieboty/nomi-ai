@@ -105,3 +105,32 @@ describe('WindowManager.createAiChatWindow 显示方式', () => {
     expect(m.createWindow.mock.calls[0]![0]).toMatchObject({ showInactive: true });
   });
 });
+
+describe('WindowManager 关闭主界面时', () => {
+  const closedHandler = (shouldQuit: boolean) => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const wm = new WindowManager(logger as never, {} as never);
+    wm.shouldQuitOnChatClose = () => shouldQuit;
+    const handlers: Record<string, () => void> = {};
+    const win = {
+      on: (ev: string, fn: () => void) => (handlers[ev] = fn),
+      webContents: { on: jest.fn() },
+    };
+    (wm as unknown as { setupAiChatWindowEvents: (w: unknown) => void }).setupAiChatWindowEvents(
+      win,
+    );
+    return handlers.closed!;
+  };
+
+  it('quit → emits app:quit; hide → keeps running', () => {
+    const { eventBus } = jest.requireActual('../../../src/core/EventBus') as {
+      eventBus: { on: (e: string, fn: () => void) => void; off?: unknown };
+    };
+    const quit = jest.fn();
+    eventBus.on('app:quit', quit);
+    closedHandler(false)();
+    expect(quit).not.toHaveBeenCalled();
+    closedHandler(true)();
+    expect(quit).toHaveBeenCalledTimes(1);
+  });
+});

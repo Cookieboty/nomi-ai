@@ -10,23 +10,38 @@ import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
+  CLOSE_MAIN_ACTIONS,
+  DEFAULT_CLOSE_MAIN_ACTION,
   DEFAULT_STARTUP_VIEW,
   STARTUP_VIEWS,
+  normalizeCloseMainAction,
   normalizeStartupView,
+  type CloseMainAction,
   type StartupView,
 } from './startupPlan';
 
 export interface StartupState {
   defaultView: StartupView;
+  /** 关闭主界面时：hide（默认，看板娘与托盘继续运行）/ quit（完全退出） */
+  closeMain: CloseMainAction;
 }
 
 export class StartupService {
-  private state: StartupState = { defaultView: DEFAULT_STARTUP_VIEW };
+  private state: StartupState = {
+    defaultView: DEFAULT_STARTUP_VIEW,
+    closeMain: DEFAULT_CLOSE_MAIN_ACTION,
+  };
 
   constructor(private readonly file: string) {
     try {
-      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { defaultView?: unknown };
-      this.state = { defaultView: normalizeStartupView(raw?.defaultView) };
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+        defaultView?: unknown;
+        closeMain?: unknown;
+      };
+      this.state = {
+        defaultView: normalizeStartupView(raw?.defaultView),
+        closeMain: normalizeCloseMainAction(raw?.closeMain),
+      };
     } catch {
       /* 首次运行 / 文件损坏：用默认 */
     }
@@ -36,12 +51,28 @@ export class StartupService {
     return { ...this.state };
   }
 
+  /** 部分更新：只改传入的字段；任一字段非法则整体拒绝、不落盘 */
   set(patch: unknown): StartupState {
-    const v = (patch as { defaultView?: unknown } | null)?.defaultView;
-    if (!(STARTUP_VIEWS as readonly unknown[]).includes(v)) {
-      throw new Error(`unknown startup view: ${String(v)}`);
+    const p = (patch ?? null) as { defaultView?: unknown; closeMain?: unknown } | null;
+    if (!p || typeof p !== 'object' || (p.defaultView === undefined && p.closeMain === undefined)) {
+      throw new Error('empty startup settings patch');
     }
-    this.state = { defaultView: v as StartupView };
+    if (
+      p.defaultView !== undefined &&
+      !(STARTUP_VIEWS as readonly unknown[]).includes(p.defaultView)
+    ) {
+      throw new Error(`unknown startup view: ${String(p.defaultView)}`);
+    }
+    if (
+      p.closeMain !== undefined &&
+      !(CLOSE_MAIN_ACTIONS as readonly unknown[]).includes(p.closeMain)
+    ) {
+      throw new Error(`unknown close action: ${String(p.closeMain)}`);
+    }
+    this.state = {
+      defaultView: (p.defaultView as StartupView | undefined) ?? this.state.defaultView,
+      closeMain: (p.closeMain as CloseMainAction | undefined) ?? this.state.closeMain,
+    };
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
     writePrivateFileAtomic(this.file, JSON.stringify(this.state, null, 2));
     return this.get();

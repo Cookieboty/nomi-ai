@@ -39,7 +39,12 @@ import { CacheService } from '../services/CacheService';
 import { ConfigService } from '../services/ConfigService';
 import { LoggerService, LogLevel } from '../services/LoggerService';
 import { getUpdateService } from '../services/UpdateService';
-import { planStartup, shouldRaiseMainOnReactivate, type StartupPlan } from '../startup/startupPlan';
+import {
+  planStartup,
+  shouldQuitOnMainClose,
+  shouldRaiseMainOnReactivate,
+  type StartupPlan,
+} from '../startup/startupPlan';
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
@@ -346,8 +351,10 @@ export class Application implements IApplication {
       const startupPlan = planStartup({
         defaultView: startup.get().defaultView,
         onboardingPending: onboarding.shouldAutoOpen(),
-        openedAtLogin: this.openedAtLogin(),
       });
+      // 关闭主界面时：quit → 完全退出（看板娘、托盘一起）；hide（默认）→ 只关窗口
+      this.windowManager.shouldQuitOnChatClose = () =>
+        shouldQuitOnMainClose(startup.get().closeMain, this.shutdown.isQuitting());
       if (startupPlan.openMain && startupPlan.delayMs > 0) {
         // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
         setTimeout(() => void this.windowManager.createAiChatWindow(), startupPlan.delayMs);
@@ -543,15 +550,6 @@ export class Application implements IApplication {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error('AI runtime 启动失败', { error: errorMessage });
-    }
-  }
-
-  /** 是否由系统登录项 / 开机自启拉起（仅 Windows / macOS 有此信息） */
-  private openedAtLogin(): boolean {
-    try {
-      return app.getLoginItemSettings().wasOpenedAtLogin === true;
-    } catch {
-      return false;
     }
   }
 

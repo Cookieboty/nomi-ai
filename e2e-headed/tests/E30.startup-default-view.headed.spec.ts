@@ -130,5 +130,32 @@ test.describe('E30 · startup default view', () => {
     // 4) 重启：回到只有看板娘
     app = await launch();
     expect(await chatPage(app, 5_000)).toBeNull();
+    await closeApp(app);
+    app = null;
+  });
+
+  test('closeMain=quit: closing the main window quits Nomi (mascot + tray included)', async () => {
+    test.skip(!existsSync(mainJs) || !existsSync(aiChatBuild), '先 pnpm build');
+    test.setTimeout(120_000);
+    writeFileSync(
+      join(userData, 'startup.json'),
+      JSON.stringify({ defaultView: 'main', closeMain: 'quit' }),
+    );
+    app = await launch();
+    const chat = await chatPage(app, 30_000);
+    expect(chat, 'main window should open on launch').not.toBeNull();
+    await chat!.waitForFunction(() => 'aiIPC' in window, undefined, { timeout: 30_000 });
+    const proc = app.process();
+    const exited = new Promise<number | null>((r) => proc.once('exit', (code) => r(code)));
+    await app
+      .evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()
+          .find((w) => /ai-chat|6128/.test(w.webContents.getURL()))
+          ?.close();
+      })
+      .catch(() => undefined);
+    const code = await Promise.race([exited, sleep(20_000).then(() => 'timeout' as const)]);
+    expect(code).not.toBe('timeout');
+    app = null;
   });
 });

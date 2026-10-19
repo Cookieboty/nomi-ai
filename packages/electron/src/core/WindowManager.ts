@@ -63,6 +63,8 @@ export interface IWindowManager {
 export class WindowManager implements IWindowManager {
   /** 当前主题（Application 注入，决定对话窗口标题栏配色） */
   chromeTheme: () => ChromeTheme = () => 'sunset';
+  /** 主界面关闭后是否退出整个应用（「关闭主界面时：退出 Nomi」；Application 注入，默认不退出） */
+  shouldQuitOnChatClose: () => boolean = () => false;
   private mainWindow: BrowserWindow | null = null;
   private aiChatWindow: BrowserWindow | null = null;
   /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
@@ -500,6 +502,11 @@ export class WindowManager implements IWindowManager {
     window.on('closed', () => {
       this.aiChatWindow = null;
       this.logger.info('AI对话窗口已关闭');
+      // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）
+      if (this.shouldQuitOnChatClose()) {
+        this.logger.info('关闭主界面 → 退出 Nomi');
+        eventBus.emit('app:quit');
+      }
     });
   }
 

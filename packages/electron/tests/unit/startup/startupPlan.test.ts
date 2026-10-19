@@ -1,5 +1,8 @@
 import {
+  DEFAULT_CLOSE_MAIN_ACTION,
   DEFAULT_STARTUP_VIEW,
+  normalizeCloseMainAction,
+  shouldQuitOnMainClose,
   ONBOARDING_OPEN_DELAY_MS,
   normalizeStartupView,
   planStartup,
@@ -18,7 +21,7 @@ describe('normalizeStartupView', () => {
 });
 
 describe('planStartup', () => {
-  const base = { defaultView: 'mascot', onboardingPending: false, openedAtLogin: false } as const;
+  const base = { defaultView: 'mascot', onboardingPending: false } as const;
 
   it('mascot (default): keeps the historical launch — only the mascot, no main window', () => {
     expect(planStartup(base)).toEqual({
@@ -38,15 +41,6 @@ describe('planStartup', () => {
     });
   });
 
-  it('main + login item launch: still opens the main interface but without taking focus', () => {
-    const p = planStartup({ ...base, defaultView: 'main', openedAtLogin: true });
-    expect(p).toMatchObject({ openMain: true, activateMain: false, activateMascot: false });
-  });
-
-  it('mascot + login item launch: unchanged (no main window)', () => {
-    expect(planStartup({ ...base, openedAtLogin: true }).openMain).toBe(false);
-  });
-
   it('first-run onboarding wins over the setting and keeps the delayed, focused open', () => {
     for (const defaultView of ['mascot', 'main'] as const) {
       expect(planStartup({ ...base, defaultView, onboardingPending: true })).toEqual({
@@ -63,5 +57,20 @@ describe('shouldRaiseMainOnReactivate', () => {
   it('only raises the main interface in main mode (second instance / dock / tray click)', () => {
     expect(shouldRaiseMainOnReactivate('main')).toBe(true);
     expect(shouldRaiseMainOnReactivate('mascot')).toBe(false);
+  });
+});
+
+describe('close main window action', () => {
+  it('defaults to hide (keep running with mascot + tray) for missing / unknown values', () => {
+    expect(DEFAULT_CLOSE_MAIN_ACTION).toBe('hide');
+    for (const v of [undefined, null, 'exit', 1]) expect(normalizeCloseMainAction(v)).toBe('hide');
+    expect(normalizeCloseMainAction('quit')).toBe('quit');
+  });
+
+  it('quits only for "quit" and never re-enters an ongoing quit', () => {
+    expect(shouldQuitOnMainClose('quit', false)).toBe(true);
+    expect(shouldQuitOnMainClose('quit', true)).toBe(false);
+    expect(shouldQuitOnMainClose('hide', false)).toBe(false);
+    expect(shouldQuitOnMainClose('hide', true)).toBe(false);
   });
 });

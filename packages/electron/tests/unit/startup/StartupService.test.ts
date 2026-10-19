@@ -18,14 +18,17 @@ const file = () => path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'startup-')),
 
 describe('StartupService', () => {
   it('defaults to mascot when the file does not exist (existing users / fresh install)', () => {
-    expect(new StartupService(file()).get()).toEqual({ defaultView: 'mascot' });
+    expect(new StartupService(file()).get()).toEqual({ defaultView: 'mascot', closeMain: 'hide' });
   });
 
   it('persists the choice and reloads it on the next launch', () => {
     const f = file();
     const s = new StartupService(f);
-    expect(s.set({ defaultView: 'main' })).toEqual({ defaultView: 'main' });
-    expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({ defaultView: 'main' });
+    expect(s.set({ defaultView: 'main' })).toEqual({ defaultView: 'main', closeMain: 'hide' });
+    expect(JSON.parse(fs.readFileSync(f, 'utf8'))).toEqual({
+      defaultView: 'main',
+      closeMain: 'hide',
+    });
     expect(new StartupService(f).get().defaultView).toBe('main');
     s.set({ defaultView: 'mascot' });
     expect(new StartupService(f).get().defaultView).toBe('mascot');
@@ -49,6 +52,19 @@ describe('StartupService', () => {
     expect(() => s.set(null)).toThrow();
     expect(s.get().defaultView).toBe('main');
     expect(new StartupService(f).get().defaultView).toBe('main');
+  });
+
+  it('patches closeMain independently and reads old files without it as hide', () => {
+    const f = file();
+    fs.writeFileSync(f, JSON.stringify({ defaultView: 'main' }));
+    const s = new StartupService(f);
+    expect(s.get()).toEqual({ defaultView: 'main', closeMain: 'hide' });
+    expect(s.set({ closeMain: 'quit' })).toEqual({ defaultView: 'main', closeMain: 'quit' });
+    expect(new StartupService(f).get().closeMain).toBe('quit');
+    expect(() => s.set({ closeMain: 'minimize' })).toThrow(/unknown close action/);
+    expect(() => s.set({ defaultView: 'main', closeMain: 'bad' })).toThrow();
+    expect(() => s.set({})).toThrow(/empty/);
+    expect(new StartupService(f).get()).toEqual({ defaultView: 'main', closeMain: 'quit' });
   });
 
   it('exposes ai:startup:get / ai:startup:set over IPC', () => {

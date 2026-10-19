@@ -20,8 +20,6 @@ export interface StartupPlanInput {
   defaultView: StartupView;
   /** 首次启动引导尚未完成（引导本来就显示在主界面里） */
   onboardingPending: boolean;
-  /** 由系统登录项 / 开机自启拉起 */
-  openedAtLogin: boolean;
 }
 
 export interface StartupPlan {
@@ -29,7 +27,7 @@ export interface StartupPlan {
   openMain: boolean;
   /** 打开主界面前等待的毫秒数（0 = 看板娘窗口创建完成后立即打开） */
   delayMs: number;
-  /** 主界面是否抢占焦点；开机自启时为 false，避免一登录就弹出大窗口盖住别的工作 */
+  /** 主界面是否抢占焦点（开机自启也一样，与普通启动一致） */
   activateMain: boolean;
   /** 看板娘窗口是否抢占焦点；主界面优先时为 false，保证最后获得焦点的是主界面 */
   activateMascot: boolean;
@@ -49,7 +47,7 @@ export function planStartup(i: StartupPlanInput): StartupPlan {
     };
   }
   if (i.defaultView === 'main') {
-    return { openMain: true, delayMs: 0, activateMain: !i.openedAtLogin, activateMascot: false };
+    return { openMain: true, delayMs: 0, activateMain: true, activateMascot: false };
   }
   return { openMain: false, delayMs: 0, activateMain: true, activateMascot: true };
 }
@@ -60,4 +58,23 @@ export function planStartup(i: StartupPlanInput): StartupPlan {
  */
 export function shouldRaiseMainOnReactivate(defaultView: StartupView): boolean {
   return defaultView === 'main';
+}
+
+/** 关闭主界面时：hide = 只关窗口，看板娘与托盘继续运行（默认，历史行为）；quit = 完全退出 Nomi */
+export const CLOSE_MAIN_ACTIONS = ['hide', 'quit'] as const;
+export type CloseMainAction = (typeof CLOSE_MAIN_ACTIONS)[number];
+export const DEFAULT_CLOSE_MAIN_ACTION: CloseMainAction = 'hide';
+
+export function normalizeCloseMainAction(v: unknown): CloseMainAction {
+  return (CLOSE_MAIN_ACTIONS as readonly string[]).includes(v as string)
+    ? (v as CloseMainAction)
+    : DEFAULT_CLOSE_MAIN_ACTION;
+}
+
+/**
+ * 主界面窗口被关闭（Windows / Linux 的 × 、macOS 红色按钮或 Cmd+W）后是否退出整个应用。
+ * 应用已在退出流程中（Cmd+Q / 托盘「退出」/ 关闭看板娘）时不重复触发。
+ */
+export function shouldQuitOnMainClose(action: CloseMainAction, quitting: boolean): boolean {
+  return action === 'quit' && !quitting;
 }

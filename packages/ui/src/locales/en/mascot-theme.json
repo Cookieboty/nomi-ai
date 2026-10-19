@@ -265,5 +265,11 @@
   "启动 Nomi 后默认显示": "Show on startup",
   "桌面上先出现看板娘，需要时点她的「AI 对话」进入主界面（默认）。": "The mascot appears on your desktop first; click her “AI chat” to open the main window when needed (default).",
   "启动后直接打开主界面；看板娘仍在桌面待命，定时任务和提醒照常播报。": "Open the main window right after launch; the mascot stays on your desktop and scheduled tasks and reminders are still announced.",
-  "下次启动生效。由系统登录项自动启动时，主界面不会抢占焦点。": "Takes effect on the next launch. When started automatically by a system login item, the main window won’t grab focus."
+  "下次启动生效。": "Takes effect on the next launch.",
+  "关闭主界面时": "When closing the main window",
+  "隐藏到托盘": "Hide to tray",
+  "退出 Nomi": "Quit Nomi",
+  "只关闭主界面，看板娘和托盘继续运行（默认）。": "Only the main window closes; the mascot and the tray keep running (default).",
+  "关闭主界面即完全退出，看板娘和托盘一起关闭。": "Closing the main window quits Nomi completely, including the mascot and the tray.",
+  "立即生效。⌘Q（macOS）和托盘菜单里的「退出」始终会完全退出；macOS 上红色按钮和 ⌘W 也按这里的选择处理。": "Takes effect immediately. ⌘Q (macOS) and “Quit” in the tray menu always quit completely; on macOS the red close button and ⌘W follow this choice too."
 }

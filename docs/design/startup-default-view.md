@@ -29,13 +29,12 @@
 | 首次引导未完成（与设置值无关） | 正常显示           | 1.5 秒后打开并聚焦（引导在主界面里） |
 | `mascot`（默认）               | 正常显示           | 不自动打开（历史行为）               |
 | `main`                         | 显示但**不抢焦点** | 看板娘与托盘就绪后立即打开并聚焦     |
-| `main` + 系统登录项自动启动    | 显示但不抢焦点     | 打开但**不抢焦点**（`showInactive`） |
 
 要点：
 
 - **看板娘始终创建**。定时任务、提醒、编程助手进度、用量提醒都通过看板娘气泡 / 灵动岛播报，`main` 模式下它仍在桌面后台待命，自动化不受影响。`main` 模式下它以 `showInactive` 出现，保证最后获得焦点的是主界面（Windows 上透明置顶窗口的 `show()` 会抢焦点）。
 - 主界面窗口打开失败只记日志，不影响启动，用户仍有看板娘可用。
-- 「开机自启」判定用 `app.getLoginItemSettings().wasOpenedAtLogin`（仅 Windows / macOS 有值，Linux 视为否）。应用目前没有自带的开机自启开关，这条只对用户在系统里自行添加的登录项生效。
+- 系统登录项 / 开机自启拉起时与普通启动完全一致：`main` 模式下主界面同样到前台并获得焦点（v1.0.4 用户反馈后取消了早先「自启不抢焦点」的特例）。
 
 ### 再次唤起已运行的实例
 
@@ -51,9 +50,17 @@
 - 首次引导新增第 3 步「启动 Nomi 后先看到什么？」：**以看板娘方式打开**（默认选中）/ **以控制台（主界面）方式打开**。点选即写入同一个设置（中途跳过整个引导也保留已选）；该步可「跳过这一步」，跳过 = 保持默认。从设置里重新打开引导时预选当前值。
 - 选中态沿用最新令牌：`--cd-color-selected-bg` + `--cd-color-selected-text`（深棕字 + 暖橙淡底）+ `--cd-color-accent-strong` 边框，不使用 accent 作文字色。
 
+### 关闭主界面时（`closeMain`）
+
+- 与 `defaultView` 存在同一个 `startup.json`：`closeMain = 'hide' | 'quit'`，默认 `'hide'`；老文件没有该字段 → `'hide'`。
+- **隐藏到托盘（默认，历史行为）**：关闭主界面只销毁对话窗口，看板娘、托盘和后台服务（定时任务 / 提醒）继续运行。
+- **退出 Nomi**：主界面窗口 `closed` 后发出 `app:quit`，走统一退出流程（`before-quit` → 停止后台服务 → 销毁托盘 → 关闭看板娘 → `app.exit(0)`）。已在退出流程中（`shutdown.isQuitting()`）时不重复触发。
+- macOS：⌘Q 与托盘「退出」始终完全退出；红色关闭按钮与 ⌘W 都是「关闭窗口」，按本设置处理（选了「退出 Nomi」就退出，默认则只关窗口）。这是用户在设置里明确选择的行为，所以不套用 macOS「关窗不退出」的惯例。
+- 设置 → 通用里紧挨「启动 Nomi 后默认显示」，立即生效（无需重启）。
+
 ### 边界与取舍
 
-- 没有新增「关闭主界面后是否退出 / 常驻托盘」设置；`main` 模式下关闭主界面，Nomi 仍以看板娘 + 托盘运行（与现有行为一致）。
+- Linux 托盘左键不做处理（按用户决定保持现状）。
 - 不改动看板娘动画 / Rive 资源。
 - 没有给 Linux 托盘加左键处理（Linux 托盘 click 事件不可靠）。
 
@@ -72,12 +79,17 @@ Nomi has always started with the mascot; opening the main window (the chat windo
 
 - `mascot` (default): unchanged — only the mascot appears.
 - `main`: the mascot window is still created (scheduled tasks, reminders and coding-agent notifications are announced through it) but shown without taking focus; the main window opens right after the mascot and the tray are ready and takes focus.
-- `main` launched by an OS login item: the main window opens with `showInactive` so it does not steal focus.
+- Launches from an OS login item behave exactly like a normal launch: in `main` mode the main window comes to the front with focus.
 - First-run onboarding always wins (it lives in the main window), regardless of the setting.
 - Re-activating a running instance (second launch, macOS Dock click, Windows tray left-click) raises the main window in `main` mode; `mascot` mode keeps the old behavior.
 - If the main window fails to open the error is logged and the mascot stays usable.
 
+### When closing the main window
+
+- `closeMain = 'hide' | 'quit'` in the same `startup.json`, default `'hide'` (today's behavior: only the chat window closes, the mascot, tray and background services keep running).
+- `'quit'`: closing the main window runs the normal quit path, so the mascot, the tray and all services shut down. On macOS ⌘Q and the tray “Quit” always quit; the red button and ⌘W follow the setting.
+
 ### UI
 
-- Settings → General → “Show on startup”: Mascot (default) / Main window.
+- Settings → General → “Show on startup”: Mascot (default) / Main window; “When closing the main window”: Hide to tray (default) / Quit Nomi.
 - Onboarding step 3 “What should you see when Nomi starts?”: Open with the mascot (default) / Open with the console (main window). The choice is saved immediately, the step is skippable, and skipping keeps the default.
