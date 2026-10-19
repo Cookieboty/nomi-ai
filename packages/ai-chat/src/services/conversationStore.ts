@@ -163,6 +163,18 @@ export class ConversationStore {
     return this.create().id;
   }
 
+  /**
+   * Nomi 轮次写入目标，但**不改变导航**（#19）：当前停在 CLI 镜像（用户正看着 CLI 标签）时，
+   * 写进最近的 Nomi 会话，没有就静默新建一个（不激活），侧栏高亮不会跳走。
+   * 导航为空（没有任何可打扰的界面）时与 ensureCurrentNomi 相同。
+   */
+  nomiTarget(): string {
+    const cur = this.currentId();
+    if (cur && this.isNomi(cur)) return cur;
+    if (!cur) return this.ensureCurrentNomi();
+    return this.lastNomiId() ?? this.create({ activate: false }).id;
+  }
+
   get(id: string): ConversationMeta | undefined {
     return this.list().find((c) => c.id === id);
   }

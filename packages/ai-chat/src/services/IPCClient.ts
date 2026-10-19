@@ -231,7 +231,7 @@ export class SdkIPCClient implements IPCClient {
 
   async saveMessage(message: ChatMessage): Promise<void> {
     this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
-    this.store.append(message, this.store.ensureCurrentNomi());
+    this.store.append(message, this.store.nomiTarget());
   }
 
   async saveMessageTo(message: ChatMessage, conversationId: string): Promise<void> {
@@ -247,7 +247,7 @@ export class SdkIPCClient implements IPCClient {
   }
 
   ensureConversationId(): string {
-    return this.store.ensureCurrentNomi();
+    return this.store.nomiTarget();
   }
 
   async listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>> {

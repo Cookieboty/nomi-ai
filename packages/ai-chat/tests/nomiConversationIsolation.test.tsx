@@ -59,6 +59,25 @@ describe('ConversationStore：Nomi 会话与 CLI 镜像分离（#19）', () => {
     expect(store.list().length).toBe(before);
   });
 
+  it('nomiTarget：不改导航；镜像上取最近 Nomi，没有就静默新建；导航为空时同 ensureCurrentNomi', () => {
+    const { store, A, C } = setup();
+    store.switchTo(C);
+    expect(store.nomiTarget()).toBe(A);
+    expect(store.currentId()).toBe(C);
+
+    const lone = new ConversationStore({ storage: createMemoryStorage() });
+    const M = lone.upsertFromTab(cliTab('tab-m')).id;
+    lone.switchTo(M);
+    const fresh = lone.nomiTarget();
+    expect(lone.isNomi(fresh)).toBe(true);
+    expect(lone.currentId()).toBe(M);
+    expect(lone.nomiTarget()).toBe(fresh); // 不会每次都新建
+
+    const empty = new ConversationStore({ storage: createMemoryStorage() });
+    const id = empty.nomiTarget();
+    expect(empty.currentId()).toBe(id);
+  });
+
   it('没有任何 Nomi 会话时才新建', () => {
     const store = new ConversationStore({ storage: createMemoryStorage() });
     const C = store.upsertFromTab(cliTab('tab-x')).id;
@@ -131,6 +150,34 @@ describe('Nomi 发送：A → 侧栏点 CLI C → 回主标签 → 发送（#19�
     expect(store.getMessages(C)).toEqual([]);
     store.delete(C); // 关闭 CLI 标签会删掉镜像
     expect(store.getMessages(A).map((m) => m.content)).toContain('新回答');
+  });
+
+  it('停在 CLI 镜像上时的后台 Nomi 轮次写进 A，但不把导航从镜像切走（侧栏不跳）', async () => {
+    const ref: { api?: ReturnType<typeof useAiChat> } = {};
+    const Probe = () => {
+      ref.api = useAiChat();
+      return null;
+    };
+    render(
+      <AiChatContextProvider client={fakeClient()}>
+        <Probe />
+      </AiChatContextProvider>,
+    );
+    await act(async () => void (await new Promise((r) => setTimeout(r, 0))));
+    const ipc = ref.api!.state.ipcClient as SdkIPCClient;
+    const store = ipc.conversationStore();
+    const A = store.ensureCurrent();
+    store.append(msg('1', 'user', '旧问题'), A);
+    const C = store.upsertFromTab(cliTab('tab-c')).id;
+    await act(async () => {
+      await ipc.switchConversation(C);
+    });
+    // 例如排队出队 / 异步斜杠命令在用户看着 CLI 标签时发出
+    await act(async () => {
+      await ref.api!.actions.sendStreamMessage('后台问题');
+    });
+    expect(store.getMessages(A).map((m) => m.content)).toEqual(['旧问题', '后台问题', '新回答']);
+    expect(store.currentId()).toBe(C);
   });
 
   it('saveMessageTo 拒绝写入 CLI 镜像（兜底）', async () => {
