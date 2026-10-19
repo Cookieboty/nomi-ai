@@ -10,7 +10,13 @@ import { type AppTrash, moveNoOverwrite } from './AppTrash';
 export type InverseOp =
   | { op: 'move'; from: string; to: string }
   | { op: 'restore'; stored: string; original: string }
-  | { op: 'trash'; path: string }
+  | {
+      op: 'trash';
+      path: string;
+      /** 撤销前该文件应仍是我们写入的那一版（size + mtime）；不符说明用户之后改过，拒绝撤销 */
+      expectSize?: number;
+      expectMtimeMs?: number;
+    }
   | { op: 'truncate'; path: string; size: number; expectSize: number }
   /** 由注册的处理器执行（笔记内容回写、提醒状态恢复等非纯文件操作） */
   | { op: 'custom'; kind: string; payload: unknown };
@@ -89,21 +95,46 @@ export class UndoJournal {
     return null;
   }
 
-  /** 校验逆操作是否仍可执行（文件在此之后被改过 → 不自动撤销） */
+  /**
+   * 校验逆操作是否仍可执行（文件在此之后被改过 → 不自动撤销）。
+   * 一条记录里的逆操作是顺序执行的（如覆盖的撤销 = 先 trash 新文件、再 restore 旧文件），
+   * 所以预检必须在「虚拟文件系统」上按顺序模拟，而不是都对着当前磁盘状态判断。
+   */
   check(e: JournalEntry): string | null {
+    const virt = new Map<string, boolean>();
+    const present = (p: string) => (virt.has(p) ? virt.get(p)! : fs.existsSync(p));
     for (const op of e.inverse) {
-      if (op.op === 'move' && (!fs.existsSync(op.from) || fs.existsSync(op.to)))
-        return t('无法移回：{0}', op.from);
-      if (op.op === 'restore' && (!fs.existsSync(op.stored) || fs.existsSync(op.original)))
-        return t('无法恢复：{0}', op.original);
-      if (op.op === 'trash' && !fs.existsSync(op.path)) return t('文件已不存在：{0}', op.path);
-      if (op.op === 'custom') {
+      if (op.op === 'move') {
+        if (!present(op.from) || present(op.to)) return t('无法移回：{0}', op.from);
+        virt.set(op.from, false);
+        virt.set(op.to, true);
+      } else if (op.op === 'restore') {
+        if (!present(op.stored) || present(op.original)) return t('无法恢复：{0}', op.original);
+        virt.set(op.stored, false);
+        virt.set(op.original, true);
+      } else if (op.op === 'trash') {
+        if (!present(op.path)) return t('文件已不存在：{0}', op.path);
+        if (op.expectSize !== undefined && !virt.has(op.path)) {
+          let st: fs.Stats | null;
+          try {
+            st = fs.statSync(op.path);
+          } catch {
+            st = null;
+          }
+          if (
+            !st ||
+            st.size !== op.expectSize ||
+            (op.expectMtimeMs !== undefined && st.mtimeMs !== op.expectMtimeMs)
+          )
+            return t('文件在此之后被修改过：{0}', op.path);
+        }
+        virt.set(op.path, false);
+      } else if (op.op === 'custom') {
         const h = this.custom.get(op.kind);
         if (!h) return t('无法撤销：{0}', op.kind);
         const p = h.check(op.payload);
         if (p) return p;
-      }
-      if (op.op === 'truncate') {
+      } else if (op.op === 'truncate') {
         if (!fs.existsSync(op.path) || fs.statSync(op.path).size !== op.expectSize)
           return t('文件在此之后被修改过：{0}', op.path);
       }
@@ -114,12 +145,34 @@ export class UndoJournal {
   async undo(e: JournalEntry): Promise<void> {
     const problem = this.check(e);
     if (problem) throw Object.assign(new Error(problem), { code: 'conflict' });
-    for (const op of e.inverse) {
-      if (op.op === 'move') await moveNoOverwrite(op.from, op.to);
-      else if (op.op === 'restore') await this.trash.restore(op);
-      else if (op.op === 'trash') await this.trash.trash(op.path);
-      else if (op.op === 'truncate') await fs.promises.truncate(op.path, op.size);
-      else if (op.op === 'custom') await this.custom.get(op.kind)!.apply(op.payload);
+    // 多步逆操作中途失败时，把已经执行的 move / trash 退回去，避免只做了一半
+    // （例如覆盖的撤销：新文件已进回收站但旧文件恢复失败 → 把新文件放回原处，双方副本都保留）
+    const rollback: Array<() => Promise<void>> = [];
+    try {
+      for (const op of e.inverse) {
+        if (op.op === 'move') {
+          await moveNoOverwrite(op.from, op.to);
+          rollback.push(() => moveNoOverwrite(op.to, op.from));
+        } else if (op.op === 'restore') {
+          await this.trash.restore(op);
+        } else if (op.op === 'trash') {
+          const rec = await this.trash.trash(op.path);
+          rollback.push(() => this.trash.restore(rec));
+        } else if (op.op === 'truncate') {
+          await fs.promises.truncate(op.path, op.size);
+        } else if (op.op === 'custom') {
+          await this.custom.get(op.kind)!.apply(op.payload);
+        }
+      }
+    } catch (err) {
+      for (const undoStep of rollback.reverse()) {
+        try {
+          await undoStep();
+        } catch {
+          /* 尽力回滚；回收站里仍保留副本 */
+        }
+      }
+      throw err;
     }
     fs.appendFileSync(
       this.file,

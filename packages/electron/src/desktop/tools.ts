@@ -524,8 +524,16 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
           } else {
             const rec = await trash.trash(g.real);
             await fs.promises.writeFile(g.real, i.text, { flag: 'wx' });
+            // 撤销 = 先把新版本移入回收站，再恢复旧版本；记下新版本的 size / mtime，
+            // 用户之后改过新文件就拒绝撤销（避免丢掉用户的修改）
+            const written = await fs.promises.stat(g.real);
             inverse.push(
-              { op: 'trash', path: g.real },
+              {
+                op: 'trash',
+                path: g.real,
+                expectSize: written.size,
+                expectMtimeMs: written.mtimeMs,
+              },
               { op: 'restore', stored: rec.stored, original: rec.original },
             );
           }
