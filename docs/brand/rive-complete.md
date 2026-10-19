@@ -144,3 +144,27 @@ sub-crops skipped (≈6px); whole-finger Images stay on finger roots without Mes
 Idle meanΔ vs mother (character ROI) improves vs ROUND6; screenshots in scratch `v7/`.
 Script: `scripts/rive-complete/round7-full-decompose.py`. Checklist:
 `/workspace/scratch/rive-bone-rig/FULL-DECOMPOSE-CHECKLIST.md`.
+
+### ROUND8 — tank / shorts split + continuous leg & finger skinning
+
+Built on ROUND7 (`5d7f38c`). R7 labels were wrong in places (the "belt" crop was really
+the shorts band; thigh/calf bones sat at the wrong joints), so the layers were re-cut from
+`source-nomi-master.png` (`round8_layers.py`) and the scene rebuilt from the pinned R7
+scene (`round8_scene.py`, idempotent).
+
+- **Black vest + N logo** (`torso-tank`) and **shorts** (+ `belt-id` / `belt-pouch`
+  overlays on dedicated pelvis bones) are independent Images; the base keeps only a 7px
+  ring under them (no see-through when the torso sways). Shorts carry a dark fabric fill
+  under the swinging ID/pouch. Mother body alpha (249–253) is snapped to 255 on every cut layer.
+- **belt-band** is a light 3-tendon Mesh (torso → pelvis blend), overlapped 6px with the tank and shorts.
+- **Legs**: one continuous Mesh+Skin per leg (thigh incl. thigh strap → calf → sock) with
+  3 tendons (thigh/knee/ankle) and smoothstep weights across knee and ankle; shoes ride the
+  foot bones. Skin holes left by the hands are inpainted, the thigh top tucks under the shorts.
+- **Fingers**: every finger is a nested 3-bone chain (`.1` at PIP, `.2` at DIP) with one
+  3-tendon Mesh. The R7 "parent-space" failure came from skinning Images that sat under
+  the finger root: Images must sit under the same parent as the bones (here `arm.rig`,
+  like the sleeves) and tendon binds are in that rig space. Original root pivots are
+  kept so wave/clap finger spread matches ROUND7.
+- Residual hand-fringe slivers (hem-ribbon / coat tails / base) were removed.
+
+Scripts: `round8_layers.py`, `round8_scene.py`, `round8_metrics.py`. Screenshots in scratch `v8/`.
