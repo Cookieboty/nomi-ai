@@ -73,6 +73,26 @@ body {
   width: 100%;
 }
 
+/* 聊天主面板自定义背景（设置 → 通用 → 聊天背景）；仅本容器 */
+.chat-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--cd-chat-bg-color, transparent);
+  background-image: var(--cd-chat-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--cd-chat-bg-blur, 0px));
+  opacity: var(--cd-chat-bg-opacity, 0.35);
+  transform: scale(1.06);
+  transform-origin: center;
+}
+.chat-container > :not(.chat-bg-layer) {
+  position: relative;
+  z-index: 1;
+}
+
 /* 欢迎空态：居中、干净卡片 */
 .welcome-screen {
   display: flex;

@@ -15,6 +15,7 @@ import { ProvidersPage } from '../ProvidersPage';
 import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
+import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -114,6 +115,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               </button>
             </section>
             <ThemeSettings />
+            <ChatBackgroundSettings />
             <PinsSettings />
           </>
         );

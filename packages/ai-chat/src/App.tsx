@@ -4,6 +4,7 @@ import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
@@ -485,6 +486,7 @@ const AiChatContent: React.FC = () => {
           )}
           {/* 对话区域 */}
           <main className="chat-container">
+            <ChatBackgroundLayer />
             {isDev && tabs.isCliTab ? (
               <>
                 {tabs.messages.length === 0 &&

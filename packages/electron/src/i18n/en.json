@@ -535,5 +535,6 @@
   "未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）": "Grok not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "Grok 错误": "Grok error",
   "已停止": "Stopped",
-  "请先填写模型，再设为当前": "Enter a model before making this the current provider."
+  "请先填写模型，再设为当前": "Enter a model before making this the current provider.",
+  "选择聊天背景图片": "Choose chat background image"
 }

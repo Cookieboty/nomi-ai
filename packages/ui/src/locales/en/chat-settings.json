@@ -248,5 +248,17 @@
   "有更新": "Update available",
   "更新": "Updates",
   "使用": "Use",
-  "日落橙": "Sunset Orange"
+  "日落橙": "Sunset Orange",
+  "聊天背景": "Chat background",
+  "只改变对话主面板的背景，不影响侧栏与窗口其它区域。可选纯色或图片，并调节模糊与透明度。": "Changes only the main chat panel background — not the sidebar or the rest of the window. Pick a solid color or image, then adjust blur and opacity.",
+  "跟随主题": "Follow theme",
+  "纯色": "Solid color",
+  "图片": "Image",
+  "颜色": "Color",
+  "选择图片…": "Choose image…",
+  "已选择图片": "Image selected",
+  "尚未选择图片": "No image yet",
+  "模糊": "Blur",
+  "透明度": "Opacity",
+  "恢复默认背景": "Reset background"
 }

@@ -13,6 +13,7 @@ import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
+import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -303,6 +304,12 @@ export class Application implements IApplication {
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
       const themes = new ThemeService(path.join(app.getPath('userData'), 'theme.json'));
       themes.registerIpc();
+      // 对话主面板背景（设置 → 通用 → 聊天背景）
+      const chatBg = new ChatBackgroundService(
+        path.join(app.getPath('userData'), 'chat-background.json'),
+        path.join(app.getPath('userData'), 'chat', 'images'),
+      );
+      chatBg.registerIpc();
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
       themes.onChange((st) => {

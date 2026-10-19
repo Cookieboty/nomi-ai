@@ -35,6 +35,20 @@ const aiChatAPI = {
     },
   },
 
+  /** 设置 → 通用：聊天主面板背景（chat/ChatBackgroundService.ts） */
+  chatBg: {
+    get: () => ipcRenderer.invoke('chat-bg:get'),
+    set: (patch: unknown) => ipcRenderer.invoke('chat-bg:set', patch),
+    reset: () => ipcRenderer.invoke('chat-bg:reset'),
+    pickImage: () => ipcRenderer.invoke('chat-bg:pick-image'),
+    onChanged: (cb: (s: unknown) => void) => {
+      const l = (_: unknown, s: unknown) => cb(s);
+      ipcRenderer.on('chat-bg:changed', l);
+      return () => {
+        ipcRenderer.removeListener('chat-bg:changed', l);
+      };
+    },
+  },
   updates: {
     get: () => ipcRenderer.invoke('updates:get'),
     check: () => ipcRenderer.invoke('updates:check'),
