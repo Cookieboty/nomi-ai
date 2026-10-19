@@ -56,7 +56,19 @@ describe('slashDiscovery', () => {
   it('walks up to the git root and not beyond', () => {
     const chain = projectChain(path.join(proj, 'pkg', 'a'));
     expect(chain).toEqual([path.join(proj, 'pkg', 'a'), path.join(proj, 'pkg'), proj]);
-    expect(projectChain(path.join(root, 'home'))).toEqual([path.join(root, 'home')]);
+    // 不在任何 git 仓库里时只有自己；临时目录本身落在某个仓库里（turbo 下 TMPDIR 在本仓库 .tmp/ 里）
+    // 时应一直走到那个仓库的根并停下，不再往上
+    const h = path.join(root, 'home');
+    const up: string[] = [];
+    let gitRoot: string | null = null;
+    for (let d = path.dirname(h); d !== path.dirname(d); d = path.dirname(d)) {
+      up.push(d);
+      if (fs.existsSync(path.join(d, '.git'))) {
+        gitRoot = d;
+        break;
+      }
+    }
+    expect(projectChain(h)).toEqual(gitRoot ? [h, ...up] : [h]);
   });
 
   it('discovers Claude commands (namespaced), skills, agents and .mcp.json server names only', () => {

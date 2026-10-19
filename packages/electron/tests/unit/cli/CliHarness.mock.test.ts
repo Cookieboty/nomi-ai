@@ -15,6 +15,17 @@ jest.mock('electron', () => ({
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
+/**
+ * 放无扩展名 `#!/usr/bin/env node` 测试脚本的临时目录。turbo 下 TMPDIR 在仓库里（.tmp/turbo-runtime），
+ * 脚本会继承仓库根 package.json 的 "type": "module" 被当成 ESM，里面的 require 直接报错退出；
+ * 目录里放一个 commonjs 的 package.json，脚本在哪个临时目录下都按 CommonJS 跑。
+ */
+function scriptDir(prefix: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"commonjs"}\n');
+  return dir;
+}
+
 describe('CliHarnessService mock CLI', () => {
   const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
   const mockCodex = path.resolve(__dirname, '../../../scripts/mock-cli/mock-codex.mjs');
@@ -494,7 +505,7 @@ describe('CliHarnessService session handling', () => {
   itPosix(
     'drops the CLI session id when switching backend and resumes codex with valid argv',
     async () => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-argv-'));
+      const dir = scriptDir('harness-argv-');
       const bin = path.join(dir, 'argv-codex');
       fs.writeFileSync(
         bin,
@@ -782,7 +793,7 @@ describe('CliHarnessService permission modes', () => {
   }, 20_000);
 
   itPosix('passes codex sandbox / approval flags per mode', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-codex-'));
+    const dir = scriptDir('harness-perm-codex-');
     const bin = path.join(dir, 'argv-codex');
     fs.writeFileSync(
       bin,
@@ -822,7 +833,7 @@ describe('CliHarnessService permission modes', () => {
   });
 
   itPosix('sets DSH_PERMISSION_MODE for dsh', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-dsh-'));
+    const dir = scriptDir('harness-perm-dsh-');
     const r = recorder(dir, mockDsh);
     process.env.NOMI_DSH_BIN = r.bin;
     const h = mk(dir);
@@ -834,7 +845,7 @@ describe('CliHarnessService permission modes', () => {
   });
 
   itPosix('no longer forces --yolo on grok', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-grok-'));
+    const dir = scriptDir('harness-perm-grok-');
     const r = recorder(dir, mockGrok);
     process.env.NOMI_GROK_BIN = r.bin;
     const h = mk(dir);
