@@ -408,7 +408,11 @@
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-xs);
-  white-space: nowrap;
+  /* 短提示一行；长描述按最大宽度换行，不会一路伸出窗口 / 压到旁边的栏 */
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -430,6 +434,10 @@
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
+}
+.cd-tooltip__bubble--bottom-start {
+  top: calc(100% + 6px);
+  left: 0;
 }
 .cd-tooltip__bubble--left {
   right: calc(100% + 6px);
