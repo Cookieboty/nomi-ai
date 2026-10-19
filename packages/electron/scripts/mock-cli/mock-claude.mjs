@@ -176,7 +176,66 @@ function bgFollowup() {
   });
 }
 
+/**
+ * 两个子代理并行请求权限（NOMI_MOCK_PARALLEL_PERMS=1）：各自的 can_use_tool 带 tool_use_id，
+ * 两个都答复后才结束本轮；最终文本写明各自的答复（allow / deny）。
+ */
+async function parallelPermsTurn() {
+  const content = (id, name, input) => [{ type: 'tool_use', id, name, input }];
+  for (const [id, d] of [
+    ['toolu_a', 'agent A'],
+    ['toolu_b', 'agent B'],
+  ])
+    emit({
+      type: 'assistant',
+      session_id: sessionId,
+      message: { role: 'assistant', content: content(id, 'Agent', { description: d }) },
+    });
+  for (const [parent, id, cmd] of [
+    ['toolu_a', 'toolu_a_bash', 'rm a.tmp'],
+    ['toolu_b', 'toolu_b_bash', 'rm b.tmp'],
+  ])
+    emit({
+      type: 'assistant',
+      session_id: sessionId,
+      parent_tool_use_id: parent,
+      message: { role: 'assistant', content: content(id, 'Bash', { command: cmd }) },
+    });
+  const answers = await new Promise((resolve) => {
+    const got = {};
+    multiWaiter = (reqId, allowed) => {
+      got[reqId] = allowed ? 'allow' : 'deny';
+      if (Object.keys(got).length === 2) {
+        multiWaiter = null;
+        resolve(got);
+      }
+    };
+    for (const [reqId, toolUseId, cmd] of [
+      ['perm-a', 'toolu_a_bash', 'rm a.tmp'],
+      ['perm-b', 'toolu_b_bash', 'rm b.tmp'],
+    ])
+      emit({
+        type: 'control_request',
+        request_id: reqId,
+        request: {
+          subtype: 'can_use_tool',
+          tool_name: 'Bash',
+          input: { command: cmd },
+          tool_use_id: toolUseId,
+        },
+      });
+  });
+  const text = `A=${answers['perm-a']} B=${answers['perm-b']}`;
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text }] },
+  });
+  emit({ type: 'result', session_id: sessionId, result: text, subtype: 'success' });
+}
+
 async function runOnce(_prompt) {
+  if (process.env.NOMI_MOCK_PARALLEL_PERMS === '1') return parallelPermsTurn();
   if (process.env.NOMI_MOCK_BG_AGENT === '1' && !bgStarted) {
     bgStarted = true;
     bgAgentTurn();
@@ -532,6 +591,8 @@ function readStdinLine() {
 
 /** 长驻：permission 等待队列 */
 let permissionWaiter = null;
+/** 并行权限场景：按 request_id 收答复 */
+let multiWaiter = null;
 function waitPermission() {
   return new Promise((resolve) => {
     permissionWaiter = resolve;
@@ -581,6 +642,11 @@ if (streamIn) {
   rl.on('line', (line) => {
     const parsed = extractUserText(line);
     if (parsed.kind === 'control') {
+      if (multiWaiter) {
+        const r = parsed.j?.response;
+        multiWaiter(r?.request_id, r?.response?.behavior === 'allow');
+        return;
+      }
       if (permissionWaiter) {
         const allowed = parsed.j?.response?.response?.behavior === 'allow';
         const w = permissionWaiter;

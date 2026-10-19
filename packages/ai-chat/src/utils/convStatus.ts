@@ -56,7 +56,14 @@ export function deriveStatus(args: {
   const { phase, live, items } = args;
   if (phase === 'queued') return { kind: 'queued', label: t('排队等待：其它标签完成后开始') };
   if (phase !== 'running') return null;
-  if (live?.permission) return { kind: 'permission', label: t('等待你的确认') };
+  if (live?.permissions?.length)
+    return {
+      kind: 'permission',
+      label:
+        live.permissions.length > 1
+          ? t('等待你的确认（{0} 项）', String(live.permissions.length))
+          : t('等待你的确认'),
+    };
   const st = live?.status;
   if (st?.kind === 'compact') return { kind: 'compact', label: t('正在压缩上下文…') };
   if (st?.kind === 'retry')

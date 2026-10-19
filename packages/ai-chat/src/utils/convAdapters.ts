@@ -73,7 +73,8 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
     ...(l.textBreaks?.length ? { textBreaks: l.textBreaks } : {}),
     ...(l.startedAt !== undefined ? { startedAt: l.startedAt } : {}),
     ...(l.firstEventAt !== undefined ? { firstEventAt: l.firstEventAt } : {}),
-    ...(l.permission ? { permission: l.permission } : {}),
+    ...(l.permissions?.length ? { permissions: l.permissions } : {}),
+    ...(l.permissionExpired ? { permissionExpired: l.permissionExpired } : {}),
     ...(l.status ? { status: l.status } : {}),
   };
 }

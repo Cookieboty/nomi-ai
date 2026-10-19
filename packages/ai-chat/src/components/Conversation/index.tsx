@@ -31,42 +31,104 @@ export function isNearBottom(
   return el.scrollHeight - el.scrollTop - el.clientHeight <= px;
 }
 
-/** 权限请求：醒目卡片 */
+/** 剩余秒数（每秒刷新）；没有截止时间返回 null */
+function useSecondsLeft(expiresAt: number | undefined): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (expiresAt === undefined) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [expiresAt]);
+  return expiresAt === undefined ? null : Math.max(0, Math.ceil((expiresAt - now) / 1000));
+}
+
+/** 权限请求：醒目卡片（注明来源子代理与自动拒绝倒计时） */
 const PermissionCard: React.FC<{
   summary: string;
+  agent?: string;
+  expiresAt?: number;
   onReply: (allow: boolean) => void;
-}> = ({ summary, onReply }) => (
-  <div
-    className={styles.perm}
-    data-testid="conv-permission-card"
-    role="alertdialog"
-    aria-label={t('需要确认工具权限')}
-  >
-    <div className={styles.permHead}>
-      <Icon icon={ShieldAlert} size={16} />
-      <span className={styles.permTitle}>{t('需要确认工具权限')}</span>
+}> = ({ summary, agent, expiresAt, onReply }) => {
+  const left = useSecondsLeft(expiresAt);
+  return (
+    <div
+      className={styles.perm}
+      data-testid="conv-permission-card"
+      role="alertdialog"
+      aria-label={agent ? t('子代理「{0}」需要确认工具权限', agent) : t('需要确认工具权限')}
+    >
+      <div className={styles.permHead}>
+        <Icon icon={ShieldAlert} size={16} />
+        <span className={styles.permTitle}>{t('需要确认工具权限')}</span>
+        {agent && (
+          <span className={styles.permSource} data-testid="conv-permission-agent">
+            {t('子代理 · {0}', agent)}
+          </span>
+        )}
+        {left !== null && (
+          <span className={styles.permTimer} data-testid="conv-permission-timer">
+            {t('{0} 秒后自动拒绝', String(left))}
+          </span>
+        )}
+      </div>
+      <code className={styles.permSummary}>{summary}</code>
+      <div className={styles.permActions}>
+        <button
+          type="button"
+          className={styles.permAllow}
+          data-testid="conv-permission-allow"
+          onClick={() => onReply(true)}
+        >
+          {t('允许')}
+        </button>
+        <button
+          type="button"
+          className={styles.permDeny}
+          data-testid="conv-permission-deny"
+          onClick={() => onReply(false)}
+        >
+          {t('拒绝')}
+        </button>
+      </div>
     </div>
-    <code className={styles.permSummary}>{summary}</code>
-    <div className={styles.permActions}>
-      <button
-        type="button"
-        className={styles.permAllow}
-        data-testid="conv-permission-allow"
-        onClick={() => onReply(true)}
-      >
-        {t('允许')}
-      </button>
-      <button
-        type="button"
-        className={styles.permDeny}
-        data-testid="conv-permission-deny"
-        onClick={() => onReply(false)}
-      >
-        {t('拒绝')}
-      </button>
+  );
+};
+
+/** 待确认的权限请求队列：按到达顺序全部列出（并行子代理会同时请求），超时自动拒绝时短暂提示 */
+const PermissionQueue: React.FC<{
+  live: ConvLive | null | undefined;
+  onPermission?: (requestId: string, allow: boolean) => void;
+}> = ({ live, onPermission }) => {
+  const list = live?.permissions ?? [];
+  const expired = live?.permissionExpired;
+  const showExpired = !!expired && Date.now() - expired.at < 15_000;
+  if (!onPermission || (!list.length && !showExpired)) return null;
+  return (
+    <div className={styles.permQueue} data-testid="conv-permission-queue">
+      {list.length > 1 && (
+        <div className={styles.permCount} aria-live="polite">
+          {t('{0} 项待确认', String(list.length))}
+        </div>
+      )}
+      {list.map((p) => (
+        <PermissionCard
+          key={p.id}
+          summary={p.summary}
+          agent={p.agent}
+          expiresAt={p.expiresAt}
+          onReply={(allow) => onPermission(p.id, allow)}
+        />
+      ))}
+      {showExpired && (
+        <div className={styles.permExpired} role="status" data-testid="conv-permission-expired">
+          {expired.agent
+            ? t('子代理「{0}」的请求已超时，已自动拒绝：{1}', expired.agent, expired.summary)
+            : t('请求已超时，已自动拒绝：{0}', expired.summary)}
+        </div>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 /** 首屏最多渲染的消息条数，以及按内容体量折算的预算（超大消息会让窗口变小） */
 export const WINDOW_MESSAGES = 30;
@@ -252,7 +314,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     last?.id,
     live?.text,
     live?.trace?.length,
-    live?.permission?.id,
+    live?.permissions?.length,
+    live?.permissionExpired?.at,
     live?.status?.kind,
     queued?.length,
     cards?.length,
@@ -320,14 +383,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                       breaks={live?.textBreaks}
                       live
                       streaming
-                      extra={
-                        live?.permission && onPermission ? (
-                          <PermissionCard
-                            summary={live.permission.summary}
-                            onReply={(allow) => onPermission(live.permission!.id, allow)}
-                          />
-                        ) : null
-                      }
+                      extra={<PermissionQueue live={live} onPermission={onPermission} />}
                     />
                   )}
                   {status && (
@@ -346,14 +402,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                   breaks={live?.textBreaks}
                   live
                   streaming
-                  extra={
-                    live?.permission && onPermission ? (
-                      <PermissionCard
-                        summary={live.permission.summary}
-                        onReply={(allow) => onPermission(live.permission!.id, allow)}
-                      />
-                    ) : null
-                  }
+                  extra={<PermissionQueue live={live} onPermission={onPermission} />}
                 />
               )}
               {status && (

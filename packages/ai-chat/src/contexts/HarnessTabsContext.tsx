@@ -339,11 +339,13 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     async (requestId: string, allow: boolean) => {
       if (!isCliTab) return;
       await harnessClient.replyPermission(activeId, requestId, allow).catch(() => undefined);
+      // 主进程会再发 permission-resolved；这里先乐观移除这一项（队列里的其它请求保留）
       setLive((cur) => {
         const prev = cur[activeId];
-        if (!prev?.permission || prev.permission.id !== requestId) return cur;
-        const { permission: _p, ...rest } = prev;
-        return { ...cur, [activeId]: rest };
+        if (!prev?.permissions?.some((p) => p.id === requestId)) return cur;
+        const rest = prev.permissions.filter((p) => p.id !== requestId);
+        const { permissions: _p, ...others } = prev;
+        return { ...cur, [activeId]: rest.length ? { ...others, permissions: rest } : others };
       });
     },
     [isCliTab, activeId],

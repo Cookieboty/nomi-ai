@@ -935,3 +935,55 @@ describe('CliHarnessService Claude background subagents (docs/design/cli-subagen
     expect(contents.slice(0, 4)).toEqual(['go', 'STARTED', 'two', second.text]);
   }, 20_000);
 });
+
+describe('CliHarnessService parallel subagent permissions (docs/design/cli-subagents.md §5)', () => {
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const keys = ['NOMI_CLAUDE_BIN', 'NOMI_MOCK_PARALLEL_PERMS'];
+  let saved: Record<string, string | undefined> = {};
+  const harnesses: CliHarnessService[] = [];
+  beforeEach(() => {
+    saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+    process.env.NOMI_MOCK_PARALLEL_PERMS = '1';
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+
+  it('two concurrent requests both reach the UI with their source subagent; each answer is delivered', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perms-'));
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    const perms: Array<{ id: string; agent?: string; expiresAt?: number }> = [];
+    const resolved: Array<{ id: string; reason: string }> = [];
+    const needed: string[] = [];
+    h.events.on('permission-needed', (e: { summary: string }) => needed.push(e.summary));
+    h.events.on('event', ({ event }: { event: Record<string, unknown> }) => {
+      if (event.type === 'permission') perms.push(event as never);
+      if (event.type === 'permission-resolved') resolved.push(event as never);
+    });
+    const tab = h.createTab({ backend: 'claude' });
+    const run = h.sendTab(tab.id, 'go');
+    for (let i = 0; i < 200 && perms.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(perms.map((p) => [p.id, p.agent])).toEqual([
+      ['perm-a', 'agent A'],
+      ['perm-b', 'agent B'],
+    ]);
+    for (const p of perms) expect(p.expiresAt).toBeGreaterThan(Date.now());
+    expect(needed[0]).toContain('agent A');
+    // 先答第二个、再答第一个：两个都送达，互不覆盖
+    expect(h.replyPermission(tab.id, 'perm-b', false)).toBe(true);
+    expect(h.replyPermission(tab.id, 'perm-a', true)).toBe(true);
+    const r = await run;
+    expect(r.text).toBe('A=allow B=deny');
+    expect(resolved).toEqual([
+      { type: 'permission-resolved', id: 'perm-b', reason: 'denied' },
+      { type: 'permission-resolved', id: 'perm-a', reason: 'allowed' },
+    ]);
+  }, 20_000);
+});

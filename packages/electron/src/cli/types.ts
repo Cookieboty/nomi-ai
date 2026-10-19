@@ -95,7 +95,19 @@ export type HarnessEvent =
       textAt?: number;
     }
   | { type: 'thinking'; text: string; at?: number; textAt?: number }
-  | { type: 'permission'; id: string; summary: string }
+  | {
+      type: 'permission';
+      id: string;
+      summary: string;
+      /** 请求的工具调用 id（Claude can_use_tool.tool_use_id） */
+      toolUseId?: string;
+      /** 发起请求的子代理（描述 / 类型）；主代理自己的请求没有 */
+      agent?: string;
+      /** 超时自动拒绝的时间点（ms），界面显示倒计时 */
+      expiresAt?: number;
+    }
+  /** 权限请求已结束（用户允许 / 拒绝，或超时自动拒绝）：界面据此移除对应卡片 */
+  | { type: 'permission-resolved'; id: string; reason: 'allowed' | 'denied' | 'timeout' }
   /** 非文本的等待 / 恢复状态：重试、重连、上下文压缩（clear 表示恢复正常） */
   | {
       type: 'status';

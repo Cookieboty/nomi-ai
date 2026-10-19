@@ -305,6 +305,9 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
         type: 'permission',
         id: reqId,
         summary: detail ? `${tool}: ${detail}` : tool,
+        ...(typeof req.tool_use_id === 'string' && req.tool_use_id
+          ? { toolUseId: req.tool_use_id }
+          : {}),
       });
     }
   }
@@ -362,8 +365,24 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
  */
 export function createClaudeParser(): (line: string) => HarnessEvent[] {
   const names = new Map<string, string>();
+  // 工具调用 id → 父调用（子代理内部的调用）；子代理调用 id → 描述。权限请求据此标出来源子代理
+  const parents = new Map<string, string>();
+  const agents = new Map<string, string>();
+  const remember = (m: Map<string, string>, k: string, v: string) => {
+    m.set(k, v);
+    if (m.size > 500) m.delete(m.keys().next().value!);
+  };
   return (line) =>
     parseClaudeLine(line).map((ev) => {
+      if (ev.type === 'permission' && ev.toolUseId) {
+        const parent = parents.get(ev.toolUseId);
+        const agent = parent ? agents.get(parent) : undefined;
+        return parent ? { ...ev, agent: agent || t('子代理') } : ev;
+      }
+      if (ev.type === 'tool' && ev.status === 'start' && ev.detail) {
+        if (ev.parentId) remember(parents, ev.detail, ev.parentId);
+        if (/^(agent|task)$/i.test(ev.name)) remember(agents, ev.detail, agentLabel(ev.input));
+      }
       if (ev.type !== 'tool' || !ev.detail) return ev;
       if (ev.status === 'start') {
         names.set(ev.detail, ev.name);
@@ -373,6 +392,19 @@ export function createClaudeParser(): (line: string) => HarnessEvent[] {
       if (name) names.delete(ev.detail);
       return name ? { ...ev, name } : ev;
     });
+}
+
+/** 子代理调用的展示名：description，退回 subagent_type */
+function agentLabel(input: string | undefined): string {
+  if (!input) return '';
+  try {
+    const o = JSON.parse(input) as Record<string, unknown>;
+    const d = typeof o.description === 'string' ? o.description : '';
+    const ty = typeof o.subagent_type === 'string' ? o.subagent_type : '';
+    return (d || ty).slice(0, 80);
+  } catch {
+    return '';
+  }
 }
 
 function extractClaudeText(content: unknown): string {

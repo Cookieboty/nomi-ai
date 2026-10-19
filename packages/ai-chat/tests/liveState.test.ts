@@ -53,7 +53,7 @@ describe('applyLiveEvents', () => {
       { tabId: 't', type: 'permission', id: 'p1', summary: 'Bash: ls' },
       { tabId: 't', type: 'status', kind: 'retry', attempt: 2, max: 5 },
     ]);
-    expect(s.permission).toEqual({ id: 'p1', summary: 'Bash: ls' });
+    expect(s.permissions).toEqual([{ id: 'p1', summary: 'Bash: ls' }]);
     expect(s.status).toMatchObject({ kind: 'retry', attempt: 2, max: 5 });
     s = applyLiveEvents(s, [{ tabId: 't', type: 'text-delta', text: 'hi' }]);
     expect(s.status).toBeUndefined();
@@ -61,7 +61,7 @@ describe('applyLiveEvents', () => {
     s = applyLiveEvents(s, [{ tabId: 't', type: 'status', kind: 'compact' }]);
     expect(s.status?.kind).toBe('compact');
     s = applyLiveEvents(s, [{ tabId: 't', type: 'done', text: 'ok' }]);
-    expect(s.permission).toBeUndefined();
+    expect(s.permissions).toBeUndefined();
     expect(s.status).toBeUndefined();
   });
 
@@ -93,5 +93,32 @@ describe('applyLiveEvents', () => {
     const next = applyLiveEvents(undefined, batch);
     expect(next.text.length).toBe(80000);
     expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it('并行权限请求排队：按 id 结束其中一项不影响其它；超时留下提示（docs/design/cli-subagents.md §5）', () => {
+    const perm = (id: string, agent: string): HarnessLiveEvent => ({
+      tabId: 't',
+      type: 'permission',
+      id,
+      summary: `Bash: ${id}`,
+      agent,
+      expiresAt: 1000,
+    });
+    let s = applyLiveEvents(undefined, [perm('a', 'A'), perm('b', 'B'), perm('a', 'A')], 0);
+    expect(s.permissions?.map((p) => p.id)).toEqual(['a', 'b']);
+    s = applyLiveEvents(
+      s,
+      [{ tabId: 't', type: 'permission-resolved', id: 'b', reason: 'denied' }],
+      1,
+    );
+    expect(s.permissions?.map((p) => p.id)).toEqual(['a']);
+    expect(s.permissionExpired).toBeUndefined();
+    s = applyLiveEvents(
+      s,
+      [{ tabId: 't', type: 'permission-resolved', id: 'a', reason: 'timeout' }],
+      2,
+    );
+    expect(s.permissions).toBeUndefined();
+    expect(s.permissionExpired).toEqual({ summary: 'Bash: a', agent: 'A', at: 2 });
   });
 });

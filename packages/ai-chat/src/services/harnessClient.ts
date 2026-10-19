@@ -93,7 +93,23 @@ export type HarnessLiveEvent =
     }
   | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }
   | { tabId: string; type: 'error'; message: string }
-  | { tabId: string; type: 'permission'; id: string; summary: string };
+  | {
+      tabId: string;
+      type: 'permission';
+      id: string;
+      summary: string;
+      toolUseId?: string;
+      /** 发起请求的子代理（描述）；主代理自己的请求没有 */
+      agent?: string;
+      /** 超时自动拒绝的时间点（ms） */
+      expiresAt?: number;
+    }
+  | {
+      tabId: string;
+      type: 'permission-resolved';
+      id: string;
+      reason: 'allowed' | 'denied' | 'timeout';
+    };
 
 export const MAIN_TAB_ID = 'main';
 

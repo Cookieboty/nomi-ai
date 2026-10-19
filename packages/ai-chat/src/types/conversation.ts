@@ -40,7 +40,10 @@ export interface ConvLive {
   startedAt?: number;
   /** 收到第一个输出事件的时间；undefined 表示仍在等待模型首字 */
   firstEventAt?: number;
-  permission?: { id: string; summary: string };
+  /** 待确认的权限请求队列（并行子代理会同时请求） */
+  permissions?: Array<{ id: string; summary: string; agent?: string; expiresAt?: number }>;
+  /** 最近一次超时自动拒绝 */
+  permissionExpired?: { summary: string; agent?: string; at: number };
   status?: {
     kind: 'retry' | 'reconnect' | 'compact';
     text?: string;

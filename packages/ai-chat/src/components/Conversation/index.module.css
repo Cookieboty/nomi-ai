@@ -106,6 +106,36 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
+/* 来源子代理与自动拒绝倒计时（docs/design/cli-subagents.md §5） */
+.permSource {
+  padding: 1px 8px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-muted);
+}
+.permTimer {
+  margin-left: auto;
+  font-size: var(--conv-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-subtle);
+}
+/* 并行子代理的多项请求依次排列 */
+.permQueue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.permCount {
+  font-size: var(--conv-meta);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-warning);
+}
+.permExpired {
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-subtle);
+}
 .permSummary {
   display: block;
   padding: 6px 10px;

@@ -260,5 +260,12 @@
   "恢复默认背景": "Reset background",
   "密码是旧版本以明文保存的；系统钥匙串可用后会自动加密，也可以移除后重新添加": "This password was saved in plain text by an older version. It's encrypted automatically once the system keychain is available, or remove and re-add the calendar.",
   "密码未加密": "Password not encrypted",
-  "后台任务完成后的跟进": "Follow-up after a background task finished"
+  "后台任务完成后的跟进": "Follow-up after a background task finished",
+  "子代理「{0}」需要确认工具权限": "Subagent \"{0}\" needs permission for a tool",
+  "子代理 · {0}": "Subagent · {0}",
+  "{0} 秒后自动拒绝": "Auto-deny in {0}s",
+  "{0} 项待确认": "{0} requests waiting",
+  "子代理「{0}」的请求已超时，已自动拒绝：{1}": "Subagent \"{0}\"'s request timed out and was denied: {1}",
+  "请求已超时，已自动拒绝：{0}": "The request timed out and was denied: {0}",
+  "等待你的确认（{0} 项）": "Waiting for your confirmation ({0})"
 }

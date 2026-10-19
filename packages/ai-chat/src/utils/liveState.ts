@@ -27,9 +27,22 @@ export interface TabLive {
   startedAt?: number;
   /** 收到本轮第一个输出事件（文本 / 工具 / 思考）的时间；未收到时为「等待首字」 */
   firstEventAt?: number;
-  /** Claude can_use_tool 待确认 */
-  permission?: { id: string; summary: string };
+  /**
+   * 待确认的权限请求（按到达顺序排队）：并行子代理会同时请求，不能互相覆盖
+   * （docs/design/cli-subagents.md §5）
+   */
+  permissions?: PendingPermission[];
+  /** 最近一次超时自动拒绝（界面短暂提示） */
+  permissionExpired?: { summary: string; agent?: string; at: number };
   status?: LiveStatus;
+}
+
+export interface PendingPermission {
+  id: string;
+  summary: string;
+  agent?: string;
+  /** 超时自动拒绝的时间点（ms）；老版本主进程不给时为空 */
+  expiresAt?: number;
 }
 
 /** 实时轨迹最多保留的事件数：超出后丢弃最早的（落盘轨迹另有 300 条 / 400KB 上限） */
@@ -74,16 +87,40 @@ export function applyLiveEvents(
         touch();
         break;
       }
-      case 'permission':
-        next.permission = { id: e.id, summary: e.summary };
+      case 'permission': {
+        const list = next.permissions ?? [];
+        if (!list.some((p) => p.id === e.id))
+          next.permissions = [
+            ...list,
+            {
+              id: e.id,
+              summary: e.summary,
+              ...(e.agent ? { agent: e.agent } : {}),
+              ...(e.expiresAt !== undefined ? { expiresAt: e.expiresAt } : {}),
+            },
+          ];
         break;
+      }
+      case 'permission-resolved': {
+        const gone = next.permissions?.find((p) => p.id === e.id);
+        const rest = (next.permissions ?? []).filter((p) => p.id !== e.id);
+        if (rest.length) next.permissions = rest;
+        else delete next.permissions;
+        if (gone && e.reason === 'timeout')
+          next.permissionExpired = {
+            summary: gone.summary,
+            ...(gone.agent ? { agent: gone.agent } : {}),
+            at: now,
+          };
+        break;
+      }
       case 'status':
         if (e.kind === 'clear') delete next.status;
         else next.status = { kind: e.kind, text: e.text, attempt: e.attempt, max: e.max };
         break;
       case 'done':
       case 'error':
-        delete next.permission;
+        delete next.permissions;
         delete next.status;
         break;
       default:

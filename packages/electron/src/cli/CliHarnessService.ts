@@ -1343,7 +1343,7 @@ export class CliHarnessService {
     let turn: ClaudeTurnWaiter | null = userTurn ?? live.auto;
     let dropAfter = false;
     for (const raw of live.parseLine(line)) {
-      let ev = stampEvent(raw);
+      let ev = withPermissionExpiry(stampEvent(raw));
       if (!turn && isTurnContent(ev)) turn = this.startAutoTurn(tabId, live);
       if (turn) {
         const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
@@ -1363,7 +1363,7 @@ export class CliHarnessService {
           tabId,
           title: tab?.title ?? 'Claude Code',
           backend: 'claude' as HarnessBackend,
-          summary: ev.summary,
+          summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
           background: this.activeTabId !== tabId || !anyWindowFocused(),
         });
       }
@@ -1775,7 +1775,7 @@ export class CliHarnessService {
             const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
             if (text !== ev.text) ev = { ...ev, text };
           }
-          ev = stampEvent(ev);
+          ev = withPermissionExpiry(stampEvent(ev));
           const folded = foldAssistantEvent(text, breaks, ev);
           text = folded.text;
           breaks = folded.breaks;
@@ -1925,7 +1925,12 @@ export class CliHarnessService {
   }
 
   /** 用户允许/拒绝 Claude 工具权限请求；写回 CLI stdin 的 control_response */
-  replyPermission(tabId: string, requestId: string, allow: boolean): boolean {
+  replyPermission(
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    reason: 'allowed' | 'denied' | 'timeout' = allow ? 'allowed' : 'denied',
+  ): boolean {
     // 两轮之间（后台子代理 / 自发轮次）发起的请求没有 children 记录：改用长驻进程的 stdin
     const child = this.children.get(tabId) ?? this.claudeLive.get(tabId)?.child;
     if (!child || !requestId || child.stdin.destroyed || !child.stdin.writable) return false;
@@ -1942,6 +1947,8 @@ export class CliHarnessService {
     };
     try {
       child.stdin.write(`${JSON.stringify(payload)}\n`);
+      // 界面按 id 移除对应卡片（并行子代理的请求排成队列，不能只清「当前那一个」）
+      this.emitEvent(tabId, { type: 'permission-resolved', id: requestId, reason });
       return true;
     } catch (e) {
       this.d.logger.warn('harness permission reply failed', e);
@@ -1958,7 +1965,7 @@ export class CliHarnessService {
     const prev = m.get(requestId);
     if (prev) clearTimeout(prev);
     const timer = setTimeout(() => {
-      this.replyPermission(tabId, requestId, false);
+      this.replyPermission(tabId, requestId, false, 'timeout');
     }, PERMISSION_TIMEOUT_MS);
     // 权限卡 120s 超时不应拖住进程退出
     (timer as { unref?: () => void }).unref?.();
@@ -2090,6 +2097,13 @@ type ClaudeLiveSession = {
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
   recycleAfterTurn?: boolean;
 };
+
+/** 权限请求带上超时时间点：界面显示倒计时，与主进程的自动拒绝同一个时钟 */
+function withPermissionExpiry(ev: HarnessEvent): HarnessEvent {
+  return ev.type === 'permission' && ev.expiresAt === undefined
+    ? { ...ev, expiresAt: Date.now() + PERMISSION_TIMEOUT_MS }
+    : ev;
+}
 
 /** Claude 后台任务的终态（task_updated.patch.status / task_notification.status） */
 const TERMINAL_TASK_STATUS = new Set([
