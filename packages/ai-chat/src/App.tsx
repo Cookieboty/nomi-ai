@@ -57,6 +57,7 @@ import {
   useShortcutBindings,
   type ShortcutId,
 } from './services/shortcuts';
+import { nomiScopeKey } from './slash/nomiScope';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
@@ -211,7 +212,7 @@ const AiChatContent: React.FC = () => {
     : (slashTab?.backend ?? harness?.backend ?? 'nomi');
   const slashCwd = slashBackend === 'nomi' ? '' : slashTab ? slashTab.cwd : (harness?.cwd ?? '');
   /** Nomi 主对话当前会话的标识（不论眼下显示的是不是它） */
-  const nomiScope = `nomi:${state.messages[0]?.id ?? 'new'}`;
+  const nomiScope = nomiScopeKey(state.ipcClient.conversationStore?.(), state.messages[0]?.id);
   const slashScope = slashTab ? slashTab.id : nomiScope;
   const [showPlugins, setShowPlugins] = useState(false);
   const slash = useSlashCommands({
