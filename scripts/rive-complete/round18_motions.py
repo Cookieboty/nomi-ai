@@ -185,15 +185,16 @@ def bake(scene, name, fn, dur):
 
 def main():
     s = SCENE.read_text(encoding="utf-8")
-    # idempotent cleanup
-    for name, (tid, aid, sid, _) in CLIPS.items():
+    import sys
+    only = sys.argv[1:] or list(CLIPS)
+    # idempotent cleanup — only the clips we are about to rebuild (do not wipe siblings)
+    for name in only:
+        tid, aid, sid, _ = CLIPS[name]
         s = re.sub(rf'\n\s*<ViewModelPropertyTrigger name="{name}" id="{tid}"/>', "", s)
         s = re.sub(rf'\n\s*<ViewModelInstanceTrigger viewModelPropertyId="{tid}"/>', "", s)
         s = re.sub(rf'\n\s*<LinearAnimation name="full\.{name}".*?</LinearAnimation>', "", s, flags=re.S)
         s = re.sub(rf'\n\s*<AnimationState [^>]*id="{sid}">.*?</AnimationState>', "", s, flags=re.S)
         s = re.sub(rf'\n\s*<StateTransition stateToId="{sid}" duration="12">.*?</StateTransition>', "", s, flags=re.S)
-    import sys
-    only = sys.argv[1:] or list(CLIPS)
     rep = {}
     for name in only:
         tid, aid, sid, sy = CLIPS[name]
