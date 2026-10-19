@@ -567,6 +567,12 @@ export class UsageService {
     for (const id of ['claude', 'codex', 'dsh', 'grok', 'nomi']) {
       const info = this.auth.detectPassive(id);
       modes[id] = info.mode;
+      // 本地信号显示已退出登录：清掉上一个账号的额度（只删数据，不起进程；没有旧数据时不重复清）
+      if (id === 'claude' && info.signedOut) {
+        if (this.claudeFp || this.claudeCache.get() || readStatuslineSnapshot(this.d.root))
+          this.applySignedOut('claude');
+        continue;
+      }
       if (id === 'claude') this.observeClaudeIdentity(info.fp);
     }
     return applyAuthModes(this.quota(), modes, new Set(this.scanner.detected()));

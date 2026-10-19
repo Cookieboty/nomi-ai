@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { claudeOAuthPresent } from '../../../src/usage/authMode';
+import { SNAPSHOT_FILE } from '../../../src/usage/claudeStatusline';
 import { readGrokAuthStatus } from '../../../src/usage/grokAuth';
 import { UsageService } from '../../../src/usage/UsageService';
 
@@ -52,7 +54,7 @@ function setup() {
     grokBilling: none as never,
   });
   const probes = () => authRun.mock.calls.length + grokRun.mock.calls.length;
-  return { svc, clock, authRun, probes };
+  return { svc, clock, authRun, probes, root, home };
 }
 
 beforeEach(() => grokRun.mockClear());
@@ -111,5 +113,54 @@ describe('额度读取的登录探测授权：被动读取绝不启动官方 CLI
     const v = await t.svc.quotaView();
     expect(t.probes()).toBe(after);
     expect(v.find((e) => e.id === 'codex')?.auth).toBe('subscription');
+  });
+});
+
+describe('主动刷新关闭时，Claude 退出登录也不再显示旧账号额度（#44）', () => {
+  const snapshot = (root: string) =>
+    put(
+      path.join(root, SNAPSHOT_FILE),
+      JSON.stringify({
+        rate_limits: {
+          five_hour: { used_percentage: 61, resets_at: Math.floor(Date.now() / 1000) + 3600 },
+        },
+      }),
+    );
+  const claudeJson = (home: string, o: Record<string, unknown>) =>
+    put(path.join(home, '.claude.json'), JSON.stringify(o));
+
+  it('.claude.json 失去 oauthAccount：被动查看即清掉旧额度与快照，且不启动探测', async () => {
+    const t = setup();
+    snapshot(t.root);
+    claudeJson(t.home, { oauthAccount: { accountUuid: 'u' }, numStartups: 3 });
+    const before = (await t.svc.quotaView()).find((e) => e.id === 'claude');
+    expect(before).toMatchObject({ auth: 'subscription', status: 'ok' });
+
+    claudeJson(t.home, { numStartups: 4 }); // claude 退出登录
+    const after = (await t.svc.quotaView()).find((e) => e.id === 'claude');
+    expect(after?.auth).not.toBe('subscription');
+    expect(after?.windows ?? []).toEqual([]);
+    expect(fs.existsSync(path.join(t.root, SNAPSHOT_FILE))).toBe(false);
+    expect(t.probes()).toBe(0);
+  });
+
+  it('读不到 .claude.json 时维持原来的推断（无从判断不等于退出登录）', async () => {
+    const t = setup();
+    snapshot(t.root);
+    const e = (await t.svc.quotaView()).find((x) => x.id === 'claude');
+    expect(e).toMatchObject({ auth: 'subscription' });
+  });
+
+  it('claudeOAuthPresent：oauthAccount / 长期令牌 / 缺失 / 不可读', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-oauth-'));
+    expect(claudeOAuthPresent(home, {})).toBeNull();
+    put(path.join(home, '.claude.json'), '{"oauthAccount":{"accountUuid":"x"}}');
+    expect(claudeOAuthPresent(home, {})).toBe(true);
+    put(path.join(home, '.claude.json'), '{"oauthAccount":{}}');
+    expect(claudeOAuthPresent(home, {})).toBe(false);
+    expect(claudeOAuthPresent(home, { CLAUDE_CODE_OAUTH_TOKEN: 't' })).toBe(true);
+    const cfg = path.join(home, 'cfg');
+    put(path.join(cfg, '.claude.json'), '{"oauthAccount":{"accountUuid":"y"}}');
+    expect(claudeOAuthPresent(home, { CLAUDE_CONFIG_DIR: cfg })).toBe(true);
   });
 });

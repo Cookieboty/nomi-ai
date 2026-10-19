@@ -160,6 +160,27 @@ export function readClaudeSettingsDocs(home: string, env: NodeJS.ProcessEnv): un
   return out;
 }
 
+/**
+ * 不起进程判断 Claude Code 是否还登着 claude.ai 账号（#44）：OAuth 登录时全局配置
+ * `<CLAUDE_CONFIG_DIR 或 ~>/.claude.json` 里有 `oauthAccount`，退出登录后被移除。
+ * true = 有；false = 文件可读但没有（且没有 CLAUDE_CODE_OAUTH_TOKEN 长期令牌）；null = 读不到，无从判断。
+ * 只看字段是否存在，不读取任何值。
+ */
+export function claudeOAuthPresent(home: string, env: NodeJS.ProcessEnv): boolean | null {
+  if (isConfigured(env.CLAUDE_CODE_OAUTH_TOKEN)) return true;
+  const file = env.CLAUDE_CONFIG_DIR
+    ? path.join(claudeConfigDir(home, env), '.claude.json')
+    : path.join(home, '.claude.json');
+  try {
+    const j = asRecord(JSON.parse(fs.readFileSync(file, 'utf8')));
+    if (!j) return null;
+    const acct = asRecord(j.oauthAccount);
+    return !!acct && Object.keys(acct).length > 0;
+  } catch {
+    return null;
+  }
+}
+
 /** 兜底：自定义供应商 / apiKeyHelper → API（settings.json + settings.local.json，尊重 CLAUDE_CONFIG_DIR） */
 export function claudeAuthFromConfig(home: string, env: NodeJS.ProcessEnv): AuthMode | null {
   return hasCustomClaudeConfiguration(env, readClaudeSettingsDocs(home, env)) ? 'api' : null;
@@ -340,6 +361,15 @@ export class AuthModeDetector {
   detectPassive(id: string): AuthInfo {
     if (id === 'nomi' || id === 'dsh') return { mode: 'api', fp: null };
     if (id !== 'claude' && id !== 'codex' && id !== 'grok') return { mode: 'unknown', fp: null };
+    // Claude 退出登录有本地信号：即便缓存 / 状态栏快照还在，也不能把旧账号当成仍在订阅（#44）
+    if (id === 'claude') {
+      const home = this.d.home ?? os.homedir();
+      const env = this.d.env ?? process.env;
+      if (claudeOAuthPresent(home, env) === false && claudeAuthFromConfig(home, env) !== 'api') {
+        this.cache.delete(id);
+        return { mode: 'unknown', fp: null, signedOut: true };
+      }
+    }
     const hit = this.cache.get(id);
     if (hit) return hit.info;
     return this.beforeCli(id) ?? this.afterCli(id, false);
