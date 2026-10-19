@@ -10,3 +10,4 @@ python3 round13_collar.py
 python3 round14_eyes.py
 python3 round14_brows.py
 python3 round14_bangs.py
+python3 round17_autoblink.py
