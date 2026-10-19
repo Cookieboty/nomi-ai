@@ -34,7 +34,24 @@ export interface TabLive {
   permissions?: PendingPermission[];
   /** 最近一次超时自动拒绝（界面短暂提示） */
   permissionExpired?: { summary: string; agent?: string; at: number };
+  /** 本轮出现过的子代理（按 id）；卡片按 callId 关联到派生它的工具调用 */
+  agents?: Record<string, LiveAgent>;
   status?: LiveStatus;
+}
+
+/** 一个子代理的实时状态（start / progress / end 折叠而来） */
+export interface LiveAgent {
+  id: string;
+  callId?: string;
+  label?: string;
+  agentType?: string;
+  background?: boolean;
+  status: 'running' | 'completed' | 'failed' | 'stopped';
+  progress?: string;
+  summary?: string;
+  usage?: { toolUses?: number; tokens?: number; durationMs?: number };
+  startedAt: number;
+  endedAt?: number;
 }
 
 export interface PendingPermission {
@@ -112,6 +129,28 @@ export function applyLiveEvents(
             ...(gone.agent ? { agent: gone.agent } : {}),
             at: now,
           };
+        break;
+      }
+      case 'agent': {
+        const prevAgent = next.agents?.[e.id];
+        const base: LiveAgent = prevAgent ?? { id: e.id, status: 'running', startedAt: now };
+        // 结束后迟到的 progress 不把状态改回运行中
+        const ended = base.status !== 'running';
+        const merged: LiveAgent = {
+          ...base,
+          ...(e.callId ? { callId: e.callId } : {}),
+          ...(e.label ? { label: e.label } : {}),
+          ...(e.agentType ? { agentType: e.agentType } : {}),
+          ...(e.background !== undefined ? { background: e.background } : {}),
+          ...(e.progress && !ended ? { progress: e.progress } : {}),
+          ...(e.summary ? { summary: e.summary } : {}),
+          ...(e.usage ? { usage: { ...base.usage, ...e.usage } } : {}),
+          ...(e.op === 'end'
+            ? { status: e.status ?? 'completed', endedAt: base.endedAt ?? now }
+            : {}),
+        };
+        next.agents = { ...next.agents, [e.id]: merged };
+        touch();
         break;
       }
       case 'status':

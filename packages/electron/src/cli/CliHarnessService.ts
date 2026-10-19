@@ -2122,7 +2122,8 @@ function isTurnContent(ev: HarnessEvent): boolean {
     ev.type === 'text' ||
     ev.type === 'tool' ||
     ev.type === 'thinking' ||
-    ev.type === 'permission'
+    ev.type === 'permission' ||
+    ev.type === 'agent'
   );
 }
 

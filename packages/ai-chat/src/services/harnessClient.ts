@@ -104,12 +104,28 @@ export type HarnessLiveEvent =
       /** 超时自动拒绝的时间点（ms） */
       expiresAt?: number;
     }
+  | ({ tabId: string } & LiveAgentEvent)
   | {
       tabId: string;
       type: 'permission-resolved';
       id: string;
       reason: 'allowed' | 'denied' | 'timeout';
     };
+
+/** 子代理生命周期（主进程统一的 agent 事件，见 docs/design/cli-subagents.md §3） */
+export interface LiveAgentEvent {
+  type: 'agent';
+  op: 'start' | 'progress' | 'end';
+  id: string;
+  callId?: string;
+  label?: string;
+  agentType?: string;
+  background?: boolean;
+  status?: 'running' | 'completed' | 'failed' | 'stopped';
+  progress?: string;
+  summary?: string;
+  usage?: { toolUses?: number; tokens?: number; durationMs?: number };
+}
 
 export const MAIN_TAB_ID = 'main';
 

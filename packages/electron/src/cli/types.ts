@@ -106,6 +106,23 @@ export type HarnessEvent =
       /** 超时自动拒绝的时间点（ms），界面显示倒计时 */
       expiresAt?: number;
     }
+  /**
+   * 子代理生命周期（docs/design/cli-subagents.md §3）：四个后端统一成这一种。
+   * id：Claude task_id / Codex 子线程 id / dsh callId；callId：派生它的工具调用 id。
+   */
+  | {
+      type: 'agent';
+      op: 'start' | 'progress' | 'end';
+      id: string;
+      callId?: string;
+      label?: string;
+      agentType?: string;
+      background?: boolean;
+      status?: 'running' | 'completed' | 'failed' | 'stopped';
+      progress?: string;
+      summary?: string;
+      usage?: { toolUses?: number; tokens?: number; durationMs?: number };
+    }
   /** 权限请求已结束（用户允许 / 拒绝，或超时自动拒绝）：界面据此移除对应卡片 */
   | { type: 'permission-resolved'; id: string; reason: 'allowed' | 'denied' | 'timeout' }
   /** 非文本的等待 / 恢复状态：重试、重连、上下文压缩（clear 表示恢复正常） */

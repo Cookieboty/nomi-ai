@@ -213,6 +213,7 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'agent',
     'spawn_subagent',
     'subagent',
+    'subagent_fork',
     'delegate',
     'spawn_agent',
     'dispatch_agent',

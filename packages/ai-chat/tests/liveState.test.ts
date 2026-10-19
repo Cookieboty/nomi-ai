@@ -121,4 +121,45 @@ describe('applyLiveEvents', () => {
     expect(s.permissions).toBeUndefined();
     expect(s.permissionExpired).toEqual({ summary: 'Bash: a', agent: 'A', at: 2 });
   });
+
+  it('子代理事件折叠成每个 id 一条：进度 / 用量合并，结束后迟到的进度不改回运行中（docs/design/cli-subagents.md §3）', () => {
+    const ag = (e: Partial<HarnessLiveEvent>) =>
+      ({ tabId: 't', type: 'agent', id: 'a1', ...e }) as HarnessLiveEvent;
+    let s = applyLiveEvents(
+      undefined,
+      [
+        ag({
+          op: 'start',
+          callId: 'toolu_1',
+          label: 'Read a.txt',
+          background: true,
+          status: 'running',
+        }),
+        ag({ op: 'progress', progress: 'Reading a.txt', usage: { toolUses: 1 } }),
+      ],
+      10,
+    );
+    expect(s.agents?.a1).toMatchObject({
+      callId: 'toolu_1',
+      label: 'Read a.txt',
+      background: true,
+      status: 'running',
+      progress: 'Reading a.txt',
+      usage: { toolUses: 1 },
+      startedAt: 10,
+    });
+    s = applyLiveEvents(
+      s,
+      [ag({ op: 'end', status: 'completed', summary: 'hello', usage: { tokens: 9 } })],
+      20,
+    );
+    s = applyLiveEvents(s, [ag({ op: 'progress', progress: 'late' })], 30);
+    expect(s.agents?.a1).toMatchObject({
+      status: 'completed',
+      summary: 'hello',
+      progress: 'Reading a.txt',
+      usage: { toolUses: 1, tokens: 9 },
+      endedAt: 20,
+    });
+  });
 });
