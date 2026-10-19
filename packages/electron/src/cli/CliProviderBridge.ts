@@ -141,6 +141,12 @@ function normalizeFormat(kind: CliProviderKind, raw: unknown): CliApiFormat {
   return defaultFormat(kind);
 }
 
+/** 回滚成功时给错误信息补一句说明。翻译键只在 t() 里出现一次（模板字面量里嵌 t() 会被 i18n 检查当成整句键）。 */
+function withRestoredNote(error: string): string {
+  const note = t('已恢复为修改前的配置');
+  return `${error}（${note}）`;
+}
+
 export class CliProviderBridge {
   private readonly home: string;
   private readonly backupRoot: string;
@@ -511,7 +517,7 @@ export class CliProviderBridge {
         backups: [] as string[],
         restartRequired: false,
         usedRouting: false,
-        error: rolledBack ? `${error}（${t('已恢复为修改前的配置')}）` : error,
+        error: rolledBack ? withRestoredNote(error) : error,
         ...(rolledBack ? { rolledBack } : {}),
       };
     };
@@ -616,7 +622,7 @@ export class CliProviderBridge {
         backups,
         restartRequired: false,
         usedRouting: false,
-        error: rolledBack ? `${error}（${t('已恢复为修改前的配置')}）` : error,
+        error: rolledBack ? withRestoredNote(error) : error,
         ...(rolledBack ? { rolledBack } : {}),
       };
     }
