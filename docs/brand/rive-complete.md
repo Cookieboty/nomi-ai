@@ -128,3 +128,19 @@ stays on hang. Extreme upper (~−1.15) tore the sleeve off the collar.
 keys **cancel** chain inheritance so absolute palm faces the camera; finger bones
 spread open. Elbow Mesh blend band **B=85→20** for a harder bone polyline.
 Solo stays hang (outward bent Solo still tears). See scratch `v6/` screenshots.
+
+### ROUND7 — full mother decompose (layers + skeleton coverage)
+
+Pause single-action polish. Inventory every mother-visible part vs Image/RootBone/Mesh,
+then crop missing face/hair/accessory/leg layers from `source-nomi-master.png`, punch
+them out of `head.png` / `fullbody-base-no-head-arms.png`, and parent Images under
+existing or new bones (`hair.clip`, `hair.bow`, `choker`, `belt*`, `hem.ribbon.*`,
+`thigh.strap`).
+
+Selective Mesh+Skin (honest, not full-body claim): remounted single-bone meshes on
+thigh / calf-sock / shoe (L+R) and coat tails. Arm meshes unchanged. Finger phalanx
+sub-crops skipped (≈6px); whole-finger Images stay on finger roots without Mesh.
+
+Idle meanΔ vs mother (character ROI) improves vs ROUND6; screenshots in scratch `v7/`.
+Script: `scripts/rive-complete/round7-full-decompose.py`. Checklist:
+`/workspace/scratch/rive-bone-rig/FULL-DECOMPOSE-CHECKLIST.md`.
