@@ -583,11 +583,11 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-l-skin.png": {
-      "sha256": "ef55e2f2ae648a96b6fccc2513385b1632e50ce9d18e7ff46f3a068174ce753d",
-      "bytes": 1418,
+      "sha256": "09d7177fb8361cafa82661ff5beda3abc7ac038d2d21b4cb18846799422b749b",
+      "bytes": 1649,
       "ai_generated": false,
       "in_scene": true,
-      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (cv2 TELEA inpaint, non-skin masked), hidden at rest"
+      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (ROUND16: membrane fill from clean mother skin + soft hair contact shade + faint crease; ring outside the opening = R14 TELEA fill), hidden at rest"
     },
     "reference/svg-rig/eye-r-lash.png": {
       "sha256": "03f0b3fa1daa7902fdc2e29c00c054d1c03ebb747e1b9cdc45b6a5d40f5dab33",
@@ -625,11 +625,11 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-r-skin.png": {
-      "sha256": "fb1dc917d97ec927745e01b04aba10e4ae125e6520cb621aab03bb2f2c174b78",
-      "bytes": 1555,
+      "sha256": "73d1b77ac6cafd199a42529f026a274c17182b4866799bd194d9e551725083a7",
+      "bytes": 1750,
       "ai_generated": false,
       "in_scene": true,
-      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (cv2 TELEA inpaint, non-skin masked), hidden at rest"
+      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (ROUND16: membrane fill from clean mother skin + soft hair contact shade + faint crease; ring outside the opening = R14 TELEA fill), hidden at rest"
     },
     "reference/svg-rig/bangs-a.png": {
       "sha256": "fa82fca7b161abb5c9ec0370f5738f12c39cf2dfadd036d423f115d0af30f1f4",

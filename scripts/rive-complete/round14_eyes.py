@@ -39,6 +39,94 @@ EYE = {"l": dict(c=(465, 163), r=(20, 14), split=160, iris=(468, 165, 10)),
        "r": dict(c=(543, 158), r=(21, 14), split=154, iris=(539, 159, 11))}
 PARTS = ("lash", "lid", "hl", "iris", "sclera", "skin")          # front -> back inside the eye group
 BLINK = [(0, 0.0), (7, 1.0), (12, 1.0), (22, 0.0)]                # closure 0..1
+KNOWN_DIST = 3.0
+HAIR_SHADE = 0.06
+CREASE = 0.07                                                      # ROUND16: crease darkening
+MOTHER = np.array(Image.open(PROJECT / "source-nomi-master.png").convert("RGB"))
+_mc = MOTHER.astype(int)
+MSKIN = (_mc[..., 0] > 200) & (_mc[..., 1] > 150) & (_mc[..., 2] > 140) & (_mc[..., 0] - _mc[..., 2] < 90) & (_mc[..., 0] - _mc[..., 2] >= 22)
+
+
+def skin_all(rgb):
+    c = rgb.astype(int)
+    return (c[..., 0] > 200) & (c[..., 1] > 150) & (c[..., 2] > 140) & (c[..., 0] - c[..., 2] < 90) & (c[..., 0] - c[..., 2] >= 22)
+
+
+def lid_fill(mom, m, skin, top, bot):
+    """mom: mother RGB crop, m: eye opening, skin: mother skin mask.  Pixels outside the opening keep the mother pixel
+    (they are hidden under head.png anyway and make the edge seamless); inside, a harmonic interpolation with the mother
+    skin px as Dirichlet values and non-skin px (hair / lashes / outline) as Neumann (free) boundaries."""
+    f = mom.astype(np.float64)
+    # the 1-2 px next to the opening are outline anti-aliasing (tinted by the lashes): solve them too, sample from >= 3 px
+    dist = cv2.distanceTransform((~m).astype(np.uint8), cv2.DIST_L2, 3)
+    # and skin px touching hair / lashes are anti-aliased with them (darker, desaturated): sample clean skin only
+    clean = cv2.erode(skin.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))) > 0
+    skin = clean & (dist >= KNOWN_DIST)
+    free = m | ~skin                        # solved px; known = mother skin >= KNOWN_DIST px outside the opening
+    u = f.copy()
+    # start from the mean boundary skin colour
+    ring = (cv2.dilate(m.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0) & ~m & skin
+    u[free] = f[ring].mean(0)
+    dom = free.copy()
+    dom[0, :] = dom[-1, :] = dom[:, 0] = dom[:, -1] = False
+    nb = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+    for _ in range(4000):
+        acc = np.zeros_like(u)
+        cnt = np.zeros(u.shape[:2])
+        for dy, dx in nb:
+            sh = np.roll(np.roll(u, dy, 0), dx, 1)
+            ok = np.roll(np.roll((skin & ~m) | dom, dy, 0), dx, 1)   # known skin or solved px; crop border = Neumann
+            acc += np.where(ok[..., None], sh, 0)
+            cnt += ok
+        new = acc / np.maximum(cnt, 1)[..., None]
+        u[dom] = new[dom]
+    # crease: faint darker arc ~40 % of the way from the lid line up to the opening top, tapered at the corners
+    h, w = m.shape
+    yy = np.arange(h)[:, None].astype(np.float64)
+    cols = np.where(m.any(0))[0]
+    cr = np.ones((h, w))
+    if len(cols) > 4:
+        c0, c1 = cols.min(), cols.max()
+        for x in cols:
+            if bot[x] < 0 or top[x] > h:
+                continue
+            yc = bot[x] - 0.42 * (bot[x] - top[x])
+            t = (x - c0) / max(1, c1 - c0)
+            taper = np.clip(np.sin(np.pi * t) * 1.4, 0, 1)
+            cr[:, x] = 1.0 - CREASE * taper * np.exp(-0.5 * ((yy[:, 0] - yc) / 0.9) ** 2)
+    u = u * cr[..., None]
+    # bangs / side-hair shadow: px of the opening near mother hair darken a little toward it (soft contact shadow)
+    lum0 = 0.3 * f[..., 0] + 0.59 * f[..., 1] + 0.11 * f[..., 2]
+    hair = ~skin_all(mom) & (lum0 < 205) & ~m
+    dh = cv2.distanceTransform((~hair).astype(np.uint8), cv2.DIST_L2, 3)
+    u = u * (1.0 - HAIR_SHADE * np.exp(-dh / 2.5))[..., None]
+    out = np.where(m[..., None], u, f)
+    return np.clip(out + 0.5, 0, 255).astype(np.uint8)
+
+
+def r14_fill(comp, skin, m, tgt, ys, e, box):
+    """ROUND14 eyelid fill (TELEA from skin + boundary offset + top shade), kept for the ring outside the opening."""
+    x0, x1, y0, y1 = box
+    reg = np.zeros((H, W), bool)
+    reg[y0:y1, x0:x1] = True
+    hole = tgt | (reg & ~skin)
+    sub = np.ascontiguousarray(comp[y0:y1, x0:x1, :3])
+    fill = cv2.GaussianBlur(cv2.inpaint(sub, hole[y0:y1, x0:x1].astype(np.uint8) * 255, 6, cv2.INPAINT_TELEA), (5, 5), 0)
+    tg = tgt[y0:y1, x0:x1]
+    edge = (cv2.dilate(tg.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & ~tg & skin[y0:y1, x0:x1]
+    off = np.zeros(sub.shape, np.float32)
+    off[edge] = sub[edge].astype(np.float32) - fill[edge].astype(np.float32)
+    known = edge.astype(np.uint8)
+    offi = np.zeros(sub.shape, np.float32)
+    for ch in range(3):
+        o8 = np.clip(off[..., ch] + 128.0, 0, 255).astype(np.uint8)
+        offi[..., ch] = cv2.inpaint(o8, (1 - known) * 255, 8, cv2.INPAINT_TELEA).astype(np.float32) - 128.0
+    offi = cv2.GaussianBlur(offi, (7, 7), 0)
+    fill = np.clip(fill.astype(np.float32) + offi, 0, 255).astype(np.uint8)
+    yy0, yy1 = float(ys.min()), float(e["c"][1])
+    rows = np.arange(y0, y1, dtype=np.float32)[:, None, None]
+    shade = 0.90 + 0.10 * np.clip((rows - yy0) / max(1.0, yy1 - yy0), 0, 1)
+    return np.clip(fill.astype(np.float32) * shade, 0, 255).astype(np.uint8)
 
 
 def segment(comp):
@@ -81,33 +169,17 @@ def segment(comp):
         res[s] = dict(mask=m, lash=lash, lid=lid, hl=hl, iris=rest & inc & ~hl, sclera=rest & ~inc,
                       lid_y=float(bot[int(round(xs.mean()))]), cx=float(xs.mean()),
                       lash_y=float(np.where(lash)[0].mean()))
-        # hidden eyelid skin, synthesized from neighbouring skin only
+        # hidden eyelid skin (ROUND16): membrane (Laplace) fill of the eye opening from the MOTHER skin around it, so the
+        # closed lid continues the neighbours' mean and gradient (incl. the darker skin in the bangs' shadow) with no seam;
+        # + a faint crease arc above the lash line so it reads as a closed eye, not a blank patch.
         x0, x1, y0, y1 = xs.min() - 14, xs.max() + 15, ys.min() - 10, ys.max() + 14
-        reg = np.zeros((H, W), bool)
-        reg[y0:y1, x0:x1] = True
         tgt = cv2.dilate(m.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
-        hole = tgt | (reg & ~skin)
-        sub = np.ascontiguousarray(comp[y0:y1, x0:x1, :3])
-        fill = cv2.GaussianBlur(cv2.inpaint(sub, hole[y0:y1, x0:x1].astype(np.uint8) * 255, 6, cv2.INPAINT_TELEA), (5, 5), 0)
-        # boundary match: the skin px just outside the patch fix the patch colour at its edge; their offset to the
-        # fill is propagated inward (inpaint of the offset), so the closed lid has no lighter island / outline
-        tg = tgt[y0:y1, x0:x1]
-        edge = (cv2.dilate(tg.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & ~tg & skin[y0:y1, x0:x1]
-        off = np.zeros(sub.shape, np.float32)
-        off[edge] = sub[edge].astype(np.float32) - fill[edge].astype(np.float32)
-        known = edge.astype(np.uint8)
-        offi = np.zeros(sub.shape, np.float32)
-        for ch in range(3):
-            o = off[..., ch] + 128.0
-            o8 = np.clip(o, 0, 255).astype(np.uint8)
-            offi[..., ch] = cv2.inpaint(o8, (1 - known) * 255, 8, cv2.INPAINT_TELEA).astype(np.float32) - 128.0
-        offi = cv2.GaussianBlur(offi, (7, 7), 0)
-        fill = np.clip(fill.astype(np.float32) + offi, 0, 255).astype(np.uint8)
-        # upper-lid shade: the mother lid sits in the bangs' shadow, the inpaint (fed by the lit skin around) is lighter
-        yy0, yy1 = float(ys.min()), float(e["c"][1])
-        rows = np.arange(y0, y1, dtype=np.float32)[:, None, None]
-        shade = 0.90 + 0.10 * np.clip((rows - yy0) / max(1.0, yy1 - yy0), 0, 1)
-        fill = np.clip(fill.astype(np.float32) * shade, 0, 255).astype(np.uint8)
+        fill = lid_fill(MOTHER[y0:y1, x0:x1], m[y0:y1, x0:x1], MSKIN[y0:y1, x0:x1], top[x0:x1] - y0, bot[x0:x1] - y0)
+        # the 2 px ring outside the opening shows at rest through the parts' anti-aliased edges: keep it exactly as R14
+        # built it, so the rest pose does not change at all; only the opening (seen when closed) is re-shaded
+        r14 = r14_fill(comp, skin, m, tgt, ys, e, (x0, x1, y0, y1))
+        mo = m[y0:y1, x0:x1]
+        fill = np.where(mo[..., None], fill, r14)
         sk = np.zeros((H, W, 4), np.uint8)
         t = tgt[y0:y1, x0:x1]
         sk[y0:y1, x0:x1][t] = np.concatenate([fill[t], np.full((int(t.sum()), 1), 255, np.uint8)], 1)
@@ -229,7 +301,7 @@ def main():
         rel = f"reference/svg-rig/{n}.png"
         pth = PROJECT / rel
         e = lic["assets"].get(rel) or {}
-        meth = ("eyelid skin underlayer synthesized from neighbouring mother skin pixels (cv2 TELEA inpaint, non-skin masked), hidden at rest"
+        meth = ("eyelid skin underlayer synthesized from neighbouring mother skin pixels (ROUND16: membrane fill from clean mother skin + soft hair contact shade + faint crease; ring outside the opening = R14 TELEA fill), hidden at rest"
                 if n.endswith("-skin") else e.get("method", "deterministic source-pixel rig layer derived from user supplied full-body mother"))
         e.update(sha256=hashlib.sha256(pth.read_bytes()).hexdigest(), bytes=pth.stat().st_size, ai_generated=False, in_scene=True, method=meth)
         lic["assets"][rel] = e
