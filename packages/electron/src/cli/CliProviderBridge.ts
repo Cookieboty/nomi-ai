@@ -468,12 +468,17 @@ export class CliProviderBridge {
       presetId: input.presetId?.trim() || existing?.presetId,
     };
     if (existing?.active) {
-      // 正在使用的档案：保存会立即影响启动环境（Key）与下一次激活写盘。
-      // 先做和激活相同的预检，不通过就拒绝保存（原配置、原 Key 都不动）；
-      // 通过则留一份旧快照，之后激活失败时整体恢复。
+      // 正在使用的档案：保存 = 在主进程里一次性「预检 → 写 CLI 配置 → 落盘档案库」（#39）。
+      // 不再依赖渲染层随后再发 activate：两步之间窗口关闭 / IPC 失败 / 恰好拉起一轮 CLI 时，
+      // 启动环境会用新 Key 配旧端点。activate 是同步的，中途不会有别的轮次读到半新半旧的档案；
+      // 写盘失败时由 rollbacks 快照恢复内存与档案库，新 Key 从未落盘。
       const problem = this.preflight(next);
       if (problem) throw new Error(problem);
-      if (!this.rollbacks.has(id)) this.rollbacks.set(id, { ...existing });
+      this.rollbacks.set(id, { ...existing });
+      Object.assign(existing, next);
+      const r = this.activate(id);
+      if (!r.ok) throw new Error(r.error ?? t('启用失败'));
+      return this.toView(existing);
     }
     if (existing) Object.assign(existing, next);
     else this.data[kind].profiles.push(next);

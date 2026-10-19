@@ -312,7 +312,7 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
       if (prev.g === undefined) delete process.env.GROK_HOME;
       else process.env.GROK_HOME = prev.g;
     };
-    return { home, b, restore };
+    return { home, root, b, restore };
   };
   const input = (kind: Kind, over: Record<string, unknown> = {}) => ({
     kind,
@@ -356,14 +356,13 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
         }
       });
 
-      it('a write failure while re-activating restores the previous full snapshot', () => {
+      it('saving the active profile applies it in one step, without a separate activate', () => {
         const { home, b, restore } = setup();
         try {
           const c = cfg[kind];
           const p = b.upsert(input(kind));
           expect(b.activate(p.id).ok).toBe(true);
-          // 编辑成另一个端点 / Key / 模型（预检通过），但写盘会失败：把配置文件换成同名目录
-          b.upsert(
+          const saved = b.upsert(
             input(kind, {
               id: p.id,
               baseUrl: 'https://b.example/v1',
@@ -371,19 +370,45 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
               apiKey: 'key-B',
             }),
           );
+          expect(saved).toMatchObject({ active: true, model: 'model-b' });
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-B' });
+          expect(fs.readFileSync(c.file(home), 'utf8')).toContain('model-b');
+        } finally {
+          restore();
+        }
+      });
+
+      it('a write failure while saving the active profile keeps the old one everywhere', () => {
+        const { home, root, b, restore } = setup();
+        try {
+          const c = cfg[kind];
+          const p = b.upsert(input(kind));
+          expect(b.activate(p.id).ok).toBe(true);
+          // 写盘会失败：把配置文件换成同名目录；编辑本身预检通过
           const file = c.file(home);
           fs.rmSync(file, { force: true });
           fs.mkdirSync(file);
-          const r = b.activate(p.id);
-          expect(r.ok).toBe(false);
-          expect(r.rolledBack).toBe(true);
-          const view = b.state().profiles.find((x) => x.id === p.id)!;
-          expect(view).toMatchObject({
-            baseUrl: 'https://a.example/v1',
-            model: 'model-a',
-            active: true,
-          });
+          expect(() =>
+            b.upsert(
+              input(kind, {
+                id: p.id,
+                baseUrl: 'https://b.example/v1',
+                model: 'model-b',
+                apiKey: 'key-B',
+              }),
+            ),
+          ).toThrow();
+          const old = { baseUrl: 'https://a.example/v1', model: 'model-a', active: true };
+          expect(b.state().profiles.find((x) => x.id === p.id)).toMatchObject(old);
           expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
+          // 档案库从未落盘新值：重启（新实例）后仍是旧档案、旧 Key
+          const again = new CliProviderBridge({
+            root,
+            home,
+            logger: { info() {}, warn() {} },
+          });
+          expect(again.state().profiles.find((x) => x.id === p.id)).toMatchObject(old);
+          expect(again[c.env]()).toEqual({ [c.key]: 'key-A' });
         } finally {
           restore();
         }

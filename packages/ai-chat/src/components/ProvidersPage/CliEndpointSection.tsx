@@ -465,7 +465,8 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
                     setView({ kind: 'list' });
                     setMsg(view.target.kind === 'edit' ? t('已更新档案') : t('已保存档案'));
                     refresh();
-                    if (doActivate) void activate(p);
+                    // 正在使用的档案：主进程保存时已经原子地写好 CLI 配置，不必再启用一次
+                    if (doActivate && !p.active) void activate(p);
                   }}
                 />
               )}

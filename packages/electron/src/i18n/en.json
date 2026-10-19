@@ -542,5 +542,6 @@
   "已恢复为修改前的配置": "Restored the configuration from before the edit",
   "下载长时间没有数据，已中止": "No data received for a long time; download aborted",
   "离线语音模型未下载：请在「设置 → 语音」开启语音以下载": "Offline voice model not downloaded: turn on voice in Settings → Voice to download it",
-  "离线语音模型下载中，请稍候": "Offline voice model is downloading, please wait"
+  "离线语音模型下载中，请稍候": "Offline voice model is downloading, please wait",
+  "启用失败": "Couldn't activate"
 }
