@@ -42,13 +42,14 @@ Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fs
 3. 下载：地址 / sha256 / 字节数钉死在 `packages/electron/src/tts/sherpa/manifest.ts`；`NOMI_SHERPA_TTS_MODEL_URL` 可加镜像。**断点续传**：下载中途退出 / 断网，半成品保留在 `userData/tts-models/.download/<id>.tar.bz2.part`，下次用 HTTP `Range` 续传（服务器不支持则从头下）；sha256 覆盖完整文件，不符则删除半成品。用户点「取消」会删除半成品。
 4. 运行时定位顺序：`NOMI_SHERPA_TTS_MODEL_DIR` → 开发态（未打包）`../models/<id>`、`models/<id>` → `userData/tts-models/<id>`。不再读取 `process.resourcesPath/tts-models`。
 5. **缺模型永不崩溃**：`synthesize` / `warmup` 只抛 `not_ready`（附「去设置里开启语音下载」提示），路由静默；**不会在后台自动下载**（只有上面两种情形会下载）。模型就绪后完全离线工作。
-6. **开发**：`pnpm i` 的 `postinstall`（`scripts/ensure-tts-model.mjs`）仍会把模型准备到仓库同级 `../models/<id>`，方便 `pnpm dev`；与打包无关（`NOMI_SKIP_TTS_MODEL=1` 跳过）。
+6. **开发**：`pnpm i` 的 `postinstall`（`scripts/ensure-tts-model.mjs`）仍会把模型准备到仓库同级 `../models/<id>`，方便 `pnpm dev`；与打包无关。已完整（按清单大小 + `.nomi-model.json` 版本标记校验）则毫秒级跳过；`NOMI_SKIP_MODEL_DOWNLOAD=1`（旧名 `NOMI_SKIP_TTS_MODEL=1`）跳过；CI（`CI=true`）里 postinstall 默认跳过，需要预下载时设 `NOMI_SKIP_MODEL_DOWNLOAD=0`。
 7. IPC：`ai:tts-model:status | download | cancel | delete | set-voice-enabled`，推送 `ai:tts-model:changed`（进度限频 200 ms）；语音开关被主进程改动时推送 `voice-settings:changed` 同步看板娘工具栏。旧的 `tts:sherpa:status` 保留（新增 `downloading` 状态）。
 
 #### 环境变量
 
 | 变量                                                           | 作用                                                                                                                                                        |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOMI_SKIP_MODEL_DOWNLOAD=1`                                   | 跳过开发态 postinstall / dev 的模型准备（`=0` 时在 CI 里也强制准备）                                                                                        |
 | `NOMI_SKIP_TTS_MODEL=1`                                        | 跳过开发态 postinstall / dev 的模型准备（CI）                                                                                                               |
 | `NOMI_SHERPA_TTS_MODEL_URL`                                    | 镜像地址（同一个 `vits-zh-hf-theresa.tar.bz2`，sha256 仍按清单校验）；可多个，逗号 / 分号 / 空白分隔，按序尝试，最后兜底官方 GitHub。脚本与运行时下载都生效 |
 | `NOMI_SHERPA_TTS_MODEL_DIR`                                    | 指向已手动解压的模型目录（完整则不再下载）                                                                                                                  |
