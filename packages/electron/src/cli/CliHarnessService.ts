@@ -33,6 +33,7 @@ import {
 import { EventBatcher } from './eventBatcher';
 import { AcpConnection } from './gemini/acp';
 import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
+import { geminiUntrustedMessage, isGeminiUntrustedExit } from './gemini/trust';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   DEFAULT_PERMISSION_MODE,
@@ -1523,12 +1524,14 @@ export class CliHarnessService {
     const argv = ['--acp'];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      // 不受信任的目录下 headless 会直接退出（55）或把审批强制回 default
-      env: cliChildEnv(useNode, { ...this.d.geminiEnv?.(), GEMINI_CLI_TRUST_WORKSPACE: 'true' }),
+      // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
+      env: cliChildEnv(useNode, { ...this.d.geminiEnv?.() }),
     });
-    child.stderr.on('data', (c) =>
-      this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500)),
-    );
+    let stderrTail = '';
+    child.stderr.on('data', (c) => {
+      stderrTail = (stderrTail + String(c)).slice(-4000);
+      this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500));
+    });
     const live: GeminiLiveSession = {
       child,
       conn: null as unknown as AcpConnection,
@@ -1606,6 +1609,13 @@ export class CliHarnessService {
       await live.ready;
     } catch (e) {
       this.teardownGeminiLive(tab.id);
+      // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
+      if (
+        e instanceof Error &&
+        e.message === 'ACP process exited' &&
+        isGeminiUntrustedExit(child.exitCode, stderrTail)
+      )
+        throw new Error(geminiUntrustedMessage(tab.cwd), { cause: e });
       // 进程在握手阶段就退出：多半是旧版 Gemini CLI，还不认识 --acp
       if (e instanceof Error && e.message === 'ACP process exited')
         throw new Error(

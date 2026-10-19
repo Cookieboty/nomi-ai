@@ -79,6 +79,8 @@ describe('AccountLogin', () => {
     'NOMI_GEMINI_BIN',
     'NOMI_MOCK_LOGIN_EMAIL',
     'NOMI_MOCK_LOGIN_FAIL',
+    'NOMI_MOCK_GEMINI_LOG',
+    'NOMI_MOCK_GEMINI_UNTRUSTED',
   ];
   let saved: Record<string, string | undefined> = {};
   const logins: AccountLogin[] = [];
@@ -182,6 +184,29 @@ describe('AccountLogin', () => {
     });
     expect(fs.existsSync(path.join(t.home, '.gemini', 'oauth_creds.json'))).toBe(false);
     await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
+  }, 20_000);
+
+  it('Gemini：只信任空的暂存目录（cwd 即暂存目录），不碰用户工作区', async () => {
+    const t = setup();
+    const log = path.join(t.home, 'acp.log');
+    process.env.NOMI_MOCK_GEMINI_LOG = log;
+    // 开启了 folderTrust 的 Gemini：没有信任就会以 55 退出
+    process.env.NOMI_MOCK_GEMINI_UNTRUSTED = '1';
+    const s = t.login.start('gemini');
+    await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
+    expect(t.events.at(-1)?.state).toBe('done');
+    const init = fs
+      .readFileSync(log, 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as { method: string; cwd?: string; env?: { trust: string } })
+      .find((c) => c.method === 'initialize')!;
+    expect(init.env?.trust).toBe('true');
+    expect(fs.realpathSync(path.dirname(init.cwd!))).toBe(
+      fs.realpathSync(path.join(t.root, 'staging')),
+    );
+    expect(path.basename(init.cwd!)).toBe(s.id);
+    expect(init.cwd).not.toBe(process.cwd());
   }, 20_000);
 
   it('Gemini：authenticate 失败时显示原因', async () => {

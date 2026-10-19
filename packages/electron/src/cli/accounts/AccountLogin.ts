@@ -16,6 +16,7 @@ import { buildCliEnv } from '../cliEnv';
 import { resolveHarnessBin } from '../CliHarnessService';
 import { resolveHarnessLaunch } from '../cliLaunch';
 import { AcpConnection } from '../gemini/acp';
+import { geminiLoginEnv } from '../gemini/trust';
 import { killProcessTree } from '../processTree';
 
 import type { AccountService } from './AccountService';
@@ -116,7 +117,8 @@ export class AccountLogin {
     const script = bin.endsWith('.mjs') || bin.endsWith('.js');
     const env = buildCliEnv(process.env, {
       [spec.env]: dir,
-      ...(kind === 'gemini' ? { GEMINI_CLI_TRUST_WORKSPACE: 'true' } : {}),
+      // Gemini：只信任这个空的暂存目录（也是这次登录的 GEMINI_CLI_HOME，cwd 必须是它），不是用户工作区
+      ...(kind === 'gemini' ? geminiLoginEnv(dir) : {}),
       ...(script ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
     });
     const launch = resolveHarnessLaunch(

@@ -96,6 +96,8 @@ describe('CliHarnessService Gemini backend', () => {
     'NOMI_MOCK_GEMINI_PERM',
     'NOMI_MOCK_GEMINI_LOG',
     'NOMI_MOCK_DELAY_MS',
+    'NOMI_MOCK_GEMINI_UNTRUSTED',
+    'GEMINI_CLI_TRUST_WORKSPACE',
   ];
   let saved: Record<string, string | undefined> = {};
   const harnesses: CliHarnessService[] = [];
@@ -163,7 +165,8 @@ describe('CliHarnessService Gemini backend', () => {
       const init = readLog(log).find((c) => c.method === 'initialize') as unknown as {
         env: Record<string, string | null>;
       };
-      expect(init.env).toEqual({ GEMINI_API_KEY: 'AIza-profile', trust: 'true' });
+      // 不再全局跳过 Gemini 的文件夹信任
+      expect(init.env).toEqual({ GEMINI_API_KEY: 'AIza-profile', trust: null });
     } finally {
       delete process.env.TEST_GEMINI_KEY;
     }
@@ -174,6 +177,27 @@ describe('CliHarnessService Gemini backend', () => {
     const { h } = mk();
     const tab = h.createTab({ backend: 'gemini' });
     await expect(h.sendTab(tab.id, 'hi')).rejects.toThrow(/版本过旧/);
+  }, 15_000);
+
+  it('an untrusted folder surfaces a translated "trust this folder" error, not a blanket bypass', async () => {
+    process.env.NOMI_MOCK_GEMINI_UNTRUSTED = '1';
+    delete process.env.GEMINI_CLI_TRUST_WORKSPACE;
+    const { h, root } = mk();
+    const tab = h.createTab({ backend: 'gemini' });
+    const err = (await h.sendTab(tab.id, 'hi').catch((e: Error) => e)) as Error;
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).toContain('Gemini CLI 不信任当前文件夹');
+    expect(err.message).toContain(root);
+    expect(err.message).not.toMatch(/版本过旧/);
+  }, 15_000);
+
+  it('a folder the user trusted in Gemini itself keeps working', async () => {
+    process.env.NOMI_MOCK_GEMINI_UNTRUSTED = '1';
+    // 模拟 Gemini 自己判定已受信任（真实场景是 trustedFolders.json）
+    process.env.GEMINI_CLI_TRUST_WORKSPACE = 'true';
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'gemini' });
+    await expect(h.sendTab(tab.id, 'hi')).resolves.toMatchObject({ text: 'Mock Gemini: hi' });
   }, 15_000);
 
   it('routes permission requests through replyPermission', async () => {

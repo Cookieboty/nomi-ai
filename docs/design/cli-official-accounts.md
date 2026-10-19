@@ -82,7 +82,7 @@
 ## 8. Gemini CLI 后端
 
 - **通道**：ACP（`gemini --acp`，stdio JSON-RPC 2.0）长驻进程，与 Claude 一样多轮复用：`initialize` → `session/new` / `session/load` → `session/prompt`；`session/update` 的 `agent_message_chunk` / `agent_thought_chunk` / `tool_call` / `tool_call_update` 映射为 text / thinking / tool；`session/request_permission` → 权限队列（`allow_once` / `reject_once`）；`session/cancel` 中止。`-p -o stream-json`（单轮、不能审批）不作主通道。
-- **启动**：spawn 的 cwd = 标签目录；`GEMINI_CLI_TRUST_WORKSPACE=true`（否则 headless 退出码 55 / 审批被强制回 default）。
+- **启动**：spawn 的 cwd = 标签目录；**不**设 `GEMINI_CLI_TRUST_WORKSPACE`——是否信任工作区由 Gemini 自己的受信任文件夹决定（folderTrust 默认关闭，此时无影响）。开启了 folderTrust 且目录未受信任时 headless 以 55 退出，界面提示用户先在 Gemini 里信任该文件夹（`src/cli/gemini/trust.ts`）；未受信任时审批也会被 Gemini 强制回 default。登录流程只信任 Nomi 新建的空暂存目录（同时是那次登录的 `GEMINI_CLI_HOME`）。
 - **权限模式**：plan → `plan`（headless 下 `exit_plan_mode` 会自动切 YOLO，ACP 下按审批处理）；manual → `default`（ACP 可审批）；acceptEdits → `autoEdit`；auto → `autoEdit` + policy 放行只读命令（先降级为 acceptEdits）；bypass → `yolo`。运行中切换用 `session/set_mode`。
 - **子代理**：`invoke_agent { agent_name, prompt }` 归为子代理；内部步骤不进主流，P2 再 tail `~/.gemini/tmp/<项目>/chats/<父会话>/<子会话>.jsonl`。
 - **检测 / 安装 / 更新**：`@google/gemini-cli`（npm / pnpm / volta / homebrew 识别），`gemini --version`。
