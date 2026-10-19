@@ -500,6 +500,22 @@ describe('刷新额度 · 清空后迟到的结果不回写', () => {
     expect(t.entry(r, 'codex')).toMatchObject({ status: 'unavailable', windows: [] });
   });
 
+  it('Codex：慢刷新期间一键清空，立刻再刷新 → 真的重新拉取并显示新额度（不复用旧 Promise、不被节流）', async () => {
+    const t = setup();
+    t.set.codex('defer');
+    const old = t.svc.refreshQuota('codex');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    t.set.codex('ok');
+    t.set.pct(37);
+    const fresh = await t.svc.refreshQuota('codex');
+    expect(fresh.tools.codex).toEqual({ state: 'ok' });
+    expect(t.entry(fresh, 'codex')).toMatchObject({ status: 'ok' });
+    await t.releaseCodex();
+    await old;
+    expect(t.entry(await t.svc.refreshQuota(), 'codex')?.status).toBe('ok');
+  });
+
   it('Claude：慢刷新期间一键清空，随后成功返回 → 缓存仍为空', async () => {
     const t = setup();
     let release!: () => void;

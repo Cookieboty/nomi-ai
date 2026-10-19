@@ -1334,6 +1334,10 @@ export class UsageService {
     this.claudeFp = null;
     this.quotaFloor = 0;
     this.quotaEpoch++; // 让进行中的刷新作废（缓存各自也会换代）
+    // 清空前发起、还没结束的刷新 Promise 不能被清空后的刷新复用（它们的结果都是 superseded，#45）
+    this.toolCore.clear();
+    this.toolRefreshing.clear();
+    this.refreshing = null;
     this.codexCache.clear();
     this.claudeCache.clear();
     this.grokCache.clear();

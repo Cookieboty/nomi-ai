@@ -70,6 +70,8 @@ export class IdentityQuotaCache {
     this.value = null;
     this.stale = false;
     this.identity = null;
+    // 用户清空之后立即刷新：不能被清空前那次拉取的 60 秒节流挡住，面板一直空着（#45）
+    this.lastAttemptAt = 0;
   }
 
   /** 已知身份变化（例如 `claude auth status` 的指纹）：换号清旧值 */

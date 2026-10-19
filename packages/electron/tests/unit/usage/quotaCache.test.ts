@@ -201,7 +201,7 @@ describe('IdentityQuotaCache：身份隔离 / 分层降级 / 60 秒节流', () =
       const a = deferred();
       const pa = c.refresh('a', () => a.p);
       c.clear();
-      t += 120_000;
+      // 不推进时间：清空要重置节流，紧接着的刷新必须真的发起（#45）
       const b = deferred();
       const fb = jest.fn(() => b.p);
       const pb = c.refresh('a', fb);
