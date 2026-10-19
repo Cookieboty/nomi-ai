@@ -20,6 +20,7 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { ConcurrencyControl } from './ConcurrencyControl';
 import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
@@ -249,27 +250,12 @@ export const ChatTabs: React.FC<{
             />
           );
         })()}
-      <label
-        className={styles.load}
-        data-testid="chat-tabs-load"
-        title={t('同时运行的编程助手标签上限（1–8）')}
-      >
-        <span>{t('运行 {0}/', st.running)}</span>
-        <select
-          className={styles.limitSelect}
-          data-testid="chat-tabs-max-concurrent"
-          aria-label={t('并发上限')}
-          value={st.maxConcurrent}
-          onChange={(e) => void tabs.setMaxConcurrent(Number(e.target.value))}
-        >
-          {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        {st.queued ? <span>{t(' · 排队 {0}', st.queued)}</span> : null}
-      </label>
+      <ConcurrencyControl
+        running={st.running}
+        queued={st.queued}
+        max={st.maxConcurrent}
+        onChange={(n) => void tabs.setMaxConcurrent(n)}
+      />
       <div className={styles.add} ref={menuRef}>
         <button
           type="button"

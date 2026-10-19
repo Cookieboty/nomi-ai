@@ -243,7 +243,6 @@
   "关闭标签 {0}": "Close tab {0}",
   "{0} ({1})": "{0} ({1})",
   "该标签仍在运行，关闭会中止它。确定关闭？": "This tab is still running. Closing it will stop the run. Close anyway?",
-  " · 排队 {0}": " · {0} queued",
   "上次使用": "Last used",
   "会话 {0}": "Session {0}",
   "新建编程助手标签": "New coding agent tab",
