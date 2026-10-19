@@ -1,8 +1,10 @@
 /**
- * 输入栏左侧「端点控制组」：端点（后端）+ 该端点自己的供应商 / 模型。
+ * 端点相关的两组控件：
  *
- * - Nomi：Nomi 自有供应商 / 模型切换（ProviderSwitcher）。
- * - Claude Code / Codex / dsh：只显示该后端自己的档案（CliProviderChip），绝不出现 Nomi 供应商。
+ * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
+ * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
+ *   Nomi：Nomi 自有供应商 / 模型切换（ProviderSwitcher）；
+ *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的档案（CliProviderChip），绝不出现 Nomi 供应商。
  * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
@@ -27,19 +29,38 @@ import styles from './index.module.css';
 /** 换目录后新会话怎么开：带上当前对话作为前文 / 干净地开新会话 */
 type SwitchMode = 'carry' | 'fresh';
 
-export const EndpointControls: React.FC<{
-  className?: string;
-  onManageNomi: () => void;
-  onManageCli: (backend: CliProviderKind) => void;
-}> = ({ className, onManageNomi, onManageCli }) => {
+/** 当前显示的是哪个端点，以及对应的 CLI 标签（Nomi 为 null） */
+function useEndpoint() {
   const { isDev } = useChatMode();
   const tabs = useHarnessTabs();
   const harness = useHarnessState();
   const backend = tabs.isCliTab && tabs.activeTab ? tabs.activeTab.backend : harness?.backend;
   const cli = isDev && backend && backend !== 'nomi' ? backend : null;
   const tab = tabs.isCliTab ? tabs.activeTab : null;
+  return { isDev, tabs, harness, cli, tab };
+}
+
+/** 输入栏：端点切换 + 权限模式 */
+export const EndpointControls: React.FC = () => {
+  const { isDev, tabs, cli, tab } = useEndpoint();
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
+  return (
+    <>
+      {isDev && <BackendSwitcher />}
+      {cli && modeTab && (
+        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+      )}
+    </>
+  );
+};
+
+/** 对话区右上角：工作目录（CLI）、「带上前文」标记、供应商 / 账号 */
+export const SessionControls: React.FC<{
+  onManageNomi: () => void;
+  onManageCli: (backend: CliProviderKind) => void;
+}> = ({ onManageNomi, onManageCli }) => {
+  const { tabs, harness, cli, tab } = useEndpoint();
   const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
   const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
   const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
@@ -66,13 +87,11 @@ export const EndpointControls: React.FC<{
     if (next) void apply(next, mode);
   };
 
+  const nomiProviders = !cli && providerClientAvailable();
+  if (!cli && !nomiProviders) return null;
+
   return (
-    <>
-      {isDev && <BackendSwitcher />}
-      {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
-      {cli && modeTab && (
-        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
-      )}
+    <div className={styles.session} data-testid="session-controls">
       {cli && tab?.carriedMessages ? (
         <span
           className={styles.carry}
@@ -92,6 +111,12 @@ export const EndpointControls: React.FC<{
           </button>
         </span>
       ) : null}
+      {cli && <WorkspacePicker value={cwd} onChange={changeCwd} testId="cli-workspace" />}
+      {cli ? (
+        <CliProviderChip backend={cli} onManage={() => onManageCli(cli)} />
+      ) : (
+        nomiProviders && <ProviderSwitcher onManage={onManageNomi} />
+      )}
       {pending !== null && (
         <Modal
           open
@@ -135,13 +160,6 @@ export const EndpointControls: React.FC<{
           </div>
         </Modal>
       )}
-      {cli ? (
-        <CliProviderChip backend={cli} className={className} onManage={() => onManageCli(cli)} />
-      ) : (
-        providerClientAvailable() && (
-          <ProviderSwitcher className={className} onManage={onManageNomi} />
-        )
-      )}
-    </>
+    </div>
   );
 };

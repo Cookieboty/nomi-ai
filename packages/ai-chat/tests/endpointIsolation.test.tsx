@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CliProviderChip, activeProfileOf } from '../src/components/CliProviderChip';
-import { EndpointControls } from '../src/components/EndpointControls';
+import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { CliProviderProfile, CliProviderState } from '../src/services/cliProviderClient';
@@ -249,7 +249,10 @@ describe('each CLI chip shows only its own store', () => {
     const onManageCli = vi.fn();
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={onManageCli} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={onManageCli} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => r.getByTestId('open-cli-provider-panel'));
@@ -274,7 +277,10 @@ describe('EndpointControls', () => {
     mockIpc({ cli: cliState([]), tabs: tabsState('codex') });
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('cli-provider-chip')).toBeTruthy());
@@ -287,7 +293,10 @@ describe('EndpointControls', () => {
     mockIpc({ cli: cliState([]), tabs: tabsState('main') });
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('provider-switcher')).toBeTruthy());

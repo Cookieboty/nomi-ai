@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EndpointControls } from '../src/components/EndpointControls';
+import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
@@ -68,7 +68,10 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
 const mount = () =>
   render(
     <HarnessTabsProvider>
-      <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+      <>
+        <EndpointControls />
+        <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+      </>
     </HarnessTabsProvider>,
   );
 
@@ -183,5 +186,29 @@ describe('/mode 斜杠命令', () => {
     const r = JSON.stringify(await mode('dsh').run('', ctx('dsh')));
     expect(r).toContain('计划');
     expect(r).not.toContain('逐项确认');
+  });
+});
+
+describe('输入栏只留端点与权限模式', () => {
+  it('输入栏组件里没有工作目录和供应商；它们在对话区右上角的 SessionControls 里', async () => {
+    mockIpc({ backend: 'codex' });
+    const bar = render(
+      <HarnessTabsProvider>
+        <EndpointControls />
+      </HarnessTabsProvider>,
+    );
+    await bar.findByTestId('permission-mode-chip');
+    expect(bar.queryByTestId('cli-workspace')).toBeNull();
+    expect(bar.queryByTestId('cli-provider-chip')).toBeNull();
+    bar.unmount();
+
+    const top = render(
+      <HarnessTabsProvider>
+        <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+      </HarnessTabsProvider>,
+    );
+    await top.findByTestId('cli-workspace');
+    expect(top.getByTestId('session-controls')).toBeTruthy();
+    expect(top.queryByTestId('permission-mode-chip')).toBeNull();
   });
 });

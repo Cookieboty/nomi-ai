@@ -782,11 +782,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               </button>
             )}
             <div className={styles.modelStatus}>
-              <EndpointControls
-                className={styles.currentModel}
-                onManageNomi={() => onProvidersClick?.()}
-                onManageCli={(b) => onSettingsClick?.('coding', b)}
-              />
+              <EndpointControls />
             </div>
           </div>
           <div className={styles.composerRight} data-zone="right">

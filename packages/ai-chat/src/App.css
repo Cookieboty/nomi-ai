@@ -60,6 +60,20 @@ body {
   z-index: 1;
 }
 
+/* 对话区右上角的工作目录 / 供应商：一条靠右的窄栏，不压在消息上（用户气泡靠右） */
+.session-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 0;
+  padding: 6px var(--cd-space-4, 16px) 0;
+  position: relative;
+  z-index: 2;
+}
+.session-bar:empty {
+  display: none;
+}
+
 .chat-container {
   flex: 1;
   overflow: hidden;

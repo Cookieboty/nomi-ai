@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatTabs } from '../src/components/ChatTabs';
-import { EndpointControls } from '../src/components/EndpointControls';
+import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
 import { WorkspacePicker } from '../src/components/WorkspacePicker';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -113,7 +113,10 @@ describe('EndpointControls workspace for CLI tabs', () => {
   const mount = () =>
     render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        </>
       </HarnessTabsProvider>,
     );
 

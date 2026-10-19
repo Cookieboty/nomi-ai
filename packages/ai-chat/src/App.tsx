@@ -10,6 +10,7 @@ import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
@@ -510,6 +511,16 @@ const AiChatContent: React.FC = () => {
               }}
             />
           )}
+          {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
+          <div className="session-bar">
+            <SessionControls
+              onManageNomi={() => setShowProviders(true)}
+              onManageCli={(b) => {
+                setProviderEndpoint(b);
+                openSettings('coding');
+              }}
+            />
+          </div>
           {/* 对话区域 */}
           <main className="chat-container">
             <ChatBackgroundLayer />

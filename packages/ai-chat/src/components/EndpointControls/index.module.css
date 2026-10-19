@@ -48,3 +48,16 @@
 .carryX:hover {
   background: var(--cd-color-hover);
 }
+
+/* 对话区右上角：工作目录 + 供应商（从输入栏挪上来，输入栏只留发消息要用的） */
+.session {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.session > * {
+  min-width: 0;
+}
