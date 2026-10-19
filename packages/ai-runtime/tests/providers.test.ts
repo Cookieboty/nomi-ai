@@ -254,6 +254,83 @@ describe('TrackedProvider 调用明细（用量与计费）', () => {
     expect(e.outputTokens).toBeGreaterThan(0);
   });
 
+  describe('计费模型：用解析后的实际模型，不记 default 占位符 / 映射前别名', () => {
+    const usage = { promptTokens: 10, completionTokens: 5, totalTokens: 15 };
+    /** 模拟 AiSdkLlmProvider：响应 / usage 末包里回报解析后的真实模型 */
+    const resolving = (resolved: string, withUsage = true): LLMProvider => ({
+      id: 'k1',
+      async chat(r) {
+        return {
+          reqId: r.reqId,
+          provider: 'k1',
+          model: resolved,
+          content: 'ok',
+          finishReason: 'stop',
+          ...(withUsage ? { usage } : {}),
+        };
+      },
+      async *stream() {
+        yield { type: 'delta', content: 'ok' } as ChatChunk;
+        if (withUsage) yield { type: 'usage', usage, model: resolved } as ChatChunk;
+        yield { type: 'done', finishReason: 'stop' } as ChatChunk;
+      },
+      abort() {},
+    });
+    const modelOf = (sink: ReturnType<typeof sinkOf>) => sink.recordCall.mock.calls[0]![0].model;
+
+    it('chat / stream / agent（withTools）：请求 default → 记 provider 实际解析出的默认模型', async () => {
+      const mk = () => {
+        const sink = sinkOf();
+        const inner = { ...resolving('gpt-4o'), withTools: () => resolving('gpt-4o') };
+        return { sink, p: new TrackedProvider('p1', [inner], sink, 'gpt-4o') };
+      };
+      const a = mk();
+      await a.p.chat(req({ model: 'default' }));
+      expect(modelOf(a.sink)).toBe('gpt-4o');
+      const b = mk();
+      for await (const c of b.p.stream(req({ model: 'default', stream: true }))) void c;
+      expect(modelOf(b.sink)).toBe('gpt-4o');
+      const c = mk();
+      await c.p.withTools([]).chat(req({ model: 'default' }));
+      expect(modelOf(c.sink)).toBe('gpt-4o');
+      const d = mk();
+      for await (const x of d.p.withTools([]).stream(req({ model: 'default', stream: true })))
+        void x;
+      expect(modelOf(d.sink)).toBe('gpt-4o');
+    });
+
+    it('别名 / 通配映射：记映射后的真实模型；显式真实模型不变', async () => {
+      const sink = sinkOf();
+      const p = new TrackedProvider('p1', [resolving('claude-sonnet-4-5')], sink, undefined, [
+        { from: 'sonnet', to: 'claude-sonnet-4-5' },
+      ]);
+      await p.chat(req({ model: 'sonnet' }));
+      expect(modelOf(sink)).toBe('claude-sonnet-4-5');
+      const sink2 = sinkOf();
+      const p2 = new TrackedProvider('p1', [resolving('gpt-4o')], sink2, 'x');
+      await p2.chat(req({ model: 'gpt-4o' }));
+      expect(modelOf(sink2)).toBe('gpt-4o');
+    });
+
+    it('无 usage（估算）且上游没回报模型：自己按 默认模型 / modelMap 解析，仍不记占位符或别名', async () => {
+      const mk = (m: string, map?: { from: string; to: string }[], dflt?: string) => {
+        const sink = sinkOf();
+        const inner = resolving('', false);
+        return { sink, p: new TrackedProvider('p1', [inner], sink, dflt, map), m };
+      };
+      const a = mk('default', undefined, 'gpt-4o');
+      await a.p.chat(req({ model: 'default' }));
+      expect(modelOf(a.sink)).toBe('gpt-4o');
+      expect(a.sink.recordCall.mock.calls[0]![0].estimated).toBe(true);
+      const b = mk('x', [{ from: '*', to: 'real-model' }]);
+      for await (const c of b.p.stream(req({ model: 'alias-1', stream: true }))) void c;
+      expect(modelOf(b.sink)).toBe('real-model');
+      const c = mk('x', [{ from: 'sonnet', to: 'claude-sonnet-4-5' }], 'gpt-4o');
+      await c.p.chat(req({ model: 'sonnet' }));
+      expect(modelOf(c.sink)).toBe('claude-sonnet-4-5');
+    });
+  });
+
   it('stream：取 usage 末包与模型；失败的调用不记明细；key 回退只记最终成功的一次', async () => {
     const sink = sinkOf();
     const p = new TrackedProvider(
