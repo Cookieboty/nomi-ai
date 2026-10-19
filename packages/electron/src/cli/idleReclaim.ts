@@ -42,6 +42,8 @@ export interface IdleCandidate {
   tabBusy: boolean;
   /** 已有可 --resume 的 CLI 会话（否则回收会丢上下文） */
   resumable: boolean;
+  /** 还有后台子代理 / 后台任务在跑（回收会把它们一起杀掉） */
+  backgroundActive?: boolean;
 }
 
 /** 返回应当回收的标签 id */
@@ -57,6 +59,7 @@ export function pickIdle(
         !c.turnActive &&
         !c.permissionPending &&
         !c.tabBusy &&
+        !c.backgroundActive &&
         c.resumable &&
         now - c.lastActivityAt >= idleMs,
     )

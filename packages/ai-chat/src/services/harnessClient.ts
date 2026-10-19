@@ -50,6 +50,8 @@ export interface HarnessTabMessage {
   durationMs?: number;
   usage?: HarnessUsage;
   stopped?: true;
+  /** CLI 自发的一轮（后台子代理完成后主代理的跟进） */
+  origin?: 'background';
 }
 
 export interface HarnessUsage {

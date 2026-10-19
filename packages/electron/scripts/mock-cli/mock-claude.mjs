@@ -58,7 +58,11 @@ function extractUserText(line) {
     if (typeof j.prompt === 'string') return { kind: 'user', text: j.prompt };
     if (j?.message?.content != null) {
       const c = j.message.content;
-      return { kind: 'user', text: typeof c === 'string' ? c : JSON.stringify(c) };
+      return {
+        kind: 'user',
+        text: typeof c === 'string' ? c : JSON.stringify(c),
+        uuid: typeof j.uuid === 'string' ? j.uuid : undefined,
+      };
     }
     if (typeof j.content === 'string') return { kind: 'user', text: j.content };
   } catch {
@@ -67,7 +71,117 @@ function extractUserText(line) {
   return { kind: 'user', text: line };
 }
 
+/**
+ * 后台子代理（NOMI_MOCK_BG_AGENT=1，对齐 Claude 2.1.303 实测）：本轮启动一个后台子代理并立刻以 STARTED 结束；
+ * NOMI_MOCK_BG_MS（默认 300）后子代理在 result 之后继续输出（带 parent_tool_use_id），完成通知后
+ * 主代理在没有用户消息的情况下自发跟进一轮（FOLLOWUP + 第二个 result）。
+ */
+function bgAgentTurn() {
+  const toolUseId = 'toolu_bg_1';
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool_use',
+          id: toolUseId,
+          name: 'Agent',
+          input: {
+            description: 'bg task',
+            subagent_type: 'general-purpose',
+            run_in_background: true,
+          },
+        },
+      ],
+    },
+  });
+  emit({
+    type: 'system',
+    subtype: 'task_started',
+    session_id: sessionId,
+    task_id: 'task_bg_1',
+    tool_use_id: toolUseId,
+    description: 'bg task',
+    subagent_type: 'general-purpose',
+    task_type: 'local_agent',
+    is_backgrounded: true,
+  });
+  emit({
+    type: 'user',
+    session_id: sessionId,
+    message: {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: toolUseId, content: 'Async agent launched' }],
+    },
+  });
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text: 'STARTED' }] },
+  });
+  emit({ type: 'result', session_id: sessionId, result: 'STARTED', subtype: 'success' });
+  setTimeout(
+    () => {
+      queue.unshift({ auto: true });
+      pump();
+    },
+    Number(process.env.NOMI_MOCK_BG_MS || 300),
+  );
+}
+
+function bgFollowup() {
+  const toolUseId = 'toolu_bg_1';
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    parent_tool_use_id: toolUseId,
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', id: 'toolu_bg_read', name: 'Read', input: { file_path: 'a.txt' } },
+      ],
+    },
+  });
+  emit({
+    type: 'user',
+    session_id: sessionId,
+    parent_tool_use_id: toolUseId,
+    message: {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_bg_read', content: 'hello' }],
+    },
+  });
+  emit({
+    type: 'system',
+    subtype: 'task_notification',
+    session_id: sessionId,
+    task_id: 'task_bg_1',
+    tool_use_id: toolUseId,
+    status: 'completed',
+    summary: 'bg done',
+  });
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text: 'FOLLOWUP' }] },
+  });
+  emit({
+    type: 'result',
+    session_id: sessionId,
+    result: 'FOLLOWUP',
+    subtype: 'success',
+    usage: { input_tokens: 10, output_tokens: 2 },
+  });
+}
+
 async function runOnce(_prompt) {
+  if (process.env.NOMI_MOCK_BG_AGENT === '1' && !bgStarted) {
+    bgStarted = true;
+    bgAgentTurn();
+    return;
+  }
   sleep();
   // 固定回复，便于既有单测断言；续接「外会话」时带 session id
   let text =
@@ -429,23 +543,40 @@ const inlineCandidate = promptIdx >= 0 ? args[promptIdx + 1] : '';
 const inline = inlineCandidate && !String(inlineCandidate).startsWith('-') ? inlineCandidate : '';
 const streamIn = args.includes('--input-format') && args.includes('stream-json');
 
+let bgStarted = false;
+const replay = args.includes('--replay-user-messages');
+let busy = false;
+const queue = [];
+// 与真实 CLI 一致：开始处理某条用户消息时才回显它（带原 uuid、isReplay），自发轮次不回显
+const pump = () => {
+  if (busy) return;
+  const next = queue.shift();
+  if (!next) return;
+  busy = true;
+  if (next.auto) {
+    bgFollowup();
+    busy = false;
+    pump();
+    return;
+  }
+  if (replay && next.uuid)
+    emit({
+      type: 'user',
+      session_id: sessionId,
+      uuid: next.uuid,
+      isReplay: true,
+      message: { role: 'user', content: next.text },
+    });
+  void runOnce(next.text)
+    .catch(() => {})
+    .finally(() => {
+      busy = false;
+      pump();
+    });
+};
+
 if (streamIn) {
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
-  let busy = false;
-  const queue = [];
-
-  const pump = () => {
-    if (busy) return;
-    const next = queue.shift();
-    if (!next) return;
-    busy = true;
-    void runOnce(next)
-      .catch(() => {})
-      .finally(() => {
-        busy = false;
-        pump();
-      });
-  };
 
   rl.on('line', (line) => {
     const parsed = extractUserText(line);
@@ -474,7 +605,7 @@ if (streamIn) {
       return;
     }
     if (parsed.text.trim()) {
-      queue.push(parsed.text);
+      queue.push({ text: parsed.text, uuid: parsed.uuid });
       pump();
     }
   });

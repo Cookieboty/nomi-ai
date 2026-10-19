@@ -264,6 +264,30 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
+  // 主标签接在编程助手上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
+  useEffect(
+    () =>
+      harnessClient.onTabMessage(({ tabId, message }) => {
+        if (tabId !== 'main' || message.origin !== 'background' || message.role !== 'assistant')
+          return;
+        const m: ChatMessage = {
+          id: message.id,
+          role: 'assistant',
+          content: message.content,
+          timestamp: message.timestamp,
+          origin: 'background',
+          modelId: 'claude-code',
+          ...(message.error ? { error: message.content } : {}),
+          ...(message.stopped ? { stopped: true } : {}),
+          ...(message.trace?.length ? { trace: message.trace } : {}),
+          ...(message.durationMs !== undefined ? { durationMs: message.durationMs } : {}),
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: m });
+        void ipcClient.saveMessage(m);
+      }),
+    [ipcClient],
+  );
+
   // 把文件拖到看板娘身上 → 主进程总结完成后推送到对话窗口
   useEffect(
     () =>

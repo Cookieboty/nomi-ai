@@ -1,6 +1,6 @@
 /** 会话里的消息：用户气泡、助手消息（时间线 + 正文 + 元信息）、错误卡片、消息操作 */
 import { Icon, t } from '@nomi-ai/ui';
-import { Check, CircleAlert, Copy, OctagonX, Pencil, RefreshCw } from 'lucide-react';
+import { Check, CircleAlert, Copy, Layers, OctagonX, Pencil, RefreshCw } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -271,6 +271,12 @@ export const AssistantMessage = memo(function AssistantMessage({
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   return (
     <div className={styles.assistant} data-testid="msg-assistant">
+      {message.origin === 'background' && (
+        <div className={styles.stopped} data-testid="background-followup-note">
+          <Icon icon={Layers} size={13} />
+          {t('后台任务完成后的跟进')}
+        </div>
+      )}
       {slots?.before?.(message)}
       <AssistantBody
         text={body ? '' : message.text}

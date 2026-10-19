@@ -20,6 +20,8 @@ export interface ConvMessage {
   error?: string;
   /** 被用户中断 */
   stopped?: boolean;
+  /** CLI 自发的一轮（后台子代理完成后的跟进） */
+  origin?: 'background';
   /** 本轮耗时（ms） */
   durationMs?: number;
   usage?: HarnessUsage;

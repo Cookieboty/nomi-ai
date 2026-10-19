@@ -859,3 +859,79 @@ describe('CliHarnessService permission modes', () => {
     expect(b).toContain('--yolo');
   });
 });
+
+describe('CliHarnessService Claude background subagents (docs/design/cli-subagents.md §4)', () => {
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const keys = ['NOMI_CLAUDE_BIN', 'NOMI_MOCK_BG_AGENT', 'NOMI_MOCK_BG_MS'];
+  let saved: Record<string, string | undefined> = {};
+  const harnesses: CliHarnessService[] = [];
+  beforeEach(() => {
+    saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+    process.env.NOMI_MOCK_BG_AGENT = '1';
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const mk = () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-bg-'));
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    return h;
+  };
+  const until = async (fn: () => boolean, ms = 5000) => {
+    const t0 = Date.now();
+    while (!fn()) {
+      if (Date.now() - t0 > ms) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  };
+
+  it('persists the follow-up turn the CLI starts on its own after a background subagent', async () => {
+    const h = mk();
+    const finished: string[] = [];
+    h.events.on('tab-finished', (e: { text: string }) => finished.push(e.text));
+    const tab = h.createTab({ backend: 'claude' });
+    const r = await h.sendTab(tab.id, 'go');
+    expect(r.text).toBe('STARTED');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.background).toBe(1);
+
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+    const msgs = h.tabMessages(tab.id);
+    const bg = msgs.find((m) => m.origin === 'background')!;
+    expect(bg).toMatchObject({ role: 'assistant', content: 'FOLLOWUP' });
+    // 后台子代理在 result 之后的内部调用随跟进轮次一起落盘，仍挂在派生它的 Agent 调用下
+    expect(bg.trace?.some((e) => e.type === 'tool' && e.parentId === 'toolu_bg_1')).toBe(true);
+    expect(msgs.map((m) => m.content)).toEqual(['go', 'STARTED', 'FOLLOWUP']);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)).toMatchObject({ status: 'idle' });
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.background).toBeUndefined();
+    expect(finished).toEqual(['STARTED', 'FOLLOWUP']);
+  }, 20_000);
+
+  it('does not reclaim the live process while a background subagent is running', async () => {
+    process.env.NOMI_MOCK_BG_MS = '1500';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    expect(h.reclaimIdle(Date.now() + 365 * 24 * 3600_000)).toEqual([]);
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+  }, 20_000);
+
+  it('a message sent before the follow-up gets its own reply; the follow-up is saved separately', async () => {
+    process.env.NOMI_MOCK_BG_MS = '400';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    const second = await h.sendTab(tab.id, 'two');
+    expect(second.text).toContain('Mock Claude');
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+    const contents = h.tabMessages(tab.id).map((m) => m.content);
+    expect(contents.filter((c) => c === 'FOLLOWUP')).toHaveLength(1);
+    expect(contents.slice(0, 4)).toEqual(['go', 'STARTED', 'two', second.text]);
+  }, 20_000);
+});

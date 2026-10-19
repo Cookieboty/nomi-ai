@@ -617,7 +617,14 @@ export class CliHarnessService {
   listTabs(): HarnessTabsState {
     const tabs = [...this.tabs.values()];
     return {
-      tabs: tabs.map((x) => (this.dormant.has(x.id) ? { ...x, dormant: true } : { ...x })),
+      tabs: tabs.map((x) => {
+        const bg = this.claudeLive.get(x.id)?.bgTasks.size ?? 0;
+        return {
+          ...x,
+          ...(this.dormant.has(x.id) ? { dormant: true } : {}),
+          ...(bg ? { background: bg } : {}),
+        };
+      }),
       activeTabId: this.activeTabId,
       maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
@@ -977,7 +984,10 @@ export class CliHarnessService {
   async sendTab(id: string, prompt: string): Promise<HarnessSendResult> {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi') throw new Error(t('当前为 Nomi 后端，请走原生对话'));
-    if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
+    // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
+    const autoOnly = tab.status === 'running' && this.isAutoOnly(id);
+    if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
+      throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
     if (!text.trim()) throw new Error(t('消息为空'));
     const backend = tab.backend;
@@ -1028,7 +1038,7 @@ export class CliHarnessService {
               ? await this.runGrok(tab, text)
               : await this.runCodex(tab, text);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
-      tab.status = 'idle';
+      tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
       const toolEvents = result.events.filter(
         (e): e is Extract<HarnessEvent, { type: 'tool' }> => e.type === 'tool',
@@ -1110,6 +1120,12 @@ export class CliHarnessService {
     }
   }
 
+  /** 标签处于 running 只是因为自发轮次（没有用户轮次在排队 / 进行） */
+  private isAutoOnly(id: string): boolean {
+    const live = this.claudeLive.get(id);
+    return !!live?.auto && !live.turn;
+  }
+
   private finish(tab: HarnessTabMeta, ok: boolean, text: string, error?: string) {
     this.progress.delete(tab.id);
     const background = this.activeTabId !== tab.id || !anyWindowFocused();
@@ -1181,10 +1197,12 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.turnUuid = randomUUID();
+      live.turnStarted = false;
       live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
       try {
-        this.writeClaudeUser(live, prompt);
+        this.writeClaudeUser(live, prompt, live.turnUuid);
       } catch (e) {
         live.turn = null;
         this.children.delete(tab.id);
@@ -1222,6 +1240,7 @@ export class CliHarnessService {
       '--verbose',
       '--permission-prompt-tool',
       'stdio',
+      '--replay-user-messages',
       ...permissionLaunch('claude', tab.permissionMode).args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
@@ -1236,6 +1255,11 @@ export class CliHarnessService {
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
+      turnUuid: null,
+      turnStarted: false,
+      replaySeen: false,
+      auto: null,
+      bgTasks: new Set(),
       lastActivityAt: Date.now(),
     };
     this.claudeLive.set(tab.id, live);
@@ -1286,10 +1310,11 @@ export class CliHarnessService {
     return live;
   }
 
-  private writeClaudeUser(live: ClaudeLiveSession, prompt: string) {
+  private writeClaudeUser(live: ClaudeLiveSession, prompt: string, uuid: string) {
     if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
     const payload = {
       type: 'user',
+      uuid,
       message: { role: 'user', content: prompt },
     };
     live.child.stdin.write(`${JSON.stringify(payload)}\n`);
@@ -1311,11 +1336,15 @@ export class CliHarnessService {
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
-    const turn = live.turn;
     live.lastActivityAt = Date.now();
+    if (this.onClaudeMeta(tabId, live, line)) return;
+    // 回显到达前（或老 CLI 不回显时）的归属：见 ClaudeLiveSession.turnUuid
+    const userTurn = live.turn && (live.turnStarted || !live.replaySeen) ? live.turn : null;
+    let turn: ClaudeTurnWaiter | null = userTurn ?? live.auto;
     let dropAfter = false;
     for (const raw of live.parseLine(line)) {
       let ev = stampEvent(raw);
+      if (!turn && isTurnContent(ev)) turn = this.startAutoTurn(tabId, live);
       if (turn) {
         const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
         turn.text = folded.text;
@@ -1338,9 +1367,16 @@ export class CliHarnessService {
           background: this.activeTabId !== tabId || !anyWindowFocused(),
         });
       }
+      if ((ev.type === 'done' || ev.type === 'error') && turn && turn === live.auto) {
+        this.finishAutoTurn(tabId, live, ev.type === 'error' ? ev.message : undefined);
+        turn = null;
+        if (live.recycleAfterTurn && !live.turn) dropAfter = true;
+        continue;
+      }
       // 一轮失败（result.is_error / error 事件）：结束当前 Promise，进程保持长驻供下一轮
       if (ev.type === 'error' && turn && live.turn === turn) {
         live.turn = null;
+        live.turnUuid = null;
         this.children.delete(tabId);
         if (!turn.settled) {
           turn.settled = true;
@@ -1352,6 +1388,7 @@ export class CliHarnessService {
       // 一轮 result：结束当前 Promise，但保持 stdin 打开供下一轮
       if (ev.type === 'done' && turn && live.turn === turn) {
         live.turn = null;
+        live.turnUuid = null;
         this.children.delete(tabId);
         if (!turn.settled) {
           turn.settled = true;
@@ -1366,6 +1403,105 @@ export class CliHarnessService {
       }
     }
     if (dropAfter) this.dropRecycledClaude(tabId, live);
+  }
+
+  /**
+   * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
+   */
+  private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
+    const replay = line.includes('"isReplay"');
+    const task = line.includes('"subtype":"task_');
+    if (!replay && !task) return false;
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      return false;
+    }
+    if (replay && j.type === 'user' && j.isReplay === true) {
+      live.replaySeen = true;
+      if (typeof j.uuid === 'string' && j.uuid === live.turnUuid && live.turn) {
+        // CLI 开始处理用户消息：还没收到 result 的自发轮次到此为止（按已有内容落盘）
+        if (live.auto) this.finishAutoTurn(tabId, live);
+        live.turnStarted = true;
+      }
+      return true;
+    }
+    if (task && j.type === 'system') {
+      const id = typeof j.task_id === 'string' ? j.task_id : '';
+      const patch = (j.patch ?? {}) as Record<string, unknown>;
+      const status = String(j.status ?? patch.status ?? '');
+      const before = live.bgTasks.size;
+      if (id && j.subtype === 'task_started' && j.is_backgrounded === true) live.bgTasks.add(id);
+      else if (
+        id &&
+        (j.subtype === 'task_notification' ||
+          (j.subtype === 'task_updated' && TERMINAL_TASK_STATUS.has(status)))
+      )
+        live.bgTasks.delete(id);
+      if (live.bgTasks.size !== before) this.changed();
+    }
+    // task_* 仍交给解析器（P1 映射成 agent 事件）
+    return false;
+  }
+
+  /** 没有进行中的用户轮次时 CLI 自己开始输出：开一个自发轮次接住它 */
+  private startAutoTurn(tabId: string, live: ClaudeLiveSession): ClaudeTurnWaiter {
+    const tab = this.tabs.get(tabId);
+    const auto: ClaudeTurnWaiter & { startedAt: number } = {
+      resolve: () => undefined,
+      reject: () => undefined,
+      events: [],
+      text: '',
+      breaks: [],
+      sessionId: tab?.cliSessionId ?? null,
+      lastError: null,
+      settled: false,
+      startedAt: Date.now(),
+    };
+    live.auto = auto;
+    if (tab && tab.status !== 'running') {
+      tab.status = 'running';
+      this.changed();
+    }
+    return auto;
+  }
+
+  /** 自发轮次结束（result / 错误 / 被下一条用户消息接替 / 进程拆除）：落盘成一条助手消息并提醒 */
+  private finishAutoTurn(tabId: string, live: ClaudeLiveSession, error?: string, stopped = false) {
+    const auto = live.auto;
+    if (!auto) return;
+    live.auto = null;
+    const tab = this.tabs.get(tabId);
+    if (!tab) return;
+    if (auto.sessionId && tab.backend === 'claude') tab.cliSessionId = auto.sessionId;
+    const trace = buildTrace(auto.events);
+    const usage = mergeUsage(auto.events);
+    const content = error && !auto.text.trim() ? error : auto.text;
+    const msg: HarnessTabMessage = {
+      id: randomUUID(),
+      role: 'assistant',
+      content,
+      timestamp: Date.now(),
+      durationMs: Date.now() - auto.startedAt,
+      origin: 'background',
+      ...(error ? { error: true as const } : {}),
+      ...(stopped ? { stopped: true as const } : {}),
+      ...(usage ? { usage } : {}),
+      ...(trace.length ? { trace } : {}),
+      ...(auto.breaks.length ? { textBreaks: auto.breaks } : {}),
+    };
+    if (tabId === MAIN_TAB_ID) {
+      // 主标签的消息由渲染层存进 Nomi 历史：广播出去由它落盘
+      tab.updatedAt = msg.timestamp;
+      this.post('ai:harness:tab-message', { tabId, message: msg });
+    } else {
+      this.appendMessage(tabId, msg);
+    }
+    // 用户轮次已在排队 / 进行中时保持 running，否则回到空闲
+    if (!live.turn && tab.status === 'running') tab.status = 'idle';
+    if (stopped) this.changed();
+    else this.finish(tab, !error, content, error);
   }
 
   // ───────────────────────── 空闲回收 ─────────────────────────
@@ -1402,6 +1538,7 @@ export class CliHarnessService {
         permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
         tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
         resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+        backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
       })),
       now,
       this.idleReclaimMs,
@@ -1448,6 +1585,12 @@ export class CliHarnessService {
     this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
+    // 自发轮次还没结束就拆进程（停止 / 关标签 / 换目录）：已输出的部分按「已停止」落盘，不丢
+    if (live.auto) this.finishAutoTurn(tabId, live, undefined, true);
+    if (live.bgTasks.size) {
+      live.bgTasks.clear();
+      this.changed();
+    }
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
@@ -1783,7 +1926,8 @@ export class CliHarnessService {
 
   /** 用户允许/拒绝 Claude 工具权限请求；写回 CLI stdin 的 control_response */
   replyPermission(tabId: string, requestId: string, allow: boolean): boolean {
-    const child = this.children.get(tabId);
+    // 两轮之间（后台子代理 / 自发轮次）发起的请求没有 children 记录：改用长驻进程的 stdin
+    const child = this.children.get(tabId) ?? this.claudeLive.get(tabId)?.child;
     if (!child || !requestId || child.stdin.destroyed || !child.stdin.writable) return false;
     this.clearOnePermissionTimeout(tabId, requestId);
     const payload = {
@@ -1929,11 +2073,44 @@ type ClaudeLiveSession = {
   cwd: string;
   /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
   permissionMode: HarnessPermissionMode;
+  /**
+   * 轮次归属（docs/design/cli-subagents.md §4）：用户消息带 uuid 写入，CLI 开始处理它时原样回显
+   * （--replay-user-messages）。回显到达前的输出不属于这一轮；没有进行中的用户轮次时来的输出是自发轮次。
+   */
+  turnUuid: string | null;
+  turnStarted: boolean;
+  /** 本进程见过回显：老版本 CLI 不回显时退回「写入即开始」 */
+  replaySeen: boolean;
+  /** 自发轮次（后台子代理完成后主代理的跟进），result 到达时落盘 */
+  auto: (ClaudeTurnWaiter & { startedAt: number }) | null;
+  /** 仍在运行的后台任务 id（Claude task_started.is_backgrounded） */
+  bgTasks: Set<string>;
   /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
   lastActivityAt: number;
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
   recycleAfterTurn?: boolean;
 };
+
+/** Claude 后台任务的终态（task_updated.patch.status / task_notification.status） */
+const TERMINAL_TASK_STATUS = new Set([
+  'completed',
+  'failed',
+  'stopped',
+  'killed',
+  'cancelled',
+  'error',
+]);
+
+/** 会让 CLI「正在输出」的事件：没有进行中的用户轮次时，它们开启一个自发轮次 */
+function isTurnContent(ev: HarnessEvent): boolean {
+  return (
+    ev.type === 'text-delta' ||
+    ev.type === 'text' ||
+    ev.type === 'tool' ||
+    ev.type === 'thinking' ||
+    ev.type === 'permission'
+  );
+}
 
 function isScript(bin: string) {
   return bin.endsWith('.mjs') || bin.endsWith('.js');

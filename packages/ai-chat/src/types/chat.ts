@@ -21,6 +21,8 @@ export interface ChatMessage {
   kb?: boolean;
   /** 用户点了「停止生成」：content 为中止前已生成的部分（可为空），界面追加灰色提示 */
   stopped?: boolean;
+  /** 编程助手自发的一轮（后台子代理完成后主代理的跟进），不是对某条用户消息的回复 */
+  origin?: 'background';
   /** 回答时参考了哪些长期记忆 */
   memories?: Array<{ id: string; kind: 'episode' | 'fact'; title: string }>;
   /** 本轮的工具调用 / 思考轨迹（与编程助手同一数据模型；Nomi 的 MCP / 知识库 / 搜索等工具调用） */
