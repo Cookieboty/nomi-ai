@@ -1267,3 +1267,10 @@ code {
 .release-list { margin: 0 0 1.1rem; padding-left: 1.2rem; line-height: 1.65; color: var(--nomi-ink); }
 .release-list li { margin-bottom: 0.45rem; }
 .release-list li::marker { color: var(--nomi-orange); }
+
+/* contact & community */
+.contact-grid { display: flex; justify-content: center; gap: 32px; flex-wrap: wrap; }
+.contact-card { margin: 0; width: 280px; max-width: 100%; text-align: center; }
+.contact-card img { display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 10px 30px rgba(51,41,31,.10); }
+.contact-card figcaption { margin-top: 12px; font-weight: 700; color: #33291F; }
+@media (max-width: 640px) { .contact-grid { flex-direction: column; align-items: center; gap: 24px; } }
