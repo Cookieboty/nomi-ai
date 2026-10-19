@@ -1946,12 +1946,16 @@ function spawnHarness(
   opts: { cwd: string; env: NodeJS.ProcessEnv },
 ): ChildProcessWithoutNullStreams {
   const launch = resolveHarnessLaunch(command, args, opts.env);
-  return spawn(launch.file, launch.args, {
+  const child = spawn(launch.file, launch.args, {
     cwd: opts.cwd,
     env: launch.env,
     windowsHide: true,
     ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
   });
+  // 子进程先退出时，之后的 stdin 写入（NDJSON / control_response / end）会异步 EPIPE；
+  // 没有监听就成了主进程 uncaughtException。轮次的失败由 close / error 事件负责（#46）
+  child.stdin.on('error', () => {});
+  return child;
 }
 
 /**

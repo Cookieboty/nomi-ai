@@ -118,6 +118,8 @@ export class CodeSandbox implements CodeSandboxApi {
           clearTimeout(timer);
           resolve({ exitCode: codeNum, stdout, stderr, timedOut, truncated, ms: Date.now() - t0 });
         });
+        // 程序不读 stdin 就退出时写入会异步 EPIPE；属正常情况，不能逃逸成主进程异常（#46）
+        child.stdin.on('error', () => {});
         if (opts.stdin) child.stdin.write(opts.stdin);
         child.stdin.end();
       });
