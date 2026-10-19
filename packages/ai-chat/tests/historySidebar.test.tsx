@@ -134,6 +134,8 @@ describe('CLI history in the sidebar', () => {
   it('按端信息卡：只在「开发模式 + 按端」时出现，并跟随所选端；历史区仍可滚动', async () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     localStorage.setItem('ai-chat:endpointFilter', 'claude');
+    // Codex 在这里没有对话：没有显式设置时侧栏不显示它，这里显式设为「显示」
+    localStorage.setItem('ai-chat:sidebarEndpoints', JSON.stringify({ codex: 'show' }));
     mockIpc();
     const r = mount();
     const card = await r.findByTestId('endpoint-info-card');

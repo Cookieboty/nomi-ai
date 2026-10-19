@@ -203,14 +203,14 @@ describe('UsageService：Claude 额度（订阅 + 快照）与按登录方式过
   const sub = async (k: 'claude' | 'codex') =>
     k === 'claude' ? JSON.stringify({ authMethod: 'claude.ai' }) : 'Logged in using ChatGPT';
 
-  it('订阅登录 + 还没开 statusline：Claude 显示不可用；开启并收到快照后显示 5 小时 / 每周', async () => {
-    const { svc, root } = mk(sub);
+  it('订阅登录 + 还没开 statusline：被动查看不探测登录（Claude 暂不出现）；开启并收到快照后显示 5 小时 / 每周', async () => {
+    const run = jest.fn(sub);
+    const { svc, root } = mk(run);
     await svc.scan();
     let v = await svc.quotaView();
-    expect(v.find((e) => e.id === 'claude')).toMatchObject({
-      status: 'unavailable',
-      auth: 'subscription',
-    });
+    // 被动读取从不启动官方 CLI 的登录探测；没有任何本地线索时保持 unknown、不出现
+    expect(run).not.toHaveBeenCalled();
+    expect(v.find((e) => e.id === 'claude')).toBeUndefined();
     expect(v.find((e) => e.id === 'nomi')).toBeUndefined();
 
     svc.setQuotaHook(true);
@@ -218,6 +218,7 @@ describe('UsageService：Claude 额度（订阅 + 快照）与按登录方式过
     v = await svc.quotaView();
     const c = v.find((e) => e.id === 'claude')!;
     expect(c.status).toBe('ok');
+    expect(run).not.toHaveBeenCalled();
     expect(c.windows.map((w) => [w.id, w.usedPercent])).toEqual([
       ['five_hour', 23.5],
       ['seven_day', 41.2],
@@ -227,17 +228,17 @@ describe('UsageService：Claude 额度（订阅 + 快照）与按登录方式过
     expect(fs.existsSync(path.join(root, SNAPSHOT_FILE))).toBe(false);
   });
 
-  it('API Key 登录的 Claude：不展示额度，只标 API 计费', async () => {
-    const { svc } = mk(async (k) =>
-      k === 'claude'
-        ? JSON.stringify({ authMethod: 'api_key' })
-        : 'Logged in using an API key - sk-***',
-    );
+  it('API 配置的 Claude / Codex（本地配置可判断）：不展示额度，只标 API 计费，也不起进程', async () => {
+    const run = jest.fn(async () => null);
+    const { svc, home } = mk(run);
+    put(path.join(home, '.claude', 'settings.json'), JSON.stringify({ apiKeyHelper: '/bin/key' }));
+    put(path.join(home, '.codex', 'config.toml'), 'forced_login_method = "api"\n');
     await svc.scan();
     const v = await svc.quotaView();
     expect(v.filter((e) => ['claude', 'codex'].includes(e.id)).map((e) => e.status)).toEqual([
       'api',
       'api',
     ]);
+    expect(run).not.toHaveBeenCalled();
   });
 });

@@ -1,3 +1,11 @@
+jest.unmock('fs');
+jest.unmock('path');
+jest.unmock('node:fs');
+jest.unmock('node:path');
+
+import fs from 'node:fs';
+import path from 'node:path';
+
 import {
   createClaudeParser,
   createDshParser,
@@ -7,6 +15,7 @@ import {
   parseDshLine,
   parseGrokLine,
 } from '../../../src/cli/streamParse';
+import type { HarnessEvent } from '../../../src/cli/types';
 
 describe('streamParse', () => {
   it('parses claude text deltas and result', () => {
@@ -552,5 +561,108 @@ describe('usage / status events', () => {
     expect(parseGrokLine('{"type":"usage","usage":{"inputTokens":3,"outputTokens":4}}')).toEqual([
       { type: 'done', text: '', usage: { inputTokens: 3, outputTokens: 4 } },
     ]);
+  });
+});
+
+// 子代理（docs/design/cli-subagents.md §3）：fixture 来自真机录制（路径 / id 已脱敏）
+describe('subagent events from real CLI recordings', () => {
+  const fixture = (name: string) =>
+    fs
+      .readFileSync(path.join(__dirname, 'fixtures', name), 'utf8')
+      .split('\n')
+      .filter((l) => l.trim());
+  const agents = (evs: HarnessEvent[]) =>
+    evs.filter((e): e is Extract<HarnessEvent, { type: 'agent' }> => e.type === 'agent');
+
+  it('Claude 2.1.303 task_started / progress / updated / notification → agent start / progress / end', () => {
+    const evs = agents(fixture('claude-tasks.jsonl').flatMap((l) => parseClaudeLine(l)));
+    expect(evs.map((e) => e.op)).toEqual(['start', 'progress', 'end', 'end']);
+    expect(evs[0]).toMatchObject({
+      id: 'ae8de0d6bf3fbd2d6',
+      callId: 'toolu_01Aa79DxQ2W1zbY5G3aHv4Rk',
+      label: 'Read a.txt and report',
+      agentType: 'general-purpose',
+      background: false,
+      status: 'running',
+    });
+    expect(evs[1]).toMatchObject({ progress: 'Reading a.txt', usage: { toolUses: 1 } });
+    expect(evs[3]).toMatchObject({ status: 'completed' });
+    expect(evs[3]!.summary).toContain('a.txt');
+  });
+
+  it('Claude 后台 Bash 等非子代理任务不出 agent 卡片', () => {
+    const line = JSON.stringify({
+      type: 'system',
+      subtype: 'task_started',
+      task_id: 'brn1',
+      description: 'sleep',
+      task_type: 'local_bash',
+      is_backgrounded: false,
+    });
+    expect(agents(parseClaudeLine(line))).toEqual([]);
+  });
+
+  it('Codex 0.163.0 collab_tool_call → spawn / wait / close 工具事件 + 子线程 agent start / end', () => {
+    const evs = fixture('codex-collab.jsonl').flatMap((l) => parseCodexLine(l));
+    const tools = evs.filter((e) => e.type === 'tool') as Array<
+      Extract<HarnessEvent, { type: 'tool' }>
+    >;
+    expect(tools.map((e) => `${e.name}:${e.status}`)).toEqual([
+      'spawn_agent:start',
+      'spawn_agent:done',
+      'wait_agent:start',
+      'wait_agent:done',
+      'close_agent:start',
+      'close_agent:done',
+    ]);
+    expect(tools[0]!.input).toContain('a.txt');
+    expect(tools[3]!.output).toBe('hello');
+    const ag = agents(evs);
+    expect(ag[0]).toMatchObject({
+      op: 'start',
+      callId: 'item_3',
+      background: true,
+      status: 'running',
+    });
+    expect(ag[0]!.label).toMatch(/^Read the file `a.txt`/);
+    const ends = ag.filter((e) => e.op === 'end');
+    expect(ends.length).toBeGreaterThan(0);
+    expect(ends.every((e) => e.id === ag[0]!.id && e.status === 'completed')).toBe(true);
+    expect(ends[0]!.summary).toBe('hello');
+  });
+
+  it('dsh subagent / subagent_fork 工具 → agent start / end（无内部步骤，结果作摘要）', () => {
+    const p = createDshParser();
+    const start = p(
+      JSON.stringify({
+        type: 'tool_call',
+        callId: 'c1',
+        tool: 'subagent',
+        input: { prompt: 'Audit the auth module\nthen report', run_in_background: true },
+      }),
+    );
+    expect(agents(start)).toEqual([
+      expect.objectContaining({
+        op: 'start',
+        id: 'c1',
+        label: 'Audit the auth module',
+        background: true,
+      }),
+    ]);
+    const end = p(
+      JSON.stringify({
+        type: 'tool_result',
+        callId: 'c1',
+        status: 'completed',
+        result: 'all good',
+      }),
+    );
+    expect(agents(end)).toEqual([
+      expect.objectContaining({ op: 'end', id: 'c1', status: 'completed', summary: 'all good' }),
+    ]);
+    // 普通工具不出 agent 事件
+    expect(
+      agents(p(JSON.stringify({ type: 'tool_call', callId: 'c2', tool: 'read_file', input: {} }))),
+    ).toEqual([]);
   });
 });

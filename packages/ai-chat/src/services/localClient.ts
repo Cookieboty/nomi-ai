@@ -71,6 +71,8 @@ export interface CalSource {
   url?: string;
   username?: string;
   hasPassword?: boolean;
+  /** 旧版本留下的明文密码，且当前安全存储不可用、无法迁移 */
+  passwordInsecure?: boolean;
   enabled: boolean;
   lastSync?: number;
   lastError?: string;

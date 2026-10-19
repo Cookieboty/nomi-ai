@@ -115,6 +115,8 @@ export interface InstallOptions {
   /** 重试退避基数（默认 1500ms，线性递增） */
   retryDelayMs?: number;
   signal?: AbortSignal;
+  /** 断点续传：失败 / 进程退出后保留 `.download/<id>.tar.bz2.part`，下次 Range 续传 */
+  resume?: boolean;
   onProgress?: (phase: InstallPhase, p: DownloadProgress) => void;
   /** 重试 / 切换镜像等事件日志 */
   onEvent?: (msg: string, extra?: Record<string, unknown>) => void;
@@ -168,6 +170,7 @@ export async function installModel(opts: InstallOptions): Promise<string> {
             idleTimeoutMs: opts.idleTimeoutMs ?? 30_000,
             onProgress: (p) => opts.onProgress?.('download', p),
             fetchImpl: opts.fetchImpl,
+            resume: opts.resume,
           });
           downloaded = true;
           break outer;
@@ -225,4 +228,73 @@ export async function installModel(opts: InstallOptions): Promise<string> {
   } finally {
     rmQuiet(archive);
   }
+}
+
+/** 下载临时目录（`.download/`，含续传用的 `.part`） */
+export function downloadTmpDir(installRoot: string): string {
+  return path.join(installRoot, '.download');
+}
+
+/** 删除已安装模型 + 半成品 + 下载临时文件（「删除模型」/ 取消下载用） */
+export function removeModel(
+  installRoot: string,
+  manifest: ModelManifest = SHERPA_MANIFEST,
+  opts: { keepModel?: boolean } = {},
+): void {
+  const finalDir = path.join(installRoot, manifest.id);
+  if (!opts.keepModel) rmQuiet(finalDir, true);
+  rmQuiet(`${finalDir}.partial`, true);
+  rmQuiet(downloadTmpDir(installRoot), true);
+}
+
+/** 已下载的续传字节数（UI 显示「将从 x% 继续」用；没有返回 0） */
+export function partialDownloadBytes(
+  installRoot: string,
+  manifest: ModelManifest = SHERPA_MANIFEST,
+): number {
+  try {
+    return fs.statSync(path.join(downloadTmpDir(installRoot), `${manifest.id}.tar.bz2.part`)).size;
+  } catch {
+    return 0;
+  }
+}
+
+/** 解压 / 写临时文件的余量（文件系统块对齐、日志等） */
+export const DISK_MARGIN_BYTES = 32 * 1024 * 1024;
+
+/**
+ * 下载 + 安装的磁盘峰值（字节）：解压时压缩包（剩余未下载部分 + 已有 .part）与解压出的模型文件同时存在，
+ * 安装完成后才删压缩包。已下载的 .part 已经在磁盘上，不再重复计入。
+ */
+export function requiredDiskBytes(
+  manifest: ModelManifest = SHERPA_MANIFEST,
+  partialBytes = 0,
+): { archive: number; extracted: number; required: number } {
+  const archive = manifest.bytes;
+  const extracted = Object.values(manifest.files).reduce((a, b) => a + b, 0);
+  const remainingArchive = Math.max(0, archive - Math.max(0, partialBytes));
+  return { archive, extracted, required: remainingArchive + extracted + DISK_MARGIN_BYTES };
+}
+
+/** 目录所在卷的可用字节；目录还不存在时往上找已存在的父目录；拿不到（老 Node / 权限）返回 null */
+export function freeDiskBytes(
+  dir: string,
+  statfs: (p: string) => { bavail: number | bigint; bsize: number | bigint } = (p) =>
+    fs.statfsSync(p),
+): number | null {
+  let cur = path.resolve(dir);
+  for (let i = 0; i < 64; i++) {
+    try {
+      if (fs.existsSync(cur)) {
+        const s = statfs(cur);
+        return Number(s.bavail) * Number(s.bsize);
+      }
+    } catch {
+      return null;
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) return null;
+    cur = parent;
+  }
+  return null;
 }

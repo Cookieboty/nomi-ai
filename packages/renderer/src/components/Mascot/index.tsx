@@ -84,7 +84,7 @@ export const MascotHost: React.FC = () => {
       <ReminderCard />
       <div id="mascot-canvas" className={styles.stage} data-testid="mascot-canvas">
         {currentModel && (
-          <CanvasBoundary>
+          <CanvasBoundary resetKey={currentModel.path}>
             <Suspense fallback={null}>
               {currentModel.path.includes('/sprite/') ||
               currentModel.path.endsWith('manifest.json') ||

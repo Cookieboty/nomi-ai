@@ -350,7 +350,8 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(6);
+    // Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话
+    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(7);
     await expect(chat.locator('[data-testid="providers-section-nomi"]')).toBeVisible();
     await shot(chat, '09-providers-nomi');
 

@@ -1,6 +1,6 @@
 /**
  * sherpa-onnx 本地离线 TTS 默认模型清单。
- * 模型随安装包 extraResources 分发（packages/electron/resources/tts-models/，由 sync-tts-model.mjs 同步），
+ * 模型不随安装包分发：开启语音时按需下载到 userData/tts-models（docs/design/tts-on-demand.md），
  * 不进 git；开发态指向仓库同级 ../models/<id> 或 NOMI_SHERPA_TTS_MODEL_DIR。
  * 开发启动若目录缺失/不完整，运行时从下方 URL 自动拉取（仅日志进度，无安装器 UI）。
  */

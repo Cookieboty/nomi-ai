@@ -74,9 +74,10 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Builds win / mac / linux with signing secrets when present
    - Runs `pnpm --filter @nomi-ai/electron run package:publish:{win,mac,linux}` (`--publish always`)
    - Uploads installers + `latest*.yml` / `.blockmap` to the GitHub Release for that tag
+   - On macOS, runs `scripts/release/check-mac-update.mjs`: the job fails if `latest-mac.yml` does not list both the x64 and arm64 zip, or a listed file is missing or its size / sha512 differ. It prints a warning when the build is unsigned, because Squirrel.Mac rejects unsigned updates
 5. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
-   - macOS: `.dmg` (and/or zip) + `latest-mac.yml`
+   - macOS: for **each** of x64 and arm64 both a `.dmg` (first install) **and** a `-mac.zip` (+ `.blockmap`), plus `latest-mac.yml`. The zip is required: electron-updater's MacUpdater only picks `zip` entries from `latest-mac.yml`, so a Release with only DMGs breaks in-app updates on macOS (`ERR_UPDATER_ZIP_FILE_NOT_FOUND`). Check that `latest-mac.yml` lists both zips
    - Linux: `.AppImage` + `latest-linux.yml`
 6. Install a previous build, open **Settings → General → Updates → Check for updates**, confirm download + consent install.
 
@@ -150,9 +151,7 @@ export COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/corepack}"
 pnpm install --frozen-lockfile
 pnpm turbo run build
 
-# 离线 TTS 模型（~133MB；package 的 pre* 也会 sync）
-pnpm --filter @nomi-ai/electron run ensure-tts-model
-pnpm --filter @nomi-ai/electron run sync-tts-model
+# 离线 TTS 模型不再打包（用户开启语音时下载到 userData，见 docs/design/tts-on-demand.md），无需 sync
 
 # 补齐本靶场需要的 sherpa 原生包（Mac 会拉 darwin-x64 + darwin-arm64）
 node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
@@ -162,7 +161,7 @@ node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
 # 打包（脚本名见 packages/electron/package.json）
 pnpm package:prod:linux   # → dist/*.AppImage
 pnpm package:prod:win     # → dist/Nomi Setup *.exe（须在 Windows）
-pnpm package:prod:mac     # → dist/*.dmg（须在 macOS；prepackage 已跑 sync-tts-model）
+pnpm package:prod:mac     # → dist/*.dmg + dist/*-mac.zip（x64/arm64；须在 macOS）
 ```
 
 等价（只跑 electron 包）：

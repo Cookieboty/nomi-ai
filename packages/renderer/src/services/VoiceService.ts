@@ -75,6 +75,7 @@ export class VoiceService {
 
       // 2. 加载语音设置
       await this.loadVoiceSettings();
+      this.subscribeMainVoiceSettings();
 
       // 3. 启动定时播报
       this.startTimeAnnouncement();
@@ -121,6 +122,19 @@ export class VoiceService {
     this.voiceConfig = {
       contributes: [...TIME_KEYWORD_LINES],
     };
+  }
+
+  /**
+   * 主进程改了语音开关（设置页开启 / 模型下载失败回滚 / 删除模型）→ 同步本地状态与工具栏，不回写。
+   */
+  private subscribeMainVoiceSettings() {
+    const api = (window as any).electronAPI;
+    api?.onVoiceSettingsChanged?.((s: Partial<VoiceSettings>) => {
+      this.voiceSettings = { ...this.voiceSettings, ...s } as VoiceSettings;
+      window.dispatchEvent(
+        new CustomEvent('mascot:voice-settings', { detail: { ...this.voiceSettings } }),
+      );
+    });
   }
 
   /**

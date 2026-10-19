@@ -3,6 +3,7 @@
  * 视图只认这里的形状；各来源（ChatMessage / HarnessTabMessage）经 utils/convAdapters 转换。
  */
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
+import type { LiveAgent } from '../utils/liveState';
 
 export interface ConvMessage {
   id: string;
@@ -20,6 +21,10 @@ export interface ConvMessage {
   error?: string;
   /** 被用户中断 */
   stopped?: boolean;
+  /** Gemini 因为不信任这个文件夹而拒绝运行 */
+  geminiTrust?: { folder: string; broad?: boolean };
+  /** CLI 自发的一轮（后台子代理完成后的跟进） */
+  origin?: 'background';
   /** 本轮耗时（ms） */
   durationMs?: number;
   usage?: HarnessUsage;
@@ -38,7 +43,12 @@ export interface ConvLive {
   startedAt?: number;
   /** 收到第一个输出事件的时间；undefined 表示仍在等待模型首字 */
   firstEventAt?: number;
-  permission?: { id: string; summary: string };
+  /** 待确认的权限请求队列（并行子代理会同时请求） */
+  permissions?: Array<{ id: string; summary: string; agent?: string; expiresAt?: number }>;
+  /** 最近一次超时自动拒绝 */
+  permissionExpired?: { summary: string; agent?: string; at: number };
+  /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */
+  agents?: Record<string, LiveAgent>;
   status?: {
     kind: 'retry' | 'reconnect' | 'compact';
     text?: string;

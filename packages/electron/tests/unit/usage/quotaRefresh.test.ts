@@ -77,10 +77,15 @@ function setup(opts: Opts = {}) {
   }));
   let account = ACCT_A;
   let pct = 30;
-  let codexMode: 'ok' | 'auth' | 'hang' = 'ok';
+  let codexMode: 'ok' | 'auth' | 'hang' | 'defer' = 'ok';
+  let releaseCodex: (() => void) | null = null;
   const handler: Handler = (m, reply) => {
     if (m.method === 'initialize') return reply({ id: m.id, result: {} });
     if (m.method !== 'account/rateLimits/read' || codexMode === 'hang') return;
+    if (codexMode === 'defer') {
+      releaseCodex = () => reply({ id: m.id, result: rateResult(account, pct) });
+      return;
+    }
     if (codexMode === 'auth')
       return reply({
         id: m.id,
@@ -152,6 +157,10 @@ function setup(opts: Opts = {}) {
     spawnFn,
     entry,
     writeCodexLog,
+    releaseCodex: async () => {
+      for (let i = 0; i < 100 && !releaseCodex; i++) await new Promise((r) => setTimeout(r, 5));
+      releaseCodex?.();
+    },
     set: {
       account: (a: string) => (account = a),
       pct: (p: number) => (pct = p),
@@ -264,6 +273,56 @@ describe('刷新额度 · Claude Code', () => {
     expect(q).toMatch(/"claudeFp":"[0-9a-f]{16}"/);
     expect(q).not.toContain('example.com');
     expect(q).not.toContain('org-1');
+  });
+
+  it('明确退出登录：立即清掉旧账号额度（状态栏快照 / 命令缓存），不被历史数据「恢复」成订阅，未过 5 分钟也一样', async () => {
+    const t = setup();
+    writeSnapshot(t.root, 30_000);
+    await t.svc.refreshQuota(); // 快照很新 → fresh-local，有额度
+    expect((await t.svc.quotaView()).find((e) => e.id === 'claude')).toMatchObject({
+      status: 'ok',
+    });
+    t.auth.claude = JSON.stringify({ loggedIn: false, authMethod: 'none' });
+    t.clock.t += 60_000; // 远不到 5 分钟
+    const r = await t.svc.refreshQuota('claude');
+    expect(r.tools.claude).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(fs.existsSync(path.join(t.root, SNAPSHOT_FILE))).toBe(false);
+    expect(t.entry(r, 'claude')?.windows ?? []).toEqual([]);
+    expect(t.entry(r, 'claude')?.status).not.toBe('ok');
+  });
+
+  it('只有 /usage 命令缓存（没有快照）时退出登录：旧值同样清除，status=ok 不再保留', async () => {
+    const t = setup();
+    const r1 = await t.svc.refreshQuota('claude');
+    expect(t.entry(r1, 'claude')).toMatchObject({ status: 'ok', origin: 'usage-cmd' });
+    t.auth.claude = JSON.stringify({ loggedIn: false, authMethod: 'none' });
+    t.clock.t += 61_000;
+    const r2 = await t.svc.refreshQuota('claude');
+    expect(r2.tools.claude).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(t.entry(r2, 'claude')?.status).not.toBe('ok');
+  });
+
+  it('Codex：有新鲜 app-server 值 / 历史 plan，官方说 Not logged in → 立即清掉，旧日志快照不回流', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('codex');
+    t.writeCodexLog(50, 1_000);
+    t.auth.codex = 'Not logged in';
+    t.clock.t += 30_000;
+    const r = await t.svc.refreshQuota('codex');
+    expect(r.tools.codex).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(t.entry(r, 'codex')?.status).not.toBe('ok');
+    expect((await t.svc.quotaView()).find((e) => e.id === 'codex')?.windows ?? []).toEqual([]);
+    expect(t.spawnFn).toHaveBeenCalledTimes(1); // 只有最初那次真实刷新
+  });
+
+  it('探测失败（命令不存在 / 超时 / 看不懂）不等于退出登录：保留旧值', async () => {
+    const t = setup();
+    writeSnapshot(t.root, 30_000);
+    await t.svc.refreshQuota('claude');
+    t.auth.claude = '';
+    t.clock.t += 6 * 60_000;
+    const r = await t.svc.refreshQuota('claude');
+    expect(r.tools.claude?.state).not.toBe('auth');
   });
 
   it('「主动刷新额度」关闭：不拉起任何 CLI，只重读本机数据', async () => {
@@ -420,6 +479,79 @@ describe('刷新额度 · Codex', () => {
   });
 });
 
+describe('刷新额度 · 清空后迟到的结果不回写', () => {
+  it('Codex：慢刷新期间一键清空，随后成功返回 → 不复活缓存，也不重建 quota.json', async () => {
+    const t = setup();
+    t.set.codex('defer');
+    const p = t.svc.refreshQuota('codex');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    await t.releaseCodex();
+    const r = await p;
+    expect(r.tools.codex).toMatchObject({ state: 'transient', reason: 'superseded' });
+    // quota.json 里不能有被清掉的 Codex 额度 / 指纹（别的字段如 Claude 指纹是之后重新观察到的）
+    const file = path.join(t.root, 'quota.json');
+    const saved = (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}) as Record<
+      string,
+      unknown
+    >;
+    expect(saved.codex).toBeUndefined();
+    expect(saved.codexFp).toBeUndefined();
+    expect(t.entry(r, 'codex')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+
+  it('Codex：慢刷新期间一键清空，立刻再刷新 → 真的重新拉取并显示新额度（不复用旧 Promise、不被节流）', async () => {
+    const t = setup();
+    t.set.codex('defer');
+    const old = t.svc.refreshQuota('codex');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    t.set.codex('ok');
+    t.set.pct(37);
+    const fresh = await t.svc.refreshQuota('codex');
+    expect(fresh.tools.codex).toEqual({ state: 'ok' });
+    expect(t.entry(fresh, 'codex')).toMatchObject({ status: 'ok' });
+    await t.releaseCodex();
+    await old;
+    expect(t.entry(await t.svc.refreshQuota(), 'codex')?.status).toBe('ok');
+  });
+
+  it('Claude：慢刷新期间一键清空，随后成功返回 → 缓存仍为空', async () => {
+    const t = setup();
+    let release!: () => void;
+    const gate = new Promise<void>((res) => {
+      release = res;
+    });
+    t.claudeRun.mockImplementationOnce(async () => {
+      await gate;
+      return { stdout: USAGE_OK, code: 0 };
+    });
+    const p = t.svc.refreshQuota('claude');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    release();
+    const r = await p;
+    expect(r.tools.claude).toMatchObject({ state: 'transient', reason: 'superseded' });
+    expect(t.entry(r, 'claude')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+
+  it('一键清空也清掉 Grok 缓存', async () => {
+    const t = setup();
+    const svc = t.svc as unknown as { grokCache: { refresh: Function; get: () => unknown } };
+    await svc.grokCache.refresh(null, async () => ({
+      kind: 'ok',
+      reading: {
+        windows: [{ id: 'w', usedPercent: 3 }],
+        updatedAt: Date.now(),
+        origin: 'grok-acp',
+      },
+    }));
+    expect(svc.grokCache.get()).not.toBeNull();
+    t.svc.clear();
+    expect(svc.grokCache.get()).toBeNull();
+  });
+});
+
 describe('刷新额度 · 单工具（IPC 参数化）', () => {
   it('只刷新指定工具：codex 不拉起 claude；返回只含该工具的结果', async () => {
     const t = setup();
@@ -428,9 +560,9 @@ describe('刷新额度 · 单工具（IPC 参数化）', () => {
     expect(t.claudeRun).not.toHaveBeenCalled();
     expect(Object.keys(r.tools)).toEqual(['codex']);
     expect(r.tools.codex).toEqual({ state: 'ok' });
-    // entries 仍是完整视图（卡片靠它合并）
+    // entries 是被动视图：其它工具没有探测过（也没有本地数据）就不出现，更不会被拉起进程
     expect(t.entry(r, 'codex')).toMatchObject({ status: 'ok', origin: 'app-server' });
-    expect(t.entry(r, 'claude')).toBeDefined();
+    expect(t.entry(r, 'claude')).toBeUndefined();
   });
 
   it('claude 单刷不影响 codex；同一工具并发点击只拉起一次', async () => {
@@ -476,5 +608,135 @@ describe('刷新额度 · 单工具（IPC 参数化）', () => {
     const r = await t.svc.refreshQuota('claude');
     expect(r.tools.claude).toEqual({ state: 'skipped', reason: 'disabled' });
     expect(t.claudeRun).not.toHaveBeenCalled();
+  });
+});
+
+describe('额度缓存跨重启保留（每次打开都先显示上一次的值）', () => {
+  const restart = (t: ReturnType<typeof setup>) => {
+    const run = jest.fn(async () => ({ stdout: USAGE_OK, code: 0 as number | null }));
+    const svc = new UsageService({
+      root: t.root,
+      home: t.home,
+      dshHome: path.join(t.home, '.dsh'),
+      now: () => t.clock.t,
+      scanMs: 0,
+      env: {},
+      logger: { info: jest.fn(), warn: jest.fn() },
+      authRun: async (kind) => t.auth[kind],
+      claudeUsage: {
+        resolveBin: async () => '/fake/claude',
+        run: run as never,
+        env: () => ({}),
+        tmpRoot: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qr-tmp2-')),
+      },
+    });
+    return { svc, run };
+  };
+  type GrokView = {
+    grokCache: { refresh: Function; get: () => { windows: unknown[] } | null };
+  };
+  const grokOk = (pct: number, at: number) => async () => ({
+    kind: 'ok',
+    reading: { windows: [{ id: 'w', usedPercent: pct }], updatedAt: at, origin: 'grok-acp' },
+  });
+
+  it('Claude：刷新过一次，重启后不拉起 CLI 就能看到上一次的额度', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('claude');
+    const r = restart(t);
+    const view = await r.svc.quotaView();
+    expect(view.find((e) => e.id === 'claude')).toMatchObject({
+      status: 'ok',
+      origin: 'usage-cmd',
+    });
+    expect(r.run).not.toHaveBeenCalled();
+  });
+
+  const grokLogin = (home: string, userId: string | null) => {
+    const dir = path.join(home, '.grok');
+    fs.mkdirSync(dir, { recursive: true });
+    if (userId === null) fs.rmSync(path.join(dir, 'auth.json'), { force: true });
+    else fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ user_id: userId }));
+  };
+  const grokRefresh = (svc: UsageService, pct: number, at: number) =>
+    (svc as unknown as GrokView).grokCache.refresh(
+      (svc as unknown as { currentGrokFp: () => string | null }).currentGrokFp(),
+      grokOk(pct, at),
+    );
+
+  it('Grok：同样跨重启保留；一键清空后不再恢复', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    const r = restart(t);
+    expect((r.svc as unknown as GrokView).grokCache.get()?.windows).toHaveLength(1);
+    r.svc.clear();
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('Grok：重启时已换成别的账号 / 已登出 → 丢弃上一个账号的额度', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    const raw = fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8');
+    expect(JSON.parse(raw).grokFp).toMatch(/^[0-9a-f]{16}$/);
+    // 指纹是加盐哈希，账号 id 明文不落盘
+    expect(raw).not.toContain('grok-user-A');
+    grokLogin(t.home, 'grok-user-B');
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+    grokLogin(t.home, null);
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+    // 换回原账号：仍能恢复（换号判断没把快照删掉之前）
+    grokLogin(t.home, 'grok-user-A');
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()?.windows).toHaveLength(1);
+  });
+
+  it('Grok：旧版本存的额度没有账号指纹 → 不恢复', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    const file = path.join(t.root, 'quota.json');
+    const j = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+    delete j.grokFp;
+    fs.writeFileSync(file, JSON.stringify(j));
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('Grok：会话中途换号，刷新时先清掉旧账号的值', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    grokLogin(t.home, 'grok-user-B');
+    const cache = (t.svc as unknown as GrokView).grokCache;
+    let seen: unknown = 'unset';
+    await cache.refresh(
+      (t.svc as unknown as { currentGrokFp: () => string | null }).currentGrokFp(),
+      async () => {
+        seen = cache.get();
+        return { kind: 'transient', reason: 'network' };
+      },
+    );
+    expect(seen).toBeNull();
+  });
+
+  it('在「官方账号」里切换账号：清掉上一个账号的额度，重启后也不会回来', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('claude');
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 9, t.clock.t);
+    t.svc.forgetAccountQuota('claude');
+    t.svc.forgetAccountQuota('grok');
+    const view = await t.svc.quotaView();
+    expect(view.find((e) => e.id === 'claude')?.windows ?? []).toEqual([]);
+    const r = restart(t);
+    expect((await r.svc.quotaView()).find((e) => e.id === 'claude')?.windows ?? []).toEqual([]);
+    expect((r.svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('落盘的文件里没有邮箱 / 账号 id 明文', async () => {
+    const t = setup();
+    await t.svc.refreshQuota();
+    const raw = fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8');
+    for (const secret of [EMAIL_A, ACCT_A]) expect(raw).not.toContain(secret);
   });
 });

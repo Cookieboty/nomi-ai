@@ -15,6 +15,17 @@ jest.mock('electron', () => ({
   dialog: { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) },
 }));
 
+/**
+ * 放无扩展名 `#!/usr/bin/env node` 测试脚本的临时目录。turbo 下 TMPDIR 在仓库里（.tmp/turbo-runtime），
+ * 脚本会继承仓库根 package.json 的 "type": "module" 被当成 ESM，里面的 require 直接报错退出；
+ * 目录里放一个 commonjs 的 package.json，脚本在哪个临时目录下都按 CommonJS 跑。
+ */
+function scriptDir(prefix: string): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.writeFileSync(path.join(dir, 'package.json'), '{"type":"commonjs"}\n');
+  return dir;
+}
+
 describe('CliHarnessService mock CLI', () => {
   const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
   const mockCodex = path.resolve(__dirname, '../../../scripts/mock-cli/mock-codex.mjs');
@@ -357,7 +368,7 @@ describe('CliHarnessService mock CLI', () => {
       expect(h.state().cliSessionId).toBe(sid);
       const boots = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
       expect(boots).toHaveLength(1);
-      expect(boots[0]).toMatch(/^\d+$/);
+      expect(boots[0]).toMatch(/^\d+ /);
     } finally {
       if (prev === undefined) delete process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
       else process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = prev;
@@ -494,7 +505,7 @@ describe('CliHarnessService session handling', () => {
   itPosix(
     'drops the CLI session id when switching backend and resumes codex with valid argv',
     async () => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-argv-'));
+      const dir = scriptDir('harness-argv-');
       const bin = path.join(dir, 'argv-codex');
       fs.writeFileSync(
         bin,
@@ -531,6 +542,10 @@ describe('CliHarnessService session handling', () => {
           .split('\n')
           .map((l) => JSON.parse(l) as string[]);
         expect(calls[0]).not.toContain('resume');
+        for (const c of calls) {
+          expect(c).toContain('sandbox_mode="workspace-write"');
+          expect(c).toContain('sandbox_workspace_write.network_access=true');
+        }
         expect(calls[1].slice(0, 2)).toEqual(['exec', 'resume']);
         expect(calls[1]).toContain('codex-thread');
         expect(calls[1]).not.toContain('--cd');
@@ -627,4 +642,366 @@ describe('CliHarnessService session handling', () => {
       expect(h.state().cliSessionId).toBeNull();
     });
   });
+});
+
+describe('CliHarnessService permission modes', () => {
+  const itPosix = process.platform === 'win32' ? it.skip : it;
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const mockDsh = path.resolve(__dirname, '../../../scripts/mock-cli/mock-dsh.mjs');
+  const mockGrok = path.resolve(__dirname, '../../../scripts/mock-cli/mock-grok.mjs');
+  const harnesses: CliHarnessService[] = [];
+  const envKeys = [
+    'NOMI_CLAUDE_BIN',
+    'NOMI_CODEX_BIN',
+    'NOMI_DSH_BIN',
+    'NOMI_GROK_BIN',
+    'NOMI_MOCK_CLAUDE_BOOT_LOG',
+    'NOMI_MOCK_CLAUDE_CONTROL_LOG',
+  ];
+  let saved: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    saved = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const mk = (root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-'))) => {
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    return h;
+  };
+  /** 无扩展名的记录器：记下 argv 与 DSH_PERMISSION_MODE，再把调用转给真正的 mock */
+  const recorder = (dir: string, target: string) => {
+    const bin = path.join(dir, 'recorder');
+    const log = path.join(dir, 'calls.log');
+    fs.writeFileSync(
+      bin,
+      [
+        '#!/usr/bin/env node',
+        "const fs = require('node:fs');",
+        "const { spawnSync } = require('node:child_process');",
+        'const argv = process.argv.slice(2);',
+        `fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ argv, dsh: process.env.DSH_PERMISSION_MODE ?? null }) + '\\n');`,
+        `const r = spawnSync(process.execPath, [${JSON.stringify(target)}, ...argv], { stdio: 'inherit' });`,
+        'process.exit(r.status ?? 1);',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    const calls = () =>
+      fs
+        .readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as { argv: string[]; dsh: string | null });
+    return { bin, calls };
+  };
+
+  it('defaults new tabs to acceptEdits and degrades on backend switch', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    expect(tab.permissionMode).toBe('acceptEdits');
+    h.setTabPermissionMode(tab.id, 'manual');
+    expect(h.setTabBackend(tab.id, 'dsh').permissionMode).toBe('plan');
+    expect(h.setTabPermissionMode(tab.id, 'auto')).toMatchObject({
+      permissionMode: 'acceptEdits',
+      degraded: true,
+    });
+    expect(h.createTab({ backend: 'codex', permissionMode: 'bypass' }).permissionMode).toBe(
+      'acceptEdits',
+    );
+  });
+
+  it('requires confirmation for bypass and never makes it the default', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    expect(() => h.setTabPermissionMode(tab.id, 'bypass')).toThrow();
+    expect(h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true }).permissionMode).toBe(
+      'bypass',
+    );
+    expect(() => h.setPermissionDefaults({ defaultPermissionMode: 'bypass' })).toThrow();
+    const s = h.setPermissionDefaults({ defaultPermissionMode: 'plan', codexNetwork: false });
+    expect(s).toMatchObject({ defaultPermissionMode: 'plan', codexNetwork: false });
+  });
+
+  it('migrates old tabs and drops bypass across restarts', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-migrate-'));
+    const base = {
+      cwd: root,
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    fs.writeFileSync(
+      path.join(root, 'tabs.json'),
+      JSON.stringify({
+        activeTabId: 'a',
+        tabs: [
+          { ...base, id: 'a', title: 'A', backend: 'claude' },
+          { ...base, id: 'b', title: 'B', backend: 'codex' },
+          { ...base, id: 'c', title: 'C', backend: 'grok', permissionMode: 'bypass' },
+          { ...base, id: 'd', title: 'D', backend: 'dsh', permissionMode: 'plan' },
+        ],
+      }),
+    );
+    const modes = Object.fromEntries(
+      mk(root)
+        .listTabs()
+        .tabs.map((x) => [x.id, x.permissionMode]),
+    );
+    expect(modes).toMatchObject({ a: 'manual', b: 'acceptEdits', c: 'acceptEdits', d: 'plan' });
+
+    const h = mk(root);
+    h.setBackend('codex');
+    h.setTabPermissionMode('main', 'acceptEdits');
+    h.setPermissionDefaults({ defaultPermissionMode: 'plan', codexNetwork: false });
+    h.dispose();
+    // 主标签显式选的档位不被默认档覆盖
+    expect(
+      mk(root)
+        .listTabs()
+        .tabs.find((x) => x.id === 'main')?.permissionMode,
+    ).toBe('acceptEdits');
+    expect(mk(root).listTabs()).toMatchObject({
+      defaultPermissionMode: 'plan',
+      codexNetwork: false,
+    });
+  });
+
+  it('switches a live Claude process via set_permission_mode without respawning', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-claude-'));
+    const boot = path.join(dir, 'boot.log');
+    const control = path.join(dir, 'control.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'claude', permissionMode: 'plan' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'acceptEdits');
+    await h.sendTab(tab.id, 'two');
+    const boots = fs.readFileSync(boot, 'utf8').trim().split('\n');
+    expect(boots).toHaveLength(1);
+    expect(boots[0]).toContain('--permission-mode plan');
+    expect(fs.readFileSync(control, 'utf8')).toMatch(/ acceptEdits\n/);
+  }, 20_000);
+
+  itPosix('passes codex sandbox / approval flags per mode', async () => {
+    const dir = scriptDir('harness-perm-codex-');
+    const bin = path.join(dir, 'argv-codex');
+    fs.writeFileSync(
+      bin,
+      [
+        '#!/usr/bin/env node',
+        "const fs = require('node:fs');",
+        `fs.appendFileSync(${JSON.stringify(path.join(dir, 'argv.log'))}, JSON.stringify(process.argv.slice(2)) + '\\n');`,
+        "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+        "emit({ type: 'thread.started', thread_id: 'codex-thread' });",
+        "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: 'ok' } });",
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    process.env.NOMI_CODEX_BIN = bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'codex', permissionMode: 'plan' });
+    await h.sendTab(tab.id, 'plan it');
+    h.setTabPermissionMode(tab.id, 'auto');
+    await h.sendTab(tab.id, 'do it');
+    const [plan, auto] = fs
+      .readFileSync(path.join(dir, 'argv.log'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as string[]);
+    expect(plan).toContain('sandbox_mode="read-only"');
+    expect(plan).not.toContain('sandbox_workspace_write.network_access=true');
+    expect(plan[plan.length - 1]).toMatch(/^You are in plan mode[\s\S]*plan it$/);
+    expect(auto.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(auto).toEqual(
+      expect.arrayContaining([
+        'sandbox_mode="workspace-write"',
+        'approval_policy="on-request"',
+        'approvals_reviewer="auto_review"',
+      ]),
+    );
+    expect(auto[auto.length - 1]).toBe('do it');
+  });
+
+  itPosix('sets DSH_PERMISSION_MODE for dsh', async () => {
+    const dir = scriptDir('harness-perm-dsh-');
+    const r = recorder(dir, mockDsh);
+    process.env.NOMI_DSH_BIN = r.bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'dsh' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    await h.sendTab(tab.id, 'two');
+    expect(r.calls().map((c) => c.dsh)).toEqual(['workspace-write', 'danger-full-access']);
+  });
+
+  itPosix('no longer forces --yolo on grok', async () => {
+    const dir = scriptDir('harness-perm-grok-');
+    const r = recorder(dir, mockGrok);
+    process.env.NOMI_GROK_BIN = r.bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'grok' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    await h.sendTab(tab.id, 'two');
+    const [a, b] = r.calls().map((c) => c.argv);
+    expect(a).not.toContain('--yolo');
+    expect(a).toEqual(expect.arrayContaining(['--permission-mode', 'acceptEdits']));
+    expect(b).toContain('--yolo');
+  });
+});
+
+describe('CliHarnessService Claude background subagents (docs/design/cli-subagents.md §4)', () => {
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const keys = ['NOMI_CLAUDE_BIN', 'NOMI_MOCK_BG_AGENT', 'NOMI_MOCK_BG_MS'];
+  let saved: Record<string, string | undefined> = {};
+  const harnesses: CliHarnessService[] = [];
+  beforeEach(() => {
+    saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+    process.env.NOMI_MOCK_BG_AGENT = '1';
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const mk = () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-bg-'));
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    return h;
+  };
+  const until = async (fn: () => boolean, ms = 5000) => {
+    const t0 = Date.now();
+    while (!fn()) {
+      if (Date.now() - t0 > ms) throw new Error('timeout');
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  };
+
+  it('persists the follow-up turn the CLI starts on its own after a background subagent', async () => {
+    const h = mk();
+    const finished: string[] = [];
+    h.events.on('tab-finished', (e: { text: string }) => finished.push(e.text));
+    const tab = h.createTab({ backend: 'claude' });
+    const r = await h.sendTab(tab.id, 'go');
+    expect(r.text).toBe('STARTED');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.background).toBe(1);
+
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+    const msgs = h.tabMessages(tab.id);
+    const bg = msgs.find((m) => m.origin === 'background')!;
+    expect(bg).toMatchObject({ role: 'assistant', content: 'FOLLOWUP' });
+    // 后台子代理在 result 之后的内部调用随跟进轮次一起落盘，仍挂在派生它的 Agent 调用下
+    expect(bg.trace?.some((e) => e.type === 'tool' && e.parentId === 'toolu_bg_1')).toBe(true);
+    expect(msgs.map((m) => m.content)).toEqual(['go', 'STARTED', 'FOLLOWUP']);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)).toMatchObject({ status: 'idle' });
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.background).toBeUndefined();
+    expect(finished).toEqual(['STARTED', 'FOLLOWUP']);
+  }, 20_000);
+
+  it('lists running background subagents per tab and stops one with stop_task', async () => {
+    process.env.NOMI_MOCK_BG_MS = '3000';
+    const control = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'c.log');
+    process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    const meta = () => h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta().backgroundAgents).toEqual([
+      expect.objectContaining({ id: 'task_bg_1', label: 'bg task', stoppable: true }),
+    ]);
+    expect(h.stopAgent(tab.id, 'nope')).toBe(false);
+    expect(h.stopAgent(tab.id, 'task_bg_1')).toBe(true);
+    await until(() => !meta().backgroundAgents && !meta().background);
+    expect(fs.readFileSync(control, 'utf8')).toMatch(/ stop_task task_bg_1\n/);
+    delete process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG;
+  }, 20_000);
+
+  it('does not reclaim the live process while a background subagent is running', async () => {
+    process.env.NOMI_MOCK_BG_MS = '1500';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    expect(h.reclaimIdle(Date.now() + 365 * 24 * 3600_000)).toEqual([]);
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+  }, 20_000);
+
+  it('a message sent before the follow-up gets its own reply; the follow-up is saved separately', async () => {
+    process.env.NOMI_MOCK_BG_MS = '400';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    const second = await h.sendTab(tab.id, 'two');
+    expect(second.text).toContain('Mock Claude');
+    await until(() => h.tabMessages(tab.id).some((m) => m.origin === 'background'));
+    const contents = h.tabMessages(tab.id).map((m) => m.content);
+    expect(contents.filter((c) => c === 'FOLLOWUP')).toHaveLength(1);
+    expect(contents.slice(0, 4)).toEqual(['go', 'STARTED', 'two', second.text]);
+  }, 20_000);
+});
+
+describe('CliHarnessService parallel subagent permissions (docs/design/cli-subagents.md §5)', () => {
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const keys = ['NOMI_CLAUDE_BIN', 'NOMI_MOCK_PARALLEL_PERMS'];
+  let saved: Record<string, string | undefined> = {};
+  const harnesses: CliHarnessService[] = [];
+  beforeEach(() => {
+    saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+    process.env.NOMI_MOCK_PARALLEL_PERMS = '1';
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+
+  it('two concurrent requests both reach the UI with their source subagent; each answer is delivered', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perms-'));
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    const perms: Array<{ id: string; agent?: string; expiresAt?: number }> = [];
+    const resolved: Array<{ id: string; reason: string }> = [];
+    const needed: string[] = [];
+    h.events.on('permission-needed', (e: { summary: string }) => needed.push(e.summary));
+    h.events.on('event', ({ event }: { event: Record<string, unknown> }) => {
+      if (event.type === 'permission') perms.push(event as never);
+      if (event.type === 'permission-resolved') resolved.push(event as never);
+    });
+    const tab = h.createTab({ backend: 'claude' });
+    const run = h.sendTab(tab.id, 'go');
+    for (let i = 0; i < 200 && perms.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(perms.map((p) => [p.id, p.agent])).toEqual([
+      ['perm-a', 'agent A'],
+      ['perm-b', 'agent B'],
+    ]);
+    for (const p of perms) expect(p.expiresAt).toBeGreaterThan(Date.now());
+    expect(needed[0]).toContain('agent A');
+    // 先答第二个、再答第一个：两个都送达，互不覆盖
+    expect(h.replyPermission(tab.id, 'perm-b', false)).toBe(true);
+    expect(h.replyPermission(tab.id, 'perm-a', true)).toBe(true);
+    const r = await run;
+    expect(r.text).toBe('A=allow B=deny');
+    expect(resolved).toEqual([
+      { type: 'permission-resolved', id: 'perm-b', reason: 'denied' },
+      { type: 'permission-resolved', id: 'perm-a', reason: 'allowed' },
+    ]);
+  }, 20_000);
 });

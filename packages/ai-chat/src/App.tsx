@@ -4,11 +4,15 @@ import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
+import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
@@ -39,11 +43,13 @@ import { useAiChat } from './contexts/AiChatContext';
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
+import { harnessClient } from './services/harnessClient';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ScreenState } from './services/screenClient';
 import {
@@ -55,6 +61,7 @@ import {
   useShortcutBindings,
   type ShortcutId,
 } from './services/shortcuts';
+import { nomiScopeKey } from './slash/nomiScope';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
@@ -75,9 +82,30 @@ const AiChatContent: React.FC = () => {
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
+  // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
+  const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  const cliSlots = useMemo<ConvSlots | undefined>(
+    () =>
+      activeCliTabId
+        ? {
+            errorActions: (m, { retry }) =>
+              m.geminiTrust ? (
+                <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
+              ) : null,
+          }
+        : undefined,
+    [activeCliTabId],
+  );
+  // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
+  useRestoreNomiOnMain(
+    tabs.state?.activeTabId,
+    () => state.ipcClient.conversationStore?.(),
+    () => actions.loadChatHistory(),
+  );
   const nomiQueue = useSendQueue(
     state.isLoading,
-    (text) => actions.sendStreamMessage(text),
+    // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
+    (text, opts) => (opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text)),
     state.messages[0]?.id,
   );
   /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
@@ -201,7 +229,9 @@ const AiChatContent: React.FC = () => {
     ? 'nomi'
     : (slashTab?.backend ?? harness?.backend ?? 'nomi');
   const slashCwd = slashBackend === 'nomi' ? '' : slashTab ? slashTab.cwd : (harness?.cwd ?? '');
-  const slashScope = slashTab ? slashTab.id : `nomi:${state.messages[0]?.id ?? 'new'}`;
+  /** Nomi 主对话当前会话的标识（不论眼下显示的是不是它） */
+  const nomiScope = nomiScopeKey(state.ipcClient.conversationStore?.(), state.messages[0]?.id);
+  const slashScope = slashTab ? slashTab.id : nomiScope;
   const [showPlugins, setShowPlugins] = useState(false);
   const slash = useSlashCommands({
     backend: slashBackend,
@@ -217,11 +247,25 @@ const AiChatContent: React.FC = () => {
               running: slashTab.status === 'running' || slashTab.status === 'queued',
             }
           : { id: harness?.cliSessionId ?? null, running: !!harness?.busy },
+    tabId: slashTab?.id ?? null,
     send: (text) => {
       if (slashTab) void tabs.send(text);
       else if (state.isLoading) nomiQueue.enqueue(text);
       else void actions.sendStreamMessage(text);
     },
+    // 异步命令的结果回到「发起命令的会话」，与现在显示哪个标签无关
+    sendTo: async (target, text) => {
+      if (target.tabId) {
+        // CLI 标签：目标标签已关闭 / 后端或目录被改过（重置）→ false，什么都不发
+        return tabs.sendToTab(target.tabId, text, { backend: target.backend, cwd: target.cwd });
+      }
+      // Nomi 主对话：只有它仍是当前这个会话才发（新建 / 切换过会话则丢弃）
+      if (nomiScope !== target.scopeKey) return false;
+      if (state.isLoading) nomiQueue.enqueue(text);
+      else void actions.sendStreamMessage(text);
+      return true;
+    },
+    tabExists: tabs.hasTab,
     newSession: () => {
       if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
       else void actions.newConversation();
@@ -483,8 +527,19 @@ const AiChatContent: React.FC = () => {
               }}
             />
           )}
+          {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
+          <div className="session-bar">
+            <SessionControls
+              onManageNomi={() => setShowProviders(true)}
+              onManageCli={(b) => {
+                setProviderEndpoint(b);
+                openSettings('coding');
+              }}
+            />
+          </div>
           {/* 对话区域 */}
           <main className="chat-container">
+            <ChatBackgroundLayer />
             {isDev && tabs.isCliTab ? (
               <>
                 {tabs.messages.length === 0 &&
@@ -519,9 +574,17 @@ const AiChatContent: React.FC = () => {
                       if (u) void tabs.send(u.content);
                     }}
                     onEdit={(_, text) => void tabs.send(text)}
+                    slots={cliSlots}
                     cards={slash.cards}
                     onDismissCard={slash.dismissCard}
                     dormant={tabs.activeTab!.dormant}
+                    backgroundAgents={tabs.activeTab!.backgroundAgents}
+                    backgroundCount={tabs.activeTab!.background}
+                    onStopAgent={(agentId) =>
+                      void harnessClient
+                        .stopAgent(tabs.activeTab!.id, agentId)
+                        .catch(() => undefined)
+                    }
                   />
                 )}
               </>

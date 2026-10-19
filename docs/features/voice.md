@@ -33,22 +33,24 @@ Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fs
 - 角色说话时主进程分句合成并拼接成一段 WAV（`audio/wav`，22.05 kHz mono），经 IPC `tts:speak` 以 base64 返回；渲染层沿用原有播放 / 口型 / 打断逻辑。
 - **不提供**「上传我的音色 / 任意参考音频克隆」入口。产品内角色自己说话 ≠ Hosted Service；不要把本应用做成对外自助 TTS 平台。
 
-### 模型分发
+### 模型分发（按需下载，不随安装包）
 
-模型约 133 MB（解压目录），**随安装包 `extraResources` 分发**到 `resources/tts-models/<id>/`，不进 git。
+自 1.0.4 起，离线 TTS 模型（下载约 115 MB，解压约 133 MB）**不再打包进安装包**，改为用户开启语音时按需下载。设计细节见 [docs/design/tts-on-demand.md](../design/tts-on-demand.md)。sherpa-onnx 原生库（`sherpa-onnx-node` + 平台包）仍随安装包分发。
 
-1. 打包前 `pnpm --filter @nomi-ai/electron sync-tts-model`（各 `package:*` 的 `prepackage*` 会自动调用）把源目录同步到 `packages/electron/resources/tts-models/`（已 gitignore）。若本地没有源目录，脚本会从 k2-fsa/sherpa-onnx `tts-models` release 自动下载到仓库同级 `../models/<id>` 再同步。
-2. 源目录解析顺序：`NOMI_SHERPA_TTS_MODEL_DIR` → 仓库同级 `../models/<id>` → 仓库内 `models/<id>`。文件清单、归档 URL / sha256 与字节数钉死在 `packages/electron/src/tts/sherpa/manifest.ts`（与 sync 脚本一致）。
-3. 运行时定位顺序：环境变量 → `process.resourcesPath/tts-models/<id>`（打包）→ 开发态上述目录 → `userData/tts-models/<id>`。
-4. **`pnpm i` / `pnpm dev` 自动准备**：`packages/electron/scripts/ensure-tts-model.mjs`（纯 Node、跨平台）在 electron 包 `postinstall` 时下载并解压模型到 `<repo>/../models/vits-zh-hf-theresa`（Windows 例：`D:\self_git\models\vits-zh-hf-theresa`）；`pnpm dev` 启动前再校验一遍兜底。幂等（清单逐文件字节校验，完整则毫秒级跳过）；带空闲超时（30 s）/ 重试（每地址 3 次）/ 多镜像回退 / sha256 校验 / 进度输出；自动清理 0KB `.part`、残留 `.download`、`.partial`；**失败只报错、退出码 0**，不阻塞 `pnpm i` 与 dev（`--strict` 才非 0）。手动执行：`pnpm --filter @nomi-ai/electron ensure-tts-model`（`--check` 只校验，`--force` 重装）。
-5. **运行时后台下载（兜底）**：若启动后模型仍缺失，`SherpaTtsService` 在**后台**异步下载（单飞，并发请求不会重复下载）；下载 / 解压期间每条 `tts:speak` 保持静默，并限频（5 s）打印「模型下载中 x%」；下载完成后下一条自动走 sherpa。下载失败 120 s 内不重试（静默并带上次错误），之后自动重试。
-6. IPC：`tts:sherpa:status`（ready / missing / error，下载中时 message 带进度）；设置页只展示状态，无下载进度条。
+1. **新安装默认语音关闭**（`voiceSettings.enabled=false`）。在主界面「设置 → 语音与屏幕 → 语音 → 朗读（离线语音）」开启语音、看板娘工具栏打开语音、或首次引导里选一个声音时，主进程从官方 release 下载模型到 `userData/tts-models/<id>/`。设置页显示进度条、可取消；失败显示原因并**把语音关回去**，可点「重试」；已下载可「删除模型」（语音随之关闭）。
+2. **老用户升级**：`config.json` 里已保存 `enabled=true` 的用户保持开启，启动时自动在后台下载模型（这次失败不会关语音，设置页显示错误 + 重试）；关着的保持关闭。
+3. 下载：地址 / sha256 / 字节数钉死在 `packages/electron/src/tts/sherpa/manifest.ts`；`NOMI_SHERPA_TTS_MODEL_URL` 可加镜像。**断点续传**：下载中途退出 / 断网，半成品保留在 `userData/tts-models/.download/<id>.tar.bz2.part`，下次用 HTTP `Range` 续传（服务器不支持则从头下）；sha256 覆盖完整文件，不符则删除半成品。用户点「取消」会删除半成品。
+4. 运行时定位顺序：`NOMI_SHERPA_TTS_MODEL_DIR` → 开发态（未打包）`../models/<id>`、`models/<id>` → `userData/tts-models/<id>`。不再读取 `process.resourcesPath/tts-models`。
+5. **缺模型永不崩溃**：`synthesize` / `warmup` 只抛 `not_ready`（附「去设置里开启语音下载」提示），路由静默；**不会在后台自动下载**（只有上面两种情形会下载）。模型就绪后完全离线工作。
+6. **开发**：`pnpm i` 的 `postinstall`（`scripts/ensure-tts-model.mjs`）仍会把模型准备到仓库同级 `../models/<id>`，方便 `pnpm dev`；与打包无关。已完整（按清单大小 + `.nomi-model.json` 版本标记校验）则毫秒级跳过；`NOMI_SKIP_MODEL_DOWNLOAD=1`（旧名 `NOMI_SKIP_TTS_MODEL=1`）跳过；CI（`CI=true`）里 postinstall 默认跳过，需要预下载时设 `NOMI_SKIP_MODEL_DOWNLOAD=0`。
+7. IPC：`ai:tts-model:status | download | cancel | delete | set-voice-enabled`，推送 `ai:tts-model:changed`（进度限频 200 ms）；语音开关被主进程改动时推送 `voice-settings:changed` 同步看板娘工具栏。旧的 `tts:sherpa:status` 保留（新增 `downloading` 状态）。
 
 #### 环境变量
 
 | 变量                                                           | 作用                                                                                                                                                        |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NOMI_SKIP_TTS_MODEL=1`                                        | 跳过 postinstall / dev 的模型准备（CI）                                                                                                                     |
+| `NOMI_SKIP_MODEL_DOWNLOAD=1`                                   | 跳过开发态 postinstall / dev 的模型准备（`=0` 时在 CI 里也强制准备）                                                                                        |
+| `NOMI_SKIP_TTS_MODEL=1`                                        | 跳过开发态 postinstall / dev 的模型准备（CI）                                                                                                               |
 | `NOMI_SHERPA_TTS_MODEL_URL`                                    | 镜像地址（同一个 `vits-zh-hf-theresa.tar.bz2`，sha256 仍按清单校验）；可多个，逗号 / 分号 / 空白分隔，按序尝试，最后兜底官方 GitHub。脚本与运行时下载都生效 |
 | `NOMI_SHERPA_TTS_MODEL_DIR`                                    | 指向已手动解压的模型目录（完整则不再下载）                                                                                                                  |
 | `NOMI_SHERPA_TTS_ATTEMPTS` / `NOMI_SHERPA_TTS_IDLE_TIMEOUT_MS` | 脚本每地址重试次数（默认 3）/ 空闲超时毫秒（默认 30000）                                                                                                    |
@@ -59,11 +61,12 @@ Nomi 默认使用**内置离线语音**（[sherpa-onnx](https://github.com/k2-fs
 1. 浏览器或下载器获取 `https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-zh-hf-theresa.tar.bz2`（约 115 MB，sha256 `f337638c…1d9e92`）。
 2. 解压（Windows 可用 7-Zip / `tar -xjf`），得到 `vits-zh-hf-theresa/` 目录，放到 `<repo>/../models/vits-zh-hf-theresa`（例如 `D:\self_git\models\vits-zh-hf-theresa`，内含 `theresa.onnx`、`lexicon.txt`、`tokens.txt`、`*.fst`、`dict/`），或放任意位置并设置 `NOMI_SHERPA_TTS_MODEL_DIR`。
 3. `pnpm --filter @nomi-ai/electron ensure-tts-model --check` 校验；通过后重启 `pnpm dev`，下一条语音即用 sherpa。
+4. 安装版：把解压出的目录放到 `userData/tts-models/vits-zh-hf-theresa/`（Linux `~/.config/Nomi/`、macOS `~/Library/Application Support/Nomi/`、Windows `%APPDATA%\Nomi\`），重启后设置页即显示「已下载」。
 
 #### 常见失败排查
 
 - 日志 `model install FAILED [download]`：网络 / 超时 → 设镜像 `NOMI_SHERPA_TTS_MODEL_URL` 或手动下载。
-- `[prepare]` 目录不可写（盘符不存在 / 权限）：运行时会自动回退 `userData/tts-models`；脚本请换权限正常的位置或手动解压。
+- `[prepare]` 目录不可写（权限 / 磁盘满）：设置页显示错误，语音保持关闭；脚本请换权限正常的位置或手动解压。
 - `[extract]` / `[finalize]`：磁盘空间不足、杀毒软件 / 资源管理器占用目录（已自动重试 rename）。
 - `engine load FAILED` + `sherpa-onnx 原生库加载失败`：见下方 Windows 说明，错误信息里带真实 dlopen 原因。
 

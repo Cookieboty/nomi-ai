@@ -8,10 +8,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
+import { grokAccountKey } from '../cli/accounts/adapters';
 import { t as tr } from '../i18n';
-import { isTrustedSenderUrl } from '../security/ipcSenderGuard';
+import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
 
 import {
@@ -61,7 +62,7 @@ import {
   type QuotaWindow,
 } from './quota';
 import { IdentityQuotaCache, type RefreshResult } from './quotaCache';
-import { loadSalt } from './quotaIdentity';
+import { fingerprint, loadSalt } from './quotaIdentity';
 import type { SniffedUsage } from './sniff';
 import type { CustomPrice, Currency, UsageRecord, UsageSource } from './types';
 import { UsageLedger, type Retention } from './UsageLedger';
@@ -167,6 +168,11 @@ type Deps = {
   claudeUsage?: ClaudeFetcherDeps;
   codexRpc?: Partial<CodexRpcDeps>;
   grokBilling?: GrokBillingDeps;
+  /**
+   * 当前 Grok 登录的账号标识（测试注入；默认由账号模块从 Grok 的 auth.json 取 user_id / sub / email）。
+   * 只在内存里用来算加盐指纹，判断恢复 / 刷新的额度是不是同一个账号的。
+   */
+  grokAccountKey?: () => string | null;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
 };
@@ -257,11 +263,17 @@ export interface UsageInput {
   outputTokens: number;
   cacheRead?: number;
   cacheWrite?: number;
+  /** 缓存写里的 1 小时档（≤ cacheWrite）；缺省 = 全部按 5 分钟档 */
+  cacheWrite1h?: number;
+  /** Anthropic 快速模式（usage.speed === 'fast'） */
+  fast?: boolean;
   est?: boolean;
   session?: string;
   project?: string;
   /** 去重键；不传则按来源 + 时间 + token 生成 */
   key?: string;
+  /** 路由：上游响应 / 消息 id */
+  rid?: string;
 }
 
 function accumulate(
@@ -315,6 +327,8 @@ export class UsageService {
   private readonly codexReader: CodexRateLimitReader;
   private readonly grokFetcher: GrokBillingFetcher;
   private readonly grokCache: IdentityQuotaCache;
+  /** 一键清空计数：刷新开始时捕获，返回时对不上 = 期间被清空，结果不再落盘 */
+  private quotaEpoch = 0;
   private refreshing: Promise<QuotaRefreshReport> | null = null;
   private readonly toolRefreshing = new Map<QuotaToolId, Promise<QuotaRefreshReport>>();
   private readonly toolCore = new Map<QuotaToolId, Promise<ToolRefresh | undefined>>();
@@ -344,7 +358,11 @@ export class UsageService {
     this.salt = loadSalt(d.root);
     this.claudeCache = new IdentityQuotaCache(() => this.now());
     this.codexCache = new IdentityQuotaCache(() => this.now());
+    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.loadQuota();
+    // 恢复完之后再挂：Claude / Grok 的额度一变就落盘，下次打开直接显示上一次的值
+    this.claudeCache.setOnChange(() => this.saveQuota());
+    this.grokCache.setOnChange(() => this.saveQuota());
     this.claudeFetcher = new ClaudeUsageFetcher({ now: d.now, ...d.claudeUsage });
     this.codexReader = new CodexRateLimitReader({
       now: d.now,
@@ -352,7 +370,6 @@ export class UsageService {
       ...d.codexRpc,
     });
     this.grokFetcher = new GrokBillingFetcher({ now: d.now, ...d.grokBilling });
-    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.auth = new AuthModeDetector({
       home: d.home,
       env: d.env,
@@ -409,7 +426,12 @@ export class UsageService {
         return this.grokCache.get();
       },
     });
-    this.ledger = new UsageLedger({ root: d.root, logger: d.logger, now: d.now });
+    this.ledger = new UsageLedger({
+      root: d.root,
+      logger: d.logger,
+      now: d.now,
+      onPersistChange: () => this.changed(),
+    });
     this.scanner = new UsageLogScanner({
       ledger: this.ledger,
       home: d.home,
@@ -464,6 +486,9 @@ export class UsageService {
         codexFp?: unknown;
         claudeFp?: unknown;
         floor?: unknown;
+        claude?: unknown;
+        grok?: unknown;
+        grokFp?: unknown;
       };
       const fp = (v: unknown) => (typeof v === 'string' && /^[0-9a-f]{16}$/.test(v) ? v : null);
       this.codexFp = fp(o.codexFp);
@@ -482,9 +507,63 @@ export class UsageService {
             ...(typeof c.plan === 'string' ? { plan: c.plan } : {}),
           };
       }
+      // Claude（`/usage` 读到的值）与 Grok：同一账号才恢复；早于「清空」水位的不恢复
+      const claude = this.savedReading(o.claude);
+      if (claude) this.claudeCache.restore(this.claudeFp, claude);
+      // Grok：保存时的账号指纹必须与当前登录一致才恢复；对不上（换号 / 登出 / 旧版本没存指纹）就丢弃
+      const grok = this.savedReading(o.grok);
+      const savedGrokFp = fp(o.grokFp);
+      if (grok && savedGrokFp && savedGrokFp === this.currentGrokFp())
+        this.grokCache.restore(savedGrokFp, grok);
     } catch {
       /* 没有快照 */
     }
+  }
+
+  /**
+   * 在 Nomi「官方账号」里切换了某个 CLI 的账号：清掉上一个账号的额度（内存与落盘），
+   * 不能把旧账号的数字显示给新账号。凭据由账号模块处理，这里只收到通知。
+   */
+  forgetAccountQuota(kind: string): void {
+    if (kind === 'claude') {
+      this.dropClaudeQuota();
+      this.claudeFp = null;
+    } else if (kind === 'codex') {
+      this.codexFp = null;
+      this.codexCache.clear();
+      this.dropCodexQuota();
+    } else if (kind === 'grok') {
+      this.grokCache.clear();
+    } else return;
+    this.saveQuota();
+    this.changed();
+  }
+
+  /** 当前 Grok 登录的加盐指纹（没登录 / 读不出 = null） */
+  private currentGrokFp(): string | null {
+    let key: string | null;
+    try {
+      key = this.d.grokAccountKey
+        ? this.d.grokAccountKey()
+        : grokAccountKey({ home: this.d.home, env: this.d.env });
+    } catch {
+      key = null;
+    }
+    return key ? fingerprint(this.salt, ['grok', key]) : null;
+  }
+
+  private savedReading(v: unknown): QuotaReading | null {
+    const r = v as Partial<QuotaReading> | null;
+    if (!r || typeof r.updatedAt !== 'number' || !Array.isArray(r.windows)) return null;
+    if (r.updatedAt < this.quotaFloor) return null;
+    const windows = sanitizeWindows(r.windows, 0);
+    if (!windows.length) return null;
+    return {
+      windows,
+      updatedAt: r.updatedAt,
+      ...(typeof r.plan === 'string' ? { plan: r.plan } : {}),
+      ...(typeof r.origin === 'string' ? { origin: r.origin } : {}),
+    };
   }
 
   private saveQuota(): void {
@@ -496,6 +575,15 @@ export class UsageService {
           ...(this.codexFp ? { codexFp: this.codexFp } : {}),
           ...(this.claudeFp ? { claudeFp: this.claudeFp } : {}),
           ...(this.quotaFloor ? { floor: this.quotaFloor } : {}),
+          ...(this.claudeCache.snapshot() ? { claude: this.claudeCache.snapshot()!.value } : {}),
+          ...(this.grokCache.snapshot()
+            ? {
+                grok: this.grokCache.snapshot()!.value,
+                ...(this.grokCache.snapshot()!.identity
+                  ? { grokFp: this.grokCache.snapshot()!.identity }
+                  : {}),
+              }
+            : {}),
         }),
       );
     } catch (e) {
@@ -555,10 +643,17 @@ export class UsageService {
    */
   async quotaView(): Promise<QuotaEntry[]> {
     const modes: Record<string, AuthMode> = {};
+    // 被动读取：只用缓存 / 本地配置 / 已有额度数据，绝不启动官方 CLI 的登录探测进程
     for (const id of ['claude', 'codex', 'dsh', 'grok', 'nomi']) {
-      const info = await this.auth.detectFull(id).catch(() => null);
-      modes[id] = info?.mode ?? 'unknown';
-      if (id === 'claude' && info) this.observeClaudeIdentity(info.fp);
+      const info = this.auth.detectPassive(id);
+      modes[id] = info.mode;
+      // 本地信号显示已退出登录：清掉上一个账号的额度（只删数据，不起进程；没有旧数据时不重复清）
+      if (id === 'claude' && info.signedOut) {
+        if (this.claudeFp || this.claudeCache.get() || readStatuslineSnapshot(this.d.root))
+          this.applySignedOut('claude');
+        continue;
+      }
+      if (id === 'claude') this.observeClaudeIdentity(info.fp);
     }
     return applyAuthModes(this.quota(), modes, new Set(this.scanner.detected()));
   }
@@ -620,6 +715,8 @@ export class UsageService {
         return { state: 'ok' };
       case 'throttled':
         return { state: 'throttled', retryInSec: Math.max(1, Math.ceil(cache.retryInMs() / 1000)) };
+      case 'superseded': // 拉取期间被清空 / 换号：结果已丢弃，让用户稍后再刷新
+        return { state: 'transient', reason: 'superseded', stale: false };
       case 'transient':
         return { state: 'transient', reason: r.reason, stale: r.stale };
       default:
@@ -656,8 +753,9 @@ export class UsageService {
 
   private async coreToolRefresh(tool: QuotaToolId): Promise<ToolRefresh | undefined> {
     await this.scanForRefresh();
-    this.auth.invalidate(tool);
+    // 只有「总开关开 + 主动刷新开 + 用户点了这个工具」才授权启动该工具的登录状态探测进程
     const active = this.settings.enabled && this.settings.activeQuotaRefresh;
+    if (active) this.auth.invalidate(tool);
     return tool === 'claude'
       ? this.refreshClaude(active)
       : tool === 'codex'
@@ -680,68 +778,99 @@ export class UsageService {
     return this.scanShared;
   }
 
+  /** 官方 CLI 明确说已退出登录：立即清掉该工具上一个账号的额度、快照和防回流水位 */
+  private applySignedOut(tool: 'claude' | 'codex'): ToolRefresh {
+    if (tool === 'claude') {
+      this.dropClaudeQuota();
+      if (this.claudeFp) {
+        this.claudeFp = null;
+        this.saveQuota();
+      }
+    } else {
+      this.codexFp = null;
+      this.codexCache.clear();
+      this.dropCodexQuota();
+    }
+    return { state: 'auth', reason: 'not-signed-in' };
+  }
+
+  /** 关闭主动刷新 / 总开关时的结果：不探测，只依据已知（缓存 / 配置 / 已有数据 / 本机是否装了该工具） */
+  private inactiveRefresh(tool: QuotaToolId, mode: AuthMode): ToolRefresh | undefined {
+    if (mode === 'api') return { state: 'skipped', reason: 'not-subscription' };
+    if (mode === 'subscription' || this.scanner.detected().includes(tool))
+      return { state: 'skipped', reason: 'disabled' };
+    return undefined;
+  }
+
   private async refreshClaude(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) {
+      const cl = this.auth.detectPassive('claude');
+      this.observeClaudeIdentity(cl.fp);
+      return this.inactiveRefresh('claude', cl.mode);
+    }
     const cl = await this.auth.detectFull('claude').catch(() => null);
+    if (cl?.signedOut) return this.applySignedOut('claude');
     if (cl) this.observeClaudeIdentity(cl.fp);
     if (cl?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else {
-        const snap = readStatuslineSnapshot(this.d.root);
-        if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
-        else {
-          const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
-          if (r.state === 'auth') this.dropClaudeQuota();
-          return this.mapRefresh(r, this.claudeCache);
-        }
-      }
+      const snap = readStatuslineSnapshot(this.d.root);
+      if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
+      const epoch = this.quotaEpoch;
+      const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
+      if (r.state === 'auth' && epoch === this.quotaEpoch) this.dropClaudeQuota();
+      return this.mapRefresh(r, this.claudeCache);
     } else if (cl) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }
 
   private async refreshCodex(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) return this.inactiveRefresh('codex', this.auth.detectPassive('codex').mode);
     const cx = await this.auth.detectFull('codex').catch(() => null);
+    if (cx?.signedOut) return this.applySignedOut('codex');
     if (cx?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
+      if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
         return { state: 'fresh-local' };
-      else {
-        const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
-        if (r.state === 'auth') {
-          this.codexFp = null;
-          this.codexCache.clear();
-          this.dropCodexQuota();
-        } else if (r.state === 'ok') {
-          const fp = this.codexCache.currentIdentity();
-          const v = this.codexCache.get();
-          // 换号：旧账号的值与更早的日志快照一起清掉
-          if (this.codexFp && fp && this.codexFp !== fp)
-            this.dropCodexQuota(v?.updatedAt ?? this.now());
-          if (fp) this.codexFp = fp;
-          if (v) {
-            this.codexQuota = null;
-            this.storeCodexQuota({
-              ts: v.updatedAt,
-              windows: v.windows,
-              ...(v.plan ? { plan: v.plan } : {}),
-              origin: 'app-server',
-            });
-          }
+      const epoch = this.quotaEpoch;
+      const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
+      // 拉取期间用户清空过 / 换过号：旧结果不能再落盘（连已删除的 quota.json 都不能重建）
+      if (r.state === 'superseded' || epoch !== this.quotaEpoch)
+        return this.mapRefresh(
+          r.state === 'superseded' ? r : { state: 'superseded' },
+          this.codexCache,
+        );
+      if (r.state === 'auth') {
+        this.codexFp = null;
+        this.codexCache.clear();
+        this.dropCodexQuota();
+      } else if (r.state === 'ok') {
+        const fp = this.codexCache.currentIdentity();
+        const v = this.codexCache.get();
+        // 换号：旧账号的值与更早的日志快照一起清掉
+        if (this.codexFp && fp && this.codexFp !== fp)
+          this.dropCodexQuota(v?.updatedAt ?? this.now());
+        if (fp) this.codexFp = fp;
+        if (v) {
+          this.codexQuota = null;
+          this.storeCodexQuota({
+            ts: v.updatedAt,
+            windows: v.windows,
+            ...(v.plan ? { plan: v.plan } : {}),
+            origin: 'app-server',
+          });
         }
-        return this.mapRefresh(r, this.codexCache);
       }
+      return this.mapRefresh(r, this.codexCache);
     } else if (cx) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }
 
   private async refreshGrok(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) return this.inactiveRefresh('grok', this.auth.detectPassive('grok').mode);
     const gx = await this.auth.detectFull('grok').catch(() => null);
     if (gx?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
-      else {
-        const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
-        return this.mapRefresh(r, this.grokCache);
-      }
+      if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
+      // 带上当前账号指纹：会话中途换了号也会先清掉旧账号的值
+      const r = await this.grokCache.refresh(this.currentGrokFp(), () => this.grokFetcher.fetch());
+      return this.mapRefresh(r, this.grokCache);
     } else if (gx) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }
@@ -842,6 +971,11 @@ export class UsageService {
       ...(i.project ? { project: i.project } : {}),
       ...(i.est ? { est: true } : {}),
     };
+    // 计价分档：缓存写里的 1 小时档（不超过缓存写总量）、快速模式（缺省 = 旧口径）
+    const w1h = Math.min(Math.max(0, i.cacheWrite1h ?? 0), cacheWrite);
+    if (w1h) rec.cacheWrite1h = w1h;
+    if (i.fast) rec.fast = true;
+    if (i.rid) rec.rid = i.rid;
     if (!rec.input && !rec.output && !rec.cacheRead && !rec.cacheWrite) return null;
     if (!this.ledger.upsert(rec)) return null;
     this.afterRecord(rec);
@@ -863,6 +997,17 @@ export class UsageService {
     this.record({
       ts: r.startedAt,
       dur: Math.max(0, this.now() - r.startedAt),
+      // 有上游响应 id 就用它当稳定键：Claude 原生 msg_… 与工具日志的键相同 → 同一次请求自然合并为一条；
+      // 其它 id 带 route: 前缀，日志侧按 id 后缀精确联结。没有 id 才退回按时间窗口 + 一对一匹配。
+      ...(u.id
+        ? {
+            key:
+              source === 'claude' && u.id.startsWith('msg_')
+                ? `claude:${u.id}`
+                : `route:${source}:${u.id}`,
+            rid: u.id,
+          }
+        : {}),
       source,
       via: 'route',
       provider: r.provider,
@@ -871,6 +1016,8 @@ export class UsageService {
       outputTokens: u.output,
       cacheRead: u.cacheRead,
       cacheWrite: u.cacheWrite,
+      ...(u.cacheWrite1h ? { cacheWrite1h: u.cacheWrite1h } : {}),
+      ...(u.fast ? { fast: true } : {}),
     });
   }
 
@@ -1174,6 +1321,8 @@ export class UsageService {
       detected: this.scanner.detected(),
       records: this.ledger.size(),
       lastScanAt: this.lastScanAt,
+      // 落盘降级（写不进磁盘、记录暂存在内存等待重试）对用户可见（#42）
+      persist: this.ledger.persistState(),
       pricing: {
         date: PRICING_TABLE_DATE,
         builtin: BUILTIN_PRICES.map((p) => ({ ...p })),
@@ -1267,8 +1416,14 @@ export class UsageService {
     this.codexFp = null;
     this.claudeFp = null;
     this.quotaFloor = 0;
+    this.quotaEpoch++; // 让进行中的刷新作废（缓存各自也会换代）
+    // 清空前发起、还没结束的刷新 Promise 不能被清空后的刷新复用（它们的结果都是 superseded，#45）
+    this.toolCore.clear();
+    this.toolRefreshing.clear();
+    this.refreshing = null;
     this.codexCache.clear();
     this.claudeCache.clear();
+    this.grokCache.clear();
     try {
       fs.rmSync(this.quotaPath, { force: true });
       fs.rmSync(path.join(this.d.root, SNAPSHOT_FILE), { force: true });
@@ -1293,18 +1448,9 @@ export class UsageService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (e, ...a) => {
-        try {
-          const url = (e as { sender?: { getURL?: () => string } }).sender?.getURL?.();
-          if (!isTrustedSenderUrl(url)) throw new Error('untrusted sender');
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    // 经 guardedHandle：sender + senderFrame 校验、通道认领；业务错误仍以 { __error } 信封返回
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) =>
+      guardedHandle(ch, fn, { owner: 'UsageService' });
     const rid = (v: unknown): RangeId =>
       v === 'today' || v === '7d' || v === '30d' || v === '90d' ? v : '7d';
     const dq = (v: unknown): DetailQuery => {
@@ -1350,9 +1496,9 @@ export class UsageService {
 export const quotaToolOf = (v: unknown): QuotaToolId | undefined =>
   v === 'claude' || v === 'codex' || v === 'grok' ? v : undefined;
 
-/** 「按端」只接受五个已知端；其他值一律按 nomi 处理，避免任意字符串进入查询 */
+/** 「按端」只接受已知端；其他值一律按 nomi 处理，避免任意字符串进入查询 */
 export const endpointSourceOf = (v: unknown): string =>
-  v === 'claude' || v === 'codex' || v === 'dsh' || v === 'grok' ? v : 'nomi';
+  v === 'claude' || v === 'codex' || v === 'dsh' || v === 'grok' || v === 'gemini' ? v : 'nomi';
 
 let inst: UsageService | null = null;
 export function initUsageService(d: Deps): UsageService {

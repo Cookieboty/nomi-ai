@@ -13,6 +13,9 @@ import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
+import { ChatBackgroundService } from '../chat/ChatBackgroundService';
+import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
+import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -38,7 +41,15 @@ import { CacheService } from '../services/CacheService';
 import { ConfigService } from '../services/ConfigService';
 import { LoggerService, LogLevel } from '../services/LoggerService';
 import { getUpdateService } from '../services/UpdateService';
+import {
+  planStartup,
+  shouldQuitOnMainClose,
+  shouldRaiseMainOnReactivate,
+  type StartupPlan,
+} from '../startup/startupPlan';
+import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
+import { registerTtsModel } from '../tts/registerTtsModel';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -75,6 +86,9 @@ export class Application implements IApplication {
   private aiRuntime?: AIRuntimeBootHandle;
   private clipboardGateway?: ClipboardGateway;
   private trayManager?: TrayManager;
+  private startupService?: StartupService;
+  /** start() 走完后才为 true：之前的 macOS activate 等事件不应触发「打开主界面」 */
+  private launched = false;
   private isInitialized = false;
   /** 有后台定时器 / 子进程 / 监听端口 / worker 的服务，退出时统一 stop */
   private readonly lifecycle = new LifecycleRegistry();
@@ -183,6 +197,7 @@ export class Application implements IApplication {
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
         openChat: () => this.windowManager.createAiChatWindow(),
+        mascotHidden: () => this.windowManager.mascotHidden(),
       });
 
       // 本地知识库：先于 AI runtime 创建（kb_search 工具随桌面工具注册），LLM 调用延迟绑定
@@ -303,6 +318,12 @@ export class Application implements IApplication {
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
       const themes = new ThemeService(path.join(app.getPath('userData'), 'theme.json'));
       themes.registerIpc();
+      // 对话主面板背景（设置 → 通用 → 聊天背景）
+      const chatBg = new ChatBackgroundService(
+        path.join(app.getPath('userData'), 'chat-background.json'),
+        path.join(app.getPath('userData'), 'chat', 'images'),
+      );
+      chatBg.registerIpc();
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
       themes.onChange((st) => {
@@ -326,9 +347,37 @@ export class Application implements IApplication {
           ).map((m) => ({ id: m.id, name: m.name, source: m.origin })),
       });
       onboarding.registerIpc();
-      if (onboarding.shouldAutoOpen()) {
-        // 等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
-        setTimeout(() => void this.windowManager.createAiChatWindow(), 1500);
+
+      // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
+      const startup = new StartupService(path.join(app.getPath('userData'), 'startup.json'));
+      startup.registerIpc();
+      this.startupService = startup;
+      // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
+      this.windowManager.mascotHidden = () => !startup.get().showMascot;
+      let showMascot = startup.get().showMascot;
+      startup.onChange((st) => {
+        if (st.showMascot === showMascot) return;
+        showMascot = st.showMascot;
+        this.windowManager.setMascotVisible(showMascot);
+        // 关掉看板娘后保证主界面可达（#55）：主界面没开 / 被藏起时把它打开，避免进入无界面状态
+        if (!showMascot && this.launched) {
+          const chat = this.windowManager.getAiChatWindow();
+          if (!chat || chat.isDestroyed() || !chat.isVisible()) this.openMainInterface();
+        }
+      });
+
+      // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
+      registerTtsModel(this.configService).start();
+      const startupPlan = planStartup({
+        defaultView: startup.get().defaultView,
+        onboardingPending: onboarding.shouldAutoOpen(),
+      });
+      // 关闭主界面时：quit → 完全退出（看板娘、托盘一起）；hide（默认）→ 只关窗口
+      this.windowManager.shouldQuitOnChatClose = () =>
+        shouldQuitOnMainClose(startup.get().closeMain, this.shutdown.isQuitting());
+      if (startupPlan.openMain && startupPlan.delayMs > 0) {
+        // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
+        setTimeout(() => void this.windowManager.createAiChatWindow(), startupPlan.delayMs);
       }
 
       // 编程助手进度：监视本机 Codex / Claude Code 等会话文件，看板娘提醒完成/失败
@@ -401,9 +450,33 @@ export class Application implements IApplication {
         defaultCwd: app.getPath('documents'),
         dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
+        geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
+      // 官方账号（docs/design/cli-official-accounts.md）：切换后停用该 CLI 的第三方供应商档案，
+      // 并让长驻进程按新登录重拉
+      const accounts: AccountService = new AccountService({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        logger: this.logger as never,
+        onActivated: (kind) => {
+          const bridge = getCliProviderBridge();
+          if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
+          harness.recycleBackend(kind);
+          // 换了号：上一个账号的订阅额度不能再显示
+          getUsageService()?.forgetAccountQuota(kind);
+        },
+        onChanged: () => accounts.broadcastChanged(),
+      });
+      accounts.registerIpc();
+      const accountLogin = new AccountLogin({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        accounts,
+        logger: this.logger as never,
+        emit: broadcastLogin,
+      });
+      accountLogin.registerIpc();
+      this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({
@@ -426,6 +499,7 @@ export class Application implements IApplication {
         const rt = this.aiRuntime;
         desktop.attachRuntime({
           resolveProvider: (role) => rt.resolveProvider(role),
+          lookupProvider: (id) => rt.lookupProvider(id),
           complete: async (messages, role, signal) => {
             const resp = await rt.client.chat.sendMessage({ role, messages, signal });
             return typeof resp?.content === 'string' ? resp.content : '';
@@ -464,8 +538,9 @@ export class Application implements IApplication {
         return permission === 'media';
       });
 
-      // 创建主窗口
-      await this.windowManager.createMainWindow();
+      // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；
+      // 默认界面为「软件主界面」时它不抢焦点）
+      await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
       // 提醒调度：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
       desktop.startReminders();
       kb.start();
@@ -475,6 +550,10 @@ export class Application implements IApplication {
 
       // 托盘：一键切换 AI provider
       this.startTray();
+
+      // 默认界面为「软件主界面」：看板娘就绪后直接打开主界面；失败只记日志，仍可用看板娘
+      this.launched = true;
+      if (startupPlan.openMain && startupPlan.delayMs === 0) this.openMainInterface(startupPlan);
 
       this.logger.info('应用启动完成');
       eventBus.emit('app:started');
@@ -518,6 +597,25 @@ export class Application implements IApplication {
     }
   }
 
+  private openMainInterface(plan?: Pick<StartupPlan, 'activateMain'>): void {
+    this.windowManager.createAiChatWindow({ activate: plan?.activateMain ?? true }).catch((error) =>
+      this.logger.warn('启动时打开主界面失败，保留看板娘', {
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
+
+  /**
+   * 已运行实例被再次唤起（第二实例 / macOS Dock / Windows 托盘左键）：
+   * 默认界面为「软件主界面」时把主界面带到前台，返回 true；否则返回 false，调用方保持历史行为。
+   */
+  raiseMainOnReactivate(): boolean {
+    if (!this.launched || !this.startupService) return false;
+    if (!shouldRaiseMainOnReactivate(this.startupService.get().defaultView)) return false;
+    this.openMainInterface();
+    return true;
+  }
+
   /** 系统托盘（provider 快速切换）；失败不影响启动。 */
   private startTray(): void {
     const providers = this.aiRuntime?.providers;
@@ -534,6 +632,7 @@ export class Application implements IApplication {
       openDesktopPanel: () => {
         void this.windowManager.openProviderPanel('ai:desktop:open-panel');
       },
+      onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),
       models: getModelService(this.logger),
       screenMemory: getScreenService()
@@ -803,6 +902,8 @@ export class Application implements IApplication {
       if (this.windowManager.getMainWindow() === null) {
         await this.windowManager.createMainWindow();
       }
+      // 默认界面为「软件主界面」时，点 Dock 图标回到主界面
+      this.raiseMainOnReactivate();
     });
 
     // 应用退出前：必须同步 preventDefault，等 stop() 真正完成后再 app.exit(0)；

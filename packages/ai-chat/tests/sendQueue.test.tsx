@@ -53,4 +53,21 @@ describe('useSendQueue', () => {
     rerender({ k: 'b' });
     expect(result.current.queue).toEqual([]);
   });
+
+  it('入队时冻结知识库意图：出队按原意图发送，普通消息不带 kb 标记（#37）', () => {
+    const send = vi.fn();
+    const { result, rerender } = renderHook(({ busy }) => useSendQueue(busy, send), {
+      initialProps: { busy: true },
+    });
+    act(() => {
+      result.current.enqueue('问知识库', { kb: true });
+      result.current.enqueue('普通问题');
+    });
+    expect(result.current.queue).toEqual(['问知识库', '普通问题']);
+    rerender({ busy: false });
+    expect(send).toHaveBeenNthCalledWith(1, '问知识库', { kb: true });
+    rerender({ busy: true });
+    rerender({ busy: false });
+    expect(send).toHaveBeenNthCalledWith(2, '普通问题', undefined);
+  });
 });

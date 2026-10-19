@@ -18,9 +18,11 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
+import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
   peekCliBin,
@@ -29,7 +31,24 @@ import {
   resolveCliBinCached,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
+import { AcpConnection } from './gemini/acp';
+import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
+import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
+import {
+  type GeminiTrustResult,
+  isBroadGeminiFolder,
+  trustGeminiFolder,
+} from './gemini/trustedFolders';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
+import {
+  DEFAULT_PERMISSION_MODE,
+  claudeModeName,
+  effectiveMode,
+  geminiModeId,
+  isPermissionMode,
+  permissionLaunch,
+  planPromptPrefix,
+} from './permissionMode';
 import { killProcessTree } from './processTree';
 import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
@@ -49,6 +68,7 @@ import {
 import type {
   HarnessBackend,
   HarnessEvent,
+  HarnessPermissionMode,
   HarnessSendReply,
   HarnessSendResult,
   HarnessSessionState,
@@ -71,7 +91,10 @@ const CHAT_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const MAX_GENERATED_IMAGE_BYTES = 20 * 1024 * 1024;
 const IMAGE_ALIAS_FILE = 'image-aliases.json';
 
-const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok'];
+const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini'];
+
+/** Gemini 一轮 5 分钟没有任何输出：多半卡在网络或上游，取消这一轮 */
+const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -224,6 +247,7 @@ const BACKEND_TITLE: Record<HarnessBackend, string> = {
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 function mockDir(): string {
@@ -247,7 +271,7 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   return resolveCliBinCached(backend);
 }
 
-const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
 function peekHarnessBin(backend: CliBackend): string | null {
@@ -298,6 +322,10 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** Gemini ACP 长驻进程（docs/design/cli-official-accounts.md §8）：同一标签多轮复用 */
+  private readonly geminiLive = new Map<string, GeminiLiveSession>();
+  /** tabId → 运行中的后台子代理（来自 agent 事件；后台任务条与「停止子代理」用） */
+  private readonly bgAgents = new Map<string, Map<string, { label?: string; startedAt: number }>>();
   /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
   private readonly dormant = new Set<string>();
   private idleReclaimMs: number;
@@ -310,6 +338,8 @@ export class CliHarnessService {
   private running = 0;
   private activeTabId = MAIN_TAB_ID;
   private maxConcurrent = DEFAULT_MAX_CONCURRENT;
+  private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
+  private codexNetwork = true;
   private readonly home: string;
   private readonly statePath: string;
   private readonly tabsPath: string;
@@ -328,8 +358,12 @@ export class CliHarnessService {
       dshEnv?: () => Record<string, string>;
       /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
+      /** Gemini 第三方档案（CliProviderBridge.geminiEnv） */
+      geminiEnv?: () => Record<string, string>;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
+      /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
+      geminiPromptIdleMs?: number;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -350,6 +384,7 @@ export class CliHarnessService {
       unread: 0,
       createdAt: now,
       updatedAt: now,
+      permissionMode: DEFAULT_PERMISSION_MODE,
     });
     this.load();
     try {
@@ -400,15 +435,18 @@ export class CliHarnessService {
   }
 
   private load() {
+    // 主标签的档位要等 tabs.json 里的默认档读完再还原
+    let mainMode: unknown;
     try {
       const raw = JSON.parse(
         fs.readFileSync(this.statePath, 'utf8'),
-      ) as Partial<HarnessSessionState> & { title?: string };
+      ) as Partial<HarnessSessionState> & { title?: string; permissionMode?: unknown };
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
       if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
+      mainMode = raw.permissionMode;
     } catch {
       /* */
     }
@@ -416,9 +454,15 @@ export class CliHarnessService {
       const raw = JSON.parse(fs.readFileSync(this.tabsPath, 'utf8')) as {
         activeTabId?: string;
         maxConcurrent?: number;
+        defaultPermissionMode?: unknown;
+        codexNetwork?: unknown;
         tabs?: HarnessTabMeta[];
       };
       if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
+      if (isPermissionMode(raw.defaultPermissionMode) && raw.defaultPermissionMode !== 'bypass') {
+        this.defaultPermissionMode = raw.defaultPermissionMode;
+      }
+      if (typeof raw.codexNetwork === 'boolean') this.codexNetwork = raw.codexNetwork;
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
@@ -427,22 +471,25 @@ export class CliHarnessService {
           ...tab,
           status: tab.status === 'error' ? 'error' : 'idle',
           unread: Number(tab.unread) || 0,
+          permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
         });
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
     } catch {
       /* */
     }
+    this.main.permissionMode = this.restoredMode(this.main.backend, mainMode);
   }
 
   private persist() {
     const m = this.main;
-    const s: HarnessSessionState & { title: string } = {
+    const s: HarnessSessionState & { title: string; permissionMode: HarnessPermissionMode } = {
       backend: m.backend,
       cwd: m.cwd,
       cliSessionId: m.cliSessionId,
       busy: m.status === 'running' || m.status === 'queued',
       title: m.title,
+      permissionMode: m.permissionMode,
     };
     try {
       fs.writeFileSync(this.statePath, JSON.stringify(s, null, 2), 'utf8');
@@ -450,7 +497,13 @@ export class CliHarnessService {
       fs.writeFileSync(
         this.tabsPath,
         JSON.stringify(
-          { activeTabId: this.activeTabId, maxConcurrent: this.maxConcurrent, tabs },
+          {
+            activeTabId: this.activeTabId,
+            maxConcurrent: this.maxConcurrent,
+            defaultPermissionMode: this.defaultPermissionMode,
+            codexNetwork: this.codexNetwork,
+            tabs,
+          },
           null,
           2,
         ),
@@ -463,6 +516,38 @@ export class CliHarnessService {
 
   private messagesPath(id: string) {
     return path.join(this.tabsDir, `${id.replace(/[^\w-]/g, '_')}.json`);
+  }
+
+  private carryPath(id: string) {
+    return path.join(this.tabsDir, `${id.replace(/[^\w-]/g, '_')}.carry.txt`);
+  }
+
+  /** 待带入新会话的前文（主进程私有；落盘以便重启后仍然生效） */
+  private carriedText(id: string): string | null {
+    if (!this.tabs.get(id)?.carriedMessages) return null;
+    try {
+      const text = fs.readFileSync(this.carryPath(id), 'utf8');
+      return text.trim() ? text : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 设置 / 清除待带入的前文；messages 为空则清除 */
+  private setCarried(
+    tab: HarnessTabMeta,
+    messages: readonly HarnessTabMessage[] | null,
+    from = '',
+  ) {
+    const carried = messages ? buildCarriedContext(messages, from || tab.cwd) : null;
+    try {
+      if (carried) writePrivateFile(this.carryPath(tab.id), carried.text);
+      else fs.rmSync(this.carryPath(tab.id), { force: true });
+    } catch (e) {
+      this.d.logger.warn('harness carry write failed', e);
+    }
+    if (carried) tab.carriedMessages = carried.messages;
+    else delete tab.carriedMessages;
   }
 
   tabMessages(id: string): HarnessTabMessage[] {
@@ -542,6 +627,7 @@ export class CliHarnessService {
         codex: peekHarnessBin('codex'),
         dsh: peekHarnessBin('dsh'),
         grok: peekHarnessBin('grok'),
+        gemini: peekHarnessBin('gemini'),
       },
     };
   }
@@ -561,8 +647,16 @@ export class CliHarnessService {
     return this.state();
   }
 
-  setCwd(cwd: string): State {
-    this.setTabCwd(MAIN_TAB_ID, cwd);
+  /** 放弃待带入的前文（输入栏「带上前文」芯片上的 ×） */
+  clearTabCarry(id: string): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    this.setCarried(tab, null);
+    this.changed();
+    return { ...tab };
+  }
+
+  setCwd(cwd: string, opts: { carry?: boolean } = {}): State {
+    this.setTabCwd(MAIN_TAB_ID, cwd, opts);
     return this.state();
   }
 
@@ -587,11 +681,31 @@ export class CliHarnessService {
   listTabs(): HarnessTabsState {
     const tabs = [...this.tabs.values()];
     return {
-      tabs: tabs.map((x) => (this.dormant.has(x.id) ? { ...x, dormant: true } : { ...x })),
+      tabs: tabs.map((x) => {
+        const agents = this.bgAgents.get(x.id);
+        // Claude 有完整的后台任务计数（含后台 Bash）；其它 CLI 只有子代理
+        const bg = this.claudeLive.get(x.id)?.bgTasks.size ?? agents?.size ?? 0;
+        return {
+          ...x,
+          ...(this.dormant.has(x.id) ? { dormant: true } : {}),
+          ...(bg ? { background: bg } : {}),
+          ...(agents?.size
+            ? {
+                backgroundAgents: [...agents].map(([id, a]) => ({
+                  id,
+                  ...a,
+                  stoppable: x.backend === 'claude' && this.claudeLive.has(x.id),
+                })),
+              }
+            : {}),
+        };
+      }),
       activeTabId: this.activeTabId,
       maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
+      defaultPermissionMode: this.defaultPermissionMode,
+      codexNetwork: this.codexNetwork,
     };
   }
 
@@ -604,6 +718,8 @@ export class CliHarnessService {
       messages?: HarnessTabMessage[];
       /** 打开历史会话：直接绑定已有 CLI 会话，下一条消息按各 CLI 的续接参数继续 */
       cliSessionId?: string;
+      /** 分叉时继承来源标签的模式；缺省用默认档。「完全放开」不能经此继承 */
+      permissionMode?: HarnessPermissionMode;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -626,6 +742,12 @@ export class CliHarnessService {
       unread: 0,
       createdAt: now,
       updatedAt: now,
+      permissionMode: effectiveMode(
+        backend,
+        isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass'
+          ? opts.permissionMode
+          : this.defaultPermissionMode,
+      ).mode,
     };
     this.tabs.set(tab.id, tab);
     const seeded = Array.isArray(opts.messages)
@@ -653,6 +775,8 @@ export class CliHarnessService {
         this.d.logger.warn('harness tab seed write failed', e);
       }
       tab.updatedAt = seeded[seeded.length - 1]!.timestamp;
+      // 分叉 / 复制出来的标签没有可续接的 CLI 会话：把预填的对话当前文带进第一轮
+      if (!tab.cliSessionId) this.setCarried(tab, seeded);
     }
     this.activeTabId = tab.id;
     this.changed();
@@ -718,6 +842,7 @@ export class CliHarnessService {
       this.d.logger.warn('harness tab seed write failed', e);
     }
     if (seeded.length) tab.updatedAt = seeded[seeded.length - 1]!.timestamp;
+    if (!tab.cliSessionId) this.setCarried(tab, seeded.length ? seeded : null);
     this.changed();
     return { ...tab };
   }
@@ -734,6 +859,7 @@ export class CliHarnessService {
     this.progress.delete(id);
     try {
       fs.rmSync(this.messagesPath(id), { force: true });
+      fs.rmSync(this.carryPath(id), { force: true });
     } catch {
       /* */
     }
@@ -791,23 +917,97 @@ export class CliHarnessService {
       }
     }
     tab.backend = backend;
+    // 新后端不支持当前档位时降到更安全的一档
+    tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
     // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
     if (switched) this.changed();
     return { ...tab };
   }
 
-  setTabCwd(id: string, cwd: string): HarnessTabMeta {
+  /**
+   * 换工作目录。CLI 续接与 cwd 绑定：换目录即开新会话，并拆掉长驻进程。
+   * carry=true：把当前可见对话整理成前文，下一条消息连同它一起发给新会话；
+   * 否则清掉之前留下的前文，干净地开新会话。正在跑的轮次不受影响（在原目录跑完）。
+   */
+  setTabCwd(id: string, cwd: string, opts: { carry?: boolean } = {}): HarnessTabMeta {
     const tab = this.requireTab(id);
     const abs = validDir(cwd);
-    // CLI 续接与 cwd 绑定：换目录即开新会话，并拆掉 Claude 长驻进程
     if (abs !== tab.cwd) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
+      this.setCarried(tab, opts.carry ? this.tabMessages(id) : null, tab.cwd);
     }
     tab.cwd = abs;
     if (tab.backend !== 'nomi') this.rememberCwd(abs);
     this.changed();
     return { ...tab };
+  }
+
+  /**
+   * 切换标签权限模式。返回实际生效的档位（后端不支持时已降级）。
+   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认。
+   * Claude 长驻进程用 control_request 即时切换；Codex / dsh / Grok 下一轮启动时生效。
+   */
+  setTabPermissionMode(
+    id: string,
+    mode: HarnessPermissionMode,
+    opts: { confirmed?: boolean } = {},
+  ): HarnessTabMeta & { degraded: boolean } {
+    const tab = this.requireTab(id);
+    if (!isPermissionMode(mode)) throw new Error(t('未知权限模式'));
+    if (mode === 'bypass' && !opts.confirmed) throw new Error(t('完全放开需要先确认'));
+    const next = effectiveMode(tab.backend, mode);
+    if (next.mode !== tab.permissionMode) {
+      tab.permissionMode = next.mode;
+      const gl = this.geminiLive.get(id);
+      if (gl?.sessionId && gl.permissionMode !== next.mode) {
+        gl.permissionMode = next.mode;
+        void gl.conn
+          .request('session/set_mode', { sessionId: gl.sessionId, modeId: geminiModeId(next.mode) })
+          .catch(() => this.teardownGeminiLive(id));
+      }
+      const live = this.claudeLive.get(id);
+      if (live && live.permissionMode !== next.mode) {
+        const sent = this.writeClaudeControl(live, {
+          subtype: 'set_permission_mode',
+          mode: claudeModeName(next.mode),
+        });
+        // 写不进去：拆掉，下一轮带新模式 --resume 重拉
+        if (sent) live.permissionMode = next.mode;
+        else this.teardownClaudeLive(id);
+      }
+      this.changed();
+    }
+    return { ...tab, degraded: next.degraded };
+  }
+
+  /** 新标签默认档与 Codex 联网开关（设置页） */
+  setPermissionDefaults(o: {
+    defaultPermissionMode?: HarnessPermissionMode;
+    codexNetwork?: boolean;
+  }): HarnessTabsState {
+    if (o.defaultPermissionMode !== undefined) {
+      if (!isPermissionMode(o.defaultPermissionMode)) throw new Error(t('未知权限模式'));
+      if (o.defaultPermissionMode === 'bypass') throw new Error(t('完全放开不能设为默认模式'));
+      this.defaultPermissionMode = o.defaultPermissionMode;
+    }
+    if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
+    this.changed();
+    return this.listTabs();
+  }
+
+  /**
+   * 落盘档位 → 内存档位。缺字段（旧数据）：Claude 保持原来的逐项确认，其它用默认档；
+   * 「完全放开」不跨重启保留。
+   */
+  private restoredMode(backend: HarnessBackend, raw: unknown): HarnessPermissionMode {
+    const mode: HarnessPermissionMode =
+      isPermissionMode(raw) && raw !== 'bypass'
+        ? raw
+        : raw === undefined && backend === 'claude'
+          ? 'manual'
+          : this.defaultPermissionMode;
+    return effectiveMode(backend, mode).mode;
   }
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
@@ -835,6 +1035,13 @@ export class CliHarnessService {
     const live = this.claudeLive.get(id);
     if (live?.turn) {
       this.writeClaudeControl(live, { subtype: 'interrupt' });
+    }
+    // Gemini：ACP session/cancel，进程保留供下一轮
+    const gl = this.geminiLive.get(id);
+    if (gl?.turn) {
+      this.stopRequested.add(id);
+      this.cancelGeminiTurn(gl);
+      return true;
     }
     if (!this.children.has(id) && !live) {
       if (queued) {
@@ -864,6 +1071,7 @@ export class CliHarnessService {
     this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
+    for (const id of [...this.geminiLive.keys()]) this.teardownGeminiLive(id);
     for (const [id, child] of [...this.children.entries()]) {
       killProcessTree(child);
       this.children.delete(id);
@@ -875,7 +1083,10 @@ export class CliHarnessService {
   async sendTab(id: string, prompt: string): Promise<HarnessSendResult> {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi') throw new Error(t('当前为 Nomi 后端，请走原生对话'));
-    if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
+    // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
+    const autoOnly = tab.status === 'running' && this.isAutoOnly(id);
+    if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
+      throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
     if (!text.trim()) throw new Error(t('消息为空'));
     const backend = tab.backend;
@@ -916,17 +1127,26 @@ export class CliHarnessService {
     const startedAt = Date.now();
     this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
+    // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
+    // 按这个 CLI 收消息的方式裁到预算内（命令行参数有长度上限，见 carriedBudget）
+    const stored = tab.cliSessionId ? null : this.carriedText(id);
+    const carried = stored ? fitCarried(stored, carriedBudget(backend, process.platform)) : null;
+    const toCli = withCarriedContext(carried, text);
     try {
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, text)
+          ? await this.runClaude(tab, toCli)
           : backend === 'dsh'
-            ? await this.runDsh(tab, text)
+            ? await this.runDsh(tab, toCli)
             : backend === 'grok'
-              ? await this.runGrok(tab, text)
-              : await this.runCodex(tab, text);
+              ? await this.runGrok(tab, toCli)
+              : backend === 'gemini'
+                ? await this.runGemini(tab, toCli)
+                : await this.runCodex(tab, toCli);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
-      tab.status = 'idle';
+      // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
+      if (stored) this.setCarried(tab, null);
+      tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
       const toolEvents = result.events.filter(
         (e): e is Extract<HarnessEvent, { type: 'tool' }> => e.type === 'tool',
@@ -985,14 +1205,26 @@ export class CliHarnessService {
         } else {
           tab.status = 'error';
           tab.lastError = message;
+          // 失败前已生成的文字保留在前面，错误信息跟在后面（不当成成功，也不丢已输出内容）
+          const partText = part?.text ?? '';
           this.appendMessage(id, {
             id: randomUUID(),
             role: 'assistant',
-            content: message,
+            content: partText.trim() ? `${partText}\n\n${message}` : message,
             timestamp: Date.now(),
             error: true,
             durationMs,
+            // Gemini 不信任这个文件夹：界面在错误卡片上提供「信任此文件夹」
+            ...(e instanceof GeminiUntrustedError
+              ? {
+                  geminiTrust: {
+                    folder: e.folder,
+                    broad: isBroadGeminiFolder(e.folder, this.home, [this.d.defaultCwd ?? '']),
+                  },
+                }
+              : {}),
             ...(trace.length ? { trace } : {}),
+            ...(partText.trim() && part?.breaks.length ? { textBreaks: part.breaks } : {}),
           });
           this.finish(tab, false, '', message);
         }
@@ -1002,7 +1234,15 @@ export class CliHarnessService {
       this.partial.delete(id);
       this.stopRequested.delete(id);
       this.release();
+      // Codex / dsh / Grok 每轮一个进程：进程结束，它派生的子代理也随之结束
+      if (backend !== 'claude') this.clearBackgroundAgents(id);
     }
+  }
+
+  /** 标签处于 running 只是因为自发轮次（没有用户轮次在排队 / 进行） */
+  private isAutoOnly(id: string): boolean {
+    const live = this.claudeLive.get(id);
+    return !!live?.auto && !live.turn;
   }
 
   private finish(tab: HarnessTabMeta, ok: boolean, text: string, error?: string) {
@@ -1076,10 +1316,12 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.turnUuid = randomUUID();
+      live.turnStarted = false;
       live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
       try {
-        this.writeClaudeUser(live, prompt);
+        this.writeClaudeUser(live, prompt, live.turnUuid);
       } catch (e) {
         live.turn = null;
         this.children.delete(tab.id);
@@ -1095,6 +1337,7 @@ export class CliHarnessService {
     if (
       existing &&
       existing.cwd === tab.cwd &&
+      existing.permissionMode === tab.permissionMode &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
       existing.child.signalCode === null
@@ -1116,6 +1359,8 @@ export class CliHarnessService {
       '--verbose',
       '--permission-prompt-tool',
       'stdio',
+      '--replay-user-messages',
+      ...permissionLaunch('claude', tab.permissionMode).args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
@@ -1128,6 +1373,12 @@ export class CliHarnessService {
       buf: '',
       turn: null,
       cwd: tab.cwd,
+      permissionMode: tab.permissionMode,
+      turnUuid: null,
+      turnStarted: false,
+      replaySeen: false,
+      auto: null,
+      bgTasks: new Set(),
       lastActivityAt: Date.now(),
     };
     this.claudeLive.set(tab.id, live);
@@ -1178,10 +1429,11 @@ export class CliHarnessService {
     return live;
   }
 
-  private writeClaudeUser(live: ClaudeLiveSession, prompt: string) {
+  private writeClaudeUser(live: ClaudeLiveSession, prompt: string, uuid: string) {
     if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
     const payload = {
       type: 'user',
+      uuid,
       message: { role: 'user', content: prompt },
     };
     live.child.stdin.write(`${JSON.stringify(payload)}\n`);
@@ -1203,11 +1455,15 @@ export class CliHarnessService {
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
-    const turn = live.turn;
     live.lastActivityAt = Date.now();
+    if (this.onClaudeMeta(tabId, live, line)) return;
+    // 回显到达前（或老 CLI 不回显时）的归属：见 ClaudeLiveSession.turnUuid
+    const userTurn = live.turn && (live.turnStarted || !live.replaySeen) ? live.turn : null;
+    let turn: ClaudeTurnWaiter | null = userTurn ?? live.auto;
     let dropAfter = false;
     for (const raw of live.parseLine(line)) {
-      let ev = stampEvent(raw);
+      let ev = withPermissionExpiry(stampEvent(raw));
+      if (!turn && isTurnContent(ev)) turn = this.startAutoTurn(tabId, live);
       if (turn) {
         const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
         turn.text = folded.text;
@@ -1226,13 +1482,20 @@ export class CliHarnessService {
           tabId,
           title: tab?.title ?? 'Claude Code',
           backend: 'claude' as HarnessBackend,
-          summary: ev.summary,
+          summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
           background: this.activeTabId !== tabId || !anyWindowFocused(),
         });
+      }
+      if ((ev.type === 'done' || ev.type === 'error') && turn && turn === live.auto) {
+        this.finishAutoTurn(tabId, live, ev.type === 'error' ? ev.message : undefined);
+        turn = null;
+        if (live.recycleAfterTurn && !live.turn) dropAfter = true;
+        continue;
       }
       // 一轮失败（result.is_error / error 事件）：结束当前 Promise，进程保持长驻供下一轮
       if (ev.type === 'error' && turn && live.turn === turn) {
         live.turn = null;
+        live.turnUuid = null;
         this.children.delete(tabId);
         if (!turn.settled) {
           turn.settled = true;
@@ -1244,6 +1507,7 @@ export class CliHarnessService {
       // 一轮 result：结束当前 Promise，但保持 stdin 打开供下一轮
       if (ev.type === 'done' && turn && live.turn === turn) {
         live.turn = null;
+        live.turnUuid = null;
         this.children.delete(tabId);
         if (!turn.settled) {
           turn.settled = true;
@@ -1258,6 +1522,332 @@ export class CliHarnessService {
       }
     }
     if (dropAfter) this.dropRecycledClaude(tabId, live);
+  }
+
+  // ───────────────────────── Gemini（ACP） ─────────────────────────
+
+  /**
+   * Gemini CLI 的 ACP 长驻进程（`gemini --acp`）：initialize → session/load（有会话 id 时）或 session/new
+   * → session/set_mode；每轮 session/prompt。审批经 session/request_permission 进权限队列。
+   */
+  private async ensureGeminiLive(tab: HarnessTabMeta): Promise<GeminiLiveSession> {
+    const existing = this.geminiLive.get(tab.id);
+    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+      await existing.ready;
+      return existing;
+    }
+    if (existing) this.teardownGeminiLive(tab.id);
+    const bin = resolveHarnessBin('gemini');
+    if (!bin) throw new Error(t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'));
+    const useNode = isScript(bin);
+    const argv = ['--acp'];
+    const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
+      cwd: tab.cwd,
+      // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
+      env: cliChildEnv(useNode, { ...this.d.geminiEnv?.() }),
+    });
+    let stderrTail = '';
+    child.stderr.on('data', (c) => {
+      stderrTail = (stderrTail + String(c)).slice(-4000);
+      this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500));
+    });
+    const live: GeminiLiveSession = {
+      child,
+      conn: null as unknown as AcpConnection,
+      sessionId: null,
+      cwd: tab.cwd,
+      permissionMode: tab.permissionMode,
+      turn: null,
+      perms: new Map(),
+      lastActivityAt: Date.now(),
+      ready: Promise.resolve(),
+    };
+    live.conn = new AcpConnection(child, {
+      onNotification: (method, params) => {
+        if (method !== 'session/update') return;
+        live.lastActivityAt = Date.now();
+        const u = (params.update ?? {}) as Record<string, unknown>;
+        if (live.turn) this.onGeminiEvents(tab.id, live, live.turn.mapper.update(u));
+      },
+      onRequest: async (method, params) => {
+        if (method !== 'session/request_permission')
+          throw new Error(`unsupported client method ${method}`);
+        const id = `gemini-perm-${randomUUID()}`;
+        const allowed = await new Promise<boolean | null>((resolve) => {
+          live.perms.set(id, (allow) => {
+            live.perms.delete(id);
+            resolve(allow);
+          });
+          const ev = withPermissionExpiry({
+            type: 'permission',
+            id,
+            summary: permissionSummary(params),
+          });
+          this.onGeminiEvents(tab.id, live, [ev]);
+        });
+        const optionId = allowed === null ? null : pickPermissionOption(params.options, allowed);
+        return optionId
+          ? { outcome: { outcome: 'selected', optionId } }
+          : { outcome: { outcome: 'cancelled' } };
+      },
+    });
+    child.on('close', () => {
+      if (this.geminiLive.get(tab.id) === live) this.geminiLive.delete(tab.id);
+      this.clearPermissionTimeouts(tab.id);
+      for (const done of live.perms.values()) done(null);
+    });
+    this.geminiLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
+    live.ready = (async () => {
+      await live.conn.request('initialize', {
+        protocolVersion: 1,
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+      });
+      let sid: string | null = null;
+      if (tab.cliSessionId) {
+        sid = await live.conn
+          .request('session/load', { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] })
+          .then(() => tab.cliSessionId)
+          .catch(() => null);
+      }
+      if (!sid) {
+        const r = await live.conn.request<{ sessionId?: string }>('session/new', {
+          cwd: tab.cwd,
+          mcpServers: [],
+        });
+        sid = r?.sessionId ?? null;
+      }
+      if (!sid) throw new Error(t('Gemini 没有返回会话'));
+      live.sessionId = sid;
+      await live.conn
+        .request('session/set_mode', { sessionId: sid, modeId: geminiModeId(tab.permissionMode) })
+        .catch(() => undefined);
+    })();
+    try {
+      await live.ready;
+    } catch (e) {
+      this.teardownGeminiLive(tab.id);
+      // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
+      if (
+        e instanceof Error &&
+        e.message === 'ACP process exited' &&
+        isGeminiUntrustedExit(child.exitCode, stderrTail)
+      )
+        throw new GeminiUntrustedError(tab.cwd, { cause: e });
+      // 进程在握手阶段就退出：多半是旧版 Gemini CLI，还不认识 --acp
+      if (e instanceof Error && e.message === 'ACP process exited')
+        throw new Error(
+          t('Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。'),
+          { cause: e },
+        );
+      throw e;
+    }
+    return live;
+  }
+
+  private onGeminiEvents(tabId: string, live: GeminiLiveSession, evs: HarnessEvent[]) {
+    for (const raw of evs) {
+      let ev = withPermissionExpiry(stampEvent(raw));
+      const turn = live.turn;
+      if (turn) {
+        const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
+        turn.text = folded.text;
+        turn.breaks = folded.breaks;
+        ev = folded.ev;
+        if (ev.type !== 'text-delta') turn.events.push(ev);
+      }
+      this.emitEvent(tabId, ev);
+      if (ev.type === 'permission') {
+        this.armPermissionTimeout(tabId, ev.id);
+        const tab = this.tabs.get(tabId);
+        this.events.emit('permission-needed', {
+          tabId,
+          title: tab?.title ?? 'Gemini',
+          backend: 'gemini' as HarnessBackend,
+          summary: ev.summary,
+          background: this.activeTabId !== tabId || !anyWindowFocused(),
+        });
+      }
+    }
+  }
+
+  private async runGemini(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+    const live = await this.ensureGeminiLive(tab);
+    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    const turn: GeminiTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
+    live.turn = turn;
+    live.lastActivityAt = Date.now();
+    try {
+      const r = await live.conn.request<{
+        stopReason?: string;
+        _meta?: { quota?: { token_count?: { input_tokens?: number; output_tokens?: number } } };
+      }>(
+        'session/prompt',
+        { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] },
+        {
+          // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
+          idle: true,
+          timeoutMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
+          onTimeout: () => {
+            this.cancelGeminiTurn(live);
+            // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
+            live.recycleAfterTurn = true;
+          },
+        },
+      );
+      this.onGeminiEvents(tab.id, live, turn.mapper.flush());
+      if (r?.stopReason === 'cancelled') throw new Error(t('已中止'));
+      const tc = r?._meta?.quota?.token_count;
+      const usage =
+        tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
+          ? {
+              ...(tc.input_tokens !== undefined ? { inputTokens: tc.input_tokens } : {}),
+              ...(tc.output_tokens !== undefined ? { outputTokens: tc.output_tokens } : {}),
+            }
+          : undefined;
+      const done: HarnessEvent = {
+        type: 'done',
+        text: turn.text,
+        sessionId: live.sessionId ?? undefined,
+        ...(usage ? { usage } : {}),
+      };
+      turn.events.push(done);
+      this.emitEvent(tab.id, done);
+      return {
+        text: turn.text || t('（无文本输出）'),
+        sessionId: live.sessionId,
+        events: turn.events,
+        ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
+      };
+    } finally {
+      live.turn = null;
+      live.lastActivityAt = Date.now();
+      if (live.recycleAfterTurn && this.geminiLive.get(tab.id) === live)
+        this.teardownGeminiLive(tab.id);
+    }
+  }
+
+  private cancelGeminiTurn(live: GeminiLiveSession) {
+    if (live.sessionId) live.conn.notify('session/cancel', { sessionId: live.sessionId });
+    // 规范要求：取消时挂起的权限请求按 cancelled 应答
+    for (const done of [...live.perms.values()]) done(null);
+  }
+
+  private teardownGeminiLive(tabId: string) {
+    const live = this.geminiLive.get(tabId);
+    if (!live) return;
+    this.geminiLive.delete(tabId);
+    for (const done of [...live.perms.values()]) done(null);
+    try {
+      if (live.child.stdin.writable) live.child.stdin.end();
+    } catch {
+      /* */
+    }
+    try {
+      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
+    } catch {
+      /* */
+    }
+  }
+
+  /**
+   * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
+   */
+  private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
+    const replay = line.includes('"isReplay"');
+    const task = line.includes('"subtype":"task_');
+    if (!replay && !task) return false;
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      return false;
+    }
+    if (replay && j.type === 'user' && j.isReplay === true) {
+      live.replaySeen = true;
+      if (typeof j.uuid === 'string' && j.uuid === live.turnUuid && live.turn) {
+        // CLI 开始处理用户消息：还没收到 result 的自发轮次到此为止（按已有内容落盘）
+        if (live.auto) this.finishAutoTurn(tabId, live);
+        live.turnStarted = true;
+      }
+      return true;
+    }
+    if (task && j.type === 'system') {
+      const id = typeof j.task_id === 'string' ? j.task_id : '';
+      const patch = (j.patch ?? {}) as Record<string, unknown>;
+      const status = String(j.status ?? patch.status ?? '');
+      const before = live.bgTasks.size;
+      if (id && j.subtype === 'task_started' && j.is_backgrounded === true) live.bgTasks.add(id);
+      else if (
+        id &&
+        (j.subtype === 'task_notification' ||
+          (j.subtype === 'task_updated' && TERMINAL_TASK_STATUS.has(status)))
+      )
+        live.bgTasks.delete(id);
+      if (live.bgTasks.size !== before) this.changed();
+    }
+    // task_* 仍交给解析器（P1 映射成 agent 事件）
+    return false;
+  }
+
+  /** 没有进行中的用户轮次时 CLI 自己开始输出：开一个自发轮次接住它 */
+  private startAutoTurn(tabId: string, live: ClaudeLiveSession): ClaudeTurnWaiter {
+    const tab = this.tabs.get(tabId);
+    const auto: ClaudeTurnWaiter & { startedAt: number } = {
+      resolve: () => undefined,
+      reject: () => undefined,
+      events: [],
+      text: '',
+      breaks: [],
+      sessionId: tab?.cliSessionId ?? null,
+      lastError: null,
+      settled: false,
+      startedAt: Date.now(),
+    };
+    live.auto = auto;
+    if (tab && tab.status !== 'running') {
+      tab.status = 'running';
+      this.changed();
+    }
+    return auto;
+  }
+
+  /** 自发轮次结束（result / 错误 / 被下一条用户消息接替 / 进程拆除）：落盘成一条助手消息并提醒 */
+  private finishAutoTurn(tabId: string, live: ClaudeLiveSession, error?: string, stopped = false) {
+    const auto = live.auto;
+    if (!auto) return;
+    live.auto = null;
+    const tab = this.tabs.get(tabId);
+    if (!tab) return;
+    if (auto.sessionId && tab.backend === 'claude') tab.cliSessionId = auto.sessionId;
+    const trace = buildTrace(auto.events);
+    const usage = mergeUsage(auto.events);
+    const content = error && !auto.text.trim() ? error : auto.text;
+    const msg: HarnessTabMessage = {
+      id: randomUUID(),
+      role: 'assistant',
+      content,
+      timestamp: Date.now(),
+      durationMs: Date.now() - auto.startedAt,
+      origin: 'background',
+      ...(error ? { error: true as const } : {}),
+      ...(stopped ? { stopped: true as const } : {}),
+      ...(usage ? { usage } : {}),
+      ...(trace.length ? { trace } : {}),
+      ...(auto.breaks.length ? { textBreaks: auto.breaks } : {}),
+    };
+    if (tabId === MAIN_TAB_ID) {
+      // 主标签的消息由渲染层存进 Nomi 历史：广播出去由它落盘
+      tab.updatedAt = msg.timestamp;
+      this.post('ai:harness:tab-message', { tabId, message: msg });
+    } else {
+      this.appendMessage(tabId, msg);
+    }
+    // 用户轮次已在排队 / 进行中时保持 running，否则回到空闲
+    if (!live.turn && tab.status === 'running') tab.status = 'idle';
+    if (stopped) this.changed();
+    else this.finish(tab, !error, content, error);
   }
 
   // ───────────────────────── 空闲回收 ─────────────────────────
@@ -1287,14 +1877,25 @@ export class CliHarnessService {
    */
   reclaimIdle(now = Date.now()): string[] {
     const picked = pickIdle(
-      [...this.claudeLive.entries()].map(([id, live]) => ({
-        id,
-        lastActivityAt: live.lastActivityAt,
-        turnActive: live.turn !== null,
-        permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
-        tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-        resumable: Boolean(this.tabs.get(id)?.cliSessionId),
-      })),
+      [
+        ...[...this.geminiLive.entries()].map(([id, gl]) => ({
+          id,
+          lastActivityAt: gl.lastActivityAt,
+          turnActive: gl.turn !== null,
+          permissionPending: gl.perms.size > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+        })),
+        ...[...this.claudeLive.entries()].map(([id, live]) => ({
+          id,
+          lastActivityAt: live.lastActivityAt,
+          turnActive: live.turn !== null,
+          permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+          backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
+        })),
+      ],
       now,
       this.idleReclaimMs,
     );
@@ -1304,7 +1905,7 @@ export class CliHarnessService {
       this.d.logger.info('harness idle process reclaimed', { tabId: id });
     }
     if (picked.length) this.changed();
-    if (!this.claudeLive.size) this.stopIdleSweep();
+    if (!this.claudeLive.size && !this.geminiLive.size) this.stopIdleSweep();
     return picked;
   }
 
@@ -1315,6 +1916,14 @@ export class CliHarnessService {
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
   recycleBackend(kind: HarnessBackend): void {
+    if (kind === 'gemini') {
+      // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
+      for (const [id, gl] of [...this.geminiLive.entries()]) {
+        if (gl.turn) gl.recycleAfterTurn = true;
+        else this.teardownGeminiLive(id);
+      }
+      return;
+    }
     if (kind !== 'claude') return;
     for (const [id, live] of [...this.claudeLive.entries()]) {
       if (live.turn && !live.turn.settled) {
@@ -1337,9 +1946,18 @@ export class CliHarnessService {
 
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
+    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 Gemini 的 ACP 进程
+    this.teardownGeminiLive(tabId);
     this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
+    // 自发轮次还没结束就拆进程（停止 / 关标签 / 换目录）：已输出的部分按「已停止」落盘，不丢
+    if (live.auto) this.finishAutoTurn(tabId, live, undefined, true);
+    if (live.bgTasks.size) {
+      live.bgTasks.clear();
+      this.changed();
+    }
+    this.clearBackgroundAgents(tabId);
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
@@ -1375,14 +1993,27 @@ export class CliHarnessService {
     const bin = resolveHarnessBin('codex');
     if (!bin) return Promise.reject(new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
-    // `exec resume` 不接受 --cd；工作目录由 spawn 的 cwd 决定
+    // `exec` 默认 read-only 沙箱且禁网：沙箱 / 联网 / 自动审批都按权限模式用 -c 指定
+    // （`exec resume` 不接受 --sandbox / --cd；工作目录由 spawn 的 cwd 决定，也即可写根）
+    const sandbox = permissionLaunch('codex', tab.permissionMode, {
+      codexNetwork: this.codexNetwork,
+    }).args;
+    prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const argv = useNode
       ? tab.cliSessionId
         ? [bin, 'exec', 'resume', '--json', tab.cliSessionId, prompt]
         : [bin, 'exec', '--json', prompt]
       : tab.cliSessionId
-        ? ['exec', 'resume', '--json', '--skip-git-repo-check', tab.cliSessionId, prompt]
-        : ['exec', '--json', '--skip-git-repo-check', '--cd', tab.cwd, prompt];
+        ? [
+            'exec',
+            'resume',
+            '--json',
+            '--skip-git-repo-check',
+            ...sandbox,
+            tab.cliSessionId,
+            prompt,
+          ]
+        : ['exec', '--json', '--skip-git-repo-check', ...sandbox, '--cd', tab.cwd, prompt];
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv,
@@ -1402,6 +2033,7 @@ export class CliHarnessService {
     const useNode = isScript(bin);
     const argv = ['--profile', 'headless', '--json'];
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
+    if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
     // 以 - 开头的提示会被当成参数，前置空格规避
     argv.push(prompt.startsWith('-') ? ` ${prompt}` : prompt);
     let extraEnv: Record<string, string> = {};
@@ -1410,6 +2042,8 @@ export class CliHarnessService {
     } catch (e) {
       this.d.logger.warn('harness dsh env failed', e);
     }
+    // 沙箱档位：DSH_PERMISSION_MODE（read-only / workspace-write / danger-full-access）
+    extraEnv = { ...extraEnv, ...permissionLaunch('dsh', tab.permissionMode).env };
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv: useNode ? [bin, ...argv] : argv,
@@ -1421,9 +2055,9 @@ export class CliHarnessService {
   }
 
   /**
-   * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update [--yolo]`。
-   * 续接：`--resume <sessionId>`。权限在接管场景默认 `--yolo`（与 Codex/dsh 一致：UI 侧不弹交互确认；
-   * 真实权限事件格式未在真机验证，见文档「未验证」）。
+   * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update`，
+   * 权限按标签模式加 `--permission-mode <mode>`（完全放开为 `--yolo`）。
+   * 续接：`--resume <sessionId>`。无头权限事件格式未在真机验证，暂不开放「逐项确认」。
    * 官方：docs.x.ai/build/cli/headless-scripting 。
    */
   private runGrok(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
@@ -1436,7 +2070,7 @@ export class CliHarnessService {
       '--output-format',
       'streaming-json',
       '--no-auto-update',
-      '--yolo',
+      ...permissionLaunch('grok', tab.permissionMode).args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
@@ -1477,6 +2111,12 @@ export class CliHarnessService {
       let sessionId: string | null = tab.cliSessionId;
       let buf = '';
       let lastError: string | null = null;
+      /**
+       * 见过「整轮完成」事件。done 事件在各 CLI 里含义不同（Codex 每条 agent_message 都带 done、
+       * 会话 id 也走 done），所以只认：带用量的 done（Codex turn.completed / Grok usage）
+       * 和 dsh 的 final（done 且不带会话 id）。
+       */
+      let completed = false;
       const chatRoot = path.join(path.dirname(this.d.root), 'chat');
       const imageAliases = loadImageAliases(chatRoot);
       const child = spawnHarness(opts.cmd, opts.argv, {
@@ -1502,7 +2142,7 @@ export class CliHarnessService {
             const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
             if (text !== ev.text) ev = { ...ev, text };
           }
-          ev = stampEvent(ev);
+          ev = withPermissionExpiry(stampEvent(ev));
           const folded = foldAssistantEvent(text, breaks, ev);
           text = folded.text;
           breaks = folded.breaks;
@@ -1522,6 +2162,7 @@ export class CliHarnessService {
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
             if (ev.sessionId) sessionId = ev.sessionId;
+            if (ev.usage || (opts.kind === 'dsh' && !ev.sessionId)) completed = true;
             // 一轮结束：若仍开着 stdin，补 EOF，避免 CLI 空等
             if (opts.keepStdin && child.stdin.writable) {
               try {
@@ -1551,7 +2192,9 @@ export class CliHarnessService {
         this.children.delete(tab.id);
         this.clearPermissionTimeouts(tab.id);
         if (buf.trim()) take(buf, false);
-        if (signal && !text) {
+        // 用户停止 / 被信号杀死 / 非零退出：不能因为「已有部分文字」就当成功完成（见 #25）。
+        // 已见到一轮完成事件时，收尾阶段的非零退出不再翻案为失败。
+        if (!completed && (this.stopRequested.has(tab.id) || signal)) {
           reject(new Error(t('已中止')));
           return;
         }
@@ -1568,7 +2211,7 @@ export class CliHarnessService {
           );
           return;
         }
-        if (code && code !== 0 && !text) {
+        if (code && code !== 0 && !completed) {
           reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
           return;
         }
@@ -1638,6 +2281,36 @@ export class CliHarnessService {
     }
     this.eventBatcher.push({ ...outgoing, tabId });
     this.events.emit('event', { tabId, event: outgoing });
+    if (outgoing.type === 'agent') this.trackBackgroundAgent(tabId, outgoing);
+  }
+
+  /** 只记后台子代理的开始 / 结束（进度不广播标签列表，避免频繁刷新） */
+  private trackBackgroundAgent(tabId: string, ev: Extract<HarnessEvent, { type: 'agent' }>) {
+    let m = this.bgAgents.get(tabId);
+    if (ev.op === 'start' && ev.background) {
+      if (!m) this.bgAgents.set(tabId, (m = new Map()));
+      if (!m.has(ev.id)) {
+        m.set(ev.id, { ...(ev.label ? { label: ev.label } : {}), startedAt: Date.now() });
+        this.changed();
+      }
+    } else if (ev.op === 'end' && m?.delete(ev.id)) {
+      if (!m.size) this.bgAgents.delete(tabId);
+      this.changed();
+    }
+  }
+
+  /** 进程 / 轮次结束：这个标签的后台子代理随之结束 */
+  private clearBackgroundAgents(tabId: string) {
+    if (this.bgAgents.delete(tabId)) this.changed();
+  }
+
+  /**
+   * 单独停止一个后台子代理（Claude `stop_task`，2.1.303 起支持）。其它 CLI 没有对应控制，返回 false。
+   */
+  stopAgent(tabId: string, agentId: string): boolean {
+    const live = this.claudeLive.get(tabId);
+    if (!live || !this.bgAgents.get(tabId)?.has(agentId)) return false;
+    return this.writeClaudeControl(live, { subtype: 'stop_task', task_id: agentId });
   }
 
   private changed() {
@@ -1649,8 +2322,21 @@ export class CliHarnessService {
   }
 
   /** 用户允许/拒绝 Claude 工具权限请求；写回 CLI stdin 的 control_response */
-  replyPermission(tabId: string, requestId: string, allow: boolean): boolean {
-    const child = this.children.get(tabId);
+  replyPermission(
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    reason: 'allowed' | 'denied' | 'timeout' = allow ? 'allowed' : 'denied',
+  ): boolean {
+    const gemini = this.geminiLive.get(tabId)?.perms.get(requestId);
+    if (gemini) {
+      this.clearOnePermissionTimeout(tabId, requestId);
+      gemini(allow);
+      this.emitEvent(tabId, { type: 'permission-resolved', id: requestId, reason });
+      return true;
+    }
+    // 两轮之间（后台子代理 / 自发轮次）发起的请求没有 children 记录：改用长驻进程的 stdin
+    const child = this.children.get(tabId) ?? this.claudeLive.get(tabId)?.child;
     if (!child || !requestId || child.stdin.destroyed || !child.stdin.writable) return false;
     this.clearOnePermissionTimeout(tabId, requestId);
     const payload = {
@@ -1665,11 +2351,35 @@ export class CliHarnessService {
     };
     try {
       child.stdin.write(`${JSON.stringify(payload)}\n`);
+      // 界面按 id 移除对应卡片（并行子代理的请求排成队列，不能只清「当前那一个」）
+      this.emitEvent(tabId, { type: 'permission-resolved', id: requestId, reason });
       return true;
     } catch (e) {
       this.d.logger.warn('harness permission reply failed', e);
       return false;
     }
+  }
+
+  /**
+   * 用户在「Gemini 不信任此文件夹」的错误卡片上点了「信任此文件夹」并确认：把那条消息记录的文件夹
+   * （只此一个）写进 Gemini 自己的受信任列表。文件夹取自主进程保存的消息，不接受界面传来的路径。
+   */
+  async trustGeminiFolder(
+    tabId: string,
+    messageId: string,
+    opts: { confirmed?: boolean } = {},
+  ): Promise<GeminiTrustResult> {
+    if (!opts.confirmed) throw new Error(t('需要先确认才能信任这个文件夹'));
+    if (!this.tabs.has(tabId) || tabId === MAIN_TAB_ID) throw new Error(t('标签不存在'));
+    const msg = this.tabMessages(tabId).find((m) => m.id === messageId);
+    const folder = msg?.geminiTrust?.folder;
+    if (!folder) throw new Error(t('这条消息没有需要信任的文件夹'));
+    const env = { ...process.env, ...this.d.geminiEnv?.() };
+    const r = await trustGeminiFolder(folder, { home: this.home, env });
+    this.d.logger.info('gemini folder trusted by user', { folder: r.folder, file: r.file });
+    // 旧进程在信任前就已退出；保险起见清掉，下一轮按新的信任状态重新启动
+    if (this.geminiLive.has(tabId)) this.teardownGeminiLive(tabId);
+    return r;
   }
 
   private armPermissionTimeout(tabId: string, requestId: string) {
@@ -1681,7 +2391,7 @@ export class CliHarnessService {
     const prev = m.get(requestId);
     if (prev) clearTimeout(prev);
     const timer = setTimeout(() => {
-      this.replyPermission(tabId, requestId, false);
+      this.replyPermission(tabId, requestId, false, 'timeout');
     }, PERMISSION_TIMEOUT_MS);
     // 权限卡 120s 超时不应拖住进程退出
     (timer as { unref?: () => void }).unref?.();
@@ -1713,7 +2423,10 @@ export class CliHarnessService {
       return this.state();
     });
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
-    handle('ai:harness:set-cwd', (c) => this.setCwd(String(c)));
+    handle('ai:harness:tab-carry-clear', (id) => this.clearTabCarry(String(id)));
+    handle('ai:harness:set-cwd', (c, o) =>
+      this.setCwd(String(c), { carry: (o as { carry?: unknown } | undefined)?.carry === true }),
+    );
     handle('ai:harness:pick-cwd', () => this.pickCwd());
     handle('ai:harness:send', async (p) => slimResult(await this.send(String(p ?? ''))));
     handle('ai:harness:tabs', () => this.listTabs());
@@ -1724,6 +2437,7 @@ export class CliHarnessService {
           cwd?: string;
           title?: string;
           messages?: HarnessTabMessage[];
+          permissionMode?: HarnessPermissionMode;
         },
       ),
     );
@@ -1736,7 +2450,21 @@ export class CliHarnessService {
     handle('ai:harness:tab-backend', (id, b) =>
       this.setTabBackend(String(id), b as HarnessBackend),
     );
-    handle('ai:harness:tab-cwd', (id, c) => this.setTabCwd(String(id), String(c)));
+    handle('ai:harness:tab-cwd', (id, c, o) =>
+      this.setTabCwd(String(id), String(c), {
+        carry: (o as { carry?: unknown } | undefined)?.carry === true,
+      }),
+    );
+    handle('ai:harness:tab-permission-mode', (id, m, o) =>
+      this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
+        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
+      }),
+    );
+    handle('ai:harness:permission-defaults', (o) =>
+      this.setPermissionDefaults(
+        (o ?? {}) as { defaultPermissionMode?: HarnessPermissionMode; codexNetwork?: boolean },
+      ),
+    );
     handle('ai:harness:tab-pick-cwd', (id) => this.pickTabCwd(String(id)));
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
@@ -1745,6 +2473,9 @@ export class CliHarnessService {
       slimResult(await this.sendTab(String(id), String(p ?? ''))),
     );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
+    handle('ai:harness:stop-agent', (id, agentId) =>
+      this.stopAgent(String(id), String(agentId ?? '')),
+    );
     handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>
@@ -1759,6 +2490,11 @@ export class CliHarnessService {
       ),
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
+    handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
+      this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
+        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
+      }),
+    );
     handle('ai:harness:reply-permission', (tabId, requestId, allow) =>
       this.replyPermission(String(tabId), String(requestId), Boolean(allow)),
     );
@@ -1777,17 +2513,82 @@ type ClaudeTurnWaiter = {
   settled: boolean;
 };
 
+type GeminiTurn = {
+  mapper: ReturnType<typeof createGeminiMapper>;
+  events: HarnessEvent[];
+  text: string;
+  breaks: number[];
+};
+
+type GeminiLiveSession = {
+  child: ChildProcessWithoutNullStreams;
+  conn: AcpConnection;
+  sessionId: string | null;
+  cwd: string;
+  permissionMode: HarnessPermissionMode;
+  turn: GeminiTurn | null;
+  /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
+  perms: Map<string, (allow: boolean | null) => void>;
+  lastActivityAt: number;
+  ready: Promise<void>;
+  /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
+  recycleAfterTurn?: boolean;
+};
+
 type ClaudeLiveSession = {
   child: ChildProcessWithoutNullStreams;
   parseLine: (line: string) => HarnessEvent[];
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
+  /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
+  permissionMode: HarnessPermissionMode;
+  /**
+   * 轮次归属（docs/design/cli-subagents.md §4）：用户消息带 uuid 写入，CLI 开始处理它时原样回显
+   * （--replay-user-messages）。回显到达前的输出不属于这一轮；没有进行中的用户轮次时来的输出是自发轮次。
+   */
+  turnUuid: string | null;
+  turnStarted: boolean;
+  /** 本进程见过回显：老版本 CLI 不回显时退回「写入即开始」 */
+  replaySeen: boolean;
+  /** 自发轮次（后台子代理完成后主代理的跟进），result 到达时落盘 */
+  auto: (ClaudeTurnWaiter & { startedAt: number }) | null;
+  /** 仍在运行的后台任务 id（Claude task_started.is_backgrounded） */
+  bgTasks: Set<string>;
   /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
   lastActivityAt: number;
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
   recycleAfterTurn?: boolean;
 };
+
+/** 权限请求带上超时时间点：界面显示倒计时，与主进程的自动拒绝同一个时钟 */
+function withPermissionExpiry(ev: HarnessEvent): HarnessEvent {
+  return ev.type === 'permission' && ev.expiresAt === undefined
+    ? { ...ev, expiresAt: Date.now() + PERMISSION_TIMEOUT_MS }
+    : ev;
+}
+
+/** Claude 后台任务的终态（task_updated.patch.status / task_notification.status） */
+const TERMINAL_TASK_STATUS = new Set([
+  'completed',
+  'failed',
+  'stopped',
+  'killed',
+  'cancelled',
+  'error',
+]);
+
+/** 会让 CLI「正在输出」的事件：没有进行中的用户轮次时，它们开启一个自发轮次 */
+function isTurnContent(ev: HarnessEvent): boolean {
+  return (
+    ev.type === 'text-delta' ||
+    ev.type === 'text' ||
+    ev.type === 'tool' ||
+    ev.type === 'thinking' ||
+    ev.type === 'permission' ||
+    ev.type === 'agent'
+  );
+}
 
 function isScript(bin: string) {
   return bin.endsWith('.mjs') || bin.endsWith('.js');
@@ -1800,12 +2601,16 @@ function spawnHarness(
   opts: { cwd: string; env: NodeJS.ProcessEnv },
 ): ChildProcessWithoutNullStreams {
   const launch = resolveHarnessLaunch(command, args, opts.env);
-  return spawn(launch.file, launch.args, {
+  const child = spawn(launch.file, launch.args, {
     cwd: opts.cwd,
     env: launch.env,
     windowsHide: true,
     ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
   });
+  // 子进程先退出时，之后的 stdin 写入（NDJSON / control_response / end）会异步 EPIPE；
+  // 没有监听就成了主进程 uncaughtException。轮次的失败由 close / error 事件负责（#46）
+  child.stdin.on('error', () => {});
+  return child;
 }
 
 /**

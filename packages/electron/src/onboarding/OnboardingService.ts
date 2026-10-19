@@ -6,9 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { broadcastMascotCommand, type MascotCommand } from '../ai/mascotCommand';
+import { guardedHandle } from '../security/guardedIpc';
 
 export interface OnboardingState {
   done: boolean;
@@ -91,10 +92,8 @@ export class OnboardingService {
   }
 
   registerIpc(): void {
-    const h = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, (_e, ...a: unknown[]) => fn(...a));
-    };
+    const h = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'OnboardingService', wrapErrors: false });
     h('ai:onboarding:get', () => this.get());
     h('ai:onboarding:complete', (o) =>
       this.complete(Boolean((o as { skipped?: boolean })?.skipped)),

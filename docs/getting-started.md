@@ -23,8 +23,10 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 6 步引导：**界面语言 → 主题 → 角色与声音 → 称呼与语气 → 模型供应商 → 隐私**。
+第一次启动会打开对话窗口并进入 7 步引导：**界面语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 模型供应商 → 隐私**。
 每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍。
+
+「启动方式」决定以后启动 Nomi 先看到什么：**看板娘**（默认，点她的「AI 对话」进入主界面）或**软件主界面**（直接进入主界面，看板娘仍在桌面待命，定时任务和提醒照常播报）。随时可在「设置 → 通用 → 启动 Nomi 后默认显示」修改，设计见 [启动默认界面](design/startup-default-view.md)。
 
 ### 接入一个模型
 
@@ -71,8 +73,10 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 
 ### First-run onboarding
 
-On first launch the chat window opens a 6-step guide: **UI language → theme → character & voice → how to address you & tone → model provider → privacy**.
+On first launch the chat window opens a 7-step guide: **UI language → theme → startup mode → character & voice → how to address you & tone → model provider → privacy**.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.
+
+“Startup mode” decides what you see when Nomi starts: the **mascot** (default; click her “AI chat” to open the main window) or the **main window** (opens straight away while the mascot keeps waiting on your desktop, so scheduled tasks and reminders still work). Change it any time in Settings → General → Show on startup. Design: [Startup default view](design/startup-default-view.md).
 
 ### Connect a model
 

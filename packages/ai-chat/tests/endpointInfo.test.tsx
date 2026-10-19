@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EndpointInfoCard } from '../src/components/EndpointInfo';
 import { configPathsOf } from '../src/hooks/useEndpointInfo';
+import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
 const NOW = Date.now();
 const SUMMARY = (over = {}) => ({
@@ -95,6 +96,7 @@ let cli: unknown[];
 let endpointFail = false;
 
 beforeEach(() => {
+  resetToolQuotaMemo();
   calls = [];
   quota = [QUOTA('codex'), { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] }];
   cli = [CLI('codex'), CLI('dsh', { version: '0.2.0-rc.1', updateAvailable: false })];

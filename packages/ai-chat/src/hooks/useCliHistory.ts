@@ -63,6 +63,7 @@ export function useCliHistory(
     claude: EMPTY,
     codex: EMPTY,
     dsh: EMPTY,
+    gemini: EMPTY,
   });
   const [loaded, setLoaded] = useState(false);
   const seq = useRef(0);

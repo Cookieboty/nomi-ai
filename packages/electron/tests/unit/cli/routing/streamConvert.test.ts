@@ -690,3 +690,227 @@ describe('stream edge cases', () => {
     expect(messagesText(run('chat', 'messages', raw))).toBe('Hello 世界');
   });
 });
+
+/** Chat 并行 tool_calls：A/B 同块开始，参数按 index 交错到达 */
+const chatInterleaved = sse([
+  [undefined, { id: 'c1', model: 'm', choices: [{ index: 0, delta: { role: 'assistant' } }] }],
+  [
+    undefined,
+    {
+      choices: [
+        {
+          index: 0,
+          delta: {
+            tool_calls: [
+              { index: 0, id: 'call_a', function: { name: 'read', arguments: '' } },
+              { index: 1, id: 'call_b', function: { name: 'write', arguments: '' } },
+            ],
+          },
+        },
+      ],
+    },
+  ],
+  [
+    undefined,
+    {
+      choices: [
+        { index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '{"a":' } }] } },
+      ],
+    },
+  ],
+  [
+    undefined,
+    {
+      choices: [
+        { index: 0, delta: { tool_calls: [{ index: 1, function: { arguments: '{"b":' } }] } },
+      ],
+    },
+  ],
+  [
+    undefined,
+    {
+      choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '1}' } }] } }],
+    },
+  ],
+  [
+    undefined,
+    {
+      choices: [{ index: 0, delta: { tool_calls: [{ index: 1, function: { arguments: '2}' } }] } }],
+    },
+  ],
+  [
+    undefined,
+    {
+      choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }],
+      usage: { prompt_tokens: 3, completion_tokens: 4 },
+    },
+  ],
+  [undefined, '[DONE]'],
+]);
+
+describe('interleaved parallel tool calls (serial block scheduling)', () => {
+  it('Chat → Messages: each tool_use block gets complete, un-interleaved args', () => {
+    for (const size of [5, 4096]) {
+      const evs = run('chat', 'messages', chatInterleaved, size);
+      // 任何时刻最多一个 block 打开：start/stop 严格嵌套成对
+      let open = -1;
+      const argsByIndex = new Map<number, string>();
+      const names = new Map<number, string>();
+      for (const e of evs) {
+        if (e.event === 'content_block_start') {
+          expect(open).toBe(-1);
+          open = e.data.index;
+          if (e.data.content_block.type === 'tool_use') names.set(open, e.data.content_block.name);
+        } else if (e.event === 'content_block_delta') {
+          expect(e.data.index).toBe(open);
+          if (e.data.delta.type === 'input_json_delta') {
+            argsByIndex.set(open, (argsByIndex.get(open) ?? '') + e.data.delta.partial_json);
+          }
+        } else if (e.event === 'content_block_stop') {
+          expect(e.data.index).toBe(open);
+          open = -1;
+        }
+      }
+      expect(open).toBe(-1);
+      expect(names.get(0)).toBe('read');
+      expect(names.get(1)).toBe('write');
+      expect(argsByIndex.get(0)).toBe('{"a":1}');
+      expect(argsByIndex.get(1)).toBe('{"b":2}');
+      expect(evs.at(-1)?.event).toBe('message_stop');
+    }
+  });
+
+  it('Chat → Responses: arguments.done / output_item.done carry the final arguments', () => {
+    const evs = run('chat', 'responses', chatInterleaved, 9);
+    const done = evs.filter((e) => e.data.type === 'response.function_call_arguments.done');
+    expect(done.map((e) => e.data.arguments)).toEqual(['{"a":1}', '{"b":2}']);
+    const itemDone = evs.filter((e) => e.data.type === 'response.output_item.done');
+    expect(itemDone.map((e) => e.data.item.arguments)).toEqual(['{"a":1}', '{"b":2}']);
+    // 增量只会落在当前打开的 item 上
+    let open: string | null = null;
+    for (const e of evs) {
+      const t = e.data.type;
+      if (t === 'response.output_item.added') {
+        expect(open).toBeNull();
+        open = e.data.item.id;
+      } else if (t === 'response.function_call_arguments.delta') {
+        expect(e.data.item_id).toBe(open);
+      } else if (t === 'response.output_item.done') {
+        expect(e.data.item.id).toBe(open);
+        open = null;
+      }
+    }
+    const completed = evs.at(-1)!.data.response.output;
+    expect(completed.map((i: any) => i.arguments)).toEqual(['{"a":1}', '{"b":2}']);
+  });
+
+  it('Chat → Responses: interleaved custom tool still emits its full input once', () => {
+    const c = createStreamConverter('chat', 'responses', {
+      customTools: new Set(['write']),
+    });
+    const out = c.push(chatInterleaved) + c.end();
+    const p = new SseParser();
+    const evs = [...p.push(out), ...p.end()].map((e) => JSON.parse(e.data));
+    const custom = evs.find((e) => e.type === 'response.custom_tool_call_input.done');
+    expect(custom).toBeTruthy();
+    const fn = evs.filter((e) => e.type === 'response.function_call_arguments.done');
+    expect(fn.map((e) => e.arguments)).toEqual(['{"a":1}']);
+  });
+
+  it('Chat text interleaved with tools keeps blocks serial and complete', () => {
+    const raw = sse([
+      [undefined, { id: 'c2', model: 'm', choices: [{ index: 0, delta: { content: 'Hi ' } }] }],
+      [
+        undefined,
+        {
+          choices: [
+            {
+              index: 0,
+              delta: { tool_calls: [{ index: 0, id: 'call_a', function: { name: 'read' } }] },
+            },
+          ],
+        },
+      ],
+      [undefined, { choices: [{ index: 0, delta: { content: 'there' } }] }],
+      [
+        undefined,
+        {
+          choices: [
+            {
+              index: 0,
+              delta: { tool_calls: [{ index: 0, function: { arguments: '{"x":1}' } }] },
+            },
+          ],
+        },
+      ],
+      [undefined, { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] }],
+      [undefined, '[DONE]'],
+    ]);
+    const evs = run('chat', 'messages', raw, 11);
+    let open = -1;
+    let text = '';
+    let args = '';
+    for (const e of evs) {
+      if (e.event === 'content_block_start') {
+        expect(open).toBe(-1);
+        open = e.data.index;
+      } else if (e.event === 'content_block_delta') {
+        expect(e.data.index).toBe(open);
+        text += e.data.delta.text ?? '';
+        args += e.data.delta.partial_json ?? '';
+      } else if (e.event === 'content_block_stop') {
+        open = -1;
+      }
+    }
+    expect(text).toBe('Hi there');
+    expect(args).toBe('{"x":1}');
+  });
+
+  it('Messages → Responses: explicit content_block_stop closes the tool item', () => {
+    const raw = sse([
+      ['message_start', { type: 'message_start', message: { id: 'msg_1', model: 'm', usage: {} } }],
+      [
+        'content_block_start',
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'tool_use', id: 'tu_a', name: 'read', input: {} },
+        },
+      ],
+      [
+        'content_block_delta',
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: '{"a":1}' },
+        },
+      ],
+      ['content_block_stop', { type: 'content_block_stop', index: 0 }],
+      [
+        'content_block_start',
+        {
+          type: 'content_block_start',
+          index: 1,
+          content_block: { type: 'tool_use', id: 'tu_b', name: 'write', input: {} },
+        },
+      ],
+      [
+        'content_block_delta',
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: { type: 'input_json_delta', partial_json: '{"b":2}' },
+        },
+      ],
+      ['content_block_stop', { type: 'content_block_stop', index: 1 }],
+      [
+        'message_delta',
+        { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 2 } },
+      ],
+      ['message_stop', { type: 'message_stop' }],
+    ]);
+    const evs = run('messages', 'responses', raw, 13);
+    const done = evs.filter((e) => e.data.type === 'response.function_call_arguments.done');
+    expect(done.map((e) => e.data.arguments)).toEqual(['{"a":1}', '{"b":2}']);
+  });
+});

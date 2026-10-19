@@ -1,5 +1,5 @@
 /**
- * 设置 → 通用：应用图标（ink 默认 / cream / sunset）。主进程 core/appIcon.ts（app-icon:*）。
+ * 设置 → 通用：应用图标（sunset 默认 / cream / ink）。主进程 core/appIcon.ts（app-icon:*）。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ const invoke = (): Invoke | null => {
   };
 };
 
-const LABEL: Record<Variant, string> = { ink: '墨色（默认）', cream: '奶油', sunset: '日落橙' };
+const LABEL: Record<Variant, string> = { sunset: '日落橙（默认）', cream: '奶油', ink: '墨色' };
 
 export const AppIconSettings: React.FC = () => {
   const [s, setS] = useState<IconState | null>(null);
@@ -74,7 +74,7 @@ export const AppIconSettings: React.FC = () => {
               '立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。',
             )
           : t(
-              '立即更新窗口、任务栏和托盘图标。安装包、可执行文件和开始菜单 / 桌面快捷方式的图标由系统缓存，始终为默认墨色。',
+              '立即更新窗口、正在运行的任务栏按钮和托盘图标。已固定到任务栏的图标由系统缓存，可能要重启应用后才更新（个别情况需取消固定后重新固定）；安装包、可执行文件和开始菜单 / 桌面快捷方式始终为默认墨色。',
             )}
       </p>
     </section>

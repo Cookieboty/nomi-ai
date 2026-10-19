@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CliProviderChip, activeProfileOf } from '../src/components/CliProviderChip';
-import { EndpointControls } from '../src/components/EndpointControls';
+import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { CliProviderProfile, CliProviderState } from '../src/services/cliProviderClient';
@@ -79,8 +79,15 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   ...over,
 });
 
-function mockIpc(opts: { cli: CliProviderState; tabs: HarnessTabsState; backend?: string }) {
-  const invoke = vi.fn(async (ch: string) => {
+function mockIpc(opts: {
+  cli: CliProviderState;
+  tabs: HarnessTabsState;
+  backend?: string;
+  accounts?: unknown[];
+}) {
+  const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
+    if (ch === 'ai:cli-account:list') return opts.accounts ?? [];
+    if (ch === 'ai:cli-account:activate') return {};
     if (ch === 'ai:providers:state') return NOMI_STATE;
     if (ch === 'ai:cli-provider:state') return opts.cli;
     if (ch === 'ai:cli-provider:activate') return { ok: true, backups: [] };
@@ -111,6 +118,46 @@ describe('activeProfileOf', () => {
     const s = cliState([prof({ id: 'a', kind: 'claude', active: true })]);
     expect(activeProfileOf(s, 'claude')?.id).toBe('a');
     expect(activeProfileOf(s, 'codex')).toBeNull();
+  });
+});
+
+describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md）', () => {
+  it('没有第三方档案时显示当前官方账号；下拉里选官方账号会全局切换', async () => {
+    const invoke = mockIpc({
+      cli: { profiles: [] } as unknown as CliProviderState,
+      tabs: {
+        tabs: [],
+        activeTabId: 'main',
+        maxConcurrent: 3,
+        running: 0,
+        queued: 0,
+      } as unknown as HarnessTabsState,
+      accounts: [
+        {
+          id: 'a1',
+          kind: 'codex',
+          label: 'a',
+          identity: { key: 'ka', email: 'a@x.com', plan: 'plus' },
+          active: true,
+          createdAt: 1,
+        },
+        {
+          id: 'a2',
+          kind: 'codex',
+          label: 'b',
+          identity: { key: 'kb', email: 'b@x.com' },
+          active: false,
+          createdAt: 2,
+        },
+      ],
+    });
+    const r = render(<CliProviderChip backend="codex" />);
+    await waitFor(() =>
+      expect(r.getByTestId('cli-provider-chip').textContent).toContain('官方 · a@x.com'),
+    );
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="account:a2"]')!);
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:cli-account:activate', 'a2'));
   });
 });
 
@@ -202,7 +249,10 @@ describe('each CLI chip shows only its own store', () => {
     const onManageCli = vi.fn();
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={onManageCli} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={onManageCli} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => r.getByTestId('open-cli-provider-panel'));
@@ -227,7 +277,10 @@ describe('EndpointControls', () => {
     mockIpc({ cli: cliState([]), tabs: tabsState('codex') });
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('cli-provider-chip')).toBeTruthy());
@@ -240,7 +293,10 @@ describe('EndpointControls', () => {
     mockIpc({ cli: cliState([]), tabs: tabsState('main') });
     const r = render(
       <HarnessTabsProvider>
-        <EndpointControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <>
+          <EndpointControls />
+          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('provider-switcher')).toBeTruthy());

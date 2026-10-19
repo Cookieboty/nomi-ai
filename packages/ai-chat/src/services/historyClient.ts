@@ -2,8 +2,8 @@ import { t } from '@nomi-ai/ui';
 
 import type { HarnessTabMeta } from './harnessClient';
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh';
-export const HISTORY_BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh'];
+export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini';
+export const HISTORY_BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh', 'gemini'];
 
 /** 列表 / 搜索索引每页条数（须与主进程 SessionHistoryService.HISTORY_PAGE_SIZE 一致） */
 export const HISTORY_PAGE_SIZE = 20;

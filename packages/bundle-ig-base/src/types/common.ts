@@ -72,6 +72,22 @@ export interface LLMProvider {
   abort(reqId: string): void;
 }
 
+/**
+ * 正在执行本次工具调用的 LLM provider（也就是会收到工具结果的那一个）。
+ * 由跑工具循环的 provider 注入，工具据此判断结果是否会离开本机，不能靠「按角色猜」。
+ */
+export interface ToolCallProvider {
+  id: string;
+  baseURL?: string;
+}
+
+/** 工具执行上下文 */
+export interface ToolExecContext {
+  signal?: AbortSignal;
+  /** 实际接收工具结果的 provider；缺失时（非 LLM 循环调用）工具应按最严格的候选处理 */
+  provider?: ToolCallProvider;
+}
+
 /** 工具接口 */
 export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   name: string;
@@ -82,7 +98,7 @@ export interface ToolDefinition<TInput = unknown, TOutput = unknown> {
   dangerous?: boolean;
   /** 只读工具（例如 MCP annotations.readOnlyHint）；用于宽松的确认策略 */
   readOnly?: boolean;
-  execute: (input: TInput, ctx: { signal?: AbortSignal }) => Promise<TOutput>;
+  execute: (input: TInput, ctx: ToolExecContext) => Promise<TOutput>;
 }
 
 /** 记忆 - 长期 facts / 摘要 / 用户偏好 */

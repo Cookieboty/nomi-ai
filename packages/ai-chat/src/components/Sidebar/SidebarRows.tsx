@@ -22,6 +22,7 @@ export function liveOf(tab: HarnessTabMeta | undefined): string {
   if (tab.status === 'running' || tab.status === 'queued' || tab.status === 'error')
     return tab.status;
   if (tab.unread > 0) return 'unread';
+  if (tab.background) return 'background';
   return tab.dormant ? 'dormant' : '';
 }
 

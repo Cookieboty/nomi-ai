@@ -34,6 +34,7 @@ import {
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
+import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
@@ -58,7 +59,7 @@ interface MessageInputProps {
    * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
    * 不传则保持原行为（运行中禁用输入）。
    */
-  queue?: { onQueue: (text: string) => void; onStop?: () => void };
+  queue?: { onQueue: (text: string, opts?: { kb?: boolean }) => void; onStop?: () => void };
   disabled?: boolean;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
@@ -233,9 +234,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (!trimmedMessage) return;
     // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
     if (slash && !images.length && trimmedMessage.startsWith('/')) {
+      const scopeAtStart = slash.scope?.();
       const r = await slash.run(trimmedMessage, getRegistry());
       if (r.handled) {
-        setMessage('');
+        // 命令是异步的：完成时用户若已切到别的会话，输入框里是那边的草稿，不能清掉
+        if (scopeAtStart === undefined || slash.scope?.() === scopeAtStart) setMessage('');
         return;
       }
       if (r.text !== undefined) trimmedMessage = r.text;
@@ -243,7 +246,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (busy) {
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
-        queue.onQueue(trimmedMessage);
+        // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
+        if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
+        else queue.onQueue(trimmedMessage);
         setMessage('');
       }
       return;
@@ -299,6 +304,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         setMessage('');
         return;
       }
+    }
+    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式芯片时保持默认行为
+    if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const detail: CyclePermissionDetail = { handled: false };
+      window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));
+      if (detail.handled) e.preventDefault();
+      return;
     }
     // ↑ 在空输入框里找回上一条提问（同 Codex）
     if (e.key === 'ArrowUp' && !message) {
@@ -520,7 +532,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argState?.args ? argCmd : null;
+  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
   // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
@@ -543,8 +555,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }
   /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
   function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
+    // 被禁用的同名项没有可补的参数：直接执行，让执行层给出不能发送的说明
     const needsArgs =
-      !!c.args && (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
+      !c.disabled &&
+      !!c.args &&
+      (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
     if (mode === 'complete' || (needsArgs && slash)) {
       setMessage(`/${c.name} `);
       setSlashIdx(0);
@@ -767,11 +782,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               </button>
             )}
             <div className={styles.modelStatus}>
-              <EndpointControls
-                className={styles.currentModel}
-                onManageNomi={() => onProvidersClick?.()}
-                onManageCli={(b) => onSettingsClick?.('coding', b)}
-              />
+              <EndpointControls />
             </div>
           </div>
           <div className={styles.composerRight} data-zone="right">

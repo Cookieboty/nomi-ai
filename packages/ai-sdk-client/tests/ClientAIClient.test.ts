@@ -145,4 +145,137 @@ describe('ClientAIClient · IPC 通道映射', () => {
     const l = client.live2d as { isAvailable: () => boolean };
     expect(l.isAvailable()).toBe(true);
   });
+
+  // ───────── #50：流结束 / 失败就退订 chunk 监听，不依赖消费方调用 return() ─────────
+  describe('chunk 监听器随流结束释放', () => {
+    const setup = () => {
+      const bridge = new FakeBridge();
+      const spec = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
+      const chunkCh = chunkChannelName(spec);
+      const client = new ClientAIClient({ bridge });
+      const chat = client.chat as { stream: (o: unknown) => AsyncIterable<unknown> };
+      const size = () => bridge.listeners.get(chunkCh)?.size ?? 0;
+      return { bridge, spec, chunkCh, client, chat, size };
+    };
+
+    it('for-await 自然耗尽：监听器归零，且没有额外 abort', async () => {
+      const { bridge, spec, chunkCh, chat, size } = setup();
+      bridge.handle(channelName(spec), async () => {
+        queueMicrotask(() => {
+          bridge.emit(chunkCh, { reqId: 'n1', done: false, value: 1 });
+          bridge.emit(chunkCh, { reqId: 'n1', done: false, value: 2 });
+          bridge.emit(chunkCh, { reqId: 'n1', done: true });
+        });
+        return { ok: true };
+      });
+      const got: unknown[] = [];
+      for await (const v of chat.stream({ reqId: 'n1', messages: [] })) got.push(v);
+      expect(got).toEqual([1, 2]); // 已缓冲的 chunk 仍被完整排空
+      expect(size()).toBe(0);
+      expect(bridge.invokeLog.some((c) => c.channel === 'ai:chat:abort')).toBe(false);
+    });
+
+    it('上游带 error 结束：缓冲先排空再抛错，监听器归零', async () => {
+      const { bridge, spec, chunkCh, chat, size } = setup();
+      bridge.handle(channelName(spec), async () => {
+        queueMicrotask(() => {
+          bridge.emit(chunkCh, { reqId: 'e1', done: false, value: 'a' });
+          bridge.emit(chunkCh, { reqId: 'e1', done: true, error: 'boom' });
+        });
+        return { ok: true };
+      });
+      const it = chat.stream({ reqId: 'e1', messages: [] })[Symbol.asyncIterator]();
+      await expect(it.next()).resolves.toEqual({ value: 'a', done: false });
+      await expect(it.next()).rejects.toBeInstanceOf(SDKError);
+      expect(size()).toBe(0);
+    });
+
+    it('invoke 自己 reject：监听器归零', async () => {
+      const { bridge, spec, chat, size } = setup();
+      bridge.handle(channelName(spec), async () => {
+        throw new Error('no handler');
+      });
+      const it = chat.stream({ reqId: 'x1', messages: [] })[Symbol.asyncIterator]();
+      await expect(it.next()).rejects.toBeTruthy();
+      expect(size()).toBe(0);
+    });
+
+    it('break 提前放弃：监听器归零并通知 abort', async () => {
+      const { bridge, spec, chunkCh, chat, size } = setup();
+      bridge.handle(channelName(spec), async () => ({ ok: true }));
+      bridge.handle('ai:chat:abort', () => undefined);
+      const p = (async () => {
+        for await (const _ of chat.stream({ reqId: 'b1', messages: [] })) break;
+      })();
+      await Promise.resolve();
+      bridge.emit(chunkCh, { reqId: 'b1', done: false, value: 1 });
+      await p;
+      expect(size()).toBe(0);
+      expect(bridge.invokeLog.filter((c) => c.channel === 'ai:chat:abort')).toHaveLength(1);
+    });
+
+    it('dispose：唤醒挂起的 next()、退订所有进行中的流并通知 chat 中止', async () => {
+      const { bridge, spec, chat, client, size, chunkCh } = setup();
+      bridge.handle(channelName(spec), async () => ({ ok: true }));
+      bridge.handle('ai:chat:abort', () => undefined);
+      const a = chat.stream({ reqId: 'd1', messages: [] })[Symbol.asyncIterator]();
+      const b = chat.stream({ reqId: 'd2', messages: [] })[Symbol.asyncIterator]();
+      bridge.emit(chunkCh, { reqId: 'd1', done: false, value: 'x' });
+      await a.next();
+      const pendingA = a.next();
+      const pendingB = b.next();
+      expect(size()).toBe(2);
+      await client.dispose();
+      await expect(pendingA).resolves.toMatchObject({ done: true });
+      await expect(pendingB).resolves.toMatchObject({ done: true });
+      expect(size()).toBe(0);
+      expect(
+        bridge.invokeLog.filter((c) => c.channel === 'ai:chat:abort').map((c) => c.args[0]),
+      ).toEqual(expect.arrayContaining(['d1', 'd2']));
+    });
+
+    it('并发流互不取消：一条结束不影响另一条继续收 chunk', async () => {
+      const { bridge, spec, chunkCh, chat, size } = setup();
+      bridge.handle(channelName(spec), async () => ({ ok: true }));
+      const a = chat.stream({ reqId: 'c1', messages: [] })[Symbol.asyncIterator]();
+      const b = chat.stream({ reqId: 'c2', messages: [] })[Symbol.asyncIterator]();
+      const na = a.next();
+      const nb = b.next();
+      await Promise.resolve();
+      bridge.emit(chunkCh, { reqId: 'c1', done: true });
+      await expect(na).resolves.toMatchObject({ done: true });
+      expect(size()).toBe(1);
+      bridge.emit(chunkCh, { reqId: 'c2', done: false, value: 'still' });
+      await expect(nb).resolves.toEqual({ value: 'still', done: false });
+      expect(bridge.invokeLog.some((c) => c.channel === 'ai:chat:abort')).toBe(false);
+    });
+  });
+
+  // ───────── #52：tts.stream(text, opts) 的位置参数不被改写 ─────────
+  it('tts.stream(text, opts)：reqId 放在 envelope 里，文本与选项原样跟在后面', async () => {
+    const bridge = new FakeBridge();
+    const spec = IPC_METHODS.find((s) => s.facade === 'tts' && s.method === 'stream')!;
+    const chunkCh = chunkChannelName(spec);
+    let received: unknown[] = [];
+    bridge.handle(channelName(spec), async (...args) => {
+      received = args;
+      const reqId = (args[0] as { reqId: string }).reqId;
+      queueMicrotask(() => {
+        bridge.emit(chunkCh, { reqId, done: false, value: { audio: 1 } });
+        bridge.emit(chunkCh, { reqId, done: true });
+      });
+      return { ok: true, reqId };
+    });
+    const client = new ClientAIClient({ bridge });
+    const tts = client.tts as { stream: (t: string, o?: unknown) => AsyncIterable<unknown> };
+    const opts = { voice: 'v1' };
+    const got: unknown[] = [];
+    for await (const c of tts.stream('hello', opts)) got.push(c);
+    expect(got).toEqual([{ audio: 1 }]);
+    expect(received).toHaveLength(3);
+    expect(typeof (received[0] as { reqId: string }).reqId).toBe('string');
+    expect(received[1]).toBe('hello');
+    expect(received[2]).toEqual({ voice: 'v1' });
+    expect(opts).toEqual({ voice: 'v1' }); // 调用方的 options 没被写进 reqId
+  });
 });

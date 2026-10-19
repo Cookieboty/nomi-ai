@@ -28,6 +28,7 @@ import type { LucideIcon } from 'lucide-react';
 import React, { memo, useEffect, useId, useState } from 'react';
 
 import { thoughtLabel } from '../../utils/convTime';
+import type { LiveAgent } from '../../utils/liveState';
 import {
   callDuration,
   commandOf,
@@ -46,6 +47,7 @@ import {
   type ToolKind,
 } from '../../utils/toolTrace';
 
+import { useAgentForCall } from './agentContext';
 import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
 import styles from './Tool.module.css';
@@ -340,10 +342,48 @@ const ToolGroup = memo(
     p.calls.every((c, i) => sameCall(c, n.calls[i]!)),
 );
 
+/** 这些 CLI 的子代理内部步骤不进主流（Codex collab、dsh 无头只投影主会话），卡片如实说明 */
+const NO_INTERNAL_STEPS = new Set(['spawn_agent', 'subagent', 'subagent_fork']);
+
+const AGENT_STATUS: Record<LiveAgent['status'], CallStatus> = {
+  running: 'running',
+  completed: 'done',
+  stopped: 'done',
+  failed: 'error',
+};
+
 const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call, children }) => {
   const o = parseInput(call.input);
   const prompt = typeof o?.prompt === 'string' ? o.prompt : undefined;
   const d = describeCall(call);
+  const agent = useAgentForCall(call.id);
+  // 后台子代理：派生它的调用立刻返回，但子代理本身还在跑，以子代理状态为准
+  const status = agent ? AGENT_STATUS[agent.status] : call.status;
+  const result = call.output || agent?.summary;
+  const meta = (
+    <>
+      {agent?.background && (
+        <span className={styles.subBadge} data-testid="subagent-background">
+          {t('后台')}
+        </span>
+      )}
+      {agent?.status === 'stopped' && (
+        <span className={styles.subBadge} data-testid="subagent-stopped">
+          {t('已停止')}
+        </span>
+      )}
+      {agent?.status === 'running' && agent.progress && (
+        <span className={styles.subCount} data-testid="subagent-progress" title={agent.progress}>
+          {agent.progress}
+        </span>
+      )}
+      {children.length > 0 ? (
+        <span className={styles.subCount}>{t('{0} 步', countCalls(children))}</span>
+      ) : agent?.usage?.toolUses ? (
+        <span className={styles.subCount}>{t('{0} 次工具调用', String(agent.usage.toolUses))}</span>
+      ) : null}
+    </>
+  );
   return (
     <Disclosure
       icon={Bot}
@@ -357,12 +397,8 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
           )}
         </>
       }
-      meta={
-        children.length > 0 ? (
-          <span className={styles.subCount}>{t('{0} 步', countCalls(children))}</span>
-        ) : undefined
-      }
-      status={call.status}
+      meta={meta}
+      status={status}
       duration={callDuration(call)}
       testId="tool-subagent"
       attrs={{ 'data-tool': call.name }}
@@ -370,11 +406,16 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
     >
       {prompt && <div className={styles.subPrompt}>{prompt}</div>}
       {children.length > 0 && <ToolTimeline items={children} nested />}
-      {call.output && (
+      {children.length === 0 && NO_INTERNAL_STEPS.has(call.name) && (
+        <div className={styles.subPrompt} data-testid="subagent-no-steps">
+          {t('该编程助手不提供子代理的内部步骤，这里只显示交给它的任务和最终结果。')}
+        </div>
+      )}
+      {result && (
         <div className={styles.section}>
           <div className={styles.sectionLabel}>{t('结果')}</div>
           <div className={styles.subResult} data-testid="tool-output">
-            <Markdown text={call.output} />
+            <Markdown text={result} />
           </div>
         </div>
       )}

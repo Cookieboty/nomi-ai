@@ -25,6 +25,7 @@ const mk = () => {
   });
   return {
     home,
+    root,
     ledger,
     scanner,
     setCleared: (n: number) => (clearedAt = n),
@@ -98,6 +99,118 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     expect(ledger.all().some((r) => r.key === 'claude:msg_4')).toBe(true);
   });
 
+  describe('文件被替换 / 原地重写：不沿用旧偏移', () => {
+    const sameLen = (id: string, out: number) => asst(id, out);
+
+    it('等长替换（msg_1 → msg_4）：新消息不被跳过', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, sameLen('msg_1', 1));
+      await scanner.scan();
+      const before = fs.statSync(f);
+      fs.writeFileSync(f, sameLen('msg_4', 4));
+      expect(fs.statSync(f).size).toBe(before.size);
+      fs.utimesSync(f, new Date(before.mtimeMs + 5_000), new Date(before.mtimeMs + 5_000));
+      await scanner.scan();
+      expect(ledger.all().map((r) => r.key)).toContain('claude:msg_4');
+    });
+
+    it('替换成更长的文件且前缀就含新消息：从头读，不从旧偏移 / 行中间开始', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1));
+      await scanner.scan();
+      fs.writeFileSync(f, asst('msg_7', 7) + asst('msg_8', 8) + asst('msg_9', 9));
+      await scanner.scan();
+      const keys = ledger.all().map((r) => r.key);
+      expect(keys).toEqual(
+        expect.arrayContaining(['claude:msg_7', 'claude:msg_8', 'claude:msg_9']),
+      );
+    });
+
+    it('rename 原子替换（inode 变了）：丢弃旧游标', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      await scanner.scan();
+      const tmpFile = `${f}.new`;
+      fs.writeFileSync(tmpFile, asst('msg_5', 5) + asst('msg_6', 6) + asst('msg_7', 7));
+      fs.renameSync(tmpFile, f);
+      await scanner.scan();
+      expect(ledger.all().map((r) => r.key)).toEqual(
+        expect.arrayContaining(['claude:msg_5', 'claude:msg_6', 'claude:msg_7']),
+      );
+    });
+
+    it('正常追加仍只读新增行；没变化的文件不重读；重读不会重复记账', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1));
+      await scanner.scan();
+      const cur = ledger.cursor(f)!;
+      expect(cur.fp).toBeTruthy();
+      fs.appendFileSync(f, asst('msg_2', 2));
+      expect((await scanner.scan()).added).toBe(1);
+      expect(ledger.cursor(f)!.offset).toBe(fs.statSync(f).size);
+      expect((await scanner.scan()).added).toBe(0);
+      // 同一份内容整体重写（等长、mtime 变了）：从头读，但账本里已有的键不重复
+      const st = fs.statSync(f);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      fs.utimesSync(f, new Date(st.mtimeMs + 9_000), new Date(st.mtimeMs + 9_000));
+      expect((await scanner.scan()).added).toBe(0);
+      expect(ledger.size()).toBe(2);
+    });
+
+    it('没有指纹的旧游标：文件变过就安全重读一次，没变过就保持并补上指纹', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      const st = fs.statSync(f);
+      ledger.setCursor(f, { offset: st.size, size: st.size, mtimeMs: st.mtimeMs });
+      await scanner.scan();
+      expect(ledger.size()).toBe(0); // 没变过：不重读
+      expect(ledger.cursor(f)!.fp).toBeTruthy();
+      ledger.setCursor(f, { offset: st.size, size: 1, mtimeMs: 1 }); // 旧游标 + 文件变过
+      await scanner.scan();
+      expect(ledger.size()).toBe(2);
+    });
+
+    it('Codex 文件被新会话替换：不沿用旧 session / 累计值状态', async () => {
+      const { home, ledger, scanner } = mk();
+      const dir = path.join(home, '.codex', 'sessions', '2026', '10', '14');
+      fs.mkdirSync(dir, { recursive: true });
+      const f = path.join(dir, 'rollout-x.jsonl');
+      const L = (o: unknown) => `${JSON.stringify(o)}\n`;
+      const tc = (total: number) =>
+        L({
+          timestamp: NOW,
+          type: 'event_msg',
+          payload: {
+            type: 'token_count',
+            info: {
+              total_token_usage: { total_tokens: total },
+              last_token_usage: { input_tokens: 50, cached_input_tokens: 10, output_tokens: 5 },
+            },
+          },
+        });
+      const file = (sid: string, model: string, total: number) =>
+        L({ timestamp: NOW, type: 'session_meta', payload: { id: sid, cwd: '/w/p' } }) +
+        L({ timestamp: NOW, type: 'turn_context', payload: { model } }) +
+        tc(total);
+      fs.writeFileSync(f, file('sid-A', 'gpt-5', 55));
+      await scanner.scan();
+      fs.writeFileSync(f, `${file('sid-B', 'gpt-5-codex', 55)}${tc(110)}`);
+      await scanner.scan();
+      const recs = ledger.all().filter((r) => r.source === 'codex');
+      expect(recs.map((r) => r.key).sort()).toEqual([
+        'codex:sid-A:55',
+        'codex:sid-B:110',
+        'codex:sid-B:55',
+      ]);
+      expect(recs.find((r) => r.key === 'codex:sid-B:110')!.model).toBe('gpt-5-codex');
+    });
+  });
+
   it('Codex：续读靠游标里的 state（会话 id / 模型）', async () => {
     const { home, ledger, scanner } = mk();
     const dir = path.join(home, '.codex', 'sessions', '2026', '10', '14');
@@ -158,6 +271,195 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     // 路由记录不带会话；日志只补会话 / 项目归属，token 不变（会话累计才不会漏掉路由请求）
     const routed = ledger.all().find((r) => r.key === 'route-1')!;
     expect(routed).toMatchObject({ session: 's1', project: 'app', input: 10, output: 5 });
+  });
+
+  it('日志里有路由嗅探没拿到的 1h 缓存写 / fast：补到路由记录上，费用口径一致且不重复记账', async () => {
+    const { home, ledger, scanner } = mk();
+    const f = claudeFile(home);
+    const ts = Date.now() - 5_000;
+    ledger.upsert({
+      key: 'route-2',
+      ts: ts - 1_000,
+      dur: 3_000,
+      source: 'claude',
+      via: 'route',
+      model: 'claude-sonnet-4-5',
+      input: 10,
+      output: 5,
+      cacheRead: 0,
+      cacheWrite: 1000,
+    });
+    fs.writeFileSync(
+      f,
+      `${JSON.stringify({
+        type: 'assistant',
+        timestamp: new Date(ts).toISOString(),
+        sessionId: 's1',
+        cwd: '/w/app',
+        message: {
+          id: 'msg_r2',
+          model: 'claude-sonnet-4-5',
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            cache_creation_input_tokens: 1000,
+            cache_creation: { ephemeral_1h_input_tokens: 1000 },
+            speed: 'fast',
+          },
+        },
+      })}\n`,
+    );
+    await scanner.scan();
+    expect(ledger.size()).toBe(1);
+    expect(ledger.all()[0]).toMatchObject({ key: 'route-2', cacheWrite1h: 1000, fast: true });
+  });
+
+  describe('路由 / 日志去重按请求身份匹配（一对一）', () => {
+    const route = (key: string, ts: number, over: Record<string, unknown> = {}) => ({
+      key,
+      ts,
+      dur: 4_000,
+      source: 'claude' as const,
+      via: 'route' as const,
+      model: 'deepseek-x',
+      input: 100,
+      output: 50,
+      cacheRead: 0,
+      cacheWrite: 0,
+      ...over,
+    });
+    const line = (id: string, ts: number, input: number, output: number, session = 's1') =>
+      `${JSON.stringify({
+        type: 'assistant',
+        timestamp: new Date(ts).toISOString(),
+        sessionId: session,
+        cwd: '/w/app',
+        message: {
+          id,
+          model: 'claude-sonnet-4-5',
+          usage: { input_tokens: input, output_tokens: output },
+        },
+      })}\n`;
+
+    it('时间窗内的独立直连请求（token / 模型不同）不会被路由记录吞掉', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('route-A', ts));
+      fs.writeFileSync(
+        f,
+        line('msg_B', ts + 1_000, 9_000, 700, 'sB') + line('msg_A', ts + 500, 100, 50, 'sA'),
+      );
+      await scanner.scan();
+      const keys = ledger.all().map((r) => r.key);
+      expect(keys).toContain('claude:msg_B'); // 独立请求入账
+      expect(keys).not.toContain('claude:msg_A'); // 真正的副本并入路由
+      expect(ledger.get('route-A')).toMatchObject({ session: 'sA', logKey: 'claude:msg_A' });
+    });
+
+    it('两个 route，日志反序到达：各自按 token 归属，会话不串', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('route-1', ts, { input: 100, output: 10 }));
+      ledger.upsert(route('route-2', ts + 1_000, { input: 5_000, output: 400 }));
+      fs.writeFileSync(
+        f,
+        line('msg_2', ts + 2_000, 5_000, 400, 'sess-2') +
+          line('msg_1', ts + 2_500, 100, 10, 'sess-1'),
+      );
+      await scanner.scan();
+      expect(ledger.size()).toBe(2); // 两个日志都是路由的副本
+      expect(ledger.get('route-1')).toMatchObject({ session: 'sess-1', logKey: 'claude:msg_1' });
+      expect(ledger.get('route-2')).toMatchObject({ session: 'sess-2', logKey: 'claude:msg_2' });
+    });
+
+    it('同模型同 token 不同 id：一条路由只认领一条日志，另一条保留入账（总量不丢）', async () => {
+      const { home, root, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('route-1', ts));
+      fs.writeFileSync(f, line('msg_x', ts + 1_000, 100, 50) + line('msg_y', ts + 2_000, 100, 50));
+      await scanner.scan();
+      const keys = ledger
+        .all()
+        .map((r) => r.key)
+        .sort();
+      expect(keys).toEqual(['claude:msg_y', 'route-1']);
+      // 重启后（新账本 + 新扫描器，游标丢失）结果稳定：已认领的日志仍归路由，不会重复记账
+      ledger.flush();
+      const ledger2 = new UsageLedger({ root });
+      const scanner2 = new UsageLogScanner({
+        ledger: ledger2,
+        home,
+        dshHome: path.join(home, '.dsh'),
+        env: {},
+        retention: () => '1y',
+      });
+      ledger2.dropCursor(f);
+      await scanner2.scan();
+      expect(ledger2.size()).toBe(2);
+    });
+
+    it('共享上游 id：路由用 msg_ 作键，日志同键合并为一条（不看时间窗）', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('claude:msg_same', ts, { rid: 'msg_same' }));
+      // 日志时间在窗口外 1 小时（时钟差异）也能按 id 精确联结，不产生第二条
+      fs.writeFileSync(f, line('msg_same', ts - 3_600_000, 100, 50));
+      await scanner.scan();
+      expect(ledger.all().filter((r) => r.key.includes('msg_same'))).toHaveLength(1);
+      expect(ledger.get('claude:msg_same')!.via).toBe('route');
+    });
+
+    it('两边都是 Anthropic msg_ id 但不同：即使 token 相同也不是同一次请求', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('claude:msg_route', ts, { rid: 'msg_route' }));
+      fs.writeFileSync(f, line('msg_other', ts + 1_000, 100, 50));
+      await scanner.scan();
+      expect(
+        ledger
+          .all()
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(['claude:msg_other', 'claude:msg_route']);
+    });
+
+    it('非 msg_ 的上游 id（Chat completion id）：日志键以该 id 结尾即精确联结', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 5_000;
+      ledger.upsert(route('route:claude:chatcmpl-77', ts, { rid: 'chatcmpl-77', input: 100 }));
+      // token 不同也认（转换后的口径可能略有差别）
+      fs.writeFileSync(f, line('chatcmpl-77', ts + 1_000, 400, 50));
+      await scanner.scan();
+      expect(ledger.size()).toBe(1);
+      expect(ledger.get('route:claude:chatcmpl-77')).toMatchObject({
+        logKey: 'claude:s1:chatcmpl-77',
+      });
+    });
+
+    it('路由窗口 ±15s 边界仍然生效', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      const ts = Date.now() - 100_000;
+      ledger.upsert(route('route-1', ts, { dur: 1_000 }));
+      fs.writeFileSync(
+        f,
+        line('msg_in', ts + 1_000 + 14_000, 100, 50) +
+          line('msg_out', ts + 1_000 + 20_000, 100, 50, 's2'),
+      );
+      await scanner.scan();
+      expect(
+        ledger
+          .all()
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(['claude:msg_out', 'route-1']);
+    });
   });
 
   it('onNew 只对真正新增的记录触发（被路由覆盖的 / 重复的不触发）', async () => {

@@ -48,12 +48,14 @@ export const CLI_FORMATS: Record<CliProviderKind, Array<{ value: string; label: 
     { value: 'openai_chat_completions', label: 'OpenAI Chat Completions（原生）' },
     { value: 'anthropic_messages', label: 'Anthropic Messages（原生）' },
   ],
+  gemini: [{ value: 'gemini_generate_content', label: 'Gemini Native generateContent（原生）' }],
 };
 export const CLI_DEFAULT_FORMAT: Record<CliProviderKind, string> = {
   claude: 'anthropic_messages',
   codex: 'openai_responses',
   dsh: 'openai_responses',
   grok: 'openai_responses',
+  gemini: 'gemini_generate_content',
 };
 
 export type CliEditorTarget =
@@ -264,7 +266,9 @@ export const CliProviderEditor: React.FC<{
                   ? 'Codex'
                   : endpoint === 'grok'
                     ? 'Grok'
-                    : 'dsh',
+                    : endpoint === 'gemini'
+                      ? 'Gemini'
+                      : 'dsh',
             )}
           >
             {({ id }) => (

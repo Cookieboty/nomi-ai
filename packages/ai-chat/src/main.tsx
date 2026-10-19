@@ -7,12 +7,14 @@ import '@nomi-ai/ui/styles.css';
 import '@nomi-ai/voice/styles.css';
 import App from './App';
 import { SnipOverlay } from './components/SnipOverlay';
+import { initChatBackground } from './services/chatBackground';
 
 const log = createLogger('main');
 
-// 主题（默认 Warm Ink；设置 → 通用 → 主题）与界面语言（默认跟随系统；设置 → 通用 → 语言）
+// 主题（默认 Sunset Orange；设置 → 通用 → 主题）、界面语言、聊天主面板背景
 initTheme();
 initLocale();
+initChatBackground();
 
 // 一体化标题栏：主进程用 hiddenInset（mac）/ titleBarOverlay（Win·Linux）创建窗口，
 // 页面顶部留出可拖动的标题栏区域（见 App.css .app-titlebar）

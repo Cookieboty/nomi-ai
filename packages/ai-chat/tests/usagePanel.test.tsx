@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UsagePanel } from '../src/components/UsagePanel';
 import { priceSyncMessage } from '../src/components/UsagePanel/Pricing';
+import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
 // findBy* / waitFor default to a 1s budget. The panel renders after several mocked IPC round-trips
 // plus happy-dom layout of the charts, which exceeds 1s on the slower macOS / Windows runners
@@ -259,6 +260,8 @@ function install() {
 }
 
 beforeEach(() => {
+  // 订阅额度的上一次显示状态是模块级的：每个用例从空开始
+  resetToolQuotaMemo();
   emptyData = false;
   refreshTools = {};
   refreshEntries = null;
@@ -333,6 +336,22 @@ describe('UsagePanel 概览', () => {
     for (const n of ['Claude Code', 'Qwen Code', 'OpenCode', 'GitHub Copilot CLI', 'Kimi'])
       expect(sub).toContain(n);
     expect(sub).not.toContain('copilot,');
+  });
+
+  it('账本写不进磁盘时显示降级提示（含暂存条数）；正常时不显示（#42）', async () => {
+    install();
+    (state as Record<string, unknown>).persist = {
+      degraded: true,
+      pendingRecords: 7,
+      cursorDirty: true,
+    };
+    const { findByTestId, unmount } = render(<UsagePanel />);
+    expect((await findByTestId('usage-persist-degraded')).textContent).toContain('7');
+    unmount();
+    install();
+    const r = render(<UsagePanel />);
+    await r.findByTestId('usage-card-cost');
+    expect(r.queryByTestId('usage-persist-degraded')).toBeNull();
   });
 
   it('没有任何数据：复用 EmptyState，并可手动扫描', async () => {
@@ -562,9 +581,36 @@ describe('UsagePanel 预算与隐私', () => {
   });
 });
 
+/** 订阅额度在自己的标签里（不再放在概览底部） */
+function renderQuota() {
+  const r = render(<UsagePanel />);
+  fireEvent.click(r.getByRole('tab', { name: '订阅额度' }));
+  return r;
+}
+
+describe('UsagePanel 订阅额度标签', () => {
+  it('概览里不再有订阅额度卡片；与概览、明细同一排标签，且保留时间范围', async () => {
+    const r = render(<UsagePanel />);
+    // 数据加载完（骨架屏消失）后，概览里也不应出现订阅额度卡片
+    await waitFor(() => expect(r.container.querySelector('[role="status"]')).toBeNull());
+    expect(r.queryByTestId('usage-quota-card')).toBeNull();
+    const tabs = r.getByRole('tablist', { name: '用量分区' }).querySelectorAll('[role="tab"]');
+    expect([...tabs].map((x) => x.textContent)).toEqual([
+      '概览',
+      '明细',
+      '订阅额度',
+      '价格',
+      '预算与隐私',
+    ]);
+    fireEvent.click(r.getByRole('tab', { name: '订阅额度' }));
+    await r.findByTestId('usage-quota-card');
+    expect(r.getByRole('tab', { name: '30 天' })).toBeTruthy();
+  });
+});
+
 describe('UsagePanel 订阅额度 · 安全刷新', () => {
   it('卡片标出隐私说明；刷新按钮只在点击时调用 quota-refresh（打开面板不会触发）', async () => {
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     const priv = getByTestId('usage-quota-privacy').textContent ?? '';
     expect(priv).toContain('不读取、不保存、不上传任何登录凭据');
@@ -608,7 +654,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
       claude: { state: 'ok' },
       codex: { state: 'transient', reason: 'timeout', stale: true },
     };
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
@@ -628,7 +674,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
       claude: { state: 'auth', reason: 'denied' },
       codex: { state: 'throttled', retryInSec: 42 },
     };
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     fireEvent.click(getByTestId('usage-quota-refresh'));
     await waitFor(() =>
@@ -656,7 +702,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
   });
 
   it('设置里的「主动刷新额度」开关写入设置', async () => {
-    const { getByRole, findByTestId } = render(<UsagePanel />);
+    const { getByRole, findByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     fireEvent.click(getByRole('tab', { name: '预算与隐私' }));
     const sw = await findByTestId('usage-active-quota');
@@ -678,7 +724,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
       { id: 'claude', label: 'Claude Code', status: 'api', auth: 'api', windows: [] },
       { id: 'codex', label: 'Codex', status: 'api', auth: 'api', windows: [] },
     ];
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('api');
     expect(getByTestId('usage-quota-claude').textContent).toContain('API 计费，无订阅额度');
@@ -687,7 +733,7 @@ describe('UsagePanel 订阅额度 · 安全刷新', () => {
 
 describe('UsagePanel 订阅额度', () => {
   it('没有可用额度：每个工具都写「暂未返回可用额度」，不显示任何百分比', async () => {
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     const card = await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-codex').getAttribute('data-status')).toBe('unavailable');
     expect(getByTestId('usage-quota-codex').textContent).toContain('暂未返回可用额度');
@@ -719,7 +765,7 @@ describe('UsagePanel 订阅额度', () => {
       },
       { id: 'claude', label: 'Claude Code', status: 'unavailable', windows: [] },
     ];
-    const { findByTestId, getAllByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getAllByTestId, getByTestId } = renderQuota();
     const card = await findByTestId('usage-quota-card');
     const wins = getAllByTestId('usage-quota-window');
     expect(wins).toHaveLength(2);
@@ -738,9 +784,15 @@ describe('UsagePanel 订阅额度', () => {
 
   it('额度接口出错：卡片不显示，不影响其它内容', async () => {
     quota = [];
-    const { findByTestId, queryByTestId } = render(<UsagePanel />);
+    const { findByTestId, queryByTestId, getByRole } = render(<UsagePanel />);
     await findByTestId('usage-card-cost');
+    fireEvent.click(getByRole('tab', { name: '订阅额度' }));
+    await waitFor(() =>
+      expect(getByRole('tab', { name: '订阅额度' }).getAttribute('aria-selected')).toBe('true'),
+    );
     expect(queryByTestId('usage-quota-card')?.textContent ?? '').not.toMatch(/已用/);
+    fireEvent.click(getByRole('tab', { name: '概览' }));
+    await findByTestId('usage-card-cost');
   });
 });
 
@@ -756,7 +808,7 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
 
   it('API Key / 第三方供应商的工具：只写「API 计费，无订阅额度」，没有额度条也没有「暂未返回」', async () => {
     quota = [E('claude', 'api', 'api'), E('codex', 'api', 'api'), E('dsh', 'api', 'api')];
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     const card = await findByTestId('usage-quota-card');
     expect(getByTestId('usage-quota-claude').getAttribute('data-status')).toBe('api');
     expect(getByTestId('usage-quota-claude').textContent).toContain('API 计费，无订阅额度');
@@ -779,7 +831,7 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
       E('claude', 'unavailable', 'subscription'),
       E('dsh', 'api', 'api'),
     ];
-    const { findByTestId, getByTestId, queryByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId, queryByTestId } = renderQuota();
     await findByTestId('usage-quota-card');
     const box = await findByTestId('usage-quota-hook');
     expect(box.textContent).toContain('不读取凭据');
@@ -815,7 +867,7 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
         ],
       }),
     ];
-    const { findByTestId, getAllByTestId } = render(<UsagePanel />);
+    const { findByTestId, getAllByTestId } = renderQuota();
     const card = await findByTestId('usage-quota-card');
     const wins = getAllByTestId('usage-quota-window');
     expect(wins.map((w) => w.textContent)).toEqual([
@@ -836,19 +888,19 @@ describe('UsagePanel 订阅额度：按登录方式区分', () => {
       hasSnapshot: false,
       problem: 'invalid-settings',
     };
-    const first = render(<UsagePanel />);
+    const first = renderQuota();
     expect((await first.findByTestId('usage-quota-hook')).textContent).toContain('不是合法的 JSON');
     expect(first.queryByTestId('usage-hook-on')).toBeNull();
     first.unmount();
     hook = { supported: false, enabled: false, hadOwnStatusLine: false, hasSnapshot: false };
-    const second = render(<UsagePanel />);
+    const second = renderQuota();
     expect((await second.findByTestId('usage-quota-hook')).textContent).toContain('Windows');
     expect(second.queryByTestId('usage-hook-on')).toBeNull();
   });
 
   it('没有任何订阅登录的工具：提示而不是空卡片，也没有「暂未返回」', async () => {
     quota = [];
-    const { findByTestId } = render(<UsagePanel />);
+    const { findByTestId } = renderQuota();
     const empty = await findByTestId('usage-quota-empty');
     expect(empty.textContent).toContain('没有检测到');
     expect((await findByTestId('usage-quota-card')).textContent).not.toContain('暂未返回可用额度');
@@ -876,7 +928,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
   });
 
   it('每个工具一张卡片（网格），不再有工具 Tabs；卡片头部含图标 / 名称 / 套餐 / 登录方式', async () => {
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     const grid = await findByTestId('usage-quota-grid');
     expect(grid.querySelectorAll('article')).toHaveLength(3);
     expect(document.querySelector('[data-testid="usage-quota-tabs"]')).toBeNull();
@@ -898,7 +950,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
     let release: () => void = () => undefined;
     refreshGate = { tool: 'codex', promise: new Promise<void>((r) => (release = r)) };
     refreshTools = { codex: { state: 'ok' }, claude: { state: 'ok' } };
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-grid');
     fireEvent.click(getByTestId('usage-quota-refresh-codex'));
     await waitFor(() =>
@@ -925,7 +977,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
 
   it('单卡失败：只有这张卡显示错误与最后更新时间，其他卡片保持原样', async () => {
     refreshFail = 'grok';
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-grid');
     fireEvent.click(getByTestId('usage-quota-refresh-grok'));
     await waitFor(() =>
@@ -945,7 +997,7 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
       promise: new Promise<void>((r) => (release = r)),
     };
     refreshTools = { claude: { state: 'ok' }, codex: { state: 'ok' }, grok: { state: 'ok' } };
-    const { findByTestId, getByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId } = renderQuota();
     await findByTestId('usage-quota-grid');
     const all = getByTestId('usage-quota-refresh');
     expect(all.className).toContain('cd-btn--ghost');
@@ -967,9 +1019,43 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
       { id: 'claude', label: 'Claude Code', status: 'api', auth: 'api', windows: [] },
       { id: 'dsh', label: 'dsh', status: 'api', auth: 'api', windows: [] },
     ];
-    const { findByTestId, getByTestId, queryByTestId } = render(<UsagePanel />);
+    const { findByTestId, getByTestId, queryByTestId } = renderQuota();
     await findByTestId('usage-quota-grid');
     expect(getByTestId('usage-quota-refresh-claude')).toBeTruthy();
     expect(queryByTestId('usage-quota-refresh-dsh')).toBeNull();
+  });
+});
+
+describe('UsagePanel 订阅额度：再次打开先显示上一次的结果', () => {
+  it('切走再切回来：卡片立刻显示上一次的值，不先变空', async () => {
+    quota = [
+      {
+        id: 'codex',
+        label: 'Codex',
+        status: 'ok',
+        auth: 'subscription',
+        windows: [{ id: 'primary', usedPercent: 42, windowMinutes: 300 }],
+        updatedAt: Date.now(),
+      },
+    ];
+    const first = renderQuota();
+    await first.findByTestId('usage-quota-codex');
+    first.unmount();
+    // 第二次打开时，主进程这次很慢：界面也不应该先空着
+    let release: () => void = () => undefined;
+    const slow = new Promise<void>((r) => (release = r));
+    const orig = (window as unknown as { aiIPC: { invoke: (...a: unknown[]) => unknown } }).aiIPC
+      .invoke;
+    (window as unknown as { aiIPC: { invoke: unknown } }).aiIPC.invoke = async (
+      ch: string,
+      ...a: unknown[]
+    ) => {
+      if (ch === 'ai:usage:quota') await slow;
+      return orig(ch, ...a);
+    };
+    const second = render(<UsagePanel />);
+    fireEvent.click(second.getByRole('tab', { name: '订阅额度' }));
+    expect(await second.findByTestId('usage-quota-codex', {}, { timeout: 200 })).toBeTruthy();
+    release();
   });
 });

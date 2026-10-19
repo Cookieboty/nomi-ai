@@ -60,6 +60,20 @@ body {
   z-index: 1;
 }
 
+/* 对话区右上角的工作目录 / 供应商：一条靠右的窄栏，不压在消息上（用户气泡靠右） */
+.session-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 0;
+  padding: 6px var(--cd-space-4, 16px) 0;
+  position: relative;
+  z-index: 2;
+}
+.session-bar:empty {
+  display: none;
+}
+
 .chat-container {
   flex: 1;
   overflow: hidden;
@@ -71,6 +85,29 @@ body {
   justify-content: flex-start;
   position: relative;
   width: 100%;
+  /* 自成层叠上下文：背景层与内容的 z-index 只在本容器内比较，
+     不会和底部输入区（及其弹出的斜杠面板 / 菜单）抢层级。 */
+  isolation: isolate;
+}
+
+/* 聊天主面板自定义背景（设置 → 通用 → 聊天背景）；仅本容器 */
+.chat-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--cd-chat-bg-color, transparent);
+  background-image: var(--cd-chat-bg-image, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--cd-chat-bg-blur, 0px));
+  opacity: var(--cd-chat-bg-opacity, 0.35);
+  transform: scale(1.06);
+  transform-origin: center;
+}
+.chat-container > :not(.chat-bg-layer) {
+  position: relative;
+  z-index: var(--cd-z-chat-content, 1);
 }
 
 /* 欢迎空态：居中、干净卡片 */
@@ -155,6 +192,9 @@ body {
   border-top: 1px solid var(--cd-color-border);
   padding: var(--cd-space-4) var(--cd-space-5) var(--cd-space-5);
   position: relative;
+  /* 输入区里的斜杠面板 / 下拉菜单是向上弹出的绝对定位元素，层级受本容器限制，
+     所以整个输入区必须高于聊天内容（--cd-z-chat-content），否则会被消息文字压住。 */
+  z-index: var(--cd-z-chat-input, 2);
   max-width: 100%;
 }
 

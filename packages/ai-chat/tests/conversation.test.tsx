@@ -283,7 +283,7 @@ describe('CliConversation 运行中', () => {
       <CliConversation
         tab={tab({ status: 'running' })}
         messages={[]}
-        live={{ ...liveBase, permission: { id: 'p1', summary: 'Bash: rm -rf x' } }}
+        live={{ ...liveBase, permissions: [{ id: 'p1', summary: 'Bash: rm -rf x' }] }}
         onPermission={onPermission}
       />,
     );
@@ -293,6 +293,58 @@ describe('CliConversation 运行中', () => {
     fireEvent.click(getByTestId('conv-permission-deny'));
     expect(onPermission).toHaveBeenNthCalledWith(1, 'p1', true);
     expect(onPermission).toHaveBeenNthCalledWith(2, 'p1', false);
+  });
+
+  it('并行子代理的权限请求全部排出：标注来源与倒计时，各自回复各自的 id（docs/design/cli-subagents.md §5）', () => {
+    const onPermission = vi.fn();
+    const soon = Date.now() + 90_000;
+    const { getAllByTestId, getByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissions: [
+            { id: 'pa', summary: 'Bash: rm a.tmp', agent: 'agent A', expiresAt: soon },
+            { id: 'pb', summary: 'Bash: rm b.tmp', agent: 'agent B', expiresAt: soon },
+          ],
+        }}
+        onPermission={onPermission}
+      />,
+    );
+    const cards = getAllByTestId('conv-permission-card');
+    expect(cards).toHaveLength(2);
+    expect(getAllByTestId('conv-permission-agent').map((e) => e.textContent)).toEqual([
+      '子代理 · agent A',
+      '子代理 · agent B',
+    ]);
+    expect(getAllByTestId('conv-permission-timer')[0]!.textContent).toMatch(
+      /^(89|90) 秒后自动拒绝$/,
+    );
+    expect(getByTestId('conv-permission-queue').textContent).toContain('2 项待确认');
+    expect(getByTestId('conv-status').textContent).toContain('2 项');
+    fireEvent.click(getAllByTestId('conv-permission-deny')[1]!);
+    fireEvent.click(getAllByTestId('conv-permission-allow')[0]!);
+    expect(onPermission.mock.calls).toEqual([
+      ['pb', false],
+      ['pa', true],
+    ]);
+  });
+
+  it('超时自动拒绝后短暂提示（含来源子代理）', () => {
+    const { getByTestId, queryByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissionExpired: { summary: 'Bash: rm a.tmp', agent: 'agent A', at: Date.now() },
+        }}
+        onPermission={vi.fn()}
+      />,
+    );
+    expect(getByTestId('conv-permission-expired').textContent).toContain('agent A');
+    expect(queryByTestId('conv-permission-card')).toBeNull();
   });
 
   it('排队中显示明确的等待提示', () => {

@@ -24,7 +24,10 @@ export class ChecksumError extends Error {
   }
 }
 
-export type FetchLike = (url: string, init: { signal?: AbortSignal }) => Promise<Response>;
+export type FetchLike = (
+  url: string,
+  init: { signal?: AbortSignal; headers?: Record<string, string> },
+) => Promise<Response>;
 
 export class DownloadTimeoutError extends Error {
   constructor(readonly idleMs: number) {
@@ -46,6 +49,12 @@ export async function downloadVerified(opts: {
    * DownloadTimeoutError。未设置则不限（保持旧调用方行为）。
    */
   idleTimeoutMs?: number;
+  /**
+   * 断点续传：失败 / 取消 / 进程退出后保留 `<dest>.part`，下次用 `Range: bytes=<已下载>-` 继续；
+   * 服务器不支持（返回 200）则从头下载。sha256 覆盖完整文件（先把已有部分读入哈希）。
+   * 校验失败时一定删除 .part。默认 false（旧调用方失败即清理）。
+   */
+  resume?: boolean;
 }): Promise<void> {
   const f = opts.fetchImpl ?? ((u, i) => fetch(u, { ...i, redirect: 'follow' }));
   const ctl = new AbortController();
@@ -78,22 +87,51 @@ export async function downloadVerified(opts: {
 
   let out: fs.WriteStream | undefined;
   const tmp = `${opts.dest}.part`;
+  let keepPart = false;
   try {
+    fs.mkdirSync(path.dirname(opts.dest), { recursive: true });
+    let offset = 0;
+    if (opts.resume) {
+      try {
+        offset = fs.statSync(tmp).size;
+      } catch {
+        offset = 0;
+      }
+      // 已有部分比期望还大：肯定不对，重下
+      if (opts.expectedBytes && offset > opts.expectedBytes) offset = 0;
+    }
     arm();
-    const res = await guard(f(opts.url, { signal: ctl.signal }));
+    const headers: Record<string, string> = offset > 0 ? { Range: `bytes=${offset}-` } : {};
+    const res = await guard(f(opts.url, { signal: ctl.signal, headers }));
     if (!res.ok || !res.body) {
+      // 416：已有部分不可用（例如服务端文件变了）→ 删掉，下次从头
+      if (res.status === 416) fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
       throw Object.assign(new Error(t('下载失败：HTTP {0}', res.status)), { status: res.status });
     }
-    const total = Number(res.headers.get('content-length')) || opts.expectedBytes || 0;
-    fs.mkdirSync(path.dirname(opts.dest), { recursive: true });
-    // Windows：上次失败遗留的 .part 可能被杀软短暂占用，先尽力清理（带重试）
-    fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
-    out = fs.createWriteStream(tmp);
+    const resumed = offset > 0 && res.status === 206;
+    if (!resumed) offset = 0;
+    const len = Number(res.headers.get('content-length')) || 0;
+    const total = (len ? len + offset : 0) || opts.expectedBytes || 0;
+    const hash = createHash('sha256');
+    if (resumed) {
+      // 已下载部分先进哈希（流式读，不整块载入内存）
+      await new Promise<void>((r, j) => {
+        const rs = fs.createReadStream(tmp);
+        rs.on('data', (c) => hash.update(c));
+        rs.on('end', () => r());
+        rs.on('error', j);
+      });
+    } else {
+      // Windows：上次失败遗留的 .part 可能被杀软短暂占用，先尽力清理（带重试）
+      fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
+    }
+    keepPart = Boolean(opts.resume);
+    out = fs.createWriteStream(tmp, { flags: resumed ? 'a' : 'w' });
     const outStream = out;
     outStream.on('error', () => undefined); // 错误在 write/end 的 await 里统一抛出
-    const hash = createHash('sha256');
-    let received = 0;
+    let received = offset;
     let lastEmit = 0;
+    opts.onProgress?.({ received, total });
     const reader = res.body.getReader();
     for (;;) {
       const { done, value } = await guard(reader.read());
@@ -118,12 +156,31 @@ export async function downloadVerified(opts: {
     await new Promise<void>((r, j) => outStream.end((e?: Error | null) => (e ? j(e) : r())));
     opts.onProgress?.({ received, total: total || received });
     const actual = hash.digest('hex');
-    if (actual !== opts.sha256.toLowerCase()) throw new ChecksumError(opts.sha256, actual);
+    if (actual !== opts.sha256.toLowerCase()) {
+      keepPart = false;
+      throw new ChecksumError(opts.sha256, actual);
+    }
     // Windows：目标/临时文件可能被杀软扫描占用，rename 偶发 EPERM/EBUSY → 重试
     await renameWithRetry(tmp, opts.dest);
   } catch (e) {
-    out?.destroy();
-    fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
+    if (out && !out.closed) {
+      // 续传模式下等写入流真正关闭，保证 .part 内容完整落盘
+      const o = out;
+      await new Promise<void>((r) => {
+        const timer = setTimeout(() => {
+          o.destroy();
+          r();
+        }, 2000);
+        o.once('close', () => {
+          clearTimeout(timer);
+          r();
+        });
+        // 续传：end() 先把已缓冲的块写完再关；非续传直接 destroy
+        if (keepPart && !o.errored) o.end();
+        else o.destroy();
+      });
+    }
+    if (!keepPart) fs.rmSync(tmp, { force: true, maxRetries: 5, retryDelay: 200 });
     if (timedOut && !(e instanceof DownloadTimeoutError)) {
       throw new DownloadTimeoutError(opts.idleTimeoutMs!);
     }

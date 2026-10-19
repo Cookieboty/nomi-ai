@@ -15,7 +15,7 @@ describe('integrated title bar', () => {
   });
 
   it.each(['win32', 'linux'] as const)('%s uses a themed native controls overlay', (p) => {
-    for (const th of ['mist', 'graphite', 'ink', 'paper'] as const) {
+    for (const th of ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const) {
       const o = titleBarOptions(p, th);
       expect(o.titleBarStyle).toBe('hidden');
       expect(o.titleBarOverlay).toEqual({
@@ -32,11 +32,11 @@ describe('integrated title bar', () => {
       setBackgroundColor: jest.fn(),
       setTitleBarOverlay: jest.fn(),
     };
-    applyTitleBarTheme(win as never, 'paper', 'win32');
-    expect(win.setBackgroundColor).toHaveBeenCalledWith('#fafaf9');
+    applyTitleBarTheme(win as never, 'cream', 'win32');
+    expect(win.setBackgroundColor).toHaveBeenCalledWith('#fcefe1');
     expect(win.setTitleBarOverlay).toHaveBeenCalledWith({
-      color: '#fafaf9',
-      symbolColor: '#1c1c1e',
+      color: '#fcefe1',
+      symbolColor: '#33291f',
       height: 36,
     });
     win.setTitleBarOverlay.mockClear();
@@ -52,7 +52,7 @@ describe('integrated title bar', () => {
     };
     const bgOf = (b: string) => /--cd-color-bg:\s*(#[0-9a-f]+)/i.exec(b)?.[1];
     expect(bgOf(block(':root'))).toBe(THEME_CHROME.mist.bg);
-    for (const th of ['graphite', 'ink', 'paper'] as const)
+    for (const th of ['graphite', 'ink', 'cream', 'sunset'] as const)
       expect(bgOf(block(`[data-theme='${th}']`))).toBe(THEME_CHROME[th].bg);
   });
 });

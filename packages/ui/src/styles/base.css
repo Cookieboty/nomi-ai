@@ -21,7 +21,7 @@
 .cd-btn:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
   background: var(--cd-color-surface-raised);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .cd-btn:focus-visible {
   outline: none;
@@ -61,6 +61,7 @@
 .cd-btn--ghost:hover:not(:disabled) {
   background: var(--cd-color-accent-soft);
   border-color: transparent;
+  color: var(--cd-color-accent-strong);
 }
 .cd-btn--danger {
   color: var(--cd-color-danger);
@@ -179,11 +180,11 @@
 }
 .cd-switch[aria-checked='true'] .cd-switch__track {
   background: var(--cd-color-accent);
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
 }
 .cd-switch[aria-checked='true'] .cd-switch__thumb {
   left: 18px;
-  background: #fff;
+  background: var(--cd-color-text-on-accent);
 }
 .cd-switch:focus-visible {
   outline: none;
@@ -333,11 +334,13 @@
   transition: var(--cd-transition);
 }
 .cd-tab:hover {
+  background: var(--cd-color-hover);
   color: var(--cd-color-text);
 }
+/* 选中态：selected-bg 填充 + selected-text 文字（对比度 ≥ 4.5:1，见 tests/theme-contrast.test.ts） */
 .cd-tab[aria-selected='true'] {
-  background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
   box-shadow: inset 0 0 0 1px var(--cd-color-border-strong);
 }
 .cd-tab:focus-visible {
@@ -359,7 +362,7 @@
   vertical-align: middle;
   white-space: nowrap;
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
   border: 1px solid transparent;
 }
 .cd-badge__icon {
@@ -405,7 +408,11 @@
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-xs);
-  white-space: nowrap;
+  /* 短提示一行；长描述按最大宽度换行，不会一路伸出窗口 / 压到旁边的栏 */
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -427,6 +434,10 @@
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
+}
+.cd-tooltip__bubble--bottom-start {
+  top: calc(100% + 6px);
+  left: 0;
 }
 .cd-tooltip__bubble--left {
   right: calc(100% + 6px);
@@ -595,7 +606,7 @@
   margin-bottom: var(--cd-space-1);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .cd-empty__icon svg {
   width: 22px;
@@ -658,7 +669,7 @@
   padding: 1px var(--cd-space-1);
   border-radius: var(--cd-radius-xs);
   background: var(--cd-color-surface-sunken);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .cd-section-title {
   margin: 0 0 var(--cd-space-2);

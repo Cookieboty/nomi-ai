@@ -27,7 +27,17 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
   ...props
 }) => {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // 错误绑定到「产生它的模型路径」：换成别的模型后旧错误自动失效（不再粘住错误 UI）。
+  // 旧模型迟到的失败由 VRMCharacterController 的 cancelled 检查拦掉，这里再按路径兜底一次。
+  const [errorState, setErrorState] = useState<{ path: string; message: string } | null>(null);
+  // 换模型（包括 A → B → A 切回曾经失败的模型）都重新尝试加载，不沿用旧错误（#38）：
+  // 在渲染阶段按路径变化复位，而不是在 effect 里同步 setState
+  const [shownPath, setShownPath] = useState(modelPath);
+  if (shownPath !== modelPath) {
+    setShownPath(modelPath);
+    setErrorState(null);
+  }
+  const error = errorState && errorState.path === modelPath ? errorState.message : null;
 
   const { isLoaded, isVisible, setCurrentModel } = useCharacter3DStore();
 
@@ -47,7 +57,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
         onReady?.();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : t('初始化失败');
-        setError(errorMessage);
+        setErrorState({ path: modelPath, message: errorMessage });
         onError?.(errorMessage);
         log.error('初始化失败:', err);
       }
@@ -72,7 +82,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
 
   // 处理错误
   const handleError = (errorMessage: string) => {
-    setError(errorMessage);
+    setErrorState({ path: modelPath, message: errorMessage });
     onError?.(errorMessage);
     log.error('错误:', errorMessage);
   };
@@ -101,6 +111,15 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
         <div>
           <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>{t('3D角色加载失败')}</div>
           <div style={{ fontSize: '12px', opacity: 0.8 }}>{error}</div>
+          {/* 清掉错误后画布重新挂载，同一个模型会重新加载（#38） */}
+          <button
+            type="button"
+            onClick={() => setErrorState(null)}
+            data-testid="character3d-retry"
+            style={{ marginTop: '10px', pointerEvents: 'auto', cursor: 'pointer' }}
+          >
+            {t('重试')}
+          </button>
         </div>
       </div>
     );

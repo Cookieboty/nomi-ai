@@ -7,11 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { parse as parseToml } from 'smol-toml';
+
 import { isAllowedUpdateArgv, updateRecipes } from '../../../src/cli/CliUpdateService';
 import {
   DSH_MARK_BEGIN,
   GROK_MARK_BEGIN,
   GROK_KEY_ENV,
+  GrokInlineModelsError,
   patchDshYaml,
   patchGrokToml,
   backupFile,
@@ -137,6 +140,11 @@ describe('update whitelist', () => {
 
 describe('dsh update recipe', () => {
   it('only uses npm global install (no self-update)', () => {
+    const g = updateRecipes('gemini', '/usr/local/bin/gemini', 'unknown');
+    // Gemini 没有 `gemini update`，只走 npm
+    expect(g.map((x) => x.via)).toEqual(['npm']);
+    expect(g[0]!.argv.slice(1)).toEqual(['install', '-g', '@google/gemini-cli@latest']);
+    expect(isAllowedUpdateArgv(g[0]!.argv)).toBe(true);
     const r = updateRecipes('dsh', '/usr/local/bin/dsh', 'unknown');
     expect(r).toHaveLength(1);
     expect(r[0]!.via).toBe('npm');
@@ -221,5 +229,117 @@ describe('patchGrokToml', () => {
   it('removes only the marked block', () => {
     expect(patchGrokToml(patchGrokToml('# keep\n', patch), null)).toContain('# keep');
     expect(patchGrokToml(patchGrokToml(null, patch), null)).toBe('');
+  });
+
+  /** 无 TOML 解析器依赖：只检查「同表重复定义 / 同表重复键」这两类会让 TOML 非法的错误 */
+  function assertValidTables(toml: string): Record<string, string[]> {
+    const tables: Record<string, string[]> = {};
+    let cur = '';
+    for (const line of toml.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const h = /^\[([^\]]+)\]$/.exec(t);
+      if (h) {
+        cur = h[1]!;
+        expect(tables[cur]).toBeUndefined();
+        tables[cur] = [];
+        continue;
+      }
+      const k = /^([A-Za-z0-9_.-]+)\s*=/.exec(t);
+      if (k) {
+        expect(tables[cur] ?? (tables[cur] = [])).not.toContain(k[1]);
+        tables[cur]!.push(k[1]!);
+      }
+    }
+    return tables;
+  }
+
+  it('existing [models] table: switches default in place, no duplicate table (#24)', () => {
+    const raw =
+      '# top\n[models]\n# my pick\ndefault = "user-model"\nextra = 1\n\n[ui]\ntheme = "dark"\n';
+    const out = patchGrokToml(raw, patch);
+    const tables = assertValidTables(out);
+    expect(out.match(/^\[models\]$/gm)).toHaveLength(1);
+    expect(tables['models']).toEqual(['default', 'extra']);
+    expect(out).toContain('default = "nomi"');
+    expect(out).toContain('# my pick');
+    expect(out).toContain('extra = 1');
+    expect(out).toContain('[ui]');
+    expect(out).toContain('[model.nomi]');
+  });
+
+  it('existing [models] without default gets one inserted in that table (#24)', () => {
+    const out = patchGrokToml('[models]\nextra = 1\n', patch);
+    const tables = assertValidTables(out);
+    expect(tables['models']).toEqual(['default', 'extra']);
+  });
+
+  it('re-activation keeps the first recorded original default; cancel restores it (#24)', () => {
+    const raw = '[models]\ndefault = "user-model" # fav\nextra = 1\n';
+    const first = patchGrokToml(raw, patch);
+    const second = patchGrokToml(first, { ...patch, model: 'grok-4.5' });
+    assertValidTables(second);
+    expect(second.match(/^\[models\]$/gm)).toHaveLength(1);
+    expect(second.match(/\[model\.nomi\]/g)).toHaveLength(1);
+    expect(second).toContain('grok-4.5');
+    const restored = patchGrokToml(second, null);
+    expect(restored).toBe(raw);
+  });
+
+  it('cancel removes an inserted default when the user had none (#24)', () => {
+    const raw = '[models]\nextra = 1\n';
+    expect(patchGrokToml(patchGrokToml(raw, patch), null)).toBe(raw);
+  });
+
+  it('keeps first-time activation (no [models]) and cancel round trip (#24)', () => {
+    const raw = '[ui]\ntheme = "dark"\n';
+    const out = patchGrokToml(raw, patch);
+    const tables = assertValidTables(out);
+    expect(tables['models']).toEqual(['default']);
+    expect(patchGrokToml(out, null)).toBe(raw);
+  });
+
+  describe('header variants and root-level models are recognised (#24)', () => {
+    // 真正的 TOML 解析：生成的配置必须合法，且 default 指向 nomi
+    const parsed = (out: string) => parseToml(out) as Record<string, Record<string, unknown>>;
+    it.each([
+      [
+        'comment after header',
+        '[models] # mine\ndefault = "user-model"\n\n[ui] # look\ntheme = "dark"\n',
+      ],
+      ['spaces inside brackets', '[ models ]\ndefault = "user-model"\n[ ui ]\ntheme = "dark"\n'],
+      ['root dotted key', 'models.default = "user-model"\n\n[ui]\ntheme = "dark"\n'],
+      ['root dotted key, spaced', 'models . default = "user-model"\n[ui]\ntheme = "dark"\n'],
+    ])('%s: one models table, valid TOML, cancel restores the original', (_n, raw) => {
+      expect(() => parseToml(raw)).not.toThrow();
+      const out = patchGrokToml(raw, patch);
+      const j = parsed(out);
+      expect(j.models).toMatchObject({ default: 'nomi' });
+      expect(j.model).toHaveProperty('nomi');
+      expect(j.ui).toEqual({ theme: 'dark' });
+      // 再次启用不重复追加
+      const again = patchGrokToml(out, { ...patch, model: 'grok-4.5' });
+      expect(parsed(again).models).toMatchObject({ default: 'nomi' });
+      expect(patchGrokToml(again, null)).toBe(raw);
+    });
+
+    it('a table header with a trailing comment ends the [models] scan (no edit in the next table)', () => {
+      const raw = '[models]\nextra = 1\n[ui] # look\ndefault = "keep-me"\n';
+      const j = parsed(patchGrokToml(raw, patch));
+      expect(j.models).toEqual({ default: 'nomi', extra: 1 });
+      expect(j.ui).toEqual({ default: 'keep-me' });
+    });
+
+    it('a spaced [ model.nomi ] left from an old run is replaced, not duplicated', () => {
+      const raw = '[ model . nomi ]\nmodel = "old"\n\n[ui]\ntheme = "dark"\n';
+      const j = parsed(patchGrokToml(raw, patch));
+      expect((j.model as Record<string, { model: string }>).nomi.model).toBe(patch.model);
+    });
+
+    it('inline models table is refused instead of producing invalid TOML', () => {
+      expect(() => patchGrokToml('models = { default = "x" }\n', patch)).toThrow(
+        GrokInlineModelsError,
+      );
+    });
   });
 });

@@ -106,6 +106,36 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
+/* 来源子代理与自动拒绝倒计时（docs/design/cli-subagents.md §5） */
+.permSource {
+  padding: 1px 8px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-muted);
+}
+.permTimer {
+  margin-left: auto;
+  font-size: var(--conv-meta);
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-subtle);
+}
+/* 并行子代理的多项请求依次排列 */
+.permQueue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.permCount {
+  font-size: var(--conv-meta);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-warning);
+}
+.permExpired {
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-subtle);
+}
 .permSummary {
   display: block;
   padding: 6px 10px;
@@ -328,8 +358,13 @@
 }
 .errorActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.errorNote {
+  font-size: var(--conv-ui);
+  color: var(--cd-color-text-muted);
 }
 .errorBtn {
   display: inline-flex;
@@ -409,7 +444,7 @@
 .statusIcon {
   display: inline-flex;
   flex: none;
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .statusSpin > svg {
   animation: cliSpin 0.9s linear infinite;
@@ -435,4 +470,74 @@
   .statusSpin > svg {
     animation: none;
   }
+}
+
+/* 后台任务条：一轮结束后仍在跑的后台子代理（docs/design/cli-subagents.md §5） */
+.bgBar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.bgToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: var(--cd-radius-full);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.bgToggle:focus-visible,
+.bgStop:focus-visible {
+  outline: 2px solid var(--cd-color-accent);
+  outline-offset: 2px;
+}
+.bgList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 6px 10px;
+  list-style: none;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-sunken);
+}
+.bgRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: var(--conv-meta);
+}
+.bgLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text);
+}
+.bgElapsed {
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-subtle);
+}
+.bgStop {
+  padding: 1px 8px;
+  border-radius: var(--cd-radius-sm);
+  border: 1px solid var(--cd-color-border);
+  background: transparent;
+  font-size: var(--conv-meta);
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.bgStop:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

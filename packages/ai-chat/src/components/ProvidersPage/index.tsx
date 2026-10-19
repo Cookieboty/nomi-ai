@@ -1,5 +1,5 @@
 /**
- * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / 监视与会话。
+ * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话。
  * - 四个端点各自独立：Nomi 是自有 AI 的供应商 + 任务路由（存于 ai-providers.json）；
  *   Claude Code / Codex / dsh / Grok 用与 Nomi 相同的供应商卡片交互（预设模板、添加 / 编辑 / 启用 / 测速 / 删除），
  *   默认「使用 CLI 自带登录/默认配置」；每个 CLI 端点还有「版本」卡片（检测 / 更新 / 安装）与「高级」（本地路由）。

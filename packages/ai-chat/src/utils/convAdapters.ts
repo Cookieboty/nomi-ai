@@ -30,7 +30,9 @@ function buildHarness(m: HarnessTabMessage, backend: string): ConvMessage {
     ...(m.textBreaks?.length ? { textBreaks: m.textBreaks } : {}),
     ...(m.tools?.length ? { legacyTools: m.tools } : {}),
     ...(m.error ? { error: m.content } : {}),
+    ...(m.error && m.geminiTrust ? { geminiTrust: m.geminiTrust } : {}),
     ...(m.stopped ? { stopped: true } : {}),
+    ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
     ...(m.role === 'assistant' ? { label } : {}),
@@ -56,6 +58,7 @@ function buildChat(m: ChatMessage): ConvMessage | null {
     ...(m.trace?.length ? { trace: m.trace } : {}),
     ...(m.error ? { error: m.error } : {}),
     ...(m.stopped ? { stopped: true } : {}),
+    ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),
     ...(m.usage ? { usage: m.usage } : {}),
     ...(m.role === 'assistant' && m.modelId ? { label: m.modelId } : {}),
@@ -71,7 +74,9 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
     ...(l.textBreaks?.length ? { textBreaks: l.textBreaks } : {}),
     ...(l.startedAt !== undefined ? { startedAt: l.startedAt } : {}),
     ...(l.firstEventAt !== undefined ? { firstEventAt: l.firstEventAt } : {}),
-    ...(l.permission ? { permission: l.permission } : {}),
+    ...(l.permissions?.length ? { permissions: l.permissions } : {}),
+    ...(l.permissionExpired ? { permissionExpired: l.permissionExpired } : {}),
+    ...(l.agents ? { agents: l.agents } : {}),
     ...(l.status ? { status: l.status } : {}),
   };
 }

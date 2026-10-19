@@ -1,8 +1,9 @@
 /**
- * Claude Code / Codex / dsh / Grok **各自独立** 的供应商档案。
- * - 存储：userData/cli-providers/{claude,codex,dsh,grok}/store.json
+ * Claude Code / Codex / dsh / Grok / Gemini **各自独立** 的供应商档案。
+ * - 存储：userData/cli-providers/{claude,codex,dsh,grok,gemini}/store.json
  * - 写入：Claude → ~/.claude/settings.json；Codex → ~/.codex/config.toml + auth.json；
- *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）
+ *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）；
+ *   Gemini → 不写 ~/.gemini：Nomi 私有的系统级设置（只含认证方式）+ 启动时注入 Key / 地址 / 模型
  * - 与 Nomi 自有 ProviderStore（ai-providers.json）完全隔离
  */
 import { randomUUID } from 'node:crypto';
@@ -23,6 +24,7 @@ import {
   codexConfigPath,
   DSH_KEY_ENV,
   GROK_KEY_ENV,
+  GrokInlineModelsError,
   dshPatchPath,
   grokConfigPath,
   ensureDir,
@@ -131,7 +133,7 @@ export function buildProbeRequest(
   return { url: `${base}/models`, headers: key ? { authorization: `Bearer ${key}` } : {} };
 }
 
-const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh', 'grok'];
+const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 function normalizeFormat(kind: CliProviderKind, raw: unknown): CliApiFormat {
   if (kind === 'claude' && isClaudeApiFormat(raw)) return raw;
@@ -139,6 +141,12 @@ function normalizeFormat(kind: CliProviderKind, raw: unknown): CliApiFormat {
   if (kind === 'dsh' && isDshApiFormat(raw)) return raw;
   if (kind === 'grok' && isGrokApiFormat(raw)) return raw;
   return defaultFormat(kind);
+}
+
+/** 回滚成功时给错误信息补一句说明。翻译键只在 t() 里出现一次（模板字面量里嵌 t() 会被 i18n 检查当成整句键）。 */
+function withRestoredNote(error: string): string {
+  const note = t('已恢复为修改前的配置');
+  return `${error}（${note}）`;
 }
 
 export class CliProviderBridge {
@@ -150,7 +158,14 @@ export class CliProviderBridge {
     codex: { profiles: [] },
     dsh: { profiles: [] },
     grok: { profiles: [] },
+    gemini: { profiles: [] },
   };
+
+  /**
+   * 正在使用（active）的档案被编辑后、重新写入 CLI 配置前的完整旧快照。
+   * 重新启用成功就丢弃；失败则恢复，避免「存储里是新端点 / 新 Key，CLI 配置文件还是旧的」的混配。
+   */
+  private readonly rollbacks = new Map<string, StoredProfile>();
 
   /** 配置已写入 CLI 启动时才会读的文件。由 harness 悄悄换下一轮进程。 */
   private onApplied: ((kind: CliProviderKind) => void) | null = null;
@@ -163,6 +178,7 @@ export class CliProviderBridge {
       codex: path.join(d.root, 'codex', 'store.json'),
       dsh: path.join(d.root, 'dsh', 'store.json'),
       grok: path.join(d.root, 'grok', 'store.json'),
+      gemini: path.join(d.root, 'gemini', 'store.json'),
     };
     // migrate legacy single store.json if present
     this.migrateLegacy(path.join(d.root, 'store.json'));
@@ -276,6 +292,41 @@ export class CliProviderBridge {
     return { [GROK_KEY_ENV]: decrypt(p.keyEnc) || 'nomi-local' };
   }
 
+  /** Gemini 档案启用时给 CLI 的系统级设置文件：优先级高于 ~/.gemini/settings.json，只放认证方式 */
+  private geminiSystemSettingsPath(): string {
+    return path.join(this.d.root, 'gemini', 'system-settings.json');
+  }
+
+  /**
+   * 启动 Gemini 时注入的环境变量（仅档案启用时）：系统级设置把认证方式定为 API Key / 网关，
+   * Key、地址、模型都走环境变量，不改用户的 ~/.gemini，也就不会动到 Google 登录。
+   */
+  geminiEnv(): Record<string, string> {
+    const p = this.data.gemini.profiles.find((x) => x.active);
+    const file = this.geminiSystemSettingsPath();
+    if (!p || !fs.existsSync(file)) return {};
+    return {
+      GEMINI_CLI_SYSTEM_SETTINGS_PATH: file,
+      GEMINI_API_KEY: decrypt(p.keyEnc) || 'nomi-local',
+      ...(p.baseUrl.trim() ? { GOOGLE_GEMINI_BASE_URL: p.baseUrl.trim() } : {}),
+      ...(p.model.trim() ? { GEMINI_MODEL: p.model.trim() } : {}),
+    };
+  }
+
+  /** 停用 Gemini 档案：删掉 Nomi 的系统级设置，回到 Gemini 自己的登录 */
+  deactivateGemini(): { ok: boolean; backups: string[]; error?: string } {
+    try {
+      fs.rmSync(this.geminiSystemSettingsPath(), { force: true });
+      for (const x of this.data.gemini.profiles) x.active = false;
+      this.saveKind('gemini');
+      this.broadcast();
+      this.applied('gemini');
+      return { ok: true, backups: [] };
+    } catch (e) {
+      return { ok: false, backups: [], error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   /** 停用 dsh 档案：移除 Nomi 区块，回到 dsh 自身的默认供应商 */
   deactivateDsh(): { ok: boolean; backups: string[]; error?: string } {
     const file = dshPatchPath(this.home);
@@ -322,9 +373,15 @@ export class CliProviderBridge {
     }
   }
 
+  /** 该 CLI 是否启用了 Nomi 的第三方供应商档案（切到官方账号时据此决定要不要停用） */
+  hasActiveProfile(kind: CliProviderKind): boolean {
+    return this.data[kind].profiles.some((x) => x.active);
+  }
+
   deactivate(kind: CliProviderKind): { ok: boolean; backups: string[]; error?: string } {
     if (kind === 'dsh') return this.deactivateDsh();
     if (kind === 'grok') return this.deactivateGrok();
+    if (kind === 'gemini') return this.deactivateGemini();
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const backups: string[] = [];
     const active = this.data[kind].profiles.find((x) => x.active);
@@ -431,6 +488,8 @@ export class CliProviderBridge {
       dshConfig: dshPatchPath(this.home),
       grokStore: this.storePaths.grok,
       grokConfig: grokConfigPath(this.home),
+      geminiStore: this.storePaths.gemini,
+      geminiConfig: this.geminiSystemSettingsPath(),
       routing: route ?? null,
     };
   }
@@ -455,6 +514,19 @@ export class CliProviderBridge {
       active: existing?.active ?? false,
       presetId: input.presetId?.trim() || existing?.presetId,
     };
+    if (existing?.active) {
+      // 正在使用的档案：保存 = 在主进程里一次性「预检 → 写 CLI 配置 → 落盘档案库」（#39）。
+      // 不再依赖渲染层随后再发 activate：两步之间窗口关闭 / IPC 失败 / 恰好拉起一轮 CLI 时，
+      // 启动环境会用新 Key 配旧端点。activate 是同步的，中途不会有别的轮次读到半新半旧的档案；
+      // 写盘失败时由 rollbacks 快照恢复内存与档案库，新 Key 从未落盘。
+      const problem = this.preflight(next);
+      if (problem) throw new Error(problem);
+      this.rollbacks.set(id, { ...existing });
+      Object.assign(existing, next);
+      const r = this.activate(id);
+      if (!r.ok) throw new Error(r.error ?? t('启用失败'));
+      return this.toView(existing);
+    }
     if (existing) Object.assign(existing, next);
     else this.data[kind].profiles.push(next);
     this.saveKind(kind);
@@ -477,6 +549,8 @@ export class CliProviderBridge {
     restartRequired: boolean;
     usedRouting: boolean;
     error?: string;
+    /** 失败后已把「正在使用的档案」恢复为编辑前的完整配置 */
+    rolledBack?: boolean;
   } {
     const p = this.allProfiles().find((x) => x.id === id);
     if (!p) {
@@ -488,43 +562,36 @@ export class CliProviderBridge {
         error: t('档案不存在'),
       };
     }
+    const failure = (error: string) => {
+      const rolledBack = this.rollBackActiveEdit(id);
+      return {
+        ok: false,
+        backups: [] as string[],
+        restartRequired: false,
+        usedRouting: false,
+        error: rolledBack ? withRestoredNote(error) : error,
+        ...(rolledBack ? { rolledBack } : {}),
+      };
+    };
+    const problem = this.preflight(p);
+    if (problem) return failure(problem);
     const key = decrypt(p.keyEnc);
     const needs = formatNeedsRouting(p.kind, p.apiFormat);
     const route = getCliRouteService();
-    const routeSettings = route?.getSettings();
-    const routingOn = Boolean(
-      p.kind !== 'dsh' &&
-      p.kind !== 'grok' &&
-      routeSettings?.enabled &&
-      routeSettings?.[p.kind as 'claude' | 'codex'],
-    );
-    if (needs && !routingOn) {
-      return {
-        ok: false,
-        backups: [],
-        restartRequired: false,
-        usedRouting: false,
-        error: t('该上游格式需要先开启本地路由（高级设置）'),
-      };
-    }
     const useRoute = needs;
-    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
-    // 下一轮直接报 “has no provider/model”。
-    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
-      return {
-        ok: false,
-        backups: [],
-        restartRequired: false,
-        usedRouting: false,
-        error: t('请先填写模型，再设为当前'),
-      };
-    }
     // 本地路由令牌：CLI 请求本地路由时必须携带（路由不再接受任意来源的匿名请求）
     const routeKey = route?.authToken() ?? 'nomi-route';
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const backups: string[] = [];
     try {
-      if (p.kind === 'dsh') {
+      if (p.kind === 'gemini') {
+        const selectedType = p.baseUrl.trim() ? 'gateway' : 'gemini-api-key';
+        ensureDir(this.geminiSystemSettingsPath());
+        writePrivateFile(
+          this.geminiSystemSettingsPath(),
+          JSON.stringify({ security: { auth: { selectedType } } }, null, 2),
+        );
+      } else if (p.kind === 'dsh') {
         const file = dshPatchPath(this.home);
         const b = backupFile(file, path.join(this.backupRoot, ts), 'dsh-cordis.patch.yml');
         if (b) backups.push(b);
@@ -592,6 +659,7 @@ export class CliProviderBridge {
         writePrivateFile(auth, patchCodexAuth(rawAuth, useRoute ? routeKey : key || undefined));
       }
       for (const x of this.data[p.kind].profiles) x.active = x.id === id;
+      this.rollbacks.delete(id);
       this.saveKind(p.kind);
       this.broadcast();
       // 下一轮会自己拉起新进程读这份配置，不再提示用户重启会话。
@@ -603,14 +671,60 @@ export class CliProviderBridge {
         usedRouting: Boolean(useRoute),
       };
     } catch (e) {
+      const error =
+        e instanceof GrokInlineModelsError
+          ? t('~/.grok/config.toml 用内联表定义了 models，请改成 [models] 表后再启用')
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      // 写到一半失败（如 Codex 的 config 已写、auth 没写成）：把已备份的原文件放回去，
+      // 避免 CLI 配置文件之间互相混配
+      if (backups.length) this.restoreBackup(ts);
+      const rolledBack = this.rollBackActiveEdit(id);
       return {
         ok: false,
         backups,
         restartRequired: false,
         usedRouting: false,
-        error: e instanceof Error ? e.message : String(e),
+        error: rolledBack ? withRestoredNote(error) : error,
+        ...(rolledBack ? { rolledBack } : {}),
       };
     }
+  }
+
+  /** 激活 / 保存前的共同预检：返回问题描述，null 表示可以写入 */
+  private preflight(p: StoredProfile): string | null {
+    const route = getCliRouteService();
+    const routeSettings = route?.getSettings();
+    const routingOn = Boolean(
+      p.kind !== 'dsh' &&
+      p.kind !== 'grok' &&
+      p.kind !== 'gemini' &&
+      routeSettings?.enabled &&
+      routeSettings?.[p.kind as 'claude' | 'codex'],
+    );
+    if (formatNeedsRouting(p.kind, p.apiFormat) && !routingOn) {
+      return t('该上游格式需要先开启本地路由（高级设置）');
+    }
+    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
+    // 下一轮直接报 “has no provider/model”。
+    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
+      return t('请先填写模型，再设为当前');
+    }
+    return null;
+  }
+
+  /** 激活失败：若该档案是「正在使用且刚被编辑」的，恢复编辑前的完整快照，返回是否恢复了 */
+  private rollBackActiveEdit(id: string): boolean {
+    const snap = this.rollbacks.get(id);
+    this.rollbacks.delete(id);
+    if (!snap) return false;
+    const cur = this.data[snap.kind].profiles.find((x) => x.id === id);
+    if (!cur) return false;
+    Object.assign(cur, snap);
+    this.saveKind(snap.kind);
+    this.broadcast();
+    return true;
   }
 
   restoreBackup(tsDir: string): { ok: boolean; error?: string } {

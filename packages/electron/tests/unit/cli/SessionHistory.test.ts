@@ -14,6 +14,7 @@ import {
   parseClaudeTranscript,
   parseCodexTranscript,
   parseDshTranscript,
+  parseGeminiTranscript,
 } from '../../../src/cli/historyTranscript';
 import { SessionHistoryService } from '../../../src/cli/SessionHistoryService';
 
@@ -214,6 +215,49 @@ describe('history transcript parsers (fixtures)', () => {
     const m = parseDshTranscript(fx('dsh-session.jsonl'));
     expect(m[1]!.usage).toMatchObject({ inputTokens: 4651, outputTokens: 3, cacheReadTokens: 3 });
     expect(m[1]!.durationMs).toBeGreaterThan(1000);
+  });
+
+  it('gemini: thoughts / tool calls become a trace; rewritten messages are folded by id', () => {
+    const lines = [
+      { sessionId: 'g', kind: 'main' },
+      { id: 'u', type: 'user', timestamp: '2026-10-19T00:00:01Z', content: [{ text: 'ls' }] },
+      { id: 'i', type: 'info', content: 'Request cancelled.' },
+      {
+        id: 'm',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:02Z',
+        content: '',
+        toolCalls: [{ id: 't1', name: 'run_shell_command', args: { command: 'ls' } }],
+      },
+      {
+        id: 'm',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:03Z',
+        content: '',
+        thoughts: [{ subject: 'Listing', description: 'run ls' }],
+        toolCalls: [
+          {
+            id: 't1',
+            name: 'run_shell_command',
+            args: { command: 'ls' },
+            status: 'success',
+            result: [],
+            resultDisplay: 'a.txt',
+          },
+        ],
+      },
+      { id: 'm2', type: 'gemini', timestamp: '2026-10-19T00:00:04Z', content: 'a.txt' },
+    ];
+    const m = parseGeminiTranscript(lines.map((l) => JSON.stringify(l)).join('\n'));
+    expect(m.map((x) => [x.role, x.content])).toEqual([
+      ['user', 'ls'],
+      ['assistant', 'a.txt'],
+    ]);
+    const trace = m[1]!.trace ?? [];
+    expect(trace.some((e) => e.type === 'thinking')).toBe(true);
+    expect(trace).toContainEqual(
+      expect.objectContaining({ type: 'tool', name: 'run_shell_command', status: 'done' }),
+    );
   });
 
   it('tolerates garbage and truncated lines', () => {
@@ -531,6 +575,64 @@ describe('SessionHistoryService', () => {
     ]);
   });
 
+  const writeGemini = (slug: string, id: string, mtime: number, extra: object[] = []) => {
+    const dir = path.join(home, '.gemini', 'tmp', slug);
+    fs.mkdirSync(path.join(dir, 'chats', id), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.project_root'), `${work}\n`);
+    const p = path.join(dir, 'chats', `session-2026-10-19T00-00-${id.slice(0, 8)}.jsonl`);
+    const lines = [
+      { sessionId: id, projectHash: 'h', startTime: '2026-10-19T00:00:00Z', kind: 'main' },
+      {
+        id: 'u1',
+        type: 'user',
+        timestamp: '2026-10-19T00:00:01Z',
+        content: [{ text: '看看日志' }],
+      },
+      ...extra,
+    ];
+    fs.writeFileSync(p, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+    // 子代理：chats/<父 id>/<子 id>.jsonl，不应列出
+    fs.writeFileSync(
+      path.join(dir, 'chats', id, 'sub.jsonl'),
+      JSON.stringify({ sessionId: 'sub', kind: 'subagent' }) + '\n',
+    );
+    touch(p, mtime);
+    return p;
+  };
+
+  it('gemini: lists main sessions with cwd from .project_root and opens via the tab layer', async () => {
+    writeGemini('app', 'gem-11111111', 2_000_000, [
+      {
+        id: 'm1',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:02Z',
+        content: '日志里没有错误',
+        tokens: { input: 10, output: 4, cached: 2 },
+      },
+    ]);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const h = mk({ openTab });
+    const page = await h.list('gemini');
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        key: 'gemini:gem-11111111',
+        title: '看看日志',
+        cwd: work,
+        cwdMissing: false,
+      }),
+    ]);
+    const r = await h.open('gemini', 'gem-11111111');
+    expect(r.ok).toBe(true);
+    const arg = (openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    expect(arg).toMatchObject({ backend: 'gemini', sessionId: 'gem-11111111', cwd: work });
+    const msgs = arg.messages as Array<{ role: string; content: string; usage?: unknown }>;
+    expect(msgs.map((m) => [m.role, m.content])).toEqual([
+      ['user', '看看日志'],
+      ['assistant', '日志里没有错误'],
+    ]);
+    expect(msgs[1]!.usage).toEqual({ inputTokens: 10, outputTokens: 4, cacheReadTokens: 2 });
+  });
+
   it('open: an unreadable transcript still opens, with a notice', async () => {
     const p = writeClaude('a', 'task a', 1_000_000);
     const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
@@ -559,11 +661,21 @@ describe('resume through the tab layer (mock CLIs)', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-harness-'));
     work = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-cwd-'));
   });
+  // 收掉长驻的 Claude 进程，否则 jest 进程无法退出
+  const made: CliHarnessService[] = [];
   afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () =>
-    new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
+  const mk = () => {
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+    });
+    made.push(h);
+    return h;
+  };
 
   it.each([
     ['claude', 'sess-claude-1', '已续接会话 sess-claude-1'],

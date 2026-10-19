@@ -4,11 +4,10 @@ import {
   AudioLines,
   Bot,
   Ellipsis,
+  EyeOff,
   Hand,
   Info,
   Mic,
-  Pin,
-  PinOff,
   RotateCcw,
   Settings2,
   UserRound,
@@ -37,11 +36,12 @@ import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
 import { nextModel } from '@/mascot/catalog';
 import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
+import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
-import { registerSpeechStopper } from '@/mascot/speechStop';
+import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MESSAGES } from '@/mascot/tips';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
-import { getCache, setCache } from '@/utils/cache';
+import { setCache } from '@/utils/cache';
 
 const log = createLogger('toolbar');
 
@@ -62,9 +62,8 @@ const HIDE_DELAY_MS = 1500;
 const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
 
 export const ToolBar: React.FC = () => {
-  const [alwaysOnTop, setAlwaysOnTop] = useState(false);
   const {
-    config: { tools: availableTools = [] },
+    config: { tools: configTools = [] },
     state: mascotState,
     dispatch: mascotDispatch,
     selectModel,
@@ -75,6 +74,8 @@ export const ToolBar: React.FC = () => {
     [say],
   );
 
+  // 「关闭看板娘」随时可用（#55）：默认界面为看板娘时主进程会改为主界面并打开它
+  const availableTools = configTools;
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceService, setVoiceService] = useState<VoiceService | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
@@ -155,39 +156,10 @@ export const ToolBar: React.FC = () => {
     initVoiceService();
   }, []);
 
-  // 初始化置顶状态
-  useEffect(() => {
-    const loadAlwaysOnTopState = async () => {
-      try {
-        const currentState = (await getCache<boolean>('waifu-always-on-top')) === true;
-        setAlwaysOnTop(currentState);
-      } catch (error) {
-        log.error('加载置顶状态失败:', error);
-      }
-    };
-
-    loadAlwaysOnTopState();
-  }, []);
-
-  // 切换置顶状态
-  const toggleAlwaysOnTop = useCallback(async () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-    const electronAPI = (window as any).electronAPI;
-    if (electronAPI?.setAlwaysOnTop) {
-      // 获取当前置顶状态
-      const currentState = (await getCache<boolean>('waifu-always-on-top')) === true;
-
-      // 切换置顶状态
-      const newState = !currentState;
-      await setCache('waifu-always-on-top', newState);
-      setAlwaysOnTop(newState);
-
-      // 设置窗口置顶
-      electronAPI.setAlwaysOnTop(newState);
-
-      // 显示消息
-      showMessage(newState ? tr('已设置为最前端显示！') : tr('已取消最前端显示！'));
-    }
+  // 关闭看板娘：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
+  const hideMascot = useCallback(async () => {
+    stopAllSpeech();
+    if (!(await closeMascot())) showMessage(tr('关闭看板娘失败，请稍后再试'));
   }, [showMessage]);
 
   // 拍照功能
@@ -273,6 +245,16 @@ export const ToolBar: React.FC = () => {
     return () => window.removeEventListener('mascot:voice-enabled', on);
   }, []);
 
+  // 语音设置变化（含主进程回滚：模型下载失败 / 取消 / 删除）→ 同步按钮状态
+  useEffect(() => {
+    const on = (e: Event) => {
+      const enabled = (e as CustomEvent<{ enabled?: boolean }>).detail?.enabled;
+      if (typeof enabled === 'boolean') setVoiceEnabled(enabled);
+    };
+    window.addEventListener('mascot:voice-settings', on);
+    return () => window.removeEventListener('mascot:voice-settings', on);
+  }, []);
+
   const toggleVoiceMode = useCallback(async () => {
     if (!voiceService) {
       showMessage(tr('语音服务尚未初始化，请稍后再试...'));
@@ -312,8 +294,8 @@ export const ToolBar: React.FC = () => {
         return showInfo;
       case 'quit':
         return quitApp;
-      case 'toggle-top':
-        return toggleAlwaysOnTop;
+      case 'close-mascot':
+        return () => void hideMascot();
       case 'voice-settings':
         return () => {
           // 如果VoiceService还没有初始化，显示提示
@@ -550,8 +532,8 @@ export const ToolBar: React.FC = () => {
         return voiceMode === 'fixed' ? Mic : AudioLines;
       case 'tts-config':
         return Settings2;
-      case 'toggle-top':
-        return alwaysOnTop ? Pin : PinOff;
+      case 'close-mascot':
+        return EyeOff;
       case 'info':
         return Info;
       case 'quit':
@@ -571,8 +553,8 @@ export const ToolBar: React.FC = () => {
         return tr('致谢 / Credits');
       case 'quit':
         return tr('关闭应用');
-      case 'toggle-top':
-        return alwaysOnTop ? tr('取消窗口置顶') : tr('窗口置顶');
+      case 'close-mascot':
+        return tr('关闭看板娘（可在设置中重新打开）');
       case 'voice-settings':
         return voiceEnabled ? tr('语音：开（右键：语音设置）') : tr('语音：关（右键：语音设置）');
       case 'voice-mode-toggle':
@@ -591,7 +573,6 @@ export const ToolBar: React.FC = () => {
   };
 
   const pressed = (toolId: string): boolean | undefined => {
-    if (toolId === 'toggle-top') return alwaysOnTop;
     if (toolId === 'voice-settings') return voiceEnabled;
     return undefined;
   };

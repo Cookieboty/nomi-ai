@@ -153,6 +153,33 @@ describe('desktop tools', () => {
     expect(fs.readFileSync(f, 'utf8')).toBe('hello');
   });
 
+  it('overwrite is undoable: old content comes back, repeat undo is idempotent (#27)', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'todo.txt');
+    expect(
+      (await t.call('fs_write_text', { path: f, text: 'new text', mode: 'overwrite' })).ok,
+    ).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('new text');
+    expect((await t.call('undo_last', {})).ok).toBe(true);
+    expect(fs.readFileSync(f, 'utf8')).toBe('buy milk');
+    // 已撤销：再撤销不会碰文件
+    expect((await t.call('undo_last', {})).ok).toBe(false);
+    expect(fs.readFileSync(f, 'utf8')).toBe('buy milk');
+  });
+
+  it('overwrite undo is refused when the new file was edited afterwards (#27)', async () => {
+    const t = setup();
+    t.broker.grant(t.docs, 'read-write');
+    const f = path.join(t.docs, 'todo.txt');
+    await t.call('fs_write_text', { path: f, text: 'new text', mode: 'overwrite' });
+    fs.writeFileSync(f, 'user edited this later');
+    const r = await t.call('undo_last', {});
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe('conflict');
+    expect(fs.readFileSync(f, 'utf8')).toBe('user edited this later');
+  });
+
   it('re-confirms a write in the same turn after reading a file', async () => {
     const t = setup();
     t.broker.grant(t.docs, 'read-write');

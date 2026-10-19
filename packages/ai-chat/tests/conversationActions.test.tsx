@@ -226,7 +226,7 @@ describe('等待态与排队', () => {
         { text: '', firstEventAt: 1, status: { kind: 'reconnect', attempt: 2, max: 5 } },
         'reconnect',
       ],
-      [{ text: '', permission: { id: 'p', summary: 'x' } }, 'permission'],
+      [{ text: '', permissions: [{ id: 'p', summary: 'x' }] }, 'permission'],
     ];
     for (const [live, kind] of cases) {
       const { getByTestId, unmount } = render(

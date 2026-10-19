@@ -37,14 +37,33 @@
     <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>对话窗口 / Chat</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/command-palette.webp" alt="Command palette" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Provider settings" width="49%"><br><sub>命令面板（Ctrl/⌘+K）· 供应商与模型 / Command palette · Providers & models</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/coding-agent.webp" alt="Claude Code conversation with tool calls and a subagent" width="49%"> <img src="docs/screenshots/permission-modes.webp" alt="Permission mode menu in the composer" width="49%"><br><sub>编程助手对话 · 权限模式 / Coding agents · Permission modes</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/knowledge.webp" alt="Knowledge base" width="32%"> <img src="docs/screenshots/tools.webp" alt="Tools and MCP" width="32%"> <img src="docs/screenshots/local-models.webp" alt="Local models" width="32%"><br><sub>知识库 · 工具与 MCP · 本地模型 / Knowledge base · Tools & MCP · Local models</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/coding-accounts.webp" alt="Claude Code page with version and official accounts" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Coding assistants settings with Nomi providers" width="49%"><br><sub>官方账号与版本 · 供应商与模型 / Official accounts & version · Providers & models</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/command-palette.webp" alt="Command palette" width="32%"> <img src="docs/screenshots/import-tools.webp" alt="Import MCP servers and skills from Claude Code and Codex" width="32%"> <img src="docs/screenshots/themes.webp" alt="Themes and chat background" width="32%"><br><sub>命令面板 · 从其他工具导入 · 主题与聊天背景 / Command palette · Import from other tools · Themes & chat background</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/knowledge.webp" alt="Knowledge base" width="32%"> <img src="docs/screenshots/tools.webp" alt="Tool permissions" width="32%"> <img src="docs/screenshots/local-models.webp" alt="Local models" width="32%"><br><sub>知识库 · 工具权限 · 本地模型 / Knowledge base · Tool permissions · Local models</sub></td>
   </tr>
 </table>
 
 ---
+
+## 💬 联系与交流 / Contact
+
+微信扫码添加作者，或加入 Nomi 用户交流群。<br>Scan with WeChat to add the author or join the Nomi user group.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/contact/qr-author.png" alt="作者微信 / Author WeChat" width="220"><br><sub>作者微信 / Author WeChat</sub></td>
+    <td align="center"><img src="docs/contact/qr-group.png" alt="Nomi 用户交流群 / Community group" width="220"><br><sub>用户交流群 / Community group</sub></td>
+  </tr>
+</table>
+
+> 群二维码由微信定期刷新，如失效请先添加作者。<br>The group QR is refreshed by WeChat periodically; if it has expired, add the author instead.
 
 ## 中文
 
@@ -55,7 +74,8 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 
 #### 🧸 桌面伙伴 Nomi
 
-- **会呼吸的角色**：分层立绘驱动的伪 3D 骨架——眨眼、视线跟随鼠标、呼吸、头发摆动、说话时口型同步
+- **会动的角色**：全身 Rive 角色——眨眼、表情、挥手等手势，说话时口型同步
+- **大小随心**：约 30%–150% 缩放；不想看到她时可随时关闭
 - **丰富表情**：开心、生气、难过、放松等表情随对话与任务状态自动切换；AI 也能让她做动作、换表情
 - **好玩的互动**：摸头、单击、双击各有反应；拖着她甩一甩会手脚乱蹬，松手落到任务栏上弹一弹；可选沿屏幕底边散步，支持多显示器
 - **透明不挡事**：只有角色本身可点击，其余区域鼠标直接穿透
@@ -70,6 +90,14 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 - **图片与截图提问**：`Ctrl/⌘+Alt+A` 框选屏幕任意区域，直接带图提问
 - **快捷命令**：输入框里按 `/` 打开命令，`↑` 找回上一条提问
 - **首次引导**：几步完成语言、主题、角色与声音、称呼与语气、模型和隐私设置
+
+#### 🧑‍💻 编程助手
+
+- **一个窗口用遍 CLI**：Claude Code、Codex、Gemini CLI、Grok、dsh 多标签并行，工具调用、diff、子代理一目了然
+- **权限模式**：计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开，输入栏一键切换或 `Shift+Tab`
+- **官方账号**：登录多个官方账号随时切换，也可改用第三方供应商
+- **切换工作目录**：可带上当前对话继续
+- **斜杠命令**：输入 `/` 使用 CLI 命令、项目命令与 Skills
 
 #### 🔑 供应商与 Token 管理
 
@@ -108,6 +136,7 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 
 - 图形界面添加、连接、管理 MCP 服务器，查看工具列表；敏感工具调用前会请你确认
 - 支持 `SKILL.md` 技能包：启用、编辑、新建，或从文件夹导入
+- 从 Claude Code / Codex 一键导入 MCP 服务器与技能
 
 #### 🏠 本地模型
 
@@ -125,8 +154,8 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 
 #### 🎙️ 语音
 
-- **语音输入**：本地离线识别，或使用你配置的在线识别服务；支持免按键对话
-- **语音播报**：可用系统语音，也可**接入你自己的 TTS 服务**（支持参考音频克隆音色）
+- **语音输入**：本地离线识别、OpenAI 兼容服务，或豆包流式识别（边说边出字）；支持免按键对话
+- **语音播报**：内置离线语音（模型按需下载），也可**接入你自己的 TTS 服务**（支持参考音频克隆音色）
 - 说话时自动打断播报，Nomi 的口型随声音同步
 
 #### 👀 编程助手监视
@@ -140,7 +169,8 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 
 #### 🎨 个性化
 
-- **主题**：暖墨（默认）、石墨、纸白、冷雾，可跟随系统深浅色
+- **主题**：日落橙（默认）、暖墨、石墨、奶油、冷雾，可跟随系统；聊天背景可换纯色或图片
+- **启动方式**：启动后默认显示看板娘或主界面；关闭主界面时隐藏到托盘或直接退出
 - **应用图标**：多款图标可选，窗口、任务栏与托盘即时更新
 - **快捷键**：`Ctrl/⌘+K` 命令面板、`Ctrl/⌘+N` 新对话、`Ctrl/⌘+L` 聚焦输入框、`Ctrl/⌘+,` 设置……全部可在设置中查看与改键，并提示冲突
 - **中文 / English** 界面，可跟随系统
@@ -236,7 +266,8 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 🧸 Desktop companion Nomi
 
-- **A living character**: layered illustration with a pseudo-3D skeleton — blinking, mouse-follow gaze, breathing, hair sway, and lip-sync while speaking
+- **A living character**: full-body Rive character — blinking, expressions, waves and gestures, lip-sync while speaking
+- **Any size**: scale from about 30% to 150%; close her any time you want a clear desktop
 - **Expressive**: happy, angry, sad, relaxed, and more switch with chat and task state; the AI can also trigger motions and expressions
 - **Playful interaction**: pet, click, and double-click responses; fling her and she flails, then bounces when she lands on the taskbar; optional walk along the bottom edge, multi-monitor aware
 - **Click-through**: only the character is clickable; the rest of the window lets mouse events pass through
@@ -251,6 +282,14 @@ Connect the cloud models you already like, or go fully offline with local models
 - **Ask with images & screenshots**: `Ctrl/⌘+Alt+A` to select any screen region and ask with the image
 - **Slash commands**: press `/` in the input; `↑` recalls the last question
 - **First-run onboarding**: language, theme, character & voice, how to address you & tone, model, and privacy — in a few steps
+
+#### 🧑‍💻 Coding agents
+
+- **Every CLI in one window**: Claude Code, Codex, Gemini CLI, Grok and dsh in parallel tabs, with clear tool calls, diffs and subagents
+- **Permission modes**: plan / manual / accept edits / auto / full access, switched from the input bar or with `Shift+Tab`
+- **Official accounts**: sign in to several official accounts and switch any time, or use a third-party provider
+- **Switch workspace**: optionally carry the current conversation along
+- **Slash commands**: type `/` for CLI commands, project commands and Skills
 
 #### 🔑 Providers & token management
 
@@ -289,6 +328,7 @@ Connect the cloud models you already like, or go fully offline with local models
 
 - Add, connect, and manage MCP servers in the UI; review tools; sensitive calls ask for confirmation
 - `SKILL.md` skill packs: enable, edit, create, or import from a folder
+- Import MCP servers and skills from Claude Code / Codex in one step
 
 #### 🏠 Local models
 
@@ -306,8 +346,8 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 🎙️ Voice
 
-- **Speech input**: local offline recognition, or your configured online STT; hands-free conversation supported
-- **Speech output**: system voices, or **your own TTS service** (including reference-audio voice clone)
+- **Speech input**: local offline recognition, an OpenAI-compatible service, or Doubao streaming ASR (text appears as you speak); hands-free conversation supported
+- **Speech output**: built-in offline voice (model downloaded on demand), or **your own TTS service** (including reference-audio voice clone)
 - Speaking interrupts playback; Nomi’s mouth syncs to the audio
 
 #### 👀 Coding-agent monitor
@@ -321,7 +361,8 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 🎨 Personalization
 
-- **Themes**: Warm Ink (default), Graphite, Paper White, Cool Mist — can follow system light/dark
+- **Themes**: Sunset Orange (default), Warm Ink, Graphite, Cream, Cool Mist — can follow the system; solid-color or image chat background
+- **Startup**: open to the mascot or the main window; closing the main window hides to the tray or quits
 - **App icons**: several options; window, taskbar, and tray update instantly
 - **Shortcuts**: `Ctrl/⌘+K` command palette, `Ctrl/⌘+N` new chat, `Ctrl/⌘+L` focus input, `Ctrl/⌘+,` settings — all viewable/remappable with conflict hints
 - **Chinese / English** UI, can follow the system

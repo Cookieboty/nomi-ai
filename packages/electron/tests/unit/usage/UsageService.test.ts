@@ -91,6 +91,49 @@ describe('UsageService：采集 / 开关 / 查询', () => {
     expect(svc.ledger.size()).toBe(1);
   });
 
+  it('路由记账带上 fast / 1h 缓存写分档，费用与日志口径一致（1M 普通输入 + 1M 输出 fast = 2×）', () => {
+    const { svc } = mk();
+    const base = {
+      startedAt: Date.now(),
+      provider: 'api.anthropic.com',
+      model: 'claude-sonnet-4-5',
+    };
+    svc.routeBegin('claude');
+    svc.routeEnd('claude', {
+      ...base,
+      usage: { input: 1_000_000, output: 1_000_000, cacheRead: 0, cacheWrite: 0, fast: true },
+    });
+    svc.routeBegin('claude');
+    svc.routeEnd('claude', {
+      ...base,
+      startedAt: Date.now() + 1,
+      usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 1_000_000, cacheWrite1h: 1_000_000 },
+    });
+    const recs = svc.ledger.all();
+    expect(recs.find((r) => r.fast)).toMatchObject({ fast: true, via: 'route' });
+    expect(recs.find((r) => r.cacheWrite1h)).toMatchObject({ cacheWrite1h: 1_000_000 });
+    // sonnet-4-5 内置价 3 / 15 / 3.75：fast = (3 + 15) × 2 = 36；1M 一小时缓存写 = 2 × 3 = 6
+    expect(svc.query('today').summary.costUsd).toBeCloseTo(36 + 6, 6);
+  });
+
+  it('路由结束带上游响应 id：Claude msg_ 用同键（与日志合并），其它 id 带 route: 前缀', () => {
+    const { svc } = mk();
+    const u = { input: 10, output: 4, cacheRead: 0, cacheWrite: 0 };
+    svc.routeBegin('claude');
+    svc.routeEnd('claude', { startedAt: Date.now(), model: 'm', usage: { ...u, id: 'msg_01abc' } });
+    svc.routeBegin('codex');
+    svc.routeEnd('codex', { startedAt: Date.now(), model: 'm', usage: { ...u, id: 'resp_9' } });
+    expect(
+      svc.ledger
+        .all()
+        .map((r) => [r.key, r.rid])
+        .sort(),
+    ).toEqual([
+      ['claude:msg_01abc', 'msg_01abc'],
+      ['route:codex:resp_9', 'resp_9'],
+    ]);
+  });
+
   it('改价后费用立即变化；未定价模型补价后计入', () => {
     const { svc } = mk();
     svc.record({ ...call, model: 'my-model', promptTokens: 1_000_000, outputTokens: 0 });
@@ -241,6 +284,7 @@ describe('UsageService：按端信息（endpointUsage）', () => {
 
   it('IPC 参数校验：未知值回落到 nomi', () => {
     expect(endpointSourceOf('grok')).toBe('grok');
+    expect(endpointSourceOf('gemini')).toBe('gemini');
     expect(endpointSourceOf('__proto__')).toBe('nomi');
     expect(endpointSourceOf(undefined)).toBe('nomi');
   });

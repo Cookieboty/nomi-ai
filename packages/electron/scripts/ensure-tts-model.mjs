@@ -8,13 +8,16 @@
  *   - 手动：node scripts/ensure-tts-model.mjs [--check] [--strict] [--force]
  *
  * 目标目录与运行时一致：<repo>/../models/vits-zh-hf-theresa（Windows 如 D:\self_git\models\vits-zh-hf-theresa）。
- * 幂等：按清单逐文件校验字节数，完整则直接跳过；不完整才下载（sha256）→ 流式解压到 .partial → 校验 → 原子改名。
+ * 幂等：按清单逐文件校验字节数 + 版本标记（.nomi-model.json 记录归档 sha256），完整则直接跳过；
+ * 不完整 / 标记对不上（模型换了版本）才下载（sha256）→ 流式解压到 .partial → 校验 → 写标记 → 原子改名。
  *
  * 失败只报错、**退出码 0**（不阻塞 pnpm i / dev；运行时仍会后台异步下载并回退系统语音）。
  * 加 --strict 时失败以非 0 退出（CI 想强校验时用）。
  *
  * 环境变量：
- *   NOMI_SKIP_TTS_MODEL=1              跳过（CI）
+ *   NOMI_SKIP_MODEL_DOWNLOAD=1         跳过（旧名 NOMI_SKIP_TTS_MODEL=1 仍有效）
+ *   CI=true                            postinstall 默认跳过（CI 不需要模型；运行时按需下载）；
+ *                                      CI 里确实要预下载时设 NOMI_SKIP_MODEL_DOWNLOAD=0
  *   NOMI_SHERPA_TTS_MODEL_URL          镜像地址，多个用逗号 / 分号 / 空白分隔，按序尝试，最后兜底官方 GitHub
  *   NOMI_SHERPA_TTS_MODEL_DIR          已有模型目录（完整则视为就绪、不下载）
  *   NOMI_SHERPA_TTS_ATTEMPTS           每个地址重试次数（默认 3）
@@ -77,8 +80,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const fmtBytes = (n) =>
   n < 1024 * 1024 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`;
 
-/** 缺失或大小不符的相对路径（只 stat，毫秒级） */
-function verify(dir) {
+/** 版本标记：记录装进来的是哪个归档（sha256），清单换版本时据此重新下载 */
+export const MARKER = '.nomi-model.json';
+
+/** 缺失或大小不符的相对路径（只 stat，毫秒级）；标记存在但版本不符时报 MARKER */
+export function verify(dir) {
   const bad = [];
   for (const [rel, bytes] of Object.entries(REQUIRED)) {
     try {
@@ -87,7 +93,37 @@ function verify(dir) {
       bad.push(rel);
     }
   }
+  try {
+    const m = JSON.parse(fs.readFileSync(path.join(dir, MARKER), 'utf8'));
+    if (m?.id !== MODEL_ID || m?.sha256 !== MODEL_SHA256) bad.push(MARKER);
+  } catch (e) {
+    // 没有标记（旧版本装的 / 手动解压的）：大小全对就认；标记损坏视为不符
+    if (e?.code !== 'ENOENT') bad.push(MARKER);
+  }
   return bad;
+}
+
+function writeMarker(dir) {
+  try {
+    fs.writeFileSync(
+      path.join(dir, MARKER),
+      `${JSON.stringify({ id: MODEL_ID, sha256: MODEL_SHA256, bytes: MODEL_BYTES })}\n`,
+    );
+  } catch {
+    /* 只读目录：下次仍按大小校验 */
+  }
+}
+
+const truthy = (v) => !!v && !['0', 'false', 'no', 'off'].includes(String(v).trim().toLowerCase());
+
+/** 是否跳过、以及原因（null = 不跳过） */
+export function skipReason(env = process.env, { postinstall = false } = {}) {
+  if (env.NOMI_SKIP_MODEL_DOWNLOAD !== undefined && env.NOMI_SKIP_MODEL_DOWNLOAD !== '') {
+    return truthy(env.NOMI_SKIP_MODEL_DOWNLOAD) ? 'NOMI_SKIP_MODEL_DOWNLOAD=1' : null;
+  }
+  if (env.NOMI_SKIP_TTS_MODEL === '1') return 'NOMI_SKIP_TTS_MODEL=1';
+  if (postinstall && truthy(env.CI)) return 'CI';
+  return null;
 }
 
 const rmQuiet = (p, recursive = false) => {
@@ -390,6 +426,7 @@ async function install(root) {
     }
     const bad = verify(partial);
     if (bad.length) throw new Error(`解压后清单校验失败：${bad.slice(0, 3).join(', ')}`);
+    writeMarker(partial);
     try {
       rmQuiet(finalDir, true);
       renameWithRetry(partial, finalDir);
@@ -415,8 +452,13 @@ async function install(root) {
 }
 
 export async function main() {
-  if (process.env.NOMI_SKIP_TTS_MODEL === '1') {
-    info('NOMI_SKIP_TTS_MODEL=1，跳过模型准备');
+  const skip = skipReason(process.env, { postinstall: POSTINSTALL });
+  if (skip) {
+    info(
+      skip === 'CI'
+        ? 'CI 环境：postinstall 跳过模型下载（运行时按需下载；需要时设 NOMI_SKIP_MODEL_DOWNLOAD=0）'
+        : `${skip}，跳过模型准备`,
+    );
     return 0;
   }
   const root = path.resolve(REPO_ROOT, '../models');
@@ -428,6 +470,8 @@ export async function main() {
     return 0;
   }
   if (!FORCE && verify(finalDir).length === 0) {
+    // 旧版本装的没有版本标记：大小全对，补上标记，下次直接按标记判断
+    if (!CHECK_ONLY && !fs.existsSync(path.join(finalDir, MARKER))) writeMarker(finalDir);
     // 已完整：顺手清掉历史残留（0KB .part 等），不下载
     if (fs.existsSync(path.join(root, '.download')) || fs.existsSync(`${finalDir}.partial`))
       cleanupResidue(root);

@@ -4,9 +4,11 @@
  * 重名规则：当前端优先于 Nomi 内置，同名时只留当前端的裸名。自定义命令重名时
  * 按 scopeOrder 先到先得，后来者改名为 `<scope>:<name>`（项目 → `project:x`，用户 → `user:x`）。
  */
+import { t } from '@nomi-ai/ui';
+
 import { rankItems, type Range } from '../utils/fuzzy';
 
-import { errorCard, unknownCard } from './cards';
+import { disabledCard, errorCard, unknownCard } from './cards';
 import { parseSlashInput } from './parse';
 import {
   SLASH_SOURCE_ORDER,
@@ -42,14 +44,18 @@ export function buildRegistry(
     .map((x) => x.c);
 
   const taken = new Set<string>();
+  /** 谁占着这个（小写）名字：用来说明落选者为什么不能发 */
+  const owner = new Map<string, SlashCommand>();
   const out: SlashCommand[] = [];
   const free = (n: string) => !taken.has(n.toLowerCase());
   for (const c of sorted) {
     let name = c.name;
     let qualified = false;
+    let holder: SlashCommand | undefined;
     if (!free(name)) {
       const custom = FIXED_RANK[c.source] === undefined;
       if (!custom) continue; // 内置重复声明：丢弃后来者
+      holder = owner.get(name.toLowerCase());
       const base = `${c.scope ?? 'project'}:${c.name}`;
       name = base;
       for (let n = 2; !free(name) && n < 20; n++) name = `${base}~${n}`;
@@ -57,12 +63,26 @@ export function buildRegistry(
       qualified = true;
     }
     taken.add(name.toLowerCase());
-    out.push({
+    const item: SlashCommand = {
       ...c,
       id: qualified ? `${c.id}#${name}` : c.id,
       name,
       ...(qualified ? { qualified: true } : {}),
-    });
+    };
+    owner.set(name.toLowerCase(), item);
+    // 限定名只存在于 Nomi 的菜单里。透传的命令发出去的是裸名，会变成执行占着裸名的那一条；
+    // 内置自带的 bundled 项同理。CLI 没有指定落选者的语法，所以禁用并说明，绝不替它发裸名。
+    // expand（Nomi 按 id 自己展开）不受影响：发出去的是展开后的正文，不是名字。
+    if (qualified && (c.kind === 'passthrough' || c.scope === 'bundled')) {
+      const reason = ambiguityReason(c.name, holder);
+      out.push({
+        ...item,
+        disabled: { reason },
+        run: () => ({ type: 'card', card: disabledCard(name, reason) }),
+      });
+      continue;
+    }
+    out.push(item);
   }
   // 别名最后分配：真名永远优先于别名
   return out.map((c) => {
@@ -76,6 +96,31 @@ export function buildRegistry(
     delete rest.aliases;
     return keep.length ? { ...rest, aliases: keep } : rest;
   });
+}
+
+const SCOPE_WORD: Record<string, () => string> = {
+  project: () => t('项目'),
+  user: () => t('用户'),
+  plugin: () => t('插件'),
+  bundled: () => t('自带'),
+};
+
+/** 落选的同名命令为什么不能发送（holder = 占着裸名的那一条） */
+function ambiguityReason(bare: string, holder: SlashCommand | undefined): string {
+  if (holder && FIXED_RANK[holder.source] !== undefined) {
+    const who = holder.source === 'builtin' ? t('Nomi 内置') : t('CLI 自带');
+    return t(
+      '和{0}的 /{1} 重名。CLI 只认 /{1} 这个名字，没有指定这一条的写法，Nomi 不会替它发送，以免执行成别的命令。',
+      who,
+      bare,
+    );
+  }
+  const scope = holder?.scope ? (SCOPE_WORD[holder.scope]?.() ?? holder.scope) : t('另一条');
+  return t(
+    '同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。',
+    scope,
+    bare,
+  );
 }
 
 export function findCommand(commands: readonly SlashCommand[], name: string): SlashCommand | null {
@@ -169,6 +214,13 @@ export async function executeSlash(
         type: 'card',
         card: unknownCard(name, commands, raw, ctx.actions.sendPlain),
       },
+    };
+  if (c.disabled)
+    return {
+      handled: true,
+      name: c.name,
+      command: raw,
+      outcome: { type: 'card', card: disabledCard(c.name, c.disabled.reason) },
     };
   try {
     return {

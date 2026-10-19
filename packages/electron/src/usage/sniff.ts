@@ -9,6 +9,12 @@ export interface SniffedUsage {
   output: number;
   cacheRead: number;
   cacheWrite: number;
+  /** 缓存写里属于 1 小时档的部分（≤ cacheWrite）；上游没拆分档就缺省，按 5 分钟档计价 */
+  cacheWrite1h?: number;
+  /** usage.speed === 'fast'（Anthropic 快速模式，输入输出按 2 倍计价） */
+  fast?: boolean;
+  /** 上游响应 / 消息 id（用来和同一次请求的工具日志精确联结）；取不到就缺省 */
+  id?: string;
   model?: string;
 }
 
@@ -42,6 +48,11 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
     (typeof msg?.model === 'string' && msg.model) ||
     (typeof resp?.model === 'string' && resp.model) ||
     undefined;
+  const id =
+    (typeof msg?.id === 'string' && msg.id) ||
+    (typeof resp?.id === 'string' && resp.id) ||
+    (typeof o.id === 'string' && o.id) ||
+    undefined;
   // Anthropic 口径
   if (
     'input_tokens' in u &&
@@ -50,14 +61,20 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       !('input_tokens_details' in u))
   ) {
     const cc = obj(u.cache_creation);
+    const w1hRaw = num(cc?.ephemeral_1h_input_tokens);
+    // 总量字段优先；没有就用分档之和（和 logParsers.parseClaudeChunk 同口径）
+    const cacheWrite =
+      num(u.cache_creation_input_tokens) || num(cc?.ephemeral_5m_input_tokens) + w1hRaw;
+    const cacheWrite1h = Math.min(w1hRaw, cacheWrite);
     return {
       input: num(u.input_tokens),
       output: num(u.output_tokens),
       cacheRead: num(u.cache_read_input_tokens),
-      cacheWrite:
-        num(u.cache_creation_input_tokens) ||
-        num(cc?.ephemeral_5m_input_tokens) + num(cc?.ephemeral_1h_input_tokens),
+      cacheWrite,
+      ...(cacheWrite1h ? { cacheWrite1h } : {}),
+      ...(u.speed === 'fast' ? { fast: true } : {}),
       model,
+      ...(id ? { id } : {}),
     };
   }
   // OpenAI Responses：input_tokens 含缓存（input_tokens_details.cached_tokens）
@@ -69,11 +86,20 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       cacheRead: cached,
       cacheWrite: 0,
       model,
+      ...(id ? { id } : {}),
     };
   }
   // Anthropic message_delta：只带最终输出 token
   if ('output_tokens' in u) {
-    return { input: 0, output: num(u.output_tokens), cacheRead: 0, cacheWrite: 0, model };
+    return {
+      input: 0,
+      output: num(u.output_tokens),
+      cacheRead: 0,
+      cacheWrite: 0,
+      ...(u.speed === 'fast' ? { fast: true } : {}),
+      model,
+      ...(id ? { id } : {}),
+    };
   }
   // OpenAI Chat Completions
   if ('prompt_tokens' in u || 'completion_tokens' in u) {
@@ -85,6 +111,7 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       cacheRead: cached,
       cacheWrite: 0,
       model,
+      ...(id ? { id } : {}),
     };
   }
   return null;
@@ -92,13 +119,21 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
 
 /** 合并同一次响应里先后出现的 usage 片段：Anthropic 的 start 给输入、delta 给最终输出 → 取各字段最大值 */
 export function mergeUsage(a: SniffedUsage, b: Partial<SniffedUsage>): SniffedUsage {
-  return {
+  const cacheWrite = Math.max(a.cacheWrite, b.cacheWrite ?? 0);
+  // 1h 档只增不减，且不超过缓存写总量；fast 一旦声明就保留（message_start 与 message_delta 各带一部分）
+  const w1h = Math.min(Math.max(a.cacheWrite1h ?? 0, b.cacheWrite1h ?? 0), cacheWrite);
+  const merged: SniffedUsage = {
     input: Math.max(a.input, b.input ?? 0),
     output: Math.max(a.output, b.output ?? 0),
     cacheRead: Math.max(a.cacheRead, b.cacheRead ?? 0),
-    cacheWrite: Math.max(a.cacheWrite, b.cacheWrite ?? 0),
+    cacheWrite,
     model: b.model || a.model,
   };
+  const id = a.id || b.id; // 同一次响应的 id 不变；取最先看到的
+  if (id) merged.id = id;
+  if (w1h) merged.cacheWrite1h = w1h;
+  if (a.fast || b.fast) merged.fast = true;
+  return merged;
 }
 
 export const emptySniffed = (): SniffedUsage => ({

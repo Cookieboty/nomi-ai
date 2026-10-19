@@ -53,6 +53,7 @@ function chatJson(j: Obj): NormEvent[] {
     const key = String(i);
     out.push({ type: 'tool_start', key, id: str(tc.id) || `call_${i}`, name: str(fn.name) });
     out.push({ type: 'tool_args', key, delta: argsString(fn.arguments) });
+    out.push({ type: 'tool_end', key });
   });
   const fr = c.finish_reason;
   const reason: StopReason =
@@ -88,6 +89,7 @@ function responsesJson(j: Obj): NormEvent[] {
       const key = str(item.id) || String(i);
       out.push({ type: 'tool_start', key, id: str(item.call_id) || key, name: str(item.name) });
       out.push({ type: 'tool_args', key, delta: argsString(item.arguments) });
+      out.push({ type: 'tool_end', key });
     }
   });
   const incomplete = asObj(j.incomplete_details).reason === 'max_output_tokens';
@@ -138,6 +140,7 @@ function geminiJson(j: Obj): NormEvent[] {
         name: str(fc.name),
       });
       out.push({ type: 'tool_args', key, delta: argsString(fc.args) });
+      out.push({ type: 'tool_end', key });
     }
   }
   const reason: StopReason =
@@ -161,6 +164,7 @@ function messagesJson(j: Obj): NormEvent[] {
       const key = String(i);
       out.push({ type: 'tool_start', key, id: str(b.id), name: str(b.name) });
       out.push({ type: 'tool_args', key, delta: argsString(b.input) });
+      out.push({ type: 'tool_end', key });
     }
   });
   const sr = j.stop_reason;

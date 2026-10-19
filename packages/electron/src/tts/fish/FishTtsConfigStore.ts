@@ -10,6 +10,7 @@ import type { TTSConfig } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 import { app, safeStorage } from 'electron';
 
+import { t as tr } from '../../i18n';
 import { createMainLogger } from '../../utils/log';
 import { writePrivateFile } from '../../utils/privateFile';
 
@@ -22,6 +23,13 @@ import {
 const log = createMainLogger('FishTTS-config');
 
 const API_KEY_FILE = 'tts.fish.apiKey.bin';
+
+/**
+ * tts-config.json 的格式版本。新写入一律带当前版本；缺失版本号 = 旧版本写出的文件，
+ * 只有这类文件才会跑「fish-local 旧产品默认 → sherpa」一次性迁移，
+ * 用户在新版本里主动保存的 Fish 默认组合不会再被改回去。
+ */
+const CONFIG_SCHEMA_VERSION = 1;
 
 export class FishTtsConfigStore {
   private configPath(): string {
@@ -40,16 +48,28 @@ export class FishTtsConfigStore {
       }
       const raw = JSON.parse(fs.readFileSync(p, 'utf8')) as Partial<TTSConfig>;
       // Never keep apiKey from disk JSON
-      const { apiKey: _drop, ...rest } = raw;
-      const { config, migrated } = migrateTtsConfigProvider(rest);
+      const {
+        apiKey: _drop,
+        schemaVersion,
+        ...rest
+      } = raw as Partial<TTSConfig> & {
+        schemaVersion?: unknown;
+      };
+      // 只迁移没有版本号的旧文件；带版本号的文件里的 provider 是用户（或迁移）的明确结果
+      const { config, migrated } =
+        typeof schemaVersion === 'number'
+          ? { config: normalizeTtsConfig(rest), migrated: false }
+          : migrateTtsConfigProvider(rest);
       if (migrated) {
-        // Persist so next boot stays on sherpa; intentional Fish users with custom
-        // baseUrl/referenceId are not migrated (see isLegacyFishProductDefault).
+        // Persist (with the current schemaVersion) so the migration runs exactly once;
+        // intentional Fish users with custom baseUrl/referenceId are not migrated
+        // (see isLegacyFishProductDefault).
         // Write directly (avoid save→loadPublic→load recursion).
         try {
           log.info('migrated legacy fish-local product default → sherpa-theresa');
           const toDisk: Record<string, unknown> = {
             ...config,
+            schemaVersion: CONFIG_SCHEMA_VERSION,
             lastModified: Date.now(),
           };
           delete toDisk.apiKey;
@@ -94,6 +114,7 @@ export class FishTtsConfigStore {
 
     const toDisk: Record<string, unknown> = {
       ...normalized,
+      schemaVersion: CONFIG_SCHEMA_VERSION,
       lastModified: Date.now(),
     };
     delete toDisk.apiKey;
@@ -110,36 +131,49 @@ export class FishTtsConfigStore {
     this.clearApiKey();
   }
 
+  /** 只有真的能读出 Key 时才算已配置：解不开的文件不能让界面显示「已配置」（#35） */
   hasApiKey(): boolean {
-    try {
-      return fs.existsSync(this.keyPath()) && fs.statSync(this.keyPath()).size > 0;
-    } catch {
-      return false;
-    }
+    return !!this.getApiKey();
   }
 
   getApiKey(): string | undefined {
+    let buf: Buffer;
     try {
       const p = this.keyPath();
       if (!fs.existsSync(p)) return undefined;
-      const buf = fs.readFileSync(p);
-      if (safeStorage.isEncryptionAvailable()) {
-        return safeStorage.decryptString(buf);
-      }
-      return buf.toString('utf8');
+      buf = fs.readFileSync(p);
     } catch {
       return undefined;
     }
+    if (!buf.length) return undefined;
+    if (safeStorage.isEncryptionAvailable()) {
+      try {
+        return safeStorage.decryptString(buf);
+      } catch {
+        /* 可能是旧版本在安全存储不可用时写下的明文，见下 */
+      }
+    }
+    const legacy = legacyPlainKey(buf);
+    if (legacy === undefined) return undefined;
+    // 旧明文：安全存储可用就就地加密迁移；不可用时照旧使用
+    try {
+      if (safeStorage.isEncryptionAvailable()) this.setApiKey(legacy);
+    } catch {
+      /* 迁移失败不影响本次使用 */
+    }
+    return legacy;
   }
 
   setApiKey(value: string): void {
     const dir = path.dirname(this.keyPath());
     fs.mkdirSync(dir, { recursive: true });
+    // 安全存储不可用 / 加密失败：失败关闭，不把云 Key 以明文写进 keys/*.bin
     let buf: Buffer;
-    if (safeStorage.isEncryptionAvailable()) {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) throw new Error('unavailable');
       buf = safeStorage.encryptString(value);
-    } else {
-      buf = Buffer.from(value, 'utf8');
+    } catch {
+      throw new Error(tr('系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试'));
     }
     fs.writeFileSync(this.keyPath(), buf, { mode: 0o600 });
   }
@@ -151,4 +185,10 @@ export class FishTtsConfigStore {
       /* ignore */
     }
   }
+}
+
+/** 旧版明文 Key：可打印 ASCII、无空白，长度合理；加密密文（含二进制前缀）不会满足 */
+function legacyPlainKey(buf: Buffer): string | undefined {
+  const s = buf.toString('utf8').trim();
+  return /^[\x21-\x7e]{8,512}$/.test(s) ? s : undefined;
 }

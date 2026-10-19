@@ -5,7 +5,8 @@ export type ClaudeApiFormat =
 export type CodexApiFormat = 'openai_responses' | 'openai_chat_completions' | 'anthropic_messages';
 export type DshApiFormat = CodexApiFormat;
 export type GrokApiFormat = CodexApiFormat;
-export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok';
+export type GeminiApiFormat = 'gemini_generate_content';
+export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 export interface CliProviderProfile {
   id: string;
@@ -13,7 +14,7 @@ export interface CliProviderProfile {
   name: string;
   baseUrl: string;
   model: string;
-  apiFormat: ClaudeApiFormat | CodexApiFormat | DshApiFormat | GrokApiFormat;
+  apiFormat: ClaudeApiFormat | CodexApiFormat | DshApiFormat | GrokApiFormat | GeminiApiFormat;
   needsRouting: boolean;
   hasKey: boolean;
   keyHint: string;
@@ -49,6 +50,9 @@ export interface CliProviderState {
   dshConfig?: string;
   grokStore?: string;
   grokConfig?: string;
+  geminiStore?: string;
+  /** Nomi 私有的系统级设置（GEMINI_CLI_SYSTEM_SETTINGS_PATH）；不写 ~/.gemini */
+  geminiConfig?: string;
   routing: CliRouteSettings | null;
 }
 

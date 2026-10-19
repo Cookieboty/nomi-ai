@@ -34,26 +34,41 @@ export interface WindowOptions {
   alwaysOnTop?: boolean;
   resizable?: boolean;
   show?: boolean;
+  /** 窗口准备好后显示但不抢占焦点（开机自启 / 看板娘让位给主界面） */
+  showInactive?: boolean;
   title?: string;
   preloadScript?: string;
   /** 额外的 BrowserWindow 选项（标题栏样式等） */
   chrome?: Partial<BrowserWindowConstructorOptions>;
 }
 
+/** 窗口显示方式：默认抢占焦点；`activate: false` 时只显示、不抢焦点 */
+export interface ShowOptions {
+  activate?: boolean;
+}
+
 export interface IWindowManager {
-  createMainWindow(): Promise<BrowserWindow>;
-  createAiChatWindow(): Promise<BrowserWindow>;
+  /** 创建看板娘窗口（历史命名 main） */
+  createMainWindow(opts?: ShowOptions): Promise<BrowserWindow>;
+  /** 创建 / 聚焦软件主界面（对话窗口） */
+  createAiChatWindow(opts?: ShowOptions): Promise<BrowserWindow>;
   createTTSConfigWindow(): Promise<BrowserWindow>;
   getMainWindow(): BrowserWindow | null;
   getAiChatWindow(): BrowserWindow | null;
   getTTSConfigWindow(): BrowserWindow | null;
   closeAllWindows(): void;
   setAlwaysOnTop(windowType: 'main' | 'aiChat' | 'ttsConfig', flag: boolean): void;
+  /** 显示 / 隐藏桌面看板娘；隐藏时窗口保留（提醒、确认框仍有宿主）但静音 */
+  setMascotVisible(visible: boolean): void;
 }
 
 export class WindowManager implements IWindowManager {
   /** 当前主题（Application 注入，决定对话窗口标题栏配色） */
-  chromeTheme: () => ChromeTheme = () => 'ink';
+  chromeTheme: () => ChromeTheme = () => 'sunset';
+  /** 主界面关闭后是否退出整个应用（「关闭主界面时：退出 Nomi」；Application 注入，默认不退出） */
+  shouldQuitOnChatClose: () => boolean = () => false;
+  /** 看板娘是否被关闭（「关闭看板娘」/ 设置；Application 注入，默认显示） */
+  mascotHidden: () => boolean = () => false;
   private mainWindow: BrowserWindow | null = null;
   private aiChatWindow: BrowserWindow | null = null;
   /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
@@ -70,9 +85,9 @@ export class WindowManager implements IWindowManager {
   /**
    * 创建主窗口
    */
-  async createMainWindow(): Promise<BrowserWindow> {
+  async createMainWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     if (this.mainWindow) {
-      this.mainWindow.focus();
+      if (!this.mascotHidden()) this.mainWindow.focus();
       return this.mainWindow;
     }
 
@@ -106,10 +121,13 @@ export class WindowManager implements IWindowManager {
         resizable: false,
         alwaysOnTop: true,
         show: false,
+        showInactive: opts.activate === false,
         preloadScript: 'preload.bundle.js',
       };
 
       this.mainWindow = await this.createWindow(windowOptions, 'main');
+      // 看板娘已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
+      this.mainWindow.webContents.setAudioMuted(this.mascotHidden());
 
       // 设置窗口事件监听
       this.setupMainWindowEvents(this.mainWindow);
@@ -131,20 +149,27 @@ export class WindowManager implements IWindowManager {
   /**
    * 创建AI对话窗口
    */
-  async createAiChatWindow(): Promise<BrowserWindow> {
+  async createAiChatWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     if (this.aiChatWindow) {
-      this.aiChatWindow.focus();
-      this.aiChatWindow.show();
-      return this.aiChatWindow;
+      const win = this.aiChatWindow;
+      // 最小化的窗口先还原（Windows 上从任务栏 / 托盘 / 第二实例唤起时需要）
+      if (win.isMinimized()) win.restore();
+      if (opts.activate === false) {
+        win.showInactive();
+      } else {
+        win.show();
+        win.focus();
+      }
+      return win;
     }
     // 创建过程是异步的（await createWindow / 加载页面）：并发调用共用同一次创建，避免开出两个窗口
-    this.aiChatWindowPromise ??= this.buildAiChatWindow().finally(() => {
+    this.aiChatWindowPromise ??= this.buildAiChatWindow(opts).finally(() => {
       this.aiChatWindowPromise = undefined;
     });
     return this.aiChatWindowPromise;
   }
 
-  private async buildAiChatWindow(): Promise<BrowserWindow> {
+  private async buildAiChatWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     try {
       const primaryDisplay = screen.getPrimaryDisplay();
       const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
@@ -165,6 +190,7 @@ export class WindowManager implements IWindowManager {
         alwaysOnTop: false,
         resizable: true,
         show: false,
+        showInactive: opts.activate === false,
         title: 'Nomi',
         preloadScript: 'ai-chat-preload.bundle.js',
         chrome: {
@@ -299,6 +325,18 @@ export class WindowManager implements IWindowManager {
     }
   }
 
+  setMascotVisible(visible: boolean): void {
+    const win = this.mainWindow;
+    if (!win || win.isDestroyed()) {
+      if (visible) void this.createMainWindow({ activate: false });
+      return;
+    }
+    win.webContents.setAudioMuted(!visible);
+    if (visible) win.showInactive();
+    else win.hide();
+    this.logger.info(visible ? '看板娘已显示' : '看板娘已关闭');
+  }
+
   /**
    * 设置窗口置顶状态
    */
@@ -385,7 +423,11 @@ export class WindowManager implements IWindowManager {
     // 通用窗口事件
     window.once('ready-to-show', () => {
       perfMark(`${type}-shown`);
-      window.show();
+      // 看板娘已关闭：窗口保持隐藏（已静音），设置里重新打开时再显示
+      const keepHidden = type === 'main' && this.mascotHidden();
+      if (keepHidden) this.logger.info('看板娘已关闭，窗口保持隐藏');
+      else if (options.showInactive) window.showInactive();
+      else window.show();
 
       // 开发环境打开开发者工具
       if (isDevMode()) {
@@ -481,6 +523,11 @@ export class WindowManager implements IWindowManager {
     window.on('closed', () => {
       this.aiChatWindow = null;
       this.logger.info('AI对话窗口已关闭');
+      // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）
+      if (this.shouldQuitOnChatClose()) {
+        this.logger.info('关闭主界面 → 退出 Nomi');
+        eventBus.emit('app:quit');
+      }
     });
   }
 

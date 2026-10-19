@@ -231,6 +231,14 @@ export class ResponsesDecoder extends BaseDecoder {
         }
         return;
       }
+      case 'response.function_call_arguments.done':
+      case 'response.output_item.done': {
+        const item = asObj(j.item);
+        if (type === 'response.output_item.done' && item.type !== 'function_call') return;
+        const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
+        if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
+        return;
+      }
       case 'response.completed': {
         this.readUsage(asObj(j.response));
         this.finish(out);
@@ -317,6 +325,7 @@ export class GeminiDecoder extends BaseDecoder {
           name: String(fc.name ?? ''),
         });
         out.push({ type: 'tool_args', key, delta: JSON.stringify(fc.args ?? {}) });
+        out.push({ type: 'tool_end', key }); // Gemini 的 functionCall 一次给全参数
       }
     }
     const r = geminiFinish(c.finishReason);
@@ -404,6 +413,11 @@ export class MessagesDecoder extends BaseDecoder {
           const key = String(j.index ?? '');
           if (this.toolBlocks.has(key)) out.push({ type: 'tool_args', key, delta: d.partial_json });
         }
+        return;
+      }
+      case 'content_block_stop': {
+        const key = String(j.index ?? '');
+        if (this.toolBlocks.has(key)) out.push({ type: 'tool_end', key });
         return;
       }
       case 'message_delta': {

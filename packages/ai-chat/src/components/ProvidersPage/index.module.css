@@ -285,3 +285,21 @@
 .tabMonitor {
   margin-left: auto;
 }
+
+/* 官方账号登录弹窗里的一次性码（docs/design/cli-official-accounts.md §6） */
+.loginCode {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-sunken);
+}
+.loginCode code {
+  font-family: var(--cd-font-mono);
+  font-size: 20px;
+  letter-spacing: 0.12em;
+  color: var(--cd-color-text);
+}

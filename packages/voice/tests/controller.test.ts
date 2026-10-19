@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { VoiceApi } from '../src/bridge';
 import { VoiceController } from '../src/controller';
-import { MicError } from '../src/mic';
+import { MicCancelled, MicError } from '../src/mic';
 import type { VadEngine } from '../src/vad';
 
 function fakes(text = '你好') {
@@ -242,5 +242,116 @@ describe('VoiceController continuous', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(probs).toHaveLength(0);
     await c.stopContinuous();
+  });
+});
+
+describe('VoiceController 启动期间取消（#20）', () => {
+  const deferredStart = () => {
+    let handlers: { onFrame(f: Float32Array): void } | null = null;
+    const gates: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
+    const mic = {
+      running: false,
+      start: vi.fn(
+        (h: typeof handlers) =>
+          new Promise<void>((resolve, reject) => {
+            handlers = h;
+            gates.push({ resolve, reject });
+          }),
+      ),
+      stop: vi.fn(async () => undefined),
+    };
+    return { mic, gates, frame: (v = 0.3) => handlers?.onFrame(new Float32Array(512).fill(v)) };
+  };
+
+  it('pttStart 等待麦克风时 pttStop(取消)：晚到的 start 不再进入 recording，后续帧被丢弃', async () => {
+    const f = fakes();
+    const d = deferredStart();
+    const c = new VoiceController({ api: f.api, source: 'chat', mic: () => d.mic, now: f.now });
+    const start = c.pttStart();
+    expect(c.state.phase).toBe('starting');
+    await c.pttStop(true);
+    expect(c.state).toMatchObject({ mode: 'off', phase: 'idle' });
+    d.gates[0]!.resolve(); // 设备晚到
+    await start;
+    expect(c.state).toMatchObject({ mode: 'off', phase: 'idle', error: null });
+    d.frame();
+    expect(f.api.transcribe).not.toHaveBeenCalled();
+    // 状态是 off，下一次按住能正常重新开始
+    const again = c.pttStart();
+    d.gates[1]!.resolve();
+    await again;
+    expect(c.state.phase).toBe('recording');
+  });
+
+  it('pttStart 等待期间收到取消错误（MicCancelled）：不当作失败、不污染新会话状态', async () => {
+    const f = fakes();
+    const d = deferredStart();
+    const c = new VoiceController({ api: f.api, source: 'chat', mic: () => d.mic, now: f.now });
+    const a = c.pttStart();
+    await c.pttStop(true);
+    const b = c.pttStart(); // B 重启
+    d.gates[1]!.resolve();
+    await b;
+    expect(c.state.phase).toBe('recording');
+    d.gates[0]!.reject(new MicCancelled()); // A 晚到
+    await a;
+    expect(c.state).toMatchObject({ mode: 'ptt', phase: 'recording', error: null });
+  });
+
+  it('A 取消后 B 重启，A 的晚到成功不会把 B 的状态改掉、A 的帧不进 B 的 chunks', async () => {
+    const f = fakes();
+    const d = deferredStart();
+    const c = new VoiceController({ api: f.api, source: 'chat', mic: () => d.mic, now: f.now });
+    const a = c.pttStart();
+    await c.pttStop(true);
+    const b = c.pttStart();
+    d.gates[0]!.resolve();
+    await a;
+    expect(c.state.phase).toBe('starting'); // 仍是 B 的 starting，没被 A 切成 recording
+    d.gates[1]!.resolve();
+    await b;
+    expect(c.state.phase).toBe('recording');
+  });
+
+  it('免按键：createVad 等待中 stopContinuous，晚到的 VAD 被释放，不启动麦克风', async () => {
+    const f = fakes();
+    let finish: (v: VadEngine) => void = () => {};
+    const dispose = vi.fn();
+    const c = new VoiceController({
+      api: f.api,
+      source: 'mascot',
+      mic: () => f.mic,
+      now: f.now,
+      createVad: () => new Promise<VadEngine>((r) => (finish = r)),
+    });
+    const start = c.startContinuous('handsfree');
+    await vi.waitFor(() => expect(c.state.phase).toBe('starting'));
+    await c.stopContinuous();
+    expect(c.state.mode).toBe('off');
+    finish({ kind: 'silero', prob: async () => 0, reset() {}, dispose });
+    await start;
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(f.mic.start).not.toHaveBeenCalled();
+    expect(c.state).toMatchObject({ mode: 'off', phase: 'idle', error: null });
+  });
+
+  it('免按键：mic.start 等待中 stopContinuous，晚到的成功不会把状态切回 listening', async () => {
+    const f = fakes();
+    const d = deferredStart();
+    const c = new VoiceController({
+      api: f.api,
+      source: 'mascot',
+      mic: () => d.mic,
+      now: f.now,
+      createVad: async () => scriptedVad([]),
+    });
+    const start = c.startContinuous('handsfree');
+    await vi.waitFor(() => expect(d.mic.start).toHaveBeenCalled());
+    await c.stopContinuous();
+    d.gates[0]!.resolve();
+    await start;
+    expect(c.state).toMatchObject({ mode: 'off', phase: 'idle', error: null });
+    d.frame();
+    expect(f.api.transcribe).not.toHaveBeenCalled();
   });
 });

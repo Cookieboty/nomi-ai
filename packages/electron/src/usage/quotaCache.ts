@@ -33,6 +33,8 @@ export type FetchOutcome =
 export type RefreshResult =
   | { state: 'ok' }
   | { state: 'throttled' }
+  /** 拉取期间被清空 / 换号作废：结果已丢弃，没有写入缓存 */
+  | { state: 'superseded' }
   | { state: 'transient'; reason: TransientReason; stale: boolean }
   | { state: 'auth'; reason: AuthFailReason };
 
@@ -42,11 +44,46 @@ export class IdentityQuotaCache {
   private stale = false;
   private lastAttemptAt = 0;
   private inflight: Promise<RefreshResult> | null = null;
+  /** 代际：clear / 换号 / 认证失效都会 +1。拉取开始时捕获，返回时对不上就丢弃，迟到的旧结果不能回写 */
+  private gen = 0;
+  private inflightGen = 0;
+
+  /** 值或身份变化后调用（UsageService 用来把额度落盘，下次启动直接显示上一次的值） */
+  private onChange: (() => void) | null = null;
 
   constructor(
     private readonly now: () => number = Date.now,
     private readonly ttlMs = QUOTA_TTL_MS,
   ) {}
+
+  setOnChange(fn: () => void): void {
+    this.onChange = fn;
+  }
+
+  private changed(): void {
+    try {
+      this.onChange?.();
+    } catch {
+      /* 落盘失败不影响内存里的值 */
+    }
+  }
+
+  /** 落盘用：当前账号身份与最近一次成功读到的值（不含 stale 标记） */
+  snapshot(): { identity: string | null; value: QuotaReading } | null {
+    return this.value ? { identity: this.identity, value: { ...this.value } } : null;
+  }
+
+  /**
+   * 启动时恢复上一次的值。身份已知且与保存时不同（换了号）就不恢复，不能把别的账号的额度显示出来。
+   * 不占用节流：恢复之后照常可以立刻刷新。
+   */
+  restore(identity: string | null, value: QuotaReading): boolean {
+    if (this.identity && identity && this.identity !== identity) return false;
+    if (identity) this.identity = identity;
+    this.value = { ...value };
+    this.stale = false;
+    return true;
+  }
 
   get(): QuotaReading | null {
     return this.value ? { ...this.value, ...(this.stale ? { stale: true } : {}) } : null;
@@ -61,22 +98,31 @@ export class IdentityQuotaCache {
   }
 
   clear(): void {
+    this.gen++;
+    const had = !!this.value || !!this.identity;
     this.value = null;
     this.stale = false;
     this.identity = null;
+    // 用户清空之后立即刷新：不能被清空前那次拉取的 60 秒节流挡住，面板一直空着（#45）
+    this.lastAttemptAt = 0;
+    if (had) this.changed();
   }
 
   /** 已知身份变化（例如 `claude auth status` 的指纹）：换号清旧值 */
   observeIdentity(fp: string | null): boolean {
     if (!fp) return false;
     if (this.identity && this.identity !== fp) {
+      this.gen++;
       this.value = null;
       this.stale = false;
       this.identity = fp;
       this.lastAttemptAt = 0; // 新账号不受旧账号的节流限制
+      this.changed();
       return true;
     }
+    const was = this.identity;
     this.identity = fp;
+    if (was !== fp) this.changed();
     return false;
   }
 
@@ -87,9 +133,11 @@ export class IdentityQuotaCache {
 
   refresh(fp: string | null, load: () => Promise<FetchOutcome>): Promise<RefreshResult> {
     this.observeIdentity(fp);
-    if (this.inflight) return this.inflight;
+    // 只复用同一代际的进行中拉取：清空 / 换号之后的刷新不能拿到旧账号的 Promise
+    if (this.inflight && this.inflightGen === this.gen) return this.inflight;
     if (this.retryInMs() > 0) return Promise.resolve({ state: 'throttled' });
     this.lastAttemptAt = this.now();
+    const gen = this.gen;
     const p = (async (): Promise<RefreshResult> => {
       let out: FetchOutcome;
       try {
@@ -97,23 +145,29 @@ export class IdentityQuotaCache {
       } catch {
         out = { kind: 'transient', reason: 'spawn-failed' };
       }
+      // 开始之后被清空 / 换号过：成功、失败、认证失效一律不再回写（也不清新一代的值）
+      if (gen !== this.gen) return { state: 'superseded' };
       if (out.kind === 'ok') {
         // 拉取结果自带身份（Codex）：和已有的不一致就先清旧值
         this.observeIdentity(out.identity ?? null);
         this.value = out.reading;
         this.stale = false;
+        this.changed();
         return { state: 'ok' };
       }
       if (out.kind === 'transient') {
         if (this.value) this.stale = true;
         return { state: 'transient', reason: out.reason, stale: !!this.value };
       }
+      this.gen++;
       this.value = null;
       this.stale = false;
       this.identity = null;
+      this.changed();
       return { state: 'auth', reason: out.reason };
     })();
     this.inflight = p;
+    this.inflightGen = gen;
     void p.finally(() => {
       if (this.inflight === p) this.inflight = null;
     });

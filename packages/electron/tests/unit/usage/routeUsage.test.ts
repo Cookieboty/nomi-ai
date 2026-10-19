@@ -107,6 +107,46 @@ describe('本地路由 → 用量记账', () => {
     usage.stop();
   });
 
+  it('Anthropic 直通：usage.speed=fast 与 1 小时缓存写分档进入账本', async () => {
+    const usage = usageSvc();
+    const up = await upstream((res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'msg_fast',
+          type: 'message',
+          role: 'assistant',
+          model: 'claude-sonnet-4-5',
+          content: [{ type: 'text', text: 'hi' }],
+          usage: {
+            input_tokens: 100,
+            output_tokens: 8,
+            cache_creation_input_tokens: 500,
+            cache_creation: { ephemeral_5m_input_tokens: 200, ephemeral_1h_input_tokens: 300 },
+            speed: 'fast',
+          },
+        }),
+      );
+    });
+    const { svc, url } = await route('claude', up.base, 'anthropic_messages');
+    const r = await routeFetch(svc, `${url}/v1/messages`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'x', messages: [] }),
+    });
+    await r.text();
+    expect(usage.ledger.all()).toHaveLength(1);
+    expect(usage.ledger.all()[0]).toMatchObject({
+      via: 'route',
+      cacheWrite: 500,
+      cacheWrite1h: 300,
+      fast: true,
+    });
+    svc.stop();
+    up.close();
+    usage.stop();
+  });
+
   it('流式 Chat→Messages 转换：从上游 SSE 末包取 usage，转发内容不受影响', async () => {
     const usage = usageSvc();
     const up = await upstream((res) => {

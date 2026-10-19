@@ -2,6 +2,8 @@
  * VoiceController —— 一个窗口里的语音输入状态机。
  *
  *   按住说话（ptt）：pttStart → 录音 → pttStop → 识别 → onTranscript
+ *     流式引擎（豆包 2.0）：pttStart 同时开主进程流会话，边录边推 PCM，临时文本进 state.partial；
+ *     pttStop 发送最后一包并取最终结果（只提交一次）；取消则直接丢弃会话。
  *   免按键（handsfree）：VAD 分段，每句话说完自动识别
  *   唤醒词（wake）：VAD 分段 → 本地 whisper 转写 → 匹配唤醒词 → 进入「已唤醒」窗口接收下一句指令
  *
@@ -9,9 +11,9 @@
  */
 import { t } from '@nomi-ai/ui';
 
-import { concatFloat32, encodeWav } from './audio';
-import type { AsrErrorCode, VoiceApi } from './bridge';
-import { MicCapture, MicError } from './mic';
+import { concatFloat32, encodeWav, floatToPcm16 } from './audio';
+import type { AsrErrorCode, StreamEvent, TranscribeResult, VoiceApi } from './bridge';
+import { MicCancelled, MicCapture, MicError } from './mic';
 import { Segmenter } from './segmenter';
 import { EnergyVad, RemoteVad, type VadEngine } from './vad';
 import { matchWakePhrase } from './wake';
@@ -41,6 +43,8 @@ export interface VoiceState {
   vad: 'silero' | 'energy' | null;
   error: VoiceError | null;
   lastText: string;
+  /** 流式识别的临时文本（会被修订；不会自动发送） */
+  partial: string;
 }
 
 export interface ControllerDeps {
@@ -62,6 +66,7 @@ export class VoiceController {
     vad: null,
     error: null,
     lastText: '',
+    partial: '',
   };
   private readonly subs = new Set<(s: VoiceState) => void>();
   private readonly transcriptSubs = new Set<(text: string, via: VoiceMode) => void>();
@@ -78,14 +83,129 @@ export class VoiceController {
    * 避免「停止后马上重新开始」时旧会话的帧 / 识别文本串到新会话里（仅比较 mode 不够：新会话 mode 可能相同）。
    */
   private gen = 0;
-  private settings: { vadThreshold: number; wakePhrase: string; wakeWindowSec: number } = {
+  private settings: {
+    vadThreshold: number;
+    wakePhrase: string;
+    wakeWindowSec: number;
+    /** 当前引擎支持流式（豆包 2.0）：按住说话时边录边识别 */
+    streaming: boolean;
+  } = {
     vadThreshold: 0.5,
     wakePhrase: '',
     wakeWindowSec: 8,
+    streaming: false,
   };
+  /** 流式会话：id 未就绪前的音频先缓存；每 ~100ms 合并推一次 */
+  private stream: {
+    gen: number;
+    id: string | null;
+    ready: Promise<string | null>;
+    pending: Uint8Array[];
+    pendingBytes: number;
+    failed: boolean;
+    eventError: { code: AsrErrorCode; message: string } | null;
+  } | null = null;
+  private readonly offStream: (() => void) | undefined;
 
   constructor(private readonly d: ControllerDeps) {
     this.mic = d.mic?.() ?? new MicCapture();
+    this.offStream = d.api.onStream?.((e) => this.onStreamEvent(e));
+  }
+
+  private onStreamEvent(e: StreamEvent) {
+    const s = this.stream;
+    if (!s || !s.id || e.id !== s.id || s.gen !== this.gen) return; // 旧会话 / 别的会话
+    if (e.type === 'partial' && typeof e.text === 'string') this.set({ partial: e.text });
+    if (e.type === 'error') {
+      // 主进程已结束这次会话（如中途开启「仅本地模型」）：停止推送，立即提示
+      s.eventError = { code: e.code ?? 'failed', message: e.error ?? t('识别失败') };
+      s.failed = true;
+      s.pending = [];
+      this.set({ error: s.eventError });
+    }
+  }
+
+  private openStream(gen: number) {
+    const api = this.d.api;
+    const rec: NonNullable<VoiceController['stream']> = {
+      gen,
+      id: null,
+      ready: Promise.resolve(null),
+      pending: [],
+      pendingBytes: 0,
+      failed: false,
+      eventError: null,
+    };
+    rec.ready = api
+      .streamStart(this.d.source)
+      .then((r) => {
+        if (!r.ok) {
+          rec.failed = true;
+          return null;
+        }
+        // 启动期间已取消 / 被新会话取代：关掉刚开的会话，旧音频不进新会话
+        if (this.stream !== rec || gen !== this.gen) {
+          void api.streamCancel(r.id).catch(() => undefined);
+          return null;
+        }
+        rec.id = r.id;
+        this.flushStream(rec, true);
+        return r.id;
+      })
+      .catch(() => {
+        rec.failed = true;
+        return null;
+      });
+    this.stream = rec;
+  }
+
+  private pushStream(f: Float32Array, gen: number) {
+    const rec = this.stream;
+    if (!rec || rec.gen !== gen || rec.failed) return;
+    const bytes = floatToPcm16(f);
+    rec.pending.push(bytes);
+    rec.pendingBytes += bytes.byteLength;
+    if (rec.pendingBytes > 16000 * 2 * 60) {
+      // 一分钟还没建好连接：不再缓存（最终按整段识别）
+      rec.failed = true;
+      rec.pending = [];
+      return;
+    }
+    this.flushStream(rec, false);
+  }
+
+  private flushStream(rec: NonNullable<VoiceController['stream']>, force: boolean) {
+    if (!rec.id || (!force && rec.pendingBytes < 3200)) return;
+    const id = rec.id;
+    while (rec.pending.length) {
+      // 单次 IPC 不超过 32 KB
+      const parts: Uint8Array[] = [];
+      let n = 0;
+      while (rec.pending.length && n + rec.pending[0]!.byteLength <= 32 * 1024) {
+        const p = rec.pending.shift()!;
+        parts.push(p);
+        n += p.byteLength;
+      }
+      if (!parts.length) parts.push(rec.pending.shift()!.subarray(0, 32 * 1024));
+      const buf = new Uint8Array(parts.reduce((a, p) => a + p.byteLength, 0));
+      let o = 0;
+      for (const p of parts) {
+        buf.set(p, o);
+        o += p.byteLength;
+      }
+      void this.d.api.streamPush(id, buf).catch(() => undefined);
+    }
+    rec.pendingBytes = 0;
+  }
+
+  /** 丢弃流式会话（取消 / 太短 / 被取代） */
+  private dropStream() {
+    const rec = this.stream;
+    this.stream = null;
+    if (!rec) return;
+    void rec.ready.then((id) => {
+      if (id) void this.d.api.streamCancel(id).catch(() => undefined);
+    });
   }
 
   get state(): VoiceState {
@@ -143,19 +263,31 @@ export class VoiceController {
     if (this.st.phase === 'recording' || this.st.phase === 'starting') return;
     if (this.st.mode !== 'off' && this.st.mode !== 'ptt') await this.stopContinuous();
     this.chunks = [];
-    this.gen += 1;
-    this.set({ mode: 'ptt', phase: 'starting', error: null, elapsedMs: 0 });
+    const gen = ++this.gen;
+    this.dropStream();
+    this.set({ mode: 'ptt', phase: 'starting', error: null, elapsedMs: 0, partial: '' });
+    // 与打开麦克风并行建连，减少首字等待
+    if (this.settings.streaming && typeof this.d.api.streamStart === 'function')
+      this.openStream(gen);
     try {
       await this.mic.start({
         onFrame: (f) => {
+          if (gen !== this.gen) return;
           this.chunks.push(f);
+          this.pushStream(f, gen);
           this.set({ elapsedMs: this.now() - this.startedAt });
         },
-        onLevel: (level) => this.set({ level }),
+        onLevel: (level) => {
+          if (gen === this.gen) this.set({ level });
+        },
       });
+      // 启动期间被取消 / 被新会话取代：状态已由取消方处理，不能再切回 recording
+      if (gen !== this.gen) return;
       this.startedAt = this.now();
       this.set({ phase: 'recording' });
     } catch (e) {
+      if (gen !== this.gen || e instanceof MicCancelled) return;
+      this.dropStream();
       this.set({ mode: 'off', phase: 'idle', level: 0 });
       this.fail(e);
     }
@@ -165,25 +297,49 @@ export class VoiceController {
   async pttStop(cancel = false): Promise<string> {
     if (this.st.mode !== 'ptt') return '';
     const ms = this.now() - this.startedAt;
-    const gen = this.gen;
+    // 先换代次：仍在启动中的 pttStart / 排队帧都会因此失效（取消一定落实）
+    const gen = ++this.gen;
     await this.mic.stop();
     const audio = concatFloat32(this.chunks);
     this.chunks = [];
+    const stream = this.stream;
     if (cancel) {
-      this.set({ mode: 'off', phase: 'idle', level: 0 });
+      this.dropStream();
+      this.set({ mode: 'off', phase: 'idle', level: 0, partial: '' });
       return '';
     }
     if (ms < MIN_PTT_MS || audio.length < 16000 * 0.3) {
+      this.dropStream();
       this.set({
         mode: 'off',
         phase: 'idle',
         level: 0,
+        partial: '',
         error: { code: 'too_short', message: t('说得太短了，按住按钮说话，说完再松开。') },
       });
       return '';
     }
     this.set({ phase: 'transcribing', level: 0 });
-    const text = await this.recognize(audio, 'command');
+    let text: string;
+    const id = stream ? await stream.ready : null;
+    if (stream && id) {
+      this.flushStream(stream, true);
+      this.stream = null;
+      let r: TranscribeResult;
+      try {
+        r = await this.d.api.streamStop(id);
+      } catch (e) {
+        r = { ok: false, code: 'failed', error: e instanceof Error ? e.message : String(e) };
+      }
+      if (!r.ok && stream.eventError)
+        r = { ok: false, code: stream.eventError.code, error: stream.eventError.message };
+      text = this.handleResult(r, 'command', false);
+    } else {
+      // 没有流式会话（非流式引擎，或建连失败）：整段识别
+      this.stream = null;
+      text = await this.recognize(audio, 'command');
+    }
+    if (gen === this.gen) this.set({ partial: '' });
     // 识别期间已开始新会话：别把新会话的状态重置掉（识别出的文本照常交付）
     if (gen === this.gen) this.set({ mode: 'off', phase: 'idle' });
     if (text) this.emit(text, 'ptt');
@@ -212,11 +368,18 @@ export class VoiceController {
     const gen = ++this.gen;
     this.settings = { ...this.settings, ...settings };
     this.set({ mode, phase: 'starting', error: null });
+    let vad: VadEngine | null = null;
     try {
-      this.vad = await (this.d.createVad ?? defaultCreateVad)(this.d.api);
+      vad = await (this.d.createVad ?? defaultCreateVad)(this.d.api);
+      if (gen !== this.gen) {
+        // createVad 等待期间被停止 / 取代：只释放自己创建的 VAD
+        vad.dispose();
+        return;
+      }
+      this.vad = vad;
       this.seg = new Segmenter({
         threshold:
-          this.vad.kind === 'silero'
+          vad.kind === 'silero'
             ? this.settings.vadThreshold
             : Math.min(0.9, this.settings.vadThreshold + 0.1),
         maxSpeechMs: mode === 'wake' ? 6000 : 30_000,
@@ -228,10 +391,18 @@ export class VoiceController {
             .then(() => this.onContinuousFrame(f, gen))
             .catch((e) => this.fail(e));
         },
-        onLevel: (level) => this.set({ level }),
+        onLevel: (level) => {
+          if (gen === this.gen) this.set({ level });
+        },
       });
-      this.set({ phase: mode === 'wake' ? 'wake-armed' : 'listening', vad: this.vad.kind });
+      if (gen !== this.gen) return; // 启动期间已被停止 / 取代，状态由取消方处理
+      this.set({ phase: mode === 'wake' ? 'wake-armed' : 'listening', vad: vad.kind });
     } catch (e) {
+      if (gen !== this.gen || e instanceof MicCancelled) {
+        // 旧会话的失败不能动新会话的状态；只释放自己的 VAD（若已被新会话接管则不是它）
+        if (vad && this.vad !== vad) vad.dispose();
+        return;
+      }
       this.vad?.dispose();
       this.vad = null;
       this.set({ mode: 'off', phase: 'idle', level: 0, vad: null });
@@ -318,16 +489,10 @@ export class VoiceController {
   ): Promise<string> {
     try {
       const r = await this.d.api.transcribe(encodeWav(audio), this.d.source, purpose);
-      if (r.ok) {
-        if (!quiet) this.set({ lastText: r.text });
-        if (!r.text && !quiet)
-          this.set({ error: { code: 'empty', message: t('没听清，再说一次？') } });
-        return r.text;
-      }
-      if (!quiet || r.code !== 'empty') this.set({ error: { code: r.code, message: r.error } });
-      if (purpose === 'wake' && (r.code === 'no_engine' || r.code === 'no_model'))
+      const text = this.handleResult(r, purpose, quiet);
+      if (!r.ok && purpose === 'wake' && (r.code === 'no_engine' || r.code === 'no_model'))
         await this.stopContinuous();
-      return '';
+      return text;
     } catch (e) {
       this.fail(e);
       return '';
@@ -340,6 +505,18 @@ export class VoiceController {
     }
   }
 
+  private handleResult(r: TranscribeResult, purpose: 'command' | 'wake', quiet: boolean): string {
+    if (r.ok) {
+      if (!quiet) this.set({ lastText: r.text });
+      if (!r.text && !quiet)
+        this.set({ error: { code: 'empty', message: t('没听清，再说一次？') } });
+      return r.text;
+    }
+    if (!quiet || r.code !== 'empty') this.set({ error: { code: r.code, message: r.error } });
+    void purpose;
+    return '';
+  }
+
   private emit(text: string, via: VoiceMode) {
     for (const f of this.transcriptSubs) f(text, via);
   }
@@ -347,6 +524,8 @@ export class VoiceController {
   async dispose(): Promise<void> {
     await this.stopContinuous();
     if (this.st.mode === 'ptt') await this.pttStop(true);
+    this.dropStream();
+    this.offStream?.();
     this.subs.clear();
     this.transcriptSubs.clear();
   }

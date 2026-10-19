@@ -372,8 +372,8 @@ export function helpCard(cmds: readonly SlashCommand[]): SlashCardInput {
         group: sourceLabel(src),
         label: `/${c.name}`,
         ...(c.args ? { hint: c.args.hint } : {}),
-        description: c.description,
-        badge: kindLabel(c.kind),
+        description: c.disabled ? c.disabled.reason : c.description,
+        badge: c.disabled ? t('不可用') : kindLabel(c.kind),
       });
   return {
     kind: 'list',
@@ -423,6 +423,10 @@ export function unsupportedCard(
     alternative ? { detail: alternative } : undefined,
   );
 }
+
+/** 同名冲突里落选、CLI 又没有指定它的写法：说明原因，不发送 */
+export const disabledCard = (name: string, reason: string): SlashCardInput =>
+  notice(t('/{0} 不能发送', name), reason, 'warn');
 
 export const errorCard = (name: string, e: unknown): SlashCardInput =>
   notice(t('/{0} 执行失败', name), e instanceof Error ? e.message : String(e), 'error');

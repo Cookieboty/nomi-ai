@@ -10,6 +10,7 @@
 
 import { AIClient } from '@nomi-ai/ai-sdk';
 import { LLMRegistryKey, ToolRegistryKey, UserProfileKey } from '@nomi-ai/bundle-ig-base';
+import { TtsKey } from '@nomi-ai/bundle-ig-electron-caps/seams';
 import { describe, it, expect } from 'vitest';
 
 import { IPC_METHODS, channelName, chunkChannelName } from '../src/channels';
@@ -87,6 +88,37 @@ describe('IPCTransportServer', () => {
     expect(onChunk.length).toBeGreaterThanOrEqual(2);
     const last = onChunk[onChunk.length - 1]!.payload as { done: boolean };
     expect(last.done).toBe(true);
+  });
+
+  it('tts.stream：位置参数不被改写——服务端用原始 (text, opts) 调用（reqId 在 envelope 里）', async () => {
+    const ctx = createFakeSdkCtx();
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM('fake')));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const calls: unknown[][] = [];
+    ctx.provide(TtsKey, {
+      stream(...a: unknown[]) {
+        calls.push(a);
+        return (async function* () {
+          yield { audio: 'x' };
+        })();
+      },
+    } as never);
+    const adapter = createFakeIpcAdapter();
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+    }).start();
+    const ack = (await adapter.invoke(5, 'ai:tts:stream', { reqId: 'tts-1' }, 'hello', {
+      voice: 'v1',
+    })) as { ok: true; reqId: string };
+    await new Promise((r) => setTimeout(r, 5));
+    expect(ack.reqId).toBe('tts-1');
+    expect(calls).toEqual([['hello', { voice: 'v1' }]]);
+    const chunkCh = chunkChannelName({ facade: 'tts', method: 'stream' });
+    const sent = (adapter.senderStreams.get(5) ?? []).filter((s) => s.channel === chunkCh);
+    expect((sent[0]!.payload as { reqId: string }).reqId).toBe('tts-1');
   });
 
   it('窗口中途销毁：停止推送 chunk，并中止上游生成（不抛未处理异常）', async () => {

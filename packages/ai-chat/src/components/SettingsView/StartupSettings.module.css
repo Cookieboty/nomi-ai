@@ -1,0 +1,45 @@
+.opts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  cursor: pointer;
+}
+.opt:hover {
+  background: var(--cd-color-hover);
+}
+/* 选中态：深棕字 + 暖橙淡底 + 强调边框（日落橙 / 奶油下也清晰，见 theme-contrast 测试） */
+.opt.optOn {
+  border-color: var(--cd-color-accent-strong);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+.optTitle {
+  font-size: 14px;
+  font-weight: 600;
+}
+.optHint {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+}
+.opt.optOn .optHint {
+  color: var(--cd-color-selected-text);
+}
+.opt:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}

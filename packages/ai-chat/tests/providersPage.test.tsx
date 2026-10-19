@@ -140,6 +140,7 @@ describe('routingStatus（路由开关与原因）', () => {
     expect(r.mode).toBe('routed');
     expect(r.text).toContain('127.0.0.1:18721');
     expect(routingStatus('dsh', null, route).mode).toBe('n/a');
+    expect(routingStatus('gemini', null, route).mode).toBe('n/a');
   });
 });
 
@@ -156,7 +157,7 @@ describe('ProvidersPage', () => {
       '~/.codex/config.toml'.replace('~', '/home/u'),
     );
     // 五个端点 + 「监视与会话」
-    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(6);
+    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(7);
   });
 
   it('只显示该端点自己的档案，未启用时显示 CLI 自带登录', async () => {
@@ -301,6 +302,30 @@ describe('ProvidersPage', () => {
         kind: 'dsh',
         apiFormat: 'openai_responses',
       });
+    });
+  });
+
+  it('Gemini：与其它 CLI 同样的供应商区与官方账号；只有原生格式，没有路由开关', async () => {
+    const calls = setup([]);
+    localStorage.setItem('ai-chat:providerEndpoint', 'gemini');
+    const r = render(<ProvidersPage />);
+    await waitFor(() => expect(r.getByTestId('providers-section-gemini')).toBeTruthy());
+    expect(r.getByTestId('cli-accounts-gemini')).toBeTruthy();
+    expect(r.queryByTestId('cli-route-enabled')).toBeNull();
+    fireEvent.click(r.getByTestId('cli-add-provider'));
+    await waitFor(() => r.getByTestId('preset-custom'));
+    fireEvent.click(r.getByTestId('preset-custom'));
+    await waitFor(() => r.getByTestId('cli-provider-baseurl'));
+    expect((r.getByTestId('cli-provider-format') as HTMLSelectElement).value).toBe(
+      'gemini_generate_content',
+    );
+    fireEvent.change(r.getByTestId('cli-provider-baseurl'), {
+      target: { value: 'https://gw.test/v1beta' },
+    });
+    fireEvent.click(r.getByTestId('cli-provider-save'));
+    await waitFor(() => {
+      const c = calls.find(([ch]) => ch === 'ai:cli-provider:upsert');
+      expect(c![1][0]).toMatchObject({ kind: 'gemini', apiFormat: 'gemini_generate_content' });
     });
   });
 

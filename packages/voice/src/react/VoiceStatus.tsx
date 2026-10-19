@@ -94,6 +94,12 @@ export const VoiceStatus: React.FC<VoiceStatusProps> = ({
     >
       <span className="cd-voice-dot" aria-hidden />
       <span className="cd-voice-status__text">{text}</span>
+      {state.partial && (state.phase === 'recording' || state.phase === 'transcribing') && (
+        // 流式识别的临时文本：可能被修订，松开后以最终结果为准
+        <span className="cd-voice-status__partial" data-testid="voice-partial">
+          {state.partial}
+        </span>
+      )}
       {state.mode !== 'ptt' && state.vad === 'energy' && (
         <span
           className="cd-voice-status__hint"

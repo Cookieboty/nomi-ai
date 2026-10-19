@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { DesktopBubble } from '@nomi-ai/types';
 import {
   app,
@@ -16,9 +16,11 @@ import {
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { iconImage } from '../core/appIcon';
 import { t as tr } from '../i18n';
+import { notifyIsland } from '../island/IslandService';
 import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { AppTrash } from './AppTrash';
 import { AuditLog } from './AuditLog';
@@ -44,11 +46,15 @@ export interface DesktopRuntimeHooks {
   ): Promise<string>;
   /** 某个角色当前路由到的 provider（id / 名字 / baseURL） */
   resolveProvider(role: Role): { id: string; name: string; baseURL?: string } | null;
+  /** 按 id 查 provider（工具调用实际用的 provider 要显示名字用）；查不到返回 null */
+  lookupProvider?(id: string): { id: string; name: string; baseURL?: string } | null;
 }
 
 export interface DesktopWindows {
   main(): BrowserWindow | null;
   openChat(): Promise<BrowserWindow>;
+  /** 看板娘已关闭（窗口隐藏且静音）：提醒不再把她叫出来（系统通知 / 灵动岛照常）；确认框临时显示，答完再藏起 */
+  mascotHidden?(): boolean;
 }
 
 export const DESKTOP_CHANGED = 'ai:desktop:changed';
@@ -103,7 +109,10 @@ export class DesktopService {
     }
     this.broker.ui = {
       request: (req) => this.sendConfirm(req),
-      cancel: (id) => this.main()?.webContents.send('desktop:confirm-cancel', id),
+      cancel: (id) => {
+        this.main()?.webContents.send('desktop:confirm-cancel', id);
+        this.rehideMascotIfIdle();
+      },
     };
     this.broker.onChange(() => this.broadcast(DESKTOP_CHANGED, this.state()));
   }
@@ -119,6 +128,17 @@ export class DesktopService {
   private main(): BrowserWindow | null {
     const w = this.windows?.main();
     return w && !w.isDestroyed() ? w : null;
+  }
+
+  private mascotHidden(): boolean {
+    return this.windows?.mascotHidden?.() ?? false;
+  }
+
+  /** 看板娘已关闭时，确认框全部处理完就把临时显示的窗口再藏起来 */
+  private rehideMascotIfIdle(): void {
+    if (!this.mascotHidden() || this.broker.pendingRequests().length > 0) return;
+    const w = this.main();
+    if (w?.isVisible()) w.hide();
   }
 
   private broadcast(ch: string, payload: unknown): void {
@@ -182,16 +202,20 @@ export class DesktopService {
 
   private deliverReminder(r: Reminder, osNotify: boolean): void {
     const w = this.main();
-    this.logger.info('提醒触发', { id: r.id, hasWindow: !!w });
-    if (w) {
-      if (!w.isVisible()) w.showInactive();
-      w.webContents.send('desktop:reminder', {
-        id: r.id,
-        text: r.text,
-        dueAt: r.dueAt,
-        missed: false,
-      });
+    this.logger.info('提醒触发', { id: r.id, hasWindow: !!w, mascotHidden: this.mascotHidden() });
+    // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片），
+    // 改走灵动岛 + 系统通知，点通知打开对话窗口
+    if (!w || this.mascotHidden()) {
+      this.deliverReminderElsewhere([r], osNotify);
+      return;
     }
+    if (!w.isVisible()) w.showInactive();
+    w.webContents.send('desktop:reminder', {
+      id: r.id,
+      text: r.text,
+      dueAt: r.dueAt,
+      missed: false,
+    });
     broadcastMascotCommand({ type: 'motion', name: 'wave' });
     broadcastMascotCommand({ type: 'expression', name: 'happy' });
     try {
@@ -204,7 +228,7 @@ export class DesktopService {
         });
         n.on('click', () => {
           const mw = this.main();
-          if (mw && !mw.isVisible()) mw.showInactive();
+          if (mw && !mw.isVisible() && !this.mascotHidden()) mw.showInactive();
         });
         n.show();
       }
@@ -218,6 +242,53 @@ export class DesktopService {
       result: 'ok',
       source: 'scheduler',
     });
+  }
+
+  /**
+   * 看板娘不在时的提醒：灵动岛 + 系统通知（点击打开对话窗口）。
+   * 系统通知只在用户开着「系统通知」时发：关了就是关了，灵动岛也显示不了（关闭 / 免打扰 / 不支持）时
+   * 这条提醒不弹出，只记一条 via=none 的审计，方便事后排查。
+   */
+  private deliverReminderElsewhere(items: Reminder[], osNotify: boolean): void {
+    if (!items.length) return;
+    const title = tr('提醒');
+    const body =
+      items.length === 1
+        ? items[0]!.text
+        : tr('有 {0} 条提醒：{1}', items.length, items.map((r) => r.text).join('；'));
+    let island = false;
+    try {
+      island = notifyIsland({ kind: 'reminder', title, body, status: 'attention' });
+    } catch (e) {
+      this.logger.warn('灵动岛提醒失败', { error: String(e) });
+    }
+    let notified = false;
+    try {
+      if (osNotify && Notification.isSupported()) {
+        const n = new Notification({ title, body, silent: false, icon: iconImage() });
+        n.on('click', () => {
+          void this.windows?.openChat().catch(() => undefined);
+        });
+        n.show();
+        notified = true;
+      }
+    } catch (e) {
+      this.logger.warn('系统通知失败', { error: String(e) });
+    }
+    const via = island ? 'island' : notified ? 'notification' : 'none';
+    if (via === 'none')
+      this.logger.info('提醒没有可用的展示方式（看板娘已隐藏、灵动岛不可用、系统通知已关闭）', {
+        count: items.length,
+      });
+    for (const r of items) {
+      this.audit.append({
+        tool: 'reminder_fire',
+        args: { id: r.id, text: r.text, via },
+        decision: 'auto',
+        result: via === 'none' ? 'not_shown' : 'ok',
+        source: 'scheduler',
+      });
+    }
   }
 
   private missedQueue: Reminder[] = [];
@@ -236,6 +307,11 @@ export class DesktopService {
     this.missedQueue = [];
     if (items.length) {
       this.reminders.markAnnounced(items.map((r) => r.id));
+      // 看板娘已关闭：错过的提醒同样改走灵动岛 / 系统通知，不在隐藏的窗口里攒卡片
+      if (this.mascotHidden()) {
+        this.deliverReminderElsewhere(items, this.notifyPolicy?.osNotify() ?? true);
+        return [];
+      }
       broadcastMascotCommand({ type: 'motion', name: 'wave' });
     }
     return items.map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));
@@ -252,6 +328,42 @@ export class DesktopService {
         (p as { defaultModel?: string; model?: string }).defaultModel ??
         (p as { model?: string }).model,
     };
+  }
+
+  /** 本轮工具循环实际使用的 provider（ctx.provider）→ 名字 / 本地标记 */
+  receiverOf(p: ToolCallProvider): ProviderInfo {
+    const known = this.runtime?.lookupProvider?.(p.id);
+    return {
+      id: p.id,
+      name: known?.name ?? p.id,
+      local: isLocalBaseURL(p.baseURL ?? known?.baseURL),
+    };
+  }
+
+  /**
+   * 工具结果的接收者：有 ctx.provider 用它；没有就取候选角色里的全部 provider（逐个校验，失败关闭）。
+   */
+  receiversFor(provider: ToolCallProvider | undefined, roles: Role[]): ProviderInfo[] {
+    if (provider) return [this.receiverOf(provider)];
+    const out: ProviderInfo[] = [];
+    for (const r of roles) {
+      const p = this.providerFor(r);
+      if (p && !out.some((x) => x.id === p.id)) out.push(p);
+    }
+    return out;
+  }
+
+  /** 对一组接收者逐个做 localOnly / 云端同意校验；返回第一个失败码，全通过返回 null */
+  async checkSendAll(
+    receivers: ProviderInfo[],
+    signal?: AbortSignal,
+    what?: string,
+  ): Promise<null | 'local_only' | 'user_denied'> {
+    for (const r of receivers) {
+      const res = await this.broker.checkSend(r, signal, what);
+      if (res) return res;
+    }
+    return null;
   }
 
   private async summarize(
@@ -295,6 +407,7 @@ export class DesktopService {
       parse: (p) => parseFile(p),
       summarize: (t, i, s) => this.summarize(t, i, s),
       providerFor: (r) => this.providerFor(r),
+      describeProvider: (p) => this.receiverOf(p),
       pickFolder: (s) => this.pickFolder(s),
       p2: {
         notes: this.notes,
@@ -413,10 +526,8 @@ export class DesktopService {
   registerIpc(): void {
     if (this.ipcRegistered) return;
     this.ipcRegistered = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, fn);
-    };
+    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'DesktopService', wrapErrors: false, passEvent: true });
     handle('ai:desktop:state', () => this.state());
     handle('ai:desktop:grant', async (_e, mode) => {
       const picked = await this.pickFolder();
@@ -627,6 +738,7 @@ export class DesktopService {
         return;
       }
       if (typeof id === 'string') this.broker.answer(id, allow === true, remember === true);
+      this.rehideMascotIfIdle();
     });
     ipcMain.on('desktop:drop-file', (e, p) => {
       if (e.sender !== this.main()?.webContents || typeof p !== 'string' || !p) return;

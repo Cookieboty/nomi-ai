@@ -42,6 +42,7 @@ const IDLE: VoiceState = {
   vad: null,
   error: null,
   lastText: '',
+  partial: '',
 };
 
 export function useVoice(
@@ -80,6 +81,7 @@ export function useVoice(
       vadThreshold: s0.vadThreshold,
       wakePhrase: s0.wakeWord.phrase,
       wakeWindowSec: s0.wakeWord.windowSec,
+      streaming: s0.engine === 'volc',
     });
   }, [controller, s0]);
 

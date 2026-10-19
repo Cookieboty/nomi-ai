@@ -365,16 +365,6 @@ jobs:
           restore-keys: |
             electron-dl-${{ runner.os }}-
 
-      # Offline TTS weights (~133MB) staged by prepackage → sync-tts-model.mjs
-      - name: Cache sherpa TTS model
-        if: steps.plat.outputs.run == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: packages/electron/resources/tts-models
-          key: tts-model-vits-zh-hf-theresa-f337638c49689e1d
-          restore-keys: |
-            tts-model-vits-zh-hf-theresa-
-
       - name: Build workspaces
         if: steps.plat.outputs.run == 'true'
         run: pnpm turbo run build --cache-dir=.turbo/cache
@@ -409,6 +399,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # matrix.artifact is linux | mac | win → package:publish:{linux,mac,win}
         run: pnpm --filter @nomi-ai/electron run package:publish:${{ matrix.artifact }}
+
+      # 自动更新载荷（#21）：latest-mac.yml 必须列出 x64 / arm64 两个 zip，且文件、大小、sha512 一致；
+      # 未签名时打印 ::warning::（Squirrel.Mac 不接受未签名的更新）
+      - name: Verify macOS auto-update assets (tag)
+        if: ${{ steps.plat.outputs.run == 'true' && startsWith(github.ref, 'refs/tags/v') && matrix.artifact == 'mac' }}
+        run: node scripts/release/check-mac-update.mjs dist
 
       # PR / push 也跑一遍门控脚本（无 secret → 预期 unsigned），保证脚本在三平台都能执行
       - name: Signing gate dry-run

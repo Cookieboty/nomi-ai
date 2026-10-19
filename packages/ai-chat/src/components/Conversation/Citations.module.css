@@ -48,7 +48,7 @@
 .model,
 .kbTag {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
   padding: 2px 8px;
   border-radius: var(--cd-radius-full);
   font-size: var(--conv-meta, 13px);

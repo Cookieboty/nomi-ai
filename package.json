@@ -1,6 +1,6 @@
 {
   "name": "nomi",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Nomi：本地运行的桌面 AI 助手（Electron + IgPluginHost / Vercel AI SDK），可选开源 VRM 桌面伙伴",
   "private": true,
   "type": "module",

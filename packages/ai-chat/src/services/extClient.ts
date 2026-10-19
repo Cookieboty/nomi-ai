@@ -58,6 +58,53 @@ export interface SkillDoc {
   files: string[];
 }
 
+export type MigrateTool = 'claude' | 'codex';
+export type MigrateScope = 'user' | 'local' | 'project';
+export type MigrateAction = 'skip' | 'rename' | 'overwrite';
+interface MigrateBase {
+  key: string;
+  tool: MigrateTool;
+  scope: MigrateScope;
+  name: string;
+  where: string;
+  warnings: string[];
+  error?: string;
+  /** Nomi 里已有同名项 */
+  conflict: boolean;
+}
+export interface MigrateMcpItem extends MigrateBase {
+  kind: 'mcp';
+  preview?: {
+    transport: Transport;
+    command?: string;
+    args?: string[];
+    url?: string;
+    env?: Record<string, string>;
+    headers?: Record<string, string>;
+  };
+}
+export interface MigrateSkillItem extends MigrateBase {
+  kind: 'skill';
+  preview: { description: string; files: string[]; bytes: number };
+}
+export interface MigrateScanResult {
+  project: string | null;
+  sources: Array<{ tool: MigrateTool; where: string; found: boolean; error?: string }>;
+  mcp: MigrateMcpItem[];
+  skills: MigrateSkillItem[];
+}
+export interface MigrateImportResult {
+  imported: Array<{ key: string; kind: 'mcp' | 'skill'; name: string }>;
+  skipped: Array<{ key: string; name: string }>;
+  failed: Array<{ key: string; name: string; error: string }>;
+}
+export const TOOL_LABEL: Record<MigrateTool, string> = { claude: 'Claude Code', codex: 'Codex' };
+export const SCOPE_LABEL: Record<MigrateScope, string> = {
+  user: '用户级',
+  local: '本机项目级',
+  project: '项目',
+};
+
 export const TRUST_LABEL: Record<Trust, string> = {
   ask: '每次确认',
   'read-auto': '只读自动，其它确认',
@@ -106,6 +153,11 @@ export const extClient = {
   skillToggle: (n: string, v: boolean) => call<boolean>('skill-toggle', n, v),
   skillImport: () => call<SkillDoc['meta'] | null>('skill-import'),
   skillOpen: (n?: string) => call('skill-open', n),
+  /** 从 Claude Code / Codex 扫描可导入的 MCP 与技能（#58）；pickProject 时主进程弹出选择文件夹 */
+  migrateScan: (o: { pickProject?: boolean; clearProject?: boolean } = {}) =>
+    call<MigrateScanResult>('migrate-scan', o),
+  migrateImport: (items: Array<{ key: string; action?: MigrateAction }>) =>
+    call<MigrateImportResult>('migrate-import', items),
   /** 注入对话 system 的技能目录（失败时为空串） */
   context: async (): Promise<string> => {
     if (!bridge()) return '';

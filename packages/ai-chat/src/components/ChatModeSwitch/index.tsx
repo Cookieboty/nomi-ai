@@ -29,7 +29,8 @@ export const ChatModeSwitch: React.FC = () => {
 
   return (
     <div className={styles.wrap} data-testid="chat-mode-switch">
-      <Tooltip placement="bottom" content={tip}>
+      {/* 开关贴着对话区左缘：提示左对齐，不压到侧栏上 */}
+      <Tooltip placement="bottom-start" content={tip}>
         <div className={styles.seg} role="group" aria-label={t('对话模式')}>
           <button
             type="button"

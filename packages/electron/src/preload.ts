@@ -212,6 +212,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveVoiceSettings: (settings: any) => {
     ipcRenderer.send('save-voice-settings', settings);
   },
+  /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
+  onVoiceSettingsChanged: (callback: (settings: any) => void) => {
+    const fn = (_: unknown, s: unknown) => callback(s);
+    ipcRenderer.on('voice-settings:changed', fn);
+    return () => {
+      ipcRenderer.removeListener('voice-settings:changed', fn);
+    };
+  },
 
   // AI对话相关API
   openAiChat: async () => {

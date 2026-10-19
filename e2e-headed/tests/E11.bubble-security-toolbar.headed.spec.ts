@@ -263,14 +263,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     const bar = main.locator('[data-testid="mascot-toolbar"]');
     await expect(bar).toBeVisible();
     await main.waitForTimeout(800);
-    for (const id of [
-      'ai-chat',
-      'switch-model',
-      'motion',
-      'voice-settings',
-      'toggle-top',
-      'more',
-    ]) {
+    for (const id of ['ai-chat', 'switch-model', 'motion', 'voice-settings', 'more']) {
       await expect(main.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
     await main.screenshot(shot('01-toolbar-calm.png'));

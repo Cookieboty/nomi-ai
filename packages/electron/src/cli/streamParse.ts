@@ -284,6 +284,14 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
         ? { type: 'status', kind: 'compact' }
         : { type: 'status', kind: 'clear' },
     );
+  } else if (
+    type === 'system' &&
+    typeof j.subtype === 'string' &&
+    j.subtype.startsWith('task_') &&
+    typeof j.task_id === 'string'
+  ) {
+    const ev = claudeTaskEvent(j);
+    if (ev) out.push(ev);
   } else if (type === 'system' && j.subtype === 'compact_boundary') {
     out.push({ type: 'status', kind: 'clear' });
   } else if (type === 'error' || (type === 'system' && j.subtype === 'error')) {
@@ -305,6 +313,9 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
         type: 'permission',
         id: reqId,
         summary: detail ? `${tool}: ${detail}` : tool,
+        ...(typeof req.tool_use_id === 'string' && req.tool_use_id
+          ? { toolUseId: req.tool_use_id }
+          : {}),
       });
     }
   }
@@ -362,8 +373,24 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
  */
 export function createClaudeParser(): (line: string) => HarnessEvent[] {
   const names = new Map<string, string>();
+  // 工具调用 id → 父调用（子代理内部的调用）；子代理调用 id → 描述。权限请求据此标出来源子代理
+  const parents = new Map<string, string>();
+  const agents = new Map<string, string>();
+  const remember = (m: Map<string, string>, k: string, v: string) => {
+    m.set(k, v);
+    if (m.size > 500) m.delete(m.keys().next().value!);
+  };
   return (line) =>
     parseClaudeLine(line).map((ev) => {
+      if (ev.type === 'permission' && ev.toolUseId) {
+        const parent = parents.get(ev.toolUseId);
+        const agent = parent ? agents.get(parent) : undefined;
+        return parent ? { ...ev, agent: agent || t('子代理') } : ev;
+      }
+      if (ev.type === 'tool' && ev.status === 'start' && ev.detail) {
+        if (ev.parentId) remember(parents, ev.detail, ev.parentId);
+        if (/^(agent|task)$/i.test(ev.name)) remember(agents, ev.detail, agentLabel(ev.input));
+      }
       if (ev.type !== 'tool' || !ev.detail) return ev;
       if (ev.status === 'start') {
         names.set(ev.detail, ev.name);
@@ -373,6 +400,153 @@ export function createClaudeParser(): (line: string) => HarnessEvent[] {
       if (name) names.delete(ev.detail);
       return name ? { ...ev, name } : ev;
     });
+}
+
+const AGENT_END_STATUS: Record<string, 'completed' | 'failed' | 'stopped'> = {
+  completed: 'completed',
+  failed: 'failed',
+  error: 'failed',
+  errored: 'failed',
+  stopped: 'stopped',
+  killed: 'stopped',
+  cancelled: 'stopped',
+  shutdown: 'stopped',
+  closed: 'stopped',
+};
+
+function agentUsage(
+  u: unknown,
+): { toolUses?: number; tokens?: number; durationMs?: number } | undefined {
+  if (!u || typeof u !== 'object') return undefined;
+  const o = u as Record<string, unknown>;
+  const out = {
+    ...(typeof o.tool_uses === 'number' ? { toolUses: o.tool_uses } : {}),
+    ...(typeof o.total_tokens === 'number' ? { tokens: o.total_tokens } : {}),
+    ...(typeof o.duration_ms === 'number' ? { durationMs: o.duration_ms } : {}),
+  };
+  return Object.keys(out).length ? out : undefined;
+}
+
+const optStr = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+
+/** Codex collab 工具名 → 时间线工具名（spawn_agent 归为子代理；wait 改名避免和普通等待混淆） */
+const CODEX_COLLAB_TOOL: Record<string, string> = {
+  spawn_agent: 'spawn_agent',
+  wait: 'wait_agent',
+  wait_agent: 'wait_agent',
+  send_input: 'send_input',
+  close_agent: 'close_agent',
+  resume_agent: 'resume_agent',
+};
+
+/**
+ * Codex `exec --json` 的 collab_tool_call（0.163.0 实测）：时间线工具事件 + agent 事件。
+ * 子代理内部的命令不进主流，卡片只能显示交给它的任务（prompt）与最终消息（agents_states[].message）。
+ */
+function codexCollabEvents(
+  item: Record<string, unknown>,
+  id: string | undefined,
+  done: boolean,
+): HarnessEvent[] {
+  const tool = String(item.tool ?? '');
+  const prompt = optStr(item.prompt);
+  const receivers = Array.isArray(item.receiver_thread_ids)
+    ? (item.receiver_thread_ids as unknown[]).filter((x): x is string => typeof x === 'string')
+    : [];
+  const states = (item.agents_states ?? {}) as Record<
+    string,
+    { status?: unknown; message?: unknown }
+  >;
+  const failed = item.status === 'failed';
+  const out: HarnessEvent[] = [
+    withOpt(
+      {
+        type: 'tool',
+        name: CODEX_COLLAB_TOOL[tool] ?? (tool || 'collab'),
+        status: done ? (failed ? 'error' : 'done') : 'start',
+      } as HarnessEvent,
+      {
+        id,
+        input: inputText({
+          ...(prompt ? { prompt } : {}),
+          ...(receivers.length ? { agents: receivers } : {}),
+        }),
+        output: done
+          ? outputText(
+              Object.values(states)
+                .map((st) => optStr(st?.message))
+                .filter(Boolean)
+                .join('\n\n') || undefined,
+            )
+          : undefined,
+      },
+    ),
+  ];
+  if (tool === 'spawn_agent' && done && !failed)
+    for (const r of receivers)
+      out.push(
+        withOpt({ type: 'agent', op: 'start', id: r, status: 'running' } as HarnessEvent, {
+          callId: id,
+          label: prompt?.split('\n')[0]?.slice(0, 120),
+          background: true,
+        }),
+      );
+  for (const [r, st] of Object.entries(states)) {
+    const status = AGENT_END_STATUS[String(st?.status ?? '')];
+    if (status)
+      out.push(
+        withOpt({ type: 'agent', op: 'end', id: r, status } as HarnessEvent, {
+          summary: optStr(st?.message)?.slice(0, 2000),
+        }),
+      );
+  }
+  return out;
+}
+
+/**
+ * Claude system/task_*（2.1.303 实测）→ agent 事件。只有子代理（task_type local_agent / 带 subagent_type）
+ * 出 start；其它后台任务（如后台 Bash）只参与后台计数（CliHarnessService.onClaudeMeta），不出卡片。
+ */
+function claudeTaskEvent(j: Record<string, unknown>): HarnessEvent | null {
+  const id = String(j.task_id);
+  const usage = agentUsage(j.usage);
+  if (j.subtype === 'task_started') {
+    if (j.task_type !== 'local_agent' && !optStr(j.subagent_type)) return null;
+    return withOpt({ type: 'agent', op: 'start', id, status: 'running' } as HarnessEvent, {
+      callId: optStr(j.tool_use_id),
+      label: optStr(j.description)?.slice(0, 120),
+      agentType: optStr(j.subagent_type),
+      background: j.is_backgrounded === true,
+    });
+  }
+  if (j.subtype === 'task_progress')
+    return withOpt({ type: 'agent', op: 'progress', id } as HarnessEvent, {
+      callId: optStr(j.tool_use_id),
+      progress: (optStr(j.description) ?? optStr(j.last_tool_name))?.slice(0, 120),
+      usage,
+    });
+  const patch = (j.patch ?? {}) as Record<string, unknown>;
+  const status = AGENT_END_STATUS[String(j.status ?? patch.status ?? '')];
+  if ((j.subtype === 'task_notification' || j.subtype === 'task_updated') && status)
+    return withOpt({ type: 'agent', op: 'end', id, status } as HarnessEvent, {
+      callId: optStr(j.tool_use_id),
+      summary: optStr(j.summary)?.slice(0, 2000),
+      usage,
+    });
+  return null;
+}
+
+/** 子代理调用的展示名：description，退回 subagent_type */
+function agentLabel(input: string | undefined): string {
+  if (!input) return '';
+  try {
+    const o = JSON.parse(input) as Record<string, unknown>;
+    const d = typeof o.description === 'string' ? o.description : '';
+    const ty = typeof o.subagent_type === 'string' ? o.subagent_type : '';
+    return (d || ty).slice(0, 80);
+  } catch {
+    return '';
+  }
 }
 
 function extractClaudeText(content: unknown): string {
@@ -475,6 +649,8 @@ export function parseCodexLine(line: string): HarnessEvent[] {
         ),
       );
       if (done) out.push(...imageEvent(item.result, false));
+    } else if (itemType === 'collab_tool_call') {
+      out.push(...codexCollabEvents(item, id, done));
     } else if (itemType === 'web_search') {
       out.push(
         withOpt(
@@ -596,16 +772,48 @@ export function parseDshLine(line: string): HarnessEvent[] {
 export function createDshParser(): (line: string) => HarnessEvent[] {
   const names = new Map<string, string>();
   return (line) =>
-    parseDshLine(line).map((ev) => {
-      if (ev.type !== 'tool' || !ev.detail) return ev;
+    parseDshLine(line).flatMap((ev) => {
+      if (ev.type !== 'tool' || !ev.detail) return [ev];
       if (ev.status === 'start') {
         names.set(ev.detail, ev.name);
-        return ev;
+        return DSH_SUBAGENT_TOOLS.has(ev.name) ? [ev, dshAgentStart(ev.detail, ev.input)] : [ev];
       }
       const name = names.get(ev.detail);
       if (name) names.delete(ev.detail);
-      return name ? { ...ev, name } : ev;
+      const named = name ? { ...ev, name } : ev;
+      if (!name || !DSH_SUBAGENT_TOOLS.has(name)) return [named];
+      // 无头 JSON 只投影主会话：子代理内部不可见，结束时用工具结果做摘要
+      return [
+        named,
+        withOpt(
+          {
+            type: 'agent',
+            op: 'end',
+            id: ev.detail,
+            status: ev.status === 'error' ? 'failed' : 'completed',
+          } as HarnessEvent,
+          { summary: ev.output?.slice(0, 2000) },
+        ),
+      ];
     });
+}
+
+/** dsh 派生子代理的工具（headless 档案：subagent = spawn，subagent_fork = fork） */
+const DSH_SUBAGENT_TOOLS = new Set(['subagent', 'subagent_fork']);
+
+function dshAgentStart(callId: string, input: string | undefined): HarnessEvent {
+  let o: Record<string, unknown> = {};
+  try {
+    o = input ? (JSON.parse(input) as Record<string, unknown>) : {};
+  } catch {
+    /* 已裁剪的参数 */
+  }
+  const label = optStr(o.description) ?? optStr(o.prompt) ?? optStr(o.task);
+  return withOpt({ type: 'agent', op: 'start', id: callId, status: 'running' } as HarnessEvent, {
+    callId,
+    label: label?.split('\n')[0]?.slice(0, 120),
+    background: o.run_in_background === true,
+  });
 }
 
 /**

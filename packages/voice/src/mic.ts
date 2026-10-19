@@ -16,6 +16,13 @@ export class MicError extends Error {
   }
 }
 
+/** start() 期间被 stop() / 新的 start() 取代：晚到的设备已经被释放，调用方不应再把它当作失败或成功处理。 */
+export class MicCancelled extends Error {
+  constructor() {
+    super('mic start cancelled');
+  }
+}
+
 export function micErrorFrom(e: unknown): MicError {
   const name = (e as { name?: string })?.name ?? '';
   if (name === 'NotAllowedError' || name === 'SecurityError')
@@ -41,6 +48,11 @@ export class MicCapture {
   private node?: AudioNode;
   private src?: MediaStreamAudioSourceNode;
   private pending = new Float32Array(0);
+  /**
+   * 启动代次：start() 与 stop() 都会 +1。start 的每个 await 之后都比较自己的代次，
+   * 不一致就只释放「本次启动自己拿到的」stream / context，再抛 MicCancelled（#20）。
+   */
+  private token = 0;
 
   get running(): boolean {
     return !!this.ctx;
@@ -48,8 +60,11 @@ export class MicCapture {
 
   async start(h: MicHandlers): Promise<void> {
     if (this.ctx) return;
+    const my = ++this.token;
+    const cancelled = () => my !== this.token;
+    let stream: MediaStream;
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           echoCancellation: true,
@@ -59,13 +74,22 @@ export class MicCapture {
         video: false,
       });
     } catch (e) {
+      if (cancelled()) throw new MicCancelled();
       throw micErrorFrom(e);
     }
+    if (cancelled()) {
+      // 取消后才返回的设备：立即释放，不创建 context、不产生帧
+      stream.getTracks().forEach((t) => t.stop());
+      throw new MicCancelled();
+    }
     const ctx = new AudioContext();
+    const src = ctx.createMediaStreamSource(stream);
+    this.stream = stream;
     this.ctx = ctx;
-    this.src = ctx.createMediaStreamSource(this.stream);
+    this.src = src;
     const rate = ctx.sampleRate;
     const onSamples = (input: Float32Array) => {
+      if (cancelled()) return;
       h.onLevel?.(levelOf(input));
       const res = resampleTo16k(input, rate);
       const merged = new Float32Array(this.pending.length + res.length);
@@ -75,27 +99,47 @@ export class MicCapture {
       for (; o + FRAME <= merged.length; o += FRAME) h.onFrame(merged.slice(o, o + FRAME));
       this.pending = merged.slice(o);
     };
+    // 本次启动自己的资源释放（stop() 已经接管了 this.* 时，这里只是补刀：都是幂等的）
+    const releaseOwn = () => {
+      try {
+        src.disconnect();
+      } catch {
+        /* ignore */
+      }
+      stream.getTracks().forEach((t) => t.stop());
+      void ctx.close().catch(() => undefined);
+    };
     // 首选 AudioWorklet（音频线程，不丢帧）；不支持时退回 ScriptProcessor
     try {
       await ctx.audioWorklet.addModule(new URL('./capture-worklet.js', import.meta.url).href);
+      if (cancelled()) {
+        releaseOwn();
+        throw new MicCancelled();
+      }
       const node = new AudioWorkletNode(ctx, 'cd-capture', {
         numberOfInputs: 1,
         numberOfOutputs: 0,
       });
       node.port.onmessage = (ev: MessageEvent<Float32Array>) => onSamples(ev.data);
       this.node = node;
-      this.src.connect(node);
-    } catch {
+      src.connect(node);
+    } catch (e) {
+      if (e instanceof MicCancelled) throw e;
+      if (cancelled()) {
+        releaseOwn();
+        throw new MicCancelled();
+      }
       const sp = ctx.createScriptProcessor(4096, 1, 1);
       sp.onaudioprocess = (ev) => onSamples(new Float32Array(ev.inputBuffer.getChannelData(0)));
       this.node = sp;
-      this.src.connect(sp);
+      src.connect(sp);
       // ScriptProcessor 需要连到 destination 才会被驱动；输出全 0，不会出声
       sp.connect(ctx.destination);
     }
   }
 
   async stop(): Promise<void> {
+    this.token += 1; // 取消仍在启动中的 start()
     this.node?.disconnect();
     this.src?.disconnect();
     this.stream?.getTracks().forEach((t) => t.stop());

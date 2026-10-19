@@ -314,7 +314,7 @@
 }
 .cd-brand--initials {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
   font-weight: var(--cd-font-weight-bold);
   letter-spacing: 0;
 }

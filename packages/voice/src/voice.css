@@ -26,7 +26,7 @@
   height: var(--cd-control-h-sm, 28px);
 }
 .cd-voice-mic:hover:not(:disabled) {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   border-color: var(--cd-color-accent);
 }
 .cd-voice-mic:focus-visible {
@@ -81,7 +81,7 @@
 }
 
 .cd-voice-toggle.is-on {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   border-color: var(--cd-color-accent);
   background: var(--cd-color-accent-soft);
 }
@@ -116,6 +116,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.cd-voice-status__partial {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+  font-style: italic;
+}
+
 .cd-voice-status__hint {
   color: var(--cd-color-text-subtle);
 }
@@ -150,7 +159,7 @@
   border: 0;
   background: none;
   padding: 0;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   cursor: pointer;
   font: inherit;
   white-space: nowrap;
@@ -233,7 +242,7 @@
   font-size: var(--cd-font-size-xs, 12px);
 }
 .cd-voice-asset__desc a {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .cd-voice-asset__error {
   color: var(--cd-color-danger);

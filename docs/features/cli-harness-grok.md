@@ -19,7 +19,7 @@
 ## Nomi 实现对照
 
 - **探测 / 安装**：`CliUpdateService` 白名单 `grok update` + npm `@xai-official/grok@latest`；`detect` 搜索 `~/.grok/bin` 等。
-- **Harness**：`CliHarnessService.runGrok` — `-p`、`streaming-json`、`--no-auto-update`、`--yolo`、可选 `--resume` / `--cwd`；流解析 `parseGrokLine`。
+- **Harness**：`CliHarnessService.runGrok` — `-p`、`streaming-json`、`--no-auto-update`、按标签权限模式加 `--permission-mode <mode>`（完全放开为 `--yolo`，见 [权限模式](../design/cli-permission-modes.md)）、可选 `--resume` / `--cwd`；流解析 `parseGrokLine`。
 - **供应商**：独立 `cli-providers/grok/store.json`；启用时 `patchGrokToml` 写标记区块 + `env_key = NOMI_GROK_API_KEY`（密钥仅启动时注入）。
 - **监视**：`updates.jsonl` mtime；进程名 `grok`。
 - **用量**：`parseGrokChunk` 读 `turn_completed`。

@@ -268,6 +268,23 @@ describe('@nomi-ai/ui', () => {
     expect(bubble.className).toContain('cd-tooltip__bubble--top-end');
   });
 
+  it('Tooltip bottom-start anchors to the trigger left edge; long text wraps instead of overflowing', async () => {
+    render(
+      <Tooltip content="很长的说明" placement="bottom-start">
+        <button>left</button>
+      </Tooltip>,
+    );
+    expect(screen.getByRole('tooltip', { hidden: true }).className).toContain(
+      'cd-tooltip__bubble--bottom-start',
+    );
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const css = fs.readFileSync(path.resolve(__dirname, '../src/styles/base.css'), 'utf8');
+    const rule = /\.cd-tooltip__bubble \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).not.toMatch(/white-space:\s*nowrap/);
+    expect(rule).toMatch(/max-width:/);
+  });
+
   it('Toast: show + auto dismiss; useToast is a no-op outside provider', () => {
     vi.useFakeTimers();
     const Trigger = () => {

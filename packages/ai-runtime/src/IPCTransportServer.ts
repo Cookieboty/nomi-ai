@@ -112,11 +112,18 @@ export class IPCTransportServer {
     const chunkCh = chunkChannelName(spec);
     const firstArg = args[0] as { reqId?: string } | undefined;
     const reqId = firstArg?.reqId ?? cryptoRandomId();
-    if (firstArg && typeof firstArg === 'object') {
-      (firstArg as { reqId?: string }).reqId = reqId;
+    // chat 流的首参就是 options：reqId 写进它。其它流（tts.stream(text, opts)）客户端把 reqId
+    // 单独放在最前面的 envelope 里：取出后用原始业务参数调用，位置参数不被改写。
+    let callArgs = args;
+    if (spec.facade === 'chat') {
+      if (firstArg && typeof firstArg === 'object') {
+        (firstArg as { reqId?: string }).reqId = reqId;
+      }
+    } else {
+      callArgs = args.slice(1);
     }
 
-    const iterable = fn(...args) as AsyncIterable<unknown>;
+    const iterable = fn(...callArgs) as AsyncIterable<unknown>;
     // 窗口已关闭 / 已销毁：向它 send 会抛 "Object has been destroyed"。停止推送并中止上游生成。
     const gone = (): boolean => {
       try {

@@ -133,4 +133,107 @@ describe('UsageLedger', () => {
     const b = new UsageLedger({ root });
     expect(b.all()[0]).toMatchObject({ key: 'r', session: 's9', project: 'p' });
   });
+
+  describe('落盘失败：保留待写记录，游标不越过未持久化的数据', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it('append 失败后记录留在队列里，恢复后下一次 flush 写入，新实例能读到', () => {
+      const root = tmp();
+      const warn = jest.fn();
+      const l = new UsageLedger({ root, logger: { warn }, flushMs: 60_000 });
+      l.upsert(rec({ key: 'R' }));
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw Object.assign(new Error('ENOSPC'), { code: 'ENOSPC' });
+      });
+      l.flush();
+      l.flush(); // 反复失败：队列不丢、不重复告警
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(l.persistState()).toMatchObject({ degraded: true, pendingRecords: 1 });
+      expect(new UsageLedger({ root }).size()).toBe(0);
+      spy.mockRestore();
+      l.flush();
+      expect(l.persistState()).toMatchObject({ degraded: false, pendingRecords: 0 });
+      expect(new UsageLedger({ root }).all().map((r) => r.key)).toEqual(['R']);
+    });
+
+    it('进入 / 退出降级各通知一次，服务状态里能看到（#42）', () => {
+      const root = tmp();
+      const changes: boolean[] = [];
+      const l = new UsageLedger({ root, flushMs: 60_000, onPersistChange: (d) => changes.push(d) });
+      l.upsert(rec({ key: 'R' }));
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      l.flush();
+      spy.mockRestore();
+      l.flush();
+      l.flush();
+      expect(changes).toEqual([true, false]);
+    });
+
+    it('记录没写成功时不写游标；记录写成功后游标才落盘（重启后能重新扫到 R）', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.upsert(rec({ key: 'R' }));
+      l.setCursor('/log', { offset: 100, size: 100, mtimeMs: 1 });
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      // 重启：账本没有 R，游标也必须没有越过它
+      expect(new UsageLedger({ root }).cursor('/log')).toBeUndefined();
+      spy.mockRestore();
+      l.flush();
+      const re = new UsageLedger({ root });
+      expect(re.size()).toBe(1);
+      expect(re.cursor('/log')?.offset).toBe(100);
+    });
+
+    it('游标写失败：dirty 保留，下次重试', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.setCursor('/log', { offset: 5, size: 5, mtimeMs: 1 });
+      const spy = jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      expect(l.persistState().cursorDirty).toBe(true);
+      spy.mockRestore();
+      l.flush();
+      expect(l.persistState().cursorDirty).toBe(false);
+      expect(new UsageLedger({ root }).cursor('/log')?.offset).toBe(5);
+    });
+
+    it('部分写入留下半行：重试先补换行，新实例不会把半行和下一条粘在一起', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.upsert(rec({ key: 'A' }));
+      const real = fs.appendFileSync;
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementationOnce((f, data, o) => {
+        real(f, String(data).slice(0, 10), o as fs.WriteFileOptions); // 只写进半行
+        throw new Error('EIO');
+      });
+      l.flush();
+      spy.mockRestore();
+      l.upsert(rec({ key: 'B' }));
+      l.flush();
+      expect(
+        new UsageLedger({ root })
+          .all()
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(['A', 'B']);
+    });
+
+    it('失败期间队列按键合并，不随更新次数增长', () => {
+      const l = new UsageLedger({ root: tmp(), flushMs: 60_000 });
+      jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      for (let i = 1; i <= 50; i++) l.upsert(rec({ key: 'same', output: i }));
+      l.flush();
+      expect(l.persistState().pendingRecords).toBe(1);
+    });
+  });
 });

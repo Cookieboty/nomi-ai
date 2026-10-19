@@ -203,7 +203,7 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         <SectionTitle level={4}>{tr('语音播报引擎')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
           {tr(
-            '默认使用内置离线语音（sherpa-onnx，本机合成，随安装包分发）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。',
+            '默认使用内置离线语音（sherpa-onnx，本机合成，开启语音时下载模型）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。',
           )}
         </p>
         <p className="cd-notice" style={{ fontSize: 12 }} data-testid="fish-attribution">

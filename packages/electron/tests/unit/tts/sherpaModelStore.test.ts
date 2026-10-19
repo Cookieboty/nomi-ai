@@ -16,6 +16,11 @@ import {
   SherpaInstallError,
   installModel,
   locateModel,
+  partialDownloadBytes,
+  requiredDiskBytes,
+  freeDiskBytes,
+  DISK_MARGIN_BYTES,
+  removeModel,
   verifyModelDir,
 } from '../../../src/tts/sherpa/modelStore';
 
@@ -252,5 +257,76 @@ describe('installModel', () => {
 
   it('sanity: fixture sha constant matches the embedded bytes', () => {
     expect(createHash('sha256').update(FIXTURE).digest('hex')).toBe(FIXTURE_SHA);
+  });
+});
+
+describe('removeModel / partialDownloadBytes', () => {
+  const m: ModelManifest = {
+    id: 'tiny',
+    url: 'u',
+    sha256: '0'.repeat(64),
+    bytes: 1,
+    topDir: 'tiny',
+    files: {},
+  };
+
+  it('reports partial bytes and removes model / partial / download dirs', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-rm-'));
+    fs.mkdirSync(path.join(root, 'tiny'));
+    fs.mkdirSync(path.join(root, 'tiny.partial'));
+    fs.mkdirSync(path.join(root, '.download'));
+    fs.writeFileSync(path.join(root, '.download', 'tiny.tar.bz2.part'), 'abc');
+    expect(partialDownloadBytes(root, m)).toBe(3);
+    removeModel(root, m, { keepModel: true });
+    expect(fs.existsSync(path.join(root, 'tiny'))).toBe(true);
+    expect(fs.existsSync(path.join(root, '.download'))).toBe(false);
+    expect(partialDownloadBytes(root, m)).toBe(0);
+    removeModel(root, m);
+    expect(fs.readdirSync(root)).toEqual([]);
+  });
+
+  it('installModel forwards resume to the downloader', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-resume-'));
+    const download = jest.fn(async () => {
+      throw Object.assign(new Error('nope'), { status: 404 });
+    });
+    await expect(
+      installModel({ installRoot: root, manifest: m, download: download as never, resume: true }),
+    ).rejects.toBeInstanceOf(SherpaInstallError);
+    expect(download).toHaveBeenCalledWith(expect.objectContaining({ resume: true }));
+  });
+});
+
+describe('disk space helpers (#60)', () => {
+  it('requiredDiskBytes = remaining archive + extracted files + margin', () => {
+    const r = requiredDiskBytes(SHERPA_MANIFEST);
+    const extracted = Object.values(SHERPA_MANIFEST.files).reduce((a, b) => a + b, 0);
+    expect(r).toEqual({
+      archive: SHERPA_MANIFEST.bytes,
+      extracted,
+      required: SHERPA_MANIFEST.bytes + extracted + DISK_MARGIN_BYTES,
+    });
+    // 已下载的半成品不重复计入
+    expect(requiredDiskBytes(SHERPA_MANIFEST, 100).required).toBe(r.required - 100);
+    expect(requiredDiskBytes(SHERPA_MANIFEST, SHERPA_MANIFEST.bytes * 2).required).toBe(
+      extracted + DISK_MARGIN_BYTES,
+    );
+  });
+
+  it('freeDiskBytes walks up to an existing parent and returns bavail*bsize', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-free-'));
+    const seen: string[] = [];
+    const free = freeDiskBytes(path.join(root, 'a', 'b'), (p) => {
+      seen.push(p);
+      return { bavail: BigInt(10), bsize: 4096 };
+    });
+    expect(free).toBe(40960);
+    expect(seen).toEqual([path.resolve(root)]);
+    expect(
+      freeDiskBytes(root, () => {
+        throw new Error('ENOSYS');
+      }),
+    ).toBeNull();
+    expect(typeof freeDiskBytes(root)).toBe('number');
   });
 });

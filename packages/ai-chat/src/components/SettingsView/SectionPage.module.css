@@ -46,7 +46,7 @@
   background: var(--cd-color-hover);
 }
 .tab:focus-visible {
-  outline: 2px solid var(--cd-color-accent);
+  outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 1px;
 }
 .tabOn {
@@ -58,6 +58,6 @@
   min-width: 0;
 }
 .panel:focus-visible {
-  outline: 2px solid var(--cd-color-accent);
+  outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 2px;
 }

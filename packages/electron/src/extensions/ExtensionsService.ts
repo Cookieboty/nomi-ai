@@ -6,7 +6,9 @@
  *   环境变量 MCP_SERVERS 里的服务器照常工作，界面里只读展示。
  * - 技能放在 userData/skills/<name>/SKILL.md；模型先只看到名称 + 描述，需要时 skill_load。
  */
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import {
@@ -16,26 +18,38 @@ import {
   type ToolDefinition,
   type ToolRegistry,
 } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
+import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
   MCP_PRESETS,
   McpConfigError,
   isSecretKey,
+  isSecretValue,
   maskServer,
   mergeSecrets,
   needsConfirm,
   parseImport,
+  redactServerForExport,
   sanitizeServer,
+  slugId,
   type McpServerEntry,
   type Trust,
 } from './mcpConfig';
+import {
+  MAX_SKILL_BYTES as MIGRATE_MAX_SKILL_BYTES,
+  discoverMigrations,
+  type McpCandidate,
+  type MigrateScan,
+  type SkillCandidate,
+} from './migrate';
 import {
   SkillError,
   buildSkillMd,
@@ -56,7 +70,24 @@ export interface ExtDeps {
   skillsRoot: string;
   logger: Logger;
   desktop: DesktopService;
+  /** 从其他工具导入（#58）时扫描的用户目录；默认 os.homedir()，测试可注入 */
+  home?: () => string;
+  env?: () => Record<string, string | undefined>;
+  /** 选择项目文件夹（默认系统对话框），测试可注入 */
+  pickDir?: () => Promise<string | null>;
 }
+
+export type MigrateAction = 'skip' | 'rename' | 'overwrite';
+export interface MigrateChoice {
+  key: string;
+  action?: MigrateAction;
+}
+export interface MigrateResult {
+  imported: Array<{ key: string; kind: 'mcp' | 'skill'; name: string }>;
+  skipped: Array<{ key: string; name: string }>;
+  failed: Array<{ key: string; name: string; error: string }>;
+}
+const TOOL_LABEL = { claude: 'Claude Code', codex: 'Codex' } as const;
 
 type Status = 'off' | 'connecting' | 'connected' | 'error';
 interface Live {
@@ -128,6 +159,10 @@ export class ExtensionsService {
   private mcp: (() => McpService | undefined) | null = null;
   private registry: ToolRegistry | null = null;
   private ipcDone = false;
+  /** 最近一次「从其他工具导入」扫描结果（含明文密钥，只在主进程内存里） */
+  private migrateCache = new Map<string, McpCandidate | SkillCandidate>();
+  /** 用户在导入对话框里选的项目文件夹（渲染进程永远不传路径） */
+  private migrateProject: string | null = null;
 
   constructor(private readonly d: ExtDeps) {
     fs.mkdirSync(d.root, { recursive: true });
@@ -153,26 +188,54 @@ export class ExtensionsService {
     // mcp.json 含 env / headers 敏感值（safeStorage 加密串），收紧为 0600
     writePrivateFileAtomic(p, JSON.stringify(v, null, 2));
   }
+  /**
+   * 写盘前加密。安全存储不可用时不再静默写明文：新增 / 修改的密钥在 upsert / import 入口就被
+   * assertCanStoreSecrets 拒绝；这里只会遇到「旧版本已是明文」的存量值（例如只切换启用开关），
+   * 为不丢数据原样保留，等安全存储恢复后下一次保存即被加密。
+   */
   private enc(v: string): string {
+    if (!v || v.startsWith('enc:')) return v;
     try {
-      if (safeStorage.isEncryptionAvailable())
-        return `enc:${safeStorage.encryptString(v).toString('base64')}`;
+      return encryptSecret(v, '');
     } catch {
-      /* fallthrough */
+      return v;
     }
-    return v;
   }
   private dec(v: string): string {
-    if (!v.startsWith('enc:')) return v;
-    try {
-      return safeStorage.decryptString(Buffer.from(v.slice(4), 'base64'));
-    } catch {
-      return '';
-    }
+    return decryptSecret(v);
   }
-  private mapSecrets(m: Record<string, string> | undefined, f: (v: string) => string) {
+  /** 新写入 / 修改的 env、headers 密钥必须能加密，否则整次保存失败关闭 */
+  private assertCanStoreSecrets(next: McpServerEntry[], prev?: McpServerEntry): void {
+    const differs = (
+      m: Record<string, string> | undefined,
+      old: Record<string, string> | undefined,
+      all: boolean,
+    ) =>
+      Object.entries(m ?? {}).some(
+        ([k, v]) => (all || isSecretKey(k) || isSecretValue(v)) && !!v && old?.[k] !== v,
+      );
+    const changed = next.some(
+      (e) => differs(e.env, prev?.env, false) || differs(e.headers, prev?.headers, true),
+    );
+    if (changed && !canEncryptSecrets())
+      throw new McpConfigError(
+        t('系统安全存储不可用，无法安全保存 MCP 的密钥 / 令牌；请在系统钥匙串可用后重试'),
+      );
+  }
+  /** env 按字段名判断密钥；headers 的取值一律按密钥处理（鉴权头名称不固定，如 X-Gateway-Auth） */
+  private mapSecrets(
+    m: Record<string, string> | undefined,
+    f: (v: string) => string,
+    allValues = false,
+  ) {
     return (
-      m && Object.fromEntries(Object.entries(m).map(([k, v]) => [k, isSecretKey(k) ? f(v) : v]))
+      m &&
+      Object.fromEntries(
+        Object.entries(m).map(([k, v]) => [
+          k,
+          allValues || isSecretKey(k) || isSecretValue(v) ? f(v) : v,
+        ]),
+      )
     );
   }
   private loadServers(): McpServerEntry[] {
@@ -182,8 +245,9 @@ export class ExtensionsService {
     for (const r of raw) {
       try {
         const e = sanitizeServer(r);
-        e.env = this.mapSecrets(e.env, (v) => this.dec(v));
-        e.headers = this.mapSecrets(e.headers, (v) => this.dec(v));
+        // 解密不看字段名：凡是 enc: 都解（取值型密钥的字段名可能很普通，#58）；明文原样返回
+        e.env = this.mapSecrets(e.env, (v) => this.dec(v), true);
+        e.headers = this.mapSecrets(e.headers, (v) => this.dec(v), true);
         out.push(e);
       } catch {
         /* skip broken */
@@ -197,7 +261,7 @@ export class ExtensionsService {
       this.servers.map((e) => ({
         ...e,
         env: this.mapSecrets(e.env, (v) => this.enc(v)),
-        headers: this.mapSecrets(e.headers, (v) => this.enc(v)),
+        headers: this.mapSecrets(e.headers, (v) => this.enc(v), true),
       })),
     );
   }
@@ -286,6 +350,7 @@ export class ExtensionsService {
     const e = sanitizeServer({ ...prev, ...raw, id: prev?.id ?? raw.id, origin: 'user' }, taken);
     e.env = mergeSecrets(e.env, prev?.env);
     e.headers = mergeSecrets(e.headers, prev?.headers);
+    this.assertCanStoreSecrets([e], prev);
     if (prev) this.servers = this.servers.map((s) => (s === prev ? e : s));
     else this.servers.push(e);
     this.saveServers();
@@ -328,6 +393,7 @@ export class ExtensionsService {
       text,
       this.servers.map((s) => s.id),
     );
+    this.assertCanStoreSecrets(list);
     for (const e of list) e.enabled = false; // 导入后默认不连，先让用户检查
     this.servers.push(...list);
     this.saveServers();
@@ -471,7 +537,7 @@ export class ExtensionsService {
     try {
       names = fs
         .readdirSync(this.d.skillsRoot, { withFileTypes: true })
-        .filter((e) => e.isDirectory())
+        .filter((e) => e.isDirectory() && !e.name.startsWith('.')) // .import-* 是导入中的临时目录
         .map((e) => e.name);
     } catch {
       /* none */
@@ -642,17 +708,234 @@ export class ExtensionsService {
     ];
   }
 
+  // ───────────── 从其他工具导入（#58） ─────────────
+  private mcpConflict(name: string): McpServerEntry | undefined {
+    const n = name.trim().toLowerCase();
+    const id = slugId(name, new Set());
+    return this.servers.find((s) => s.name.trim().toLowerCase() === n || s.id === id);
+  }
+
+  /** 扫描 Claude Code / Codex 的配置；返回给界面的只有脱敏预览 */
+  async migrateScan(opts: { pickProject?: boolean; clearProject?: boolean } = {}) {
+    if (opts.clearProject) this.migrateProject = null;
+    if (opts.pickProject) {
+      const dir = await (this.d.pickDir ?? pickDirDialog)();
+      if (dir) this.migrateProject = dir;
+    }
+    const scan: MigrateScan = discoverMigrations({
+      home: (this.d.home ?? os.homedir)(),
+      env: (this.d.env ?? (() => process.env))(),
+      projectDir: this.migrateProject,
+    });
+    this.migrateCache = new Map([...scan.mcp, ...scan.skills].map((c) => [c.key, c]));
+    const skillNames = new Set(this.listSkills().map((s) => s.name));
+    const placeholder = '••••••';
+    return {
+      project: this.migrateProject ? path.basename(this.migrateProject) : null,
+      sources: scan.sources,
+      mcp: scan.mcp.map((c) => ({
+        key: c.key,
+        kind: c.kind,
+        tool: c.tool,
+        scope: c.scope,
+        name: c.name,
+        where: c.where,
+        warnings: [
+          ...c.warnings,
+          ...(c.server && argsHaveSecret(c.server)
+            ? [t('启动参数里似乎有令牌：参数会原样保存（不加密），建议改成环境变量')]
+            : []),
+        ],
+        ...(c.error ? { error: c.error } : {}),
+        conflict: !!this.mcpConflict(c.name),
+        ...(c.server
+          ? {
+              preview: (() => {
+                const m = maskServer(c.server);
+                const r = redactServerForExport(c.server, placeholder);
+                return {
+                  transport: c.server.transport,
+                  command: c.server.command,
+                  args: r.args,
+                  url: r.url,
+                  env: m.env,
+                  headers: m.headers,
+                };
+              })(),
+            }
+          : {}),
+      })),
+      skills: scan.skills.map((c) => ({
+        key: c.key,
+        kind: c.kind,
+        tool: c.tool,
+        scope: c.scope,
+        name: c.name,
+        where: c.where,
+        warnings: c.warnings,
+        ...(c.error ? { error: c.error } : {}),
+        conflict: skillNames.has(c.name),
+        preview: { description: c.description, files: c.files, bytes: c.bytes },
+      })),
+    };
+  }
+
+  /** 按用户勾选导入；同名冲突按 skip / rename / overwrite 处理 */
+  async migrateImport(choices: MigrateChoice[]): Promise<MigrateResult> {
+    const res: MigrateResult = { imported: [], skipped: [], failed: [] };
+    const list = Array.isArray(choices) ? choices.slice(0, 500) : [];
+    for (const ch of list) {
+      const c = this.migrateCache.get(String(ch?.key ?? ''));
+      if (!c) continue;
+      const action: MigrateAction =
+        ch.action === 'rename' || ch.action === 'overwrite' ? ch.action : 'skip';
+      try {
+        if (c.error) throw new McpConfigError(c.error);
+        const name =
+          c.kind === 'mcp'
+            ? await this.importMcpCandidate(c, action)
+            : this.importSkillCandidate(c, action);
+        if (name === null) res.skipped.push({ key: c.key, name: c.name });
+        else res.imported.push({ key: c.key, kind: c.kind, name });
+      } catch (e) {
+        res.failed.push({ key: c.key, name: c.name, error: (e as Error).message });
+      }
+    }
+    this.audit(
+      'ext_migrate_import',
+      { imported: res.imported.length, skipped: res.skipped.length, failed: res.failed.length },
+      'user',
+      res.failed.length ? 'partial' : 'ok',
+      'settings',
+    );
+    if (res.imported.length) {
+      this.changed();
+      broadcastMascotCommand({ type: 'motion', name: 'clap' });
+    }
+    return res;
+  }
+
+  private async importMcpCandidate(c: McpCandidate, action: MigrateAction): Promise<string | null> {
+    if (!c.server) throw new McpConfigError(t('配置格式不正确'));
+    const prev = this.mcpConflict(c.server.name);
+    if (prev && action === 'skip') return null;
+    const taken = new Set(
+      this.servers
+        .filter((s) => s !== (action === 'overwrite' ? prev : undefined))
+        .map((s) => s.id),
+    );
+    let name = c.server.name;
+    if (prev && action === 'rename') {
+      const base = `${c.server.name} (${TOOL_LABEL[c.tool]})`;
+      name = base;
+      for (let i = 2; this.mcpConflict(name); i++) name = `${base} ${i}`;
+    }
+    const keepId = prev && action === 'overwrite' ? prev.id : undefined;
+    const e = sanitizeServer(
+      { ...c.server, name, id: keepId, origin: 'user', trust: 'ask', enabled: false },
+      taken,
+    );
+    e.enabled = false; // 导入后默认不连，先让用户检查
+    // 导入的 env / headers 走 safeStorage；不可用时拒绝（#35）
+    this.assertCanStoreSecrets([e]);
+    if (prev && action === 'overwrite') {
+      await this.disconnect(prev.id).catch(() => undefined);
+      this.servers = this.servers.map((s) => (s === prev ? e : s));
+    } else this.servers.push(e);
+    this.saveServers();
+    return e.name;
+  }
+
+  private importSkillCandidate(c: SkillCandidate, action: MigrateAction): string | null {
+    const existing = this.listSkills();
+    const prev = existing.find((s) => s.name === c.name);
+    if (prev && action === 'skip') return null;
+    let name = c.name;
+    if (prev && action === 'rename') {
+      const base = `${c.name}-${c.tool}`.slice(0, 60);
+      name = base;
+      for (
+        let i = 2;
+        existing.some((s) => s.name === name) || fs.existsSync(path.join(this.d.skillsRoot, name));
+        i++
+      )
+        name = `${base}-${i}`;
+    }
+    // 复制前再校验一次源目录（扫描之后可能被改动）：真实路径不变、文件仍是普通文件
+    const real = fs.realpathSync(c.dir);
+    if (real !== c.dir) throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+    let total = 0;
+    const files = ['SKILL.md', ...c.files];
+    for (const f of files) {
+      const abs = safeJoin(real, f);
+      const st = fs.lstatSync(abs);
+      if (!st.isFile()) throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+      total += st.size;
+    }
+    if (total > MIGRATE_MAX_SKILL_BYTES) throw new SkillError(t('技能包太大（上限 5 MB）'));
+    const tmp = path.join(this.d.skillsRoot, `.import-${randomBytes(6).toString('hex')}`);
+    try {
+      for (const f of c.files) {
+        const to = safeJoin(tmp, f);
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        // 不跟随符号链接打开（扫描后被换成链接时直接失败），写入用独占创建
+        const fd = fs.openSync(
+          safeJoin(real, f),
+          fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0),
+        );
+        try {
+          if (!fs.fstatSync(fd).isFile())
+            throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+          fs.writeFileSync(to, fs.readFileSync(fd), { flag: 'wx' });
+        } finally {
+          fs.closeSync(fd);
+        }
+      }
+      fs.mkdirSync(tmp, { recursive: true });
+      const md = fs.readFileSync(path.join(real, 'SKILL.md'), 'utf8');
+      // 改名或原头部 Nomi 读不了（多行描述等）时重写头部；正文保持不变
+      fs.writeFileSync(
+        path.join(tmp, 'SKILL.md'),
+        name !== c.name || c.normalize
+          ? buildSkillMd({ name, description: c.description }, c.body || md)
+          : md,
+      );
+      parseSkillMd(fs.readFileSync(path.join(tmp, 'SKILL.md'), 'utf8')); // 落盘前确认 Nomi 读得了
+      const dest = path.join(this.d.skillsRoot, name);
+      // 覆盖：先把旧的挪到备份名，新目录就位后再删；中途失败则还原
+      const backup = prev && action === 'overwrite' ? `${tmp}.old` : null;
+      if (backup) fs.renameSync(path.join(this.d.skillsRoot, prev!.dir), backup);
+      try {
+        if (fs.existsSync(dest)) throw new SkillError(t('已经有名为 {0} 的技能', name));
+        fs.renameSync(tmp, dest);
+      } catch (e) {
+        if (backup) fs.renameSync(backup, path.join(this.d.skillsRoot, prev!.dir));
+        throw e;
+      }
+      if (backup) fs.rmSync(backup, { recursive: true, force: true });
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    this.disabledSkills.delete(name);
+    this.saveSkillState();
+    return name;
+  }
+
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
     const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      ipcMain.handle(`ai:ext:${ch}`, async (_e, ...a) => {
-        try {
-          return await fn(...(a as never[]));
-        } catch (err) {
-          return { __error: { code: 'ext', message: (err as Error).message } };
-        }
-      });
+      guardedHandle(
+        `ai:ext:${ch}`,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...(a as never[]));
+          } catch (err) {
+            return { __error: { code: 'ext', message: (err as Error).message } };
+          }
+        },
+        { owner: 'ExtensionsService', wrapErrors: false },
+      );
     h('mcp-list', () => this.listMcp());
     h('mcp-upsert', (p: never) => this.upsert(p));
     h('mcp-remove', (id: string) => this.remove(id));
@@ -668,7 +951,25 @@ export class ExtensionsService {
     h('skill-import', () => this.importSkillDialog());
     h('skill-open', (n?: string) => shell.openPath(n ? this.skillDir(n) : this.d.skillsRoot));
     h('skills-context', () => this.skillsContext());
+    h('migrate-scan', (o?: { pickProject?: boolean; clearProject?: boolean }) =>
+      this.migrateScan({ pickProject: !!o?.pickProject, clearProject: !!o?.clearProject }),
+    );
+    h('migrate-import', (items: MigrateChoice[]) => this.migrateImport(items));
   }
+}
+
+async function pickDirDialog(): Promise<string | null> {
+  const r = await dialog.showOpenDialog({
+    title: t('选择项目文件夹（读取其中的 .mcp.json、.claude/skills、.agents/skills）'),
+    properties: ['openDirectory'],
+  });
+  return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+}
+
+function argsHaveSecret(e: McpServerEntry): boolean {
+  if (!e.args?.length) return false;
+  const r = redactServerForExport(e, '\u0000');
+  return (r.args ?? []).some((a, i) => a !== e.args![i]);
 }
 
 function listFiles(root: string, rel = '', out: string[] = [], depth = 0): string[] {

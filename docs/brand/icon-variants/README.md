@@ -26,3 +26,17 @@ python3 scripts/brand/build-app-icon.py
 ```
 
 `preview.png` 为三种变体在浅 / 深背景下 1024 → 16px 的对照。
+
+## 运行时切换的 Windows .ico（#56）
+
+`packages/electron/assets/app-icons/<变体>/app.ico`（16 / 24 / 32 / 48 用 `-flat-small.svg`，64 / 128 / 256 用 `-flat.svg`）
+供运行时 `win.setAppDetails({ appId, appIconPath })` 设置任务栏按钮图标（System.AppUserModel.RelaunchIconResource）。
+打包后随 `extraResources` 复制到 `resources/assets`，在磁盘上（Windows Shell 读不了 asar）。重新生成：
+
+```bash
+python3 scripts/brand/build-variant-ico.py   # 需要 Pillow + headless Chrome / Chromium
+```
+
+能立即更新：所有窗口图标、正在运行的任务栏按钮、托盘、macOS Dock。
+已固定到任务栏的图标由 Windows 图标缓存决定，通常重启应用后才更新（个别情况需取消固定后重新固定）；
+安装包 / 可执行文件 / 开始菜单与桌面快捷方式始终是打包时嵌入的 ink。

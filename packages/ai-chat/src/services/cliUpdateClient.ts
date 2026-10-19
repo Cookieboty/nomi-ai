@@ -12,7 +12,7 @@ export interface CliInstallInfo {
   runtimeWarning?: { nodeVersion: string | null; required: number } | null;
 }
 
-export type CliUpdatableKind = 'claude' | 'codex' | 'dsh' | 'grok';
+export type CliUpdatableKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 export type CliInstallScope = 'global' | 'user';
 
 export interface CliRequirement {
@@ -97,7 +97,9 @@ export const cliUpdateClient = {
   /** 当前正在安装 / 更新的端点（同一时刻只允许一个），没有则 null */
   busy: async (): Promise<CliUpdatableKind | null> => {
     const b = await call<unknown>('busy');
-    return b === 'claude' || b === 'codex' || b === 'dsh' || b === 'grok' ? b : null;
+    return b === 'claude' || b === 'codex' || b === 'dsh' || b === 'grok' || b === 'gemini'
+      ? b
+      : null;
   },
   dismiss: (kind: CliUpdatableKind) => call<boolean>('dismiss', kind),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>

@@ -53,7 +53,7 @@ describe('applyLiveEvents', () => {
       { tabId: 't', type: 'permission', id: 'p1', summary: 'Bash: ls' },
       { tabId: 't', type: 'status', kind: 'retry', attempt: 2, max: 5 },
     ]);
-    expect(s.permission).toEqual({ id: 'p1', summary: 'Bash: ls' });
+    expect(s.permissions).toEqual([{ id: 'p1', summary: 'Bash: ls' }]);
     expect(s.status).toMatchObject({ kind: 'retry', attempt: 2, max: 5 });
     s = applyLiveEvents(s, [{ tabId: 't', type: 'text-delta', text: 'hi' }]);
     expect(s.status).toBeUndefined();
@@ -61,7 +61,7 @@ describe('applyLiveEvents', () => {
     s = applyLiveEvents(s, [{ tabId: 't', type: 'status', kind: 'compact' }]);
     expect(s.status?.kind).toBe('compact');
     s = applyLiveEvents(s, [{ tabId: 't', type: 'done', text: 'ok' }]);
-    expect(s.permission).toBeUndefined();
+    expect(s.permissions).toBeUndefined();
     expect(s.status).toBeUndefined();
   });
 
@@ -93,5 +93,73 @@ describe('applyLiveEvents', () => {
     const next = applyLiveEvents(undefined, batch);
     expect(next.text.length).toBe(80000);
     expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it('并行权限请求排队：按 id 结束其中一项不影响其它；超时留下提示（docs/design/cli-subagents.md §5）', () => {
+    const perm = (id: string, agent: string): HarnessLiveEvent => ({
+      tabId: 't',
+      type: 'permission',
+      id,
+      summary: `Bash: ${id}`,
+      agent,
+      expiresAt: 1000,
+    });
+    let s = applyLiveEvents(undefined, [perm('a', 'A'), perm('b', 'B'), perm('a', 'A')], 0);
+    expect(s.permissions?.map((p) => p.id)).toEqual(['a', 'b']);
+    s = applyLiveEvents(
+      s,
+      [{ tabId: 't', type: 'permission-resolved', id: 'b', reason: 'denied' }],
+      1,
+    );
+    expect(s.permissions?.map((p) => p.id)).toEqual(['a']);
+    expect(s.permissionExpired).toBeUndefined();
+    s = applyLiveEvents(
+      s,
+      [{ tabId: 't', type: 'permission-resolved', id: 'a', reason: 'timeout' }],
+      2,
+    );
+    expect(s.permissions).toBeUndefined();
+    expect(s.permissionExpired).toEqual({ summary: 'Bash: a', agent: 'A', at: 2 });
+  });
+
+  it('子代理事件折叠成每个 id 一条：进度 / 用量合并，结束后迟到的进度不改回运行中（docs/design/cli-subagents.md §3）', () => {
+    const ag = (e: Partial<HarnessLiveEvent>) =>
+      ({ tabId: 't', type: 'agent', id: 'a1', ...e }) as HarnessLiveEvent;
+    let s = applyLiveEvents(
+      undefined,
+      [
+        ag({
+          op: 'start',
+          callId: 'toolu_1',
+          label: 'Read a.txt',
+          background: true,
+          status: 'running',
+        }),
+        ag({ op: 'progress', progress: 'Reading a.txt', usage: { toolUses: 1 } }),
+      ],
+      10,
+    );
+    expect(s.agents?.a1).toMatchObject({
+      callId: 'toolu_1',
+      label: 'Read a.txt',
+      background: true,
+      status: 'running',
+      progress: 'Reading a.txt',
+      usage: { toolUses: 1 },
+      startedAt: 10,
+    });
+    s = applyLiveEvents(
+      s,
+      [ag({ op: 'end', status: 'completed', summary: 'hello', usage: { tokens: 9 } })],
+      20,
+    );
+    s = applyLiveEvents(s, [ag({ op: 'progress', progress: 'late' })], 30);
+    expect(s.agents?.a1).toMatchObject({
+      status: 'completed',
+      summary: 'hello',
+      progress: 'Reading a.txt',
+      usage: { toolUses: 1, tokens: 9 },
+      endedAt: 20,
+    });
   });
 });

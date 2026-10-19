@@ -6,7 +6,8 @@
   border-bottom: 1px solid var(--cd-color-border);
   /* Codex Desktop 基础界面约 14px。标签原先 12.5px，贴着 16px 的会话区显小。 */
   min-height: 40px;
-  overflow: hidden;
+  /* 不能 overflow: hidden：会把「+」弹出的新建菜单裁成一行（只剩第一项）。横向溢出由 .strip 自己滚动 */
+  min-width: 0;
 }
 
 .strip {
@@ -191,20 +192,74 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  font-size: 13px;
+  gap: 4px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--cd-radius-full);
+  background: transparent;
   color: var(--cd-color-text-subtle);
-  white-space: nowrap;
-}
-.limitSelect {
+  font: inherit;
   font-size: 13px;
-  height: 24px;
-  padding: 0 2px;
-  border-radius: 4px;
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-bg);
-  color: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   cursor: pointer;
+}
+.load:hover,
+.load[aria-expanded='true'] {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.loadQueued {
+  color: var(--cd-color-text);
+}
+.loadPop {
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  width: 232px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-text);
+  box-shadow: var(--cd-shadow-md);
+}
+.loadTitle {
+  font-size: 13px;
+  font-weight: 600;
+}
+.loadGrid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+.loadOpt {
+  height: 26px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.loadOpt:hover {
+  background: var(--cd-color-hover);
+}
+.loadOpt[aria-checked='true'] {
+  border-color: var(--cd-color-accent);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-weight: 600;
+}
+.loadHint,
+.loadNow {
+  margin: 0;
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
 }
 
 .live {
@@ -257,7 +312,7 @@
 }
 .permActions button:first-child {
   background: var(--cd-color-accent, #3b82f6);
-  color: #fff;
+  color: var(--cd-color-text-on-accent, #fff);
   border-color: transparent;
 }
 
@@ -278,5 +333,17 @@
   color: var(--cd-color-danger, #dc2626);
 }
 .toolList li[data-status='start'] {
-  color: var(--cd-color-accent, #3b82f6);
+  color: var(--cd-color-accent-strong, #3b82f6);
+}
+
+/* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */
+.dot[data-status='background'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--cd-color-accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-status='background'] {
+    animation: none;
+  }
 }

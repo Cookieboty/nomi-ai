@@ -69,6 +69,8 @@ describe('各端命令集', () => {
     });
     expect(findCommand(commands, 'status')!.source).toBe('builtin');
     expect(findCommand(commands, 'project:status')!.qualified).toBe(true);
+    // 透传项被改名后不能再发裸名 /status（那会执行成别的命令）：禁用
+    expect(findCommand(commands, 'project:status')!.disabled?.reason).toContain('Nomi 内置');
   });
   it('Codex：自定义命令由主进程按 id 展开后发送', async () => {
     const { ctx, commands, actions } = makeCtx('codex', { discovered: custom });
@@ -169,9 +171,12 @@ describe('各端命令集', () => {
       kind: 'passthrough',
       description: '项目',
     });
+    // 自带版落选：CLI 没有指定它的写法，菜单里保留但禁用（不会替它发 /review）
     expect(findCommand(commands, 'bundled:review')).toMatchObject({
       scope: 'bundled',
       kind: 'passthrough',
+      qualified: true,
+      disabled: { reason: expect.stringContaining('项目版') },
     });
   });
   it('Claude 的 /compact 是 CLI 命令，不是 Nomi 内置', () => {

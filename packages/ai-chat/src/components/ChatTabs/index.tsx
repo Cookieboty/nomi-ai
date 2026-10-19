@@ -20,11 +20,12 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { ConcurrencyControl } from './ConcurrencyControl';
 import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
 
-const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 标签悬停提示：标题 · 端点 · 状态，其后依次是工作目录、会话、最近错误 */
 function tabTooltip(tab: HarnessTabMeta, status: string): string {
@@ -42,6 +43,7 @@ export function tabDotStatus(tab: HarnessTabMeta, mainLoading = false): string {
   if (tab.id === MAIN_TAB_ID && mainLoading) return 'running';
   if (tab.status !== 'idle') return tab.status;
   if (tab.unread > 0) return 'unread';
+  if (tab.background) return 'background';
   return tab.dormant ? 'dormant' : 'idle';
 }
 
@@ -56,7 +58,9 @@ function statusLabel(s: string): string {
           ? t('有新结果')
           : s === 'dormant'
             ? t('已休眠')
-            : t('空闲');
+            : s === 'background'
+              ? t('后台运行中')
+              : t('空闲');
 }
 
 export const ChatTabs: React.FC<{
@@ -246,27 +250,12 @@ export const ChatTabs: React.FC<{
             />
           );
         })()}
-      <label
-        className={styles.load}
-        data-testid="chat-tabs-load"
-        title={t('同时运行的编程助手标签上限（1–8）')}
-      >
-        <span>{t('运行 {0}/', st.running)}</span>
-        <select
-          className={styles.limitSelect}
-          data-testid="chat-tabs-max-concurrent"
-          aria-label={t('并发上限')}
-          value={st.maxConcurrent}
-          onChange={(e) => void tabs.setMaxConcurrent(Number(e.target.value))}
-        >
-          {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        {st.queued ? <span>{t(' · 排队 {0}', st.queued)}</span> : null}
-      </label>
+      <ConcurrencyControl
+        running={st.running}
+        queued={st.queued}
+        max={st.maxConcurrent}
+        onChange={(n) => void tabs.setMaxConcurrent(n)}
+      />
       <div className={styles.add} ref={menuRef}>
         <button
           type="button"

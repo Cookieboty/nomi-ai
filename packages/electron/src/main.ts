@@ -25,6 +25,8 @@ perfMark('main-entry');
 const DEEP_LINK_ALLOWED_HOSTS = new Set<string>([]);
 
 function focusExistingWindow(): void {
+  // 默认界面为「软件主界面」：第二次启动直接把主界面带到前台
+  if (application?.raiseMainOnReactivate()) return;
   const win = BrowserWindow.getAllWindows().find((w) => !w.isDestroyed());
   if (win) {
     if (win.isMinimized()) win.restore();

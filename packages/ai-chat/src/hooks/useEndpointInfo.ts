@@ -64,6 +64,8 @@ export function configPathsOf(
       return pick('config', p.dshConfig);
     case 'grok':
       return pick('config.toml', p.grokConfig);
+    case 'gemini':
+      return pick('system-settings.json', p.geminiConfig);
     default:
       return [];
   }

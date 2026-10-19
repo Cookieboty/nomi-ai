@@ -771,6 +771,16 @@ export const LocalPanel: React.FC<{
               {t(s.name)}
               {s.count !== undefined ? ` · ${s.count}` : ''}
               {s.lastError && <Badge tone="danger">{t('同步失败')}</Badge>}
+              {s.passwordInsecure && (
+                <Badge
+                  tone="warning"
+                  title={t(
+                    '密码是旧版本以明文保存的；系统钥匙串可用后会自动加密，也可以移除后重新添加',
+                  )}
+                >
+                  {t('密码未加密')}
+                </Badge>
+              )}
               {(s.kind === 'ics-url' || s.kind === 'caldav') && (
                 <Button
                   size="sm"

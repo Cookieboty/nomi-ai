@@ -58,6 +58,12 @@ export interface SlashCommand {
   badge?: string;
   /** 与内置命令重名，因而被改成了限定名 */
   qualified?: boolean;
+  /**
+   * 菜单里保留但不能发送：同名冲突里落选的那一条，而 CLI 没有指定它的调用语法。
+   * `reason` 是已翻译的说明。Nomi 加的限定名（project: / user: …）只是界面上的区分，
+   * 绝不能当 CLI 协议发出去，所以这类命令的 run 只会给出说明卡片。
+   */
+  disabled?: { reason: string };
   run: (args: string, ctx: SlashContext) => Promise<SlashOutcome> | SlashOutcome;
 }
 
@@ -207,6 +213,8 @@ export interface SlashBridge {
   compose: (extra: SlashCommand[]) => SlashCommand[];
   /** 用户刚输入 `/`：重新读一次项目 / 用户命令目录（文件可能刚改过） */
   refresh: () => void;
+  /** 当前显示的会话归属（读最新值）：输入框据此判断命令完成时用户是否还停在发起它的会话 */
+  scope?: () => string;
   /** 执行一条输入。handled=false 表示不是命令（text 存在时为去掉 `//` 转义后的文字） */
   run: (text: string, all: SlashCommand[]) => Promise<{ handled: boolean; text?: string }>;
 }

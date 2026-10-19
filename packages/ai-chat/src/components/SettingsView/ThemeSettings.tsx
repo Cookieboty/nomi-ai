@@ -56,7 +56,7 @@ export const ThemeSettings: React.FC = () => {
                   ? tr(
                       '{0}（当前：{1}）',
                       tr(t.desc),
-                      cur.resolved === 'paper' ? tr('纸白') : tr('石墨'),
+                      cur.resolved === 'cream' ? tr('奶油') : tr('石墨'),
                     )
                   : tr(t.desc)}
               </span>

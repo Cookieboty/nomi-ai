@@ -25,6 +25,8 @@ export type ConversationMeta = Omit<ChatSession, 'messages'>;
 
 const INDEX_KEY = 'ai-chat:conversations';
 const CURRENT_KEY = 'ai-chat:currentConversation';
+/** 最近一次作为「当前」的 Nomi 会话：当前导航在 CLI 镜像上时，回到 Nomi 主标签要恢复它（#19） */
+const LAST_NOMI_KEY = 'ai-chat:lastNomiConversation';
 const LEGACY_HISTORY_KEY = 'ai-chat:history';
 const messagesKey = (id: string) => `ai-chat:conversation:${id}`;
 
@@ -125,6 +127,54 @@ export class ConversationStore {
     return this.currentId() ?? this.create().id;
   }
 
+  /** 是 Nomi 自己的会话（不是 CLI 标签的镜像项）：只有这类会话能承载 Nomi 的对话轮次 */
+  isNomi(id: string | undefined): boolean {
+    const meta = id ? this.get(id) : undefined;
+    return !!meta && meta.backend === 'nomi' && !meta.tabId;
+  }
+
+  /**
+   * 最近使用的 Nomi 会话：优先记录的「最后一个 Nomi 当前会话」；
+   * 记录失效（被删）时退回最近更新的 Nomi 会话；一个都没有则 undefined。
+   */
+  lastNomiId(): string | undefined {
+    const rec = this.read<string>(LAST_NOMI_KEY);
+    if (rec && this.isNomi(rec)) return rec;
+    return this.list()
+      .filter((c) => c.backend === 'nomi' && !c.tabId)
+      .reduce<ConversationMeta | undefined>(
+        (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
+        undefined,
+      )?.id;
+  }
+
+  /**
+   * Nomi 轮次专用：保证返回的是 Nomi 会话。当前导航若停在 CLI 镜像 / 为空，
+   * 先恢复最近的 Nomi 会话，没有才新建；绝不返回 CLI 镜像 id。
+   */
+  ensureCurrentNomi(): string {
+    const cur = this.currentId();
+    if (cur && this.isNomi(cur)) return cur;
+    const last = this.lastNomiId();
+    if (last) {
+      this.switchTo(last);
+      return last;
+    }
+    return this.create().id;
+  }
+
+  /**
+   * Nomi 轮次写入目标，但**不改变导航**（#19）：当前停在 CLI 镜像（用户正看着 CLI 标签）时，
+   * 写进最近的 Nomi 会话，没有就静默新建一个（不激活），侧栏高亮不会跳走。
+   * 导航为空（没有任何可打扰的界面）时与 ensureCurrentNomi 相同。
+   */
+  nomiTarget(): string {
+    const cur = this.currentId();
+    if (cur && this.isNomi(cur)) return cur;
+    if (!cur) return this.ensureCurrentNomi();
+    return this.lastNomiId() ?? this.create({ activate: false }).id;
+  }
+
   get(id: string): ConversationMeta | undefined {
     return this.list().find((c) => c.id === id);
   }
@@ -150,7 +200,10 @@ export class ConversationStore {
     this.write(INDEX_KEY, [...this.list(), meta]);
     this.write(messagesKey(meta.id), []);
     // 先记下当前会话，再放入缓存，这样淘汰时不会把刚建的会话丢掉
-    if (opts.activate !== false) this.write(CURRENT_KEY, meta.id);
+    if (opts.activate !== false) {
+      this.write(CURRENT_KEY, meta.id);
+      if (meta.backend === 'nomi' && !meta.tabId) this.write(LAST_NOMI_KEY, meta.id);
+    }
     this.remember(meta.id, []);
     return meta;
   }
@@ -158,6 +211,7 @@ export class ConversationStore {
   switchTo(id: string): void {
     if (!this.list().some((c) => c.id === id)) throw new Error(`unknown conversation: ${id}`);
     this.write(CURRENT_KEY, id);
+    if (this.isNomi(id)) this.write(LAST_NOMI_KEY, id);
   }
 
   getMessages(id: string | undefined = this.currentId()): ChatMessage[] {
@@ -313,8 +367,10 @@ export class ConversationStore {
       (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
       undefined,
     );
-    if (next) this.write(CURRENT_KEY, next.id);
-    else this.storage.removeItem(CURRENT_KEY);
+    if (next) {
+      this.write(CURRENT_KEY, next.id);
+      if (next.backend === 'nomi' && !next.tabId) this.write(LAST_NOMI_KEY, next.id);
+    } else this.storage.removeItem(CURRENT_KEY);
   }
 
   private touch(id: string, message?: ChatMessage): void {

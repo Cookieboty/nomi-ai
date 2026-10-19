@@ -4,6 +4,7 @@
  */
 import { customToolInput } from './aggregate';
 import type { NormEvent, StopReason, StreamEncoder, StreamUsage } from './events';
+import { SerialBlocks, type SerialBlock, type SerialSink } from './serial';
 import { formatSse } from './sse';
 
 function rid(prefix: string): string {
@@ -16,10 +17,34 @@ export class MessagesEncoder implements StreamEncoder {
   private started = false;
   private closed = false;
   private nextIndex = 0;
-  /** 当前打开的 content block */
-  private open: { index: number; kind: 'text' | 'tool'; key?: string } | null = null;
-  private toolIndex = new Map<string, number>();
   private usage: StreamUsage = {};
+  private readonly index = new Map<SerialBlock, number>();
+  /** 串行化：同一时刻只有一个 content block 打开，交错的工具参数先缓存（见 serial.ts） */
+  private readonly blocks = new SerialBlocks({
+    open: (b) => {
+      const index = this.nextIndex++;
+      this.index.set(b, index);
+      return formatSse('content_block_start', {
+        type: 'content_block_start',
+        index,
+        content_block:
+          b.kind === 'text'
+            ? { type: 'text', text: '' }
+            : { type: 'tool_use', id: b.id, name: b.name, input: {} },
+      });
+    },
+    delta: (b, d) =>
+      formatSse('content_block_delta', {
+        type: 'content_block_delta',
+        index: this.index.get(b),
+        delta:
+          b.kind === 'text'
+            ? { type: 'text_delta', text: d }
+            : { type: 'input_json_delta', partial_json: d },
+      }),
+    close: (b) =>
+      formatSse('content_block_stop', { type: 'content_block_stop', index: this.index.get(b) }),
+  });
 
   constructor(private readonly fallbackModel = '') {}
 
@@ -42,68 +67,25 @@ export class MessagesEncoder implements StreamEncoder {
     });
   }
 
-  private closeOpen(): string {
-    if (!this.open) return '';
-    const s = formatSse('content_block_stop', {
-      type: 'content_block_stop',
-      index: this.open.index,
-    });
-    this.open = null;
-    return s;
-  }
-
   encode(ev: NormEvent): string {
     if (this.closed) return '';
     switch (ev.type) {
       case 'start':
         return this.ensureStart(ev.id, ev.model, ev.usage);
-      case 'text': {
-        let s = this.ensureStart();
-        if (!this.open || this.open.kind !== 'text') {
-          s += this.closeOpen();
-          this.open = { index: this.nextIndex++, kind: 'text' };
-          s += formatSse('content_block_start', {
-            type: 'content_block_start',
-            index: this.open.index,
-            content_block: { type: 'text', text: '' },
-          });
-        }
-        return (
-          s +
-          formatSse('content_block_delta', {
-            type: 'content_block_delta',
-            index: this.open.index,
-            delta: { type: 'text_delta', text: ev.text },
-          })
-        );
-      }
-      case 'tool_start': {
-        let s = this.ensureStart() + this.closeOpen();
-        const index = this.nextIndex++;
-        this.toolIndex.set(ev.key, index);
-        this.open = { index, kind: 'tool', key: ev.key };
-        s += formatSse('content_block_start', {
-          type: 'content_block_start',
-          index,
-          content_block: { type: 'tool_use', id: ev.id, name: ev.name, input: {} },
-        });
-        return s;
-      }
-      case 'tool_args': {
-        const index = this.toolIndex.get(ev.key);
-        if (index === undefined) return '';
-        return formatSse('content_block_delta', {
-          type: 'content_block_delta',
-          index,
-          delta: { type: 'input_json_delta', partial_json: ev.delta },
-        });
-      }
+      case 'text':
+        return this.ensureStart() + this.blocks.text(ev.text);
+      case 'tool_start':
+        return this.ensureStart() + this.blocks.toolStart(ev.key, ev.id, ev.name);
+      case 'tool_args':
+        return this.blocks.toolArgs(ev.key, ev.delta);
+      case 'tool_end':
+        return this.blocks.toolEnd(ev.key);
       case 'finish': {
         this.closed = true;
         const usage = { ...this.usage, ...stripUndef(ev.usage) };
         return (
           this.ensureStart() +
-          this.closeOpen() +
+          this.blocks.finish() +
           formatSse('message_delta', {
             type: 'message_delta',
             delta: { stop_reason: ev.reason, stop_sequence: null },
@@ -168,15 +150,76 @@ export class ResponsesEncoder implements StreamEncoder {
   private model: string;
   private createdAt = Math.floor(Date.now() / 1000);
   private items: RespItem[] = [];
-  private open: number | null = null;
-  private toolItem = new Map<string, number>();
   private usage: StreamUsage = {};
+  private readonly itemIndex = new Map<SerialBlock, number>();
+  /** 串行化：同一时刻只有一个 output item 打开，交错的工具参数先缓存（见 serial.ts） */
+  private readonly blocks: SerialBlocks;
 
   constructor(
     fallbackModel = '',
     private readonly customTools: ReadonlySet<string> = new Set(),
   ) {
     this.model = fallbackModel;
+    this.blocks = new SerialBlocks(this.sink());
+  }
+
+  private sink(): SerialSink {
+    return {
+      open: (b) => {
+        let s = '';
+        let it: RespItem;
+        if (b.kind === 'text') {
+          it = { type: 'message', id: rid('msg'), text: '' };
+        } else {
+          const custom = this.customTools.has(b.name ?? '');
+          it = {
+            type: custom ? 'custom_tool_call' : 'function_call',
+            id: rid(custom ? 'ctc' : 'fc'),
+            call_id: b.id ?? '',
+            name: b.name ?? '',
+            arguments: '',
+          };
+        }
+        this.items.push(it);
+        const idx = this.items.length - 1;
+        this.itemIndex.set(b, idx);
+        s += this.emit('response.output_item.added', {
+          output_index: idx,
+          item: this.itemJson(it, 'in_progress'),
+        });
+        if (it.type === 'message') {
+          s += this.emit('response.content_part.added', {
+            item_id: it.id,
+            output_index: idx,
+            content_index: 0,
+            part: { type: 'output_text', text: '', annotations: [] },
+          });
+        }
+        return s;
+      },
+      delta: (b, d) => {
+        const idx = this.itemIndex.get(b)!;
+        const it = this.items[idx]!;
+        if (it.type === 'message') {
+          it.text += d;
+          return this.emit('response.output_text.delta', {
+            item_id: it.id,
+            output_index: idx,
+            content_index: 0,
+            delta: d,
+          });
+        }
+        it.arguments += d;
+        // 自由文本工具的 JSON 片段无法逐段还原，收尾时一次性发出
+        if (it.type === 'custom_tool_call') return '';
+        return this.emit('response.function_call_arguments.delta', {
+          item_id: it.id,
+          output_index: idx,
+          delta: d,
+        });
+      },
+      close: (b) => this.closeItem(this.itemIndex.get(b)!),
+    };
   }
 
   private emit(type: string, payload: Record<string, unknown>): string {
@@ -239,11 +282,9 @@ export class ResponsesEncoder implements StreamEncoder {
     );
   }
 
-  private closeOpen(): string {
-    if (this.open === null) return '';
-    const idx = this.open;
-    const it = this.items[idx];
-    this.open = null;
+  /** 关闭一个 output item：此时它的文本 / 参数已完整，done 事件里的内容与最终快照一致 */
+  private closeItem(idx: number): string {
+    const it = this.items[idx]!;
     let s = '';
     if (it.type === 'message') {
       s += this.emit('response.output_text.done', {
@@ -291,69 +332,14 @@ export class ResponsesEncoder implements StreamEncoder {
     switch (ev.type) {
       case 'start':
         return this.ensureStart(ev.id, ev.model, ev.usage);
-      case 'text': {
-        let s = this.ensureStart();
-        const cur = this.open !== null ? this.items[this.open] : null;
-        if (!cur || cur.type !== 'message') {
-          s += this.closeOpen();
-          const it: RespItem = { type: 'message', id: rid('msg'), text: '' };
-          this.items.push(it);
-          this.open = this.items.length - 1;
-          s += this.emit('response.output_item.added', {
-            output_index: this.open,
-            item: this.itemJson(it, 'in_progress'),
-          });
-          s += this.emit('response.content_part.added', {
-            item_id: it.id,
-            output_index: this.open,
-            content_index: 0,
-            part: { type: 'output_text', text: '', annotations: [] },
-          });
-        }
-        const it = this.items[this.open!] as Extract<RespItem, { type: 'message' }>;
-        it.text += ev.text;
-        return (
-          s +
-          this.emit('response.output_text.delta', {
-            item_id: it.id,
-            output_index: this.open,
-            content_index: 0,
-            delta: ev.text,
-          })
-        );
-      }
-      case 'tool_start': {
-        let s = this.ensureStart() + this.closeOpen();
-        const custom = this.customTools.has(ev.name);
-        const it: RespItem = {
-          type: custom ? 'custom_tool_call' : 'function_call',
-          id: rid(custom ? 'ctc' : 'fc'),
-          call_id: ev.id,
-          name: ev.name,
-          arguments: '',
-        };
-        this.items.push(it);
-        this.open = this.items.length - 1;
-        this.toolItem.set(ev.key, this.open);
-        s += this.emit('response.output_item.added', {
-          output_index: this.open,
-          item: this.itemJson(it, 'in_progress'),
-        });
-        return s;
-      }
-      case 'tool_args': {
-        const idx = this.toolItem.get(ev.key);
-        if (idx === undefined) return '';
-        const it = this.items[idx] as Exclude<RespItem, { type: 'message' }>;
-        it.arguments += ev.delta;
-        // 自由文本工具的 JSON 片段无法逐段还原，收尾时一次性发出
-        if (it.type === 'custom_tool_call') return '';
-        return this.emit('response.function_call_arguments.delta', {
-          item_id: it.id,
-          output_index: idx,
-          delta: ev.delta,
-        });
-      }
+      case 'text':
+        return this.ensureStart() + this.blocks.text(ev.text);
+      case 'tool_start':
+        return this.ensureStart() + this.blocks.toolStart(ev.key, ev.id, ev.name);
+      case 'tool_args':
+        return this.blocks.toolArgs(ev.key, ev.delta);
+      case 'tool_end':
+        return this.blocks.toolEnd(ev.key);
       case 'finish': {
         this.closed = true;
         const u = { ...this.usage, ...stripUndef(ev.usage) };
@@ -362,7 +348,7 @@ export class ResponsesEncoder implements StreamEncoder {
           output_tokens: u.outputTokens ?? 0,
           total_tokens: (u.inputTokens ?? 0) + (u.outputTokens ?? 0),
         };
-        let s = this.ensureStart() + this.closeOpen();
+        let s = this.ensureStart() + this.blocks.finish();
         if (ev.reason === 'max_tokens') {
           s += this.emit('response.incomplete', {
             response: this.snapshot('incomplete', {

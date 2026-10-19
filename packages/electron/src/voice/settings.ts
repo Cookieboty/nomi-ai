@@ -1,5 +1,14 @@
 /** 语音设置（纯逻辑，可单测）。只存本机 userData/voice/settings.json。 */
-export type AsrEngine = 'whisper-cpp' | 'openai-compat';
+export type AsrEngine = 'whisper-cpp' | 'openai-compat' | 'volc';
+
+/** 豆包流式语音识别 2.0 的资源 ID（小时版 / 并发版）；不含 1.0 的 bigasr 资源 */
+export const VOLC_RESOURCES = [
+  'volc.seedasr.sauc.duration',
+  'volc.seedasr.sauc.concurrent',
+] as const;
+export type VolcResourceId = (typeof VOLC_RESOURCES)[number];
+/** 豆包云端识别的同意记录 id（与其他云服务分开） */
+export const VOLC_TARGET_ID = 'volc:openspeech.bytedance.com';
 
 export interface VoiceSettings {
   engine: AsrEngine;
@@ -12,6 +21,10 @@ export interface VoiceSettings {
   providerId: string;
   customBaseURL: string;
   cloudModel: string;
+  /** volc：用户开通的 2.0 资源（API Key 不在这里，单独加密保存） */
+  volcResourceId: VolcResourceId;
+  /** volc：云端失败时改用已安装的本地 whisper.cpp 识别（默认关；不会自动下载） */
+  volcFallback: boolean;
   /** 已确认可以把录音发给哪些云端服务 */
   cloudAcked: string[];
   /** 识别后自动发送 */
@@ -32,6 +45,8 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   providerId: '',
   customBaseURL: '',
   cloudModel: 'whisper-1',
+  volcResourceId: 'volc.seedasr.sauc.duration',
+  volcFallback: false,
   cloudAcked: [],
   autoSend: true,
   bargeIn: true,
@@ -57,13 +72,20 @@ export function sanitizeVoiceSettings(
   const lang = str(r.language, base.language, 8);
   const url = str(r.customBaseURL, base.customBaseURL, 500);
   return {
-    engine: r.engine === 'openai-compat' || r.engine === 'whisper-cpp' ? r.engine : base.engine,
+    engine:
+      r.engine === 'openai-compat' || r.engine === 'whisper-cpp' || r.engine === 'volc'
+        ? r.engine
+        : base.engine,
     language: /^(auto|[a-z]{2,3})$/.test(lang) ? lang : base.language,
     whisperModel: str(r.whisperModel, base.whisperModel, 64),
     whisperCliPath: str(r.whisperCliPath, base.whisperCliPath, 1000),
     providerId: str(r.providerId, base.providerId, 128),
     customBaseURL: url === '' || /^https?:\/\//i.test(url) ? url : base.customBaseURL,
     cloudModel: str(r.cloudModel, base.cloudModel, 128) || 'whisper-1',
+    volcResourceId: (VOLC_RESOURCES as readonly unknown[]).includes(r.volcResourceId)
+      ? (r.volcResourceId as VolcResourceId)
+      : (base.volcResourceId ?? DEFAULT_VOICE_SETTINGS.volcResourceId),
+    volcFallback: bool(r.volcFallback, base.volcFallback ?? false),
     cloudAcked: Array.isArray(r.cloudAcked)
       ? r.cloudAcked.filter((x): x is string => typeof x === 'string').slice(0, 50)
       : base.cloudAcked,
@@ -80,6 +102,7 @@ export function sanitizeVoiceSettings(
 
 /** 识别目标的标识（用于云端同意记录）：provider id 或自定义地址的 origin */
 export function cloudTargetId(s: VoiceSettings): string {
+  if (s.engine === 'volc') return VOLC_TARGET_ID;
   if (s.customBaseURL) {
     try {
       return `url:${new URL(s.customBaseURL).origin}`;

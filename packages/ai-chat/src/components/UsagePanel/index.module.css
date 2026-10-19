@@ -3,9 +3,9 @@
   flex-direction: column;
   gap: 14px;
   /* 图表语义色：全部走主题 token，换主题自动跟随 */
-  --usage-in: var(--cd-color-accent);
-  --usage-out: var(--cd-color-accent-3);
-  --usage-cost: var(--cd-color-accent-2);
+  --usage-in: var(--cd-chart-1);
+  --usage-out: var(--cd-chart-2);
+  --usage-cost: var(--cd-chart-3);
 }
 .head {
   display: flex;
@@ -65,7 +65,7 @@ p.dim {
   background: none;
   padding: 0;
   font: inherit;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;

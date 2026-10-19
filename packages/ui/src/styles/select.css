@@ -128,7 +128,7 @@
   background: rgba(148, 163, 184, 0.12);
 }
 .cd-dropdown__option.is-selected {
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
   font-weight: var(--cd-font-weight-medium);
 }
 .cd-dropdown__option[aria-disabled='true'] {

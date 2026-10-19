@@ -341,4 +341,30 @@ describe('SystemCardView', () => {
     fireEvent.click(getByTestId('slash-card-dismiss'));
     expect(onDismiss).toHaveBeenCalledWith('c1');
   });
+
+  it('同名冲突里落选的项：面板里标「不可用」，点选 / 手打都只出说明卡片，不发给 CLI', async () => {
+    discovered = [
+      entry({ id: 'project:skill::foo', name: 'foo', kind: 'skill', scope: 'project' }),
+      entry({ id: 'user:skill::foo', name: 'foo', kind: 'skill', scope: 'user' }),
+    ];
+    const { getByTestId, findByTestId, findAllByTestId } = render(<Host backend="claude" />);
+    const input = getByTestId('chat-input') as HTMLTextAreaElement;
+    typeIn(input, '/foo');
+    const row = await waitFor(() => getByTestId('slash-project:foo'));
+    expect(row.getAttribute('data-disabled')).toBe('true');
+    expect(row.textContent).toContain('不可用');
+    expect(row.getAttribute('title')).toContain('用户版');
+    expect(getByTestId('slash-foo').getAttribute('data-disabled')).toBeNull();
+    // 点选
+    fireEvent.click(row);
+    const cards = await findAllByTestId('slash-card');
+    expect(cards[0]!.textContent).toContain('/project:foo 不能发送');
+    expect(send).not.toHaveBeenCalled();
+    // 手打
+    typeIn(input, '/project:foo 参数');
+    key(input, 'Enter');
+    await waitFor(async () => expect((await findAllByTestId('slash-card')).length).toBe(2));
+    expect(send).not.toHaveBeenCalled();
+    await findByTestId('chat-input');
+  });
 });

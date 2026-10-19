@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
 /**
  * Mock dsh CLI for CI / headed e2e.
  * Supports: --version | --profile headless --json [--session-id <id>] <prompt>
@@ -29,6 +30,12 @@ if (resumed === 'session-unknown') {
 }
 const sessionId = resumed || process.env.NOMI_MOCK_SESSION || 'session-mock-dsh-1';
 const prompt = args[args.length - 1];
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+}
+logPrompt(prompt);
 const keyState = process.env.NOMI_DSH_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_DSH_REPLY ||

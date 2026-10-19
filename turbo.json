@@ -10,7 +10,8 @@
     "eslint.config.mjs",
     ".prettierrc",
     ".npmrc",
-    "pnpm-workspace.yaml"
+    "pnpm-workspace.yaml",
+    "scripts/run-bin.mjs"
   ],
   "tasks": {
     "dev": {
@@ -27,34 +28,90 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],
+      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
+    },
+    "@nomi-ai/renderer#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".turbo/**"],
       "inputs": [
-        "src/**",
-        "package.json",
-        "tsconfig.json",
-        "tsup.config.ts",
-        "vite.config.ts",
-        "vite.config.mts"
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/scripts/ports.mjs",
+        "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
+      ]
+    },
+    "@nomi-ai/ai-chat#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "build/**", ".turbo/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/scripts/ports.mjs",
+        "$TURBO_ROOT$/packages/electron/src/security/csp.ts"
       ]
     },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "inputs": ["src/**", "tsconfig*.json", "package.json"]
+      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
     },
     "lint": {
       "outputs": [],
       "inputs": [
-        "src/**",
-        "tests/**",
-        "package.json",
-        "eslint.config.mjs",
-        "../../eslint.config.mjs"
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/eslint.config.mjs",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**"
       ]
     },
     "test": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
-      "inputs": ["src/**", "tests/**", "vitest.config.ts", "vitest.config.mts", "package.json"]
+      "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
+    },
+    "@nomi-ai/renderer#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/electron/src/mascot/mascotSize.ts"
+      ]
+    },
+    "@nomi-ai/ai-sdk-client#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/ai-runtime/src/channels.ts"
+      ]
+    },
+    "@nomi-ai/electron#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/assets-licenses.json"
+      ]
     },
     "@nomi-ai/electron#package": {
       "cache": false,

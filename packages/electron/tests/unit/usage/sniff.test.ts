@@ -94,4 +94,108 @@ describe('路由响应 usage 嗅探', () => {
     expect(t2.end()).toMatchObject({ input: 8, output: 3 });
     expect(hasTokens(emptySniffed())).toBe(false);
   });
+
+  describe('Anthropic 计价分档：fast / 1 小时缓存写', () => {
+    it('非流式 JSON：保留 1h 子量与 speed=fast；5m / 1h 混合', () => {
+      expect(
+        usageFromObject({
+          model: 'claude-sonnet-4-5',
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            cache_creation_input_tokens: 300,
+            cache_creation: { ephemeral_5m_input_tokens: 100, ephemeral_1h_input_tokens: 200 },
+            speed: 'fast',
+          },
+        }),
+      ).toMatchObject({ cacheWrite: 300, cacheWrite1h: 200, fast: true });
+    });
+
+    it('总量字段缺失时用分档之和；1h 子量不超过总量；没有分档 / 标准速度不带字段', () => {
+      expect(
+        usageFromObject({
+          usage: {
+            input_tokens: 1,
+            output_tokens: 1,
+            cache_creation: { ephemeral_5m_input_tokens: 50, ephemeral_1h_input_tokens: 70 },
+          },
+        }),
+      ).toMatchObject({ cacheWrite: 120, cacheWrite1h: 70 });
+      const capped = usageFromObject({
+        usage: {
+          input_tokens: 1,
+          output_tokens: 1,
+          cache_creation_input_tokens: 40,
+          cache_creation: { ephemeral_1h_input_tokens: 90 },
+        },
+      });
+      expect(capped).toMatchObject({ cacheWrite: 40, cacheWrite1h: 40 });
+      const plain = usageFromObject({
+        usage: {
+          input_tokens: 1,
+          output_tokens: 1,
+          cache_creation_input_tokens: 9,
+          speed: 'standard',
+        },
+      })!;
+      expect(plain.cacheWrite1h).toBeUndefined();
+      expect(plain.fast).toBeUndefined();
+    });
+
+    it('拆分 SSE：message_start 的分档与 fast 在 message_delta 之后仍保留', () => {
+      const tap = new SseUsageTap();
+      const ev = (o: object) => `event: x\ndata: ${JSON.stringify(o)}\n\n`;
+      const all =
+        ev({
+          type: 'message_start',
+          message: {
+            model: 'claude-x',
+            usage: {
+              input_tokens: 12,
+              output_tokens: 1,
+              cache_creation_input_tokens: 1000,
+              cache_creation: { ephemeral_1h_input_tokens: 600, ephemeral_5m_input_tokens: 400 },
+              speed: 'fast',
+            },
+          },
+        }) + ev({ type: 'message_delta', usage: { output_tokens: 42 } });
+      tap.push(all.slice(0, 77));
+      tap.push(all.slice(77));
+      expect(tap.end()).toMatchObject({
+        input: 12,
+        output: 42,
+        cacheWrite: 1000,
+        cacheWrite1h: 600,
+        fast: true,
+      });
+    });
+  });
+
+  it('取上游响应 / 消息 id：Anthropic message_start、非流式、Responses、Chat；SSE 合并保留首个 id', () => {
+    expect(
+      usageFromObject({ id: 'msg_a', usage: { input_tokens: 1, output_tokens: 1 } }),
+    ).toMatchObject({
+      id: 'msg_a',
+    });
+    expect(
+      usageFromObject({ message: { id: 'msg_b', usage: { input_tokens: 1, output_tokens: 1 } } }),
+    ).toMatchObject({ id: 'msg_b' });
+    expect(
+      usageFromObject({ response: { id: 'resp_c', usage: { input_tokens: 5, output_tokens: 1 } } }),
+    ).toMatchObject({ id: 'resp_c' });
+    expect(
+      usageFromObject({ id: 'chatcmpl-d', usage: { prompt_tokens: 5, completion_tokens: 1 } }),
+    ).toMatchObject({
+      id: 'chatcmpl-d',
+    });
+    const tap = new SseUsageTap();
+    const ev = (o: object) => `data: ${JSON.stringify(o)}\n\n`;
+    tap.push(
+      ev({
+        type: 'message_start',
+        message: { id: 'msg_e', usage: { input_tokens: 3, output_tokens: 1 } },
+      }) + ev({ type: 'message_delta', usage: { output_tokens: 9 } }),
+    );
+    expect(tap.end()).toMatchObject({ id: 'msg_e', output: 9 });
+  });
 });

@@ -47,9 +47,26 @@ const BODY_BYTES = 64 * 1024;
 const MAX_WALK_UP = 12;
 const DESC_MAX = 300;
 
-/** 这些文件名一律不读 */
-const DENY =
-  /(^|\/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|settings(\.local)?\.json|config\.toml|\.claude\.json)$/i;
+/** 这些文件名一律不读（词法路径与符号链接解析后的真实路径都要过这一关） */
+export const DENY =
+  /(^|\/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|.*\.(p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.netrc|_netrc|\.npmrc|\.pypirc|\.git-credentials|\.dockercfg|kubeconfig|credentials(\.json)?|settings(\.local)?\.json|config\.toml|\.claude\.json|service[-_]?account.*\.json|.*\.tfvars(\.json)?|secrets?(\.[\w-]+)?\.(json|ya?ml|toml|env|txt)|\.htpasswd|.*\.kdbx|history\.jsonl|\.[\w-]*_history)$/i;
+
+/** 真实路径落在这些目录里一律不读（链接到 ~/.ssh、.git/config 之类） */
+export const DENY_DIR =
+  /(^|\/)(\.ssh|\.aws|\.gnupg|\.kube|\.azure|\.docker|\.git|\.password-store|Keychains)(\/|$)|(^|\/)\.config\/(gcloud|gh|git)(\/|$)/i;
+
+/** 用户级 agent 目录里会被发现的内容子目录：项目条目的符号链接只能指到这些地方 */
+const USER_CONTENT_DIRS = [
+  '.claude/skills',
+  '.claude/commands',
+  '.claude/agents',
+  '.agents/skills',
+  '.grok/skills',
+  '.grok/commands',
+  '.grok/plugins',
+  '.grok/workflows',
+  '.grok/bundled',
+];
 
 interface Internal {
   entry: SlashEntry;
@@ -58,13 +75,46 @@ interface Internal {
   dir?: string;
 }
 
-function readHead(file: string, bytes: number): string | null {
-  if (DENY.test(file.replace(/\\/g, '/'))) return null;
+/** 额外的访问策略：真实路径是否在允许的根之内（项目内的符号链接不能指到项目与用户 agent 目录之外） */
+export interface ReadPolicy {
+  allow(realFile: string): boolean;
+}
+
+const norm = (p: string) => p.replace(/\\/g, '/');
+
+function isWithin(root: string, p: string): boolean {
+  const rel = path.relative(root, p);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
+function realOrSelf(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+/**
+ * 读文件开头。凭据拒读规则同时作用于传入路径（别名）与解析符号链接后的真实路径，
+ * 并按真实路径打开、打开后再校验仍是同一个文件，避免「检查别名、读取目标」或检查后被替换。
+ */
+function readHead(file: string, bytes: number, policy?: ReadPolicy): string | null {
+  if (DENY.test(norm(file))) return null;
   let fd: number | null = null;
   try {
-    const st = fs.statSync(file);
+    const real = fs.realpathSync(file);
+    const n = norm(real);
+    if (DENY.test(n) || DENY_DIR.test(n)) return null;
+    // 链接不能改变文件类型：SKILL.md 只能指向 .md，plugin.json 只能指向 .json（#16：防止链到会话记录等）
+    if (path.extname(real).toLowerCase() !== path.extname(file).toLowerCase()) return null;
+    if (policy && !policy.allow(real)) return null;
+    fd = fs.openSync(real, 'r');
+    const st = fs.fstatSync(fd);
     if (!st.isFile()) return null;
-    fd = fs.openSync(file, 'r');
+    // 打开后路径必须仍解析到同一个文件（防止 realpath 与 open 之间被换成别的链接）
+    const again = fs.statSync(real);
+    if (again.ino !== st.ino || again.dev !== st.dev || fs.realpathSync(real) !== real) return null;
     const buf = Buffer.alloc(Math.min(bytes, st.size));
     fs.readSync(fd, buf, 0, buf.length, 0);
     return buf.toString('utf8');
@@ -188,10 +238,41 @@ export function projectChain(cwd: string): string[] {
 class Collector {
   readonly items: Internal[] = [];
   private readonly seen = new Set<string>();
+  /** 项目目录链（词法 / 真实路径）与用户 agent 目录（词法 / 真实路径） */
+  private readonly projectLexical: string[];
+  private readonly projectReal: string[];
+  private readonly userLexical: string[];
+  private readonly userReal: string[];
   constructor(
     private readonly cwd: string,
     private readonly home: string,
-  ) {}
+  ) {
+    const chain = projectChain(cwd);
+    this.projectLexical = chain.map((d) => path.resolve(d));
+    this.projectReal = chain.map(realOrSelf);
+    // 项目条目可以链接到用户级 agent 目录里「会被发现的」内容子目录（共享 skill / 命令），
+    // 不能链接到整个 ~/.claude 等（里面有会话记录、历史等，#16）
+    const user = USER_CONTENT_DIRS.map((d) => path.join(home, d));
+    this.userLexical = user.map((d) => path.resolve(d));
+    this.userReal = user.map(realOrSelf);
+  }
+
+  /**
+   * 受策略约束地读取：
+   * - 来自项目目录的条目（仓库内容不可信）：符号链接的真实目标必须仍在项目树或用户 agent 目录内；
+   * - 来自用户目录的条目是用户自己建的，允许链接到别处（共享 skills），只受凭据拒读规则约束。
+   */
+  read(file: string, bytes: number): string | null {
+    const lex = path.resolve(file);
+    const inUser = this.userLexical.some((r) => isWithin(r, lex));
+    const inProject = !inUser && this.projectLexical.some((r) => isWithin(r, lex));
+    const policy: ReadPolicy | undefined = inProject
+      ? {
+          allow: (real) => [...this.projectReal, ...this.userReal].some((r) => isWithin(r, real)),
+        }
+      : undefined;
+    return readHead(file, bytes, policy);
+  }
 
   where(file: string): string {
     const rel = path.relative(this.cwd, file);
@@ -217,7 +298,7 @@ class Collector {
         continue;
       }
       if (!d.name.toLowerCase().endsWith('.md')) continue;
-      const head = readHead(full, HEAD_BYTES);
+      const head = this.read(full, HEAD_BYTES);
       if (head === null) continue;
       const { meta, body } = parseFrontmatter(head);
       const base = `${prefix}${d.name.slice(0, -3)}`;
@@ -251,7 +332,7 @@ class Collector {
       if (d.name.startsWith('.') || !(d.isDirectory() || (d.isSymbolicLink() && isDir(sub))))
         continue;
       const file = path.join(sub, 'SKILL.md');
-      const head = readHead(file, HEAD_BYTES);
+      const head = this.read(file, HEAD_BYTES);
       if (head === null) continue;
       const { meta, body } = parseFrontmatter(head);
       const base = meta.name?.trim() || d.name;
@@ -284,7 +365,7 @@ class Collector {
     for (const d of listDir(dir)) {
       if (d.name.startsWith('.') || !d.name.toLowerCase().endsWith('.md')) continue;
       const full = path.join(dir, d.name);
-      const head = readHead(full, HEAD_BYTES);
+      const head = this.read(full, HEAD_BYTES);
       if (head === null) continue;
       const { meta, body } = parseFrontmatter(head);
       const name = meta.name?.trim() || d.name.slice(0, -3);
@@ -305,7 +386,7 @@ class Collector {
 
   /** `.mcp.json`：只取 mcpServers 的键名与传输类型，不读 env / headers / args / command */
   mcp(file: string, scope: SlashEntryScope, plugin?: string) {
-    const raw = readHead(file, 256 * 1024);
+    const raw = this.read(file, 256 * 1024);
     if (raw === null) return;
     let j: unknown;
     try {
@@ -346,7 +427,7 @@ class Collector {
       if (d.isSymbolicLink() && isDir(full)) continue;
       const lower = d.name.toLowerCase();
       if (!lower.endsWith('.rhai') && !lower.endsWith('.js')) continue;
-      const head = readHead(full, HEAD_BYTES);
+      const head = this.read(full, HEAD_BYTES);
       if (head === null) continue;
       const meta = workflowMeta(head);
       const stem = d.name.replace(/\.(rhai|js)$/i, '');
@@ -375,7 +456,7 @@ class Collector {
       if (d.name.startsWith('.') || d.name === 'marketplaces' || !isDir(sub)) continue;
       let name = d.name;
       let description = '';
-      const mf = readHead(path.join(sub, 'plugin.json'), HEAD_BYTES);
+      const mf = this.read(path.join(sub, 'plugin.json'), HEAD_BYTES);
       if (mf) {
         try {
           const j = JSON.parse(mf) as { name?: unknown; description?: unknown };
@@ -518,11 +599,12 @@ export function expandSlash(
   home: string = os.homedir(),
 ): SlashExpansion | null {
   if (!hasPublicLayout(backend)) return null;
-  const hit = collect(backend, cwd, home).items.find((i) => i.entry.id === id);
+  const collector = collect(backend, cwd, home);
+  const hit = collector.items.find((i) => i.entry.id === id);
   if (!hit || (hit.entry.kind !== 'command' && hit.entry.kind !== 'skill')) return null;
   // 工作流是脚本，展开会把源码当提示词发出去。Grok 自己执行 `/name`。
   if (hit.entry.id.split(':')[1] === 'workflow') return null;
-  const raw = readHead(hit.file, BODY_BYTES);
+  const raw = collector.read(hit.file, BODY_BYTES);
   if (raw === null) return null;
   const { meta, body } = parseFrontmatter(raw);
   const named = (meta.arguments ?? '')

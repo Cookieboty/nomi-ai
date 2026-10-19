@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
 /**
  * Mock Grok Build CLI for CI / unit tests.
  * Supports: --version | -p <prompt> --output-format streaming-json [--resume <id>] [--cwd <dir>]
@@ -9,6 +10,31 @@ const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
 if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write('1.0.60\n');
   process.exit(0);
+}
+
+if (args[0] === 'login' && args.includes('--device-auth')) {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  process.stdout.write(
+    '\nTo sign in, open this URL in your browser:\n\n  https://accounts.x.ai/oauth2/device?user_code=MOCK-GROK1\n\n' +
+      'Confirm this code in your browser:\n\n  MOCK-GROK1\n\nWaiting for authorization...\n',
+  );
+  setTimeout(
+    () => {
+      if (process.env.NOMI_MOCK_LOGIN_FAIL === '1') process.exit(1);
+      const email = process.env.NOMI_MOCK_LOGIN_EMAIL || 'mock@x.ai';
+      const dir = process.env.GROK_HOME;
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'auth.json'),
+        JSON.stringify({ user_id: `u-${email}`, email, refresh_token: `rt-${email}` }),
+      );
+      process.stdout.write('Signed in.\n');
+      process.exit(0);
+    },
+    Number(process.env.NOMI_MOCK_LOGIN_MS || 200),
+  );
+  await new Promise(() => {});
 }
 
 const flag = (name) => {
@@ -37,6 +63,12 @@ if (resumed === 'session-unknown') {
 const sessionId = resumed || process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1';
 const pIdx = Math.max(args.indexOf('-p'), args.indexOf('--single'));
 const prompt = args[pIdx + 1] ?? '';
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+}
+logPrompt(prompt);
 const keyState = process.env.XAI_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_GROK_REPLY ||
