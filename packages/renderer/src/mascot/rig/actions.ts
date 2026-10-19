@@ -431,8 +431,15 @@ export const ACTIONS: readonly ActionDef[] = [
       T('headRot', [0, 0], [0.6, 9, 'o'], [2.0, 9], [2.4, 0]),
       hold('eyeL', 0.3, 2.0, EYE.happy),
       hold('eyeR', 0.5, 2.0, EYE.closed),
-      hold('mouth', 0.3, 1.2, MOUTH.pout),
-      hold('mouth', 1.2, 2.0, MOUTH.smile),
+      // one step track: two separate tracks on the same discrete param tie on weight and the later
+      // track's 0 (before its own start) would override the pout phase
+      T(
+        'mouth',
+        [0, MOUTH.auto],
+        [0.3, MOUTH.pout, 's'],
+        [1.2, MOUTH.smile, 's'],
+        [2.0, MOUTH.auto, 's'],
+      ),
       T('fxHeart', [0, 0], [1.2, 0], [1.5, 1, 'o'], [2.1, 1], [2.4, 0]),
     ],
   },
