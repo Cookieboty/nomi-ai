@@ -567,5 +567,6 @@
   "Gemini 没有返回会话": "Gemini didn't return a session",
   "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。": "Opened the Google sign-in page in your browser. Finish authorizing there (valid for 5 minutes).",
   "登录没有完成": "Sign-in didn't finish",
-  "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。": "Gemini CLI couldn't start an ACP session; it may be too old. Update it under Coding assistants → Gemini and try again."
+  "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。": "Gemini CLI couldn't start an ACP session; it may be too old. Update it under Coding assistants → Gemini and try again.",
+  "[Nomi] 以下是这个对话之前在 {0} 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：": "[Nomi] Below is this conversation so far, from {0}. The working directory has since changed to the current one. Treat it as context and continue; no need to repeat it:"
 }

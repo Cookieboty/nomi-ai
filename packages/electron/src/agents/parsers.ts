@@ -91,6 +91,11 @@ const ts = (v: unknown): number | undefined => {
 export function cleanTitle(raw: string | undefined, max = 80): string | undefined {
   if (!raw) return undefined;
   let s = raw;
+  // Nomi 换工作目录 / 分叉时带入的前文（cli/contextCarry.ts）：标题取用户原话
+  if (/^\s*\[Nomi\]/.test(s)) {
+    const end = s.indexOf('</previous_conversation>\n\n---\n\n');
+    if (end >= 0) s = s.slice(end + '</previous_conversation>\n\n---\n\n'.length);
+  }
   // Claude Code 的 slash 命令包装 / 本地命令输出
   if (/^\s*<(command-name|local-command-stdout|command-message|system-reminder)/.test(s)) {
     const m = /<command-name>([^<]+)<\/command-name>/.exec(s);

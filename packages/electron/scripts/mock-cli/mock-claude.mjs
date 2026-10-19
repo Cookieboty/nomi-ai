@@ -12,7 +12,7 @@
  *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append「pid 参数」一行，测复用）,
  *      NOMI_MOCK_CLAUDE_CONTROL_LOG（可选：收到 set_permission_mode 时 append「pid 模式」）
  */
-import fs from 'node:fs';
+import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 const args = process.argv.slice(2);
@@ -85,6 +85,12 @@ function emit(obj) {
   process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+}
+
 function extractUserText(line) {
   try {
     const j = JSON.parse(line);
@@ -93,6 +99,7 @@ function extractUserText(line) {
     if (typeof j.prompt === 'string') return { kind: 'user', text: j.prompt };
     if (j?.message?.content != null) {
       const c = j.message.content;
+      logPrompt(typeof c === 'string' ? c : JSON.stringify(c));
       return {
         kind: 'user',
         text: typeof c === 'string' ? c : JSON.stringify(c),

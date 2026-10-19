@@ -5,8 +5,9 @@
  * - Claude Code / Codex / dsh：只显示该后端自己的档案（CliProviderChip），绝不出现 Nomi 供应商。
  * 普通模式只有 Nomi，不显示端点切换。
  */
-import { t } from '@nomi-ai/ui';
-import React from 'react';
+import { Button, Icon, Modal, t } from '@nomi-ai/ui';
+import { History, X } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
@@ -14,10 +15,16 @@ import { useHarnessState } from '../../hooks/useHarnessState';
 import type { CliProviderKind } from '../../services/cliProviderClient';
 import { harnessClient } from '../../services/harnessClient';
 import { providerClientAvailable } from '../../services/providerClient';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
 import { CliProviderChip } from '../CliProviderChip';
 import { ProviderSwitcher } from '../ProviderSwitcher';
 import { WorkspacePicker } from '../WorkspacePicker';
+
+import styles from './index.module.css';
+
+/** 换目录后新会话怎么开：带上当前对话作为前文 / 干净地开新会话 */
+type SwitchMode = 'carry' | 'fresh';
 
 export const EndpointControls: React.FC<{
   className?: string;
@@ -33,26 +40,95 @@ export const EndpointControls: React.FC<{
   const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
   const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
   const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
+  const visibleMessages = (tabs.messages ?? []).filter((m) => !m.error && m.content.trim()).length;
+  /** 等用户决定怎么换的目标目录 */
+  const [pending, setPending] = useState<string | null>(null);
 
-  // cwd 是会话身份的一部分：已有会话 / 正在运行时更换目录会开启新的 CLI 会话
+  const apply = async (next: string, mode: SwitchMode) => {
+    const opts = { carry: mode === 'carry' };
+    if (tab) await harnessClient.setTabCwd(tab.id, next, opts).catch(() => undefined);
+    else await harnessClient.setCwd(next, opts).catch(() => undefined);
+  };
+
+  // cwd 是 CLI 会话身份的一部分：换目录一定开新会话。已有对话时让用户选是否把它带过去
   const changeCwd = async (next: string) => {
-    if (
-      (hasSession || running) &&
-      !window.confirm(
-        t(
-          '更改工作目录会开启新的 CLI 会话：当前会话的上下文不会带过去，正在运行的轮次也不会中断。继续？',
-        ),
-      )
-    )
-      return;
-    if (tab) await harnessClient.setTabCwd(tab.id, next).catch(() => undefined);
-    else await harnessClient.setCwd(next).catch(() => undefined);
+    if (next === cwd) return;
+    if (hasSession || running || visibleMessages > 0) setPending(next);
+    else await apply(next, 'fresh');
+  };
+
+  const choose = (mode: SwitchMode) => {
+    const next = pending;
+    setPending(null);
+    if (next) void apply(next, mode);
   };
 
   return (
     <>
       {isDev && <BackendSwitcher />}
       {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
+      {cli && tab?.carriedMessages ? (
+        <span
+          className={styles.carry}
+          data-testid="cli-carry-chip"
+          title={t('下一条消息会连同之前的 {0} 条对话一起发给新会话', String(tab.carriedMessages))}
+        >
+          <Icon icon={History} size={13} />
+          {t('带上前文 · {0} 条', String(tab.carriedMessages))}
+          <button
+            type="button"
+            className={styles.carryX}
+            aria-label={t('不带前文')}
+            data-testid="cli-carry-clear"
+            onClick={() => void harnessClient.clearTabCarry(tab.id).catch(() => undefined)}
+          >
+            <Icon icon={X} size={12} />
+          </button>
+        </span>
+      ) : null}
+      {pending !== null && (
+        <Modal
+          open
+          onClose={() => setPending(null)}
+          title={t('切换工作目录')}
+          closeLabel={t('取消')}
+          data-testid="cli-cwd-switch"
+          footer={
+            <div className={styles.actions}>
+              <Button data-testid="cli-cwd-cancel" onClick={() => setPending(null)}>
+                {t('取消')}
+              </Button>
+              <Button data-testid="cli-cwd-fresh" onClick={() => choose('fresh')}>
+                {t('开新会话')}
+              </Button>
+              <Button
+                variant="primary"
+                autoFocus
+                disabled={visibleMessages === 0}
+                data-testid="cli-cwd-carry"
+                onClick={() => choose('carry')}
+              >
+                {t('带上当前对话')}
+              </Button>
+            </div>
+          }
+        >
+          <div className={styles.body}>
+            <p>
+              {t('换到')} <code className={styles.path}>{pending}</code>
+            </p>
+            <p className="cd-muted">
+              {t(
+                '{0} 的会话和工作目录绑定，换目录后会开一个新会话。可以把当前对话作为前文带过去，让它接着做；也可以从头开始。',
+                ENDPOINT_NAME[cli ?? 'claude'],
+              )}
+            </p>
+            {running && (
+              <p className="cd-muted">{t('正在运行的这一轮不会中断，会在原目录跑完。')}</p>
+            )}
+          </div>
+        </Modal>
+      )}
       {cli ? (
         <CliProviderChip backend={cli} className={className} onManage={() => onManageCli(cli)} />
       ) : (

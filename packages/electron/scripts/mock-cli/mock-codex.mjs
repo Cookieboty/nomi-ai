@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
 /**
  * Mock Codex CLI for CI / headed e2e.
  * Supports: --version | exec --json [prompt] | update
@@ -54,6 +55,11 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
     Number(process.env.NOMI_MOCK_LOGIN_MS || 200),
   );
 } else {
+  /** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+  function logPrompt(text) {
+    const f = process.env.NOMI_MOCK_PROMPT_LOG;
+    if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+  }
   // exec resume [...flags] <id> <prompt>：续接历史会话
   const resumeAt = args.indexOf('resume');
   const resumed = resumeAt >= 0 ? args.filter((a) => !a.startsWith('-')).slice(2)[0] : '';
@@ -64,6 +70,7 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
     process.env.NOMI_MOCK_CODEX_REPLY ||
     (foreign ? `【Mock Codex】已续接会话 ${resumed}` : '【Mock Codex】任务完成。');
   const threadId = resumed || ownThread;
+  logPrompt(args[args.length - 1]);
 
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
   function emit(obj) {

@@ -212,6 +212,11 @@ export interface HarnessTabMeta {
   backgroundAgents?: Array<{ id: string; label?: string; startedAt: number; stoppable: boolean }>;
   /** 长驻 CLI 进程因空闲被回收（仅广播用，不落盘）；下一条消息会 --resume 自动续接 */
   dormant?: boolean;
+  /**
+   * 换工作目录 / 分叉后待带入新会话的消息条数：下一条消息会连同这段前文一起发给 CLI，
+   * 成功一轮后清除。前文本身只在主进程（不广播）。
+   */
+  carriedMessages?: number;
 }
 
 export interface HarnessTabsState {

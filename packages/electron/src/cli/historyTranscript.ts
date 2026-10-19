@@ -9,6 +9,7 @@
  */
 import { cleanTitle, foldGeminiChat, geminiText } from '../agents/parsers';
 
+import { stripCarriedContext } from './contextCarry';
 import { inputText, outputText } from './streamParse';
 import { buildTrace } from './traceBuilder';
 import type { HarnessTabMessage, HarnessTraceEvent, HarnessUsage } from './types';
@@ -98,7 +99,7 @@ class Builder {
   private turnStart = 0;
 
   user(text: string, at: number): void {
-    const content = text.trim();
+    const content = stripCarriedContext(text).trim();
     if (!content || injected(content)) return;
     this.turnStart = at;
     this.out.push({

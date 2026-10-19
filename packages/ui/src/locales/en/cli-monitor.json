@@ -44,7 +44,6 @@
   "最近使用": "Recent",
   "选择文件夹…": "Choose folder…",
   "目标为编程助手时的工作目录": "Workspace when the target is a coding agent",
-  "更改工作目录会开启新的 CLI 会话：当前会话的上下文不会带过去，正在运行的轮次也不会中断。继续？": "Changing the workspace starts a new CLI session: the current session's context is not carried over, and a running turn is not interrupted. Continue?",
   "无需路由：dsh 原生支持三种上游协议": "No routing needed: dsh natively supports all three upstream protocols",
   "—（沿用 CLI 自带配置，不经过 Nomi）": "— (using the CLI's own configuration, not touched by Nomi)",
   "直连：上游格式「{0}」是 {1} 的原生格式，无需路由": "Direct: upstream format \"{0}\" is native to {1}, no routing needed",

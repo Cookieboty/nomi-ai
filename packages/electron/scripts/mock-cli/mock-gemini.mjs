@@ -46,6 +46,8 @@ async function prompt(id, p) {
   const sid = p.sessionId;
   cancelled.delete(sid);
   const text = (p.prompt || []).map((c) => c.text || '').join('');
+  if (process.env.NOMI_MOCK_PROMPT_LOG)
+    fs.appendFileSync(process.env.NOMI_MOCK_PROMPT_LOG, `${JSON.stringify(text)}\n`);
   update(sid, {
     sessionUpdate: 'agent_thought_chunk',
     content: { type: 'text', text: 'Thinking…' },

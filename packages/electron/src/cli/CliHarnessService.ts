@@ -18,9 +18,11 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
+import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
   peekCliBin,
@@ -505,6 +507,38 @@ export class CliHarnessService {
     return path.join(this.tabsDir, `${id.replace(/[^\w-]/g, '_')}.json`);
   }
 
+  private carryPath(id: string) {
+    return path.join(this.tabsDir, `${id.replace(/[^\w-]/g, '_')}.carry.txt`);
+  }
+
+  /** 待带入新会话的前文（主进程私有；落盘以便重启后仍然生效） */
+  private carriedText(id: string): string | null {
+    if (!this.tabs.get(id)?.carriedMessages) return null;
+    try {
+      const text = fs.readFileSync(this.carryPath(id), 'utf8');
+      return text.trim() ? text : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 设置 / 清除待带入的前文；messages 为空则清除 */
+  private setCarried(
+    tab: HarnessTabMeta,
+    messages: readonly HarnessTabMessage[] | null,
+    from = '',
+  ) {
+    const carried = messages ? buildCarriedContext(messages, from || tab.cwd) : null;
+    try {
+      if (carried) writePrivateFile(this.carryPath(tab.id), carried.text);
+      else fs.rmSync(this.carryPath(tab.id), { force: true });
+    } catch (e) {
+      this.d.logger.warn('harness carry write failed', e);
+    }
+    if (carried) tab.carriedMessages = carried.messages;
+    else delete tab.carriedMessages;
+  }
+
   tabMessages(id: string): HarnessTabMessage[] {
     this.requireTab(id);
     if (id === MAIN_TAB_ID) return [];
@@ -602,8 +636,16 @@ export class CliHarnessService {
     return this.state();
   }
 
-  setCwd(cwd: string): State {
-    this.setTabCwd(MAIN_TAB_ID, cwd);
+  /** 放弃待带入的前文（输入栏「带上前文」芯片上的 ×） */
+  clearTabCarry(id: string): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    this.setCarried(tab, null);
+    this.changed();
+    return { ...tab };
+  }
+
+  setCwd(cwd: string, opts: { carry?: boolean } = {}): State {
+    this.setTabCwd(MAIN_TAB_ID, cwd, opts);
     return this.state();
   }
 
@@ -722,6 +764,8 @@ export class CliHarnessService {
         this.d.logger.warn('harness tab seed write failed', e);
       }
       tab.updatedAt = seeded[seeded.length - 1]!.timestamp;
+      // 分叉 / 复制出来的标签没有可续接的 CLI 会话：把预填的对话当前文带进第一轮
+      if (!tab.cliSessionId) this.setCarried(tab, seeded);
     }
     this.activeTabId = tab.id;
     this.changed();
@@ -787,6 +831,7 @@ export class CliHarnessService {
       this.d.logger.warn('harness tab seed write failed', e);
     }
     if (seeded.length) tab.updatedAt = seeded[seeded.length - 1]!.timestamp;
+    if (!tab.cliSessionId) this.setCarried(tab, seeded.length ? seeded : null);
     this.changed();
     return { ...tab };
   }
@@ -803,6 +848,7 @@ export class CliHarnessService {
     this.progress.delete(id);
     try {
       fs.rmSync(this.messagesPath(id), { force: true });
+      fs.rmSync(this.carryPath(id), { force: true });
     } catch {
       /* */
     }
@@ -867,13 +913,18 @@ export class CliHarnessService {
     return { ...tab };
   }
 
-  setTabCwd(id: string, cwd: string): HarnessTabMeta {
+  /**
+   * 换工作目录。CLI 续接与 cwd 绑定：换目录即开新会话，并拆掉长驻进程。
+   * carry=true：把当前可见对话整理成前文，下一条消息连同它一起发给新会话；
+   * 否则清掉之前留下的前文，干净地开新会话。正在跑的轮次不受影响（在原目录跑完）。
+   */
+  setTabCwd(id: string, cwd: string, opts: { carry?: boolean } = {}): HarnessTabMeta {
     const tab = this.requireTab(id);
     const abs = validDir(cwd);
-    // CLI 续接与 cwd 绑定：换目录即开新会话，并拆掉 Claude 长驻进程
     if (abs !== tab.cwd) {
       this.teardownClaudeLive(id);
       tab.cliSessionId = null;
+      this.setCarried(tab, opts.carry ? this.tabMessages(id) : null, tab.cwd);
     }
     tab.cwd = abs;
     if (tab.backend !== 'nomi') this.rememberCwd(abs);
@@ -1065,18 +1116,25 @@ export class CliHarnessService {
     const startedAt = Date.now();
     this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
+    // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
+    // 按这个 CLI 收消息的方式裁到预算内（命令行参数有长度上限，见 carriedBudget）
+    const stored = tab.cliSessionId ? null : this.carriedText(id);
+    const carried = stored ? fitCarried(stored, carriedBudget(backend, process.platform)) : null;
+    const toCli = withCarriedContext(carried, text);
     try {
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, text)
+          ? await this.runClaude(tab, toCli)
           : backend === 'dsh'
-            ? await this.runDsh(tab, text)
+            ? await this.runDsh(tab, toCli)
             : backend === 'grok'
-              ? await this.runGrok(tab, text)
+              ? await this.runGrok(tab, toCli)
               : backend === 'gemini'
-                ? await this.runGemini(tab, text)
-                : await this.runCodex(tab, text);
+                ? await this.runGemini(tab, toCli)
+                : await this.runCodex(tab, toCli);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
+      // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
+      if (stored) this.setCarried(tab, null);
       tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
       const toolEvents = result.events.filter(
@@ -2301,7 +2359,10 @@ export class CliHarnessService {
       return this.state();
     });
     handle('ai:harness:set-backend', (b) => this.setBackend(b as HarnessBackend));
-    handle('ai:harness:set-cwd', (c) => this.setCwd(String(c)));
+    handle('ai:harness:tab-carry-clear', (id) => this.clearTabCarry(String(id)));
+    handle('ai:harness:set-cwd', (c, o) =>
+      this.setCwd(String(c), { carry: (o as { carry?: unknown } | undefined)?.carry === true }),
+    );
     handle('ai:harness:pick-cwd', () => this.pickCwd());
     handle('ai:harness:send', async (p) => slimResult(await this.send(String(p ?? ''))));
     handle('ai:harness:tabs', () => this.listTabs());
@@ -2325,7 +2386,11 @@ export class CliHarnessService {
     handle('ai:harness:tab-backend', (id, b) =>
       this.setTabBackend(String(id), b as HarnessBackend),
     );
-    handle('ai:harness:tab-cwd', (id, c) => this.setTabCwd(String(id), String(c)));
+    handle('ai:harness:tab-cwd', (id, c, o) =>
+      this.setTabCwd(String(id), String(c), {
+        carry: (o as { carry?: unknown } | undefined)?.carry === true,
+      }),
+    );
     handle('ai:harness:tab-permission-mode', (id, m, o) =>
       this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,

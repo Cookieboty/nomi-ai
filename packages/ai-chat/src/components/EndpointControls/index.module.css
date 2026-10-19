@@ -1,0 +1,50 @@
+/* 输入栏：换工作目录的选择框与「带上前文」芯片 */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.body p {
+  margin: 0;
+}
+.path {
+  font-family: var(--cd-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: var(--cd-radius-sm, 6px);
+  background: var(--cd-color-surface, rgba(0, 0, 0, 0.04));
+  word-break: break-all;
+}
+.carry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--cd-radius-full, 999px);
+  font-size: 12px;
+  color: var(--cd-color-accent);
+  background: var(--cd-color-accent-soft, rgba(240, 130, 80, 0.12));
+  white-space: nowrap;
+}
+.carryX {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: var(--cd-radius-full, 999px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.carryX:hover {
+  background: var(--cd-color-hover);
+}

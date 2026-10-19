@@ -26,6 +26,8 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 编程助手进程因空闲被回收；下一条消息会自动续接会话 */
   dormant?: boolean;
+  /** 换工作目录 / 分叉后，下一条消息会连同这么多条之前的对话一起发给新会话 */
+  carriedMessages?: number;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -204,7 +206,8 @@ export const harnessClient = {
     call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
   gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
-  setCwd: (c: string) => call<HarnessState>('set-cwd', c),
+  /** carry=true：把当前对话作为前文带进新目录的新会话 */
+  setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),
   pickCwd: () => call<HarnessState>('pick-cwd'),
   send: (prompt: string) => call<HarnessSendResult>('send', prompt),
   onChanged: (fn: (s: HarnessState) => void) =>
@@ -228,7 +231,9 @@ export const harnessClient = {
   renameTab: (id: string, title: string) => call<HarnessTabMeta>('tab-rename', id, title),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
-  setTabCwd: (id: string, cwd: string) => call<HarnessTabMeta>('tab-cwd', id, cwd),
+  setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>
+    call<HarnessTabMeta>('tab-cwd', id, cwd, opts),
+  clearTabCarry: (id: string) => call<HarnessTabMeta>('tab-carry-clear', id),
   /** 原生文件夹选择器（不绑定标签）；取消返回 null */
   pickDir: (defaultPath?: string) => call<string | null>('pick-dir', defaultPath),
   recentCwds: () => call<string[]>('recent-cwds'),

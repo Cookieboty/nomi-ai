@@ -30,7 +30,11 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   ...over,
 });
 
-function mockIpc(tabs: HarnessTabsState, picked: string | null = '/picked/dir') {
+function mockIpc(
+  tabs: HarnessTabsState,
+  picked: string | null = '/picked/dir',
+  messages: unknown[] = [],
+) {
   const invoke = vi.fn(async (ch: string) => {
     if (ch === 'ai:harness:tabs') return tabs;
     if (ch === 'ai:harness:state')
@@ -48,7 +52,7 @@ function mockIpc(tabs: HarnessTabsState, picked: string | null = '/picked/dir') 
         codexConfig: '',
         routing: null,
       };
-    if (ch === 'ai:harness:tab-messages') return [];
+    if (ch === 'ai:harness:tab-messages') return messages;
     return {};
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -129,39 +133,75 @@ describe('EndpointControls workspace for CLI tabs', () => {
     expect(r.queryByTestId('cli-workspace')).toBeNull();
   });
 
-  it('changing cwd on a session asks for confirmation and aborts when declined', async () => {
-    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }));
-    const confirm = stubConfirm(false);
+  const history = [
+    { id: 'u', role: 'user', content: '修一下登录', timestamp: 1 },
+    { id: 'a', role: 'assistant', content: '好的', timestamp: 2 },
+  ];
+  const pick = async (r: ReturnType<typeof mount>, idx: number) => {
+    fireEvent.click(r.getByTestId('cli-workspace-button'));
+    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
+    fireEvent.click(r.getAllByTestId('workspace-recent-item')[idx]!);
+  };
+
+  it('换目录时给三个选择：取消 / 开新会话 / 带上当前对话（不再用系统确认框）', async () => {
+    const invoke = mockIpc(state({ cliSessionId: 'sess-1' }), '/picked/dir', history);
+    const confirm = stubConfirm(true);
     const r = mount();
     await waitFor(() => r.getByTestId('cli-workspace'));
-    fireEvent.click(r.getByTestId('cli-workspace-button'));
-    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-    fireEvent.click(r.getAllByTestId('workspace-recent-item')[0]!);
-    expect(confirm).toHaveBeenCalledTimes(1);
-    expect(String((confirm.mock.calls[0] as unknown[])[0])).toContain('新的 CLI 会话');
-    expect(invoke).not.toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/one');
 
-    confirm.mockImplementation(() => true);
-    fireEvent.click(r.getByTestId('cli-workspace-button'));
-    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-    fireEvent.click(r.getAllByTestId('workspace-recent-item')[0]!);
+    await pick(r, 0);
+    const dlg = await r.findByTestId('cli-cwd-switch');
+    expect(dlg.textContent).toContain('/recent/one');
+    fireEvent.click(r.getByTestId('cli-cwd-cancel'));
+    await waitFor(() => expect(r.queryByTestId('cli-cwd-switch')).toBeNull());
+    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-cwd')).toBe(false);
+
+    await pick(r, 0);
+    fireEvent.click(await r.findByTestId('cli-cwd-fresh'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/one'),
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/one', {
+        carry: false,
+      }),
+    );
+
+    await pick(r, 1);
+    fireEvent.click(await r.findByTestId('cli-cwd-carry'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/two', {
+        carry: true,
+      }),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('没有对话可带时「带上当前对话」不可点', async () => {
+    mockIpc(state({ cliSessionId: 'sess-1' }));
+    const r = mount();
+    await waitFor(() => r.getByTestId('cli-workspace'));
+    await pick(r, 0);
+    expect((await r.findByTestId('cli-cwd-carry')).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('全新标签（没有会话也没有对话）直接换，不弹框', async () => {
+    const invoke = mockIpc(state());
+    const r = mount();
+    await waitFor(() => r.getByTestId('cli-workspace'));
+    await pick(r, 1);
+    expect(r.queryByTestId('cli-cwd-switch')).toBeNull();
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/two', {
+        carry: false,
+      }),
     );
   });
 
-  it('no confirmation for a fresh tab without a session', async () => {
-    const invoke = mockIpc(state());
-    const confirm = stubConfirm(false);
+  it('有待带入的前文时显示芯片，× 放弃', async () => {
+    const invoke = mockIpc(state({ carriedMessages: 3 }));
     const r = mount();
-    await waitFor(() => r.getByTestId('cli-workspace'));
-    fireEvent.click(r.getByTestId('cli-workspace-button'));
-    await waitFor(() => r.getAllByTestId('workspace-recent-item'));
-    fireEvent.click(r.getAllByTestId('workspace-recent-item')[1]!);
-    expect(confirm).not.toHaveBeenCalled();
-    await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-cwd', 'cx', '/recent/two'),
-    );
+    const chip = await r.findByTestId('cli-carry-chip');
+    expect(chip.textContent).toContain('3');
+    fireEvent.click(r.getByTestId('cli-carry-clear'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-carry-clear', 'cx'));
   });
 });
 

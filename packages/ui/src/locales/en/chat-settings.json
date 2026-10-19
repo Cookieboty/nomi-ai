@@ -313,5 +313,14 @@
   "选择侧栏显示的端点": "Choose which endpoints show in the sidebar",
   "侧栏显示的端点": "Endpoints shown in the sidebar",
   "自动：有对话时才显示，没有对话就不占位置。": "Auto: shown only when it has conversations; hidden when there are none.",
-  "{0} 的显示方式": "How {0} is shown"
+  "{0} 的显示方式": "How {0} is shown",
+  "下一条消息会连同之前的 {0} 条对话一起发给新会话": "Your next message will be sent to the new session together with the previous {0} messages",
+  "带上前文 · {0} 条": "With context · {0}",
+  "不带前文": "Don't bring the context",
+  "切换工作目录": "Switch working directory",
+  "开新会话": "Start a new session",
+  "带上当前对话": "Bring this conversation",
+  "换到": "Switch to",
+  "{0} 的会话和工作目录绑定，换目录后会开一个新会话。可以把当前对话作为前文带过去，让它接着做；也可以从头开始。": "{0} sessions are tied to their working directory, so switching starts a new session. You can bring this conversation along as context so it picks up where it left off, or start fresh.",
+  "正在运行的这一轮不会中断，会在原目录跑完。": "The turn that is running won't be interrupted; it finishes in the old directory."
 }

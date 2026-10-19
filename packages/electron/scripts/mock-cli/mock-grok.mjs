@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
 /**
  * Mock Grok Build CLI for CI / unit tests.
  * Supports: --version | -p <prompt> --output-format streaming-json [--resume <id>] [--cwd <dir>]
@@ -62,6 +63,12 @@ if (resumed === 'session-unknown') {
 const sessionId = resumed || process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1';
 const pIdx = Math.max(args.indexOf('-p'), args.indexOf('--single'));
 const prompt = args[pIdx + 1] ?? '';
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+}
+logPrompt(prompt);
 const keyState = process.env.XAI_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_GROK_REPLY ||
