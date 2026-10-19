@@ -52,7 +52,7 @@
 
 ## 隐私与安全
 
-- 发现只读文件名与 frontmatter（每个文件前 8 KB），**不读取**任何凭据 / 设置文件（`auth.json`、`.credentials*`、`.env*`、`settings*.json`、`config.toml`、`~/.claude.json`）；`.mcp.json` 只取服务名与传输类型，不取 env / headers / 命令参数。
+- 发现只读文件名与 frontmatter（每个文件前 8 KB），**不读取**任何凭据 / 设置文件（`auth.json`、`.credentials*`、`.env*`、`settings*.json`、`config.toml`、`~/.claude.json`）；`.mcp.json` 只取服务名与传输类型，不取 env / headers / 命令参数。该规则同时作用于路径别名和符号链接解析后的真实目标（含 `~/.ssh`、`.git/` 等目录）；项目里的符号链接只能指向项目目录或 `~/.claude` / `~/.agents` / `~/.grok` 之内，用户目录里的共享 skill 链接仍可指向别处。
 - 展开由主进程按 id 完成，渲染进程不能传路径；`!`cmd`` 动态注入不会被 Nomi 执行。
 - 没有调用任何未文档化接口；`/model` 的切换复用已有的"CLI 供应商档案"机制（写入前自动备份）。
 
