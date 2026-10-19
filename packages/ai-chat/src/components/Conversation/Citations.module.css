@@ -216,3 +216,118 @@
   font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
 }
+
+/* ===== 知识库引用 / 来源 / 预览（2eac397 迁移会话视图时丢失，按原样式用现有 token 恢复） ===== */
+/* 正文里的引用编号 [n]：强调色小圆标（文字用 text-on-accent 保证对比度） */
+.cite {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  margin: 0 1px;
+  vertical-align: super;
+  font-size: 10px;
+  font-weight: var(--cd-font-weight-bold);
+  line-height: 1;
+  color: var(--cd-color-text-on-accent);
+  background: var(--cd-color-accent);
+  border-radius: var(--cd-radius-full);
+  transition: transform var(--cd-transition);
+}
+.cite:hover,
+.cite:focus-visible {
+  transform: scale(1.15);
+  box-shadow: var(--cd-focus-ring);
+}
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--cd-color-border);
+}
+.sourcesLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.sourceChip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  min-width: 0;
+  padding: 3px 10px 3px 4px;
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-full);
+  transition: border-color var(--cd-transition);
+}
+.sourceChip:hover,
+.sourceChip:focus-visible {
+  border-color: var(--cd-color-accent);
+}
+.sourceChip:focus-visible {
+  box-shadow: var(--cd-focus-ring);
+}
+/* 浅强调底上的文字用 accent-strong（accent 本身在浅色主题对比度不足，见 theme-contrast 测试） */
+.sourceNum {
+  flex: none;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-weight: var(--cd-font-weight-bold);
+}
+.sourceTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sourceMeta {
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+.previewBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.previewPath {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  font-family: var(--cd-font-mono);
+  word-break: break-all;
+}
+.previewQuote {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--cd-color-accent);
+  background: var(--cd-color-surface-sunken);
+  border-radius: var(--cd-radius-sm);
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-md);
+  color: var(--cd-color-text);
+  white-space: pre-wrap;
+  max-height: 50vh;
+  overflow: auto;
+}

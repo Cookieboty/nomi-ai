@@ -14,6 +14,7 @@
   "文档": "Documents",
   "片段": "Chunks",
   "来源": "Sources",
+  "来源 {0}：{1}": "Source {0}: {1}",
   "检索测试": "Search test",
   "向量与重排": "Vectors & reranking",
   "OCR 识别": "OCR",
