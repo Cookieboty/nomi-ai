@@ -83,7 +83,12 @@
 
 ### 体积（Linux x64 本地实测）
 
-见本次提交说明。打包后的 `resources/tts-models` 原为 138,661,153 B，现已移除。
+| 产物              | 1.0.3（打包模型）          | 1.0.4（按需下载）          | 差值                                   |
+| ----------------- | -------------------------- | -------------------------- | -------------------------------------- |
+| `Nomi-*.AppImage` | 325,872,533 B（310.8 MiB） | 206,908,239 B（197.3 MiB） | −118,964,294 B（−113.5 MiB，−36.5%）   |
+| `linux-unpacked/` | 681,806,885 B              | 543,292,725 B              | −138,514,160 B（≈ 模型 138,661,153 B） |
+
+sherpa-onnx 原生库仍在包内（`sherpa-onnx-linux-x64` 32 MB，`sherpa-onnx-node` 104 KB）。Windows / macOS 预计同量级减少（模型本身与平台无关），未实测。
 
 ### 未覆盖 / 取舍
 
@@ -109,4 +114,5 @@ Starting with 1.0.4, the sherpa-onnx offline TTS model (`vits-zh-hf-theresa`) is
   - The sha256 covers the whole file. A mismatch deletes the partial file.
 - **Delete model:** removes the userData copy, unloads the engine and turns voice off.
 - **Defaults:** `voiceSettings.enabled` now defaults to `false`. Existing installs already have `enabled: true` saved in `config.json` (written on first launch), so they keep voice on and get the startup download. Users who had turned voice off stay off.
+- **Size (Linux x64):** AppImage 325,872,533 B → 206,908,239 B (−113.5 MiB, −36.5%); unpacked 681,806,885 B → 543,292,725 B.
 - **Packaging:** the `extraResources` entry, `sync-tts-model.mjs`, the `prepackage*` hooks and the CI cache step are gone. The dev-only `postinstall` model fetch remains.
