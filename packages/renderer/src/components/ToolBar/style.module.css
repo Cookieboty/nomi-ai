@@ -45,9 +45,9 @@
   --tb-fg: var(--cd-color-text);
   --tb-fg-muted: var(--cd-color-text-muted);
   --tb-hover: var(--cd-color-hover);
-  --tb-accent: var(--cd-color-accent);
+  --tb-accent: var(--cd-color-accent-strong);
   --tb-active-bg: var(--cd-color-accent-soft);
-  --tb-ring: rgba(var(--cd-accent-rgb), 0.6);
+  --tb-ring: var(--cd-color-accent-strong);
   --tb-danger: var(--cd-color-danger-text);
   --tb-danger-bg: var(--cd-color-danger-soft);
   --tb-shadow: var(--cd-shadow-md);
@@ -62,7 +62,7 @@
   --tb-hover: rgba(15, 23, 42, 0.06);
   --tb-accent: #3f6587;
   --tb-active-bg: rgba(63, 101, 135, 0.12);
-  --tb-ring: rgba(63, 101, 135, 0.6);
+  --tb-ring: rgba(63, 101, 135, 0.85);
   --tb-danger: #a8443f;
   --tb-danger-bg: rgba(168, 68, 63, 0.08);
   --tb-shadow: 0 6px 18px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.08);

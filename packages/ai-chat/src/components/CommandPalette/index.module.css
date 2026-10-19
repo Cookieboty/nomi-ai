@@ -10,7 +10,7 @@
   outline: none;
 }
 .input:focus-visible {
-  border-color: var(--cd-accent, #fb9466);
+  border-color: var(--cd-color-accent-strong, #fb9466);
 }
 .list {
   list-style: none;

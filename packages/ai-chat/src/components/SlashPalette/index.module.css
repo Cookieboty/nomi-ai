@@ -55,7 +55,7 @@
 }
 .name mark {
   background: transparent;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   font-weight: var(--cd-font-weight-bold);
 }
 .args {

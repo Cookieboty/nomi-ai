@@ -72,7 +72,7 @@
 .kicker {
   font-size: 12px;
   letter-spacing: 0.04em;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   margin-bottom: 6px;
 }
 .title {

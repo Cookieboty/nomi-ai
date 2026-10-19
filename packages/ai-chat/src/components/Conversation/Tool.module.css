@@ -63,7 +63,7 @@
   color: var(--cd-color-danger);
 }
 .item[data-status='running'] > .head .kindIcon {
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .label {
   display: inline-flex;
@@ -125,7 +125,7 @@
   color: var(--cd-color-danger);
 }
 .spin {
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .spin > svg {
   animation: toolSpin 0.9s linear infinite;

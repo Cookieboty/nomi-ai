@@ -44,9 +44,12 @@
   color: var(--cd-color-text-subtle);
   padding: 16px 12px 8px;
 }
-.navActive {
-  background: rgba(var(--cd-accent-rgb), 0.14);
-  color: var(--cd-color-text);
+.navItem.navActive {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+  font-weight: 600;
+  /* 左侧强调条：当前项在同色系淡底上也能一眼分辨 */
+  box-shadow: inset 3px 0 0 var(--cd-color-accent-strong);
 }
 .navIcon {
   display: inline-flex;
@@ -60,7 +63,7 @@
   color: var(--cd-color-text-muted);
 }
 .navItem.navActive .navIcon {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .content {
   flex: 1;
@@ -122,7 +125,7 @@
   color: var(--cd-color-text);
 }
 .kbd[data-shortcut-recording='true'] {
-  outline: 2px solid var(--cd-color-accent, #fb9466);
+  outline: 2px solid var(--cd-color-accent-strong, #fb9466);
 }
 .warn {
   margin-top: 4px;
@@ -245,8 +248,8 @@
   background: var(--cd-color-hover);
 }
 .themeOn {
-  border-color: var(--cd-color-accent);
-  box-shadow: 0 0 0 1px var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong);
 }
 .themePreview {
   display: block;
@@ -310,8 +313,8 @@
   background: var(--cd-color-hover);
 }
 .langOn {
-  border-color: var(--cd-color-accent);
-  box-shadow: 0 0 0 1px var(--cd-color-accent) inset;
+  border-color: var(--cd-color-accent-strong);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
 }
 .langHint {
   font-size: 11px;
@@ -418,9 +421,9 @@
   background: var(--cd-color-hover);
 }
 .bgModeOn {
-  border-color: var(--cd-color-accent);
-  background: rgba(var(--cd-accent-rgb), 0.12);
-  color: var(--cd-color-text);
+  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
 }
 .bgRow {
   display: flex;

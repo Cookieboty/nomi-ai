@@ -257,7 +257,7 @@
 }
 .permActions button:first-child {
   background: var(--cd-color-accent, #3b82f6);
-  color: #fff;
+  color: var(--cd-color-text-on-accent, #fff);
   border-color: transparent;
 }
 
@@ -278,5 +278,5 @@
   color: var(--cd-color-danger, #dc2626);
 }
 .toolList li[data-status='start'] {
-  color: var(--cd-color-accent, #3b82f6);
+  color: var(--cd-color-accent-strong, #3b82f6);
 }

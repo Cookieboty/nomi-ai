@@ -145,7 +145,7 @@ body {
 
 .help-text code {
   font-family: var(--cd-font-mono);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 
 .loading {

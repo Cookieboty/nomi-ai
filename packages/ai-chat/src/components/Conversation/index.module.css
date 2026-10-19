@@ -409,7 +409,7 @@
 .statusIcon {
   display: inline-flex;
   flex: none;
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .statusSpin > svg {
   animation: cliSpin 0.9s linear infinite;

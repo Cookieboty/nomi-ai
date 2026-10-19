@@ -58,7 +58,7 @@
   background: var(--cd-color-surface, rgba(0, 0, 0, 0.04));
 }
 .searchBox:focus-within {
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
 }
 .searchGlyph {
   display: inline-flex;
@@ -237,7 +237,7 @@
   font-size: 14px;
 }
 .threadActive {
-  background: rgba(var(--cd-accent-rgb), 0.12);
+  background: var(--cd-color-selected-bg);
   color: var(--cd-color-text);
 }
 .dot {
@@ -300,7 +300,7 @@
   min-width: 0;
   height: 28px;
   padding: 0 6px;
-  border: 1px solid var(--cd-color-accent);
+  border: 1px solid var(--cd-color-accent-strong);
   border-radius: 6px;
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
@@ -388,8 +388,10 @@
   background: var(--cd-color-hover);
 }
 .row[data-active] {
-  background: rgba(var(--cd-accent-rgb), 0.12);
+  background: var(--cd-color-selected-bg);
   color: var(--cd-color-text);
+  /* 左侧强调条：选中行不再只靠淡色填充区分 */
+  box-shadow: inset 3px 0 0 var(--cd-color-accent-strong);
 }
 .rowActions {
   position: absolute;
@@ -454,8 +456,8 @@
 }
 .rowBtnDanger:hover,
 .rowBtnDanger:focus-visible {
-  background: rgba(255, 107, 107, 0.16);
-  color: #ff6b6b;
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
 }
 .rowBtnText {
   width: auto;
@@ -464,8 +466,8 @@
   white-space: nowrap;
 }
 .rowBtnText.rowBtnDanger {
-  color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.14);
+  color: var(--cd-color-danger-text);
+  background: var(--cd-color-danger-soft);
 }
 @media (prefers-reduced-motion: no-preference) {
   .rowActions,

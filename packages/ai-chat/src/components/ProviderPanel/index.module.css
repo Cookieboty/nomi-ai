@@ -205,7 +205,7 @@
 .linkBtn {
   border: 0;
   background: transparent;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   font: inherit;
   font-size: var(--cd-font-size-xs);
   cursor: pointer;

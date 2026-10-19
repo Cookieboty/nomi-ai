@@ -112,7 +112,7 @@
 }
 .docBtn:hover,
 .docBtn:focus-visible {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .hit {
   border: 1px solid var(--cd-color-border);
@@ -169,7 +169,7 @@
 }
 
 .link {
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   text-decoration: underline;
   text-underline-offset: 2px;
 }

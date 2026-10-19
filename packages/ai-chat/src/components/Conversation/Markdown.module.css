@@ -164,7 +164,7 @@
 .codePre .hljs-section,
 .codePre .hljs-link,
 .codePre .hljs-doctag {
-  color: var(--cd-color-accent-2, #c678dd);
+  color: var(--cd-color-accent-strong, #c678dd);
   font-weight: var(--cd-font-weight-medium);
 }
 .codePre .hljs-string,

@@ -34,7 +34,7 @@ export const THEMES: ThemeInfo[] = [
     id: 'graphite',
     name: 'Graphite 石墨',
     desc: '中性暗色 + 低饱和靛蓝',
-    swatch: ['#0f0f11', '#1b1b1e', '#ededef', '#6872e5'],
+    swatch: ['#0f0f11', '#1b1b1e', '#ededef', '#5a64d8'],
   },
   {
     id: 'cream',
