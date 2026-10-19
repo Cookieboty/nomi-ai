@@ -14,6 +14,25 @@
 .collapsed {
   width: 52px;
 }
+/*
+ * #57：展开时宽度从 52px 动画到 296px（0.18s）。内容如果跟着容器宽度排版，「按端」的端点筛选行
+ * 会在窄宽度下换成好几行、再随宽度变大逐行收回，整个列表上下跳动，看起来像先闪了一下别的视图。
+ * 展开态的内容固定按最终宽度排版（296 - 左右各 8px 内边距），动画期间只是被 overflow: hidden 逐步露出。
+ */
+.sidebar:not(.collapsed) > .top,
+.sidebar:not(.collapsed) > .listHeader,
+.sidebar:not(.collapsed) > .threads {
+  min-width: 280px;
+}
+.sidebar:not(.collapsed) > [data-testid='endpoint-info-card'] {
+  /* 信息卡左右各有 2px 外边距 */
+  min-width: 276px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
 .top {
   display: flex;
   align-items: center;
