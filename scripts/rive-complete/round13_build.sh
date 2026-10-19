@@ -15,3 +15,4 @@ python3 round18_crotch.py
 python3 round18_motions.py
 python3 round19_crotch.py
 python3 round19_ribbons.py
+python3 round20_hair_follow.py
