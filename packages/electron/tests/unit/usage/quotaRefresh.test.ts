@@ -652,19 +652,78 @@ describe('额度缓存跨重启保留（每次打开都先显示上一次的值�
     expect(r.run).not.toHaveBeenCalled();
   });
 
+  const grokLogin = (home: string, userId: string | null) => {
+    const dir = path.join(home, '.grok');
+    fs.mkdirSync(dir, { recursive: true });
+    if (userId === null) fs.rmSync(path.join(dir, 'auth.json'), { force: true });
+    else fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ user_id: userId }));
+  };
+  const grokRefresh = (svc: UsageService, pct: number, at: number) =>
+    (svc as unknown as GrokView).grokCache.refresh(
+      (svc as unknown as { currentGrokFp: () => string | null }).currentGrokFp(),
+      grokOk(pct, at),
+    );
+
   it('Grok：同样跨重启保留；一键清空后不再恢复', async () => {
     const t = setup();
-    await (t.svc as unknown as GrokView).grokCache.refresh(null, grokOk(7, t.clock.t));
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
     const r = restart(t);
     expect((r.svc as unknown as GrokView).grokCache.get()?.windows).toHaveLength(1);
     r.svc.clear();
     expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
   });
 
+  it('Grok：重启时已换成别的账号 / 已登出 → 丢弃上一个账号的额度', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    const raw = fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8');
+    expect(JSON.parse(raw).grokFp).toMatch(/^[0-9a-f]{16}$/);
+    // 指纹是加盐哈希，账号 id 明文不落盘
+    expect(raw).not.toContain('grok-user-A');
+    grokLogin(t.home, 'grok-user-B');
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+    grokLogin(t.home, null);
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+    // 换回原账号：仍能恢复（换号判断没把快照删掉之前）
+    grokLogin(t.home, 'grok-user-A');
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()?.windows).toHaveLength(1);
+  });
+
+  it('Grok：旧版本存的额度没有账号指纹 → 不恢复', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    const file = path.join(t.root, 'quota.json');
+    const j = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+    delete j.grokFp;
+    fs.writeFileSync(file, JSON.stringify(j));
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('Grok：会话中途换号，刷新时先清掉旧账号的值', async () => {
+    const t = setup();
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 7, t.clock.t);
+    grokLogin(t.home, 'grok-user-B');
+    const cache = (t.svc as unknown as GrokView).grokCache;
+    let seen: unknown = 'unset';
+    await cache.refresh(
+      (t.svc as unknown as { currentGrokFp: () => string | null }).currentGrokFp(),
+      async () => {
+        seen = cache.get();
+        return { kind: 'transient', reason: 'network' };
+      },
+    );
+    expect(seen).toBeNull();
+  });
+
   it('在「官方账号」里切换账号：清掉上一个账号的额度，重启后也不会回来', async () => {
     const t = setup();
     await t.svc.refreshQuota('claude');
-    await (t.svc as unknown as GrokView).grokCache.refresh(null, grokOk(9, t.clock.t));
+    grokLogin(t.home, 'grok-user-A');
+    await grokRefresh(t.svc, 9, t.clock.t);
     t.svc.forgetAccountQuota('claude');
     t.svc.forgetAccountQuota('grok');
     const view = await t.svc.quotaView();

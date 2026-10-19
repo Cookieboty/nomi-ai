@@ -271,6 +271,18 @@ export function grokAdapter(o: AdapterEnv = {}): CredAdapter {
   };
 }
 
+/**
+ * 当前 Grok 全局登录的账号标识（user_id / sub / email，只取标识、不返回令牌）；没登录或读不出返回 null。
+ * 给用量模块判断「恢复的额度是不是同一个账号的」用，调用方只保存它的加盐指纹。
+ */
+export function grokAccountKey(o: AdapterEnv = {}): string | null {
+  const home = o.home ?? os.homedir();
+  const env = o.env ?? process.env;
+  const text = readText(path.join(grokHomeDir(home, env), 'auth.json'));
+  if (!text || !parseObj(text)) return null;
+  return grokAdapter(o).inspect({ 'auth.json': text }).identity?.key ?? null;
+}
+
 // ───────────────────────── Gemini ─────────────────────────
 
 export function geminiAdapter(o: AdapterEnv = {}): CredAdapter {

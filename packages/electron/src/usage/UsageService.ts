@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { BrowserWindow } from 'electron';
 
+import { grokAccountKey } from '../cli/accounts/adapters';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
@@ -61,7 +62,7 @@ import {
   type QuotaWindow,
 } from './quota';
 import { IdentityQuotaCache, type RefreshResult } from './quotaCache';
-import { loadSalt } from './quotaIdentity';
+import { fingerprint, loadSalt } from './quotaIdentity';
 import type { SniffedUsage } from './sniff';
 import type { CustomPrice, Currency, UsageRecord, UsageSource } from './types';
 import { UsageLedger, type Retention } from './UsageLedger';
@@ -167,6 +168,11 @@ type Deps = {
   claudeUsage?: ClaudeFetcherDeps;
   codexRpc?: Partial<CodexRpcDeps>;
   grokBilling?: GrokBillingDeps;
+  /**
+   * 当前 Grok 登录的账号标识（测试注入；默认由账号模块从 Grok 的 auth.json 取 user_id / sub / email）。
+   * 只在内存里用来算加盐指纹，判断恢复 / 刷新的额度是不是同一个账号的。
+   */
+  grokAccountKey?: () => string | null;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
 };
@@ -482,6 +488,7 @@ export class UsageService {
         floor?: unknown;
         claude?: unknown;
         grok?: unknown;
+        grokFp?: unknown;
       };
       const fp = (v: unknown) => (typeof v === 'string' && /^[0-9a-f]{16}$/.test(v) ? v : null);
       this.codexFp = fp(o.codexFp);
@@ -503,9 +510,11 @@ export class UsageService {
       // Claude（`/usage` 读到的值）与 Grok：同一账号才恢复；早于「清空」水位的不恢复
       const claude = this.savedReading(o.claude);
       if (claude) this.claudeCache.restore(this.claudeFp, claude);
-      // Grok 没有可用的账号指纹（用量模块不读凭据）：在 Nomi 里切换官方账号时由 forgetAccountQuota 清掉
+      // Grok：保存时的账号指纹必须与当前登录一致才恢复；对不上（换号 / 登出 / 旧版本没存指纹）就丢弃
       const grok = this.savedReading(o.grok);
-      if (grok) this.grokCache.restore(null, grok);
+      const savedGrokFp = fp(o.grokFp);
+      if (grok && savedGrokFp && savedGrokFp === this.currentGrokFp())
+        this.grokCache.restore(savedGrokFp, grok);
     } catch {
       /* 没有快照 */
     }
@@ -528,6 +537,19 @@ export class UsageService {
     } else return;
     this.saveQuota();
     this.changed();
+  }
+
+  /** 当前 Grok 登录的加盐指纹（没登录 / 读不出 = null） */
+  private currentGrokFp(): string | null {
+    let key: string | null;
+    try {
+      key = this.d.grokAccountKey
+        ? this.d.grokAccountKey()
+        : grokAccountKey({ home: this.d.home, env: this.d.env });
+    } catch {
+      key = null;
+    }
+    return key ? fingerprint(this.salt, ['grok', key]) : null;
   }
 
   private savedReading(v: unknown): QuotaReading | null {
@@ -554,7 +576,14 @@ export class UsageService {
           ...(this.claudeFp ? { claudeFp: this.claudeFp } : {}),
           ...(this.quotaFloor ? { floor: this.quotaFloor } : {}),
           ...(this.claudeCache.snapshot() ? { claude: this.claudeCache.snapshot()!.value } : {}),
-          ...(this.grokCache.snapshot() ? { grok: this.grokCache.snapshot()!.value } : {}),
+          ...(this.grokCache.snapshot()
+            ? {
+                grok: this.grokCache.snapshot()!.value,
+                ...(this.grokCache.snapshot()!.identity
+                  ? { grokFp: this.grokCache.snapshot()!.identity }
+                  : {}),
+              }
+            : {}),
         }),
       );
     } catch (e) {
@@ -839,7 +868,8 @@ export class UsageService {
     const gx = await this.auth.detectFull('grok').catch(() => null);
     if (gx?.mode === 'subscription') {
       if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
-      const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
+      // 带上当前账号指纹：会话中途换了号也会先清掉旧账号的值
+      const r = await this.grokCache.refresh(this.currentGrokFp(), () => this.grokFetcher.fetch());
       return this.mapRefresh(r, this.grokCache);
     } else if (gx) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
