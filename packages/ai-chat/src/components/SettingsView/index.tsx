@@ -34,6 +34,7 @@ import {
 } from './sections';
 import { SensesSection } from './SensesSection';
 import { ShortcutSettings } from './ShortcutSettings';
+import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
@@ -94,13 +95,16 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         return (
           <>
             <LanguageSettings />
+            <StartupSettings />
             <AppIconSettings />
             <MascotSizeSettings />
             <UpdateSettings />
             <section className={styles.block}>
               <h2 className={styles.h2}>{t('新手引导')}</h2>
               <p className={styles.muted}>
-                {t('重新走一遍：语言、主题、角色与声音、称呼与语气、模型供应商和隐私说明。')}
+                {t(
+                  '重新走一遍：语言、主题、启动方式、角色与声音、称呼与语气、模型供应商和隐私说明。',
+                )}
               </p>
               <button
                 type="button"

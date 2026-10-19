@@ -116,9 +116,14 @@
   padding: 10px 12px;
 }
 .optionOn {
-  border-color: var(--cd-color-accent);
-  box-shadow: 0 0 0 1px var(--cd-color-accent) inset;
-  background: var(--cd-color-accent-soft, var(--cd-color-hover));
+  border-color: var(--cd-color-accent-strong);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
+  /* 深棕字 + 暖橙淡底：日落橙 / 奶油主题下选中项文字清晰 */
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+.optionOn .optionHint {
+  color: var(--cd-color-selected-text);
 }
 .optionTitle {
   font-size: 14px;
