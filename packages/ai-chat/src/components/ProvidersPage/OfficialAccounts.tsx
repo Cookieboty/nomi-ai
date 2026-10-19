@@ -140,28 +140,41 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
   const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
+  const load = useCallback(
+    () =>
+      Promise.all([
+        cliAccountClient.list(kind).catch(() => [] as CliAccount[]),
+        cliAccountClient.live(kind).catch(() => null),
+      ]),
+    [kind],
+  );
   const refresh = useCallback(async () => {
-    const [list, who] = await Promise.all([
-      cliAccountClient.list(kind).catch(() => []),
-      cliAccountClient.live(kind).catch(() => null),
-    ]);
+    const [list, who] = await load();
     setAccounts(list);
     setLive(who);
-  }, [kind]);
+  }, [load]);
 
   useEffect(() => {
-    void refresh();
-    const off1 = cliAccountClient.onChanged(() => void refresh());
+    let alive = true;
+    const reload = () =>
+      void load().then(([list, who]) => {
+        if (!alive) return;
+        setAccounts(list);
+        setLive(who);
+      });
+    reload();
+    const off1 = cliAccountClient.onChanged(reload);
     const off2 = cliAccountClient.onLogin((e) => {
       if (e.kind !== kind) return;
       setLogin((cur) => (cur && cur.id !== e.id ? cur : e));
-      if (e.state === 'done') void refresh();
+      if (e.state === 'done') reload();
     });
     return () => {
+      alive = false;
       off1();
       off2();
     };
-  }, [kind, refresh]);
+  }, [kind, load]);
 
   const run = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
     setBusy(key);
