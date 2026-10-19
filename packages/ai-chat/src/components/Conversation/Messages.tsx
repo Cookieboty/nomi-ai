@@ -20,6 +20,8 @@ export interface ConvSlots {
   body?: (m: ConvMessage) => React.ReactNode;
   /** 正文之后（来源列表等） */
   after?: (m: ConvMessage) => React.ReactNode;
+  /** 错误卡片里额外的操作按钮（如「信任此文件夹」）；retry 只在这一轮可以重试时提供 */
+  errorActions?: (m: ConvMessage, ctx: { retry?: () => void }) => React.ReactNode;
 }
 
 const ActionButton: React.FC<{
@@ -84,7 +86,9 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
 export const ErrorCard: React.FC<{
   message: string;
   onRetry?: () => void;
-}> = ({ message, onRetry }) => (
+  /** 排在「重试」前面的额外操作 */
+  extra?: React.ReactNode;
+}> = ({ message, onRetry, extra }) => (
   <div className={styles.errorCard} role="alert" data-testid="conv-error-card">
     <div className={styles.errorHead}>
       <Icon icon={CircleAlert} size={15} />
@@ -92,6 +96,7 @@ export const ErrorCard: React.FC<{
     </div>
     <pre className={styles.errorText}>{message}</pre>
     <div className={styles.errorActions}>
+      {extra}
       {onRetry && (
         <button
           type="button"
@@ -286,7 +291,13 @@ export const AssistantMessage = memo(function AssistantMessage({
         endedAt={message.at}
       />
       {body}
-      {message.error && <ErrorCard message={message.error} onRetry={retry} />}
+      {message.error && (
+        <ErrorCard
+          message={message.error}
+          onRetry={retry}
+          extra={slots?.errorActions?.(message, { retry })}
+        />
+      )}
       {message.stopped && (
         <div className={styles.stopped} data-testid="stopped-note">
           <Icon icon={OctagonX} size={13} />

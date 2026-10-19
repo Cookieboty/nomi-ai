@@ -66,6 +66,8 @@ export interface HarnessTabMessage {
   stopped?: true;
   /** CLI 自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
+  /** Gemini 不信任这个文件夹（错误卡片上提供「信任此文件夹」） */
+  geminiTrust?: { folder: string; broad?: boolean };
 }
 
 export interface HarnessUsage {
@@ -257,6 +259,17 @@ export const harnessClient = {
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
   setMaxConcurrent: (n: number) => call<HarnessTabsState>('set-max-concurrent', n),
+  /**
+   * 用户确认后，把这条错误消息记录的文件夹（只此一个）加入 Gemini 的受信任文件夹列表。
+   * 文件夹由主进程按消息查出，界面不传路径。
+   */
+  trustGeminiFolder: (tabId: string, messageId: string) =>
+    call<{ folder: string; file: string; previous: string | null }>(
+      'gemini-trust-folder',
+      tabId,
+      messageId,
+      { confirmed: true },
+    ),
   /** 允许/拒绝 Claude 工具权限请求 */
   replyPermission: (tabId: string, requestId: string, allow: boolean) =>
     call<boolean>('reply-permission', tabId, requestId, allow),

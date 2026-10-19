@@ -21,6 +21,8 @@ export interface ConvMessage {
   error?: string;
   /** 被用户中断 */
   stopped?: boolean;
+  /** Gemini 因为不信任这个文件夹而拒绝运行 */
+  geminiTrust?: { folder: string; broad?: boolean };
   /** CLI 自发的一轮（后台子代理完成后的跟进） */
   origin?: 'background';
   /** 本轮耗时（ms） */

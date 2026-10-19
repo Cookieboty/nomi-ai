@@ -9,6 +9,8 @@ import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
+import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
 import { SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -79,6 +81,20 @@ const AiChatContent: React.FC = () => {
   const cliConvMessages = useMemo(
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
+  );
+  // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
+  const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  const cliSlots = useMemo<ConvSlots | undefined>(
+    () =>
+      activeCliTabId
+        ? {
+            errorActions: (m, { retry }) =>
+              m.geminiTrust ? (
+                <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
+              ) : null,
+          }
+        : undefined,
+    [activeCliTabId],
   );
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
@@ -558,6 +574,7 @@ const AiChatContent: React.FC = () => {
                       if (u) void tabs.send(u.content);
                     }}
                     onEdit={(_, text) => void tabs.send(text)}
+                    slots={cliSlots}
                     cards={slash.cards}
                     onDismissCard={slash.dismissCard}
                     dormant={tabs.activeTab!.dormant}

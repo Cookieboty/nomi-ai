@@ -3,7 +3,8 @@
  * Mock Gemini CLI for CI / unit tests.
  * Supports: --version | --acp (newline-delimited JSON-RPC, shapes from gemini-cli 0.62.0)
  * Env: NOMI_MOCK_GEMINI_PERM=1 (ask permission before a tool), NOMI_MOCK_GEMINI_LOG=<file> (record requests),
- *      NOMI_MOCK_GEMINI_UNTRUSTED=1 (exit 55 like an untrusted folder unless GEMINI_CLI_TRUST_WORKSPACE=true),
+ *      NOMI_MOCK_GEMINI_UNTRUSTED=1 (exit 55 like an untrusted folder unless GEMINI_CLI_TRUST_WORKSPACE=true
+ *      or the cwd is listed as TRUST_FOLDER in trustedFolders.json),
  *      NOMI_MOCK_DELAY_MS (delay before replying to session/prompt).
  */
 import { randomUUID } from 'node:crypto';
@@ -27,9 +28,30 @@ if (!args.includes('--acp')) {
 }
 
 // 模拟开启了 folderTrust 的 Gemini：headless 下未受信任的目录直接以 55 退出（gemini-cli FatalUntrustedWorkspaceError）
+function trustedByFile() {
+  const file =
+    process.env.GEMINI_CLI_TRUSTED_FOLDERS_PATH ||
+    path.join(process.env.GEMINI_CLI_HOME || os.homedir(), '.gemini', 'trustedFolders.json');
+  try {
+    const rules = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const cwd = fs.realpathSync(process.cwd());
+    return Object.entries(rules).some(([p, v]) => {
+      if (v !== 'TRUST_FOLDER') return false;
+      try {
+        const r = fs.realpathSync(p);
+        return cwd === r || cwd.startsWith(r + path.sep);
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+}
 if (
   process.env.NOMI_MOCK_GEMINI_UNTRUSTED === '1' &&
-  process.env.GEMINI_CLI_TRUST_WORKSPACE !== 'true'
+  process.env.GEMINI_CLI_TRUST_WORKSPACE !== 'true' &&
+  !trustedByFile()
 ) {
   process.stderr.write(
     'Gemini CLI is not running in a trusted directory. To proceed, either use `--skip-trust`, set the `GEMINI_CLI_TRUST_WORKSPACE=true` environment variable, or trust this directory in interactive mode.\n',

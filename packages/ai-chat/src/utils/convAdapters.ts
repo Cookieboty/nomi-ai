@@ -30,6 +30,7 @@ function buildHarness(m: HarnessTabMessage, backend: string): ConvMessage {
     ...(m.textBreaks?.length ? { textBreaks: m.textBreaks } : {}),
     ...(m.tools?.length ? { legacyTools: m.tools } : {}),
     ...(m.error ? { error: m.content } : {}),
+    ...(m.error && m.geminiTrust ? { geminiTrust: m.geminiTrust } : {}),
     ...(m.stopped ? { stopped: true } : {}),
     ...(m.origin ? { origin: m.origin } : {}),
     ...(m.durationMs !== undefined ? { durationMs: m.durationMs } : {}),

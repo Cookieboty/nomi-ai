@@ -98,6 +98,8 @@ describe('CliHarnessService Gemini backend', () => {
     'NOMI_MOCK_DELAY_MS',
     'NOMI_MOCK_GEMINI_UNTRUSTED',
     'GEMINI_CLI_TRUST_WORKSPACE',
+    'GEMINI_CLI_HOME',
+    'GEMINI_CLI_TRUSTED_FOLDERS_PATH',
   ];
   let saved: Record<string, string | undefined> = {};
   const harnesses: CliHarnessService[] = [];
@@ -200,6 +202,78 @@ describe('CliHarnessService Gemini backend', () => {
     const tab = h.createTab({ backend: 'gemini' });
     await expect(h.sendTab(tab.id, 'hi')).resolves.toMatchObject({ text: 'Mock Gemini: hi' });
   }, 15_000);
+
+  describe('「信任此文件夹」', () => {
+    const untrusted = (opts: { cwdSub?: boolean } = {}) => {
+      process.env.NOMI_MOCK_GEMINI_UNTRUSTED = '1';
+      delete process.env.GEMINI_CLI_TRUST_WORKSPACE;
+      delete process.env.GEMINI_CLI_TRUSTED_FOLDERS_PATH;
+      const geminiHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-home-'));
+      process.env.GEMINI_CLI_HOME = geminiHome;
+      const made = mk();
+      const cwd = opts.cwdSub ? path.join(made.root, 'proj') : made.root;
+      if (opts.cwdSub) fs.mkdirSync(cwd);
+      const tab = made.h.createTab({ backend: 'gemini', cwd });
+      const file = path.join(geminiHome, '.gemini', 'trustedFolders.json');
+      return { ...made, tab, cwd, file };
+    };
+    const lastError = (h: CliHarnessService, id: string) =>
+      h
+        .tabMessages(id)
+        .filter((m) => m.role === 'assistant' && m.error)
+        .at(-1)!;
+
+    it('the failed turn records the rejected folder for the button (and flags broad folders)', async () => {
+      const { h, tab, cwd } = untrusted();
+      await h.sendTab(tab.id, 'hi').catch(() => undefined);
+      const msg = lastError(h, tab.id);
+      expect(msg.geminiTrust).toEqual({ folder: cwd, broad: true }); // 默认对话目录 → 范围大
+      const sub = untrusted({ cwdSub: true });
+      await sub.h.sendTab(sub.tab.id, 'hi').catch(() => undefined);
+      expect(lastError(sub.h, sub.tab.id).geminiTrust).toEqual({ folder: sub.cwd, broad: false });
+    }, 15_000);
+
+    it('other failures do not offer the button', async () => {
+      delete process.env.NOMI_MOCK_GEMINI_UNTRUSTED;
+      process.env.NOMI_MOCK_DELAY_MS = '5000';
+      const { h } = mk({ geminiPromptIdleMs: 300 });
+      const tab = h.createTab({ backend: 'gemini' });
+      await h.sendTab(tab.id, 'hi').catch(() => undefined);
+      expect(lastError(h, tab.id).geminiTrust).toBeUndefined();
+    }, 15_000);
+
+    it("trusting writes only that folder to Gemini's list, and the retried turn then runs", async () => {
+      const { h, tab, cwd, file } = untrusted({ cwdSub: true });
+      await h.sendTab(tab.id, 'hi').catch(() => undefined);
+      const msg = lastError(h, tab.id);
+      const r = await h.trustGeminiFolder(tab.id, msg.id, { confirmed: true });
+      expect(r.file).toBe(file);
+      expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({
+        [fs.realpathSync(cwd)]: 'TRUST_FOLDER',
+      });
+      // 没有设任何全局信任
+      expect(process.env.GEMINI_CLI_TRUST_WORKSPACE).toBeUndefined();
+      await expect(h.sendTab(tab.id, 'hi')).resolves.toMatchObject({ text: 'Mock Gemini: hi' });
+    }, 20_000);
+
+    it('requires confirmation, a real untrusted-folder message, and never takes a path from the caller', async () => {
+      const { h, tab, file } = untrusted({ cwdSub: true });
+      await h.sendTab(tab.id, 'hi').catch(() => undefined);
+      const msg = lastError(h, tab.id);
+      await expect(h.trustGeminiFolder(tab.id, msg.id)).rejects.toThrow('需要先确认');
+      const user = h.tabMessages(tab.id).find((m) => m.role === 'user')!;
+      await expect(h.trustGeminiFolder(tab.id, user.id, { confirmed: true })).rejects.toThrow(
+        '没有需要信任的文件夹',
+      );
+      await expect(h.trustGeminiFolder(tab.id, '/etc', { confirmed: true })).rejects.toThrow(
+        '没有需要信任的文件夹',
+      );
+      await expect(h.trustGeminiFolder('nope', msg.id, { confirmed: true })).rejects.toThrow(
+        '标签不存在',
+      );
+      expect(fs.existsSync(file)).toBe(false);
+    }, 15_000);
+  });
 
   it('a turn with no activity times out, sends session/cancel and shows a translated error', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '5000';

@@ -33,7 +33,12 @@ import {
 import { EventBatcher } from './eventBatcher';
 import { AcpConnection } from './gemini/acp';
 import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
-import { geminiUntrustedMessage, isGeminiUntrustedExit } from './gemini/trust';
+import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
+import {
+  type GeminiTrustResult,
+  isBroadGeminiFolder,
+  trustGeminiFolder,
+} from './gemini/trustedFolders';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   DEFAULT_PERMISSION_MODE,
@@ -1209,6 +1214,15 @@ export class CliHarnessService {
             timestamp: Date.now(),
             error: true,
             durationMs,
+            // Gemini 不信任这个文件夹：界面在错误卡片上提供「信任此文件夹」
+            ...(e instanceof GeminiUntrustedError
+              ? {
+                  geminiTrust: {
+                    folder: e.folder,
+                    broad: isBroadGeminiFolder(e.folder, this.home, [this.d.defaultCwd ?? '']),
+                  },
+                }
+              : {}),
             ...(trace.length ? { trace } : {}),
             ...(partText.trim() && part?.breaks.length ? { textBreaks: part.breaks } : {}),
           });
@@ -1620,7 +1634,7 @@ export class CliHarnessService {
         e.message === 'ACP process exited' &&
         isGeminiUntrustedExit(child.exitCode, stderrTail)
       )
-        throw new Error(geminiUntrustedMessage(tab.cwd), { cause: e });
+        throw new GeminiUntrustedError(tab.cwd, { cause: e });
       // 进程在握手阶段就退出：多半是旧版 Gemini CLI，还不认识 --acp
       if (e instanceof Error && e.message === 'ACP process exited')
         throw new Error(
@@ -2346,6 +2360,28 @@ export class CliHarnessService {
     }
   }
 
+  /**
+   * 用户在「Gemini 不信任此文件夹」的错误卡片上点了「信任此文件夹」并确认：把那条消息记录的文件夹
+   * （只此一个）写进 Gemini 自己的受信任列表。文件夹取自主进程保存的消息，不接受界面传来的路径。
+   */
+  async trustGeminiFolder(
+    tabId: string,
+    messageId: string,
+    opts: { confirmed?: boolean } = {},
+  ): Promise<GeminiTrustResult> {
+    if (!opts.confirmed) throw new Error(t('需要先确认才能信任这个文件夹'));
+    if (!this.tabs.has(tabId) || tabId === MAIN_TAB_ID) throw new Error(t('标签不存在'));
+    const msg = this.tabMessages(tabId).find((m) => m.id === messageId);
+    const folder = msg?.geminiTrust?.folder;
+    if (!folder) throw new Error(t('这条消息没有需要信任的文件夹'));
+    const env = { ...process.env, ...this.d.geminiEnv?.() };
+    const r = await trustGeminiFolder(folder, { home: this.home, env });
+    this.d.logger.info('gemini folder trusted by user', { folder: r.folder, file: r.file });
+    // 旧进程在信任前就已退出；保险起见清掉，下一轮按新的信任状态重新启动
+    if (this.geminiLive.has(tabId)) this.teardownGeminiLive(tabId);
+    return r;
+  }
+
   private armPermissionTimeout(tabId: string, requestId: string) {
     let m = this.pendingPermissions.get(tabId);
     if (!m) {
@@ -2454,6 +2490,11 @@ export class CliHarnessService {
       ),
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
+    handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
+      this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
+        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
+      }),
+    );
     handle('ai:harness:reply-permission', (tabId, requestId, allow) =>
       this.replyPermission(String(tabId), String(requestId), Boolean(allow)),
     );

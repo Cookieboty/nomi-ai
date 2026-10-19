@@ -183,6 +183,12 @@ export interface HarnessTabMessage {
   stopped?: true;
   /** CLI 在没有用户消息的情况下自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
+  /** Gemini 因为不信任这个文件夹而拒绝运行（错误卡片上提供「信任此文件夹」） */
+  geminiTrust?: {
+    folder: string;
+    /** 范围很大的文件夹（主目录、文稿、默认对话目录等），确认时额外提醒 */
+    broad?: boolean;
+  };
 }
 
 /** 持久化到消息里的轨迹事件：HarnessEvent 里的 tool / thinking */

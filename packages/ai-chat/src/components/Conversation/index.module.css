@@ -358,8 +358,13 @@
 }
 .errorActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+}
+.errorNote {
+  font-size: var(--conv-ui);
+  color: var(--cd-color-text-muted);
 }
 .errorBtn {
   display: inline-flex;

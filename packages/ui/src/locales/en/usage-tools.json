@@ -348,5 +348,12 @@
   "{0} 天": "{0} d",
   "价格 / 汇率已在别处更新；你还没保存的修改已保留。直接保存会覆盖最新值。": "Prices / exchange rates were updated elsewhere. Your unsaved edits are kept; saving now will overwrite the latest values.",
   "放弃修改并载入最新": "Discard edits and load latest",
-  "用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。": "Usage records can't be written to disk right now: {0} records are kept in memory and will be retried automatically. Check disk space and permissions; if you quit before it recovers, these records may be lost."
+  "用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。": "Usage records can't be written to disk right now: {0} records are kept in memory and will be retried automatically. Check disk space and permissions; if you quit before it recovers, these records may be lost.",
+  "让 Gemini 信任这个文件夹？": "Let Gemini trust this folder?",
+  "信任后，Gemini 会加载这个文件夹及其所有子文件夹里的项目配置（如 .gemini/settings.json、自定义命令、MCP 服务器和钩子），这些配置可以在你的电脑上运行程序。只信任你清楚其内容的文件夹。": "Once trusted, Gemini will load project configuration from this folder and all of its subfolders (such as .gemini/settings.json, custom commands, MCP servers and hooks), and that configuration can run programs on your computer. Only trust folders whose contents you know.",
+  "这会写入 Gemini 自己的受信任文件夹列表，之后在终端里使用 Gemini 也同样生效；不会信任其它文件夹。": "This is saved to Gemini’s own trusted folders list, so it also applies when you use Gemini in a terminal. No other folders are trusted.",
+  "注意：这是一个范围很大的文件夹（例如主目录或「文稿」），信任它等于信任里面的所有项目。更稳妥的做法是给这个对话换成具体的项目文件夹。": "Note: this is a very broad folder (such as your home folder or Documents). Trusting it trusts every project inside it. A safer choice is to switch this conversation to a specific project folder.",
+  "已信任此文件夹，正在重试…": "Folder trusted. Retrying…",
+  "已信任此文件夹，可以重新发送。": "Folder trusted. You can send your message again.",
+  "信任此文件夹": "Trust this folder"
 }
