@@ -449,6 +449,8 @@ export class Application implements IApplication {
           const bridge = getCliProviderBridge();
           if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
           harness.recycleBackend(kind);
+          // 换了号：上一个账号的订阅额度不能再显示
+          getUsageService()?.forgetAccountQuota(kind);
         },
         onChanged: () => accounts.broadcastChanged(),
       });

@@ -610,3 +610,74 @@ describe('刷新额度 · 单工具（IPC 参数化）', () => {
     expect(t.claudeRun).not.toHaveBeenCalled();
   });
 });
+
+describe('额度缓存跨重启保留（每次打开都先显示上一次的值）', () => {
+  const restart = (t: ReturnType<typeof setup>) => {
+    const run = jest.fn(async () => ({ stdout: USAGE_OK, code: 0 as number | null }));
+    const svc = new UsageService({
+      root: t.root,
+      home: t.home,
+      dshHome: path.join(t.home, '.dsh'),
+      now: () => t.clock.t,
+      scanMs: 0,
+      env: {},
+      logger: { info: jest.fn(), warn: jest.fn() },
+      authRun: async (kind) => t.auth[kind],
+      claudeUsage: {
+        resolveBin: async () => '/fake/claude',
+        run: run as never,
+        env: () => ({}),
+        tmpRoot: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qr-tmp2-')),
+      },
+    });
+    return { svc, run };
+  };
+  type GrokView = {
+    grokCache: { refresh: Function; get: () => { windows: unknown[] } | null };
+  };
+  const grokOk = (pct: number, at: number) => async () => ({
+    kind: 'ok',
+    reading: { windows: [{ id: 'w', usedPercent: pct }], updatedAt: at, origin: 'grok-acp' },
+  });
+
+  it('Claude：刷新过一次，重启后不拉起 CLI 就能看到上一次的额度', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('claude');
+    const r = restart(t);
+    const view = await r.svc.quotaView();
+    expect(view.find((e) => e.id === 'claude')).toMatchObject({
+      status: 'ok',
+      origin: 'usage-cmd',
+    });
+    expect(r.run).not.toHaveBeenCalled();
+  });
+
+  it('Grok：同样跨重启保留；一键清空后不再恢复', async () => {
+    const t = setup();
+    await (t.svc as unknown as GrokView).grokCache.refresh(null, grokOk(7, t.clock.t));
+    const r = restart(t);
+    expect((r.svc as unknown as GrokView).grokCache.get()?.windows).toHaveLength(1);
+    r.svc.clear();
+    expect((restart(t).svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('在「官方账号」里切换账号：清掉上一个账号的额度，重启后也不会回来', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('claude');
+    await (t.svc as unknown as GrokView).grokCache.refresh(null, grokOk(9, t.clock.t));
+    t.svc.forgetAccountQuota('claude');
+    t.svc.forgetAccountQuota('grok');
+    const view = await t.svc.quotaView();
+    expect(view.find((e) => e.id === 'claude')?.windows ?? []).toEqual([]);
+    const r = restart(t);
+    expect((await r.svc.quotaView()).find((e) => e.id === 'claude')?.windows ?? []).toEqual([]);
+    expect((r.svc as unknown as GrokView).grokCache.get()).toBeNull();
+  });
+
+  it('落盘的文件里没有邮箱 / 账号 id 明文', async () => {
+    const t = setup();
+    await t.svc.refreshQuota();
+    const raw = fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8');
+    for (const secret of [EMAIL_A, ACCT_A]) expect(raw).not.toContain(secret);
+  });
+});

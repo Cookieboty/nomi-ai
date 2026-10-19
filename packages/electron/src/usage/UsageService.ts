@@ -352,7 +352,11 @@ export class UsageService {
     this.salt = loadSalt(d.root);
     this.claudeCache = new IdentityQuotaCache(() => this.now());
     this.codexCache = new IdentityQuotaCache(() => this.now());
+    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.loadQuota();
+    // 恢复完之后再挂：Claude / Grok 的额度一变就落盘，下次打开直接显示上一次的值
+    this.claudeCache.setOnChange(() => this.saveQuota());
+    this.grokCache.setOnChange(() => this.saveQuota());
     this.claudeFetcher = new ClaudeUsageFetcher({ now: d.now, ...d.claudeUsage });
     this.codexReader = new CodexRateLimitReader({
       now: d.now,
@@ -360,7 +364,6 @@ export class UsageService {
       ...d.codexRpc,
     });
     this.grokFetcher = new GrokBillingFetcher({ now: d.now, ...d.grokBilling });
-    this.grokCache = new IdentityQuotaCache(() => this.now());
     this.auth = new AuthModeDetector({
       home: d.home,
       env: d.env,
@@ -477,6 +480,8 @@ export class UsageService {
         codexFp?: unknown;
         claudeFp?: unknown;
         floor?: unknown;
+        claude?: unknown;
+        grok?: unknown;
       };
       const fp = (v: unknown) => (typeof v === 'string' && /^[0-9a-f]{16}$/.test(v) ? v : null);
       this.codexFp = fp(o.codexFp);
@@ -495,9 +500,48 @@ export class UsageService {
             ...(typeof c.plan === 'string' ? { plan: c.plan } : {}),
           };
       }
+      // Claude（`/usage` 读到的值）与 Grok：同一账号才恢复；早于「清空」水位的不恢复
+      const claude = this.savedReading(o.claude);
+      if (claude) this.claudeCache.restore(this.claudeFp, claude);
+      // Grok 没有可用的账号指纹（用量模块不读凭据）：在 Nomi 里切换官方账号时由 forgetAccountQuota 清掉
+      const grok = this.savedReading(o.grok);
+      if (grok) this.grokCache.restore(null, grok);
     } catch {
       /* 没有快照 */
     }
+  }
+
+  /**
+   * 在 Nomi「官方账号」里切换了某个 CLI 的账号：清掉上一个账号的额度（内存与落盘），
+   * 不能把旧账号的数字显示给新账号。凭据由账号模块处理，这里只收到通知。
+   */
+  forgetAccountQuota(kind: string): void {
+    if (kind === 'claude') {
+      this.dropClaudeQuota();
+      this.claudeFp = null;
+    } else if (kind === 'codex') {
+      this.codexFp = null;
+      this.codexCache.clear();
+      this.dropCodexQuota();
+    } else if (kind === 'grok') {
+      this.grokCache.clear();
+    } else return;
+    this.saveQuota();
+    this.changed();
+  }
+
+  private savedReading(v: unknown): QuotaReading | null {
+    const r = v as Partial<QuotaReading> | null;
+    if (!r || typeof r.updatedAt !== 'number' || !Array.isArray(r.windows)) return null;
+    if (r.updatedAt < this.quotaFloor) return null;
+    const windows = sanitizeWindows(r.windows, 0);
+    if (!windows.length) return null;
+    return {
+      windows,
+      updatedAt: r.updatedAt,
+      ...(typeof r.plan === 'string' ? { plan: r.plan } : {}),
+      ...(typeof r.origin === 'string' ? { origin: r.origin } : {}),
+    };
   }
 
   private saveQuota(): void {
@@ -509,6 +553,8 @@ export class UsageService {
           ...(this.codexFp ? { codexFp: this.codexFp } : {}),
           ...(this.claudeFp ? { claudeFp: this.claudeFp } : {}),
           ...(this.quotaFloor ? { floor: this.quotaFloor } : {}),
+          ...(this.claudeCache.snapshot() ? { claude: this.claudeCache.snapshot()!.value } : {}),
+          ...(this.grokCache.snapshot() ? { grok: this.grokCache.snapshot()!.value } : {}),
         }),
       );
     } catch (e) {

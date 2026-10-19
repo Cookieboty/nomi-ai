@@ -48,10 +48,42 @@ export class IdentityQuotaCache {
   private gen = 0;
   private inflightGen = 0;
 
+  /** 值或身份变化后调用（UsageService 用来把额度落盘，下次启动直接显示上一次的值） */
+  private onChange: (() => void) | null = null;
+
   constructor(
     private readonly now: () => number = Date.now,
     private readonly ttlMs = QUOTA_TTL_MS,
   ) {}
+
+  setOnChange(fn: () => void): void {
+    this.onChange = fn;
+  }
+
+  private changed(): void {
+    try {
+      this.onChange?.();
+    } catch {
+      /* 落盘失败不影响内存里的值 */
+    }
+  }
+
+  /** 落盘用：当前账号身份与最近一次成功读到的值（不含 stale 标记） */
+  snapshot(): { identity: string | null; value: QuotaReading } | null {
+    return this.value ? { identity: this.identity, value: { ...this.value } } : null;
+  }
+
+  /**
+   * 启动时恢复上一次的值。身份已知且与保存时不同（换了号）就不恢复，不能把别的账号的额度显示出来。
+   * 不占用节流：恢复之后照常可以立刻刷新。
+   */
+  restore(identity: string | null, value: QuotaReading): boolean {
+    if (this.identity && identity && this.identity !== identity) return false;
+    if (identity) this.identity = identity;
+    this.value = { ...value };
+    this.stale = false;
+    return true;
+  }
 
   get(): QuotaReading | null {
     return this.value ? { ...this.value, ...(this.stale ? { stale: true } : {}) } : null;
@@ -67,11 +99,13 @@ export class IdentityQuotaCache {
 
   clear(): void {
     this.gen++;
+    const had = !!this.value || !!this.identity;
     this.value = null;
     this.stale = false;
     this.identity = null;
     // 用户清空之后立即刷新：不能被清空前那次拉取的 60 秒节流挡住，面板一直空着（#45）
     this.lastAttemptAt = 0;
+    if (had) this.changed();
   }
 
   /** 已知身份变化（例如 `claude auth status` 的指纹）：换号清旧值 */
@@ -83,9 +117,12 @@ export class IdentityQuotaCache {
       this.stale = false;
       this.identity = fp;
       this.lastAttemptAt = 0; // 新账号不受旧账号的节流限制
+      this.changed();
       return true;
     }
+    const was = this.identity;
     this.identity = fp;
+    if (was !== fp) this.changed();
     return false;
   }
 
@@ -115,6 +152,7 @@ export class IdentityQuotaCache {
         this.observeIdentity(out.identity ?? null);
         this.value = out.reading;
         this.stale = false;
+        this.changed();
         return { state: 'ok' };
       }
       if (out.kind === 'transient') {
@@ -125,6 +163,7 @@ export class IdentityQuotaCache {
       this.value = null;
       this.stale = false;
       this.identity = null;
+      this.changed();
       return { state: 'auth', reason: out.reason };
     })();
     this.inflight = p;

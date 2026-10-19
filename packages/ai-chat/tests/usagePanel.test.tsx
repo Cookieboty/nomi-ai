@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UsagePanel } from '../src/components/UsagePanel';
 import { priceSyncMessage } from '../src/components/UsagePanel/Pricing';
+import { resetToolQuotaMemo } from '../src/hooks/useToolQuota';
 
 // findBy* / waitFor default to a 1s budget. The panel renders after several mocked IPC round-trips
 // plus happy-dom layout of the charts, which exceeds 1s on the slower macOS / Windows runners
@@ -259,6 +260,8 @@ function install() {
 }
 
 beforeEach(() => {
+  // 订阅额度的上一次显示状态是模块级的：每个用例从空开始
+  resetToolQuotaMemo();
   emptyData = false;
   refreshTools = {};
   refreshEntries = null;
@@ -1020,5 +1023,39 @@ describe('UsagePanel 订阅额度：卡片（非 Tabs）与单卡刷新', () => 
     await findByTestId('usage-quota-grid');
     expect(getByTestId('usage-quota-refresh-claude')).toBeTruthy();
     expect(queryByTestId('usage-quota-refresh-dsh')).toBeNull();
+  });
+});
+
+describe('UsagePanel 订阅额度：再次打开先显示上一次的结果', () => {
+  it('切走再切回来：卡片立刻显示上一次的值，不先变空', async () => {
+    quota = [
+      {
+        id: 'codex',
+        label: 'Codex',
+        status: 'ok',
+        auth: 'subscription',
+        windows: [{ id: 'primary', usedPercent: 42, windowMinutes: 300 }],
+        updatedAt: Date.now(),
+      },
+    ];
+    const first = renderQuota();
+    await first.findByTestId('usage-quota-codex');
+    first.unmount();
+    // 第二次打开时，主进程这次很慢：界面也不应该先空着
+    let release: () => void = () => undefined;
+    const slow = new Promise<void>((r) => (release = r));
+    const orig = (window as unknown as { aiIPC: { invoke: (...a: unknown[]) => unknown } }).aiIPC
+      .invoke;
+    (window as unknown as { aiIPC: { invoke: unknown } }).aiIPC.invoke = async (
+      ch: string,
+      ...a: unknown[]
+    ) => {
+      if (ch === 'ai:usage:quota') await slow;
+      return orig(ch, ...a);
+    };
+    const second = render(<UsagePanel />);
+    fireEvent.click(second.getByRole('tab', { name: '订阅额度' }));
+    expect(await second.findByTestId('usage-quota-codex', {}, { timeout: 200 })).toBeTruthy();
+    release();
   });
 });

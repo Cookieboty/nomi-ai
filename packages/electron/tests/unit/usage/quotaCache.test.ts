@@ -230,3 +230,27 @@ describe('fingerprint：非敏感指纹', () => {
     expect(fingerprint('salt1', ['', 'org'])).toBeNull();
   });
 });
+
+describe('IdentityQuotaCache：落盘恢复', () => {
+  it('restore 只恢复同一账号的值；不占用节流；变化时通知落盘', async () => {
+    const c = new IdentityQuotaCache(() => 1_000_000, 60_000);
+    const changes = jest.fn();
+    c.observeIdentity('aaaaaaaaaaaaaaaa');
+    expect(c.restore('bbbbbbbbbbbbbbbb', reading(10))).toBe(false);
+    expect(c.get()).toBeNull();
+    expect(c.restore('aaaaaaaaaaaaaaaa', reading(10))).toBe(true);
+    expect(c.snapshot()).toEqual({ identity: 'aaaaaaaaaaaaaaaa', value: reading(10) });
+    c.setOnChange(changes);
+    // 恢复的值不算一次拉取：马上可以刷新
+    expect(c.retryInMs()).toBe(0);
+    await c.refresh('aaaaaaaaaaaaaaaa', async () => ok(20));
+    expect(changes).toHaveBeenCalledTimes(1);
+    c.observeIdentity('cccccccccccccccc'); // 换号：清值并通知
+    expect(c.get()).toBeNull();
+    expect(changes).toHaveBeenCalledTimes(2);
+    c.clear();
+    expect(changes).toHaveBeenCalledTimes(3);
+    c.clear(); // 已经是空的：不重复通知
+    expect(changes).toHaveBeenCalledTimes(3);
+  });
+});
