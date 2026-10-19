@@ -1227,9 +1227,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title={t('设置 (⌘/Ctrl+,)')}
           data-testid="sidebar-settings"
         >
-          <span aria-hidden>
-            <AppIcon icon={SETTINGS_ICONS.general} size={16} />
-          </span>
+          <AppIcon icon={SETTINGS_ICONS.general} size={16} />
           {!collapsed && <span>{t('设置')}</span>}
         </button>
       )}
