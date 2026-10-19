@@ -113,7 +113,13 @@ describe('CliHarnessService Gemini backend', () => {
   });
   const mk = () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-gemini-'));
-    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: root,
+      geminiEnv: (): Record<string, string> =>
+        process.env.TEST_GEMINI_KEY ? { GEMINI_API_KEY: process.env.TEST_GEMINI_KEY } : {},
+    });
     harnesses.push(h);
     return { h, root };
   };
@@ -143,6 +149,23 @@ describe('CliHarnessService Gemini backend', () => {
     expect(readLog(log).find((c) => c.method === 'session/set_mode')?.params.modeId).toBe('yolo');
     const msgs = h.tabMessages(tab.id);
     expect(msgs.at(-1)?.content).toBe('Mock Gemini: again');
+  }, 15_000);
+
+  it('injects the active provider profile env into the ACP process', async () => {
+    process.env.TEST_GEMINI_KEY = 'AIza-profile';
+    try {
+      const { h, root } = mk();
+      const log = path.join(root, 'acp.log');
+      process.env.NOMI_MOCK_GEMINI_LOG = log;
+      const tab = h.createTab({ backend: 'gemini' });
+      await h.sendTab(tab.id, 'hi');
+      const init = readLog(log).find((c) => c.method === 'initialize') as unknown as {
+        env: Record<string, string | null>;
+      };
+      expect(init.env).toEqual({ GEMINI_API_KEY: 'AIza-profile', trust: 'true' });
+    } finally {
+      delete process.env.TEST_GEMINI_KEY;
+    }
   }, 15_000);
 
   it('routes permission requests through replyPermission', async () => {

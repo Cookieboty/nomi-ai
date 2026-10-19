@@ -20,26 +20,9 @@ import { EndpointIcon } from '../EndpointIcon';
 import { ProviderPanel } from '../lazyPanels';
 
 import { CliEndpointSection } from './CliEndpointSection';
-import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
-import { OfficialAccounts } from './OfficialAccounts';
 
 const noop = () => undefined;
-
-/** Gemini 端点：官方账号 + 版本卡片（docs/design/cli-official-accounts.md §8）；没有第三方供应商档案 */
-const GeminiEndpointSection: React.FC = () => (
-  <div data-testid="providers-section-gemini">
-    <div className={styles.intro}>
-      <p>
-        {t(
-          'Gemini CLI 通过 ACP 协议接入，使用它自己的登录与配置（~/.gemini）。可以在下面添加多个 Google 账号并随时切换。',
-        )}
-      </p>
-    </div>
-    <OfficialAccounts kind="gemini" />
-    <CliVersionCard kind="gemini" />
-  </div>
-);
 
 const TABS = [...CONVERSATION_BACKENDS, 'monitor'] as const;
 
@@ -125,12 +108,6 @@ export const ProvidersPage: React.FC<{
             <p className={styles.sub}>{t('供应商管理仅在桌面应用中可用；模型配置见「通用」。')}</p>
           )}
         </div>
-      ) : ep === 'gemini' ? (
-        cliOk ? (
-          <GeminiEndpointSection />
-        ) : (
-          <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
-        )
       ) : cliOk ? (
         <CliEndpointSection key={ep} kind={ep} />
       ) : (

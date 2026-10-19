@@ -451,3 +451,67 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
     });
   }
 });
+
+describe('CliProviderBridge Gemini profiles', () => {
+  const mk = () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-home-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-root-'));
+    const applied: string[] = [];
+    const b = new CliProviderBridge({ root, home, logger: { info() {}, warn() {} } });
+    b.setOnApplied((k) => applied.push(k));
+    return { home, root, b, applied };
+  };
+
+  it('activates without touching ~/.gemini and injects key / base URL / model via env', () => {
+    const t = mk();
+    fs.mkdirSync(path.join(t.home, '.gemini'), { recursive: true });
+    const userSettings = path.join(t.home, '.gemini', 'settings.json');
+    fs.writeFileSync(userSettings, '{"security":{"auth":{"selectedType":"oauth-personal"}}}');
+    const p = t.b.upsert({
+      kind: 'gemini',
+      name: 'G',
+      baseUrl: 'https://gw.example/v1beta',
+      model: 'gemini-x',
+      apiKey: 'AIza-test',
+      apiFormat: 'gemini_generate_content',
+    });
+    expect(t.b.geminiEnv()).toEqual({});
+    expect(t.b.activate(p.id)).toMatchObject({ ok: true, usedRouting: false });
+    const env = t.b.geminiEnv();
+    expect(env).toMatchObject({
+      GEMINI_API_KEY: 'AIza-test',
+      GOOGLE_GEMINI_BASE_URL: 'https://gw.example/v1beta',
+      GEMINI_MODEL: 'gemini-x',
+    });
+    expect(JSON.parse(fs.readFileSync(env.GEMINI_CLI_SYSTEM_SETTINGS_PATH!, 'utf8'))).toEqual({
+      security: { auth: { selectedType: 'gateway' } },
+    });
+    expect(fs.readFileSync(userSettings, 'utf8')).toBe(
+      '{"security":{"auth":{"selectedType":"oauth-personal"}}}',
+    );
+    expect(t.applied).toContain('gemini');
+
+    expect(t.b.deactivate('gemini').ok).toBe(true);
+    expect(t.b.geminiEnv()).toEqual({});
+    expect(fs.existsSync(env.GEMINI_CLI_SYSTEM_SETTINGS_PATH!)).toBe(false);
+  });
+
+  it('without a base URL uses the Gemini API key auth type', () => {
+    const t = mk();
+    const p = t.b.upsert({
+      kind: 'gemini',
+      name: 'G',
+      baseUrl: '',
+      model: '',
+      apiKey: 'AIza-k',
+      apiFormat: 'gemini_generate_content',
+    });
+    t.b.activate(p.id);
+    const env = t.b.geminiEnv();
+    expect(env.GOOGLE_GEMINI_BASE_URL).toBeUndefined();
+    expect(env.GEMINI_MODEL).toBeUndefined();
+    expect(JSON.parse(fs.readFileSync(env.GEMINI_CLI_SYSTEM_SETTINGS_PATH!, 'utf8'))).toEqual({
+      security: { auth: { selectedType: 'gemini-api-key' } },
+    });
+  });
+});

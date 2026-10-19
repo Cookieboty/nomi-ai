@@ -347,6 +347,8 @@ export class CliHarnessService {
       dshEnv?: () => Record<string, string>;
       /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
+      /** Gemini 第三方档案（CliProviderBridge.geminiEnv） */
+      geminiEnv?: () => Record<string, string>;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
     },
@@ -1464,7 +1466,7 @@ export class CliHarnessService {
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       // 不受信任的目录下 headless 会直接退出（55）或把审批强制回 default
-      env: cliChildEnv(useNode, { GEMINI_CLI_TRUST_WORKSPACE: 'true' }),
+      env: cliChildEnv(useNode, { ...this.d.geminiEnv?.(), GEMINI_CLI_TRUST_WORKSPACE: 'true' }),
     });
     child.stderr.on('data', (c) =>
       this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500)),

@@ -11,6 +11,7 @@ import React from 'react';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useHarnessState } from '../../hooks/useHarnessState';
+import type { CliProviderKind } from '../../services/cliProviderClient';
 import { harnessClient } from '../../services/harnessClient';
 import { providerClientAvailable } from '../../services/providerClient';
 import { BackendSwitcher } from '../BackendSwitcher';
@@ -21,7 +22,7 @@ import { WorkspacePicker } from '../WorkspacePicker';
 export const EndpointControls: React.FC<{
   className?: string;
   onManageNomi: () => void;
-  onManageCli: (backend: 'claude' | 'codex' | 'dsh' | 'grok') => void;
+  onManageCli: (backend: CliProviderKind) => void;
 }> = ({ className, onManageNomi, onManageCli }) => {
   const { isDev } = useChatMode();
   const tabs = useHarnessTabs();
@@ -52,7 +53,7 @@ export const EndpointControls: React.FC<{
     <>
       {isDev && <BackendSwitcher />}
       {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
-      {cli === 'gemini' ? null : cli ? (
+      {cli ? (
         <CliProviderChip backend={cli} className={className} onManage={() => onManageCli(cli)} />
       ) : (
         providerClientAvailable() && (

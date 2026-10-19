@@ -182,5 +182,7 @@ function backendName(b: CliProviderKind): string {
       ? t('Codex')
       : b === 'grok'
         ? 'Grok'
-        : 'dsh';
+        : b === 'gemini'
+          ? 'Gemini'
+          : 'dsh';
 }

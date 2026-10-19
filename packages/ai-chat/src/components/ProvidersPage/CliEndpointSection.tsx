@@ -49,6 +49,7 @@ const NAME: Record<CliProviderKind, string> = {
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 /** 本地没有预设服务（非桌面环境）时，添加页至少有「自定义配置」 */
@@ -79,6 +80,8 @@ export function routingStatus(
 ): { mode: 'none' | 'direct' | 'routed' | 'blocked' | 'n/a'; text: string } {
   if (kind === 'dsh') return { mode: 'n/a', text: t('无需路由：dsh 原生支持三种上游协议') };
   if (kind === 'grok') return { mode: 'n/a', text: t('无需路由：Grok 原生支持三种上游协议') };
+  if (kind === 'gemini')
+    return { mode: 'n/a', text: t('无需路由：Gemini 直接请求 generateContent 兼容的上游') };
   if (!active) return { mode: 'none', text: t('—（沿用 CLI 自带配置，不经过 Nomi）') };
   if (!active.needsRouting) {
     return {
@@ -158,7 +161,9 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         ? state?.codexConfig
         : kind === 'grok'
           ? state?.grokConfig
-          : state?.dshConfig;
+          : kind === 'gemini'
+            ? state?.geminiConfig
+            : state?.dshConfig;
   const store =
     kind === 'claude'
       ? state?.claudeStore
@@ -166,7 +171,9 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         ? state?.codexStore
         : kind === 'grok'
           ? state?.grokStore
-          : state?.dshStore;
+          : kind === 'gemini'
+            ? state?.geminiStore
+            : state?.dshStore;
   const rs = routingStatus(kind, active, route);
 
   const guard = async (fn: () => Promise<void>) => {
@@ -235,10 +242,15 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
               '启用档案时只写入 {0} 里带 Nomi 标记的 [model.nomi] 区块并设置 default；密钥不落盘，只在 Nomi 启动 Grok 时通过环境变量注入。',
               writes ?? '~/.grok/config.toml',
             )
-          : t(
-              '启用档案时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
-              writes ?? '~/.dsh/cordis.patch.yml',
-            );
+          : kind === 'gemini'
+            ? t(
+                '启用档案时不改 ~/.gemini：认证方式写在 Nomi 自己的 {0}，API Key、请求地址与模型只在 Nomi 启动 Gemini 时通过环境变量注入。终端里直接运行的 gemini 不受影响。',
+                writes ?? 'system-settings.json',
+              )
+            : t(
+                '启用档案时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
+                writes ?? '~/.dsh/cordis.patch.yml',
+              );
 
   const activeBrand = (p: CliProviderProfile) =>
     p.presetId && p.presetId !== 'custom' ? p.presetId : inferBrand(p.baseUrl);
@@ -480,15 +492,17 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         <details className={styles.advanced} data-testid="cli-route-advanced">
           <summary>{t('高级')}</summary>
           <div className={styles.advBody}>
-            {kind === 'dsh' || kind === 'grok' ? (
+            {kind === 'dsh' || kind === 'grok' || kind === 'gemini' ? (
               <p className={styles.sub}>
-                {kind === 'grok'
-                  ? t(
-                      'Grok 原生支持 responses / chat_completions / messages（api_backend），不需要本地路由。',
-                    )
-                  : t(
-                      'dsh 原生支持 openai-completions / openai-responses / anthropic-messages，不需要本地路由。',
-                    )}
+                {kind === 'gemini'
+                  ? t('Gemini 原生请求 generateContent；填了请求地址就走网关模式，不需要本地路由。')
+                  : kind === 'grok'
+                    ? t(
+                        'Grok 原生支持 responses / chat_completions / messages（api_backend），不需要本地路由。',
+                      )
+                    : t(
+                        'dsh 原生支持 openai-completions / openai-responses / anthropic-messages，不需要本地路由。',
+                      )}
               </p>
             ) : (
               <>

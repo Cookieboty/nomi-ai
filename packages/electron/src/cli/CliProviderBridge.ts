@@ -1,8 +1,9 @@
 /**
- * Claude Code / Codex / dsh / Grok **各自独立** 的供应商档案。
- * - 存储：userData/cli-providers/{claude,codex,dsh,grok}/store.json
+ * Claude Code / Codex / dsh / Grok / Gemini **各自独立** 的供应商档案。
+ * - 存储：userData/cli-providers/{claude,codex,dsh,grok,gemini}/store.json
  * - 写入：Claude → ~/.claude/settings.json；Codex → ~/.codex/config.toml + auth.json；
- *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）
+ *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）；
+ *   Gemini → 不写 ~/.gemini：Nomi 私有的系统级设置（只含认证方式）+ 启动时注入 Key / 地址 / 模型
  * - 与 Nomi 自有 ProviderStore（ai-providers.json）完全隔离
  */
 import { randomUUID } from 'node:crypto';
@@ -132,7 +133,7 @@ export function buildProbeRequest(
   return { url: `${base}/models`, headers: key ? { authorization: `Bearer ${key}` } : {} };
 }
 
-const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh', 'grok'];
+const KINDS: readonly CliProviderKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 function normalizeFormat(kind: CliProviderKind, raw: unknown): CliApiFormat {
   if (kind === 'claude' && isClaudeApiFormat(raw)) return raw;
@@ -157,6 +158,7 @@ export class CliProviderBridge {
     codex: { profiles: [] },
     dsh: { profiles: [] },
     grok: { profiles: [] },
+    gemini: { profiles: [] },
   };
 
   /**
@@ -176,6 +178,7 @@ export class CliProviderBridge {
       codex: path.join(d.root, 'codex', 'store.json'),
       dsh: path.join(d.root, 'dsh', 'store.json'),
       grok: path.join(d.root, 'grok', 'store.json'),
+      gemini: path.join(d.root, 'gemini', 'store.json'),
     };
     // migrate legacy single store.json if present
     this.migrateLegacy(path.join(d.root, 'store.json'));
@@ -289,6 +292,41 @@ export class CliProviderBridge {
     return { [GROK_KEY_ENV]: decrypt(p.keyEnc) || 'nomi-local' };
   }
 
+  /** Gemini 档案启用时给 CLI 的系统级设置文件：优先级高于 ~/.gemini/settings.json，只放认证方式 */
+  private geminiSystemSettingsPath(): string {
+    return path.join(this.d.root, 'gemini', 'system-settings.json');
+  }
+
+  /**
+   * 启动 Gemini 时注入的环境变量（仅档案启用时）：系统级设置把认证方式定为 API Key / 网关，
+   * Key、地址、模型都走环境变量，不改用户的 ~/.gemini，也就不会动到 Google 登录。
+   */
+  geminiEnv(): Record<string, string> {
+    const p = this.data.gemini.profiles.find((x) => x.active);
+    const file = this.geminiSystemSettingsPath();
+    if (!p || !fs.existsSync(file)) return {};
+    return {
+      GEMINI_CLI_SYSTEM_SETTINGS_PATH: file,
+      GEMINI_API_KEY: decrypt(p.keyEnc) || 'nomi-local',
+      ...(p.baseUrl.trim() ? { GOOGLE_GEMINI_BASE_URL: p.baseUrl.trim() } : {}),
+      ...(p.model.trim() ? { GEMINI_MODEL: p.model.trim() } : {}),
+    };
+  }
+
+  /** 停用 Gemini 档案：删掉 Nomi 的系统级设置，回到 Gemini 自己的登录 */
+  deactivateGemini(): { ok: boolean; backups: string[]; error?: string } {
+    try {
+      fs.rmSync(this.geminiSystemSettingsPath(), { force: true });
+      for (const x of this.data.gemini.profiles) x.active = false;
+      this.saveKind('gemini');
+      this.broadcast();
+      this.applied('gemini');
+      return { ok: true, backups: [] };
+    } catch (e) {
+      return { ok: false, backups: [], error: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
   /** 停用 dsh 档案：移除 Nomi 区块，回到 dsh 自身的默认供应商 */
   deactivateDsh(): { ok: boolean; backups: string[]; error?: string } {
     const file = dshPatchPath(this.home);
@@ -343,6 +381,7 @@ export class CliProviderBridge {
   deactivate(kind: CliProviderKind): { ok: boolean; backups: string[]; error?: string } {
     if (kind === 'dsh') return this.deactivateDsh();
     if (kind === 'grok') return this.deactivateGrok();
+    if (kind === 'gemini') return this.deactivateGemini();
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const backups: string[] = [];
     const active = this.data[kind].profiles.find((x) => x.active);
@@ -449,6 +488,8 @@ export class CliProviderBridge {
       dshConfig: dshPatchPath(this.home),
       grokStore: this.storePaths.grok,
       grokConfig: grokConfigPath(this.home),
+      geminiStore: this.storePaths.gemini,
+      geminiConfig: this.geminiSystemSettingsPath(),
       routing: route ?? null,
     };
   }
@@ -543,7 +584,14 @@ export class CliProviderBridge {
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
     const backups: string[] = [];
     try {
-      if (p.kind === 'dsh') {
+      if (p.kind === 'gemini') {
+        const selectedType = p.baseUrl.trim() ? 'gateway' : 'gemini-api-key';
+        ensureDir(this.geminiSystemSettingsPath());
+        writePrivateFile(
+          this.geminiSystemSettingsPath(),
+          JSON.stringify({ security: { auth: { selectedType } } }, null, 2),
+        );
+      } else if (p.kind === 'dsh') {
         const file = dshPatchPath(this.home);
         const b = backupFile(file, path.join(this.backupRoot, ts), 'dsh-cordis.patch.yml');
         if (b) backups.push(b);
@@ -651,6 +699,7 @@ export class CliProviderBridge {
     const routingOn = Boolean(
       p.kind !== 'dsh' &&
       p.kind !== 'grok' &&
+      p.kind !== 'gemini' &&
       routeSettings?.enabled &&
       routeSettings?.[p.kind as 'claude' | 'codex'],
     );

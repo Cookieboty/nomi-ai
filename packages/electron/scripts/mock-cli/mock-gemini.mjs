@@ -94,8 +94,16 @@ process.stdin.on('data', (c) => {
   for (const line of lines) {
     if (!line.trim()) continue;
     const m = JSON.parse(line);
-    if (log && m.method)
-      fs.appendFileSync(log, `${JSON.stringify({ method: m.method, params: m.params })}\n`);
+    if (log && m.method) {
+      const env =
+        m.method === 'initialize'
+          ? {
+              GEMINI_API_KEY: process.env.GEMINI_API_KEY ?? null,
+              trust: process.env.GEMINI_CLI_TRUST_WORKSPACE ?? null,
+            }
+          : undefined;
+      fs.appendFileSync(log, `${JSON.stringify({ method: m.method, params: m.params, env })}\n`);
+    }
     if (m.method === undefined && waiting.has(m.id)) {
       waiting.get(m.id)(m.result);
       waiting.delete(m.id);

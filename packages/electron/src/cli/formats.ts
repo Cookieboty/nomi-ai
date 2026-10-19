@@ -49,17 +49,18 @@ export function codexFormatNeedsRouting(f: CodexApiFormat): boolean {
   return f !== 'openai_responses';
 }
 
-export type CliFormatKind = 'claude' | 'codex' | 'dsh' | 'grok';
+export type CliFormatKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 export function formatNeedsRouting(kind: CliFormatKind, format: CliApiFormat): boolean {
-  // dsh / Grok 配置层原生支持多种上游协议，均无需本地路由
-  if (kind === 'dsh' || kind === 'grok') return false;
+  // dsh / Grok 配置层原生支持多种上游协议、Gemini 只发 generateContent，均无需本地路由
+  if (kind === 'dsh' || kind === 'grok' || kind === 'gemini') return false;
   return kind === 'claude'
     ? claudeFormatNeedsRouting(format as ClaudeApiFormat)
     : codexFormatNeedsRouting(format as CodexApiFormat);
 }
 
 export function defaultFormat(kind: CliFormatKind): CliApiFormat {
+  if (kind === 'gemini') return 'gemini_generate_content';
   if (kind === 'dsh' || kind === 'grok') return 'openai_responses';
   return kind === 'claude' ? 'anthropic_messages' : 'openai_responses';
 }

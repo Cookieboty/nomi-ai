@@ -436,6 +436,7 @@ export class Application implements IApplication {
         defaultCwd: app.getPath('documents'),
         dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
+        geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
@@ -446,8 +447,7 @@ export class Application implements IApplication {
         logger: this.logger as never,
         onActivated: (kind) => {
           const bridge = getCliProviderBridge();
-          // Gemini 没有第三方供应商档案，只需重拉长驻进程
-          if (kind !== 'gemini' && bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
+          if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
           harness.recycleBackend(kind);
         },
         onChanged: () => accounts.broadcastChanged(),
