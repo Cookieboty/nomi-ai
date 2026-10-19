@@ -7,6 +7,7 @@
  *   走了 Nomi 本地路由的请求以路由记录为准，日志里同一时段的同来源记录跳过。
  * - 首次扫描只看保留期内修改过的文件；每轮扫描让出事件循环，不卡主进程。
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -40,7 +41,7 @@ import {
 import type { QuotaWindow } from './quota';
 import { DB_BATCH, dbSignature, readCopilotRows, readOpencodeRows } from './sqliteRead';
 import type { UsageRecord, UsageSource } from './types';
-import { RETENTION_MS, type Retention, type UsageLedger } from './UsageLedger';
+import { RETENTION_MS, type FileCursor, type Retention, type UsageLedger } from './UsageLedger';
 
 type Logger = { info?(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -147,6 +148,34 @@ export function kimiSessionId(file: string): string | undefined {
   const a = parts.lastIndexOf('agents');
   const id = a > 0 && parts.length - a === 3 ? parts[a - 1] : parts[parts.length - 2];
   return id ? id.replace(/^(?:ses_|session_)(?=[0-9a-f-]{36}$)/i, '') : undefined;
+}
+
+/** 游标校验点：已消费区域末尾这么多字节做指纹 */
+const FP_BYTES = 256;
+
+function sha1(b: Buffer): string {
+  return crypto.createHash('sha1').update(b).digest('hex');
+}
+
+/** 文件身份：Windows 上 ino 可能是 0 / 不可靠，取不到就不比较 */
+function identityOf(st: fs.Stats): { dev?: number; ino?: number } {
+  return st.ino ? { dev: st.dev, ino: st.ino } : {};
+}
+
+/** 游标记录的文件身份和现在不一致 = 同路径换成了另一个文件 */
+function identityChanged(cur: FileCursor, st: fs.Stats): boolean {
+  return cur.ino !== undefined && !!st.ino && (cur.ino !== st.ino || cur.dev !== st.dev);
+}
+
+async function fingerprintAt(
+  fh: fs.promises.FileHandle,
+  offset: number,
+): Promise<{ fp: string; fpLen: number } | null> {
+  const len = Math.min(FP_BYTES, offset);
+  if (len <= 0) return null;
+  const buf = Buffer.alloc(len);
+  const { bytesRead } = await fh.read(buf, 0, len, offset - len);
+  return bytesRead === len ? { fp: sha1(buf), fpLen: len } : null;
 }
 
 const tick = () => new Promise<void>((r) => setImmediate(r));
@@ -378,11 +407,31 @@ export class UsageLogScanner {
     if (!st) return -1;
     let cur = ledger.cursor(f.path);
     if (cur && st.size < cur.offset) cur = undefined; // 被截断 / 替换：从头读
+    if (cur && identityChanged(cur, st)) cur = undefined; // 同路径换了文件（rename 替换 / 恢复备份）
+    if (cur && cur.offset > 0 && (cur.size !== st.size || cur.mtimeMs !== st.mtimeMs)) {
+      // 文件变过：只靠长度判断不了是追加还是重写。核对已消费区域末尾的指纹，对不上就从头读；
+      // 没有指纹的旧游标无法核实，安全起见重读一次（账本按稳定键去重，不会重复记账）。
+      cur = (await this.cursorStillValid(f.path, cur)) ? cur : undefined;
+    }
     // 解析口径变了：丢掉旧偏移，把已经记成 unknown 的 Grok 轮次重读出来
     if (f.source === 'grok' && cur?.state?.rev !== GROK_LOG_REV) cur = undefined;
     if (cur && cur.offset >= st.size) {
-      if (cur.size !== st.size || cur.mtimeMs !== st.mtimeMs)
-        ledger.setCursor(f.path, { ...cur, size: st.size, mtimeMs: st.mtimeMs });
+      if (cur.size !== st.size || cur.mtimeMs !== st.mtimeMs || (!cur.fp && cur.offset > 0)) {
+        // 旧游标补上身份 / 指纹（文件没变过才会走到这里：变过的旧游标已在上面丢弃）
+        const fh = await fs.promises.open(f.path, 'r');
+        try {
+          const id = await fingerprintAt(fh, cur.offset);
+          ledger.setCursor(f.path, {
+            ...cur,
+            size: st.size,
+            mtimeMs: st.mtimeMs,
+            ...identityOf(st),
+            ...(id ?? {}),
+          });
+        } finally {
+          await fh.close();
+        }
+      }
       return -1;
     }
     const state: ParseState = { ...(cur?.state ?? {}) };
@@ -402,6 +451,7 @@ export class UsageLogScanner {
     let readPos = startOffset;
     let pending: Buffer = Buffer.alloc(0);
     let added = 0;
+    let id: { fp: string; fpLen: number } | null;
     const fh = await fs.promises.open(f.path, 'r');
     try {
       let budget = MAX_READ_PER_PASS;
@@ -430,11 +480,34 @@ export class UsageLogScanner {
         added += this.ingest(this.parseChunk(f.source, complete.toString('utf8'), state));
         await tick();
       }
+      id = await fingerprintAt(fh, offset);
     } finally {
       await fh.close();
     }
-    ledger.setCursor(f.path, { offset, size: st.size, mtimeMs: st.mtimeMs, state });
+    ledger.setCursor(f.path, {
+      offset,
+      size: st.size,
+      mtimeMs: st.mtimeMs,
+      ...identityOf(st),
+      ...(id ?? {}),
+      state,
+    });
     return added;
+  }
+
+  /** 已消费区域末尾的内容还和游标里的指纹一致吗（一致 = 只是追加，可以接着读） */
+  private async cursorStillValid(file: string, cur: FileCursor): Promise<boolean> {
+    if (!cur.fp || !cur.fpLen) return false;
+    let fh: fs.promises.FileHandle | undefined;
+    try {
+      fh = await fs.promises.open(file, 'r');
+      const now = await fingerprintAt(fh, cur.offset);
+      return !!now && now.fpLen === cur.fpLen && now.fp === cur.fp;
+    } catch {
+      return false;
+    } finally {
+      await fh?.close();
+    }
   }
 
   /** 整份解析（Gemini JSON / dsh zstd）；返回新增条数，-1 = 没有变化 */

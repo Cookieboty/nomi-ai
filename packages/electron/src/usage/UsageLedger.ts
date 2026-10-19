@@ -27,6 +27,12 @@ export interface FileCursor {
   /** 上次看到的文件大小 / mtime，用来识别被截断或替换 */
   size: number;
   mtimeMs: number;
+  /** 文件身份（dev / inode；Windows 上取不到时缺省）：换了文件（rename 替换 / 恢复备份）就丢弃游标 */
+  dev?: number;
+  ino?: number;
+  /** 已消费区域末尾（至多 fpLen 字节）的 sha1：原地重写 / 等长替换时内容对不上就从头读 */
+  fp?: string;
+  fpLen?: number;
   /** 各解析器自己的续读状态（Codex：当前模型 / 上一次累计值等） */
   state?: Record<string, unknown>;
 }

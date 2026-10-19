@@ -98,6 +98,118 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     expect(ledger.all().some((r) => r.key === 'claude:msg_4')).toBe(true);
   });
 
+  describe('文件被替换 / 原地重写：不沿用旧偏移', () => {
+    const sameLen = (id: string, out: number) => asst(id, out);
+
+    it('等长替换（msg_1 → msg_4）：新消息不被跳过', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, sameLen('msg_1', 1));
+      await scanner.scan();
+      const before = fs.statSync(f);
+      fs.writeFileSync(f, sameLen('msg_4', 4));
+      expect(fs.statSync(f).size).toBe(before.size);
+      fs.utimesSync(f, new Date(before.mtimeMs + 5_000), new Date(before.mtimeMs + 5_000));
+      await scanner.scan();
+      expect(ledger.all().map((r) => r.key)).toContain('claude:msg_4');
+    });
+
+    it('替换成更长的文件且前缀就含新消息：从头读，不从旧偏移 / 行中间开始', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1));
+      await scanner.scan();
+      fs.writeFileSync(f, asst('msg_7', 7) + asst('msg_8', 8) + asst('msg_9', 9));
+      await scanner.scan();
+      const keys = ledger.all().map((r) => r.key);
+      expect(keys).toEqual(
+        expect.arrayContaining(['claude:msg_7', 'claude:msg_8', 'claude:msg_9']),
+      );
+    });
+
+    it('rename 原子替换（inode 变了）：丢弃旧游标', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      await scanner.scan();
+      const tmpFile = `${f}.new`;
+      fs.writeFileSync(tmpFile, asst('msg_5', 5) + asst('msg_6', 6) + asst('msg_7', 7));
+      fs.renameSync(tmpFile, f);
+      await scanner.scan();
+      expect(ledger.all().map((r) => r.key)).toEqual(
+        expect.arrayContaining(['claude:msg_5', 'claude:msg_6', 'claude:msg_7']),
+      );
+    });
+
+    it('正常追加仍只读新增行；没变化的文件不重读；重读不会重复记账', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1));
+      await scanner.scan();
+      const cur = ledger.cursor(f)!;
+      expect(cur.fp).toBeTruthy();
+      fs.appendFileSync(f, asst('msg_2', 2));
+      expect((await scanner.scan()).added).toBe(1);
+      expect(ledger.cursor(f)!.offset).toBe(fs.statSync(f).size);
+      expect((await scanner.scan()).added).toBe(0);
+      // 同一份内容整体重写（等长、mtime 变了）：从头读，但账本里已有的键不重复
+      const st = fs.statSync(f);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      fs.utimesSync(f, new Date(st.mtimeMs + 9_000), new Date(st.mtimeMs + 9_000));
+      expect((await scanner.scan()).added).toBe(0);
+      expect(ledger.size()).toBe(2);
+    });
+
+    it('没有指纹的旧游标：文件变过就安全重读一次，没变过就保持并补上指纹', async () => {
+      const { home, ledger, scanner } = mk();
+      const f = claudeFile(home);
+      fs.writeFileSync(f, asst('msg_1', 1) + asst('msg_2', 2));
+      const st = fs.statSync(f);
+      ledger.setCursor(f, { offset: st.size, size: st.size, mtimeMs: st.mtimeMs });
+      await scanner.scan();
+      expect(ledger.size()).toBe(0); // 没变过：不重读
+      expect(ledger.cursor(f)!.fp).toBeTruthy();
+      ledger.setCursor(f, { offset: st.size, size: 1, mtimeMs: 1 }); // 旧游标 + 文件变过
+      await scanner.scan();
+      expect(ledger.size()).toBe(2);
+    });
+
+    it('Codex 文件被新会话替换：不沿用旧 session / 累计值状态', async () => {
+      const { home, ledger, scanner } = mk();
+      const dir = path.join(home, '.codex', 'sessions', '2026', '10', '14');
+      fs.mkdirSync(dir, { recursive: true });
+      const f = path.join(dir, 'rollout-x.jsonl');
+      const L = (o: unknown) => `${JSON.stringify(o)}\n`;
+      const tc = (total: number) =>
+        L({
+          timestamp: NOW,
+          type: 'event_msg',
+          payload: {
+            type: 'token_count',
+            info: {
+              total_token_usage: { total_tokens: total },
+              last_token_usage: { input_tokens: 50, cached_input_tokens: 10, output_tokens: 5 },
+            },
+          },
+        });
+      const file = (sid: string, model: string, total: number) =>
+        L({ timestamp: NOW, type: 'session_meta', payload: { id: sid, cwd: '/w/p' } }) +
+        L({ timestamp: NOW, type: 'turn_context', payload: { model } }) +
+        tc(total);
+      fs.writeFileSync(f, file('sid-A', 'gpt-5', 55));
+      await scanner.scan();
+      fs.writeFileSync(f, `${file('sid-B', 'gpt-5-codex', 55)}${tc(110)}`);
+      await scanner.scan();
+      const recs = ledger.all().filter((r) => r.source === 'codex');
+      expect(recs.map((r) => r.key).sort()).toEqual([
+        'codex:sid-A:55',
+        'codex:sid-B:110',
+        'codex:sid-B:55',
+      ]);
+      expect(recs.find((r) => r.key === 'codex:sid-B:110')!.model).toBe('gpt-5-codex');
+    });
+  });
+
   it('Codex：续读靠游标里的 state（会话 id / 模型）', async () => {
     const { home, ledger, scanner } = mk();
     const dir = path.join(home, '.codex', 'sessions', '2026', '10', '14');
