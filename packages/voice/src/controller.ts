@@ -11,7 +11,7 @@ import { t } from '@nomi-ai/ui';
 
 import { concatFloat32, encodeWav } from './audio';
 import type { AsrErrorCode, VoiceApi } from './bridge';
-import { MicCapture, MicError } from './mic';
+import { MicCancelled, MicCapture, MicError } from './mic';
 import { Segmenter } from './segmenter';
 import { EnergyVad, RemoteVad, type VadEngine } from './vad';
 import { matchWakePhrase } from './wake';
@@ -143,19 +143,25 @@ export class VoiceController {
     if (this.st.phase === 'recording' || this.st.phase === 'starting') return;
     if (this.st.mode !== 'off' && this.st.mode !== 'ptt') await this.stopContinuous();
     this.chunks = [];
-    this.gen += 1;
+    const gen = ++this.gen;
     this.set({ mode: 'ptt', phase: 'starting', error: null, elapsedMs: 0 });
     try {
       await this.mic.start({
         onFrame: (f) => {
+          if (gen !== this.gen) return;
           this.chunks.push(f);
           this.set({ elapsedMs: this.now() - this.startedAt });
         },
-        onLevel: (level) => this.set({ level }),
+        onLevel: (level) => {
+          if (gen === this.gen) this.set({ level });
+        },
       });
+      // 启动期间被取消 / 被新会话取代：状态已由取消方处理，不能再切回 recording
+      if (gen !== this.gen) return;
       this.startedAt = this.now();
       this.set({ phase: 'recording' });
     } catch (e) {
+      if (gen !== this.gen || e instanceof MicCancelled) return;
       this.set({ mode: 'off', phase: 'idle', level: 0 });
       this.fail(e);
     }
@@ -165,7 +171,8 @@ export class VoiceController {
   async pttStop(cancel = false): Promise<string> {
     if (this.st.mode !== 'ptt') return '';
     const ms = this.now() - this.startedAt;
-    const gen = this.gen;
+    // 先换代次：仍在启动中的 pttStart / 排队帧都会因此失效（取消一定落实）
+    const gen = ++this.gen;
     await this.mic.stop();
     const audio = concatFloat32(this.chunks);
     this.chunks = [];
@@ -212,11 +219,18 @@ export class VoiceController {
     const gen = ++this.gen;
     this.settings = { ...this.settings, ...settings };
     this.set({ mode, phase: 'starting', error: null });
+    let vad: VadEngine | null = null;
     try {
-      this.vad = await (this.d.createVad ?? defaultCreateVad)(this.d.api);
+      vad = await (this.d.createVad ?? defaultCreateVad)(this.d.api);
+      if (gen !== this.gen) {
+        // createVad 等待期间被停止 / 取代：只释放自己创建的 VAD
+        vad.dispose();
+        return;
+      }
+      this.vad = vad;
       this.seg = new Segmenter({
         threshold:
-          this.vad.kind === 'silero'
+          vad.kind === 'silero'
             ? this.settings.vadThreshold
             : Math.min(0.9, this.settings.vadThreshold + 0.1),
         maxSpeechMs: mode === 'wake' ? 6000 : 30_000,
@@ -228,10 +242,18 @@ export class VoiceController {
             .then(() => this.onContinuousFrame(f, gen))
             .catch((e) => this.fail(e));
         },
-        onLevel: (level) => this.set({ level }),
+        onLevel: (level) => {
+          if (gen === this.gen) this.set({ level });
+        },
       });
-      this.set({ phase: mode === 'wake' ? 'wake-armed' : 'listening', vad: this.vad.kind });
+      if (gen !== this.gen) return; // 启动期间已被停止 / 取代，状态由取消方处理
+      this.set({ phase: mode === 'wake' ? 'wake-armed' : 'listening', vad: vad.kind });
     } catch (e) {
+      if (gen !== this.gen || e instanceof MicCancelled) {
+        // 旧会话的失败不能动新会话的状态；只释放自己的 VAD（若已被新会话接管则不是它）
+        if (vad && this.vad !== vad) vad.dispose();
+        return;
+      }
       this.vad?.dispose();
       this.vad = null;
       this.set({ mode: 'off', phase: 'idle', level: 0, vad: null });
