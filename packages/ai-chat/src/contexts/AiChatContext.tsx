@@ -126,7 +126,7 @@ interface AiChatContextType {
     stopGeneration: () => void;
     /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
     abortConversation: (convoId: string) => void;
-    askKnowledge: (content: string) => Promise<void>;
+    askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
     loadChatHistory: () => Promise<void>;
     clearChatHistory: () => Promise<void>;
     newConversation: () => Promise<void>;
@@ -353,43 +353,46 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   );
 
   // 知识库问答：主进程检索本地索引 → 模型带引用回答
-  const askKnowledge = useCallback(async (content: string) => {
-    const s = stateRef.current;
-    const turn = openTurn(s.ipcClient);
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: undefined });
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content,
-        timestamp: Date.now(),
-        kb: true,
-      };
-      const history = s.messages
-        .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
-        .slice(-6)
-        .map((m) => ({ role: m.role, content: m.content }));
-      dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-      const r = await kbClient.ask(content, history);
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: r.answer,
-        timestamp: Date.now(),
-        modelId: effectiveProviderLabel(),
-        sources: r.sources,
-        kb: true,
-      };
-      if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-      await turn.save(userMessage);
-      await turn.save(aiMessage);
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, []);
+  const askKnowledge = useCallback(
+    async (content: string, override?: { history: ChatMessage[] }) => {
+      const s = stateRef.current;
+      const turn = openTurn(s.ipcClient);
+      try {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        dispatch({ type: 'SET_ERROR', payload: undefined });
+        const userMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content,
+          timestamp: Date.now(),
+          kb: true,
+        };
+        const history = (override?.history ?? s.messages)
+          .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
+          .slice(-6)
+          .map((m) => ({ role: m.role, content: m.content }));
+        dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        const r = await kbClient.ask(content, history);
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: r.answer,
+          timestamp: Date.now(),
+          modelId: effectiveProviderLabel(),
+          sources: r.sources,
+          kb: true,
+        };
+        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
+        await turn.save(userMessage);
+        await turn.save(aiMessage);
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    },
+    [],
+  );
 
   // 发送流式消息
   const sendStreamMessage = useCallback(
@@ -586,9 +589,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const convoId = s.ipcClient.currentConversationId?.();
       if (store && convoId) store.setMessages(convoId, kept);
       dispatch({ type: 'SET_MESSAGES', payload: kept });
-      await sendStreamMessage(newText ?? target.content, undefined, { history: kept });
+      // 知识库问答的消息重新生成 / 编辑重发时仍走带引用的问答，不能无提示降级成普通对话
+      if (target.kb) await askKnowledge(newText ?? target.content, { history: kept });
+      else await sendStreamMessage(newText ?? target.content, undefined, { history: kept });
     },
-    [sendStreamMessage],
+    [sendStreamMessage, askKnowledge],
   );
 
   const stopGeneration = useCallback(() => {

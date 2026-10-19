@@ -344,4 +344,43 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
       expect(store.getMessages(A).map((m) => m.content)).toEqual(['你好', '部分继续']);
     });
   });
+
+  describe('知识库问答的重新生成（#37）', () => {
+    it('kb 标记的用户消息重新生成 / 编辑重发：走 kbClient.ask，不走 agentStream', async () => {
+      const f = fakeClient();
+      const asks: unknown[][] = [];
+      (window as unknown as { aiIPC: unknown }).aiIPC = {
+        invoke: vi.fn(async (ch: string, ...a: unknown[]) => {
+          if (ch === 'ai:kb:ask') {
+            asks.push(a);
+            return { answer: '带引用的回答', sources: [], mode: 'hybrid' };
+          }
+          return null;
+        }),
+        on: () => () => undefined,
+      };
+      const ref = mount(f.client);
+      await flush();
+      const store = (ref.api.state.ipcClient as SdkIPCClient).conversationStore();
+      const A = store.ensureCurrent();
+      await act(async () => {
+        await ref.api.actions.askKnowledge('问题一');
+      });
+      const u = ref.api.state.messages.find((m) => m.role === 'user')!;
+      expect(u.kb).toBe(true);
+      expect(asks).toHaveLength(1);
+
+      await act(async () => {
+        await ref.api.actions.resendFrom(u.id, '改过的问题');
+      });
+      expect(asks).toHaveLength(2);
+      expect(asks[1]![0]).toBe('改过的问题');
+      expect(f.seen.reqId).toBeUndefined(); // agentStream 没被调用
+      const msgs = ref.api.state.messages;
+      expect(msgs.map((m) => m.content)).toEqual(['改过的问题', '带引用的回答']);
+      expect(msgs.every((m) => m.kb)).toBe(true);
+      expect(store.getMessages(A).length).toBeGreaterThan(0);
+      delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    });
+  });
 });

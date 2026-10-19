@@ -58,7 +58,7 @@ interface MessageInputProps {
    * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
    * 不传则保持原行为（运行中禁用输入）。
    */
-  queue?: { onQueue: (text: string) => void; onStop?: () => void };
+  queue?: { onQueue: (text: string, opts?: { kb?: boolean }) => void; onStop?: () => void };
   disabled?: boolean;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
@@ -245,7 +245,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (busy) {
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
-        queue.onQueue(trimmedMessage);
+        // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
+        queue.onQueue(trimmedMessage, kbMode && kbAvailable ? { kb: true } : undefined);
         setMessage('');
       }
       return;

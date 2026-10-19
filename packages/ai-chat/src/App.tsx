@@ -78,7 +78,8 @@ const AiChatContent: React.FC = () => {
   );
   const nomiQueue = useSendQueue(
     state.isLoading,
-    (text) => actions.sendStreamMessage(text),
+    // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
+    (text, opts) => (opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text)),
     state.messages[0]?.id,
   );
   /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
