@@ -41,6 +41,7 @@ import { inferBrand } from './cliBrand';
 import { CLI_FORMATS, CliProviderEditor, type CliEditorTarget } from './CliProviderEditor';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
+import { OfficialAccounts } from './OfficialAccounts';
 
 const FORMATS = CLI_FORMATS;
 const NAME: Record<CliProviderKind, string> = {
@@ -254,6 +255,8 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         </div>
 
         <CliVersionCard kind={kind} />
+
+        {kind !== 'dsh' && <OfficialAccounts kind={kind} />}
 
         <section className={styles.card} data-testid={`cli-provider-list-${kind}`}>
           <div className={ppStyles.stack}>
