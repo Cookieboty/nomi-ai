@@ -170,4 +170,32 @@ describe('路由响应 usage 嗅探', () => {
       });
     });
   });
+
+  it('取上游响应 / 消息 id：Anthropic message_start、非流式、Responses、Chat；SSE 合并保留首个 id', () => {
+    expect(
+      usageFromObject({ id: 'msg_a', usage: { input_tokens: 1, output_tokens: 1 } }),
+    ).toMatchObject({
+      id: 'msg_a',
+    });
+    expect(
+      usageFromObject({ message: { id: 'msg_b', usage: { input_tokens: 1, output_tokens: 1 } } }),
+    ).toMatchObject({ id: 'msg_b' });
+    expect(
+      usageFromObject({ response: { id: 'resp_c', usage: { input_tokens: 5, output_tokens: 1 } } }),
+    ).toMatchObject({ id: 'resp_c' });
+    expect(
+      usageFromObject({ id: 'chatcmpl-d', usage: { prompt_tokens: 5, completion_tokens: 1 } }),
+    ).toMatchObject({
+      id: 'chatcmpl-d',
+    });
+    const tap = new SseUsageTap();
+    const ev = (o: object) => `data: ${JSON.stringify(o)}\n\n`;
+    tap.push(
+      ev({
+        type: 'message_start',
+        message: { id: 'msg_e', usage: { input_tokens: 3, output_tokens: 1 } },
+      }) + ev({ type: 'message_delta', usage: { output_tokens: 9 } }),
+    );
+    expect(tap.end()).toMatchObject({ id: 'msg_e', output: 9 });
+  });
 });

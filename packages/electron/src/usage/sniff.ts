@@ -13,6 +13,8 @@ export interface SniffedUsage {
   cacheWrite1h?: number;
   /** usage.speed === 'fast'（Anthropic 快速模式，输入输出按 2 倍计价） */
   fast?: boolean;
+  /** 上游响应 / 消息 id（用来和同一次请求的工具日志精确联结）；取不到就缺省 */
+  id?: string;
   model?: string;
 }
 
@@ -46,6 +48,11 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
     (typeof msg?.model === 'string' && msg.model) ||
     (typeof resp?.model === 'string' && resp.model) ||
     undefined;
+  const id =
+    (typeof msg?.id === 'string' && msg.id) ||
+    (typeof resp?.id === 'string' && resp.id) ||
+    (typeof o.id === 'string' && o.id) ||
+    undefined;
   // Anthropic 口径
   if (
     'input_tokens' in u &&
@@ -67,6 +74,7 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       ...(cacheWrite1h ? { cacheWrite1h } : {}),
       ...(u.speed === 'fast' ? { fast: true } : {}),
       model,
+      ...(id ? { id } : {}),
     };
   }
   // OpenAI Responses：input_tokens 含缓存（input_tokens_details.cached_tokens）
@@ -78,6 +86,7 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       cacheRead: cached,
       cacheWrite: 0,
       model,
+      ...(id ? { id } : {}),
     };
   }
   // Anthropic message_delta：只带最终输出 token
@@ -89,6 +98,7 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       cacheWrite: 0,
       ...(u.speed === 'fast' ? { fast: true } : {}),
       model,
+      ...(id ? { id } : {}),
     };
   }
   // OpenAI Chat Completions
@@ -101,6 +111,7 @@ export function usageFromObject(raw: unknown): Partial<SniffedUsage> | null {
       cacheRead: cached,
       cacheWrite: 0,
       model,
+      ...(id ? { id } : {}),
     };
   }
   return null;
@@ -118,6 +129,8 @@ export function mergeUsage(a: SniffedUsage, b: Partial<SniffedUsage>): SniffedUs
     cacheWrite,
     model: b.model || a.model,
   };
+  const id = a.id || b.id; // 同一次响应的 id 不变；取最先看到的
+  if (id) merged.id = id;
   if (w1h) merged.cacheWrite1h = w1h;
   if (a.fast || b.fast) merged.fast = true;
   return merged;

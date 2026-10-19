@@ -116,6 +116,24 @@ describe('UsageService：采集 / 开关 / 查询', () => {
     expect(svc.query('today').summary.costUsd).toBeCloseTo(36 + 6, 6);
   });
 
+  it('路由结束带上游响应 id：Claude msg_ 用同键（与日志合并），其它 id 带 route: 前缀', () => {
+    const { svc } = mk();
+    const u = { input: 10, output: 4, cacheRead: 0, cacheWrite: 0 };
+    svc.routeBegin('claude');
+    svc.routeEnd('claude', { startedAt: Date.now(), model: 'm', usage: { ...u, id: 'msg_01abc' } });
+    svc.routeBegin('codex');
+    svc.routeEnd('codex', { startedAt: Date.now(), model: 'm', usage: { ...u, id: 'resp_9' } });
+    expect(
+      svc.ledger
+        .all()
+        .map((r) => [r.key, r.rid])
+        .sort(),
+    ).toEqual([
+      ['claude:msg_01abc', 'msg_01abc'],
+      ['route:codex:resp_9', 'resp_9'],
+    ]);
+  });
+
   it('改价后费用立即变化；未定价模型补价后计入', () => {
     const { svc } = mk();
     svc.record({ ...call, model: 'my-model', promptTokens: 1_000_000, outputTokens: 0 });

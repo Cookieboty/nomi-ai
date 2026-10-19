@@ -266,6 +266,8 @@ export interface UsageInput {
   project?: string;
   /** 去重键；不传则按来源 + 时间 + token 生成 */
   key?: string;
+  /** 路由：上游响应 / 消息 id */
+  rid?: string;
 }
 
 function accumulate(
@@ -850,6 +852,7 @@ export class UsageService {
     const w1h = Math.min(Math.max(0, i.cacheWrite1h ?? 0), cacheWrite);
     if (w1h) rec.cacheWrite1h = w1h;
     if (i.fast) rec.fast = true;
+    if (i.rid) rec.rid = i.rid;
     if (!rec.input && !rec.output && !rec.cacheRead && !rec.cacheWrite) return null;
     if (!this.ledger.upsert(rec)) return null;
     this.afterRecord(rec);
@@ -871,6 +874,17 @@ export class UsageService {
     this.record({
       ts: r.startedAt,
       dur: Math.max(0, this.now() - r.startedAt),
+      // 有上游响应 id 就用它当稳定键：Claude 原生 msg_… 与工具日志的键相同 → 同一次请求自然合并为一条；
+      // 其它 id 带 route: 前缀，日志侧按 id 后缀精确联结。没有 id 才退回按时间窗口 + 一对一匹配。
+      ...(u.id
+        ? {
+            key:
+              source === 'claude' && u.id.startsWith('msg_')
+                ? `claude:${u.id}`
+                : `route:${source}:${u.id}`,
+            rid: u.id,
+          }
+        : {}),
       source,
       via: 'route',
       provider: r.provider,

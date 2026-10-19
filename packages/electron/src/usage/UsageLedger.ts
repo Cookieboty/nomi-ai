@@ -41,6 +41,23 @@ type Logger = { warn(m: string, d?: unknown): void };
 
 /** 路由请求与日志记录的去重窗口：日志时间落在 [路由开始 - SLACK, 路由结束 + SLACK] 内视为同一次 */
 const ROUTE_SLACK_MS = 15_000;
+/** 无共享 id 时，路由记录与日志记录的提示词 token 允许的差异（相对 / 绝对取大者） */
+const PROMPT_TOL_REL = 0.1;
+const PROMPT_TOL_ABS = 16;
+
+/** 日志记录的身份，用来判断它是不是某条路由记录的同一次请求 */
+export interface RouteHint {
+  key: string;
+  session?: string;
+  /** 输入 + 缓存读写 */
+  prompt: number;
+  output: number;
+}
+
+/** 日志键以上游响应 id 结尾（`claude:<id>` / `claude:<会话>:<id>`）= 同一次请求 */
+function sameRequestId(logKey: string, rid: string): boolean {
+  return logKey === rid || logKey.endsWith(`:${rid}`);
+}
 
 export class UsageLedger {
   private readonly file: string;
@@ -162,7 +179,14 @@ export class UsageLedger {
    */
   attribute(
     key: string,
-    patch: { session?: string; project?: string; cacheWrite1h?: number; fast?: boolean },
+    patch: {
+      session?: string;
+      project?: string;
+      cacheWrite1h?: number;
+      fast?: boolean;
+      /** 认领这条路由记录的日志键（只在还没被认领时写入） */
+      logKey?: string;
+    },
   ): boolean {
     const prev = this.recs.get(key);
     if (!prev) return false;
@@ -175,11 +199,13 @@ export class UsageLedger {
     );
     if (w1h > (prev.cacheWrite1h ?? 0)) next.cacheWrite1h = w1h;
     if (patch.fast && !prev.fast) next.fast = true;
+    if (patch.logKey && !prev.logKey) next.logKey = patch.logKey;
     if (
       next.session === prev.session &&
       next.project === prev.project &&
       next.cacheWrite1h === prev.cacheWrite1h &&
-      next.fast === prev.fast
+      next.fast === prev.fast &&
+      next.logKey === prev.logKey
     )
       return false;
     this.recs.set(key, next);
@@ -193,6 +219,10 @@ export class UsageLedger {
 
   has(key: string): boolean {
     return this.recs.has(key);
+  }
+
+  get(key: string): UsageRecord | undefined {
+    return this.recs.get(key);
   }
 
   /** 按时间范围取记录（升序） */
@@ -229,8 +259,17 @@ export class UsageLedger {
   /**
    * 编程工具日志里的这条记录，是不是已经由 Nomi 本地路由记过账？
    * （走本地路由的请求，日志里也有一份；以路由的为准，日志的跳过，避免重复计数）
+   *
+   * 不带 hint：只看来源 + 时间窗口（旧口径，返回第一个匹配）。
+   * 带 hint（日志记录的身份）时必须是同一次请求才算：
+   * 1. 稳定 id 联结：路由记录的键 / 上游响应 id 与日志键相同 → 精确匹配；
+   * 2. 路由已被另一条日志认领（logKey）→ 不能再并入（一对一）；
+   * 3. 两边都是 Anthropic msg_… 而 id 不同 → 不是同一次；会话 id 都有但不同 → 不是同一次；
+   * 4. 提示词 token（输入 + 缓存读写）要接近，日志输出不能明显超过路由输出；
+   * 5. 多个都满足时取 token 最接近、时间最近的一个。
+   * 没有唯一可信的匹配就返回 null，让日志记录照常入账（宁可保留待核对的记录，也不吞掉独立请求）。
    */
-  routeCovering(source: UsageSource, ts: number): UsageRecord | null {
+  routeCovering(source: UsageSource, ts: number, hint?: RouteHint): UsageRecord | null {
     const arr = this.snapshot();
     // 找到第一个 ts >= 窗口左界的路由记录
     const left = ts - ROUTE_SLACK_MS - 10 * 60_000; // 路由单次最长按 10 分钟估
@@ -241,12 +280,27 @@ export class UsageLedger {
       if (arr[mid]!.ts < left) lo = mid + 1;
       else hi = mid;
     }
+    let best: { r: UsageRecord; score: number } | null = null;
     for (let i = lo; i < arr.length && arr[i]!.ts <= ts + ROUTE_SLACK_MS; i++) {
       const r = arr[i]!;
       if (r.via !== 'route' || r.source !== source) continue;
-      if (ts >= r.ts - ROUTE_SLACK_MS && ts <= r.ts + (r.dur ?? 0) + ROUTE_SLACK_MS) return r;
+      if (ts < r.ts - ROUTE_SLACK_MS || ts > r.ts + (r.dur ?? 0) + ROUTE_SLACK_MS) continue;
+      if (!hint) return r;
+      if (r.key === hint.key || (r.rid && sameRequestId(hint.key, r.rid))) return r;
+      if (r.logKey) {
+        if (r.logKey === hint.key) return r;
+        continue;
+      }
+      if (r.rid?.startsWith('msg_') && hint.key.startsWith('claude:msg_')) continue;
+      if (r.session && hint.session && r.session !== hint.session) continue;
+      const rp = r.input + r.cacheRead + r.cacheWrite;
+      const dp = Math.abs(rp - hint.prompt);
+      if (dp > Math.max(PROMPT_TOL_ABS, rp * PROMPT_TOL_REL)) continue;
+      if (hint.output > r.output + Math.max(PROMPT_TOL_ABS, r.output * PROMPT_TOL_REL)) continue;
+      const score = dp + Math.abs(r.output - hint.output) + Math.abs(ts - r.ts) / 1000;
+      if (!best || score < best.score) best = { r, score };
     }
-    return null;
+    return best?.r ?? null;
   }
 
   coveredByRoute(source: UsageSource, ts: number): boolean {

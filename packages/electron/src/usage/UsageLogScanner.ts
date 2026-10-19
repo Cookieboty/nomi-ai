@@ -361,16 +361,30 @@ export class UsageLogScanner {
     for (const r of recs) {
       if (!r.ts || r.ts < (this.d.clearedAt?.() ?? 0)) continue;
       if (r.source === 'claude' || r.source === 'codex') {
-        const cover = ledger.routeCovering(r.source, r.ts);
+        // 同键的路由记录（Claude 原生 msg_… 路由与日志共用键）= 同一次请求；否则按身份 + 一对一匹配
+        const same = ledger.get(r.key);
+        const cover =
+          same?.via === 'route'
+            ? same
+            : same
+              ? null
+              : ledger.routeCovering(r.source, r.ts, {
+                  key: r.key,
+                  session: r.session,
+                  prompt: r.input + r.cacheRead + r.cacheWrite,
+                  output: r.output,
+                });
         if (cover) {
           // 费用以路由记录为准；日志只补上它不知道的会话 / 项目（供「按会话统计」归属），
-          // 以及路由嗅探没拿到的计价分档（1h 缓存写 / 快速模式），让两条采集路径的费用口径一致
+          // 以及路由嗅探没拿到的计价分档（1h 缓存写 / 快速模式），让两条采集路径的费用口径一致。
+          // 同时认领：这条路由记录不能再并入别的日志记录（一对一，重扫 / 重启后结果稳定）
           if (
             ledger.attribute(cover.key, {
               session: r.session,
               project: r.project,
               cacheWrite1h: r.cacheWrite1h,
               fast: r.fast,
+              ...(cover.key !== r.key ? { logKey: r.key } : {}),
             })
           )
             n++;
