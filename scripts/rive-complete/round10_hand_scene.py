@@ -26,7 +26,7 @@ PROJECT, OUT, ROOT = L10.PROJECT, L10.OUT, L10.ROOT
 SCENE = PROJECT / "scene.rml"
 LICENSE = PROJECT / "parts" / "DETAIL_LICENSE.json"
 S, OX, OY = R8.S, R8.OX, R8.OY
-PIECES = ("palm",) + H.ORDER
+PIECES = ("palm", "web") + H.ORDER      # draw order: the ROUND12 web patch sits right above the palm, under every finger
 
 
 def tendons_for(side: str, piece, hc: dict) -> list:
@@ -99,6 +99,8 @@ def main() -> None:
         hb = H.grid(side)[0]
         images, assets = [], []
         for nm in PIECES:
+            if nm not in P:
+                continue
             pc = P[nm]
             fname = f"hand-{side}-{nm}"
             Image.fromarray(pc.tex).save(OUT / f"{fname}.png")

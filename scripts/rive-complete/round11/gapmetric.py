@@ -46,5 +46,6 @@ if __name__ == '__main__':
         ga = A[sel(A), c] - ra[2 * k]; gb = B[sel(B), c] - rb[2 * k]
         md.append(f'| {nm} | {ra[2*k]:.1f} | {rb[2*k]:.1f} | {ga.mean():.1f} | {gb.mean():.1f} | {ga.max():.0f} | {gb.max():.0f} | {(ga>10).sum()}/{len(ga)} | {(gb>10).sum()}/{len(gb)} |')
         summary[nm] = (ga.mean(), gb.mean(), ga.max(), gb.max())
+        md.append(f'|  ↳ absolute hole px f14-72 (mean / max) | before {A[sel(A), c].mean():.1f} / {A[sel(A), c].max():.0f} | after {B[sel(B), c].mean():.1f} / {B[sel(B), c].max():.0f} | | | | | | |')
     text = '\n'.join(md); print(text)
     if out: open(out, 'w').write(text)

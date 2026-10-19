@@ -34,6 +34,9 @@ ORDER = ("little", "ring", "middle", "index", "thumb")   # draw order on top of 
 HINGE_IN, HINGE_OUT = 2.0, 6.0  # along-axis px (mother): finger cells start owning at HINGE_IN, palm drops them at HINGE_OUT
 OWN_MARGIN = {"thumb": 2.0, "index": 2.0, "middle": 4.0, "ring": 4.0, "little": 4.0}   # px (mother) added to the capsule radius
 TIP_EXT = 8.0                   # px: axis extended past the fingertip so the whole tip is owned
+WEB_GROW = 1                    # px: the web patch extends this far under the neighbouring pieces
+WEB_RIM = 3                     # px: partial-alpha texels this close to the opening are backed by the patch too
+WEB_SHADE = 0.18                # 0..1: how far the web fill is mixed toward the outline colour at its deepest point
 RING = 1.0                      # px: finger piece also carries this ring of neighbouring (palm) texels = hinge/edge overlap (R10: 1.5)
 SKIRT_FINGER = 2.0              # px: under-skirt a finger piece carries of its neighbour fingers' texels
 SKIRT_THUMB = 8.0               # px: ... when the neighbour is the thumb (thumb root swings 20-27 deg in clap/fist)
@@ -48,6 +51,7 @@ class Piece:
     tex: np.ndarray             # (h, w, 4) uint8 piece texture (hand crop with the piece's alpha)
     bones: list                 # bone keys: "hand","fore", or (finger, 0/1/2)
     cells: np.ndarray = None    # (rows-1, cols-1) bool, cells that carry opaque texels
+    aux: dict = None            # extra data for the weight function (web patch: distance maps)
 
 
 PIN_R9 = "754f4a0"   # hand-<side>.png (the single ROUND9 hand crop) is read from here: the generator stays idempotent
@@ -126,6 +130,47 @@ def dist_to(mask: np.ndarray) -> np.ndarray:
     return cv2.distanceTransform((~mask).astype(np.uint8), cv2.DIST_L2, 5)
 
 
+def web_patch(tex: np.ndarray, a0: np.ndarray):
+    """ROUND12 web (虎口) patch: the mother art has a built-in opening between thumb and index (enclosed, alpha 0, ~70-80 px).
+    Returns (rgba patch drawn UNDER the hand pieces or None, hole mask).  Colour is derived from the neighbouring mother pixels:
+    skin = median of opaque, non-outline pixels 2.5-7 px from the hole, outline = median of the opaque pixels touching it; the fill is the
+    skin colour mixed toward the outline colour by WEB_SHADE (deepest in the middle, 30 % of that at the border) so it reads as the
+    shaded crease of the web, not as a flat patch.  The ring of partial-alpha / outline pixels around the hole stays in the finger pieces
+    and is drawn over the patch, so the outline is the original one."""
+    m = (a0 > 0).astype(np.uint8)
+    pad = np.pad(1 - m, 1, constant_values=1).astype(np.uint8)
+    ff = pad.copy()
+    cv2.floodFill(ff, None, (0, 0), 2)
+    hole = ff[1:-1, 1:-1] == 1
+    n, lab, st, _ = cv2.connectedComponentsWithStats(hole.astype(np.uint8))
+    big = np.zeros(hole.shape, bool)
+    for i in range(1, n):
+        if st[i, 4] >= 20:                 # the 1 px specks are not the web
+            big |= lab == i
+    if not big.any():
+        return None, big
+    rgb = tex[..., :3]
+    a = tex[..., 3]
+    d = cv2.distanceTransform((~big).astype(np.uint8), cv2.DIST_L2, 5)
+    skin = (a >= 250) & (d >= 2.5) & (d <= 7) & (rgb[..., 0] > 190)
+    near = (a >= 200) & (d <= 2.0)
+    sc, oc = np.median(rgb[skin], 0), np.median(rgb[near], 0)
+    k = WEB_GROW
+    reg = cv2.dilate(big.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * k + 1, 2 * k + 1))) > 0
+    # also back the anti-aliased (partial-alpha) rim of the opening, otherwise the dark background shows through it as grey dots
+    rim = cv2.dilate(big.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * WEB_RIM + 1, 2 * WEB_RIM + 1))) > 0
+    reg |= rim & (a0 < 0.99)
+    dd = cv2.distanceTransform(reg.astype(np.uint8), cv2.DIST_L2, 5)
+    dd = dd / max(dd.max(), 1)
+    kk = (WEB_SHADE * (0.3 + 0.7 * dd))[..., None]
+    fill = sc * (1 - kk) + oc * kk
+    alpha = np.where(reg, 1.0, cv2.GaussianBlur(reg.astype(np.float32), (0, 0), 0.6))
+    out = np.zeros(tex.shape, np.uint8)
+    out[..., :3] = np.clip(fill, 0, 255).astype(np.uint8)
+    out[..., 3] = np.round(alpha * 255).astype(np.uint8)
+    return out, big
+
+
 def build_pieces(side: str):
     """ROUND11 piece alphas.
 
@@ -180,6 +225,9 @@ def build_pieces(side: str):
         t = tex.copy()
         t[..., 3] = np.round(a0 * cov * 255).astype(np.uint8)
         pieces[nm] = Piece(nm, t, ["hand", "fore"] if nm == "palm" else [(nm, 0), (nm, 1), (nm, 2)])
+    web, _ = web_patch(tex, a0)
+    if web is not None:
+        pieces["web"] = Piece("web", web, ["hand", ("thumb", 0), ("index", 0)], aux={"D": D, "hb": hb})
     for p in pieces.values():
         p.cells = cells_of(p.tex[..., 3], cols, rows)
     return pieces
@@ -213,7 +261,21 @@ def finger_weights(side: str, name: str, mx: float, my: float, joint_blend: floa
     return [1.0 - u1, u1 - u2, u2]
 
 
+def web_weights(piece: Piece, mx: float, my: float) -> list[float]:
+    """web patch: inverse-square distance to the palm / thumb / index owned regions -> [hand, thumb root, index root]
+    (so it follows the palm at the top and stretches between the two finger roots)"""
+    D, hb = piece.aux["D"], piece.aux["hb"]
+    h, w = D["palm"].shape
+    x = int(min(max(round(mx - hb[0] - 0.5), 0), w - 1))
+    y = int(min(max(round(my - hb[1] - 0.5), 0), h - 1))
+    v = [1.0 / (float(D[k][y, x]) + 1.0) ** 2 for k in ("palm", "thumb", "index")]
+    t = sum(v)
+    return [c / t for c in v]
+
+
 def weights(side: str, piece: Piece, mx: float, my: float) -> list[float]:
+    if piece.name == "web":
+        return web_weights(piece, mx, my)
     return palm_weights(side, mx, my) if piece.name == "palm" else finger_weights(side, piece.name, mx, my)
 
 
@@ -289,7 +351,7 @@ def render(side: str, pose: dict, scale: int = 8, box=None, wrist_rot: float = 0
         box = (hb[0] - 25, hb[1] - 5, hb[2] + 25, hb[3] + 30)
     W, H = (box[2] - box[0]) * scale, (box[3] - box[1]) * scale
     canvas = np.zeros((H, W, 3), np.float32) + np.array(bg, np.float32)
-    order = ["palm"] + list(ORDER)
+    order = ["palm"] + (["web"] if "web" in pieces else []) + list(ORDER)
     for nm in order:
         pc = pieces[nm]
         verts, tris, pos = deform(side, pc, pose, wrist_rot)

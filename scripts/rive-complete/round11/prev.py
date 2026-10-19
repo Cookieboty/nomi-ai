@@ -14,7 +14,7 @@ def coverage(side, pose, pieces=None, scale=6, box=None, thr=128):
     if box is None: box = (hb[0] - 25, hb[1] - 5, hb[2] + 25, hb[3] + 30)
     W, Hh = (box[2] - box[0]) * scale, (box[3] - box[1]) * scale
     cnt = np.zeros((Hh, W), np.float32); acc = np.zeros((Hh, W), np.float32)
-    for nm in ['palm'] + list(H.ORDER):
+    for nm in ['palm'] + (['web'] if 'web' in pieces else []) + list(H.ORDER):
         pc = pieces[nm]
         verts, tris, pos = H.deform(side, pc, pose)
         tex = pc.tex[..., 3].astype(np.float32)
@@ -54,7 +54,7 @@ def gapviz(side, pose, pieces, scale=6, path=None, k=4):
     if path: Image.fromarray(img).save(path)
     return new.sum() / scale ** 2, h1.sum() / scale ** 2, (n0.sum() / max((n0 > 0).sum(), 1))
 
-COLS = dict(palm=(150, 150, 150), little=(230, 60, 60), ring=(240, 150, 40), middle=(240, 230, 60), index=(60, 200, 80), thumb=(70, 110, 240))
+COLS = dict(web=(190, 90, 200), palm=(150, 150, 150), little=(230, 60, 60), ring=(240, 150, 40), middle=(240, 230, 60), index=(60, 200, 80), thumb=(70, 110, 240))
 def colorviz(side, pose, pieces, scale=8, path=None, box=None):
     import cv2
     from PIL import Image
@@ -63,7 +63,7 @@ def colorviz(side, pose, pieces, scale=8, path=None, box=None):
     if box is None: box = (hb[0] - 25, hb[1] - 5, hb[2] + 25, hb[3] + 30)
     W, Hh = (box[2] - box[0]) * scale, (box[3] - box[1]) * scale
     img = np.zeros((Hh, W, 3), np.float32) + 30
-    for nm in ['palm'] + list(H.ORDER):
+    for nm in ['palm'] + (['web'] if 'web' in pieces else []) + list(H.ORDER):
         pc = pieces[nm]
         verts, tris, pos = H.deform(side, pc, pose)
         tex = pc.tex[..., 3].astype(np.float32)
