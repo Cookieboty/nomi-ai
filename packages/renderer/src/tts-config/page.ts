@@ -4,6 +4,10 @@
  */
 /* 该页面是直接操作 DOM 的原生脚本迁移而来：表单控件统一按宽松类型访问，不做逐字段建模 */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { t } from '@nomi-ai/ui';
+
+import { applyStaticText } from './staticText';
+
 type Cfg = Record<string, any>;
 type El = any;
 const $ = (id: string): El => document.getElementById(id);
@@ -64,7 +68,7 @@ function configToForm(cfg: any) {
   $('promptText').value = c.promptText || '';
   $('apiKey').value = '';
   $('clearApiKey').checked = false;
-  $('hasApiKeyHint').textContent = c.hasApiKey ? '已保存云端 Key' : '尚未保存云端 Key';
+  $('hasApiKeyHint').textContent = c.hasApiKey ? t('已保存云端 Key') : t('尚未保存云端 Key');
   $('config-editor').value = JSON.stringify({ ...c, apiKey: undefined }, null, 2);
   syncVisibility();
   updateStatusFromConfig(c);
@@ -91,18 +95,18 @@ function updateStatus(type: any, text: any) {
 
 function updateStatusFromConfig(c: any) {
   if (!c || c.enabled === false) {
-    updateStatus('none', 'TTS 已关闭（保持静默）');
+    updateStatus('none', t('TTS 已关闭（保持静默）'));
   } else if (c.provider === 'sherpa-theresa') {
-    updateStatus('valid', '内置离线语音（sherpa-onnx）· 模型未就绪则保持静默');
+    updateStatus('valid', t('内置离线语音（sherpa-onnx）· 模型未就绪则保持静默'));
   } else if (c.provider === 'fish-local') {
     updateStatus(
       'valid',
-      'Fish 本地（高级） · 预设 ' + (c.referenceId || 'nomi') + '（未就绪则保持静默）',
+      t('Fish 本地（高级）· 预设 {0}（未就绪则保持静默）', c.referenceId || 'nomi'),
     );
   } else if (c.provider === 'fish-cloud') {
-    updateStatus('valid', 'Fish 云 · ' + (c.hasApiKey ? '已配置 Key' : '需填写 API Key'));
+    updateStatus('valid', c.hasApiKey ? t('Fish 云 · 已配置 Key') : t('Fish 云 · 需填写 API Key'));
   } else {
-    updateStatus('valid', '外部 legacy TTS');
+    updateStatus('valid', t('外部 legacy TTS'));
   }
 }
 
@@ -110,21 +114,20 @@ function updateStatusFromConfig(c: any) {
 function renderSherpaStatus(st: any) {
   const text = $('sherpa-model-text');
   if (st.state === 'ready') {
-    const where =
+    text.textContent =
       st.source === 'dev'
-        ? '（开发目录）'
+        ? t('模型已就绪（开发目录）')
         : st.source === 'env'
-          ? '（环境变量目录）'
+          ? t('模型已就绪（环境变量目录）')
           : st.source === 'userData'
-            ? '（已下载到本机）'
-            : '';
-    text.textContent = '模型已就绪' + where;
+            ? t('模型已就绪（已下载到本机）')
+            : t('模型已就绪');
   } else if (st.state === 'downloading') {
-    text.textContent = '模型下载中…（完成后自动可用）';
+    text.textContent = t('模型下载中…（完成后自动可用）');
   } else if (st.state === 'error') {
-    text.textContent = '模型不可用：' + (st.message || '未知错误') + '（当前没有可用 TTS）';
+    text.textContent = t('模型不可用：{0}（当前没有可用 TTS）', st.message || t('未知错误'));
   } else {
-    text.textContent = '模型未下载：在主界面「设置 → 语音与屏幕 → 语音」开启语音即可下载';
+    text.textContent = t('模型未下载：在主界面「设置 → 语音与屏幕 → 语音」开启语音即可下载');
   }
 }
 
@@ -133,7 +136,7 @@ async function refreshSherpaStatus() {
   try {
     renderSherpaStatus(await electronAPI().ttsSherpaStatus());
   } catch (e: any) {
-    $('sherpa-model-text').textContent = '无法获取模型状态：' + e.message;
+    $('sherpa-model-text').textContent = t('无法获取模型状态：{0}', e.message);
   }
 }
 
@@ -158,7 +161,7 @@ function hideError() {
 async function loadCurrentConfig() {
   if (!electronAPI()) {
     configToForm(defaultConfig);
-    showResult('ElectronAPI 不可用，显示默认配置', false);
+    showResult(t('ElectronAPI 不可用，显示默认配置'), false);
     return;
   }
   try {
@@ -166,10 +169,10 @@ async function loadCurrentConfig() {
     const config = await electronAPI().getTTSConfig();
     currentConfig = config || defaultConfig;
     configToForm(currentConfig);
-    showResult('配置加载成功', true);
+    showResult(t('配置加载成功'), true);
   } catch (e: any) {
     configToForm(defaultConfig);
-    showResult('加载失败: ' + e.message, false);
+    showResult(t('加载失败：{0}', e.message), false);
   } finally {
     isLoading = false;
   }
@@ -177,12 +180,12 @@ async function loadCurrentConfig() {
 
 async function checkHealth() {
   if (!electronAPI()) {
-    showResult('需要在 Electron 中运行', false);
+    showResult(t('需要在 Electron 中运行'), false);
     return;
   }
   const cfg = formToConfig();
   try {
-    $('health-text').textContent = '检测中…';
+    $('health-text').textContent = t('检测中…');
     const result = await electronAPI().testTTSConnection(cfg);
     if (result.success) {
       updateStatus(
@@ -191,36 +194,36 @@ async function checkHealth() {
       );
       showResult(result.message, true);
     } else {
-      updateStatus('invalid', result.message || '不可达，当前没有可用 TTS');
-      showResult(result.message || '检测失败', false);
+      updateStatus('invalid', result.message || t('不可达，当前没有可用 TTS'));
+      showResult(result.message || t('检测失败'), false);
     }
   } catch (e: any) {
-    showResult('检测失败: ' + e.message, false);
+    showResult(t('检测失败：{0}', e.message), false);
   } finally {
-    $('health-text').textContent = '检测连接';
+    $('health-text').textContent = t('检测连接');
   }
 }
 
 async function saveConfig() {
   if (!electronAPI()) {
-    showResult('需要在 Electron 中运行', false);
+    showResult(t('需要在 Electron 中运行'), false);
     return;
   }
   try {
     const cfg = formToConfig();
     const res = await electronAPI().saveTTSConfig(cfg);
     // 主进程拒绝保存（例如系统安全存储不可用时不会明文落盘 API Key）→ 如实显示，不要报「已保存」
-    if (res && res.success === false) throw new Error(res.error || '未知错误');
+    if (res && res.success === false) throw new Error(res.error || t('未知错误'));
     currentConfig = await electronAPI().getTTSConfig();
     configToForm(currentConfig);
-    showResult('配置已保存', true);
+    showResult(t('配置已保存'), true);
   } catch (e: any) {
-    showResult('保存失败: ' + e.message, false);
+    showResult(t('保存失败：{0}', e.message), false);
   }
 }
 
 async function resetConfig() {
-  if (!confirm('重置为内置离线默认？将清除已保存配置与云 Key。')) return;
+  if (!confirm(t('重置为内置离线默认？将清除已保存配置与云 Key。'))) return;
   if (!electronAPI()) {
     configToForm(defaultConfig);
     return;
@@ -229,9 +232,9 @@ async function resetConfig() {
     await electronAPI().resetTTSConfig();
     currentConfig = await electronAPI().getTTSConfig();
     configToForm(currentConfig || defaultConfig);
-    showResult('已重置为内置默认', true);
+    showResult(t('已重置为内置默认'), true);
   } catch (e: any) {
-    showResult('重置失败: ' + e.message, false);
+    showResult(t('重置失败：{0}', e.message), false);
   }
 }
 
@@ -253,11 +256,22 @@ function applyEditorToForm() {
     configToForm({ ...currentConfig, ...cfg });
     hideError();
   } catch (e: any) {
-    showError('JSON 格式错误: ' + e.message);
+    showError(t('JSON 格式错误：{0}', e.message));
   }
 }
 
+/** 语言切换后重新渲染动态文案（静态文案由 staticText 负责） */
+export function refreshTtsConfigText(): void {
+  if (currentConfig) updateStatusFromConfig(formToConfig());
+  $('hasApiKeyHint').textContent = currentConfig?.hasApiKey
+    ? t('已保存云端 Key')
+    : t('尚未保存云端 Key');
+  if ($('provider').value === 'sherpa-theresa') refreshSherpaStatus();
+}
+
 export function initTtsConfigPage(): void {
+  // 先写静态文案（含状态栏占位），再异步加载配置：加载结果不会被占位覆盖（#48）
+  applyStaticText();
   loadCurrentConfig();
   [
     'enabled',
