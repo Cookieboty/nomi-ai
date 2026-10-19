@@ -39,7 +39,9 @@
   background: rgba(var(--cd-accent-rgb), 0.14);
 }
 .item[data-kind='unsupported'] .name,
-.item[data-kind='unsupported'] .desc {
+.item[data-kind='unsupported'] .desc,
+.item[data-disabled='true'] .name,
+.item[data-disabled='true'] .desc {
   opacity: 0.55;
 }
 .name {

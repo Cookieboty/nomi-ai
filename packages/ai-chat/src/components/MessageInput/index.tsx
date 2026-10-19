@@ -522,7 +522,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argState?.args ? argCmd : null;
+  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
   // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
@@ -545,8 +545,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }
   /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
   function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
+    // 被禁用的同名项没有可补的参数：直接执行，让执行层给出不能发送的说明
     const needsArgs =
-      !!c.args && (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
+      !c.disabled &&
+      !!c.args &&
+      (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
     if (mode === 'complete' || (needsArgs && slash)) {
       setMessage(`/${c.name} `);
       setSlashIdx(0);

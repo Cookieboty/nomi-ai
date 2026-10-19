@@ -154,5 +154,12 @@
   "让 Grok 按间隔重复一项任务（Grok 自己的命令，原样发送）": "Ask Grok to repeat a task on an interval (Grok's own command, sent as-is)",
   "[间隔与任务]": "[interval and task]",
   "Grok 自带": "Bundled with Grok",
-  "会话已关闭或已重置，结果已丢弃。": "The conversation was closed or reset, so the result was discarded."
+  "会话已关闭或已重置，结果已丢弃。": "The conversation was closed or reset, so the result was discarded.",
+  "不可用": "Unavailable",
+  "自带": "Bundled",
+  "/{0} 不能发送": "/{0} can't be sent",
+  "和{0}的 /{1} 重名。CLI 只认 /{1} 这个名字，没有指定这一条的写法，Nomi 不会替它发送，以免执行成别的命令。": "This has the same name as /{1} from {0}. The CLI only recognizes the name /{1} and has no way to target this one, so Nomi will not send it, to avoid running a different command.",
+  "同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。": "When names clash, the CLI only runs the {0} version of /{1} and has no syntax to target another version, so Nomi will not send this one, to avoid running a different command.",
+  "另一条": "the other",
+  "CLI 自带": "the CLI"
 }
