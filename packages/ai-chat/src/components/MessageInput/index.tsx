@@ -246,7 +246,8 @@ export const MessageInput: React.FC<MessageInputProps> = ({
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
         // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
-        queue.onQueue(trimmedMessage, kbMode && kbAvailable ? { kb: true } : undefined);
+        if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
+        else queue.onQueue(trimmedMessage);
         setMessage('');
       }
       return;

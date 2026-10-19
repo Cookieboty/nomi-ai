@@ -44,6 +44,6 @@ describe('忙碌时排队的消息保留知识库意图（#37）', () => {
     render(<MessageInput queue={{ onQueue }} />);
     await act(async () => typeAndEnter('Q2'));
     await waitFor(() => expect(onQueue).toHaveBeenCalledTimes(1));
-    expect(onQueue).toHaveBeenCalledWith('Q2', undefined);
+    expect(onQueue).toHaveBeenCalledWith('Q2');
   });
 });

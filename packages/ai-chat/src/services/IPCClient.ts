@@ -231,18 +231,23 @@ export class SdkIPCClient implements IPCClient {
 
   async saveMessage(message: ChatMessage): Promise<void> {
     this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
-    this.store.append(message, this.store.ensureCurrent());
+    this.store.append(message, this.store.ensureCurrentNomi());
   }
 
   async saveMessageTo(message: ChatMessage, conversationId: string): Promise<void> {
     this.store.maxMessages = (await this.getConfig()).maxHistoryLength;
     // 会话在流式期间被删除：不要复活它，也不要把消息写进别的会话
     if (!this.store.get(conversationId)) return;
+    // CLI 标签的镜像项只存元信息，消息在 harness 里：Nomi 轮次不能写进去（#19）
+    if (!this.store.isNomi(conversationId)) {
+      log.warn('refusing to save a Nomi message into a non-Nomi conversation', conversationId);
+      return;
+    }
     this.store.append(message, conversationId);
   }
 
   ensureConversationId(): string {
-    return this.store.ensureCurrent();
+    return this.store.ensureCurrentNomi();
   }
 
   async listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>> {

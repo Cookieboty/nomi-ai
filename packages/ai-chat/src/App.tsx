@@ -40,6 +40,7 @@ import { useAiChat } from './contexts/AiChatContext';
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
@@ -75,6 +76,12 @@ const AiChatContent: React.FC = () => {
   const cliConvMessages = useMemo(
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
+  );
+  // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
+  useRestoreNomiOnMain(
+    tabs.state?.activeTabId,
+    () => state.ipcClient.conversationStore?.(),
+    () => actions.loadChatHistory(),
   );
   const nomiQueue = useSendQueue(
     state.isLoading,
