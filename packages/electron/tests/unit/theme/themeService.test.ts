@@ -30,9 +30,12 @@ const fakeNative = (dark: boolean) => {
 
 describe('ThemeService', () => {
   beforeEach(() => (sent.length = 0));
-  it('defaults new users to Warm Ink, respects saved choice', () => {
+  it('defaults new users to Sunset Orange, respects saved choice', () => {
     const f = tmp();
-    expect(new ThemeService(f, fakeNative(true)).get()).toEqual({ pref: 'ink', resolved: 'ink' });
+    expect(new ThemeService(f, fakeNative(true)).get()).toEqual({
+      pref: 'sunset',
+      resolved: 'sunset',
+    });
     fs.writeFileSync(f, JSON.stringify({ theme: 'mist' }));
     expect(new ThemeService(f, fakeNative(true)).get().pref).toBe('mist');
   });

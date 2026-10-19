@@ -21,14 +21,21 @@ afterEach(() => {
 });
 
 describe('themes', () => {
-  it('new users default to Warm Ink; saved choice respected', () => {
-    expect(DEFAULT_THEME).toBe('ink');
+  it('new users default to Sunset Orange; saved choice respected', () => {
+    expect(DEFAULT_THEME).toBe('sunset');
     initTheme();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('ink');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('sunset');
     localStorage.setItem('cd.theme', 'mist');
     initTheme();
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
-    expect(THEMES.map((t) => t.id).sort()).toEqual(['cream', 'graphite', 'ink', 'mist', 'system']);
+    expect(THEMES.map((t) => t.id).sort()).toEqual([
+      'cream',
+      'graphite',
+      'ink',
+      'mist',
+      'sunset',
+      'system',
+    ]);
   });
   it('maps legacy paper id to cream', () => {
     expect(normalizeThemePref('paper')).toBe('cream');

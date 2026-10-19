@@ -1,5 +1,5 @@
 /**
- * 设置 → 通用：应用图标（ink 默认 / cream / sunset）。主进程 core/appIcon.ts（app-icon:*）。
+ * 设置 → 通用：应用图标（sunset 默认 / cream / ink）。主进程 core/appIcon.ts（app-icon:*）。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -25,7 +25,7 @@ const invoke = (): Invoke | null => {
   };
 };
 
-const LABEL: Record<Variant, string> = { ink: '墨色（默认）', cream: '奶油', sunset: '日落橙' };
+const LABEL: Record<Variant, string> = { sunset: '日落橙（默认）', cream: '奶油', ink: '墨色' };
 
 export const AppIconSettings: React.FC = () => {
   const [s, setS] = useState<IconState | null>(null);

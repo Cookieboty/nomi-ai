@@ -6,7 +6,7 @@
  *
  * 历史 id `paper`（纸白）在读写时映射为 `cream`（奶油），与品牌奶油色板对齐。
  */
-export type ThemeId = 'mist' | 'graphite' | 'ink' | 'cream';
+export type ThemeId = 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
 export type ThemePref = ThemeId | 'system';
 
 export interface ThemeInfo {
@@ -19,8 +19,14 @@ export interface ThemeInfo {
 
 export const THEMES: ThemeInfo[] = [
   {
+    id: 'sunset',
+    name: 'Sunset Orange 日落橙（默认）',
+    desc: '暖杏浅底 + Nomi 品牌橙',
+    swatch: ['#fff6ec', '#ffefe3', '#3d2918', '#fb9466'],
+  },
+  {
     id: 'ink',
-    name: 'Warm Ink 暖墨（默认）',
+    name: 'Warm Ink 暖墨',
     desc: '暖中性暗色 + Nomi 品牌橙',
     swatch: ['#1a1917', '#272522', '#ece8e1', '#fb9466'],
   },
@@ -51,9 +57,9 @@ export const THEMES: ThemeInfo[] = [
 ];
 
 /** 新用户默认；已保存的选择优先 */
-export const DEFAULT_THEME: ThemePref = 'ink';
+export const DEFAULT_THEME: ThemePref = 'sunset';
 const KEY = 'cd.theme';
-const THEME_IDS: ThemeId[] = ['mist', 'graphite', 'ink', 'cream'];
+const THEME_IDS: ThemeId[] = ['mist', 'graphite', 'ink', 'cream', 'sunset'];
 /** 旧版 Light Paper / 纸白 */
 const LEGACY_THEME: Record<string, ThemeId> = { paper: 'cream' };
 

@@ -13,9 +13,9 @@ import { ICON_VARIANTS, iconFile, sanitizeVariant } from '../../../src/core/appI
 const assets = path.join(__dirname, '..', '..', '..', 'assets');
 
 describe('appIcon', () => {
-  it('defaults unknown variants to ink', () => {
-    expect(sanitizeVariant('nope')).toBe('ink');
-    expect(sanitizeVariant(undefined)).toBe('ink');
+  it('defaults unknown variants to sunset', () => {
+    expect(sanitizeVariant('nope')).toBe('sunset');
+    expect(sanitizeVariant(undefined)).toBe('sunset');
     expect(sanitizeVariant('sunset')).toBe('sunset');
   });
   it('ships window/dock/tray PNGs for every variant', () => {

@@ -73,7 +73,7 @@ describe('first-launch onboarding', () => {
 
     // 2 主题：默认暖墨，可选跟随系统
     await screen.findByTestId('onboarding-step-theme');
-    expect(screen.getByTestId('onb-theme-ink')).toBeTruthy();
+    expect(screen.getByTestId('onb-theme-sunset')).toBeTruthy();
     act(() => fireEvent.click(screen.getByTestId('onb-theme-system')));
     expect(currentTheme().pref).toBe('system');
     fireEvent.click(screen.getByTestId('onboarding-next'));

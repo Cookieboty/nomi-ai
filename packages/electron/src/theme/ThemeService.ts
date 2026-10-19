@@ -1,17 +1,17 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
  * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
- * 新用户默认 Warm Ink；已保存的选择优先。历史 id `paper` 读入时映射为 `cream`。
+ * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream`。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { BrowserWindow, ipcMain, nativeTheme } from 'electron';
 
-export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream'] as const;
+export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 export type ThemePref = ThemeId | 'system';
-export const DEFAULT_THEME: ThemePref = 'ink';
+export const DEFAULT_THEME: ThemePref = 'sunset';
 
 const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
 

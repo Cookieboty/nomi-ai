@@ -157,7 +157,7 @@
 }
 
 /* ======================================================================
- * 可选主题（设置 → 通用 → 主题）。新用户默认 Warm Ink（data-theme='ink'）；
+ * 可选主题（设置 → 通用 → 主题）。新用户默认 Sunset Orange（data-theme='sunset'）；
  * :root 为 Cool Mist 基础令牌（不设 data-theme 时生效）；「跟随系统」解析为 graphite / cream。
  * 原则：中性色优先、只有一个克制的强调色、细线边框、无辉光、无装饰渐变，
  * 层级靠明度阶梯（bg < surface < raised）而不是彩色。
@@ -303,4 +303,53 @@
   --cd-bubble-text: #33291f;
   --cd-bubble-link: #c4602f;
   --cd-bubble-shadow: 0 6px 20px rgba(51, 41, 31, 0.12);
+}
+
+/* D · Sunset Orange 日落橙：暖杏浅底（对齐 sunset 图标 #FFF6EC）+ 鲜明品牌橙默认强调 */
+[data-theme='sunset'] {
+  color-scheme: light;
+  --cd-color-bg: #fff6ec;
+  --cd-color-bg-gradient: #fff6ec;
+  --cd-color-surface: #ffefe3;
+  --cd-color-surface-raised: #fffbf7;
+  --cd-color-surface-sunken: #f8e0cc;
+  --cd-color-border: rgba(61, 41, 24, 0.1);
+  --cd-color-border-strong: rgba(61, 41, 24, 0.2);
+  --cd-color-text: #3d2918;
+  --cd-color-text-muted: #6b5340;
+  --cd-color-text-subtle: #9a7f66;
+  --cd-color-text-on-accent: #2a211a;
+  --cd-accent-rgb: 251, 148, 102; /* Nomi Orange #FB9466 */
+  --cd-accent-2-rgb: 253, 186, 148;
+  --cd-accent-3-rgb: 242, 133, 85;
+  --cd-color-accent: #fb9466;
+  --cd-color-accent-hover: #f17f4e;
+  --cd-color-accent-2: #fdba94;
+  --cd-color-accent-3: #f28555;
+  --cd-color-accent-soft: rgba(251, 148, 102, 0.14);
+  --cd-color-success: #1a7f4b;
+  --cd-color-success-soft: rgba(26, 127, 75, 0.1);
+  --cd-color-warning: #a15c07;
+  --cd-color-warning-soft: rgba(161, 92, 7, 0.1);
+  --cd-color-danger: #c4302b;
+  --cd-color-danger-soft: rgba(196, 48, 43, 0.08);
+  --cd-color-danger-text: #b42318;
+  --cd-color-overlay: rgba(61, 41, 24, 0.22);
+  --cd-color-hover: rgba(61, 41, 24, 0.045);
+  --cd-color-active: rgba(61, 41, 24, 0.08);
+  --cd-color-bg-subtle: #f8e0cc;
+  --cd-color-user-msg: #f8e0cc;
+  --cd-title-fill: none;
+  --cd-title-color: var(--cd-color-text);
+  --cd-app-glow: none;
+  --cd-shadow-sm: 0 1px 2px rgba(61, 41, 24, 0.06);
+  --cd-shadow-md: 0 1px 2px rgba(61, 41, 24, 0.05), 0 6px 18px rgba(61, 41, 24, 0.08);
+  --cd-shadow-lg: 0 2px 4px rgba(61, 41, 24, 0.04), 0 20px 40px rgba(61, 41, 24, 0.12);
+  --cd-shadow-glow: 0 0 0 1px rgba(61, 41, 24, 0.06);
+  --cd-focus-ring: 0 0 0 2px rgba(251, 148, 102, 0.45);
+  --cd-bubble-bg: rgba(255, 251, 247, 0.97);
+  --cd-bubble-border: rgba(61, 41, 24, 0.1);
+  --cd-bubble-text: #3d2918;
+  --cd-bubble-link: #c4602f;
+  --cd-bubble-shadow: 0 6px 20px rgba(61, 41, 24, 0.12);
 }

@@ -1,5 +1,5 @@
 /**
- * 应用图标变体（ink 默认 / cream / sunset）的运行时切换。
+ * 应用图标变体（sunset 默认 / cream / ink）的运行时切换。
  *
  * 能换的：窗口图标与 Windows 任务栏（win.setIcon）、托盘（tray.setImage）、
  * macOS Dock（app.dock.setIcon，仅本次运行）、系统通知图标。
@@ -12,7 +12,7 @@ import { app, BrowserWindow, ipcMain, nativeImage, type NativeImage } from 'elec
 
 export const ICON_VARIANTS = ['ink', 'cream', 'sunset'] as const;
 export type IconVariant = (typeof ICON_VARIANTS)[number];
-export const DEFAULT_ICON: IconVariant = 'ink';
+export const DEFAULT_ICON: IconVariant = 'sunset';
 
 export const sanitizeVariant = (v: unknown): IconVariant =>
   ICON_VARIANTS.includes(v as IconVariant) ? (v as IconVariant) : DEFAULT_ICON;

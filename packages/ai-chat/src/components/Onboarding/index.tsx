@@ -175,8 +175,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </div>
         );
       case 'theme': {
-        const main = THEMES.filter((x) => x.id === 'ink' || x.id === 'system');
-        const more = THEMES.filter((x) => x.id !== 'ink' && x.id !== 'system');
+        const main = THEMES.filter((x) => x.id === 'sunset' || x.id === 'system');
+        const more = THEMES.filter((x) => x.id !== 'sunset' && x.id !== 'system');
         const card = (x: (typeof THEMES)[number], big: boolean) => (
           <button
             key={x.id}

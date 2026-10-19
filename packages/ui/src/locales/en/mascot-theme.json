@@ -24,7 +24,7 @@
   "请选择": "Please select",
   "搜索…": "Search…",
   "无匹配项": "No matches",
-  "Warm Ink 暖墨（默认）": "Warm Ink (default)",
+  "Warm Ink 暖墨": "Warm Ink",
   "暖中性暗色 + Nomi 品牌橙": "Warm neutral dark + Nomi orange",
   "Graphite 石墨": "Graphite",
   "中性暗色 + 低饱和靛蓝": "Neutral dark + muted indigo",
@@ -149,7 +149,8 @@
   "免打扰时段（日程与日历 → 日程提醒 → 免打扰与通知）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。": "Nothing pops up during quiet hours (Schedule & calendar → Schedule reminders → Quiet hours & notifications). macOS Focus has no public API, so it cannot be detected automatically.",
   "预览一条通知": "Preview a notification",
   "通知 / 灵动岛": "Notifications / Island",
-  "墨色（默认）": "Ink (default)",
+  "墨色": "Ink",
+  "日落橙（默认）": "Sunset Orange (default)",
   "奶油": "Cream",
   "日落橙": "Sunset",
   "立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。": "Updates the Dock icon right away (for this session only; Finder and Launchpad keep the default ink icon after you quit). The menu-bar icon stays a monochrome template.",
@@ -248,5 +249,7 @@
   "会话 {0}": "Session {0}",
   "新建编程助手标签": "New coding agent tab",
   "关闭标签": "Close tab",
-  "下一个标签": "Next tab"
+  "下一个标签": "Next tab",
+  "Sunset Orange 日落橙（默认）": "Sunset Orange (default)",
+  "暖杏浅底 + Nomi 品牌橙": "Warm apricot light + Nomi orange"
 }

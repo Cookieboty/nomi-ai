@@ -53,7 +53,7 @@ export interface IWindowManager {
 
 export class WindowManager implements IWindowManager {
   /** 当前主题（Application 注入，决定对话窗口标题栏配色） */
-  chromeTheme: () => ChromeTheme = () => 'ink';
+  chromeTheme: () => ChromeTheme = () => 'sunset';
   private mainWindow: BrowserWindow | null = null;
   private aiChatWindow: BrowserWindow | null = null;
   /** 正在创建中的 AI 对话窗口（并发 createAiChatWindow 共用） */
