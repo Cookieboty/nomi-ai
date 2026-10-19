@@ -913,6 +913,24 @@ describe('CliHarnessService Claude background subagents (docs/design/cli-subagen
     expect(finished).toEqual(['STARTED', 'FOLLOWUP']);
   }, 20_000);
 
+  it('lists running background subagents per tab and stops one with stop_task', async () => {
+    process.env.NOMI_MOCK_BG_MS = '3000';
+    const control = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'c.log');
+    process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, 'go');
+    const meta = () => h.listTabs().tabs.find((x) => x.id === tab.id)!;
+    expect(meta().backgroundAgents).toEqual([
+      expect.objectContaining({ id: 'task_bg_1', label: 'bg task', stoppable: true }),
+    ]);
+    expect(h.stopAgent(tab.id, 'nope')).toBe(false);
+    expect(h.stopAgent(tab.id, 'task_bg_1')).toBe(true);
+    await until(() => !meta().backgroundAgents && !meta().background);
+    expect(fs.readFileSync(control, 'utf8')).toMatch(/ stop_task task_bg_1\n/);
+    delete process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG;
+  }, 20_000);
+
   it('does not reclaim the live process while a background subagent is running', async () => {
     process.env.NOMI_MOCK_BG_MS = '1500';
     const h = mk();

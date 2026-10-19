@@ -3,6 +3,7 @@
  * 视图只认这里的形状；各来源（ChatMessage / HarnessTabMessage）经 utils/convAdapters 转换。
  */
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
+import type { LiveAgent } from '../utils/liveState';
 
 export interface ConvMessage {
   id: string;
@@ -44,6 +45,8 @@ export interface ConvLive {
   permissions?: Array<{ id: string; summary: string; agent?: string; expiresAt?: number }>;
   /** 最近一次超时自动拒绝 */
   permissionExpired?: { summary: string; agent?: string; at: number };
+  /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */
+  agents?: Record<string, LiveAgent>;
   status?: {
     kind: 'retry' | 'reconnect' | 'compact';
     text?: string;

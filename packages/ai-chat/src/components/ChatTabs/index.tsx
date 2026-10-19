@@ -42,6 +42,7 @@ export function tabDotStatus(tab: HarnessTabMeta, mainLoading = false): string {
   if (tab.id === MAIN_TAB_ID && mainLoading) return 'running';
   if (tab.status !== 'idle') return tab.status;
   if (tab.unread > 0) return 'unread';
+  if (tab.background) return 'background';
   return tab.dormant ? 'dormant' : 'idle';
 }
 
@@ -56,7 +57,9 @@ function statusLabel(s: string): string {
           ? t('有新结果')
           : s === 'dormant'
             ? t('已休眠')
-            : t('空闲');
+            : s === 'background'
+              ? t('后台运行中')
+              : t('空闲');
 }
 
 export const ChatTabs: React.FC<{

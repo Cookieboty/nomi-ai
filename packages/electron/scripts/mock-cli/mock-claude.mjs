@@ -660,6 +660,22 @@ if (streamIn) {
       if (parsed.j?.request?.subtype === 'interrupt') {
         process.exit(0);
       }
+      if (parsed.j?.request?.subtype === 'stop_task') {
+        const taskId = parsed.j.request.task_id;
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} stop_task ${taskId}\n`);
+        emit({
+          type: 'control_response',
+          response: { subtype: 'success', request_id: parsed.j.request_id, response: {} },
+        });
+        emit({
+          type: 'system',
+          subtype: 'task_notification',
+          session_id: sessionId,
+          task_id: taskId,
+          status: 'stopped',
+          summary: 'stopped by user',
+        });
+      }
       if (parsed.j?.request?.subtype === 'set_permission_mode') {
         const mode = parsed.j.request.mode;
         if (controlLog) fs.appendFileSync(controlLog, `${process.pid} ${mode}\n`);

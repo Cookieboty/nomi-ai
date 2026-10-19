@@ -307,6 +307,8 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** tabId → 运行中的后台子代理（来自 agent 事件；后台任务条与「停止子代理」用） */
+  private readonly bgAgents = new Map<string, Map<string, { label?: string; startedAt: number }>>();
   /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
   private readonly dormant = new Set<string>();
   private idleReclaimMs: number;
@@ -618,11 +620,22 @@ export class CliHarnessService {
     const tabs = [...this.tabs.values()];
     return {
       tabs: tabs.map((x) => {
-        const bg = this.claudeLive.get(x.id)?.bgTasks.size ?? 0;
+        const agents = this.bgAgents.get(x.id);
+        // Claude 有完整的后台任务计数（含后台 Bash）；其它 CLI 只有子代理
+        const bg = this.claudeLive.get(x.id)?.bgTasks.size ?? agents?.size ?? 0;
         return {
           ...x,
           ...(this.dormant.has(x.id) ? { dormant: true } : {}),
           ...(bg ? { background: bg } : {}),
+          ...(agents?.size
+            ? {
+                backgroundAgents: [...agents].map(([id, a]) => ({
+                  id,
+                  ...a,
+                  stoppable: x.backend === 'claude' && this.claudeLive.has(x.id),
+                })),
+              }
+            : {}),
         };
       }),
       activeTabId: this.activeTabId,
@@ -1117,6 +1130,8 @@ export class CliHarnessService {
       this.partial.delete(id);
       this.stopRequested.delete(id);
       this.release();
+      // Codex / dsh / Grok 每轮一个进程：进程结束，它派生的子代理也随之结束
+      if (backend !== 'claude') this.clearBackgroundAgents(id);
     }
   }
 
@@ -1591,6 +1606,7 @@ export class CliHarnessService {
       live.bgTasks.clear();
       this.changed();
     }
+    this.clearBackgroundAgents(tabId);
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
@@ -1914,6 +1930,36 @@ export class CliHarnessService {
     }
     this.eventBatcher.push({ ...outgoing, tabId });
     this.events.emit('event', { tabId, event: outgoing });
+    if (outgoing.type === 'agent') this.trackBackgroundAgent(tabId, outgoing);
+  }
+
+  /** 只记后台子代理的开始 / 结束（进度不广播标签列表，避免频繁刷新） */
+  private trackBackgroundAgent(tabId: string, ev: Extract<HarnessEvent, { type: 'agent' }>) {
+    let m = this.bgAgents.get(tabId);
+    if (ev.op === 'start' && ev.background) {
+      if (!m) this.bgAgents.set(tabId, (m = new Map()));
+      if (!m.has(ev.id)) {
+        m.set(ev.id, { ...(ev.label ? { label: ev.label } : {}), startedAt: Date.now() });
+        this.changed();
+      }
+    } else if (ev.op === 'end' && m?.delete(ev.id)) {
+      if (!m.size) this.bgAgents.delete(tabId);
+      this.changed();
+    }
+  }
+
+  /** 进程 / 轮次结束：这个标签的后台子代理随之结束 */
+  private clearBackgroundAgents(tabId: string) {
+    if (this.bgAgents.delete(tabId)) this.changed();
+  }
+
+  /**
+   * 单独停止一个后台子代理（Claude `stop_task`，2.1.303 起支持）。其它 CLI 没有对应控制，返回 false。
+   */
+  stopAgent(tabId: string, agentId: string): boolean {
+    const live = this.claudeLive.get(tabId);
+    if (!live || !this.bgAgents.get(tabId)?.has(agentId)) return false;
+    return this.writeClaudeControl(live, { subtype: 'stop_task', task_id: agentId });
   }
 
   private changed() {
@@ -2040,6 +2086,9 @@ export class CliHarnessService {
       slimResult(await this.sendTab(String(id), String(p ?? ''))),
     );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
+    handle('ai:harness:stop-agent', (id, agentId) =>
+      this.stopAgent(String(id), String(agentId ?? '')),
+    );
     handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>

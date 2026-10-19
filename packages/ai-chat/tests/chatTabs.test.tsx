@@ -186,3 +186,29 @@ describe('cliTabPlaceholder', () => {
     );
   });
 });
+
+describe('关闭仍有后台任务的标签（docs/design/cli-subagents.md §5）', () => {
+  it('先确认：取消则不关闭，确认后才关闭', async () => {
+    const ipc = mockIpc({
+      ...base(),
+      tabs: [
+        tab({ id: 'main', title: 'Chat', backend: 'nomi' }),
+        tab({ id: 'a', title: 'Claude Code', background: 2 }),
+      ],
+    });
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    (window as unknown as { confirm: unknown }).confirm = confirm;
+    const r = render(
+      <HarnessTabsProvider>
+        <ChatTabs />
+      </HarnessTabsProvider>,
+    );
+    const close = await r.findByTestId('chat-tab-close-1');
+    await act(async () => fireEvent.click(close));
+    expect(confirm.mock.calls[0]![0]).toContain('2 个后台任务');
+    expect(ipc.invoke).not.toHaveBeenCalledWith('ai:harness:tab-close', 'a');
+    await act(async () => fireEvent.click(close));
+    await waitFor(() => expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'a'));
+    delete (window as { confirm?: unknown }).confirm;
+  });
+});

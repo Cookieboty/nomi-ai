@@ -2,6 +2,7 @@
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
  * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
  */
+import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
   useCallback,
@@ -70,6 +71,13 @@ interface HarnessTabsValue {
 const Ctx = createContext<HarnessTabsValue | null>(null);
 const EMPTY_MESSAGES: HarnessTabMessage[] = [];
 const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
+
+/** 还有后台子代理 / 后台任务时，停止或关闭前确认（它们会随进程一起结束） */
+function confirmStopBackground(tab: HarnessTabMeta | undefined): boolean {
+  const n = tab?.background ?? 0;
+  if (!n) return true;
+  return window.confirm(t('还有 {0} 个后台任务在运行，继续会一起停止它们。确定吗？', String(n)));
+}
 
 export function HarnessTabsProvider({ children }: { children: React.ReactNode }) {
   const available = harnessClient.available();
@@ -212,6 +220,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   }, []);
   const close = useCallback(async (id: string) => {
     if (id === MAIN_TAB_ID) return;
+    // 关闭会拆掉 CLI 进程：还在跑的后台子代理会一起停掉，先确认（docs/design/cli-subagents.md §5）
+    if (!confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === id))) return;
     await harnessClient.closeTab(id);
     dispatching.current.delete(id);
     setQueues((cur) => {
@@ -333,7 +343,9 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     }
   }, [state, queues, tick, dispatchSend]);
   const cancel = useCallback(async () => {
-    if (isCliTab) await harnessClient.cancelTab(activeId);
+    if (!isCliTab) return;
+    if (!confirmStopBackground(stateRef.current?.tabs.find((x) => x.id === activeId))) return;
+    await harnessClient.cancelTab(activeId);
   }, [isCliTab, activeId]);
   const replyPermission = useCallback(
     async (requestId: string, allow: boolean) => {

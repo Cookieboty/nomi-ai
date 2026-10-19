@@ -46,6 +46,7 @@ import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
+import { harnessClient } from './services/harnessClient';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ScreenState } from './services/screenClient';
 import {
@@ -549,6 +550,13 @@ const AiChatContent: React.FC = () => {
                     cards={slash.cards}
                     onDismissCard={slash.dismissCard}
                     dormant={tabs.activeTab!.dormant}
+                    backgroundAgents={tabs.activeTab!.backgroundAgents}
+                    backgroundCount={tabs.activeTab!.background}
+                    onStopAgent={(agentId) =>
+                      void harnessClient
+                        .stopAgent(tabs.activeTab!.id, agentId)
+                        .catch(() => undefined)
+                    }
                   />
                 )}
               </>

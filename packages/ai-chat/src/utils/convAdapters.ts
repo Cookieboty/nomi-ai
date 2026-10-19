@@ -75,6 +75,7 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
     ...(l.firstEventAt !== undefined ? { firstEventAt: l.firstEventAt } : {}),
     ...(l.permissions?.length ? { permissions: l.permissions } : {}),
     ...(l.permissionExpired ? { permissionExpired: l.permissionExpired } : {}),
+    ...(l.agents ? { agents: l.agents } : {}),
     ...(l.status ? { status: l.status } : {}),
   };
 }

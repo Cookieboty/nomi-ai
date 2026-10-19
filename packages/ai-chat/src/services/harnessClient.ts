@@ -26,6 +26,10 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 编程助手进程因空闲被回收；下一条消息会自动续接会话 */
   dormant?: boolean;
+  /** 仍在运行的后台子代理 / 后台任务数 */
+  background?: number;
+  /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
+  backgroundAgents?: Array<{ id: string; label?: string; startedAt: number; stoppable: boolean }>;
 }
 
 export interface HarnessTabsState {
@@ -232,6 +236,8 @@ export const harnessClient = {
   tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
   sendTab: (id: string, prompt: string) => call<HarnessSendResult>('tab-send', id, prompt),
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
+  /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
+  stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
   setMaxConcurrent: (n: number) => call<HarnessTabsState>('set-max-concurrent', n),
   /** 允许/拒绝 Claude 工具权限请求 */
   replyPermission: (tabId: string, requestId: string, allow: boolean) =>

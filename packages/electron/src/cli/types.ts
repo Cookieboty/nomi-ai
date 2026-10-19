@@ -208,6 +208,8 @@ export interface HarnessTabMeta {
   permissionMode: HarnessPermissionMode;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
+  /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */
+  backgroundAgents?: Array<{ id: string; label?: string; startedAt: number; stoppable: boolean }>;
   /** 长驻 CLI 进程因空闲被回收（仅广播用，不落盘）；下一条消息会 --resume 自动续接 */
   dormant?: boolean;
 }

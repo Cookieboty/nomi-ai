@@ -475,3 +475,15 @@
     transition: opacity 0.12s ease;
   }
 }
+
+/* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */
+.dot[data-live='background'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--cd-color-accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-live='background'] {
+    animation: none;
+  }
+}

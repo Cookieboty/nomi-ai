@@ -280,3 +280,15 @@
 .toolList li[data-status='start'] {
   color: var(--cd-color-accent-strong, #3b82f6);
 }
+
+/* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */
+.dot[data-status='background'] {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--cd-color-accent);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot[data-status='background'] {
+    animation: none;
+  }
+}
