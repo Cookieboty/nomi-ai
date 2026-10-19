@@ -77,10 +77,15 @@ function setup(opts: Opts = {}) {
   }));
   let account = ACCT_A;
   let pct = 30;
-  let codexMode: 'ok' | 'auth' | 'hang' = 'ok';
+  let codexMode: 'ok' | 'auth' | 'hang' | 'defer' = 'ok';
+  let releaseCodex: (() => void) | null = null;
   const handler: Handler = (m, reply) => {
     if (m.method === 'initialize') return reply({ id: m.id, result: {} });
     if (m.method !== 'account/rateLimits/read' || codexMode === 'hang') return;
+    if (codexMode === 'defer') {
+      releaseCodex = () => reply({ id: m.id, result: rateResult(account, pct) });
+      return;
+    }
     if (codexMode === 'auth')
       return reply({
         id: m.id,
@@ -152,6 +157,10 @@ function setup(opts: Opts = {}) {
     spawnFn,
     entry,
     writeCodexLog,
+    releaseCodex: async () => {
+      for (let i = 0; i < 100 && !releaseCodex; i++) await new Promise((r) => setTimeout(r, 5));
+      releaseCodex?.();
+    },
     set: {
       account: (a: string) => (account = a),
       pct: (p: number) => (pct = p),
@@ -417,6 +426,62 @@ describe('刷新额度 · Codex', () => {
     const r = await t.svc.quotaView();
     expect(r.find((e) => e.id === 'codex')).toMatchObject({ status: 'unavailable', windows: [] });
     expect(r.find((e) => e.id === 'claude')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+});
+
+describe('刷新额度 · 清空后迟到的结果不回写', () => {
+  it('Codex：慢刷新期间一键清空，随后成功返回 → 不复活缓存，也不重建 quota.json', async () => {
+    const t = setup();
+    t.set.codex('defer');
+    const p = t.svc.refreshQuota('codex');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    await t.releaseCodex();
+    const r = await p;
+    expect(r.tools.codex).toMatchObject({ state: 'transient', reason: 'superseded' });
+    // quota.json 里不能有被清掉的 Codex 额度 / 指纹（别的字段如 Claude 指纹是之后重新观察到的）
+    const saved = JSON.parse(fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8')) as Record<
+      string,
+      unknown
+    >;
+    expect(saved.codex).toBeUndefined();
+    expect(saved.codexFp).toBeUndefined();
+    expect(t.entry(r, 'codex')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+
+  it('Claude：慢刷新期间一键清空，随后成功返回 → 缓存仍为空', async () => {
+    const t = setup();
+    let release!: () => void;
+    const gate = new Promise<void>((res) => {
+      release = res;
+    });
+    t.claudeRun.mockImplementationOnce(async () => {
+      await gate;
+      return { stdout: USAGE_OK, code: 0 };
+    });
+    const p = t.svc.refreshQuota('claude');
+    await new Promise((r) => setTimeout(r, 30));
+    t.svc.clear();
+    release();
+    const r = await p;
+    expect(r.tools.claude).toMatchObject({ state: 'transient', reason: 'superseded' });
+    expect(t.entry(r, 'claude')).toMatchObject({ status: 'unavailable', windows: [] });
+  });
+
+  it('一键清空也清掉 Grok 缓存', async () => {
+    const t = setup();
+    const svc = t.svc as unknown as { grokCache: { refresh: Function; get: () => unknown } };
+    await svc.grokCache.refresh(null, async () => ({
+      kind: 'ok',
+      reading: {
+        windows: [{ id: 'w', usedPercent: 3 }],
+        updatedAt: Date.now(),
+        origin: 'grok-acp',
+      },
+    }));
+    expect(svc.grokCache.get()).not.toBeNull();
+    t.svc.clear();
+    expect(svc.grokCache.get()).toBeNull();
   });
 });
 

@@ -127,6 +127,95 @@ describe('IdentityQuotaCache：身份隔离 / 分层降级 / 60 秒节流', () =
     });
     expect(r).toMatchObject({ state: 'transient', reason: 'spawn-failed' });
   });
+
+  describe('代际校验：清空 / 换号后迟到的结果不能回写', () => {
+    const deferred = () => {
+      let resolve!: (o: FetchOutcome) => void;
+      const p = new Promise<FetchOutcome>((r) => {
+        resolve = r;
+      });
+      return { p, resolve };
+    };
+
+    it('A 拉取中 clear，随后 A 成功：丢弃，缓存仍为空', async () => {
+      const c = mk();
+      const a = deferred();
+      const pa = c.refresh('a', () => a.p);
+      c.clear();
+      a.resolve(ok(10, 'a'));
+      expect(await pa).toEqual({ state: 'superseded' });
+      expect(c.get()).toBeNull();
+      expect(c.currentIdentity()).toBeNull();
+    });
+
+    it('A 拉取中换成 B（observeIdentity）再 A 成功：拒绝 A，不会把 A 装进 B 身份下', async () => {
+      const c = mk();
+      const a = deferred();
+      const pa = c.refresh('a', () => a.p);
+      c.observeIdentity('b');
+      a.resolve(ok(10));
+      expect(await pa).toEqual({ state: 'superseded' });
+      expect(c.get()).toBeNull();
+      expect(c.currentIdentity()).toBe('b');
+    });
+
+    it('A → B → B 成功 → A 成功：B 的值保留；B 刷新不复用 A 的 Promise', async () => {
+      const c = mk();
+      const a = deferred();
+      const b = deferred();
+      const fa = jest.fn(() => a.p);
+      const fb = jest.fn(() => b.p);
+      const pa = c.refresh('a', fa);
+      const pb = c.refresh('b', fb);
+      expect(fb).toHaveBeenCalledTimes(1);
+      b.resolve(ok(22));
+      expect(await pb).toEqual({ state: 'ok' });
+      a.resolve(ok(99));
+      expect(await pa).toEqual({ state: 'superseded' });
+      expect(c.get()!.windows[0]!.usedPercent).toBe(22);
+      expect(c.currentIdentity()).toBe('b');
+    });
+
+    it('A 迟到的失败 / 认证失效也不影响新一代的值', async () => {
+      const c = mk();
+      const a = deferred();
+      const pa = c.refresh('a', () => a.p);
+      const pb = c.refresh('b', async () => ok(7));
+      await pb;
+      a.resolve({ kind: 'auth', reason: 'expired' });
+      expect(await pa).toEqual({ state: 'superseded' });
+      expect(c.get()!.windows[0]!.usedPercent).toBe(7);
+      const a2 = deferred();
+      const pa2 = (() => {
+        t += 120_000;
+        return c.refresh('b', () => a2.p);
+      })();
+      c.observeIdentity('c');
+      a2.resolve({ kind: 'transient', reason: 'timeout' });
+      expect(await pa2).toEqual({ state: 'superseded' });
+      expect(c.isStale()).toBe(false);
+    });
+
+    it('clear 后立即新刷新：旧 Promise 的 finally 不清掉新的 inflight', async () => {
+      const c = mk();
+      const a = deferred();
+      const pa = c.refresh('a', () => a.p);
+      c.clear();
+      t += 120_000;
+      const b = deferred();
+      const fb = jest.fn(() => b.p);
+      const pb = c.refresh('a', fb);
+      a.resolve(ok(1));
+      await pa;
+      // 旧结果已结束，新拉取仍在进行：再次刷新复用它而不是再起一个
+      const pb2 = c.refresh('a', fb);
+      b.resolve(ok(2));
+      expect(await pb).toEqual({ state: 'ok' });
+      expect(await pb2).toEqual({ state: 'ok' });
+      expect(fb).toHaveBeenCalledTimes(1);
+      expect(c.get()!.windows[0]!.usedPercent).toBe(2);
+    });
+  });
 });
 
 describe('fingerprint：非敏感指纹', () => {

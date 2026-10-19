@@ -321,6 +321,8 @@ export class UsageService {
   private readonly codexReader: CodexRateLimitReader;
   private readonly grokFetcher: GrokBillingFetcher;
   private readonly grokCache: IdentityQuotaCache;
+  /** 一键清空计数：刷新开始时捕获，返回时对不上 = 期间被清空，结果不再落盘 */
+  private quotaEpoch = 0;
   private refreshing: Promise<QuotaRefreshReport> | null = null;
   private readonly toolRefreshing = new Map<QuotaToolId, Promise<QuotaRefreshReport>>();
   private readonly toolCore = new Map<QuotaToolId, Promise<ToolRefresh | undefined>>();
@@ -626,6 +628,8 @@ export class UsageService {
         return { state: 'ok' };
       case 'throttled':
         return { state: 'throttled', retryInSec: Math.max(1, Math.ceil(cache.retryInMs() / 1000)) };
+      case 'superseded': // 拉取期间被清空 / 换号：结果已丢弃，让用户稍后再刷新
+        return { state: 'transient', reason: 'superseded', stale: false };
       case 'transient':
         return { state: 'transient', reason: r.reason, stale: r.stale };
       default:
@@ -695,8 +699,9 @@ export class UsageService {
         const snap = readStatuslineSnapshot(this.d.root);
         if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
         else {
+          const epoch = this.quotaEpoch;
           const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
-          if (r.state === 'auth') this.dropClaudeQuota();
+          if (r.state === 'auth' && epoch === this.quotaEpoch) this.dropClaudeQuota();
           return this.mapRefresh(r, this.claudeCache);
         }
       }
@@ -711,7 +716,14 @@ export class UsageService {
       else if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
         return { state: 'fresh-local' };
       else {
+        const epoch = this.quotaEpoch;
         const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
+        // 拉取期间用户清空过 / 换过号：旧结果不能再落盘（连已删除的 quota.json 都不能重建）
+        if (r.state === 'superseded' || epoch !== this.quotaEpoch)
+          return this.mapRefresh(
+            r.state === 'superseded' ? r : { state: 'superseded' },
+            this.codexCache,
+          );
         if (r.state === 'auth') {
           this.codexFp = null;
           this.codexCache.clear();
@@ -1291,8 +1303,10 @@ export class UsageService {
     this.codexFp = null;
     this.claudeFp = null;
     this.quotaFloor = 0;
+    this.quotaEpoch++; // 让进行中的刷新作废（缓存各自也会换代）
     this.codexCache.clear();
     this.claudeCache.clear();
+    this.grokCache.clear();
     try {
       fs.rmSync(this.quotaPath, { force: true });
       fs.rmSync(path.join(this.d.root, SNAPSHOT_FILE), { force: true });

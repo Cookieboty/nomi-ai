@@ -33,6 +33,8 @@ export type FetchOutcome =
 export type RefreshResult =
   | { state: 'ok' }
   | { state: 'throttled' }
+  /** 拉取期间被清空 / 换号作废：结果已丢弃，没有写入缓存 */
+  | { state: 'superseded' }
   | { state: 'transient'; reason: TransientReason; stale: boolean }
   | { state: 'auth'; reason: AuthFailReason };
 
@@ -42,6 +44,9 @@ export class IdentityQuotaCache {
   private stale = false;
   private lastAttemptAt = 0;
   private inflight: Promise<RefreshResult> | null = null;
+  /** 代际：clear / 换号 / 认证失效都会 +1。拉取开始时捕获，返回时对不上就丢弃，迟到的旧结果不能回写 */
+  private gen = 0;
+  private inflightGen = 0;
 
   constructor(
     private readonly now: () => number = Date.now,
@@ -61,6 +66,7 @@ export class IdentityQuotaCache {
   }
 
   clear(): void {
+    this.gen++;
     this.value = null;
     this.stale = false;
     this.identity = null;
@@ -70,6 +76,7 @@ export class IdentityQuotaCache {
   observeIdentity(fp: string | null): boolean {
     if (!fp) return false;
     if (this.identity && this.identity !== fp) {
+      this.gen++;
       this.value = null;
       this.stale = false;
       this.identity = fp;
@@ -87,9 +94,11 @@ export class IdentityQuotaCache {
 
   refresh(fp: string | null, load: () => Promise<FetchOutcome>): Promise<RefreshResult> {
     this.observeIdentity(fp);
-    if (this.inflight) return this.inflight;
+    // 只复用同一代际的进行中拉取：清空 / 换号之后的刷新不能拿到旧账号的 Promise
+    if (this.inflight && this.inflightGen === this.gen) return this.inflight;
     if (this.retryInMs() > 0) return Promise.resolve({ state: 'throttled' });
     this.lastAttemptAt = this.now();
+    const gen = this.gen;
     const p = (async (): Promise<RefreshResult> => {
       let out: FetchOutcome;
       try {
@@ -97,6 +106,8 @@ export class IdentityQuotaCache {
       } catch {
         out = { kind: 'transient', reason: 'spawn-failed' };
       }
+      // 开始之后被清空 / 换号过：成功、失败、认证失效一律不再回写（也不清新一代的值）
+      if (gen !== this.gen) return { state: 'superseded' };
       if (out.kind === 'ok') {
         // 拉取结果自带身份（Codex）：和已有的不一致就先清旧值
         this.observeIdentity(out.identity ?? null);
@@ -108,12 +119,14 @@ export class IdentityQuotaCache {
         if (this.value) this.stale = true;
         return { state: 'transient', reason: out.reason, stale: !!this.value };
       }
+      this.gen++;
       this.value = null;
       this.stale = false;
       this.identity = null;
       return { state: 'auth', reason: out.reason };
     })();
     this.inflight = p;
+    this.inflightGen = gen;
     void p.finally(() => {
       if (this.inflight === p) this.inflight = null;
     });
