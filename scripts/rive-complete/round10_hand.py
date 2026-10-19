@@ -7,6 +7,7 @@ displacement).  Here the grid cells are split by ownership: the palm piece keeps
 finger as a hinge), every finger piece keeps its own cells + a 1-cell ring and follows ONLY its 3 finger bones (rigid
 chain, joint blend only along the finger axis).  No triangle connects two differently-weighted vertices, so nothing can
 be sheared; the ring / hinge overlap (<= 1 cell) is the only overdraw and is pixel-identical at rest.
+ROUND11: ownership is unchanged but the alphas now carry under-skirts (see build_pieces) so a rotating finger/thumb never opens a gap.
 Also contains the numpy/OpenCV skinning preview used to design the fist (same maths as the Rive Skin).
 """
 from __future__ import annotations
@@ -33,7 +34,12 @@ ORDER = ("little", "ring", "middle", "index", "thumb")   # draw order on top of 
 HINGE_IN, HINGE_OUT = 2.0, 6.0  # along-axis px (mother): finger cells start owning at HINGE_IN, palm drops them at HINGE_OUT
 OWN_MARGIN = {"thumb": 2.0, "index": 2.0, "middle": 4.0, "ring": 4.0, "little": 4.0}   # px (mother) added to the capsule radius
 TIP_EXT = 8.0                   # px: axis extended past the fingertip so the whole tip is owned
-RING = 1.5                      # px: finger piece also carries this ring of neighbouring (palm) texels = hinge/edge overlap
+RING = 1.0                      # px: finger piece also carries this ring of neighbouring (palm) texels = hinge/edge overlap (R10: 1.5)
+SKIRT_FINGER = 2.0              # px: under-skirt a finger piece carries of its neighbour fingers' texels
+SKIRT_THUMB = 8.0               # px: ... when the neighbour is the thumb (thumb root swings 20-27 deg in clap/fist)
+SKIRT_PALM_FINGER = 2.5         # px: under-skirt of finger texels carried by the palm
+PALM_SKIRT_ALONG = 6.0          # px along the finger axis (from the MCP) up to which the palm carries a non-thumb finger's texels
+SKIRT_PALM_THUMB = 8.0          # px: ... of thumb texels carried by the palm
 
 
 @dataclass
@@ -115,32 +121,65 @@ def ramp(x, lo, hi):
     return np.clip((x - lo) / (hi - lo), 0.0, 1.0)
 
 
+def dist_to(mask: np.ndarray) -> np.ndarray:
+    """distance (texel = mother px) of every texel to the nearest True texel of ``mask``"""
+    return cv2.distanceTransform((~mask).astype(np.uint8), cv2.DIST_L2, 5)
+
+
 def build_pieces(side: str):
+    """ROUND11 piece alphas.
+
+    Ownership (unchanged from R10): a texel belongs to the finger whose capsule it is deepest inside (and beyond the MCP,
+    along >= 0); everything else (palm, wrist, web) belongs to the palm.  Every piece carries
+      * its owned texels (alpha 1),
+      * an *under-skirt*: texels owned by neighbouring pieces that lie within ``U`` px of its own region.
+        Skirts are hidden under the neighbour at rest (same texels, same place, pixel-identical), but when a neighbour
+        rotates away (thumb root in clap/fist) the skirt keeps skin where the neighbour used to be, so no gap opens
+        between thumb / index / palm.  R10 only had a 1.5 px ring + a 2 px hinge, so a 20 deg thumb swing opened a 2-5 px
+        slit (R10 report: "dark seam in the clap left hand").
+      * fingers additionally a ``RING`` px ring of palm texels (hinge/edge overlap; faded in over the MCP).
+    The R10 rings were measured against the finger *capsules* (radius + margin), which let neighbouring finger pieces
+    carry each other's whole capsule overlap (~1000 px/hand of redundant overdraw); here the ring/skirt are measured
+    against the owned regions, so the total overdraw drops although the thumb skirt is much wider.
+    """
     hb, png, cols, rows = grid(side)
     tex = np.array(png)
     h, w = tex.shape[:2]
     a0 = tex[..., 3].astype(np.float32) / 255.0
     geo = {nm: pixel_geom(side, nm, w, h, hb) for nm in FINGERS}
-    # a texel belongs to the finger whose capsule it is deepest inside (most negative d - r_eff)
     depth = np.stack([geo[nm][0] for nm in FINGERS])
     owner = np.argmin(depth, 0)
-    pieces = {}
-    palm_a = a0.copy()
+    own = {}
     for k, nm in enumerate(FINGERS):
         d, al = geo[nm]
-        mine = (owner == k) & (d <= 0.0)
-        base = ramp(al, -1.5, 0.0)                      # feathered start at the MCP (hinge)
-        take = ramp(-(d - RING), 0.0, 1.0)              # 1 up to RING px outside the owned capsule, AA over 1px
-        take = np.where(mine, 1.0, take)
-        fa = a0 * take * base
-        fa = np.where(mine & (al >= 0), a0, fa)         # owned texels: exactly the source alpha
-        # palm gives up the owned texels beyond the hinge zone (finger piece covers them + RING px more at rest)
-        cut = np.where(mine, ramp(al, 1.5, 3.5), 0.0)
-        palm_a = palm_a * (1.0 - cut)
-        t = tex.copy(); t[..., 3] = np.round(fa * 255).astype(np.uint8)
-        pieces[nm] = Piece(nm, t, [(nm, 0), (nm, 1), (nm, 2)])
-    t = tex.copy(); t[..., 3] = np.round(palm_a * 255).astype(np.uint8)
-    pieces["palm"] = Piece("palm", t, ["hand", "fore"])
+        own[nm] = (owner == k) & (d <= 0.0) & (al >= 0) & (a0 > 0)
+    anyf = np.zeros((h, w), bool)
+    for nm in FINGERS:
+        anyf |= own[nm]
+    own["palm"] = (a0 > 0) & ~anyf
+    D = {nm: dist_to(own[nm]) for nm in own}
+    pieces = {}
+    for nm in ("palm",) + ORDER:
+        cov = np.where(own[nm], 1.0, 0.0)
+        for oj in own:
+            if oj == nm:
+                continue
+            if nm == "palm":
+                U = SKIRT_PALM_THUMB if oj == "thumb" else SKIRT_PALM_FINGER
+            elif oj == "palm":
+                U = RING
+            else:
+                U = SKIRT_THUMB if "thumb" in (nm, oj) else SKIRT_FINGER
+            band = np.clip(U + 0.5 - D[nm], 0.0, 1.0)
+            if nm != "palm" and oj == "palm":
+                band = band * ramp(geo[nm][1], -1.5, 0.0)      # feathered start at the MCP (hinge)
+            src = own[oj]
+            if nm == "palm" and oj != "thumb":
+                src = src & (geo[oj][1] <= PALM_SKIRT_ALONG)   # only the finger root: a folded finger must not leave a stub behind
+            cov = np.maximum(cov, np.where(src, band, 0.0))
+        t = tex.copy()
+        t[..., 3] = np.round(a0 * cov * 255).astype(np.uint8)
+        pieces[nm] = Piece(nm, t, ["hand", "fore"] if nm == "palm" else [(nm, 0), (nm, 1), (nm, 2)])
     for p in pieces.values():
         p.cells = cells_of(p.tex[..., 3], cols, rows)
     return pieces

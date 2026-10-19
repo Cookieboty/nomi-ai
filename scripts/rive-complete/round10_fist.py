@@ -7,6 +7,8 @@ Adds to scene.rml (idempotent: replaces an earlier ROUND10 fist block):
     overshoot (115 %), hold, release.  Only finger bones are keyed (arms stay at the idle pose).
   * AnimationState (0:431) + transition from the ``rest`` state of the Actions layer.
 
+ROUND11: the thumb joints use per-joint progress curves (THUMB_G), see below.
+
 run: python3 round10_fist.py [--scale 1.0]   (scale multiplies every curl angle; for stress tests)
 """
 from __future__ import annotations
@@ -43,6 +45,53 @@ TIMELINE = [(0, 0.0), (16, 1.0), (28, 1.15), (44, 1.0), (58, 1.0), (72, 0.0)]
 EASE = '<CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/>'
 
 
+# ---- ROUND11: thumb joints no longer share one progress curve -------------------------------------------------------------
+# With the same factor on root/p1/p2 (R10) the thumb passes through poses at 30-80 % where the root has already swung
+# -27 deg while p1/p2 are still straight: the thumb tip sweeps SIDEWAYS out of the palm width (peak around f66 on the way back, f8-f16
+# on the way in; fistsim.py: up to 53 px of thumb outside the palm band on the left hand).  A real thumb folds the distal joints first
+# and the root last, so the tip travels inward along the palm.  Per-joint progress g_j(f) of the master factor f in [0, 1] (smoothstep,
+# found with a 3-parameter search: scratch/rive-bone-rig/v11/tools/search*.py; 1.0 -> 1.0, so the closed fist is unchanged):
+#   root : starts at 40 % of the master progress     p1 : done at 60 %     p2 : done at 30 %
+# For the squeeze overshoot (f > 1) every joint just follows f.  The thumb tracks are sampled every 2 frames (linear keys)
+# because the per-joint remap of the eased master curve can no longer be written with one cubic ease per segment.
+THUMB_G = {"root": (0.4, 1.0), "p1": (0.0, 0.6), "p2": (0.0, 0.3)}   # (delay, finish) -> smoothstep((f - delay) / (finish - delay if delay else finish))
+
+
+def _smooth(x: float) -> float:
+    x = min(max(x, 0.0), 1.0)
+    return x * x * (3 - 2 * x)
+
+
+def thumb_g(joint: str, f: float) -> float:
+    if f > 1.0:
+        return f                       # squeeze overshoot: all joints follow the master factor
+    delay, finish = THUMB_G[joint]
+    return _smooth((f - delay) / (finish - delay))
+
+
+def master(frame: int) -> float:
+    """master factor f(t) of TIMELINE with the cubic ease (0.42, 0, 0.58, 1) on every segment (what Rive plays for the other fingers)"""
+    for (t0, f0), (t1, f1) in zip(TIMELINE, TIMELINE[1:]):
+        if t0 <= frame <= t1:
+            x = (frame - t0) / (t1 - t0)
+            lo, hi = 0.0, 1.0                           # solve bezier x(u) = x, then y(u)
+            for _ in range(60):
+                u = (lo + hi) / 2
+                bx = 3 * (1 - u) ** 2 * u * 0.42 + 3 * (1 - u) * u * u * 0.58 + u ** 3
+                lo, hi = (u, hi) if bx < x else (lo, u)
+            u = (lo + hi) / 2
+            by = 3 * (1 - u) * u * u * 1.0 + u ** 3
+            return f0 + (f1 - f0) * by
+    return 0.0
+
+
+def thumb_track(bone: str, joint: str, deg: float, scale: float) -> str:
+    keys = "".join(
+        f'<KeyFrameDouble value="{math.radians(deg) * thumb_g(joint, master(fr)) * scale:.6f}" frame="{fr}" interpolationType="linear"/>'
+        for fr in range(0, TIMELINE[-1][0] + 1, 2))
+    return f'<KeyedObject objectId="{bone}"><KeyedProperty property="rotation">{keys}</KeyedProperty></KeyedObject>\n'
+
+
 def track(bone: str, deg: float, scale: float) -> str:
     keys = "".join(
         f'<KeyFrameDouble value="{math.radians(deg) * f * scale:.6f}" frame="{fr}" interpolationType="cubic">{EASE}</KeyFrameDouble>'
@@ -55,6 +104,10 @@ def animation(scale: float) -> str:
     for side, sgn in (("l", 1.0), ("r", -1.0)):
         b = BONES[side]
         for finger, (a0, a1, a2) in CURL.items():
+            if finger == "thumb":
+                out += [thumb_track(b["root"][finger], "root", sgn * a0, scale), thumb_track(b["p1"][finger], "p1", sgn * a1, scale),
+                        thumb_track(b["p2"][finger], "p2", sgn * a2, scale)]
+                continue
             out += [track(b["root"][finger], sgn * a0, scale), track(b["p1"][finger], sgn * a1, scale), track(b["p2"][finger], sgn * a2, scale)]
     out.append("        </LinearAnimation>\n")
     return "".join(out)
