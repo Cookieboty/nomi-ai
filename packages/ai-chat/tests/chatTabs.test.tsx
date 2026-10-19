@@ -212,3 +212,31 @@ describe('关闭仍有后台任务的标签（docs/design/cli-subagents.md §5�
     delete (window as { confirm?: unknown }).confirm;
   });
 });
+
+describe('「+」新建标签菜单', () => {
+  it('列出全部五个编程助手', async () => {
+    const ipc = mockIpc(base());
+    const r = render(
+      <HarnessTabsProvider>
+        <ChatTabs />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => r.getByTestId('chat-tab-add'));
+    fireEvent.click(r.getByTestId('chat-tab-add'));
+    for (const b of ['claude', 'codex', 'dsh', 'grok', 'gemini'])
+      expect(r.getByTestId(`chat-tab-new-${b}`)).toBeTruthy();
+    expect(ipc.invoke).toBeTruthy();
+  });
+
+  it('标签栏容器不裁剪溢出：否则弹出菜单会被裁成只剩第一项', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../src/components/ChatTabs/index.module.css'),
+      'utf8',
+    );
+    // 去掉注释（注释里正好写着「不能 overflow: hidden」）再看规则本身
+    const bar = (/^\.bar\s*\{([^}]*)\}/m.exec(css)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(bar).not.toMatch(/overflow\s*:\s*(hidden|clip|auto|scroll)/);
+  });
+});

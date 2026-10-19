@@ -6,7 +6,8 @@
   border-bottom: 1px solid var(--cd-color-border);
   /* Codex Desktop 基础界面约 14px。标签原先 12.5px，贴着 16px 的会话区显小。 */
   min-height: 40px;
-  overflow: hidden;
+  /* 不能 overflow: hidden：会把「+」弹出的新建菜单裁成一行（只剩第一项）。横向溢出由 .strip 自己滚动 */
+  min-width: 0;
 }
 
 .strip {
