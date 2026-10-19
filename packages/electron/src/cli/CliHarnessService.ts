@@ -985,14 +985,17 @@ export class CliHarnessService {
         } else {
           tab.status = 'error';
           tab.lastError = message;
+          // 失败前已生成的文字保留在前面，错误信息跟在后面（不当成成功，也不丢已输出内容）
+          const partText = part?.text ?? '';
           this.appendMessage(id, {
             id: randomUUID(),
             role: 'assistant',
-            content: message,
+            content: partText.trim() ? `${partText}\n\n${message}` : message,
             timestamp: Date.now(),
             error: true,
             durationMs,
             ...(trace.length ? { trace } : {}),
+            ...(partText.trim() && part?.breaks.length ? { textBreaks: part.breaks } : {}),
           });
           this.finish(tab, false, '', message);
         }
@@ -1477,6 +1480,12 @@ export class CliHarnessService {
       let sessionId: string | null = tab.cliSessionId;
       let buf = '';
       let lastError: string | null = null;
+      /**
+       * 见过「整轮完成」事件。done 事件在各 CLI 里含义不同（Codex 每条 agent_message 都带 done、
+       * 会话 id 也走 done），所以只认：带用量的 done（Codex turn.completed / Grok usage）
+       * 和 dsh 的 final（done 且不带会话 id）。
+       */
+      let completed = false;
       const chatRoot = path.join(path.dirname(this.d.root), 'chat');
       const imageAliases = loadImageAliases(chatRoot);
       const child = spawnHarness(opts.cmd, opts.argv, {
@@ -1522,6 +1531,7 @@ export class CliHarnessService {
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
             if (ev.sessionId) sessionId = ev.sessionId;
+            if (ev.usage || (opts.kind === 'dsh' && !ev.sessionId)) completed = true;
             // 一轮结束：若仍开着 stdin，补 EOF，避免 CLI 空等
             if (opts.keepStdin && child.stdin.writable) {
               try {
@@ -1551,7 +1561,9 @@ export class CliHarnessService {
         this.children.delete(tab.id);
         this.clearPermissionTimeouts(tab.id);
         if (buf.trim()) take(buf, false);
-        if (signal && !text) {
+        // 用户停止 / 被信号杀死 / 非零退出：不能因为「已有部分文字」就当成功完成（见 #25）。
+        // 已见到一轮完成事件时，收尾阶段的非零退出不再翻案为失败。
+        if (!completed && (this.stopRequested.has(tab.id) || signal)) {
           reject(new Error(t('已中止')));
           return;
         }
@@ -1568,7 +1580,7 @@ export class CliHarnessService {
           );
           return;
         }
-        if (code && code !== 0 && !text) {
+        if (code && code !== 0 && !completed) {
           reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
           return;
         }
