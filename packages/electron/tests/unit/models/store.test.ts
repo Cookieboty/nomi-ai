@@ -2,7 +2,7 @@
 jest.unmock('fs');
 jest.unmock('path');
 
-import { existsSync, promises as fsp } from 'node:fs';
+import { existsSync, readdirSync, promises as fsp } from 'node:fs';
 import path from 'node:path';
 
 import { downloadVerified } from '../../../src/models/download';
@@ -277,6 +277,11 @@ describe('ModelStore', () => {
         existsSync(path.join(slow.remoteDir, 'store-girl', 'download-thumb.png')) ||
           existsSync(path.join(slow.remoteDir, 'store-girl', 'installed.json.tmp')),
       ).toBe(false);
+      // 已下完并校验过的新版本暂存 VRM 也要删掉，不能留一整份在磁盘上（#33）
+      const left = readdirSync(path.join(slow.remoteDir, 'store-girl')).filter((f) =>
+        /^download-.*\.vrm/.test(f),
+      );
+      expect(left).toEqual([]);
     }, 20_000);
 
     it('a slow thumbnail does not hold up the store list; it arrives from cache later', async () => {

@@ -339,6 +339,9 @@ export class ModelStore {
       await fsp.rename(recTmp, path.join(dir, 'installed.json'));
       if (haveThumb) {
         await fsp.rename(thumbStaging, path.join(dir, `thumb.${ext}`)).catch(() => undefined);
+        // 换了图片格式（png ↔ jpg）：去掉上一版留下的另一种缩略图，免得显示旧图
+        const other = ext === 'png' ? 'jpg' : 'png';
+        await fsp.rm(path.join(dir, `thumb.${other}`), { force: true }).catch(() => undefined);
       }
       this.opts.logger?.info('远程模型已安装', { id, version: entry.version });
       return rec;
@@ -346,6 +349,8 @@ export class ModelStore {
       if (ac.signal.aborted) {
         await fsp.rm(`${staging}.part`, { force: true }).catch(() => undefined);
       }
+      // 已下完（甚至已校验）但没提交的整份 VRM：取消 / 失败都不能留在磁盘上（#33）
+      await fsp.rm(staging, { force: true }).catch(() => undefined);
       // 取消 / 失败时清掉缩略图暂存与临时记录（旧版本文件保持不变）
       await Promise.all(
         ['png', 'jpg'].flatMap((x) => [
