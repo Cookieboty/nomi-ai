@@ -27,7 +27,10 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
   ...props
 }) => {
   const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // 错误绑定到「产生它的模型路径」：换成别的模型后旧错误自动失效（不再粘住错误 UI）。
+  // 旧模型迟到的失败由 VRMCharacterController 的 cancelled 检查拦掉，这里再按路径兜底一次。
+  const [errorState, setErrorState] = useState<{ path: string; message: string } | null>(null);
+  const error = errorState && errorState.path === modelPath ? errorState.message : null;
 
   const { isLoaded, isVisible, setCurrentModel } = useCharacter3DStore();
 
@@ -47,7 +50,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
         onReady?.();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : t('初始化失败');
-        setError(errorMessage);
+        setErrorState({ path: modelPath, message: errorMessage });
         onError?.(errorMessage);
         log.error('初始化失败:', err);
       }
@@ -72,7 +75,7 @@ export const VirtualCharacter3D: React.FC<VirtualCharacter3DProps> = ({
 
   // 处理错误
   const handleError = (errorMessage: string) => {
-    setError(errorMessage);
+    setErrorState({ path: modelPath, message: errorMessage });
     onError?.(errorMessage);
     log.error('错误:', errorMessage);
   };
