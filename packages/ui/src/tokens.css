@@ -158,9 +158,10 @@
 
 /* ======================================================================
  * 可选主题（设置 → 通用 → 主题）。新用户默认 Warm Ink（data-theme='ink'）；
- * :root 为 Cool Mist 基础令牌（不设 data-theme 时生效）；「跟随系统」解析为 graphite / paper。
+ * :root 为 Cool Mist 基础令牌（不设 data-theme 时生效）；「跟随系统」解析为 graphite / cream。
  * 原则：中性色优先、只有一个克制的强调色、细线边框、无辉光、无装饰渐变，
  * 层级靠明度阶梯（bg < surface < raised）而不是彩色。
+ * 品牌色（网站 / logo）：cream #FCEFE1、cream-deep #F5E4D0、orange #FB9466、brown #33291F。
  * ==================================================================== */
 
 /* A · Graphite：中性石墨暗色 + 低饱和靛蓝（参考 Linear / Codex 桌面端） */
@@ -255,28 +256,28 @@
   --cd-bubble-shadow: 0 6px 18px rgba(40, 30, 20, 0.22);
 }
 
-/* C · Light Paper：干净浅色 + 克制的系统蓝（参考 Apple / Vercel Geist 浅色） */
-[data-theme='paper'] {
+/* C · Cream 奶油：品牌奶油浅色（#FCEFE1）+ 暖棕字 + Nomi 橙强调（对齐 logo / 网站） */
+[data-theme='cream'] {
   color-scheme: light;
-  --cd-color-bg: #fafaf9;
-  --cd-color-bg-gradient: #fafaf9;
-  --cd-color-surface: #ffffff;
-  --cd-color-surface-raised: #ffffff;
-  --cd-color-surface-sunken: #f3f3f1;
-  --cd-color-border: rgba(0, 0, 0, 0.085);
-  --cd-color-border-strong: rgba(0, 0, 0, 0.18);
-  --cd-color-text: #1c1c1e;
-  --cd-color-text-muted: #5c5c62;
-  --cd-color-text-subtle: #8c8c92;
-  --cd-color-text-on-accent: #ffffff;
-  --cd-accent-rgb: 37, 99, 214;
-  --cd-accent-2-rgb: 37, 99, 214;
-  --cd-accent-3-rgb: 90, 104, 135;
-  --cd-color-accent: #2563d6;
-  --cd-color-accent-hover: #1e52b4;
-  --cd-color-accent-2: #2563d6;
-  --cd-color-accent-3: #5a6887;
-  --cd-color-accent-soft: rgba(37, 99, 214, 0.09);
+  --cd-color-bg: #fcefe1;
+  --cd-color-bg-gradient: #fcefe1;
+  --cd-color-surface: #fff9f3;
+  --cd-color-surface-raised: #fffbf7;
+  --cd-color-surface-sunken: #f5e4d0;
+  --cd-color-border: rgba(51, 41, 31, 0.1);
+  --cd-color-border-strong: rgba(51, 41, 31, 0.2);
+  --cd-color-text: #33291f;
+  --cd-color-text-muted: #5c4f42;
+  --cd-color-text-subtle: #8a7a68;
+  --cd-color-text-on-accent: #2a211a;
+  --cd-accent-rgb: 251, 148, 102; /* Nomi Orange #FB9466 */
+  --cd-accent-2-rgb: 253, 186, 148;
+  --cd-accent-3-rgb: 201, 164, 138;
+  --cd-color-accent: #fb9466;
+  --cd-color-accent-hover: #f17f4e;
+  --cd-color-accent-2: #fdba94;
+  --cd-color-accent-3: #c9a48a;
+  --cd-color-accent-soft: rgba(251, 148, 102, 0.12);
   --cd-color-success: #1a7f4b;
   --cd-color-success-soft: rgba(26, 127, 75, 0.1);
   --cd-color-warning: #a15c07;
@@ -284,22 +285,22 @@
   --cd-color-danger: #c4302b;
   --cd-color-danger-soft: rgba(196, 48, 43, 0.08);
   --cd-color-danger-text: #b42318;
-  --cd-color-overlay: rgba(20, 20, 22, 0.22);
-  --cd-color-hover: rgba(0, 0, 0, 0.04);
-  --cd-color-active: rgba(0, 0, 0, 0.07);
-  --cd-color-bg-subtle: #f4f4f2;
-  --cd-color-user-msg: #efefed;
+  --cd-color-overlay: rgba(51, 41, 31, 0.22);
+  --cd-color-hover: rgba(51, 41, 31, 0.045);
+  --cd-color-active: rgba(51, 41, 31, 0.08);
+  --cd-color-bg-subtle: #f5e4d0;
+  --cd-color-user-msg: #f5e4d0;
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
-  --cd-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
-  --cd-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 18px rgba(0, 0, 0, 0.07);
-  --cd-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.04), 0 20px 40px rgba(0, 0, 0, 0.12);
-  --cd-shadow-glow: 0 0 0 1px rgba(0, 0, 0, 0.06);
-  --cd-focus-ring: 0 0 0 2px rgba(37, 99, 214, 0.35);
-  --cd-bubble-bg: rgba(255, 255, 255, 0.97);
-  --cd-bubble-border: rgba(0, 0, 0, 0.1);
-  --cd-bubble-text: #1c1c1e;
-  --cd-bubble-link: #2563d6;
-  --cd-bubble-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  --cd-shadow-sm: 0 1px 2px rgba(51, 41, 31, 0.06);
+  --cd-shadow-md: 0 1px 2px rgba(51, 41, 31, 0.05), 0 6px 18px rgba(51, 41, 31, 0.08);
+  --cd-shadow-lg: 0 2px 4px rgba(51, 41, 31, 0.04), 0 20px 40px rgba(51, 41, 31, 0.12);
+  --cd-shadow-glow: 0 0 0 1px rgba(51, 41, 31, 0.06);
+  --cd-focus-ring: 0 0 0 2px rgba(251, 148, 102, 0.4);
+  --cd-bubble-bg: rgba(255, 251, 247, 0.97);
+  --cd-bubble-border: rgba(51, 41, 31, 0.1);
+  --cd-bubble-text: #33291f;
+  --cd-bubble-link: #c4602f;
+  --cd-bubble-shadow: 0 6px 20px rgba(51, 41, 31, 0.12);
 }

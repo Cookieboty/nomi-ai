@@ -6,14 +6,14 @@
  */
 import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron';
 
-export type ChromeTheme = 'mist' | 'graphite' | 'ink' | 'paper';
+export type ChromeTheme = 'mist' | 'graphite' | 'ink' | 'cream';
 
 /** 与 packages/ui/src/tokens.css 中各主题的 --cd-color-bg / --cd-color-text 保持一致 */
 export const THEME_CHROME: Record<ChromeTheme, { bg: string; fg: string }> = {
   mist: { bg: '#0a0f1a', fg: '#e8eef7' },
   graphite: { bg: '#0f0f11', fg: '#ededef' },
   ink: { bg: '#1a1917', fg: '#ece8e1' },
-  paper: { bg: '#fafaf9', fg: '#1c1c1e' },
+  cream: { bg: '#fcefe1', fg: '#33291f' },
 };
 
 export const TITLEBAR_HEIGHT = { mac: 38, other: 36 } as const;

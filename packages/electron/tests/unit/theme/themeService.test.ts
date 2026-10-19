@@ -36,14 +36,23 @@ describe('ThemeService', () => {
     fs.writeFileSync(f, JSON.stringify({ theme: 'mist' }));
     expect(new ThemeService(f, fakeNative(true)).get().pref).toBe('mist');
   });
-  it('system follows nativeTheme live: dark → graphite, light → paper', () => {
+  it('migrates legacy paper to cream', () => {
+    const f = tmp();
+    fs.writeFileSync(f, JSON.stringify({ theme: 'paper' }));
+    expect(new ThemeService(f, fakeNative(false)).get()).toEqual({
+      pref: 'cream',
+      resolved: 'cream',
+    });
+  });
+  it('system follows nativeTheme live: dark → graphite, light → cream', () => {
     const n = fakeNative(true);
     const s = new ThemeService(tmp(), n);
     expect(s.set('system')).toEqual({ pref: 'system', resolved: 'graphite' });
     n.shouldUseDarkColors = false;
     n.fire();
-    expect(sent.at(-1)).toEqual({ pref: 'system', resolved: 'paper' });
-    expect(resolveTheme('paper', true)).toBe('paper');
+    expect(sent.at(-1)).toEqual({ pref: 'system', resolved: 'cream' });
+    expect(resolveTheme('cream', true)).toBe('cream');
+    expect(s.set('paper')).toEqual({ pref: 'cream', resolved: 'cream' });
     expect(() => s.set('neon')).toThrow();
   });
 });
