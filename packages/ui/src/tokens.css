@@ -135,6 +135,8 @@
   --cd-focus-ring: 0 0 0 2px rgba(var(--cd-accent-2-rgb), 0.6);
 
   /* layers */
+  --cd-z-chat-content: 1; /* 聊天主区内容（盖在聊天背景层之上） */
+  --cd-z-chat-input: 2; /* 输入区及其向上弹出的菜单（斜杠面板等）：必须高于聊天内容 */
   --cd-z-tooltip: 100100;
   --cd-z-modal: 100000; /* 高于看板娘工具栏（99999） */
   --cd-z-toast: 100200;

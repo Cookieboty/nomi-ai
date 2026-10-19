@@ -71,6 +71,9 @@ body {
   justify-content: flex-start;
   position: relative;
   width: 100%;
+  /* 自成层叠上下文：背景层与内容的 z-index 只在本容器内比较，
+     不会和底部输入区（及其弹出的斜杠面板 / 菜单）抢层级。 */
+  isolation: isolate;
 }
 
 /* 聊天主面板自定义背景（设置 → 通用 → 聊天背景）；仅本容器 */
@@ -90,7 +93,7 @@ body {
 }
 .chat-container > :not(.chat-bg-layer) {
   position: relative;
-  z-index: 1;
+  z-index: var(--cd-z-chat-content, 1);
 }
 
 /* 欢迎空态：居中、干净卡片 */
@@ -175,6 +178,9 @@ body {
   border-top: 1px solid var(--cd-color-border);
   padding: var(--cd-space-4) var(--cd-space-5) var(--cd-space-5);
   position: relative;
+  /* 输入区里的斜杠面板 / 下拉菜单是向上弹出的绝对定位元素，层级受本容器限制，
+     所以整个输入区必须高于聊天内容（--cd-z-chat-content），否则会被消息文字压住。 */
+  z-index: var(--cd-z-chat-input, 2);
   max-width: 100%;
 }
 
