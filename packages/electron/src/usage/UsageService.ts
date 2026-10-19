@@ -690,8 +690,25 @@ export class UsageService {
     return this.scanShared;
   }
 
+  /** 官方 CLI 明确说已退出登录：立即清掉该工具上一个账号的额度、快照和防回流水位 */
+  private applySignedOut(tool: 'claude' | 'codex'): ToolRefresh {
+    if (tool === 'claude') {
+      this.dropClaudeQuota();
+      if (this.claudeFp) {
+        this.claudeFp = null;
+        this.saveQuota();
+      }
+    } else {
+      this.codexFp = null;
+      this.codexCache.clear();
+      this.dropCodexQuota();
+    }
+    return { state: 'auth', reason: 'not-signed-in' };
+  }
+
   private async refreshClaude(active: boolean): Promise<ToolRefresh | undefined> {
     const cl = await this.auth.detectFull('claude').catch(() => null);
+    if (cl?.signedOut) return this.applySignedOut('claude');
     if (cl) this.observeClaudeIdentity(cl.fp);
     if (cl?.mode === 'subscription') {
       if (!active) return { state: 'skipped', reason: 'disabled' };
@@ -711,6 +728,7 @@ export class UsageService {
 
   private async refreshCodex(active: boolean): Promise<ToolRefresh | undefined> {
     const cx = await this.auth.detectFull('codex').catch(() => null);
+    if (cx?.signedOut) return this.applySignedOut('codex');
     if (cx?.mode === 'subscription') {
       if (!active) return { state: 'skipped', reason: 'disabled' };
       else if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))

@@ -275,6 +275,56 @@ describe('刷新额度 · Claude Code', () => {
     expect(q).not.toContain('org-1');
   });
 
+  it('明确退出登录：立即清掉旧账号额度（状态栏快照 / 命令缓存），不被历史数据「恢复」成订阅，未过 5 分钟也一样', async () => {
+    const t = setup();
+    writeSnapshot(t.root, 30_000);
+    await t.svc.refreshQuota(); // 快照很新 → fresh-local，有额度
+    expect((await t.svc.quotaView()).find((e) => e.id === 'claude')).toMatchObject({
+      status: 'ok',
+    });
+    t.auth.claude = JSON.stringify({ loggedIn: false, authMethod: 'none' });
+    t.clock.t += 60_000; // 远不到 5 分钟
+    const r = await t.svc.refreshQuota('claude');
+    expect(r.tools.claude).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(fs.existsSync(path.join(t.root, SNAPSHOT_FILE))).toBe(false);
+    expect(t.entry(r, 'claude')?.windows ?? []).toEqual([]);
+    expect(t.entry(r, 'claude')?.status).not.toBe('ok');
+  });
+
+  it('只有 /usage 命令缓存（没有快照）时退出登录：旧值同样清除，status=ok 不再保留', async () => {
+    const t = setup();
+    const r1 = await t.svc.refreshQuota('claude');
+    expect(t.entry(r1, 'claude')).toMatchObject({ status: 'ok', origin: 'usage-cmd' });
+    t.auth.claude = JSON.stringify({ loggedIn: false, authMethod: 'none' });
+    t.clock.t += 61_000;
+    const r2 = await t.svc.refreshQuota('claude');
+    expect(r2.tools.claude).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(t.entry(r2, 'claude')?.status).not.toBe('ok');
+  });
+
+  it('Codex：有新鲜 app-server 值 / 历史 plan，官方说 Not logged in → 立即清掉，旧日志快照不回流', async () => {
+    const t = setup();
+    await t.svc.refreshQuota('codex');
+    t.writeCodexLog(50, 1_000);
+    t.auth.codex = 'Not logged in';
+    t.clock.t += 30_000;
+    const r = await t.svc.refreshQuota('codex');
+    expect(r.tools.codex).toEqual({ state: 'auth', reason: 'not-signed-in' });
+    expect(t.entry(r, 'codex')?.status).not.toBe('ok');
+    expect((await t.svc.quotaView()).find((e) => e.id === 'codex')?.windows ?? []).toEqual([]);
+    expect(t.spawnFn).toHaveBeenCalledTimes(1); // 只有最初那次真实刷新
+  });
+
+  it('探测失败（命令不存在 / 超时 / 看不懂）不等于退出登录：保留旧值', async () => {
+    const t = setup();
+    writeSnapshot(t.root, 30_000);
+    await t.svc.refreshQuota('claude');
+    t.auth.claude = '';
+    t.clock.t += 6 * 60_000;
+    const r = await t.svc.refreshQuota('claude');
+    expect(r.tools.claude?.state).not.toBe('auth');
+  });
+
   it('「主动刷新额度」关闭：不拉起任何 CLI，只重读本机数据', async () => {
     const t = setup();
     t.svc.setSettings({ activeQuotaRefresh: false });

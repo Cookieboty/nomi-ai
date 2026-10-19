@@ -17,6 +17,7 @@ import {
   grokAuthFromConfig,
   hasGrokAuthFile,
   hasCustomGrokConfiguration,
+  isDefinitelySignedOut,
   parseClaudeAuthStatus,
   parseCodexLoginStatus,
 } from '../../../src/usage/authMode';
@@ -344,5 +345,40 @@ describe('身份指纹 / 自定义 provider 检测 / CLAUDE_CONFIG_DIR', () => {
     run.mockClear();
     expect(await det.detectFull('claude')).toEqual({ mode: 'api', fp: null });
     expect(run).not.toHaveBeenCalled(); // 自定义供应商：连官方命令都不用跑
+  });
+});
+
+describe('明确退出登录 vs 探测失败', () => {
+  it('isDefinitelySignedOut：只认官方明确的退出状态', () => {
+    expect(isDefinitelySignedOut('claude', '{"loggedIn":false,"authMethod":"none"}')).toBe(true);
+    expect(isDefinitelySignedOut('claude', '{"authMethod":"claude.ai"}')).toBe(false);
+    expect(isDefinitelySignedOut('claude', 'garbage')).toBe(false);
+    expect(isDefinitelySignedOut('codex', 'Not logged in')).toBe(true);
+    expect(isDefinitelySignedOut('codex', 'Logged in using ChatGPT')).toBe(false);
+  });
+
+  it('退出登录时即使有历史订阅数据也不恢复成 subscription；探测失败仍可用历史数据兜底', async () => {
+    const home = tmpHome();
+    const mk = (text: string | null) =>
+      new AuthModeDetector({
+        home,
+        env: {},
+        run: async () => text,
+        hasSubscriptionData: () => true,
+      });
+    const out = await mk('Not logged in').detectFull('codex');
+    expect(out).toMatchObject({ mode: 'unknown', signedOut: true });
+    const cl = await mk('{"loggedIn":false,"authMethod":"none"}').detectFull('claude');
+    expect(cl).toMatchObject({ mode: 'unknown', signedOut: true });
+    // 命令不存在 / 超时（null）：不是退出登录，保留旧的兜底行为
+    expect(await mk(null).detectFull('codex')).toEqual({ mode: 'subscription', fp: null });
+    expect((await mk(null).detectFull('codex')).signedOut).toBeUndefined();
+  });
+
+  it('退出登录但本地明确配了 API：按 API 解释', async () => {
+    const home = tmpHome();
+    write(path.join(home, '.codex', 'config.toml'), 'forced_login_method = "api"\n');
+    const d = new AuthModeDetector({ home, env: {}, run: async () => 'Not logged in' });
+    expect(await d.detectFull('codex')).toEqual({ mode: 'api', fp: null });
   });
 });

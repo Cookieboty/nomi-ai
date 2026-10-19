@@ -85,6 +85,20 @@ export function parseClaudeIdentity(
   };
 }
 
+/**
+ * 官方命令明确说「已退出登录」（而不是命令不存在 / 超时 / 输出看不懂）：
+ * Claude `authMethod: "none"`，Codex `Not logged in`。Grok 的 ACP 只给登录入口列表，没有可靠的退出登录信号，不判。
+ */
+export function isDefinitelySignedOut(kind: 'claude' | 'codex', text: string): boolean {
+  if (kind === 'codex') return /not logged in/i.test(text);
+  try {
+    const j = JSON.parse(text) as { authMethod?: unknown } | null;
+    return j?.authMethod === 'none';
+  } catch {
+    return false;
+  }
+}
+
 /** `codex login status` 的输出：Logged in using ChatGPT / Logged in using an API key - … / Not logged in */
 export function parseCodexLoginStatus(text: string): AuthMode | null {
   const s = text.toLowerCase();
@@ -245,6 +259,8 @@ export interface AuthInfo {
   /** 账号指纹（换号检测用）；取不到可靠身份时为 null */
   fp: string | null;
   plan?: string;
+  /** 官方命令明确说已退出登录（mode 仍为 unknown）。与「探测失败 / CLI 不存在 / 超时」不同：调用方要立即清掉旧账号额度 */
+  signedOut?: boolean;
 }
 
 const TTL_MS = 5 * 60_000;
@@ -348,6 +364,9 @@ export class AuthModeDetector {
           ? codexAuthFromConfig(home, env)
           : grokAuthFromConfig(home, env);
     if (cfg) return { mode: cfg, fp: null };
+    // 明确退出登录：不能再用历史额度 / 状态栏快照把它「恢复」成订阅登录
+    if ((id === 'claude' || id === 'codex') && text && isDefinitelySignedOut(id, text))
+      return { mode: 'unknown', fp: null, signedOut: true };
     if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
     return { mode: 'unknown', fp: null };
   }
