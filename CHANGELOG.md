@@ -166,6 +166,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 侧栏「按端」可以选择显示哪些编程助手：每个端点可设为自动、显示或隐藏。默认自动，没有对话、标签和历史的 CLI 不再显示一个为 0 的切换按钮；Nomi 始终显示。 (`@nomi-ai/ai-chat` minor)
 - 侧栏的编程助手历史加入 Gemini CLI 会话，可以直接打开并在原工作目录续接；监视器现在能识别 Gemini CLI 0.62 起使用的 `.jsonl` 会话文件（之前只认旧版 `.json`，新版本的会话标题与状态显示不出来），Nomi 里 Gemini 标签的花费也会出现在完成提示里。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 修复 Gemini 的版本检查：之前保存的「最新版本」缓存里没有 Gemini 时会立即重新获取，不再要等 6 小时；更新 Gemini 只用 npm，不再尝试不存在的 `gemini update`；版本卡片拿不到数据时显示「无法检测」而不是「已安装」；本机 Gemini CLI 过旧、不支持 ACP 时提示先更新。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
+- 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/ui` patch)
 - 修复日落橙 / 奶油等浅色主题下选中态与悬停态对比度过低的问题：分段控件、Tab、设置导航和侧栏当前行改用深棕字配暖橙淡底（并加左侧强调条），链接 / 标签 / 图标改用更深的橙棕色；同时补齐各主题的次要文字、主按钮文字、焦点环和图表色，并新增主题对比度自动化测试。 (`@nomi-ai/ui` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch, `@nomi-ai/voice` patch)
 - 修复权限模式下拉菜单被输入栏挡住、只露出一道阴影的问题：菜单改为挂在页面最上层，完整显示在按钮上方。 (`@nomi-ai/ai-chat` patch)
 - 修复标签栏「+」新建菜单被裁成只剩一行的问题（之前只能看到 Claude Code），现在完整列出 Claude Code、Codex、dsh、Grok、Gemini；侧栏「按端」的显示设置弹层也不再被侧栏右侧裁掉。 (`@nomi-ai/ai-chat` patch)
