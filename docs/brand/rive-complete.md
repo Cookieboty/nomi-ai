@@ -109,3 +109,14 @@ matte. `coat-*-shoulder` is **torso-locked** (static under `full.root`, drawn af
 arm.rig) so clap `arm.rig` chest pull cannot tear the orange collar off the jacket
 body; sleeves still slide underneath. Clap arm.rig translation further reduced.
 Coat shoulder alpha is lightly feathered to reduce polygon sawteeth.
+
+### ROUND5 — shoulder stump + raised wave
+
+Idle sawteeth: deeper soft underlap (~24–36px), stronger coat alpha feather, and
+proximal **stump lock** on `sleeve-*-full` (upper-only near shoulder). A torso-locked
+`sleeve-*-stump` mother patch sits under the orange collar so raised arms do not open
+a cream socket hole.
+
+**wave** retimed for a viewer-facing raise: modest outward upper (~−0.6 rad) + deep
+elbow bend (~−2.1) so the hand reaches cheek/head height with wrist oscillation; Solo
+stays on hang. Extreme upper (~−1.15) tore the sleeve off the collar.

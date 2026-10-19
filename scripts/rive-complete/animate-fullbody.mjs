@@ -30,42 +30,63 @@ const clips = {
   // The sleeve and cuff bones inherit the arm chain.  They are intentionally
   // left unkeyed here: a second rotation on a raster sleeve is what produced
   // the black slivers and detached cuffs in the earlier build.
-  wave: anim('wave', 196, 96, [
+  // ROUND5: raised side-wave toward the viewer (canvas wave intent).
+  // Relative deltas on arm-r (character left / screen right): NEGATIVE lifts the
+  // arm outward/up so the hand reaches head height with a bent elbow; wrist
+  // oscillates palm-toward-camera. Previous +0.26/+0.55 read as a dangling sway.
+  wave: anim('wave', 196, 108, [
     idTrack(9821, 'activeComponentId', [
       [0, '0:9823'],
-      [96, '0:9823'],
+      [108, '0:9823'],
     ]),
+    // upper: modest outward lift (stump/collar stay covering the socket)
     track(9219, 'rotation', [
       [0, 0],
-      [12, 0.1],
-      [24, 0.22],
-      [36, 0.18],
-      [48, 0.26],
-      [60, 0.2],
-      [74, 0.1],
-      [88, 0],
-      [96, 0],
+      [10, -0.28],
+      [22, -0.48],
+      [32, -0.58],
+      [42, -0.54],
+      [52, -0.62],
+      [62, -0.56],
+      [72, -0.6],
+      [84, -0.32],
+      [98, -0.08],
+      [108, 0],
     ]),
+    // forearm: deep bend so hand still reaches cheek/head height
     track(9221, 'rotation', [
       [0, 0],
-      [12, 0.25],
-      [24, 0.5],
-      [36, 0.42],
-      [48, 0.55],
-      [60, 0.45],
-      [74, 0.25],
-      [88, 0],
-      [96, 0],
+      [10, -0.85],
+      [22, -1.55],
+      [32, -2.0],
+      [42, -1.8],
+      [52, -2.1],
+      [62, -1.85],
+      [72, -2.05],
+      [84, -1.05],
+      [98, -0.28],
+      [108, 0],
     ]),
+    // wrist: palm-facing osc while arm is raised (visible wave amplitude)
     track(9223, 'rotation', [
       [0, 0],
-      [24, 0.25],
-      [36, -0.15],
-      [48, 0.28],
-      [60, -0.15],
-      [74, 0.1],
-      [88, 0],
-      [96, 0],
+      [22, 0.45],
+      [32, 0.7],
+      [42, -0.6],
+      [52, 0.75],
+      [62, -0.65],
+      [72, 0.55],
+      [84, 0.2],
+      [98, 0],
+      [108, 0],
+    ]),
+    // soft head tip toward the waving side
+    track(190, 'y', [
+      [0, 0],
+      [28, -4],
+      [72, -3],
+      [100, 0],
+      [108, 0],
     ]),
   ]),
   cheer: anim('cheer', 197, 96, [

@@ -12,8 +12,8 @@ Tendons tear at the elbow). This script:
    rotating bone) and adds a grid Mesh+Skin with Tendon rotation matrices.
 3. Leaves palm/finger images parented to the hand bone (rigid), drawn AFTER
    sleeves/coat so clap palms sit on top of cuffs (ROUND3/4 z-order).
-   ROUND4: coat-shoulder draws after the sleeve Solo so orange collar sits on
-   the soft white underlap.
+   ROUND4/5: coat-shoulder draws after the sleeve Solo so orange collar sits on
+   the soft white underlap; ROUND5 adds proximal stump lock on sleeve-full.
 4. ROUND3 uses continuous sleeve-full mother crops with denser Mesh (GRID=16)
    and a three-bone elbow blend; orange punch-through layers are dropped.
 
@@ -214,6 +214,19 @@ def make_grid_mesh(
             w0 = w_uf * (1.0 - w_fore_vs_upper)
             w1 = w_uf * w_fore_vs_upper
             w2 = w_hand
+            # ROUND5 stump lock: proximal sleeve under the orange collar stays on
+            # upper only so torso-locked coat and white underlap cannot open a
+            # sawtooth gap when fore/hand deltas are non-zero (idle sway / wave).
+            dist_u = math.hypot(rx - bx0, ry - by0)
+            along = (rx - bx0) * d0[0] + (ry - by0) * d0[1]
+            stump = smooth01((70.0 - along) / 55.0) * smooth01((95.0 - dist_u) / 40.0)
+            if stump > 0.01:
+                w0 = w0 + stump * (w1 + w2)
+                w1 = w1 * (1.0 - stump)
+                w2 = w2 * (1.0 - stump)
+                s = w0 + w1 + w2
+                if s > 1e-6:
+                    w0, w1, w2 = w0 / s, w1 / s, w2 / s
             return pack_weights([w0, w1, w2])
         if blend == "upper_only":
             return 255, 1
@@ -517,18 +530,27 @@ def clean_orphan_closes(scene: str) -> str:
 
 
 def mount_static_coat_shoulders(scene: str, boxes: dict) -> str:
-    """ROUND4: torso-lock coat shoulder/collar outside arm.rig.
+    """ROUND4/5: torso-lock coat collar + white sleeve stump outside arm.rig.
 
     Soft sleeve underlap still moves with the arm; the orange collar stays on the
-    jacket body so clap arm.rig translation cannot open a shoulder gap. Drawn
-    after arm.rig (next to static clavicle skins) so the collar sits on top.
+    jacket body so clap arm.rig translation cannot open a shoulder gap. ROUND5
+    adds a mother-pixel white stump under the collar so raised-arm waves do not
+    leave a cream hole when the skinned sleeve leaves the socket. Draw order:
+    stump → coat (both after arm.rig / clavicle skins).
     """
     specs = [
+        # stump first (under collar), then coat
+        ("l", "sleeve-l-stump", "0:9806", "0:9460", "full.arm-l.sleeve-stump.static"),
+        ("r", "sleeve-r-stump", "0:9807", "0:9461", "full.arm-r.sleeve-stump.static"),
         ("l", "coat-l-shoulder", "0:9322", "0:9458", "full.arm-l.coat-shoulder.static"),
         ("r", "coat-r-shoulder", "0:9331", "0:9459", "full.arm-r.coat-shoulder.static"),
     ]
-    # Drop any prior skinned or static coat-shoulder images (under arm or root).
+    # Drop any prior skinned or static coat/stump images (under arm or root).
     for name in (
+        "full.arm-l.sleeve-stump.static",
+        "full.arm-r.sleeve-stump.static",
+        "full.sleeve-l.stump.image",
+        "full.sleeve-r.stump.image",
         "full.arm-l.coat-shoulder.static",
         "full.arm-r.coat-shoulder.static",
         "full.arm-l.coat-shoulder.image",
@@ -544,6 +566,8 @@ def mount_static_coat_shoulders(scene: str, boxes: dict) -> str:
 
     blocks = []
     for side, box_key, asset_id, image_id, name in specs:
+        if box_key not in boxes:
+            raise SystemExit(f"missing box {box_key}; rebuild crops first")
         x0, y0, x1, y1 = boxes[box_key]
         ax, ay = src_to_art(x0, y0)
         blocks.append(
@@ -552,7 +576,7 @@ def mount_static_coat_shoulders(scene: str, boxes: dict) -> str:
             f'scaleX="{SCALE}" scaleY="{SCALE}" id="{image_id}"/>'
         )
     insert = (
-        "                <!-- ROUND4: torso-locked coat collar/shoulder (above sleeves). -->\n"
+        "                <!-- ROUND5: torso-locked sleeve stump + coat collar. -->\n"
         + "\n".join("                " + b for b in blocks)
         + "\n"
     )

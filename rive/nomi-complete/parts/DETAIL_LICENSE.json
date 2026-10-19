@@ -9,8 +9,8 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "61c4f1fac510c05111290eda2ad485b35907c41ecb467b21f5b33e6be4933822",
-      "bytes": 1472505,
+      "sha256": "d9cea9be275cb542307f6d503dd362864725f1bd39a38baf98d263bbbb43d0e0",
+      "bytes": 1472418,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -37,8 +37,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-tail.png": {
-      "sha256": "d7a2c89fa61fe8d7d0af329a9c791bb9376a38d8dd86795527b8249bfa4e1f66",
-      "bytes": 165140,
+      "sha256": "90b5130977910f3775745ce94fda31b46376070961fd0ed0b7bec852271d13f4",
+      "bytes": 165131,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -79,22 +79,22 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-tail.png": {
-      "sha256": "bde3d4795b3fbaaa1df88dada74cd04821617d7576613f1e9f3a13e3ae6e53b8",
-      "bytes": 163302,
+      "sha256": "ba0655d17208a4267b16828f747404734ac5773fc26d45c280b7468a7b63c3ea",
+      "bytes": 163286,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-shoulder.png": {
-      "sha256": "8addc2368edd88c2b845f20f2ebd5a218e5e0a6c59372204c7dbc390f223b6b9",
-      "bytes": 54482,
+      "sha256": "610fceaa6aaec81de01563d8c4a783377e166f1668c9acceaded25d99514d6ea",
+      "bytes": 68757,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-upper.png": {
-      "sha256": "82c3f330f5dddb640b5445ccb76afd62e202ed8eb4dbb5c78fbcf2657e2e3e1e",
-      "bytes": 97912,
+      "sha256": "97a91e1043eebb2bf9f53b47589538e47a673d3f211d9e3619892f598d4f6e30",
+      "bytes": 98118,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -149,15 +149,15 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-shoulder.png": {
-      "sha256": "3df3beaf24b3efdb1cdc095e638959ab220ebf7b2ff9a99e13b1b06f765d8fc5",
-      "bytes": 52990,
+      "sha256": "607edb501ee9a851de359f1924e8f473d05795daad0b491a3696cd28872a156f",
+      "bytes": 67627,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-upper.png": {
-      "sha256": "9babcc504f19fb9e8248a562844c22fcca96744f577a26c16bf321ac6bd0d66c",
-      "bytes": 97396,
+      "sha256": "0af69eea5fb4327f52140b4591d1932c67fd3e2c71c29eb14fe14e9e60fafc03",
+      "bytes": 97585,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -226,29 +226,29 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-shoulder-dark.png": {
-      "sha256": "c9cafd6c8ad493034d4519f8e5e61b8caf7b45d7865ba15ffb8a15764a891289",
-      "bytes": 54071,
+      "sha256": "d347b40accf59414713c9e04992860744e8982c442b2b8febd5e30f414b23e72",
+      "bytes": 67453,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-shoulder-orange.png": {
-      "sha256": "50ed35d2a28c71151c1e1946199c1f577e5f49b0ca0298cf0940dafb939a64c7",
-      "bytes": 54233,
+      "sha256": "aa26dfc579218f0113546f2965ac23492d3bd0759a524974722c1411b809f205",
+      "bytes": 67834,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-shoulder-dark.png": {
-      "sha256": "0024cd55bc2db410441da02c561ecbee1ecb6638f82306280246792b50f23088",
-      "bytes": 52550,
+      "sha256": "00e98a1e35c6d8adae9822710d97ff85e2840537bb29afa73c9a93812125c922",
+      "bytes": 65990,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-shoulder-orange.png": {
-      "sha256": "76d27a7c2f721134088d1e546a80daeb42d312f050a9f0a17aee17705250b53b",
-      "bytes": 52897,
+      "sha256": "4d59360d95d9386cc4187c8a69970f256780b4b22b9cac7ce3af4f1fe5622e20",
+      "bytes": 67688,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -268,15 +268,15 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-upper-dark.png": {
-      "sha256": "46ca3f1ba89baa3f87826d0583058816cdcbd402bd8a95afe79761bdb7778391",
-      "bytes": 97299,
+      "sha256": "e41ccfacb78178c2db998312608877f496b32b359956fc982da070de2007f599",
+      "bytes": 97428,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-upper-orange.png": {
-      "sha256": "4c1a197a92ede8aad57a2670d056b2361a36329ccc856f9cedc1e494ea7c1393",
-      "bytes": 97168,
+      "sha256": "b949a382376b8a8faae4852a2918b25306e01c1cba8e74c70e4499319854f8d7",
+      "bytes": 97426,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -296,57 +296,71 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-upper-dark.png": {
-      "sha256": "184736b8f1a10784a9dc0356f23061b12c8819f64bf1a2caf794f96b09a9dafe",
-      "bytes": 96519,
+      "sha256": "5d58114f06f6bf23b71169a02fcc41818cd10e1f3955b2fb733fba634c376649",
+      "bytes": 96576,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-upper-orange.png": {
-      "sha256": "ead9461ab66355a9f5dffa919bd891763ca31f44ac89b0752380f6f9d88d66ec",
-      "bytes": 96636,
+      "sha256": "feab6a5de32b404bd24342eb61020d72b875b95b615d75b6a8b80f9366ae35da",
+      "bytes": 96919,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-bent.png": {
-      "sha256": "fa5598ad8c25cc9e4931f4c476583830d9f42d1c34a9da5baa5b628304bb7eac",
-      "bytes": 96883,
+      "sha256": "655c518febfeed533e645f99ab0768b0e5925fec045386fd07d80fade34c1282",
+      "bytes": 97893,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-full-dark.png": {
-      "sha256": "a51be5682cd909a997b520c9fb69f20bddc96e0f61c747309599cd34b5c9197c",
-      "bytes": 136696,
+      "sha256": "9236bd733903d046bef26a9b2dd2b0b2bca19200125356f5a761258d10c9de00",
+      "bytes": 148074,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-l-full.png": {
-      "sha256": "8cf1c5faf1b66e201438a52909cb4f6cf4a23d67344744805b6211b5ecab1a5d",
-      "bytes": 137471,
+      "sha256": "326735ad59c9a6bf0317769d68caa1043eaa092b76ed373ea2801ffd26971bac",
+      "bytes": 148986,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-bent.png": {
-      "sha256": "6158ede80ee673e48cd06ee68f7293958187e3de126a853ea357f4dc1a8a3111",
-      "bytes": 88149,
+      "sha256": "9cc47c21a64c1ba7d00f9edc7c7052d527187a5fb73d4bdda1c994d1c0847487",
+      "bytes": 89801,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-full-dark.png": {
-      "sha256": "4fb48d36be1077485efe41157180e56ee132f85351db5eca3ecf48de2a9e73e3",
-      "bytes": 135169,
+      "sha256": "4eda91cc60c65c187ea61de18a6512ce7fc5f551ef0befdbea62b13872dc7f27",
+      "bytes": 145977,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/sleeve-r-full.png": {
-      "sha256": "c7cd9cf33d72db434b0ce37918ac203c8ae4fe5f563ec514594ae0e87a83f998",
-      "bytes": 136197,
+      "sha256": "3675028e9ddb387e648ae423f3e32595f8d6bfbe04c4081d2ecb5af76352b190",
+      "bytes": 147212,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-l-stump.png": {
+      "sha256": "ff83b2cb9af9f054816f4e0e387f7683243b3e6bbf8fe07a6c393db3de15d490",
+      "bytes": 95427,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-r-stump.png": {
+      "sha256": "d6c92f02db02aee38a9f323e49a1c40612b8c7e340bccbff697be411e7885b0b",
+      "bytes": 95163,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"

@@ -25,6 +25,9 @@ ASSETS = [
     ("0:9803", "0:9813", "sleeve-r-full", "full.sleeve-r.full.image"),
     ("0:9804", "0:9814", "sleeve-r-full-dark", "full.sleeve-r.full.dark.image"),
     ("0:9805", "0:9815", "sleeve-r-bent", "full.sleeve-r.bent.image"),
+    # ROUND5 torso-locked white stump under collar (placeholders; mounted static later)
+    ("0:9806", "0:9816", "sleeve-l-stump", "full.sleeve-l.stump.image"),
+    ("0:9807", "0:9817", "sleeve-r-stump", "full.sleeve-r.stump.image"),
 ]
 
 OLD_IMAGE_NAMES = [
