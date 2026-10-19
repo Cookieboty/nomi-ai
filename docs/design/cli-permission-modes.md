@@ -1,6 +1,6 @@
 # 编程助手权限模式（设计稿 + 实现记录）
 
-> 状态：**PR 1（主进程）已实现**；PR 2（界面）、PR 3（计划审批流）待做。
+> 状态：**PR 1（主进程）、PR 2（界面）已实现**；PR 3（计划审批流）待做。
 > 查证日期 2026-10-19：Claude Code 2.1.303、Codex CLI 0.163.0、dsh 0.2.0-rc.2、Grok Build 1.0.62（macOS）。
 > 代码：`packages/electron/src/cli/permissionMode.ts`、`CliHarnessService.ts`。
 
@@ -69,7 +69,16 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 - **迁移**：旧数据没有 `permissionMode` 时，Claude 标签还原为 `manual`（保持原来的逐项确认），其它后端用默认档 `acceptEdits`。行为变化只有 Grok：从全部放开降到「自动改文件」（见 changeset）。
 - **持久化**：主标签档位存 `session.json`；其它标签与默认档 / 联网开关存 `tabs.json`。
 
-## 4. 界面（PR 2，待做）
+## 4. 界面（PR 2，已实现）
+
+实现：`ai-chat/src/components/PermissionModeChip`、`utils/permissionModes.ts`、`/mode` 命令（`slash/adapters/common.ts`）。
+与下面原计划的差异：
+
+- 「新标签默认模式」放在模式下拉底部（「设为新标签默认」），没有单独的设置页；「Codex 允许联网」保持默认开，暂无界面开关。
+- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从芯片进入并确认。
+- `degraded` 的提示显示在芯片旁（5 秒后消失），StatusLine 暂未显示模式。
+
+原计划：
 
 - 输入框底部、后端切换器旁放模式 chip（图标 + 文字），点开下拉；当前后端不支持的档位置灰并说明原因。
 - 输入框聚焦时 `Shift+Tab` 在支持的档位间循环，**跳过「完全放开」**。

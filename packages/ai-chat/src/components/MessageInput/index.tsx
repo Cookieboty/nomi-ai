@@ -34,6 +34,7 @@ import {
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
+import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
@@ -303,6 +304,13 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         setMessage('');
         return;
       }
+    }
+    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式芯片时保持默认行为
+    if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const detail: CyclePermissionDetail = { handled: false };
+      window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));
+      if (detail.handled) e.preventDefault();
+      return;
     }
     // ↑ 在空输入框里找回上一条提问（同 Codex）
     if (e.key === 'ArrowUp' && !message) {

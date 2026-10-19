@@ -1,5 +1,7 @@
 import { t } from '@nomi-ai/ui';
 
+import type { PermissionMode } from '../utils/permissionModes';
+
 export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 export interface HarnessState {
@@ -28,6 +30,8 @@ export interface HarnessTabMeta {
   dormant?: boolean;
   /** 换工作目录 / 分叉后，下一条消息会连同这么多条之前的对话一起发给新会话 */
   carriedMessages?: number;
+  /** 权限模式（主进程已按后端降级）；「完全放开」不跨重启保留 */
+  permissionMode?: PermissionMode;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -40,6 +44,10 @@ export interface HarnessTabsState {
   maxConcurrent: number;
   running: number;
   queued: number;
+  /** 新标签默认权限模式（不会是「完全放开」） */
+  defaultPermissionMode?: PermissionMode;
+  /** Codex 在自动改文件档允许联网 */
+  codexNetwork?: boolean;
 }
 
 export interface HarnessTabMessage {
@@ -229,6 +237,11 @@ export const harnessClient = {
     call<HarnessTabMeta>('tab-seed', id, messages),
   closeTab: (id: string) => call<HarnessTabsState>('tab-close', id),
   renameTab: (id: string, title: string) => call<HarnessTabMeta>('tab-rename', id, title),
+  /** 切换标签权限模式；「完全放开」必须带 confirmed（界面先弹确认框）。degraded = 后端不支持、已降级 */
+  setTabPermissionMode: (id: string, mode: PermissionMode, opts: { confirmed?: boolean } = {}) =>
+    call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
+  setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
+    call<HarnessTabsState>('permission-defaults', o),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>

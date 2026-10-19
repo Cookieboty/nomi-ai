@@ -60,7 +60,6 @@
   "这是交互式终端里的命令，Nomi 以非交互方式接入，没有对应的界面。": "This is a command of the interactive terminal UI. Nomi connects non-interactively and has no matching screen.",
   "暂不支持（{0}）": "Not supported ({0})",
   "直接编辑项目里的 {0} 即可。": "Just edit {0} in your project.",
-  "在 Nomi「设置 → 编程助手」里调整权限与审批方式。": "Adjust permissions and approvals in Nomi “Settings → Coding assistants”.",
   "请在终端里运行 {0}。Nomi 不读取也不代你输入任何账号凭据。": "Run {0} in a terminal. Nomi never reads or types account credentials for you.",
   "在输入框里直接写文件路径即可。": "Just write the file path in the input box.",
   "在左侧历史里点开旧会话即可继续。": "Open an old session from the history on the left to continue it.",

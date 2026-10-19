@@ -13,11 +13,12 @@ import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useHarnessState } from '../../hooks/useHarnessState';
 import type { CliProviderKind } from '../../services/cliProviderClient';
-import { harnessClient } from '../../services/harnessClient';
+import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { providerClientAvailable } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
 import { CliProviderChip } from '../CliProviderChip';
+import { PermissionModeChip } from '../PermissionModeChip';
 import { ProviderSwitcher } from '../ProviderSwitcher';
 import { WorkspacePicker } from '../WorkspacePicker';
 
@@ -37,6 +38,8 @@ export const EndpointControls: React.FC<{
   const backend = tabs.isCliTab && tabs.activeTab ? tabs.activeTab.backend : harness?.backend;
   const cli = isDev && backend && backend !== 'nomi' ? backend : null;
   const tab = tabs.isCliTab ? tabs.activeTab : null;
+  // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
+  const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
   const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
   const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
@@ -67,6 +70,9 @@ export const EndpointControls: React.FC<{
     <>
       {isDev && <BackendSwitcher />}
       {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
+      {cli && modeTab && (
+        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+      )}
       {cli && tab?.carriedMessages ? (
         <span
           className={styles.carry}

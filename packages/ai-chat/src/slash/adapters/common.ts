@@ -4,9 +4,16 @@
  */
 import { t } from '@nomi-ai/ui';
 
-import type { SlashDiscoveryEntry } from '../../services/harnessClient';
+import { harnessClient, type SlashDiscoveryEntry } from '../../services/harnessClient';
 import type { ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
+import {
+  fallbackMode,
+  modeHint,
+  modeLabel,
+  supportedModes,
+  type PermissionMode,
+} from '../../utils/permissionModes';
 import {
   contextCard,
   costCard,
@@ -139,8 +146,77 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
           return card({ kind: 'diff', title: t('未提交的更改'), ...d });
         },
       }),
+      cmd({
+        name: 'mode',
+        label: t('权限模式'),
+        description: t('切换权限模式：plan 计划 / manual 逐项确认 / edits 自动改文件 / auto 自动'),
+        source: 'builtin',
+        kind: 'native',
+        hint: 'plan | manual | edits | auto',
+        run: (a, ctx) => runMode(a, ctx.backend),
+      }),
     );
   return out;
+}
+
+const MODE_ARGS: Record<string, PermissionMode> = {
+  plan: 'plan',
+  manual: 'manual',
+  default: 'manual',
+  edits: 'acceptEdits',
+  acceptedits: 'acceptEdits',
+  auto: 'auto',
+};
+
+/**
+ * /mode：切换当前标签的权限模式。「完全放开」不能用命令进入（必须在输入栏的模式芯片里确认）；
+ * 不带参数时列出当前端支持的档位。
+ */
+async function runMode(raw: string, backend: ConversationBackend): Promise<SlashOutcome> {
+  const arg = raw.trim().toLowerCase();
+  const list = supportedModes(backend)
+    .filter((m) => m !== 'bypass')
+    .map((m) => `${modeLabel(m)}：${modeHint(m)}`)
+    .join('\n');
+  if (!arg)
+    return card(
+      notice(
+        t('权限模式'),
+        t('用法：/mode plan | manual | edits | auto；也可以在输入框里按 Shift+Tab 切换。'),
+        'info',
+        {
+          detail: list,
+        },
+      ),
+    );
+  if (arg === 'bypass' || arg === 'yolo')
+    return card(
+      notice(
+        t('权限模式'),
+        t('「完全放开」需要在输入栏的权限模式芯片里选择并确认，不能用命令切换。'),
+        'warn',
+      ),
+    );
+  const want = MODE_ARGS[arg];
+  if (!want)
+    return card(notice(t('权限模式'), t('不认识「{0}」。', raw.trim()), 'warn', { detail: list }));
+  const st = await harnessClient.tabs();
+  const r = await harnessClient.setTabPermissionMode(st.activeTabId, want);
+  const got = r.permissionMode ?? fallbackMode(backend, want);
+  return card(
+    notice(
+      t('权限模式'),
+      r.degraded
+        ? t(
+            '{0} 不支持「{1}」，已使用「{2}」。',
+            ENDPOINT_FULL[backend](),
+            modeLabel(want),
+            modeLabel(got),
+          )
+        : t('已切换到「{0}」：{1}', modeLabel(got), modeHint(got)),
+      r.degraded ? 'warn' : 'info',
+    ),
+  );
 }
 
 // ───────────────────────── 不支持的命令 ─────────────────────────
@@ -184,7 +260,7 @@ export const U = {
   permissions: (): Unsupported => ({
     name: 'permissions',
     aliases: ['approvals', 'allowed-tools'],
-    alt: () => t('在 Nomi「设置 → 编程助手」里调整权限与审批方式。'),
+    alt: () => t('用 /mode 切换权限模式，或点输入栏的权限模式芯片（Shift+Tab 循环切换）。'),
   }),
   login: (cmdline: string): Unsupported => ({
     name: 'login',

@@ -1,0 +1,121 @@
+/* 输入栏：权限模式芯片与下拉 */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  background: var(--cd-color-hover);
+}
+.danger {
+  border-color: var(--cd-color-danger);
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
+}
+.note {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}
+.menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 60;
+  width: 320px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-raised);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.item:hover:not(:disabled),
+.item:focus-visible {
+  background: var(--cd-color-hover);
+}
+.item:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.item[aria-checked='true'] {
+  background: var(--cd-color-accent-soft);
+}
+.itemDanger .itemLabel {
+  color: var(--cd-color-danger-text);
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.itemLabel {
+  font-size: 13px;
+  font-weight: 600;
+}
+.itemHint {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+}
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px 2px;
+  border-top: 1px solid var(--cd-color-border);
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+}
+.link {
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}
