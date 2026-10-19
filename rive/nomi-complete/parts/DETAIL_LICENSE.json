@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -9,8 +9,8 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "acde377f2b4ce9600e527902bbad84a9f34428fb5def20fbf0ce21ac330656a0",
-      "bytes": 1462708,
+      "sha256": "e843c7fa1bd2b930e1bf69babd8616f656b73e8c739e2ed45c1b837683e15f0b",
+      "bytes": 1438648,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -32,13 +32,6 @@
     "reference/svg-rig/arm-l-cuff.png": {
       "sha256": "99e9f6f7f5f1ce9bee5a135ae11baeb1cce292768186a1f64a5611b458d34453",
       "bytes": 42558,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/coat-l-tail.png": {
-      "sha256": "366138df388265f08b04b9e84718d59877cdbc539bebf68d68e81e0bef1d01de",
-      "bytes": 163932,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -74,13 +67,6 @@
     "reference/svg-rig/arm-r-cuff.png": {
       "sha256": "48a00b6da5d77f316ea4883a4b97bf97b3a673cdc4b349ee72f608eae7f18c05",
       "bytes": 40375,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/coat-r-tail.png": {
-      "sha256": "471f3f3f89e84a4ae8292edea73d9dc9526affb19359e1ac0eb6c565b6dd8204",
-      "bytes": 162069,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
