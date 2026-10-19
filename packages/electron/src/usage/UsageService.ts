@@ -257,6 +257,10 @@ export interface UsageInput {
   outputTokens: number;
   cacheRead?: number;
   cacheWrite?: number;
+  /** 缓存写里的 1 小时档（≤ cacheWrite）；缺省 = 全部按 5 分钟档 */
+  cacheWrite1h?: number;
+  /** Anthropic 快速模式（usage.speed === 'fast'） */
+  fast?: boolean;
   est?: boolean;
   session?: string;
   project?: string;
@@ -842,6 +846,10 @@ export class UsageService {
       ...(i.project ? { project: i.project } : {}),
       ...(i.est ? { est: true } : {}),
     };
+    // 计价分档：缓存写里的 1 小时档（不超过缓存写总量）、快速模式（缺省 = 旧口径）
+    const w1h = Math.min(Math.max(0, i.cacheWrite1h ?? 0), cacheWrite);
+    if (w1h) rec.cacheWrite1h = w1h;
+    if (i.fast) rec.fast = true;
     if (!rec.input && !rec.output && !rec.cacheRead && !rec.cacheWrite) return null;
     if (!this.ledger.upsert(rec)) return null;
     this.afterRecord(rec);
@@ -871,6 +879,8 @@ export class UsageService {
       outputTokens: u.output,
       cacheRead: u.cacheRead,
       cacheWrite: u.cacheWrite,
+      ...(u.cacheWrite1h ? { cacheWrite1h: u.cacheWrite1h } : {}),
+      ...(u.fast ? { fast: true } : {}),
     });
   }
 

@@ -272,6 +272,47 @@ describe('UsageLogScanner：增量游标 + 去重', () => {
     expect(routed).toMatchObject({ session: 's1', project: 'app', input: 10, output: 5 });
   });
 
+  it('日志里有路由嗅探没拿到的 1h 缓存写 / fast：补到路由记录上，费用口径一致且不重复记账', async () => {
+    const { home, ledger, scanner } = mk();
+    const f = claudeFile(home);
+    const ts = Date.now() - 5_000;
+    ledger.upsert({
+      key: 'route-2',
+      ts: ts - 1_000,
+      dur: 3_000,
+      source: 'claude',
+      via: 'route',
+      model: 'claude-sonnet-4-5',
+      input: 10,
+      output: 5,
+      cacheRead: 0,
+      cacheWrite: 1000,
+    });
+    fs.writeFileSync(
+      f,
+      `${JSON.stringify({
+        type: 'assistant',
+        timestamp: new Date(ts).toISOString(),
+        sessionId: 's1',
+        cwd: '/w/app',
+        message: {
+          id: 'msg_r2',
+          model: 'claude-sonnet-4-5',
+          usage: {
+            input_tokens: 10,
+            output_tokens: 5,
+            cache_creation_input_tokens: 1000,
+            cache_creation: { ephemeral_1h_input_tokens: 1000 },
+            speed: 'fast',
+          },
+        },
+      })}\n`,
+    );
+    await scanner.scan();
+    expect(ledger.size()).toBe(1);
+    expect(ledger.all()[0]).toMatchObject({ key: 'route-2', cacheWrite1h: 1000, fast: true });
+  });
+
   it('onNew 只对真正新增的记录触发（被路由覆盖的 / 重复的不触发）', async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-usage-home-'));
     const ledger = new UsageLedger({ root: fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-ur-')) });

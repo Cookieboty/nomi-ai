@@ -363,8 +363,17 @@ export class UsageLogScanner {
       if (r.source === 'claude' || r.source === 'codex') {
         const cover = ledger.routeCovering(r.source, r.ts);
         if (cover) {
-          // 费用以路由记录为准；日志只补上它不知道的会话 / 项目，供「按会话统计」归属
-          ledger.attribute(cover.key, { session: r.session, project: r.project });
+          // 费用以路由记录为准；日志只补上它不知道的会话 / 项目（供「按会话统计」归属），
+          // 以及路由嗅探没拿到的计价分档（1h 缓存写 / 快速模式），让两条采集路径的费用口径一致
+          if (
+            ledger.attribute(cover.key, {
+              session: r.session,
+              project: r.project,
+              cacheWrite1h: r.cacheWrite1h,
+              fast: r.fast,
+            })
+          )
+            n++;
           continue;
         }
       }

@@ -155,14 +155,33 @@ export class UsageLedger {
     return this.ver;
   }
 
-  /** 给已有记录补会话 / 项目（只补缺的字段，不改 token）；返回 true = 有变化 */
-  attribute(key: string, patch: { session?: string; project?: string }): boolean {
+  /**
+   * 给已有记录补缺的字段（不改 token）：会话 / 项目，以及计价分档 cacheWrite1h / fast
+   * （同一次调用的日志比路由嗅探拆得更细时，用来补齐费用口径；只增不减，1h 档不超过缓存写总量）。
+   * 返回 true = 有变化。
+   */
+  attribute(
+    key: string,
+    patch: { session?: string; project?: string; cacheWrite1h?: number; fast?: boolean },
+  ): boolean {
     const prev = this.recs.get(key);
     if (!prev) return false;
     const next: UsageRecord = { ...prev };
     if (!prev.session && patch.session) next.session = patch.session;
     if (!prev.project && patch.project) next.project = patch.project;
-    if (next.session === prev.session && next.project === prev.project) return false;
+    const w1h = Math.min(
+      Math.max(prev.cacheWrite1h ?? 0, patch.cacheWrite1h ?? 0),
+      prev.cacheWrite,
+    );
+    if (w1h > (prev.cacheWrite1h ?? 0)) next.cacheWrite1h = w1h;
+    if (patch.fast && !prev.fast) next.fast = true;
+    if (
+      next.session === prev.session &&
+      next.project === prev.project &&
+      next.cacheWrite1h === prev.cacheWrite1h &&
+      next.fast === prev.fast
+    )
+      return false;
     this.recs.set(key, next);
     this.sorted = null;
     this.ver++;
