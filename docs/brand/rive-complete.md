@@ -168,3 +168,25 @@ scene (`round8_scene.py`, idempotent).
 - Residual hand-fringe slivers (hem-ribbon / coat tails / base) were removed.
 
 Scripts: `round8_layers.py`, `round8_scene.py`, `round8_metrics.py`. Screenshots in scratch `v8/`.
+
+### ROUND9 — one continuous skinned hand per side (finger ghosts / overlap removed)
+
+Root cause of the "multi-layer, ghosted, floating" fingers in R8: the hand skin pixels were
+drawn ~8× per hand (≈2.4× on average). The cuff crop embedded the whole hand (+ thigh chunk and
+ribbon strip), the palm crop already contained all fingers, and five more whole-finger crops
+overlapped it. Finger bones also pivoted ~60px below the fingertips and the hand bone sat 38px
+off the wrist, so any rotation slid the stacked copies apart; the wave counter-rotated the hand.
+
+- Each hand is now **one** crop (`hand-l.png` / `hand-r.png`, cut from the mother) skinned as a
+  single Mesh with 17 tendons: hand + 5×3 phalanx bones at the real joints (soft capsule
+  weights, no seams) + the forearm bone, whose weight is 100% on the wrist rows so they ride
+  the cuff band exactly and then blend into the hand (no wedge when the wrist flexes).
+- Hand bone re-pivoted to the wrist (`round9_scene.py`, keys rewritten so the pose is unchanged);
+  the wave hand follows the forearm and the forearm leans slightly inward at the peak.
+- Cuff / sleeve / hem-ribbon / base crops had their embedded hand, wrist and sliver pixels
+  removed (`round9_layers.py`). Old `hand-*-{palm,thumb,index,middle,ring,little}` assets deleted.
+- Result per hand: 9 → 4 Images touching the hand (1 hand mesh + cuff/sleeve/hem with ≤ 150 px
+  of fringe), skin overdraw 2.4× → 1.0× (max 5× → 2×). Image 61→51, Mesh/Skin 25→17.
+
+Scripts: `round9_{layers,rig,scene,shots,viz,inventory}.py` (idempotent, pinned to `be33278`).
+Screenshots in scratch `v9/`.
