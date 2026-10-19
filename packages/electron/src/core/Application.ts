@@ -14,6 +14,7 @@ import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
+import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
@@ -452,6 +453,14 @@ export class Application implements IApplication {
         onChanged: () => accounts.broadcastChanged(),
       });
       accounts.registerIpc();
+      const accountLogin = new AccountLogin({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        accounts,
+        logger: this.logger as never,
+        emit: broadcastLogin,
+      });
+      accountLogin.registerIpc();
+      this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({

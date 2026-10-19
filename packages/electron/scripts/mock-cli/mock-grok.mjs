@@ -11,6 +11,31 @@ if (args.includes('--version') || args.includes('-v')) {
   process.exit(0);
 }
 
+if (args[0] === 'login' && args.includes('--device-auth')) {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  process.stdout.write(
+    '\nTo sign in, open this URL in your browser:\n\n  https://accounts.x.ai/oauth2/device?user_code=MOCK-GROK1\n\n' +
+      'Confirm this code in your browser:\n\n  MOCK-GROK1\n\nWaiting for authorization...\n',
+  );
+  setTimeout(
+    () => {
+      if (process.env.NOMI_MOCK_LOGIN_FAIL === '1') process.exit(1);
+      const email = process.env.NOMI_MOCK_LOGIN_EMAIL || 'mock@x.ai';
+      const dir = process.env.GROK_HOME;
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'auth.json'),
+        JSON.stringify({ user_id: `u-${email}`, email, refresh_token: `rt-${email}` }),
+      );
+      process.stdout.write('Signed in.\n');
+      process.exit(0);
+    },
+    Number(process.env.NOMI_MOCK_LOGIN_MS || 200),
+  );
+  await new Promise(() => {});
+}
+
 const flag = (name) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;

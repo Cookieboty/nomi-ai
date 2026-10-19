@@ -36,6 +36,41 @@ if (bootLog) {
   }
 }
 
+if (args[0] === 'auth' && args[1] === 'login') {
+  const url = 'https://claude.com/cai/oauth/authorize?code=true&client_id=mock&state=mock';
+  process.stdout.write(
+    `Opening browser to sign in…\nIf the browser didn't open, visit: \x1b]8;;${url}\x07${url}\x1b]8;;\x07\nPaste code here if prompted > `,
+  );
+  const rl = createInterface({ input: process.stdin });
+  rl.once('line', (line) => {
+    if (line.trim() !== 'CODE-OK') {
+      process.stdout.write('\nInvalid code\n');
+      process.exit(1);
+    }
+    const email = process.env.NOMI_MOCK_LOGIN_EMAIL || 'mock@claude.ai';
+    const dir = process.env.CLAUDE_CONFIG_DIR;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      `${dir}/.credentials.json`,
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: 'at',
+          refreshToken: `rt-${email}`,
+          expiresAt: Date.now() + 3_600_000,
+          subscriptionType: 'max',
+        },
+      }),
+    );
+    fs.writeFileSync(
+      `${dir}/.claude.json`,
+      JSON.stringify({ oauthAccount: { accountUuid: `u-${email}`, emailAddress: email } }),
+    );
+    process.stdout.write('\nLogin successful.\n');
+    process.exit(0);
+  });
+  await new Promise(() => {});
+}
+
 const resumeIdx = args.indexOf('--resume');
 const ownSession = process.env.NOMI_MOCK_SESSION || 'mock-claude-session-1';
 const resumed = resumeIdx >= 0 ? args[resumeIdx + 1] : '';
