@@ -69,6 +69,8 @@ export class MemError extends Error {
   }
 }
 
+/** 发给摘要模型的最近消息条数上限（只限制上下文，不参与「是否有新内容」判断） */
+const SUMMARY_WINDOW = 80;
 const MAX_EPISODES = 2000;
 const MAX_FACTS = 500;
 
@@ -200,13 +202,20 @@ export class MemoryService {
   ): Promise<{ episode?: Episode; skipped?: string }> {
     if (!this.settings.enabled) return { skipped: 'disabled' };
     if (!opts.force && !this.settings.autoSummarize) return { skipped: 'auto-off' };
-    const clean = msgs
-      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim())
-      .slice(-80);
+    const all = msgs.filter(
+      (m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim(),
+    );
+    // 有效消息总数用来判断「有没有新内容」并持久化；只有发给摘要模型的上下文才截成最近 80 条。
+    // （旧版本把截断后的 80 当作 messageCount 存盘，超过 80 条后差值恒为 0，摘要永久停更）
+    const total = all.length;
+    const clean = all.slice(-SUMMARY_WINDOW);
     const prev = this.data.episodes.find((e) => e.conversationId === conversationId);
-    if (clean.length < (opts.force ? 2 : this.settings.minMessages))
-      return { skipped: 'too-short' };
-    if (prev && !opts.force && clean.length - prev.messageCount < 2) return { skipped: 'no-new' };
+    if (total < (opts.force ? 2 : this.settings.minMessages)) return { skipped: 'too-short' };
+    // 新增不足 2 条才跳过；历史比上次摘要时更短（被裁剪 / 删除 / 重新生成）说明内容变了，不跳过
+    if (prev && !opts.force) {
+      const added = total - prev.messageCount;
+      if (added >= 0 && added < 2) return { skipped: 'no-new' };
+    }
     if (prev?.edited && !opts.force) return { skipped: 'edited' };
     if (this.busy.has(conversationId)) return { skipped: 'busy' };
     this.busy.add(conversationId);
@@ -222,7 +231,7 @@ export class MemoryService {
             ...prev,
             ...p,
             updatedAt: now,
-            messageCount: clean.length,
+            messageCount: total,
             edited: false,
             vec: undefined,
           }
@@ -234,7 +243,7 @@ export class MemoryService {
             keywords: p.keywords,
             createdAt: now,
             updatedAt: now,
-            messageCount: clean.length,
+            messageCount: total,
             pinned: false,
             edited: false,
           };

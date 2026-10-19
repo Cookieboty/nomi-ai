@@ -201,6 +201,77 @@ describe('MemoryService', () => {
     );
   });
 
+  describe('long conversations keep summarizing past 80 messages (#28)', () => {
+    const msgsOf = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        role: i % 2 === 0 ? ('user' as const) : ('assistant' as const),
+        content: `消息 #${i + 1}`,
+      }));
+    const ingestSeq = async (counts: number[]) => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      const out: Array<{ skipped?: string; ran: boolean }> = [];
+      for (const n of counts) {
+        const before = complete.mock.calls.length;
+        const r = await svc.ingest('c1', msgsOf(n));
+        out.push({ skipped: r.skipped, ran: complete.mock.calls.length > before });
+      }
+      return { svc, complete, out };
+    };
+
+    it('78 → 80 → 82 → 100 each trigger a new summary; last 80 messages go to the model', async () => {
+      const { svc, complete, out } = await ingestSeq([78, 80, 82, 100]);
+      expect(out.map((o) => o.ran)).toEqual([true, true, true, true]);
+      // 保存的是完整有效消息数，而不是截断后的 80
+      expect(svc.list().episodes[0]!.messageCount).toBe(100);
+      const prompt = JSON.stringify((complete.mock.calls.at(-1) as unknown[])[0]);
+      expect(prompt).toContain('消息 #100');
+      expect(prompt).toContain('消息 #21');
+      expect(prompt).not.toContain('消息 #20"');
+    });
+
+    it('re-summarizes at +2 (79 → 81) and skips at +1 (79 → 80, 100 → 101)', async () => {
+      const a = await ingestSeq([79, 80]);
+      expect(a.out[1]).toEqual({ skipped: 'no-new', ran: false });
+      const a2 = await ingestSeq([79, 81]);
+      expect(a2.out[1]!.ran).toBe(true);
+      const b = await ingestSeq([100, 101, 102]);
+      expect(b.out.map((o) => o.ran)).toEqual([true, false, true]);
+    });
+
+    it('force keeps the real count so auto summarizing continues afterwards', async () => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      await svc.ingest('c1', msgsOf(90));
+      await svc.ingest('c1', msgsOf(90), { force: true });
+      expect(svc.list().episodes[0]!.messageCount).toBe(90);
+      const r = await svc.ingest('c1', msgsOf(92));
+      expect(r.episode).toBeTruthy();
+    });
+
+    it('legacy episodes saved with the capped count (80) resume on the next 2 messages', async () => {
+      const complete = jest.fn(async () => reply);
+      const { svc } = mk(complete);
+      await svc.ingest('c1', msgsOf(80));
+      // 模拟旧版本写入的 messageCount=80（会话实际已更长）
+      const ep = svc.list().episodes[0]!;
+      expect(ep.messageCount).toBe(80);
+      expect(await svc.ingest('c1', msgsOf(81))).toEqual({ skipped: 'no-new' });
+      expect((await svc.ingest('c1', msgsOf(150))).episode).toBeTruthy();
+    });
+
+    it('history that shrank (trimmed / deleted) is re-summarized instead of stalling', async () => {
+      const { out } = await ingestSeq([100, 60]);
+      expect(out[1]!.ran).toBe(true);
+    });
+
+    it('a manually edited summary is still never overwritten automatically', async () => {
+      const { svc } = await ingestSeq([90]);
+      await svc.updateEpisode(svc.list().episodes[0]!.id, { summary: '我改过' });
+      expect(await svc.ingest('c1', msgsOf(120))).toEqual({ skipped: 'edited' });
+    });
+  });
+
   it('reports bad model output and respects disabled', async () => {
     const { svc } = mk(jest.fn(async () => '抱歉'));
     await expect(svc.ingest('c1', conv)).rejects.toMatchObject({ code: 'bad-summary' });
