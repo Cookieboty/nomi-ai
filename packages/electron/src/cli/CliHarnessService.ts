@@ -41,6 +41,15 @@ import {
 } from './gemini/trustedFolders';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
+  effortsForModel,
+  isAllowedModelId,
+  isBackendEffort,
+  isReasoningEffort,
+  modelCatalog,
+  overrideArgs,
+  sanitizeEffort,
+} from './modelCatalog';
+import {
   DEFAULT_PERMISSION_MODE,
   claudeModeName,
   effectiveMode,
@@ -440,13 +449,19 @@ export class CliHarnessService {
     try {
       const raw = JSON.parse(
         fs.readFileSync(this.statePath, 'utf8'),
-      ) as Partial<HarnessSessionState> & { title?: string; permissionMode?: unknown };
+      ) as Partial<HarnessSessionState> & {
+        title?: string;
+        permissionMode?: unknown;
+        modelOverride?: unknown;
+        reasoningEffort?: unknown;
+      };
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
       if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
       mainMode = raw.permissionMode;
+      this.restoreOverrides(m, raw);
     } catch {
       /* */
     }
@@ -467,12 +482,14 @@ export class CliHarnessService {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
         // 重启时中断的轮次回到空闲
-        this.tabs.set(tab.id, {
+        const restored: HarnessTabMeta = {
           ...tab,
           status: tab.status === 'error' ? 'error' : 'idle',
           unread: Number(tab.unread) || 0,
           permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
-        });
+        };
+        this.restoreOverrides(restored, tab);
+        this.tabs.set(tab.id, restored);
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
     } catch {
@@ -483,13 +500,20 @@ export class CliHarnessService {
 
   private persist() {
     const m = this.main;
-    const s: HarnessSessionState & { title: string; permissionMode: HarnessPermissionMode } = {
+    const s: HarnessSessionState & {
+      title: string;
+      permissionMode: HarnessPermissionMode;
+      modelOverride?: string | null;
+      reasoningEffort?: string | null;
+    } = {
       backend: m.backend,
       cwd: m.cwd,
       cliSessionId: m.cliSessionId,
       busy: m.status === 'running' || m.status === 'queued',
       title: m.title,
       permissionMode: m.permissionMode,
+      ...(m.modelOverride ? { modelOverride: m.modelOverride } : {}),
+      ...(m.reasoningEffort ? { reasoningEffort: m.reasoningEffort } : {}),
     };
     try {
       fs.writeFileSync(this.statePath, JSON.stringify(s, null, 2), 'utf8');
@@ -919,6 +943,11 @@ export class CliHarnessService {
     tab.backend = backend;
     // 新后端不支持当前档位时降到更安全的一档
     tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
+    // 模型 / 思考深度覆盖只属于产生它的后端（模型名跨后端无意义），切换即清除
+    if (switched) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = null;
+    }
     // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
     if (switched) this.changed();
     return { ...tab };
@@ -981,6 +1010,90 @@ export class CliHarnessService {
     return { ...tab, degraded: next.degraded };
   }
 
+  /** 官方账号后端的可选模型目录（无目录的后端返回 null，界面不显示模型芯片） */
+  modelCatalogFor(backend: HarnessBackend) {
+    return modelCatalog(backend as CliBackend);
+  }
+
+  /**
+   * 设置标签的模型覆盖（官方账号路径）。
+   * 传空串清除覆盖（沿用 CLI 默认模型）；只接受有模型目录的后端与合法模型名。
+   * 覆盖经进程级参数注入（codex `-c` / grok `-m` / claude `--model`），不改写全局 CLI 配置；
+   * 每轮新进程的后端下一轮生效；Claude 长驻进程空闲时立即回收，下一轮用新参数重启。
+   * 切到非推理模型时同步清除思考深度。
+   */
+  setTabModel(id: string, model: string): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    const backend = tab.backend as CliBackend;
+    if (!modelCatalog(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    const name = model.trim();
+    if (!name) {
+      if (tab.modelOverride || tab.reasoningEffort) {
+        tab.modelOverride = null;
+        tab.reasoningEffort = null;
+        this.changed();
+        this.recycleLiveForOverride(tab);
+      }
+      return { ...tab };
+    }
+    if (!isAllowedModelId(backend, name)) throw new Error(t('模型名不合法'));
+    if (tab.modelOverride !== name) {
+      tab.modelOverride = name;
+      // 非推理模型（目录内显式标记）：思考芯片不显示，已选档位清掉
+      tab.reasoningEffort = sanitizeEffort(backend, name, tab.reasoningEffort);
+      this.changed();
+      this.recycleLiveForOverride(tab);
+    }
+    return { ...tab };
+  }
+
+  /**
+   * 设置标签的思考深度（仅推理模型）。传 null 清除（沿用 CLI 默认档位）。
+   * 只接受有模型目录的后端；档位必须是该后端 / 模型支持的枚举。
+   * 未选具体模型（沿用 CLI 默认推理模型）时允许只设档位。
+   */
+  setTabReasoningEffort(id: string, effort: string | null): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    const backend = tab.backend as CliBackend;
+    if (effort === null) {
+      if (tab.reasoningEffort) {
+        tab.reasoningEffort = null;
+        this.changed();
+        this.recycleLiveForOverride(tab);
+      }
+      return { ...tab };
+    }
+    if (!modelCatalog(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
+    const model = tab.modelOverride?.trim();
+    // 未选具体模型（沿用 CLI 默认模型）：用后端档位集校验；
+    // 显式选了非推理模型 / 模型不支持该档位时拒绝
+    if (model) {
+      const levels = effortsForModel(backend, model);
+      if (!levels) throw new Error(t('这个模型不支持思考深度'));
+      if (!levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
+    } else if (!isBackendEffort(backend, effort)) {
+      throw new Error(t('这个模型不支持该思考深度'));
+    }
+    if (tab.reasoningEffort !== effort) {
+      tab.reasoningEffort = effort;
+      this.changed();
+      this.recycleLiveForOverride(tab);
+    }
+    return { ...tab };
+  }
+
+  /**
+   * 模型 / 思考深度覆盖变化后回收长驻 CLI 进程（目前只有 Claude）。
+   * 每轮新进程的后端（codex / grok / dsh）无需处理。仅在空闲（无进行中轮次）时回收，
+   * 进行中则等本轮结束——覆盖本就约定「下一条消息起生效」。
+   */
+  private recycleLiveForOverride(tab: HarnessTabMeta) {
+    if (tab.backend !== 'claude') return;
+    const live = this.claudeLive.get(tab.id);
+    if (live && !live.turn) this.teardownClaudeLive(tab.id);
+  }
+
   /** 新标签默认档与 Codex 联网开关（设置页） */
   setPermissionDefaults(o: {
     defaultPermissionMode?: HarnessPermissionMode;
@@ -1008,6 +1121,36 @@ export class CliHarnessService {
           ? 'manual'
           : this.defaultPermissionMode;
     return effectiveMode(backend, mode).mode;
+  }
+
+  /**
+   * 重启后还原模型 / 思考深度覆盖：没有模型目录的后端一律丢弃；
+   * 模型名校验（含自定义字符集）；思考档位必须匹配该模型，否则丢弃档位。
+   */
+  private restoreOverrides(
+    tab: HarnessTabMeta,
+    raw: { modelOverride?: unknown; reasoningEffort?: unknown },
+  ) {
+    if (tab.backend === 'nomi' || !modelCatalog(tab.backend as CliBackend)) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = null;
+      return;
+    }
+    const backend = tab.backend as CliBackend;
+    const model = typeof raw.modelOverride === 'string' ? raw.modelOverride.trim() : '';
+    // 允许「只设思考深度、沿用 CLI 默认模型」：模型为空时档位经枚举校验后保留
+    if (!model) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = isReasoningEffort(raw.reasoningEffort) ? raw.reasoningEffort : null;
+      return;
+    }
+    if (!isAllowedModelId(backend, model)) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = null;
+      return;
+    }
+    tab.modelOverride = model;
+    tab.reasoningEffort = sanitizeEffort(backend, model, raw.reasoningEffort);
   }
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
@@ -1338,6 +1481,8 @@ export class CliHarnessService {
       existing &&
       existing.cwd === tab.cwd &&
       existing.permissionMode === tab.permissionMode &&
+      existing.modelOverride === (tab.modelOverride ?? null) &&
+      existing.reasoningEffort === (tab.reasoningEffort ?? null) &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
       existing.child.signalCode === null
@@ -1361,6 +1506,11 @@ export class CliHarnessService {
       'stdio',
       '--replay-user-messages',
       ...permissionLaunch('claude', tab.permissionMode).args,
+      // 标签级模型 / 思考深度（长驻进程，随复用键变化而重启）
+      ...overrideArgs('claude', {
+        model: tab.modelOverride,
+        effort: tab.reasoningEffort,
+      }),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
@@ -1374,6 +1524,8 @@ export class CliHarnessService {
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
+      modelOverride: tab.modelOverride ?? null,
+      reasoningEffort: tab.reasoningEffort ?? null,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -1998,11 +2150,16 @@ export class CliHarnessService {
     const sandbox = permissionLaunch('codex', tab.permissionMode, {
       codexNetwork: this.codexNetwork,
     }).args;
+    // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）
+    const modelArgs = overrideArgs('codex', {
+      model: tab.modelOverride,
+      effort: tab.reasoningEffort,
+    });
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const argv = useNode
       ? tab.cliSessionId
-        ? [bin, 'exec', 'resume', '--json', tab.cliSessionId, prompt]
-        : [bin, 'exec', '--json', prompt]
+        ? [bin, 'exec', 'resume', '--json', ...modelArgs, tab.cliSessionId, prompt]
+        : [bin, 'exec', '--json', ...modelArgs, prompt]
       : tab.cliSessionId
         ? [
             'exec',
@@ -2010,10 +2167,20 @@ export class CliHarnessService {
             '--json',
             '--skip-git-repo-check',
             ...sandbox,
+            ...modelArgs,
             tab.cliSessionId,
             prompt,
           ]
-        : ['exec', '--json', '--skip-git-repo-check', ...sandbox, '--cd', tab.cwd, prompt];
+        : [
+            'exec',
+            '--json',
+            '--skip-git-repo-check',
+            ...sandbox,
+            ...modelArgs,
+            '--cd',
+            tab.cwd,
+            prompt,
+          ];
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv,
@@ -2071,6 +2238,11 @@ export class CliHarnessService {
       'streaming-json',
       '--no-auto-update',
       ...permissionLaunch('grok', tab.permissionMode).args,
+      // 标签级模型 / 思考深度覆盖（进程级 -m / --reasoning-effort，不写全局配置）
+      ...overrideArgs('grok', {
+        model: tab.modelOverride,
+        effort: tab.reasoningEffort,
+      }),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
@@ -2460,6 +2632,13 @@ export class CliHarnessService {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
       }),
     );
+    handle('ai:harness:model-catalog', (b) =>
+      this.modelCatalogFor(String(b ?? '') as HarnessBackend),
+    );
+    handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
+    handle('ai:harness:tab-effort', (id, e) =>
+      this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
+    );
     handle('ai:harness:permission-defaults', (o) =>
       this.setPermissionDefaults(
         (o ?? {}) as { defaultPermissionMode?: HarnessPermissionMode; codexNetwork?: boolean },
@@ -2543,6 +2722,9 @@ type ClaudeLiveSession = {
   cwd: string;
   /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
   permissionMode: HarnessPermissionMode;
+  /** 进程启动时使用的标签级模型 / 思考深度覆盖（复用键的一部分） */
+  modelOverride: string | null;
+  reasoningEffort: string | null;
   /**
    * 轮次归属（docs/design/cli-subagents.md §4）：用户消息带 uuid 写入，CLI 开始处理它时原样回显
    * （--replay-user-messages）。回显到达前的输出不属于这一轮；没有进行中的用户轮次时来的输出是自发轮次。

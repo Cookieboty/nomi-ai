@@ -59,6 +59,8 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
   function logPrompt(text) {
     const f = process.env.NOMI_MOCK_PROMPT_LOG;
     if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+    const argvLog = process.env.NOMI_MOCK_ARGV_LOG;
+    if (argvLog) appendFileSync(argvLog, `${JSON.stringify(args)}\n`);
   }
   // exec resume [...flags] <id> <prompt>：续接历史会话
   const resumeAt = args.indexOf('resume');

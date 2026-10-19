@@ -20,6 +20,7 @@ import { providerClientAvailable } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
 import { CliProviderChip } from '../CliProviderChip';
+import { ModelControls } from '../ModelControls';
 import { PermissionModeChip } from '../PermissionModeChip';
 import { ProviderSwitcher } from '../ProviderSwitcher';
 import { WorkspacePicker } from '../WorkspacePicker';
@@ -49,7 +50,10 @@ export const EndpointControls: React.FC = () => {
     <>
       {isDev && <BackendSwitcher />}
       {cli && modeTab && (
-        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+        <>
+          <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />
+          <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+        </>
       )}
     </>
   );

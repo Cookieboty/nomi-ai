@@ -212,6 +212,18 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode: HarnessPermissionMode;
+  /**
+   * 标签级模型覆盖（仅对带模型目录的官方账号后端生效：codex / claude / grok）。
+   * null / 缺省 = 沿用 CLI 自己的默认模型；空串清除覆盖。
+   * 以进程级参数注入（codex `-c model=` / grok `-m` / claude `--model`），
+   * 不改写用户的全局 CLI 配置。
+   */
+  modelOverride?: string | null;
+  /**
+   * 标签级思考深度覆盖（仅推理模型；见 modelCatalog.ts）。
+   * null = 沿用 CLI 默认档位；切换到非推理模型时由主进程清除。
+   */
+  reasoningEffort?: string | null;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

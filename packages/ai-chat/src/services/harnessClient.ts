@@ -32,6 +32,13 @@ export interface HarnessTabMeta {
   carriedMessages?: number;
   /** 权限模式（主进程已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode?: PermissionMode;
+  /**
+   * 标签级模型覆盖（仅带模型目录的官方账号后端，如 Codex）。
+   * null/缺省 = 沿用 CLI 默认模型；以进程级 -c model= 注入，不改全局 CLI 配置。
+   */
+  modelOverride?: string | null;
+  /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
+  reasoningEffort?: string | null;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -145,6 +152,26 @@ export interface LiveAgentEvent {
 
 export const MAIN_TAB_ID = 'main';
 
+/** 思考深度档位（由浅到深，并集；UI 按后端 / 模型目录的 efforts 子集渲染） */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+/** 官方账号后端的可选模型目录 */
+export interface ModelCatalogModel {
+  id: string;
+  label?: string;
+  /** 推理模型：可切换思考深度 */
+  reasoning?: boolean;
+  efforts?: ReasoningEffort[];
+  defaultEffort?: ReasoningEffort;
+  deprecated?: boolean;
+}
+export interface BackendModelCatalog {
+  backend: HarnessBackend;
+  /** 该后端思考模型的档位集（模型未单独声明 efforts 时用它） */
+  efforts?: ReasoningEffort[];
+  models: ModelCatalogModel[];
+}
+
 export interface HarnessSendResult {
   text: string;
   sessionId: string | null;
@@ -244,6 +271,14 @@ export const harnessClient = {
     call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
     call<HarnessTabsState>('permission-defaults', o),
+  /** 官方账号后端的可选模型目录；不支持切换模型的后端返回 null */
+  modelCatalog: (backend: HarnessBackend) =>
+    call<BackendModelCatalog | null>('model-catalog', backend),
+  /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
+  setTabModel: (id: string, model: string) => call<HarnessTabMeta>('tab-model', id, model),
+  /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
+  setTabEffort: (id: string, effort: ReasoningEffort | null) =>
+    call<HarnessTabMeta>('tab-effort', id, effort),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>

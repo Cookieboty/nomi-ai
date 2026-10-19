@@ -63,12 +63,27 @@ if (resumed === 'session-unknown') {
 const sessionId = resumed || process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1';
 const pIdx = Math.max(args.indexOf('-p'), args.indexOf('--single'));
 const prompt = args[pIdx + 1] ?? '';
+// 模型 / 思考深度覆盖参数（与真实 CLI 的 -m / --model / --reasoning-effort 对齐）
+const modelOverride = flag('-m') ?? flag('--model');
+const effortOverride = flag('--reasoning-effort') ?? flag('--effort');
 /** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
 function logPrompt(text) {
   const f = process.env.NOMI_MOCK_PROMPT_LOG;
   if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+  // 测试用：记下本轮完整 argv（验证模型 / 思考深度进程级注入）
+  const argvLog = process.env.NOMI_MOCK_ARGV_LOG;
+  if (argvLog) appendFileSync(argvLog, `${JSON.stringify(args)}\n`);
 }
 logPrompt(prompt);
+if (modelOverride && !/^[A-Za-z0-9_][A-Za-z0-9._:/-]*$/.test(modelOverride)) {
+  process.stderr.write(`mock-grok: invalid model ${modelOverride}\n`);
+  process.exit(2);
+}
+const knownEfforts = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+if (effortOverride && !knownEfforts.includes(effortOverride)) {
+  process.stderr.write(`mock-grok: invalid reasoning effort ${effortOverride}\n`);
+  process.exit(2);
+}
 const keyState = process.env.XAI_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_GROK_REPLY ||

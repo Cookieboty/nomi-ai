@@ -631,5 +631,10 @@
   "Gemini CLI 不信任当前文件夹（{0}），已拒绝在这里运行。可以点下方「信任此文件夹」，或在终端里进入该文件夹运行一次 `gemini` 并选择信任，然后重试。": "Gemini CLI does not trust the current folder ({0}) and refused to run here. Click “Trust this folder” below, or run `gemini` once in that folder from a terminal and choose to trust it, then try again.",
   "Gemini 的受信任文件夹列表（{0}）格式有误，Nomi 没有改动它。请先修复或删除这个文件后再试。": "Gemini’s trusted folders list ({0}) is malformed, so Nomi left it unchanged. Fix or delete that file and try again.",
   "Gemini 正在修改受信任文件夹列表，请稍后再试。": "Gemini is updating its trusted folders list. Please try again in a moment.",
-  "环境变量 {0} 让 Gemini 始终不信任任何文件夹，写入受信任列表也不会生效。请先去掉它。": "The environment variable {0} makes Gemini distrust every folder, so adding this folder to the trusted list would have no effect. Remove it first."
+  "环境变量 {0} 让 Gemini 始终不信任任何文件夹，写入受信任列表也不会生效。请先去掉它。": "The environment variable {0} makes Gemini distrust every folder, so adding this folder to the trusted list would have no effect. Remove it first.",
+  "这个编程助手不支持切换模型": "This coding assistant doesn't support switching models",
+  "模型名不合法": "Invalid model name",
+  "未知思考深度": "Unknown reasoning effort",
+  "这个模型不支持思考深度": "This model doesn't support reasoning effort",
+  "这个模型不支持该思考深度": "This model doesn't support that reasoning effort"
 }
