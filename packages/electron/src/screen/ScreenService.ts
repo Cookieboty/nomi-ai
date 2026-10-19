@@ -11,7 +11,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import {
   BrowserWindow,
   desktopCapturer,
@@ -466,13 +466,13 @@ export class ScreenService {
           '搜索用户本机的「屏幕记忆」（之前屏幕上出现过的文字）。仅当用户问“我之前在屏幕上看到的…”之类问题时使用。',
         ),
         input,
-        execute: async (raw: unknown) => {
+        execute: async (raw: unknown, ctx?: ToolExecContext) => {
           if (!this.settings.enabled)
             return { ok: false, error: { code: 'disabled', message: t('用户没有开启屏幕记忆') } };
           const { query } = input.parse(raw);
-          const send = await this.d.desktop.broker.checkSend(
-            this.d.desktop.providerFor('chat'),
-            undefined,
+          const send = await this.d.desktop.checkSendAll(
+            this.d.desktop.receiversFor(ctx?.provider, ['chat', 'agent-tools']),
+            ctx?.signal,
             t('屏幕记忆文字'),
           );
           if (send)

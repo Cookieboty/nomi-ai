@@ -433,6 +433,7 @@ export class Application implements IApplication {
         const rt = this.aiRuntime;
         desktop.attachRuntime({
           resolveProvider: (role) => rt.resolveProvider(role),
+          lookupProvider: (id) => rt.lookupProvider(id),
           complete: async (messages, role, signal) => {
             const resp = await rt.client.chat.sendMessage({ role, messages, signal });
             return typeof resp?.content === 'string' ? resp.content : '';

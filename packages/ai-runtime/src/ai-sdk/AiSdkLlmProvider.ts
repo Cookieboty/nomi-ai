@@ -240,7 +240,10 @@ export class AiSdkLlmProvider implements LLMProvider {
 
   /** Attach ToolDefinitions for a single request (agent loop). */
   withTools(defs: ToolDefinition[]): { chat: LLMProvider['chat']; stream: LLMProvider['stream'] } {
-    const tools = toAiSdkToolSet(defs) as ToolSet;
+    const tools = toAiSdkToolSet(defs, {
+      id: this.id,
+      ...(this.opts.baseURL ? { baseURL: this.opts.baseURL } : {}),
+    }) as ToolSet;
     return {
       chat: (req) => this.runChat(req, tools),
       stream: (req) => this.runStream(req, tools),

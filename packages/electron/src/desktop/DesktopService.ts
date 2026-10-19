@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import type { DesktopBubble } from '@nomi-ai/types';
 import {
   app,
@@ -45,6 +45,8 @@ export interface DesktopRuntimeHooks {
   ): Promise<string>;
   /** 某个角色当前路由到的 provider（id / 名字 / baseURL） */
   resolveProvider(role: Role): { id: string; name: string; baseURL?: string } | null;
+  /** 按 id 查 provider（工具调用实际用的 provider 要显示名字用）；查不到返回 null */
+  lookupProvider?(id: string): { id: string; name: string; baseURL?: string } | null;
 }
 
 export interface DesktopWindows {
@@ -255,6 +257,42 @@ export class DesktopService {
     };
   }
 
+  /** 本轮工具循环实际使用的 provider（ctx.provider）→ 名字 / 本地标记 */
+  receiverOf(p: ToolCallProvider): ProviderInfo {
+    const known = this.runtime?.lookupProvider?.(p.id);
+    return {
+      id: p.id,
+      name: known?.name ?? p.id,
+      local: isLocalBaseURL(p.baseURL ?? known?.baseURL),
+    };
+  }
+
+  /**
+   * 工具结果的接收者：有 ctx.provider 用它；没有就取候选角色里的全部 provider（逐个校验，失败关闭）。
+   */
+  receiversFor(provider: ToolCallProvider | undefined, roles: Role[]): ProviderInfo[] {
+    if (provider) return [this.receiverOf(provider)];
+    const out: ProviderInfo[] = [];
+    for (const r of roles) {
+      const p = this.providerFor(r);
+      if (p && !out.some((x) => x.id === p.id)) out.push(p);
+    }
+    return out;
+  }
+
+  /** 对一组接收者逐个做 localOnly / 云端同意校验；返回第一个失败码，全通过返回 null */
+  async checkSendAll(
+    receivers: ProviderInfo[],
+    signal?: AbortSignal,
+    what?: string,
+  ): Promise<null | 'local_only' | 'user_denied'> {
+    for (const r of receivers) {
+      const res = await this.broker.checkSend(r, signal, what);
+      if (res) return res;
+    }
+    return null;
+  }
+
   private async summarize(
     text: string,
     instruction: string,
@@ -296,6 +334,7 @@ export class DesktopService {
       parse: (p) => parseFile(p),
       summarize: (t, i, s) => this.summarize(t, i, s),
       providerFor: (r) => this.providerFor(r),
+      describeProvider: (p) => this.receiverOf(p),
       pickFolder: (s) => this.pickFolder(s),
       p2: {
         notes: this.notes,
