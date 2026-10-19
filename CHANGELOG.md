@@ -173,6 +173,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/ui` minor)
 - 新增「关闭主界面时：隐藏到托盘 / 退出 Nomi」（设置 → 通用，紧挨「启动 Nomi 后默认显示」）。默认隐藏到托盘，与之前一致；选「退出 Nomi」后关闭主界面会完全退出（看板娘、托盘一起关闭），macOS 上红色按钮与 ⌘W 同样按此处理，⌘Q 始终退出。另外，由系统登录项自动启动且默认界面为主界面时，主界面现在也会到前台并获得焦点，与普通启动一致。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ui` minor)
 - 新增「启动 Nomi 后默认显示」：首次引导增加「启动方式」一步（以看板娘方式 / 以控制台（主界面）方式打开），「设置 → 通用」可随时修改。默认仍是看板娘（老用户升级后行为不变）；选「软件主界面」后启动直接打开主界面，看板娘仍在桌面待命，定时任务和提醒照常播报；再次启动 / 点 Dock / 点 Windows 托盘图标会回到主界面，由系统登录项自动启动时主界面不抢占焦点。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ui` minor)
+- 标签栏的并发上限改成小芯片「运行数/上限」（排队时显示「· 排队 N」），点开是与应用主题一致的弹层：一句说明 + 1–8 的按钮选择上限，不再使用样式跟不上主题的系统下拉框。 (`@nomi-ai/ai-chat` patch)
 - 用量面板：订阅额度改为按工具 Tabs + 可扩展卡片（登录方式 / 额度 / 用量费用 / 状态）；修复 Windows 上 Grok 订阅额度探测（`.cmd` 解成 node+script，避免 ACP stdin 被 cmd 打断）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/renderer` minor, `@nomi-ai/types` minor, `@nomi-ai/ui` minor)
 - 精简输入栏：工作目录和供应商 / 账号切换挪到对话区右上角，输入栏只保留端点切换与权限模式；权限模式按钮改为透明底，不再在输入栏里铺出一块灰色。 (`@nomi-ai/ai-chat` minor)
