@@ -86,11 +86,36 @@ interface Session {
   out: string;
   last: LoginEvent;
   timer: ReturnType<typeof setTimeout>;
+  /** 已结束（成功 / 失败 / 取消 / 超时）：之后不再发事件、不再入库 */
   finished: boolean;
+}
+
+/** 暂存目录只给当前用户访问：目录 0700、文件 0600（Windows 上 mode 无效，靠 userData 的用户 ACL） */
+export function tightenTree(dir: string): void {
+  let entries: fs.Dirent[];
+  try {
+    fs.chmodSync(dir, 0o700);
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) tightenTree(p);
+    else if (e.isFile()) {
+      try {
+        fs.chmodSync(p, 0o600);
+      } catch {
+        /* 尽力而为 */
+      }
+    }
+  }
 }
 
 export class AccountLogin {
   private readonly sessions = new Map<string, Session>();
+  /** 还没删完的暂存目录（退出时等它们删完） */
+  private readonly pendingCleanup = new Set<Promise<void>>();
 
   constructor(
     private readonly d: {
@@ -99,8 +124,35 @@ export class AccountLogin {
       adapterEnv?: AdapterEnv;
       emit: (e: LoginEvent) => void;
       logger: { warn(m: string, d?: unknown): void };
+      /** 登录超时（测试用；默认 15 分钟） */
+      timeoutMs?: number;
     },
-  ) {}
+  ) {
+    // 上次异常退出（崩溃 / 强杀）留下的暂存目录里可能有明文凭据：启动时清掉
+    this.sweepStaleStaging();
+  }
+
+  private get stagingRoot() {
+    return path.join(this.d.root, 'staging');
+  }
+
+  private sweepStaleStaging() {
+    let names: string[];
+    try {
+      names = fs.readdirSync(this.stagingRoot);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      if (this.sessions.has(name)) continue;
+      this.track(this.removeStaging('claude', path.join(this.stagingRoot, name)));
+    }
+  }
+
+  private track(p: Promise<void>) {
+    this.pendingCleanup.add(p);
+    void p.finally(() => this.pendingCleanup.delete(p));
+  }
 
   private send(s: Session, e: Omit<LoginEvent, 'id' | 'kind'>) {
     s.last = { id: s.id, kind: s.kind, ...e };
@@ -111,8 +163,11 @@ export class AccountLogin {
     const bin = resolveHarnessBin(kind);
     if (!bin) throw new Error(t('未找到 {0}，请先安装', kind));
     const id = randomUUID();
-    const dir = path.join(this.d.root, 'staging', id);
+    const dir = path.join(this.stagingRoot, id);
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    // mkdir 的 mode 受 umask 影响，且 staging 可能是旧版本建的：显式收紧
+    fs.chmodSync(this.stagingRoot, 0o700);
+    fs.chmodSync(dir, 0o700);
     const spec = LOGIN_ARGS[kind];
     const script = bin.endsWith('.mjs') || bin.endsWith('.js');
     const env = buildCliEnv(process.env, {
@@ -140,7 +195,10 @@ export class AccountLogin {
       child,
       out: '',
       last: { id, kind, state: 'starting' },
-      timer: setTimeout(() => this.fail(s, t('登录超时，请重试')), LOGIN_TIMEOUT_MS),
+      timer: setTimeout(
+        () => this.fail(s, t('登录超时，请重试')),
+        this.d.timeoutMs ?? LOGIN_TIMEOUT_MS,
+      ),
       finished: false,
     };
     (s.timer as { unref?: () => void }).unref?.();
@@ -204,12 +262,21 @@ export class AccountLogin {
       ...(this.d.adapterEnv?.env ?? process.env),
       [LOGIN_ARGS[s.kind].env]: s.dir,
     };
+    tightenTree(s.dir);
     const live = await adapterFor(s.kind, { ...this.d.adapterEnv, env }).read();
+    // 读凭据期间用户取消了 / 超时了：不能再入库
+    if (s.finished) return;
     if (!live) throw new Error(t('登录完成了，但没有读到凭据'));
-    const account = await this.d.accounts.addFromLogin(s.kind, live);
+    // 从这里起就要入库了：先标记结束，之后的取消不再生效（返回 false）
     s.finished = true;
-    this.send(s, { state: 'done', account });
-    await this.cleanup(s);
+    try {
+      const account = await this.d.accounts.addFromLogin(s.kind, live);
+      this.send(s, { state: 'done', account });
+    } catch (e) {
+      this.send(s, { state: 'error', message: e instanceof Error ? e.message : String(e) });
+    } finally {
+      this.cleanup(s);
+    }
   }
 
   /** 把用户粘贴的授权码写给 CLI（Claude） */
@@ -227,7 +294,7 @@ export class AccountLogin {
     s.finished = true;
     killProcessTree(s.child);
     this.send(s, { state: 'cancelled' });
-    void this.cleanup(s);
+    this.cleanup(s);
     return true;
   }
 
@@ -236,7 +303,7 @@ export class AccountLogin {
     s.finished = true;
     killProcessTree(s.child);
     this.send(s, { state: 'error', message });
-    void this.cleanup(s);
+    this.cleanup(s);
   }
 
   private async onExit(s: Session, code: number | null) {
@@ -260,23 +327,36 @@ export class AccountLogin {
     return stripTerminal(s.out).trim().split('\n').slice(-3).join('\n');
   }
 
-  private async cleanup(s: Session) {
+  /** 结束一次登录：立刻同步删掉暂存目录；进程退出后再删一次（被杀的 CLI 可能还在落盘） */
+  private cleanup(s: Session) {
     clearTimeout(s.timer);
     this.sessions.delete(s.id);
-    // macOS：Claude 把暂存登录写进了按目录区分的钥匙串条目，一并删除
+    this.track(this.removeStaging(s.kind, s.dir));
+    if (s.child.exitCode === null && s.child.signalCode === null)
+      s.child.once('close', () => this.track(this.removeStaging(s.kind, s.dir)));
+  }
+
+  private async removeStaging(kind: AccountKind, dir: string) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+    } catch (e) {
+      this.d.logger.warn('login staging cleanup failed', String(e));
+    }
+    // macOS：Claude 把暂存登录写进了按目录区分的钥匙串条目，一并删除（启动清扫时不知道类型，按 Claude 试删）
     const platform = this.d.adapterEnv?.platform ?? process.platform;
-    if (s.kind === 'claude' && platform === 'darwin') {
+    if (kind === 'claude' && platform === 'darwin') {
       const keychain = this.d.adapterEnv?.keychain ?? macKeychain;
       const env = this.d.adapterEnv?.env ?? process.env;
       await keychain
-        .remove(claudeKeychainService({ CLAUDE_CONFIG_DIR: s.dir }, s.dir), claudeAccountName(env))
+        .remove(claudeKeychainService({ CLAUDE_CONFIG_DIR: dir }, dir), claudeAccountName(env))
         .catch(() => undefined);
     }
-    fs.rm(s.dir, { recursive: true, force: true }, () => undefined);
   }
 
-  dispose() {
+  /** 退出：取消所有进行中的登录（不入库），并等暂存目录与钥匙串条目删完 */
+  async dispose(): Promise<void> {
     for (const id of [...this.sessions.keys()]) this.cancel(id);
+    await Promise.allSettled([...this.pendingCleanup]);
   }
 
   registerIpc(): void {

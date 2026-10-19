@@ -32,6 +32,7 @@ import {
   AccountLogin,
   isLoginUrl,
   parseLoginOutput,
+  tightenTree,
   type LoginEvent,
 } from '../../../src/cli/accounts/AccountLogin';
 import { AccountService } from '../../../src/cli/accounts/AccountService';
@@ -91,15 +92,17 @@ describe('AccountLogin', () => {
     process.env.NOMI_GROK_BIN = mock('grok');
     process.env.NOMI_GEMINI_BIN = mock('gemini');
   });
-  afterEach(() => {
-    for (const l of logins) l.dispose();
+  afterEach(async () => {
+    for (const l of logins) await l.dispose();
     logins.length = 0;
     for (const k of keys) {
       if (saved[k] === undefined) delete process.env[k];
       else process.env[k] = saved[k];
     }
   });
-  const setup = () => {
+  const setup = (
+    opts: { timeoutMs?: number; onEvent?: (e: LoginEvent, l: AccountLogin) => void } = {},
+  ) => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'login-home-'));
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'login-root-'));
     const adapterEnv = {
@@ -113,8 +116,12 @@ describe('AccountLogin', () => {
       root,
       accounts,
       adapterEnv,
-      emit: (e) => events.push(e),
+      emit: (e) => {
+        events.push(e);
+        opts.onEvent?.(e, login);
+      },
       logger: { warn() {} },
+      ...(opts.timeoutMs ? { timeoutMs: opts.timeoutMs } : {}),
     });
     logins.push(login);
     const until = async (fn: () => boolean) => {
@@ -226,4 +233,82 @@ describe('AccountLogin', () => {
     await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
     expect(t.accounts.list('claude')).toHaveLength(0);
   }, 20_000);
+
+  const posix = process.platform !== 'win32';
+
+  it('暂存目录只有当前用户可访问（0700）', async () => {
+    const t = setup();
+    const s = t.login.start('claude');
+    await t.until(() => t.events.some((e) => e.needsCode));
+    const dir = path.join(t.root, 'staging', s.id);
+    if (posix) {
+      expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
+      expect(fs.statSync(path.join(t.root, 'staging')).mode & 0o777).toBe(0o700);
+    }
+    t.login.cancel(s.id);
+  }, 20_000);
+
+  it('读凭据时取消：不入库，暂存目录清掉', async () => {
+    process.env.NOMI_MOCK_LOGIN_EMAIL = 'gem@nomi.test';
+    const t = setup({
+      onEvent: (e, l) => {
+        if (e.state === 'verifying') expect(l.cancel(e.id)).toBe(true);
+      },
+    });
+    const s = t.login.start('gemini');
+    await t.until(() => t.events.some((e) => e.state === 'cancelled'));
+    // 给 collect 留时间：旧实现会在这里把账号存进去
+    await new Promise((r) => setTimeout(r, 300));
+    expect(t.events.some((e) => e.state === 'done')).toBe(false);
+    expect(t.accounts.list('gemini')).toHaveLength(0);
+    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
+  }, 20_000);
+
+  it('超时：报错、不入库、暂存目录清掉', async () => {
+    const t = setup({ timeoutMs: 300 });
+    const s = t.login.start('claude');
+    await t.until(() => t.events.some((e) => e.state === 'error'));
+    expect(t.events.at(-1)?.message).toBe('登录超时，请重试');
+    expect(t.accounts.list('claude')).toHaveLength(0);
+    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
+  }, 20_000);
+
+  it('退出（dispose）：取消进行中的登录并等暂存目录删完', async () => {
+    const t = setup();
+    const s = t.login.start('claude');
+    await t.until(() => t.events.some((e) => e.needsCode));
+    await t.login.dispose();
+    expect(t.events.at(-1)?.state).toBe('cancelled');
+    expect(fs.existsSync(path.join(t.root, 'staging', s.id))).toBe(false);
+    expect(t.accounts.list('claude')).toHaveLength(0);
+  }, 20_000);
+
+  it('启动时清掉上次异常退出留下的暂存目录', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'login-root-'));
+    const stale = path.join(root, 'staging', 'crashed-session');
+    fs.mkdirSync(stale, { recursive: true });
+    fs.writeFileSync(path.join(stale, 'auth.json'), '{"token":"secret"}');
+    const login = new AccountLogin({
+      root,
+      accounts: {} as AccountService,
+      emit: () => undefined,
+      logger: { warn() {} },
+      adapterEnv: { home: root, env: {}, platform: 'linux' },
+    });
+    logins.push(login);
+    expect(fs.existsSync(stale)).toBe(false);
+  });
+});
+
+describe('tightenTree', () => {
+  (process.platform === 'win32' ? it.skip : it)('目录 0700、文件 0600', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tighten-'));
+    fs.mkdirSync(path.join(dir, 'sub'), { mode: 0o755 });
+    fs.writeFileSync(path.join(dir, 'sub', 'creds.json'), 'x', { mode: 0o644 });
+    fs.chmodSync(dir, 0o755);
+    tightenTree(dir);
+    expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
+    expect(fs.statSync(path.join(dir, 'sub')).mode & 0o777).toBe(0o700);
+    expect(fs.statSync(path.join(dir, 'sub', 'creds.json')).mode & 0o777).toBe(0o600);
+  });
 });
