@@ -13,6 +13,12 @@ export interface TtsModelState {
   total?: number;
   partialBytes?: number;
   installedBytes?: number;
+  /** 压缩包大小 */
+  archiveBytes?: number;
+  /** 下载 + 解压的磁盘峰值需求（含余量；已下载的半成品不重复计） */
+  diskRequired?: number;
+  /** 可用磁盘空间（拿不到时缺省） */
+  diskFree?: number;
   voiceEnabled: boolean;
 }
 
@@ -48,6 +54,7 @@ export const ttsModelClient = {
       .catch((e: unknown) => ({ ok: false, error: e instanceof Error ? e.message : String(e) }));
     return (r as TtsEnableResult | null) ?? null;
   },
+  /** 只下载模型、不改语音开关（语音已开但缺模型 / 重试） */
   async download(): Promise<TtsEnableResult | null> {
     const r = await bridge()
       ?.invoke('ai:tts-model:download')

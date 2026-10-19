@@ -67,22 +67,15 @@ function setup(o: { voice?: boolean; ready?: boolean; sherpa?: boolean; ttsOff?:
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('TtsModelController', () => {
-  it('startup: existing user with voice on and no model → downloads automatically', () => {
+  it('startup: voice on + no model → does NOT download (user must click download, #60)', () => {
     const t = setup({ voice: true });
     t.ctl.start();
-    expect(t.sherpa.download).toHaveBeenCalledTimes(1);
-  });
-
-  it('startup: download failure does NOT turn voice off (not a user action)', async () => {
-    const t = setup({ voice: true });
-    t.ctl.start();
-    t.sherpa.failWith(new Error('offline'));
-    await tick();
+    expect(t.sherpa.download).not.toHaveBeenCalled();
     expect(t.voice()).toBe(true);
-    expect(t.setVoice).not.toHaveBeenCalled();
+    expect(t.broadcasts.at(-1)).toMatchObject({ state: 'missing', voiceEnabled: true });
   });
 
-  it('startup: no download when voice off, model present, non-sherpa provider or CD_TTS=off', () => {
+  it('startup: never downloads when voice off, model present, non-sherpa provider or CD_TTS=off', () => {
     for (const o of [
       { voice: false },
       { voice: true, ready: true },
@@ -137,6 +130,23 @@ describe('TtsModelController', () => {
     const b = setup({ sherpa: false });
     await b.ctl.setVoiceEnabled(true);
     expect(b.sherpa.download).not.toHaveBeenCalled();
+  });
+
+  it('turning voice off mid-download cancels the download', async () => {
+    const t = setup();
+    const p = t.ctl.setVoiceEnabled(true);
+    await expect(t.ctl.setVoiceEnabled(false)).resolves.toMatchObject({ voiceEnabled: false });
+    expect(t.sherpa.cancelDownload).toHaveBeenCalledTimes(1);
+    await expect(p).resolves.toMatchObject({ ok: false, voiceEnabled: false });
+    expect(t.voice()).toBe(false);
+  });
+
+  it('turning voice off during a manual download() also cancels it', async () => {
+    const t = setup({ voice: true });
+    const p = t.ctl.download();
+    await t.ctl.setVoiceEnabled(false);
+    expect(t.sherpa.cancelDownload).toHaveBeenCalledTimes(1);
+    await expect(p).resolves.toMatchObject({ ok: false });
   });
 
   it('disable just persists off', async () => {

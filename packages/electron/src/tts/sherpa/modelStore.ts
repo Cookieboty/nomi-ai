@@ -258,3 +258,43 @@ export function partialDownloadBytes(
     return 0;
   }
 }
+
+/** 解压 / 写临时文件的余量（文件系统块对齐、日志等） */
+export const DISK_MARGIN_BYTES = 32 * 1024 * 1024;
+
+/**
+ * 下载 + 安装的磁盘峰值（字节）：解压时压缩包（剩余未下载部分 + 已有 .part）与解压出的模型文件同时存在，
+ * 安装完成后才删压缩包。已下载的 .part 已经在磁盘上，不再重复计入。
+ */
+export function requiredDiskBytes(
+  manifest: ModelManifest = SHERPA_MANIFEST,
+  partialBytes = 0,
+): { archive: number; extracted: number; required: number } {
+  const archive = manifest.bytes;
+  const extracted = Object.values(manifest.files).reduce((a, b) => a + b, 0);
+  const remainingArchive = Math.max(0, archive - Math.max(0, partialBytes));
+  return { archive, extracted, required: remainingArchive + extracted + DISK_MARGIN_BYTES };
+}
+
+/** 目录所在卷的可用字节；目录还不存在时往上找已存在的父目录；拿不到（老 Node / 权限）返回 null */
+export function freeDiskBytes(
+  dir: string,
+  statfs: (p: string) => { bavail: number | bigint; bsize: number | bigint } = (p) =>
+    fs.statfsSync(p),
+): number | null {
+  let cur = path.resolve(dir);
+  for (let i = 0; i < 64; i++) {
+    try {
+      if (fs.existsSync(cur)) {
+        const s = statfs(cur);
+        return Number(s.bavail) * Number(s.bsize);
+      }
+    } catch {
+      return null;
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) return null;
+    cur = parent;
+  }
+  return null;
+}

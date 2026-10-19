@@ -4,8 +4,9 @@
  * 规则：
  * - 用户开启语音（设置页开关 / 看板娘工具栏）且当前 provider 为 sherpa、模型缺失 → 下载；
  *   下载失败或被取消 → 语音关回去（并带错误信息），绝不在没有模型时保持「开着却不响」。
- * - 启动时语音已开（老用户升级：config.json 里 enabled=true）且模型缺失 → 自动下载；
- *   这次失败不关语音（不是用户操作），设置页显示错误 + 重试。
+ * - 启动时**不**自动下载（#60：应用启动不算用户同意下载）：语音已开但缺模型（老用户升级 / 切到 sherpa）
+ *   只在设置页显示「需要下载」+ 一键下载，由用户触发（ai:tts-model:download，不改语音开关）。
+ * - 下载中途关掉语音 → 取消下载（与「取消」按钮一致：删除半成品，不继续占带宽 / 磁盘）。
  * - 缺模型时合成只返回 not_ready（静默 + 提示），永不崩溃。
  * 纯逻辑：所有副作用经 deps 注入，便于单测。
  */
@@ -59,15 +60,16 @@ export class TtsModelController {
     this.deps.broadcast(this.state());
   }
 
-  /** 订阅模型进度并做启动检查（老用户语音开着但没有模型 → 自动下载） */
+  /**
+   * 订阅模型进度。启动时不下载（#60）：语音开着但缺模型时只记日志，设置页显示「需要下载」由用户触发。
+   */
   start(): void {
     this.unsub ??= this.deps.sherpa.onStatus(() => this.push());
+    this.push();
     if (this.deps.ttsDisabled?.()) return;
     if (!this.deps.getVoiceEnabled() || !this.deps.usesSherpa()) return;
     if (this.deps.sherpa.isReady()) return;
-    this.deps.log?.('voice enabled but TTS model missing; downloading on startup');
-    // 非用户操作：失败不关语音，留给设置页显示错误 / 重试
-    this.deps.sherpa.download().catch(() => undefined);
+    this.deps.log?.('voice enabled but TTS model missing; waiting for the user to download it');
   }
 
   stop(): void {
@@ -82,6 +84,10 @@ export class TtsModelController {
   async setVoiceEnabled(enabled: boolean, alreadyPersisted = false): Promise<EnableResult> {
     if (!enabled) {
       if (!alreadyPersisted) this.deps.setVoiceEnabled(false);
+      // 下载中途关掉语音：取消下载（与「取消」一致），不在后台继续下 ~115 MB
+      if (this.deps.sherpa.getStatus().state === 'downloading') {
+        await this.deps.sherpa.cancelDownload().catch(() => undefined);
+      }
       this.push();
       return { ok: true, voiceEnabled: false, status: this.state() };
     }

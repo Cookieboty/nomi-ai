@@ -136,6 +136,45 @@ describe('SherpaTtsService', () => {
     expect(svc.getStatus()).toMatchObject({ state: 'missing', modelId: 'tiny', partialBytes: 0 });
   });
 
+  it('missing status reports disk need (archive + extracted + margin) and free space', () => {
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-disk-')),
+      freeBytes: () => 10 * 1024 * 1024 * 1024,
+      manifest,
+    });
+    const st = svc.getStatus();
+    expect(st).toMatchObject({ state: 'missing', archiveBytes: 1, diskFree: 10 * 1024 ** 3 });
+    expect(st.diskRequired).toBe(1 + 1 + 32 * 1024 * 1024);
+  });
+
+  it('download() refuses with disk_full (and a clear message) when free space is short', async () => {
+    const install = jest.fn();
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-full-')),
+      freeBytes: () => 1024,
+      install: install as never,
+      manifest,
+    });
+    await expect(svc.download()).rejects.toMatchObject({ code: 'disk_full' });
+    expect(install).not.toHaveBeenCalled();
+    const st = svc.getStatus();
+    expect(st.state).toBe('error');
+    expect(st.message).toMatch(/disk space|磁盘空间不足/);
+  });
+
+  it('unknown free space (statfs unavailable) does not block the download', async () => {
+    const install = jest.fn(async () => undefined);
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-nofs-')),
+      freeBytes: () => null,
+      install: install as never,
+      manifest,
+    });
+    await svc.download().catch(() => undefined);
+    expect(install).toHaveBeenCalled();
+    expect(svc.getStatus().diskFree).toBeUndefined();
+  });
+
   it('no userData at all → status missing and synth not_ready (no crash)', async () => {
     const svc = new SherpaTtsService({
       userRoot: () => {

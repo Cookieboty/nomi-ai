@@ -15,7 +15,8 @@ import { safeRm } from '../fixtures/fsutil';
  * E31 · 离线 TTS 模型按需下载（真实 app、真实下载 / 解压 / 校验，本地 Range 服务器充当镜像）：
  * 1. 新安装：设置 → 语音与屏幕 → 语音，语音默认关闭，提示需要下载；
  * 2. 开启 → 进度条出现 → 取消 → 语音关回去、半成品删除；
- * 3. 再开启 → 下载到一半杀进程 → .part 保留；重启（语音已开 = 老用户情形）→ 启动自动以 Range 续传 → 就绪；
+ * 3. 再开启 → 下载到一半杀进程 → .part 保留；重启（语音已开 = 老用户情形）→ 启动**不**自动下载（#60），
+ *    设置页显示「下载离线语音模型」→ 用户点击后以 Range 续传 → 就绪；
  * 4. 删除模型 → 目录清空、语音关闭。
  * 归档来自本地 ../models/theresa.tar.bz2（与官方 sha256 相同）；缺失则跳过。
  */
@@ -207,10 +208,14 @@ test.describe('E31 · TTS model on demand', () => {
     expect(kept).toBeGreaterThan(20 * 1024 * 1024);
     expect(existsSync(modelDir())).toBe(false);
 
-    // 重启：语音开着但缺模型 → 启动自动续传（Range）→ 就绪
+    // 重启：语音开着但缺模型 → 启动不下载（#60），设置页点「下载」→ Range 续传 → 就绪
     srv!.setSpeed(200 * 1024 * 1024);
     const before = srv!.ranges.length;
     app = await launch();
+    chat = await openVoiceSettings(app);
+    await sleep(3_000);
+    expect(srv!.ranges.length).toBe(before);
+    await chat.click('[data-testid="tts-model-download"]');
     await expect
       .poll(() => srv!.ranges.slice(before).some((r) => r?.startsWith('bytes=')), {
         timeout: 30_000,
@@ -218,7 +223,6 @@ test.describe('E31 · TTS model on demand', () => {
       .toBe(true);
     const resumedFrom = Number(/bytes=(\d+)-/.exec(srv!.ranges.slice(before).find(Boolean)!)![1]);
     expect(resumedFrom).toBe(kept);
-    chat = await openVoiceSettings(app);
     await expect(chat.locator('[data-testid="tts-model-ready"]')).toBeVisible({
       timeout: 300_000,
     });

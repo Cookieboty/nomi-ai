@@ -1,7 +1,8 @@
 /**
  * 设置 → 语音与屏幕 → 语音：离线语音开关 + 模型下载（进度 / 取消 / 重试 / 删除）。
  * 模型不随安装包分发，开启语音时才下载到本机（见 docs/design/tts-on-demand.md）；下载完成后离线可用。
- * 下载失败或取消 → 语音保持关闭并显示原因。
+ * 下载失败或取消 → 语音保持关闭并显示原因。语音已开但缺模型（升级 / 切到 sherpa）→ 显示「下载」按钮，由用户触发（#60）。
+ * 下载前显示磁盘峰值需求与可用空间，不足时禁用下载并提示。
  */
 import { t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -39,9 +40,12 @@ export const TtsModelCard: React.FC = () => {
     if (r && !r.ok && r.error && r.error !== 'cancelled') setError(r.error);
   }, []);
 
-  const retry = useCallback(async () => {
+  /** 一键下载 / 重试：语音已开时只下载模型（不改开关）；语音关着时等同「开启语音」 */
+  const download = useCallback(async (voiceOn: boolean) => {
     setError(null);
-    const r = await ttsModelClient.setVoiceEnabled(true);
+    const r = voiceOn
+      ? await ttsModelClient.download()
+      : await ttsModelClient.setVoiceEnabled(true);
     if (r?.status) setSt(r.status);
     if (r && !r.ok && r.error && r.error !== 'cancelled') setError(r.error);
   }, []);
@@ -52,6 +56,11 @@ export const TtsModelCard: React.FC = () => {
   const pct =
     downloading && st.total ? Math.min(100, Math.floor(((st.received ?? 0) / st.total) * 100)) : 0;
   const shownError = error ?? (st.state === 'error' ? (st.message ?? null) : null);
+  const missing = st.state !== 'ready' && !downloading;
+  const diskShort =
+    missing && st.diskFree !== undefined && st.diskRequired !== undefined
+      ? st.diskFree < st.diskRequired
+      : false;
 
   return (
     <section className={styles.block} data-testid="settings-tts-model">
@@ -76,9 +85,14 @@ export const TtsModelCard: React.FC = () => {
         </p>
       )}
 
-      {st.state !== 'ready' && !downloading && (
+      {missing && (
         <p className={styles.note} data-testid="tts-model-missing">
-          {t('开启语音时会下载离线语音模型（约 {0}），下载完成后无需联网。', formatMB(st.total))}
+          {st.voiceEnabled
+            ? t(
+                '语音已开启，但离线语音模型还没有下载（约 {0}），下载完成前不会出声。',
+                formatMB(st.total),
+              )
+            : t('开启语音时会下载离线语音模型（约 {0}），下载完成后无需联网。', formatMB(st.total))}
           {st.partialBytes ? (
             <span data-testid="tts-model-partial">
               {' '}
@@ -86,6 +100,41 @@ export const TtsModelCard: React.FC = () => {
             </span>
           ) : null}
         </p>
+      )}
+
+      {missing && st.diskRequired !== undefined && (
+        <p
+          className={diskShort ? card.error : styles.note}
+          role={diskShort ? 'alert' : undefined}
+          data-testid="tts-model-disk"
+        >
+          {t(
+            '需要约 {0} 可用磁盘空间（压缩包 {1}，解压后 {2}，解压时两者同时存在）。',
+            formatMB(st.diskRequired),
+            formatMB(st.archiveBytes ?? st.total),
+            formatMB(st.installedBytes),
+          )}
+          {st.diskFree !== undefined && (
+            <span>
+              {' '}
+              {diskShort
+                ? t('当前只有 {0} 可用，请先清理磁盘。', formatMB(st.diskFree))
+                : t('当前可用 {0}。', formatMB(st.diskFree))}
+            </span>
+          )}
+        </p>
+      )}
+
+      {missing && st.voiceEnabled && !shownError && (
+        <button
+          type="button"
+          className={card.btn}
+          data-testid="tts-model-download"
+          disabled={busy}
+          onClick={() => void download(true)}
+        >
+          {t('下载离线语音模型')}
+        </button>
       )}
 
       {downloading && (
@@ -123,12 +172,16 @@ export const TtsModelCard: React.FC = () => {
 
       {shownError && !downloading && (
         <div className={card.error} role="alert" data-testid="tts-model-error">
-          <span>{t('离线语音模型下载失败，语音已关闭：{0}', shownError)}</span>
+          <span>
+            {st.voiceEnabled
+              ? t('离线语音模型下载失败：{0}', shownError)
+              : t('离线语音模型下载失败，语音已关闭：{0}', shownError)}
+          </span>
           <button
             type="button"
             className={card.btn}
             data-testid="tts-model-retry"
-            onClick={() => void retry()}
+            onClick={() => void download(st.voiceEnabled)}
           >
             {t('重试')}
           </button>

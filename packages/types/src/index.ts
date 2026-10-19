@@ -208,4 +208,10 @@ export interface SherpaModelStatus {
   partialBytes?: number;
   /** 安装后占用（字节，manifest 固定值），设置页展示用 */
   installedBytes?: number;
+  /** 压缩包大小（字节） */
+  archiveBytes?: number;
+  /** missing / error：下载 + 解压的磁盘峰值需求（压缩包剩余部分 + 解压后文件 + 余量） */
+  diskRequired?: number;
+  /** missing / error：模型目录所在卷的可用字节（拿不到时缺省） */
+  diskFree?: number;
 }

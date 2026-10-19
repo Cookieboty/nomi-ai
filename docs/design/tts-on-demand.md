@@ -28,14 +28,22 @@
 
 ### 何时下载
 
-| 情形                                            | 行为                                                                | 失败 / 取消                                         |
-| ----------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------- |
-| 设置页「开启语音」开关                          | 写入 `enabled=true`，开始下载，显示进度                             | 语音关回去，显示错误 + 重试                         |
-| 看板娘工具栏打开语音 / 首次引导选择声音         | 同上（经 `save-voice-settings` → eventBus `voice:enabled-changed`） | 同上，工具栏按钮经 `voice-settings:changed` 同步    |
-| 启动时语音已开且模型缺失（老用户升级）          | 后台自动下载                                                        | **不关语音**（不是用户操作），设置页显示错误 + 重试 |
-| 合成 / 预热时缺模型                             | **不下载**，抛 `not_ready`（附提示），路由静默                      | —                                                   |
-| provider 不是 `sherpa-theresa`（Fish / legacy） | 不需要模型，不下载                                                  | —                                                   |
-| `CD_TTS=off`（E2E）                             | 启动时不自动下载                                                    | —                                                   |
+| 情形                                                 | 行为                                                                                                                    | 失败 / 取消                                               |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 设置页「开启语音」开关                               | 写入 `enabled=true`，开始下载，显示进度                                                                                 | 语音关回去，显示错误 + 重试                               |
+| 看板娘工具栏打开语音 / 首次引导选择声音              | 同上（经 `save-voice-settings` → eventBus `voice:enabled-changed`）                                                     | 同上，工具栏按钮经 `voice-settings:changed` 同步          |
+| 启动时语音已开且模型缺失（老用户升级 / 切到 sherpa） | **不下载**（#60）：设置页显示「需要下载」+「下载离线语音模型」按钮，由用户触发（`ai:tts-model:download`，不改语音开关） | **不关语音**，错误文案不说「语音已关闭」，显示错误 + 重试 |
+| 下载中途关掉语音（设置页开关 / 工具栏）              | 取消下载（与「取消」按钮一致，删除半成品）                                                                              | 语音保持关闭，不显示错误                                  |
+| 合成 / 预热时缺模型                                  | **不下载**，抛 `not_ready`（附提示），路由静默                                                                          | —                                                         |
+| provider 不是 `sherpa-theresa`（Fish / legacy）      | 不需要模型，不下载                                                                                                      | —                                                         |
+| `CD_TTS=off`（E2E）                                  | 不下载                                                                                                                  | —                                                         |
+
+### 磁盘空间（#60）
+
+- 下载前 `getStatus()`（missing / error）带 `archiveBytes`、`diskRequired`、`diskFree`。
+- `diskRequired` = 剩余未下载的压缩包 + 解压后模型文件（清单精确字节数之和）+ 32 MiB 余量。解压时压缩包与模型同时存在，所以按两者之和算峰值；已下载的 `.part` 不重复计入。
+- `diskFree` 来自 `fs.statfsSync`（`bavail × bsize`），目录还不存在时向上找已存在的父目录；拿不到时缺省，此时不阻止下载。
+- 设置页在下载前显示需求与可用空间；不足时以 `role=alert` 提示。`download()` 开始前再查一次，不足则拒绝（`disk_full`），状态转为 error 并带明确文案，不发任何网络请求。
 
 ### 进度、取消、重试、续传
 
@@ -55,7 +63,7 @@
 
 - `ConfigService` 默认 `voiceSettings.enabled` 从 `true` 改为 **`false`**。
 - `config.json` 在首次启动时就会以完整默认值写盘，所以 ≤1.0.3 的用户磁盘上已有 `enabled: true`（除非手动关过）。加载时深合并，已保存的值优先，因此：
-  - 原来开着语音的用户保持开启，启动时自动下载模型。下载完成前语音静默，完成后自动可用，不需要重启。
+  - 原来开着语音的用户保持开启，但启动时**不**自动下载（#60）：设置页提示「需要下载」并提供一键下载。下载完成前语音静默，完成后自动可用，不需要重启。
   - 原来关着语音的用户保持关闭。
   - 新安装默认关闭。
 - 升级后，旧安装目录里的 `resources/tts-models` 随新安装包被替换掉，不做迁移（旧路径本来就在安装目录里，和 userData 无关）。
@@ -113,6 +121,6 @@ Starting with 1.0.4, the sherpa-onnx offline TTS model (`vits-zh-hf-theresa`) is
   - A network error or quitting mid-download keeps `.part`, and the next attempt resumes with an HTTP `Range` request. If the server answers 200, the download restarts.
   - The sha256 covers the whole file. A mismatch deletes the partial file.
 - **Delete model:** removes the userData copy, unloads the engine and turns voice off.
-- **Defaults:** `voiceSettings.enabled` now defaults to `false`. Existing installs already have `enabled: true` saved in `config.json` (written on first launch), so they keep voice on and get the startup download. Users who had turned voice off stay off.
+- **Defaults:** `voiceSettings.enabled` now defaults to `false`. Existing installs already have `enabled: true` saved in `config.json` (written on first launch), so they keep voice on; the app no longer downloads at startup (#60) — Settings shows a one-click download. Users who had turned voice off stay off.
 - **Size (Linux x64):** AppImage 325,872,533 B → 206,908,239 B (−113.5 MiB, −36.5%); unpacked 681,806,885 B → 543,292,725 B.
 - **Packaging:** the `extraResources` entry, `sync-tts-model.mjs`, the `prepackage*` hooks and the CI cache step are gone. The dev-only `postinstall` model fetch remains.

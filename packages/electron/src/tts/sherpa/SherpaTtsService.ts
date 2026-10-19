@@ -11,6 +11,8 @@ import path from 'node:path';
 
 import type { SherpaModelStatus } from '@nomi-ai/types';
 
+import { t } from '../../i18n';
+
 import {
   SHERPA_DEFAULT_SID,
   SHERPA_DEFAULT_SPEED,
@@ -23,11 +25,13 @@ import {
 } from './manifest';
 import {
   SherpaInstallError,
+  freeDiskBytes,
   installModel,
   locateModel,
   partialDownloadBytes,
   probeWritableDir,
   removeModel,
+  requiredDiskBytes,
   type ModelSource,
 } from './modelStore';
 import { SherpaAddonLoadError, loadSherpaAddon } from './nativeAddon';
@@ -41,6 +45,8 @@ export type SherpaErrorCode =
   | 'engine_failed'
   | 'too_long'
   | 'empty'
+  /** 下载前检查：可用磁盘空间不够放压缩包 + 解压后的模型 */
+  | 'disk_full'
   | 'superseded';
 
 export class SherpaTtsError extends Error {
@@ -91,6 +97,8 @@ export interface SherpaServiceDeps {
   engineLoadTimeoutMs?: number;
   /** 日志（默认 console.warn） */
   log?: (msg: string, extra?: Record<string, unknown>) => void;
+  /** 可用磁盘字节（默认 fs.statfs）；null = 拿不到，不做拦截 */
+  freeBytes?: (dir: string) => number | null;
 }
 
 export interface SherpaSynthResult {
@@ -229,10 +237,32 @@ export class SherpaTtsService {
     if (found) return { ...base, state: 'ready', source: found.source };
     const root = this.safeUserRoot();
     const partialBytes = root ? partialDownloadBytes(root, this.manifest) : 0;
+    const disk = this.diskInfo(root, partialBytes);
     if (this.downloadError) {
-      return { ...base, state: 'error', message: this.downloadError, partialBytes };
+      return { ...base, state: 'error', message: this.downloadError, partialBytes, ...disk };
     }
-    return { ...base, state: 'missing', partialBytes };
+    return { ...base, state: 'missing', partialBytes, ...disk };
+  }
+
+  /** 下载前的磁盘需求 / 可用空间（设置页展示，不足时提示） */
+  private diskInfo(
+    root: string | undefined,
+    partialBytes: number,
+  ): Pick<SherpaModelStatus, 'diskRequired' | 'diskFree' | 'archiveBytes'> {
+    const need = requiredDiskBytes(this.manifest, partialBytes);
+    let free: number | null = null;
+    if (root) {
+      try {
+        free = (this.deps.freeBytes ?? freeDiskBytes)(root);
+      } catch {
+        free = null;
+      }
+    }
+    return {
+      archiveBytes: need.archive,
+      diskRequired: need.required,
+      ...(free === null ? {} : { diskFree: free }),
+    };
   }
 
   /**
@@ -246,6 +276,20 @@ export class SherpaTtsService {
     const root = this.safeUserRoot();
     if (!root) {
       return Promise.reject(new SherpaTtsError('not_ready', 'userData unavailable'));
+    }
+    // 先查磁盘：不够放压缩包 + 解压后的模型就不开始（失败原因留给设置页显示）
+    const disk = this.diskInfo(root, partialDownloadBytes(root, this.manifest));
+    if (disk.diskFree !== undefined && disk.diskFree < (disk.diskRequired ?? 0)) {
+      const mb = (b: number) => `${(b / 1024 / 1024).toFixed(0)} MB`;
+      const msg = t(
+        '磁盘空间不足：下载并解压离线语音模型需要约 {0} 可用空间，当前只有 {1}。请清理磁盘后重试。',
+        mb(disk.diskRequired ?? 0),
+        mb(disk.diskFree),
+      );
+      this.downloadError = msg;
+      this.log(`model install refused: ${msg}`);
+      this.emit();
+      return Promise.reject(new SherpaTtsError('disk_full', msg));
     }
     const run = this.deps.install ?? installModel;
     const urls = this.deps.modelUrls?.() ?? resolveModelUrls(this.manifest);
