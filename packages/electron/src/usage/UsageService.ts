@@ -417,7 +417,12 @@ export class UsageService {
         return this.grokCache.get();
       },
     });
-    this.ledger = new UsageLedger({ root: d.root, logger: d.logger, now: d.now });
+    this.ledger = new UsageLedger({
+      root: d.root,
+      logger: d.logger,
+      now: d.now,
+      onPersistChange: () => this.changed(),
+    });
     this.scanner = new UsageLogScanner({
       ledger: this.ledger,
       home: d.home,
@@ -1240,6 +1245,8 @@ export class UsageService {
       detected: this.scanner.detected(),
       records: this.ledger.size(),
       lastScanAt: this.lastScanAt,
+      // 落盘降级（写不进磁盘、记录暂存在内存等待重试）对用户可见（#42）
+      persist: this.ledger.persistState(),
       pricing: {
         date: PRICING_TABLE_DATE,
         builtin: BUILTIN_PRICES.map((p) => ({ ...p })),

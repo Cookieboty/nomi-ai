@@ -156,6 +156,22 @@ describe('UsageLedger', () => {
       expect(new UsageLedger({ root }).all().map((r) => r.key)).toEqual(['R']);
     });
 
+    it('进入 / 退出降级各通知一次，服务状态里能看到（#42）', () => {
+      const root = tmp();
+      const changes: boolean[] = [];
+      const l = new UsageLedger({ root, flushMs: 60_000, onPersistChange: (d) => changes.push(d) });
+      l.upsert(rec({ key: 'R' }));
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      l.flush();
+      spy.mockRestore();
+      l.flush();
+      l.flush();
+      expect(changes).toEqual([true, false]);
+    });
+
     it('记录没写成功时不写游标；记录写成功后游标才落盘（重启后能重新扫到 R）', () => {
       const root = tmp();
       const l = new UsageLedger({ root, flushMs: 60_000 });

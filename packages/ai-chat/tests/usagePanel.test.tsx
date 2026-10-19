@@ -335,6 +335,22 @@ describe('UsagePanel 概览', () => {
     expect(sub).not.toContain('copilot,');
   });
 
+  it('账本写不进磁盘时显示降级提示（含暂存条数）；正常时不显示（#42）', async () => {
+    install();
+    (state as Record<string, unknown>).persist = {
+      degraded: true,
+      pendingRecords: 7,
+      cursorDirty: true,
+    };
+    const { findByTestId, unmount } = render(<UsagePanel />);
+    expect((await findByTestId('usage-persist-degraded')).textContent).toContain('7');
+    unmount();
+    install();
+    const r = render(<UsagePanel />);
+    await r.findByTestId('usage-card-cost');
+    expect(r.queryByTestId('usage-persist-degraded')).toBeNull();
+  });
+
   it('没有任何数据：复用 EmptyState，并可手动扫描', async () => {
     emptyData = true;
     install();

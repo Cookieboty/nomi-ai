@@ -81,7 +81,14 @@ export class UsageLedger {
   private ver = 0;
 
   constructor(
-    private readonly d: { root: string; logger?: Logger; flushMs?: number; now?: () => number },
+    private readonly d: {
+      root: string;
+      logger?: Logger;
+      flushMs?: number;
+      now?: () => number;
+      /** 进入 / 退出落盘降级时回调（让界面及时显示「暂存在内存」，#42） */
+      onPersistChange?: (degraded: boolean) => void;
+    },
   ) {
     fs.mkdirSync(d.root, { recursive: true });
     this.file = path.join(d.root, 'ledger.jsonl');
@@ -452,6 +459,7 @@ export class UsageLedger {
         failed = e;
       }
     }
+    const was = this.degraded;
     if (failed) {
       if (!this.degraded) this.d.logger?.warn('usage flush failed', String(failed));
       this.degraded = true;
@@ -459,5 +467,6 @@ export class UsageLedger {
     } else {
       this.degraded = false;
     }
+    if (was !== this.degraded) this.d.onPersistChange?.(this.degraded);
   }
 }

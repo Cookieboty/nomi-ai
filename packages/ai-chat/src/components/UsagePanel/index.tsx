@@ -146,6 +146,14 @@ export const UsagePanel: React.FC = () => {
           </>
         )}
       </p>
+      {state?.persist?.degraded && (
+        <Notice tone="warning" data-testid="usage-persist-degraded">
+          {t(
+            '用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。',
+            String(state.persist.pendingRecords),
+          )}
+        </Notice>
+      )}
 
       <Tabs<Tab>
         aria-label={t('用量分区')}

@@ -61,6 +61,8 @@ export interface UsageState {
   detected: string[];
   records: number;
   lastScanAt: number;
+  /** degraded = 最近一次写盘失败，pendingRecords 条记录还在内存里等待重试 */
+  persist?: { degraded: boolean; pendingRecords: number; cursorDirty: boolean };
   pricing: { date: string; builtin: UsageBuiltinPrice[]; sync?: UsagePriceSyncState };
 }
 

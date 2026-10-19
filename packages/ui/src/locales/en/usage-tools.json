@@ -348,5 +348,6 @@
   "短周期": "Short window",
   "{0} 天": "{0} d",
   "价格 / 汇率已在别处更新；你还没保存的修改已保留。直接保存会覆盖最新值。": "Prices / exchange rates were updated elsewhere. Your unsaved edits are kept; saving now will overwrite the latest values.",
-  "放弃修改并载入最新": "Discard edits and load latest"
+  "放弃修改并载入最新": "Discard edits and load latest",
+  "用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。": "Usage records can't be written to disk right now: {0} records are kept in memory and will be retried automatically. Check disk space and permissions; if you quit before it recovers, these records may be lost."
 }
