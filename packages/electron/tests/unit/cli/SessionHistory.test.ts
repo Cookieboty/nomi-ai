@@ -661,11 +661,21 @@ describe('resume through the tab layer (mock CLIs)', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-harness-'));
     work = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-cwd-'));
   });
+  // 收掉长驻的 Claude 进程，否则 jest 进程无法退出
+  const made: CliHarnessService[] = [];
   afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () =>
-    new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
+  const mk = () => {
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+    });
+    made.push(h);
+    return h;
+  };
 
   it.each([
     ['claude', 'sess-claude-1', '已续接会话 sess-claude-1'],

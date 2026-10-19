@@ -29,11 +29,21 @@ describe('CliHarnessService tabs', () => {
     delete process.env.NOMI_USE_MOCK_CLI;
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-tabs-'));
   });
+  // 每个用例结束都要 dispose：Claude 是长驻进程，不收掉会让 jest 进程无法退出
+  const made: CliHarnessService[] = [];
   afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () =>
-    new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
+  const mk = () => {
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+    });
+    made.push(h);
+    return h;
+  };
 
   it('progressHint：记录当前一轮最近的文本 / 工具步骤，关闭标签后清空', () => {
     const h = mk();
