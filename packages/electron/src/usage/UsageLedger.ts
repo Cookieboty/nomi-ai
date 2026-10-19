@@ -43,7 +43,14 @@ export class UsageLedger {
   /** 按 ts 升序的快照（查询用；脏了再重建） */
   private sorted: UsageRecord[] | null = null;
   private cursors: Record<string, FileCursor> = {};
-  private pending: string[] = [];
+  /**
+   * 还没落盘的记录键。只存键、落盘时取内存里的最新值：写失败时队列不丢，
+   * 且长时间写不进去也只会占 O(记录数) 内存（同键多次更新合并为一条）。
+   */
+  private dirty = new Set<string>();
+  /** 上一次追加写失败过：可能留下半行，下一次追加先补一个换行把残行隔开（load 会忽略空行 / 坏行） */
+  private appendTainted = false;
+  private degraded = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private cursorDirty = false;
   private lines = 0;
@@ -131,7 +138,7 @@ export class UsageLedger {
     this.recs.set(r.key, r);
     this.sorted = null;
     this.ver++;
-    this.pending.push(JSON.stringify(r));
+    this.dirty.add(r.key);
     this.lines++;
     this.scheduleFlush();
     return true;
@@ -153,7 +160,7 @@ export class UsageLedger {
     this.recs.set(key, next);
     this.sorted = null;
     this.ver++;
-    this.pending.push(JSON.stringify(next));
+    this.dirty.add(key);
     this.lines++;
     this.scheduleFlush();
     return true;
@@ -272,7 +279,8 @@ export class UsageLedger {
     this.recs.clear();
     this.sorted = null;
     this.ver++;
-    this.pending = [];
+    this.dirty.clear();
+    this.appendTainted = false;
     this.lines = 0;
     try {
       writePrivateFile(this.file, '');
@@ -290,7 +298,8 @@ export class UsageLedger {
       const tmp = `${this.file}.tmp`;
       writePrivateFile(tmp, body ? `${body}\n` : '');
       fs.renameSync(tmp, this.file);
-      this.pending = [];
+      this.dirty.clear();
+      this.appendTainted = false;
       this.lines = this.recs.size;
     } catch (e) {
       this.d.logger?.warn('usage compact failed', String(e));
@@ -306,31 +315,70 @@ export class UsageLedger {
     (this.flushTimer as { unref?: () => void }).unref?.();
   }
 
+  /** 落盘状态：degraded = 最近一次写盘失败，记录 / 游标还留在内存里等待重试 */
+  persistState(): { degraded: boolean; pendingRecords: number; cursorDirty: boolean } {
+    return {
+      degraded: this.degraded,
+      pendingRecords: this.dirty.size,
+      cursorDirty: this.cursorDirty,
+    };
+  }
+
+  /**
+   * 落盘：先追加记录，成功后才摘掉对应的待写键；游标只在没有待写记录时才写
+   * （持久游标不能越过未持久化的记录，否则重启后日志被判定「已读」而账本里没有）。
+   * 任一步失败都保留全部可重试状态并安排重试。
+   */
   flush(): void {
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    try {
-      if (this.pending.length) {
-        const chunk = `${this.pending.join('\n')}\n`;
-        this.pending = [];
-        const fresh = !fs.existsSync(this.file);
-        fs.appendFileSync(this.file, chunk, { mode: 0o600 });
-        if (fresh) {
-          try {
-            fs.chmodSync(this.file, 0o600);
-          } catch {
-            /* Windows */
+    let failed: unknown = null;
+    if (this.dirty.size) {
+      const keys = [...this.dirty];
+      const body = keys
+        .map((k) => this.recs.get(k))
+        .filter((r): r is UsageRecord => !!r)
+        .map((r) => JSON.stringify(r))
+        .join('\n');
+      if (!body) {
+        this.dirty.clear();
+      } else {
+        try {
+          const fresh = !fs.existsSync(this.file);
+          fs.appendFileSync(this.file, `${this.appendTainted ? '\n' : ''}${body}\n`, {
+            mode: 0o600,
+          });
+          this.appendTainted = false;
+          for (const k of keys) this.dirty.delete(k);
+          if (fresh) {
+            try {
+              fs.chmodSync(this.file, 0o600);
+            } catch {
+              /* Windows */
+            }
           }
+        } catch (e) {
+          failed = e;
+          this.appendTainted = true;
         }
       }
-      if (this.cursorDirty) {
-        this.cursorDirty = false;
+    }
+    if (!failed && !this.dirty.size && this.cursorDirty) {
+      try {
         writePrivateFile(this.cursorFile, JSON.stringify(this.cursors));
+        this.cursorDirty = false;
+      } catch (e) {
+        failed = e;
       }
-    } catch (e) {
-      this.d.logger?.warn('usage flush failed', String(e));
+    }
+    if (failed) {
+      if (!this.degraded) this.d.logger?.warn('usage flush failed', String(failed));
+      this.degraded = true;
+      this.scheduleFlush(); // 存储恢复后自动重试
+    } else {
+      this.degraded = false;
     }
   }
 }
