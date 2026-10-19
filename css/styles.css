@@ -1274,3 +1274,40 @@ code {
 .contact-card img { display: block; width: 100%; height: auto; border-radius: 22px; box-shadow: 0 10px 30px rgba(51,41,31,.10); }
 .contact-card figcaption { margin-top: 12px; font-weight: 700; color: #33291F; }
 @media (max-width: 640px) { .contact-grid { flex-direction: column; align-items: center; gap: 24px; } }
+
+/* contact nav button + popover / bottom sheet */
+.nav .nav-contact {
+  display: inline-flex; align-items: center;
+  padding: 0.44rem 1rem; margin-left: -0.6rem;
+  border: 1.5px solid var(--nomi-orange); border-radius: var(--radius-pill);
+  background: rgba(251,148,102,0.10); color: var(--nomi-hover);
+  font-weight: 700; text-decoration: none;
+  transition: background .15s ease, color .15s ease;
+}
+.nav .nav-contact:hover, .nav .nav-contact[aria-expanded="true"] { background: rgba(251,148,102,0.2); color: var(--nomi-ink); }
+#contact { scroll-margin-top: calc(var(--header-h) + 12px); }
+.cpop-backdrop { position: fixed; inset: 0; z-index: 110; background: transparent; }
+.cpop {
+  position: fixed; z-index: 120; top: calc(var(--header-h) + 8px);
+  right: max(1.25rem, calc((100vw - var(--max)) / 2));
+  width: 460px; max-width: calc(100vw - 2rem);
+  background: var(--nomi-card); border: 1px solid var(--nomi-border-strong);
+  border-radius: var(--radius); box-shadow: var(--nomi-shadow-lg); padding: 16px 18px 14px;
+}
+.cpop[hidden], .cpop-backdrop[hidden] { display: none; }
+.cpop-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.cpop-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.05rem; }
+.cpop-close { appearance: none; border: 0; background: rgba(51,41,31,.06); width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1; color: var(--nomi-ink); }
+.cpop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cpop-grid img { display: block; width: 100%; height: auto; border-radius: 14px; aspect-ratio: 3 / 4; background: var(--nomi-cream); }
+.cpop-hint { display: none; text-align: center; color: var(--nomi-warm-gray); font-size: .9rem; margin: 10px 0 0; }
+.cpop-issues { display: block; margin-top: 12px; font-size: .9rem; text-align: center; }
+@media (max-width: 860px) {
+  .nav .nav-contact { margin-left: 0; justify-content: center; }
+  .cpop-backdrop { background: rgba(31,24,20,.45); }
+  .cpop { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-width: none; max-height: 88vh; overflow-y: auto;
+    border-radius: 22px 22px 0 0; padding: 14px 18px calc(18px + env(safe-area-inset-bottom)); }
+  .cpop-grid { grid-template-columns: 1fr; justify-items: center; }
+  .cpop-grid picture { width: min(280px, 100%); }
+  .cpop-hint { display: block; }
+}
