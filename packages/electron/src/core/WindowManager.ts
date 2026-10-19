@@ -34,15 +34,24 @@ export interface WindowOptions {
   alwaysOnTop?: boolean;
   resizable?: boolean;
   show?: boolean;
+  /** 窗口准备好后显示但不抢占焦点（开机自启 / 看板娘让位给主界面） */
+  showInactive?: boolean;
   title?: string;
   preloadScript?: string;
   /** 额外的 BrowserWindow 选项（标题栏样式等） */
   chrome?: Partial<BrowserWindowConstructorOptions>;
 }
 
+/** 窗口显示方式：默认抢占焦点；`activate: false` 时只显示、不抢焦点 */
+export interface ShowOptions {
+  activate?: boolean;
+}
+
 export interface IWindowManager {
-  createMainWindow(): Promise<BrowserWindow>;
-  createAiChatWindow(): Promise<BrowserWindow>;
+  /** 创建看板娘窗口（历史命名 main） */
+  createMainWindow(opts?: ShowOptions): Promise<BrowserWindow>;
+  /** 创建 / 聚焦软件主界面（对话窗口） */
+  createAiChatWindow(opts?: ShowOptions): Promise<BrowserWindow>;
   createTTSConfigWindow(): Promise<BrowserWindow>;
   getMainWindow(): BrowserWindow | null;
   getAiChatWindow(): BrowserWindow | null;
@@ -70,7 +79,7 @@ export class WindowManager implements IWindowManager {
   /**
    * 创建主窗口
    */
-  async createMainWindow(): Promise<BrowserWindow> {
+  async createMainWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     if (this.mainWindow) {
       this.mainWindow.focus();
       return this.mainWindow;
@@ -106,6 +115,7 @@ export class WindowManager implements IWindowManager {
         resizable: false,
         alwaysOnTop: true,
         show: false,
+        showInactive: opts.activate === false,
         preloadScript: 'preload.bundle.js',
       };
 
@@ -131,20 +141,27 @@ export class WindowManager implements IWindowManager {
   /**
    * 创建AI对话窗口
    */
-  async createAiChatWindow(): Promise<BrowserWindow> {
+  async createAiChatWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     if (this.aiChatWindow) {
-      this.aiChatWindow.focus();
-      this.aiChatWindow.show();
-      return this.aiChatWindow;
+      const win = this.aiChatWindow;
+      // 最小化的窗口先还原（Windows 上从任务栏 / 托盘 / 第二实例唤起时需要）
+      if (win.isMinimized()) win.restore();
+      if (opts.activate === false) {
+        win.showInactive();
+      } else {
+        win.show();
+        win.focus();
+      }
+      return win;
     }
     // 创建过程是异步的（await createWindow / 加载页面）：并发调用共用同一次创建，避免开出两个窗口
-    this.aiChatWindowPromise ??= this.buildAiChatWindow().finally(() => {
+    this.aiChatWindowPromise ??= this.buildAiChatWindow(opts).finally(() => {
       this.aiChatWindowPromise = undefined;
     });
     return this.aiChatWindowPromise;
   }
 
-  private async buildAiChatWindow(): Promise<BrowserWindow> {
+  private async buildAiChatWindow(opts: ShowOptions = {}): Promise<BrowserWindow> {
     try {
       const primaryDisplay = screen.getPrimaryDisplay();
       const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
@@ -165,6 +182,7 @@ export class WindowManager implements IWindowManager {
         alwaysOnTop: false,
         resizable: true,
         show: false,
+        showInactive: opts.activate === false,
         title: 'Nomi',
         preloadScript: 'ai-chat-preload.bundle.js',
         chrome: {
@@ -385,7 +403,8 @@ export class WindowManager implements IWindowManager {
     // 通用窗口事件
     window.once('ready-to-show', () => {
       perfMark(`${type}-shown`);
-      window.show();
+      if (options.showInactive) window.showInactive();
+      else window.show();
 
       // 开发环境打开开发者工具
       if (isDevMode()) {

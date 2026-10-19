@@ -69,6 +69,11 @@ export interface TrayManagerOptions {
   providers: ProviderService;
   logger: ILoggerService;
   openChat: () => void;
+  /**
+   * 左键点击托盘图标（仅 Windows；macOS 点击会弹出菜单）。
+   * 返回 true 表示已处理（例如「启动后默认显示主界面」时打开主界面）；缺省 / 返回 false 时保持原样（什么都不做）。
+   */
+  onActivate?: () => boolean;
   openProviderPanel: () => void;
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
@@ -173,6 +178,18 @@ export class TrayManager {
         if (!img.isEmpty() && this.tray && !this.tray.isDestroyed()) this.tray.setImage(img);
       });
       this.tray.setToolTip(APP_DISPLAY_NAME);
+      if (process.platform === 'win32' && this.opts.onActivate) {
+        const onActivate = this.opts.onActivate;
+        this.tray.on('click', () => {
+          try {
+            onActivate();
+          } catch (error) {
+            this.opts.logger.warn('托盘点击处理失败', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+      }
       this.rebuild();
       this.unsubscribe = this.opts.providers.onChange(() => this.rebuild());
       this.unsubscribeModels = this.opts.models?.onChange(() => void this.refreshModels());
