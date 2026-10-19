@@ -48,8 +48,10 @@
 }
 .navIcon {
   width: 20px;
-  font-size: 15px;
-  text-align: center;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .content {
   flex: 1;
