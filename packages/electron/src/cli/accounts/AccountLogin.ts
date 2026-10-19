@@ -15,6 +15,7 @@ import { guardedHandle } from '../../security/guardedIpc';
 import { buildCliEnv } from '../cliEnv';
 import { resolveHarnessBin } from '../CliHarnessService';
 import { resolveHarnessLaunch } from '../cliLaunch';
+import { AcpConnection } from '../gemini/acp';
 import { killProcessTree } from '../processTree';
 
 import type { AccountService } from './AccountService';
@@ -65,13 +66,15 @@ export function parseLoginOutput(raw: string): { url?: string; code?: string; ne
   };
 }
 
-const LOGIN_ARGS: Record<Exclude<AccountKind, 'gemini'>, { env: string; args: string[] }> = {
+const LOGIN_ARGS: Record<AccountKind, { env: string; args: string[] }> = {
   claude: { env: 'CLAUDE_CONFIG_DIR', args: ['auth', 'login', '--claudeai'] },
   codex: {
     env: 'CODEX_HOME',
     args: ['login', '--device-auth', '-c', 'cli_auth_credentials_store="file"'],
   },
   grok: { env: 'GROK_HOME', args: ['login', '--device-auth'] },
+  // Gemini 没有 login 子命令：起 ACP 进程后调用 authenticate（oauth-personal），由 CLI 自己开浏览器
+  gemini: { env: 'GEMINI_CLI_HOME', args: ['--acp'] },
 };
 
 interface Session {
@@ -104,7 +107,6 @@ export class AccountLogin {
   }
 
   start(kind: AccountKind): LoginEvent {
-    if (kind === 'gemini') throw new Error(t('Gemini 的登录随 Gemini 后端一起提供'));
     const bin = resolveHarnessBin(kind);
     if (!bin) throw new Error(t('未找到 {0}，请先安装', kind));
     const id = randomUUID();
@@ -114,6 +116,7 @@ export class AccountLogin {
     const script = bin.endsWith('.mjs') || bin.endsWith('.js');
     const env = buildCliEnv(process.env, {
       [spec.env]: dir,
+      ...(kind === 'gemini' ? { GEMINI_CLI_TRUST_WORKSPACE: 'true' } : {}),
       ...(script ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
     });
     const launch = resolveHarnessLaunch(
@@ -142,17 +145,69 @@ export class AccountLogin {
     this.sessions.set(id, s);
     const onData = (c: Buffer) => {
       s.out = (s.out + c.toString('utf8')).slice(-64 * 1024);
+      // Gemini 的进度走 ACP，stderr 只留作出错时的说明
+      if (s.kind === 'gemini') return;
       const p = parseLoginOutput(s.out);
       if (s.last.state === 'verifying') return;
       if (p.url || p.code || p.needsCode)
         this.send(s, { state: 'waiting', ...p, needsCode: p.needsCode });
     };
-    child.stdout.on('data', onData);
+    if (kind === 'gemini') this.driveGemini(s);
+    else child.stdout.on('data', onData);
     child.stderr.on('data', onData);
     child.on('error', (e) => this.fail(s, e.message));
     child.on('close', (code) => void this.onExit(s, code));
     this.d.emit(s.last);
     return s.last;
+  }
+
+  /**
+   * Gemini 0.62 的 ACP authenticate 直接打开浏览器（127.0.0.1 回调，5 分钟超时），
+   * 登录链接不输出到 stdout / stderr，所以界面只能提示去浏览器里完成。完成后结束进程并收凭据。
+   */
+  private driveGemini(s: Session) {
+    const conn = new AcpConnection(s.child, {
+      onNotification: () => undefined,
+      onRequest: async (method) => {
+        throw new Error(`unsupported client method ${method}`);
+      },
+    });
+    void (async () => {
+      try {
+        await conn.request('initialize', {
+          protocolVersion: 1,
+          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+        });
+        if (s.finished) return;
+        this.send(s, {
+          state: 'waiting',
+          message: t('已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。'),
+        });
+        await conn.request('authenticate', { methodId: 'oauth-personal' });
+        if (s.finished) return;
+        this.send(s, { state: 'verifying' });
+        await this.collect(s);
+      } catch (e) {
+        this.fail(s, e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!s.child.killed && s.child.exitCode === null) killProcessTree(s.child);
+      }
+    })();
+  }
+
+  /** 从暂存目录读出这次登录的凭据存进保险箱 */
+  private async collect(s: Session) {
+    // 暂存目录就是这次登录的 CLI 配置目录：用同一个适配器从那里读凭据
+    const env = {
+      ...(this.d.adapterEnv?.env ?? process.env),
+      [LOGIN_ARGS[s.kind].env]: s.dir,
+    };
+    const live = await adapterFor(s.kind, { ...this.d.adapterEnv, env }).read();
+    if (!live) throw new Error(t('登录完成了，但没有读到凭据'));
+    const account = await this.d.accounts.addFromLogin(s.kind, live);
+    s.finished = true;
+    this.send(s, { state: 'done', account });
+    await this.cleanup(s);
   }
 
   /** 把用户粘贴的授权码写给 CLI（Claude） */
@@ -184,26 +239,23 @@ export class AccountLogin {
 
   private async onExit(s: Session, code: number | null) {
     if (s.finished) return;
-    if (code !== 0) {
-      const tail = stripTerminal(s.out).trim().split('\n').slice(-3).join('\n');
-      return this.fail(s, tail || t('登录没有完成（退出码 {0}）', String(code)));
-    }
-    try {
-      // 暂存目录就是这次登录的 CLI 配置目录：用同一个适配器从那里读凭据
-      const env = {
-        ...(this.d.adapterEnv?.env ?? process.env),
-        [LOGIN_ARGS[s.kind as 'claude'].env]: s.dir,
-      };
-      const live = await adapterFor(s.kind, { ...this.d.adapterEnv, env }).read();
-      if (!live) throw new Error(t('登录完成了，但没有读到凭据'));
-      const account = await this.d.accounts.addFromLogin(s.kind, live);
-      s.finished = true;
-      this.send(s, { state: 'done', account });
-    } catch (e) {
-      this.fail(s, e instanceof Error ? e.message : String(e));
+    if (s.kind === 'gemini') {
+      // ACP 进程只在出错时自己退出；成功路径由 driveGemini 收尾
+      if (s.last.state !== 'verifying') return this.fail(s, this.tail(s) || t('登录没有完成'));
       return;
     }
-    await this.cleanup(s);
+    if (code !== 0) {
+      return this.fail(s, this.tail(s) || t('登录没有完成（退出码 {0}）', String(code)));
+    }
+    try {
+      await this.collect(s);
+    } catch (e) {
+      this.fail(s, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private tail(s: Session) {
+    return stripTerminal(s.out).trim().split('\n').slice(-3).join('\n');
   }
 
   private async cleanup(s: Session) {

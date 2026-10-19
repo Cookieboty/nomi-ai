@@ -109,7 +109,9 @@ const LoginDialog: React.FC<{
           </form>
         )}
         {event.state === 'waiting' && !event.needsCode && (
-          <p className="cd-muted">{t('等待你在浏览器里完成授权…')}</p>
+          <p className="cd-muted" data-testid="cli-account-waiting">
+            {event.message || t('等待你在浏览器里完成授权…')}
+          </p>
         )}
         {busy && event.state === 'verifying' && <p className="cd-muted">{t('正在验证…')}</p>}
         {event.state === 'done' && (
@@ -256,7 +258,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             data-testid="cli-account-card"
             title={
               <span className={ppStyles.inline}>
-                {kind !== 'gemini' && <EndpointIcon backend={kind} size={22} decorative />}
+                <EndpointIcon backend={kind} size={22} decorative />
                 <span>{a.label}</span>
                 {a.identity?.plan && <Badge>{a.identity.plan}</Badge>}
                 {a.active && <Badge data-testid="cli-account-current">{t('当前')}</Badge>}

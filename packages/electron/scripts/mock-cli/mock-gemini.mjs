@@ -7,6 +7,8 @@
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
 if (args.includes('--version') || args.includes('-v')) {
@@ -110,6 +112,37 @@ process.stdin.on('data', (c) => {
           },
         });
         break;
+      case 'authenticate': {
+        const id = m.id;
+        setTimeout(
+          () => {
+            if (process.env.NOMI_MOCK_LOGIN_FAIL === '1')
+              return send({ id, error: { code: -32000, message: 'Authentication timed out' } });
+            const email = process.env.NOMI_MOCK_LOGIN_EMAIL || 'mock@gmail.com';
+            const dir = path.join(process.env.GEMINI_CLI_HOME || os.homedir(), '.gemini');
+            fs.mkdirSync(dir, { recursive: true });
+            const payload = Buffer.from(JSON.stringify({ sub: `g-${email}`, email })).toString(
+              'base64url',
+            );
+            fs.writeFileSync(
+              path.join(dir, 'oauth_creds.json'),
+              JSON.stringify({
+                access_token: `at-${email}`,
+                refresh_token: `rt-${email}`,
+                id_token: `h.${payload}.s`,
+                expiry_date: Date.now() + 3600_000,
+              }),
+            );
+            fs.writeFileSync(
+              path.join(dir, 'google_accounts.json'),
+              JSON.stringify({ active: email, old: [] }),
+            );
+            send({ id, result: {} });
+          },
+          Number(process.env.NOMI_MOCK_LOGIN_MS || 200),
+        );
+        break;
+      }
       case 'session/new': {
         const sessionId = `gem-${randomUUID()}`;
         sessions.add(sessionId);

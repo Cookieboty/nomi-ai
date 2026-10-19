@@ -291,6 +291,30 @@ describe('AccountService · Gemini / Grok', () => {
     });
   });
 
+  it('Gemini：切换时把 settings.json 的认证方式改成 Google 登录，其它设置保留；JSONC 不碰', async () => {
+    const t = setup();
+    const dir = path.join(t.home, '.gemini');
+    fs.mkdirSync(dir, { recursive: true });
+    const settings = path.join(dir, 'settings.json');
+    fs.writeFileSync(
+      settings,
+      JSON.stringify({ theme: 'x', security: { auth: { selectedType: 'gemini-api-key' } } }),
+    );
+    const adapter = adapterFor('gemini', { home: t.home, env: t.env });
+    const files = {
+      'oauth_creds.json': JSON.stringify({ refresh_token: 'r', id_token: jwt({ sub: 's' }) }),
+    };
+    await adapter.write(files);
+    expect(JSON.parse(fs.readFileSync(settings, 'utf8'))).toEqual({
+      theme: 'x',
+      security: { auth: { selectedType: 'oauth-personal' } },
+    });
+    const jsonc = '{\n  // comment\n  "security": {}\n}';
+    fs.writeFileSync(settings, jsonc);
+    await adapter.write(files);
+    expect(fs.readFileSync(settings, 'utf8')).toBe(jsonc);
+  });
+
   it('Gemini 开了加密存储：拒绝切换', async () => {
     const t = setup();
     t.env.GEMINI_FORCE_ENCRYPTED_FILE_STORAGE = 'true';

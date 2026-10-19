@@ -1615,6 +1615,8 @@ export class CliHarnessService {
     } finally {
       live.turn = null;
       live.lastActivityAt = Date.now();
+      if (live.recycleAfterTurn && this.geminiLive.get(tab.id) === live)
+        this.teardownGeminiLive(tab.id);
     }
   }
 
@@ -1806,6 +1808,14 @@ export class CliHarnessService {
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
   recycleBackend(kind: HarnessBackend): void {
+    if (kind === 'gemini') {
+      // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
+      for (const [id, gl] of [...this.geminiLive.entries()]) {
+        if (gl.turn) gl.recycleAfterTurn = true;
+        else this.teardownGeminiLive(id);
+      }
+      return;
+    }
     if (kind !== 'claude') return;
     for (const [id, live] of [...this.claudeLive.entries()]) {
       if (live.turn && !live.turn.settled) {
@@ -2379,6 +2389,8 @@ type GeminiLiveSession = {
   perms: Map<string, (allow: boolean | null) => void>;
   lastActivityAt: number;
   ready: Promise<void>;
+  /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
+  recycleAfterTurn?: boolean;
 };
 
 type ClaudeLiveSession = {

@@ -22,19 +22,21 @@ import { ProviderPanel } from '../lazyPanels';
 import { CliEndpointSection } from './CliEndpointSection';
 import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
+import { OfficialAccounts } from './OfficialAccounts';
 
 const noop = () => undefined;
 
-/** Gemini 端点：目前只有版本卡片；官方账号与自定义供应商随后接入（docs/design/cli-official-accounts.md §8） */
+/** Gemini 端点：官方账号 + 版本卡片（docs/design/cli-official-accounts.md §8）；没有第三方供应商档案 */
 const GeminiEndpointSection: React.FC = () => (
   <div data-testid="providers-section-gemini">
     <div className={styles.intro}>
       <p>
         {t(
-          'Gemini CLI 通过 ACP 协议接入：使用它自己的登录与配置（~/.gemini）。在终端里运行 gemini 完成登录后即可在 Nomi 里使用。',
+          'Gemini CLI 通过 ACP 协议接入，使用它自己的登录与配置（~/.gemini）。可以在下面添加多个 Google 账号并随时切换。',
         )}
       </p>
     </div>
+    <OfficialAccounts kind="gemini" />
     <CliVersionCard kind="gemini" />
   </div>
 );

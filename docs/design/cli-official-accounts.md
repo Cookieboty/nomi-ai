@@ -36,12 +36,12 @@
 
 都在 **暂存目录**（隔离的 CLI 配置目录）里跑官方登录命令，登录成功后把凭据收进 Nomi 保险箱，暂存目录（及 macOS 上暂存的钥匙串条目）随即删除。**用户现有的全局登录在登录过程中不受影响。**
 
-| CLI    | 命令（env）                                                                           | CLI 输出 → 界面                                                                                                    |
-| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| Claude | `CLAUDE_CONFIG_DIR=<暂存> claude auth login --claudeai`                               | 打开浏览器 + 打印授权 URL；回调失败时提示 `Paste code here if prompted >` → 界面给「粘贴授权码」输入框，写回 stdin |
-| Codex  | `CODEX_HOME=<暂存> codex login --device-auth -c cli_auth_credentials_store="file"`    | 打印 `https://auth.openai.com/codex/device` 与一次性码（15 分钟）                                                  |
-| Grok   | `GROK_HOME=<暂存> grok login --device-auth`                                           | 打印 `https://accounts.x.ai/oauth2/device?...` 与确认码                                                            |
-| Gemini | `GEMINI_CLI_HOME=<暂存> gemini --acp` → `authenticate { methodId: "oauth-personal" }` | ACP 下不弹 `[Y/n]` 直接开浏览器（127.0.0.1 回调，5 分钟超时）                                                      |
+| CLI    | 命令（env）                                                                           | CLI 输出 → 界面                                                                                                                 |
+| ------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Claude | `CLAUDE_CONFIG_DIR=<暂存> claude auth login --claudeai`                               | 打开浏览器 + 打印授权 URL；回调失败时提示 `Paste code here if prompted >` → 界面给「粘贴授权码」输入框，写回 stdin              |
+| Codex  | `CODEX_HOME=<暂存> codex login --device-auth -c cli_auth_credentials_store="file"`    | 打印 `https://auth.openai.com/codex/device` 与一次性码（15 分钟）                                                               |
+| Grok   | `GROK_HOME=<暂存> grok login --device-auth`                                           | 打印 `https://accounts.x.ai/oauth2/device?...` 与确认码                                                                         |
+| Gemini | `GEMINI_CLI_HOME=<暂存> gemini --acp` → `authenticate { methodId: "oauth-personal" }` | ACP 下不弹 `[Y/n]` 直接开浏览器（127.0.0.1 回调，5 分钟超时）；0.62 不把授权 URL 输出到 stdout / stderr，界面只提示去浏览器完成 |
 
 此外支持「**导入当前登录**」：把全局位置现有的凭据存成一个账号（第一次启用时默认做一次，避免切换时丢失原登录）。
 
@@ -91,11 +91,12 @@
 
 ## 9. 实施阶段
 
-| 阶段   | 内容                                                                                                   | 状态   |
-| ------ | ------------------------------------------------------------------------------------------------------ | ------ |
-| A1     | 保险箱 + 四个 CLI 的凭据适配器（读 / 写 / 身份 / 备份还原）+ 回收与切换 + 导入当前登录 + IPC           | 已完成 |
-| A2     | 暂存目录登录（Claude / Codex / Grok；Gemini 随 G2）+ 登录进度事件                                      | 已完成 |
-| A3     | 界面：官方账号区、登录弹窗、切换与删除、端点芯片显示当前账号                                           | 已完成 |
-| G1     | Gemini 后端：检测 / 安装 / 更新、ACP 对话、权限模式、子代理识别、端点列表与图标                        | 已完成 |
-| G2     | Gemini 官方登录（ACP authenticate）与账号适配器、供应商档案、历史 / 用量 / 监视                        | 待做   |
-| 待实测 | 各 CLI 真实登录成功后的文件形态（本机只跑到等待授权）；Codex keyring 模式；Grok 身份字段；Windows 实机 | —      |
+| 阶段   | 内容                                                                                                                                                | 状态   |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| A1     | 保险箱 + 四个 CLI 的凭据适配器（读 / 写 / 身份 / 备份还原）+ 回收与切换 + 导入当前登录 + IPC                                                        | 已完成 |
+| A2     | 暂存目录登录（Claude / Codex / Grok；Gemini 随 G2）+ 登录进度事件                                                                                   | 已完成 |
+| A3     | 界面：官方账号区、登录弹窗、切换与删除、端点芯片显示当前账号                                                                                        | 已完成 |
+| G1     | Gemini 后端：检测 / 安装 / 更新、ACP 对话、权限模式、子代理识别、端点列表与图标                                                                     | 已完成 |
+| G2     | Gemini 官方登录（ACP authenticate）+ 账号切换（同时把 settings.json 的认证方式改为 `oauth-personal`）+ Gemini 端点页的官方账号区                    | 已完成 |
+| G3     | Gemini 第三方供应商档案（API Key / Base URL）、输入栏端点芯片、磁盘历史 / 用量 / 监视                                                               | 待做   |
+| 待实测 | 各 CLI 真实登录成功后的文件形态（本机只跑到等待授权）；Codex keyring 模式；Grok 身份字段；Gemini 浏览器打不开（Linux 无桌面）时的退路；Windows 实机 | —      |

@@ -249,5 +249,5 @@
   "全部功能": "All features",
   "已达上限": "Limit reached",
   "个，先取消一个再添加。": "; unpin one before adding another.",
-  "Gemini CLI 通过 ACP 协议接入：使用它自己的登录与配置（~/.gemini）。在终端里运行 gemini 完成登录后即可在 Nomi 里使用。": "Gemini CLI connects over ACP and uses its own sign-in and config (~/.gemini). Sign in by running gemini in a terminal, then use it in Nomi."
+  "Gemini CLI 通过 ACP 协议接入，使用它自己的登录与配置（~/.gemini）。可以在下面添加多个 Google 账号并随时切换。": "Gemini CLI connects over ACP and uses its own sign-in and config (~/.gemini). Add several Google accounts below and switch between them anytime."
 }

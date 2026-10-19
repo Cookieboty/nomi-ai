@@ -559,11 +559,12 @@
   "Grok 正在刷新登录凭据，请稍后再切换": "Grok is refreshing its sign-in; try switching again in a moment",
   "Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），暂不支持切换账号": "Gemini uses encrypted credential storage (GEMINI_FORCE_ENCRYPTED_FILE_STORAGE); switching accounts isn't supported yet",
   "未知的编程助手": "Unknown coding agent",
-  "Gemini 的登录随 Gemini 后端一起提供": "Gemini sign-in comes with the Gemini backend",
   "未找到 {0}，请先安装": "{0} isn't installed yet; install it first",
   "登录超时，请重试": "Sign-in timed out; try again",
   "登录没有完成（退出码 {0}）": "Sign-in didn't finish (exit code {0})",
   "登录完成了，但没有读到凭据": "Sign-in finished but no credentials were found",
   "未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）": "Gemini CLI not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
-  "Gemini 没有返回会话": "Gemini didn't return a session"
+  "Gemini 没有返回会话": "Gemini didn't return a session",
+  "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。": "Opened the Google sign-in page in your browser. Finish authorizing there (valid for 5 minutes).",
+  "登录没有完成": "Sign-in didn't finish"
 }

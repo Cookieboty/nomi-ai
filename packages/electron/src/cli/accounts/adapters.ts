@@ -320,6 +320,22 @@ export function geminiAdapter(o: AdapterEnv = {}): CredAdapter {
         if (prev && prev !== email && !old.includes(prev)) old.push(prev);
         writePrivateFileAtomic(accounts, JSON.stringify({ ...cur, active: email, old }, null, 2));
       }
+      // 认证方式改成 Google 登录，否则 settings.json 里选的 API Key 等方式会让切换不生效。
+      // 带注释（JSONC）解析不了的设置文件不碰
+      const settingsPath = path.join(dir, 'settings.json');
+      const raw = readText(settingsPath);
+      const settings = raw === null ? {} : parseObj(raw);
+      if (settings) {
+        const security = (settings.security ?? {}) as Record<string, unknown>;
+        const auth = (security.auth ?? {}) as Record<string, unknown>;
+        if (auth.selectedType !== 'oauth-personal') {
+          const next = {
+            ...settings,
+            security: { ...security, auth: { ...auth, selectedType: 'oauth-personal' } },
+          };
+          writePrivateFileAtomic(settingsPath, JSON.stringify(next, null, 2));
+        }
+      }
     },
   };
 }

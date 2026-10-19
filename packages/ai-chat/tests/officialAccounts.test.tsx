@@ -170,3 +170,30 @@ describe('OfficialAccounts', () => {
     expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-cancel', 'L2');
   });
 });
+
+describe('OfficialAccounts · Gemini', () => {
+  it('登录没有链接和码：显示主进程给的「去浏览器完成」提示', async () => {
+    const ipc = mockIpc({
+      'ai:cli-account:list': () => [],
+      'ai:cli-account:live': () => null,
+      'ai:cli-account:login-start': () => ({ id: 'G1', kind: 'gemini', state: 'starting' }),
+    });
+    const r = render(<OfficialAccounts kind="gemini" />);
+    await waitFor(() => r.getByTestId('cli-accounts-empty'));
+    fireEvent.click(r.getByTestId('cli-accounts-add'));
+    await waitFor(() => r.getByTestId('cli-account-login'));
+    act(() =>
+      ipc.emit('ai:cli-account:login', {
+        id: 'G1',
+        kind: 'gemini',
+        state: 'waiting',
+        message: '已在浏览器里打开 Google 登录页',
+      }),
+    );
+    await waitFor(() =>
+      expect(r.getByTestId('cli-account-waiting').textContent).toContain('Google'),
+    );
+    expect(r.queryByTestId('cli-account-open-url')).toBeNull();
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:login-start', 'gemini');
+  });
+});

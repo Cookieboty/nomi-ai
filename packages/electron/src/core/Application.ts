@@ -446,8 +446,8 @@ export class Application implements IApplication {
         logger: this.logger as never,
         onActivated: (kind) => {
           const bridge = getCliProviderBridge();
-          if (kind === 'gemini') return; // Gemini 后端见 G1
-          if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
+          // Gemini 没有第三方供应商档案，只需重拉长驻进程
+          if (kind !== 'gemini' && bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
           harness.recycleBackend(kind);
         },
         onChanged: () => accounts.broadcastChanged(),

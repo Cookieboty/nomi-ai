@@ -76,6 +76,7 @@ describe('AccountLogin', () => {
     'NOMI_CLAUDE_BIN',
     'NOMI_CODEX_BIN',
     'NOMI_GROK_BIN',
+    'NOMI_GEMINI_BIN',
     'NOMI_MOCK_LOGIN_EMAIL',
     'NOMI_MOCK_LOGIN_FAIL',
   ];
@@ -86,6 +87,7 @@ describe('AccountLogin', () => {
     process.env.NOMI_CLAUDE_BIN = mock('claude');
     process.env.NOMI_CODEX_BIN = mock('codex');
     process.env.NOMI_GROK_BIN = mock('grok');
+    process.env.NOMI_GEMINI_BIN = mock('gemini');
   });
   afterEach(() => {
     for (const l of logins) l.dispose();
@@ -165,6 +167,29 @@ describe('AccountLogin', () => {
       'Invalid code',
     );
     expect(t.accounts.list('claude')).toHaveLength(1);
+  }, 20_000);
+
+  it('Gemini：ACP authenticate → 提示去浏览器完成 → 存进保险箱，暂存目录清掉', async () => {
+    process.env.NOMI_MOCK_LOGIN_EMAIL = 'gem@nomi.test';
+    const t = setup();
+    const s = t.login.start('gemini');
+    await t.until(() => t.events.some((e) => e.state === 'waiting'));
+    expect(t.events.find((e) => e.state === 'waiting')?.message).toContain('Google');
+    await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
+    expect(t.events.at(-1)).toMatchObject({
+      state: 'done',
+      account: { identity: { email: 'gem@nomi.test', key: 'g-gem@nomi.test' } },
+    });
+    expect(fs.existsSync(path.join(t.home, '.gemini', 'oauth_creds.json'))).toBe(false);
+    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
+  }, 20_000);
+
+  it('Gemini：authenticate 失败时显示原因', async () => {
+    process.env.NOMI_MOCK_LOGIN_FAIL = '1';
+    const t = setup();
+    t.login.start('gemini');
+    await t.until(() => t.events.some((e) => e.state === 'error'));
+    expect(t.events.at(-1)?.message).toContain('timed out');
   }, 20_000);
 
   it('取消：结束登录进程并清掉暂存目录', async () => {
