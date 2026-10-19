@@ -546,5 +546,17 @@
   "启用失败": "Couldn't activate",
   "~/.grok/config.toml 用内联表定义了 models，请改成 [models] 表后再启用": "~/.grok/config.toml defines models as an inline table. Change it to a [models] table, then activate again.",
   "子代理「{0}」：{1}": "Subagent \"{0}\": {1}",
-  "子代理": "Subagent"
+  "子代理": "Subagent",
+  "系统安全存储不可用，无法安全保存官方账号凭据；请在系统钥匙串可用后重试": "System secure storage is unavailable, so official account credentials can't be saved safely. Try again once the system keychain is available.",
+  "账号不存在": "Account not found",
+  "官方账号": "Official account",
+  "当前没有已登录的官方账号": "No official account is signed in right now",
+  "终端登录 · {0}": "Terminal sign-in · {0}",
+  "未知账号": "unknown account",
+  "无法判断「{0}」当前登录的凭据是不是更新的，为避免覆盖有效登录，已取消切换": "Couldn't tell whether the current credentials of \"{0}\" are newer; the switch was cancelled so a valid sign-in isn't overwritten",
+  "写入登录凭据失败，已恢复原来的登录：{0}": "Couldn't write the sign-in credentials; the previous sign-in was restored: {0}",
+  "Codex 把登录凭据存在系统钥匙串里，无法切换账号；请先在 Codex 配置里把 cli_auth_credentials_store 改成 \"file\"": "Codex keeps its sign-in in the system keychain, so accounts can't be switched. Set cli_auth_credentials_store to \"file\" in the Codex config first.",
+  "Grok 正在刷新登录凭据，请稍后再切换": "Grok is refreshing its sign-in; try switching again in a moment",
+  "Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），暂不支持切换账号": "Gemini uses encrypted credential storage (GEMINI_FORCE_ENCRYPTED_FILE_STORAGE); switching accounts isn't supported yet",
+  "未知的编程助手": "Unknown coding agent"
 }

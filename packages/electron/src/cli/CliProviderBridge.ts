@@ -335,6 +335,11 @@ export class CliProviderBridge {
     }
   }
 
+  /** 该 CLI 是否启用了 Nomi 的第三方供应商档案（切到官方账号时据此决定要不要停用） */
+  hasActiveProfile(kind: CliProviderKind): boolean {
+    return this.data[kind].profiles.some((x) => x.active);
+  }
+
   deactivate(kind: CliProviderKind): { ok: boolean; backups: string[]; error?: string } {
     if (kind === 'dsh') return this.deactivateDsh();
     if (kind === 'grok') return this.deactivateGrok();

@@ -14,6 +14,7 @@ import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
+import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -437,6 +438,20 @@ export class Application implements IApplication {
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
+      // 官方账号（docs/design/cli-official-accounts.md）：切换后停用该 CLI 的第三方供应商档案，
+      // 并让长驻进程按新登录重拉
+      const accounts: AccountService = new AccountService({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        logger: this.logger as never,
+        onActivated: (kind) => {
+          const bridge = getCliProviderBridge();
+          if (kind === 'gemini') return; // Gemini 后端见 G1
+          if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
+          harness.recycleBackend(kind);
+        },
+        onChanged: () => accounts.broadcastChanged(),
+      });
+      accounts.registerIpc();
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({
