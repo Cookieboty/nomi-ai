@@ -566,5 +566,6 @@
   "未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）": "Gemini CLI not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
   "Gemini 没有返回会话": "Gemini didn't return a session",
   "已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。": "Opened the Google sign-in page in your browser. Finish authorizing there (valid for 5 minutes).",
-  "登录没有完成": "Sign-in didn't finish"
+  "登录没有完成": "Sign-in didn't finish",
+  "Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。": "Gemini CLI couldn't start an ACP session; it may be too old. Update it under Coding assistants → Gemini and try again."
 }

@@ -76,7 +76,13 @@ export function updateRecipes(
   scope: CliInstallScope = 'global',
 ): UpdateRecipe[] {
   const recipes: UpdateRecipe[] = [];
-  if (bin && kind !== 'dsh' && (method === 'native' || method === 'unknown' || kind === 'grok')) {
+  // dsh / Gemini 没有自更新子命令，只走 npm
+  if (
+    bin &&
+    kind !== 'dsh' &&
+    kind !== 'gemini' &&
+    (method === 'native' || method === 'unknown' || kind === 'grok')
+  ) {
     recipes.push({ kind: kind as 'claude' | 'codex' | 'grok', via: 'self', argv: [bin, 'update'] });
   }
   recipes.push({
@@ -279,7 +285,11 @@ export class CliUpdateService {
   async inspect(refreshLatest = false): Promise<CliInstallInfo[]> {
     const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini', 'cursor'];
     try {
-      if (refreshLatest || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
+      // 缓存里缺某个端点（例如新加入的 Gemini）也当作过期，否则 6 小时内都显示不出最新版本
+      const missing = (['claude', 'codex', 'dsh', 'grok', 'gemini'] as const).some(
+        (k) => !(k in this.cache.latest),
+      );
+      if (refreshLatest || missing || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
         const [cl, cx, ds, gk, gm] = await Promise.all([
           fetchNpmLatest(NPM_PKG.claude),
           fetchNpmLatest(NPM_PKG.codex),

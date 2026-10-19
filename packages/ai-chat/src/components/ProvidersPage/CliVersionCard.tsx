@@ -178,7 +178,10 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         ? t('有新版本')
         : state === 'current'
           ? t('已是最新')
-          : t('已安装');
+          : info
+            ? t('已安装')
+            : // 主进程没返回这个端点（例如应用还没重启到新版本）：不要冒充「已安装」
+              t('无法检测，请重启 Nomi 后再试');
 
   const actionLabel =
     state === 'missing'

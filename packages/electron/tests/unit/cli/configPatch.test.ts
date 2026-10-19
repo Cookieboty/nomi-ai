@@ -140,6 +140,11 @@ describe('update whitelist', () => {
 
 describe('dsh update recipe', () => {
   it('only uses npm global install (no self-update)', () => {
+    const g = updateRecipes('gemini', '/usr/local/bin/gemini', 'unknown');
+    // Gemini 没有 `gemini update`，只走 npm
+    expect(g.map((x) => x.via)).toEqual(['npm']);
+    expect(g[0]!.argv.slice(1)).toEqual(['install', '-g', '@google/gemini-cli@latest']);
+    expect(isAllowedUpdateArgv(g[0]!.argv)).toBe(true);
     const r = updateRecipes('dsh', '/usr/local/bin/dsh', 'unknown');
     expect(r).toHaveLength(1);
     expect(r[0]!.via).toBe('npm');

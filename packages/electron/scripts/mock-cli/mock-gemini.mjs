@@ -15,6 +15,11 @@ if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write('0.62.0\n');
   process.exit(0);
 }
+// 模拟还不支持 ACP 的旧版本（如 0.1.x）：直接报未知参数退出
+if (process.env.NOMI_MOCK_GEMINI_NO_ACP === '1') {
+  process.stderr.write('Unknown argument: acp\n');
+  process.exit(1);
+}
 if (!args.includes('--acp')) {
   process.stderr.write('mock-gemini: only --acp is supported\n');
   process.exit(2);

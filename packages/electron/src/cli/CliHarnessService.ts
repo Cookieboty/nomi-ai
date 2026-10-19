@@ -1548,6 +1548,12 @@ export class CliHarnessService {
       await live.ready;
     } catch (e) {
       this.teardownGeminiLive(tab.id);
+      // 进程在握手阶段就退出：多半是旧版 Gemini CLI，还不认识 --acp
+      if (e instanceof Error && e.message === 'ACP process exited')
+        throw new Error(
+          t('Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。'),
+          { cause: e },
+        );
       throw e;
     }
     return live;

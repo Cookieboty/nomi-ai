@@ -91,6 +91,7 @@ describe('Gemini ACP mapping', () => {
 describe('CliHarnessService Gemini backend', () => {
   const mockGemini = path.resolve(__dirname, '../../../scripts/mock-cli/mock-gemini.mjs');
   const keys = [
+    'NOMI_MOCK_GEMINI_NO_ACP',
     'NOMI_GEMINI_BIN',
     'NOMI_MOCK_GEMINI_PERM',
     'NOMI_MOCK_GEMINI_LOG',
@@ -166,6 +167,13 @@ describe('CliHarnessService Gemini backend', () => {
     } finally {
       delete process.env.TEST_GEMINI_KEY;
     }
+  }, 15_000);
+
+  it('an old CLI without --acp gets an "update Gemini" error instead of a protocol error', async () => {
+    process.env.NOMI_MOCK_GEMINI_NO_ACP = '1';
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'gemini' });
+    await expect(h.sendTab(tab.id, 'hi')).rejects.toThrow(/版本过旧/);
   }, 15_000);
 
   it('routes permission requests through replyPermission', async () => {
