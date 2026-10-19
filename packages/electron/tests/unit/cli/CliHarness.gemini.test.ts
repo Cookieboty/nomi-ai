@@ -180,13 +180,17 @@ describe('CliHarnessService Gemini backend', () => {
   }, 15_000);
 
   it('cancel sends session/cancel and marks the turn stopped', async () => {
-    process.env.NOMI_MOCK_DELAY_MS = '1500';
+    process.env.NOMI_MOCK_DELAY_MS = '3000';
     const { h, root } = mk();
     const log = path.join(root, 'acp.log');
     process.env.NOMI_MOCK_GEMINI_LOG = log;
     const tab = h.createTab({ backend: 'gemini' });
     const p = h.sendTab(tab.id, 'slow').catch((e: Error) => e);
-    await new Promise((r) => setTimeout(r, 600));
+    // 等这一轮真的发到 CLI 再取消：全量测试负载下进程启动可能远超几百毫秒
+    for (let i = 0; i < 200; i++) {
+      if (fs.existsSync(log) && readLog(log).some((c) => c.method === 'session/prompt')) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     expect(h.cancelTab(tab.id)).toBe(true);
     await p;
     expect(readLog(log).some((c) => c.method === 'session/cancel')).toBe(true);
