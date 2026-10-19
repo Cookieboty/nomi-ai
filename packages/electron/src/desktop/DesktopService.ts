@@ -19,6 +19,7 @@ import { t as tr } from '../i18n';
 import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { AppTrash } from './AppTrash';
 import { AuditLog } from './AuditLog';
@@ -413,10 +414,8 @@ export class DesktopService {
   registerIpc(): void {
     if (this.ipcRegistered) return;
     this.ipcRegistered = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, fn);
-    };
+    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'DesktopService', wrapErrors: false, passEvent: true });
     handle('ai:desktop:state', () => this.state());
     handle('ai:desktop:grant', async (_e, mode) => {
       const picked = await this.pickFolder();

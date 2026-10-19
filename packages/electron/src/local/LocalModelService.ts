@@ -12,11 +12,12 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 import { downloadVerified, extractTarGz, extractZip } from '../voice/download';
 
 import {
@@ -557,13 +558,17 @@ export class LocalModelService {
     if (this.ipcDone) return;
     this.ipcDone = true;
     const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      ipcMain.handle(`ai:local:${ch}`, async (_e, ...a) => {
-        try {
-          return await fn(...(a as never[]));
-        } catch (err) {
-          return { __error: { code: 'local', message: (err as Error).message } };
-        }
-      });
+      guardedHandle(
+        `ai:local:${ch}`,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...(a as never[]));
+          } catch (err) {
+            return { __error: { code: 'local', message: (err as Error).message } };
+          }
+        },
+        { owner: 'LocalModelService', wrapErrors: false },
+      );
     h('state', () => this.state());
     h('set-settings', (p: never) => this.setSettings(p));
     h('download', (id: string) => this.download(String(id)));

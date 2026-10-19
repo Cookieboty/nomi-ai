@@ -6,7 +6,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain, nativeTheme } from 'electron';
+import { BrowserWindow, nativeTheme } from 'electron';
+
+import { guardedHandle } from '../security/guardedIpc';
 
 export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
@@ -84,9 +86,8 @@ export class ThemeService {
   }
 
   registerIpc(): void {
-    ipcMain.removeHandler('ai:theme:get');
-    ipcMain.removeHandler('ai:theme:set');
-    ipcMain.handle('ai:theme:get', () => this.get());
-    ipcMain.handle('ai:theme:set', (_e, id: unknown) => this.set(id));
+    const opts = { owner: 'ThemeService', wrapErrors: false };
+    guardedHandle('ai:theme:get', () => this.get(), opts);
+    guardedHandle('ai:theme:set', (id) => this.set(id), opts);
   }
 }

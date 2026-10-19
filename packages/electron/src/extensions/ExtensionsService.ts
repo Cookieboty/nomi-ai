@@ -16,12 +16,13 @@ import {
   type ToolDefinition,
   type ToolRegistry,
 } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, ipcMain, safeStorage, shell } from 'electron';
+import { BrowserWindow, dialog, safeStorage, shell } from 'electron';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
@@ -646,13 +647,17 @@ export class ExtensionsService {
     if (this.ipcDone) return;
     this.ipcDone = true;
     const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      ipcMain.handle(`ai:ext:${ch}`, async (_e, ...a) => {
-        try {
-          return await fn(...(a as never[]));
-        } catch (err) {
-          return { __error: { code: 'ext', message: (err as Error).message } };
-        }
-      });
+      guardedHandle(
+        `ai:ext:${ch}`,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...(a as never[]));
+          } catch (err) {
+            return { __error: { code: 'ext', message: (err as Error).message } };
+          }
+        },
+        { owner: 'ExtensionsService', wrapErrors: false },
+      );
     h('mcp-list', () => this.listMcp());
     h('mcp-upsert', (p: never) => this.upsert(p));
     h('mcp-remove', (id: string) => this.remove(id));

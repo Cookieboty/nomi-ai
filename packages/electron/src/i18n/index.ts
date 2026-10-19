@@ -6,7 +6,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, app, ipcMain } from 'electron';
+import { BrowserWindow, app } from 'electron';
+
+import { guardedHandle } from '../security/guardedIpc';
 
 import en from './en.json';
 
@@ -105,12 +107,10 @@ export class LocaleService {
   }
 
   registerIpc(): void {
-    ipcMain.removeHandler('ai:locale:get');
-    ipcMain.removeHandler('ai:locale:set');
-    ipcMain.handle('ai:locale:get', () => this.get());
-    ipcMain.handle('ai:locale:set', (_e, p: unknown) => this.set(p));
+    const opts = { owner: 'LocaleService', wrapErrors: false };
+    guardedHandle('ai:locale:get', () => this.get(), opts);
+    guardedHandle('ai:locale:set', (p) => this.set(p), opts);
     // 主进程常量（模型目录、预设名称等）会原样发给界面，界面用这份词典补充翻译
-    ipcMain.removeHandler('ai:locale:dict');
-    ipcMain.handle('ai:locale:dict', () => EN);
+    guardedHandle('ai:locale:dict', () => EN, opts);
   }
 }

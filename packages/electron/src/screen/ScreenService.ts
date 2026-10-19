@@ -16,7 +16,6 @@ import {
   BrowserWindow,
   desktopCapturer,
   globalShortcut,
-  ipcMain,
   nativeImage,
   powerMonitor,
   screen,
@@ -28,6 +27,7 @@ import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
 import { Bm25Index } from '../knowledge/bm25';
+import { guardedHandle } from '../security/guardedIpc';
 import { installWindowGuards } from '../security/windowGuards';
 
 import {
@@ -499,13 +499,17 @@ export class ScreenService {
     if (this.ipcDone) return;
     this.ipcDone = true;
     const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      ipcMain.handle(`ai:screen:${ch}`, async (_e, ...a) => {
-        try {
-          return await fn(...(a as never[]));
-        } catch (err) {
-          return { __error: { code: 'screen', message: (err as Error).message } };
-        }
-      });
+      guardedHandle(
+        `ai:screen:${ch}`,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...(a as never[]));
+          } catch (err) {
+            return { __error: { code: 'screen', message: (err as Error).message } };
+          }
+        },
+        { owner: 'ScreenService', wrapErrors: false },
+      );
     h('state', () => this.state());
     h('set-settings', (p: Partial<ScreenMemSettings>) => this.setSettings(p));
     h('pause', (m: number) => this.pause(Number(m) || 60));

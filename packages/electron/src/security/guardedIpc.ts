@@ -5,7 +5,7 @@
  * 取代各服务里手写的 `ipcMain.removeHandler(ch); ipcMain.handle(ch, ...)`，
  * 避免新增服务时漏掉 sender 校验。
  */
-import { ipcMain } from 'electron';
+import { ipcMain, type IpcMainInvokeEvent } from 'electron';
 
 import { claimIpcChannel } from '../handlers/ipc/channelRegistry';
 
@@ -32,21 +32,36 @@ export interface GuardedHandleOptions {
   owner: string;
   /** 把 handler 抛出的错误转成 `{ __error: { message } }` 返回（渲染端各 client 约定的信封），默认开启 */
   wrapErrors?: boolean;
+  /** handler 需要 IpcMainInvokeEvent（如定位发起窗口）时置 true：fn 的第一个参数是 event，其后才是渲染端参数 */
+  passEvent?: boolean;
 }
 
 export function guardedHandle(
   channel: string,
   fn: (...args: unknown[]) => unknown,
+  opts: GuardedHandleOptions & { passEvent?: false },
+): void;
+export function guardedHandle(
+  channel: string,
+  fn: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown,
+  opts: GuardedHandleOptions & { passEvent: true },
+): void;
+export function guardedHandle(
+  channel: string,
+  fn: (...args: never[]) => unknown,
   opts: GuardedHandleOptions,
 ): void {
   claimIpcChannel(channel, opts.owner);
   const wrap = opts.wrapErrors !== false;
+  const call = (event: IpcMainInvokeEvent, args: unknown[]): unknown =>
+    (fn as (...a: unknown[]) => unknown)(...(opts.passEvent ? [event, ...args] : args));
   ipcMain.removeHandler(channel);
   ipcMain.handle(channel, async (event, ...args) => {
+    // 先校验 sender，再做任何业务；校验失败直接 reject，handler 不会被调用
     if (!isTrustedInvokeEvent(event)) throw new Error(`untrusted sender for ${channel}`);
-    if (!wrap) return fn(...args);
+    if (!wrap) return call(event, args);
     try {
-      return await fn(...args);
+      return await call(event, args);
     } catch (err) {
       return { __error: { message: err instanceof Error ? err.message : String(err) } };
     }

@@ -16,8 +16,6 @@ import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-import { ipcMain } from 'electron';
-
 import {
   jsonlEvents,
   parseClaudeSession,
@@ -25,6 +23,7 @@ import {
   parseDshProjcache,
 } from '../agents/parsers';
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import type { HarnessTabMessage, HarnessTabMeta } from './types';
@@ -439,16 +438,8 @@ export class SessionHistoryService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => Promise<unknown>) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => Promise<unknown>) =>
+      guardedHandle(ch, fn, { owner: 'SessionHistoryService' });
     handle('ai:history:list', (b, o) =>
       this.list(
         b as HistoryBackend,

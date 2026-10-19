@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, dialog, shell, type IpcMainInvokeEvent } from 'electron';
 import type * as Tess from 'tesseract.js';
 import { z } from 'zod';
 
@@ -21,6 +21,7 @@ import type { DesktopService } from '../desktop/DesktopService';
 import { extOf, isSupported } from '../desktop/parse/extract';
 import { parseFile } from '../desktop/parse/runParse';
 import { t as tr } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 import { downloadVerified } from '../voice/download';
 
 import { buildAskMessages, toSources, type SourceRef } from './answer';
@@ -968,17 +969,20 @@ export class KnowledgeService {
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (e, ...a) => {
-        try {
-          return await fn(e, ...a);
-        } catch (err) {
-          if (err instanceof KbError) return { __error: { code: err.code, message: err.message } };
-          throw err;
-        }
-      });
-    };
+    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+      guardedHandle(
+        ch,
+        async (e: IpcMainInvokeEvent, ...a: unknown[]) => {
+          try {
+            return await fn(e, ...a);
+          } catch (err) {
+            if (err instanceof KbError)
+              return { __error: { code: err.code, message: err.message } };
+            throw err;
+          }
+        },
+        { owner: 'KnowledgeService', wrapErrors: false, passEvent: true },
+      );
     handle('ai:kb:state', () => this.state());
     handle('ai:kb:docs', (_e, id, f) => this.docs(String(id), typeof f === 'string' ? f : ''));
     handle('ai:kb:add-folder', () => this.addFolder());

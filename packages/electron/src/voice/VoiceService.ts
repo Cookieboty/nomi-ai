@@ -9,9 +9,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 
 import { t as tr } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { assetsFor, findAsset, type VoiceAsset } from './catalog';
 import { transcribeOpenAICompat } from './cloudAsr';
@@ -428,10 +429,8 @@ export class VoiceService {
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, fn);
-    };
+    const handle = (ch: string, fn: (e: IpcMainInvokeEvent, ...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'VoiceService', wrapErrors: false, passEvent: true });
     handle('ai:voice:state', () => this.state());
     handle('ai:voice:setSettings', (_e, patch) => this.setSettings(patch));
     handle('ai:voice:ackCloud', () => this.ackCloud());

@@ -15,9 +15,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   CLI_MIN_NODE_MAJOR,
@@ -612,16 +613,8 @@ export class CliUpdateService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'CliUpdateService' });
     handle('ai:cli-update:inspect', (refresh) => this.inspect(refresh === true));
     handle('ai:cli-update:preview', (kind, scope) =>
       this.previewUpdate(toUpdatable(kind), toScope(scope)),

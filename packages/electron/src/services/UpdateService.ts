@@ -8,12 +8,14 @@
  * Dev / unpackaged: status stays "idle" / "unavailable"; check() returns a clear reason so
  * Settings can explain that updates only apply to installed builds.
  */
-import { BrowserWindow, app, ipcMain } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import {
   autoUpdater as defaultAutoUpdater,
   type ProgressInfo,
   type UpdateInfo,
 } from 'electron-updater';
+
+import { guardedHandle } from '../security/guardedIpc';
 
 import { type ILoggerService } from './LoggerService';
 
@@ -109,19 +111,19 @@ export class UpdateService {
   }
 
   registerIpc(): void {
-    ipcMain.removeHandler(CHANNEL.get);
-    ipcMain.removeHandler(CHANNEL.check);
-    ipcMain.removeHandler(CHANNEL.download);
-    ipcMain.removeHandler(CHANNEL.install);
-    ipcMain.removeHandler(CHANNEL.setAutoCheck);
-    ipcMain.handle(CHANNEL.get, () => this.getState());
-    ipcMain.handle(CHANNEL.check, () => this.check());
-    ipcMain.handle(CHANNEL.download, () => this.download());
-    ipcMain.handle(CHANNEL.install, () => this.install());
-    ipcMain.handle(CHANNEL.setAutoCheck, (_e, on: unknown) => {
-      this.setAutoCheck(on === true);
-      return this.getState();
-    });
+    const opts = { owner: 'UpdateService', wrapErrors: false };
+    guardedHandle(CHANNEL.get, () => this.getState(), opts);
+    guardedHandle(CHANNEL.check, () => this.check(), opts);
+    guardedHandle(CHANNEL.download, () => this.download(), opts);
+    guardedHandle(CHANNEL.install, () => this.install(), opts);
+    guardedHandle(
+      CHANNEL.setAutoCheck,
+      (on) => {
+        this.setAutoCheck(on === true);
+        return this.getState();
+      },
+      opts,
+    );
   }
 
   /** Wire updater events and schedule launch / periodic checks. Safe to call once. */

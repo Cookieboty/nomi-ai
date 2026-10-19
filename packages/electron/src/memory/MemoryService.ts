@@ -8,13 +8,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { b64ToVec, vecToB64 } from '../knowledge/vector';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   DEFAULT_MEMORY_SETTINGS,
@@ -612,17 +613,20 @@ export class MemoryService {
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          if (err instanceof MemError) return { __error: { code: err.code, message: err.message } };
-          throw err;
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(
+        ch,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...a);
+          } catch (err) {
+            if (err instanceof MemError)
+              return { __error: { code: err.code, message: err.message } };
+            throw err;
+          }
+        },
+        { owner: 'MemoryService', wrapErrors: false },
+      );
     const toMsgs = (h: unknown): TurnMsg[] =>
       Array.isArray(h)
         ? (h as Array<{ role: unknown; content: unknown }>)

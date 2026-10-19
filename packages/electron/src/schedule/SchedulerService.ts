@@ -10,13 +10,14 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, Notification, ipcMain, powerMonitor } from 'electron';
+import { BrowserWindow, Notification, powerMonitor } from 'electron';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { iconImage } from '../core/appIcon';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { notifyIsland } from '../island/IslandService';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   describeRepeat,
@@ -577,18 +578,20 @@ export class SchedulerService {
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          if (err instanceof SchedError)
-            return { __error: { code: err.code, message: err.message } };
-          throw err;
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(
+        ch,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...a);
+          } catch (err) {
+            if (err instanceof SchedError)
+              return { __error: { code: err.code, message: err.message } };
+            throw err;
+          }
+        },
+        { owner: 'SchedulerService', wrapErrors: false },
+      );
     handle('ai:sched:state', () => this.state());
     handle('ai:sched:set-settings', (p) => this.setSettings(p));
     handle('ai:sched:upsert-task', (p) => this.upsertTask(p));

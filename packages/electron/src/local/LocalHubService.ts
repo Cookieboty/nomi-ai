@@ -12,7 +12,6 @@ import {
   ClipboardItem,
   clipboard,
   dialog,
-  ipcMain,
   nativeImage,
   safeStorage,
 } from 'electron';
@@ -22,6 +21,7 @@ import { z } from 'zod';
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import { caldavQuery, expand, extractCalendarData, parseIcs, toIcs, type CalEvent } from './ics';
 import { createSystemEvent, readSystemCalendar, systemCalendarInfo } from './systemCalendar';
@@ -774,13 +774,17 @@ export class LocalHubService {
     if (this.ipcDone) return;
     this.ipcDone = true;
     const h = (ch: string, fn: (...a: never[]) => unknown) =>
-      ipcMain.handle(`ai:hub:${ch}`, async (_e, ...a) => {
-        try {
-          return await fn(...(a as never[]));
-        } catch (err) {
-          return { __error: { code: 'hub', message: (err as Error).message } };
-        }
-      });
+      guardedHandle(
+        `ai:hub:${ch}`,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...(a as never[]));
+          } catch (err) {
+            return { __error: { code: 'hub', message: (err as Error).message } };
+          }
+        },
+        { owner: 'LocalHubService', wrapErrors: false },
+      );
     h('cal-state', () => this.calState());
     h('cal-range', (from: number, to: number) => this.occurrences(Number(from), Number(to)));
     h('cal-upsert', (p: never) => this.upsertEvent(p));
