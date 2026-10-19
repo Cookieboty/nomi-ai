@@ -13,3 +13,4 @@ python3 round14_bangs.py
 python3 round17_autoblink.py
 python3 round18_crotch.py
 python3 round18_motions.py
+python3 round19_crotch.py

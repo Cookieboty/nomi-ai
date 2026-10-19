@@ -11,7 +11,8 @@ Fix:
     knees travel the same arc as before.
   * shorts.png becomes a skinned mesh, tendons [pelvis, leg-l.upper, leg-r.upper]: waist/belt/flap rows stay on the
     pelvis, the leg openings blend to their thigh from mother y 660 down to the hem (y 722), split left/right across the
-    crotch line (x 505).  No pixel changes.
+    crotch line (x 505).  ROUND19: midline crotch bridge stays on the pelvis (BRIDGE_*) so thigh abduction cannot
+    spike the gusset.  No pixel changes.
 Runs right after round10_build.sh (before round13_hem.py, which bakes the ribbon thigh-push from the hop keys)."""
 from __future__ import annotations
 
@@ -29,6 +30,8 @@ HIP_OLD_Y, HIP_NEW_Y, KNEE_Y = 780.0, 690.0, 985.0
 HIP_X = {"l": 448.0, "r": 566.0}
 PELVIS = (480.0, 610.0)
 W_TOP, W_HEM, CROTCH_X, CROTCH_W = 660.0, 722.0, 505.0, 16.0
+# ROUND19: crotch bridge — keep midline gusset on pelvis so thigh abduction cannot spike the seam
+BRIDGE_KEEP = 1.00  # pin the whole inter-hip band (inboard of both hips) to pelvis
 
 
 def set_attr(tag, k, v):
@@ -80,7 +83,9 @@ def main():
         mx, my = (x + o[0] - R8.OX) / S, (y + o[1] - R8.OY) / S
         w = sm((my - W_TOP) / (W_HEM - W_TOP))
         sl = 1.0 - sm((mx - (CROTCH_X - CROTCH_W / 2)) / CROTCH_W)
-        return [1.0 - w, w * sl, w * (1.0 - sl)]
+        inside = sm((mx - (HIP_X["l"] - 10)) / 14.0) * sm(((HIP_X["r"] + 10) - mx) / 14.0)
+        thigh = w * (1.0 - BRIDGE_KEEP * inside)
+        return [1.0 - thigh, thigh * sl, thigh * (1.0 - sl)]
     bones = [(ids["full.pelvis"], (0.0, 0.0))]
     for side in "lr":
         hx, hy = R8.art(HIP_X[side], HIP_NEW_Y)
