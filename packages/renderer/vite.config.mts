@@ -5,13 +5,15 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { mascotCspString } from './src/security/csp';
+import { tsdSourceVitePlugin } from '../../scripts/react-tsd-source.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   // 插件配置
   plugins: [
+    ...(mode === 'development' ? [tsdSourceVitePlugin()] : []),
     react(),
     {
       // 生产构建：给看板娘窗口注入 CSP（开发模式 HMR 需要内联脚本，不注入）
@@ -93,4 +95,4 @@ export default defineConfig({
     },
     extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json'],
   },
-});
+}));

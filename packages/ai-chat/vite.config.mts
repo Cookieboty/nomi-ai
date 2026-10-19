@@ -3,9 +3,11 @@ import { defineConfig } from 'vite';
 import { DEV_HOST, PORTS } from '../../scripts/ports.mjs';
 // 与主进程响应头使用同一份策略（纯数据模块，构建期引用）
 import { appCspString } from '../electron/src/security/csp';
+import { tsdSourceVitePlugin } from '../../scripts/react-tsd-source.mjs';
 
 export default defineConfig(({ mode }) => ({
   plugins: [
+    ...(mode === 'development' ? [tsdSourceVitePlugin()] : []),
     react(),
     {
       // 生产构建：以 <meta> 注入 CSP。打包后窗口经 file:// 加载，onHeadersReceived
