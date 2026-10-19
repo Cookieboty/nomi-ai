@@ -49,11 +49,24 @@ const DESC_MAX = 300;
 
 /** 这些文件名一律不读（词法路径与符号链接解析后的真实路径都要过这一关） */
 const DENY =
-  /(^|\/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|.*\.(p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.netrc|_netrc|\.npmrc|\.pypirc|\.git-credentials|\.dockercfg|kubeconfig|credentials(\.json)?|settings(\.local)?\.json|config\.toml|\.claude\.json)$/i;
+  /(^|\/)(\.credentials.*|auth\.json|\.env.*|.*\.key|.*\.pem|.*\.(p12|pfx|jks|keystore)|id_(rsa|dsa|ecdsa|ed25519)(\.pub)?|\.netrc|_netrc|\.npmrc|\.pypirc|\.git-credentials|\.dockercfg|kubeconfig|credentials(\.json)?|settings(\.local)?\.json|config\.toml|\.claude\.json|service[-_]?account.*\.json|.*\.tfvars(\.json)?|secrets?(\.[\w-]+)?\.(json|ya?ml|toml|env|txt)|\.htpasswd|.*\.kdbx|history\.jsonl|\.[\w-]*_history)$/i;
 
 /** 真实路径落在这些目录里一律不读（链接到 ~/.ssh、.git/config 之类） */
 const DENY_DIR =
   /(^|\/)(\.ssh|\.aws|\.gnupg|\.kube|\.azure|\.docker|\.git|\.password-store|Keychains)(\/|$)|(^|\/)\.config\/(gcloud|gh|git)(\/|$)/i;
+
+/** 用户级 agent 目录里会被发现的内容子目录：项目条目的符号链接只能指到这些地方 */
+const USER_CONTENT_DIRS = [
+  '.claude/skills',
+  '.claude/commands',
+  '.claude/agents',
+  '.agents/skills',
+  '.grok/skills',
+  '.grok/commands',
+  '.grok/plugins',
+  '.grok/workflows',
+  '.grok/bundled',
+];
 
 interface Internal {
   entry: SlashEntry;
@@ -93,6 +106,8 @@ function readHead(file: string, bytes: number, policy?: ReadPolicy): string | nu
     const real = fs.realpathSync(file);
     const n = norm(real);
     if (DENY.test(n) || DENY_DIR.test(n)) return null;
+    // 链接不能改变文件类型：SKILL.md 只能指向 .md，plugin.json 只能指向 .json（#16：防止链到会话记录等）
+    if (path.extname(real).toLowerCase() !== path.extname(file).toLowerCase()) return null;
     if (policy && !policy.allow(real)) return null;
     fd = fs.openSync(real, 'r');
     const st = fs.fstatSync(fd);
@@ -235,8 +250,9 @@ class Collector {
     const chain = projectChain(cwd);
     this.projectLexical = chain.map((d) => path.resolve(d));
     this.projectReal = chain.map(realOrSelf);
-    // 用户级 agent 目录里的内容，项目目录里的条目也可以链接过去
-    const user = ['.claude', '.agents', '.grok'].map((d) => path.join(home, d));
+    // 项目条目可以链接到用户级 agent 目录里「会被发现的」内容子目录（共享 skill / 命令），
+    // 不能链接到整个 ~/.claude 等（里面有会话记录、历史等，#16）
+    const user = USER_CONTENT_DIRS.map((d) => path.join(home, d));
     this.userLexical = user.map((d) => path.resolve(d));
     this.userReal = user.map(realOrSelf);
   }

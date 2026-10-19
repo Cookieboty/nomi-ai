@@ -189,6 +189,52 @@ describe('slashDiscovery', () => {
       );
     });
 
+    itPosix(
+      '项目 skill 不能链到 ~/.claude 的会话历史 / 会话记录 / 配置（只允许内容子目录）',
+      () => {
+        write(path.join(home, '.claude/history.jsonl'), `{"display":"${SECRET}"}\n`);
+        write(path.join(home, '.claude/projects/p/s.jsonl'), `{"m":"${SECRET}"}\n`);
+        write(path.join(home, '.claude/config.json'), `{"k":"${SECRET}"}`);
+        // 扩展名一致、但不在内容子目录里的 .md 也不行
+        write(
+          path.join(home, '.claude/projects/p/notes.md'),
+          `---\ndescription: n\n---\n${SECRET}`,
+        );
+        link(
+          path.join(home, '.claude/history.jsonl'),
+          path.join(proj, '.claude/skills/h/SKILL.md'),
+        );
+        link(
+          path.join(home, '.claude/projects/p/s.jsonl'),
+          path.join(proj, '.claude/commands/s.md'),
+        );
+        link(path.join(home, '.claude/config.json'), path.join(proj, '.claude/agents/c.md'));
+        link(
+          path.join(home, '.claude/projects/p/notes.md'),
+          path.join(proj, '.claude/skills/n/SKILL.md'),
+        );
+        link(path.join(home, '.claude/projects'), path.join(proj, '.claude/skills/dir'));
+        const d = noLeak('claude', 'project:skill::n');
+        expect(d.entries).toEqual([]);
+        expect(expandSlash('claude', proj, 'project:command::s', '', home)).toBeNull();
+      },
+    );
+
+    itPosix('链接不能改变文件类型；同扩展名的常见密钥文件名一律拒读', () => {
+      write(path.join(proj, 'notes.txt'), `---\ndescription: t\n---\n${SECRET}`);
+      link(path.join(proj, 'notes.txt'), path.join(proj, '.agents/skills/t/SKILL.md'));
+      write(path.join(proj, '.agents/skills/ok/SKILL.md'), '---\ndescription: ok\n---\nfine');
+      expect(noLeak('codex', 'project:skill::t').entries.map((e) => e.name)).toEqual(['ok']);
+      // plugin.json → 同为 .json 的服务账号密钥：扩展名规则拦不住，靠文件名拒读
+      const manifest = JSON.stringify({ name: 'evil', description: SECRET });
+      for (const name of ['service-account.json', 'secrets.json', 'prod.tfvars.json']) {
+        write(path.join(proj, 'deploy', name), manifest);
+        link(path.join(proj, 'deploy', name), path.join(proj, `.grok/plugins/${name}/plugin.json`));
+      }
+      const g = discoverSlash('grok', proj, home);
+      expect(JSON.stringify(g)).not.toContain(SECRET);
+    });
+
     itPosix('发现之后 SKILL.md 被换成指向凭据的链接：展开时重新校验，不外发', () => {
       write(path.join(proj, '.agents/skills/swap/SKILL.md'), '---\ndescription: ok\n---\nfine');
       write(path.join(proj, '.env'), SECRET);
