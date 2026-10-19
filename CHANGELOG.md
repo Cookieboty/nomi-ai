@@ -181,3 +181,4 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 编程助手的输入栏新增权限模式芯片：可在「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」之间切换，当前 CLI 不支持的档位会置灰并说明改用哪一档；输入框里按 Shift+Tab 循环切换（跳过「完全放开」）；「完全放开」需要确认，之后芯片标红；可把当前档设为新标签默认。另加 `/mode plan|manual|edits|auto` 命令。 (`@nomi-ai/ai-chat` minor)
 - 订阅额度保留上一次的结果：再次打开「订阅额度」会立即显示上一次的值并在后台更新，不再先空一下；Claude Code 与 Grok 的额度也会保存下来，重启 Nomi 后无需重新拉取即可看到（之前只有 Codex 会保存）。在「官方账号」里切换账号时，会清掉上一个账号的额度，不会显示给新账号。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 订阅额度改成卡片网格（Codex / Claude Code / Grok 各一张，沿用「概览明细」的行与进度条样式），每张卡有自己的「刷新」按钮和刷新中 / 失败 / 更新于状态，另保留「全部刷新」；主进程 `ai:usage:quota-refresh` 按工具参数化，单工具刷新只拉起该工具自己的官方 CLI，不同工具并行、互不阻塞，同工具并发合并。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
+- 默认界面为「软件主界面」时，看板娘工具栏的「窗口置顶」按钮改为「关闭看板娘」：关闭后看板娘从桌面隐藏且不再播放语音，灵动岛和系统通知照常；在「设置 → 通用 → 桌面看板娘」里可随时重新打开。默认界面为看板娘时她是进入主界面的入口，不能关闭。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch)
