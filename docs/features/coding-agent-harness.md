@@ -172,6 +172,8 @@ Aggregation（多上游合并）仍为 **P2**。
 
 **权限模式（2026-10-19）：** 四个后端统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。修复了 Codex `exec` 默认只读、禁网导致无法改文件的问题；Grok 不再默认 `--yolo`。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
 
+**子代理（2026-10-19）：** 四个后端都会派生子代理（Codex 的 `multi_agent` 默认开启）。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列，子代理统一成 `agent` 事件。详见 [编程助手子代理](../design/cli-subagents.md)。
+
 **安全：**
 
 - 子进程 `env` 显式构造；不把 Nomi 的全部 process.env 泄漏给 CLI（尤其是无关 Token）。
