@@ -152,5 +152,6 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Settings menu, round two (breaking, no compatibility layer): the standalone "Updates" section is
 - Use the high-fidelity `nomi-complete.riv` scene for the opt-in Rive mascot renderer. The scene now exposes official face expressions, blink timing, talking/lip-sync triggers, the wave/hello/cheer/celebrate action set, and a separate `Nomi-full` artboard available through `?rive=full`. (`@nomi-ai/renderer` minor)
 - 为 Codex、Claude Code 等编程助手提示增加语音播报开关。开启后，任务完成、失败、卡住、等待确认和定时汇总会在提示音之外朗读通知文字；关闭时保留气泡与提示音。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/renderer` minor)
+- 修复日落橙 / 奶油等浅色主题下选中态与悬停态对比度过低的问题：分段控件、Tab、设置导航和侧栏当前行改用深棕字配暖橙淡底（并加左侧强调条），链接 / 标签 / 图标改用更深的橙棕色；同时补齐各主题的次要文字、主按钮文字、焦点环和图表色，并新增主题对比度自动化测试。 (`@nomi-ai/ui` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch, `@nomi-ai/voice` patch)
 - 用量面板：订阅额度改为按工具 Tabs + 可扩展卡片（登录方式 / 额度 / 用量费用 / 状态）；修复 Windows 上 Grok 订阅额度探测（`.cmd` 解成 node+script，避免 ACP stdin 被 cmd 打断）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 订阅额度改成卡片网格（Codex / Claude Code / Grok 各一张，沿用「概览明细」的行与进度条样式），每张卡有自己的「刷新」按钮和刷新中 / 失败 / 更新于状态，另保留「全部刷新」；主进程 `ai:usage:quota-refresh` 按工具参数化，单工具刷新只拉起该工具自己的官方 CLI，不同工具并行、互不阻塞，同工具并发合并。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
