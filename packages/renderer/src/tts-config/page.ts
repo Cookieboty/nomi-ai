@@ -206,7 +206,9 @@ async function saveConfig() {
   }
   try {
     const cfg = formToConfig();
-    await electronAPI().saveTTSConfig(cfg);
+    const res = await electronAPI().saveTTSConfig(cfg);
+    // 主进程拒绝保存（例如系统安全存储不可用时不会明文落盘 API Key）→ 如实显示，不要报「已保存」
+    if (res && res.success === false) throw new Error(res.error || '未知错误');
     currentConfig = await electronAPI().getTTSConfig();
     configToForm(currentConfig);
     showResult('配置已保存', true);

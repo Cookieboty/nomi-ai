@@ -16,13 +16,14 @@ import {
   type ToolDefinition,
   type ToolRegistry,
 } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, safeStorage, shell } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import {
@@ -154,26 +155,48 @@ export class ExtensionsService {
     // mcp.json 含 env / headers 敏感值（safeStorage 加密串），收紧为 0600
     writePrivateFileAtomic(p, JSON.stringify(v, null, 2));
   }
+  /**
+   * 写盘前加密。安全存储不可用时不再静默写明文：新增 / 修改的密钥在 upsert / import 入口就被
+   * assertCanStoreSecrets 拒绝；这里只会遇到「旧版本已是明文」的存量值（例如只切换启用开关），
+   * 为不丢数据原样保留，等安全存储恢复后下一次保存即被加密。
+   */
   private enc(v: string): string {
+    if (!v || v.startsWith('enc:')) return v;
     try {
-      if (safeStorage.isEncryptionAvailable())
-        return `enc:${safeStorage.encryptString(v).toString('base64')}`;
+      return encryptSecret(v, '');
     } catch {
-      /* fallthrough */
+      return v;
     }
-    return v;
   }
   private dec(v: string): string {
-    if (!v.startsWith('enc:')) return v;
-    try {
-      return safeStorage.decryptString(Buffer.from(v.slice(4), 'base64'));
-    } catch {
-      return '';
-    }
+    return decryptSecret(v);
   }
-  private mapSecrets(m: Record<string, string> | undefined, f: (v: string) => string) {
+  /** 新写入 / 修改的 env、headers 密钥必须能加密，否则整次保存失败关闭 */
+  private assertCanStoreSecrets(next: McpServerEntry[], prev?: McpServerEntry): void {
+    const differs = (
+      m: Record<string, string> | undefined,
+      old: Record<string, string> | undefined,
+      all: boolean,
+    ) => Object.entries(m ?? {}).some(([k, v]) => (all || isSecretKey(k)) && !!v && old?.[k] !== v);
+    const changed = next.some(
+      (e) => differs(e.env, prev?.env, false) || differs(e.headers, prev?.headers, true),
+    );
+    if (changed && !canEncryptSecrets())
+      throw new McpConfigError(
+        t('系统安全存储不可用，无法安全保存 MCP 的密钥 / 令牌；请在系统钥匙串可用后重试'),
+      );
+  }
+  /** env 按字段名判断密钥；headers 的取值一律按密钥处理（鉴权头名称不固定，如 X-Gateway-Auth） */
+  private mapSecrets(
+    m: Record<string, string> | undefined,
+    f: (v: string) => string,
+    allValues = false,
+  ) {
     return (
-      m && Object.fromEntries(Object.entries(m).map(([k, v]) => [k, isSecretKey(k) ? f(v) : v]))
+      m &&
+      Object.fromEntries(
+        Object.entries(m).map(([k, v]) => [k, allValues || isSecretKey(k) ? f(v) : v]),
+      )
     );
   }
   private loadServers(): McpServerEntry[] {
@@ -184,7 +207,7 @@ export class ExtensionsService {
       try {
         const e = sanitizeServer(r);
         e.env = this.mapSecrets(e.env, (v) => this.dec(v));
-        e.headers = this.mapSecrets(e.headers, (v) => this.dec(v));
+        e.headers = this.mapSecrets(e.headers, (v) => this.dec(v), true);
         out.push(e);
       } catch {
         /* skip broken */
@@ -198,7 +221,7 @@ export class ExtensionsService {
       this.servers.map((e) => ({
         ...e,
         env: this.mapSecrets(e.env, (v) => this.enc(v)),
-        headers: this.mapSecrets(e.headers, (v) => this.enc(v)),
+        headers: this.mapSecrets(e.headers, (v) => this.enc(v), true),
       })),
     );
   }
@@ -287,6 +310,7 @@ export class ExtensionsService {
     const e = sanitizeServer({ ...prev, ...raw, id: prev?.id ?? raw.id, origin: 'user' }, taken);
     e.env = mergeSecrets(e.env, prev?.env);
     e.headers = mergeSecrets(e.headers, prev?.headers);
+    this.assertCanStoreSecrets([e], prev);
     if (prev) this.servers = this.servers.map((s) => (s === prev ? e : s));
     else this.servers.push(e);
     this.saveServers();
@@ -329,6 +353,7 @@ export class ExtensionsService {
       text,
       this.servers.map((s) => s.id),
     );
+    this.assertCanStoreSecrets(list);
     for (const e of list) e.enabled = false; // 导入后默认不连，先让用户检查
     this.servers.push(...list);
     this.saveServers();

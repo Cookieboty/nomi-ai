@@ -146,6 +146,64 @@ export function isSecretKey(k: string): boolean {
   return SECRET_KEY.test(k);
 }
 
+/** `--api-key=xxx` / `API_KEY=xxx` 形式的参数：返回 [名字, 值] */
+const SECRET_ARG_ASSIGN =
+  /^(-{0,2}[\w.-]*(?:key|token|secret|password|passwd|auth|cookie|credential)[\w.-]*)=([\s\S]*)$/i;
+const SECRET_FLAG =
+  /^-{1,2}[\w.-]*(?:key|token|secret|password|passwd|auth|cookie|credential)[\w.-]*$/i;
+const URL_LIKE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/** 去掉 URL 里的账号口令、query 与 fragment（常见的 `?key=` / `?token=` 放凭据处），只保留 origin + path */
+export function stripUrlCredentials(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.username = '';
+    u.password = '';
+    u.search = '';
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * 导出用：生成「只有结构、没有凭据」的 MCP 服务配置。
+ * 是否是密钥只由字段语义决定，与落盘时是否加密（`enc:` 前缀）无关：
+ * - env / headers 的全部取值一律替换为占位符（鉴权头名称千奇百怪，不靠名字白名单）；
+ * - url 去掉账号口令 / query / fragment；
+ * - args 里形如 `--token=xxx`、`--api-key xxx`、`KEY=xxx`、带凭据的 URL 都打码。
+ */
+export function redactServerForExport<T extends Partial<McpServerEntry>>(
+  e: T,
+  placeholder: string,
+): T {
+  const blank = (m?: Record<string, string>) =>
+    m && Object.fromEntries(Object.keys(m).map((k) => [k, placeholder]));
+  const out: Record<string, unknown> = { ...e };
+  if ('env' in e) out.env = blank(e.env);
+  if ('headers' in e) out.headers = blank(e.headers);
+  if (typeof e.url === 'string') out.url = stripUrlCredentials(e.url);
+  if (Array.isArray(e.args)) {
+    let maskNext = false;
+    out.args = e.args.map((a) => {
+      const arg = String(a);
+      if (maskNext) {
+        maskNext = false;
+        return placeholder;
+      }
+      const m = SECRET_ARG_ASSIGN.exec(arg);
+      if (m) return `${m[1]}=${placeholder}`;
+      if (SECRET_FLAG.test(arg)) {
+        maskNext = true;
+        return arg;
+      }
+      return URL_LIKE.test(arg) ? stripUrlCredentials(arg) : arg;
+    });
+  }
+  return out as T;
+}
+
 /** 只读判断（MCP annotations） */
 export function needsConfirm(trust: Trust, readOnlyHint: boolean): boolean {
   if (trust === 'auto') return false;

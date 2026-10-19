@@ -10,6 +10,7 @@ import type { TTSConfig } from '@nomi-ai/types';
 import { DEFAULT_TTS_CONFIG } from '@nomi-ai/types';
 import { app, safeStorage } from 'electron';
 
+import { t as tr } from '../../i18n';
 import { createMainLogger } from '../../utils/log';
 import { writePrivateFile } from '../../utils/privateFile';
 
@@ -155,11 +156,13 @@ export class FishTtsConfigStore {
   setApiKey(value: string): void {
     const dir = path.dirname(this.keyPath());
     fs.mkdirSync(dir, { recursive: true });
+    // 安全存储不可用 / 加密失败：失败关闭，不把云 Key 以明文写进 keys/*.bin
     let buf: Buffer;
-    if (safeStorage.isEncryptionAvailable()) {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) throw new Error('unavailable');
       buf = safeStorage.encryptString(value);
-    } else {
-      buf = Buffer.from(value, 'utf8');
+    } catch {
+      throw new Error(tr('系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试'));
     }
     fs.writeFileSync(this.keyPath(), buf, { mode: 0o600 });
   }

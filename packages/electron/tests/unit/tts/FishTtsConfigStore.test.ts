@@ -8,13 +8,16 @@ import os from 'node:os';
 import path from 'node:path';
 
 let userData = '';
-const safe = { available: true };
+const safe = { available: true, throws: false };
 
 jest.mock('electron', () => ({
   app: { getPath: () => userData },
   safeStorage: {
     isEncryptionAvailable: () => safe.available,
-    encryptString: (s: string) => Buffer.from(`enc:${s}`),
+    encryptString: (s: string) => {
+      if (safe.throws) throw new Error('keychain locked');
+      return Buffer.from(`enc:${s}`);
+    },
     decryptString: (b: Buffer) => b.toString('utf8').replace(/^enc:/, ''),
   },
 }));
@@ -39,6 +42,7 @@ describe('FishTtsConfigStore save → load（#31）', () => {
   beforeEach(() => {
     userData = fs.mkdtempSync(path.join(os.tmpdir(), 'fish-cfg-'));
     safe.available = true;
+    safe.throws = false;
   });
   afterEach(() => fs.rmSync(userData, { recursive: true, force: true }));
 
@@ -95,5 +99,50 @@ describe('FishTtsConfigStore save → load（#31）', () => {
       JSON.stringify({ provider: 'fish-cloud', baseUrl: 'https://api.fish.audio' }),
     );
     expect(new FishTtsConfigStore().load().provider).toBe('fish-cloud');
+  });
+});
+
+describe('Fish 云 Key 落盘（#35）', () => {
+  const keyFile = () => path.join(userData, 'keys', 'tts.fish.apiKey.bin');
+  const cloud = (): TTSConfig => ({
+    ...fishLocalDefault(),
+    provider: 'fish-cloud',
+    baseUrl: 'https://api.fish.audio',
+    apiKey: 'FISH_SECRET_KEY_123',
+  });
+  beforeEach(() => {
+    userData = fs.mkdtempSync(path.join(os.tmpdir(), 'fish-key-'));
+    safe.available = true;
+    safe.throws = false;
+  });
+  afterEach(() => fs.rmSync(userData, { recursive: true, force: true }));
+
+  it.each([
+    ['safeStorage 不可用', () => (safe.available = false)],
+    ['encryptString 抛错', () => (safe.throws = true)],
+  ])('%s：保存云 Key 失败关闭——不写明文，配置也不被部分写入', (_n, arrange) => {
+    arrange();
+    const store = new FishTtsConfigStore();
+    expect(() => store.save(cloud())).toThrow(/安全存储不可用/);
+    expect(fs.existsSync(keyFile())).toBe(false);
+    expect(fs.existsSync(cfgFile())).toBe(false);
+    expect(store.hasApiKey()).toBe(false);
+  });
+
+  it('安全存储可用：Key 以密文写入 0600 文件，配置 JSON 与公开配置里都没有 Key', () => {
+    const store = new FishTtsConfigStore();
+    const pub = store.save(cloud());
+    expect(pub.hasApiKey).toBe(true);
+    expect(JSON.stringify(pub)).not.toContain('FISH_SECRET_KEY_123');
+    expect(fs.readFileSync(cfgFile(), 'utf8')).not.toContain('FISH_SECRET_KEY_123');
+    expect(fs.readFileSync(keyFile(), 'utf8')).toBe('enc:FISH_SECRET_KEY_123');
+    if (process.platform !== 'win32') expect(fs.statSync(keyFile()).mode & 0o777).toBe(0o600);
+    expect(store.getApiKey()).toBe('FISH_SECRET_KEY_123');
+  });
+
+  it('不带 Key 的保存（如只改声线）在安全存储不可用时仍可保存', () => {
+    safe.available = false;
+    const { apiKey: _k, ...noKey } = cloud();
+    expect(() => new FishTtsConfigStore().save(noKey as TTSConfig)).not.toThrow();
   });
 });

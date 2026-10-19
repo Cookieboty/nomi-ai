@@ -221,7 +221,7 @@
   "<已移除>": "<removed>",
   "Nomi 数据导出 {0}\n\n": "Nomi data export {0}\n\n",
   "包含：对话、长期记忆、日程与提醒、日历（.ics）、剪贴板历史、技能、屏幕记忆文字、设置。\n": "Includes: chats, long-term memory, schedules & reminders, calendars (.ics), clipboard history, skills, screen memory text, settings.\n",
-  "不含：API Key 等密钥（已移除或保持加密）、下载的模型、知识库索引与缓存。\n": "Excludes: API keys and other secrets (removed or kept encrypted), downloaded models, knowledge base index and caches.\n",
+  "不含：API Key 等密钥（已移除）、下载的模型、知识库索引与缓存。\n": "Excludes: API keys and other secrets (removed), downloaded models, knowledge base index and caches.\n",
   "从今天起查看几天的日程": "How many days of events to view from today",
   "查看用户本地日历（含订阅的 ICS / CalDAV）从今天起若干天的日程。": "View events in the user's local calendar (including subscribed ICS / CalDAV) for a number of days from today.",
   "llama.cpp（本机）": "llama.cpp (local)",
@@ -536,5 +536,8 @@
   "Grok 错误": "Grok error",
   "已停止": "Stopped",
   "请先填写模型，再设为当前": "Enter a model before making this the current provider.",
-  "选择聊天背景图片": "Choose chat background image"
+  "选择聊天背景图片": "Choose chat background image",
+  "系统安全存储不可用，无法安全保存 CalDAV 密码；请在系统钥匙串可用后重试": "System secure storage is unavailable, so the CalDAV password cannot be saved safely. Try again once the system keychain is available.",
+  "系统安全存储不可用，无法安全保存 MCP 的密钥 / 令牌；请在系统钥匙串可用后重试": "System secure storage is unavailable, so MCP secrets / tokens cannot be saved safely. Try again once the system keychain is available.",
+  "系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试": "System secure storage is unavailable, so the cloud key cannot be saved safely. Try again once the system keychain is available."
 }
