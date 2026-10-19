@@ -76,7 +76,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Uploads installers + `latest*.yml` / `.blockmap` to the GitHub Release for that tag
 5. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
-   - macOS: `.dmg` (and/or zip) + `latest-mac.yml`
+   - macOS: for **each** of x64 and arm64 both a `.dmg` (first install) **and** a `-mac.zip` (+ `.blockmap`), plus `latest-mac.yml`. The zip is required: electron-updater's MacUpdater only picks `zip` entries from `latest-mac.yml`, so a Release with only DMGs breaks in-app updates on macOS (`ERR_UPDATER_ZIP_FILE_NOT_FOUND`). Check that `latest-mac.yml` lists both zips
    - Linux: `.AppImage` + `latest-linux.yml`
 6. Install a previous build, open **Settings → General → Updates → Check for updates**, confirm download + consent install.
 
@@ -162,7 +162,7 @@ node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
 # 打包（脚本名见 packages/electron/package.json）
 pnpm package:prod:linux   # → dist/*.AppImage
 pnpm package:prod:win     # → dist/Nomi Setup *.exe（须在 Windows）
-pnpm package:prod:mac     # → dist/*.dmg（须在 macOS；prepackage 已跑 sync-tts-model）
+pnpm package:prod:mac     # → dist/*.dmg + dist/*-mac.zip（x64/arm64；须在 macOS；prepackage 已跑 sync-tts-model）
 ```
 
 等价（只跑 electron 包）：

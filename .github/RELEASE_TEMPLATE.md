@@ -10,11 +10,12 @@
 
 ## 平台产物
 
-| 平台              | 安装包                       | 大小 | SHA256 |
-| ----------------- | ---------------------------- | ---- | ------ |
-| macOS (x64/arm64) | `Nomi-{{VERSION}}.dmg`       |      |        |
-| Windows (x64)     | `Nomi Setup {{VERSION}}.exe` |      |        |
-| Linux (x64)       | `Nomi-{{VERSION}}.AppImage`  |      |        |
+| 平台              | 安装包                                                              | 大小 | SHA256 |
+| ----------------- | ------------------------------------------------------------------- | ---- | ------ |
+| macOS (x64/arm64) | `Nomi-{{VERSION}}.dmg`                                              |      |        |
+| macOS 自动更新    | `Nomi-{{VERSION}}-mac.zip`（x64）· `Nomi-{{VERSION}}-arm64-mac.zip` |      |        |
+| Windows (x64)     | `Nomi Setup {{VERSION}}.exe`                                        |      |        |
+| Linux (x64)       | `Nomi-{{VERSION}}.AppImage`                                         |      |        |
 
 ## 变更
 
