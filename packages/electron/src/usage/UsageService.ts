@@ -8,10 +8,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { t as tr } from '../i18n';
-import { isTrustedSenderUrl } from '../security/ipcSenderGuard';
+import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
 
 import {
@@ -1355,18 +1355,9 @@ export class UsageService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (e, ...a) => {
-        try {
-          const url = (e as { sender?: { getURL?: () => string } }).sender?.getURL?.();
-          if (!isTrustedSenderUrl(url)) throw new Error('untrusted sender');
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    // 经 guardedHandle：sender + senderFrame 校验、通道认领；业务错误仍以 { __error } 信封返回
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown | Promise<unknown>) =>
+      guardedHandle(ch, fn, { owner: 'UsageService' });
     const rid = (v: unknown): RangeId =>
       v === 'today' || v === '7d' || v === '30d' || v === '90d' ? v : '7d';
     const dq = (v: unknown): DetailQuery => {

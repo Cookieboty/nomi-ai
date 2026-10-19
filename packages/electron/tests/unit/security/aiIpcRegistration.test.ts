@@ -3,6 +3,7 @@
  * 不能直接 `ipcMain.handle('ai:…')` 而忽略 event。
  *
  * - 静态扫描：src 下除 guardedIpc 自身外，任何文件都不得直接 ipcMain.handle / ipcMain.on 一个 `ai:` 通道；
+ *   通道名经变量传入的直接注册只允许出现在白名单文件里（且不涉及 ai:*）；
  * - 行为：用真实服务的 registerIpc 注册出 handler，外站 sender、可信主框架 + 外站子框架、缺失 sender
  *   都必须被拒绝且状态零变化；受信来源照常工作。
  */
@@ -34,10 +35,14 @@ import path from 'node:path';
 
 import { DesktopService } from '../../../src/desktop/DesktopService';
 import { ExtensionsService } from '../../../src/extensions/ExtensionsService';
-import { resetIpcChannelsForTest } from '../../../src/handlers/ipc/channelRegistry';
+import {
+  getIpcChannelOwner,
+  resetIpcChannelsForTest,
+} from '../../../src/handlers/ipc/channelRegistry';
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
 import { MemoryService } from '../../../src/memory/MemoryService';
 import { ThemeService } from '../../../src/theme/ThemeService';
+import { UsageService } from '../../../src/usage/UsageService';
 
 const SRC = path.resolve(__dirname, '../../../src');
 
@@ -69,6 +74,39 @@ describe('ai:* 通道注册入口（#30）', () => {
       if (re.test(text)) offenders.push(path.relative(SRC, f));
     }
     expect(offenders).toEqual([]);
+  });
+
+  // 通道名经变量传入的包装（如 UsageService 旧的本地 handle）上面的字面量扫描看不到：
+  // 这类直接注册只允许出现在白名单文件里，且白名单文件不得注册 ai:* 通道
+  it('通道名非字面量的 ipcMain 注册只出现在白名单里，且不涉及 ai:*', () => {
+    const allowed = new Map<string, RegExp>([
+      [path.join('security', 'guardedIpc.ts'), /$^/],
+      // 基类：子类经 registerHandler / registerListener 传通道名
+      [
+        path.join('handlers', 'ipc', 'BaseIpcHandler.ts'),
+        /register(?:Handler|Listener)\s*\(\s*[`'"]ai:/,
+      ],
+      // 看板娘窗口专用的 mascot:* 通道（按 webContents 校验）
+      [path.join('mascot', 'MascotWindowController.ts'), /[`'"]ai:/],
+    ]);
+    const dynamic = /ipcMain\s*\.\s*(?:handle|on|once)\s*\(\s*(?![`'"])/g;
+    const offenders: string[] = [];
+    const files = walk(SRC);
+    for (const f of files) {
+      const rel = path.relative(SRC, f);
+      if (!dynamic.test(fs.readFileSync(f, 'utf8'))) continue;
+      dynamic.lastIndex = 0;
+      if (!allowed.has(rel)) offenders.push(rel);
+    }
+    expect(offenders).toEqual([]);
+    // 白名单里的包装不能被拿来注册 ai:*
+    const leaks: string[] = [];
+    for (const [rel, re] of allowed) {
+      if (rel.endsWith('BaseIpcHandler.ts')) {
+        for (const f of files) if (re.test(fs.readFileSync(f, 'utf8'))) leaks.push(f);
+      } else if (re.test(fs.readFileSync(path.join(SRC, rel), 'utf8'))) leaks.push(rel);
+    }
+    expect(leaks).toEqual([]);
   });
 
   describe('真实服务注册出的 handler', () => {
@@ -175,6 +213,31 @@ describe('ai:* 通道注册入口（#30）', () => {
       await expect(handlers.get('ai:ext:mcp-list')!(trusted)).resolves.toMatchObject({
         servers: [],
       });
+    });
+
+    it('UsageService：ai:usage:* 全部拒绝外站 sender / 子框架，受信照常', async () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ipc-usage-'));
+      const svc = new UsageService({
+        root,
+        home: root,
+        scanMs: 0,
+        logger: { info: jest.fn(), warn: jest.fn() },
+      });
+      const setSettings = jest.spyOn(svc, 'setSettings');
+      const setHook = jest.spyOn(svc, 'setQuotaHook');
+      svc.registerIpc();
+      const chans = [...handlers.keys()].filter((c) => c.startsWith('ai:usage:'));
+      expect(chans.length).toBeGreaterThanOrEqual(14);
+      for (const ch of chans) {
+        for (const e of [evil, evilFrame, noSender]) {
+          await expect(handlers.get(ch)!(e, {})).rejects.toThrow(/untrusted sender/);
+        }
+      }
+      expect(setSettings).not.toHaveBeenCalled();
+      expect(setHook).not.toHaveBeenCalled();
+      expect(getIpcChannelOwner('ai:usage:set-settings')).toBe('UsageService');
+      await expect(handlers.get('ai:usage:state')!(trusted)).resolves.toBeDefined();
+      svc.stop();
     });
 
     it('ThemeService：外站不能改主题，受信可以', async () => {
