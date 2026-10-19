@@ -61,6 +61,19 @@ describe('rive backend', () => {
     }
   });
 
+  it('exposes the authored leg clips (ROUND18) as native triggers baked into the .riv', () => {
+    const fire = vi.fn();
+    const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
+    const riv = fs.readFileSync(path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'));
+    for (const clip of ['squat']) {
+      expect(b.playMotion(clip), clip).toBe(true);
+      expect(fire).toHaveBeenLastCalledWith(clip);
+      expect(riv.includes(Buffer.from(`full.${clip}`)), `full.${clip} animation`).toBe(true);
+    }
+    expect(b.playMotion('crouch')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('squat');
+  });
+
   it('drives expression, talking, and thresholded lip-sync triggers', () => {
     const fired: string[] = [];
     const b = createRiveBackend(() => ({

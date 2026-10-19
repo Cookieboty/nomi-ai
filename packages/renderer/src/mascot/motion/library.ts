@@ -53,6 +53,8 @@ export const MOTION_LABELS: Record<string, string> = {
   flinch: '受惊',
   poke: '被戳',
   walk: '散步',
+  squat: '下蹲',
+  crouch: '下蹲',
   // 2D 骨架的动作库（rig/actions.ts）：同名时以这里的名称为准
   ...ACTION_LABELS,
 };

@@ -45,6 +45,7 @@ export const RIVE_NATIVE_MOTIONS = [
   'tongue',
   'yawn',
   'stretch',
+  'squat',
 ] as const;
 
 /**
@@ -66,6 +67,7 @@ export const RIVE_MOTION_ALIASES: Record<string, (typeof RIVE_NATIVE_MOTIONS)[nu
   listen: 'think',
   peek_note: 'peek',
   interact: 'hello',
+  crouch: 'squat',
 };
 
 /** All accepted names shown to the motion menu and exposed to AI callers. */

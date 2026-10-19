@@ -9,11 +9,11 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "e843c7fa1bd2b930e1bf69babd8616f656b73e8c739e2ed45c1b837683e15f0b",
-      "bytes": 1438648,
+      "sha256": "45a25d2c3e35fac22642f55e005e22dab23f1e3958bf31bfcce8798c5da7ec71",
+      "bytes": 1431517,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND18: mother floor sliver between the shoes removed"
     },
     "reference/svg-rig/body-backfill.png": {
       "sha256": "8a5519758c490c12ca3b73b6b6b3ebb2404ec75b09182504ffe669274f8c1f10",
