@@ -120,3 +120,11 @@ a cream socket hole.
 **wave** retimed for a viewer-facing raise: modest outward upper (~−0.6 rad) + deep
 elbow bend (~−2.1) so the hand reaches cheek/head height with wrist oscillation; Solo
 stays on hang. Extreme upper (~−1.15) tore the sleeve off the collar.
+
+### ROUND6 — windshield-wiper wave
+
+**wave** retargeted to a real greeting: `upper≈−1.10` (hold) + `fore≈−1.55`
+(bake interior ≈ |fore_delta| → ~90° elbow), hand FK ~head-side. Wrist relative
+keys **cancel** chain inheritance so absolute palm faces the camera; finger bones
+spread open. Elbow Mesh blend band **B=85→20** for a harder bone polyline.
+Solo stays hang (outward bent Solo still tears). See scratch `v6/` screenshots.

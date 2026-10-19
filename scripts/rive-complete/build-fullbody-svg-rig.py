@@ -810,6 +810,7 @@ def make_layers(source: Path, out: Path) -> dict[str, list[int]]:
     _save_box_crop("sleeve-r-full-dark", right_full_box, intersect(right_full_mask, dark_pixels))
     # Bent art: ~1.0 rad inward (clap peak). L screen-left bends clockwise (neg in image y-down?);
     # warp sign chosen so forearm swings toward torso centre.
+    # ROUND6 wave keeps hang Solo (bent still tears at outward wave angles).
     _bent_sleeve("l", left_full_mask, left_full_box, bend=-1.05)
     _bent_sleeve("r", right_full_mask, right_full_box, bend=1.05)
 

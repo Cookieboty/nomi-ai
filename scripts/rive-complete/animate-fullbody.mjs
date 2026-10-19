@@ -30,57 +30,92 @@ const clips = {
   // The sleeve and cuff bones inherit the arm chain.  They are intentionally
   // left unkeyed here: a second rotation on a raster sleeve is what produced
   // the black slivers and detached cuffs in the earlier build.
-  // ROUND5: raised side-wave toward the viewer (canvas wave intent).
-  // Relative deltas on arm-r (character left / screen right): NEGATIVE lifts the
-  // arm outward/up so the hand reaches head height with a bent elbow; wrist
-  // oscillates palm-toward-camera. Previous +0.26/+0.55 read as a dangling sway.
+  // ROUND6: windshield-wiper wave (real human greeting).
+  // Bake interior≈|fore_delta| → fore≈-1.55 for ~90° elbow.
+  // upper≈-1.10 raises elbow higher (less U sag); hand at head side.
+  // Wrist relative cancels chain so palm faces camera (rh≈0.2–0.5 + wiper).
+  // Solo stays hang — bent Solo still tears at wave angles (tried ROUND6).
+  // Mesh B=20 hard elbow crease (add-arm-meshes) for polyline not rubber hose.
   wave: anim('wave', 196, 108, [
     idTrack(9821, 'activeComponentId', [
       [0, '0:9823'],
       [108, '0:9823'],
     ]),
-    // upper: modest outward lift (stump/collar stay covering the socket)
     track(9219, 'rotation', [
       [0, 0],
-      [10, -0.28],
-      [22, -0.48],
-      [32, -0.58],
-      [42, -0.54],
-      [52, -0.62],
-      [62, -0.56],
-      [72, -0.6],
-      [84, -0.32],
-      [98, -0.08],
+      [10, -0.4],
+      [22, -0.78],
+      [32, -1.0],
+      [42, -1.1],
+      [52, -1.1],
+      [62, -1.1],
+      [72, -1.0],
+      [84, -0.55],
+      [98, -0.14],
       [108, 0],
     ]),
-    // forearm: deep bend so hand still reaches cheek/head height
     track(9221, 'rotation', [
       [0, 0],
-      [10, -0.85],
-      [22, -1.55],
-      [32, -2.0],
-      [42, -1.8],
-      [52, -2.1],
-      [62, -1.85],
-      [72, -2.05],
-      [84, -1.05],
-      [98, -0.28],
+      [10, -0.55],
+      [22, -1.15],
+      [32, -1.5],
+      [42, -1.68],
+      [52, -1.48],
+      [62, -1.68],
+      [72, -1.52],
+      [84, -0.85],
+      [98, -0.22],
       [108, 0],
     ]),
-    // wrist: palm-facing osc while arm is raised (visible wave amplitude)
+    // Palm-cancel: thh ≈ target_rh - thu - thf
     track(9223, 'rotation', [
       [0, 0],
-      [22, 0.45],
-      [32, 0.7],
-      [42, -0.6],
-      [52, 0.75],
-      [62, -0.65],
-      [72, 0.55],
-      [84, 0.2],
-      [98, 0],
+      [10, 0.95],
+      [22, 2.15],
+      [32, 2.75],
+      [42, 3.2],
+      [52, 2.9],
+      [62, 3.2],
+      [72, 2.75],
+      [84, 1.55],
+      [98, 0.4],
       [108, 0],
     ]),
-    // soft head tip toward the waving side
+    track(9248, 'rotation', [
+      [0, 0],
+      [22, -0.4],
+      [72, -0.4],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9249, 'rotation', [
+      [0, 0],
+      [22, 0.28],
+      [72, 0.28],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9250, 'rotation', [
+      [0, 0],
+      [22, 0.22],
+      [72, 0.22],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9251, 'rotation', [
+      [0, 0],
+      [22, 0.25],
+      [72, 0.25],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9252, 'rotation', [
+      [0, 0],
+      [22, 0.32],
+      [72, 0.32],
+      [96, 0],
+      [108, 0],
+    ]),
     track(190, 'y', [
       [0, 0],
       [28, -4],

@@ -178,7 +178,7 @@ def make_grid_mesh(
             nlen = math.hypot(*nb) or 1.0
             nb = (nb[0] / nlen, nb[1] / nlen)
             u_el = (rx - ex) * nb[0] + (ry - ey) * nb[1]
-            B = 85.0  # ROUND3 wider elbow blend
+            B = 20.0  # ROUND6: hard elbow crease
             w1 = smooth01((u_el + B) / (2 * B))  # weight on fore
             w0 = 1.0 - w1
             return pack_weights([w0, w1])
@@ -204,7 +204,7 @@ def make_grid_mesh(
             nlen = math.hypot(*nb) or 1.0
             nb = (nb[0] / nlen, nb[1] / nlen)
             u_el = (rx - ex) * nb[0] + (ry - ey) * nb[1]
-            B = 85.0
+            B = 20.0  # ROUND6 hard elbow crease
             w_fore_vs_upper = smooth01((u_el + B) / (2 * B))
             d_fore = (math.cos(a1), math.sin(a1))
             u_w = (rx - wx) * d_fore[0] + (ry - wy) * d_fore[1]
@@ -285,8 +285,9 @@ def make_grid_mesh(
 
 # Image specs: (image_name, box_key, side, blend, mesh_id, skin_id, asset stays)
 # blend upper_fore uses upper+fore; fore_hand uses fore+hand; upper_only = shoulder cap
-# ROUND3: bent-sleeve Solo art is bound at clap peak FK so deform≈identity there.
+# ROUND6: bent-sleeve Solo art bound at WAVE peak FK (windshield ~90° elbow).
 CLAP_BIND = {
+    # Bent Solo reserved for clap-style inward bend; ROUND6 wave uses hang Solo.
     "l": {"upper_d": -0.55, "fore_d": -1.05},
     "r": {"upper_d": 0.58, "fore_d": 1.08},
 }
@@ -456,7 +457,7 @@ def build_skinned_image(scene: str, spec: dict, rest: dict) -> str:
     image_id = imid.group(1) if imid else ""
     side = spec["side"]
     a = ARM[side]
-    # Bent art: bind at clap peak absolute angles/positions (deform≈identity mid-clap).
+    # Bent art: bind at WAVE peak absolute angles/positions (deform≈identity mid-wave).
     is_bent = "bent" in spec["name"]
     if is_bent:
         d = CLAP_BIND[side]
