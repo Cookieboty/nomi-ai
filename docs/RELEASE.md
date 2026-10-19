@@ -74,6 +74,7 @@ Auto-check can be toggled off in Settings. Periodic re-check is every 6 hours wh
    - Builds win / mac / linux with signing secrets when present
    - Runs `pnpm --filter @nomi-ai/electron run package:publish:{win,mac,linux}` (`--publish always`)
    - Uploads installers + `latest*.yml` / `.blockmap` to the GitHub Release for that tag
+   - On macOS, runs `scripts/release/check-mac-update.mjs`: the job fails if `latest-mac.yml` does not list both the x64 and arm64 zip, or a listed file is missing or its size / sha512 differ. It prints a warning when the build is unsigned, because Squirrel.Mac rejects unsigned updates
 5. **Verify the Release** page has, at least:
    - Windows: `Nomi Setup x.y.z.exe` + `latest.yml` + `.blockmap`
    - macOS: for **each** of x64 and arm64 both a `.dmg` (first install) **and** a `-mac.zip` (+ `.blockmap`), plus `latest-mac.yml`. The zip is required: electron-updater's MacUpdater only picks `zip` entries from `latest-mac.yml`, so a Release with only DMGs breaks in-app updates on macOS (`ERR_UPDATER_ZIP_FILE_NOT_FOUND`). Check that `latest-mac.yml` lists both zips
