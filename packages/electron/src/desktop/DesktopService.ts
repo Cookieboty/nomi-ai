@@ -246,7 +246,8 @@ export class DesktopService {
 
   /**
    * 看板娘不在时的提醒：灵动岛 + 系统通知（点击打开对话窗口）。
-   * 提醒是用户自己设的，必须送达：灵动岛显示不了（关闭 / 免打扰 / 不支持）时，即使关了「系统通知」也发一条。
+   * 系统通知只在用户开着「系统通知」时发：关了就是关了，灵动岛也显示不了（关闭 / 免打扰 / 不支持）时
+   * 这条提醒不弹出，只记一条 via=none 的审计，方便事后排查。
    */
   private deliverReminderElsewhere(items: Reminder[], osNotify: boolean): void {
     if (!items.length) return;
@@ -261,23 +262,30 @@ export class DesktopService {
     } catch (e) {
       this.logger.warn('灵动岛提醒失败', { error: String(e) });
     }
+    let notified = false;
     try {
-      if ((osNotify || !island) && Notification.isSupported()) {
+      if (osNotify && Notification.isSupported()) {
         const n = new Notification({ title, body, silent: false, icon: iconImage() });
         n.on('click', () => {
           void this.windows?.openChat().catch(() => undefined);
         });
         n.show();
+        notified = true;
       }
     } catch (e) {
       this.logger.warn('系统通知失败', { error: String(e) });
     }
+    const via = island ? 'island' : notified ? 'notification' : 'none';
+    if (via === 'none')
+      this.logger.info('提醒没有可用的展示方式（看板娘已隐藏、灵动岛不可用、系统通知已关闭）', {
+        count: items.length,
+      });
     for (const r of items) {
       this.audit.append({
         tool: 'reminder_fire',
-        args: { id: r.id, text: r.text, via: island ? 'island' : 'notification' },
+        args: { id: r.id, text: r.text, via },
         decision: 'auto',
-        result: 'ok',
+        result: via === 'none' ? 'not_shown' : 'ok',
         source: 'scheduler',
       });
     }

@@ -115,11 +115,46 @@ describe('reminder routing when the mascot is hidden', () => {
     expect(shown).toHaveLength(0);
   });
 
-  it('mascot hidden, notifications off and island unavailable: still falls back to a system notification', () => {
+  it('mascot hidden, notifications off and island unavailable: respects the setting, no system notification', () => {
     island.mockReturnValue(false);
     const t = setup({ hidden: true, osNotify: false });
+    const audit = jest.spyOn(t.svc.audit, 'append');
+    t.fire();
+    expect(shown).toHaveLength(0);
+    expect(t.send).not.toHaveBeenCalledWith('desktop:reminder', expect.anything());
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool: 'reminder_fire',
+        args: expect.objectContaining({ id: 'r1', via: 'none' }),
+        result: 'not_shown',
+      }),
+    );
+  });
+
+  it('mascot hidden, island unavailable, notifications on: the system notification delivers it', () => {
+    island.mockReturnValue(false);
+    const t = setup({ hidden: true, osNotify: true });
+    const audit = jest.spyOn(t.svc.audit, 'append');
     t.fire();
     expect(shown).toHaveLength(1);
+    expect(audit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        args: expect.objectContaining({ via: 'notification' }),
+        result: 'ok',
+      }),
+    );
+  });
+
+  it('missed reminders with notifications off and no island: no system notification either', () => {
+    island.mockReturnValue(false);
+    const t = setup({ hidden: true, osNotify: false });
+    (t.svc as unknown as { remindersStarted: boolean }).remindersStarted = true;
+    (t.svc as unknown as { missedQueue: Reminder[] }).missedQueue = [
+      { id: 'a', text: 'one', dueAt: 1, status: 'missed', createdAt: 1 },
+    ] as Reminder[];
+    jest.spyOn(t.svc.reminders, 'markAnnounced').mockImplementation(() => undefined);
+    expect(t.svc.takeMissed()).toEqual([]);
+    expect(shown).toHaveLength(0);
   });
 
   it('no mascot window at all: routed the same way', () => {
