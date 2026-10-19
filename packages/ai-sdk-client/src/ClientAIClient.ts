@@ -65,6 +65,8 @@ export class ClientAIClient {
   private readonly bridge: IPCBridge;
   private readonly listeners = new Map<string, Set<Listener>>();
   private readonly disposers: IpcUnsubscribe[] = [];
+  /** 进行中的流：dispose 时统一释放（退订 + 唤醒挂起的 next + chat 流通知中止） */
+  private readonly activeStreams = new Set<() => void>();
   private disposed = false;
   private live2dAvailableCache: boolean;
 
@@ -106,6 +108,15 @@ export class ClientAIClient {
 
   async dispose(): Promise<void> {
     if (this.disposed) return;
+    // 先释放仍在进行的流（此时还没标记 disposed，chat 流的中止通知可以发出）
+    for (const release of [...this.activeStreams]) {
+      try {
+        release();
+      } catch {
+        /* ignore */
+      }
+    }
+    this.activeStreams.clear();
     this.disposed = true;
     for (const off of this.disposers.splice(0)) {
       try {
@@ -220,6 +231,14 @@ export class ClientAIClient {
     // chat 流被消费方提前放弃（break / return / throw）时，要通知主进程中止上游请求
     const abortable = spec.facade === 'chat';
 
+    // 幂等退订 chunk 监听，并把这条流从活动集合里摘掉
+    const detach = () => {
+      const u = unsub;
+      unsub = undefined;
+      u?.();
+      this.activeStreams.delete(release);
+    };
+
     const scheduleWake = () => {
       const r = resolver;
       resolver = undefined;
@@ -232,46 +251,11 @@ export class ClientAIClient {
         resolver = resolve;
       });
 
-    const kickOff = async () => {
-      this.assertLive();
-      // 生成 reqId（若首参已带则复用），随后订阅 chunk 通道。
-      const first = args[0] as { reqId?: string } | undefined;
-      reqId = first?.reqId ?? cryptoRandomId();
-      const id = reqId;
-      if (first && typeof first === 'object') {
-        (first as { reqId?: string }).reqId = reqId;
-      } else {
-        args = [{ reqId: id }, ...args];
-      }
-      unsub = this.bridge.on<StreamChunkEnvelope>(chunkCh, (env) => {
-        if (!env || env.reqId !== id) return;
-        if (env.done) {
-          finishedByServer = true;
-          if (env.error) error = new SDKError(SDKErrorCodes.IPC_STREAM_ABORTED, env.error);
-          ended = true;
-          scheduleWake();
-          return;
-        }
-        buffer.push(env.value);
-        scheduleWake();
-      });
-      try {
-        await this.bridge.invoke(ch, ...args);
-      } catch (err) {
-        error = SDKError.fromIpc(err);
-        ended = true;
-        scheduleWake();
-      }
-    };
-
-    // 立即启动 subscribe + invoke；调用方后续 iterate 时按 buffer 消费。
-    const started = kickOff();
-
     // 消费方提前结束：退订 chunk、唤醒挂起的 next()，并 fire-and-forget 通知主进程中止
     const release = () => {
       const alreadyEnded = ended;
       ended = true;
-      unsub?.();
+      detach();
       scheduleWake();
       if (abortable && !alreadyEnded && !finishedByServer && reqId) {
         const abortSpec = IPC_METHOD_INDEX.get('chat.abort');
@@ -282,6 +266,55 @@ export class ClientAIClient {
         }
       }
     };
+
+    const kickOff = async () => {
+      this.assertLive();
+      // 生成 reqId，随后订阅 chunk 通道。
+      // chat 流的首参本来就是 options 对象：reqId 写进它（若已带则复用）。
+      // 其它流（tts.stream(text, opts) 等）的位置参数是业务参数，不能被改写：
+      // reqId 单独放在最前面的 envelope `{ reqId }` 里，服务端取出后再用原参数调用。
+      if (spec.facade === 'chat') {
+        const first = args[0] as { reqId?: string } | undefined;
+        reqId = first?.reqId ?? cryptoRandomId();
+        if (first && typeof first === 'object') {
+          (first as { reqId?: string }).reqId = reqId;
+        } else {
+          args = [{ reqId }, ...args];
+        }
+      } else {
+        reqId = cryptoRandomId();
+        args = [{ reqId }, ...args];
+      }
+      const id = reqId;
+      unsub = this.bridge.on<StreamChunkEnvelope>(chunkCh, (env) => {
+        if (!env || env.reqId !== id) return;
+        if (env.done) {
+          finishedByServer = true;
+          if (env.error) error = new SDKError(SDKErrorCodes.IPC_STREAM_ABORTED, env.error);
+          ended = true;
+          // 自然结束就退订：已缓冲的 chunk 仍可被 next() 排空，不依赖消费方调用 return()
+          detach();
+          scheduleWake();
+          return;
+        }
+        buffer.push(env.value);
+        scheduleWake();
+      });
+      // 订阅回调可能在 on() 返回前同步触发 done：此时补一次退订
+      if (ended) detach();
+      try {
+        await this.bridge.invoke(ch, ...args);
+      } catch (err) {
+        error = SDKError.fromIpc(err);
+        ended = true;
+        detach();
+        scheduleWake();
+      }
+    };
+
+    // 立即启动 subscribe + invoke；调用方后续 iterate 时按 buffer 消费。
+    this.activeStreams.add(release);
+    const started = kickOff();
 
     const iterator: AsyncIterator<unknown> = {
       next: async (): Promise<IteratorResult<unknown>> => {
