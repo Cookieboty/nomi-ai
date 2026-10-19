@@ -77,6 +77,42 @@
       "outputs": ["coverage/**"],
       "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
     },
+    "@nomi-ai/renderer#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/electron/src/mascot/mascotSize.ts"
+      ]
+    },
+    "@nomi-ai/ai-sdk-client#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/ai-runtime/src/channels.ts"
+      ]
+    },
+    "@nomi-ai/electron#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/assets-licenses.json"
+      ]
+    },
     "@nomi-ai/electron#package": {
       "cache": false,
       "dependsOn": ["@nomi-ai/electron#build", "@nomi-ai/renderer#build", "@nomi-ai/ai-chat#build"]
