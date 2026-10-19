@@ -152,7 +152,6 @@
   "墨色": "Ink",
   "日落橙（默认）": "Sunset Orange (default)",
   "奶油": "Cream",
-  "日落橙": "Sunset",
   "立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。": "Updates the Dock icon right away (for this session only; Finder and Launchpad keep the default ink icon after you quit). The menu-bar icon stays a monochrome template.",
   "立即更新窗口、任务栏和托盘图标。安装包、可执行文件和开始菜单 / 桌面快捷方式的图标由系统缓存，始终为默认墨色。": "Updates the window, taskbar and tray icons right away. The installer, executable and Start-menu / desktop shortcut icons are cached by the OS and stay the default ink.",
   "Nomi 形象不可用": "Nomi avatar unavailable",
