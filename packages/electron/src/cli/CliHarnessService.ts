@@ -30,6 +30,14 @@ import {
 } from './detect';
 import { EventBatcher } from './eventBatcher';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
+import {
+  DEFAULT_PERMISSION_MODE,
+  claudeModeName,
+  effectiveMode,
+  isPermissionMode,
+  permissionLaunch,
+  planPromptPrefix,
+} from './permissionMode';
 import { killProcessTree } from './processTree';
 import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
@@ -49,6 +57,7 @@ import {
 import type {
   HarnessBackend,
   HarnessEvent,
+  HarnessPermissionMode,
   HarnessSendReply,
   HarnessSendResult,
   HarnessSessionState,
@@ -310,6 +319,8 @@ export class CliHarnessService {
   private running = 0;
   private activeTabId = MAIN_TAB_ID;
   private maxConcurrent = DEFAULT_MAX_CONCURRENT;
+  private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
+  private codexNetwork = true;
   private readonly home: string;
   private readonly statePath: string;
   private readonly tabsPath: string;
@@ -350,6 +361,7 @@ export class CliHarnessService {
       unread: 0,
       createdAt: now,
       updatedAt: now,
+      permissionMode: DEFAULT_PERMISSION_MODE,
     });
     this.load();
     try {
@@ -400,15 +412,18 @@ export class CliHarnessService {
   }
 
   private load() {
+    // 主标签的档位要等 tabs.json 里的默认档读完再还原
+    let mainMode: unknown;
     try {
       const raw = JSON.parse(
         fs.readFileSync(this.statePath, 'utf8'),
-      ) as Partial<HarnessSessionState> & { title?: string };
+      ) as Partial<HarnessSessionState> & { title?: string; permissionMode?: unknown };
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
       if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
+      mainMode = raw.permissionMode;
     } catch {
       /* */
     }
@@ -416,9 +431,15 @@ export class CliHarnessService {
       const raw = JSON.parse(fs.readFileSync(this.tabsPath, 'utf8')) as {
         activeTabId?: string;
         maxConcurrent?: number;
+        defaultPermissionMode?: unknown;
+        codexNetwork?: unknown;
         tabs?: HarnessTabMeta[];
       };
       if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
+      if (isPermissionMode(raw.defaultPermissionMode) && raw.defaultPermissionMode !== 'bypass') {
+        this.defaultPermissionMode = raw.defaultPermissionMode;
+      }
+      if (typeof raw.codexNetwork === 'boolean') this.codexNetwork = raw.codexNetwork;
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
@@ -427,22 +448,25 @@ export class CliHarnessService {
           ...tab,
           status: tab.status === 'error' ? 'error' : 'idle',
           unread: Number(tab.unread) || 0,
+          permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
         });
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
     } catch {
       /* */
     }
+    this.main.permissionMode = this.restoredMode(this.main.backend, mainMode);
   }
 
   private persist() {
     const m = this.main;
-    const s: HarnessSessionState & { title: string } = {
+    const s: HarnessSessionState & { title: string; permissionMode: HarnessPermissionMode } = {
       backend: m.backend,
       cwd: m.cwd,
       cliSessionId: m.cliSessionId,
       busy: m.status === 'running' || m.status === 'queued',
       title: m.title,
+      permissionMode: m.permissionMode,
     };
     try {
       fs.writeFileSync(this.statePath, JSON.stringify(s, null, 2), 'utf8');
@@ -450,7 +474,13 @@ export class CliHarnessService {
       fs.writeFileSync(
         this.tabsPath,
         JSON.stringify(
-          { activeTabId: this.activeTabId, maxConcurrent: this.maxConcurrent, tabs },
+          {
+            activeTabId: this.activeTabId,
+            maxConcurrent: this.maxConcurrent,
+            defaultPermissionMode: this.defaultPermissionMode,
+            codexNetwork: this.codexNetwork,
+            tabs,
+          },
           null,
           2,
         ),
@@ -592,6 +622,8 @@ export class CliHarnessService {
       maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
+      defaultPermissionMode: this.defaultPermissionMode,
+      codexNetwork: this.codexNetwork,
     };
   }
 
@@ -604,6 +636,8 @@ export class CliHarnessService {
       messages?: HarnessTabMessage[];
       /** 打开历史会话：直接绑定已有 CLI 会话，下一条消息按各 CLI 的续接参数继续 */
       cliSessionId?: string;
+      /** 分叉时继承来源标签的模式；缺省用默认档。「完全放开」不能经此继承 */
+      permissionMode?: HarnessPermissionMode;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -626,6 +660,12 @@ export class CliHarnessService {
       unread: 0,
       createdAt: now,
       updatedAt: now,
+      permissionMode: effectiveMode(
+        backend,
+        isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass'
+          ? opts.permissionMode
+          : this.defaultPermissionMode,
+      ).mode,
     };
     this.tabs.set(tab.id, tab);
     const seeded = Array.isArray(opts.messages)
@@ -791,6 +831,8 @@ export class CliHarnessService {
       }
     }
     tab.backend = backend;
+    // 新后端不支持当前档位时降到更安全的一档
+    tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
     // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
     if (switched) this.changed();
     return { ...tab };
@@ -808,6 +850,66 @@ export class CliHarnessService {
     if (tab.backend !== 'nomi') this.rememberCwd(abs);
     this.changed();
     return { ...tab };
+  }
+
+  /**
+   * 切换标签权限模式。返回实际生效的档位（后端不支持时已降级）。
+   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认。
+   * Claude 长驻进程用 control_request 即时切换；Codex / dsh / Grok 下一轮启动时生效。
+   */
+  setTabPermissionMode(
+    id: string,
+    mode: HarnessPermissionMode,
+    opts: { confirmed?: boolean } = {},
+  ): HarnessTabMeta & { degraded: boolean } {
+    const tab = this.requireTab(id);
+    if (!isPermissionMode(mode)) throw new Error(t('未知权限模式'));
+    if (mode === 'bypass' && !opts.confirmed) throw new Error(t('完全放开需要先确认'));
+    const next = effectiveMode(tab.backend, mode);
+    if (next.mode !== tab.permissionMode) {
+      tab.permissionMode = next.mode;
+      const live = this.claudeLive.get(id);
+      if (live && live.permissionMode !== next.mode) {
+        const sent = this.writeClaudeControl(live, {
+          subtype: 'set_permission_mode',
+          mode: claudeModeName(next.mode),
+        });
+        // 写不进去：拆掉，下一轮带新模式 --resume 重拉
+        if (sent) live.permissionMode = next.mode;
+        else this.teardownClaudeLive(id);
+      }
+      this.changed();
+    }
+    return { ...tab, degraded: next.degraded };
+  }
+
+  /** 新标签默认档与 Codex 联网开关（设置页） */
+  setPermissionDefaults(o: {
+    defaultPermissionMode?: HarnessPermissionMode;
+    codexNetwork?: boolean;
+  }): HarnessTabsState {
+    if (o.defaultPermissionMode !== undefined) {
+      if (!isPermissionMode(o.defaultPermissionMode)) throw new Error(t('未知权限模式'));
+      if (o.defaultPermissionMode === 'bypass') throw new Error(t('完全放开不能设为默认模式'));
+      this.defaultPermissionMode = o.defaultPermissionMode;
+    }
+    if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
+    this.changed();
+    return this.listTabs();
+  }
+
+  /**
+   * 落盘档位 → 内存档位。缺字段（旧数据）：Claude 保持原来的逐项确认，其它用默认档；
+   * 「完全放开」不跨重启保留。
+   */
+  private restoredMode(backend: HarnessBackend, raw: unknown): HarnessPermissionMode {
+    const mode: HarnessPermissionMode =
+      isPermissionMode(raw) && raw !== 'bypass'
+        ? raw
+        : raw === undefined && backend === 'claude'
+          ? 'manual'
+          : this.defaultPermissionMode;
+    return effectiveMode(backend, mode).mode;
   }
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
@@ -1098,6 +1200,7 @@ export class CliHarnessService {
     if (
       existing &&
       existing.cwd === tab.cwd &&
+      existing.permissionMode === tab.permissionMode &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
       existing.child.signalCode === null
@@ -1119,6 +1222,7 @@ export class CliHarnessService {
       '--verbose',
       '--permission-prompt-tool',
       'stdio',
+      ...permissionLaunch('claude', tab.permissionMode).args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
@@ -1131,6 +1235,7 @@ export class CliHarnessService {
       buf: '',
       turn: null,
       cwd: tab.cwd,
+      permissionMode: tab.permissionMode,
       lastActivityAt: Date.now(),
     };
     this.claudeLive.set(tab.id, live);
@@ -1378,14 +1483,27 @@ export class CliHarnessService {
     const bin = resolveHarnessBin('codex');
     if (!bin) return Promise.reject(new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
-    // `exec resume` 不接受 --cd；工作目录由 spawn 的 cwd 决定
+    // `exec` 默认 read-only 沙箱且禁网：沙箱 / 联网 / 自动审批都按权限模式用 -c 指定
+    // （`exec resume` 不接受 --sandbox / --cd；工作目录由 spawn 的 cwd 决定，也即可写根）
+    const sandbox = permissionLaunch('codex', tab.permissionMode, {
+      codexNetwork: this.codexNetwork,
+    }).args;
+    prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const argv = useNode
       ? tab.cliSessionId
         ? [bin, 'exec', 'resume', '--json', tab.cliSessionId, prompt]
         : [bin, 'exec', '--json', prompt]
       : tab.cliSessionId
-        ? ['exec', 'resume', '--json', '--skip-git-repo-check', tab.cliSessionId, prompt]
-        : ['exec', '--json', '--skip-git-repo-check', '--cd', tab.cwd, prompt];
+        ? [
+            'exec',
+            'resume',
+            '--json',
+            '--skip-git-repo-check',
+            ...sandbox,
+            tab.cliSessionId,
+            prompt,
+          ]
+        : ['exec', '--json', '--skip-git-repo-check', ...sandbox, '--cd', tab.cwd, prompt];
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv,
@@ -1405,6 +1523,7 @@ export class CliHarnessService {
     const useNode = isScript(bin);
     const argv = ['--profile', 'headless', '--json'];
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
+    if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
     // 以 - 开头的提示会被当成参数，前置空格规避
     argv.push(prompt.startsWith('-') ? ` ${prompt}` : prompt);
     let extraEnv: Record<string, string> = {};
@@ -1413,6 +1532,8 @@ export class CliHarnessService {
     } catch (e) {
       this.d.logger.warn('harness dsh env failed', e);
     }
+    // 沙箱档位：DSH_PERMISSION_MODE（read-only / workspace-write / danger-full-access）
+    extraEnv = { ...extraEnv, ...permissionLaunch('dsh', tab.permissionMode).env };
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv: useNode ? [bin, ...argv] : argv,
@@ -1424,9 +1545,9 @@ export class CliHarnessService {
   }
 
   /**
-   * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update [--yolo]`。
-   * 续接：`--resume <sessionId>`。权限在接管场景默认 `--yolo`（与 Codex/dsh 一致：UI 侧不弹交互确认；
-   * 真实权限事件格式未在真机验证，见文档「未验证」）。
+   * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update`，
+   * 权限按标签模式加 `--permission-mode <mode>`（完全放开为 `--yolo`）。
+   * 续接：`--resume <sessionId>`。无头权限事件格式未在真机验证，暂不开放「逐项确认」。
    * 官方：docs.x.ai/build/cli/headless-scripting 。
    */
   private runGrok(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
@@ -1439,7 +1560,7 @@ export class CliHarnessService {
       '--output-format',
       'streaming-json',
       '--no-auto-update',
-      '--yolo',
+      ...permissionLaunch('grok', tab.permissionMode).args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
@@ -1736,6 +1857,7 @@ export class CliHarnessService {
           cwd?: string;
           title?: string;
           messages?: HarnessTabMessage[];
+          permissionMode?: HarnessPermissionMode;
         },
       ),
     );
@@ -1749,6 +1871,16 @@ export class CliHarnessService {
       this.setTabBackend(String(id), b as HarnessBackend),
     );
     handle('ai:harness:tab-cwd', (id, c) => this.setTabCwd(String(id), String(c)));
+    handle('ai:harness:tab-permission-mode', (id, m, o) =>
+      this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
+        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
+      }),
+    );
+    handle('ai:harness:permission-defaults', (o) =>
+      this.setPermissionDefaults(
+        (o ?? {}) as { defaultPermissionMode?: HarnessPermissionMode; codexNetwork?: boolean },
+      ),
+    );
     handle('ai:harness:tab-pick-cwd', (id) => this.pickTabCwd(String(id)));
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
@@ -1795,6 +1927,8 @@ type ClaudeLiveSession = {
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
+  /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
+  permissionMode: HarnessPermissionMode;
   /** 最近一次活动（拉起 / 发送 / 收到输出）；空闲回收据此判断 */
   lastActivityAt: number;
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */

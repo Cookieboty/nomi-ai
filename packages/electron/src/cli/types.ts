@@ -10,6 +10,12 @@ import type {
 
 export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
 
+/**
+ * 编程助手权限模式（Nomi 统一五档，映射见 cli/permissionMode.ts）：
+ * 计划（只读）/ 逐项确认 / 自动改文件 / 自动（模型判断）/ 完全放开
+ */
+export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass';
+
 export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'cursor';
 
 /** 拥有独立供应商档案库的 CLI */
@@ -167,6 +173,8 @@ export interface HarnessTabMeta {
   createdAt: number;
   updatedAt: number;
   lastError?: string;
+  /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
+  permissionMode: HarnessPermissionMode;
   /** 长驻 CLI 进程因空闲被回收（仅广播用，不落盘）；下一条消息会 --resume 自动续接 */
   dormant?: boolean;
 }
@@ -177,6 +185,10 @@ export interface HarnessTabsState {
   maxConcurrent: number;
   running: number;
   queued: number;
+  /** 新标签默认权限模式（不会是 bypass） */
+  defaultPermissionMode: HarnessPermissionMode;
+  /** Codex 在 workspace-write 下允许联网 */
+  codexNetwork: boolean;
 }
 
 /** 安装 / 更新位置：global = npm 全局目录；user = 用户目录（~/.local，不需要管理员权限） */

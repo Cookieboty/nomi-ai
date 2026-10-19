@@ -170,6 +170,8 @@ Aggregation（多上游合并）仍为 **P2**。
 - 交互式审批存在于实验性 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），**不属于**当前 P0 的 `exec` 路径。
 - **结论：P0 不对 Codex 做假权限 UI**；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。P1 若接 app-server 再对标 Claude 权限桥。
 
+**权限模式（2026-10-19）：** 四个后端统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。修复了 Codex `exec` 默认只读、禁网导致无法改文件的问题；Grok 不再默认 `--yolo`。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
+
 **安全：**
 
 - 子进程 `env` 显式构造；不把 Nomi 的全部 process.env 泄漏给 CLI（尤其是无关 Token）。

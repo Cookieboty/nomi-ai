@@ -357,7 +357,7 @@ describe('CliHarnessService mock CLI', () => {
       expect(h.state().cliSessionId).toBe(sid);
       const boots = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
       expect(boots).toHaveLength(1);
-      expect(boots[0]).toMatch(/^\d+$/);
+      expect(boots[0]).toMatch(/^\d+ /);
     } finally {
       if (prev === undefined) delete process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
       else process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = prev;
@@ -531,6 +531,10 @@ describe('CliHarnessService session handling', () => {
           .split('\n')
           .map((l) => JSON.parse(l) as string[]);
         expect(calls[0]).not.toContain('resume');
+        for (const c of calls) {
+          expect(c).toContain('sandbox_mode="workspace-write"');
+          expect(c).toContain('sandbox_workspace_write.network_access=true');
+        }
         expect(calls[1].slice(0, 2)).toEqual(['exec', 'resume']);
         expect(calls[1]).toContain('codex-thread');
         expect(calls[1]).not.toContain('--cd');
@@ -626,5 +630,221 @@ describe('CliHarnessService session handling', () => {
       h.setBackend('claude');
       expect(h.state().cliSessionId).toBeNull();
     });
+  });
+});
+
+describe('CliHarnessService permission modes', () => {
+  const itPosix = process.platform === 'win32' ? it.skip : it;
+  const mockClaude = path.resolve(__dirname, '../../../scripts/mock-cli/mock-claude.mjs');
+  const mockDsh = path.resolve(__dirname, '../../../scripts/mock-cli/mock-dsh.mjs');
+  const mockGrok = path.resolve(__dirname, '../../../scripts/mock-cli/mock-grok.mjs');
+  const harnesses: CliHarnessService[] = [];
+  const envKeys = [
+    'NOMI_CLAUDE_BIN',
+    'NOMI_CODEX_BIN',
+    'NOMI_DSH_BIN',
+    'NOMI_GROK_BIN',
+    'NOMI_MOCK_CLAUDE_BOOT_LOG',
+    'NOMI_MOCK_CLAUDE_CONTROL_LOG',
+  ];
+  let saved: Record<string, string | undefined> = {};
+  beforeEach(() => {
+    saved = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+    process.env.NOMI_CLAUDE_BIN = mockClaude;
+  });
+  afterEach(() => {
+    for (const h of harnesses) h.dispose();
+    harnesses.length = 0;
+    for (const k of envKeys) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
+    }
+  });
+  const mk = (root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-'))) => {
+    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+    harnesses.push(h);
+    return h;
+  };
+  /** 无扩展名的记录器：记下 argv 与 DSH_PERMISSION_MODE，再把调用转给真正的 mock */
+  const recorder = (dir: string, target: string) => {
+    const bin = path.join(dir, 'recorder');
+    const log = path.join(dir, 'calls.log');
+    fs.writeFileSync(
+      bin,
+      [
+        '#!/usr/bin/env node',
+        "const fs = require('node:fs');",
+        "const { spawnSync } = require('node:child_process');",
+        'const argv = process.argv.slice(2);',
+        `fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ argv, dsh: process.env.DSH_PERMISSION_MODE ?? null }) + '\\n');`,
+        `const r = spawnSync(process.execPath, [${JSON.stringify(target)}, ...argv], { stdio: 'inherit' });`,
+        'process.exit(r.status ?? 1);',
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    const calls = () =>
+      fs
+        .readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as { argv: string[]; dsh: string | null });
+    return { bin, calls };
+  };
+
+  it('defaults new tabs to acceptEdits and degrades on backend switch', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    expect(tab.permissionMode).toBe('acceptEdits');
+    h.setTabPermissionMode(tab.id, 'manual');
+    expect(h.setTabBackend(tab.id, 'dsh').permissionMode).toBe('plan');
+    expect(h.setTabPermissionMode(tab.id, 'auto')).toMatchObject({
+      permissionMode: 'acceptEdits',
+      degraded: true,
+    });
+    expect(h.createTab({ backend: 'codex', permissionMode: 'bypass' }).permissionMode).toBe(
+      'acceptEdits',
+    );
+  });
+
+  it('requires confirmation for bypass and never makes it the default', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    expect(() => h.setTabPermissionMode(tab.id, 'bypass')).toThrow();
+    expect(h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true }).permissionMode).toBe(
+      'bypass',
+    );
+    expect(() => h.setPermissionDefaults({ defaultPermissionMode: 'bypass' })).toThrow();
+    const s = h.setPermissionDefaults({ defaultPermissionMode: 'plan', codexNetwork: false });
+    expect(s).toMatchObject({ defaultPermissionMode: 'plan', codexNetwork: false });
+  });
+
+  it('migrates old tabs and drops bypass across restarts', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-migrate-'));
+    const base = {
+      cwd: root,
+      cliSessionId: null,
+      status: 'idle',
+      unread: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    fs.writeFileSync(
+      path.join(root, 'tabs.json'),
+      JSON.stringify({
+        activeTabId: 'a',
+        tabs: [
+          { ...base, id: 'a', title: 'A', backend: 'claude' },
+          { ...base, id: 'b', title: 'B', backend: 'codex' },
+          { ...base, id: 'c', title: 'C', backend: 'grok', permissionMode: 'bypass' },
+          { ...base, id: 'd', title: 'D', backend: 'dsh', permissionMode: 'plan' },
+        ],
+      }),
+    );
+    const modes = Object.fromEntries(
+      mk(root)
+        .listTabs()
+        .tabs.map((x) => [x.id, x.permissionMode]),
+    );
+    expect(modes).toMatchObject({ a: 'manual', b: 'acceptEdits', c: 'acceptEdits', d: 'plan' });
+
+    const h = mk(root);
+    h.setBackend('codex');
+    h.setTabPermissionMode('main', 'acceptEdits');
+    h.setPermissionDefaults({ defaultPermissionMode: 'plan', codexNetwork: false });
+    h.dispose();
+    // 主标签显式选的档位不被默认档覆盖
+    expect(
+      mk(root)
+        .listTabs()
+        .tabs.find((x) => x.id === 'main')?.permissionMode,
+    ).toBe('acceptEdits');
+    expect(mk(root).listTabs()).toMatchObject({
+      defaultPermissionMode: 'plan',
+      codexNetwork: false,
+    });
+  });
+
+  it('switches a live Claude process via set_permission_mode without respawning', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-claude-'));
+    const boot = path.join(dir, 'boot.log');
+    const control = path.join(dir, 'control.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'claude', permissionMode: 'plan' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'acceptEdits');
+    await h.sendTab(tab.id, 'two');
+    const boots = fs.readFileSync(boot, 'utf8').trim().split('\n');
+    expect(boots).toHaveLength(1);
+    expect(boots[0]).toContain('--permission-mode plan');
+    expect(fs.readFileSync(control, 'utf8')).toMatch(/ acceptEdits\n/);
+  }, 20_000);
+
+  itPosix('passes codex sandbox / approval flags per mode', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-codex-'));
+    const bin = path.join(dir, 'argv-codex');
+    fs.writeFileSync(
+      bin,
+      [
+        '#!/usr/bin/env node',
+        "const fs = require('node:fs');",
+        `fs.appendFileSync(${JSON.stringify(path.join(dir, 'argv.log'))}, JSON.stringify(process.argv.slice(2)) + '\\n');`,
+        "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+        "emit({ type: 'thread.started', thread_id: 'codex-thread' });",
+        "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: 'ok' } });",
+      ].join('\n'),
+      { mode: 0o755 },
+    );
+    process.env.NOMI_CODEX_BIN = bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'codex', permissionMode: 'plan' });
+    await h.sendTab(tab.id, 'plan it');
+    h.setTabPermissionMode(tab.id, 'auto');
+    await h.sendTab(tab.id, 'do it');
+    const [plan, auto] = fs
+      .readFileSync(path.join(dir, 'argv.log'), 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as string[]);
+    expect(plan).toContain('sandbox_mode="read-only"');
+    expect(plan).not.toContain('sandbox_workspace_write.network_access=true');
+    expect(plan[plan.length - 1]).toMatch(/^You are in plan mode[\s\S]*plan it$/);
+    expect(auto.slice(0, 2)).toEqual(['exec', 'resume']);
+    expect(auto).toEqual(
+      expect.arrayContaining([
+        'sandbox_mode="workspace-write"',
+        'approval_policy="on-request"',
+        'approvals_reviewer="auto_review"',
+      ]),
+    );
+    expect(auto[auto.length - 1]).toBe('do it');
+  });
+
+  itPosix('sets DSH_PERMISSION_MODE for dsh', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-dsh-'));
+    const r = recorder(dir, mockDsh);
+    process.env.NOMI_DSH_BIN = r.bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'dsh' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    await h.sendTab(tab.id, 'two');
+    expect(r.calls().map((c) => c.dsh)).toEqual(['workspace-write', 'danger-full-access']);
+  });
+
+  itPosix('no longer forces --yolo on grok', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-grok-'));
+    const r = recorder(dir, mockGrok);
+    process.env.NOMI_GROK_BIN = r.bin;
+    const h = mk(dir);
+    const tab = h.createTab({ backend: 'grok' });
+    await h.sendTab(tab.id, 'one');
+    h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    await h.sendTab(tab.id, 'two');
+    const [a, b] = r.calls().map((c) => c.argv);
+    expect(a).not.toContain('--yolo');
+    expect(a).toEqual(expect.arrayContaining(['--permission-mode', 'acceptEdits']));
+    expect(b).toContain('--yolo');
   });
 });

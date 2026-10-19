@@ -539,5 +539,8 @@
   "选择聊天背景图片": "Choose chat background image",
   "系统安全存储不可用，无法安全保存 CalDAV 密码；请在系统钥匙串可用后重试": "System secure storage is unavailable, so the CalDAV password cannot be saved safely. Try again once the system keychain is available.",
   "系统安全存储不可用，无法安全保存 MCP 的密钥 / 令牌；请在系统钥匙串可用后重试": "System secure storage is unavailable, so MCP secrets / tokens cannot be saved safely. Try again once the system keychain is available.",
-  "系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试": "System secure storage is unavailable, so the cloud key cannot be saved safely. Try again once the system keychain is available."
+  "系统安全存储不可用，无法安全保存云 Key；请在系统钥匙串可用后重试": "System secure storage is unavailable, so the cloud key cannot be saved safely. Try again once the system keychain is available.",
+  "未知权限模式": "Unknown permission mode",
+  "完全放开需要先确认": "Full access requires confirmation first",
+  "完全放开不能设为默认模式": "Full access can't be the default mode"
 }
