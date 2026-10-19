@@ -655,6 +655,11 @@ export class KnowledgeService {
       chunks = r.pageTexts ? chunkPages(r.pageTexts) : chunkText(r.text);
     }
     const withVec = await this.withVectors(chunks, id, base.title, ep, signal);
+    // 解析 / 嵌入期间授权可能被撤销：写回前再确认一次，撤权后不能写入可检索条目
+    if (!(await this.d.desktop.broker.guard(file, 'read')).ok) {
+      this.index.remove(id);
+      return 'same';
+    }
     this.index.put({
       ...base,
       status: withVec.length ? 'ok' : 'empty',
@@ -706,6 +711,32 @@ export class KnowledgeService {
     return this.settings.sources.filter((s) => s.enabled).map((s) => s.id);
   }
 
+  /**
+   * 文件夹来源当前是否仍被授权读取（笔记来源不依赖文件夹授权）。
+   * 检索 / 重排 / 问答前都要用「当前」授权判断，不能依赖下一次定时索引才发现撤权。
+   */
+  private async revokedSourceIds(ids: string[]): Promise<Set<string>> {
+    const revoked = new Set<string>();
+    for (const id of ids) {
+      const src = this.settings.sources.find((s) => s.id === id);
+      if (!src || src.kind === 'notes' || !src.path) continue;
+      const g = await this.d.desktop.broker.guard(src.path, 'read');
+      if (!g.ok) revoked.add(id);
+    }
+    return revoked;
+  }
+
+  /** 授权被撤销的文件夹来源：立即清掉它们的缓存片段（来源本身保留，重新授权后下次索引会恢复） */
+  private async pruneRevoked(): Promise<void> {
+    const gone = await this.revokedSourceIds(this.settings.sources.map((s) => s.id));
+    let removed = 0;
+    for (const id of gone) removed += this.index.removeSource(id);
+    if (removed) {
+      this.index.save();
+      this.broadcast('ai:kb:changed', null);
+    }
+  }
+
   async search(
     query: string,
     limit = this.settings.topK,
@@ -727,11 +758,15 @@ export class KnowledgeService {
     const embedModel = ep ? `${this.settings.embed.providerId}:${ep.model}` : undefined;
     const rr = this.endpoint(this.settings.rerank);
     const useRerank = !!rr && !this.allowRemote(rr, this.settings.rerank.providerId);
+    // 以当前授权为准：撤权的文件夹来源不参与检索（也就不会进入重排请求或问答提示词）
+    const enabled = this.enabledSourceIds();
+    const revoked = await this.revokedSourceIds(enabled);
+    if (revoked.size) void this.pruneRevoked().catch(() => undefined);
     let hits = this.index.search(q, {
       limit: useRerank ? Math.max(limit * 3, 15) : limit,
       queryVec,
       embedModel,
-      sourceIds: this.enabledSourceIds(),
+      sourceIds: enabled.filter((id) => !revoked.has(id)),
     });
     if (useRerank && hits.length > 1) {
       try {
@@ -946,7 +981,11 @@ export class KnowledgeService {
     // 定时器不应拖住进程退出
     (this.bootTimer as { unref?: () => void }).unref?.();
     (this.timer as { unref?: () => void }).unref?.();
-    this.offBroker = this.d.desktop.broker.onChange(() => this.broadcast('ai:kb:changed', null));
+    this.offBroker = this.d.desktop.broker.onChange(() => {
+      // 授权变化（含撤销文件夹授权）：立即清掉失去授权的来源缓存，不等 30 分钟的增量索引
+      void this.pruneRevoked().catch(() => undefined);
+      this.broadcast('ai:kb:changed', null);
+    });
   }
 
   /** 应用退出：停定时器、取消索引与下载、退订、终止 OCR worker；幂等，之后可再 start() */
