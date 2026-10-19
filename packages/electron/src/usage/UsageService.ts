@@ -563,10 +563,11 @@ export class UsageService {
    */
   async quotaView(): Promise<QuotaEntry[]> {
     const modes: Record<string, AuthMode> = {};
+    // 被动读取：只用缓存 / 本地配置 / 已有额度数据，绝不启动官方 CLI 的登录探测进程
     for (const id of ['claude', 'codex', 'dsh', 'grok', 'nomi']) {
-      const info = await this.auth.detectFull(id).catch(() => null);
-      modes[id] = info?.mode ?? 'unknown';
-      if (id === 'claude' && info) this.observeClaudeIdentity(info.fp);
+      const info = this.auth.detectPassive(id);
+      modes[id] = info.mode;
+      if (id === 'claude') this.observeClaudeIdentity(info.fp);
     }
     return applyAuthModes(this.quota(), modes, new Set(this.scanner.detected()));
   }
@@ -666,8 +667,9 @@ export class UsageService {
 
   private async coreToolRefresh(tool: QuotaToolId): Promise<ToolRefresh | undefined> {
     await this.scanForRefresh();
-    this.auth.invalidate(tool);
+    // 只有「总开关开 + 主动刷新开 + 用户点了这个工具」才授权启动该工具的登录状态探测进程
     const active = this.settings.enabled && this.settings.activeQuotaRefresh;
+    if (active) this.auth.invalidate(tool);
     return tool === 'claude'
       ? this.refreshClaude(active)
       : tool === 'codex'
@@ -706,78 +708,82 @@ export class UsageService {
     return { state: 'auth', reason: 'not-signed-in' };
   }
 
+  /** 关闭主动刷新 / 总开关时的结果：不探测，只依据已知（缓存 / 配置 / 已有数据 / 本机是否装了该工具） */
+  private inactiveRefresh(tool: QuotaToolId, mode: AuthMode): ToolRefresh | undefined {
+    if (mode === 'api') return { state: 'skipped', reason: 'not-subscription' };
+    if (mode === 'subscription' || this.scanner.detected().includes(tool))
+      return { state: 'skipped', reason: 'disabled' };
+    return undefined;
+  }
+
   private async refreshClaude(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) {
+      const cl = this.auth.detectPassive('claude');
+      this.observeClaudeIdentity(cl.fp);
+      return this.inactiveRefresh('claude', cl.mode);
+    }
     const cl = await this.auth.detectFull('claude').catch(() => null);
     if (cl?.signedOut) return this.applySignedOut('claude');
     if (cl) this.observeClaudeIdentity(cl.fp);
     if (cl?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else {
-        const snap = readStatuslineSnapshot(this.d.root);
-        if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
-        else {
-          const epoch = this.quotaEpoch;
-          const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
-          if (r.state === 'auth' && epoch === this.quotaEpoch) this.dropClaudeQuota();
-          return this.mapRefresh(r, this.claudeCache);
-        }
-      }
+      const snap = readStatuslineSnapshot(this.d.root);
+      if (this.fresh(snap) || this.fresh(this.claudeCache.get())) return { state: 'fresh-local' };
+      const epoch = this.quotaEpoch;
+      const r = await this.claudeCache.refresh(cl.fp, () => this.claudeFetcher.fetch(cl.plan));
+      if (r.state === 'auth' && epoch === this.quotaEpoch) this.dropClaudeQuota();
+      return this.mapRefresh(r, this.claudeCache);
     } else if (cl) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }
 
   private async refreshCodex(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) return this.inactiveRefresh('codex', this.auth.detectPassive('codex').mode);
     const cx = await this.auth.detectFull('codex').catch(() => null);
     if (cx?.signedOut) return this.applySignedOut('codex');
     if (cx?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
+      if (this.codexQuota && this.fresh({ ...this.codexQuota, updatedAt: this.codexQuota.ts }))
         return { state: 'fresh-local' };
-      else {
-        const epoch = this.quotaEpoch;
-        const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
-        // 拉取期间用户清空过 / 换过号：旧结果不能再落盘（连已删除的 quota.json 都不能重建）
-        if (r.state === 'superseded' || epoch !== this.quotaEpoch)
-          return this.mapRefresh(
-            r.state === 'superseded' ? r : { state: 'superseded' },
-            this.codexCache,
-          );
-        if (r.state === 'auth') {
-          this.codexFp = null;
-          this.codexCache.clear();
-          this.dropCodexQuota();
-        } else if (r.state === 'ok') {
-          const fp = this.codexCache.currentIdentity();
-          const v = this.codexCache.get();
-          // 换号：旧账号的值与更早的日志快照一起清掉
-          if (this.codexFp && fp && this.codexFp !== fp)
-            this.dropCodexQuota(v?.updatedAt ?? this.now());
-          if (fp) this.codexFp = fp;
-          if (v) {
-            this.codexQuota = null;
-            this.storeCodexQuota({
-              ts: v.updatedAt,
-              windows: v.windows,
-              ...(v.plan ? { plan: v.plan } : {}),
-              origin: 'app-server',
-            });
-          }
+      const epoch = this.quotaEpoch;
+      const r = await this.codexCache.refresh(null, () => this.codexReader.fetch());
+      // 拉取期间用户清空过 / 换过号：旧结果不能再落盘（连已删除的 quota.json 都不能重建）
+      if (r.state === 'superseded' || epoch !== this.quotaEpoch)
+        return this.mapRefresh(
+          r.state === 'superseded' ? r : { state: 'superseded' },
+          this.codexCache,
+        );
+      if (r.state === 'auth') {
+        this.codexFp = null;
+        this.codexCache.clear();
+        this.dropCodexQuota();
+      } else if (r.state === 'ok') {
+        const fp = this.codexCache.currentIdentity();
+        const v = this.codexCache.get();
+        // 换号：旧账号的值与更早的日志快照一起清掉
+        if (this.codexFp && fp && this.codexFp !== fp)
+          this.dropCodexQuota(v?.updatedAt ?? this.now());
+        if (fp) this.codexFp = fp;
+        if (v) {
+          this.codexQuota = null;
+          this.storeCodexQuota({
+            ts: v.updatedAt,
+            windows: v.windows,
+            ...(v.plan ? { plan: v.plan } : {}),
+            origin: 'app-server',
+          });
         }
-        return this.mapRefresh(r, this.codexCache);
       }
+      return this.mapRefresh(r, this.codexCache);
     } else if (cx) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }
 
   private async refreshGrok(active: boolean): Promise<ToolRefresh | undefined> {
+    if (!active) return this.inactiveRefresh('grok', this.auth.detectPassive('grok').mode);
     const gx = await this.auth.detectFull('grok').catch(() => null);
     if (gx?.mode === 'subscription') {
-      if (!active) return { state: 'skipped', reason: 'disabled' };
-      else if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
-      else {
-        const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
-        return this.mapRefresh(r, this.grokCache);
-      }
+      if (this.fresh(this.grokCache.get())) return { state: 'fresh-local' };
+      const r = await this.grokCache.refresh(null, () => this.grokFetcher.fetch());
+      return this.mapRefresh(r, this.grokCache);
     } else if (gx) return { state: 'skipped', reason: 'not-subscription' };
     return undefined;
   }

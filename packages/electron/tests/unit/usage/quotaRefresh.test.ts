@@ -490,7 +490,8 @@ describe('刷新额度 · 清空后迟到的结果不回写', () => {
     const r = await p;
     expect(r.tools.codex).toMatchObject({ state: 'transient', reason: 'superseded' });
     // quota.json 里不能有被清掉的 Codex 额度 / 指纹（别的字段如 Claude 指纹是之后重新观察到的）
-    const saved = JSON.parse(fs.readFileSync(path.join(t.root, 'quota.json'), 'utf8')) as Record<
+    const file = path.join(t.root, 'quota.json');
+    const saved = (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {}) as Record<
       string,
       unknown
     >;
@@ -543,9 +544,9 @@ describe('刷新额度 · 单工具（IPC 参数化）', () => {
     expect(t.claudeRun).not.toHaveBeenCalled();
     expect(Object.keys(r.tools)).toEqual(['codex']);
     expect(r.tools.codex).toEqual({ state: 'ok' });
-    // entries 仍是完整视图（卡片靠它合并）
+    // entries 是被动视图：其它工具没有探测过（也没有本地数据）就不出现，更不会被拉起进程
     expect(t.entry(r, 'codex')).toMatchObject({ status: 'ok', origin: 'app-server' });
-    expect(t.entry(r, 'claude')).toBeDefined();
+    expect(t.entry(r, 'claude')).toBeUndefined();
   });
 
   it('claude 单刷不影响 codex；同一工具并发点击只拉起一次', async () => {

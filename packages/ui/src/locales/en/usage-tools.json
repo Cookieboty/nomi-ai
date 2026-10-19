@@ -173,7 +173,7 @@
   "开启 Claude Code 额度同步": "Turn on Claude Code quota sync",
   "API 计费，无订阅额度": "API billing, no subscription quota",
   "{0}额度窗口": "{0} quota windows",
-  "没有检测到以账号 / 订阅登录的编程工具。": "No coding tool signed in with an account / subscription was detected.",
+  "没有检测到以账号 / 订阅登录的编程工具。点「全部刷新」可检测各工具的登录状态。": "No coding tool signed in with an account / subscription was detected. Click “Refresh all” to check each tool's sign-in status.",
   "长周期窗口": "Long window",
   "短周期窗口": "Short window",
   "每周窗口": "Weekly window",

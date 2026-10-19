@@ -303,7 +303,11 @@ export class AuthModeDetector {
     return (await this.detectFull(id)).mode;
   }
 
-  /** 同 detect，同时带上身份指纹 / 套餐（来自同一次官方命令输出，不额外起进程） */
+  /**
+   * 同 detect，同时带上身份指纹 / 套餐（来自同一次官方命令输出，不额外起进程）。
+   * 注意：缓存（5 分钟）未命中时会运行官方登录状态命令——只有「已授权」的调用方才能用它；
+   * 被动读取一律走 detectPassive。
+   */
   detectFull(id: string): Promise<AuthInfo> {
     if (id === 'nomi' || id === 'dsh') return Promise.resolve({ mode: 'api', fp: null });
     if (id !== 'claude' && id !== 'codex' && id !== 'grok')
@@ -328,7 +332,21 @@ export class AuthModeDetector {
     else this.cache.clear();
   }
 
-  private async probe(id: 'claude' | 'codex' | 'grok'): Promise<AuthInfo> {
+  /**
+   * 被动读取（面板挂载 / 30 秒轮询 / changed 事件 / 刷新结果里的其它工具）：绝不启动任何官方 CLI 进程。
+   * 只用已有的探测缓存（不论新旧）、本地配置和已有额度数据；都没有就是 unknown，不用外部命令补齐。
+   * 要运行登录状态进程必须显式走 detectFull，且调用方需先确认 enabled + 主动刷新 + 用户点了该工具。
+   */
+  detectPassive(id: string): AuthInfo {
+    if (id === 'nomi' || id === 'dsh') return { mode: 'api', fp: null };
+    if (id !== 'claude' && id !== 'codex' && id !== 'grok') return { mode: 'unknown', fp: null };
+    const hit = this.cache.get(id);
+    if (hit) return hit.info;
+    return this.beforeCli(id) ?? this.afterCli(id, false);
+  }
+
+  /** 不需要（也不允许）起进程就能确定的结论：自定义 / 托管 API 配置，或本机根本没有 Grok */
+  private beforeCli(id: 'claude' | 'codex' | 'grok'): AuthInfo | null {
     const home = this.d.home ?? os.homedir();
     const env = this.d.env ?? process.env;
     // 自定义供应商 / API Key → 一律按 API（不再调用官方状态命令）
@@ -340,6 +358,29 @@ export class AuthModeDetector {
     // 本机完全没有 Grok 配置/会话、也不是 API 配置时，不为每次刷新都拉起 ACP。
     if (id === 'grok' && !hasGrokLocalPresence(home, env) && !hasCustomGrokConfiguration(home, env))
       return { mode: 'unknown', fp: null };
+    return null;
+  }
+
+  /** 官方命令没给出（或说「没登录」）之后的本地兜底：配置 → 已有额度数据；明确退出登录不被历史数据恢复 */
+  private afterCli(id: 'claude' | 'codex' | 'grok', signedOut: boolean): AuthInfo {
+    const home = this.d.home ?? os.homedir();
+    const env = this.d.env ?? process.env;
+    const cfg =
+      id === 'claude'
+        ? claudeAuthFromConfig(home, env)
+        : id === 'codex'
+          ? codexAuthFromConfig(home, env)
+          : grokAuthFromConfig(home, env);
+    if (cfg) return { mode: cfg, fp: null };
+    // 明确退出登录：不能再用历史额度 / 状态栏快照把它「恢复」成订阅登录
+    if (signedOut) return { mode: 'unknown', fp: null, signedOut: true };
+    if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
+    return { mode: 'unknown', fp: null };
+  }
+
+  private async probe(id: 'claude' | 'codex' | 'grok'): Promise<AuthInfo> {
+    const pre = this.beforeCli(id);
+    if (pre) return pre;
     const text: string | null =
       id === 'grok'
         ? await (this.d.grokRun ?? readGrokAuthStatus)().catch(() => null)
@@ -357,18 +398,9 @@ export class AuthModeDetector {
         id === 'claude' && text && this.d.salt ? parseClaudeIdentity(text, this.d.salt()) : null;
       return { mode: fromCli, fp: ident?.fp ?? null, ...(ident?.plan ? { plan: ident.plan } : {}) };
     }
-    const cfg =
-      id === 'claude'
-        ? claudeAuthFromConfig(home, env)
-        : id === 'codex'
-          ? codexAuthFromConfig(home, env)
-          : grokAuthFromConfig(home, env);
-    if (cfg) return { mode: cfg, fp: null };
-    // 明确退出登录：不能再用历史额度 / 状态栏快照把它「恢复」成订阅登录
-    if ((id === 'claude' || id === 'codex') && text && isDefinitelySignedOut(id, text))
-      return { mode: 'unknown', fp: null, signedOut: true };
-    if (this.d.hasSubscriptionData?.(id)) return { mode: 'subscription', fp: null };
-    return { mode: 'unknown', fp: null };
+    const signedOut =
+      (id === 'claude' || id === 'codex') && !!text && isDefinitelySignedOut(id, text);
+    return this.afterCli(id, signedOut);
   }
 }
 
