@@ -36,7 +36,7 @@ import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
 import { nextModel } from '@/mascot/catalog';
 import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
-import { closeMascot, useMascotClosable } from '@/mascot/presence';
+import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
 import { MESSAGES } from '@/mascot/tips';
@@ -62,7 +62,6 @@ const HIDE_DELAY_MS = 1500;
 const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
 
 export const ToolBar: React.FC = () => {
-  const closable = useMascotClosable();
   const {
     config: { tools: configTools = [] },
     state: mascotState,
@@ -75,8 +74,8 @@ export const ToolBar: React.FC = () => {
     [say],
   );
 
-  // 默认界面为看板娘时她是进入主界面的入口，不提供「关闭看板娘」
-  const availableTools = closable ? configTools : configTools.filter((t) => t !== 'close-mascot');
+  // 「关闭看板娘」随时可用（#55）：默认界面为看板娘时主进程会改为主界面并打开它
+  const availableTools = configTools;
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [voiceService, setVoiceService] = useState<VoiceService | null>(null);
   const [voiceEnabled, setVoiceEnabled] = useState(false);

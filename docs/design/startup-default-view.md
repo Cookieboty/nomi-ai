@@ -96,3 +96,10 @@ Nomi has always started with the mascot; opening the main window (the chat windo
 - Onboarding step 3 “What should you see when Nomi starts?”: Open with the mascot (default) / Open with the console (main window). The choice is saved immediately, the step is skippable, and skipping keeps the default.
 
 Related: when voice is on but the offline TTS model is missing (users upgrading from ≤1.0.3), startup downloads it in the background without opening any window; see [tts-on-demand.md](./tts-on-demand.md).
+
+## 桌面看板娘显示开关（#55）
+
+- 设置 → 通用 → 桌面看板娘「显示看板娘」与看板娘工具栏「关闭看板娘」随时可用，持久化在 `startup.json` 的 `showMascot`。
+- 关闭：看板娘窗口隐藏并整窗静音，朗读入口跳过，唤醒词 / 免按键常驻监听停止（不在看不见的窗口里开麦）；提醒仍走系统通知与灵动岛。
+- 默认界面为看板娘时关闭她：主进程把 `defaultView` 改为 `main`（同一次写盘，`ai:startup:changed` 广播），设置页提示「启动后默认显示已改为软件主界面」；主界面没打开 / 被藏起时立即打开它，保证不会进入无界面状态。
+- 同一个补丁里同时 `defaultView: 'mascot'` 与 `showMascot: false` 视为矛盾，拒绝且不落盘；单独选「看板娘」为默认界面会重新打开她。

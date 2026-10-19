@@ -22,7 +22,12 @@ const install = () => {
       if (ch === 'ai:startup:get') return stored;
       if (ch === 'ai:startup:set') {
         if (failSet) throw new Error('disk full');
-        stored = { ...(stored ?? {}), ...(a[0] as Record<string, unknown>) };
+        const patch = a[0] as Record<string, unknown>;
+        const next: Record<string, unknown> = { ...(stored ?? {}), ...patch };
+        // 与主进程 StartupService 一致：切回看板娘自动打开；默认看板娘时关掉她 → 默认改主界面
+        if (patch.defaultView === 'mascot' && 'showMascot' in next) next.showMascot = true;
+        if (next.showMascot === false && next.defaultView === 'mascot') next.defaultView = 'main';
+        stored = next;
         return stored;
       }
       return null;
@@ -136,14 +141,17 @@ describe('Settings → General → startup default view', () => {
     );
   });
 
-  it('desktop mascot switch: locked on while the mascot is the default view', async () => {
+  it('desktop mascot switch: can close her while she is the default view; default switches to main (#55)', async () => {
     render(<StartupSettings />);
     const sw = await screen.findByTestId('startup-show-mascot');
     expect(sw.getAttribute('aria-checked')).toBe('true');
-    expect((sw as HTMLButtonElement).disabled).toBe(true);
+    expect((sw as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(sw);
-    await act(async () => undefined);
-    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+    await waitFor(() => expect(stored).toMatchObject({ showMascot: false, defaultView: 'main' }));
+    expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
+    await screen.findByTestId('startup-mascot-switched');
+    expect(screen.getByTestId('startup-view-main').getAttribute('aria-checked')).toBe('true');
+    expect(sw.getAttribute('aria-checked')).toBe('false');
   });
 
   it('desktop mascot switch: closes / reopens with the main window as default view', async () => {
@@ -155,10 +163,11 @@ describe('Settings → General → startup default view', () => {
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
     expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
     expect(sw.getAttribute('aria-checked')).toBe('false');
-    // 切回看板娘为默认：开关自动打开并锁定
+    // 默认界面本来就是主界面：不提示改默认
+    expect(screen.queryByTestId('startup-mascot-switched')).toBeNull();
+    // 切回看板娘为默认：开关自动打开
     fireEvent.click(screen.getByTestId('startup-view-mascot'));
     await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
-    expect((sw as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('renders nothing without the desktop bridge (browser preview)', () => {

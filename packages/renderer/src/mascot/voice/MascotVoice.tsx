@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 
 import { directiveForEvent } from '../expressionDirector';
 import { applyDirective } from '../mood';
+import { useMascotShown } from '../presence';
 import { stopAllSpeech } from '../speechStop';
 
 import { voiceDirective } from './voiceMood';
@@ -114,14 +115,20 @@ export const MascotVoiceBridge: React.FC = () => {
   );
 
   // 唤醒词（默认关闭）：开启后看板娘常驻监听
-  const wake = v.config?.settings.wakeWord.enabled ?? false;
+  // 看板娘被关闭（窗口隐藏）时停掉唤醒词 / 免按键监听，不在看不见的窗口里继续开麦（#55）
+  const shown = useMascotShown();
+  const wake = (v.config?.settings.wakeWord.enabled ?? false) && shown;
   const ready = v.config?.readiness.ok ?? false;
   useEffect(() => {
     if (!v.controller) return;
+    if (!shown && v.state.mode !== 'off') {
+      void v.setContinuous('off');
+      return;
+    }
     if (wake && ready && v.state.mode === 'off') void v.setContinuous('wake');
     if (!wake && v.state.mode === 'wake') void v.setContinuous('off');
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在开关/就绪变化时
-  }, [wake, ready, v.controller]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在开关/就绪/显示变化时
+  }, [wake, ready, shown, v.controller]);
 
   if (!v.available) return null;
   const visible = v.state.phase !== 'idle' || !!v.state.error;

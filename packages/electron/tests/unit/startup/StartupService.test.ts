@@ -85,23 +85,31 @@ describe('StartupService', () => {
     });
   });
 
-  it('closes / reopens the mascot only with the main window as default view', () => {
+  it('closes the mascot from either default view; closing her while she is the default switches it to main (#55)', () => {
     const f = file();
     const s = new StartupService(f);
-    const seen: boolean[] = [];
-    const off = s.onChange((st) => seen.push(st.showMascot));
-    // 默认看板娘：她是进入主界面的入口，不能关
-    expect(() => s.set({ showMascot: false })).toThrow(/cannot be closed/);
-    expect(s.get().showMascot).toBe(true);
-    s.set({ defaultView: 'main' });
-    expect(s.set({ showMascot: false }).showMascot).toBe(false);
-    expect(new StartupService(f).get().showMascot).toBe(false);
+    const seen: Array<[boolean, string]> = [];
+    const off = s.onChange((st) => seen.push([st.showMascot, st.defaultView]));
+    // 默认看板娘时也能关：默认界面自动改为主界面，保证下次启动有界面
+    expect(s.set({ showMascot: false })).toMatchObject({ showMascot: false, defaultView: 'main' });
+    expect(new StartupService(f).get()).toMatchObject({ showMascot: false, defaultView: 'main' });
     expect(() => s.set({ showMascot: 'no' })).toThrow(/invalid showMascot/);
+    // 同一个补丁里既选看板娘为默认又关掉她：矛盾，拒绝且不落盘
+    expect(() => s.set({ defaultView: 'mascot', showMascot: false })).toThrow(/same time/);
+    expect(s.get().showMascot).toBe(false);
+    // 重新打开：默认界面保持主界面（不擅自改回）
+    expect(s.set({ showMascot: true })).toMatchObject({ showMascot: true, defaultView: 'main' });
+    s.set({ showMascot: false });
     // 切回看板娘 → 自动重新打开
     expect(s.set({ defaultView: 'mascot' }).showMascot).toBe(true);
     off();
     s.set({ defaultView: 'main' });
-    expect(seen).toEqual([true, false, true]);
+    expect(seen).toEqual([
+      [false, 'main'],
+      [true, 'main'],
+      [false, 'main'],
+      [true, 'mascot'],
+    ]);
   });
 
   it('ignores a hand-edited showMascot:false while the mascot is the default view', () => {

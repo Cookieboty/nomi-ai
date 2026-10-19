@@ -45,6 +45,8 @@ export const StartupSettings: React.FC = () => {
   const [view, setView] = useState<StartupView | null>(null);
   const [closeMain, setCloseMain] = useState<CloseMainAction | null>(null);
   const [showMascot, setShowMascot] = useState<boolean | null>(null);
+  /** 关掉看板娘时默认界面被自动改为主界面：给一条提示 */
+  const [switchedNotice, setSwitchedNotice] = useState(false);
   useEffect(() => {
     let alive = true;
     let off: () => void = () => undefined;
@@ -53,7 +55,11 @@ export const StartupSettings: React.FC = () => {
       void startupClient.getCloseMain().then((v) => alive && setCloseMain(v));
       void startupClient.getShowMascot().then((v) => alive && setShowMascot(v));
       // 看板娘工具栏里「关闭看板娘」后，这里同步成关闭
-      off = startupClient.onShowMascotChange((v) => alive && setShowMascot(v));
+      off = startupClient.onShowMascotChange((v, dv) => {
+        if (!alive) return;
+        setShowMascot(v);
+        if (dv) setView(dv);
+      });
     }
     return () => {
       alive = false;
@@ -64,8 +70,20 @@ export const StartupSettings: React.FC = () => {
 
   const toggleMascot = (next: boolean) => {
     const prev = showMascot;
+    const prevView = view;
     setShowMascot(next);
-    void startupClient.setShowMascot(next).then((saved) => setShowMascot(saved ?? prev));
+    setSwitchedNotice(false);
+    void startupClient.setShowMascot(next).then((saved) => {
+      if (!saved) {
+        setShowMascot(prev);
+        return;
+      }
+      setShowMascot(saved.showMascot);
+      setView(saved.defaultView);
+      // 默认界面原来是看板娘：主进程已改为主界面，告诉用户
+      if (!saved.showMascot && prevView === 'mascot' && saved.defaultView === 'main')
+        setSwitchedNotice(true);
+    });
   };
 
   const chooseClose = (next: CloseMainAction) => {
@@ -81,6 +99,7 @@ export const StartupSettings: React.FC = () => {
     setView(next);
     // 切回看板娘：主进程会自动重新打开她（她是进入主界面的入口）
     if (next === 'mascot') setShowMascot(true);
+    setSwitchedNotice(false);
     // 保存失败：回滚到主进程里实际生效的值
     void startupClient.set(next).then((saved) => setView(saved ?? prev));
   };
@@ -108,18 +127,22 @@ export const StartupSettings: React.FC = () => {
       <h2 className={base.h2}>{t('桌面看板娘')}</h2>
       <Switch
         checked={showMascot}
-        disabled={view === 'mascot'}
         onChange={toggleMascot}
         label={t('显示看板娘')}
         data-testid="startup-show-mascot"
       />
+      {switchedNotice && (
+        <p className={base.muted} role="status" data-testid="startup-mascot-switched">
+          {t('看板娘已关闭，启动后默认显示已改为「软件主界面」。')}
+        </p>
+      )}
       <p className={base.muted}>
         {view === 'mascot'
           ? t(
-              '默认显示看板娘时，她是进入主界面的入口，不能关闭；要关闭请先把默认显示改为「软件主界面」。',
+              '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；启动后默认显示会自动改为「软件主界面」，保证随时能进入 Nomi。随时可在此重新打开。',
             )
           : t(
-              '关闭后看板娘从桌面隐藏、不再播放语音；灵动岛和系统通知照常提醒。看板娘工具栏里的「关闭看板娘」也会关掉这里，随时可在此重新打开。',
+              '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；灵动岛和系统通知照常提醒。看板娘工具栏里的「关闭看板娘」也会关掉这里，随时可在此重新打开。',
             )}
       </p>
       <h2 className={base.h2}>{t('关闭主界面时')}</h2>

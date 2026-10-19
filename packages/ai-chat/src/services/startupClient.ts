@@ -59,20 +59,29 @@ export const startupClient = {
       .catch(() => null);
     return pickShowMascot(r) ?? true;
   },
-  /** 立即显示 / 关闭看板娘；返回主进程确认后的值，失败时返回 null */
-  async setShowMascot(showMascot: boolean): Promise<boolean | null> {
+  /**
+   * 立即显示 / 关闭看板娘；返回主进程确认后的 { showMascot, defaultView }，失败时返回 null。
+   * 默认界面为看板娘时关闭她，主进程会把默认界面改为「软件主界面」（#55），defaultView 随之变化。
+   */
+  async setShowMascot(
+    showMascot: boolean,
+  ): Promise<{ showMascot: boolean; defaultView: StartupView } | null> {
     const r = await bridge()
       ?.invoke('ai:startup:set', { showMascot })
       .catch(() => null);
-    return pickShowMascot(r);
+    const s = pickShowMascot(r);
+    const v = pick(r);
+    return s === null || v === null ? null : { showMascot: s, defaultView: v };
   },
   /** 看板娘工具栏「关闭看板娘」等外部改动；返回取消订阅 */
-  onShowMascotChange(fn: (showMascot: boolean) => void): () => void {
+  onShowMascotChange(
+    fn: (showMascot: boolean, defaultView: StartupView | null) => void,
+  ): () => void {
     const b = bridge();
     if (!b?.on) return () => undefined;
     return b.on('ai:startup:changed', (r) => {
       const v = pickShowMascot(r);
-      if (v !== null) fn(v);
+      if (v !== null) fn(v, pick(r));
     });
   },
   /** 返回主进程确认后的值；失败时返回 null（调用方回滚界面） */

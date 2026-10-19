@@ -359,6 +359,11 @@ export class Application implements IApplication {
         if (st.showMascot === showMascot) return;
         showMascot = st.showMascot;
         this.windowManager.setMascotVisible(showMascot);
+        // 关掉看板娘后保证主界面可达（#55）：主界面没开 / 被藏起时把它打开，避免进入无界面状态
+        if (!showMascot && this.launched) {
+          const chat = this.windowManager.getAiChatWindow();
+          if (!chat || chat.isDestroyed() || !chat.isVisible()) this.openMainInterface();
+        }
       });
 
       // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
