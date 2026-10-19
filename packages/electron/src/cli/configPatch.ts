@@ -268,6 +268,64 @@ export const GROK_MARK_END = '# <<< nomi managed (grok provider) <<<';
 /** 密钥不写盘：Grok 从该环境变量读取（config 里 env_key），由接管服务在启动时注入 */
 export const GROK_KEY_ENV = 'NOMI_GROK_API_KEY';
 
+/**
+ * 用户在标记区块之外已有 `[models]` 表时，不能再追加第二个 `[models]`（TOML 同表重复定义会让整份配置无法解析）。
+ * 此时就地把该表的 default 改成 Nomi 档案，并在同一行尾部记录原值，取消托管时据此还原。
+ */
+const GROK_PREV_TAG = '# nomi-managed-prev:';
+const GROK_PREV_NONE = '(none)';
+
+function findModelsSection(lines: string[]): { header: number; end: number } | null {
+  const header = lines.findIndex((l) => l.trim() === '[models]');
+  if (header < 0) return null;
+  let end = lines.length;
+  for (let i = header + 1; i < lines.length; i++) {
+    const t = lines[i]!.trim();
+    if (t.startsWith('[') && t.endsWith(']')) {
+      end = i;
+      break;
+    }
+  }
+  return { header, end };
+}
+
+function findModelsDefault(lines: string[], sec: { header: number; end: number }): number {
+  for (let i = sec.header + 1; i < sec.end; i++) {
+    if (/^\s*default\s*=/.test(lines[i]!)) return i;
+  }
+  return -1;
+}
+
+/** 把已有 [models] 表的 default 就地改成 id（保留原值记录，重复激活不覆盖首次记录的原值）；无该表返回 false */
+function setExistingModelsDefault(lines: string[], id: string): boolean {
+  const sec = findModelsSection(lines);
+  if (!sec) return false;
+  const at = findModelsDefault(lines, sec);
+  if (at < 0) {
+    lines.splice(sec.header + 1, 0, `default = "${id}" ${GROK_PREV_TAG} ${GROK_PREV_NONE}`);
+    return true;
+  }
+  const m = /^(\s*)default\s*=\s*(.*)$/.exec(lines[at]!)!;
+  const rest = m[2]!;
+  const tagAt = rest.indexOf(GROK_PREV_TAG);
+  const prev = tagAt >= 0 ? rest.slice(tagAt + GROK_PREV_TAG.length).trim() : rest.trim();
+  lines[at] = `${m[1]}default = "${id}" ${GROK_PREV_TAG} ${prev || GROK_PREV_NONE}`;
+  return true;
+}
+
+/** 取消托管：把被 Nomi 就地改写的 default 还原成原值（原本没有 default 则删除该行） */
+function restoreExistingModelsDefault(lines: string[]): void {
+  const sec = findModelsSection(lines);
+  if (!sec) return;
+  const at = findModelsDefault(lines, sec);
+  if (at < 0) return;
+  const m = /^(\s*)default\s*=.*?#\s*nomi-managed-prev:\s*(.*)$/.exec(lines[at]!);
+  if (!m) return;
+  const prev = m[2]!.trim();
+  if (!prev || prev === GROK_PREV_NONE) lines.splice(at, 1);
+  else lines[at] = `${m[1]}default = ${prev}`;
+}
+
 export interface GrokPatch {
   /** config.toml 的 api_backend：responses | chat_completions | messages */
   apiBackend: 'responses' | 'chat_completions' | 'messages';
@@ -308,6 +366,7 @@ export function patchGrokToml(raw: string | null, patch: GrokPatch | null): stri
   }
   while (kept.length && kept[kept.length - 1] === '') kept.pop();
   if (!patch) {
+    restoreExistingModelsDefault(kept);
     // 兼容旧写入：标记外残留的 [models] + default = "nomi"
     const cleaned: string[] = [];
     let inModels = false;
@@ -338,6 +397,7 @@ export function patchGrokToml(raw: string | null, patch: GrokPatch | null): stri
     while (cleaned.length && cleaned[cleaned.length - 1] === '') cleaned.pop();
     return cleaned.length ? `${cleaned.join('\n')}\n` : '';
   }
+  const hasModels = setExistingModelsDefault(kept, id);
   const block = [
     '',
     GROK_MARK_BEGIN,
@@ -347,9 +407,8 @@ export function patchGrokToml(raw: string | null, patch: GrokPatch | null): stri
     `name = "Nomi"`,
     `env_key = "${GROK_KEY_ENV}"`,
     `api_backend = "${patch.apiBackend}"`,
-    '',
-    '[models]',
-    `default = "${id}"`,
+    // 用户已有 [models] 表：已就地改写 default，这里不能再开第二个 [models]
+    ...(hasModels ? [] : ['', '[models]', `default = "${id}"`]),
     GROK_MARK_END,
     '',
   ];

@@ -222,4 +222,72 @@ describe('patchGrokToml', () => {
     expect(patchGrokToml(patchGrokToml('# keep\n', patch), null)).toContain('# keep');
     expect(patchGrokToml(patchGrokToml(null, patch), null)).toBe('');
   });
+
+  /** 无 TOML 解析器依赖：只检查「同表重复定义 / 同表重复键」这两类会让 TOML 非法的错误 */
+  function assertValidTables(toml: string): Record<string, string[]> {
+    const tables: Record<string, string[]> = {};
+    let cur = '';
+    for (const line of toml.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const h = /^\[([^\]]+)\]$/.exec(t);
+      if (h) {
+        cur = h[1]!;
+        expect(tables[cur]).toBeUndefined();
+        tables[cur] = [];
+        continue;
+      }
+      const k = /^([A-Za-z0-9_.-]+)\s*=/.exec(t);
+      if (k) {
+        expect(tables[cur] ?? (tables[cur] = [])).not.toContain(k[1]);
+        tables[cur]!.push(k[1]!);
+      }
+    }
+    return tables;
+  }
+
+  it('existing [models] table: switches default in place, no duplicate table (#24)', () => {
+    const raw =
+      '# top\n[models]\n# my pick\ndefault = "user-model"\nextra = 1\n\n[ui]\ntheme = "dark"\n';
+    const out = patchGrokToml(raw, patch);
+    const tables = assertValidTables(out);
+    expect(out.match(/^\[models\]$/gm)).toHaveLength(1);
+    expect(tables['models']).toEqual(['default', 'extra']);
+    expect(out).toContain('default = "nomi"');
+    expect(out).toContain('# my pick');
+    expect(out).toContain('extra = 1');
+    expect(out).toContain('[ui]');
+    expect(out).toContain('[model.nomi]');
+  });
+
+  it('existing [models] without default gets one inserted in that table (#24)', () => {
+    const out = patchGrokToml('[models]\nextra = 1\n', patch);
+    const tables = assertValidTables(out);
+    expect(tables['models']).toEqual(['default', 'extra']);
+  });
+
+  it('re-activation keeps the first recorded original default; cancel restores it (#24)', () => {
+    const raw = '[models]\ndefault = "user-model" # fav\nextra = 1\n';
+    const first = patchGrokToml(raw, patch);
+    const second = patchGrokToml(first, { ...patch, model: 'grok-4.5' });
+    assertValidTables(second);
+    expect(second.match(/^\[models\]$/gm)).toHaveLength(1);
+    expect(second.match(/\[model\.nomi\]/g)).toHaveLength(1);
+    expect(second).toContain('grok-4.5');
+    const restored = patchGrokToml(second, null);
+    expect(restored).toBe(raw);
+  });
+
+  it('cancel removes an inserted default when the user had none (#24)', () => {
+    const raw = '[models]\nextra = 1\n';
+    expect(patchGrokToml(patchGrokToml(raw, patch), null)).toBe(raw);
+  });
+
+  it('keeps first-time activation (no [models]) and cancel round trip (#24)', () => {
+    const raw = '[ui]\ntheme = "dark"\n';
+    const out = patchGrokToml(raw, patch);
+    const tables = assertValidTables(out);
+    expect(tables['models']).toEqual(['default']);
+    expect(patchGrokToml(out, null)).toBe(raw);
+  });
 });
