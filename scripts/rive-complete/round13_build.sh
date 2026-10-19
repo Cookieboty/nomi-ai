@@ -5,3 +5,4 @@ cd "$(dirname "$0")"
 bash round10_build.sh "$@"
 python3 round13_hem.py
 python3 round13_hair.py
+python3 round13_collar.py
