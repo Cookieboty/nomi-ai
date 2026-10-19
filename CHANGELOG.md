@@ -161,8 +161,11 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Settings menu, round two (breaking, no compatibility layer): the standalone "Updates" section is
 - TTS 设置页与语音设置里不再写「模型随安装包分发」，改为说明开启语音时才下载模型。 (`@nomi-ai/renderer` patch)
 - Use the high-fidelity `nomi-complete.riv` scene for the opt-in Rive mascot renderer. The scene now exposes official face expressions, blink timing, talking/lip-sync triggers, the wave/hello/cheer/celebrate action set, and a separate `Nomi-full` artboard available through `?rive=full`. (`@nomi-ai/renderer` minor)
+- 「用量与费用」里的订阅额度改为与概览、明细并列的独立标签，不再放在概览最下方；切到该标签时仍可选择统计时间范围。 (`@nomi-ai/ai-chat` patch)
 - 为 Codex、Claude Code 等编程助手提示增加语音播报开关。开启后，任务完成、失败、卡住、等待确认和定时汇总会在提示音之外朗读通知文字；关闭时保留气泡与提示音。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/renderer` minor)
+- 侧栏「按端」可以选择显示哪些编程助手：每个端点可设为自动、显示或隐藏。默认自动，没有对话、标签和历史的 CLI 不再显示一个为 0 的切换按钮；Nomi 始终显示。 (`@nomi-ai/ai-chat` minor)
 - 侧栏的编程助手历史加入 Gemini CLI 会话，可以直接打开并在原工作目录续接；监视器现在能识别 Gemini CLI 0.62 起使用的 `.jsonl` 会话文件（之前只认旧版 `.json`，新版本的会话标题与状态显示不出来），Nomi 里 Gemini 标签的花费也会出现在完成提示里。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
+- 修复 Gemini 的版本检查：之前保存的「最新版本」缓存里没有 Gemini 时会立即重新获取，不再要等 6 小时；更新 Gemini 只用 npm，不再尝试不存在的 `gemini update`；版本卡片拿不到数据时显示「无法检测」而不是「已安装」；本机 Gemini CLI 过旧、不支持 ACP 时提示先更新。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 修复日落橙 / 奶油等浅色主题下选中态与悬停态对比度过低的问题：分段控件、Tab、设置导航和侧栏当前行改用深棕字配暖橙淡底（并加左侧强调条），链接 / 标签 / 图标改用更深的橙棕色；同时补齐各主题的次要文字、主按钮文字、焦点环和图表色，并新增主题对比度自动化测试。 (`@nomi-ai/ui` patch, `@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch, `@nomi-ai/voice` patch)
 - 新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/ui` minor)
 - 新增「关闭主界面时：隐藏到托盘 / 退出 Nomi」（设置 → 通用，紧挨「启动 Nomi 后默认显示」）。默认隐藏到托盘，与之前一致；选「退出 Nomi」后关闭主界面会完全退出（看板娘、托盘一起关闭），macOS 上红色按钮与 ⌘W 同样按此处理，⌘Q 始终退出。另外，由系统登录项自动启动且默认界面为主界面时，主界面现在也会到前台并获得焦点，与普通启动一致。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ui` minor)
