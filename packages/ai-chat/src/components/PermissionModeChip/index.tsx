@@ -16,7 +16,8 @@ import {
   Sparkles,
   type LucideIcon,
 } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
@@ -51,6 +52,16 @@ export const PermissionModeChip: React.FC<{
   const [note, setNote] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<React.CSSProperties>({});
+
+  // 菜单挂到 body、fixed 定位、向上弹出：输入栏左侧容器是 overflow: hidden，挂在里面会被裁掉
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - 328));
+    setPos({ left, bottom: window.innerHeight - r.top + 6 });
+  }, [open]);
   const backend = tab.backend;
   const mode: PermissionMode = tab.permissionMode ?? 'acceptEdits';
   const supported = supportedModes(backend);
@@ -101,7 +112,8 @@ export const PermissionModeChip: React.FC<{
         btnRef.current?.focus();
         return;
       }
-      if (ref.current?.contains(e.target as Node)) return;
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
     };
     window.addEventListener('mousedown', close);
@@ -143,55 +155,64 @@ export const PermissionModeChip: React.FC<{
           {note}
         </span>
       )}
-      {open && (
-        <div className={styles.menu} role="menu" aria-label={t('权限模式')}>
-          {PERMISSION_MODES.map((m) => {
-            const ok = supported.includes(m);
-            return (
-              <button
-                key={m}
-                type="button"
-                role="menuitemradio"
-                aria-checked={mode === m}
-                disabled={!ok}
-                className={`${styles.item} ${m === 'bypass' ? styles.itemDanger : ''}`}
-                data-testid={`permission-mode-${m}`}
-                onClick={() => pick(m)}
-              >
-                <Icon icon={ICON[m]} size={15} />
-                <span className={styles.itemText}>
-                  <span className={styles.itemLabel}>{modeLabel(m)}</span>
-                  <span className={styles.itemHint}>
-                    {ok
-                      ? modeHint(m)
-                      : t('{0} 不支持，会使用「{1}」', name, modeLabel(fallbackMode(backend, m)))}
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className={styles.menu}
+            style={pos}
+            role="menu"
+            aria-label={t('权限模式')}
+            data-testid="permission-mode-menu"
+          >
+            {PERMISSION_MODES.map((m) => {
+              const ok = supported.includes(m);
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={mode === m}
+                  disabled={!ok}
+                  className={`${styles.item} ${m === 'bypass' ? styles.itemDanger : ''}`}
+                  data-testid={`permission-mode-${m}`}
+                  onClick={() => pick(m)}
+                >
+                  <Icon icon={ICON[m]} size={15} />
+                  <span className={styles.itemText}>
+                    <span className={styles.itemLabel}>{modeLabel(m)}</span>
+                    <span className={styles.itemHint}>
+                      {ok
+                        ? modeHint(m)
+                        : t('{0} 不支持，会使用「{1}」', name, modeLabel(fallbackMode(backend, m)))}
+                    </span>
                   </span>
-                </span>
-                {mode === m && <Icon icon={Check} size={14} />}
-              </button>
-            );
-          })}
-          <div className={styles.foot}>
-            <span>{t('Shift+Tab 在输入框里切换')}</span>
-            {mode !== 'bypass' && mode !== defaultMode && (
-              <button
-                type="button"
-                className={styles.link}
-                data-testid="permission-mode-make-default"
-                onClick={() => {
-                  setOpen(false);
-                  void harnessClient
-                    .setPermissionDefaults({ defaultPermissionMode: mode })
-                    .then(() => setNote(t('新标签默认使用「{0}」', modeLabel(mode))))
-                    .catch(() => undefined);
-                }}
-              >
-                {t('设为新标签默认')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+                  {mode === m && <Icon icon={Check} size={14} />}
+                </button>
+              );
+            })}
+            <div className={styles.foot}>
+              <span>{t('Shift+Tab 在输入框里切换')}</span>
+              {mode !== 'bypass' && mode !== defaultMode && (
+                <button
+                  type="button"
+                  className={styles.link}
+                  data-testid="permission-mode-make-default"
+                  onClick={() => {
+                    setOpen(false);
+                    void harnessClient
+                      .setPermissionDefaults({ defaultPermissionMode: mode })
+                      .then(() => setNote(t('新标签默认使用「{0}」', modeLabel(mode))))
+                      .catch(() => undefined);
+                  }}
+                >
+                  {t('设为新标签默认')}
+                </button>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
       {confirmBypass && (
         <Modal
           open

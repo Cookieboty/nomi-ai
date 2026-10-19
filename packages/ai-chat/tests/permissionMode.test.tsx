@@ -111,6 +111,18 @@ describe('输入栏的权限模式芯片', () => {
     );
   });
 
+  it('下拉挂在 body 上（不在输入栏容器里），不会被输入栏的 overflow 裁掉', async () => {
+    mockIpc();
+    const r = mount();
+    fireEvent.click(await r.findByTestId('permission-mode-chip'));
+    const menu = r.getByTestId('permission-mode-menu');
+    expect(menu.parentElement).toBe(document.body);
+    expect(r.container.contains(menu)).toBe(false);
+    // 点菜单里的项不会被当成「点外面」先关掉
+    fireEvent.mouseDown(r.getByTestId('permission-mode-plan'));
+    expect(r.queryByTestId('permission-mode-menu')).not.toBeNull();
+  });
+
   it('「完全放开」先确认，确认后带 confirmed 发送；取消则不发送', async () => {
     const invoke = mockIpc();
     const r = mount();
