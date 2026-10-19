@@ -12,4 +12,4 @@ python3 round14_brows.py
 python3 round14_bangs.py
 python3 round17_autoblink.py
 python3 round18_crotch.py
-python3 round18_motions.py squat
+python3 round18_motions.py

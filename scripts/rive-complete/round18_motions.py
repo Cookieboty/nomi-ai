@@ -85,12 +85,12 @@ def step_frame(f):
     """returns pose (x, y), {side: (a, lift)}, arm offsets, head dy"""
     n = STEPS * STEP_T
     if f >= n:
-        k = 1 - ease((f - n) / SETTLE)            # settle back to rest
-        return (0.0, 0.0), {"l": (0, 0), "r": (0, 0)}, {"arm-l": 0, "arm-r": 0}, 0.0, k
+        k = 1 - ease((f - n) / SETTLE)            # settle: the last contact dip eases back to rest height
+        return (0.0, BOB * k), {"l": (0, 0), "r": (0, 0)}, {"arm-l": 0, "arm-r": 0}, 0.0, k
     i, t = divmod(f, STEP_T)
     t /= STEP_T
     swing = "l" if i % 2 == 0 else "r"
-    env = ease(f / 10) * (1 - 0 * t)              # ramp in over the first 10 f
+    env = ease(f / 10)                            # ramp in over the first 10 f
     lift = LIFT * math.sin(math.pi * t) ** 1.3 * env
     # weight shift toward the stance leg (peaks at passing), body bob: low at contact, high at passing
     side_sign = 1.0 if swing == "l" else -1.0     # stance = r (screen right, +x) while l swings
@@ -102,12 +102,11 @@ def step_frame(f):
     sw = math.sin(math.pi * t) * env
     arms = {"arm-l": 0.0, "arm-r": 0.0}
     if swing == "l":
-        arms["arm-r"] = ARM * sw                  # arm-r forward = rotation + (toward centre)
-        arms["arm-l"] = ARM * 0.5 * sw            # arm-l back = toward centre too in front view? keep small, outward
-        arms["arm-l"] = ARM * 0.4 * sw * 1.0
+        arms["arm-r"] = ARM * sw                  # arm-r forward: hand swings in toward the body (+ for arm-r)
+        arms["arm-l"] = ARM * 0.4 * sw            # arm-l back: slightly out (+ for arm-l)
     else:
-        arms["arm-l"] = -ARM * sw
-        arms["arm-r"] = -ARM * 0.4 * sw
+        arms["arm-l"] = -ARM * sw                 # arm-l forward: in (- for arm-l)
+        arms["arm-r"] = -ARM * 0.4 * sw           # arm-r back: slightly out (- for arm-r)
     return (x, y), legs, arms, 0.0, 1.0
 
 
