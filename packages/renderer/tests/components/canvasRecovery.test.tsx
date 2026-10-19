@@ -51,6 +51,35 @@ describe('VirtualCharacter3D：模型加载失败后可通过切换到有效模�
   });
 });
 
+describe('VirtualCharacter3D：切回失败过的模型 / 原地重试都会重新加载（#38）', () => {
+  it('A 失败 → B → 切回 A：不显示 A 的旧错误，重新挂载 A 的画布', async () => {
+    const { rerender, findByText, queryByText } = render(
+      <VirtualCharacter3D modelPath="/models/a.vrm" />,
+    );
+    await vi.waitFor(() => screen.getByTestId('canvas'));
+    React.act(() => lastOnError!('A 解析失败'));
+    expect(await findByText('A 解析失败')).toBeTruthy();
+    rerender(<VirtualCharacter3D modelPath="/models/b.vrm" />);
+    await vi.waitFor(() => expect(screen.getByTestId('canvas').dataset.path).toBe('/models/b.vrm'));
+    canvasProps.length = 0;
+    rerender(<VirtualCharacter3D modelPath="/models/a.vrm" />);
+    await vi.waitFor(() => expect(screen.getByTestId('canvas').dataset.path).toBe('/models/a.vrm'));
+    expect(queryByText('A 解析失败')).toBeNull();
+    expect(canvasProps.some((p) => p.modelPath === '/models/a.vrm')).toBe(true);
+  });
+
+  it('同一个模型失败后点「重试」：重新挂载画布再加载一次', async () => {
+    const { findByText, getByTestId } = render(<VirtualCharacter3D modelPath="/models/a.vrm" />);
+    await vi.waitFor(() => getByTestId('canvas'));
+    React.act(() => lastOnError!('网络中断'));
+    expect(await findByText('网络中断')).toBeTruthy();
+    canvasProps.length = 0;
+    React.act(() => getByTestId('character3d-retry').click());
+    await vi.waitFor(() => expect(getByTestId('canvas').dataset.path).toBe('/models/a.vrm'));
+    expect(canvasProps).toEqual(expect.arrayContaining([{ modelPath: '/models/a.vrm' }]));
+  });
+});
+
 describe('CanvasBoundary：resetKey 变化后复位（#38）', () => {
   const Boom: React.FC<{ explode: boolean }> = ({ explode }) => {
     if (explode) throw new Error('webgl');
