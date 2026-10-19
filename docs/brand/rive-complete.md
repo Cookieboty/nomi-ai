@@ -190,3 +190,27 @@ off the wrist, so any rotation slid the stacked copies apart; the wave counter-r
 
 Scripts: `round9_{layers,rig,scene,shots,viz,inventory}.py` (idempotent, pinned to `be33278`).
 Screenshots in scratch `v9/`.
+
+### ROUND10 — cuff drawn once, ribbon shard gone, fist-ready hand pieces
+
+- **Orange shard beside the wave wrist**: `arm-*-cuff` (and `sleeve-l-full`) still carried a chunk of
+  the orange hem ribbon (R 270 px, L 385+72 px). It rode the forearm, so it floated next to the wrist
+  in wave. The shard (and the 1px AA strands along the cuff edge) is removed from the cuff / sleeve
+  crops and handed to the body-locked `hem-ribbon-*` layer, whose crop now grows upward (L +53 rows,
+  R +9) so the ribbon still reaches up behind the cuff in idle.
+- **Cuff band drawn twice**: `sleeve-*-full` (+ `-full-dark` shading) had the whole band baked in,
+  and `arm-*-cuff` drew it again (R 5364 px / L 6459 px double-drawn, skinned differently → ghost in
+  wave). The cuff owns the band now; the sleeve crops lose every pixel under it (6px seam kept along
+  the cuff's top cut). Double-drawn px: R 5364→832, L 6459→969 (remaining = the seam rows).
+- **Fist**: the single skinned hand (R9) tore when fingers closed (the soft weight band between finger
+  and palm is sheared into strings). The hand is now **palm + 5 finger pieces** cut from the same
+  hand crop (`hand-<side>-{palm,thumb,index,middle,ring,little}.png`), each skinned only to its own
+  bones; a finger piece carries a 1.5px ring so the hinge/edge overlap hides the seam at rest. Hand
+  skin overdraw 1.0× → ~1.3× (ring overlap only). New `fist` trigger / `full.fist` clip
+  (72f) validates the extreme curl; `fist` is also in `RIVE_NATIVE_MOTIONS`.
+
+Pipeline: `scripts/rive-complete/round10_build.sh` (pinned to `754f4a0`):
+`round10_layers.py` → `round10_scene.py` → `round10_hand_scene.py` → `round10_fist.py`.
+Checks: `round10_overdraw.py` (per-pixel layer overlap), `round10_fist_shots.py`, `round10_regress.py`;
+skinning preview used to pick the fist angles: `round10_hand.py`, `fistsim_view.py`, `fistsim_eval.py`.
+Screenshots in scratch `v10/`.

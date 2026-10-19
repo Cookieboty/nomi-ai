@@ -7,6 +7,7 @@ export const RIVE_NATIVE_MOTIONS = [
   'celebrate',
   'cheer',
   'fist_pump',
+  'fist',
   'nod',
   'flinch',
   'poke',
@@ -68,10 +69,7 @@ export const RIVE_MOTION_ALIASES: Record<string, (typeof RIVE_NATIVE_MOTIONS)[nu
 };
 
 /** All accepted names shown to the motion menu and exposed to AI callers. */
-export const RIVE_MOTIONS = [
-  ...RIVE_NATIVE_MOTIONS,
-  ...Object.keys(RIVE_MOTION_ALIASES),
-] as const;
+export const RIVE_MOTIONS = [...RIVE_NATIVE_MOTIONS, ...Object.keys(RIVE_MOTION_ALIASES)] as const;
 
 /** Backwards-compatible name used by existing renderer tests and commands. */
 export const RIVE_POC_MOTIONS = RIVE_MOTIONS;
