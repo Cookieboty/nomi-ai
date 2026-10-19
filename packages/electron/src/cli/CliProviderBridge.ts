@@ -23,6 +23,7 @@ import {
   codexConfigPath,
   DSH_KEY_ENV,
   GROK_KEY_ENV,
+  GrokInlineModelsError,
   dshPatchPath,
   grokConfigPath,
   ensureDir,
@@ -617,7 +618,12 @@ export class CliProviderBridge {
         usedRouting: Boolean(useRoute),
       };
     } catch (e) {
-      const error = e instanceof Error ? e.message : String(e);
+      const error =
+        e instanceof GrokInlineModelsError
+          ? t('~/.grok/config.toml 用内联表定义了 models，请改成 [models] 表后再启用')
+          : e instanceof Error
+            ? e.message
+            : String(e);
       // 写到一半失败（如 Codex 的 config 已写、auth 没写成）：把已备份的原文件放回去，
       // 避免 CLI 配置文件之间互相混配
       if (backups.length) this.restoreBackup(ts);

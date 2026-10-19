@@ -7,11 +7,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { parse as parseToml } from 'smol-toml';
+
 import { isAllowedUpdateArgv, updateRecipes } from '../../../src/cli/CliUpdateService';
 import {
   DSH_MARK_BEGIN,
   GROK_MARK_BEGIN,
   GROK_KEY_ENV,
+  GrokInlineModelsError,
   patchDshYaml,
   patchGrokToml,
   backupFile,
@@ -289,5 +292,49 @@ describe('patchGrokToml', () => {
     const tables = assertValidTables(out);
     expect(tables['models']).toEqual(['default']);
     expect(patchGrokToml(out, null)).toBe(raw);
+  });
+
+  describe('header variants and root-level models are recognised (#24)', () => {
+    // 真正的 TOML 解析：生成的配置必须合法，且 default 指向 nomi
+    const parsed = (out: string) => parseToml(out) as Record<string, Record<string, unknown>>;
+    it.each([
+      [
+        'comment after header',
+        '[models] # mine\ndefault = "user-model"\n\n[ui] # look\ntheme = "dark"\n',
+      ],
+      ['spaces inside brackets', '[ models ]\ndefault = "user-model"\n[ ui ]\ntheme = "dark"\n'],
+      ['root dotted key', 'models.default = "user-model"\n\n[ui]\ntheme = "dark"\n'],
+      ['root dotted key, spaced', 'models . default = "user-model"\n[ui]\ntheme = "dark"\n'],
+    ])('%s: one models table, valid TOML, cancel restores the original', (_n, raw) => {
+      expect(() => parseToml(raw)).not.toThrow();
+      const out = patchGrokToml(raw, patch);
+      const j = parsed(out);
+      expect(j.models).toMatchObject({ default: 'nomi' });
+      expect(j.model).toHaveProperty('nomi');
+      expect(j.ui).toEqual({ theme: 'dark' });
+      // 再次启用不重复追加
+      const again = patchGrokToml(out, { ...patch, model: 'grok-4.5' });
+      expect(parsed(again).models).toMatchObject({ default: 'nomi' });
+      expect(patchGrokToml(again, null)).toBe(raw);
+    });
+
+    it('a table header with a trailing comment ends the [models] scan (no edit in the next table)', () => {
+      const raw = '[models]\nextra = 1\n[ui] # look\ndefault = "keep-me"\n';
+      const j = parsed(patchGrokToml(raw, patch));
+      expect(j.models).toEqual({ default: 'nomi', extra: 1 });
+      expect(j.ui).toEqual({ default: 'keep-me' });
+    });
+
+    it('a spaced [ model.nomi ] left from an old run is replaced, not duplicated', () => {
+      const raw = '[ model . nomi ]\nmodel = "old"\n\n[ui]\ntheme = "dark"\n';
+      const j = parsed(patchGrokToml(raw, patch));
+      expect((j.model as Record<string, { model: string }>).nomi.model).toBe(patch.model);
+    });
+
+    it('inline models table is refused instead of producing invalid TOML', () => {
+      expect(() => patchGrokToml('models = { default = "x" }\n', patch)).toThrow(
+        GrokInlineModelsError,
+      );
+    });
   });
 });

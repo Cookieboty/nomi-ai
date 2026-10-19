@@ -275,18 +275,48 @@ export const GROK_KEY_ENV = 'NOMI_GROK_API_KEY';
 const GROK_PREV_TAG = '# nomi-managed-prev:';
 const GROK_PREV_NONE = '(none)';
 
+/**
+ * TOML 表头的规范名：`[ models ]  # 注释` → `models`，`[ model . nomi ]` → `model.nomi`；
+ * 数组表 `[[x]]` 返回 `[x]`（不会与普通表同名）；不是表头返回 null（#24）。
+ * 只处理裸键，带引号的键名原样保留（不会与 models / model.<id> 混淆）。
+ */
+export function tomlTableName(line: string): string | null {
+  const m = /^\s*(\[\[?)\s*([^[\]]*?)\s*(\]\]?)\s*(?:#.*)?$/.exec(line);
+  if (!m || m[1]!.length !== m[3]!.length) return null;
+  const name = m[2]!.replace(/\s*\.\s*/g, '.');
+  return m[1] === '[[' ? `[${name}]` : name;
+}
+
 function findModelsSection(lines: string[]): { header: number; end: number } | null {
-  const header = lines.findIndex((l) => l.trim() === '[models]');
+  const header = lines.findIndex((l) => tomlTableName(l) === 'models');
   if (header < 0) return null;
   let end = lines.length;
   for (let i = header + 1; i < lines.length; i++) {
-    const t = lines[i]!.trim();
-    if (t.startsWith('[') && t.endsWith(']')) {
+    if (tomlTableName(lines[i]!) !== null) {
       end = i;
       break;
     }
   }
   return { header, end };
+}
+
+/** 用户在根表用内联表 `models = { … }` 定义了 models：无法安全地就地改写，拒绝启用（配置不动） */
+export class GrokInlineModelsError extends Error {
+  constructor() {
+    super('grok config.toml defines models as an inline table');
+    this.name = 'GrokInlineModelsError';
+  }
+}
+
+/** 第一张表之前（根表）里以点号键 / 内联表定义的 models：`models.default = …` / `models = { … }` */
+function findRootModels(lines: string[]): { at: number; inline: boolean } | null {
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i]!;
+    if (tomlTableName(l) !== null) return null;
+    if (/^\s*models\s*\.\s*default\s*=/.test(l)) return { at: i, inline: false };
+    if (/^\s*models\s*=/.test(l)) return { at: i, inline: true };
+  }
+  return null;
 }
 
 function findModelsDefault(lines: string[], sec: { header: number; end: number }): number {
@@ -298,6 +328,16 @@ function findModelsDefault(lines: string[], sec: { header: number; end: number }
 
 /** 把已有 [models] 表的 default 就地改成 id（保留原值记录，重复激活不覆盖首次记录的原值）；无该表返回 false */
 function setExistingModelsDefault(lines: string[], id: string): boolean {
+  const root = findRootModels(lines);
+  if (root) {
+    // 根表里已经定义了 models：不能再开 [models] 表
+    if (root.inline) throw new GrokInlineModelsError();
+    const m = /^(\s*models\s*\.\s*default\s*=\s*)(.*)$/.exec(lines[root.at]!)!;
+    const tagAt = m[2]!.indexOf(GROK_PREV_TAG);
+    const prev = tagAt >= 0 ? m[2]!.slice(tagAt + GROK_PREV_TAG.length).trim() : m[2]!.trim();
+    lines[root.at] = `${m[1]}"${id}" ${GROK_PREV_TAG} ${prev || GROK_PREV_NONE}`;
+    return true;
+  }
   const sec = findModelsSection(lines);
   if (!sec) return false;
   const at = findModelsDefault(lines, sec);
@@ -315,6 +355,18 @@ function setExistingModelsDefault(lines: string[], id: string): boolean {
 
 /** 取消托管：把被 Nomi 就地改写的 default 还原成原值（原本没有 default 则删除该行） */
 function restoreExistingModelsDefault(lines: string[]): void {
+  const root = findRootModels(lines);
+  if (root && !root.inline) {
+    const m = /^(\s*models\s*\.\s*default\s*=\s*).*?#\s*nomi-managed-prev:\s*(.*)$/.exec(
+      lines[root.at]!,
+    );
+    if (m) {
+      const prev = m[2]!.trim();
+      if (!prev || prev === GROK_PREV_NONE) lines.splice(root.at, 1);
+      else lines[root.at] = `${m[1]}${prev}`;
+    }
+    return;
+  }
   const sec = findModelsSection(lines);
   if (!sec) return;
   const at = findModelsDefault(lines, sec);
@@ -356,8 +408,9 @@ export function patchGrokToml(raw: string | null, patch: GrokPatch | null): stri
       continue;
     }
     if (inMarked) continue;
-    if (t.startsWith('[') && t.endsWith(']')) {
-      skipModel = t === `[model.${id}]`;
+    const table = tomlTableName(line);
+    if (table !== null) {
+      skipModel = table === `model.${id}`;
       if (skipModel) continue;
     } else if (skipModel) {
       continue;
@@ -370,25 +423,28 @@ export function patchGrokToml(raw: string | null, patch: GrokPatch | null): stri
     // 兼容旧写入：标记外残留的 [models] + default = "nomi"
     const cleaned: string[] = [];
     let inModels = false;
+    let modelsHeader = '[models]';
     let modelsBuf: string[] = [];
     const flushModels = () => {
       const body = modelsBuf.filter((l) => !/^default\s*=\s*"nomi"\s*$/.test(l.trim()));
-      if (body.length) {
-        cleaned.push('[models]');
+      // 只剩空行 = 这张表是旧版 Nomi 加的：整表移除；否则原样保留用户的表头（含注释）与空行
+      if (body.some((l) => l.trim())) {
+        cleaned.push(modelsHeader);
         cleaned.push(...body);
       }
       modelsBuf = [];
     };
     for (const line of kept) {
-      const t = line.trim();
-      if (t.startsWith('[') && t.endsWith(']')) {
+      const table = tomlTableName(line);
+      if (table !== null) {
         if (inModels) flushModels();
-        inModels = t === '[models]';
-        if (!inModels) cleaned.push(line);
+        inModels = table === 'models';
+        if (inModels) modelsHeader = line;
+        else cleaned.push(line);
         continue;
       }
       if (inModels) {
-        if (t) modelsBuf.push(line);
+        modelsBuf.push(line);
         continue;
       }
       cleaned.push(line);
