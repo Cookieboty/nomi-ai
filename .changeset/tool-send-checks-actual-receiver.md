@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/electron': patch
-'@nomi-ai/ai-runtime': patch
 '@nomi-ai/bundle-ig-base': patch
 ---
 
