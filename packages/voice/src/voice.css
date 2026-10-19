@@ -116,6 +116,15 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.cd-voice-status__partial {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+  font-style: italic;
+}
+
 .cd-voice-status__hint {
   color: var(--cd-color-text-subtle);
 }

@@ -164,6 +164,176 @@ const AssetRow: React.FC<{
   );
 };
 
+const VOLC_DOCS = 'https://www.volcengine.com/docs/6561/1354869';
+
+/** 豆包流式语音识别 2.0（#61）：API Key（加密保存、只显示是否已保存）、资源版本、回退、测试连接 */
+const VolcSection: React.FC<{
+  api: VoiceApi;
+  config: VoiceStateView;
+  set(p: Partial<VoiceSettingsView>): void;
+  onRefresh(): void;
+}> = ({ api, config, set, onRefresh }) => {
+  const s = config.settings;
+  const v = config.volc ?? {
+    hasKey: false,
+    host: 'openspeech.bytedance.com',
+    resources: [],
+    canStoreKey: false,
+    fallbackReady: false,
+  };
+  const [key, setKey] = useState('');
+  const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
+  const [confirmTest, setConfirmTest] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const run = async (fn: () => Promise<{ ok: boolean; text: string }>) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await fn();
+      setMsg({ tone: r.ok ? 'success' : 'danger', text: r.text });
+    } catch (e) {
+      setMsg({ tone: 'danger', text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+      onRefresh();
+    }
+  };
+  const resourceLabel = (id: string) =>
+    id.endsWith('.concurrent') ? t('2.0 并发版（{0}）', id) : t('2.0 小时版（{0}）', id);
+  return (
+    <section className="cd-voice-section" data-testid="voice-volc">
+      <h4>{t('豆包流式语音识别 2.0')}</h4>
+      <Notice tone="warning">
+        {t(
+          '使用时录音会通过网络实时上传到火山引擎（{0}）识别，并由服务商按用量计费。请自行在火山引擎控制台开通服务、管理额度；Nomi 不提供 Key，也不承诺免费额度。',
+          v.host,
+        )}
+      </Notice>
+      <div className="cd-voice-hint">
+        {t(
+          '配置步骤：① 在火山引擎「豆包语音」新版控制台创建 API Key；② 开通「豆包流式语音识别模型 2.0」（小时版或并发版）；③ 把 API Key 粘贴到下面，并选择你开通的版本。',
+        )}{' '}
+        <a href={VOLC_DOCS} target="_blank" rel="noreferrer">
+          {t('官方文档')}
+        </a>
+      </div>
+      <FormField
+        label={t('API Key')}
+        hint={v.hasKey ? t('已保存（用系统安全存储加密，只存在本机，不会再显示）') : t('尚未保存')}
+      >
+        <div className="cd-voice-row">
+          <Input
+            type="password"
+            autoComplete="off"
+            value={key}
+            placeholder={v.hasKey ? t('输入新的 Key 可替换') : t('粘贴 API Key')}
+            onChange={(e) => setKey(e.target.value)}
+            data-testid="voice-volc-key"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!key.trim() || busy || !v.canStoreKey}
+            onClick={() =>
+              void run(async () => {
+                const r = await api.volcSetKey(key);
+                if (r.ok) setKey('');
+                return { ok: r.ok, text: r.ok ? t('API Key 已保存') : (r.error ?? t('保存失败')) };
+              })
+            }
+            data-testid="voice-volc-key-save"
+          >
+            {v.hasKey ? t('替换') : t('保存')}
+          </Button>
+          {v.hasKey && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await api.volcClearKey();
+                  return { ok: true, text: t('API Key 已清除') };
+                })
+              }
+              data-testid="voice-volc-key-clear"
+            >
+              {t('清除')}
+            </Button>
+          )}
+        </div>
+      </FormField>
+      {!v.canStoreKey && (
+        <Notice tone="danger">{t('系统安全存储不可用，无法保存 API Key。')}</Notice>
+      )}
+      <FormField label={t('资源版本')} hint={t('按你在控制台开通的版本选择；1.0 资源不适用')}>
+        <Select
+          value={s.volcResourceId}
+          onChange={(e) => set({ volcResourceId: e.target.value })}
+          options={(v.resources.length
+            ? v.resources
+            : ['volc.seedasr.sauc.duration', 'volc.seedasr.sauc.concurrent']
+          ).map((id) => ({ value: id, label: resourceLabel(id) }))}
+          data-testid="voice-volc-resource"
+        />
+      </FormField>
+      <Switch
+        checked={s.volcFallback}
+        onChange={(on) => set({ volcFallback: on })}
+        label={t('云端识别失败时改用本地 whisper.cpp（不会自动下载）')}
+        data-testid="voice-volc-fallback"
+      />
+      {s.volcFallback && !v.fallbackReady && (
+        <div className="cd-voice-hint" data-testid="voice-volc-fallback-missing">
+          {t('本地识别还没就绪：切换到「本地 whisper.cpp」下载引擎和模型后才能回退。')}
+        </div>
+      )}
+      <div className="cd-voice-hint">{t('唤醒词检测始终在本机进行，不会使用豆包。')}</div>
+      {confirmTest ? (
+        <Notice data-testid="voice-volc-test-confirm">
+          {t(
+            '将连接火山引擎并用你的 API Key 鉴权：只发送识别参数，不发送任何音频；服务商可能把这次连接计入用量或并发。',
+          )}
+          <div className="cd-voice-row">
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={busy}
+              onClick={() => {
+                setConfirmTest(false);
+                void run(async () => {
+                  const r = await api.volcTest();
+                  return { ok: r.ok, text: r.message };
+                });
+              }}
+              data-testid="voice-volc-test-go"
+            >
+              {t('继续测试')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmTest(false)}>
+              {t('取消')}
+            </Button>
+          </div>
+        </Notice>
+      ) : (
+        <Button
+          size="sm"
+          disabled={busy || !v.hasKey}
+          onClick={() => setConfirmTest(true)}
+          data-testid="voice-volc-test"
+        >
+          {t('测试连接')}
+        </Button>
+      )}
+      {msg && (
+        <Notice tone={msg.tone} data-testid="voice-volc-msg">
+          {msg.text}
+        </Notice>
+      )}
+    </section>
+  );
+};
+
 export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
   api,
   config,
@@ -220,6 +390,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             options={[
               { value: 'whisper-cpp', label: t('本地 whisper.cpp（离线，推荐）') },
               { value: 'openai-compat', label: t('OpenAI 兼容服务（云端 / 本地服务）') },
+              { value: 'volc', label: t('豆包流式语音识别 2.0（云端，自带 API Key）') },
             ]}
             data-testid="voice-engine"
           />
@@ -283,6 +454,8 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             />
           ))}
         </section>
+      ) : s.engine === 'volc' ? (
+        <VolcSection api={api} config={config} set={set} onRefresh={onRefresh} />
       ) : (
         <section className="cd-voice-section">
           <h4>{t('OpenAI 兼容识别服务')}</h4>

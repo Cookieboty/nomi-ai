@@ -40,6 +40,17 @@ export function concatFloat32(chunks: Float32Array[]): Float32Array {
   return out;
 }
 
+/** Float32（-1..1）→ PCM16 小端字节（流式识别用） */
+export function floatToPcm16(samples: Float32Array): Uint8Array {
+  const out = new Uint8Array(samples.length * 2);
+  const v = new DataView(out.buffer);
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]!));
+    v.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+  return out;
+}
+
 export function encodeWav(samples: Float32Array, rate = TARGET_RATE): Uint8Array {
   const buf = new ArrayBuffer(44 + samples.length * 2);
   const v = new DataView(buf);
