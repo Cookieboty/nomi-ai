@@ -23,7 +23,10 @@ import type { DocRec } from '../../../src/knowledge/KnowledgeIndex';
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
 
 function setup() {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-revoke-')));
+  // 用 native realpath：与 PermissionBroker / 索引（fs.promises.realpath，libuv）同一口径。
+  // Windows 上 os.tmpdir() 常是 8.3 短路径（C:\Users\RUNNER~1\...），JS 版 realpathSync
+  // 不展开短文件名，而索引写入的是展开后的长路径，期望值会对不上。
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'kb-revoke-')));
   const a = path.join(root, 'a');
   const b = path.join(root, 'b');
   fs.mkdirSync(a);

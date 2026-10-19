@@ -482,7 +482,43 @@ test.describe('E23 · mascot size', () => {
         timeout: 5_000,
       })
       .toBe('1');
+    // 主进程按 16ms tick 跟随拖拽点移动窗口：松手前先等窗口真的跟上，而不是松手后只采样一次
+    const moved = await expect
+      .poll(async () => b0.x - (await bounds(app!)).x, { timeout: 3_000 })
+      .toBeGreaterThanOrEqual(40)
+      .then(() => true)
+      .catch(() => false);
     await page.mouse.up();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.mascotDragging))
+      .toBe('0');
+    if (!moved) {
+      // 只在 Windows 放宽：Playwright 在 Windows 上合成的指针事件会丢按键 / 屏幕坐标
+      // （见 E15 同样的回退）；真实指针拖拽由 E15 覆盖。这里要验证的是「放大后拖动：
+      // 窗口移动、大小不变、新位置继续以脚底缩放」，所以走同一条 mascot:drag-* IPC。
+      const diag = await page.evaluate(() => {
+        const d = document.documentElement.dataset;
+        return `end=${d.mascotDragEnd} ignored=${d.mascotDragIgnored} physics=${d.mascotPhysics}`;
+      });
+      expect(process.platform, `指针拖拽没有移动窗口（${diag}）`).toBe('win32');
+      test.info().annotations.push({ type: 'pointer-drag-fallback', description: diag });
+      await page.evaluate(
+        async ([sx, sy]) => {
+          const api = window.electronAPI!.mascotWindow!;
+          api.dragStart(sx, sy);
+          for (let i = 1; i <= 10; i += 1) {
+            api.dragMove(sx - 9 * i, sy - 5 * i);
+            await new Promise((r) => setTimeout(r, 40));
+          }
+          await new Promise((r) => setTimeout(r, 200));
+          api.dragEnd();
+        },
+        [b0.x + Math.round(hp.x), b0.y + Math.round(hp.y)] as [number, number],
+      );
+      await expect
+        .poll(async () => b0.x - (await bounds(app!)).x, { timeout: 3_000 })
+        .toBeGreaterThanOrEqual(40);
+    }
     await sleep(400);
     const b1 = await bounds(app!);
     expect(b0.x - b1.x).toBeGreaterThanOrEqual(40);

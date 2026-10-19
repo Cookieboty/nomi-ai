@@ -216,7 +216,15 @@ export interface MascotWindowApi {
   /** Linux：可交互区域（窗口像素）；空数组 = 整个窗口 */
   setShape(rects: ShapeRect[]): void;
   setHit(hit: boolean): void;
-  setGeometry(box: { left: number; right: number; top: number; bottom: number }): void;
+  /** 角色包围盒（窗口像素）；vw / vh = 测量时的视口尺寸，主进程据此丢弃缩放前的旧测量 */
+  setGeometry(box: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+    vw?: number;
+    vh?: number;
+  }): void;
   /** 屏幕坐标（screenX/Y）；省略时主进程读取系统光标 */
   dragStart(screenX?: number, screenY?: number): void;
   dragMove(screenX: number, screenY: number): void;

@@ -240,11 +240,11 @@ test.describe('E27 · slash commands', () => {
     await expect(cards(chat).nth(1)).toContainText('真实用量');
     await shot(chat, '03-context-card');
     await run(chat, '/cost');
-    await expect(chat.locator('[data-testid="cost-session"]')).toContainText('$0.012');
+    await expect(chat.locator('[data-testid="cost-session"]')).toContainText('$0.012', SLOW);
     await shot(chat, '04-cost-card');
     await run(chat, '/status');
     const status = chat.locator('[data-testid="slash-card-status"]').last();
-    await expect(status).toContainText('Claude Code');
+    await expect(status).toContainText('Claude Code', SLOW);
     await expect(status).toContainText(fx.project);
     await expect(status).toContainText('CLI 版本');
     await shot(chat, '05-status-card');
@@ -261,13 +261,15 @@ test.describe('E27 · slash commands', () => {
     });
     await run(chat, '/model');
     const list = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(list).toContainText('MockGLM · glm-4.6');
+    await expect(list).toContainText('MockGLM · glm-4.6', SLOW);
     await shot(chat, '06-model-list');
+    // 切换要写 CLI 配置 + 备份，再重新收集斜杠数据（探测 CLI）；Windows CI 上常超过默认 10s
     await run(chat, '/model glm');
-    await expect(cards(chat).last()).toContainText('已切换到 MockGLM · glm-4.6');
+    await expect(cards(chat).last()).toContainText('已切换到 MockGLM · glm-4.6', SLOW);
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
       'MockGLM（Nomi 档案）',
+      SLOW,
     );
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText('glm-4.6');
     await shot(chat, '07-status-after-model');
@@ -294,7 +296,7 @@ test.describe('E27 · slash commands', () => {
     await expect(chat.locator('[data-testid="slash-empty"]')).toBeVisible();
     await shot(chat, '10-unknown-empty-state');
     await input(chat).press('Enter');
-    await expect(cards(chat).last()).toContainText('未知命令');
+    await expect(cards(chat).last()).toContainText('未知命令', SLOW);
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(users);
     await shot(chat, '11-unknown-card');
     // 「作为普通文字发送」才会真的发出去
@@ -382,7 +384,7 @@ test.describe('E27 · slash commands', () => {
     await shot(chat, '15-codex-skill-expanded');
     // Codex 不支持的命令
     await run(chat, '/permissions');
-    await expect(cards(chat).last()).toContainText('暂不支持');
+    await expect(cards(chat).last()).toContainText('暂不支持', SLOW);
   });
 
   test('C · Nomi chat: native commands work in an empty conversation', async () => {
@@ -401,13 +403,16 @@ test.describe('E27 · slash commands', () => {
     await shot(chat, '16-palette-nomi');
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="welcome-screen"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="slash-card-status"]')).toContainText('Nomi');
+    await expect(chat.locator('[data-testid="slash-card-status"]')).toContainText('Nomi', SLOW);
     await run(chat, '/context');
     await expect(chat.locator('[data-testid="ctx-bar"]')).toBeVisible();
     await run(chat, '/model');
     await expect(chat.locator('[data-testid="slash-card-list"]').last()).toBeVisible();
     await run(chat, '/help');
-    await expect(chat.locator('[data-testid="slash-card-list"]').last()).toContainText('/context');
+    await expect(chat.locator('[data-testid="slash-card-list"]').last()).toContainText(
+      '/context',
+      SLOW,
+    );
     await shot(chat, '17-nomi-cards');
     // /new 清掉卡片并回到欢迎页
     await run(chat, '/new');

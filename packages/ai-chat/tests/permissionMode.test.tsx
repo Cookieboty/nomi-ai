@@ -1,4 +1,7 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -108,6 +111,27 @@ describe('输入栏的权限模式芯片', () => {
       expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'plan', {
         confirmed: false,
       }),
+    );
+  });
+
+  it('窄输入栏：芯片可收缩（省略号），极窄时只留图标，模式名仍在无障碍名称里（#64 E28）', async () => {
+    mockIpc({ backend: 'codex' });
+    const r = mount();
+    const chip = await r.findByTestId('permission-mode-chip');
+    const label = Array.from(chip.querySelectorAll('span')).find(
+      (s) => s.textContent === '自动改文件',
+    );
+    expect(label?.className).toBeTruthy();
+    expect(chip.getAttribute('aria-label')).toContain('自动改文件');
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/PermissionModeChip/index.module.css'),
+      'utf8',
+    );
+    const chipRule = /\.chip\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(chipRule).toMatch(/min-width:\s*0/);
+    expect(chipRule).toMatch(/overflow:\s*hidden/);
+    expect(css).toMatch(
+      /@container composer \(max-width: 440px\)\s*\{\s*\.label\s*\{\s*display:\s*none;/,
     );
   });
 

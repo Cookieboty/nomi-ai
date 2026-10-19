@@ -274,7 +274,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           ) >= 8;
         if (changed && !s.dragging && !s.down) {
           s.lastGeom = `${box.left},${box.right},${box.top},${box.bottom}`;
-          api?.setGeometry(box);
+          api?.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight });
           document.documentElement.dataset.mascotBox = s.lastGeom;
         }
       }

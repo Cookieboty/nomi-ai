@@ -352,7 +352,7 @@ const MascotInteractionLayer: FC = () => {
           ) >= 8;
         if (changed && !s.dragging && !s.down) {
           s.lastGeom = key;
-          api?.setGeometry(box);
+          api?.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight });
           document.documentElement.dataset.mascotBox = key;
         }
       }

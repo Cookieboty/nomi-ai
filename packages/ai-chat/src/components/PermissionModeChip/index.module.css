@@ -4,6 +4,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 .chip {
   display: inline-flex;
@@ -20,6 +22,24 @@
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
+  /* 输入栏变窄时芯片跟着收缩（文字省略号），不能越过右侧的语音 / 发送按钮 */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.chip > svg {
+  flex: none;
+}
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 极窄输入栏（与 MessageInput 的 composer 容器同一档）：只留图标 + 箭头，模式名在 aria-label / title 里 */
+@container composer (max-width: 440px) {
+  .label {
+    display: none;
+  }
 }
 .chip:hover {
   background: var(--cd-color-hover);

@@ -78,6 +78,19 @@ const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFi
 /** 光标同步节流：~30Hz。用时间而非帧计数，保证空闲低频 tick 下移动首帧也能立即发出 */
 const CURSOR_MS = 1000 / 30;
 
+/** 包围盒是按缩放前的窗口尺寸量的（且不是当前尺寸）：容差 1px（DIP / CSS 像素取整） */
+export function isStaleGeometry(
+  vw: unknown,
+  vh: unknown,
+  current: { width: number; height: number },
+  stale: { width: number; height: number } | null,
+): boolean {
+  if (!stale || typeof vw !== 'number' || typeof vh !== 'number') return false;
+  const near = (a: number, b: number) => Math.abs(a - b) <= 1;
+  if (near(vw, current.width) && near(vh, current.height)) return false;
+  return near(vw, stale.width) && near(vh, stale.height);
+}
+
 /**
  * 看板娘窗口控制器（主进程）：
  * - 全局光标轮询 → 渲染进程（视线跟随 + 逐像素命中测试；Linux 下 forward 不可用也能工作）
@@ -90,6 +103,12 @@ export class MascotWindowController {
   private cfg: InteractionConfig = { ...DEFAULT_INTERACTION };
   private body: BodyState = { x: 0, y: 0, vx: 0, vy: 0, mode: 'idle' };
   private box: CharacterBox | null = null;
+  /**
+   * 上一次程序化缩放之前的窗口尺寸。渲染进程按旧尺寸量出的包围盒（缩放前已在 IPC 途中，
+   * 或渲染进程还没收到 resize）会晚于主进程按比例推算的新包围盒到达，必须丢弃，
+   * 否则脚底锚点 / 物理地面会短暂按旧尺寸计算（窗口跳一下、E23 锚点偏移）。
+   */
+  private staleSize: { width: number; height: number } | null = null;
   private workAreas: Rect[] = [];
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** 最近一次活动（拖拽 / 物理运动 / 光标移动）时间，用于空闲降频 */
@@ -338,6 +357,7 @@ export class MascotWindowController {
         this.logger.warn('缩放看板娘窗口失败', { error: String(err) });
         return this.scaleState();
       }
+      this.staleSize = { width: b.width, height: b.height };
       const r = target / from;
       if (this.box) {
         const k = (v: number, pad: number, max: number) =>
@@ -376,13 +396,14 @@ export class MascotWindowController {
   }
 
   private setBox(raw: unknown): void {
-    const b = raw as Partial<CharacterBox> | null;
+    const b = raw as (Partial<CharacterBox> & { vw?: unknown; vh?: unknown }) | null;
     const [w, h] = this.win.getSize();
     if (
       !b ||
       ![b.left, b.right, b.top, b.bottom].every((v) => typeof v === 'number' && Number.isFinite(v))
     )
       return;
+    if (isStaleGeometry(b.vw, b.vh, { width: w, height: h }, this.staleSize)) return;
     const box = {
       left: Math.max(0, Math.min(w, b.left!)),
       right: Math.max(0, Math.min(w, b.right!)),
