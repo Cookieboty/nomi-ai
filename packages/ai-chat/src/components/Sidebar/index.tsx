@@ -11,6 +11,7 @@ import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
@@ -29,6 +30,7 @@ import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
 import styles from './index.module.css';
 import {
   firstUserMessageCache,
@@ -70,6 +72,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setView,
     endpointFilter,
     setEndpointFilter,
+    endpointVisibility,
+    setEndpointVisibility,
   } = useConversationListView();
   // 普通模式只有 Nomi：视图固定为「全部」，但不改动已保存的选择，切回开发模式即恢复
   const view = isNormal ? 'all' : storedView;
@@ -326,6 +330,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : history.items(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
+
+  // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
+  const endpointActivity = useMemo(() => {
+    const a: Partial<Record<ConversationBackend, number>> = { ...counts };
+    for (const b of histBackends) a[b] = (a[b] ?? 0) + history.items(b).length;
+    return a;
+  }, [counts, histBackends, history]);
+  const shownEndpoints = useMemo(() => {
+    const shown = visibleEndpoints(CONVERSATION_BACKENDS, endpointVisibility, endpointActivity);
+    // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
+    if (!shown.includes(endpointFilter) && endpointVisibility[endpointFilter] !== 'hide')
+      return CONVERSATION_BACKENDS.filter((b) => b === endpointFilter || shown.includes(b));
+    return shown;
+  }, [endpointVisibility, endpointActivity, endpointFilter]);
 
   const openHistory = async (h: HistorySession) => {
     if (openingKey) return;
@@ -624,7 +642,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           {isDev && view === 'by-endpoint' && (
             <div className={styles.epRow} role="group" aria-label={t('按端点筛选')}>
-              {CONVERSATION_BACKENDS.map((b) => (
+              {shownEndpoints.map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -640,6 +658,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className={styles.epCount}>{counts[b]}</span>
                 </button>
               ))}
+              <EndpointVisibilityMenu
+                backends={CONVERSATION_BACKENDS}
+                visibility={endpointVisibility}
+                activity={endpointActivity}
+                onChange={(b, v) => {
+                  setEndpointVisibility(b, v);
+                  // 隐藏了正在看的端点：回到 Nomi，免得筛选停在看不见的端点上
+                  if (v === 'hide' && b === endpointFilter) setEndpointFilter('nomi');
+                }}
+              />
             </div>
           )}
         </div>
