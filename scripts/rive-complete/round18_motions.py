@@ -12,7 +12,9 @@ in place by solving its leg (2-bone, front view):
   planted feet stay exactly on the rest ankle; the swing foot follows a lift arc.  full.pose scaleY is held at 1 so
   the idle breathing scale does not slide the feet during the clips.
 Front view limits (honest): hips shifting back / torso leaning forward have no screen axis here; they are suggested
-by a small head dip + shoulders (arms) moving in.  Idempotent."""
+by a head dip + shoulders (arms) moving in.  ROUND19 deepens squat drop 42→100 art px (~7.7% of artboard) with
+stronger thigh foreshortening from the planted-foot IK; knee-out stays ~0.022 so the crotch bridge stays healthy.
+Idempotent."""
 from __future__ import annotations
 
 import math
@@ -24,7 +26,7 @@ import numpy as np
 SCENE = Path(__file__).resolve().parents[2] / "rive/nomi-complete/scene.rml"
 FPS = 60
 IDS = {  # bones
-    "pose": "0:190", "head": "0:9212",
+    "pose": "0:190", "head": "0:9212", "torso": "0:9211",
     "l.upper": "0:9235", "l.lower": "0:9236", "l.foot": "0:9237",
     "r.upper": "0:9238", "r.lower": "0:9239", "r.foot": "0:9240",
     "arm-l": "0:9213", "arm-r": "0:9219",
@@ -111,7 +113,7 @@ def step_frame(f):
 
 
 SQ_DOWN, SQ_HOLD, SQ_UP, SQ_SETTLE = 24, 18, 30, 8      # 0.4 s down, 0.3 s hold, 0.5 s up
-SQ_DROP, SQ_KNEE, SQ_HEAD, SQ_ARM = 42.0, 0.02, 4.0, 0.03
+SQ_DROP, SQ_KNEE, SQ_HEAD, SQ_ARM = 100.0, 0.022, 10.0, 0.05  # R19: deepen (~7.7% artboard); knee kept tiny for crotch
 
 
 def squat_curve(f):
@@ -130,7 +132,8 @@ def squat_frame(f):
     c = squat_curve(f)
     legs = {"l": (SQ_KNEE * c, 0.0), "r": (-SQ_KNEE * c, 0.0)}
     arms = {"arm-l": -SQ_ARM * c, "arm-r": SQ_ARM * c}   # hands come in / forward for balance
-    return (0.0, SQ_DROP * c), legs, arms, SQ_HEAD * c, 1.0
+    # torso_rot: tiny frontal "weight" cue (not a true lean — no depth axis); positive = CW
+    return (0.0, SQ_DROP * c), legs, arms, SQ_HEAD * c, 1.0, 0.025 * c
 
 
 def bake(scene, name, fn, dur):
@@ -146,7 +149,12 @@ def bake(scene, name, fn, dur):
     def put(obj, prop, f, v):
         tracks.setdefault((obj, prop), []).append((f, v))
     for f in frames:
-        pose, legs, arms, head_dy, k = fn(f)
+        out = fn(f)
+        if len(out) == 5:
+            pose, legs, arms, head_dy, k = out
+            torso_rot = 0.0
+        else:
+            pose, legs, arms, head_dy, k, torso_rot = out
         for s in "lr":
             a, lift = legs[s]
             A0 = ankle_world(rest[s], (0, 0), 0, 1, 0)[:2, 2]
@@ -164,6 +172,8 @@ def bake(scene, name, fn, dur):
         put(IDS["pose"], "y", f, pose[1])
         put(IDS["pose"], "scaleY", f, 1.0)
         put(IDS["head"], "y", f, head_dy)
+        if "torso" in IDS:
+            put(IDS["torso"], "rotation", f, torso_rot)
         for arm, off in arms.items():
             put(IDS[arm], "rotation", f, ARM_REST[arm] + off)
     body = ""
