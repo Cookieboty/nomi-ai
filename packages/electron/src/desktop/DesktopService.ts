@@ -16,6 +16,7 @@ import {
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { iconImage } from '../core/appIcon';
 import { t as tr } from '../i18n';
+import { notifyIsland } from '../island/IslandService';
 import { AgentBrowser } from '../sandbox/AgentBrowser';
 import { CodeSandbox } from '../sandbox/CodeSandbox';
 import { sanitizeRepeat } from '../schedule/recurrence';
@@ -201,16 +202,20 @@ export class DesktopService {
 
   private deliverReminder(r: Reminder, osNotify: boolean): void {
     const w = this.main();
-    this.logger.info('提醒触发', { id: r.id, hasWindow: !!w });
-    if (w) {
-      if (!w.isVisible() && !this.mascotHidden()) w.showInactive();
-      w.webContents.send('desktop:reminder', {
-        id: r.id,
-        text: r.text,
-        dueAt: r.dueAt,
-        missed: false,
-      });
+    this.logger.info('提醒触发', { id: r.id, hasWindow: !!w, mascotHidden: this.mascotHidden() });
+    // 看板娘已关闭 / 没有窗口：提醒卡片不发给隐藏的看板娘（否则看不见，下次打开她时还会冒出过期卡片），
+    // 改走灵动岛 + 系统通知，点通知打开对话窗口
+    if (!w || this.mascotHidden()) {
+      this.deliverReminderElsewhere([r], osNotify);
+      return;
     }
+    if (!w.isVisible()) w.showInactive();
+    w.webContents.send('desktop:reminder', {
+      id: r.id,
+      text: r.text,
+      dueAt: r.dueAt,
+      missed: false,
+    });
     broadcastMascotCommand({ type: 'motion', name: 'wave' });
     broadcastMascotCommand({ type: 'expression', name: 'happy' });
     try {
@@ -239,6 +244,45 @@ export class DesktopService {
     });
   }
 
+  /**
+   * 看板娘不在时的提醒：灵动岛 + 系统通知（点击打开对话窗口）。
+   * 提醒是用户自己设的，必须送达：灵动岛显示不了（关闭 / 免打扰 / 不支持）时，即使关了「系统通知」也发一条。
+   */
+  private deliverReminderElsewhere(items: Reminder[], osNotify: boolean): void {
+    if (!items.length) return;
+    const title = tr('提醒');
+    const body =
+      items.length === 1
+        ? items[0]!.text
+        : tr('有 {0} 条提醒：{1}', items.length, items.map((r) => r.text).join('；'));
+    let island = false;
+    try {
+      island = notifyIsland({ kind: 'reminder', title, body, status: 'attention' });
+    } catch (e) {
+      this.logger.warn('灵动岛提醒失败', { error: String(e) });
+    }
+    try {
+      if ((osNotify || !island) && Notification.isSupported()) {
+        const n = new Notification({ title, body, silent: false, icon: iconImage() });
+        n.on('click', () => {
+          void this.windows?.openChat().catch(() => undefined);
+        });
+        n.show();
+      }
+    } catch (e) {
+      this.logger.warn('系统通知失败', { error: String(e) });
+    }
+    for (const r of items) {
+      this.audit.append({
+        tool: 'reminder_fire',
+        args: { id: r.id, text: r.text, via: island ? 'island' : 'notification' },
+        decision: 'auto',
+        result: 'ok',
+        source: 'scheduler',
+      });
+    }
+  }
+
   private missedQueue: Reminder[] = [];
 
   /** 开始调度；关闭期间错过的提醒由看板娘窗口挂载后拉取并播报一次 */
@@ -255,6 +299,11 @@ export class DesktopService {
     this.missedQueue = [];
     if (items.length) {
       this.reminders.markAnnounced(items.map((r) => r.id));
+      // 看板娘已关闭：错过的提醒同样改走灵动岛 / 系统通知，不在隐藏的窗口里攒卡片
+      if (this.mascotHidden()) {
+        this.deliverReminderElsewhere(items, this.notifyPolicy?.osNotify() ?? true);
+        return [];
+      }
       broadcastMascotCommand({ type: 'motion', name: 'wave' });
     }
     return items.map((r) => ({ id: r.id, text: r.text, dueAt: r.dueAt }));
