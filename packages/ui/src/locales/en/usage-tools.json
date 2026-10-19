@@ -346,5 +346,7 @@
   "登录凭据由官方 CLI 保管，Nomi 不读取、不展示。": "Login credentials are kept by the official CLI; Nomi neither reads nor shows them.",
   "长周期": "Long window",
   "短周期": "Short window",
-  "{0} 天": "{0} d"
+  "{0} 天": "{0} d",
+  "价格 / 汇率已在别处更新；你还没保存的修改已保留。直接保存会覆盖最新值。": "Prices / exchange rates were updated elsewhere. Your unsaved edits are kept; saving now will overwrite the latest values.",
+  "放弃修改并载入最新": "Discard edits and load latest"
 }
