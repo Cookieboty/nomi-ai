@@ -1,3 +1,4 @@
+---
 '@nomi-ai/ai-chat': patch
 ---
 
