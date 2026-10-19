@@ -131,26 +131,37 @@ export class FishTtsConfigStore {
     this.clearApiKey();
   }
 
+  /** 只有真的能读出 Key 时才算已配置：解不开的文件不能让界面显示「已配置」（#35） */
   hasApiKey(): boolean {
-    try {
-      return fs.existsSync(this.keyPath()) && fs.statSync(this.keyPath()).size > 0;
-    } catch {
-      return false;
-    }
+    return !!this.getApiKey();
   }
 
   getApiKey(): string | undefined {
+    let buf: Buffer;
     try {
       const p = this.keyPath();
       if (!fs.existsSync(p)) return undefined;
-      const buf = fs.readFileSync(p);
-      if (safeStorage.isEncryptionAvailable()) {
-        return safeStorage.decryptString(buf);
-      }
-      return buf.toString('utf8');
+      buf = fs.readFileSync(p);
     } catch {
       return undefined;
     }
+    if (!buf.length) return undefined;
+    if (safeStorage.isEncryptionAvailable()) {
+      try {
+        return safeStorage.decryptString(buf);
+      } catch {
+        /* 可能是旧版本在安全存储不可用时写下的明文，见下 */
+      }
+    }
+    const legacy = legacyPlainKey(buf);
+    if (legacy === undefined) return undefined;
+    // 旧明文：安全存储可用就就地加密迁移；不可用时照旧使用
+    try {
+      if (safeStorage.isEncryptionAvailable()) this.setApiKey(legacy);
+    } catch {
+      /* 迁移失败不影响本次使用 */
+    }
+    return legacy;
   }
 
   setApiKey(value: string): void {
@@ -174,4 +185,10 @@ export class FishTtsConfigStore {
       /* ignore */
     }
   }
+}
+
+/** 旧版明文 Key：可打印 ASCII、无空白，长度合理；加密密文（含二进制前缀）不会满足 */
+function legacyPlainKey(buf: Buffer): string | undefined {
+  const s = buf.toString('utf8').trim();
+  return /^[\x21-\x7e]{8,512}$/.test(s) ? s : undefined;
 }

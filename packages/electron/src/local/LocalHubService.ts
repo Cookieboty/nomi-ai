@@ -16,7 +16,7 @@ import type { DesktopService } from '../desktop/DesktopService';
 import { redactServerForExport } from '../extensions/mcpConfig';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
-import { decryptSecret, encryptSecret } from '../security/secretStorage';
+import { canEncryptSecrets, decryptSecret, encryptSecret } from '../security/secretStorage';
 import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import { caldavQuery, expand, extractCalendarData, parseIcs, toIcs, type CalEvent } from './ics';
@@ -112,6 +112,7 @@ export class LocalHubService {
     const cal = this.read('calendar.json') as { sources?: CalSource[]; events?: CalEvent[] } | null;
     this.sources = cal?.sources ?? [];
     this.events = cal?.events ?? [];
+    this.migratePlainSecrets();
     if (!this.sources.some((s) => s.kind === 'local'))
       this.sources.unshift({
         id: 'local',
@@ -146,6 +147,20 @@ export class LocalHubService {
     // calendar.json 含 CalDAV 账号与（加密的）密码，clipboard.json 含剪贴板历史：0600 原子写
     writePrivateFileAtomic(path.join(this.d.root, f), JSON.stringify(v));
   }
+  /**
+   * 旧版本可能把 CalDAV 密码明文写进 calendar.json（无 `enc:` 前缀，#35）：
+   * 安全存储可用就加密后写回；不可用就保留（同步仍可用），在 calState 里标出 passwordInsecure。
+   */
+  private migratePlainSecrets() {
+    const plain = this.sources.filter((s) => s.secret && !s.secret.startsWith('enc:'));
+    if (!plain.length || !canEncryptSecrets()) return;
+    try {
+      for (const s of plain) s.secret = this.enc(s.secret!);
+      this.saveCal();
+    } catch {
+      /* 加密中途失败：保持原样，下次启动再试 */
+    }
+  }
   private saveCal() {
     this.write('calendar.json', { sources: this.sources, events: this.events });
   }
@@ -171,7 +186,12 @@ export class LocalHubService {
 
   // ───────────── 日历 ─────────────
   calState() {
-    const view = this.sources.map(({ secret, ...s }) => ({ ...s, hasPassword: !!secret }));
+    const view = this.sources.map(({ secret, ...s }) => ({
+      ...s,
+      ...(s.url ? { url: redactCalendarUrl(s.url) } : {}),
+      hasPassword: !!secret,
+      ...(secret && !secret.startsWith('enc:') ? { passwordInsecure: true } : {}),
+    }));
     return { sources: view };
   }
   occurrences(from: number, to: number) {
@@ -269,15 +289,21 @@ export class LocalHubService {
       throw new Error(tr('请填写有效的地址'));
     }
     if (!/^https?:$/.test(u.protocol)) throw new Error(tr('只支持 http / https / webcal 地址'));
+    // 地址里的 user:pass@ 挪到账号 / 密码字段：不让口令以明文留在 url 里（#35）
+    const urlUser = decodeURIComponent(u.username);
+    const urlPass = decodeURIComponent(u.password);
+    u.username = '';
+    u.password = '';
+    const password = p.password || urlPass || undefined;
     // 安全存储不可用 / 加密失败时失败关闭：拒绝保存密码，不降级成明文
-    const secret = p.password ? this.enc(p.password) : undefined;
+    const secret = password ? this.enc(password) : undefined;
     const s: CalSource = {
       id: `${p.kind}-${randomUUID().slice(0, 8)}`,
       name: String(p.name || u.hostname).slice(0, 60),
       kind: p.kind,
       color: COLORS[this.sources.length % COLORS.length],
       url: u.toString(),
-      username: p.username?.trim() || undefined,
+      username: p.username?.trim() || urlUser || undefined,
       secret,
       enabled: true,
     };
@@ -794,4 +820,26 @@ export function initLocalHubService(d: HubDeps) {
 }
 export function getLocalHubService() {
   return inst;
+}
+
+/**
+ * 发给渲染层 / 写进导出的订阅地址：去掉账号口令、query、fragment，并把像令牌的路径段换成占位
+ * （ICS 私密订阅常把 token 放在路径里，如 `/private-<token>/basic.ics`；#35）。
+ * 真实地址只留在主进程的 calendar.json 里用于同步。
+ */
+export function redactCalendarUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.username = '';
+    u.password = '';
+    u.search = '';
+    u.hash = '';
+    u.pathname = u.pathname
+      .split('/')
+      .map((seg) => (/^(private-)?[A-Za-z0-9_%.-]{24,}$/.test(seg) ? '…' : seg))
+      .join('/');
+    return u.toString();
+  } catch {
+    return '';
+  }
 }

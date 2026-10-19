@@ -257,5 +257,7 @@
   "尚未选择图片": "No image yet",
   "模糊": "Blur",
   "透明度": "Opacity",
-  "恢复默认背景": "Reset background"
+  "恢复默认背景": "Reset background",
+  "密码是旧版本以明文保存的；系统钥匙串可用后会自动加密，也可以移除后重新添加": "This password was saved in plain text by an older version. It's encrypted automatically once the system keychain is available, or remove and re-add the calendar.",
+  "密码未加密": "Password not encrypted"
 }

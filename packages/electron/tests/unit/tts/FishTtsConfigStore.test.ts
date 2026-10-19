@@ -18,7 +18,12 @@ jest.mock('electron', () => ({
       if (safe.throws) throw new Error('keychain locked');
       return Buffer.from(`enc:${s}`);
     },
-    decryptString: (b: Buffer) => b.toString('utf8').replace(/^enc:/, ''),
+    // 与真实 safeStorage 一致：不是本机密文就抛错
+    decryptString: (b: Buffer) => {
+      const s = b.toString('utf8');
+      if (!s.startsWith('enc:')) throw new Error('Error while decrypting the ciphertext');
+      return s.slice(4);
+    },
   },
 }));
 
@@ -138,6 +143,34 @@ describe('Fish 云 Key 落盘（#35）', () => {
     expect(fs.readFileSync(keyFile(), 'utf8')).toBe('enc:FISH_SECRET_KEY_123');
     if (process.platform !== 'win32') expect(fs.statSync(keyFile()).mode & 0o777).toBe(0o600);
     expect(store.getApiKey()).toBe('FISH_SECRET_KEY_123');
+  });
+
+  const writeKey = (buf: Buffer | string) => {
+    fs.mkdirSync(path.dirname(keyFile()), { recursive: true });
+    fs.writeFileSync(keyFile(), buf);
+  };
+
+  it('旧版本留下的明文 Key：能读出并就地加密迁移', () => {
+    writeKey('LEGACY_PLAIN_KEY_42');
+    const store = new FishTtsConfigStore();
+    expect(store.hasApiKey()).toBe(true);
+    expect(store.getApiKey()).toBe('LEGACY_PLAIN_KEY_42');
+    expect(fs.readFileSync(keyFile(), 'utf8')).toBe('enc:LEGACY_PLAIN_KEY_42');
+  });
+
+  it('旧明文 Key 在安全存储不可用时照旧可用、不改文件', () => {
+    safe.available = false;
+    writeKey('LEGACY_PLAIN_KEY_42');
+    expect(new FishTtsConfigStore().getApiKey()).toBe('LEGACY_PLAIN_KEY_42');
+    expect(fs.readFileSync(keyFile(), 'utf8')).toBe('LEGACY_PLAIN_KEY_42');
+  });
+
+  it('解不开的 Key 文件不算「已配置」', () => {
+    writeKey(Buffer.from([0x76, 0x31, 0x30, 0x00, 0xff, 0x13, 0x88, 0x01, 0x02, 0x9a]));
+    const store = new FishTtsConfigStore();
+    expect(store.getApiKey()).toBeUndefined();
+    expect(store.hasApiKey()).toBe(false);
+    expect(store.loadPublic().hasApiKey).toBe(false);
   });
 
   it('不带 Key 的保存（如只改声线）在安全存储不可用时仍可保存', () => {
