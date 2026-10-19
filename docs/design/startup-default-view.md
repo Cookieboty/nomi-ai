@@ -63,6 +63,7 @@
 - Linux 托盘左键不做处理（按用户决定保持现状）。
 - 不改动看板娘动画 / Rive 资源。
 - 没有给 Linux 托盘加左键处理（Linux 托盘 click 事件不可靠）。
+- 启动阶段的另一件事：语音已开但离线 TTS 模型缺失时（老用户升级），主进程在后台下载模型，不弹窗、不影响默认界面，见 [tts-on-demand.md](./tts-on-demand.md)。
 
 ## English
 
@@ -93,3 +94,5 @@ Nomi has always started with the mascot; opening the main window (the chat windo
 
 - Settings → General → “Show on startup”: Mascot (default) / Main window; “When closing the main window”: Hide to tray (default) / Quit Nomi.
 - Onboarding step 3 “What should you see when Nomi starts?”: Open with the mascot (default) / Open with the console (main window). The choice is saved immediately, the step is skippable, and skipping keeps the default.
+
+Related: when voice is on but the offline TTS model is missing (users upgrading from ≤1.0.3), startup downloads it in the background without opening any window; see [tts-on-demand.md](./tts-on-demand.md).

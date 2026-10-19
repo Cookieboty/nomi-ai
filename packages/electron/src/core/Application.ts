@@ -47,6 +47,7 @@ import {
 } from '../startup/startupPlan';
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
+import { registerTtsModel } from '../tts/registerTtsModel';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -348,6 +349,9 @@ export class Application implements IApplication {
       const startup = new StartupService(path.join(app.getPath('userData'), 'startup.json'));
       startup.registerIpc();
       this.startupService = startup;
+
+      // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
+      registerTtsModel(this.configService).start();
       const startupPlan = planStartup({
         defaultView: startup.get().defaultView,
         onboardingPending: onboarding.shouldAutoOpen(),

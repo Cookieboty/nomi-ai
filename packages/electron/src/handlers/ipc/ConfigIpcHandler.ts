@@ -251,7 +251,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       onSherpaFailure: (error) => {
         const code = (error as { code?: string } | null)?.code;
         // downloading / superseded 属预期情形，由逐请求结果日志 + 服务内限频进度日志覆盖，避免刷屏
-        if (code === 'downloading' || code === 'superseded') return;
+        if (code === 'downloading' || code === 'superseded' || code === 'not_ready') return;
         const message = error instanceof Error ? error.message : String(error);
         this.logger.warn('sherpa TTS 不可用，保持静默', { code, message });
       },
@@ -369,7 +369,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // sherpa 模型状态（bundled / env / 缺失）
+    // sherpa 模型状态（ready / missing / downloading / error）
     this.registerHandler('tts:sherpa:status', async (): Promise<SherpaModelStatus> => {
       return sherpa.getStatus();
     });
@@ -470,7 +470,7 @@ export class ConfigIpcHandler extends BaseIpcHandler {
     );
   }
 
-  /** sherpa：缺模型时会先自动下载，再预热引擎（开发态常见；打包包内已有模型则跳过下载） */
+  /** sherpa：预热引擎；缺模型不下载，提示去「语音」设置下载 */
   private async checkSherpaHealth(): Promise<TTSTestResult> {
     const sherpa = getSherpaTtsService();
     try {
@@ -484,12 +484,15 @@ export class ConfigIpcHandler extends BaseIpcHandler {
     } catch (error) {
       const status = sherpa.getStatus();
       const msg = error instanceof Error ? error.message : String(error);
+      if (status.state === 'downloading') {
+        return { success: false, message: t('离线语音模型下载中，请稍候') };
+      }
       if (status.state === 'missing' || status.state === 'error') {
         return {
           success: false,
           message: status.message
             ? t('离线语音模型不可用: {0}', status.message)
-            : t('离线语音模型缺失，当前没有可用 TTS'),
+            : t('离线语音模型未下载：请在「设置 → 语音」开启语音以下载'),
         };
       }
       return { success: false, message: t('离线语音引擎加载失败，没有可用 TTS: {0}', msg) };

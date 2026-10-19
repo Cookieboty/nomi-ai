@@ -1,0 +1,52 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0 10px;
+}
+.bar {
+  flex: 1 1 200px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cd-color-border);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  background: var(--cd-color-accent-strong);
+  transition: width 0.2s ease;
+}
+.label {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+}
+.btn {
+  padding: 4px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--cd-color-hover);
+}
+.error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 6px 0 10px;
+  font-size: 13px;
+  color: var(--cd-color-danger, #c0392b);
+}

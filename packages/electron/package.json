@@ -24,17 +24,7 @@
     "package:publish:win": "electron-builder build --win --publish always",
     "package:publish:linux": "electron-builder build --linux --publish always",
     "postinstall": "node scripts/ensure-tts-model.mjs --postinstall",
-    "ensure-tts-model": "node scripts/ensure-tts-model.mjs",
-    "sync-tts-model": "node scripts/sync-tts-model.mjs",
-    "prepackage": "node scripts/sync-tts-model.mjs",
-    "prepackage:prod": "node scripts/sync-tts-model.mjs",
-    "prepackage:prod:mac": "node scripts/sync-tts-model.mjs",
-    "prepackage:prod:win": "node scripts/sync-tts-model.mjs",
-    "prepackage:prod:linux": "node scripts/sync-tts-model.mjs",
-    "prepackage:debug": "node scripts/sync-tts-model.mjs",
-    "prepackage:publish:mac": "node scripts/sync-tts-model.mjs",
-    "prepackage:publish:win": "node scripts/sync-tts-model.mjs",
-    "prepackage:publish:linux": "node scripts/sync-tts-model.mjs"
+    "ensure-tts-model": "node scripts/ensure-tts-model.mjs"
   },
   "author": "Cookieboty",
   "license": "MIT",

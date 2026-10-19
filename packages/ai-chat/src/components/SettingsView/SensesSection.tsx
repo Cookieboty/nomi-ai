@@ -12,17 +12,24 @@ import type { ScreenTab } from '../ScreenPanel';
 import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type SensesTab } from './sections';
+import { TtsModelCard } from './TtsModelCard';
 
 const noop = () => undefined;
 
 const VoiceSection: React.FC = () => {
   const v = useVoice('chat');
-  if (!v.api) return <p className={styles.note}>{t('语音服务不可用（仅在桌面应用中提供）。')}</p>;
   return (
-    <section className={styles.block} data-testid="settings-voice">
-      <h2 className={styles.h2}>{t('语音输入')}</h2>
-      <VoiceSettingsPanel api={v.api} config={v.config} onRefresh={() => void v.refresh()} />
-    </section>
+    <>
+      <TtsModelCard />
+      {v.api ? (
+        <section className={styles.block} data-testid="settings-voice">
+          <h2 className={styles.h2}>{t('语音输入')}</h2>
+          <VoiceSettingsPanel api={v.api} config={v.config} onRefresh={() => void v.refresh()} />
+        </section>
+      ) : (
+        <p className={styles.note}>{t('语音服务不可用（仅在桌面应用中提供）。')}</p>
+      )}
+    </>
   );
 };
 

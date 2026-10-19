@@ -106,7 +106,7 @@ function updateStatusFromConfig(c: any) {
   }
 }
 
-// ---- sherpa 离线模型状态（bundled，无下载） ----
+// ---- sherpa 离线模型状态（按需下载到 userData，见 docs/design/tts-on-demand.md） ----
 function renderSherpaStatus(st: any) {
   const text = $('sherpa-model-text');
   if (st.state === 'ready') {
@@ -115,14 +115,16 @@ function renderSherpaStatus(st: any) {
         ? '（开发目录）'
         : st.source === 'env'
           ? '（环境变量目录）'
-          : st.source === 'resources'
-            ? '（安装包）'
+          : st.source === 'userData'
+            ? '（已下载到本机）'
             : '';
     text.textContent = '模型已就绪' + where;
+  } else if (st.state === 'downloading') {
+    text.textContent = '模型下载中…（完成后自动可用）';
   } else if (st.state === 'error') {
     text.textContent = '模型不可用：' + (st.message || '未知错误') + '（当前没有可用 TTS）';
   } else {
-    text.textContent = '模型缺失（当前没有可用 TTS）';
+    text.textContent = '模型未下载：在主界面「设置 → 语音与屏幕 → 语音」开启语音即可下载';
   }
 }
 

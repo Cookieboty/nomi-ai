@@ -365,16 +365,6 @@ jobs:
           restore-keys: |
             electron-dl-${{ runner.os }}-
 
-      # Offline TTS weights (~133MB) staged by prepackage → sync-tts-model.mjs
-      - name: Cache sherpa TTS model
-        if: steps.plat.outputs.run == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: packages/electron/resources/tts-models
-          key: tts-model-vits-zh-hf-theresa-f337638c49689e1d
-          restore-keys: |
-            tts-model-vits-zh-hf-theresa-
-
       - name: Build workspaces
         if: steps.plat.outputs.run == 'true'
         run: pnpm turbo run build --cache-dir=.turbo/cache

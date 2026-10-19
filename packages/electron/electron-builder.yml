@@ -59,9 +59,8 @@ extraResources:
     to: ai-chat
   - from: assets
     to: assets
-  # 离线 TTS 模型（~133MB）：由 scripts/sync-tts-model.mjs 在 package 前同步到 resources/，不进 git
-  - from: resources/tts-models
-    to: tts-models
+  # 离线 TTS 模型不再打包：用户开启语音时按需下载到 userData（docs/design/tts-on-demand.md）。
+  # sherpa-onnx 原生库仍随包（见 asarUnpack）。
 
 directories:
   buildResources: assets

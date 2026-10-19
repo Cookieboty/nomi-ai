@@ -15,6 +15,8 @@ export interface IpcApi {
   // 语音相关API - 简化后只保留必要的
   getVoiceSettings: () => Promise<VoiceSettings>;
   saveVoiceSettings: (settings: VoiceSettings) => void;
+  /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
+  onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
   // TTS配置相关API（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）
   getTTSConfig: () => Promise<TTSConfig | null>;
@@ -187,9 +189,23 @@ export * from './models';
 
 /** sherpa-onnx offline TTS model status (extraResources / env / auto-fetched for dev). */
 export interface SherpaModelStatus {
-  state: 'ready' | 'missing' | 'error';
-  /** where the model was found */
+  /**
+   * ready：模型可用；missing：未下载；downloading：下载 / 解压中；error：上次下载失败（message 为原因）。
+   * 模型不再随安装包分发，按需下载到 userData/tts-models（见 docs/design/tts-on-demand.md）。
+   */
+  state: 'ready' | 'missing' | 'downloading' | 'error';
+  /** where the model was found（'resources' 仅旧版本；新版不再打包模型） */
   source?: 'env' | 'resources' | 'dev' | 'userData';
   modelId: string;
   message?: string;
+  /** downloading 时：download | extract */
+  phase?: 'download' | 'extract';
+  /** 已下载字节（含续传前已有部分） */
+  received?: number;
+  /** 总字节（manifest 固定值） */
+  total?: number;
+  /** 磁盘上可续传的半成品字节数（missing / error 时 >0 表示「继续下载」） */
+  partialBytes?: number;
+  /** 安装后占用（字节，manifest 固定值），设置页展示用 */
+  installedBytes?: number;
 }

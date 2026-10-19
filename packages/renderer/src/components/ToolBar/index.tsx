@@ -273,6 +273,16 @@ export const ToolBar: React.FC = () => {
     return () => window.removeEventListener('mascot:voice-enabled', on);
   }, []);
 
+  // 语音设置变化（含主进程回滚：模型下载失败 / 取消 / 删除）→ 同步按钮状态
+  useEffect(() => {
+    const on = (e: Event) => {
+      const enabled = (e as CustomEvent<{ enabled?: boolean }>).detail?.enabled;
+      if (typeof enabled === 'boolean') setVoiceEnabled(enabled);
+    };
+    window.addEventListener('mascot:voice-settings', on);
+    return () => window.removeEventListener('mascot:voice-settings', on);
+  }, []);
+
   const toggleVoiceMode = useCallback(async () => {
     if (!voiceService) {
       showMessage(tr('语音服务尚未初始化，请稍后再试...'));

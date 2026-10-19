@@ -70,7 +70,9 @@ export class ConfigService implements IConfigService {
       mascotScale: DEFAULT_MASCOT_SCALE,
       modelName: '',
       voiceSettings: {
-        enabled: true,
+        // 新安装默认关闭：离线 TTS 模型不再随安装包分发，开启时才下载（docs/design/tts-on-demand.md）。
+        // 老用户 config.json 里已保存 enabled=true，会保持开启并在启动时自动下载模型。
+        enabled: false,
         volume: 0.8,
         timeAnnouncement: true,
         voicePackPath: 'packages/renderer/public/assets/voice',

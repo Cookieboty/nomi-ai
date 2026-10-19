@@ -2,8 +2,8 @@
  * sherpa-onnx 本地离线 TTS（主进程）。
  * - 原生 addon（sherpa-onnx-node，N-API）懒加载；模型懒加载；单例；推理走 *Async（不阻塞主进程事件循环）。
  * - 分句合成后拼接成一段 16-bit mono WAV，交给渲染进程 <audio> 播放（沿用 tts:speak 的 base64 协议）。
- * - 模型随安装包 extraResources 分发；开发态缺失时在**后台**异步下载到约定目录（单飞、日志进度，无安装器 UI）：
- *   下载期间 synthesize 立即以 'downloading' 拒绝（上层保持静默），绝不 await 下载；下载完成后下一条自动走 sherpa。
+ * - 模型**不随安装包分发**：用户在设置里开启语音时显式 download() 到 userData/tts-models
+ *   （进度 / 取消 / 断点续传，见 docs/design/tts-on-demand.md）。synthesize / warmup 缺模型只抛 not_ready，绝不自动下载。
  * - Electron 下必须 enableExternalBuffer:false，否则 V8 内存笼会拒绝 external ArrayBuffer。
  * - 任何失败都抛 SherpaTtsError，上层路由保持静默。
  */
@@ -25,7 +25,9 @@ import {
   SherpaInstallError,
   installModel,
   locateModel,
+  partialDownloadBytes,
   probeWritableDir,
+  removeModel,
   type ModelSource,
 } from './modelStore';
 import { SherpaAddonLoadError, loadSherpaAddon } from './nativeAddon';
@@ -71,19 +73,14 @@ export interface SherpaAddon {
 }
 
 export interface SherpaServiceDeps {
-  /** 打包后：process.resourcesPath/tts-models */
-  resourcesRoot?: () => string | undefined;
   /** 开发态（未打包）模型目录候选 */
   devDirs?: () => string[];
   envDir?: () => string | undefined;
-  /** userData/tts-models：定位 + 打包态自动下载落点 */
-  userRoot?: () => string | undefined;
   /**
-   * 自动下载根目录（最终 `<root>/<id>/`）。
-   * 开发态：仓库同级 `../models`；未设置则不自动下载。
-   * 该目录不可写（盘符不存在 / 无权限）时回退到 userRoot。
+   * userData/tts-models：唯一的下载落点（最终 `<root>/<id>/`），也是定位候选之一。
+   * 模型不再随安装包分发（见 docs/design/tts-on-demand.md）。
    */
-  installRoot?: () => string | undefined;
+  userRoot?: () => string | undefined;
   /** 下载地址列表（镜像）；默认读 NOMI_SHERPA_TTS_MODEL_URL，兜底官方 URL */
   modelUrls?: () => string[];
   loadAddon?: () => SherpaAddon;
@@ -92,9 +89,7 @@ export interface SherpaServiceDeps {
   now?: () => number;
   /** 引擎加载超时（默认 60s）；超时按 engine_failed 处理并冷却 */
   engineLoadTimeoutMs?: number;
-  /** 下载失败后的重试冷却（默认 120s） */
-  downloadRetryCooldownMs?: number;
-  /** 进度日志（默认 console.info） */
+  /** 日志（默认 console.warn） */
   log?: (msg: string, extra?: Record<string, unknown>) => void;
 }
 
@@ -110,10 +105,12 @@ const SENTENCE_GAP_MS = 120;
 /** 引擎加载失败后的冷却：期间直接回退，避免每句话都重试 0.7s+ 的加载 */
 const ENGINE_RETRY_COOLDOWN_MS = 60_000;
 const ENGINE_LOAD_TIMEOUT_MS = 60_000;
-/** 下载失败后冷却：期间请求直接回退并带上次错误，避免每句话都重新下载 120MB */
-const DOWNLOAD_RETRY_COOLDOWN_MS = 120_000;
-/** 「模型下载中 x%」日志限频 */
-const DOWNLOAD_LOG_INTERVAL_MS = 5_000;
+/** 进度事件限频 */
+const PROGRESS_EMIT_INTERVAL_MS = 200;
+
+/** 缺模型时的统一提示（上层据此提示「去设置里开启语音下载模型」） */
+export const SHERPA_MODEL_MISSING_HINT =
+  'sherpa model not downloaded — enable voice in Settings to download it';
 
 function defaultLoadAddon(): SherpaAddon {
   // 懒加载：只有真正用到 sherpa 才 dlopen 原生库；缺平台包 / 加载失败时抛错（带诊断）
@@ -132,20 +129,22 @@ interface DownloadState {
   phase: 'download' | 'extract';
   received: number;
   total: number;
-  pct: number;
-  startedAt: number;
-  root: string;
+  ctl: AbortController;
+  promise: Promise<void>;
 }
+
+export type SherpaStatusListener = (s: SherpaModelStatus) => void;
 
 export class SherpaTtsService {
   private readonly manifest: ModelManifest;
   private engine: Promise<{ handle: SherpaHandle; modelDir: string }> | null = null;
   private engineFailedAt = 0;
   private lastError: string | undefined;
-  private ensurePromise: Promise<void> | null = null;
+  /** 上次下载失败原因（取消不算）；新下载开始 / 删除模型时清空 */
+  private downloadError: string | undefined;
   private dl: DownloadState | null = null;
-  private downloadFailedAt = 0;
-  private lastDownloadingLogAt = 0;
+  private lastEmitAt = 0;
+  private readonly listeners = new Set<SherpaStatusListener>();
   private queue: Promise<unknown> = Promise.resolve();
   private seq = 0;
 
@@ -167,185 +166,198 @@ export class SherpaTtsService {
   }
 
   private locate(): { dir: string; source: ModelSource } | null {
-    const resourcesRoot = this.deps.resourcesRoot?.();
     return locateModel({
       envDir: this.deps.envDir?.(),
-      resourcesDir: resourcesRoot ? path.join(resourcesRoot, this.manifest.id) : undefined,
       devDirs: this.deps.devDirs?.(),
-      userRoot: this.deps.userRoot?.(),
+      userRoot: this.safeUserRoot(),
       manifest: this.manifest,
     });
   }
 
-  getStatus(): SherpaModelStatus {
-    const base = { modelId: this.manifest.id };
-    const found = this.locate();
-    if (found) return { ...base, state: 'ready', source: found.source };
-    if (this.ensurePromise) {
-      return { ...base, state: 'missing', message: this.downloadingMessage() };
+  private safeUserRoot(): string | undefined {
+    try {
+      return this.deps.userRoot?.();
+    } catch {
+      return undefined;
     }
-    if (this.lastError) {
-      return { ...base, state: 'error', message: this.lastError };
-    }
-    return { ...base, state: 'missing' };
   }
 
-  /** 下载中 / 解压中的人读描述 */
-  private downloadingMessage(): string {
-    const d = this.dl;
-    if (!d) return 'sherpa model downloading';
-    return d.phase === 'extract'
-      ? '模型解压中，当前保持静默（完成后自动切换到离线语音）'
-      : `模型下载中 ${d.pct}%，当前保持静默（完成后自动切换到离线语音）`;
+  /** 状态变化订阅（下载进度限频）；返回取消订阅 */
+  onStatus(fn: SherpaStatusListener): () => void {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
+  private emit(force = true): void {
+    const t = this.now();
+    if (!force && t - this.lastEmitAt < PROGRESS_EMIT_INTERVAL_MS) return;
+    this.lastEmitAt = t;
+    const st = this.getStatus();
+    for (const fn of this.listeners) {
+      try {
+        fn(st);
+      } catch {
+        /* listener 错误不影响下载 */
+      }
+    }
+  }
+
+  isReady(): boolean {
+    return this.locate() !== null;
+  }
+
+  isDownloading(): boolean {
+    return this.dl !== null;
+  }
+
+  getStatus(): SherpaModelStatus {
+    const base = {
+      modelId: this.manifest.id,
+      total: this.manifest.bytes,
+      installedBytes: Object.values(this.manifest.files).reduce((a, b) => a + b, 0),
+    };
+    if (this.dl) {
+      return {
+        ...base,
+        state: 'downloading',
+        phase: this.dl.phase,
+        received: this.dl.received,
+        total: this.dl.total || this.manifest.bytes,
+      };
+    }
+    const found = this.locate();
+    if (found) return { ...base, state: 'ready', source: found.source };
+    const root = this.safeUserRoot();
+    const partialBytes = root ? partialDownloadBytes(root, this.manifest) : 0;
+    if (this.downloadError) {
+      return { ...base, state: 'error', message: this.downloadError, partialBytes };
+    }
+    return { ...base, state: 'missing', partialBytes };
   }
 
   /**
-   * 单飞安装：模型缺失时启动（或复用）后台下载。返回的 promise 在安装完成 resolve、失败 reject；
-   * 后台触发的调用方应自行 `.catch`（失败已写日志 + lastError）。
+   * 显式下载（设置页开启语音 / 重试）。单飞：下载中重复调用返回同一个 promise。
+   * 已就绪直接 resolve。失败 reject（SherpaTtsError not_ready，message 为原因）；
+   * 取消 reject（SherpaTtsError code=superseded）。半成品保留在 userData 用于续传。
    */
-  private startInstall(): Promise<void> {
-    if (this.ensurePromise) return this.ensurePromise;
-    const roots = this.installRoots();
-    if (roots.length === 0) {
-      return Promise.reject(new SherpaTtsError('not_ready', 'sherpa model not found'));
+  download(): Promise<void> {
+    if (this.dl) return this.dl.promise;
+    if (this.locate()) return Promise.resolve();
+    const root = this.safeUserRoot();
+    if (!root) {
+      return Promise.reject(new SherpaTtsError('not_ready', 'userData unavailable'));
     }
     const run = this.deps.install ?? installModel;
     const urls = this.deps.modelUrls?.() ?? resolveModelUrls(this.manifest);
-    let lastPct = -1;
+    const ctl = new AbortController();
     const startedAt = this.now();
-    this.dl = {
+    this.downloadError = undefined;
+    const state: DownloadState = {
       phase: 'download',
-      received: 0,
+      received: partialDownloadBytes(root, this.manifest),
       total: this.manifest.bytes,
-      pct: 0,
-      startedAt,
-      root: roots[0]!,
+      ctl,
+      promise: Promise.resolve(),
     };
-    this.log(`model missing; downloading ${this.manifest.id} → ${roots[0]}`, { urls });
-
-    this.ensurePromise = (async () => {
-      let lastErr: unknown;
-      for (const root of roots) {
-        try {
-          probeWritableDir(root);
-        } catch (e) {
-          lastErr = e;
-          this.log(`install dir unusable, trying next: ${e instanceof Error ? e.message : e}`);
-          continue;
-        }
-        if (this.dl) this.dl.root = root;
-        try {
-          const dir = await run({
-            installRoot: root,
-            manifest: this.manifest,
-            urls,
-            onEvent: (msg, extra) => this.log(msg, extra),
-            onProgress: (phase, p) => {
-              if (phase === 'extract') {
-                if (this.dl && this.dl.phase !== 'extract') {
-                  this.dl.phase = 'extract';
-                  this.log('extracting archive…');
-                }
-                return;
-              }
-              const total = p.total || this.manifest.bytes;
-              const pct = total > 0 ? Math.floor((p.received / total) * 100) : 0;
-              if (this.dl) Object.assign(this.dl, { received: p.received, total, pct });
-              // 每 10% 打一次，避免刷屏
-              if (pct >= lastPct + 10 || p.received === total) {
-                lastPct = pct;
-                this.log(`download ${pct}%`, { received: p.received, total });
-              }
-            },
-          });
-          this.lastError = undefined;
-          this.engineFailedAt = 0;
-          this.downloadFailedAt = 0;
-          this.log(`model ready at ${dir} (${this.now() - startedAt}ms)`);
-          return;
-        } catch (e) {
-          lastErr = e;
-          // 目录类问题（prepare）换下一个根目录；其余（网络 / 解压）不换目录重下
-          if (!(e instanceof SherpaInstallError && e.phase === 'prepare')) break;
-          this.log(`install failed at ${root}, trying next dir: ${e.message}`);
-        }
-      }
-      throw lastErr ?? new Error('sherpa model install failed');
+    this.dl = state;
+    this.log(`downloading ${this.manifest.id} → ${root}`, { urls, resumeFrom: state.received });
+    let lastPct = -1;
+    state.promise = (async () => {
+      probeWritableDir(root);
+      const dir = await run({
+        installRoot: root,
+        manifest: this.manifest,
+        urls,
+        signal: ctl.signal,
+        resume: true,
+        onEvent: (msg, extra) => this.log(msg, extra),
+        onProgress: (phase, p) => {
+          if (phase === 'extract') {
+            if (state.phase !== 'extract') {
+              state.phase = 'extract';
+              this.emit();
+            }
+            return;
+          }
+          state.received = p.received;
+          state.total = p.total || this.manifest.bytes;
+          const pct = Math.floor((p.received / state.total) * 100);
+          if (pct >= lastPct + 10) {
+            lastPct = pct;
+            this.log(`download ${pct}%`, { received: p.received, total: state.total });
+          }
+          this.emit(false);
+        },
+      });
+      this.engineFailedAt = 0;
+      this.lastError = undefined;
+      this.log(`model ready at ${dir} (${this.now() - startedAt}ms)`);
     })()
       .catch((e: unknown) => {
+        if (ctl.signal.aborted) {
+          this.log('download cancelled');
+          throw new SherpaTtsError('superseded', 'download cancelled');
+        }
         const msg = e instanceof Error ? e.message : String(e);
-        this.lastError = msg;
-        this.downloadFailedAt = this.now();
+        this.downloadError = msg;
         const phase = e instanceof SherpaInstallError ? e.phase : 'unknown';
         this.log(`model install FAILED [${phase}]: ${msg}`);
-        throw e instanceof SherpaTtsError ? e : new SherpaTtsError('not_ready', msg);
+        throw new SherpaTtsError('not_ready', msg);
       })
       .finally(() => {
-        this.ensurePromise = null;
-        this.dl = null;
+        if (this.dl === state) this.dl = null;
+        this.emit();
       });
-    return this.ensurePromise;
+    this.emit();
+    return state.promise;
   }
 
-  /** 只有配置了 installRoot 才允许自动下载；不可写时回退 userRoot */
-  private installRoots(): string[] {
-    const primary = this.deps.installRoot?.();
-    if (!primary) return [];
-    const fallback = this.deps.userRoot?.();
-    return fallback && fallback !== primary ? [primary, fallback] : [primary];
-  }
-
-  /**
-   * 非阻塞检查：模型已就绪返回；否则启动（或复用）后台下载并抛 'downloading' / 'not_ready'。
-   * synthesize 路径只用它，绝不 await 下载。
-   */
-  private requireModelOrKickInstall(): void {
-    if (this.locate()) return;
-    if (this.ensurePromise) {
-      this.logDownloading();
-      throw new SherpaTtsError('downloading', this.downloadingMessage());
-    }
-    if (this.installRoots().length === 0) {
-      throw new SherpaTtsError('not_ready', 'sherpa model not found');
-    }
-    const cooldown = this.deps.downloadRetryCooldownMs ?? DOWNLOAD_RETRY_COOLDOWN_MS;
-    if (this.downloadFailedAt && this.now() - this.downloadFailedAt < cooldown) {
-      const wait = Math.ceil((cooldown - (this.now() - this.downloadFailedAt)) / 1000);
-      throw new SherpaTtsError(
-        'not_ready',
-        `${this.lastError ?? 'sherpa model download failed'}（${wait}s 后自动重试下载）`,
-      );
-    }
-    this.startInstall().catch(() => undefined); // 失败已记录；不 await
-    throw new SherpaTtsError('downloading', this.downloadingMessage());
-  }
-
-  private logDownloading(): void {
-    const t = this.now();
-    if (t - this.lastDownloadingLogAt < DOWNLOAD_LOG_INTERVAL_MS) return;
-    this.lastDownloadingLogAt = t;
+  /** 取消下载并删除半成品（不续传）。没有下载时也清理残留的 .part。 */
+  async cancelDownload(): Promise<void> {
     const d = this.dl;
-    this.log(
-      d?.phase === 'extract'
-        ? '模型解压中，tts:speak 保持静默'
-        : `模型下载中 ${d?.pct ?? 0}%，tts:speak 保持静默`,
-      d ? { received: d.received, total: d.total, elapsedMs: t - d.startedAt } : undefined,
-    );
-  }
-
-  /** 阻塞版（仅设置页「检测」/ warmup 用）：等待下载完成。 */
-  private async ensureModelPresent(): Promise<void> {
-    if (this.locate()) return;
-    if (this.installRoots().length === 0) {
-      throw new SherpaTtsError('not_ready', 'sherpa model not found');
+    if (d) {
+      d.ctl.abort();
+      await d.promise.catch(() => undefined);
     }
-    await this.startInstall();
+    const root = this.safeUserRoot();
+    if (root) removeModel(root, this.manifest, { keepModel: true });
+    this.downloadError = undefined;
+    this.emit();
   }
 
   /**
-   * @param wait true：缺模型时等待后台下载完成（仅 warmup）；false（默认）：缺模型立即抛 downloading / not_ready。
+   * 删除 userData 里的模型（含半成品）并卸载引擎。env / 开发目录里的模型不动。
+   * 返回删除后的状态。
    */
-  private ensureEngine(wait = false): Promise<{ handle: SherpaHandle; modelDir: string }> {
+  async deleteModel(): Promise<SherpaModelStatus> {
+    await this.cancelDownload();
+    const root = this.safeUserRoot();
+    if (root) removeModel(root, this.manifest);
+    this.resetEngine();
+    this.downloadError = undefined;
+    this.emit();
+    return this.getStatus();
+  }
+
+  /** 丢弃已加载的引擎（模型被删除后用）；进行中的合成会因 seq 变化在句间退出 */
+  resetEngine(): void {
+    this.engine = null;
+    this.engineFailedAt = 0;
+    this.seq++;
+  }
+
+  /** 模型缺失时抛 not_ready（带提示），绝不自动下载、绝不崩溃 */
+  private requireModel(): void {
+    if (this.locate()) return;
+    if (this.dl) {
+      const pct = Math.floor((this.dl.received / (this.dl.total || 1)) * 100);
+      throw new SherpaTtsError('downloading', `sherpa model downloading ${pct}%`);
+    }
+    throw new SherpaTtsError('not_ready', SHERPA_MODEL_MISSING_HINT);
+  }
+
+  /** 缺模型立即抛 downloading / not_ready（不下载） */
+  private ensureEngine(): Promise<{ handle: SherpaHandle; modelDir: string }> {
     if (this.engine) return this.engine;
     if (this.engineFailedAt && this.now() - this.engineFailedAt < ENGINE_RETRY_COOLDOWN_MS) {
       return Promise.reject(
@@ -353,11 +365,10 @@ export class SherpaTtsService {
       );
     }
     const p = (async () => {
-      if (wait) await this.ensureModelPresent();
-      else this.requireModelOrKickInstall();
+      this.requireModel();
       const found = this.locate();
       if (!found) {
-        throw new SherpaTtsError('not_ready', 'sherpa model not found after install');
+        throw new SherpaTtsError('not_ready', 'sherpa model not found');
       }
       const dir = found.dir;
       const t0 = this.now();
@@ -406,10 +417,10 @@ export class SherpaTtsService {
     });
   }
 
-  /** 预加载引擎（设置页「检测」用）；缺模型时会先自动下载。返回耗时毫秒。 */
+  /** 预加载引擎（设置页「检测」用）；缺模型时抛 not_ready（不下载）。返回耗时毫秒。 */
   async warmup(): Promise<number> {
     const t0 = this.now();
-    await this.ensureEngine(true);
+    await this.ensureEngine();
     return this.now() - t0;
   }
 
@@ -423,7 +434,7 @@ export class SherpaTtsService {
     // 快速路径：模型未就绪（下载中 / 失败冷却）直接拒绝，不入队、不顶掉正在进行的合成
     if (!this.engine && (text?.trim() ?? '')) {
       try {
-        this.requireModelOrKickInstall();
+        this.requireModel();
       } catch (e) {
         return Promise.reject(e);
       }

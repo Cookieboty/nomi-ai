@@ -8,20 +8,22 @@ import { SherpaTtsService } from './SherpaTtsService';
 export { SherpaTtsService, SherpaTtsError } from './SherpaTtsService';
 export type { SherpaErrorCode } from './SherpaTtsService';
 export * from './manifest';
-export { locateModel, verifyModelDir, installModel } from './modelStore';
+export { locateModel, verifyModelDir, installModel, removeModel } from './modelStore';
+export { SHERPA_MODEL_MISSING_HINT } from './SherpaTtsService';
 export { splitSentences } from './sentences';
 export { encodeWavPcm16, concatSamples } from './wav';
 
 let singleton: SherpaTtsService | null = null;
 
 /**
- * 开发态（未打包）模型目录：
+ * 下载落点永远是 userData/tts-models（开发 / 打包一致）；安装包不再携带模型。
+ * 开发态（未打包）额外定位以下模型目录：
  * - 仓库同级 ../models/<id>（例如 /workspace/models/vits-zh-hf-theresa）
  * - 仓库内 models/<id>
- * - 本地已同步的 resources/tts-models/<id>（pnpm sync-tts-model 后）
  */
 function devModelDirs(): string[] {
-  if (app.isPackaged) return [];
+  // NOMI_SHERPA_TTS_DEV_DIRS=0：开发 / E2E 时模拟「安装版没有模型」（只看 userData）
+  if (app.isPackaged || process.env.NOMI_SHERPA_TTS_DEV_DIRS === '0') return [];
   try {
     const appPath = app.getAppPath();
     // packages/electron → repo root → sibling models
@@ -30,22 +32,9 @@ function devModelDirs(): string[] {
     return [
       path.resolve(repoRoot, '../models', SHERPA_MODEL_ID),
       path.resolve(repoRoot, 'models', SHERPA_MODEL_ID),
-      path.join(electronRoot, 'resources', 'tts-models', SHERPA_MODEL_ID),
     ];
   } catch {
     return [];
-  }
-}
-
-/** 开发态自动下载落点：仓库同级 ../models（与 locate / sync 一致） */
-function devInstallRoot(): string | undefined {
-  if (app.isPackaged) return undefined;
-  try {
-    const electronRoot = path.resolve(app.getAppPath());
-    const repoRoot = path.resolve(electronRoot, '../..');
-    return path.resolve(repoRoot, '../models');
-  } catch {
-    return undefined;
   }
 }
 
@@ -56,27 +45,10 @@ function userDataModelsRoot(): string {
 export function getSherpaTtsService(): SherpaTtsService {
   if (!singleton) {
     singleton = new SherpaTtsService({
-      resourcesRoot: () => {
-        try {
-          if (!app.isPackaged) return undefined;
-          return path.join(process.resourcesPath, 'tts-models');
-        } catch {
-          return undefined;
-        }
-      },
       devDirs: devModelDirs,
       envDir: () => process.env.NOMI_SHERPA_TTS_MODEL_DIR?.trim() || undefined,
       userRoot: () => {
         try {
-          return userDataModelsRoot();
-        } catch {
-          return undefined;
-        }
-      },
-      // 开发：下到 ../models；打包且 extraResources 缺失时下到 userData（兜底，无 UI）
-      installRoot: () => {
-        try {
-          if (!app.isPackaged) return devInstallRoot();
           return userDataModelsRoot();
         } catch {
           return undefined;

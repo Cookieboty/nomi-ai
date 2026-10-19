@@ -16,6 +16,8 @@ import {
   SherpaInstallError,
   installModel,
   locateModel,
+  partialDownloadBytes,
+  removeModel,
   verifyModelDir,
 } from '../../../src/tts/sherpa/modelStore';
 
@@ -252,5 +254,42 @@ describe('installModel', () => {
 
   it('sanity: fixture sha constant matches the embedded bytes', () => {
     expect(createHash('sha256').update(FIXTURE).digest('hex')).toBe(FIXTURE_SHA);
+  });
+});
+
+describe('removeModel / partialDownloadBytes', () => {
+  const m: ModelManifest = {
+    id: 'tiny',
+    url: 'u',
+    sha256: '0'.repeat(64),
+    bytes: 1,
+    topDir: 'tiny',
+    files: {},
+  };
+
+  it('reports partial bytes and removes model / partial / download dirs', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-rm-'));
+    fs.mkdirSync(path.join(root, 'tiny'));
+    fs.mkdirSync(path.join(root, 'tiny.partial'));
+    fs.mkdirSync(path.join(root, '.download'));
+    fs.writeFileSync(path.join(root, '.download', 'tiny.tar.bz2.part'), 'abc');
+    expect(partialDownloadBytes(root, m)).toBe(3);
+    removeModel(root, m, { keepModel: true });
+    expect(fs.existsSync(path.join(root, 'tiny'))).toBe(true);
+    expect(fs.existsSync(path.join(root, '.download'))).toBe(false);
+    expect(partialDownloadBytes(root, m)).toBe(0);
+    removeModel(root, m);
+    expect(fs.readdirSync(root)).toEqual([]);
+  });
+
+  it('installModel forwards resume to the downloader', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-resume-'));
+    const download = jest.fn(async () => {
+      throw Object.assign(new Error('nope'), { status: 404 });
+    });
+    await expect(
+      installModel({ installRoot: root, manifest: m, download: download as never, resume: true }),
+    ).rejects.toBeInstanceOf(SherpaInstallError);
+    expect(download).toHaveBeenCalledWith(expect.objectContaining({ resume: true }));
   });
 });

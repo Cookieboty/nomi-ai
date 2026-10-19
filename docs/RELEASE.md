@@ -150,9 +150,7 @@ export COREPACK_HOME="${COREPACK_HOME:-$HOME/.cache/corepack}"
 pnpm install --frozen-lockfile
 pnpm turbo run build
 
-# 离线 TTS 模型（~133MB；package 的 pre* 也会 sync）
-pnpm --filter @nomi-ai/electron run ensure-tts-model
-pnpm --filter @nomi-ai/electron run sync-tts-model
+# 离线 TTS 模型不再打包（用户开启语音时下载到 userData，见 docs/design/tts-on-demand.md），无需 sync
 
 # 补齐本靶场需要的 sherpa 原生包（Mac 会拉 darwin-x64 + darwin-arm64）
 node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
@@ -162,7 +160,7 @@ node scripts/release/ensure-sherpa-platform.mjs linux   # 在 Linux 上
 # 打包（脚本名见 packages/electron/package.json）
 pnpm package:prod:linux   # → dist/*.AppImage
 pnpm package:prod:win     # → dist/Nomi Setup *.exe（须在 Windows）
-pnpm package:prod:mac     # → dist/*.dmg + dist/*-mac.zip（x64/arm64；须在 macOS；prepackage 已跑 sync-tts-model）
+pnpm package:prod:mac     # → dist/*.dmg + dist/*-mac.zip（x64/arm64；须在 macOS）
 ```
 
 等价（只跑 electron 包）：

@@ -488,10 +488,8 @@
   "TTS 合成失败": "TTS synthesis failed",
   "离线语音引擎就绪（模型位置：{0}）": "Offline voice engine ready (model location: {0})",
   "离线语音模型不可用: {0}": "Offline voice model unavailable: {0}",
-  "离线语音模型缺失，当前没有可用 TTS": "Offline voice model is missing; no TTS is available",
   "离线语音引擎加载失败，没有可用 TTS: {0}": "Offline voice engine failed to load; no TTS is available: {0}",
   "Claude 进程 stdin 不可写": "Claude process stdin is not writable",
-  "{0}（{1}s 后自动重试下载）": "{0} (will retry download automatically in {1}s)",
   "model dir not writable: {0} ({1}) — 请检查盘符是否存在 / 目录权限，": "model dir not writable: {0} ({1}) — check that the drive exists and the folder is writable,",
   "或用 NOMI_SHERPA_TTS_MODEL_DIR 指向已手动解压的模型目录": " or set NOMI_SHERPA_TTS_MODEL_DIR to a folder where you already unpacked the model",
   " — 网络慢 / GitHub 不可达时请设置 NOMI_SHERPA_TTS_MODEL_URL 镜像，或手动下载解压（见 docs/features/voice.md）": " — if the network is slow or GitHub is unreachable, set NOMI_SHERPA_TTS_MODEL_URL to a mirror, or download and unpack manually (see docs/features/voice.md)",
@@ -499,8 +497,6 @@
   "模型文件校验失败：{0}": "Voice model files failed verification: {0}",
   "model finalize failed ({0} → {1}): {2} — 目录可能被杀毒软件 / 资源管理器占用": "model finalize failed ({0} → {1}): {2} — the folder may be locked by antivirus or File Explorer",
   "sherpa-onnx 不支持当前平台 {0}-{1}（支持：{2}）": "sherpa-onnx does not support this platform {0}-{1} (supported: {2})",
-  "模型解压中，当前保持静默（完成后自动切换到离线语音）": "Unpacking the voice model; staying silent for now (switches to offline voice when ready)",
-  "模型下载中 {0}%，当前保持静默（完成后自动切换到离线语音）": "Downloading the voice model {0}%; staying silent for now (switches to offline voice when ready)",
   "sherpa-onnx 原生库加载失败（{0}-{1}）：{2}": "Failed to load the sherpa-onnx native library ({0}-{1}): {2}",
   "未找到平台包 {0}（{1}）。": "Platform package {0} not found ({1}).",
   "请在本机重新安装依赖：pnpm install（不要拷贝其它系统的 node_modules，": " Reinstall dependencies on this machine with pnpm install (don’t copy node_modules from another OS,",
@@ -544,5 +540,7 @@
   "完全放开需要先确认": "Full access requires confirmation first",
   "完全放开不能设为默认模式": "Full access can't be the default mode",
   "已恢复为修改前的配置": "Restored the configuration from before the edit",
-  "下载长时间没有数据，已中止": "No data received for a long time; download aborted"
+  "下载长时间没有数据，已中止": "No data received for a long time; download aborted",
+  "离线语音模型未下载：请在「设置 → 语音」开启语音以下载": "Offline voice model not downloaded: turn on voice in Settings → Voice to download it",
+  "离线语音模型下载中，请稍候": "Offline voice model is downloading, please wait"
 }

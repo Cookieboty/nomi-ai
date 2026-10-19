@@ -50,7 +50,7 @@ openWakeWord pretrained models (CC BY-NC-SA 4.0) are **not** used.
 
 ## Speech output (offline, default)
 
-The speech model (~133 MB) is shipped as an Electron `extraResource` (`resources/tts-models/`, staged at package time by `scripts/sync-tts-model.mjs`, not committed to git). Per-file sizes are checked against `packages/electron/src/tts/sherpa/manifest.ts`.
+The speech model (~115 MB download, ~133 MB extracted) is **not** shipped in the installer: it is downloaded from the official k2-fsa/sherpa-onnx release into the user data folder when the user turns voice on (see `docs/design/tts-on-demand.md`). The archive sha256 and per-file sizes are pinned in `packages/electron/src/tts/sherpa/manifest.ts`.
 
 | Component                                                                                                                    | Licence    | Notes                                                                                                                                             |
 | ---------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |

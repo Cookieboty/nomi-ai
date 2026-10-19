@@ -325,7 +325,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}
+              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}{' '}
+              {t('首次开启声音会下载离线语音模型（约 115 MB），下载完成后才能试听。')}
             </p>
           </>
         );

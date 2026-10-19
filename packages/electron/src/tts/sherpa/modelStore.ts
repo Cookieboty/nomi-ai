@@ -115,6 +115,8 @@ export interface InstallOptions {
   /** 重试退避基数（默认 1500ms，线性递增） */
   retryDelayMs?: number;
   signal?: AbortSignal;
+  /** 断点续传：失败 / 进程退出后保留 `.download/<id>.tar.bz2.part`，下次 Range 续传 */
+  resume?: boolean;
   onProgress?: (phase: InstallPhase, p: DownloadProgress) => void;
   /** 重试 / 切换镜像等事件日志 */
   onEvent?: (msg: string, extra?: Record<string, unknown>) => void;
@@ -168,6 +170,7 @@ export async function installModel(opts: InstallOptions): Promise<string> {
             idleTimeoutMs: opts.idleTimeoutMs ?? 30_000,
             onProgress: (p) => opts.onProgress?.('download', p),
             fetchImpl: opts.fetchImpl,
+            resume: opts.resume,
           });
           downloaded = true;
           break outer;
@@ -224,5 +227,34 @@ export async function installModel(opts: InstallOptions): Promise<string> {
     throw e;
   } finally {
     rmQuiet(archive);
+  }
+}
+
+/** 下载临时目录（`.download/`，含续传用的 `.part`） */
+export function downloadTmpDir(installRoot: string): string {
+  return path.join(installRoot, '.download');
+}
+
+/** 删除已安装模型 + 半成品 + 下载临时文件（「删除模型」/ 取消下载用） */
+export function removeModel(
+  installRoot: string,
+  manifest: ModelManifest = SHERPA_MANIFEST,
+  opts: { keepModel?: boolean } = {},
+): void {
+  const finalDir = path.join(installRoot, manifest.id);
+  if (!opts.keepModel) rmQuiet(finalDir, true);
+  rmQuiet(`${finalDir}.partial`, true);
+  rmQuiet(downloadTmpDir(installRoot), true);
+}
+
+/** 已下载的续传字节数（UI 显示「将从 x% 继续」用；没有返回 0） */
+export function partialDownloadBytes(
+  installRoot: string,
+  manifest: ModelManifest = SHERPA_MANIFEST,
+): number {
+  try {
+    return fs.statSync(path.join(downloadTmpDir(installRoot), `${manifest.id}.tar.bz2.part`)).size;
+  } catch {
+    return 0;
   }
 }
