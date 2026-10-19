@@ -19,6 +19,7 @@ describe('EndpointIcon', () => {
         codex: 'Codex',
         dsh: 'dsh',
         grok: 'Grok',
+        gemini: 'Gemini',
       }[b];
       expect(icon.getAttribute('role')).toBe('img');
       expect(icon.getAttribute('aria-label')).toBe(name);

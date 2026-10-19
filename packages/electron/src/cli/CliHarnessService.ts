@@ -29,11 +29,14 @@ import {
   resolveCliBinCached,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
+import { AcpConnection } from './gemini/acp';
+import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   DEFAULT_PERMISSION_MODE,
   claudeModeName,
   effectiveMode,
+  geminiModeId,
   isPermissionMode,
   permissionLaunch,
   planPromptPrefix,
@@ -80,7 +83,7 @@ const CHAT_IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const MAX_GENERATED_IMAGE_BYTES = 20 * 1024 * 1024;
 const IMAGE_ALIAS_FILE = 'image-aliases.json';
 
-const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok'];
+const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -233,6 +236,7 @@ const BACKEND_TITLE: Record<HarnessBackend, string> = {
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 function mockDir(): string {
@@ -256,7 +260,7 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   return resolveCliBinCached(backend);
 }
 
-const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
 function peekHarnessBin(backend: CliBackend): string | null {
@@ -307,6 +311,8 @@ export class CliHarnessService {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** Gemini ACP 长驻进程（docs/design/cli-official-accounts.md §8）：同一标签多轮复用 */
+  private readonly geminiLive = new Map<string, GeminiLiveSession>();
   /** tabId → 运行中的后台子代理（来自 agent 事件；后台任务条与「停止子代理」用） */
   private readonly bgAgents = new Map<string, Map<string, { label?: string; startedAt: number }>>();
   /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
@@ -574,6 +580,7 @@ export class CliHarnessService {
         codex: peekHarnessBin('codex'),
         dsh: peekHarnessBin('dsh'),
         grok: peekHarnessBin('grok'),
+        gemini: peekHarnessBin('gemini'),
       },
     };
   }
@@ -888,6 +895,13 @@ export class CliHarnessService {
     const next = effectiveMode(tab.backend, mode);
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
+      const gl = this.geminiLive.get(id);
+      if (gl?.sessionId && gl.permissionMode !== next.mode) {
+        gl.permissionMode = next.mode;
+        void gl.conn
+          .request('session/set_mode', { sessionId: gl.sessionId, modeId: geminiModeId(next.mode) })
+          .catch(() => this.teardownGeminiLive(id));
+      }
       const live = this.claudeLive.get(id);
       if (live && live.permissionMode !== next.mode) {
         const sent = this.writeClaudeControl(live, {
@@ -958,6 +972,13 @@ export class CliHarnessService {
     if (live?.turn) {
       this.writeClaudeControl(live, { subtype: 'interrupt' });
     }
+    // Gemini：ACP session/cancel，进程保留供下一轮
+    const gl = this.geminiLive.get(id);
+    if (gl?.turn) {
+      this.stopRequested.add(id);
+      this.cancelGeminiTurn(gl);
+      return true;
+    }
     if (!this.children.has(id) && !live) {
       if (queued) {
         // 还在排队：直接退出等待队列
@@ -986,6 +1007,7 @@ export class CliHarnessService {
     this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
+    for (const id of [...this.geminiLive.keys()]) this.teardownGeminiLive(id);
     for (const [id, child] of [...this.children.entries()]) {
       killProcessTree(child);
       this.children.delete(id);
@@ -1049,7 +1071,9 @@ export class CliHarnessService {
             ? await this.runDsh(tab, text)
             : backend === 'grok'
               ? await this.runGrok(tab, text)
-              : await this.runCodex(tab, text);
+              : backend === 'gemini'
+                ? await this.runGemini(tab, text)
+                : await this.runCodex(tab, text);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
       tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
       // 去重保序：同一 tool_use 后出现的 done/error 覆盖开始态标签
@@ -1420,6 +1444,203 @@ export class CliHarnessService {
     if (dropAfter) this.dropRecycledClaude(tabId, live);
   }
 
+  // ───────────────────────── Gemini（ACP） ─────────────────────────
+
+  /**
+   * Gemini CLI 的 ACP 长驻进程（`gemini --acp`）：initialize → session/load（有会话 id 时）或 session/new
+   * → session/set_mode；每轮 session/prompt。审批经 session/request_permission 进权限队列。
+   */
+  private async ensureGeminiLive(tab: HarnessTabMeta): Promise<GeminiLiveSession> {
+    const existing = this.geminiLive.get(tab.id);
+    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+      await existing.ready;
+      return existing;
+    }
+    if (existing) this.teardownGeminiLive(tab.id);
+    const bin = resolveHarnessBin('gemini');
+    if (!bin) throw new Error(t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'));
+    const useNode = isScript(bin);
+    const argv = ['--acp'];
+    const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
+      cwd: tab.cwd,
+      // 不受信任的目录下 headless 会直接退出（55）或把审批强制回 default
+      env: cliChildEnv(useNode, { GEMINI_CLI_TRUST_WORKSPACE: 'true' }),
+    });
+    child.stderr.on('data', (c) =>
+      this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500)),
+    );
+    const live: GeminiLiveSession = {
+      child,
+      conn: null as unknown as AcpConnection,
+      sessionId: null,
+      cwd: tab.cwd,
+      permissionMode: tab.permissionMode,
+      turn: null,
+      perms: new Map(),
+      lastActivityAt: Date.now(),
+      ready: Promise.resolve(),
+    };
+    live.conn = new AcpConnection(child, {
+      onNotification: (method, params) => {
+        if (method !== 'session/update') return;
+        live.lastActivityAt = Date.now();
+        const u = (params.update ?? {}) as Record<string, unknown>;
+        if (live.turn) this.onGeminiEvents(tab.id, live, live.turn.mapper.update(u));
+      },
+      onRequest: async (method, params) => {
+        if (method !== 'session/request_permission')
+          throw new Error(`unsupported client method ${method}`);
+        const id = `gemini-perm-${randomUUID()}`;
+        const allowed = await new Promise<boolean | null>((resolve) => {
+          live.perms.set(id, (allow) => {
+            live.perms.delete(id);
+            resolve(allow);
+          });
+          const ev = withPermissionExpiry({
+            type: 'permission',
+            id,
+            summary: permissionSummary(params),
+          });
+          this.onGeminiEvents(tab.id, live, [ev]);
+        });
+        const optionId = allowed === null ? null : pickPermissionOption(params.options, allowed);
+        return optionId
+          ? { outcome: { outcome: 'selected', optionId } }
+          : { outcome: { outcome: 'cancelled' } };
+      },
+    });
+    child.on('close', () => {
+      if (this.geminiLive.get(tab.id) === live) this.geminiLive.delete(tab.id);
+      this.clearPermissionTimeouts(tab.id);
+      for (const done of live.perms.values()) done(null);
+    });
+    this.geminiLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
+    live.ready = (async () => {
+      await live.conn.request('initialize', {
+        protocolVersion: 1,
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+      });
+      let sid: string | null = null;
+      if (tab.cliSessionId) {
+        sid = await live.conn
+          .request('session/load', { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] })
+          .then(() => tab.cliSessionId)
+          .catch(() => null);
+      }
+      if (!sid) {
+        const r = await live.conn.request<{ sessionId?: string }>('session/new', {
+          cwd: tab.cwd,
+          mcpServers: [],
+        });
+        sid = r?.sessionId ?? null;
+      }
+      if (!sid) throw new Error(t('Gemini 没有返回会话'));
+      live.sessionId = sid;
+      await live.conn
+        .request('session/set_mode', { sessionId: sid, modeId: geminiModeId(tab.permissionMode) })
+        .catch(() => undefined);
+    })();
+    try {
+      await live.ready;
+    } catch (e) {
+      this.teardownGeminiLive(tab.id);
+      throw e;
+    }
+    return live;
+  }
+
+  private onGeminiEvents(tabId: string, live: GeminiLiveSession, evs: HarnessEvent[]) {
+    for (const raw of evs) {
+      let ev = withPermissionExpiry(stampEvent(raw));
+      const turn = live.turn;
+      if (turn) {
+        const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
+        turn.text = folded.text;
+        turn.breaks = folded.breaks;
+        ev = folded.ev;
+        if (ev.type !== 'text-delta') turn.events.push(ev);
+      }
+      this.emitEvent(tabId, ev);
+      if (ev.type === 'permission') {
+        this.armPermissionTimeout(tabId, ev.id);
+        const tab = this.tabs.get(tabId);
+        this.events.emit('permission-needed', {
+          tabId,
+          title: tab?.title ?? 'Gemini',
+          backend: 'gemini' as HarnessBackend,
+          summary: ev.summary,
+          background: this.activeTabId !== tabId || !anyWindowFocused(),
+        });
+      }
+    }
+  }
+
+  private async runGemini(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+    const live = await this.ensureGeminiLive(tab);
+    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    const turn: GeminiTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
+    live.turn = turn;
+    live.lastActivityAt = Date.now();
+    try {
+      const r = await live.conn.request<{
+        stopReason?: string;
+        _meta?: { quota?: { token_count?: { input_tokens?: number; output_tokens?: number } } };
+      }>('session/prompt', { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] });
+      this.onGeminiEvents(tab.id, live, turn.mapper.flush());
+      if (r?.stopReason === 'cancelled') throw new Error(t('已中止'));
+      const tc = r?._meta?.quota?.token_count;
+      const usage =
+        tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
+          ? {
+              ...(tc.input_tokens !== undefined ? { inputTokens: tc.input_tokens } : {}),
+              ...(tc.output_tokens !== undefined ? { outputTokens: tc.output_tokens } : {}),
+            }
+          : undefined;
+      const done: HarnessEvent = {
+        type: 'done',
+        text: turn.text,
+        sessionId: live.sessionId ?? undefined,
+        ...(usage ? { usage } : {}),
+      };
+      turn.events.push(done);
+      this.emitEvent(tab.id, done);
+      return {
+        text: turn.text || t('（无文本输出）'),
+        sessionId: live.sessionId,
+        events: turn.events,
+        ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
+      };
+    } finally {
+      live.turn = null;
+      live.lastActivityAt = Date.now();
+    }
+  }
+
+  private cancelGeminiTurn(live: GeminiLiveSession) {
+    if (live.sessionId) live.conn.notify('session/cancel', { sessionId: live.sessionId });
+    // 规范要求：取消时挂起的权限请求按 cancelled 应答
+    for (const done of [...live.perms.values()]) done(null);
+  }
+
+  private teardownGeminiLive(tabId: string) {
+    const live = this.geminiLive.get(tabId);
+    if (!live) return;
+    this.geminiLive.delete(tabId);
+    for (const done of [...live.perms.values()]) done(null);
+    try {
+      if (live.child.stdin.writable) live.child.stdin.end();
+    } catch {
+      /* */
+    }
+    try {
+      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
+    } catch {
+      /* */
+    }
+  }
+
   /**
    * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
    */
@@ -1546,15 +1767,25 @@ export class CliHarnessService {
    */
   reclaimIdle(now = Date.now()): string[] {
     const picked = pickIdle(
-      [...this.claudeLive.entries()].map(([id, live]) => ({
-        id,
-        lastActivityAt: live.lastActivityAt,
-        turnActive: live.turn !== null,
-        permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
-        tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-        resumable: Boolean(this.tabs.get(id)?.cliSessionId),
-        backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
-      })),
+      [
+        ...[...this.geminiLive.entries()].map(([id, gl]) => ({
+          id,
+          lastActivityAt: gl.lastActivityAt,
+          turnActive: gl.turn !== null,
+          permissionPending: gl.perms.size > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+        })),
+        ...[...this.claudeLive.entries()].map(([id, live]) => ({
+          id,
+          lastActivityAt: live.lastActivityAt,
+          turnActive: live.turn !== null,
+          permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+          backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
+        })),
+      ],
       now,
       this.idleReclaimMs,
     );
@@ -1564,7 +1795,7 @@ export class CliHarnessService {
       this.d.logger.info('harness idle process reclaimed', { tabId: id });
     }
     if (picked.length) this.changed();
-    if (!this.claudeLive.size) this.stopIdleSweep();
+    if (!this.claudeLive.size && !this.geminiLive.size) this.stopIdleSweep();
     return picked;
   }
 
@@ -1597,6 +1828,8 @@ export class CliHarnessService {
 
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
+    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 Gemini 的 ACP 进程
+    this.teardownGeminiLive(tabId);
     this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
@@ -1977,6 +2210,13 @@ export class CliHarnessService {
     allow: boolean,
     reason: 'allowed' | 'denied' | 'timeout' = allow ? 'allowed' : 'denied',
   ): boolean {
+    const gemini = this.geminiLive.get(tabId)?.perms.get(requestId);
+    if (gemini) {
+      this.clearOnePermissionTimeout(tabId, requestId);
+      gemini(allow);
+      this.emitEvent(tabId, { type: 'permission-resolved', id: requestId, reason });
+      return true;
+    }
     // 两轮之间（后台子代理 / 自发轮次）发起的请求没有 children 记录：改用长驻进程的 stdin
     const child = this.children.get(tabId) ?? this.claudeLive.get(tabId)?.child;
     if (!child || !requestId || child.stdin.destroyed || !child.stdin.writable) return false;
@@ -2119,6 +2359,26 @@ type ClaudeTurnWaiter = {
   sessionId: string | null;
   lastError: string | null;
   settled: boolean;
+};
+
+type GeminiTurn = {
+  mapper: ReturnType<typeof createGeminiMapper>;
+  events: HarnessEvent[];
+  text: string;
+  breaks: number[];
+};
+
+type GeminiLiveSession = {
+  child: ChildProcessWithoutNullStreams;
+  conn: AcpConnection;
+  sessionId: string | null;
+  cwd: string;
+  permissionMode: HarnessPermissionMode;
+  turn: GeminiTurn | null;
+  /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
+  perms: Map<string, (allow: boolean | null) => void>;
+  lastActivityAt: number;
+  ready: Promise<void>;
 };
 
 type ClaudeLiveSession = {

@@ -1,5 +1,5 @@
 /**
- * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / 监视与会话。
+ * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话。
  * - 四个端点各自独立：Nomi 是自有 AI 的供应商 + 任务路由（存于 ai-providers.json）；
  *   Claude Code / Codex / dsh / Grok 用与 Nomi 相同的供应商卡片交互（预设模板、添加 / 编辑 / 启用 / 测速 / 删除），
  *   默认「使用 CLI 自带登录/默认配置」；每个 CLI 端点还有「版本」卡片（检测 / 更新 / 安装）与「高级」（本地路由）。
@@ -20,9 +20,24 @@ import { EndpointIcon } from '../EndpointIcon';
 import { ProviderPanel } from '../lazyPanels';
 
 import { CliEndpointSection } from './CliEndpointSection';
+import { CliVersionCard } from './CliVersionCard';
 import styles from './index.module.css';
 
 const noop = () => undefined;
+
+/** Gemini 端点：目前只有版本卡片；官方账号与自定义供应商随后接入（docs/design/cli-official-accounts.md §8） */
+const GeminiEndpointSection: React.FC = () => (
+  <div data-testid="providers-section-gemini">
+    <div className={styles.intro}>
+      <p>
+        {t(
+          'Gemini CLI 通过 ACP 协议接入：使用它自己的登录与配置（~/.gemini）。在终端里运行 gemini 完成登录后即可在 Nomi 里使用。',
+        )}
+      </p>
+    </div>
+    <CliVersionCard kind="gemini" />
+  </div>
+);
 
 const TABS = [...CONVERSATION_BACKENDS, 'monitor'] as const;
 
@@ -108,6 +123,12 @@ export const ProvidersPage: React.FC<{
             <p className={styles.sub}>{t('供应商管理仅在桌面应用中可用；模型配置见「通用」。')}</p>
           )}
         </div>
+      ) : ep === 'gemini' ? (
+        cliOk ? (
+          <GeminiEndpointSection />
+        ) : (
+          <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
+        )
       ) : cliOk ? (
         <CliEndpointSection key={ep} kind={ep} />
       ) : (

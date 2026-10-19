@@ -170,7 +170,7 @@ type Deps = {
 export interface WatchedTab {
   id: string;
   title: string;
-  backend: 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
+  backend: 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
   cwd: string;
   cliSessionId: string | null;
   status: 'idle' | 'queued' | 'running' | 'error';
@@ -1100,6 +1100,7 @@ const ENDPOINT_LABEL: Record<WatchedTab['backend'], string> = {
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 /** Nomi 标签 → 监视视图条目 */

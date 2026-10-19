@@ -1,0 +1,7 @@
+---
+'@nomi-ai/ai-chat': minor
+'@nomi-ai/electron': minor
+'@nomi-ai/ui': minor
+---
+
+新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。

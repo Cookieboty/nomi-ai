@@ -5,13 +5,14 @@ import { t } from '@nomi-ai/ui';
 
 import type { ConversationBackend } from '../types/chat';
 
-/** 端点名称：统一为 Nomi / Claude Code / Codex / dsh / Grok（专有名词不翻译） */
+/** 端点名称：统一为 Nomi / Claude Code / Codex / dsh / Grok / Gemini（专有名词不翻译） */
 export const ENDPOINT_NAME: Record<ConversationBackend, string> = {
   nomi: 'Nomi',
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
@@ -20,6 +21,7 @@ export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
   codex: () => t('Codex'),
   dsh: () => 'dsh',
   grok: () => 'Grok',
+  gemini: () => 'Gemini',
 };
 
 /** CSS 变量友好的 data-ep 值，样式见 Sidebar / ChatModeSwitch */
@@ -29,9 +31,10 @@ export const ENDPOINT_CSS: Record<ConversationBackend, string> = {
   codex: 'codex',
   dsh: 'dsh',
   grok: 'grok',
+  gemini: 'gemini',
 };
 
-export const CLI_BACKENDS: ConversationBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+export const CLI_BACKENDS: ConversationBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 export function isCliBackend(b: ConversationBackend): boolean {
   return b !== 'nomi';

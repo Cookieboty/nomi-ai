@@ -121,7 +121,8 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
       pkg === '@anthropic-ai/claude-code@latest' ||
       pkg === '@openai/codex@latest' ||
       pkg === '@deepseek-ai/dsh@latest' ||
-      pkg === '@xai-official/grok@latest';
+      pkg === '@xai-official/grok@latest' ||
+      pkg === '@google/gemini-cli@latest';
     if (!pkgOk) return false;
     if (rest.length === 3) return true;
     return rest.length === 5 && rest[3] === '--prefix' && rest[4] === userPrefix();
@@ -130,11 +131,15 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
 }
 
 export function isUpdatable(kind: CliKind): kind is UpdatableCli {
-  return kind === 'claude' || kind === 'codex' || kind === 'dsh' || kind === 'grok';
+  return (
+    kind === 'claude' || kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
+  );
 }
 
 function toUpdatable(kind: unknown): UpdatableCli {
-  return kind === 'codex' || kind === 'dsh' || kind === 'grok' ? kind : 'claude';
+  return kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
+    ? kind
+    : 'claude';
 }
 
 function toScope(v: unknown): CliInstallScope {
@@ -272,18 +277,19 @@ export class CliUpdateService {
   }
 
   async inspect(refreshLatest = false): Promise<CliInstallInfo[]> {
-    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'cursor'];
+    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini', 'cursor'];
     try {
       if (refreshLatest || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
-        const [cl, cx, ds, gk] = await Promise.all([
+        const [cl, cx, ds, gk, gm] = await Promise.all([
           fetchNpmLatest(NPM_PKG.claude),
           fetchNpmLatest(NPM_PKG.codex),
           fetchNpmLatest(NPM_PKG.dsh),
           fetchNpmLatest(NPM_PKG.grok),
+          fetchNpmLatest(NPM_PKG.gemini),
         ]);
         this.cache = {
           checkedAt: Date.now(),
-          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, cursor: null },
+          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, gemini: gm, cursor: null },
         };
         try {
           this.save();

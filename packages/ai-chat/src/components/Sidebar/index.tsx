@@ -150,6 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       codex: 0,
       dsh: 0,
       grok: 0,
+      gemini: 0,
     };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;

@@ -52,7 +52,7 @@ export const EndpointControls: React.FC<{
     <>
       {isDev && <BackendSwitcher />}
       {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
-      {cli ? (
+      {cli === 'gemini' ? null : cli ? (
         <CliProviderChip backend={cli} className={className} onManage={() => onManageCli(cli)} />
       ) : (
         providerClientAvailable() && (

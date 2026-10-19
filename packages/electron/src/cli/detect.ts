@@ -16,6 +16,7 @@ const ENV_BIN: Record<CliKind, string> = {
   codex: 'NOMI_CODEX_BIN',
   dsh: 'NOMI_DSH_BIN',
   grok: 'NOMI_GROK_BIN',
+  gemini: 'NOMI_GEMINI_BIN',
   cursor: 'NOMI_CURSOR_BIN',
 };
 
@@ -24,6 +25,7 @@ const CANDIDATES: Record<CliKind, string[]> = {
   codex: ['codex'],
   dsh: ['dsh'],
   grok: ['grok'],
+  gemini: ['gemini'],
   cursor: ['cursor-agent', 'agent'],
 };
 
@@ -277,6 +279,7 @@ export const NPM_PKG: Record<UpdatableCli, string> = {
   codex: '@openai/codex',
   dsh: '@deepseek-ai/dsh',
   grok: '@xai-official/grok',
+  gemini: '@google/gemini-cli',
 };
 
 /** 各 CLI 运行所需的最低 Node 主版本（claude-code engines ≥ 22；codex ≥ 16；dsh 需要 24） */
@@ -285,6 +288,8 @@ export const CLI_MIN_NODE_MAJOR: Record<UpdatableCli, number> = {
   codex: 16,
   dsh: 24,
   grok: 18,
+  // @google/gemini-cli 0.62.0 package.json engines：node >= 20
+  gemini: 20,
 };
 
 /** dsh 依赖 Node ≥ 24（import.meta.main）；更低版本下静默无输出 */

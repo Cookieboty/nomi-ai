@@ -24,7 +24,7 @@ import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
 
-const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 标签悬停提示：标题 · 端点 · 状态，其后依次是工作目录、会话、最近错误 */
 function tabTooltip(tab: HarnessTabMeta, status: string): string {

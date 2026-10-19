@@ -8,7 +8,7 @@ import type {
   GrokApiFormat,
 } from './formats';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
+export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /**
  * 编程助手权限模式（Nomi 统一五档，映射见 cli/permissionMode.ts）：
@@ -16,13 +16,13 @@ export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
  */
 export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass';
 
-export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'cursor';
+export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
 
 /** 拥有独立供应商档案库的 CLI */
 export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok';
 
 /** 支持版本更新的 CLI */
-export type UpdatableCli = 'claude' | 'codex' | 'dsh' | 'grok';
+export type UpdatableCli = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 export interface CliInstallInfo {
   kind: CliKind;
@@ -262,7 +262,7 @@ export interface CliRunResult {
 
 /** 安装 / 更新任务快照（主进程按端点持有；界面重新挂载时先取它） */
 export interface CliJobSnapshot {
-  kind: 'claude' | 'codex' | 'dsh' | 'grok';
+  kind: UpdatableCli;
   mode: 'install' | 'update';
   scope: 'global' | 'user';
   status: 'running' | 'done' | 'error';

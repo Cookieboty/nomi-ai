@@ -32,6 +32,8 @@ const SUPPORTED: Record<CliBackend, readonly HarnessPermissionMode[]> = {
   codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
   grok: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  // Gemini ACP：plan / default（可审批）/ autoEdit / yolo；没有「自动」（降为自动改文件）
+  gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
 };
 
 /** 不支持时的降级目标：只往更安全的一侧降 */
@@ -110,11 +112,25 @@ export function permissionLaunch(
             : 'workspace-write';
       return { args: [], env: { DSH_PERMISSION_MODE: sandbox } };
     }
+    case 'gemini':
+      // 模式经 ACP session/set_mode 设置（geminiModeId），启动参数不带
+      return { args: [], env: {} };
     case 'grok':
       return mode === 'bypass'
         ? { args: ['--yolo'], env: {} }
         : { args: ['--permission-mode', CLAUDE_MODE[mode]], env: {} };
   }
+}
+
+/** Gemini ACP 的会话模式 id（0.62.0 session/new 返回的 availableModes） */
+export function geminiModeId(mode: HarnessPermissionMode): string {
+  return mode === 'plan'
+    ? 'plan'
+    : mode === 'acceptEdits' || mode === 'auto'
+      ? 'autoEdit'
+      : mode === 'bypass'
+        ? 'yolo'
+        : 'default';
 }
 
 /** 计划模式下附在用户消息前的提示（CLI 无原生无头计划模式时使用） */

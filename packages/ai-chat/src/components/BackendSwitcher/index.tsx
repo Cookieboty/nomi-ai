@@ -22,6 +22,7 @@ const LABELS: Record<HarnessBackend, () => string> = {
   codex: () => t('Codex'),
   dsh: () => 'dsh',
   grok: () => 'Grok',
+  gemini: () => 'Gemini',
 };
 
 export const BackendSwitcher: React.FC<{ className?: string }> = ({ className }) => {

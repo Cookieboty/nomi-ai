@@ -49,9 +49,10 @@ describe('BackendSwitcher wording', () => {
       'codex',
       'dsh',
       'grok',
+      'gemini',
     ]);
     const labels = opts.map((o) => o.querySelector('.cd-dropdown__label')?.textContent);
-    expect(labels).toEqual(['Nomi', 'Claude Code', 'Codex', 'dsh', 'Grok']);
+    expect(labels).toEqual(['Nomi', 'Claude Code', 'Codex', 'dsh', 'Grok', 'Gemini']);
     const codex = opts[2]!;
     expect(codex.getAttribute('aria-disabled')).toBe('true');
     expect(codex.textContent).toContain('未安装');

@@ -563,5 +563,7 @@
   "未找到 {0}，请先安装": "{0} isn't installed yet; install it first",
   "登录超时，请重试": "Sign-in timed out; try again",
   "登录没有完成（退出码 {0}）": "Sign-in didn't finish (exit code {0})",
-  "登录完成了，但没有读到凭据": "Sign-in finished but no credentials were found"
+  "登录完成了，但没有读到凭据": "Sign-in finished but no credentials were found",
+  "未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）": "Gemini CLI not found (set NOMI_USE_MOCK_CLI=1 for the mock CLI)",
+  "Gemini 没有返回会话": "Gemini didn't return a session"
 }

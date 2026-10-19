@@ -156,7 +156,7 @@ describe('ProvidersPage', () => {
       '~/.codex/config.toml'.replace('~', '/home/u'),
     );
     // 五个端点 + 「监视与会话」
-    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(6);
+    expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(7);
   });
 
   it('只显示该端点自己的档案，未启用时显示 CLI 自带登录', async () => {

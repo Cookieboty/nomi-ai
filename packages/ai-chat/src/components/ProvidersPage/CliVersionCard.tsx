@@ -25,6 +25,7 @@ const NAME: Record<CliUpdatableKind, string> = {
   codex: 'Codex',
   dsh: 'dsh',
   grok: 'Grok',
+  gemini: 'Gemini',
 };
 
 export type VersionState = 'missing' | 'outdated' | 'current' | 'unknown';
