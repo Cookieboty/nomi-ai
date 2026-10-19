@@ -80,11 +80,11 @@ test.describe('E14 · onboarding + i18n', () => {
     await expect(chat.locator('[data-testid="onboarding-next"]')).toHaveText('下一步');
     await chat.click('[data-testid="onboarding-next"]');
     await expect(chat.locator('[data-testid="onb-theme-ink"]')).toBeVisible();
-    await expect(chat.locator('html')).toHaveAttribute('data-theme', 'ink');
+    await expect(chat.locator('html')).toHaveAttribute('data-theme', 'sunset');
     await chat.click('[data-testid="onb-theme-system"]');
     await shot('e2e-02-onboarding-theme-zh.png');
     // 每一步都能跳过
-    for (const s of ['theme', 'character', 'persona']) {
+    for (const s of ['theme', 'startup', 'character', 'persona']) {
       await expect(chat.locator(`[data-testid="onboarding-step-${s}"]`)).toBeVisible();
       await chat.click('[data-testid="onboarding-skip-step"]');
     }
