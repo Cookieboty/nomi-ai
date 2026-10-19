@@ -254,6 +254,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return;
       await tabs.close(meta.tabId);
     } else {
+      // 先中止属于该会话的在途流：删除后它的回调不能再写回界面或记忆
+      actions.abortConversation?.(id);
       await ipc.deleteConversation?.(id);
       if (id === current) {
         // store 已把当前会话切到同后端最近更新的会话；一个不剩则只清空消息区，不新建会话

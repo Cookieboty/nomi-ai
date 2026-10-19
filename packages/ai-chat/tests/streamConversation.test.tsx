@@ -16,10 +16,11 @@ function fakeClient() {
   let finished = false;
   const upstream = new AbortController();
   const abortCalls: string[] = [];
-  const seen: { reqId?: string } = {};
+  const seen: { reqId?: string; messages?: Array<{ content: string }> } = {};
   const chat = {
-    agentStream(opts: { reqId?: string }) {
+    agentStream(opts: { reqId?: string; messages?: Array<{ content: string }> }) {
       seen.reqId = opts.reqId;
+      seen.messages = opts.messages;
       return (async function* () {
         for (;;) {
           if (upstream.signal.aborted) throw new Error('aborted upstream');
@@ -242,5 +243,105 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     });
     await waitFor(() => expect(ref.api.state.messages.map((m) => m.content)).toEqual(['in B']));
     spy.mockRestore();
+  });
+
+  describe('流式中途删除会话（#36）', () => {
+    const start = async (f: ReturnType<typeof fakeClient>) => {
+      const ref = mount(f.client);
+      await flush();
+      const ipc = ref.api.state.ipcClient as SdkIPCClient;
+      const store = ipc.conversationStore();
+      const A = store.ensureCurrent();
+      let done!: Promise<void>;
+      await act(async () => {
+        done = ref.api.actions.sendStreamMessage('你好');
+        await new Promise((r) => setTimeout(r, 5));
+      });
+      f.push('部分');
+      await flush();
+      expect(ref.api.state.messages.map((m) => m.content)).toEqual(['你好', '部分']);
+      return { ref, ipc, store, A, done: () => done };
+    };
+    /** Sidebar 删除最后一个会话的做法：删 store → 清空消息区 */
+    const deleteLast = async (ref: { api: Api }, ipc: SdkIPCClient, A: string) => {
+      await act(async () => {
+        await ipc.deleteConversation(A);
+        await ref.api.actions.clearChatHistory();
+      });
+    };
+
+    it('删除最后一个会话后晚到的 chunk / finish：界面保持为空，store 不复活，下一轮 history 不含已删除内容', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      await deleteLast(ref, ipc, A);
+      expect(ref.api.state.messages).toEqual([]);
+
+      f.push('晚到');
+      await flush();
+      expect(ref.api.state.messages).toEqual([]); // 晚到 chunk 不会让 A 的消息回到界面
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages).toEqual([]);
+      expect(store.get(A)).toBeUndefined();
+
+      // 再发一条：新会话的 provider messages 里没有 A 的任何文本
+      const f2seen = f.seen;
+      await act(async () => {
+        await ref.api.actions.sendStreamMessage('新问题');
+      });
+      const texts = (f2seen.messages ?? []).map((m) => m.content);
+      expect(texts).not.toContain('你好');
+      expect(texts).not.toContain('部分');
+      expect(texts).not.toContain('部分晚到');
+    });
+
+    it('删除前先 abortConversation：在途流被中止，错误路径也不写回界面', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      await act(async () => {
+        ref.api.actions.abortConversation(A);
+      });
+      expect(f.upstream.signal.aborted).toBe(true);
+      expect(f.abortCalls[0]).toBe(f.seen.reqId);
+      await deleteLast(ref, ipc, A);
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages).toEqual([]);
+      expect(store.get(A)).toBeUndefined();
+      expect(ref.api.state.streaming).toBe(false);
+    });
+
+    it('abortConversation 只中止属于该会话的流（控制用例：别的会话 id 不影响）', async () => {
+      const f = fakeClient();
+      const { ref, done } = await start(f);
+      await act(async () => {
+        ref.api.actions.abortConversation('some-other-conversation');
+      });
+      expect(f.upstream.signal.aborted).toBe(false);
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+    });
+
+    it('删除的是别的会话（有 B 回退，A 仍在显示）：A 的流不受影响', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      const B = store.create().id;
+      store.switchTo(A);
+      await act(async () => {
+        await ipc.deleteConversation(B);
+      });
+      f.push('继续');
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages.map((m) => m.content)).toEqual(['你好', '部分继续']);
+      expect(store.getMessages(A).map((m) => m.content)).toEqual(['你好', '部分继续']);
+    });
   });
 });

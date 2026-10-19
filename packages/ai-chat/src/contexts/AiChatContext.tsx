@@ -124,6 +124,8 @@ interface AiChatContextType {
     resendFrom: (userMessageId: string, newText?: string) => Promise<void>;
     /** 停止当前流式生成：中止上游请求，已生成的内容落盘；没有进行中的流时无操作 */
     stopGeneration: () => void;
+    /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
+    abortConversation: (convoId: string) => void;
     askKnowledge: (content: string) => Promise<void>;
     loadChatHistory: () => Promise<void>;
     clearChatHistory: () => Promise<void>;
@@ -147,8 +149,13 @@ export interface AiChatContextProviderProps {
  */
 export interface ConversationTurn {
   convoId: string | undefined;
-  /** 发起这一轮的会话是否仍是当前展示的会话 */
+  /**
+   * 发起这一轮的会话是否仍是当前展示的会话（且仍存在）。
+   * 会话被删除后 store 的 current 可能变成 undefined 或另一个会话，二者都不算 active。
+   */
   isActive: () => boolean;
+  /** 发起这一轮的会话是否还在 store 里（已删除的会话不应再触发摘要 / 记忆写入） */
+  exists: () => boolean;
   save: (message: ChatMessage) => Promise<void>;
 }
 
@@ -156,10 +163,11 @@ export function openTurn(client: IPCClient): ConversationTurn {
   const convoId = client.ensureConversationId?.() ?? client.currentConversationId?.();
   return {
     convoId,
-    isActive: () => {
-      const cur = client.currentConversationId?.();
-      return !convoId || !cur || cur === convoId;
-    },
+    // 有 convoId 时必须 cur === convoId：current 为 undefined 说明会话刚被删光，不能当作仍在显示。
+    // 只有完全没有会话 id 接口的旧实现（convoId 为空）才走无 id 的兜底。
+    isActive: () => !convoId || client.currentConversationId?.() === convoId,
+    exists: () =>
+      !convoId || !client.conversationStore || !!client.conversationStore()?.get(convoId),
     save: (message) =>
       convoId && client.saveMessageTo
         ? client.saveMessageTo(message, convoId)
@@ -334,7 +342,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
 
         await turn.save(userMessage);
         await turn.save(aiMessage);
-        maybeIngest([...history, userMessage, aiMessage], turn.convoId);
+        if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
@@ -553,7 +561,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         }
         await turn.save(userMessage);
         await turn.save(finalAiMessage);
-        if (!stopped) maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
+        if (!stopped && turn.exists())
+          maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
@@ -587,6 +596,13 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     if (!a || a.controller.signal.aborted) return;
     a.controller.abort();
     // 兜底：即便客户端实现没有处理 signal，也直接通知主进程中止上游
+    stateRef.current.ipcClient.abortStream?.(a.reqId);
+  }, []);
+
+  const abortConversation = useCallback((convoId: string) => {
+    const a = activeStream.current;
+    if (!a || a.convoId !== convoId || a.controller.signal.aborted) return;
+    a.controller.abort();
     stateRef.current.ipcClient.abortStream?.(a.reqId);
   }, []);
 
@@ -660,6 +676,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendStreamMessage,
       resendFrom,
       stopGeneration,
+      abortConversation,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,
@@ -672,6 +689,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendStreamMessage,
       resendFrom,
       stopGeneration,
+      abortConversation,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,
