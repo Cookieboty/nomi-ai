@@ -202,7 +202,9 @@ const AiChatContent: React.FC = () => {
     ? 'nomi'
     : (slashTab?.backend ?? harness?.backend ?? 'nomi');
   const slashCwd = slashBackend === 'nomi' ? '' : slashTab ? slashTab.cwd : (harness?.cwd ?? '');
-  const slashScope = slashTab ? slashTab.id : `nomi:${state.messages[0]?.id ?? 'new'}`;
+  /** Nomi 主对话当前会话的标识（不论眼下显示的是不是它） */
+  const nomiScope = `nomi:${state.messages[0]?.id ?? 'new'}`;
+  const slashScope = slashTab ? slashTab.id : nomiScope;
   const [showPlugins, setShowPlugins] = useState(false);
   const slash = useSlashCommands({
     backend: slashBackend,
@@ -218,11 +220,25 @@ const AiChatContent: React.FC = () => {
               running: slashTab.status === 'running' || slashTab.status === 'queued',
             }
           : { id: harness?.cliSessionId ?? null, running: !!harness?.busy },
+    tabId: slashTab?.id ?? null,
     send: (text) => {
       if (slashTab) void tabs.send(text);
       else if (state.isLoading) nomiQueue.enqueue(text);
       else void actions.sendStreamMessage(text);
     },
+    // 异步命令的结果回到「发起命令的会话」，与现在显示哪个标签无关
+    sendTo: async (target, text) => {
+      if (target.tabId) {
+        // CLI 标签：目标标签已关闭 / 后端或目录被改过（重置）→ false，什么都不发
+        return tabs.sendToTab(target.tabId, text, { backend: target.backend, cwd: target.cwd });
+      }
+      // Nomi 主对话：只有它仍是当前这个会话才发（新建 / 切换过会话则丢弃）
+      if (nomiScope !== target.scopeKey) return false;
+      if (state.isLoading) nomiQueue.enqueue(text);
+      else void actions.sendStreamMessage(text);
+      return true;
+    },
+    tabExists: tabs.hasTab,
     newSession: () => {
       if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
       else void actions.newConversation();

@@ -233,9 +233,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (!trimmedMessage) return;
     // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
     if (slash && !images.length && trimmedMessage.startsWith('/')) {
+      const scopeAtStart = slash.scope?.();
       const r = await slash.run(trimmedMessage, getRegistry());
       if (r.handled) {
-        setMessage('');
+        // 命令是异步的：完成时用户若已切到别的会话，输入框里是那边的草稿，不能清掉
+        if (scopeAtStart === undefined || slash.scope?.() === scopeAtStart) setMessage('');
         return;
       }
       if (r.text !== undefined) trimmedMessage = r.text;

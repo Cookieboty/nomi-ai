@@ -153,5 +153,6 @@
   "循环": "Loop",
   "让 Grok 按间隔重复一项任务（Grok 自己的命令，原样发送）": "Ask Grok to repeat a task on an interval (Grok's own command, sent as-is)",
   "[间隔与任务]": "[interval and task]",
-  "Grok 自带": "Bundled with Grok"
+  "Grok 自带": "Bundled with Grok",
+  "会话已关闭或已重置，结果已丢弃。": "The conversation was closed or reset, so the result was discarded."
 }

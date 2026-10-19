@@ -207,6 +207,8 @@ export interface SlashBridge {
   compose: (extra: SlashCommand[]) => SlashCommand[];
   /** 用户刚输入 `/`：重新读一次项目 / 用户命令目录（文件可能刚改过） */
   refresh: () => void;
+  /** 当前显示的会话归属（读最新值）：输入框据此判断命令完成时用户是否还停在发起它的会话 */
+  scope?: () => string;
   /** 执行一条输入。handled=false 表示不是命令（text 存在时为去掉 `//` 转义后的文字） */
   run: (text: string, all: SlashCommand[]) => Promise<{ handled: boolean; text?: string }>;
 }
