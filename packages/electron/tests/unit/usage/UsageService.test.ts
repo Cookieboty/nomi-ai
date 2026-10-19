@@ -284,6 +284,7 @@ describe('UsageService：按端信息（endpointUsage）', () => {
 
   it('IPC 参数校验：未知值回落到 nomi', () => {
     expect(endpointSourceOf('grok')).toBe('grok');
+    expect(endpointSourceOf('gemini')).toBe('gemini');
     expect(endpointSourceOf('__proto__')).toBe('nomi');
     expect(endpointSourceOf(undefined)).toBe('nomi');
   });

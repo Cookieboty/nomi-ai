@@ -3,12 +3,14 @@
  *   Claude Code ~/.claude/projects/<cwd>/<id>.jsonl
  *   Codex       ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
  *   dsh         $DSH_HOME/sessions/<cwd>/session-<uuid>/session.v4.jsonl(.zstd)
+ *   Gemini      ~/.gemini/tmp/<项目>/chats/session-*.jsonl（工作目录取同级 .project_root）
  *
  * - 增量：目录列表 3 秒内复用；每个文件的元信息按 (mtime, size) 缓存，只重解析变化的文件。
  * - 分页：按修改时间倒序，每页 20 条，最多展示最近 100 条可见会话。
  * - 去重：已经在 Nomi 标签里打开的会话（backend + cliSessionId 相同）不再列出。
  * - 打开：读出可见对话（尽力而为，失败则为空并给提示），交给 CliHarnessService 新建 / 复用标签，
- *   下一条消息按各 CLI 的续接参数（claude --resume / codex exec resume / dsh --session-id）继续。
+ *   下一条消息按各 CLI 的续接参数（claude --resume / codex exec resume / dsh --session-id /
+ *   Gemini ACP session/load）继续。
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,13 +19,17 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import {
+  foldGeminiChat,
+  geminiText,
   jsonlEvents,
+  cleanTitle,
   parseClaudeSession,
   parseCodexSession,
   parseDshProjcache,
 } from '../agents/parsers';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { geminiDir } from '../usage/cliHomes';
 
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import type { HarnessTabMessage, HarnessTabMeta } from './types';
@@ -34,7 +40,7 @@ export const HISTORY_MAX_ITEMS = 100;
 const LIST_TTL_MS = 3000;
 const MAX_PARSED_CACHE = 6000;
 const MAX_TRANSCRIPT_BYTES = 12 * 1024 * 1024;
-const BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh'];
+const BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh', 'gemini'];
 
 export interface HistorySession {
   /** `${backend}:${sessionId}` */
@@ -81,6 +87,8 @@ interface Parsed {
 export interface SessionHistoryDeps {
   home?: string;
   dshHome?: string;
+  /** 放 .gemini 的主目录（默认 GEMINI_CLI_HOME 或 home） */
+  geminiHome?: string;
   logger?: { warn(m: string, d?: unknown): void };
   /** 已在标签里打开的会话：`${backend}:${sessionId}` */
   openKeys?: () => Set<string>;
@@ -188,6 +196,10 @@ export class SessionHistoryService {
   /** key → 文件，供 transcript / open 反查 */
   private readonly byKey = new Map<string, FileEntry & { meta: Parsed['meta'] }>();
 
+  private geminiRoot(): string {
+    return this.d.geminiHome ? path.join(this.d.geminiHome, '.gemini') : geminiDir(this.home);
+  }
+
   constructor(private readonly d: SessionHistoryDeps = {}) {
     this.home = d.home ?? os.homedir();
     this.dshHome =
@@ -224,6 +236,19 @@ export class SessionHistoryService {
         }
       };
       await walk(path.join(this.home, '.codex', 'sessions'), 4);
+      entries = await statAll(files);
+    } else if (backend === 'gemini') {
+      // 只列主会话：子代理在 chats/<父会话 id>/ 下，文件名也不带 session- 前缀
+      const root = path.join(this.geminiRoot(), 'tmp');
+      const files: Array<{ path: string }> = [];
+      for (const proj of await readdir(root)) {
+        if (!proj.isDirectory()) continue;
+        const chats = path.join(root, proj.name, 'chats');
+        for (const f of await readdir(chats)) {
+          if (f.isFile() && /^session-.*\.jsonl?$/.test(f.name))
+            files.push({ path: path.join(chats, f.name) });
+        }
+      }
       entries = await statAll(files);
     } else {
       const root = path.join(this.dshHome, 'sessions');
@@ -269,6 +294,21 @@ export class SessionHistoryService {
         /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i.exec(f.path)?.[1];
       if (!sessionId || !info.title) return null;
       return { key: `codex:${sessionId}`, backend, sessionId, title: info.title, cwd: info.cwd };
+    }
+    if (backend === 'gemini') {
+      const head = await readHead(f.path, 256 * 1024);
+      const chat = foldGeminiChat(head);
+      if (!chat.sessionId || chat.kind === 'subagent') return null;
+      const firstUser = chat.messages.find((m) => m.type === 'user');
+      const title = cleanTitle(chat.summary) ?? cleanTitle(geminiText(firstUser?.content));
+      if (!title) return null;
+      // 0.62 的项目目录名是 slug，同级 .project_root 记着真正的工作目录；旧版是哈希目录，没有
+      const marker = await readHead(
+        path.join(path.dirname(path.dirname(f.path)), '.project_root'),
+        4096,
+      );
+      const cwd = marker.trim() || undefined;
+      return { key: `gemini:${chat.sessionId}`, backend, sessionId: chat.sessionId, title, cwd };
     }
     const id = f.dirId ?? path.basename(path.dirname(f.path));
     const meta = parseDshProjcache(

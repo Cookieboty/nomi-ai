@@ -85,6 +85,35 @@ describe('parsers', () => {
     expect(g).toMatchObject({ sessionId: 'g1', title: '写测试', phase: 'turn-done' });
   });
 
+  it('gemini chat jsonl (0.62)：头部 + 逐行消息，同 id 后写为准，$set 更新头部', () => {
+    const lines = [
+      { sessionId: 'g2', projectHash: 'h', startTime: '2026-10-19T00:00:00Z', kind: 'main' },
+      { id: 'u1', type: 'user', timestamp: '2026-10-19T00:00:01Z', content: [{ text: '修 bug' }] },
+      { $set: { lastUpdated: '2026-10-19T00:00:02Z' } },
+      {
+        id: 'm1',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:03Z',
+        content: '',
+        toolCalls: [{ id: 't1', name: 'read_file', args: {} }],
+      },
+    ];
+    const text = lines.map((l) => JSON.stringify(l)).join('\n');
+    expect(parseGeminiSession(text)).toMatchObject({
+      sessionId: 'g2',
+      title: '修 bug',
+      phase: 'tool',
+    });
+    const done = `${text}\n${JSON.stringify({
+      id: 'm1',
+      type: 'gemini',
+      timestamp: '2026-10-19T00:00:04Z',
+      content: '',
+      toolCalls: [{ id: 't1', name: 'read_file', args: {}, result: [], status: 'success' }],
+    })}\n${JSON.stringify({ id: 'm2', type: 'gemini', content: '修好了', timestamp: '2026-10-19T00:00:05Z' })}\n{"id":"m3","ty`;
+    expect(parseGeminiSession(done)).toMatchObject({ phase: 'turn-done', detail: '修好了' });
+  });
+
   it('decideStatus: stalled only when alive + tool + no writes', () => {
     const base = { stallMs: 300_000 };
     expect(decideStatus({ ...base, phase: 'tool', alive: true, ageMs: 600_000 })).toBe('stalled');

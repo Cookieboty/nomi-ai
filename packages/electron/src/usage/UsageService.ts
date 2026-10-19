@@ -1420,9 +1420,9 @@ export class UsageService {
 export const quotaToolOf = (v: unknown): QuotaToolId | undefined =>
   v === 'claude' || v === 'codex' || v === 'grok' ? v : undefined;
 
-/** 「按端」只接受五个已知端；其他值一律按 nomi 处理，避免任意字符串进入查询 */
+/** 「按端」只接受已知端；其他值一律按 nomi 处理，避免任意字符串进入查询 */
 export const endpointSourceOf = (v: unknown): string =>
-  v === 'claude' || v === 'codex' || v === 'dsh' || v === 'grok' ? v : 'nomi';
+  v === 'claude' || v === 'codex' || v === 'dsh' || v === 'grok' || v === 'gemini' ? v : 'nomi';
 
 let inst: UsageService | null = null;
 export function initUsageService(d: Deps): UsageService {

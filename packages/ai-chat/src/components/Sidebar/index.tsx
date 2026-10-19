@@ -317,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
-  // 磁盘历史扫描仅支持 claude/codex/dsh（HISTORY_BACKENDS）；grok 暂无转录扫描，
+  // 磁盘历史扫描仅支持 claude/codex/dsh/gemini（HISTORY_BACKENDS）；grok 暂无转录扫描，
   // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
   const histScopeSupported =
     histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);

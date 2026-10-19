@@ -484,7 +484,9 @@ export class AgentProgressService {
         'gemini',
         listFiles(
           path.join(h, '.gemini', 'tmp'),
-          (n, full) => /^session-.*\.json$/.test(n) && full.includes(`${path.sep}chats${path.sep}`),
+          // 0.62 起是 .jsonl；旧版 .json
+          (n, full) =>
+            /^session-.*\.jsonl?$/.test(n) && full.includes(`${path.sep}chats${path.sep}`),
           3,
         ),
       );
@@ -575,7 +577,12 @@ export class AgentProgressService {
       info = { phase: 'working', sessionId: id, cwd };
       return { key: `grok:${id}`, kind, path: filePath, mtime, info };
     } else if (kind === 'gemini') {
-      info = parseGeminiSession(readSlice(filePath, 'head', 4 * 1024 * 1024));
+      // .jsonl 逐行追加：标题在开头、最新状态在末尾，各取一段拼起来（按消息 id 去重）
+      info = parseGeminiSession(
+        filePath.endsWith('.jsonl')
+          ? `${readSlice(filePath, 'head', 64 * 1024)}\n${readSlice(filePath, 'tail', 512 * 1024)}`
+          : readSlice(filePath, 'head', 4 * 1024 * 1024),
+      );
     } else if (kind === 'cursor') {
       // 会话 = chatId 目录
       info = { phase: 'unknown', sessionId: path.basename(path.dirname(filePath)) };
@@ -1163,7 +1170,7 @@ function finishSummary(label: string, title: string, ok: boolean, detail?: strin
 }
 
 /** 有会话级用量日志的工具 */
-const USAGE_KINDS = new Set<string>(['claude', 'codex', 'dsh', 'grok']);
+const USAGE_KINDS = new Set<string>(['claude', 'codex', 'dsh', 'grok', 'gemini']);
 /** 等「本次花费」最多这么久，超时就照常播报 */
 const COST_WAIT_MS = 3000;
 const BUBBLE_MAX = 140;
