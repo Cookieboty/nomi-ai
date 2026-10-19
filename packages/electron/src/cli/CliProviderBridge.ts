@@ -152,6 +152,12 @@ export class CliProviderBridge {
     grok: { profiles: [] },
   };
 
+  /**
+   * 正在使用（active）的档案被编辑后、重新写入 CLI 配置前的完整旧快照。
+   * 重新启用成功就丢弃；失败则恢复，避免「存储里是新端点 / 新 Key，CLI 配置文件还是旧的」的混配。
+   */
+  private readonly rollbacks = new Map<string, StoredProfile>();
+
   /** 配置已写入 CLI 启动时才会读的文件。由 harness 悄悄换下一轮进程。 */
   private onApplied: ((kind: CliProviderKind) => void) | null = null;
 
@@ -455,6 +461,14 @@ export class CliProviderBridge {
       active: existing?.active ?? false,
       presetId: input.presetId?.trim() || existing?.presetId,
     };
+    if (existing?.active) {
+      // 正在使用的档案：保存会立即影响启动环境（Key）与下一次激活写盘。
+      // 先做和激活相同的预检，不通过就拒绝保存（原配置、原 Key 都不动）；
+      // 通过则留一份旧快照，之后激活失败时整体恢复。
+      const problem = this.preflight(next);
+      if (problem) throw new Error(problem);
+      if (!this.rollbacks.has(id)) this.rollbacks.set(id, { ...existing });
+    }
     if (existing) Object.assign(existing, next);
     else this.data[kind].profiles.push(next);
     this.saveKind(kind);
@@ -477,6 +491,8 @@ export class CliProviderBridge {
     restartRequired: boolean;
     usedRouting: boolean;
     error?: string;
+    /** 失败后已把「正在使用的档案」恢复为编辑前的完整配置 */
+    rolledBack?: boolean;
   } {
     const p = this.allProfiles().find((x) => x.id === id);
     if (!p) {
@@ -488,37 +504,23 @@ export class CliProviderBridge {
         error: t('档案不存在'),
       };
     }
+    const failure = (error: string) => {
+      const rolledBack = this.rollBackActiveEdit(id);
+      return {
+        ok: false,
+        backups: [] as string[],
+        restartRequired: false,
+        usedRouting: false,
+        error: rolledBack ? `${error}（${t('已恢复为修改前的配置')}）` : error,
+        ...(rolledBack ? { rolledBack } : {}),
+      };
+    };
+    const problem = this.preflight(p);
+    if (problem) return failure(problem);
     const key = decrypt(p.keyEnc);
     const needs = formatNeedsRouting(p.kind, p.apiFormat);
     const route = getCliRouteService();
-    const routeSettings = route?.getSettings();
-    const routingOn = Boolean(
-      p.kind !== 'dsh' &&
-      p.kind !== 'grok' &&
-      routeSettings?.enabled &&
-      routeSettings?.[p.kind as 'claude' | 'codex'],
-    );
-    if (needs && !routingOn) {
-      return {
-        ok: false,
-        backups: [],
-        restartRequired: false,
-        usedRouting: false,
-        error: t('该上游格式需要先开启本地路由（高级设置）'),
-      };
-    }
     const useRoute = needs;
-    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
-    // 下一轮直接报 “has no provider/model”。
-    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
-      return {
-        ok: false,
-        backups: [],
-        restartRequired: false,
-        usedRouting: false,
-        error: t('请先填写模型，再设为当前'),
-      };
-    }
     // 本地路由令牌：CLI 请求本地路由时必须携带（路由不再接受任意来源的匿名请求）
     const routeKey = route?.authToken() ?? 'nomi-route';
     const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -592,6 +594,7 @@ export class CliProviderBridge {
         writePrivateFile(auth, patchCodexAuth(rawAuth, useRoute ? routeKey : key || undefined));
       }
       for (const x of this.data[p.kind].profiles) x.active = x.id === id;
+      this.rollbacks.delete(id);
       this.saveKind(p.kind);
       this.broadcast();
       // 下一轮会自己拉起新进程读这份配置，不再提示用户重启会话。
@@ -603,14 +606,54 @@ export class CliProviderBridge {
         usedRouting: Boolean(useRoute),
       };
     } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      // 写到一半失败（如 Codex 的 config 已写、auth 没写成）：把已备份的原文件放回去，
+      // 避免 CLI 配置文件之间互相混配
+      if (backups.length) this.restoreBackup(ts);
+      const rolledBack = this.rollBackActiveEdit(id);
       return {
         ok: false,
         backups,
         restartRequired: false,
         usedRouting: false,
-        error: e instanceof Error ? e.message : String(e),
+        error: rolledBack ? `${error}（${t('已恢复为修改前的配置')}）` : error,
+        ...(rolledBack ? { rolledBack } : {}),
       };
     }
+  }
+
+  /** 激活 / 保存前的共同预检：返回问题描述，null 表示可以写入 */
+  private preflight(p: StoredProfile): string | null {
+    const route = getCliRouteService();
+    const routeSettings = route?.getSettings();
+    const routingOn = Boolean(
+      p.kind !== 'dsh' &&
+      p.kind !== 'grok' &&
+      routeSettings?.enabled &&
+      routeSettings?.[p.kind as 'claude' | 'codex'],
+    );
+    if (formatNeedsRouting(p.kind, p.apiFormat) && !routingOn) {
+      return t('该上游格式需要先开启本地路由（高级设置）');
+    }
+    // dsh / Grok 会把模型写进自己的默认路由。空字符串会盖掉 CLI 自带默认，
+    // 下一轮直接报 “has no provider/model”。
+    if ((p.kind === 'dsh' || p.kind === 'grok') && !p.model.trim()) {
+      return t('请先填写模型，再设为当前');
+    }
+    return null;
+  }
+
+  /** 激活失败：若该档案是「正在使用且刚被编辑」的，恢复编辑前的完整快照，返回是否恢复了 */
+  private rollBackActiveEdit(id: string): boolean {
+    const snap = this.rollbacks.get(id);
+    this.rollbacks.delete(id);
+    if (!snap) return false;
+    const cur = this.data[snap.kind].profiles.find((x) => x.id === id);
+    if (!cur) return false;
+    Object.assign(cur, snap);
+    this.saveKind(snap.kind);
+    this.broadcast();
+    return true;
   }
 
   restoreBackup(tsDir: string): { ok: boolean; error?: string } {

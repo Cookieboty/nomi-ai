@@ -117,7 +117,7 @@ describe('CliProviderBridge separate stores', () => {
       baseUrl: 'https://gw.example',
       model: 'gpt-x',
       apiKey: 'sk-real',
-      apiFormat: 'openai_chat_completions',
+      apiFormat: 'openai_responses',
     });
     const r = b.activate(p.id);
     expect(r.ok).toBe(true);
@@ -280,4 +280,149 @@ describe('CliProviderBridge dsh store (#4)', () => {
       restore();
     }
   });
+});
+
+describe('CliProviderBridge: failed re-activation never leaves a mixed provider config (#39)', () => {
+  type Kind = 'dsh' | 'grok';
+  const cfg: Record<
+    Kind,
+    { file: (home: string) => string; env: 'dshEnv' | 'grokEnv'; key: string }
+  > = {
+    dsh: {
+      file: (h) => path.join(h, '.dsh', 'cordis.patch.yml'),
+      env: 'dshEnv',
+      key: 'NOMI_DSH_API_KEY',
+    },
+    grok: {
+      file: (h) => path.join(h, '.grok', 'config.toml'),
+      env: 'grokEnv',
+      key: 'NOMI_GROK_API_KEY',
+    },
+  };
+  const setup = () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-home-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-cli-root-'));
+    const prev = { d: process.env.DSH_HOME, g: process.env.GROK_HOME };
+    delete process.env.DSH_HOME;
+    delete process.env.GROK_HOME;
+    const b = new CliProviderBridge({ root, home, logger: { info() {}, warn() {} } });
+    const restore = () => {
+      if (prev.d === undefined) delete process.env.DSH_HOME;
+      else process.env.DSH_HOME = prev.d;
+      if (prev.g === undefined) delete process.env.GROK_HOME;
+      else process.env.GROK_HOME = prev.g;
+    };
+    return { home, b, restore };
+  };
+  const input = (kind: Kind, over: Record<string, unknown> = {}) => ({
+    kind,
+    name: 'P',
+    baseUrl: 'https://a.example/v1',
+    model: 'model-a',
+    apiKey: 'key-A',
+    apiFormat: 'openai_responses' as const,
+    ...over,
+  });
+
+  for (const kind of ['dsh', 'grok'] as Kind[]) {
+    describe(kind, () => {
+      it('editing the active profile to an empty model is rejected before anything changes', () => {
+        const { home, b, restore } = setup();
+        try {
+          const c = cfg[kind];
+          const p = b.upsert(input(kind));
+          expect(b.activate(p.id).ok).toBe(true);
+          const before = fs.readFileSync(c.file(home), 'utf8');
+          expect(() =>
+            b.upsert(
+              input(kind, {
+                id: p.id,
+                baseUrl: 'https://b.example/v1',
+                model: '',
+                apiKey: 'key-B',
+              }),
+            ),
+          ).toThrow(/模型/);
+          const view = b.state().profiles.find((x) => x.id === p.id)!;
+          expect(view).toMatchObject({
+            baseUrl: 'https://a.example/v1',
+            model: 'model-a',
+            active: true,
+          });
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
+          expect(fs.readFileSync(c.file(home), 'utf8')).toBe(before);
+        } finally {
+          restore();
+        }
+      });
+
+      it('a write failure while re-activating restores the previous full snapshot', () => {
+        const { home, b, restore } = setup();
+        try {
+          const c = cfg[kind];
+          const p = b.upsert(input(kind));
+          expect(b.activate(p.id).ok).toBe(true);
+          // 编辑成另一个端点 / Key / 模型（预检通过），但写盘会失败：把配置文件换成同名目录
+          b.upsert(
+            input(kind, {
+              id: p.id,
+              baseUrl: 'https://b.example/v1',
+              model: 'model-b',
+              apiKey: 'key-B',
+            }),
+          );
+          const file = c.file(home);
+          fs.rmSync(file, { force: true });
+          fs.mkdirSync(file);
+          const r = b.activate(p.id);
+          expect(r.ok).toBe(false);
+          expect(r.rolledBack).toBe(true);
+          const view = b.state().profiles.find((x) => x.id === p.id)!;
+          expect(view).toMatchObject({
+            baseUrl: 'https://a.example/v1',
+            model: 'model-a',
+            active: true,
+          });
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
+        } finally {
+          restore();
+        }
+      });
+
+      it('drafts (not active) may keep an empty model; success then clears the snapshot', () => {
+        const { home, b, restore } = setup();
+        try {
+          const c = cfg[kind];
+          const a = b.upsert(input(kind));
+          expect(b.activate(a.id).ok).toBe(true);
+          // 非 active 草稿：允许空模型保存，不影响当前启用
+          const draft = b.upsert(input(kind, { name: 'Draft', model: '', apiKey: 'key-D' }));
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
+          expect(b.activate(draft.id).ok).toBe(false);
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
+          // 正常编辑 active 并成功启用：配置与环境一起切到 B
+          b.upsert(
+            input(kind, {
+              id: a.id,
+              baseUrl: 'https://b.example/v1',
+              model: 'model-b',
+              apiKey: 'key-B',
+            }),
+          );
+          expect(b.activate(a.id).ok).toBe(true);
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-B' });
+          expect(fs.readFileSync(c.file(home), 'utf8')).toContain('model-b');
+          // 之后别的档案启用失败，不会把已成功的 B 回滚
+          expect(b.activate(draft.id).ok).toBe(false);
+          expect(b.state().profiles.find((x) => x.id === a.id)).toMatchObject({
+            baseUrl: 'https://b.example/v1',
+            model: 'model-b',
+          });
+          expect(b[c.env]()).toEqual({ [c.key]: 'key-B' });
+        } finally {
+          restore();
+        }
+      });
+    });
+  }
 });
