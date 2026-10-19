@@ -73,6 +73,51 @@ describe('useChat', () => {
   });
 });
 
+describe('useChat · 真实 ChatChunk 契约（#51）', () => {
+  const setup = (chunks: unknown[]) => {
+    const bridge = new FakeBridge();
+    const spec = IPC_METHODS.find((s) => s.facade === 'chat' && s.method === 'stream')!;
+    const chunkCh = chunkChannelName(spec);
+    bridge.handle(channelName(spec), async (opts) => {
+      const reqId = (opts as { reqId?: string }).reqId!;
+      queueMicrotask(() => {
+        for (const value of chunks) bridge.emit(chunkCh, { reqId, done: false, value });
+        bridge.emit(chunkCh, { reqId, done: true });
+      });
+      return { ok: true, reqId };
+    });
+    return renderHook(() => useChat(), { wrapper: wrapperFactory(bridge) });
+  };
+
+  it('{type:"delta", content} 累积成助手文本；usage / done / reasoning 不进正文', async () => {
+    const { result } = setup([
+      { type: 'reasoning', content: '想一想' },
+      { type: 'delta', content: '你好，' },
+      { type: 'delta', content: '世界' },
+      { type: 'usage', usage: { inputTokens: 1, outputTokens: 2 } },
+      { type: 'done', finishReason: 'stop' },
+    ]);
+    await act(async () => {
+      await result.current.send('hi');
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(false));
+    expect(result.current.messages[1]?.content).toBe('你好，世界');
+    expect(result.current.error).toBeUndefined();
+  });
+
+  it('{type:"error"} chunk 显式变成 error，而不是静默空白', async () => {
+    const { result } = setup([
+      { type: 'delta', content: 'a' },
+      { type: 'error', error: '炸了' },
+    ]);
+    await act(async () => {
+      await result.current.send('hi');
+    });
+    await waitFor(() => expect(result.current.streaming).toBe(false));
+    expect(result.current.error?.message).toContain('炸了');
+  });
+});
+
 describe('useAgent', () => {
   it('agent:step 更新 lastStep，tool:confirm-required 加入队列', async () => {
     const bridge = new FakeBridge();
