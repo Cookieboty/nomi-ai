@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -37,8 +37,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/head.png": {
-      "sha256": "5d6d273b9d51bb797f2bc4dd081505c9c15f29d1896da263c74c6503eaa31538",
-      "bytes": 268165,
+      "sha256": "84ab64fea6c18589be24749eb975b26020606c3831d870f88311971b1022cf22",
+      "bytes": 265782,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -268,29 +268,29 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-l.png": {
-      "sha256": "a72a617803ac6a255d01f5677f86efb34faf5f64d9a182750f812d9b09b9d203",
-      "bytes": 19912,
+      "sha256": "8a75f7dd388e4a09b7a006e240fa860aa52b99055233a3af488752db765efe9e",
+      "bytes": 18095,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-r.png": {
-      "sha256": "16d8c0290806b4c7fd31930aa7339297ab26eea01d57d96314b542d968d6c37b",
-      "bytes": 19461,
+      "sha256": "334ddefc5d803b64d80e81009e99e296f54f461c6398d76aca8dc44308f2eb7f",
+      "bytes": 18947,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/brow-l.png": {
-      "sha256": "09a338330b897e5a877c7700159826186fa9c7e21df8e11707517efd2255b515",
-      "bytes": 9425,
+      "sha256": "65087e101609a15efe6a306296e5a2a53863d0ddd011d8fb3305363ada50443e",
+      "bytes": 8710,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/brow-r.png": {
-      "sha256": "5e38ab88b0e45fb3f242674675a6f858eb7ea68180f065d82f0438a1edb52c05",
-      "bytes": 10745,
+      "sha256": "947ab50cf748a685c0c7005658d6575d314e7e2c0668a2ed227afa673e4af350",
+      "bytes": 10205,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -303,8 +303,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hair-l.png": {
-      "sha256": "d517bc01be5d1759eb82e8cf66fb2236f46d92868cee0feff7f351491bf92595",
-      "bytes": 60906,
+      "sha256": "ef2bfe735ccd986f7b32f6b1253418df5f16ea9c386dbd56e986cd10cb771ddd",
+      "bytes": 60764,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -546,6 +546,90 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-lash.png": {
+      "sha256": "a01af00f8235889a64965e9c99bb550e7cd2df6f3fbe70df9fa53cf1b4cbb6e1",
+      "bytes": 1630,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-lid.png": {
+      "sha256": "342a9dcd759858a581de0176b9920440877b7fffb6e0f97a815a677adaa7c911",
+      "bytes": 754,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-hl.png": {
+      "sha256": "8c3481cdf71b07c2b53f895704233e770e23f5bac296c4de15d588c04276214b",
+      "bytes": 182,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-iris.png": {
+      "sha256": "88bd975f87088874b2873c0c261360cafec9d2c71eead607e03b6c94c06b0fc3",
+      "bytes": 1454,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-sclera.png": {
+      "sha256": "e11cb8121fbaff8ec13a3298c0c3224053aebcc86abffe0236158e9e1e57e5ea",
+      "bytes": 1488,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-skin.png": {
+      "sha256": "ef55e2f2ae648a96b6fccc2513385b1632e50ce9d18e7ff46f3a068174ce753d",
+      "bytes": 1418,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (cv2 TELEA inpaint, non-skin masked), hidden at rest"
+    },
+    "reference/svg-rig/eye-r-lash.png": {
+      "sha256": "03f0b3fa1daa7902fdc2e29c00c054d1c03ebb747e1b9cdc45b6a5d40f5dab33",
+      "bytes": 1661,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-lid.png": {
+      "sha256": "cad0f5f7f3fbf1d2dd4525c90406752c41c161325b0533ba9d0cc2e7d6974ce1",
+      "bytes": 864,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-hl.png": {
+      "sha256": "a3ddb742d2bac205f05e497af4756e912d61cd3da54cd295385aafe2dafc6058",
+      "bytes": 173,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-iris.png": {
+      "sha256": "6b0d6448b9bef6e63f7f3f68e64aff04d60195712258598b49e8bc5531602694",
+      "bytes": 1647,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-sclera.png": {
+      "sha256": "4b41e1b20996948f0c003762674d36e0bfc7a6b81adf44b52accd709914d9cba",
+      "bytes": 1696,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-skin.png": {
+      "sha256": "fb1dc917d97ec927745e01b04aba10e4ae125e6520cb621aab03bb2f2c174b78",
+      "bytes": 1555,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "eyelid skin underlayer synthesized from neighbouring mother skin pixels (cv2 TELEA inpaint, non-skin masked), hidden at rest"
     }
   }
 }
