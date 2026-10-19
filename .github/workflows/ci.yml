@@ -1,11 +1,26 @@
 name: CI
 
+# 触发矩阵（详见 docs/development/ci.md）：
+# - push main / tag v*：完整 CI + 打包（tag 才签名 / 发布 Release）
+# - push feat/**：不触发（改由 PR 触发）
+# - PR → main / feat/**：只跑快速检查（quality Linux + changeset status）；
+#   带 `ci:full` 标签时跑完整矩阵（三平台 quality、e2e、dev-smoke、打包）
+# - merge_group（若启用合并队列）/ workflow_dispatch：完整 CI
+# - PR 只改文档 / changeset（docs/**、*.md、.changeset/**）时整个 workflow 不跑；
+#   main 目前没有分支保护 / 必需检查，所以 paths-ignore 不会卡住合并。若以后加必需检查，
+#   要改成 paths-filter job（跳过的 workflow 会让必需检查一直 pending）。
 on:
   push:
-    branches: [main, 'feat/**']
+    branches: [main]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/**']
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.changeset/**'
+  merge_group:
   workflow_dispatch:
     inputs:
       package_only:
@@ -21,10 +36,11 @@ on:
 permissions:
   contents: read
 
+# PR：同一 PR 的新提交 / 加 ci:full 会取消旧的 run。main / tag / 合并队列 / 手动触发不取消。
+# 加其它标签触发的 run 什么都不跑：给它一个独立的 group（带 run_id），免得把正在跑的 PR run 取消掉。
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  # tag 构建（发布产物）不允许被后续 push 取消
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}${{ (github.event.action == 'labeled' && github.event.label.name != 'ci:full') && format('-label-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Electron 44 内置 Node 24，CI 对齐到 24。
@@ -32,13 +48,14 @@ env:
   TURBO_TELEMETRY_DISABLED: '1'
 
 jobs:
+  # 快速检查：所有事件都跑；普通 PR 只在 Linux 上跑，ci:full / push / 手动触发时三平台
   quality:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: quality (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ fromJSON((github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && '["ubuntu-latest","macos-latest","windows-latest"]' || '["ubuntu-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -100,7 +117,8 @@ jobs:
   # E2E · headless（vitest，e2e/tests）
   # ---------------------------------------------------------------
   e2e-headless:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
     name: e2e-headless (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -135,7 +153,8 @@ jobs:
   # ---------------------------------------------------------------
   # Linux 用 xvfb 虚拟显示；Windows runner 自带交互桌面，可直接跑 headed Electron。
   e2e-headed:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
     name: e2e-headed (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -209,7 +228,8 @@ jobs:
   # 开发模式冒烟：全新 install 后跑 `pnpm dev`，等看板娘窗口 + VRM 模型 + 对话窗口 dev server 就绪后退出，
   # 防止开发启动链路（预构建、端口等待、preload 打包、Electron 二进制下载）再次悄悄坏掉。
   dev-smoke:
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
     name: dev-smoke (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -240,7 +260,7 @@ jobs:
 
   changeset:
     name: changeset status
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -277,7 +297,8 @@ jobs:
     name: build-electron (${{ matrix.os }})
     needs: [quality]
     # package_only：quality 被 skip 时仍继续；quality 失败则拦住（非 package_only）
-    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') }}
+    # PR 上只有带 ci:full 标签才打包；push main / tag / 合并队列 / 手动触发照旧
+    if: ${{ always() && (needs.quality.result == 'success' || needs.quality.result == 'skipped') && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     # Tag builds publish installers to the GitHub Release (electron-updater feed).
     permissions:
       contents: write

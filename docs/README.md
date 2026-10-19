@@ -42,6 +42,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 - 设计稿：[订阅额度卡片（含 CPA 调研）](design/usage-quota-cards.md)、[按端信息卡](design/endpoint-info-card.md)、[编程助手权限模式](design/cli-permission-modes.md)、[编程助手子代理](design/cli-subagents.md)、[官方账号与 Gemini 接入](design/cli-official-accounts.md)
 - [构建与运行](development/building.md)
 - [测试](development/testing.md)
+- [CI 触发规则](development/ci.md)
 - [发布](RELEASE.md)：打包、签名与公证（含 CI secret 名称）
 - [品牌规范](BRAND.md)：素材在 [`brand/`](brand/)，截图在 [`screenshots/`](screenshots/)
 
@@ -84,5 +85,6 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 - [Frontend engineering standards](development/frontend-standards.md)
 - [Building](development/building.md)
 - [Testing](development/testing.md)
+- [CI triggers](development/ci.md)
 - [Release](RELEASE.md): packaging, signing & notarization (incl. CI secret names)
 - [Brand guidelines](BRAND.md): assets in [`brand/`](brand/), screenshots in [`screenshots/`](screenshots/)

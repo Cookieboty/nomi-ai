@@ -48,7 +48,7 @@ node scripts/check-bundle-budget.mjs [--strict]                           # 首�
 
 ## CI
 
-`.github/workflows/ci.yml`：
+`.github/workflows/ci.yml`（什么事件跑哪些 job 见 [CI 触发规则](ci.md)：普通 PR 只跑 Linux quality + changeset，带 `ci:full` 标签才跑完整矩阵）：
 
 - `quality`（Ubuntu / Windows / macOS）：许可、i18n、typecheck、lint、单元测试、构建；Ubuntu 上追加首屏体积预算报告（不阻塞）
 - `e2e-headless`、`e2e-headed`（Ubuntu / Windows）
