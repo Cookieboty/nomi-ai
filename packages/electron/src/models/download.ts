@@ -17,6 +17,11 @@ export interface DownloadOptions {
   onProgress?: (p: DownloadProgress) => void;
   /** 每个 URL 的尝试次数（默认 2），失败后换下一个 URL */
   attemptsPerUrl?: number;
+  /**
+   * 空闲超时（毫秒）：连接 / 收到响应头 / 读到数据后，超过这么久没有新数据就中止本次尝试
+   * （按失败处理，可重试 / 换镜像）。不设置则只受 signal 控制。
+   */
+  idleTimeoutMs?: number;
 }
 
 export class DownloadError extends Error {}
@@ -53,7 +58,19 @@ export async function downloadVerified(
     if (!isAllowedUrl(url, opts.policy)) continue;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       if (opts.signal?.aborted) throw new DownloadError(t('已取消'));
+      // 每次尝试一个独立的 controller：用户取消和空闲超时都能中止 fetch / read
+      const ctl = new AbortController();
+      const attemptSignal = ctl.signal;
+      const onUserAbort = () => ctl.abort();
+      opts.signal?.addEventListener('abort', onUserAbort, { once: true });
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      const arm = () => {
+        if (!opts.idleTimeoutMs) return;
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => ctl.abort(), opts.idleTimeoutMs);
+      };
       try {
+        arm();
         let have = await sizeOf(part);
         if (have > file.size) {
           await fsp.rm(part, { force: true });
@@ -63,8 +80,9 @@ export async function downloadVerified(
           const res = await doFetch(url, {
             headers: have > 0 ? { Range: `bytes=${have}-` } : {},
             redirect: 'follow',
-            signal: opts.signal,
+            signal: attemptSignal,
           });
+          arm();
           // 重定向后仍需 https
           if (res.url && !isAllowedUrl(res.url, opts.policy))
             throw new DownloadError(t('重定向到不安全地址: {0}', res.url));
@@ -81,6 +99,7 @@ export async function downloadVerified(
             for (;;) {
               const { done, value } = await reader.read();
               if (done) break;
+              arm();
               have += value.byteLength;
               if (have > file.size) {
                 await reader.cancel();
@@ -90,6 +109,7 @@ export async function downloadVerified(
               opts.onProgress?.({ received: have, total: file.size });
             }
           } finally {
+            if (idleTimer) clearTimeout(idleTimer); // 网络阶段结束；校验哈希不受空闲超时影响
             await fh.close();
           }
         }
@@ -106,6 +126,10 @@ export async function downloadVerified(
         if (opts.signal?.aborted) {
           throw new DownloadError(t('已取消'));
         }
+        if (attemptSignal.aborted) lastError = new DownloadError(t('下载长时间没有数据，已中止'));
+      } finally {
+        if (idleTimer) clearTimeout(idleTimer);
+        opts.signal?.removeEventListener('abort', onUserAbort);
       }
     }
   }

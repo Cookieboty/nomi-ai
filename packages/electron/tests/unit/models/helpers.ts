@@ -16,6 +16,8 @@ export interface MockRoute {
   ranges?: boolean;
   /** 只发前 n 个字节然后断开（模拟网络中断） */
   cutAfter?: number;
+  /** 收到请求后永不响应（模拟卡死的连接） */
+  hang?: boolean;
 }
 
 export interface MockServer {
@@ -32,6 +34,7 @@ export async function mockServer(): Promise<MockServer> {
     const p = (req.url ?? '/').split('?')[0]!;
     hits.push({ path: p, headers: req.headers });
     const r = routes.get(p);
+    if (r?.hang) return;
     if (!r) {
       res.writeHead(404).end();
       return;
@@ -65,12 +68,21 @@ export async function mockServer(): Promise<MockServer> {
     }
     res.end(chunk);
   });
+  const sockets = new Set<import('node:net').Socket>();
+  server.on('connection', (sock) => {
+    sockets.add(sock);
+    sock.on('close', () => sockets.delete(sock));
+  });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
   return {
     url: `http://127.0.0.1:${port}`,
     routes,
     hits,
-    close: () => new Promise((resolve) => server.close(() => resolve())),
+    close: () =>
+      new Promise((resolve) => {
+        server.close(() => resolve());
+        for (const sock of sockets) sock.destroy(); // 卡死的连接不能挡住关闭
+      }),
   };
 }

@@ -51,13 +51,39 @@ export interface ModelStoreOptions {
   catalogUrls?: string[];
   fetchImpl?: typeof fetch;
   policy?: UrlPolicy;
+  /** 覆盖默认时限（毫秒）；主要供测试缩短等待 */
+  timeouts?: {
+    thumbIdleMs?: number;
+    thumbTotalMs?: number;
+    listBudgetMs?: number;
+    vrmIdleMs?: number;
+  };
   logger?: { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 }
+
+function combineSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const ctl = new AbortController();
+  for (const s of [a, b]) {
+    if (s.aborted) ctl.abort();
+    else s.addEventListener('abort', () => ctl.abort(), { once: true });
+  }
+  return ctl.signal;
+}
+
+/** 缩略图是可选资源：每张的空闲 / 总时限，以及目录列表等它们的总预算（超出则先返回无图条目） */
+const THUMB_IDLE_MS = 8_000;
+const THUMB_TOTAL_MS = 30_000;
+const THUMB_LIST_BUDGET_MS = 6_000;
+const THUMB_CONCURRENCY = 4;
+/** VRM 本体：连续这么久没有任何数据就判为卡死（按失败处理，可重试 / 换镜像） */
+const VRM_IDLE_MS = 60_000;
 
 /** 远程模型商店：目录（ETag 缓存）+ 下载（续传 / 重试 / sha256）+ 安装记录。 */
 export class ModelStore {
   private catalog: ModelCatalog | null = null;
   private readonly inflight = new Map<string, AbortController>();
+  /** 同一缩略图的后台下载只发一次（列表可能因预算超时先返回，下载仍在继续） */
+  private readonly thumbJobs = new Map<string, Promise<string | undefined>>();
   private readonly fetchImpl: typeof fetch;
 
   constructor(private readonly opts: ModelStoreOptions) {
@@ -166,17 +192,50 @@ export class ModelStore {
     }
 
     const installed = new Map((await this.listInstalled()).map((i) => [i.id, i]));
-    const entries: StoreEntry[] = [];
-    for (const e of this.catalog?.models ?? []) {
+    const models = this.catalog?.models ?? [];
+    const thumbs = await this.thumbsWithinBudget(models, !offline);
+    const entries: StoreEntry[] = models.map((e, i) => {
       const inst = installed.get(e.id);
-      entries.push({
+      return {
         ...e,
         installedVersion: inst?.version,
         updateAvailable: !!inst && compareVersions(e.version, inst.version) > 0,
-        thumbnailUrl: await this.cachedThumb(e, !offline),
-      });
-    }
+        thumbnailUrl: thumbs[i],
+      };
+    });
     return { entries, offline, fetchedAt, error, rejected };
+  }
+
+  /**
+   * 并发（有上限）取各条目的缩略图，但整体最多等 THUMB_LIST_BUDGET_MS：
+   * 慢 / 卡住的缩略图不再拖住商店列表，先返回无图条目，图片下载在后台继续，下次刷新即可命中缓存。
+   */
+  private async thumbsWithinBudget(
+    models: CatalogEntry[],
+    allowNetwork: boolean,
+  ): Promise<Array<string | undefined>> {
+    const out: Array<string | undefined> = new Array(models.length).fill(undefined);
+    let next = 0;
+    const worker = async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= models.length) return;
+        out[i] = await this.cachedThumb(models[i]!, allowNetwork);
+      }
+    };
+    const pool = Promise.all(
+      Array.from({ length: Math.min(THUMB_CONCURRENCY, models.length) }, () => worker()),
+    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const budget = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, this.opts.timeouts?.listBudgetMs ?? THUMB_LIST_BUDGET_MS);
+    });
+    try {
+      await Promise.race([pool.then(() => undefined), budget]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+    return [...out];
   }
 
   /** 缩略图下载到 cache/thumbs（sha256 校验），返回 cdmodel:// 地址 */
@@ -190,17 +249,28 @@ export class ModelStore {
     } catch {
       if (!allowNetwork) return undefined;
     }
-    try {
-      await fsp.mkdir(path.dirname(dest), { recursive: true });
-      await downloadVerified(e.thumbnail, dest, {
-        fetchImpl: this.fetchImpl,
-        policy: this.opts.policy,
-        attemptsPerUrl: 1,
-      });
-      return `cdmodel://cache/thumbs/${name}`;
-    } catch {
-      return undefined;
+    let job = this.thumbJobs.get(name);
+    if (!job) {
+      job = (async () => {
+        try {
+          await fsp.mkdir(path.dirname(dest), { recursive: true });
+          await downloadVerified(e.thumbnail, dest, {
+            fetchImpl: this.fetchImpl,
+            policy: this.opts.policy,
+            attemptsPerUrl: 1,
+            idleTimeoutMs: this.opts.timeouts?.thumbIdleMs ?? THUMB_IDLE_MS,
+            signal: AbortSignal.timeout(this.opts.timeouts?.thumbTotalMs ?? THUMB_TOTAL_MS),
+          });
+          return `cdmodel://cache/thumbs/${name}`;
+        } catch {
+          return undefined;
+        } finally {
+          this.thumbJobs.delete(name);
+        }
+      })();
+      this.thumbJobs.set(name, job);
     }
+    return job;
   }
 
   isDownloading(id: string): boolean {
@@ -228,16 +298,33 @@ export class ModelStore {
         policy: this.opts.policy,
         signal: ac.signal,
         onProgress,
+        idleTimeoutMs: this.opts.timeouts?.vrmIdleMs ?? VRM_IDLE_MS,
       });
       // 只读解析一遍，确认确实是 VRM（不执行任何内容）
       await inspectVrmFile(staging);
-      await fsp.rename(staging, path.join(dir, 'model.vrm'));
+      if (ac.signal.aborted) throw new Error(t('已取消'));
+      // 缩略图是可选资源：先下到暂存名，有空闲 / 总时限，也受取消控制；
+      // 失败 / 超时只是没有图，不影响安装。放在提交之前，取消时旧版本保持原样。
       const ext = entry.thumbnail.urls[0]?.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
-      await downloadVerified(entry.thumbnail, path.join(dir, `thumb.${ext}`), {
-        fetchImpl: this.fetchImpl,
-        policy: this.opts.policy,
-        attemptsPerUrl: 1,
-      }).catch(() => undefined);
+      const thumbStaging = path.join(dir, `download-thumb.${ext}`);
+      let haveThumb = false;
+      try {
+        await downloadVerified(entry.thumbnail, thumbStaging, {
+          fetchImpl: this.fetchImpl,
+          policy: this.opts.policy,
+          attemptsPerUrl: 1,
+          idleTimeoutMs: this.opts.timeouts?.thumbIdleMs ?? THUMB_IDLE_MS,
+          signal: combineSignals(
+            ac.signal,
+            AbortSignal.timeout(this.opts.timeouts?.thumbTotalMs ?? THUMB_TOTAL_MS),
+          ),
+        });
+        haveThumb = true;
+      } catch {
+        haveThumb = false;
+      }
+      // 提交边界：此后不再响应取消（取消在这之前才生效）
+      if (ac.signal.aborted) throw new Error(t('已取消'));
       const rec: InstalledRemote = {
         id,
         version: entry.version,
@@ -245,12 +332,28 @@ export class ModelStore {
         installedAt: Date.now(),
         entry,
       };
-      await fsp.writeFile(path.join(dir, 'installed.json'), JSON.stringify(rec, null, 2));
+      // installed.json 先写临时文件，再紧挨着 model.vrm 的替换落盘，缩小「新模型 + 旧记录」的不一致窗口
+      const recTmp = path.join(dir, 'installed.json.tmp');
+      await fsp.writeFile(recTmp, JSON.stringify(rec, null, 2));
+      await fsp.rename(staging, path.join(dir, 'model.vrm'));
+      await fsp.rename(recTmp, path.join(dir, 'installed.json'));
+      if (haveThumb) {
+        await fsp.rename(thumbStaging, path.join(dir, `thumb.${ext}`)).catch(() => undefined);
+      }
       this.opts.logger?.info('远程模型已安装', { id, version: entry.version });
       return rec;
     } catch (err) {
-      if (ac.signal.aborted)
+      if (ac.signal.aborted) {
         await fsp.rm(`${staging}.part`, { force: true }).catch(() => undefined);
+      }
+      // 取消 / 失败时清掉缩略图暂存与临时记录（旧版本文件保持不变）
+      await Promise.all(
+        ['png', 'jpg'].flatMap((x) => [
+          fsp.rm(path.join(dir, `download-thumb.${x}`), { force: true }),
+          fsp.rm(path.join(dir, `download-thumb.${x}.part`), { force: true }),
+        ]),
+      ).catch(() => undefined);
+      await fsp.rm(path.join(dir, 'installed.json.tmp'), { force: true }).catch(() => undefined);
       throw err;
     } finally {
       this.inflight.delete(id);
