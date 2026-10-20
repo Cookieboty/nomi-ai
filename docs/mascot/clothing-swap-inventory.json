@@ -1,0 +1,2056 @@
+{
+  "tip": "27caa3c9",
+  "categories": {
+    "body-skin": [
+      "arm-l-shoulder-skin",
+      "arm-r-shoulder-skin",
+      "arm-l-upper-skin",
+      "arm-r-upper-skin",
+      "leg-l-skin",
+      "leg-r-skin",
+      "hand-l-palm",
+      "hand-l-web",
+      "hand-l-thumb",
+      "hand-l-index",
+      "hand-l-middle",
+      "hand-l-ring",
+      "hand-l-little",
+      "hand-r-palm",
+      "hand-r-web",
+      "hand-r-thumb",
+      "hand-r-index",
+      "hand-r-middle",
+      "hand-r-ring",
+      "hand-r-little",
+      "head",
+      "mouth",
+      "eye-l-skin",
+      "eye-r-skin",
+      "eye-l-lid",
+      "eye-r-lid",
+      "eye-l-lash",
+      "eye-r-lash",
+      "eye-l-sclera",
+      "eye-r-sclera",
+      "eye-l-iris",
+      "eye-r-iris",
+      "eye-l-hl",
+      "eye-r-hl",
+      "eye-l",
+      "eye-r",
+      "brow-l",
+      "brow-r",
+      "face-smile"
+    ],
+    "body-hair": [
+      "hair-l",
+      "hair-r",
+      "hair-lock-l",
+      "hair-lock-r",
+      "hair-back-l",
+      "hair-back-r",
+      "hair-tip-l",
+      "bangs-a",
+      "bangs-b",
+      "bangs-c"
+    ],
+    "garment-tank": [
+      "torso-tank"
+    ],
+    "garment-coat": [
+      "sleeve-l-full",
+      "sleeve-r-full",
+      "sleeve-l-full-dark",
+      "sleeve-r-full-dark",
+      "sleeve-l-stump",
+      "sleeve-r-stump",
+      "coat-l-front",
+      "coat-r-front",
+      "coat-l-shoulder",
+      "coat-r-shoulder",
+      "coat-l-shoulder-dark",
+      "coat-r-shoulder-dark",
+      "coat-l-shoulder-lining",
+      "coat-r-shoulder-lining",
+      "hem-ribbon-l",
+      "hem-ribbon-r",
+      "arm-l-cuff",
+      "arm-r-cuff"
+    ],
+    "garment-shorts": [
+      "shorts"
+    ],
+    "garment-belt": [
+      "belt-band",
+      "belt-id",
+      "belt-pouch"
+    ],
+    "garment-shoes": [
+      "shoe-l",
+      "shoe-r"
+    ],
+    "accessory": [
+      "choker",
+      "hair-bow",
+      "hair-clip"
+    ],
+    "fused-base": [
+      "body-backfill",
+      "fullbody-base-no-head-arms"
+    ]
+  },
+  "images": [
+    {
+      "image": "full.arm-l.upper-skin.image",
+      "file": "arm-l-upper-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.upper"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 1740,
+      "skin_px": 1740,
+      "orange_px": 6,
+      "dark_px": 0,
+      "white_px": 1067,
+      "mean_rgb": [
+        251.1,
+        216.6,
+        198.6
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.coat-l.front.image",
+      "file": "coat-l-front",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.upper",
+        "full.arm-l.fore",
+        "full.coat-l.front",
+        "full.coat-l.front.s1",
+        "full.coat-l.hem"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 9848,
+      "skin_px": 2933,
+      "orange_px": 1114,
+      "dark_px": 2289,
+      "white_px": 3406,
+      "mean_rgb": [
+        176.7,
+        144.9,
+        132.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.sleeve-l.full.image",
+      "file": "sleeve-l-full",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.upper",
+        "full.arm-l.fore",
+        "full.arm-l.hand"
+      ],
+      "parent": "full.arm-l.sleeveHang",
+      "opacity": 1.0,
+      "opaque_px": 35280,
+      "skin_px": 7916,
+      "orange_px": 3823,
+      "dark_px": 3318,
+      "white_px": 17830,
+      "mean_rgb": [
+        205.0,
+        180.3,
+        167.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.sleeve-l.full.dark.image",
+      "file": "sleeve-l-full-dark",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.upper",
+        "full.arm-l.fore",
+        "full.arm-l.hand"
+      ],
+      "parent": "full.arm-l.sleeveHang",
+      "opacity": 1.0,
+      "opaque_px": 2278,
+      "skin_px": 0,
+      "orange_px": 0,
+      "dark_px": 2185,
+      "white_px": 0,
+      "mean_rgb": [
+        43.7,
+        34.9,
+        33.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-l.cuff.image",
+      "file": "arm-l-cuff",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.fore",
+        "full.arm-l.hand"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 6447,
+      "skin_px": 1159,
+      "orange_px": 15,
+      "dark_px": 2554,
+      "white_px": 2721,
+      "mean_rgb": [
+        151.3,
+        138.5,
+        136.9
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.palm.image",
+      "file": "hand-l-palm",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.hand",
+        "full.arm-l.fore"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 1407,
+      "skin_px": 1344,
+      "orange_px": 28,
+      "dark_px": 7,
+      "white_px": 686,
+      "mean_rgb": [
+        238.5,
+        193.2,
+        176.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.web.image",
+      "file": "hand-l-web",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.hand",
+        "full.arm-l.thumb",
+        "full.arm-l.index"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 220,
+      "skin_px": 220,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        244.5,
+        202.0,
+        186.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.little.image",
+      "file": "hand-l-little",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.little",
+        "full.arm-l.little.1",
+        "full.arm-l.little.2"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 198,
+      "skin_px": 191,
+      "orange_px": 36,
+      "dark_px": 0,
+      "white_px": 7,
+      "mean_rgb": [
+        233.5,
+        167.5,
+        142.9
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.ring.image",
+      "file": "hand-l-ring",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.ring",
+        "full.arm-l.ring.1",
+        "full.arm-l.ring.2"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 238,
+      "skin_px": 231,
+      "orange_px": 38,
+      "dark_px": 0,
+      "white_px": 17,
+      "mean_rgb": [
+        233.5,
+        165.8,
+        140.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.middle.image",
+      "file": "hand-l-middle",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.middle",
+        "full.arm-l.middle.1",
+        "full.arm-l.middle.2"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 245,
+      "skin_px": 234,
+      "orange_px": 42,
+      "dark_px": 0,
+      "white_px": 14,
+      "mean_rgb": [
+        230.4,
+        165.5,
+        141.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.index.image",
+      "file": "hand-l-index",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.index",
+        "full.arm-l.index.1",
+        "full.arm-l.index.2"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 947,
+      "skin_px": 910,
+      "orange_px": 91,
+      "dark_px": 0,
+      "white_px": 273,
+      "mean_rgb": [
+        235.0,
+        181.9,
+        164.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-l.thumb.image",
+      "file": "hand-l-thumb",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-l.thumb",
+        "full.arm-l.thumb.1",
+        "full.arm-l.thumb.2"
+      ],
+      "parent": "full.arm-l.rig",
+      "opacity": 1.0,
+      "opaque_px": 1424,
+      "skin_px": 1383,
+      "orange_px": 125,
+      "dark_px": 0,
+      "white_px": 483,
+      "mean_rgb": [
+        235.0,
+        183.9,
+        166.4
+      ],
+      "fused_notes": [
+        "orange baked into body layer (125px)"
+      ]
+    },
+    {
+      "image": "full.arm-r.upper-skin.image",
+      "file": "arm-r-upper-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.upper"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 1506,
+      "skin_px": 1285,
+      "orange_px": 208,
+      "dark_px": 7,
+      "white_px": 892,
+      "mean_rgb": [
+        245.3,
+        201.4,
+        172.8
+      ],
+      "fused_notes": [
+        "orange baked into body layer (208px)"
+      ]
+    },
+    {
+      "image": "full.coat-r.front.image",
+      "file": "coat-r-front",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.upper",
+        "full.arm-r.fore",
+        "full.coat-r.front",
+        "full.coat-r.front.s1",
+        "full.coat-r.hem"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 5494,
+      "skin_px": 1239,
+      "orange_px": 376,
+      "dark_px": 710,
+      "white_px": 3047,
+      "mean_rgb": [
+        203.1,
+        180.1,
+        171.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.sleeve-r.full.image",
+      "file": "sleeve-r-full",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.upper",
+        "full.arm-r.fore",
+        "full.arm-r.hand"
+      ],
+      "parent": "full.arm-r.sleeveHang",
+      "opacity": 1.0,
+      "opaque_px": 31879,
+      "skin_px": 10234,
+      "orange_px": 2697,
+      "dark_px": 2515,
+      "white_px": 18210,
+      "mean_rgb": [
+        214.0,
+        191.4,
+        179.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.sleeve-r.full.dark.image",
+      "file": "sleeve-r-full-dark",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.upper",
+        "full.arm-r.fore",
+        "full.arm-r.hand"
+      ],
+      "parent": "full.arm-r.sleeveHang",
+      "opacity": 1.0,
+      "opaque_px": 1773,
+      "skin_px": 0,
+      "orange_px": 0,
+      "dark_px": 1710,
+      "white_px": 0,
+      "mean_rgb": [
+        46.2,
+        35.3,
+        33.4
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-r.cuff.image",
+      "file": "arm-r-cuff",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.fore",
+        "full.arm-r.hand"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 6089,
+      "skin_px": 1436,
+      "orange_px": 7,
+      "dark_px": 2352,
+      "white_px": 2660,
+      "mean_rgb": [
+        156.1,
+        142.1,
+        140.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.palm.image",
+      "file": "hand-r-palm",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.hand",
+        "full.arm-r.fore"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 2098,
+      "skin_px": 1942,
+      "orange_px": 80,
+      "dark_px": 4,
+      "white_px": 958,
+      "mean_rgb": [
+        239.6,
+        193.7,
+        177.6
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.web.image",
+      "file": "hand-r-web",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.hand",
+        "full.arm-r.thumb",
+        "full.arm-r.index"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 191,
+      "skin_px": 191,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        244.7,
+        202.5,
+        185.9
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.little.image",
+      "file": "hand-r-little",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.little",
+        "full.arm-r.little.1",
+        "full.arm-r.little.2"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 110,
+      "skin_px": 109,
+      "orange_px": 28,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        237.0,
+        169.2,
+        143.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.ring.image",
+      "file": "hand-r-ring",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.ring",
+        "full.arm-r.ring.1",
+        "full.arm-r.ring.2"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 176,
+      "skin_px": 174,
+      "orange_px": 25,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        237.3,
+        169.7,
+        145.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.middle.image",
+      "file": "hand-r-middle",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.middle",
+        "full.arm-r.middle.1",
+        "full.arm-r.middle.2"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 219,
+      "skin_px": 217,
+      "orange_px": 28,
+      "dark_px": 0,
+      "white_px": 13,
+      "mean_rgb": [
+        233.2,
+        170.1,
+        147.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.index.image",
+      "file": "hand-r-index",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.index",
+        "full.arm-r.index.1",
+        "full.arm-r.index.2"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 708,
+      "skin_px": 690,
+      "orange_px": 60,
+      "dark_px": 0,
+      "white_px": 203,
+      "mean_rgb": [
+        238.0,
+        187.6,
+        168.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hand-r.thumb.image",
+      "file": "hand-r-thumb",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.arm-r.thumb",
+        "full.arm-r.thumb.1",
+        "full.arm-r.thumb.2"
+      ],
+      "parent": "full.arm-r.rig",
+      "opacity": 1.0,
+      "opaque_px": 974,
+      "skin_px": 947,
+      "orange_px": 88,
+      "dark_px": 0,
+      "white_px": 447,
+      "mean_rgb": [
+        236.5,
+        189.1,
+        171.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.belt.band.image",
+      "file": "belt-band",
+      "category": "garment-belt",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.pelvis"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 8421,
+      "skin_px": 485,
+      "orange_px": 1041,
+      "dark_px": 6126,
+      "white_px": 74,
+      "mean_rgb": [
+        79.4,
+        51.7,
+        37.6
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.belt.id.image",
+      "file": "belt-id",
+      "category": "garment-belt",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.belt.id"
+      ],
+      "parent": "full.belt.id",
+      "opacity": 1.0,
+      "opaque_px": 7488,
+      "skin_px": 1378,
+      "orange_px": 1213,
+      "dark_px": 3963,
+      "white_px": 1674,
+      "mean_rgb": [
+        134.4,
+        106.9,
+        88.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.belt.pouch.image",
+      "file": "belt-pouch",
+      "category": "garment-belt",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.belt.pouch"
+      ],
+      "parent": "full.belt.pouch",
+      "opacity": 1.0,
+      "opaque_px": 5676,
+      "skin_px": 367,
+      "orange_px": 160,
+      "dark_px": 4791,
+      "white_px": 0,
+      "mean_rgb": [
+        59.2,
+        43.3,
+        36.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.shorts.image",
+      "file": "shorts",
+      "category": "garment-shorts",
+      "kind": "skin",
+      "drivers": [
+        "full.pelvis",
+        "full.leg-l.upper",
+        "full.leg-r.upper"
+      ],
+      "parent": "full.pelvis",
+      "opacity": 1.0,
+      "opaque_px": 49417,
+      "skin_px": 2364,
+      "orange_px": 2162,
+      "dark_px": 43881,
+      "white_px": 78,
+      "mean_rgb": [
+        69.2,
+        52.4,
+        46.0
+      ],
+      "fused_notes": [
+        "orange side fragments fused into shorts texture"
+      ]
+    },
+    {
+      "image": "full.choker.image",
+      "file": "choker",
+      "category": "accessory",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.spine"
+      ],
+      "parent": "full.choker",
+      "opacity": 1.0,
+      "opaque_px": 4466,
+      "skin_px": 177,
+      "orange_px": 85,
+      "dark_px": 4038,
+      "white_px": 77,
+      "mean_rgb": [
+        78.0,
+        61.8,
+        57.0
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hair.back.l.image",
+      "file": "hair-back-l",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.back.l.s1",
+        "full.hair.back.l.s2"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 2373,
+      "skin_px": 1309,
+      "orange_px": 749,
+      "dark_px": 511,
+      "white_px": 0,
+      "mean_rgb": [
+        189.2,
+        122.3,
+        74.0
+      ],
+      "fused_notes": [
+        "orange baked into body layer (749px)"
+      ]
+    },
+    {
+      "image": "full.hair.back.r.image",
+      "file": "hair-back-r",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.back.r.s1",
+        "full.hair.back.r.s2"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 1438,
+      "skin_px": 1095,
+      "orange_px": 442,
+      "dark_px": 119,
+      "white_px": 0,
+      "mean_rgb": [
+        220.7,
+        150.0,
+        92.5
+      ],
+      "fused_notes": [
+        "orange baked into body layer (442px)"
+      ]
+    },
+    {
+      "image": "full.hair.lock.l.image",
+      "file": "hair-lock-l",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.lock.l.s1",
+        "full.hair.lock.l.s2",
+        "full.hair.lock.l.s3"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 9113,
+      "skin_px": 262,
+      "orange_px": 535,
+      "dark_px": 5489,
+      "white_px": 3,
+      "mean_rgb": [
+        91.3,
+        52.2,
+        39.7
+      ],
+      "fused_notes": [
+        "orange baked into body layer (535px)"
+      ]
+    },
+    {
+      "image": "full.hair.lock.r.image",
+      "file": "hair-lock-r",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.lock.r.s1",
+        "full.hair.lock.r.s2",
+        "full.hair.lock.r.s3"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 7090,
+      "skin_px": 2015,
+      "orange_px": 2181,
+      "dark_px": 1999,
+      "white_px": 21,
+      "mean_rgb": [
+        153.3,
+        86.2,
+        50.0
+      ],
+      "fused_notes": [
+        "orange baked into body layer (2181px)"
+      ]
+    },
+    {
+      "image": "full.hair.bow.image",
+      "file": "hair-bow",
+      "category": "accessory",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.hair.bow"
+      ],
+      "parent": "full.hair.bow",
+      "opacity": 1.0,
+      "opaque_px": 6,
+      "skin_px": 6,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 2,
+      "mean_rgb": [
+        219.7,
+        200.8,
+        193.5
+      ],
+      "fused_notes": [
+        "essentially empty (bow pixels live elsewhere / head)"
+      ]
+    },
+    {
+      "image": "full.hair.clip.image",
+      "file": "hair-clip",
+      "category": "accessory",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.hair.clip"
+      ],
+      "parent": "full.hair.clip",
+      "opacity": 1.0,
+      "opaque_px": 209,
+      "skin_px": 192,
+      "orange_px": 0,
+      "dark_px": 10,
+      "white_px": 40,
+      "mean_rgb": [
+        228.8,
+        193.9,
+        167.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.brow.l.image",
+      "file": "brow-l",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.brow.l"
+      ],
+      "parent": "full.brow.l",
+      "opacity": 1.0,
+      "opaque_px": 93,
+      "skin_px": 2,
+      "orange_px": 0,
+      "dark_px": 44,
+      "white_px": 0,
+      "mean_rgb": [
+        91.5,
+        57.4,
+        48.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.brow.r.image",
+      "file": "brow-r",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.brow.r"
+      ],
+      "parent": "full.brow.r",
+      "opacity": 1.0,
+      "opaque_px": 123,
+      "skin_px": 43,
+      "orange_px": 0,
+      "dark_px": 10,
+      "white_px": 1,
+      "mean_rgb": [
+        137.6,
+        95.8,
+        85.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.bangs.a.image",
+      "file": "bangs-a",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.bangs.a.s1",
+        "full.bangs.a.s2"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 2148,
+      "skin_px": 514,
+      "orange_px": 37,
+      "dark_px": 527,
+      "white_px": 78,
+      "mean_rgb": [
+        124.2,
+        84.3,
+        73.9
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.bangs.b.image",
+      "file": "bangs-b",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.bangs.b.s1",
+        "full.bangs.b.s2"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 3276,
+      "skin_px": 1587,
+      "orange_px": 146,
+      "dark_px": 266,
+      "white_px": 458,
+      "mean_rgb": [
+        158.4,
+        114.8,
+        102.8
+      ],
+      "fused_notes": [
+        "orange baked into body layer (146px)"
+      ]
+    },
+    {
+      "image": "full.bangs.c.image",
+      "file": "bangs-c",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.bangs.c.s1",
+        "full.bangs.c.s2"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 1542,
+      "skin_px": 268,
+      "orange_px": 42,
+      "dark_px": 466,
+      "white_px": 229,
+      "mean_rgb": [
+        132.6,
+        99.8,
+        88.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.head.image",
+      "file": "head",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.torso",
+        "full.spine"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 35923,
+      "skin_px": 16952,
+      "orange_px": 870,
+      "dark_px": 8571,
+      "white_px": 9901,
+      "mean_rgb": [
+        166.7,
+        131.6,
+        119.1
+      ],
+      "fused_notes": [
+        "orange baked into body layer (870px)"
+      ]
+    },
+    {
+      "image": "full.eye2.l.lash.image",
+      "file": "eye-l-lash",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l.lash"
+      ],
+      "parent": "full.eye2.l.lash",
+      "opacity": 1.0,
+      "opaque_px": 450,
+      "skin_px": 200,
+      "orange_px": 22,
+      "dark_px": 180,
+      "white_px": 27,
+      "mean_rgb": [
+        132.6,
+        86.2,
+        73.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.l.lid.image",
+      "file": "eye-l-lid",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l"
+      ],
+      "parent": "full.eye2.l",
+      "opacity": 1.0,
+      "opaque_px": 208,
+      "skin_px": 185,
+      "orange_px": 1,
+      "dark_px": 0,
+      "white_px": 64,
+      "mean_rgb": [
+        237.4,
+        195.4,
+        177.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.l.hl.image",
+      "file": "eye-l-hl",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l.ball"
+      ],
+      "parent": "full.eye2.l.ball",
+      "opacity": 1.0,
+      "opaque_px": 23,
+      "skin_px": 5,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 21,
+      "mean_rgb": [
+        247.7,
+        240.3,
+        236.6
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.l.iris.image",
+      "file": "eye-l-iris",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l.ball"
+      ],
+      "parent": "full.eye2.l.ball",
+      "opacity": 1.0,
+      "opaque_px": 414,
+      "skin_px": 183,
+      "orange_px": 63,
+      "dark_px": 130,
+      "white_px": 27,
+      "mean_rgb": [
+        155.0,
+        108.8,
+        83.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.l.sclera.image",
+      "file": "eye-l-sclera",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l.ball"
+      ],
+      "parent": "full.eye2.l.ball",
+      "opacity": 1.0,
+      "opaque_px": 418,
+      "skin_px": 223,
+      "orange_px": 20,
+      "dark_px": 78,
+      "white_px": 124,
+      "mean_rgb": [
+        180.7,
+        140.9,
+        128.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.l.skin.image",
+      "file": "eye-l-skin",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.l"
+      ],
+      "parent": "full.eye2.l",
+      "opacity": 1.0,
+      "opaque_px": 1164,
+      "skin_px": 1164,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        229.2,
+        177.0,
+        157.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.lash.image",
+      "file": "eye-r-lash",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r.lash"
+      ],
+      "parent": "full.eye2.r.lash",
+      "opacity": 1.0,
+      "opaque_px": 465,
+      "skin_px": 183,
+      "orange_px": 8,
+      "dark_px": 188,
+      "white_px": 75,
+      "mean_rgb": [
+        128.1,
+        93.2,
+        82.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.lid.image",
+      "file": "eye-r-lid",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r"
+      ],
+      "parent": "full.eye2.r",
+      "opacity": 1.0,
+      "opaque_px": 237,
+      "skin_px": 194,
+      "orange_px": 2,
+      "dark_px": 0,
+      "white_px": 94,
+      "mean_rgb": [
+        223.5,
+        183.1,
+        168.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.hl.image",
+      "file": "eye-r-hl",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r.ball"
+      ],
+      "parent": "full.eye2.r.ball",
+      "opacity": 1.0,
+      "opaque_px": 20,
+      "skin_px": 7,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 19,
+      "mean_rgb": [
+        246.6,
+        237.6,
+        233.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.iris.image",
+      "file": "eye-r-iris",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r.ball"
+      ],
+      "parent": "full.eye2.r.ball",
+      "opacity": 1.0,
+      "opaque_px": 464,
+      "skin_px": 198,
+      "orange_px": 68,
+      "dark_px": 149,
+      "white_px": 32,
+      "mean_rgb": [
+        148.4,
+        105.9,
+        82.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.sclera.image",
+      "file": "eye-r-sclera",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r.ball"
+      ],
+      "parent": "full.eye2.r.ball",
+      "opacity": 1.0,
+      "opaque_px": 492,
+      "skin_px": 289,
+      "orange_px": 25,
+      "dark_px": 78,
+      "white_px": 109,
+      "mean_rgb": [
+        177.1,
+        136.5,
+        123.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye2.r.skin.image",
+      "file": "eye-r-skin",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye2.r"
+      ],
+      "parent": "full.eye2.r",
+      "opacity": 1.0,
+      "opaque_px": 1253,
+      "skin_px": 1253,
+      "orange_px": 0,
+      "dark_px": 0,
+      "white_px": 0,
+      "mean_rgb": [
+        233.2,
+        180.7,
+        154.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.face.smile",
+      "file": "face-smile",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.head"
+      ],
+      "parent": "full.head",
+      "opacity": 0.0,
+      "opaque_px": 203,
+      "skin_px": 34,
+      "orange_px": 0,
+      "dark_px": 20,
+      "white_px": 1,
+      "mean_rgb": [
+        125.0,
+        57.5,
+        52.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.mouth.image",
+      "file": "mouth",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.torso",
+        "full.spine"
+      ],
+      "parent": "full.mouth",
+      "opacity": 1.0,
+      "opaque_px": 3189,
+      "skin_px": 2975,
+      "orange_px": 54,
+      "dark_px": 142,
+      "white_px": 1116,
+      "mean_rgb": [
+        237.8,
+        191.1,
+        172.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye.l.image",
+      "file": "eye-l",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye.l"
+      ],
+      "parent": "full.eye.l",
+      "opacity": 1.0,
+      "opaque_px": 2379,
+      "skin_px": 1661,
+      "orange_px": 78,
+      "dark_px": 311,
+      "white_px": 787,
+      "mean_rgb": [
+        189.3,
+        146.8,
+        131.3
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.eye.r.image",
+      "file": "eye-r",
+      "category": "body-skin",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.eye.r"
+      ],
+      "parent": "full.eye.r",
+      "opacity": 1.0,
+      "opaque_px": 1871,
+      "skin_px": 932,
+      "orange_px": 49,
+      "dark_px": 324,
+      "white_px": 251,
+      "mean_rgb": [
+        162.0,
+        116.4,
+        102.4
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hair.tip.l.image",
+      "file": "hair-tip-l",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.spine"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 137,
+      "skin_px": 83,
+      "orange_px": 5,
+      "dark_px": 5,
+      "white_px": 0,
+      "mean_rgb": [
+        177.6,
+        122.0,
+        101.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hair.l.image",
+      "file": "hair-l",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.lock.l.s1",
+        "full.hair.lock.l.s2",
+        "full.hair.lock.l.s3"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 1304,
+      "skin_px": 55,
+      "orange_px": 18,
+      "dark_px": 974,
+      "white_px": 1,
+      "mean_rgb": [
+        87.8,
+        59.0,
+        54.5
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hair.r.image",
+      "file": "hair-r",
+      "category": "body-hair",
+      "kind": "skin",
+      "drivers": [
+        "full.head",
+        "full.hair.lock.r.s1",
+        "full.hair.lock.r.s2",
+        "full.hair.lock.r.s3"
+      ],
+      "parent": "full.head",
+      "opacity": 1.0,
+      "opaque_px": 503,
+      "skin_px": 384,
+      "orange_px": 7,
+      "dark_px": 32,
+      "white_px": 32,
+      "mean_rgb": [
+        193.5,
+        146.0,
+        123.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.torso.tank.image",
+      "file": "torso-tank",
+      "category": "garment-tank",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.spine",
+        "full.pelvis"
+      ],
+      "parent": "full.torso",
+      "opacity": 1.0,
+      "opaque_px": 25365,
+      "skin_px": 235,
+      "orange_px": 365,
+      "dark_px": 23346,
+      "white_px": 412,
+      "mean_rgb": [
+        60.8,
+        47.2,
+        44.2
+      ],
+      "fused_notes": [
+        "orange fringe on tank edges (coat bleed)"
+      ]
+    },
+    {
+      "image": "full.shoe.l.image",
+      "file": "shoe-l",
+      "category": "garment-shoes",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.leg-l.foot"
+      ],
+      "parent": "full.leg-l.foot",
+      "opacity": 1.0,
+      "opaque_px": 19982,
+      "skin_px": 2641,
+      "orange_px": 3781,
+      "dark_px": 7880,
+      "white_px": 4371,
+      "mean_rgb": [
+        145.6,
+        105.7,
+        83.9
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.leg.l.skin.image",
+      "file": "leg-l-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.leg-l.upper",
+        "full.leg-l.lower",
+        "full.leg-l.foot"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 50775,
+      "skin_px": 42068,
+      "orange_px": 229,
+      "dark_px": 4081,
+      "white_px": 32726,
+      "mean_rgb": [
+        227.9,
+        197.7,
+        184.3
+      ],
+      "fused_notes": [
+        "orange baked into body layer (229px)",
+        "socks appear baked into leg skin (large white region)"
+      ]
+    },
+    {
+      "image": "full.shoe.r.image",
+      "file": "shoe-r",
+      "category": "garment-shoes",
+      "kind": "rigid-on-bone",
+      "drivers": [
+        "full.leg-r.foot"
+      ],
+      "parent": "full.leg-r.foot",
+      "opacity": 1.0,
+      "opaque_px": 20614,
+      "skin_px": 3386,
+      "orange_px": 4193,
+      "dark_px": 7767,
+      "white_px": 4415,
+      "mean_rgb": [
+        150.1,
+        109.5,
+        86.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.leg.r.skin.image",
+      "file": "leg-r-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.leg-r.upper",
+        "full.leg-r.lower",
+        "full.leg-r.foot"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 52989,
+      "skin_px": 46684,
+      "orange_px": 562,
+      "dark_px": 1517,
+      "white_px": 37122,
+      "mean_rgb": [
+        239.5,
+        207.5,
+        193.4
+      ],
+      "fused_notes": [
+        "orange baked into body layer (562px)",
+        "socks appear baked into leg skin (large white region)"
+      ]
+    },
+    {
+      "image": "full.hem.ribbon.l.image",
+      "file": "hem-ribbon-l",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.hem.ribbon.l",
+        "full.hem.ribbon.l.s1",
+        "full.hem.ribbon.l.s2",
+        "full.hem.ribbon.l.s3"
+      ],
+      "parent": "full.coat-l",
+      "opacity": 1.0,
+      "opaque_px": 8379,
+      "skin_px": 2687,
+      "orange_px": 7040,
+      "dark_px": 150,
+      "white_px": 210,
+      "mean_rgb": [
+        233.6,
+        125.3,
+        47.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.hem.ribbon.r.image",
+      "file": "hem-ribbon-r",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.hem.ribbon.r",
+        "full.hem.ribbon.r.s1",
+        "full.hem.ribbon.r.s2",
+        "full.hem.ribbon.r.s3"
+      ],
+      "parent": "full.coat-r",
+      "opacity": 1.0,
+      "opaque_px": 7521,
+      "skin_px": 2764,
+      "orange_px": 6753,
+      "dark_px": 9,
+      "white_px": 228,
+      "mean_rgb": [
+        245.2,
+        139.3,
+        57.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-l.shoulder-skin.static",
+      "file": "arm-l-shoulder-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-l.shoulder",
+        "full.arm-l.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 3957,
+      "skin_px": 3621,
+      "orange_px": 372,
+      "dark_px": 25,
+      "white_px": 2397,
+      "mean_rgb": [
+        245.9,
+        204.2,
+        181.0
+      ],
+      "fused_notes": [
+        "orange baked into body layer (372px)",
+        "coat orange rim fused into shoulder skin"
+      ]
+    },
+    {
+      "image": "full.arm-r.shoulder-skin.static",
+      "file": "arm-r-shoulder-skin",
+      "category": "body-skin",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-r.shoulder",
+        "full.arm-r.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 3963,
+      "skin_px": 3422,
+      "orange_px": 307,
+      "dark_px": 7,
+      "white_px": 2877,
+      "mean_rgb": [
+        247.0,
+        212.7,
+        191.5
+      ],
+      "fused_notes": [
+        "orange baked into body layer (307px)",
+        "coat orange rim fused into shoulder skin"
+      ]
+    },
+    {
+      "image": "full.arm-l.sleeve-stump.static",
+      "file": "sleeve-l-stump",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-l.shoulder",
+        "full.arm-l.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 18192,
+      "skin_px": 6580,
+      "orange_px": 2878,
+      "dark_px": 2850,
+      "white_px": 7405,
+      "mean_rgb": [
+        198.4,
+        163.5,
+        146.0
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-r.sleeve-stump.static",
+      "file": "sleeve-r-stump",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-r.shoulder",
+        "full.arm-r.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 16118,
+      "skin_px": 5979,
+      "orange_px": 1850,
+      "dark_px": 2087,
+      "white_px": 7971,
+      "mean_rgb": [
+        207.2,
+        178.5,
+        162.4
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-l.coat-shoulder.static",
+      "file": "coat-l-shoulder",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-l.shoulder",
+        "full.arm-l.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 6895,
+      "skin_px": 5687,
+      "orange_px": 1291,
+      "dark_px": 134,
+      "white_px": 2787,
+      "mean_rgb": [
+        236.4,
+        182.1,
+        150.2
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-l.coat-shoulder.lining.static",
+      "file": "coat-l-shoulder-lining",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-l.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 4793,
+      "skin_px": 389,
+      "orange_px": 339,
+      "dark_px": 4101,
+      "white_px": 0,
+      "mean_rgb": [
+        71.9,
+        48.8,
+        40.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-l.coat-shoulder.dark.static",
+      "file": "coat-l-shoulder-dark",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-l.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 4368,
+      "skin_px": 122,
+      "orange_px": 125,
+      "dark_px": 4087,
+      "white_px": 0,
+      "mean_rgb": [
+        57.0,
+        40.5,
+        36.1
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-r.coat-shoulder.static",
+      "file": "coat-r-shoulder",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-r.shoulder",
+        "full.arm-r.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 7610,
+      "skin_px": 5819,
+      "orange_px": 1582,
+      "dark_px": 77,
+      "white_px": 3480,
+      "mean_rgb": [
+        241.1,
+        190.1,
+        156.7
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-r.coat-shoulder.lining.static",
+      "file": "coat-r-shoulder-lining",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-r.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 3040,
+      "skin_px": 303,
+      "orange_px": 284,
+      "dark_px": 1807,
+      "white_px": 1,
+      "mean_rgb": [
+        93.6,
+        64.1,
+        51.8
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.arm-r.coat-shoulder.dark.static",
+      "file": "coat-r-shoulder-dark",
+      "category": "garment-coat",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.arm-r.upper",
+        "full.spine"
+      ],
+      "parent": "full.root",
+      "opacity": 1.0,
+      "opaque_px": 2655,
+      "skin_px": 102,
+      "orange_px": 104,
+      "dark_px": 1786,
+      "white_px": 0,
+      "mean_rgb": [
+        75.8,
+        54.3,
+        47.0
+      ],
+      "fused_notes": []
+    },
+    {
+      "image": "full.neutral",
+      "file": "fullbody-base-no-head-arms",
+      "category": "fused-base",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.pelvis",
+        "full.spine"
+      ],
+      "parent": "full.pose",
+      "opacity": 0.0,
+      "opaque_px": 3934,
+      "skin_px": 792,
+      "orange_px": 1024,
+      "dark_px": 1884,
+      "white_px": 22,
+      "mean_rgb": [
+        117.7,
+        69.3,
+        43.5
+      ],
+      "fused_notes": [
+        "base layer contains mother garment pixels, not bare skin"
+      ]
+    },
+    {
+      "image": "full.body.backfill",
+      "file": "body-backfill",
+      "category": "fused-base",
+      "kind": "skin",
+      "drivers": [
+        "full.torso",
+        "full.pelvis",
+        "full.spine"
+      ],
+      "parent": "full.pose",
+      "opacity": 1.0,
+      "opaque_px": 48846,
+      "skin_px": 53,
+      "orange_px": 211,
+      "dark_px": 46890,
+      "white_px": 0,
+      "mean_rgb": [
+        52.7,
+        41.4,
+        39.1
+      ],
+      "fused_notes": [
+        "base layer contains mother garment pixels, not bare skin",
+        "only 53 skin-like px — NOT a bare-body base"
+      ]
+    }
+  ],
+  "hole_risk": {
+    "hide-coat": {
+      "lost_px": 63662,
+      "changed_px": 1624,
+      "remaining_visible": 196755,
+      "note": "手臂上臂/前臂整段消失（袖下无连续肤色）；肩头残留橙色（shoulder-skin 融合）；躯干仍见 tank（独立层）+ backfill 衣身"
+    },
+    "hide-tank": {
+      "lost_px": 250,
+      "changed_px": 171,
+      "remaining_visible": 260258,
+      "note": "几乎无变化：tank 像素大多与 body-backfill 重叠/被外套遮挡；隐藏 tank 后仍见 backfill 里烘焙的背心"
+    },
+    "hide-shorts": {
+      "lost_px": 5836,
+      "changed_px": 8363,
+      "remaining_visible": 254922,
+      "note": "短裤主体消失后大腿根出现水平缺口；橙色侧片部分仍在 shorts 内故一并消失，但 neutral/backfill 可能残留碎片"
+    },
+    "hide-belt": {
+      "lost_px": 377,
+      "changed_px": 7323,
+      "remaining_visible": 261096,
+      "note": "腰带/工牌/腰包层消失，但 backfill 内仍烘焙腰带轮廓与孔洞"
+    },
+    "hide-shoes": {
+      "lost_px": 25778,
+      "changed_px": 74,
+      "remaining_visible": 234576,
+      "note": "鞋消失后可见袜（烘焙在 leg-skin）与部分脚踝；无独立袜层"
+    },
+    "hide-all-garments": {
+      "lost_px": 101496,
+      "changed_px": 11512,
+      "remaining_visible": 159786,
+      "note": "仍见 tank+belt+shorts 剪影（来自 body-backfill）；手臂缺失；大腿根缺口；肩橙碎片；袜在腿上"
+    }
+  },
+  "coverage": {
+    "only_body_skin_visible": 111749,
+    "skin_like": 68313,
+    "dark_garment_leftover": 33968,
+    "orange_leftover": 1820,
+    "skin_share": 0.611,
+    "verdict": "NOT swap-ready: body-backfill is garment-colored (dark leftover >> skin); arms incomplete under coat; socks fused to legs"
+  },
+  "swap_ready": false,
+  "blockers": [
+    "body-backfill.png is dark garment torso (53 skin px), not bare skin",
+    "no continuous arm skin under sleeves (hide-coat severs arms)",
+    "hip/crotch gap when shorts hidden (legs start mid-thigh)",
+    "orange coat rim fused into arm-*-shoulder-skin",
+    "orange side fragments fused into shorts.png",
+    "socks baked into leg-*-skin; no sock layer",
+    "hair-bow.png nearly empty (6 px)",
+    "tank hide is a no-op visually because backfill duplicates tank",
+    "draw-order not grouped as body→underwear→tops→outerwear→accessories"
+  ]
+}
