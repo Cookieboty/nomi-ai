@@ -3,7 +3,6 @@
 '@nomi-ai/ai-chat': minor
 '@nomi-ai/electron': minor
 '@nomi-ai/types': minor
-'@nomi-ai/voice': patch
 ---
 
 看板娘缩小后「更多」面板不再被截断：面板按窗口大小定位，窗口太小时用紧凑排版并可滚动。

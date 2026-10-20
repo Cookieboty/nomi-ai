@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
 '@nomi-ai/renderer': patch
-'@nomi-ai/ui': patch
 ---
 
 界面样式修正：看板娘「选择角色」卡片在浅色主题下角色名看不清、选中描边不随主题的问题已修复；命令面板等处的高亮颜色跟随主题；

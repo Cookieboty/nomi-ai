@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/electron': patch
-'@nomi-ai/ai-runtime': patch
 ---
 
 性能：去掉每条消息 / 每个 token 都会走到的主进程卡顿。发送消息前读取技能不再每次同步扫描整个技能目录（有缓存，外部改动仍会生效）；

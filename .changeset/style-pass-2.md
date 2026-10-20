@@ -1,7 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/ui': minor
-'@nomi-ai/voice': minor
 ---
 
 界面样式统一（第二轮）：输入栏工具行的所有按钮（更多、插件、后端、模型、权限、语音、发送）统一为同一高度与胶囊形；
