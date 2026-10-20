@@ -181,17 +181,15 @@
   color: var(--tb-danger);
 }
 
-/* 功能面板（设计稿 05）：白色卡片，贴着工具栏朝窗口内侧展开 */
+/* 功能面板（设计稿 05）：白色卡片，贴着工具栏朝窗口内侧展开（位置 / 宽高由 JS 按窗口夹紧） */
 .panel {
-  position: absolute;
-  top: 0;
-  right: calc(100% + var(--cd-space-2));
+  position: fixed;
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-0-5);
-  width: 236px;
-  max-height: calc(100vh - 16px);
+  box-sizing: border-box;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--cd-space-2) var(--cd-space-1-5) var(--cd-space-2);
   border: 1px solid rgba(30, 30, 40, 0.06);
   border-radius: var(--cd-radius-xl);
@@ -205,9 +203,34 @@
   transform-origin: right top;
 }
 .root[data-side='left'] .panel {
-  right: auto;
-  left: calc(100% + var(--cd-space-2));
   transform-origin: left top;
+}
+/* 紧凑排版（看板娘缩小、窗口很矮 / 很窄时）：去掉说明行，图标和间距收小 */
+.panel[data-dense] {
+  padding: var(--cd-space-1) var(--cd-space-1);
+}
+.panel[data-dense] .panelHead {
+  padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
+}
+.panel[data-dense] .brand {
+  font-size: var(--cd-font-size-md);
+}
+.panel[data-dense] .row {
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-0-5) var(--cd-space-1-5);
+}
+.panel[data-dense] .rowIcon {
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+}
+.panel[data-dense] .rowDesc {
+  display: none;
+}
+.panel[data-dense] .more {
+  margin: var(--cd-space-0-5) 0 0;
+}
+.panel[data-dense] .menuRow {
+  padding: 0 var(--cd-space-1);
 }
 @keyframes tb-pop {
   from {

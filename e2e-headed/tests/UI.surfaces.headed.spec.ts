@@ -135,20 +135,6 @@ test.describe('UI surfaces', () => {
     await shot(main, '06c-credits');
     await main.keyboard.press('Escape');
 
-    // TTS 配置窗口
-    const ttsWin = app.waitForEvent('window', { timeout: 15_000 }).catch(() => null);
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openTTSConfig(): Promise<unknown> } }
-      ).electronAPI.openTTSConfig(),
-    );
-    const tts = await ttsWin;
-    if (tts) {
-      await tts.waitForLoadState('domcontentloaded');
-      await tts.waitForTimeout(800);
-      await shot(tts, '07-tts-config-window');
-    }
-
     // AI 对话窗口
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
     await main.evaluate(() =>

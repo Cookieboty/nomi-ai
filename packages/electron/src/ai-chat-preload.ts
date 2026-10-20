@@ -35,6 +35,14 @@ const aiChatAPI = {
     },
   },
 
+  /** 设置 → 语音与屏幕 → 语音：朗读引擎配置（userData/tts-config.json；云 Key 只写不读） */
+  tts: {
+    get: () => ipcRenderer.invoke('getTTSConfig'),
+    save: (cfg: unknown) => ipcRenderer.invoke('saveTTSConfig', cfg),
+    test: (cfg: unknown) => ipcRenderer.invoke('testTTSConnection', cfg),
+    reset: () => ipcRenderer.invoke('resetTTSConfig'),
+  },
+
   /** 设置 → 通用：聊天主面板背景（chat/ChatBackgroundService.ts） */
   chatBg: {
     get: () => ipcRenderer.invoke('chat-bg:get'),

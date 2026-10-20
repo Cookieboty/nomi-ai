@@ -12,7 +12,6 @@ import {
   MessageCircleMore,
   Mic,
   RotateCcw,
-  Settings2,
   Sparkle,
   Volume2,
   VolumeX,
@@ -76,7 +75,11 @@ const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
   more: { title: () => tr('更多'), desc: () => tr('设置 / 大小 / 退出') },
 };
 
-const TIP_BAR_WIDTH = 44; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
+const TIP_BAR_WIDTH = 44;
+/** 功能面板：常规宽度、与窗口边缘的距离、低于这个窗口高度时用紧凑排版 */
+const PANEL_W = 236;
+const PANEL_MARGIN = 6;
+const PANEL_DENSE_H = 420; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
 
 export const ToolBar: React.FC = () => {
   const {
@@ -322,31 +325,6 @@ export const ToolBar: React.FC = () => {
         };
       case 'voice-mode-toggle':
         return toggleVoiceMode;
-      case 'tts-config':
-        return () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-          const electronAPI = (window as any).electronAPI;
-          if (electronAPI?.openTTSConfig) {
-            electronAPI
-              .openTTSConfig()
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .then((result: any) => {
-                if (result?.success) {
-                  showMessage(tr('TTS配置窗口已打开'));
-                } else {
-                  showMessage(tr('打开失败: {0}', result?.error || tr('未知错误')));
-                }
-              })
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .catch((error: any) => {
-                log.error('打开TTS配置窗口失败:', error);
-                showMessage(tr('打开TTS配置窗口失败，请稍后再试'));
-              });
-          } else {
-            log.warn('Electron API不可用，无法打开TTS配置窗口');
-            showMessage(tr('TTS配置功能需要在Electron环境中运行'));
-          }
-        };
       case 'ai-chat':
         return () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
@@ -545,16 +523,39 @@ export const ToolBar: React.FC = () => {
     }
   }, [place, visible]);
 
-  // 菜单纵向位置：尽量与工具栏顶部对齐，但整体留在窗口内（过高时内部滚动）
+  // 面板位置：贴着工具栏朝角色一侧展开，整体留在窗口内（过高时内部滚动）。
+  // 看板娘缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuTop, setMenuTop] = useState(0);
+  const [panelBox, setPanelBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    maxHeight: number;
+    dense: boolean;
+  } | null>(null);
   useLayoutEffect(() => {
-    if (!menuOpen || !menuRef.current) return;
-    const h = Math.min(menuRef.current.scrollHeight, window.innerHeight - 16);
-    const y0 = place?.y ?? 0;
-    const want = Math.max(8, Math.min(window.innerHeight - h - 8, y0));
-    setMenuTop(want - y0);
-  }, [menuOpen, place, prefs.compact]);
+    if (!menuOpen) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(PANEL_W, vw - 2 * PANEL_MARGIN);
+    const dense = vh < PANEL_DENSE_H || width < PANEL_W;
+    const maxHeight = vh - 2 * PANEL_MARGIN;
+    const h = Math.min(menuRef.current?.scrollHeight ?? maxHeight, maxHeight);
+    const barX = place?.x ?? vw - TIP_BAR_WIDTH - PANEL_MARGIN;
+    const want = place?.side === 'left' ? barX + TIP_BAR_WIDTH + BAR_GAP : barX - BAR_GAP - width;
+    const left = Math.max(PANEL_MARGIN, Math.min(vw - PANEL_MARGIN - width, want));
+    const top = Math.max(PANEL_MARGIN, Math.min(vh - PANEL_MARGIN - h, place?.y ?? 0));
+    setPanelBox((b) =>
+      b &&
+      b.left === left &&
+      b.top === top &&
+      b.width === width &&
+      b.maxHeight === maxHeight &&
+      b.dense === dense
+        ? b
+        : { left, top, width, maxHeight, dense },
+    );
+  }, [menuOpen, moreOpen, place, prefs.compact, size?.scale]);
 
   // ---------- 按钮 ----------
   const toolIcon = (toolId: string): LucideIcon => {
@@ -571,8 +572,6 @@ export const ToolBar: React.FC = () => {
         return voiceEnabled ? Volume2 : VolumeX;
       case 'voice-mode-toggle':
         return voiceMode === 'fixed' ? Mic : AudioLines;
-      case 'tts-config':
-        return Settings2;
       case 'close-mascot':
         return EyeOff;
       case 'info':
@@ -600,8 +599,6 @@ export const ToolBar: React.FC = () => {
           : [tr('声音：关'), tr('点按开启 · 右键语音偏好')].join('\n');
       case 'voice-mode-toggle':
         return voiceMode === 'fixed' ? tr('语音模式：固定语音') : tr('语音模式：TTS');
-      case 'tts-config':
-        return tr('TTS 语音配置');
       case 'ai-chat':
       case 'task-board':
         return `${TOOL_META[toolId]!.title()}\n${TOOL_META[toolId]!.desc()}`;
@@ -797,7 +794,17 @@ export const ToolBar: React.FC = () => {
             aria-label={tr('Nomi 功能面板')}
             data-testid="toolbar-menu"
             ref={menuRef}
-            style={{ top: menuTop }}
+            data-dense={panelBox?.dense ? '' : undefined}
+            style={
+              panelBox
+                ? {
+                    left: panelBox.left,
+                    top: panelBox.top,
+                    width: panelBox.width,
+                    maxHeight: panelBox.maxHeight,
+                  }
+                : { visibility: 'hidden' }
+            }
           >
             <div className={styles.panelHead}>
               <span className={styles.brand}>

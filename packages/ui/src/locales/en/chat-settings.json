@@ -365,5 +365,10 @@
   "在输入框里切换": "to switch in the input box",
   "正在从 {0} 读取模型列表": "Reading the model list from {0}",
   "模型（{0}）：{1}": "Model ({0}): {1}",
-  "{0} 的模型": "{0} models"
+  "{0} 的模型": "{0} models",
+  "朗读引擎": "Speech engine",
+  "默认用内置离线语音，在本机合成、无需联网；模型缺失或合成失败时保持静默。": "Uses the built-in offline voice by default: synthesized on this device, no network needed. Nomi stays silent if the model is missing or synthesis fails.",
+  "应用已内置 Nomi 可爱声线，合成时自动发给 Fish，无需手动拷贝；不提供上传自己音色的入口。": "The Nomi voice is built in and sent to Fish automatically; uploading your own voice isn't supported.",
+  "Built with Fish Audio — 研究/非商用免费；年营收 < USD 500k 可社区商用；对外提供 TTS / 克隆服务需另签；不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。": "Built with Fish Audio — free for research / non-commercial use; community commercial use under USD 500k annual revenue; offering TTS / cloning as a service needs a separate agreement; no cloning real people without consent; outputs may not train other foundation TTS models.",
+  "外部自建 TTS（hostname / port / path / audioUrl / promptText）。": "Self-hosted external TTS (hostname / port / path / audioUrl / promptText)."
 }

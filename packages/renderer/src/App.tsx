@@ -11,7 +11,6 @@ const MASCOT_CONFIG: MascotConfig = {
     'info',
     'voice-settings',
     'voice-mode-toggle',
-    'tts-config',
     'motion',
     'close-mascot',
     'quit',

@@ -105,14 +105,21 @@
 .cd-voice-status.is-error {
   background: var(--cd-color-danger-soft);
 }
-/* 悬浮在透明窗口（看板娘）上：实底 + 阴影，保证任何桌面背景下都可读 */
+/* 悬浮在透明窗口（看板娘）上：实底 + 阴影，保证任何桌面背景下都可读；窗口窄时换行而不是截断 */
 .cd-voice-status--floating {
   background: var(--cd-color-surface-raised);
   border: 1px solid var(--cd-color-border-strong);
+  border-radius: var(--cd-radius-lg, 12px);
   box-shadow: var(--cd-shadow-md, 0 4px 14px rgba(0, 0, 0, 0.35));
+  flex-wrap: wrap;
+  row-gap: 2px;
 }
 .cd-voice-status--floating.is-error {
   border-color: var(--cd-color-danger);
+}
+.cd-voice-status--floating .cd-voice-status__text {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .cd-voice-status__text {

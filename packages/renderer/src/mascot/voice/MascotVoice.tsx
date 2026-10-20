@@ -9,9 +9,11 @@ import React, { useCallback, useEffect, useRef } from 'react';
 
 import { directiveForEvent } from '../expressionDirector';
 import { applyDirective } from '../mood';
+import { openVoiceSettings } from '../openVoiceSettings';
 import { useMascotShown } from '../presence';
 import { stopAllSpeech } from '../speechStop';
 
+import styles from './MascotVoice.module.css';
 import { voiceDirective } from './voiceMood';
 
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
@@ -21,11 +23,6 @@ let toggleImpl: (() => Promise<void>) | null = null;
 /** 工具栏菜单项 / 右键：切换免按键对话 */
 export function toggleMascotHandsfree(): Promise<void> {
   return toggleImpl ? toggleImpl() : Promise.resolve();
-}
-
-function openChat(): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留 preload
-  (window as any).electronAPI?.openAiChat?.();
 }
 
 export const MascotMicTool: React.FC<{
@@ -136,24 +133,12 @@ export const MascotVoiceBridge: React.FC = () => {
   const visible = v.state.phase !== 'idle' || !!v.state.error;
   if (!visible) return null;
   return (
-    <div
-      data-testid="mascot-voice-status"
-      style={{
-        position: 'absolute',
-        left: 8,
-        right: 8,
-        bottom: 6,
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 30,
-        pointerEvents: 'none',
-      }}
-    >
-      <div style={{ pointerEvents: 'auto', maxWidth: '100%' }}>
+    <div className={styles.wrap} data-testid="mascot-voice-status">
+      <div className={styles.inner}>
         <VoiceStatus
           state={v.state}
           wakePhrase={v.config?.settings.wakeWord.phrase}
-          onOpenSettings={openChat}
+          onOpenSettings={() => void openVoiceSettings()}
           onDismissError={() => v.controller?.clearError()}
           onStop={() => void v.setContinuous('off')}
           className="cd-voice-status--floating"

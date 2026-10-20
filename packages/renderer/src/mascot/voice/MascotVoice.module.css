@@ -1,0 +1,28 @@
+/*
+ * 看板娘底部的语音状态 / 错误提示：与气泡、工具栏同一套深色（看板娘浮在桌面上，不跟随应用主题）。
+ * 通过局部覆盖令牌给共享的 VoiceStatus 换配色，不改它的结构。
+ */
+.wrap {
+  position: absolute;
+  left: var(--cd-space-2);
+  right: var(--cd-space-2);
+  bottom: var(--cd-space-1-5);
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+
+  --cd-color-surface-raised: rgba(52, 54, 60, 0.96);
+  --cd-color-border-strong: rgba(255, 255, 255, 0.06);
+  --cd-color-text: rgba(255, 255, 255, 0.94);
+  --cd-color-text-subtle: rgba(255, 255, 255, 0.6);
+  --cd-color-accent: #ff8a3d;
+  --cd-color-accent-strong: #ffad73;
+  --cd-color-danger: #ff7a6b;
+  --cd-color-warning: #ffc861;
+  --cd-shadow-md: 0 8px 22px rgba(20, 20, 24, 0.24), 0 1px 3px rgba(20, 20, 24, 0.18);
+}
+.inner {
+  max-width: 100%;
+  pointer-events: auto;
+}

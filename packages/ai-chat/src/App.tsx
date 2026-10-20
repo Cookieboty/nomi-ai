@@ -230,6 +230,11 @@ const AiChatContent: React.FC = () => {
     setShowProviders(false);
     setSettings(sec);
   }, []);
+  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音
+  useEffect(
+    () => desktopClient.onOpenVoiceSettings(() => openSettings('senses', 'voice')),
+    [openSettings],
+  );
   // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
   const harness = useHarnessState();
   const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;

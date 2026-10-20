@@ -152,6 +152,8 @@ export const desktopClient = {
   onOpenPanel: (fn: () => void) => on('ai:desktop:open-panel', () => fn()),
   /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
   onOpenSchedule: (fn: () => void) => on('ai:hub:open-schedule', () => fn()),
+  /** 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音 */
+  onOpenVoiceSettings: (fn: () => void) => on('ai:settings:open-voice', () => fn()),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) =>
     on('ai:desktop:summary', (p) => fn(p as DesktopSummaryEvent)),
 };

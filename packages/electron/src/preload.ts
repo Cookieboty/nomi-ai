@@ -198,29 +198,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return await ipcRenderer.invoke('open-task-board');
   },
 
-  // TTS配置相关API
-  openTTSConfig: async () => {
-    return await ipcRenderer.invoke('open-tts-config');
-  },
-  getTTSConfig: async () => {
-    return await ipcRenderer.invoke('getTTSConfig');
-  },
-  saveTTSConfig: async (config: any) => {
-    return await ipcRenderer.invoke('saveTTSConfig', config);
-  },
-  testTTSConnection: async (config: any) => {
-    return await ipcRenderer.invoke('testTTSConnection', config);
-  },
-  resetTTSConfig: async () => {
-    return await ipcRenderer.invoke('resetTTSConfig');
+  /** 打开对话窗口的语音设置（朗读引擎配置已并入设置） */
+  openVoiceSettings: async () => {
+    return await ipcRenderer.invoke('open-voice-settings');
   },
   ttsSpeak: async (req: { text: string; referenceId?: string; volume?: number }) => {
     return await ipcRenderer.invoke('tts:speak', req);
   },
   ttsHealth: async (config?: unknown) => {
     return await ipcRenderer.invoke('tts:health', config);
-  },
-  ttsSherpaStatus: async () => {
-    return await ipcRenderer.invoke('tts:sherpa:status');
   },
 } as IpcApi);

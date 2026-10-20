@@ -326,7 +326,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     }
     await main.screenshot(shot('04-toolbar-panel.png'));
     await menu.locator('[data-testid="panel-more"]').click();
-    for (const id of ['info', 'tts-config', 'voice-mode-toggle', 'close-mascot', 'quit']) {
+    for (const id of ['info', 'voice-mode-toggle', 'close-mascot', 'quit']) {
       await expect(menu.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
     await expect(menu.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);

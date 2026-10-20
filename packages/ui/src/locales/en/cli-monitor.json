@@ -176,8 +176,6 @@
   "需要确认工具权限": "Tool permission required",
   "{0} 需要确认工具权限：{1}": "{0} needs tool permission: {1}",
   "请到对话里允许或拒绝": "Allow or deny in the chat",
-  "语音播报引擎": "Speech engine",
-  "默认使用内置离线语音（sherpa-onnx，本机合成，开启语音时下载模型）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。": "Uses the built-in offline voice (sherpa-onnx, synthesized on this device; the model is downloaded when you turn on voice). If the model is missing or synthesis fails, it stays silent. Fish Audio is an optional remote engine; voice-clone uploads are not provided.",
   "动作音效": "Action sound effects",
   "点击、拖拽、任务完成等动作的短提示音（程序合成，可关）。": "Short cues for clicks, drag, task done, etc. (synthesized; can disable).",
   "下次温柔一点嘛。": "Be gentler next time.",

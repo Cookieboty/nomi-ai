@@ -12,6 +12,7 @@ import type { ScreenTab } from '../ScreenPanel';
 import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type SensesTab } from './sections';
+import { TtsEngineCard } from './TtsEngineCard';
 import { TtsModelCard } from './TtsModelCard';
 
 const noop = () => undefined;
@@ -21,6 +22,7 @@ const VoiceSection: React.FC = () => {
   return (
     <>
       <TtsModelCard />
+      <TtsEngineCard />
       {v.api ? (
         <section className={styles.block} data-testid="settings-voice">
           <h2 className={styles.h2}>{t('语音输入')}</h2>

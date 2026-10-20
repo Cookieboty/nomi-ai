@@ -2,6 +2,9 @@
   width: 100%;
   height: 100%;
   position: relative;
+  /* 桌面宠物：拖动 / 双击角色时不要选中气泡、提示里的文字 */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .stage {
