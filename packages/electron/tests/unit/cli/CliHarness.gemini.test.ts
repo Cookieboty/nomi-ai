@@ -386,6 +386,41 @@ describe('CliHarnessService Gemini backend', () => {
     }, 15_000);
   });
 
+  describe('初始化期间停止（#75）', () => {
+    const until = async (cond: () => boolean) => {
+      for (let i = 0; i < 300 && !cond(); i++) await new Promise((r) => setTimeout(r, 25));
+    };
+    it.each<[string, Record<string, string>, string]>([
+      ['initialize', { NOMI_MOCK_GEMINI_INIT_DELAY_MS: '1500' }, 'initialize'],
+      ['session/set_mode', { NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS: '1500' }, 'session/set_mode'],
+    ])(
+      '握手停在 %s 时停止：不发送 prompt、标为已停止，紧接着的新一轮正常',
+      async (_name, env, method) => {
+        Object.assign(process.env, env);
+        const { h, root } = mk();
+        const log = path.join(root, 'acp.log');
+        process.env.NOMI_MOCK_GEMINI_LOG = log;
+        const tab = h.createTab({ backend: 'gemini' });
+        h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true }); // 新会话需要 set_mode
+        const p = h.sendTab(tab.id, 'hello').catch((e: Error) => e);
+        await until(() => fs.existsSync(log) && readLog(log).some((c) => c.method === method));
+        expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.status).toBe('running');
+        expect(h.cancelTab(tab.id)).toBe(true);
+        expect(await p).toBeInstanceOf(Error);
+        // 原本的握手应答时间点过后也没有补发这一轮
+        await new Promise((r) => setTimeout(r, 1700));
+        expect(readLog(log).some((c) => c.method === 'session/prompt')).toBe(false);
+        expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.status).toBe('idle');
+        expect(h.tabMessages(tab.id).at(-1)?.stopped).toBe(true);
+        // 旧的停止不影响新一轮
+        for (const k of Object.keys(env)) delete process.env[k];
+        expect((await h.sendTab(tab.id, 'again')).text).toBe('Mock Gemini: again');
+        expect(readLog(log).filter((c) => c.method === 'session/prompt')).toHaveLength(1);
+      },
+      20_000,
+    );
+  });
+
   it('cancel sends session/cancel and marks the turn stopped', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '3000';
     const { h, root } = mk();

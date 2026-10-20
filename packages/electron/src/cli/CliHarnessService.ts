@@ -322,6 +322,11 @@ export class CliHarnessService {
   >();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
+  /**
+   * 每次发送一个中止令牌（标签 → 这一轮）：从开始运行到这一轮真正发给 CLI 之间（Gemini 握手、
+   * 等权限模式确认）点停止，靠它让晚到的握手 / 确认结果不再把这一轮发出去（#75）
+   */
+  private readonly sendAborts = new Map<string, AbortController>();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
     this.broadcast('ai:harness:events', batch),
@@ -1325,6 +1330,21 @@ export class CliHarnessService {
   cancelTab(id: string): boolean {
     const queued = this.tabs.get(id)?.status === 'queued';
     if (queued) this.stopRequested.add(id);
+    // 这一轮已开始、但还没真正发给 CLI（Gemini 握手 / 等权限模式确认）：中止它的令牌，
+    // 并拆掉正在初始化的长驻进程（不保留空会话）；晚到的握手 / 确认结果不会再发出这一轮（#75）
+    const send = this.sendAborts.get(id);
+    if (
+      send &&
+      !send.signal.aborted &&
+      !this.claudeLive.get(id)?.turn &&
+      !this.geminiLive.get(id)?.turn &&
+      !this.children.has(id)
+    ) {
+      this.stopRequested.add(id);
+      send.abort();
+      this.teardownClaudeLive(id); // 同时拆 Gemini 的 ACP 进程
+      return true;
+    }
     const live = this.claudeLive.get(id);
     if (live?.turn) {
       this.writeClaudeControl(live, { subtype: 'interrupt' });
@@ -1417,6 +1437,8 @@ export class CliHarnessService {
       throw new Error(t('标签已关闭'));
     }
     tab.status = 'running';
+    const abort = new AbortController();
+    this.sendAborts.set(id, abort);
     const startedAt = Date.now();
     this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
@@ -1428,13 +1450,13 @@ export class CliHarnessService {
     try {
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, toCli)
+          ? await this.runClaude(tab, toCli, abort.signal)
           : backend === 'dsh'
             ? await this.runDsh(tab, toCli)
             : backend === 'grok'
               ? await this.runGrok(tab, toCli)
               : backend === 'gemini'
-                ? await this.runGemini(tab, toCli)
+                ? await this.runGemini(tab, toCli, abort.signal)
                 : await this.runCodex(tab, toCli);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
@@ -1524,6 +1546,7 @@ export class CliHarnessService {
       }
       throw e;
     } finally {
+      if (this.sendAborts.get(id) === abort) this.sendAborts.delete(id);
       this.partial.delete(id);
       this.stopRequested.delete(id);
       this.release();
@@ -1591,10 +1614,16 @@ export class CliHarnessService {
    * 权限仍走 control_request ↔ control_response。CLI 若不支持或不稳定，
    * 进程退出后下一轮自动带 --resume 重拉（明确降级，见文档）。
    */
-  private async runClaude(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+  private async runClaude(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal?: AbortSignal,
+  ): Promise<HarnessSendResult> {
     // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
     // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
     await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
+    // 等待期间点了停止：不再拉起进程、不发送（#75）
+    if (signal?.aborted) throw new Error(t('已中止'));
     const live = this.ensureClaudeLive(tab);
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
@@ -1888,7 +1917,10 @@ export class CliHarnessService {
    * Gemini CLI 的 ACP 长驻进程（`gemini --acp`）：initialize → session/load（有会话 id 时）或 session/new
    * → session/set_mode；每轮 session/prompt。审批经 session/request_permission 进权限队列。
    */
-  private async ensureGeminiLive(tab: HarnessTabMeta): Promise<GeminiLiveSession> {
+  private async ensureGeminiLive(
+    tab: HarnessTabMeta,
+    signal?: AbortSignal,
+  ): Promise<GeminiLiveSession> {
     // 还在等确认的模式切换先有结果：失败时会话已拆除，下面按标签档位重新建立（#72）
     await this.geminiLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     const existing = this.geminiLive.get(tab.id);
@@ -1960,21 +1992,27 @@ export class CliHarnessService {
     this.geminiLive.set(tab.id, live);
     this.dormant.delete(tab.id);
     this.startIdleSweep();
+    // 发起这次握手的轮次被停止时，在途的握手请求立即失败（随后会话被拆除）
+    const opts = signal ? { signal } : {};
     live.ready = (async () => {
-      await live.conn.request('initialize', {
-        protocolVersion: 1,
-        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
-      });
+      await live.conn.request(
+        'initialize',
+        {
+          protocolVersion: 1,
+          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+        },
+        opts,
+      );
       type SessionResult = { sessionId?: string; modes?: { currentModeId?: unknown } } | null;
       let sid: string | null = null;
       let modeNow: unknown;
       if (tab.cliSessionId) {
         sid = await live.conn
-          .request<SessionResult>('session/load', {
-            sessionId: tab.cliSessionId,
-            cwd: tab.cwd,
-            mcpServers: [],
-          })
+          .request<SessionResult>(
+            'session/load',
+            { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] },
+            opts,
+          )
           .then((r) => {
             modeNow = r?.modes?.currentModeId;
             return tab.cliSessionId;
@@ -1982,10 +2020,11 @@ export class CliHarnessService {
           .catch(() => null);
       }
       if (!sid) {
-        const r = await live.conn.request<SessionResult>('session/new', {
-          cwd: tab.cwd,
-          mcpServers: [],
-        });
+        const r = await live.conn.request<SessionResult>(
+          'session/new',
+          { cwd: tab.cwd, mcpServers: [] },
+          opts,
+        );
         sid = r?.sessionId ?? null;
         modeNow = r?.modes?.currentModeId;
       }
@@ -1997,7 +2036,7 @@ export class CliHarnessService {
       const want = geminiModeId(initMode);
       if (modeNow !== want)
         await live.conn
-          .request('session/set_mode', { sessionId: sid, modeId: want })
+          .request('session/set_mode', { sessionId: sid, modeId: want }, opts)
           .catch((e: unknown) => {
             throw new Error(
               t(
@@ -2013,6 +2052,7 @@ export class CliHarnessService {
       await live.ready;
     } catch (e) {
       this.teardownGeminiLive(tab.id);
+      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
       // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
       if (
         e instanceof Error &&
@@ -2078,8 +2118,14 @@ export class CliHarnessService {
     }
   }
 
-  private async runGemini(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
-    const live = await this.ensureGeminiLive(tab);
+  private async runGemini(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal?: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    const live = await this.ensureGeminiLive(tab, signal);
+    // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
+    if (signal?.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
     const turn: GeminiTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
     live.turn = turn;

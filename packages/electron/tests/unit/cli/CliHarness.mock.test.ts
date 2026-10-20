@@ -658,6 +658,7 @@ describe('CliHarnessService permission modes', () => {
     'NOMI_MOCK_CLAUDE_BOOT_LOG',
     'NOMI_MOCK_CLAUDE_CONTROL_LOG',
     'NOMI_MOCK_CLAUDE_MODE_ACK',
+    'NOMI_MOCK_PROMPT_LOG',
   ];
   let saved: Record<string, string | undefined> = {};
   beforeEach(() => {
@@ -903,6 +904,22 @@ describe('CliHarnessService permission modes', () => {
       await h.sendTab(tab.id, 'two');
       expect(boots()).toHaveLength(1);
       expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    }, 20_000);
+
+    it('等权限模式确认时点停止：不再拉起进程、这一轮不发送（#75）', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const prompts = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'p.log');
+      process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+      const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 1500 });
+      h.setTabPermissionMode(tab.id, 'plan');
+      const p = h.sendTab(tab.id, 'two').catch((e: Error) => e);
+      await new Promise((r) => setTimeout(r, 100));
+      expect(h.cancelTab(tab.id)).toBe(true);
+      expect(await p).toBeInstanceOf(Error);
+      await new Promise((r) => setTimeout(r, 1700)); // 原本的确认超时过后也不会补发
+      expect(boots()).toHaveLength(1);
+      expect(fs.readFileSync(prompts, 'utf8')).not.toContain('two');
+      expect(h.tabMessages(tab.id).at(-1)?.stopped).toBe(true);
     }, 20_000);
 
     it('等确认时进程被拆（停止 / 关标签）：立即失败，不留挂起的请求', async () => {
