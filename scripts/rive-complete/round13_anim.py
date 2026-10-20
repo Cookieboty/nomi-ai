@@ -71,9 +71,18 @@ def add_to_anim(scene: str, anim: str, xml: str) -> str:
     return scene[:close] + xml + "\n        " + scene[close:]
 
 
+RESERVED_LO, RESERVED_HI = 60001, 60133
+
+
 class Ids:
     def __init__(self, scene: str, base_offset: int = 1):
-        self.n = max(int(x) for x in re.findall(r'\bid="0:(\d+)"', scene)) + base_offset
+        top = max(int(x) for x in re.findall(r'\bid="0:(\d+)"', scene))
+        # 0:60001..0:60133 is a reserved block of hard-coded ids (R17 autoblink, R18 step/squat,
+        # R26 walk/run clips + states).  Dynamic allocation must never land inside it, otherwise a
+        # clean rebuild (where R26 has not run yet when R19..R25 allocate) collides with R26's ids.
+        if RESERVED_LO <= top <= RESERVED_HI:
+            top = RESERVED_HI
+        self.n = top + base_offset
 
     def __call__(self) -> str:
         self.n += 1
