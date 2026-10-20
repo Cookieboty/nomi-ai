@@ -60,7 +60,7 @@ def main():
         mx = [0.0, 0.0]
         for f in frames:
             if clip in ("full.walk", "full.run"):
-                sp = -0.45 * g("full.pelvis", "rotation", f)
+                sp = -1.35 * g("full.pelvis", "rotation", f)   # R36: lumbar = pelvis roll -> chest world = -0.35 x pelvis
                 ss = 1.0 - (0.008 * max(0.0, g("full.pose", "y", f)) / 16.0 if clip == "full.run" else 0.0)
             elif clip in ("full.hop", "full.squat"):
                 sp = 0.5 * g("full.torso", "rotation", fr(f - 4))

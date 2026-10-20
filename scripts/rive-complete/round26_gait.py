@@ -6,7 +6,7 @@ Front view, in place (the mascot never translates across the screen).  Per baked
          foreshortening of a knee coming FORWARD, shin rot + 1/s, foot rot keeps the sole flat).  Planted feet are
          solved onto their rest ankle every frame -> foot sliding is measured as the solve error.
   body   full.pose x (weight shift onto the stance leg) / y (bob), pelvis roll (swing-side hip drops),
-         torso + head counter-roll.
+         lumbar rides the pelvis (R36), chest counter-roll in round28_spine_motion, head near level.
   arms   counter-swing (arm opposite the forward leg comes forward = hand in/up in front view), shoulder helper
          bone at 0.65 x upper (R25 rule), elbow flexion as forearm rotation TOWARD the body midline (anatomical
          flex direction for a hanging arm, same sign as clap/cheer), relaxed (walk) / loose-fist (run) finger curl
@@ -33,6 +33,7 @@ CLIPS = {"walk": ("0:294", "0:60103", "0:60113", 2040), "run": ("0:295", "0:6010
 FING = ("thumb", "index", "middle", "ring", "little")
 SEGS = ("", ".1", ".2")
 K_SH = 0.65
+PEL_PIVOT, TORSO_DROP = (480.0, 610.0), 50.0   # rest full.pelvis origin; full.torso rest origin (480, 660)
 
 
 def ease(t):
@@ -41,7 +42,7 @@ def ease(t):
 
 # ------------------------------------------------------------------ walk
 W_STEP, W_N, W_SETTLE, W_RAMP = 30, 8, 16, 12
-W = dict(lift=30.0, knee=0.020, shift=6.0, bob=5.0, pel=0.022, arm=0.075, elbow=0.22, elbow_sw=0.10, curl=0.12)
+W = dict(lift=30.0, knee=0.020, shift=6.0, bob=5.0, pel=0.048, arm=0.075, elbow=0.22, elbow_sw=0.10, curl=0.12)
 
 
 def walk_frame(f):
@@ -59,13 +60,13 @@ def walk_frame(f):
     arm = {"r": W["arm"] * sw, "l": W["arm"] * sw * 0.9}           # arm-r forward = +, arm-l back = + (out)
     # forward arm bends a bit more at the elbow
     elb = {"r": W["elbow"] * env + W["elbow_sw"] * max(0, sw), "l": W["elbow"] * env + W["elbow_sw"] * max(0, -sw)}
-    return dict(pose=(x, y), legs=legs, arm=arm, elbow=elb, pel=-sgn * W["pel"] * math.sin(math.pi * u) * env,
+    return dict(pose=(x, y), legs=legs, arm=arm, elbow=elb, pel=-sgn * W["pel"] * math.sin(math.pi * t) * env,  # R36: same phase as the weight shift (C1, no flat double-support plateau)
                 head_dy=0.0, curl=W["curl"] * env, sy=1.0, env=env, swing=swing, t=t)
 
 
 # ------------------------------------------------------------------ run
 R_CYC, R_N, R_SETTLE, R_RAMP = 40, 4, 18, 10
-R = dict(stance=0.35, dip=16.0, rise=14.0, lift=70.0, knee=0.032, shift=4.0, pel=0.03, arm=0.13, abd=0.09, elbow=0.55,
+R = dict(stance=0.35, dip=16.0, rise=14.0, lift=70.0, knee=0.032, shift=4.0, pel=0.045, arm=0.13, abd=0.09, elbow=0.55,
          elbow_sw=0.20, curl=0.35, head=6.0, crouch=0.012)
 
 
@@ -151,10 +152,16 @@ def bake(scene, fn, dur, D_lag):
             put(f"full.leg-{s}.foot", "rotation", f, fv)
         put("full.pose", "x", f, pose[0]); put("full.pose", "y", f, pose[1]); put("full.pose", "scaleY", f, 1.0)
         put("full.pelvis", "rotation", f, o["pel"])
-        put("full.torso", "rotation", f, -0.6 * o["pel"])
+        # R36: the lumbar (full.torso: belt, waistband, tank bottom) rides the hips - same world roll as the pelvis,
+        # rotated about the PELVIS pivot (torso origin sits 50 px lower), so the torso->pelvis skin band only sees a
+        # rigid transform (no waist shear / scissor).  The counter-roll lives on the chest (round28_spine_motion).
+        pr = o["pel"]
+        put("full.torso", "rotation", f, pr)
+        put("full.torso", "x", f, PEL_PIVOT[0] - TORSO_DROP * math.sin(pr))
+        put("full.torso", "y", f, PEL_PIVOT[1] + TORSO_DROP * math.cos(pr))
         put("full.torso", "scaleY", f, o["sy"])
         put("full.head", "y", f, o["head_dy"])
-        put("full.head", "rotation", f, 0.3 * o["pel"])
+        put("full.head", "rotation", f, -0.7 * pr)
         for s in "lr":
             ins = 1.0 if s == "r" else -1.0                       # + rotation = inward for arm-r, - for arm-l
             up = bone_rot[f"full.arm-{s}.upper"] + o["arm"][s]   # arm-r: + = in/forward; arm-l: + = out/back
