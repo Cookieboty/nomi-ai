@@ -6,7 +6,7 @@ the hem tail lines hanging below the cuff, were baked into sleeve-{l,r}-full(.da
 upper/fore/hand, so the coat front could only ever follow the arm; full.coat-{l,r}.front were empty bones.
 
 Split (deterministic, source pixels moved - not copied - no AI):
-  M = inner-side region of the sleeve canvas behind a hand-placed boundary polyline (placket's outer seam, then the
+  M = inner-side region (anti-aliased: the seam pixel gets its fractional coverage, the sleeve keeps it underneath) of the sleeve canvas behind a hand-placed boundary polyline (placket's outer seam, then the
       trim's outer edge), from below the collar (L y>=90 / R y>=95 texel) to the cuff line, plus the hem-tail lines
       below the cuff (texel y>=356) on the inner side.
   coat-{l,r}-front.png = sleeve over sleeve-dark composite inside M (same 225x440 canvas => same uv mesh, rest-exact).
@@ -15,7 +15,8 @@ Split (deterministic, source pixels moved - not copied - no AI):
   samples the fill; none under the hem-tail lines), so rest frames are unchanged:
     band  : <= 10 px from the cut seam -> sleeve fabric continued by cv2 Telea inpaint from non-M sleeve pixels
             (the panel's cut edge never opens a gap when it swings off the sleeve);
-    under : rest of the core -> same inpaint shaded x0.78 (the coat's inside / the sleeve in the panel's shadow).
+    under : rest of the core -> same inpaint shaded x0.66 (the coat's inside / the sleeve in the panel's shadow);
+    the fill's outer contour is Gaussian-smoothed (sigma 2.5) and gets a ~2 px alpha ramp.
   The panel image gets a copy of the sleeve mesh (same vertices, uv, weights) and is drawn right above the sleeve.
 Idempotent (MARK); if the sleeve canvas is already split, the committed panel png is reused."""
 from __future__ import annotations
@@ -36,20 +37,20 @@ SEAM = {"l": [(90, 150), (130, 165), (170, 180), (210, 190), (230, 188), (260, 1
 TOP = {"l": 90, "r": 95}
 HEM = {"l": (356, 120, 225), "r": (356, 0, 106)}      # y>=, x range of the hem tails that belong to the panel
 BAND = 10.0
-SHADE = 0.78
+SHADE = 0.66
 
 
 def mask(side, h=440, w=225):
+    """float coverage of the panel: 1 inside, the exact fractional area of the seam pixel on the polyline, 0 outside
+    (an anti-aliased cut, so the panel's seam edge is not a pixel staircase when it swings off the sleeve)."""
     pts = SEAM[side]; ys = [p[0] for p in pts]; xs = [p[1] for p in pts]
-    M = np.zeros((h, w), bool)
+    M = np.zeros((h, w), float)
+    xx = np.arange(w)
     for y in range(TOP[side], 356):
-        sx = np.interp(y, ys, xs)
-        if side == "l":
-            M[y, int(np.ceil(sx)):] = True
-        else:
-            M[y, :int(np.floor(sx)) + 1] = True
+        sx = float(np.interp(y + 0.5, ys, xs))
+        M[y] = np.clip(xx + 1 - sx, 0, 1) if side == "l" else np.clip(sx - xx, 0, 1)
     y0, x0, x1 = HEM[side]
-    M[y0:, x0:x1] = True
+    M[y0:, x0:x1] = 1.0
     return M
 
 
@@ -64,32 +65,44 @@ def over(a, b):
 def split(side, stats):
     fs, fd, fp = SVG / f"sleeve-{side}-full.png", SVG / f"sleeve-{side}-full-dark.png", SVG / f"coat-{side}-front.png"
     S = np.array(Image.open(fs).convert("RGBA")); D = np.array(Image.open(fd).convert("RGBA"))
-    M = mask(side)
     fj = SVG / f"coat-{side}-front.json"
     if fp.exists() and fj.exists() and json.loads(fj.read_text())["split_sha"] == hashlib.sha256(fs.read_bytes()).hexdigest():
         stats[side] = json.loads(fj.read_text()); return
+    Mc = mask(side); M = Mc > 0; Mf = Mc >= 1.0
     C = over(S, D)
     C[..., :3] = np.where(C[..., 3:] > 0, C[..., :3], S[..., :3])          # keep the source RGB in transparent texels (filter fringe)
-    P = C.copy(); P[~M, 3] = 0                                            # RGB kept everywhere, alpha only inside M
-    moved_s = int((S[..., 3][M] > 0).sum()); moved_d = int((D[..., 3][M] > 0).sum())
-    S2 = S.copy(); S2[M, 3] = 0; D2 = D.copy(); D2[M, 3] = 0       # alpha cleared, RGB kept (bilinear fringe)
-    core = M & (P[..., 3] >= 253)
-    solid = core | (~M & (S[..., 3] >= 250))                                          # the cut seam is not an edge
-    core = cv2.erode(solid.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool) & M  # 2 px inside the panel's own silhouette
+    P = C.copy(); P[..., 3] = np.round(C[..., 3] * Mc).astype(np.uint8)   # RGB kept everywhere, alpha = coverage inside M
+    moved_s = int((S[..., 3][Mf] > 0).sum()); moved_d = int((D[..., 3][Mf] > 0).sum())
+    seam_px = int(((Mc > 0) & (Mc < 1) & (S[..., 3] > 0)).sum())
+    S2 = S.copy(); S2[Mf, 3] = 0; D2 = D.copy(); D2[Mf, 3] = 0     # alpha cleared, RGB kept; seam pixels stay in the sleeve
+    part = (Mc > 0) & (Mc < 1)                                    # seam pixels: sleeve alpha s' with a*c + s'(1 - a*c) = a (exact)
+    for X, X2 in ((S, S2), (D, D2)):
+        a_ = X[..., 3].astype(float) / 255; pc = P[..., 3].astype(float) / 255
+        s_ = np.where(pc < 1, np.clip((a_ - pc) / np.maximum(1 - pc, 1e-6), 0, 1), 0)
+        X2[part, 3] = np.round(255 * s_[part]).astype(np.uint8)
+    solid = (Mf & (P[..., 3] >= 253)) | (~Mf & (S[..., 3] >= 250))                   # the cut seam is not an edge
+    ds = cv2.distanceTransform(solid.astype(np.uint8), cv2.DIST_L2, 5)
+    core = Mf & (ds > 2.0)                                                            # 2 px inside the panel's own silhouette
     core[HEM[side][0]:] = False                                                       # hem-tail lines: no fill under them
-    src = (~M) & (S[..., 3] >= 250)
+    sm = cv2.GaussianBlur(core.astype(np.float32), (0, 0), 2.5)                       # smooth the fill's outer contour
+    core = core & (sm > 0.5)
+    dc = cv2.distanceTransform(core.astype(np.uint8), cv2.DIST_L2, 5)
+    feather = np.clip(dc / 2.0, 0, 1) * np.clip((sm - 0.5) / 0.25, 0, 1)              # ~2 px alpha ramp, no staircase
+    near_seam = cv2.distanceTransform((~((~Mf) & (S[..., 3] >= 250))).astype(np.uint8), cv2.DIST_L2, 5) <= 3.0
+    feather = np.where(near_seam, 1.0, feather)                                       # never feather at the seam
+    src = (~Mf) & (S[..., 3] >= 250)
     dist = cv2.distanceTransform((~src).astype(np.uint8), cv2.DIST_L2, 5)
     band = core & (dist <= BAND); under = core & ~band
     hole = (~src).astype(np.uint8) * 255
     fill = cv2.inpaint(np.ascontiguousarray(S[..., :3][..., ::-1]), hole, 6, cv2.INPAINT_TELEA)[..., ::-1].astype(float)
     sh = np.clip((dist - BAND) / 6.0, 0, 1)[..., None]           # soft shadow ramp from band into the core
     fill = fill * (1 - (1 - SHADE) * sh)
-    S2[core, :3] = np.round(fill[core]).astype(np.uint8); S2[core, 3] = 255
+    S2[core, :3] = np.round(fill[core]).astype(np.uint8); S2[core, 3] = np.round(255 * feather[core]).astype(np.uint8)
     Image.fromarray(S2).save(fs, optimize=True); Image.fromarray(D2).save(fd, optimize=True); Image.fromarray(P).save(fp, optimize=True)
     ys, xs = np.nonzero(P[..., 3] > 0)
     st = dict(panel_px=int((P[..., 3] > 0).sum()), panel_bbox=[int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())],
-              deleted_sleeve_px=moved_s, deleted_dark_px=moved_d, band_px=int(band.sum()), under_px=int(under.sum()),
-              hem_tail_px=int((P[352:, :, 3] > 0).sum()), split_sha=hashlib.sha256(fs.read_bytes()).hexdigest())
+              deleted_sleeve_px=moved_s, deleted_dark_px=moved_d, band_px=int(band.sum()), under_px=int(under.sum()), seam_aa_px=seam_px,
+              hem_tail_px=int((P[HEM[side][0]:, :, 3] > 0).sum()), split_sha=hashlib.sha256(fs.read_bytes()).hexdigest())
     (SVG / f"coat-{side}-front.json").write_text(json.dumps(st, indent=1))
     stats[side] = st
 

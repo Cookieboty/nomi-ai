@@ -1,15 +1,16 @@
 {
- "panel_px": 9608,
+ "panel_px": 9850,
  "panel_bbox": [
   142,
   90,
   224,
   410
  ],
- "deleted_sleeve_px": 9608,
- "deleted_dark_px": 1838,
+ "deleted_sleeve_px": 9588,
+ "deleted_dark_px": 1836,
  "band_px": 3199,
- "under_px": 5482,
- "hem_tail_px": 214,
- "split_sha": "c3747ea0d331532dc413cd15d9357f66e19c2d2818e988d9951ac92acebc0f72"
+ "under_px": 5571,
+ "seam_aa_px": 262,
+ "hem_tail_px": 113,
+ "split_sha": "41f8aeda53520ee908d9f00e52c3a6e16c72fd23da16ab27bcc11aef6d5daa3d"
 }

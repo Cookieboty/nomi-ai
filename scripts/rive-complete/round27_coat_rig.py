@@ -8,7 +8,7 @@ Chain per side (all RootBones, x axis along the panel, rest = bind):
         -> full.coat-X.hem      (290 .. tip, trim end + hem-tail lines)
 Graded weights on the (unchanged, rest-exact) panel mesh, by texel row y:
   upper   1 - smooth((y - TOP - 10) / 50)      (top rows ride the sleeve exactly: the seam under the collar never opens)
-  fore    0.35 * smooth((y - 230) / 80)      (the forearm nudges the lower panel, which rests against the sleeve)
+  fore    0.20 * smooth((y - 230) / 80)      (the forearm nudges the lower panel, which rests against the sleeve)
   front / s1 / hem  smooth blends centred on the joints (y 200, 290, 60 px wide), times the remainder.
 The old EMPTY bones full.coat-l.front / full.coat-r.front (children of full.coat-X at the hip, no image, no key) are
 deleted; the names are reused by the new chain.  Idempotent (MARK)."""
@@ -36,7 +36,7 @@ def centre(side, y):
     return float(np.median(xs)) + 0.5, float(y) + 0.5
 
 
-FORE = 0.35
+FORE = 0.20
 
 
 def weights(side, ty):
