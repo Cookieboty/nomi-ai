@@ -124,12 +124,10 @@ test.describe('E23 · mascot size', () => {
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
-      CD_DEFAULT_MODEL: 'nomi',
       CD_TTS: 'off',
       CD_ONBOARDING: 'off',
     };
     delete env.NODE_ENV;
-    delete env.CD_SEED_USER_VRM;
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],

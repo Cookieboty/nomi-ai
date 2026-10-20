@@ -18,14 +18,12 @@ export interface OnboardingState {
 }
 
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
-const ALLOWED = new Set(['say', 'voice-style', 'select-model', 'motion']);
+const ALLOWED = new Set(['say', 'voice-style', 'motion']);
 
 export interface OnboardingDeps {
   userData: string;
   /** 打开对话窗口（引导显示在里面） */
   openChat: () => void | Promise<void>;
-  /** 角色列表（与托盘「切换角色」同源） */
-  listCharacters: () => Promise<Array<{ id: string; name: string; source?: string }>>;
 }
 
 export class OnboardingService {
@@ -99,7 +97,6 @@ export class OnboardingService {
       this.complete(Boolean((o as { skipped?: boolean })?.skipped)),
     );
     h('ai:onboarding:reopen', () => this.reopen());
-    h('ai:onboarding:characters', () => this.deps.listCharacters().catch(() => []));
     h('ai:onboarding:mascot', (cmd) => this.mascot(cmd));
   }
 }

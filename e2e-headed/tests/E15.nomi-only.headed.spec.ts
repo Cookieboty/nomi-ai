@@ -12,7 +12,8 @@ import { safeRm } from '../fixtures/fsutil';
 /**
  * E15 · Nomi-only bundle + 2D sprite desktop interaction (real app, runs on Linux + Windows CI)
  *
- * - only Nomi is bundled; the picker shows Nomi + the "upload custom model" entry
+ * - Nomi is the only character: no model service (`electronAPI.models`), no character picker,
+ *   no "switch character" toolbar button
  * - default window is half-size (330×355) and Nomi fills the character box
  * - the speech bubble never intersects the head box and stays inside the window
  * - press + drag on Nomi moves the window through the main process (mascot:drag-* IPC);
@@ -79,10 +80,8 @@ test.describe('E15 · Nomi only', () => {
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
-      CD_DEFAULT_MODEL: 'nomi',
     };
     delete env.NODE_ENV;
-    delete env.CD_SEED_USER_VRM; // a fresh install: nothing but the bundled mascot
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
@@ -91,7 +90,9 @@ test.describe('E15 · Nomi only', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    await page.waitForFunction(() => !!window.electronAPI?.models, undefined, { timeout: 20_000 });
+    await page.waitForFunction(() => !!window.electronAPI?.mascotWindow, undefined, {
+      timeout: 20_000,
+    });
     await page.waitForFunction(
       () => document.documentElement.dataset.mascotModel === 'nomi',
       undefined,
@@ -103,9 +104,13 @@ test.describe('E15 · Nomi only', () => {
       timeout: 20_000,
     });
 
-    // 1) bundle: only Nomi
-    const list = await page.evaluate(() => window.electronAPI!.models!.list());
-    expect(list.map((m) => [m.id, m.origin])).toEqual([['nomi', 'bundled']]);
+    // 1) Nomi only: the model service is gone from the preload bridge, Nomi is drawn in 2D
+    expect(await page.evaluate(() => 'models' in ((window.electronAPI ?? {}) as object))).toBe(
+      false,
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.dataset.mascotBackend ?? ''),
+    ).not.toBe('vrm');
 
     // 2) half-size window
     const size = await app.evaluate(({ BrowserWindow }) => {
@@ -117,16 +122,13 @@ test.describe('E15 · Nomi only', () => {
     expect(head.right - head.left).toBeGreaterThan(60);
     expect(head.right - head.left).toBeLessThan(160);
 
-    // 3) picker: Nomi + upload entry
+    // 3) no character selection: the legacy picker event opens nothing, no switch button
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));
-    await expect(page.getByTestId('model-option-nomi')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId('model-option-upload')).toBeVisible();
-    expect(await page.locator('[data-testid^="model-option-"]').count()).toBe(2);
-    if (shots) await page.screenshot({ path: join(shots, '01-picker.png') });
-    await page.getByTestId('model-option-upload').click();
-    await expect(page.getByText('导入 VRM').first()).toBeVisible();
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('[data-testid="model-picker"]'));
+    await sleep(500);
+    await expect(page.getByTestId('model-picker')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="model-option-"]')).toHaveCount(0);
+    await expect(page.getByTestId('tool-switch-model')).toHaveCount(0);
+    if (shots) await page.screenshot({ path: join(shots, '01-nomi.png') });
 
     // 4) bubble never covers the face
     for (const text of [

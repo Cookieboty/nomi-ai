@@ -122,7 +122,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
     await main
-      .waitForFunction(() => document.documentElement.dataset.mascotBackend === 'vrm', undefined, {
+      .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
       })
       .catch(() => undefined);
@@ -263,9 +263,21 @@ test.describe('E11 · bubble security + toolbar', () => {
     const bar = main.locator('[data-testid="mascot-toolbar"]');
     await expect(bar).toBeVisible();
     await main.waitForTimeout(800);
-    for (const id of ['ai-chat', 'switch-model', 'motion', 'voice-settings', 'more']) {
+    for (const id of ['ai-chat', 'motion', 'voice-settings', 'more']) {
       await expect(main.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
+    // 常驻按钮顺序（PRIMARY_TOOLS）；麦克风只在语音识别可用时出现。角色切换已移除
+    const order = await bar
+      .locator('[role="toolbar"] button[data-testid^="tool-"]')
+      .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+    expect(order.filter((id) => id !== 'tool-voice-input')).toEqual([
+      'tool-ai-chat',
+      'tool-motion',
+      'tool-voice-settings',
+      'tool-close-mascot',
+      'tool-more',
+    ]);
+    await expect(main.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);
     await main.screenshot(shot('01-toolbar-calm.png'));
 
     // 不与角色包围盒重叠
@@ -294,7 +306,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     await main.waitForTimeout(300);
     await expect(main.locator('[role="tooltip"]', { hasText: 'AI 对话' })).toBeVisible();
     await main.screenshot(shot('02-toolbar-tooltip.png'));
-    await main.locator('[data-testid="tool-switch-model"]').focus();
+    await main.locator('[data-testid="tool-ai-chat"]').focus();
     await main.keyboard.press('Tab');
     await main.waitForTimeout(200);
     await main.screenshot(shot('03-toolbar-focus-ring.png'));
@@ -306,6 +318,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     for (const id of ['info', 'tts-config', 'voice-mode-toggle', 'quit']) {
       await expect(menu.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
+    await expect(menu.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);
     await main.screenshot(shot('04-toolbar-more-menu.png'));
     for (const p of ['light', 'warm']) {
       await main.click(`[data-testid="toolbar-palette-${p}"]`);
@@ -373,15 +386,24 @@ test.describe('E11 · bubble security + toolbar', () => {
         availWidth,
       };
     });
+    // 左侧槽位放得下工具栏时必须翻过去。Nomi 的 2D 布局两侧只留 60px 边距（MASCOT_PAD.x），
+    // 放不下 52px 工具栏 + 间距，此时 placeGutter 留在右侧并夹在窗口内（下面仍断言不压住角色）。
+    const leftFits = await main.evaluate(() => {
+      const left = Number((document.documentElement.dataset.mascotBox ?? '').split(',')[0]);
+      const bw = document.querySelector<HTMLElement>(
+        '[data-testid="mascot-toolbar"] [role="toolbar"]',
+      )!.offsetWidth;
+      return Number.isFinite(left) && left - 12 - bw >= 6;
+    });
     await expect
       .poll(() => main.evaluate(() => document.documentElement.dataset.toolbarSide), {
         timeout: 15_000,
         intervals: [200],
       })
-      .toBe('left');
+      .toBe(leftFits ? 'left' : 'right');
     await reveal();
     await main.waitForTimeout(500);
-    await main.screenshot(shot('07-toolbar-flipped-left.png'));
+    await main.screenshot(shot('07-toolbar-at-right-edge.png'));
     // 翻转后依旧不压住角色（物理落地 / 走动后角色可能离开边缘、工具栏再翻回来，所以同一时刻取侧边与位置）
     const snap = await main.evaluate(() => {
       const r = document.querySelector('[data-testid="mascot-toolbar"]')!.getBoundingClientRect();
@@ -394,8 +416,11 @@ test.describe('E11 · bubble security + toolbar', () => {
         r: r.right,
         left,
         right,
+        vw: window.innerWidth,
       };
     });
+    expect(snap.l).toBeGreaterThanOrEqual(0);
+    expect(snap.r).toBeLessThanOrEqual(snap.vw);
     if (Number.isFinite(snap.left)) {
       if (snap.side === 'left') expect(snap.r).toBeLessThanOrEqual(snap.left! + 10);
       else expect(snap.l).toBeGreaterThanOrEqual(snap.right! - 10);

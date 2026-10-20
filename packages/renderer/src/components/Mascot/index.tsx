@@ -9,7 +9,6 @@ import { DesktopConfirm } from './DesktopConfirm';
 import { InteractionSettings } from './InteractionSettings';
 import { MascotAiCueBridge, MascotAudioBridge } from './MascotAudioBridge';
 import { MascotContextMenu } from './MascotContextMenu';
-import { ModelPicker } from './ModelPicker';
 import { MotionMenu } from './MotionMenu';
 import { ReminderCard } from './ReminderCard';
 import styles from './style.module.css';
@@ -75,7 +74,6 @@ export const MascotHost: React.FC = () => {
       <WaifuMascotSceneReporter />
       <MessageBubble />
       <ToolBar />
-      <ModelPicker />
       <MotionMenu />
       <Credits />
       <InteractionSettings />

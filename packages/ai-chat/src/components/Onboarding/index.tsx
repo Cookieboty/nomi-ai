@@ -23,7 +23,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ProviderPanel } from '../ProviderPanel';
 
-import { mergePersona, onboardingClient, type Character, type VoiceStyle } from './client';
+import { mergePersona, onboardingClient, type VoiceStyle } from './client';
 import styles from './index.module.css';
 
 /** 供应商面板以内嵌方式渲染在引导卡片里（不弹出自己的对话框） */
@@ -59,7 +59,7 @@ const STEP_TITLE: Record<Step, () => string> = {
   language: () => t('选择界面语言'),
   theme: () => t('选一个喜欢的外观'),
   startup: () => t('启动 Nomi 后先看到什么？'),
-  character: () => t('选一位陪伴你的伙伴'),
+  character: () => t('选一个喜欢的声音'),
   persona: () => t('她该怎么称呼你？'),
   provider: () => t('接入一个 AI 模型'),
   privacy: () => t('你的数据只留在这台电脑上'),
@@ -69,7 +69,7 @@ const STEP_LINE: Record<Step, () => string> = {
   language: () => t('你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！'),
   theme: () => t('先挑一个看着舒服的外观吧，我们每天都要见面呢。'),
   startup: () => t('每次启动，是先让我出现在桌面上，还是直接打开主界面？之后都能改哦。'),
-  character: () => t('想让我以什么样子陪着你？点一下就能换，之后也能随时改。'),
+  character: () => t('想让我用什么样的声音和你说话？点一下就能试听，之后也能随时改。'),
   persona: () => t('告诉我怎么称呼你，我会好好记住。'),
   provider: () => t('接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。'),
   privacy: () => t('放心，我们的对话和记忆都只留在这台电脑上。'),
@@ -118,8 +118,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const step = STEPS[i]!;
   const [lang, setLang] = useState<LocalePref>(getLocalePref);
   const [theme, setThemeSel] = useState<ThemePref>(() => currentTheme().pref);
-  const [chars, setChars] = useState<Character[]>([]);
-  const [char, setChar] = useState<string | null>(null);
   const [voice, setVoice] = useState<VoiceStyle | null>(null);
   const [name, setName] = useState('');
   const [tone, setTone] = useState<string | null>(null);
@@ -127,7 +125,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [startup, setStartup] = useState<StartupView>('mascot');
 
   useEffect(() => {
-    void onboardingClient.characters().then(setChars);
     void startupClient.get().then(setStartup);
   }, []);
   // 每进入一步，看板娘说一句
@@ -273,34 +270,6 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
       case 'character':
         return (
           <>
-            {chars.length ? (
-              <div className={styles.chars} role="radiogroup" aria-label={t('角色')}>
-                {chars.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={char === c.id}
-                    data-testid={`onb-char-${c.id}`}
-                    className={`${styles.char} ${char === c.id ? styles.optionOn : ''}`}
-                    onClick={() => {
-                      setChar(c.id);
-                      onboardingClient.mascot({ type: 'select-model', id: c.id });
-                    }}
-                  >
-                    <span className={styles.charAvatar} aria-hidden>
-                      {c.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className={styles.charName}>{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.note}>
-                {t('角色列表加载中…也可以之后在 Nomi 右键菜单里切换。')}
-              </p>
-            )}
-            <div className={styles.subLabel}>{t('她的声音')}</div>
             <div className={styles.options} role="radiogroup" aria-label={t('声音')}>
               {VOICES.map((v) => (
                 <button

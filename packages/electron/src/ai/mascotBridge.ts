@@ -2,12 +2,9 @@ import { definePlugin, type PluginContext } from '@nomi-ai/bundle-ig-base';
 import {
   Live2dKey,
   Live2dSeamPlugin,
-  MascotModelToolsPlugin,
   WaifuToolsPlugin,
   type Live2dHost,
 } from '@nomi-ai/bundle-ig-mascot/plugins';
-
-import { getModelService } from '../models/ModelService';
 
 import { broadcastMascotCommand } from './mascotCommand';
 
@@ -50,20 +47,4 @@ export const mascotIgPlugins = [
   { plugin: Live2dSeamPlugin, config: {} },
   { plugin: WaifuToolsPlugin, config: { autoConfirm: true } },
   { plugin: MascotIpcHostPlugin, config: {} },
-  {
-    plugin: MascotModelToolsPlugin,
-    config: {
-      list: async () =>
-        (await getModelService().list()).map((m) => ({
-          id: m.id,
-          name: m.name,
-          origin: m.origin,
-          license: m.license,
-          author: m.author,
-        })),
-      select: (id: string) => {
-        broadcastMascotCommand({ type: 'select-model', id });
-      },
-    },
-  },
 ];

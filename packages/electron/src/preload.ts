@@ -138,38 +138,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       };
     },
   },
-  /** 模型注册表 / 商店 / 用户导入 */
-  models: {
-    list: () => ipcRenderer.invoke('models:list'),
-    storeState: (refresh?: boolean) => ipcRenderer.invoke('models:store-state', refresh),
-    install: (id: string) => ipcRenderer.invoke('models:install', id),
-    cancel: (id: string) => ipcRenderer.invoke('models:cancel', id),
-    remove: (id: string) => ipcRenderer.invoke('models:remove', id),
-    importVrm: (filePath?: string, config?: unknown) =>
-      ipcRenderer.invoke('models:import-vrm', filePath, config),
-    pathForFile: (file: File) => webUtils.getPathForFile(file),
-    replaceVrm: (id: string, filePath?: string) =>
-      ipcRenderer.invoke('models:replace-vrm', id, filePath),
-    updateConfig: (id: string, config: unknown) =>
-      ipcRenderer.invoke('models:update-config', id, config),
-    exportConfig: (id: string) => ipcRenderer.invoke('models:export-config', id),
-    importConfig: (id: string, json?: string) =>
-      ipcRenderer.invoke('models:import-config', id, json),
-    onProgress: (cb: (p: unknown) => void) => {
-      const l = (_: unknown, p: unknown) => cb(p);
-      ipcRenderer.on('models:progress', l);
-      return () => {
-        ipcRenderer.removeListener('models:progress', l);
-      };
-    },
-    onChanged: (cb: () => void) => {
-      const l = () => cb();
-      ipcRenderer.on('models:changed', l);
-      return () => {
-        ipcRenderer.removeListener('models:changed', l);
-      };
-    },
-  },
   /** Auto-update (GitHub Releases via electron-updater) */
   updates: {
     get: () => ipcRenderer.invoke('updates:get'),

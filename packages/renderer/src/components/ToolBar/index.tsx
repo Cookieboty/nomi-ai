@@ -10,7 +10,6 @@ import {
   Mic,
   RotateCcw,
   Settings2,
-  UserRound,
   Volume2,
   VolumeX,
   X,
@@ -34,12 +33,10 @@ import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
-import { nextModel } from '@/mascot/catalog';
 import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
-import { MESSAGES } from '@/mascot/tips';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { setCache } from '@/utils/cache';
 
@@ -64,9 +61,7 @@ const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距
 export const ToolBar: React.FC = () => {
   const {
     config: { tools: configTools = [] },
-    state: mascotState,
     dispatch: mascotDispatch,
-    selectModel,
   } = useMascot();
   const { showMessage: say } = useWaifuMessage();
   const showMessage = useCallback(
@@ -208,21 +203,6 @@ export const ToolBar: React.FC = () => {
     }
   }, [showMessage]);
 
-  // 切换到下一个内置角色（右键打开角色列表）
-  const switchModel = useCallback(() => {
-    const next = nextModel(mascotState.modelList, mascotState.modelName);
-    if (!next) {
-      showMessage(tr('没有可切换的角色'));
-      return;
-    }
-    selectModel(next.name);
-    showMessage(MESSAGES.modelSwitched(next.displayName));
-  }, [mascotState.modelList, mascotState.modelName, selectModel, showMessage]);
-
-  const openModelPicker = useCallback(() => {
-    mascotDispatch({ type: 'SET_PICKER_OPEN', payload: true });
-  }, [mascotDispatch]);
-
   // 动作：左键随机播放一个动作，右键打开动作菜单
   const playRandomMotion = useCallback(() => {
     window.dispatchEvent(new CustomEvent('mascot:motion', { detail: { name: 'random' } }));
@@ -286,8 +266,6 @@ export const ToolBar: React.FC = () => {
     switch (toolId) {
       case 'voice-input':
         return () => void toggleMascotHandsfree();
-      case 'switch-model':
-        return switchModel;
       case 'photo':
         return takeScreenshot;
       case 'info':
@@ -522,8 +500,6 @@ export const ToolBar: React.FC = () => {
         return Bot;
       case 'voice-input':
         return Mic;
-      case 'switch-model':
-        return UserRound;
       case 'motion':
         return Hand;
       case 'voice-settings':
@@ -545,8 +521,6 @@ export const ToolBar: React.FC = () => {
 
   const toolLabel = (toolId: string): string => {
     switch (toolId) {
-      case 'switch-model':
-        return tr('切换角色（右键：角色列表）');
       case 'photo':
         return tr('截图保存');
       case 'info':
@@ -583,17 +557,12 @@ export const ToolBar: React.FC = () => {
           e.preventDefault();
           setShowVoiceSettings(true);
         }
-      : toolId === 'switch-model'
+      : toolId === 'motion'
         ? (e: React.MouseEvent) => {
             e.preventDefault();
-            openModelPicker();
+            openMotionMenu();
           }
-        : toolId === 'motion'
-          ? (e: React.MouseEvent) => {
-              e.preventDefault();
-              openMotionMenu();
-            }
-          : undefined;
+        : undefined;
 
   // Tooltips open toward the mascot (left of the vertical bar when bar is on the right).
   const tipSide = place?.side === 'left' ? 'right' : 'left';

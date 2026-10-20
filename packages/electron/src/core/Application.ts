@@ -31,7 +31,6 @@ import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
-import { getModelService } from '../models/ModelService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { getScreenService, initScreenService } from '../screen/ScreenService';
@@ -177,11 +176,6 @@ export class Application implements IApplication {
         });
       }
       this.logger.info('Electron应用准备就绪');
-
-      // 模型注册表 / 商店 / 用户导入（cdmodel:// 协议 + models:* IPC）
-      const models = getModelService(this.logger);
-      models.registerProtocol();
-      models.registerIpc();
 
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
       registerChatAssetProtocol();
@@ -331,20 +325,12 @@ export class Application implements IApplication {
         if (w) applyTitleBarTheme(w, st.resolved);
       });
 
-      // 首次启动引导（语言 / 主题 / 角色与声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
+      // 首次启动引导（语言 / 主题 / 声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
       const onboarding = new OnboardingService({
         userData: app.getPath('userData'),
         openChat: async () => {
           await this.windowManager.createAiChatWindow();
         },
-        listCharacters: async () =>
-          (
-            (await getModelService(this.logger).list()) as Array<{
-              id: string;
-              name: string;
-              origin?: string;
-            }>
-          ).map((m) => ({ id: m.id, name: m.name, source: m.origin })),
       });
       onboarding.registerIpc();
 
@@ -646,7 +632,6 @@ export class Application implements IApplication {
       },
       onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),
-      models: getModelService(this.logger),
       screenMemory: getScreenService()
         ? {
             active: () => getScreenService()!.active(),

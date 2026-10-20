@@ -38,8 +38,6 @@ export interface IpcApi {
   /** 主进程 → 看板娘指令：{ type: 'motion' | 'expression' | 'parameter', ... } */
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
-  /** 模型注册表 / 商店 / 用户导入（主进程实现） */
-  models?: import('./models').ModelsApi;
   /** 看板娘窗口互动 */
   mascotWindow?: import('./models').MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */

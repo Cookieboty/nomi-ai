@@ -191,13 +191,6 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # e2e 3D 测试模型（CC0，~17MB）不入库：globalSetup 下载并校验 sha256，这里缓存
-      - name: Cache e2e test avatar
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: e2e-headed/.cache
-          key: e2e-avatar-9adf1b44e959d2688d62c2dd558e74315d6aa40e3bf8d281390b7a85dc0df9b7
-
       - name: Build workspaces + copy renderer bundles
         run: |
           pnpm turbo run build

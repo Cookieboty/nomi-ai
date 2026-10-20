@@ -53,8 +53,6 @@ test.describe('English UI has no untranslated Chinese', () => {
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
     };
     delete env.NODE_ENV;
-    delete env.CD_SEED_USER_VRM;
-    delete env.CD_DEFAULT_MODEL;
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
@@ -81,11 +79,12 @@ test.describe('English UI has no untranslated Chinese', () => {
     if (await more.count()) {
       await more.first().click();
       await check(main, 'mascot-toolbar-more');
+      // 致谢面板（工具栏「更多」→ 致谢 / Credits）
+      await main.click('[data-testid="tool-info"]');
+      await main.waitForSelector('[data-testid="credits"]', { timeout: 10_000 });
+      await check(main, 'mascot-credits');
       await main.keyboard.press('Escape');
     }
-    await main.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));
-    await check(main, 'mascot-model-picker');
-    await main.keyboard.press('Escape');
 
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
     await main.evaluate(() =>

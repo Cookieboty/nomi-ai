@@ -12,7 +12,7 @@ import { safeRm } from '../fixtures/fsutil';
 /**
  * UI 巡检截图（非断言型冒烟）：只有设置了 UI_SHOTS_DIR 才运行，CI 默认跳过。
  *   UI_SHOTS_DIR=/workspace/screenshots/ui-before xvfb-run -a pnpm test:e2e:headed -g "UI surfaces"
- * 覆盖：mascot（VRM 3D / 自定义图片）+ 工具栏 + 语音设置弹层、AI 对话窗口、
+ * 覆盖：mascot（内置 2D 角色 Nomi）+ 工具栏 + 语音设置弹层 + 致谢面板、AI 对话窗口、
  * 配置面板、Provider 面板、Provider 切换器、TTS 配置窗口。
  */
 const shotDir = process.env.UI_SHOTS_DIR;
@@ -59,13 +59,13 @@ test.describe('UI surfaces', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
     await main
-      .waitForFunction(() => document.documentElement.dataset.mascotBackend === 'vrm', undefined, {
+      .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
       })
       .catch(() => undefined);
     await main.waitForTimeout(1_500);
-    await shot(main, '01-mascot-vrm');
-    if (process.env.VRM_SHOT) await main.screenshot({ path: process.env.VRM_SHOT });
+    await shot(main, '01-mascot-nomi');
+    if (process.env.MASCOT_SHOT) await main.screenshot({ path: process.env.MASCOT_SHOT });
 
     const hover = () =>
       app!.evaluate(({ BrowserWindow }) =>
@@ -119,11 +119,11 @@ test.describe('UI surfaces', () => {
     await shot(main, '06-motion-menu');
     await main.keyboard.press('Escape');
     await main.waitForTimeout(300);
-    // 角色选择器
-    await main.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));
-    await main.waitForTimeout(800);
-    await shot(main, '06b-model-picker');
-    await main.click('[data-testid="open-credits"]');
+    // 致谢面板：工具栏「更多」→ 致谢 / Credits
+    await hover();
+    await main.click('[data-testid="tool-more"]');
+    await main.click('[data-testid="tool-info"]');
+    await main.waitForSelector('[data-testid="credits"]', { timeout: 10_000 });
     await main.waitForTimeout(800);
     await shot(main, '06c-credits');
     await main.keyboard.press('Escape');

@@ -80,7 +80,6 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 - **好玩的互动**：摸头、单击、双击各有反应；拖着她甩一甩会手脚乱蹬，松手落到任务栏上弹一弹；可选沿屏幕底边散步，支持多显示器
 - **透明不挡事**：只有角色本身可点击，其余区域鼠标直接穿透
 - **对话气泡**：回复以气泡显示在她身边，自动避开脸部
-- **换个形象**：可从模型商店下载开源 3D（VRM）角色，或导入你自己的 `.vrm` 模型，自定义名字、缩放、取景和表情映射
 - **陪你写代码**：可选的编程关键词台词与整点问候
 - **拖文件给她**：把文件拖到 Nomi 身上，直接帮你总结
 
@@ -243,7 +242,7 @@ Nomi 构建在这些优秀的开源项目之上：
 - [Tesseract.js](https://tesseract.projectnaptha.com/) 与 [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast)、[unpdf](https://github.com/unjs/unpdf)、[fflate](https://github.com/101arrowz/fflate)
 - [Zustand](https://github.com/pmndrs/zustand)、[Immer](https://immerjs.github.io/immer/)、[Zod](https://zod.dev/)、[Lucide](https://lucide.dev/)、[react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) 与 electron-updater、[node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
-- [Quaternius](https://quaternius.com/) Universal Animation Library（CC0）、[VRoid Project](https://vroid.com/) 样例角色（模型商店）、[Qwen](https://github.com/QwenLM) 开源模型（本地模型目录）
+- [Quaternius](https://quaternius.com/) Universal Animation Library（CC0）、[Qwen](https://github.com/QwenLM) 开源模型（本地模型目录）
 
 角色、动作与图标的作者和许可也可以在应用内「致谢」页查看。
 
@@ -272,7 +271,6 @@ Connect the cloud models you already like, or go fully offline with local models
 - **Playful interaction**: pet, click, and double-click responses; fling her and she flails, then bounces when she lands on the taskbar; optional walk along the bottom edge, multi-monitor aware
 - **Click-through**: only the character is clickable; the rest of the window lets mouse events pass through
 - **Chat bubbles**: replies appear beside her, automatically avoiding her face
-- **Change look**: download open-source 3D (VRM) characters from the model store, or import your own `.vrm` with custom name, scale, framing, and expression mapping
 - **Coding company**: optional coding-keyword lines and hourly greetings
 - **Drop files on her**: drag a file onto Nomi for a quick summary
 
@@ -435,7 +433,7 @@ Nomi is built on excellent open-source projects:
 - [Tesseract.js](https://tesseract.projectnaptha.com/) and [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), [unpdf](https://github.com/unjs/unpdf), [fflate](https://github.com/101arrowz/fflate)
 - [Zustand](https://github.com/pmndrs/zustand), [Immer](https://immerjs.github.io/immer/), [Zod](https://zod.dev/), [Lucide](https://lucide.dev/), [react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) and electron-updater, [node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
-- [Quaternius](https://quaternius.com/) Universal Animation Library (CC0), [VRoid Project](https://vroid.com/) sample characters (model store), [Qwen](https://github.com/QwenLM) open models (local model catalog)
+- [Quaternius](https://quaternius.com/) Universal Animation Library (CC0), [Qwen](https://github.com/QwenLM) open models (local model catalog)
 
 Authors and licenses for characters, motions, and icons are also listed in the in-app Credits page.
 

@@ -1,11 +1,6 @@
 {
   "$comment": "Every shipped static asset must match an entry with an allow-listed open licence. Checked by scripts/check-licenses.mjs. 'LicenseRef-FirstParty' = artwork owned by the project author (Cookieboty), all rights reserved; allowed only for explicitly listed files.",
-  "roots": [
-    "packages/renderer/public",
-    "packages/electron/assets",
-    "packages/ui/src/brand",
-    "e2e-headed/fixtures/models"
-  ],
+  "roots": ["packages/renderer/public", "packages/electron/assets", "packages/ui/src/brand"],
   "allowedLicenses": ["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "MIT", "Apache-2.0", "OFL-1.1"],
   "$reviewedLicensesComment": "Explicitly reviewed non-OSI licences: allowed only because they permit commercial use AND redistribution. Per-asset conditions are shown in the app (credits / badges). Adding one needs maintainer review.",
   "reviewedLicenses": {
@@ -159,12 +154,6 @@
       "license": "MIT",
       "author": "LobeHub (@lobehub/icons-static-svg v1.95.1); logos are trademarks of their respective owners, used nominatively",
       "source": "https://github.com/lobehub/lobe-icons/blob/master/LICENSE"
-    },
-    {
-      "pattern": "e2e-headed/fixtures/models/README.md",
-      "license": "MIT",
-      "author": "Nomi contributors",
-      "source": "this repository"
     },
     {
       "pattern": "packages/{renderer,ai-chat}/public/favicon.png",

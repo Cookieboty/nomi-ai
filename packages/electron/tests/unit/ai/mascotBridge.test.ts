@@ -24,7 +24,6 @@ describe('mascotBridge', () => {
       'Live2dSeamPlugin',
       'WaifuToolsPlugin',
       'MascotIpcHostPlugin',
-      'MascotModelToolsPlugin',
     ]);
   });
 });

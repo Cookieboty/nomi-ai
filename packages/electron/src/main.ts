@@ -80,8 +80,8 @@ if (isPrimaryInstance && !app.isPackaged) {
   }
 }
 
-// cdmodel://（远程 / 用户模型文件）与 chat-asset://（会话 Markdown 图片）需在 app ready 之前
-// 一次性注册为特权协议（registerSchemesAsPrivileged 多次调用会互相覆盖，见 schemePrivileges.ts）
+// chat-asset://（会话 Markdown 图片）需在 app ready 之前注册为特权协议
+// （registerSchemesAsPrivileged 多次调用会互相覆盖，见 schemePrivileges.ts）
 registerAppSchemePrivileges();
 
 // 全局应用实例

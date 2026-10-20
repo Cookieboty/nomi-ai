@@ -5,7 +5,6 @@ import { MascotProvider, type MascotConfig } from './contexts/MascotContext';
 
 const MASCOT_CONFIG: MascotConfig = {
   tools: [
-    'switch-model',
     'ai-chat',
     'voice-input',
     'info',

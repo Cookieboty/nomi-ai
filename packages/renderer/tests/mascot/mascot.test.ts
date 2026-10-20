@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
 import { createVrmBackend } from '../../src/mascot/backends/vrm';
-import { nextModel, parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
+import { parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
 import { directiveForEvent, expressionForText } from '../../src/mascot/expressionDirector';
 import { mascotRegistry, type MascotBackend } from '../../src/mascot/MascotBackend';
 import { applyDirective } from '../../src/mascot/mood';
@@ -27,13 +27,11 @@ describe('catalog', () => {
     expect(parseCatalog(null)).toEqual([]);
   });
 
-  it('picks the saved model or falls back to the first', () => {
+  it('picks the named model or falls back to the first (Nomi)', () => {
     const list = [model('a'), model('b')];
     expect(pickModel(list, 'b')?.name).toBe('b');
     expect(pickModel(list, 'gone')?.name).toBe('a');
-    expect(nextModel(list, 'a')?.name).toBe('b');
-    expect(nextModel(list, 'b')?.name).toBe('a');
-    expect(nextModel([], null)).toBeUndefined();
+    expect(pickModel(list, null)?.name).toBe('a');
   });
 
   it('bundles only Nomi (no VRM or other sprites)', async () => {
@@ -154,7 +152,6 @@ describe('MascotContext reducer', () => {
     dragEnabled: false,
     modelList: [],
     modelName: 'b',
-    pickerOpen: false,
     panel: null,
   };
 

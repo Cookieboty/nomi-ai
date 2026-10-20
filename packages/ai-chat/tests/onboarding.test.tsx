@@ -31,11 +31,6 @@ beforeEach(() => {
         startupView = (a[0] as { defaultView: 'mascot' | 'main' }).defaultView;
         return { defaultView: startupView };
       }
-      if (ch === 'ai:onboarding:characters')
-        return [
-          { id: 'hiyori', name: 'Hiyori' },
-          { id: 'miku', name: 'Miku' },
-        ];
       if (ch === 'ai:mem:persona') return persona;
       if (ch === 'ai:mem:set-persona') {
         persona = String(a[0]);
@@ -92,15 +87,13 @@ describe('first-launch onboarding', () => {
     fireEvent.click(screen.getByTestId('onboarding-next'));
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
 
-    // 4 角色 + 声音
-    fireEvent.click(await screen.findByTestId('onb-char-miku'));
-    fireEvent.click(screen.getByTestId('onb-voice-lively'));
+    // 4 声音（只内置 Nomi，不再选角色）
+    fireEvent.click(await screen.findByTestId('onb-voice-lively'));
+    expect(screen.queryByTestId('onb-char-nomi')).toBeNull();
     expect(mascot()).toEqual(
-      expect.arrayContaining([
-        { type: 'select-model', id: 'miku' },
-        expect.objectContaining({ type: 'voice-style', style: 'lively' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ type: 'voice-style', style: 'lively' })]),
     );
+    expect(mascot().some((c) => (c as { type: string }).type === 'select-model')).toBe(false);
     fireEvent.click(screen.getByTestId('onboarding-next'));
 
     // 5 称呼 + 语气 → 写进 persona（保留原有内容）
