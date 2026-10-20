@@ -21,15 +21,15 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 
 每个标签一个 `permissionMode`（`HarnessTabMeta.permissionMode`），启动 / 切换时按下表映射到各 CLI 原生参数：
 
-| Nomi 模式          | 值            | Claude Code                           | Codex（全部经 `-c`）                                                             | dsh（环境变量）                          | Grok                            |
-| ------------------ | ------------- | ------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------- |
-| 计划               | `plan`        | `--permission-mode plan`              | `sandbox_mode="read-only"` + 计划提示前缀                                        | `DSH_PERMISSION_MODE=read-only` + 前缀   | `--permission-mode plan` ⚠️     |
-| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | 不支持 → 降为计划                                                                | 不支持 → 降为计划                        | 暂不开放 → 降为计划 ⚠️          |
-| 自动改文件（默认） | `acceptEdits` | `--permission-mode acceptEdits`       | `sandbox_mode="workspace-write"` + `sandbox_workspace_write.network_access=true` | `DSH_PERMISSION_MODE=workspace-write`    | `--permission-mode acceptEdits` |
-| 自动               | `auto`        | `--permission-mode auto`              | 上一行 + `approval_policy="on-request"` + `approvals_reviewer="auto_review"`     | 不支持 → 降为自动改文件                  | `--permission-mode auto` ⚠️     |
-| 完全放开           | `bypass`      | `--permission-mode bypassPermissions` | `sandbox_mode="danger-full-access"`                                              | `DSH_PERMISSION_MODE=danger-full-access` | `--yolo`                        |
+| Nomi 模式          | 值            | Claude Code                           | Codex（全部经 `-c`）                                                             | dsh（环境变量）                          | Grok                             |
+| ------------------ | ------------- | ------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------- |
+| 计划               | `plan`        | `--permission-mode plan`              | `sandbox_mode="read-only"` + 计划提示前缀                                        | `DSH_PERMISSION_MODE=read-only` + 前缀   | ACP `set_mode plan`              |
+| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | 不支持 → 降为计划                                                                | 不支持 → 降为计划                        | ACP `set_mode default`（弹卡片） |
+| 自动改文件（默认） | `acceptEdits` | `--permission-mode acceptEdits`       | `sandbox_mode="workspace-write"` + `sandbox_workspace_write.network_access=true` | `DSH_PERMISSION_MODE=workspace-write`    | ACP `set_mode acceptEdits`       |
+| 自动               | `auto`        | `--permission-mode auto`              | 上一行 + `approval_policy="on-request"` + `approvals_reviewer="auto_review"`     | 不支持 → 降为自动改文件                  | 不支持 → 降为自动改文件          |
+| 完全放开           | `bypass`      | `--permission-mode bypassPermissions` | `sandbox_mode="danger-full-access"`                                              | `DSH_PERMISSION_MODE=danger-full-access` | ACP `set_mode bypassPermissions` |
 
-⚠️ = 未在真机验证（本机 Grok 未登录）。
+Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实测）：运行中 `session/set_mode` 原地切换；ACP 没有「自动」。起不来 ACP 时退回 `grok -p`，那时仍按 `--permission-mode` / `--yolo` 启动（逐项确认在 `-p` 下没有审批通道）。
 
 降级规则（`effectiveMode`）只往更安全的一侧：`manual → plan`，`auto → acceptEdits`。
 

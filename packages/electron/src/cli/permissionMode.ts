@@ -25,13 +25,14 @@ export function isPermissionMode(v: unknown): v is HarnessPermissionMode {
  * 各后端可用的档位。
  * - Codex / dsh 无头模式没有可回写的审批事件 → 无「逐项确认」
  * - dsh 没有自动审批 → 无「自动」
- * - Grok 无头模式的权限事件未在真机验证 → 暂不开放「逐项确认」
+ * - Grok 走 ACP（`grok agent stdio`，1.0.62 实测）：session/request_permission 可逐项确认；
+ *   ACP 会话模式只有 plan / default / acceptEdits / bypassPermissions / dontAsk，没有「自动」
  */
 const SUPPORTED: Record<CliBackend, readonly HarnessPermissionMode[]> = {
   claude: PERMISSION_MODES,
   codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
-  grok: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   // Gemini ACP：plan / default（可审批）/ autoEdit / yolo；没有「自动」（降为自动改文件）
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
 };
@@ -131,6 +132,19 @@ export function geminiModeId(mode: HarnessPermissionMode): string {
       : mode === 'bypass'
         ? 'yolo'
         : 'default';
+}
+
+/**
+ * Grok ACP 的会话模式 id（1.0.62 实测：session/set_mode 对这些 id 推送 current_mode_update；
+ * 不认识的 id 也回 {}，所以只发这里列出的）
+ */
+export function grokModeId(mode: HarnessPermissionMode): string {
+  return mode === 'manual' || mode === 'auto' ? 'default' : CLAUDE_MODE[mode];
+}
+
+/** 长驻 ACP 会话（Gemini / Grok）的会话模式 id */
+export function acpModeId(backend: 'gemini' | 'grok', mode: HarnessPermissionMode): string {
+  return backend === 'grok' ? grokModeId(mode) : geminiModeId(mode);
 }
 
 /** 计划模式下附在用户消息前的提示（CLI 无原生无头计划模式时使用） */

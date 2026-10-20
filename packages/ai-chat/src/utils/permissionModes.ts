@@ -23,7 +23,8 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   claude: PERMISSION_MODES,
   codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
-  grok: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
+  grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
 };
 

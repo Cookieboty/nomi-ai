@@ -162,6 +162,7 @@ Aggregation（多上游合并）仍为 **P2**。
 - **停止（2026-10-20，对照 2.1.304）**：只发 `control_request{subtype:interrupt}`，CLI 以 `error_during_execution` 的 `result` 结束这一轮、进程继续，下一轮不用冷启动。interrupt 没有应答、这条消息仍在 CLI 队列里（`still_queued`），或 5 秒内没收到 `result` 时才拆进程，下一轮 `--resume`。
 - **切换模型**：只差模型时，下一轮发送前用 `control_request{subtype:set_model}` 原地切换（`default` 回到 CLI 默认模型），不重启进程；被拒就拆进程按新 `--model` 重拉。思考深度没有可靠的原地切换（`apply_flag_settings` 的 `effortLevel` 不校验取值、也压不过 `--effort`），仍是空闲时回收、下一轮按新参数重启。模型变化本身会让服务端提示缓存失效，这一点无法避免。
 - **预热**：新建 Claude 会话、切到一个没有长驻进程的 Claude 标签时预先拉起进程（`NOMI_HARNESS_PREWARM=0` 关闭）。没发过消息的预热进程同样参与空闲回收，回收后不标「已休眠」。
+- **Grok 长驻（2026-10-20，对照 1.0.62）**：Grok 改走 ACP（`grok agent stdio`），与 Gemini 共用一套长驻会话：流式正文、`session/cancel` 停止不杀进程、`session/set_mode` 原地切权限（`plan` / `default` / `acceptEdits` / `bypassPermissions`，支持逐项确认）、发送前用 `session/set_model` 与 `session/set_config_option reasoning_effort` 原地切模型 / 思考深度（清掉覆盖时按模型目录的默认值切回，不知道默认值才换进程）。`grok -p` 建的会话可用 `session/load` 接上。拒绝一次工具调用时 Grok 以 `cancelled` 结束整轮，按正常结束落盘。握手阶段进程就退出（CLI 太旧）时退回每轮一个进程的 `grok -p`；`NOMI_GROK_ACP=0` 强制用 `-p`。
 - **新会话沿用设置**：每个后端记住最近一次选的权限模式 / 模型 / 思考深度（`tabs.json` 的 `lastSettings`），`/clear`、新标签、打开历史都从它开始。「完全放开」不记；换官方账号或第三方供应商时清掉模型 / 思考深度；启用第三方供应商时不沿用模型；设置页改默认档后不再沿用旧的权限模式。
 - 若本机 Claude 在 stream-json 下仍每轮退出：harness 会在下一发送时自动重拉并带 `--resume`，功能不丢，只是少了「免冷启动」；以 mock 单测断言「同一 pid 跨两轮」为回归护栏。
 

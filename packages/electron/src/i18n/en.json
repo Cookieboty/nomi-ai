@@ -645,5 +645,13 @@
   "模型名不合法": "Invalid model name",
   "未知思考深度": "Unknown reasoning effort",
   "这个模型不支持思考深度": "This model doesn't support reasoning effort",
-  "这个模型不支持该思考深度": "This model doesn't support that reasoning effort"
+  "这个模型不支持该思考深度": "This model doesn't support that reasoning effort",
+  "Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始": "Grok did not confirm the permission mode change ({0}). The current session was stopped; the next turn starts again in the new mode.",
+  "Grok 没有返回会话": "Grok did not return a session",
+  "Grok 没有确认权限模式（{0}），这条消息没有发送": "Grok did not confirm the permission mode ({0}), so this message was not sent",
+  "Grok 没能启动 ACP 会话": "Grok could not start an ACP session",
+  "已拒绝这次工具调用，这一轮已结束": "You denied this tool call, so this turn ended",
+  "Grok 没有切换{0}（{1}）": "Grok did not switch the {0} ({1})",
+  "模型": "model",
+  "思考深度": "reasoning effort"
 }

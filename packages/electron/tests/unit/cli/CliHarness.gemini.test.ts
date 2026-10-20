@@ -164,8 +164,7 @@ describe('CliHarnessService Gemini backend', () => {
     const { h, root } = mk({ prewarmClaude: true });
     const log = path.join(root, 'acp.log');
     process.env.NOMI_MOCK_GEMINI_LOG = log;
-    const lives = (h as unknown as { geminiLive: Map<string, { ready: Promise<void> }> })
-      .geminiLive;
+    const lives = (h as unknown as { acpLive: Map<string, { ready: Promise<void> }> }).acpLive;
     const tab = h.createTab({ backend: 'gemini' });
     for (let i = 0; i < 100 && !lives.has(tab.id); i++) await new Promise((r) => setTimeout(r, 10));
     await lives.get(tab.id)!.ready;

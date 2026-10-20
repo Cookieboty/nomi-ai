@@ -208,6 +208,7 @@ export function parseUsage(
     'cached_input_tokens',
     'cacheReadTokens',
     'cachedInputTokens',
+    'cachedReadTokens',
   );
   if (input !== undefined) out.inputTokens = input;
   if (output !== undefined) out.outputTokens = output;

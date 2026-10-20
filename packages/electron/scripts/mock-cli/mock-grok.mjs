@@ -37,13 +37,129 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
   await new Promise(() => {});
 }
 
-// grok agent stdio：最小 ACP（initialize / session/new 带 models / session/close），供 Nomi 读模型目录
+// grok agent stdio：ACP（形状对齐 1.0.62 实测）。读模型目录用 initialize / session/new / session/close；
+// 长驻会话再用 session/load / set_mode / set_model / set_config_option / prompt / cancel。
+// Env: NOMI_MOCK_GROK_ACP_LOG=<file>（逐条记下请求，initialize 带 argv 与 XAI_API_KEY 状态）,
+//      NOMI_MOCK_GROK_PERM=1（先请求执行命令的权限；拒绝则像真实 CLI 一样以 cancelled 结束整轮）,
+//      NOMI_MOCK_GROK_SET_MODE=error / NOMI_MOCK_GROK_SET_MODEL=error（对应请求失败）,
+//      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 session/cancel）, NOMI_MOCK_GROK_NO_ACP=1（立即退出）
 if (args[0] === 'agent' && args[1] === 'stdio') {
+  if (process.env.NOMI_MOCK_GROK_NO_ACP === '1') {
+    process.stderr.write('error: unrecognized subcommand stdio\n');
+    process.exit(2);
+  }
   const { createInterface } = await import('node:readline');
-  const reply = (id, result) =>
-    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
+  const send = (m) => process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', ...m })}\n`);
+  const reply = (id, result) => send({ id, result });
+  const fail = (id, message) => send({ id, error: { code: -32603, message } });
+  const update = (sessionId, u) =>
+    send({ method: 'session/update', params: { sessionId, update: u } });
+  const acpLog = process.env.NOMI_MOCK_GROK_ACP_LOG;
+  const log = (o) => acpLog && appendFileSync(acpLog, `${JSON.stringify(o)}\n`);
   const efforts = (...v) =>
     v.map((value) => ({ id: value, value, label: value, default: value === 'high' }));
+  const models = {
+    currentModelId: 'grok-mock',
+    availableModels: [
+      {
+        modelId: 'grok-mock',
+        name: 'Grok Mock',
+        _meta: {
+          supportsReasoningEffort: true,
+          reasoningEfforts: efforts('xhigh', 'high', 'medium', 'low'),
+        },
+      },
+      {
+        modelId: 'grok-mock-old',
+        name: 'Grok Mock Old',
+        _meta: {
+          supportsReasoningEffort: true,
+          reasoningEfforts: efforts('high', 'medium', 'low'),
+        },
+      },
+    ],
+  };
+  const MODES = ['plan', 'default', 'acceptEdits', 'bypassPermissions', 'dontAsk'];
+  const resumed = new Set();
+  const cancelled = new Set();
+  const waiting = new Map();
+  let seq = 1000;
+  const ask = (method, params) =>
+    new Promise((resolve) => {
+      const id = seq++;
+      waiting.set(id, resolve);
+      send({ id, method, params });
+    });
+  const keyState = () => (process.env.XAI_API_KEY ? 'key' : 'nokey');
+  async function prompt(id, p) {
+    const sid = p.sessionId;
+    cancelled.delete(sid);
+    const text = (p.prompt || []).map((c) => c.text || '').join('');
+    if (process.env.NOMI_MOCK_PROMPT_LOG)
+      appendFileSync(process.env.NOMI_MOCK_PROMPT_LOG, `${JSON.stringify(text)}\n`);
+    update(sid, {
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: 'thinking…' },
+    });
+    const tool = {
+      toolCallId: 'call-1',
+      title: 'read_file',
+      rawInput: { target_file: 'README.md' },
+    };
+    update(sid, {
+      sessionUpdate: 'tool_call',
+      ...tool,
+      _meta: { 'x.ai/tool': { name: 'read_file', kind: 'read' } },
+    });
+    update(sid, {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'call-1',
+      kind: 'read',
+      title: 'Read README.md',
+    });
+    update(sid, {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'call-1',
+      status: 'completed',
+      content: [{ type: 'content', content: { type: 'text', text: '1→# Mock' } }],
+    });
+    if (process.env.NOMI_MOCK_GROK_PERM === '1') {
+      const toolCall = {
+        toolCallId: 'call-2',
+        kind: 'execute',
+        title: 'Execute `echo hi`',
+        rawInput: { command: 'echo hi' },
+      };
+      update(sid, { sessionUpdate: 'tool_call', ...toolCall, title: 'run_terminal_command' });
+      const r = await ask('session/request_permission', {
+        sessionId: sid,
+        toolCall,
+        options: [
+          { optionId: 'allow-once', name: 'Allow', kind: 'allow_once' },
+          { optionId: 'reject-once', name: 'Reject', kind: 'reject_once' },
+        ],
+      });
+      if (r?.outcome?.optionId !== 'allow-once') return reply(id, { stopReason: 'cancelled' });
+      update(sid, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId: 'call-2',
+        status: 'completed',
+        content: [{ type: 'content', content: { type: 'text', text: 'hi' } }],
+      });
+    }
+    const wait = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    if (cancelled.has(sid)) return reply(id, { stopReason: 'cancelled' });
+    const answer =
+      process.env.NOMI_MOCK_GROK_REPLY ||
+      `【Mock Grok】acp ${resumed.has(sid) ? 'resumed' : 'new'} ${keyState()}: ${text.trim()}`;
+    for (const part of [answer.slice(0, 6), answer.slice(6)])
+      update(sid, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: part } });
+    reply(id, {
+      stopReason: 'end_turn',
+      _meta: { usage: { inputTokens: 12, outputTokens: 9, cachedReadTokens: 3 } },
+    });
+  }
   createInterface({ input: process.stdin }).on('line', (line) => {
     let j;
     try {
@@ -51,33 +167,55 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
     } catch {
       return;
     }
-    if (j.method === 'initialize') reply(j.id, { protocolVersion: 1, agentCapabilities: {} });
-    else if (j.method === 'session/new')
-      reply(j.id, {
-        sessionId: 'session-mock-models',
-        models: {
-          currentModelId: 'grok-mock',
-          availableModels: [
-            {
-              modelId: 'grok-mock',
-              name: 'Grok Mock',
-              _meta: {
-                supportsReasoningEffort: true,
-                reasoningEfforts: efforts('xhigh', 'high', 'medium', 'low'),
-              },
-            },
-            {
-              modelId: 'grok-mock-old',
-              name: 'Grok Mock Old',
-              _meta: {
-                supportsReasoningEffort: true,
-                reasoningEfforts: efforts('high', 'medium', 'low'),
-              },
-            },
-          ],
-        },
+    if (j.method)
+      log({
+        method: j.method,
+        params: j.params,
+        ...(j.method === 'initialize' ? { argv: args, key: keyState(), cwd: process.cwd() } : {}),
       });
-    else if (j.method === 'session/close') reply(j.id, {});
+    if (j.method === undefined && waiting.has(j.id)) {
+      waiting.get(j.id)(j.result);
+      waiting.delete(j.id);
+      return;
+    }
+    const p = j.params || {};
+    switch (j.method) {
+      case 'initialize':
+        return reply(j.id, { protocolVersion: 1, agentCapabilities: { loadSession: true } });
+      case 'session/new':
+        return reply(j.id, {
+          sessionId: process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1',
+          models,
+        });
+      case 'session/load':
+        if (p.sessionId === 'session-unknown') return fail(j.id, 'session not found');
+        resumed.add(p.sessionId);
+        return reply(j.id, { models });
+      case 'session/set_mode':
+        if (process.env.NOMI_MOCK_GROK_SET_MODE === 'error')
+          return fail(j.id, 'mode rejected (mock)');
+        reply(j.id, {});
+        if (MODES.includes(p.modeId))
+          update(p.sessionId, { sessionUpdate: 'current_mode_update', currentModeId: p.modeId });
+        return;
+      case 'session/set_model':
+        if (process.env.NOMI_MOCK_GROK_SET_MODEL === 'error')
+          return fail(j.id, 'unknown model (mock)');
+        return reply(j.id, { _meta: { model: { Ok: p.modelId } } });
+      case 'session/set_config_option':
+        return reply(j.id, { configOptions: [] });
+      case 'session/prompt':
+        void prompt(j.id, p);
+        return;
+      case 'session/cancel':
+        cancelled.add(p.sessionId);
+        return;
+      case 'session/close':
+        return reply(j.id, {});
+      default:
+        if (j.id !== undefined)
+          send({ id: j.id, error: { code: -32601, message: `Method not found: ${j.method}` } });
+    }
   });
   await new Promise(() => {});
 }
