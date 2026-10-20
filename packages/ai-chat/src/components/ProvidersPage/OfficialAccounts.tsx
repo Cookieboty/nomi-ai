@@ -276,7 +276,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                     onClick={() =>
                       void run(
                         `a:${a.id}`,
-                        () => cliAccountClient.activate(a.id),
+                        () => cliAccountClient.activate(a.id, a.kind),
                         t('已切换到 {0}', a.label),
                       )
                     }

@@ -93,7 +93,7 @@ describe('OfficialAccounts', () => {
     const r = render(<OfficialAccounts kind="codex" />);
     await waitFor(() => r.getByTestId('cli-account-activate'));
     await act(async () => fireEvent.click(r.getByTestId('cli-account-activate')));
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:activate', 'b');
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:activate', 'b', 'codex');
     await waitFor(() => expect(r.getByTestId('cli-accounts-msg').textContent).toContain('b@x.com'));
 
     cleanup();

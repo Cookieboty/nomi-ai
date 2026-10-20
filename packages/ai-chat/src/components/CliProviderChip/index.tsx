@@ -80,14 +80,19 @@ export const CliProviderChip: React.FC<{
   if (!available) return null;
   const profiles = (state?.profiles ?? []).filter((p) => p.kind === backend);
   const active = activeProfileOf(state, backend);
-  const official = active ? undefined : accounts.find((a) => a.active);
+  // 只认当前后端的官方账号：芯片跨标签复用，切到别的后端（如 dsh）后、新列表回来前，
+  // 上一个后端的账号既不显示也不能选，免得在这里切换了另一个 CLI 的全局账号（#69）
+  const own = accountKind ? accounts.filter((a) => a.kind === accountKind) : [];
+  const official = active ? undefined : own.find((a) => a.active);
 
   const pick = async (id: string) => {
     setErr('');
     try {
       if (id.startsWith(ACCOUNT_PREFIX)) {
-        // 切换全局官方账号；主进程会顺带停用第三方供应商
-        await cliAccountClient.activate(id.slice(ACCOUNT_PREFIX.length));
+        // 切换全局官方账号；主进程会顺带停用第三方供应商。过时的选项（别的后端的账号）不切换
+        const acc = own.find((a) => a.id === id.slice(ACCOUNT_PREFIX.length));
+        if (!acc || !accountKind) return;
+        await cliAccountClient.activate(acc.id, accountKind);
       } else if (id === CLI_DEFAULT_VALUE) {
         const r = await cliProviderClient.deactivate(backend);
         if (!r.ok) setErr(r.error || t('停用失败'));
@@ -128,7 +133,7 @@ export const CliProviderChip: React.FC<{
             label: t('CLI 默认 / 已登录'),
             description: t('沿用 CLI 自带登录与默认配置'),
           },
-          ...accounts.map((a) => ({
+          ...own.map((a) => ({
             value: `${ACCOUNT_PREFIX}${a.id}`,
             label: t('官方 · {0}', a.identity?.email ?? a.label),
             description: a.identity?.plan,

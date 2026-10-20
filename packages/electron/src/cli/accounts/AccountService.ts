@@ -251,9 +251,14 @@ export class AccountService {
       fs.rmSync(path.join(dir, f), { force: true });
   }
 
-  /** 切换全局官方账号 */
-  activate(id: string): Promise<AccountView> {
+  /**
+   * 切换全局官方账号。expectedKind：调用方以为的所属后端（界面上正在看的编程助手）；
+   * 与账号实际所属不一致就拒绝，不会借过时的菜单切到另一个 CLI 的全局登录（#69）。
+   */
+  activate(id: string, expectedKind?: AccountKind): Promise<AccountView> {
     const { kind } = this.find(id);
+    if (expectedKind !== undefined && expectedKind !== kind)
+      return Promise.reject(new AccountError('not-found', t('账号不存在')));
     return this.serial(kind, async () => {
       const { acc } = this.find(id);
       const adapter = this.adapter(kind);
@@ -326,7 +331,11 @@ export class AccountService {
       (k, label) => this.importCurrent(kindOf(k), label ? String(label) : undefined),
       { owner },
     );
-    guardedHandle('ai:cli-account:activate', (id) => this.activate(String(id)), { owner });
+    guardedHandle(
+      'ai:cli-account:activate',
+      (id, k) => this.activate(String(id), k === undefined || k === null ? undefined : kindOf(k)),
+      { owner },
+    );
     guardedHandle('ai:cli-account:rename', (id, label) => this.rename(String(id), String(label)), {
       owner,
     });

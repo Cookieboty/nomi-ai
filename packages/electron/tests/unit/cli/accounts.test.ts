@@ -118,6 +118,22 @@ describe('AccountService · Codex（全局 auth.json）', () => {
     expect(JSON.stringify(t.svc.list())).not.toContain('rt-');
   });
 
+  it('调用方声明的后端与账号不符（过时的菜单）：拒绝切换，全局登录不动（#69）', async () => {
+    const t = setup();
+    writeCodex(t.home, codexAuth('a@x.com', '2026-10-01T00:00:00Z'));
+    await t.svc.importCurrent('codex');
+    const adapter = adapterFor('codex', { home: t.home, env: t.env });
+    const b = await t.svc.addFromLogin('codex', {
+      files: { 'auth.json': codexAuth('b@x.com', '2026-10-02T00:00:00Z') },
+      ...adapter.inspect({ 'auth.json': codexAuth('b@x.com', '2026-10-02T00:00:00Z') }),
+    });
+    await expect(t.svc.activate(b.id, 'claude')).rejects.toMatchObject({ code: 'not-found' });
+    expect(readCodex(t.home).tokens.refresh_token).toBe('rt-a@x.com');
+    expect(t.activated).toEqual([]);
+    await t.svc.activate(b.id, 'codex');
+    expect(readCodex(t.home).tokens.refresh_token).toBe('rt-b@x.com');
+  });
+
   it('切走前回收 CLI 刷新后的 token：再切回来用的是新的，不是导入时的旧快照', async () => {
     const t = setup();
     writeCodex(t.home, codexAuth('a@x.com', '2026-10-01T00:00:00Z', 'rt-a-old'));

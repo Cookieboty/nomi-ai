@@ -64,7 +64,7 @@
 ## 6. 数据与界面
 
 - **保险箱**：`userData/cli-accounts/<kind>.json`（0600），每项 `{ id, kind, label, identity: { email?, accountId?, plan?, org? }, createdAt, lastUsedAt, credEnc }`；`credEnc` 是凭据文件内容的 JSON，经 `safeStorage` 加密，安全存储不可用时**拒绝保存**（与 #35 一致）。日志、导出、IPC 返回值里永远不含凭据。
-- **IPC**（`ai:cli-account:*`，经 `guardedHandle`）：`list`、`login-start(kind)` / `login-input(id, text)` / `login-cancel(id)`（进度事件 `ai:cli-account:login`：url / code / waiting / done / error）、`import-current(kind)`、`activate(id)`、`rename`、`remove(id, { logout })`、`live(kind)`（当前全局登录的身份，用于显示「终端当前账号」）。
+- **IPC**（`ai:cli-account:*`，经 `guardedHandle`）：`list`、`login-start(kind)` / `login-input(id, text)` / `login-cancel(id)`（进度事件 `ai:cli-account:login`：url / code / waiting / done / error）、`import-current(kind)`、`activate(id, kind?)`（带 `kind` 时核对账号所属后端，不一致即拒绝，#69）、`rename`、`remove(id, { logout })`、`live(kind)`（当前全局登录的身份，用于显示「终端当前账号」）。
 - **界面**：编程助手每个端点的「供应商」页顶部增加「官方账号」区：账号卡（邮箱、套餐、当前标记、最近使用）、添加账号（登录弹窗：链接 + 复制设备码 / 粘贴授权码 + 状态 + 取消）、导入当前登录、切换、重命名、删除。输入栏的端点按钮显示当前官方账号邮箱。
 
 ## 7. 跨平台
