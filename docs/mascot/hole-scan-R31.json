@@ -1,0 +1,517 @@
+{
+  "baseline": {
+    "group": "full",
+    "clip": "idle",
+    "frame": 1,
+    "hole_px": 13577,
+    "n_comp": 230,
+    "max_comp": 1369,
+    "mask_px": 260819
+  },
+  "rows": [
+    {
+      "group": "full",
+      "clip": "idle",
+      "frame": 1,
+      "hole_px": 13577,
+      "n_comp": 230,
+      "max_comp": 1369,
+      "mask_px": 260819
+    },
+    {
+      "group": "full",
+      "clip": "idle",
+      "frame": 50,
+      "hole_px": 13100,
+      "n_comp": 211,
+      "max_comp": 1341,
+      "mask_px": 258420
+    },
+    {
+      "group": "full",
+      "clip": "idle",
+      "frame": 100,
+      "hole_px": 13771,
+      "n_comp": 223,
+      "max_comp": 1384,
+      "mask_px": 261549
+    },
+    {
+      "group": "full",
+      "clip": "wave",
+      "frame": 30,
+      "hole_px": 13585,
+      "n_comp": 214,
+      "max_comp": 1377,
+      "mask_px": 265976
+    },
+    {
+      "group": "full",
+      "clip": "wave",
+      "frame": 52,
+      "hole_px": 13396,
+      "n_comp": 213,
+      "max_comp": 1381,
+      "mask_px": 264516
+    },
+    {
+      "group": "full",
+      "clip": "wave",
+      "frame": 72,
+      "hole_px": 13494,
+      "n_comp": 215,
+      "max_comp": 1393,
+      "mask_px": 265570
+    },
+    {
+      "group": "full",
+      "clip": "walk",
+      "frame": 60,
+      "hole_px": 13470,
+      "n_comp": 216,
+      "max_comp": 1373,
+      "mask_px": 254531
+    },
+    {
+      "group": "full",
+      "clip": "walk",
+      "frame": 76,
+      "hole_px": 13102,
+      "n_comp": 219,
+      "max_comp": 1393,
+      "mask_px": 255752
+    },
+    {
+      "group": "full",
+      "clip": "walk",
+      "frame": 90,
+      "hole_px": 13474,
+      "n_comp": 221,
+      "max_comp": 1395,
+      "mask_px": 254504
+    },
+    {
+      "group": "full",
+      "clip": "run",
+      "frame": 40,
+      "hole_px": 12045,
+      "n_comp": 195,
+      "max_comp": 1313,
+      "mask_px": 234051
+    },
+    {
+      "group": "full",
+      "clip": "run",
+      "frame": 50,
+      "hole_px": 12297,
+      "n_comp": 188,
+      "max_comp": 1334,
+      "mask_px": 230874
+    },
+    {
+      "group": "full",
+      "clip": "run",
+      "frame": 60,
+      "hole_px": 11770,
+      "n_comp": 200,
+      "max_comp": 1155,
+      "mask_px": 234548
+    },
+    {
+      "group": "full",
+      "clip": "cheer",
+      "frame": 24,
+      "hole_px": 10711,
+      "n_comp": 178,
+      "max_comp": 1080,
+      "mask_px": 229453
+    },
+    {
+      "group": "full",
+      "clip": "cheer",
+      "frame": 48,
+      "hole_px": 9200,
+      "n_comp": 160,
+      "max_comp": 733,
+      "mask_px": 224876
+    },
+    {
+      "group": "hide-coat",
+      "clip": "idle",
+      "frame": 1,
+      "hole_px": 12270,
+      "n_comp": 198,
+      "max_comp": 1357,
+      "mask_px": 229427
+    },
+    {
+      "group": "hide-coat",
+      "clip": "idle",
+      "frame": 50,
+      "hole_px": 12283,
+      "n_comp": 182,
+      "max_comp": 1350,
+      "mask_px": 228776
+    },
+    {
+      "group": "hide-coat",
+      "clip": "idle",
+      "frame": 100,
+      "hole_px": 12332,
+      "n_comp": 192,
+      "max_comp": 1372,
+      "mask_px": 229891
+    },
+    {
+      "group": "hide-coat",
+      "clip": "wave",
+      "frame": 30,
+      "hole_px": 12538,
+      "n_comp": 190,
+      "max_comp": 1369,
+      "mask_px": 231085
+    },
+    {
+      "group": "hide-coat",
+      "clip": "wave",
+      "frame": 52,
+      "hole_px": 12527,
+      "n_comp": 187,
+      "max_comp": 1384,
+      "mask_px": 230853
+    },
+    {
+      "group": "hide-coat",
+      "clip": "wave",
+      "frame": 72,
+      "hole_px": 12546,
+      "n_comp": 190,
+      "max_comp": 1384,
+      "mask_px": 231658
+    },
+    {
+      "group": "hide-coat",
+      "clip": "walk",
+      "frame": 60,
+      "hole_px": 12344,
+      "n_comp": 191,
+      "max_comp": 1392,
+      "mask_px": 226382
+    },
+    {
+      "group": "hide-coat",
+      "clip": "walk",
+      "frame": 76,
+      "hole_px": 12237,
+      "n_comp": 190,
+      "max_comp": 1376,
+      "mask_px": 226181
+    },
+    {
+      "group": "hide-coat",
+      "clip": "walk",
+      "frame": 90,
+      "hole_px": 12298,
+      "n_comp": 190,
+      "max_comp": 1390,
+      "mask_px": 226325
+    },
+    {
+      "group": "hide-coat",
+      "clip": "run",
+      "frame": 40,
+      "hole_px": 12461,
+      "n_comp": 184,
+      "max_comp": 1356,
+      "mask_px": 212134
+    },
+    {
+      "group": "hide-coat",
+      "clip": "run",
+      "frame": 50,
+      "hole_px": 12230,
+      "n_comp": 172,
+      "max_comp": 1332,
+      "mask_px": 209032
+    },
+    {
+      "group": "hide-coat",
+      "clip": "run",
+      "frame": 60,
+      "hole_px": 12371,
+      "n_comp": 191,
+      "max_comp": 1335,
+      "mask_px": 211961
+    },
+    {
+      "group": "hide-coat",
+      "clip": "cheer",
+      "frame": 24,
+      "hole_px": 10990,
+      "n_comp": 180,
+      "max_comp": 1377,
+      "mask_px": 210846
+    },
+    {
+      "group": "hide-coat",
+      "clip": "cheer",
+      "frame": 48,
+      "hole_px": 9754,
+      "n_comp": 160,
+      "max_comp": 1182,
+      "mask_px": 207712
+    },
+    {
+      "group": "hide-tank",
+      "clip": "idle",
+      "frame": 1,
+      "hole_px": 11318,
+      "n_comp": 212,
+      "max_comp": 787,
+      "mask_px": 263078
+    },
+    {
+      "group": "hide-tank",
+      "clip": "idle",
+      "frame": 50,
+      "hole_px": 10803,
+      "n_comp": 195,
+      "max_comp": 761,
+      "mask_px": 260717
+    },
+    {
+      "group": "hide-tank",
+      "clip": "idle",
+      "frame": 100,
+      "hole_px": 11492,
+      "n_comp": 206,
+      "max_comp": 802,
+      "mask_px": 263828
+    },
+    {
+      "group": "hide-tank",
+      "clip": "wave",
+      "frame": 30,
+      "hole_px": 11310,
+      "n_comp": 197,
+      "max_comp": 784,
+      "mask_px": 268251
+    },
+    {
+      "group": "hide-tank",
+      "clip": "wave",
+      "frame": 52,
+      "hole_px": 11126,
+      "n_comp": 197,
+      "max_comp": 778,
+      "mask_px": 266786
+    },
+    {
+      "group": "hide-tank",
+      "clip": "wave",
+      "frame": 72,
+      "hole_px": 11200,
+      "n_comp": 197,
+      "max_comp": 791,
+      "mask_px": 267864
+    },
+    {
+      "group": "hide-tank",
+      "clip": "walk",
+      "frame": 60,
+      "hole_px": 11204,
+      "n_comp": 198,
+      "max_comp": 772,
+      "mask_px": 256797
+    },
+    {
+      "group": "hide-tank",
+      "clip": "walk",
+      "frame": 76,
+      "hole_px": 10842,
+      "n_comp": 208,
+      "max_comp": 805,
+      "mask_px": 258012
+    },
+    {
+      "group": "hide-tank",
+      "clip": "walk",
+      "frame": 90,
+      "hole_px": 11191,
+      "n_comp": 202,
+      "max_comp": 803,
+      "mask_px": 256787
+    },
+    {
+      "group": "hide-tank",
+      "clip": "run",
+      "frame": 40,
+      "hole_px": 9776,
+      "n_comp": 176,
+      "max_comp": 749,
+      "mask_px": 236320
+    },
+    {
+      "group": "hide-tank",
+      "clip": "run",
+      "frame": 50,
+      "hole_px": 10088,
+      "n_comp": 175,
+      "max_comp": 759,
+      "mask_px": 233083
+    },
+    {
+      "group": "hide-tank",
+      "clip": "run",
+      "frame": 60,
+      "hole_px": 9560,
+      "n_comp": 185,
+      "max_comp": 595,
+      "mask_px": 236758
+    },
+    {
+      "group": "hide-tank",
+      "clip": "cheer",
+      "frame": 24,
+      "hole_px": 8557,
+      "n_comp": 163,
+      "max_comp": 498,
+      "mask_px": 231607
+    },
+    {
+      "group": "hide-tank",
+      "clip": "cheer",
+      "frame": 48,
+      "hole_px": 7604,
+      "n_comp": 150,
+      "max_comp": 390,
+      "mask_px": 226472
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "idle",
+      "frame": 1,
+      "hole_px": 12985,
+      "n_comp": 198,
+      "max_comp": 1369,
+      "mask_px": 261411
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "idle",
+      "frame": 50,
+      "hole_px": 12377,
+      "n_comp": 183,
+      "max_comp": 1341,
+      "mask_px": 259143
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "idle",
+      "frame": 100,
+      "hole_px": 13189,
+      "n_comp": 193,
+      "max_comp": 1384,
+      "mask_px": 262131
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "wave",
+      "frame": 30,
+      "hole_px": 12436,
+      "n_comp": 182,
+      "max_comp": 1377,
+      "mask_px": 266462
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "wave",
+      "frame": 52,
+      "hole_px": 12176,
+      "n_comp": 183,
+      "max_comp": 1381,
+      "mask_px": 265084
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "wave",
+      "frame": 72,
+      "hole_px": 12341,
+      "n_comp": 180,
+      "max_comp": 1393,
+      "mask_px": 266069
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "walk",
+      "frame": 60,
+      "hole_px": 12858,
+      "n_comp": 187,
+      "max_comp": 1373,
+      "mask_px": 255143
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "walk",
+      "frame": 76,
+      "hole_px": 12525,
+      "n_comp": 189,
+      "max_comp": 1393,
+      "mask_px": 256329
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "walk",
+      "frame": 90,
+      "hole_px": 12776,
+      "n_comp": 193,
+      "max_comp": 1395,
+      "mask_px": 255188
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "run",
+      "frame": 40,
+      "hole_px": 10888,
+      "n_comp": 172,
+      "max_comp": 1313,
+      "mask_px": 234677
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "run",
+      "frame": 50,
+      "hole_px": 11277,
+      "n_comp": 165,
+      "max_comp": 1334,
+      "mask_px": 231894
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "run",
+      "frame": 60,
+      "hole_px": 11028,
+      "n_comp": 169,
+      "max_comp": 1155,
+      "mask_px": 235233
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "cheer",
+      "frame": 24,
+      "hole_px": 10307,
+      "n_comp": 156,
+      "max_comp": 1080,
+      "mask_px": 229425
+    },
+    {
+      "group": "hide-shorts",
+      "clip": "cheer",
+      "frame": 48,
+      "hole_px": 8532,
+      "n_comp": 137,
+      "max_comp": 733,
+      "mask_px": 224613
+    }
+  ]
+}

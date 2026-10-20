@@ -1,0 +1,91 @@
+# Nomi·诺米 Clothing Swap Contract（R31d）
+
+**日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
+**状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
+
+## 共享底模（不可随单件衣服删除）
+
+| 槽 | Image 节点 | 贴图 | 骨骼 |
+|---|---|---|---|
+| 裸身躯干/髋 | `full.body.backfill` | `body-backfill.png` | torso / spine / pelvis（R28） |
+| 肩肤 | `full.arm-{l,r}.shoulder-skin.static` | `arm-*-shoulder-skin.png` | torso + shoulder + upper |
+| 上臂肤 | `full.arm-{l,r}.upper-skin.image` | `arm-*-upper-skin.png` | upper |
+| 袖下臂肤 | `full.arm-{l,r}.under-skin.image` | `arm-*-under-skin.png` | 与 sleeve 同腱（upper/fore/hand） |
+| 手 | `full.hand-{l,r}.*` | `hand-*.png` | 手指链 |
+| 腿 | `full.leg.{l,r}.skin.image` | `leg-*-skin.png` | upper/lower/foot（**含袜**） |
+| 头/五官/发 | `full.head.*` / eyes / bangs / hair.* | 对应 PNG | head 链 |
+| 残片底（通常 opa0） | `full.neutral` | `fullbody-base-no-head-arms.png` | torso/pelvis |
+
+## 可替换衣槽（Garment slots）
+
+### 1. `tank` 背心
+- **Images**: `full.torso.tank.image`
+- **Assets**: `torso-tank.png`
+- **Bones**: torso / spine / pelvis 蒙皮（R28）
+- **替换**: 换 PNG + 更新 `DETAIL_LICENSE.json`；网格可复用
+- **隐藏风险**: R31b 后露出 `body.backfill` 肤色；颈口/袖笼若新衣更短需再扩肤
+
+### 2. `coat` 外套（整组）
+- **Images**:
+  - 袖: `full.sleeve-{l,r}.full.image`, `full.sleeve-{l,r}.full.dark.image`
+  - 前片: `full.coat-{l,r}.front.image`
+  - 肩: `full.arm-{l,r}.coat-shoulder.static`, `.lining.static`, `.dark.static`
+  - 袖根: `full.arm-{l,r}.sleeve-stump.static`
+  - 袖口: `full.arm-{l,r}.cuff.image`
+  - 下摆飘带: `full.hem.ribbon.{l,r}.image`
+- **Bones**: sleeveHang / coat-X.front 链 / hem.ribbon 链 / shoulder 辅助
+- **隐藏风险**: 露出 arm-under-skin + shoulder-skin；飘带消失
+- **勿删**: arm-under-skin（属身体）
+
+### 3. `shorts` 短裤
+- **Images**: `full.shorts.image`
+- **Assets**: `shorts.png`
+- **Bones**: pelvis + leg upper
+- **隐藏风险**: 髋下仍可能有缝（腿顶与 backfill 衔接）；大腿绑带仍在 leg-skin 上
+
+### 4. `shorts-orange` 短裤侧橙饰
+- **Images**: `full.shorts.side-orange.image`
+- **Assets**: `shorts-side-orange.png`
+- **Bones**: 与 shorts 同网格
+- **说明**: R31c 从 shorts 迁出；可随短裤一起隐，或单独作饰品槽
+
+### 5. `belt` 腰带组件
+- **Images**: `full.belt.band.image`, `full.belt.id.image`, `full.belt.pouch.image`
+- **Assets**: `belt-band.png`, `belt-id.png`, `belt-pouch.png`
+
+### 6. `shoes` 鞋
+- **Images**: `full.shoe.{l,r}.image`
+- **Assets**: `shoe-*.png`
+- **隐藏后**: 可见袜（烘焙在 leg-skin，无独立袜层）
+
+### 7. `choker` / 发饰
+- **Images**: `full.choker.image`, `full.hair.clip.image`, `full.hair.bow.image`
+- **注意**: `hair-bow.png` 几乎空（结画在头发层）；真·蝴蝶结换装需先从头发拆像素
+
+## 建议绘制顺序（换衣友好）
+
+```
+body.backfill → leg skins (+socks) → arm skins → arm-under
+→ tank → shorts → shorts-orange → belt
+→ coat stump/shoulder → sleeve → coat-front → cuff → hem.ribbon
+→ shoes → choker / hair accessories → head/hair/face
+```
+
+当前 scene 文档序尚未整体重排（避免大范围改 motion）；新层已按「后画在下」插入正确相对位置。
+
+## 替换操作清单
+
+1. 选定衣槽 → 按上表列出 Images + Assets + 关联骨  
+2. 准备同尺寸（或可重蒙皮）PNG；`ai_generated:false` 时写清 deterministic method  
+3. 更新 `parts/DETAIL_LICENSE.json` sha/bytes/method  
+4. `rive rive/nomi-complete --verify` + `--once`；拷贝 `.riv` 到 `packages/renderer/.../nomi-complete.riv`  
+5. `brand-check.py`；`COREPACK_HOME=/tmp npx vitest run tests/mascot/rive.test.ts`  
+6. 对 `idle/wave/walk/run` 做「隐该槽」空洞扫描
+
+## 仍非 swap-ready 的项
+
+- 腿袜未独立；右大腿绑带融在 leg-skin  
+- 髋/裆与腿顶仍有接缝风险（隐短裤时）  
+- 袖下臂肤为几何胶囊，非母图手臂造型  
+- 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
+- `full.neutral` 仍含橙色边角残片（通常 opacity 0）
