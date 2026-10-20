@@ -35,6 +35,9 @@
   --cd-chart-1: var(--cd-color-accent);
   --cd-chart-2: var(--cd-color-accent-3);
   --cd-chart-3: var(--cd-color-accent-2);
+  /* 第 4 / 5 个系列色：取各主题的语义色，主题里不必再单独定义 */
+  --cd-chart-4: var(--cd-color-success);
+  --cd-chart-5: var(--cd-color-warning);
   --cd-color-success: #22c55e;
   --cd-color-success-soft: rgba(34, 197, 94, 0.16);
   --cd-color-warning: #f59e0b;

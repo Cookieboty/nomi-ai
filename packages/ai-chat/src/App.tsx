@@ -730,12 +730,12 @@ const AiChatContent: React.FC = () => {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 120,
-            padding: '8px 14px',
-            borderRadius: 10,
-            background: 'var(--cd-color-surface-raised, #121a2a)',
+            padding: 'var(--cd-space-2) var(--cd-space-3)',
+            borderRadius: 'var(--cd-radius-md)',
+            background: 'var(--cd-color-surface-raised)',
             border: '1px solid var(--cd-color-border)',
-            boxShadow: '0 8px 24px rgba(0,0,0,.35)',
-            fontSize: 13,
+            boxShadow: 'var(--cd-shadow-popover)',
+            fontSize: 'var(--cd-font-size-sm)',
           }}
         >
           {toast}

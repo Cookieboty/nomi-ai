@@ -1,8 +1,8 @@
 .row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--cd-space-2);
+  margin-bottom: var(--cd-space-2);
   cursor: pointer;
 }
 .progress {
@@ -10,7 +10,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 6px 0 10px;
+  margin: var(--cd-space-1-5) 0 10px;
 }
 .bar {
   flex: 1 1 200px;
@@ -25,17 +25,17 @@
   transition: width 0.2s ease;
 }
 .label {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .btn {
-  padding: 4px 12px;
-  border-radius: 8px;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
   border: 1px solid var(--cd-color-border);
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   cursor: pointer;
 }
 .btn:hover {
@@ -46,7 +46,7 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-  margin: 6px 0 10px;
-  font-size: 13px;
-  color: var(--cd-color-danger, #c0392b);
+  margin: var(--cd-space-1-5) 0 10px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-danger);
 }

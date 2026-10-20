@@ -8,10 +8,10 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-3) 14px;
   text-align: left;
-  border-radius: 10px;
+  border-radius: var(--cd-radius-md);
   border: 1px solid var(--cd-color-border);
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
@@ -29,11 +29,11 @@
   color: var(--cd-color-selected-text);
 }
 .optTitle {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
 }
 .optHint {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .opt.optOn .optHint {

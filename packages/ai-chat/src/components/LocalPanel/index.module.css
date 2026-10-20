@@ -38,7 +38,7 @@
 }
 .mono textarea,
 textarea.mono {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-sm);
 }
 .list {
@@ -68,13 +68,13 @@ textarea.mono {
   background: none;
   color: var(--cd-color-text-muted);
   cursor: pointer;
-  padding: 0 2px;
+  padding: 0 var(--cd-space-0-5);
   font: inherit;
 }
 .meta {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   overflow-wrap: anywhere;
 }
 .tools {
@@ -100,7 +100,7 @@ textarea.mono {
 .preset {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
   text-align: left;
   padding: var(--cd-space-3);
   border-radius: var(--cd-radius-md);
@@ -118,7 +118,7 @@ textarea.mono {
 .bar {
   height: 6px;
   border-radius: 3px;
-  background: var(--cd-color-surface-sunken, var(--cd-color-border));
+  background: var(--cd-color-surface-sunken);
   overflow: hidden;
 }
 .bar > i {
@@ -134,7 +134,7 @@ textarea.mono {
   flex: none;
 }
 .clipText {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-sm);
   white-space: pre-wrap;
   word-break: break-all;

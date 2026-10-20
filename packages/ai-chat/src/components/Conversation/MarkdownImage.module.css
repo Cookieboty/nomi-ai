@@ -1,7 +1,7 @@
 .imgBtn {
   display: inline-block;
   padding: 0;
-  margin: 4px 0;
+  margin: var(--cd-space-1) 0;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface-sunken);
@@ -27,8 +27,8 @@
 .unsafe,
 .failed {
   display: inline-block;
-  margin: 4px 0;
-  padding: 2px 8px;
+  margin: var(--cd-space-1) 0;
+  padding: var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-xs);
   background: var(--cd-color-surface-sunken);
   color: var(--cd-color-text-muted);

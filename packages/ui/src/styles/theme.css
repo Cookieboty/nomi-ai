@@ -255,9 +255,9 @@
   border-radius: var(--cd-radius-sm);
   background: linear-gradient(
     90deg,
-    rgba(148, 163, 184, 0.1) 0%,
-    rgba(148, 163, 184, 0.22) 50%,
-    rgba(148, 163, 184, 0.1) 100%
+    var(--cd-color-hover) 0%,
+    var(--cd-color-active) 50%,
+    var(--cd-color-hover) 100%
   );
   background-size: 200% 100%;
   animation: cd-shimmer 1.2s ease-in-out infinite;

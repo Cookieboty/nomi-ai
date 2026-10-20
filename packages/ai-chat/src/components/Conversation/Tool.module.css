@@ -2,12 +2,12 @@
 .timeline {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 2px 0 6px;
+  gap: var(--cd-space-0-5);
+  margin: var(--cd-space-0-5) 0 var(--cd-space-1-5);
   max-width: 100%;
 }
 .nested {
-  margin: 4px 0;
+  margin: var(--cd-space-1) 0;
 }
 
 .item {
@@ -20,7 +20,7 @@
   background: var(--cd-color-surface-raised);
 }
 .block {
-  margin: 2px 0;
+  margin: var(--cd-space-0-5) 0;
 }
 
 .head {
@@ -29,7 +29,7 @@
   gap: 7px;
   width: 100%;
   min-height: 28px;
-  padding: 3px 8px;
+  padding: 3px var(--cd-space-2);
   border: none;
   border-radius: inherit;
   background: transparent;
@@ -68,7 +68,7 @@
 .label {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
   flex: 0 1 auto;
   overflow: hidden;
@@ -93,7 +93,7 @@
 .meta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   flex-shrink: 0;
   font-family: var(--cd-font-mono);
   font-size: var(--conv-meta, 13px);
@@ -101,7 +101,7 @@
 .tail {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   margin-left: auto;
   flex-shrink: 0;
 }
@@ -148,10 +148,10 @@
   color: var(--cd-color-success);
 }
 .del {
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  color: var(--cd-color-danger-text);
 }
 .failedTag {
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  color: var(--cd-color-danger-text);
   font-family: var(--cd-font-sans);
 }
 .subCount {
@@ -161,26 +161,26 @@
 
 /* 子代理卡片上的「后台」「已停止」标记 */
 .subBadge {
-  padding: 0 6px;
+  padding: 0 var(--cd-space-1-5);
   border-radius: var(--cd-radius-full);
   border: 1px solid var(--cd-color-border);
   font-family: var(--cd-font-sans);
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 
 .body {
-  margin: 2px 0 6px 20px;
-  padding: 2px 0 2px 12px;
+  margin: var(--cd-space-0-5) 0 var(--cd-space-1-5) var(--cd-space-5);
+  padding: var(--cd-space-0-5) 0 var(--cd-space-0-5) var(--cd-space-3);
   border-left: 1px solid var(--cd-color-border);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
 }
 .group > .body,
 .block > .body {
-  margin: 0 8px 8px 20px;
+  margin: 0 var(--cd-space-2) var(--cd-space-2) var(--cd-space-5);
 }
 .groupList {
   display: flex;
@@ -200,7 +200,7 @@
 }
 .pre {
   margin: 0;
-  padding: 8px 10px;
+  padding: var(--cd-space-2) 10px;
   max-height: 220px;
   overflow: auto;
   border: 1px solid var(--cd-color-border);
@@ -217,7 +217,7 @@
   outline: 2px solid var(--cd-color-accent);
 }
 .preError {
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  color: var(--cd-color-danger-text);
   border-color: color-mix(in srgb, var(--cd-color-danger) 40%, var(--cd-color-border));
 }
 .cmd {
@@ -260,8 +260,8 @@
 .diffHead {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-1) 10px;
   font-size: var(--conv-meta, 13px);
   border-bottom: 1px solid var(--cd-color-border);
 }
@@ -279,7 +279,7 @@
 }
 .diffStat {
   display: inline-flex;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   margin-left: auto;
   font-family: var(--cd-font-mono);
   font-size: var(--conv-meta, 13px);
@@ -298,7 +298,7 @@
 }
 .diffNo {
   flex: 0 0 34px;
-  padding-right: 6px;
+  padding-right: var(--cd-space-1-5);
   text-align: right;
   color: var(--cd-color-text-subtle);
   opacity: 0.7;
@@ -338,9 +338,9 @@
 .earlier {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   align-self: flex-start;
-  padding: 3px 8px;
+  padding: 3px var(--cd-space-2);
   border: none;
   border-radius: var(--cd-radius-md);
   background: transparent;

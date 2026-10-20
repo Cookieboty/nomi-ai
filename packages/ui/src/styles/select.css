@@ -96,11 +96,11 @@
   z-index: var(--cd-z-tooltip);
   display: flex;
   flex-direction: column;
-  padding: var(--cd-space-1);
+  padding: var(--cd-space-1-5);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-raised);
-  box-shadow: var(--cd-shadow-lg);
+  box-shadow: var(--cd-shadow-popover);
   color: var(--cd-color-text);
   outline: none;
   animation: cd-pop-in 0.12s ease-out;
@@ -150,10 +150,10 @@
   user-select: none;
 }
 .cd-dropdown__option.is-active {
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--cd-color-hover);
 }
 .cd-dropdown__option.is-selected {
-  color: var(--cd-color-accent-strong);
+  color: var(--cd-color-selected-text);
   font-weight: var(--cd-font-weight-medium);
 }
 .cd-dropdown__option[aria-disabled='true'] {

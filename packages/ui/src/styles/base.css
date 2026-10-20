@@ -66,7 +66,7 @@
 }
 .cd-btn--danger {
   color: var(--cd-color-danger);
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-danger) 35%, transparent);
 }
 .cd-btn--danger:hover:not(:disabled) {
   background: var(--cd-color-danger-soft);
@@ -315,17 +315,17 @@
 /* ---------- Tabs ---------- */
 .cd-tabs {
   display: flex;
-  gap: var(--cd-space-1);
-  padding: 3px;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-color-bg-subtle);
   border: 1px solid var(--cd-color-border);
   width: fit-content;
 }
 .cd-tab {
-  height: 28px;
+  height: var(--cd-control-h-sm);
   padding: 0 var(--cd-space-3);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -333,6 +333,7 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
   transition: var(--cd-transition);
+  font-weight: var(--cd-font-weight-medium);
 }
 .cd-tab:hover {
   background: var(--cd-color-hover);
@@ -340,9 +341,9 @@
 }
 /* 选中态：selected-bg 填充 + selected-text 文字（对比度 ≥ 4.5:1，见 tests/theme-contrast.test.ts） */
 .cd-tab[aria-selected='true'] {
-  background: var(--cd-color-selected-bg);
-  color: var(--cd-color-selected-text);
-  box-shadow: inset 0 0 0 1px var(--cd-color-border-strong);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  border-color: var(--cd-color-border);
 }
 .cd-tab:focus-visible {
   outline: none;
@@ -374,7 +375,7 @@
   margin-left: var(--cd-space-1);
 }
 .cd-badge--neutral {
-  background: rgba(148, 163, 184, 0.14);
+  background: var(--cd-color-hover);
   color: var(--cd-color-text-muted);
 }
 .cd-badge--success {
@@ -526,15 +527,15 @@
 }
 .cd-notice--success {
   background: var(--cd-color-success-soft);
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-success) 35%, transparent);
 }
 .cd-notice--warning {
   background: var(--cd-color-warning-soft);
-  border-color: rgba(245, 158, 11, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-warning) 35%, transparent);
 }
 .cd-notice--danger {
   background: var(--cd-color-danger-soft);
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-danger) 35%, transparent);
 }
 
 /* ---------- EmptyState ---------- */
@@ -695,7 +696,7 @@
 }
 .cd-table td {
   padding: var(--cd-space-1) var(--cd-space-2);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  border-bottom: 1px solid var(--cd-color-border);
 }
 
 @keyframes cd-fade-in {

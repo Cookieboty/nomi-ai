@@ -3,7 +3,7 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
   max-width: 100%;
 }
@@ -48,21 +48,21 @@
   background: var(--cd-color-hover);
 }
 .note {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   white-space: nowrap;
 }
 .menu {
   position: fixed;
   z-index: var(--cd-z-tooltip);
-  padding: 6px;
+  padding: var(--cd-space-1-5);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
+  border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-raised);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--cd-shadow-popover);
 }
 /* 模型列表较长（Codex 十余个）：限高滚动，菜单整体不超出视口 */
 .models {
@@ -75,10 +75,10 @@
 .item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   width: 100%;
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: var(--cd-control-h-ms);
+  padding: var(--cd-space-1-5) var(--cd-space-2);
   border: none;
   border-radius: var(--cd-radius-sm);
   background: transparent;
@@ -86,6 +86,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  font-size: var(--cd-font-size-sm);
 }
 .item:hover:not(:disabled),
 .item:focus-visible {
@@ -96,8 +97,8 @@
   opacity: 0.5;
 }
 .item[aria-selected='true'] {
-  background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-strong);
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
 }
 .item > svg {
   flex: none;
@@ -108,18 +109,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
 }
 .itemHint {
   flex: none;
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .custom {
   display: flex;
   align-items: center;
   min-height: 28px;
-  padding: 4px 8px 2px;
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-0-5);
   border-top: 1px solid var(--cd-color-border);
 }
 /* 默认页：「思考深度 / 恢复默认」→ 当前档位与说明 → 分档滑杆 → 模型行（参考 Codex 推理强度浮层） */
@@ -127,7 +128,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 8px 8px 2px;
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-0-5);
 }
 .effortHead {
   display: flex;
@@ -136,22 +137,22 @@
   min-height: 18px;
 }
 .effortHeadLabel {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .effortValue {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
 }
 .effortTitle {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--cd-font-size-lg);
+  font-weight: var(--cd-font-weight-bold);
   line-height: 1.3;
   color: var(--cd-color-text);
 }
 .effortHint {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   line-height: 1.4;
   color: var(--cd-color-text-muted);
 }
@@ -159,8 +160,8 @@
 .sliderWrap {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 2px 0 4px;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-0-5) 0 var(--cd-space-1);
 }
 .slider {
   --thumb: 18px;
@@ -237,7 +238,7 @@
   position: absolute;
   top: 0;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   line-height: 16px;
   white-space: nowrap;
   color: var(--cd-color-text-muted);
@@ -248,23 +249,23 @@
 }
 .sliderLabelOn {
   color: var(--cd-color-accent-strong);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
 }
 /* 模型行：与列表项同一套样式，点开进模型页 */
 .modelRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   width: calc(100% + 16px);
   margin: 0 -8px;
-  padding: 9px 8px;
+  padding: 9px var(--cd-space-2);
   border: none;
   border-top: 1px solid var(--cd-color-border);
   border-radius: 0 0 var(--cd-radius-sm) var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -286,7 +287,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
 }
 .modelLinkText {
   min-width: 0;
@@ -296,11 +297,11 @@
 }
 .tag {
   flex: none;
-  padding: 0 6px;
+  padding: 0 var(--cd-space-1-5);
   border-radius: var(--cd-radius-full);
   background: var(--cd-color-hover);
   color: var(--cd-color-text-muted);
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   line-height: 18px;
 }
 .modelHead {
@@ -309,8 +310,8 @@
   justify-content: space-between;
 }
 .modelError {
-  padding: 4px 8px 6px;
-  font-size: 12px;
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   overflow-wrap: anywhere;
 }
@@ -326,16 +327,16 @@
 .back {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
   align-self: flex-start;
-  padding: 4px 6px;
+  padding: var(--cd-space-1) var(--cd-space-1-5);
   border: none;
   border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text-muted);
   font: inherit;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
   cursor: pointer;
 }
 .back:disabled {
@@ -359,12 +360,12 @@
 .link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cd-space-1);
   border: none;
   background: transparent;
   color: var(--cd-color-accent-strong);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   cursor: pointer;
   padding: 0;
 }
@@ -375,20 +376,20 @@
 .customForm {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   width: 100%;
 }
 .customInput {
   flex: 1;
   min-width: 0;
   height: 28px;
-  padding: 0 8px;
+  padding: 0 var(--cd-space-2);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
 }
 .customInput:focus {
   outline: none;

@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: space-between;
   height: 44px;
-  padding: 0 12px 0 16px;
+  padding: 0 var(--cd-space-3) 0 var(--cd-space-4);
   flex-shrink: 0;
   position: relative;
   z-index: 3;
@@ -11,13 +11,13 @@
 .left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   min-width: 0;
 }
 .actions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
 }
 .btn {
   width: var(--cd-control-h-ms);
@@ -49,10 +49,10 @@
 .left {
   flex: 1;
   overflow: visible;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
 }
 .pin {
-  font-size: 15px;
+  font-size: var(--cd-font-size-lg);
   flex-shrink: 0;
 }
 .moreWrap {
@@ -65,11 +65,11 @@
   left: 0;
   z-index: 60;
   min-width: 220px;
-  padding: 6px;
-  border-radius: 12px;
-  background: var(--cd-color-surface-raised, #121a2a);
+  padding: var(--cd-space-1-5);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
   border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.4));
+  box-shadow: var(--cd-shadow-popover);
   display: flex;
   flex-direction: column;
 }
@@ -80,20 +80,21 @@
 .popItem {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-1-5) var(--cd-space-2);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--cd-font-size-sm);
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
+  min-height: var(--cd-control-h-ms);
 }
 .popItem:hover:not(:disabled) {
-  background: rgba(var(--cd-accent-rgb), 0.14);
+  background: var(--cd-color-hover);
 }
 .popItem:disabled {
   color: var(--cd-color-text-subtle);
@@ -103,6 +104,6 @@
   flex: 1;
 }
 .popHint {
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-subtle);
 }

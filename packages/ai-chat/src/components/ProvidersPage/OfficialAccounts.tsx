@@ -127,7 +127,7 @@ const LoginDialog: React.FC<{
             {event.message || t('登录失败')}
           </Notice>
         )}
-        <p className="cd-muted" style={{ fontSize: 12 }}>
+        <p className="cd-muted" style={{ fontSize: 'var(--cd-font-size-xs)' }}>
           {t('登录在独立的临时目录里进行，你现在的登录不会受影响；凭据由系统钥匙串加密保存。')}
         </p>
       </div>
@@ -239,7 +239,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             {t('添加官方账号')}
           </Button>
         </div>
-        <p className="cd-muted" style={{ fontSize: 12 }}>
+        <p className="cd-muted" style={{ fontSize: 'var(--cd-font-size-xs)' }}>
           {t(
             '可以登录多个 {0} 官方账号并随时切换。切换会改写 {0} 的全局登录，你在终端里直接运行的 {0} 也会跟着切换；切换前会先保存当前登录的最新凭据并备份。',
             NAME[kind],

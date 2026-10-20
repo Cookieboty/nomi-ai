@@ -48,6 +48,7 @@ describe('usage panel layout', () => {
     const panel = block(usage, '.panel');
     expect(panel).toMatch(/display:\s*flex/);
     expect(panel).toMatch(/flex-direction:\s*column/);
-    expect(panel).toMatch(/gap:\s*12px/);
+    // 12px（--cd-space-3）
+    expect(panel).toMatch(/gap:\s*(12px|var\(--cd-space-3\))/);
   });
 });

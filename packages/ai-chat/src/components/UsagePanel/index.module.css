@@ -15,8 +15,8 @@
 }
 .h2 {
   font-size: var(--cd-font-size-lg);
-  font-weight: 600;
-  margin: 4px 0;
+  font-weight: var(--cd-font-weight-bold);
+  margin: var(--cd-space-1) 0;
   color: var(--cd-color-text);
 }
 .grow {
@@ -34,16 +34,16 @@
 }
 p.dim {
   line-height: 1.7;
-  margin: 6px 0;
+  margin: var(--cd-space-1-5) 0;
 }
 .panel > p.dim,
 .panel > .err {
   margin: 0;
 }
 .err {
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-sm);
-  margin: 6px 0;
+  margin: var(--cd-space-1-5) 0;
 }
 .ok {
   color: var(--cd-color-success);
@@ -58,7 +58,7 @@ p.dim {
 .loading {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cd-space-3);
 }
 .link {
   border: none;
@@ -78,7 +78,7 @@ p.dim {
 .cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--cd-space-3);
 }
 @media (max-width: 900px) {
   .cards {
@@ -89,7 +89,7 @@ p.dim {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
   padding: 14px 14px 10px;
   border-radius: var(--cd-radius-lg);
   border: 1px solid var(--cd-color-border);
@@ -103,7 +103,7 @@ p.dim {
 }
 .cardValue {
   font-size: var(--cd-font-size-2xl);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -111,14 +111,14 @@ p.dim {
 .cardMeta {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 10px;
+  gap: var(--cd-space-0-5) 10px;
   font-size: var(--cd-font-size-xs);
   min-height: 18px;
 }
 .spark {
   width: 100%;
   height: 32px;
-  margin-top: 4px;
+  margin-top: var(--cd-space-1);
 }
 .sparkLine {
   fill: none;
@@ -137,8 +137,8 @@ p.dim {
   /* 卡片内统一用 gap 排垂直间距：子元素之间 12px，卡片内边距 14px 16px */
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--cd-space-3);
+  padding: 14px var(--cd-space-4);
   border-radius: var(--cd-radius-lg);
   border: 1px solid var(--cd-color-border);
   background: var(--cd-color-surface);
@@ -153,13 +153,13 @@ p.dim {
   margin: 0;
   flex: 1;
   font-size: var(--cd-font-size-md);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
 .two {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--cd-space-3);
 }
 @media (max-width: 900px) {
   .two {
@@ -170,7 +170,7 @@ p.dim {
 /* 趋势图 */
 .trendTip {
   display: flex;
-  gap: 12px;
+  gap: var(--cd-space-3);
   align-items: baseline;
   min-height: 20px;
   font-size: var(--cd-font-size-xs);
@@ -178,7 +178,7 @@ p.dim {
 }
 .trendTip b {
   color: var(--cd-color-text);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
 }
 .trendSvg {
   width: 100%;
@@ -192,7 +192,7 @@ p.dim {
 }
 .axis {
   fill: var(--cd-color-text-subtle);
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   font-variant-numeric: tabular-nums;
 }
 .barIn {
@@ -245,7 +245,7 @@ p.dim {
 .rowHead {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   font-size: var(--cd-font-size-sm);
   min-width: 0;
 }
@@ -286,7 +286,7 @@ p.dim {
 }
 .warnMark {
   color: var(--cd-color-warning);
-  margin-left: 2px;
+  margin-left: var(--cd-space-0-5);
 }
 .bar {
   margin-top: 5px;
@@ -306,19 +306,19 @@ p.dim {
 .heatWrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .heatGrid {
   --heat-label-w: 26px;
   display: grid;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
   justify-content: start;
   max-width: 100%;
 }
 .heatMonth {
   grid-row: 1;
   height: 16px;
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   line-height: 14px;
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
@@ -327,7 +327,7 @@ p.dim {
 .heatWeekday {
   grid-column: 1;
   align-self: center;
-  font-size: 10px;
+  font-size: var(--cd-font-size-xs);
   line-height: 1;
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
@@ -374,9 +374,9 @@ i.heatCell {
 .heatLegend {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cd-space-1);
   justify-content: flex-end;
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
 .dayBox {
@@ -384,7 +384,7 @@ i.heatCell {
   flex-wrap: wrap;
   align-items: center;
   gap: 14px;
-  padding: 8px 12px;
+  padding: var(--cd-space-2) var(--cd-space-3);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-hover);
   font-size: var(--cd-font-size-sm);
@@ -399,7 +399,7 @@ i.heatCell {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .tableWrap {
   container-type: inline-size;
@@ -423,7 +423,7 @@ i.heatCell {
   border-bottom: none;
 }
 .table th {
-  font-weight: 500;
+  font-weight: var(--cd-font-weight-medium);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   white-space: nowrap;
@@ -441,7 +441,7 @@ i.heatCell {
   white-space: nowrap;
 }
 .mono {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   white-space: nowrap;
 }
@@ -462,11 +462,11 @@ i.heatCell {
 .srcCell {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   white-space: nowrap;
 }
 .estBadge {
-  margin-left: 6px;
+  margin-left: var(--cd-space-1-5);
 }
 .pager {
   display: flex;
@@ -483,7 +483,7 @@ i.heatCell {
 .rate {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
 }
@@ -499,14 +499,14 @@ i.heatCell {
 .actionsRow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin: 2px 4px 2px 0;
-  padding: 2px 8px;
+  gap: var(--cd-space-1);
+  margin: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-0-5) 0;
+  padding: var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-full);
   border: 1px solid var(--cd-color-border-strong);
   background: transparent;
@@ -531,7 +531,7 @@ i.heatCell {
 }
 
 .sub2 {
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
   overflow: hidden;
@@ -548,12 +548,12 @@ i.heatCell {
 .budgetGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px 16px;
+  gap: var(--cd-space-3) var(--cd-space-4);
 }
 .budgetField {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
@@ -561,7 +561,7 @@ i.heatCell {
 .amount {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   color: var(--cd-color-text-muted);
 }
 .amount input {
@@ -571,15 +571,15 @@ i.heatCell {
 .switchCol {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 
 /* 订阅额度 */
 .quotaHook {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--cd-space-2);
+  padding: 10px var(--cd-space-3);
   border-radius: var(--cd-radius-md);
   background: var(--cd-color-hover);
 }
@@ -601,7 +601,7 @@ i.heatCell {
 @container (max-width: 600px) {
   .table th,
   .table td {
-    padding: 6px 5px;
+    padding: var(--cd-space-1-5) 5px;
   }
   .colTime {
     white-space: normal;
@@ -618,7 +618,7 @@ i.heatCell {
 .toolUsageRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: var(--cd-space-2) var(--cd-space-4);
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text);
 }
@@ -630,18 +630,18 @@ i.heatCell {
 .toolGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 12px;
+  gap: var(--cd-space-3);
 }
 .toolCard {
   gap: 10px;
-  padding: 12px 14px;
+  padding: var(--cd-space-3) 14px;
   overflow: visible;
 }
 .toolHead {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 8px;
+  gap: var(--cd-space-1-5) var(--cd-space-2);
   min-width: 0;
 }
 .toolName {
@@ -654,21 +654,21 @@ i.heatCell {
 .toolBody {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
 }
 .toolBody .cardLabel {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--cd-space-1);
 }
 .toolFoot {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 2px 10px;
+  gap: var(--cd-space-0-5) 10px;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: var(--cd-space-2);
   border-top: 1px solid var(--cd-color-border);
   font-size: var(--cd-font-size-xs);
 }
