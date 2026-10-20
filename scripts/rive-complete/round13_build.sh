@@ -18,3 +18,5 @@ python3 round19_ribbons.py
 python3 round20_hair_follow.py
 python3 round20_wave_bent.py
 python3 round20_lid.py
+python3 round21_arm_fk.py
+python3 round21_arm_pivot.py
