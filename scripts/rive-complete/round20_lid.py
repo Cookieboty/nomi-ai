@@ -89,16 +89,12 @@ def main():
     note = lic.get("note", "")
     if "ROUND20 lid" not in note:
         lic["note"] = (note + " ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften.").strip()
-    LICENSE.write_text(json.dumps(lic, indent=2) + "
-")
+    LICENSE.write_text(json.dumps(lic, indent=2) + "\n")
     build = L10.ROOT / "scripts/rive-complete/round13_build.sh"
     bt = build.read_text()
     if "round20_lid" not in bt:
-        build.write_text(bt.rstrip() + "
-python3 round20_lid.py
-")
-    (L10.ROOT / "scripts/rive-complete/round13/lid-r20.json").write_text(json.dumps(report, indent=1) + "
-")
+        build.write_text(bt.rstrip() + "\npython3 round20_lid.py\n")
+    (L10.ROOT / "scripts/rive-complete/round13/lid-r20.json").write_text(json.dumps(report, indent=1) + "\n")
     print("ROUND20 lid", json.dumps(report))
 
 if __name__ == "__main__":
