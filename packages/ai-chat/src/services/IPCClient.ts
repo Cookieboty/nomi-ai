@@ -13,6 +13,7 @@ import { chunkToTrace, chunkToUsage } from '../utils/chunkTrace';
 
 import { ConversationStore } from './conversationStore';
 import { buildProviderMessages } from './history';
+import { upstreamErrorText } from './upstreamErrorText';
 
 const log = createLogger('IPC');
 
@@ -206,10 +207,10 @@ export class SdkIPCClient implements IPCClient {
         void Promise.resolve(it.return?.()).catch(() => undefined);
       }
     } catch (error) {
-      throw Object.assign(
-        new Error(t('发送流式消息失败: {0}', (error as Error).message ?? String(error))),
-        { cause: error },
-      );
+      const msg = (error as Error).message ?? String(error);
+      throw Object.assign(new Error(upstreamErrorText(msg) ?? t('发送流式消息失败: {0}', msg)), {
+        cause: error,
+      });
     }
   }
 

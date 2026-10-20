@@ -570,7 +570,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
           await turn.save(userMessage);
           await turn.save(failed);
-          throw err;
+          // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
+          return;
         }
         flushUi();
 
@@ -638,6 +639,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
     const my = ++historySeq.current;
+    // 换了会话：上一个会话的错误提示不再适用（#78）
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       const history = await stateRef.current.ipcClient.getChatHistory();
       // 期间又发起了新的加载 / 清空 / 新建会话：这次结果已过期
@@ -652,6 +655,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 清空对话历史
   const clearChatHistory = useCallback(async () => {
     historySeq.current++;
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       await stateRef.current.ipcClient.clearChatHistory();
       dispatch({ type: 'CLEAR_MESSAGES' });
@@ -663,6 +667,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
   const newConversation = useCallback(async () => {
     historySeq.current++;
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       ingestCurrent();
       await stateRef.current.ipcClient.newConversation();

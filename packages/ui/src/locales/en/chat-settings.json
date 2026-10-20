@@ -370,5 +370,14 @@
   "默认用内置离线语音，在本机合成、无需联网；模型缺失或合成失败时保持静默。": "Uses the built-in offline voice by default: synthesized on this device, no network needed. Nomi stays silent if the model is missing or synthesis fails.",
   "应用已内置 Nomi 可爱声线，合成时自动发给 Fish，无需手动拷贝；不提供上传自己音色的入口。": "The Nomi voice is built in and sent to Fish automatically; uploading your own voice isn't supported.",
   "Built with Fish Audio — 研究/非商用免费；年营收 < USD 500k 可社区商用；对外提供 TTS / 克隆服务需另签；不可未经同意克隆真人；不可用输出训练其他基础 TTS 模型。": "Built with Fish Audio — free for research / non-commercial use; community commercial use under USD 500k annual revenue; offering TTS / cloning as a service needs a separate agreement; no cloning real people without consent; outputs may not train other foundation TTS models.",
-  "外部自建 TTS（hostname / port / path / audioUrl / promptText）。": "Self-hosted external TTS (hostname / port / path / audioUrl / promptText)."
+  "外部自建 TTS（hostname / port / path / audioUrl / promptText）。": "Self-hosted external TTS (hostname / port / path / audioUrl / promptText).",
+  "上游通道请求失败，可以稍后重试或换一个模型 / 供应商": "The upstream channel request failed. Try again later or switch to another model / provider",
+  "上游服务出错，可以稍后重试或换一个模型 / 供应商": "The upstream service returned an error. Try again later or switch to another model / provider",
+  "上游服务出错，可以稍后重试": "The upstream service returned an error. Try again later",
+  "请求太频繁，被上游限流了，请稍后再试": "Too many requests — the upstream is rate limiting. Please try again later",
+  "上游账户额度不足，请检查余额或换一个供应商": "The upstream account is out of quota. Check the balance or switch providers",
+  "API Key 无效，请到供应商设置里检查": "The API key is invalid. Check it in provider settings",
+  "上游找不到这个模型，请换一个模型": "The upstream doesn't have this model. Pick another model",
+  "对话太长，超出了模型的上下文长度，请新开会话或精简内容": "The conversation exceeds the model's context length. Start a new chat or shorten it",
+  "上游返回错误（{0}）：{1}": "Upstream error ({0}): {1}"
 }

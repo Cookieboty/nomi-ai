@@ -35,7 +35,11 @@
 }
 
 .errorHintDesc {
+  /* 原始错误可能很长（上游返回的整段 JSON）：限高滚动，不把输入栏顶出屏幕（#78） */
+  max-height: 96px;
   margin: 0;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   line-height: var(--cd-line-height);
 }
 

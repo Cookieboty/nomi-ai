@@ -109,7 +109,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
     el.style.height = next > 0 ? `${next}px` : '';
   }, [message]);
-  const { state, actions } = useAiChat();
+  const { state, dispatch, actions } = useAiChat();
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   const [kbMode, setKbMode] = useState(() => {
     try {
@@ -635,7 +635,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div className={styles.messageInputContainer}>
-      {state.error && <ErrorHint error={state.error} />}
+      {state.error && (
+        <ErrorHint
+          error={state.error}
+          onDismiss={() => dispatch({ type: 'SET_ERROR', payload: undefined })}
+        />
+      )}
 
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
