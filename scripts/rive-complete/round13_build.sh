@@ -27,3 +27,4 @@ python3 round25_shoulder_pivot.py
 python3 round25_shoulder_bone.py
 python3 round25_shoulder_cap.py
 python3 round26_fingers.py
+python3 round26_secondary_skin.py
