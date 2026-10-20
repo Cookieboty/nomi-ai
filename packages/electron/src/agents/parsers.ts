@@ -88,13 +88,25 @@ const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v 
 function codexPermissionMode(payload: Record<string, unknown>): string | undefined {
   const explicit = str(payload.permission_mode) ?? str(payload.permissionMode);
   if (explicit) return explicit;
-  const sandbox = payload.sandbox_policy ?? payload.sandboxPolicy;
-  if (typeof sandbox === 'string') return sandbox;
-  if (sandbox && typeof sandbox === 'object') {
-    const type = str((sandbox as Record<string, unknown>).type);
-    if (type) return type;
-  }
-  return str(payload.approval_policy) ?? str(payload.approvalPolicy);
+  const rawSandbox = payload.sandbox_policy ?? payload.sandboxPolicy ?? payload.sandbox_mode;
+  const sandbox =
+    typeof rawSandbox === 'string'
+      ? rawSandbox
+      : rawSandbox && typeof rawSandbox === 'object'
+        ? str(
+            (rawSandbox as Record<string, unknown>).type ??
+              (rawSandbox as Record<string, unknown>).mode,
+          )
+        : undefined;
+  const approval = str(payload.approval_policy) ?? str(payload.approvalPolicy);
+  // 与 permissionLaunch('codex') 的启动参数互逆：sandbox 与 approval 合起来才是 Nomi 的档位。
+  // read-only 同时对应「计划」和「逐项确认」；回放成「逐项确认」，不给续接的会话凭空加计划前缀。
+  const sb = sandbox?.toLowerCase().replace(/[_\s]+/g, '-');
+  if (sb === 'danger-full-access' || sb === 'dangerfullaccess') return 'bypass';
+  if (sb === 'read-only' || sb === 'readonly') return 'manual';
+  if (sb === 'workspace-write' || sb === 'workspacewrite')
+    return approval?.toLowerCase().replace(/_/g, '-') === 'on-request' ? 'auto' : 'acceptEdits';
+  return sandbox ?? approval;
 }
 const ts = (v: unknown): number | undefined => {
   if (typeof v === 'number' && Number.isFinite(v)) return v > 1e12 ? v : v * 1000;

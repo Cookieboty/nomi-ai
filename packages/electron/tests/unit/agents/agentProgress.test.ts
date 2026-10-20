@@ -338,3 +338,17 @@ describe('AgentProgressService', () => {
     expect(s.tools.gemini).toBe(true);
   });
 });
+
+describe('parseCodexSession permission mode (inverse of permissionLaunch codex)', () => {
+  const meta = (payload: Record<string, unknown>) =>
+    JSON.stringify({ type: 'turn_context', payload: { cwd: '/p', model: 'gpt-x', ...payload } });
+  it.each([
+    [{ sandbox_policy: { type: 'read-only' } }, 'manual'],
+    [{ sandbox_policy: 'workspace-write', approval_policy: 'never' }, 'acceptEdits'],
+    [{ sandbox_policy: { type: 'workspace-write' }, approval_policy: 'on-request' }, 'auto'],
+    [{ sandbox_policy: { type: 'danger-full-access' } }, 'bypass'],
+    [{ approval_policy: 'untrusted' }, 'untrusted'],
+  ])('%j -> %s', (payload, want) => {
+    expect(parseCodexSession(meta(payload), '').permissionMode).toBe(want);
+  });
+});
