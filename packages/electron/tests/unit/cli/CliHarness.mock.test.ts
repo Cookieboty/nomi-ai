@@ -729,6 +729,39 @@ describe('CliHarnessService permission modes', () => {
     expect(s).toMatchObject({ defaultPermissionMode: 'plan', codexNetwork: false });
   });
 
+  it('binds a bypass confirmation to the backend / cwd it was confirmed for (#66)', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-other-'));
+    const expectNow = { backend: 'claude', cwd: tab.cwd };
+    // 确认后目录变了（会话已重置）：拒绝，档位不变
+    h.setTabCwd(tab.id, other);
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true, expect: expectNow }),
+    ).toThrow();
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    // 后端不一致、类型不对同样拒绝
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 'codex', cwd: other },
+      }),
+    ).toThrow();
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 1 as unknown as string, cwd: other },
+      }),
+    ).toThrow();
+    // 与当前标签一致才生效
+    expect(
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 'claude', cwd: h.listTabs().tabs.find((x) => x.id === tab.id)!.cwd },
+      }).permissionMode,
+    ).toBe('bypass');
+  });
+
   it('migrates old tabs and drops bypass across restarts', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-migrate-'));
     const base = {

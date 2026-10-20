@@ -164,6 +164,12 @@
   justify-content: flex-end;
   gap: 8px;
 }
+/* 确认框里注明作用于哪个标签 / 目录 */
+.target {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+  word-break: break-all;
+}
 @media (prefers-reduced-motion: reduce) {
   .chip {
     transition: none;

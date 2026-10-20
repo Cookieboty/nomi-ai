@@ -60,11 +60,12 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
   - Codex / dsh / Grok：每轮一个进程，下一轮生效。
   - 计划提示前缀只加在发给 CLI 的提示上，不改落盘的用户消息。
 - **IPC**（经 `ai:*` 发送方校验）
-  - `ai:harness:tab-permission-mode(tabId, mode, { confirmed })` → 返回 `HarnessTabMeta & { degraded }`。
+  - `ai:harness:tab-permission-mode(tabId, mode, { confirmed, expect? })` → 返回 `HarnessTabMeta & { degraded }`。
   - `ai:harness:permission-defaults({ defaultPermissionMode?, codexNetwork? })` → 返回 `HarnessTabsState`。
   - `ai:harness:tab-create` 接受 `permissionMode`（分叉继承用）。
 - **安全约束**
   - `bypass` 必须带 `confirmed: true`，否则抛错（防止渲染层绕过确认框）。
+  - 确认框带 `expect: { backend, cwd }`（发起确认时的标签后端 / 目录）；与标签当前值不一致（期间换了后端或目录、会话已重置）即拒绝，要求重新确认。
   - `bypass` 不能设为默认、不能经 `tab-create` 继承、**不跨重启保留**（重启后回到默认档）。
 - **迁移**：旧数据没有 `permissionMode` 时，Claude 标签还原为 `manual`（保持原来的逐项确认），其它后端用默认档 `acceptEdits`。行为变化只有 Grok：从全部放开降到「自动改文件」（见 changeset）。
 - **持久化**：主标签档位存 `session.json`；其它标签与默认档 / 联网开关存 `tabs.json`。
@@ -77,6 +78,7 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 - 「新标签默认模式」放在模式下拉底部（「设为新标签默认」），没有单独的设置页；「Codex 允许联网」保持默认开，暂无界面开关。
 - 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从按钮进入并确认。
 - `degraded` 的提示显示在按钮旁（5 秒后消失），StatusLine 暂未显示模式。
+- 「完全放开」确认框绑定发起时的标签（id / 后端 / 目录），并写明标签名与目录；确认框打开期间切走标签（含 `Mod+数字`、`Ctrl+Tab`、程序切换）、关闭标签或换了后端 / 目录，确认即作废，切回来也不会复活，绝不转投到当前标签（#66）。
 
 原计划：
 

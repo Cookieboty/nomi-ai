@@ -987,17 +987,26 @@ export class CliHarnessService {
 
   /**
    * 切换标签权限模式。返回实际生效的档位（后端不支持时已降级）。
-   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认。
+   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认；带 expect 时确认绑定在
+   * 发起确认时的后端 / 目录上，期间标签换了后端或目录（会话已重置）就拒绝，要求重新确认。
    * Claude 长驻进程用 control_request 即时切换；Codex / dsh / Grok 下一轮启动时生效。
    */
   setTabPermissionMode(
     id: string,
     mode: HarnessPermissionMode,
-    opts: { confirmed?: boolean } = {},
+    opts: { confirmed?: boolean; expect?: { backend?: string; cwd?: string } } = {},
   ): HarnessTabMeta & { degraded: boolean } {
     const tab = this.requireTab(id);
     if (!isPermissionMode(mode)) throw new Error(t('未知权限模式'));
     if (mode === 'bypass' && !opts.confirmed) throw new Error(t('完全放开需要先确认'));
+    const want = opts.expect;
+    if (
+      mode === 'bypass' &&
+      want &&
+      ((want.backend !== undefined && want.backend !== tab.backend) ||
+        (want.cwd !== undefined && want.cwd !== tab.cwd))
+    )
+      throw new Error(t('标签的后端或工作目录已变化，请重新确认「完全放开」'));
     const next = effectiveMode(tab.backend, mode);
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
@@ -2697,11 +2706,17 @@ export class CliHarnessService {
         carry: (o as { carry?: unknown } | undefined)?.carry === true,
       }),
     );
-    handle('ai:harness:tab-permission-mode', (id, m, o) =>
-      this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
-        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
-      }),
-    );
+    handle('ai:harness:tab-permission-mode', (id, m, o) => {
+      const raw = o as { confirmed?: unknown; expect?: unknown } | undefined;
+      return this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
+        confirmed: raw?.confirmed === true,
+        // 原样核对：类型不对的值与标签不相等，按「已变化」拒绝
+        expect:
+          raw?.expect && typeof raw.expect === 'object'
+            ? (raw.expect as { backend?: string; cwd?: string })
+            : undefined,
+      });
+    });
     handle('ai:harness:model-catalog', (b, o) =>
       this.modelCatalogFor(String(b ?? '') as HarnessBackend, {
         refresh: (o as { refresh?: unknown } | undefined)?.refresh === true,

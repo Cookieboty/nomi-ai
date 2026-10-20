@@ -272,8 +272,12 @@ export const harnessClient = {
   closeTab: (id: string) => call<HarnessTabsState>('tab-close', id),
   renameTab: (id: string, title: string) => call<HarnessTabMeta>('tab-rename', id, title),
   /** 切换标签权限模式；「完全放开」必须带 confirmed（界面先弹确认框）。degraded = 后端不支持、已降级 */
-  setTabPermissionMode: (id: string, mode: PermissionMode, opts: { confirmed?: boolean } = {}) =>
-    call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
+  /** expect：「完全放开」确认时的标签后端 / 目录；主进程核对不一致则拒绝（确认不能漂移到别处） */
+  setTabPermissionMode: (
+    id: string,
+    mode: PermissionMode,
+    opts: { confirmed?: boolean; expect?: { backend: HarnessBackend; cwd: string } } = {},
+  ) => call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
     call<HarnessTabsState>('permission-defaults', o),
   /** 从 CLI 读到的模型目录（主进程缓存）；不支持切换模型的后端返回 null；refresh 强制重读 */

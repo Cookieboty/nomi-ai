@@ -330,6 +330,7 @@
   "新标签默认使用「{0}」": "New tabs now default to “{0}”",
   "设为新标签默认": "Make default for new tabs",
   "切换到「完全放开」？": "Switch to “Full access”?",
+  "标签「{0}」": "Tab “{0}”",
   "完全放开": "Full access",
   "{0} 将不再询问，可以修改任何文件、运行任何命令（包括工作目录之外）。只建议在隔离环境里使用。这个设置只对当前标签生效，重启 Nomi 后会恢复为默认档。": "{0} will stop asking and can change any file and run any command, including outside the working directory. Only use this in an isolated environment. It applies to this tab only and resets to the default mode when Nomi restarts.",
   "切换权限模式：plan 计划 / manual 逐项确认 / edits 自动改文件 / auto 自动": "Switch permission mode: plan / manual / edits (auto-edit files) / auto",
