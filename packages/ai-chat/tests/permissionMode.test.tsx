@@ -89,7 +89,9 @@ describe('权限模式表', () => {
   it('各端支持的档位与降级与主进程一致；Shift+Tab 跳过「完全放开」', () => {
     expect(supportedModes('dsh')).toEqual(['plan', 'acceptEdits', 'bypass']);
     expect(fallbackMode('dsh', 'manual')).toBe('plan');
-    expect(fallbackMode('codex', 'manual')).toBe('plan');
+    // Codex / Grok 走长驻会话后都能逐项确认；Grok 没有「自动」
+    expect(fallbackMode('codex', 'manual')).toBe('manual');
+    expect(fallbackMode('grok', 'auto')).toBe('acceptEdits');
     expect(fallbackMode('gemini', 'auto')).toBe('acceptEdits');
     expect(nextMode('claude', 'auto')).toBe('plan');
     expect(nextMode('dsh', 'acceptEdits')).toBe('plan');
@@ -99,12 +101,12 @@ describe('权限模式表', () => {
 
 describe('输入栏的权限模式按钮', () => {
   it('显示当前档位；下拉里只列当前 CLI 支持的档位', async () => {
-    const invoke = mockIpc({ backend: 'codex' });
+    const invoke = mockIpc({ backend: 'dsh' });
     const r = mount();
     const chip = await r.findByTestId('permission-mode-chip');
     expect(chip.getAttribute('aria-label')).toBe('权限模式：自动改文件');
     fireEvent.click(chip);
-    // Codex 不支持「逐项确认」：不显示
+    // dsh 不支持「逐项确认」：不显示
     expect(r.queryByTestId('permission-mode-manual')).toBeNull();
     expect(r.getByTestId('permission-mode-plan')).toBeTruthy();
     fireEvent.click(r.getByTestId('permission-mode-plan'));
