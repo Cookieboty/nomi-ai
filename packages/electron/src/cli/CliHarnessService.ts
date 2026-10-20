@@ -3409,6 +3409,12 @@ export class CliHarnessService {
           reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
           return;
         }
+        // 报了错、一个字也没回：按失败处理（dsh 上游 401 / 模型不存在时照样输出空的 final，
+        // 不能把它当成「无文本输出」的正常完成，否则用户看不到原因）
+        if (lastError && !text.trim()) {
+          reject(new Error(lastError));
+          return;
+        }
         resolve({
           text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
           sessionId,

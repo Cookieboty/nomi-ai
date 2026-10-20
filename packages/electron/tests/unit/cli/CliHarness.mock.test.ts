@@ -624,6 +624,17 @@ describe('CliHarnessService session handling', () => {
       await expect(h.send('x')).rejects.toThrow('session not found: session-unknown');
     });
 
+    it('上游报错（第三方密钥 / 模型不对）：显示 dsh 给的原因，不当成「无文本输出」', async () => {
+      process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR = 'nomi API error (401): Missing API key';
+      try {
+        const h = mk(() => ({ NOMI_DSH_API_KEY: 'sk-test' }));
+        h.setBackend('dsh');
+        await expect(h.send('hi')).rejects.toThrow('nomi API error (401): Missing API key');
+      } finally {
+        delete process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR;
+      }
+    });
+
     it('explains the Node >= 24 requirement when dsh prints nothing', async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-silent-'));
       const bin = path.join(dir, 'silent-dsh.mjs');

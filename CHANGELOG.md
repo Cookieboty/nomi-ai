@@ -187,6 +187,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Settings menu, round two (breaking, no compatibility layer): the standalone "Updates" section is
 - TTS 设置页与语音设置里不再写「模型随安装包分发」，改为说明开启语音时才下载模型。 (`@nomi-ai/renderer` patch)
 - Use the high-fidelity `nomi-complete.riv` scene for the opt-in Rive mascot renderer. The scene now exposes official face expressions, blink timing, talking/lip-sync triggers, the wave/hello/cheer/celebrate action set, and a separate `Nomi-full` artboard available through `?rive=full`. (`@nomi-ai/renderer` minor)
+- dsh 上游报错（例如第三方供应商的密钥、模型名或接口格式不对）时，对话里显示 dsh 给出的原因，不再只显示「（无文本输出）」。 (`@nomi-ai/electron` patch)
 - 「完全放开」确认绑定发起它的标签（#66）：确认框写明标签名与工作目录；打开期间切到别的标签（Mod+数字、Ctrl+Tab 等）、关闭标签或换了后端 / 目录，确认即作废，不会把对 A 的确认用到 B 上。主进程同时核对确认时的后端 / 目录，不一致就拒绝并提示重新确认。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 「显示看板娘」开关随时可用（#55）：默认界面为看板娘时也能关闭，关闭后启动默认界面自动改为「软件主界面」并立即打开主界面，设置页给出提示；看板娘关闭期间不再监听唤醒词。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch)
 - 「用量与费用」里的订阅额度改为与概览、明细并列的独立标签，不再放在概览最下方；切到该标签时仍可选择统计时间范围。 (`@nomi-ai/ai-chat` patch)

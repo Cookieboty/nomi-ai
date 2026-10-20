@@ -43,6 +43,20 @@ const reply =
 const usage = { inputTokens: 10, outputTokens: 8, totalTokens: 18, cacheReadTokens: 0 };
 
 emit({ type: 'session', sessionId, cwd: process.cwd() });
+// 上游报错（NOMI_MOCK_DSH_UPSTREAM_ERROR=<消息>，对齐 0.2.0-rc.2 实测）：turn_end 带错误、final 为空、退出码 1
+if (process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR) {
+  const message = process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR;
+  emit({ type: 'status', phase: 'turn_start', turn: 1 });
+  emit({
+    type: 'status',
+    phase: 'turn_end',
+    turn: 1,
+    reason: { kind: 'error', error: { message, code: 'AUTH' } },
+  });
+  emit({ type: 'final', text: '' });
+  process.stderr.write(`dsh: AUTH: ${message}\n`);
+  process.exit(1);
+}
 emit({ type: 'status', phase: 'turn_start', turn: 1 });
 emit({ type: 'status', phase: 'step_start', turn: 1, step: 1 });
 emit({ type: 'thinking', text: 'thinking…' });
