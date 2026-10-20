@@ -42,7 +42,7 @@
       "bytes": 81519,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: pendant gold scraps removed; skin touched up"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: choker edge scraps removed; skin backfilled"
     },
     "reference/svg-rig/nomi-fullbody-mother.svg": {
       "sha256": "8f6016be8af8461b8381eaf2dbad879f002df404a9bc7ca649e10c704430030d",
@@ -189,7 +189,7 @@
       "bytes": 13605,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: choker extracted; neck skin backfilled (procedural shaded inpaint)"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: choker pixels moved out; neck skin backfilled"
     },
     "reference/svg-rig/hair-l.png": {
       "sha256": "1afc2e5698acc7eb3f6d474db7a0fb54f6b3f2cec749b0dc2ac8d5df20e0201f",
@@ -238,7 +238,7 @@
       "bytes": 2200,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: real black choker + gold cross from mouth/head; tank neckline vacated"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: real black choker + gold cross extracted from mouth/head; tank neckline vacated"
     },
     "reference/svg-rig/belt-id.png": {
       "sha256": "c0e41b9d187b20473c8bfd9c18316e9cb8cad9f2406a3e9d7c6f690e1e38aaf7",

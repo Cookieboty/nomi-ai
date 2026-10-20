@@ -33,6 +33,42 @@ NECK_LOCAL = (0.0, -186.1)  # under spine; used only for docs
 CHOKER_BOX = [450, 250, 575, 310]  # 125x60
 
 
+
+def polish_mouth_skin(mouth: np.ndarray) -> np.ndarray:
+    """Fill transparent/dark pendant hole with shaded local skin (hide-choker honesty)."""
+    r, g, b, a = (mouth[:, :, i].astype(np.float32) for i in range(4))
+    H, W = mouth.shape[:2]
+    yy, xx = np.mgrid[:H, :W]
+    center = (xx > 42) & (xx < 88) & (yy > 14) & (yy < 46)
+    hole = center & ((a < 8) | (((r + g + b) / 3 < 130) & (r < 160)))
+    if not hole.any():
+        return mouth
+    skin = (a >= 180) & ~hole & (r > 190) & (g > 140) & (b > 100)
+    ring = (cv2.dilate(hole.astype(np.uint8), np.ones((15, 15), np.uint8)) > 0) & ~hole & (a >= 180) & (r > 180)
+    ctx = mouth[:, :, :3].copy()
+    for y, x in zip(*np.where(hole)):
+        y0, y1 = max(0, y - 8), min(H, y + 9)
+        x0, x1 = max(0, x - 8), min(W, x + 9)
+        patch = ring[y0:y1, x0:x1]
+        if patch.any():
+            ctx[y, x] = mouth[y0:y1, x0:x1][:, :, :3][patch].mean(0)
+        elif skin[y0:y1, x0:x1].any():
+            ctx[y, x] = mouth[y0:y1, x0:x1][:, :, :3][skin[y0:y1, x0:x1]].mean(0)
+    mask = hole.astype(np.uint8) * 255
+    inp = cv2.inpaint(ctx.astype(np.uint8), mask, 5, cv2.INPAINT_TELEA)
+    inp2 = cv2.inpaint(ctx.astype(np.uint8), mask, 7, cv2.INPAINT_NS)
+    fill = (inp.astype(np.float32) + inp2.astype(np.float32)) / 2
+    cy, cx = 30.0, 62.0
+    dist = np.sqrt(((yy - cy) / 20) ** 2 + ((xx - cx) / 25) ** 2)
+    shade = np.clip(1.0 - 0.08 * np.clip(1.2 - dist, 0, 1), 0.88, 1.0)
+    fill = fill * shade[:, :, None]
+    out = mouth.copy()
+    out[hole, :3] = np.clip(fill[hole], 0, 255).astype(np.uint8)
+    out[hole, 3] = 255
+    blur = cv2.bilateralFilter(out[:, :, :3], 5, 30, 30)
+    out[hole, :3] = blur[hole]
+    return out
+
 def mouth_choker_mask(im: np.ndarray) -> np.ndarray:
     r, g, b, a = (im[:, :, i].astype(np.float32) for i in range(4))
     lum = (r + g + b) / 3
@@ -124,9 +160,14 @@ def split_textures():
     if META.exists():
         meta = json.loads(META.read_text())
         if (C.SVG / "choker.png").exists() and C.sha(C.SVG / "choker.png") == meta.get("choker_sha"):
-            # also verify mouth low-choker
             mouth = C.load("mouth.png")
             if int(mouth_choker_mask(mouth).sum()) < 40:
+                polished = polish_mouth_skin(mouth)
+                if polished.tobytes() != mouth.tobytes():
+                    C.save("mouth.png", polished)
+                    meta["mouth_sha"] = C.sha(C.SVG / "mouth.png")
+                    META.write_text(json.dumps(meta, indent=2) + "\n")
+                    print("choker polish mouth skin")
                 print("choker already split", meta.get("choker_px"))
                 return meta
 
@@ -176,6 +217,7 @@ def split_textures():
         # backfill_skin already rewrote RGB; keep alpha
 
     # 4) write new choker.png (= mouth canvas / CHOKER_BOX)
+    mouth2 = polish_mouth_skin(mouth2)
     C.save("choker.png", panel)
     C.save("mouth.png", mouth2)
     C.save("head.png", hd2)
@@ -380,6 +422,7 @@ def main():
             "mouth.png": "ROUND35a: choker pixels moved out; neck skin backfilled",
             "head.png": "ROUND35a: choker edge scraps removed; skin backfilled",
             "torso-tank.png": "ROUND35a: absorbed legacy choker.png tank-neckline (canvas expanded up)",
+            "underlayer-top.png": "ROUND35a: canvas expanded to match torso-tank box",
         },
         "ROUND35a: real choker split from mouth/head; tank neckline into torso-tank.",
         "ROUND35a",
