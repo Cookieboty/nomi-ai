@@ -365,20 +365,22 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     [phase, live, liveItems],
   );
 
+  // 分批往上补消息时不读 scrollHeight / 不改 scrollTop：每批都强制整列重排，切会话时是主要开销之一。
+  // 内容已经超出一屏时，浏览器的滚动锚定（overflow-anchor）会让视口里的内容保持不动；
+  // 还没超出一屏（scrollTop 为 0，锚定不生效）时才由下面的 effect 补一次贴底。
   useEffect(() => {
     if (start <= fullStart) return;
-    const id = window.setTimeout(() => {
-      const el = scrollRef.current;
-      // 没有贴底（用户已上滑）时，记下高度，补完后据此保持视口不跳
-      if (el && !followRef.current) anchorRef.current = el.scrollHeight;
-      setEagerCount((n) => n + RENDER_STEP);
-    }, 0);
+    const id = window.setTimeout(() => setEagerCount((n) => n + RENDER_STEP), 0);
     return () => window.clearTimeout(id);
   }, [start, fullStart]);
 
+  /** 上次贴底时内容是否已超出一屏（超出后由滚动锚定保持位置） */
+  const overflowedRef = useRef(false);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+    overflowedRef.current = el.scrollHeight > el.clientHeight;
   }, []);
 
   useLayoutEffect(() => {
@@ -412,12 +414,16 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     }
   }, [lastUserId, scrollToBottom]);
 
+  // 分批补上更早的消息：已超出一屏时交给滚动锚定，不再强制重排
+  useLayoutEffect(() => {
+    if (followRef.current && !overflowedRef.current) scrollToBottom();
+  }, [start, scrollToBottom]);
+
   // 内容增长（新消息 / 流式文本 / 新工具 / 权限卡 / 状态变化）时，贴底则跟随
   useLayoutEffect(() => {
     if (followRef.current) scrollToBottom();
   }, [
     messages.length,
-    start,
     last?.id,
     live?.text,
     live?.trace?.length,
