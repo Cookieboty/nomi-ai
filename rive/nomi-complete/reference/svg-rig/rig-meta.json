@@ -36,48 +36,6 @@
       460,
       505
     ],
-    "coat-l-shoulder-orange": [
-      275,
-      285,
-      460,
-      505
-    ],
-    "sleeve-l-upper": [
-      230,
-      365,
-      430,
-      670
-    ],
-    "sleeve-l-upper-dark": [
-      230,
-      365,
-      430,
-      670
-    ],
-    "sleeve-l-upper-orange": [
-      230,
-      365,
-      430,
-      670
-    ],
-    "sleeve-l-lower": [
-      205,
-      440,
-      420,
-      760
-    ],
-    "sleeve-l-lower-dark": [
-      205,
-      440,
-      420,
-      760
-    ],
-    "sleeve-l-lower-orange": [
-      205,
-      440,
-      420,
-      760
-    ],
     "arm-r-shoulder-skin": [
       554,
       250,
@@ -107,48 +65,6 @@
       285,
       749,
       505
-    ],
-    "coat-r-shoulder-orange": [
-      564,
-      285,
-      749,
-      505
-    ],
-    "sleeve-r-upper": [
-      594,
-      365,
-      794,
-      670
-    ],
-    "sleeve-r-upper-dark": [
-      594,
-      365,
-      794,
-      670
-    ],
-    "sleeve-r-upper-orange": [
-      594,
-      365,
-      794,
-      670
-    ],
-    "sleeve-r-lower": [
-      604,
-      440,
-      819,
-      760
-    ],
-    "sleeve-r-lower-dark": [
-      604,
-      440,
-      819,
-      760
-    ],
-    "sleeve-r-lower-orange": [
-      604,
-      440,
-      819,
-      760
     ],
     "head": [
       250,
@@ -187,18 +103,6 @@
       760
     ],
     "sleeve-r-full-dark": [
-      594,
-      320,
-      819,
-      760
-    ],
-    "sleeve-l-bent": [
-      205,
-      320,
-      430,
-      760
-    ],
-    "sleeve-r-bent": [
       594,
       320,
       819,
@@ -753,19 +657,19 @@
       "kind": "mother-derived-crop"
     },
     "full.arm-l": {
-      "asset": "reference/svg-rig/arm-l-shoulder-skin.png,coat-l-shoulder.png,sleeve-l-upper.png,sleeve-l-lower.png,arm-l-cuff.png,hand-l-palm.png,hand-l-thumb.png,hand-l-index.png,hand-l-middle.png,hand-l-ring.png,hand-l-little.png",
+      "asset": "reference/svg-rig/arm-l-shoulder-skin.png,coat-l-shoulder.png,arm-l-cuff.png,hand-l-palm.png,hand-l-thumb.png,hand-l-index.png,hand-l-middle.png,hand-l-ring.png,hand-l-little.png",
       "bone": "full.arm-l.rig>full.arm-l.upper/full.coat-l.shoulder/full.sleeve-l.upper>full.arm-l.fore/full.sleeve-l.lower/full.sleeve-l.cuff>full.arm-l.hand/full.arm-l.thumb|index|middle|ring|little",
       "source": "source-nomi-master.png",
       "kind": "mother-derived-segments-with-independent-clothing"
     },
     "full.arm-r": {
-      "asset": "reference/svg-rig/arm-r-shoulder-skin.png,coat-r-shoulder.png,sleeve-r-upper.png,sleeve-r-lower.png,arm-r-cuff.png,hand-r-palm.png,hand-r-thumb.png,hand-r-index.png,hand-r-middle.png,hand-r-ring.png,hand-r-little.png",
+      "asset": "reference/svg-rig/arm-r-shoulder-skin.png,coat-r-shoulder.png,arm-r-cuff.png,hand-r-palm.png,hand-r-thumb.png,hand-r-index.png,hand-r-middle.png,hand-r-ring.png,hand-r-little.png",
       "bone": "full.arm-r.rig>full.arm-r.upper/full.coat-r.shoulder/full.sleeve-r.upper>full.arm-r.fore/full.sleeve-r.lower/full.sleeve-r.cuff>full.arm-r.hand/full.arm-r.thumb|index|middle|ring|little",
       "source": "source-nomi-master.png",
       "kind": "mother-derived-segments-with-independent-clothing"
     },
     "full.clothing": {
-      "asset": "reference/svg-rig/coat-l-shoulder.png,coat-r-shoulder.png,sleeve-l-upper.png,sleeve-l-lower.png,arm-l-cuff.png,sleeve-r-upper.png,sleeve-r-lower.png,arm-r-cuff.png",
+      "asset": "reference/svg-rig/coat-l-shoulder.png,coat-r-shoulder.png,arm-l-cuff.png,arm-r-cuff.png",
       "bone": "full.coat-l.shoulder/full.sleeve-l.upper/full.sleeve-l.lower/full.sleeve-l.cuff/full.coat-r.shoulder/full.sleeve-r.upper/full.sleeve-r.lower/full.sleeve-r.cuff",
       "source": "source-nomi-master.png",
       "kind": "mother-derived-independent-clothing-bones"
