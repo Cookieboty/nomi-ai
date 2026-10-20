@@ -53,10 +53,14 @@ export interface ConversationStoreOptions {
   /** 每个会话最多保留的消息条数（超出丢弃最旧的），默认 1000 */
   maxMessages?: number;
   /**
-   * 同时留在内存里的会话份数（LRU）。当前会话不会被淘汰。
-   * 默认 4：切换历史时重新从 localStorage 读取，避免把每段对话的正文和轨迹都钉在堆上。
+   * 同时留在内存里的会话份数（LRU）。当前会话不会被淘汰。默认 12。
    */
   maxCachedConversations?: number;
+  /**
+   * 内存里消息缓存的总字符预算（按 JSON 长度计），默认 8M 字符：普通长度的会话能留住 8–12 段，
+   * 少数巨型会话也不会把堆撑爆。当前会话不会被淘汰。
+   */
+  maxCachedChars?: number;
   now?: () => number;
   newId?: () => string;
 }
@@ -92,13 +96,29 @@ export class ConversationStore {
   private readonly newId: () => string;
   /** 避免每次切换会话都在渲染线程重复 JSON.parse 整段历史。超出上限按 LRU 丢掉。 */
   private readonly messagesCache = new Map<string, ChatMessage[]>();
+  /** JSON length of each cached conversation (for the char budget) */
+  private readonly cacheChars = new Map<string, number>();
+  private cachedChars = 0;
   maxMessages: number;
   private readonly maxCachedConversations: number;
+  private readonly maxCachedChars: number;
+  /**
+   * In-memory mirror of the index / current / last-Nomi keys: list() and friends used to
+   * JSON.parse the whole index from storage on every call (13 call sites, several per op).
+   * This store is the only writer in this window; other windows' writes arrive as `storage`
+   * events and invalidate the mirror.
+   */
+  private index: ConversationMeta[] | undefined;
+  private current: { v: string | undefined } | undefined;
+  private lastNomi: { v: string | undefined } | undefined;
+  private readonly offStorage: () => void;
 
   constructor(opts: ConversationStoreOptions = {}) {
     this.storage = opts.storage ?? defaultStorage();
     this.maxMessages = opts.maxMessages ?? 1000;
-    this.maxCachedConversations = Math.max(1, opts.maxCachedConversations ?? 4);
+    this.maxCachedConversations = Math.max(1, opts.maxCachedConversations ?? 12);
+    this.maxCachedChars = Math.max(0, opts.maxCachedChars ?? 8_000_000);
+    this.offStorage = this.listenForeignWrites();
     this.now = opts.now ?? Date.now;
     this.newId =
       opts.newId ??
@@ -108,17 +128,83 @@ export class ConversationStore {
   }
 
   list(): ConversationMeta[] {
-    return this.read<ConversationMeta[]>(INDEX_KEY) ?? [];
+    return [...this.idx()];
+  }
+
+  /** Stop listening for other windows' writes. */
+  dispose(): void {
+    this.offStorage();
+  }
+
+  /** Drop the in-memory mirror (another window wrote the same storage). */
+  invalidate(key?: string | null): void {
+    if (!key || key === INDEX_KEY) this.index = undefined;
+    if (!key || key === CURRENT_KEY) this.current = undefined;
+    if (!key || key === LAST_NOMI_KEY) this.lastNomi = undefined;
+    if (!key) {
+      this.messagesCache.clear();
+      this.cacheChars.clear();
+      this.cachedChars = 0;
+    } else if (key.startsWith('ai-chat:conversation:')) {
+      this.forget(key.slice('ai-chat:conversation:'.length));
+    }
+  }
+
+  private listenForeignWrites(): () => void {
+    if (typeof window === 'undefined' || !window.addEventListener) return () => undefined;
+    let isLocal = false;
+    try {
+      isLocal = this.storage === window.localStorage;
+    } catch {
+      /* */
+    }
+    if (!isLocal) return () => undefined;
+    const on = (e: StorageEvent) => this.invalidate(e.key);
+    window.addEventListener('storage', on);
+    return () => window.removeEventListener('storage', on);
+  }
+
+  private idx(): ConversationMeta[] {
+    if (!this.index) this.index = this.read<ConversationMeta[]>(INDEX_KEY) ?? [];
+    return this.index;
+  }
+
+  private writeIndex(list: ConversationMeta[]): void {
+    this.index = list;
+    this.write(INDEX_KEY, list);
+  }
+
+  private readCurrent(): string | undefined {
+    if (!this.current) this.current = { v: this.read<string>(CURRENT_KEY) };
+    return this.current.v;
+  }
+
+  private writeCurrent(id: string | undefined): void {
+    this.current = { v: id };
+    if (id === undefined) this.storage.removeItem(CURRENT_KEY);
+    else this.write(CURRENT_KEY, id);
+  }
+
+  private readLastNomi(): string | undefined {
+    if (!this.lastNomi) this.lastNomi = { v: this.read<string>(LAST_NOMI_KEY) };
+    return this.lastNomi.v;
+  }
+
+  /** Only writes when it changes. */
+  private writeLastNomi(id: string): void {
+    if (this.readLastNomi() === id) return;
+    this.lastNomi = { v: id };
+    this.write(LAST_NOMI_KEY, id);
   }
 
   listByBackend(backend: ConversationBackend): ConversationMeta[] {
-    return this.list().filter((c) => c.backend === backend);
+    return this.idx().filter((c) => c.backend === backend);
   }
 
   /** 当前会话 id；不存在时返回 undefined（不隐式创建） */
   currentId(): string | undefined {
-    const id = this.read<string>(CURRENT_KEY);
-    if (id && this.list().some((c) => c.id === id)) return id;
+    const id = this.readCurrent();
+    if (id && this.idx().some((c) => c.id === id)) return id;
     return undefined;
   }
 
@@ -138,9 +224,9 @@ export class ConversationStore {
    * 记录失效（被删）时退回最近更新的 Nomi 会话；一个都没有则 undefined。
    */
   lastNomiId(): string | undefined {
-    const rec = this.read<string>(LAST_NOMI_KEY);
+    const rec = this.readLastNomi();
     if (rec && this.isNomi(rec)) return rec;
-    return this.list()
+    return this.idx()
       .filter((c) => c.backend === 'nomi' && !c.tabId)
       .reduce<ConversationMeta | undefined>(
         (acc, c) => (!acc || c.updatedAt > acc.updatedAt ? c : acc),
@@ -176,11 +262,11 @@ export class ConversationStore {
   }
 
   get(id: string): ConversationMeta | undefined {
-    return this.list().find((c) => c.id === id);
+    return this.idx().find((c) => c.id === id);
   }
 
   findByTabId(tabId: string): ConversationMeta | undefined {
-    return this.list().find((c) => c.tabId === tabId);
+    return this.idx().find((c) => c.tabId === tabId);
   }
 
   create(nameOrOpts?: string | CreateConversationOpts): ConversationMeta {
@@ -197,29 +283,32 @@ export class ConversationStore {
       backend: opts.backend ?? 'nomi',
       ...(opts.tabId ? { tabId: opts.tabId } : {}),
     };
-    this.write(INDEX_KEY, [...this.list(), meta]);
+    this.writeIndex([...this.idx(), meta]);
     this.write(messagesKey(meta.id), []);
     // 先记下当前会话，再放入缓存，这样淘汰时不会把刚建的会话丢掉
     if (opts.activate !== false) {
-      this.write(CURRENT_KEY, meta.id);
-      if (meta.backend === 'nomi' && !meta.tabId) this.write(LAST_NOMI_KEY, meta.id);
+      this.writeCurrent(meta.id);
+      if (meta.backend === 'nomi' && !meta.tabId) this.writeLastNomi(meta.id);
     }
-    this.remember(meta.id, []);
+    this.remember(meta.id, [], 2);
     return meta;
   }
 
+  /** One index lookup; the last-Nomi key is written only when it changes. */
   switchTo(id: string): void {
-    if (!this.list().some((c) => c.id === id)) throw new Error(`unknown conversation: ${id}`);
-    this.write(CURRENT_KEY, id);
-    if (this.isNomi(id)) this.write(LAST_NOMI_KEY, id);
+    const meta = this.get(id);
+    if (!meta) throw new Error(`unknown conversation: ${id}`);
+    if (this.readCurrent() !== id) this.writeCurrent(id);
+    if (meta.backend === 'nomi' && !meta.tabId) this.writeLastNomi(id);
   }
 
   getMessages(id: string | undefined = this.currentId()): ChatMessage[] {
     if (!id) return [];
     const cached = this.messagesCache.get(id);
     if (cached) return this.touchCache(id, cached);
-    const messages = this.read<ChatMessage[]>(messagesKey(id)) ?? [];
-    this.remember(id, messages);
+    const raw = this.readRaw(messagesKey(id));
+    const messages = (raw ? this.parse<ChatMessage[]>(raw) : undefined) ?? [];
+    this.remember(id, messages, raw?.length ?? 2);
     return messages;
   }
 
@@ -236,24 +325,21 @@ export class ConversationStore {
 
   setMessages(id: string, messages: ChatMessage[]): void {
     const next = messages.slice(-this.maxMessages);
-    this.remember(id, next);
-    this.write(messagesKey(id), next);
+    this.remember(id, next, this.write(messagesKey(id), next));
     this.touch(id);
   }
 
   append(message: ChatMessage, id: string | undefined = this.currentId()): void {
     if (!id) return;
     const next = [...this.getMessages(id), message].slice(-this.maxMessages);
-    this.remember(id, next);
-    this.write(messagesKey(id), next);
+    this.remember(id, next, this.write(messagesKey(id), next));
     this.touch(id, message);
   }
 
   /** 清空会话消息（会话本身保留） */
   clear(id: string | undefined = this.currentId()): void {
     if (!id) return;
-    this.remember(id, []);
-    this.write(messagesKey(id), []);
+    this.remember(id, [], this.write(messagesKey(id), []));
     this.touch(id);
   }
 
@@ -262,9 +348,8 @@ export class ConversationStore {
     patch: Partial<Omit<ConversationMeta, 'id' | 'createdAt'>>,
   ): ConversationMeta {
     let updated: ConversationMeta | undefined;
-    this.write(
-      INDEX_KEY,
-      this.list().map((c) => {
+    this.writeIndex(
+      this.idx().map((c) => {
         if (c.id !== id) return c;
         updated = {
           ...c,
@@ -312,7 +397,7 @@ export class ConversationStore {
       backend: tab.backend,
       tabId: tab.id,
     };
-    this.write(INDEX_KEY, [...this.list(), meta]);
+    this.writeIndex([...this.idx(), meta]);
     this.write(messagesKey(meta.id), []);
     return meta;
   }
@@ -345,20 +430,19 @@ export class ConversationStore {
         id: `${meta.id}_${i}_${m.id}`,
       }));
       const copiedMessages = copied.slice(-this.maxMessages);
-      this.remember(meta.id, copiedMessages);
-      this.write(messagesKey(meta.id), copiedMessages);
+      this.remember(meta.id, copiedMessages, this.write(messagesKey(meta.id), copiedMessages));
       this.touch(meta.id);
     }
     return this.get(meta.id)!;
   }
 
   delete(id: string): void {
-    const removed = this.list().find((c) => c.id === id);
-    const remaining = this.list().filter((c) => c.id !== id);
-    this.write(INDEX_KEY, remaining);
+    const removed = this.get(id);
+    const remaining = this.idx().filter((c) => c.id !== id);
+    this.writeIndex(remaining);
     this.storage.removeItem(messagesKey(id));
-    this.messagesCache.delete(id);
-    if (this.read<string>(CURRENT_KEY) !== id) return;
+    this.forget(id);
+    if (this.readCurrent() !== id) return;
     // 当前会话被删：优先切到同后端最近更新的会话；没有则留空（不隐式新建 / 不跨端跳）
     const sameBackend = removed
       ? remaining.filter((c) => c.backend === removed.backend)
@@ -368,15 +452,14 @@ export class ConversationStore {
       undefined,
     );
     if (next) {
-      this.write(CURRENT_KEY, next.id);
-      if (next.backend === 'nomi' && !next.tabId) this.write(LAST_NOMI_KEY, next.id);
-    } else this.storage.removeItem(CURRENT_KEY);
+      this.writeCurrent(next.id);
+      if (next.backend === 'nomi' && !next.tabId) this.writeLastNomi(next.id);
+    } else this.writeCurrent(undefined);
   }
 
   private touch(id: string, message?: ChatMessage): void {
-    this.write(
-      INDEX_KEY,
-      this.list().map((c) => {
+    this.writeIndex(
+      this.idx().map((c) => {
         if (c.id !== id) return c;
         const named =
           message && message.role === 'user' && (c.name === '新对话' || c.name === t('新对话'))
@@ -397,7 +480,7 @@ export class ConversationStore {
       changed = true;
       return { ...c, backend: 'nomi' as const } as ConversationMeta;
     });
-    if (changed) this.write(INDEX_KEY, next);
+    if (changed) this.writeIndex(next);
   }
 
   private migrateLegacy(): void {
@@ -407,8 +490,7 @@ export class ConversationStore {
     if (legacy.length === 0) return;
     const meta = this.create(t('历史对话'));
     const messages = legacy.slice(-this.maxMessages);
-    this.remember(meta.id, messages);
-    this.write(messagesKey(meta.id), messages);
+    this.remember(meta.id, messages, this.write(messagesKey(meta.id), messages));
   }
 
   /** 把一份消息放到缓存末尾（最近使用），不触发淘汰。 */
@@ -418,11 +500,25 @@ export class ConversationStore {
     return messages;
   }
 
-  /** 写入缓存并丢掉最久未用、且不是当前会话的那几份。 */
-  private remember(id: string, messages: ChatMessage[]): void {
+  private forget(id: string): void {
+    this.messagesCache.delete(id);
+    this.cachedChars -= this.cacheChars.get(id) ?? 0;
+    this.cacheChars.delete(id);
+  }
+
+  /**
+   * 写入缓存并丢掉最久未用、且不是当前会话的那几份：超出份数上限或字符预算都会淘汰
+   * （chars = 这份消息的 JSON 长度）。
+   */
+  private remember(id: string, messages: ChatMessage[], chars: number): void {
     this.touchCache(id, messages);
+    this.cachedChars += chars - (this.cacheChars.get(id) ?? 0);
+    this.cacheChars.set(id, chars);
     const pin = this.currentId();
-    while (this.messagesCache.size > this.maxCachedConversations) {
+    while (
+      this.messagesCache.size > this.maxCachedConversations ||
+      (this.cachedChars > this.maxCachedChars && this.messagesCache.size > 1)
+    ) {
       let victim: string | undefined;
       for (const key of this.messagesCache.keys()) {
         if (key !== pin) {
@@ -431,24 +527,40 @@ export class ConversationStore {
         }
       }
       if (!victim) break;
-      this.messagesCache.delete(victim);
+      this.forget(victim);
     }
   }
 
-  private read<T>(key: string): T | undefined {
+  private readRaw(key: string): string | null {
     try {
-      const raw = this.storage.getItem(key);
-      return raw ? (JSON.parse(raw) as T) : undefined;
+      return this.storage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+
+  private parse<T>(raw: string): T | undefined {
+    try {
+      return JSON.parse(raw) as T;
     } catch {
       return undefined;
     }
   }
 
-  private write(key: string, value: unknown): void {
+  private read<T>(key: string): T | undefined {
+    const raw = this.readRaw(key);
+    return raw ? this.parse<T>(raw) : undefined;
+  }
+
+  /** Returns the JSON length written (0 when serialization failed). */
+  private write(key: string, value: unknown): number {
+    let json = '';
     try {
-      this.storage.setItem(key, JSON.stringify(value));
+      json = JSON.stringify(value);
+      this.storage.setItem(key, json);
     } catch {
       /* quota / disabled storage */
     }
+    return json.length;
   }
 }
