@@ -85,35 +85,75 @@ export function tabLiveToConv(l: TabLive | undefined): ConvLive | undefined {
  * Nomi 会话：流式中的最后一条助手占位消息拆出来作为「运行中的一轮」，
  * 其余消息正常展示；没有内容的占位在首个 chunk 到达前不渲染（由状态行显示「等待模型响应」）。
  */
-export function splitNomiMessages(
+/** The streaming assistant tail is still being written (shown as the live turn, not a message). */
+function liveTail(list: readonly ChatMessage[], running: boolean): ChatMessage | undefined {
+  if (!running) return undefined;
+  const last = list[list.length - 1];
+  return last?.role === 'assistant' && !last.error && !last.stopped ? last : undefined;
+}
+
+/**
+ * The settled (non-system) messages: everything except a streaming assistant tail. Element
+ * identity is preserved, so a shallow comparison is stable while a reply streams.
+ */
+export function settledNomiMessages(
   messages: readonly ChatMessage[],
   running: boolean,
-): { messages: ConvMessage[]; live?: ConvLive } {
+): ChatMessage[] {
   const list = messages.filter((m) => m.role !== 'system');
-  const last = list[list.length - 1];
-  let live: ConvLive | undefined;
-  let rest = list;
-  if (running) {
-    const lastUser = [...list].reverse().find((m) => m.role === 'user');
-    if (last?.role === 'assistant' && !last.error && !last.stopped) {
-      rest = list.slice(0, -1);
-      live = {
-        text: last.content ?? '',
-        ...(last.trace ? { trace: last.trace } : {}),
-        startedAt: lastUser?.timestamp ?? last.timestamp,
-        ...(last.content || last.trace?.length ? { firstEventAt: last.timestamp } : {}),
-      };
-    } else {
-      live = { text: '', startedAt: lastUser?.timestamp ?? Date.now() };
+  return liveTail(list, running) ? list.slice(0, -1) : list;
+}
+
+/** The live turn while running (streamed text / trace of the tail), else undefined. */
+export function nomiLive(messages: readonly ChatMessage[], running: boolean): ConvLive | undefined {
+  if (!running) return undefined;
+  const list = messages.filter((m) => m.role !== 'system');
+  let lastUser: ChatMessage | undefined;
+  for (let i = list.length - 1; i >= 0; i--)
+    if (list[i]!.role === 'user') {
+      lastUser = list[i];
+      break;
     }
-  }
+  const last = liveTail(list, running);
+  if (!last) return { text: '', startedAt: lastUser?.timestamp ?? Date.now() };
+  return {
+    text: last.content ?? '',
+    ...(last.trace ? { trace: last.trace } : {}),
+    startedAt: lastUser?.timestamp ?? last.timestamp,
+    ...(last.content || last.trace?.length ? { firstEventAt: last.timestamp } : {}),
+  };
+}
+
+/** Same live turn (field-wise; trace by identity). */
+export function sameLive(a: ConvLive | undefined, b: ConvLive | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.text === b.text &&
+    a.trace === b.trace &&
+    a.startedAt === b.startedAt &&
+    a.firstEventAt === b.firstEventAt
+  );
+}
+
+/** Settled messages as conversation rows (empty assistant placeholders dropped). */
+export function nomiConvMessages(settled: readonly ChatMessage[]): ConvMessage[] {
   const conv: ConvMessage[] = [];
-  for (const m of rest) {
+  for (const m of settled) {
     // 没有内容也没出错的助手占位（流以空结果结束）不渲染
     if (m.role === 'assistant' && !m.error && !m.stopped && !m.content?.trim() && !m.trace?.length)
       continue;
     const c = fromChatMessage(m);
     if (c) conv.push(c);
   }
+  return conv;
+}
+
+export function splitNomiMessages(
+  messages: readonly ChatMessage[],
+  running: boolean,
+): { messages: ConvMessage[]; live?: ConvLive } {
+  const live = nomiLive(messages, running);
+  const conv = nomiConvMessages(settledNomiMessages(messages, running));
   return { messages: conv, ...(live ? { live } : {}) };
 }

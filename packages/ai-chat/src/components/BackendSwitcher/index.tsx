@@ -6,7 +6,11 @@
 import { Select, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectMessageCount,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import {
@@ -30,7 +34,8 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
   const available = harnessClient.available();
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
-  const { state: chat, actions } = useAiChat();
+  const { actions } = useAiChatActions();
+  const nomiMessageCount = useAiChatSelector(selectMessageCount);
 
   useEffect(() => {
     if (!available) return;
@@ -46,7 +51,7 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
   const tab = tabs.isCliTab ? tabs.activeTab : null;
   const value: HarnessBackend = tab ? tab.backend : state.backend;
   const busy = tab ? tab.status === 'running' || tab.status === 'queued' : state.busy;
-  const hasMessages = tab ? (tabs.messages?.length ?? 0) > 0 : chat.messages.length > 0;
+  const hasMessages = tab ? (tabs.messages?.length ?? 0) > 0 : nomiMessageCount > 0;
 
   const switchTo = async (v: HarnessBackend) => {
     if (v === value) return;

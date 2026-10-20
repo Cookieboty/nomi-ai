@@ -3,7 +3,13 @@ import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectIpcClient,
+  selectIsLoading,
+  selectMessageCount,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
@@ -63,8 +69,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNotice,
   onOpenSettings,
 }) => {
-  const { state, actions } = useAiChat();
-  const ipc = state.ipcClient;
+  const { actions } = useAiChatActions();
+  const ipc = useAiChatSelector(selectIpcClient);
+  const messageCount = useAiChatSelector(selectMessageCount);
+  const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
   const { isDev, isNormal, setMode } = useChatMode();
   const {
@@ -110,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
   }, [refresh]);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
-  useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
+  useEffect(refresh, [refresh, messageCount, isLoading]);
 
   useEffect(() => {
     if (!harnessClient.available()) return;

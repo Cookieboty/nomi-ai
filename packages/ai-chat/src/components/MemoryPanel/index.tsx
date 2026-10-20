@@ -20,7 +20,7 @@ import {
 import { Brain, UserRound, Lock, Pin } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import { useAiChatActions } from '../../contexts/aiChatStore';
 import {
   FACT_KIND_LABEL,
   memClient,
@@ -255,7 +255,8 @@ export const MemoryPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 };
 
 const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-  const { state: chat } = useAiChat();
+  // read at click time: the panel does not rerender on every streamed frame
+  const { store: chatStore } = useAiChatActions();
   const [st, setSt] = useState<MemState | null>(null);
   const [data, setData] = useState<{ episodes: MemEpisode[]; facts: MemFact[] } | null>(null);
   const [err, setErr] = useState('');
@@ -322,6 +323,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   }, [tab, savePersona]);
 
   const summarizeNow = async () => {
+    const chat = chatStore.get();
     const id = chat.ipcClient.currentConversationId?.();
     const msgs = chat.messages
       .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))

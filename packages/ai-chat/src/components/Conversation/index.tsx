@@ -580,6 +580,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   );
 };
 
-export const ConversationView: React.FC<ConversationViewProps> = (props) => (
-  <ConversationInner key={props.scopeId} {...props} />
-);
+/** Memoized: rerenders only when its props change (App rerenders on tabs / panels do not). */
+export const ConversationView = React.memo(function ConversationView(props: ConversationViewProps) {
+  return <ConversationInner key={props.scopeId} {...props} />;
+});

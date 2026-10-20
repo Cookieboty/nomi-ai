@@ -3,7 +3,7 @@
  */
 import { useEffect, useRef } from 'react';
 
-import { useAiChat } from '../contexts/AiChatContext';
+import { selectIpcClient, useAiChatSelector } from '../contexts/aiChatStore';
 import { useHarnessTabs } from '../contexts/HarnessTabsContext';
 import { MAIN_TAB_ID, type HarnessBackend } from '../services/harnessClient';
 import type { ConversationBackend } from '../types/chat';
@@ -13,9 +13,9 @@ function asBackend(b: HarnessBackend): ConversationBackend {
 }
 
 export function useCliTabSync(onChange?: () => void): void {
-  const { state } = useAiChat();
+  const ipcClient = useAiChatSelector(selectIpcClient);
   const tabs = useHarnessTabs();
-  const store = state.ipcClient.conversationStore?.();
+  const store = ipcClient.conversationStore?.();
   // activeTabId、status 和 unread 会在切换/运行时频繁变化，但不会改变侧栏元数据。
   // 只用真正影响会话列表的字段生成同步键，避免每次切换都写 localStorage 并刷新列表。
   const tabListRef = useRef(tabs.state?.tabs ?? []);
