@@ -199,11 +199,6 @@
     0 2px 6px rgba(30, 30, 40, 0.06);
   color: var(--tb-ink);
   font-size: var(--cd-font-size-sm);
-  animation: tb-pop var(--tb-dur) var(--tb-ease);
-  transform-origin: right top;
-}
-.root[data-side='left'] .panel {
-  transform-origin: left top;
 }
 /* 紧凑排版（看板娘缩小、窗口很矮 / 很窄时）：去掉说明行，图标和间距收小 */
 .panel[data-dense] {
@@ -231,12 +226,6 @@
 }
 .panel[data-dense] .menuRow {
   padding: 0 var(--cd-space-1);
-}
-@keyframes tb-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
 }
 
 .panelHead {

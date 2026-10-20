@@ -103,20 +103,9 @@
   box-shadow: var(--cd-shadow-popover);
   color: var(--cd-color-text);
   outline: none;
-  animation: cd-pop-in 0.12s ease-out;
 }
 .cd-dropdown__menu--top {
   transform-origin: bottom;
-}
-@keyframes cd-pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 .cd-dropdown__search {
   padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);

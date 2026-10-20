@@ -261,10 +261,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--cd-space-5);
+  /* 无模糊、无淡入：纯半透明遮罩（弹窗不做动画，见 tests/popupMotion.test.ts） */
   background: var(--cd-color-overlay);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: cd-fade-in 0.15s ease-out;
 }
 .cd-modal {
   display: flex;
@@ -277,7 +275,6 @@
   box-shadow: var(--cd-shadow-lg), var(--cd-shadow-glow);
   color: var(--cd-color-text);
   font-family: var(--cd-font-sans);
-  animation: cd-pop-in 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .cd-modal--lg {
   width: min(820px, 100%);
@@ -478,7 +475,6 @@
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
   pointer-events: auto;
-  animation: cd-pop-in 0.18s ease-out;
 }
 .cd-toast--success {
   border-left-color: var(--cd-color-success);
@@ -697,33 +693,6 @@
 .cd-table td {
   padding: var(--cd-space-1) var(--cd-space-2);
   border-bottom: 1px solid var(--cd-color-border);
-}
-
-@keyframes cd-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes cd-pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cd-modal,
-  .cd-modal-overlay,
-  .cd-toast {
-    animation: none;
-  }
 }
 
 /* 首字母头像（供应商卡片 / 表单） */

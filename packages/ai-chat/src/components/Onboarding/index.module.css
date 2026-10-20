@@ -9,8 +9,6 @@
   background:
     radial-gradient(1200px 600px at 20% -10%, rgba(var(--cd-accent-rgb), 0.16), transparent 60%),
     var(--cd-color-overlay);
-  backdrop-filter: blur(8px);
-  animation: fade 0.24s ease-out;
 }
 .card {
   width: min(860px, 100%);
@@ -67,7 +65,6 @@
 .step {
   padding: 18px 28px var(--cd-space-2);
   overflow: auto;
-  animation: rise 0.28s ease-out;
 }
 .kicker {
   font-size: var(--cd-font-size-xs);
@@ -241,21 +238,4 @@
 }
 .primary:hover {
   background: var(--cd-color-accent-hover);
-}
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .overlay,
-  .step {
-    animation: none;
-  }
 }
