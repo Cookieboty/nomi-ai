@@ -56,7 +56,9 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 - **类型**：`HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass'`；`HarnessTabMeta.permissionMode`；`HarnessTabsState` 增加 `defaultPermissionMode`、`codexNetwork`。
 - **映射模块** `cli/permissionMode.ts`（纯函数）：`supportedModes` / `effectiveMode` / `permissionLaunch` / `claudeModeName` / `planPromptPrefix`。
 - **生效时机**
-  - Claude：`setTabPermissionMode` 对长驻进程写 `set_permission_mode`；stdin 不可写时拆进程，下一轮带新 `--permission-mode` 与 `--resume` 重拉。`ensureClaudeLive` 发现进程模式与标签不一致也会重拉。
+  - Claude：`setTabPermissionMode` 对长驻进程写 `set_permission_mode`，按 `request_id` 等对应的 `control_response`。只有 `success` 才更新进程的「已生效」档位；`error`、超时（10 s）、对不上的 `request_id`、stdin 不可写都按失败处理：拆进程，下一轮带新 `--permission-mode` 与 `--resume` 重拉。发送前若还有未确认的切换，先等它有结果；`ensureClaudeLive` 只复用「已生效档位 = 标签档位、且没有在途切换」的进程（#72）。
+  - Gemini：初始化时 `session/set_mode` 必须成功（会话本来就在目标模式时跳过），失败 / 超时不发送这一轮并报错；运行中切换同样等应答后才更新已生效档位，失败就停掉会话，下一轮重新建立；发送前先等在途的切换（#72）。
+  - 界面经 `applyTabPermissionMode` 等确认：失败时按钮旁显示原因（标签档位保持用户选的，下一轮按它启动），不把没生效的档位当成已生效。
   - Codex / dsh / Grok：每轮一个进程，下一轮生效。
   - 计划提示前缀只加在发给 CLI 的提示上，不改落盘的用户消息。
 - **IPC**（经 `ai:*` 发送方校验）

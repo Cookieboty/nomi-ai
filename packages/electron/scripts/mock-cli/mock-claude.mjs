@@ -10,7 +10,9 @@
  *      NOMI_MOCK_PERMISSION_ID, NOMI_MOCK_TOOLS（1 = 单个 Bash；rich = 多种工具调用演示）,
  *      NOMI_MOCK_STEP_MS（rich 场景下每个事件之间的停顿）, NOMI_MOCK_DELAY_MS,
  *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append「pid 参数」一行，测复用）,
- *      NOMI_MOCK_CLAUDE_CONTROL_LOG（可选：收到 set_permission_mode 时 append「pid 模式」）
+ *      NOMI_MOCK_CLAUDE_CONTROL_LOG（可选：收到 set_permission_mode 时 append「pid 模式」）,
+ *      NOMI_MOCK_CLAUDE_MODE_ACK（set_permission_mode 的应答：缺省 success；error 负确认；
+ *        none 不应答；wrong-id 用别的 request_id 应答）
  */
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -755,9 +757,15 @@ if (streamIn) {
       if (parsed.j?.request?.subtype === 'set_permission_mode') {
         const mode = parsed.j.request.mode;
         if (controlLog) fs.appendFileSync(controlLog, `${process.pid} ${mode}\n`);
+        const ack = process.env.NOMI_MOCK_CLAUDE_MODE_ACK || 'success';
+        if (ack === 'none') return;
+        const requestId = ack === 'wrong-id' ? 'not-the-request' : parsed.j.request_id;
         emit({
           type: 'control_response',
-          response: { subtype: 'success', request_id: parsed.j.request_id, response: { mode } },
+          response:
+            ack === 'error'
+              ? { subtype: 'error', request_id: requestId, error: 'mode change rejected (mock)' }
+              : { subtype: 'success', request_id: requestId, response: { mode } },
         });
       }
       return;

@@ -96,6 +96,9 @@ describe('CliHarnessService Gemini backend', () => {
     'NOMI_MOCK_GEMINI_PERM',
     'NOMI_MOCK_GEMINI_LOG',
     'NOMI_MOCK_DELAY_MS',
+    'NOMI_MOCK_GEMINI_SET_MODE',
+    'NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS',
+    'NOMI_MOCK_GEMINI_INIT_DELAY_MS',
     'NOMI_MOCK_GEMINI_UNTRUSTED',
     'GEMINI_CLI_TRUST_WORKSPACE',
     'GEMINI_CLI_HOME',
@@ -319,6 +322,69 @@ describe('CliHarnessService Gemini backend', () => {
     await h.sendTab(tab.id, 'write');
     expect(tools).toEqual(['start', 'error']);
   }, 15_000);
+
+  describe('权限模式要等 session/set_mode 确认（#72）', () => {
+    const methods = (log: string) => readLog(log).map((c) => c.method);
+
+    it('新会话 set_mode 失败：不发送 prompt，返回明确错误', async () => {
+      process.env.NOMI_MOCK_GEMINI_SET_MODE = 'error';
+      const { h, root } = mk();
+      const log = path.join(root, 'acp.log');
+      process.env.NOMI_MOCK_GEMINI_LOG = log;
+      const tab = h.createTab({ backend: 'gemini' });
+      h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+      await expect(h.sendTab(tab.id, 'hello')).rejects.toThrow(/没有确认权限模式/);
+      expect(methods(log)).toContain('session/set_mode');
+      expect(methods(log)).not.toContain('session/prompt');
+      expect(h.tabMessages(tab.id).at(-1)?.content).toMatch(/没有确认权限模式/);
+    }, 15_000);
+
+    it('会话本来就在目标模式：不再切换，直接发送', async () => {
+      const { h, root } = mk();
+      const log = path.join(root, 'acp.log');
+      process.env.NOMI_MOCK_GEMINI_LOG = log;
+      const tab = h.createTab({ backend: 'gemini' });
+      h.setTabPermissionMode(tab.id, 'manual'); // → default，mock 的新会话就是 default
+      expect((await h.sendTab(tab.id, 'hello')).text).toBe('Mock Gemini: hello');
+      expect(methods(log)).not.toContain('session/set_mode');
+    }, 15_000);
+
+    it('运行中切换失败：报错并停掉会话；下一轮新会话仍切不过去就不发送', async () => {
+      process.env.NOMI_MOCK_GEMINI_SET_MODE = 'error:plan';
+      const { h, root } = mk();
+      const log = path.join(root, 'acp.log');
+      process.env.NOMI_MOCK_GEMINI_LOG = log;
+      const tab = h.createTab({ backend: 'gemini' });
+      await h.sendTab(tab.id, 'one');
+      await expect(h.applyTabPermissionMode(tab.id, 'plan')).rejects.toThrow(
+        /没有确认权限模式切换/,
+      );
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
+      await expect(h.sendTab(tab.id, 'two')).rejects.toThrow(/没有确认权限模式/);
+      expect(methods(log).filter((m) => m === 'initialize')).toHaveLength(2);
+      expect(methods(log).filter((m) => m === 'session/prompt')).toHaveLength(1);
+    }, 15_000);
+
+    it('切换后立即发送：prompt 排在 set_mode 应答之后', async () => {
+      process.env.NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS = '300';
+      const { h, root } = mk();
+      const log = path.join(root, 'acp.log');
+      process.env.NOMI_MOCK_GEMINI_LOG = log;
+      const tab = h.createTab({ backend: 'gemini' });
+      await h.sendTab(tab.id, 'one');
+      h.setTabPermissionMode(tab.id, 'plan'); // 不等确认
+      expect((await h.sendTab(tab.id, 'two')).text).toBe('Mock Gemini: two');
+      const all = readLog(log);
+      const answered = all.findIndex(
+        (c) => c.method === 'set_mode/answered' && c.params.modeId === 'plan',
+      );
+      const prompts = all.flatMap((c, i) => (c.method === 'session/prompt' ? [i] : []));
+      expect(answered).toBeGreaterThan(-1);
+      expect(prompts[1]).toBeGreaterThan(answered);
+      // 同一会话复用（确认成功，不需要重建）
+      expect(methods(log).filter((m) => m === 'initialize')).toHaveLength(1);
+    }, 15_000);
+  });
 
   it('cancel sends session/cancel and marks the turn stopped', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '3000';

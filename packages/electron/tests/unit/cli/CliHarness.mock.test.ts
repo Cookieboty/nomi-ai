@@ -657,6 +657,7 @@ describe('CliHarnessService permission modes', () => {
     'NOMI_GROK_BIN',
     'NOMI_MOCK_CLAUDE_BOOT_LOG',
     'NOMI_MOCK_CLAUDE_CONTROL_LOG',
+    'NOMI_MOCK_CLAUDE_MODE_ACK',
   ];
   let saved: Record<string, string | undefined> = {};
   beforeEach(() => {
@@ -671,8 +672,16 @@ describe('CliHarnessService permission modes', () => {
       else process.env[k] = saved[k];
     }
   });
-  const mk = (root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-'))) => {
-    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+  const mk = (
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-')),
+    extra: { claudeControlTimeoutMs?: number } = {},
+  ) => {
+    const h = new CliHarnessService({
+      ...extra,
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: root,
+    });
     harnesses.push(h);
     return h;
   };
@@ -824,6 +833,90 @@ describe('CliHarnessService permission modes', () => {
     expect(boots[0]).toContain('--permission-mode plan');
     expect(fs.readFileSync(control, 'utf8')).toMatch(/ acceptEdits\n/);
   }, 20_000);
+
+  describe('Claude 切换要等 control_response 确认（#72）', () => {
+    /** 跑过一轮的 Claude 标签（长驻进程已在），返回启动日志读取器 */
+    const liveTab = async (
+      mode: 'plan' | 'acceptEdits' | 'bypass',
+      extra: { claudeControlTimeoutMs?: number } = {},
+    ) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-ack-'));
+      const boot = path.join(dir, 'boot.log');
+      process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+      const h = mk(dir, extra);
+      const tab = h.createTab({ backend: 'claude' });
+      if (mode !== 'acceptEdits') h.setTabPermissionMode(tab.id, mode, { confirmed: true });
+      await h.sendTab(tab.id, 'one');
+      const boots = () => fs.readFileSync(boot, 'utf8').trim().split('\n');
+      return { h, tab, boots };
+    };
+
+    it('成功确认：等到应答才返回，进程复用', async () => {
+      const { h, tab, boots } = await liveTab('bypass');
+      const r = await h.applyTabPermissionMode(tab.id, 'plan');
+      expect(r.permissionMode).toBe('plan');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(1);
+    }, 20_000);
+
+    it('负确认：报错，不把未生效的档位用在旧进程上；下一轮按新档位重新拉起', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'error';
+      const { h, tab, boots } = await liveTab('bypass');
+      await expect(h.applyTabPermissionMode(tab.id, 'plan')).rejects.toThrow(
+        /mode change rejected/,
+      );
+      // 标签保留用户选的档位（下一轮生效），旧进程已拆
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(2);
+      expect(boots()[1]).toContain('--permission-mode plan');
+      expect(boots()[1]).not.toContain('bypassPermissions');
+    }, 20_000);
+
+    it.each(['none', 'wrong-id'])(
+      '没有应答 / 应答的 request_id 对不上（%s）：超时报错，下一轮重新拉起',
+      async (ack) => {
+        process.env.NOMI_MOCK_CLAUDE_MODE_ACK = ack;
+        const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 300 });
+        await expect(h.applyTabPermissionMode(tab.id, 'manual')).rejects.toThrow(/超时/);
+        await h.sendTab(tab.id, 'two');
+        expect(boots()).toHaveLength(2);
+        expect(boots()[1]).toContain('--permission-mode default');
+      },
+      20_000,
+    );
+
+    it('bypass → plan 后立即发送：确认前不复用旧进程', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 300 });
+      h.setTabPermissionMode(tab.id, 'plan'); // 不等确认
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(2);
+      expect(boots()[1]).toContain('--permission-mode plan');
+    }, 20_000);
+
+    it('连续切换：只以最后一次的确认为准', async () => {
+      const { h, tab, boots } = await liveTab('bypass');
+      h.setTabPermissionMode(tab.id, 'plan');
+      h.setTabPermissionMode(tab.id, 'manual');
+      await h.applyTabPermissionMode(tab.id, 'acceptEdits');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(1);
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    }, 20_000);
+
+    it('等确认时进程被拆（停止 / 关标签）：立即失败，不留挂起的请求', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const { h, tab } = await liveTab('bypass'); // 默认 10s 超时
+      const started = Date.now();
+      const p = h.applyTabPermissionMode(tab.id, 'plan').catch((e: Error) => e);
+      h.dispose();
+      const e = await p;
+      expect(e).toBeInstanceOf(Error);
+      expect((e as Error).message).toMatch(/进程已结束/);
+      expect(Date.now() - started).toBeLessThan(5_000);
+    }, 20_000);
+  });
 
   itPosix('passes codex sandbox / approval flags per mode', async () => {
     const dir = scriptDir('harness-perm-codex-');

@@ -32,7 +32,7 @@ import {
   resolveCliBinCached,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
-import { AcpConnection } from './gemini/acp';
+import { AcpConnection, innermostMessage } from './gemini/acp';
 import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
 import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
 import {
@@ -106,6 +106,8 @@ const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', '
 
 /** Gemini 一轮 5 分钟没有任何输出：多半卡在网络或上游，取消这一轮 */
 const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
+/** Claude control_request（如 set_permission_mode）等 control_response 的上限 */
+const CLAUDE_CONTROL_TIMEOUT_MS = 10_000;
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -386,6 +388,8 @@ export class CliHarnessService {
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
       geminiPromptIdleMs?: number;
+      /** Claude control_request 等确认的上限（毫秒）；缺省 CLAUDE_CONTROL_TIMEOUT_MS */
+      claudeControlTimeoutMs?: number;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -989,7 +993,9 @@ export class CliHarnessService {
    * 切换标签权限模式。返回实际生效的档位（后端不支持时已降级）。
    * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认；带 expect 时确认绑定在
    * 发起确认时的后端 / 目录上，期间标签换了后端或目录（会话已重置）就拒绝，要求重新确认。
-   * Claude 长驻进程用 control_request 即时切换；Codex / dsh / Grok 下一轮启动时生效。
+   * Claude 长驻进程用 control_request、Gemini 用 session/set_mode 即时切换，但只有后端确认后才算生效：
+   * 确认前不复用进程跑下一轮，失败就拆掉进程 / 会话、下一轮按新档位重拉（#72，等结果见
+   * applyTabPermissionMode）。Codex / dsh / Grok 每轮一个进程，下一轮启动时生效。
    */
   setTabPermissionMode(
     id: string,
@@ -1011,25 +1017,87 @@ export class CliHarnessService {
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
       const gl = this.geminiLive.get(id);
-      if (gl?.sessionId && gl.permissionMode !== next.mode) {
-        gl.permissionMode = next.mode;
-        void gl.conn
-          .request('session/set_mode', { sessionId: gl.sessionId, modeId: geminiModeId(next.mode) })
-          .catch(() => this.teardownGeminiLive(id));
-      }
+      if (gl?.sessionId && (gl.permissionMode !== next.mode || gl.modeChange))
+        this.switchGeminiMode(id, gl, next.mode);
       const live = this.claudeLive.get(id);
-      if (live && live.permissionMode !== next.mode) {
-        const sent = this.writeClaudeControl(live, {
-          subtype: 'set_permission_mode',
-          mode: claudeModeName(next.mode),
-        });
-        // 写不进去：拆掉，下一轮带新模式 --resume 重拉
-        if (sent) live.permissionMode = next.mode;
-        else this.teardownClaudeLive(id);
-      }
+      if (live && (live.permissionMode !== next.mode || live.modeChange))
+        this.switchClaudeMode(id, live, next.mode);
       this.changed();
     }
     return { ...tab, degraded: next.degraded };
+  }
+
+  /**
+   * 切换并等长驻进程确认（IPC 走这里）。后端拒绝 / 超时会抛出可读错误：进程 / 会话已拆除，
+   * 标签档位保持用户选的，下一轮按它重新拉起；界面不能把没生效的档位当成已生效（#72）。
+   */
+  async applyTabPermissionMode(
+    id: string,
+    mode: HarnessPermissionMode,
+    opts: { confirmed?: boolean; expect?: { backend?: string; cwd?: string } } = {},
+  ): Promise<HarnessTabMeta & { degraded: boolean }> {
+    const r = this.setTabPermissionMode(id, mode, opts);
+    await Promise.all([
+      this.claudeLive.get(id)?.modeChange?.done,
+      this.geminiLive.get(id)?.modeChange?.done,
+    ]);
+    return { ...this.requireTab(id), degraded: r.degraded };
+  }
+
+  /** Claude 长驻进程即时切换：control_request 得到成功 control_response 后才更新已生效档位 */
+  private switchClaudeMode(id: string, live: ClaudeLiveSession, mode: HarnessPermissionMode) {
+    const change: ModeChange = { mode, done: Promise.resolve() };
+    change.done = this.requestClaudeControl(live, {
+      subtype: 'set_permission_mode',
+      mode: claudeModeName(mode),
+    }).then(
+      () => {
+        // CLI 按顺序处理 stdin：最后一个成功应答就是进程当前的档位
+        if (this.claudeLive.get(id) === live) live.permissionMode = mode;
+        if (live.modeChange === change) live.modeChange = null;
+      },
+      (e: unknown) => {
+        if (live.modeChange !== change) return; // 已被更新的切换取代
+        live.modeChange = null;
+        // 负确认 / 超时 / 写不进去：进程档位不确定，拆掉；下一轮带新档位 --resume 重拉
+        if (this.claudeLive.get(id) === live) this.teardownClaudeLive(id);
+        throw new Error(
+          t(
+            'Claude Code 没有确认权限模式切换（{0}），已停止当前进程，下一轮会按新模式重新启动',
+            e instanceof Error ? e.message : String(e),
+          ),
+        );
+      },
+    );
+    live.modeChange = change;
+    change.done.catch(() => undefined); // 由 applyTabPermissionMode / 发送前的等待处理
+  }
+
+  /** Gemini 长驻会话即时切换：session/set_mode 成功后才更新已生效档位 */
+  private switchGeminiMode(id: string, gl: GeminiLiveSession, mode: HarnessPermissionMode) {
+    const change: ModeChange = { mode, done: Promise.resolve() };
+    change.done = gl.conn
+      .request('session/set_mode', { sessionId: gl.sessionId, modeId: geminiModeId(mode) })
+      .then(
+        () => {
+          if (this.geminiLive.get(id) === gl) gl.permissionMode = mode;
+          if (gl.modeChange === change) gl.modeChange = null;
+        },
+        (e: unknown) => {
+          if (gl.modeChange !== change) return;
+          gl.modeChange = null;
+          // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
+          if (this.geminiLive.get(id) === gl) this.teardownGeminiLive(id);
+          throw new Error(
+            t(
+              'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
+              innermostMessage(e instanceof Error ? e.message : String(e)),
+            ),
+          );
+        },
+      );
+    gl.modeChange = change;
+    change.done.catch(() => undefined);
   }
 
   /**
@@ -1523,7 +1591,10 @@ export class CliHarnessService {
    * 权限仍走 control_request ↔ control_response。CLI 若不支持或不稳定，
    * 进程退出后下一轮自动带 --resume 重拉（明确降级，见文档）。
    */
-  private runClaude(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+  private async runClaude(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+    // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
+    // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
+    await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     const live = this.ensureClaudeLive(tab);
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
@@ -1563,7 +1634,9 @@ export class CliHarnessService {
     if (
       existing &&
       existing.cwd === tab.cwd &&
+      // 已生效（后端确认过）的档位与标签一致，且没有还在等确认的切换
       existing.permissionMode === tab.permissionMode &&
+      !existing.modeChange &&
       // 只差模型 / 思考深度时，后台任务还在跑就先沿用旧进程（拆了会杀掉后台子代理），
       // 等后台结束后的下一条消息再按新参数重启
       ((existing.modelOverride === overrides.model &&
@@ -1607,6 +1680,8 @@ export class CliHarnessService {
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
+      modeChange: null,
+      controls: new Map(),
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
       turnUuid: null,
@@ -1635,6 +1710,7 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
+      this.failClaudeControls(live);
       turn?.reject(e);
     });
     child.on('close', (code, signal) => {
@@ -1645,6 +1721,7 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
+      this.failClaudeControls(live);
       if (!turn || turn.settled) return;
       turn.settled = true;
       if (signal && !turn.text) {
@@ -1674,11 +1751,15 @@ export class CliHarnessService {
     live.child.stdin.write(`${JSON.stringify(payload)}\n`);
   }
 
-  private writeClaudeControl(live: ClaudeLiveSession, request: Record<string, unknown>) {
+  private writeClaudeControl(
+    live: ClaudeLiveSession,
+    request: Record<string, unknown>,
+    requestId: string = randomUUID(),
+  ) {
     if (!live.child.stdin.writable) return false;
     const payload = {
       type: 'control_request',
-      request_id: randomUUID(),
+      request_id: requestId,
       request,
     };
     try {
@@ -1687,6 +1768,48 @@ export class CliHarnessService {
     } catch {
       return false;
     }
+  }
+
+  /** 发 control_request 并等同 request_id 的 control_response；负确认 / 超时 / 写不进去都会 reject */
+  private requestClaudeControl(
+    live: ClaudeLiveSession,
+    request: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const requestId = randomUUID();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        live.controls.delete(requestId);
+        reject(new Error(t('超时')));
+      }, this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS);
+      live.controls.set(requestId, { resolve, reject, timer });
+      if (!this.writeClaudeControl(live, request, requestId)) {
+        clearTimeout(timer);
+        live.controls.delete(requestId);
+        reject(new Error(t('Claude 进程 stdin 不可写')));
+      }
+    });
+  }
+
+  /** 进程结束 / 拆除：在途的 control_request 一律失败，不留挂起的计时器 */
+  private failClaudeControls(live: ClaudeLiveSession) {
+    for (const w of live.controls.values()) {
+      clearTimeout(w.timer);
+      w.reject(new Error(t('进程已结束')));
+    }
+    live.controls.clear();
+  }
+
+  /** CLI 对我们 control_request 的应答（按 request_id 交给等待者；不认识的 id 直接忽略） */
+  private onClaudeControlResponse(live: ClaudeLiveSession, j: Record<string, unknown>) {
+    const r = (j.response ?? {}) as Record<string, unknown>;
+    const requestId = typeof r.request_id === 'string' ? r.request_id : '';
+    const w = live.controls.get(requestId);
+    if (!w) return;
+    live.controls.delete(requestId);
+    clearTimeout(w.timer);
+    if (r.subtype === 'success') w.resolve((r.response ?? {}) as Record<string, unknown>);
+    else
+      w.reject(new Error(typeof r.error === 'string' && r.error ? r.error : t('后端拒绝了请求')));
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
@@ -1766,10 +1889,12 @@ export class CliHarnessService {
    * → session/set_mode；每轮 session/prompt。审批经 session/request_permission 进权限队列。
    */
   private async ensureGeminiLive(tab: HarnessTabMeta): Promise<GeminiLiveSession> {
+    // 还在等确认的模式切换先有结果：失败时会话已拆除，下面按标签档位重新建立（#72）
+    await this.geminiLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     const existing = this.geminiLive.get(tab.id);
     if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
       await existing.ready;
-      return existing;
+      return this.confirmGeminiMode(tab, existing);
     }
     if (existing) this.teardownGeminiLive(tab.id);
     const bin = resolveHarnessBin('gemini');
@@ -1796,6 +1921,7 @@ export class CliHarnessService {
       perms: new Map(),
       lastActivityAt: Date.now(),
       ready: Promise.resolve(),
+      modeChange: null,
     };
     live.conn = new AcpConnection(child, {
       onNotification: (method, params) => {
@@ -1839,25 +1965,49 @@ export class CliHarnessService {
         protocolVersion: 1,
         clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
       });
+      type SessionResult = { sessionId?: string; modes?: { currentModeId?: unknown } } | null;
       let sid: string | null = null;
+      let modeNow: unknown;
       if (tab.cliSessionId) {
         sid = await live.conn
-          .request('session/load', { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] })
-          .then(() => tab.cliSessionId)
+          .request<SessionResult>('session/load', {
+            sessionId: tab.cliSessionId,
+            cwd: tab.cwd,
+            mcpServers: [],
+          })
+          .then((r) => {
+            modeNow = r?.modes?.currentModeId;
+            return tab.cliSessionId;
+          })
           .catch(() => null);
       }
       if (!sid) {
-        const r = await live.conn.request<{ sessionId?: string }>('session/new', {
+        const r = await live.conn.request<SessionResult>('session/new', {
           cwd: tab.cwd,
           mcpServers: [],
         });
         sid = r?.sessionId ?? null;
+        modeNow = r?.modes?.currentModeId;
       }
       if (!sid) throw new Error(t('Gemini 没有返回会话'));
       live.sessionId = sid;
-      await live.conn
-        .request('session/set_mode', { sessionId: sid, modeId: geminiModeId(tab.permissionMode) })
-        .catch(() => undefined);
+      // 权限模式必须得到确认：失败 / 超时就不发送这一轮（不在未确认的档位下跑，#72）。
+      // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切
+      const initMode = tab.permissionMode;
+      const want = geminiModeId(initMode);
+      if (modeNow !== want)
+        await live.conn
+          .request('session/set_mode', { sessionId: sid, modeId: want })
+          .catch((e: unknown) => {
+            throw new Error(
+              t(
+                'Gemini 没有确认权限模式（{0}），这条消息没有发送',
+                innermostMessage(e instanceof Error ? e.message : String(e)),
+              ),
+              { cause: e },
+            );
+          });
+      live.permissionMode = initMode;
     })();
     try {
       await live.ready;
@@ -1878,7 +2028,28 @@ export class CliHarnessService {
         );
       throw e;
     }
-    return live;
+    return this.confirmGeminiMode(tab, live);
+  }
+
+  /**
+   * 发送前确认档位：握手期间或之后又切过模式时，在途的切换先等结果；仍与标签档位不一致就现在切，
+   * 确认后才返回。失败时会话已拆除、错误原样抛出，这一轮的 prompt 不会发出（#72）。
+   */
+  private async confirmGeminiMode(
+    tab: HarnessTabMeta,
+    live: GeminiLiveSession,
+  ): Promise<GeminiLiveSession> {
+    let failure: unknown = null;
+    // 等待期间用户可能又切了一次：最多跟进几轮，直到没有在途切换且已生效档位与标签一致
+    for (let i = 0; i < 4 && this.geminiLive.get(tab.id) === live; i++) {
+      if (live.modeChange) {
+        await live.modeChange.done.catch((e: unknown) => (failure = e));
+        continue;
+      }
+      if (live.permissionMode === tab.permissionMode) return live;
+      this.switchGeminiMode(tab.id, live, tab.permissionMode);
+    }
+    throw failure instanceof Error ? failure : new Error(t('Gemini 会话已结束，这条消息没有发送'));
   }
 
   private onGeminiEvents(tabId: string, live: GeminiLiveSession, evs: HarnessEvent[]) {
@@ -1990,6 +2161,17 @@ export class CliHarnessService {
    * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
    */
   private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
+    if (line.includes('"control_response"')) {
+      try {
+        const j = JSON.parse(line) as Record<string, unknown>;
+        if (j.type === 'control_response') {
+          this.onClaudeControlResponse(live, j);
+          return true;
+        }
+      } catch {
+        /* 不是完整 JSON：交给解析器 */
+      }
+    }
     const replay = line.includes('"isReplay"');
     const task = line.includes('"subtype":"task_');
     if (!replay && !task) return false;
@@ -2198,6 +2380,7 @@ export class CliHarnessService {
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
+    this.failClaudeControls(live);
     const turn = live.turn;
     live.turn = null;
     const child = live.child;
@@ -2708,7 +2891,8 @@ export class CliHarnessService {
     );
     handle('ai:harness:tab-permission-mode', (id, m, o) => {
       const raw = o as { confirmed?: unknown; expect?: unknown } | undefined;
-      return this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
+      // 等长驻进程确认后再回复：后端拒绝 / 超时时界面拿到错误，而不是把没生效的档位当成已生效（#72）
+      return this.applyTabPermissionMode(String(id), m as HarnessPermissionMode, {
         confirmed: raw?.confirmed === true,
         // 原样核对：类型不对的值与标签不相等，按「已变化」拒绝
         expect:
@@ -2797,8 +2981,23 @@ type GeminiLiveSession = {
   perms: Map<string, (allow: boolean | null) => void>;
   lastActivityAt: number;
   ready: Promise<void>;
+  /** 最近一次还没得到确认的权限模式切换（permissionMode 只在确认后更新，#72） */
+  modeChange: ModeChange | null;
   /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
   recycleAfterTurn?: boolean;
+};
+
+/**
+ * 发给长驻进程、还在等后端确认的权限模式切换。done 只在「最新一次」切换失败时 reject
+ * （此时进程 / 会话已拆除，下一轮按标签档位重新拉起）；被更新的切换取代的旧请求不报错。
+ */
+type ModeChange = { mode: HarnessPermissionMode; done: Promise<void> };
+
+/** 在途的 Claude control_request：等同 request_id 的 control_response */
+type ClaudeControlWaiter = {
+  resolve: (response: Record<string, unknown>) => void;
+  reject: (e: Error) => void;
+  timer: NodeJS.Timeout;
 };
 
 /** 长驻 Claude 进程上还有后台任务或自发轮次在跑（拆进程会把它们一起杀掉） */
@@ -2812,8 +3011,12 @@ type ClaudeLiveSession = {
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
-  /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
+  /** 进程已生效的权限模式：启动参数，或最近一次得到成功 control_response 的 set_permission_mode */
   permissionMode: HarnessPermissionMode;
+  /** 最近一次还没得到确认的权限模式切换；确认前不复用进程跑下一轮（#72） */
+  modeChange: ModeChange | null;
+  /** 在途的 control_request：request_id → 应答 */
+  controls: Map<string, ClaudeControlWaiter>;
   /** 进程启动时使用的标签级模型 / 思考深度覆盖（复用键的一部分） */
   modelOverride: string | null;
   reasoningEffort: string | null;
