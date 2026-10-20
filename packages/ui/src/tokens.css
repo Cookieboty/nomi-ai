@@ -142,6 +142,10 @@
 
   /* motion */
   --cd-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 只过渡某个属性时用这两个拼：transition: width var(--cd-duration-fast) var(--cd-ease)
+     （--cd-transition 是完整简写，不能接在属性名后面） */
+  --cd-duration-fast: 0.2s;
+  --cd-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --cd-focus-ring: 0 0 0 2px rgba(var(--cd-accent-2-rgb), 0.6);
 
   /* layers */

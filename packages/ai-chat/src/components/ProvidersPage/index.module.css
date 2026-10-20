@@ -224,7 +224,7 @@
   margin: 0;
 }
 .verFacts dt {
-  color: var(--cd-text-secondary, rgba(128, 128, 128, 0.9));
+  color: var(--cd-color-text-muted, rgba(128, 128, 128, 0.9));
 }
 .verFacts dd {
   margin: 0;
@@ -240,7 +240,7 @@
   display: block;
   padding: 8px 10px;
   border-radius: var(--cd-radius-sm, 8px);
-  background: var(--cd-surface-sunken, rgba(128, 128, 128, 0.12));
+  background: var(--cd-color-surface-sunken, rgba(128, 128, 128, 0.12));
   font-family: var(--cd-font-mono, ui-monospace, monospace);
   font-size: 12px;
   word-break: break-all;
@@ -274,7 +274,7 @@
   margin: 0;
   padding: 8px 10px;
   border-radius: var(--cd-radius-sm, 8px);
-  background: var(--cd-surface-sunken, rgba(128, 128, 128, 0.12));
+  background: var(--cd-color-surface-sunken, rgba(128, 128, 128, 0.12));
   font-family: var(--cd-font-mono, ui-monospace, monospace);
   font-size: 11px;
   white-space: pre-wrap;

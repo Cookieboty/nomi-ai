@@ -129,7 +129,7 @@ export const SessionControls: React.FC<{
           data-testid="cli-carry-chip"
           title={t('下一条消息会连同之前的 {0} 条对话一起发给新会话', String(tab.carriedMessages))}
         >
-          <Icon icon={History} size={13} />
+          <Icon icon={History} size={14} />
           {t('带上前文 · {0} 条', String(tab.carriedMessages))}
           <button
             type="button"

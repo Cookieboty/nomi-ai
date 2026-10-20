@@ -3,8 +3,8 @@
   box-sizing: border-box;
   padding: 10px 12px;
   border-radius: var(--cd-radius-md, 10px);
-  border: 1px solid var(--cd-border, rgba(127, 127, 127, 0.3));
-  background: var(--cd-surface-2, transparent);
+  border: 1px solid var(--cd-color-border, rgba(127, 127, 127, 0.3));
+  background: var(--cd-color-surface-sunken, transparent);
   color: inherit;
   font: inherit;
   outline: none;
@@ -28,7 +28,7 @@
   cursor: pointer;
 }
 .active {
-  background: var(--cd-accent-soft, rgba(251, 148, 102, 0.16));
+  background: var(--cd-color-accent-soft, rgba(251, 148, 102, 0.16));
 }
 .group {
   flex: 0 0 72px;

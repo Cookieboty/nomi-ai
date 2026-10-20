@@ -34,6 +34,29 @@ for (const sourceRoot of sourceRoots) {
   }
 }
 
+// 设计令牌：引用的 var(--cd-*) 必须有定义，否则样式永远落到写死的回退值、不跟主题
+// （定义处：tokens.css / 主题 / 组件里的 `--cd-x:`；运行时由代码设置的变量列在 runtimeTokens）
+const runtimeTokens = /^--cd-chat-bg-/;
+const defined = new Set();
+const uses = [];
+for (const sourceRoot of sourceRoots) {
+  for (const file of walk(sourceRoot)) {
+    if (file.endsWith('.json')) continue;
+    const text = readFileSync(join(root, file), 'utf8');
+    for (const m of text.matchAll(/(--cd-[\w-]+)\s*:/g)) defined.add(m[1]);
+    text.split(/\r?\n/).forEach((line, i) => {
+      for (const m of line.matchAll(/var\((--cd-[\w-]+)/g))
+        uses.push({ file, line: i + 1, name: m[1] });
+    });
+  }
+}
+const undefinedTokens = uses.filter((u) => !defined.has(u.name) && !runtimeTokens.test(u.name));
+if (undefinedTokens.length) {
+  console.error('frontend standard: var(--cd-*) must reference a defined design token');
+  for (const u of undefinedTokens) console.error(`  ${u.file}:${u.line}: ${u.name}`);
+  process.exit(1);
+}
+
 if (violations.length) {
   console.error(`frontend standard: files must be <= ${maxLines} lines`);
   for (const item of violations) console.error(`  ${item.file}: ${item.lines} lines`);
@@ -45,4 +68,6 @@ for (const [file, reason] of allowed) {
   if (lines > maxLines)
     console.log(`frontend standard: exception ${file} (${lines} lines) — ${reason}`);
 }
-console.log(`frontend standard: ${sourceRoots.length} source roots checked; max ${maxLines} lines`);
+console.log(
+  `frontend standard: ${sourceRoots.length} source roots checked; max ${maxLines} lines; ${uses.length} token references defined`,
+);

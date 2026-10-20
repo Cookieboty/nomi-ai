@@ -60,7 +60,7 @@
 .barFill {
   height: 100%;
   background: var(--cd-color-accent);
-  transition: width var(--cd-transition);
+  transition: width var(--cd-duration-fast) var(--cd-ease);
 }
 .barIndeterminate {
   width: 30% !important;

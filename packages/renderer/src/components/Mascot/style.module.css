@@ -21,21 +21,21 @@
   align-items: center;
   gap: 4px;
   padding: var(--cd-space-2, 8px);
-  border: 1px solid var(--cd-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--cd-color-border, rgba(255, 255, 255, 0.12));
   border-radius: var(--cd-radius-md, 8px);
-  background: var(--cd-surface-2, rgba(255, 255, 255, 0.04));
-  color: var(--cd-text, #eee);
+  background: var(--cd-color-surface-sunken, rgba(255, 255, 255, 0.04));
+  color: var(--cd-color-text, #eee);
   cursor: pointer;
   font: inherit;
 }
 
 .card:hover {
-  border-color: var(--cd-accent, #7c9cff);
+  border-color: var(--cd-color-accent-strong, #7c9cff);
 }
 
 .active {
-  border-color: var(--cd-accent, #7c9cff);
-  box-shadow: 0 0 0 1px var(--cd-accent, #7c9cff) inset;
+  border-color: var(--cd-color-accent-strong, #7c9cff);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong, #7c9cff) inset;
 }
 
 .thumb {
@@ -55,7 +55,7 @@
 .credit {
   margin: var(--cd-space-3, 12px) 0 0;
   font-size: var(--cd-font-size-xs, 11px);
-  color: var(--cd-text-muted, #999);
+  color: var(--cd-color-text-muted, #999);
 }
 
 .motionGrid {
@@ -77,9 +77,9 @@
 
 .credits li {
   padding: var(--cd-space-2, 8px);
-  border: 1px solid var(--cd-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--cd-color-border, rgba(255, 255, 255, 0.12));
   border-radius: var(--cd-radius-md, 8px);
-  background: var(--cd-surface-2, rgba(255, 255, 255, 0.04));
+  background: var(--cd-color-surface-sunken, rgba(255, 255, 255, 0.04));
 }
 
 .creditHead {
@@ -93,13 +93,13 @@
 .creditMeta {
   margin-top: 2px;
   font-size: var(--cd-font-size-xs, 11px);
-  color: var(--cd-text-muted, #999);
+  color: var(--cd-color-text-muted, #999);
 }
 
 .creditSource {
   margin-top: 2px;
   font-size: var(--cd-font-size-xs, 11px);
-  color: var(--cd-text-muted, #999);
+  color: var(--cd-color-text-muted, #999);
   word-break: break-all;
 }
 
@@ -142,7 +142,7 @@
   border: none;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.45);
-  color: var(--cd-text, #eee);
+  color: var(--cd-color-text, #eee);
   cursor: pointer;
   font-size: var(--cd-font-size-xs);
 }
@@ -179,9 +179,9 @@
   align-items: center;
   gap: var(--cd-space-3, 12px);
   padding: var(--cd-space-2, 8px);
-  border: 1px solid var(--cd-border, rgba(255, 255, 255, 0.12));
+  border: 1px solid var(--cd-color-border, rgba(255, 255, 255, 0.12));
   border-radius: var(--cd-radius-md, 8px);
-  background: var(--cd-surface-2, rgba(255, 255, 255, 0.04));
+  background: var(--cd-color-surface-sunken, rgba(255, 255, 255, 0.04));
 }
 
 .storeItem .thumb {
@@ -211,14 +211,14 @@
 
 .progress > div {
   height: 100%;
-  background: var(--cd-accent, #7c9cff);
+  background: var(--cd-color-accent-strong, #7c9cff);
   transition: width 0.15s;
 }
 
 .errorText {
   margin-top: 4px;
   font-size: var(--cd-font-size-xs, 11px);
-  color: var(--cd-danger, #f87171);
+  color: var(--cd-color-danger-text, #f87171);
 }
 
 .dropZone {
@@ -228,13 +228,13 @@
   gap: var(--cd-space-2, 8px);
   margin-top: var(--cd-space-3, 12px);
   padding: var(--cd-space-5, 24px);
-  border: 2px dashed var(--cd-border, rgba(255, 255, 255, 0.2));
+  border: 2px dashed var(--cd-color-border, rgba(255, 255, 255, 0.2));
   border-radius: var(--cd-radius-md, 8px);
   text-align: center;
 }
 
 .dropOver {
-  border-color: var(--cd-accent, #7c9cff);
+  border-color: var(--cd-color-accent-strong, #7c9cff);
   background: rgba(124, 156, 255, 0.08);
 }
 
@@ -253,7 +253,7 @@
 }
 
 .metaList dt {
-  color: var(--cd-text-muted, #999);
+  color: var(--cd-color-text-muted, #999);
 }
 
 .metaList dd {
@@ -309,5 +309,5 @@
   display: grid;
   place-items: center;
   font-size: 28px;
-  color: var(--cd-color-text-secondary, #888);
+  color: var(--cd-color-text-muted, #888);
 }

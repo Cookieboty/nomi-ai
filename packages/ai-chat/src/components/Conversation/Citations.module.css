@@ -237,7 +237,7 @@
   color: var(--cd-color-text-on-accent);
   background: var(--cd-color-accent);
   border-radius: var(--cd-radius-full);
-  transition: transform var(--cd-transition);
+  transition: transform var(--cd-duration-fast) var(--cd-ease);
 }
 .cite:hover,
 .cite:focus-visible {
@@ -275,7 +275,7 @@
   background: var(--cd-color-surface-sunken);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-full);
-  transition: border-color var(--cd-transition);
+  transition: border-color var(--cd-duration-fast) var(--cd-ease);
 }
 .sourceChip:hover,
 .sourceChip:focus-visible {

@@ -5,7 +5,7 @@
  * 只读取该后端自己的第三方供应商列表（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
  * 没有启用的供应商时显示「CLI 默认 / 已登录」。快速切换只在本后端的供应商里选。
  */
-import { Select, t, Icon } from '@nomi-ai/ui';
+import { Icon, IconButton, Select, t } from '@nomi-ai/ui';
 import { KeyRound } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -146,23 +146,20 @@ export const CliProviderChip: React.FC<{
         <span
           role="alert"
           data-testid="cli-provider-err"
-          style={{ fontSize: 13, color: '#e5534b' }}
+          style={{ fontSize: 'var(--cd-font-size-xs)', color: 'var(--cd-color-danger-text)' }}
         >
           {err}
         </span>
       )}
       {onManage && (
-        <button
-          type="button"
-          className="cd-btn cd-btn-ghost"
+        // 与 Nomi 模式同一位置的按钮（ProviderSwitcher）同一个组件、同一尺寸
+        <IconButton
+          size="sm"
           data-testid="open-cli-provider-panel"
-          style={{ fontSize: 14 }}
           onClick={onManage}
-          title={t('打开 {0} 的供应商设置', backendName(backend))}
-          aria-label={t('打开 {0} 的供应商设置', backendName(backend))}
-        >
-          <Icon icon={KeyRound} size={14} />
-        </button>
+          label={t('打开 {0} 的供应商设置', backendName(backend))}
+          icon={<Icon icon={KeyRound} />}
+        />
       )}
     </span>
   );

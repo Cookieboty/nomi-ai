@@ -118,7 +118,7 @@ textarea.mono {
 .bar {
   height: 6px;
   border-radius: 3px;
-  background: var(--cd-color-surface-2, var(--cd-color-border));
+  background: var(--cd-color-surface-sunken, var(--cd-color-border));
   overflow: hidden;
 }
 .bar > i {

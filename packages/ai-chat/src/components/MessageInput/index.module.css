@@ -301,7 +301,7 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
   opacity: 0.7;
-  transition: all var(--cd-transition);
+  transition: var(--cd-transition);
 }
 .kbToggle:hover,
 .kbToggle:focus-visible {
@@ -588,10 +588,6 @@
 }
 .composerBar .modelStatus :global(.cd-dropdown) {
   min-width: 48px;
-}
-.composerBar .modelStatus :global(.cd-dropdown--sm) .cd-dropdown__trigger {
-  height: 30px;
-  font-size: 14px;
 }
 /* 后端切换器的内联 minWidth 112 在窄栏里是挤爆的主因 */
 .composerBar .modelStatus [data-testid='backend-switcher'] {
