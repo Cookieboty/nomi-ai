@@ -488,6 +488,28 @@ describe('SessionHistoryService', () => {
     });
   });
 
+  it('honours CODEX_HOME and CLAUDE_CONFIG_DIR instead of ~/.codex and ~/.claude', async () => {
+    const codexHome = path.join(home, 'custom-codex');
+    const dir = path.join(codexHome, 'sessions', '2026', '10', '14');
+    fs.mkdirSync(dir, { recursive: true });
+    const id = '01a13a9b-34b0-7612-ba36-613a55008483';
+    const text = fx('codex-rollout.jsonl').replace(
+      /"cwd":\s*"\/tmp"/g,
+      `"cwd":${JSON.stringify(work)}`,
+    );
+    fs.writeFileSync(path.join(dir, `rollout-2026-10-14T21-30-12-${id}.jsonl`), text);
+    const claudeHome = path.join(home, 'custom-claude');
+    const proj = path.join(claudeHome, 'projects', '-work-app');
+    fs.mkdirSync(proj, { recursive: true });
+    fs.copyFileSync(writeClaude('c1', 'custom dir task', 1_000_000), path.join(proj, 'c1.jsonl'));
+    fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
+    const svc = mk({ env: { CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeHome } });
+    expect((await svc.list('codex')).items.map((i) => i.sessionId)).toEqual([id]);
+    expect((await svc.list('claude')).items.map((i) => i.sessionId)).toEqual(['c1']);
+    // 没设环境变量时仍看 ~/.codex（这里为空）
+    expect((await mk({ env: {} }).list('codex')).items).toHaveLength(0);
+  });
+
   it('codex: one session id spread over several rollout files is listed once (newest wins, across pages)', async () => {
     const id = '01a0a531-1d64-7361-bb69-ebd1c7349662';
     const text = fx('codex-rollout.jsonl').replace(
