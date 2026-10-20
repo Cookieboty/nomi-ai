@@ -51,10 +51,18 @@ const initialState: MascotState = {
   panel: null,
 };
 
+/** A new bubble line replaces the current one only at an equal or higher priority. */
+export function acceptsMessage(
+  current: { currentMessage: string | null; messagePriority: number },
+  priority: number,
+): boolean {
+  return current.currentMessage === null || priority >= current.messagePriority;
+}
+
 export function mascotReducer(state: MascotState, action: MascotAction): MascotState {
   switch (action.type) {
     case 'SET_MESSAGE':
-      if (state.currentMessage === null || action.payload.priority >= state.messagePriority) {
+      if (acceptsMessage(state, action.payload.priority)) {
         return {
           ...state,
           currentMessage: action.payload.text,
@@ -105,8 +113,23 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
     dragEnabled: config.drag ?? false,
   });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // What the reducer is showing, kept in step with it so a rejected (lower-priority) line does not
+  // cancel the shown line's expiry timer and replace it with its own (shorter) one.
+  const shownRef = useRef<{ currentMessage: string | null; messagePriority: number }>({
+    currentMessage: null,
+    messagePriority: 0,
+  });
 
   const dispatch = useCallback((action: MascotAction) => {
+    if (action.type === 'SET_MESSAGE') {
+      if (!acceptsMessage(shownRef.current, action.payload.priority)) return;
+      shownRef.current = {
+        currentMessage: action.payload.text,
+        messagePriority: action.payload.priority,
+      };
+    } else if (action.type === 'CLEAR_MESSAGE') {
+      shownRef.current = { currentMessage: null, messagePriority: 0 };
+    }
     if (action.type === 'SET_MESSAGE' || action.type === 'CLEAR_MESSAGE') {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -119,6 +142,7 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
           timerRef.current = setTimeout(expire, 400);
           return;
         }
+        shownRef.current = { currentMessage: null, messagePriority: 0 };
         rawDispatch({ type: 'CLEAR_MESSAGE' });
       };
       timerRef.current = setTimeout(expire, action.payload.timeout || 3000);
