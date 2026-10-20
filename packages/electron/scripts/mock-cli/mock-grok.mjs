@@ -91,6 +91,52 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       send({ id, method, params });
     });
   const keyState = () => (process.env.XAI_API_KEY ? 'key' : 'nokey');
+  /** 多种工具调用演示（NOMI_MOCK_SCENARIO=rich，与 -p 模式的 rich 同一组工具；NOMI_MOCK_STEP_MS 控制节奏） */
+  async function richTurn(sid) {
+    const step = Number(process.env.NOMI_MOCK_STEP_MS || 0);
+    const pause = () => (step > 0 ? new Promise((r) => setTimeout(r, step)) : Promise.resolve());
+    let n = 0;
+    const call = async (name, rawInput, output, failed = false) => {
+      const toolCallId = `rich_${++n}`;
+      update(sid, {
+        sessionUpdate: 'tool_call',
+        toolCallId,
+        title: name,
+        rawInput,
+        _meta: { 'x.ai/tool': { name } },
+      });
+      await pause();
+      update(sid, {
+        sessionUpdate: 'tool_call_update',
+        toolCallId,
+        status: failed ? 'failed' : 'completed',
+        content: [{ type: 'content', content: { type: 'text', text: output } }],
+      });
+      await pause();
+    };
+    update(sid, {
+      sessionUpdate: 'agent_thought_chunk',
+      content: { type: 'text', text: '先列目录，再搜索并读取相关文件。' },
+    });
+    await pause();
+    await call('list_dir', { path: '.' }, 'src/\npackage.json');
+    for (const pat of ['password', 'secret', 'token', 'api_key'])
+      await call('grep', { pattern: pat, path: 'src' }, `src/a.ts:1: ${pat}`);
+    await call('read_file', { path: 'src/a.ts' }, 'const a = 1;');
+    await call('read_file', { path: 'src/b.ts' }, 'const b = 2;');
+    await call(
+      'spawn_subagent',
+      { description: '检查内存泄漏', prompt: '检查监听器卸载' },
+      '没有发现泄漏。',
+    );
+    await call(
+      'edit_file',
+      { path: 'src/a.ts', old_string: 'const a = 1;', new_string: 'const a = 2;\nconst c = 3;' },
+      'ok',
+    );
+    await call('bash', { command: 'ls -la' }, 'total 0');
+    await call('bash', { command: 'false' }, 'exit 1', true);
+  }
   async function prompt(id, p) {
     const sid = p.sessionId;
     cancelled.delete(sid);
@@ -101,6 +147,7 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       sessionUpdate: 'agent_thought_chunk',
       content: { type: 'text', text: 'thinking…' },
     });
+    if (process.env.NOMI_MOCK_SCENARIO === 'rich') await richTurn(sid);
     const tool = {
       toolCallId: 'call-1',
       title: 'read_file',

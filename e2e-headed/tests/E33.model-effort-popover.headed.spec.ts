@@ -124,12 +124,13 @@ test.describe('E33 model / effort popover', () => {
     await expect(menu.locator('[data-testid="effort-max"]')).toBeVisible();
     await chat.keyboard.press('Escape');
 
-    // Codex：权限模式下拉不出现不支持的「逐项确认」
+    // Codex（app-server）：审批请求能逐项确认，权限下拉五档都有
     await newTab(chat, 'codex');
     await chat.locator('[data-testid="permission-mode-chip"]').click();
     const pm = chat.locator('[data-testid="permission-mode-menu"]');
     await expect(pm.locator('[data-testid="permission-mode-plan"]')).toBeVisible();
-    await expect(pm.locator('[data-testid="permission-mode-manual"]')).toHaveCount(0);
+    await expect(pm.locator('[data-testid="permission-mode-manual"]')).toBeVisible();
+    await expect(pm.locator('[data-testid="permission-mode-auto"]')).toBeVisible();
     await shot(chat, 'codex-permission-menu');
     await chat.keyboard.press('Escape');
 

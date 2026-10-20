@@ -140,7 +140,10 @@ if (args[0] === 'app-server') {
       aggregatedOutput: 'a.txt',
       exitCode: status === 'completed' ? 0 : null,
     });
-    const wait = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
+    // NOMI_MOCK_DELAY_MS 与 exec 模式同义（并发 / 排队测试用），这里异步等待、期间可 turn/interrupt
+    const wait =
+      Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0) +
+      Number(process.env.NOMI_MOCK_DELAY_MS || 0);
     if (wait) await new Promise((r) => setTimeout(r, wait));
     if (interrupted.has(turnId)) return;
     if (process.env.NOMI_MOCK_CODEX_FAIL === '1') {

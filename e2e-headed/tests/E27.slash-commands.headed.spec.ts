@@ -251,24 +251,32 @@ test.describe('E27 · slash commands', () => {
     // 只有 "hello" 一条用户消息：命令没有发给 CLI
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
 
-    // 5) /model：列出并切换 Nomi 里的 CLI 供应商（HOME 是临时目录，写的是临时配置）
-    await invoke(chat, 'ai:cli-provider:upsert', {
+    // 5) /model：与输入框的模型按钮一致——列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    await run(chat, '/model');
+    const list = chat.locator('[data-testid="slash-card-list"]').last();
+    await expect(list).toContainText('Sonnet Mock', SLOW);
+    await expect(list).toContainText('默认模型');
+    await shot(chat, '06-model-list');
+    await run(chat, '/model sonnet');
+    await expect(cards(chat).last()).toContainText('已切换到 Sonnet Mock', SLOW);
+    await expect(chat.locator('[data-testid="model-chip"]')).toContainText('Sonnet Mock', SLOW);
+    // 启用第三方供应商后 /model 列供应商的模型（上游不可达：只留供应商配置的模型），/status 显示供应商
+    // （HOME 是临时目录，写的是临时配置）
+    const profile = (await invoke(chat, 'ai:cli-provider:upsert', {
       kind: 'claude',
       name: 'MockGLM',
       baseUrl: 'http://127.0.0.1:9/anthropic',
       model: 'glm-4.6',
       apiKey: 'e27-fake-key',
-    });
+    })) as { id: string };
+    await invoke(chat, 'ai:cli-provider:activate', profile.id);
     await run(chat, '/model');
-    const list = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(list).toContainText('MockGLM · glm-4.6', SLOW);
-    await shot(chat, '06-model-list');
-    // 切换要写 CLI 配置 + 备份，再重新收集斜杠数据（探测 CLI）；Windows CI 上常超过默认 10s
-    await run(chat, '/model glm');
-    await expect(cards(chat).last()).toContainText('已切换到 MockGLM · glm-4.6', SLOW);
+    const provList = chat.locator('[data-testid="slash-card-list"]').last();
+    await expect(provList).toContainText('glm-4.6', SLOW);
+    await expect(provList).toContainText('MockGLM');
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
-      'MockGLM（Nomi 第三方供应商）',
+      'MockGLM（第三方供应商）',
       SLOW,
     );
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText('glm-4.6');
