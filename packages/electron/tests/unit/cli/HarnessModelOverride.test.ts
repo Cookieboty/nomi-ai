@@ -40,11 +40,14 @@ describe('CliHarnessService model / effort overrides', () => {
     for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () => {
+  const mk = (o: { hasProviderProfile?: (backend: string) => boolean } = {}) => {
     const h = new CliHarnessService({
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: root,
+      // 不读真实的 ~/.codex/config.toml
+      home: root,
+      ...o,
     });
     made.push(h);
     return h;
@@ -57,38 +60,81 @@ describe('CliHarnessService model / effort overrides', () => {
       .filter(Boolean)
       .map((l) => JSON.parse(l) as string[]);
 
-  it('modelCatalogFor 对支持的后端（codex / claude / grok）返回目录', () => {
+  it('模型目录从 CLI 读取（claude initialize / codex debug models / grok ACP）', async () => {
     const h = mk();
-    expect(h.modelCatalogFor('codex')?.backend).toBe('codex');
-    expect(h.modelCatalogFor('claude')?.backend).toBe('claude');
-    expect(h.modelCatalogFor('grok')?.backend).toBe('grok');
-    expect(h.modelCatalogFor('dsh')).toBeNull();
-    expect(h.modelCatalogFor('gemini')).toBeNull();
+    const claude = (await h.modelCatalogFor('claude'))!;
+    expect(claude.error).toBeUndefined();
+    expect(claude.defaultModel?.label).toBe('Opus Mock');
+    expect(claude.models.map((m) => m.id)).toEqual([
+      'opus',
+      'sonnet',
+      'claude-haiku-old',
+      'claude-opus-old',
+    ]);
+    expect(claude.models.find((m) => m.id === 'claude-haiku-old')?.reasoning).toBe(false);
+
+    const codex = (await h.modelCatalogFor('codex'))!;
+    // 只列 visibility=list，按 priority 排序；档位以 CLI 为准（含 ultra）
+    expect(codex.models.map((m) => m.id)).toEqual(['mock-mini', 'mock-pro', 'mock-plain']);
+    expect(codex.models[1]!.efforts).toContain('ultra');
+
+    const grok = (await h.modelCatalogFor('grok'))!;
+    expect(grok.defaultModel?.id).toBe('grok-mock');
+    expect(grok.models[0]!.efforts).toEqual(['low', 'medium', 'high', 'xhigh']);
+
+    expect(await h.modelCatalogFor('dsh')).toBeNull();
+    expect(await h.modelCatalogFor('gemini')).toBeNull();
+  }, 20_000);
+
+  it('目录按后端缓存；refresh 重读；读取失败不缓存并带 error', async () => {
+    const h = mk();
+    const a = await h.modelCatalogFor('codex');
+    expect(await h.modelCatalogFor('codex')).toBe(a);
+    expect(await h.modelCatalogFor('codex', { refresh: true })).not.toBe(a);
+
+    process.env.NOMI_MOCK_MODELS_FAIL = '1';
+    h.recycleBackend('codex');
+    const failed = (await h.modelCatalogFor('codex'))!;
+    expect(failed.models).toEqual([]);
+    expect(failed.error).toContain('failed to refresh models');
+    delete process.env.NOMI_MOCK_MODELS_FAIL;
+    expect((await h.modelCatalogFor('codex'))!.error).toBeUndefined();
+  }, 20_000);
+
+  it('Codex 默认模型 / 档位取 config.toml', async () => {
+    fs.mkdirSync(path.join(root, '.codex'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, '.codex', 'config.toml'),
+      'model = "mock-pro"\nmodel_reasoning_effort = "ultra"\n',
+    );
+    const c = (await mk().modelCatalogFor('codex'))!;
+    expect(c.defaultModel?.id).toBe('mock-pro');
+    expect(c.defaultModel?.defaultEffort).toBe('ultra');
   });
 
-  it('设置 / 清除模型覆盖；切到非推理模型会清掉思考深度', () => {
+  it('设置 / 清除模型覆盖；切到不支持思考深度的模型会清掉档位', async () => {
     const h = mk();
+    await h.modelCatalogFor('codex');
     const tab = h.createTab({ backend: 'codex' });
 
-    const a = h.setTabModel(tab.id, 'gpt-5.6-sol');
-    expect(a.modelOverride).toBe('gpt-5.6-sol');
+    expect(h.setTabModel(tab.id, 'mock-pro').modelOverride).toBe('mock-pro');
+    expect(h.setTabReasoningEffort(tab.id, 'ultra').reasoningEffort).toBe('ultra');
 
-    const withEffort = h.setTabReasoningEffort(tab.id, 'high');
-    expect(withEffort.reasoningEffort).toBe('high');
+    // 换到不支持该档位的模型：档位清掉（回到 CLI 默认）
+    expect(h.setTabModel(tab.id, 'mock-mini').reasoningEffort).toBeNull();
+    expect(() => h.setTabReasoningEffort(tab.id, 'ultra')).toThrow();
 
-    // 非推理模型：思考深度被清除
-    const nonReasoning = h.setTabModel(tab.id, 'gpt-4.1');
-    expect(nonReasoning.modelOverride).toBe('gpt-4.1');
-    expect(nonReasoning.reasoningEffort).toBeNull();
-
-    // 非推理模型上拒绝设置档位
+    // CLI 说不支持思考深度的模型
+    h.setTabReasoningEffort(tab.id, 'high');
+    const plain = h.setTabModel(tab.id, 'mock-plain');
+    expect(plain.reasoningEffort).toBeNull();
     expect(() => h.setTabReasoningEffort(tab.id, 'high')).toThrow();
 
     // 空串清除覆盖
     const cleared = h.setTabModel(tab.id, '');
     expect(cleared.modelOverride).toBeNull();
     expect(cleared.reasoningEffort).toBeNull();
-  });
+  }, 20_000);
 
   it('沿用默认模型（不选模型）时也允许只调思考深度', () => {
     const h = mk();
@@ -111,37 +157,30 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(() => h.setTabReasoningEffort(dsh.id, 'high')).toThrow();
   });
 
-  it('档位必须属于该后端：codex 拒绝 max；claude 拒绝 minimal', () => {
+  it('档位按 CLI 返回的目录校验：Claude 默认模型无 minimal，旧模型无 xhigh', async () => {
     const h = mk();
-    const codex = h.createTab({ backend: 'codex' });
-    expect(() => h.setTabReasoningEffort(codex.id, 'max')).toThrow();
-
+    await h.modelCatalogFor('claude');
     const claude = h.createTab({ backend: 'claude' });
     expect(() => h.setTabReasoningEffort(claude.id, 'minimal')).toThrow();
     expect(h.setTabReasoningEffort(claude.id, 'max').reasoningEffort).toBe('max');
+    h.setTabModel(claude.id, 'claude-opus-old');
+    expect(() => h.setTabReasoningEffort(claude.id, 'xhigh')).toThrow();
+    // 目录外的合法 id 走自定义兜底，档位用目录并集
+    expect(h.setTabModel(claude.id, 'claude-opus-9').modelOverride).toBe('claude-opus-9');
+    expect(h.setTabReasoningEffort(claude.id, 'xhigh').reasoningEffort).toBe('xhigh');
+  }, 20_000);
 
-    const grok = h.createTab({ backend: 'grok' });
-    expect(h.setTabReasoningEffort(grok.id, 'max').reasoningEffort).toBe('max');
-  });
-
-  it('claude / grok 接受各自目录模型与合法自定义模型 id', () => {
+  it('目录还没读到时只校验枚举，由 CLI 自己报错', () => {
     const h = mk();
-    const claude = h.createTab({ backend: 'claude' });
-    expect(h.setTabModel(claude.id, 'sonnet').modelOverride).toBe('sonnet');
-    expect(h.setTabModel(claude.id, 'claude-opus-4-8').modelOverride).toBe('claude-opus-4-8');
-
     const grok = h.createTab({ backend: 'grok' });
-    expect(h.setTabModel(grok.id, 'grok-4.6').modelOverride).toBe('grok-4.6');
-    // grok 非推理模型：档位被清掉
-    const nonReasoning = h.setTabModel(grok.id, 'grok-4-1-fast-non-reasoning');
-    expect(nonReasoning.modelOverride).toBe('grok-4-1-fast-non-reasoning');
-    expect(nonReasoning.reasoningEffort).toBeNull();
+    expect(h.setTabModel(grok.id, 'grok-anything').modelOverride).toBe('grok-anything');
+    expect(h.setTabReasoningEffort(grok.id, 'max').reasoningEffort).toBe('max');
   });
 
   it('允许合法的自定义模型 id（官方新模型兜底）', () => {
     const h = mk();
     const tab = h.createTab({ backend: 'codex' });
-    expect(h.setTabModel(tab.id, 'gpt-7-codex-preview').modelOverride).toBe('gpt-7-codex-preview');
+    expect(h.setTabModel(tab.id, 'Tifa-6-astra').modelOverride).toBe('Tifa-6-astra');
   });
 
   it('发送时把模型 / 档位以 -c 进程级参数传给 codex exec', async () => {
@@ -185,7 +224,7 @@ describe('CliHarnessService model / effort overrides', () => {
     const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId;
     expect(sid).toBeTruthy();
 
-    h.setTabModel(tab.id, 'sonnet');
+    h.setTabModel(tab.id, 'claude-sonnet-5-5');
     h.setTabReasoningEffort(tab.id, 'high');
 
     await h.sendTab(tab.id, '第二轮');
@@ -202,7 +241,7 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(boots[0]).not.toContain('--model');
     const second = boots[1].split(' ');
     expect(second).toContain('--model');
-    expect(second[second.indexOf('--model') + 1]).toBe('sonnet');
+    expect(second[second.indexOf('--model') + 1]).toBe('claude-sonnet-5-5');
     expect(second).toContain('--effort');
     expect(second[second.indexOf('--effort') + 1]).toBe('high');
     expect(second).toContain('--resume');
@@ -219,7 +258,7 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(moved.reasoningEffort).toBeNull();
 
     // 反向同理：claude 覆盖切到 grok 也清掉
-    h.setTabModel(tab.id, 'sonnet');
+    h.setTabModel(tab.id, 'claude-sonnet-5-5');
     h.setTabReasoningEffort(tab.id, 'high');
     h.setTabBackend(tab.id, 'grok');
     const moved2 = h.listTabs().tabs.find((x) => x.id === tab.id)!;
@@ -246,7 +285,7 @@ describe('CliHarnessService model / effort overrides', () => {
     h1.setTabModel(grok.id, 'grok-4.7');
     h1.setTabReasoningEffort(grok.id, 'xhigh');
     const claude = h1.createTab({ backend: 'claude' });
-    h1.setTabModel(claude.id, 'opus');
+    h1.setTabModel(claude.id, 'claude-opus-5-5');
     h1.setTabReasoningEffort(claude.id, 'max');
     h1.dispose();
 
@@ -255,7 +294,7 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(g2.modelOverride).toBe('grok-4.7');
     expect(g2.reasoningEffort).toBe('xhigh');
     const c2 = h2.listTabs().tabs.find((x) => x.id === claude.id)!;
-    expect(c2.modelOverride).toBe('opus');
+    expect(c2.modelOverride).toBe('claude-opus-5-5');
     expect(c2.reasoningEffort).toBe('max');
   });
 
@@ -269,22 +308,68 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(h2.listTabs().tabs.find((x) => x.id === 'main')?.reasoningEffort).toBe('xhigh');
   });
 
-  it('持久化还原时按目标后端档位集校正（codex 的 max 被丢弃）', () => {
+  it('持久化还原时丢弃不认识的档位（目录要等 CLI 读回来，届时再校验）', () => {
     const h1 = mk();
     const tab = h1.createTab({ backend: 'codex' });
-    h1.setTabModel(tab.id, 'gpt-5.6-sol');
+    h1.setTabModel(tab.id, 'mock-pro');
     h1.dispose();
-    // 手动写入一个对 codex 不合法的档位，模拟旧版本 / 脏数据（tab 元数据在 tabs.json）
     const file = path.join(root, 'tabs.json');
     const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
     const target = (raw.tabs as Array<{ id: string; reasoningEffort?: string }>).find(
       (x) => x.id === tab.id,
     )!;
-    target.reasoningEffort = 'max';
+    target.reasoningEffort = 'bogus';
     fs.writeFileSync(file, JSON.stringify(raw));
-    const h2 = mk();
-    const restored = h2.listTabs().tabs.find((x) => x.id === tab.id)!;
-    expect(restored.modelOverride).toBe('gpt-5.6-sol');
+    const restored = mk()
+      .listTabs()
+      .tabs.find((x) => x.id === tab.id)!;
+    expect(restored.modelOverride).toBe('mock-pro');
     expect(restored.reasoningEffort).toBeNull();
   });
+
+  it('第三方供应商启用时不注入覆盖参数，也拒绝设置新覆盖（覆盖保留，停用后恢复）', async () => {
+    let profile = false;
+    const h = mk({ hasProviderProfile: (b) => profile && b === 'codex' });
+    const tab = h.createTab({ backend: 'codex' });
+    h.setTabModel(tab.id, 'gpt-5.6-sol');
+    h.setTabReasoningEffort(tab.id, 'high');
+
+    profile = true;
+    expect(() => h.setTabModel(tab.id, 'gpt-5.5')).toThrow();
+    expect(() => h.setTabReasoningEffort(tab.id, 'low')).toThrow();
+    await h.sendTab(tab.id, '供应商启用');
+    const during = readArgv().at(-1)!;
+    expect(during.some((x) => x.startsWith('model='))).toBe(false);
+    expect(during.some((x) => x.startsWith('model_reasoning_effort='))).toBe(false);
+    // 覆盖本身保留，供应商停用后恢复生效
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)!.modelOverride).toBe('gpt-5.6-sol');
+
+    profile = false;
+    await h.sendTab(tab.id, '供应商停用');
+    expect(readArgv().at(-1)!).toContain('model="gpt-5.6-sol"');
+  });
+
+  it('Claude 有后台任务时切换覆盖不拆进程，后台结束后的下一轮才按新参数重启', async () => {
+    const boot = path.join(root, 'claude-boot.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, '第一轮');
+
+    const lives = (h as unknown as { claudeLive: Map<string, { bgTasks: Set<string> }> })
+      .claudeLive;
+    const live = lives.get(tab.id)!;
+    live.bgTasks.add('task-1');
+
+    h.setTabModel(tab.id, 'claude-sonnet-5-5');
+    expect(lives.get(tab.id)).toBe(live);
+    await h.sendTab(tab.id, '第二轮');
+    expect(lives.get(tab.id)).toBe(live);
+
+    live.bgTasks.clear();
+    await h.sendTab(tab.id, '第三轮');
+    const boots = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
+    expect(boots).toHaveLength(2);
+    expect(boots[1]).toContain('--model claude-sonnet-5-5');
+  }, 20_000);
 });

@@ -1,19 +1,27 @@
 /**
- * 官方账号（CLI 自带登录）路径下的可选模型目录。
+ * 官方账号 / CLI 自带配置路径下的模型目录与覆盖参数。
  *
- * 与「第三方供应商档案」（改写 CLI 配置）互斥：这里只提供「标签级覆盖」的元数据，
+ * 模型列表、每个模型支持的思考档位、默认档位一律从 CLI 自己读取（见 modelDiscovery.ts），
+ * 这里不写死任何模型或档位集：
+ * - Claude Code：stream-json `initialize` 控制请求的 `models`（与 `/model` 选择器同源）
+ * - Codex：`codex debug models`（随当前生效的配置 / 供应商刷新）
+ * - Grok：`grok agent stdio`（ACP）`session/new` 返回的 `models`
+ * Gemini（ACP）/ dsh 暂不支持标签级覆盖。
+ *
+ * 与「第三方供应商」（改写 CLI 配置）互斥：这里只提供「标签级覆盖」的元数据，
  * 覆盖参数在每轮启动时以进程级参数（`-c` / `--model` / `-m` …）注入，不改写用户的
- * 全局 CLI 配置，因此终端里直接运行的 CLI 不受影响（与官方账号只切凭据的原则一致）。
- *
- * 各后端档位取值不同（见各目录的 efforts）；无头模式没有文档化覆盖参数的后端不建目录。
+ * 全局 CLI 配置，因此终端里直接运行的 CLI 不受影响。
  */
 import type { HarnessBackend } from './types';
 
 /** 编程助手后端（排除 Nomi 自有） */
 export type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
-/** 思考深度档位（并集；UI 按模型 / 后端自己的 efforts 子集渲染，顺序即由浅到深） */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/**
+ * 思考深度档位（各 CLI 取值的并集，顺序即由浅到深）。
+ * 只用于识别 / 排序 CLI 返回的值；某个模型实际支持哪些档位以 CLI 返回为准。
+ */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'minimal',
@@ -22,164 +30,97 @@ export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'high',
   'xhigh',
   'max',
+  'ultra',
 ];
 
 export function isReasoningEffort(v: unknown): v is ReasoningEffort {
   return typeof v === 'string' && (REASONING_EFFORTS as readonly string[]).includes(v);
 }
 
+/** 只保留认识的档位，去重并按由浅到深排序（CLI 返回顺序不一，如 Grok 是由深到浅） */
+export function normalizeEfforts(values: readonly unknown[]): ReasoningEffort[] {
+  const set = new Set(values.filter(isReasoningEffort));
+  return REASONING_EFFORTS.filter((e) => set.has(e));
+}
+
 export interface CatalogModel {
-  /** 发给 CLI / API 的模型 id */
+  /** 发给 CLI 的模型值（`--model` / `-m` / `-c model=`） */
   id: string;
-  /** 界面显示名（缺省用 id） */
+  /** CLI 给的显示名（缺省用 id） */
   label?: string;
-  /** 推理模型：支持思考深度切换；非推理模型不显示思考芯片 */
-  reasoning?: boolean;
-  /** 该模型支持的思考档位（缺省：用后端目录的档位集） */
-  efforts?: readonly ReasoningEffort[];
-  /** 该模型的默认思考档位（缺省：不发覆盖参数，沿用 CLI 默认） */
+  description?: string;
+  /** 支持思考深度（CLI 明确说不支持时为 false，界面隐藏滑杆） */
+  reasoning: boolean;
+  /** 该模型支持的档位（CLI 返回，由浅到深） */
+  efforts: ReasoningEffort[];
+  /** CLI 对该模型的默认档位（仅显示用：没选档位时不发参数） */
   defaultEffort?: ReasoningEffort;
-  /** 标记即将停用等状态（置灰 + 说明） */
-  deprecated?: boolean;
 }
 
 export interface BackendModelCatalog {
   backend: CliBackend;
-  /** 该后端思考模型的档位集（模型未单独声明 efforts 时用它） */
-  efforts: readonly ReasoningEffort[];
-  models: readonly CatalogModel[];
+  /** CLI 列出的可选模型（顺序与 CLI 一致） */
+  models: CatalogModel[];
+  /** 不传模型参数时 CLI 实际使用的模型（CLI 能告诉我们时才有） */
+  defaultModel: CatalogModel | null;
+  /** 读取失败的原因（此时 models 为空，界面只保留「默认模型」与自定义 id） */
+  error?: string;
+}
+
+/** 有无头覆盖参数（模型 / 思考深度）的后端；Gemini ACP / dsh 暂无 */
+const OVERRIDE_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'grok'];
+
+export function supportsModelOverride(backend: string): backend is CliBackend {
+  return (OVERRIDE_BACKENDS as readonly string[]).includes(backend);
 }
 
 /**
- * Codex 订阅可用模型（2026-10，自 Codex CLI 0.163.0 二进制模型表实证，构建时间 2026-10-09）。
- * 实际可见性随订阅套餐变化；未收录的新模型用「自定义模型 id」兜底（按字符集校验后透传）。
+ * 模型名是否允许用于该后端：只做字符集校验（目录随账号 / 供应商变化，不能拿来卡死），
+ * 是否真的可用由 CLI 报错说明。
  */
-const CODEX_CATALOG: BackendModelCatalog = {
-  backend: 'codex',
-  // model_reasoning_effort 稳定取值（二进制校验信息实证）
-  efforts: ['minimal', 'low', 'medium', 'high', 'xhigh'],
-  models: [
-    { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', reasoning: true },
-    { id: 'gpt-6-pro', label: 'GPT-6 Pro', reasoning: true },
-    { id: 'gpt-6-astra', label: 'GPT-6 Astra', reasoning: true },
-    { id: 'gpt-6-luna', label: 'GPT-6 Luna', reasoning: true },
-    { id: 'gpt-6-sol', label: 'GPT-6 Sol', reasoning: true },
-    { id: 'gpt-5.6-sol', label: 'GPT-5.6 Sol', reasoning: true },
-    { id: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', reasoning: true },
-    { id: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', reasoning: true },
-    { id: 'gpt-5.5', label: 'GPT-5.5', reasoning: true },
-    { id: 'gpt-5.4', label: 'GPT-5.4', reasoning: true },
-    { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex', reasoning: true },
-    { id: 'gpt-5.2-codex', label: 'GPT-5.2 Codex', reasoning: true },
-    { id: 'gpt-5.2', label: 'GPT-5.2', reasoning: true },
-    { id: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max', reasoning: true },
-    { id: 'gpt-4.1', label: 'GPT-4.1', reasoning: false },
-  ],
-};
-
-/**
- * Claude Code 模型（2026-10，claude --help 与二进制模型表实证）。
- * 用官方文档化的模型别名（fable / opus / sonnet），始终指向最新代，避免目录过期；
- * 具体版本号可用「自定义模型 id」（如 claude-opus-4-8）。
- * --effort 档位：low / medium / high / xhigh / max（--help 实证）。
- * label 保持模型名（界面注记由渲染层 i18n 承担，不在数据里写死语言）。
- */
-const CLAUDE_CATALOG: BackendModelCatalog = {
-  backend: 'claude',
-  efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
-  models: [
-    { id: 'fable', label: 'Fable', reasoning: true },
-    { id: 'opus', label: 'Opus', reasoning: true },
-    { id: 'sonnet', label: 'Sonnet', reasoning: true },
-  ],
-};
-
-/**
- * Grok Build 模型（2026-10，grok.exe 二进制模型表实证；默认模型解析为 grok-4.6）。
- * --reasoning-effort（别名 --effort）校验取值：none/minimal/low/medium/high/xhigh/max。
- * 「none」由「默认 / 不发参数」承担，档位只收五档半（minimal..max）。
- */
-const GROK_CATALOG: BackendModelCatalog = {
-  backend: 'grok',
-  efforts: ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
-  models: [
-    { id: 'grok-4.7', label: 'Grok 4.7', reasoning: true },
-    { id: 'grok-4.7-high-fast', label: 'Grok 4.7 High Fast', reasoning: true },
-    { id: 'grok-4.6', label: 'Grok 4.6', reasoning: true },
-    { id: 'grok-4.5', label: 'Grok 4.5', reasoning: true },
-    { id: 'grok-4.20-0309-reasoning', label: 'Grok 4.20 Reasoning', reasoning: true },
-    { id: 'grok-4-1-fast-nocompact', label: 'Grok 4.1 Fast', reasoning: true },
-    { id: 'grok-4-1-fast-non-reasoning', label: 'Grok 4.1 Fast', reasoning: false },
-  ],
-};
-
-/** 各后端目录（只有有无头覆盖参数的后端出现；Gemini ACP / dsh 暂无文档化参数） */
-const CATALOGS: Partial<Record<CliBackend, BackendModelCatalog>> = {
-  codex: CODEX_CATALOG,
-  claude: CLAUDE_CATALOG,
-  grok: GROK_CATALOG,
-};
-
-export function modelCatalog(backend: CliBackend): BackendModelCatalog | null {
-  return CATALOGS[backend] ?? null;
-}
-
-export function catalogModel(backend: CliBackend, model: string): CatalogModel | null {
-  const c = modelCatalog(backend);
-  if (!c) return null;
-  return c.models.find((m) => m.id === model) ?? null;
-}
-
-/**
- * 模型名是否允许用于该后端：目录内模型，或合法的自定义模型 id。
- * 自定义兜底让官方新上线、目录尚未收录的模型立即可用。
- */
-export function isAllowedModelId(backend: CliBackend, model: string): boolean {
+export function isAllowedModelId(backend: string, model: string): boolean {
   const id = model.trim();
   if (!id || id.length > 128) return false;
-  // 没有模型目录的后端（Gemini / dsh）一律不接受覆盖
-  if (!modelCatalog(backend)) return false;
-  if (catalogModel(backend, id)) return true;
-  // 自定义：厂商模型 id 字符集（字母数字 . _ - : /），不能以 - 开头，不含空白与引号
-  return /^[A-Za-z0-9_][A-Za-z0-9._:/-]*$/.test(id);
+  if (!supportsModelOverride(backend)) return false;
+  // 厂商模型 id 字符集（字母数字 . _ - : / [ ]），不能以 - 开头，不含空白与引号
+  return /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]*$/.test(id);
+}
+
+/** 目录里所有模型档位的并集（未知的自定义模型用它） */
+function catalogEfforts(catalog: BackendModelCatalog): ReasoningEffort[] {
+  return normalizeEfforts(catalog.models.flatMap((m) => m.efforts));
 }
 
 /**
- * 模型支持的思考档位。
- * - 非推理模型（目录内显式标记）：null（界面隐藏思考芯片）
- * - 未知模型（用户自定义的新模型名）：给后端完整档位；是否真正支持由 CLI 返回的错误说明，
- *     避免官方新上线推理模型在目录更新前完全无法调档位
+ * 某个模型（null = 不传模型参数，用 CLI 默认）支持的档位：
+ * - 数组：支持的档位（由 CLI 返回）
+ * - null：CLI 明确说该模型不支持思考深度
+ * - undefined：不知道（目录还没读到 / 读取失败）
+ * 自定义的未知模型给目录并集，让新上线的推理模型在 CLI 目录更新前也能调档位。
  */
 export function effortsForModel(
-  backend: CliBackend,
-  model: string,
-): readonly ReasoningEffort[] | null {
-  const c = modelCatalog(backend);
-  if (!c) return null;
-  const m = catalogModel(backend, model);
-  if (m) {
-    if (!m.reasoning) return null;
-    return m.efforts ?? c.efforts;
-  }
-  return c.efforts;
+  catalog: BackendModelCatalog | null | undefined,
+  model: string | null | undefined,
+): ReasoningEffort[] | null | undefined {
+  if (!catalog || catalog.error) return undefined;
+  const id = model?.trim();
+  const m = id ? catalog.models.find((x) => x.id === id) : catalog.defaultModel;
+  if (m) return m.reasoning && m.efforts.length ? m.efforts : null;
+  const all = catalogEfforts(catalog);
+  return all.length ? all : undefined;
 }
 
-/** 切换模型时把思考档位校正到该模型支持的范围；不支持时返回 null（隐藏思考芯片） */
+/** 换模型 / 还原时把档位校正到该模型支持的范围；不支持或未设置时返回 null（不发参数） */
 export function sanitizeEffort(
-  backend: CliBackend,
-  model: string,
+  catalog: BackendModelCatalog | null | undefined,
+  model: string | null | undefined,
   effort: unknown,
 ): ReasoningEffort | null {
-  const levels = effortsForModel(backend, model);
-  if (!levels) return null;
-  if (isReasoningEffort(effort) && levels.includes(effort)) return effort;
-  return catalogModel(backend, model)?.defaultEffort ?? null;
-}
-
-/** 档位是否属于该后端（未选具体模型、只调档位时用后端档位集校验） */
-export function isBackendEffort(backend: CliBackend, effort: unknown): effort is ReasoningEffort {
-  const c = modelCatalog(backend);
-  return !!c && isReasoningEffort(effort) && c.efforts.includes(effort);
+  if (!isReasoningEffort(effort)) return null;
+  const levels = effortsForModel(catalog, model);
+  if (levels === null) return null;
+  if (levels && !levels.includes(effort)) return null;
+  return effort;
 }
 
 function tomlQuoted(s: string): string {
@@ -188,8 +129,7 @@ function tomlQuoted(s: string): string {
 
 /**
  * 各后端无头模式的进程级覆盖参数（模型 / 思考深度）。
- * 模型合法性（含自定义字符集）由调用方（setTabModel）保证；档位在这里按后端档位集
- * 做最后一道过滤（codex 无 max、claude 无 minimal），模型级子集同样由调用方保证。
+ * 模型合法性由调用方（setTabModel）保证；档位是否被该模型支持由调用方按目录校验。
  * - codex：`-c model="…" -c model_reasoning_effort="…"`（exec 每轮新进程）
  * - grok：`-m <id> --reasoning-effort <level>`（-p 每轮新进程）
  * - claude：`--model <id> --effort <level>`（长驻进程，切换后重启复用，见 CliHarnessService）
@@ -199,24 +139,148 @@ export function overrideArgs(
   o: { model?: string | null; effort?: string | null },
 ): string[] {
   const model = o.model?.trim();
-  const effort = isBackendEffort(backend, o.effort) ? o.effort : null;
+  const effort = isReasoningEffort(o.effort) ? o.effort : null;
+  const args: string[] = [];
   if (backend === 'codex') {
-    const args: string[] = [];
     if (model) args.push('-c', `model=${tomlQuoted(model)}`);
     if (effort) args.push('-c', `model_reasoning_effort=${tomlQuoted(effort)}`);
-    return args;
-  }
-  if (backend === 'grok') {
-    const args: string[] = [];
+  } else if (backend === 'grok') {
     if (model) args.push('-m', model);
     if (effort) args.push('--reasoning-effort', effort);
-    return args;
-  }
-  if (backend === 'claude') {
-    const args: string[] = [];
+  } else if (backend === 'claude') {
     if (model) args.push('--model', model);
     if (effort) args.push('--effort', effort);
-    return args;
   }
-  return [];
+  return args;
+}
+
+type Obj = Record<string, unknown>;
+const asObj = (v: unknown): Obj => (v && typeof v === 'object' ? (v as Obj) : {});
+const asStr = (v: unknown): string | undefined =>
+  typeof v === 'string' && v.trim() ? v.trim() : undefined;
+
+/**
+ * Claude Code：`initialize` 控制响应里的 `models`（与 `/model` 选择器同一份数据）。
+ * value 是传给 `--model` 的值；value = "default" 的那项就是不传参数时的默认模型。
+ */
+export function parseClaudeModels(response: unknown): BackendModelCatalog {
+  const raw = asObj(response).models;
+  const models: CatalogModel[] = [];
+  /** 模型值 → CLI 实际解析到的模型 id（别名按账号解析，如 opus → claude-opus-5-5） */
+  const resolved = new Map<string, string | undefined>();
+  let defaultModel: CatalogModel | null = null;
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const o = asObj(item);
+    const id = asStr(o.value);
+    if (!id) continue;
+    resolved.set(id, asStr(o.resolvedModel));
+    const efforts = normalizeEfforts(
+      Array.isArray(o.supportedEffortLevels) ? o.supportedEffortLevels : [],
+    );
+    const m: CatalogModel = {
+      id,
+      label: asStr(o.displayName),
+      description: asStr(o.description),
+      reasoning: o.supportsEffort === true && efforts.length > 0,
+      efforts,
+    };
+    if (id === 'default') defaultModel = m;
+    else models.push(m);
+  }
+  // 「Default (recommended)」不是模型名：显示名换成它实际解析到的那个模型
+  if (defaultModel) {
+    const target = resolved.get('default');
+    const same = target ? models.find((m) => resolved.get(m.id) === target) : undefined;
+    defaultModel = { ...defaultModel, label: same?.label ?? target ?? defaultModel.label };
+  }
+  return { backend: 'claude', models, defaultModel };
+}
+
+/**
+ * Codex：`codex debug models` 的 JSON。只列 visibility = "list" 的模型（与 `/model` 一致）。
+ * 不传参数时 Codex 用 config.toml 顶层的 `model` / `model_reasoning_effort`：
+ * 默认模型在目录里找得到才认，默认档位以 config 为准（没写时用目录给的模型默认档位）。
+ */
+export function parseCodexModels(
+  json: unknown,
+  config: { model?: string | null; effort?: string | null } = {},
+): BackendModelCatalog {
+  const raw = asObj(json).models;
+  const rows: Array<{ m: CatalogModel; priority: number }> = [];
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const o = asObj(item);
+    const id = asStr(o.slug);
+    if (!id || (o.visibility !== undefined && o.visibility !== 'list')) continue;
+    const levels = Array.isArray(o.supported_reasoning_levels) ? o.supported_reasoning_levels : [];
+    const efforts = normalizeEfforts(levels.map((l) => asObj(l).effort));
+    const def = o.default_reasoning_level;
+    rows.push({
+      m: {
+        id,
+        label: asStr(o.display_name),
+        description: asStr(o.description),
+        reasoning: efforts.length > 0,
+        efforts,
+        ...(isReasoningEffort(def) ? { defaultEffort: def } : {}),
+      },
+      // Codex 按 priority 升序展示
+      priority: typeof o.priority === 'number' ? o.priority : Number.MAX_SAFE_INTEGER,
+    });
+  }
+  const models = rows.sort((a, b) => a.priority - b.priority).map((r) => r.m);
+  const cfg = config.model?.trim();
+  const found = (cfg && models.find((m) => m.id === cfg)) || null;
+  const defaultModel =
+    found && isReasoningEffort(config.effort) && found.efforts.includes(config.effort)
+      ? { ...found, defaultEffort: config.effort }
+      : found;
+  return { backend: 'codex', models, defaultModel };
+}
+
+/**
+ * Grok：ACP `session/new` 的 `models`（availableModels + currentModelId）。
+ * 档位在 `_meta.reasoningEfforts`（带 default 标记）；currentModelId 即不传参数时的默认模型。
+ */
+export function parseGrokModels(sessionResult: unknown): BackendModelCatalog {
+  const ms = asObj(asObj(sessionResult).models);
+  const models: CatalogModel[] = [];
+  for (const item of Array.isArray(ms.availableModels) ? ms.availableModels : []) {
+    const o = asObj(item);
+    const id = asStr(o.modelId);
+    if (!id) continue;
+    const meta = asObj(o._meta);
+    const list = Array.isArray(meta.reasoningEfforts) ? meta.reasoningEfforts.map(asObj) : [];
+    const efforts = normalizeEfforts(list.map((e) => e.value ?? e.id));
+    const def = list.find((e) => e.default === true);
+    const defaultEffort = def ? (def.value ?? def.id) : meta.reasoningEffort;
+    models.push({
+      id,
+      label: asStr(o.name),
+      description: asStr(o.description),
+      reasoning: meta.supportsReasoningEffort !== false && efforts.length > 0,
+      efforts,
+      ...(isReasoningEffort(defaultEffort) ? { defaultEffort } : {}),
+    });
+  }
+  const current = asStr(ms.currentModelId);
+  const defaultModel = (current && models.find((m) => m.id === current)) || null;
+  return { backend: 'grok', models, defaultModel };
+}
+
+/** 读 Codex config.toml 顶层（第一个表头之前）的 `model` 与 `model_reasoning_effort` */
+export function readCodexConfigDefaults(toml: string): {
+  model: string | null;
+  effort: string | null;
+} {
+  const out = { model: null as string | null, effort: null as string | null };
+  for (const line of toml.split(/\r?\n/)) {
+    const s = line.trim();
+    if (s.startsWith('[')) break;
+    const m = /^(model|model_reasoning_effort)\s*=\s*(["'])(.*?)\2/.exec(s);
+    if (!m) continue;
+    const v = m[3]!.trim() || null;
+    if (m[1] === 'model') out.model = v;
+    else out.effort = v;
+  }
+  return out;
 }

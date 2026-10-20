@@ -11,6 +11,51 @@ if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write('codex-cli 0.0.0-mock\n');
   process.exit(0);
 }
+// codex debug models：与真实 CLI 同形的模型目录 JSON（NOMI_MOCK_MODELS_FAIL=1 模拟失败）
+if (args[0] === 'debug' && args[1] === 'models') {
+  if (process.env.NOMI_MOCK_MODELS_FAIL === '1') {
+    process.stderr.write('Error: failed to refresh models\n');
+    process.exit(1);
+  }
+  const lv = (...e) => e.map((effort) => ({ effort, description: effort }));
+  process.stdout.write(
+    JSON.stringify({
+      models: [
+        {
+          slug: 'mock-pro',
+          display_name: 'Mock Pro',
+          visibility: 'list',
+          priority: 2,
+          default_reasoning_level: 'medium',
+          supported_reasoning_levels: lv('low', 'medium', 'high', 'xhigh', 'max', 'ultra'),
+        },
+        {
+          slug: 'mock-mini',
+          display_name: 'Mock Mini',
+          visibility: 'list',
+          priority: 1,
+          default_reasoning_level: 'low',
+          supported_reasoning_levels: lv('low', 'medium', 'high'),
+        },
+        {
+          slug: 'mock-plain',
+          display_name: 'Mock Plain',
+          visibility: 'list',
+          priority: 3,
+          supported_reasoning_levels: [],
+        },
+        {
+          slug: 'mock-hidden',
+          display_name: 'Mock Hidden',
+          visibility: 'hide',
+          priority: 0,
+          supported_reasoning_levels: lv('low'),
+        },
+      ],
+    }),
+  );
+  process.exit(0);
+}
 if (args.includes('update')) {
   process.stdout.write('Already up to date\n');
   process.exit(0);

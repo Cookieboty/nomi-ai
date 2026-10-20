@@ -698,6 +698,40 @@ if (streamIn) {
       return;
     }
     if (parsed.kind === 'control_request') {
+      // initialize：与真实 CLI 一样在响应里带 models（Nomi 据此列模型，不写死）
+      if (parsed.j?.request?.subtype === 'initialize') {
+        const effort = ['low', 'medium', 'high', 'xhigh', 'max'];
+        const m = (value, resolvedModel, displayName, levels = effort) => ({
+          value,
+          resolvedModel,
+          displayName,
+          description: `${displayName} (mock)`,
+          ...(levels ? { supportsEffort: true, supportedEffortLevels: levels } : {}),
+        });
+        emit({
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: parsed.j.request_id,
+            response: {
+              commands: [],
+              models: [
+                m('default', 'claude-opus-mock', 'Default (recommended)'),
+                m('opus', 'claude-opus-mock', 'Opus Mock'),
+                m('sonnet', 'claude-sonnet-mock', 'Sonnet Mock'),
+                m('claude-haiku-old', 'claude-haiku-old', 'Haiku Old', null),
+                m('claude-opus-old', 'claude-opus-old', 'Opus Old', [
+                  'low',
+                  'medium',
+                  'high',
+                  'max',
+                ]),
+              ],
+            },
+          },
+        });
+        return;
+      }
       // interrupt 等：直接退出，模拟被中止
       if (parsed.j?.request?.subtype === 'interrupt') {
         process.exit(0);

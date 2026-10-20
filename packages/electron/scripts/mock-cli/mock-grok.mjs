@@ -37,6 +37,51 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
   await new Promise(() => {});
 }
 
+// grok agent stdio：最小 ACP（initialize / session/new 带 models / session/close），供 Nomi 读模型目录
+if (args[0] === 'agent' && args[1] === 'stdio') {
+  const { createInterface } = await import('node:readline');
+  const reply = (id, result) =>
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
+  const efforts = (...v) =>
+    v.map((value) => ({ id: value, value, label: value, default: value === 'high' }));
+  createInterface({ input: process.stdin }).on('line', (line) => {
+    let j;
+    try {
+      j = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (j.method === 'initialize') reply(j.id, { protocolVersion: 1, agentCapabilities: {} });
+    else if (j.method === 'session/new')
+      reply(j.id, {
+        sessionId: 'session-mock-models',
+        models: {
+          currentModelId: 'grok-mock',
+          availableModels: [
+            {
+              modelId: 'grok-mock',
+              name: 'Grok Mock',
+              _meta: {
+                supportsReasoningEffort: true,
+                reasoningEfforts: efforts('xhigh', 'high', 'medium', 'low'),
+              },
+            },
+            {
+              modelId: 'grok-mock-old',
+              name: 'Grok Mock Old',
+              _meta: {
+                supportsReasoningEffort: true,
+                reasoningEfforts: efforts('high', 'medium', 'low'),
+              },
+            },
+          ],
+        },
+      });
+    else if (j.method === 'session/close') reply(j.id, {});
+  });
+  await new Promise(() => {});
+}
+
 const flag = (name) => {
   const i = args.indexOf(name);
   return i >= 0 ? args[i + 1] : undefined;

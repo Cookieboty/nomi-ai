@@ -22,6 +22,7 @@ import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
+import { codexConfigPath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
@@ -43,12 +44,13 @@ import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   effortsForModel,
   isAllowedModelId,
-  isBackendEffort,
   isReasoningEffort,
-  modelCatalog,
   overrideArgs,
   sanitizeEffort,
+  supportsModelOverride,
+  type BackendModelCatalog,
 } from './modelCatalog';
+import { discoverModels } from './modelDiscovery';
 import {
   DEFAULT_PERMISSION_MODE,
   claudeModeName,
@@ -280,6 +282,9 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   return resolveCliBinCached(backend);
 }
 
+/** 模型目录缓存时长：CLI 升级 / 官方目录更新后最迟这么久会重新读到 */
+const MODEL_CATALOG_TTL_MS = 10 * 60_000;
+
 const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
@@ -356,6 +361,12 @@ export class CliHarnessService {
   private readonly recentPath: string;
   private recent: string[] = [];
   readonly events = new EventEmitter();
+  /** 各 CLI 的模型目录缓存（从 CLI 读取，见 modelCatalogFor） */
+  private readonly modelCatalogs = new Map<
+    HarnessBackend,
+    { at: number; catalog: BackendModelCatalog }
+  >();
+  private readonly modelCatalogInflight = new Map<HarnessBackend, Promise<BackendModelCatalog>>();
 
   constructor(
     private readonly d: {
@@ -363,12 +374,14 @@ export class CliHarnessService {
       logger: Logger;
       home?: string;
       defaultCwd?: string;
-      /** 启动 dsh 时注入的额外环境变量（例如启用档案的 NOMI_DSH_API_KEY） */
+      /** 启动 dsh 时注入的额外环境变量（例如启用第三方供应商的 NOMI_DSH_API_KEY） */
       dshEnv?: () => Record<string, string>;
-      /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
+      /** 启动 Grok 时注入的额外环境变量（例如启用第三方供应商写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
-      /** Gemini 第三方档案（CliProviderBridge.geminiEnv） */
+      /** Gemini 第三方供应商（CliProviderBridge.geminiEnv） */
       geminiEnv?: () => Record<string, string>;
+      /** 该 CLI 是否启用了第三方供应商（启用时模型由供应商管理，标签级模型 / 思考覆盖不注入） */
+      hasProviderProfile?: (backend: CliBackend) => boolean;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -671,7 +684,7 @@ export class CliHarnessService {
     return this.state();
   }
 
-  /** 放弃待带入的前文（输入栏「带上前文」芯片上的 ×） */
+  /** 放弃待带入的前文（输入栏「带上前文」按钮上的 ×） */
   clearTabCarry(id: string): HarnessTabMeta {
     const tab = this.requireTab(id);
     this.setCarried(tab, null);
@@ -1010,9 +1023,62 @@ export class CliHarnessService {
     return { ...tab, degraded: next.degraded };
   }
 
-  /** 官方账号后端的可选模型目录（无目录的后端返回 null，界面不显示模型芯片） */
-  modelCatalogFor(backend: HarnessBackend) {
-    return modelCatalog(backend as CliBackend);
+  /**
+   * 该后端的模型目录，从 CLI 自己读取（见 modelDiscovery.ts，不写死）。
+   * 不支持标签级覆盖的后端返回 null（界面不显示按钮）；读取失败返回带 error 的空目录
+   * （界面只保留「默认模型」与自定义 id）。结果按后端缓存，refresh 强制重读；
+   * 切换官方账号 / 启用或停用第三方供应商时由 recycleBackend 清掉缓存。
+   */
+  async modelCatalogFor(
+    backend: HarnessBackend,
+    opts: { refresh?: boolean } = {},
+  ): Promise<BackendModelCatalog | null> {
+    if (!supportsModelOverride(backend)) return null;
+    const cached = this.modelCatalogs.get(backend);
+    if (!opts.refresh && cached && Date.now() - cached.at < MODEL_CATALOG_TTL_MS) {
+      return cached.catalog;
+    }
+    const inflight = this.modelCatalogInflight.get(backend);
+    if (inflight) return inflight;
+    const run = discoverModels(backend, {
+      spawn: (b, args) => {
+        const bin = resolveHarnessBin(b);
+        if (!bin) return null;
+        const useNode = isScript(bin);
+        let extra: Record<string, string> = {};
+        try {
+          extra = (b === 'grok' ? this.d.grokEnv?.() : undefined) ?? {};
+        } catch (e) {
+          this.d.logger.warn('harness grok env failed', e);
+        }
+        return spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...args] : args, {
+          cwd: os.tmpdir(),
+          env: cliChildEnv(useNode, extra),
+        });
+      },
+      codexConfigPath: process.env.CODEX_HOME
+        ? path.join(process.env.CODEX_HOME, 'config.toml')
+        : codexConfigPath(this.home),
+    })
+      .catch((e: unknown): BackendModelCatalog => {
+        const error = e instanceof Error ? e.message : String(e);
+        this.d.logger.warn('harness model discovery failed', { backend, error });
+        return { backend, models: [], defaultModel: null, error };
+      })
+      .then((catalog) => {
+        // 失败结果不缓存，下次打开浮层再试
+        if (catalog.error) this.modelCatalogs.delete(backend);
+        else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
+        return catalog;
+      })
+      .finally(() => this.modelCatalogInflight.delete(backend));
+    this.modelCatalogInflight.set(backend, run);
+    return run;
+  }
+
+  /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
+  private cachedCatalog(backend: HarnessBackend): BackendModelCatalog | null {
+    return this.modelCatalogs.get(backend)?.catalog ?? null;
   }
 
   /**
@@ -1024,9 +1090,11 @@ export class CliHarnessService {
    */
   setTabModel(id: string, model: string): HarnessTabMeta {
     const tab = this.requireTab(id);
-    const backend = tab.backend as CliBackend;
-    if (!modelCatalog(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    const backend = tab.backend;
+    if (!supportsModelOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
     const name = model.trim();
+    if (name && this.profileManaged(tab))
+      throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
     if (!name) {
       if (tab.modelOverride || tab.reasoningEffort) {
         tab.modelOverride = null;
@@ -1039,8 +1107,8 @@ export class CliHarnessService {
     if (!isAllowedModelId(backend, name)) throw new Error(t('模型名不合法'));
     if (tab.modelOverride !== name) {
       tab.modelOverride = name;
-      // 非推理模型（目录内显式标记）：思考芯片不显示，已选档位清掉
-      tab.reasoningEffort = sanitizeEffort(backend, name, tab.reasoningEffort);
+      // CLI 说不支持思考深度 / 不支持当前档位的模型：已选档位清掉（回到 CLI 默认）
+      tab.reasoningEffort = sanitizeEffort(this.cachedCatalog(backend), name, tab.reasoningEffort);
       this.changed();
       this.recycleLiveForOverride(tab);
     }
@@ -1049,12 +1117,12 @@ export class CliHarnessService {
 
   /**
    * 设置标签的思考深度（仅推理模型）。传 null 清除（沿用 CLI 默认档位）。
-   * 只接受有模型目录的后端；档位必须是该后端 / 模型支持的枚举。
-   * 未选具体模型（沿用 CLI 默认推理模型）时允许只设档位。
+   * 只接受支持覆盖的后端；目录已读到时档位必须是该模型（未选模型 = CLI 默认模型）
+   * 在 CLI 里声明支持的，目录还没读到时只校验枚举，由 CLI 自己报错。
    */
   setTabReasoningEffort(id: string, effort: string | null): HarnessTabMeta {
     const tab = this.requireTab(id);
-    const backend = tab.backend as CliBackend;
+    const backend = tab.backend;
     if (effort === null) {
       if (tab.reasoningEffort) {
         tab.reasoningEffort = null;
@@ -1063,18 +1131,12 @@ export class CliHarnessService {
       }
       return { ...tab };
     }
-    if (!modelCatalog(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!supportsModelOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (this.profileManaged(tab)) throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
     if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
-    const model = tab.modelOverride?.trim();
-    // 未选具体模型（沿用 CLI 默认模型）：用后端档位集校验；
-    // 显式选了非推理模型 / 模型不支持该档位时拒绝
-    if (model) {
-      const levels = effortsForModel(backend, model);
-      if (!levels) throw new Error(t('这个模型不支持思考深度'));
-      if (!levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
-    } else if (!isBackendEffort(backend, effort)) {
-      throw new Error(t('这个模型不支持该思考深度'));
-    }
+    const levels = effortsForModel(this.cachedCatalog(backend), tab.modelOverride);
+    if (levels === null) throw new Error(t('这个模型不支持思考深度'));
+    if (levels && !levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
     if (tab.reasoningEffort !== effort) {
       tab.reasoningEffort = effort;
       this.changed();
@@ -1085,13 +1147,29 @@ export class CliHarnessService {
 
   /**
    * 模型 / 思考深度覆盖变化后回收长驻 CLI 进程（目前只有 Claude）。
-   * 每轮新进程的后端（codex / grok / dsh）无需处理。仅在空闲（无进行中轮次）时回收，
-   * 进行中则等本轮结束——覆盖本就约定「下一条消息起生效」。
+   * 每轮新进程的后端（codex / grok / dsh）无需处理。仅在空闲时回收：
+   * 进行中的轮次、后台任务、自发轮次都等它们结束——覆盖本就约定「下一条消息起生效」，
+   * 拆进程会把还在跑的后台子代理一起杀掉（与空闲回收的 backgroundActive 判定一致）。
    */
   private recycleLiveForOverride(tab: HarnessTabMeta) {
     if (tab.backend !== 'claude') return;
     const live = this.claudeLive.get(tab.id);
-    if (live && !live.turn) this.teardownClaudeLive(tab.id);
+    if (live && !live.turn && !claudeBackgroundActive(live)) this.teardownClaudeLive(tab.id);
+  }
+
+  /** 该标签所在 CLI 启用了第三方供应商：模型由供应商管理，标签级覆盖不生效 */
+  private profileManaged(tab: HarnessTabMeta): boolean {
+    return tab.backend !== 'nomi' && this.d.hasProviderProfile?.(tab.backend) === true;
+  }
+
+  /**
+   * 本轮实际注入的模型 / 思考深度。供应商启用时一律不注入：供应商已把模型写进 CLI 配置 / 环境变量，
+   * 进程级 -c model= / --model 优先级更高，会把官方模型名发到第三方端点。
+   * 覆盖本身保留（供应商停用后恢复生效），只是不下发。
+   */
+  private effectiveOverrides(tab: HarnessTabMeta): { model: string | null; effort: string | null } {
+    if (this.profileManaged(tab)) return { model: null, effort: null };
+    return { model: tab.modelOverride?.trim() || null, effort: tab.reasoningEffort ?? null };
   }
 
   /** 新标签默认档与 Codex 联网开关（设置页） */
@@ -1124,33 +1202,28 @@ export class CliHarnessService {
   }
 
   /**
-   * 重启后还原模型 / 思考深度覆盖：没有模型目录的后端一律丢弃；
-   * 模型名校验（含自定义字符集）；思考档位必须匹配该模型，否则丢弃档位。
+   * 重启后还原模型 / 思考深度覆盖：不支持覆盖的后端一律丢弃；
+   * 模型名做字符集校验；档位只校验枚举（目录要等 CLI 读回来，届时由 CLI 报错兜底）。
    */
   private restoreOverrides(
     tab: HarnessTabMeta,
     raw: { modelOverride?: unknown; reasoningEffort?: unknown },
   ) {
-    if (tab.backend === 'nomi' || !modelCatalog(tab.backend as CliBackend)) {
+    const backend = tab.backend;
+    if (!supportsModelOverride(backend)) {
       tab.modelOverride = null;
       tab.reasoningEffort = null;
       return;
     }
-    const backend = tab.backend as CliBackend;
     const model = typeof raw.modelOverride === 'string' ? raw.modelOverride.trim() : '';
-    // 允许「只设思考深度、沿用 CLI 默认模型」：模型为空时档位经枚举校验后保留
-    if (!model) {
-      tab.modelOverride = null;
-      tab.reasoningEffort = isReasoningEffort(raw.reasoningEffort) ? raw.reasoningEffort : null;
-      return;
-    }
-    if (!isAllowedModelId(backend, model)) {
+    // 允许「只设思考深度、沿用 CLI 默认模型」
+    if (model && !isAllowedModelId(backend, model)) {
       tab.modelOverride = null;
       tab.reasoningEffort = null;
       return;
     }
-    tab.modelOverride = model;
-    tab.reasoningEffort = sanitizeEffort(backend, model, raw.reasoningEffort);
+    tab.modelOverride = model || null;
+    tab.reasoningEffort = isReasoningEffort(raw.reasoningEffort) ? raw.reasoningEffort : null;
   }
 
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
@@ -1477,12 +1550,16 @@ export class CliHarnessService {
 
   private ensureClaudeLive(tab: HarnessTabMeta): ClaudeLiveSession {
     const existing = this.claudeLive.get(tab.id);
+    const overrides = this.effectiveOverrides(tab);
     if (
       existing &&
       existing.cwd === tab.cwd &&
       existing.permissionMode === tab.permissionMode &&
-      existing.modelOverride === (tab.modelOverride ?? null) &&
-      existing.reasoningEffort === (tab.reasoningEffort ?? null) &&
+      // 只差模型 / 思考深度时，后台任务还在跑就先沿用旧进程（拆了会杀掉后台子代理），
+      // 等后台结束后的下一条消息再按新参数重启
+      ((existing.modelOverride === overrides.model &&
+        existing.reasoningEffort === overrides.effort) ||
+        claudeBackgroundActive(existing)) &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
       existing.child.signalCode === null
@@ -1507,10 +1584,7 @@ export class CliHarnessService {
       '--replay-user-messages',
       ...permissionLaunch('claude', tab.permissionMode).args,
       // 标签级模型 / 思考深度（长驻进程，随复用键变化而重启）
-      ...overrideArgs('claude', {
-        model: tab.modelOverride,
-        effort: tab.reasoningEffort,
-      }),
+      ...overrideArgs('claude', overrides),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
@@ -1524,8 +1598,8 @@ export class CliHarnessService {
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
-      modelOverride: tab.modelOverride ?? null,
-      reasoningEffort: tab.reasoningEffort ?? null,
+      modelOverride: overrides.model,
+      reasoningEffort: overrides.effort,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -2045,7 +2119,7 @@ export class CliHarnessService {
           permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
           resumable: Boolean(this.tabs.get(id)?.cliSessionId),
-          backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
+          backgroundActive: claudeBackgroundActive(live),
         })),
       ],
       now,
@@ -2068,6 +2142,8 @@ export class CliHarnessService {
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
   recycleBackend(kind: HarnessBackend): void {
+    // 换了账号 / 供应商：可选模型跟着变，下次打开浮层重新从 CLI 读
+    this.modelCatalogs.delete(kind);
     if (kind === 'gemini') {
       // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
       for (const [id, gl] of [...this.geminiLive.entries()]) {
@@ -2151,10 +2227,7 @@ export class CliHarnessService {
       codexNetwork: this.codexNetwork,
     }).args;
     // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）
-    const modelArgs = overrideArgs('codex', {
-      model: tab.modelOverride,
-      effort: tab.reasoningEffort,
-    });
+    const modelArgs = overrideArgs('codex', this.effectiveOverrides(tab));
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const argv = useNode
       ? tab.cliSessionId
@@ -2239,10 +2312,7 @@ export class CliHarnessService {
       '--no-auto-update',
       ...permissionLaunch('grok', tab.permissionMode).args,
       // 标签级模型 / 思考深度覆盖（进程级 -m / --reasoning-effort，不写全局配置）
-      ...overrideArgs('grok', {
-        model: tab.modelOverride,
-        effort: tab.reasoningEffort,
-      }),
+      ...overrideArgs('grok', this.effectiveOverrides(tab)),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
@@ -2293,7 +2363,7 @@ export class CliHarnessService {
       const imageAliases = loadImageAliases(chatRoot);
       const child = spawnHarness(opts.cmd, opts.argv, {
         cwd: tab.cwd,
-        // 剔除 Nomi 内部变量；只有该后端自己的档案（opts.env）才会注入额外变量
+        // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
         // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
         env: cliChildEnv(Boolean(opts.asNode), opts.env),
       });
@@ -2632,8 +2702,10 @@ export class CliHarnessService {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
       }),
     );
-    handle('ai:harness:model-catalog', (b) =>
-      this.modelCatalogFor(String(b ?? '') as HarnessBackend),
+    handle('ai:harness:model-catalog', (b, o) =>
+      this.modelCatalogFor(String(b ?? '') as HarnessBackend, {
+        refresh: (o as { refresh?: unknown } | undefined)?.refresh === true,
+      }),
     );
     handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
     handle('ai:harness:tab-effort', (id, e) =>
@@ -2713,6 +2785,11 @@ type GeminiLiveSession = {
   /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
   recycleAfterTurn?: boolean;
 };
+
+/** 长驻 Claude 进程上还有后台任务或自发轮次在跑（拆进程会把它们一起杀掉） */
+function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
+  return live.bgTasks.size > 0 || live.auto !== null;
+}
 
 type ClaudeLiveSession = {
   child: ChildProcessWithoutNullStreams;
