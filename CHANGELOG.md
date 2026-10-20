@@ -229,6 +229,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 标签栏的并发上限改成小按钮「运行数/上限」（排队时显示「· 排队 N」），点开是与应用主题一致的弹层：一句说明 + 1–8 的按钮选择上限，不再使用样式跟不上主题的系统下拉框。 (`@nomi-ai/ai-chat` patch)
 - 用量面板：订阅额度改为按工具 Tabs + 可扩展卡片（登录方式 / 额度 / 用量费用 / 状态）；修复 Windows 上 Grok 订阅额度探测（`.cmd` 解成 node+script，避免 ACP stdin 被 cmd 打断）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 界面样式修正：看板娘「选择角色」卡片在浅色主题下角色名看不清、选中描边不随主题的问题已修复；命令面板等处的高亮颜色跟随主题； (`@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ui` patch)
+- 界面样式统一（第三轮）：所有弹出菜单与浮层统一圆角、内边距、阴影与菜单项行高，选中 / 悬停效果一致； (`@nomi-ai/ai-chat` patch, `@nomi-ai/ui` patch)
 - 界面样式统一（第二轮）：输入栏工具行的所有按钮（更多、插件、后端、模型、权限、语音、发送）统一为同一高度与胶囊形； (`@nomi-ai/ai-chat` patch, `@nomi-ai/ui` minor, `@nomi-ai/voice` minor)
 - 知识库回答改用会话里同一个 Markdown 渲染器（不再显示原始 Markdown），正文中的 [n] 仍是可点击的引用；恢复引用编号、来源卡片和来源预览丢失的样式（#65）。 (`@nomi-ai/ai-chat` patch)
 - 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/renderer` minor, `@nomi-ai/types` minor)
