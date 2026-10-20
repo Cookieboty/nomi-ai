@@ -958,6 +958,52 @@ describe('CliHarnessService permission modes', () => {
     expect(auto[auto.length - 1]).toBe('do it');
   });
 
+  it.each(['.js', '.mjs'])(
+    'Codex 的 %s 入口同样带沙箱 / 审批参数（新建与续接，#73）',
+    async (ext) => {
+      const dir = scriptDir('harness-perm-codex-script-');
+      const log = path.join(dir, 'argv.log');
+      const bin = path.join(dir, `codex-entry${ext}`);
+      fs.writeFileSync(
+        bin,
+        [
+          ext === '.mjs' ? "import fs from 'node:fs';" : "const fs = require('node:fs');",
+          `fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(process.argv.slice(2)) + '\\n');`,
+          "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+          "emit({ type: 'thread.started', thread_id: 'codex-thread' });",
+          "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: 'ok' } });",
+        ].join('\n'),
+      );
+      process.env.NOMI_CODEX_BIN = bin;
+      const h = mk(dir);
+      const tab = h.createTab({ backend: 'codex', permissionMode: 'plan' });
+      await h.sendTab(tab.id, 'plan it');
+      h.setTabPermissionMode(tab.id, 'auto');
+      await h.sendTab(tab.id, 'do it');
+      const [plan, auto] = fs
+        .readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as string[]);
+      // 新建：exec + 计划档的只读沙箱 + 工作目录
+      expect(plan[0]).toBe('exec');
+      expect(plan).toContain('sandbox_mode="read-only"');
+      expect(plan).toEqual(expect.arrayContaining(['--skip-git-repo-check', '--cd', tab.cwd]));
+      expect(plan[plan.length - 1]).toMatch(/^You are in plan mode[\s\S]*plan it$/);
+      // 续接：exec resume + 自动档参数，会话 id 与提示仍在最后
+      expect(auto.slice(0, 2)).toEqual(['exec', 'resume']);
+      expect(auto).toEqual(
+        expect.arrayContaining([
+          'sandbox_mode="workspace-write"',
+          'approval_policy="on-request"',
+          'approvals_reviewer="auto_review"',
+        ]),
+      );
+      expect(auto.slice(-2)).toEqual(['codex-thread', 'do it']);
+    },
+    20_000,
+  );
+
   itPosix('sets DSH_PERMISSION_MODE for dsh', async () => {
     const dir = scriptDir('harness-perm-dsh-');
     const r = recorder(dir, mockDsh);

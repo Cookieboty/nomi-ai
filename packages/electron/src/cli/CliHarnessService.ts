@@ -2421,34 +2421,32 @@ export class CliHarnessService {
     // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）
     const modelArgs = overrideArgs('codex', this.effectiveOverrides(tab));
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
-    const argv = useNode
-      ? tab.cliSessionId
-        ? [bin, 'exec', 'resume', '--json', ...modelArgs, tab.cliSessionId, prompt]
-        : [bin, 'exec', '--json', ...modelArgs, prompt]
-      : tab.cliSessionId
-        ? [
-            'exec',
-            'resume',
-            '--json',
-            '--skip-git-repo-check',
-            ...sandbox,
-            ...modelArgs,
-            tab.cliSessionId,
-            prompt,
-          ]
-        : [
-            'exec',
-            '--json',
-            '--skip-git-repo-check',
-            ...sandbox,
-            ...modelArgs,
-            '--cd',
-            tab.cwd,
-            prompt,
-          ];
+    // 同一份逻辑参数：.js / .mjs 入口只是经 node 启动、前面多一个脚本路径，
+    // 沙箱 / 审批 / 联网参数不能因入口形式不同而丢掉（#73）
+    const argv = tab.cliSessionId
+      ? [
+          'exec',
+          'resume',
+          '--json',
+          '--skip-git-repo-check',
+          ...sandbox,
+          ...modelArgs,
+          tab.cliSessionId,
+          prompt,
+        ]
+      : [
+          'exec',
+          '--json',
+          '--skip-git-repo-check',
+          ...sandbox,
+          ...modelArgs,
+          '--cd',
+          tab.cwd,
+          prompt,
+        ];
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
-      argv,
+      argv: useNode ? [bin, ...argv] : argv,
       parseLine: parseCodexLine,
       kind: 'codex',
       asNode: useNode,

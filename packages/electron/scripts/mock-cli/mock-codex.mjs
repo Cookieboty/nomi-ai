@@ -107,9 +107,14 @@ if (args[0] === 'login' && args.includes('--device-auth')) {
     const argvLog = process.env.NOMI_MOCK_ARGV_LOG;
     if (argvLog) appendFileSync(argvLog, `${JSON.stringify(args)}\n`);
   }
-  // exec resume [...flags] <id> <prompt>：续接历史会话
+  // exec resume [...flags] <id> <prompt>：续接历史会话。带值的参数（-c key=value、--cd dir 等）
+  // 的值不是位置参数，跳过它们才拿得到会话 id
+  const VALUE_FLAGS = new Set(['-c', '--config', '-m', '--model', '--cd', '-C', '-s', '--sandbox']);
+  const positional = args.filter(
+    (a, i) => !a.startsWith('-') && !(i > 0 && VALUE_FLAGS.has(args[i - 1])),
+  );
   const resumeAt = args.indexOf('resume');
-  const resumed = resumeAt >= 0 ? args.filter((a) => !a.startsWith('-')).slice(2)[0] : '';
+  const resumed = resumeAt >= 0 ? positional.slice(2)[0] : '';
   const ownThread = process.env.NOMI_MOCK_SESSION || 'mock-codex-thread-1';
   // 只有续接「别的」会话（历史会话）才改回复，普通多轮对话的回复保持不变
   const foreign = resumed && resumed !== ownThread;
