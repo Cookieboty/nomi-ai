@@ -11,6 +11,8 @@ export interface Rect {
   y: number;
   width: number;
   height: number;
+  /** display scale factor (DIP → physical px), when known */
+  scaleFactor?: number;
 }
 
 /** 角色在窗口内的包围盒（窗口像素） */

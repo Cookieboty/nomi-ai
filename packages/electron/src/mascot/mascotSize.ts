@@ -31,6 +31,38 @@ export interface AreaRect {
   y: number;
   width: number;
   height: number;
+  /** display scale factor (DIP → physical px); 1 when unknown */
+  scaleFactor?: number;
+}
+
+/**
+ * Bottom edge (DIP, relative to the area origin) a window will really report after the OS maps
+ * it to physical pixels and back. Chromium converts both ways with an enclosing rect (origin
+ * floored, far edge ceiled), so under fractional scaling (125%, 150%, …) a window whose DIP bottom
+ * is exactly on the work-area edge can come back 1px lower.
+ */
+export function physicalBottom(top: number, height: number, scaleFactor = 1): number {
+  const sf = Number.isFinite(scaleFactor) && scaleFactor > 0 ? scaleFactor : 1;
+  if (sf === 1) return top + height;
+  const eps = 1e-9;
+  const pb = Math.ceil((top + height) * sf - eps);
+  return Math.ceil(pb / sf - eps);
+}
+
+/**
+ * Largest window top (DIP) such that the window still fits above `area`'s bottom edge after
+ * DIP ⇄ physical rounding; never below `area.y`.
+ */
+export function maxTopInArea(area: AreaRect, height: number): number {
+  const bottom = area.y + area.height;
+  let y = Math.floor(bottom - height);
+  const sf = area.scaleFactor ?? 1;
+  // a couple of px at most (rounding error < 1 physical px per edge)
+  for (let i = 0; i < 4 && y > area.y; i++) {
+    if (area.y + physicalBottom(y - area.y, height, sf) <= bottom) break;
+    y -= 1;
+  }
+  return y;
 }
 
 /**
@@ -185,7 +217,7 @@ export function resizeMascotBounds(input: {
     const lo = area.x - visLeft;
     const hi = area.x + area.width - visRight;
     x = hi >= lo ? Math.min(hi, Math.max(lo, x)) : lo;
-    const yHi = area.y + area.height - next.height;
+    const yHi = maxTopInArea(area, next.height);
     y = yHi >= area.y ? Math.min(yHi, Math.max(area.y, y)) : area.y;
   }
   return { x, y, width: next.width, height: next.height };

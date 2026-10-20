@@ -387,7 +387,9 @@ export class MascotWindowController {
   }
 
   private refreshDisplays(): void {
-    this.workAreas = screen.getAllDisplays().map((d) => ({ ...d.workArea }));
+    this.workAreas = screen
+      .getAllDisplays()
+      .map((d) => ({ ...d.workArea, scaleFactor: d.scaleFactor }));
   }
 
   private env(): PhysicsEnv | null {
