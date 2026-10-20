@@ -1,4 +1,4 @@
-# Nomi·诺米 Clothing Swap Contract（R31d → R33a socks）
+# Nomi·诺米 Clothing Swap Contract（R31d → R33a socks / R33b thigh-strap）
 
 **日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
 **状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
@@ -41,7 +41,7 @@
 - **Images**: `full.shorts.image`
 - **Assets**: `shorts.png`
 - **Bones**: pelvis + leg upper
-- **隐藏风险**: 髋下仍可能有缝（腿顶与 backfill 衔接）；大腿绑带仍在 leg-skin 上
+- **隐藏风险**: 髋下仍可能有缝（腿顶与 backfill 衔接）；大腿绑带已独立为 `thigh-strap`（R33b）
 
 ### 4. `shorts-orange` 短裤侧橙饰
 - **Images**: `full.shorts.side-orange.image`
@@ -57,6 +57,13 @@
 - **Images**: `full.shoe.{l,r}.image`
 - **Assets**: `shoe-*.png`
 - **隐藏后**: 可见独立袜层 `sock-{l,r}`（R33a）
+
+### 7b. `thigh-strap` 大腿绑带（R33b）
+- **Images**: `full.thigh-strap.image`
+- **Assets**: `thigh-strap.png`
+- **Bones**: 与 `leg-l-skin` 同网格（upper/lower/foot；绑带区权重在大腿 upper）
+- **说明**: 黑带+银扣+橙环从 `leg-l-skin` **迁出**；腿肤回填
+- **隐藏风险**: 露出回填大腿肤；仅左腿（画面左 / leg-l）有绑带
 
 ### 7. `socks` 袜（R33a）
 - **Images**: `full.sock.{l,r}.image`
@@ -92,7 +99,7 @@ body.backfill → leg skins → socks → arm skins → arm-under
 ## 仍非 swap-ready 的项
 
 - ~~腿袜未独立~~ → R33a 已拆 `sock-{l,r}`  
-- 右大腿绑带仍融在 leg-l-skin（待 R33b）  
+- ~~右大腿绑带融在 leg-l-skin~~ → R33b 已拆 `thigh-strap`  
 - 髋/裆与腿顶仍有接缝风险（隐短裤时）  
 - 袖下臂肤为几何胶囊，非母图手臂造型  
 - 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
