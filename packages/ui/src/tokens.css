@@ -78,7 +78,9 @@
   --cd-radius-full: 9999px;
 
   /* spacing (4px grid) */
+  --cd-space-0-5: 2px;
   --cd-space-1: 4px;
+  --cd-space-1-5: 6px;
   --cd-space-2: 8px;
   --cd-space-3: 12px;
   --cd-space-4: 16px;
@@ -128,8 +130,13 @@
   --cd-text-caption: var(--cd-font-weight-regular) var(--cd-font-size-xs) / var(--cd-line-height-xs)
     var(--cd-font-sans);
 
-  /* 控件尺寸（4/8 栅格） */
+  /* 控件尺寸（4 的倍数）。同一行的控件用同一档：
+     2xs 行内 / 页签里的小关闭钮；xs 卡片与会话区里的小按钮；sm 对话区右上角、标签栏尾部、设置页表单；
+     ms 输入栏工具行、对话头部、标签页；md 主要表单与对话框按钮；lg 引导页大输入 */
+  --cd-control-h-2xs: 20px;
+  --cd-control-h-xs: 24px;
   --cd-control-h-sm: 28px;
+  --cd-control-h-ms: 32px;
   --cd-control-h-md: 36px;
   --cd-control-h-lg: 40px;
 
@@ -138,6 +145,8 @@
   --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
   --cd-shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45);
   --cd-shadow-glow: 0 0 0 1px rgba(148, 163, 184, 0.08), 0 4px 14px rgba(0, 0, 0, 0.18);
+  /* 语义阴影：浮层 / 菜单 / 下拉用 popover；跟随各主题的 md（主题都写在根元素上，别名能取到主题值） */
+  --cd-shadow-popover: var(--cd-shadow-md);
   --cd-blur: blur(12px);
 
   /* motion */

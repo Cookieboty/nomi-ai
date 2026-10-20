@@ -42,6 +42,31 @@
 .cd-dropdown__trigger:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
 }
+/* 透明底：与同一行的透明按钮 / chip 一致（hover 才出底色） */
+.cd-dropdown--ghost .cd-dropdown__trigger {
+  background: transparent;
+}
+.cd-dropdown--ghost .cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: var(--cd-color-border);
+  background: var(--cd-color-hover);
+}
+/* 胶囊：输入栏工具行（与模型 / 权限按钮同高、同形、同字号） */
+.cd-dropdown--chip .cd-dropdown__trigger {
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
+  background: transparent;
+  font-size: var(--cd-font-size-sm);
+}
+.cd-dropdown--chip .cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: var(--cd-color-border);
+  background: var(--cd-color-hover);
+}
+/* 与同一行模型 / 权限按钮的小箭头同大 */
+.cd-dropdown--chip .cd-dropdown__chevron {
+  width: 12px;
+  height: 12px;
+}
 .cd-dropdown__trigger:focus-visible,
 .cd-dropdown[data-open] .cd-dropdown__trigger {
   outline: none;

@@ -25,6 +25,10 @@
   width: var(--cd-control-h-sm, 28px);
   height: var(--cd-control-h-sm, 28px);
 }
+.cd-voice-mic--ms {
+  width: var(--cd-control-h-ms, 32px);
+  height: var(--cd-control-h-ms, 32px);
+}
 .cd-voice-mic:hover:not(:disabled) {
   color: var(--cd-color-accent-strong);
   border-color: var(--cd-color-accent);
@@ -281,6 +285,7 @@
 .cd-voice-buttons {
   display: flex;
   align-items: center;
-  gap: 8px;
+  /* 与输入栏工具行的间距一致 */
+  gap: var(--cd-space-1-5, 6px);
   align-self: center;
 }

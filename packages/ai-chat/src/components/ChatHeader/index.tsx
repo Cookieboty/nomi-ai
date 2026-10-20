@@ -256,7 +256,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
               aria-label={t(i.tip)}
               data-testid={i.id}
             >
-              <Icon icon={I[i.k]!} size={17} />
+              <Icon icon={I[i.k]!} size={16} />
             </button>
           </Tooltip>
         ))}

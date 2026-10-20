@@ -66,79 +66,41 @@
 }
 
 .sendButton {
-  display: flex;
+  display: inline-flex;
+  /* 永不收缩：窄输入栏里发送按钮不能被挤走 */
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  /* 与输入栏工具行其它控件同高同形（ms 档、胶囊） */
+  width: var(--cd-control-h-ms);
+  height: var(--cd-control-h-ms);
   border: none;
-  border-radius: 14px;
-  background: rgba(var(--cd-accent-rgb), 0.9);
-  backdrop-filter: var(--cd-blur);
-  -webkit-backdrop-filter: var(--cd-blur);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent);
   color: var(--cd-color-text-on-accent);
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  flex-shrink: 0;
-  box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.3),
-    0 3px 12px rgba(var(--cd-accent-rgb), 0.4);
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--cd-color-border);
+  transition: filter var(--cd-duration-fast) var(--cd-ease);
 }
-
-/* 发送按钮的发光效果 */
-.sendButton::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.5s ease;
-}
-
-.sendButton:hover:not(:disabled)::before {
-  left: 100%;
-}
-
 .sendButton:hover:not(:disabled) {
-  background: rgba(var(--cd-accent-rgb), 0.9);
-  transform: translateY(-3px) scale(1.05);
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.4),
-    0 6px 20px rgba(var(--cd-accent-rgb), 0.5),
-    0 0 24px var(--cd-color-border);
+  filter: brightness(0.94);
 }
-
 .sendButton:active:not(:disabled) {
-  transform: translateY(-1px) scale(1.02);
-  box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.4),
-    0 3px 12px rgba(var(--cd-accent-rgb), 0.4);
+  filter: brightness(0.88);
 }
-
 .sendButton:disabled {
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-color-active);
   color: var(--cd-color-text-subtle);
   cursor: not-allowed;
-  transform: none;
-  box-shadow:
-    var(--cd-shadow-md),
-    0 2px 6px rgba(55, 65, 81, 0.2);
-  border-color: rgba(107, 114, 128, 0.3);
 }
 
 .loadingSpinner {
-  width: 20px;
-  height: 20px;
+  /* 与按钮里的图标同大 */
+  width: 16px;
+  height: 16px;
   border: 2px solid transparent;
   border-top: 2px solid currentColor;
   border-radius: var(--cd-radius-full);
   animation: spin 1s linear infinite;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
 }
 
 @keyframes spin {
@@ -245,12 +207,6 @@
 
   .messageTextarea {
     font-size: var(--cd-font-size-lg); /* 防止iOS缩放 */
-  }
-
-  .sendButton {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--cd-radius-lg);
   }
 
   .inputHint {
@@ -426,7 +382,7 @@
   display: flex;
   flex: 1 1 0;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
 }
 .composerLeft > :not(.modelStatus) {
@@ -436,13 +392,13 @@
   display: flex;
   flex: none;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
 }
 .composerBar .modelStatus {
   margin: 0;
   min-width: 0;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
 }
 .composerBar .currentModel {
   font-size: 14px;
@@ -455,9 +411,9 @@
   -webkit-backdrop-filter: none;
 }
 .iconButton {
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
+  width: var(--cd-control-h-ms);
+  height: var(--cd-control-h-ms);
+  border-radius: var(--cd-radius-full);
   border: 1px solid var(--cd-color-border);
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -466,30 +422,31 @@
   justify-content: center;
   cursor: pointer;
 }
-.iconButton:hover,
+.iconButton:hover {
+  color: var(--cd-color-text);
+  background: var(--cd-color-hover);
+}
 .iconButton[aria-expanded='true'] {
   color: var(--cd-color-text);
-  background: rgba(var(--cd-accent-rgb), 0.12);
+  background: var(--cd-color-active);
 }
+/* 已开启的开关型 chip（知识库问答）：同高同形，用强调色的浅底表示「开着」 */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(var(--cd-accent-rgb), 0.4);
-  background: rgba(var(--cd-accent-rgb), 0.12);
-  color: var(--cd-color-text);
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
+  border: 1px solid transparent;
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
   cursor: pointer;
 }
-.composerBar .sendButton {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-}
-.composerBar .sendButton:disabled {
-  background: var(--cd-color-active);
+.chip:hover {
+  border-color: var(--cd-color-accent-strong);
 }
 .moreWrap {
   position: relative;
@@ -634,10 +591,6 @@
   .composerBar .modelStatus [data-testid='open-provider-panel'] {
     display: none;
   }
-}
-.composerBar .sendButton:disabled {
-  background: var(--cd-color-active);
-  color: var(--cd-color-text-subtle);
 }
 
 /* 斜杠命令：命令名已定、正在输参数时的提示条 */

@@ -77,14 +77,16 @@ export function useChatVoice(opts: {
 
 export type ChatVoice = ReturnType<typeof useChatVoice>;
 
-const HeadsetIcon = () => <Icon icon={Headphones} size={18} />;
+const HeadsetIcon = () => <Icon icon={Headphones} size={16} />;
 
 export const VoiceButtons: React.FC<{ cv: ChatVoice; disabled?: boolean }> = ({ cv, disabled }) => {
   const { v, handsFree, toggleHandsFree } = cv;
   if (!v.available) return null;
   return (
     <div className="cd-voice-buttons">
+      {/* 输入栏工具行统一 ms（32px）高：与 + / 模型 / 权限 / 发送按钮同高 */}
       <MicButton
+        size="ms"
         state={v.state}
         disabled={disabled || handsFree}
         onStart={() => void v.pttStart()}
@@ -103,7 +105,7 @@ export const VoiceButtons: React.FC<{ cv: ChatVoice; disabled?: boolean }> = ({ 
           type="button"
           aria-label={handsFree ? t('关闭免按键') : t('开启免按键')}
           aria-pressed={handsFree}
-          className={`cd-voice-mic cd-voice-toggle ${handsFree ? 'is-on' : ''}`}
+          className={`cd-voice-mic cd-voice-mic--ms cd-voice-toggle ${handsFree ? 'is-on' : ''}`}
           onClick={toggleHandsFree}
           disabled={disabled}
           data-testid="voice-handsfree"

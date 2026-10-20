@@ -10,15 +10,15 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
-  padding: 0 10px;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-full);
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   cursor: pointer;
   white-space: nowrap;
   min-width: 0;

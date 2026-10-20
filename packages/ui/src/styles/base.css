@@ -58,10 +58,11 @@
   border-color: transparent;
   color: var(--cd-color-text-muted);
 }
+/* 与透明 chip / 下拉框 / 各处幽灵图标按钮同一种 hover（中性底色，不用强调色） */
 .cd-btn--ghost:hover:not(:disabled) {
-  background: var(--cd-color-accent-soft);
+  background: var(--cd-color-hover);
   border-color: transparent;
-  color: var(--cd-color-accent-strong);
+  color: var(--cd-color-text);
 }
 .cd-btn--danger {
   color: var(--cd-color-danger);

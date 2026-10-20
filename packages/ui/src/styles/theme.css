@@ -59,6 +59,22 @@
   transform: translateY(0.5px);
   filter: brightness(0.96);
 }
+/* 键盘焦点兜底：没有自己焦点样式的可交互元素统一用这一种描边（:where 不加特异性，组件自己的样式优先）。
+   描边用 accent-strong：浅色主题下 accent 对背景的非文本对比度不够 3:1 */
+:where(
+  button,
+  a[href],
+  summary,
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  [role='menuitemradio'],
+  [tabindex]:not([tabindex='-1'])
+):focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
 .cd-btn svg {
   flex: none;
   width: 16px;

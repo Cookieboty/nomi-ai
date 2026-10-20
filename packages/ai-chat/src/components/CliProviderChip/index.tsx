@@ -116,6 +116,7 @@ export const CliProviderChip: React.FC<{
     >
       <Select
         size="sm"
+        variant="ghost"
         style={{ width: 'auto', maxWidth: 260 }}
         data-testid="cli-provider-switch"
         aria-label={t('{0} 供应商', backendName(backend))}

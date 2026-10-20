@@ -1,11 +1,11 @@
 .bar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px var(--cd-space-3) 0;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-1) var(--cd-space-3) 0;
   border-bottom: 1px solid var(--cd-color-border);
-  /* Codex Desktop 基础界面约 14px。标签原先 12.5px，贴着 16px 的会话区显小。 */
-  min-height: 40px;
+  /* 恰好是「上内边距 + 标签高」：贴底的标签与居中的尾部按钮同一条中线 */
+  min-height: calc(var(--cd-control-h-ms) + var(--cd-space-1));
   /* 不能 overflow: hidden：会把「+」弹出的新建菜单裁成一行（只剩第一项）。横向溢出由 .strip 自己滚动 */
   min-width: 0;
 }
@@ -27,16 +27,17 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 34px;
+  gap: var(--cd-space-1-5);
+  /* 标签页 ms（32）；尾部的并发 / 新建按钮 sm（28），在 32 高的行里垂直居中 */
+  height: var(--cd-control-h-ms);
   max-width: 240px;
-  padding: 0 6px 0 10px;
+  padding: 0 var(--cd-space-1-5) 0 var(--cd-space-2);
   border: 1px solid transparent;
   border-bottom: none;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--cd-radius-md) var(--cd-radius-md) 0 0;
   background: transparent;
   color: var(--cd-color-text-muted);
-  font-size: 14px;
+  font-size: var(--cd-font-size-md);
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
@@ -49,7 +50,7 @@
   color: var(--cd-color-text);
 }
 .tab:focus-visible {
-  outline: 2px solid var(--cd-color-accent);
+  outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: -2px;
 }
 .active {
@@ -140,10 +141,10 @@
 }
 
 .close {
-  width: 20px;
-  height: 20px;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: inherit;
   font-size: 14px;
@@ -167,13 +168,15 @@
   flex-shrink: 0;
 }
 .addBtn {
-  width: 30px;
-  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text-muted);
-  font-size: 18px;
   cursor: pointer;
 }
 .addBtn:hover {
@@ -183,7 +186,7 @@
 
 .menu {
   position: absolute;
-  top: 34px;
+  top: calc(100% + var(--cd-space-1));
   right: 0;
   z-index: 50;
 }
@@ -192,15 +195,15 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
   border: 1px solid transparent;
-  border-radius: var(--cd-radius-full);
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text-subtle);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;

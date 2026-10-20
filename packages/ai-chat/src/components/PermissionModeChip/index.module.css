@@ -10,16 +10,16 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 32px;
-  padding: 0 10px;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-full);
   /* 透明底：与旁边的端点切换一致，不在输入栏里铺一块灰底 */
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   cursor: pointer;
   white-space: nowrap;
   /* 输入栏变窄时按钮跟着收缩（文字省略号），不能越过右侧的语音 / 发送按钮 */
