@@ -43,3 +43,4 @@ python3 round32_body_base.py
 python3 round33_socks.py
 python3 round33_thigh_strap.py
 python3 round33_hair_bow.py
+python3 round34_belt.py

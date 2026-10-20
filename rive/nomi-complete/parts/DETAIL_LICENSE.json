@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams). ROUND23: removed never-drawn assets sleeve-l-upper.png, sleeve-l-lower.png, sleeve-r-upper.png, sleeve-r-lower.png, coat-l-shoulder-orange.png, sleeve-l-upper-dark.png, sleeve-l-upper-orange.png, sleeve-l-lower-dark.png, sleeve-l-lower-orange.png, coat-r-shoulder-orange.png, sleeve-r-upper-dark.png, sleeve-r-upper-orange.png, sleeve-r-lower-dark.png, sleeve-r-lower-orange.png, sleeve-l-bent.png, sleeve-r-bent.png. ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother (under belt band / coat edge), inpainted from neighbouring source pixels. ROUND25: shoulder-cap pixels moved (not copied) from head.png into arm-l/r-shoulder-skin.png (same screen position; deterministic, no AI). ROUND27: coat front panels (placket, lining strip, leather trim, hem-tail lines) moved (not copied) from sleeve-{l,r}-full(.dark).png into coat-{l,r}-front.png; sleeve under the panel's opaque core backfilled by deterministic cv2 Telea inpaint from neighbouring sleeve pixels (10 px seam band + shaded underside). ROUND30: strengthen sleeve-{l,r}-full.png backfill under the full coat panel body (no 2px erosion / alpha feather) so R27d gravity hang no longer reveals background holes. ROUND31: body-backfill converted to bare-skin torso/hip underlay; shoulder-skin orange rim cleaned; arm-l/r-under-skin added under sleeves for coat-hide continuity. ROUND31c: shorts side orange accents split into shorts-side-orange.png. ROUND32: anatomical bare-body backfill + tapered arm-under-skin; neutral underlayer top/bottom layers; finger rest loop-safe (R32a). ROUND33a: socks split from leg skins into sock-l/r. ROUND33b: thigh strap split from leg-l-skin. ROUND33c: hair-bow extracted from hair-lock-r.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams). ROUND23: removed never-drawn assets sleeve-l-upper.png, sleeve-l-lower.png, sleeve-r-upper.png, sleeve-r-lower.png, coat-l-shoulder-orange.png, sleeve-l-upper-dark.png, sleeve-l-upper-orange.png, sleeve-l-lower-dark.png, sleeve-l-lower-orange.png, coat-r-shoulder-orange.png, sleeve-r-upper-dark.png, sleeve-r-upper-orange.png, sleeve-r-lower-dark.png, sleeve-r-lower-orange.png, sleeve-l-bent.png, sleeve-r-bent.png. ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother (under belt band / coat edge), inpainted from neighbouring source pixels. ROUND25: shoulder-cap pixels moved (not copied) from head.png into arm-l/r-shoulder-skin.png (same screen position; deterministic, no AI). ROUND27: coat front panels (placket, lining strip, leather trim, hem-tail lines) moved (not copied) from sleeve-{l,r}-full(.dark).png into coat-{l,r}-front.png; sleeve under the panel's opaque core backfilled by deterministic cv2 Telea inpaint from neighbouring sleeve pixels (10 px seam band + shaded underside). ROUND30: strengthen sleeve-{l,r}-full.png backfill under the full coat panel body (no 2px erosion / alpha feather) so R27d gravity hang no longer reveals background holes. ROUND31: body-backfill converted to bare-skin torso/hip underlay; shoulder-skin orange rim cleaned; arm-l/r-under-skin added under sleeves for coat-hide continuity. ROUND31c: shorts side orange accents split into shorts-side-orange.png. ROUND32: anatomical bare-body backfill + tapered arm-under-skin; neutral underlayer top/bottom layers; finger rest loop-safe (R32a). ROUND33a: socks split from leg skins into sock-l/r. ROUND33b: thigh strap split from leg-l-skin. ROUND33c: hair-bow extracted from hair-lock-r. ROUND34a: belt split from fabric; waist-backfill under belt.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -9,11 +9,11 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "45a25d2c3e35fac22642f55e005e22dab23f1e3958bf31bfcce8798c5da7ec71",
-      "bytes": 1431517,
+      "sha256": "29c739d5da65fab09f0e7b139eba0efcbd9566e60592c5c08436f5deb35f6746",
+      "bytes": 1341152,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND18: mother floor sliver between the shoes removed"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34a: belt-buckle scraps under the band removed (duplicates)"
     },
     "reference/svg-rig/body-backfill.png": {
       "sha256": "1caaf9e4f56810beebcdc201619f4409ce667cec45f1fcf5a5b55a845377063b",
@@ -290,11 +290,11 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/belt-band.png": {
-      "sha256": "31a632b92d4f11435509686e1a5b9be56abdd31375505bd296561d1df4000502",
-      "bytes": 18508,
+      "sha256": "8774c5d82a79b2c1837250a5f65de5f73aebc61093f55bf8cb7404b56fbb3b87",
+      "bytes": 10032,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34a: belt only (leather band + buckles + keepers); surrounding fabric moved to waist-backfill.png"
     },
     "reference/svg-rig/shorts.png": {
       "sha256": "194410d9441db313d0ec0d6d4629ab76c47da49a142842dad579c962bafcb950",
@@ -628,6 +628,13 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33b: black strap+silver buckle+orange keepers from leg-l-skin (cloned leg-l mesh)"
+    },
+    "reference/svg-rig/waist-backfill.png": {
+      "sha256": "454af0f03f5dbebd3acccb141e5f2b3f8ac69b3702b847dee272f8417835e74a",
+      "bytes": 14147,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34a: non-belt pixels of the old belt crop + Telea/NS inpainted waistband fabric under the belt (procedural, not hand-painted)"
     }
   },
   "round32": {

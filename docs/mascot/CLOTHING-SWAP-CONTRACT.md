@@ -1,4 +1,4 @@
-# Nomi·诺米 Clothing Swap Contract（R31d → R33a–c socks/strap/bow）
+# Nomi·诺米 Clothing Swap Contract（R31d → R33a–c socks/strap/bow → R34 belt/pouch/badge）
 
 **日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
 **状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
@@ -49,9 +49,19 @@
 - **Bones**: 与 shorts 同网格
 - **说明**: R31c 从 shorts 迁出；可随短裤一起隐，或单独作饰品槽
 
-### 5. `belt` 腰带组件
-- **Images**: `full.belt.band.image`, `full.belt.id.image`, `full.belt.pouch.image`
-- **Assets**: `belt-band.png`, `belt-id.png`, `belt-pouch.png`
+### 5. `belt` 腰带（R34a）
+- **Images**: `full.belt.band.image`
+- **Assets**: `belt-band.png`（**仅**皮带：黑皮带 + 银扣 + 皮带上的橙扣环；R34a 前是含背心/短裤布料、外套橙边的矩形裁片）
+- **Bones**: torso（上沿）→ pelvis（下沿）平滑蒙皮，跟髋倾斜
+- **隐藏后**: 露出 `full.shorts.waist-backfill.image`（短裤腰头布料，程序化 inpaint，不是肤色）
+- **说明**: 挂工牌的橙绳环、挂包的橙带上段若在皮带面上则留在皮带层（视觉上是皮带扣环）；皮带下方的绳/带段属工牌/挂包层
+
+### 5a. `shorts-waist` 短裤腰头回填（R34a，属 shorts 组）
+- **Images**: `full.shorts.waist-backfill.image`
+- **Assets**: `waist-backfill.png`（旧皮带裁片中的非皮带像素**迁入** + 皮带下 inpaint 布料 + 淡腰缝）
+- **Bones**: 克隆皮带网格（torso→pelvis）
+- **绘制序**: 皮带 / 工牌 / 挂包 之后、短裤之前
+- **隐藏**: 随 `shorts` 一起隐；单独隐背心时腰头上沿仍在（看作高腰短裤）
 
 ### 6. `shoes` 鞋
 - **Images**: `full.shoe.{l,r}.image`
@@ -82,7 +92,7 @@
 
 ```
 body.backfill → leg skins → socks → arm skins → arm-under
-→ tank → shorts → shorts-orange → belt
+→ tank → shorts → shorts-orange → shorts-waist → belt / pouch / badge
 → coat stump/shoulder → sleeve → coat-front → cuff → hem.ribbon
 → shoes → choker / hair accessories → head/hair/face
 ```
@@ -105,5 +115,5 @@ body.backfill → leg skins → socks → arm skins → arm-under
 - 髋/裆与腿顶仍有接缝风险（隐短裤时）  
 - 袖下臂肤为几何胶囊，非母图手臂造型  
 - 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
-- `full.neutral` 仍含橙色边角残片（通常 opacity 0）
+- `full.neutral` 仍含橙色边角残片（idle/rest 关键帧 opacity 1，位于最底层）；R34a 已删其皮带区残片
 - `hair-back-*` / `hair-lock-l` 残留橙像素（非主结）未迁入 bow
