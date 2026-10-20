@@ -1,4 +1,4 @@
-# Nomi·诺米 Clothing Swap Contract（R31d → R33a–c socks/strap/bow → R34 belt/pouch/badge）
+# Nomi·诺米 Clothing Swap Contract（R31d → R33a–c → R34 belt/pouch/badge → R35a choker）
 
 **日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
 **状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
@@ -100,11 +100,18 @@
 - **说明**: 白袜+橙星从 `leg-*-skin` **迁出**（非复制）；腿肤踝部已回填裸肤
 - **隐藏风险**: 露出回填踝肤；鞋仍盖住脚部
 
-### 8. `choker` / 发饰
-- **Images**: `full.choker.image`, `full.hair.clip.image`, `full.hair.bow.image`
-- **Assets**: `choker.png`, `hair-clip.png`, `hair-bow.png`
+### 8. `choker` 项圈（R35a）
+- **Images**: `full.choker.image`
+- **Assets**: `choker.png`（**仅**黑项圈 + 金十字坠；R35a 前此文件实际是背心领口+橙星，真项圈融在 `mouth.png`/`head.png`）
+- **Bones**: neck→torso 蒙皮（上段跟颈，坠子向下过渡到胸）
+- **隐藏后**: 露出 `mouth.png` 程序化回填颈肤（可能残留软边/淡影）
+- **说明**: 旧「choker.png」背心领口像素已**迁入** `torso-tank.png`（画布上扩）
+
+### 8b. `hair` 发饰
+- **Images**: `full.hair.clip.image`, `full.hair.bow.image`（+ R35b `full.hair.ornament.l.image`）
+- **Assets**: `hair-clip.png`, `hair-bow.png`
 - **`hair.bow`（R33c）**: 橙结从 `hair-lock-r` **迁出**；同 lock-r 网格（head + lock.r.s1–s3，继承 R20 sway）；旧空刚性 Image 已删
-- **隐藏风险**: 露出 lock-r 回填深棕发；`hair-back-*` / `hair-lock-l` 上仍可能有少量橙饰未迁
+- **隐藏风险**: 露出 lock-r 回填深棕发；`hair-back-*` / `hair-lock-l` 橙饰见 R35b
 
 ## 建议绘制顺序（换衣友好）
 
@@ -134,5 +141,5 @@ body.backfill → leg skins → socks → arm skins → arm-under
 - 髋/裆与腿顶仍有接缝风险（隐短裤时）  
 - 袖下臂肤为几何胶囊，非母图手臂造型  
 - 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
-- `full.neutral` 仍含橙色边角残片（idle/rest 关键帧 opacity 1，位于最底层）；R34a 已删其皮带区残片
-- `hair-back-*` / `hair-lock-l` 残留橙像素（非主结）未迁入 bow
+- `full.neutral` 橙色边角残片；R34a 已删皮带区；R35c 清外套边
+- ~~`hair-back-*` / `hair-lock-l` 残留橙像素~~ → R35b
