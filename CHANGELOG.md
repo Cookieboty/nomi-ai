@@ -232,6 +232,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 界面样式统一（第三轮）：所有弹出菜单与浮层统一圆角、内边距、阴影与菜单项行高，选中 / 悬停效果一致； (`@nomi-ai/ai-chat` patch, `@nomi-ai/ui` patch)
 - 界面样式统一（第二轮）：输入栏工具行的所有按钮（更多、插件、后端、模型、权限、语音、发送）统一为同一高度与胶囊形； (`@nomi-ai/ai-chat` patch, `@nomi-ai/ui` minor, `@nomi-ai/voice` minor)
 - 看板娘工具栏与气泡改版：竖向胶囊工具栏（AI 对话、语音交互、任务看板、角色互动、声音设置、更多），只在鼠标悬停 Nomi 或工具栏时出现； (`@nomi-ai/renderer` minor, `@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/types` minor)
+- 看板娘缩小后「更多」面板不再被截断：面板按窗口大小定位，窗口太小时用紧凑排版并可滚动。 (`@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/types` minor, `@nomi-ai/voice` patch)
 - 知识库回答改用会话里同一个 Markdown 渲染器（不再显示原始 Markdown），正文中的 [n] 仍是可点击的引用；恢复引用编号、来源卡片和来源预览丢失的样式（#65）。 (`@nomi-ai/ai-chat` patch)
 - 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/renderer` minor, `@nomi-ai/types` minor)
 - 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/ui` minor)
