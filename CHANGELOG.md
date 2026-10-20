@@ -201,6 +201,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复 Gemini 的版本检查：之前保存的「最新版本」缓存里没有 Gemini 时会立即重新获取，不再要等 6 小时；更新 Gemini 只用 npm，不再尝试不存在的 `gemini update`；版本卡片拿不到数据时显示「无法检测」而不是「已安装」；本机 Gemini CLI 过旧、不支持 ACP 时提示先更新。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。 (`@nomi-ai/ai-chat` patch)
 - 修复「普通 / 开发」切换提示文字溢出、压到侧栏上的问题：较长的提示会按最大宽度换行，贴着左边缘的提示改为左对齐显示。 (`@nomi-ai/ui` patch)
+- 修复从 Dock / 开始菜单启动时找不到用 nvm、volta、fnm、asdf、mise、pnpm、bun 或自定义 npm prefix 安装的 Claude Code / Codex / dsh 等（#76）： (`@nomi-ai/electron` patch)
 - 修复日落橙 / 奶油等浅色主题下选中态与悬停态对比度过低的问题：分段控件、Tab、设置导航和侧栏当前行改用深棕字配暖橙淡底（并加左侧强调条），链接 / 标签 / 图标改用更深的橙棕色；同时补齐各主题的次要文字、主按钮文字、焦点环和图表色，并新增主题对比度自动化测试。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch)
 - 修复日落橙 / 奶油等浅色主题下选中态与悬停态对比度过低的问题：分段控件、Tab、设置导航和侧栏当前行改用深棕字配暖橙淡底（并加左侧强调条），链接 / 标签 / 图标改用更深的橙棕色；同时补齐各主题的次要文字、主按钮文字、焦点环和图表色，并新增主题对比度自动化测试。 (`@nomi-ai/ui` patch, `@nomi-ai/voice` patch)
 - 修复权限模式下拉菜单被输入栏挡住、只露出一道阴影的问题：菜单改为挂在页面最上层，完整显示在按钮上方。 (`@nomi-ai/ai-chat` patch)
