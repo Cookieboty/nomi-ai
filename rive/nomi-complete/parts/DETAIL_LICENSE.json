@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams).",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -72,8 +72,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-shoulder.png": {
-      "sha256": "610fceaa6aaec81de01563d8c4a783377e166f1668c9acceaded25d99514d6ea",
-      "bytes": 68757,
+      "sha256": "6056d339f02b4f441bd779f97f1efb08b93ce2da2bfbe7d3dc83a45c384ccbe2",
+      "bytes": 61818,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -93,8 +93,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-shoulder.png": {
-      "sha256": "607edb501ee9a851de359f1924e8f473d05795daad0b491a3696cd28872a156f",
-      "bytes": 67627,
+      "sha256": "685c0cab2d9e5161a6a31f12c1e97c996371c307387bae6f6735604715c349c6",
+      "bytes": 62780,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
@@ -648,6 +648,20 @@
     "reference/svg-rig/bangs-c.png": {
       "sha256": "77727ed68bb8b8652e7c645c4816c62f15d099edf26d112b6383e14adb6305fc",
       "bytes": 4402,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-shoulder-lining.png": {
+      "sha256": "849fef4b9098318f27ca205ad6b388c6850fb3798c74e2a6f61ad1605e79690e",
+      "bytes": 10523,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-r-shoulder-lining.png": {
+      "sha256": "054a9e8983190b027df23cfab3ceb1735652d4fdaad63612523aa6ff22e6ef08",
+      "bytes": 7892,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
