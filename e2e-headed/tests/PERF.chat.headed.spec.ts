@@ -227,6 +227,35 @@ async function timedClick(
   return pending;
 }
 
+/** 点击打开面板：返回 [面板出现, 面板稳定（无骨架屏 / 加载中，连续 3 帧）] 的毫秒数 */
+async function timedOpen(page: Page, button: string, panel: string): Promise<number[]> {
+  const pending = page.evaluate(
+    (sel) =>
+      new Promise<number[]>((resolve) => {
+        let clickTs = -1;
+        addEventListener('click', (e) => (clickTs = e.timeStamp), { once: true, capture: true });
+        let appear = -1;
+        let stable = 0;
+        const tick = () => {
+          const el = clickTs >= 0 ? document.querySelector(sel) : null;
+          if (el && appear < 0) appear = performance.now();
+          const busy =
+            !el || !!el.querySelector('.cd-skeleton, .cd-skeleton-list, [aria-busy="true"]');
+          stable = busy ? 0 : stable + 1;
+          if (stable >= 3)
+            resolve([Math.round(appear - clickTs), Math.round(performance.now() - clickTs)]);
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        setTimeout(() => resolve([-1, -1]), 15_000);
+      }),
+    panel,
+  );
+  await page.waitForTimeout(50);
+  await page.click(button);
+  return pending;
+}
+
 const now = (p: Page) => p.evaluate(() => performance.now());
 const pct = (xs: number[], q: number) => {
   if (!xs.length) return 0;
@@ -485,6 +514,26 @@ test.describe('PERF · chat', () => {
       );
     }
 
+    // ---- 1b. 打开面板（每个开 3 次：首次含懒加载）----
+    const panels: Record<string, number[][]> = {};
+    for (const [btn, panel] of [
+      ['open-hub-panel', 'hub-panel'],
+      ['open-ext-panel', 'ext-panel'],
+      ['open-local-panel', 'local-panel'],
+      ['open-settings', '[data-testid^="settings-nav-"]'],
+    ] as const) {
+      panels[btn] = [];
+      for (let k = 0; k < 3; k++) {
+        const sel = panel.startsWith('[') ? panel : `[data-testid="${panel}"]`;
+        panels[btn]!.push(await timedOpen(chat, `[data-testid="${btn}"]`, sel));
+        await chat.keyboard.press('Escape');
+        await chat.waitForTimeout(400);
+        if (btn === 'open-settings' && (await chat.locator(sel).count()))
+          await chat.click('[data-testid="open-settings"]').catch(() => undefined);
+        await chat.waitForTimeout(300);
+      }
+    }
+
     // ---- 2. 流式回复 + 边输出边打字 ----
     await chat.click('[data-testid="history-item"][data-conversation-id="c_perf_0"]');
     await chat.waitForTimeout(800);
@@ -572,6 +621,7 @@ test.describe('PERF · chat', () => {
       return { p99: Math.round(h.percentile(99) / 1e6), max: Math.round(h.max / 1e6) };
     });
     const result = {
+      panels,
       mainLoopDelayMs: mainLoop,
       cpuThrottle: cpu,
       seededBytes: bytes,
