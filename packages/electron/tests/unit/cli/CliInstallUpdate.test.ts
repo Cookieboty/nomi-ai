@@ -16,6 +16,7 @@ import {
   type CliProbe,
   type CliRunner,
 } from '../../../src/cli/CliUpdateService';
+import { resetCliBinCache } from '../../../src/cli/detect';
 
 const posix = process.platform === 'win32' ? it.skip : it;
 
@@ -33,7 +34,11 @@ beforeEach(() => {
   delete process.env.NOMI_CODEX_BIN;
   delete process.env.NOMI_DSH_BIN;
   delete process.env.NOMI_NPM_BIN;
+  // 兜底目录还会查 nvm / volta / pnpm 等（#76）：别命中开发机上真实安装的 CLI
+  for (const k of ['NVM_BIN', 'NVM_DIR', 'VOLTA_HOME', 'PNPM_HOME', 'NPM_CONFIG_PREFIX'])
+    delete process.env[k];
   events = [];
+  resetCliBinCache();
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -153,6 +158,31 @@ describe('run with a mock npm', () => {
       expect((await svc.previewUpdate('dsh')).mode).toBe('update');
     },
   );
+
+  posix(
+    'global install into a custom npm prefix outside PATH / common dirs is found there (#76)',
+    async () => {
+      // npm 的全局前缀是自定义目录（nvm / ~/.npmrc prefix=…），bin 不在 PATH 和常见目录里
+      const svc = make(probe({ npmPrefix: () => tmp }), installMock('codex', '0.130.0'));
+      const res = await svc.run('codex');
+      expect(res.ok).toBe(true);
+      expect(res.path).toBe(path.join(tmp, 'bin', 'codex'));
+      expect(res.version).toBe('0.130.0');
+      expect(res.note).toBeUndefined();
+      // 记住了这个目录：之后的探测直接能找到
+      expect((await svc.previewUpdate('codex')).mode).toBe('update');
+    },
+  );
+
+  posix('names the npm bin dir it checked when the binary is still missing', async () => {
+    const svc = make(probe({ npmPrefix: () => path.join(tmp, 'elsewhere') }), async () => ({
+      code: 0,
+      output: 'added 2 packages',
+    }));
+    const res = await svc.run('codex');
+    expect(res.ok).toBe(false);
+    expect(res.note).toContain(path.join(tmp, 'elsewhere', 'bin'));
+  });
 
   it('surfaces the npm error text and exit code when the command fails', async () => {
     const svc = make(probe(), async (_a, onLine) => {

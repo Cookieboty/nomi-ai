@@ -626,5 +626,6 @@
   "Codex 进程已退出": "The Codex process exited",
   "Codex 没能启动 app-server": "Codex could not start the app-server",
   "Codex 没有返回会话": "Codex did not return a session",
-  "第三方供应商的模型不能在这里调思考深度": "Reasoning effort can't be set here for third-party provider models"
+  "第三方供应商的模型不能在这里调思考深度": "Reasoning effort can't be set here for third-party provider models",
+  "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。": "The command finished, but {0} wasn't found in PATH, the common directories or npm's global bin directory ({1}). Make sure the same npm was used for the install."
 }

@@ -26,8 +26,10 @@ import {
   dshRuntimeProblemAsync,
   fetchNpmLatest,
   guessInstallMethod,
+  npmPrefixBinDir,
   readPathNodeVersionAsync,
   readVersionAsync,
+  rememberCliDir,
   resolveCliBinAsync,
   resolveNpmBinAsync,
   withCliPath,
@@ -571,7 +573,18 @@ export class CliUpdateService {
         logs.push(t('命令失败（退出码 {0}）', res.code ?? '—'));
       }
       const log = logs.join('\n').slice(-8000);
-      const bin = await resolveCliBinAsync(kind);
+      let bin = await resolveCliBinAsync(kind);
+      // npm 装到了不在 PATH / 常见目录里的前缀（nvm、自定义 prefix 等，#76）：去 npm 实际的全局 bin 找，
+      // 找到就记住这个目录，之后探测与启动都能用
+      let npmBinDir: string | null = null;
+      if (!bin && ok) {
+        const prefix = scope === 'user' ? userPrefix() : await this.probe.npmPrefix();
+        if (prefix) {
+          npmBinDir = npmPrefixBinDir(prefix);
+          rememberCliDir(npmBinDir);
+          bin = await resolveCliBinAsync(kind);
+        }
+      }
       const version = bin ? await readVersionAsync(bin) : null;
       if (!ok) {
         this.finishJob(kind, { ok: false, log, version });
@@ -580,10 +593,16 @@ export class CliUpdateService {
       }
       let note: string | undefined;
       if (!bin) {
-        note = t(
-          '命令已执行完成，但在 PATH 和常见目录里没有找到 {0}；请检查 npm 的全局 bin 目录是否在 PATH 里。',
-          kind,
-        );
+        note = npmBinDir
+          ? t(
+              '命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。',
+              kind,
+              npmBinDir,
+            )
+          : t(
+              '命令已执行完成，但在 PATH 和常见目录里没有找到 {0}；请检查 npm 的全局 bin 目录是否在 PATH 里。',
+              kind,
+            );
       } else if (scope === 'user') {
         const dir = path.dirname(bin);
         const inPath = (process.env.PATH ?? '').split(path.delimiter).includes(dir);

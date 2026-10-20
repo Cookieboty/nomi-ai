@@ -38,6 +38,7 @@ import {
   readPathNodeVersion,
   refreshCliBin,
   resolveCliBinCached,
+  withCliPath,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
 import { AcpConnection, innermostMessage } from './gemini/acp';
@@ -4097,7 +4098,11 @@ function spawnHarness(
  * harness 收到空输出（「无文本输出」），并发/续接用例随之失败。Node 下该变量无害。
  */
 function cliChildEnv(useNode: boolean, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  return buildCliEnv(process.env, useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra);
+  // 带上补全后的 PATH：`#!/usr/bin/env node` 的 CLI 要能找到 nvm / volta 等装的 node（#76）
+  return buildCliEnv(
+    withCliPath(process.env),
+    useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra,
+  );
 }
 
 function clampLimit(n: number): number {
