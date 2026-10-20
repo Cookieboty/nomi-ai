@@ -80,6 +80,13 @@ interface VolcStream {
   bytes: number;
   /** 只在开启「失败后回退离线」时保留，用于本地重识别；结束即丢弃 */
   pcm: Buffer[] | null;
+  /**
+   * recording：还在推音频；finalizing：已松开，在等握手 / 最终结果 / 本地回退。
+   * 结束中的会话仍登记在 streams 里，取消、切引擎、清 Key、窗口销毁都能撤销它（#67）。
+   */
+  phase: 'recording' | 'finalizing';
+  /** 被撤销的原因：之后不回退、不交付晚到的结果 */
+  revoked: VoiceError | null;
 }
 
 const MAX_STREAM_BYTES = 25 * 1024 * 1024;
@@ -101,6 +108,9 @@ export class VoiceError extends Error {
     super(message);
   }
 }
+
+const localOnlyError = () =>
+  new VoiceError('local_only', tr('已开启「仅本地模型」，不能把录音发送到云端。'));
 
 const isLocalDefault = (u: string) => {
   try {
@@ -562,6 +572,8 @@ export class VoiceService {
       finalTimeoutMs: to.finalMs,
       idleTimeoutMs: to.idleMs,
       onPartial,
+      // 真正发送音频前再查一次：握手 / 等最终结果期间开启「仅本地模型」，缓存的音频也不再外发
+      mayUpload: () => !this.d.localOnly?.(),
     });
   }
 
@@ -615,15 +627,14 @@ export class VoiceService {
       return { ok: false, code: 'no_provider', error: tr('当前识别引擎不支持流式识别') };
     const r = this.readiness();
     if (!r.ok) return { ok: false, code: r.code ?? 'failed', error: r.message ?? '' };
-    // 同一窗口最多 MAX 个会话：多出来的（旧的）直接取消
+    // 同一窗口最多 MAX 个会话（含结束中的）：多出来的（旧的）直接取消
     const mine = [...this.streams.entries()].filter(([, v]) => v.owner === wc.id);
-    for (const [k, v] of mine.slice(0, Math.max(0, mine.length - MAX_STREAMS_PER_SENDER + 1))) {
-      v.session.cancel();
-      this.streams.delete(k);
-    }
+    for (const [k, v] of mine.slice(0, Math.max(0, mine.length - MAX_STREAMS_PER_SENDER + 1)))
+      this.revokeStream(k, v);
     const id = `${wc.id}:${++this.streamSeq}`;
     const session = this.newVolcSession((text) => {
-      if (this.streams.get(id)?.session === session)
+      const rec = this.streams.get(id);
+      if (rec?.session === session && rec.phase === 'recording')
         this.sendStream(wc, { id, type: 'partial', text });
     });
     this.streams.set(id, {
@@ -633,16 +644,15 @@ export class VoiceService {
       started: Date.now(),
       bytes: 0,
       pcm: this.settings.volcFallback ? [] : null,
+      phase: 'recording',
+      revoked: null,
     });
     if (!this.streamOwners.has(wc.id)) {
       this.streamOwners.add(wc.id);
       wc.once('destroyed', () => {
         this.streamOwners.delete(wc.id);
         for (const [k, v] of [...this.streams.entries()])
-          if (v.owner === wc.id) {
-            v.session.cancel();
-            this.streams.delete(k);
-          }
+          if (v.owner === wc.id) this.revokeStream(k, v);
       });
     }
     // 建连失败（鉴权 / 未开通等）尽早告诉界面；最终错误仍由 streamStop 返回
@@ -662,27 +672,22 @@ export class VoiceService {
 
   streamPush(wc: WebContents, id: string, pcm: unknown): boolean {
     const rec = this.ownStream(wc, id);
-    if (!rec) return false;
+    if (!rec || rec.phase !== 'recording') return false;
     const buf =
       pcm instanceof Uint8Array ? pcm : pcm instanceof ArrayBuffer ? new Uint8Array(pcm) : null;
     if (!buf || buf.byteLength === 0 || buf.byteLength > MAX_PUSH_BYTES) return false;
     // 运行中切到「仅本地模型」/ 换了引擎：立即停止，后续音频不再外发
     if (this.d.localOnly?.() || this.settings.engine !== 'volc') {
-      rec.session.cancel();
-      this.streams.delete(id);
-      this.sendStream(wc, {
-        id,
-        type: 'error',
-        code: 'local_only',
-        error: tr('已开启「仅本地模型」，不能把录音发送到云端。'),
-      });
+      const err = localOnlyError();
+      this.revokeStream(id, rec, err);
+      this.sendStream(wc, { id, type: 'error', code: err.code, error: err.message });
       return false;
     }
     rec.bytes += buf.byteLength;
     if (rec.bytes > MAX_STREAM_BYTES) {
-      rec.session.cancel();
-      this.streams.delete(id);
-      this.sendStream(wc, { id, type: 'error', error: tr('录音太长了（上限约 13 分钟）') });
+      const err = new VoiceError('failed', tr('录音太长了（上限约 13 分钟）'));
+      this.revokeStream(id, rec, err);
+      this.sendStream(wc, { id, type: 'error', error: err.message });
       return false;
     }
     if (rec.pcm) rec.pcm.push(Buffer.from(buf));
@@ -698,23 +703,48 @@ export class VoiceService {
     | { ok: false; code: VoiceError['code']; error: string }
   > {
     const rec = this.ownStream(wc, id);
-    if (!rec) return { ok: false, code: 'failed', error: tr('识别会话已结束') };
-    this.streams.delete(id);
+    // 重复 stop（已在结束中）与未知会话一样：不重复发结束帧、不重复交付
+    if (!rec || rec.phase !== 'recording')
+      return { ok: false, code: 'failed', error: tr('识别会话已结束') };
+    // 结束期间仍登记在 streams 里（等握手 / 最终结果 / 回退），撤销入口照样能找到它
+    rec.phase = 'finalizing';
+    try {
+      return await this.finishStream(id, rec);
+    } finally {
+      // 只删自己这条登记（被撤销时已删）
+      if (this.streams.get(id) === rec) this.streams.delete(id);
+    }
+  }
+
+  private async finishStream(
+    id: string,
+    rec: VolcStream,
+  ): Promise<
+    | { ok: true; text: string; fallback?: boolean }
+    | { ok: false; code: VoiceError['code']; error: string }
+  > {
     const pcm = rec.pcm ? Buffer.concat(rec.pcm) : new Uint8Array(0);
     rec.pcm = null;
     let text: string;
     let fallback = false;
     try {
       if (this.d.localOnly?.()) {
-        rec.session.cancel();
-        throw new VoiceError('local_only', tr('已开启「仅本地模型」，不能把录音发送到云端。'));
+        const err = localOnlyError();
+        this.revokeStream(id, rec, err);
+        throw err;
       }
       try {
         text = (await rec.session.finish()).trim();
       } catch (e) {
+        // 已撤销：不回退，这段录音不再处理
+        const revoked = this.revokedReason(rec);
+        if (revoked) throw revoked;
         text = (await this.volcFallback(e, pcm)).trim();
         fallback = true;
       }
+      // 等结果 / 本地回退期间被撤销：丢弃晚到的结果
+      const revoked = this.revokedReason(rec);
+      if (revoked) throw revoked;
     } catch (err) {
       const code = err instanceof VoiceError ? err.code : 'failed';
       this.d.audit?.({
@@ -743,17 +773,35 @@ export class VoiceService {
     return fallback ? { ok: true, text, fallback } : { ok: true, text };
   }
 
+  /** 取消（录音中或结束中）：关连接、丢弃结果；别的窗口不能取消 */
   streamCancel(wc: WebContents, id: string): boolean {
     const rec = this.ownStream(wc, id);
     if (!rec) return false;
-    rec.session.cancel();
-    this.streams.delete(id);
+    this.revokeStream(id, rec);
     return true;
   }
 
+  /** 切引擎 / 清 Key：撤销所有会话，包括已松开、还在等结果的 */
   private cancelStreams(): void {
-    for (const v of this.streams.values()) v.session.cancel();
-    this.streams.clear();
+    for (const [k, v] of [...this.streams.entries()]) this.revokeStream(k, v);
+  }
+
+  /**
+   * 撤销一个会话：立即关连接、丢掉缓存音频与回退用的 PCM；进行中的 streamStop 随后返回 reason，
+   * 不回退、不交付晚到的结果。已经发出去的音频收不回来，这里保证的是之后不再发送和处理。
+   */
+  private revokeStream(id: string, rec: VolcStream, reason?: VoiceError): void {
+    rec.revoked ??= reason ?? new VoiceError('empty', tr('已取消'));
+    rec.pcm = null;
+    rec.session.cancel();
+    if (this.streams.get(id) === rec) this.streams.delete(id);
+  }
+
+  /** 会话是否已被撤销（含会话自己因「仅本地模型」在发送前取消的情况） */
+  private revokedReason(rec: VolcStream): VoiceError | null {
+    if (rec.revoked) return rec.revoked;
+    if (rec.session.error?.kind === 'cancelled' && this.d.localOnly?.()) return localOnlyError();
+    return null;
   }
 
   /** 用户点「测试连接」：只建连 + 发参数包，不发送音频 */
