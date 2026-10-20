@@ -167,7 +167,8 @@ def simulate(scene: str, anim: str, bone_name: str, L: float = 50.0, hz: float =
     rot, off = [], []
     for f in range(dur + 1):
         for _ in range(4):  # substeps
-            ddphi = -w * w * (phi - TH[f]) - 2 * zeta * w * dphi - gain * acc[f, 0] / L
+            # pivot accel +x -> bob lags to -x -> rotation +θ (y-down, x_bob = -L·sinθ)
+            ddphi = -w * w * (phi - TH[f]) - 2 * zeta * w * dphi + gain * acc[f, 0] / L
             dphi += ddphi * dt / 4; phi += dphi * dt / 4
             ddy = -(1.2 * w) ** 2 * y - 2 * zeta * (1.2 * w) * dy - gain * acc[f, 1]
             dy += ddy * dt / 4; y += dy * dt / 4
