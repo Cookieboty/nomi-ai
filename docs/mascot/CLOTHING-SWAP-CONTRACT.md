@@ -1,4 +1,4 @@
-# Nomi·诺米 Clothing Swap Contract（R31d）
+# Nomi·诺米 Clothing Swap Contract（R31d → R33a socks）
 
 **日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
 **状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
@@ -12,7 +12,7 @@
 | 上臂肤 | `full.arm-{l,r}.upper-skin.image` | `arm-*-upper-skin.png` | upper |
 | 袖下臂肤 | `full.arm-{l,r}.under-skin.image` | `arm-*-under-skin.png` | 与 sleeve 同腱（upper/fore/hand） |
 | 手 | `full.hand-{l,r}.*` | `hand-*.png` | 手指链 |
-| 腿 | `full.leg.{l,r}.skin.image` | `leg-*-skin.png` | upper/lower/foot（**含袜**） |
+| 腿 | `full.leg.{l,r}.skin.image` | `leg-*-skin.png` | upper/lower/foot（R33a 起**不含袜**） |
 | 头/五官/发 | `full.head.*` / eyes / bangs / hair.* | 对应 PNG | head 链 |
 | 残片底（通常 opa0） | `full.neutral` | `fullbody-base-no-head-arms.png` | torso/pelvis |
 
@@ -56,16 +56,23 @@
 ### 6. `shoes` 鞋
 - **Images**: `full.shoe.{l,r}.image`
 - **Assets**: `shoe-*.png`
-- **隐藏后**: 可见袜（烘焙在 leg-skin，无独立袜层）
+- **隐藏后**: 可见独立袜层 `sock-{l,r}`（R33a）
 
-### 7. `choker` / 发饰
+### 7. `socks` 袜（R33a）
+- **Images**: `full.sock.{l,r}.image`
+- **Assets**: `sock-l.png`, `sock-r.png`
+- **Bones**: 与对应 `leg-*-skin` 同网格（upper/lower/foot）
+- **说明**: 白袜+橙星从 `leg-*-skin` **迁出**（非复制）；腿肤踝部已回填裸肤
+- **隐藏风险**: 露出回填踝肤；鞋仍盖住脚部
+
+### 8. `choker` / 发饰
 - **Images**: `full.choker.image`, `full.hair.clip.image`, `full.hair.bow.image`
-- **注意**: `hair-bow.png` 几乎空（结画在头发层）；真·蝴蝶结换装需先从头发拆像素
+- **注意**: `hair-bow.png` 几乎空（结画在头发层）；真·蝴蝶结换装需先从头发拆像素（待 R33c）
 
 ## 建议绘制顺序（换衣友好）
 
 ```
-body.backfill → leg skins (+socks) → arm skins → arm-under
+body.backfill → leg skins → socks → arm skins → arm-under
 → tank → shorts → shorts-orange → belt
 → coat stump/shoulder → sleeve → coat-front → cuff → hem.ribbon
 → shoes → choker / hair accessories → head/hair/face
@@ -84,7 +91,8 @@ body.backfill → leg skins (+socks) → arm skins → arm-under
 
 ## 仍非 swap-ready 的项
 
-- 腿袜未独立；右大腿绑带融在 leg-skin  
+- ~~腿袜未独立~~ → R33a 已拆 `sock-{l,r}`  
+- 右大腿绑带仍融在 leg-l-skin（待 R33b）  
 - 髋/裆与腿顶仍有接缝风险（隐短裤时）  
 - 袖下臂肤为几何胶囊，非母图手臂造型  
 - 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
