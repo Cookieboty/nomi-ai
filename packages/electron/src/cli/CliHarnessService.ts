@@ -18,6 +18,7 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWriter';
 import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
@@ -106,6 +107,8 @@ type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 export const MAIN_TAB_ID = 'main';
 export const DEFAULT_MAX_CONCURRENT = 3;
 const MAX_TAB_MESSAGES = 300;
+/** Trailing debounce for session.json / tabs.json / tab message files */
+const PERSIST_DEBOUNCE_MS = 200;
 const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
@@ -391,6 +394,12 @@ export class CliHarnessService {
   private readonly tabsDir: string;
   private readonly recentPath: string;
   private recent: string[] = [];
+  /** state.json / tabs.json / tabs/<id>.json: coalesced ~200 ms, async, atomic (flushed on dispose) */
+  private readonly writer: CoalescedWriter;
+  /** JSON length of each tab's last message-file write: decides compaction without a 2nd stringify */
+  private readonly tabFileBytes = new Map<string, number>();
+  private broadcastQueued = false;
+  private disposed = false;
   readonly events = new EventEmitter();
   /** 各 CLI 的模型目录缓存（从 CLI 读取，见 modelCatalogFor） */
   private readonly modelCatalogs = new Map<
@@ -441,6 +450,11 @@ export class CliHarnessService {
     this.tabsPath = path.join(d.root, 'tabs.json');
     this.tabsDir = path.join(d.root, 'tabs');
     this.recentPath = path.join(d.root, 'recent-cwds.json');
+    this.writer = new CoalescedWriter(PERSIST_DEBOUNCE_MS, (file, e) =>
+      d.logger.warn('harness persist failed', { file: path.basename(file), e }),
+    );
+    // another instance on this root (restart in-process / tests) may still hold unwritten state
+    flushPendingWritesSync(d.root);
     fs.mkdirSync(this.tabsDir, { recursive: true });
     const now = Date.now();
     this.tabs.set(MAIN_TAB_ID, {
@@ -560,7 +574,18 @@ export class CliHarnessService {
     this.main.permissionMode = this.restoredMode(this.main.backend, mainMode);
   }
 
+  /** Schedule session.json + tabs.json (coalesced; the contents are taken at write time). */
   private persist() {
+    this.writer.schedule(this.statePath, () => JSON.stringify(this.sessionSnapshot()));
+    this.writer.schedule(this.tabsPath, () => JSON.stringify(this.tabsSnapshot()));
+  }
+
+  /** Write any pending state / message files now (quit, dispose, tests). */
+  flushPersist(): void {
+    this.writer.flushSync();
+  }
+
+  private sessionSnapshot() {
     const m = this.main;
     const s: HarnessSessionState & {
       title: string;
@@ -577,28 +602,31 @@ export class CliHarnessService {
       ...(m.modelOverride ? { modelOverride: m.modelOverride } : {}),
       ...(m.reasoningEffort ? { reasoningEffort: m.reasoningEffort } : {}),
     };
-    try {
-      fs.writeFileSync(this.statePath, JSON.stringify(s, null, 2), 'utf8');
-      const tabs = [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID);
-      fs.writeFileSync(
-        this.tabsPath,
-        JSON.stringify(
-          {
-            activeTabId: this.activeTabId,
-            maxConcurrent: this.maxConcurrent,
-            defaultPermissionMode: this.defaultPermissionMode,
-            codexNetwork: this.codexNetwork,
-            lastSettings: Object.fromEntries(this.lastSettings),
-            tabs,
-          },
-          null,
-          2,
-        ),
-        'utf8',
-      );
-    } catch (e) {
-      this.d.logger.warn('harness persist failed', e);
-    }
+    return s;
+  }
+
+  private tabsSnapshot() {
+    return {
+      activeTabId: this.activeTabId,
+      maxConcurrent: this.maxConcurrent,
+      defaultPermissionMode: this.defaultPermissionMode,
+      codexNetwork: this.codexNetwork,
+      lastSettings: Object.fromEntries(this.lastSettings),
+      tabs: [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID),
+    };
+  }
+
+  /** Schedule a tab's message file; compacts old traces when the last write was near the cap. */
+  private persistMessages(id: string) {
+    this.writer.schedule(this.messagesPath(id), () => {
+      const list = this.messages.get(id) ?? [];
+      // 文件过大：较早消息的轨迹只保留骨架（按上次写入的体积判断，免去每次二次 stringify）
+      if ((this.tabFileBytes.get(id) ?? 0) > MAX_TAB_FILE_BYTES * 0.9) compactOldTraces(list);
+      let json = JSON.stringify(list);
+      if (json.length > MAX_TAB_FILE_BYTES && compactOldTraces(list)) json = JSON.stringify(list);
+      this.tabFileBytes.set(id, json.length);
+      return json;
+    });
   }
 
   private messagesPath(id: string) {
@@ -675,7 +703,7 @@ export class CliHarnessService {
     }
     if (!changed) return;
     try {
-      fs.writeFileSync(this.messagesPath(id), JSON.stringify(list), 'utf8');
+      this.persistMessages(id);
     } catch (e) {
       this.d.logger.warn('harness image link migration failed', e);
     }
@@ -688,14 +716,7 @@ export class CliHarnessService {
     const list = this.tabMessages(id);
     list.push(msg);
     if (list.length > MAX_TAB_MESSAGES) list.splice(0, list.length - MAX_TAB_MESSAGES);
-    try {
-      let json = JSON.stringify(list);
-      // 文件过大：较早消息的轨迹只保留骨架，避免每条消息都整文件同步写几十 MB
-      if (json.length > MAX_TAB_FILE_BYTES && compactOldTraces(list)) json = JSON.stringify(list);
-      fs.writeFileSync(this.messagesPath(id), json, 'utf8');
-    } catch (e) {
-      this.d.logger.warn('harness tab messages write failed', e);
-    }
+    this.persistMessages(id);
     this.post('ai:harness:tab-message', { tabId: id, message: msg });
   }
 
@@ -861,7 +882,7 @@ export class CliHarnessService {
     this.messages.set(tab.id, seeded);
     if (seeded.length) {
       try {
-        fs.writeFileSync(this.messagesPath(tab.id), JSON.stringify(seeded), 'utf8');
+        this.persistMessages(tab.id);
       } catch (e) {
         this.d.logger.warn('harness tab seed write failed', e);
       }
@@ -929,7 +950,7 @@ export class CliHarnessService {
       }));
     this.messages.set(id, seeded);
     try {
-      fs.writeFileSync(this.messagesPath(id), JSON.stringify(seeded), 'utf8');
+      this.persistMessages(id);
     } catch (e) {
       this.d.logger.warn('harness tab seed write failed', e);
     }
@@ -948,7 +969,10 @@ export class CliHarnessService {
     const idx = order.indexOf(id);
     this.tabs.delete(id);
     this.messages.delete(id);
+    this.tabFileBytes.delete(id);
     this.progress.delete(id);
+    // a pending coalesced write must not recreate the deleted file
+    this.writer.cancel(this.messagesPath(id));
     try {
       fs.rmSync(this.messagesPath(id), { force: true });
       fs.rmSync(this.carryPath(id), { force: true });
@@ -1706,6 +1730,8 @@ export class CliHarnessService {
 
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
+    this.disposed = true;
+    this.writer.dispose();
     this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
@@ -3683,12 +3709,22 @@ export class CliHarnessService {
     return this.writeClaudeControl(live, { subtype: 'stop_task', task_id: agentId });
   }
 
+  /**
+   * State changed: schedule the (coalesced) state files, notify in-process listeners right away,
+   * and send the full state to the windows once per microtask turn, so a burst of status changes
+   * in one event costs one state()/listTabs() serialization over IPC instead of one per call.
+   */
   private changed() {
     this.persist();
-    this.post('ai:harness:changed', this.state());
-    const tabs = this.listTabs();
-    this.post('ai:harness:tabs', tabs);
-    this.events.emit('tabs', tabs);
+    if (this.events.listenerCount('tabs')) this.events.emit('tabs', this.listTabs());
+    if (this.broadcastQueued) return;
+    this.broadcastQueued = true;
+    queueMicrotask(() => {
+      this.broadcastQueued = false;
+      if (this.disposed) return;
+      this.post('ai:harness:changed', this.state());
+      this.post('ai:harness:tabs', this.listTabs());
+    });
   }
 
   /** 用户允许/拒绝 Claude 工具权限请求；写回 CLI stdin 的 control_response */

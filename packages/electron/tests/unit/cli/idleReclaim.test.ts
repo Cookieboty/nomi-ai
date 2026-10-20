@@ -106,7 +106,8 @@ describe('CliHarnessService idle recycling (mock Claude)', () => {
     expect(snapshots.at(-1)!.tabs.find((x) => x.id === tab.id)!.dormant).toBe(true);
     // 会话信息与转录保留
     expect(h.tabMessages(tab.id).map((m) => m.role)).toEqual(['user', 'assistant']);
-    // dormant 不落盘
+    // dormant 不落盘（状态文件合并写入：读文件前先落盘）
+    h.flushPersist();
     expect(fs.readFileSync(path.join(root, 'tabs.json'), 'utf8')).not.toContain('dormant');
 
     // 新进程换了会话 id：若带了 --resume，mock 会回报「已续接会话 sess-A」
