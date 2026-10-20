@@ -119,7 +119,7 @@ describe('CliHarnessService Gemini backend', () => {
       else process.env[k] = saved[k];
     }
   });
-  const mk = (extra: { geminiPromptIdleMs?: number } = {}) => {
+  const mk = (extra: { geminiPromptIdleMs?: number; prewarmClaude?: boolean } = {}) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-gemini-'));
     const h = new CliHarnessService({
       ...extra,
@@ -158,6 +158,31 @@ describe('CliHarnessService Gemini backend', () => {
     expect(readLog(log).find((c) => c.method === 'session/set_mode')?.params.modeId).toBe('yolo');
     const msgs = h.tabMessages(tab.id);
     expect(msgs.at(-1)?.content).toBe('Mock Gemini: again');
+  }, 15_000);
+
+  it('预热：新建 Gemini 会话即完成 ACP 握手，第一条消息复用它；没用过的预热会话可回收', async () => {
+    const { h, root } = mk({ prewarmClaude: true });
+    const log = path.join(root, 'acp.log');
+    process.env.NOMI_MOCK_GEMINI_LOG = log;
+    const lives = (h as unknown as { geminiLive: Map<string, { ready: Promise<void> }> })
+      .geminiLive;
+    const tab = h.createTab({ backend: 'gemini' });
+    for (let i = 0; i < 100 && !lives.has(tab.id); i++) await new Promise((r) => setTimeout(r, 10));
+    await lives.get(tab.id)!.ready;
+    expect(readLog(log).map((c) => c.method)).toContain('session/new');
+    const idle = h.createTab({ backend: 'gemini' });
+    for (let i = 0; i < 100 && !lives.has(idle.id); i++)
+      await new Promise((r) => setTimeout(r, 10));
+    await lives.get(idle.id)!.ready;
+
+    expect((await h.sendTab(tab.id, 'hello')).text).toBe('Mock Gemini: hello');
+    const methods = readLog(log).map((c) => c.method);
+    expect(methods.filter((m) => m === 'initialize')).toHaveLength(2);
+    // 用过的（有会话）回收后标休眠；没用过的悄悄回收
+    expect(h.reclaimIdle(Date.now() + 3_600_000).sort()).toEqual([tab.id, idle.id].sort());
+    const tabs = h.listTabs().tabs;
+    expect(tabs.find((x) => x.id === tab.id)?.dormant).toBe(true);
+    expect(tabs.find((x) => x.id === idle.id)?.dormant).toBeFalsy();
   }, 15_000);
 
   it('injects the active provider profile env into the ACP process', async () => {

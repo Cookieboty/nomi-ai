@@ -404,7 +404,7 @@ export class CliHarnessService {
       claudeControlTimeoutMs?: number;
       /** 停止后等中断那一轮结束的宽限（毫秒）；缺省 CLAUDE_INTERRUPT_GRACE_MS */
       claudeInterruptGraceMs?: number;
-      /** 新建 / 切到 Claude 标签时预先拉起长驻进程（首条消息免冷启动）；测试缺省关闭 */
+      /** 新建 / 切到 Claude、Gemini 标签时预先拉起长驻进程（首条消息免冷启动）；测试缺省关闭 */
       prewarmClaude?: boolean;
     },
   ) {
@@ -1388,18 +1388,25 @@ export class CliHarnessService {
   }
 
   /**
-   * 预先拉起 Claude 长驻进程（node 启动、MCP / hooks / 插件加载、--resume 读回转录约需数秒），
-   * 让新会话 / 切回来的会话第一条消息不必等冷启动。没用过的预热进程同样参与空闲回收。
+   * 预先拉起长驻进程（Claude：node 启动、MCP / hooks / 插件加载、--resume 读回转录；Gemini：ACP
+   * 握手 + session/new 或 load），让新会话 / 切回来的会话第一条消息不必等冷启动。
+   * 没用过的预热进程同样参与空闲回收。每轮一个进程的后端没有可预热的东西。
    */
   private prewarm(id: string) {
     if (!this.d.prewarmClaude) return;
     const tab = this.tabs.get(id);
-    if (!tab || tab.backend !== 'claude' || this.claudeLive.has(id)) return;
-    if (tab.status === 'running' || tab.status === 'queued') return;
-    try {
-      this.ensureClaudeLive(tab).prewarmed = true;
-    } catch (e) {
-      this.d.logger.warn('harness claude prewarm failed', e);
+    if (!tab || tab.status === 'running' || tab.status === 'queued') return;
+    if (tab.backend === 'claude' && !this.claudeLive.has(id)) {
+      try {
+        this.ensureClaudeLive(tab).prewarmed = true;
+      } catch (e) {
+        this.d.logger.warn('harness claude prewarm failed', e);
+      }
+    } else if (tab.backend === 'gemini' && !this.geminiLive.has(id)) {
+      // 握手失败（未受信任的文件夹 / 旧版 CLI）时会话已拆除；错误留给第一条消息照常报告
+      this.ensureGeminiLive(tab).catch((e: unknown) =>
+        this.d.logger.info('harness gemini prewarm skipped', { error: String(e) }),
+      );
     }
   }
 
@@ -2280,6 +2287,7 @@ export class CliHarnessService {
     if (live.turn) throw new Error(t('上一轮尚未结束'));
     const turn: GeminiTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
     live.turn = turn;
+    live.used = true;
     live.lastActivityAt = Date.now();
     try {
       const r = await live.conn.request<{
@@ -2498,7 +2506,7 @@ export class CliHarnessService {
           turnActive: gl.turn !== null,
           permissionPending: gl.perms.size > 0,
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || !gl.used,
         })),
         ...[...this.claudeLive.entries()].map(([id, live]) => ({
           id,
@@ -3188,6 +3196,8 @@ type GeminiLiveSession = {
   modeChange: ModeChange | null;
   /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
   recycleAfterTurn?: boolean;
+  /** 发过消息；没发过的（预热拉起的）没有会话也可回收（不丢上下文） */
+  used?: boolean;
 };
 
 /**
