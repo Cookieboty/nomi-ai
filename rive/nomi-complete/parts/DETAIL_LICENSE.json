@@ -297,8 +297,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34a: belt only (leather band + buckles + keepers); surrounding fabric moved to waist-backfill.png"
     },
     "reference/svg-rig/shorts.png": {
-      "sha256": "2d7498eb5ab437575fe92fcd7a0b492a3295da8bd069796892883281ae29748d",
-      "bytes": 97640,
+      "sha256": "4c63cd37af4533d1b1260d6b179e26b7a3ede82b5d4ec8ab55ce9eda299f0518",
+      "bytes": 97555,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34b/c: fabric from old pouch/badge crops moved in; areas under pouch/badge refilled (procedural)"

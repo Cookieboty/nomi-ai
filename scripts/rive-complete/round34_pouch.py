@@ -125,7 +125,7 @@ def split():
     ctx = sh.copy(); ctx[hole] = 0
     cc = C.colour_masks(ctx)
     ctx[cc["orange"] | (cc["chroma"] > 45) | (cc["lum"] > 90)] = 0      # dark fabric context only
-    filled = C.smooth_fill(ctx, hole, sigma=9.0, seed=342, grain=1.2, fold=3.0)
+    filled = C.crease_fill(ctx, hole, sigma=9.0, seed=342, grain=1.0)
     sh[hole, :3] = filled[hole, :3]
     sh[hole, 3] = 255
     C.save(POUCH, out); C.save("shorts.png", sh); C.save("shorts-side-orange.png", so); C.save(COAT, coat)
