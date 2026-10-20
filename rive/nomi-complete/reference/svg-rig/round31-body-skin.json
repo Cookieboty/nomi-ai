@@ -25,23 +25,23 @@
   "arms": {
     "l": {
       "side": "l",
-      "opaque": 25376,
+      "opaque": 22548,
       "mean": [
         252.0,
         218.6,
         200.8
       ],
-      "sha256": "2050bc4002c63acc3e9f4d7019f340abd1df1dc3308e3b6689e46d748487c229"
+      "sha256": "55cb171f64e99d63e75eca4befc3141d5cbe6551166618e7a3bef6c7f85148df"
     },
     "r": {
       "side": "r",
-      "opaque": 22090,
+      "opaque": 19064,
       "mean": [
         252.4,
         222.7,
         202.8
       ],
-      "sha256": "815e7bcdf39bedefd98f73909b1302016bbad9f15c4e22f3d78538fd7b6a817b"
+      "sha256": "1efc02b8dfd86bcdf90fc3ec4413199f3312ee8baeef29a435b2442dd1682368"
     }
   }
 }

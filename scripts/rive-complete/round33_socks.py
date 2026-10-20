@@ -2,7 +2,7 @@
 """ROUND33a: split white+orange-star socks out of leg-*-skin into sock-{l,r}.png
 (same canvas + cloned leg mesh). Backfill bare ankle/shin skin in leg style.
 
-Idempotent via MARK + meta sha.
+Backfill polished R33d (cylindrical AO). Idempotent via MARK + meta sha.
 """
 from __future__ import annotations
 import hashlib, json, re
@@ -74,14 +74,13 @@ def sock_mask(im: np.ndarray, cuff: int) -> np.ndarray:
 
 
 def backfill_leg(im: np.ndarray, sock: np.ndarray, cuff: int) -> np.ndarray:
-    """Paint peach shin/ankle skin into sock footprint (keeps alpha silhouette)."""
+    """Paint peach shin/ankle skin into sock footprint (cylindrical AO + cuff seam)."""
     h, w = im.shape[:2]
     result = im.copy()
-    band = im[max(0, cuff - 55) : max(1, cuff - 3)]
+    band = im[max(0, cuff - 70) : max(1, cuff - 8)]
     ba = band[:, :, 3] >= 16
     r, g, b = band[:, :, 0], band[:, :, 1], band[:, :, 2]
-    # prefer peach samples (exclude residual sock white)
-    peach = ba & (r > 180) & (g > 140) & (b > 110) & ((r.astype(int) - b.astype(int)) > 15)
+    peach = ba & (r > 185) & (g > 145) & (b > 115) & ((r.astype(int) - b.astype(int)) > 18)
     if not peach.any():
         peach = ba
     mean = band[:, :, :3][peach].mean(0) if peach.any() else np.array([248.0, 220.0, 205.0])
@@ -89,12 +88,9 @@ def backfill_leg(im: np.ndarray, sock: np.ndarray, cuff: int) -> np.ndarray:
     col_mean = np.zeros((w, 3), np.float32)
     col_ok = np.zeros(w, bool)
     for x in range(w):
-        col = band[:, x]
-        m = col[:, 3] >= 16
-        rr, gg, bb = col[:, 0], col[:, 1], col[:, 2]
-        sk = m & (rr > 180) & (gg > 140) & (bb > 110) & ((rr.astype(int) - bb.astype(int)) > 15)
-        if sk.sum() >= 2:
-            col_mean[x] = col[sk, :3].mean(0)
+        m = peach[:, x]
+        if m.sum() >= 2:
+            col_mean[x] = band[m, x, :3].mean(0)
             col_ok[x] = True
     for x in range(w):
         if not col_ok[x]:
@@ -102,17 +98,29 @@ def backfill_leg(im: np.ndarray, sock: np.ndarray, cuff: int) -> np.ndarray:
             col_mean[x] = col_mean[min(near, key=lambda nx: abs(nx - x))] if near else mean
 
     rgb = im[:, :, :3].astype(np.float32).copy()
+    ref = im[max(0, cuff - 25), :, 3] >= 8
+    xs_ref = np.where(ref)[0] if ref.any() else np.array([0, w - 1])
+    x0r, x1r = int(xs_ref[0]), int(xs_ref[-1])
     yy, xx = np.where(sock & (im[:, :, 3] >= 1))
     for y, x in zip(yy, xx):
-        t = np.clip((y - cuff) / max(h - cuff, 1), 0, 1)
-        # slight AO toward ankle/shoe
-        shade = 1.0 - 0.10 * t
-        # edge darkening from column occupancy
-        rgb[y, x] = np.clip(col_mean[x] * shade, 0, 255)
-    blur = cv2.bilateralFilter(rgb.astype(np.uint8), 5, 35, 35)
+        tlat = (x - x0r) / max(x1r - x0r, 1)
+        lat = 0.88 + 0.12 * np.sin(np.clip(tlat, 0, 1) * np.pi)
+        vert = 1.0 - 0.06 * np.clip((y - cuff) / max(h - cuff, 1), 0, 1)
+        rgb[y, x] = np.clip(col_mean[x] * lat * vert, 0, 255)
+    blur = cv2.bilateralFilter(rgb.astype(np.uint8), 7, 45, 45)
     out = result.copy()
     out[sock, :3] = blur[sock]
-    # keep original alpha in sock region (footprint into shoe)
+    for dy in range(0, 4):
+        y = cuff + dy
+        if y >= h:
+            break
+        row_m = sock[y]
+        if not row_m.any():
+            continue
+        above = out[max(0, cuff - 1 - dy), :, :3].astype(np.float32)
+        cur = out[y, :, :3].astype(np.float32)
+        a = 0.55 - 0.1 * dy
+        out[y, row_m, :3] = (cur * (1 - a) + above * a)[row_m]
     return out
 
 

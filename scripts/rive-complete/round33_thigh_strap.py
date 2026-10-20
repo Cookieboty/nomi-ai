@@ -3,7 +3,7 @@
 leg-l-skin into thigh-strap.png (cloned leg-l mesh → follows thigh/upper bone).
 Backfill thigh skin beneath.
 
-Idempotent via MARK + meta.
+Backfill polished R33d (cylindrical AO). Idempotent via MARK + meta.
 """
 from __future__ import annotations
 import hashlib, json, re
@@ -64,45 +64,55 @@ def strap_mask(im: np.ndarray) -> np.ndarray:
 
 def backfill_thigh(im: np.ndarray, strap: np.ndarray) -> np.ndarray:
     h, w = im.shape[:2]
-    above = im[max(0, Y0 - 28) : Y0]
-    below = im[Y1 + 1 : min(h, Y1 + 30)]
-    samples = []
-    for part in (above, below):
-        m = part[:, :, 3] >= 16
+    above = im[max(0, Y0 - 35) : Y0]
+    below = im[Y1 + 1 : min(h, Y1 + 35)]
+
+    def peach_m(part):
+        a = part[:, :, 3] >= 16
         rr, gg, bb = part[:, :, 0], part[:, :, 1], part[:, :, 2]
-        sk = m & (rr > 180) & (gg > 140) & (bb > 120) & ((rr.astype(int) - bb.astype(int)) > 15)
-        if sk.any():
-            samples.append(part[:, :, :3][sk])
-    mean = np.concatenate(samples, 0).mean(0) if samples else np.array([252.0, 226.0, 213.0])
+        return a & (rr > 185) & (gg > 145) & (bb > 120) & ((rr.astype(int) - bb.astype(int)) > 18)
 
     col_mean = np.zeros((w, 3), np.float32)
     col_ok = np.zeros(w, bool)
     for x in range(w):
         vals = []
         for part in (above, below):
-            col = part[:, x]
-            m = col[:, 3] >= 16
-            rr, gg, bb = col[:, 0], col[:, 1], col[:, 2]
-            sk = m & (rr > 180) & (gg > 140) & (bb > 120) & ((rr.astype(int) - bb.astype(int)) > 15)
-            if sk.any():
-                vals.append(col[sk, :3])
+            m = peach_m(part)[:, x]
+            if m.sum() >= 2:
+                vals.append(part[m, x, :3])
         if vals:
             col_mean[x] = np.concatenate(vals, 0).mean(0)
             col_ok[x] = True
+    mean = col_mean[col_ok].mean(0) if col_ok.any() else np.array([252.0, 226.0, 213.0], np.float32)
     for x in range(w):
         if not col_ok[x]:
             near = [nx for nx in range(w) if col_ok[nx]]
             col_mean[x] = col_mean[min(near, key=lambda nx: abs(nx - x))] if near else mean
 
+    fill = cv2.dilate(strap.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    fill &= im[:, :, 3] >= 1
     rgb = im[:, :, :3].astype(np.float32).copy()
-    yy, xx = np.where(strap & (im[:, :, 3] >= 1))
-    mid = (Y0 + Y1) / 2.0
+    ref = im[max(0, Y0 - 20), :, 3] >= 8
+    xs_ref = np.where(ref)[0] if ref.any() else np.array([0, w - 1])
+    x0r, x1r = int(xs_ref[0]), int(xs_ref[-1])
+    yy, xx = np.where(fill)
     for y, x in zip(yy, xx):
-        # very slight center highlight continuity
-        rgb[y, x] = col_mean[x]
-    blur = cv2.bilateralFilter(rgb.astype(np.uint8), 5, 28, 28)
+        tlat = (x - x0r) / max(x1r - x0r, 1)
+        lat = 0.90 + 0.10 * np.sin(np.clip(tlat, 0, 1) * np.pi)
+        rgb[y, x] = np.clip(col_mean[x] * lat, 0, 255)
+    blur = cv2.bilateralFilter(rgb.astype(np.uint8), 7, 40, 40)
     out = im.copy()
-    out[strap, :3] = blur[strap]
+    out[fill, :3] = blur[fill]
+    for y in range(Y0, Y1 + 1):
+        row = fill[y]
+        if not row.any():
+            continue
+        ta = (y - Y0) / max(Y1 - Y0, 1)
+        above_c = out[max(0, Y0 - 2), :, :3].astype(np.float32)
+        below_c = out[min(h - 1, Y1 + 2), :, :3].astype(np.float32)
+        target = (1 - ta) * above_c + ta * below_c
+        cur = out[y, :, :3].astype(np.float32)
+        out[y, row, :3] = (0.35 * target + 0.65 * cur)[row]
     return out
 
 

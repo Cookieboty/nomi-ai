@@ -162,8 +162,7 @@ def build_arm_under(side: str):
     dest = SVG / f"arm-{side}-under-skin.png"
     Image.fromarray(out).save(dest, optimize=True)
     meta = dict(side=side, opaque=int((out[:, :, 3] >= 8).sum()), mean=[round(float(x), 1) for x in mean], sha256=sha(dest))
-    (SVG / f"arm-{side}-under-skin.json").write_text(json.dumps(meta, indent=2) + "
-")
+    (SVG / f"arm-{side}-under-skin.json").write_text(json.dumps(meta, indent=2) + "\n")
     return meta
 
 

@@ -8,19 +8,14 @@
  ],
  "deleted_sleeve_px": 9588,
  "deleted_dark_px": 1836,
- "band_px": 3199,
- "under_px": 5571,
+ "band_px": 3306,
+ "under_px": 6481,
  "seam_aa_px": 262,
  "hem_tail_px": 113,
- "split_sha": "41f8aeda53520ee908d9f00e52c3a6e16c72fd23da16ab27bcc11aef6d5daa3d",
+ "split_sha": "94728e129252d3f05c74c76c6964c366dccef196cfd174f2192e62ed0e5def84",
  "round30_backfill": {
-  "filled_px": 1542,
-  "band_px": 162,
-  "under_px": 1380,
-  "before_miss": 1040,
-  "before_weak": 1542,
-  "after_miss": 0,
-  "after_weak": 0,
-  "sleeve_sha": "209db7aea131ab1d7ae41e2ecd4d989a7a6156cf334188c3be07852f8ac8a1aa"
+  "filled_px": 0,
+  "before_miss": 0,
+  "before_weak": 0
  }
 }
