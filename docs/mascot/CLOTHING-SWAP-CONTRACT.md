@@ -1,4 +1,4 @@
-# Nomi·诺米 Clothing Swap Contract（R31d → R33a socks / R33b thigh-strap）
+# Nomi·诺米 Clothing Swap Contract（R31d → R33a–c socks/strap/bow）
 
 **日期**：2026-10-20（Asia/Shanghai）　**分支**：`feat/mascot-rive-full-bone-rig`  
 **状态**：层节点已分组文档化；**尚未**接入 StateMachine 显隐 Input（避免打断 `RIVE_NATIVE_MOTIONS`）。换衣时按下列 **Image 节点集合** 设 `opacity=0`（或替换贴图）。
@@ -74,7 +74,9 @@
 
 ### 8. `choker` / 发饰
 - **Images**: `full.choker.image`, `full.hair.clip.image`, `full.hair.bow.image`
-- **注意**: `hair-bow.png` 几乎空（结画在头发层）；真·蝴蝶结换装需先从头发拆像素（待 R33c）
+- **Assets**: `choker.png`, `hair-clip.png`, `hair-bow.png`
+- **`hair.bow`（R33c）**: 橙结从 `hair-lock-r` **迁出**；同 lock-r 网格（head + lock.r.s1–s3，继承 R20 sway）；旧空刚性 Image 已删
+- **隐藏风险**: 露出 lock-r 回填深棕发；`hair-back-*` / `hair-lock-l` 上仍可能有少量橙饰未迁
 
 ## 建议绘制顺序（换衣友好）
 
@@ -104,3 +106,4 @@ body.backfill → leg skins → socks → arm skins → arm-under
 - 袖下臂肤为几何胶囊，非母图手臂造型  
 - 无 StateMachine 换衣 Input；需运行时改 opacity 或换 asset  
 - `full.neutral` 仍含橙色边角残片（通常 opacity 0）
+- `hair-back-*` / `hair-lock-l` 残留橙像素（非主结）未迁入 bow
