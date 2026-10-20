@@ -4,6 +4,7 @@
  */
 import { t } from '@nomi-ai/ui';
 
+import type { BackendModelCatalog } from '../services/harnessClient';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -272,12 +273,115 @@ function cliChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
   return out;
 }
 
+/** 与输入框模型按钮、主进程同一套模型 id 字符集（自定义模型 id 用） */
+const MODEL_ID = /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]{0,127}$/;
+
+/**
+ * CLI 标签的 `/model`：与输入框的模型按钮一致——列这个标签的模型目录（官方账号读 CLI 自己，
+ * 第三方供应商读它的 /models），切换只作用于当前标签、下一条消息起生效；参数可以是自定义模型 id。
+ */
+async function tabModelCard(
+  ctx: SlashContext,
+  catalog: BackendModelCatalog,
+  current: string | null,
+  args: string,
+): Promise<SlashCardInput> {
+  const source = catalog.provider?.name || ENDPOINT_FULL[ctx.backend]();
+  const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
+  const pick = (model: string) => ctx.actions.setTabModel(model);
+  const choices: ModelChoice[] = [
+    {
+      label: defaultLabel ? t('默认模型 · {0}', defaultLabel) : t('默认模型'),
+      provider: source,
+      model: '',
+      active: !current,
+      run: () => pick(''),
+    },
+    ...catalog.models.map((m) => ({
+      label: m.label ?? m.id,
+      provider: source,
+      model: m.id,
+      active: current === m.id,
+      run: () => pick(m.id),
+    })),
+  ];
+  if (current && !catalog.models.some((m) => m.id === current))
+    choices.push({
+      label: t('{0}（自定义）', current),
+      provider: source,
+      model: current,
+      active: true,
+      run: () => pick(current),
+    });
+  const done = (label: string) =>
+    notice(t('模型已切换'), t('已切换到 {0}', label), 'info', {
+      detail: t('只影响当前标签，下一条消息起生效。'),
+    });
+  const q = args.trim();
+  let list = choices;
+  if (q) {
+    const ranked = rankItems(choices, q, (c) => [
+      { text: c.model, weight: 3 },
+      { text: c.label, weight: 1 },
+    ]);
+    const exact = ranked.filter((r) => r.item.model.toLowerCase() === q.toLowerCase());
+    const hit = exact.length === 1 ? exact : ranked.length === 1 ? ranked : null;
+    try {
+      if (hit) {
+        const c = hit[0]!.item;
+        if (c.active) return notice(t('模型'), t('已经在使用 {0}', c.label));
+        await c.run();
+        return done(c.label);
+      }
+      // 目录里没有：和模型按钮的「自定义模型 id」一样直接用
+      if (!ranked.length && MODEL_ID.test(q)) {
+        await pick(q);
+        return done(t('{0}（自定义）', q));
+      }
+    } catch (e) {
+      return notice(t('切换失败'), e instanceof Error ? e.message : String(e), 'error');
+    }
+    list = ranked.map((r) => r.item);
+  }
+  return {
+    kind: 'list',
+    title: q ? t('匹配「{0}」的模型', q) : t('可用的模型'),
+    items: list.map((c) => ({
+      label: c.label,
+      active: c.active,
+      action: {
+        id: `model:${c.model || 'default'}`,
+        label: c.active ? t('当前') : t('切换'),
+        run: async () => {
+          await c.run();
+        },
+      },
+    })),
+    empty: t('没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>'),
+    actions: [
+      { id: 'switch-provider', label: t('切换供应商'), run: () => ctx.actions.openSettings() },
+    ],
+    note: [
+      catalog.provider ? t('列的是「{0}」的模型。', catalog.provider.name) : '',
+      catalog.error ? t('没能从 {0} 读到模型列表：{1}', source, catalog.error) : '',
+      t('只影响当前标签，下一条消息起生效；与输入框的模型按钮是同一个设置。'),
+    ]
+      .filter(Boolean)
+      .join(' '),
+  };
+}
+
 /** `/model` 的结果：无参数 = 列表；有参数且唯一命中 = 直接切换 */
 export async function modelCard(
   ctx: SlashContext,
   data: SlashData,
   args: string,
 ): Promise<SlashCardInput> {
+  if (ctx.backend !== 'nomi') {
+    const tm = await ctx.actions.tabModels();
+    if (tm.catalog) return tabModelCard(ctx, tm.catalog, tm.current, args);
+  }
+  // Nomi 对话；以及不能按标签切模型的 CLI（Gemini / 未启用第三方的 dsh）：列供应商
   const choices = ctx.backend === 'nomi' ? nomiChoices(ctx, data) : cliChoices(ctx, data);
   const note =
     ctx.backend === 'nomi'

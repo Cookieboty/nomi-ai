@@ -427,7 +427,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(chip).toHaveAttribute('data-backend', 'claude');
     await expect(chip).toHaveAttribute('data-source', 'own-store');
     await expect(chip).toContainText('本地中转');
-    await expect(chat.locator('[data-testid="cli-model-label"]')).toHaveText('claude-x');
+    // 右上角只切换来源；模型在输入框的模型按钮里（第三方供应商下列它的模型，默认是供应商配置的）
+    await expect(chat.locator('[data-testid="cli-model-label"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="model-chip"]')).toContainText('claude-x');
     await shot(chat, '14-cli-chip-claude-own-profile');
     await chat.locator('[data-testid="chat-tab-2"]').click();
     await expect(chip).toHaveAttribute('data-backend', 'codex');

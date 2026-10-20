@@ -6,7 +6,12 @@
  */
 import type { CliProviderState } from '../services/cliProviderClient';
 import type { CliInstallInfo } from '../services/cliUpdateClient';
-import type { GitDiffResult, SlashDiscoveryEntry, SlashExpansion } from '../services/harnessClient';
+import type {
+  BackendModelCatalog,
+  GitDiffResult,
+  SlashDiscoveryEntry,
+  SlashExpansion,
+} from '../services/harnessClient';
 import type { ProviderState } from '../services/providerClient';
 import type { UsageEndpointInfo, UsageQuotaEntry } from '../services/usageClient';
 import type { ConversationBackend } from '../types/chat';
@@ -190,6 +195,13 @@ export interface SlashActions {
   /** CLI：启用 / 停用第三方供应商（写 CLI 的配置，主进程会备份，下一轮生效） */
   activateCliProfile: (profileId: string) => Promise<{ ok: boolean; error?: string }>;
   deactivateCliProfile: () => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * CLI 标签：这个标签的模型目录与当前选择（与输入框的模型按钮同一份数据）。
+   * catalog 为 null = 这个后端不能按标签切模型。
+   */
+  tabModels: () => Promise<{ catalog: BackendModelCatalog | null; current: string | null }>;
+  /** CLI 标签：切换这个标签的模型（空串 = 默认模型），下一条消息起生效 */
+  setTabModel: (model: string) => Promise<void>;
   gitDiff: () => Promise<GitDiffResult>;
   /** 主进程按 id 展开（Codex / Grok 的自定义命令与 skill） */
   expand: (id: string, args: string) => Promise<SlashExpansion | null>;

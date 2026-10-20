@@ -287,7 +287,8 @@ describe('CliProviderChip', () => {
     await waitFor(() =>
       expect(r.getByTestId('cli-provider-chip').getAttribute('data-source')).toBe('own-store'),
     );
-    expect(r.getByTestId('cli-model-label').textContent).toBe('qwen');
+    // 只切换来源，不显示模型（模型在输入框的模型按钮里）
+    expect(r.queryByTestId('cli-model-label')).toBeNull();
     fireEvent.click(r.getByRole('combobox'));
     const opts = Array.from(document.querySelectorAll('[role="option"]')).map((o) => o.textContent);
     expect(opts.join('|')).toContain('Other');
@@ -306,7 +307,7 @@ describe('each CLI chip shows only its own store', () => {
     ['codex', 'CodexP', 'codex-m'],
     ['dsh', 'DshP', 'dsh-m'],
   ] as const)(
-    '%s shows its own active profile + model and nothing else',
+    '%s shows its own active profile and nothing else (no model label)',
     async (kind, name, model) => {
       mockIpc({
         cli: cliState([
@@ -322,7 +323,7 @@ describe('each CLI chip shows only its own store', () => {
       );
       const text = r.getByTestId('cli-provider-chip').textContent ?? '';
       expect(text).toContain(name);
-      expect(r.getByTestId('cli-model-label').textContent).toBe(model);
+      expect(text).not.toContain(model);
       for (const other of ['ClaudeP', 'CodexP', 'DshP'].filter((n) => n !== name))
         expect(text).not.toContain(other);
     },

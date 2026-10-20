@@ -99,7 +99,7 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
       name: 'model',
       label: t('切换模型'),
       description: cli
-        ? t('列出并切换这个 CLI 使用的第三方供应商 / 模型')
+        ? t('列出并切换当前标签的模型（与输入框的模型按钮一致）')
         : t('列出并切换 Nomi 对话使用的供应商 / 模型'),
       source: 'builtin',
       kind: 'native',

@@ -1,5 +1,6 @@
 /**
- * CLI 后端（Claude Code / Codex / dsh）输入栏上的供应商 / 模型按钮。
+ * CLI 后端（Claude Code / Codex / dsh）的供应商切换（官方账号 / 第三方供应商）。
+ * 只切换来源，不显示模型：模型在输入框的模型按钮里看和选（ModelControls，按标签生效）。
  *
  * 只读取该后端自己的第三方供应商列表（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
  * 没有启用的供应商时显示「CLI 默认 / 已登录」。快速切换只在本后端的供应商里选。
@@ -138,22 +139,9 @@ export const CliProviderChip: React.FC<{
             label: t('官方 · {0}', a.identity?.email ?? a.label),
             description: a.identity?.plan,
           })),
-          ...profiles.map((p) => ({
-            value: p.id,
-            label: p.name,
-            description: p.model || undefined,
-          })),
+          ...profiles.map((p) => ({ value: p.id, label: p.name })),
         ]}
       />
-      {active?.model && (
-        <span
-          data-testid="cli-model-label"
-          style={{ fontSize: 14, opacity: 0.8, whiteSpace: 'nowrap' }}
-          title={t('模型')}
-        >
-          {active.model}
-        </span>
-      )}
       {err && (
         <span
           role="alert"

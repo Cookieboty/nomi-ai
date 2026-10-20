@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { SlashDiscoveryEntry } from '../src/services/harnessClient';
+import type { BackendModelCatalog, SlashDiscoveryEntry } from '../src/services/harnessClient';
 import { adapterFor, scopeOrderFor } from '../src/slash/adapters';
 import { buildRegistry } from '../src/slash/registry';
 import type { SlashContext, SlashData } from '../src/slash/types';
@@ -51,6 +51,11 @@ export function makeCtx(
     switchNomiModel: vi.fn(async () => undefined),
     activateCliProfile: vi.fn(async () => ({ ok: true })),
     deactivateCliProfile: vi.fn(async () => ({ ok: true })),
+    tabModels: vi.fn(async () => ({
+      catalog: null as BackendModelCatalog | null,
+      current: null as string | null,
+    })),
+    setTabModel: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => ({ ok: true, status: '', stat: '', diff: '', truncated: false })),
     expand: vi.fn(async () => null as { text: string; shellInjection: boolean } | null),
     nomiSkillBody: vi.fn(async () => null as string | null),
