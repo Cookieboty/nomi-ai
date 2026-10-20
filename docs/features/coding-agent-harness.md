@@ -157,7 +157,12 @@ Aggregation（多上游合并）仍为 **P2**。
 **Claude 长驻说明（2026-10-15 对照 CLI 2.1.299）：**
 
 - 官方 print 模式支持 `--input-format stream-json` 保持 stdin 打开跨多轮；会话身份在启动时用 `--resume` 绑定，中途不能换会话（见 anthropics/claude-code#84060）。
-- Nomi 实现为**会话级进程复用**（一标签一进程），不是全局单例 daemon；中断发 `control_request{subtype:interrupt}` 后 `SIGKILL`，下一轮 `--resume`。
+- Nomi 实现为**会话级进程复用**（一标签一进程），不是全局单例 daemon。
+- **流式**：启动参数带 `--include-partial-messages`，正文按 `stream_event` 的 `text_delta` 逐 token 显示；同一轮里新的文本块开始时补一个段落分隔，子代理（带 `parent_tool_use_id`）的流式片段不进主回答。
+- **停止（2026-10-20，对照 2.1.304）**：只发 `control_request{subtype:interrupt}`，CLI 以 `error_during_execution` 的 `result` 结束这一轮、进程继续，下一轮不用冷启动。interrupt 没有应答、这条消息仍在 CLI 队列里（`still_queued`），或 5 秒内没收到 `result` 时才拆进程，下一轮 `--resume`。
+- **切换模型**：只差模型时，下一轮发送前用 `control_request{subtype:set_model}` 原地切换（`default` 回到 CLI 默认模型），不重启进程；被拒就拆进程按新 `--model` 重拉。思考深度没有可靠的原地切换（`apply_flag_settings` 的 `effortLevel` 不校验取值、也压不过 `--effort`），仍是空闲时回收、下一轮按新参数重启。模型变化本身会让服务端提示缓存失效，这一点无法避免。
+- **预热**：新建 Claude 会话、切到一个没有长驻进程的 Claude 标签时预先拉起进程（`NOMI_HARNESS_PREWARM=0` 关闭）。没发过消息的预热进程同样参与空闲回收，回收后不标「已休眠」。
+- **新会话沿用设置**：每个后端记住最近一次选的权限模式 / 模型 / 思考深度（`tabs.json` 的 `lastSettings`），`/clear`、新标签、打开历史都从它开始。「完全放开」不记；换官方账号或第三方供应商时清掉模型 / 思考深度；启用第三方供应商时不沿用模型；设置页改默认档后不再沿用旧的权限模式。
 - 若本机 Claude 在 stream-json 下仍每轮退出：harness 会在下一发送时自动重拉并带 `--resume`，功能不丢，只是少了「免冷启动」；以 mock 单测断言「同一 pid 跨两轮」为回归护栏。
 
 **空闲回收（2026-10-18）：** 长驻进程会一直占内存，所以空闲超过阈值（默认 30 分钟；环境变量 `NOMI_HARNESS_IDLE_MS`，`0` 关闭）就回收：只回收「没有进行中的轮次、没有待处理的权限请求、标签不在 running / queued、已有可续接的 `cliSessionId`」的进程（策略见 `cli/idleReclaim.ts`）。被回收的标签在 `ai:harness:tabs` 里带 `dormant: true`（仅内存，不落盘）：侧栏 / 标签的圆点显示空心、会话底部提示「已休眠」，转录与会话 id 都保留；下一条消息走原有的 `--resume <cliSessionId>` 重拉，休眠标记随之清除。Codex / dsh / Grok 本来每轮一个进程，不需要回收。

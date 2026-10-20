@@ -12,7 +12,10 @@
  *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append「pid 参数」一行，测复用）,
  *      NOMI_MOCK_CLAUDE_CONTROL_LOG（可选：收到 set_permission_mode 时 append「pid 模式」）,
  *      NOMI_MOCK_CLAUDE_MODE_ACK（set_permission_mode 的应答：缺省 success；error 负确认；
- *        none 不应答；wrong-id 用别的 request_id 应答）
+ *        none 不应答；wrong-id 用别的 request_id 应答）,
+ *      NOMI_MOCK_CLAUDE_MODEL_ACK（set_model 的应答：缺省 success；error 负确认）,
+ *      NOMI_MOCK_INTERRUPT（interrupt 的处理：缺省与真实 CLI 一致——应答后以 error_during_execution
+ *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）
  */
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -73,6 +76,9 @@ if (args[0] === 'auth' && args[1] === 'login') {
   await new Promise(() => {});
 }
 
+const modelIdx = args.indexOf('--model');
+let currentModel = modelIdx >= 0 ? args[modelIdx + 1] : 'mock-claude';
+
 const resumeIdx = args.indexOf('--resume');
 const ownSession = process.env.NOMI_MOCK_SESSION || 'mock-claude-session-1';
 const resumed = resumeIdx >= 0 ? args[resumeIdx + 1] : '';
@@ -83,7 +89,10 @@ function sleep() {
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 }
 
+/** 被 interrupt 的这一轮：之后的输出丢弃，直到下一轮开始 */
+let muted = false;
 function emit(obj) {
+  if (muted && obj.type !== 'control_response') return;
   process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
@@ -295,7 +304,7 @@ async function runOnce(_prompt) {
     type: 'system',
     subtype: 'init',
     session_id: sessionId,
-    model: 'mock-claude',
+    model: currentModel,
     pid: process.pid,
   });
 
@@ -658,6 +667,7 @@ const pump = () => {
   const next = queue.shift();
   if (!next) return;
   busy = true;
+  muted = false;
   if (next.auto) {
     bgFollowup();
     busy = false;
@@ -734,9 +744,50 @@ if (streamIn) {
         });
         return;
       }
-      // interrupt 等：直接退出，模拟被中止
+      // interrupt：与真实 CLI（2.1.304 实测）一致——应答，以 error_during_execution 结束这一轮，进程继续
       if (parsed.j?.request?.subtype === 'interrupt') {
-        process.exit(0);
+        const how = process.env.NOMI_MOCK_INTERRUPT || '';
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} interrupt\n`);
+        if (how === 'exit') process.exit(0);
+        if (how === 'ignore') return;
+        emit({
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: parsed.j.request_id,
+            response: { still_queued: [] },
+          },
+        });
+        if (busy) {
+          emit({
+            type: 'result',
+            subtype: 'error_during_execution',
+            is_error: true,
+            session_id: sessionId,
+            result: '',
+          });
+          muted = true;
+          // 卡在权限确认上的这一轮随之结束
+          if (permissionWaiter) {
+            const w = permissionWaiter;
+            permissionWaiter = null;
+            w(false);
+          }
+        }
+        return;
+      }
+      if (parsed.j?.request?.subtype === 'set_model') {
+        const model = parsed.j.request.model ?? 'default';
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} set_model ${model}\n`);
+        const ok = (process.env.NOMI_MOCK_CLAUDE_MODEL_ACK || 'success') === 'success';
+        emit({
+          type: 'control_response',
+          response: ok
+            ? { subtype: 'success', request_id: parsed.j.request_id }
+            : { subtype: 'error', request_id: parsed.j.request_id, error: 'unknown model (mock)' },
+        });
+        if (ok) currentModel = model;
+        return;
       }
       if (parsed.j?.request?.subtype === 'stop_task') {
         const taskId = parsed.j.request.task_id;

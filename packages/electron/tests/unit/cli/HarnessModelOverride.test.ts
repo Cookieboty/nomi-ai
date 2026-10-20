@@ -224,6 +224,7 @@ describe('CliHarnessService model / effort overrides', () => {
     const sid = h.listTabs().tabs.find((x) => x.id === tab.id)!.cliSessionId;
     expect(sid).toBeTruthy();
 
+    // 模型 + 思考深度一起换：思考深度没有原地切换，按新参数重启
     h.setTabModel(tab.id, 'claude-sonnet-5-5');
     h.setTabReasoningEffort(tab.id, 'high');
 
@@ -349,7 +350,7 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(readArgv().at(-1)!).toContain('model="gpt-5.6-sol"');
   });
 
-  it('Claude 有后台任务时切换覆盖不拆进程，后台结束后的下一轮才按新参数重启', async () => {
+  it('Claude 有后台任务时切换思考深度不拆进程，后台结束后的下一轮才按新参数重启', async () => {
     const boot = path.join(root, 'claude-boot.log');
     process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
     const h = mk();
@@ -361,7 +362,7 @@ describe('CliHarnessService model / effort overrides', () => {
     const live = lives.get(tab.id)!;
     live.bgTasks.add('task-1');
 
-    h.setTabModel(tab.id, 'claude-sonnet-5-5');
+    h.setTabReasoningEffort(tab.id, 'high');
     expect(lives.get(tab.id)).toBe(live);
     await h.sendTab(tab.id, '第二轮');
     expect(lives.get(tab.id)).toBe(live);
@@ -370,6 +371,48 @@ describe('CliHarnessService model / effort overrides', () => {
     await h.sendTab(tab.id, '第三轮');
     const boots = fs.readFileSync(boot, 'utf8').trim().split('\n').filter(Boolean);
     expect(boots).toHaveLength(2);
+    expect(boots[1]).toContain('--effort high');
+  }, 20_000);
+
+  it('Claude 只换模型：下一轮前 set_model 原地切换，不重启进程', async () => {
+    const boot = path.join(root, 'claude-boot.log');
+    const control = path.join(root, 'claude-control.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, '第一轮');
+    const lives = (h as unknown as { claudeLive: Map<string, unknown> }).claudeLive;
+    const live = lives.get(tab.id);
+
+    h.setTabModel(tab.id, 'claude-sonnet-5-5');
+    expect(lives.get(tab.id)).toBe(live);
+    await h.sendTab(tab.id, '第二轮');
+    h.setTabModel(tab.id, '');
+    await h.sendTab(tab.id, '第三轮');
+
+    expect(lives.get(tab.id)).toBe(live);
+    expect(fs.readFileSync(boot, 'utf8').trim().split('\n')).toHaveLength(1);
+    const sent = fs
+      .readFileSync(control, 'utf8')
+      .trim()
+      .split('\n')
+      .map((l) => l.replace(/^\d+\s+/, ''));
+    expect(sent).toEqual(['set_model claude-sonnet-5-5', 'set_model default']);
+  }, 20_000);
+
+  it('Claude set_model 被拒：拆进程，下一轮带新 --model 重启', async () => {
+    const boot = path.join(root, 'claude-boot.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_CLAUDE_MODEL_ACK = 'error';
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    await h.sendTab(tab.id, '第一轮');
+    h.setTabModel(tab.id, 'claude-sonnet-5-5');
+    await h.sendTab(tab.id, '第二轮');
+    const boots = fs.readFileSync(boot, 'utf8').trim().split('\n');
+    expect(boots).toHaveLength(2);
     expect(boots[1]).toContain('--model claude-sonnet-5-5');
+    expect(boots[1]).toContain('--resume');
   }, 20_000);
 });

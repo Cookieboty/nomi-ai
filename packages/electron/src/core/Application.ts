@@ -452,6 +452,8 @@ export class Application implements IApplication {
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
         geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
         hasProviderProfile: (kind) => getCliProviderBridge()?.hasActiveProfile(kind) ?? false,
+        // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
+        prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));

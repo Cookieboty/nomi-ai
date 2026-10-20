@@ -108,6 +108,8 @@ const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', '
 const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
 /** Claude control_request（如 set_permission_mode）等 control_response 的上限 */
 const CLAUDE_CONTROL_TIMEOUT_MS = 10_000;
+/** 停止后等中断那一轮 result 的宽限期；超过就拆进程（下一轮 --resume） */
+const CLAUDE_INTERRUPT_GRACE_MS = 5_000;
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -360,6 +362,11 @@ export class CliHarnessService {
   private activeTabId = MAIN_TAB_ID;
   private maxConcurrent = DEFAULT_MAX_CONCURRENT;
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
+  /**
+   * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
+   * 模型 / 思考深度在换官方账号或第三方供应商时清掉（recycleBackend）；「完全放开」从不记住。
+   */
+  private readonly lastSettings = new Map<HarnessBackend, LastTabSettings>();
   private codexNetwork = true;
   private readonly home: string;
   private readonly statePath: string;
@@ -395,6 +402,10 @@ export class CliHarnessService {
       geminiPromptIdleMs?: number;
       /** Claude control_request 等确认的上限（毫秒）；缺省 CLAUDE_CONTROL_TIMEOUT_MS */
       claudeControlTimeoutMs?: number;
+      /** 停止后等中断那一轮结束的宽限（毫秒）；缺省 CLAUDE_INTERRUPT_GRACE_MS */
+      claudeInterruptGraceMs?: number;
+      /** 新建 / 切到 Claude 标签时预先拉起长驻进程（首条消息免冷启动）；测试缺省关闭 */
+      prewarmClaude?: boolean;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -493,6 +504,7 @@ export class CliHarnessService {
         maxConcurrent?: number;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
+        lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
       if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
@@ -500,6 +512,7 @@ export class CliHarnessService {
         this.defaultPermissionMode = raw.defaultPermissionMode;
       }
       if (typeof raw.codexNetwork === 'boolean') this.codexNetwork = raw.codexNetwork;
+      this.restoreLastSettings(raw.lastSettings);
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
@@ -548,6 +561,7 @@ export class CliHarnessService {
             maxConcurrent: this.maxConcurrent,
             defaultPermissionMode: this.defaultPermissionMode,
             codexNetwork: this.codexNetwork,
+            lastSettings: Object.fromEntries(this.lastSettings),
             tabs,
           },
           null,
@@ -795,6 +809,10 @@ export class CliHarnessService {
           : this.defaultPermissionMode,
       ).mode,
     };
+    this.inheritSettings(
+      tab,
+      isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
+    );
     this.tabs.set(tab.id, tab);
     const seeded = Array.isArray(opts.messages)
       ? opts.messages
@@ -826,6 +844,7 @@ export class CliHarnessService {
     }
     this.activeTabId = tab.id;
     this.changed();
+    this.prewarm(tab.id);
     return { ...tab };
   }
 
@@ -930,6 +949,7 @@ export class CliHarnessService {
 
   setActiveTab(id: string): HarnessTabsState {
     const tab = this.requireTab(id);
+    this.prewarm(tab.id);
     // 已经是当前标签且没有未读：不必落盘 / 广播（侧栏切回当前会话时会再激活一次）
     if (this.activeTabId === tab.id && tab.unread === 0) return this.listTabs();
     this.activeTabId = tab.id;
@@ -1021,6 +1041,7 @@ export class CliHarnessService {
     const next = effectiveMode(tab.backend, mode);
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
+      this.rememberSettings(tab);
       const gl = this.geminiLive.get(id);
       if (gl?.sessionId && (gl.permissionMode !== next.mode || gl.modeChange))
         this.switchGeminiMode(id, gl, next.mode);
@@ -1167,7 +1188,8 @@ export class CliHarnessService {
    * 设置标签的模型覆盖（官方账号路径）。
    * 传空串清除覆盖（沿用 CLI 默认模型）；只接受有模型目录的后端与合法模型名。
    * 覆盖经进程级参数注入（codex `-c` / grok `-m` / claude `--model`），不改写全局 CLI 配置；
-   * 每轮新进程的后端下一轮生效；Claude 长驻进程空闲时立即回收，下一轮用新参数重启。
+   * 每轮新进程的后端下一轮生效；Claude 长驻进程在下一轮发送前用 set_model 原地切换
+   * （思考深度随之变化时仍是空闲即回收、下一轮用新参数重启）。
    * 切到非推理模型时同步清除思考深度。
    */
   setTabModel(id: string, model: string): HarnessTabMeta {
@@ -1181,6 +1203,7 @@ export class CliHarnessService {
       if (tab.modelOverride || tab.reasoningEffort) {
         tab.modelOverride = null;
         tab.reasoningEffort = null;
+        this.rememberSettings(tab);
         this.changed();
         this.recycleLiveForOverride(tab);
       }
@@ -1191,6 +1214,7 @@ export class CliHarnessService {
       tab.modelOverride = name;
       // CLI 说不支持思考深度 / 不支持当前档位的模型：已选档位清掉（回到 CLI 默认）
       tab.reasoningEffort = sanitizeEffort(this.cachedCatalog(backend), name, tab.reasoningEffort);
+      this.rememberSettings(tab);
       this.changed();
       this.recycleLiveForOverride(tab);
     }
@@ -1208,6 +1232,7 @@ export class CliHarnessService {
     if (effort === null) {
       if (tab.reasoningEffort) {
         tab.reasoningEffort = null;
+        this.rememberSettings(tab);
         this.changed();
         this.recycleLiveForOverride(tab);
       }
@@ -1221,6 +1246,7 @@ export class CliHarnessService {
     if (levels && !levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
     if (tab.reasoningEffort !== effort) {
       tab.reasoningEffort = effort;
+      this.rememberSettings(tab);
       this.changed();
       this.recycleLiveForOverride(tab);
     }
@@ -1236,6 +1262,8 @@ export class CliHarnessService {
   private recycleLiveForOverride(tab: HarnessTabMeta) {
     if (tab.backend !== 'claude') return;
     const live = this.claudeLive.get(tab.id);
+    // 只换模型：进程保留，下一轮发送前 set_model 原地切换（syncClaudeModel）
+    if (live && live.reasoningEffort === this.effectiveOverrides(tab).effort) return;
     if (live && !live.turn && !claudeBackgroundActive(live)) this.teardownClaudeLive(tab.id);
   }
 
@@ -1263,6 +1291,8 @@ export class CliHarnessService {
       if (!isPermissionMode(o.defaultPermissionMode)) throw new Error(t('未知权限模式'));
       if (o.defaultPermissionMode === 'bypass') throw new Error(t('完全放开不能设为默认模式'));
       this.defaultPermissionMode = o.defaultPermissionMode;
+      // 设置页改了默认档：新会话按新默认档开始，不再沿用之前标签上的选择
+      for (const s of this.lastSettings.values()) delete s.permissionMode;
     }
     if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
     this.changed();
@@ -1308,6 +1338,71 @@ export class CliHarnessService {
     tab.reasoningEffort = isReasoningEffort(raw.reasoningEffort) ? raw.reasoningEffort : null;
   }
 
+  /** tabs.json 里的「最近一次设置」：逐项校验，不合法的丢弃（与 restoredMode / restoreOverrides 同规则） */
+  private restoreLastSettings(raw: Record<string, unknown> | undefined) {
+    if (!raw || typeof raw !== 'object') return;
+    for (const [backend, v] of Object.entries(raw)) {
+      if (!isBackend(backend) || backend === 'nomi' || !v || typeof v !== 'object') continue;
+      const o = v as {
+        permissionMode?: unknown;
+        modelOverride?: unknown;
+        reasoningEffort?: unknown;
+      };
+      const probe = { backend } as HarnessTabMeta;
+      this.restoreOverrides(probe, o);
+      const s: LastTabSettings = {
+        ...(isPermissionMode(o.permissionMode) && o.permissionMode !== 'bypass'
+          ? { permissionMode: effectiveMode(backend, o.permissionMode).mode }
+          : {}),
+        ...(probe.modelOverride ? { modelOverride: probe.modelOverride } : {}),
+        ...(probe.reasoningEffort ? { reasoningEffort: probe.reasoningEffort } : {}),
+      };
+      if (Object.keys(s).length) this.lastSettings.set(backend, s);
+    }
+  }
+
+  /** 用户在标签上改了权限模式 / 模型 / 思考深度：记为该后端新会话的起点（随 changed() 落盘） */
+  private rememberSettings(tab: HarnessTabMeta) {
+    if (tab.backend === 'nomi') return;
+    const prev = this.lastSettings.get(tab.backend);
+    const mode = tab.permissionMode !== 'bypass' ? tab.permissionMode : prev?.permissionMode;
+    this.lastSettings.set(tab.backend, {
+      ...(mode ? { permissionMode: mode } : {}),
+      ...(tab.modelOverride ? { modelOverride: tab.modelOverride } : {}),
+      ...(tab.reasoningEffort ? { reasoningEffort: tab.reasoningEffort } : {}),
+    });
+  }
+
+  /**
+   * 新会话沿用该后端最近一次的设置。模型 / 思考深度只在没有启用第三方供应商时沿用
+   * （供应商管理模型；换供应商 / 账号时 recycleBackend 已清掉记下的值）。
+   */
+  private inheritSettings(tab: HarnessTabMeta, explicitMode: boolean) {
+    const s = this.lastSettings.get(tab.backend);
+    if (!s) return;
+    if (!explicitMode && s.permissionMode)
+      tab.permissionMode = effectiveMode(tab.backend, s.permissionMode).mode;
+    if (!supportsModelOverride(tab.backend) || this.profileManaged(tab)) return;
+    if (s.modelOverride) tab.modelOverride = s.modelOverride;
+    if (s.reasoningEffort) tab.reasoningEffort = s.reasoningEffort;
+  }
+
+  /**
+   * 预先拉起 Claude 长驻进程（node 启动、MCP / hooks / 插件加载、--resume 读回转录约需数秒），
+   * 让新会话 / 切回来的会话第一条消息不必等冷启动。没用过的预热进程同样参与空闲回收。
+   */
+  private prewarm(id: string) {
+    if (!this.d.prewarmClaude) return;
+    const tab = this.tabs.get(id);
+    if (!tab || tab.backend !== 'claude' || this.claudeLive.has(id)) return;
+    if (tab.status === 'running' || tab.status === 'queued') return;
+    try {
+      this.ensureClaudeLive(tab).prewarmed = true;
+    } catch (e) {
+      this.d.logger.warn('harness claude prewarm failed', e);
+    }
+  }
+
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
     const tab = this.requireTab(id);
     const r = await dialog.showOpenDialog({
@@ -1326,7 +1421,10 @@ export class CliHarnessService {
     return this.listTabs();
   }
 
-  /** 中止标签当前轮次；Claude 长驻进程一并拆除（下一轮可 --resume） */
+  /**
+   * 中止标签当前轮次。Claude 用户轮次只发 interrupt、进程保留（下一轮不用冷启动）；
+   * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
+   */
   cancelTab(id: string): boolean {
     const queued = this.tabs.get(id)?.status === 'queued';
     if (queued) this.stopRequested.add(id);
@@ -1346,8 +1444,10 @@ export class CliHarnessService {
       return true;
     }
     const live = this.claudeLive.get(id);
-    if (live?.turn) {
-      this.writeClaudeControl(live, { subtype: 'interrupt' });
+    if (live?.turn && !live.turn.settled) {
+      this.stopRequested.add(id);
+      this.interruptClaudeTurn(id, live, live.turn);
+      return true;
     }
     // Gemini：ACP session/cancel，进程保留供下一轮
     const gl = this.geminiLive.get(id);
@@ -1377,6 +1477,28 @@ export class CliHarnessService {
       this.clearPermissionTimeouts(id);
     }
     return true;
+  }
+
+  /**
+   * 中断 Claude 正在进行的用户轮次（实测 2.1.304：interrupt 应答后输出 error_during_execution 的 result，
+   * 进程继续接收下一条消息）。那条 result 走 onClaudeLine 的失败分支结束这一轮，sendTab 据
+   * stopRequested 记为「已停止」。拿不到应答、消息仍在 CLI 队列里、宽限期内没收到 result：拆进程兜底。
+   */
+  private interruptClaudeTurn(id: string, live: ClaudeLiveSession, turn: ClaudeTurnWaiter) {
+    const fallback = () => {
+      if (this.claudeLive.get(id) === live && live.turn === turn && !turn.settled)
+        this.teardownClaudeLive(id);
+    };
+    // 这一轮正常结束后计时器照常到点，fallback 判断已结束就什么都不做
+    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
+    const uuid = live.turnUuid;
+    this.requestClaudeControl(live, { subtype: 'interrupt' }).then((r) => {
+      const queued = Array.isArray(r.still_queued) ? r.still_queued : [];
+      // 中断的是别的轮次（自发轮次），这条消息之后还会被处理：只能拆进程
+      if (uuid && queued.includes(uuid)) fallback();
+      // 被中断的这一轮里待确认的权限请求随之作废
+      else if (this.claudeLive.get(id) === live) this.clearPermissionTimeouts(id);
+    }, fallback);
   }
 
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
@@ -1622,6 +1744,7 @@ export class CliHarnessService {
     // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
     // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
     await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
+    await this.syncClaudeModel(tab);
     // 等待期间点了停止：不再拉起进程、不发送（#75）
     if (signal?.aborted) throw new Error(t('已中止'));
     const live = this.ensureClaudeLive(tab);
@@ -1641,6 +1764,7 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.prewarmed = false;
       live.turnUuid = randomUUID();
       live.turnStarted = false;
       live.lastActivityAt = Date.now();
@@ -1655,6 +1779,31 @@ export class CliHarnessService {
         reject(e instanceof Error ? e : new Error(String(e)));
       }
     });
+  }
+
+  /**
+   * 长驻进程与标签只差模型（思考深度一致）：发 set_model 原地切换，不重启进程
+   * （实测 2.1.304：应答后下一轮的 init / API 请求即用新模型；null / 'default' 回到 CLI 默认模型）。
+   * 思考深度没有可靠的原地切换（apply_flag_settings 的 effortLevel 不校验取值、也压不过 --effort），
+   * 仍按复用键重启。切换失败就拆进程，下面按新参数重新拉起。
+   */
+  private async syncClaudeModel(tab: HarnessTabMeta): Promise<void> {
+    const live = this.claudeLive.get(tab.id);
+    // 自发轮次还在输出：不在它中途换模型，沿用旧进程（见 ensureClaudeLive）
+    if (!live || live.turn || live.auto) return;
+    const o = this.effectiveOverrides(tab);
+    if (live.modelOverride === o.model || live.reasoningEffort !== o.effort) return;
+    try {
+      await this.requestClaudeControl(live, { subtype: 'set_model', model: o.model ?? 'default' });
+      if (this.claudeLive.get(tab.id) === live) live.modelOverride = o.model;
+    } catch (e) {
+      this.d.logger.warn('harness claude set_model failed', {
+        tabId: tab.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      if (this.claudeLive.get(tab.id) === live && !live.turn && !claudeBackgroundActive(live))
+        this.teardownClaudeLive(tab.id);
+    }
   }
 
   private ensureClaudeLive(tab: HarnessTabMeta): ClaudeLiveSession {
@@ -1690,6 +1839,8 @@ export class CliHarnessService {
       '--input-format',
       'stream-json',
       '--verbose',
+      // 逐 token 的 stream_event（text_delta）：不加时正文要等一整块写完才出现
+      '--include-partial-messages',
       '--permission-prompt-tool',
       'stdio',
       '--replay-user-messages',
@@ -2355,7 +2506,7 @@ export class CliHarnessService {
           turnActive: live.turn !== null,
           permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || live.prewarmed === true,
           backgroundActive: claudeBackgroundActive(live),
         })),
       ],
@@ -2364,7 +2515,8 @@ export class CliHarnessService {
     );
     for (const id of picked) {
       this.teardownClaudeLive(id);
-      this.dormant.add(id);
+      // 没用过的预热进程：没有会话可休眠，悄悄回收
+      if (this.tabs.get(id)?.cliSessionId) this.dormant.add(id);
       this.d.logger.info('harness idle process reclaimed', { tabId: id });
     }
     if (picked.length) this.changed();
@@ -2381,6 +2533,13 @@ export class CliHarnessService {
   recycleBackend(kind: HarnessBackend): void {
     // 换了账号 / 供应商：可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
+    // 新会话也不再沿用旧账号 / 供应商下选的模型与思考深度（权限模式照旧）
+    const last = this.lastSettings.get(kind);
+    if (last?.modelOverride || last?.reasoningEffort) {
+      delete last.modelOverride;
+      delete last.reasoningEffort;
+      this.persist();
+    }
     if (kind === 'gemini') {
       // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
       for (const [id, gl] of [...this.geminiLive.entries()]) {
@@ -3037,6 +3196,13 @@ type GeminiLiveSession = {
  */
 type ModeChange = { mode: HarnessPermissionMode; done: Promise<void> };
 
+/** 某个后端最近一次的标签设置（新会话的起点） */
+type LastTabSettings = {
+  permissionMode?: HarnessPermissionMode;
+  modelOverride?: string;
+  reasoningEffort?: string;
+};
+
 /** 在途的 Claude control_request：等同 request_id 的 control_response */
 type ClaudeControlWaiter = {
   resolve: (response: Record<string, unknown>) => void;
@@ -3061,7 +3227,7 @@ type ClaudeLiveSession = {
   modeChange: ModeChange | null;
   /** 在途的 control_request：request_id → 应答 */
   controls: Map<string, ClaudeControlWaiter>;
-  /** 进程启动时使用的标签级模型 / 思考深度覆盖（复用键的一部分） */
+  /** 进程当前的标签级模型 / 思考深度覆盖（启动参数或最近一次成功的 set_model；复用键的一部分） */
   modelOverride: string | null;
   reasoningEffort: string | null;
   /**
@@ -3080,6 +3246,8 @@ type ClaudeLiveSession = {
   lastActivityAt: number;
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
   recycleAfterTurn?: boolean;
+  /** 预热拉起、还没发过消息：没有会话也可回收（不丢上下文） */
+  prewarmed?: boolean;
 };
 
 /** 权限请求带上超时时间点：界面显示倒计时，与主进程的自动拒绝同一个时钟 */

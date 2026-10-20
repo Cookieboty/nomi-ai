@@ -173,6 +173,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 
 ### Other
 
+- Claude Code 会话更快：回复逐字流式显示；点「停止」只中断当前一轮、不再重启进程；只换模型时原地切换， (`@nomi-ai/electron` minor)
 - Codex 以 `.js` / `.mjs` 入口（如 `NOMI_CODEX_BIN` 指向的脚本）启动时也带上权限模式对应的沙箱 / 审批 / 联网参数和工作目录（#73）：新建与续接都与普通可执行入口用同一份参数，标签选的「计划」「自动改文件」等不再因入口形式不同而失效。 (`@nomi-ai/electron` patch)
 - Documentation rewritten by feature module (docs/README.md); links in code and settings updated.
 - English strings for coding-agent harness backend switcher and CLI update panel. (`@nomi-ai/ui` patch)
