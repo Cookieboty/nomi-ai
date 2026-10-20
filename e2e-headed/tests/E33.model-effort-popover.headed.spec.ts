@@ -98,18 +98,20 @@ test.describe('E33 model / effort popover', () => {
     await expect(chip).toContainText('Opus Mock', { timeout: 30_000 });
     await chip.click();
     const menu = chat.locator('[data-testid="model-menu"]');
-    await expect(menu.locator('[data-testid="effort-title"]')).toHaveText('默认');
+    // 当前档位由滑杆本身报告（浮层不再单独显示大字标题）
+    const slider = menu.locator('[data-testid="effort-slider"]');
+    await expect(slider).toHaveAttribute('aria-valuetext', '默认');
     await expect(menu.locator('[data-testid="effort-max"]')).toBeVisible();
     await expect(menu.locator('[data-testid="effort-minimal"]')).toHaveCount(0);
     await shot(chat, 'claude-effort-default');
 
-    // 键盘调到最高档：标题与按钮同步
-    await menu.locator('[data-testid="effort-slider"]').focus();
+    // 键盘调到最高档：滑杆与按钮同步
+    await slider.focus();
     await chat.keyboard.press('End');
-    await expect(menu.locator('[data-testid="effort-title"]')).toHaveText('最高');
+    await expect(slider).toHaveAttribute('aria-valuetext', '最高');
     await expect(chip).toContainText('Opus Mock · 最高');
     await chat.keyboard.press('ArrowLeft');
-    await expect(menu.locator('[data-testid="effort-title"]')).toHaveText('极高');
+    await expect(slider).toHaveAttribute('aria-valuetext', '极高');
     await shot(chat, 'claude-effort-xhigh');
 
     // 模型页：列表与 CLI 一致；旧模型只有 4 档
