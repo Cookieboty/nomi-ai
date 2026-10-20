@@ -44,6 +44,11 @@ export const HISTORY_MAX_ITEMS = 100;
 const LIST_TTL_MS = 3000;
 const MAX_PARSED_CACHE = 6000;
 const MAX_TRANSCRIPT_BYTES = 12 * 1024 * 1024;
+/**
+ * 列表阶段为读模型 / 档位而解压 dsh 会话的上限（压缩后字节）。列表会一次处理很多会话，
+ * 超过的只用明文索引（标题 / 目录 / 权限），避免整份解压大会话占用 CPU 和内存。
+ */
+export const DSH_META_MAX_ZSTD_BYTES = 2 * 1024 * 1024;
 const BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh', 'gemini', 'grok'];
 
 export interface HistorySession {
@@ -413,6 +418,8 @@ export class SessionHistoryService {
     // working when zstd is unavailable.
     let sessionInfo = parseDshSession('', id);
     try {
+      if (f.path.endsWith('.zstd') && f.size > DSH_META_MAX_ZSTD_BYTES)
+        throw new Error('dsh session too large for list metadata');
       const raw = f.path.endsWith('.zstd')
         ? (await zstdDecode(await fs.promises.readFile(f.path))).slice(0, 512 * 1024)
         : await readHead(f.path, 512 * 1024);

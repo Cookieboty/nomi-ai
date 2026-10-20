@@ -16,7 +16,10 @@ import {
   parseDshTranscript,
   parseGeminiTranscript,
 } from '../../../src/cli/historyTranscript';
-import { SessionHistoryService } from '../../../src/cli/SessionHistoryService';
+import {
+  DSH_META_MAX_ZSTD_BYTES,
+  SessionHistoryService,
+} from '../../../src/cli/SessionHistoryService';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -588,6 +591,24 @@ describe('SessionHistoryService', () => {
     expect(page.items[0]!.title.length).toBeGreaterThan(0);
     const tr = await svc.transcript('dsh', id);
     expect(tr.messages.map((x) => x.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
+  });
+
+  it('dsh: oversized compressed sessions are not decompressed while listing', async () => {
+    const id = 'session-887fa07d-22ae-4013-849f-2b2fafcba3c4';
+    if (!dshSetup(id)) return;
+    const file = path.join(home, '.dsh', 'sessions', '--work--', id, 'session.v4.jsonl.zstd');
+    // zstd 可跳过帧：解码器忽略它，只把压缩文件撑到上限以上
+    const pad = Buffer.alloc(8 + DSH_META_MAX_ZSTD_BYTES);
+    pad.writeUInt32LE(0x184d2a50, 0);
+    pad.writeUInt32LE(DSH_META_MAX_ZSTD_BYTES, 4);
+    fs.appendFileSync(file, pad);
+    const page = await mk().list('dsh');
+    expect(page.items[0]).toMatchObject({
+      sessionId: id,
+      cwd: work,
+      permissionMode: 'acceptEdits',
+    });
+    expect(page.items[0]!.model).toBeUndefined();
   });
 
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {
