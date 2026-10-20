@@ -11,12 +11,10 @@ Split (deterministic, source pixels moved - not copied - no AI):
       below the cuff (texel y>=356) on the inner side.
   coat-{l,r}-front.png = sleeve over sleeve-dark composite inside M (same 225x440 canvas => same uv mesh, rest-exact).
   sleeve-{l,r}-full.png / -dark.png lose every M pixel (recorded as deleted regions).
-  Backfill inside the sleeve under the panel's OPAQUE core only (panel alpha >= 253 = the source opaque level, eroded 2 px so texture filtering never
-  samples the fill; none under the hem-tail lines), so rest frames are unchanged:
-    band  : <= 10 px from the cut seam -> sleeve fabric continued by cv2 Telea inpaint from non-M sleeve pixels
-            (the panel's cut edge never opens a gap when it swings off the sleeve);
-    under : rest of the core -> same inpaint shaded x0.66 (the coat's inside / the sleeve in the panel's shadow);
-    the fill's outer contour is Gaussian-smoothed (sigma 2.5) and gets a ~2 px alpha ramp.
+  Backfill inside the sleeve under the FULL panel body footprint (Mf; none under hem-tail lines). Solid alpha 255
+  (ROUND30: earlier eroded+feathered fill left holes when R27d hung the panel off the sleeve):
+    band  : <= 10 px from the cut seam -> sleeve fabric continued by cv2 Telea inpaint from non-M sleeve pixels;
+    under : rest of the body -> same inpaint shaded x0.66 (coat inside / sleeve in the panel's shadow).
   The panel image gets a copy of the sleeve mesh (same vertices, uv, weights) and is drawn right above the sleeve.
 Idempotent (MARK); if the sleeve canvas is already split, the committed panel png is reused."""
 from __future__ import annotations
@@ -80,24 +78,21 @@ def split(side, stats):
         a_ = X[..., 3].astype(float) / 255; pc = P[..., 3].astype(float) / 255
         s_ = np.where(pc < 1, np.clip((a_ - pc) / np.maximum(1 - pc, 1e-6), 0, 1), 0)
         X2[part, 3] = np.round(255 * s_[part]).astype(np.uint8)
-    solid = (Mf & (P[..., 3] >= 253)) | (~Mf & (S[..., 3] >= 250))                   # the cut seam is not an edge
-    ds = cv2.distanceTransform(solid.astype(np.uint8), cv2.DIST_L2, 5)
-    core = Mf & (ds > 2.0)                                                            # 2 px inside the panel's own silhouette
+    # ROUND30: solid fill under the coat panel footprint (no 2px erosion / alpha feather).
+    # Rest still looks identical because coat-front draws on top; when R27d hangs the panel away,
+    # sleeve stays opaque. Limit to dilated panel alpha so empty canvas inside Mf is not grown.
+    core = Mf.copy()
     core[HEM[side][0]:] = False                                                       # hem-tail lines: no fill under them
-    sm = cv2.GaussianBlur(core.astype(np.float32), (0, 0), 2.5)                       # smooth the fill's outer contour
-    core = core & (sm > 0.5)
-    dc = cv2.distanceTransform(core.astype(np.uint8), cv2.DIST_L2, 5)
-    feather = np.clip(dc / 2.0, 0, 1) * np.clip((sm - 0.5) / 0.25, 0, 1)              # ~2 px alpha ramp, no staircase
-    near_seam = cv2.distanceTransform((~((~Mf) & (S[..., 3] >= 250))).astype(np.uint8), cv2.DIST_L2, 5) <= 3.0
-    feather = np.where(near_seam, 1.0, feather)                                       # never feather at the seam
+    dil = cv2.dilate((P[..., 3] > 0).astype(np.uint8), np.ones((3, 3), np.uint8), 1).astype(bool)
+    core = core & dil
     src = (~Mf) & (S[..., 3] >= 250)
     dist = cv2.distanceTransform((~src).astype(np.uint8), cv2.DIST_L2, 5)
     band = core & (dist <= BAND); under = core & ~band
     hole = (~src).astype(np.uint8) * 255
-    fill = cv2.inpaint(np.ascontiguousarray(S[..., :3][..., ::-1]), hole, 6, cv2.INPAINT_TELEA)[..., ::-1].astype(float)
+    fill = cv2.inpaint(np.ascontiguousarray(S[..., :3][..., ::-1]), hole, 8, cv2.INPAINT_TELEA)[..., ::-1].astype(float)
     sh = np.clip((dist - BAND) / 6.0, 0, 1)[..., None]           # soft shadow ramp from band into the core
     fill = fill * (1 - (1 - SHADE) * sh)
-    S2[core, :3] = np.round(fill[core]).astype(np.uint8); S2[core, 3] = np.round(255 * feather[core]).astype(np.uint8)
+    S2[core, :3] = np.round(fill[core]).astype(np.uint8); S2[core, 3] = 255
     Image.fromarray(S2).save(fs, optimize=True); Image.fromarray(D2).save(fd, optimize=True); Image.fromarray(P).save(fp, optimize=True)
     ys, xs = np.nonzero(P[..., 3] > 0)
     st = dict(panel_px=int((P[..., 3] > 0).sum()), panel_bbox=[int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())],

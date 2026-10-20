@@ -32,6 +32,7 @@ python3 round26_gait.py
 python3 round28_spine_skin.py
 python3 round28_spine_motion.py
 python3 round27_coat_split.py
+python3 round30_sleeve_backfill.py
 python3 round27_coat_rig.py
 python3 round28_armswing.py
 python3 round27_coat_motion.py
