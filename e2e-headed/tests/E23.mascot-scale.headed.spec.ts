@@ -340,6 +340,11 @@ test.describe('E23 · mascot size', () => {
     await expectScaled(page, 0.4, anchor, wa);
     await page.getByTestId('toolbar-zoom-reset').click();
     await expectScaled(page, 0.5, anchor, wa);
+    // Close the "more" menu (Esc, as a user would). Since the toolbar redesign (b81769e4) it is a
+    // tall panel beside the toolbar that stays open until Esc / an outside click; at 110% it covers
+    // the character's whole head column, so the drag below would press on the panel, not on Nomi.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('toolbar-menu')).toHaveCount(0);
 
     // 4) 设置页滑块（对话窗口 → 设置 → 通用）
     const chatWindow = app!.waitForEvent('window', { timeout: 20_000 });
@@ -468,8 +473,11 @@ test.describe('E23 · mascot size', () => {
       for (let y = v[3] + 20; y < window.innerHeight - 10; y += 6) {
         if (document.elementFromPoint(x, y)?.tagName === 'CANVAS') return { x, y };
       }
-      return { x, y: v[3] + 40 };
+      return null;
     });
+    // No fallback point: pressing on UI that covers the character is (correctly) not a drag.
+    expect(hp, 'a torso point not covered by the bubble / toolbar / menu').not.toBeNull();
+    if (!hp) return;
     await page.mouse.move(hp.x, hp.y);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.dataset.mascotHit))
