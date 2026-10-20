@@ -31,9 +31,14 @@ SCENE = PROJECT / "scene.rml"
 S = R8.S
 MARK = "<!-- ROUND22 shoulder-skin -->"
 TORSO = (480.0, 660.0)
-T0, T1 = -20.0, 30.0     # ramp on s = t + KD*d (artboard px from joint)
-TC0, TC1 = -14.0, 10.0   # coat-shoulder: narrow along-arm band
-KD = 0.6                 # lateral (outward) distance counts 0.6x toward the arm
+# ROUND23: the R22 band (s = t + 0.6 d over -20..+30 px) left the stump/cap blended *below* the joint line while the
+# sleeve (all upper-arm) starts at t~0 -> at wave f030-f072 the same material point sat up to 17 px apart in the
+# stump vs the sleeve and the coat hinged over 24 px (44.6 deg turn per 24 px arc): the '折断' kink under the shoulder.
+# Now every piece is 100 % upper-arm from the joint line down (t >= 0, matches the sleeve), and the deltoid/cap blends
+# over 100 px above the joint (pure along-axis, no lateral term), so the bend is one wide smooth arc.
+T0, T1 = -100.0, 0.0     # ramp on s = t + KD*d (artboard px from joint)
+TC0, TC1 = -100.0, 0.0   # coat-shoulder: same band (the lining is split out since R22, so no wedge)
+KD = 0.0                 # R22 used 0.6 (lateral share); it left the medial strip on the torso -> shear
 PIECES = ["shoulder-skin", "sleeve-stump", "coat-shoulder", "coat-shoulder.lining", "coat-shoulder.dark"]
 
 
