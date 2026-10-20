@@ -525,7 +525,9 @@ describe('VoiceService · volc', () => {
     expect(v.streamPush(b as never, id, pcm(200))).toBe(false);
     expect(v.streamPush(a as never, id, pcm(200))).toBe(true);
     expect(v.streamPush(a as never, id, new Uint8Array(70 * 1024))).toBe(false); // 单次上限
-    await new Promise((r2) => setTimeout(r2, 150));
+    // 等 mock 服务回 partial（全量并发跑时可能远超一两百毫秒）
+    for (let i = 0; i < 100 && !a.send.mock.calls.length; i++)
+      await new Promise((r2) => setTimeout(r2, 30));
     expect(a.send).toHaveBeenCalledWith('ai:voice:stream', { id, type: 'partial', text: '你好' });
     expect(b.send).not.toHaveBeenCalled();
     expect(await v.streamStop(b as never, id)).toMatchObject({ ok: false });
