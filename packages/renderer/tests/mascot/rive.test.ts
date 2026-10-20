@@ -61,19 +61,24 @@ describe('rive backend', () => {
     }
   });
 
-  it('exposes the authored leg clips (ROUND18) as native triggers baked into the .riv', () => {
+  it('exposes the authored leg clips (ROUND18 step/squat, ROUND26 walk/run) as native triggers baked into the .riv', () => {
     const fire = vi.fn();
     const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
     const riv = fs.readFileSync(path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'));
-    for (const clip of ['squat', 'step']) {
+    for (const clip of ['squat', 'step', 'walk', 'run']) {
       expect(b.playMotion(clip), clip).toBe(true);
       expect(fire).toHaveBeenLastCalledWith(clip);
       expect(riv.includes(Buffer.from(`full.${clip}`)), `full.${clip} animation`).toBe(true);
     }
     expect(b.playMotion('crouch')).toBe(true);
     expect(fire).toHaveBeenLastCalledWith('squat');
-    expect(b.playMotion('walk')).toBe(true);
+    expect(b.playMotion('march')).toBe(true);
     expect(fire).toHaveBeenLastCalledWith('step');
+    // ROUND26: walk / run are their own gait clips, no longer aliased to the march-in-place step
+    expect(b.playMotion('walk')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('walk');
+    expect(b.playMotion('jog')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('run');
   });
 
   it('drives expression, talking, and thresholded lip-sync triggers', () => {
