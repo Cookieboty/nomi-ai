@@ -16,7 +16,7 @@ import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
-import { initCliHarnessService } from '../cli/CliHarnessService';
+import { getCliHarnessService, initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
 import { initCliRouteService } from '../cli/routing/CliRouteService';
@@ -439,6 +439,8 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'cli-providers'),
         logger: this.logger as never,
         resolveUpstream: (kind) => getCliProviderBridge()?.resolveUpstream(kind) ?? null,
+        // 编程助手标签为当前供应商选中的模型照发，其余改成供应商配置的模型
+        allowedModels: (kind) => getCliHarnessService()?.routeModels(kind) ?? new Set<string>(),
       });
       cliProviders.registerIpc();
       cliRoute.registerIpc();
@@ -452,6 +454,9 @@ export class Application implements IApplication {
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
         geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
         hasProviderProfile: (kind) => getCliProviderBridge()?.hasActiveProfile(kind) ?? false,
+        providerProfile: (kind) => getCliProviderBridge()?.activeProfile(kind) ?? null,
+        providerModels: (kind) => getCliProviderBridge()?.listModels(kind) ?? Promise.resolve([]),
+        dshModelPatch: (model) => getCliProviderBridge()?.dshPatchFor(model) ?? null,
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
         // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p

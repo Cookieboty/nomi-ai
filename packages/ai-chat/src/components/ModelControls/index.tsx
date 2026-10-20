@@ -1,5 +1,8 @@
 /**
- * 输入栏的「模型 · 思考深度」按钮（仅官方账号 / CLI 后端：Codex / Claude Code / Grok）。
+ * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok；dsh 在启用第三方供应商时）。
+ *
+ * 启用了第三方供应商时同一个按钮列供应商的模型（主进程读它的 `/models`，供应商里配置的模型作默认），
+ * 直接打开模型列表、没有思考深度；标签的选择按来源（官方 / 各供应商）分开记，切换供应商后各自取回。
  *
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
  * - 默认页：大字显示当前档位，下面「模型名 ›」，再下面是分档滑杆（只在推理模型上出现）；
@@ -116,9 +119,10 @@ function fetchCatalog(backend: string, refresh: boolean): Promise<BackendModelCa
  * 某个后端的模型目录。catalog：undefined = 还在读；null = 该后端不支持切换（按钮整体不渲染）。
  * refresh 让主进程重新从 CLI 读；重读失败时保留原目录。
  */
-function useCatalog(backend: string) {
+function useCatalog(backend: string, source: string) {
   const [catalog, setCatalog] = useState<BackendModelCatalog | null | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
+  // source：模型来源（官方 / 某个第三方供应商）；换了来源就重读目录
   useEffect(() => {
     let alive = true;
     void fetchCatalog(backend, false).then((c) => {
@@ -127,7 +131,7 @@ function useCatalog(backend: string) {
     return () => {
       alive = false;
     };
-  }, [backend]);
+  }, [backend, source]);
   const refresh = () => {
     setRefreshing(true);
     void fetchCatalog(backend, true).then((c) => {
@@ -320,6 +324,8 @@ const ModelChip: React.FC<{
   const menuRef = useRef<HTMLDivElement>(null);
 
   const current = tab.modelOverride?.trim() || null;
+  // 第三方供应商的目录：直接是模型列表，没有思考深度页
+  const provider = catalog.provider ?? null;
   const currentModel = useMemo(
     () => catalog.models.find((m) => m.id === current) ?? null,
     [catalog, current],
@@ -345,6 +351,8 @@ const ModelChip: React.FC<{
   const modelLabel = current ? (currentModel?.label ?? current) : (defaultLabel ?? t('默认模型'));
   const shortLabel = effort ? `${modelLabel} · ${effortLabel(effort)}` : modelLabel;
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
+  // 模型列表从哪来：官方账号是 CLI 自己，第三方供应商是它的名字
+  const sourceName = provider?.name || backendName;
 
   useEffect(() => {
     if (!note) return;
@@ -362,7 +370,7 @@ const ModelChip: React.FC<{
   };
 
   const toggle = () => {
-    setView('effort');
+    setView(provider ? 'model' : 'effort');
     setCustomOpen(false);
     setPreview(null);
     setOpen((o) => !o);
@@ -372,6 +380,7 @@ const ModelChip: React.FC<{
   const pickModel = (model: string) => {
     setCustomOpen(false);
     setView('effort');
+    if (provider) setOpen(false);
     if (model === (current ?? '')) return;
     void run(() => harnessClient.setTabModel(tab.id, model));
   };
@@ -390,7 +399,11 @@ const ModelChip: React.FC<{
         className={`${styles.chip} ${!current && !effort ? styles.chipMuted : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={t('模型与思考深度：{0}', shortLabel)}
+        aria-label={
+          provider
+            ? t('模型（{0}）：{1}', provider.name, shortLabel)
+            : t('模型与思考深度：{0}', shortLabel)
+        }
         title={t('下一条消息起生效，仅影响当前标签')}
         data-testid="model-chip"
         onClick={toggle}
@@ -409,7 +422,7 @@ const ModelChip: React.FC<{
           btnRef={btnRef}
           menuRef={menuRef}
           onClose={() => setOpen(false)}
-          label={t('模型与思考深度')}
+          label={provider ? t('模型') : t('模型与思考深度')}
           testId="model-menu"
           width={300}
         >
@@ -474,22 +487,28 @@ const ModelChip: React.FC<{
           ) : (
             <>
               <div className={styles.modelHead}>
-                <button
-                  type="button"
-                  className={styles.back}
-                  data-testid="model-back"
-                  onClick={() => setView('effort')}
-                >
-                  <Icon icon={ChevronLeft} size={14} />
-                  {t('模型')}
-                </button>
+                {provider ? (
+                  <span className={styles.back} data-testid="model-provider">
+                    {t('{0} 的模型', provider.name)}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.back}
+                    data-testid="model-back"
+                    onClick={() => setView('effort')}
+                  >
+                    <Icon icon={ChevronLeft} size={14} />
+                    {t('模型')}
+                  </button>
+                )}
                 <button
                   type="button"
                   className={styles.back}
                   data-testid="model-refresh"
                   disabled={refreshing}
-                  aria-label={t('重新从 {0} 读取模型列表', backendName)}
-                  title={t('重新从 {0} 读取模型列表', backendName)}
+                  aria-label={t('重新从 {0} 读取模型列表', sourceName)}
+                  title={t('重新从 {0} 读取模型列表', sourceName)}
                   onClick={onRefresh}
                 >
                   <span className={refreshing ? styles.spin : undefined}>
@@ -499,7 +518,7 @@ const ModelChip: React.FC<{
               </div>
               {catalog.error && (
                 <div className={styles.modelError} role="status" data-testid="model-error">
-                  {t('没能从 {0} 读到模型列表：{1}', backendName, catalog.error)}
+                  {t('没能从 {0} 读到模型列表：{1}', sourceName, catalog.error)}
                 </div>
               )}
               <div className={styles.models} role="listbox" aria-label={t('模型')}>
@@ -509,11 +528,11 @@ const ModelChip: React.FC<{
                   aria-selected={!current}
                   className={styles.item}
                   data-testid="model-default"
-                  title={t('跟随 {0} 自己的选择', backendName)}
+                  title={t('跟随 {0} 自己的选择', sourceName)}
                   onClick={() => pickModel('')}
                 >
                   <span className={styles.itemLabel}>{t('默认模型')}</span>
-                  <span className={styles.itemHint}>{defaultLabel ?? backendName}</span>
+                  <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
                   {!current && <Icon icon={Check} size={14} />}
                 </button>
                 {catalog.models.map((m) => (
@@ -528,7 +547,9 @@ const ModelChip: React.FC<{
                     onClick={() => pickModel(m.id)}
                   >
                     <span className={styles.itemLabel}>{m.label ?? m.id}</span>
-                    {!m.reasoning && <span className={styles.itemHint}>{t('无思考深度')}</span>}
+                    {!m.reasoning && !provider && (
+                      <span className={styles.itemHint}>{t('无思考深度')}</span>
+                    )}
                     {current === m.id && <Icon icon={Check} size={14} />}
                   </button>
                 ))}
@@ -634,10 +655,14 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   );
 };
 
-/** 输入栏入口：无模型目录的后端不渲染；第三方供应商激活时也不渲染（模型由供应商管理） */
+/** 输入栏入口：无模型目录的后端不渲染；第三方供应商激活时列供应商的模型 */
 export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
-  const { catalog, refreshing, refresh } = useCatalog(tab.backend);
   const [providers, setProviders] = useState<CliProviderState | null>(null);
+  const profile =
+    tab.backend !== 'nomi' ? activeProfileOf(providers, tab.backend as CliProviderKind) : null;
+  // 换了供应商（或停用回到官方账号）：目录跟着重读
+  const source = profile ? `${profile.id}:${profile.model}` : 'official';
+  const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
   // 供应商状态到之前不渲染，避免按钮先出现再因供应商激活消失
   const [providersReady, setProvidersReady] = useState(() => !cliProviderClient.available());
 
@@ -662,9 +687,5 @@ export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
 
   if (catalog === null || !providersReady) return null;
   if (catalog === undefined) return <LoadingChip tab={tab} />;
-  // 第三方供应商激活：模型在供应商 / /model 卡片里管理，避免双入口与 -c/配置文件相互打架
-  // （主进程同样不注入覆盖参数，见 CliHarnessService.effectiveOverrides）
-  if (tab.backend !== 'nomi' && activeProfileOf(providers, tab.backend as CliProviderKind))
-    return null;
   return <ModelChip tab={tab} catalog={catalog} refreshing={refreshing} onRefresh={refresh} />;
 };

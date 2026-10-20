@@ -656,5 +656,6 @@
   "思考深度": "reasoning effort",
   "Codex 进程已退出": "The Codex process exited",
   "Codex 没能启动 app-server": "Codex could not start the app-server",
-  "Codex 没有返回会话": "Codex did not return a session"
+  "Codex 没有返回会话": "Codex did not return a session",
+  "第三方供应商的模型不能在这里调思考深度": "Reasoning effort can't be set here for third-party provider models"
 }

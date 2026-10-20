@@ -387,5 +387,7 @@
   "模型 id": "Model id",
   "这个模型不支持调节思考深度": "This model doesn't support reasoning effort",
   "在输入框里切换": "to switch in the input box",
-  "正在从 {0} 读取模型列表": "Reading the model list from {0}"
+  "正在从 {0} 读取模型列表": "Reading the model list from {0}",
+  "模型（{0}）：{1}": "Model ({0}): {1}",
+  "{0} 的模型": "{0} models"
 }

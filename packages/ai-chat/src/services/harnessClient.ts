@@ -175,6 +175,8 @@ export interface BackendModelCatalog {
   defaultModel: ModelCatalogModel | null;
   /** 读取失败的原因（此时 models 为空） */
   error?: string;
+  /** 目录来自启用中的第三方供应商（它的 /models；没有思考深度） */
+  provider?: { id: string; name: string };
 }
 
 export interface HarnessSendResult {

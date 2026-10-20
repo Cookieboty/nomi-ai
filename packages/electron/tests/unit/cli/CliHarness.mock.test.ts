@@ -624,6 +624,29 @@ describe('CliHarnessService session handling', () => {
       await expect(h.send('x')).rejects.toThrow('session not found: session-unknown');
     });
 
+    it('第三方供应商下按标签切模型：经 --patch 叠加配置只作用于这个进程', async () => {
+      const h = track(
+        new CliHarnessService({
+          root: fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-')),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+          providerProfile: (b) =>
+            b === 'dsh' ? { id: 'gw', name: 'Gateway', model: 'deepseek/flash' } : null,
+          providerModels: async () => ['deepseek/flash', 'deepseek/pro'],
+          dshModelPatch: (model) =>
+            `- id: agent-default-model\n  config:\n    provider: nomi\n    model: "${model}"\n`,
+        }),
+      );
+      const tab = h.createTab({ backend: 'dsh' });
+      expect((await h.modelCatalogFor('dsh'))?.models.map((m) => m.id)).toEqual([
+        'deepseek/flash',
+        'deepseek/pro',
+      ]);
+      expect((await h.sendTab(tab.id, 'a')).text).toBe('【Mock dsh】new nokey: a');
+      h.setTabModel(tab.id, 'deepseek/pro');
+      expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed nokey deepseek/pro: b');
+    });
+
     it('上游报错（第三方密钥 / 模型不对）：显示 dsh 给的原因，不当成「无文本输出」', async () => {
       process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR = 'nomi API error (401): Missing API key';
       try {

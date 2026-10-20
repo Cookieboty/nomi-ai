@@ -111,6 +111,18 @@ export interface CliProfileTestResult {
   note?: string;
 }
 
+/** 各格式的模型列表响应 → 模型 id：OpenAI / Anthropic `data[].id`，Gemini `models[].name`（去掉 models/） */
+export function parseModelList(body: unknown): string[] {
+  const o = (body ?? {}) as { data?: unknown; models?: unknown };
+  const list = Array.isArray(o.data) ? o.data : Array.isArray(o.models) ? o.models : [];
+  const ids = list.map((x) => {
+    const m = (x ?? {}) as { id?: unknown; name?: unknown };
+    const id = typeof m.id === 'string' ? m.id : typeof m.name === 'string' ? m.name : '';
+    return id.replace(/^models\//, '').trim();
+  });
+  return [...new Set(ids.filter(Boolean))];
+}
+
 /** 各上游格式的「列出模型」探测请求（只读 GET） */
 export function buildProbeRequest(
   format: CliApiFormat,
@@ -427,6 +439,51 @@ export class CliProviderBridge {
     } catch (e) {
       return { ok: false, backups, error: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  /** 该 CLI 启用中的供应商（编程助手标签的模型按钮按它列模型、按它区分标签的模型选择） */
+  activeProfile(kind: CliProviderKind): { id: string; name: string; model: string } | null {
+    const p = this.data[kind].profiles.find((x) => x.active);
+    return p ? { id: p.id, name: p.name, model: p.model } : null;
+  }
+
+  /**
+   * 启用中供应商的上游模型列表（与测速同一个只读 GET，用供应商自己保存的密钥）。
+   * 上游没有列表接口（404 / 405）时返回空列表；鉴权失败等抛出可读错误，错误里的密钥会被抹掉。
+   */
+  async listModels(kind: CliProviderKind): Promise<string[]> {
+    const p = this.data[kind].profiles.find((x) => x.active);
+    if (!p) return [];
+    const key = decrypt(p.keyEnc);
+    const req = buildProbeRequest(p.apiFormat, p.baseUrl, key);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const res = await fetch(req.url, { method: 'GET', headers: req.headers, signal: ctl.signal });
+      if (res.status === 404 || res.status === 405) return [];
+      if (res.status < 200 || res.status >= 300)
+        throw new Error(
+          res.status === 401 || res.status === 403
+            ? t('Key 无效或无权限（HTTP {0}）', res.status)
+            : t('上游返回 HTTP {0}', res.status),
+        );
+      return parseModelList(await res.json());
+    } catch (e) {
+      const msg = ctl.signal.aborted ? t('连接超时（8 秒）') : String((e as Error).message ?? e);
+      throw new Error(key ? msg.split(key).join('••••') : msg, { cause: e });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * dsh：标签选了别的模型时，给那个进程用的叠加配置（`dsh --patch`）。
+   * 叠加会整段替换供应商定义，所以带上完整的 api / baseURL / 密钥变量，只把模型换掉。
+   */
+  dshPatchFor(model: string): string | null {
+    const p = this.data.dsh.profiles.find((x) => x.active);
+    if (!p || !isDshApiFormat(p.apiFormat)) return null;
+    return patchDshYaml(null, { api: dshApiName(p.apiFormat), baseURL: p.baseUrl, model });
   }
 
   /**

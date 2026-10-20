@@ -200,6 +200,11 @@ export class CliRouteService {
       root: string;
       logger: Logger;
       resolveUpstream: (kind: 'claude' | 'codex') => RouteUpstream | null;
+      /**
+       * 标签为当前供应商选中的模型（编程助手标签上的模型按钮）：请求里的模型在其中就照发，
+       * 否则改成供应商配置的模型（CLI 自带的官方模型名不能发到第三方上游）
+       */
+      allowedModels?: (kind: 'claude' | 'codex') => ReadonlySet<string>;
     },
   ) {
     this.settingsPath = path.join(d.root, 'routing.json');
@@ -384,7 +389,7 @@ export class CliRouteService {
         sendJson(res, 503, { error: `routing disabled for ${kind}` });
         return;
       }
-      const up = this.resolveUpstream(kind);
+      let up = this.resolveUpstream(kind);
       if (!up) {
         sendJson(res, 502, { error: `no active ${kind} provider` });
         return;
@@ -395,6 +400,15 @@ export class CliRouteService {
       track = { kind, startedAt: Date.now(), up };
       getUsageService()?.routeBegin(kind);
       const body = await readJson(req);
+      const asked = (body as { model?: unknown } | null)?.model;
+      if (
+        typeof asked === 'string' &&
+        asked !== up.model &&
+        this.d.allowedModels?.(kind).has(asked)
+      ) {
+        up = { ...up, model: asked };
+        track = { ...track, up };
+      }
       const wantsStream =
         Boolean(body) && typeof body === 'object' && (body as { stream?: unknown }).stream === true;
       const { upstreamUrl, requestBody, responseTransform, stream } = this.plan(

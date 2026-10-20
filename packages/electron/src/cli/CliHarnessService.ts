@@ -51,7 +51,8 @@ import {
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   effortsForModel,
-  isAllowedModelId,
+  isValidModelId,
+  providerCatalog,
   isReasoningEffort,
   overrideArgs,
   sanitizeEffort,
@@ -409,8 +410,14 @@ export class CliHarnessService {
       grokEnv?: () => Record<string, string>;
       /** Gemini 第三方供应商（CliProviderBridge.geminiEnv） */
       geminiEnv?: () => Record<string, string>;
-      /** 该 CLI 是否启用了第三方供应商（启用时模型由供应商管理，标签级模型 / 思考覆盖不注入） */
+      /** 该 CLI 是否启用了第三方供应商（只有它、没有 providerProfile 时：启用后不能按标签切模型） */
       hasProviderProfile?: (backend: CliBackend) => boolean;
+      /** 该 CLI 启用中的第三方供应商：模型目录换成它的模型，标签的模型选择按供应商分开记 */
+      providerProfile?: (backend: CliBackend) => { id: string; name: string; model: string } | null;
+      /** 启用中第三方供应商的上游模型列表（GET /models，用供应商自己的密钥） */
+      providerModels?: (backend: CliBackend) => Promise<string[]>;
+      /** dsh：用某个模型生成叠加配置（`--patch`），标签选的模型只作用于那一个进程 */
+      dshModelPatch?: (model: string) => string | null;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -1158,6 +1165,12 @@ export class CliHarnessService {
     backend: HarnessBackend,
     opts: { refresh?: boolean } = {},
   ): Promise<BackendModelCatalog | null> {
+    // 读目录时顺手把这个后端的标签对齐当前来源（重启后第一次打开模型按钮时也正确）
+    this.adoptScopes(backend);
+    const profile =
+      backend !== 'nomi' && this.d.providerProfile ? this.activeProfile(backend) : null;
+    if (profile && this.canOverride(backend))
+      return this.providerCatalogFor(backend as CliBackend, profile, opts);
     if (!supportsModelOverride(backend)) return null;
     const cached = this.modelCatalogs.get(backend);
     if (!opts.refresh && cached && Date.now() - cached.at < MODEL_CATALOG_TTL_MS) {
@@ -1201,6 +1214,44 @@ export class CliHarnessService {
     return run;
   }
 
+  /**
+   * 第三方供应商的模型目录：上游 `/models`（用供应商自己的密钥），供应商里配置的模型作默认。
+   * 读不到列表时只保留默认模型并带上原因；结果按后端缓存，换了供应商就重读。
+   */
+  private async providerCatalogFor(
+    backend: CliBackend,
+    profile: { id: string; name: string; model: string },
+    opts: { refresh?: boolean },
+  ): Promise<BackendModelCatalog> {
+    const cached = this.modelCatalogs.get(backend);
+    if (
+      !opts.refresh &&
+      cached &&
+      cached.catalog.provider?.id === profile.id &&
+      Date.now() - cached.at < MODEL_CATALOG_TTL_MS
+    )
+      return cached.catalog;
+    const inflight = this.modelCatalogInflight.get(backend);
+    if (inflight) return inflight as Promise<BackendModelCatalog>;
+    const run = (this.d.providerModels?.(backend) ?? Promise.resolve([]))
+      .then(
+        (ids) => providerCatalog(backend, profile, ids),
+        (e: unknown) => {
+          const error = e instanceof Error ? e.message : String(e);
+          this.d.logger.warn('harness provider model list failed', { backend, error });
+          return providerCatalog(backend, profile, [], error);
+        },
+      )
+      .then((catalog) => {
+        if (catalog.error) this.modelCatalogs.delete(backend);
+        else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
+        return catalog;
+      })
+      .finally(() => this.modelCatalogInflight.delete(backend));
+    this.modelCatalogInflight.set(backend, run);
+    return run;
+  }
+
   /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
   private cachedCatalog(backend: HarnessBackend): BackendModelCatalog | null {
     return this.modelCatalogs.get(backend)?.catalog ?? null;
@@ -1217,9 +1268,10 @@ export class CliHarnessService {
   setTabModel(id: string, model: string): HarnessTabMeta {
     const tab = this.requireTab(id);
     const backend = tab.backend;
-    if (!supportsModelOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
     const name = model.trim();
-    if (name && this.profileManaged(tab))
+    const scope = this.adoptScope(tab);
+    if (name && !this.d.providerProfile && scope)
       throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
     if (!name) {
       if (tab.modelOverride || tab.reasoningEffort) {
@@ -1231,11 +1283,15 @@ export class CliHarnessService {
       }
       return { ...tab };
     }
-    if (!isAllowedModelId(backend, name)) throw new Error(t('模型名不合法'));
+    if (!isValidModelId(name)) throw new Error(t('模型名不合法'));
     if (tab.modelOverride !== name) {
       tab.modelOverride = name;
-      // CLI 说不支持思考深度 / 不支持当前档位的模型：已选档位清掉（回到 CLI 默认）
-      tab.reasoningEffort = sanitizeEffort(this.cachedCatalog(backend), name, tab.reasoningEffort);
+      tab.modelScope = scope;
+      // CLI 说不支持思考深度 / 不支持当前档位的模型：已选档位清掉（回到 CLI 默认）；
+      // 第三方供应商的模型没有思考深度
+      tab.reasoningEffort = scope
+        ? null
+        : sanitizeEffort(this.cachedCatalog(backend), name, tab.reasoningEffort);
       this.rememberSettings(tab);
       this.changed();
       this.recycleLiveForOverride(tab);
@@ -1260,8 +1316,8 @@ export class CliHarnessService {
       }
       return { ...tab };
     }
-    if (!supportsModelOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
-    if (this.profileManaged(tab)) throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
+    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (this.adoptScope(tab)) throw new Error(t('第三方供应商的模型不能在这里调思考深度'));
     if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
     const levels = effortsForModel(this.cachedCatalog(backend), tab.modelOverride);
     if (levels === null) throw new Error(t('这个模型不支持思考深度'));
@@ -1289,19 +1345,90 @@ export class CliHarnessService {
     if (live && !live.turn && !claudeBackgroundActive(live)) this.teardownClaudeLive(tab.id);
   }
 
-  /** 该标签所在 CLI 启用了第三方供应商：模型由供应商管理，标签级覆盖不生效 */
-  private profileManaged(tab: HarnessTabMeta): boolean {
-    return tab.backend !== 'nomi' && this.d.hasProviderProfile?.(tab.backend) === true;
+  /** 该 CLI 启用中的第三方供应商（没有 providerProfile 时按 hasProviderProfile 给一个占位） */
+  private activeProfile(
+    backend: HarnessBackend,
+  ): { id: string; name: string; model: string } | null {
+    if (backend === 'nomi') return null;
+    const p = this.d.providerProfile?.(backend);
+    if (p) return p;
+    return this.d.hasProviderProfile?.(backend) ? { id: 'provider', name: '', model: '' } : null;
+  }
+
+  /** 当前的模型来源：第三方供应商 id；null = 官方账号（CLI 自带配置） */
+  private scopeOf(backend: HarnessBackend): string | null {
+    return this.activeProfile(backend)?.id ?? null;
   }
 
   /**
-   * 本轮实际注入的模型 / 思考深度。供应商启用时一律不注入：供应商已把模型写进 CLI 配置 / 环境变量，
-   * 进程级 -c model= / --model 优先级更高，会把官方模型名发到第三方端点。
-   * 覆盖本身保留（供应商停用后恢复生效），只是不下发。
+   * 能否按标签切模型：带模型目录的后端（claude / codex / grok）；dsh 只在启用了第三方供应商时
+   * （模型经 `--patch` 叠加配置下发）。
+   */
+  private canOverride(backend: HarnessBackend): boolean {
+    if (backend === 'dsh')
+      return Boolean(this.d.dshModelPatch) && this.d.providerProfile?.('dsh') != null;
+    return supportsModelOverride(backend);
+  }
+
+  /**
+   * 让标签上的模型 / 思考深度对应当前来源：来源变了（换了供应商 / 回到官方账号）就把旧来源的选择
+   * 收进 modelByScope，取出新来源上次的选择。返回当前来源。
+   */
+  private adoptScope(tab: HarnessTabMeta): string | null {
+    const scope = this.scopeOf(tab.backend);
+    const had = tab.modelScope ?? null;
+    if (had === scope) return scope;
+    const key = (s: string | null) => s ?? 'official';
+    const stash = { ...tab.modelByScope };
+    if (tab.modelOverride || tab.reasoningEffort)
+      stash[key(had)] = { model: tab.modelOverride ?? null, effort: tab.reasoningEffort ?? null };
+    else delete stash[key(had)];
+    const next = stash[key(scope)];
+    delete stash[key(scope)];
+    tab.modelOverride = next?.model ?? null;
+    tab.reasoningEffort = scope ? null : (next?.effort ?? null);
+    tab.modelScope = scope;
+    tab.modelByScope = Object.keys(stash).length ? stash : undefined;
+    return scope;
+  }
+
+  /** 该后端所有标签对齐当前模型来源（换供应商 / 账号后、读模型目录时调用） */
+  private adoptScopes(backend: HarnessBackend) {
+    let moved = false;
+    for (const tab of this.tabs.values()) {
+      if (tab.backend !== backend || (tab.modelScope ?? null) === this.scopeOf(backend)) continue;
+      this.adoptScope(tab);
+      moved = true;
+    }
+    if (moved) this.changed();
+  }
+
+  /** 该标签所在 CLI 启用了第三方供应商 */
+  private profileManaged(tab: HarnessTabMeta): boolean {
+    return this.activeProfile(tab.backend) !== null;
+  }
+
+  /**
+   * 本轮实际注入的模型 / 思考深度。只下发属于当前来源的选择：供应商启用时，官方账号下选的模型名
+   * 不能发到第三方端点（反之亦然）；第三方供应商的模型不带思考深度。
    */
   private effectiveOverrides(tab: HarnessTabMeta): { model: string | null; effort: string | null } {
-    if (this.profileManaged(tab)) return { model: null, effort: null };
-    return { model: tab.modelOverride?.trim() || null, effort: tab.reasoningEffort ?? null };
+    const scope = this.scopeOf(tab.backend);
+    if ((tab.modelScope ?? null) !== scope) return { model: null, effort: null };
+    if (scope && !this.d.providerProfile) return { model: null, effort: null };
+    const model = tab.modelOverride?.trim() || null;
+    return { model, effort: scope ? null : (tab.reasoningEffort ?? null) };
+  }
+
+  /** 本地路由放行的模型：这个 CLI 的标签为当前供应商选中的模型 */
+  routeModels(backend: CliBackend): Set<string> {
+    const out = new Set<string>();
+    for (const tab of this.tabs.values()) {
+      if (tab.backend !== backend) continue;
+      const m = this.effectiveOverrides(tab).model;
+      if (m) out.add(m);
+    }
+    return out;
   }
 
   /** 新标签默认档与 Codex 联网开关（设置页） */
@@ -1341,23 +1468,40 @@ export class CliHarnessService {
    */
   private restoreOverrides(
     tab: HarnessTabMeta,
-    raw: { modelOverride?: unknown; reasoningEffort?: unknown },
+    raw: {
+      modelOverride?: unknown;
+      reasoningEffort?: unknown;
+      modelScope?: unknown;
+      modelByScope?: unknown;
+    },
   ) {
     const backend = tab.backend;
-    if (!supportsModelOverride(backend)) {
+    // dsh 只在第三方供应商下能切模型（经 --patch），选择同样按来源保存
+    if (backend !== 'dsh' && !supportsModelOverride(backend)) {
       tab.modelOverride = null;
       tab.reasoningEffort = null;
+      tab.modelScope = null;
+      tab.modelByScope = undefined;
       return;
     }
-    const model = typeof raw.modelOverride === 'string' ? raw.modelOverride.trim() : '';
-    // 允许「只设思考深度、沿用 CLI 默认模型」
-    if (model && !isAllowedModelId(backend, model)) {
-      tab.modelOverride = null;
-      tab.reasoningEffort = null;
-      return;
-    }
-    tab.modelOverride = model || null;
-    tab.reasoningEffort = isReasoningEffort(raw.reasoningEffort) ? raw.reasoningEffort : null;
+    const pick = (m: unknown, e: unknown) => {
+      const model = typeof m === 'string' ? m.trim() : '';
+      // 允许「只设思考深度、沿用 CLI 默认模型」
+      if (model && !isValidModelId(model)) return null;
+      return { model: model || null, effort: isReasoningEffort(e) ? e : null };
+    };
+    const cur = pick(raw.modelOverride, raw.reasoningEffort);
+    tab.modelOverride = cur?.model ?? null;
+    tab.reasoningEffort = cur?.effort ?? null;
+    tab.modelScope = typeof raw.modelScope === 'string' && raw.modelScope ? raw.modelScope : null;
+    const stash: NonNullable<HarnessTabMeta['modelByScope']> = {};
+    if (raw.modelByScope && typeof raw.modelByScope === 'object')
+      for (const [k, v] of Object.entries(raw.modelByScope as Record<string, unknown>)) {
+        const o = (v ?? {}) as { model?: unknown; effort?: unknown };
+        const got = pick(o.model, o.effort);
+        if (k && got && (got.model || got.effort)) stash[k] = got;
+      }
+    tab.modelByScope = Object.keys(stash).length ? stash : undefined;
   }
 
   /** tabs.json 里的「最近一次设置」：逐项校验，不合法的丢弃（与 restoredMode / restoreOverrides 同规则） */
@@ -1369,6 +1513,7 @@ export class CliHarnessService {
         permissionMode?: unknown;
         modelOverride?: unknown;
         reasoningEffort?: unknown;
+        modelScope?: unknown;
       };
       const probe = { backend } as HarnessTabMeta;
       this.restoreOverrides(probe, o);
@@ -1378,6 +1523,7 @@ export class CliHarnessService {
           : {}),
         ...(probe.modelOverride ? { modelOverride: probe.modelOverride } : {}),
         ...(probe.reasoningEffort ? { reasoningEffort: probe.reasoningEffort } : {}),
+        ...(probe.modelScope ? { modelScope: probe.modelScope } : {}),
       };
       if (Object.keys(s).length) this.lastSettings.set(backend, s);
     }
@@ -1396,21 +1542,24 @@ export class CliHarnessService {
       ...(mode ? { permissionMode: mode } : {}),
       ...(tab.modelOverride ? { modelOverride: tab.modelOverride } : {}),
       ...(tab.reasoningEffort ? { reasoningEffort: tab.reasoningEffort } : {}),
+      ...(tab.modelScope ? { modelScope: tab.modelScope } : {}),
     });
   }
 
   /**
-   * 新会话沿用该后端最近一次的设置。模型 / 思考深度只在没有启用第三方供应商时沿用
-   * （供应商管理模型；换供应商 / 账号时 recycleBackend 已清掉记下的值）。
+   * 新会话沿用该后端最近一次的设置。模型 / 思考深度只在来源一致时沿用（官方账号下选的不带到
+   * 第三方供应商，反之亦然；换供应商 / 账号时 recycleBackend 已清掉记下的值）。
    */
   private inheritSettings(tab: HarnessTabMeta, explicitMode: boolean) {
+    tab.modelScope = this.scopeOf(tab.backend);
     const s = this.lastSettings.get(tab.backend);
     if (!s) return;
     if (!explicitMode && s.permissionMode)
       tab.permissionMode = effectiveMode(tab.backend, s.permissionMode).mode;
-    if (!supportsModelOverride(tab.backend) || this.profileManaged(tab)) return;
+    if (!this.canOverride(tab.backend) || (s.modelScope ?? null) !== tab.modelScope) return;
+    if (tab.modelScope && !this.d.providerProfile) return;
     if (s.modelOverride) tab.modelOverride = s.modelOverride;
-    if (s.reasoningEffort) tab.reasoningEffort = s.reasoningEffort;
+    if (s.reasoningEffort && !tab.modelScope) tab.reasoningEffort = s.reasoningEffort;
   }
 
   /**
@@ -1579,6 +1728,11 @@ export class CliHarnessService {
     const text = String(prompt ?? '').slice(0, 100_000);
     if (!text.trim()) throw new Error(t('消息为空'));
     const backend = tab.backend;
+    // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
+    if ((tab.modelScope ?? null) !== this.scopeOf(backend)) {
+      this.adoptScope(tab);
+      this.changed();
+    }
     this.appendMessage(id, {
       id: randomUUID(),
       role: 'user',
@@ -2678,6 +2832,8 @@ export class CliHarnessService {
   recycleBackend(kind: HarnessBackend): void {
     // 换了账号 / 供应商：可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
+    // 标签上的模型选择换成新来源的（官方 ↔ 某个供应商各记各的）
+    this.adoptScopes(kind);
     // 新会话也不再沿用旧账号 / 供应商下选的模型与思考深度（权限模式照旧）
     const last = this.lastSettings.get(kind);
     if (last?.modelOverride || last?.reasoningEffort) {
@@ -3203,6 +3359,19 @@ export class CliHarnessService {
     if (!bin) return Promise.reject(new Error(t('未找到 dsh（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
     const argv = ['--profile', 'headless', '--json'];
+    // 标签为第三方供应商选的模型：写一份只给这个进程用的叠加配置（dsh 的 --patch 在 profile 之后生效）
+    const model = this.canOverride('dsh') ? this.effectiveOverrides(tab).model : null;
+    const overlay = model ? this.d.dshModelPatch?.(model) : null;
+    if (overlay) {
+      const file = path.join(this.d.root, 'dsh-patches', `${tab.id.replace(/[^\w-]/g, '_')}.yml`);
+      try {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, overlay, 'utf8');
+        argv.splice(2, 0, '--patch', file);
+      } catch (e) {
+        this.d.logger.warn('harness dsh model patch failed', e);
+      }
+    }
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
     if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
     // 以 - 开头的提示会被当成参数，前置空格规避
@@ -3819,6 +3988,8 @@ type LastTabSettings = {
   permissionMode?: HarnessPermissionMode;
   modelOverride?: string;
   reasoningEffort?: string;
+  /** 上面的模型属于哪个来源（第三方供应商 id；缺省 = 官方账号） */
+  modelScope?: string;
 };
 
 /** 在途的 Claude control_request：等同 request_id 的 control_response */

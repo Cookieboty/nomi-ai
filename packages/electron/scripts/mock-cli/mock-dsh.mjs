@@ -37,9 +37,16 @@ function logPrompt(text) {
 }
 logPrompt(prompt);
 const keyState = process.env.NOMI_DSH_API_KEY ? 'key' : 'nokey';
+// --patch 叠加配置里 agent-default-model 的模型（与真实 dsh 一样在 profile 之后生效）
+const patchFile = flag('--patch');
+let patchedModel = '';
+if (patchFile) {
+  const fs = await import('node:fs');
+  patchedModel = /model:\s*"([^"]+)"\s*$/m.exec(fs.readFileSync(patchFile, 'utf8'))?.[1] ?? '';
+}
 const reply =
   process.env.NOMI_MOCK_DSH_REPLY ||
-  `【Mock dsh】${resumed ? 'resumed' : 'new'} ${keyState}: ${prompt}`;
+  `【Mock dsh】${resumed ? 'resumed' : 'new'} ${keyState}${patchedModel ? ` ${patchedModel}` : ''}: ${prompt}`;
 const usage = { inputTokens: 10, outputTokens: 8, totalTokens: 18, cacheReadTokens: 0 };
 
 emit({ type: 'session', sessionId, cwd: process.cwd() });

@@ -65,6 +65,11 @@ export interface BackendModelCatalog {
   defaultModel: CatalogModel | null;
   /** 读取失败的原因（此时 models 为空，界面只保留「默认模型」与自定义 id） */
   error?: string;
+  /**
+   * 目录来自启用中的第三方供应商（它的 `/models` 列表，默认模型 = 供应商里配置的模型）。
+   * 这时没有思考深度（上游不告诉我们哪些模型支持）。
+   */
+  provider?: { id: string; name: string };
 }
 
 /** 有无头覆盖参数（模型 / 思考深度）的后端；Gemini ACP / dsh 暂无 */
@@ -79,11 +84,36 @@ export function supportsModelOverride(backend: string): backend is CliBackend {
  * 是否真的可用由 CLI 报错说明。
  */
 export function isAllowedModelId(backend: string, model: string): boolean {
+  return supportsModelOverride(backend) && isValidModelId(model);
+}
+
+/** 厂商模型 id 字符集（字母数字 . _ - : / [ ]），不能以 - 开头，不含空白与引号，最长 128 */
+export function isValidModelId(model: string): boolean {
   const id = model.trim();
   if (!id || id.length > 128) return false;
-  if (!supportsModelOverride(backend)) return false;
-  // 厂商模型 id 字符集（字母数字 . _ - : / [ ]），不能以 - 开头，不含空白与引号
   return /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]*$/.test(id);
+}
+
+/**
+ * 第三方供应商的模型目录：上游 `/models` 列出的 id，供应商里配置的模型排第一并作默认模型。
+ * 上游不告诉我们哪些模型支持思考深度，一律不给档位。
+ */
+export function providerCatalog(
+  backend: CliBackend,
+  provider: { id: string; name: string; model: string },
+  listed: readonly string[],
+  error?: string,
+): BackendModelCatalog {
+  const ids = [...new Set([provider.model, ...listed].map((x) => x.trim()).filter(isValidModelId))];
+  const models: CatalogModel[] = ids.map((id) => ({ id, reasoning: false, efforts: [] }));
+  return {
+    backend,
+    models,
+    defaultModel:
+      (provider.model.trim() && models.find((m) => m.id === provider.model.trim())) || null,
+    provider: { id: provider.id, name: provider.name },
+    ...(error ? { error } : {}),
+  };
 }
 
 /** 目录里所有模型档位的并集（未知的自定义模型用它） */

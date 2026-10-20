@@ -328,7 +328,7 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(restored.reasoningEffort).toBeNull();
   });
 
-  it('第三方供应商启用时不注入覆盖参数，也拒绝设置新覆盖（覆盖保留，停用后恢复）', async () => {
+  it('只知道「启用了供应商」、不知道是哪个时：不注入覆盖参数，也拒绝设置新覆盖；停用后恢复官方的选择', async () => {
     let profile = false;
     const h = mk({ hasProviderProfile: (b) => profile && b === 'codex' });
     const tab = h.createTab({ backend: 'codex' });
@@ -342,12 +342,106 @@ describe('CliHarnessService model / effort overrides', () => {
     const during = readArgv().at(-1)!;
     expect(during.some((x) => x.startsWith('model='))).toBe(false);
     expect(during.some((x) => x.startsWith('model_reasoning_effort='))).toBe(false);
-    // 覆盖本身保留，供应商停用后恢复生效
-    expect(h.listTabs().tabs.find((x) => x.id === tab.id)!.modelOverride).toBe('gpt-5.6-sol');
 
     profile = false;
     await h.sendTab(tab.id, '供应商停用');
     expect(readArgv().at(-1)!).toContain('model="gpt-5.6-sol"');
+    expect(readArgv().at(-1)!).toContain('model_reasoning_effort="high"');
+  });
+
+  describe('第三方供应商下按标签切模型', () => {
+    type P = { id: string; name: string; model: string } | null;
+    const setup = (o: { models?: () => Promise<string[]> } = {}) => {
+      let profile: P = null;
+      const h = mk({
+        providerProfile: (b: string) => (b === 'codex' || b === 'grok' ? profile : null),
+        providerModels: o.models ?? (async () => ['vendor/a', 'vendor/b']),
+      } as never);
+      return {
+        h,
+        use: (p: P) => {
+          profile = p;
+          h.recycleBackend('codex');
+        },
+      };
+    };
+    const A = { id: 'prov-a', name: 'Gateway A', model: 'vendor/a' };
+    const B = { id: 'prov-b', name: 'Gateway B', model: 'other/x' };
+
+    it('模型目录换成供应商的 /models，供应商配置的模型排第一作默认，没有思考深度', async () => {
+      const { h, use } = setup();
+      use(A);
+      const c = (await h.modelCatalogFor('codex'))!;
+      expect(c.provider).toEqual({ id: 'prov-a', name: 'Gateway A' });
+      expect(c.defaultModel?.id).toBe('vendor/a');
+      expect(c.models.map((m) => m.id)).toEqual(['vendor/a', 'vendor/b']);
+      expect(c.models.every((m) => !m.reasoning && m.efforts.length === 0)).toBe(true);
+    });
+
+    it('读不到上游列表：只保留供应商配置的模型并带上原因', async () => {
+      const { h, use } = setup({ models: async () => Promise.reject(new Error('Key 无效')) });
+      use(A);
+      const c = (await h.modelCatalogFor('codex'))!;
+      expect(c.models.map((m) => m.id)).toEqual(['vendor/a']);
+      expect(c.error).toBe('Key 无效');
+    });
+
+    it('标签可选供应商的模型并下发；不能调思考深度', async () => {
+      const { h, use } = setup();
+      use(A);
+      const tab = h.createTab({ backend: 'codex' });
+      expect(h.setTabModel(tab.id, 'vendor/b')).toMatchObject({
+        modelOverride: 'vendor/b',
+        modelScope: 'prov-a',
+        reasoningEffort: null,
+      });
+      expect(() => h.setTabReasoningEffort(tab.id, 'high')).toThrow();
+      await h.sendTab(tab.id, 'hi');
+      expect(readArgv().at(-1)!).toContain('model="vendor/b"');
+      expect(
+        readArgv()
+          .at(-1)!
+          .some((x) => x.startsWith('model_reasoning_effort=')),
+      ).toBe(false);
+      expect([...h.routeModels('codex')]).toEqual(['vendor/b']);
+    });
+
+    it('官方 / 各供应商各记各的：切换后取回那个来源上次的选择，不会把模型名发到别的来源', async () => {
+      const { h, use } = setup();
+      const tab = h.createTab({ backend: 'codex' });
+      h.setTabModel(tab.id, 'gpt-5.6-sol');
+      h.setTabReasoningEffort(tab.id, 'high');
+      use(A);
+      const row = () => h.listTabs().tabs.find((x) => x.id === tab.id)!;
+      expect(row().modelOverride ?? null).toBeNull();
+      h.setTabModel(tab.id, 'vendor/b');
+      use(B);
+      expect(row().modelOverride ?? null).toBeNull();
+      await h.sendTab(tab.id, 'on B');
+      expect(
+        readArgv()
+          .at(-1)!
+          .some((x) => x.startsWith('model=')),
+      ).toBe(false);
+      use(A);
+      expect(row()).toMatchObject({ modelOverride: 'vendor/b', modelScope: 'prov-a' });
+      use(null);
+      expect(row()).toMatchObject({ modelOverride: 'gpt-5.6-sol', reasoningEffort: 'high' });
+      // 跨重启保留各来源的选择
+      h.dispose();
+      const again = mk({ providerProfile: () => null } as never);
+      expect(again.listTabs().tabs.find((x) => x.id === tab.id)?.modelByScope).toEqual({
+        'prov-a': { model: 'vendor/b', effort: null },
+      });
+    });
+
+    it('新会话只沿用同一来源下的模型', async () => {
+      const { h, use } = setup();
+      use(A);
+      const a = h.createTab({ backend: 'codex' });
+      h.setTabModel(a.id, 'vendor/b');
+      expect(h.createTab({ backend: 'codex' }).modelOverride).toBe('vendor/b');
+    });
   });
 
   it('Claude 有后台任务时切换思考深度不拆进程，后台结束后的下一轮才按新参数重启', async () => {

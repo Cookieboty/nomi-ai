@@ -224,6 +224,13 @@ export interface HarnessTabMeta {
    * null = 沿用 CLI 默认档位；切换到非推理模型时由主进程清除。
    */
   reasoningEffort?: string | null;
+  /**
+   * 上面两项属于哪个模型来源：第三方供应商 id；null / 缺省 = 官方账号（CLI 自带配置）。
+   * 换供应商时把当前选择收进 modelByScope、取出新来源上次的选择，模型名不会跨来源发出去。
+   */
+  modelScope?: string | null;
+  /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
+  modelByScope?: Record<string, { model: string | null; effort: string | null }>;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

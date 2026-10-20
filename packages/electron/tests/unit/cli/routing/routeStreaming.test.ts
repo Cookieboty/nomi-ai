@@ -47,7 +47,12 @@ const routeFetch = (svc: CliRouteService, input: string, init: RequestInit = {})
     headers: { 'x-api-key': svc.authToken(), ...((init.headers as Record<string, string>) ?? {}) },
   });
 
-async function startRoute(kind: 'claude' | 'codex', baseUrl: string, apiFormat: CliApiFormat) {
+async function startRoute(
+  kind: 'claude' | 'codex',
+  baseUrl: string,
+  apiFormat: CliApiFormat,
+  allowed: readonly string[] = [],
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-route-'));
   const probe = http.createServer();
   const port = await new Promise<number>((r) =>
@@ -63,6 +68,7 @@ async function startRoute(kind: 'claude' | 'codex', baseUrl: string, apiFormat: 
     logger: { info: () => undefined, warn: () => undefined },
     resolveUpstream: (k) =>
       k === kind ? { kind, baseUrl, apiKey: 'k', model: 'up-model', apiFormat } : null,
+    allowedModels: () => new Set(allowed),
   });
   await svc.start();
   return { svc, url: `http://127.0.0.1:${port}` };
@@ -128,6 +134,30 @@ describe('CliRouteService streaming', () => {
       stream: true,
       stream_options: { include_usage: true },
     });
+  });
+
+  it('标签为供应商选中的模型照发；其余（如 CLI 自带的官方模型名）改成供应商配置的模型', async () => {
+    const raw =
+      'data: {"id":"c1","model":"m","choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\n' +
+      'data: {"id":"c1","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n' +
+      'data: [DONE]\n\n';
+    const up = await startUpstream((_r, res) => writeSlowly(res, raw));
+    const { svc, url } = await startRoute('claude', up.base, 'openai_chat_completions', [
+      'vendor/b',
+    ]);
+    cleanup.push(up.close, () => svc.stop());
+    for (const model of ['vendor/b', 'claude-haiku-4-5'])
+      await (
+        await routeFetch(svc, `${url}/v1/messages`, {
+          method: 'POST',
+          body: JSON.stringify({
+            model,
+            stream: true,
+            messages: [{ role: 'user', content: 'hi' }],
+          }),
+        })
+      ).text();
+    expect(up.seen.map((x) => x.body.model)).toEqual(['vendor/b', 'up-model']);
   });
 
   it('claude ← gemini upstream uses streamGenerateContent?alt=sse', async () => {

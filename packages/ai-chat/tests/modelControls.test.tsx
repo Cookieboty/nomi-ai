@@ -228,19 +228,28 @@ describe('ModelControls', () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', 'max'));
   });
 
-  it('第三方供应商激活时不渲染（模型由供应商管理）', async () => {
-    const current = { ...baseTab };
-    const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:harness:model-catalog') return catalog;
+  it('第三方供应商激活：列供应商的模型，直接打开模型列表、没有思考深度，选完关闭浮层', async () => {
+    let current = { ...baseTab };
+    const providerCatalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'p1', name: 'Gateway' },
+      defaultModel: { id: 'vendor/a', reasoning: false, efforts: [] },
+      models: [
+        { id: 'vendor/a', reasoning: false, efforts: [] },
+        { id: 'vendor/b', reasoning: false, efforts: [] },
+      ],
+    };
+    const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
+      if (ch === 'ai:harness:model-catalog') return providerCatalog;
       if (ch === 'ai:cli-provider:state')
         return {
           profiles: [
             {
               kind: 'codex',
               id: 'p1',
-              name: '第三方',
+              name: 'Gateway',
               baseUrl: 'https://x',
-              model: 'gpt-5',
+              model: 'vendor/a',
               apiFormat: 'responses',
               needsRouting: false,
               hasKey: true,
@@ -249,12 +258,26 @@ describe('ModelControls', () => {
             },
           ],
         };
+      if (ch === 'ai:harness:tab-model') {
+        current = { ...current, modelOverride: String(a[1] ?? '') || null };
+        return { ...current };
+      }
       return {};
     });
     (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
-    const { container } = render(<ModelControls tab={current} />);
-    await waitFor(() => expect(container.childElementCount).toBe(0));
-    void current;
+    const r = render(<ModelControls tab={current} />);
+    const chip = await r.findByTestId('model-chip');
+    expect(chip.textContent).toContain('vendor/a');
+    fireEvent.click(chip);
+    const menu = await r.findByTestId('model-menu');
+    expect(within(menu).getByTestId('model-provider').textContent).toContain('Gateway');
+    expect(within(menu).queryByTestId('effort-view')).toBeNull();
+    expect(within(menu).queryByText('无思考深度')).toBeNull();
+    fireEvent.click(within(menu).getByTestId('model-vendor/b'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'vendor/b'),
+    );
+    await waitFor(() => expect(r.queryByTestId('model-menu')).toBeNull());
   });
 
   it('Claude：按钮显示 CLI 给的默认模型名；不支持思考深度的模型不显示滑杆', async () => {
