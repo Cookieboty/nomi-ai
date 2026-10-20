@@ -61,3 +61,13 @@
 .session > * {
   min-width: 0;
 }
+/* 工作目录 / 供应商下拉 / 设置按钮同一高度（工作目录按钮是 30px），文字同一字号 */
+.session :global(.cd-dropdown__trigger) {
+  height: 30px;
+  font-size: 14px;
+}
+.session :global(.cd-btn) {
+  height: 30px;
+  min-width: 30px;
+  padding: 0 7px;
+}
