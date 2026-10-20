@@ -1,0 +1,15 @@
+{
+ "panel_px": 5522,
+ "panel_bbox": [
+  1,
+  95,
+  58,
+  355
+ ],
+ "deleted_sleeve_px": 5522,
+ "deleted_dark_px": 740,
+ "band_px": 2344,
+ "under_px": 2205,
+ "hem_tail_px": 17,
+ "split_sha": "bd4365735f84548b1a93a5df9edcf65033cbf333a9adb5a3a1ea55a69e998a50"
+}

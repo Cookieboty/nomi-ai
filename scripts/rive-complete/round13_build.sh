@@ -29,3 +29,4 @@ python3 round25_shoulder_cap.py
 python3 round26_fingers.py
 python3 round26_secondary_skin.py
 python3 round26_gait.py
+python3 round27_coat_split.py
