@@ -91,6 +91,16 @@ export function floorFor(workAreas: Rect[], cx: number): number {
   return a.y + a.height;
 }
 
+/**
+ * Window top (DIP) that stands feet `bottom` (window px, may be fractional after a resize) on
+ * `floor`. The window is positioned in whole pixels (Math.round), so a fractional box bottom
+ * (e.g. 674.5) would otherwise put the window half a pixel low and round it 1px below the work
+ * area. Snap the feet up to the next whole pixel instead: at most < 1px above the floor.
+ */
+export function groundY(floor: number, bottom: number): number {
+  return floor - Math.ceil(bottom - 1e-6);
+}
+
 export function horizontalBounds(workAreas: Rect[]): { min: number; max: number } {
   if (!workAreas.length) return { min: 0, max: 1920 };
   return {
@@ -111,7 +121,7 @@ export function clampToWorld(s: BodyState, env: PhysicsEnv): BodyState {
   const x = clamp(s.x, min - env.box.left, max - env.box.right);
   const cx = x + (env.box.left + env.box.right) / 2;
   const area = areaUnder(env.workAreas, cx);
-  const y = clamp(s.y, area.y - env.box.top, area.y + area.height - env.box.bottom);
+  const y = clamp(s.y, area.y - env.box.top, groundY(area.y + area.height, env.box.bottom));
   return { ...s, x, y };
 }
 
@@ -161,7 +171,7 @@ export function step(
       }
     } else if (feet() > floor() || (s.mode === 'idle' && feet() < floor())) {
       // 小间隙：贴回地面（不触发下落）
-      s.y = floor() - env.box.bottom;
+      s.y = groundY(floor(), env.box.bottom);
     }
     if (s.mode === 'idle' && env.gravity) {
       s.vx *= Math.exp(-cfg.groundFriction * dt);
@@ -183,7 +193,7 @@ export function step(
     s.y += s.vy * dt;
     const f = floor();
     if (feet() >= f) {
-      s.y = f - env.box.bottom;
+      s.y = groundY(f, env.box.bottom);
       const impact = s.vy;
       if (impact > cfg.bounceThreshold) {
         s.vy = -impact * cfg.restitution;
@@ -313,7 +323,7 @@ export function anchorOnBoxChange(
   const grounded = Math.abs(s.y + prev.bottom - floorPrev) <= 2;
   if (!grounded) return s;
   const cx = s.x + (next.left + next.right) / 2;
-  return { ...s, y: floorFor(workAreas, cx) - next.bottom, vy: 0 };
+  return { ...s, y: groundY(floorFor(workAreas, cx), next.bottom), vy: 0 };
 }
 
 /** 启动 / 首次拿到包围盒时：只有明显悬空（> fallGap）才自然下落 */
