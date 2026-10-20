@@ -131,6 +131,50 @@ describe('CliHarnessService Grok over ACP', () => {
     expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
   }, 15_000);
 
+  it('打开历史后用户先选了档位：首次握手不再用 CLI 的模式覆盖它', async () => {
+    process.env.NOMI_MOCK_GROK_MODE = 'plan';
+    const { h } = mk();
+    const tab = h.createTab({
+      backend: 'grok',
+      cliSessionId: 'session-old-1',
+      permissionModeSource: 'history-cli',
+    });
+    h.setTabPermissionMode(tab.id, 'manual');
+    await h.sendTab(tab.id, 'continue');
+    expect(
+      calls()
+        .filter((c) => c.method === 'session/set_mode')
+        .map((c) => c.params.modeId),
+    ).toEqual(['default']);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('manual');
+  }, 15_000);
+
+  it('切换后端时丢弃历史同步标记', () => {
+    const { h } = mk();
+    const tab = h.createTab({ backend: 'grok', permissionModeSource: 'history-cli' });
+    h.setTabBackend(tab.id, 'gemini');
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionModeSource).toBeUndefined();
+  });
+
+  it('CLI 返回未知模式：不卡死标签，按标签档位显式 set_mode 后照常发送', async () => {
+    process.env.NOMI_MOCK_GROK_MODE = 'mystery-mode';
+    const { h } = mk();
+    const tab = h.createTab({
+      backend: 'grok',
+      cliSessionId: 'session-old-1',
+      permissionModeSource: 'history-cli',
+    });
+    await h.sendTab(tab.id, 'continue');
+    expect(
+      calls()
+        .filter((c) => c.method === 'session/set_mode')
+        .map((c) => c.params.modeId),
+    ).toEqual(['acceptEdits']);
+    const meta = h.listTabs().tabs.find((x) => x.id === tab.id);
+    expect(meta?.permissionMode).toBe('acceptEdits');
+    expect(meta?.permissionModeSource).toBeUndefined();
+  }, 15_000);
+
   it('权限模式原地切换（不重启进程），逐项确认映射到 default、完全放开映射到 bypassPermissions', async () => {
     const { h } = mk();
     const tab = h.createTab({ backend: 'grok' });

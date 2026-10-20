@@ -1042,6 +1042,8 @@ export class CliHarnessService {
       this.teardownCodexLive(id);
       this.teardownAcpLive(id);
       tab.cliSessionId = null;
+      // 历史同步标记只属于原 CLI 的那个会话
+      delete tab.permissionModeSource;
       // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
       // 否则空会话从 Grok 切到 Codex 后欢迎标题 / 占位符仍显示 Grok；用户手动重命名的标题保留
       const oldDefault = BACKEND_TITLE[tab.backend];
@@ -1117,6 +1119,8 @@ export class CliHarnessService {
     )
       throw new Error(t('标签的后端或工作目录已变化，请重新确认「完全放开」'));
     const next = effectiveMode(tab.backend, mode);
+    // 用户显式选择的档位优先于「从历史 CLI 会话同步」：首次握手不得再覆盖它
+    delete tab.permissionModeSource;
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
       this.rememberSettings(tab);
@@ -2465,14 +2469,11 @@ export class CliHarnessService {
       if (tab.permissionModeSource === 'history-cli' && typeof modeNow === 'string') {
         const cliMode = fromCliPermissionMode(backend, modeNow);
         if (!cliMode) {
-          // 未知模式不能猜测；拆掉握手，阻止在不明安全等级下发送消息。
-          throw new Error(
-            backend === 'grok'
-              ? t('无法识别 Grok 的权限模式（{0}），这条消息没有发送', modeNow)
-              : t('无法识别 Gemini 的权限模式（{0}），这条消息没有发送', modeNow),
-          );
-        }
-        if (cliMode !== 'bypass') {
+          // 未知模式不能猜测，也不能让标签永久卡住：放弃同步，下面按标签自己的档位显式 set_mode，
+          // 只有 CLI 确认后才发送（失败仍按 #72 拒绝这一轮）。
+          delete tab.permissionModeSource;
+          this.changed();
+        } else if (cliMode !== 'bypass') {
           // bypass 仍须经过 Nomi 的显式确认，不能因为打开历史就自动继承。
           initMode = cliMode;
           tab.permissionMode = cliMode;
