@@ -70,7 +70,11 @@ export function readTail(content: string, max = TAIL): string {
 }
 
 export function jsonlEvents(text: string, limit = 400): Array<Record<string, unknown>> {
-  const lines = text.split('\n').filter((l) => l.trim().startsWith('{'));
+  // Windows 上的工具可能写出 UTF-8 BOM / CRLF：去掉 BOM，否则首行（常含会话 id / cwd）被丢弃
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split('\n')
+    .filter((l) => l.trim().startsWith('{'));
   const out: Array<Record<string, unknown>> = [];
   for (const line of lines.slice(-limit)) {
     try {

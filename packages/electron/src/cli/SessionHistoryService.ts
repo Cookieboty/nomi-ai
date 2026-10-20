@@ -641,7 +641,7 @@ function isDir(p: string): boolean {
   }
 }
 
-/** 将 CLI 日志里的原生安全模式映射成 Nomi 的统一档位；未知值降到最安全的 plan。 */
+/** 将 CLI 日志里的原生安全模式映射成 Nomi 的统一档位；未知值返回 undefined（按「历史未记录」处理）。 */
 function normalizePermissionMode(
   backend: HistoryBackend,
   raw: string,

@@ -27,6 +27,7 @@ import {
   parseClaudeSession,
   parseClineJob,
   parseCodexSession,
+  parseGrokSession,
   parseContinueSession,
   parseGeminiSession,
 } from '../../../src/agents/parsers';
@@ -350,5 +351,15 @@ describe('parseCodexSession permission mode (inverse of permissionLaunch codex)'
     [{ approval_policy: 'untrusted' }, 'untrusted'],
   ])('%j -> %s', (payload, want) => {
     expect(parseCodexSession(meta(payload), '').permissionMode).toBe(want);
+  });
+});
+
+describe('jsonl with a UTF-8 BOM and CRLF line endings (Windows)', () => {
+  it('keeps the first event', () => {
+    const text =
+      '\uFEFF{"sessionId":"s1","cwd":"C:\\\\work"}\r\n' +
+      '{"params":{"update":{"sessionUpdate":"user_message","prompt":"hi"}}}\r\n';
+    const info = parseGrokSession(text, 'fallback');
+    expect(info).toMatchObject({ cwd: 'C:\\work', title: 'hi' });
   });
 });

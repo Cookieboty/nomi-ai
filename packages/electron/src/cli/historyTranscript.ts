@@ -21,7 +21,7 @@ type Json = Record<string, unknown>;
 
 function lines(text: string): Json[] {
   const out: Json[] = [];
-  for (const l of text.split('\n')) {
+  for (const l of text.replace(/^\uFEFF/, '').split('\n')) {
     const s = l.trim();
     if (!s.startsWith('{')) continue;
     try {
