@@ -32,6 +32,30 @@ export function isNearBottom(
   return el.scrollHeight - el.scrollTop - el.clientHeight <= px;
 }
 
+/**
+ * Keep a scroll container pinned to the bottom while its content grows, as long as `followRef`
+ * is set (the user has not scrolled away). Driven by a ResizeObserver on the content (and the
+ * container, for viewport changes) instead of a per-frame layout effect.
+ */
+export function useStickToBottom(
+  scrollRef: React.RefObject<HTMLElement | null>,
+  contentRef: React.RefObject<HTMLElement | null>,
+  followRef: React.RefObject<boolean>,
+  scrollToBottom: () => void,
+): void {
+  useEffect(() => {
+    const content = contentRef.current;
+    const scroller = scrollRef.current;
+    if (!content || !scroller || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (followRef.current) scrollToBottom();
+    });
+    ro.observe(content);
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, [scrollRef, contentRef, followRef, scrollToBottom]);
+}
+
 /** 剩余秒数（每秒刷新）；没有截止时间返回 null */
 function useSecondsLeft(expiresAt: number | undefined): number | null {
   const [now, setNow] = useState(() => Date.now());
@@ -327,6 +351,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const agentMap = useMemo(() => agentsByCall(live?.agents), [live?.agents]);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
   const followRef = useRef(true);
+  const innerRef = useRef<HTMLDivElement>(null);
   const [away, setAway] = useState(false);
   const running = phase === 'running';
   const [extra, setExtra] = useState(0);
@@ -379,8 +404,9 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTop = el.scrollHeight;
-    overflowedRef.current = el.scrollHeight > el.clientHeight;
+    const h = el.scrollHeight;
+    el.scrollTop = h;
+    overflowedRef.current = h > el.clientHeight;
   }, []);
 
   useLayoutEffect(() => {
@@ -390,6 +416,11 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       anchorRef.current = null;
     }
   }, [start]);
+
+  // 滚轮 / 触控板往上：立即停止跟随（不等 scroll 事件，避免同一帧里的增长又把视口拉回底部）
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    if (e.deltaY < 0) followRef.current = false;
+  }, []);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -419,22 +450,15 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (followRef.current && !overflowedRef.current) scrollToBottom();
   }, [start, scrollToBottom]);
 
-  // 内容增长（新消息 / 流式文本 / 新工具 / 权限卡 / 状态变化）时，贴底则跟随
+  // 新消息 / 队列 / 卡片 / 阶段变化时，贴底则跟随（离散事件，每轮几次）
   useLayoutEffect(() => {
     if (followRef.current) scrollToBottom();
-  }, [
-    messages.length,
-    last?.id,
-    live?.text,
-    live?.trace?.length,
-    live?.permissions?.length,
-    live?.permissionExpired?.at,
-    live?.status?.kind,
-    queued?.length,
-    cards?.length,
-    phase,
-    scrollToBottom,
-  ]);
+  }, [messages.length, last?.id, queued?.length, cards?.length, phase, scrollToBottom]);
+
+  // 流式文本 / 工具 / 权限卡让内容变高：由 ResizeObserver 驱动贴底，不再每帧在 layout effect 里
+  // 读 scrollHeight 强制同步重排。RO 每帧最多回调一次（布局之后、绘制之前），同一帧内的多次增长
+  // 合并为一次滚动；用户往上滚开（followRef=false）后不再跟随。
+  useStickToBottom(scrollRef, innerRef, followRef, scrollToBottom);
 
   const idle = phase === 'idle';
   const lastAssistantId = useMemo(() => {
@@ -451,9 +475,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           className={styles.scroll}
           ref={scrollRef}
           onScroll={onScroll}
+          onWheel={onWheel}
           data-testid="conv-scroll"
         >
-          <div className={styles.inner}>
+          <div className={styles.inner} ref={innerRef}>
             {start > 0 && start === fullStart && (
               <button
                 type="button"
@@ -470,7 +495,12 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             )}
             {start === 0 && renderCards(cardPlan.head)}
             {turns.map((turn, i) => (
-              <section key={turn.key} className={styles.turn} data-testid="conv-turn">
+              <section
+                key={turn.key}
+                // 已完成的轮次（不是最后一轮）：视口外跳过样式 / 布局 / 绘制
+                className={i < turns.length - 1 ? `${styles.turn} ${styles.turnDone}` : styles.turn}
+                data-testid="conv-turn"
+              >
                 {turn.messages.map((m) => (
                   <React.Fragment key={m.id}>
                     {m.role === 'user' ? (

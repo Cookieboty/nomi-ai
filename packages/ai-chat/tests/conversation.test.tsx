@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConversationView } from '../src/components/Conversation';
 import { Markdown } from '../src/components/Conversation/Markdown';
@@ -430,6 +430,89 @@ describe('CliConversation 自动滚动（贴底才跟，上滑不抢）', () => 
       />,
     );
     expect(el.scrollTop).toBe(1000);
+  });
+});
+
+describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', () => {
+  const proto = HTMLElement.prototype;
+  const saved = {
+    sh: Object.getOwnPropertyDescriptor(proto, 'scrollHeight'),
+    ch: Object.getOwnPropertyDescriptor(proto, 'clientHeight'),
+    ro: (globalThis as { ResizeObserver?: unknown }).ResizeObserver,
+  };
+  let height = 1000;
+  let reads = 0;
+  const observers: Array<() => void> = [];
+  beforeEach(() => {
+    height = 1000;
+    reads = 0;
+    observers.length = 0;
+    Object.defineProperty(proto, 'scrollHeight', {
+      configurable: true,
+      get: () => {
+        reads++;
+        return height;
+      },
+    });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 400 });
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      cb: () => void;
+      constructor(cb: () => void) {
+        this.cb = cb;
+        observers.push(() => this.cb());
+      }
+      observe() {}
+      disconnect() {}
+    };
+  });
+  afterEach(() => {
+    if (saved.sh) Object.defineProperty(proto, 'scrollHeight', saved.sh);
+    else delete (proto as unknown as Record<string, unknown>).scrollHeight;
+    if (saved.ch) Object.defineProperty(proto, 'clientHeight', saved.ch);
+    else delete (proto as unknown as Record<string, unknown>).clientHeight;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = saved.ro;
+  });
+  const fireResize = () => act(() => observers.forEach((f) => f()));
+
+  it('streamed text frames do not read scrollHeight; growth sticks via the observer; wheel-up stops it', () => {
+    const run = tab({ status: 'running' });
+    const live = (text: string): TabLive => ({ text, startedAt: Date.now() });
+    const view = (text: string) => (
+      <CliConversation
+        tab={run}
+        messages={messages.slice(0, 1)}
+        live={live(text)}
+        onPermission={() => undefined}
+      />
+    );
+    const { getByTestId, rerender } = render(view('a'));
+    const el = getByTestId('conv-scroll');
+    expect(el.scrollTop).toBe(1000);
+    reads = 0;
+    for (let i = 0; i < 10; i++) rerender(view('a'.repeat(i + 2)));
+    expect(reads).toBe(0); // no layout effect touching scrollHeight per frame
+    height = 1300;
+    fireResize();
+    expect(el.scrollTop).toBe(1300);
+    fireEvent.wheel(el, { deltaY: -40 });
+    height = 1600;
+    fireResize();
+    expect(el.scrollTop).toBe(1300);
+  });
+
+  it('completed turns get content-visibility; the live (last) turn does not', () => {
+    const { getAllByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[...messages, { id: 'u2', role: 'user', content: 'next', timestamp: 3 }]}
+        live={{ text: 'x', startedAt: Date.now() }}
+        onPermission={() => undefined}
+      />,
+    );
+    const turns = getAllByTestId('conv-turn');
+    expect(turns.length).toBeGreaterThan(1);
+    expect(turns.at(-1)!.className).not.toMatch(/turnDone/);
+    expect(turns[0]!.className).toMatch(/turnDone/);
   });
 });
 

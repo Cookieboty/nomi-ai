@@ -40,6 +40,11 @@
   gap: var(--cd-space-3);
   min-width: 0;
 }
+/* 已完成的轮次：视口外不做样式 / 布局 / 绘制；auto 记住上次真实高度，滚回来不跳 */
+.turnDone {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 400px;
+}
 
 .user {
   display: flex;
