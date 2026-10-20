@@ -329,6 +329,7 @@ test.describe('E23 · mascot size', () => {
     });
     await page.getByTestId('tool-more').click();
     await expect(page.getByTestId('toolbar-menu')).toBeVisible();
+    await page.getByTestId('panel-more').click();
     await expect(page.getByTestId('toolbar-scale-value')).toHaveText('50%');
     await page.getByTestId('toolbar-zoom-in').click();
     await expectScaled(page, 0.6, anchor, wa);

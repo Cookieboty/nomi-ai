@@ -9,6 +9,8 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
+import { revealToolbar } from './toolbarReveal';
+
 /**
  * UI 巡检截图（非断言型冒烟）：只有设置了 UI_SHOTS_DIR 才运行，CI 默认跳过。
  *   UI_SHOTS_DIR=/workspace/screenshots/ui-before xvfb-run -a pnpm test:e2e:headed -g "UI surfaces"
@@ -67,10 +69,13 @@ test.describe('UI surfaces', () => {
     await shot(main, '01-mascot-nomi');
     if (process.env.MASCOT_SHOT) await main.screenshot({ path: process.env.MASCOT_SHOT });
 
-    const hover = () =>
-      app!.evaluate(({ BrowserWindow }) =>
+    // 工具栏只在悬停角色 / 工具栏时显示：把指针移到工具栏所在位置
+    const hover = async () => {
+      await app!.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
       );
+      await revealToolbar(main);
+    };
     await hover();
     await main.waitForTimeout(600);
     await shot(main, '02-mascot-toolbar');
@@ -114,6 +119,7 @@ test.describe('UI surfaces', () => {
       await shot(main, `05-motion-${motion}`);
       await main.waitForTimeout(1_800);
     }
+    await hover();
     await main.locator('[data-testid="tool-motion"]').click({ button: 'right' });
     await main.waitForTimeout(600);
     await shot(main, '06-motion-menu');
@@ -122,6 +128,7 @@ test.describe('UI surfaces', () => {
     // 致谢面板：工具栏「更多」→ 致谢 / Credits
     await hover();
     await main.click('[data-testid="tool-more"]');
+    await main.click('[data-testid="panel-more"]');
     await main.click('[data-testid="tool-info"]');
     await main.waitForSelector('[data-testid="credits"]', { timeout: 10_000 });
     await main.waitForTimeout(800);

@@ -52,7 +52,9 @@ export const MascotMicTool: React.FC<{
         data-testid="tool-voice-input"
         onStart={() => void v.pttStart()}
         onStop={(cancel) => void v.pttStop(cancel)}
-        tooltip={continuous ? t('免按键对话中（右键关闭）') : t('按住说话（右键：免按键对话）')}
+        tooltip={
+          continuous ? t('语音交互\n免按键对话中 · 右键关闭') : t('语音交互\n按住说话 · 右键免按键')
+        }
         tooltipPlacement={tipSide}
       />
     </span>

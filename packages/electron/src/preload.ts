@@ -193,6 +193,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openAiChat: async () => {
     return await ipcRenderer.invoke('open-ai-chat');
   },
+  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
+  openTaskBoard: async () => {
+    return await ipcRenderer.invoke('open-task-board');
+  },
 
   // TTS配置相关API
   openTTSConfig: async () => {

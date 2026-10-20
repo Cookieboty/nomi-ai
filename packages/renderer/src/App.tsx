@@ -7,6 +7,7 @@ const MASCOT_CONFIG: MascotConfig = {
   tools: [
     'ai-chat',
     'voice-input',
+    'task-board',
     'info',
     'voice-settings',
     'voice-mode-toggle',

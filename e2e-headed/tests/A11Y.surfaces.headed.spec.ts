@@ -8,6 +8,8 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
+import { revealToolbar } from './toolbarReveal';
+
 /**
  * 无障碍巡检（真实应用）：
  * 1. 桌宠工具栏 / 对话窗 / 每个设置分区里，可交互元素（按钮、链接、输入框、开关）都有无障碍名称；
@@ -113,11 +115,13 @@ test.describe('A11y: names, focus trap, Esc, reduced motion', () => {
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
     );
+    await revealToolbar(main);
     await main.waitForTimeout(800);
     await check(main, 'mascot-toolbar');
     const more = main.locator('[data-testid="tool-more"]');
     if (await more.count()) {
       await more.first().click();
+      await main.click('[data-testid="panel-more"]');
       await check(main, 'mascot-toolbar-more');
       await main.keyboard.press('Escape');
     }

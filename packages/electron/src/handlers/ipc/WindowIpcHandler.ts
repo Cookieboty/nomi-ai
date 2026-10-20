@@ -48,6 +48,19 @@ export class WindowIpcHandler extends BaseIpcHandler {
       }
     });
 
+    // 看板娘「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页
+    this.registerHandler('open-task-board', async () => {
+      try {
+        await this.windowManager.openProviderPanel('ai:hub:open-schedule');
+        return this.createSuccessResponse();
+      } catch (error) {
+        this.logger.error('打开任务看板失败', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return this.createErrorResponse(error);
+      }
+    });
+
     // 打开TTS配置窗口
     this.registerHandler('open-tts-config', async () => {
       try {

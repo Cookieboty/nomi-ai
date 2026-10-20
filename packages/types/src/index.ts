@@ -31,6 +31,8 @@ export interface IpcApi {
 
   // AI对话相关API
   openAiChat: () => Promise<{ success: boolean; error?: string }>;
+  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
+  openTaskBoard?: () => Promise<{ success: boolean; error?: string }>;
 
   // TTS配置窗口API
   openTTSConfig: () => Promise<{ success: boolean; error?: string }>;

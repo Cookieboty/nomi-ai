@@ -150,6 +150,8 @@ export const desktopClient = {
   onP2Changed: (fn: (kind: 'notes' | 'reminders') => void) =>
     on('ai:desktop:p2-changed', (p) => fn((p as { kind: 'notes' | 'reminders' }).kind)),
   onOpenPanel: (fn: () => void) => on('ai:desktop:open-panel', () => fn()),
+  /** 看板娘工具栏「任务看板」→ 打开「知识 · 记忆 · 日程」面板的日程页 */
+  onOpenSchedule: (fn: () => void) => on('ai:hub:open-schedule', () => fn()),
   onSummary: (fn: (e: DesktopSummaryEvent) => void) =>
     on('ai:desktop:summary', (p) => fn(p as DesktopSummaryEvent)),
 };

@@ -162,6 +162,14 @@ const AiChatContent: React.FC = () => {
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
   const [showHub, setShowHub] = useState(false);
   const [hubTab, setHubTab] = useState<HubTab>('kb');
+  useEffect(
+    () =>
+      desktopClient.onOpenSchedule(() => {
+        setHubTab('schedule');
+        setShowHub(true);
+      }),
+    [],
+  );
   const [showScreen, setShowScreen] = useState(false);
   const [showExt, setShowExt] = useState(false);
   const [showLocal, setShowLocal] = useState(false);

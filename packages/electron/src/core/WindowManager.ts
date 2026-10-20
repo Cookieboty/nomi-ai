@@ -60,6 +60,8 @@ export interface IWindowManager {
   setAlwaysOnTop(windowType: 'main' | 'aiChat' | 'ttsConfig', flag: boolean): void;
   /** 显示 / 隐藏桌面看板娘；隐藏时窗口保留（提醒、确认框仍有宿主）但静音 */
   setMascotVisible(visible: boolean): void;
+  /** 打开对话窗口并发送面板通道（默认「供应商设置」） */
+  openProviderPanel(channel?: string): Promise<void>;
 }
 
 export class WindowManager implements IWindowManager {
