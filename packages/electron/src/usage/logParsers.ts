@@ -26,9 +26,18 @@ function parseTs(v: unknown): number {
   return 0;
 }
 
-function lines(text: string): Array<Record<string, unknown>> {
+/**
+ * 逐行解析 JSON Lines。`mustInclude`：不含这段文字的行直接跳过、不做 JSON.parse
+ * （Claude 日志里大部分是用户消息与很长的工具结果，只有带 usage 的行有用；整行解析是导入时的主要开销）。
+ */
+function lines(
+  text: string,
+  mustInclude?: string | readonly string[],
+): Array<Record<string, unknown>> {
   const out: Array<Record<string, unknown>> = [];
+  const needles = typeof mustInclude === 'string' ? [mustInclude] : mustInclude;
   for (const l of text.split('\n')) {
+    if (needles && !needles.some((n) => l.includes(n))) continue;
     const s = l.trim();
     if (!s || s[0] !== '{') continue;
     try {
@@ -63,7 +72,7 @@ const empty = (r: Pick<UsageRecord, 'input' | 'output' | 'cacheRead' | 'cacheWri
  */
 export function parseClaudeChunk(text: string): UsageRecord[] {
   const out = new Map<string, UsageRecord>();
-  for (const o of lines(text)) {
+  for (const o of lines(text, '"usage"')) {
     if (o.type !== 'assistant') continue;
     const m = obj(o.message);
     const u = obj(m?.usage);
@@ -121,6 +130,9 @@ export function parseClaudeChunk(text: string): UsageRecord[] {
 /** 分叉 rollout 开头「重放」父会话历史的行间距上限：重放是一次性写入，行间只差几毫秒；真实的第一轮至少隔数秒 */
 const FORK_REPLAY_GAP_MS = 1000;
 
+/** Codex 解析只用到这几类行（其余是对话正文 / 工具输出，跳过不做 JSON.parse） */
+const CODEX_LINES = ['"session_meta"', '"turn_context"', '"token_count"'] as const;
+
 /**
  * `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`：
  * session_meta 给会话 id / cwd，turn_context 给模型，event_msg(token_count) 给每次请求的用量。
@@ -138,7 +150,7 @@ const FORK_REPLAY_GAP_MS = 1000;
  */
 export function parseCodexChunk(text: string, state: ParseState): UsageRecord[] {
   const out: UsageRecord[] = [];
-  for (const o of lines(text)) {
+  for (const o of lines(text, CODEX_LINES)) {
     const p = obj(o.payload);
     const lineTs = parseTs(o.timestamp);
     if (state.forked && state.replay) {
@@ -212,7 +224,7 @@ export function parseCodexRateLimits(
 ): { ts: number; windows: QuotaWindow[]; plan?: string } | null {
   if (!text.includes('rate_limits')) return null;
   let best: { ts: number; windows: QuotaWindow[]; plan?: string } | null = null;
-  for (const o of lines(text)) {
+  for (const o of lines(text, '"token_count"')) {
     const p = obj(o.payload);
     if (o.type !== 'event_msg' || p?.type !== 'token_count') continue;
     const rl = obj(p.rate_limits);

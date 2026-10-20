@@ -190,6 +190,43 @@ async function window_(page: Page, from: number) {
   }, from);
 }
 
+/**
+ * 在页面里计时：从点击事件（event.timeStamp）到目标文字出现后的下一帧（≈ 已绘制）。
+ * 先挂上监听再点击，避免把 Playwright 的往返耗时算进去。
+ */
+async function timedClick(
+  page: Page,
+  click: () => Promise<void>,
+  needles: string[],
+): Promise<number[]> {
+  const pending = page.evaluate(
+    (ns) =>
+      new Promise<number[]>((resolve) => {
+        let clickTs = -1;
+        addEventListener('click', (e) => (clickTs = e.timeStamp), { once: true, capture: true });
+        const found: number[] = [];
+        const has = (n: string) =>
+          [...document.querySelectorAll('[data-testid="conv-scroll"]')].some((el) =>
+            (el.textContent ?? '').includes(n),
+          );
+        const tick = () => {
+          if (clickTs >= 0)
+            while (found.length < ns.length && has(ns[found.length]!))
+              found.push(performance.now());
+          if (found.length === ns.length)
+            requestAnimationFrame(() => resolve(found.map((t) => Math.round(t - clickTs))));
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+        setTimeout(() => resolve(found.map((t) => Math.round(t - clickTs))), 20_000);
+      }),
+    needles,
+  );
+  await page.waitForTimeout(50);
+  await click();
+  return pending;
+}
+
 const now = (p: Page) => p.evaluate(() => performance.now());
 const pct = (xs: number[], q: number) => {
   if (!xs.length) return 0;
@@ -314,6 +351,13 @@ test.describe('PERF · chat', () => {
       });
     }
 
+    // 主进程事件循环延迟（同步写盘 / 同步扫描会让所有窗口的 IPC 一起卡）
+    await app.evaluate(() => {
+      const g = globalThis as unknown as { __eld?: { enable(): void } };
+      const { monitorEventLoopDelay } = process.mainModule!.require('node:perf_hooks');
+      g.__eld = monitorEventLoopDelay({ resolution: 5 });
+      g.__eld!.enable();
+    });
     // ---- 1. 切换会话 ----
     const switches: Array<{
       id: string;
@@ -326,26 +370,11 @@ test.describe('PERF · chat', () => {
     for (const i of order) {
       const id = `c_perf_${i}`;
       const t0 = await now(chat);
-      await chat.click(`[data-testid="history-item"][data-conversation-id="${id}"]`);
-      // 先出现的是最后几条（渐进挂载）：记下「看到新会话内容」的时间
-      await chat.waitForFunction(
-        (needle) =>
-          (document.querySelector('[data-testid="conv-scroll"]')?.textContent ?? '').includes(
-            needle,
-          ),
-        `LAST-${i}-`,
-        { timeout: 20_000, polling: 'raf' },
+      const [first, full] = await timedClick(
+        chat,
+        () => chat.click(`[data-testid="history-item"][data-conversation-id="${id}"]`),
+        [`LAST-${i}-`, `LAST-${i}-${TURNS - 1}`],
       );
-      const tFirst = await now(chat);
-      await chat.waitForFunction(
-        (needle) =>
-          (document.querySelector('[data-testid="conv-scroll"]')?.textContent ?? '').includes(
-            needle,
-          ),
-        `LAST-${i}-${TURNS - 1}`,
-        { timeout: 20_000, polling: 'raf' },
-      );
-      const t1 = await now(chat);
       await chat.waitForTimeout(300);
       // 正确性：补完更早的消息后视口仍停在底部
       const gap = await chat.evaluate(() => {
@@ -356,8 +385,8 @@ test.describe('PERF · chat', () => {
       const w = await window_(chat, t0);
       switches.push({
         id,
-        firstMs: Math.round(tFirst - t0),
-        ms: Math.round(t1 - t0),
+        firstMs: first ?? -1,
+        ms: full ?? -1,
         longMax: w.longMax,
         longTotal: w.longTotal,
       });
@@ -403,6 +432,35 @@ test.describe('PERF · chat', () => {
         const key = `${f.functionName || '(anon)'} ${f.url.split('/').pop()}:${f.lineNumber}`;
         byFn.set(key, (byFn.get(key) ?? 0) + us);
       }
+      // 包含时间：栈上出现过该函数的采样（每个采样只算一次）
+      const parent = new Map<number, number>();
+      for (const n of profile.nodes as Array<{ id: number; children?: number[] }>)
+        for (const c of n.children ?? []) parent.set(c, n.id);
+      const nodeName = new Map(
+        profile.nodes.map((n) => [
+          n.id,
+          `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.split('/').pop()}:${n.callFrame.lineNumber}`,
+        ]),
+      );
+      const incl = new Map<string, number>();
+      profile.samples.forEach((id, i) => {
+        const seen = new Set<string>();
+        for (let cur: number | undefined = id; cur !== undefined; cur = parent.get(cur)) {
+          const k = nodeName.get(cur)!;
+          if (seen.has(k)) continue;
+          seen.add(k);
+          incl.set(k, (incl.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0));
+        }
+      });
+      const named = [...incl.entries()]
+        .filter(([k]) => /^[A-Z]/.test(k) && /index-/.test(k))
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 40);
+
+      console.log(
+        'INCLUSIVE (ms, components / capitalized fns)\n' +
+          named.map(([k, v]) => `${(v / 1000).toFixed(1).padStart(8)}  ${k}`).join('\n'),
+      );
       const top = [...byFn.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40);
 
       console.log(
@@ -452,7 +510,17 @@ test.describe('PERF · chat', () => {
       .filter((e) => /key|input|beforeinput/.test(e.name))
       .map((e) => e.dur);
 
+    const mainLoop = await app.evaluate(() => {
+      const h = (
+        globalThis as unknown as {
+          __eld: { percentile(p: number): number; max: number; disable(): void };
+        }
+      ).__eld;
+      h.disable();
+      return { p99: Math.round(h.percentile(99) / 1e6), max: Math.round(h.max / 1e6) };
+    });
     const result = {
+      mainLoopDelayMs: mainLoop,
       cpuThrottle: cpu,
       seededBytes: bytes,
       conversations: CONVS,
