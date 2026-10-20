@@ -48,6 +48,7 @@ type Logger = { info?(m: string, d?: unknown): void; warn(m: string, d?: unknown
 /** Grok 日志改读 usage.modelUsage 后，旧游标里的 unknown 要整文件重读一次。 */
 const GROK_LOG_REV = 2;
 /** 单个文件一轮最多读多少字节（超大日志分多轮追平，避免一次占太多内存） */
+const READ_CHUNK = 256 * 1024;
 const MAX_READ_PER_PASS = 8 * 1024 * 1024;
 /** 整份解析（JSON / zstd）的体积上限 */
 const MAX_WHOLE_FILE = 64 * 1024 * 1024;
@@ -480,7 +481,8 @@ export class UsageLogScanner {
       let budget = MAX_READ_PER_PASS;
       // 预算用完后，只要还没读到过一个完整行就继续（避免一行特别长时永远卡住）
       while (readPos < st.size && (budget > 0 || offset === startOffset)) {
-        const len = Math.min(1024 * 1024, st.size - readPos);
+        // 每块 256 KB：解析一块是一个不可打断的任务，块小一些主进程（所有窗口的 IPC）就不会被卡太久
+        const len = Math.min(READ_CHUNK, st.size - readPos);
         const buf = Buffer.alloc(len);
         const { bytesRead } = await fh.read(buf, 0, len, readPos);
         if (bytesRead <= 0) break;

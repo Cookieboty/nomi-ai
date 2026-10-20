@@ -358,6 +358,22 @@ test.describe('PERF · chat', () => {
       g.__eld = monitorEventLoopDelay({ resolution: 5 });
       g.__eld!.enable();
     });
+    // NOMI_PERF_MAIN_PROFILE=1：主进程 CPU 采样（node:inspector）
+    const mainProf = process.env.NOMI_PERF_MAIN_PROFILE === '1';
+    if (mainProf)
+      await app.evaluate(async () => {
+        const inspector = process.mainModule!.require('node:inspector');
+        const sess = new inspector.Session();
+        sess.connect();
+        const post = (m: string, p?: unknown) =>
+          new Promise((res, rej) =>
+            sess.post(m, p, (e: unknown, r: unknown) => (e ? rej(e) : res(r))),
+          );
+        await post('Profiler.enable');
+        await post('Profiler.setSamplingInterval', { interval: 200 });
+        await post('Profiler.start');
+        (globalThis as unknown as { __mainProf: unknown }).__mainProf = post;
+      });
     // ---- 1. 切换会话 ----
     const switches: Array<{
       id: string;
@@ -510,6 +526,42 @@ test.describe('PERF · chat', () => {
       .filter((e) => /key|input|beforeinput/.test(e.name))
       .map((e) => e.dur);
 
+    if (mainProf) {
+      const top = await app.evaluate(async () => {
+        const post = (
+          globalThis as unknown as {
+            __mainProf: (m: string) => Promise<{
+              profile: {
+                nodes: Array<{
+                  id: number;
+                  callFrame: { functionName: string; url: string; lineNumber: number };
+                }>;
+                samples: number[];
+                timeDeltas: number[];
+              };
+            }>;
+          }
+        ).__mainProf;
+        const { profile } = await post('Profiler.stop');
+        const self = new Map<number, number>();
+        profile.samples.forEach((id, i) =>
+          self.set(id, (self.get(id) ?? 0) + (profile.timeDeltas[i] ?? 0)),
+        );
+        const by = new Map<string, number>();
+        for (const n of profile.nodes) {
+          const us = self.get(n.id) ?? 0;
+          if (!us) continue;
+          const k = `${n.callFrame.functionName || '(anon)'} ${n.callFrame.url.split('/').slice(-2).join('/')}:${n.callFrame.lineNumber}`;
+          by.set(k, (by.get(k) ?? 0) + us);
+        }
+        return [...by.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 35)
+          .map(([k, v]) => `${(v / 1000).toFixed(1).padStart(8)}  ${k}`);
+      });
+
+      console.log('MAIN PROFILE (self ms)\n' + top.join('\n'));
+    }
     const mainLoop = await app.evaluate(() => {
       const h = (
         globalThis as unknown as {

@@ -229,7 +229,7 @@ export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
 /** 会话视图首帧渲染的末尾消息条数，以及之后每批往上补多少条 */
-export const INITIAL_RENDER = 6;
+export const INITIAL_RENDER = 3;
 export const RENDER_STEP = 6;
 
 /** 估算一条消息的渲染成本：正文每 400 字符 1，每个轨迹事件 0.5，至少 1 */
