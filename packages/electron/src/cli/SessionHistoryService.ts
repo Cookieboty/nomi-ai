@@ -20,19 +20,23 @@ import zlib from 'node:zlib';
 
 import {
   foldGeminiChat,
+  parseGeminiSession,
   geminiText,
   jsonlEvents,
   cleanTitle,
   parseClaudeSession,
   parseCodexSession,
+  parseGrokSession,
+  parseDshSession,
   parseDshProjcache,
 } from '../agents/parsers';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
-import { claudeConfigDir, codexHomeDir, geminiDir } from '../usage/cliHomes';
+import { claudeConfigDir, codexHomeDir, geminiDir, grokHomeDir } from '../usage/cliHomes';
 
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
-import type { HarnessTabMessage, HarnessTabMeta } from './types';
+import { fromCliPermissionMode } from './permissionMode';
+import type { HarnessPermissionMode, HarnessTabMessage, HarnessTabMeta } from './types';
 
 export const HISTORY_PAGE_SIZE = 20;
 /** 历史会话最多展示的条数（列表与搜索索引共同的硬上限，按 mtime 取最近的 N 条） */
@@ -40,7 +44,7 @@ export const HISTORY_MAX_ITEMS = 100;
 const LIST_TTL_MS = 3000;
 const MAX_PARSED_CACHE = 6000;
 const MAX_TRANSCRIPT_BYTES = 12 * 1024 * 1024;
-const BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh', 'gemini'];
+const BACKENDS: readonly HistoryBackend[] = ['claude', 'codex', 'dsh', 'gemini', 'grok'];
 
 export interface HistorySession {
   /** `${backend}:${sessionId}` */
@@ -49,6 +53,9 @@ export interface HistorySession {
   sessionId: string;
   title: string;
   cwd?: string;
+  model?: string;
+  reasoningEffort?: string;
+  permissionMode?: HarnessPermissionMode;
   /** 原工作目录是否已不存在（续接需要同一目录） */
   cwdMissing: boolean;
   updatedAt: number;
@@ -101,6 +108,10 @@ export interface SessionHistoryDeps {
     cwd: string;
     title: string;
     messages: HarnessTabMessage[];
+    modelOverride?: string | null;
+    reasoningEffort?: string | null;
+    permissionMode?: HarnessPermissionMode;
+    permissionModeSource?: 'history-cli';
   }) => { tab: HarnessTabMeta; reused: boolean };
 }
 
@@ -254,6 +265,20 @@ export class SessionHistoryService {
         }
       }
       entries = await statAll(files);
+    } else if (backend === 'grok') {
+      const root = path.join(grokHomeDir(this.home, this.d.env ?? process.env), 'sessions');
+      const files: Array<{ path: string; dirId?: string }> = [];
+      const walk = async (d: string, depth: number): Promise<void> => {
+        if (depth < 0) return;
+        for (const e of await readdir(d)) {
+          const p = path.join(d, e.name);
+          if (e.isDirectory()) await walk(p, depth - 1);
+          else if (e.isFile() && e.name === 'updates.jsonl')
+            files.push({ path: p, dirId: path.basename(path.dirname(p)) });
+        }
+      };
+      await walk(root, 4);
+      entries = await statAll(files);
     } else {
       const root = path.join(this.dshHome, 'sessions');
       const files: Array<{ path: string; dirId: string }> = [];
@@ -288,7 +313,18 @@ export class SessionHistoryService {
       const hasUser = /"type"\s*:\s*"user"/.test(head);
       const title = info.title ?? (hasUser ? t('（无标题会话）') : undefined);
       if (!title) return null;
-      return { key: `claude:${sessionId}`, backend, sessionId, title, cwd: info.cwd };
+      return {
+        key: `claude:${sessionId}`,
+        backend,
+        sessionId,
+        title,
+        cwd: info.cwd,
+        ...(info.model ? { model: info.model } : {}),
+        ...(info.reasoningEffort ? { reasoningEffort: info.reasoningEffort } : {}),
+        ...(info.permissionMode
+          ? { permissionMode: normalizePermissionMode('claude', info.permissionMode) }
+          : {}),
+      };
     }
     if (backend === 'codex') {
       const head = await readHead(f.path, 512 * 1024);
@@ -297,12 +333,24 @@ export class SessionHistoryService {
         info.sessionId ??
         /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i.exec(f.path)?.[1];
       if (!sessionId || !info.title) return null;
-      return { key: `codex:${sessionId}`, backend, sessionId, title: info.title, cwd: info.cwd };
+      return {
+        key: `codex:${sessionId}`,
+        backend,
+        sessionId,
+        title: info.title,
+        cwd: info.cwd,
+        ...(info.model ? { model: info.model } : {}),
+        ...(info.reasoningEffort ? { reasoningEffort: info.reasoningEffort } : {}),
+        ...(info.permissionMode
+          ? { permissionMode: normalizePermissionMode('codex', info.permissionMode) }
+          : {}),
+      };
     }
     if (backend === 'gemini') {
       const head = await readHead(f.path, 256 * 1024);
       const chat = foldGeminiChat(head);
       if (!chat.sessionId || chat.kind === 'subagent') return null;
+      const info = parseGeminiSession(head);
       const firstUser = chat.messages.find((m) => m.type === 'user');
       const title = cleanTitle(chat.summary) ?? cleanTitle(geminiText(firstUser?.content));
       if (!title) return null;
@@ -312,7 +360,45 @@ export class SessionHistoryService {
         4096,
       );
       const cwd = marker.trim() || undefined;
-      return { key: `gemini:${chat.sessionId}`, backend, sessionId: chat.sessionId, title, cwd };
+      return {
+        key: `gemini:${chat.sessionId}`,
+        backend,
+        sessionId: chat.sessionId,
+        title,
+        cwd,
+        ...(info.model ? { model: info.model } : {}),
+        ...(info.reasoningEffort ? { reasoningEffort: info.reasoningEffort } : {}),
+        ...(info.permissionMode
+          ? { permissionMode: normalizePermissionMode('gemini', info.permissionMode) }
+          : {}),
+      };
+    }
+    if (backend === 'grok') {
+      const text = await readHead(f.path, 512 * 1024);
+      const sessionId = f.dirId ?? path.basename(path.dirname(f.path));
+      const info = parseGrokSession(text, sessionId);
+      let encodedCwd = path.basename(path.dirname(path.dirname(f.path)));
+      try {
+        encodedCwd = decodeURIComponent(encodedCwd);
+      } catch {
+        /* malformed directory names are still valid session keys */
+      }
+      const cwd = info.cwd ?? encodedCwd;
+      const messages = parseTranscript('grok', text);
+      const title = info.title ?? titleFromMessages(messages);
+      if (!title) return null;
+      return {
+        key: `grok:${sessionId}`,
+        backend,
+        sessionId,
+        title,
+        cwd,
+        ...(info.model ? { model: info.model } : {}),
+        ...(info.reasoningEffort ? { reasoningEffort: info.reasoningEffort } : {}),
+        ...(info.permissionMode
+          ? { permissionMode: normalizePermissionMode('grok', info.permissionMode) }
+          : {}),
+      };
     }
     const id = f.dirId ?? path.basename(path.dirname(f.path));
     const meta = parseDshProjcache(
@@ -322,7 +408,37 @@ export class SessionHistoryService {
       ),
     );
     if (!meta.title) return null;
-    return { key: `dsh:${id}`, backend, sessionId: id, title: meta.title, cwd: meta.cwd };
+    // dsh keeps the effective model / permission in the session event stream;
+    // compressed sessions are decoded best-effort so older/plain fixtures keep
+    // working when zstd is unavailable.
+    let sessionInfo = parseDshSession('', id);
+    try {
+      const raw = f.path.endsWith('.zstd')
+        ? (await zstdDecode(await fs.promises.readFile(f.path))).slice(0, 512 * 1024)
+        : await readHead(f.path, 512 * 1024);
+      sessionInfo = parseDshSession(raw, id);
+    } catch {
+      /* 明文索引仍可提供标题、目录和权限 */
+    }
+    return {
+      key: `dsh:${id}`,
+      backend,
+      sessionId: id,
+      title: meta.title,
+      // The plaintext project index is the authoritative workspace binding;
+      // the session header can contain the original seed cwd after a move.
+      cwd: meta.cwd ?? sessionInfo.cwd,
+      ...(sessionInfo.model ? { model: sessionInfo.model } : {}),
+      ...(sessionInfo.reasoningEffort ? { reasoningEffort: sessionInfo.reasoningEffort } : {}),
+      ...((sessionInfo.permissionMode ?? meta.permissionMode)
+        ? {
+            permissionMode: normalizePermissionMode(
+              'dsh',
+              sessionInfo.permissionMode ?? meta.permissionMode!,
+            ),
+          }
+        : {}),
+    };
   }
 
   private async parsedOf(backend: HistoryBackend, f: FileEntry): Promise<Parsed['meta']> {
@@ -471,7 +587,17 @@ export class SessionHistoryService {
       }
       const tr = await this.transcript(backend, sessionId);
       const title = f.meta.title || titleFromMessages(tr.messages) || sessionId;
-      const r = this.d.openTab({ backend, sessionId, cwd, title, messages: tr.messages });
+      const r = this.d.openTab({
+        backend,
+        sessionId,
+        cwd,
+        title,
+        messages: tr.messages,
+        ...(f.meta.model ? { modelOverride: f.meta.model } : {}),
+        ...(f.meta.reasoningEffort ? { reasoningEffort: f.meta.reasoningEffort } : {}),
+        ...(f.meta.permissionMode ? { permissionMode: f.meta.permissionMode } : {}),
+        ...(!f.meta.permissionMode ? { permissionModeSource: 'history-cli' as const } : {}),
+      });
       const notice = r.reused
         ? undefined
         : (tr.note ?? (tr.truncated ? t('历史较长，只显示了最近的部分消息') : undefined));
@@ -506,6 +632,16 @@ function isDir(p: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** 将 CLI 日志里的原生安全模式映射成 Nomi 的统一档位；未知值降到最安全的 plan。 */
+function normalizePermissionMode(
+  backend: HistoryBackend,
+  raw: string,
+): HarnessPermissionMode | undefined {
+  // 未知原生值不能伪装成某个默认档位；open() 会把它当作“历史未记录”并在 ACP
+  // 握手时读取 currentModeId。对于没有 ACP 握手的后端，调用方仍会采用安全默认值。
+  return fromCliPermissionMode(backend, raw) ?? undefined;
 }
 
 let inst: SessionHistoryService | null = null;

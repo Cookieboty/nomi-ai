@@ -212,6 +212,8 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode: HarnessPermissionMode;
+  /** 历史会话未记录权限时，首次握手从 CLI 当前会话模式同步；同步后清除。 */
+  permissionModeSource?: 'history-cli';
   /**
    * 标签级模型覆盖（仅对带模型目录的官方账号后端生效：codex / claude / grok）。
    * null / 缺省 = 沿用 CLI 自己的默认模型；空串清除覆盖。

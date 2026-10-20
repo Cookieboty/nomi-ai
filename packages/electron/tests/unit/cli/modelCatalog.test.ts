@@ -27,6 +27,7 @@ describe('modelCatalog', () => {
           displayName: 'Default (recommended)',
           supportsEffort: true,
           supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+          defaultEffort: 'high',
         },
         {
           value: 'opus',
@@ -54,6 +55,7 @@ describe('modelCatalog', () => {
       const c = parseClaudeModels(response);
       expect(c.defaultModel?.id).toBe('default');
       expect(c.defaultModel?.label).toBe('Opus 5.5');
+      expect(c.defaultModel?.defaultEffort).toBe('high');
       expect(c.models.map((m) => m.id)).toEqual([
         'opus',
         'claude-haiku-4-5-20251001',

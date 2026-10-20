@@ -173,6 +173,8 @@ export interface BackendModelCatalog {
   models: ModelCatalogModel[];
   /** 不传模型参数时 CLI 实际使用的模型（CLI 能告诉我们时才有） */
   defaultModel: ModelCatalogModel | null;
+  /** CLI 返回的原生安全模式 id；缺省时由兼容层提供默认集合。 */
+  permissionModes?: string[];
   /** 读取失败的原因（此时 models 为空） */
   error?: string;
   /** 目录来自启用中的第三方供应商（它的 /models；没有思考深度） */

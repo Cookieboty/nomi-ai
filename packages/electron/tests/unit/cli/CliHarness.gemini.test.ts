@@ -97,6 +97,7 @@ describe('CliHarnessService Gemini backend', () => {
     'NOMI_MOCK_GEMINI_LOG',
     'NOMI_MOCK_DELAY_MS',
     'NOMI_MOCK_GEMINI_SET_MODE',
+    'NOMI_MOCK_GEMINI_MODE',
     'NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS',
     'NOMI_MOCK_GEMINI_INIT_DELAY_MS',
     'NOMI_MOCK_GEMINI_UNTRUSTED',
@@ -301,6 +302,22 @@ describe('CliHarnessService Gemini backend', () => {
       expect(fs.existsSync(file)).toBe(false);
     }, 15_000);
   });
+
+  it('adopts the current mode reported while loading a history session', async () => {
+    process.env.NOMI_MOCK_GEMINI_MODE = 'plan';
+    const { h, root } = mk();
+    const log = path.join(root, 'acp.log');
+    process.env.NOMI_MOCK_GEMINI_LOG = log;
+    const tab = h.createTab({
+      backend: 'gemini',
+      cliSessionId: 'gem-history-1',
+      permissionModeSource: 'history-cli',
+    });
+    await h.sendTab(tab.id, 'continue');
+    const calls = readLog(log);
+    expect(calls.filter((x) => x.method === 'session/set_mode')).toHaveLength(0);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
+  }, 15_000);
 
   it('a turn with no activity times out, sends session/cancel and shows a translated error', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '5000';

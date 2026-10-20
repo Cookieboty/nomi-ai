@@ -47,6 +47,41 @@ const ICON: Record<PermissionMode, LucideIcon> = {
   bypass: ShieldAlert,
 };
 
+function nativePermissionModes(
+  values: readonly string[] | undefined,
+  backend: HarnessBackend,
+): PermissionMode[] | null {
+  if (!values?.length) return null;
+  const out: PermissionMode[] = [];
+  for (const raw of values) {
+    const v = raw.trim().toLowerCase();
+    const mode =
+      v === 'plan' || v === 'read-only' || v === 'readonly'
+        ? 'plan'
+        : v === 'manual' || v === 'default' || v === 'ask'
+          ? 'manual'
+          : v === 'on-request'
+            ? backend === 'codex'
+              ? 'auto'
+              : 'manual'
+            : v === 'acceptedits' || v === 'autoedit' || v === 'workspace-write'
+              ? 'acceptEdits'
+              : v === 'workspacewrite'
+                ? 'acceptEdits'
+                : v === 'auto' || v === 'dontask' || v === 'on_request'
+                  ? 'auto'
+                  : v === 'bypass' ||
+                      v === 'bypasspermissions' ||
+                      v === 'yolo' ||
+                      v === 'danger-full-access' ||
+                      v === 'dangerfullaccess'
+                    ? 'bypass'
+                    : null;
+    if (mode && !out.includes(mode)) out.push(mode);
+  }
+  return out.length ? out : null;
+}
+
 /** 「完全放开」确认的目标：发起确认时的标签身份 */
 interface BypassTarget {
   tabId: string;
@@ -63,6 +98,7 @@ export const PermissionModeChip: React.FC<{
   const [confirmBypass, setConfirmBypass] = useState<BypassTarget | null>(null);
   /** 提示只显示在产生它的标签上（异步结果回来时用户可能已切到别的标签） */
   const [note, setNote] = useState<{ tabId: string; text: string } | null>(null);
+  const [cliModes, setCliModes] = useState<PermissionMode[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -77,7 +113,25 @@ export const PermissionModeChip: React.FC<{
   }, [open]);
   const backend = tab.backend;
   const mode: PermissionMode = tab.permissionMode ?? 'acceptEdits';
-  const supported = supportedModes(backend);
+  useEffect(() => {
+    let alive = true;
+    if (backend === 'nomi') {
+      setCliModes(null);
+      return;
+    }
+    void harnessClient
+      .modelCatalog(backend as HarnessBackend)
+      .then((catalog) => {
+        if (alive) setCliModes(nativePermissionModes(catalog?.permissionModes, backend));
+      })
+      .catch(() => {
+        if (alive) setCliModes(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [backend]);
+  const supported = cliModes ?? supportedModes(backend);
   const name = backend === 'nomi' ? '' : ENDPOINT_NAME[backend];
 
   // 确认框打开期间显示的已不是发起确认的标签（切标签 / 关闭 / 换后端 / 换目录）：确认作废，

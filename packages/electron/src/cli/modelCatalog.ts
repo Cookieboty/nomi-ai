@@ -63,6 +63,8 @@ export interface BackendModelCatalog {
   models: CatalogModel[];
   /** 不传模型参数时 CLI 实际使用的模型（CLI 能告诉我们时才有） */
   defaultModel: CatalogModel | null;
+  /** CLI 声明的权限 / 安全模式（原生 id）；缺省时界面使用兼容档位集。 */
+  permissionModes?: string[];
   /** 读取失败的原因（此时 models 为空，界面只保留「默认模型」与自定义 id） */
   error?: string;
   /**
@@ -189,6 +191,31 @@ const asObj = (v: unknown): Obj => (v && typeof v === 'object' ? (v as Obj) : {}
 const asStr = (v: unknown): string | undefined =>
   typeof v === 'string' && v.trim() ? v.trim() : undefined;
 
+/** ACP / CLI 不同版本对可用权限模式使用过多种包裹形式。 */
+function parsePermissionModes(root: unknown): string[] | undefined {
+  const obj = asObj(root);
+  const modeRoot = obj.modes;
+  const candidates: unknown[] = [
+    obj.permissionModes,
+    obj.permission_modes,
+    obj.availableModes,
+    Array.isArray(modeRoot) ? modeRoot : asObj(modeRoot).availableModes,
+    Array.isArray(modeRoot) ? undefined : asObj(modeRoot).permissionModes,
+  ];
+  for (const candidate of candidates) {
+    if (!Array.isArray(candidate)) continue;
+    const modes = candidate
+      .map((x) =>
+        typeof x === 'string'
+          ? x
+          : (asStr(asObj(x).id) ?? asStr(asObj(x).modeId) ?? asStr(asObj(x).value)),
+      )
+      .filter((x): x is string => !!x);
+    if (modes.length) return [...new Set(modes)];
+  }
+  return undefined;
+}
+
 /**
  * Claude Code：`initialize` 控制响应里的 `models`（与 `/model` 选择器同一份数据）。
  * value 是传给 `--model` 的值；value = "default" 的那项就是不传参数时的默认模型。
@@ -207,12 +234,14 @@ export function parseClaudeModels(response: unknown): BackendModelCatalog {
     const efforts = normalizeEfforts(
       Array.isArray(o.supportedEffortLevels) ? o.supportedEffortLevels : [],
     );
+    const defaultEffort = o.defaultEffortLevel ?? o.defaultEffort ?? o.default_effort ?? o.effort;
     const m: CatalogModel = {
       id,
       label: asStr(o.displayName),
       description: asStr(o.description),
       reasoning: o.supportsEffort === true && efforts.length > 0,
       efforts,
+      ...(isReasoningEffort(defaultEffort) ? { defaultEffort } : {}),
     };
     if (id === 'default') defaultModel = m;
     else models.push(m);
@@ -223,7 +252,13 @@ export function parseClaudeModels(response: unknown): BackendModelCatalog {
     const same = target ? models.find((m) => resolved.get(m.id) === target) : undefined;
     defaultModel = { ...defaultModel, label: same?.label ?? target ?? defaultModel.label };
   }
-  return { backend: 'claude', models, defaultModel };
+  const permissionModes = parsePermissionModes(response);
+  return {
+    backend: 'claude',
+    models,
+    defaultModel,
+    ...(permissionModes?.length ? { permissionModes } : {}),
+  };
 }
 
 /**
@@ -264,7 +299,13 @@ export function parseCodexModels(
     found && isReasoningEffort(config.effort) && found.efforts.includes(config.effort)
       ? { ...found, defaultEffort: config.effort }
       : found;
-  return { backend: 'codex', models, defaultModel };
+  const permissionModes = parsePermissionModes(json);
+  return {
+    backend: 'codex',
+    models,
+    defaultModel,
+    ...(permissionModes?.length ? { permissionModes } : {}),
+  };
 }
 
 /**
@@ -294,7 +335,13 @@ export function parseGrokModels(sessionResult: unknown): BackendModelCatalog {
   }
   const current = asStr(ms.currentModelId);
   const defaultModel = (current && models.find((m) => m.id === current)) || null;
-  return { backend: 'grok', models, defaultModel };
+  const permissionModes = parsePermissionModes(sessionResult);
+  return {
+    backend: 'grok',
+    models,
+    defaultModel,
+    ...(permissionModes?.length ? { permissionModes } : {}),
+  };
 }
 
 /** 读 Codex config.toml 顶层（第一个表头之前）的 `model` 与 `model_reasoning_effort` */

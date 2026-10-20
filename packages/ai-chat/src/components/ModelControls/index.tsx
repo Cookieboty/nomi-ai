@@ -6,7 +6,7 @@
  *
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
  * - 默认页：大字显示当前档位，下面「模型名 ›」，再下面是分档滑杆（只在推理模型上出现）；
- *   不选档位 = 不发覆盖参数，沿用 CLI 默认，滑杆不显示滑块，可「恢复默认」；
+ *   不选档位 = 不发覆盖参数，沿用 CLI 默认；CLI 告诉我们默认档位时滑块定位到该档位；
  * - 点「模型名 ›」进入模型页：跟随 CLI 默认 / 目录内模型 / 自定义模型 id，选完回到滑杆。
  * 模型列表、每个模型的档位与默认档位全部来自 CLI 自己（主进程读取并缓存，见
  * electron/src/cli/modelDiscovery.ts），这里不写死任何模型或档位；读不到时只保留默认与自定义。
@@ -71,25 +71,6 @@ export function effortLabel(e: ReasoningEffort): string {
       return t('最高');
     case 'ultra':
       return t('极限');
-  }
-}
-
-function effortHint(e: ReasoningEffort): string {
-  switch (e) {
-    case 'minimal':
-      return t('最快，几乎不思考');
-    case 'low':
-      return t('浅思考，响应快');
-    case 'medium':
-      return t('均衡');
-    case 'high':
-      return t('深思考，更慢');
-    case 'xhigh':
-      return t('很深，明显更慢更耗额度');
-    case 'max':
-      return t('最深，最慢也最耗额度');
-    case 'ultra':
-      return t('超出最高档的极限推理，非常慢且耗额度');
   }
 }
 
@@ -344,12 +325,19 @@ const ModelChip: React.FC<{
   const effort = reasoningSupported
     ? ((tab.reasoningEffort ?? null) as ReasoningEffort | null)
     : null;
-  const shown = preview ?? effort;
+  // null 表示沿用 CLI 默认，界面仍应把 CLI 返回的默认档位显示在对应位置。
+  const defaultEffort =
+    reasoningSupported && info?.defaultEffort && levels.includes(info.defaultEffort)
+      ? info.defaultEffort
+      : null;
+  const shown = preview ?? effort ?? defaultEffort;
 
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
   const modelLabel = current ? (currentModel?.label ?? current) : (defaultLabel ?? t('默认模型'));
-  const shortLabel = effort ? `${modelLabel} · ${effortLabel(effort)}` : modelLabel;
+  // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
+  const chipEffort = effort ?? defaultEffort;
+  const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
   // 模型列表从哪来：官方账号是 CLI 自己，第三方供应商是它的名字
   const sourceName = provider?.name || backendName;
@@ -387,7 +375,8 @@ const ModelChip: React.FC<{
 
   const pickEffort = (e: ReasoningEffort | null) => {
     setPreview(null);
-    if (e === effort) return;
+    // 点击 CLI 默认所在的档位不应把“沿用默认”变成显式覆盖。
+    if (e === effort || (effort === null && e === defaultEffort)) return;
     void run(() => harnessClient.setTabEffort(tab.id, e));
   };
 
@@ -396,7 +385,7 @@ const ModelChip: React.FC<{
       <button
         ref={btnRef}
         type="button"
-        className={`${styles.chip} ${!current && !effort ? styles.chipMuted : ''}`}
+        className={`${styles.chip} ${!current && !chipEffort ? styles.chipMuted : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={
@@ -441,26 +430,6 @@ const ModelChip: React.FC<{
                   </button>
                 )}
               </div>
-              <div className={styles.effortValue}>
-                <span className={styles.effortTitle} data-testid="effort-title" aria-live="polite">
-                  {noReasoning
-                    ? t('无思考深度')
-                    : shown
-                      ? effortLabel(shown)
-                      : info?.defaultEffort
-                        ? t('默认（{0}）', effortLabel(info.defaultEffort))
-                        : t('默认')}
-                </span>
-                <span className={styles.effortHint} data-testid="effort-hint">
-                  {noReasoning
-                    ? t('这个模型不支持调节思考深度')
-                    : !reasoningSupported
-                      ? t('{0} 没有提供可选档位，沿用它的默认设置', backendName)
-                      : shown
-                        ? effortHint(shown)
-                        : t('跟随 {0} 默认档位', backendName)}
-                </span>
-              </div>
               {reasoningSupported && (
                 <EffortSlider
                   levels={levels}
@@ -479,7 +448,6 @@ const ModelChip: React.FC<{
                 <span className={styles.modelRowLabel}>{t('模型')}</span>
                 <span className={styles.modelRowValue}>
                   <span className={styles.modelLinkText}>{modelLabel}</span>
-                  {!current && <span className={styles.tag}>{t('默认')}</span>}
                 </span>
                 <Icon icon={ChevronRight} size={14} />
               </button>

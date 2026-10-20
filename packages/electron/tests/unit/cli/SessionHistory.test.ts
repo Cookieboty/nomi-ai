@@ -578,7 +578,13 @@ describe('SessionHistoryService', () => {
     if (!dshSetup(id)) return; // 没有 zstd 工具的环境：跳过
     const svc = mk();
     const page = await svc.list('dsh');
-    expect(page.items[0]).toMatchObject({ backend: 'dsh', sessionId: id, cwd: work });
+    expect(page.items[0]).toMatchObject({
+      backend: 'dsh',
+      sessionId: id,
+      cwd: work,
+      model: 'qwen2.5:0.5b',
+      permissionMode: 'acceptEdits',
+    });
     expect(page.items[0]!.title.length).toBeGreaterThan(0);
     const tr = await svc.transcript('dsh', id);
     expect(tr.messages.map((x) => x.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
@@ -628,6 +634,9 @@ describe('SessionHistoryService', () => {
         id: 'm1',
         type: 'gemini',
         timestamp: '2026-10-19T00:00:02Z',
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'autoEdit',
         content: '日志里没有错误',
         tokens: { input: 10, output: 4, cached: 2 },
       },
@@ -641,18 +650,78 @@ describe('SessionHistoryService', () => {
         title: '看看日志',
         cwd: work,
         cwdMissing: false,
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'acceptEdits',
       }),
     ]);
     const r = await h.open('gemini', 'gem-11111111');
     expect(r.ok).toBe(true);
     const arg = (openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(arg).toMatchObject({ backend: 'gemini', sessionId: 'gem-11111111', cwd: work });
+    expect(arg).toMatchObject({
+      backend: 'gemini',
+      sessionId: 'gem-11111111',
+      cwd: work,
+      modelOverride: 'gemini-2.5-pro',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
     const msgs = arg.messages as Array<{ role: string; content: string; usage?: unknown }>;
     expect(msgs.map((m) => [m.role, m.content])).toEqual([
       ['user', '看看日志'],
       ['assistant', '日志里没有错误'],
     ]);
     expect(msgs[1]!.usage).toEqual({ inputTokens: 10, outputTokens: 4, cacheReadTokens: 2 });
+  });
+
+  it('grok: lists updates.jsonl and restores model / security metadata when opened', async () => {
+    const id = 'grok-session-1';
+    const dir = path.join(home, '.grok', 'sessions', encodeURIComponent(work), id);
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, 'updates.jsonl');
+    fs.writeFileSync(
+      p,
+      [
+        {
+          sessionId: id,
+          cwd: work,
+          sessionUpdate: 'user_message',
+          content: [{ type: 'text', text: 'inspect project' }],
+        },
+        {
+          sessionId: id,
+          sessionUpdate: 'agent_message',
+          content: [{ type: 'text', text: 'done' }],
+        },
+        { sessionId: id, sessionUpdate: 'current_mode_update', currentModeId: 'acceptEdits' },
+        {
+          sessionId: id,
+          usage: { modelUsage: { 'grok-4.7-build': { inputTokens: 1 } } },
+          reasoningEffort: 'high',
+        },
+      ]
+        .map((x) => JSON.stringify(x))
+        .join('\n') + '\n',
+    );
+    touch(p, 3_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 'g1' } as never, reused: false }));
+    const svc = mk({ openTab });
+    const page = await svc.list('grok');
+    expect(page.items[0]).toMatchObject({
+      backend: 'grok',
+      sessionId: id,
+      cwd: work,
+      model: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
+    const r = await svc.open('grok', id);
+    expect(r.ok).toBe(true);
+    expect((openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toMatchObject({
+      modelOverride: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
   });
 
   it('open: an unreadable transcript still opens, with a notice', async () => {

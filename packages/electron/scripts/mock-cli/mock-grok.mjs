@@ -80,6 +80,11 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
     ],
   };
   const MODES = ['plan', 'default', 'acceptEdits', 'bypassPermissions', 'dontAsk'];
+  const currentMode = process.env.NOMI_MOCK_GROK_MODE;
+  const modeState = () =>
+    currentMode
+      ? { currentModeId: currentMode, availableModes: MODES.map((id) => ({ id, name: id })) }
+      : { availableModes: MODES.map((id) => ({ id, name: id })) };
   const resumed = new Set();
   const cancelled = new Set();
   const waiting = new Map();
@@ -233,11 +238,15 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
         return reply(j.id, {
           sessionId: process.env.NOMI_MOCK_SESSION || 'session-mock-grok-1',
           models,
+          modes: modeState(),
         });
       case 'session/load':
         if (p.sessionId === 'session-unknown') return fail(j.id, 'session not found');
         resumed.add(p.sessionId);
-        return reply(j.id, { models });
+        return reply(j.id, {
+          models,
+          modes: modeState(),
+        });
       case 'session/set_mode':
         if (process.env.NOMI_MOCK_GROK_SET_MODE === 'error')
           return fail(j.id, 'mode rejected (mock)');

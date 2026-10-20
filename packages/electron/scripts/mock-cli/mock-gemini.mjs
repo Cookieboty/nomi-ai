@@ -208,12 +208,13 @@ process.stdin.on('data', (c) => {
       case 'session/new': {
         const sessionId = `gem-${randomUUID()}`;
         sessions.add(sessionId);
+        const currentModeId = process.env.NOMI_MOCK_GEMINI_MODE;
         send({
           id: m.id,
           result: {
             sessionId,
             modes: {
-              currentModeId: 'default',
+              currentModeId: currentModeId || 'default',
               availableModes: [{ id: 'default' }, { id: 'yolo' }],
             },
           },
@@ -222,7 +223,17 @@ process.stdin.on('data', (c) => {
       }
       case 'session/load':
         if (sessions.has(m.params.sessionId) || m.params.sessionId.startsWith('gem-'))
-          send({ id: m.id, result: {} });
+          send({
+            id: m.id,
+            result: process.env.NOMI_MOCK_GEMINI_MODE
+              ? {
+                  modes: {
+                    currentModeId: process.env.NOMI_MOCK_GEMINI_MODE,
+                    availableModes: [{ id: 'default' }, { id: 'yolo' }],
+                  },
+                }
+              : {},
+          });
         else send({ id: m.id, error: { code: -32603, message: 'session not found' } });
         break;
       case 'session/set_mode': {

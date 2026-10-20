@@ -26,6 +26,7 @@ describe('CliHarnessService Grok over ACP', () => {
     'NOMI_MOCK_GROK_ACP_LOG',
     'NOMI_MOCK_GROK_PERM',
     'NOMI_MOCK_GROK_SET_MODEL',
+    'NOMI_MOCK_GROK_MODE',
     'NOMI_MOCK_GROK_NO_ACP',
     'NOMI_MOCK_FIRST_TOKEN_MS',
     'NOMI_MOCK_ARGV_LOG',
@@ -117,6 +118,19 @@ describe('CliHarnessService Grok over ACP', () => {
     expect(count('session/new')).toBe(0);
   }, 15_000);
 
+  it('打开未记录权限的历史会话时采用 ACP 返回的当前模式，不覆盖成 Nomi 默认值', async () => {
+    process.env.NOMI_MOCK_GROK_MODE = 'plan';
+    const { h } = mk();
+    const tab = h.createTab({
+      backend: 'grok',
+      cliSessionId: 'session-old-1',
+      permissionModeSource: 'history-cli',
+    });
+    await h.sendTab(tab.id, 'continue');
+    expect(calls().filter((c) => c.method === 'session/set_mode')).toHaveLength(0);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
+  }, 15_000);
+
   it('权限模式原地切换（不重启进程），逐项确认映射到 default、完全放开映射到 bypassPermissions', async () => {
     const { h } = mk();
     const tab = h.createTab({ backend: 'grok' });
@@ -139,7 +153,14 @@ describe('CliHarnessService Grok over ACP', () => {
 
   it('模型 / 思考深度在发送前原地切换；清掉覆盖时按目录默认值切回', async () => {
     const { h } = mk();
-    await h.modelCatalogFor('grok');
+    const catalog = await h.modelCatalogFor('grok');
+    expect(catalog?.permissionModes).toEqual([
+      'plan',
+      'default',
+      'acceptEdits',
+      'bypassPermissions',
+      'dontAsk',
+    ]);
     const tab = h.createTab({ backend: 'grok' });
     await h.sendTab(tab.id, 'one');
     h.setTabModel(tab.id, 'grok-mock-old');

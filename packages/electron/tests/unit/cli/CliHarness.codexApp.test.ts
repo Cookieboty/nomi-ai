@@ -186,6 +186,28 @@ describe('CliHarnessService Codex over app-server', () => {
     expect(count('thread/start')).toBe(0);
   }, 15_000);
 
+  it('切换项目会拆掉旧 app-server，并用新 cwd 创建新 thread', async () => {
+    const { h } = mk();
+    const first = fs.mkdtempSync(path.join(root, 'project-a-'));
+    const second = fs.mkdtempSync(path.join(root, 'project-b-'));
+    const tab = h.createTab({ backend: 'codex', cwd: first });
+    await h.sendTab(tab.id, 'from project a');
+    expect(calls().find((c) => c.method === 'thread/start')?.params.cwd).toBe(first);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId).toBe(
+      'mock-codex-thread-1',
+    );
+
+    h.setTabCwd(tab.id, second);
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.cliSessionId).toBeNull();
+    await h.sendTab(tab.id, 'from project b');
+
+    const starts = calls().filter((c) => c.method === 'thread/start');
+    expect(starts).toHaveLength(2);
+    expect(starts[1]!.params.cwd).toBe(second);
+    expect(count('initialize')).toBe(2);
+    expect(count('thread/resume')).toBe(0);
+  }, 15_000);
+
   it('权限模式、模型、思考深度随下一条 turn/start 生效，不重启进程', async () => {
     fs.mkdirSync(path.join(root, '.codex'), { recursive: true });
     fs.writeFileSync(

@@ -367,6 +367,42 @@ export function parseCodexTranscript(text: string, fallbackAt = 0): HarnessTabMe
   return b.result();
 }
 
+/** Grok Build ACP updates.jsonl：兼容 user_message / agent_message(_chunk) 等版本事件。 */
+export function parseGrokTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
+  const b = new Builder();
+  for (const e of lines(text)) {
+    const params = (e.params ?? e) as Json;
+    const u = (params.update ?? params) as Json;
+    const kind = str(u.sessionUpdate) ?? str(params.sessionUpdate) ?? str(e.sessionUpdate) ?? '';
+    const at = when(e.timestamp ?? e.time ?? u.timestamp, fallbackAt);
+    const content = u.content ?? u.message ?? u.text ?? params.content ?? params.message;
+    const { text: body, tools } = blocks(content);
+    if (kind === 'user_message' || kind === 'user_prompt' || kind === 'prompt') {
+      if (body) b.user(body, at);
+    } else if (
+      kind === 'agent_message' ||
+      kind === 'agent_message_chunk' ||
+      kind === 'assistant_message' ||
+      kind === 'assistant_message_chunk'
+    ) {
+      b.assistant(body, tools, at);
+    } else if (kind === 'tool_call' || kind === 'tool_call_started') {
+      const name = str(u.name) ?? str(u.tool) ?? str(u.toolName);
+      if (name)
+        b.toolStart({
+          id: str(u.toolCallId) ?? str(u.id) ?? `grok-${at}`,
+          name,
+          input: u.input ?? u.args,
+          at,
+        });
+    } else if (kind === 'tool_call_update' || kind === 'tool_result') {
+      const id = str(u.toolCallId) ?? str(u.id) ?? `grok-${at}`;
+      b.toolEnd({ id, output: u.output ?? u.result ?? content, error: u.status === 'error', at });
+    }
+  }
+  return b.result();
+}
+
 export function parseDshTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
   const b = new Builder();
   for (const e of lines(text)) {
@@ -436,7 +472,7 @@ export function parseGeminiTranscript(text: string, fallbackAt = 0): HarnessTabM
   return b.result();
 }
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini';
+export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini' | 'grok';
 
 export function parseTranscript(
   backend: HistoryBackend,
@@ -445,6 +481,7 @@ export function parseTranscript(
 ): HarnessTabMessage[] {
   if (backend === 'claude') return parseClaudeTranscript(text, fallbackAt);
   if (backend === 'codex') return parseCodexTranscript(text, fallbackAt);
+  if (backend === 'grok') return parseGrokTranscript(text, fallbackAt);
   if (backend === 'gemini') return parseGeminiTranscript(text, fallbackAt);
   return parseDshTranscript(text, fallbackAt);
 }

@@ -123,7 +123,7 @@
   padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-0-5);
   border-top: 1px solid var(--cd-color-border);
 }
-/* 默认页：「思考深度 / 恢复默认」→ 当前档位与说明 → 分档滑杆 → 模型行（参考 Codex 推理强度浮层） */
+/* 默认页：「思考深度 / 恢复默认」→ 分档滑杆 → 模型行（参考 Codex 推理强度浮层） */
 .effortView {
   display: flex;
   flex-direction: column;
@@ -138,22 +138,7 @@
 }
 .effortHeadLabel {
   font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}
-.effortValue {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-0-5);
-}
-.effortTitle {
-  font-size: var(--cd-font-size-lg);
   font-weight: var(--cd-font-weight-bold);
-  line-height: 1.3;
-  color: var(--cd-color-text);
-}
-.effortHint {
-  font-size: var(--cd-font-size-xs);
-  line-height: 1.4;
   color: var(--cd-color-text-muted);
 }
 /* 滑杆：细轨道 + 小圆点 + 白色滑块；点 / 滑块中心落在「轨道宽 - 滑块宽」区间里 */
@@ -295,14 +280,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tag {
-  flex: none;
-  padding: 0 var(--cd-space-1-5);
-  border-radius: var(--cd-radius-full);
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text-muted);
-  font-size: var(--cd-font-size-xs);
-  line-height: 18px;
+.modelRowLabel,
+.modelLinkText {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-regular);
 }
 .modelHead {
   display: flex;

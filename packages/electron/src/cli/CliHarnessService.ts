@@ -67,6 +67,7 @@ import {
   claudeModeName,
   effectiveMode,
   acpModeId,
+  fromCliPermissionMode,
   isPermissionMode,
   permissionLaunch,
   planPromptPrefix,
@@ -828,6 +829,11 @@ export class CliHarnessService {
       cliSessionId?: string;
       /** 分叉时继承来源标签的模式；缺省用默认档。「完全放开」不能经此继承 */
       permissionMode?: HarnessPermissionMode;
+      /** 历史文件未记录权限时，首次 ACP 握手采用 CLI 返回的当前模式。 */
+      permissionModeSource?: 'history-cli';
+      /** 历史会话实际使用的模型 / 推理档位；只接受合法值，优先于该后端最近设置 */
+      modelOverride?: string | null;
+      reasoningEffort?: string | null;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -856,11 +862,16 @@ export class CliHarnessService {
           ? opts.permissionMode
           : this.defaultPermissionMode,
       ).mode,
+      ...(opts.permissionModeSource ? { permissionModeSource: opts.permissionModeSource } : {}),
     };
     this.inheritSettings(
       tab,
       isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
     );
+    if (opts.modelOverride && isValidModelId(opts.modelOverride))
+      tab.modelOverride = opts.modelOverride;
+    if (opts.reasoningEffort && isReasoningEffort(opts.reasoningEffort))
+      tab.reasoningEffort = opts.reasoningEffort;
     this.tabs.set(tab.id, tab);
     const seeded = Array.isArray(opts.messages)
       ? opts.messages
@@ -912,6 +923,10 @@ export class CliHarnessService {
     cwd: string;
     title: string;
     messages: HarnessTabMessage[];
+    modelOverride?: string | null;
+    reasoningEffort?: string | null;
+    permissionMode?: HarnessPermissionMode;
+    permissionModeSource?: 'history-cli';
   }): { tab: HarnessTabMeta; reused: boolean } {
     const existing = [...this.tabs.values()].find(
       (x) => x.backend === o.backend && x.cliSessionId === o.sessionId,
@@ -926,6 +941,10 @@ export class CliHarnessService {
       title: o.title,
       messages: o.messages,
       cliSessionId: o.sessionId,
+      modelOverride: o.modelOverride,
+      reasoningEffort: o.reasoningEffort,
+      permissionMode: o.permissionMode,
+      permissionModeSource: o.permissionModeSource,
     });
     return { tab, reused: false };
   }
@@ -1020,6 +1039,8 @@ export class CliHarnessService {
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
     if (switched) {
       this.teardownClaudeLive(id);
+      this.teardownCodexLive(id);
+      this.teardownAcpLive(id);
       tab.cliSessionId = null;
       // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
       // 否则空会话从 Grok 切到 Codex 后欢迎标题 / 占位符仍显示 Grok；用户手动重命名的标题保留
@@ -1055,7 +1076,13 @@ export class CliHarnessService {
     const tab = this.requireTab(id);
     const abs = validDir(cwd);
     if (abs !== tab.cwd) {
-      this.teardownClaudeLive(id);
+      // 当前轮次让 CLI 正常收尾；下一轮会按 cwd 不同拆掉旧进程。
+      // 空闲标签则立即回收，避免旧项目的长驻进程继续占用资源。
+      if (tab.status !== 'running') {
+        this.teardownClaudeLive(id);
+        this.teardownCodexLive(id);
+        this.teardownAcpLive(id);
+      }
       tab.cliSessionId = null;
       this.setCarried(tab, opts.carry ? this.tabMessages(id) : null, tab.cwd);
     }
@@ -1799,6 +1826,7 @@ export class CliHarnessService {
     const startedAt = Date.now();
     this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
+    const runCwd = tab.cwd;
     // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
     // 按这个 CLI 收消息的方式裁到预算内（命令行参数有长度上限，见 carriedBudget）
     const stored = tab.cliSessionId ? null : this.carriedText(id);
@@ -1815,7 +1843,8 @@ export class CliHarnessService {
               : backend === 'gemini'
                 ? await this.runAcp(tab, toCli, abort.signal)
                 : await this.runCodexTurn(tab, toCli, abort.signal);
-      if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
+      if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
+        tab.cliSessionId = result.sessionId;
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
       tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
@@ -2429,11 +2458,38 @@ export class CliHarnessService {
       if (!sid)
         throw new Error(backend === 'grok' ? t('Grok 没有返回会话') : t('Gemini 没有返回会话'));
       live.sessionId = sid;
+      // 历史文件没有权限字段时，以 ACP 返回的 currentModeId 为准。
+      // 以前这里总是把 Nomi 默认档位写回 CLI，会让打开历史会话时静默改变它原来的安全等级。
+      let initMode = tab.permissionMode;
+      let adoptedHistoryMode = false;
+      if (tab.permissionModeSource === 'history-cli' && typeof modeNow === 'string') {
+        const cliMode = fromCliPermissionMode(backend, modeNow);
+        if (!cliMode) {
+          // 未知模式不能猜测；拆掉握手，阻止在不明安全等级下发送消息。
+          throw new Error(
+            backend === 'grok'
+              ? t('无法识别 Grok 的权限模式（{0}），这条消息没有发送', modeNow)
+              : t('无法识别 Gemini 的权限模式（{0}），这条消息没有发送', modeNow),
+          );
+        }
+        if (cliMode !== 'bypass') {
+          // bypass 仍须经过 Nomi 的显式确认，不能因为打开历史就自动继承。
+          initMode = cliMode;
+          tab.permissionMode = cliMode;
+          delete tab.permissionModeSource;
+          adoptedHistoryMode = true;
+          this.changed();
+        } else {
+          // 真实会话处于 bypass 时降到标签的安全档位，并明确发起一次 set_mode。
+          // 这样不会在用户未确认的情况下执行完全放开的历史权限。
+          delete tab.permissionModeSource;
+          this.changed();
+        }
+      }
       // 权限模式必须得到确认：失败 / 超时就不发送这一轮（不在未确认的档位下跑，#72）。
-      // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切
-      const initMode = tab.permissionMode;
+      // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切。
       const want = acpModeId(backend, initMode);
-      if (modeNow !== want)
+      if (!adoptedHistoryMode && modeNow !== want)
         await live.conn
           .request('session/set_mode', { sessionId: sid, modeId: want }, opts)
           .catch((e: unknown) => {

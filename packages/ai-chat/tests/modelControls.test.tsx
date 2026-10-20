@@ -122,13 +122,14 @@ describe('ModelControls', () => {
     expect((await findByTestId('model-chip')).textContent).toContain('GPT-5.6 Sol · 高');
   });
 
-  it('浮层默认页：大字档位、「模型名 ›」与滑杆', async () => {
-    const { findByTestId, getByTestId } = setup({
+  it('浮层默认页：思考深度滑杆与模型入口', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = setup({
       catalog,
       tabOver: { modelOverride: 'gpt-5.6-sol', reasoningEffort: 'high' },
     });
     fireEvent.click(await findByTestId('model-chip'));
-    expect(getByTestId('effort-title').textContent).toBe('高');
+    expect(queryByTestId('effort-title')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
     expect(getByTestId('model-open').textContent).toContain('GPT-5.6 Sol');
     const slider = getByTestId('effort-slider');
     expect(slider.getAttribute('role')).toBe('slider');
@@ -179,15 +180,25 @@ describe('ModelControls', () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', null));
   });
 
-  it('未设档位：标题显示默认（带模型默认档位），无「恢复默认」', async () => {
+  it('未设档位：滑杆定位到 CLI 返回的默认档位，仍无「恢复默认」', async () => {
     const { findByTestId, getByTestId, queryByTestId } = setup({
       catalog: claudeCatalog,
       tabOver: { backend: 'claude', modelOverride: 'fable' },
     });
     fireEvent.click(await findByTestId('model-chip'));
-    expect(getByTestId('effort-title').textContent).toBe('默认（高）');
-    expect(getByTestId('effort-slider').getAttribute('aria-valuenow')).toBeNull();
+    expect(queryByTestId('effort-title')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
+    expect(getByTestId('effort-slider').getAttribute('aria-valuenow')).toBe('2');
+    expect(getByTestId('effort-slider').getAttribute('aria-valuetext')).toBe('高');
     expect(queryByTestId('effort-default')).toBeNull();
+  });
+
+  it('未设档位：底部模型按钮同时显示 CLI 默认思考档位', async () => {
+    const { findByTestId } = setup({
+      catalog: claudeCatalog,
+      tabOver: { backend: 'claude', modelOverride: 'fable' },
+    });
+    expect((await findByTestId('model-chip')).textContent).toContain('Fable 5.1 · 高');
   });
 
   it('非推理模型（gpt-4.1）不显示滑杆', async () => {
@@ -196,7 +207,8 @@ describe('ModelControls', () => {
       tabOver: { modelOverride: 'gpt-4.1' },
     });
     fireEvent.click(await findByTestId('model-chip'));
-    expect(getByTestId('effort-title').textContent).toBe('无思考深度');
+    expect(queryByTestId('effort-title')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
     expect(queryByTestId('effort-slider')).toBeNull();
   });
 
@@ -285,11 +297,12 @@ describe('ModelControls', () => {
       catalog: claudeCatalog,
       tabOver: { backend: 'claude' },
     });
-    // 按钮直接显示 CLI 默认用的模型名，浮层模型行再标「默认」
+    // 按钮直接显示 CLI 默认用的模型名，浮层只显示当前模型值
     expect((await findByTestId('model-chip')).textContent).toContain('Opus 5.5');
     expect((await findByTestId('model-chip')).textContent).not.toContain('默认');
     fireEvent.click(getByTestId('model-chip'));
-    expect(getByTestId('model-open').textContent).toContain('默认');
+    expect(getByTestId('model-open').textContent).toContain('Opus 5.5');
+    expect(getByTestId('model-open').textContent).not.toContain('默认');
     expect(getByTestId('effort-max')).toBeTruthy();
     cleanup();
     const r = setup({
@@ -297,7 +310,8 @@ describe('ModelControls', () => {
       tabOver: { backend: 'claude', modelOverride: 'claude-haiku-4-5-20251001' },
     });
     fireEvent.click(await r.findByTestId('model-chip'));
-    expect(r.getByTestId('effort-title').textContent).toBe('无思考深度');
+    expect(r.queryByTestId('effort-title')).toBeNull();
+    expect(r.queryByTestId('effort-hint')).toBeNull();
     expect(r.queryByTestId('effort-slider')).toBeNull();
   });
 
@@ -308,7 +322,8 @@ describe('ModelControls', () => {
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
-    expect(getByTestId('effort-hint').textContent).toContain('没有提供可选档位');
+    expect(queryByTestId('effort-title')).toBeNull();
+    expect(queryByTestId('effort-hint')).toBeNull();
     fireEvent.click(getByTestId('model-open'));
     expect(getByTestId('model-error').textContent).toContain('not authenticated');
     expect(getByTestId('model-default')).toBeTruthy();

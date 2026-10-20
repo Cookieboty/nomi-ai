@@ -149,6 +149,44 @@ export function acpModeId(backend: 'gemini' | 'grok', mode: HarnessPermissionMod
   return backend === 'grok' ? grokModeId(mode) : geminiModeId(mode);
 }
 
+/**
+ * 将 CLI / ACP 返回的原生安全模式映射成 Nomi 档位。
+ * 返回 null 表示 CLI 返回了未知值；调用方此时不能猜测并覆盖 CLI 当前状态。
+ * 这里集中处理历史解析和 ACP 握手，避免两条路径对同一原生值产生不同结论。
+ */
+export function fromCliPermissionMode(
+  backend: CliBackend,
+  raw: unknown,
+): HarnessPermissionMode | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  const value = raw.trim();
+  if (isPermissionMode(value)) return effectiveMode(backend, value).mode;
+  const lower = value.toLowerCase().replace(/[_\s]+/g, '-');
+  let mode: HarnessPermissionMode | null = null;
+  if (lower === 'plan' || lower === 'read-only' || lower === 'readonly') mode = 'plan';
+  else if (lower === 'default' || lower === 'manual' || lower === 'ask') mode = 'manual';
+  else if (lower === 'on-request') mode = backend === 'codex' ? 'auto' : 'manual';
+  else if (
+    lower === 'acceptedits' ||
+    lower === 'autoedit' ||
+    lower === 'workspace-write' ||
+    lower === 'workspacewrite' ||
+    lower === 'workspace'
+  )
+    mode = 'acceptEdits';
+  else if (lower === 'auto' || lower === 'dontask' || lower === 'on-request-auto') mode = 'auto';
+  else if (
+    lower === 'bypass' ||
+    lower === 'bypasspermissions' ||
+    lower === 'yolo' ||
+    lower === 'danger-full-access' ||
+    lower === 'dangerfullaccess' ||
+    lower === 'danger'
+  )
+    mode = 'bypass';
+  return mode ? effectiveMode(backend, mode).mode : null;
+}
+
 /** 计划模式下附在用户消息前的提示（CLI 无原生无头计划模式时使用） */
 export function planPromptPrefix(backend: CliBackend): string | null {
   return backend === 'codex' || backend === 'dsh'
