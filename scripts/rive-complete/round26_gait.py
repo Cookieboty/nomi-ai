@@ -60,7 +60,7 @@ def walk_frame(f):
     arm = {"r": W["arm"] * sw, "l": W["arm"] * sw * 0.9}           # arm-r forward = +, arm-l back = + (out)
     # forward arm bends a bit more at the elbow
     elb = {"r": W["elbow"] * env + W["elbow_sw"] * max(0, sw), "l": W["elbow"] * env + W["elbow_sw"] * max(0, -sw)}
-    return dict(pose=(x, y), legs=legs, arm=arm, elbow=elb, pel=-sgn * W["pel"] * math.sin(math.pi * t) * env,  # R36: same phase as the weight shift (C1, no flat double-support plateau)
+    return dict(pose=(x, y), legs=legs, arm=arm, elbow=elb, pel=-sgn * W["pel"] * math.sin(math.pi * t) * env * (1 - ease((f - n + W_STEP / 2) / (W_STEP / 2))),  # R36: weight-shift phase; R36b: last half step eases out (no stop pop)
                 head_dy=0.0, curl=W["curl"] * env, sy=1.0, env=env, swing=swing, t=t)
 
 
@@ -103,7 +103,7 @@ def run_frame(f):
     x = R["shift"] * (-1.0 if ph < 0.5 else 1.0) * math.sin(math.pi * (ph % 0.5) / 0.5) * env
     arm = {"r": -R["arm"] * fwd - R["abd"] * env, "l": -R["arm"] * fwd * 0.95 + R["abd"] * env}  # + slight abduction
     elb = {"r": R["elbow"] * env + R["elbow_sw"] * max(0, -fwd), "l": R["elbow"] * env + R["elbow_sw"] * max(0, fwd)}
-    pel = R["pel"] * fwd
+    pel = R["pel"] * math.cos(2 * math.pi * ((f % R_CYC) / R_CYC - 0.15)) * env   # R36b: free-running phase so the settle fades it (no freeze pop)
     return dict(pose=(x, y), legs=legs, arm=arm, elbow=elb, pel=pel, head_dy=R["head"] * env, curl=R["curl"] * env,
                 sy=1.0 - R["crouch"] * env, env=env, swing=stance, t=ph)
 
