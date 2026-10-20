@@ -5,13 +5,14 @@ Per clip and side, from the clip's own baked keys (forward kinematics over every
   gravity  each joint counter-rotates a share (root 0.35, s1 0.30, hem 0.20) of the upper arm's world rotation away
            from rest: the top stays sewn to the sleeve, the free lower panel and the hem drape down when the arm lifts
            (segment world directions keep 65 / 35 / 15 % of the lift);
-  inertia  three damped springs (one per segment, periods 18 / 24 / 30 f, zeta 0.32 -> lag + one visible overshoot)
+  inertia  three damped springs (one per segment, periods 20 / 23 / 26 f, zeta 0.32 -> lag + one visible overshoot)
            follow the attach point; the lag vector d = q - p, projected on the segment normal and divided by the
            cumulative length from the attach point, gives each segment's deviation phi_j (tip trails the motion,
            delay grows down the chain); a fast DROP of the attach point (d along the hang direction < 0) flares the
            panel outward instead of buckling it;
+  shape    a counter-bend below a bend is halved (no S-shaped zig-zag on a 3-joint panel);
   limits   phi inward (toward the legs / shorts) >= -0.05 rad, outward <= +0.22 rad, per-segment |local| <= 0.18;
-  idle     + gentle drift: 2 cycles over the 216 f loop, amplitude 0.006 / 0.010 / 0.014 rad, 0.6 rad phase step
+  idle     + gentle drift: 2 cycles over the 216 f loop, amplitude 0.003 / 0.005 / 0.007 rad, 0.6 rad phase step
            down the chain (ripple), springs run over two loops so the loop is seamless;
   one-shot clips fade the secondary part in over the first 4 f and out over the last 16 f (ends exactly at rest).
 Local rotations: r_j = r0_j - GRAV_j*dAlpha + (phi_j - phi_{j-1}).  Keys every 2 f, linear.
@@ -26,12 +27,12 @@ import round27_common as C
 SCENE = L10.PROJECT / "scene.rml"
 REQ = ["full.idle", "full.walk", "full.run", "full.hop", "full.step", "full.squat", "full.wave", "full.cheer"]
 GRAV = (0.35, 0.30, 0.20)   # counter-rotation share per joint: root/s1/hem world dirs keep 65 / 35 / 15 % of the arm's lift
-T = (18.0, 24.0, 30.0)
+T = (20.0, 23.0, 26.0)
 ZETA = 0.32
 GAIN = (0.9, 1.25, 1.6)
-FLARE = 0.6
+FLARE = 0.9
 LIM_IN, LIM_OUT, LIM_LOC = -0.05, 0.22, 0.18
-DRIFT = (0.006, 0.010, 0.014)
+DRIFT = (0.003, 0.005, 0.007)
 GRAV_MIN = 0.12          # other clips get the chain only if the upper arm leaves rest by more than this
 
 
@@ -90,7 +91,12 @@ def simulate(fk, anim, s, dur, loop):
             env = min(1.0, f / 4.0) * min(1.0, max(0.0, (dur - f) / 16.0))
             env = env * env * (3 - 2 * env)
             phis = [p * env for p in phis]
-        loc = [phis[0]] + [max(-LIM_LOC, min(LIM_LOC, phis[j] - phis[j - 1])) for j in (1, 2)]
+        loc = [phis[0]]
+        for j in (1, 2):                                   # no zig-zag: a counter-bend below a bend is halved
+            inc = phis[j] - phis[j - 1]
+            if inc * loc[-1] < 0:
+                inc *= 0.5
+            loc.append(max(-LIM_LOC, min(LIM_LOC, inc)))
         res.append(dict(f=f, grav=[-g * dA[k] for g in GRAV], loc=loc, phi=phis, attach=P[k].tolist()))
     return res, r0
 
