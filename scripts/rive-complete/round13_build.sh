@@ -23,3 +23,4 @@ python3 round21_arm_pivot.py
 python3 round22_shoulder_skin.py
 python3 round23_cleanup.py
 python3 round24_waist_backfill.py
+python3 round25_shoulder_pivot.py
