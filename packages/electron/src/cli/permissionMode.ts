@@ -23,14 +23,15 @@ export function isPermissionMode(v: unknown): v is HarnessPermissionMode {
 
 /**
  * 各后端可用的档位。
- * - Codex / dsh 无头模式没有可回写的审批事件 → 无「逐项确认」
+ * - Codex 走 app-server（0.163.0 实测）：审批请求可逐项确认；退回 `exec` 时没有审批通道，按只读沙箱跑
+ * - dsh 无头模式没有可回写的审批事件 → 无「逐项确认」
  * - dsh 没有自动审批 → 无「自动」
  * - Grok 走 ACP（`grok agent stdio`，1.0.62 实测）：session/request_permission 可逐项确认；
  *   ACP 会话模式只有 plan / default / acceptEdits / bypassPermissions / dontAsk，没有「自动」
  */
 const SUPPORTED: Record<CliBackend, readonly HarnessPermissionMode[]> = {
   claude: PERMISSION_MODES,
-  codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  codex: ['plan', 'manual', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
   grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   // Gemini ACP：plan / default（可审批）/ autoEdit / yolo；没有「自动」（降为自动改文件）
@@ -89,8 +90,9 @@ export function permissionLaunch(
     case 'claude':
       return { args: ['--permission-mode', CLAUDE_MODE[mode]], env: {} };
     case 'codex': {
+      // 逐项确认在 exec 下没有审批通道：按只读跑，不悄悄放开写入
       const sandbox =
-        mode === 'plan'
+        mode === 'plan' || mode === 'manual'
           ? 'read-only'
           : mode === 'bypass'
             ? 'danger-full-access'

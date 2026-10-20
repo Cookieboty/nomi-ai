@@ -456,6 +456,8 @@ export class Application implements IApplication {
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
         // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
         grokAcp: process.env.NOMI_GROK_ACP !== '0',
+        // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
+        codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));

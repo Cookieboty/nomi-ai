@@ -22,6 +22,14 @@ import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
+import {
+  codexApprovalSummary,
+  codexExecItem,
+  codexTokenTotals,
+  codexTurnPolicy,
+  codexTurnUsage,
+  type CodexTokenTotals,
+} from './codex/appServer';
 import { codexConfigPath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
@@ -348,6 +356,8 @@ export class CliHarnessService {
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
   /** Gemini ACP 长驻进程（docs/design/cli-official-accounts.md §8）：同一标签多轮复用 */
   private readonly acpLive = new Map<string, AcpLiveSession>();
+  /** Codex app-server 长驻进程：同一标签多轮复用 */
+  private readonly codexLive = new Map<string, CodexLiveSession>();
   /** tabId → 运行中的后台子代理（来自 agent 事件；后台任务条与「停止子代理」用） */
   private readonly bgAgents = new Map<string, Map<string, { label?: string; startedAt: number }>>();
   /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
@@ -371,6 +381,8 @@ export class CliHarnessService {
   private codexNetwork = true;
   /** 这台机器上的 Grok 起不来 ACP：之后的轮次退回 `grok -p`（只在内存，重启后再试） */
   private grokAcpUnavailable = false;
+  /** 这台机器上的 Codex 起不来 app-server：之后的轮次退回 `codex exec`（只在内存） */
+  private codexAppUnavailable = false;
   private readonly home: string;
   private readonly statePath: string;
   private readonly tabsPath: string;
@@ -411,6 +423,8 @@ export class CliHarnessService {
       prewarmClaude?: boolean;
       /** Grok 走 ACP 长驻会话（`grok agent stdio`）；关闭或起不来时用 `grok -p`。测试缺省关闭 */
       grokAcp?: boolean;
+      /** Codex 走 app-server 长驻会话（`codex app-server`）；关闭或起不来时用 `codex exec`。测试缺省关闭 */
+      codexAppServer?: boolean;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -1414,6 +1428,11 @@ export class CliHarnessService {
       } catch (e) {
         this.d.logger.warn('harness claude prewarm failed', e);
       }
+    } else if (tab.backend === 'codex' && this.usesCodexApp() && !this.codexLive.has(id)) {
+      this.ensureCodexLive(tab).catch((e: unknown) => {
+        if (e instanceof AcpUnavailableError) this.codexAppUnavailable = true;
+        this.d.logger.info('harness codex prewarm skipped', { error: String(e) });
+      });
     } else if (
       (tab.backend === 'gemini' || (tab.backend === 'grok' && this.usesGrokAcp())) &&
       !this.acpLive.has(id)
@@ -1462,11 +1481,12 @@ export class CliHarnessService {
       !send.signal.aborted &&
       !this.claudeLive.get(id)?.turn &&
       !this.acpLive.get(id)?.turn &&
+      !this.codexLive.get(id)?.turn &&
       !this.children.has(id)
     ) {
       this.stopRequested.add(id);
       send.abort();
-      this.teardownClaudeLive(id); // 同时拆 Gemini 的 ACP 进程
+      this.teardownClaudeLive(id); // 同时拆 ACP / Codex 的长驻进程
       return true;
     }
     const live = this.claudeLive.get(id);
@@ -1475,11 +1495,18 @@ export class CliHarnessService {
       this.interruptClaudeTurn(id, live, live.turn);
       return true;
     }
-    // Gemini：ACP session/cancel，进程保留供下一轮
+    // Gemini / Grok：ACP session/cancel，进程保留供下一轮
     const gl = this.acpLive.get(id);
     if (gl?.turn) {
       this.stopRequested.add(id);
       this.cancelAcpTurn(gl);
+      return true;
+    }
+    // Codex：turn/interrupt，进程保留供下一轮
+    const cl = this.codexLive.get(id);
+    if (cl?.turn && !cl.turn.settled) {
+      this.stopRequested.add(id);
+      this.interruptCodexTurn(id, cl, cl.turn);
       return true;
     }
     if (!this.children.has(id) && !live) {
@@ -1533,6 +1560,7 @@ export class CliHarnessService {
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
     for (const id of [...this.acpLive.keys()]) this.teardownAcpLive(id);
+    for (const id of [...this.codexLive.keys()]) this.teardownCodexLive(id);
     for (const [id, child] of [...this.children.entries()]) {
       killProcessTree(child);
       this.children.delete(id);
@@ -1605,7 +1633,7 @@ export class CliHarnessService {
               ? await this.runGrokTurn(tab, toCli, abort.signal)
               : backend === 'gemini'
                 ? await this.runAcp(tab, toCli, abort.signal)
-                : await this.runCodex(tab, toCli);
+                : await this.runCodexTurn(tab, toCli, abort.signal);
       if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
@@ -2609,6 +2637,14 @@ export class CliHarnessService {
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
           resumable: Boolean(this.tabs.get(id)?.cliSessionId) || !gl.used,
         })),
+        ...[...this.codexLive.entries()].map(([id, cl]) => ({
+          id,
+          lastActivityAt: cl.lastActivityAt,
+          turnActive: cl.turn !== null,
+          permissionPending: cl.perms.size > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || !cl.used,
+        })),
         ...[...this.claudeLive.entries()].map(([id, live]) => ({
           id,
           lastActivityAt: live.lastActivityAt,
@@ -2629,7 +2665,7 @@ export class CliHarnessService {
       this.d.logger.info('harness idle process reclaimed', { tabId: id });
     }
     if (picked.length) this.changed();
-    if (!this.claudeLive.size && !this.acpLive.size) this.stopIdleSweep();
+    if (!this.claudeLive.size && !this.acpLive.size && !this.codexLive.size) this.stopIdleSweep();
     return picked;
   }
 
@@ -2658,6 +2694,14 @@ export class CliHarnessService {
       }
       return;
     }
+    if (kind === 'codex') {
+      // 供应商写的是 config.toml：app-server 只在启动时读，空闲的直接拆，正在跑的这一轮结束后再拆
+      for (const [id, cl] of [...this.codexLive.entries()]) {
+        if (cl.turn) cl.recycleAfterTurn = true;
+        else this.teardownCodexLive(id);
+      }
+      return;
+    }
     if (kind !== 'claude') return;
     for (const [id, live] of [...this.claudeLive.entries()]) {
       if (live.turn && !live.turn.settled) {
@@ -2680,8 +2724,9 @@ export class CliHarnessService {
 
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
-    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 Gemini 的 ACP 进程
+    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 ACP / Codex 的长驻进程
     this.teardownAcpLive(tabId);
+    this.teardownCodexLive(tabId);
     this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
@@ -2715,6 +2760,387 @@ export class CliHarnessService {
       if (!child.killed && child.exitCode === null) {
         killProcessTree(child);
       }
+    } catch {
+      /* */
+    }
+    if (turn && !turn.settled) {
+      turn.settled = true;
+      turn.reject(new Error(t('已中止')));
+    }
+  }
+
+  /**
+   * Codex 一轮：默认走 `codex app-server` 长驻会话（流式、turn/interrupt 停止不杀进程、每轮 turn/start
+   * 带模型 / 思考深度 / 沙箱 / 审批参数即时生效、逐项确认）。起不来（版本过旧）时记下来，之后都退回
+   * 每轮一个进程的 `codex exec`。两种方式读写同一份会话（exec 建的线程可在 app-server 里续接，反之亦然）。
+   */
+  private async runCodexTurn(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    if (this.usesCodexApp()) {
+      try {
+        return await this.runCodexLive(tab, prompt, signal);
+      } catch (e) {
+        if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
+        this.codexAppUnavailable = true;
+        this.d.logger.warn('harness codex app-server unavailable, falling back to codex exec', e);
+      }
+    }
+    return this.runCodex(tab, prompt);
+  }
+
+  private usesCodexApp(): boolean {
+    return Boolean(this.d.codexAppServer) && !this.codexAppUnavailable;
+  }
+
+  /**
+   * 拉起 / 复用 `codex app-server`：initialize → initialized；有会话 id 时 thread/resume。
+   * 新会话的 thread/start 推迟到第一条消息（预热不留下空会话）。
+   */
+  private async ensureCodexLive(
+    tab: HarnessTabMeta,
+    signal?: AbortSignal,
+  ): Promise<CodexLiveSession> {
+    const existing = this.codexLive.get(tab.id);
+    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+      await existing.ready;
+      return existing;
+    }
+    if (existing) this.teardownCodexLive(tab.id);
+    const bin = resolveHarnessBin('codex');
+    if (!bin) throw new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）'));
+    const useNode = isScript(bin);
+    const argv = ['app-server'];
+    const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
+      cwd: tab.cwd,
+      env: cliChildEnv(useNode),
+    });
+    child.stderr.on('data', (c) => {
+      this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
+    });
+    const live: CodexLiveSession = {
+      child,
+      conn: null as unknown as AcpConnection,
+      threadId: null,
+      cwd: tab.cwd,
+      model: null,
+      effort: null,
+      turn: null,
+      perms: new Map(),
+      totals: null,
+      lastActivityAt: Date.now(),
+      ready: Promise.resolve(),
+    };
+    live.conn = new AcpConnection(child, {
+      onNotification: (method, params) => this.onCodexNotification(tab.id, live, method, params),
+      onRequest: async (method, params) => {
+        if (
+          method !== 'item/commandExecution/requestApproval' &&
+          method !== 'item/fileChange/requestApproval'
+        )
+          throw new Error(`unsupported client method ${method}`);
+        const id = `codex-perm-${randomUUID()}`;
+        const allowed = await new Promise<boolean | null>((resolve) => {
+          live.perms.set(id, (allow) => {
+            live.perms.delete(id);
+            resolve(allow);
+          });
+          this.onCodexEvents(tab.id, live, [
+            withPermissionExpiry({
+              type: 'permission',
+              id,
+              summary: codexApprovalSummary(method, params),
+            }),
+          ]);
+        });
+        return { decision: allowed === null ? 'cancel' : allowed ? 'accept' : 'decline' };
+      },
+    });
+    child.on('close', () => {
+      if (this.codexLive.get(tab.id) === live) this.codexLive.delete(tab.id);
+      this.clearPermissionTimeouts(tab.id);
+      for (const done of live.perms.values()) done(null);
+      const turn = live.turn;
+      live.turn = null;
+      if (turn && !turn.settled) {
+        turn.settled = true;
+        turn.reject(new Error(turn.lastError ?? t('Codex 进程已退出')));
+      }
+    });
+    this.codexLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
+    const opts = signal ? { signal } : {};
+    live.ready = (async () => {
+      await live.conn.request(
+        'initialize',
+        { clientInfo: { name: 'nomi', title: 'Nomi', version: '1' }, capabilities: null },
+        opts,
+      );
+      live.conn.notify('initialized', {});
+      if (tab.cliSessionId) {
+        const r = await live.conn.request<{ thread?: { id?: string } } | null>(
+          'thread/resume',
+          { threadId: tab.cliSessionId, cwd: tab.cwd },
+          opts,
+        );
+        live.threadId = r?.thread?.id ?? tab.cliSessionId;
+      }
+    })();
+    try {
+      await live.ready;
+    } catch (e) {
+      this.teardownCodexLive(tab.id);
+      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
+      if (e instanceof Error && e.message === 'ACP process exited')
+        throw new AcpUnavailableError(t('Codex 没能启动 app-server'), { cause: e });
+      throw new Error(innermostMessage(e instanceof Error ? e.message : String(e)), { cause: e });
+    }
+    return live;
+  }
+
+  private async runCodexLive(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    let live = await this.ensureCodexLive(tab, signal);
+    // 清掉了覆盖、又不知道 CLI 的默认值：换新进程（按 config.toml 的默认模型 / 档位续接）
+    const want = this.effectiveOverrides(tab);
+    const catalog = this.cachedCatalog('codex');
+    const defaultModel = catalog?.defaultModel?.id;
+    let model: string | undefined;
+    let effort: string | undefined;
+    if (live.model !== want.model) model = want.model ?? defaultModel;
+    if (live.effort !== want.effort || model !== undefined)
+      effort =
+        want.effort ??
+        catalog?.models.find((m) => m.id === (want.model ?? defaultModel))?.defaultEffort;
+    if ((live.model !== want.model && !model) || (live.effort !== want.effort && !effort)) {
+      this.teardownCodexLive(tab.id);
+      live = await this.ensureCodexLive(tab, signal);
+    }
+    if (signal.aborted) throw new Error(t('已中止'));
+    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    if (!live.threadId) {
+      const r = await live.conn.request<{ thread?: { id?: string } } | null>('thread/start', {
+        cwd: tab.cwd,
+      });
+      live.threadId = r?.thread?.id ?? null;
+      if (!live.threadId) throw new Error(t('Codex 没有返回会话'));
+    }
+    if (signal.aborted) throw new Error(t('已中止'));
+    const text = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
+    const chatRoot = path.join(path.dirname(this.d.root), 'chat');
+    live.used = true;
+    live.lastActivityAt = Date.now();
+    return new Promise<HarnessSendResult>((resolve, reject) => {
+      const turn: CodexTurn = {
+        id: null,
+        events: [],
+        text: '',
+        breaks: [],
+        lastItem: null,
+        totalsBefore: live.totals,
+        lastError: null,
+        settled: false,
+        resolve,
+        reject,
+        chatRoot,
+        imageAliases: loadImageAliases(chatRoot),
+      };
+      live.turn = turn;
+      live.conn
+        .request<{ turn?: { id?: string } } | null>('turn/start', {
+          threadId: live.threadId,
+          input: [{ type: 'text', text, text_elements: [] }],
+          cwd: tab.cwd,
+          ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
+          ...(model ? { model } : {}),
+          ...(effort ? { effort } : {}),
+        })
+        .then(
+          (r) => {
+            turn.id = r?.turn?.id ?? null;
+            live.model = want.model;
+            live.effort = want.effort;
+          },
+          (e: unknown) => {
+            if (live.turn === turn) live.turn = null;
+            if (turn.settled) return;
+            turn.settled = true;
+            reject(new Error(innermostMessage(e instanceof Error ? e.message : String(e))));
+          },
+        );
+    });
+  }
+
+  /** app-server 推送 → 这一轮的事件。只认主线程（子代理线程的条目另有 collab 事件概括） */
+  private onCodexNotification(
+    tabId: string,
+    live: CodexLiveSession,
+    method: string,
+    params: Record<string, unknown>,
+  ) {
+    live.lastActivityAt = Date.now();
+    if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
+      live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
+      return;
+    }
+    const turn = live.turn;
+    if (!turn || (params.threadId !== undefined && params.threadId !== live.threadId)) return;
+    if (method === 'item/agentMessage/delta') {
+      const itemId = typeof params.itemId === 'string' ? params.itemId : null;
+      const delta = typeof params.delta === 'string' ? params.delta : '';
+      const evs: HarnessEvent[] = [];
+      // 同一轮里的下一条消息：补段落分隔，避免两段流式文本粘在一起
+      if (itemId !== turn.lastItem && turn.text.trim())
+        evs.push({ type: 'text-delta', text: '\n\n' });
+      turn.lastItem = itemId;
+      if (delta) evs.push({ type: 'text-delta', text: delta });
+      this.onCodexEvents(tabId, live, evs);
+      return;
+    }
+    if (method === 'item/started' || method === 'item/completed') {
+      const item = codexExecItem((params.item ?? {}) as Record<string, unknown>);
+      if (!item) return;
+      const line = JSON.stringify({
+        type: method === 'item/started' ? 'item.started' : 'item.completed',
+        item,
+      });
+      // exec 的 agent_message 完成时附带一个 done：这里的整轮结束由 turn/completed 决定，去掉它
+      const evs = parseCodexLine(line).filter((e) => e.type !== 'done');
+      this.onCodexEvents(tabId, live, evs);
+      return;
+    }
+    if (method === 'error') {
+      const err = (params.error ?? {}) as { message?: unknown };
+      const message = typeof err.message === 'string' ? err.message : t('Codex 错误');
+      if (params.willRetry === true)
+        this.onCodexEvents(tabId, live, [{ type: 'status', kind: 'reconnect', text: message }]);
+      else turn.lastError = message;
+      return;
+    }
+    if (method === 'turn/completed') {
+      const done = (params.turn ?? {}) as { id?: unknown; status?: unknown; error?: unknown };
+      if (turn.id && done.id !== turn.id) return;
+      this.finishCodexTurn(tabId, live, turn, done);
+    }
+  }
+
+  private onCodexEvents(tabId: string, live: CodexLiveSession, evs: HarnessEvent[]) {
+    const turn = live.turn;
+    for (const raw of evs) {
+      let ev = withPermissionExpiry(stampEvent(raw));
+      if (turn) {
+        if (ev.type === 'tool' && ev.output) {
+          materializeGeneratedImages(ev.output, this.home, turn.chatRoot, turn.imageAliases);
+          turn.text = rewriteGeneratedImageLinks(turn.text, turn.imageAliases);
+        }
+        if (ev.type === 'text-delta' || ev.type === 'text') {
+          const text = rewriteGeneratedImageLinks(ev.text, turn.imageAliases);
+          if (text !== ev.text) ev = { ...ev, text };
+        }
+        const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
+        turn.text = folded.text;
+        turn.breaks = folded.breaks;
+        ev = folded.ev;
+        if (ev.type !== 'text-delta') turn.events.push(ev);
+        if (ev.type === 'error') turn.lastError = ev.message;
+      }
+      this.emitEvent(tabId, ev);
+      if (ev.type === 'permission') {
+        this.armPermissionTimeout(tabId, ev.id);
+        const tab = this.tabs.get(tabId);
+        this.events.emit('permission-needed', {
+          tabId,
+          title: tab?.title ?? 'Codex',
+          backend: 'codex' as HarnessBackend,
+          summary: ev.summary,
+          background: this.activeTabId !== tabId || !anyWindowFocused(),
+        });
+      }
+    }
+  }
+
+  private finishCodexTurn(
+    tabId: string,
+    live: CodexLiveSession,
+    turn: CodexTurn,
+    done: { status?: unknown; error?: unknown },
+  ) {
+    if (live.turn === turn) live.turn = null;
+    live.lastActivityAt = Date.now();
+    this.clearPermissionTimeouts(tabId);
+    for (const fin of [...live.perms.values()]) fin(null);
+    if (turn.settled) return;
+    turn.settled = true;
+    if (done.status === 'interrupted') turn.reject(new Error(t('已中止')));
+    else if (done.status === 'failed') {
+      const err = done.error as { message?: unknown } | null;
+      turn.reject(
+        new Error(
+          (typeof err?.message === 'string' && err.message) || turn.lastError || t('Codex 错误'),
+        ),
+      );
+    } else {
+      const usage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const ev: HarnessEvent = {
+        type: 'done',
+        text: turn.text,
+        sessionId: live.threadId ?? undefined,
+        ...(usage ? { usage } : {}),
+      };
+      turn.events.push(ev);
+      this.emitEvent(tabId, ev);
+      turn.resolve({
+        text: rewriteGeneratedImageLinks(turn.text, turn.imageAliases) || t('（无文本输出）'),
+        sessionId: live.threadId,
+        events: turn.events,
+        ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
+      });
+    }
+    if (live.recycleAfterTurn && this.codexLive.get(tabId) === live) this.teardownCodexLive(tabId);
+  }
+
+  /**
+   * 停止 Codex 这一轮：turn/interrupt（实测 18ms 内以 interrupted 结束，进程保留）。
+   * 拿不到应答、或宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   */
+  private interruptCodexTurn(id: string, live: CodexLiveSession, turn: CodexTurn) {
+    for (const fin of [...live.perms.values()]) fin(null);
+    const fallback = () => {
+      if (this.codexLive.get(id) === live && live.turn === turn && !turn.settled)
+        this.teardownCodexLive(id);
+    };
+    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
+    // turn/start 的应答还没回来（拿不到 turnId）：只能拆进程
+    if (!turn.id || !live.threadId) {
+      fallback();
+      return;
+    }
+    live.conn
+      .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
+      .catch(fallback);
+  }
+
+  private teardownCodexLive(tabId: string) {
+    const live = this.codexLive.get(tabId);
+    if (!live) return;
+    this.codexLive.delete(tabId);
+    for (const done of [...live.perms.values()]) done(null);
+    this.clearPermissionTimeouts(tabId);
+    const turn = live.turn;
+    live.turn = null;
+    try {
+      if (live.child.stdin.writable) live.child.stdin.end();
+    } catch {
+      /* */
+    }
+    try {
+      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
     } catch {
       /* */
     }
@@ -3096,7 +3522,9 @@ export class CliHarnessService {
     allow: boolean,
     reason: 'allowed' | 'denied' | 'timeout' = allow ? 'allowed' : 'denied',
   ): boolean {
-    const gemini = this.acpLive.get(tabId)?.perms.get(requestId);
+    const gemini =
+      this.acpLive.get(tabId)?.perms.get(requestId) ??
+      this.codexLive.get(tabId)?.perms.get(requestId);
     if (gemini) {
       this.clearOnePermissionTimeout(tabId, requestId);
       gemini(allow);
@@ -3298,6 +3726,46 @@ type ClaudeTurnWaiter = {
 };
 
 type AcpBackend = 'gemini' | 'grok';
+
+type CodexTurn = {
+  /** turn/start 应答里的 turnId（停止用；应答到达前为 null） */
+  id: string | null;
+  events: HarnessEvent[];
+  text: string;
+  breaks: number[];
+  /** 最近一段流式正文所属的消息条目：换条目时补段落分隔 */
+  lastItem: string | null;
+  /** 这一轮开始时的线程累计用量（结束时求差即这一轮的用量） */
+  totalsBefore: CodexTokenTotals | null;
+  lastError: string | null;
+  settled: boolean;
+  resolve: (r: HarnessSendResult) => void;
+  reject: (e: Error) => void;
+  chatRoot: string;
+  imageAliases: Map<string, string>;
+};
+
+/** `codex app-server` 长驻进程：一个标签一个线程 */
+type CodexLiveSession = {
+  child: ChildProcessWithoutNullStreams;
+  conn: AcpConnection;
+  /** 线程 id（= cliSessionId）；新会话在第一条消息时才 thread/start */
+  threadId: string | null;
+  cwd: string;
+  /** 已随 turn/start 下发的模型 / 思考深度覆盖（null = 沿用 config.toml 默认） */
+  model: string | null;
+  effort: string | null;
+  turn: CodexTurn | null;
+  /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
+  perms: Map<string, (allow: boolean | null) => void>;
+  /** 最近一次 thread/tokenUsage/updated 的线程累计 */
+  totals: CodexTokenTotals | null;
+  lastActivityAt: number;
+  ready: Promise<void>;
+  used?: boolean;
+  /** 换了账号 / 供应商：这一轮结束后拆掉，下一轮按新配置重拉 */
+  recycleAfterTurn?: boolean;
+};
 
 /** ACP 握手阶段进程就退出（CLI 太旧 / 不支持 ACP）：Grok 据此退回每轮一个进程的 `grok -p` */
 class AcpUnavailableError extends Error {}

@@ -11,7 +11,7 @@ import type { HarnessPermissionMode } from '../../../src/cli/types';
 describe('permissionMode', () => {
   it.each([
     ['claude', ['plan', 'manual', 'acceptEdits', 'auto', 'bypass']],
-    ['codex', ['plan', 'acceptEdits', 'auto', 'bypass']],
+    ['codex', ['plan', 'manual', 'acceptEdits', 'auto', 'bypass']],
     ['dsh', ['plan', 'acceptEdits', 'bypass']],
     ['grok', ['plan', 'manual', 'acceptEdits', 'bypass']],
   ] as const)('%s supports %j', (backend, modes) => {
@@ -19,7 +19,6 @@ describe('permissionMode', () => {
   });
 
   it.each([
-    ['codex', 'manual', 'plan'],
     ['dsh', 'manual', 'plan'],
     ['dsh', 'auto', 'acceptEdits'],
     ['grok', 'auto', 'acceptEdits'],

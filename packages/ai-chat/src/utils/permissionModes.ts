@@ -21,7 +21,8 @@ type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
 const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   claude: PERMISSION_MODES,
-  codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  // Codex 走 app-server：有审批请求，可逐项确认
+  codex: ['plan', 'manual', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
   // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
   grok: ['plan', 'manual', 'acceptEdits', 'bypass'],

@@ -21,10 +21,10 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 
 每个标签一个 `permissionMode`（`HarnessTabMeta.permissionMode`），启动 / 切换时按下表映射到各 CLI 原生参数：
 
-| Nomi 模式          | 值            | Claude Code                           | Codex（全部经 `-c`）                                                             | dsh（环境变量）                          | Grok                             |
+| Nomi 模式          | 值            | Claude Code                           | Codex（app-server 每轮 `turn/start`；exec 回退经 `-c`）                          | dsh（环境变量）                          | Grok                             |
 | ------------------ | ------------- | ------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------- |
 | 计划               | `plan`        | `--permission-mode plan`              | `sandbox_mode="read-only"` + 计划提示前缀                                        | `DSH_PERMISSION_MODE=read-only` + 前缀   | ACP `set_mode plan`              |
-| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | 不支持 → 降为计划                                                                | 不支持 → 降为计划                        | ACP `set_mode default`（弹卡片） |
+| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | `workspaceWrite` + `approvalPolicy: untrusted`（弹卡片）；exec 回退按只读        | 不支持 → 降为计划                        | ACP `set_mode default`（弹卡片） |
 | 自动改文件（默认） | `acceptEdits` | `--permission-mode acceptEdits`       | `sandbox_mode="workspace-write"` + `sandbox_workspace_write.network_access=true` | `DSH_PERMISSION_MODE=workspace-write`    | ACP `set_mode acceptEdits`       |
 | 自动               | `auto`        | `--permission-mode auto`              | 上一行 + `approval_policy="on-request"` + `approvals_reviewer="auto_review"`     | 不支持 → 降为自动改文件                  | 不支持 → 降为自动改文件          |
 | 完全放开           | `bypass`      | `--permission-mode bypassPermissions` | `sandbox_mode="danger-full-access"`                                              | `DSH_PERMISSION_MODE=danger-full-access` | ACP `set_mode bypassPermissions` |

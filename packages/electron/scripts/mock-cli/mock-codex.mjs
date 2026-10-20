@@ -61,6 +61,179 @@ if (args.includes('update')) {
   process.exit(0);
 }
 
+/**
+ * codex app-server（stdio JSON-RPC，形状对齐 0.163.0 实测）：initialize / thread/start / thread/resume /
+ * turn/start / turn/interrupt；条目经 item/started、item/agentMessage/delta、item/completed 推送，
+ * 线程累计用量经 thread/tokenUsage/updated，一轮以 turn/completed 结束。
+ * Env: NOMI_MOCK_CODEX_APP_LOG=<file>（逐条记下请求）, NOMI_MOCK_CODEX_PERM=1（逐项确认档下先请求执行命令的审批）,
+ *      NOMI_MOCK_FIRST_TOKEN_MS（回复前异步等待，期间可 turn/interrupt）, NOMI_MOCK_CODEX_FAIL=1（这一轮 failed）,
+ *      NOMI_MOCK_CODEX_NO_APP=1（像旧版 CLI 一样不认识 app-server）
+ */
+if (args[0] === 'app-server') {
+  if (process.env.NOMI_MOCK_CODEX_NO_APP === '1') {
+    process.stderr.write("error: unrecognized subcommand 'app-server'\n");
+    process.exit(2);
+  }
+  const { createInterface } = await import('node:readline');
+  const send = (m) => process.stdout.write(`${JSON.stringify(m)}\n`);
+  const reply = (id, result) => send({ id, result });
+  const notify = (method, params) => send({ method, params });
+  const appLog = process.env.NOMI_MOCK_CODEX_APP_LOG;
+  const own = process.env.NOMI_MOCK_SESSION || 'mock-codex-thread-1';
+  const resumedThreads = new Set();
+  const interrupted = new Set();
+  const waiting = new Map();
+  const totals = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  let seq = 1;
+  let reqSeq = 9000;
+  const ask = (method, params) =>
+    new Promise((resolve) => {
+      const id = reqSeq++;
+      waiting.set(id, resolve);
+      send({ id, method, params });
+    });
+  const usage = (threadId, turnId) => {
+    totals.inputTokens += 10;
+    totals.cachedInputTokens += 2;
+    totals.outputTokens += 8;
+    notify('thread/tokenUsage/updated', {
+      threadId,
+      turnId,
+      tokenUsage: { total: { ...totals, totalTokens: 0 }, last: {}, modelContextWindow: null },
+    });
+  };
+  async function runTurn(threadId, turnId, p) {
+    const text = (p.input || []).map((c) => c.text || '').join('');
+    if (process.env.NOMI_MOCK_PROMPT_LOG)
+      appendFileSync(process.env.NOMI_MOCK_PROMPT_LOG, `${JSON.stringify(text)}\n`);
+    const item = (stage, it) => notify(`item/${stage}`, { threadId, turnId, item: it });
+    item('started', { type: 'userMessage', id: `user-${turnId}`, content: p.input });
+    item('completed', {
+      type: 'reasoning',
+      id: `rs-${turnId}`,
+      summary: ['thinking…'],
+      content: [],
+    });
+    const cmd = {
+      type: 'commandExecution',
+      id: `cmd-${turnId}`,
+      command: 'ls',
+      cwd: '/',
+      status: 'inProgress',
+    };
+    item('started', cmd);
+    let status = 'completed';
+    if (process.env.NOMI_MOCK_CODEX_PERM === '1' && p.approvalPolicy === 'untrusted') {
+      const r = await ask('item/commandExecution/requestApproval', {
+        threadId,
+        turnId,
+        itemId: cmd.id,
+        command: 'ls',
+        cwd: '/',
+        startedAtMs: Date.now(),
+      });
+      status = r?.decision === 'accept' ? 'completed' : 'declined';
+    }
+    item('completed', {
+      ...cmd,
+      status,
+      aggregatedOutput: 'a.txt',
+      exitCode: status === 'completed' ? 0 : null,
+    });
+    const wait = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
+    if (wait) await new Promise((r) => setTimeout(r, wait));
+    if (interrupted.has(turnId)) return;
+    if (process.env.NOMI_MOCK_CODEX_FAIL === '1') {
+      return notify('turn/completed', {
+        threadId,
+        turn: {
+          id: turnId,
+          items: [],
+          status: 'failed',
+          error: { message: 'Mock: quota exceeded' },
+        },
+      });
+    }
+    const foreign = resumedThreads.has(threadId) && threadId !== own;
+    const answer =
+      process.env.NOMI_MOCK_CODEX_REPLY ||
+      (foreign ? `【Mock Codex】已续接会话 ${threadId}` : '【Mock Codex】任务完成。');
+    const msgId = `msg-${turnId}`;
+    item('started', { type: 'agentMessage', id: msgId, text: '' });
+    for (const delta of [answer.slice(0, 5), answer.slice(5)])
+      notify('item/agentMessage/delta', { threadId, turnId, itemId: msgId, delta });
+    item('completed', { type: 'agentMessage', id: msgId, text: answer });
+    usage(threadId, turnId);
+    notify('turn/completed', {
+      threadId,
+      turn: { id: turnId, items: [], status: 'completed', error: null },
+    });
+  }
+  createInterface({ input: process.stdin }).on('line', (line) => {
+    let j;
+    try {
+      j = JSON.parse(line);
+    } catch {
+      return;
+    }
+    if (j.method && appLog)
+      appendFileSync(appLog, `${JSON.stringify({ method: j.method, params: j.params })}\n`);
+    if (j.method === undefined && waiting.has(j.id)) {
+      waiting.get(j.id)(j.result);
+      waiting.delete(j.id);
+      return;
+    }
+    const p = j.params || {};
+    switch (j.method) {
+      case 'initialize':
+        return reply(j.id, {
+          userAgent: 'mock-codex/0.0.0',
+          codexHome: '/tmp',
+          platformFamily: 'unix',
+          platformOs: 'macos',
+        });
+      case 'initialized':
+        return;
+      case 'thread/start':
+        notify('thread/started', { thread: { id: own } });
+        return reply(j.id, { thread: { id: own }, model: 'mock-pro', reasoningEffort: 'medium' });
+      case 'thread/resume':
+        if (p.threadId === 'thread-unknown')
+          return send({
+            id: j.id,
+            error: { code: -32600, message: `no rollout found for thread id ${p.threadId}` },
+          });
+        resumedThreads.add(p.threadId);
+        return reply(j.id, {
+          thread: { id: p.threadId },
+          model: 'mock-pro',
+          reasoningEffort: 'medium',
+        });
+      case 'turn/start': {
+        const turnId = `turn-${seq++}`;
+        reply(j.id, { turn: { id: turnId, items: [], status: 'inProgress', error: null } });
+        notify('turn/started', {
+          threadId: p.threadId,
+          turn: { id: turnId, status: 'inProgress' },
+        });
+        void runTurn(p.threadId, turnId, p);
+        return;
+      }
+      case 'turn/interrupt':
+        interrupted.add(p.turnId);
+        reply(j.id, {});
+        return notify('turn/completed', {
+          threadId: p.threadId,
+          turn: { id: p.turnId, items: [], status: 'interrupted', error: null },
+        });
+      default:
+        if (j.id !== undefined)
+          send({ id: j.id, error: { code: -32601, message: `Method not found: ${j.method}` } });
+    }
+  });
+  await new Promise(() => {});
+}
+
 /** 官方登录（NOMI_MOCK_LOGIN_EMAIL / NOMI_MOCK_LOGIN_MS / NOMI_MOCK_LOGIN_FAIL）：输出与真实 CLI 一致，凭据写进配置目录 */
 function mockJwt(claims) {
   return `h.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.s`;

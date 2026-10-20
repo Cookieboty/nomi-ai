@@ -653,5 +653,8 @@
   "已拒绝这次工具调用，这一轮已结束": "You denied this tool call, so this turn ended",
   "Grok 没有切换{0}（{1}）": "Grok did not switch the {0} ({1})",
   "模型": "model",
-  "思考深度": "reasoning effort"
+  "思考深度": "reasoning effort",
+  "Codex 进程已退出": "The Codex process exited",
+  "Codex 没能启动 app-server": "Codex could not start the app-server",
+  "Codex 没有返回会话": "Codex did not return a session"
 }
