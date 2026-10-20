@@ -97,15 +97,16 @@ describe('权限模式表', () => {
   });
 });
 
-describe('输入栏的权限模式芯片', () => {
-  it('显示当前档位；下拉里切换，不支持的档位置灰', async () => {
+describe('输入栏的权限模式按钮', () => {
+  it('显示当前档位；下拉里只列当前 CLI 支持的档位', async () => {
     const invoke = mockIpc({ backend: 'codex' });
     const r = mount();
     const chip = await r.findByTestId('permission-mode-chip');
     expect(chip.getAttribute('aria-label')).toBe('权限模式：自动改文件');
     fireEvent.click(chip);
-    expect((r.getByTestId('permission-mode-manual') as HTMLButtonElement).disabled).toBe(true);
-    expect(r.getByTestId('permission-mode-manual').textContent).toContain('会使用「计划」');
+    // Codex 不支持「逐项确认」：不显示
+    expect(r.queryByTestId('permission-mode-manual')).toBeNull();
+    expect(r.getByTestId('permission-mode-plan')).toBeTruthy();
     fireEvent.click(r.getByTestId('permission-mode-plan'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'plan', {
@@ -114,7 +115,7 @@ describe('输入栏的权限模式芯片', () => {
     );
   });
 
-  it('窄输入栏：芯片可收缩（省略号），极窄时只留图标，模式名仍在无障碍名称里（#64 E28）', async () => {
+  it('窄输入栏：按钮可收缩（省略号），极窄时只留图标，模式名仍在无障碍名称里（#64 E28）', async () => {
     mockIpc({ backend: 'codex' });
     const r = mount();
     const chip = await r.findByTestId('permission-mode-chip');
@@ -162,7 +163,7 @@ describe('输入栏的权限模式芯片', () => {
     );
   });
 
-  it('输入框 Shift+Tab 切到下一档（事件被芯片处理）', async () => {
+  it('输入框 Shift+Tab 切到下一档（事件被按钮处理）', async () => {
     const invoke = mockIpc({ permissionMode: 'plan' });
     const r = mount();
     await r.findByTestId('permission-mode-chip');
@@ -188,7 +189,7 @@ describe('输入栏的权限模式芯片', () => {
     );
   });
 
-  it('Nomi 标签没有权限模式芯片', async () => {
+  it('Nomi 标签没有权限模式按钮', async () => {
     const invoke = mockIpc({ backend: 'nomi' });
     const r = mount();
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));

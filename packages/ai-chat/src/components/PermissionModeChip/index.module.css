@@ -1,4 +1,4 @@
-/* 输入栏：权限模式芯片与下拉 */
+/* 输入栏：权限模式按钮与下拉（下拉样式与「模型 · 思考深度」浮层一致） */
 .wrap {
   position: relative;
   display: inline-flex;
@@ -22,7 +22,7 @@
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
-  /* 输入栏变窄时芯片跟着收缩（文字省略号），不能越过右侧的语音 / 发送按钮 */
+  /* 输入栏变窄时按钮跟着收缩（文字省略号），不能越过右侧的语音 / 发送按钮 */
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -70,10 +70,10 @@
 }
 .item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 7px 8px;
   border: none;
   border-radius: var(--cd-radius-sm);
   background: transparent;
@@ -82,17 +82,30 @@
   text-align: left;
   cursor: pointer;
 }
-.item:hover:not(:disabled),
+.item:hover,
 .item:focus-visible {
   background: var(--cd-color-hover);
-}
-.item:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 .item[aria-checked='true'] {
   background: var(--cd-color-accent-soft);
 }
+/* 图标放进小方块，和文字两行垂直居中 */
+.itemIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text-muted);
+}
+.item[aria-checked='true'] .itemIcon {
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-accent-strong);
+}
+.itemDanger .itemIcon,
 .itemDanger .itemLabel {
   color: var(--cd-color-danger-text);
 }
@@ -101,25 +114,42 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .itemLabel {
   font-size: 13px;
   font-weight: 600;
+  line-height: 18px;
 }
 .itemHint {
   font-size: 12px;
+  line-height: 16px;
   color: var(--cd-color-text-muted);
+}
+.itemCheck {
+  flex: none;
+  display: inline-flex;
+  color: var(--cd-color-accent-strong);
 }
 .foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 10px 2px;
+  margin-top: 4px;
+  padding: 8px 8px 2px;
   border-top: 1px solid var(--cd-color-border);
   font-size: 12px;
   color: var(--cd-color-text-muted);
+}
+.kbd {
+  padding: 0 5px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: 4px;
+  background: var(--cd-color-surface);
+  font: inherit;
+  font-size: 11px;
+  line-height: 16px;
 }
 .link {
   border: none;

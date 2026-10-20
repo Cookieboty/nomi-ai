@@ -1,8 +1,8 @@
 /**
- * 输入栏的权限模式芯片（docs/design/cli-permission-modes.md §4）：
- * - 点开下拉选档位；当前编程助手不支持的档位置灰并说明会改用哪一档；
+ * 输入栏的权限模式按钮（docs/design/cli-permission-modes.md §4）：
+ * - 点开下拉选档位；只列当前编程助手支持的档位（不支持的不显示，选了也没意义）；
  * - 输入框里 Shift+Tab 在支持的档位间循环，跳过「完全放开」；
- * - 「完全放开」只能从下拉进入，先确认；之后芯片标红；
+ * - 「完全放开」只能从下拉进入，先确认；之后按钮标红；
  * - 下拉底部可以把当前档设为新标签的默认档（「完全放开」不能设为默认）。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
@@ -24,7 +24,6 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import {
   CYCLE_PERMISSION_EVENT,
   PERMISSION_MODES,
-  fallbackMode,
   modeHint,
   modeLabel,
   nextMode,
@@ -165,34 +164,34 @@ export const PermissionModeChip: React.FC<{
             aria-label={t('权限模式')}
             data-testid="permission-mode-menu"
           >
-            {PERMISSION_MODES.map((m) => {
-              const ok = supported.includes(m);
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={mode === m}
-                  disabled={!ok}
-                  className={`${styles.item} ${m === 'bypass' ? styles.itemDanger : ''}`}
-                  data-testid={`permission-mode-${m}`}
-                  onClick={() => pick(m)}
-                >
+            {PERMISSION_MODES.filter((m) => supported.includes(m)).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="menuitemradio"
+                aria-checked={mode === m}
+                className={`${styles.item} ${m === 'bypass' ? styles.itemDanger : ''}`}
+                data-testid={`permission-mode-${m}`}
+                onClick={() => pick(m)}
+              >
+                <span className={styles.itemIcon}>
                   <Icon icon={ICON[m]} size={15} />
-                  <span className={styles.itemText}>
-                    <span className={styles.itemLabel}>{modeLabel(m)}</span>
-                    <span className={styles.itemHint}>
-                      {ok
-                        ? modeHint(m)
-                        : t('{0} 不支持，会使用「{1}」', name, modeLabel(fallbackMode(backend, m)))}
-                    </span>
+                </span>
+                <span className={styles.itemText}>
+                  <span className={styles.itemLabel}>{modeLabel(m)}</span>
+                  <span className={styles.itemHint}>{modeHint(m)}</span>
+                </span>
+                {mode === m && (
+                  <span className={styles.itemCheck}>
+                    <Icon icon={Check} size={14} />
                   </span>
-                  {mode === m && <Icon icon={Check} size={14} />}
-                </button>
-              );
-            })}
+                )}
+              </button>
+            ))}
             <div className={styles.foot}>
-              <span>{t('Shift+Tab 在输入框里切换')}</span>
+              <span>
+                <kbd className={styles.kbd}>Shift+Tab</kbd> {t('在输入框里切换')}
+              </span>
               {mode !== 'bypass' && mode !== defaultMode && (
                 <button
                   type="button"
