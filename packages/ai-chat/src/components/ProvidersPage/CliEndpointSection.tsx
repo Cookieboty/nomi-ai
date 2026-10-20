@@ -229,26 +229,26 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
   const where =
     kind === 'claude'
       ? t(
-          '启用档案时只改写 {0} 的 env（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL / ANTHROPIC_MODEL），hooks、权限等其它设置原样保留，改写前自动备份。',
+          '启用第三方供应商时只改写 {0} 的 env（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL / ANTHROPIC_MODEL），hooks、权限等其它设置原样保留，改写前自动备份。',
           writes ?? '~/.claude/settings.json',
         )
       : kind === 'codex'
         ? t(
-            '启用档案时只改写 {0}（model、model_provider 与 [model_providers.nomi]）和同目录 auth.json 的 OPENAI_API_KEY，其它内容原样保留，改写前自动备份。',
+            '启用第三方供应商时只改写 {0}（model、model_provider 与 [model_providers.nomi]）和同目录 auth.json 的 OPENAI_API_KEY，其它内容原样保留，改写前自动备份。',
             writes ?? '~/.codex/config.toml',
           )
         : kind === 'grok'
           ? t(
-              '启用档案时只写入 {0} 里带 Nomi 标记的 [model.nomi] 区块并设置 default；密钥不落盘，只在 Nomi 启动 Grok 时通过环境变量注入。',
+              '启用第三方供应商时只写入 {0} 里带 Nomi 标记的 [model.nomi] 区块并设置 default；密钥不落盘，只在 Nomi 启动 Grok 时通过环境变量注入。',
               writes ?? '~/.grok/config.toml',
             )
           : kind === 'gemini'
             ? t(
-                '启用档案时不改 ~/.gemini：认证方式写在 Nomi 自己的 {0}，API Key、请求地址与模型只在 Nomi 启动 Gemini 时通过环境变量注入。终端里直接运行的 gemini 不受影响。',
+                '启用第三方供应商时不改 ~/.gemini：认证方式写在 Nomi 自己的 {0}，API Key、请求地址与模型只在 Nomi 启动 Gemini 时通过环境变量注入。终端里直接运行的 gemini 不受影响。',
                 writes ?? 'system-settings.json',
               )
             : t(
-                '启用档案时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
+                '启用第三方供应商时只写入 {0} 里带 Nomi 标记的区块；密钥不落盘，只在 Nomi 启动 dsh 时通过环境变量注入。',
                 writes ?? '~/.dsh/cordis.patch.yml',
               );
 
@@ -261,7 +261,7 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
         <div className={styles.intro} data-testid="cli-ep-intro">
           <p>
             <strong>{t(NAME[kind])}</strong>
-            {t(' 的供应商档案独立保存，与 Nomi、其它编程助手互不影响。')}
+            {t(' 的第三方供应商独立保存，与 Nomi、其它编程助手互不影响。')}
           </p>
           <p>{where}</p>
         </div>
@@ -298,7 +298,7 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
             <dl className={styles.facts}>
               <dt>{t('来源')}</dt>
               <dd data-testid="cli-ep-source">
-                {active ? t('Nomi 档案库（独立）') : t('CLI 自带登录 / 默认配置')}
+                {active ? t('Nomi 第三方供应商（独立）') : t('CLI 自带登录 / 默认配置')}
               </dd>
               <dt>{t('上游格式')}</dt>
               <dd>{active ? formatLabel(kind, active.apiFormat) : '—'}</dd>
@@ -478,9 +478,9 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
                   onError={(e) => setMsg(e instanceof Error ? e.message : String(e))}
                   onSaved={(p, doActivate) => {
                     setView({ kind: 'list' });
-                    setMsg(view.target.kind === 'edit' ? t('已更新档案') : t('已保存档案'));
+                    setMsg(view.target.kind === 'edit' ? t('已更新供应商') : t('已保存供应商'));
                     refresh();
-                    // 正在使用的档案：主进程保存时已经原子地写好 CLI 配置，不必再启用一次
+                    // 正在使用的供应商：主进程保存时已经原子地写好 CLI 配置，不必再启用一次
                     if (doActivate && !p.active) void activate(p);
                   }}
                 />
@@ -536,7 +536,9 @@ export const CliEndpointSection: React.FC<{ kind: CliProviderKind }> = ({ kind }
               </>
             )}
             <pre className={styles.paths} data-testid="cli-provider-paths">
-              {[t('档案库：{0}', store ?? '-'), t('写入位置：{0}', writes ?? '-')].join('\n')}
+              {[t('第三方供应商列表：{0}', store ?? '-'), t('写入位置：{0}', writes ?? '-')].join(
+                '\n',
+              )}
             </pre>
           </div>
         </details>

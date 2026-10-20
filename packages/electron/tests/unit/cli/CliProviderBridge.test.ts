@@ -401,7 +401,7 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
           const old = { baseUrl: 'https://a.example/v1', model: 'model-a', active: true };
           expect(b.state().profiles.find((x) => x.id === p.id)).toMatchObject(old);
           expect(b[c.env]()).toEqual({ [c.key]: 'key-A' });
-          // 档案库从未落盘新值：重启（新实例）后仍是旧档案、旧 Key
+          // 第三方供应商列表从未落盘新值：重启（新实例）后仍是旧供应商、旧 Key
           const again = new CliProviderBridge({
             root,
             home,
@@ -437,7 +437,7 @@ describe('CliProviderBridge: failed re-activation never leaves a mixed provider 
           expect(b.activate(a.id).ok).toBe(true);
           expect(b[c.env]()).toEqual({ [c.key]: 'key-B' });
           expect(fs.readFileSync(c.file(home), 'utf8')).toContain('model-b');
-          // 之后别的档案启用失败，不会把已成功的 B 回滚
+          // 之后别的供应商启用失败，不会把已成功的 B 回滚
           expect(b.activate(draft.id).ok).toBe(false);
           expect(b.state().profiles.find((x) => x.id === a.id)).toMatchObject({
             baseUrl: 'https://b.example/v1',

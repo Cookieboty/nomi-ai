@@ -305,7 +305,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         return;
       }
     }
-    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式芯片时保持默认行为
+    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式按钮时保持默认行为
     if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
       const detail: CyclePermissionDetail = { handled: false };
       window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));

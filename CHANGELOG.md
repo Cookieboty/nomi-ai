@@ -156,7 +156,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Documentation rewritten by feature module (docs/README.md); links in code and settings updated.
 - English strings for coding-agent harness backend switcher and CLI update panel. (`@nomi-ai/ui` patch)
 - Gemini 端点支持登录多个 Google 官方账号并全局切换：登录在独立的临时目录里通过 ACP 完成，不影响现有登录；切换时同时把 Gemini 的认证方式设为 Google 登录，正在使用的 Gemini 会话会在当前轮次结束后按新账号重启。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
-- Gemini 端点支持第三方供应商档案（API Key、请求地址、模型），交互与其它编程助手一致，输入栏的端点芯片也可切换 Gemini 的官方账号与档案。启用档案不会改动 ~/.gemini：认证方式写在 Nomi 自己的设置文件里，密钥只在 Nomi 启动 Gemini 时注入，终端里直接运行的 gemini 和 Google 登录都不受影响。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
+- Gemini 端点支持第三方供应商（API Key、请求地址、模型），交互与其它编程助手一致，输入栏的端点按钮也可切换 Gemini 的官方账号与供应商。启用第三方供应商不会改动 ~/.gemini：认证方式写在 Nomi 自己的设置文件里，密钥只在 Nomi 启动 Gemini 时注入，终端里直接运行的 gemini 和 Google 登录都不受影响。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - Remove system speech fallback from TTS and pass the active character speed setting to the local sherpa model. TTS failures now stay silent. (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/types` patch, `@nomi-ai/ui` patch)
 - Settings menu, round two (breaking, no compatibility layer): the standalone "Updates" section is
 - TTS 设置页与语音设置里不再写「模型随安装包分发」，改为说明开启语音时才下载模型。 (`@nomi-ai/renderer` patch)
@@ -173,12 +173,12 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 新增 Gemini CLI 编程助手端点：通过 ACP 协议长驻对话（同一标签多轮复用一个进程），支持计划 / 手动 / 自动编辑 / 完全放行四种权限模式与界面审批、停止当前轮次、子代理识别；「编程助手」页可检测、安装与更新 Gemini CLI。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor, `@nomi-ai/ui` minor)
 - 新增「关闭主界面时：隐藏到托盘 / 退出 Nomi」（设置 → 通用，紧挨「启动 Nomi 后默认显示」）。默认隐藏到托盘，与之前一致；选「退出 Nomi」后关闭主界面会完全退出（看板娘、托盘一起关闭），macOS 上红色按钮与 ⌘W 同样按此处理，⌘Q 始终退出。另外，由系统登录项自动启动且默认界面为主界面时，主界面现在也会到前台并获得焦点，与普通启动一致。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ui` minor)
 - 新增「启动 Nomi 后默认显示」：首次引导增加「启动方式」一步（以看板娘方式 / 以控制台（主界面）方式打开），「设置 → 通用」可随时修改。默认仍是看板娘（老用户升级后行为不变）；选「软件主界面」后启动直接打开主界面，看板娘仍在桌面待命，定时任务和提醒照常播报；再次启动 / 点 Dock / 点 Windows 托盘图标会回到主界面，由系统登录项自动启动时主界面不抢占焦点。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ui` minor)
-- 标签栏的并发上限改成小芯片「运行数/上限」（排队时显示「· 排队 N」），点开是与应用主题一致的弹层：一句说明 + 1–8 的按钮选择上限，不再使用样式跟不上主题的系统下拉框。 (`@nomi-ai/ai-chat` patch)
+- 标签栏的并发上限改成小按钮「运行数/上限」（排队时显示「· 排队 N」），点开是与应用主题一致的弹层：一句说明 + 1–8 的按钮选择上限，不再使用样式跟不上主题的系统下拉框。 (`@nomi-ai/ai-chat` patch)
 - 用量面板：订阅额度改为按工具 Tabs + 可扩展卡片（登录方式 / 额度 / 用量费用 / 状态）；修复 Windows 上 Grok 订阅额度探测（`.cmd` 解成 node+script，避免 ACP stdin 被 cmd 打断）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 离线语音模型不再打进安装包（各平台安装包约小 132 MiB 解压内容），改为在「设置 → 语音与屏幕 → 语音」开启语音时从 sherpa-onnx 官方 release 下载到本机（约 115 MB，sha256 校验），显示进度，可取消、重试、删除，中途退出后下次断点续传；下载完成后完全离线可用。新安装默认关闭语音；之前开着语音的用户保持开启，并会在启动时自动下载模型。缺少模型时语音静默并提示，不会崩溃。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/renderer` minor, `@nomi-ai/types` minor, `@nomi-ai/ui` minor)
 - 精简输入栏：工作目录和供应商 / 账号切换挪到对话区右上角，输入栏只保留端点切换与权限模式；权限模式按钮改为透明底，不再在输入栏里铺出一块灰色。 (`@nomi-ai/ai-chat` minor)
 - 编程助手切换工作目录时改用应用内的对话框，可以选择「带上当前对话」「开新会话」或「取消」，Claude Code、Codex、dsh、Grok、Gemini 都支持。带上对话时，新目录里新会话的第一轮会把之前的对话作为前文一起发出，输入栏显示「带上前文 · N 条」，点 × 可以放弃。分叉 / 复制出来的编程助手对话现在也会真正把之前的对话带进第一轮（之前只显示在界面上，CLI 并没有收到）。前文长度按各 CLI 的传参方式和系统的命令行长度限制自动裁剪。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
-- 编程助手的输入栏新增权限模式芯片：可在「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」之间切换，当前 CLI 不支持的档位会置灰并说明改用哪一档；输入框里按 Shift+Tab 循环切换（跳过「完全放开」）；「完全放开」需要确认，之后芯片标红；可把当前档设为新标签默认。另加 `/mode plan|manual|edits|auto` 命令。 (`@nomi-ai/ai-chat` minor)
+- 编程助手的输入栏新增权限模式按钮：可在「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」之间切换，只列当前 CLI 支持的档位；输入框里按 Shift+Tab 循环切换（跳过「完全放开」）；「完全放开」需要确认，之后芯片标红；可把当前档设为新标签默认。另加 `/mode plan|manual|edits|auto` 命令。 (`@nomi-ai/ai-chat` minor)
 - 订阅额度保留上一次的结果：再次打开「订阅额度」会立即显示上一次的值并在后台更新，不再先空一下；Claude Code 与 Grok 的额度也会保存下来，重启 Nomi 后无需重新拉取即可看到（之前只有 Codex 会保存）。在「官方账号」里切换账号时，会清掉上一个账号的额度，不会显示给新账号。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 订阅额度改成卡片网格（Codex / Claude Code / Grok 各一张，沿用「概览明细」的行与进度条样式），每张卡有自己的「刷新」按钮和刷新中 / 失败 / 更新于状态，另保留「全部刷新」；主进程 `ai:usage:quota-refresh` 按工具参数化，单工具刷新只拉起该工具自己的官方 CLI，不同工具并行、互不阻塞，同工具并发合并。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - 默认界面为「软件主界面」时，看板娘工具栏的「窗口置顶」按钮改为「关闭看板娘」：关闭后看板娘从桌面隐藏且不再播放语音，灵动岛和系统通知照常；在「设置 → 通用 → 桌面看板娘」里可随时重新打开。默认界面为看板娘时她是进入主界面的入口，不能关闭。 (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/ai-chat` patch)

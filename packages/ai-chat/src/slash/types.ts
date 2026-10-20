@@ -187,7 +187,7 @@ export interface SlashActions {
   openSettings: () => void;
   /** Nomi：切换激活的供应商 / 模型 */
   switchNomiModel: (providerId: string | null, model?: string) => Promise<void>;
-  /** CLI：启用 / 停用档案（写 CLI 的配置，主进程会备份，下一轮生效） */
+  /** CLI：启用 / 停用第三方供应商（写 CLI 的配置，主进程会备份，下一轮生效） */
   activateCliProfile: (profileId: string) => Promise<{ ok: boolean; error?: string }>;
   deactivateCliProfile: () => Promise<{ ok: boolean; error?: string }>;
   gitDiff: () => Promise<GitDiffResult>;

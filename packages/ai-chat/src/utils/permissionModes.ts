@@ -79,6 +79,6 @@ export function nextMode(backend: HarnessBackend, current: PermissionMode): Perm
   return ring[(i + 1) % ring.length]!;
 }
 
-/** 输入框里按 Shift+Tab 时发出；模式芯片处理后把 handled 置为 true */
+/** 输入框里按 Shift+Tab 时发出；模式按钮处理后把 handled 置为 true */
 export const CYCLE_PERMISSION_EVENT = 'nomi:cycle-permission-mode';
 export type CyclePermissionDetail = { handled: boolean };

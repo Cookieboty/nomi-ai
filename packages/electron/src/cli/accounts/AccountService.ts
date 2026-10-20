@@ -3,7 +3,7 @@
  *
  * - 保险箱：userData/cli-accounts/<kind>.json（0600），凭据经 safeStorage 加密；不可用时拒绝保存。
  * - 切换：回收全局凭据（同一账号且更新 → 更新保险箱；陌生账号 → 先存成新账号；判断不出新旧 → 取消）
- *   → 加密备份 → 写入 → 失败用备份还原 → 通知（停用第三方供应商档案、重拉 Claude 长驻进程）。
+ *   → 加密备份 → 写入 → 失败用备份还原 → 通知（停用第三方供应商、重拉 Claude 长驻进程）。
  * - 凭据只在主进程内存里出现；返回给界面的只有身份（邮箱 / 套餐）。
  */
 import { randomUUID } from 'node:crypto';
@@ -73,7 +73,7 @@ export class AccountService {
       /** 测试注入 */
       adapter?: (kind: AccountKind) => CredAdapter;
       now?: () => number;
-      /** 切换成功：停用该 CLI 的第三方供应商档案、重拉长驻进程等 */
+      /** 切换成功：停用该 CLI 的第三方供应商、重拉长驻进程等 */
       onActivated?: (kind: AccountKind) => void;
       onChanged?: () => void;
     },

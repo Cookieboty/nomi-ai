@@ -270,7 +270,7 @@ export const GROK_KEY_ENV = 'NOMI_GROK_API_KEY';
 
 /**
  * 用户在标记区块之外已有 `[models]` 表时，不能再追加第二个 `[models]`（TOML 同表重复定义会让整份配置无法解析）。
- * 此时就地把该表的 default 改成 Nomi 档案，并在同一行尾部记录原值，取消托管时据此还原。
+ * 此时就地把该表的 default 改成 Nomi 第三方供应商，并在同一行尾部记录原值，取消托管时据此还原。
  */
 const GROK_PREV_TAG = '# nomi-managed-prev:';
 const GROK_PREV_NONE = '(none)';

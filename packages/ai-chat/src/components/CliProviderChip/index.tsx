@@ -1,8 +1,8 @@
 /**
- * CLI 后端（Claude Code / Codex / dsh）输入栏上的供应商 / 模型芯片。
+ * CLI 后端（Claude Code / Codex / dsh）输入栏上的供应商 / 模型按钮。
  *
- * 只读取该后端自己的档案库（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
- * 没有启用的档案时显示「CLI 默认 / 已登录」。快速切换只在本后端的档案里选。
+ * 只读取该后端自己的第三方供应商列表（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
+ * 没有启用的供应商时显示「CLI 默认 / 已登录」。快速切换只在本后端的供应商里选。
  */
 import { Select, t, Icon } from '@nomi-ai/ui';
 import { KeyRound } from 'lucide-react';
@@ -18,7 +18,7 @@ import {
 
 export const CLI_DEFAULT_VALUE = '';
 
-/** 该后端当前启用的档案（没有则为 null = CLI 自带登录/默认配置） */
+/** 该后端当前启用的供应商（没有则为 null = CLI 自带登录/默认配置） */
 export function activeProfileOf(
   state: CliProviderState | null,
   kind: CliProviderKind,
@@ -26,7 +26,7 @@ export function activeProfileOf(
   return state?.profiles.find((p) => p.kind === kind && p.active) ?? null;
 }
 
-/** 下拉框里官方账号选项的 value 前缀（与供应商档案 id 区分开） */
+/** 下拉框里官方账号选项的 value 前缀（与第三方供应商 id 区分开） */
 const ACCOUNT_PREFIX = 'account:';
 
 const SWITCHER_STYLE: React.CSSProperties = {
@@ -86,7 +86,7 @@ export const CliProviderChip: React.FC<{
     setErr('');
     try {
       if (id.startsWith(ACCOUNT_PREFIX)) {
-        // 切换全局官方账号；主进程会顺带停用第三方供应商档案
+        // 切换全局官方账号；主进程会顺带停用第三方供应商
         await cliAccountClient.activate(id.slice(ACCOUNT_PREFIX.length));
       } else if (id === CLI_DEFAULT_VALUE) {
         const r = await cliProviderClient.deactivate(backend);
@@ -116,8 +116,8 @@ export const CliProviderChip: React.FC<{
         title={
           err ||
           (active
-            ? t('{0} 的供应商档案（独立于 Nomi）', backendName(backend))
-            : t('未启用档案：沿用 {0} 自带的登录与默认配置', backendName(backend)))
+            ? t('{0} 的第三方供应商（独立于 Nomi）', backendName(backend))
+            : t('未启用第三方供应商：沿用 {0} 自带的登录与默认配置', backendName(backend)))
         }
         value={active?.id ?? (official ? `${ACCOUNT_PREFIX}${official.id}` : CLI_DEFAULT_VALUE)}
         onChange={(e) => void pick(e.target.value)}

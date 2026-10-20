@@ -18,7 +18,7 @@ export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' |
 
 export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
 
-/** 拥有独立供应商档案库的 CLI */
+/** 拥有独立第三方供应商列表的 CLI */
 export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /** 支持版本更新的 CLI */

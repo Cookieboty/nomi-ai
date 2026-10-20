@@ -57,14 +57,14 @@
 
 ### 3.5 CLI 供应商与本地路由（Nomi 自建）
 
-| 概念               | 含义                        | Nomi 实现                                                                                                   |
-| ------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 按工具的供应商档案 | Claude / Codex 各自一组档案 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
-| 一键启用           | 只改连接字段，备份后写回    | 原子写 + `userData/cli-providers/backups/`                                                                  |
-| Direct             | CLI 直连上游（原生协议）    | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
-| 本地路由           | 本机代理做协议转换          | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用档案                                |
-| Aggregation        | 多上游模型列表合并          | **P2**                                                                                                      |
-| Apps 页升级        | 检测版本、安装、升级        | 对标「版本与更新」章节，由看板娘执行                                                                        |
+| 概念                 | 含义                          | Nomi 实现                                                                                                   |
+| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 按工具的第三方供应商 | Claude / Codex 各自一组供应商 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
+| 一键启用             | 只改连接字段，备份后写回      | 原子写 + `userData/cli-providers/backups/`                                                                  |
+| Direct               | CLI 直连上游（原生协议）      | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
+| 本地路由             | 本机代理做协议转换            | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商                        |
+| Aggregation          | 多上游模型列表合并            | **P2**                                                                                                      |
+| Apps 页升级          | 检测版本、安装、升级          | 对标「版本与更新」章节，由看板娘执行                                                                        |
 
 **上游格式（按 CLI 不同）：**
 
@@ -76,7 +76,7 @@
 
 - Ollama 默认上下文约 2k token，而 Claude Code 每轮系统提示 + 工具定义约 16k token，超出部分会被**静默截断**，表现为空回复或答非所问。
 - 启动 Ollama 时设置 `OLLAMA_CONTEXT_LENGTH=20480`（或更大）：`OLLAMA_CONTEXT_LENGTH=20480 ollama serve`；Codex 的提示约 6k token，同样建议 ≥ 8192。
-- 档案的 API 地址填 `http://127.0.0.1:11434/v1`，格式选 OpenAI Chat Completions，开启路由并接管对应 CLI。
+- 供应商的 API 地址填 `http://127.0.0.1:11434/v1`，格式选 OpenAI Chat Completions，开启路由并接管对应 CLI。
 
 ## 4. 用户体验
 
@@ -117,11 +117,11 @@
 设置 → **「编程助手」** 页（见 §13.4 与 §14：一个页面，顶部按端点切换，Nomi / Claude Code / Codex / dsh 各自独立，外加「监视与会话」）：
 
 - 分栏：按端点（Claude Code | Codex | dsh）。
-- 档案列表：名称、base URL、model、**上游格式**、启用态；Key 走 **同一套 safeStorage**，不入明文 JSON。
+- 供应商列表：名称、base URL、model、**上游格式**、启用态；Key 走 **同一套 safeStorage**，不入明文 JSON。
 - 预设：Anthropic 官方、OpenAI 官方、OpenRouter、DeepSeek、硅基流动、自定义……（可从 Nomi 已有 presets 映射）。
 - **启用**：备份 → 写 `~/.claude/settings.json` env 或 `~/.codex/config.toml` + auth 字段 → Claude 热生效；Codex 提示重启。
-- **开启路由**：高级设置开关；开启后非原生格式档案可启用，CLI 配置写入本机路由地址与占位 Key，真实上游由路由转发并转换协议。
-- **从 Nomi 导入**：把原生供应商的 baseURL/model/key 复制为 CLI 档案（用户确认）。
+- **开启路由**：高级设置开关；开启后非原生格式供应商可启用，CLI 配置写入本机路由地址与占位 Key，真实上游由路由转发并转换协议。
+- **从 Nomi 导入**：把原生供应商的 baseURL/model/key 复制为 CLI 供应商（用户确认）。
 
 Aggregation（多上游合并）仍为 **P2**。
 
@@ -187,7 +187,7 @@ Aggregation（多上游合并）仍为 **P2**。
 | 数据                                      | 位置                                                                           |
 | ----------------------------------------- | ------------------------------------------------------------------------------ |
 | 后端偏好、每会话 backend/cwd/cliSessionId | `userData/harness/sessions.json` + 对话元数据字段                              |
-| CLI 供应商档案（无明文 key）              | `userData/cli-providers/claude/store.json`、`…/codex/store.json` + safeStorage |
+| CLI 第三方供应商（无明文 key）            | `userData/cli-providers/claude/store.json`、`…/codex/store.json` + safeStorage |
 | 配置备份                                  | `userData/cli-providers/backups/`                                              |
 | 本地路由设置                              | `userData/cli-providers/routing.json`                                          |
 | 更新缓存（latest 查询）                   | `userData/cli-update/cache.json`                                               |
@@ -246,7 +246,7 @@ Aggregation（多上游合并）仍为 **P2**。
 4. **默认后端**：保持 **Nomi**。
 5. **更新范围**：~~Claude Code + Codex；Cursor 仅检测~~ → 2026-10-15 验收后改为 **Claude Code + Codex + dsh 都可检测、安装、更新**（见 §14.2）；Cursor 仍**仅检测**。
 6. **工作目录**：对话级绑定（P0 用全局 harness cwd + 选目录按钮）。
-7. **三套供应商隔离**：Nomi `ai-providers.json`｜Claude CLI 档案｜Codex CLI 档案；各写各的路径。
+7. **三套供应商隔离**：Nomi `ai-providers.json`｜Claude CLI 供应商｜Codex CLI 供应商；各写各的路径。
 8. **本地路由**：非原生上游格式须「开启路由」后才能启用。
 
 ## 11. 批准后的首个实现切片（仍等批准）
@@ -278,10 +278,10 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 | 会话存储 | `$DSH_HOME/sessions/<编码后的 cwd>/session-<uuid>/{session.lock, session.v4.jsonl.zstd}`；运行中的会话持有 `session.lock`                                                                                                                                                        |
 | 供应商   | 默认使用 DeepSeek 官方接口（`DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL`）；内置适配器原生支持 `openai-completions`、`openai-responses`、`anthropic-messages`，**不需要本地路由**                                                                                                    |
 
-### 12.2 dsh 供应商档案（第 4 套档案库）
+### 12.2 dsh 第三方供应商（第 4 套第三方供应商列表）
 
-- 档案库位于 `userData/cli-providers/dsh/store.json`，与 Nomi / Claude / Codex 的档案相互隔离。
-- 启用档案时，在 `$DSH_HOME/cordis.patch.yml` 中写入一段带 `# >>> nomi managed (dsh provider) >>>` 标记的区块，其余内容原样保留，并且先备份再原子写入：
+- 第三方供应商列表位于 `userData/cli-providers/dsh/store.json`，与 Nomi / Claude / Codex 的供应商相互隔离。
+- 启用第三方供应商时，在 `$DSH_HOME/cordis.patch.yml` 中写入一段带 `# >>> nomi managed (dsh provider) >>>` 标记的区块，其余内容原样保留，并且先备份再原子写入：
 
 ```yaml
 - id: llm-pi-ai
@@ -299,8 +299,8 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
     model: <model>
 ```
 
-- **密钥不落盘到 dsh 配置**：由接管服务在启动 dsh 时注入环境变量 `NOMI_DSH_API_KEY`。用户在终端里自己运行 dsh 时，需要自行导出该变量，或停用档案、回到 dsh 默认供应商。
-- 停用档案时只移除标记区块。
+- **密钥不落盘到 dsh 配置**：由接管服务在启动 dsh 时注入环境变量 `NOMI_DSH_API_KEY`。用户在终端里自己运行 dsh 时，需要自行导出该变量，或停用第三方供应商、回到 dsh 默认供应商。
+- 停用第三方供应商时只移除标记区块。
 
 ### 12.3 接管适配器
 
@@ -346,7 +346,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 - **切换后端**：有消息的会话不会静默改写身份。BackendSwitcher 会为新后端新建会话 / 标签；空会话可原地切换。跨端复制历史请用分叉。
 - **侧栏视图**（「全部 | 按端」，持久化）：
   - 全部：所有会话 + 端点色标（与灵动岛一致：nomi 珊瑚 / claude 橙 / codex 蓝 / dsh 蓝紫）。
-  - 按端：先选端点芯片（未安装的 CLI 禁用），再只看该端。
+  - 按端：先选端点按钮（未安装的 CLI 禁用），再只看该端。
   - 「新对话」：普通 → 总是 Nomi；开发 + 按端 → 当前端；全部 → 弹出端点菜单。
 - **分叉**（侧栏右键 / Mod+Shift+F）：
   1. **分叉为新对话**：同端复制可见消息，标题「原标题 (副本)」。
@@ -362,10 +362,10 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 **查证结果（用大白话）**
 
-1. **显示是错的，配置没有串。** 输入栏里的「供应商 / 模型」选择器原来是 Nomi 自己的，不管当前是哪个端点都显示它，所以看起来像是 CLI 在用 Nomi 的模型。实际上 CLI 标签发消息时只读它自己的配置，不读 Nomi 的选择。已改为：CLI 标签显示**该 CLI 自己的**供应商 / 模型（只列该端点自己档案库里的档案）；没有启用任何档案时明确显示「CLI 默认 / 已登录」；🔑 按钮直达该端点的供应商设置页。
+1. **显示是错的，配置没有串。** 输入栏里的「供应商 / 模型」选择器原来是 Nomi 自己的，不管当前是哪个端点都显示它，所以看起来像是 CLI 在用 Nomi 的模型。实际上 CLI 标签发消息时只读它自己的配置，不读 Nomi 的选择。已改为：CLI 标签显示**该 CLI 自己的**供应商 / 模型（只列该端点自己第三方供应商列表里的供应商）；没有启用任何供应商时明确显示「CLI 默认 / 已登录」；🔑 按钮直达该端点的供应商设置页。
 2. **启动 CLI 子进程时会把 Nomi 的环境变量带进去。** 原来直接继承 Nomi 进程的环境变量（`NOMI_*`、`IG_*`、`CD_*`、MCP 相关变量）。这些不是 CLI 的配置，但属于不该泄露的内部状态。已改为子进程环境统一经过 `buildCliEnv`：剥掉这些内部变量，其余（`PATH`、`HOME`、用户自己设置的 `ANTHROPIC_*` / `OPENAI_*` 等）原样保留；dsh 的 Key 只通过显式的 `NOMI_DSH_API_KEY` 注入。
-3. **没有档案时不会写任何 CLI 配置文件。** Codex 档案库为空时，既不写 `~/.codex/config.toml` 也不写 `auth.json`；启用 Claude 档案不会碰 Codex 的文件，反之亦然。（有隔离测试 `CliIsolation.test.ts`。）
-4. **补上了「停用」。** 以前启用过的档案没办法退回 CLI 自带登录。现在每个端点都能「改用 CLI 自带登录/默认配置」：Claude 只移除我们写入的 `ANTHROPIC_API_KEY / BASE_URL / MODEL`；Codex 移除 `[model_providers.nomi]`、对应的 `model` / `model_provider` 和我们写入的 `OPENAI_API_KEY`；dsh 只移除带标记的区块；都先备份。
+3. **没有供应商时不会写任何 CLI 配置文件。** Codex 第三方供应商列表为空时，既不写 `~/.codex/config.toml` 也不写 `auth.json`；启用 Claude 供应商不会碰 Codex 的文件，反之亦然。（有隔离测试 `CliIsolation.test.ts`。）
+4. **补上了「停用」。** 以前启用过的供应商没办法退回 CLI 自带登录。现在每个端点都能「改用 CLI 自带登录/默认配置」：Claude 只移除我们写入的 `ANTHROPIC_API_KEY / BASE_URL / MODEL`；Codex 移除 `[model_providers.nomi]`、对应的 `model` / `model_provider` 和我们写入的 `OPENAI_API_KEY`；dsh 只移除带标记的区块；都先备份。
 5. **已知限制**：Nomi 自己（主标签）的任务路由 / 供应商仍是 Nomi 自己的一套，与 CLI 无关；用户在自己的 shell 里导出的 `ANTHROPIC_*` / `OPENAI_*` 会被 CLI 继承，这是用户自己的环境，不做剥离。
 
 ### 13.2 端点命名、图标、工作目录（反馈 1 / 4 / 5）
@@ -413,12 +413,12 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 设置 →「编程助手」只有一个页面。顶部标签：Nomi / Claude Code / Codex / dsh / 监视与会话（选择会记住），每个端点是**完全独立**的一块，切换只是换视图，不改动任何配置。三个 CLI 端点与 Nomi 用**同一套**第三方供应商交互（见 §14.1）：
 
 - **说明**：配置写到哪里、与其它端点互相独立。Claude Code 只改 `~/.claude/settings.json` 的 env；Codex 只改 `~/.codex/config.toml` 与同目录 `auth.json` 的 `OPENAI_API_KEY`；dsh 只写 `$DSH_HOME/cordis.patch.yml` 里带标记的区块（密钥不落盘，启动时用环境变量注入）；Nomi 用自己的 `ai-providers.json`。以上都先备份、保留无关内容。
-- **当前使用**：供应商名称、**来源**（Nomi 档案库 / CLI 自带登录或默认配置）、上游格式、模型、**本地路由状态与原因**（直连：原生格式；已开启：非原生格式经本机路由转换；需要但未开启：提示去「高级」打开；dsh：无需路由）。
-- **档案**：启用 / 测速 / 编辑 / 删除。测速（主进程 `ai:cli-provider:test`）对上游发一次 `GET /models`（OpenAI 兼容 Bearer；Anthropic 用 `x-api-key`；Gemini 用 `x-goog-api-key`），8 秒超时，返回耗时；401/403 提示 Key 无效；没有模型列表接口（404/405）视为已连通；错误信息里的 Key 会被抹掉。
-- **「高级」**：本地路由开关（Claude Code / Codex）、档案库与写入文件路径。dsh 的高级里只有说明（原生支持三种协议，无需路由）。
+- **当前使用**：供应商名称、**来源**（Nomi 第三方供应商 / CLI 自带登录或默认配置）、上游格式、模型、**本地路由状态与原因**（直连：原生格式；已开启：非原生格式经本机路由转换；需要但未开启：提示去「高级」打开；dsh：无需路由）。
+- **供应商**：启用 / 测速 / 编辑 / 删除。测速（主进程 `ai:cli-provider:test`）对上游发一次 `GET /models`（OpenAI 兼容 Bearer；Anthropic 用 `x-api-key`；Gemini 用 `x-goog-api-key`），8 秒超时，返回耗时；401/403 提示 Key 无效；没有模型列表接口（404/405）视为已连通；错误信息里的 Key 会被抹掉。
+- **「高级」**：本地路由开关（Claude Code / Codex）、第三方供应商列表与写入文件路径。dsh 的高级里只有说明（原生支持三种协议，无需路由）。
 - **任务路由**（对话 / 工具调用 / 摘要）只在 **Nomi** 区，沿用原有 `ProviderPanel`；CLI 端点没有任务路由。
 - 存储与 IPC 语义不变：`ai:cli-provider:*`（`upsert` / `remove` / `activate` / `deactivate` / `state` / 新增 `test`）、`ai:cli-route:*`。
-- 入口：设置 → 编程助手；输入栏供应商芯片的「管理」直接跳到对应端点。「日程与日历」没有编程助手标签（§14.3）。
+- 入口：设置 → 编程助手；输入栏供应商按钮的「管理」直接跳到对应端点。「日程与日历」没有编程助手标签（§14.3）。
 
 ### 13.5 历史会话（Claude Code / Codex / dsh）
 
@@ -446,9 +446,9 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 - 设置里「编程助手」是一个页面，标签：`Nomi` · `Claude Code` · `Codex` · `dsh` · `监视与会话`（`CodingTab`，记在 `chatPrefs`）。
 - Claude Code / Codex / dsh 与 Nomi 使用同样的视觉与流程：**卡片列表**（图标 · 名称 · 「使用中」徽标 · 上游格式 · 地址 · 模型 · 打码 Key）→ **添加供应商**打开预设模板网格（含「自定义」）→ 表单（名称、接口地址、API Key、模型、上游格式）→ 保存；每张卡片有 测速 / 编辑 / 删除（删除前确认）/ 启用。预设模板复用 Nomi 的预设（只预填名称 / 地址 / 模型 / Key）；新建上游格式一律取该 CLI 端点原生默认（Claude=`anthropic_messages`，Codex / dsh=`openai_responses`），不被预设 protocol 改写；用户可再改格式，非原生时提示需本地路由。
-- **默认是「CLI 自带登录 / 默认配置」**：列表第一张固定卡片，没有任何档案启用时它就是「当前」；启用某个档案后可随时「改用 CLI 自带登录/默认配置」。
-- **隔离不变**：四套档案库互相独立；本地路由仍在 Claude Code / Codex 各自的「高级」里；dsh 无需路由。
-- 档案新增 `presetId`（可选，旧档案没有时按地址推测品牌图标），仅用于显示品牌图标。
+- **默认是「CLI 自带登录 / 默认配置」**：列表第一张固定卡片，没有任何供应商启用时它就是「当前」；启用某个供应商后可随时「改用 CLI 自带登录/默认配置」。
+- **隔离不变**：四套第三方供应商列表互相独立；本地路由仍在 Claude Code / Codex 各自的「高级」里；dsh 无需路由。
+- 供应商新增 `presetId`（可选，旧供应商没有时按地址推测品牌图标），仅用于显示品牌图标。
 
 ### 14.2 版本检测、安装与更新（Claude Code / Codex / dsh）
 

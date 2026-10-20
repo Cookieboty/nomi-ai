@@ -1,5 +1,5 @@
 /**
- * 本地路由：把 Claude Code / Codex 的原生请求转到真实上游，并按档案 apiFormat 做协议转换。
+ * 本地路由：把 Claude Code / Codex 的原生请求转到真实上游，并按供应商 apiFormat 做协议转换。
  * 默认监听 127.0.0.1:18721（仅本机）。
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';

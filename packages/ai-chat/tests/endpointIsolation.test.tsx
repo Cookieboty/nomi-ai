@@ -122,7 +122,7 @@ describe('activeProfileOf', () => {
 });
 
 describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md）', () => {
-  it('没有第三方档案时显示当前官方账号；下拉里选官方账号会全局切换', async () => {
+  it('没有第三方供应商时显示当前官方账号；下拉里选官方账号会全局切换', async () => {
     const invoke = mockIpc({
       cli: { profiles: [] } as unknown as CliProviderState,
       tabs: {
@@ -163,7 +163,7 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
 
 describe('CliProviderChip', () => {
   it('shows CLI default when the backend store has no active profile', async () => {
-    // Claude 有启用档案，Codex 一个都没有 → Codex 芯片必须显示默认配置
+    // Claude 启用了第三方供应商，Codex 一个都没有 → Codex 按钮必须显示默认配置
     mockIpc({
       cli: cliState([prof({ id: 'c1', kind: 'claude', name: 'MyClaude', active: true })]),
       tabs: { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 },

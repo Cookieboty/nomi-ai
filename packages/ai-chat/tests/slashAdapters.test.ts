@@ -277,7 +277,7 @@ describe('/model', () => {
       effectiveModel: 'gpt-5',
     }) as unknown as ProviderState;
 
-  it('CLI：只列这个端的档案 + 默认项，标出当前', async () => {
+  it('CLI：只列这个端的供应商 + 默认项，标出当前', async () => {
     const { r } = await run('claude', '/model', { data: { cliProviders: cli() } });
     const c = cardOf(r);
     if (c.kind !== 'list') throw new Error('list');
@@ -288,7 +288,7 @@ describe('/model', () => {
     ]);
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['GLM · glm-4.6']);
   });
-  it('CLI：/model kimi 唯一命中 → 直接激活档案', async () => {
+  it('CLI：/model kimi 唯一命中 → 直接激活供应商', async () => {
     const { r, actions } = await run('claude', '/model kimi', { data: { cliProviders: cli() } });
     expect(actions.activateCliProfile).toHaveBeenCalledWith('p2');
     expect(cardOf(r).kind).toBe('notice');

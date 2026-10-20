@@ -198,7 +198,7 @@ describe('EndpointControls workspace for CLI tabs', () => {
     );
   });
 
-  it('有待带入的前文时显示芯片，× 放弃', async () => {
+  it('有待带入的前文时显示按钮，× 放弃', async () => {
     const invoke = mockIpc(state({ carriedMessages: 3 }));
     const r = mount();
     const chip = await r.findByTestId('cli-carry-chip');

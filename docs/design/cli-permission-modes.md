@@ -75,8 +75,8 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 与下面原计划的差异：
 
 - 「新标签默认模式」放在模式下拉底部（「设为新标签默认」），没有单独的设置页；「Codex 允许联网」保持默认开，暂无界面开关。
-- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从芯片进入并确认。
-- `degraded` 的提示显示在芯片旁（5 秒后消失），StatusLine 暂未显示模式。
+- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从按钮进入并确认。
+- `degraded` 的提示显示在按钮旁（5 秒后消失），StatusLine 暂未显示模式。
 
 原计划：
 

@@ -4,7 +4,7 @@
  * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
  * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
  *   Nomi：Nomi 自有供应商 / 模型切换（ProviderSwitcher）；
- *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的档案（CliProviderChip），绝不出现 Nomi 供应商。
+ *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的供应商（CliProviderChip），绝不出现 Nomi 供应商。
  * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';

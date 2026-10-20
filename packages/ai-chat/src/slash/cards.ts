@@ -39,7 +39,7 @@ export const notice = (
 export interface ModelInfo {
   model?: string;
   provider?: string;
-  /** 来自 Nomi 里启用的 CLI 档案 */
+  /** 来自 Nomi 里启用的 CLI 供应商 */
   profile: boolean;
 }
 
@@ -156,7 +156,7 @@ export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
     label: t('供应商'),
     value: m.provider
       ? m.profile
-        ? t('{0}（Nomi 档案）', m.provider)
+        ? t('{0}（第三方供应商）', m.provider)
         : m.provider
       : ctx.backend === 'nomi'
         ? t('未配置')

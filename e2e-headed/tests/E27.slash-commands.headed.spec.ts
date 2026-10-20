@@ -2,7 +2,7 @@
  * E27 · 斜杠命令面板（真实 dist 应用 + Mock CLI）
  *
  * A. Claude 标签：`/` 弹出分组面板（当前端在前，然后是项目 / 用户 / Skills，Nomi 在后），模糊搜索；
- *    /context /cost /status 以卡片显示且不发给 CLI；/model 切换供应商档案；
+ *    /context /cost /status 以卡片显示且不发给 CLI；/model 切换第三方供应商；
  *    项目自定义命令（参数提示 → 透传 `/fix 42`）；不支持（/memory）与未知命令只出提示卡片；
  *    /plugins 只读面板（不泄漏 .mcp.json 里的 env 值）；/new 开新标签。
  * B. Grok 标签：项目命令和自带 skill 以 `/name args` 原样发给 Grok（不在本地展开）。
@@ -251,7 +251,7 @@ test.describe('E27 · slash commands', () => {
     // 只有 "hello" 一条用户消息：命令没有发给 CLI
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
 
-    // 5) /model：列出并切换 Nomi 里的 CLI 档案（HOME 是临时目录，写的是临时配置）
+    // 5) /model：列出并切换 Nomi 里的 CLI 供应商（HOME 是临时目录，写的是临时配置）
     await invoke(chat, 'ai:cli-provider:upsert', {
       kind: 'claude',
       name: 'MockGLM',
@@ -268,7 +268,7 @@ test.describe('E27 · slash commands', () => {
     await expect(cards(chat).last()).toContainText('已切换到 MockGLM · glm-4.6', SLOW);
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
-      'MockGLM（Nomi 档案）',
+      'MockGLM（Nomi 第三方供应商）',
       SLOW,
     );
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText('glm-4.6');
