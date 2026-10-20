@@ -97,7 +97,7 @@ def main():
     SCENE.write_text(s, encoding="utf-8")
     bt = (L10.ROOT / "scripts/rive-complete/round13_build.sh").read_text()
     if "round28_armswing" not in bt:
-        bt = bt.replace("python3 round26_gait.py\n", "python3 round26_gait.py\npython3 round28_armswing.py\n")
+        bt = bt.replace("python3 round27_coat_rig.py\n", "python3 round27_coat_rig.py\npython3 round28_armswing.py\n")  # needs the R27 coat-X.front chain
         (L10.ROOT / "scripts/rive-complete/round13_build.sh").write_text(bt)
 
 

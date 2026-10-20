@@ -114,7 +114,7 @@ def main():
     SCENE.write_text(s, encoding="utf-8")
     bt = (L10.ROOT / "scripts/rive-complete/round13_build.sh").read_text()
     if "round28_spine_skin" not in bt:
-        bt = bt.replace("python3 round28_armswing.py\n", "python3 round28_armswing.py\npython3 round28_spine_skin.py\n")
+        bt = bt.replace("python3 round26_gait.py\n", "python3 round26_gait.py\npython3 round28_spine_skin.py\n")
         (L10.ROOT / "scripts/rive-complete/round13_build.sh").write_text(bt)
 
 
