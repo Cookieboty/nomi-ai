@@ -31,7 +31,9 @@ SCENE = L10.PROJECT / "scene.rml"
 K_SH = 0.65
 P = {
     "walk": dict(Af=0.34, Ab=0.28, phi0=0.24, phi_f=0.20, phi_b=0.0, LAT=0.05, ABD=0.0, E0=0.05, E1=0.06, FMIN=0.55, HK=0.15, LAG=0.06),
-    "run":  dict(Af=0.55, Ab=0.60, phi0=1.30, phi_f=0.25, phi_b=0.20, LAT=0.06, ABD=0.03, E0=0.28, E1=0.62, FMIN=0.32, HK=0.25, LAG=0.0),
+    "run":  dict(Af=0.55, Ab=0.60, phi0=1.30, phi_f=0.25, phi_b=0.20, LAT=0.06, ABD=0.03, E0=0.28, E1=0.62, FMIN=0.32, HK=0.25, LAG=0.0,
+                 R37=dict(Af=0.60, Ab=0.55, LAT=0.04, ABD=0.12, ABB=0.05, EB=0.20, EF=1.95, U0=0.50,
+                          TB=0.80, TF=0.62, DIP=0.50, HK=0.06, HW=0.0)),  # ROUND37: screen-plane ~90 deg elbow
 }
 
 
@@ -47,6 +49,8 @@ def phase(clip, f):
 def arm_pose(clip, g, env, side):
     p = P[clip]; ins = 1.0 if side == "r" else -1.0
     gg = g if side == "r" else -g
+    if clip == "run" and "R37" in p:
+        return run_pose_r37(p["R37"], gg, env, ins)
     th = (p["Af"] * gg if gg > 0 else p["Ab"] * gg) * env
     phi = (p["phi0"] + p["phi_f"] * max(gg, 0) - p["phi_b"] * max(-gg, 0)) * env
     beta = th + phi
@@ -56,6 +60,33 @@ def arm_pose(clip, g, env, side):
     return dict(th=th, phi=phi, su=su, sf=sf, sh=hk / (su * sf),
                 du=ins * (p["LAT"] * math.sin(th) + p["ABD"] * env),
                 de=ins * (p["E0"] * env + p["E1"] * max(gg, 0) * env))
+
+
+def run_pose_r37(q, gg, env, ins):
+    """ROUND37 run arms.  R28 sold the ~75-89 deg sagittal elbow purely as forearm FORESHORTENING (fore.scaleX down to
+    0.32) with only 16-52 deg of screen-plane bend: the forearm collapsed onto the elbow, the fist stayed at hip /
+    crotch height (wrist y 485-581, rest 629) pressed flat on the shorts / thigh / pouch - read as "hands not pumping
+    + clipping".  R37 shows the elbow in the SCREEN plane and keeps the fist off the thighs:
+      u = (gg+1)/2 (0 = back extreme, 1 = forward extreme), w = smoothstep((u-U0)/(1-U0)) (back half: forearm hangs
+      ~vertical beside the hip; forward half: lifts to the ~90+ deg pump)
+      fore.rotation  rest + ins*eps, eps = EB + (EF-EB)*w   (back: forearm ~vertical beside the hip; forward ~106 deg:
+                                                            fist up in front of the lower chest, toward the midline)
+      fore projected length T = TB + (TF-TB)*w - DIP*sin(pi*w): the forearm points at the camera while it lifts, so the
+      fist rises next to the elbow (outside the hip) instead of sweeping across the shorts; never collapses (>= 0.35)
+      upper: sagittal theta -> scaleX cos(theta); abduction ABD + ABB*(1-u)**2 so the elbow / fist pass OUTSIDE the
+             hip on the back swing; hand counter-rotates HW*eps so the fist stays fist-like, scaleY undoes the squash."""
+    u = 0.5 * (gg + 1.0)
+    th = (q["Af"] * gg if gg > 0 else q["Ab"] * gg) * env
+    su = math.cos(th)
+    w = min(max((u - q["U0"]) / (1.0 - q["U0"]), 0.0), 1.0); w = w * w * (3 - 2 * w)
+    eps = (q["EB"] + (q["EF"] - q["EB"]) * w) * env
+    Tu = q["TB"] + (q["TF"] - q["TB"]) * w - q["DIP"] * math.sin(math.pi * w)   # forearm points at the camera mid-lift
+    T = 1.0 - (1.0 - Tu) * env
+    sf = T / su
+    hk = 1.0 - q["HK"] * env
+    return dict(th=th, phi=eps, su=su, sf=sf, sh=hk / (su * sf),
+                du=ins * (q["LAT"] * math.sin(th) - (q["ABD"] + q["ABB"] * (1 - u) ** 2) * env),  # ins*(+) = inward, so minus = abduct
+                de=ins * eps, hand=-ins * q["HW"] * eps)
 
 
 def main():
@@ -86,7 +117,7 @@ def main():
                 put(b + "shoulder", "rotation", f, rest[b + "shoulder"] + K_SH * a["du"])
                 put(b + "fore", "rotation", f, rest[b + "fore"] + a["de"])
                 put(b + "fore", "scaleX", f, a["sf"])
-                put(b + "hand", "rotation", f, rest[b + "hand"] - 0.25 * a["de"])
+                put(b + "hand", "rotation", f, rest[b + "hand"] + a.get("hand", -0.25 * a["de"]))
                 put(b + "hand", "scaleY", f, a["sh"])
                 put(f"full.coat-{sd}.front", "scaleX", f, 1.0 / a["su"])
         add = "".join(f'\n            <KeyedObject objectId="{o}"><KeyedProperty property="{pr}">' +
