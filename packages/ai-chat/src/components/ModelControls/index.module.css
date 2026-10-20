@@ -1,4 +1,4 @@
-/* 输入栏：模型 / 思考深度芯片与下拉（视觉与 PermissionModeChip 一致） */
+/* 输入栏：「模型 · 思考深度」按钮与下拉（视觉与 PermissionModeChip 一致，菜单参考 Codex） */
 .wrap {
   position: relative;
   display: inline-flex;
@@ -41,7 +41,10 @@
     display: none;
   }
 }
-.chip:hover {
+.chip:disabled {
+  cursor: default;
+}
+.chip:hover:not(:disabled) {
   background: var(--cd-color-hover);
 }
 .note {
@@ -61,12 +64,21 @@
   background: var(--cd-color-surface-raised);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
 }
+/* 模型列表较长（Codex 十余个）：限高滚动，菜单整体不超出视口 */
+.models {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 240px;
+  overflow-y: auto;
+}
 .item {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   width: 100%;
-  padding: 8px 10px;
+  min-height: 30px;
+  padding: 4px 8px;
   border: none;
   border-radius: var(--cd-radius-sm);
   background: transparent;
@@ -83,40 +95,266 @@
   cursor: not-allowed;
   opacity: 0.5;
 }
-.item[aria-checked='true'] {
+.item[aria-selected='true'] {
   background: var(--cd-color-accent-soft);
-}
-.itemIcon {
-  display: inline-flex;
-  margin-top: 1px;
-  color: var(--cd-color-text-muted);
-}
-.item[aria-checked='true'] .itemIcon {
   color: var(--cd-color-accent-strong);
 }
-.itemText {
+.item > svg {
+  flex: none;
+}
+.itemLabel {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.itemHint {
+  flex: none;
+  font-size: 11px;
+  color: var(--cd-color-text-muted);
+}
+.custom {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 8px 2px;
+  border-top: 1px solid var(--cd-color-border);
+}
+/* 默认页：「思考深度 / 恢复默认」→ 当前档位与说明 → 分档滑杆 → 模型行（参考 Codex 推理强度浮层） */
+.effortView {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 8px 2px;
+}
+.effortHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 18px;
+}
+.effortHeadLabel {
+  font-size: 12px;
+  color: var(--cd-color-text-muted);
+}
+.effortValue {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.itemLabel {
-  font-size: 13px;
+.effortTitle {
+  font-size: 15px;
   font-weight: 600;
+  line-height: 1.3;
+  color: var(--cd-color-text);
 }
-.itemHint {
+.effortHint {
   font-size: 12px;
+  line-height: 1.4;
   color: var(--cd-color-text-muted);
 }
-.foot {
+/* 滑杆：细轨道 + 小圆点 + 白色滑块；点 / 滑块中心落在「轨道宽 - 滑块宽」区间里 */
+.sliderWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 4px;
+}
+.slider {
+  --thumb: 18px;
+  position: relative;
+  height: var(--thumb);
+  cursor: pointer;
+  touch-action: none;
+  border-radius: var(--cd-radius-full);
+}
+/* 焦点环画在滑块上（没选档位时画在轨道上），不框住整条滑杆 */
+.slider:focus-visible {
+  outline: none;
+}
+.slider:focus-visible .sliderThumb {
+  box-shadow:
+    inset 0 0 0 2px var(--cd-color-accent-strong),
+    0 0 0 4px var(--cd-color-accent-soft);
+}
+.slider:focus-visible .sliderTrack {
+  box-shadow: 0 0 0 3px var(--cd-color-accent-soft);
+}
+.sliderTrack,
+.sliderFill {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--thumb) / 2);
+  height: 4px;
+  border-radius: var(--cd-radius-full);
+  transform: translateY(-50%);
+}
+.sliderTrack {
+  right: calc(var(--thumb) / 2);
+  background: var(--cd-color-border);
+}
+.sliderFill {
+  background: var(--cd-color-accent-strong);
+  transition: width 0.15s ease;
+}
+.sliderStop {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cd-color-surface-raised);
+  box-shadow: inset 0 0 0 2px var(--cd-color-border);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.sliderStopOn {
+  background: var(--cd-color-accent-strong);
+  box-shadow: none;
+}
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--cd-color-surface-raised);
+  box-shadow:
+    inset 0 0 0 2px var(--cd-color-accent-strong),
+    0 1px 3px rgba(0, 0, 0, 0.18);
+  transform: translateY(-50%);
+  transition: left 0.15s ease;
+  pointer-events: none;
+}
+.sliderLabels {
+  --thumb: 18px;
+  position: relative;
+  height: 16px;
+}
+.sliderLabel {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.sliderLabel:hover {
+  color: var(--cd-color-text);
+}
+.sliderLabelOn {
+  color: var(--cd-color-accent-strong);
+  font-weight: 600;
+}
+/* 模型行：与列表项同一套样式，点开进模型页 */
+.modelRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 2px;
+  width: calc(100% + 16px);
+  margin: 0 -8px;
+  padding: 9px 8px;
+  border: none;
   border-top: 1px solid var(--cd-color-border);
+  border-radius: 0 0 var(--cd-radius-sm) var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.modelRow:hover,
+.modelRow:focus-visible {
+  background: var(--cd-color-hover);
+}
+.modelRow > svg {
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+.modelRowLabel {
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+.modelRowValue {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.modelLinkText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text-muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+.modelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modelError {
+  padding: 4px 8px 6px;
   font-size: 12px;
   color: var(--cd-color-text-muted);
+  overflow-wrap: anywhere;
+}
+.spin {
+  display: inline-flex;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.back:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.back:hover:not(:disabled),
+.back:focus-visible {
+  color: var(--cd-color-text);
+  background: var(--cd-color-hover);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sliderFill,
+  .sliderThumb {
+    transition: none;
+  }
+  .spin {
+    animation: none;
+  }
 }
 .link {
   display: inline-flex;

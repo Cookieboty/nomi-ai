@@ -152,24 +152,29 @@ export interface LiveAgentEvent {
 
 export const MAIN_TAB_ID = 'main';
 
-/** 思考深度档位（由浅到深，并集；UI 按后端 / 模型目录的 efforts 子集渲染） */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/** 思考深度档位（各 CLI 取值的并集，由浅到深）；某个模型支持哪些以 CLI 返回的目录为准 */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
-/** 官方账号后端的可选模型目录 */
+/** 从 CLI 读到的可选模型 */
 export interface ModelCatalogModel {
+  /** 传给 CLI 的模型值 */
   id: string;
   label?: string;
-  /** 推理模型：可切换思考深度 */
-  reasoning?: boolean;
-  efforts?: ReasoningEffort[];
+  description?: string;
+  /** CLI 声明支持思考深度 */
+  reasoning: boolean;
+  efforts: ReasoningEffort[];
+  /** CLI 对该模型的默认档位（仅显示） */
   defaultEffort?: ReasoningEffort;
-  deprecated?: boolean;
 }
+/** 主进程从 CLI 读到的模型目录（不写死） */
 export interface BackendModelCatalog {
   backend: HarnessBackend;
-  /** 该后端思考模型的档位集（模型未单独声明 efforts 时用它） */
-  efforts?: ReasoningEffort[];
   models: ModelCatalogModel[];
+  /** 不传模型参数时 CLI 实际使用的模型（CLI 能告诉我们时才有） */
+  defaultModel: ModelCatalogModel | null;
+  /** 读取失败的原因（此时 models 为空） */
+  error?: string;
 }
 
 export interface HarnessSendResult {
@@ -271,9 +276,9 @@ export const harnessClient = {
     call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
     call<HarnessTabsState>('permission-defaults', o),
-  /** 官方账号后端的可选模型目录；不支持切换模型的后端返回 null */
-  modelCatalog: (backend: HarnessBackend) =>
-    call<BackendModelCatalog | null>('model-catalog', backend),
+  /** 从 CLI 读到的模型目录（主进程缓存）；不支持切换模型的后端返回 null；refresh 强制重读 */
+  modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean } = {}) =>
+    call<BackendModelCatalog | null>('model-catalog', backend, opts),
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
   setTabModel: (id: string, model: string) => call<HarnessTabMeta>('tab-model', id, model),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
