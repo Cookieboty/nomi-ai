@@ -63,6 +63,15 @@
 - **绘制序**: 皮带 / 工牌 / 挂包 之后、短裤之前
 - **隐藏**: 随 `shorts` 一起隐；单独隐背心时腰头上沿仍在（看作高腰短裤）
 
+### 5b. `pouch` 腰包（R34b）
+- **Images**: `full.belt.pouch.image`
+- **Assets**: `belt-pouch.png`（96×112；仅包体+翻盖+橙标+侧绳+挂带+橙扣/银环；R34b 前为含短裤布料的裁片，且包右下一条被融在 `coat-r-front.png` 里）
+- **Bones**: 蒙皮网格：挂带行（y≤446）= pelvis，y 446→462 平滑过渡到 `full.belt.pouch`（pelvis 子骨，枢轴≈(552.8,436.7)）
+- **二次运动**: idle 原有 rotation 关键帧保留；walk/run/hop/squat/step 新增阻尼摆（枢轴世界加速度 + 盆骨转角驱动）rotation + 小幅 y 弹跳（≤2px）
+- **绘制序**: 在 `coat-r.front` 之前（包在外套前襟之前，与原画一致）；`arm-r.upper-skin` 仍在其前
+- **隐藏后**: 露出 `shorts.png` 的平滑回填（normalized-conv 均色 + 淡褶，程序化）与 `coat-r-front` 白边 inpaint
+- **隐藏风险**: 包下短裤为平涂暗布，与原布料交界处可见色块边
+
 ### 6. `shoes` 鞋
 - **Images**: `full.shoe.{l,r}.image`
 - **Assets**: `shoe-*.png`
@@ -92,7 +101,8 @@
 
 ```
 body.backfill → leg skins → socks → arm skins → arm-under
-→ tank → shorts → shorts-orange → shorts-waist → belt / pouch / badge
+→ tank → shorts → shorts-orange → shorts-waist → belt / badge
+→ coat-front(r) 之前: pouch
 → coat stump/shoulder → sleeve → coat-front → cuff → hem.ribbon
 → shoes → choker / hair accessories → head/hair/face
 ```

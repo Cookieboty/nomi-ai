@@ -28,6 +28,8 @@ ORIGIN = {
     "shorts-side-orange.png": (379, 507),
     "underlayer-bottom.png": (379, 507),
     "torso-tank.png": (410, 332),
+    "coat-r-front.png": (594, 320),
+    "coat-l-front.png": None,
     "fullbody-base-no-head-arms.png": (0, 0),
     "body-backfill.png": (0, 0),
 }
@@ -139,3 +141,71 @@ def asset_after(scene: str, after_file: str, aname: str, frel: str, aid: str) ->
         return scene
     m = re.search(rf'<ImageAsset [^>]*file="reference/svg-rig/{re.escape(after_file)}"[^/]*/>', scene)
     return scene[: m.end()] + f'\n    <ImageAsset name="{aname}" file="{frel}" id="{aid}"/>' + scene[m.end() :]
+
+
+# ------------------------------------------------------------------ secondary motion (damped pendulum + bounce)
+def simulate(scene: str, anim: str, bone_name: str, L: float = 50.0, hz: float = 2.4, zeta: float = 0.32,
+             rmax: float = 0.12, ymax: float = 2.0, gain: float = 1.0):
+    """bone (child of full.pelvis) lag driven by its pivot's world acceleration + pelvis world rotation.
+    returns frames, rot (rad, local), dy (px, local) — both 0 at first/last frame."""
+    import round27_common as K
+    fk = K.FK(scene)
+    dur = int(re.search(rf'<LinearAnimation name="{re.escape(anim)}"[^>]*duration="(\d+)"', scene).group(1))
+    fps = 60.0
+    h = fk.h[bone_name]
+    piv = np.array([h["x"], h["y"], 1.0])
+    P, TH = [], []
+    for f in range(dur + 1):
+        M = fk.world("full.pelvis", anim, f)
+        P.append((M @ piv)[:2]); TH.append(K.angle(M))
+    P, TH = np.array(P), np.array(TH)
+    dt = 1.0 / fps
+    acc = np.zeros_like(P)
+    acc[1:-1] = (P[2:] - 2 * P[1:-1] + P[:-2]) / dt ** 2
+    w = 2 * np.pi * hz
+    phi, dphi, y, dy = TH[0], 0.0, 0.0, 0.0
+    rot, off = [], []
+    for f in range(dur + 1):
+        for _ in range(4):  # substeps
+            ddphi = -w * w * (phi - TH[f]) - 2 * zeta * w * dphi - gain * acc[f, 0] / L
+            dphi += ddphi * dt / 4; phi += dphi * dt / 4
+            ddy = -(1.2 * w) ** 2 * y - 2 * zeta * (1.2 * w) * dy - gain * acc[f, 1]
+            dy += ddy * dt / 4; y += dy * dt / 4
+        rot.append(phi - TH[f]); off.append(y)
+    rot, off = np.clip(np.array(rot), -rmax, rmax), np.clip(np.array(off), -ymax, ymax)
+    n = min(10, dur // 4)
+    fade = np.ones(dur + 1)
+    fade[-n:] = np.linspace(1, 0, n) ** 2
+    return np.arange(dur + 1), rot * fade, off * fade, h
+
+
+def key_track(obj_id: str, prop: str, frames, vals, step: int = 2, base: float = 0.0) -> str:
+    sel = [f for f in frames if f % step == 0 or f == frames[-1]]
+    kf = "".join(f'<KeyFrameDouble value="{base + vals[f]:.6f}" frame="{f}" interpolationType="linear"/>' for f in sel)
+    return f'<KeyedObject objectId="{obj_id}"><KeyedProperty property="{prop}">{kf}</KeyedProperty></KeyedObject>'
+
+
+def smooth_fill(ctx: np.ndarray, hole: np.ndarray, sigma: float = 10.0, seed: int = 34, grain: float = 1.2,
+                fold: float = 0.0) -> np.ndarray:
+    """normalized-convolution fill (Gaussian-weighted mean of known context) for large holes: no Telea streaks/blobs.
+    fold>0 adds faint vertical cloth folds (sin of x) of that amplitude."""
+    known = ((ctx[:, :, 3] >= 200) & ~hole).astype(np.float32)
+    rgb = ctx[:, :, :3].astype(np.float32)
+    num = cv2.GaussianBlur(rgb * known[..., None], (0, 0), sigma)
+    den = cv2.GaussianBlur(known, (0, 0), sigma)[..., None]
+    fill = num / np.maximum(den, 1e-4)
+    small = den[..., 0] < 0.02
+    if small.any():  # far from context: wider kernel
+        num2 = cv2.GaussianBlur(rgb * known[..., None], (0, 0), sigma * 3)
+        den2 = cv2.GaussianBlur(known, (0, 0), sigma * 3)[..., None]
+        fill[small] = (num2 / np.maximum(den2, 1e-4))[small]
+    H, W = hole.shape
+    rng = np.random.default_rng(seed)
+    fill = fill + rng.normal(0, grain, (H, W, 1))
+    if fold > 0:
+        xs = np.arange(W)[None, :, None]
+        fill = fill + fold * np.sin(xs / 5.5 + 0.7) * np.sin(np.arange(H)[:, None, None] / 37.0 + 1.1)
+    out = ctx.copy()
+    out[hole, :3] = np.clip(fill[hole], 0, 255).astype(np.uint8)
+    out[hole, 3] = 255
+    return out
