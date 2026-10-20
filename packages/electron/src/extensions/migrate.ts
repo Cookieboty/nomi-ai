@@ -16,6 +16,7 @@
  *   总大小 ≤ 5 MB；项目里的技能目录如果链接到项目 / 用户技能目录之外则拒绝。
  * 渲染进程拿到的只有脱敏后的预览和一个 key，路径永远在主进程里。
  */
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -255,15 +256,35 @@ export function fromCodexEntry(
   return { raw, warnings, disabled: o.enabled === false };
 }
 
+/**
+ * 来源文件的稳定身份：规范化路径的短哈希（key 里不出现路径本身，重扫不变）。
+ * 自定义 CLAUDE_CONFIG_DIR 与 ~/.claude.json 里的同名条目靠它区分，预览与导入一一对应（#74）。
+ */
+function sourceId(file: string): string {
+  return createHash('sha256').update(path.resolve(file)).digest('hex').slice(0, 10);
+}
+
+/** 兜底：key 必须唯一（缓存按 key 取），万一撞了给后来者加序号，不能让后者覆盖前者 */
+function uniqueKeys(list: Array<{ key: string }>): void {
+  const seen = new Set<string>();
+  for (const c of list) {
+    let k = c.key;
+    for (let i = 2; seen.has(k); i++) k = `${c.key}#${i}`;
+    c.key = k;
+    seen.add(k);
+  }
+}
+
 function toCandidate(
   tool: MigrateTool,
   scope: MigrateScope,
   where: string,
   name: string,
   conv: { raw?: Record<string, unknown>; warnings: string[]; error?: string; disabled?: boolean },
+  src: string,
   keySuffix = '',
 ): McpCandidate {
-  const key = `${tool}:${scope}:mcp:${keySuffix}${name}`;
+  const key = `${tool}:${scope}:mcp:${src}:${keySuffix}${name}`;
   const base = { key, kind: 'mcp' as const, tool, scope, name, where, warnings: conv.warnings };
   if (conv.error || !conv.raw) return { ...base, error: conv.error ?? t('配置格式不正确') };
   try {
@@ -280,13 +301,16 @@ function claudeServers(
   tool: MigrateTool,
   scope: MigrateScope,
   where: string,
+  src: string,
   keySuffix = '',
 ): McpCandidate[] {
   const servers = (j as { mcpServers?: unknown } | null)?.mcpServers;
   if (!servers || typeof servers !== 'object' || Array.isArray(servers)) return [];
   return Object.entries(servers as Record<string, unknown>)
     .slice(0, MAX_ENTRIES)
-    .map(([name, v]) => toCandidate(tool, scope, where, name, fromClaudeEntry(name, v), keySuffix));
+    .map(([name, v]) =>
+      toCandidate(tool, scope, where, name, fromClaudeEntry(name, v), src, keySuffix),
+    );
 }
 
 function display(home: string, p: string, project?: string | null): string {
@@ -539,8 +563,9 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
       Record<string, unknown> | undefined;
     if (!j || typeof j !== 'object') continue;
     const where = display(home, f, project);
+    const src = sourceId(f);
     // 只取 mcpServers；文件里其它内容（账号、历史、项目状态）立即丢弃
-    scan.mcp.push(...claudeServers({ mcpServers: j.mcpServers }, 'claude', 'user', where));
+    scan.mcp.push(...claudeServers({ mcpServers: j.mcpServers }, 'claude', 'user', where, src));
     const projects = j.projects;
     if (projects && typeof projects === 'object' && !Array.isArray(projects)) {
       for (const [p, v] of Object.entries(projects as Record<string, unknown>).slice(
@@ -550,22 +575,25 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
         const servers = (v as { mcpServers?: unknown } | null)?.mcpServers;
         if (!servers) continue;
         scan.mcp.push(
-          ...claudeServers({ mcpServers: servers }, 'claude', 'local', `${where} · ${p}`, `${p}:`),
+          ...claudeServers(
+            { mcpServers: servers },
+            'claude',
+            'local',
+            `${where} · ${p}`,
+            src,
+            `${p}:`,
+          ),
         );
       }
     }
   }
   // Claude Code：项目 .mcp.json
   if (project) {
-    const j = readJson('claude', path.join(project, '.mcp.json'), MAX_CONFIG, projectRoots);
+    const file = path.join(project, '.mcp.json');
+    const j = readJson('claude', file, MAX_CONFIG, projectRoots);
     if (j)
       scan.mcp.push(
-        ...claudeServers(
-          j,
-          'claude',
-          'project',
-          display(home, path.join(project, '.mcp.json'), project),
-        ),
+        ...claudeServers(j, 'claude', 'project', display(home, file, project), sourceId(file)),
       );
   }
 
@@ -607,7 +635,9 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
       0,
       MAX_ENTRIES,
     ))
-      scan.mcp.push(toCandidate('codex', scope, where, name, fromCodexEntry(name, v)));
+      scan.mcp.push(
+        toCandidate('codex', scope, where, name, fromCodexEntry(name, v), sourceId(file)),
+      );
   }
 
   // 技能。用户目录里的技能允许链接到别处（用户自己建的共享技能），只受凭据目录规则约束；
@@ -641,5 +671,6 @@ export function discoverMigrations(e: MigrateEnv): MigrateScan {
       skillsIn('codex', 'project', path.join(project, '.agents', 'skills'), home, project, allow),
     );
   }
+  uniqueKeys([...scan.mcp, ...scan.skills]);
   return scan;
 }
