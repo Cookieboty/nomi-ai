@@ -27,8 +27,8 @@
  "r:full.peace": 2.85,
  "r:full.yawn": 0.0,
  "r:full.stretch": 0.41,
- "r:full.step": 0.83,
  "r:full.squat": 0.93,
+ "r:full.step": 0.83,
  "l:full.idle": 0.38,
  "l:full.cheer": 2.38,
  "l:full.celebrate": 1.48,
@@ -47,6 +47,6 @@
  "l:full.angry": 3.21,
  "l:full.yawn": 0.0,
  "l:full.stretch": 0.8,
- "l:full.step": 0.81,
- "l:full.squat": 0.91
+ "l:full.squat": 0.91,
+ "l:full.step": 0.81
 }

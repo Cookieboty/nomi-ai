@@ -37,11 +37,11 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/head.png": {
-      "sha256": "969919f8f201988122deb16a0b9917b3c04d3767a1b6c2750c24ea207d12129a",
-      "bytes": 83023,
+      "sha256": "21fc369fff1784a9b03127e0e8fec6619aa7a51d3f2351ddc5cfe3ab152c5b7c",
+      "bytes": 83008,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother ROUND20 lid: softened dark eye-hole rim (may move open-eye subpixels) ROUND20 lid: softened dark eye-hole rim"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother ROUND20 lid: softened dark eye-hole rim"
     },
     "reference/svg-rig/nomi-fullbody-mother.svg": {
       "sha256": "8f6016be8af8461b8381eaf2dbad879f002df404a9bc7ca649e10c704430030d",
@@ -471,8 +471,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-l-skin.png": {
-      "sha256": "ea132cb54b8f7b007e94940a81ba3173e57a07208e2a5fea9c3dce563a58b513",
-      "bytes": 616,
+      "sha256": "81c2489a9cd90a2a1c2018d52f7ff22dec7a7aa8f78cbbaa42c86757e30480b6",
+      "bytes": 624,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND20 lid: closed-eye underlayer matched to socket neighbours + feathered alpha"
@@ -513,8 +513,8 @@
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/eye-r-skin.png": {
-      "sha256": "c04e07c20417cb7de7bb2deca60c47c153222c7f9d67473f9baded6539e67894",
-      "bytes": 647,
+      "sha256": "ca06780bab0a425d46b6b51df5109f26adbcf39be8ef935f680813e0fdc2669e",
+      "bytes": 650,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND20 lid: closed-eye underlayer matched to socket neighbours + feathered alpha"
