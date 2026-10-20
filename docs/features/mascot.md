@@ -129,10 +129,9 @@ Nomi 有 **43 个命名动作**（`packages/renderer/src/mascot/rig/actions.ts`�
 
 只内置 Nomi 一个角色（2D，Rive 动画，不可用时退回分层立绘），不提供角色切换、模型商店或导入自己的模型。旧版本里记住的其它角色会在升级后自动换回 Nomi。
 
-- **致谢**：工具栏「信息」，列出角色、动作、图标的作者与许可。
+- **致谢**：工具栏「更多」→「致谢 / Credits」，列出角色与图标的作者与许可。
 
 ## 技术说明
 
-- Nomi 由透明 PNG 图层在 Canvas2D 上合成（`packages/renderer/src/mascot/layeredRig.ts`），不依赖 WebGL；动作系统见上文「动作」；3D 角色使用 three.js + @pixiv/three-vrm，只在切换到 VRM 时才加载。
-- 3D 角色的身体动作由 Quaternius Universal Animation Library（CC0）的片段和原创程序化手势（挥手、点头、思考、拍手、鞠躬、欢呼、张望等）组成。
+- Nomi 由透明 PNG 图层在 Canvas2D 上合成（`packages/renderer/src/mascot/layeredRig.ts`），不依赖 WebGL；动作系统见上文「动作」。
 - Linux 的点击穿透用窗口形状实现；Wayland 下全局光标位置不可用。

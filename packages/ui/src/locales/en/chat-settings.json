@@ -186,8 +186,6 @@
   "✅ 已完成：{0}": "✅ Done: {0}",
   "⚠️ {0} 失败{1}": "⚠️ {0} failed{1}",
   "摸到「{0}」了~": "Touched “{0}”~",
-  "身体动作（{0} 个片段，重定向到 VRM）": "Body motions ({0} clips, retargeted to VRM)",
-  "手势动作（{0} 个）": "Gestures ({0})",
   "工具栏图标": "Toolbar icons",
   "应用图标": "App icon",
   "作者原创，保留所有权利": "Original work by the author, all rights reserved",

@@ -26,7 +26,7 @@ export interface MascotCatalog {
   models: MascotModel[];
 }
 
-export const MODEL_LIST_URL = './assets/models/vrm/model-list.json';
+export const MODEL_LIST_URL = './assets/models/model-list.json';
 /** 旧版本记住的「当前角色」（可能是已移除的商店 / 导入角色） */
 const LEGACY_SELECTED_KEY = 'companion.mascot.model';
 

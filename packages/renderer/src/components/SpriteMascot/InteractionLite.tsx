@@ -33,8 +33,7 @@ export interface InteractionLiteProps {
 }
 
 /**
- * Desktop interaction for the 2D sprite / layered rig (same contract as the 3D
- * MascotInteractionLayer, without three.js):
+ * Desktop interaction for the 2D sprite / layered rig:
  * - per-pixel hit test on the 2D canvas alpha (+ mascot UI) → main toggles click-through
  *   (Windows / macOS: setIgnoreMouseEvents forward; Linux: window shape)
  * - press + move → window drag through the main process (mascot:drag-*), pointer captured so

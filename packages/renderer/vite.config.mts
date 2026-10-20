@@ -61,15 +61,9 @@ export default defineConfig({
         'tts-config': path.resolve(__dirname, 'tts-config.html'),
       },
       output: {
-        // 稳定的 vendor 拆分：react 常驻；three/VRM 仅 3D 模式懒加载时请求
+        // 稳定的 vendor 拆分：react 常驻
         manualChunks(id: string) {
           if (!id.includes('node_modules')) return undefined;
-          if (
-            /[\\/](three|@pixiv|@react-three|three-stdlib|troika-[^\\/]+|maath|camera-controls)[\\/]/.test(
-              id,
-            )
-          )
-            return 'vendor-three';
           if (/[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
           return undefined;
         },

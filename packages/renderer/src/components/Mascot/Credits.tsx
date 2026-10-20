@@ -1,13 +1,12 @@
 import type { LicenseTermsView } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 import { Badge, Modal } from '@nomi-ai/ui';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
 import { conditionsText, licenseLabel } from '@/mascot/licenseTerms';
-import { loadMotionLibrary } from '@/mascot/motion/library';
 
 interface CreditRow {
   key: string;
@@ -31,7 +30,6 @@ export function collectCredits(
     licenseTerms?: LicenseTermsView;
     licenseFileUrl?: string;
   }>,
-  motionSources: Array<{ source: string; license: string }>,
 ): CreditRow[] {
   const rows: CreditRow[] = models.map((m) => ({
     key: `model-${m.name}`,
@@ -43,25 +41,6 @@ export function collectCredits(
     termsUrl: m.licenseTerms?.url,
     licenseFileUrl: m.licenseFileUrl,
   }));
-  const ual = motionSources.filter((s) => s.source.startsWith('Quaternius'));
-  if (ual.length) {
-    rows.push({
-      key: 'motions-ual',
-      title: t('身体动作（{0} 个片段，重定向到 VRM）', ual.length),
-      author: 'Quaternius — Universal Animation Library',
-      license: 'CC0-1.0',
-      source: 'https://quaternius.com/packs/universalanimationlibrary.html',
-    });
-  }
-  const own = motionSources.filter((s) => !s.source.startsWith('Quaternius'));
-  if (own.length) {
-    rows.push({
-      key: 'motions-own',
-      title: t('手势动作（{0} 个）', own.length),
-      author: 'Nomi contributors',
-      license: 'MIT',
-    });
-  }
   rows.push({
     key: 'ui-icons',
     title: t('工具栏图标'),
@@ -79,23 +58,11 @@ export function collectCredits(
   return rows;
 }
 
-/** 致谢 / Credits：列出所有内置角色、动作与图标的作者与许可。 */
+/** 致谢 / Credits：列出内置角色与图标的作者与许可。 */
 export const Credits: React.FC = () => {
   const { state, dispatch } = useMascot();
-  const [motionSources, setMotionSources] = useState<Array<{ source: string; license: string }>>(
-    [],
-  );
-  const open = state.panel === 'credits';
-  useEffect(() => {
-    if (!open) return;
-    loadMotionLibrary()
-      .then((lib) =>
-        setMotionSources(lib.clips.map((c) => ({ source: c.source, license: c.license }))),
-      )
-      .catch(() => setMotionSources([]));
-  }, [open]);
-  if (!open) return null;
-  const rows = collectCredits(state.modelList, motionSources);
+  if (state.panel !== 'credits') return null;
+  const rows = collectCredits(state.modelList);
 
   return (
     <Modal

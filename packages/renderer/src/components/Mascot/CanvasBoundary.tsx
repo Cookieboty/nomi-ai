@@ -5,7 +5,7 @@ import React from 'react';
 const log = createLogger('canvas-boundary');
 
 /**
- * 3D 画布错误边界：WebGL 不可用（驱动 / 虚拟显示）时只让角色区域降级，
+ * 角色画布错误边界：渲染失败（驱动 / 虚拟显示）时只让角色区域降级，
  * 气泡、工具栏、桌面工具确认框等其余界面仍然可用。
  */
 export class CanvasBoundary extends React.Component<

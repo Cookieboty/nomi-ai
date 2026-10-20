@@ -237,14 +237,13 @@ Nomi 构建在这些优秀的开源项目之上：
 
 - [Electron](https://www.electronjs.org/)、[React](https://react.dev/)、[Vite](https://vitejs.dev/)、[Turborepo](https://turbo.build/)、[pnpm](https://pnpm.io/)
 - [Vercel AI SDK](https://ai-sdk.dev/) 与 [Model Context Protocol](https://modelcontextprotocol.io/)
-- [three.js](https://threejs.org/)、[@pixiv/three-vrm](https://github.com/pixiv/three-vrm)、[react-three-fiber](https://github.com/pmndrs/react-three-fiber) / [drei](https://github.com/pmndrs/drei)
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp)、[llama.cpp](https://github.com/ggml-org/llama.cpp)、[Silero VAD](https://github.com/snakers4/silero-vad)、[ONNX Runtime Web](https://onnxruntime.ai/)
 - [Tesseract.js](https://tesseract.projectnaptha.com/) 与 [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast)、[unpdf](https://github.com/unjs/unpdf)、[fflate](https://github.com/101arrowz/fflate)
-- [Zustand](https://github.com/pmndrs/zustand)、[Immer](https://immerjs.github.io/immer/)、[Zod](https://zod.dev/)、[Lucide](https://lucide.dev/)、[react-window](https://github.com/bvaughn/react-window)
+- [Zod](https://zod.dev/)、[Lucide](https://lucide.dev/)、[react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) 与 electron-updater、[node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
-- [Quaternius](https://quaternius.com/) Universal Animation Library（CC0）、[Qwen](https://github.com/QwenLM) 开源模型（本地模型目录）
+- [Rive](https://rive.app/)（`@rive-app/canvas-lite`，MIT）、[Qwen](https://github.com/QwenLM) 开源模型（本地模型目录）
 
-角色、动作与图标的作者和许可也可以在应用内「致谢」页查看。
+角色与图标的作者和许可也可以在应用内「致谢」页查看。
 
 ### 🔗 链接
 
@@ -428,14 +427,13 @@ Nomi is built on excellent open-source projects:
 
 - [Electron](https://www.electronjs.org/), [React](https://react.dev/), [Vite](https://vitejs.dev/), [Turborepo](https://turbo.build/), [pnpm](https://pnpm.io/)
 - [Vercel AI SDK](https://ai-sdk.dev/) and [Model Context Protocol](https://modelcontextprotocol.io/)
-- [three.js](https://threejs.org/), [@pixiv/three-vrm](https://github.com/pixiv/three-vrm), [react-three-fiber](https://github.com/pmndrs/react-three-fiber) / [drei](https://github.com/pmndrs/drei)
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [llama.cpp](https://github.com/ggml-org/llama.cpp), [Silero VAD](https://github.com/snakers4/silero-vad), [ONNX Runtime Web](https://onnxruntime.ai/)
 - [Tesseract.js](https://tesseract.projectnaptha.com/) and [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast), [unpdf](https://github.com/unjs/unpdf), [fflate](https://github.com/101arrowz/fflate)
-- [Zustand](https://github.com/pmndrs/zustand), [Immer](https://immerjs.github.io/immer/), [Zod](https://zod.dev/), [Lucide](https://lucide.dev/), [react-window](https://github.com/bvaughn/react-window)
+- [Zod](https://zod.dev/), [Lucide](https://lucide.dev/), [react-window](https://github.com/bvaughn/react-window)
 - [electron-builder](https://www.electron.build/) and electron-updater, [node-global-key-listener](https://github.com/LaunchMenu/node-global-key-listener)
-- [Quaternius](https://quaternius.com/) Universal Animation Library (CC0), [Qwen](https://github.com/QwenLM) open models (local model catalog)
+- [Rive](https://rive.app/) (`@rive-app/canvas-lite`, MIT), [Qwen](https://github.com/QwenLM) open models (local model catalog)
 
-Authors and licenses for characters, motions, and icons are also listed in the in-app Credits page.
+Authors and licenses for the character and icons are also listed in the in-app Credits page.
 
 ### 🔗 Links
 

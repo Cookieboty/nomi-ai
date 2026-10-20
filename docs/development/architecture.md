@@ -35,5 +35,5 @@ Electron 主进程（packages/electron）
 - **数据**：全部保存在 Electron `userData` 下按功能划分的目录；密钥使用 `safeStorage`。
 - **网络**：外部请求经 `netGuard` 拦截本机 / 内网地址；执行命令使用 `shellEscape`；私有文件经 `utils/privateFile` 以 0600 写入。
 - **日志**：主进程使用 `LoggerService` / `createMainLogger`，渲染进程使用 `@nomi-ai/ui` 的 `createLogger`，不直接用 `console.log`。
-- **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；three.js / VRM 只在使用 3D 角色时加载。
+- **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；看板娘 Rive 场景按需加载。
 - **i18n**：界面文案以中文原文为 key，英文翻译在 `packages/ui/src/locales/en.json`；渲染进程用 `t()`，主进程用 `packages/electron/src/i18n`。

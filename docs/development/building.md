@@ -69,7 +69,6 @@ xvfb-run -a node scripts/measure-chat-open.mjs 7 # 打开对话窗口与设置�
 | `scripts/brand/build-nomi-rig.py` → `build-nomi-head-hd.py` → `build-nomi-body-parts.py` → `polish-nomi-neck.py` | 从项目所有者提供的原图（不入库）生成 Nomi 分层立绘，依次写入同一个输出目录 |
 | `scripts/brand/build-app-icon.py [输出目录]`                                                                     | 生成应用图标 SVG 变体（默认 `docs/brand/icon-variants`）                   |
 | `electron scripts/brand/render-icons.mjs <jobs.json>`                                                            | 用 Electron 把 SVG 栅格化为 PNG                                            |
-| `node packages/renderer/scripts/build-motions.mjs --keep-ual`                                                    | 重新生成看板娘动作库（传入 UAL glTF 可重新导入 CC0 片段）                  |
 | `node packages/electron/scripts/smoke-silero.cjs <silero_vad.onnx>`                                              | 构建后验证主进程能加载 Silero VAD 推理                                     |
 | `python3 scripts/contact-sheet.py <目录> <输出.png>`                                                             | 把截图拼成网格，便于检查动画                                               |
 
