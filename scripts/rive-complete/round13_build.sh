@@ -47,3 +47,5 @@ python3 round34_belt.py
 python3 round34_pouch.py
 python3 round34_badge.py
 python3 round35_choker.py
+python3 round35_hair_ornaments.py
+python3 round35_coat_badge.py
