@@ -11,8 +11,9 @@ const list = [
   { id: 'c', name: '重构模块', backend: 'claude', createdAt: 1, updatedAt: Date.now() - 2000 },
 ];
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
+vi.mock('../src/contexts/AiChatContext', () => {
+  const api = {
     state: {
       messages: [],
       ipcClient: {
@@ -22,8 +23,9 @@ vi.mock('../src/contexts/AiChatContext', () => ({
       },
     },
     actions: {},
-  }),
-}));
+  };
+  return { useAiChat: () => api };
+});
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {

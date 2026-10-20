@@ -30,25 +30,35 @@ const deleteConversation = vi.fn(async (id: string) => {
   }
 });
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
-    state: {
-      messages: [],
-      ipcClient: {
-        listConversations: async () => list,
-        currentConversationId: () => currentId,
-        conversationStore: () => ({
-          updateMeta,
-          upsertFromTab: () => undefined,
-          list: () => [],
-          removeByTabId: () => undefined,
-        }),
-        deleteConversation,
-      },
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑。
+// 首次调用时才建对象：此时文件顶层的 vi.fn 已初始化。
+vi.mock('../src/contexts/AiChatContext', () => {
+  let api: unknown;
+  return {
+    useAiChat: () => {
+      if (api) return api;
+      const store = {
+        updateMeta,
+        upsertFromTab: () => undefined,
+        list: () => [],
+        removeByTabId: () => undefined,
+      };
+      api = {
+        state: {
+          messages: [],
+          ipcClient: {
+            listConversations: async () => list,
+            currentConversationId: () => currentId,
+            conversationStore: () => store,
+            deleteConversation,
+          },
+        },
+        actions: { loadChatHistory, clearChatHistory },
+      };
+      return api;
     },
-    actions: { loadChatHistory, clearChatHistory },
-  }),
-}));
+  };
+});
 
 const tab = (o: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   id: 't1',

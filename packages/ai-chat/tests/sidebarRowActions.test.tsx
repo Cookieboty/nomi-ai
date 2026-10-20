@@ -24,29 +24,39 @@ const updateMeta = vi.fn();
 const deleteConversation = vi.fn(async () => undefined);
 const onForkRequest = vi.fn();
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
-    state: {
-      messages: [],
-      ipcClient: {
-        listConversations: async () => convs,
-        currentConversationId: () => 'n1',
-        switchConversation: async () => undefined,
-        deleteConversation,
-        conversationStore: () => ({
-          upsertFromTab: () => undefined,
-          removeByTabId: () => undefined,
-          list: () => convs,
-          currentId: () => 'n1',
-          get: (id: string) => convs.find((x) => x.id === id),
-          updateMeta,
-          getMessages: () => [],
-        }),
-      },
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑。
+// 首次调用时才建对象：此时文件顶层的 vi.fn 已初始化。
+vi.mock('../src/contexts/AiChatContext', () => {
+  let api: unknown;
+  return {
+    useAiChat: () => {
+      if (api) return api;
+      const store = {
+        upsertFromTab: () => undefined,
+        removeByTabId: () => undefined,
+        list: () => convs,
+        currentId: () => 'n1',
+        get: (id: string) => convs.find((x) => x.id === id),
+        updateMeta,
+        getMessages: () => [],
+      };
+      api = {
+        state: {
+          messages: [],
+          ipcClient: {
+            listConversations: async () => convs,
+            currentConversationId: () => 'n1',
+            switchConversation: async () => undefined,
+            deleteConversation,
+            conversationStore: () => store,
+          },
+        },
+        actions: { loadChatHistory: async () => undefined },
+      };
+      return api;
     },
-    actions: { loadChatHistory: async () => undefined },
-  }),
-}));
+  };
+});
 
 const hist = {
   key: 'codex:s9',
