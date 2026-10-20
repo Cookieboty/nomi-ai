@@ -209,3 +209,41 @@ def smooth_fill(ctx: np.ndarray, hole: np.ndarray, sigma: float = 10.0, seed: in
     out[hole, :3] = np.clip(fill[hole], 0, 255).astype(np.uint8)
     out[hole, 3] = 255
     return out
+
+
+def crease_fill(ctx: np.ndarray, hole: np.ndarray, sigma: float = 8.0, seed: int = 34, grain: float = 1.0,
+                wv: float = 0.65) -> np.ndarray:
+    """shorts creases are vertical: per column, linearly interpolate the nearest known fabric above/below the hole
+    (median of 3 px), blend (wv) with the normalized-conv mean, then match the hole-rim mean.  Procedural."""
+    known = (ctx[:, :, 3] >= 200) & ~hole
+    base = smooth_fill(ctx, hole, sigma=sigma, seed=seed, grain=0.0)[:, :, :3].astype(np.float32)
+    H, W = hole.shape
+    vert = base.copy()
+    rgb = ctx[:, :, :3].astype(np.float32)
+    for x in range(W):
+        ys = np.nonzero(hole[:, x])[0]
+        if not len(ys):
+            continue
+        # contiguous runs
+        runs = np.split(ys, np.nonzero(np.diff(ys) > 1)[0] + 1)
+        for r in runs:
+            y0, y1 = r[0], r[-1]
+            up = [y for y in range(y0 - 1, max(-1, y0 - 6), -1) if known[y, x]][:3]
+            dn = [y for y in range(y1 + 1, min(H, y1 + 6)) if known[y, x]][:3]
+            if up and dn:
+                cu, cd = np.median(rgb[up, x], 0), np.median(rgb[dn, x], 0)
+                t = (r - y0 + 1) / (y1 - y0 + 2)
+                vert[r, x] = (1 - t)[:, None] * cu + t[:, None] * cd
+            elif up or dn:
+                vert[r, x] = np.median(rgb[up or dn, x], 0)
+    vert = cv2.GaussianBlur(vert, (0, 0), sigmaX=0.8, sigmaY=2.0)
+    fill = wv * vert + (1 - wv) * base
+    rim = (cv2.dilate(hole.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0) & known
+    if rim.any():
+        fill += (rgb[rim].mean(0) - fill[hole].mean(0)) * 0.8
+    rng = np.random.default_rng(seed)
+    fill += rng.normal(0, grain, (H, W, 1))
+    out = ctx.copy()
+    out[hole, :3] = np.clip(fill[hole], 0, 255).astype(np.uint8)
+    out[hole, 3] = 255
+    return out

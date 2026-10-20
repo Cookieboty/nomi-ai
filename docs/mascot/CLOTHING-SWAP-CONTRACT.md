@@ -72,6 +72,15 @@
 - **隐藏后**: 露出 `shorts.png` 的平滑回填（normalized-conv 均色 + 淡褶，程序化）与 `coat-r-front` 白边 inpaint
 - **隐藏风险**: 包下短裤为平涂暗布，与原布料交界处可见色块边
 
+### 5c. `badge` 工牌 + 挂绳（R34c）
+- **Images**: `full.belt.id.image`
+- **Assets**: `belt-id.png`（仅橙挂绳 + 两枚银环 + 黑夹 + 白底「N」卡；R34c 前为含短裤布料的 54×162 矩形裁片）
+- **Bones**: 蒙皮网格：挂绳上段（y≤440，皮带下）= pelvis，y 440→452 过渡到 `full.belt.id`（pelvis 子骨，枢轴≈(434.3,436.7)）——挂绳弯折而非整牌刚性转
+- **二次运动**: idle/walk/run 原有 R26 lag 关键帧**原样保留**；hop/squat/step 新增阻尼摆 rotation + y 弹跳（≤2.5px）
+- **绘制序**: 不变（皮带之后、腰包/短裤之前）
+- **隐藏后**: 露出 `shorts.png` 回填（按列上下插值延续竖褶 + 均色匹配，程序化）
+- **说明**: 皮带面上的橙绳环仍在 `belt-band.png`（看作皮带扣环）；卡片左下方那截橙片属短裤侧饰，不属工牌
+
 ### 6. `shoes` 鞋
 - **Images**: `full.shoe.{l,r}.image`
 - **Assets**: `shoe-*.png`
