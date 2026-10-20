@@ -1,10 +1,15 @@
 {
   "side": "r",
-  "opaque": 22090,
-  "mean": [
+  "opaque": 14850,
+  "mean_u": [
     252.4,
     222.7,
     202.8
   ],
-  "sha256": "815e7bcdf39bedefd98f73909b1302016bbad9f15c4e22f3d78538fd7b6a817b"
+  "mean_p": [
+    250.4,
+    217.0,
+    202.1
+  ],
+  "sha256": "96eb515a3a96b52c544c147fcffdda6bad328a9fb9358050553e60aca5173c87"
 }

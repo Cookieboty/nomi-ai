@@ -39,3 +39,4 @@ python3 round27_coat_rig.py
 python3 round28_armswing.py
 python3 round27_coat_motion.py
 python3 round32_finger_rest.py
+python3 round32_body_base.py
