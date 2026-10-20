@@ -15,12 +15,17 @@ stumps to the upper arm, relative motion opens them:
       backfill is the bottom-most layer of full.pose, so only previously
       see-through pixels can change.  Only seeded holes: the union also has
       legit enclosed gaps (between the legs) and overlay rims that would darken.
-2. Clap (crossed hands): hand-r-palm.png has an enclosed 6x17 cut-out (PNG
-   x23-28 y22-38) that the arm-r cuff covers at rest; the wrist bend in clap
-   exposes a 1-2 px sliver at the cuff edge.  -> fill that enclosed hole.
+2. (dropped in ROUND29) hand-r-palm.png enclosed 6x17 cut-out (PNG x23-28
+   y22-38): the original R24 also Telea-filled it, but that fill was never
+   committed -- it is NOT under the cuff at rest; the thumb piece shows through
+   it in every pose, and the fill smears over the thumb (idle diff 72 px, up to
+   90/255).  The committed palm (hole kept) is the intended look, so the palm
+   is left untouched and a clean rebuild reproduces it.
 
 Colour: Telea inpainting from the surrounding opaque pixels.  Idempotent.
 """
+import hashlib
+import json
 import os
 import numpy as np
 import cv2
@@ -30,7 +35,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RIG = os.path.join(HERE, '..', '..', 'rive', 'nomi-complete', 'reference', 'svg-rig')
 NEU = os.path.join(RIG, 'fullbody-base-no-head-arms.png')
 BF = os.path.join(RIG, 'body-backfill.png')
-PALM = os.path.join(RIG, 'hand-r-palm.png')
+LICENSE = os.path.join(HERE, '..', '..', 'rive', 'nomi-complete', 'parts', 'DETAIL_LICENSE.json')
+BASE = 'deterministic source-pixel rig layer derived from user supplied full-body mother'
+METHOD = {
+    'body-backfill.png': BASE + '; ROUND24: enclosed right-waist cut-outs of the mother (under belt band / coat edge) filled by source-pixel inpainting',
+}
 # PNG px inside each torso cut-out (screen = x*0.846354+46.93, y*0.846354)
 BF_SEEDS = [(591, 484), (572, 467)]
 
@@ -68,7 +77,17 @@ hole, k = enclosed(union, BF_SEEDS)
 src = np.where(n_img[..., 3:] > 0, n_img[..., :3], b_img[..., :3])
 save_filled(BF, b_img, hole, src, union & ~hole, 'body-backfill.png', k)
 
-p_img = np.array(Image.open(PALM).convert('RGBA'))
-pa = p_img[..., 3] > 0
-hole, k = enclosed(pa)
-save_filled(PALM, p_img, hole, p_img[..., :3], pa, 'hand-r-palm.png', k)
+
+
+# DETAIL_LICENSE: sha/bytes/method of the touched layer (idempotent; before R29 this was hand-edited
+# and was not refreshed by the script, so a clean rebuild diverged from the committed files).
+lic = json.load(open(LICENSE))
+for name, method in METHOD.items():
+    path = os.path.join(RIG, name)
+    e = lic['assets'].setdefault('reference/svg-rig/' + name, {})
+    data = open(path, 'rb').read()
+    e.update(sha256=hashlib.sha256(data).hexdigest(), bytes=len(data), ai_generated=False, in_scene=True, method=method)
+if 'ROUND24' not in lic.get('note', ''):
+    lic['note'] = (lic.get('note', '') + ' ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother'
+                   ' (under belt band / coat edge), inpainted from neighbouring source pixels.').strip()
+open(LICENSE, 'w').write(json.dumps(lic, indent=2) + '\n')
