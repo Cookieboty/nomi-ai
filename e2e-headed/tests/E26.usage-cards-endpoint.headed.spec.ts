@@ -250,6 +250,14 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
         await byEndpoint.click({ timeout: 5_000 });
       await expect(byEndpoint).toHaveAttribute('aria-pressed', 'true', { timeout: 3_000 });
     }).toPass({ timeout: 60_000 });
+    // 没有对话的端点默认不显示（fdde8f0a）；这里的 Codex 日志只有用量、没有对话，所以显式设为「显示」。
+    // 以前能过是因为本机 ~/.codex 里恰好有真实会话；CI 上没有。
+    await chat.click('[data-testid="endpoint-visibility"]');
+    const codexShow = chat.locator('[data-testid="endpoint-visibility-codex-show"]');
+    await codexShow.click();
+    await expect(codexShow).toHaveAttribute('aria-checked', 'true');
+    await chat.click('[data-testid="endpoint-visibility"]');
+    await expect(chat.locator('[data-testid="endpoint-visibility-menu"]')).toHaveCount(0);
     await chat.locator('[data-testid="endpoint-filter-codex"]').click();
     const card = chat.locator('[data-testid="endpoint-info-card"]');
     await expect(card).toBeVisible({ timeout: 20_000 });

@@ -29,7 +29,7 @@ import {
 } from '../agents/parsers';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
-import { geminiDir } from '../usage/cliHomes';
+import { claudeConfigDir, codexHomeDir, geminiDir } from '../usage/cliHomes';
 
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import type { HarnessTabMessage, HarnessTabMeta } from './types';
@@ -89,6 +89,8 @@ export interface SessionHistoryDeps {
   dshHome?: string;
   /** 放 .gemini 的主目录（默认 GEMINI_CLI_HOME 或 home） */
   geminiHome?: string;
+  /** 环境变量（测试注入）：CLAUDE_CONFIG_DIR / CODEX_HOME；默认 process.env */
+  env?: NodeJS.ProcessEnv;
   logger?: { warn(m: string, d?: unknown): void };
   /** 已在标签里打开的会话：`${backend}:${sessionId}` */
   openKeys?: () => Set<string>;
@@ -215,7 +217,8 @@ export class SessionHistoryService {
     if (!force && hit && Date.now() - hit.at < LIST_TTL_MS) return hit.entries;
     let entries: FileEntry[];
     if (backend === 'claude') {
-      const root = path.join(this.home, '.claude', 'projects');
+      // 尊重 CLAUDE_CONFIG_DIR（与 claude 本身、用量统计一致）
+      const root = path.join(claudeConfigDir(this.home, this.d.env ?? process.env), 'projects');
       const files: Array<{ path: string }> = [];
       for (const dir of await readdir(root)) {
         if (!dir.isDirectory()) continue;
@@ -235,7 +238,8 @@ export class SessionHistoryService {
           else if (e.isFile() && /^rollout-.*\.jsonl$/.test(e.name)) files.push({ path: p });
         }
       };
-      await walk(path.join(this.home, '.codex', 'sessions'), 4);
+      // 尊重 CODEX_HOME（与 codex 本身、用量统计一致）
+      await walk(path.join(codexHomeDir(this.home, this.d.env ?? process.env), 'sessions'), 4);
       entries = await statAll(files);
     } else if (backend === 'gemini') {
       // 只列主会话：子代理在 chats/<父会话 id>/ 下，文件名也不带 session- 前缀
