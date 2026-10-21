@@ -1055,6 +1055,55 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/mouth-viseme-a.png": {
+      "sha256": "13a760529685699ba6e2f495d4bfe6438b11d6de6d72b2e823de945a31da2a49",
+      "bytes": 2108,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-i.png": {
+      "sha256": "ab310e7d5b2edd5806b8bf4b77f8bd04b8d8d12b742c18c1a2b34b8d8ee5c674",
+      "bytes": 1662,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-u.png": {
+      "sha256": "80275eb0b218d74aaa13f13d3cd713554917c5fc82da5d122a650d8ab8572993",
+      "bytes": 1801,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-e.png": {
+      "sha256": "f43b67ddfde32f19cb0a551548a0b87c2f94a1179947a400224309bfb7979737",
+      "bytes": 1688,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-o.png": {
+      "sha256": "434c66e9cda3375d06ed85dbe87436c20332f41b16cb94c1c8e5a2b44c13844b",
+      "bytes": 2147,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-m.png": {
+      "sha256": "46dc989f75a4f85faa539f393e833a4487282d2b99feed7095636bf4c4d70c8e",
+      "bytes": 759,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND45: NEW art from original head-mouth palette (lip colour + blush); dark oral cavity and soft teeth band are new. Rest uses original head-mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-rest.png": {
+      "sha256": "c706daf1acd8dbe4d50b866ea2b0a4074ccbc3ec991e4bba82922b45099afe8b",
+      "bytes": 991,
+      "ai_generated": false,
+      "in_scene": false,
+      "method": "ROUND45: crop of original head-mouth.png"
     }
   },
   "round32": {
