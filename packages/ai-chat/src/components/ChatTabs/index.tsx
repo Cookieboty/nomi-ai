@@ -136,6 +136,24 @@ export const ChatTabs: React.FC<{
     void tabs.close(tab.id);
   };
 
+  const closeTabs = (targets: HarnessTabMeta[]) => {
+    const closable = targets.filter((tab) => tab.id !== MAIN_TAB_ID);
+    if (!closable.length) return;
+    const active = closable.filter((tab) => tab.status === 'running' || tab.status === 'queued');
+    if (
+      active.length > 0 &&
+      !window.confirm(
+        active.length === 1
+          ? t('该标签仍在运行，关闭会中止它。确定关闭？')
+          : t('有 {0} 个标签仍在运行，关闭会中止它们。确定关闭？', active.length),
+      )
+    )
+      return;
+    void (async () => {
+      for (const tab of closable) await tabs.close(tab.id);
+    })();
+  };
+
   const commitRename = () => {
     const id = editing;
     setEditing(null);
@@ -234,6 +252,9 @@ export const ChatTabs: React.FC<{
         (() => {
           const tab = st.tabs.find((x) => x.id === ctx.tabId);
           if (!tab) return null;
+          const i = st.tabs.findIndex((x) => x.id === tab.id);
+          const leftTabs = st.tabs.slice(0, i).filter((x) => x.id !== MAIN_TAB_ID);
+          const rightTabs = st.tabs.slice(i + 1).filter((x) => x.id !== MAIN_TAB_ID);
           return (
             <ConversationMenu
               x={ctx.x}
@@ -247,6 +268,8 @@ export const ChatTabs: React.FC<{
               onFork={() => onForkTab?.(tab.id, 'same')}
               onForkCross={() => onForkTab?.(tab.id, 'cross')}
               onClose={() => closeTab(tab)}
+              onCloseLeft={leftTabs.length ? () => closeTabs(leftTabs) : undefined}
+              onCloseRight={rightTabs.length ? () => closeTabs(rightTabs) : undefined}
             />
           );
         })()}
