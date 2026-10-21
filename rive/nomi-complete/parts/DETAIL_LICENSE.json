@@ -917,15 +917,15 @@
       "method": "ROUND39: p2 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
     },
     "reference/svg-rig/hand-l-palm-meta.png": {
-      "sha256": "89fe7dfd44e09b114883049ee445007105e5579f5949d2f6f1eb1c9c6f0fbaf8",
-      "bytes": 7807,
+      "sha256": "08e7170886209bb65e16d2549a9b2b096b0568d9d5bbe5a3dac54d353c718605",
+      "bytes": 7799,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-l-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
     },
     "reference/svg-rig/hand-r-palm-meta.png": {
-      "sha256": "f78afc39b3c29144536098c85206d077a1a778c95773fdbd68fcd04e4b153df0",
-      "bytes": 7518,
+      "sha256": "07c3999754fba160b6d2c6eb39cfb1e571a8a2f7640bee241570cd42b391acab",
+      "bytes": 7499,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-r-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"

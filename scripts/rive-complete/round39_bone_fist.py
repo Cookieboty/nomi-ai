@@ -132,6 +132,7 @@ def underlay(sd):
     for f in ("web",) + FING:
         sil |= np.asarray(Image.open(RIG / f"hand-{sd}-{f}.png").convert("RGBA"))[..., 3] > 127
     m = inside & binary_fill_holes(sil)
+    m &= gy >= 10                     # top rows live under the cuff; keep the backfill off the cuff / coat seam
     comp = pa.copy()
     for f in ("web", "index", "middle", "ring", "little"):
         q = np.asarray(Image.open(RIG / f"hand-{sd}-{f}.png").convert("RGBA")).astype(np.float64)
