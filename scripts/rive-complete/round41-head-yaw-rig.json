@@ -1,0 +1,39 @@
+{
+  "ears": "absent \u2014 head.png side cut-outs, no ear asset; not invented",
+  "nose": "baked into head.png (tiny dot), rides cheek/center strips",
+  "bands": {
+    "l": {
+      "lo": 139,
+      "hi": 224,
+      "px": 7948,
+      "cx": 203.9,
+      "cy": 188.6,
+      "local": [
+        -49.19,
+        -94.31
+      ]
+    },
+    "c": {
+      "lo": 200,
+      "hi": 297,
+      "px": 26059,
+      "cx": 250.5,
+      "cy": 178.1,
+      "local": [
+        -9.71,
+        -103.19
+      ]
+    },
+    "r": {
+      "lo": 273,
+      "hi": 358,
+      "px": 13878,
+      "cx": 302.0,
+      "cy": 186.2,
+      "local": [
+        33.83,
+        -96.32
+      ]
+    }
+  }
+}
