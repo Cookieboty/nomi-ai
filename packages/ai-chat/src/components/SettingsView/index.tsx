@@ -5,7 +5,7 @@
 import { t, Icon } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { cliProviderClient } from '../../services/cliProviderClient';
 import { AppIcon } from '../AppIcons';
@@ -28,6 +28,7 @@ import {
   LOCAL_MANAGE_TABS,
   SECTION_TABS,
   SETTINGS_SECTIONS,
+  SHOW_MODELS_PROTOTYPE,
   tabOf as pickTab,
   type SettingsSection,
   type SettingsTab,
@@ -39,6 +40,11 @@ import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
 export { SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+
+/** 「模型」页原型只在开发模式加载（生产构建不打包） */
+const ModelsPage = SHOW_MODELS_PROTOTYPE
+  ? React.lazy(() => import('../ModelsPage').then((m) => ({ default: m.ModelsPage })))
+  : null;
 
 interface Props {
   section: SettingsSection;
@@ -123,6 +129,12 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         );
       case 'shortcuts':
         return <ShortcutSettings />;
+      case 'models':
+        return ModelsPage ? (
+          <Suspense fallback={null}>
+            <ModelsPage />
+          </Suspense>
+        ) : null;
       case 'coding':
         return cliProviderClient.available() ? (
           <ProvidersPage onOpenedTab={onClose} onOpenNotify={() => onSection('notify')} />

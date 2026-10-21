@@ -42,6 +42,9 @@ describe('设置左侧导航图标', () => {
     const icons = SETTINGS_SECTIONS.map((s) => s.icon);
     expect(icons.every(Boolean)).toBe(true);
     expect(new Set(icons).size).toBe(icons.length);
-    expect(Object.keys(SETTINGS_ICONS)).toHaveLength(11);
+    // 图标表 = 菜单分区 + 开发模式才出现的「模型」原型分区
+    expect(Object.keys(SETTINGS_ICONS).sort()).toEqual(
+      [...SETTINGS_SECTIONS.map((s) => s.id), 'models'].sort(),
+    );
   });
 });
