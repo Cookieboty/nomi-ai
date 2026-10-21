@@ -23,10 +23,23 @@ async function run(): Promise<void> {
     process.exitCode = code;
   };
   if (!config.model || !config.launch) return fail(config.messages.noModel);
+  // PowerShell 把 5、$true 这类参数保留为数字 / 布尔，JSON 里不是字符串；按 PowerShell 传给原生程序的写法转成字符串。
+  const fromPs = (): string[] => {
+    const raw: unknown = JSON.parse(process.env.NOMI_TERMINAL_ARGS ?? '[]');
+    return (Array.isArray(raw) ? raw : [raw]).map((v) =>
+      typeof v === 'string'
+        ? v
+        : typeof v === 'boolean'
+          ? v
+            ? 'True'
+            : 'False'
+          : v == null
+            ? ''
+            : String(v),
+    );
+  };
   const supplied: string[] =
-    process.argv[3] === '--nomi-powershell-args'
-      ? JSON.parse(process.env.NOMI_TERMINAL_ARGS ?? '[]')
-      : process.argv.slice(3);
+    process.argv[3] === '--nomi-powershell-args' ? fromPs() : process.argv.slice(3);
   const args: string[] = [];
   let model = config.model;
   let parse = true;
