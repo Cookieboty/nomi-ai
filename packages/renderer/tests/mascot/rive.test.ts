@@ -96,6 +96,30 @@ describe('rive backend', () => {
     expect(b.capabilities().expressions).toEqual([...RIVE_EXPRESSIONS]);
     expect(b.capabilities().lipSync).toBe(true);
   });
+
+  it('writes viseme and mouthOpen ViewModel numbers when the host exposes them', () => {
+    const nums: Record<string, number> = {};
+    const fired: string[] = [];
+    const b = createRiveBackend(() => ({
+      trigger: (name) => ({ trigger: () => fired.push(name) }),
+      number: (name) => ({
+        get value() {
+          return nums[name] ?? 0;
+        },
+        set value(v: number) {
+          nums[name] = v;
+        },
+      }),
+    }));
+    b.setMouthOpen(0.5);
+    expect(nums.mouthOpen).toBe(0.5);
+    expect(nums.viseme).toBe(1); // A
+    expect(fired).toContain('mouth-open');
+    b.setMouthOpen(0);
+    expect(nums.mouthOpen).toBe(0);
+    expect(nums.viseme).toBe(0); // rest
+    expect(fired).toContain('mouth-close');
+  });
 });
 
 const RIV = path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv');
