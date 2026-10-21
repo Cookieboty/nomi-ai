@@ -38,27 +38,42 @@ export interface ProviderMenuEntry {
  * 其余显示它第一个启用的模型（点了就切到那个模型）。
  */
 export function gatewayMenuEntries(
-  view: Pick<GatewayStateView, 'providers' | 'clients'>,
+  view: Pick<GatewayStateView, 'providers' | 'clients' | 'recentNomi'>,
 ): ProviderMenuEntry[] {
   const main = view.clients.nomi?.models.main ?? '';
-  const slash = main.indexOf('/');
-  const [curProvider, curModel] = slash > 0 ? [main.slice(0, slash), main.slice(slash + 1)] : [];
+  const find = (ref: string) => {
+    const i = ref.indexOf('/');
+    const p = i > 0 ? view.providers.find((x) => x.enabled && x.id === ref.slice(0, i)) : undefined;
+    const m = p?.models.find((x) => x.enabled && x.id === ref.slice(i + 1));
+    return p && m ? { p, m } : null;
+  };
+  // 最近用过的 5 个模型（§4.3）；当前的排第一
+  const recent = [...new Set([main, ...(view.recentNomi ?? [])].filter(Boolean))]
+    .map((ref) => ({ ref, hit: find(ref) }))
+    .filter((x) => x.hit)
+    .slice(0, 5);
+  if (recent.length)
+    return recent.map(({ ref, hit }) => ({
+      id: hit!.p.id,
+      label: t('{0} · {1}', providerName(hit!.p.name), hit!.m.label ?? hit!.m.id),
+      checked: ref === main,
+      enabled: true,
+      ref,
+    }));
+  // 还没有使用记录：每个启用的供应商一项（它第一个能用的模型）
   return view.providers
     .filter((p) => p.enabled)
     .flatMap((p) => {
-      const current = p.id === curProvider && p.models.some((m) => m.id === curModel);
-      const model = current
-        ? curModel!
-        : (
-            p.models.find((m) => m.enabled && m.toolCalling !== false) ??
-            p.models.find((m) => m.enabled)
-          )?.id;
+      const model = (
+        p.models.find((m) => m.enabled && m.toolCalling !== false) ??
+        p.models.find((m) => m.enabled)
+      )?.id;
       if (!model) return [];
       return [
         {
           id: p.id,
           label: t('{0} · {1}', providerName(p.name), model),
-          checked: current,
+          checked: false,
           enabled: true,
           ref: `${p.id}/${model}`,
         },
@@ -104,7 +119,7 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
 
 /** 统一网关（Nomi 对话的模型分配） */
 export interface TrayModelSource {
-  state(): Pick<GatewayStateView, 'providers' | 'clients'>;
+  state(): Pick<GatewayStateView, 'providers' | 'clients' | 'recentNomi'>;
   select(ref: string): void;
   onChange(fn: () => void): () => void;
 }

@@ -449,29 +449,30 @@ describe('/model', () => {
       ['OpenAI · gpt-5-mini', false],
     ]);
   });
-  it('Nomi：环境变量供应商（还不在网关里）也能选；选中时清掉网关分配', async () => {
-    const legacy = {
-      ...nomi(),
-      envProviders: [
+  it('Nomi：环境变量供应商在网关里只读列出；没有分配时它就是当前模型', async () => {
+    const withEnv = {
+      ...gateway(),
+      clients: {},
+      providers: [
+        ...gateway().providers,
         {
-          id: 'ollama',
+          id: 'env-ollama',
           name: 'Ollama（环境变量）',
-          defaultModel: 'qwen3',
-          hasKey: false,
-          keyless: true,
+          enabled: true,
+          source: 'env',
+          urls: { chat: 'http://127.0.0.1:11434/v1' },
+          keys: [],
+          models: [{ id: 'qwen3', enabled: true }],
         },
       ],
-      effectiveProviderId: 'ollama',
-    } as unknown as ProviderState;
-    const empty = { ...gateway(), clients: {} } as GatewayState;
-    const l = await run('nomi', '/model', { data: { nomiGateway: empty, nomiProviders: legacy } });
+    } as unknown as GatewayState;
+    const l = await run('nomi', '/model', { data: { nomiGateway: withEnv } });
     const c = cardOf(l.r);
     if (c.kind !== 'list') throw new Error('list');
-    expect(c.items.at(-1)).toMatchObject({ label: 'Ollama（环境变量） · qwen3', active: true });
-    const { actions } = await run('nomi', '/model qwen3', {
-      data: { nomiGateway: gateway(), nomiProviders: legacy },
-    });
-    expect(actions.useNomiEnvProvider).toHaveBeenCalledWith('ollama', 'qwen3');
+    expect(c.items.find((i) => i.label.includes('qwen3'))).toMatchObject({ active: true });
+    const { actions } = await run('nomi', '/model qwen3', { data: { nomiGateway: withEnv } });
+    // 已经在用：不切换
+    expect(actions.switchNomiModel).not.toHaveBeenCalled();
   });
   it('Nomi /status：网关分配优先；没有分配时退回旧存储', async () => {
     const a = await run('nomi', '/status', {

@@ -165,6 +165,12 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
         s.cacheRead + s.cacheWrite > 0 ? (
           <span className={styles.dim}>
             {t('含缓存 {0}', formatTokens(s.cacheRead + s.cacheWrite))}
+            {s.cacheHitRate != null && (
+              <span data-testid="usage-cache-hit">
+                {' · '}
+                {t('缓存命中率 {0}', share(s.cacheHitRate, 1))}
+              </span>
+            )}
           </span>
         ) : undefined,
     },

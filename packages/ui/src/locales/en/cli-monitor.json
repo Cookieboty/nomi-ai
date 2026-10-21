@@ -89,7 +89,6 @@
   "还没有可用的服务。先在「设置 → 模型」里添加 Ollama 或其他 OpenAI 兼容服务。": "No service available yet. First add Ollama or another OpenAI-compatible service under “Settings → Models”.",
   "添加一个第三方供应商（厂商、中转平台或本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 模型」里添加。": "Add a third-party provider (a model vendor, a relay platform, local Ollama, …). You can skip this for now and add one later under “Settings → Models”.",
   "手动填写请求地址和 API Key": "Fill in the request URL and API key manually",
-  "请先填写模型，再设为当前": "Enter a model before making this the current provider.",
   "编程助手分区": "Coding assistant sections",
   "监视与会话": "Monitor & sessions",
   "想完全离线看图：在「设置 → 模型」里添加 Ollama，并拉取视觉模型，例如": "To look at images fully offline: add Ollama under “Settings → Models” and pull a vision model, e.g.",

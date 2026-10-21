@@ -598,6 +598,7 @@ describe('UsagePanel 订阅额度标签', () => {
     expect([...tabs].map((x) => x.textContent)).toEqual([
       '概览',
       '明细',
+      '最近请求',
       '订阅额度',
       '价格',
       '预算与隐私',

@@ -77,6 +77,8 @@ export interface GatewayStoreData {
   /** 用户确认过的回环 / 私网上游 host:port（§15） */
   allowedPrivateHosts: string[];
   port: number;
+  /** Nomi 对话最近用过的模型（`供应商/模型`，新的在前，最多 5 个；托盘菜单用） */
+  recentNomi?: string[];
   /** 一次性迁移的来源与时间（§6.3） */
   migratedFrom?: { at: number; files: string[] };
 }

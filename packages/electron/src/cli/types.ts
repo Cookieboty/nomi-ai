@@ -1,13 +1,5 @@
 /** 编程助手 CLI 接入 · 共享类型 */
 
-import type {
-  ClaudeApiFormat,
-  CodexApiFormat,
-  CliApiFormat,
-  DshApiFormat,
-  GrokApiFormat,
-} from './formats';
-
 export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /**
@@ -18,7 +10,7 @@ export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' |
 
 export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
 
-/** 拥有独立第三方供应商列表的 CLI */
+/** 旧版有独立第三方供应商存储的 CLI（迁移 / 撤销旧全局配置时用） */
 export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /** 支持版本更新的 CLI */
@@ -36,33 +28,6 @@ export interface CliInstallInfo {
   installSupported?: boolean;
   /** 运行时问题（目前仅 dsh：PATH 上的 Node 低于 24） */
   runtimeWarning?: { nodeVersion: string | null; required: number } | null;
-}
-
-export interface CliProviderProfile {
-  id: string;
-  kind: CliProviderKind;
-  name: string;
-  baseUrl: string;
-  model: string;
-  apiFormat: CliApiFormat;
-  /** 非原生格式需要本地路由 */
-  needsRouting: boolean;
-  hasKey: boolean;
-  keyHint: string;
-  active: boolean;
-  /** 来自哪个预设模板（品牌图标 / 来源提示）；自定义为 'custom' */
-  presetId?: string;
-}
-
-export interface CliProviderInput {
-  id?: string;
-  kind: CliProviderKind;
-  name: string;
-  baseUrl: string;
-  model: string;
-  apiFormat?: ClaudeApiFormat | CodexApiFormat | DshApiFormat | GrokApiFormat;
-  apiKey?: string;
-  presetId?: string;
 }
 
 export interface HarnessSessionState {

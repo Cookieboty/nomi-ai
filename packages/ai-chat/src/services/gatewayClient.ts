@@ -62,6 +62,11 @@ export interface ProviderView {
   models: GatewayModel[];
   source: 'user' | 'env';
   detected?: Partial<Record<Wire, StoredProbe>>;
+  /** 这个供应商的模型都失败时依次改用（'provider/model'） */
+  fallback?: string[];
+  headers?: Record<string, string>;
+  userAgent?: string;
+  modelMap?: Array<{ from: string; to: string }>;
   /** 运行时学到的状态（§7.4） */
   learned?: LearnedState;
   createdAt: number;
@@ -107,6 +112,11 @@ export interface ProviderInput {
   newKeys?: Array<{ value: string; name?: string; wire?: Wire }>;
   keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
   models?: GatewayModel[];
+  /** modelMap / headers / fallback：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
+  modelMap?: Array<{ from: string; to: string }>;
+  headers?: Record<string, string>;
+  userAgent?: string;
+  fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
   quirks?: {
     maxTools?: number;

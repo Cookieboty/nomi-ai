@@ -46,7 +46,27 @@ const PROTOCOL_WIRE: Record<Protocol, Wire> = {
 };
 
 /** 不能用来对话的模型（图像、向量、语音等）：列出来但默认不启用，也不给编程助手选 */
-const NON_CHAT = /image|embed|tts|whisper|dall-e|audio|speech|video|seedance|rerank|moderation/i;
+export const NON_CHAT =
+  /image|embed|tts|whisper|dall-e|audio|speech|video|seedance|rerank|moderation/i;
+
+/** 探测结果 → 存进供应商的 detected（每种协议最近一次的结果） */
+export function storedProbes(result: DetectResult): Partial<Record<Wire, StoredProbe>> {
+  const at = Date.now();
+  const detected: Partial<Record<Wire, StoredProbe>> = {};
+  for (const w of WIRES) {
+    const l = result.wires[w];
+    if (l)
+      detected[w] = {
+        ok: l.ok,
+        at,
+        ...(l.status ? { status: l.status } : {}),
+        ...(l.model ? { model: l.model } : {}),
+        ...(l.auth ? { auth: l.auth } : {}),
+        ...(l.error ? { error: l.error } : {}),
+      };
+  }
+  return detected;
+}
 
 /** 预设里各协议的地址：有多地址扩展（§8.4）用它，否则只有 baseURL 那一种 */
 const presetUrls = (p: ProviderPreset): Partial<Record<Wire, string>> =>
@@ -193,20 +213,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
     setBusy(true);
     setError(null);
     try {
-      const at = Date.now();
-      const detected: Partial<Record<Wire, StoredProbe>> = {};
-      for (const w of WIRES) {
-        const l = result.wires[w];
-        if (l)
-          detected[w] = {
-            ok: l.ok,
-            at,
-            ...(l.status ? { status: l.status } : {}),
-            ...(l.model ? { model: l.model } : {}),
-            ...(l.auth ? { auth: l.auth } : {}),
-            ...(l.error ? { error: l.error } : {}),
-          };
-      }
+      const detected = storedProbes(result);
       const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
       const list: GatewayModel[] = models.map((m) => {
         const known = meta.get(m.id);

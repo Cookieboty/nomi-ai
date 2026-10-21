@@ -7,14 +7,12 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { switchTabSource, tabSourceOf } from '../services/cliSource';
 import { extClient } from '../services/extClient';
-import { gatewayClient } from '../services/gatewayClient';
 import {
   harnessClient,
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
 import { setNomiModel } from '../services/nomiModel';
-import { providerClient } from '../services/providerClient';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
@@ -249,12 +247,6 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       openSettings: () => latest.current.onOpenSettings(),
       switchNomiModel: async (ref) => {
         await setNomiModel(ref);
-      },
-      useNomiEnvProvider: async (id, model) => {
-        await gatewayClient.setAssignment('nomi', {
-          models: { main: null as unknown as string },
-        });
-        await providerClient.setActive(id, model);
       },
       setTabSource: async (source, model) => {
         if (!target.tabId) throw new Error(t('会话已关闭或已重置'));

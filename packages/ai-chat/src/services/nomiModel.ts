@@ -85,16 +85,27 @@ export function refLabel(s: GatewayState | null, ref: string): string {
   return `${providerDisplayName(p.name)} · ${m?.label ?? r.model}`;
 }
 
+/**
+ * Nomi 对话实际用的模型：「模型」页的分配；没分配时网关用第一个环境变量供应商的默认模型
+ * （与主进程 GatewayService.nomiPick 一致）。
+ */
+export function nomiMainRef(s: GatewayState | null): string | null {
+  const main = s?.clients.nomi?.models.main;
+  if (main) return main;
+  const env = s?.providers.find((p) => p.source === 'env' && p.models[0]);
+  return env ? `${env.id}/${env.models[0]!.id}` : null;
+}
+
 /** 消息上的模型标签：网关分配优先，没有再看旧存储 */
 export function nomiModelLabel(): string | undefined {
-  const main = cached?.clients.nomi?.models.main;
+  const main = nomiMainRef(cached);
   if (main) return refLabel(cached, main);
   return effectiveProviderLabel();
 }
 
 /** 当前 main 模型的元数据（视觉等能力判断用）；不知道时 undefined */
 export function nomiModelMeta(): ProviderView['models'][number] | undefined {
-  const r = splitRef(cached?.clients.nomi?.models.main ?? '');
+  const r = splitRef(nomiMainRef(cached) ?? '');
   if (!r) return undefined;
   return cached?.providers.find((p) => p.id === r.provider)?.models.find((m) => m.id === r.model);
 }
@@ -134,7 +145,7 @@ export function nomiModelChoices(
   s: GatewayState | null,
 ): Array<{ ref: string; provider: string; model: string; label: string; current: boolean }> {
   if (!s) return [];
-  const main = s.clients.nomi?.models.main;
+  const main = nomiMainRef(s);
   return pickerProviders(s.providers).flatMap((p) =>
     p.models.map((m) => ({
       ref: `${p.id}/${m.id}`,

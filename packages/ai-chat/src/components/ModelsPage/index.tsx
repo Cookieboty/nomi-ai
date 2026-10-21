@@ -13,7 +13,15 @@ import {
   t,
   type SelectOption,
 } from '@nomi-ai/ui';
-import { AlertCircle, Check, ChevronDown, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import {
+  AlertCircle,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Download,
+  MoreHorizontal,
+  Plus,
+} from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import { CLI_KINDS, type CliKind } from '../../services/cliSource';
@@ -23,9 +31,7 @@ import {
   WIRES,
   type ClientModels,
   type GatewayState,
-  type LearnedState,
   type ProviderView,
-  type Wire,
 } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
@@ -34,6 +40,9 @@ import { EndpointIcon } from '../EndpointIcon';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
+import { keyName, ProviderDetailDialog } from './ProviderDetailDialog';
+import { TerminalCommandsCard } from './TerminalCommandsCard';
+import { useCliInstall } from './useCliInstall';
 
 const FOLLOW = 'follow';
 const UNSET = 'unset';
@@ -55,7 +64,7 @@ export const ModelsPage: React.FC = () => {
   const state = useGatewayState();
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const [claudeOpen, setClaudeOpen] = useState(false);
   const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +79,8 @@ export const ModelsPage: React.FC = () => {
     setError(null);
     p.catch((e: Error) => setError(e.message));
   };
+  const cli = useCliInstall(setError);
+  const editingProvider = providers.find((p) => p.id === editing) ?? null;
   /** null 表示清除（跟随对话） */
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
@@ -232,9 +243,13 @@ export const ModelsPage: React.FC = () => {
             open={kind === 'claude' && claudeOpen}
             onToggle={() => setClaudeOpen((x) => !x)}
             onAssign={(patch) => assignCli(kind, patch)}
+            missing={cli.missing(kind)}
+            installBusy={cli.busy}
+            onInstall={() => cli.install(kind)}
           />
         ))}
       </section>
+      {cli.dialog}
 
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>
@@ -258,24 +273,25 @@ export const ModelsPage: React.FC = () => {
           </p>
         )}
         {providers.map((p) => (
-          <ProviderRow
-            key={p.id}
-            p={p}
-            open={expanded === p.id}
-            onToggle={() => setExpanded((x) => (x === p.id ? null : p.id))}
-            onModels={(models) =>
-              run(gatewayClient.upsertProvider({ id: p.id, name: p.name, urls: p.urls, models }))
-            }
-            onClearLearned={() => run(gatewayClient.clearLearned(p.id))}
-            onRemove={() => {
-              if (window.confirm(t('删除供应商「{0}」及其所有 Key？', p.name)))
-                run(gatewayClient.removeProvider(p.id));
-            }}
-          />
+          <ProviderRow key={p.id} p={p} onOpen={() => setEditing(p.id)} />
         ))}
       </section>
 
+      <TerminalCommandsCard />
+
       <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSaved={onSaved} />
+      <ProviderDetailDialog
+        provider={editingProvider}
+        providers={providers}
+        allowedPrivateHosts={state?.allowedPrivateHosts ?? []}
+        showWire={showWire}
+        onClose={() => setEditing(null)}
+        onRemove={(p) => {
+          if (!window.confirm(t('删除供应商「{0}」及其所有 Key？', p.name))) return;
+          setEditing(null);
+          run(gatewayClient.removeProvider(p.id));
+        }}
+      />
     </div>
   );
 };
@@ -290,9 +306,46 @@ const CliRow: React.FC<{
   open: boolean;
   onToggle: () => void;
   onAssign: (patch: { models?: ModelsPatch; newTabSource?: 'official' | 'thirdParty' }) => void;
-}> = ({ kind, client, common, disabled, open, onToggle, onAssign }) => {
+  /** 没安装：整行变灰，只显示「安装」 */
+  missing: boolean;
+  installBusy: string | null;
+  onInstall: () => void;
+}> = ({
+  kind,
+  client,
+  common,
+  disabled,
+  open,
+  onToggle,
+  onAssign,
+  missing,
+  installBusy,
+  onInstall,
+}) => {
   const m = client?.models ?? {};
   const name = ENDPOINT_NAME[kind];
+  if (missing)
+    return (
+      <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
+        <span className={styles.cliName}>
+          <EndpointIcon backend={kind} size={16} decorative />
+          {name}
+        </span>
+        <span className={styles.muted}>{t('未安装')}</span>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={installBusy !== null}
+          title={installBusy && installBusy !== kind ? t('已有安装 / 更新在进行') : undefined}
+          onClick={onInstall}
+          aria-label={t('安装 {0}', name)}
+          data-testid={`cli-install-${kind}`}
+        >
+          <Icon icon={Download} size={14} />
+          {installBusy === kind ? t('进行中…') : t('安装')}
+        </Button>
+      </div>
+    );
   const source = client?.newTabSource ?? 'official';
   const claude = kind === 'claude';
   const sourceOptions: SelectOption[] = [
@@ -423,18 +476,7 @@ const CliRow: React.FC<{
 
 /* ------------------------------ 供应商一行 ------------------------------ */
 
-/** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
-const keyName = (k: { name?: string }, i: number): string =>
-  k.name || (i === 0 ? t('主 Key') : t('备用 Key {0}', String(i)));
-
-const ProviderRow: React.FC<{
-  p: ProviderView;
-  open: boolean;
-  onToggle: () => void;
-  onModels: (models: ProviderView['models']) => void;
-  onRemove: () => void;
-  onClearLearned: () => void;
-}> = ({ p, open, onToggle, onModels, onRemove, onClearLearned }) => {
+const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onOpen }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
   const fromEnv = p.source === 'env';
   const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
@@ -445,17 +487,19 @@ const ProviderRow: React.FC<{
       ? t('{0} 最近一次请求失败：{1}', keyName(failing, fi), failing.lastError ?? '')
       : t('{0} 无法解密，请重新填写', keyName(failing, fi))
     : undefined;
+  const name = providerDisplayName(p.name);
   return (
     <div className={styles.provider} data-testid={`provider-${p.id}`}>
       <div className={styles.providerRow}>
         <button
           type="button"
           className={styles.providerMain}
-          onClick={onToggle}
-          aria-expanded={open}
+          onClick={onOpen}
+          aria-haspopup="dialog"
+          data-testid={`provider-open-${p.id}`}
         >
           <BrandIcon brand={p.presetId ?? p.id} name={p.name} size={20} />
-          <span className={styles.providerName}>{providerDisplayName(p.name)}</span>
+          <span className={styles.providerName}>{name}</span>
           {warning && (
             <span className={styles.warnDot} title={warning} aria-label={warning}>
               <Icon icon={AlertCircle} size={14} />
@@ -473,93 +517,16 @@ const ProviderRow: React.FC<{
           </span>
           <span className={styles.muted}>{t('{0} 个模型', String(enabledCount))}</span>
         </button>
-        <button type="button" className={styles.more} aria-label={t('更多')} onClick={onToggle}>
+        <button
+          type="button"
+          className={styles.more}
+          aria-haspopup="dialog"
+          aria-label={fromEnv ? t('查看「{0}」', name) : t('编辑「{0}」', name)}
+          onClick={onOpen}
+        >
           <Icon icon={MoreHorizontal} size={16} />
         </button>
       </div>
-      {open && (
-        <div className={styles.detail}>
-          <div className={styles.detailCol}>
-            <div className={styles.groupTitle}>{t('Key（按顺序回退）')}</div>
-            {p.keys.map((k, i) => (
-              <div key={k.id} className={styles.keyLine}>
-                <span>{keyName(k, i)}</span>
-                <code>{k.masked}</code>
-                {k.lastError && <span className={styles.errorText}>{k.lastError}</span>}
-              </div>
-            ))}
-            {!p.keys.length && <span className={styles.muted}>{t('无需 Key')}</span>}
-          </div>
-          <div className={styles.detailCol}>
-            <div className={styles.groupTitle}>{t('模型')}</div>
-            {p.models.map((x) => (
-              <label key={x.id} className={styles.modelCheck}>
-                <input
-                  type="checkbox"
-                  disabled={fromEnv}
-                  checked={x.enabled}
-                  onChange={(e) =>
-                    onModels(
-                      p.models.map((y) =>
-                        y.id === x.id ? { ...y, enabled: e.target.checked } : y,
-                      ),
-                    )
-                  }
-                />
-                <span>{x.id}</span>
-                {x.metaSource === 'default' && (
-                  <span className={styles.badgeMuted}>{t('参数未知')}</span>
-                )}
-                {x.toolCalling === false && (
-                  <span className={styles.badgeMuted}>{t('不支持工具调用')}</span>
-                )}
-              </label>
-            ))}
-          </div>
-          {p.learned && <LearnedInfo learned={p.learned} onClear={onClearLearned} />}
-          <div className={styles.detailActions}>
-            {!fromEnv && (
-              <Button size="sm" variant="danger" onClick={onRemove}>
-                {t('删除')}
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/** 运行时学到的（§7.4）：哪些协议暂时不可用、哪些模型只走某些协议、去掉了哪些字段；可以清除重新学 */
-const LearnedInfo: React.FC<{ learned: LearnedState; onClear: () => void }> = ({
-  learned,
-  onClear,
-}) => {
-  const lines = [
-    ...Object.entries(learned.wireDown ?? {}).map(([w, d]) =>
-      t('{0} 暂时不可用：{1}', WIRE_LABEL[w as Wire], d!.reason),
-    ),
-    ...Object.entries(learned.modelWire ?? {}).map(([m, ws]) =>
-      t('{0} 只走 {1}', m, ws.map((w) => WIRE_LABEL[w]).join(' / ')),
-    ),
-    ...(learned.customToolsRefused ?? []).map((m) =>
-      t('{0} 的 Responses 接口不接受自定义工具，改用转换', m),
-    ),
-    ...Object.entries(learned.droppedParams ?? {}).map(([w, ps]) =>
-      t('{0} 不发送字段：{1}', WIRE_LABEL[w as Wire] ?? w, ps.join('、')),
-    ),
-  ];
-  return (
-    <div className={styles.detailCol} data-testid="provider-learned">
-      <div className={styles.groupTitle}>{t('自动学到的')}</div>
-      {lines.map((l) => (
-        <span key={l} className={styles.muted}>
-          {l}
-        </span>
-      ))}
-      <Button size="sm" variant="ghost" onClick={onClear} data-testid="provider-learned-clear">
-        {t('清除，重新学习')}
-      </Button>
     </div>
   );
 };

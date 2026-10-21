@@ -11,7 +11,7 @@ import {
   thirdPartyRefOf,
 } from '../services/cliSource';
 import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
-import { nomiModelChoices, splitRef } from '../services/nomiModel';
+import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
@@ -55,7 +55,7 @@ export interface ModelInfo {
 export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
   if (ctx.backend === 'nomi') {
     const gw = data.nomiGateway;
-    const main = gw?.clients.nomi?.models.main;
+    const main = nomiMainRef(gw);
     const r = main ? splitRef(main) : null;
     if (r) {
       const p = gw!.providers.find((x) => x.id === r.provider);
@@ -249,26 +249,13 @@ interface ModelChoice {
 }
 
 function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
-  const out: ModelChoice[] = nomiModelChoices(data.nomiGateway).map((c) => ({
+  return nomiModelChoices(data.nomiGateway).map((c) => ({
     label: c.label,
     provider: c.provider,
     model: c.model,
     active: c.current,
     run: () => ctx.actions.switchNomiModel(c.ref),
   }));
-  // 环境变量提供的供应商还不在网关里（过渡期）：网关没有分配时由旧存储路由
-  const np = data.nomiProviders;
-  const gatewayMain = data.nomiGateway?.clients.nomi?.models.main;
-  for (const e of np?.envProviders ?? [])
-    if (e.defaultModel && (e.hasKey || e.keyless))
-      out.push({
-        label: `${e.name} · ${e.defaultModel}`,
-        provider: e.name,
-        model: e.defaultModel,
-        active: !gatewayMain && np?.effectiveProviderId === e.id,
-        run: () => ctx.actions.useNomiEnvProvider(e.id, e.defaultModel!),
-      });
-  return out;
 }
 
 const cancelled = (ok: boolean) => {

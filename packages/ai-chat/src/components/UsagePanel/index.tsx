@@ -20,13 +20,14 @@ import { AppIcon } from '../AppIcons';
 import { Budget } from './Budget';
 import { Details, type DetailRange } from './Details';
 import { listSep } from './format';
+import { GatewayRequests } from './GatewayRequests';
 import styles from './index.module.css';
 import { Overview } from './Overview';
 import { Pricing } from './Pricing';
 import { QuotaCard } from './Quota';
 import type { Fx } from './shared';
 
-type Tab = 'overview' | 'details' | 'quota' | 'pricing' | 'budget';
+type Tab = 'overview' | 'details' | 'requests' | 'quota' | 'pricing' | 'budget';
 
 export const UsagePanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>('overview');
@@ -163,6 +164,7 @@ export const UsagePanel: React.FC = () => {
         items={[
           { value: 'overview', label: t('概览') },
           { value: 'details', label: t('明细') },
+          { value: 'requests', label: t('最近请求') },
           { value: 'quota', label: t('订阅额度') },
           { value: 'pricing', label: t('价格') },
           { value: 'budget', label: t('预算与隐私') },
@@ -200,6 +202,7 @@ export const UsagePanel: React.FC = () => {
           )}
           {tab === 'quota' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
+          {tab === 'requests' && <GatewayRequests />}
           {tab === 'pricing' && (
             <Pricing
               state={state}

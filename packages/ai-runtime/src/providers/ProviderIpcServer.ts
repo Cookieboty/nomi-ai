@@ -11,27 +11,12 @@ import type { IpcAdapter, IpcInvokeEvent } from '../IpcAdapter';
 import type { RuntimeLogger } from '../logger';
 
 import { redactSecrets, type ProviderService } from './ProviderService';
-import type { ProviderInput, ProviderRole, RouteBinding } from './ProviderStore';
 
-export const PROVIDER_CHANNELS = [
-  'presets',
-  'meta',
-  'fetchModels',
-  'fetchModelsDraft',
-  'setModels',
-  'state',
-  'upsert',
-  'remove',
-  'setActive',
-  'setRoute',
-  'addKey',
-  'rotateKey',
-  'removeKey',
-  'promoteKey',
-  'test',
-  'testDraft',
-  'resetUsage',
-] as const;
+/**
+ * 渲染进程还在用的通道：预设（添加第三方供应商时选）、状态与切换（环境变量供应商的过渡期，
+ * 网关里没有分配时由旧存储路由）。供应商增删改、任务路由、Key 管理已由统一网关（ai:gateway:*）取代。
+ */
+export const PROVIDER_CHANNELS = ['presets', 'meta', 'state', 'setActive'] as const;
 
 export const PROVIDERS_CHANGED_EVENT = 'ai:providers:changed';
 
@@ -63,30 +48,12 @@ export class ProviderIpcServer {
     const handlers: Record<(typeof PROVIDER_CHANNELS)[number], (...a: unknown[]) => unknown> = {
       presets: () => s.presets(),
       meta: () => s.meta(),
-      fetchModels: (id) => s.fetchModels(str(id, 'id')),
-      fetchModelsDraft: (input) => s.fetchModelsDraft((input ?? {}) as ProviderInput),
-      setModels: (id, models) =>
-        s.setModels(str(id, 'id'), Array.isArray(models) ? models.map((m) => str(m, 'model')) : []),
       state: () => s.state(),
-      upsert: (input) => s.upsert((input ?? {}) as ProviderInput),
-      remove: (id) => s.remove(str(id, 'id')),
       setActive: (id, model) =>
         s.setActive(
           id === null || id === undefined ? null : str(id, 'id'),
           model === undefined || model === null ? undefined : str(model, 'model'),
         ),
-      setRoute: (role, binding) =>
-        s.setRoute(str(role, 'role') as ProviderRole, (binding ?? null) as RouteBinding | null),
-      addKey: (id, key, label) =>
-        s.addKey(str(id, 'id'), str(key, 'key'), label === undefined ? undefined : String(label)),
-      rotateKey: (id, keyId, key) =>
-        s.rotateKey(str(id, 'id'), str(keyId, 'keyId'), str(key, 'key')),
-      removeKey: (id, keyId) => s.removeKey(str(id, 'id'), str(keyId, 'keyId')),
-      promoteKey: (id, keyId) => s.promoteKey(str(id, 'id'), str(keyId, 'keyId')),
-      test: (id, keyId) =>
-        s.test(str(id, 'id'), keyId === undefined ? undefined : str(keyId, 'keyId')),
-      testDraft: (input) => s.testDraft((input ?? {}) as ProviderInput),
-      resetUsage: (id) => s.resetUsage(id === undefined ? undefined : str(id, 'id')),
     };
     for (const name of PROVIDER_CHANNELS) {
       const ch = `ai:providers:${name}`;

@@ -28,3 +28,4 @@ export * from './tokens';
 export * from './upstream';
 export * from './worker';
 export { UsageTap, usageOfJson } from './usageTap';
+export * from './trace';

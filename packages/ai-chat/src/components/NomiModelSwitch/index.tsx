@@ -7,7 +7,12 @@ import { Boxes } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { gatewayClientAvailable } from '../../services/gatewayClient';
-import { pickerProviders, setNomiModel, useGatewayState } from '../../services/nomiModel';
+import {
+  nomiMainRef,
+  pickerProviders,
+  setNomiModel,
+  useGatewayState,
+} from '../../services/nomiModel';
 import {
   effectiveProviderLabel,
   providerClient,
@@ -51,7 +56,7 @@ export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: strin
         variant="ghost"
         className={styles.picker}
         providers={providers}
-        value={state.clients.nomi?.models.main ?? null}
+        value={nomiMainRef(state)}
         onChange={(ref) => void setNomiModel(ref).catch(() => undefined)}
         disabled={Boolean(override) || !providers.length}
         placeholder={legacyLabel ?? (providers.length ? t('选择模型') : t('（未配置）'))}

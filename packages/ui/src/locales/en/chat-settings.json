@@ -158,8 +158,6 @@
   "模型厂商": "Model vendors",
   "第三方平台": "Third-party platforms",
   "window.aiIPC 不可用": "window.aiIPC is unavailable",
-  "此 Token 仅保存在本地设备，不会上传或同步": "This token is stored only on this device and is never uploaded or synced",
-  "我的供应商": "My providers",
   "环境变量": "Environment variable",
   "请为我写一份今天的简报：先一句问候，然后列出今天的提醒和安排，再根据你对我的了解给一两条贴心的小建议。简洁，不超过 150 字，用中文。": "Write me a briefing for today: start with a greeting, then list today's reminders and plans, then give one or two thoughtful tips based on what you know about me. Keep it short, under 100 words, in English.",
   "日程功能需要在桌面应用中使用": "Scheduling requires the desktop app",

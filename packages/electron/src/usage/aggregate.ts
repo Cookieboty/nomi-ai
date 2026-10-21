@@ -92,6 +92,8 @@ export interface Summary {
   estimatedCalls: number;
   /** 未定价模型（不计入费用） */
   unpriced: Array<{ model: string; tokens: number; calls: number }>;
+  /** 缓存命中率 = 缓存读 / (未命中缓存的输入 + 缓存读)，§14；没有输入时为 null */
+  cacheHitRate: number | null;
 }
 
 export function summarize(recs: UsageRecord[], priceOf: PriceOf): Summary {
@@ -105,6 +107,7 @@ export function summarize(recs: UsageRecord[], priceOf: PriceOf): Summary {
     calls: 0,
     estimatedCalls: 0,
     unpriced: [],
+    cacheHitRate: null,
   };
   const un = new Map<string, { model: string; tokens: number; calls: number }>();
   for (const r of recs) {
@@ -123,6 +126,9 @@ export function summarize(recs: UsageRecord[], priceOf: PriceOf): Summary {
     } else s.costUsd += c;
   }
   s.total = s.input + s.output;
+  // input 含缓存读写：去掉缓存写后就是「未命中的输入 + 缓存读」
+  const denom = s.input - s.cacheWrite;
+  s.cacheHitRate = denom > 0 ? s.cacheRead / denom : null;
   s.unpriced = [...un.values()].sort((a, b) => b.tokens - a.tokens);
   return s;
 }

@@ -303,3 +303,11 @@
   letter-spacing: 0.12em;
   color: var(--cd-color-text);
 }
+.planBody {
+  display: grid;
+  gap: var(--cd-space-2);
+}
+.planUserScope {
+  display: grid;
+  gap: var(--cd-space-1-5);
+}

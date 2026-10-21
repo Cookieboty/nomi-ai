@@ -29,6 +29,7 @@ import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from '
 import { patchChatJson } from './stream/chatPatch';
 import { createPassthrough } from './stream/passthrough';
 import { calibratedCount, measuredInputTokens, recordUsage, sessionKeyOf } from './tokens';
+import { startTrace, type RequestTrace } from './trace';
 import { upstreamBody, upstreamHeaders, upstreamUrl } from './upstream';
 import { usageOfJson, UsageTap } from './usageTap';
 
@@ -58,6 +59,8 @@ export interface UsageEvent {
   usage: StreamUsage;
   startedAt: number;
   ms: number;
+  /** 拿到上游 2xx 响应头的时间（相对 startedAt，ms）；失败的请求没有 */
+  firstByteMs?: number;
   attempts: number;
   error?: string;
   /** 网关对请求做的修正（§12.7.3，如省略了图片、压低了输出上限），用量面板展示提示 */
@@ -313,6 +316,13 @@ export class GatewayServer {
       fail(400, 'Nomi 网关：请求体不是合法的 JSON');
       return;
     }
+    // 调试模式（§14）：配置里有 traceDir 才记录正文，结束时脱敏写盘
+    const trace = startTrace(
+      cfg,
+      { client, ingress: ingress.wire, path: req.url ?? '', startedAt },
+      this.hooks.logger,
+    );
+    trace?.request(req.headers, body);
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const requested =
       ingress.wire === 'gemini'
@@ -340,6 +350,7 @@ export class GatewayServer {
     const errors: string[] = [];
     let attempts = 0;
     let last: Attempt | null = null;
+    let firstByteMs: number | undefined;
     // 排序：被短期压制的（§7.4）和冷却中的（§11.1）排到后面，亲和的排到第一（§11.2）。
     // 学习触发的重试（换 wire / 去掉字段）插到队首，每个请求最多 2 次（§7.4）
     const session = sessionKey(ingress.wire, req.headers, body, client);
@@ -366,8 +377,18 @@ export class GatewayServer {
         });
       const sendBody =
         ingress.wire === cand.wire && !keep ? stripSealedReasoning(ingress.wire, body) : body;
-      last = await this.attempt(cfg, req, ingress, cand, sendBody, wantsStream, abort.signal);
+      last = await this.attempt(
+        cfg,
+        req,
+        ingress,
+        cand,
+        sendBody,
+        wantsStream,
+        abort.signal,
+        trace,
+      );
       if (last.kind === 'response') {
+        firstByteMs = Date.now() - startedAt;
         this.learner.success(cand);
         this.cooldowns.success(cand);
         if (session)
@@ -448,6 +469,7 @@ export class GatewayServer {
           ? `Nomi 网关：所有候选都失败了 —— ${errors.join('；')}`
           : (last?.message ?? 'Nomi 网关：没有可用的候选');
       fail(status, message, last?.retryAfter);
+      void trace?.finish({ status, ms: Date.now() - startedAt, attempts, error: message });
       this.hooks.onUsage?.({
         client,
         ingress: ingress.wire,
@@ -471,7 +493,24 @@ export class GatewayServer {
     const { res: up, cand } = last;
     // 请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...(last.notes ?? [])];
-    const usage = await this.respond(res, ingress, cand, up, body, wantsStream, abort, notes);
+    const usage = await this.respond(
+      res,
+      ingress,
+      cand,
+      up,
+      body,
+      wantsStream,
+      abort,
+      notes,
+      trace,
+    );
+    void trace?.finish({
+      status: up.status,
+      ms: Date.now() - startedAt,
+      attempts,
+      usage,
+      ...(notes.length ? { notes } : {}),
+    });
     // 用真实用量校准 count_tokens（§10.3）
     recordUsage({
       sessionKey: sessionKeyOf(ingress.wire, req.headers, body),
@@ -492,6 +531,7 @@ export class GatewayServer {
       usage,
       startedAt,
       ms: Date.now() - startedAt,
+      ...(firstByteMs !== undefined ? { firstByteMs } : {}),
       attempts,
       ...(notes.length ? { notes } : {}),
     });
@@ -544,6 +584,7 @@ export class GatewayServer {
     body: unknown,
     wantsStream: boolean,
     signal: AbortSignal,
+    trace?: RequestTrace | null,
   ): Promise<Attempt> {
     const base = cand.provider.urls[cand.wire]!;
     const target = upstreamUrl(cand.wire, base, cand.upstreamModel, { stream: wantsStream });
@@ -578,15 +619,24 @@ export class GatewayServer {
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
     const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
     const both = AbortSignal.any([signal, timeout]);
+    const headers = upstreamHeaders(cand, {
+      stream: wantsStream,
+      clientHeaders: req.headers,
+      sameWire: ingress.wire === cand.wire,
+    });
+    trace?.attempt({
+      provider: cand.provider.name,
+      key: cand.key.name ?? cand.key.id,
+      wire: cand.wire,
+      url: target,
+      headers,
+      body: sent,
+    });
     let res: Response;
     try {
       res = await (this.hooks.fetchImpl ?? fetch)(target, {
         method: 'POST',
-        headers: upstreamHeaders(cand, {
-          stream: wantsStream,
-          clientHeaders: req.headers,
-          sameWire: ingress.wire === cand.wire,
-        }),
+        headers,
         body: JSON.stringify(sent),
         redirect: 'manual',
         signal: both,
@@ -605,6 +655,7 @@ export class GatewayServer {
     if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
     const text = await res.text().catch(() => '');
     const s = res.status;
+    trace?.attemptResult(s, text);
     // §11.1：429 / 5xx / 529 / 401 / 403 换下一个候选；其余 4xx 不换（学习类错误由调用方另算）。
     // 重定向按网关错误（502）处理，换下一个候选，但不冷却
     const retryable = s === 429 || s >= 500 || s === 401 || s === 403 || (s >= 300 && s < 400);
@@ -632,6 +683,7 @@ export class GatewayServer {
     wantsStream: boolean,
     abort: AbortController,
     notes: string[] = [],
+    trace?: RequestTrace | null,
   ): Promise<StreamUsage> {
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
     const passthrough = ingress.wire === cand.wire && !cand.customToolsAsFunctions;
@@ -681,6 +733,7 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
+          trace?.response(up.status, text);
           if (raw) res.write(Buffer.from(value));
           else write(conv ? conv.push(text) : pass ? pass.push(text) : text);
           // 复读检测触发：错误事件已经写出，不再读上游
@@ -720,6 +773,7 @@ export class GatewayServer {
       return tap.end();
     }
     const text = await up.text();
+    trace?.response(up.status, text);
     let parsed: unknown = text;
     try {
       parsed = JSON.parse(text);

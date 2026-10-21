@@ -427,4 +427,61 @@ describe('GatewayService', () => {
     const p = svc.runtimeConfig().providers[0]!;
     expect(p.quirks).toEqual({ extraBody: { chat: { reasoning_split: true } }, dropParams: ['b'] });
   });
+
+  it('env providers: read-only in state, in the snapshot, default for Nomi chat, local URLs allowed', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-env-'));
+    const children: FakeChild[] = [];
+    const svc = new GatewayService({
+      root,
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => {
+          const c = new FakeChild();
+          children.push(c);
+          return c as never;
+        },
+      }),
+      envProviders: () => [
+        {
+          id: 'deepseek',
+          name: 'DeepSeek（环境变量）',
+          wire: 'chat',
+          url: 'https://api.deepseek.com/v1',
+          key: 'sk-env-secret-1234',
+          keyEnv: 'DEEPSEEK_API_KEY',
+          model: 'deepseek-v4-pro',
+        },
+        {
+          id: 'ollama',
+          name: 'Ollama（环境变量）',
+          wire: 'chat',
+          url: 'http://127.0.0.1:11434/v1',
+          model: 'qwen3',
+        },
+      ],
+    });
+    svc.init();
+    const view = svc.state();
+    const env = view.providers.find((p) => p.id === 'env-deepseek')!;
+    expect(env).toMatchObject({
+      source: 'env',
+      keys: [{ masked: 'sk-…1234', name: 'DEEPSEEK_API_KEY' }],
+    });
+    expect(JSON.stringify(view)).not.toContain('sk-env-secret-1234');
+    const cfg = (children[0]!.sent.at(-1) as { config: GatewayConfig }).config;
+    expect(cfg.providers.map((p) => p.id)).toEqual(['env-deepseek', 'env-ollama']);
+    expect(cfg.providers[0]!.keys[0]!.value).toBe('sk-env-secret-1234');
+    expect(cfg.allowedPrivateHosts).toContain('127.0.0.1:11434');
+    // 没给 Nomi 对话分配模型：用第一个环境变量供应商
+    expect(svc.nomiProvider('chat')).toMatchObject({
+      id: 'env-deepseek',
+      model: 'deepseek-v4-pro',
+    });
+    expect(svc.cliModels().map((m) => m.ref)).toEqual([
+      'env-deepseek/deepseek-v4-pro',
+      'env-ollama/qwen3',
+    ]);
+  });
 });

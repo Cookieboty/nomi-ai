@@ -8,7 +8,12 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ModelsPage } from '../src/components/ModelsPage';
-import type { DetectResult, GatewayState, ProviderView } from '../src/services/gatewayClient';
+import type {
+  DetectResult,
+  GatewayState,
+  ProviderInput,
+  ProviderView,
+} from '../src/services/gatewayClient';
 
 const PRESETS = [
   {
@@ -59,7 +64,12 @@ const okDetect = (url: string): DetectResult => ({
   urls: { chat: url },
 });
 
-function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult } = {}) {
+function fakeMain(
+  o: {
+    detect?: (input: Record<string, unknown>) => DetectResult;
+    extra?: Record<string, (...a: unknown[]) => unknown>;
+  } = {},
+) {
   const state: GatewayState = {
     status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
     providers: [],
@@ -71,6 +81,7 @@ function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult
   let changed: (() => void) | null = null;
   const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
     calls.push([ch, args]);
+    if (o.extra?.[ch]) return o.extra[ch]!(...args);
     switch (ch) {
       case 'ai:providers:presets':
         return PRESETS;
@@ -161,6 +172,25 @@ afterEach(() => {
 });
 
 const dialog = () => screen.getByTestId('add-provider-dialog');
+const detail = () => screen.getByTestId('provider-detail');
+const upserts = (m: ReturnType<typeof fakeMain>) =>
+  m.calls.filter(([c]) => c === 'ai:gateway:upsert-provider').map(([, a]) => a[0] as ProviderInput);
+
+const kimi = (o: Partial<ProviderView> = {}): ProviderView => ({
+  id: 'kimi',
+  name: 'Kimi',
+  enabled: true,
+  urls: { messages: 'https://api.moonshot.cn/anthropic' },
+  keys: [{ id: 'k0', masked: 'sk-…a702', enabled: true, decryptable: true }],
+  models: [
+    { id: 'kimi-k3', enabled: true },
+    { id: 'kimi-k3-turbo', enabled: true },
+  ],
+  source: 'user',
+  createdAt: 0,
+  updatedAt: 0,
+  ...o,
+});
 
 async function addFlow(presetId: string, key?: string) {
   fireEvent.click(await screen.findByTestId('add-provider'));
@@ -300,37 +330,277 @@ describe('ModelsPage', () => {
     expect(m.state.allowedPrivateHosts).toEqual([]);
   });
 
-  it('toggling a model and removing a provider go through the gateway', async () => {
+  it('toggling a model is saved from the detail dialog; removing a provider asks first', async () => {
     const m = fakeMain();
-    m.state.providers = [
-      {
-        id: 'kimi',
-        name: 'Kimi',
-        enabled: true,
-        urls: { messages: 'https://api.moonshot.cn/anthropic' },
-        keys: [{ id: 'k0', masked: 'sk-…a702', enabled: true, decryptable: true }],
-        models: [
-          { id: 'kimi-k3', enabled: true },
-          { id: 'kimi-k3-turbo', enabled: true },
-        ],
-        source: 'user',
-        createdAt: 0,
-        updatedAt: 0,
-      },
-    ];
+    m.state.providers = [kimi()];
     render(<ModelsPage />);
-    const row = await screen.findByTestId('provider-kimi');
-    fireEvent.click(within(row).getByRole('button', { expanded: false }));
-    expect(within(row).getByText('主 Key')).toBeTruthy();
-    fireEvent.click(within(row).getAllByRole('checkbox')[1]!);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).getByDisplayValue('Kimi')).toBeTruthy();
+    const save = within(dlg).getByTestId('provider-detail-save') as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(
+      within(within(dlg).getByTestId('pd-model-kimi-k3-turbo')).getByRole('checkbox'),
+    );
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
     await waitFor(() =>
       expect(m.state.providers[0]!.models.map((x) => x.enabled)).toEqual([true, false]),
     );
-    fireEvent.click(within(screen.getByTestId('provider-kimi')).getByText('删除'));
+    await waitFor(() => expect(screen.queryByTestId('provider-detail')).toBeNull());
+    fireEvent.click(screen.getByTestId('provider-open-kimi'));
+    fireEvent.click(within(detail()).getByTestId('provider-detail-remove'));
+    expect(window.confirm).toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByTestId('provider-kimi')).toBeNull());
   });
 
-  it('shows what was learned at runtime and clears it', async () => {
+  it('cancel and Esc discard the draft', async () => {
+    const m = fakeMain();
+    m.state.providers = [kimi()];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    fireEvent.change(within(detail()).getByTestId('provider-detail-name'), {
+      target: { value: 'Moonshot' },
+    });
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByTestId('provider-detail')).toBeNull());
+    fireEvent.click(screen.getByTestId('provider-open-kimi'));
+    expect(within(detail()).getByDisplayValue('Kimi')).toBeTruthy();
+    fireEvent.change(within(detail()).getByTestId('provider-detail-name'), {
+      target: { value: 'Moonshot' },
+    });
+    fireEvent.click(within(detail()).getByTestId('provider-detail-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('provider-detail')).toBeNull());
+    expect(upserts(m)).toHaveLength(0);
+  });
+
+  it('keys: reorder, rename, disable, delete (confirmed) and add several produce one upsert', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…0000', enabled: true, decryptable: true },
+          {
+            id: 'k1',
+            masked: 'sk-…1111',
+            enabled: true,
+            decryptable: true,
+            lastError: '401 Key 无效',
+          },
+          { id: 'k2', name: '旧的', masked: 'sk-…2222', enabled: true, decryptable: true },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).getByTestId('pd-key-error-k1').textContent).toBe('401 Key 无效');
+    // k1 上移成为主 Key
+    fireEvent.click(within(dlg).getByTestId('pd-key-up-k1'));
+    // 焦点留在被移动 Key 的按钮上（到顶后上移不可用，落到下移）
+    expect(document.activeElement).toBe(within(dlg).getByTestId('pd-key-down-k1'));
+    fireEvent.change(within(dlg).getByLabelText('主 Key 的名称'), { target: { value: '公司' } });
+    fireEvent.click(within(within(dlg).getByTestId('pd-key-k0')).getByRole('switch'));
+    // 删除要确认；拒绝时不删
+    vi.mocked(window.confirm).mockReturnValueOnce(false);
+    fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
+    expect(within(dlg).queryByTestId('pd-key-k2')).toBeTruthy();
+    fireEvent.click(within(dlg).getByTestId('pd-key-delete-k2'));
+    expect(within(dlg).queryByTestId('pd-key-k2')).toBeNull();
+    fireEvent.change(within(dlg).getByTestId('pd-keys-input'), {
+      target: { value: 'sk-new-aaaa1111\n\n  sk-new-bbbb2222 \nsk-new-aaaa1111' },
+    });
+    fireEvent.click(within(dlg).getByTestId('pd-keys-add'));
+    expect(within(dlg).getAllByTestId('pd-new-key')).toHaveLength(2);
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.keys).toEqual([
+      { id: 'k1', enabled: true, name: '公司' },
+      { id: 'k0', enabled: false },
+    ]);
+    expect(payload.newKeys).toEqual([{ value: 'sk-new-aaaa1111' }, { value: 'sk-new-bbbb2222' }]);
+  });
+
+  it('models: add an id by hand; 刷新 merges newly listed models as disabled', async () => {
+    const m = fakeMain({
+      detect: () => ({
+        wires: {
+          messages: { wire: 'messages', url: 'https://api.moonshot.cn/anthropic', ok: true, ms: 3 },
+        },
+        byKey: {},
+        models: ['kimi-k3', 'kimi-k3-vision', 'kimi-embedding'],
+        urls: {},
+      }),
+    });
+    m.state.providers = [
+      kimi({
+        models: [
+          { id: 'kimi-k3', enabled: true, reasoning: true, ctx: 256_000, metaSource: 'preset' },
+          { id: 'kimi-k3-turbo', enabled: false },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    // 能力标签
+    const k3 = within(dlg).getByTestId('pd-model-kimi-k3');
+    expect(k3.textContent).toContain('推理');
+    expect(k3.textContent).toContain('256K');
+    fireEvent.change(within(dlg).getByTestId('pd-model-input'), { target: { value: 'kimi-x' } });
+    fireEvent.keyDown(within(dlg).getByTestId('pd-model-input'), { key: 'Enter' });
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await within(dlg).findByTestId('pd-detect-notice');
+    const det = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<string, unknown>;
+    expect(det.providerId).toBe('kimi');
+    expect(det).not.toHaveProperty('keys');
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.models).toEqual([
+      { id: 'kimi-k3', enabled: true, reasoning: true, ctx: 256_000, metaSource: 'preset' },
+      { id: 'kimi-k3-turbo', enabled: false },
+      { id: 'kimi-x', enabled: true },
+      { id: 'kimi-k3-vision', enabled: false },
+      { id: 'kimi-embedding', enabled: false, toolCalling: false },
+    ]);
+    expect(payload.detected).toMatchObject({ messages: { ok: true } });
+  });
+
+  it('fallback chain: add from the picker, reorder and remove', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi(),
+      {
+        ...kimi(),
+        id: 'ds',
+        name: 'DeepSeek',
+        models: [
+          { id: 'v4', enabled: true },
+          { id: 'flash', enabled: true },
+        ],
+      },
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    const add = () => within(dlg).getByTestId('pd-fallback-add');
+    fireEvent.change(add(), { target: { value: 'ds/v4' } });
+    fireEvent.change(add(), { target: { value: 'ds/flash' } });
+    fireEvent.change(add(), { target: { value: 'kimi/kimi-k3-turbo' } });
+    // 已在链里的不再出现在选择器里
+    expect(Array.from((add() as HTMLSelectElement).options).map((o) => o.value)).not.toContain(
+      'ds/v4',
+    );
+    fireEvent.click(within(dlg).getByTestId('pd-fallback-up-1'));
+    fireEvent.click(within(dlg).getByTestId('pd-fallback-remove-2'));
+    expect(within(dlg).getByTestId('pd-fallback-0').textContent).toContain('DeepSeek / flash');
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.fallback).toEqual(['ds/flash', 'ds/v4']);
+  });
+
+  it('advanced: URLs (empty turns a protocol off), re-detect, wires, model map, headers, UA', async () => {
+    const m = fakeMain({
+      detect: () => ({ wires: {}, byKey: {}, models: [], urls: {} }),
+    });
+    m.state.providers = [
+      kimi({
+        urls: { messages: 'https://api.moonshot.cn/anthropic', chat: 'https://api.moonshot.cn/v1' },
+        headers: { 'X-Old': '1' },
+        modelMap: [{ from: 'a', to: 'b' }],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    expect(within(dlg).queryByTestId('pd-url-chat')).toBeNull();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    expect(within(dlg).getByTestId('pd-advanced-toggle').getAttribute('aria-expanded')).toBe(
+      'true',
+    );
+    fireEvent.change(within(dlg).getByTestId('pd-url-chat'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-url-responses'), {
+      target: { value: 'https://api.moonshot.cn/v1' },
+    });
+    // 改了地址：提示重新检测，检测用草稿里的地址（空串表示不测）
+    fireEvent.click(within(dlg).getByTestId('pd-redetect'));
+    await waitFor(() => expect(within(dlg).queryByTestId('pd-urls-changed')).toBeNull());
+    const det = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0] as Record<string, unknown>;
+    expect(det).toMatchObject({
+      providerId: 'kimi',
+      urls: {
+        messages: 'https://api.moonshot.cn/anthropic',
+        chat: '',
+        responses: 'https://api.moonshot.cn/v1',
+        gemini: '',
+      },
+    });
+    fireEvent.click(within(dlg).getByTestId('pd-model-wire-kimi-k3-responses'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-wire-k0'), { target: { value: 'messages' } });
+    fireEvent.change(within(dlg).getByTestId('pd-map-b-0'), { target: { value: 'kimi-k3' } });
+    fireEvent.click(within(dlg).getByTestId('pd-map-add'));
+    fireEvent.change(within(dlg).getByTestId('pd-map-a-1'), { target: { value: 'half-filled' } });
+    fireEvent.click(within(dlg).getByTestId('pd-header-add'));
+    fireEvent.change(within(dlg).getByTestId('pd-header-a-1'), { target: { value: 'X-Team' } });
+    fireEvent.change(within(dlg).getByTestId('pd-header-b-1'), { target: { value: 'nomi' } });
+    fireEvent.change(within(dlg).getByTestId('pd-user-agent'), { target: { value: 'nomi/1.1' } });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.urls).toEqual({
+      messages: 'https://api.moonshot.cn/anthropic',
+      responses: 'https://api.moonshot.cn/v1',
+      chat: '',
+    });
+    expect(payload.models![0]).toEqual({ id: 'kimi-k3', enabled: true, wires: ['responses'] });
+    expect(payload.keys).toEqual([{ id: 'k0', enabled: true, wire: 'messages' }]);
+    // 没填完整的映射行不保存
+    expect(payload.modelMap).toEqual([{ from: 'a', to: 'kimi-k3' }]);
+    expect(payload.headers).toEqual({ 'X-Old': '1', 'X-Team': 'nomi' });
+    expect(payload.userAgent).toBe('nomi/1.1');
+  });
+
+  it('environment-variable providers are read-only', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        id: 'env-deepseek',
+        name: 'DeepSeek',
+        source: 'env',
+        keys: [
+          {
+            id: 'e0',
+            masked: 'sk-…beef',
+            enabled: true,
+            decryptable: true,
+            lastError: '429 限流',
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    const row = await screen.findByTestId('provider-env-deepseek');
+    expect(row.textContent).toContain('环境变量');
+    fireEvent.click(within(row).getByTestId('provider-open-env-deepseek'));
+    const dlg = detail();
+    expect(within(dlg).getByTestId('provider-detail-readonly')).toBeTruthy();
+    expect(within(dlg).getByText('环境变量')).toBeTruthy();
+    expect(within(dlg).getByText('sk-…beef')).toBeTruthy();
+    expect(within(dlg).getByText('429 限流')).toBeTruthy();
+    expect(within(dlg).queryByTestId('provider-detail-save')).toBeNull();
+    expect(within(dlg).queryByTestId('provider-detail-remove')).toBeNull();
+    expect(within(dlg).queryByTestId('pd-keys-input')).toBeNull();
+    expect(within(dlg).queryByTestId('provider-detail-name')).toBeNull();
+    for (const c of within(dlg).getAllByRole('checkbox') as HTMLInputElement[])
+      expect(c.disabled).toBe(true);
+    fireEvent.click(within(dlg).getByTestId('provider-detail-cancel'));
+    await waitFor(() => expect(screen.queryByTestId('provider-detail')).toBeNull());
+    expect(upserts(m)).toHaveLength(0);
+  });
+
+  it('shows what was learned at runtime (高级) and clears it', async () => {
     const m = fakeMain();
     m.state.providers = [
       {
@@ -351,14 +621,19 @@ describe('ModelsPage', () => {
       },
     ];
     render(<ModelsPage />);
-    const row = await screen.findByTestId('provider-r');
-    fireEvent.click(within(row).getByRole('button', { expanded: false }));
-    const box = within(row).getByTestId('provider-learned');
+    fireEvent.click(await screen.findByTestId('provider-open-r'));
+    fireEvent.click(within(detail()).getByTestId('pd-advanced-toggle'));
+    const box = within(detail()).getByTestId('provider-learned');
     expect(box.textContent).toContain('Responses 暂时不可用：3 次接口不存在');
     expect(box.textContent).toContain('glm-5 只走 Chat');
     expect(box.textContent).toContain('Chat 不发送字段：service_tier');
     fireEvent.click(within(box).getByTestId('provider-learned-clear'));
-    await waitFor(() => expect(screen.queryByTestId('provider-learned')).toBeNull());
+    await waitFor(() =>
+      expect(within(detail()).getByTestId('provider-learned').textContent).toContain(
+        '还没有自动学到的状态',
+      ),
+    );
+    expect(m.calls.some(([c, a]) => c === 'ai:gateway:clear-learned' && a[0] === 'r')).toBe(true);
   });
 
   describe('编程助手的第三方模型（§4.1）', () => {
@@ -438,6 +713,64 @@ describe('ModelsPage', () => {
           { models: { main: null }, newTabSource: 'official' },
         ]),
       );
+    });
+
+    it('没安装的 CLI 变灰并显示「安装」：确认框里是主进程给出的命令，确认后执行安装', async () => {
+      const inst = (kind: string, path: string | null) => ({
+        kind,
+        path,
+        version: path ? '1.0.0' : null,
+        latest: '1.0.0',
+        installMethod: 'npm',
+        updateAvailable: false,
+        updateSupported: true,
+        installSupported: true,
+      });
+      let grokPath: string | null = null;
+      const m = fakeMain({
+        extra: {
+          'ai:cli-update:inspect': () => [
+            inst('claude', '/bin/claude'),
+            inst('codex', '/bin/codex'),
+            inst('grok', grokPath),
+          ],
+          'ai:cli-update:busy': () => null,
+          'ai:cli-update:preview': (kind) => ({
+            kind,
+            mode: 'install',
+            scope: 'global',
+            argv: ['npm', 'install', '-g', 'grok-cli'],
+            command: 'npm install -g grok-cli',
+            requirements: [],
+            blockers: [],
+          }),
+          'ai:cli-update:run': () => {
+            grokPath = '/bin/grok';
+            return { ok: true, log: '', version: '1.0.0' };
+          },
+        },
+      });
+      seed(m);
+      render(<ModelsPage />);
+      const btn = await screen.findByTestId('cli-install-grok');
+      const row = screen.getByTestId('cli-row-grok');
+      expect(row.textContent).toContain('未安装');
+      expect(within(row).queryByTestId('cli-main-grok')).toBeNull();
+      // 装了的和主进程没报告的（gemini、dsh）照常显示选择器
+      expect(screen.queryByTestId('cli-install-claude')).toBeNull();
+      expect(screen.getByTestId('cli-main-gemini')).toBeTruthy();
+      fireEvent.click(btn);
+      expect((await screen.findByTestId('cli-version-command')).textContent).toBe(
+        'npm install -g grok-cli',
+      );
+      expect(m.calls.some(([c]) => c === 'ai:cli-update:run')).toBe(false);
+      fireEvent.click(screen.getByTestId('cli-version-confirm'));
+      await waitFor(() =>
+        expect(m.calls.find(([c]) => c === 'ai:cli-update:run')?.[1]).toEqual(['grok', 'global']),
+      );
+      // 装好后重新检查，行恢复成选择器
+      expect(await screen.findByTestId('cli-main-grok')).toBeTruthy();
+      expect(screen.queryByTestId('cli-install-grok')).toBeNull();
     });
 
     it('Claude Code：小模型（跟随主模型 = null）、展开各档和子代理', async () => {

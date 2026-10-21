@@ -7,7 +7,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createSafeStorageCipher, findPreset, migrateStoreData } from '@nomi-ai/ai-runtime';
+import {
+  createSafeStorageCipher,
+  envProviderConfig,
+  findPreset,
+  llmProvidersFromEnv,
+  migrateStoreData,
+} from '@nomi-ai/ai-runtime';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
@@ -21,13 +27,18 @@ import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
-import { decrypt as decryptLegacyCliKey, initCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
+import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
+import {
+  gatewayTerminalSource,
+  initTerminalCommands,
+  registerTerminalIpc,
+} from '../gateway/TerminalCommands';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
@@ -54,6 +65,7 @@ import {
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
 import { registerTtsModel } from '../tts/registerTtsModel';
+import { initGatewayRequestLog } from '../usage/GatewayRequestLog';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -77,6 +89,21 @@ export interface IApplication {
   stop(): Promise<void>;
   getServiceContainer(): IServiceContainer;
 }
+
+/** 环境变量供应商的显示名与提供 Key 的变量名（与 ai-runtime llmProvidersFromEnv 对应） */
+const ENV_PROVIDER_NAME: Record<string, string> = {
+  deepseek: 'DeepSeek',
+  openai: 'OpenAI',
+  claude: 'Anthropic',
+  gemini: 'Google Gemini',
+  ollama: 'Ollama',
+};
+const ENV_PROVIDER_KEY: Record<string, string> = {
+  deepseek: 'DEEPSEEK_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  claude: 'ANTHROPIC_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+};
 
 export class Application implements IApplication {
   private container: IServiceContainer;
@@ -436,11 +463,50 @@ export class Application implements IApplication {
           return null;
         }
       };
+      // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
+      const gatewayRequests = initGatewayRequestLog({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        logger: this.logger as never,
+        names: (pid, kid) => {
+          const p = getGatewayService()
+            ?.store.providers()
+            .find((x) => x.id === pid);
+          const k = p?.keys.find((x) => x.id === kid);
+          return { provider: p?.name, key: k ? (k.name ?? k.masked) : undefined };
+        },
+        onTraceChange: () => getGatewayService()?.refresh(),
+      });
+      gatewayRequests.registerIpc();
+      this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
+        onUsage: (e) => void gatewayRequests.add(e),
+        traceDir: () => gatewayRequests.traceDir(),
         presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
+        // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
+        envProviders: () =>
+          llmProvidersFromEnv()
+            .filter((e) =>
+              e.id === 'ollama'
+                ? Boolean(process.env.OLLAMA_BASE_URL || process.env.OLLAMA_MODEL)
+                : Boolean(e.apiKey),
+            )
+            .map((e) => {
+              const c = envProviderConfig(e);
+              return {
+                id: e.id,
+                name: `${ENV_PROVIDER_NAME[e.id] ?? e.id}（环境变量）`,
+                wire: c.protocol === 'anthropic' ? ('messages' as const) : ('chat' as const),
+                url: c.baseURL ?? '',
+                ...(e.apiKey ? { key: e.apiKey, keyEnv: ENV_PROVIDER_KEY[e.id] } : {}),
+                ...(c.defaultModel && c.defaultModel !== 'default'
+                  ? { model: c.defaultModel }
+                  : {}),
+              };
+            })
+            .filter((e) => e.url),
         legacy: {
           nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
           cliRoot,
@@ -458,6 +524,15 @@ export class Application implements IApplication {
       gateway.registerIpc();
       // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
+      // 终端启动命令（unified-gateway §12.6，默认关）：端口 / 令牌 / 分配变化时重新生成脚本
+      const terminal = initTerminalCommands({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        source: gatewayTerminalSource(gateway),
+        logger: this.logger as never,
+      });
+      registerTerminalIpc(terminal);
+      terminal.refresh();
+      gateway.onChange(() => terminal.refresh());
       try {
         legacyRevoke = revokeLegacyGlobalConfig({
           home: os.homedir(),
@@ -470,9 +545,6 @@ export class Application implements IApplication {
       } catch (e) {
         this.logger.warn('revoke legacy CLI config failed', e);
       }
-      // 旧的第三方供应商桥只剩读写旧存储（不再写 CLI 全局配置）；旧本地路由不再启动
-      const cliProviders = initCliProviderBridge({ root: cliRoot, logger: this.logger as never });
-      cliProviders.registerIpc();
       this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),

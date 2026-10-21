@@ -201,8 +201,6 @@ export interface SlashActions {
   openSettings: () => void;
   /** Nomi：切换对话模型（`供应商/模型`，写网关的分配） */
   switchNomiModel: (ref: string) => Promise<void>;
-  /** Nomi：改用环境变量提供的供应商（清掉网关里的分配，由旧存储路由；过渡期） */
-  useNomiEnvProvider: (id: string, model: string) => Promise<void>;
   /**
    * CLI 标签：切换这个标签的来源（第三方时 model 是 `供应商/模型`）。
    * 第三方 → 官方且已有对话时先确认；返回 false = 用户取消

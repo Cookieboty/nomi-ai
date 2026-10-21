@@ -55,7 +55,6 @@ export function makeCtx(
     openProviders: vi.fn(),
     openSettings: vi.fn(),
     switchNomiModel: vi.fn(async () => undefined),
-    useNomiEnvProvider: vi.fn(async () => undefined),
     setTabSource: vi.fn(async (_source: TabSource, _model?: string) => true),
     tabModels: vi.fn(async () => ({
       catalog: null as BackendModelCatalog | null,

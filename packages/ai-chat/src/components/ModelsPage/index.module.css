@@ -130,8 +130,13 @@
 }
 
 .cliMissing {
-  opacity: 0.6;
   grid-template-columns: 120px 1fr auto;
+}
+
+/* 没安装：名称与说明变灰，「安装」按钮保持可用的样子 */
+.cliMissing .cliName,
+.cliMissing .muted {
+  opacity: 0.6;
 }
 
 .tierRow {
@@ -188,6 +193,7 @@
 
 .expand:focus-visible,
 .more:focus-visible,
+.advToggle:focus-visible,
 .providerMain:focus-visible,
 .presetCard:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
@@ -512,4 +518,165 @@
   margin-right: auto;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
+}
+
+/* ------------------------------ 供应商详情 ------------------------------ */
+
+.titleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+
+.detailBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+
+.section > h4 {
+  margin: 0;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionHead > h4 {
+  margin: 0;
+}
+
+.keyItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+
+.keyRow,
+.modelRow,
+.wireRow,
+.pairRow,
+.addRow,
+.urlRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-height: var(--cd-control-h-sm);
+  font-size: var(--cd-font-size-sm);
+}
+
+.orderBtns {
+  display: inline-flex;
+  gap: var(--cd-space-0-5);
+}
+
+.keyName {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keyNameInput {
+  width: 160px;
+}
+
+.masked {
+  flex: 1;
+  color: var(--cd-color-text-subtle);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+}
+
+.addKeys {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+}
+
+.addKeys > :first-child {
+  flex: 1;
+}
+
+.modelList {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.modelRow .modelCheck {
+  min-width: 0;
+}
+
+.rowEnd {
+  margin-left: auto;
+}
+
+.addRow > :first-child {
+  flex: 1;
+}
+
+.advToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  align-self: flex-start;
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+
+.advToggle:hover {
+  background: var(--cd-color-hover);
+}
+
+.advBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  padding-left: var(--cd-space-4);
+}
+
+.advGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+
+.urlLabel {
+  width: 96px;
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+
+.urlRow > :last-child {
+  flex: 1;
+}
+
+.wireSelect {
+  width: 150px;
+}
+
+.pairRow > :nth-child(1),
+.pairRow > :nth-child(3) {
+  flex: 1;
+}
+
+.footerStart {
+  margin-right: auto;
 }

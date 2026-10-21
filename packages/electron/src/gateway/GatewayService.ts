@@ -22,6 +22,7 @@ import {
   type KeyStatusEvent,
   type LearnEvent,
   type ProviderQuirks,
+  type RuntimeProvider,
   type UsageEvent,
   type Wire,
 } from '@nomi-ai/gateway';
@@ -37,7 +38,7 @@ import {
   type ModelMeta,
 } from './agents';
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
-import { GatewayStore } from './GatewayStore';
+import { GatewayStore, maskKey } from './GatewayStore';
 import { migrateLegacy } from './migrate';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -59,6 +60,15 @@ function hasLearned(l: LearnedState | undefined): l is LearnedState {
       Object.keys(l.droppedParams ?? {}).length ||
       l.customToolsRefused?.length),
   );
+}
+
+function hostPortOf(url: string): string | null {
+  try {
+    const u = new URL(url);
+    return `${u.hostname.replace(/^\[|\]$/g, '').toLowerCase()}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`;
+  } catch {
+    return null;
+  }
 }
 
 function privateUrl(url: string): boolean {
@@ -104,8 +114,21 @@ export interface GatewayStateView {
   allowedPrivateHosts: string[];
   port: number;
   migratedFrom?: { at: number; files: string[] };
+  /** Nomi 对话最近用过的模型（新的在前） */
+  recentNomi?: string[];
   /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步）：撤销了哪些、哪些没撤成 */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
+}
+
+export interface EnvProviderEntry {
+  id: string;
+  name: string;
+  wire: Wire;
+  url: string;
+  key?: string;
+  /** 提供 Key 的环境变量名（界面上显示，代替 Key 名） */
+  keyEnv?: string;
+  model?: string;
 }
 
 export interface GatewayServiceDeps {
@@ -124,6 +147,10 @@ export interface GatewayServiceDeps {
     routeListening: () => boolean;
   };
   onUsage?: (e: UsageEvent) => void;
+  /** 调试追踪目录（用量面板「调试模式」打开时才有，§14） */
+  traceDir?: () => string | undefined;
+  /** 环境变量提供的供应商（DEEPSEEK_API_KEY 等，ai-runtime 的 llmProvidersFromEnv） */
+  envProviders?: () => EnvProviderEntry[];
   /** 按预设 id 取厂商差异（ai-runtime presets） */
   presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
@@ -189,16 +216,54 @@ export class GatewayService {
 
   /** 推给网关进程的快照 */
   runtimeConfig(): GatewayConfig {
-    const cfg = this.store.runtimeConfig({ legacyToken: this.d.legacy?.token() ?? undefined });
+    const cfg = this.config();
     // 会话归属表由网关进程自己读写（§11.4）
     cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
+    const traceDir = this.d.traceDir?.();
+    if (traceDir) cfg.traceDir = traceDir;
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;
   }
 
+  /** 含环境变量供应商的快照（路由、Nomi 对话、编程助手可选模型共用） */
+  private config(): GatewayConfig {
+    const env = this.envRuntime();
+    const cfg = this.store.runtimeConfig({
+      legacyToken: this.d.legacy?.token() ?? undefined,
+      envProviders: env,
+    });
+    // 环境变量里配的本机地址（如 OLLAMA_BASE_URL）是用户自己设的：视为已确认（§15）
+    const hosts = new Set(cfg.allowedPrivateHosts ?? []);
+    for (const p of env)
+      for (const u of Object.values(p.urls))
+        if (u && privateUrl(u)) {
+          const hp = hostPortOf(u);
+          if (hp) hosts.add(hp);
+        }
+    cfg.allowedPrivateHosts = [...hosts];
+    return cfg;
+  }
+
+  /** 环境变量提供的供应商（只读，id 加 env- 前缀，不与用户添加的冲突） */
+  private envRuntime(): RuntimeProvider[] {
+    return (this.d.envProviders?.() ?? []).map((e) => ({
+      id: `env-${e.id}`,
+      name: e.name,
+      enabled: true,
+      urls: { [e.wire]: e.url },
+      keys: [{ id: 'env', value: e.key ?? '', enabled: true }],
+      models: e.model ? [{ id: e.model, enabled: true }] : [],
+    }));
+  }
+
   private push(): void {
     this.proc.apply(this.runtimeConfig());
+  }
+
+  /** 外部设置变化（如调试模式开关）后重新推一次配置 */
+  refresh(): void {
+    this.push();
   }
 
   private commit(): void {
@@ -286,8 +351,7 @@ export class GatewayService {
 
   /** 第三方标签可选的模型（启用的供应商里启用的模型，`供应商/模型`） */
   cliModels(): Array<{ ref: string; provider: string; label: string; reasoning?: boolean }> {
-    return this.store
-      .providers()
+    return [...this.store.providers(), ...this.envViews()]
       .filter((p) => p.enabled)
       .flatMap((p) =>
         p.models
@@ -390,11 +454,15 @@ export class GatewayService {
 
   private nomiPick(role: NomiRole) {
     const models = this.store.snapshot().clients.nomi?.models;
-    if (!models?.main) return null;
+    const cfg = this.config();
+    // 没给 Nomi 对话分配模型时，用第一个环境变量供应商的默认模型
+    const env = cfg.providers.find((p) => p.id.startsWith('env-') && p.models[0]);
+    const main = models?.main ?? (env ? `${env.id}/${env.models[0]!.id}` : undefined);
+    if (!main) return null;
     const ref =
-      (role === 'agent-tools' ? models.tools : role === 'summary' ? models.summary : undefined) ??
-      models.main;
-    const picked = preferredWire(this.store.runtimeConfig(), 'nomi', ref);
+      (role === 'agent-tools' ? models?.tools : role === 'summary' ? models?.summary : undefined) ??
+      main;
+    const picked = preferredWire(cfg, 'nomi', ref);
     if (!picked?.upstreams.length) return null;
     const receiver = picked.upstreams.find((u) => !privateUrl(u.url)) ?? picked.upstreams[0]!;
     return { ...picked, receiver };
@@ -406,14 +474,17 @@ export class GatewayService {
     const data = this.store.snapshot();
     return {
       status: this.proc.getStatus(),
-      providers: data.providers.map((p) => ({
-        ...p,
-        keys: p.keys.map(({ enc, encryption, ...k }) => ({
-          ...k,
-          decryptable: this.store.decrypt(enc, encryption) !== null,
+      providers: [
+        ...data.providers.map((p) => ({
+          ...p,
+          keys: p.keys.map(({ enc, encryption, ...k }) => ({
+            ...k,
+            decryptable: this.store.decrypt(enc, encryption) !== null,
+          })),
+          ...(hasLearned(data.learned[p.id]) ? { learned: data.learned[p.id] } : {}),
         })),
-        ...(hasLearned(data.learned[p.id]) ? { learned: data.learned[p.id] } : {}),
-      })),
+        ...this.envViews(),
+      ],
       clients: Object.fromEntries(
         CLIENT_IDS.flatMap((id) => {
           const c = data.clients[id];
@@ -430,8 +501,27 @@ export class GatewayService {
       allowedPrivateHosts: data.allowedPrivateHosts,
       port: data.port,
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
+      ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
       ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
     };
+  }
+
+  /** 环境变量供应商在「模型」页的只读视图（Key 只给掩码） */
+  private envViews(): ProviderView[] {
+    return (this.d.envProviders?.() ?? []).map((e) => ({
+      id: `env-${e.id}`,
+      name: e.name,
+      enabled: true,
+      urls: { [e.wire]: e.url },
+      keys: e.key
+        ? [{ id: 'env', name: e.keyEnv, masked: maskKey(e.key), enabled: true, decryptable: true }]
+        : [],
+      models: e.model ? [{ id: e.model, enabled: true }] : [],
+      modelsSource: 'manual' as const,
+      source: 'env' as const,
+      createdAt: 0,
+      updatedAt: 0,
+    }));
   }
 
   /* ------------------------------ 修改 ------------------------------ */
@@ -502,6 +592,12 @@ export class GatewayService {
     patch: { models?: ClientModels; newTabSource?: 'official' | 'thirdParty' },
   ): void {
     this.store.setClient(client, patch);
+    const main = patch.models?.main;
+    if (client === 'nomi' && main) {
+      const data = this.store.snapshot();
+      data.recentNomi = [main, ...(data.recentNomi ?? []).filter((r) => r !== main)].slice(0, 5);
+      this.store.replace(data);
+    }
     this.commit();
   }
 

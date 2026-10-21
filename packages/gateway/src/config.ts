@@ -118,4 +118,6 @@ export interface GatewayConfig {
   learned?: Record<string, LearnedState>;
   /** 会话归属表文件（§11.4）；缺省只在内存里 */
   sessionsFile?: string;
+  /** 调试追踪目录（§14「调试模式」）：设置了才把请求 / 响应正文脱敏后写到这里，24 小时自动删除 */
+  traceDir?: string;
 }
