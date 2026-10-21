@@ -3145,13 +3145,13 @@
             <KeyedObject objectId="0:135643"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="linear"/></KeyedProperty></KeyedObject>
         </LinearAnimation>
         <LinearAnimation name="full.talk" loopValue="oneShot" duration="70" fps="60" id="0:135625">
-            <KeyedObject objectId="0:135599"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="1.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135638"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135639"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135640"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135641"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135642"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
-            <KeyedObject objectId="0:135643"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="10" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="20" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="30" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="40" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="50" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="1.0000" frame="60" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble><KeyFrameDouble value="0.0000" frame="70" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135599"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="1.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135638"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135639"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135640"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135641"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135642"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="1.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
+            <KeyedObject objectId="0:135643"><!--r45mouth--><KeyedProperty property="opacity"><KeyFrameDouble value="0.0000" frame="0" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="10" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="20" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="30" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="40" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="50" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="60" interpolationType="hold"/><KeyFrameDouble value="0.0000" frame="70" interpolationType="hold"/></KeyedProperty></KeyedObject>
         </LinearAnimation>        <StateMachine name="NomiFull" id="0:8">
             <StateMachineLayer name="full.idle" id="0:219">
                 <AnyState x="0" y="-100"/>
@@ -3809,7 +3809,7 @@
                     <StateTransition stateToId="0:135657"/>
                 </EntryState>
                 <AnimationState x="200" y="0" animationId="0:135624" id="0:135657">
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3819,7 +3819,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -3829,7 +3829,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3839,7 +3839,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -3849,7 +3849,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3859,7 +3859,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -3869,7 +3869,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3879,7 +3879,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -3889,7 +3889,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3899,7 +3899,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -3909,7 +3909,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3919,7 +3919,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -3929,7 +3929,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3939,7 +3939,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3949,7 +3949,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3961,7 +3961,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="80" animationId="0:135626" id="0:135658">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3971,7 +3971,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -3981,7 +3981,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -3991,7 +3991,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4001,7 +4001,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4011,7 +4011,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4021,7 +4021,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4031,7 +4031,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4041,7 +4041,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4051,7 +4051,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4061,7 +4061,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4071,7 +4071,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4083,7 +4083,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="160" animationId="0:135627" id="0:135659">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4093,7 +4093,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4103,7 +4103,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4113,7 +4113,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4123,7 +4123,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4133,7 +4133,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4143,7 +4143,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4153,7 +4153,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4163,7 +4163,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4173,7 +4173,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4183,7 +4183,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4193,7 +4193,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4203,7 +4203,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4213,7 +4213,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4225,7 +4225,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="240" animationId="0:135628" id="0:135660">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4235,7 +4235,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4245,7 +4245,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4255,7 +4255,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4265,7 +4265,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -4275,7 +4275,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4285,7 +4285,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4295,7 +4295,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4305,7 +4305,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4315,7 +4315,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4325,7 +4325,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4335,7 +4335,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4345,7 +4345,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4355,7 +4355,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4367,7 +4367,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="320" animationId="0:135629" id="0:135661">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4377,7 +4377,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4387,7 +4387,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4397,7 +4397,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4407,7 +4407,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -4417,7 +4417,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4427,7 +4427,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4437,7 +4437,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4447,7 +4447,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4457,7 +4457,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4467,7 +4467,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4477,7 +4477,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4487,7 +4487,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4497,7 +4497,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4509,7 +4509,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="400" animationId="0:135630" id="0:135662">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4519,7 +4519,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4529,7 +4529,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4539,7 +4539,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4549,7 +4549,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -4559,7 +4559,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4569,7 +4569,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4579,7 +4579,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4589,7 +4589,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4599,7 +4599,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4609,7 +4609,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4619,7 +4619,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4629,7 +4629,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4639,7 +4639,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4651,7 +4651,7 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="480" animationId="0:135631" id="0:135663">
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4661,7 +4661,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4671,7 +4671,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4681,7 +4681,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4691,7 +4691,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -4701,7 +4701,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4711,7 +4711,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4721,7 +4721,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4731,7 +4731,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4741,7 +4741,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4751,7 +4751,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4761,7 +4761,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4771,7 +4771,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4781,7 +4781,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135664" duration="4">
+                    <StateTransition stateToId="0:135664" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4793,8 +4793,8 @@
                     </StateTransition>
                 </AnimationState>
                 <AnimationState x="200" y="560" animationId="0:135625" id="0:135664">
-                    <StateTransition stateToId="0:135657" duration="8" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
-                    <StateTransition stateToId="0:135657" duration="4">
+                    <StateTransition stateToId="0:135657" duration="0" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
+                    <StateTransition stateToId="0:135657" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4804,7 +4804,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4814,7 +4814,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="1">
@@ -4824,7 +4824,7 @@
                             <TransitionValueNumberComparator value="1"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4834,7 +4834,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135659" duration="4">
+                    <StateTransition stateToId="0:135659" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="2">
@@ -4844,7 +4844,7 @@
                             <TransitionValueNumberComparator value="2"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4854,7 +4854,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135660" duration="4">
+                    <StateTransition stateToId="0:135660" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="3">
@@ -4864,7 +4864,7 @@
                             <TransitionValueNumberComparator value="3"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4874,7 +4874,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135661" duration="4">
+                    <StateTransition stateToId="0:135661" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="4">
@@ -4884,7 +4884,7 @@
                             <TransitionValueNumberComparator value="4"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4894,7 +4894,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135662" duration="4">
+                    <StateTransition stateToId="0:135662" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="5">
@@ -4904,7 +4904,7 @@
                             <TransitionValueNumberComparator value="5"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4914,7 +4914,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135663" duration="4">
+                    <StateTransition stateToId="0:135663" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyNumber propertyValue="6">
@@ -4924,7 +4924,7 @@
                             <TransitionValueNumberComparator value="6"/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>
@@ -4934,7 +4934,7 @@
                             <TransitionValueTriggerComparator/>
                         </TransitionViewModelCondition>
                     </StateTransition>
-                    <StateTransition stateToId="0:135658" duration="4">
+                    <StateTransition stateToId="0:135658" duration="0">
                         <TransitionViewModelCondition>
                             <TransitionPropertyViewModelComparator>
                                 <BindablePropertyTrigger>

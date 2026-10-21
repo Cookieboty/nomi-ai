@@ -92,10 +92,9 @@ def main():
             if oid == mouthline_id:
                 val = 1.0 if name in ("rest", "m") else 0.0
             else:
-                val = 1.0 if name == kind else 0.0
+                val = 1.0 if (name == kind and kind != "m") else 0.0  # M = original mouthline
             talk_body += (
-                f'<KeyFrameDouble value="{val:.4f}" frame="{i*10}" interpolationType="cubic">'
-                f'<CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>')
+                f'<KeyFrameDouble value="{val:.4f}" frame="{i*10}" interpolationType="hold"/>')
         talk_body += "</KeyedProperty></KeyedObject>"
     dur = (len(order) - 1) * 10
     anims += (f'\n        <LinearAnimation name="full.talk" loopValue="oneShot" duration="{dur}" fps="60" id="{talk_anim}">'
@@ -143,16 +142,16 @@ def main():
         if exclude != "rest":
             # Close only via mouth-close trigger (NOT viseme==0): number==0 would
             # immediately eject talk / trigger-driven opens while the VM number stays 0.
-            parts.append(f'''                    <StateTransition stateToId="{st_rest}" duration="4">\n{trig_cond(vm_tr["mouth-close"])}\n                    </StateTransition>''')
+            parts.append(f'''                    <StateTransition stateToId="{st_rest}" duration="0">\n{trig_cond(vm_tr["mouth-close"])}\n                    </StateTransition>''')
         for i, v in enumerate(VISEMES, 1):
             if exclude == v: continue
-            parts += [f'''                    <StateTransition stateToId="{st[v]}" duration="4">\n{trig_cond(vm_tr[f"viseme_{v}"])}\n                    </StateTransition>''',
-                      f'''                    <StateTransition stateToId="{st[v]}" duration="4">\n{num_cond(vm_viseme, i)}\n                    </StateTransition>''']
+            parts += [f'''                    <StateTransition stateToId="{st[v]}" duration="0">\n{trig_cond(vm_tr[f"viseme_{v}"])}\n                    </StateTransition>''',
+                      f'''                    <StateTransition stateToId="{st[v]}" duration="0">\n{num_cond(vm_viseme, i)}\n                    </StateTransition>''']
         if exclude != "a":
-            parts += [f'''                    <StateTransition stateToId="{st["a"]}" duration="4">\n{trig_cond(vm_tr["mouth-open"])}\n                    </StateTransition>''',
-                      f'''                    <StateTransition stateToId="{st["a"]}" duration="4">\n{trig_cond(vm_tr["talking"])}\n                    </StateTransition>''']
+            parts += [f'''                    <StateTransition stateToId="{st["a"]}" duration="0">\n{trig_cond(vm_tr["mouth-open"])}\n                    </StateTransition>''',
+                      f'''                    <StateTransition stateToId="{st["a"]}" duration="0">\n{trig_cond(vm_tr["talking"])}\n                    </StateTransition>''']
         if exclude != "talk":
-            parts.append(f'''                    <StateTransition stateToId="{st_talk}" duration="4">\n{trig_cond(vm_tr["talk"])}\n                    </StateTransition>''')
+            parts.append(f'''                    <StateTransition stateToId="{st_talk}" duration="0">\n{trig_cond(vm_tr["talk"])}\n                    </StateTransition>''')
         return "\n".join(parts)
 
     layer = f'''            <StateMachineLayer name="full.mouth" id="{layer_id}">
@@ -171,7 +170,7 @@ def main():
                 </AnimationState>
 '''
     layer += f'''                <AnimationState x="200" y="560" animationId="{talk_anim}" id="{st_talk}">
-                    <StateTransition stateToId="{st_rest}" duration="8" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
+                    <StateTransition stateToId="{st_rest}" duration="0" enableExitTime="true" exitTimeIsPercetange="true" exitTime="100"/>
 {all_trans("talk")}
                 </AnimationState>
             </StateMachineLayer>
