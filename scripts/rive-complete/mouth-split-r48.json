@@ -1,40 +1,38 @@
 {
   "upper": {
     "bbox": [
-      232,
-      192,
-      280,
-      218
+      234,
+      194,
+      278,
+      216
     ],
     "size": [
-      48,
-      26
+      44,
+      22
     ]
   },
   "lower": {
     "bbox": [
-      232,
-      192,
-      280,
-      218
+      234,
+      194,
+      278,
+      216
     ],
     "size": [
-      48,
-      26
+      44,
+      22
     ]
   },
   "cavity": {
     "bbox": [
-      232,
-      192,
-      280,
-      218
+      234,
+      194,
+      278,
+      216
     ],
     "size": [
-      48,
-      26
+      44,
+      22
     ]
-  },
-  "lip_line_local_y": 12,
-  "note": "R48c: lip-rim bands from head smile; opaque cavity+teeth; wider cover bbox"
+  }
 }

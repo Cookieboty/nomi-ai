@@ -1106,25 +1106,25 @@
       "method": "ROUND47: crop of original head-mouth.png (draw uses mouthline for rest/M)"
     },
     "reference/svg-rig/mouth-split-upper.png": {
-      "sha256": "3eafc06beff096743e4814cfa6ff12b270d4a3309452cfeda9008c214f6d6a97",
-      "bytes": 176,
+      "sha256": "bf80c067ee713834b3c41eb32ffaa2df603b15d820e4a15d31f2c546d5dbe22c",
+      "bytes": 1190,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND48: upper lip rim from head-mouth + skin"
+      "method": "ROUND48: upper lip cut from head-mouth + face-smile composite (original pixels)"
     },
     "reference/svg-rig/mouth-split-lower.png": {
-      "sha256": "a8f28636edf7abc27a3ca0067f999e41a9c4eed51409dc7898f7b3017e253b30",
-      "bytes": 225,
+      "sha256": "71f1a709ac252535ef612aea1ae9510dd111bf9cfab9a53bb67ec0fe5ccbb75f",
+      "bytes": 648,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND48: lower lip rim from head-mouth + skin"
+      "method": "ROUND48: lower lip cut from head-mouth + face-smile composite (original pixels)"
     },
     "reference/svg-rig/mouth-split-cavity.png": {
-      "sha256": "0cfd45fd458cf9289cd53d7b7abf2e2b6b0f6a263e149d7133647a76058be6f4",
-      "bytes": 508,
+      "sha256": "de7e7853756358833798267d4a0292a3933e67e4963d9955472b4128f96f93c7",
+      "bytes": 370,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND48: NEW smooth cavity in lip gap (smile palette; no thin strip)"
+      "method": "ROUND48: NEW small oral cavity for the gap between deformed lips (palette from face-smile); not in source"
     }
   },
   "round32": {
