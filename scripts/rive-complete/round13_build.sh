@@ -59,3 +59,5 @@ python3 round42_head_rig.py
 python3 round43_face_yaw_motion.py
 python3 round44_eye_split.py
 python3 round44_eye_yaw_motion.py
+python3 round45_mouth_visemes.py
+python3 round45_mouth_yaw.py
