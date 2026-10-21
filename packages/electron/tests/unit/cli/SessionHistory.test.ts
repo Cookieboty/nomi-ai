@@ -721,6 +721,11 @@ describe('SessionHistoryService', () => {
         );
         db.prepare('UPDATE threads SET archived = 1 WHERE id = ?').run(ids[0]!);
         db.prepare('UPDATE threads SET title = ? WHERE id = ?').run('new indexed title', ids[1]!);
+        // 索引按 (大小, mtime) 判断变化：原地 UPDATE 可能落在同一时间刻度内、大小也不变，
+        // 负载高时会被当成没变。显式推后 mtime，让用例只验证「库变了要重读」本身。
+        const dbFile = path.join(home, '.codex', 'state_5.sqlite');
+        const later = new Date(fs.statSync(dbFile).mtimeMs + 5_000);
+        fs.utimesSync(dbFile, later, later);
         const page = await svc.list('codex', { force: true });
         expect(page.items.map((x) => x.sessionId)).toEqual([ids[1]]);
         expect(page.items[0]!.title).toBe('new indexed title');
