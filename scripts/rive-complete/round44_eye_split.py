@@ -95,7 +95,7 @@ def build(s):
     u0, u1 = int((V[:, 0].min() - bx) / kx) - 2, int((V[:, 0].max() - bx) / kx) + 2
     v0, v1 = int((V[:, 1].min() + my - by) / ky) - 2, int((V[:, 1].max() + my - by) / ky) + 2
     cover[max(v0, 0):v1, max(u0, 0):u1] = True
-    rem, merged = {}, 0
+    rem, merged, lays = {}, 0, {}
     for sd in "lr":
         x, y, k, aid = P[f"full.eye.{sd}.image"]
         src = load(asset_file(s, aid))
@@ -114,6 +114,7 @@ def build(s):
         face[bleed, :3] = lay[bleed, :3]
         face[mv] = over(face[mv][None], lay[mv][None])[0]
         merged += int(mv.sum())
+        lays[sd] = (lay, u, v, src.shape)
         keep = lay.copy(); keep[cv2.erode(mv.astype(np.uint8), k5) > 0, 3] = 0  # 2-texel duplicate ring stays; rgb kept (alpha 0)
         rem[sd] = keep[v:v + src.shape[0], u:u + src.shape[1]]
     # eye zone: hard-edged patch of original face px within EYE_M of the eye window; opaque skin is
@@ -121,24 +122,37 @@ def build(s):
     # never shows at rest; semi-transparent texels live only in the zone (no double composite).
     core = parts["l"] | parts["r"]
     bb = cv2.dilate(core.astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
-    win = core | (bb & (face[..., 3] < 250))
+    # window = eye2 parts footprint + the face's own AA rim around it (not the empty strand gaps near the
+    # face outline, which must stay with the face)
+    win = core | (bb & (face[..., 3] > 0) & (face[..., 3] < 250))
     D = cv2.distanceTransform((~win).astype(np.uint8), cv2.DIST_L2, 5)
     inz = (D <= EYE_M) & (face[..., 3] > 0)
+    # semi-transparent face texels away from the window (outline AA, strand gaps) stay ONLY in the face
+    # (zone leaves them out) so a moving zone never leaves an un-backed hole there
+    inz &= (face[..., 3] >= 250) | (D <= CLEAR)
     zone = np.zeros_like(face)
     zone[inz] = face[inz]
-    op = inz & (face[..., 3] >= 250)
+    op = inz & (cv2.erode((face[..., 3] >= 250).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)  # not at a layer border
     zone[op, 3] = 255
+    # eye-l/r texels seen through the window (lower-lash marks etc. baked in the cheek patch) must ride
+    # with the eyes: duplicated (opaque only) into head-eyeback.png, drawn just under the eye2 parts
+    eyeback = np.zeros_like(face)
+    for sd in "lr":
+        lay = lays[sd][0]
+        sel = (D <= CLEAR) & (cv2.erode((lay[..., 3] >= 250).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0)
+        eyeback[sel] = lay[sel]
+    moved = int((eyeback[..., 3] > 0).sum())
     face2 = face.copy()
     face2[inz & ~op] = 0
     face2[D <= CLEAR] = 0
-    return face2, zone, rem, dict(merged_cheek_px=merged, zone_px=int((zone[..., 3] > 0).sum()),
+    return face2, zone, eyeback, rem, dict(eyeback_px=moved, merged_cheek_px=merged, zone_px=int((zone[..., 3] > 0).sum()),
                                   cleared_px=int(((D <= CLEAR) & (face[..., 3] > 0)).sum()))
 
 
 def main():
     s = SCENE.read_text(encoding="utf-8")
-    face2, zone, rem, meta = build(s)
-    outs = {"head-face-r44.png": face2, "head-eyezone.png": zone,
+    face2, zone, eyeback, rem, meta = build(s)
+    outs = {"head-face-r44.png": face2, "head-eyezone.png": zone, "head-eyeback.png": eyeback,
             "eye-l-r44.png": rem["l"], "eye-r-r44.png": rem["r"]}
     for f, a in outs.items():
         Image.fromarray(a, "RGBA").save(RIG / f)
@@ -164,6 +178,14 @@ def main():
                        lambda mm: f'<Tendon boneId="{gid}"{mm.group(1)}tx="0.0000"', t, count=1)
         assert n == 1
         s = s[:a] + t + s[a:]
+        bid = new()
+        at = re.search(r'<ImageAsset name="fullbody-head-eyezone"[^>]*/>', s)
+        s = s[:at.end()] + f'\n    <ImageAsset name="fullbody-head-eyeback" file="reference/svg-rig/head-eyeback.png" id="{bid}"/>' + s[at.end():]
+        t2 = t.replace("full.head.eyezone.image", "full.head.eyeback.image")
+        t2 = re.sub(r'assetId="[^"]+"', f'assetId="{bid}"', t2, count=1)
+        t2 = re.sub(r'\bid="0:\d+"', lambda _: f'id="{new()}"', t2)
+        a2, b2 = R8.find_elem(s, "Image", "full.eye2.r.skin.image")
+        s = s[:b2] + t2 + s[b2:]
         SCENE.write_text(s, encoding="utf-8")
     d = json.loads(R41.LIC.read_text())
     for f in outs:

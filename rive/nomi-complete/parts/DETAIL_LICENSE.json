@@ -1022,15 +1022,22 @@
       "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
     },
     "reference/svg-rig/head-face-r44.png": {
-      "sha256": "a8783a7d3e71326571320e3532a78e170e9ece664c814ffb309cdec0e6e95a1d",
-      "bytes": 31416,
+      "sha256": "4c5c31870b6d6e83a94b1c75556df72ff8e5fccee607048081562c71bfc27b46",
+      "bytes": 32272,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
     },
     "reference/svg-rig/head-eyezone.png": {
-      "sha256": "6cc6abecc80bfa5973b41f8d86d2e491ee258646425363afaf638a2e046b1fec",
-      "bytes": 7309,
+      "sha256": "7a058f74a5a4fbb3dd65886b103e245aa3909b1d3125f95c8d3feae0da3bf061",
+      "bytes": 7185,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/head-eyeback.png": {
+      "sha256": "7f9b504ca6a2cb7fa9552ff4119bc873d5aeb3ec0bfe976f118502dfb69ecc9e",
+      "bytes": 2045,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
