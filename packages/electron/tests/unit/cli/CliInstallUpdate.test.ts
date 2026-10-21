@@ -30,6 +30,11 @@ beforeEach(() => {
   jest.spyOn(os, 'homedir').mockReturnValue(tmp);
   // 让 `which` 找不到任何真实的 claude / codex / dsh
   process.env.PATH = path.join(tmp, 'empty');
+  // Windows 探测会从这些用户级目录补 PATH；指向临时目录，避免被开发机上的
+  // npm / pnpm 全局 CLI 污染“未安装”场景。
+  process.env.USERPROFILE = tmp;
+  process.env.APPDATA = path.join(tmp, 'AppData', 'Roaming');
+  process.env.LOCALAPPDATA = path.join(tmp, 'AppData', 'Local');
   delete process.env.NOMI_CLAUDE_BIN;
   delete process.env.NOMI_CODEX_BIN;
   delete process.env.NOMI_DSH_BIN;

@@ -8,8 +8,9 @@ export interface TerminalCommandsState {
   binDir: string;
   /** 会写入（或已写入）PATH 段的 shell 配置文件 */
   rcFiles: string[];
-  /** Windows 上为 false：不改 PATH，只显示目录 */
+  /** 当前平台是否支持自动加入 PATH */
   pathSupported: boolean;
+  pathKind?: 'user-path' | 'shell-rc';
   commands: string[];
 }
 

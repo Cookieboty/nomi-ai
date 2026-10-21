@@ -412,6 +412,19 @@ describe('ModelsPage', () => {
     });
     fireEvent.click(within(dlg).getByTestId('pd-keys-add'));
     expect(within(dlg).getAllByTestId('pd-new-key')).toHaveLength(2);
+    // 新 Key 与已保存 Key 共用顺序，可以在保存前成为主 Key。
+    const fresh = within(dlg).getAllByTestId('pd-new-key')[0]!;
+    fireEvent.click(within(fresh).getByRole('button', { name: /上移/ }));
+    fireEvent.click(within(fresh).getByRole('button', { name: /上移/ }));
+    expect(dlg.querySelector('[data-testid="pd-new-key"]')).toBe(fresh);
+    // 检测同时包含草稿中仍启用的已保存 Key 和新 Key。
+    fireEvent.click(within(dlg).getByTestId('pd-models-refresh'));
+    await within(dlg).findByTestId('pd-detect-notice');
+    const detection = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
+    expect(detection).toMatchObject({
+      savedKeyIds: ['k1'],
+      keys: ['sk-new-aaaa1111', 'sk-new-bbbb2222'],
+    });
     fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
     await waitFor(() => expect(upserts(m)).toHaveLength(1));
     const payload = upserts(m)[0]!;
@@ -419,7 +432,10 @@ describe('ModelsPage', () => {
       { id: 'k1', enabled: true, name: '公司' },
       { id: 'k0', enabled: false },
     ]);
-    expect(payload.newKeys).toEqual([{ value: 'sk-new-aaaa1111' }, { value: 'sk-new-bbbb2222' }]);
+    expect(payload.newKeys).toEqual([
+      { value: 'sk-new-aaaa1111', position: 0, enabled: true },
+      { value: 'sk-new-bbbb2222', position: 3, enabled: true },
+    ]);
   });
 
   it('models: add an id by hand; 刷新 merges newly listed models as disabled', async () => {

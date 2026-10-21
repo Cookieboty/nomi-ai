@@ -62,17 +62,12 @@ interface KeyDraft {
   name: string;
   enabled: boolean;
   wire?: Wire;
-}
-interface NewKeyDraft {
-  tmp: number;
-  value: string;
-  name: string;
-  wire?: Wire;
+  /** 只有本次新增的 Key 带明文；已有 Key 永不返回明文。 */
+  value?: string;
 }
 interface Draft {
   name: string;
   keys: KeyDraft[];
-  newKeys: NewKeyDraft[];
   models: GatewayModel[];
   fallback: string[];
   urls: Record<Wire, string>;
@@ -85,7 +80,6 @@ interface Draft {
 const initDraft = (p: ProviderView): Draft => ({
   name: p.name,
   keys: p.keys.map((k) => ({ id: k.id, name: k.name ?? '', enabled: k.enabled, wire: k.wire })),
-  newKeys: [],
   models: p.models.map((m) => ({ ...m })),
   fallback: [...(p.fallback ?? [])],
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
@@ -97,10 +91,13 @@ const initDraft = (p: ProviderView): Draft => ({
 /** 草稿 → upsert-provider 的参数（也用来判断有没有改动） */
 export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
   const orig = new Map(p.keys.map((k) => [k.id, k]));
-  const newKeys = d.newKeys
-    .filter((k) => k.value.trim())
+  const newKeys = d.keys
+    .map((k, position) => ({ ...k, position }))
+    .filter((k) => k.value?.trim())
     .map((k) => ({
-      value: k.value.trim(),
+      value: k.value!.trim(),
+      position: k.position,
+      enabled: k.enabled,
       ...(k.name.trim() ? { name: k.name.trim() } : {}),
       ...(k.wire ? { wire: k.wire } : {}),
     }));
@@ -113,13 +110,15 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
     urls: Object.fromEntries(
       WIRES.filter((w) => d.urls[w].trim() || p.urls[w]).map((w) => [w, d.urls[w].trim()]),
     ),
-    keys: d.keys.map((k) => ({
-      id: k.id,
-      enabled: k.enabled,
-      ...(k.wire ? { wire: k.wire } : {}),
-      // 名字留空就按顺序显示；原来有名字、现在清空时写空串
-      ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
-    })),
+    keys: d.keys
+      .filter((k) => k.value === undefined)
+      .map((k) => ({
+        id: k.id,
+        enabled: k.enabled,
+        ...(k.wire ? { wire: k.wire } : {}),
+        // 名字留空就按顺序显示；原来有名字、现在清空时写空串
+        ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
+      })),
     ...(newKeys.length ? { newKeys } : {}),
     models: d.models,
     modelMap: d.modelMap
@@ -254,16 +253,17 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     patch({ keys: d.keys.filter((_, n) => n !== i) });
   };
   const addKeys = () => {
-    const known = new Set(d.newKeys.map((k) => k.value));
+    const known = new Set(d.keys.map((k) => k.value));
     const fresh = splitKeys(keysText).filter((v) => !known.has(v));
     if (!fresh.length) return;
     patch({
-      newKeys: [...d.newKeys, ...fresh.map((value) => ({ tmp: ++tmpSeq, value, name: '' }))],
+      keys: [
+        ...d.keys,
+        ...fresh.map((value) => ({ id: `new-${++tmpSeq}`, value, name: '', enabled: true })),
+      ],
     });
     setKeysText('');
   };
-  const setNewKey = (tmp: number, x: Partial<NewKeyDraft>) =>
-    patch({ newKeys: d.newKeys.map((k) => (k.tmp === tmp ? { ...k, ...x } : k)) });
 
   /* ---------------- 模型 ---------------- */
   const setModel = (id: string, x: Partial<GatewayModel>) =>
@@ -299,13 +299,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     setBusy('detect');
     try {
       if (!(await confirmPrivate())) return;
-      const usableSaved = p.keys.some((k) => k.decryptable);
-      const fresh = d.newKeys.map((k) => k.value.trim()).filter(Boolean);
+      const fresh = d.keys
+        .filter((k) => k.enabled && k.value)
+        .map((k) => k.value!.trim())
+        .filter(Boolean);
       const r = await gatewayClient.detect({
         providerId: p.id,
         // 空串覆盖保存的地址：关掉的协议不再测
         urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])),
-        ...(!usableSaved && fresh.length ? { keys: fresh } : {}),
+        savedKeyIds: d.keys.filter((k) => k.enabled && k.value === undefined).map((k) => k.id),
+        ...(fresh.length ? { keys: fresh } : {}),
       });
       const have = new Set(d.models.map((m) => m.id));
       const added: GatewayModel[] = r.models
@@ -419,14 +422,18 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             <h4 id="pd-keys" className={styles.groupTitle}>
               {t('Key（按顺序回退）')}
             </h4>
-            {!p.keys.length && !d.newKeys.length && (
-              <span className={styles.muted}>{t('无需 Key')}</span>
-            )}
+            {!d.keys.length && <span className={styles.muted}>{t('无需 Key')}</span>}
             {(readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys).map((k, i) => {
               const view = p.keys.find((x) => x.id === k.id);
               const label = keyName({ name: k.name || view?.name }, i);
               return (
-                <div key={k.id} className={styles.keyItem} data-testid={`pd-key-${k.id}`}>
+                <div
+                  key={k.id}
+                  className={styles.keyItem}
+                  data-testid={
+                    'value' in k && k.value !== undefined ? 'pd-new-key' : `pd-key-${k.id}`
+                  }
+                >
                   <div className={styles.keyRow}>
                     {!readOnly && (
                       <span className={styles.orderBtns}>
@@ -462,7 +469,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         aria-label={t('{0} 的名称', label)}
                       />
                     )}
-                    <code className={styles.masked}>{view?.masked}</code>
+                    {'value' in k && typeof k.value === 'string' && (
+                      <span className={styles.badgeSoft}>{t('新')}</span>
+                    )}
+                    <code className={styles.masked}>
+                      {'value' in k && typeof k.value === 'string'
+                        ? k.value.length > 8
+                          ? `${k.value.slice(0, 3)}…${k.value.slice(-4)}`
+                          : '…'
+                        : view?.masked}
+                    </code>
                     {!readOnly && (
                       <>
                         <Switch
@@ -491,28 +507,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 </div>
               );
             })}
-            {d.newKeys.map((k) => (
-              <div key={k.tmp} className={styles.keyRow} data-testid="pd-new-key">
-                <span className={styles.badgeSoft}>{t('新')}</span>
-                <Input
-                  size="sm"
-                  className={styles.keyNameInput}
-                  value={k.name}
-                  placeholder={t('名称（可选）')}
-                  onChange={(e) => setNewKey(k.tmp, { name: e.target.value })}
-                  aria-label={t('新 Key 的名称')}
-                />
-                <code className={styles.masked}>
-                  {k.value.length > 8 ? `${k.value.slice(0, 3)}…${k.value.slice(-4)}` : '…'}
-                </code>
-                <IconButton
-                  size="sm"
-                  label={t('移除这个新 Key')}
-                  icon={<Icon icon={Trash2} size={14} />}
-                  onClick={() => patch({ newKeys: d.newKeys.filter((x) => x.tmp !== k.tmp) })}
-                />
-              </div>
-            ))}
             {!readOnly && (
               <div className={styles.addKeys}>
                 <Textarea
@@ -748,7 +742,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                         ))}
                     </div>
 
-                    {(d.keys.length > 0 || d.newKeys.length > 0) && (
+                    {d.keys.length > 0 && (
                       <div className={styles.advGroup}>
                         <div className={styles.groupTitle}>{t('Key 限定协议')}</div>
                         {d.keys.map((k, i) => {
@@ -773,21 +767,6 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                             </div>
                           );
                         })}
-                        {d.newKeys.map((k) => (
-                          <div key={k.tmp} className={styles.wireRow}>
-                            <span className={styles.keyName}>{k.name || t('新 Key')}</span>
-                            <Select
-                              size="sm"
-                              className={styles.wireSelect}
-                              options={wireOptions}
-                              value={k.wire ?? ''}
-                              onChange={(e) =>
-                                setNewKey(k.tmp, { wire: (e.target.value || undefined) as Wire })
-                              }
-                              aria-label={t('新 Key 限定的协议')}
-                            />
-                          </div>
-                        ))}
                       </div>
                     )}
 

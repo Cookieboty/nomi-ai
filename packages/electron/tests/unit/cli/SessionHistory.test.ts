@@ -678,6 +678,71 @@ describe('SessionHistoryService', () => {
       ]);
       expect(page.items[0]).not.toHaveProperty('accountId');
     });
+
+    it('recognizes Work Desktop, keeps untitled Desktop sessions and refreshes archive / resume metadata', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { DatabaseSync } = require('node:sqlite') as typeof import('node:sqlite');
+      const first = write(
+        ids[0]!,
+        rollout(ids[0]!, '', { originator: 'codex_work_desktop', source: 'vscode' }),
+        5_000,
+      )!;
+      const second = write(
+        ids[1]!,
+        rollout(ids[1]!, 'old prompt', { originator: 'Codex Desktop' }),
+        4_000,
+      )!;
+      const db = new DatabaseSync(path.join(home, '.codex', 'state_5.sqlite'));
+      try {
+        db.exec(
+          'CREATE TABLE threads (id TEXT PRIMARY KEY, title TEXT, archived INTEGER, originator TEXT)',
+        );
+        db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?)').run(
+          ids[0]!,
+          null,
+          0,
+          'codex_work_desktop',
+        );
+        db.prepare('INSERT INTO threads VALUES (?, ?, ?, ?)').run(
+          ids[1]!,
+          'indexed',
+          0,
+          'Codex Desktop',
+        );
+        const svc = mk();
+        expect((await svc.list('codex')).items).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              sessionId: ids[0],
+              title: '（无标题会话）',
+              client: 'desktop',
+            }),
+          ]),
+        );
+        db.prepare('UPDATE threads SET archived = 1 WHERE id = ?').run(ids[0]!);
+        db.prepare('UPDATE threads SET title = ? WHERE id = ?').run('new indexed title', ids[1]!);
+        const page = await svc.list('codex', { force: true });
+        expect(page.items.map((x) => x.sessionId)).toEqual([ids[1]]);
+        expect(page.items[0]!.title).toBe('new indexed title');
+        expect(page.items[0]!.client).toBe('desktop');
+        // 同 id 新 rollout 去重，最新文件移走后可回退到仍存在的旧文件。
+        const duplicate = path.join(
+          path.dirname(second),
+          `rollout-2099-01-01T00-00-00-${ids[1]}.jsonl`,
+        );
+        fs.writeFileSync(
+          duplicate,
+          rollout(ids[1]!, 'resumed', { originator: 'codex_work_desktop' }),
+        );
+        touch(duplicate, 9_000);
+        expect((await svc.list('codex', { force: true })).items).toHaveLength(1);
+        fs.unlinkSync(duplicate);
+        expect((await svc.list('codex', { force: true })).items).toHaveLength(1);
+        expect(fs.existsSync(first)).toBe(true);
+      } finally {
+        db.close();
+      }
+    });
   });
 
   const dshSetup = (id: string): boolean => {

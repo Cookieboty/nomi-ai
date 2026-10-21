@@ -13,6 +13,7 @@ import path from 'node:path';
 import { BrowserWindow, ipcMain, screen } from 'electron';
 
 import { t as tr } from '../i18n';
+import { setWindowBounds } from '../utils/windowBounds';
 
 import {
   clampIslandHeight,
@@ -223,9 +224,11 @@ export class IslandService {
       );
       const g = this.geom;
       if (g) {
-        w.setBounds(islandWindowRect(g, clampIslandHeight(g, Number(measured))));
+        setWindowBounds(w, islandWindowRect(g, clampIslandHeight(g, Number(measured))));
       }
       w.showInactive();
+      if (g && process.platform === 'win32')
+        setWindowBounds(w, islandWindowRect(g, clampIslandHeight(g, Number(measured))));
       await w.webContents.executeJavaScript(`window.__island.play(${JSON.stringify(next)})`);
     } catch (e) {
       this.showing = false;

@@ -18,6 +18,7 @@ export interface CodexThreadRow {
   model?: string | null;
   reasoning_effort?: string | null;
   creator_account_id?: string | null;
+  archived?: number | null;
 }
 
 const COLS: readonly (keyof CodexThreadRow)[] = [
@@ -32,6 +33,7 @@ const COLS: readonly (keyof CodexThreadRow)[] = [
   'model',
   'reasoning_effort',
   'creator_account_id',
+  'archived',
 ];
 
 interface Db {

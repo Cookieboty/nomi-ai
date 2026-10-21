@@ -291,6 +291,8 @@ export class SessionHistoryService {
       const codexHome = codexHomeDir(this.home, this.d.env ?? process.env);
       await walk(path.join(codexHome, 'sessions'), 4);
       this.refreshCodexIndex(path.join(codexHome, 'state_5.sqlite'));
+      // 归档 / 删除 / 续接可能让最新 rollout 消失；重扫时不能保留失效的反查路径。
+      for (const key of this.byKey.keys()) if (key.startsWith('codex:')) this.byKey.delete(key);
       entries = await statAll(files);
     } else if (backend === 'gemini') {
       // 只列主会话：子代理在 chats/<父会话 id>/ 下，文件名也不带 session- 前缀
@@ -369,6 +371,7 @@ export class SessionHistoryService {
     if (backend === 'codex') {
       const idFromName = CODEX_ID_RE.exec(path.basename(f.path))?.[1];
       const row = idFromName ? this.codexIndex.rows.get(idFromName) : undefined;
+      if (row?.archived) return null;
       let head = '';
       if (!f.path.endsWith('.zst')) head = await readHead(f.path, 512 * 1024);
       else if (!row && f.size <= CODEX_META_MAX_ZST_BYTES) {
@@ -382,21 +385,22 @@ export class SessionHistoryService {
       const sessionId = info.sessionId ?? row?.id ?? idFromName;
       // 子代理（guardian 审查、thread_spawn 派生）不单列；其他来源一律列出
       if (isCodexSubagentSource(row?.source ?? sm.source)) return null;
+      const client = codexClient(
+        sm.originator ?? row?.originator ?? undefined,
+        sm.source ?? row?.source ?? undefined,
+      );
       const title =
         cleanTitle(row?.name ?? undefined) ??
-        info.title ??
         cleanTitle(row?.title ?? undefined) ??
-        cleanTitle(row?.first_user_message ?? undefined);
+        info.title ??
+        cleanTitle(row?.first_user_message ?? undefined) ??
+        (client === 'desktop' ? t('（无标题会话）') : undefined);
       if (!sessionId || !title) return null;
       const model = info.model ?? row?.model ?? undefined;
       const effort = info.reasoningEffort ?? row?.reasoning_effort ?? undefined;
       // 线路以索引为准：Codex 续接时会把 model_provider 改成本次的供应商
       const provider = row?.model_provider ?? sm.modelProvider;
       const route = codexRoute(provider);
-      const client = codexClient(
-        sm.originator ?? row?.originator ?? undefined,
-        sm.source ?? row?.source ?? undefined,
-      );
       return {
         key: `codex:${sessionId}`,
         backend,
@@ -683,6 +687,8 @@ export class SessionHistoryService {
   private refreshCodexIndex(file: string): void {
     const sig = dbSignature(file);
     if (sig === this.codexIndex.sig) return;
+    // 标题、归档与续接供应商都可能只改 sqlite，不改 rollout 的 mtime。
+    this.parsed.clear();
     const rows = new Map<string, CodexThreadRow>();
     if (sig) for (const r of readCodexThreads(file)) if (r.id) rows.set(r.id, r);
     this.codexIndex = { sig, rows };
@@ -756,7 +762,7 @@ export function codexRoute(provider: string | null | undefined): HistoryRoute {
 export function codexClient(originator?: string, source?: unknown): HistoryClient | undefined {
   const o = originator?.trim().toLowerCase() ?? '';
   if (o === 'nomi' || o.startsWith('nomi-')) return 'nomi';
-  if (o === 'codex desktop') return 'desktop';
+  if (o === 'codex desktop' || o === 'codex_work_desktop') return 'desktop';
   if (o === 'codex_vscode') return 'ide';
   if (o === 'codex_exec' || source === 'exec') return 'exec';
   if (o === 'codex_cli_rs' || source === 'cli') return 'cli';

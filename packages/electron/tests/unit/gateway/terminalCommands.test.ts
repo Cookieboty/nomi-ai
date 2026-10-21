@@ -33,8 +33,16 @@ function setup(platform: NodeJS.Platform = 'linux', src: TerminalSource | null =
   const home = tmp('term-home-');
   fs.mkdirSync(path.join(home, '.grok', 'sessions'), { recursive: true });
   const root = path.join(home, 'userData', 'gateway');
-  const tc = new TerminalCommands({ root, source: () => src, home, platform, shell: '/bin/zsh' });
-  return { home, root, tc };
+  const windowsPath = jest.fn(() => true);
+  const tc = new TerminalCommands({
+    root,
+    source: () => src,
+    home,
+    platform,
+    shell: '/bin/zsh',
+    windowsPath,
+  });
+  return { home, root, tc, windowsPath };
 }
 
 const mode = (f: string) => fs.statSync(f).mode & 0o777;
@@ -105,16 +113,37 @@ describe('terminal commands: scripts (§12.6)', () => {
     tc.set({ enabled: true, addToPath: true });
     const s = read(path.join(home, '.nomi', 'bin', 'nomi-codex.cmd'));
     expect(s.startsWith('@echo off\r\n')).toBe(true);
-    expect(s).toContain('curl.exe -fsS -m 3 "%NOMI_URL%/health"');
-    expect(s).toContain('set /p NOMI_TOKEN=<"%NOMI_TOKEN_FILE%"');
-    expect(s).toContain('set "NOMI_GATEWAY_KEY=%NOMI_TOKEN%"');
+    expect(s).toContain('setlocal DisableDelayedExpansion');
+    expect(s).toContain('node.exe "%~dp0nomi-runner.cjs" "%~dp0nomi-codex.json" %*');
     expect(s).not.toContain(TOKEN);
-    expect(s).toMatch(/call codex .* %\*\r\n/);
-    expect(s).toContain('set "OPENAI_API_KEY="');
-    // Windows 不改 PATH，只给目录
-    expect(tc.state()).toMatchObject({ pathSupported: false, pathAdded: false, rcFiles: [] });
+    expect(s).not.toContain('call ');
+    const config = JSON.parse(read(path.join(home, '.nomi', 'bin', 'nomi-codex.json')));
+    expect(config.launch.strip).toContain('OPENAI_API_KEY');
+    expect(config.launch.env.NOMI_GATEWAY_KEY).toBe('__NOMI_TOKEN__');
+    expect(read(path.join(home, '.nomi', 'bin', 'nomi-codex.ps1'))).toContain('ConvertTo-Json');
+    expect(tc.state()).toMatchObject({
+      pathSupported: true,
+      pathAdded: true,
+      pathKind: 'user-path',
+      rcFiles: [],
+    });
     expect(fs.existsSync(path.join(home, '.zshrc'))).toBe(false);
     expect(tc.state().commands).toContain('nomi-claude.cmd');
+  });
+
+  it('Windows PATH: requires opt-in, removes only an owned entry and survives restart', () => {
+    const { tc, root, home, windowsPath } = setup('win32');
+    tc.set({ enabled: true });
+    expect(windowsPath).not.toHaveBeenCalled();
+    tc.set({ enabled: true, addToPath: true });
+    expect(windowsPath).toHaveBeenCalledWith(tc.binDir, true);
+    const restored = new TerminalCommands({ root, home, platform: 'win32', source, windowsPath });
+    restored.set({ enabled: false });
+    expect(windowsPath).toHaveBeenLastCalledWith(tc.binDir, false);
+    windowsPath.mockClear().mockReturnValue(false); // 用户原本已加入，Nomi 不拥有该项
+    restored.set({ enabled: true, addToPath: true });
+    restored.set({ enabled: false });
+    expect(windowsPath).toHaveBeenCalledTimes(1);
   });
 
   (posix ? it : it.skip)('scripts are valid sh and run end-to-end against a fake CLI', () => {

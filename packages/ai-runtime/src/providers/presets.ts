@@ -582,6 +582,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'https://gateway.amux.ai/v1',
+    urls: {
+      chat: 'https://gateway.amux.ai/v1',
+      responses: 'https://gateway.amux.ai/v1',
+      messages: 'https://gateway.amux.ai/v1',
+    },
     defaultModel: '',
     models: [],
     requiresApiKey: true,

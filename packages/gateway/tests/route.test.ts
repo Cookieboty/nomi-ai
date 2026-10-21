@@ -127,6 +127,25 @@ describe('resolve (§6.2 / §7.2)', () => {
       { providerId: 'b', name: 'B', url: 'https://r/v1' },
     ]);
   });
+  it('SDK wire selection uses native preferences before committing to an ingress', () => {
+    const native = (model: string, extra: Partial<RuntimeProvider> = {}) =>
+      preferredWire(
+        cfg([p({ id: 'a', models: [{ id: model, enabled: true }], ...extra })]),
+        'nomi',
+        `a/${model}`,
+      )?.wire;
+    expect(native('gpt-6')).toBe('responses');
+    expect(native('claude-opus-5')).toBe('messages');
+    expect(native('glm-5', { quirks: { preferWire: 'messages' } })).toBe('messages');
+    expect(native('glm-5', { quirks: { responsesTellsCache: true } })).toBe('responses');
+    expect(native('glm-5')).toBe('chat');
+    expect(native('gpt-6', { models: [{ id: 'gpt-6', enabled: true, wires: ['chat'] }] })).toBe(
+      'chat',
+    );
+    // 外部 CLI 已有入口时仍按同协议透传，不受 SDK 入口选择影响。
+    const external = resolveCandidates(cfg([p({ id: 'a' })]), 'codex', 'a/gpt-6', 'chat');
+    expect(external.ok && external.candidates[0]!.wire).toBe('chat');
+  });
   it('a disabled provider or one without keys is not a candidate', () => {
     const r = resolveCandidates(cfg([p({ id: 'a', keys: [] })]), 'claude', 'a/x', 'chat');
     expect(r).toMatchObject({ ok: false, status: 400 });

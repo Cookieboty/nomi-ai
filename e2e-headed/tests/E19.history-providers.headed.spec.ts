@@ -51,6 +51,10 @@ async function launch(
   };
   delete env.NODE_ENV;
   delete env.DSH_HOME;
+  delete env.CODEX_HOME;
+  delete env.CLAUDE_CONFIG_DIR;
+  delete env.GEMINI_CLI_HOME;
+  delete env.GROK_HOME;
   mkdirSync(env.APPDATA!, { recursive: true });
   mkdirSync(env.LOCALAPPDATA!, { recursive: true });
   // app.getPath('documents' 等) 在 Windows 取 %USERPROFILE%\<Known Folder>，目录不存在会报错

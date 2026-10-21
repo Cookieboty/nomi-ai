@@ -465,9 +465,9 @@ describe('ExtensionsService migrate', () => {
     scan = await ext.migrateScan();
     expect(scan.skills[0]!.conflict).toBe(true);
     expect((await ext.migrateImport([{ key }])).skipped).toHaveLength(1);
-    expect((await ext.migrateImport([{ key, action: 'rename' }])).imported[0]!.name).toBe(
-      'trip-claude',
-    );
+    const renamed = await ext.migrateImport([{ key, action: 'rename' }]);
+    expect(renamed.failed).toEqual([]);
+    expect(renamed.imported[0]!.name).toBe('trip-claude');
     expect(fs.readFileSync(path.join(ud, 'skills', 'trip-claude', 'SKILL.md'), 'utf8')).toContain(
       'name: trip-claude',
     );

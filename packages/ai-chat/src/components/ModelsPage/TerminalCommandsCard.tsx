@@ -1,7 +1,7 @@
 /**
  * 设置 →「模型」→ 终端启动命令（docs/design/unified-gateway.md §12.6，默认关）。
  * 打开后生成 ~/.nomi/bin/nomi-claude 等脚本；加 PATH 要改 shell 配置文件，先弹窗确认。
- * Windows 不改 PATH，只显示目录让用户自己添加。
+ * Windows 经确认后加入用户 PATH，关闭时只移除 Nomi 添加的项。
  */
 import { Button, Modal, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -81,7 +81,9 @@ export const TerminalCommandsCard: React.FC = () => {
               {st.pathAdded ? (
                 <>
                   <span className={styles.ok}>
-                    {t('已加入 PATH（新打开的终端生效）：{0}', st.rcFiles.join('、'))}
+                    {st.pathKind === 'user-path'
+                      ? t('已加入用户 PATH（重新打开终端应用后生效）')
+                      : t('已加入 PATH（新打开的终端生效）：{0}', st.rcFiles.join('、'))}
                   </span>
                   <Button
                     size="sm"
@@ -141,9 +143,13 @@ export const TerminalCommandsCard: React.FC = () => {
         }
       >
         <p className={styles.desc}>
-          {t(
-            'Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。',
-          )}
+          {st?.pathKind === 'user-path'
+            ? t(
+                'Nomi 会把命令所在目录加入当前用户的 PATH；关闭开关时只移除 Nomi 添加的目录。已有目录和其他环境变量保持不变。',
+              )
+            : t(
+                'Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。',
+              )}
         </p>
         <ul className={styles.list}>
           {st?.rcFiles.map((f) => (

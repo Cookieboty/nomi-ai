@@ -20,7 +20,7 @@ import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { modelsBody } from './models';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
-import { hasSealedReasoning, REASONING_REJECTION, stripSealedReasoning } from './reasoning';
+import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
 import { completeResponsesBody, ResponsesUsagePatcher } from './responsesUsage';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
@@ -404,10 +404,9 @@ export class GatewayServer {
       // 带着保留下来的推理被拒：剥掉全部重试一次，这个会话之后都不再保留（§9.3 被拒后的兜底）
       if (
         keep &&
-        last.status === 400 &&
+        isReasoningRejection(last.upstreamStatus ?? last.status, last.text ?? last.message) &&
         learnRetries < MAX_LEARN_RETRIES &&
-        hasSealedReasoning(ingress.wire, body) &&
-        REASONING_REJECTION.test(last.text ?? last.message)
+        hasSealedReasoning(ingress.wire, body)
       ) {
         this.sessions.markNoKeep(owner);
         stripAll = true;

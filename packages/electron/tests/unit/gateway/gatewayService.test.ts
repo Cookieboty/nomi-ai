@@ -176,6 +176,45 @@ describe('GatewayService', () => {
     expect(t.lastConfig().providers).toEqual([]);
   });
 
+  it('merges URL patches, places new keys among saved keys and detects both kinds', async () => {
+    const probe = jest.fn(async () => ({ wires: {}, byKey: {}, models: [], urls: {} }));
+    const t = setup({ detectImpl: probe });
+    t.svc.init();
+    const p = t.svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://relay.example/v1', messages: 'https://relay.example/anthropic' },
+      newKeys: [{ value: 'sk-a' }, { value: 'sk-b' }],
+    });
+    t.svc.upsertProvider({
+      id: p.id,
+      name: p.name,
+      urls: { chat: ' https://new.example/v1 ' },
+      keys: [
+        { id: p.keys[1]!.id, enabled: true },
+        { id: p.keys[0]!.id, enabled: false },
+      ],
+      newKeys: [{ value: 'sk-new', position: 0 }],
+    });
+    expect(t.lastConfig().providers[0]!.urls).toEqual({
+      chat: 'https://new.example/v1',
+      messages: 'https://relay.example/anthropic',
+    });
+    expect(
+      t.svc.store.providers()[0]!.keys.map((k) => t.svc.store.decrypt(k.enc, k.encryption)),
+    ).toEqual(['sk-new', 'sk-b', 'sk-a']);
+    await t.svc.detect({ providerId: p.id, savedKeyIds: [p.keys[1]!.id], keys: [' sk-draft '] });
+    expect(probe).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        keys: [
+          { id: p.keys[1]!.id, value: 'sk-b' },
+          { id: 'new-0', value: 'sk-draft' },
+        ],
+      }),
+    );
+    t.svc.upsertProvider({ id: p.id, name: p.name, urls: { messages: '' } });
+    expect(t.lastConfig().providers[0]!.urls).toEqual({ chat: 'https://new.example/v1' });
+  });
+
   it('assignments, token reset and the endpoint for in-process callers', async () => {
     const t = setup();
     t.svc.init();

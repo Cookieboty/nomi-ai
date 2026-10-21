@@ -657,7 +657,7 @@ type StopReason = 'end_turn' | 'max_tokens' | 'tool_use' | 'stop_sequence' | 're
 
 **不依赖上游的容忍**：有的上游（比如会自己清理请求的聚合网关）收到别家的签名或加密推理也不报错，但官方接口和直连厂商会直接 400。网关的剥离规则按「最严格的上游」设计，不因为某个供应商实测能容忍就放宽；预设里也不提供「保留签名」之类的开关。
 
-**被拒后的兜底**：请求里带着保留下来的签名或加密推理，上游仍然返回 400 时，如果错误文本命中推理校验的特征（`signature`、`thinking`、`encrypted_content`、`reasoning`、`decrypt`、`verif` 等关键词，不区分大小写），或者是带有这些内容时才出现的未知 400，就剥掉全部签名和加密推理**重试一次**，并在会话归属表里把这个会话标为「不再保留」。重试仍失败就把原始错误返回给客户端。特征清单写在 `packages/gateway` 的一处常量里，随实测补充。
+**被拒后的兜底**：请求里带着保留下来的签名或加密推理，上游返回 400、404 或 422，且错误文本明确指向签名 / 加密推理无效、缺失或 Responses 的 `rs_` 推理项不存在时，剥掉签名和加密推理**重试一次**，并在会话归属表里把这个会话标为「不再保留」。Chat / Gemini 的 `thought_signature` / `thoughtSignature` 同样处理，正文和工具业务参数保留。普通参数不支持错误（如 `reasoning_effort not supported`）、鉴权、限流及服务器错误不触发此重试。重试仍失败就把原始错误返回给客户端。特征清单写在 `packages/gateway/src/reasoning.ts`，官方端点真实错误仍待对应 Key 验证。
 
 ### 9.4 字段映射与降级规则
 
@@ -905,11 +905,12 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 
 满足「在终端里也想用第三方模型」，又不影响终端里的官方登录：
 
-- 设置 → 模型 →「终端启动命令」开关。打开后，Nomi 在 `~/.nomi/bin/` 生成 `nomi-claude`、`nomi-codex`、`nomi-gemini`、`nomi-grok`、`nomi-dsh` 五个脚本。Windows 上生成 `.cmd`。
-- 脚本做的事和 §12.1–§12.4 相同：设置环境变量和参数，然后 `exec` 真正的 CLI，用户的其余参数原样传过去。模型默认取 `clients.<cli>.models`，可以用 `--nomi-model provider/model` 临时指定。
+- 设置 → 模型 →「终端启动命令」开关。打开后，Nomi 在 `~/.nomi/bin/` 生成 `nomi-claude`、`nomi-codex`、`nomi-gemini`、`nomi-grok`、`nomi-dsh` 五个脚本。Windows 上生成 `.cmd` 和 `.ps1`，调用独立 Node 启动器，以参数数组启动 CLI；PowerShell 5 通过 JSON 保留空参数与引号。npm / pnpm 的 JS 启动垫片会解析为 Node + JS 入口，不安全或不支持的自定义批处理入口明确报错。
+- 脚本做的事和 §12.1–§12.4 相同：设置环境变量和参数，然后启动真正的 CLI，用户的其余参数原样传过去。模型默认取 `clients.<cli>.models`，可以用 `--nomi-model provider/model` 或 `--nomi-model=provider/model` 临时指定；Windows 支持任意参数位置（`--` 之后按原样传递），包括 Grok / dsh 的配置覆盖。
 - 令牌从 `userData/gateway/tokens/<cli>`（0600）读取，不写进脚本本身。这些文件是**明文**（shell 脚本要能读），和 `store.json` 里加密存储的 `tokenEnc` 策略不同；只有开启终端启动命令时才生成，关闭时删除。取舍写进 §15。
 - 脚本先请求网关的 `/health`，网关没运行时给出明确提示（「请先打开 Nomi」），不让 CLI 报一个看不懂的连接错误。
 - 只有在用户确认后才把 `~/.nomi/bin` 加进 PATH：在 `~/.zshrc` 等文件里写一段带标记的内容，关闭开关时删除。直接运行 `claude`、`codex` 等原命令，仍然是官方登录。
+- Windows 经同一确认入口修改当前用户的 PATH，保留原值类型与未展开的变量；关闭时只移除本次由 Nomi 添加的目录，用户原本已有的项保留。重新打开终端应用后生效。
 
 ### 12.7 模型适配：让 GLM、DeepSeek 等模型在 Claude Code / Codex 里可用
 

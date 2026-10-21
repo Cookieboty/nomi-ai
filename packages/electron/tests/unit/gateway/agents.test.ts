@@ -96,7 +96,12 @@ describe('agent launches (§12, §12.7.1)', () => {
     expect(args).toContain('env_key="NOMI_GATEWAY_KEY"');
     expect(args).toContain('model_context_window=64000');
     expect(args).toContain('model_auto_compact_token_limit=51200');
-    const file = /model_catalog_json="([^"]+)"/.exec(args)![1]!;
+    // CLI 参数是 TOML 基本字符串；Windows 路径中的反斜杠也需要解码。
+    const file = JSON.parse(
+      l.args
+        .find((arg) => arg.startsWith('model_catalog_json='))!
+        .slice('model_catalog_json='.length),
+    ) as string;
     const cat = JSON.parse(fs.readFileSync(file, 'utf8')) as {
       models: Array<Record<string, unknown>>;
     };

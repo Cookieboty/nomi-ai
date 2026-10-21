@@ -50,7 +50,7 @@ export function wiresFor(
 export function pickWire(
   p: RuntimeProvider,
   model: string,
-  ingress: Wire,
+  ingress: Wire | null,
   usable: readonly Wire[],
 ): Wire | null {
   if (usable.length === 0) return null;
@@ -58,7 +58,7 @@ export function pickWire(
   // 规则 2（先于规则 1）：Claude 模型优先 Messages，保住缓存与 thinking
   if (!manual && isClaudeModel(model) && usable.includes('messages')) return 'messages';
   // 规则 1：同协议透传，零损失
-  if (usable.includes(ingress)) return ingress;
+  if (ingress && usable.includes(ingress)) return ingress;
   // 规则 3：OpenAI 模型优先 Responses，保住加密推理
   if (isOpenAIModel(model) && usable.includes('responses')) return 'responses';
   // 规则 4：Chat 接口不报缓存用量的供应商

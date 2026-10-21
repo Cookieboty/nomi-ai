@@ -21,7 +21,7 @@
     "*.css"
   ],
   "scripts": {
-    "build": "node ../../scripts/run-bin.mjs tsc -p tsconfig.json && node scripts/copy-css.mjs",
+    "build": "node ../../scripts/run-bin.mjs rimraf dist && node ../../scripts/run-bin.mjs tsc -p tsconfig.json && node scripts/copy-css.mjs",
     "clean": "node ../../scripts/run-bin.mjs rimraf dist",
     "typecheck": "node ../../scripts/run-bin.mjs tsc -p tsconfig.json --noEmit",
     "test": "node ../../scripts/run-bin.mjs vitest run",

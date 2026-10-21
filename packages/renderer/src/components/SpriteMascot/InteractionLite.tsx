@@ -151,6 +151,8 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       document.documentElement.dataset.mascotDragEnd = why;
       api?.dragEnd();
       s.dragging = false;
+      s.hit = null;
+      s.cursor.fresh = true;
       document.documentElement.dataset.mascotDragging = '0';
     };
     const onMove = (e: PointerEvent | MouseEvent) => {
@@ -231,6 +233,9 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
     let headAt = 0;
     // 窗口被缩放：尽快重新上报包围盒 / 头部框 / 形状（见 windowResize.ts）
     const offResize = onWindowResized(() => {
+      // 主进程缩放后会重置命中状态，原命中值未变时也必须重新同步。
+      s.hit = null;
+      s.cursor.fresh = true;
       s.geomAt = 0;
       s.shapeAt = 0;
       s.lastGeom = '';

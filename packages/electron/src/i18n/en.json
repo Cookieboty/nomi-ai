@@ -633,6 +633,6 @@
   "请先打开 Nomi：网关（{0}）没有响应。": "Please start Nomi first: the gateway ({0}) is not responding.",
   "找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。": "Token not found. Turn \"Terminal commands\" off and on again in Nomi Settings → Models.",
   "没有找到 {0}：请先安装。": "{0} was not found. Please install it first.",
-  "Windows 上 {0} 不支持 --nomi-model：请在 Nomi 设置 → 模型 里修改。": "{0} doesn't support --nomi-model on Windows. Change the model in Nomi Settings → Models.",
+  "无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。": "Cannot safely launch {0}. Reinstall the CLI or use its native executable.",
   "参数无效": "Invalid arguments"
 }

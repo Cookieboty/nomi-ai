@@ -150,7 +150,12 @@ export function alternateWire(
 }
 
 /** 展开一个 (供应商, 模型) 的候选：每个可用 Key 一个，各自选 wire */
-function expand(cfg: GatewayConfig, p: RuntimeProvider, model: string, ingress: Wire): Candidate[] {
+function expand(
+  cfg: GatewayConfig,
+  p: RuntimeProvider,
+  model: string,
+  ingress: Wire | null,
+): Candidate[] {
   const out: Candidate[] = [];
   const learned = cfg.learned?.[p.id];
   const upstreamModel = upstreamName(p, model);
@@ -171,7 +176,7 @@ export function resolveCandidates(
   cfg: GatewayConfig,
   client: ClientId | null,
   requested: string,
-  ingress: Wire,
+  ingress: Wire | null,
 ): ResolveResult {
   const models = client ? cfg.clients[client]?.models : undefined;
   const home = models?.main ? splitRef(models.main).provider : null;
@@ -220,12 +225,15 @@ export function preferredWire(
   /** 可能收到这次请求的上游（首选在前，之后是回退），去重；隐私判断要看全部 */
   upstreams: Array<{ providerId: string; name: string; url: string }>;
 } | null {
-  // 以 Chat 为入口算一遍：规则 2 / 3 / 4.5 / 5 都与入口无关，Chat 可用时就用 Chat（实现最完整）
-  const r = resolveCandidates(cfg, client, ref, 'chat');
+  // SDK 尚未选入口，不能触发同协议透传规则，否则会掩盖 Responses / 厂商协议偏好。
+  const r = resolveCandidates(cfg, client, ref, null);
   if (!r.ok) return null;
   const c = r.candidates[0]!;
+  // 入口确定后按实际请求重新展开回退，隐私判断必须覆盖真正可能接收请求的地址。
+  const routed = resolveCandidates(cfg, client, ref, c.wire);
+  if (!routed.ok) return null;
   const upstreams: Array<{ providerId: string; name: string; url: string }> = [];
-  for (const x of r.candidates) {
+  for (const x of routed.candidates) {
     const url = x.provider.urls[x.wire] ?? '';
     if (!upstreams.some((u) => u.providerId === x.provider.id && u.url === url))
       upstreams.push({ providerId: x.provider.id, name: x.provider.name, url });

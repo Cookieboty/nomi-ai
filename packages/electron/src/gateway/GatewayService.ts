@@ -86,7 +86,13 @@ export interface ProviderInput {
   enabled?: boolean;
   urls: Partial<Record<Wire, string>>;
   /** 新增的 Key（明文，只在这次调用里出现） */
-  newKeys?: Array<{ value: string; name?: string; wire?: Wire }>;
+  newKeys?: Array<{
+    value: string;
+    name?: string;
+    wire?: Wire;
+    position?: number;
+    enabled?: boolean;
+  }>;
   /** 已有 Key 的顺序 / 启用 / 名称（不在列表里的已有 Key 视为删除） */
   keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
   models?: GatewayModel[];
@@ -552,8 +558,22 @@ export class GatewayService {
     const added = (input.newKeys ?? [])
       .map((k) => ({ ...k, value: k.value.trim() }))
       .filter((k) => k.value)
+      .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity))
       // 名称留空时界面按顺序显示「主 Key / 备用 Key N」（随界面语言翻译）
-      .map((k) => this.store.makeKey(k.value, { name: k.name, wire: k.wire }));
+      .map((k) => ({
+        key: {
+          ...this.store.makeKey(k.value, { name: k.name, wire: k.wire }),
+          enabled: k.enabled ?? true,
+        },
+        position: k.position,
+      }));
+    const keys = [...kept];
+    for (const { key, position } of added) {
+      const at = Number.isInteger(position)
+        ? Math.max(0, Math.min(position!, keys.length))
+        : keys.length;
+      keys.splice(at, 0, key);
+    }
     const p: GatewayProvider = {
       ...(prev ?? { createdAt: now, source: 'user' as const, modelsSource: 'manual' as const }),
       id: prev?.id ?? this.store.uniqueProviderId(input.presetId ?? name),
@@ -561,9 +581,11 @@ export class GatewayService {
       ...(input.presetId ? { presetId: input.presetId } : {}),
       enabled: input.enabled ?? prev?.enabled ?? true,
       urls: Object.fromEntries(
-        Object.entries(input.urls).filter(([, u]) => u?.trim()),
+        Object.entries({ ...prev?.urls, ...input.urls })
+          .filter(([, u]) => u?.trim())
+          .map(([w, u]) => [w, u!.trim()]),
       ) as GatewayProvider['urls'],
-      keys: [...kept, ...added],
+      keys,
       models: input.models ?? prev?.models ?? [],
       ...(input.modelMap ? { modelMap: input.modelMap } : {}),
       ...(input.headers ? { headers: input.headers } : {}),
@@ -700,6 +722,7 @@ export class GatewayService {
     url?: string;
     urls?: Partial<Record<Wire, string>>;
     keys?: string[];
+    savedKeyIds?: string[];
     fallbackModel?: string;
   }): Promise<DetectResult> {
     const saved = input.providerId
@@ -710,14 +733,18 @@ export class GatewayService {
       ...(saved?.urls ?? {}),
       ...(input.urls ?? {}),
     };
-    const keys = input.keys?.length
-      ? input.keys.map((value, i) => ({ id: `new-${i}`, value }))
-      : (saved?.keys ?? []).flatMap((k) => {
-          const value = this.store.decrypt(k.enc, k.encryption);
-          return value ? [{ id: k.id, value }] : [];
-        });
+    const keys = [
+      ...(saved?.keys ?? []).flatMap((k) => {
+        if (input.savedKeyIds ? !input.savedKeyIds.includes(k.id) : !k.enabled) return [];
+        const value = this.store.decrypt(k.enc, k.encryption);
+        return value ? [{ id: k.id, value }] : [];
+      }),
+      ...(input.keys ?? []).flatMap((value, i) =>
+        value.trim() ? [{ id: `new-${i}`, value: value.trim() }] : [],
+      ),
+    ];
     const s = this.proc.getStatus();
-    return detect({
+    return (this.d.detectImpl ?? detect)({
       bases,
       keys,
       fallbackModel: input.fallbackModel,

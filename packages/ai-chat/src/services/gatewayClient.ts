@@ -109,7 +109,13 @@ export interface ProviderInput {
   presetId?: string;
   enabled?: boolean;
   urls: Partial<Record<Wire, string>>;
-  newKeys?: Array<{ value: string; name?: string; wire?: Wire }>;
+  newKeys?: Array<{
+    value: string;
+    name?: string;
+    wire?: Wire;
+    position?: number;
+    enabled?: boolean;
+  }>;
   keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
   models?: GatewayModel[];
   /** modelMap / headers / fallback：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
@@ -150,6 +156,7 @@ export interface DetectInput {
   url?: string;
   urls?: Partial<Record<Wire, string>>;
   keys?: string[];
+  savedKeyIds?: string[];
   fallbackModel?: string;
 }
 

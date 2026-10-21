@@ -1,12 +1,12 @@
 /**
  * 终端启动命令（docs/design/unified-gateway.md §12.6，可选，默认关）。
  * 打开后在 `~/.nomi/bin/` 生成 nomi-claude / nomi-codex / nomi-gemini / nomi-grok / nomi-dsh
- * （Windows 为 .cmd）：先查网关 /health，再按 §12.1–§12.4 设好环境变量和参数，exec 真正的 CLI。
+ * （Windows 为 .cmd / .ps1）：先查网关 /health，再按 §12.1–§12.4 设好环境变量和参数，启动真正的 CLI。
  * - 注入内容和 Nomi 启动的第三方会话同源（agents/index.ts 的 agentLaunch），生成脚本时静态写入；
  * - 令牌不写进脚本，运行时从 userData/gateway/tokens/<cli> 读取。这些文件是明文（0600，shell 要能读），
  *   只在开启时存在，关闭时删除；取舍见 §15（令牌只能访问本机回环地址上的网关，可随时「重置令牌」）；
  * - 只有用户确认后才在 shell 配置文件里加一段带标记的 PATH，关闭时删掉这一段，不碰其它内容；
- *   Windows 不改注册表，只显示目录让用户自己添加；
+ *   Windows 只在确认后修改用户 PATH，关闭时只删除 Nomi 添加的项；
  * - 网关端口、令牌、模型分配变化时由集成方调用 refresh() 重新生成。
  */
 import fs from 'fs';
@@ -17,11 +17,13 @@ import type { ClientModels } from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
-import { cmdEscape, cmdQuote, shQuote } from '../security/shellEscape';
+import { shQuote } from '../security/shellEscape';
 import { writePrivateFile } from '../utils/privateFile';
 
 import { agentLaunch, type AgentKind, type AgentLaunch, type ModelMeta } from './agents';
 import type { GatewayService } from './GatewayService';
+import { updateWindowsPath } from './windowsPath';
+import { buildWindowsRunner } from './windowsTerminal';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -52,11 +54,13 @@ export interface TerminalDeps {
   home?: string;
   platform?: NodeJS.Platform;
   shell?: string;
+  windowsPath?: typeof updateWindowsPath;
 }
 
 interface Persisted {
   enabled: boolean;
   pathAdded: boolean;
+  windowsPathOwned?: boolean;
   /** 加过 PATH 段的文件（关闭时据此删除；同时也扫一遍候选文件） */
   rcFiles?: string[];
 }
@@ -67,8 +71,9 @@ export interface TerminalStateView {
   binDir: string;
   /** 会写入（或已写入）PATH 段的 shell 配置文件 */
   rcFiles: string[];
-  /** Windows 上不改 PATH：false，界面只显示目录 */
+  /** 当前平台是否支持自动加入 PATH */
   pathSupported: boolean;
+  pathKind?: 'user-path' | 'shell-rc';
   /** 生成的命令名（Windows 带 .cmd） */
   commands: string[];
 }
@@ -230,91 +235,31 @@ function posixScript(i: ScriptInput): string {
 }
 
 function cmdScript(i: ScriptInput): string {
-  const bin = BIN[i.kind];
-  const say = (msg: string) => `echo ${cmdEscape(msg.replace(/"/g, "'"))} 1>&2`;
-  const set = (k: string, v: string) => `set ${cmdEscape(`"${k}=${v}"`)}`;
-  const L: string[] = ['@echo off', `rem ${cmdEscape(header(i.kind))}`, 'setlocal'];
-  if (!i.model || !i.launch) {
-    L.push(
-      say(tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', bin)),
-      'exit /b 1',
-    );
-    return L.join('\r\n') + '\r\n';
-  }
-  const launch = i.launch;
-  L.push(
-    set('NOMI_URL', i.url),
-    set('NOMI_TOKEN_FILE', i.tokenFile),
-    set('NOMI_DEFAULT_MODEL', i.model),
-    set('NOMI_MODEL', i.model),
-    'set "NOMI_OPT="',
-    // Windows：--nomi-model 只认放在最前面；没有它时其余参数用 %* 原样传
-    'if /i not "%~1"=="--nomi-model" goto nomi_parsed',
-    'if not "%~2"=="" goto nomi_opt',
-    say(tr('--nomi-model 后面要跟 供应商/模型')),
-    'exit /b 2',
-    ':nomi_opt',
-    'set "NOMI_MODEL=%~2"',
-    'set "NOMI_OPT=1"',
-    'set "NOMI_ARGS="',
-    'shift',
-    'shift',
-    ':nomi_collect',
-    'if "%~1"=="" goto nomi_parsed',
-    'set NOMI_ARGS=%NOMI_ARGS% %1',
-    'shift',
-    'goto nomi_collect',
-    ':nomi_parsed',
-    'where curl.exe >nul 2>nul',
-    'if errorlevel 1 goto nomi_up',
-    'curl.exe -fsS -m 3 "%NOMI_URL%/health" >nul 2>nul',
-    'if not errorlevel 1 goto nomi_up',
-    say(tr('请先打开 Nomi：网关（{0}）没有响应。', i.url)),
-    'exit /b 1',
-    ':nomi_up',
-    'if exist "%NOMI_TOKEN_FILE%" goto nomi_token',
-    say(tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。')),
-    'exit /b 1',
-    ':nomi_token',
-    'set /p NOMI_TOKEN=<"%NOMI_TOKEN_FILE%"',
-    `where ${bin} >nul 2>nul`,
-    'if not errorlevel 1 goto nomi_bin',
-    say(tr('没有找到 {0}：请先安装。', bin)),
-    'exit /b 127',
-    ':nomi_bin',
-  );
-  if (i.kind === 'grok' || i.kind === 'dsh') {
-    L.push(
-      'if "%NOMI_MODEL%"=="%NOMI_DEFAULT_MODEL%" goto nomi_model',
-      say(
-        tr(
-          'Windows 上 {0} 不支持 --nomi-model：请在 Nomi 设置 → 模型 里修改。',
-          commandName(i.kind, 'win32'),
-        ),
-      ),
-      'exit /b 2',
-      ':nomi_model',
-    );
-  }
-  for (const k of launch.strip) L.push(`set "${k}="`);
-  for (const [k, v] of envValues(launch, i.model)) {
-    if (v.kind === 'token') L.push(`set "${k}=%NOMI_TOKEN%"`);
-    else if (v.kind === 'model') L.push(`set "${k}=%NOMI_MODEL%"`);
-    else L.push(set(k, v.value));
-  }
-  const args = launch.args.map(cmdQuote);
-  if (i.kind === 'claude') args.push('--model', '"%NOMI_MODEL%"');
-  if (i.kind === 'codex') args.push('-c', '"model=\\"%NOMI_MODEL%\\""');
-  const run = ['call', bin, ...args].join(' ');
-  L.push(
-    'if defined NOMI_OPT goto nomi_run_opt',
-    `${run} %*`,
+  return [
+    '@echo off',
+    `rem ${header(i.kind)}`,
+    'setlocal DisableDelayedExpansion',
+    `node.exe "%~dp0nomi-runner.cjs" "%~dp0nomi-${i.kind}.json" %*`,
     'exit /b %ERRORLEVEL%',
-    ':nomi_run_opt',
-    `${run} %NOMI_ARGS%`,
-    'exit /b %ERRORLEVEL%',
-  );
-  return L.join('\r\n') + '\r\n';
+    '',
+  ].join('\r\n');
+}
+
+function powershellScript(kind: AgentKind): string {
+  // Windows PowerShell 5 会在传给原生程序时损坏引号 / 空参数；通过环境中的 JSON 传 argv。
+  return [
+    `# ${header(kind)}`,
+    '$nomiPreviousArgs = $env:NOMI_TERMINAL_ARGS',
+    'try {',
+    '  $env:NOMI_TERMINAL_ARGS = ConvertTo-Json -InputObject @($args) -Compress',
+    `  & node.exe (Join-Path $PSScriptRoot 'nomi-runner.cjs') (Join-Path $PSScriptRoot 'nomi-${kind}.json') --nomi-powershell-args`,
+    '  $nomiExitCode = $LASTEXITCODE',
+    '} finally {',
+    '  $env:NOMI_TERMINAL_ARGS = $nomiPreviousArgs',
+    '}',
+    'exit $nomiExitCode',
+    '',
+  ].join('\r\n');
 }
 
 /** 一个 CLI 的启动脚本内容（纯函数，便于测试） */
@@ -383,6 +328,7 @@ export class TerminalCommands {
       return {
         enabled: raw.enabled === true,
         pathAdded: raw.pathAdded === true,
+        windowsPathOwned: raw.windowsPathOwned === true,
         ...(Array.isArray(raw.rcFiles) ? { rcFiles: raw.rcFiles.map(String) } : {}),
       };
     } catch {
@@ -396,7 +342,7 @@ export class TerminalCommands {
   }
 
   private get pathSupported(): boolean {
-    return this.platform !== 'win32';
+    return true;
   }
 
   /** 会写 PATH 段的文件：已存在的 zsh / bash / fish 配置；都没有时按登录 shell 选一个 */
@@ -426,13 +372,19 @@ export class TerminalCommands {
       enabled: this.st.enabled,
       pathAdded: this.st.pathAdded,
       binDir: this.binDir,
-      rcFiles: this.pathSupported
-        ? this.st.pathAdded && this.st.rcFiles?.length
-          ? this.st.rcFiles
-          : this.rcCandidates().map((c) => c.file)
-        : [],
+      rcFiles:
+        this.platform !== 'win32'
+          ? this.st.pathAdded && this.st.rcFiles?.length
+            ? this.st.rcFiles
+            : this.rcCandidates().map((c) => c.file)
+          : [],
       pathSupported: this.pathSupported,
-      commands: TERMINAL_KINDS.map((k) => commandName(k, this.platform)),
+      pathKind: this.platform === 'win32' ? 'user-path' : 'shell-rc',
+      commands: TERMINAL_KINDS.flatMap((k) =>
+        this.platform === 'win32'
+          ? [commandName(k, this.platform), `nomi-${k}.ps1`]
+          : [commandName(k, this.platform)],
+      ),
     };
   }
 
@@ -469,6 +421,8 @@ export class TerminalCommands {
     fs.mkdirSync(this.binDir, { recursive: true });
     fs.mkdirSync(this.tokenDir, { recursive: true, mode: 0o700 });
     fs.mkdirSync(this.workDir, { recursive: true, mode: 0o700 });
+    if (this.platform === 'win32')
+      writeIfChanged(path.join(this.binDir, 'nomi-runner.cjs'), buildWindowsRunner(), 0o600);
     for (const kind of TERMINAL_KINDS) {
       const client = src.clients[kind];
       const tokenFile = path.join(this.tokenDir, kind);
@@ -502,6 +456,33 @@ export class TerminalCommands {
         ...(template ? { template } : {}),
       });
       writeIfChanged(file, content, 0o755);
+      if (this.platform === 'win32') {
+        const config: ScriptInput = {
+          kind,
+          platform: this.platform,
+          url: src.url,
+          tokenFile,
+          model,
+          launch,
+          template,
+        };
+        writePrivateFile(
+          path.join(this.binDir, `nomi-${kind}.json`),
+          JSON.stringify({
+            ...config,
+            messages: {
+              noModel: tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', kind),
+              needModel: tr('--nomi-model 后面要跟 供应商/模型'),
+              badModel: tr('模型名无效：'),
+              down: tr('请先打开 Nomi：网关（{0}）没有响应。', src.url),
+              noToken: tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。'),
+              noBin: tr('没有找到 {0}：请先安装。', kind),
+              unsafeShim: tr('无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。', kind),
+            },
+          }),
+        );
+        writeIfChanged(path.join(this.binDir, `nomi-${kind}.ps1`), powershellScript(kind), 0o755);
+      }
     }
   }
 
@@ -524,8 +505,13 @@ export class TerminalCommands {
   private removeGenerated(): void {
     for (const kind of TERMINAL_KINDS) {
       rmQuiet(path.join(this.binDir, commandName(kind, this.platform)));
+      if (this.platform === 'win32') {
+        rmQuiet(path.join(this.binDir, `nomi-${kind}.ps1`));
+        rmQuiet(path.join(this.binDir, `nomi-${kind}.json`));
+      }
       rmQuiet(path.join(this.tokenDir, kind));
     }
+    if (this.platform === 'win32') rmQuiet(path.join(this.binDir, 'nomi-runner.cjs'));
     // 私有目录里只有软链和 Nomi 生成的文件；rm 不跟随软链，~/.grok 等不受影响
     fs.rmSync(this.workDir, { recursive: true, force: true });
     for (const dir of [this.binDir, this.tokenDir, path.dirname(this.binDir)]) {
@@ -538,6 +524,13 @@ export class TerminalCommands {
   }
 
   private addPath(): void {
+    if (this.platform === 'win32') {
+      const added = (this.d.windowsPath ?? updateWindowsPath)(this.binDir, true);
+      this.st.windowsPathOwned = this.st.windowsPathOwned || added;
+      this.st.pathAdded = true;
+      this.save();
+      return;
+    }
     const done: string[] = [];
     for (const c of this.rcCandidates()) {
       try {
@@ -558,6 +551,13 @@ export class TerminalCommands {
   }
 
   private removePath(): void {
+    if (this.platform === 'win32') {
+      if (this.st.windowsPathOwned) (this.d.windowsPath ?? updateWindowsPath)(this.binDir, false);
+      this.st.pathAdded = false;
+      delete this.st.windowsPathOwned;
+      this.save();
+      return;
+    }
     const files = new Set([
       ...(this.st.rcFiles ?? []),
       ...this.rcCandidates().map((c) => c.file),
