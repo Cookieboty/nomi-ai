@@ -42,6 +42,31 @@
 .cd-dropdown__trigger:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
 }
+/* 透明底：与同一行的透明按钮 / chip 一致（hover 才出底色） */
+.cd-dropdown--ghost .cd-dropdown__trigger {
+  background: transparent;
+}
+.cd-dropdown--ghost .cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: var(--cd-color-border);
+  background: var(--cd-color-hover);
+}
+/* 胶囊：输入栏工具行（与模型 / 权限按钮同高、同形、同字号） */
+.cd-dropdown--chip .cd-dropdown__trigger {
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  border-radius: var(--cd-radius-full);
+  background: transparent;
+  font-size: var(--cd-font-size-sm);
+}
+.cd-dropdown--chip .cd-dropdown__trigger:hover:not(:disabled) {
+  border-color: var(--cd-color-border);
+  background: var(--cd-color-hover);
+}
+/* 与同一行模型 / 权限按钮的小箭头同大 */
+.cd-dropdown--chip .cd-dropdown__chevron {
+  width: 12px;
+  height: 12px;
+}
 .cd-dropdown__trigger:focus-visible,
 .cd-dropdown[data-open] .cd-dropdown__trigger {
   outline: none;
@@ -71,27 +96,16 @@
   z-index: var(--cd-z-tooltip);
   display: flex;
   flex-direction: column;
-  padding: var(--cd-space-1);
+  padding: var(--cd-space-1-5);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface-raised);
-  box-shadow: var(--cd-shadow-lg);
+  box-shadow: var(--cd-shadow-popover);
   color: var(--cd-color-text);
   outline: none;
-  animation: cd-pop-in 0.12s ease-out;
 }
 .cd-dropdown__menu--top {
   transform-origin: bottom;
-}
-@keyframes cd-pop-in {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 .cd-dropdown__search {
   padding: var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
@@ -125,10 +139,10 @@
   user-select: none;
 }
 .cd-dropdown__option.is-active {
-  background: rgba(148, 163, 184, 0.12);
+  background: var(--cd-color-hover);
 }
 .cd-dropdown__option.is-selected {
-  color: var(--cd-color-accent-strong);
+  color: var(--cd-color-selected-text);
   font-weight: var(--cd-font-weight-medium);
 }
 .cd-dropdown__option[aria-disabled='true'] {

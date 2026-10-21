@@ -2,7 +2,7 @@
  * E27 · 斜杠命令面板（真实 dist 应用 + Mock CLI）
  *
  * A. Claude 标签：`/` 弹出分组面板（当前端在前，然后是项目 / 用户 / Skills，Nomi 在后），模糊搜索；
- *    /context /cost /status 以卡片显示且不发给 CLI；/model 切换供应商档案；
+ *    /context /cost /status 以卡片显示且不发给 CLI；/model 切换第三方供应商；
  *    项目自定义命令（参数提示 → 透传 `/fix 42`）；不支持（/memory）与未知命令只出提示卡片；
  *    /plugins 只读面板（不泄漏 .mcp.json 里的 env 值）；/new 开新标签。
  * B. Grok 标签：项目命令和自带 skill 以 `/name args` 原样发给 Grok（不在本地展开）。
@@ -240,34 +240,44 @@ test.describe('E27 · slash commands', () => {
     await expect(cards(chat).nth(1)).toContainText('真实用量');
     await shot(chat, '03-context-card');
     await run(chat, '/cost');
-    await expect(chat.locator('[data-testid="cost-session"]')).toContainText('$0.012');
+    await expect(chat.locator('[data-testid="cost-session"]')).toContainText('$0.012', SLOW);
     await shot(chat, '04-cost-card');
     await run(chat, '/status');
     const status = chat.locator('[data-testid="slash-card-status"]').last();
-    await expect(status).toContainText('Claude Code');
+    await expect(status).toContainText('Claude Code', SLOW);
     await expect(status).toContainText(fx.project);
     await expect(status).toContainText('CLI 版本');
     await shot(chat, '05-status-card');
     // 只有 "hello" 一条用户消息：命令没有发给 CLI
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(1);
 
-    // 5) /model：列出并切换 Nomi 里的 CLI 档案（HOME 是临时目录，写的是临时配置）
-    await invoke(chat, 'ai:cli-provider:upsert', {
+    // 5) /model：与输入框的模型按钮一致——列当前标签的模型（mock-claude 的 initialize 目录），只切当前标签
+    await run(chat, '/model');
+    const list = chat.locator('[data-testid="slash-card-list"]').last();
+    await expect(list).toContainText('Sonnet Mock', SLOW);
+    await expect(list).toContainText('默认模型');
+    await shot(chat, '06-model-list');
+    await run(chat, '/model sonnet');
+    await expect(cards(chat).last()).toContainText('已切换到 Sonnet Mock', SLOW);
+    await expect(chat.locator('[data-testid="model-chip"]')).toContainText('Sonnet Mock', SLOW);
+    // 启用第三方供应商后 /model 列供应商的模型（上游不可达：只留供应商配置的模型），/status 显示供应商
+    // （HOME 是临时目录，写的是临时配置）
+    const profile = (await invoke(chat, 'ai:cli-provider:upsert', {
       kind: 'claude',
       name: 'MockGLM',
       baseUrl: 'http://127.0.0.1:9/anthropic',
       model: 'glm-4.6',
       apiKey: 'e27-fake-key',
-    });
+    })) as { id: string };
+    await invoke(chat, 'ai:cli-provider:activate', profile.id);
     await run(chat, '/model');
-    const list = chat.locator('[data-testid="slash-card-list"]').last();
-    await expect(list).toContainText('MockGLM · glm-4.6');
-    await shot(chat, '06-model-list');
-    await run(chat, '/model glm');
-    await expect(cards(chat).last()).toContainText('已切换到 MockGLM · glm-4.6');
+    const provList = chat.locator('[data-testid="slash-card-list"]').last();
+    await expect(provList).toContainText('glm-4.6', SLOW);
+    await expect(provList).toContainText('MockGLM');
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
-      'MockGLM（Nomi 档案）',
+      'MockGLM（第三方供应商）',
+      SLOW,
     );
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText('glm-4.6');
     await shot(chat, '07-status-after-model');
@@ -294,7 +304,7 @@ test.describe('E27 · slash commands', () => {
     await expect(chat.locator('[data-testid="slash-empty"]')).toBeVisible();
     await shot(chat, '10-unknown-empty-state');
     await input(chat).press('Enter');
-    await expect(cards(chat).last()).toContainText('未知命令');
+    await expect(cards(chat).last()).toContainText('未知命令', SLOW);
     await expect(chat.locator('[data-testid="msg-user"]')).toHaveCount(users);
     await shot(chat, '11-unknown-card');
     // 「作为普通文字发送」才会真的发出去
@@ -382,7 +392,7 @@ test.describe('E27 · slash commands', () => {
     await shot(chat, '15-codex-skill-expanded');
     // Codex 不支持的命令
     await run(chat, '/permissions');
-    await expect(cards(chat).last()).toContainText('暂不支持');
+    await expect(cards(chat).last()).toContainText('暂不支持', SLOW);
   });
 
   test('C · Nomi chat: native commands work in an empty conversation', async () => {
@@ -401,13 +411,16 @@ test.describe('E27 · slash commands', () => {
     await shot(chat, '16-palette-nomi');
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="welcome-screen"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="slash-card-status"]')).toContainText('Nomi');
+    await expect(chat.locator('[data-testid="slash-card-status"]')).toContainText('Nomi', SLOW);
     await run(chat, '/context');
     await expect(chat.locator('[data-testid="ctx-bar"]')).toBeVisible();
     await run(chat, '/model');
     await expect(chat.locator('[data-testid="slash-card-list"]').last()).toBeVisible();
     await run(chat, '/help');
-    await expect(chat.locator('[data-testid="slash-card-list"]').last()).toContainText('/context');
+    await expect(chat.locator('[data-testid="slash-card-list"]').last()).toContainText(
+      '/context',
+      SLOW,
+    );
     await shot(chat, '17-nomi-cards');
     // /new 清掉卡片并回到欢迎页
     await run(chat, '/new');

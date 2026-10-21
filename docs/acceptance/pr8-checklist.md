@@ -7,20 +7,20 @@
 
 下列项已有单测 / headed e2e / mock CLI 覆盖，**仍须人工在真实应用里勾选**。本表只方便对照「代码侧已护栏」：
 
-| 清单区块                             | 自动化证据（路径）                                                                                                            | 说明                                                                                                 |
-| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| §2 后端切换 / 流式 / 续接            | `packages/electron/tests/unit/cli/CliHarness.mock.test.ts`、`HarnessTabs.test.ts`；e2e `E17` / `E18`（mock）                  | mock claude/codex/dsh；无 Key 时不跑真 CLI                                                           |
-| §3 供应商档案 / 默认格式 / 路由拦截  | `CliProviderBridge.test.ts`、`configPatch.test.ts`、`cliBrand.test.ts`、`providersPage.test.tsx`；`routing/*`                 | dsh 新建默认 `openai_responses`；非原生需开路由                                                      |
-| §3 本地路由流式变换                  | `packages/electron/tests/unit/cli/routing/*`                                                                                  | Messages↔Responses↔Chat↔Gemini                                                                       |
-| §4 dsh                               | `CliHarness.mock.test.ts`（dsh）、`dshRuntime.test.ts`                                                                        | Node≥24 空输出提示                                                                                   |
-| §5 多标签并发 / 排队 / 未读 / 持久化 | `HarnessTabs.test.ts`；e2e `E18`；`chatTabs.test.tsx`（含并发上限 1–8 UI）                                                    | 标签栏 `chat-tabs-max-concurrent`                                                                    |
-| §5 输入框 CLI 提示                   | `chatTabs.test.tsx`（`cliTabPlaceholder`）                                                                                    |                                                                                                      |
-| §6 监视器 / 端点完成 → 看板娘·岛     | `agentEndpoints.test.ts`                                                                                                      | 含 **权限待确认 → island attention + think**                                                         |
-| Claude 权限桥                        | `streamParse.test.ts`、`CliHarness.mock.test.ts`（`NOMI_MOCK_ASK_PERMISSION`）；UI `conv-permission-card`                     | 真机需 Claude CLI + API Key；本机 CLI 2.1.299 有 `--permission-prompt-tool`，**无 Key 未做真机冒烟** |
-| Claude 会话级长驻 / 复用             | `CliHarness.mock.test.ts`：`reuses one Claude process across turns`、`tears down Claude live on cancel and respawns`          | mock 断言同一 pid 跨两轮；取消后重拉；**无 API Key，未做真机长驻冒烟**                               |
-| Claude 工具完成态                    | `streamParse.test.ts`（`createClaudeParser`）、`CliHarness.mock.test.ts`（`NOMI_MOCK_TOOLS`）；直播时间线 `cli-tool-timeline` |                                                                                                      |
-| Codex 交互权限                       | 查证结论写入 `coding-agent-harness.md` §5（exec JSON 无 approval 回写；app-server 才有）                                      | **不做假 UI**；本环境 Codex 0.162.1                                                                  |
-| §8–§18 模式 / 侧栏 / 分叉等          | 各 `ai-chat/tests/*`、e2e `E19` 等                                                                                            | 见对应测试名                                                                                         |
+| 清单区块                              | 自动化证据（路径）                                                                                                            | 说明                                                                                                 |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| §2 后端切换 / 流式 / 续接             | `packages/electron/tests/unit/cli/CliHarness.mock.test.ts`、`HarnessTabs.test.ts`；e2e `E17` / `E18`（mock）                  | mock claude/codex/dsh；无 Key 时不跑真 CLI                                                           |
+| §3 第三方供应商 / 默认格式 / 路由拦截 | `CliProviderBridge.test.ts`、`configPatch.test.ts`、`cliBrand.test.ts`、`providersPage.test.tsx`；`routing/*`                 | dsh 新建默认 `openai_responses`；非原生需开路由                                                      |
+| §3 本地路由流式变换                   | `packages/electron/tests/unit/cli/routing/*`                                                                                  | Messages↔Responses↔Chat↔Gemini                                                                       |
+| §4 dsh                                | `CliHarness.mock.test.ts`（dsh）、`dshRuntime.test.ts`                                                                        | Node≥24 空输出提示                                                                                   |
+| §5 多标签并发 / 排队 / 未读 / 持久化  | `HarnessTabs.test.ts`；e2e `E18`；`chatTabs.test.tsx`（含并发上限 1–8 UI）                                                    | 标签栏 `chat-tabs-max-concurrent`                                                                    |
+| §5 输入框 CLI 提示                    | `chatTabs.test.tsx`（`cliTabPlaceholder`）                                                                                    |                                                                                                      |
+| §6 监视器 / 端点完成 → 看板娘·岛      | `agentEndpoints.test.ts`                                                                                                      | 含 **权限待确认 → island attention + think**                                                         |
+| Claude 权限桥                         | `streamParse.test.ts`、`CliHarness.mock.test.ts`（`NOMI_MOCK_ASK_PERMISSION`）；UI `conv-permission-card`                     | 真机需 Claude CLI + API Key；本机 CLI 2.1.299 有 `--permission-prompt-tool`，**无 Key 未做真机冒烟** |
+| Claude 会话级长驻 / 复用              | `CliHarness.mock.test.ts`：`reuses one Claude process across turns`、`tears down Claude live on cancel and respawns`          | mock 断言同一 pid 跨两轮；取消后重拉；**无 API Key，未做真机长驻冒烟**                               |
+| Claude 工具完成态                     | `streamParse.test.ts`（`createClaudeParser`）、`CliHarness.mock.test.ts`（`NOMI_MOCK_TOOLS`）；直播时间线 `cli-tool-timeline` |                                                                                                      |
+| Codex 交互权限                        | 查证结论写入 `coding-agent-harness.md` §5（exec JSON 无 approval 回写；app-server 才有）                                      | **不做假 UI**；本环境 Codex 0.162.1                                                                  |
+| §8–§18 模式 / 侧栏 / 分叉等           | 各 `ai-chat/tests/*`、e2e `E19` 等                                                                                            | 见对应测试名                                                                                         |
 
 **真机 Claude 冒烟（本环境）**：`claude` 在 PATH（`2.1.299`），支持 `--permission-prompt-tool` / `--input-format stream-json`；无 `ANTHROPIC_API_KEY`、无 `~/.claude/settings.json` 登录配置 → **无法发起真实对话 / 长驻冒烟**，权限卡、工具时间线、进程复用以 mock 单测为准。
 
@@ -40,14 +40,14 @@
 - [ ] 可以选择工作目录（cwd）；切换后端或 cwd 后开始新会话。
 - [ ] 切回 Nomi 后原有对话、模型与工具照常可用。
 
-## 3. 四套供应商档案、上游格式与本地路由
+## 3. 四套第三方供应商、上游格式与本地路由
 
-- [ ] 四套档案互相独立：Nomi 原生、Claude Code、Codex、dsh。改其中一套不影响其它三套。
-- [ ] 启用档案只改连接字段（地址 / Key / 模型 / 协议）；自己写的 hooks、MCP、权限与注释保留；改写前有备份（`userData/cli-providers/backups/`）。
+- [ ] 四套第三方供应商互相独立：Nomi 原生、Claude Code、Codex、dsh。改其中一套不影响其它三套。
+- [ ] 启用第三方供应商只改连接字段（地址 / Key / 模型 / 协议）；自己写的 hooks、MCP、权限与注释保留；改写前有备份（`userData/cli-providers/backups/`）。
 - [ ] Claude Code：Anthropic Messages 直连；OpenAI Chat Completions / Responses / Gemini 需要先开启本地路由。
 - [ ] Codex：OpenAI Responses 直连；Chat Completions / Anthropic Messages 需要先开启本地路由。
 - [ ] dsh：原生支持 openai-completions / openai-responses / anthropic-messages，不需要路由；写入 `~/.dsh/cordis.patch.yml` 中的托管块，Key 只在启动时注入。
-- [ ] 本地路由（`127.0.0.1:18721`）：未开启时非原生格式档案不能启用；开启后流式文本、工具调用与工具结果都能往返。
+- [ ] 本地路由（`127.0.0.1:18721`）：未开启时非原生格式供应商不能启用；开启后流式文本、工具调用与工具结果都能往返。
 - [ ] 接本机 Ollama：按文档设置 `OLLAMA_CONTEXT_LENGTH=20480` 后 Claude Code 回复正常（不设置会出现空回复）。
 
 ## 4. dsh
@@ -93,7 +93,7 @@
 - [ ] 默认「普通」：看不到标签栏、后端切换器；Mod+T 无效果。
 - [ ] 切到「开发」：标签栏与后端切换器出现；再切回普通时，若有 CLI 在跑，模式控件显示「N 运行中」，标签继续后台运行。
 - [ ] 旧对话（无 backend）打开后归属 Nomi；侧栏徽标为 Nomi。
-- [ ] 侧栏「全部」列出所有端点会话并带色标；「按端」可筛选 Nomi / Claude Code / Codex / dsh，未安装的 CLI 芯片禁用。
+- [ ] 侧栏「全部」列出所有端点会话并带色标；「按端」可筛选 Nomi / Claude Code / Codex / dsh，未安装的 CLI 按钮禁用。
 - [ ] 点击 Nomi 会话 → 主标签 + Nomi 历史；点击 Claude/Codex/dsh 会话 → 开发模式 + 对应 CLI 标签。
 - [ ] 普通模式「新对话」只建 Nomi；开发 + 按端筛选时「新对话」建该端（CLI 则新建标签）。
 - [ ] 有消息时切换后端：当前会话保留，目标端新建空会话 / 标签（不改写历史）。
@@ -111,7 +111,7 @@
 ## 10. 提供商隔离（反馈 3）
 
 - [ ] 在 Nomi 配好 OpenAI 供应商后切到 Claude Code / Codex / dsh 标签：输入栏只显示该 CLI 自己的供应商 / 模型，没有则显示「CLI 默认 / 已登录」，不会出现 Nomi 的模型名。
-- [ ] 输入栏的供应商控件只列该端点自己档案库里的档案（名称 + 模型），只能切换本端的档案；🔑 直达该端点的供应商设置页。
+- [ ] 输入栏的供应商控件只列该端点自己第三方供应商列表里的供应商（名称 + 模型），只能切换本端的供应商；🔑 直达该端点的供应商设置页。
 - [ ] 启动 CLI 时不会带上 Nomi 的 Key / 其它 CLI 的环境变量；「停用」后 CLI 回到自带登录。
 
 ## 11. 「编程助手」设置页
@@ -141,10 +141,10 @@
 - [ ] **菜单栏图标（macOS，开发模式）**：开发模式下与模型互动、触发编程助手完成 / 失败的灵动岛若干次，菜单栏托盘图标、应用菜单与 Dock 图标始终都在；切到全屏应用再回来也在。（根因与修复见 docs §14.4，需要在真实 macOS 上确认。）
 - [ ] **端点图标**：Nomi 为 Nomi 标志、Codex 为 OpenAI 标志、dsh 为 DeepSeek 鲸鱼、Claude Code 不变；下拉菜单、标签、侧栏、设置标签、输入栏、灵动岛里一致。署名见 THIRD_PARTY_NOTICES.md。
 - [ ] **编程助手页**：设置左侧是「编程助手」（不再叫供应商与模型）；Claude Code / Codex / dsh 标签与 Nomi 一样有卡片列表、「添加供应商」预设网格、编辑 / 删除（先确认）/ 测速 / 启用；默认选中「CLI 自带登录 / 默认配置」。
-- [ ] 启用某个第三方档案后，CLI 实际使用该档案（Claude 写 settings.json env，Codex 写 config.toml，dsh 写补丁区块）；点「改用 CLI 自带登录」恢复。四个端点互不影响。
+- [ ] 启用某个第三方供应商后，CLI 实际使用该供应商（Claude 写 settings.json env，Codex 写 config.toml，dsh 写补丁区块）；点「改用 CLI 自带登录」恢复。四个端点互不影响。
 - [ ] **版本卡片**：三个 CLI 的页面都有「版本」卡片；点「更新 / 安装」先弹确认框，显示完整命令与需求检查（dsh 需要 Node ≥ 24，不满足时拦截并说明）；执行中有实时日志；全局目录不可写时只提供「安装到 ~/.local」备选，不会静默 sudo；失败显示原因。
 - [ ] **日程与日历**没有「编程助手」标签；「编程助手 → 监视与会话」里有监视开关、系统通知开关、已检测工具、立即扫描、会话列表（按端点筛选、打开标签），并有按钮直达「通知 / 灵动岛」。
-- [ ] 输入栏供应商芯片「管理」、命令面板的「供应商」能落到对应端点页。
+- [ ] 输入栏供应商按钮「管理」、命令面板的「供应商」能落到对应端点页。
 - [ ] **更新进度不丢**：在 Codex（或 Claude Code / dsh）页点更新并确认，运行中切到其他端点页、退出设置再回来：日志与「进行中」仍在；结束后结果保留，直到点「关闭结果」；同一端点再点更新不会起第二个任务。
 - [ ] **历史会话不重复**：Codex 会话续接后产生多个 rollout 文件时，侧栏只列一条（取最新），控制台没有「same key」警告。
 

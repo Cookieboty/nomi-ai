@@ -32,6 +32,36 @@ describe('streamParse', () => {
     expect(done[0]).toMatchObject({ type: 'done', sessionId: 's1', text: '完' });
   });
 
+  it('claude partial messages: 新文本块前补段落分隔，子代理的流式片段不进主回答，result 后重置', () => {
+    const parse = createClaudeParser();
+    const se = (event: unknown, parent?: string) =>
+      JSON.stringify({
+        type: 'stream_event',
+        event,
+        ...(parent ? { parent_tool_use_id: parent } : {}),
+      });
+    const block = (type: string) => se({ type: 'content_block_start', content_block: { type } });
+    const delta = (text: string, parent?: string) =>
+      se({ type: 'content_block_delta', delta: { type: 'text_delta', text } }, parent);
+    const lines = [
+      block('text'),
+      delta('Seg1'),
+      block('tool_use'),
+      delta('sub', 'toolu_1'),
+      block('thinking'),
+      block('text'),
+      delta('Seg2'),
+      JSON.stringify({ type: 'result', result: 'Seg2', session_id: 's' }),
+      block('text'),
+      delta('Next'),
+    ];
+    const deltas = lines
+      .flatMap((l) => parse(l))
+      .filter((e): e is Extract<HarnessEvent, { type: 'text-delta' }> => e.type === 'text-delta')
+      .map((e) => e.text);
+    expect(deltas).toEqual(['Seg1', '\n\n', 'Seg2', 'Next']);
+  });
+
   it('treats a failed claude result (is_error / error subtype) as an error, not a reply', () => {
     const a = parseClaudeLine(
       JSON.stringify({ type: 'result', is_error: true, result: 'API Error: 429', session_id: 's' }),

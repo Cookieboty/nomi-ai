@@ -2,7 +2,7 @@
 .card {
   position: relative;
   flex: none;
-  margin: 4px 2px 2px;
+  margin: var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-0-5);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface);
@@ -14,7 +14,7 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   width: 100%;
   padding: 9px 10px;
   border: none;
@@ -33,13 +33,13 @@
 .head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   min-width: 0;
   padding-right: 28px; /* 给右上角刷新按钮让位 */
 }
 .name {
   font-size: var(--cd-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
 }
 .ver,
 .dim {
@@ -49,7 +49,7 @@
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--cd-space-1);
 }
 .refresh {
   position: absolute;
@@ -60,7 +60,7 @@
   display: inline-grid;
   place-items: center;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text-muted);
   cursor: pointer;
@@ -75,13 +75,13 @@
 .mini {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
 }
 .miniRow {
   display: grid;
   grid-template-columns: 38px 1fr 32px;
   align-items: center;
-  gap: 6px;
+  gap: var(--cd-space-1-5);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
@@ -110,14 +110,14 @@
 .kv {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cd-space-2);
   min-width: 0;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .kv b {
   color: var(--cd-color-text);
-  font-weight: 500;
+  font-weight: var(--cd-font-weight-medium);
   font-variant-numeric: tabular-nums;
 }
 .ellipsis {
@@ -134,8 +134,8 @@
 }
 .err {
   display: block;
-  padding: 0 10px 8px;
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  padding: 0 10px var(--cd-space-2);
+  color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-xs);
 }
 .spin {
@@ -156,23 +156,23 @@
 .drawerTitle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .drawerBody {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--cd-space-3);
 }
 .drawerFoot {
   display: flex;
-  gap: 8px;
+  gap: var(--cd-space-2);
   flex-wrap: wrap;
 }
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-3) 14px;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-surface);
@@ -181,10 +181,10 @@
 .h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   margin: 0;
   font-size: var(--cd-font-size-md);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
 .grow {
@@ -192,42 +192,42 @@
 }
 .rowBtns {
   display: flex;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .foot {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 2px 10px;
+  gap: var(--cd-space-0-5) 10px;
 }
 .errText {
-  color: var(--cd-color-danger-text, var(--cd-color-danger));
+  color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-xs);
 }
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-2) 10px;
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-md);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
 .stat b {
-  font-size: var(--cd-font-size-lg, 17px);
+  font-size: var(--cd-font-size-lg);
   color: var(--cd-color-text);
   font-variant-numeric: tabular-nums;
 }
 .trend {
   display: flex;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--cd-space-1);
   height: 48px;
 }
 .trend i {
@@ -242,12 +242,12 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .modelHead {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   font-size: var(--cd-font-size-sm);
 }
 .modelHead > span:first-child {
@@ -256,10 +256,10 @@
 .modelHead b {
   min-width: 56px;
   text-align: right;
-  font-weight: 500;
+  font-weight: var(--cd-font-weight-medium);
 }
 .path {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   overflow-wrap: anywhere;

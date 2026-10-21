@@ -156,6 +156,12 @@ export class ExtensionsService {
   private servers: McpServerEntry[] = [];
   private live = new Map<string, Live>();
   private disabledSkills = new Set<string>();
+  /**
+   * listSkills 的缓存：每条消息发送前都会取技能上下文（skills-context），原来每次都同步递归读遍
+   * 技能目录、逐个解析 SKILL.md，卡主进程。签名 = 每个技能文件夹与 SKILL.md 的 mtime / 大小，
+   * 用户在外部改了 SKILL.md 或增删技能文件夹时签名变化、重新扫描；应用内的改动走 changed() 直接作废。
+   */
+  private skillsCache: { sig: string; list: SkillInfo[] } | null = null;
   private mcp: (() => McpService | undefined) | null = null;
   private registry: ToolRegistry | null = null;
   private ipcDone = false;
@@ -288,6 +294,7 @@ export class ExtensionsService {
       if (!w.isDestroyed()) w.webContents.send(ch, payload);
   }
   private changed() {
+    this.skillsCache = null;
     this.broadcast('ai:ext:changed', null);
   }
   private audit(
@@ -532,17 +539,25 @@ export class ExtensionsService {
 
   // ───────────── 技能 ─────────────
   listSkills(): SkillInfo[] {
-    const out: SkillInfo[] = [];
     let names: string[] = [];
     try {
       names = fs
         .readdirSync(this.d.skillsRoot, { withFileTypes: true })
         .filter((e) => e.isDirectory() && !e.name.startsWith('.')) // .import-* 是导入中的临时目录
-        .map((e) => e.name);
+        .map((e) => e.name)
+        .sort();
     } catch {
       /* none */
     }
-    for (const dirName of names.sort()) {
+    const sig = names
+      .map((n) => {
+        const dir = path.join(this.d.skillsRoot, n);
+        return `${n}:${statSig(dir)}:${statSig(path.join(dir, 'SKILL.md'))}`;
+      })
+      .join('|');
+    if (this.skillsCache?.sig === sig) return this.skillsCache.list;
+    const out: SkillInfo[] = [];
+    for (const dirName of names) {
       const dir = path.join(this.d.skillsRoot, dirName);
       const files = listFiles(dir).filter((f) => f !== 'SKILL.md');
       try {
@@ -566,6 +581,7 @@ export class ExtensionsService {
         });
       }
     }
+    this.skillsCache = { sig, list: out };
     return out;
   }
   private skillDir(name: string) {
@@ -970,6 +986,16 @@ function argsHaveSecret(e: McpServerEntry): boolean {
   if (!e.args?.length) return false;
   const r = redactServerForExport(e, '\u0000');
   return (r.args ?? []).some((a, i) => a !== e.args![i]);
+}
+
+/** 文件的 mtime + 大小（不存在返回 '-'），用作技能缓存签名 */
+function statSig(p: string): string {
+  try {
+    const st = fs.statSync(p);
+    return `${st.mtimeMs}:${st.size}`;
+  } catch {
+    return '-';
+  }
 }
 
 function listFiles(root: string, rel = '', out: string[] = [], depth = 0): string[] {

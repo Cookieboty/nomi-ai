@@ -250,7 +250,7 @@
   "已达上限": "Limit reached",
   "个，先取消一个再添加。": "; unpin one before adding another.",
   "无需路由：Gemini 直接请求 generateContent 兼容的上游": "No routing needed: Gemini calls generateContent-compatible upstreams directly",
-  "启用档案时不改 ~/.gemini：认证方式写在 Nomi 自己的 {0}，API Key、请求地址与模型只在 Nomi 启动 Gemini 时通过环境变量注入。终端里直接运行的 gemini 不受影响。": "Activating a profile doesn't touch ~/.gemini: the auth type goes in Nomi's own {0}, and the API key, base URL and model are injected as environment variables only when Nomi starts Gemini. Running gemini directly in a terminal is unaffected.",
+  "启用第三方供应商时不改 ~/.gemini：认证方式写在 Nomi 自己的 {0}，API Key、请求地址与模型只在 Nomi 启动 Gemini 时通过环境变量注入。终端里直接运行的 gemini 不受影响。": "Activating a third-party provider doesn't touch ~/.gemini: the auth type goes in Nomi's own {0}, and the API key, base URL and model are injected as environment variables only when Nomi starts Gemini. Running gemini directly in a terminal is unaffected.",
   "Gemini 原生请求 generateContent；填了请求地址就走网关模式，不需要本地路由。": "Gemini natively calls generateContent; with a base URL it uses gateway mode. No local routing needed.",
   "Gemini Native generateContent（原生）": "Gemini Native generateContent (native)",
   "无法检测，请重启 Nomi 后再试": "Couldn't detect it; restart Nomi and try again"

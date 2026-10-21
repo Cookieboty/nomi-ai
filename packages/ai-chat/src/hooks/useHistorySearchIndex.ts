@@ -29,6 +29,7 @@ const empty = (): Record<HistoryBackend, Slot> => ({
   codex: { items: [], next: 0, done: false },
   dsh: { items: [], next: 0, done: false },
   gemini: { items: [], next: 0, done: false },
+  grok: { items: [], next: 0, done: false },
 });
 
 export interface HistorySearchIndex {

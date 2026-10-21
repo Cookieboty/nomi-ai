@@ -208,6 +208,7 @@ export function parseUsage(
     'cached_input_tokens',
     'cacheReadTokens',
     'cachedInputTokens',
+    'cachedReadTokens',
   );
   if (input !== undefined) out.inputTokens = input;
   if (output !== undefined) out.outputTokens = output;
@@ -226,7 +227,13 @@ function withOpt<T extends object>(ev: T, extra: Record<string, unknown>): T {
   return ev;
 }
 
-export function parseClaudeLine(line: string): HarnessEvent[] {
+/** 同一进程跨行的流式状态（createClaudeParser 每个进程一份） */
+export interface ClaudeStreamState {
+  /** 这一轮已经有正文：新的文本块开始时先补一个段落分隔，避免两段流式文本粘在一起 */
+  textSeen: boolean;
+}
+
+export function parseClaudeLine(line: string, state?: ClaudeStreamState): HarnessEvent[] {
   const trimmed = line.trim();
   if (!trimmed.startsWith('{')) return [];
   let j: Record<string, unknown>;
@@ -238,22 +245,37 @@ export function parseClaudeLine(line: string): HarnessEvent[] {
   const type = String(j.type ?? '');
   const out: HarnessEvent[] = [];
   if (type === 'stream_event') {
+    // --include-partial-messages：子代理的流式片段不进主回答（它的整段消息另有嵌套展示）
+    if (typeof j.parent_tool_use_id === 'string' && j.parent_tool_use_id) return out;
     const ev = j.event as
       | {
+          type?: string;
           delta?: { type?: string; text?: string };
-          content_block?: unknown;
+          content_block?: { type?: string };
         }
       | undefined;
+    if (
+      state?.textSeen &&
+      ev?.type === 'content_block_start' &&
+      ev.content_block?.type === 'text'
+    ) {
+      out.push({ type: 'text-delta', text: '\n\n' });
+    }
     if (ev?.delta?.type === 'text_delta' && ev.delta.text) {
       out.push({ type: 'text-delta', text: ev.delta.text });
+      if (state) state.textSeen = true;
     }
     if (ev?.content_block) out.push(...imageEvent(ev.content_block));
   } else if (type === 'assistant') {
     const msg = j.message as { content?: unknown } | undefined;
     const text = extractClaudeText(msg?.content);
-    if (text) out.push({ type: 'text', text });
+    if (text) {
+      out.push({ type: 'text', text });
+      if (state) state.textSeen = true;
+    }
     out.push(...imageEvent(msg?.content));
   } else if (type === 'result') {
+    if (state) state.textSeen = false;
     const text = typeof j.result === 'string' ? j.result : blockText(j.result);
     const sid = typeof j.session_id === 'string' ? j.session_id : undefined;
     const usage = parseUsage(j.usage, { costUsd: j.total_cost_usd, durationMs: j.duration_ms });
@@ -380,8 +402,9 @@ export function createClaudeParser(): (line: string) => HarnessEvent[] {
     m.set(k, v);
     if (m.size > 500) m.delete(m.keys().next().value!);
   };
+  const stream: ClaudeStreamState = { textSeen: false };
   return (line) =>
-    parseClaudeLine(line).map((ev) => {
+    parseClaudeLine(line, stream).map((ev) => {
       if (ev.type === 'permission' && ev.toolUseId) {
         const parent = parents.get(ev.toolUseId);
         const agent = parent ? agents.get(parent) : undefined;

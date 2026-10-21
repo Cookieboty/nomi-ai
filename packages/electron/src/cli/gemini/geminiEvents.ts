@@ -1,10 +1,12 @@
 /**
- * Gemini CLI ACP `session/update` → HarnessEvent（0.62.0 源码 gemini-*.js：sendUpdate / toAcpToolKind）。
+ * ACP `session/update` → HarnessEvent。Gemini CLI（0.62.0 源码 gemini-*.js：sendUpdate / toAcpToolKind）
+ * 与 Grok（`grok agent stdio`，1.0.62 实测）共用。
  *
  * - agent_message_chunk → text-delta；agent_thought_chunk 累积成一条 thinking（遇到别的更新或结束时发出）
  * - tool_call（pending / in_progress / completed / failed）+ tool_call_update → tool start / done / error
  *   ACP 不带原始工具名，只有 kind（read / edit / execute / search / fetch / think / …）和 title；
- *   子代理（invoke_agent）的 kind 为 think，按 title 识别为 invoke_agent 以便归为子代理卡片
+ *   子代理（invoke_agent）的 kind 为 think，按 title 识别为 invoke_agent 以便归为子代理卡片。
+ *   Grok 另在 `_meta["x.ai/tool"].name` 给出原始工具名、`rawInput` 给出参数，有就优先用。
  */
 import type { HarnessEvent } from '../types';
 
@@ -71,14 +73,25 @@ export function createGeminiMapper() {
         if (!id) return out;
         const title = typeof u.title === 'string' ? u.title : '';
         const status = String(u.status ?? '');
-        const name = names.get(id) ?? toolName(String(u.kind ?? ''), title);
+        const terminal = status === 'completed' || status === 'failed';
+        // 已开始的调用又来一条非终态更新（补标题 / 位置）：不重复发开始事件
+        if (!terminal && kind === 'tool_call_update' && names.has(id)) return out;
+        const meta = (u._meta as Json | undefined)?.['x.ai/tool'] as Json | undefined;
+        const name =
+          names.get(id) ??
+          (typeof meta?.name === 'string' && meta.name
+            ? meta.name
+            : toolName(String(u.kind ?? ''), title));
         names.set(id, name);
         const loc = Array.isArray(u.locations) ? (u.locations as Json[])[0] : undefined;
-        const input = JSON.stringify({
-          ...(title ? { description: title } : {}),
-          ...(typeof loc?.path === 'string' ? { path: loc.path } : {}),
-        });
-        if (status === 'completed' || status === 'failed') {
+        const raw = u.rawInput && typeof u.rawInput === 'object' ? (u.rawInput as Json) : null;
+        const input = raw
+          ? JSON.stringify(raw)
+          : JSON.stringify({
+              ...(title ? { description: title } : {}),
+              ...(typeof loc?.path === 'string' ? { path: loc.path } : {}),
+            });
+        if (terminal) {
           names.delete(id);
           out.push({
             type: 'tool',

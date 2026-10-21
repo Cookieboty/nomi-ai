@@ -16,7 +16,10 @@ import {
   parseDshTranscript,
   parseGeminiTranscript,
 } from '../../../src/cli/historyTranscript';
-import { SessionHistoryService } from '../../../src/cli/SessionHistoryService';
+import {
+  DSH_META_MAX_ZSTD_BYTES,
+  SessionHistoryService,
+} from '../../../src/cli/SessionHistoryService';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -488,6 +491,28 @@ describe('SessionHistoryService', () => {
     });
   });
 
+  it('honours CODEX_HOME and CLAUDE_CONFIG_DIR instead of ~/.codex and ~/.claude', async () => {
+    const codexHome = path.join(home, 'custom-codex');
+    const dir = path.join(codexHome, 'sessions', '2026', '10', '14');
+    fs.mkdirSync(dir, { recursive: true });
+    const id = '01a13a9b-34b0-7612-ba36-613a55008483';
+    const text = fx('codex-rollout.jsonl').replace(
+      /"cwd":\s*"\/tmp"/g,
+      `"cwd":${JSON.stringify(work)}`,
+    );
+    fs.writeFileSync(path.join(dir, `rollout-2026-10-14T21-30-12-${id}.jsonl`), text);
+    const claudeHome = path.join(home, 'custom-claude');
+    const proj = path.join(claudeHome, 'projects', '-work-app');
+    fs.mkdirSync(proj, { recursive: true });
+    fs.copyFileSync(writeClaude('c1', 'custom dir task', 1_000_000), path.join(proj, 'c1.jsonl'));
+    fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
+    const svc = mk({ env: { CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeHome } });
+    expect((await svc.list('codex')).items.map((i) => i.sessionId)).toEqual([id]);
+    expect((await svc.list('claude')).items.map((i) => i.sessionId)).toEqual(['c1']);
+    // 没设环境变量时仍看 ~/.codex（这里为空）
+    expect((await mk({ env: {} }).list('codex')).items).toHaveLength(0);
+  });
+
   it('codex: one session id spread over several rollout files is listed once (newest wins, across pages)', async () => {
     const id = '01a0a531-1d64-7361-bb69-ebd1c7349662';
     const text = fx('codex-rollout.jsonl').replace(
@@ -556,10 +581,34 @@ describe('SessionHistoryService', () => {
     if (!dshSetup(id)) return; // 没有 zstd 工具的环境：跳过
     const svc = mk();
     const page = await svc.list('dsh');
-    expect(page.items[0]).toMatchObject({ backend: 'dsh', sessionId: id, cwd: work });
+    expect(page.items[0]).toMatchObject({
+      backend: 'dsh',
+      sessionId: id,
+      cwd: work,
+      model: 'qwen2.5:0.5b',
+      permissionMode: 'acceptEdits',
+    });
     expect(page.items[0]!.title.length).toBeGreaterThan(0);
     const tr = await svc.transcript('dsh', id);
     expect(tr.messages.map((x) => x.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
+  });
+
+  it('dsh: oversized compressed sessions are not decompressed while listing', async () => {
+    const id = 'session-887fa07d-22ae-4013-849f-2b2fafcba3c4';
+    if (!dshSetup(id)) return;
+    const file = path.join(home, '.dsh', 'sessions', '--work--', id, 'session.v4.jsonl.zstd');
+    // zstd 可跳过帧：解码器忽略它，只把压缩文件撑到上限以上
+    const pad = Buffer.alloc(8 + DSH_META_MAX_ZSTD_BYTES);
+    pad.writeUInt32LE(0x184d2a50, 0);
+    pad.writeUInt32LE(DSH_META_MAX_ZSTD_BYTES, 4);
+    fs.appendFileSync(file, pad);
+    const page = await mk().list('dsh');
+    expect(page.items[0]).toMatchObject({
+      sessionId: id,
+      cwd: work,
+      permissionMode: 'acceptEdits',
+    });
+    expect(page.items[0]!.model).toBeUndefined();
   });
 
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {
@@ -606,6 +655,9 @@ describe('SessionHistoryService', () => {
         id: 'm1',
         type: 'gemini',
         timestamp: '2026-10-19T00:00:02Z',
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'autoEdit',
         content: '日志里没有错误',
         tokens: { input: 10, output: 4, cached: 2 },
       },
@@ -619,18 +671,78 @@ describe('SessionHistoryService', () => {
         title: '看看日志',
         cwd: work,
         cwdMissing: false,
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'acceptEdits',
       }),
     ]);
     const r = await h.open('gemini', 'gem-11111111');
     expect(r.ok).toBe(true);
     const arg = (openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0];
-    expect(arg).toMatchObject({ backend: 'gemini', sessionId: 'gem-11111111', cwd: work });
+    expect(arg).toMatchObject({
+      backend: 'gemini',
+      sessionId: 'gem-11111111',
+      cwd: work,
+      modelOverride: 'gemini-2.5-pro',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
     const msgs = arg.messages as Array<{ role: string; content: string; usage?: unknown }>;
     expect(msgs.map((m) => [m.role, m.content])).toEqual([
       ['user', '看看日志'],
       ['assistant', '日志里没有错误'],
     ]);
     expect(msgs[1]!.usage).toEqual({ inputTokens: 10, outputTokens: 4, cacheReadTokens: 2 });
+  });
+
+  it('grok: lists updates.jsonl and restores model / security metadata when opened', async () => {
+    const id = 'grok-session-1';
+    const dir = path.join(home, '.grok', 'sessions', encodeURIComponent(work), id);
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, 'updates.jsonl');
+    fs.writeFileSync(
+      p,
+      [
+        {
+          sessionId: id,
+          cwd: work,
+          sessionUpdate: 'user_message',
+          content: [{ type: 'text', text: 'inspect project' }],
+        },
+        {
+          sessionId: id,
+          sessionUpdate: 'agent_message',
+          content: [{ type: 'text', text: 'done' }],
+        },
+        { sessionId: id, sessionUpdate: 'current_mode_update', currentModeId: 'acceptEdits' },
+        {
+          sessionId: id,
+          usage: { modelUsage: { 'grok-4.7-build': { inputTokens: 1 } } },
+          reasoningEffort: 'high',
+        },
+      ]
+        .map((x) => JSON.stringify(x))
+        .join('\n') + '\n',
+    );
+    touch(p, 3_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 'g1' } as never, reused: false }));
+    const svc = mk({ openTab });
+    const page = await svc.list('grok');
+    expect(page.items[0]).toMatchObject({
+      backend: 'grok',
+      sessionId: id,
+      cwd: work,
+      model: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
+    const r = await svc.open('grok', id);
+    expect(r.ok).toBe(true);
+    expect((openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toMatchObject({
+      modelOverride: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
   });
 
   it('open: an unreadable transcript still opens, with a notice', async () => {

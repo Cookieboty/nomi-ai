@@ -33,8 +33,7 @@ export interface InteractionLiteProps {
 }
 
 /**
- * Desktop interaction for the 2D sprite / layered rig (same contract as the 3D
- * MascotInteractionLayer, without three.js):
+ * Desktop interaction for the 2D sprite / layered rig:
  * - per-pixel hit test on the 2D canvas alpha (+ mascot UI) → main toggles click-through
  *   (Windows / macOS: setIgnoreMouseEvents forward; Linux: window shape)
  * - press + move → window drag through the main process (mascot:drag-*), pointer captured so
@@ -274,7 +273,7 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
           ) >= 8;
         if (changed && !s.dragging && !s.down) {
           s.lastGeom = `${box.left},${box.right},${box.top},${box.bottom}`;
-          api?.setGeometry(box);
+          api?.setGeometry({ ...box, vw: window.innerWidth, vh: window.innerHeight });
           document.documentElement.dataset.mascotBox = s.lastGeom;
         }
       }

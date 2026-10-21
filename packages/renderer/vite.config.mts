@@ -20,7 +20,7 @@ export default defineConfig({
       transformIndexHtml: {
         order: 'pre',
         handler(html: string, ctx: { filename: string }) {
-          // index.html（看板娘）与 tts-config.html 都经 file:// 加载，都需要 meta CSP
+          // 看板娘页面经 file:// 加载，需要 meta CSP
           if (!/\.html$/.test(ctx.filename)) return html;
           const anchor = /<meta charset="UTF-8"\s*\/?>/i;
           // 找不到锚点时宁可构建失败，也不能静默产出没有 CSP 的页面
@@ -55,21 +55,13 @@ export default defineConfig({
     assetsDir: 'assets',
     minify: 'terser',
     rollupOptions: {
-      // 多页面：看板娘主窗口 + TTS 配置窗口（共享 @nomi-ai/ui 样式）
       input: {
         main: path.resolve(__dirname, 'index.html'),
-        'tts-config': path.resolve(__dirname, 'tts-config.html'),
       },
       output: {
-        // 稳定的 vendor 拆分：react 常驻；three/VRM 仅 3D 模式懒加载时请求
+        // 稳定的 vendor 拆分：react 常驻
         manualChunks(id: string) {
           if (!id.includes('node_modules')) return undefined;
-          if (
-            /[\\/](three|@pixiv|@react-three|three-stdlib|troika-[^\\/]+|maath|camera-controls)[\\/]/.test(
-              id,
-            )
-          )
-            return 'vendor-three';
           if (/[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
           return undefined;
         },

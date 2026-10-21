@@ -1,6 +1,7 @@
 import {
   PERMISSION_MODES,
   effectiveMode,
+  grokModeId,
   permissionLaunch,
   planPromptPrefix,
   supportedModes,
@@ -10,20 +11,29 @@ import type { HarnessPermissionMode } from '../../../src/cli/types';
 describe('permissionMode', () => {
   it.each([
     ['claude', ['plan', 'manual', 'acceptEdits', 'auto', 'bypass']],
-    ['codex', ['plan', 'acceptEdits', 'auto', 'bypass']],
+    ['codex', ['plan', 'manual', 'acceptEdits', 'auto', 'bypass']],
     ['dsh', ['plan', 'acceptEdits', 'bypass']],
-    ['grok', ['plan', 'acceptEdits', 'auto', 'bypass']],
+    ['grok', ['plan', 'manual', 'acceptEdits', 'bypass']],
   ] as const)('%s supports %j', (backend, modes) => {
     expect([...supportedModes(backend)]).toEqual(modes);
   });
 
   it.each([
-    ['codex', 'manual', 'plan'],
     ['dsh', 'manual', 'plan'],
     ['dsh', 'auto', 'acceptEdits'],
-    ['grok', 'manual', 'plan'],
+    ['grok', 'auto', 'acceptEdits'],
   ] as const)('degrades %s %s → %s', (backend, mode, to) => {
     expect(effectiveMode(backend, mode)).toEqual({ mode: to, degraded: true });
+  });
+
+  it('grok ACP 会话模式 id', () => {
+    expect(PERMISSION_MODES.map(grokModeId)).toEqual([
+      'plan',
+      'default',
+      'acceptEdits',
+      'default',
+      'bypassPermissions',
+    ]);
   });
 
   it('keeps supported modes as-is', () => {

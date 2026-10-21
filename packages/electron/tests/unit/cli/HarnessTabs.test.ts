@@ -35,11 +35,12 @@ describe('CliHarnessService tabs', () => {
     for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () => {
+  const mk = (o: { claudeInterruptGraceMs?: number; prewarmClaude?: boolean } = {}) => {
     const h = new CliHarnessService({
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: os.tmpdir(),
+      ...o,
     });
     made.push(h);
     return h;
@@ -157,16 +158,119 @@ describe('CliHarnessService tabs', () => {
     expect(mk().listTabs().tabs).toHaveLength(1);
   });
 
-  it('cancels a running tab', async () => {
-    process.env.NOMI_MOCK_DELAY_MS = '3000';
+  const claudeLive = (h: CliHarnessService) =>
+    (h as unknown as { claudeLive: Map<string, unknown> }).claudeLive;
+
+  it('停止 Claude 轮次：只发 interrupt，进程保留，下一轮不重启', async () => {
+    const boot = path.join(root, 'claude-boot.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '3000';
     const h = mk();
     const a = h.createTab({ backend: 'claude' });
     const p = h.sendTab(a.id, 'long');
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 300));
+    const live = claudeLive(h).get(a.id);
+    expect(live).toBeDefined();
     expect(h.cancelTab(a.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(h.listTabs().running).toBe(0);
+    expect(h.tabMessages(a.id).at(-1)).toMatchObject({ role: 'assistant', stopped: true });
+    expect(claudeLive(h).get(a.id)).toBe(live);
+
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '0';
+    await h.sendTab(a.id, 'again');
+    expect(claudeLive(h).get(a.id)).toBe(live);
+    expect(fs.readFileSync(boot, 'utf8').trim().split('\n')).toHaveLength(1);
+  }, 20_000);
+
+  it('新会话沿用该后端最近一次的权限模式 / 模型 / 思考深度；「完全放开」不沿用', () => {
+    const h = mk();
+    const a = h.createTab({ backend: 'claude' });
+    h.setTabPermissionMode(a.id, 'plan');
+    h.setTabModel(a.id, 'claude-sonnet-5-5');
+    h.setTabReasoningEffort(a.id, 'high');
+    // /clear：同一后端、同一目录开新会话
+    const b = h.createTab({ backend: 'claude', cwd: a.cwd });
+    expect(b).toMatchObject({
+      permissionMode: 'plan',
+      modelOverride: 'claude-sonnet-5-5',
+      reasoningEffort: 'high',
+    });
+    h.setTabPermissionMode(b.id, 'bypass', { confirmed: true });
+    expect(h.createTab({ backend: 'claude' }).permissionMode).toBe('plan');
+    // 别的后端不受影响；分叉显式给的档位优先
+    expect(h.createTab({ backend: 'codex' }).modelOverride ?? null).toBeNull();
+    expect(h.createTab({ backend: 'claude', permissionMode: 'manual' }).permissionMode).toBe(
+      'manual',
+    );
+    // 跨重启保留
+    h.dispose();
+    expect(mk().createTab({ backend: 'claude' })).toMatchObject({
+      permissionMode: 'plan',
+      modelOverride: 'claude-sonnet-5-5',
+    });
   });
+
+  it('换账号 / 供应商后新会话不再沿用模型；启用第三方供应商时不沿用模型', () => {
+    let profile = false;
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+      hasProviderProfile: () => profile,
+    });
+    made.push(h);
+    const a = h.createTab({ backend: 'claude' });
+    h.setTabPermissionMode(a.id, 'plan');
+    h.setTabModel(a.id, 'claude-sonnet-5-5');
+    profile = true;
+    expect(h.createTab({ backend: 'claude' }).modelOverride ?? null).toBeNull();
+    profile = false;
+    h.recycleBackend('claude');
+    const c = h.createTab({ backend: 'claude' });
+    expect(c.modelOverride ?? null).toBeNull();
+    expect(c.permissionMode).toBe('plan');
+  });
+
+  it('预热：新建 Claude 会话即拉起长驻进程；没用过的预热进程空闲回收、不标休眠', async () => {
+    const boot = path.join(root, 'claude-boot.log');
+    process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+    const h = mk({ prewarmClaude: true });
+    const a = h.createTab({ backend: 'claude' });
+    const live = claudeLive(h).get(a.id);
+    expect(live).toBeDefined();
+    await h.sendTab(a.id, 'hi');
+    expect(claudeLive(h).get(a.id)).toBe(live);
+    expect(fs.readFileSync(boot, 'utf8').trim().split('\n')).toHaveLength(1);
+
+    const b = h.createTab({ backend: 'claude' });
+    expect(claudeLive(h).has(b.id)).toBe(true);
+    expect(h.reclaimIdle(Date.now() + 3_600_000).sort()).toEqual([a.id, b.id].sort());
+    const tabs = h.listTabs().tabs;
+    expect(tabs.find((x) => x.id === a.id)?.dormant).toBe(true);
+    expect(tabs.find((x) => x.id === b.id)?.dormant).toBeFalsy();
+    // 切回来再预热（带 --resume）
+    h.setActiveTab(a.id);
+    expect(claudeLive(h).has(a.id)).toBe(true);
+    // 启动日志由 mock 进程启动后自己写：等第三行出现
+    const bootLines = () => fs.readFileSync(boot, 'utf8').trim().split('\n');
+    for (let i = 0; i < 100 && bootLines().length < 3; i++)
+      await new Promise((r) => setTimeout(r, 50));
+    expect(bootLines().at(-1)).toContain('--resume');
+  }, 20_000);
+
+  it('停止时 CLI 不应答 interrupt：宽限期后拆进程兜底', async () => {
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '5000';
+    process.env.NOMI_MOCK_INTERRUPT = 'ignore';
+    const h = mk({ claudeInterruptGraceMs: 300 });
+    const a = h.createTab({ backend: 'claude' });
+    const p = h.sendTab(a.id, 'long');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(h.cancelTab(a.id)).toBe(true);
+    await expect(p).rejects.toThrow();
+    expect(claudeLive(h).has(a.id)).toBe(false);
+    expect(h.listTabs().running).toBe(0);
+  }, 20_000);
 
   it('drops the session when the cwd changes', async () => {
     const h = mk();

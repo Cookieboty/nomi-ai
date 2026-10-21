@@ -35,6 +35,9 @@
   --cd-chart-1: var(--cd-color-accent);
   --cd-chart-2: var(--cd-color-accent-3);
   --cd-chart-3: var(--cd-color-accent-2);
+  /* 第 4 / 5 个系列色：取各主题的语义色，主题里不必再单独定义 */
+  --cd-chart-4: var(--cd-color-success);
+  --cd-chart-5: var(--cd-color-warning);
   --cd-color-success: #22c55e;
   --cd-color-success-soft: rgba(34, 197, 94, 0.16);
   --cd-color-warning: #f59e0b;
@@ -78,7 +81,9 @@
   --cd-radius-full: 9999px;
 
   /* spacing (4px grid) */
+  --cd-space-0-5: 2px;
   --cd-space-1: 4px;
+  --cd-space-1-5: 6px;
   --cd-space-2: 8px;
   --cd-space-3: 12px;
   --cd-space-4: 16px;
@@ -128,8 +133,13 @@
   --cd-text-caption: var(--cd-font-weight-regular) var(--cd-font-size-xs) / var(--cd-line-height-xs)
     var(--cd-font-sans);
 
-  /* 控件尺寸（4/8 栅格） */
+  /* 控件尺寸（4 的倍数）。同一行的控件用同一档：
+     2xs 行内 / 页签里的小关闭钮；xs 卡片与会话区里的小按钮；sm 对话区右上角、标签栏尾部、设置页表单；
+     ms 输入栏工具行、对话头部、标签页；md 主要表单与对话框按钮；lg 引导页大输入 */
+  --cd-control-h-2xs: 20px;
+  --cd-control-h-xs: 24px;
   --cd-control-h-sm: 28px;
+  --cd-control-h-ms: 32px;
   --cd-control-h-md: 36px;
   --cd-control-h-lg: 40px;
 
@@ -138,10 +148,16 @@
   --cd-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
   --cd-shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.45);
   --cd-shadow-glow: 0 0 0 1px rgba(148, 163, 184, 0.08), 0 4px 14px rgba(0, 0, 0, 0.18);
+  /* 语义阴影：浮层 / 菜单 / 下拉用 popover；跟随各主题的 md（主题都写在根元素上，别名能取到主题值） */
+  --cd-shadow-popover: var(--cd-shadow-md);
   --cd-blur: blur(12px);
 
   /* motion */
   --cd-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  /* 只过渡某个属性时用这两个拼：transition: width var(--cd-duration-fast) var(--cd-ease)
+     （--cd-transition 是完整简写，不能接在属性名后面） */
+  --cd-duration-fast: 0.2s;
+  --cd-ease: cubic-bezier(0.4, 0, 0.2, 1);
   --cd-focus-ring: 0 0 0 2px rgba(var(--cd-accent-2-rgb), 0.6);
 
   /* layers */
@@ -163,7 +179,7 @@
   --cd-color-text: #0f172a;
   --cd-color-text-muted: #475569;
   --cd-color-text-subtle: #94a3b8;
-  --cd-color-overlay: rgba(15, 23, 42, 0.35);
+  --cd-color-overlay: rgba(15, 23, 42, 0.45);
   --cd-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
   --cd-shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.15);
 }
@@ -303,7 +319,7 @@
   --cd-color-danger: #c4302b;
   --cd-color-danger-soft: rgba(196, 48, 43, 0.08);
   --cd-color-danger-text: #b42318;
-  --cd-color-overlay: rgba(51, 41, 31, 0.22);
+  --cd-color-overlay: rgba(51, 41, 31, 0.32);
   --cd-color-hover: rgba(51, 41, 31, 0.045);
   --cd-color-active: rgba(51, 41, 31, 0.08);
   --cd-color-bg-subtle: #f5e4d0;
@@ -358,7 +374,7 @@
   --cd-color-danger: #c4302b;
   --cd-color-danger-soft: rgba(196, 48, 43, 0.08);
   --cd-color-danger-text: #b42318;
-  --cd-color-overlay: rgba(61, 41, 24, 0.22);
+  --cd-color-overlay: rgba(61, 41, 24, 0.32);
   --cd-color-hover: rgba(61, 41, 24, 0.045);
   --cd-color-active: rgba(61, 41, 24, 0.08);
   --cd-color-bg-subtle: #f8e0cc;

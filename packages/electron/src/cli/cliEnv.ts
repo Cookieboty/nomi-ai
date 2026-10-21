@@ -20,7 +20,7 @@ export function isNomiInternalEnv(name: string): boolean {
 
 /**
  * @param base 通常是 process.env
- * @param extra 该后端自己的变量（例如 dsh 档案启用时的 NOMI_DSH_API_KEY），最后覆盖
+ * @param extra 该后端自己的变量（例如 dsh 供应商启用时的 NOMI_DSH_API_KEY），最后覆盖
  */
 export function buildCliEnv(
   base: NodeJS.ProcessEnv,

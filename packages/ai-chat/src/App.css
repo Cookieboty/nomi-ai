@@ -66,7 +66,7 @@ body {
   justify-content: flex-end;
   align-items: center;
   min-height: 0;
-  padding: 6px var(--cd-space-4, 16px) 0;
+  padding: var(--cd-space-1-5) var(--cd-space-4) 0;
   position: relative;
   z-index: 2;
 }
@@ -107,7 +107,7 @@ body {
 }
 .chat-container > :not(.chat-bg-layer) {
   position: relative;
-  z-index: var(--cd-z-chat-content, 1);
+  z-index: var(--cd-z-chat-content);
 }
 
 /* 欢迎空态：居中、干净卡片 */
@@ -129,7 +129,7 @@ body {
   -webkit-backdrop-filter: var(--cd-blur);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-xl);
-  padding: 40px 32px;
+  padding: 40px var(--cd-space-8);
   box-shadow: var(--cd-shadow-md);
 }
 
@@ -181,7 +181,7 @@ body {
 }
 
 .quick-action-btn span:first-child {
-  font-size: 22px;
+  font-size: var(--cd-font-size-2xl);
 }
 
 /* 底部输入区：干净分隔，无发光动画 */
@@ -194,7 +194,7 @@ body {
   position: relative;
   /* 输入区里的斜杠面板 / 下拉菜单是向上弹出的绝对定位元素，层级受本容器限制，
      所以整个输入区必须高于聊天内容（--cd-z-chat-content），否则会被消息文字压住。 */
-  z-index: var(--cd-z-chat-input, 2);
+  z-index: var(--cd-z-chat-input);
   max-width: 100%;
 }
 
@@ -232,9 +232,9 @@ body {
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 10px;
-  border-radius: 999px;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-0-5) 10px;
+  border-radius: var(--cd-radius-full);
   cursor: pointer;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text);
@@ -262,8 +262,8 @@ body {
   max-width: 620px;
 }
 .welcome-title {
-  font-size: 22px;
-  font-weight: 500;
+  font-size: var(--cd-font-size-2xl);
+  font-weight: var(--cd-font-weight-medium);
   color: var(--cd-color-text);
   background: none;
   -webkit-text-fill-color: currentColor;
@@ -271,19 +271,19 @@ body {
 }
 .welcome-subtitle {
   margin-top: 18px;
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
 .quick-actions {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .quick-action-btn {
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 13px;
+  padding: var(--cd-space-1-5) 14px;
+  border-radius: var(--cd-radius-full);
+  font-size: var(--cd-font-size-sm);
   background: transparent;
   border: 1px solid var(--cd-color-border);
   color: var(--cd-color-text-muted);

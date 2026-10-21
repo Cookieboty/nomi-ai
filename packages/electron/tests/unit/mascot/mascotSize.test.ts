@@ -211,3 +211,43 @@ describe('resizeMascotBounds keeps the feet-centre anchor', () => {
     expect(n.x + MASCOT_PAD.x).toBeGreaterThanOrEqual(second.x);
   });
 });
+
+describe('resizeMascotBounds under fractional display scaling', () => {
+  // what Windows/Chromium reports back: DIP → physical → DIP, both with an enclosing rect
+  const reportedBottom = (top: number, height: number, sf: number) => {
+    const pb = Math.ceil((top + height) * sf - 1e-9);
+    return Math.ceil(pb / sf - 1e-9);
+  };
+
+  it.each([1.25, 1.5, 1.75, 2.25])(
+    'clamped window never ends below the work area (scaleFactor %s)',
+    (sf) => {
+      for (const h of [717, 718, 719, 720, 1033, 1037]) {
+        const area = { x: 0, y: 0, width: 1280, height: h, scaleFactor: sf };
+        const cap = maxScaleForArea(area);
+        // parked at the bottom edge, then asked for the biggest size → clamp pushes it up
+        const start = mascotWindowSize(0.5);
+        const nb = resizeMascotBounds({
+          bounds: { x: 300, y: h - start.height, ...start },
+          fromScale: 0.5,
+          toScale: cap,
+          workAreas: [area],
+        });
+        expect(nb.y).toBeGreaterThanOrEqual(area.y);
+        expect(reportedBottom(nb.y, nb.height, sf)).toBeLessThanOrEqual(area.y + area.height);
+      }
+    },
+  );
+
+  it('keeps the exact edge when the display is not scaled', () => {
+    const area = { x: 0, y: 0, width: 1280, height: 717, scaleFactor: 1 };
+    const s = mascotWindowSize(0.5);
+    const nb = resizeMascotBounds({
+      bounds: { x: 300, y: 717 - s.height, ...s },
+      fromScale: 0.5,
+      toScale: 1,
+      workAreas: [area],
+    });
+    expect(nb.y + nb.height).toBe(717);
+  });
+});

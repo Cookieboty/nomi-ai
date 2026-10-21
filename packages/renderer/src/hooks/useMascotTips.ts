@@ -5,6 +5,12 @@ import { useWaifuMessage } from './useWaifuMessage';
 import { IDLE_TIPS, MESSAGES, MOUSEOVER_TIPS, greetingFor } from '@/mascot/tips';
 
 const IDLE_AFTER_MS = 45_000;
+/**
+ * The startup greeting is a filler line: it sits below AI replies / reminders (priority 9), so a
+ * reply that lands before the 1.2 s greeting delay is not replaced by it (E12).
+ */
+export const GREETING_PRIORITY = 8;
+export const GREETING_DELAY_MS = 1200;
 
 /** 注册看板娘的提示文案：问候、悬停提示、空闲提醒、复制/回到前台。 */
 export function useMascotTips(): void {
@@ -19,7 +25,10 @@ export function useMascotTips(): void {
     const say = (t: string | string[], timeout = 4000, priority = 8) =>
       showRef.current(t, timeout, priority);
 
-    const greet = setTimeout(() => say(greetingFor(new Date().getHours()), 6000, 9), 1200);
+    const greet = setTimeout(
+      () => say(greetingFor(new Date().getHours()), 6000, GREETING_PRIORITY),
+      GREETING_DELAY_MS,
+    );
 
     let lastSelector: string | null = null;
     const onOver = (e: MouseEvent) => {

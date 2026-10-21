@@ -16,6 +16,8 @@ import { type VoiceService } from '../../services/VoiceService';
 
 import styles from './style.module.css';
 
+import { openVoiceSettings } from '@/mascot/openVoiceSettings';
+
 const log = createLogger('voice-settings');
 
 interface VoiceSettingsProps {
@@ -199,34 +201,24 @@ export const VoiceSettings: React.FC<VoiceSettingsProps> = ({
         />
       </section>
 
-      <section className={styles.group} data-testid="fish-voice-note">
-        <SectionTitle level={4}>{tr('语音播报引擎')}</SectionTitle>
+      <section className={styles.group} data-testid="voice-engine-link">
+        <SectionTitle level={4}>{tr('朗读引擎')}</SectionTitle>
         <p className="cd-muted" style={{ fontSize: 12 }}>
-          {tr(
-            '默认使用内置离线语音（sherpa-onnx，本机合成，开启语音时下载模型）。模型缺失或合成失败时保持静默。Fish Audio 为可选远程引擎，不提供上传克隆。',
-          )}
+          {tr('离线语音模型、Fish / 自建 TTS 等引擎设置在主界面的「设置 → 语音与屏幕 → 语音」。')}
         </p>
-        <p className="cd-notice" style={{ fontSize: 12 }} data-testid="fish-attribution">
-          <strong>Built with Fish Audio</strong>
-        </p>
-      </section>
-
-      <section className={styles.group}>
-        <SectionTitle level={4}>{tr('使用说明')}</SectionTitle>
-        <ul className={styles.help}>
-          <li>
-            <strong>{tr('按角色绑定')}</strong>
-            {tr('：每个模型可有独立 TTS 语速；切换角色自动切换。')}
-          </li>
-          <li>
-            <strong>{tr('持久化')}</strong>
-            {tr('：覆盖写入 localStorage，并尽量写入模型 config.voice（用户导入模型）。')}
-          </li>
-          <li>
-            <strong>{tr('定时播报')}</strong>
-            {tr('：同样走当前角色的 TTS。')}
-          </li>
-        </ul>
+        <div>
+          <button
+            type="button"
+            className="cd-btn cd-btn--sm"
+            data-testid="open-voice-settings"
+            onClick={() => {
+              onClose();
+              void openVoiceSettings();
+            }}
+          >
+            {tr('更多语音设置…')}
+          </button>
+        </div>
       </section>
       {isLoading && <div className="cd-muted">{tr('保存中…')}</div>}
     </Modal>

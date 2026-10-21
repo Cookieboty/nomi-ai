@@ -68,7 +68,8 @@ export const cliAccountClient = {
       : null;
   },
   importCurrent: (kind: AccountKind) => call<CliAccount>('import-current', kind),
-  activate: (id: string) => call<CliAccount>('activate', id),
+  /** kind：调用方以为的账号所属后端；主进程核对不一致就拒绝（不会切到别的 CLI 的全局账号） */
+  activate: (id: string, kind?: AccountKind) => call<CliAccount>('activate', id, kind),
   rename: (id: string, label: string) => call<CliAccount>('rename', id, label),
   remove: (id: string) => call<void>('remove', id),
   loginStart: (kind: AccountKind) => call<LoginEvent>('login-start', kind),

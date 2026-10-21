@@ -18,7 +18,7 @@ export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' |
 
 export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
 
-/** 拥有独立供应商档案库的 CLI */
+/** 拥有独立第三方供应商列表的 CLI */
 export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /** 支持版本更新的 CLI */
@@ -212,6 +212,27 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode: HarnessPermissionMode;
+  /** 历史会话未记录权限时，首次握手从 CLI 当前会话模式同步；同步后清除。 */
+  permissionModeSource?: 'history-cli';
+  /**
+   * 标签级模型覆盖（仅对带模型目录的官方账号后端生效：codex / claude / grok）。
+   * null / 缺省 = 沿用 CLI 自己的默认模型；空串清除覆盖。
+   * 以进程级参数注入（codex `-c model=` / grok `-m` / claude `--model`），
+   * 不改写用户的全局 CLI 配置。
+   */
+  modelOverride?: string | null;
+  /**
+   * 标签级思考深度覆盖（仅推理模型；见 modelCatalog.ts）。
+   * null = 沿用 CLI 默认档位；切换到非推理模型时由主进程清除。
+   */
+  reasoningEffort?: string | null;
+  /**
+   * 上面两项属于哪个模型来源：第三方供应商 id；null / 缺省 = 官方账号（CLI 自带配置）。
+   * 换供应商时把当前选择收进 modelByScope、取出新来源上次的选择，模型名不会跨来源发出去。
+   */
+  modelScope?: string | null;
+  /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
+  modelByScope?: Record<string, { model: string | null; effort: string | null }>;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

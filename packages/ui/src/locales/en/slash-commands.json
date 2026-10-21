@@ -48,7 +48,6 @@
   "当前状态": "Current status",
   "模型、供应商、工作目录、登录方式、CLI 版本": "Model, provider, working directory, login mode, CLI version",
   "切换模型": "Switch model",
-  "列出并切换这个 CLI 使用的供应商档案 / 模型": "List and switch the provider profile / model this CLI uses",
   "列出并切换 Nomi 对话使用的供应商 / 模型": "List and switch the provider / model used by Nomi chat",
   "[模型名]": "[model]",
   "新会话": "New session",
@@ -84,7 +83,7 @@
   "这一端没有返回费用；今日 / 近 7 天按本机价格表估算。": "This endpoint does not report cost; today / last 7 days are estimated from the local price table.",
   "端": "Endpoint",
   "由 CLI 自己决定": "Chosen by the CLI itself",
-  "{0}（Nomi 档案）": "{0} (Nomi profile)",
+  "{0}（第三方供应商）": "{0} (third-party provider)",
   "登录方式": "Login mode",
   "账号登录（订阅）": "Account login (subscription)",
   "未确认": "Unconfirmed",
@@ -161,5 +160,14 @@
   "同名时 CLI 只会执行{0}版的 /{1}，没有指定其他版本的写法，Nomi 不会替它发送，以免执行成别的命令。": "When names clash, the CLI only runs the {0} version of /{1} and has no syntax to target another version, so Nomi will not send this one, to avoid running a different command.",
   "另一条": "the other",
   "CLI 自带": "the CLI",
-  "Gemini 在 Nomi 里暂不支持压缩命令。可以用 /clear 开新标签。": "Gemini doesn't support compaction in Nomi yet. Use /clear to start a new tab."
+  "Gemini 在 Nomi 里暂不支持压缩命令。可以用 /clear 开新标签。": "Gemini doesn't support compaction in Nomi yet. Use /clear to start a new tab.",
+  "列出并切换当前标签的模型（与输入框的模型按钮一致）": "List and switch this tab's model (same as the model button in the input bar)",
+  "默认模型 · {0}": "Default model · {0}",
+  "{0}（自定义）": "{0} (custom)",
+  "只影响当前标签，下一条消息起生效。": "Only affects this tab, starting with the next message.",
+  "没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>": "No matching models. You can also enter a full model id: /model <model id>",
+  "切换供应商": "Switch provider",
+  "列的是「{0}」的模型。": "Models from “{0}”.",
+  "只影响当前标签，下一条消息起生效；与输入框的模型按钮是同一个设置。": "Only affects this tab, starting with the next message; this is the same setting as the model button in the input bar.",
+  "会话已关闭或已重置": "The session was closed or reset"
 }

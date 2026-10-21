@@ -39,6 +39,17 @@ describe('gravity triggers', () => {
     expect(s.mode).toBe('idle');
   });
 
+  it('anchorOnBoxChange never rounds the window below the work area (fractional box bottom)', () => {
+    // CI (Windows, 1024×768, work area 720): window 675 tall at scale 1.21, rescaled box bottom 674.5
+    const area = { x: 0, y: 0, width: 1024, height: 720 };
+    const prev = { left: 100, right: 400, top: 200, bottom: 580 };
+    const s0 = { x: 242, y: 140, vx: 0, vy: 0, mode: 'idle' as const };
+    const next = { left: 100, right: 500, top: 200, bottom: 674.5 };
+    const s = anchorOnBoxChange(s0, prev, next, [area]);
+    expect(Math.round(s.y) + 675).toBeLessThanOrEqual(720);
+    expect(Math.abs(s.y + next.bottom - 720)).toBeLessThan(1);
+  });
+
   it('anchorOnBoxChange ignores airborne / held bodies', () => {
     const held = standing({ mode: 'held', y: 100 });
     expect(anchorOnBoxChange(held, box, { ...box, bottom: 380 }, [AREA])).toBe(held);

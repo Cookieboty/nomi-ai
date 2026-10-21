@@ -5,7 +5,11 @@
  * Env: NOMI_MOCK_GEMINI_PERM=1 (ask permission before a tool), NOMI_MOCK_GEMINI_LOG=<file> (record requests),
  *      NOMI_MOCK_GEMINI_UNTRUSTED=1 (exit 55 like an untrusted folder unless GEMINI_CLI_TRUST_WORKSPACE=true
  *      or the cwd is listed as TRUST_FOLDER in trustedFolders.json),
- *      NOMI_MOCK_DELAY_MS (delay before replying to session/prompt).
+ *      NOMI_MOCK_DELAY_MS (delay before replying to session/prompt),
+ *      NOMI_MOCK_GEMINI_SET_MODE=error | error:<modeId> (session/set_mode fails, always / only for that mode),
+ *      NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS (delay before answering session/set_mode; the answer is logged as
+ *      "set_mode/answered" so tests can check ordering against session/prompt),
+ *      NOMI_MOCK_GEMINI_INIT_DELAY_MS (delay before answering initialize).
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
@@ -155,16 +159,21 @@ process.stdin.on('data', (c) => {
       continue;
     }
     switch (m.method) {
-      case 'initialize':
-        send({
-          id: m.id,
-          result: {
-            protocolVersion: 1,
-            authMethods: [{ id: 'oauth-personal', name: 'Log in with Google' }],
-            agentCapabilities: { loadSession: true },
-          },
-        });
+      case 'initialize': {
+        const reply = () =>
+          send({
+            id: m.id,
+            result: {
+              protocolVersion: 1,
+              authMethods: [{ id: 'oauth-personal', name: 'Log in with Google' }],
+              agentCapabilities: { loadSession: true },
+            },
+          });
+        const wait = Number(process.env.NOMI_MOCK_GEMINI_INIT_DELAY_MS || 0);
+        if (wait) setTimeout(reply, wait);
+        else reply();
         break;
+      }
       case 'authenticate': {
         const id = m.id;
         setTimeout(
@@ -199,12 +208,13 @@ process.stdin.on('data', (c) => {
       case 'session/new': {
         const sessionId = `gem-${randomUUID()}`;
         sessions.add(sessionId);
+        const currentModeId = process.env.NOMI_MOCK_GEMINI_MODE;
         send({
           id: m.id,
           result: {
             sessionId,
             modes: {
-              currentModeId: 'default',
+              currentModeId: currentModeId || 'default',
               availableModes: [{ id: 'default' }, { id: 'yolo' }],
             },
           },
@@ -213,12 +223,39 @@ process.stdin.on('data', (c) => {
       }
       case 'session/load':
         if (sessions.has(m.params.sessionId) || m.params.sessionId.startsWith('gem-'))
-          send({ id: m.id, result: {} });
+          send({
+            id: m.id,
+            result: process.env.NOMI_MOCK_GEMINI_MODE
+              ? {
+                  modes: {
+                    currentModeId: process.env.NOMI_MOCK_GEMINI_MODE,
+                    availableModes: [{ id: 'default' }, { id: 'yolo' }],
+                  },
+                }
+              : {},
+          });
         else send({ id: m.id, error: { code: -32603, message: 'session not found' } });
         break;
-      case 'session/set_mode':
-        send({ id: m.id, result: {} });
+      case 'session/set_mode': {
+        const rule = process.env.NOMI_MOCK_GEMINI_SET_MODE || '';
+        const fail = rule === 'error' || rule === `error:${m.params.modeId}`;
+        const answer = () => {
+          if (log)
+            fs.appendFileSync(
+              log,
+              `${JSON.stringify({ method: 'set_mode/answered', params: { modeId: m.params.modeId, ok: !fail } })}\n`,
+            );
+          send(
+            fail
+              ? { id: m.id, error: { code: -32603, message: `mode ${m.params.modeId} rejected` } }
+              : { id: m.id, result: {} },
+          );
+        };
+        const wait = Number(process.env.NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS || 0);
+        if (wait) setTimeout(answer, wait);
+        else answer();
         break;
+      }
       case 'session/prompt':
         void prompt(m.id, m.params);
         break;

@@ -16,7 +16,7 @@ import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
-import { initCliHarnessService } from '../cli/CliHarnessService';
+import { getCliHarnessService, initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
 import { initCliRouteService } from '../cli/routing/CliRouteService';
@@ -31,7 +31,6 @@ import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
-import { getModelService } from '../models/ModelService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { getScreenService, initScreenService } from '../screen/ScreenService';
@@ -177,11 +176,6 @@ export class Application implements IApplication {
         });
       }
       this.logger.info('Electron应用准备就绪');
-
-      // 模型注册表 / 商店 / 用户导入（cdmodel:// 协议 + models:* IPC）
-      const models = getModelService(this.logger);
-      models.registerProtocol();
-      models.registerIpc();
 
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
       registerChatAssetProtocol();
@@ -331,20 +325,12 @@ export class Application implements IApplication {
         if (w) applyTitleBarTheme(w, st.resolved);
       });
 
-      // 首次启动引导（语言 / 主题 / 角色与声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
+      // 首次启动引导（语言 / 主题 / 声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
       const onboarding = new OnboardingService({
         userData: app.getPath('userData'),
         openChat: async () => {
           await this.windowManager.createAiChatWindow();
         },
-        listCharacters: async () =>
-          (
-            (await getModelService(this.logger).list()) as Array<{
-              id: string;
-              name: string;
-              origin?: string;
-            }>
-          ).map((m) => ({ id: m.id, name: m.name, source: m.origin })),
       });
       onboarding.registerIpc();
 
@@ -439,6 +425,8 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'cli-providers'),
         logger: this.logger as never,
         resolveUpstream: (kind) => getCliProviderBridge()?.resolveUpstream(kind) ?? null,
+        // 编程助手标签为当前供应商选中的模型照发，其余改成供应商配置的模型
+        allowedModels: (kind) => getCliHarnessService()?.routeModels(kind) ?? new Set<string>(),
       });
       cliProviders.registerIpc();
       cliRoute.registerIpc();
@@ -451,10 +439,20 @@ export class Application implements IApplication {
         dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
         grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
         geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
+        hasProviderProfile: (kind) => getCliProviderBridge()?.hasActiveProfile(kind) ?? false,
+        providerProfile: (kind) => getCliProviderBridge()?.activeProfile(kind) ?? null,
+        providerModels: (kind) => getCliProviderBridge()?.listModels(kind) ?? Promise.resolve([]),
+        dshModelPatch: (model) => getCliProviderBridge()?.dshPatchFor(model) ?? null,
+        // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
+        prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
+        // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
+        grokAcp: process.env.NOMI_GROK_ACP !== '0',
+        // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
+        codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
       // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
       cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
-      // 官方账号（docs/design/cli-official-accounts.md）：切换后停用该 CLI 的第三方供应商档案，
+      // 官方账号（docs/design/cli-official-accounts.md）：切换后停用该 CLI 的第三方供应商，
       // 并让长驻进程按新登录重拉
       const accounts: AccountService = new AccountService({
         root: path.join(app.getPath('userData'), 'cli-accounts'),
@@ -634,7 +632,6 @@ export class Application implements IApplication {
       },
       onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),
-      models: getModelService(this.logger),
       screenMemory: getScreenService()
         ? {
             active: () => getScreenService()!.active(),

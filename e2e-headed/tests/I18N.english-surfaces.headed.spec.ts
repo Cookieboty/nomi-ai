@@ -8,6 +8,8 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
+import { revealToolbar } from './toolbarReveal';
+
 /**
  * 英文界面巡检：CD_LOCALE=en 启动真实应用，逐个打开桌宠工具栏、对话窗口与全部设置分区，
  * 断言界面上不再出现中文（漏翻 / 未经 t() 的硬编码文案）。
@@ -53,8 +55,6 @@ test.describe('English UI has no untranslated Chinese', () => {
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
     };
     delete env.NODE_ENV;
-    delete env.CD_SEED_USER_VRM;
-    delete env.CD_DEFAULT_MODEL;
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
@@ -75,17 +75,20 @@ test.describe('English UI has no untranslated Chinese', () => {
     await app.evaluate(({ BrowserWindow }) =>
       BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
     );
+    await revealToolbar(main);
     await main.waitForTimeout(800);
     await check(main, 'mascot-toolbar');
     const more = main.locator('[data-testid="tool-more"]');
     if (await more.count()) {
       await more.first().click();
+      await main.click('[data-testid="panel-more"]');
       await check(main, 'mascot-toolbar-more');
+      // 致谢面板（工具栏「更多」→ 致谢 / Credits）
+      await main.click('[data-testid="tool-info"]');
+      await main.waitForSelector('[data-testid="credits"]', { timeout: 10_000 });
+      await check(main, 'mascot-credits');
       await main.keyboard.press('Escape');
     }
-    await main.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));
-    await check(main, 'mascot-model-picker');
-    await main.keyboard.press('Escape');
 
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
     await main.evaluate(() =>

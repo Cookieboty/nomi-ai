@@ -65,6 +65,12 @@ export class UsageLedger {
   private recs = new Map<string, UsageRecord>();
   /** 按 ts 升序的快照（查询用；脏了再重建） */
   private sorted: UsageRecord[] | null = null;
+  /**
+   * 只含路由记录（via === 'route'）的按时间排序索引。扫描编程工具日志时每条日志记录都要查
+   * routeCovering：原来走全量 snapshot()，而每次 upsert 都会让全量排序失效，导入日志时
+   * 变成「每条记录重排整本账」（O(N² log N)），几十万条时主进程卡几秒。路由记录通常很少，单独索引。
+   */
+  private routeSorted: UsageRecord[] | null = null;
   private cursors: Record<string, FileCursor> = {};
   /**
    * 还没落盘的记录键。只存键、落盘时取内存里的最新值：写失败时队列不丢，
@@ -165,8 +171,9 @@ export class UsageLedger {
         return false;
       r = merged;
     }
+    if (r.via === 'route' || prev?.via === 'route') this.routeSorted = null;
     this.recs.set(r.key, r);
-    this.sorted = null;
+    this.placeInSorted(prev, r);
     this.ver++;
     this.dirty.add(r.key);
     this.lines++;
@@ -215,8 +222,9 @@ export class UsageLedger {
       next.logKey === prev.logKey
     )
       return false;
+    if (prev.via === 'route') this.routeSorted = null;
     this.recs.set(key, next);
-    this.sorted = null;
+    this.placeInSorted(prev, next);
     this.ver++;
     this.dirty.add(key);
     this.lines++;
@@ -264,6 +272,44 @@ export class UsageLedger {
   }
 
   /**
+   * 增量维护排好序的视图，避免每次写入都让下一次查询整本重排：
+   * 新记录不早于末尾 → 直接追加；更新且时间没变 → 原位替换；其它情况才作废重排。
+   */
+  private placeInSorted(prev: UsageRecord | undefined, next: UsageRecord): void {
+    const arr = this.sorted;
+    if (!arr) return;
+    if (!prev) {
+      if (!arr.length || arr[arr.length - 1]!.ts <= next.ts) arr.push(next);
+      else this.sorted = null;
+      return;
+    }
+    if (prev.ts === next.ts) {
+      let lo = 0;
+      let hi = arr.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (arr[mid]!.ts < prev.ts) lo = mid + 1;
+        else hi = mid;
+      }
+      for (let i = lo; i < arr.length && arr[i]!.ts === prev.ts; i++)
+        if (arr[i] === prev) {
+          arr[i] = next;
+          return;
+        }
+    }
+    this.sorted = null;
+  }
+
+  private routeSnapshot(): UsageRecord[] {
+    if (!this.routeSorted) {
+      const out: UsageRecord[] = [];
+      for (const r of this.recs.values()) if (r.via === 'route') out.push(r);
+      this.routeSorted = out.sort((a, b) => a.ts - b.ts);
+    }
+    return this.routeSorted;
+  }
+
+  /**
    * 编程工具日志里的这条记录，是不是已经由 Nomi 本地路由记过账？
    * （走本地路由的请求，日志里也有一份；以路由的为准，日志的跳过，避免重复计数）
    *
@@ -277,7 +323,7 @@ export class UsageLedger {
    * 没有唯一可信的匹配就返回 null，让日志记录照常入账（宁可保留待核对的记录，也不吞掉独立请求）。
    */
   routeCovering(source: UsageSource, ts: number, hint?: RouteHint): UsageRecord | null {
-    const arr = this.snapshot();
+    const arr = this.routeSnapshot();
     // 找到第一个 ts >= 窗口左界的路由记录
     const left = ts - ROUTE_SLACK_MS - 10 * 60_000; // 路由单次最长按 10 分钟估
     let lo = 0;
@@ -351,6 +397,7 @@ export class UsageLedger {
     }
     if (n) {
       this.sorted = null;
+      this.routeSorted = null;
       this.ver++;
       this.compact();
     }
@@ -364,6 +411,7 @@ export class UsageLedger {
   clear(): void {
     this.recs.clear();
     this.sorted = null;
+    this.routeSorted = null;
     this.ver++;
     this.dirty.clear();
     this.appendTainted = false;

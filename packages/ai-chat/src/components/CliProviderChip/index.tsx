@@ -1,10 +1,11 @@
 /**
- * CLI 后端（Claude Code / Codex / dsh）输入栏上的供应商 / 模型芯片。
+ * CLI 后端（Claude Code / Codex / dsh）的供应商切换（官方账号 / 第三方供应商）。
+ * 只切换来源，不显示模型：模型在输入框的模型按钮里看和选（ModelControls，按标签生效）。
  *
- * 只读取该后端自己的档案库（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
- * 没有启用的档案时显示「CLI 默认 / 已登录」。快速切换只在本后端的档案里选。
+ * 只读取该后端自己的第三方供应商列表（cli-providers/<kind>/store.json），绝不显示 Nomi 的供应商；
+ * 没有启用的供应商时显示「CLI 默认 / 已登录」。快速切换只在本后端的供应商里选。
  */
-import { Select, t, Icon } from '@nomi-ai/ui';
+import { Icon, IconButton, Select, t } from '@nomi-ai/ui';
 import { KeyRound } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -18,7 +19,7 @@ import {
 
 export const CLI_DEFAULT_VALUE = '';
 
-/** 该后端当前启用的档案（没有则为 null = CLI 自带登录/默认配置） */
+/** 该后端当前启用的供应商（没有则为 null = CLI 自带登录/默认配置） */
 export function activeProfileOf(
   state: CliProviderState | null,
   kind: CliProviderKind,
@@ -26,7 +27,7 @@ export function activeProfileOf(
   return state?.profiles.find((p) => p.kind === kind && p.active) ?? null;
 }
 
-/** 下拉框里官方账号选项的 value 前缀（与供应商档案 id 区分开） */
+/** 下拉框里官方账号选项的 value 前缀（与第三方供应商 id 区分开） */
 const ACCOUNT_PREFIX = 'account:';
 
 const SWITCHER_STYLE: React.CSSProperties = {
@@ -80,14 +81,19 @@ export const CliProviderChip: React.FC<{
   if (!available) return null;
   const profiles = (state?.profiles ?? []).filter((p) => p.kind === backend);
   const active = activeProfileOf(state, backend);
-  const official = active ? undefined : accounts.find((a) => a.active);
+  // 只认当前后端的官方账号：芯片跨标签复用，切到别的后端（如 dsh）后、新列表回来前，
+  // 上一个后端的账号既不显示也不能选，免得在这里切换了另一个 CLI 的全局账号（#69）
+  const own = accountKind ? accounts.filter((a) => a.kind === accountKind) : [];
+  const official = active ? undefined : own.find((a) => a.active);
 
   const pick = async (id: string) => {
     setErr('');
     try {
       if (id.startsWith(ACCOUNT_PREFIX)) {
-        // 切换全局官方账号；主进程会顺带停用第三方供应商档案
-        await cliAccountClient.activate(id.slice(ACCOUNT_PREFIX.length));
+        // 切换全局官方账号；主进程会顺带停用第三方供应商。过时的选项（别的后端的账号）不切换
+        const acc = own.find((a) => a.id === id.slice(ACCOUNT_PREFIX.length));
+        if (!acc || !accountKind) return;
+        await cliAccountClient.activate(acc.id, accountKind);
       } else if (id === CLI_DEFAULT_VALUE) {
         const r = await cliProviderClient.deactivate(backend);
         if (!r.ok) setErr(r.error || t('停用失败'));
@@ -110,14 +116,15 @@ export const CliProviderChip: React.FC<{
     >
       <Select
         size="sm"
+        variant="ghost"
         style={{ width: 'auto', maxWidth: 260 }}
         data-testid="cli-provider-switch"
         aria-label={t('{0} 供应商', backendName(backend))}
         title={
           err ||
           (active
-            ? t('{0} 的供应商档案（独立于 Nomi）', backendName(backend))
-            : t('未启用档案：沿用 {0} 自带的登录与默认配置', backendName(backend)))
+            ? t('{0} 的第三方供应商（独立于 Nomi）', backendName(backend))
+            : t('未启用第三方供应商：沿用 {0} 自带的登录与默认配置', backendName(backend)))
         }
         value={active?.id ?? (official ? `${ACCOUNT_PREFIX}${official.id}` : CLI_DEFAULT_VALUE)}
         onChange={(e) => void pick(e.target.value)}
@@ -128,48 +135,32 @@ export const CliProviderChip: React.FC<{
             label: t('CLI 默认 / 已登录'),
             description: t('沿用 CLI 自带登录与默认配置'),
           },
-          ...accounts.map((a) => ({
+          ...own.map((a) => ({
             value: `${ACCOUNT_PREFIX}${a.id}`,
             label: t('官方 · {0}', a.identity?.email ?? a.label),
             description: a.identity?.plan,
           })),
-          ...profiles.map((p) => ({
-            value: p.id,
-            label: p.name,
-            description: p.model || undefined,
-          })),
+          ...profiles.map((p) => ({ value: p.id, label: p.name })),
         ]}
       />
-      {active?.model && (
-        <span
-          data-testid="cli-model-label"
-          style={{ fontSize: 14, opacity: 0.8, whiteSpace: 'nowrap' }}
-          title={t('模型')}
-        >
-          {active.model}
-        </span>
-      )}
       {err && (
         <span
           role="alert"
           data-testid="cli-provider-err"
-          style={{ fontSize: 13, color: '#e5534b' }}
+          style={{ fontSize: 'var(--cd-font-size-xs)', color: 'var(--cd-color-danger-text)' }}
         >
           {err}
         </span>
       )}
       {onManage && (
-        <button
-          type="button"
-          className="cd-btn cd-btn-ghost"
+        // 与 Nomi 模式同一位置的按钮（ProviderSwitcher）同一个组件、同一尺寸
+        <IconButton
+          size="sm"
           data-testid="open-cli-provider-panel"
-          style={{ fontSize: 14 }}
           onClick={onManage}
-          title={t('打开 {0} 的供应商设置', backendName(backend))}
-          aria-label={t('打开 {0} 的供应商设置', backendName(backend))}
-        >
-          <Icon icon={KeyRound} size={14} />
-        </button>
+          label={t('打开 {0} 的供应商设置', backendName(backend))}
+          icon={<Icon icon={KeyRound} />}
+        />
       )}
     </span>
   );

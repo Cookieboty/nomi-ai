@@ -27,6 +27,7 @@ import {
   parseClaudeSession,
   parseClineJob,
   parseCodexSession,
+  parseGrokSession,
   parseContinueSession,
   parseGeminiSession,
 } from '../../../src/agents/parsers';
@@ -336,5 +337,29 @@ describe('AgentProgressService', () => {
     expect(s.enabled).toBe(false);
     expect(s.tools.codex).toBe(false);
     expect(s.tools.gemini).toBe(true);
+  });
+});
+
+describe('parseCodexSession permission mode (inverse of permissionLaunch codex)', () => {
+  const meta = (payload: Record<string, unknown>) =>
+    JSON.stringify({ type: 'turn_context', payload: { cwd: '/p', model: 'gpt-x', ...payload } });
+  it.each([
+    [{ sandbox_policy: { type: 'read-only' } }, 'manual'],
+    [{ sandbox_policy: 'workspace-write', approval_policy: 'never' }, 'acceptEdits'],
+    [{ sandbox_policy: { type: 'workspace-write' }, approval_policy: 'on-request' }, 'auto'],
+    [{ sandbox_policy: { type: 'danger-full-access' } }, 'bypass'],
+    [{ approval_policy: 'untrusted' }, 'untrusted'],
+  ])('%j -> %s', (payload, want) => {
+    expect(parseCodexSession(meta(payload), '').permissionMode).toBe(want);
+  });
+});
+
+describe('jsonl with a UTF-8 BOM and CRLF line endings (Windows)', () => {
+  it('keeps the first event', () => {
+    const text =
+      '\uFEFF{"sessionId":"s1","cwd":"C:\\\\work"}\r\n' +
+      '{"params":{"update":{"sessionUpdate":"user_message","prompt":"hi"}}}\r\n';
+    const info = parseGrokSession(text, 'fallback');
+    expect(info).toMatchObject({ cwd: 'C:\\work', title: 'hi' });
   });
 });

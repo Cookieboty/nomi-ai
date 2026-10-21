@@ -40,6 +40,7 @@ import {
 } from '../providers/protocol';
 
 import { toAiSdkToolSet } from './mapTools';
+import { describeStreamError } from './streamError';
 
 export interface AiSdkLlmProviderOptions {
   id: string;
@@ -374,14 +375,11 @@ export class AiSdkLlmProvider implements LLMProvider {
           if (u) yield { type: 'usage', usage: u, model: this.resolveModel(request) };
           yield { type: 'done', finishReason: finishOf(part.finishReason) };
         } else if (part.type === 'error') {
-          yield {
-            type: 'error',
-            error: part.error instanceof Error ? part.error.message : String(part.error),
-          };
+          yield { type: 'error', error: describeStreamError(part.error) };
         }
       }
     } catch (err) {
-      yield { type: 'error', error: err instanceof Error ? err.message : String(err) };
+      yield { type: 'error', error: describeStreamError(err) };
     } finally {
       this.aborts.delete(request.reqId);
     }

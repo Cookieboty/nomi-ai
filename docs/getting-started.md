@@ -50,7 +50,7 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 托盘菜单
 
-系统托盘里可以：打开对话、切换 AI 供应商、打开供应商设置与桌面能力、让 Nomi 做动作、切换角色 / 打开模型商店、调整互动设置、退出。
+系统托盘里可以：打开对话、切换 AI 供应商、打开供应商设置与桌面能力、让 Nomi 做动作、调整互动设置、退出。
 
 ---
 
@@ -100,4 +100,4 @@ Full list and remapping: [Personalization](features/personalization.md).
 
 ### Tray menu
 
-From the system tray you can: open chat, switch AI provider, open provider settings & desktop capabilities, trigger Nomi motions, switch character / open the model store, tweak interaction settings, or quit.
+From the system tray you can: open chat, switch AI provider, open provider settings & desktop capabilities, trigger Nomi motions, tweak interaction settings, or quit.

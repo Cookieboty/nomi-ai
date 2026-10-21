@@ -32,6 +32,13 @@ export interface HarnessTabMeta {
   carriedMessages?: number;
   /** 权限模式（主进程已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode?: PermissionMode;
+  /**
+   * 标签级模型覆盖（仅带模型目录的官方账号后端，如 Codex）。
+   * null/缺省 = 沿用 CLI 默认模型；以进程级 -c model= 注入，不改全局 CLI 配置。
+   */
+  modelOverride?: string | null;
+  /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
+  reasoningEffort?: string | null;
   /** 仍在运行的后台子代理 / 后台任务数 */
   background?: number;
   /** 仍在运行的后台子代理；stoppable = 可以单独停止（Claude） */
@@ -145,6 +152,35 @@ export interface LiveAgentEvent {
 
 export const MAIN_TAB_ID = 'main';
 
+/** 思考深度档位（各 CLI 取值的并集，由浅到深）；某个模型支持哪些以 CLI 返回的目录为准 */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+
+/** 从 CLI 读到的可选模型 */
+export interface ModelCatalogModel {
+  /** 传给 CLI 的模型值 */
+  id: string;
+  label?: string;
+  description?: string;
+  /** CLI 声明支持思考深度 */
+  reasoning: boolean;
+  efforts: ReasoningEffort[];
+  /** CLI 对该模型的默认档位（仅显示） */
+  defaultEffort?: ReasoningEffort;
+}
+/** 主进程从 CLI 读到的模型目录（不写死） */
+export interface BackendModelCatalog {
+  backend: HarnessBackend;
+  models: ModelCatalogModel[];
+  /** 不传模型参数时 CLI 实际使用的模型（CLI 能告诉我们时才有） */
+  defaultModel: ModelCatalogModel | null;
+  /** CLI 返回的原生安全模式 id；缺省时由兼容层提供默认集合。 */
+  permissionModes?: string[];
+  /** 读取失败的原因（此时 models 为空） */
+  error?: string;
+  /** 目录来自启用中的第三方供应商（它的 /models；没有思考深度） */
+  provider?: { id: string; name: string };
+}
+
 export interface HarnessSendResult {
   text: string;
   sessionId: string | null;
@@ -240,10 +276,22 @@ export const harnessClient = {
   closeTab: (id: string) => call<HarnessTabsState>('tab-close', id),
   renameTab: (id: string, title: string) => call<HarnessTabMeta>('tab-rename', id, title),
   /** 切换标签权限模式；「完全放开」必须带 confirmed（界面先弹确认框）。degraded = 后端不支持、已降级 */
-  setTabPermissionMode: (id: string, mode: PermissionMode, opts: { confirmed?: boolean } = {}) =>
-    call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
+  /** expect：「完全放开」确认时的标签后端 / 目录；主进程核对不一致则拒绝（确认不能漂移到别处） */
+  setTabPermissionMode: (
+    id: string,
+    mode: PermissionMode,
+    opts: { confirmed?: boolean; expect?: { backend: HarnessBackend; cwd: string } } = {},
+  ) => call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
     call<HarnessTabsState>('permission-defaults', o),
+  /** 从 CLI 读到的模型目录（主进程缓存）；不支持切换模型的后端返回 null；refresh 强制重读 */
+  modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean } = {}) =>
+    call<BackendModelCatalog | null>('model-catalog', backend, opts),
+  /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
+  setTabModel: (id: string, model: string) => call<HarnessTabMeta>('tab-model', id, model),
+  /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
+  setTabEffort: (id: string, effort: ReasoningEffort | null) =>
+    call<HarnessTabMeta>('tab-effort', id, effort),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>

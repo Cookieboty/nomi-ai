@@ -18,28 +18,22 @@ export interface IpcApi {
   /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
   onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
-  // TTS配置相关API（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）
-  getTTSConfig: () => Promise<TTSConfig | null>;
-  saveTTSConfig: (config: TTSConfig) => Promise<void>;
-  testTTSConnection: (config: TTSConfig) => Promise<TTSTestResult>;
-  resetTTSConfig: () => Promise<void>;
+  // 朗读（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）；配置在对话窗口的设置里
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
-  /** sherpa 离线 TTS 模型状态（bundled / env / 缺失） */
-  ttsSherpaStatus?: () => Promise<SherpaModelStatus>;
 
   // AI对话相关API
   openAiChat: () => Promise<{ success: boolean; error?: string }>;
+  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
+  openTaskBoard?: () => Promise<{ success: boolean; error?: string }>;
 
-  // TTS配置窗口API
-  openTTSConfig: () => Promise<{ success: boolean; error?: string }>;
+  /** 打开对话窗口的「设置 → 语音与屏幕 → 语音」（朗读引擎等） */
+  openVoiceSettings?: () => Promise<{ success: boolean; error?: string }>;
 
   /** 主进程 → 看板娘指令：{ type: 'motion' | 'expression' | 'parameter', ... } */
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
-  /** 模型注册表 / 商店 / 用户导入（主进程实现） */
-  models?: import('./models').ModelsApi;
   /** 看板娘窗口互动 */
   mascotWindow?: import('./models').MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */

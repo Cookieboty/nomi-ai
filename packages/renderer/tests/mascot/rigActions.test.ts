@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createSpriteBackend } from '../../src/mascot/backends/sprite';
 import { directiveForEvent } from '../../src/mascot/expressionDirector';
 import { RigAnimator } from '../../src/mascot/layeredRig';
-import { MOTION_LABELS } from '../../src/mascot/motion/library';
+import { MOTION_LABELS } from '../../src/mascot/motion/labels';
 import { ActionManager } from '../../src/mascot/rig/actionManager';
 import { ACTIONS, ACTION_LABELS } from '../../src/mascot/rig/actions';
 import { compileAction, sampleTrack, type ActionDef } from '../../src/mascot/rig/actionTypes';

@@ -10,8 +10,10 @@ import type { KbSource } from '../../services/kbClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
 
-import { CitedText, SourceList, SourcePreview } from './Citations';
+import { SourceList, SourcePreview } from './Citations';
 import styles from './Citations.module.css';
+import { CiteProvider } from './citeRefs';
+import { Markdown } from './Markdown';
 import type { ConvSlots } from './Messages';
 
 const rawOf = (m: ConvMessage): ChatMessage | undefined =>
@@ -25,9 +27,10 @@ const CitedBody: React.FC<{ message: ChatMessage }> = ({ message }) => {
   const sources = message.sources ?? [];
   return (
     <>
-      <div className={styles.contentText}>
-        <CitedText text={message.content} sources={sources} onPick={setPick} />
-      </div>
+      {/* 与普通回复同一个 Markdown 渲染器；[n] 由 CiteProvider 变成可点击的引用 */}
+      <CiteProvider sources={sources} onPick={setPick}>
+        <Markdown text={message.content} settled citations />
+      </CiteProvider>
       <details className={styles.stepRow} open>
         <summary>
           <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />

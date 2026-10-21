@@ -377,7 +377,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(row.locator('[data-testid="cli-provider-test-result"]')).toContainText('ms');
     await row.locator('[data-testid="cli-provider-enable"]').click();
     await expect(chat.locator('[data-testid="cli-ep-active"]')).toHaveText('本地中转');
-    await expect(chat.locator('[data-testid="cli-ep-source"]')).toContainText('Nomi 档案库');
+    await expect(chat.locator('[data-testid="cli-ep-source"]')).toContainText('Nomi 第三方供应商');
     await expect(chat.locator('[data-testid="cli-ep-routing"]')).toHaveAttribute(
       'data-mode',
       'direct',
@@ -411,7 +411,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     );
     await shot(chat, '13-providers-dsh');
 
-    // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的档案 + 模型；Codex 标签显示默认
+    // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的供应商 + 模型；Codex 标签显示默认
     await chat.locator('[data-testid="settings-back"]').click();
 
     // 顶栏「知识 · 记忆 · 日程」→ 日程标签：没有「编程助手」标签
@@ -427,7 +427,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(chip).toHaveAttribute('data-backend', 'claude');
     await expect(chip).toHaveAttribute('data-source', 'own-store');
     await expect(chip).toContainText('本地中转');
-    await expect(chat.locator('[data-testid="cli-model-label"]')).toHaveText('claude-x');
+    // 右上角只切换来源；模型在输入框的模型按钮里（第三方供应商下列它的模型，默认是供应商配置的）
+    await expect(chat.locator('[data-testid="cli-model-label"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="model-chip"]')).toContainText('claude-x');
     await shot(chat, '14-cli-chip-claude-own-profile');
     await chat.locator('[data-testid="chat-tab-2"]').click();
     await expect(chip).toHaveAttribute('data-backend', 'codex');

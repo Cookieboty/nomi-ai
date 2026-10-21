@@ -124,7 +124,7 @@ export const RowActions: React.FC<
   );
 };
 
-export const ThreadItem: React.FC<{
+const ThreadItemImpl: React.FC<{
   c: Meta;
   active: boolean;
   tab?: HarnessTabMeta;
@@ -217,6 +217,9 @@ export const ThreadItem: React.FC<{
   );
 };
 
+/** Memoized: a sidebar rerender only rerenders rows whose props changed. */
+export const ThreadItem = React.memo(ThreadItemImpl);
+
 export type VirtualProps = {
   items: Meta[];
   current?: string;
@@ -232,6 +235,7 @@ export type VirtualProps = {
   onMore: (id: string, anchor: DOMRect) => void;
 };
 
+/** react-window 2 already memoizes rowComponent (shallow props compare); no extra memo here. */
 export const VirtualRow = ({
   index,
   style,

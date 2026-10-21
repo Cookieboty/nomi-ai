@@ -86,6 +86,7 @@ jest.mock('fs', () => ({
   renameSync: jest.fn(),
   copyFileSync: jest.fn(),
   appendFileSync: jest.fn(),
+  appendFile: jest.fn(),
 }));
 
 // 模拟path模块

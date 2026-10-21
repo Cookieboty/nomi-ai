@@ -7,6 +7,9 @@ import * as path from 'path';
 
 import { app, BrowserWindow } from 'electron';
 
+import { defaultProbe } from './cli/CliUpdateService';
+import { forgetMissingCliBins, npmPrefixBinDir, rememberCliDir } from './cli/detect';
+import { loadLoginShellPath } from './cli/shellPath';
 import { Application } from './core/Application';
 import { registerAppSchemePrivileges } from './schemePrivileges';
 import { LEGACY_DEV_NAMES, migrateLegacyUserData } from './utils/legacyUserData';
@@ -80,8 +83,8 @@ if (isPrimaryInstance && !app.isPackaged) {
   }
 }
 
-// cdmodel://（远程 / 用户模型文件）与 chat-asset://（会话 Markdown 图片）需在 app ready 之前
-// 一次性注册为特权协议（registerSchemesAsPrivileged 多次调用会互相覆盖，见 schemePrivileges.ts）
+// chat-asset://（会话 Markdown 图片）需在 app ready 之前注册为特权协议
+// （registerSchemesAsPrivileged 多次调用会互相覆盖，见 schemePrivileges.ts）
 registerAppSchemePrivileges();
 
 // 全局应用实例
@@ -91,6 +94,19 @@ let application: Application | null = null;
  * 应用入口函数
  */
 async function main(): Promise<void> {
+  // 读登录 shell 的 PATH（不阻塞启动；探测 CLI 的异步路径会等它），见 cli/shellPath.ts（#76）
+  void loadLoginShellPath((added) => {
+    forgetMissingCliBins();
+    log.info(`已从登录 shell 补全 PATH（新增 ${added.length} 个目录）`);
+  }).then(() => {
+    // 再记住 npm 实际的全局 bin（自定义 prefix 且 shell 里没配 PATH 时也能找到已装的 CLI）；
+    // 稍后再跑，不和启动抢资源
+    setTimeout(() => {
+      void Promise.resolve(defaultProbe.npmPrefix())
+        .then((prefix) => prefix && rememberCliDir(npmPrefixBinDir(prefix)))
+        .catch(() => undefined);
+    }, 3000).unref();
+  });
   try {
     // 创建应用实例
     application = new Application();

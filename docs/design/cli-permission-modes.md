@@ -21,15 +21,15 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 
 每个标签一个 `permissionMode`（`HarnessTabMeta.permissionMode`），启动 / 切换时按下表映射到各 CLI 原生参数：
 
-| Nomi 模式          | 值            | Claude Code                           | Codex（全部经 `-c`）                                                             | dsh（环境变量）                          | Grok                            |
-| ------------------ | ------------- | ------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------- |
-| 计划               | `plan`        | `--permission-mode plan`              | `sandbox_mode="read-only"` + 计划提示前缀                                        | `DSH_PERMISSION_MODE=read-only` + 前缀   | `--permission-mode plan` ⚠️     |
-| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | 不支持 → 降为计划                                                                | 不支持 → 降为计划                        | 暂不开放 → 降为计划 ⚠️          |
-| 自动改文件（默认） | `acceptEdits` | `--permission-mode acceptEdits`       | `sandbox_mode="workspace-write"` + `sandbox_workspace_write.network_access=true` | `DSH_PERMISSION_MODE=workspace-write`    | `--permission-mode acceptEdits` |
-| 自动               | `auto`        | `--permission-mode auto`              | 上一行 + `approval_policy="on-request"` + `approvals_reviewer="auto_review"`     | 不支持 → 降为自动改文件                  | `--permission-mode auto` ⚠️     |
-| 完全放开           | `bypass`      | `--permission-mode bypassPermissions` | `sandbox_mode="danger-full-access"`                                              | `DSH_PERMISSION_MODE=danger-full-access` | `--yolo`                        |
+| Nomi 模式          | 值            | Claude Code                           | Codex（app-server 每轮 `turn/start`；exec 回退经 `-c`）                          | dsh（环境变量）                          | Grok                             |
+| ------------------ | ------------- | ------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------- |
+| 计划               | `plan`        | `--permission-mode plan`              | `sandbox_mode="read-only"` + 计划提示前缀                                        | `DSH_PERMISSION_MODE=read-only` + 前缀   | ACP `set_mode plan`              |
+| 逐项确认           | `manual`      | `--permission-mode default`（弹卡片） | `workspaceWrite` + `approvalPolicy: untrusted`（弹卡片）；exec 回退按只读        | 不支持 → 降为计划                        | ACP `set_mode default`（弹卡片） |
+| 自动改文件（默认） | `acceptEdits` | `--permission-mode acceptEdits`       | `sandbox_mode="workspace-write"` + `sandbox_workspace_write.network_access=true` | `DSH_PERMISSION_MODE=workspace-write`    | ACP `set_mode acceptEdits`       |
+| 自动               | `auto`        | `--permission-mode auto`              | 上一行 + `approval_policy="on-request"` + `approvals_reviewer="auto_review"`     | 不支持 → 降为自动改文件                  | 不支持 → 降为自动改文件          |
+| 完全放开           | `bypass`      | `--permission-mode bypassPermissions` | `sandbox_mode="danger-full-access"`                                              | `DSH_PERMISSION_MODE=danger-full-access` | ACP `set_mode bypassPermissions` |
 
-⚠️ = 未在真机验证（本机 Grok 未登录）。
+Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实测）：运行中 `session/set_mode` 原地切换；ACP 没有「自动」。起不来 ACP 时退回 `grok -p`，那时仍按 `--permission-mode` / `--yolo` 启动（逐项确认在 `-p` 下没有审批通道）。
 
 降级规则（`effectiveMode`）只往更安全的一侧：`manual → plan`，`auto → acceptEdits`。
 
@@ -56,15 +56,18 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 - **类型**：`HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' | 'bypass'`；`HarnessTabMeta.permissionMode`；`HarnessTabsState` 增加 `defaultPermissionMode`、`codexNetwork`。
 - **映射模块** `cli/permissionMode.ts`（纯函数）：`supportedModes` / `effectiveMode` / `permissionLaunch` / `claudeModeName` / `planPromptPrefix`。
 - **生效时机**
-  - Claude：`setTabPermissionMode` 对长驻进程写 `set_permission_mode`；stdin 不可写时拆进程，下一轮带新 `--permission-mode` 与 `--resume` 重拉。`ensureClaudeLive` 发现进程模式与标签不一致也会重拉。
+  - Claude：`setTabPermissionMode` 对长驻进程写 `set_permission_mode`，按 `request_id` 等对应的 `control_response`。只有 `success` 才更新进程的「已生效」档位；`error`、超时（10 s）、对不上的 `request_id`、stdin 不可写都按失败处理：拆进程，下一轮带新 `--permission-mode` 与 `--resume` 重拉。发送前若还有未确认的切换，先等它有结果；`ensureClaudeLive` 只复用「已生效档位 = 标签档位、且没有在途切换」的进程（#72）。
+  - Gemini：初始化时 `session/set_mode` 必须成功（会话本来就在目标模式时跳过），失败 / 超时不发送这一轮并报错；运行中切换同样等应答后才更新已生效档位，失败就停掉会话，下一轮重新建立；发送前先等在途的切换（#72）。
+  - 界面经 `applyTabPermissionMode` 等确认：失败时按钮旁显示原因（标签档位保持用户选的，下一轮按它启动），不把没生效的档位当成已生效。
   - Codex / dsh / Grok：每轮一个进程，下一轮生效。
   - 计划提示前缀只加在发给 CLI 的提示上，不改落盘的用户消息。
 - **IPC**（经 `ai:*` 发送方校验）
-  - `ai:harness:tab-permission-mode(tabId, mode, { confirmed })` → 返回 `HarnessTabMeta & { degraded }`。
+  - `ai:harness:tab-permission-mode(tabId, mode, { confirmed, expect? })` → 返回 `HarnessTabMeta & { degraded }`。
   - `ai:harness:permission-defaults({ defaultPermissionMode?, codexNetwork? })` → 返回 `HarnessTabsState`。
   - `ai:harness:tab-create` 接受 `permissionMode`（分叉继承用）。
 - **安全约束**
   - `bypass` 必须带 `confirmed: true`，否则抛错（防止渲染层绕过确认框）。
+  - 确认框带 `expect: { backend, cwd }`（发起确认时的标签后端 / 目录）；与标签当前值不一致（期间换了后端或目录、会话已重置）即拒绝，要求重新确认。
   - `bypass` 不能设为默认、不能经 `tab-create` 继承、**不跨重启保留**（重启后回到默认档）。
 - **迁移**：旧数据没有 `permissionMode` 时，Claude 标签还原为 `manual`（保持原来的逐项确认），其它后端用默认档 `acceptEdits`。行为变化只有 Grok：从全部放开降到「自动改文件」（见 changeset）。
 - **持久化**：主标签档位存 `session.json`；其它标签与默认档 / 联网开关存 `tabs.json`。
@@ -75,8 +78,9 @@ Nomi 把消息转发给本机 CLI 时，四个后端的权限原本各自为政�
 与下面原计划的差异：
 
 - 「新标签默认模式」放在模式下拉底部（「设为新标签默认」），没有单独的设置页；「Codex 允许联网」保持默认开，暂无界面开关。
-- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从芯片进入并确认。
-- `degraded` 的提示显示在芯片旁（5 秒后消失），StatusLine 暂未显示模式。
+- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从按钮进入并确认。
+- `degraded` 的提示显示在按钮旁（5 秒后消失），StatusLine 暂未显示模式。
+- 「完全放开」确认框绑定发起时的标签（id / 后端 / 目录），并写明标签名与目录；确认框打开期间切走标签（含 `Mod+数字`、`Ctrl+Tab`、程序切换）、关闭标签或换了后端 / 目录，确认即作废，切回来也不会复活，绝不转投到当前标签（#66）。
 
 原计划：
 

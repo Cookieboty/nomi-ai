@@ -7,7 +7,7 @@ import type { Protocol } from '../../services/providerClient';
 
 type Fmt = ClaudeApiFormat | CodexApiFormat;
 
-/** 由接口地址推测品牌图标（老档案没有 presetId 时使用）；认不出返回 undefined（显示首字母） */
+/** 由接口地址推测品牌图标（老供应商没有 presetId 时使用）；认不出返回 undefined（显示首字母） */
 export function inferBrand(baseUrl: string): string | undefined {
   let host = '';
   try {
@@ -35,7 +35,7 @@ export function inferBrand(baseUrl: string): string | undefined {
 }
 
 /**
- * Nomi 预设的协议 → CLI 档案的上游格式（仅作参考映射；新建档案默认用
+ * Nomi 预设的协议 → CLI 供应商的上游格式（仅作参考映射；新建供应商默认用
  * CLI_DEFAULT_FORMAT，不要用本函数覆盖端点原生格式）。
  */
 export function presetFormat(protocol: Protocol): Fmt {

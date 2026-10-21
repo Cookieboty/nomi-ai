@@ -8,7 +8,7 @@
 
 目标：在 Nomi 输入框输入 `/` 弹出命令面板；选中后**在 Nomi 界面里执行并呈现结果**。命令分四种去向：
 
-1. **Nomi 原生**：用本地账本 / 会话状态 / 供应商档案直接算出来，以「系统消息卡片」显示在会话流里（`/context`、`/cost`、`/status`、`/model`、`/clear`、`/new`、`/help`、`/diff`、`/mcp`、`/skills`…）。
+1. **Nomi 原生**：用本地账本 / 会话状态 / 第三方供应商直接算出来，以「系统消息卡片」显示在会话流里（`/context`、`/cost`、`/status`、`/model`、`/clear`、`/new`、`/help`、`/diff`、`/mcp`、`/skills`…）。
 2. **透传**：该 CLI 的**文档明确说在非交互（`-p` / stream-json）模式可用**的命令，原样发给 CLI，结果走普通流式输出（`/compact`、自定义命令与 skill）。
 3. **提示词展开**：CLI 没有文档化的无头入口，但命令本质是一段提示词（项目 / 用户目录里的 `commands/*.md`、`SKILL.md`，以及 Nomi 内置的 `/review`、`/init` 模板）：Nomi 在本地展开占位符后把**展开后的提示词**发给 CLI。
 4. **不支持**：需要交互式终端 / 登录流程 / 未文档化接口的命令，给出明确的卡片说明原因与替代做法，**不发给 CLI、不静默失败**。
@@ -68,7 +68,7 @@
 | `/context`                                                                                      | N（会话 token 估算 + 上次真实用量）      | N                                            | N（D: `thread/tokenUsage/updated`） | **P**（Grok 自己的命令）  | N                   |
 | `/cost`（`/usage` `/stats`）                                                                    | N                                        | N（别名同官方）                              | N（D: `account/rateLimits/read`）   | N                         | N                   |
 | `/status`                                                                                       | N                                        | N                                            | N                                   | N                         | N                   |
-| `/model`                                                                                        | N（供应商 / 模型切换）                   | N（供应商档案切换）                          | N（D: `model/list`）                | N                         | N                   |
+| `/model`                                                                                        | N（供应商 / 模型切换）                   | N（第三方供应商切换）                        | N（D: `model/list`）                | N                         | N                   |
 | `/clear` `/new`                                                                                 | N（新会话）                              | N（新标签，旧会话保留）                      | N                                   | N                         | N                   |
 | `/compact`                                                                                      | ✗（Nomi 对话暂无压缩）                   | **P**（SDK 文档化，`compact_boundary`）      | ✗（D: `thread/compact/start`）      | **P**（`grok -p` 会执行） | ✗                   |
 | `/diff`                                                                                         | —                                        | N（`git diff`，只读）                        | N                                   | N                         | N                   |
@@ -109,7 +109,7 @@
 1. **注册模型 = ACP `AvailableCommand` 的超集**。每条命令至少有 `name`、`description`、可选 `input.hint`（ACP 形状），再加 Nomi 自己需要的 `source`（分组）、`kind`（原生 / 透传 / 展开 / 不支持）、`handler`。理由：ACP 是 Grok 已经在用的、多代理的共同形状；以后 Nomi 若接 ACP 代理，`available_commands_update` 可以**零转换**注册进来（整表替换语义也直接复用）；未知字段保留（`meta`），符合 ACP 对客户端的要求。
 2. **每个端一个 adapter，注册表合并**（借鉴 OpenCode 的"同一注册表、后来者覆盖"和 Grok 的"内置名赢得裸名"）：同名时当前端赢过 Nomi，自定义命令以限定名 `/project:name`、`/user:name`、`/<plugin>:name` 出现；不静默覆盖，菜单上同时显示两条并带来源徽标。
 3. **分组 + 来源徽标**（借鉴 OpenCode 弹层的 `source` badge、Claude 的来源标注）：「当前端命令 / 项目自定义 / 用户自定义 / 插件 / Skills / Nomi / 界面」。当前端与 Nomi 同名时只展示当前端。
-4. **参数提示**用 ACP `input.hint` + 命令文件的 `argument-hint`；不做 Open WebUI 那样的类型化表单（我们的命令参数都是一行文本，表单过重）；Zed 的"参数补全"思路用在 `/model <名>`：参数位置补全该端可选的模型 / 档案。
+4. **参数提示**用 ACP `input.hint` + 命令文件的 `argument-hint`；不做 Open WebUI 那样的类型化表单（我们的命令参数都是一行文本，表单过重）；Zed 的"参数补全"思路用在 `/model <名>`：参数位置补全该端可选的模型 / 供应商。
 5. **搜索**沿用仓库已有的 `utils/fuzzy.ts`（词 AND、子串 > 子序列、中文友好），按名字 > 别名 > 描述加权。借鉴 Claude 的细节：打错字时**不静默提交**——`Enter` 在没有匹配项时走"未知命令"卡片而不是发给模型。
 6. **结果呈现**：原生命令的结果是会话流里的**系统消息卡片**（本机展示，不进 CLI 历史、不发给模型）；透传 / 展开的结果走普通流式输出。这是 ACP / OpenCode / Open WebUI 共同的做法（"命令 = 提示词前缀"）在无头 CLI 上的对应物。
 7. **安全**：采用 Claude 的最保守姿势——命令文件里的 `` !`cmd` `` 不由 Nomi 执行；发现阶段只读文件名与 frontmatter；展开时只读被选中的那一个文件，且路径必须来自主进程自己的发现结果（渲染进程传的是命令 id，不是路径）；绝不读 `~/.claude.json`、`~/.codex/config.toml`、`auth.json`、`.credentials*`、`.env`。
@@ -206,7 +206,7 @@ sequenceDiagram
 - `/context`：上下文窗口占用 = 若最近一次助手消息带真实用量（账本 / CLI 回报的 `inputTokens + cacheReadTokens`）则取它（输入 + 缓存读取 + 输出），并标"实际"；否则用字符数估算并标"估算"。明细按 用户消息 / 助手回复 / 工具调用与输出 / 思考 分类（估算）。窗口大小来自模型名匹配的内置表，未知模型用 128K 并标"窗口大小为默认值"。
 - `/cost`：本会话各轮 `usage.costUsd` 与 token 累计 + 本端今日 / 近 7 日（`usageClient.endpoint`，即账本）。
 - `/status`：端、模型 · 供应商、工作目录、登录方式（额度条目 `auth`，主进程按官方登录状态命令判断，不读凭据）、CLI 版本（`cli-update inspect`）、会话 id、运行中标签数。
-- `/model`：无参数 → 列出该端可选的供应商 / 档案（可点击切换）；`/model <名>` → 按名字 / 模型匹配并切换（Nomi：`providerClient.setActive`；CLI：已有的 `cliProviderClient.activate`，与输入栏芯片同一条路径）。
+- `/model`：无参数 → 列出该端可选的第三方供应商（可点击切换）；`/model <名>` → 按名字 / 模型匹配并切换（Nomi：`providerClient.setActive`；CLI：已有的 `cliProviderClient.activate`，与输入栏按钮同一条路径）。
 - `/clear`、`/new`：Nomi 主对话 → `newConversation`；CLI 标签 → 在同端同目录新开标签，旧标签保留。
 - `/compact`：Claude 与 Grok 透传；其余端卡片说明。
 
@@ -248,8 +248,8 @@ sequenceDiagram
 - **Claude `system/init.slash_commands` 动态列表**：文档化，但 Nomi 的流解析尚未把它转成会话事件，本次用"文档化的静态集合 + 目录发现"代替；动态列表是 §6 的后续项。
 - **dsh**：只有原生命令。
 - **Nomi 对话 `/compact`**：没有压缩实现，明确提示"不支持"。
-- **上下文窗口表是经验值**：`/context` 的窗口大小来自按模型名匹配的内置表（公开标称值），可能与实际不符；识别不了的模型用 128K。卡片上始终标注来源，分类占比始终是估算。CLI 用自带账号登录时，Nomi 不知道实际模型名（模型取自 Nomi 档案或本机用量账本），此时按默认窗口估算。
-- **`/model` 只切换 Nomi 里配置的供应商档案**：不改 CLI 自带账号登录时 CLI 自己选的模型；写入 CLI 配置由已有的 `cli-provider activate` 完成（会备份），下一轮生效。
+- **上下文窗口表是经验值**：`/context` 的窗口大小来自按模型名匹配的内置表（公开标称值），可能与实际不符；识别不了的模型用 128K。卡片上始终标注来源，分类占比始终是估算。CLI 用自带账号登录时，Nomi 不知道实际模型名（模型取自 Nomi 第三方供应商或本机用量账本），此时按默认窗口估算。
+- **`/model` 只切换 Nomi 里配置的第三方供应商**：不改 CLI 自带账号登录时 CLI 自己选的模型；写入 CLI 配置由已有的 `cli-provider activate` 完成（会备份），下一轮生效。
 - **启停插件不做**：没有稳定、公开的非交互接口；面板只读。
 - **expand 后的提示词会作为用户气泡出现**：Codex 的自定义命令展开后整段显示在用户消息里（并留一张"已展开并发送"提示卡）；长 skill 会比较长。Grok 的自定义命令原样发送 `/name args`，由 Grok 自己展开。
 - **Nomi 新对话里的卡片**：空对话（`nomi:new`）里产生的卡片在发出第一条消息后不跟随（对话 scope 改变）。

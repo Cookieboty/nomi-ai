@@ -125,7 +125,7 @@ function walk(dir) {
 function checkAssets() {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets-licenses.json'), 'utf8'));
   const allow = new Set(manifest.allowedLicenses);
-  // 经人工审核的非 OSI 许可：必须同时允许商用与再分发（VRM Public License 1.0、VRoid AvatarSample 条款）
+  // 经人工审核的非 OSI 许可：必须同时允许商用与再分发
   const reviewed = manifest.reviewedLicenses ?? {};
   for (const [id, r] of Object.entries(reviewed)) {
     const need = r.perModelConditions ? r.requires : r.conditions;
@@ -153,21 +153,6 @@ function checkAssets() {
     if (!a.author || !a.source)
       errors.push(`assets: manifest entry ${a.pattern} needs author and source`);
   }
-  // 动作库：每个片段都要在清单里登记许可，并与 motions.json 一致
-  const motionsRel = 'packages/renderer/public/assets/motions/motions.json';
-  const motionsEntry = entries.find((a) => a.re.test(motionsRel));
-  if (fs.existsSync(path.join(ROOT, motionsRel))) {
-    const lib = JSON.parse(fs.readFileSync(path.join(ROOT, motionsRel), 'utf8'));
-    const declared = new Map((motionsEntry?.clips ?? []).map((c) => [c.name, c]));
-    for (const c of lib.clips ?? []) {
-      const d = declared.get(c.name);
-      if (!d) errors.push(`assets: motion clip "${c.name}" is not listed in assets-licenses.json`);
-      else if (d.license !== c.license || !allow.has(d.license))
-        errors.push(
-          `assets: motion clip "${c.name}" licence mismatch / not allowed (${c.license})`,
-        );
-    }
-  }
   let files = 0;
   for (const root of manifest.roots) {
     for (const abs of walk(path.join(ROOT, root))) {
@@ -178,7 +163,7 @@ function checkAssets() {
     }
   }
 
-  const listPath = path.join(ROOT, 'packages/renderer/public/assets/models/vrm/model-list.json');
+  const listPath = path.join(ROOT, 'packages/renderer/public/assets/models/model-list.json');
   const list = JSON.parse(fs.readFileSync(listPath, 'utf8'));
   const listed = new Set();
   for (const m of list.models ?? []) {
@@ -192,7 +177,7 @@ function checkAssets() {
       if (key === 'path') listed.add(path.resolve(file));
     }
   }
-  // Only Nomi is bundled; every other character comes from the store or a user import.
+  // Only Nomi is bundled (no character store or import).
   for (const m of list.models ?? [])
     if (m.name !== 'nomi') errors.push(`assets: only Nomi may be bundled (found ${m.name})`);
   for (const vrm of walk(path.join(ROOT, 'packages/renderer/public')).filter((f) =>

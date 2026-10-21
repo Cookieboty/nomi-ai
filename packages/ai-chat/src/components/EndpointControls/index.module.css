@@ -1,36 +1,36 @@
-/* 输入栏：换工作目录的选择框与「带上前文」芯片 */
+/* 输入栏：换工作目录的选择框与「带上前文」按钮 */
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--cd-space-2);
   flex-wrap: wrap;
 }
 .body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--cd-space-2);
 }
 .body p {
   margin: 0;
 }
 .path {
-  font-family: var(--cd-font-mono, ui-monospace, monospace);
-  font-size: 12px;
-  padding: 1px 6px;
-  border-radius: var(--cd-radius-sm, 6px);
-  background: var(--cd-color-surface, rgba(0, 0, 0, 0.04));
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  padding: 1px var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-surface);
   word-break: break-all;
 }
 .carry {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  height: 28px;
-  padding: 0 4px 0 8px;
-  border-radius: var(--cd-radius-full, 999px);
-  font-size: 12px;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-1) 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-md);
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-accent-strong);
-  background: var(--cd-color-accent-soft, rgba(240, 130, 80, 0.12));
+  background: var(--cd-color-accent-soft);
   white-space: nowrap;
 }
 .carryX {
@@ -40,7 +40,7 @@
   width: 20px;
   height: 20px;
   border: none;
-  border-radius: var(--cd-radius-full, 999px);
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -48,16 +48,22 @@
 .carryX:hover {
   background: var(--cd-color-hover);
 }
+.carryX:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
 
 /* 对话区右上角：工作目录 + 供应商（从输入栏挪上来，输入栏只留发消息要用的） */
 .session {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--cd-space-2);
   min-width: 0;
   flex-wrap: nowrap;
 }
 .session > * {
   min-width: 0;
 }
+/* 这一行的控件（带上前文 / 工作目录 / 供应商下拉 / 设置按钮）都用 sm 档：
+   高度 --cd-control-h-sm、圆角 md、字号 xs，由各组件自己的 size 决定，不在这里覆盖 */

@@ -130,7 +130,7 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await expect(tabs).toHaveCount(4);
     await send('update the docs');
 
-    // 并发上限 2：两个运行、一个排队（芯片显示「运行数/上限 · 排队 N」）
+    // 并发上限 2：两个运行、一个排队（按钮显示「运行数/上限 · 排队 N」）
     await expect(chat.locator('[data-testid="chat-tabs-load"]')).toContainText('2/2');
     await expect(chat.locator('[data-testid="chat-tabs-load"]')).toContainText('排队 1');
     await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(2);

@@ -6,7 +6,7 @@
 import { t } from '@nomi-ai/ui';
 import React from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import { useAiChatActions } from '../../contexts/aiChatStore';
 import { DesktopPanel } from '../lazyPanels';
 import type { ScreenTab } from '../ScreenPanel';
 
@@ -23,7 +23,7 @@ export const PrivacySection: React.FC<{
   go: (section: SettingsSection, tab?: SettingsTab, sub?: ScreenTab) => void;
   onExport: () => void;
 }> = ({ tab, onTab, go, onExport }) => {
-  const { actions } = useAiChat();
+  const { actions } = useAiChatActions();
   return (
     <SectionPage
       testId="settings-privacy-page"

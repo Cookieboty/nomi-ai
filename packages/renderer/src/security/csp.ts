@@ -4,16 +4,16 @@
  *
  * 要点：脚本只允许应用自身文件与 Rive WASM 编译所需的 wasm-unsafe-eval，
  * 不允许 unsafe-inline / unsafe-eval / 远程源，
- * 禁止 object / frame / base 劫持；模型走 cdmodel: 协议，TTS 音频可能来自 blob: 或本地 / 远程服务。
+ * 禁止 object / frame / base 劫持；TTS 音频可能来自 blob: 或本地 / 远程服务。
  */
 export const MASCOT_CSP: Record<string, string[]> = {
   'default-src': ["'self'"],
   'script-src': ["'self'", "'wasm-unsafe-eval'"],
   'style-src': ["'self'", "'unsafe-inline'"],
-  'img-src': ["'self'", 'data:', 'blob:', 'cdmodel:'],
+  'img-src': ["'self'", 'data:', 'blob:'],
   'font-src': ["'self'", 'data:'],
-  'connect-src': ["'self'", 'cdmodel:', 'blob:', 'data:'],
-  'media-src': ["'self'", 'blob:', 'data:', 'cdmodel:', 'http:', 'https:'],
+  'connect-src': ["'self'", 'blob:', 'data:'],
+  'media-src': ["'self'", 'blob:', 'data:', 'http:', 'https:'],
   'worker-src': ["'self'", 'blob:'],
   'object-src': ["'none'"],
   'frame-src': ["'none'"],

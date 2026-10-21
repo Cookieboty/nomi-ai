@@ -35,6 +35,8 @@ import {
   VOLC_PACKET_BYTES,
   type VolcAsrError,
   VolcAsrSession,
+  type WsFactory,
+  type WsLike,
   decodeServerFrame,
   encodeAudio,
   encodeFrame,
@@ -149,6 +151,49 @@ const echo =
     if (f.flags & 0b0010) sock.send(result(final, true));
     else if (partials[n - 1] !== undefined) sock.send(result(partials[n - 1]!));
   };
+
+/**
+ * 受控 WebSocket：握手何时完成由测试决定（open()），记录客户端发出的帧。
+ * 用来在「已松开、握手还没完成」这类窗口里插入撤销操作（#67）。
+ */
+function controlledWs() {
+  interface Sock {
+    sent: ClientFrame[];
+    closed: boolean;
+    open(): void;
+    message(buf: Buffer): void;
+  }
+  const socks: Sock[] = [];
+  const factory: WsFactory = () => {
+    const handlers = new Map<string, Array<(...a: unknown[]) => void>>();
+    const emit = (ev: string, ...a: unknown[]) => (handlers.get(ev) ?? []).forEach((h) => h(...a));
+    const sock: Sock = {
+      sent: [],
+      closed: false,
+      open: () => emit('open'),
+      message: (buf) => emit('message', buf),
+    };
+    const ws = {
+      send: (d: Buffer) => {
+        if (sock.closed) throw new Error('send after close');
+        sock.sent.push(parseClient(d));
+      },
+      close: (code = 1000) => {
+        if (sock.closed) return;
+        sock.closed = true;
+        emit('close', code, Buffer.alloc(0));
+      },
+      on: (ev: string, fn: (...a: unknown[]) => void) => {
+        handlers.set(ev, [...(handlers.get(ev) ?? []), fn]);
+        return ws;
+      },
+    };
+    socks.push(sock);
+    return ws as unknown as WsLike;
+  };
+  return { factory, socks };
+}
+const audioFrames = (s: { sent: ClientFrame[] }) => s.sent.filter((f) => f.type === MSG.AUDIO);
 
 const pcm = (ms: number) => new Uint8Array((16000 * 2 * ms) / 1000).fill(1);
 const session = (
@@ -360,6 +405,21 @@ describe('VolcAsrSession (mock server)', () => {
     expect(partials).toEqual([]);
     await expect(s.finish()).rejects.toMatchObject({ kind: 'cancelled' });
   });
+
+  it('mayUpload=false when the handshake completes: queued audio is never sent (#67)', async () => {
+    const ctl = controlledWs();
+    let allowed = true;
+    const s = session('ws://unused', { ws: ctl.factory, mayUpload: () => allowed });
+    const started = s.start();
+    s.push(pcm(400));
+    const final = s.finish();
+    allowed = false;
+    ctl.socks[0]!.open();
+    await started;
+    await expect(final).rejects.toMatchObject({ kind: 'cancelled' });
+    expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
+    expect(ctl.socks[0]!.closed).toBe(true);
+  });
 });
 
 // ───────────── VoiceService 接入 ─────────────
@@ -367,7 +427,19 @@ describe('VoiceService · volc', () => {
   let root: string;
   let localOnly = false;
   const audit = jest.fn();
-  const wc = (id = 1) => ({ id, isDestroyed: () => false, send: jest.fn(), once: jest.fn() });
+  const wc = (id = 1) => {
+    const onDestroyed: Array<() => void> = [];
+    return {
+      id,
+      isDestroyed: () => false,
+      send: jest.fn(),
+      once: jest.fn((ev: string, fn: () => void) => {
+        if (ev === 'destroyed') onDestroyed.push(fn);
+      }),
+      /** 模拟窗口销毁 */
+      destroy: () => onDestroyed.splice(0).forEach((fn) => fn()),
+    };
+  };
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-volc-'));
@@ -453,7 +525,9 @@ describe('VoiceService · volc', () => {
     expect(v.streamPush(b as never, id, pcm(200))).toBe(false);
     expect(v.streamPush(a as never, id, pcm(200))).toBe(true);
     expect(v.streamPush(a as never, id, new Uint8Array(70 * 1024))).toBe(false); // 单次上限
-    await new Promise((r2) => setTimeout(r2, 150));
+    // 等 mock 服务回 partial（全量并发跑时可能远超一两百毫秒）
+    for (let i = 0; i < 100 && !a.send.mock.calls.length; i++)
+      await new Promise((r2) => setTimeout(r2, 30));
     expect(a.send).toHaveBeenCalledWith('ai:voice:stream', { id, type: 'partial', text: '你好' });
     expect(b.send).not.toHaveBeenCalled();
     expect(await v.streamStop(b as never, id)).toMatchObject({ ok: false });
@@ -486,6 +560,94 @@ describe('VoiceService · volc', () => {
       'ai:voice:stream',
       expect.objectContaining({ id, code: 'local_only' }),
     );
+  });
+
+  describe('revoking a stream that is already stopping (#67)', () => {
+    /** 允许回退且本地模型「已安装」：撤销后若仍走回退，会被这里的 spy 抓到 */
+    const setup = () => {
+      const ctl = controlledWs();
+      const v = make(undefined, { volcWs: ctl.factory });
+      ready(v);
+      v.setSettings({ volcFallback: true });
+      const local = jest
+        .spyOn(v as unknown as { localTranscribe: () => Promise<string> }, 'localTranscribe')
+        .mockResolvedValue('本地结果');
+      jest.spyOn(v, 'localReady').mockReturnValue(true);
+      const a = wc(1);
+      const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
+      expect(v.streamPush(a as never, id, pcm(600))).toBe(true);
+      return { ctl, v, a, id, local };
+    };
+    const revokers: Array<
+      [string, (v: VoiceService, w: ReturnType<typeof wc>, id: string) => void]
+    > = [
+      ['streamCancel', (v, w, id) => expect(v.streamCancel(w as never, id)).toBe(true)],
+      ['switching engine', (v) => void v.setSettings({ engine: 'whisper-cpp' })],
+      ['clearing the key', (v) => void v.clearVolcKey()],
+      ['destroying the owner window', (_v, w) => w.destroy()],
+    ];
+
+    it.each(revokers)(
+      '%s while the handshake is pending: zero audio frames, cancelled, no fallback',
+      async (_name, revoke) => {
+        const { ctl, v, a, id, local } = setup();
+        const stop = v.streamStop(a as never, id); // 不等待：仍在握手
+        revoke(v, a, id);
+        ctl.socks[0]!.open(); // 放行握手
+        expect(await stop).toMatchObject({ ok: false });
+        expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
+        expect(local).not.toHaveBeenCalled();
+        // 记录已释放：重复撤销 / 停止都是空操作
+        expect(v.streamCancel(a as never, id)).toBe(false);
+        expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false });
+      },
+    );
+
+    it('audio sent but no final yet: cancel closes the socket and drops the late final', async () => {
+      const { ctl, v, a, id, local } = setup();
+      ctl.socks[0]!.open();
+      const stop = v.streamStop(a as never, id);
+      await new Promise((r) => setTimeout(r, 10));
+      const sent = audioFrames(ctl.socks[0]!).length;
+      expect(sent).toBeGreaterThan(0);
+      expect(v.streamCancel(a as never, id)).toBe(true);
+      expect(ctl.socks[0]!.closed).toBe(true);
+      ctl.socks[0]!.message(result('晚到的结果', true));
+      expect(await stop).toMatchObject({ ok: false });
+      expect(audioFrames(ctl.socks[0]!)).toHaveLength(sent);
+      expect(local).not.toHaveBeenCalled();
+    });
+
+    it('local-only turned on while stopping: cached audio is not sent', async () => {
+      const { ctl, v, a, id } = setup();
+      const stop = v.streamStop(a as never, id);
+      localOnly = true;
+      ctl.socks[0]!.open();
+      expect(await stop).toMatchObject({ ok: false, code: 'local_only' });
+      expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
+    });
+
+    it('local-only turned on while still connecting: nothing is flushed on open', async () => {
+      const { ctl, v, a, id } = setup();
+      localOnly = true;
+      ctl.socks[0]!.open();
+      expect(audioFrames(ctl.socks[0]!)).toHaveLength(0);
+      expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false, code: 'local_only' });
+    });
+
+    it('a second stop while finalizing neither resends the final packet nor delivers twice', async () => {
+      const { ctl, v, a, id } = setup();
+      const other = wc(2);
+      ctl.socks[0]!.open();
+      const first = v.streamStop(a as never, id);
+      expect(await v.streamStop(a as never, id)).toMatchObject({ ok: false });
+      expect(v.streamCancel(other as never, id)).toBe(false); // 别的窗口不能撤销
+      await new Promise((r) => setTimeout(r, 10));
+      expect(audioFrames(ctl.socks[0]!).filter((f) => f.flags & 0b0010)).toHaveLength(1);
+      ctl.socks[0]!.message(result('好的', true));
+      expect(await first).toEqual({ ok: true, text: '好的' });
+      expect(v.streamCancel(a as never, id)).toBe(false); // 终态已释放登记
+    });
   });
 
   it('switching engine cancels running streams', async () => {

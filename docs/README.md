@@ -16,7 +16,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 
 | 模块                                                       | 说明                                                 |
 | ---------------------------------------------------------- | ---------------------------------------------------- |
-| [桌面伙伴 Nomi](features/mascot.md)                        | 角色、表情与互动，模型商店与导入自己的 VRM           |
+| [桌面伙伴 Nomi](features/mascot.md)                        | 角色、表情与互动                                     |
 | [AI 对话](features/chat.md)                                | 对话窗口、图片与截图提问、命令面板                   |
 | [斜杠命令](features/slash-commands.md)                     | 输入 / 弹出命令面板，/context /status 等在界面内执行 |
 | [供应商与 Token](features/providers.md)                    | 预设、一键切换、获取模型、测速、多 Key、任务路由     |
@@ -42,6 +42,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 - 设计稿：[订阅额度卡片（含 CPA 调研）](design/usage-quota-cards.md)、[按端信息卡](design/endpoint-info-card.md)、[编程助手权限模式](design/cli-permission-modes.md)、[编程助手子代理](design/cli-subagents.md)、[官方账号与 Gemini 接入](design/cli-official-accounts.md)
 - [构建与运行](development/building.md)
 - [测试](development/testing.md)
+- [CI 触发规则](development/ci.md)
 - [发布](RELEASE.md)：打包、签名与公证（含 CI secret 名称）
 - [品牌规范](BRAND.md)：素材在 [`brand/`](brand/)，截图在 [`screenshots/`](screenshots/)
 
@@ -59,7 +60,7 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 
 | Module                                                            | About                                                                |
 | ----------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [Desktop companion Nomi](features/mascot.md)                      | Character, expressions & interaction; model store & import VRM       |
+| [Desktop companion Nomi](features/mascot.md)                      | Character, expressions & interaction                                 |
 | [AI chat](features/chat.md)                                       | Chat window, image & screenshot Q&A, command palette                 |
 | [Slash commands](features/slash-commands.md)                      | `/` palette; /context, /status etc. run inside the UI                |
 | [Providers & tokens](features/providers.md)                       | Presets, one-click switch, fetch models, latency, multi-key, routing |
@@ -84,5 +85,6 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 - [Frontend engineering standards](development/frontend-standards.md)
 - [Building](development/building.md)
 - [Testing](development/testing.md)
+- [CI triggers](development/ci.md)
 - [Release](RELEASE.md): packaging, signing & notarization (incl. CI secret names)
 - [Brand guidelines](BRAND.md): assets in [`brand/`](brand/), screenshots in [`screenshots/`](screenshots/)

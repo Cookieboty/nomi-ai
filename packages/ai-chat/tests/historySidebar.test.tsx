@@ -8,8 +8,9 @@ import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
+vi.mock('../src/contexts/AiChatContext', () => {
+  const api = {
     state: {
       messages: [],
       ipcClient: {
@@ -21,8 +22,9 @@ vi.mock('../src/contexts/AiChatContext', () => ({
       },
     },
     actions: {},
-  }),
-}));
+  };
+  return { useAiChat: () => api };
+});
 
 const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySession> = {}) =>
   ({

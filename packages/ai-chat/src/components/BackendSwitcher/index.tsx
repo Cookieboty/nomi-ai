@@ -6,7 +6,11 @@
 import { Select, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectMessageCount,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import {
@@ -30,7 +34,8 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
   const available = harnessClient.available();
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
-  const { state: chat, actions } = useAiChat();
+  const { actions } = useAiChatActions();
+  const nomiMessageCount = useAiChatSelector(selectMessageCount);
 
   useEffect(() => {
     if (!available) return;
@@ -46,7 +51,7 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
   const tab = tabs.isCliTab ? tabs.activeTab : null;
   const value: HarnessBackend = tab ? tab.backend : state.backend;
   const busy = tab ? tab.status === 'running' || tab.status === 'queued' : state.busy;
-  const hasMessages = tab ? (tabs.messages?.length ?? 0) > 0 : chat.messages.length > 0;
+  const hasMessages = tab ? (tabs.messages?.length ?? 0) > 0 : nomiMessageCount > 0;
 
   const switchTo = async (v: HarnessBackend) => {
     if (v === value) return;
@@ -94,13 +99,15 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
     <span
       className={className}
       data-testid="backend-switcher"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--cd-space-1-5)' }}
       title={
         hasMessages ? t('切换后端将新建会话，当前对话保留（可用分叉复制历史）') : t('切换对话端点')
       }
     >
+      {/* 输入栏工具行：与模型 / 权限按钮同高同形（胶囊、ms 高） */}
       <Select
         size="sm"
+        variant="chip"
         style={{ width: 'auto', minWidth: 112, maxWidth: 220 }}
         menuMinWidth={200}
         data-testid="backend-switch"
@@ -127,7 +134,11 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
       {!tab && state.toolsDisabled && (
         <span
           data-testid="harness-tools-off"
-          style={{ fontSize: 13, opacity: 0.75, whiteSpace: 'nowrap' }}
+          style={{
+            fontSize: 'var(--cd-font-size-sm)',
+            color: 'var(--cd-color-text-muted)',
+            whiteSpace: 'nowrap',
+          }}
         >
           {t('Nomi 工具已关闭')}
         </span>

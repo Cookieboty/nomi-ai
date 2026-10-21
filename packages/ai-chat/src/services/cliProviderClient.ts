@@ -110,7 +110,7 @@ export const cliProviderClient = {
     }>('activate', id),
   /** 测速：对上游发一次轻量的模型列表请求 */
   test: (id: string) => call<CliProfileTestResult>('test', id),
-  /** 停用该后端的档案，回到 CLI 自带登录 / 默认配置 */
+  /** 停用该后端的供应商，回到 CLI 自带登录 / 默认配置 */
   deactivate: (kind: CliProviderKind) =>
     call<{ ok: boolean; backups: string[]; error?: string }>('deactivate', kind),
   deactivateDsh: () => call<{ ok: boolean; backups: string[]; error?: string }>('deactivate-dsh'),

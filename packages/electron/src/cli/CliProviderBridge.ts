@@ -1,5 +1,5 @@
 /**
- * Claude Code / Codex / dsh / Grok / Gemini **各自独立** 的供应商档案。
+ * Claude Code / Codex / dsh / Grok / Gemini **各自独立** 的第三方供应商。
  * - 存储：userData/cli-providers/{claude,codex,dsh,grok,gemini}/store.json
  * - 写入：Claude → ~/.claude/settings.json；Codex → ~/.codex/config.toml + auth.json；
  *   dsh → $DSH_HOME/cordis.patch.yml；Grok → ~/.grok/config.toml（密钥只经环境变量注入）；
@@ -111,6 +111,18 @@ export interface CliProfileTestResult {
   note?: string;
 }
 
+/** 各格式的模型列表响应 → 模型 id：OpenAI / Anthropic `data[].id`，Gemini `models[].name`（去掉 models/） */
+export function parseModelList(body: unknown): string[] {
+  const o = (body ?? {}) as { data?: unknown; models?: unknown };
+  const list = Array.isArray(o.data) ? o.data : Array.isArray(o.models) ? o.models : [];
+  const ids = list.map((x) => {
+    const m = (x ?? {}) as { id?: unknown; name?: unknown };
+    const id = typeof m.id === 'string' ? m.id : typeof m.name === 'string' ? m.name : '';
+    return id.replace(/^models\//, '').trim();
+  });
+  return [...new Set(ids.filter(Boolean))];
+}
+
 /** 各上游格式的「列出模型」探测请求（只读 GET） */
 export function buildProbeRequest(
   format: CliApiFormat,
@@ -162,7 +174,7 @@ export class CliProviderBridge {
   };
 
   /**
-   * 正在使用（active）的档案被编辑后、重新写入 CLI 配置前的完整旧快照。
+   * 正在使用（active）的供应商被编辑后、重新写入 CLI 配置前的完整旧快照。
    * 重新启用成功就丢弃；失败则恢复，避免「存储里是新端点 / 新 Key，CLI 配置文件还是旧的」的混配。
    */
   private readonly rollbacks = new Map<string, StoredProfile>();
@@ -273,7 +285,7 @@ export class CliProviderBridge {
   }
 
   /**
-   * 启动 dsh 时注入的环境变量：仅当 dsh 档案启用时提供 NOMI_DSH_API_KEY。
+   * 启动 dsh 时注入的环境变量：仅当 dsh 供应商启用时提供 NOMI_DSH_API_KEY。
    * 无密钥的本机上游（如 Ollama）也给占位值，避免 dsh 因变量缺失拒绝启动。
    */
   dshEnv(): Record<string, string> {
@@ -283,7 +295,7 @@ export class CliProviderBridge {
   }
 
   /**
-   * 启动 Grok 时注入的环境变量：仅当 Grok 档案启用时提供 NOMI_GROK_API_KEY。
+   * 启动 Grok 时注入的环境变量：仅当 Grok 供应商启用时提供 NOMI_GROK_API_KEY。
    * 无密钥的本机上游也给占位值，避免 Grok 因变量缺失拒绝启动。
    */
   grokEnv(): Record<string, string> {
@@ -292,13 +304,13 @@ export class CliProviderBridge {
     return { [GROK_KEY_ENV]: decrypt(p.keyEnc) || 'nomi-local' };
   }
 
-  /** Gemini 档案启用时给 CLI 的系统级设置文件：优先级高于 ~/.gemini/settings.json，只放认证方式 */
+  /** Gemini 供应商启用时给 CLI 的系统级设置文件：优先级高于 ~/.gemini/settings.json，只放认证方式 */
   private geminiSystemSettingsPath(): string {
     return path.join(this.d.root, 'gemini', 'system-settings.json');
   }
 
   /**
-   * 启动 Gemini 时注入的环境变量（仅档案启用时）：系统级设置把认证方式定为 API Key / 网关，
+   * 启动 Gemini 时注入的环境变量（仅供应商启用时）：系统级设置把认证方式定为 API Key / 网关，
    * Key、地址、模型都走环境变量，不改用户的 ~/.gemini，也就不会动到 Google 登录。
    */
   geminiEnv(): Record<string, string> {
@@ -313,7 +325,7 @@ export class CliProviderBridge {
     };
   }
 
-  /** 停用 Gemini 档案：删掉 Nomi 的系统级设置，回到 Gemini 自己的登录 */
+  /** 停用 Gemini 供应商：删掉 Nomi 的系统级设置，回到 Gemini 自己的登录 */
   deactivateGemini(): { ok: boolean; backups: string[]; error?: string } {
     try {
       fs.rmSync(this.geminiSystemSettingsPath(), { force: true });
@@ -327,7 +339,7 @@ export class CliProviderBridge {
     }
   }
 
-  /** 停用 dsh 档案：移除 Nomi 区块，回到 dsh 自身的默认供应商 */
+  /** 停用 dsh 供应商：移除 Nomi 区块，回到 dsh 自身的默认供应商 */
   deactivateDsh(): { ok: boolean; backups: string[]; error?: string } {
     const file = dshPatchPath(this.home);
     const backups: string[] = [];
@@ -349,10 +361,10 @@ export class CliProviderBridge {
   }
 
   /**
-   * 停用某个后端的档案：只移除 Nomi 写入的连接字段，回到 CLI 自带登录 / 默认配置。
+   * 停用某个后端的供应商：只移除 Nomi 写入的连接字段，回到 CLI 自带登录 / 默认配置。
    * 先备份；其余内容原样保留。
    */
-  /** 停用 Grok 档案：移除 Nomi 标记区块，回到 Grok 自身登录 / 默认配置 */
+  /** 停用 Grok 供应商：移除 Nomi 标记区块，回到 Grok 自身登录 / 默认配置 */
   deactivateGrok(): { ok: boolean; backups: string[]; error?: string } {
     const file = grokConfigPath(this.home);
     const backups: string[] = [];
@@ -373,7 +385,7 @@ export class CliProviderBridge {
     }
   }
 
-  /** 该 CLI 是否启用了 Nomi 的第三方供应商档案（切到官方账号时据此决定要不要停用） */
+  /** 该 CLI 是否启用了 Nomi 的第三方供应商（切到官方账号时据此决定要不要停用） */
   hasActiveProfile(kind: CliProviderKind): boolean {
     return this.data[kind].profiles.some((x) => x.active);
   }
@@ -429,13 +441,58 @@ export class CliProviderBridge {
     }
   }
 
+  /** 该 CLI 启用中的供应商（编程助手标签的模型按钮按它列模型、按它区分标签的模型选择） */
+  activeProfile(kind: CliProviderKind): { id: string; name: string; model: string } | null {
+    const p = this.data[kind].profiles.find((x) => x.active);
+    return p ? { id: p.id, name: p.name, model: p.model } : null;
+  }
+
   /**
-   * 测速：对档案的上游发一次轻量的模型列表请求，只测连通性 / 鉴权 / 延迟，不发对话。
+   * 启用中供应商的上游模型列表（与测速同一个只读 GET，用供应商自己保存的密钥）。
+   * 上游没有列表接口（404 / 405）时返回空列表；鉴权失败等抛出可读错误，错误里的密钥会被抹掉。
+   */
+  async listModels(kind: CliProviderKind): Promise<string[]> {
+    const p = this.data[kind].profiles.find((x) => x.active);
+    if (!p) return [];
+    const key = decrypt(p.keyEnc);
+    const req = buildProbeRequest(p.apiFormat, p.baseUrl, key);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const res = await fetch(req.url, { method: 'GET', headers: req.headers, signal: ctl.signal });
+      if (res.status === 404 || res.status === 405) return [];
+      if (res.status < 200 || res.status >= 300)
+        throw new Error(
+          res.status === 401 || res.status === 403
+            ? t('Key 无效或无权限（HTTP {0}）', res.status)
+            : t('上游返回 HTTP {0}', res.status),
+        );
+      return parseModelList(await res.json());
+    } catch (e) {
+      const msg = ctl.signal.aborted ? t('连接超时（8 秒）') : String((e as Error).message ?? e);
+      throw new Error(key ? msg.split(key).join('••••') : msg, { cause: e });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * dsh：标签选了别的模型时，给那个进程用的叠加配置（`dsh --patch`）。
+   * 叠加会整段替换供应商定义，所以带上完整的 api / baseURL / 密钥变量，只把模型换掉。
+   */
+  dshPatchFor(model: string): string | null {
+    const p = this.data.dsh.profiles.find((x) => x.active);
+    if (!p || !isDshApiFormat(p.apiFormat)) return null;
+    return patchDshYaml(null, { api: dshApiName(p.apiFormat), baseURL: p.baseUrl, model });
+  }
+
+  /**
+   * 测速：对供应商的上游发一次轻量的模型列表请求，只测连通性 / 鉴权 / 延迟，不发对话。
    * Key 只在主进程里使用；错误信息里的 Key 会被抹掉。
    */
   async testProfile(id: string): Promise<CliProfileTestResult> {
     const p = this.allProfiles().find((x) => x.id === id);
-    if (!p) throw new Error(t('档案不存在'));
+    if (!p) throw new Error(t('供应商不存在'));
     const key = decrypt(p.keyEnc);
     const req = buildProbeRequest(p.apiFormat, p.baseUrl, key);
     const started = Date.now();
@@ -515,10 +572,10 @@ export class CliProviderBridge {
       presetId: input.presetId?.trim() || existing?.presetId,
     };
     if (existing?.active) {
-      // 正在使用的档案：保存 = 在主进程里一次性「预检 → 写 CLI 配置 → 落盘档案库」（#39）。
+      // 正在使用的供应商：保存 = 在主进程里一次性「预检 → 写 CLI 配置 → 落盘第三方供应商列表」（#39）。
       // 不再依赖渲染层随后再发 activate：两步之间窗口关闭 / IPC 失败 / 恰好拉起一轮 CLI 时，
-      // 启动环境会用新 Key 配旧端点。activate 是同步的，中途不会有别的轮次读到半新半旧的档案；
-      // 写盘失败时由 rollbacks 快照恢复内存与档案库，新 Key 从未落盘。
+      // 启动环境会用新 Key 配旧端点。activate 是同步的，中途不会有别的轮次读到半新半旧的供应商；
+      // 写盘失败时由 rollbacks 快照恢复内存与第三方供应商列表，新 Key 从未落盘。
       const problem = this.preflight(next);
       if (problem) throw new Error(problem);
       this.rollbacks.set(id, { ...existing });
@@ -549,7 +606,7 @@ export class CliProviderBridge {
     restartRequired: boolean;
     usedRouting: boolean;
     error?: string;
-    /** 失败后已把「正在使用的档案」恢复为编辑前的完整配置 */
+    /** 失败后已把「正在使用的供应商」恢复为编辑前的完整配置 */
     rolledBack?: boolean;
   } {
     const p = this.allProfiles().find((x) => x.id === id);
@@ -559,7 +616,7 @@ export class CliProviderBridge {
         backups: [],
         restartRequired: false,
         usedRouting: false,
-        error: t('档案不存在'),
+        error: t('供应商不存在'),
       };
     }
     const failure = (error: string) => {
@@ -714,7 +771,7 @@ export class CliProviderBridge {
     return null;
   }
 
-  /** 激活失败：若该档案是「正在使用且刚被编辑」的，恢复编辑前的完整快照，返回是否恢复了 */
+  /** 激活失败：若该供应商是「正在使用且刚被编辑」的，恢复编辑前的完整快照，返回是否恢复了 */
   private rollBackActiveEdit(id: string): boolean {
     const snap = this.rollbacks.get(id);
     this.rollbacks.delete(id);
@@ -798,7 +855,7 @@ export class CliProviderBridge {
     handle('ai:cli-provider:test', (id) => this.testProfile(String(id)));
     handle('ai:cli-provider:deactivate-dsh', () => this.deactivateDsh());
     handle('ai:cli-provider:deactivate', (k) => {
-      if (!KINDS.includes(k as CliProviderKind)) throw new Error(t('档案不存在'));
+      if (!KINDS.includes(k as CliProviderKind)) throw new Error(t('供应商不存在'));
       return this.deactivate(k as CliProviderKind);
     });
     handle('ai:cli-provider:backups', () => this.listBackups());

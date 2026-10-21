@@ -6,10 +6,10 @@
 .tabs {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 3px;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-0-5);
   border: 1px solid var(--cd-color-border);
-  border-radius: 12px;
+  border-radius: calc(var(--cd-radius-md) + var(--cd-space-0-5));
   background: var(--cd-color-bg-subtle);
   width: fit-content;
   max-width: 100%;
@@ -17,16 +17,17 @@
 .tab {
   display: inline-flex;
   align-items: center;
-  height: 30px;
-  padding: 0 12px;
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-3);
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text-muted);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
   cursor: pointer;
+  gap: var(--cd-space-1-5);
 }
 .tab:hover {
   color: var(--cd-color-text);

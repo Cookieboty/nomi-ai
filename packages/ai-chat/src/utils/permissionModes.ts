@@ -21,9 +21,11 @@ type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
 const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   claude: PERMISSION_MODES,
-  codex: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  // Codex 走 app-server：有审批请求，可逐项确认
+  codex: ['plan', 'manual', 'acceptEdits', 'auto', 'bypass'],
   dsh: ['plan', 'acceptEdits', 'bypass'],
-  grok: ['plan', 'acceptEdits', 'auto', 'bypass'],
+  // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
+  grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
 };
 
@@ -79,6 +81,6 @@ export function nextMode(backend: HarnessBackend, current: PermissionMode): Perm
   return ring[(i + 1) % ring.length]!;
 }
 
-/** 输入框里按 Shift+Tab 时发出；模式芯片处理后把 handled 置为 true */
+/** 输入框里按 Shift+Tab 时发出；模式按钮处理后把 handled 置为 true */
 export const CYCLE_PERMISSION_EVENT = 'nomi:cycle-permission-mode';
 export type CyclePermissionDetail = { handled: boolean };

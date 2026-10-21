@@ -157,6 +157,34 @@ describe('discoverMigrations', () => {
     expect(scan.mcp.map((c) => `${c.tool}:${c.name}`).sort()).toEqual(['claude:a', 'codex:b']);
   });
 
+  it('两个 Claude 配置文件里的同名条目：key 各不相同，配置各自来自自己的文件（#74）', () => {
+    const cdir = path.join(home, 'cfg-claude');
+    const both = (cmd: string) =>
+      JSON.stringify({
+        mcpServers: { docs: { command: cmd } },
+        projects: { '/work/app': { mcpServers: { db: { command: `${cmd}-db` } } } },
+      });
+    w(path.join(cdir, '.claude.json'), both('custom-mcp'));
+    w(path.join(home, '.claude.json'), both('default-mcp'));
+    const scan = discoverMigrations({ home, env: { CLAUDE_CONFIG_DIR: cdir } });
+    const docs = scan.mcp.filter((c) => c.name === 'docs');
+    const db = scan.mcp.filter((c) => c.name === 'db');
+    expect(docs).toHaveLength(2);
+    expect(db).toHaveLength(2);
+    expect(new Set(scan.mcp.map((c) => c.key)).size).toBe(scan.mcp.length);
+    const custom = docs.find((c) => c.where.includes('cfg-claude'))!;
+    const dflt = docs.find((c) => c.where === '~/.claude.json')!;
+    expect(custom.server).toMatchObject({ command: 'custom-mcp' });
+    expect(dflt.server).toMatchObject({ command: 'default-mcp' });
+    expect(db.find((c) => c.where.includes('cfg-claude'))!.server).toMatchObject({
+      command: 'custom-mcp-db',
+    });
+    // key 里没有路径；重扫后不变
+    expect(scan.mcp.map((c) => c.key).join()).not.toContain(home);
+    const again = discoverMigrations({ home, env: { CLAUDE_CONFIG_DIR: cdir } });
+    expect(again.mcp.map((c) => c.key)).toEqual(scan.mcp.map((c) => c.key));
+  });
+
   it('Codex config.toml：stdio / http、停用、env 转发与 bearer 提示', () => {
     w(
       path.join(home, '.codex', 'config.toml'),
@@ -317,14 +345,17 @@ describe('converters', () => {
 });
 
 describe('ExtensionsService migrate', () => {
-  function makeExt(pick: string | null = null): ExtensionsService {
+  function makeExt(
+    pick: string | null = null,
+    env: Record<string, string> = {},
+  ): ExtensionsService {
     return new ExtensionsService({
       root: path.join(ud, 'extensions'),
       skillsRoot: path.join(ud, 'skills'),
       logger: { info() {}, warn() {}, error() {} } as never,
       desktop: { audit: { append: jest.fn() } } as never,
       home: () => home,
-      env: () => ({}),
+      env: () => env,
       pickDir: async () => pick,
     });
   }
@@ -351,6 +382,29 @@ describe('ExtensionsService migrate', () => {
     // 重新加载后能解出原值
     const again = makeExt();
     expect(JSON.stringify((again as unknown as { servers: unknown[] }).servers)).toContain(SECRET);
+  });
+
+  it('选中自定义配置目录里的那一行，导入的就是它的配置（#74）', async () => {
+    const cdir = path.join(home, 'cfg-claude');
+    w(
+      path.join(cdir, '.claude.json'),
+      JSON.stringify({ mcpServers: { docs: { command: 'custom-mcp' } } }),
+    );
+    w(
+      path.join(home, '.claude.json'),
+      JSON.stringify({ mcpServers: { docs: { command: 'default-mcp' } } }),
+    );
+    const ext = makeExt(null, { CLAUDE_CONFIG_DIR: cdir });
+    const scan = await ext.migrateScan();
+    const rows = scan.mcp.filter((m) => m.name === 'docs');
+    expect(rows).toHaveLength(2);
+    const custom = rows.find((m) => m.where.includes('cfg-claude'))!;
+    expect(custom.preview!.command).toBe('custom-mcp');
+    const r = await ext.migrateImport([{ key: custom.key }]);
+    expect(r.imported).toHaveLength(1);
+    const saved = ext.listMcp().servers.find((s) => s.name === 'docs')!;
+    expect(saved.command).toBe('custom-mcp');
+    expect(saved.enabled).toBe(false);
   });
 
   it('safeStorage 不可用时拒绝导入带密钥的服务，不写明文', async () => {

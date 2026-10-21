@@ -9,13 +9,7 @@ import React, {
 import type { ReactNode } from 'react';
 
 import { lipSyncStore } from '@/ai/lipSyncStore';
-import {
-  loadCatalog,
-  pickModel,
-  readSelectedModel,
-  writeSelectedModel,
-  type MascotModel,
-} from '@/mascot/catalog';
+import { clearSelectedModel, loadCatalog, pickModel, type MascotModel } from '@/mascot/catalog';
 import { setActiveCharacter } from '@/mascot/characterVoice';
 
 export interface MascotConfig {
@@ -32,10 +26,9 @@ export interface MascotState {
   messageMore?: boolean;
   dragEnabled: boolean;
   modelList: MascotModel[];
-  /** 当前模型 name（model-list.json 中的 name） */
+  /** 当前模型 name（model-list.json 中的 name；只内置 Nomi 一个角色） */
   modelName: string | null;
-  pickerOpen: boolean;
-  /** 其它浮层：动作菜单 / 致谢 */
+  /** 浮层：动作菜单 / 致谢 / 互动设置 */
   panel: 'motions' | 'credits' | 'interaction' | null;
 }
 
@@ -47,8 +40,6 @@ export type MascotAction =
   | { type: 'CLEAR_MESSAGE' }
   | { type: 'TOGGLE_DRAG'; payload: boolean }
   | { type: 'SET_MODEL_LIST'; payload: MascotModel[] }
-  | { type: 'SET_MODEL'; payload: string }
-  | { type: 'SET_PICKER_OPEN'; payload: boolean }
   | { type: 'SET_PANEL'; payload: MascotState['panel'] };
 
 const initialState: MascotState = {
@@ -57,14 +48,21 @@ const initialState: MascotState = {
   dragEnabled: false,
   modelList: [],
   modelName: null,
-  pickerOpen: false,
   panel: null,
 };
+
+/** A new bubble line replaces the current one only at an equal or higher priority. */
+export function acceptsMessage(
+  current: { currentMessage: string | null; messagePriority: number },
+  priority: number,
+): boolean {
+  return current.currentMessage === null || priority >= current.messagePriority;
+}
 
 export function mascotReducer(state: MascotState, action: MascotAction): MascotState {
   switch (action.type) {
     case 'SET_MESSAGE':
-      if (state.currentMessage === null || action.payload.priority >= state.messagePriority) {
+      if (acceptsMessage(state, action.payload.priority)) {
         return {
           ...state,
           currentMessage: action.payload.text,
@@ -83,19 +81,8 @@ export function mascotReducer(state: MascotState, action: MascotAction): MascotS
         modelList: action.payload,
         modelName: pickModel(action.payload, state.modelName)?.name ?? null,
       };
-    case 'SET_MODEL':
-      // 未知 id（例如托盘里已被删除的模型）忽略
-      if (state.modelList.length && !state.modelList.some((m) => m.name === action.payload))
-        return state;
-      return { ...state, modelName: action.payload };
-    case 'SET_PICKER_OPEN':
-      return { ...state, pickerOpen: action.payload, panel: action.payload ? null : state.panel };
     case 'SET_PANEL':
-      return {
-        ...state,
-        panel: action.payload,
-        pickerOpen: action.payload ? false : state.pickerOpen,
-      };
+      return { ...state, panel: action.payload };
     default:
       return state;
   }
@@ -106,7 +93,6 @@ interface MascotContextType {
   dispatch: React.Dispatch<MascotAction>;
   config: MascotConfig;
   currentModel: MascotModel | undefined;
-  selectModel: (name: string) => void;
 }
 
 let lastSpokeAt = 0;
@@ -125,11 +111,25 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
   const [state, rawDispatch] = useReducer(mascotReducer, {
     ...initialState,
     dragEnabled: config.drag ?? false,
-    modelName: readSelectedModel(),
   });
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // What the reducer is showing, kept in step with it so a rejected (lower-priority) line does not
+  // cancel the shown line's expiry timer and replace it with its own (shorter) one.
+  const shownRef = useRef<{ currentMessage: string | null; messagePriority: number }>({
+    currentMessage: null,
+    messagePriority: 0,
+  });
 
   const dispatch = useCallback((action: MascotAction) => {
+    if (action.type === 'SET_MESSAGE') {
+      if (!acceptsMessage(shownRef.current, action.payload.priority)) return;
+      shownRef.current = {
+        currentMessage: action.payload.text,
+        messagePriority: action.payload.priority,
+      };
+    } else if (action.type === 'CLEAR_MESSAGE') {
+      shownRef.current = { currentMessage: null, messagePriority: 0 };
+    }
     if (action.type === 'SET_MESSAGE' || action.type === 'CLEAR_MESSAGE') {
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -142,6 +142,7 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
           timerRef.current = setTimeout(expire, 400);
           return;
         }
+        shownRef.current = { currentMessage: null, messagePriority: 0 };
         rawDispatch({ type: 'CLEAR_MESSAGE' });
       };
       timerRef.current = setTimeout(expire, action.payload.timeout || 3000);
@@ -153,51 +154,30 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
     document.documentElement.dataset.mascotModel = state.modelName ?? '';
   }, [state.modelName]);
 
-  // 外部（托盘 / e2e）可通过 window 事件打开角色选择器
+  // 外部（托盘 / e2e）可通过 window 事件打开浮层
   useEffect(() => {
-    const open = () => rawDispatch({ type: 'SET_PICKER_OPEN', payload: true });
     const openPanel = (e: Event) => {
       const panel = (e as CustomEvent<{ panel?: string }>).detail?.panel;
       if (panel === 'interaction' || panel === 'credits' || panel === 'motions')
         rawDispatch({ type: 'SET_PANEL', payload: panel });
     };
-    window.addEventListener('mascot:open-picker', open);
     window.addEventListener('mascot:open-panel', openPanel);
     return () => {
-      window.removeEventListener('mascot:open-picker', open);
       window.removeEventListener('mascot:open-panel', openPanel);
     };
   }, []);
 
   useEffect(() => {
     let alive = true;
-    const reload = (force: boolean) =>
-      void loadCatalog(fetch, force).then((models) => {
-        if (alive) rawDispatch({ type: 'SET_MODEL_LIST', payload: models });
-      });
-    reload(false);
-    // 商店安装 / 删除、用户导入后，主进程广播 models:changed
-    const off = window.electronAPI?.models?.onChanged(() => reload(true));
-    // 托盘 / AI 工具切换角色
-    const onSelect = (e: Event) => {
-      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
-      if (typeof id === 'string') {
-        writeSelectedModel(id);
-        rawDispatch({ type: 'SET_MODEL', payload: id });
-      }
-    };
-    window.addEventListener('mascot:select-model', onSelect);
+    // 旧版本可能记着商店 / 导入的角色：已不再支持，清掉，始终用 Nomi
+    clearSelectedModel();
+    void loadCatalog(fetch).then((models) => {
+      if (alive) rawDispatch({ type: 'SET_MODEL_LIST', payload: models });
+    });
     return () => {
       alive = false;
-      off?.();
-      window.removeEventListener('mascot:select-model', onSelect);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, []);
-
-  const selectModel = useCallback((name: string) => {
-    writeSelectedModel(name);
-    rawDispatch({ type: 'SET_MODEL', payload: name });
   }, []);
 
   const currentModel = state.modelList.find((m) => m.name === state.modelName);
@@ -207,7 +187,7 @@ export const MascotProvider: React.FC<{ children: ReactNode; config: MascotConfi
   }, [currentModel, state.modelName]);
 
   return (
-    <MascotContext.Provider value={{ state, dispatch, config, currentModel, selectModel }}>
+    <MascotContext.Provider value={{ state, dispatch, config, currentModel }}>
       {children}
     </MascotContext.Provider>
   );

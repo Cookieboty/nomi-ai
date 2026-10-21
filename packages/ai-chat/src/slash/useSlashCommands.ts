@@ -7,7 +7,11 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { cliProviderClient } from '../services/cliProviderClient';
 import { extClient } from '../services/extClient';
-import { harnessClient, type SlashDiscoveryEntry } from '../services/harnessClient';
+import {
+  harnessClient,
+  type HarnessTabMeta,
+  type SlashDiscoveryEntry,
+} from '../services/harnessClient';
 import { providerClient } from '../services/providerClient';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
@@ -255,6 +259,19 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
             ? await cliProviderClient.deactivateDsh()
             : await cliProviderClient.deactivate(b as 'claude' | 'codex' | 'grok');
         return r.ok ? { ok: true } : { ok: false, error: r.error ?? t('切换失败') };
+      },
+      tabModels: async () => {
+        if (!target.tabId) return { catalog: null, current: null };
+        const [catalog, tabs] = await Promise.all([
+          harnessClient.modelCatalog(target.backend as HarnessTabMeta['backend']).catch(() => null),
+          harnessClient.tabs().catch(() => null),
+        ]);
+        const tab = tabs?.tabs.find((x) => x.id === target.tabId);
+        return { catalog, current: tab?.modelOverride?.trim() || null };
+      },
+      setTabModel: async (model) => {
+        if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
+        await harnessClient.setTabModel(target.tabId, model);
       },
       gitDiff: async () => {
         try {

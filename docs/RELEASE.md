@@ -9,10 +9,10 @@ Nomi ships installers for **Windows (NSIS)**, **macOS (DMG, x64+arm64)** and **L
 
 **品牌官 / 用户拿到的 Win NSIS、Mac DMG、Linux AppImage，一律以 GitHub Actions artifact 或 tag 触发的 GitHub Release 为准。**
 
-| 来源                                                                     | 用途                                                       |
-| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>` | PR / push / `workflow_dispatch` 的可安装包（未签名也可测） |
-| tag `v*` → 同 job + `package:publish:*`                                  | 写入 GitHub Release，供 `electron-updater` 使用            |
+| 来源                                                                     | 用途                                                                            |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `CI` → job `build-electron` → artifact `installer-{linux,mac,win}-<sha>` | push main / 带 `ci:full` 的 PR / `workflow_dispatch` 的可安装包（未签名也可测） |
+| tag `v*` → 同 job + `package:publish:*`                                  | 写入 GitHub Release，供 `electron-updater` 使用                                 |
 
 - Runner：**ubuntu-latest** → AppImage；**windows-latest** → NSIS `Nomi Setup *.exe`；**macos-latest** → DMG（x64+arm64）。
 - 各平台在 runner 上 `pnpm install` 会装上对应的 `sherpa-onnx-<os>-<arch>`；Mac 双架构额外由 `scripts/release/ensure-sherpa-platform.mjs` 补齐另一边 darwin 包。

@@ -98,6 +98,15 @@ describe('CLI 可执行文件探测缓存', () => {
     process.env.HOME = dir;
     process.env.USERPROFILE = dir;
     process.env.APPDATA = dir;
+    // 兜底目录还会查 nvm / volta / pnpm 等（#76）：别命中开发机上真实安装的 dsh
+    const homeSpy = jest.spyOn(os, 'homedir').mockReturnValue(dir);
+    const vm = Object.fromEntries(
+      ['NVM_BIN', 'NVM_DIR', 'VOLTA_HOME', 'PNPM_HOME', 'NPM_CONFIG_PREFIX'].map((k) => [
+        k,
+        process.env[k],
+      ]),
+    );
+    for (const k of Object.keys(vm)) delete process.env[k];
     const spy = jest.spyOn(Date, 'now');
     try {
       const now = 1_000_000;
@@ -107,6 +116,8 @@ describe('CLI 可执行文件探测缓存', () => {
       spy.mockReturnValue(now + 11_000);
       expect(peekCliBin('dsh')).toBeUndefined();
     } finally {
+      homeSpy.mockRestore();
+      for (const [k, v] of Object.entries(vm)) if (v !== undefined) process.env[k] = v;
       spy.mockRestore();
       process.env.HOME = savedEnv.HOME;
       process.env.USERPROFILE = savedEnv.USERPROFILE;

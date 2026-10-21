@@ -99,7 +99,7 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
       name: 'model',
       label: t('切换模型'),
       description: cli
-        ? t('列出并切换这个 CLI 使用的供应商档案 / 模型')
+        ? t('列出并切换当前标签的模型（与输入框的模型按钮一致）')
         : t('列出并切换 Nomi 对话使用的供应商 / 模型'),
       source: 'builtin',
       kind: 'native',
@@ -169,7 +169,7 @@ const MODE_ARGS: Record<string, PermissionMode> = {
 };
 
 /**
- * /mode：切换当前标签的权限模式。「完全放开」不能用命令进入（必须在输入栏的模式芯片里确认）；
+ * /mode：切换当前标签的权限模式。「完全放开」不能用命令进入（必须在输入栏的模式按钮里确认）；
  * 不带参数时列出当前端支持的档位。
  */
 async function runMode(raw: string, backend: ConversationBackend): Promise<SlashOutcome> {
@@ -193,7 +193,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
     return card(
       notice(
         t('权限模式'),
-        t('「完全放开」需要在输入栏的权限模式芯片里选择并确认，不能用命令切换。'),
+        t('「完全放开」需要在输入栏的权限模式按钮里选择并确认，不能用命令切换。'),
         'warn',
       ),
     );
@@ -260,7 +260,7 @@ export const U = {
   permissions: (): Unsupported => ({
     name: 'permissions',
     aliases: ['approvals', 'allowed-tools'],
-    alt: () => t('用 /mode 切换权限模式，或点输入栏的权限模式芯片（Shift+Tab 循环切换）。'),
+    alt: () => t('用 /mode 切换权限模式，或点输入栏的权限模式按钮（Shift+Tab 循环切换）。'),
   }),
   login: (cmdline: string): Unsupported => ({
     name: 'login',

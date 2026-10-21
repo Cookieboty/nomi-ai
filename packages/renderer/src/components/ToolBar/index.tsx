@@ -2,15 +2,17 @@ import { createLogger, t as tr } from '@nomi-ai/ui';
 import { Switch, Tooltip } from '@nomi-ai/ui';
 import {
   AudioLines,
-  Bot,
+  CalendarCheck,
+  ChevronDown,
+  ChevronRight,
   Ellipsis,
   EyeOff,
   Hand,
   Info,
+  MessageCircleMore,
   Mic,
   RotateCcw,
-  Settings2,
-  UserRound,
+  Sparkle,
   Volume2,
   VolumeX,
   X,
@@ -26,47 +28,63 @@ import { VoiceSettings } from '../VoiceSettings';
 import {
   loadToolbarPrefs,
   saveToolbarPrefs,
-  PALETTES,
   PRIMARY_TOOLS,
+  TOOLBAR_STYLES,
   type ToolbarPrefs,
 } from './prefs';
 import styles from './style.module.css';
 
 import { useMascot } from '@/contexts/MascotContext';
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
-import { nextModel } from '@/mascot/catalog';
 import { layoutStore, placeGutter, type GutterPlacement } from '@/mascot/layoutStore';
 import { closeMascot } from '@/mascot/presence';
 import { scalePercent, scaleStore, useMascotScale } from '@/mascot/scaleStore';
 import { registerSpeechStopper, stopAllSpeech } from '@/mascot/speechStop';
-import { MESSAGES } from '@/mascot/tips';
 import { MascotMicTool, toggleMascotHandsfree } from '@/mascot/voice/MascotVoice';
 import { setCache } from '@/utils/cache';
 
 const log = createLogger('toolbar');
 
 /**
- * 看板娘工具栏。
- * - 柔和配色（磨砂玻璃 + 低饱和强调色，无霓虹辉光），Lucide（ISC）统一图标，@nomi-ai/ui Tooltip。
+ * 看板娘工具栏（设计稿「Nomi 桌面 AI 伙伴」）。
+ * - 竖向胶囊：AI 对话（主按钮，橙色）/ 语音交互 / 任务看板 / 角色互动 / 声音设置 / 更多；
+ *   四种样式（深色胶囊默认、浅色胶囊、毛玻璃、极简），Lucide（ISC）统一图标。
+ * - 提示：深色两行（标题 + 说明，文本里用换行分隔，第一行加粗）。
+ * - 点「更多」展开完整功能面板（Nomi 标题 + 关闭，图标 + 标题 + 说明）；面板里「更多」再展开设置 / 大小 / 样式。
+ * - 光标只是靠近时不出现，悬停到角色 / 工具栏上才展开；离开 250ms 后收起，动效约 180ms。
  * - 独立图层（高于画布），放在角色包围盒旁的“预留槽位”，不压住角色；贴近屏幕边缘时翻到另一侧。
- * - 空闲自动隐藏，光标靠近角色 / 工具栏时出现；可收起为单个「更多」按钮。
  * - 显示时带 data-mascot-ui，点击穿透命中测试（Win/mac elementFromPoint、Linux setShape）都会算上它。
  */
 
 let globalVoiceService: VoiceService | null = null;
 
-/** 光标离角色包围盒多近（px）算“靠近” */
-const NEAR_PX = 72;
-const HIDE_DELAY_MS = 1500;
+/** 光标在角色包围盒外多远（px）仍算悬停：只是靠近不展开（设计稿 01），悬停到角色上才展开（03） */
+const NEAR_PX = 0;
+/** 离开后延迟收起（设计稿：200–300ms） */
+const HIDE_DELAY_MS = 250;
+/** 工具栏与角色的间距：Nomi 左右各留 60px，44 宽的胶囊 + 8 间距 + 6 边距放得下，靠右时能翻到左边 */
+const BAR_GAP = 8;
 
-const TIP_BAR_WIDTH = 48; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
+/** 工具的标题与一行说明（提示 = 标题\n说明；面板行 = 标题 + 说明） */
+const TOOL_META: Record<string, { title: () => string; desc: () => string }> = {
+  'ai-chat': { title: () => tr('AI 对话'), desc: () => tr('与 Nomi 聊天') },
+  'voice-input': { title: () => tr('语音交互'), desc: () => tr('语音输入 / 语音输出') },
+  'task-board': { title: () => tr('任务看板'), desc: () => tr('查看 / 管理你的任务') },
+  motion: { title: () => tr('角色互动'), desc: () => tr('动作 / 表情 / 互动') },
+  'voice-settings': { title: () => tr('声音设置'), desc: () => tr('音量 / 静音 / 语音偏好') },
+  more: { title: () => tr('更多'), desc: () => tr('设置 / 大小 / 退出') },
+};
+
+const TIP_BAR_WIDTH = 44;
+/** 功能面板：常规宽度、与窗口边缘的距离、低于这个窗口高度时用紧凑排版 */
+const PANEL_W = 236;
+const PANEL_MARGIN = 6;
+const PANEL_DENSE_H = 420; // 与样式里的工具栏宽度（按钮 + 内边距）一致，仅用于估算提示的可用宽度
 
 export const ToolBar: React.FC = () => {
   const {
     config: { tools: configTools = [] },
-    state: mascotState,
     dispatch: mascotDispatch,
-    selectModel,
   } = useMascot();
   const { showMessage: say } = useWaifuMessage();
   const showMessage = useCallback(
@@ -82,6 +100,8 @@ export const ToolBar: React.FC = () => {
   const [voiceMode, setVoiceMode] = useState<'fixed' | 'tts'>('fixed');
   const [prefs, setPrefs] = useState<ToolbarPrefs>(loadToolbarPrefs);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** 面板里「更多」一行是否展开（设置 / 大小 / 样式 / 其余工具） */
+  const [moreOpen, setMoreOpen] = useState(false);
   const size = useMascotScale();
   const [near, setNear] = useState(false);
   const [hoverWin, setHoverWin] = useState(process.env.NODE_ENV === 'development');
@@ -208,21 +228,6 @@ export const ToolBar: React.FC = () => {
     }
   }, [showMessage]);
 
-  // 切换到下一个内置角色（右键打开角色列表）
-  const switchModel = useCallback(() => {
-    const next = nextModel(mascotState.modelList, mascotState.modelName);
-    if (!next) {
-      showMessage(tr('没有可切换的角色'));
-      return;
-    }
-    selectModel(next.name);
-    showMessage(MESSAGES.modelSwitched(next.displayName));
-  }, [mascotState.modelList, mascotState.modelName, selectModel, showMessage]);
-
-  const openModelPicker = useCallback(() => {
-    mascotDispatch({ type: 'SET_PICKER_OPEN', payload: true });
-  }, [mascotDispatch]);
-
   // 动作：左键随机播放一个动作，右键打开动作菜单
   const playRandomMotion = useCallback(() => {
     window.dispatchEvent(new CustomEvent('mascot:motion', { detail: { name: 'random' } }));
@@ -286,8 +291,6 @@ export const ToolBar: React.FC = () => {
     switch (toolId) {
       case 'voice-input':
         return () => void toggleMascotHandsfree();
-      case 'switch-model':
-        return switchModel;
       case 'photo':
         return takeScreenshot;
       case 'info':
@@ -322,31 +325,6 @@ export const ToolBar: React.FC = () => {
         };
       case 'voice-mode-toggle':
         return toggleVoiceMode;
-      case 'tts-config':
-        return () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-          const electronAPI = (window as any).electronAPI;
-          if (electronAPI?.openTTSConfig) {
-            electronAPI
-              .openTTSConfig()
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .then((result: any) => {
-                if (result?.success) {
-                  showMessage(tr('TTS配置窗口已打开'));
-                } else {
-                  showMessage(tr('打开失败: {0}', result?.error || tr('未知错误')));
-                }
-              })
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
-              .catch((error: any) => {
-                log.error('打开TTS配置窗口失败:', error);
-                showMessage(tr('打开TTS配置窗口失败，请稍后再试'));
-              });
-          } else {
-            log.warn('Electron API不可用，无法打开TTS配置窗口');
-            showMessage(tr('TTS配置功能需要在Electron环境中运行'));
-          }
-        };
       case 'ai-chat':
         return () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留代码，沿用既有类型
@@ -374,6 +352,24 @@ export const ToolBar: React.FC = () => {
         };
       case 'motion':
         return playRandomMotion;
+      case 'task-board':
+        return () => {
+          const api = window.electronAPI as
+            { openTaskBoard?: () => Promise<{ success: boolean; error?: string }> } | undefined;
+          if (!api?.openTaskBoard) {
+            showMessage(tr('任务看板需要在桌面应用里打开'));
+            return;
+          }
+          void api
+            .openTaskBoard()
+            .then((r) => {
+              if (!r?.success) showMessage(tr('打开失败: {0}', r?.error || tr('未知错误')));
+            })
+            .catch((error: unknown) => {
+              log.error('打开任务看板失败:', error);
+              showMessage(tr('打开任务看板失败，请稍后再试'));
+            });
+        };
       default:
         return () => {};
     }
@@ -403,31 +399,52 @@ export const ToolBar: React.FC = () => {
     };
   }, []);
 
-  // 光标靠近角色或工具栏 → 显示（全局光标轮询，点击穿透状态下同样有效）
+  // 光标悬停在角色或工具栏上 → 显示
+  const hitTest = useCallback((x: number, y: number): boolean => {
+    const box = layoutStore.get().box;
+    if (
+      box &&
+      x >= box.left - NEAR_PX &&
+      x <= box.right + NEAR_PX &&
+      y >= box.top - NEAR_PX &&
+      y <= box.bottom + NEAR_PX
+    )
+      return true;
+    const r = rootRef.current?.getBoundingClientRect();
+    return (
+      !!r &&
+      r.width > 0 &&
+      x >= r.left - 32 &&
+      x <= r.right + 32 &&
+      y >= r.top - 32 &&
+      y <= r.bottom + 32
+    );
+  }, []);
+  // 全局光标轮询：点击穿透状态下收不到 DOM 事件时也有效
   useEffect(
     () =>
-      layoutStore.subscribe(({ box, cursor }) => {
-        if (!cursor || !cursor.inside) {
-          setNear(false);
-          return;
-        }
-        const { x, y } = cursor;
-        let n = false;
-        if (box)
-          n =
-            x >= box.left - NEAR_PX &&
-            x <= box.right + NEAR_PX &&
-            y >= box.top - NEAR_PX &&
-            y <= box.bottom + NEAR_PX;
-        const r = rootRef.current?.getBoundingClientRect();
-        if (!n && r && r.width > 0)
-          n = x >= r.left - 32 && x <= r.right + 32 && y >= r.top - 32 && y <= r.bottom + 32;
-        setNear(n);
+      layoutStore.subscribe(({ cursor }) => {
+        setNear(!!cursor?.inside && hitTest(cursor.x, cursor.y));
       }),
-    [],
+    [hitTest],
   );
+  // DOM 指针：窗口接收鼠标时比轮询更及时
+  const [nearDom, setNearDom] = useState(false);
+  useEffect(() => {
+    const move = (e: PointerEvent) => setNearDom(hitTest(e.clientX, e.clientY));
+    const leave = () => setNearDom(false);
+    document.addEventListener('pointermove', move);
+    document.documentElement.addEventListener('pointerleave', leave);
+    return () => {
+      document.removeEventListener('pointermove', move);
+      document.documentElement.removeEventListener('pointerleave', leave);
+    };
+  }, [hitTest]);
 
-  const wantVisible = near || hoverWin || focusWithin || menuOpen || showVoiceSettings;
+  // 全局光标可用时只看「是否悬停在角色 / 工具栏上」；拿不到光标（浏览器预览）时退回窗口悬停
+  const cursorTracked = layoutStore.get().cursor != null;
+  const wantVisible =
+    near || nearDom || (hoverWin && !cursorTracked) || focusWithin || menuOpen || showVoiceSettings;
   useEffect(() => {
     clearTimeout(hideTimer.current);
     // 悬浮状态变化时立即显隐工具栏；外部交互驱动的派生状态，豁免 set-state-in-effect
@@ -454,7 +471,8 @@ export const ToolBar: React.FC = () => {
 
   // ---------- 布局：角色旁的预留槽位 ----------
   const primary = prefs.compact ? [] : PRIMARY_TOOLS.filter((t) => availableTools.includes(t));
-  const secondary = availableTools.filter((t) => !primary.includes(t));
+  // 「更多」里的其余工具：主按钮以外的（收起为单按钮时主按钮也在面板主行里，不重复）
+  const secondary = availableTools.filter((t) => !PRIMARY_TOOLS.includes(t));
   const barRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
@@ -468,6 +486,7 @@ export const ToolBar: React.FC = () => {
         }
       ).__cdForceToolbarScreen;
       const p = placeGutter({
+        gap: BAR_GAP,
         box: layoutStore.get().box,
         bar: { width: bw, height: bh },
         view: { width: window.innerWidth, height: window.innerHeight },
@@ -504,34 +523,55 @@ export const ToolBar: React.FC = () => {
     }
   }, [place, visible]);
 
-  // 菜单纵向位置：尽量与工具栏顶部对齐，但整体留在窗口内（过高时内部滚动）
+  // 面板位置：贴着工具栏朝角色一侧展开，整体留在窗口内（过高时内部滚动）。
+  // 看板娘缩小时窗口只有约 250px 宽：放不下就盖住工具栏，并改用紧凑排版（只留标题）。
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuTop, setMenuTop] = useState(0);
+  const [panelBox, setPanelBox] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    maxHeight: number;
+    dense: boolean;
+  } | null>(null);
   useLayoutEffect(() => {
-    if (!menuOpen || !menuRef.current) return;
-    const h = Math.min(menuRef.current.scrollHeight, window.innerHeight - 16);
-    const y0 = place?.y ?? 0;
-    const want = Math.max(8, Math.min(window.innerHeight - h - 8, y0));
-    setMenuTop(want - y0);
-  }, [menuOpen, place, prefs.compact]);
+    if (!menuOpen) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const width = Math.min(PANEL_W, vw - 2 * PANEL_MARGIN);
+    const dense = vh < PANEL_DENSE_H || width < PANEL_W;
+    const maxHeight = vh - 2 * PANEL_MARGIN;
+    const h = Math.min(menuRef.current?.scrollHeight ?? maxHeight, maxHeight);
+    const barX = place?.x ?? vw - TIP_BAR_WIDTH - PANEL_MARGIN;
+    const want = place?.side === 'left' ? barX + TIP_BAR_WIDTH + BAR_GAP : barX - BAR_GAP - width;
+    const left = Math.max(PANEL_MARGIN, Math.min(vw - PANEL_MARGIN - width, want));
+    const top = Math.max(PANEL_MARGIN, Math.min(vh - PANEL_MARGIN - h, place?.y ?? 0));
+    setPanelBox((b) =>
+      b &&
+      b.left === left &&
+      b.top === top &&
+      b.width === width &&
+      b.maxHeight === maxHeight &&
+      b.dense === dense
+        ? b
+        : { left, top, width, maxHeight, dense },
+    );
+  }, [menuOpen, moreOpen, place, prefs.compact, size?.scale]);
 
   // ---------- 按钮 ----------
   const toolIcon = (toolId: string): LucideIcon => {
     switch (toolId) {
       case 'ai-chat':
-        return Bot;
+        return MessageCircleMore;
       case 'voice-input':
         return Mic;
-      case 'switch-model':
-        return UserRound;
+      case 'task-board':
+        return CalendarCheck;
       case 'motion':
         return Hand;
       case 'voice-settings':
         return voiceEnabled ? Volume2 : VolumeX;
       case 'voice-mode-toggle':
         return voiceMode === 'fixed' ? Mic : AudioLines;
-      case 'tts-config':
-        return Settings2;
       case 'close-mascot':
         return EyeOff;
       case 'info':
@@ -545,8 +585,6 @@ export const ToolBar: React.FC = () => {
 
   const toolLabel = (toolId: string): string => {
     switch (toolId) {
-      case 'switch-model':
-        return tr('切换角色（右键：角色列表）');
       case 'photo':
         return tr('截图保存');
       case 'info':
@@ -556,17 +594,18 @@ export const ToolBar: React.FC = () => {
       case 'close-mascot':
         return tr('关闭看板娘（可在设置中重新打开）');
       case 'voice-settings':
-        return voiceEnabled ? tr('语音：开（右键：语音设置）') : tr('语音：关（右键：语音设置）');
+        return voiceEnabled
+          ? [tr('声音：开'), tr('点按静音 · 右键语音偏好')].join('\n')
+          : [tr('声音：关'), tr('点按开启 · 右键语音偏好')].join('\n');
       case 'voice-mode-toggle':
         return voiceMode === 'fixed' ? tr('语音模式：固定语音') : tr('语音模式：TTS');
-      case 'tts-config':
-        return tr('TTS 语音配置');
       case 'ai-chat':
-        return tr('AI 对话');
+      case 'task-board':
+        return `${TOOL_META[toolId]!.title()}\n${TOOL_META[toolId]!.desc()}`;
       case 'voice-input':
         return tr('免按键语音：开/关（工具栏麦克风按住说话）');
       case 'motion':
-        return tr('做个动作');
+        return [tr('角色互动'), tr('做个动作 · 右键选动作')].join('\n');
       default:
         return toolId;
     }
@@ -583,17 +622,12 @@ export const ToolBar: React.FC = () => {
           e.preventDefault();
           setShowVoiceSettings(true);
         }
-      : toolId === 'switch-model'
+      : toolId === 'motion'
         ? (e: React.MouseEvent) => {
             e.preventDefault();
-            openModelPicker();
+            openMotionMenu();
           }
-        : toolId === 'motion'
-          ? (e: React.MouseEvent) => {
-              e.preventDefault();
-              openMotionMenu();
-            }
-          : undefined;
+        : undefined;
 
   // Tooltips open toward the mascot (left of the vertical bar when bar is on the right).
   const tipSide = place?.side === 'left' ? 'right' : 'left';
@@ -615,20 +649,21 @@ export const ToolBar: React.FC = () => {
       <Tooltip key={toolId} content={label} placement={tipSide}>
         <button
           type="button"
-          className={`${styles.btn} ${toolId === 'quit' ? styles.danger : ''}`}
+          className={`${styles.btn} ${toolId === 'ai-chat' ? styles.primary : ''} ${toolId === 'quit' ? styles.danger : ''}`}
           id={`waifu-tool-${toolId}`}
           data-testid={`tool-${toolId}`}
-          aria-label={label}
+          aria-label={label.split('\n')[0]}
           aria-pressed={pressed(toolId)}
           onClick={() => handler()}
           onContextMenu={onContext(toolId)}
         >
-          <Icon size={19} strokeWidth={1.75} aria-hidden />
+          <Icon size={18} strokeWidth={1.75} aria-hidden />
         </button>
       </Tooltip>
     );
   };
 
+  // 「更多」里的其余工具：一行一个（图标 + 名称）
   const menuItem = (toolId: string) => {
     const Icon = toolIcon(toolId);
     const label = toolLabel(toolId);
@@ -638,18 +673,60 @@ export const ToolBar: React.FC = () => {
         key={toolId}
         type="button"
         role="menuitem"
-        className={`${styles.menuItem} ${toolId === 'quit' ? styles.danger : ''}`}
+        className={`${styles.subItem} ${toolId === 'quit' ? styles.danger : ''}`}
         id={`waifu-tool-${toolId}`}
         data-testid={`tool-${toolId}`}
         aria-pressed={pressed(toolId)}
+        title={label}
         onClick={() => {
           setMenuOpen(false);
           handler();
         }}
         onContextMenu={onContext(toolId)}
       >
-        <Icon size={16} strokeWidth={1.75} aria-hidden />
-        <span>{label.replace(/（右键：.*）$/, '')}</span>
+        <Icon size={15} strokeWidth={1.75} aria-hidden />
+        <span>{label.split('\n')[0].replace(/（[^）]*）$/, '')}</span>
+      </button>
+    );
+  };
+
+  // 面板主行（设计稿 05）：点一下执行并收起面板
+  const panelAction = (toolId: string) => {
+    switch (toolId) {
+      case 'voice-input':
+        return () => void toggleMascotHandsfree();
+      case 'motion':
+        return openMotionMenu;
+      case 'voice-settings':
+        return () => setShowVoiceSettings(true);
+      default:
+        return getToolHandler(toolId);
+    }
+  };
+  const panelRows = PRIMARY_TOOLS.filter((id) => availableTools.includes(id));
+  const panelRow = (toolId: string) => {
+    const Icon = toolIcon(toolId);
+    const meta = TOOL_META[toolId]!;
+    return (
+      <button
+        key={toolId}
+        type="button"
+        role="menuitem"
+        className={styles.row}
+        data-testid={`panel-${toolId}`}
+        onClick={() => {
+          setMenuOpen(false);
+          panelAction(toolId)();
+        }}
+      >
+        <span className={`${styles.rowIcon} ${toolId === 'ai-chat' ? styles.rowIconPrimary : ''}`}>
+          <Icon size={16} strokeWidth={1.75} aria-hidden />
+        </span>
+        <span className={styles.rowText}>
+          <span className={styles.rowTitle}>{meta.title()}</span>
+          <span className={styles.rowDesc}>{meta.desc()}</span>
+        </span>
+        <ChevronRight size={14} strokeWidth={1.75} className={styles.rowChevron} aria-hidden />
       </button>
     );
   };
@@ -659,12 +736,30 @@ export const ToolBar: React.FC = () => {
     '--tb-tip-max': `${tipMax}px`,
   };
 
+  const moreButton = (
+    <button
+      type="button"
+      className={styles.btn}
+      data-testid="tool-more"
+      aria-label={menuOpen ? tr('收起') : tr('更多')}
+      aria-haspopup="menu"
+      aria-expanded={menuOpen}
+      onClick={() => {
+        setMoreOpen(false);
+        setMenuOpen((v) => !v);
+      }}
+    >
+      <Ellipsis size={18} strokeWidth={1.75} aria-hidden />
+    </button>
+  );
+
   return (
     <>
       <div
         ref={rootRef}
-        className={`${styles.root} ${visible ? styles.shown : styles.hidden}`}
-        data-palette={prefs.palette}
+        // 面板打开时不再弹工具提示（会压在面板上 / 从面板后露出来）
+        className={`${styles.root} ${visible ? styles.shown : styles.hidden} ${menuOpen ? styles.tipOff : ''}`}
+        data-style={prefs.style}
         data-testid="mascot-toolbar"
         data-mascot-ui={visible ? '' : undefined}
         style={style}
@@ -684,104 +779,158 @@ export const ToolBar: React.FC = () => {
           aria-orientation="vertical"
         >
           {primary.map(iconButton)}
-          {primary.length > 0 && secondary.length > 0 && <div className={styles.sep} aria-hidden />}
-          <Tooltip content={menuOpen ? tr('收起') : tr('更多')} placement={tipSide}>
-            <button
-              type="button"
-              className={styles.btn}
-              data-testid="tool-more"
-              aria-label={tr('更多')}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((v) => !v)}
-            >
-              <Ellipsis size={19} strokeWidth={1.75} aria-hidden />
-            </button>
+          <Tooltip
+            content={`${TOOL_META.more!.title()}\n${TOOL_META.more!.desc()}`}
+            placement={tipSide}
+          >
+            {moreButton}
           </Tooltip>
         </div>
 
         {menuOpen && (
           <div
-            className={styles.menu}
+            className={styles.panel}
             role="menu"
-            aria-label={tr('更多工具')}
+            aria-label={tr('Nomi 功能面板')}
             data-testid="toolbar-menu"
             ref={menuRef}
-            style={{ top: menuTop }}
+            data-dense={panelBox?.dense ? '' : undefined}
+            style={
+              panelBox
+                ? {
+                    left: panelBox.left,
+                    top: panelBox.top,
+                    width: panelBox.width,
+                    maxHeight: panelBox.maxHeight,
+                  }
+                : { visibility: 'hidden' }
+            }
           >
-            {secondary.map(menuItem)}
-            <div className={styles.sep} aria-hidden />
-            <div className={styles.menuRow}>
-              <span>{tr('收起为单个按钮')}</span>
-              <Switch
-                checked={prefs.compact}
-                onChange={(v: boolean) => updatePrefs({ compact: v })}
-                aria-label={tr('收起为单个按钮')}
-                data-testid="toolbar-compact"
-              />
+            <div className={styles.panelHead}>
+              <span className={styles.brand}>
+                Nomi
+                <Sparkle size={11} strokeWidth={2.2} className={styles.brandMark} aria-hidden />
+              </span>
+              <button
+                type="button"
+                className={styles.panelClose}
+                aria-label={tr('关闭')}
+                data-testid="toolbar-menu-close"
+                onClick={() => setMenuOpen(false)}
+              >
+                <X size={14} strokeWidth={1.75} aria-hidden />
+              </button>
             </div>
-            {size && (
-              <div className={styles.menuRow} role="group" aria-label={tr('看板娘大小')}>
-                <span>{tr('大小')}</span>
-                <div className={styles.sizeCtl}>
-                  <button
-                    type="button"
-                    className={styles.miniBtn}
-                    aria-label={tr('缩小')}
-                    title={tr('缩小')}
-                    data-testid="toolbar-zoom-out"
-                    disabled={size.scale <= size.min + 1e-6}
-                    onClick={() => scaleStore.step(-1)}
-                  >
-                    <ZoomOut size={15} strokeWidth={1.75} aria-hidden />
-                  </button>
-                  <span className={styles.sizeValue} data-testid="toolbar-scale-value">
-                    {scalePercent(size.scale)}%
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.miniBtn}
-                    aria-label={tr('放大')}
-                    title={tr('放大')}
-                    data-testid="toolbar-zoom-in"
-                    disabled={size.scale >= size.max - 1e-6}
-                    onClick={() => scaleStore.step(1)}
-                  >
-                    <ZoomIn size={15} strokeWidth={1.75} aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.miniBtn}
-                    aria-label={tr('重置大小')}
-                    title={tr('重置大小')}
-                    data-testid="toolbar-zoom-reset"
-                    disabled={Math.abs(size.scale - size.default) < 1e-6}
-                    onClick={() => scaleStore.reset()}
-                  >
-                    <RotateCcw size={15} strokeWidth={1.75} aria-hidden />
-                  </button>
+            {panelRows.map(panelRow)}
+            <button
+              type="button"
+              role="menuitem"
+              className={styles.row}
+              data-testid="panel-more"
+              aria-expanded={moreOpen}
+              onClick={() => setMoreOpen((v) => !v)}
+            >
+              <span className={styles.rowIcon}>
+                <Ellipsis size={16} strokeWidth={1.75} aria-hidden />
+              </span>
+              <span className={styles.rowText}>
+                <span className={styles.rowTitle}>{TOOL_META.more!.title()}</span>
+                <span className={styles.rowDesc}>{TOOL_META.more!.desc()}</span>
+              </span>
+              {moreOpen ? (
+                <ChevronDown
+                  size={14}
+                  strokeWidth={1.75}
+                  className={styles.rowChevron}
+                  aria-hidden
+                />
+              ) : (
+                <ChevronRight
+                  size={14}
+                  strokeWidth={1.75}
+                  className={styles.rowChevron}
+                  aria-hidden
+                />
+              )}
+            </button>
+            {moreOpen && (
+              <div className={styles.more} data-testid="panel-more-section">
+                {secondary.map(menuItem)}
+                <div className={styles.sep} aria-hidden />
+                <div className={styles.menuRow}>
+                  <span>{tr('收起为单个按钮')}</span>
+                  <Switch
+                    checked={prefs.compact}
+                    onChange={(v: boolean) => updatePrefs({ compact: v })}
+                    aria-label={tr('收起为单个按钮')}
+                    data-testid="toolbar-compact"
+                  />
+                </div>
+                {size && (
+                  <div className={styles.menuRow} role="group" aria-label={tr('看板娘大小')}>
+                    <span>{tr('大小')}</span>
+                    <div className={styles.sizeCtl}>
+                      <button
+                        type="button"
+                        className={styles.miniBtn}
+                        aria-label={tr('缩小')}
+                        title={tr('缩小')}
+                        data-testid="toolbar-zoom-out"
+                        disabled={size.scale <= size.min + 1e-6}
+                        onClick={() => scaleStore.step(-1)}
+                      >
+                        <ZoomOut size={14} strokeWidth={1.75} aria-hidden />
+                      </button>
+                      <span className={styles.sizeValue} data-testid="toolbar-scale-value">
+                        {scalePercent(size.scale)}%
+                      </span>
+                      <button
+                        type="button"
+                        className={styles.miniBtn}
+                        aria-label={tr('放大')}
+                        title={tr('放大')}
+                        data-testid="toolbar-zoom-in"
+                        disabled={size.scale >= size.max - 1e-6}
+                        onClick={() => scaleStore.step(1)}
+                      >
+                        <ZoomIn size={14} strokeWidth={1.75} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.miniBtn}
+                        aria-label={tr('重置大小')}
+                        title={tr('重置大小')}
+                        data-testid="toolbar-zoom-reset"
+                        disabled={Math.abs(size.scale - size.default) < 1e-6}
+                        onClick={() => scaleStore.reset()}
+                      >
+                        <RotateCcw size={14} strokeWidth={1.75} aria-hidden />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className={styles.menuRow}>
+                  <span>{tr('工具栏样式')}</span>
+                  <div className={styles.swatches} role="radiogroup" aria-label={tr('工具栏样式')}>
+                    {TOOLBAR_STYLES.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={prefs.style === st.id}
+                        aria-label={tr(st.label)}
+                        title={tr(st.label)}
+                        data-testid={`toolbar-style-${st.id}`}
+                        className={styles.swatch}
+                        data-swatch={st.id}
+                        style={{ background: st.swatch }}
+                        onClick={() => updatePrefs({ style: st.id })}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
-            <div className={styles.menuRow}>
-              <span>{tr('配色')}</span>
-              <div className={styles.swatches} role="radiogroup" aria-label={tr('工具栏配色')}>
-                {PALETTES.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={prefs.palette === p.id}
-                    aria-label={tr(p.label)}
-                    title={tr(p.label)}
-                    data-testid={`toolbar-palette-${p.id}`}
-                    className={styles.swatch}
-                    style={{ background: p.swatch }}
-                    onClick={() => updatePrefs({ palette: p.id })}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </div>

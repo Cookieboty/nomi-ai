@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -86,7 +89,9 @@ describe('权限模式表', () => {
   it('各端支持的档位与降级与主进程一致；Shift+Tab 跳过「完全放开」', () => {
     expect(supportedModes('dsh')).toEqual(['plan', 'acceptEdits', 'bypass']);
     expect(fallbackMode('dsh', 'manual')).toBe('plan');
-    expect(fallbackMode('codex', 'manual')).toBe('plan');
+    // Codex / Grok 走长驻会话后都能逐项确认；Grok 没有「自动」
+    expect(fallbackMode('codex', 'manual')).toBe('manual');
+    expect(fallbackMode('grok', 'auto')).toBe('acceptEdits');
     expect(fallbackMode('gemini', 'auto')).toBe('acceptEdits');
     expect(nextMode('claude', 'auto')).toBe('plan');
     expect(nextMode('dsh', 'acceptEdits')).toBe('plan');
@@ -94,20 +99,42 @@ describe('权限模式表', () => {
   });
 });
 
-describe('输入栏的权限模式芯片', () => {
-  it('显示当前档位；下拉里切换，不支持的档位置灰', async () => {
-    const invoke = mockIpc({ backend: 'codex' });
+describe('输入栏的权限模式按钮', () => {
+  it('显示当前档位；下拉里只列当前 CLI 支持的档位', async () => {
+    const invoke = mockIpc({ backend: 'dsh' });
     const r = mount();
     const chip = await r.findByTestId('permission-mode-chip');
     expect(chip.getAttribute('aria-label')).toBe('权限模式：自动改文件');
     fireEvent.click(chip);
-    expect((r.getByTestId('permission-mode-manual') as HTMLButtonElement).disabled).toBe(true);
-    expect(r.getByTestId('permission-mode-manual').textContent).toContain('会使用「计划」');
+    // dsh 不支持「逐项确认」：不显示
+    expect(r.queryByTestId('permission-mode-manual')).toBeNull();
+    expect(r.getByTestId('permission-mode-plan')).toBeTruthy();
     fireEvent.click(r.getByTestId('permission-mode-plan'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'plan', {
         confirmed: false,
       }),
+    );
+  });
+
+  it('窄输入栏：按钮可收缩（省略号），极窄时只留图标，模式名仍在无障碍名称里（#64 E28）', async () => {
+    mockIpc({ backend: 'codex' });
+    const r = mount();
+    const chip = await r.findByTestId('permission-mode-chip');
+    const label = Array.from(chip.querySelectorAll('span')).find(
+      (s) => s.textContent === '自动改文件',
+    );
+    expect(label?.className).toBeTruthy();
+    expect(chip.getAttribute('aria-label')).toContain('自动改文件');
+    const css = readFileSync(
+      resolve(process.cwd(), 'src/components/PermissionModeChip/index.module.css'),
+      'utf8',
+    );
+    const chipRule = /\.chip\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(chipRule).toMatch(/min-width:\s*0/);
+    expect(chipRule).toMatch(/overflow:\s*hidden/);
+    expect(css).toMatch(
+      /@container composer \(max-width: 440px\)\s*\{\s*\.label\s*\{\s*display:\s*none;/,
     );
   });
 
@@ -130,15 +157,18 @@ describe('输入栏的权限模式芯片', () => {
     fireEvent.click(r.getByTestId('permission-mode-bypass'));
     await r.findByTestId('permission-bypass-confirm');
     expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-permission-mode')).toBe(false);
+    // 确认框写明作用于哪个标签 / 目录
+    expect(r.getByTestId('permission-bypass-target').textContent).toContain('/w');
     fireEvent.click(r.getByTestId('permission-bypass-ok'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'bypass', {
         confirmed: true,
+        expect: { backend: 'claude', cwd: '/w' },
       }),
     );
   });
 
-  it('输入框 Shift+Tab 切到下一档（事件被芯片处理）', async () => {
+  it('输入框 Shift+Tab 切到下一档（事件被按钮处理）', async () => {
     const invoke = mockIpc({ permissionMode: 'plan' });
     const r = mount();
     await r.findByTestId('permission-mode-chip');
@@ -164,12 +194,100 @@ describe('输入栏的权限模式芯片', () => {
     );
   });
 
-  it('Nomi 标签没有权限模式芯片', async () => {
+  it('Nomi 标签没有权限模式按钮', async () => {
     const invoke = mockIpc({ backend: 'nomi' });
     const r = mount();
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));
     await new Promise((res) => setTimeout(res, 50));
     expect(r.queryByTestId('permission-mode-chip')).toBeNull();
+  });
+});
+
+describe('「完全放开」确认绑定发起的标签（#66）', () => {
+  // 两个 Claude 标签 A / B；推送 ai:harness:tabs 模拟切标签（快捷键、程序切换都走这条）
+  function mockTwoTabs() {
+    const a = tab({ id: 'ta', title: 'A', cwd: '/repo-a' });
+    const b = tab({ id: 'tb', title: 'B', cwd: '/repo-b' });
+    const state = (activeTabId: string, tabs = [a, b]): HarnessTabsState => ({
+      tabs: [tab({ id: 'main', backend: 'nomi' }), ...tabs],
+      activeTabId,
+      maxConcurrent: 3,
+      running: 0,
+      queued: 0,
+      defaultPermissionMode: 'acceptEdits',
+    });
+    let push: (s: HarnessTabsState) => void = () => undefined;
+    const invoke = vi.fn(async (ch: string) => {
+      if (ch === 'ai:harness:tabs') return state('ta');
+      if (ch === 'ai:harness:state') return { backend: 'nomi', cwd: '/w', bins: { claude: '/c' } };
+      if (ch === 'ai:harness:recent-cwds') return [];
+      if (ch === 'ai:harness:tab-messages') return [];
+      if (ch === 'ai:cli-provider:state') return { profiles: [] };
+      return {};
+    });
+    const on = (ch: string, fn: (p: unknown) => void) => {
+      if (ch === 'ai:harness:tabs') push = fn as typeof push;
+      return () => undefined;
+    };
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
+    return { invoke, a, b, state, push: (s: HarnessTabsState) => act(() => push(s)) };
+  }
+  const bypassCalls = (invoke: ReturnType<typeof vi.fn>) =>
+    invoke.mock.calls.filter((c) => c[0] === 'ai:harness:tab-permission-mode');
+
+  const openConfirm = async (r: ReturnType<typeof mount>) => {
+    fireEvent.click(await r.findByTestId('permission-mode-chip'));
+    fireEvent.click(r.getByTestId('permission-mode-bypass'));
+    await r.findByTestId('permission-bypass-confirm');
+  };
+
+  it('确认框打开时切到另一个标签：确认作废，不会放开 B；切回 A 也不复活', async () => {
+    const m = mockTwoTabs();
+    const r = mount();
+    await openConfirm(r);
+    m.push(m.state('tb'));
+    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
+    m.push(m.state('ta'));
+    await new Promise((res) => setTimeout(res, 20));
+    expect(r.queryByTestId('permission-bypass-confirm')).toBeNull();
+    expect(bypassCalls(m.invoke)).toHaveLength(0);
+  });
+
+  it('确认期间原标签换了目录或被关闭：确认作废', async () => {
+    const m = mockTwoTabs();
+    const r = mount();
+    await openConfirm(r);
+    m.push(m.state('ta', [{ ...m.a, cwd: '/elsewhere' }, m.b]));
+    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
+
+    await openConfirm(r);
+    m.push(m.state('tb', [m.b]));
+    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
+    expect(bypassCalls(m.invoke)).toHaveLength(0);
+  });
+
+  it('不切换时确认只发给 A，并带上 A 的后端 / 目录供主进程核对', async () => {
+    const m = mockTwoTabs();
+    const r = mount();
+    await openConfirm(r);
+    expect(r.getByTestId('permission-bypass-target').textContent).toContain('/repo-a');
+    fireEvent.click(r.getByTestId('permission-bypass-ok'));
+    await waitFor(() => expect(bypassCalls(m.invoke)).toHaveLength(1));
+    expect(bypassCalls(m.invoke)[0]).toEqual([
+      'ai:harness:tab-permission-mode',
+      'ta',
+      'bypass',
+      { confirmed: true, expect: { backend: 'claude', cwd: '/repo-a' } },
+    ]);
+  });
+
+  it('取消不发送任何请求', async () => {
+    const m = mockTwoTabs();
+    const r = mount();
+    await openConfirm(r);
+    fireEvent.click(r.getByText('取消', { selector: '.cd-modal__footer button' }));
+    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
+    expect(bypassCalls(m.invoke)).toHaveLength(0);
   });
 });
 

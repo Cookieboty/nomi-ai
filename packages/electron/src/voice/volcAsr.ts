@@ -305,6 +305,11 @@ export interface VolcSessionOptions {
   retries?: number;
   backoffMs?: (attempt: number) => number;
   onPartial?: (text: string) => void;
+  /**
+   * 每次真正把音频发上网前调用；返回 false 时会话立即按「已取消」结束，缓存的音频一包也不发
+   * （如握手 / 等最终结果期间开启了「仅本地模型」）。
+   */
+  mayUpload?: () => boolean;
   /** 「二遍识别」：分句结束后用非流式模型复核，更准但更慢（仅优化版端点支持） */
   enableNonstream?: boolean;
   uid?: string;
@@ -555,7 +560,11 @@ export class VolcAsrSession {
   private flush() {
     if (this.state !== 'open' && this.state !== 'finishing') return;
     const ws = this.ws;
-    if (!ws) return;
+    if (!ws || !this.pending.length) return;
+    if (this.o.mayUpload && !this.o.mayUpload()) {
+      this.cancel();
+      return;
+    }
     while (this.pending.length) {
       const p = this.pending.shift()!;
       this.sentAudio = true;

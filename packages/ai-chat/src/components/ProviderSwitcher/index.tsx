@@ -47,6 +47,7 @@ export const ProviderSwitcher: React.FC<{ onManage: () => void; className?: stri
     <span className={className} data-testid="provider-switcher" style={SWITCHER_STYLE}>
       <Select
         size="sm"
+        variant="ghost"
         style={{ width: 'auto', maxWidth: 200 }}
         data-testid="provider-switch"
         aria-label={t('供应商')}
@@ -68,6 +69,7 @@ export const ProviderSwitcher: React.FC<{ onManage: () => void; className?: stri
       />
       <Select
         size="sm"
+        variant="ghost"
         style={{ width: 'auto', maxWidth: 220 }}
         data-testid="model-switch"
         aria-label={t('模型')}

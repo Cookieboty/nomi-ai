@@ -97,12 +97,11 @@ test.describe('E9 · mascot desktop interaction', () => {
     await page.waitForFunction(() => !!window.electronAPI?.mascotWindow, undefined, {
       timeout: 20_000,
     });
+    // Nomi（内置 2D 角色，Rive 或分层 sprite 回退）
     await page.waitForFunction(
-      () => document.documentElement.dataset.mascotBackend === 'vrm',
+      () => document.documentElement.dataset.mascotModel === 'nomi',
       undefined,
-      {
-        timeout: 90_000,
-      },
+      { timeout: 90_000 },
     );
     await page.waitForFunction(() => !!document.documentElement.dataset.mascotBox, undefined, {
       timeout: 30_000,

@@ -20,32 +20,43 @@ const conv = (id: string, name: string, backend: string, age: number, extra = {}
 let convs: ReturnType<typeof conv>[] = [];
 let currentId = 'n1';
 const switchConversation = vi.fn(async () => undefined);
+const listConversations = vi.fn(async () => convs);
 const FIRST: Record<string, string> = { n2: '帮我整理 login 日志，按天归档' };
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
-    state: {
-      messages: [],
-      ipcClient: {
-        listConversations: async () => convs,
-        currentConversationId: () => currentId,
-        switchConversation,
-        conversationStore: () => ({
-          upsertFromTab: () => undefined,
-          removeByTabId: () => undefined,
-          list: () => convs,
-          currentId: () => currentId,
-          ensureCurrent: () => currentId ?? 'new',
-          get: (id: string) => convs.find((x) => x.id === id),
-          updateMeta: () => undefined,
-          getMessages: (id: string) => (FIRST[id] ? [{ role: 'user', content: FIRST[id] }] : []),
-          firstUserPreview: (id: string) => FIRST[id] ?? '',
-        }),
-      },
+// 与生产一致：state.ipcClient 与 conversationStore() 是稳定引用。每次调用都返回新对象会让
+// Sidebar 的 refresh effect 每次渲染都重跑（每秒数千次），慢的 CI 机器上把其他等待拖到超时。
+vi.mock('../src/contexts/AiChatContext', () => {
+  let api: unknown;
+  return {
+    useAiChat: () => {
+      if (api) return api;
+      const store = {
+        upsertFromTab: () => undefined,
+        removeByTabId: () => undefined,
+        list: () => convs,
+        currentId: () => currentId,
+        ensureCurrent: () => currentId ?? 'new',
+        get: (id: string) => convs.find((x) => x.id === id),
+        updateMeta: () => undefined,
+        getMessages: (id: string) => (FIRST[id] ? [{ role: 'user', content: FIRST[id] }] : []),
+        firstUserPreview: (id: string) => FIRST[id] ?? '',
+      };
+      api = {
+        state: {
+          messages: [],
+          ipcClient: {
+            listConversations,
+            currentConversationId: () => currentId,
+            switchConversation,
+            conversationStore: () => store,
+          },
+        },
+        actions: { loadChatHistory: async () => undefined },
+      };
+      return api;
     },
-    actions: { loadChatHistory: async () => undefined },
-  }),
-}));
+  };
+});
 
 const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySession> = {}) =>
   ({
@@ -122,6 +133,7 @@ beforeEach(() => {
   setChatMode('dev');
   currentId = 'n1';
   switchConversation.mockClear();
+  listConversations.mockClear();
   convs = [
     conv('n1', '周报', 'nomi', 1),
     conv('n2', '今天的待办', 'nomi', 2),
@@ -151,6 +163,14 @@ describe('sidebar search', () => {
     expect(nb.getAttribute('aria-label')).toBe('新对话');
     expect(nb.getAttribute('title')).toContain('新对话');
     expect(nb.textContent).toBe(''); // 只有图标，没有整行文字
+  });
+
+  it('settles after mount instead of refreshing the list in a loop', async () => {
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-session-item'));
+    const settled = listConversations.mock.calls.length;
+    await act(() => new Promise((res) => setTimeout(res, 300)));
+    expect(listConversations.mock.calls.length - settled).toBeLessThanOrEqual(2);
   });
 
   it('filters in real time (150ms debounce) over title, first message, workspace and endpoint name', async () => {

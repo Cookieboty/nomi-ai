@@ -11,7 +11,7 @@ type Api = ReturnType<typeof useAiChat>;
 
 /** 可手动推送 chunk 的假流；abort(reqId) 会触发 AbortController，并让流以 abort 错误收尾 */
 function fakeClient() {
-  const queue: Array<{ type: string; content?: string }> = [];
+  const queue: Array<{ type: string; content?: string; error?: string }> = [];
   let wake: (() => void) | undefined;
   let finished = false;
   const upstream = new AbortController();
@@ -57,6 +57,11 @@ function fakeClient() {
     },
     finish() {
       finished = true;
+      wake?.();
+    },
+    /** 上游以错误帧收尾（主进程已压成 `[code] message`） */
+    fail(error: string) {
+      queue.push({ type: 'error', error });
       wake?.();
     },
     upstream,
@@ -183,6 +188,53 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     expect(saved[1]!.stopped).toBe(true);
     expect(ref.api.state.streaming).toBe(false);
     expect(ref.api.state.isLoading).toBe(false);
+    expect(ref.api.state.error).toBeUndefined();
+  });
+
+  it('这一轮失败：错误只在卡片里显示一次，底部不再弹全局错误提示（#78）', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const store = (ref.api.state.ipcClient as SdkIPCClient).conversationStore();
+    const A = store.ensureCurrent();
+
+    let done!: Promise<void>;
+    await act(async () => {
+      done = ref.api.actions.sendStreamMessage('活着吗');
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    f.push('半句');
+    f.fail('[upstream_channel_error] upstream channel request failed');
+    await act(async () => {
+      await done;
+    });
+
+    const failed = ref.api.state.messages[1]!;
+    expect(failed.content).toBe('半句');
+    expect(failed.error).toContain('上游通道请求失败');
+    expect(failed.error).toContain('upstream_channel_error');
+    expect(failed.error).not.toContain('发送流式消息失败');
+    expect(store.getMessages(A)[1]!.error).toBe(failed.error);
+    expect(ref.api.state.error).toBeUndefined();
+    expect(ref.api.state.isLoading).toBe(false);
+  });
+
+  it('全局错误提示在新建 / 切换会话时清掉', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    await act(async () => {
+      ref.api.dispatch({ type: 'SET_ERROR', payload: '加载失败' });
+    });
+    expect(ref.api.state.error).toBe('加载失败');
+    await act(async () => {
+      await ref.api.actions.newConversation();
+    });
+    expect(ref.api.state.error).toBeUndefined();
+    await act(async () => {
+      ref.api.dispatch({ type: 'SET_ERROR', payload: '加载失败' });
+      await ref.api.actions.loadChatHistory();
+    });
     expect(ref.api.state.error).toBeUndefined();
   });
 

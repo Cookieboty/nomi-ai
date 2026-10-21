@@ -550,6 +550,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             <label className={styles.field}>
               {tr('名称')}
               <Input
+                size="sm"
                 value={tr(draft.name)}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 placeholder={tr('例如：项目文件')}

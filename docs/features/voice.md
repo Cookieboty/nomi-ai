@@ -88,12 +88,12 @@ pnpm --filter @nomi-ai/electron exec jest --watchman=false --coverage=false test
 
 # 用已有模型目录跑通真实合成（开发态）
 NOMI_SHERPA_TTS_MODEL_DIR=/path/to/extracted-model pnpm dev
-# 然后让看板娘说话；或在「TTS 语音配置」点「检测连接」（会预热引擎并报告耗时）
+# 然后让看板娘说话；或在「设置 → 语音与屏幕 → 语音 → 朗读引擎」点「检测连接」（会预热引擎并报告耗时）
 ```
 
 ### 设置页
 
-- 「TTS 语音配置」：默认「内置离线语音」；模型状态；高级可切换 Fish 本地 / 云、legacy；检测连接；**Built with Fish Audio** 标注（仅选用 Fish 时适用，文案保留）。
+- 「设置 → 语音与屏幕 → 语音 → 朗读引擎」（原独立的「TTS 语音配置」窗口已并入设置）：默认「内置离线语音」；高级可切换 Fish 本地 / 云、legacy；检测连接；**Built with Fish Audio** 标注（仅选用 Fish 时适用，文案保留）。
 - 「语音设置」：当前角色 TTS 语速、音量；没有可用 TTS 时保持静默。
 
 ## 高级：Fish Audio（可选，Built with Fish Audio）

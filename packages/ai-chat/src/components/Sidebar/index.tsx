@@ -3,7 +3,13 @@ import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectIpcClient,
+  selectIsLoading,
+  selectMessageCount,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
@@ -63,8 +69,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNotice,
   onOpenSettings,
 }) => {
-  const { state, actions } = useAiChat();
-  const ipc = state.ipcClient;
+  const { actions } = useAiChatActions();
+  const ipc = useAiChatSelector(selectIpcClient);
+  const messageCount = useAiChatSelector(selectMessageCount);
+  const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
   const { isDev, isNormal, setMode } = useChatMode();
   const {
@@ -110,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
   }, [refresh]);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
-  useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
+  useEffect(refresh, [refresh, messageCount, isLoading]);
 
   useEffect(() => {
     if (!harnessClient.available()) return;
@@ -321,8 +329,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
-  // 磁盘历史扫描仅支持 claude/codex/dsh/gemini（HISTORY_BACKENDS）；grok 暂无转录扫描，
-  // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
+  // 磁盘历史扫描由主进程按各 CLI 的本地格式完成，包含 Grok 的 updates.jsonl。
   const histScopeSupported =
     histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
   const histItems: HistorySession[] =

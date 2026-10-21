@@ -1,9 +1,7 @@
 import type { LicenseTermsView } from '@nomi-ai/types';
 
-/** 徽章文字：开源许可显示 SPDX；审核过的自定义条款显示简称 */
+/** 徽章文字：开源许可显示 SPDX；自定义条款去掉 LicenseRef- 前缀 */
 export function licenseLabel(license: string): string {
-  if (license === 'LicenseRef-VRoid-AvatarSample') return 'VRoid 条款';
-  if (license === 'LicenseRef-VRM-Public-1.0') return 'VRM PL 1.0';
   return license.replace(/^LicenseRef-/, '');
 }
 

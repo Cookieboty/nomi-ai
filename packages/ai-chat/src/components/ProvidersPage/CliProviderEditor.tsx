@@ -1,6 +1,6 @@
 /**
  * CLI 端点的供应商表单：与 Nomi 的 ProviderEditor 同一套版式（名称 / API Key / 请求地址 / 模型 / 上游格式），
- * 保存时写入该端点自己的档案库。预设只是预填模板，所有字段都可改。
+ * 保存时写入该端点自己的第三方供应商列表。预设只是预填模板，所有字段都可改。
  */
 import { Badge, Button, FormField, Input, Notice, Select, t, Icon } from '@nomi-ai/ui';
 import { ChevronLeft, Lock } from 'lucide-react';

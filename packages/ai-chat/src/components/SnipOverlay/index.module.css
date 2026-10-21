@@ -5,7 +5,7 @@
   user-select: none;
   overflow: hidden;
   background: #000;
-  font-family: var(--cd-font-sans, system-ui);
+  font-family: var(--cd-font-sans);
 }
 .shot {
   position: absolute;
@@ -22,34 +22,34 @@
 }
 .sel {
   position: absolute;
-  outline: 2px solid var(--cd-color-accent, #6c8cff);
+  outline: 2px solid var(--cd-color-accent);
   box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.45);
 }
 .size {
   position: absolute;
   top: -24px;
   left: 0;
-  padding: 2px 6px;
-  border-radius: var(--cd-radius-sm, 4px);
+  padding: var(--cd-space-0-5) var(--cd-space-1-5);
+  border-radius: var(--cd-radius-sm);
   background: rgb(0 0 0 / 0.7);
   color: #fff;
-  font-size: var(--cd-font-size-xs, 12px);
+  font-size: var(--cd-font-size-xs);
   white-space: nowrap;
 }
 .bar {
   position: absolute;
   display: flex;
-  gap: var(--cd-space-2, 8px);
+  gap: var(--cd-space-2);
   align-items: center;
-  padding: var(--cd-space-2, 8px) var(--cd-space-3, 12px);
-  border-radius: var(--cd-radius-md, 8px);
-  background: var(--cd-color-surface, #fff);
-  border: 1px solid var(--cd-color-border, #ddd);
-  box-shadow: var(--cd-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.25));
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface);
+  border: 1px solid var(--cd-color-border);
+  box-shadow: var(--cd-shadow-lg);
   cursor: default;
 }
 .tip {
-  font-size: var(--cd-font-size-sm, 13px);
-  color: var(--cd-color-text, #222);
-  margin-right: var(--cd-space-1, 4px);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+  margin-right: var(--cd-space-1);
 }

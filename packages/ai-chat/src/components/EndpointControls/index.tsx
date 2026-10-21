@@ -4,7 +4,7 @@
  * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
  * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
  *   Nomi：Nomi 自有供应商 / 模型切换（ProviderSwitcher）；
- *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的档案（CliProviderChip），绝不出现 Nomi 供应商。
+ *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的供应商（CliProviderChip），绝不出现 Nomi 供应商。
  * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
@@ -20,6 +20,7 @@ import { providerClientAvailable } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
 import { CliProviderChip } from '../CliProviderChip';
+import { ModelControls } from '../ModelControls';
 import { PermissionModeChip } from '../PermissionModeChip';
 import { ProviderSwitcher } from '../ProviderSwitcher';
 import { WorkspacePicker } from '../WorkspacePicker';
@@ -28,6 +29,15 @@ import styles from './index.module.css';
 
 /** 换目录后新会话怎么开：带上当前对话作为前文 / 干净地开新会话 */
 type SwitchMode = 'carry' | 'fresh';
+
+/** 等用户决定怎么换的目录切换：冻结发起时的标签（主对话标签为 null）、后端与原目录 */
+interface PendingCwd {
+  tabId: string | null;
+  backend: string | null;
+  title: string;
+  originCwd: string;
+  next: string;
+}
 
 /** 当前显示的是哪个端点，以及对应的 CLI 标签（Nomi 为 null） */
 function useEndpoint() {
@@ -49,7 +59,10 @@ export const EndpointControls: React.FC = () => {
     <>
       {isDev && <BackendSwitcher />}
       {cli && modeTab && (
-        <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+        <>
+          <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />
+          <PermissionModeChip tab={modeTab} defaultMode={tabs.state?.defaultPermissionMode} />
+        </>
       )}
     </>
   );
@@ -65,26 +78,44 @@ export const SessionControls: React.FC<{
   const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
   const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
   const visibleMessages = (tabs.messages ?? []).filter((m) => !m.error && m.content.trim()).length;
-  /** 等用户决定怎么换的目标目录 */
-  const [pending, setPending] = useState<string | null>(null);
+  const [pendingCwd, setPendingCwd] = useState<PendingCwd | null>(null);
+  // 确认框打开期间换到了别的标签（Mod+数字、Ctrl+Tab、程序切换）、原标签被关闭或换了后端 / 目录：
+  // 作废，绝不把对 A 的选择用到当前标签或主对话上（#68）。渲染期比对后清掉，切回 A 也不复活。
+  const pending =
+    pendingCwd &&
+    pendingCwd.tabId === (tab?.id ?? null) &&
+    pendingCwd.backend === cli &&
+    pendingCwd.originCwd === cwd
+      ? pendingCwd
+      : null;
+  if (pendingCwd && !pending) setPendingCwd(null);
 
-  const apply = async (next: string, mode: SwitchMode) => {
+  /** target：发起换目录时冻结的标签；没有 target 时就是当前标签 */
+  const apply = async (next: string, mode: SwitchMode, target?: PendingCwd) => {
     const opts = { carry: mode === 'carry' };
-    if (tab) await harnessClient.setTabCwd(tab.id, next, opts).catch(() => undefined);
+    const tabId = target ? target.tabId : (tab?.id ?? null);
+    if (tabId) await harnessClient.setTabCwd(tabId, next, opts).catch(() => undefined);
     else await harnessClient.setCwd(next, opts).catch(() => undefined);
   };
 
   // cwd 是 CLI 会话身份的一部分：换目录一定开新会话。已有对话时让用户选是否把它带过去
   const changeCwd = async (next: string) => {
     if (next === cwd) return;
-    if (hasSession || running || visibleMessages > 0) setPending(next);
+    if (hasSession || running || visibleMessages > 0)
+      setPendingCwd({
+        tabId: tab?.id ?? null,
+        backend: cli,
+        title: tab?.title ?? (cli ? ENDPOINT_NAME[cli] : ''),
+        originCwd: cwd,
+        next,
+      });
     else await apply(next, 'fresh');
   };
 
   const choose = (mode: SwitchMode) => {
-    const next = pending;
-    setPending(null);
-    if (next) void apply(next, mode);
+    const target = pending;
+    setPendingCwd(null);
+    if (target) void apply(target.next, mode, target);
   };
 
   const nomiProviders = !cli && providerClientAvailable();
@@ -98,7 +129,7 @@ export const SessionControls: React.FC<{
           data-testid="cli-carry-chip"
           title={t('下一条消息会连同之前的 {0} 条对话一起发给新会话', String(tab.carriedMessages))}
         >
-          <Icon icon={History} size={13} />
+          <Icon icon={History} size={14} />
           {t('带上前文 · {0} 条', String(tab.carriedMessages))}
           <button
             type="button"
@@ -117,16 +148,16 @@ export const SessionControls: React.FC<{
       ) : (
         nomiProviders && <ProviderSwitcher onManage={onManageNomi} />
       )}
-      {pending !== null && (
+      {pending && (
         <Modal
           open
-          onClose={() => setPending(null)}
+          onClose={() => setPendingCwd(null)}
           title={t('切换工作目录')}
           closeLabel={t('取消')}
           data-testid="cli-cwd-switch"
           footer={
             <div className={styles.actions}>
-              <Button data-testid="cli-cwd-cancel" onClick={() => setPending(null)}>
+              <Button data-testid="cli-cwd-cancel" onClick={() => setPendingCwd(null)}>
                 {t('取消')}
               </Button>
               <Button data-testid="cli-cwd-fresh" onClick={() => choose('fresh')}>
@@ -146,7 +177,11 @@ export const SessionControls: React.FC<{
         >
           <div className={styles.body}>
             <p>
-              {t('换到')} <code className={styles.path}>{pending}</code>
+              {t('换到')} <code className={styles.path}>{pending.next}</code>
+            </p>
+            <p className="cd-muted" data-testid="cli-cwd-switch-origin">
+              {t('标签「{0}」', pending.title)} ·{' '}
+              <code className={styles.path}>{pending.originCwd}</code>
             </p>
             <p className="cd-muted">
               {t(

@@ -3,7 +3,7 @@
  * 状态点：灰 = 空闲 · 蓝（脉动）= 运行中 · 黄 = 排队 · 红 = 出错 · 绿 = 有未读结果。
  */
 import { t, Icon } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -266,7 +266,7 @@ export const ChatTabs: React.FC<{
           title={`${t('新建编程助手标签')} (${formatCombo(bindings.newTab)})`}
           onClick={() => setMenu((v) => !v)}
         >
-          +
+          <Icon icon={Plus} />
         </button>
         {menu && (
           <NewChatMenu

@@ -32,6 +32,30 @@ export function isNearBottom(
   return el.scrollHeight - el.scrollTop - el.clientHeight <= px;
 }
 
+/**
+ * Keep a scroll container pinned to the bottom while its content grows, as long as `followRef`
+ * is set (the user has not scrolled away). Driven by a ResizeObserver on the content (and the
+ * container, for viewport changes) instead of a per-frame layout effect.
+ */
+export function useStickToBottom(
+  scrollRef: React.RefObject<HTMLElement | null>,
+  contentRef: React.RefObject<HTMLElement | null>,
+  followRef: React.RefObject<boolean>,
+  scrollToBottom: () => void,
+): void {
+  useEffect(() => {
+    const content = contentRef.current;
+    const scroller = scrollRef.current;
+    if (!content || !scroller || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (followRef.current) scrollToBottom();
+    });
+    ro.observe(content);
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, [scrollRef, contentRef, followRef, scrollToBottom]);
+}
+
 /** 剩余秒数（每秒刷新）；没有截止时间返回 null */
 function useSecondsLeft(expiresAt: number | undefined): number | null {
   const [now, setNow] = useState(() => Date.now());
@@ -229,7 +253,7 @@ export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
 /** 会话视图首帧渲染的末尾消息条数，以及之后每批往上补多少条 */
-export const INITIAL_RENDER = 6;
+export const INITIAL_RENDER = 3;
 export const RENDER_STEP = 6;
 
 /** 估算一条消息的渲染成本：正文每 400 字符 1，每个轨迹事件 0.5，至少 1 */
@@ -327,6 +351,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   const agentMap = useMemo(() => agentsByCall(live?.agents), [live?.agents]);
   /** 用户是否停在底部：贴底才自动跟随；上滑阅读时不抢滚动条 */
   const followRef = useRef(true);
+  const innerRef = useRef<HTMLDivElement>(null);
   const [away, setAway] = useState(false);
   const running = phase === 'running';
   const [extra, setExtra] = useState(0);
@@ -365,20 +390,23 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     [phase, live, liveItems],
   );
 
+  // 分批往上补消息时不读 scrollHeight / 不改 scrollTop：每批都强制整列重排，切会话时是主要开销之一。
+  // 内容已经超出一屏时，浏览器的滚动锚定（overflow-anchor）会让视口里的内容保持不动；
+  // 还没超出一屏（scrollTop 为 0，锚定不生效）时才由下面的 effect 补一次贴底。
   useEffect(() => {
     if (start <= fullStart) return;
-    const id = window.setTimeout(() => {
-      const el = scrollRef.current;
-      // 没有贴底（用户已上滑）时，记下高度，补完后据此保持视口不跳
-      if (el && !followRef.current) anchorRef.current = el.scrollHeight;
-      setEagerCount((n) => n + RENDER_STEP);
-    }, 0);
+    const id = window.setTimeout(() => setEagerCount((n) => n + RENDER_STEP), 0);
     return () => window.clearTimeout(id);
   }, [start, fullStart]);
 
+  /** 上次贴底时内容是否已超出一屏（超出后由滚动锚定保持位置） */
+  const overflowedRef = useRef(false);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const h = el.scrollHeight;
+    el.scrollTop = h;
+    overflowedRef.current = h > el.clientHeight;
   }, []);
 
   useLayoutEffect(() => {
@@ -388,6 +416,11 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
       anchorRef.current = null;
     }
   }, [start]);
+
+  // 滚轮 / 触控板往上：立即停止跟随（不等 scroll 事件，避免同一帧里的增长又把视口拉回底部）
+  const onWheel = useCallback((e: React.WheelEvent) => {
+    if (e.deltaY < 0) followRef.current = false;
+  }, []);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -412,23 +445,20 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     }
   }, [lastUserId, scrollToBottom]);
 
-  // 内容增长（新消息 / 流式文本 / 新工具 / 权限卡 / 状态变化）时，贴底则跟随
+  // 分批补上更早的消息：已超出一屏时交给滚动锚定，不再强制重排
+  useLayoutEffect(() => {
+    if (followRef.current && !overflowedRef.current) scrollToBottom();
+  }, [start, scrollToBottom]);
+
+  // 新消息 / 队列 / 卡片 / 阶段变化时，贴底则跟随（离散事件，每轮几次）
   useLayoutEffect(() => {
     if (followRef.current) scrollToBottom();
-  }, [
-    messages.length,
-    start,
-    last?.id,
-    live?.text,
-    live?.trace?.length,
-    live?.permissions?.length,
-    live?.permissionExpired?.at,
-    live?.status?.kind,
-    queued?.length,
-    cards?.length,
-    phase,
-    scrollToBottom,
-  ]);
+  }, [messages.length, last?.id, queued?.length, cards?.length, phase, scrollToBottom]);
+
+  // 流式文本 / 工具 / 权限卡让内容变高：由 ResizeObserver 驱动贴底，不再每帧在 layout effect 里
+  // 读 scrollHeight 强制同步重排。RO 每帧最多回调一次（布局之后、绘制之前），同一帧内的多次增长
+  // 合并为一次滚动；用户往上滚开（followRef=false）后不再跟随。
+  useStickToBottom(scrollRef, innerRef, followRef, scrollToBottom);
 
   const idle = phase === 'idle';
   const lastAssistantId = useMemo(() => {
@@ -445,9 +475,10 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
           className={styles.scroll}
           ref={scrollRef}
           onScroll={onScroll}
+          onWheel={onWheel}
           data-testid="conv-scroll"
         >
-          <div className={styles.inner}>
+          <div className={styles.inner} ref={innerRef}>
             {start > 0 && start === fullStart && (
               <button
                 type="button"
@@ -464,7 +495,12 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             )}
             {start === 0 && renderCards(cardPlan.head)}
             {turns.map((turn, i) => (
-              <section key={turn.key} className={styles.turn} data-testid="conv-turn">
+              <section
+                key={turn.key}
+                // 已完成的轮次（不是最后一轮）：视口外跳过样式 / 布局 / 绘制
+                className={i < turns.length - 1 ? `${styles.turn} ${styles.turnDone}` : styles.turn}
+                data-testid="conv-turn"
+              >
                 {turn.messages.map((m) => (
                   <React.Fragment key={m.id}>
                     {m.role === 'user' ? (
@@ -574,6 +610,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   );
 };
 
-export const ConversationView: React.FC<ConversationViewProps> = (props) => (
-  <ConversationInner key={props.scopeId} {...props} />
-);
+/** Memoized: rerenders only when its props change (App rerenders on tabs / panels do not). */
+export const ConversationView = React.memo(function ConversationView(props: ConversationViewProps) {
+  return <ConversationInner key={props.scopeId} {...props} />;
+});

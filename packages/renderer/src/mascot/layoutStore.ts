@@ -1,6 +1,6 @@
 /**
  * 看板娘布局共享状态：角色包围盒（窗口坐标）+ 光标位置。
- * 由 MascotInteractionLayer 写入，工具栏等 UI 读取以避让角色、实现“靠近才显示”。
+ * 由 InteractionLite 写入，工具栏等 UI 读取以避让角色、实现“靠近才显示”。
  */
 export interface Box {
   left: number;

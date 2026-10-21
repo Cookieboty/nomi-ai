@@ -110,7 +110,7 @@ describe('ChatTabs', () => {
     );
     const chip = await r.findByTestId('chat-tabs-load');
     expect(chip.textContent).toContain('1/3');
-    // 平时只是小芯片，不再摆一个原生下拉
+    // 平时只是小按钮，不再摆一个原生下拉
     expect(r.queryByRole('combobox')).toBeNull();
     fireEvent.click(chip);
     const pop = r.getByTestId('chat-tabs-load-pop');

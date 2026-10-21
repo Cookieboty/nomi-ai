@@ -1,6 +1,7 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
 import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,7 +10,13 @@ import React, {
   type KeyboardEvent,
 } from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectError,
+  selectIsLoading,
+  selectStreaming,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
@@ -76,7 +83,7 @@ interface MessageInputProps {
   onPluginsClick?: () => void;
 }
 
-export const MessageInput: React.FC<MessageInputProps> = ({
+const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
   placeholder = tr('输入消息...'),
@@ -109,7 +116,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
     el.style.height = next > 0 ? `${next}px` : '';
   }, [message]);
-  const { state, actions } = useAiChat();
+  // slices only: streamed frames (message content) do not rerender the composer
+  const { dispatch, actions, store: chatStore } = useAiChatActions();
+  const isLoading = useAiChatSelector(selectIsLoading);
+  const streaming = useAiChatSelector(selectStreaming);
+  const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   const [kbMode, setKbMode] = useState(() => {
     try {
@@ -305,7 +316,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         return;
       }
     }
-    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式芯片时保持默认行为
+    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式按钮时保持默认行为
     if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
       const detail: CyclePermissionDetail = { handled: false };
       window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));
@@ -314,7 +325,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     }
     // ↑ 在空输入框里找回上一条提问（同 Codex）
     if (e.key === 'ArrowUp' && !message) {
-      const last = [...state.messages].reverse().find((m) => m.role === 'user');
+      const last = [...chatStore.get().messages].reverse().find((m) => m.role === 'user');
       if (last) {
         e.preventDefault();
         setMessage(last.content);
@@ -352,18 +363,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (e.target.value === '/') slash?.refresh();
   };
 
-  const busy = busyOverride ?? state.isLoading;
+  const busy = busyOverride ?? isLoading;
   const isDisabled =
     disabled ||
-    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : state.isLoading);
+    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : isLoading);
 
   // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
-    busyOverride === undefined
-      ? state.streaming
-        ? actions.stopGeneration
-        : undefined
-      : queue?.onStop;
+    busyOverride === undefined ? (streaming ? actions.stopGeneration : undefined) : queue?.onStop;
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
   // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
   const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
@@ -635,7 +642,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div className={styles.messageInputContainer}>
-      {state.error && <ErrorHint error={state.error} />}
+      {chatError && (
+        <ErrorHint
+          error={chatError}
+          onDismiss={() => dispatch({ type: 'SET_ERROR', payload: undefined })}
+        />
+      )}
 
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
@@ -823,3 +835,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     </div>
   );
 };
+
+/** Memoized: App rerenders (tabs, panels) do not rerender the composer unless its props change. */
+export const MessageInput = memo(MessageInputImpl);

@@ -3,7 +3,7 @@
  *
  * - 保险箱：userData/cli-accounts/<kind>.json（0600），凭据经 safeStorage 加密；不可用时拒绝保存。
  * - 切换：回收全局凭据（同一账号且更新 → 更新保险箱；陌生账号 → 先存成新账号；判断不出新旧 → 取消）
- *   → 加密备份 → 写入 → 失败用备份还原 → 通知（停用第三方供应商档案、重拉 Claude 长驻进程）。
+ *   → 加密备份 → 写入 → 失败用备份还原 → 通知（停用第三方供应商、重拉 Claude 长驻进程）。
  * - 凭据只在主进程内存里出现；返回给界面的只有身份（邮箱 / 套餐）。
  */
 import { randomUUID } from 'node:crypto';
@@ -73,7 +73,7 @@ export class AccountService {
       /** 测试注入 */
       adapter?: (kind: AccountKind) => CredAdapter;
       now?: () => number;
-      /** 切换成功：停用该 CLI 的第三方供应商档案、重拉长驻进程等 */
+      /** 切换成功：停用该 CLI 的第三方供应商、重拉长驻进程等 */
       onActivated?: (kind: AccountKind) => void;
       onChanged?: () => void;
     },
@@ -251,9 +251,14 @@ export class AccountService {
       fs.rmSync(path.join(dir, f), { force: true });
   }
 
-  /** 切换全局官方账号 */
-  activate(id: string): Promise<AccountView> {
+  /**
+   * 切换全局官方账号。expectedKind：调用方以为的所属后端（界面上正在看的编程助手）；
+   * 与账号实际所属不一致就拒绝，不会借过时的菜单切到另一个 CLI 的全局登录（#69）。
+   */
+  activate(id: string, expectedKind?: AccountKind): Promise<AccountView> {
     const { kind } = this.find(id);
+    if (expectedKind !== undefined && expectedKind !== kind)
+      return Promise.reject(new AccountError('not-found', t('账号不存在')));
     return this.serial(kind, async () => {
       const { acc } = this.find(id);
       const adapter = this.adapter(kind);
@@ -326,7 +331,11 @@ export class AccountService {
       (k, label) => this.importCurrent(kindOf(k), label ? String(label) : undefined),
       { owner },
     );
-    guardedHandle('ai:cli-account:activate', (id) => this.activate(String(id)), { owner });
+    guardedHandle(
+      'ai:cli-account:activate',
+      (id, k) => this.activate(String(id), k === undefined || k === null ? undefined : kindOf(k)),
+      { owner },
+    );
     guardedHandle('ai:cli-account:rename', (id, label) => this.rename(String(id), String(label)), {
       owner,
     });

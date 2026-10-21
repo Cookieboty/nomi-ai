@@ -23,7 +23,7 @@ import { OnboardingService } from '../../../src/onboarding/OnboardingService';
 
 const dir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'onb-'));
 const make = (userData: string, openChat = jest.fn()) =>
-  new OnboardingService({ userData, openChat, listCharacters: async () => [] });
+  new OnboardingService({ userData, openChat });
 
 describe('OnboardingService', () => {
   beforeEach(() => {

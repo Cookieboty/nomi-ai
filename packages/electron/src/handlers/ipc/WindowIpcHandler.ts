@@ -48,15 +48,28 @@ export class WindowIpcHandler extends BaseIpcHandler {
       }
     });
 
-    // 打开TTS配置窗口
-    this.registerHandler('open-tts-config', async () => {
+    // 看板娘「任务看板」：打开对话窗口并切到「知识 · 记忆 · 日程」的日程页
+    this.registerHandler('open-task-board', async () => {
       try {
-        await this.windowManager.createTTSConfigWindow();
-        this.logger.info('TTS配置窗口创建成功');
+        await this.windowManager.openProviderPanel('ai:hub:open-schedule');
         return this.createSuccessResponse();
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error('创建TTS配置窗口失败', { error: errorMessage });
+        this.logger.error('打开任务看板失败', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return this.createErrorResponse(error);
+      }
+    });
+
+    // 看板娘「TTS 语音配置」/ 语音错误「去设置」：打开对话窗口的「设置 → 语音与屏幕 → 语音」
+    this.registerHandler('open-voice-settings', async () => {
+      try {
+        await this.windowManager.openProviderPanel('ai:settings:open-voice');
+        return this.createSuccessResponse();
+      } catch (error) {
+        this.logger.error('打开语音设置失败', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         return this.createErrorResponse(error);
       }
     });

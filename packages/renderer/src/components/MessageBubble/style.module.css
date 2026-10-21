@@ -1,9 +1,13 @@
-/* 看板娘气泡：纯文本；位置由 MessageBubble 根据头部矩形计算（.placed），否则退回顶部居中 */
+/*
+ * 看板娘气泡：纯文本；位置由 MessageBubble 根据头部矩形计算（.placed），否则退回顶部居中。
+ * 设计稿「气泡样式」：深色圆角 + 白字 + 左上角一颗小橙色星光；浮在桌面上，不跟随应用主题。
+ */
 .messageBubble {
   --tail-offset: 50%;
   --bubble-scale: 1;
-  --bubble-bg: var(--cd-bubble-bg, rgba(250, 244, 235, 0.95));
-  --bubble-border: var(--cd-bubble-border, rgba(196, 170, 136, 0.55));
+  --bubble-bg: rgba(52, 54, 60, 0.96);
+  --bubble-border: rgba(255, 255, 255, 0.06);
+  --bubble-link: #ffad73;
 
   box-sizing: border-box;
   position: fixed;
@@ -12,16 +16,18 @@
   width: 200px;
   margin-left: -100px;
   border: 1px solid var(--bubble-border);
-  border-radius: var(--cd-radius-lg);
+  border-radius: var(--cd-radius-xl);
   background-color: var(--bubble-bg);
-  box-shadow: var(--cd-bubble-shadow, 0 4px 14px rgba(120, 96, 64, 0.18));
+  box-shadow:
+    0 8px 22px rgba(20, 20, 24, 0.24),
+    0 1px 3px rgba(20, 20, 24, 0.18);
   font-family: var(--cd-font-sans);
   font-size: calc(var(--cd-font-size-md) * var(--bubble-scale));
   letter-spacing: var(--cd-tracking-normal);
   line-height: 1.6;
   white-space: pre-line;
   overflow-wrap: anywhere;
-  color: var(--cd-bubble-text, #5f4a27);
+  color: rgba(255, 255, 255, 0.94);
   opacity: 0;
   /* 位置不做过渡：跟随头部时必须立即到位，避免动画中途压到脸 */
   transition: opacity 0.3s ease-in-out;
@@ -34,7 +40,7 @@
   /* --bubble-max-h is the bubble's outer height (placement): include padding + 1px borders */
   box-sizing: border-box;
   max-height: calc(var(--bubble-max-h, 200px) - 2px);
-  padding: 8px 12px;
+  padding: var(--cd-space-2) var(--cd-space-3);
   overflow-x: hidden;
   /* 默认不出滚动条：测量与实际渲染存在亚像素差异，容易为单行文本错误触发 auto 滚动条。
      真正溢出时由 JS 置 data-scroll，再启用 overflow-y:auto（见下方 .active[data-scroll]）。 */
@@ -57,7 +63,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--cd-bubble-link, #8a6430);
+  color: var(--bubble-link);
   font: inherit;
   font-size: var(--cd-font-size-xs);
   font-weight: var(--cd-font-weight-medium);
@@ -66,8 +72,21 @@
   cursor: pointer;
 }
 .more:focus-visible {
-  outline: 2px solid var(--cd-bubble-link, #8a6430) !important;
+  outline: 2px solid var(--bubble-link) !important;
   outline-offset: 2px;
+}
+
+/* 左上角的小星光（四角星） */
+.messageBubble::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 10px;
+  width: 12px;
+  height: 12px;
+  background: #ff8a3d;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  pointer-events: none;
 }
 
 /* 尾巴：指向头部（data-tail = 尾巴所在的边） */

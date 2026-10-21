@@ -78,8 +78,6 @@ export interface TrayManagerOptions {
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
   quit: () => void;
-  /** 统一模型注册表（托盘「切换角色」子菜单）；可选 */
-  models?: { list(): Promise<RegistryModelLite[]>; onChange(fn: () => void): () => void };
   /** 屏幕记忆（开启时托盘提示 + 菜单「暂停」）；可选 */
   screenMemory?: {
     active(): boolean;
@@ -88,14 +86,6 @@ export interface TrayManagerOptions {
     open(): void;
   };
 }
-
-export interface RegistryModelLite {
-  id: string;
-  name: string;
-  origin: string;
-}
-
-const ORIGIN_LABEL: Record<string, string> = { bundled: '', remote: ' · 商店', user: ' · 导入' };
 
 /** 托盘「看板娘动作」菜单项 */
 export const TRAY_MOTIONS: Array<[string, string]> = [
@@ -192,8 +182,6 @@ export class TrayManager {
       }
       this.rebuild();
       this.unsubscribe = this.opts.providers.onChange(() => this.rebuild());
-      this.unsubscribeModels = this.opts.models?.onChange(() => void this.refreshModels());
-      void this.refreshModels();
       this.unsubscribeScreen = this.opts.screenMemory?.onChange(() => this.rebuild());
       // 切换界面语言后立即重建托盘菜单
       this.unsubscribeLocale = onLocaleChange(() => this.rebuild());
@@ -207,18 +195,6 @@ export class TrayManager {
 
   private unsubscribeLocale?: () => void;
   private unsubscribeIcon?: () => void;
-  private models: RegistryModelLite[] = [];
-  private unsubscribeModels?: () => void;
-
-  private async refreshModels(): Promise<void> {
-    try {
-      this.models = (await this.opts.models?.list()) ?? [];
-    } catch {
-      this.models = [];
-    }
-    this.rebuild();
-  }
-
   /** 仅测试用：当前是否持有存活的托盘 */
   isAlive(): boolean {
     return !!this.tray && !this.tray.isDestroyed();
@@ -262,21 +238,6 @@ export class TrayManager {
           click: () => broadcastMascotCommand({ type: 'motion', name }),
         })),
       },
-      ...(this.models.length
-        ? [
-            {
-              label: t('切换角色'),
-              submenu: this.models.map((m) => ({
-                label: `${m.name}${t(ORIGIN_LABEL[m.origin] ?? '')}`,
-                click: () => broadcastMascotCommand({ type: 'select-model', id: m.id }),
-              })),
-            } satisfies MenuItemConstructorOptions,
-          ]
-        : []),
-      {
-        label: t('选择角色 / 模型商店…'),
-        click: () => broadcastMascotCommand({ type: 'open-picker' }),
-      },
       {
         label: t('互动设置（穿透 / 重力 / 散步）…'),
         click: () => broadcastMascotCommand({ type: 'open-panel', panel: 'interaction' }),
@@ -292,9 +253,8 @@ export class TrayManager {
     this.unsubscribeIcon?.();
     this.unsubscribe?.();
     this.unsubscribeScreen?.();
-    this.unsubscribeModels?.();
     this.unsubscribeLocale = this.unsubscribeIcon = this.unsubscribe = undefined;
-    this.unsubscribeScreen = this.unsubscribeModels = undefined;
+    this.unsubscribeScreen = undefined;
   }
 
   dispose(): void {

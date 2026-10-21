@@ -1,4 +1,3 @@
-import { t } from '@nomi-ai/ui';
 /**
  * 看板娘提示文案。本文件为 Nomi 原创内容，随项目以 MIT 许可发布。
  * （取代此前来自第三方项目、GPL-3.0 许可的 waifu-tips.json）
@@ -14,10 +13,6 @@ export const MOUSEOVER_TIPS: TipRule[] = [
     text: ['嗯？有什么事吗～', '我在这儿呢。', '要聊点什么吗？', '别戳啦，我会害羞的。'],
   },
   { selector: '#waifu-tool-ai-chat', text: ['打开聊天窗口，和我说说话吧。', '有问题尽管问我！'] },
-  {
-    selector: '#waifu-tool-switch-model',
-    text: ['想换个人陪你吗？', '左键换下一位，右键打开角色列表～'],
-  },
   { selector: '#waifu-tool-info', text: ['想了解这个项目吗？', '这里有关于我的介绍。'] },
   { selector: '#waifu-tool-photo', text: ['要拍照吗？我准备好了！'] },
   { selector: '#waifu-tool-voice-settings', text: ['语音设置在这里，右键可以细调。'] },
@@ -49,7 +44,6 @@ export const MESSAGES = {
   welcome: '你好，我是你的桌面伙伴～',
   copy: '复制好了，记得注明出处哦。',
   visibility: '欢迎回来！',
-  modelSwitched: (name: string) => t('{0} 来啦！', name),
 };
 
 export function greetingFor(hour: number): string {

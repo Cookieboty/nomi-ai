@@ -1,14 +1,8 @@
-import type {
-  LicenseTermsView,
-  ModelConfig,
-  ModelOrigin,
-  RegistryModel,
-  VrmMetaSummary,
-} from '@nomi-ai/types';
+import type { LicenseTermsView, ModelConfig } from '@nomi-ai/types';
 
 /**
- * 看板娘模型（统一注册表：内置 + 商店已安装 + 用户导入）。
- * Electron 下由主进程 `models:list` 提供；纯浏览器 / 测试回落到内置 model-list.json。
+ * 看板娘角色。只内置 Nomi 一个角色（不再提供角色商店、导入与切换），
+ * 列表读打包进应用的 model-list.json。
  */
 export interface MascotModel {
   name: string;
@@ -21,43 +15,20 @@ export interface MascotModel {
   source: string;
   vrmVersion?: string;
   tags?: string[];
-  origin?: ModelOrigin;
   credit?: string;
   licenseTerms?: LicenseTermsView;
   licenseFileUrl?: string;
   version?: string;
   config?: ModelConfig;
-  meta?: VrmMetaSummary;
-}
-
-export function fromRegistry(m: RegistryModel): MascotModel {
-  return {
-    name: m.id,
-    displayName: m.name,
-    description: m.description,
-    path: m.path,
-    thumbnail: m.thumbnail,
-    author: m.author,
-    license: m.license,
-    source: m.source ?? '',
-    vrmVersion: m.vrmVersion,
-    tags: m.tags,
-    origin: m.origin,
-    credit: m.credit,
-    licenseTerms: m.licenseTerms,
-    licenseFileUrl: m.licenseFileUrl,
-    version: m.version,
-    config: m.config,
-    meta: m.meta,
-  };
 }
 
 export interface MascotCatalog {
   models: MascotModel[];
 }
 
-export const MODEL_LIST_URL = './assets/models/vrm/model-list.json';
-const STORAGE_KEY = 'companion.mascot.model';
+export const MODEL_LIST_URL = './assets/models/model-list.json';
+/** 旧版本记住的「当前角色」（可能是已移除的商店 / 导入角色） */
+const LEGACY_SELECTED_KEY = 'companion.mascot.model';
 
 export function parseCatalog(raw: unknown): MascotModel[] {
   const models = (raw as Partial<MascotCatalog> | null)?.models;
@@ -74,25 +45,11 @@ export function parseCatalog(raw: unknown): MascotModel[] {
 
 let cache: Promise<MascotModel[]> | null = null;
 
-export function loadCatalog(
-  fetchImpl: typeof fetch = fetch,
-  force = false,
-): Promise<MascotModel[]> {
-  if (force) cache = null;
-  const api = typeof window !== 'undefined' ? window.electronAPI?.models : undefined;
-  if (!cache && api) {
-    cache = api
-      .list()
-      .then((list) => list.map(fromRegistry))
-      .catch(() => {
-        cache = null;
-        return [];
-      });
-  }
+export function loadCatalog(fetchImpl: typeof fetch = fetch): Promise<MascotModel[]> {
   if (!cache) {
     cache = fetchImpl(MODEL_LIST_URL)
       .then((r) => (r.ok ? r.json() : null))
-      .then((raw) => parseCatalog(raw).map((m) => ({ ...m, origin: 'bundled' as const })))
+      .then((raw) => parseCatalog(raw))
       .catch(() => {
         cache = null;
         return [];
@@ -101,29 +58,16 @@ export function loadCatalog(
   return cache;
 }
 
-export function readSelectedModel(): string | null {
+/** 清掉旧版本记住的角色选择（只剩 Nomi，不再需要） */
+export function clearSelectedModel(): void {
   try {
-    return globalThis.localStorage?.getItem(STORAGE_KEY) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeSelectedModel(name: string): void {
-  try {
-    globalThis.localStorage?.setItem(STORAGE_KEY, name);
+    globalThis.localStorage?.removeItem(LEGACY_SELECTED_KEY);
   } catch {
     /* storage unavailable */
   }
 }
 
-/** 选中模型；找不到时回落到第一个（默认角色）。 */
+/** 选中模型；找不到时回落到第一个（Nomi）。 */
 export function pickModel(models: MascotModel[], name: string | null): MascotModel | undefined {
   return models.find((m) => m.name === name) ?? models[0];
-}
-
-export function nextModel(models: MascotModel[], current: string | null): MascotModel | undefined {
-  if (models.length === 0) return undefined;
-  const i = models.findIndex((m) => m.name === current);
-  return models[(i + 1) % models.length];
 }

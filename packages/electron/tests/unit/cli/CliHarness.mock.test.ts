@@ -624,6 +624,40 @@ describe('CliHarnessService session handling', () => {
       await expect(h.send('x')).rejects.toThrow('session not found: session-unknown');
     });
 
+    it('第三方供应商下按标签切模型：经 --patch 叠加配置只作用于这个进程', async () => {
+      const h = track(
+        new CliHarnessService({
+          root: fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-')),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+          providerProfile: (b) =>
+            b === 'dsh' ? { id: 'gw', name: 'Gateway', model: 'deepseek/flash' } : null,
+          providerModels: async () => ['deepseek/flash', 'deepseek/pro'],
+          dshModelPatch: (model) =>
+            `- id: agent-default-model\n  config:\n    provider: nomi\n    model: "${model}"\n`,
+        }),
+      );
+      const tab = h.createTab({ backend: 'dsh' });
+      expect((await h.modelCatalogFor('dsh'))?.models.map((m) => m.id)).toEqual([
+        'deepseek/flash',
+        'deepseek/pro',
+      ]);
+      expect((await h.sendTab(tab.id, 'a')).text).toBe('【Mock dsh】new nokey: a');
+      h.setTabModel(tab.id, 'deepseek/pro');
+      expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed nokey deepseek/pro: b');
+    });
+
+    it('上游报错（第三方密钥 / 模型不对）：显示 dsh 给的原因，不当成「无文本输出」', async () => {
+      process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR = 'nomi API error (401): Missing API key';
+      try {
+        const h = mk(() => ({ NOMI_DSH_API_KEY: 'sk-test' }));
+        h.setBackend('dsh');
+        await expect(h.send('hi')).rejects.toThrow('nomi API error (401): Missing API key');
+      } finally {
+        delete process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR;
+      }
+    });
+
     it('explains the Node >= 24 requirement when dsh prints nothing', async () => {
       const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-silent-'));
       const bin = path.join(dir, 'silent-dsh.mjs');
@@ -657,6 +691,8 @@ describe('CliHarnessService permission modes', () => {
     'NOMI_GROK_BIN',
     'NOMI_MOCK_CLAUDE_BOOT_LOG',
     'NOMI_MOCK_CLAUDE_CONTROL_LOG',
+    'NOMI_MOCK_CLAUDE_MODE_ACK',
+    'NOMI_MOCK_PROMPT_LOG',
   ];
   let saved: Record<string, string | undefined> = {};
   beforeEach(() => {
@@ -671,8 +707,16 @@ describe('CliHarnessService permission modes', () => {
       else process.env[k] = saved[k];
     }
   });
-  const mk = (root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-'))) => {
-    const h = new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: root });
+  const mk = (
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-')),
+    extra: { claudeControlTimeoutMs?: number } = {},
+  ) => {
+    const h = new CliHarnessService({
+      ...extra,
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: root,
+    });
     harnesses.push(h);
     return h;
   };
@@ -727,6 +771,39 @@ describe('CliHarnessService permission modes', () => {
     expect(() => h.setPermissionDefaults({ defaultPermissionMode: 'bypass' })).toThrow();
     const s = h.setPermissionDefaults({ defaultPermissionMode: 'plan', codexNetwork: false });
     expect(s).toMatchObject({ defaultPermissionMode: 'plan', codexNetwork: false });
+  });
+
+  it('binds a bypass confirmation to the backend / cwd it was confirmed for (#66)', () => {
+    const h = mk();
+    const tab = h.createTab({ backend: 'claude' });
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-other-'));
+    const expectNow = { backend: 'claude', cwd: tab.cwd };
+    // 确认后目录变了（会话已重置）：拒绝，档位不变
+    h.setTabCwd(tab.id, other);
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true, expect: expectNow }),
+    ).toThrow();
+    expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    // 后端不一致、类型不对同样拒绝
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 'codex', cwd: other },
+      }),
+    ).toThrow();
+    expect(() =>
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 1 as unknown as string, cwd: other },
+      }),
+    ).toThrow();
+    // 与当前标签一致才生效
+    expect(
+      h.setTabPermissionMode(tab.id, 'bypass', {
+        confirmed: true,
+        expect: { backend: 'claude', cwd: h.listTabs().tabs.find((x) => x.id === tab.id)!.cwd },
+      }).permissionMode,
+    ).toBe('bypass');
   });
 
   it('migrates old tabs and drops bypass across restarts', () => {
@@ -792,6 +869,106 @@ describe('CliHarnessService permission modes', () => {
     expect(fs.readFileSync(control, 'utf8')).toMatch(/ acceptEdits\n/);
   }, 20_000);
 
+  describe('Claude 切换要等 control_response 确认（#72）', () => {
+    /** 跑过一轮的 Claude 标签（长驻进程已在），返回启动日志读取器 */
+    const liveTab = async (
+      mode: 'plan' | 'acceptEdits' | 'bypass',
+      extra: { claudeControlTimeoutMs?: number } = {},
+    ) => {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-perm-ack-'));
+      const boot = path.join(dir, 'boot.log');
+      process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+      const h = mk(dir, extra);
+      const tab = h.createTab({ backend: 'claude' });
+      if (mode !== 'acceptEdits') h.setTabPermissionMode(tab.id, mode, { confirmed: true });
+      await h.sendTab(tab.id, 'one');
+      const boots = () => fs.readFileSync(boot, 'utf8').trim().split('\n');
+      return { h, tab, boots };
+    };
+
+    it('成功确认：等到应答才返回，进程复用', async () => {
+      const { h, tab, boots } = await liveTab('bypass');
+      const r = await h.applyTabPermissionMode(tab.id, 'plan');
+      expect(r.permissionMode).toBe('plan');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(1);
+    }, 20_000);
+
+    it('负确认：报错，不把未生效的档位用在旧进程上；下一轮按新档位重新拉起', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'error';
+      const { h, tab, boots } = await liveTab('bypass');
+      await expect(h.applyTabPermissionMode(tab.id, 'plan')).rejects.toThrow(
+        /mode change rejected/,
+      );
+      // 标签保留用户选的档位（下一轮生效），旧进程已拆
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('plan');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(2);
+      expect(boots()[1]).toContain('--permission-mode plan');
+      expect(boots()[1]).not.toContain('bypassPermissions');
+    }, 20_000);
+
+    it.each(['none', 'wrong-id'])(
+      '没有应答 / 应答的 request_id 对不上（%s）：超时报错，下一轮重新拉起',
+      async (ack) => {
+        process.env.NOMI_MOCK_CLAUDE_MODE_ACK = ack;
+        const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 300 });
+        await expect(h.applyTabPermissionMode(tab.id, 'manual')).rejects.toThrow(/超时/);
+        await h.sendTab(tab.id, 'two');
+        expect(boots()).toHaveLength(2);
+        expect(boots()[1]).toContain('--permission-mode default');
+      },
+      20_000,
+    );
+
+    it('bypass → plan 后立即发送：确认前不复用旧进程', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 300 });
+      h.setTabPermissionMode(tab.id, 'plan'); // 不等确认
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(2);
+      expect(boots()[1]).toContain('--permission-mode plan');
+    }, 20_000);
+
+    it('连续切换：只以最后一次的确认为准', async () => {
+      const { h, tab, boots } = await liveTab('bypass');
+      h.setTabPermissionMode(tab.id, 'plan');
+      h.setTabPermissionMode(tab.id, 'manual');
+      await h.applyTabPermissionMode(tab.id, 'acceptEdits');
+      await h.sendTab(tab.id, 'two');
+      expect(boots()).toHaveLength(1);
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    }, 20_000);
+
+    it('等权限模式确认时点停止：不再拉起进程、这一轮不发送（#75）', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const prompts = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'p.log');
+      process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+      const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 1500 });
+      h.setTabPermissionMode(tab.id, 'plan');
+      const p = h.sendTab(tab.id, 'two').catch((e: Error) => e);
+      await new Promise((r) => setTimeout(r, 100));
+      expect(h.cancelTab(tab.id)).toBe(true);
+      expect(await p).toBeInstanceOf(Error);
+      await new Promise((r) => setTimeout(r, 1700)); // 原本的确认超时过后也不会补发
+      expect(boots()).toHaveLength(1);
+      expect(fs.readFileSync(prompts, 'utf8')).not.toContain('two');
+      expect(h.tabMessages(tab.id).at(-1)?.stopped).toBe(true);
+    }, 20_000);
+
+    it('等确认时进程被拆（停止 / 关标签）：立即失败，不留挂起的请求', async () => {
+      process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
+      const { h, tab } = await liveTab('bypass'); // 默认 10s 超时
+      const started = Date.now();
+      const p = h.applyTabPermissionMode(tab.id, 'plan').catch((e: Error) => e);
+      h.dispose();
+      const e = await p;
+      expect(e).toBeInstanceOf(Error);
+      expect((e as Error).message).toMatch(/进程已结束/);
+      expect(Date.now() - started).toBeLessThan(5_000);
+    }, 20_000);
+  });
+
   itPosix('passes codex sandbox / approval flags per mode', async () => {
     const dir = scriptDir('harness-perm-codex-');
     const bin = path.join(dir, 'argv-codex');
@@ -831,6 +1008,52 @@ describe('CliHarnessService permission modes', () => {
     );
     expect(auto[auto.length - 1]).toBe('do it');
   });
+
+  it.each(['.js', '.mjs'])(
+    'Codex 的 %s 入口同样带沙箱 / 审批参数（新建与续接，#73）',
+    async (ext) => {
+      const dir = scriptDir('harness-perm-codex-script-');
+      const log = path.join(dir, 'argv.log');
+      const bin = path.join(dir, `codex-entry${ext}`);
+      fs.writeFileSync(
+        bin,
+        [
+          ext === '.mjs' ? "import fs from 'node:fs';" : "const fs = require('node:fs');",
+          `fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(process.argv.slice(2)) + '\\n');`,
+          "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+          "emit({ type: 'thread.started', thread_id: 'codex-thread' });",
+          "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: 'ok' } });",
+        ].join('\n'),
+      );
+      process.env.NOMI_CODEX_BIN = bin;
+      const h = mk(dir);
+      const tab = h.createTab({ backend: 'codex', permissionMode: 'plan' });
+      await h.sendTab(tab.id, 'plan it');
+      h.setTabPermissionMode(tab.id, 'auto');
+      await h.sendTab(tab.id, 'do it');
+      const [plan, auto] = fs
+        .readFileSync(log, 'utf8')
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as string[]);
+      // 新建：exec + 计划档的只读沙箱 + 工作目录
+      expect(plan[0]).toBe('exec');
+      expect(plan).toContain('sandbox_mode="read-only"');
+      expect(plan).toEqual(expect.arrayContaining(['--skip-git-repo-check', '--cd', tab.cwd]));
+      expect(plan[plan.length - 1]).toMatch(/^You are in plan mode[\s\S]*plan it$/);
+      // 续接：exec resume + 自动档参数，会话 id 与提示仍在最后
+      expect(auto.slice(0, 2)).toEqual(['exec', 'resume']);
+      expect(auto).toEqual(
+        expect.arrayContaining([
+          'sandbox_mode="workspace-write"',
+          'approval_policy="on-request"',
+          'approvals_reviewer="auto_review"',
+        ]),
+      );
+      expect(auto.slice(-2)).toEqual(['codex-thread', 'do it']);
+    },
+    20_000,
+  );
 
   itPosix('sets DSH_PERMISSION_MODE for dsh', async () => {
     const dir = scriptDir('harness-perm-dsh-');

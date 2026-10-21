@@ -160,10 +160,10 @@ describe('ProvidersPage', () => {
     expect(r.getByTestId('providers-endpoint-tabs').querySelectorAll('[role=tab]').length).toBe(7);
   });
 
-  it('只显示该端点自己的档案，未启用时显示 CLI 自带登录', async () => {
+  it('只显示该端点自己的供应商，未启用时显示 CLI 自带登录', async () => {
     setup([
-      prof({ id: 'c1', kind: 'claude', name: 'Claude 档案' }),
-      prof({ id: 'x1', kind: 'codex', name: 'Codex 档案', apiFormat: 'openai_responses' }),
+      prof({ id: 'c1', kind: 'claude', name: 'Claude 供应商' }),
+      prof({ id: 'x1', kind: 'codex', name: 'Codex 供应商', apiFormat: 'openai_responses' }),
     ]);
     localStorage.setItem('ai-chat:providerEndpoint', 'claude');
     const r = render(<ProvidersPage />);
@@ -188,7 +188,7 @@ describe('ProvidersPage', () => {
     localStorage.setItem('ai-chat:providerEndpoint', 'claude');
     const r = render(<ProvidersPage />);
     await waitFor(() => expect(r.getByTestId('cli-ep-active').textContent).toBe('中转'));
-    expect(r.getByTestId('cli-ep-source').textContent).toContain('Nomi 档案库');
+    expect(r.getByTestId('cli-ep-source').textContent).toContain('Nomi 第三方供应商');
     expect(r.getByTestId('cli-ep-routing').getAttribute('data-mode')).toBe('blocked');
 
     const row2 = r.getByTestId('cli-provider-row-c2');
@@ -277,7 +277,7 @@ describe('ProvidersPage', () => {
     await waitFor(() => expect(r.getByTestId('cli-editor-routing-hint')).toBeTruthy());
   });
 
-  it('新增档案带当前端点 kind；dsh 的高级里没有路由开关；Anthropic 预设对 Claude 是原生格式', async () => {
+  it('新增供应商带当前端点 kind；dsh 的高级里没有路由开关；Anthropic 预设对 Claude 是原生格式', async () => {
     const calls = setup([]);
     localStorage.setItem('ai-chat:providerEndpoint', 'dsh');
     const r = render(<ProvidersPage />);
@@ -329,7 +329,7 @@ describe('ProvidersPage', () => {
     });
   });
 
-  it('编辑正在使用的档案并保存时，重新写入该端点配置', async () => {
+  it('编辑正在使用的供应商并保存时，重新写入该端点配置', async () => {
     const calls = setup([
       prof({
         id: 'd1',
@@ -385,7 +385,7 @@ describe('ProvidersPage', () => {
   });
 
   it('添加/编辑在右侧抽屉打开，主列表与高级区仍可见', async () => {
-    setup([prof({ id: 'c1', kind: 'codex', name: '已有档案', apiFormat: 'openai_responses' })]);
+    setup([prof({ id: 'c1', kind: 'codex', name: '已有供应商', apiFormat: 'openai_responses' })]);
     localStorage.setItem('ai-chat:providerEndpoint', 'codex');
     const r = render(<ProvidersPage />);
     await waitFor(() => r.getByTestId('cli-provider-row-c1'));

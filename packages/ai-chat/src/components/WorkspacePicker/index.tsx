@@ -89,7 +89,7 @@ export const WorkspacePicker: React.FC<{
         data-testid={`${testId}-button`}
         onClick={() => setOpen((v) => !v)}
       >
-        <Icon icon={Folder} />
+        <Icon icon={Folder} size={14} />
         {label && <span className={styles.label}>{label}</span>}
         <span className={styles.path} data-testid={`${testId}-path`}>
           {shortenPath(value) || t('选择目录')}

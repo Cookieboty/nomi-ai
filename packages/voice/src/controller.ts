@@ -322,9 +322,11 @@ export class VoiceController {
     this.set({ phase: 'transcribing', level: 0 });
     let text: string;
     const id = stream ? await stream.ready : null;
+    // 只释放自己的流记录：等启动回复期间可能已经开始了新录音 B，this.stream 已是 B 的，
+    // 清掉会让 B 的音频 / 临时文本 / 结束都丢失（#70）
+    if (this.stream === stream) this.stream = null;
     if (stream && id) {
       this.flushStream(stream, true);
-      this.stream = null;
       let r: TranscribeResult;
       try {
         r = await this.d.api.streamStop(id);
@@ -335,8 +337,7 @@ export class VoiceController {
         r = { ok: false, code: stream.eventError.code, error: stream.eventError.message };
       text = this.handleResult(r, 'command', false);
     } else {
-      // 没有流式会话（非流式引擎，或建连失败）：整段识别
-      this.stream = null;
+      // 没有流式会话（非流式引擎，或建连失败 / 启动回复晚于松开）：整段识别
       text = await this.recognize(audio, 'command');
     }
     if (gen === this.gen) this.set({ partial: '' });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CliProviderState } from '../src/services/cliProviderClient';
 import type { CliInstallInfo } from '../src/services/cliUpdateClient';
+import type { BackendModelCatalog } from '../src/services/harnessClient';
 import type { ProviderState } from '../src/services/providerClient';
 import { executeSlash, findCommand, flattenGroups, searchCommands } from '../src/slash/registry';
 
@@ -277,7 +278,58 @@ describe('/model', () => {
       effectiveModel: 'gpt-5',
     }) as unknown as ProviderState;
 
-  it('CLI：只列这个端的档案 + 默认项，标出当前', async () => {
+  const tabCatalog = {
+    backend: 'claude',
+    defaultModel: { id: 'default', label: 'Opus 5.5', reasoning: true, efforts: [] },
+    models: [
+      { id: 'opus', label: 'Opus 5.5', reasoning: true, efforts: [] },
+      { id: 'fable', label: 'Fable 5.1', reasoning: true, efforts: [] },
+    ],
+  } as BackendModelCatalog;
+
+  it('CLI 标签：与模型按钮一致，列这个标签的模型（默认 + 目录），标出当前', async () => {
+    const { ctx, commands, actions } = makeCtx('claude');
+    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: 'fable' });
+    const r = await executeSlash('/model', commands, ctx);
+    const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
+    if (c?.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => i.label)).toEqual(['默认模型 · Opus 5.5', 'Opus 5.5', 'Fable 5.1']);
+    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['Fable 5.1']);
+    await c.items[1]!.action!.run();
+    expect(actions.setTabModel).toHaveBeenCalledWith('opus');
+    expect(actions.activateCliProfile).not.toHaveBeenCalled();
+  });
+  it('CLI 标签：/model opus 直接切换当前标签；目录里没有的完整 id 当自定义模型', async () => {
+    const { ctx, commands, actions } = makeCtx('claude');
+    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null });
+    const a = await executeSlash('/model opus', commands, ctx);
+    expect(actions.setTabModel).toHaveBeenCalledWith('opus');
+    expect(a.handled && a.outcome.type === 'card' && a.outcome.card.kind).toBe('notice');
+    await executeSlash('/model claude-opus-4-6', commands, ctx);
+    expect(actions.setTabModel).toHaveBeenLastCalledWith('claude-opus-4-6');
+  });
+  it('CLI 标签 + 第三方供应商：列供应商的模型并注明来源', async () => {
+    const { ctx, commands, actions } = makeCtx('codex');
+    actions.tabModels.mockResolvedValue({
+      catalog: {
+        backend: 'codex',
+        provider: { id: 'p', name: 'Gateway' },
+        defaultModel: { id: 'vendor/a', reasoning: false, efforts: [] },
+        models: [
+          { id: 'vendor/a', reasoning: false, efforts: [] },
+          { id: 'vendor/b', reasoning: false, efforts: [] },
+        ],
+      } as BackendModelCatalog,
+      current: null,
+    });
+    const r = await executeSlash('/model', commands, ctx);
+    const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
+    if (c?.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => i.label)).toEqual(['默认模型 · vendor/a', 'vendor/a', 'vendor/b']);
+    expect(c.note).toContain('Gateway');
+  });
+
+  it('不能按标签切模型的 CLI：仍列这个端的供应商 + 默认项，标出当前', async () => {
     const { r } = await run('claude', '/model', { data: { cliProviders: cli() } });
     const c = cardOf(r);
     if (c.kind !== 'list') throw new Error('list');
@@ -288,7 +340,7 @@ describe('/model', () => {
     ]);
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['GLM · glm-4.6']);
   });
-  it('CLI：/model kimi 唯一命中 → 直接激活档案', async () => {
+  it('CLI：/model kimi 唯一命中 → 直接激活供应商', async () => {
     const { r, actions } = await run('claude', '/model kimi', { data: { cliProviders: cli() } });
     expect(actions.activateCliProfile).toHaveBeenCalledWith('p2');
     expect(cardOf(r).kind).toBe('notice');

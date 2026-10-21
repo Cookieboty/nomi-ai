@@ -18,10 +18,20 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWriter';
 import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
+import {
+  codexApprovalSummary,
+  codexExecItem,
+  codexTokenTotals,
+  codexTurnPolicy,
+  codexTurnUsage,
+  type CodexTokenTotals,
+} from './codex/appServer';
+import { codexConfigPath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
@@ -29,9 +39,10 @@ import {
   readPathNodeVersion,
   refreshCliBin,
   resolveCliBinCached,
+  withCliPath,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
-import { AcpConnection } from './gemini/acp';
+import { AcpConnection, innermostMessage } from './gemini/acp';
 import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
 import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
 import {
@@ -41,10 +52,22 @@ import {
 } from './gemini/trustedFolders';
 import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
+  effortsForModel,
+  isValidModelId,
+  providerCatalog,
+  isReasoningEffort,
+  overrideArgs,
+  sanitizeEffort,
+  supportsModelOverride,
+  type BackendModelCatalog,
+} from './modelCatalog';
+import { discoverModels } from './modelDiscovery';
+import {
   DEFAULT_PERMISSION_MODE,
   claudeModeName,
   effectiveMode,
-  geminiModeId,
+  acpModeId,
+  fromCliPermissionMode,
   isPermissionMode,
   permissionLaunch,
   planPromptPrefix,
@@ -56,6 +79,7 @@ import {
   createDshParser,
   createGrokParser,
   parseCodexLine,
+  parseUsage,
 } from './streamParse';
 import { foldAssistantEvent } from './textCursor';
 import {
@@ -84,6 +108,8 @@ type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 export const MAIN_TAB_ID = 'main';
 export const DEFAULT_MAX_CONCURRENT = 3;
 const MAX_TAB_MESSAGES = 300;
+/** Trailing debounce for session.json / tabs.json / tab message files */
+const PERSIST_DEBOUNCE_MS = 200;
 const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
@@ -95,6 +121,10 @@ const BACKENDS: readonly HarnessBackend[] = ['nomi', 'claude', 'codex', 'dsh', '
 
 /** Gemini 一轮 5 分钟没有任何输出：多半卡在网络或上游，取消这一轮 */
 const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
+/** Claude control_request（如 set_permission_mode）等 control_response 的上限 */
+const CLAUDE_CONTROL_TIMEOUT_MS = 10_000;
+/** 停止后等中断那一轮 result 的宽限期；超过就拆进程（下一轮 --resume） */
+const CLAUDE_INTERRUPT_GRACE_MS = 5_000;
 
 function isBackend(v: unknown): v is HarnessBackend {
   return typeof v === 'string' && (BACKENDS as readonly string[]).includes(v);
@@ -271,6 +301,9 @@ export function resolveHarnessBin(backend: CliBackend): string | null {
   return resolveCliBinCached(backend);
 }
 
+/** 模型目录缓存时长：CLI 升级 / 官方目录更新后最迟这么久会重新读到 */
+const MODEL_CATALOG_TTL_MS = 10 * 60_000;
+
 const CLI_BACKENDS: readonly CliBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 状态里展示用的可执行文件路径：只读缓存，绝不在这里 spawn（未缓存的由 refreshBins 异步补上） */
@@ -306,6 +339,11 @@ export class CliHarnessService {
   >();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
+  /**
+   * 每次发送一个中止令牌（标签 → 这一轮）：从开始运行到这一轮真正发给 CLI 之间（Gemini 握手、
+   * 等权限模式确认）点停止，靠它让晚到的握手 / 确认结果不再把这一轮发出去（#75）
+   */
+  private readonly sendAborts = new Map<string, AbortController>();
   /** 实时事件按帧合批后再广播（见 eventBatcher） */
   private readonly eventBatcher = new EventBatcher<HarnessEvent & { tabId: string }>((batch) =>
     this.broadcast('ai:harness:events', batch),
@@ -323,7 +361,9 @@ export class CliHarnessService {
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
   /** Gemini ACP 长驻进程（docs/design/cli-official-accounts.md §8）：同一标签多轮复用 */
-  private readonly geminiLive = new Map<string, GeminiLiveSession>();
+  private readonly acpLive = new Map<string, AcpLiveSession>();
+  /** Codex app-server 长驻进程：同一标签多轮复用 */
+  private readonly codexLive = new Map<string, CodexLiveSession>();
   /** tabId → 运行中的后台子代理（来自 agent 事件；后台任务条与「停止子代理」用） */
   private readonly bgAgents = new Map<string, Map<string, { label?: string; startedAt: number }>>();
   /** 因空闲被回收、尚未重新拉起的标签（只在内存；下一条消息 --resume 后清除） */
@@ -339,14 +379,35 @@ export class CliHarnessService {
   private activeTabId = MAIN_TAB_ID;
   private maxConcurrent = DEFAULT_MAX_CONCURRENT;
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
+  /**
+   * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
+   * 模型 / 思考深度在换官方账号或第三方供应商时清掉（recycleBackend）；「完全放开」从不记住。
+   */
+  private readonly lastSettings = new Map<HarnessBackend, LastTabSettings>();
   private codexNetwork = true;
+  /** 这台机器上的 Grok 起不来 ACP：之后的轮次退回 `grok -p`（只在内存，重启后再试） */
+  private grokAcpUnavailable = false;
+  /** 这台机器上的 Codex 起不来 app-server：之后的轮次退回 `codex exec`（只在内存） */
+  private codexAppUnavailable = false;
   private readonly home: string;
   private readonly statePath: string;
   private readonly tabsPath: string;
   private readonly tabsDir: string;
   private readonly recentPath: string;
   private recent: string[] = [];
+  /** state.json / tabs.json / tabs/<id>.json: coalesced ~200 ms, async, atomic (flushed on dispose) */
+  private readonly writer: CoalescedWriter;
+  /** JSON length of each tab's last message-file write: decides compaction without a 2nd stringify */
+  private readonly tabFileBytes = new Map<string, number>();
+  private broadcastQueued = false;
+  private disposed = false;
   readonly events = new EventEmitter();
+  /** 各 CLI 的模型目录缓存（从 CLI 读取，见 modelCatalogFor） */
+  private readonly modelCatalogs = new Map<
+    HarnessBackend,
+    { at: number; catalog: BackendModelCatalog }
+  >();
+  private readonly modelCatalogInflight = new Map<HarnessBackend, Promise<BackendModelCatalog>>();
 
   constructor(
     private readonly d: {
@@ -354,16 +415,34 @@ export class CliHarnessService {
       logger: Logger;
       home?: string;
       defaultCwd?: string;
-      /** 启动 dsh 时注入的额外环境变量（例如启用档案的 NOMI_DSH_API_KEY） */
+      /** 启动 dsh 时注入的额外环境变量（例如启用第三方供应商的 NOMI_DSH_API_KEY） */
       dshEnv?: () => Record<string, string>;
-      /** 启动 Grok 时注入的额外环境变量（例如启用档案写入的 XAI_API_KEY） */
+      /** 启动 Grok 时注入的额外环境变量（例如启用第三方供应商写入的 XAI_API_KEY） */
       grokEnv?: () => Record<string, string>;
-      /** Gemini 第三方档案（CliProviderBridge.geminiEnv） */
+      /** Gemini 第三方供应商（CliProviderBridge.geminiEnv） */
       geminiEnv?: () => Record<string, string>;
+      /** 该 CLI 是否启用了第三方供应商（只有它、没有 providerProfile 时：启用后不能按标签切模型） */
+      hasProviderProfile?: (backend: CliBackend) => boolean;
+      /** 该 CLI 启用中的第三方供应商：模型目录换成它的模型，标签的模型选择按供应商分开记 */
+      providerProfile?: (backend: CliBackend) => { id: string; name: string; model: string } | null;
+      /** 启用中第三方供应商的上游模型列表（GET /models，用供应商自己的密钥） */
+      providerModels?: (backend: CliBackend) => Promise<string[]>;
+      /** dsh：用某个模型生成叠加配置（`--patch`），标签选的模型只作用于那一个进程 */
+      dshModelPatch?: (model: string) => string | null;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
       geminiPromptIdleMs?: number;
+      /** Claude control_request 等确认的上限（毫秒）；缺省 CLAUDE_CONTROL_TIMEOUT_MS */
+      claudeControlTimeoutMs?: number;
+      /** 停止后等中断那一轮结束的宽限（毫秒）；缺省 CLAUDE_INTERRUPT_GRACE_MS */
+      claudeInterruptGraceMs?: number;
+      /** 新建 / 切到 Claude、Gemini、Grok 标签时预先拉起长驻进程（首条消息免冷启动）；测试缺省关闭 */
+      prewarmClaude?: boolean;
+      /** Grok 走 ACP 长驻会话（`grok agent stdio`）；关闭或起不来时用 `grok -p`。测试缺省关闭 */
+      grokAcp?: boolean;
+      /** Codex 走 app-server 长驻会话（`codex app-server`）；关闭或起不来时用 `codex exec`。测试缺省关闭 */
+      codexAppServer?: boolean;
     },
   ) {
     this.idleReclaimMs = resolveIdleReclaimMs(d.idleReclaimMs, process.env.NOMI_HARNESS_IDLE_MS);
@@ -372,6 +451,11 @@ export class CliHarnessService {
     this.tabsPath = path.join(d.root, 'tabs.json');
     this.tabsDir = path.join(d.root, 'tabs');
     this.recentPath = path.join(d.root, 'recent-cwds.json');
+    this.writer = new CoalescedWriter(PERSIST_DEBOUNCE_MS, (file, e) =>
+      d.logger.warn('harness persist failed', { file: path.basename(file), e }),
+    );
+    // another instance on this root (restart in-process / tests) may still hold unwritten state
+    flushPendingWritesSync(d.root);
     fs.mkdirSync(this.tabsDir, { recursive: true });
     const now = Date.now();
     this.tabs.set(MAIN_TAB_ID, {
@@ -440,13 +524,19 @@ export class CliHarnessService {
     try {
       const raw = JSON.parse(
         fs.readFileSync(this.statePath, 'utf8'),
-      ) as Partial<HarnessSessionState> & { title?: string; permissionMode?: unknown };
+      ) as Partial<HarnessSessionState> & {
+        title?: string;
+        permissionMode?: unknown;
+        modelOverride?: unknown;
+        reasoningEffort?: unknown;
+      };
       const m = this.main;
       if (isBackend(raw.backend)) m.backend = raw.backend;
       if (typeof raw.cwd === 'string' && raw.cwd) m.cwd = raw.cwd;
       if (typeof raw.cliSessionId === 'string') m.cliSessionId = raw.cliSessionId;
       if (typeof raw.title === 'string' && raw.title.trim()) m.title = raw.title;
       mainMode = raw.permissionMode;
+      this.restoreOverrides(m, raw);
     } catch {
       /* */
     }
@@ -456,6 +546,7 @@ export class CliHarnessService {
         maxConcurrent?: number;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
+        lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
       if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
@@ -463,16 +554,19 @@ export class CliHarnessService {
         this.defaultPermissionMode = raw.defaultPermissionMode;
       }
       if (typeof raw.codexNetwork === 'boolean') this.codexNetwork = raw.codexNetwork;
+      this.restoreLastSettings(raw.lastSettings);
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
         // 重启时中断的轮次回到空闲
-        this.tabs.set(tab.id, {
+        const restored: HarnessTabMeta = {
           ...tab,
           status: tab.status === 'error' ? 'error' : 'idle',
           unread: Number(tab.unread) || 0,
           permissionMode: this.restoredMode(tab.backend, tab.permissionMode),
-        });
+        };
+        this.restoreOverrides(restored, tab);
+        this.tabs.set(tab.id, restored);
       }
       if (raw.activeTabId && this.tabs.has(raw.activeTabId)) this.activeTabId = raw.activeTabId;
     } catch {
@@ -481,37 +575,59 @@ export class CliHarnessService {
     this.main.permissionMode = this.restoredMode(this.main.backend, mainMode);
   }
 
+  /** Schedule session.json + tabs.json (coalesced; the contents are taken at write time). */
   private persist() {
+    this.writer.schedule(this.statePath, () => JSON.stringify(this.sessionSnapshot()));
+    this.writer.schedule(this.tabsPath, () => JSON.stringify(this.tabsSnapshot()));
+  }
+
+  /** Write any pending state / message files now (quit, dispose, tests). */
+  flushPersist(): void {
+    this.writer.flushSync();
+  }
+
+  private sessionSnapshot() {
     const m = this.main;
-    const s: HarnessSessionState & { title: string; permissionMode: HarnessPermissionMode } = {
+    const s: HarnessSessionState & {
+      title: string;
+      permissionMode: HarnessPermissionMode;
+      modelOverride?: string | null;
+      reasoningEffort?: string | null;
+    } = {
       backend: m.backend,
       cwd: m.cwd,
       cliSessionId: m.cliSessionId,
       busy: m.status === 'running' || m.status === 'queued',
       title: m.title,
       permissionMode: m.permissionMode,
+      ...(m.modelOverride ? { modelOverride: m.modelOverride } : {}),
+      ...(m.reasoningEffort ? { reasoningEffort: m.reasoningEffort } : {}),
     };
-    try {
-      fs.writeFileSync(this.statePath, JSON.stringify(s, null, 2), 'utf8');
-      const tabs = [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID);
-      fs.writeFileSync(
-        this.tabsPath,
-        JSON.stringify(
-          {
-            activeTabId: this.activeTabId,
-            maxConcurrent: this.maxConcurrent,
-            defaultPermissionMode: this.defaultPermissionMode,
-            codexNetwork: this.codexNetwork,
-            tabs,
-          },
-          null,
-          2,
-        ),
-        'utf8',
-      );
-    } catch (e) {
-      this.d.logger.warn('harness persist failed', e);
-    }
+    return s;
+  }
+
+  private tabsSnapshot() {
+    return {
+      activeTabId: this.activeTabId,
+      maxConcurrent: this.maxConcurrent,
+      defaultPermissionMode: this.defaultPermissionMode,
+      codexNetwork: this.codexNetwork,
+      lastSettings: Object.fromEntries(this.lastSettings),
+      tabs: [...this.tabs.values()].filter((x) => x.id !== MAIN_TAB_ID),
+    };
+  }
+
+  /** Schedule a tab's message file; compacts old traces when the last write was near the cap. */
+  private persistMessages(id: string) {
+    this.writer.schedule(this.messagesPath(id), () => {
+      const list = this.messages.get(id) ?? [];
+      // 文件过大：较早消息的轨迹只保留骨架（按上次写入的体积判断，免去每次二次 stringify）
+      if ((this.tabFileBytes.get(id) ?? 0) > MAX_TAB_FILE_BYTES * 0.9) compactOldTraces(list);
+      let json = JSON.stringify(list);
+      if (json.length > MAX_TAB_FILE_BYTES && compactOldTraces(list)) json = JSON.stringify(list);
+      this.tabFileBytes.set(id, json.length);
+      return json;
+    });
   }
 
   private messagesPath(id: string) {
@@ -588,7 +704,7 @@ export class CliHarnessService {
     }
     if (!changed) return;
     try {
-      fs.writeFileSync(this.messagesPath(id), JSON.stringify(list), 'utf8');
+      this.persistMessages(id);
     } catch (e) {
       this.d.logger.warn('harness image link migration failed', e);
     }
@@ -601,14 +717,7 @@ export class CliHarnessService {
     const list = this.tabMessages(id);
     list.push(msg);
     if (list.length > MAX_TAB_MESSAGES) list.splice(0, list.length - MAX_TAB_MESSAGES);
-    try {
-      let json = JSON.stringify(list);
-      // 文件过大：较早消息的轨迹只保留骨架，避免每条消息都整文件同步写几十 MB
-      if (json.length > MAX_TAB_FILE_BYTES && compactOldTraces(list)) json = JSON.stringify(list);
-      fs.writeFileSync(this.messagesPath(id), json, 'utf8');
-    } catch (e) {
-      this.d.logger.warn('harness tab messages write failed', e);
-    }
+    this.persistMessages(id);
     this.post('ai:harness:tab-message', { tabId: id, message: msg });
   }
 
@@ -647,7 +756,7 @@ export class CliHarnessService {
     return this.state();
   }
 
-  /** 放弃待带入的前文（输入栏「带上前文」芯片上的 ×） */
+  /** 放弃待带入的前文（输入栏「带上前文」按钮上的 ×） */
   clearTabCarry(id: string): HarnessTabMeta {
     const tab = this.requireTab(id);
     this.setCarried(tab, null);
@@ -720,6 +829,11 @@ export class CliHarnessService {
       cliSessionId?: string;
       /** 分叉时继承来源标签的模式；缺省用默认档。「完全放开」不能经此继承 */
       permissionMode?: HarnessPermissionMode;
+      /** 历史文件未记录权限时，首次 ACP 握手采用 CLI 返回的当前模式。 */
+      permissionModeSource?: 'history-cli';
+      /** 历史会话实际使用的模型 / 推理档位；只接受合法值，优先于该后端最近设置 */
+      modelOverride?: string | null;
+      reasoningEffort?: string | null;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -748,7 +862,16 @@ export class CliHarnessService {
           ? opts.permissionMode
           : this.defaultPermissionMode,
       ).mode,
+      ...(opts.permissionModeSource ? { permissionModeSource: opts.permissionModeSource } : {}),
     };
+    this.inheritSettings(
+      tab,
+      isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
+    );
+    if (opts.modelOverride && isValidModelId(opts.modelOverride))
+      tab.modelOverride = opts.modelOverride;
+    if (opts.reasoningEffort && isReasoningEffort(opts.reasoningEffort))
+      tab.reasoningEffort = opts.reasoningEffort;
     this.tabs.set(tab.id, tab);
     const seeded = Array.isArray(opts.messages)
       ? opts.messages
@@ -770,7 +893,7 @@ export class CliHarnessService {
     this.messages.set(tab.id, seeded);
     if (seeded.length) {
       try {
-        fs.writeFileSync(this.messagesPath(tab.id), JSON.stringify(seeded), 'utf8');
+        this.persistMessages(tab.id);
       } catch (e) {
         this.d.logger.warn('harness tab seed write failed', e);
       }
@@ -780,6 +903,7 @@ export class CliHarnessService {
     }
     this.activeTabId = tab.id;
     this.changed();
+    this.prewarm(tab.id);
     return { ...tab };
   }
 
@@ -799,6 +923,10 @@ export class CliHarnessService {
     cwd: string;
     title: string;
     messages: HarnessTabMessage[];
+    modelOverride?: string | null;
+    reasoningEffort?: string | null;
+    permissionMode?: HarnessPermissionMode;
+    permissionModeSource?: 'history-cli';
   }): { tab: HarnessTabMeta; reused: boolean } {
     const existing = [...this.tabs.values()].find(
       (x) => x.backend === o.backend && x.cliSessionId === o.sessionId,
@@ -813,6 +941,10 @@ export class CliHarnessService {
       title: o.title,
       messages: o.messages,
       cliSessionId: o.sessionId,
+      modelOverride: o.modelOverride,
+      reasoningEffort: o.reasoningEffort,
+      permissionMode: o.permissionMode,
+      permissionModeSource: o.permissionModeSource,
     });
     return { tab, reused: false };
   }
@@ -837,7 +969,7 @@ export class CliHarnessService {
       }));
     this.messages.set(id, seeded);
     try {
-      fs.writeFileSync(this.messagesPath(id), JSON.stringify(seeded), 'utf8');
+      this.persistMessages(id);
     } catch (e) {
       this.d.logger.warn('harness tab seed write failed', e);
     }
@@ -856,7 +988,10 @@ export class CliHarnessService {
     const idx = order.indexOf(id);
     this.tabs.delete(id);
     this.messages.delete(id);
+    this.tabFileBytes.delete(id);
     this.progress.delete(id);
+    // a pending coalesced write must not recreate the deleted file
+    this.writer.cancel(this.messagesPath(id));
     try {
       fs.rmSync(this.messagesPath(id), { force: true });
       fs.rmSync(this.carryPath(id), { force: true });
@@ -884,6 +1019,7 @@ export class CliHarnessService {
 
   setActiveTab(id: string): HarnessTabsState {
     const tab = this.requireTab(id);
+    this.prewarm(tab.id);
     // 已经是当前标签且没有未读：不必落盘 / 广播（侧栏切回当前会话时会再激活一次）
     if (this.activeTabId === tab.id && tab.unread === 0) return this.listTabs();
     this.activeTabId = tab.id;
@@ -903,7 +1039,11 @@ export class CliHarnessService {
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
     if (switched) {
       this.teardownClaudeLive(id);
+      this.teardownCodexLive(id);
+      this.teardownAcpLive(id);
       tab.cliSessionId = null;
+      // 历史同步标记只属于原 CLI 的那个会话
+      delete tab.permissionModeSource;
       // 标题若是旧后端的默认名（含「Grok 2」这类自动编号），切后端时同步为新后端默认名，
       // 否则空会话从 Grok 切到 Codex 后欢迎标题 / 占位符仍显示 Grok；用户手动重命名的标题保留
       const oldDefault = BACKEND_TITLE[tab.backend];
@@ -919,6 +1059,11 @@ export class CliHarnessService {
     tab.backend = backend;
     // 新后端不支持当前档位时降到更安全的一档
     tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
+    // 模型 / 思考深度覆盖只属于产生它的后端（模型名跨后端无意义），切换即清除
+    if (switched) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = null;
+    }
     // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
     if (switched) this.changed();
     return { ...tab };
@@ -933,7 +1078,13 @@ export class CliHarnessService {
     const tab = this.requireTab(id);
     const abs = validDir(cwd);
     if (abs !== tab.cwd) {
-      this.teardownClaudeLive(id);
+      // 当前轮次让 CLI 正常收尾；下一轮会按 cwd 不同拆掉旧进程。
+      // 空闲标签则立即回收，避免旧项目的长驻进程继续占用资源。
+      if (tab.status !== 'running') {
+        this.teardownClaudeLive(id);
+        this.teardownCodexLive(id);
+        this.teardownAcpLive(id);
+      }
       tab.cliSessionId = null;
       this.setCarried(tab, opts.carry ? this.tabMessages(id) : null, tab.cwd);
     }
@@ -945,40 +1096,395 @@ export class CliHarnessService {
 
   /**
    * 切换标签权限模式。返回实际生效的档位（后端不支持时已降级）。
-   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认。
-   * Claude 长驻进程用 control_request 即时切换；Codex / dsh / Grok 下一轮启动时生效。
+   * 「完全放开」必须带 confirmed（渲染层确认框之后），防止绕过确认；带 expect 时确认绑定在
+   * 发起确认时的后端 / 目录上，期间标签换了后端或目录（会话已重置）就拒绝，要求重新确认。
+   * Claude 长驻进程用 control_request、Gemini 用 session/set_mode 即时切换，但只有后端确认后才算生效：
+   * 确认前不复用进程跑下一轮，失败就拆掉进程 / 会话、下一轮按新档位重拉（#72，等结果见
+   * applyTabPermissionMode）。Codex / dsh / Grok 每轮一个进程，下一轮启动时生效。
    */
   setTabPermissionMode(
     id: string,
     mode: HarnessPermissionMode,
-    opts: { confirmed?: boolean } = {},
+    opts: { confirmed?: boolean; expect?: { backend?: string; cwd?: string } } = {},
   ): HarnessTabMeta & { degraded: boolean } {
     const tab = this.requireTab(id);
     if (!isPermissionMode(mode)) throw new Error(t('未知权限模式'));
     if (mode === 'bypass' && !opts.confirmed) throw new Error(t('完全放开需要先确认'));
+    const want = opts.expect;
+    if (
+      mode === 'bypass' &&
+      want &&
+      ((want.backend !== undefined && want.backend !== tab.backend) ||
+        (want.cwd !== undefined && want.cwd !== tab.cwd))
+    )
+      throw new Error(t('标签的后端或工作目录已变化，请重新确认「完全放开」'));
     const next = effectiveMode(tab.backend, mode);
+    // 用户显式选择的档位优先于「从历史 CLI 会话同步」：首次握手不得再覆盖它
+    delete tab.permissionModeSource;
     if (next.mode !== tab.permissionMode) {
       tab.permissionMode = next.mode;
-      const gl = this.geminiLive.get(id);
-      if (gl?.sessionId && gl.permissionMode !== next.mode) {
-        gl.permissionMode = next.mode;
-        void gl.conn
-          .request('session/set_mode', { sessionId: gl.sessionId, modeId: geminiModeId(next.mode) })
-          .catch(() => this.teardownGeminiLive(id));
-      }
+      this.rememberSettings(tab);
+      const gl = this.acpLive.get(id);
+      if (gl?.sessionId && (gl.permissionMode !== next.mode || gl.modeChange))
+        this.switchAcpMode(id, gl, next.mode);
       const live = this.claudeLive.get(id);
-      if (live && live.permissionMode !== next.mode) {
-        const sent = this.writeClaudeControl(live, {
-          subtype: 'set_permission_mode',
-          mode: claudeModeName(next.mode),
-        });
-        // 写不进去：拆掉，下一轮带新模式 --resume 重拉
-        if (sent) live.permissionMode = next.mode;
-        else this.teardownClaudeLive(id);
-      }
+      if (live && (live.permissionMode !== next.mode || live.modeChange))
+        this.switchClaudeMode(id, live, next.mode);
       this.changed();
     }
     return { ...tab, degraded: next.degraded };
+  }
+
+  /**
+   * 切换并等长驻进程确认（IPC 走这里）。后端拒绝 / 超时会抛出可读错误：进程 / 会话已拆除，
+   * 标签档位保持用户选的，下一轮按它重新拉起；界面不能把没生效的档位当成已生效（#72）。
+   */
+  async applyTabPermissionMode(
+    id: string,
+    mode: HarnessPermissionMode,
+    opts: { confirmed?: boolean; expect?: { backend?: string; cwd?: string } } = {},
+  ): Promise<HarnessTabMeta & { degraded: boolean }> {
+    const r = this.setTabPermissionMode(id, mode, opts);
+    await Promise.all([
+      this.claudeLive.get(id)?.modeChange?.done,
+      this.acpLive.get(id)?.modeChange?.done,
+    ]);
+    return { ...this.requireTab(id), degraded: r.degraded };
+  }
+
+  /** Claude 长驻进程即时切换：control_request 得到成功 control_response 后才更新已生效档位 */
+  private switchClaudeMode(id: string, live: ClaudeLiveSession, mode: HarnessPermissionMode) {
+    const change: ModeChange = { mode, done: Promise.resolve() };
+    change.done = this.requestClaudeControl(live, {
+      subtype: 'set_permission_mode',
+      mode: claudeModeName(mode),
+    }).then(
+      () => {
+        // CLI 按顺序处理 stdin：最后一个成功应答就是进程当前的档位
+        if (this.claudeLive.get(id) === live) live.permissionMode = mode;
+        if (live.modeChange === change) live.modeChange = null;
+      },
+      (e: unknown) => {
+        if (live.modeChange !== change) return; // 已被更新的切换取代
+        live.modeChange = null;
+        // 负确认 / 超时 / 写不进去：进程档位不确定，拆掉；下一轮带新档位 --resume 重拉
+        if (this.claudeLive.get(id) === live) this.teardownClaudeLive(id);
+        throw new Error(
+          t(
+            'Claude Code 没有确认权限模式切换（{0}），已停止当前进程，下一轮会按新模式重新启动',
+            e instanceof Error ? e.message : String(e),
+          ),
+        );
+      },
+    );
+    live.modeChange = change;
+    change.done.catch(() => undefined); // 由 applyTabPermissionMode / 发送前的等待处理
+  }
+
+  /** Gemini / Grok 长驻会话即时切换：session/set_mode 成功后才更新已生效档位 */
+  private switchAcpMode(id: string, gl: AcpLiveSession, mode: HarnessPermissionMode) {
+    const change: ModeChange = { mode, done: Promise.resolve() };
+    change.done = gl.conn
+      .request('session/set_mode', { sessionId: gl.sessionId, modeId: acpModeId(gl.backend, mode) })
+      .then(
+        () => {
+          if (this.acpLive.get(id) === gl) gl.permissionMode = mode;
+          if (gl.modeChange === change) gl.modeChange = null;
+        },
+        (e: unknown) => {
+          if (gl.modeChange !== change) return;
+          gl.modeChange = null;
+          // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
+          if (this.acpLive.get(id) === gl) this.teardownAcpLive(id);
+          const why = innermostMessage(e instanceof Error ? e.message : String(e));
+          throw new Error(
+            gl.backend === 'grok'
+              ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
+              : t(
+                  'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
+                  why,
+                ),
+          );
+        },
+      );
+    gl.modeChange = change;
+    change.done.catch(() => undefined);
+  }
+
+  /**
+   * 该后端的模型目录，从 CLI 自己读取（见 modelDiscovery.ts，不写死）。
+   * 不支持标签级覆盖的后端返回 null（界面不显示按钮）；读取失败返回带 error 的空目录
+   * （界面只保留「默认模型」与自定义 id）。结果按后端缓存，refresh 强制重读；
+   * 切换官方账号 / 启用或停用第三方供应商时由 recycleBackend 清掉缓存。
+   */
+  async modelCatalogFor(
+    backend: HarnessBackend,
+    opts: { refresh?: boolean } = {},
+  ): Promise<BackendModelCatalog | null> {
+    // 读目录时顺手把这个后端的标签对齐当前来源（重启后第一次打开模型按钮时也正确）
+    this.adoptScopes(backend);
+    const profile =
+      backend !== 'nomi' && this.d.providerProfile ? this.activeProfile(backend) : null;
+    if (profile && this.canOverride(backend))
+      return this.providerCatalogFor(backend as CliBackend, profile, opts);
+    if (!supportsModelOverride(backend)) return null;
+    const cached = this.modelCatalogs.get(backend);
+    if (!opts.refresh && cached && Date.now() - cached.at < MODEL_CATALOG_TTL_MS) {
+      return cached.catalog;
+    }
+    const inflight = this.modelCatalogInflight.get(backend);
+    if (inflight) return inflight;
+    const run = discoverModels(backend, {
+      spawn: (b, args) => {
+        const bin = resolveHarnessBin(b);
+        if (!bin) return null;
+        const useNode = isScript(bin);
+        let extra: Record<string, string> = {};
+        try {
+          extra = (b === 'grok' ? this.d.grokEnv?.() : undefined) ?? {};
+        } catch (e) {
+          this.d.logger.warn('harness grok env failed', e);
+        }
+        return spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...args] : args, {
+          cwd: os.tmpdir(),
+          env: cliChildEnv(useNode, extra),
+        });
+      },
+      codexConfigPath: process.env.CODEX_HOME
+        ? path.join(process.env.CODEX_HOME, 'config.toml')
+        : codexConfigPath(this.home),
+    })
+      .catch((e: unknown): BackendModelCatalog => {
+        const error = e instanceof Error ? e.message : String(e);
+        this.d.logger.warn('harness model discovery failed', { backend, error });
+        return { backend, models: [], defaultModel: null, error };
+      })
+      .then((catalog) => {
+        // 失败结果不缓存，下次打开浮层再试
+        if (catalog.error) this.modelCatalogs.delete(backend);
+        else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
+        return catalog;
+      })
+      .finally(() => this.modelCatalogInflight.delete(backend));
+    this.modelCatalogInflight.set(backend, run);
+    return run;
+  }
+
+  /**
+   * 第三方供应商的模型目录：上游 `/models`（用供应商自己的密钥），供应商里配置的模型作默认。
+   * 读不到列表时只保留默认模型并带上原因；结果按后端缓存，换了供应商就重读。
+   */
+  private async providerCatalogFor(
+    backend: CliBackend,
+    profile: { id: string; name: string; model: string },
+    opts: { refresh?: boolean },
+  ): Promise<BackendModelCatalog> {
+    const cached = this.modelCatalogs.get(backend);
+    if (
+      !opts.refresh &&
+      cached &&
+      cached.catalog.provider?.id === profile.id &&
+      Date.now() - cached.at < MODEL_CATALOG_TTL_MS
+    )
+      return cached.catalog;
+    const inflight = this.modelCatalogInflight.get(backend);
+    if (inflight) return inflight as Promise<BackendModelCatalog>;
+    const run = (this.d.providerModels?.(backend) ?? Promise.resolve([]))
+      .then(
+        (ids) => providerCatalog(backend, profile, ids),
+        (e: unknown) => {
+          const error = e instanceof Error ? e.message : String(e);
+          this.d.logger.warn('harness provider model list failed', { backend, error });
+          return providerCatalog(backend, profile, [], error);
+        },
+      )
+      .then((catalog) => {
+        if (catalog.error) this.modelCatalogs.delete(backend);
+        else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
+        return catalog;
+      })
+      .finally(() => this.modelCatalogInflight.delete(backend));
+    this.modelCatalogInflight.set(backend, run);
+    return run;
+  }
+
+  /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
+  private cachedCatalog(backend: HarnessBackend): BackendModelCatalog | null {
+    return this.modelCatalogs.get(backend)?.catalog ?? null;
+  }
+
+  /**
+   * 设置标签的模型覆盖（官方账号路径）。
+   * 传空串清除覆盖（沿用 CLI 默认模型）；只接受有模型目录的后端与合法模型名。
+   * 覆盖经进程级参数注入（codex `-c` / grok `-m` / claude `--model`），不改写全局 CLI 配置；
+   * 每轮新进程的后端下一轮生效；Claude 长驻进程在下一轮发送前用 set_model 原地切换
+   * （思考深度随之变化时仍是空闲即回收、下一轮用新参数重启）。
+   * 切到非推理模型时同步清除思考深度。
+   */
+  setTabModel(id: string, model: string): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    const backend = tab.backend;
+    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    const name = model.trim();
+    const scope = this.adoptScope(tab);
+    if (name && !this.d.providerProfile && scope)
+      throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
+    if (!name) {
+      if (tab.modelOverride || tab.reasoningEffort) {
+        tab.modelOverride = null;
+        tab.reasoningEffort = null;
+        this.rememberSettings(tab);
+        this.changed();
+        this.recycleLiveForOverride(tab);
+      }
+      return { ...tab };
+    }
+    if (!isValidModelId(name)) throw new Error(t('模型名不合法'));
+    if (tab.modelOverride !== name) {
+      tab.modelOverride = name;
+      tab.modelScope = scope;
+      // CLI 说不支持思考深度 / 不支持当前档位的模型：已选档位清掉（回到 CLI 默认）；
+      // 第三方供应商的模型没有思考深度
+      tab.reasoningEffort = scope
+        ? null
+        : sanitizeEffort(this.cachedCatalog(backend), name, tab.reasoningEffort);
+      this.rememberSettings(tab);
+      this.changed();
+      this.recycleLiveForOverride(tab);
+    }
+    return { ...tab };
+  }
+
+  /**
+   * 设置标签的思考深度（仅推理模型）。传 null 清除（沿用 CLI 默认档位）。
+   * 只接受支持覆盖的后端；目录已读到时档位必须是该模型（未选模型 = CLI 默认模型）
+   * 在 CLI 里声明支持的，目录还没读到时只校验枚举，由 CLI 自己报错。
+   */
+  setTabReasoningEffort(id: string, effort: string | null): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    const backend = tab.backend;
+    if (effort === null) {
+      if (tab.reasoningEffort) {
+        tab.reasoningEffort = null;
+        this.rememberSettings(tab);
+        this.changed();
+        this.recycleLiveForOverride(tab);
+      }
+      return { ...tab };
+    }
+    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (this.adoptScope(tab)) throw new Error(t('第三方供应商的模型不能在这里调思考深度'));
+    if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
+    const levels = effortsForModel(this.cachedCatalog(backend), tab.modelOverride);
+    if (levels === null) throw new Error(t('这个模型不支持思考深度'));
+    if (levels && !levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
+    if (tab.reasoningEffort !== effort) {
+      tab.reasoningEffort = effort;
+      this.rememberSettings(tab);
+      this.changed();
+      this.recycleLiveForOverride(tab);
+    }
+    return { ...tab };
+  }
+
+  /**
+   * 模型 / 思考深度覆盖变化后回收长驻 CLI 进程（目前只有 Claude）。
+   * 每轮新进程的后端（codex / grok / dsh）无需处理。仅在空闲时回收：
+   * 进行中的轮次、后台任务、自发轮次都等它们结束——覆盖本就约定「下一条消息起生效」，
+   * 拆进程会把还在跑的后台子代理一起杀掉（与空闲回收的 backgroundActive 判定一致）。
+   */
+  private recycleLiveForOverride(tab: HarnessTabMeta) {
+    if (tab.backend !== 'claude') return;
+    const live = this.claudeLive.get(tab.id);
+    // 只换模型：进程保留，下一轮发送前 set_model 原地切换（syncClaudeModel）
+    if (live && live.reasoningEffort === this.effectiveOverrides(tab).effort) return;
+    if (live && !live.turn && !claudeBackgroundActive(live)) this.teardownClaudeLive(tab.id);
+  }
+
+  /** 该 CLI 启用中的第三方供应商（没有 providerProfile 时按 hasProviderProfile 给一个占位） */
+  private activeProfile(
+    backend: HarnessBackend,
+  ): { id: string; name: string; model: string } | null {
+    if (backend === 'nomi') return null;
+    const p = this.d.providerProfile?.(backend);
+    if (p) return p;
+    return this.d.hasProviderProfile?.(backend) ? { id: 'provider', name: '', model: '' } : null;
+  }
+
+  /** 当前的模型来源：第三方供应商 id；null = 官方账号（CLI 自带配置） */
+  private scopeOf(backend: HarnessBackend): string | null {
+    return this.activeProfile(backend)?.id ?? null;
+  }
+
+  /**
+   * 能否按标签切模型：带模型目录的后端（claude / codex / grok）；dsh 只在启用了第三方供应商时
+   * （模型经 `--patch` 叠加配置下发）。
+   */
+  private canOverride(backend: HarnessBackend): boolean {
+    if (backend === 'dsh')
+      return Boolean(this.d.dshModelPatch) && this.d.providerProfile?.('dsh') != null;
+    return supportsModelOverride(backend);
+  }
+
+  /**
+   * 让标签上的模型 / 思考深度对应当前来源：来源变了（换了供应商 / 回到官方账号）就把旧来源的选择
+   * 收进 modelByScope，取出新来源上次的选择。返回当前来源。
+   */
+  private adoptScope(tab: HarnessTabMeta): string | null {
+    const scope = this.scopeOf(tab.backend);
+    const had = tab.modelScope ?? null;
+    if (had === scope) return scope;
+    const key = (s: string | null) => s ?? 'official';
+    const stash = { ...tab.modelByScope };
+    if (tab.modelOverride || tab.reasoningEffort)
+      stash[key(had)] = { model: tab.modelOverride ?? null, effort: tab.reasoningEffort ?? null };
+    else delete stash[key(had)];
+    const next = stash[key(scope)];
+    delete stash[key(scope)];
+    tab.modelOverride = next?.model ?? null;
+    tab.reasoningEffort = scope ? null : (next?.effort ?? null);
+    tab.modelScope = scope;
+    tab.modelByScope = Object.keys(stash).length ? stash : undefined;
+    return scope;
+  }
+
+  /** 该后端所有标签对齐当前模型来源（换供应商 / 账号后、读模型目录时调用） */
+  private adoptScopes(backend: HarnessBackend) {
+    let moved = false;
+    for (const tab of this.tabs.values()) {
+      if (tab.backend !== backend || (tab.modelScope ?? null) === this.scopeOf(backend)) continue;
+      this.adoptScope(tab);
+      moved = true;
+    }
+    if (moved) this.changed();
+  }
+
+  /** 该标签所在 CLI 启用了第三方供应商 */
+  private profileManaged(tab: HarnessTabMeta): boolean {
+    return this.activeProfile(tab.backend) !== null;
+  }
+
+  /**
+   * 本轮实际注入的模型 / 思考深度。只下发属于当前来源的选择：供应商启用时，官方账号下选的模型名
+   * 不能发到第三方端点（反之亦然）；第三方供应商的模型不带思考深度。
+   */
+  private effectiveOverrides(tab: HarnessTabMeta): { model: string | null; effort: string | null } {
+    const scope = this.scopeOf(tab.backend);
+    if ((tab.modelScope ?? null) !== scope) return { model: null, effort: null };
+    if (scope && !this.d.providerProfile) return { model: null, effort: null };
+    const model = tab.modelOverride?.trim() || null;
+    return { model, effort: scope ? null : (tab.reasoningEffort ?? null) };
+  }
+
+  /** 本地路由放行的模型：这个 CLI 的标签为当前供应商选中的模型 */
+  routeModels(backend: CliBackend): Set<string> {
+    const out = new Set<string>();
+    for (const tab of this.tabs.values()) {
+      if (tab.backend !== backend) continue;
+      const m = this.effectiveOverrides(tab).model;
+      if (m) out.add(m);
+    }
+    return out;
   }
 
   /** 新标签默认档与 Codex 联网开关（设置页） */
@@ -990,6 +1496,8 @@ export class CliHarnessService {
       if (!isPermissionMode(o.defaultPermissionMode)) throw new Error(t('未知权限模式'));
       if (o.defaultPermissionMode === 'bypass') throw new Error(t('完全放开不能设为默认模式'));
       this.defaultPermissionMode = o.defaultPermissionMode;
+      // 设置页改了默认档：新会话按新默认档开始，不再沿用之前标签上的选择
+      for (const s of this.lastSettings.values()) delete s.permissionMode;
     }
     if (typeof o.codexNetwork === 'boolean') this.codexNetwork = o.codexNetwork;
     this.changed();
@@ -1010,6 +1518,141 @@ export class CliHarnessService {
     return effectiveMode(backend, mode).mode;
   }
 
+  /**
+   * 重启后还原模型 / 思考深度覆盖：不支持覆盖的后端一律丢弃；
+   * 模型名做字符集校验；档位只校验枚举（目录要等 CLI 读回来，届时由 CLI 报错兜底）。
+   */
+  private restoreOverrides(
+    tab: HarnessTabMeta,
+    raw: {
+      modelOverride?: unknown;
+      reasoningEffort?: unknown;
+      modelScope?: unknown;
+      modelByScope?: unknown;
+    },
+  ) {
+    const backend = tab.backend;
+    // dsh 只在第三方供应商下能切模型（经 --patch），选择同样按来源保存
+    if (backend !== 'dsh' && !supportsModelOverride(backend)) {
+      tab.modelOverride = null;
+      tab.reasoningEffort = null;
+      tab.modelScope = null;
+      tab.modelByScope = undefined;
+      return;
+    }
+    const pick = (m: unknown, e: unknown) => {
+      const model = typeof m === 'string' ? m.trim() : '';
+      // 允许「只设思考深度、沿用 CLI 默认模型」
+      if (model && !isValidModelId(model)) return null;
+      return { model: model || null, effort: isReasoningEffort(e) ? e : null };
+    };
+    const cur = pick(raw.modelOverride, raw.reasoningEffort);
+    tab.modelOverride = cur?.model ?? null;
+    tab.reasoningEffort = cur?.effort ?? null;
+    tab.modelScope = typeof raw.modelScope === 'string' && raw.modelScope ? raw.modelScope : null;
+    const stash: NonNullable<HarnessTabMeta['modelByScope']> = {};
+    if (raw.modelByScope && typeof raw.modelByScope === 'object')
+      for (const [k, v] of Object.entries(raw.modelByScope as Record<string, unknown>)) {
+        const o = (v ?? {}) as { model?: unknown; effort?: unknown };
+        const got = pick(o.model, o.effort);
+        if (k && got && (got.model || got.effort)) stash[k] = got;
+      }
+    tab.modelByScope = Object.keys(stash).length ? stash : undefined;
+  }
+
+  /** tabs.json 里的「最近一次设置」：逐项校验，不合法的丢弃（与 restoredMode / restoreOverrides 同规则） */
+  private restoreLastSettings(raw: Record<string, unknown> | undefined) {
+    if (!raw || typeof raw !== 'object') return;
+    for (const [backend, v] of Object.entries(raw)) {
+      if (!isBackend(backend) || backend === 'nomi' || !v || typeof v !== 'object') continue;
+      const o = v as {
+        permissionMode?: unknown;
+        modelOverride?: unknown;
+        reasoningEffort?: unknown;
+        modelScope?: unknown;
+      };
+      const probe = { backend } as HarnessTabMeta;
+      this.restoreOverrides(probe, o);
+      const s: LastTabSettings = {
+        ...(isPermissionMode(o.permissionMode) && o.permissionMode !== 'bypass'
+          ? { permissionMode: effectiveMode(backend, o.permissionMode).mode }
+          : {}),
+        ...(probe.modelOverride ? { modelOverride: probe.modelOverride } : {}),
+        ...(probe.reasoningEffort ? { reasoningEffort: probe.reasoningEffort } : {}),
+        ...(probe.modelScope ? { modelScope: probe.modelScope } : {}),
+      };
+      if (Object.keys(s).length) this.lastSettings.set(backend, s);
+    }
+  }
+
+  private usesGrokAcp(): boolean {
+    return Boolean(this.d.grokAcp) && !this.grokAcpUnavailable;
+  }
+
+  /** 用户在标签上改了权限模式 / 模型 / 思考深度：记为该后端新会话的起点（随 changed() 落盘） */
+  private rememberSettings(tab: HarnessTabMeta) {
+    if (tab.backend === 'nomi') return;
+    const prev = this.lastSettings.get(tab.backend);
+    const mode = tab.permissionMode !== 'bypass' ? tab.permissionMode : prev?.permissionMode;
+    this.lastSettings.set(tab.backend, {
+      ...(mode ? { permissionMode: mode } : {}),
+      ...(tab.modelOverride ? { modelOverride: tab.modelOverride } : {}),
+      ...(tab.reasoningEffort ? { reasoningEffort: tab.reasoningEffort } : {}),
+      ...(tab.modelScope ? { modelScope: tab.modelScope } : {}),
+    });
+  }
+
+  /**
+   * 新会话沿用该后端最近一次的设置。模型 / 思考深度只在来源一致时沿用（官方账号下选的不带到
+   * 第三方供应商，反之亦然；换供应商 / 账号时 recycleBackend 已清掉记下的值）。
+   */
+  private inheritSettings(tab: HarnessTabMeta, explicitMode: boolean) {
+    tab.modelScope = this.scopeOf(tab.backend);
+    const s = this.lastSettings.get(tab.backend);
+    if (!s) return;
+    if (!explicitMode && s.permissionMode)
+      tab.permissionMode = effectiveMode(tab.backend, s.permissionMode).mode;
+    if (!this.canOverride(tab.backend) || (s.modelScope ?? null) !== tab.modelScope) return;
+    if (tab.modelScope && !this.d.providerProfile) return;
+    if (s.modelOverride) tab.modelOverride = s.modelOverride;
+    if (s.reasoningEffort && !tab.modelScope) tab.reasoningEffort = s.reasoningEffort;
+  }
+
+  /**
+   * 预先拉起长驻进程（Claude：node 启动、MCP / hooks / 插件加载、--resume 读回转录；Gemini：ACP
+   * 握手 + session/new 或 load），让新会话 / 切回来的会话第一条消息不必等冷启动。
+   * 没用过的预热进程同样参与空闲回收。每轮一个进程的后端没有可预热的东西。
+   */
+  private prewarm(id: string) {
+    if (!this.d.prewarmClaude) return;
+    const tab = this.tabs.get(id);
+    if (!tab || tab.status === 'running' || tab.status === 'queued') return;
+    if (tab.backend === 'claude' && !this.claudeLive.has(id)) {
+      try {
+        this.ensureClaudeLive(tab).prewarmed = true;
+      } catch (e) {
+        this.d.logger.warn('harness claude prewarm failed', e);
+      }
+    } else if (tab.backend === 'codex' && this.usesCodexApp() && !this.codexLive.has(id)) {
+      this.ensureCodexLive(tab).catch((e: unknown) => {
+        if (e instanceof AcpUnavailableError) this.codexAppUnavailable = true;
+        this.d.logger.info('harness codex prewarm skipped', { error: String(e) });
+      });
+    } else if (
+      (tab.backend === 'gemini' || (tab.backend === 'grok' && this.usesGrokAcp())) &&
+      !this.acpLive.has(id)
+    ) {
+      // 握手失败（未受信任的文件夹 / 旧版 CLI）时会话已拆除；错误留给第一条消息照常报告
+      this.ensureAcpLive(tab).catch((e: unknown) => {
+        if (e instanceof AcpUnavailableError) this.grokAcpUnavailable = true;
+        this.d.logger.info('harness acp prewarm skipped', {
+          backend: tab.backend,
+          error: String(e),
+        });
+      });
+    }
+  }
+
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
     const tab = this.requireTab(id);
     const r = await dialog.showOpenDialog({
@@ -1028,19 +1671,47 @@ export class CliHarnessService {
     return this.listTabs();
   }
 
-  /** 中止标签当前轮次；Claude 长驻进程一并拆除（下一轮可 --resume） */
+  /**
+   * 中止标签当前轮次。Claude 用户轮次只发 interrupt、进程保留（下一轮不用冷启动）；
+   * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
+   */
   cancelTab(id: string): boolean {
     const queued = this.tabs.get(id)?.status === 'queued';
     if (queued) this.stopRequested.add(id);
-    const live = this.claudeLive.get(id);
-    if (live?.turn) {
-      this.writeClaudeControl(live, { subtype: 'interrupt' });
+    // 这一轮已开始、但还没真正发给 CLI（Gemini 握手 / 等权限模式确认）：中止它的令牌，
+    // 并拆掉正在初始化的长驻进程（不保留空会话）；晚到的握手 / 确认结果不会再发出这一轮（#75）
+    const send = this.sendAborts.get(id);
+    if (
+      send &&
+      !send.signal.aborted &&
+      !this.claudeLive.get(id)?.turn &&
+      !this.acpLive.get(id)?.turn &&
+      !this.codexLive.get(id)?.turn &&
+      !this.children.has(id)
+    ) {
+      this.stopRequested.add(id);
+      send.abort();
+      this.teardownClaudeLive(id); // 同时拆 ACP / Codex 的长驻进程
+      return true;
     }
-    // Gemini：ACP session/cancel，进程保留供下一轮
-    const gl = this.geminiLive.get(id);
+    const live = this.claudeLive.get(id);
+    if (live?.turn && !live.turn.settled) {
+      this.stopRequested.add(id);
+      this.interruptClaudeTurn(id, live, live.turn);
+      return true;
+    }
+    // Gemini / Grok：ACP session/cancel，进程保留供下一轮
+    const gl = this.acpLive.get(id);
     if (gl?.turn) {
       this.stopRequested.add(id);
-      this.cancelGeminiTurn(gl);
+      this.cancelAcpTurn(gl);
+      return true;
+    }
+    // Codex：turn/interrupt，进程保留供下一轮
+    const cl = this.codexLive.get(id);
+    if (cl?.turn && !cl.turn.settled) {
+      this.stopRequested.add(id);
+      this.interruptCodexTurn(id, cl, cl.turn);
       return true;
     }
     if (!this.children.has(id) && !live) {
@@ -1066,12 +1737,37 @@ export class CliHarnessService {
     return true;
   }
 
+  /**
+   * 中断 Claude 正在进行的用户轮次（实测 2.1.304：interrupt 应答后输出 error_during_execution 的 result，
+   * 进程继续接收下一条消息）。那条 result 走 onClaudeLine 的失败分支结束这一轮，sendTab 据
+   * stopRequested 记为「已停止」。拿不到应答、消息仍在 CLI 队列里、宽限期内没收到 result：拆进程兜底。
+   */
+  private interruptClaudeTurn(id: string, live: ClaudeLiveSession, turn: ClaudeTurnWaiter) {
+    const fallback = () => {
+      if (this.claudeLive.get(id) === live && live.turn === turn && !turn.settled)
+        this.teardownClaudeLive(id);
+    };
+    // 这一轮正常结束后计时器照常到点，fallback 判断已结束就什么都不做
+    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
+    const uuid = live.turnUuid;
+    this.requestClaudeControl(live, { subtype: 'interrupt' }).then((r) => {
+      const queued = Array.isArray(r.still_queued) ? r.still_queued : [];
+      // 中断的是别的轮次（自发轮次），这条消息之后还会被处理：只能拆进程
+      if (uuid && queued.includes(uuid)) fallback();
+      // 被中断的这一轮里待确认的权限请求随之作废
+      else if (this.claudeLive.get(id) === live) this.clearPermissionTimeouts(id);
+    }, fallback);
+  }
+
   /** 测试 / 应用退出：拆除所有长驻 Claude 与残留子进程（含其子孙进程）、清掉所有定时器 */
   dispose(): void {
+    this.disposed = true;
+    this.writer.dispose();
     this.stopIdleSweep();
     this.eventBatcher.dispose();
     for (const id of [...this.claudeLive.keys()]) this.teardownClaudeLive(id);
-    for (const id of [...this.geminiLive.keys()]) this.teardownGeminiLive(id);
+    for (const id of [...this.acpLive.keys()]) this.teardownAcpLive(id);
+    for (const id of [...this.codexLive.keys()]) this.teardownCodexLive(id);
     for (const [id, child] of [...this.children.entries()]) {
       killProcessTree(child);
       this.children.delete(id);
@@ -1090,6 +1786,11 @@ export class CliHarnessService {
     const text = String(prompt ?? '').slice(0, 100_000);
     if (!text.trim()) throw new Error(t('消息为空'));
     const backend = tab.backend;
+    // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
+    if ((tab.modelScope ?? null) !== this.scopeOf(backend)) {
+      this.adoptScope(tab);
+      this.changed();
+    }
     this.appendMessage(id, {
       id: randomUUID(),
       role: 'user',
@@ -1124,9 +1825,12 @@ export class CliHarnessService {
       throw new Error(t('标签已关闭'));
     }
     tab.status = 'running';
+    const abort = new AbortController();
+    this.sendAborts.set(id, abort);
     const startedAt = Date.now();
     this.partial.set(id, { text: '', breaks: [], events: [] });
     this.changed();
+    const runCwd = tab.cwd;
     // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
     // 按这个 CLI 收消息的方式裁到预算内（命令行参数有长度上限，见 carriedBudget）
     const stored = tab.cliSessionId ? null : this.carriedText(id);
@@ -1135,15 +1839,16 @@ export class CliHarnessService {
     try {
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, toCli)
+          ? await this.runClaude(tab, toCli, abort.signal)
           : backend === 'dsh'
             ? await this.runDsh(tab, toCli)
             : backend === 'grok'
-              ? await this.runGrok(tab, toCli)
+              ? await this.runGrokTurn(tab, toCli, abort.signal)
               : backend === 'gemini'
-                ? await this.runGemini(tab, toCli)
-                : await this.runCodex(tab, toCli);
-      if (result.sessionId && tab.backend === backend) tab.cliSessionId = result.sessionId;
+                ? await this.runAcp(tab, toCli, abort.signal)
+                : await this.runCodexTurn(tab, toCli, abort.signal);
+      if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
+        tab.cliSessionId = result.sessionId;
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
       tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
@@ -1231,6 +1936,7 @@ export class CliHarnessService {
       }
       throw e;
     } finally {
+      if (this.sendAborts.get(id) === abort) this.sendAborts.delete(id);
       this.partial.delete(id);
       this.stopRequested.delete(id);
       this.release();
@@ -1298,7 +2004,17 @@ export class CliHarnessService {
    * 权限仍走 control_request ↔ control_response。CLI 若不支持或不稳定，
    * 进程退出后下一轮自动带 --resume 重拉（明确降级，见文档）。
    */
-  private runClaude(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+  private async runClaude(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal?: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
+    // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
+    await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
+    await this.syncClaudeModel(tab);
+    // 等待期间点了停止：不再拉起进程、不发送（#75）
+    if (signal?.aborted) throw new Error(t('已中止'));
     const live = this.ensureClaudeLive(tab);
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
@@ -1316,6 +2032,7 @@ export class CliHarnessService {
         settled: false,
       };
       live.turn = turn;
+      live.prewarmed = false;
       live.turnUuid = randomUUID();
       live.turnStarted = false;
       live.lastActivityAt = Date.now();
@@ -1332,12 +2049,45 @@ export class CliHarnessService {
     });
   }
 
+  /**
+   * 长驻进程与标签只差模型（思考深度一致）：发 set_model 原地切换，不重启进程
+   * （实测 2.1.304：应答后下一轮的 init / API 请求即用新模型；null / 'default' 回到 CLI 默认模型）。
+   * 思考深度没有可靠的原地切换（apply_flag_settings 的 effortLevel 不校验取值、也压不过 --effort），
+   * 仍按复用键重启。切换失败就拆进程，下面按新参数重新拉起。
+   */
+  private async syncClaudeModel(tab: HarnessTabMeta): Promise<void> {
+    const live = this.claudeLive.get(tab.id);
+    // 自发轮次还在输出：不在它中途换模型，沿用旧进程（见 ensureClaudeLive）
+    if (!live || live.turn || live.auto) return;
+    const o = this.effectiveOverrides(tab);
+    if (live.modelOverride === o.model || live.reasoningEffort !== o.effort) return;
+    try {
+      await this.requestClaudeControl(live, { subtype: 'set_model', model: o.model ?? 'default' });
+      if (this.claudeLive.get(tab.id) === live) live.modelOverride = o.model;
+    } catch (e) {
+      this.d.logger.warn('harness claude set_model failed', {
+        tabId: tab.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      if (this.claudeLive.get(tab.id) === live && !live.turn && !claudeBackgroundActive(live))
+        this.teardownClaudeLive(tab.id);
+    }
+  }
+
   private ensureClaudeLive(tab: HarnessTabMeta): ClaudeLiveSession {
     const existing = this.claudeLive.get(tab.id);
+    const overrides = this.effectiveOverrides(tab);
     if (
       existing &&
       existing.cwd === tab.cwd &&
+      // 已生效（后端确认过）的档位与标签一致，且没有还在等确认的切换
       existing.permissionMode === tab.permissionMode &&
+      !existing.modeChange &&
+      // 只差模型 / 思考深度时，后台任务还在跑就先沿用旧进程（拆了会杀掉后台子代理），
+      // 等后台结束后的下一条消息再按新参数重启
+      ((existing.modelOverride === overrides.model &&
+        existing.reasoningEffort === overrides.effort) ||
+        claudeBackgroundActive(existing)) &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
       existing.child.signalCode === null
@@ -1357,10 +2107,14 @@ export class CliHarnessService {
       '--input-format',
       'stream-json',
       '--verbose',
+      // 逐 token 的 stream_event（text_delta）：不加时正文要等一整块写完才出现
+      '--include-partial-messages',
       '--permission-prompt-tool',
       'stdio',
       '--replay-user-messages',
       ...permissionLaunch('claude', tab.permissionMode).args,
+      // 标签级模型 / 思考深度（长驻进程，随复用键变化而重启）
+      ...overrideArgs('claude', overrides),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
@@ -1374,6 +2128,10 @@ export class CliHarnessService {
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
+      modeChange: null,
+      controls: new Map(),
+      modelOverride: overrides.model,
+      reasoningEffort: overrides.effort,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -1400,6 +2158,7 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
+      this.failClaudeControls(live);
       turn?.reject(e);
     });
     child.on('close', (code, signal) => {
@@ -1410,6 +2169,7 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
+      this.failClaudeControls(live);
       if (!turn || turn.settled) return;
       turn.settled = true;
       if (signal && !turn.text) {
@@ -1439,11 +2199,15 @@ export class CliHarnessService {
     live.child.stdin.write(`${JSON.stringify(payload)}\n`);
   }
 
-  private writeClaudeControl(live: ClaudeLiveSession, request: Record<string, unknown>) {
+  private writeClaudeControl(
+    live: ClaudeLiveSession,
+    request: Record<string, unknown>,
+    requestId: string = randomUUID(),
+  ) {
     if (!live.child.stdin.writable) return false;
     const payload = {
       type: 'control_request',
-      request_id: randomUUID(),
+      request_id: requestId,
       request,
     };
     try {
@@ -1452,6 +2216,48 @@ export class CliHarnessService {
     } catch {
       return false;
     }
+  }
+
+  /** 发 control_request 并等同 request_id 的 control_response；负确认 / 超时 / 写不进去都会 reject */
+  private requestClaudeControl(
+    live: ClaudeLiveSession,
+    request: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const requestId = randomUUID();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        live.controls.delete(requestId);
+        reject(new Error(t('超时')));
+      }, this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS);
+      live.controls.set(requestId, { resolve, reject, timer });
+      if (!this.writeClaudeControl(live, request, requestId)) {
+        clearTimeout(timer);
+        live.controls.delete(requestId);
+        reject(new Error(t('Claude 进程 stdin 不可写')));
+      }
+    });
+  }
+
+  /** 进程结束 / 拆除：在途的 control_request 一律失败，不留挂起的计时器 */
+  private failClaudeControls(live: ClaudeLiveSession) {
+    for (const w of live.controls.values()) {
+      clearTimeout(w.timer);
+      w.reject(new Error(t('进程已结束')));
+    }
+    live.controls.clear();
+  }
+
+  /** CLI 对我们 control_request 的应答（按 request_id 交给等待者；不认识的 id 直接忽略） */
+  private onClaudeControlResponse(live: ClaudeLiveSession, j: Record<string, unknown>) {
+    const r = (j.response ?? {}) as Record<string, unknown>;
+    const requestId = typeof r.request_id === 'string' ? r.request_id : '';
+    const w = live.controls.get(requestId);
+    if (!w) return;
+    live.controls.delete(requestId);
+    clearTimeout(w.timer);
+    if (r.subtype === 'success') w.resolve((r.response ?? {}) as Record<string, unknown>);
+    else
+      w.reject(new Error(typeof r.error === 'string' && r.error ? r.error : t('后端拒绝了请求')));
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
@@ -1524,34 +2330,49 @@ export class CliHarnessService {
     if (dropAfter) this.dropRecycledClaude(tabId, live);
   }
 
-  // ───────────────────────── Gemini（ACP） ─────────────────────────
+  // ───────────────────────── Gemini / Grok（ACP） ─────────────────────────
 
   /**
-   * Gemini CLI 的 ACP 长驻进程（`gemini --acp`）：initialize → session/load（有会话 id 时）或 session/new
-   * → session/set_mode；每轮 session/prompt。审批经 session/request_permission 进权限队列。
+   * ACP 长驻进程：Gemini `gemini --acp`、Grok `grok agent stdio`。initialize → session/load（有会话 id 时）
+   * 或 session/new → session/set_mode；每轮 session/prompt（Grok 发送前再按标签同步模型 / 思考深度）。
+   * 审批经 session/request_permission 进权限队列；停止用 session/cancel，进程保留。
    */
-  private async ensureGeminiLive(tab: HarnessTabMeta): Promise<GeminiLiveSession> {
-    const existing = this.geminiLive.get(tab.id);
+  private async ensureAcpLive(tab: HarnessTabMeta, signal?: AbortSignal): Promise<AcpLiveSession> {
+    // 还在等确认的模式切换先有结果：失败时会话已拆除，下面按标签档位重新建立（#72）
+    await this.acpLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
+    const existing = this.acpLive.get(tab.id);
     if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
       await existing.ready;
-      return existing;
+      return this.confirmAcpMode(tab, existing);
     }
-    if (existing) this.teardownGeminiLive(tab.id);
-    const bin = resolveHarnessBin('gemini');
-    if (!bin) throw new Error(t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'));
+    if (existing) this.teardownAcpLive(tab.id);
+    const backend: AcpBackend = tab.backend === 'grok' ? 'grok' : 'gemini';
+    const bin = resolveHarnessBin(backend);
+    if (!bin)
+      throw new Error(
+        backend === 'grok'
+          ? t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')
+          : t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'),
+      );
     const useNode = isScript(bin);
-    const argv = ['--acp'];
+    const argv = backend === 'grok' ? ['agent', 'stdio'] : ['--acp'];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
-      env: cliChildEnv(useNode, { ...this.d.geminiEnv?.() }),
+      env: cliChildEnv(
+        useNode,
+        backend === 'grok' ? this.grokExtraEnv() : { ...this.d.geminiEnv?.() },
+      ),
     });
     let stderrTail = '';
     child.stderr.on('data', (c) => {
       stderrTail = (stderrTail + String(c)).slice(-4000);
-      this.d.logger.warn('harness gemini stderr', String(c).slice(0, 500));
+      this.d.logger.warn(`harness ${backend} stderr`, String(c).slice(0, 500));
     });
-    const live: GeminiLiveSession = {
+    const live: AcpLiveSession = {
+      backend,
+      model: null,
+      effort: null,
       child,
       conn: null as unknown as AcpConnection,
       sessionId: null,
@@ -1561,13 +2382,14 @@ export class CliHarnessService {
       perms: new Map(),
       lastActivityAt: Date.now(),
       ready: Promise.resolve(),
+      modeChange: null,
     };
     live.conn = new AcpConnection(child, {
       onNotification: (method, params) => {
         if (method !== 'session/update') return;
         live.lastActivityAt = Date.now();
         const u = (params.update ?? {}) as Record<string, unknown>;
-        if (live.turn) this.onGeminiEvents(tab.id, live, live.turn.mapper.update(u));
+        if (live.turn) this.onAcpEvents(tab.id, live, live.turn.mapper.update(u));
       },
       onRequest: async (method, params) => {
         if (method !== 'session/request_permission')
@@ -1583,8 +2405,10 @@ export class CliHarnessService {
             id,
             summary: permissionSummary(params),
           });
-          this.onGeminiEvents(tab.id, live, [ev]);
+          this.onAcpEvents(tab.id, live, [ev]);
         });
+        // Grok 拒绝一次调用会以 cancelled 结束整轮：记下来，不当成用户停止（见 runAcp）
+        if (allowed === false && live.turn) live.turn.denied = true;
         const optionId = allowed === null ? null : pickPermissionOption(params.options, allowed);
         return optionId
           ? { outcome: { outcome: 'selected', optionId } }
@@ -1592,42 +2416,102 @@ export class CliHarnessService {
       },
     });
     child.on('close', () => {
-      if (this.geminiLive.get(tab.id) === live) this.geminiLive.delete(tab.id);
+      if (this.acpLive.get(tab.id) === live) this.acpLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
       for (const done of live.perms.values()) done(null);
     });
-    this.geminiLive.set(tab.id, live);
+    this.acpLive.set(tab.id, live);
     this.dormant.delete(tab.id);
     this.startIdleSweep();
+    // 发起这次握手的轮次被停止时，在途的握手请求立即失败（随后会话被拆除）
+    const opts = signal ? { signal } : {};
     live.ready = (async () => {
-      await live.conn.request('initialize', {
-        protocolVersion: 1,
-        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
-      });
+      await live.conn.request(
+        'initialize',
+        {
+          protocolVersion: 1,
+          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
+        },
+        opts,
+      );
+      type SessionResult = { sessionId?: string; modes?: { currentModeId?: unknown } } | null;
       let sid: string | null = null;
+      let modeNow: unknown;
       if (tab.cliSessionId) {
         sid = await live.conn
-          .request('session/load', { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] })
-          .then(() => tab.cliSessionId)
+          .request<SessionResult>(
+            'session/load',
+            { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] },
+            opts,
+          )
+          .then((r) => {
+            modeNow = r?.modes?.currentModeId;
+            return tab.cliSessionId;
+          })
           .catch(() => null);
       }
       if (!sid) {
-        const r = await live.conn.request<{ sessionId?: string }>('session/new', {
-          cwd: tab.cwd,
-          mcpServers: [],
-        });
+        const r = await live.conn.request<SessionResult>(
+          'session/new',
+          { cwd: tab.cwd, mcpServers: [] },
+          opts,
+        );
         sid = r?.sessionId ?? null;
+        modeNow = r?.modes?.currentModeId;
       }
-      if (!sid) throw new Error(t('Gemini 没有返回会话'));
+      if (!sid)
+        throw new Error(backend === 'grok' ? t('Grok 没有返回会话') : t('Gemini 没有返回会话'));
       live.sessionId = sid;
-      await live.conn
-        .request('session/set_mode', { sessionId: sid, modeId: geminiModeId(tab.permissionMode) })
-        .catch(() => undefined);
+      // 历史文件没有权限字段时，以 ACP 返回的 currentModeId 为准。
+      // 以前这里总是把 Nomi 默认档位写回 CLI，会让打开历史会话时静默改变它原来的安全等级。
+      let initMode = tab.permissionMode;
+      let adoptedHistoryMode = false;
+      if (tab.permissionModeSource === 'history-cli' && typeof modeNow === 'string') {
+        const cliMode = fromCliPermissionMode(backend, modeNow);
+        if (!cliMode) {
+          // 未知模式不能猜测，也不能让标签永久卡住：放弃同步，下面按标签自己的档位显式 set_mode，
+          // 只有 CLI 确认后才发送（失败仍按 #72 拒绝这一轮）。
+          delete tab.permissionModeSource;
+          this.changed();
+        } else if (cliMode !== 'bypass') {
+          // bypass 仍须经过 Nomi 的显式确认，不能因为打开历史就自动继承。
+          initMode = cliMode;
+          tab.permissionMode = cliMode;
+          delete tab.permissionModeSource;
+          adoptedHistoryMode = true;
+          this.changed();
+        } else {
+          // 真实会话处于 bypass 时降到标签的安全档位，并明确发起一次 set_mode。
+          // 这样不会在用户未确认的情况下执行完全放开的历史权限。
+          delete tab.permissionModeSource;
+          this.changed();
+        }
+      }
+      // 权限模式必须得到确认：失败 / 超时就不发送这一轮（不在未确认的档位下跑，#72）。
+      // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切。
+      const want = acpModeId(backend, initMode);
+      if (!adoptedHistoryMode && modeNow !== want)
+        await live.conn
+          .request('session/set_mode', { sessionId: sid, modeId: want }, opts)
+          .catch((e: unknown) => {
+            const why = innermostMessage(e instanceof Error ? e.message : String(e));
+            throw new Error(
+              backend === 'grok'
+                ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
+                : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
+              { cause: e },
+            );
+          });
+      live.permissionMode = initMode;
     })();
     try {
       await live.ready;
     } catch (e) {
-      this.teardownGeminiLive(tab.id);
+      this.teardownAcpLive(tab.id);
+      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
+      // Grok 握手阶段就退出 / 不认识 ACP：交给 sendTab 退回 `grok -p`
+      if (backend === 'grok' && e instanceof Error && e.message === 'ACP process exited')
+        throw new AcpUnavailableError(t('Grok 没能启动 ACP 会话'), { cause: e });
       // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
       if (
         e instanceof Error &&
@@ -1643,10 +2527,28 @@ export class CliHarnessService {
         );
       throw e;
     }
-    return live;
+    return this.confirmAcpMode(tab, live);
   }
 
-  private onGeminiEvents(tabId: string, live: GeminiLiveSession, evs: HarnessEvent[]) {
+  /**
+   * 发送前确认档位：握手期间或之后又切过模式时，在途的切换先等结果；仍与标签档位不一致就现在切，
+   * 确认后才返回。失败时会话已拆除、错误原样抛出，这一轮的 prompt 不会发出（#72）。
+   */
+  private async confirmAcpMode(tab: HarnessTabMeta, live: AcpLiveSession): Promise<AcpLiveSession> {
+    let failure: unknown = null;
+    // 等待期间用户可能又切了一次：最多跟进几轮，直到没有在途切换且已生效档位与标签一致
+    for (let i = 0; i < 4 && this.acpLive.get(tab.id) === live; i++) {
+      if (live.modeChange) {
+        await live.modeChange.done.catch((e: unknown) => (failure = e));
+        continue;
+      }
+      if (live.permissionMode === tab.permissionMode) return live;
+      this.switchAcpMode(tab.id, live, tab.permissionMode);
+    }
+    throw failure instanceof Error ? failure : new Error(t('Gemini 会话已结束，这条消息没有发送'));
+  }
+
+  private onAcpEvents(tabId: string, live: AcpLiveSession, evs: HarnessEvent[]) {
     for (const raw of evs) {
       let ev = withPermissionExpiry(stampEvent(raw));
       const turn = live.turn;
@@ -1663,8 +2565,8 @@ export class CliHarnessService {
         const tab = this.tabs.get(tabId);
         this.events.emit('permission-needed', {
           tabId,
-          title: tab?.title ?? 'Gemini',
-          backend: 'gemini' as HarnessBackend,
+          title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
+          backend: live.backend as HarnessBackend,
           summary: ev.summary,
           background: this.activeTabId !== tabId || !anyWindowFocused(),
         });
@@ -1672,16 +2574,32 @@ export class CliHarnessService {
     }
   }
 
-  private async runGemini(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
-    const live = await this.ensureGeminiLive(tab);
+  private async runAcp(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal?: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    let live = await this.ensureAcpLive(tab, signal);
+    if (!(await this.syncAcpOverrides(tab, live))) {
+      // 清掉了覆盖、又不知道 CLI 的默认值：换新进程（session/load 接上会话），按默认参数开始
+      this.teardownAcpLive(tab.id);
+      live = await this.ensureAcpLive(tab, signal);
+    }
+    // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
+    if (signal?.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
-    const turn: GeminiTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
+    const turn: AcpTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
     live.turn = turn;
+    live.used = true;
     live.lastActivityAt = Date.now();
     try {
       const r = await live.conn.request<{
         stopReason?: string;
-        _meta?: { quota?: { token_count?: { input_tokens?: number; output_tokens?: number } } };
+        _meta?: {
+          quota?: { token_count?: { input_tokens?: number; output_tokens?: number } };
+          /** Grok：整轮累计（inputTokens / outputTokens / cachedReadTokens） */
+          usage?: unknown;
+        };
       }>(
         'session/prompt',
         { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] },
@@ -1690,14 +2608,18 @@ export class CliHarnessService {
           idle: true,
           timeoutMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
           onTimeout: () => {
-            this.cancelGeminiTurn(live);
+            this.cancelAcpTurn(live);
             // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
             live.recycleAfterTurn = true;
           },
         },
       );
-      this.onGeminiEvents(tab.id, live, turn.mapper.flush());
-      if (r?.stopReason === 'cancelled') throw new Error(t('已中止'));
+      this.onAcpEvents(tab.id, live, turn.mapper.flush());
+      // 用户拒绝了一次工具调用、Grok 随之结束这一轮：不是「已中止」，按正常结束落盘
+      if (r?.stopReason === 'cancelled' && !(turn.denied && !this.stopRequested.has(tab.id)))
+        throw new Error(t('已中止'));
+      if (r?.stopReason === 'cancelled' && !turn.text.trim())
+        turn.text = t('已拒绝这次工具调用，这一轮已结束');
       const tc = r?._meta?.quota?.token_count;
       const usage =
         tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
@@ -1705,7 +2627,7 @@ export class CliHarnessService {
               ...(tc.input_tokens !== undefined ? { inputTokens: tc.input_tokens } : {}),
               ...(tc.output_tokens !== undefined ? { outputTokens: tc.output_tokens } : {}),
             }
-          : undefined;
+          : parseUsage(r?._meta?.usage, {});
       const done: HarnessEvent = {
         type: 'done',
         text: turn.text,
@@ -1723,21 +2645,77 @@ export class CliHarnessService {
     } finally {
       live.turn = null;
       live.lastActivityAt = Date.now();
-      if (live.recycleAfterTurn && this.geminiLive.get(tab.id) === live)
-        this.teardownGeminiLive(tab.id);
+      if (live.recycleAfterTurn && this.acpLive.get(tab.id) === live) this.teardownAcpLive(tab.id);
     }
   }
 
-  private cancelGeminiTurn(live: GeminiLiveSession) {
+  /**
+   * Grok：把标签的模型 / 思考深度同步到长驻会话（session/set_model、session/set_config_option
+   * reasoning_effort，1.0.62 实测原地生效，不重启进程）。清掉覆盖时按模型目录里的默认值切回；
+   * 目录还没读到、不知道默认值时返回 false，由调用方换新进程。Gemini 没有标签级覆盖。
+   */
+  private async syncAcpOverrides(tab: HarnessTabMeta, live: AcpLiveSession): Promise<boolean> {
+    if (live.backend !== 'grok' || !live.sessionId) return true;
+    const want = this.effectiveOverrides(tab);
+    if (live.model === want.model && live.effort === want.effort) return true;
+    const catalog = this.cachedCatalog('grok');
+    const fail = (what: string) => (e: unknown) => {
+      throw new Error(
+        t(
+          'Grok 没有切换{0}（{1}）',
+          what,
+          innermostMessage(e instanceof Error ? e.message : String(e)),
+        ),
+        { cause: e },
+      );
+    };
+    if (live.model !== want.model) {
+      const modelId = want.model ?? catalog?.defaultModel?.id;
+      if (!modelId) return false;
+      await live.conn
+        .request('session/set_model', { sessionId: live.sessionId, modelId })
+        .catch(fail(t('模型')));
+      live.model = want.model;
+      // 换模型后 CLI 会换成那个模型的默认档位：思考深度覆盖要重新下发
+      live.effort = null;
+    }
+    if (live.effort !== want.effort) {
+      const modelId = want.model ?? catalog?.defaultModel?.id;
+      const value =
+        want.effort ?? catalog?.models.find((m) => m.id === modelId)?.defaultEffort ?? null;
+      if (!value) return want.effort === null;
+      await live.conn
+        .request('session/set_config_option', {
+          sessionId: live.sessionId,
+          configId: 'reasoning_effort',
+          value,
+        })
+        .catch(fail(t('思考深度')));
+      live.effort = want.effort;
+    }
+    return true;
+  }
+
+  /** 启动 Grok 时注入的额外环境变量（第三方供应商的 XAI_API_KEY 等）；读取失败不阻塞启动 */
+  private grokExtraEnv(): Record<string, string> {
+    try {
+      return this.d.grokEnv?.() ?? {};
+    } catch (e) {
+      this.d.logger.warn('harness grok env failed', e);
+      return {};
+    }
+  }
+
+  private cancelAcpTurn(live: AcpLiveSession) {
     if (live.sessionId) live.conn.notify('session/cancel', { sessionId: live.sessionId });
     // 规范要求：取消时挂起的权限请求按 cancelled 应答
     for (const done of [...live.perms.values()]) done(null);
   }
 
-  private teardownGeminiLive(tabId: string) {
-    const live = this.geminiLive.get(tabId);
+  private teardownAcpLive(tabId: string) {
+    const live = this.acpLive.get(tabId);
     if (!live) return;
-    this.geminiLive.delete(tabId);
+    this.acpLive.delete(tabId);
     for (const done of [...live.perms.values()]) done(null);
     try {
       if (live.child.stdin.writable) live.child.stdin.end();
@@ -1755,6 +2733,17 @@ export class CliHarnessService {
    * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
    */
   private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
+    if (line.includes('"control_response"')) {
+      try {
+        const j = JSON.parse(line) as Record<string, unknown>;
+        if (j.type === 'control_response') {
+          this.onClaudeControlResponse(live, j);
+          return true;
+        }
+      } catch {
+        /* 不是完整 JSON：交给解析器 */
+      }
+    }
     const replay = line.includes('"isReplay"');
     const task = line.includes('"subtype":"task_');
     if (!replay && !task) return false;
@@ -1878,13 +2867,21 @@ export class CliHarnessService {
   reclaimIdle(now = Date.now()): string[] {
     const picked = pickIdle(
       [
-        ...[...this.geminiLive.entries()].map(([id, gl]) => ({
+        ...[...this.acpLive.entries()].map(([id, gl]) => ({
           id,
           lastActivityAt: gl.lastActivityAt,
           turnActive: gl.turn !== null,
           permissionPending: gl.perms.size > 0,
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || !gl.used,
+        })),
+        ...[...this.codexLive.entries()].map(([id, cl]) => ({
+          id,
+          lastActivityAt: cl.lastActivityAt,
+          turnActive: cl.turn !== null,
+          permissionPending: cl.perms.size > 0,
+          tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || !cl.used,
         })),
         ...[...this.claudeLive.entries()].map(([id, live]) => ({
           id,
@@ -1892,8 +2889,8 @@ export class CliHarnessService {
           turnActive: live.turn !== null,
           permissionPending: (this.pendingPermissions.get(id)?.size ?? 0) > 0,
           tabBusy: ['running', 'queued'].includes(this.tabs.get(id)?.status ?? 'idle'),
-          resumable: Boolean(this.tabs.get(id)?.cliSessionId),
-          backgroundActive: live.bgTasks.size > 0 || live.auto !== null,
+          resumable: Boolean(this.tabs.get(id)?.cliSessionId) || live.prewarmed === true,
+          backgroundActive: claudeBackgroundActive(live),
         })),
       ],
       now,
@@ -1901,11 +2898,12 @@ export class CliHarnessService {
     );
     for (const id of picked) {
       this.teardownClaudeLive(id);
-      this.dormant.add(id);
+      // 没用过的预热进程：没有会话可休眠，悄悄回收
+      if (this.tabs.get(id)?.cliSessionId) this.dormant.add(id);
       this.d.logger.info('harness idle process reclaimed', { tabId: id });
     }
     if (picked.length) this.changed();
-    if (!this.claudeLive.size && !this.geminiLive.size) this.stopIdleSweep();
+    if (!this.claudeLive.size && !this.acpLive.size && !this.codexLive.size) this.stopIdleSweep();
     return picked;
   }
 
@@ -1916,11 +2914,31 @@ export class CliHarnessService {
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
   recycleBackend(kind: HarnessBackend): void {
-    if (kind === 'gemini') {
-      // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
-      for (const [id, gl] of [...this.geminiLive.entries()]) {
+    // 换了账号 / 供应商：可选模型跟着变，下次打开浮层重新从 CLI 读
+    this.modelCatalogs.delete(kind);
+    // 标签上的模型选择换成新来源的（官方 ↔ 某个供应商各记各的）
+    this.adoptScopes(kind);
+    // 新会话也不再沿用旧账号 / 供应商下选的模型与思考深度（权限模式照旧）
+    const last = this.lastSettings.get(kind);
+    if (last?.modelOverride || last?.reasoningEffort) {
+      delete last.modelOverride;
+      delete last.reasoningEffort;
+      this.persist();
+    }
+    if (kind === 'gemini' || kind === 'grok') {
+      // 登录 / 供应商在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
+      for (const [id, gl] of [...this.acpLive.entries()]) {
+        if (gl.backend !== kind) continue;
         if (gl.turn) gl.recycleAfterTurn = true;
-        else this.teardownGeminiLive(id);
+        else this.teardownAcpLive(id);
+      }
+      return;
+    }
+    if (kind === 'codex') {
+      // 供应商写的是 config.toml：app-server 只在启动时读，空闲的直接拆，正在跑的这一轮结束后再拆
+      for (const [id, cl] of [...this.codexLive.entries()]) {
+        if (cl.turn) cl.recycleAfterTurn = true;
+        else this.teardownCodexLive(id);
       }
       return;
     }
@@ -1946,8 +2964,9 @@ export class CliHarnessService {
 
   /** 拆除 Claude 长驻进程（不 reject 当前 turn——由 close/kill 路径处理） */
   private teardownClaudeLive(tabId: string) {
-    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 Gemini 的 ACP 进程
-    this.teardownGeminiLive(tabId);
+    // 所有拆长驻进程的入口（换目录 / 换后端 / 关标签 / 停止 / 回收）同样拆 ACP / Codex 的长驻进程
+    this.teardownAcpLive(tabId);
+    this.teardownCodexLive(tabId);
     this.dormant.delete(tabId);
     const live = this.claudeLive.get(tabId);
     if (!live) return;
@@ -1961,6 +2980,7 @@ export class CliHarnessService {
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
+    this.failClaudeControls(live);
     const turn = live.turn;
     live.turn = null;
     const child = live.child;
@@ -1989,6 +3009,387 @@ export class CliHarnessService {
     }
   }
 
+  /**
+   * Codex 一轮：默认走 `codex app-server` 长驻会话（流式、turn/interrupt 停止不杀进程、每轮 turn/start
+   * 带模型 / 思考深度 / 沙箱 / 审批参数即时生效、逐项确认）。起不来（版本过旧）时记下来，之后都退回
+   * 每轮一个进程的 `codex exec`。两种方式读写同一份会话（exec 建的线程可在 app-server 里续接，反之亦然）。
+   */
+  private async runCodexTurn(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    if (this.usesCodexApp()) {
+      try {
+        return await this.runCodexLive(tab, prompt, signal);
+      } catch (e) {
+        if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
+        this.codexAppUnavailable = true;
+        this.d.logger.warn('harness codex app-server unavailable, falling back to codex exec', e);
+      }
+    }
+    return this.runCodex(tab, prompt);
+  }
+
+  private usesCodexApp(): boolean {
+    return Boolean(this.d.codexAppServer) && !this.codexAppUnavailable;
+  }
+
+  /**
+   * 拉起 / 复用 `codex app-server`：initialize → initialized；有会话 id 时 thread/resume。
+   * 新会话的 thread/start 推迟到第一条消息（预热不留下空会话）。
+   */
+  private async ensureCodexLive(
+    tab: HarnessTabMeta,
+    signal?: AbortSignal,
+  ): Promise<CodexLiveSession> {
+    const existing = this.codexLive.get(tab.id);
+    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+      await existing.ready;
+      return existing;
+    }
+    if (existing) this.teardownCodexLive(tab.id);
+    const bin = resolveHarnessBin('codex');
+    if (!bin) throw new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）'));
+    const useNode = isScript(bin);
+    const argv = ['app-server'];
+    const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
+      cwd: tab.cwd,
+      env: cliChildEnv(useNode),
+    });
+    child.stderr.on('data', (c) => {
+      this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
+    });
+    const live: CodexLiveSession = {
+      child,
+      conn: null as unknown as AcpConnection,
+      threadId: null,
+      cwd: tab.cwd,
+      model: null,
+      effort: null,
+      turn: null,
+      perms: new Map(),
+      totals: null,
+      lastActivityAt: Date.now(),
+      ready: Promise.resolve(),
+    };
+    live.conn = new AcpConnection(child, {
+      onNotification: (method, params) => this.onCodexNotification(tab.id, live, method, params),
+      onRequest: async (method, params) => {
+        if (
+          method !== 'item/commandExecution/requestApproval' &&
+          method !== 'item/fileChange/requestApproval'
+        )
+          throw new Error(`unsupported client method ${method}`);
+        const id = `codex-perm-${randomUUID()}`;
+        const allowed = await new Promise<boolean | null>((resolve) => {
+          live.perms.set(id, (allow) => {
+            live.perms.delete(id);
+            resolve(allow);
+          });
+          this.onCodexEvents(tab.id, live, [
+            withPermissionExpiry({
+              type: 'permission',
+              id,
+              summary: codexApprovalSummary(method, params),
+            }),
+          ]);
+        });
+        return { decision: allowed === null ? 'cancel' : allowed ? 'accept' : 'decline' };
+      },
+    });
+    child.on('close', () => {
+      if (this.codexLive.get(tab.id) === live) this.codexLive.delete(tab.id);
+      this.clearPermissionTimeouts(tab.id);
+      for (const done of live.perms.values()) done(null);
+      const turn = live.turn;
+      live.turn = null;
+      if (turn && !turn.settled) {
+        turn.settled = true;
+        turn.reject(new Error(turn.lastError ?? t('Codex 进程已退出')));
+      }
+    });
+    this.codexLive.set(tab.id, live);
+    this.dormant.delete(tab.id);
+    this.startIdleSweep();
+    const opts = signal ? { signal } : {};
+    live.ready = (async () => {
+      await live.conn.request(
+        'initialize',
+        { clientInfo: { name: 'nomi', title: 'Nomi', version: '1' }, capabilities: null },
+        opts,
+      );
+      live.conn.notify('initialized', {});
+      if (tab.cliSessionId) {
+        const r = await live.conn.request<{ thread?: { id?: string } } | null>(
+          'thread/resume',
+          { threadId: tab.cliSessionId, cwd: tab.cwd },
+          opts,
+        );
+        live.threadId = r?.thread?.id ?? tab.cliSessionId;
+      }
+    })();
+    try {
+      await live.ready;
+    } catch (e) {
+      this.teardownCodexLive(tab.id);
+      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
+      if (e instanceof Error && e.message === 'ACP process exited')
+        throw new AcpUnavailableError(t('Codex 没能启动 app-server'), { cause: e });
+      throw new Error(innermostMessage(e instanceof Error ? e.message : String(e)), { cause: e });
+    }
+    return live;
+  }
+
+  private async runCodexLive(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    let live = await this.ensureCodexLive(tab, signal);
+    // 清掉了覆盖、又不知道 CLI 的默认值：换新进程（按 config.toml 的默认模型 / 档位续接）
+    const want = this.effectiveOverrides(tab);
+    const catalog = this.cachedCatalog('codex');
+    const defaultModel = catalog?.defaultModel?.id;
+    let model: string | undefined;
+    let effort: string | undefined;
+    if (live.model !== want.model) model = want.model ?? defaultModel;
+    if (live.effort !== want.effort || model !== undefined)
+      effort =
+        want.effort ??
+        catalog?.models.find((m) => m.id === (want.model ?? defaultModel))?.defaultEffort;
+    if ((live.model !== want.model && !model) || (live.effort !== want.effort && !effort)) {
+      this.teardownCodexLive(tab.id);
+      live = await this.ensureCodexLive(tab, signal);
+    }
+    if (signal.aborted) throw new Error(t('已中止'));
+    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    if (!live.threadId) {
+      const r = await live.conn.request<{ thread?: { id?: string } } | null>('thread/start', {
+        cwd: tab.cwd,
+      });
+      live.threadId = r?.thread?.id ?? null;
+      if (!live.threadId) throw new Error(t('Codex 没有返回会话'));
+    }
+    if (signal.aborted) throw new Error(t('已中止'));
+    const text = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
+    const chatRoot = path.join(path.dirname(this.d.root), 'chat');
+    live.used = true;
+    live.lastActivityAt = Date.now();
+    return new Promise<HarnessSendResult>((resolve, reject) => {
+      const turn: CodexTurn = {
+        id: null,
+        events: [],
+        text: '',
+        breaks: [],
+        lastItem: null,
+        totalsBefore: live.totals,
+        lastError: null,
+        settled: false,
+        resolve,
+        reject,
+        chatRoot,
+        imageAliases: loadImageAliases(chatRoot),
+      };
+      live.turn = turn;
+      live.conn
+        .request<{ turn?: { id?: string } } | null>('turn/start', {
+          threadId: live.threadId,
+          input: [{ type: 'text', text, text_elements: [] }],
+          cwd: tab.cwd,
+          ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
+          ...(model ? { model } : {}),
+          ...(effort ? { effort } : {}),
+        })
+        .then(
+          (r) => {
+            turn.id = r?.turn?.id ?? null;
+            live.model = want.model;
+            live.effort = want.effort;
+          },
+          (e: unknown) => {
+            if (live.turn === turn) live.turn = null;
+            if (turn.settled) return;
+            turn.settled = true;
+            reject(new Error(innermostMessage(e instanceof Error ? e.message : String(e))));
+          },
+        );
+    });
+  }
+
+  /** app-server 推送 → 这一轮的事件。只认主线程（子代理线程的条目另有 collab 事件概括） */
+  private onCodexNotification(
+    tabId: string,
+    live: CodexLiveSession,
+    method: string,
+    params: Record<string, unknown>,
+  ) {
+    live.lastActivityAt = Date.now();
+    if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
+      live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
+      return;
+    }
+    const turn = live.turn;
+    if (!turn || (params.threadId !== undefined && params.threadId !== live.threadId)) return;
+    if (method === 'item/agentMessage/delta') {
+      const itemId = typeof params.itemId === 'string' ? params.itemId : null;
+      const delta = typeof params.delta === 'string' ? params.delta : '';
+      const evs: HarnessEvent[] = [];
+      // 同一轮里的下一条消息：补段落分隔，避免两段流式文本粘在一起
+      if (itemId !== turn.lastItem && turn.text.trim())
+        evs.push({ type: 'text-delta', text: '\n\n' });
+      turn.lastItem = itemId;
+      if (delta) evs.push({ type: 'text-delta', text: delta });
+      this.onCodexEvents(tabId, live, evs);
+      return;
+    }
+    if (method === 'item/started' || method === 'item/completed') {
+      const item = codexExecItem((params.item ?? {}) as Record<string, unknown>);
+      if (!item) return;
+      const line = JSON.stringify({
+        type: method === 'item/started' ? 'item.started' : 'item.completed',
+        item,
+      });
+      // exec 的 agent_message 完成时附带一个 done：这里的整轮结束由 turn/completed 决定，去掉它
+      const evs = parseCodexLine(line).filter((e) => e.type !== 'done');
+      this.onCodexEvents(tabId, live, evs);
+      return;
+    }
+    if (method === 'error') {
+      const err = (params.error ?? {}) as { message?: unknown };
+      const message = typeof err.message === 'string' ? err.message : t('Codex 错误');
+      if (params.willRetry === true)
+        this.onCodexEvents(tabId, live, [{ type: 'status', kind: 'reconnect', text: message }]);
+      else turn.lastError = message;
+      return;
+    }
+    if (method === 'turn/completed') {
+      const done = (params.turn ?? {}) as { id?: unknown; status?: unknown; error?: unknown };
+      if (turn.id && done.id !== turn.id) return;
+      this.finishCodexTurn(tabId, live, turn, done);
+    }
+  }
+
+  private onCodexEvents(tabId: string, live: CodexLiveSession, evs: HarnessEvent[]) {
+    const turn = live.turn;
+    for (const raw of evs) {
+      let ev = withPermissionExpiry(stampEvent(raw));
+      if (turn) {
+        if (ev.type === 'tool' && ev.output) {
+          materializeGeneratedImages(ev.output, this.home, turn.chatRoot, turn.imageAliases);
+          turn.text = rewriteGeneratedImageLinks(turn.text, turn.imageAliases);
+        }
+        if (ev.type === 'text-delta' || ev.type === 'text') {
+          const text = rewriteGeneratedImageLinks(ev.text, turn.imageAliases);
+          if (text !== ev.text) ev = { ...ev, text };
+        }
+        const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
+        turn.text = folded.text;
+        turn.breaks = folded.breaks;
+        ev = folded.ev;
+        if (ev.type !== 'text-delta') turn.events.push(ev);
+        if (ev.type === 'error') turn.lastError = ev.message;
+      }
+      this.emitEvent(tabId, ev);
+      if (ev.type === 'permission') {
+        this.armPermissionTimeout(tabId, ev.id);
+        const tab = this.tabs.get(tabId);
+        this.events.emit('permission-needed', {
+          tabId,
+          title: tab?.title ?? 'Codex',
+          backend: 'codex' as HarnessBackend,
+          summary: ev.summary,
+          background: this.activeTabId !== tabId || !anyWindowFocused(),
+        });
+      }
+    }
+  }
+
+  private finishCodexTurn(
+    tabId: string,
+    live: CodexLiveSession,
+    turn: CodexTurn,
+    done: { status?: unknown; error?: unknown },
+  ) {
+    if (live.turn === turn) live.turn = null;
+    live.lastActivityAt = Date.now();
+    this.clearPermissionTimeouts(tabId);
+    for (const fin of [...live.perms.values()]) fin(null);
+    if (turn.settled) return;
+    turn.settled = true;
+    if (done.status === 'interrupted') turn.reject(new Error(t('已中止')));
+    else if (done.status === 'failed') {
+      const err = done.error as { message?: unknown } | null;
+      turn.reject(
+        new Error(
+          (typeof err?.message === 'string' && err.message) || turn.lastError || t('Codex 错误'),
+        ),
+      );
+    } else {
+      const usage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const ev: HarnessEvent = {
+        type: 'done',
+        text: turn.text,
+        sessionId: live.threadId ?? undefined,
+        ...(usage ? { usage } : {}),
+      };
+      turn.events.push(ev);
+      this.emitEvent(tabId, ev);
+      turn.resolve({
+        text: rewriteGeneratedImageLinks(turn.text, turn.imageAliases) || t('（无文本输出）'),
+        sessionId: live.threadId,
+        events: turn.events,
+        ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
+      });
+    }
+    if (live.recycleAfterTurn && this.codexLive.get(tabId) === live) this.teardownCodexLive(tabId);
+  }
+
+  /**
+   * 停止 Codex 这一轮：turn/interrupt（实测 18ms 内以 interrupted 结束，进程保留）。
+   * 拿不到应答、或宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   */
+  private interruptCodexTurn(id: string, live: CodexLiveSession, turn: CodexTurn) {
+    for (const fin of [...live.perms.values()]) fin(null);
+    const fallback = () => {
+      if (this.codexLive.get(id) === live && live.turn === turn && !turn.settled)
+        this.teardownCodexLive(id);
+    };
+    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
+    // turn/start 的应答还没回来（拿不到 turnId）：只能拆进程
+    if (!turn.id || !live.threadId) {
+      fallback();
+      return;
+    }
+    live.conn
+      .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
+      .catch(fallback);
+  }
+
+  private teardownCodexLive(tabId: string) {
+    const live = this.codexLive.get(tabId);
+    if (!live) return;
+    this.codexLive.delete(tabId);
+    for (const done of [...live.perms.values()]) done(null);
+    this.clearPermissionTimeouts(tabId);
+    const turn = live.turn;
+    live.turn = null;
+    try {
+      if (live.child.stdin.writable) live.child.stdin.end();
+    } catch {
+      /* */
+    }
+    try {
+      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
+    } catch {
+      /* */
+    }
+    if (turn && !turn.settled) {
+      turn.settled = true;
+      turn.reject(new Error(t('已中止')));
+    }
+  }
+
   private runCodex(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('codex');
     if (!bin) return Promise.reject(new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）')));
@@ -1998,25 +3399,35 @@ export class CliHarnessService {
     const sandbox = permissionLaunch('codex', tab.permissionMode, {
       codexNetwork: this.codexNetwork,
     }).args;
+    // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）
+    const modelArgs = overrideArgs('codex', this.effectiveOverrides(tab));
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
-    const argv = useNode
-      ? tab.cliSessionId
-        ? [bin, 'exec', 'resume', '--json', tab.cliSessionId, prompt]
-        : [bin, 'exec', '--json', prompt]
-      : tab.cliSessionId
-        ? [
-            'exec',
-            'resume',
-            '--json',
-            '--skip-git-repo-check',
-            ...sandbox,
-            tab.cliSessionId,
-            prompt,
-          ]
-        : ['exec', '--json', '--skip-git-repo-check', ...sandbox, '--cd', tab.cwd, prompt];
+    // 同一份逻辑参数：.js / .mjs 入口只是经 node 启动、前面多一个脚本路径，
+    // 沙箱 / 审批 / 联网参数不能因入口形式不同而丢掉（#73）
+    const argv = tab.cliSessionId
+      ? [
+          'exec',
+          'resume',
+          '--json',
+          '--skip-git-repo-check',
+          ...sandbox,
+          ...modelArgs,
+          tab.cliSessionId,
+          prompt,
+        ]
+      : [
+          'exec',
+          '--json',
+          '--skip-git-repo-check',
+          ...sandbox,
+          ...modelArgs,
+          '--cd',
+          tab.cwd,
+          prompt,
+        ];
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
-      argv,
+      argv: useNode ? [bin, ...argv] : argv,
       parseLine: parseCodexLine,
       kind: 'codex',
       asNode: useNode,
@@ -2032,6 +3443,19 @@ export class CliHarnessService {
     if (!bin) return Promise.reject(new Error(t('未找到 dsh（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
     const argv = ['--profile', 'headless', '--json'];
+    // 标签为第三方供应商选的模型：写一份只给这个进程用的叠加配置（dsh 的 --patch 在 profile 之后生效）
+    const model = this.canOverride('dsh') ? this.effectiveOverrides(tab).model : null;
+    const overlay = model ? this.d.dshModelPatch?.(model) : null;
+    if (overlay) {
+      const file = path.join(this.d.root, 'dsh-patches', `${tab.id.replace(/[^\w-]/g, '_')}.yml`);
+      try {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, overlay, 'utf8');
+        argv.splice(2, 0, '--patch', file);
+      } catch (e) {
+        this.d.logger.warn('harness dsh model patch failed', e);
+      }
+    }
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
     if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
     // 以 - 开头的提示会被当成参数，前置空格规避
@@ -2055,6 +3479,27 @@ export class CliHarnessService {
   }
 
   /**
+   * Grok 一轮：默认走 ACP 长驻会话（与 Gemini 同一套：流式、停止不杀进程、模型 / 思考深度 / 权限原地切换、
+   * 逐项确认）。这台机器上的 Grok 起不来 ACP（版本过旧）时记下来，之后都退回每轮一个进程的 `grok -p`。
+   */
+  private async runGrokTurn(
+    tab: HarnessTabMeta,
+    prompt: string,
+    signal: AbortSignal,
+  ): Promise<HarnessSendResult> {
+    if (this.d.grokAcp && !this.grokAcpUnavailable) {
+      try {
+        return await this.runAcp(tab, prompt, signal);
+      } catch (e) {
+        if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
+        this.grokAcpUnavailable = true;
+        this.d.logger.warn('harness grok ACP unavailable, falling back to grok -p', e);
+      }
+    }
+    return this.runGrok(tab, prompt);
+  }
+
+  /**
    * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update`，
    * 权限按标签模式加 `--permission-mode <mode>`（完全放开为 `--yolo`）。
    * 续接：`--resume <sessionId>`。无头权限事件格式未在真机验证，暂不开放「逐项确认」。
@@ -2071,6 +3516,8 @@ export class CliHarnessService {
       'streaming-json',
       '--no-auto-update',
       ...permissionLaunch('grok', tab.permissionMode).args,
+      // 标签级模型 / 思考深度覆盖（进程级 -m / --reasoning-effort，不写全局配置）
+      ...overrideArgs('grok', this.effectiveOverrides(tab)),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
@@ -2121,7 +3568,7 @@ export class CliHarnessService {
       const imageAliases = loadImageAliases(chatRoot);
       const child = spawnHarness(opts.cmd, opts.argv, {
         cwd: tab.cwd,
-        // 剔除 Nomi 内部变量；只有该后端自己的档案（opts.env）才会注入额外变量
+        // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
         // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
         env: cliChildEnv(Boolean(opts.asNode), opts.env),
       });
@@ -2213,6 +3660,12 @@ export class CliHarnessService {
         }
         if (code && code !== 0 && !completed) {
           reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
+          return;
+        }
+        // 报了错、一个字也没回：按失败处理（dsh 上游 401 / 模型不存在时照样输出空的 final，
+        // 不能把它当成「无文本输出」的正常完成，否则用户看不到原因）
+        if (lastError && !text.trim()) {
+          reject(new Error(lastError));
           return;
         }
         resolve({
@@ -2313,12 +3766,22 @@ export class CliHarnessService {
     return this.writeClaudeControl(live, { subtype: 'stop_task', task_id: agentId });
   }
 
+  /**
+   * State changed: schedule the (coalesced) state files, notify in-process listeners right away,
+   * and send the full state to the windows once per microtask turn, so a burst of status changes
+   * in one event costs one state()/listTabs() serialization over IPC instead of one per call.
+   */
   private changed() {
     this.persist();
-    this.post('ai:harness:changed', this.state());
-    const tabs = this.listTabs();
-    this.post('ai:harness:tabs', tabs);
-    this.events.emit('tabs', tabs);
+    if (this.events.listenerCount('tabs')) this.events.emit('tabs', this.listTabs());
+    if (this.broadcastQueued) return;
+    this.broadcastQueued = true;
+    queueMicrotask(() => {
+      this.broadcastQueued = false;
+      if (this.disposed) return;
+      this.post('ai:harness:changed', this.state());
+      this.post('ai:harness:tabs', this.listTabs());
+    });
   }
 
   /** 用户允许/拒绝 Claude 工具权限请求；写回 CLI stdin 的 control_response */
@@ -2328,7 +3791,9 @@ export class CliHarnessService {
     allow: boolean,
     reason: 'allowed' | 'denied' | 'timeout' = allow ? 'allowed' : 'denied',
   ): boolean {
-    const gemini = this.geminiLive.get(tabId)?.perms.get(requestId);
+    const gemini =
+      this.acpLive.get(tabId)?.perms.get(requestId) ??
+      this.codexLive.get(tabId)?.perms.get(requestId);
     if (gemini) {
       this.clearOnePermissionTimeout(tabId, requestId);
       gemini(allow);
@@ -2378,7 +3843,7 @@ export class CliHarnessService {
     const r = await trustGeminiFolder(folder, { home: this.home, env });
     this.d.logger.info('gemini folder trusted by user', { folder: r.folder, file: r.file });
     // 旧进程在信任前就已退出；保险起见清掉，下一轮按新的信任状态重新启动
-    if (this.geminiLive.has(tabId)) this.teardownGeminiLive(tabId);
+    if (this.acpLive.has(tabId)) this.teardownAcpLive(tabId);
     return r;
   }
 
@@ -2455,10 +3920,26 @@ export class CliHarnessService {
         carry: (o as { carry?: unknown } | undefined)?.carry === true,
       }),
     );
-    handle('ai:harness:tab-permission-mode', (id, m, o) =>
-      this.setTabPermissionMode(String(id), m as HarnessPermissionMode, {
-        confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
+    handle('ai:harness:tab-permission-mode', (id, m, o) => {
+      const raw = o as { confirmed?: unknown; expect?: unknown } | undefined;
+      // 等长驻进程确认后再回复：后端拒绝 / 超时时界面拿到错误，而不是把没生效的档位当成已生效（#72）
+      return this.applyTabPermissionMode(String(id), m as HarnessPermissionMode, {
+        confirmed: raw?.confirmed === true,
+        // 原样核对：类型不对的值与标签不相等，按「已变化」拒绝
+        expect:
+          raw?.expect && typeof raw.expect === 'object'
+            ? (raw.expect as { backend?: string; cwd?: string })
+            : undefined,
+      });
+    });
+    handle('ai:harness:model-catalog', (b, o) =>
+      this.modelCatalogFor(String(b ?? '') as HarnessBackend, {
+        refresh: (o as { refresh?: unknown } | undefined)?.refresh === true,
       }),
+    );
+    handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
+    handle('ai:harness:tab-effort', (id, e) =>
+      this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
     );
     handle('ai:harness:permission-defaults', (o) =>
       this.setPermissionDefaults(
@@ -2513,27 +3994,109 @@ type ClaudeTurnWaiter = {
   settled: boolean;
 };
 
-type GeminiTurn = {
+type AcpBackend = 'gemini' | 'grok';
+
+type CodexTurn = {
+  /** turn/start 应答里的 turnId（停止用；应答到达前为 null） */
+  id: string | null;
+  events: HarnessEvent[];
+  text: string;
+  breaks: number[];
+  /** 最近一段流式正文所属的消息条目：换条目时补段落分隔 */
+  lastItem: string | null;
+  /** 这一轮开始时的线程累计用量（结束时求差即这一轮的用量） */
+  totalsBefore: CodexTokenTotals | null;
+  lastError: string | null;
+  settled: boolean;
+  resolve: (r: HarnessSendResult) => void;
+  reject: (e: Error) => void;
+  chatRoot: string;
+  imageAliases: Map<string, string>;
+};
+
+/** `codex app-server` 长驻进程：一个标签一个线程 */
+type CodexLiveSession = {
+  child: ChildProcessWithoutNullStreams;
+  conn: AcpConnection;
+  /** 线程 id（= cliSessionId）；新会话在第一条消息时才 thread/start */
+  threadId: string | null;
+  cwd: string;
+  /** 已随 turn/start 下发的模型 / 思考深度覆盖（null = 沿用 config.toml 默认） */
+  model: string | null;
+  effort: string | null;
+  turn: CodexTurn | null;
+  /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
+  perms: Map<string, (allow: boolean | null) => void>;
+  /** 最近一次 thread/tokenUsage/updated 的线程累计 */
+  totals: CodexTokenTotals | null;
+  lastActivityAt: number;
+  ready: Promise<void>;
+  used?: boolean;
+  /** 换了账号 / 供应商：这一轮结束后拆掉，下一轮按新配置重拉 */
+  recycleAfterTurn?: boolean;
+};
+
+/** ACP 握手阶段进程就退出（CLI 太旧 / 不支持 ACP）：Grok 据此退回每轮一个进程的 `grok -p` */
+class AcpUnavailableError extends Error {}
+
+type AcpTurn = {
+  /** 这一轮里用户拒绝过工具调用（Grok 会以 cancelled 结束整轮） */
+  denied?: boolean;
   mapper: ReturnType<typeof createGeminiMapper>;
   events: HarnessEvent[];
   text: string;
   breaks: number[];
 };
 
-type GeminiLiveSession = {
+type AcpLiveSession = {
+  backend: AcpBackend;
+  /** 已下发到会话的标签级模型 / 思考深度覆盖（null = 沿用 CLI 默认；仅 Grok） */
+  model: string | null;
+  effort: string | null;
   child: ChildProcessWithoutNullStreams;
   conn: AcpConnection;
   sessionId: string | null;
   cwd: string;
   permissionMode: HarnessPermissionMode;
-  turn: GeminiTurn | null;
+  turn: AcpTurn | null;
   /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
   perms: Map<string, (allow: boolean | null) => void>;
   lastActivityAt: number;
   ready: Promise<void>;
+  /** 最近一次还没得到确认的权限模式切换（permissionMode 只在确认后更新，#72） */
+  modeChange: ModeChange | null;
   /** 账号切换时正在跑：这一轮结束后拆掉，下一轮按新登录重拉 */
   recycleAfterTurn?: boolean;
+  /** 发过消息；没发过的（预热拉起的）没有会话也可回收（不丢上下文） */
+  used?: boolean;
 };
+
+/**
+ * 发给长驻进程、还在等后端确认的权限模式切换。done 只在「最新一次」切换失败时 reject
+ * （此时进程 / 会话已拆除，下一轮按标签档位重新拉起）；被更新的切换取代的旧请求不报错。
+ */
+type ModeChange = { mode: HarnessPermissionMode; done: Promise<void> };
+
+/** 某个后端最近一次的标签设置（新会话的起点） */
+type LastTabSettings = {
+  permissionMode?: HarnessPermissionMode;
+  modelOverride?: string;
+  reasoningEffort?: string;
+  /** 上面的模型属于哪个来源（第三方供应商 id；缺省 = 官方账号） */
+  modelScope?: string;
+};
+
+/** 在途的 Claude control_request：等同 request_id 的 control_response */
+type ClaudeControlWaiter = {
+  resolve: (response: Record<string, unknown>) => void;
+  reject: (e: Error) => void;
+  timer: NodeJS.Timeout;
+};
+
+/** 长驻 Claude 进程上还有后台任务或自发轮次在跑（拆进程会把它们一起杀掉） */
+function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
+  return live.bgTasks.size > 0 || live.auto !== null;
+}
 
 type ClaudeLiveSession = {
   child: ChildProcessWithoutNullStreams;
@@ -2541,8 +4104,15 @@ type ClaudeLiveSession = {
   buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
-  /** 进程当前的权限模式（启动参数或最近一次 set_permission_mode） */
+  /** 进程已生效的权限模式：启动参数，或最近一次得到成功 control_response 的 set_permission_mode */
   permissionMode: HarnessPermissionMode;
+  /** 最近一次还没得到确认的权限模式切换；确认前不复用进程跑下一轮（#72） */
+  modeChange: ModeChange | null;
+  /** 在途的 control_request：request_id → 应答 */
+  controls: Map<string, ClaudeControlWaiter>;
+  /** 进程当前的标签级模型 / 思考深度覆盖（启动参数或最近一次成功的 set_model；复用键的一部分） */
+  modelOverride: string | null;
+  reasoningEffort: string | null;
   /**
    * 轮次归属（docs/design/cli-subagents.md §4）：用户消息带 uuid 写入，CLI 开始处理它时原样回显
    * （--replay-user-messages）。回显到达前的输出不属于这一轮；没有进行中的用户轮次时来的输出是自发轮次。
@@ -2559,6 +4129,8 @@ type ClaudeLiveSession = {
   lastActivityAt: number;
   /** 供应商已换：这一轮结束后拆进程，不打断当前回复 */
   recycleAfterTurn?: boolean;
+  /** 预热拉起、还没发过消息：没有会话也可回收（不丢上下文） */
+  prewarmed?: boolean;
 };
 
 /** 权限请求带上超时时间点：界面显示倒计时，与主进程的自动拒绝同一个时钟 */
@@ -2619,7 +4191,11 @@ function spawnHarness(
  * harness 收到空输出（「无文本输出」），并发/续接用例随之失败。Node 下该变量无害。
  */
 function cliChildEnv(useNode: boolean, extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  return buildCliEnv(process.env, useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra);
+  // 带上补全后的 PATH：`#!/usr/bin/env node` 的 CLI 要能找到 nvm / volta 等装的 node（#76）
+  return buildCliEnv(
+    withCliPath(process.env),
+    useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra,
+  );
 }
 
 function clampLimit(n: number): number {

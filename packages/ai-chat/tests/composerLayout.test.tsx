@@ -74,4 +74,24 @@ describe('输入框工具栏 CSS 契约', () => {
     expect(body?.[1]).toMatch(/overflow:\s*hidden/);
     expect(body?.[1]).toMatch(/flex:\s*1 1 0/);
   });
+
+  // #71（E28 Windows 720px）：选择器区里的胶囊按钮必须自己收缩，否则 nowrap 的按钮会越过右侧语音按钮、
+  // 被 modelStatus 裁掉。新加的按钮（如「模型 · 思考深度」）也要满足同一契约。
+  it.each(['PermissionModeChip', 'ModelControls'])(
+    '%s：按钮可收缩（省略号），极窄输入栏只留图标',
+    (name) => {
+      const chipCss = readFileSync(
+        resolve(__dirname, `../src/components/${name}/index.module.css`),
+        'utf8',
+      );
+      const body = (sel: string) => new RegExp(`\\n${sel} \\{([^}]*)\\}`).exec(chipCss)?.[1] ?? '';
+      expect(body('\\.wrap')).toMatch(/min-width:\s*0/);
+      expect(body('\\.chip')).toMatch(/min-width:\s*0/);
+      expect(body('\\.chip')).toMatch(/overflow:\s*hidden/);
+      expect(body('\\.label')).toMatch(/text-overflow:\s*ellipsis/);
+      expect(chipCss).toMatch(
+        /@container composer \(max-width: 440px\)\s*\{\s*\.label\s*\{\s*display:\s*none;/,
+      );
+    },
+  );
 });
