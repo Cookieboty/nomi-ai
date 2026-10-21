@@ -9,6 +9,7 @@ import path from 'node:path';
 
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import type { HarnessEvent } from '../../../src/cli/types';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -29,6 +30,7 @@ describe('CliHarnessService Grok over ACP', () => {
     'NOMI_MOCK_GROK_MODE',
     'NOMI_MOCK_GROK_NO_ACP',
     'NOMI_MOCK_FIRST_TOKEN_MS',
+    'NOMI_MOCK_SLOW_PROMPT',
     'NOMI_MOCK_ARGV_LOG',
   ];
   let saved: Record<string, string | undefined> = {};
@@ -243,16 +245,16 @@ describe('CliHarnessService Grok over ACP', () => {
   }, 15_000);
 
   it('停止：session/cancel 结束这一轮、进程保留，下一轮直接复用', async () => {
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '3000';
+    // 只有 'long' 这一轮会等（session/cancel 会打断）；下一轮在同一个进程里立即回复
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '60000';
+    process.env.NOMI_MOCK_SLOW_PROMPT = 'long';
     const { h } = mk();
     const tab = h.createTab({ backend: 'grok' });
     const p = h.sendTab(tab.id, 'long');
-    for (let i = 0; i < 100 && count('session/prompt') === 0; i++)
-      await new Promise((r) => setTimeout(r, 20));
+    await until(() => count('session/prompt') > 0, { what: 'session/prompt sent' });
     expect(h.cancelTab(tab.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(h.tabMessages(tab.id).at(-1)).toMatchObject({ stopped: true });
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '0';
     expect((await h.sendTab(tab.id, 'next')).text).toContain('next');
     expect(count('initialize')).toBe(1);
     expect(count('session/cancel')).toBe(1);

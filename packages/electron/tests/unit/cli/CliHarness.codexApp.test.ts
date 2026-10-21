@@ -11,6 +11,7 @@ import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { codexExecItem, codexTurnPolicy, codexTurnUsage } from '../../../src/cli/codex/appServer';
 import { permissionLaunch } from '../../../src/cli/permissionMode';
 import type { HarnessEvent } from '../../../src/cli/types';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -91,6 +92,7 @@ describe('CliHarnessService Codex over app-server', () => {
     'NOMI_MOCK_CODEX_NO_APP',
     'NOMI_MOCK_CODEX_FAIL',
     'NOMI_MOCK_FIRST_TOKEN_MS',
+    'NOMI_MOCK_SLOW_PROMPT',
     'NOMI_MOCK_ARGV_LOG',
   ];
   let saved: Record<string, string | undefined> = {};
@@ -254,17 +256,16 @@ describe('CliHarnessService Codex over app-server', () => {
   }, 15_000);
 
   it('停止：turn/interrupt 结束这一轮、进程保留，下一轮直接复用', async () => {
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '3000';
+    // 只有 'long' 这一轮会等（turn/interrupt 会打断）；下一轮在同一个进程里立即回复
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '60000';
+    process.env.NOMI_MOCK_SLOW_PROMPT = 'long';
     const { h } = mk();
     const tab = h.createTab({ backend: 'codex' });
     const p = h.sendTab(tab.id, 'long');
-    for (let i = 0; i < 100 && turnStarts().length === 0; i++)
-      await new Promise((r) => setTimeout(r, 20));
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => turnStarts().length > 0, { what: 'turn/start sent' });
     expect(h.cancelTab(tab.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(h.tabMessages(tab.id).at(-1)).toMatchObject({ stopped: true });
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '0';
     expect((await h.sendTab(tab.id, 'next')).text).toBe('【Mock Codex】任务完成。');
     expect(count('initialize')).toBe(1);
     expect(count('turn/interrupt')).toBe(1);

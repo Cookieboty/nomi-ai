@@ -16,6 +16,29 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
+
 const args = process.argv.slice(2);
 if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write('0.62.0\n');
@@ -116,7 +139,7 @@ async function prompt(id, p) {
       content: [{ type: 'content', content: { type: 'text', text: ok ? 'written' : 'denied' } }],
     });
   }
-  if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+  if (delayMs && isSlow(text)) await sleepCancellable(sid, delayMs);
   if (cancelled.has(sid)) return send({ id, result: { stopReason: 'cancelled' } });
   update(sid, {
     sessionUpdate: 'agent_message_chunk',
@@ -261,6 +284,7 @@ process.stdin.on('data', (c) => {
         break;
       case 'session/cancel':
         cancelled.add(m.params.sessionId);
+        wake(m.params.sessionId);
         break;
       default:
         if (m.id !== undefined)

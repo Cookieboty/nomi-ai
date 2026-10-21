@@ -20,6 +20,29 @@
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
+
 const args = process.argv.slice(2);
 const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
 if (args.includes('--version') || args.includes('-v')) {
@@ -376,7 +399,7 @@ async function runOnce(_prompt) {
   }
 
   const firstToken = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
-  if (firstToken > 0) await new Promise((r) => setTimeout(r, firstToken));
+  if (firstToken > 0 && isSlow(_prompt)) await sleepCancellable('turn', firstToken);
   if (process.env.NOMI_MOCK_FAIL === '1') {
     emit({
       type: 'result',
@@ -759,6 +782,7 @@ if (streamIn) {
           },
         });
         if (busy) {
+          wake('turn');
           emit({
             type: 'result',
             subtype: 'error_during_execution',

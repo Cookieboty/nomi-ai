@@ -15,6 +15,7 @@ import {
   pickPermissionOption,
 } from '../../../src/cli/gemini/geminiEvents';
 import { geminiModeId } from '../../../src/cli/permissionMode';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -96,6 +97,7 @@ describe('CliHarnessService Gemini backend', () => {
     'NOMI_MOCK_GEMINI_PERM',
     'NOMI_MOCK_GEMINI_LOG',
     'NOMI_MOCK_DELAY_MS',
+    'NOMI_MOCK_SLOW_PROMPT',
     'NOMI_MOCK_GEMINI_SET_MODE',
     'NOMI_MOCK_GEMINI_MODE',
     'NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS',
@@ -428,9 +430,6 @@ describe('CliHarnessService Gemini backend', () => {
   });
 
   describe('初始化期间停止（#75）', () => {
-    const until = async (cond: () => boolean) => {
-      for (let i = 0; i < 300 && !cond(); i++) await new Promise((r) => setTimeout(r, 25));
-    };
     it.each<[string, Record<string, string>, string]>([
       ['initialize', { NOMI_MOCK_GEMINI_INIT_DELAY_MS: '1500' }, 'initialize'],
       ['session/set_mode', { NOMI_MOCK_GEMINI_SET_MODE_DELAY_MS: '1500' }, 'session/set_mode'],
@@ -463,17 +462,18 @@ describe('CliHarnessService Gemini backend', () => {
   });
 
   it('cancel sends session/cancel and marks the turn stopped', async () => {
-    process.env.NOMI_MOCK_DELAY_MS = '3000';
+    // session/cancel 会打断假 CLI 的等待
+    process.env.NOMI_MOCK_DELAY_MS = '60000';
     const { h, root } = mk();
     const log = path.join(root, 'acp.log');
     process.env.NOMI_MOCK_GEMINI_LOG = log;
     const tab = h.createTab({ backend: 'gemini' });
     const p = h.sendTab(tab.id, 'slow').catch((e: Error) => e);
     // 等这一轮真的发到 CLI 再取消：全量测试负载下进程启动可能远超几百毫秒
-    for (let i = 0; i < 200; i++) {
-      if (fs.existsSync(log) && readLog(log).some((c) => c.method === 'session/prompt')) break;
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    await until(
+      () => fs.existsSync(log) && readLog(log).some((c) => c.method === 'session/prompt'),
+      { timeoutMs: 15_000, what: 'session/prompt sent' },
+    );
     expect(h.cancelTab(tab.id)).toBe(true);
     await p;
     expect(readLog(log).some((c) => c.method === 'session/cancel')).toBe(true);

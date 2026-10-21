@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { CliHarnessService, MAIN_TAB_ID } from '../../../src/cli/CliHarnessService';
 import type { HarnessTabsState } from '../../../src/cli/types';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -164,11 +165,18 @@ describe('CliHarnessService tabs', () => {
   it('停止 Claude 轮次：只发 interrupt，进程保留，下一轮不重启', async () => {
     const boot = path.join(root, 'claude-boot.log');
     process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '3000';
+    const prompts = path.join(root, 'claude-prompts.log');
+    process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+    // 只有 'long' 这一轮在首字前等很久（模拟长回答）；interrupt 会打断这段等待
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '60000';
+    process.env.NOMI_MOCK_SLOW_PROMPT = 'long';
     const h = mk();
     const a = h.createTab({ backend: 'claude' });
     const p = h.sendTab(a.id, 'long');
-    await new Promise((r) => setTimeout(r, 300));
+    // CLI 真正收到这一轮之后再停止
+    await until(() => fs.existsSync(prompts) && fs.readFileSync(prompts, 'utf8').includes('long'), {
+      what: 'mock claude received the turn',
+    });
     const live = claudeLive(h).get(a.id);
     expect(live).toBeDefined();
     expect(h.cancelTab(a.id)).toBe(true);
@@ -177,7 +185,6 @@ describe('CliHarnessService tabs', () => {
     expect(h.tabMessages(a.id).at(-1)).toMatchObject({ role: 'assistant', stopped: true });
     expect(claudeLive(h).get(a.id)).toBe(live);
 
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '0';
     await h.sendTab(a.id, 'again');
     expect(claudeLive(h).get(a.id)).toBe(live);
     expect(fs.readFileSync(boot, 'utf8').trim().split('\n')).toHaveLength(1);
@@ -260,12 +267,16 @@ describe('CliHarnessService tabs', () => {
   }, 20_000);
 
   it('停止时 CLI 不应答 interrupt：宽限期后拆进程兜底', async () => {
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '5000';
+    const prompts = path.join(root, 'claude-prompts.log');
+    process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '60000';
     process.env.NOMI_MOCK_INTERRUPT = 'ignore';
     const h = mk({ claudeInterruptGraceMs: 300 });
     const a = h.createTab({ backend: 'claude' });
     const p = h.sendTab(a.id, 'long');
-    await new Promise((r) => setTimeout(r, 300));
+    await until(() => fs.existsSync(prompts) && fs.readFileSync(prompts, 'utf8').includes('long'), {
+      what: 'mock claude received the turn',
+    });
     expect(h.cancelTab(a.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(claudeLive(h).has(a.id)).toBe(false);

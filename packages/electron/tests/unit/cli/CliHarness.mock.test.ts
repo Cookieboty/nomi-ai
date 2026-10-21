@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -162,11 +163,11 @@ describe('CliHarnessService mock CLI', () => {
       h.setMaxConcurrent(1);
       const a = h.createTab({ backend: 'claude' });
       const b = h.createTab({ backend: 'claude' });
+      const status = (id: string) => h.listTabs().tabs.find((t) => t.id === id)?.status;
       const runA = h.sendTab(a.id, 'one').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 300));
+      await until(() => status(a.id) === 'running', { what: 'tab a running' });
       const runB = h.sendTab(b.id, 'two').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 100));
-      expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('queued');
+      await until(() => status(b.id) === 'queued', { what: 'tab b queued' });
       expect(h.cancelTab(b.id)).toBe(true);
       await runB;
       expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('idle');
@@ -942,12 +943,21 @@ describe('CliHarnessService permission modes', () => {
 
     it('等权限模式确认时点停止：不再拉起进程、这一轮不发送（#75）', async () => {
       process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
-      const prompts = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'p.log');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-'));
+      const prompts = path.join(dir, 'p.log');
+      const control = path.join(dir, 'control.log');
       process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+      process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
       const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 1500 });
       h.setTabPermissionMode(tab.id, 'plan');
       const p = h.sendTab(tab.id, 'two').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 100));
+      // CLI 收到 set_permission_mode（还没确认）时停止
+      await until(
+        () => fs.existsSync(control) && fs.readFileSync(control, 'utf8').includes('plan'),
+        {
+          what: 'set_permission_mode received',
+        },
+      );
       expect(h.cancelTab(tab.id)).toBe(true);
       expect(await p).toBeInstanceOf(Error);
       await new Promise((r) => setTimeout(r, 1700)); // 原本的确认超时过后也不会补发
@@ -1107,14 +1117,6 @@ describe('CliHarnessService Claude background subagents (docs/design/cli-subagen
     harnesses.push(h);
     return h;
   };
-  const until = async (fn: () => boolean, ms = 5000) => {
-    const t0 = Date.now();
-    while (!fn()) {
-      if (Date.now() - t0 > ms) throw new Error('timeout');
-      await new Promise((r) => setTimeout(r, 20));
-    }
-  };
-
   it('persists the follow-up turn the CLI starts on its own after a background subagent', async () => {
     const h = mk();
     const finished: string[] = [];

@@ -1,5 +1,28 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
+
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
 /**
  * Mock Grok Build CLI for CI / unit tests.
  * Supports: --version | -p <prompt> --output-format streaming-json [--resume <id>] [--cwd <dir>]
@@ -200,7 +223,7 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       });
     }
     const wait = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
-    if (wait) await new Promise((r) => setTimeout(r, wait));
+    if (wait && isSlow(text)) await sleepCancellable(sid, wait);
     if (cancelled.has(sid)) return reply(id, { stopReason: 'cancelled' });
     const answer =
       process.env.NOMI_MOCK_GROK_REPLY ||
@@ -265,6 +288,7 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
         return;
       case 'session/cancel':
         cancelled.add(p.sessionId);
+        wake(p.sessionId);
         return;
       case 'session/close':
         return reply(j.id, {});

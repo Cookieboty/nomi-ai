@@ -16,6 +16,7 @@ import {
   type IdleCandidate,
 } from '../../../src/cli/idleReclaim';
 import type { HarnessTabsState } from '../../../src/cli/types';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -122,7 +123,9 @@ describe('CliHarnessService idle recycling (mock Claude)', () => {
     process.env.NOMI_MOCK_DELAY_MS = '600';
     const tab = h.createTab({ backend: 'claude' });
     const p = h.sendTab(tab.id, 'slow');
-    await new Promise((r) => setTimeout(r, 200));
+    await until(() => h.listTabs().tabs.find((x) => x.id === tab.id)?.status === 'running', {
+      what: 'turn running',
+    });
     expect(h.reclaimIdle(Date.now() + 3_600_000)).toEqual([]);
     await p;
     // 有待处理的权限请求

@@ -64,7 +64,7 @@ describe('AcpConnection timeouts', () => {
   });
 
   it('idle requests restart the clock on activity and pause while the agent awaits us', async () => {
-    jest.useRealTimers();
+    // 假计时器：时间只在 advance 时前进，机器再忙也不会把 80ms 的间隔拉长成超时
     const child = fakeChild();
     let answer: (() => void) | null = null;
     const conn = new AcpConnection(child, {
@@ -72,20 +72,41 @@ describe('AcpConnection timeouts', () => {
       onRequest: () => new Promise((r) => (answer = () => r({ ok: true }))),
     });
     const p = conn.request('session/prompt', {}, { idle: true, timeoutMs: 150 });
-    const caught = p.catch((e: unknown) => e);
-    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    // 持续有动静：不超时
+    let settled = false;
+    const caught = p.catch((e: unknown) => e).finally(() => (settled = true));
+    // 持续有动静：累计 320ms 也不超时（每次动静都重新计时）
     for (let i = 0; i < 4; i++) {
-      await wait(80);
+      await jest.advanceTimersByTimeAsync(80);
       child.reply({ method: 'session/update', params: {} });
+      await jest.advanceTimersByTimeAsync(0);
     }
+    expect(settled).toBe(false);
     // 代理在等我们（权限确认）：等多久都不超时
     child.reply({ id: 900, method: 'session/request_permission', params: {} });
-    await wait(400);
+    await jest.advanceTimersByTimeAsync(10_000);
+    expect(settled).toBe(false);
     answer!();
-    await wait(20);
+    await jest.advanceTimersByTimeAsync(20);
     child.reply({ id: 1, result: { stopReason: 'end_turn' } });
+    await jest.advanceTimersByTimeAsync(0);
     expect(await caught).toEqual({ stopReason: 'end_turn' });
+  });
+
+  it('after the agent stops waiting on us, silence times the idle request out again', async () => {
+    const child = fakeChild();
+    let answer: (() => void) | null = null;
+    const conn = new AcpConnection(child, {
+      onNotification: () => undefined,
+      onRequest: () => new Promise((r) => (answer = () => r({ ok: true }))),
+    });
+    const caught = conn
+      .request('session/prompt', {}, { idle: true, timeoutMs: 150 })
+      .catch((e: unknown) => e);
+    child.reply({ id: 900, method: 'session/request_permission', params: {} });
+    await jest.advanceTimersByTimeAsync(1000);
+    answer!();
+    await jest.advanceTimersByTimeAsync(151);
+    expect(await caught).toBeInstanceOf(AcpTimeoutError);
   });
 
   it('an idle request with no activity times out', async () => {

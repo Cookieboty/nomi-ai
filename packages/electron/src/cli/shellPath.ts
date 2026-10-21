@@ -34,14 +34,24 @@ export function mergePath(cur: string, extra: string, delimiter = path.delimiter
   return out.join(delimiter);
 }
 
-function readLoginShellPath(shell: string): Promise<string | null> {
+/** 登录交互 shell 的参数：打印带标记的 PATH */
+export const LOGIN_SHELL_ARGS = ['-ilc', `printf '%s' "${START}\${PATH}${END}"`];
+
+/** 执行登录 shell 并取出 PATH；失败返回 null */
+export type ShellPathRunner = (shell: string, args: string[]) => Promise<string | null>;
+
+function readLoginShellPath(
+  shell: string,
+  args: string[],
+  timeoutMs = TIMEOUT_MS,
+): Promise<string | null> {
   return new Promise((resolve) => {
     execFile(
       shell,
-      ['-ilc', `printf '%s' "${START}\${PATH}${END}"`],
+      args,
       {
         encoding: 'utf8',
-        timeout: TIMEOUT_MS,
+        timeout: timeoutMs,
         windowsHide: true,
         // oh-my-zsh 等在交互 shell 里会检查更新 / 弹提示：关掉，避免拖慢或卡住
         env: { ...process.env, DISABLE_AUTO_UPDATE: 'true', ZSH_DISABLE_COMPFIX: 'true' },
@@ -57,12 +67,18 @@ let ready: Promise<void> | null = null;
  * 启动时调用一次（幂等）。返回的 Promise 不会 reject；探测 CLI 的异步路径会等它（见 waitForShellPath）。
  * @param onMerged PATH 有新增目录时回调（清掉「未找到」的探测缓存）
  */
-export function loadLoginShellPath(onMerged?: (added: string[]) => void): Promise<void> {
+export function loadLoginShellPath(
+  onMerged?: (added: string[]) => void,
+  /** 测试注入：替换执行器或放宽超时 */
+  opts: { run?: ShellPathRunner; timeoutMs?: number } = {},
+): Promise<void> {
   if (ready) return ready;
   if (process.platform === 'win32') return (ready = Promise.resolve());
   const shell =
     process.env.SHELL?.trim() || (process.platform === 'darwin' ? '/bin/zsh' : '/bin/sh');
-  ready = readLoginShellPath(shell)
+  const run: ShellPathRunner =
+    opts.run ?? ((sh, args) => readLoginShellPath(sh, args, opts.timeoutMs));
+  ready = run(shell, LOGIN_SHELL_ARGS)
     .then((value) => {
       if (!value) return;
       const before = process.env.PATH ?? '';
