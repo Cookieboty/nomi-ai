@@ -19,7 +19,7 @@ import round8_scene as R8
 SCENE = L10.PROJECT / "scene.rml"
 RIG = L10.PROJECT / "reference/svg-rig"
 LIC = L10.PROJECT / "parts/DETAIL_LICENSE.json"
-OL = 12          # underlap px at band seams
+OL = 28          # underlap px at band seams (feathered)
 TAGS = ("l", "c", "r")
 
 
@@ -53,32 +53,55 @@ def head_tex_frame(s):
 
 
 def split_cheeks(im: np.ndarray):
-    """Vertical L/C/R bands of the opaque head silhouette; OL px underlap; original pixels only."""
-    al = im[..., 3]
+    """Vertical L/C/R bands; OL px underlap; soft alpha feather over FEATHER px so seams vanish."""
+    FEATHER = 16
+    al = im[..., 3].astype(np.float64)
     m = al > 32
     ys, xs = np.where(m)
     x0, x1 = int(xs.min()), int(xs.max())
     w = x1 - x0 + 1
     c1, c2 = x0 + w // 3, x0 + 2 * w // 3
-    bands = {
+    # hard ownership ranges (no overlap) for pivot; drawable ranges include OL underlap
+    own_ranges = {"l": (x0, c1), "c": (c1, c2), "r": (c2, x1 + 1)}
+    draw_ranges = {
         "l": (x0, c1 + OL),
         "c": (c1 - OL, c2 + OL),
         "r": (c2 - OL, x1),
     }
     out = {}
     H, W = im.shape[:2]
-    for tag, (lo, hi) in bands.items():
-        rgba = im.copy()
-        rgba[:, : max(0, lo), 3] = 0
-        rgba[:, min(W, hi + 1):, 3] = 0
-        # bone pivot = opaque centroid of OWN band (without underlap preference: center of band)
-        mid = (lo + hi) * 0.5
-        own = m & (np.arange(W)[None, :] >= lo) & (np.arange(W)[None, :] <= hi)
-        yy, xx = np.where(own)
-        cx = float(xx.mean()) + 0.5 if len(xx) else mid
+    xx = np.arange(W)[None, :].astype(np.float64)
+    for tag in ("l", "c", "r"):
+        lo, hi = draw_ranges[tag]
+        olo, ohi = own_ranges[tag]
+        # weight 1 inside own, ramp 0..1 across underlap wings
+        wt = np.ones((1, W), dtype=np.float64)
+        if tag == "l":
+            # fade out on right edge into center
+            right = np.clip((hi - xx) / max(FEATHER, 1), 0, 1)
+            wt = np.where(xx > ohi, right, 1.0)
+            wt = np.where(xx > hi, 0.0, wt)
+            wt = np.where(xx < lo, 0.0, wt)
+        elif tag == "r":
+            left = np.clip((xx - lo) / max(FEATHER, 1), 0, 1)
+            wt = np.where(xx < olo, left, 1.0)
+            wt = np.where(xx < lo, 0.0, wt)
+            wt = np.where(xx > hi, 0.0, wt)
+        else:  # center: fade both sides
+            left = np.clip((xx - lo) / max(FEATHER, 1), 0, 1)
+            right = np.clip((hi - xx) / max(FEATHER, 1), 0, 1)
+            wt = np.minimum(left, right)
+            wt = np.where((xx < lo) | (xx > hi), 0.0, wt)
+        rgba = im.copy().astype(np.float64)
+        rgba[..., 3] = al * wt
+        rgba[..., 3] = np.clip(rgba[..., 3], 0, 255)
+        mid = (olo + ohi) * 0.5
+        own = m & (np.arange(W)[None, :] >= olo) & (np.arange(W)[None, :] < ohi)
+        yy, xxn = np.where(own)
+        cx = float(xxn.mean()) + 0.5 if len(xxn) else mid
         cy = float(yy.mean()) + 0.5 if len(yy) else H * 0.45
         out[tag] = dict(rgba=rgba.astype(np.uint8), px=int((rgba[..., 3] > 32).sum()),
-                        lo=lo, hi=hi, cx=cx, cy=cy)
+                        lo=int(lo), hi=int(hi), cx=cx, cy=cy)
     return out, (x0, x1)
 
 
@@ -89,6 +112,8 @@ def main():
     s = re.sub(r'<RootBone name="full\.head\.cheek\.[lcr]"[^>]*/>', "", s)
     s = re.sub(r'<Image name="full\.head\.cheek\.[lcr]\.image".*?</Image>\n\s*', "", s, flags=re.S)
     s = re.sub(r'<ImageAsset name="fullbody-head-cheek-[lcr]"[^>]*/>\n\s*', "", s)
+    s = re.sub(r'<Image name="full\\.head\\.face\\.backfill\\.image".*?</Image>\n\\s*', "", s, flags=re.S)
+    s = re.sub(r'<ImageAsset name="fullbody-head-face-backfill"[^>]*/>\n\\s*', "", s)
     ids = A.ids_by_name(s)
     nid = max_id(s) + 1
     (kx, ky, bx, by), (W, H) = head_tex_frame(s)
@@ -148,6 +173,63 @@ def main():
     s = s[:ha] + ins + s[ha:]
     a = s.find('<ImageAsset name="fullbody-head"')
     s = s[:a] + assets + s[a:]
+
+
+    ha, _ = R8.find_elem(s, "Image", "full.head.image")
+
+    # ---- face backfill (eye sockets / black cutouts filled from nearest skin) so parallax eyes do not open voids
+    from scipy.ndimage import distance_transform_edt, binary_fill_holes, gaussian_filter
+    al = im[..., 3]; opaque = al > 32
+    skin = opaque & (im[:, :, 0] > 180) & (im[:, :, 1] > 140) & (im[:, :, 2] > 120)
+    sil = binary_fill_holes(opaque); holes = sil & ~opaque
+    black = opaque & (im[:, :, :3].max(2) < 25)
+    ys, xs = np.where(skin); y0, y1, x0, x1 = int(ys.min()), int(ys.max()), int(xs.min()), int(xs.max())
+    face = np.zeros_like(opaque); face[y0:y1 + 1, x0:x1 + 1] = True
+    fill = (holes | black) & face
+    idx = distance_transform_edt(~skin, return_distances=False, return_indices=True)
+    bf = im.astype(np.float64).copy()
+    bf[fill, 0] = im[idx[0][fill], idx[1][fill], 0]
+    bf[fill, 1] = im[idx[0][fill], idx[1][fill], 1]
+    bf[fill, 2] = im[idx[0][fill], idx[1][fill], 2]
+    bf[fill, 3] = 255
+    for c in range(3):
+        ch = bf[..., c].copy(); sm = gaussian_filter(ch, 0.6); ch[fill] = sm[fill]; bf[..., c] = ch
+    fn_bf = "head-face-backfill.png"
+    Image.fromarray(bf.astype(np.uint8), "RGBA").save(RIG / fn_bf, format="PNG", optimize=False, compress_level=9)
+    aid, iid, mid, kid = (f"0:{nid + i}" for i in range(4)); nid += 4
+    vx = "".join(f'<MeshVertex x="{bx + kx * u * W:.4f}" y="{by + ky * v * H:.4f}" u="{u:.6f}" v="{v:.6f}" name="head-face-backfill.v{i}">'
+                 '<Weight values="255" indices="1"/></MeshVertex>' for i, (u, v) in enumerate(((0, 0), (1, 0), (0, 1), (1, 1))))
+    tri = base64.b64encode(b"".join(leb(i) for i in (0, 1, 2, 1, 3, 2))).decode()
+    hid = ids["full.head"]
+    ins_bf = (f'<Image name="full.head.face.backfill.image" assetId="{aid}" x="0" y="0" originX="0" originY="0" '
+              f'scaleX="1" scaleY="1" opacity="0" id="{iid}">'
+              f'<Mesh triangleIndexBytes="{tri}" id="{mid}">{vx}'
+              f'<Skin name="head-face-backfill.skin" id="{kid}" xx="1" xy="0" yx="0" yy="1" tx="0" ty="0">'
+              f'<Tendon boneId="{hid}" xx="1" xy="0" yx="0" yy="1" tx="0" ty="0" name="head-face-backfill.t0"/>'
+              '</Skin></Mesh></Image>\n                    ')
+    _, hb = R8.find_elem(s, "Image", "full.head.image"); s = s[:hb] + ins_bf + s[hb:]  # after head = under head (through holes)
+    a = s.find('<ImageAsset name="fullbody-head"')
+    s = s[:a] + f'<ImageAsset name="fullbody-head-face-backfill" file="reference/svg-rig/{fn_bf}" id="{aid}"/>\n    ' + s[a:]
+    pth = RIG / fn_bf
+    lic["assets"][f"reference/svg-rig/{fn_bf}"] = dict(
+        sha256=hashlib.sha256(pth.read_bytes()).hexdigest(), bytes=pth.stat().st_size,
+        ai_generated=False, in_scene=True,
+        method="ROUND41: head.png eye-socket/black cutouts filled from nearest original skin pixels")
+    report["backfill_px"] = int(fill.sum())
+
+    # ---- rebind hair.tip.l (was torso/spine — tips stayed on shoulder when head/locks moved)
+    # Bind 100% to lock.l.s3 so tip pixels follow the lock secondary (same bind as lock mesh s3 tendon).
+    tip_a, tip_b = R8.find_elem(s, "Image", "full.hair.tip.l.image")
+    tip = s[tip_a:tip_b]
+    s3id = ids["full.hair.lock.l.s3"]
+    tip2 = re.sub(r'<Skin name="[^"]*" id="([^"]*)"[^>]*>.*?</Skin>',
+                  rf'<Skin name="full.hair.tip.l.image.skin" id="\1" xx="1" xy="0" yx="0" yy="1" tx="0" ty="0">'
+                  rf'<Tendon boneId="{s3id}" xx="1" xy="0" yx="0" yy="1" tx="-71.0938" ty="-73.9087" name="full.hair.tip.l.image.t0"/>'
+                  r'</Skin>', tip, count=1, flags=re.S)
+    tip2 = re.sub(r'<Weight values="[^"]*" indices="[^"]*"/>',
+                  '<Weight values="255" indices="1"/>', tip2)
+    s = s[:tip_a] + tip2 + s[tip_b:]
+    report["hair_tip_l_rebind"] = "torso+spine -> lock.l.s3 100% (tips follow hair lock secondary)"
 
     SCENE.write_text(s, encoding="utf-8")
     LIC.write_text(json.dumps(lic, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

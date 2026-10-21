@@ -931,25 +931,32 @@
       "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-r-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
     },
     "reference/svg-rig/head-cheek-l.png": {
-      "sha256": "755ddeafb5139d65219b0bf9655bf791ce09696fcba0b687226503fad7ba704a",
-      "bytes": 80022,
+      "sha256": "bf9551ad867102d7e4106710f90a7783c489a0241449d54b0d7bfce339213aed",
+      "bytes": 80542,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
     },
     "reference/svg-rig/head-cheek-c.png": {
-      "sha256": "65d3c7bdc4bf5fb6b2c00f94bee96d229fa7e3d95b2038596d1fa90df8c58b4a",
-      "bytes": 80357,
+      "sha256": "921b8a07543f3c483c33eb0752a409823306ceadf8f0a01a222336b2b7a30771",
+      "bytes": 81071,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
     },
     "reference/svg-rig/head-cheek-r.png": {
-      "sha256": "445f052fc43caa3dc66daf267764e365af3ee9f5a39eddd51efc989e1c931e5a",
-      "bytes": 80220,
+      "sha256": "4647cdcd926eb0fcfc1a9bd8d9859f3467de35394bac156e556699409ff7a272",
+      "bytes": 80665,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
+    },
+    "reference/svg-rig/head-face-backfill.png": {
+      "sha256": "ebbb9a12d5877ac83c4089e2f5554d7d1c0887eee1ca7ba9f9f22c50e94bd91b",
+      "bytes": 85757,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND41: head.png eye-socket/black cutouts filled from nearest original skin pixels"
     }
   },
   "round32": {
