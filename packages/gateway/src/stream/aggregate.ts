@@ -1,6 +1,7 @@
 /**
  * 中间事件 → 下游 CLI 期望的非流式 JSON 响应（保留工具调用、停止原因与用量）。
  */
+import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamUsage } from './events';
 
 import type { DownstreamStreamFormat } from './index';
@@ -147,6 +148,34 @@ export function eventsToJson(
     };
   }
 
+  if (to === 'gemini') {
+    const parts = blocks.map((b) =>
+      b.kind === 'text'
+        ? { text: b.text }
+        : { functionCall: { id: b.id, name: b.name, args: parseInput(b.args) } },
+    );
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        candidates: [
+          {
+            content: { role: 'model', parts },
+            finishReason: reason === 'max_tokens' ? 'MAX_TOKENS' : 'STOP',
+            index: 0,
+          },
+        ],
+        usageMetadata: {
+          promptTokenCount: inTok,
+          candidatesTokenCount: outTok,
+          totalTokenCount: inTok + outTok,
+        },
+        modelVersion: model,
+        responseId: id || rid('gemini'),
+      },
+    };
+  }
+
   // responses
   const output = blocks.map((b) => {
     if (b.kind === 'text') {
@@ -214,6 +243,13 @@ function errorBody(
       ok: false,
       status,
       body: { type: 'error', error: { type: errorType || 'api_error', message } },
+    };
+  }
+  if (to === 'gemini') {
+    return {
+      ok: false,
+      status,
+      body: { error: { code: status, message, status: geminiErrorStatus(errorType).status } },
     };
   }
   return {

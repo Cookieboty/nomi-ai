@@ -2,7 +2,13 @@
  * 上游 SSE → 中间事件。
  * 覆盖：OpenAI Chat Completions、OpenAI Responses、Gemini streamGenerateContent(alt=sse)、Anthropic Messages。
  */
-import type { NormEvent, StopReason, StreamDecoder, StreamUsage } from './events';
+import {
+  mergeUsage,
+  type NormEvent,
+  type StopReason,
+  type StreamDecoder,
+  type StreamUsage,
+} from './events';
 
 type Obj = Record<string, unknown>;
 
@@ -37,6 +43,16 @@ abstract class BaseDecoder implements StreamDecoder {
   protected sawTool = false;
   protected pendingReason: StopReason | null = null;
   protected usage: StreamUsage = {};
+  /** 当前是否处在一段推理里（用于在推理与正文 / 工具之间切换时补 think_start） */
+  protected thinking = false;
+
+  protected think(out: NormEvent[], text: string, id?: string) {
+    if (!this.thinking) {
+      this.thinking = true;
+      out.push(id ? { type: 'think_start', id } : { type: 'think_start' });
+    }
+    if (text) out.push({ type: 'think', text });
+  }
 
   protected start(out: NormEvent[], id?: string, model?: string) {
     if (this.started) return;
@@ -117,10 +133,12 @@ export class ChatCompletionsDecoder extends BaseDecoder {
     }
     const usage = asObj(j.usage);
     if (j.usage) {
-      this.usage = {
-        inputTokens: num(usage.prompt_tokens) ?? this.usage.inputTokens,
-        outputTokens: num(usage.completion_tokens) ?? this.usage.outputTokens,
-      };
+      this.usage = mergeUsage(this.usage, {
+        inputTokens: num(usage.prompt_tokens),
+        outputTokens: num(usage.completion_tokens),
+        cacheReadTokens: num(asObj(usage.prompt_tokens_details).cached_tokens),
+        reasoningTokens: num(asObj(usage.completion_tokens_details).reasoning_tokens),
+      });
     }
     this.start(
       out,
@@ -131,7 +149,16 @@ export class ChatCompletionsDecoder extends BaseDecoder {
     const c = choices[0];
     if (!c) return;
     const delta = asObj(c.delta);
+    // DeepSeek / Kimi / GLM 等的思考文本（字段名各家不一）
+    const reasoning =
+      typeof delta.reasoning_content === 'string'
+        ? delta.reasoning_content
+        : typeof delta.reasoning === 'string'
+          ? delta.reasoning
+          : '';
+    if (reasoning) this.think(out, reasoning);
     if (typeof delta.content === 'string' && delta.content) {
+      this.thinking = false;
       out.push({ type: 'text', text: delta.content });
     }
     const calls = Array.isArray(delta.tool_calls) ? (delta.tool_calls as Obj[]) : [];
@@ -141,6 +168,7 @@ export class ChatCompletionsDecoder extends BaseDecoder {
       if (!this.tools.has(key)) {
         this.tools.add(key);
         this.sawTool = true;
+        this.thinking = false;
         out.push({
           type: 'tool_start',
           key,
@@ -177,10 +205,12 @@ export class ResponsesDecoder extends BaseDecoder {
   private readUsage(resp: Obj) {
     const u = asObj(resp.usage);
     if (!resp.usage) return;
-    this.usage = {
-      inputTokens: num(u.input_tokens) ?? this.usage.inputTokens,
-      outputTokens: num(u.output_tokens) ?? this.usage.outputTokens,
-    };
+    this.usage = mergeUsage(this.usage, {
+      inputTokens: num(u.input_tokens),
+      outputTokens: num(u.output_tokens),
+      cacheReadTokens: num(asObj(u.input_tokens_details).cached_tokens),
+      reasoningTokens: num(asObj(u.output_tokens_details).reasoning_tokens),
+    });
   }
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
@@ -202,12 +232,26 @@ export class ResponsesDecoder extends BaseDecoder {
       case 'response.output_text.delta':
       case 'response.refusal.delta': {
         this.start(out);
+        this.thinking = false;
         if (typeof j.delta === 'string' && j.delta) out.push({ type: 'text', text: j.delta });
+        return;
+      }
+      case 'response.reasoning_summary_text.delta':
+      case 'response.reasoning_text.delta': {
+        this.start(out);
+        if (typeof j.delta === 'string' && j.delta) this.think(out, j.delta);
         return;
       }
       case 'response.output_item.added': {
         const item = asObj(j.item);
+        if (item.type === 'reasoning') {
+          this.start(out);
+          this.thinking = false;
+          this.think(out, '', typeof item.id === 'string' ? item.id : undefined);
+          return;
+        }
         if (item.type !== 'function_call') return;
+        this.thinking = false;
         this.start(out);
         const key = String(item.id ?? `#${String(j.output_index ?? this.toolKeys.size)}`);
         this.toolKeys.set(key, key);
@@ -234,6 +278,11 @@ export class ResponsesDecoder extends BaseDecoder {
       case 'response.function_call_arguments.done':
       case 'response.output_item.done': {
         const item = asObj(j.item);
+        if (type === 'response.output_item.done' && item.type === 'reasoning') {
+          if (typeof item.encrypted_content === 'string' && item.encrypted_content)
+            out.push({ type: 'sealed', by: 'responses', raw: item });
+          return;
+        }
         if (type === 'response.output_item.done' && item.type !== 'function_call') return;
         const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
         if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
@@ -293,10 +342,12 @@ export class GeminiDecoder extends BaseDecoder {
     }
     const um = asObj(j.usageMetadata);
     if (j.usageMetadata) {
-      this.usage = {
-        inputTokens: num(um.promptTokenCount) ?? this.usage.inputTokens,
-        outputTokens: num(um.candidatesTokenCount) ?? this.usage.outputTokens,
-      };
+      this.usage = mergeUsage(this.usage, {
+        inputTokens: num(um.promptTokenCount),
+        outputTokens: num(um.candidatesTokenCount),
+        cacheReadTokens: num(um.cachedContentTokenCount),
+        reasoningTokens: num(um.thoughtsTokenCount),
+      });
     }
     this.start(
       out,
@@ -312,8 +363,17 @@ export class GeminiDecoder extends BaseDecoder {
     }
     const parts = Array.isArray(asObj(c.content).parts) ? (asObj(c.content).parts as Obj[]) : [];
     for (const p of parts) {
-      if (p.thought === true) continue;
+      const sig =
+        typeof p.thoughtSignature === 'string' && p.thoughtSignature ? p.thoughtSignature : '';
+      if (p.thought === true) {
+        this.think(out, typeof p.text === 'string' ? p.text : '');
+        if (sig) out.push({ type: 'think_sig', signature: sig });
+        continue;
+      }
+      this.thinking = false;
       if (typeof p.text === 'string' && p.text) out.push({ type: 'text', text: p.text });
+      // Gemini 3 把签名挂在正文 / 工具调用部分上，续接时要原样带回
+      if (sig) out.push({ type: 'text_sig', signature: sig });
       if (p.functionCall) {
         const fc = asObj(p.functionCall);
         const key = String(this.toolCount++);
@@ -351,6 +411,7 @@ function messagesStop(r: unknown): StopReason | null {
     case 'max_tokens':
     case 'tool_use':
     case 'stop_sequence':
+    case 'refusal':
       return r;
     case null:
     case undefined:
@@ -371,7 +432,15 @@ export class MessagesDecoder extends BaseDecoder {
       case 'message_start': {
         const m = asObj(j.message);
         const u = asObj(m.usage);
-        this.usage = { inputTokens: num(u.input_tokens), outputTokens: num(u.output_tokens) };
+        this.usage = mergeUsage(
+          {},
+          {
+            inputTokens: num(u.input_tokens),
+            outputTokens: num(u.output_tokens),
+            cacheReadTokens: num(u.cache_read_input_tokens),
+            cacheWriteTokens: num(u.cache_creation_input_tokens),
+          },
+        );
         this.start(
           out,
           typeof m.id === 'string' ? m.id : undefined,
@@ -398,13 +467,23 @@ export class MessagesDecoder extends BaseDecoder {
           }
         } else if (b.type === 'text' && typeof b.text === 'string' && b.text) {
           out.push({ type: 'text', text: b.text });
+        } else if (b.type === 'thinking') {
+          this.thinking = false;
+          this.think(out, typeof b.thinking === 'string' ? b.thinking : '');
+        } else if (b.type === 'redacted_thinking') {
+          out.push({ type: 'sealed', by: 'messages', raw: b });
         }
+        if (b.type !== 'thinking') this.thinking = false;
         return;
       }
       case 'content_block_delta': {
         const d = asObj(j.delta);
         if (d.type === 'text_delta' && typeof d.text === 'string' && d.text) {
           out.push({ type: 'text', text: d.text });
+        } else if (d.type === 'thinking_delta' && typeof d.thinking === 'string' && d.thinking) {
+          this.think(out, d.thinking);
+        } else if (d.type === 'signature_delta' && typeof d.signature === 'string' && d.signature) {
+          out.push({ type: 'think_sig', signature: d.signature });
         } else if (
           d.type === 'input_json_delta' &&
           typeof d.partial_json === 'string' &&
@@ -426,10 +505,12 @@ export class MessagesDecoder extends BaseDecoder {
         if (r) this.pendingReason = r;
         const u = asObj(j.usage);
         if (j.usage) {
-          this.usage = {
-            inputTokens: num(u.input_tokens) ?? this.usage.inputTokens,
-            outputTokens: num(u.output_tokens) ?? this.usage.outputTokens,
-          };
+          this.usage = mergeUsage(this.usage, {
+            inputTokens: num(u.input_tokens),
+            outputTokens: num(u.output_tokens),
+            cacheReadTokens: num(u.cache_read_input_tokens),
+            cacheWriteTokens: num(u.cache_creation_input_tokens),
+          });
         }
         return;
       }

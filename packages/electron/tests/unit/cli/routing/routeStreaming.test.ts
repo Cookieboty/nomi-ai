@@ -183,6 +183,32 @@ describe('CliRouteService streaming', () => {
     expect(evs.find((e) => e.event === 'content_block_delta')!.data.delta.text).toBe('ok');
   });
 
+  it('gemini upstream keeps the slash in vendor/model names (no %2F)', async () => {
+    const raw =
+      'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n';
+    const up = await startUpstream((_r, res) => writeSlowly(res, raw));
+    const { svc, url } = await startRoute(
+      'claude',
+      up.base,
+      'gemini_generate_content' as CliApiFormat,
+      ['google/gemini-3.8-flash'],
+    );
+    cleanup.push(up.close, () => svc.stop());
+    await (
+      await routeFetch(svc, `${url}/v1/messages?beta=true`, {
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'google/gemini-3.8-flash',
+          stream: true,
+          messages: [{ role: 'user', content: 'hi' }],
+        }),
+      })
+    ).text();
+    expect(up.seen[0].url).toBe(
+      '/v1beta/models/google/gemini-3.8-flash:streamGenerateContent?alt=sse',
+    );
+  });
+
   it('codex ← anthropic messages upstream: Responses events', async () => {
     const raw = [
       [

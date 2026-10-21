@@ -20,6 +20,10 @@ function str(v: unknown): string {
 function num(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
 }
+/** 只在有值时带上这个字段（中间事件里不出现 undefined 键） */
+function defined<K extends string>(k: K, v: number | undefined): Partial<Record<K, number>> {
+  return v === undefined ? {} : ({ [k]: v } as Record<K, number>);
+}
 function argsString(v: unknown): string {
   if (typeof v === 'string') return v;
   return JSON.stringify(v ?? {});
@@ -43,10 +47,14 @@ function chatJson(j: Obj): NormEvent[] {
   const usage: StreamUsage = {
     inputTokens: num(u.prompt_tokens),
     outputTokens: num(u.completion_tokens),
+    ...defined('cacheReadTokens', num(asObj(u.prompt_tokens_details).cached_tokens)),
+    ...defined('reasoningTokens', num(asObj(u.completion_tokens_details).reasoning_tokens)),
   };
   out.push({ type: 'start', id: str(j.id) || undefined, model: str(j.model) || undefined, usage });
   const c = asArr(j.choices)[0] ?? {};
   const msg = asObj(c.message);
+  const reasoning = str(msg.reasoning_content) || str(msg.reasoning);
+  if (reasoning) out.push({ type: 'think_start' }, { type: 'think', text: reasoning });
   if (str(msg.content)) out.push({ type: 'text', text: str(msg.content) });
   asArr(msg.tool_calls).forEach((tc, i) => {
     const fn = asObj(tc.function);
@@ -73,11 +81,21 @@ function responsesJson(j: Obj): NormEvent[] {
   const usage: StreamUsage = {
     inputTokens: num(u.input_tokens),
     outputTokens: num(u.output_tokens),
+    ...defined('cacheReadTokens', num(asObj(u.input_tokens_details).cached_tokens)),
+    ...defined('reasoningTokens', num(asObj(u.output_tokens_details).reasoning_tokens)),
   };
   out.push({ type: 'start', id: str(j.id) || undefined, model: str(j.model) || undefined, usage });
   let sawTool = false;
   asArr(j.output).forEach((item, i) => {
-    if (item.type === 'message') {
+    if (item.type === 'reasoning') {
+      out.push({ type: 'think_start', ...(str(item.id) ? { id: str(item.id) } : {}) });
+      const summary = asArr(item.summary)
+        .map((s) => str(s.text))
+        .filter(Boolean)
+        .join('\n');
+      if (summary) out.push({ type: 'think', text: summary });
+      if (str(item.encrypted_content)) out.push({ type: 'sealed', by: 'responses', raw: item });
+    } else if (item.type === 'message') {
       const text = asArr(item.content)
         .map((c) =>
           c.type === 'output_text' ? str(c.text) : c.type === 'refusal' ? str(c.refusal) : '',
@@ -108,6 +126,8 @@ function geminiJson(j: Obj): NormEvent[] {
   const usage: StreamUsage = {
     inputTokens: num(um.promptTokenCount),
     outputTokens: num(um.candidatesTokenCount),
+    ...defined('cacheReadTokens', num(um.cachedContentTokenCount)),
+    ...defined('reasoningTokens', num(um.thoughtsTokenCount)),
   };
   out.push({
     type: 'start',
@@ -127,9 +147,19 @@ function geminiJson(j: Obj): NormEvent[] {
     ];
   }
   let n = 0;
+  let thinking = false;
   for (const p of asArr(asObj(c.content).parts)) {
-    if (p.thought === true) continue;
+    const sig = str(p.thoughtSignature);
+    if (p.thought === true) {
+      if (!thinking) out.push({ type: 'think_start' });
+      thinking = true;
+      if (str(p.text)) out.push({ type: 'think', text: str(p.text) });
+      if (sig) out.push({ type: 'think_sig', signature: sig });
+      continue;
+    }
+    thinking = false;
     if (str(p.text)) out.push({ type: 'text', text: str(p.text) });
+    if (sig) out.push({ type: 'text_sig', signature: sig });
     if (p.functionCall) {
       const fc = asObj(p.functionCall);
       const key = String(n++);
@@ -156,10 +186,17 @@ function messagesJson(j: Obj): NormEvent[] {
   const usage: StreamUsage = {
     inputTokens: num(u.input_tokens),
     outputTokens: num(u.output_tokens),
+    ...defined('cacheReadTokens', num(u.cache_read_input_tokens)),
+    ...defined('cacheWriteTokens', num(u.cache_creation_input_tokens)),
   };
   out.push({ type: 'start', id: str(j.id) || undefined, model: str(j.model) || undefined, usage });
   asArr(j.content).forEach((b, i) => {
-    if (b.type === 'text' && str(b.text)) out.push({ type: 'text', text: str(b.text) });
+    if (b.type === 'thinking') {
+      out.push({ type: 'think_start' });
+      if (str(b.thinking)) out.push({ type: 'think', text: str(b.thinking) });
+      if (str(b.signature)) out.push({ type: 'think_sig', signature: str(b.signature) });
+    } else if (b.type === 'redacted_thinking') out.push({ type: 'sealed', by: 'messages', raw: b });
+    else if (b.type === 'text' && str(b.text)) out.push({ type: 'text', text: str(b.text) });
     else if (b.type === 'tool_use') {
       const key = String(i);
       out.push({ type: 'tool_start', key, id: str(b.id), name: str(b.name) });
@@ -169,7 +206,9 @@ function messagesJson(j: Obj): NormEvent[] {
   });
   const sr = j.stop_reason;
   const reason: StopReason =
-    sr === 'max_tokens' || sr === 'tool_use' || sr === 'stop_sequence' ? sr : 'end_turn';
+    sr === 'max_tokens' || sr === 'tool_use' || sr === 'stop_sequence' || sr === 'refusal'
+      ? sr
+      : 'end_turn';
   out.push({ type: 'finish', reason, usage });
   return out;
 }

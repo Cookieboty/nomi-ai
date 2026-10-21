@@ -3,6 +3,7 @@
  * Messages（Claude Code 原生）、Responses（Codex 原生）、Chat Completions（Codex chat 入口）。
  */
 import { customToolInput } from './aggregate';
+import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamEncoder, StreamUsage } from './events';
 import { SerialBlocks, type SerialBlock, type SerialSink } from './serial';
 import { formatSse } from './sse';
@@ -478,6 +479,115 @@ export class ChatCompletionsEncoder implements StreamEncoder {
             error: { message: ev.message, type: ev.errorType ?? 'api_error' },
           }) + formatSse(undefined, '[DONE]')
         );
+      default:
+        return '';
+    }
+  }
+
+  end(): string {
+    return '';
+  }
+}
+
+/* --------------------------------- Gemini --------------------------------- */
+
+function parseArgsObject(args: string): unknown {
+  if (!args.trim()) return {};
+  try {
+    return JSON.parse(args);
+  } catch {
+    return { _raw: args };
+  }
+}
+
+/**
+ * Gemini streamGenerateContent(alt=sse)：每个分片是一个完整的 GenerateContentResponse。
+ * 工具调用在参数完整（tool_end 或 finish）后一次发出，推理文本作为 thought 部分发出。
+ */
+export class GeminiEncoder implements StreamEncoder {
+  private closed = false;
+  private id = rid('gemini');
+  private model: string;
+  private usage: StreamUsage = {};
+  private readonly tools = new Map<string, { id: string; name: string; args: string }>();
+
+  constructor(fallbackModel = '') {
+    this.model = fallbackModel;
+  }
+
+  private chunk(
+    parts: unknown[],
+    extra: Record<string, unknown> = {},
+    top: Record<string, unknown> = {},
+  ) {
+    return formatSse(undefined, {
+      candidates: [{ content: { role: 'model', parts }, index: 0, ...extra }],
+      modelVersion: this.model,
+      responseId: this.id,
+      ...top,
+    });
+  }
+
+  private flushTool(key: string): string {
+    const t = this.tools.get(key);
+    if (!t) return '';
+    this.tools.delete(key);
+    return this.chunk([
+      { functionCall: { id: t.id, name: t.name, args: parseArgsObject(t.args) } },
+    ]);
+  }
+
+  encode(ev: NormEvent): string {
+    if (this.closed) return '';
+    switch (ev.type) {
+      case 'start':
+        if (ev.id) this.id = ev.id;
+        if (ev.model) this.model = ev.model;
+        if (ev.usage) this.usage = { ...ev.usage };
+        return '';
+      case 'text':
+        return ev.text ? this.chunk([{ text: ev.text }]) : '';
+      case 'think':
+        return ev.text ? this.chunk([{ text: ev.text, thought: true }]) : '';
+      case 'tool_start':
+        this.tools.set(ev.key, { id: ev.id, name: ev.name, args: '' });
+        return '';
+      case 'tool_args': {
+        const t = this.tools.get(ev.key);
+        if (t) t.args += ev.delta;
+        return '';
+      }
+      case 'tool_end':
+        return this.flushTool(ev.key);
+      case 'finish': {
+        this.closed = true;
+        let s = '';
+        for (const key of [...this.tools.keys()]) s += this.flushTool(key);
+        const u = { ...this.usage, ...stripUndef(ev.usage) };
+        const input = u.inputTokens ?? 0;
+        const output = u.outputTokens ?? 0;
+        return (
+          s +
+          this.chunk(
+            [],
+            { finishReason: ev.reason === 'max_tokens' ? 'MAX_TOKENS' : 'STOP' },
+            {
+              usageMetadata: {
+                promptTokenCount: input,
+                candidatesTokenCount: output,
+                totalTokenCount: input + output,
+              },
+            },
+          )
+        );
+      }
+      case 'error': {
+        this.closed = true;
+        const { code, status } = geminiErrorStatus(ev.errorType);
+        return formatSse(undefined, {
+          error: { code: ev.status ?? code, message: ev.message, status },
+        });
+      }
       default:
         return '';
     }

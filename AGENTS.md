@@ -12,6 +12,7 @@ pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node 
 | `packages/renderer`                 | 看板娘窗口（角色渲染在 `src/mascot`）                                                          |
 | `packages/ai-chat`                  | 对话窗口：对话、设置、引导、功能面板                                                           |
 | `packages/ai-runtime`               | AI 运行时：插件宿主、供应商路由（`src/providers`）、MCP 桥                                     |
+| `packages/gateway`                  | 统一网关内核（纯 Node）：四种协议的请求 IR 与流式互转，见 `docs/design/unified-gateway.md`     |
 | `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端与 preload 桥（`window.aiIPC`）                                 |
 | `packages/bundle-ig-*`              | 插件包：`base`（不得 import electron）、`electron-caps`、`mascot`                              |
 | `packages/ui`                       | 设计令牌、主题、组件、i18n（`src/locales/en.json`）                                            |

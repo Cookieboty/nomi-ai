@@ -13,7 +13,9 @@ import {
   chatCompletionsResponseToResponses,
   chatCompletionsToMessages,
   createStreamConverter,
+  geminiModelPath,
   geminiResponseToMessages,
+  ingressFromPath,
   jsonToJson,
   jsonToSse,
   messagesResponseToChatCompletions,
@@ -159,9 +161,13 @@ function nativeStreamPlan(
   url: string,
 ): { from: UpstreamStreamFormat; to: DownstreamStreamFormat } {
   if (kind === 'claude') return { from: 'messages', to: 'messages' };
-  return url.includes('chat/completions')
-    ? { from: 'chat', to: 'chat' }
-    : { from: 'responses', to: 'responses' };
+  return isChatPath(url) ? { from: 'chat', to: 'chat' } : { from: 'responses', to: 'responses' };
+}
+
+/** Codex 的 Chat Completions 入口（其余按 Responses 处理） */
+function isChatPath(url: string): boolean {
+  const ing = ingressFromPath(url);
+  return ing ? ing.wire === 'chat' : url.includes('chat/completions');
 }
 
 /** 上游地址的主机名（用量面板里作为「供应商」显示） */
@@ -342,7 +348,10 @@ export class CliRouteService {
   }
 
   private detectKind(req: http.IncomingMessage, url: string): 'claude' | 'codex' | null {
-    // Codex 走 /v1/responses 或 /v1/chat/completions；Claude 走 /v1/messages 或 /messages
+    // 入口协议按路径识别：Messages / Gemini → Claude 侧，Responses / Chat → Codex 侧
+    const ing = ingressFromPath(url);
+    if (ing) return ing.wire === 'messages' || ing.wire === 'gemini' ? 'claude' : 'codex';
+    // 识别不了的路径沿用旧的子串判断（如 /v1/responses/compact）
     if (url.includes('/responses') || url.includes('/chat/completions')) return 'codex';
     if (url.includes('/messages') || url.includes('/v1/messages')) return 'claude';
     // Gemini path used when Claude upstream is gemini
@@ -419,8 +428,7 @@ export class CliRouteService {
       // Codex 的自由文本工具：模型回调时需还原为 custom_tool_call
       const convOpts = {
         model: up.model,
-        customTools:
-          kind === 'codex' && !url.includes('chat/completions') ? customToolNames(body) : undefined,
+        customTools: kind === 'codex' && !isChatPath(url) ? customToolNames(body) : undefined,
       };
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -604,8 +612,8 @@ export class CliRouteService {
       const gBase = /\/v1(beta|alpha)?\d*(\/|$)/.test(base) ? base : `${base}/v1beta`;
       return {
         upstreamUrl: wantsStream
-          ? joinUrl(gBase, `/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`)
-          : joinUrl(gBase, `/models/${encodeURIComponent(model)}:generateContent`),
+          ? joinUrl(gBase, `/models/${geminiModelPath(model)}:streamGenerateContent?alt=sse`)
+          : joinUrl(gBase, `/models/${geminiModelPath(model)}:generateContent`),
         requestBody: messagesToGemini(body),
         responseTransform: geminiResponseToMessages,
         stream: { from: 'gemini', to: 'messages' },
@@ -623,7 +631,7 @@ export class CliRouteService {
     }
     if (fmt === 'openai_chat_completions') {
       // Codex 原生发 responses；若请求已是 chat 则透传转换路径
-      const isChat = reqUrl.includes('chat/completions');
+      const isChat = isChatPath(reqUrl);
       return {
         upstreamUrl: joinUrl(base, '/chat/completions'),
         requestBody: isChat ? body : withChatUsage(responsesToChatCompletions(body, up.model)),
@@ -632,17 +640,14 @@ export class CliRouteService {
       };
     }
     // anthropic_messages
+    const chatIn = isChatPath(reqUrl);
     return {
       upstreamUrl: joinUrl(base.includes('/v1') ? base : `${base}/v1`, '/messages'),
-      requestBody: reqUrl.includes('chat/completions')
+      requestBody: chatIn
         ? chatCompletionsToMessages(body, up.model)
         : responsesToMessages(body, up.model),
-      responseTransform: reqUrl.includes('chat/completions')
-        ? messagesResponseToChatCompletions
-        : messagesResponseToResponses,
-      stream: reqUrl.includes('chat/completions')
-        ? { from: 'messages', to: 'chat' }
-        : { from: 'messages', to: 'responses' },
+      responseTransform: chatIn ? messagesResponseToChatCompletions : messagesResponseToResponses,
+      stream: chatIn ? { from: 'messages', to: 'chat' } : { from: 'messages', to: 'responses' },
     };
   }
 
