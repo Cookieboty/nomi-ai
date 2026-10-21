@@ -44,6 +44,9 @@ CAP_R = 2.5
 KIN = 0.3
 THUMB_FS = 0.5
 VIS_MIN = 0.12
+# ROUND40: running hand = loose cupped hand (coaches: "hands not clenched", "holding a chip / ice-cream cone",
+# thumb resting on the index/middle) -> full.run uses this fraction of the fist grip (fingers ~40/48/25 deg, thumb 80 %)
+RUN_CURL = {"thumb": 0.8, "index": 0.5, "middle": 0.5, "ring": 0.5, "little": 0.5}
 
 
 def ss(x):
@@ -283,7 +286,7 @@ def main():
                                         * (1 - ss((f - 58) / 10.0)))
             else:
                 lag = 2 if fg == "thumb" else 0
-                env = lambda f, lag=lag: G.run_frame(max(0, f - lag))["env"]
+                env = lambda f, lag=lag, c=RUN_CURL[fg]: c * G.run_frame(max(0, f - lag))["env"]
             # 3-D flex theta_k (MCP/PIP/DIP) is shown as: in-plane rotation KIN * theta (toward the palm) + foreshortening of
             # the phalanx along its axis, |visible| = cos(cumulative flex) (fingers fold away from the viewer, so a
             # folded-back distal phalanx (cos < 0) points back over the proximal one and is drawn under it).
