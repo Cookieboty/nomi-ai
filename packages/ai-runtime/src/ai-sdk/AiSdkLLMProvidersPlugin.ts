@@ -13,7 +13,11 @@ import {
   type PluginContext,
 } from '@nomi-ai/bundle-ig-base';
 
-import { RoutedLLMRegistry, type ProviderFactory } from '../providers/ProviderRouter';
+import {
+  RoutedLLMRegistry,
+  type GatewayRoute,
+  type ProviderFactory,
+} from '../providers/ProviderRouter';
 import type { ProviderStore } from '../providers/ProviderStore';
 
 import { createAiSdkProviderFromEntry } from './AiSdkLlmProvider';
@@ -24,6 +28,8 @@ export interface AiSdkLLMProvidersConfig {
   /** `NOMI_PROVIDER`：强制使用的 provider id */
   overrideId?: string;
   factory?: ProviderFactory;
+  /** 统一网关路由：有就优先走网关（docs/design/unified-gateway.md §12.5） */
+  gateway?: GatewayRoute;
   /** 拿到 registry 的回调（IPC 层用来校验 / 列出 env providers） */
   onRegistry?: (registry: RoutedLLMRegistry) => void;
 }
@@ -43,6 +49,7 @@ export const AiSdkLLMProvidersPlugin = definePlugin<AiSdkLLMProvidersConfig>({
       store: cfg.store,
       envProviders,
       factory: cfg.factory,
+      gateway: cfg.gateway,
       overrideId: cfg.overrideId,
       onError: (msg, err) => ctx.logger.error(msg, err),
     });

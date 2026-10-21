@@ -133,4 +133,149 @@ describe('UsageLedger', () => {
     const b = new UsageLedger({ root });
     expect(b.all()[0]).toMatchObject({ key: 'r', session: 's9', project: 'p' });
   });
+
+  describe('落盘失败：保留待写记录，游标不越过未持久化的数据', () => {
+    afterEach(() => jest.restoreAllMocks());
+
+    it('append 失败后记录留在队列里，恢复后下一次 flush 写入，新实例能读到', () => {
+      const root = tmp();
+      const warn = jest.fn();
+      const l = new UsageLedger({ root, logger: { warn }, flushMs: 60_000 });
+      l.upsert(rec({ key: 'R' }));
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw Object.assign(new Error('ENOSPC'), { code: 'ENOSPC' });
+      });
+      l.flush();
+      l.flush(); // 反复失败：队列不丢、不重复告警
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(l.persistState()).toMatchObject({ degraded: true, pendingRecords: 1 });
+      expect(new UsageLedger({ root }).size()).toBe(0);
+      spy.mockRestore();
+      l.flush();
+      expect(l.persistState()).toMatchObject({ degraded: false, pendingRecords: 0 });
+      expect(new UsageLedger({ root }).all().map((r) => r.key)).toEqual(['R']);
+    });
+
+    it('进入 / 退出降级各通知一次，服务状态里能看到（#42）', () => {
+      const root = tmp();
+      const changes: boolean[] = [];
+      const l = new UsageLedger({ root, flushMs: 60_000, onPersistChange: (d) => changes.push(d) });
+      l.upsert(rec({ key: 'R' }));
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      l.flush();
+      spy.mockRestore();
+      l.flush();
+      l.flush();
+      expect(changes).toEqual([true, false]);
+    });
+
+    it('记录没写成功时不写游标；记录写成功后游标才落盘（重启后能重新扫到 R）', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.upsert(rec({ key: 'R' }));
+      l.setCursor('/log', { offset: 100, size: 100, mtimeMs: 1 });
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      // 重启：账本没有 R，游标也必须没有越过它
+      expect(new UsageLedger({ root }).cursor('/log')).toBeUndefined();
+      spy.mockRestore();
+      l.flush();
+      const re = new UsageLedger({ root });
+      expect(re.size()).toBe(1);
+      expect(re.cursor('/log')?.offset).toBe(100);
+    });
+
+    it('游标写失败：dirty 保留，下次重试', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.setCursor('/log', { offset: 5, size: 5, mtimeMs: 1 });
+      const spy = jest.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      l.flush();
+      expect(l.persistState().cursorDirty).toBe(true);
+      spy.mockRestore();
+      l.flush();
+      expect(l.persistState().cursorDirty).toBe(false);
+      expect(new UsageLedger({ root }).cursor('/log')?.offset).toBe(5);
+    });
+
+    it('部分写入留下半行：重试先补换行，新实例不会把半行和下一条粘在一起', () => {
+      const root = tmp();
+      const l = new UsageLedger({ root, flushMs: 60_000 });
+      l.upsert(rec({ key: 'A' }));
+      const real = fs.appendFileSync;
+      const spy = jest.spyOn(fs, 'appendFileSync').mockImplementationOnce((f, data, o) => {
+        real(f, String(data).slice(0, 10), o as fs.WriteFileOptions); // 只写进半行
+        throw new Error('EIO');
+      });
+      l.flush();
+      spy.mockRestore();
+      l.upsert(rec({ key: 'B' }));
+      l.flush();
+      expect(
+        new UsageLedger({ root })
+          .all()
+          .map((r) => r.key)
+          .sort(),
+      ).toEqual(['A', 'B']);
+    });
+
+    it('失败期间队列按键合并，不随更新次数增长', () => {
+      const l = new UsageLedger({ root: tmp(), flushMs: 60_000 });
+      jest.spyOn(fs, 'appendFileSync').mockImplementation(() => {
+        throw new Error('EIO');
+      });
+      for (let i = 1; i <= 50; i++) l.upsert(rec({ key: 'same', output: i }));
+      l.flush();
+      expect(l.persistState().pendingRecords).toBe(1);
+    });
+  });
+});
+
+describe('UsageLedger sorted views (perf)', () => {
+  it('appends, in-place updates and out-of-order inserts keep range() sorted and current', () => {
+    const l = new UsageLedger({ root: tmp() });
+    l.upsert(rec({ key: 'a', ts: 10 }));
+    expect(l.range(0, 100).map((r) => r.key)).toEqual(['a']);
+    l.upsert(rec({ key: 'b', ts: 20 })); // 追加
+    l.upsert(rec({ key: 'a', ts: 10, output: 7 })); // 原位更新
+    l.upsert(rec({ key: 'c', ts: 5 })); // 比末尾早：重排
+    l.upsert(rec({ key: 'b', ts: 3, output: 9 })); // 时间变早：重排
+    expect(l.range(0, 100).map((r) => [r.key, r.ts, r.output])).toEqual([
+      ['b', 3, 9],
+      ['c', 5, 1],
+      ['a', 10, 7],
+    ]);
+  });
+
+  it('routeCovering ignores log records and sees new / claimed route records', () => {
+    const l = new UsageLedger({ root: tmp() });
+    l.upsert(rec({ key: 'log1', ts: 1_000, via: 'log' }));
+    expect(l.routeCovering('claude', 1_000)).toBeNull();
+    l.upsert(rec({ key: 'r1', ts: 1_000, via: 'route', input: 100, output: 10 }));
+    expect(l.routeCovering('claude', 1_000)?.key).toBe('r1');
+    l.attribute('r1', { logKey: 'claude:x' });
+    expect(l.routeCovering('claude', 1_000)?.logKey).toBe('claude:x');
+  });
+
+  it('importing many log records with route lookups stays fast (no re-sort per record)', () => {
+    const l = new UsageLedger({ root: tmp() });
+    for (let i = 0; i < 20; i++)
+      l.upsert(rec({ key: `route${i}`, ts: i * 1_000_000, via: 'route', input: 50, output: 5 }));
+    const t0 = Date.now();
+    for (let i = 0; i < 30_000; i++) {
+      const ts = 1_000 + i * 997;
+      l.routeCovering('claude', ts, { key: `claude:${i}`, prompt: 1, output: 1 });
+      l.upsert(rec({ key: `claude:${i}`, ts }));
+      if (i % 500 === 0) l.range(0, Infinity);
+    }
+    expect(Date.now() - t0).toBeLessThan(2_000);
+    expect(l.size()).toBe(30_020);
+  });
 });

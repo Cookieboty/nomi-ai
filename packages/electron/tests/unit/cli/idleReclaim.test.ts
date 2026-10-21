@@ -16,6 +16,7 @@ import {
   type IdleCandidate,
 } from '../../../src/cli/idleReclaim';
 import type { HarnessTabsState } from '../../../src/cli/types';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -106,7 +107,8 @@ describe('CliHarnessService idle recycling (mock Claude)', () => {
     expect(snapshots.at(-1)!.tabs.find((x) => x.id === tab.id)!.dormant).toBe(true);
     // 会话信息与转录保留
     expect(h.tabMessages(tab.id).map((m) => m.role)).toEqual(['user', 'assistant']);
-    // dormant 不落盘
+    // dormant 不落盘（状态文件合并写入：读文件前先落盘）
+    h.flushPersist();
     expect(fs.readFileSync(path.join(root, 'tabs.json'), 'utf8')).not.toContain('dormant');
 
     // 新进程换了会话 id：若带了 --resume，mock 会回报「已续接会话 sess-A」
@@ -121,7 +123,9 @@ describe('CliHarnessService idle recycling (mock Claude)', () => {
     process.env.NOMI_MOCK_DELAY_MS = '600';
     const tab = h.createTab({ backend: 'claude' });
     const p = h.sendTab(tab.id, 'slow');
-    await new Promise((r) => setTimeout(r, 200));
+    await until(() => h.listTabs().tabs.find((x) => x.id === tab.id)?.status === 'running', {
+      what: 'turn running',
+    });
     expect(h.reclaimIdle(Date.now() + 3_600_000)).toEqual([]);
     await p;
     // 有待处理的权限请求

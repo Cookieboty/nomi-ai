@@ -24,6 +24,7 @@ import type {
 import { AiSdkLlmProvider, type AiSdkLlmProviderOptions } from '../ai-sdk/AiSdkLlmProvider';
 
 import { estimateTokens } from './estimate';
+import { mapModel, type ModelMapping, type Protocol } from './protocol';
 import type { ProviderRole, ProviderStore, StoredProvider } from './ProviderStore';
 import type { UsageCallEvent } from './usageEvent';
 
@@ -69,6 +70,8 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     private readonly sink?: UsageSink,
     /** provider 的默认模型（请求未指定模型时记账用） */
     private readonly defaultModel?: string,
+    /** provider 的模型映射（上游没回报实际模型时，用它把请求里的别名解析成真实模型再记账） */
+    private readonly modelMap?: readonly ModelMapping[],
   ) {
     if (candidates.length === 0) throw new Error(`[${id}] no candidates`);
   }
@@ -131,6 +134,18 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     throw lastErr;
   }
 
+  /**
+   * 计费用的模型名（账本键 / 单价匹配用）：优先用 provider 已解析出的实际模型（default 占位符已换成默认模型、
+   * modelMap 别名已映射）；它没给时才自己按同样规则解析 请求模型 → 默认模型 → 映射。
+   * 请求里的占位符 / 别名不能当计费键，否则调用会记成 default / 别名，费用缺失或按错价格计算。
+   */
+  private billingModel(req: ChatRequest, resModel: string | undefined): string {
+    if (resModel?.trim()) return resModel.trim();
+    const asked = req.model && req.model !== 'default' ? req.model : (this.defaultModel ?? '');
+    const resolved = asked ? mapModel(asked, this.modelMap).trim() : '';
+    return resolved || 'unknown';
+  }
+
   /** 记一条调用明细：上游有 usage 用 usage，没有才按文本估算并标记 estimated */
   private emitCall(
     req: ChatRequest,
@@ -141,7 +156,7 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
   ): void {
     if (!this.sink?.recordCall) return;
     try {
-      const model = req.model || resModel || this.defaultModel || 'unknown';
+      const model = this.billingModel(req, resModel);
       const base = { providerId: this.id, model, at: startedAt, reqId: req.reqId };
       const durationMs = Math.max(0, Date.now() - startedAt);
       if (usage && (usage.promptTokens || usage.completionTokens)) {
@@ -221,6 +236,9 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
 
 export type ProviderFactory = (opts: AiSdkLlmProviderOptions) => LLMProvider;
 
+/** 经统一网关的 Nomi 对话在用量 / 记账里显示的 provider id */
+export const GATEWAY_PROVIDER_ID = 'nomi-gateway';
+
 export const defaultProviderFactory: ProviderFactory = (opts) => new AiSdkLlmProvider(opts);
 
 /** StoredProvider + 解密后的 keys → TrackedProvider。 */
@@ -247,7 +265,7 @@ export function buildStoredProvider(
       ? keys.map((apiKey) => factory({ ...base, apiKey }))
       : // 无 key（本地 Ollama / 自建网关）：允许不带 Authorization
         [factory({ ...base, requiresApiKey: false })];
-  return new TrackedProvider(p.id, candidates, sink, p.defaultModel);
+  return new TrackedProvider(p.id, candidates, sink, p.defaultModel, p.modelMap);
 }
 
 export interface ResolvedProvider {
@@ -255,8 +273,25 @@ export interface ResolvedProvider {
   model?: string;
 }
 
+/**
+ * 统一网关给 Nomi 对话的路由（docs/design/unified-gateway.md §12.5）：
+ * 按角色返回网关地址、nomi 客户端令牌、provider/model 与首选协议；网关未就绪或没配模型时返回 null，
+ * 此时退回旧存储（过渡期：旧存储移除前保底，里面是迁移前的同一批供应商）。
+ */
+export interface GatewayRoute {
+  resolve(role: ProviderRole): {
+    baseURL: string;
+    token: string;
+    model: string;
+    protocol: Protocol;
+    /** 真正收到请求的上游（网关供应商 id 与上游地址），工具结果的隐私判断用它而不是网关回环地址 */
+    receiver: { id: string; baseURL: string };
+  } | null;
+}
+
 export interface RoutedRegistryOptions {
   store?: ProviderStore;
+  gateway?: GatewayRoute;
   /** 环境变量 providers（静态） */
   envProviders?: LLMProvider[];
   factory?: ProviderFactory;
@@ -329,9 +364,33 @@ export class RoutedLLMRegistry implements LLMRegistry {
     return [...this.env.keys()];
   }
 
+  /** 网关 provider 按（地址、令牌、协议）缓存：配置没变就复用同一个实例 */
+  private gatewayCache: { sig: string; provider: LLMProvider } | null = null;
+
+  private gatewayProvider(r: NonNullable<ReturnType<GatewayRoute['resolve']>>): LLMProvider {
+    const sig = `${r.baseURL}|${r.token}|${r.protocol}|${r.receiver.id}|${r.receiver.baseURL}`;
+    if (this.gatewayCache?.sig === sig) return this.gatewayCache.provider;
+    const p = (this.opts.factory ?? defaultProviderFactory)({
+      id: GATEWAY_PROVIDER_ID,
+      protocol: r.protocol,
+      baseURL: r.baseURL,
+      fullUrl: false,
+      defaultModel: r.model,
+      apiKey: r.token,
+      requiresApiKey: true,
+      receiver: r.receiver,
+    });
+    // 用量仍由这里记账（网关对 nomi 客户端的用量回调不再重复记）
+    const provider = new TrackedProvider(GATEWAY_PROVIDER_ID, [p], this.opts.store, r.model);
+    this.gatewayCache = { sig, provider };
+    return provider;
+  }
+
   resolve(role: ProviderRole = 'chat'): ResolvedProvider | undefined {
     const override = this.opts.overrideId ? this.get(this.opts.overrideId) : undefined;
     if (override) return { provider: override };
+    const viaGateway = this.opts.gateway?.resolve(role);
+    if (viaGateway) return { provider: this.gatewayProvider(viaGateway), model: viaGateway.model };
     const store = this.opts.store;
     if (store) {
       const route = store.route(role);

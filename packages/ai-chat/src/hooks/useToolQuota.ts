@@ -3,6 +3,8 @@
  * - `refreshTool(id)`：只让这一个工具的官方 CLI 去取额度（IPC 参数化），不影响其他工具；
  * - `refreshAll()`：次要入口，主进程内并行刷新三个工具。
  * 用量面板的工具卡片、「按端」信息卡与详情抽屉共用这一份状态逻辑。
+ * - 上一次的结果留在内存里：再次打开「订阅额度」先显示上一次的值，再在后台更新，不会先空一下。
+ *   （跨重启的保留在主进程 UsageService 的 quota.json。）
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -26,14 +28,46 @@ export interface ToolCardState {
 
 const IDLE: ToolCardState = { phase: 'idle', note: null, refreshedAt: null };
 
+/** 上一次的显示状态（同一个窗口内跨组件挂载保留） */
+const memo: {
+  rows: UsageQuotaEntry[] | null;
+  cards: Record<string, ToolCardState>;
+  active: boolean;
+} = { rows: null, cards: {}, active: true };
+
+/** 测试用：清掉上一次的显示状态 */
+export function resetToolQuotaMemo(): void {
+  memo.rows = null;
+  memo.cards = {};
+  memo.active = true;
+}
+
+/** 卸载时还在刷新的卡片：结果回不来了，恢复时当作空闲，避免一直转圈 */
+function restoredCards(): Record<string, ToolCardState> {
+  const out: Record<string, ToolCardState> = {};
+  for (const [id, c] of Object.entries(memo.cards))
+    out[id] = c.phase === 'loading' ? { ...c, phase: 'idle' } : c;
+  return out;
+}
+
 export const isQuotaTool = (id: string): id is UsageQuotaTool =>
   (USAGE_QUOTA_TOOLS as readonly string[]).includes(id);
 
 export function useToolQuota(opts: { poll?: boolean } = {}) {
   const { poll = true } = opts;
-  const [rows, setRows] = useState<UsageQuotaEntry[] | null>(null);
-  const [cards, setCards] = useState<Record<string, ToolCardState>>({});
-  const [active, setActive] = useState(true);
+  const [rows, setRows] = useState<UsageQuotaEntry[] | null>(() => memo.rows);
+  const [cards, setCards] = useState<Record<string, ToolCardState>>(restoredCards);
+  const [active, setActive] = useState(() => memo.active);
+  // 记住最新的显示状态，下次挂载直接用
+  useEffect(() => {
+    memo.rows = rows;
+  }, [rows]);
+  useEffect(() => {
+    memo.cards = cards;
+  }, [cards]);
+  useEffect(() => {
+    memo.active = active;
+  }, [active]);
   const [now, setNow] = useState(() => Date.now());
   const alive = useRef(true);
 

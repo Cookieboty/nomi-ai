@@ -17,13 +17,7 @@
       "dist": "packages/renderer/dist",
       "initialJsRawKB": 560,
       "initialJsGzipKB": 197,
-      "initialCssRawKB": 60,
-      "forbiddenInInitialJs": [
-        {
-          "marker": "THREE.WebGLRenderer",
-          "why": "three.js must only load for the 3D character"
-        }
-      ]
+      "initialCssRawKB": 60
     }
   }
 }

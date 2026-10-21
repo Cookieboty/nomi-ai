@@ -1,0 +1,4992 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`request conversion snapshots > chatCompletionsToMessages #0 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "model": "c",
+    "stream": false,
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToMessages #1 1`] = `
+{
+  "asIs": {
+    "max_tokens": 77,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "u",
+            "type": "text",
+          },
+          {
+            "source": {
+              "data": "AA",
+              "media_type": "image/jpeg",
+              "type": "base64",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "text": "calling",
+            "type": "text",
+          },
+          {
+            "id": "t1",
+            "input": {
+              "q": 2,
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "t2",
+            "input": {
+              "_raw": "bad",
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+      {
+        "content": [
+          {
+            "content": "r1",
+            "tool_use_id": "t1",
+            "type": "tool_result",
+          },
+          {
+            "content": "r2",
+            "tool_use_id": "t2",
+            "type": "tool_result",
+          },
+          {
+            "text": "next",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "source": {
+              "type": "url",
+              "url": "https://i",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "assistant",
+      },
+    ],
+    "model": "c",
+    "stop_sequences": [
+      "END",
+    ],
+    "stream": true,
+    "system": "s1
+
+s2",
+    "temperature": 0,
+    "tool_choice": {
+      "disable_parallel_tool_use": true,
+      "name": "f",
+      "type": "tool",
+    },
+    "tools": [
+      {
+        "description": "d",
+        "input_schema": {
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+    "top_p": 1,
+  },
+  "withModel": {
+    "max_tokens": 77,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "u",
+            "type": "text",
+          },
+          {
+            "source": {
+              "data": "AA",
+              "media_type": "image/jpeg",
+              "type": "base64",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "text": "calling",
+            "type": "text",
+          },
+          {
+            "id": "t1",
+            "input": {
+              "q": 2,
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "t2",
+            "input": {
+              "_raw": "bad",
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+      {
+        "content": [
+          {
+            "content": "r1",
+            "tool_use_id": "t1",
+            "type": "tool_result",
+          },
+          {
+            "content": "r2",
+            "tool_use_id": "t2",
+            "type": "tool_result",
+          },
+          {
+            "text": "next",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "source": {
+              "type": "url",
+              "url": "https://i",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "assistant",
+      },
+    ],
+    "model": "up-model",
+    "stop_sequences": [
+      "END",
+    ],
+    "stream": true,
+    "system": "s1
+
+s2",
+    "temperature": 0,
+    "tool_choice": {
+      "disable_parallel_tool_use": true,
+      "name": "f",
+      "type": "tool",
+    },
+    "tools": [
+      {
+        "description": "d",
+        "input_schema": {
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+    "top_p": 1,
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToMessages #2 1`] = `
+{
+  "asIs": {
+    "max_tokens": 9,
+    "messages": [],
+    "model": "c",
+    "stop_sequences": [
+      "a",
+      "b",
+    ],
+    "stream": false,
+    "tool_choice": {
+      "type": "auto",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+  "withModel": {
+    "max_tokens": 9,
+    "messages": [],
+    "model": "up-model",
+    "stop_sequences": [
+      "a",
+      "b",
+    ],
+    "stream": false,
+    "tool_choice": {
+      "type": "auto",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToMessages #3 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "c",
+    "stream": false,
+    "tool_choice": {
+      "type": "any",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "type": "any",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToResponses #0 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "max_output_tokens": 8192,
+    "model": "c",
+    "store": false,
+    "stream": false,
+  },
+  "withModel": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "max_output_tokens": 8192,
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToResponses #1 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "u",
+            "type": "input_text",
+          },
+          {
+            "image_url": "data:image/jpeg;base64,AA",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "content": [
+          {
+            "text": "calling",
+            "type": "output_text",
+          },
+        ],
+        "role": "assistant",
+        "type": "message",
+      },
+      {
+        "arguments": "{"q":2}",
+        "call_id": "t1",
+        "name": "f",
+        "type": "function_call",
+      },
+      {
+        "arguments": "{"_raw":"bad"}",
+        "call_id": "t2",
+        "name": "f",
+        "type": "function_call",
+      },
+      {
+        "call_id": "t1",
+        "output": "r1",
+        "type": "function_call_output",
+      },
+      {
+        "call_id": "t2",
+        "output": "r2",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "text": "next",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "s1
+
+s2",
+    "max_output_tokens": 77,
+    "model": "c",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": true,
+    "temperature": 0,
+    "tool_choice": {
+      "name": "f",
+      "type": "function",
+    },
+    "tools": [
+      {
+        "description": "d",
+        "name": "f",
+        "parameters": {
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 1,
+  },
+  "withModel": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "u",
+            "type": "input_text",
+          },
+          {
+            "image_url": "data:image/jpeg;base64,AA",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "content": [
+          {
+            "text": "calling",
+            "type": "output_text",
+          },
+        ],
+        "role": "assistant",
+        "type": "message",
+      },
+      {
+        "arguments": "{"q":2}",
+        "call_id": "t1",
+        "name": "f",
+        "type": "function_call",
+      },
+      {
+        "arguments": "{"_raw":"bad"}",
+        "call_id": "t2",
+        "name": "f",
+        "type": "function_call",
+      },
+      {
+        "call_id": "t1",
+        "output": "r1",
+        "type": "function_call_output",
+      },
+      {
+        "call_id": "t2",
+        "output": "r2",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "text": "next",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "s1
+
+s2",
+    "max_output_tokens": 77,
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": true,
+    "temperature": 0,
+    "tool_choice": {
+      "name": "f",
+      "type": "function",
+    },
+    "tools": [
+      {
+        "description": "d",
+        "name": "f",
+        "parameters": {
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 1,
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToResponses #2 1`] = `
+{
+  "asIs": {
+    "input": [],
+    "max_output_tokens": 9,
+    "model": "c",
+    "store": false,
+    "stream": false,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "name": "f",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "input": [],
+    "max_output_tokens": 9,
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "name": "f",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > chatCompletionsToResponses #3 1`] = `
+{
+  "asIs": {
+    "input": [],
+    "max_output_tokens": 8192,
+    "model": "c",
+    "store": false,
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "name": "f",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "input": [],
+    "max_output_tokens": 8192,
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "name": "f",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToChatCompletions #0 1`] = `
+{
+  "asIs": {
+    "max_tokens": 100,
+    "messages": [
+      {
+        "content": "sys str",
+        "role": "system",
+      },
+      {
+        "content": "hi",
+        "role": "user",
+      },
+    ],
+    "model": "m",
+    "stream": false,
+  },
+  "withModel": {
+    "max_tokens": 100,
+    "messages": [
+      {
+        "content": "sys str",
+        "role": "system",
+      },
+      {
+        "content": "hi",
+        "role": "user",
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToChatCompletions #1 1`] = `
+{
+  "asIs": {
+    "messages": [
+      {
+        "content": "a
+b",
+        "role": "system",
+      },
+      {
+        "content": [
+          {
+            "text": "look",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/jpeg;base64,AAAA",
+            },
+            "type": "image_url",
+          },
+          {
+            "image_url": {
+              "url": "https://x/y.png",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "ok calling",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"a":"x"}",
+              "name": "t1",
+            },
+            "id": "tu1",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "t2",
+            },
+            "id": "tu2",
+            "type": "function",
+          },
+        ],
+      },
+      {
+        "content": "res1",
+        "role": "tool",
+        "tool_call_id": "tu1",
+      },
+      {
+        "content": "Error: boom",
+        "role": "tool",
+        "tool_call_id": "tu2",
+      },
+      {
+        "content": [
+          {
+            "text": "after",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/jpeg;base64,AAAA",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "(no output)",
+        "role": "tool",
+        "tool_call_id": "tu3",
+      },
+      {
+        "content": "",
+        "role": "user",
+      },
+    ],
+    "model": "m",
+    "parallel_tool_calls": false,
+    "stop": [
+      "X",
+    ],
+    "stream": true,
+    "temperature": 0.2,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "description": "d",
+          "name": "t1",
+          "parameters": {
+            "properties": {
+              "a": {
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+      {
+        "function": {
+          "name": "t2",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.9,
+  },
+  "withModel": {
+    "messages": [
+      {
+        "content": "a
+b",
+        "role": "system",
+      },
+      {
+        "content": [
+          {
+            "text": "look",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/jpeg;base64,AAAA",
+            },
+            "type": "image_url",
+          },
+          {
+            "image_url": {
+              "url": "https://x/y.png",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "ok calling",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"a":"x"}",
+              "name": "t1",
+            },
+            "id": "tu1",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "t2",
+            },
+            "id": "tu2",
+            "type": "function",
+          },
+        ],
+      },
+      {
+        "content": "res1",
+        "role": "tool",
+        "tool_call_id": "tu1",
+      },
+      {
+        "content": "Error: boom",
+        "role": "tool",
+        "tool_call_id": "tu2",
+      },
+      {
+        "content": [
+          {
+            "text": "after",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/jpeg;base64,AAAA",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "(no output)",
+        "role": "tool",
+        "tool_call_id": "tu3",
+      },
+      {
+        "content": "",
+        "role": "user",
+      },
+    ],
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "stop": [
+      "X",
+    ],
+    "stream": true,
+    "temperature": 0.2,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "description": "d",
+          "name": "t1",
+          "parameters": {
+            "properties": {
+              "a": {
+                "type": "string",
+              },
+            },
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+      {
+        "function": {
+          "name": "t2",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.9,
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToChatCompletions #2 1`] = `
+{
+  "asIs": {
+    "messages": [
+      {
+        "content": "Error already",
+        "role": "tool",
+        "tool_call_id": "x",
+      },
+    ],
+    "model": "m",
+    "stream": false,
+    "tool_choice": {
+      "function": {
+        "name": "t",
+      },
+      "type": "function",
+    },
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [
+      {
+        "content": "Error already",
+        "role": "tool",
+        "tool_call_id": "x",
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "function": {
+        "name": "t",
+      },
+      "type": "function",
+    },
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToChatCompletions #3 1`] = `
+{
+  "asIs": {
+    "messages": [],
+    "model": "m",
+    "parallel_tool_calls": false,
+    "stream": false,
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [],
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "stream": false,
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToChatCompletions #4 1`] = `
+{
+  "asIs": {
+    "messages": [
+      {
+        "content": null,
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "t",
+            },
+            "id": "a",
+            "type": "function",
+          },
+        ],
+      },
+    ],
+    "model": "m",
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [
+      {
+        "content": null,
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "t",
+            },
+            "id": "a",
+            "type": "function",
+          },
+        ],
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "function": {
+          "name": "t",
+          "parameters": {},
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToGemini #0 1`] = `
+{
+  "asIs": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "hi",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 100,
+    },
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "sys str",
+        },
+      ],
+    },
+  },
+  "withModel": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "hi",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "generationConfig": {
+      "maxOutputTokens": 100,
+    },
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "sys str",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToGemini #1 1`] = `
+{
+  "asIs": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "look",
+          },
+          {
+            "inlineData": {
+              "data": "AAAA",
+              "mimeType": "image/jpeg",
+            },
+          },
+          {
+            "fileData": {
+              "fileUri": "https://x/y.png",
+              "mimeType": "image/png",
+            },
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "parts": [
+          {
+            "text": "ok ",
+          },
+          {
+            "text": "calling",
+          },
+          {
+            "functionCall": {
+              "args": {
+                "a": "x",
+              },
+              "name": "t1",
+            },
+          },
+          {
+            "functionCall": {
+              "args": {},
+              "name": "t2",
+            },
+          },
+        ],
+        "role": "model",
+      },
+      {
+        "parts": [
+          {
+            "text": "after",
+          },
+          {
+            "functionResponse": {
+              "name": "t1",
+              "response": {
+                "content": "res1",
+              },
+            },
+          },
+          {
+            "functionResponse": {
+              "name": "t2",
+              "response": {
+                "error": "Error: boom",
+              },
+            },
+          },
+          {
+            "inlineData": {
+              "data": "AAAA",
+              "mimeType": "image/jpeg",
+            },
+          },
+          {
+            "functionResponse": {
+              "name": "tu3",
+              "response": {
+                "content": "",
+              },
+            },
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "generationConfig": {
+      "stopSequences": [
+        "X",
+      ],
+      "temperature": 0.2,
+      "topP": 0.9,
+    },
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "a
+b",
+        },
+      ],
+    },
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "ANY",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "description": "d",
+            "name": "t1",
+            "parametersJsonSchema": {
+              "properties": {
+                "a": {
+                  "type": "string",
+                },
+              },
+              "type": "object",
+            },
+          },
+          {
+            "name": "t2",
+            "parametersJsonSchema": {
+              "properties": {},
+              "type": "object",
+            },
+          },
+        ],
+      },
+    ],
+  },
+  "withModel": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "text": "look",
+          },
+          {
+            "inlineData": {
+              "data": "AAAA",
+              "mimeType": "image/jpeg",
+            },
+          },
+          {
+            "fileData": {
+              "fileUri": "https://x/y.png",
+              "mimeType": "image/png",
+            },
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "parts": [
+          {
+            "text": "ok ",
+          },
+          {
+            "text": "calling",
+          },
+          {
+            "functionCall": {
+              "args": {
+                "a": "x",
+              },
+              "name": "t1",
+            },
+          },
+          {
+            "functionCall": {
+              "args": {},
+              "name": "t2",
+            },
+          },
+        ],
+        "role": "model",
+      },
+      {
+        "parts": [
+          {
+            "text": "after",
+          },
+          {
+            "functionResponse": {
+              "name": "t1",
+              "response": {
+                "content": "res1",
+              },
+            },
+          },
+          {
+            "functionResponse": {
+              "name": "t2",
+              "response": {
+                "error": "Error: boom",
+              },
+            },
+          },
+          {
+            "inlineData": {
+              "data": "AAAA",
+              "mimeType": "image/jpeg",
+            },
+          },
+          {
+            "functionResponse": {
+              "name": "tu3",
+              "response": {
+                "content": "",
+              },
+            },
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "generationConfig": {
+      "stopSequences": [
+        "X",
+      ],
+      "temperature": 0.2,
+      "topP": 0.9,
+    },
+    "systemInstruction": {
+      "parts": [
+        {
+          "text": "a
+b",
+        },
+      ],
+    },
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "ANY",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "description": "d",
+            "name": "t1",
+            "parametersJsonSchema": {
+              "properties": {
+                "a": {
+                  "type": "string",
+                },
+              },
+              "type": "object",
+            },
+          },
+          {
+            "name": "t2",
+            "parametersJsonSchema": {
+              "properties": {},
+              "type": "object",
+            },
+          },
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToGemini #2 1`] = `
+{
+  "asIs": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "x",
+              "response": {
+                "error": "Error already",
+              },
+            },
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "allowedFunctionNames": [
+          "t",
+        ],
+        "mode": "ANY",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+  "withModel": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "functionResponse": {
+              "name": "x",
+              "response": {
+                "error": "Error already",
+              },
+            },
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "allowedFunctionNames": [
+          "t",
+        ],
+        "mode": "ANY",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToGemini #3 1`] = `
+{
+  "asIs": {
+    "contents": [],
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+  "withModel": {
+    "contents": [],
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToGemini #4 1`] = `
+{
+  "asIs": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {},
+              "name": "t",
+            },
+          },
+        ],
+        "role": "model",
+      },
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "NONE",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+  "withModel": {
+    "contents": [
+      {
+        "parts": [
+          {
+            "functionCall": {
+              "args": {},
+              "name": "t",
+            },
+          },
+        ],
+        "role": "model",
+      },
+    ],
+    "toolConfig": {
+      "functionCallingConfig": {
+        "mode": "NONE",
+      },
+    },
+    "tools": [
+      {
+        "functionDeclarations": [
+          {
+            "name": "t",
+            "parametersJsonSchema": {},
+          },
+        ],
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToResponses #0 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "sys str",
+    "max_output_tokens": 100,
+    "model": "m",
+    "store": false,
+    "stream": false,
+  },
+  "withModel": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "hi",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "sys str",
+    "max_output_tokens": 100,
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToResponses #1 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "look",
+            "type": "input_text",
+          },
+          {
+            "image_url": "data:image/jpeg;base64,AAAA",
+            "type": "input_image",
+          },
+          {
+            "image_url": "https://x/y.png",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "content": [
+          {
+            "text": "ok ",
+            "type": "output_text",
+          },
+          {
+            "text": "calling",
+            "type": "output_text",
+          },
+        ],
+        "role": "assistant",
+        "type": "message",
+      },
+      {
+        "arguments": "{"a":"x"}",
+        "call_id": "tu1",
+        "name": "t1",
+        "type": "function_call",
+      },
+      {
+        "arguments": "{}",
+        "call_id": "tu2",
+        "name": "t2",
+        "type": "function_call",
+      },
+      {
+        "content": [
+          {
+            "text": "after",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "call_id": "tu1",
+        "output": "res1",
+        "type": "function_call_output",
+      },
+      {
+        "call_id": "tu2",
+        "output": "Error: boom",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "image_url": "data:image/jpeg;base64,AAAA",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "call_id": "tu3",
+        "output": "",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "text": "",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "a
+b",
+    "model": "m",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": true,
+    "temperature": 0.2,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "description": "d",
+        "name": "t1",
+        "parameters": {
+          "properties": {
+            "a": {
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "type": "function",
+      },
+      {
+        "name": "t2",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.9,
+  },
+  "withModel": {
+    "input": [
+      {
+        "content": [
+          {
+            "text": "look",
+            "type": "input_text",
+          },
+          {
+            "image_url": "data:image/jpeg;base64,AAAA",
+            "type": "input_image",
+          },
+          {
+            "image_url": "https://x/y.png",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "content": [
+          {
+            "text": "ok ",
+            "type": "output_text",
+          },
+          {
+            "text": "calling",
+            "type": "output_text",
+          },
+        ],
+        "role": "assistant",
+        "type": "message",
+      },
+      {
+        "arguments": "{"a":"x"}",
+        "call_id": "tu1",
+        "name": "t1",
+        "type": "function_call",
+      },
+      {
+        "arguments": "{}",
+        "call_id": "tu2",
+        "name": "t2",
+        "type": "function_call",
+      },
+      {
+        "content": [
+          {
+            "text": "after",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "call_id": "tu1",
+        "output": "res1",
+        "type": "function_call_output",
+      },
+      {
+        "call_id": "tu2",
+        "output": "Error: boom",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "image_url": "data:image/jpeg;base64,AAAA",
+            "type": "input_image",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+      {
+        "call_id": "tu3",
+        "output": "",
+        "type": "function_call_output",
+      },
+      {
+        "content": [
+          {
+            "text": "",
+            "type": "input_text",
+          },
+        ],
+        "role": "user",
+        "type": "message",
+      },
+    ],
+    "instructions": "a
+b",
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": true,
+    "temperature": 0.2,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "description": "d",
+        "name": "t1",
+        "parameters": {
+          "properties": {
+            "a": {
+              "type": "string",
+            },
+          },
+          "type": "object",
+        },
+        "type": "function",
+      },
+      {
+        "name": "t2",
+        "parameters": {
+          "properties": {},
+          "type": "object",
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.9,
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToResponses #2 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "call_id": "x",
+        "output": "Error already",
+        "type": "function_call_output",
+      },
+    ],
+    "model": "m",
+    "store": false,
+    "stream": false,
+    "tool_choice": {
+      "name": "t",
+      "type": "function",
+    },
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "input": [
+      {
+        "call_id": "x",
+        "output": "Error already",
+        "type": "function_call_output",
+      },
+    ],
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+    "tool_choice": {
+      "name": "t",
+      "type": "function",
+    },
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToResponses #3 1`] = `
+{
+  "asIs": {
+    "input": [],
+    "model": "m",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": false,
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "input": [],
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "store": false,
+    "stream": false,
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > messagesToResponses #4 1`] = `
+{
+  "asIs": {
+    "input": [
+      {
+        "arguments": "{}",
+        "call_id": "a",
+        "name": "t",
+        "type": "function_call",
+      },
+    ],
+    "model": "m",
+    "store": false,
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "input": [
+      {
+        "arguments": "{}",
+        "call_id": "a",
+        "name": "t",
+        "type": "function_call",
+      },
+    ],
+    "model": "up-model",
+    "store": false,
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "name": "t",
+        "parameters": {},
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToChatCompletions #0 1`] = `
+{
+  "asIs": {
+    "messages": [
+      {
+        "content": "ins",
+        "role": "system",
+      },
+      {
+        "content": "plain",
+        "role": "user",
+      },
+    ],
+    "model": "r",
+    "stream": false,
+  },
+  "withModel": {
+    "messages": [
+      {
+        "content": "ins",
+        "role": "system",
+      },
+      {
+        "content": "plain",
+        "role": "user",
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToChatCompletions #1 1`] = `
+{
+  "asIs": {
+    "max_tokens": 50,
+    "messages": [
+      {
+        "content": "ins
+
+dev1
+
+sys2",
+        "role": "system",
+      },
+      {
+        "content": [
+          {
+            "text": "u1",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/png;base64,QQ==",
+            },
+            "type": "image_url",
+          },
+          {
+            "image_url": {
+              "url": "https://img",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "a1no",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"x":1}",
+              "name": "f",
+            },
+            "id": "c1",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{"_raw":"not json"}",
+              "name": "f",
+            },
+            "id": "fcid",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{"input":"*** patch"}",
+              "name": "apply_patch",
+            },
+            "id": "c2",
+            "type": "function",
+          },
+        ],
+      },
+      {
+        "content": "out1",
+        "role": "tool",
+        "tool_call_id": "c1",
+      },
+      {
+        "content": "o2",
+        "role": "tool",
+        "tool_call_id": "c2",
+      },
+      {
+        "content": "{"a":1}",
+        "role": "tool",
+        "tool_call_id": "c3",
+      },
+      {
+        "content": "between",
+        "role": "user",
+      },
+      {
+        "content": null,
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"value":[1,2]}",
+              "name": "f",
+            },
+            "id": "c4",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "f",
+            },
+            "id": "c5",
+            "type": "function",
+          },
+        ],
+      },
+    ],
+    "model": "r",
+    "parallel_tool_calls": false,
+    "stream": true,
+    "temperature": 1,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "fd",
+          "name": "f",
+          "parameters": {
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+      {
+        "function": {
+          "description": "p",
+          "name": "apply_patch",
+          "parameters": {
+            "properties": {
+              "input": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "input",
+            ],
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.5,
+  },
+  "withModel": {
+    "max_tokens": 50,
+    "messages": [
+      {
+        "content": "ins
+
+dev1
+
+sys2",
+        "role": "system",
+      },
+      {
+        "content": [
+          {
+            "text": "u1",
+            "type": "text",
+          },
+          {
+            "image_url": {
+              "url": "data:image/png;base64,QQ==",
+            },
+            "type": "image_url",
+          },
+          {
+            "image_url": {
+              "url": "https://img",
+            },
+            "type": "image_url",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": "a1no",
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"x":1}",
+              "name": "f",
+            },
+            "id": "c1",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{"_raw":"not json"}",
+              "name": "f",
+            },
+            "id": "fcid",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{"input":"*** patch"}",
+              "name": "apply_patch",
+            },
+            "id": "c2",
+            "type": "function",
+          },
+        ],
+      },
+      {
+        "content": "out1",
+        "role": "tool",
+        "tool_call_id": "c1",
+      },
+      {
+        "content": "o2",
+        "role": "tool",
+        "tool_call_id": "c2",
+      },
+      {
+        "content": "{"a":1}",
+        "role": "tool",
+        "tool_call_id": "c3",
+      },
+      {
+        "content": "between",
+        "role": "user",
+      },
+      {
+        "content": null,
+        "role": "assistant",
+        "tool_calls": [
+          {
+            "function": {
+              "arguments": "{"value":[1,2]}",
+              "name": "f",
+            },
+            "id": "c4",
+            "type": "function",
+          },
+          {
+            "function": {
+              "arguments": "{}",
+              "name": "f",
+            },
+            "id": "c5",
+            "type": "function",
+          },
+        ],
+      },
+    ],
+    "model": "up-model",
+    "parallel_tool_calls": false,
+    "stream": true,
+    "temperature": 1,
+    "tool_choice": "auto",
+    "tools": [
+      {
+        "function": {
+          "description": "fd",
+          "name": "f",
+          "parameters": {
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+      {
+        "function": {
+          "description": "p",
+          "name": "apply_patch",
+          "parameters": {
+            "properties": {
+              "input": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "input",
+            ],
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+    "top_p": 0.5,
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToChatCompletions #2 1`] = `
+{
+  "asIs": {
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": {
+      "function": {
+        "name": "cx",
+      },
+      "type": "function",
+    },
+    "tools": [
+      {
+        "function": {
+          "name": "cx",
+          "parameters": {
+            "properties": {
+              "input": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "input",
+            ],
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "function": {
+        "name": "cx",
+      },
+      "type": "function",
+    },
+    "tools": [
+      {
+        "function": {
+          "name": "cx",
+          "parameters": {
+            "properties": {
+              "input": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "input",
+            ],
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToChatCompletions #3 1`] = `
+{
+  "asIs": {
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "name": "f",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": "required",
+    "tools": [
+      {
+        "function": {
+          "name": "f",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToChatCompletions #4 1`] = `
+{
+  "asIs": {
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "function": {
+          "name": "f",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+  "withModel": {
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": "none",
+    "tools": [
+      {
+        "function": {
+          "name": "f",
+          "parameters": {
+            "properties": {},
+            "type": "object",
+          },
+        },
+        "type": "function",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToMessages #0 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "plain",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "model": "r",
+    "stream": false,
+    "system": "ins",
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "plain",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+    ],
+    "model": "up-model",
+    "stream": false,
+    "system": "ins",
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToMessages #1 1`] = `
+{
+  "asIs": {
+    "max_tokens": 50,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "u1",
+            "type": "text",
+          },
+          {
+            "source": {
+              "data": "QQ==",
+              "media_type": "image/png",
+              "type": "base64",
+            },
+            "type": "image",
+          },
+          {
+            "source": {
+              "type": "url",
+              "url": "https://img",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "text": "a1",
+            "type": "text",
+          },
+          {
+            "text": "no",
+            "type": "text",
+          },
+          {
+            "id": "c1",
+            "input": {
+              "x": 1,
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "fcid",
+            "input": {
+              "_raw": "not json",
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "c2",
+            "input": {
+              "input": "*** patch",
+            },
+            "name": "apply_patch",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+      {
+        "content": [
+          {
+            "content": "out1",
+            "tool_use_id": "c1",
+            "type": "tool_result",
+          },
+          {
+            "content": "o2",
+            "tool_use_id": "c2",
+            "type": "tool_result",
+          },
+          {
+            "content": "{"a":1}",
+            "tool_use_id": "c3",
+            "type": "tool_result",
+          },
+          {
+            "text": "between",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "id": "c4",
+            "input": {
+              "value": [
+                1,
+                2,
+              ],
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "c5",
+            "input": {},
+            "name": "f",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+    ],
+    "model": "r",
+    "stream": true,
+    "system": "ins
+
+dev1
+
+sys2",
+    "temperature": 1,
+    "tool_choice": {
+      "disable_parallel_tool_use": true,
+      "type": "auto",
+    },
+    "tools": [
+      {
+        "description": "fd",
+        "input_schema": {
+          "type": "object",
+        },
+        "name": "f",
+      },
+      {
+        "description": "p",
+        "input_schema": {
+          "properties": {
+            "input": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "input",
+          ],
+          "type": "object",
+        },
+        "name": "apply_patch",
+      },
+    ],
+    "top_p": 0.5,
+  },
+  "withModel": {
+    "max_tokens": 50,
+    "messages": [
+      {
+        "content": [
+          {
+            "text": "u1",
+            "type": "text",
+          },
+          {
+            "source": {
+              "data": "QQ==",
+              "media_type": "image/png",
+              "type": "base64",
+            },
+            "type": "image",
+          },
+          {
+            "source": {
+              "type": "url",
+              "url": "https://img",
+            },
+            "type": "image",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "text": "a1",
+            "type": "text",
+          },
+          {
+            "text": "no",
+            "type": "text",
+          },
+          {
+            "id": "c1",
+            "input": {
+              "x": 1,
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "fcid",
+            "input": {
+              "_raw": "not json",
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "c2",
+            "input": {
+              "input": "*** patch",
+            },
+            "name": "apply_patch",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+      {
+        "content": [
+          {
+            "content": "out1",
+            "tool_use_id": "c1",
+            "type": "tool_result",
+          },
+          {
+            "content": "o2",
+            "tool_use_id": "c2",
+            "type": "tool_result",
+          },
+          {
+            "content": "{"a":1}",
+            "tool_use_id": "c3",
+            "type": "tool_result",
+          },
+          {
+            "text": "between",
+            "type": "text",
+          },
+        ],
+        "role": "user",
+      },
+      {
+        "content": [
+          {
+            "id": "c4",
+            "input": {
+              "value": [
+                1,
+                2,
+              ],
+            },
+            "name": "f",
+            "type": "tool_use",
+          },
+          {
+            "id": "c5",
+            "input": {},
+            "name": "f",
+            "type": "tool_use",
+          },
+        ],
+        "role": "assistant",
+      },
+    ],
+    "model": "up-model",
+    "stream": true,
+    "system": "ins
+
+dev1
+
+sys2",
+    "temperature": 1,
+    "tool_choice": {
+      "disable_parallel_tool_use": true,
+      "type": "auto",
+    },
+    "tools": [
+      {
+        "description": "fd",
+        "input_schema": {
+          "type": "object",
+        },
+        "name": "f",
+      },
+      {
+        "description": "p",
+        "input_schema": {
+          "properties": {
+            "input": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "input",
+          ],
+          "type": "object",
+        },
+        "name": "apply_patch",
+      },
+    ],
+    "top_p": 0.5,
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToMessages #2 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": {
+      "name": "cx",
+      "type": "tool",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {
+            "input": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "input",
+          ],
+          "type": "object",
+        },
+        "name": "cx",
+      },
+    ],
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "name": "cx",
+      "type": "tool",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {
+            "input": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "input",
+          ],
+          "type": "object",
+        },
+        "name": "cx",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToMessages #3 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": {
+      "type": "any",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "type": "any",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+}
+`;
+
+exports[`request conversion snapshots > responsesToMessages #4 1`] = `
+{
+  "asIs": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "r",
+    "stream": false,
+    "tool_choice": {
+      "type": "none",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+  "withModel": {
+    "max_tokens": 8192,
+    "messages": [],
+    "model": "up-model",
+    "stream": false,
+    "tool_choice": {
+      "type": "none",
+    },
+    "tools": [
+      {
+        "input_schema": {
+          "properties": {},
+          "type": "object",
+        },
+        "name": "f",
+      },
+    ],
+  },
+}
+`;
+
+exports[`response conversion snapshots > json chat#0 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "content": "hi",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{}",
+                  "name": "f",
+                },
+                "id": "t",
+                "type": "function",
+              },
+            ],
+          },
+        },
+      ],
+      "created": 1700000000,
+      "id": "c",
+      "model": "m",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 1,
+        "total_tokens": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"id":"c","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"c","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"content":"hi"},"finish_reason":null}]}
+
+data: {"id":"c","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"t","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"c","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null}]}
+
+data: {"id":"c","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#0 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "hi",
+              },
+              {
+                "functionCall": {
+                  "args": {},
+                  "id": "t",
+                  "name": "f",
+                },
+              },
+            ],
+            "role": "model",
+          },
+          "finishReason": "STOP",
+          "index": 0,
+        },
+      ],
+      "modelVersion": "m",
+      "responseId": "c",
+      "usageMetadata": {
+        "candidatesTokenCount": 2,
+        "promptTokenCount": 1,
+        "totalTokenCount": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"candidates":[{"content":{"role":"model","parts":[{"text":"r","thought":true}]},"index":0}],"modelVersion":"m","responseId":"c"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"hi"}]},"index":0}],"modelVersion":"m","responseId":"c"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"t","name":"f","args":{}}}]},"index":0}],"modelVersion":"m","responseId":"c"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"m","responseId":"c","usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2,"totalTokenCount":3}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#0 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "content": [
+        {
+          "text": "hi",
+          "type": "text",
+        },
+        {
+          "id": "t",
+          "input": {},
+          "name": "f",
+          "type": "tool_use",
+        },
+      ],
+      "id": "c",
+      "model": "m",
+      "role": "assistant",
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "type": "message",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: message_start
+data: {"type":"message_start","message":{"id":"c","type":"message","role":"assistant","content":[],"model":"m","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"t","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":1,"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#0 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "created_at": 1700000000,
+      "id": "resp_nomi_loyw3v284fzyo8",
+      "model": "m",
+      "object": "response",
+      "output": [
+        {
+          "content": [
+            {
+              "annotations": [],
+              "text": "hi",
+              "type": "output_text",
+            },
+          ],
+          "id": "msg_nomi_loyw3v284fzyo8",
+          "role": "assistant",
+          "status": "completed",
+          "type": "message",
+        },
+        {
+          "arguments": "{}",
+          "call_id": "t",
+          "id": "fc_nomi_loyw3v284fzyo8",
+          "name": "f",
+          "status": "completed",
+          "type": "function_call",
+        },
+      ],
+      "output_text": "hi",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+        "total_tokens": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"m","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"m","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"hi"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"hi"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"hi","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"hi","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t","name":"f","arguments":"{}","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"completed","model":"m","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"hi","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t","name":"f","arguments":"{}","status":"completed"}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#1 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "api_error",
+        "message": "x",
+        "type": "api_error",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"message":"x","type":"api_error"}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#1 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": 502,
+        "message": "x",
+        "status": "INTERNAL",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"code":500,"message":"x","status":"INTERNAL"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#1 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "message": "x",
+        "type": "api_error",
+      },
+      "type": "error",
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: error
+data: {"type":"error","error":{"type":"api_error","message":"x"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json chat#1 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "api_error",
+        "message": "x",
+        "type": "api_error",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"api_error","message":"x"}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#0 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "length",
+          "index": 0,
+          "message": {
+            "content": "a",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{}",
+                  "name": "f",
+                },
+                "id": "call_gemini_0",
+                "type": "function",
+              },
+            ],
+          },
+        },
+      ],
+      "created": 1700000000,
+      "id": "g",
+      "model": "fallback",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 0,
+        "prompt_tokens": 0,
+        "total_tokens": 0,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"id":"g","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"g","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"content":"a"},"finish_reason":null}]}
+
+data: {"id":"g","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_gemini_0","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"g","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{}"}}]},"finish_reason":null}]}
+
+data: {"id":"g","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":0,"completion_tokens":0,"total_tokens":0}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#0 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "a",
+              },
+              {
+                "functionCall": {
+                  "args": {},
+                  "id": "call_gemini_0",
+                  "name": "f",
+                },
+              },
+            ],
+            "role": "model",
+          },
+          "finishReason": "MAX_TOKENS",
+          "index": 0,
+        },
+      ],
+      "modelVersion": "fallback",
+      "responseId": "g",
+      "usageMetadata": {
+        "candidatesTokenCount": 0,
+        "promptTokenCount": 0,
+        "totalTokenCount": 0,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"candidates":[{"content":{"role":"model","parts":[{"text":"t","thought":true}]},"index":0}],"modelVersion":"fallback","responseId":"g"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"a"}]},"index":0}],"modelVersion":"fallback","responseId":"g"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"call_gemini_0","name":"f","args":{}}}]},"index":0}],"modelVersion":"fallback","responseId":"g"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"MAX_TOKENS"}],"modelVersion":"fallback","responseId":"g","usageMetadata":{"promptTokenCount":0,"candidatesTokenCount":0,"totalTokenCount":0}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#0 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "content": [
+        {
+          "text": "a",
+          "type": "text",
+        },
+        {
+          "id": "call_gemini_0",
+          "input": {},
+          "name": "f",
+          "type": "tool_use",
+        },
+      ],
+      "id": "g",
+      "model": "fallback",
+      "role": "assistant",
+      "stop_reason": "max_tokens",
+      "stop_sequence": null,
+      "type": "message",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: message_start
+data: {"type":"message_start","message":{"id":"g","type":"message","role":"assistant","content":[],"model":"fallback","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"a"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"call_gemini_0","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"max_tokens","stop_sequence":null},"usage":{"output_tokens":0}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#0 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "created_at": 1700000000,
+      "id": "resp_nomi_loyw3v284fzyo8",
+      "incomplete_details": {
+        "reason": "max_output_tokens",
+      },
+      "model": "fallback",
+      "object": "response",
+      "output": [
+        {
+          "content": [
+            {
+              "annotations": [],
+              "text": "a",
+              "type": "output_text",
+            },
+          ],
+          "id": "msg_nomi_loyw3v284fzyo8",
+          "role": "assistant",
+          "status": "completed",
+          "type": "message",
+        },
+        {
+          "arguments": "{}",
+          "call_id": "call_gemini_0",
+          "id": "fc_nomi_loyw3v284fzyo8",
+          "name": "f",
+          "status": "completed",
+          "type": "function_call",
+        },
+      ],
+      "output_text": "a",
+      "status": "incomplete",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"a"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"a"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"a","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"{}","status":"completed"}}
+
+event: response.incomplete
+data: {"type":"response.incomplete","sequence_number":12,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"incomplete","model":"fallback","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"{}","status":"completed"}],"incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":0,"output_tokens":0,"total_tokens":0}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#1 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "invalid_request_error",
+        "message": "prompt blocked: no candidates",
+        "type": "invalid_request_error",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"message":"prompt blocked: no candidates","type":"invalid_request_error"}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#1 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": 502,
+        "message": "prompt blocked: no candidates",
+        "status": "INVALID_ARGUMENT",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"code":400,"message":"prompt blocked: no candidates","status":"INVALID_ARGUMENT"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#1 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "message": "prompt blocked: no candidates",
+        "type": "invalid_request_error",
+      },
+      "type": "error",
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: error
+data: {"type":"error","error":{"type":"invalid_request_error","message":"prompt blocked: no candidates"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json gemini#1 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "invalid_request_error",
+        "message": "prompt blocked: no candidates",
+        "type": "invalid_request_error",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"invalid_request_error","message":"prompt blocked: no candidates"}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#0 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "stop",
+          "index": 0,
+          "message": {
+            "content": "a",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{"a":1}",
+                  "name": "f",
+                },
+                "id": "u",
+                "type": "function",
+              },
+            ],
+          },
+        },
+      ],
+      "created": 1700000000,
+      "id": "m",
+      "model": "c",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 2,
+        "prompt_tokens": 1,
+        "total_tokens": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"id":"m","object":"chat.completion.chunk","created":1700000000,"model":"c","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"m","object":"chat.completion.chunk","created":1700000000,"model":"c","choices":[{"index":0,"delta":{"content":"a"},"finish_reason":null}]}
+
+data: {"id":"m","object":"chat.completion.chunk","created":1700000000,"model":"c","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"u","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"m","object":"chat.completion.chunk","created":1700000000,"model":"c","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"a\\":1}"}}]},"finish_reason":null}]}
+
+data: {"id":"m","object":"chat.completion.chunk","created":1700000000,"model":"c","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#0 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "a",
+              },
+              {
+                "functionCall": {
+                  "args": {
+                    "a": 1,
+                  },
+                  "id": "u",
+                  "name": "f",
+                },
+              },
+            ],
+            "role": "model",
+          },
+          "finishReason": "STOP",
+          "index": 0,
+        },
+      ],
+      "modelVersion": "c",
+      "responseId": "m",
+      "usageMetadata": {
+        "candidatesTokenCount": 2,
+        "promptTokenCount": 1,
+        "totalTokenCount": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"candidates":[{"content":{"role":"model","parts":[{"text":"t","thought":true}]},"index":0}],"modelVersion":"c","responseId":"m"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"a"}]},"index":0}],"modelVersion":"c","responseId":"m"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"u","name":"f","args":{"a":1}}}]},"index":0}],"modelVersion":"c","responseId":"m"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"c","responseId":"m","usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":2,"totalTokenCount":3}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#0 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "content": [
+        {
+          "text": "a",
+          "type": "text",
+        },
+        {
+          "id": "u",
+          "input": {
+            "a": 1,
+          },
+          "name": "f",
+          "type": "tool_use",
+        },
+      ],
+      "id": "m",
+      "model": "c",
+      "role": "assistant",
+      "stop_reason": "refusal",
+      "stop_sequence": null,
+      "type": "message",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: message_start
+data: {"type":"message_start","message":{"id":"m","type":"message","role":"assistant","content":[],"model":"c","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"a"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"u","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"a\\":1}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null},"usage":{"input_tokens":1,"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#0 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "created_at": 1700000000,
+      "id": "resp_nomi_loyw3v284fzyo8",
+      "model": "c",
+      "object": "response",
+      "output": [
+        {
+          "content": [
+            {
+              "annotations": [],
+              "text": "a",
+              "type": "output_text",
+            },
+          ],
+          "id": "msg_nomi_loyw3v284fzyo8",
+          "role": "assistant",
+          "status": "completed",
+          "type": "message",
+        },
+        {
+          "arguments": "{"a":1}",
+          "call_id": "u",
+          "id": "fc_nomi_loyw3v284fzyo8",
+          "name": "f",
+          "status": "completed",
+          "type": "function_call",
+        },
+      ],
+      "output_text": "a",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 2,
+        "total_tokens": 3,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"c","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"c","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"a"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"a"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"a","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"u","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{\\"a\\":1}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{\\"a\\":1}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"u","name":"f","arguments":"{\\"a\\":1}","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"completed","model":"c","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"u","name":"f","arguments":"{\\"a\\":1}","status":"completed"}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#1 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "x",
+        "message": "m",
+        "type": "x",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"message":"m","type":"x"}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#1 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": 502,
+        "message": "m",
+        "status": "INTERNAL",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "data: {"error":{"code":500,"message":"m","status":"INTERNAL"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#1 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "message": "m",
+        "type": "x",
+      },
+      "type": "error",
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: error
+data: {"type":"error","error":{"type":"api_error","message":"m"}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json messages#1 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "error": {
+        "code": "x",
+        "message": "m",
+        "type": "x",
+      },
+    },
+    "ok": false,
+    "status": 502,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"x","message":"m"}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json responses#0 → chat 1`] = `
+{
+  "json": {
+    "body": {
+      "choices": [
+        {
+          "finish_reason": "tool_calls",
+          "index": 0,
+          "message": {
+            "content": "a",
+            "role": "assistant",
+            "tool_calls": [
+              {
+                "function": {
+                  "arguments": "{"input":"p"}",
+                  "name": "apply_patch",
+                },
+                "id": "c",
+                "type": "function",
+              },
+            ],
+          },
+        },
+      ],
+      "created": 1700000000,
+      "id": "resp_x",
+      "model": "m",
+      "object": "chat.completion",
+      "usage": {
+        "completion_tokens": 1,
+        "prompt_tokens": 1,
+        "total_tokens": 2,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"id":"resp_x","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"resp_x","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"content":"a"},"finish_reason":null}]}
+
+data: {"id":"resp_x","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"c","type":"function","function":{"name":"apply_patch","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"resp_x","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"input\\":\\"p\\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"resp_x","object":"chat.completion.chunk","created":1700000000,"model":"m","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}
+
+data: [DONE]
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json responses#0 → gemini 1`] = `
+{
+  "json": {
+    "body": {
+      "candidates": [
+        {
+          "content": {
+            "parts": [
+              {
+                "text": "a",
+              },
+              {
+                "functionCall": {
+                  "args": {
+                    "input": "p",
+                  },
+                  "id": "c",
+                  "name": "apply_patch",
+                },
+              },
+            ],
+            "role": "model",
+          },
+          "finishReason": "STOP",
+          "index": 0,
+        },
+      ],
+      "modelVersion": "m",
+      "responseId": "resp_x",
+      "usageMetadata": {
+        "candidatesTokenCount": 1,
+        "promptTokenCount": 1,
+        "totalTokenCount": 2,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "data: {"candidates":[{"content":{"role":"model","parts":[{"text":"s","thought":true}]},"index":0}],"modelVersion":"m","responseId":"resp_x"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"a"}]},"index":0}],"modelVersion":"m","responseId":"resp_x"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"c","name":"apply_patch","args":{"input":"p"}}}]},"index":0}],"modelVersion":"m","responseId":"resp_x"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"m","responseId":"resp_x","usageMetadata":{"promptTokenCount":1,"candidatesTokenCount":1,"totalTokenCount":2}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json responses#0 → messages 1`] = `
+{
+  "json": {
+    "body": {
+      "content": [
+        {
+          "text": "a",
+          "type": "text",
+        },
+        {
+          "id": "c",
+          "input": {
+            "input": "p",
+          },
+          "name": "apply_patch",
+          "type": "tool_use",
+        },
+      ],
+      "id": "resp_x",
+      "model": "m",
+      "role": "assistant",
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "type": "message",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 1,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: message_start
+data: {"type":"message_start","message":{"id":"resp_x","type":"message","role":"assistant","content":[],"model":"m","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":1,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"a"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"c","name":"apply_patch","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"input\\":\\"p\\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":1,"output_tokens":1}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > json responses#0 → responses 1`] = `
+{
+  "json": {
+    "body": {
+      "created_at": 1700000000,
+      "id": "resp_x",
+      "model": "m",
+      "object": "response",
+      "output": [
+        {
+          "content": [
+            {
+              "annotations": [],
+              "text": "a",
+              "type": "output_text",
+            },
+          ],
+          "id": "msg_nomi_loyw3v284fzyo8",
+          "role": "assistant",
+          "status": "completed",
+          "type": "message",
+        },
+        {
+          "call_id": "c",
+          "id": "ctc_nomi_loyw3v284fzyo8",
+          "input": "p",
+          "name": "apply_patch",
+          "status": "completed",
+          "type": "custom_tool_call",
+        },
+      ],
+      "output_text": "a",
+      "status": "completed",
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 1,
+        "total_tokens": 2,
+      },
+    },
+    "ok": true,
+    "status": 200,
+  },
+  "sse": "event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_x","object":"response","created_at":1700000000,"status":"in_progress","model":"m","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_x","object":"response","created_at":1700000000,"status":"in_progress","model":"m","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"a"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"a"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"a","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"c","name":"apply_patch","input":"","status":"in_progress"}}
+
+event: response.custom_tool_call_input.delta
+data: {"type":"response.custom_tool_call_input.delta","sequence_number":9,"item_id":"ctc_nomi_loyw3v284fzyo8","output_index":1,"delta":"p"}
+
+event: response.custom_tool_call_input.done
+data: {"type":"response.custom_tool_call_input.done","sequence_number":10,"item_id":"ctc_nomi_loyw3v284fzyo8","output_index":1,"input":"p"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"c","name":"apply_patch","input":"p","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_x","object":"response","created_at":1700000000,"status":"completed","model":"m","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]},{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"c","name":"apply_patch","input":"p","status":"completed"}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}
+
+",
+}
+`;
+
+exports[`response conversion snapshots > stream chat#0 → chat 1`] = `
+"data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"t0","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"a\\""}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"id":"t1","type":"function","function":{"name":"g","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"{"}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":":1}"}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"}"}}]},"finish_reason":null}]}
+
+data: {"id":"c1","object":"chat.completion.chunk","created":1700000000,"model":"glm","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#0 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"think a","thought":true}]},"index":0}],"modelVersion":"glm","responseId":"c1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"think b","thought":true}]},"index":0}],"modelVersion":"glm","responseId":"c1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Hello"}]},"index":0}],"modelVersion":"glm","responseId":"c1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"t0","name":"f","args":{"a":1}}}]},"index":0}],"modelVersion":"glm","responseId":"c1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"t1","name":"g","args":{}}}]},"index":0}],"modelVersion":"glm","responseId":"c1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"glm","responseId":"c1","usageMetadata":{"promptTokenCount":10,"candidatesTokenCount":5,"totalTokenCount":15}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#0 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"c1","type":"message","role":"assistant","content":[],"model":"glm","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"t0","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"a\\""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":":1}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: content_block_start
+data: {"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"t1","name":"g","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":"{}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":2}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":10,"output_tokens":5}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#0 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"glm","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"glm","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"Hello"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"Hello"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"Hello","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hello","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t0","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{\\"a\\""}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":":1}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":11,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{\\"a\\":1}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":12,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t0","name":"f","arguments":"{\\"a\\":1}","status":"completed"}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":13,"output_index":2,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t1","name":"g","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":14,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":2,"delta":"{}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":15,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":2,"arguments":"{}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":16,"output_index":2,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t1","name":"g","arguments":"{}","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":17,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"completed","model":"glm","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hello","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t0","name":"f","arguments":"{\\"a\\":1}","status":"completed"},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"t1","name":"g","arguments":"{}","status":"completed"}],"usage":{"input_tokens":10,"output_tokens":5,"total_tokens":15}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#1 → chat 1`] = `
+"data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"content":"x"},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":0,"completion_tokens":0,"total_tokens":0}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#1 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"x"}]},"index":0}],"modelVersion":"fallback","responseId":"gemini_nomi_loyw3v284fzyo8"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"MAX_TOKENS"}],"modelVersion":"fallback","responseId":"gemini_nomi_loyw3v284fzyo8","usageMetadata":{"promptTokenCount":0,"candidatesTokenCount":0,"totalTokenCount":0}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#1 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"msg_nomi_loyw3v284fzyo8","type":"message","role":"assistant","content":[],"model":"fallback","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"x"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"max_tokens","stop_sequence":null},"usage":{"output_tokens":0}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#1 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"x"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"x"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"x","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"x","annotations":[]}]}}
+
+event: response.incomplete
+data: {"type":"response.incomplete","sequence_number":8,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"incomplete","model":"fallback","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"x","annotations":[]}]}],"incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":0,"output_tokens":0,"total_tokens":0}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#2 → chat 1`] = `
+"data: {"error":{"message":"boom","type":"rate_limit_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#2 → gemini 1`] = `
+"data: {"error":{"code":429,"message":"boom","status":"RESOURCE_EXHAUSTED"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#2 → messages 1`] = `
+"event: error
+data: {"type":"error","error":{"type":"rate_limit_error","message":"boom"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#2 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"rate_limit_error","message":"boom"}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#3 → chat 1`] = `
+"data: {"error":{"message":"upstream stream ended without any data","type":"api_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#3 → gemini 1`] = `
+"data: {"error":{"code":500,"message":"upstream stream ended without any data","status":"INTERNAL"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#3 → messages 1`] = `
+"event: error
+data: {"type":"error","error":{"type":"api_error","message":"upstream stream ended without any data"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream chat#3 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"api_error","message":"upstream stream ended without any data"}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#0 → chat 1`] = `
+"data: {"id":"g1","object":"chat.completion.chunk","created":1700000000,"model":"gem","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"g1","object":"chat.completion.chunk","created":1700000000,"model":"gem","choices":[{"index":0,"delta":{"content":"Answer"},"finish_reason":null}]}
+
+data: {"id":"g1","object":"chat.completion.chunk","created":1700000000,"model":"gem","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_gemini_0","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"g1","object":"chat.completion.chunk","created":1700000000,"model":"gem","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"x\\":1}"}}]},"finish_reason":null}]}
+
+data: {"id":"g1","object":"chat.completion.chunk","created":1700000000,"model":"gem","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":7,"completion_tokens":2,"total_tokens":9}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#0 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"secret","thought":true}]},"index":0}],"modelVersion":"gem","responseId":"g1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Answer"}]},"index":0}],"modelVersion":"gem","responseId":"g1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"call_gemini_0","name":"f","args":{"x":1}}}]},"index":0}],"modelVersion":"gem","responseId":"g1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"gem","responseId":"g1","usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":2,"totalTokenCount":9}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#0 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"g1","type":"message","role":"assistant","content":[],"model":"gem","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Answer"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"call_gemini_0","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"x\\":1}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":7,"output_tokens":2}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#0 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"gem","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"gem","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"Answer"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"Answer"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"Answer","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Answer","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{\\"x\\":1}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{\\"x\\":1}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"{\\"x\\":1}","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"completed","model":"gem","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Answer","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"call_gemini_0","name":"f","arguments":"{\\"x\\":1}","status":"completed"}],"usage":{"input_tokens":7,"output_tokens":2,"total_tokens":9}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#1 → chat 1`] = `
+"data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"content":"a"},"finish_reason":null}]}
+
+data: {"error":{"message":"response blocked: SAFETY","type":"api_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#1 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"a"}]},"index":0}],"modelVersion":"fallback","responseId":"gemini_nomi_loyw3v284fzyo8"}
+
+data: {"error":{"code":500,"message":"response blocked: SAFETY","status":"INTERNAL"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#1 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"msg_nomi_loyw3v284fzyo8","type":"message","role":"assistant","content":[],"model":"fallback","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"a"}}
+
+event: error
+data: {"type":"error","error":{"type":"api_error","message":"response blocked: SAFETY"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#1 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"a"}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":5,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"a","annotations":[]}]}],"error":{"code":"api_error","message":"response blocked: SAFETY"}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#2 → chat 1`] = `
+"data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"error":{"message":"prompt blocked: OTHER","type":"invalid_request_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#2 → gemini 1`] = `
+"data: {"error":{"code":400,"message":"prompt blocked: OTHER","status":"INVALID_ARGUMENT"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#2 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"msg_nomi_loyw3v284fzyo8","type":"message","role":"assistant","content":[],"model":"fallback","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: error
+data: {"type":"error","error":{"type":"invalid_request_error","message":"prompt blocked: OTHER"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream gemini#2 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"invalid_request_error","message":"prompt blocked: OTHER"}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#0 → chat 1`] = `
+"data: {"id":"msg_1","object":"chat.completion.chunk","created":1700000000,"model":"claude","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"msg_1","object":"chat.completion.chunk","created":1700000000,"model":"claude","choices":[{"index":0,"delta":{"content":"Yo"},"finish_reason":null}]}
+
+data: {"id":"msg_1","object":"chat.completion.chunk","created":1700000000,"model":"claude","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"tu","type":"function","function":{"name":"f","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"msg_1","object":"chat.completion.chunk","created":1700000000,"model":"claude","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"q\\":1}"}}]},"finish_reason":null}]}
+
+data: {"id":"msg_1","object":"chat.completion.chunk","created":1700000000,"model":"claude","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":9,"total_tokens":14}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#0 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"hmm","thought":true}]},"index":0}],"modelVersion":"claude","responseId":"msg_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Yo"}]},"index":0}],"modelVersion":"claude","responseId":"msg_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"tu","name":"f","args":{"q":1}}}]},"index":0}],"modelVersion":"claude","responseId":"msg_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"claude","responseId":"msg_1","usageMetadata":{"promptTokenCount":5,"candidatesTokenCount":9,"totalTokenCount":14}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#0 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"claude","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":5,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Yo"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"tu","name":"f","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"q\\":1}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null},"usage":{"input_tokens":5,"output_tokens":9}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#0 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"claude","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"claude","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"Yo"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"Yo"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"Yo","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Yo","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"tu","name":"f","arguments":"","status":"in_progress"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"delta":"{\\"q\\":1}"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":10,"item_id":"fc_nomi_loyw3v284fzyo8","output_index":1,"arguments":"{\\"q\\":1}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"tu","name":"f","arguments":"{\\"q\\":1}","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"completed","model":"claude","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Yo","annotations":[]}]},{"type":"function_call","id":"fc_nomi_loyw3v284fzyo8","call_id":"tu","name":"f","arguments":"{\\"q\\":1}","status":"completed"}],"usage":{"input_tokens":5,"output_tokens":9,"total_tokens":14}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#1 → chat 1`] = `
+"data: {"error":{"message":"busy","type":"overloaded_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#1 → gemini 1`] = `
+"data: {"error":{"code":503,"message":"busy","status":"UNAVAILABLE"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#1 → messages 1`] = `
+"event: error
+data: {"type":"error","error":{"type":"overloaded_error","message":"busy"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream messages#1 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"overloaded_error","message":"busy"}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#0 → chat 1`] = `
+"data: {"id":"resp_1","object":"chat.completion.chunk","created":1700000000,"model":"gpt","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"resp_1","object":"chat.completion.chunk","created":1700000000,"model":"gpt","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}
+
+data: {"id":"resp_1","object":"chat.completion.chunk","created":1700000000,"model":"gpt","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"apply_patch","arguments":""}}]},"finish_reason":null}]}
+
+data: {"id":"resp_1","object":"chat.completion.chunk","created":1700000000,"model":"gpt","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"input\\":\\"*** p\\"}"}}]},"finish_reason":null}]}
+
+data: {"id":"resp_1","object":"chat.completion.chunk","created":1700000000,"model":"gpt","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#0 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[{"text":"thinking","thought":true}]},"index":0}],"modelVersion":"gpt","responseId":"resp_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Hi"}]},"index":0}],"modelVersion":"gpt","responseId":"resp_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"id":"call_1","name":"apply_patch","args":{"input":"*** p"}}}]},"index":0}],"modelVersion":"gpt","responseId":"resp_1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"STOP"}],"modelVersion":"gpt","responseId":"resp_1","usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":4,"totalTokenCount":7}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#0 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"resp_1","type":"message","role":"assistant","content":[],"model":"gpt","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: content_block_start
+data: {"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"call_1","name":"apply_patch","input":{}}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\\"input\\":\\"*** p\\"}"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":1}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"input_tokens":3,"output_tokens":4}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#0 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_1","object":"response","created_at":1700000000,"status":"in_progress","model":"gpt","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_1","object":"response","created_at":1700000000,"status":"in_progress","model":"gpt","output":[]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"in_progress","role":"assistant","content":[]}}
+
+event: response.content_part.added
+data: {"type":"response.content_part.added","sequence_number":3,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"","annotations":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","sequence_number":4,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"delta":"Hi"}
+
+event: response.output_text.done
+data: {"type":"response.output_text.done","sequence_number":5,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"text":"Hi"}
+
+event: response.content_part.done
+data: {"type":"response.content_part.done","sequence_number":6,"item_id":"msg_nomi_loyw3v284fzyo8","output_index":0,"content_index":0,"part":{"type":"output_text","text":"Hi","annotations":[]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":7,"output_index":0,"item":{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hi","annotations":[]}]}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":8,"output_index":1,"item":{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"call_1","name":"apply_patch","input":"","status":"in_progress"}}
+
+event: response.custom_tool_call_input.delta
+data: {"type":"response.custom_tool_call_input.delta","sequence_number":9,"item_id":"ctc_nomi_loyw3v284fzyo8","output_index":1,"delta":"*** p"}
+
+event: response.custom_tool_call_input.done
+data: {"type":"response.custom_tool_call_input.done","sequence_number":10,"item_id":"ctc_nomi_loyw3v284fzyo8","output_index":1,"input":"*** p"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":11,"output_index":1,"item":{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"call_1","name":"apply_patch","input":"*** p","status":"completed"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":12,"response":{"id":"resp_1","object":"response","created_at":1700000000,"status":"completed","model":"gpt","output":[{"type":"message","id":"msg_nomi_loyw3v284fzyo8","status":"completed","role":"assistant","content":[{"type":"output_text","text":"Hi","annotations":[]}]},{"type":"custom_tool_call","id":"ctc_nomi_loyw3v284fzyo8","call_id":"call_1","name":"apply_patch","input":"*** p","status":"completed"}],"usage":{"input_tokens":3,"output_tokens":4,"total_tokens":7}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#1 → chat 1`] = `
+"data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}
+
+data: {"id":"chatcmpl_nomi_loyw3v284fzyo8","object":"chat.completion.chunk","created":1700000000,"model":"fallback","choices":[{"index":0,"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":0,"completion_tokens":0,"total_tokens":0}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#1 → gemini 1`] = `
+"data: {"candidates":[{"content":{"role":"model","parts":[]},"index":0,"finishReason":"MAX_TOKENS"}],"modelVersion":"fallback","responseId":"gemini_nomi_loyw3v284fzyo8","usageMetadata":{"promptTokenCount":0,"candidatesTokenCount":0,"totalTokenCount":0}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#1 → messages 1`] = `
+"event: message_start
+data: {"type":"message_start","message":{"id":"msg_nomi_loyw3v284fzyo8","type":"message","role":"assistant","content":[],"model":"fallback","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}
+
+event: message_delta
+data: {"type":"message_delta","delta":{"stop_reason":"max_tokens","stop_sequence":null},"usage":{"output_tokens":0}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#1 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.incomplete
+data: {"type":"response.incomplete","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"incomplete","model":"fallback","output":[],"incomplete_details":{"reason":"max_output_tokens"},"usage":{"input_tokens":0,"output_tokens":0,"total_tokens":0}}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#2 → chat 1`] = `
+"data: {"error":{"message":"bad","type":"server_error"}}
+
+data: [DONE]
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#2 → gemini 1`] = `
+"data: {"error":{"code":500,"message":"bad","status":"INTERNAL"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#2 → messages 1`] = `
+"event: error
+data: {"type":"error","error":{"type":"api_error","message":"bad"}}
+
+"
+`;
+
+exports[`response conversion snapshots > stream responses#2 → responses 1`] = `
+"event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"in_progress","model":"fallback","output":[]}}
+
+event: response.failed
+data: {"type":"response.failed","sequence_number":2,"response":{"id":"resp_nomi_loyw3v284fzyo8","object":"response","created_at":1700000000,"status":"failed","model":"fallback","output":[],"error":{"code":"server_error","message":"bad"}}}
+
+"
+`;

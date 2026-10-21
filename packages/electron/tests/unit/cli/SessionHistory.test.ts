@@ -14,8 +14,12 @@ import {
   parseClaudeTranscript,
   parseCodexTranscript,
   parseDshTranscript,
+  parseGeminiTranscript,
 } from '../../../src/cli/historyTranscript';
-import { SessionHistoryService } from '../../../src/cli/SessionHistoryService';
+import {
+  DSH_META_MAX_ZSTD_BYTES,
+  SessionHistoryService,
+} from '../../../src/cli/SessionHistoryService';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -216,6 +220,49 @@ describe('history transcript parsers (fixtures)', () => {
     expect(m[1]!.durationMs).toBeGreaterThan(1000);
   });
 
+  it('gemini: thoughts / tool calls become a trace; rewritten messages are folded by id', () => {
+    const lines = [
+      { sessionId: 'g', kind: 'main' },
+      { id: 'u', type: 'user', timestamp: '2026-10-19T00:00:01Z', content: [{ text: 'ls' }] },
+      { id: 'i', type: 'info', content: 'Request cancelled.' },
+      {
+        id: 'm',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:02Z',
+        content: '',
+        toolCalls: [{ id: 't1', name: 'run_shell_command', args: { command: 'ls' } }],
+      },
+      {
+        id: 'm',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:03Z',
+        content: '',
+        thoughts: [{ subject: 'Listing', description: 'run ls' }],
+        toolCalls: [
+          {
+            id: 't1',
+            name: 'run_shell_command',
+            args: { command: 'ls' },
+            status: 'success',
+            result: [],
+            resultDisplay: 'a.txt',
+          },
+        ],
+      },
+      { id: 'm2', type: 'gemini', timestamp: '2026-10-19T00:00:04Z', content: 'a.txt' },
+    ];
+    const m = parseGeminiTranscript(lines.map((l) => JSON.stringify(l)).join('\n'));
+    expect(m.map((x) => [x.role, x.content])).toEqual([
+      ['user', 'ls'],
+      ['assistant', 'a.txt'],
+    ]);
+    const trace = m[1]!.trace ?? [];
+    expect(trace.some((e) => e.type === 'thinking')).toBe(true);
+    expect(trace).toContainEqual(
+      expect.objectContaining({ type: 'tool', name: 'run_shell_command', status: 'done' }),
+    );
+  });
+
   it('tolerates garbage and truncated lines', () => {
     expect(parseClaudeTranscript('not json\n{"type":"user"')).toEqual([]);
     expect(parseCodexTranscript('')).toEqual([]);
@@ -325,26 +372,26 @@ describe('SessionHistoryService', () => {
     expect(ids.size).toBe(45);
   });
 
-  it('只返回最近 100 条（硬上限），更早的会话不再翻页', async () => {
-    for (let i = 0; i < 130; i++)
+  it('只返回最近 500 条（硬上限），更早的会话不再翻页', async () => {
+    for (let i = 0; i < 530; i++)
       writeClaude(`s${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 + i * 1000);
     const svc = mk();
     const seen: string[] = [];
     let offset: number | undefined;
-    for (let guard = 0; guard < 20; guard++) {
+    for (let guard = 0; guard < 40; guard++) {
       const page = await svc.list('claude', { offset });
       seen.push(...page.items.map((x) => x.sessionId));
       if (!page.hasMore) break;
       offset = page.nextOffset ?? undefined;
     }
-    expect(seen).toHaveLength(100);
-    expect(seen).toContain('s129');
+    expect(seen).toHaveLength(500);
+    expect(seen).toContain('s529');
     expect(seen).toContain('s030');
     expect(seen).not.toContain('s029');
     expect(seen).not.toContain('s000');
   });
 
-  it('无标题 / sidechain 文件不会占满 100 条可见历史的上限', async () => {
+  it('无标题 / sidechain 文件不会占满 500 条可见历史的上限', async () => {
     for (let i = 0; i < 12; i++) {
       const p = path.join(claudeDir(), `sub-${String(i).padStart(3, '0')}.jsonl`);
       fs.writeFileSync(
@@ -353,20 +400,20 @@ describe('SessionHistoryService', () => {
       );
       touch(p, 2_000_000 - i);
     }
-    for (let i = 0; i < 100; i++)
+    for (let i = 0; i < 500; i++)
       writeClaude(`visible-${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 - i);
     const svc = mk();
     const seen: string[] = [];
     let offset: number | undefined;
-    for (let guard = 0; guard < 10; guard++) {
+    for (let guard = 0; guard < 40; guard++) {
       const page = await svc.list('claude', { offset });
       seen.push(...page.items.map((x) => x.sessionId));
       if (!page.hasMore) break;
       offset = page.nextOffset ?? undefined;
     }
-    expect(seen).toHaveLength(100);
+    expect(seen).toHaveLength(500);
     expect(seen).toContain('visible-000');
-    expect(seen).toContain('visible-099');
+    expect(seen).toContain('visible-499');
   });
 
   it('index: hands out compact entries in 20-item resumable pages (for sidebar search)', async () => {
@@ -444,6 +491,28 @@ describe('SessionHistoryService', () => {
     });
   });
 
+  it('honours CODEX_HOME and CLAUDE_CONFIG_DIR instead of ~/.codex and ~/.claude', async () => {
+    const codexHome = path.join(home, 'custom-codex');
+    const dir = path.join(codexHome, 'sessions', '2026', '10', '14');
+    fs.mkdirSync(dir, { recursive: true });
+    const id = '01a13a9b-34b0-7612-ba36-613a55008483';
+    const text = fx('codex-rollout.jsonl').replace(
+      /"cwd":\s*"\/tmp"/g,
+      `"cwd":${JSON.stringify(work)}`,
+    );
+    fs.writeFileSync(path.join(dir, `rollout-2026-10-14T21-30-12-${id}.jsonl`), text);
+    const claudeHome = path.join(home, 'custom-claude');
+    const proj = path.join(claudeHome, 'projects', '-work-app');
+    fs.mkdirSync(proj, { recursive: true });
+    fs.copyFileSync(writeClaude('c1', 'custom dir task', 1_000_000), path.join(proj, 'c1.jsonl'));
+    fs.rmSync(path.join(home, '.claude'), { recursive: true, force: true });
+    const svc = mk({ env: { CODEX_HOME: codexHome, CLAUDE_CONFIG_DIR: claudeHome } });
+    expect((await svc.list('codex')).items.map((i) => i.sessionId)).toEqual([id]);
+    expect((await svc.list('claude')).items.map((i) => i.sessionId)).toEqual(['c1']);
+    // 没设环境变量时仍看 ~/.codex（这里为空）
+    expect((await mk({ env: {} }).list('codex')).items).toHaveLength(0);
+  });
+
   it('codex: one session id spread over several rollout files is listed once (newest wins, across pages)', async () => {
     const id = '01a0a531-1d64-7361-bb69-ebd1c7349662';
     const text = fx('codex-rollout.jsonl').replace(
@@ -491,6 +560,126 @@ describe('SessionHistoryService', () => {
     expect(all.items.map((x) => x.key).sort()).toEqual(keys);
   });
 
+  describe('codex: compressed rollouts, sources and the sqlite index', () => {
+    const day = () => path.join(home, '.codex', 'sessions', '2026', '10', '14');
+    const rollout = (id: string, title: string, meta: Record<string, unknown> = {}): string =>
+      [
+        {
+          timestamp: '2026-10-14T13:30:12.603Z',
+          type: 'session_meta',
+          payload: { id, cwd: work, source: 'cli', ...meta },
+        },
+        {
+          timestamp: '2026-10-14T13:30:13.000Z',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: title }],
+          },
+        },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
+    const write = (id: string, text: string, mtime: number, zst = false) => {
+      fs.mkdirSync(day(), { recursive: true });
+      const p = path.join(day(), `rollout-2026-10-14T21-30-12-${id}.jsonl${zst ? '.zst' : ''}`);
+      if (zst) {
+        const z = zstdCompress(text);
+        if (!z) return null;
+        fs.writeFileSync(p, z);
+      } else fs.writeFileSync(p, text);
+      touch(p, mtime);
+      return p;
+    };
+    const ids = Array.from({ length: 6 }, (_, i) => `01a13a9b-34b0-7612-ba36-61300000000${i}`);
+
+    it('lists .jsonl.zst rollouts, tags client / route, skips sub-agents and archived files', async () => {
+      if (
+        !write(
+          ids[0]!,
+          rollout(ids[0]!, 'compressed one', { originator: 'Codex Desktop', source: 'vscode' }),
+          5_000,
+          true,
+        )
+      )
+        return; // 没有 zstd 时跳过
+      write(ids[1]!, rollout(ids[1]!, 'plain cli', { model_provider: 'openai' }), 4_000);
+      write(
+        ids[2]!,
+        rollout(ids[2]!, 'guardian', { source: { subagent: { other: 'guardian' } } }),
+        3_000,
+      );
+      write(
+        ids[3]!,
+        rollout(ids[3]!, 'via cc-switch', {
+          model_provider: 'custom',
+          originator: 'codex_exec',
+          source: 'exec',
+        }),
+        2_000,
+      );
+      write(
+        ids[4]!,
+        rollout(ids[4]!, 'from nomi', {
+          model_provider: 'nomi_gateway',
+          originator: 'nomi',
+          source: 'vscode',
+        }),
+        1_000,
+      );
+      const arch = path.join(home, '.codex', 'archived_sessions');
+      fs.mkdirSync(arch, { recursive: true });
+      fs.writeFileSync(
+        path.join(arch, `rollout-2026-10-14T21-30-12-${ids[5]}.jsonl`),
+        rollout(ids[5]!, 'archived'),
+      );
+
+      const page = await mk().list('codex');
+      expect(page.items.map((x) => [x.title, x.client, x.route, x.provider])).toEqual([
+        ['compressed one', 'desktop', 'official', undefined],
+        ['plain cli', 'cli', 'official', undefined],
+        ['via cc-switch', 'exec', 'custom', 'custom'],
+        ['from nomi', 'nomi', 'gateway', undefined],
+      ]);
+      // 压缩的会话也能读出可见对话
+      const tr = await mk().transcript('codex', ids[0]!);
+      expect(tr.messages.map((m) => m.content)).toEqual(['compressed one']);
+    });
+
+    it('prefers the state_5.sqlite index: renamed title, latest provider, account label', async () => {
+      let Db: (new (f: string) => { exec(sql: string): void; close(): void }) | undefined;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        Db = (require('node:sqlite') as { DatabaseSync: typeof Db }).DatabaseSync;
+      } catch {
+        return; // 没有 node:sqlite 的环境跳过
+      }
+      // 压缩文件很大且没有元信息可读：只能靠索引
+      if (!write(ids[0]!, 'not json at all', 5_000, true)) return;
+      write(ids[1]!, rollout(ids[1]!, 'first prompt', { model_provider: 'openai' }), 4_000);
+      const db = new Db!(path.join(home, '.codex', 'state_5.sqlite'));
+      db.exec(`CREATE TABLE threads (id TEXT PRIMARY KEY, source TEXT, model_provider TEXT,
+        cwd TEXT, title TEXT, name TEXT, first_user_message TEXT, model TEXT,
+        creator_account_id TEXT, extra_new_column TEXT);
+        INSERT INTO threads VALUES ('${ids[0]}', 'vscode', 'openai', '${work}', 'indexed title',
+          NULL, 'x', 'gpt-5.5', 'acct-1', NULL);
+        INSERT INTO threads VALUES ('${ids[1]}', 'cli', 'nomi_gateway', '${work}', 'first prompt',
+          'renamed by user', 'first prompt', NULL, 'acct-unknown', NULL);`);
+      db.close();
+      const svc = mk({
+        accountLabel: (b, id) => (b === 'codex' && id === 'acct-1' ? 'me@example.com' : undefined),
+      });
+      const page = await svc.list('codex');
+      expect(page.items.map((x) => [x.title, x.route, x.account, x.model])).toEqual([
+        ['indexed title', 'official', 'me@example.com', 'gpt-5.5'],
+        // Codex 续接后把供应商改成了本次的：线路以索引为准；账号对不上就不显示
+        ['renamed by user', 'gateway', undefined, undefined],
+      ]);
+      expect(page.items[0]).not.toHaveProperty('accountId');
+    });
+  });
+
   const dshSetup = (id: string): boolean => {
     const dsh = path.join(home, '.dsh');
     const dir = path.join(dsh, 'sessions', '--work--', id);
@@ -512,10 +701,34 @@ describe('SessionHistoryService', () => {
     if (!dshSetup(id)) return; // 没有 zstd 工具的环境：跳过
     const svc = mk();
     const page = await svc.list('dsh');
-    expect(page.items[0]).toMatchObject({ backend: 'dsh', sessionId: id, cwd: work });
+    expect(page.items[0]).toMatchObject({
+      backend: 'dsh',
+      sessionId: id,
+      cwd: work,
+      model: 'qwen2.5:0.5b',
+      permissionMode: 'acceptEdits',
+    });
     expect(page.items[0]!.title.length).toBeGreaterThan(0);
     const tr = await svc.transcript('dsh', id);
     expect(tr.messages.map((x) => x.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
+  });
+
+  it('dsh: oversized compressed sessions are not decompressed while listing', async () => {
+    const id = 'session-887fa07d-22ae-4013-849f-2b2fafcba3c4';
+    if (!dshSetup(id)) return;
+    const file = path.join(home, '.dsh', 'sessions', '--work--', id, 'session.v4.jsonl.zstd');
+    // zstd 可跳过帧：解码器忽略它，只把压缩文件撑到上限以上
+    const pad = Buffer.alloc(8 + DSH_META_MAX_ZSTD_BYTES);
+    pad.writeUInt32LE(0x184d2a50, 0);
+    pad.writeUInt32LE(DSH_META_MAX_ZSTD_BYTES, 4);
+    fs.appendFileSync(file, pad);
+    const page = await mk().list('dsh');
+    expect(page.items[0]).toMatchObject({
+      sessionId: id,
+      cwd: work,
+      permissionMode: 'acceptEdits',
+    });
+    expect(page.items[0]!.model).toBeUndefined();
   });
 
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {
@@ -529,6 +742,127 @@ describe('SessionHistoryService', () => {
       'user',
       'assistant',
     ]);
+  });
+
+  const writeGemini = (slug: string, id: string, mtime: number, extra: object[] = []) => {
+    const dir = path.join(home, '.gemini', 'tmp', slug);
+    fs.mkdirSync(path.join(dir, 'chats', id), { recursive: true });
+    fs.writeFileSync(path.join(dir, '.project_root'), `${work}\n`);
+    const p = path.join(dir, 'chats', `session-2026-10-19T00-00-${id.slice(0, 8)}.jsonl`);
+    const lines = [
+      { sessionId: id, projectHash: 'h', startTime: '2026-10-19T00:00:00Z', kind: 'main' },
+      {
+        id: 'u1',
+        type: 'user',
+        timestamp: '2026-10-19T00:00:01Z',
+        content: [{ text: '看看日志' }],
+      },
+      ...extra,
+    ];
+    fs.writeFileSync(p, lines.map((l) => JSON.stringify(l)).join('\n') + '\n');
+    // 子代理：chats/<父 id>/<子 id>.jsonl，不应列出
+    fs.writeFileSync(
+      path.join(dir, 'chats', id, 'sub.jsonl'),
+      JSON.stringify({ sessionId: 'sub', kind: 'subagent' }) + '\n',
+    );
+    touch(p, mtime);
+    return p;
+  };
+
+  it('gemini: lists main sessions with cwd from .project_root and opens via the tab layer', async () => {
+    writeGemini('app', 'gem-11111111', 2_000_000, [
+      {
+        id: 'm1',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:02Z',
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'autoEdit',
+        content: '日志里没有错误',
+        tokens: { input: 10, output: 4, cached: 2 },
+      },
+    ]);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const h = mk({ openTab });
+    const page = await h.list('gemini');
+    expect(page.items).toEqual([
+      expect.objectContaining({
+        key: 'gemini:gem-11111111',
+        title: '看看日志',
+        cwd: work,
+        cwdMissing: false,
+        model: 'gemini-2.5-pro',
+        reasoningEffort: 'high',
+        permissionMode: 'acceptEdits',
+      }),
+    ]);
+    const r = await h.open('gemini', 'gem-11111111');
+    expect(r.ok).toBe(true);
+    const arg = (openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0];
+    expect(arg).toMatchObject({
+      backend: 'gemini',
+      sessionId: 'gem-11111111',
+      cwd: work,
+      modelOverride: 'gemini-2.5-pro',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
+    const msgs = arg.messages as Array<{ role: string; content: string; usage?: unknown }>;
+    expect(msgs.map((m) => [m.role, m.content])).toEqual([
+      ['user', '看看日志'],
+      ['assistant', '日志里没有错误'],
+    ]);
+    expect(msgs[1]!.usage).toEqual({ inputTokens: 10, outputTokens: 4, cacheReadTokens: 2 });
+  });
+
+  it('grok: lists updates.jsonl and restores model / security metadata when opened', async () => {
+    const id = 'grok-session-1';
+    const dir = path.join(home, '.grok', 'sessions', encodeURIComponent(work), id);
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, 'updates.jsonl');
+    fs.writeFileSync(
+      p,
+      [
+        {
+          sessionId: id,
+          cwd: work,
+          sessionUpdate: 'user_message',
+          content: [{ type: 'text', text: 'inspect project' }],
+        },
+        {
+          sessionId: id,
+          sessionUpdate: 'agent_message',
+          content: [{ type: 'text', text: 'done' }],
+        },
+        { sessionId: id, sessionUpdate: 'current_mode_update', currentModeId: 'acceptEdits' },
+        {
+          sessionId: id,
+          usage: { modelUsage: { 'grok-4.7-build': { inputTokens: 1 } } },
+          reasoningEffort: 'high',
+        },
+      ]
+        .map((x) => JSON.stringify(x))
+        .join('\n') + '\n',
+    );
+    touch(p, 3_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 'g1' } as never, reused: false }));
+    const svc = mk({ openTab });
+    const page = await svc.list('grok');
+    expect(page.items[0]).toMatchObject({
+      backend: 'grok',
+      sessionId: id,
+      cwd: work,
+      model: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
+    const r = await svc.open('grok', id);
+    expect(r.ok).toBe(true);
+    expect((openTab.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toMatchObject({
+      modelOverride: 'grok-4.7-build',
+      reasoningEffort: 'high',
+      permissionMode: 'acceptEdits',
+    });
   });
 
   it('open: an unreadable transcript still opens, with a notice', async () => {
@@ -559,11 +893,21 @@ describe('resume through the tab layer (mock CLIs)', () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-harness-'));
     work = fs.mkdtempSync(path.join(os.tmpdir(), 'hist-cwd-'));
   });
+  // 收掉长驻的 Claude 进程，否则 jest 进程无法退出
+  const made: CliHarnessService[] = [];
   afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = () =>
-    new CliHarnessService({ root, logger: { info() {}, warn() {} }, defaultCwd: os.tmpdir() });
+  const mk = () => {
+    const h = new CliHarnessService({
+      root,
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+    });
+    made.push(h);
+    return h;
+  };
 
   it.each([
     ['claude', 'sess-claude-1', '已续接会话 sess-claude-1'],

@@ -27,6 +27,7 @@ import {
   parseClaudeSession,
   parseClineJob,
   parseCodexSession,
+  parseGrokSession,
   parseContinueSession,
   parseGeminiSession,
 } from '../../../src/agents/parsers';
@@ -83,6 +84,35 @@ describe('parsers', () => {
       }),
     );
     expect(g).toMatchObject({ sessionId: 'g1', title: '写测试', phase: 'turn-done' });
+  });
+
+  it('gemini chat jsonl (0.62)：头部 + 逐行消息，同 id 后写为准，$set 更新头部', () => {
+    const lines = [
+      { sessionId: 'g2', projectHash: 'h', startTime: '2026-10-19T00:00:00Z', kind: 'main' },
+      { id: 'u1', type: 'user', timestamp: '2026-10-19T00:00:01Z', content: [{ text: '修 bug' }] },
+      { $set: { lastUpdated: '2026-10-19T00:00:02Z' } },
+      {
+        id: 'm1',
+        type: 'gemini',
+        timestamp: '2026-10-19T00:00:03Z',
+        content: '',
+        toolCalls: [{ id: 't1', name: 'read_file', args: {} }],
+      },
+    ];
+    const text = lines.map((l) => JSON.stringify(l)).join('\n');
+    expect(parseGeminiSession(text)).toMatchObject({
+      sessionId: 'g2',
+      title: '修 bug',
+      phase: 'tool',
+    });
+    const done = `${text}\n${JSON.stringify({
+      id: 'm1',
+      type: 'gemini',
+      timestamp: '2026-10-19T00:00:04Z',
+      content: '',
+      toolCalls: [{ id: 't1', name: 'read_file', args: {}, result: [], status: 'success' }],
+    })}\n${JSON.stringify({ id: 'm2', type: 'gemini', content: '修好了', timestamp: '2026-10-19T00:00:05Z' })}\n{"id":"m3","ty`;
+    expect(parseGeminiSession(done)).toMatchObject({ phase: 'turn-done', detail: '修好了' });
   });
 
   it('decideStatus: stalled only when alive + tool + no writes', () => {
@@ -307,5 +337,29 @@ describe('AgentProgressService', () => {
     expect(s.enabled).toBe(false);
     expect(s.tools.codex).toBe(false);
     expect(s.tools.gemini).toBe(true);
+  });
+});
+
+describe('parseCodexSession permission mode (inverse of permissionLaunch codex)', () => {
+  const meta = (payload: Record<string, unknown>) =>
+    JSON.stringify({ type: 'turn_context', payload: { cwd: '/p', model: 'gpt-x', ...payload } });
+  it.each([
+    [{ sandbox_policy: { type: 'read-only' } }, 'manual'],
+    [{ sandbox_policy: 'workspace-write', approval_policy: 'never' }, 'acceptEdits'],
+    [{ sandbox_policy: { type: 'workspace-write' }, approval_policy: 'on-request' }, 'auto'],
+    [{ sandbox_policy: { type: 'danger-full-access' } }, 'bypass'],
+    [{ approval_policy: 'untrusted' }, 'untrusted'],
+  ])('%j -> %s', (payload, want) => {
+    expect(parseCodexSession(meta(payload), '').permissionMode).toBe(want);
+  });
+});
+
+describe('jsonl with a UTF-8 BOM and CRLF line endings (Windows)', () => {
+  it('keeps the first event', () => {
+    const text =
+      '\uFEFF{"sessionId":"s1","cwd":"C:\\\\work"}\r\n' +
+      '{"params":{"update":{"sessionUpdate":"user_message","prompt":"hi"}}}\r\n';
+    const info = parseGrokSession(text, 'fallback');
+    expect(info).toMatchObject({ cwd: 'C:\\work', title: 'hi' });
   });
 });

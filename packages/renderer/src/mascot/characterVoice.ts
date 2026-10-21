@@ -1,10 +1,11 @@
 /**
  * Per-character soft TTS binding.
  * Merge order: global soft prefs → built-in character defaults → model.config.voice → user override.
- * Overrides persist in localStorage; user-imported models also try models.updateConfig({ voice }).
+ * Overrides persist in localStorage.
  */
 import type { ModelConfig, ModelVoiceConfig } from '@nomi-ai/types';
 
+import { isMascotMuted } from './presence';
 import {
   DEFAULT_SOFT_SPEECH,
   loadSoftSpeechPrefs,
@@ -136,6 +137,11 @@ export function resolvePrefsForCharacter(
 }
 
 export function speakForActiveCharacter(text: string, opts: SpeakSoftOptions = {}): boolean {
+  // 看板娘已关闭：不再播放语音
+  if (isMascotMuted()) {
+    opts.onEnd?.();
+    return false;
+  }
   const prefs = resolvePrefsForCharacter();
   const merged = opts.prefs ? { ...prefs, ...opts.prefs } : prefs;
   const voice = resolveCharacterVoice(activeModelName, activeModelConfig);
@@ -188,15 +194,6 @@ export async function saveCharacterVoice(
     voice: resolveCharacterVoice(modelName, { ...(currentConfig ?? {}), voice: merged }),
   };
   if (activeModelName === modelName) activeModelConfig = nextConfig;
-
-  const api = typeof window !== 'undefined' ? window.electronAPI?.models : undefined;
-  if (api?.updateConfig) {
-    try {
-      await api.updateConfig(modelName, { ...(currentConfig ?? {}), voice: nextConfig.voice });
-    } catch {
-      /* bundled models may reject — localStorage still holds override */
-    }
-  }
   return nextConfig.voice ?? merged;
 }
 

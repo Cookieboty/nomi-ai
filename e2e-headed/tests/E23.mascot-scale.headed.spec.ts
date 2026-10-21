@@ -79,7 +79,10 @@ function grab(name: string, w: number, h: number): void {
 
 const bounds = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop());
+    // 看板娘窗口：置顶，但不是同样置顶的灵动岛
+    const w = BrowserWindow.getAllWindows().find(
+      (b) => b.isAlwaysOnTop() && b.getTitle() !== 'Nomi Island',
+    );
     return w ? w.getBounds() : { x: 0, y: 0, width: 0, height: 0 };
   }) as Promise<Rect>;
 /** 脚底中心（屏幕坐标）：窗口位置 + 渲染进程上报的角色包围盒（底边中点） */
@@ -124,12 +127,10 @@ test.describe('E23 · mascot size', () => {
     const env: Record<string, string> = {
       ...(process.env as Record<string, string>),
       ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
-      CD_DEFAULT_MODEL: 'nomi',
       CD_TTS: 'off',
       CD_ONBOARDING: 'off',
     };
     delete env.NODE_ENV;
-    delete env.CD_SEED_USER_VRM;
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
       args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
@@ -331,6 +332,7 @@ test.describe('E23 · mascot size', () => {
     });
     await page.getByTestId('tool-more').click();
     await expect(page.getByTestId('toolbar-menu')).toBeVisible();
+    await page.getByTestId('panel-more').click();
     await expect(page.getByTestId('toolbar-scale-value')).toHaveText('50%');
     await page.getByTestId('toolbar-zoom-in').click();
     await expectScaled(page, 0.6, anchor, wa);
@@ -341,6 +343,11 @@ test.describe('E23 · mascot size', () => {
     await expectScaled(page, 0.4, anchor, wa);
     await page.getByTestId('toolbar-zoom-reset').click();
     await expectScaled(page, 0.5, anchor, wa);
+    // Close the "more" menu (Esc, as a user would). Since the toolbar redesign (b81769e4) it is a
+    // tall panel beside the toolbar that stays open until Esc / an outside click; at 110% it covers
+    // the character's whole head column, so the drag below would press on the panel, not on Nomi.
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('toolbar-menu')).toHaveCount(0);
 
     // 4) 设置页滑块（对话窗口 → 设置 → 通用）
     const chatWindow = app!.waitForEvent('window', { timeout: 20_000 });
@@ -469,8 +476,11 @@ test.describe('E23 · mascot size', () => {
       for (let y = v[3] + 20; y < window.innerHeight - 10; y += 6) {
         if (document.elementFromPoint(x, y)?.tagName === 'CANVAS') return { x, y };
       }
-      return { x, y: v[3] + 40 };
+      return null;
     });
+    // No fallback point: pressing on UI that covers the character is (correctly) not a drag.
+    expect(hp, 'a torso point not covered by the bubble / toolbar / menu').not.toBeNull();
+    if (!hp) return;
     await page.mouse.move(hp.x, hp.y);
     await expect
       .poll(() => page.evaluate(() => document.documentElement.dataset.mascotHit))
@@ -482,7 +492,43 @@ test.describe('E23 · mascot size', () => {
         timeout: 5_000,
       })
       .toBe('1');
+    // 主进程按 16ms tick 跟随拖拽点移动窗口：松手前先等窗口真的跟上，而不是松手后只采样一次
+    const moved = await expect
+      .poll(async () => b0.x - (await bounds(app!)).x, { timeout: 3_000 })
+      .toBeGreaterThanOrEqual(40)
+      .then(() => true)
+      .catch(() => false);
     await page.mouse.up();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.dataset.mascotDragging))
+      .toBe('0');
+    if (!moved) {
+      // 只在 Windows 放宽：Playwright 在 Windows 上合成的指针事件会丢按键 / 屏幕坐标
+      // （见 E15 同样的回退）；真实指针拖拽由 E15 覆盖。这里要验证的是「放大后拖动：
+      // 窗口移动、大小不变、新位置继续以脚底缩放」，所以走同一条 mascot:drag-* IPC。
+      const diag = await page.evaluate(() => {
+        const d = document.documentElement.dataset;
+        return `end=${d.mascotDragEnd} ignored=${d.mascotDragIgnored} physics=${d.mascotPhysics}`;
+      });
+      expect(process.platform, `指针拖拽没有移动窗口（${diag}）`).toBe('win32');
+      test.info().annotations.push({ type: 'pointer-drag-fallback', description: diag });
+      await page.evaluate(
+        async ([sx, sy]) => {
+          const api = window.electronAPI!.mascotWindow!;
+          api.dragStart(sx, sy);
+          for (let i = 1; i <= 10; i += 1) {
+            api.dragMove(sx - 9 * i, sy - 5 * i);
+            await new Promise((r) => setTimeout(r, 40));
+          }
+          await new Promise((r) => setTimeout(r, 200));
+          api.dragEnd();
+        },
+        [b0.x + Math.round(hp.x), b0.y + Math.round(hp.y)] as [number, number],
+      );
+      await expect
+        .poll(async () => b0.x - (await bounds(app!)).x, { timeout: 3_000 })
+        .toBeGreaterThanOrEqual(40);
+    }
     await sleep(400);
     const b1 = await bounds(app!);
     expect(b0.x - b1.x).toBeGreaterThanOrEqual(40);

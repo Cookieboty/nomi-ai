@@ -48,8 +48,8 @@
 .model,
 .kbTag {
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
-  padding: 2px 8px;
+  color: var(--cd-color-accent-strong);
+  padding: var(--cd-space-0-5) var(--cd-space-2);
   border-radius: var(--cd-radius-full);
   font-size: var(--conv-meta, 13px);
   font-weight: var(--cd-font-weight-medium);
@@ -67,8 +67,8 @@
   align-self: flex-end;
   background: rgba(var(--cd-accent-rgb), 0.88);
   color: var(--cd-color-text-on-accent);
-  padding: 12px 16px;
-  border-radius: 16px 16px 4px 16px;
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);
   border: 1px solid var(--cd-color-border);
   box-shadow: var(--cd-shadow-sm);
 }
@@ -77,8 +77,8 @@
   align-self: flex-start;
   background: var(--cd-color-surface-raised);
   color: var(--cd-color-text);
-  padding: 12px 16px;
-  border-radius: 16px 16px 16px 4px;
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs);
   border: 1px solid var(--cd-color-border);
   box-shadow: var(--cd-shadow-sm);
 }
@@ -104,15 +104,15 @@
   font-weight: var(--cd-font-weight-medium);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   color: var(--cd-color-danger-text);
 }
 
 .imageRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--cd-space-2);
+  margin-bottom: var(--cd-space-2);
 }
 
 .imageThumb {
@@ -136,13 +136,13 @@
 
 /* ===== Codex 风格：用户消息淡色小块，助手回复为纯文本；元信息悬停才显示 ===== */
 .messageContainer {
-  gap: 4px;
+  gap: var(--cd-space-1);
 }
 .messageHeader {
   opacity: 0;
   transition: opacity 0.15s;
   font-size: var(--conv-meta, 13px);
-  margin: 2px 0 0;
+  margin: var(--cd-space-0-5) 0 0;
 }
 .messageContainer:hover .messageHeader {
   opacity: 1;
@@ -152,8 +152,8 @@
   color: var(--cd-color-text);
   border: none;
   box-shadow: none;
-  border-radius: 16px;
-  padding: 8px 14px;
+  border-radius: var(--cd-radius-xl);
+  padding: var(--cd-space-2) 14px;
 }
 .assistantMessage .messageContent {
   background: transparent;
@@ -178,15 +178,15 @@
 .stepRow {
   font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
-  margin: 2px 0;
+  margin: var(--cd-space-0-5) 0;
 }
 .stepRow > summary {
   list-style: none;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 2px 0;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-0-5) 0;
 }
 .stepRow > summary::-webkit-details-marker {
   display: none;
@@ -202,7 +202,7 @@
   transform: rotate(90deg);
 }
 .stepBody {
-  margin: 4px 0 4px 14px;
+  margin: var(--cd-space-1) 0 var(--cd-space-1) 14px;
   padding: 0 0 0 10px;
   border-left: 1px solid var(--cd-color-border);
   list-style: none;
@@ -212,7 +212,122 @@
   color: var(--cd-color-text);
 }
 .stoppedNote {
-  margin-top: 4px;
+  margin-top: var(--cd-space-1);
   font-size: var(--conv-meta, 13px);
   color: var(--cd-color-text-subtle);
+}
+
+/* ===== 知识库引用 / 来源 / 预览（2eac397 迁移会话视图时丢失，按原样式用现有 token 恢复） ===== */
+/* 正文里的引用编号 [n]：强调色小圆标（文字用 text-on-accent 保证对比度） */
+.cite {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--cd-space-1);
+  margin: 0 1px;
+  vertical-align: super;
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  line-height: 1;
+  color: var(--cd-color-text-on-accent);
+  background: var(--cd-color-accent);
+  border-radius: var(--cd-radius-full);
+  transition: transform var(--cd-duration-fast) var(--cd-ease);
+}
+.cite:hover,
+.cite:focus-visible {
+  transform: scale(1.15);
+  box-shadow: var(--cd-focus-ring);
+}
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin-top: var(--cd-space-1-5);
+  padding-top: var(--cd-space-2);
+  border-top: 1px dashed var(--cd-color-border);
+}
+.sourcesLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.sourceChip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  max-width: 260px;
+  min-width: 0;
+  padding: 3px 10px 3px var(--cd-space-1);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text);
+  background: var(--cd-color-surface-sunken);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-full);
+  transition: border-color var(--cd-duration-fast) var(--cd-ease);
+}
+.sourceChip:hover,
+.sourceChip:focus-visible {
+  border-color: var(--cd-color-accent);
+}
+.sourceChip:focus-visible {
+  box-shadow: var(--cd-focus-ring);
+}
+/* 浅强调底上的文字用 accent-strong（accent 本身在浅色主题对比度不足，见 theme-contrast 测试） */
+.sourceNum {
+  flex: none;
+  min-width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+  font-weight: var(--cd-font-weight-bold);
+}
+.sourceTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sourceMeta {
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+.previewBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.previewPath {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  font-family: var(--cd-font-mono);
+  word-break: break-all;
+}
+.previewQuote {
+  margin: 0;
+  padding: 10px var(--cd-space-3);
+  border-left: 3px solid var(--cd-color-accent);
+  background: var(--cd-color-surface-sunken);
+  border-radius: var(--cd-radius-sm);
+  font-size: var(--cd-font-size-sm);
+  line-height: var(--cd-line-height-md);
+  color: var(--cd-color-text);
+  white-space: pre-wrap;
+  max-height: 50vh;
+  overflow: auto;
 }

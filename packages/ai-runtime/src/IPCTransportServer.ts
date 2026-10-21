@@ -30,6 +30,18 @@ interface FacadeLike {
   [method: string]: unknown;
 }
 
+/** 流式文本片段合批的间隔（约一帧） */
+const STREAM_BATCH_MS = 16;
+
+/** 只含 { type: 'delta' | 'reasoning', content: string } 的 chunk 可以与相邻的同类片段拼接 */
+function mergeableText(value: unknown): { type: string; content: string } | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if ((v.type !== 'delta' && v.type !== 'reasoning') || typeof v.content !== 'string') return null;
+  if (Object.keys(v).length !== 2) return null;
+  return { type: v.type, content: v.content };
+}
+
 export class IPCTransportServer {
   private readonly registered: string[] = [];
   private started = false;
@@ -112,11 +124,18 @@ export class IPCTransportServer {
     const chunkCh = chunkChannelName(spec);
     const firstArg = args[0] as { reqId?: string } | undefined;
     const reqId = firstArg?.reqId ?? cryptoRandomId();
-    if (firstArg && typeof firstArg === 'object') {
-      (firstArg as { reqId?: string }).reqId = reqId;
+    // chat 流的首参就是 options：reqId 写进它。其它流（tts.stream(text, opts)）客户端把 reqId
+    // 单独放在最前面的 envelope 里：取出后用原始业务参数调用，位置参数不被改写。
+    let callArgs = args;
+    if (spec.facade === 'chat') {
+      if (firstArg && typeof firstArg === 'object') {
+        (firstArg as { reqId?: string }).reqId = reqId;
+      }
+    } else {
+      callArgs = args.slice(1);
     }
 
-    const iterable = fn(...args) as AsyncIterable<unknown>;
+    const iterable = fn(...callArgs) as AsyncIterable<unknown>;
     // 窗口已关闭 / 已销毁：向它 send 会抛 "Object has been destroyed"。停止推送并中止上游生成。
     const gone = (): boolean => {
       try {
@@ -134,17 +153,58 @@ export class IPCTransportServer {
         return false;
       }
     };
+    // 逐 token 的文本片段按帧合批：上游每个 text-delta（常常只有一个 token）原来都单独 send 一次，
+    // 每秒几十上百次结构化克隆 + 进程调度。相邻的同类文本片段先拼起来，一帧（STREAM_BATCH_MS）发一次；
+    // 其它 chunk（工具调用、usage、done…）先把攒着的文本发出去再原样发送，顺序不变。
+    let held: { type: string; content: string } | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+    const sendHeld = (): boolean => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      if (!held) return true;
+      const value = held;
+      held = null;
+      return safeSend({ reqId, done: false, value });
+    };
+    const stop = (): void => {
+      if (closed) return;
+      closed = true;
+      this.abortUpstream(spec, reqId);
+    };
     (async () => {
       try {
         for await (const value of iterable) {
-          if (!safeSend({ reqId, done: false, value })) {
-            this.abortUpstream(spec, reqId);
+          if (closed) return;
+          // 窗口没了：不等下一次发送失败，马上停掉上游
+          if (gone()) return stop();
+          const text = mergeableText(value);
+          if (text) {
+            if (held && held.type === text.type) held.content += text.content;
+            else {
+              if (!sendHeld()) return stop();
+              held = { ...text };
+            }
+            if (!timer) {
+              timer = setTimeout(() => {
+                timer = null;
+                if (!sendHeld()) stop();
+              }, STREAM_BATCH_MS);
+            }
+            continue;
+          }
+          if (!sendHeld() || !safeSend({ reqId, done: false, value })) {
+            stop();
             return; // for-await 提前退出，会调用迭代器的 return() 释放上游
           }
         }
+        if (!sendHeld()) return stop();
         safeSend({ reqId, done: true });
       } catch (err) {
         this.logger.warn(`stream ${spec.facade}.${spec.method} threw`, err);
+        sendHeld();
         safeSend({ reqId, done: true, error: (err as Error).message });
       }
     })().catch((err) => this.logger.error('unhandled stream error', err));

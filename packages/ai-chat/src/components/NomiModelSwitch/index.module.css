@@ -1,0 +1,10 @@
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+}
+
+.picker {
+  width: auto;
+  max-width: 260px;
+}

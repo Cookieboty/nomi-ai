@@ -1,21 +1,32 @@
 /**
  * 界面主题：用户选择持久化到 userData/theme.json，广播给所有窗口（对话窗口 + 看板娘）。
- * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Light Paper，系统切换时实时更新。
- * 新用户默认 Warm Ink；已保存的选择优先。
+ * 「跟随系统」用 nativeTheme 解析：深色 → Graphite，浅色 → Cream，系统切换时实时更新。
+ * 新用户默认 Sunset Orange；已保存的选择优先。历史 id `paper` 读入时映射为 `cream`。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain, nativeTheme } from 'electron';
+import { BrowserWindow, nativeTheme } from 'electron';
 
-export const THEME_IDS = ['mist', 'graphite', 'ink', 'paper'] as const;
+import { guardedHandle } from '../security/guardedIpc';
+
+export const THEME_IDS = ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const;
 export type ThemeId = (typeof THEME_IDS)[number];
 export type ThemePref = ThemeId | 'system';
-export const DEFAULT_THEME: ThemePref = 'ink';
-export const isThemePref = (v: unknown): v is ThemePref =>
-  v === 'system' || THEME_IDS.includes(v as ThemeId);
+export const DEFAULT_THEME: ThemePref = 'sunset';
+
+const LEGACY: Record<string, ThemeId> = { paper: 'cream' };
+
+export const normalizeThemePref = (v: unknown): ThemePref | null => {
+  if (typeof v !== 'string') return null;
+  if (v === 'system') return 'system';
+  if (v in LEGACY) return LEGACY[v]!;
+  return (THEME_IDS as readonly string[]).includes(v) ? (v as ThemeId) : null;
+};
+
+export const isThemePref = (v: unknown): v is ThemePref => normalizeThemePref(v) !== null;
 export const resolveTheme = (pref: ThemePref, dark: boolean): ThemeId =>
-  pref === 'system' ? (dark ? 'graphite' : 'paper') : pref;
+  pref === 'system' ? (dark ? 'graphite' : 'cream') : pref;
 
 export interface ThemeState {
   pref: ThemePref;
@@ -42,7 +53,8 @@ export class ThemeService {
   ) {
     try {
       const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as { theme?: unknown };
-      if (isThemePref(raw.theme)) this.pref = raw.theme;
+      const n = normalizeThemePref(raw.theme);
+      if (n) this.pref = n;
     } catch {
       /* 首次运行：用默认 */
     }
@@ -56,10 +68,11 @@ export class ThemeService {
   }
 
   set(id: unknown): ThemeState {
-    if (!isThemePref(id)) throw new Error(`unknown theme: ${String(id)}`);
-    this.pref = id;
+    const n = normalizeThemePref(id);
+    if (!n) throw new Error(`unknown theme: ${String(id)}`);
+    this.pref = n;
     fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify({ theme: id }, null, 2), 'utf8');
+    fs.writeFileSync(this.file, JSON.stringify({ theme: n }, null, 2), 'utf8');
     this.broadcast();
     return this.get();
   }
@@ -73,9 +86,8 @@ export class ThemeService {
   }
 
   registerIpc(): void {
-    ipcMain.removeHandler('ai:theme:get');
-    ipcMain.removeHandler('ai:theme:set');
-    ipcMain.handle('ai:theme:get', () => this.get());
-    ipcMain.handle('ai:theme:set', (_e, id: unknown) => this.set(id));
+    const opts = { owner: 'ThemeService', wrapErrors: false };
+    guardedHandle('ai:theme:get', () => this.get(), opts);
+    guardedHandle('ai:theme:set', (id) => this.set(id), opts);
   }
 }

@@ -4,11 +4,15 @@ import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
+import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
+import { SessionControls } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
@@ -17,7 +21,6 @@ import {
   ExtensionsPanel,
   HubPanel,
   LocalPanel,
-  ProviderPanel,
   ScreenPanel,
   SettingsView,
   prefetchPanels,
@@ -35,15 +38,27 @@ import {
 import { Sidebar } from './components/Sidebar';
 import { AppTitleBar } from './components/TitleBar';
 import { AiChatContextProvider } from './contexts/AiChatContext';
-import { useAiChat } from './contexts/AiChatContext';
+import type { AiChatState } from './contexts/AiChatContext';
+import {
+  selectFirstMessageId,
+  selectIpcClient,
+  selectIsLoading,
+  selectMessageCount,
+  shallowArrayEqual,
+  useAiChatActions,
+  useAiChatSelector,
+} from './contexts/aiChatStore';
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
+import { harnessClient } from './services/harnessClient';
+import { watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ScreenState } from './services/screenClient';
 import {
@@ -55,30 +70,75 @@ import {
   useShortcutBindings,
   type ShortcutId,
 } from './services/shortcuts';
+import { nomiScopeKey } from './slash/nomiScope';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
-import { fromHarnessMessage, splitNomiMessages, tabLiveToConv } from './utils/convAdapters';
+import {
+  fromHarnessMessage,
+  nomiConvMessages,
+  nomiLive,
+  sameLive,
+  settledNomiMessages,
+  tabLiveToConv,
+} from './utils/convAdapters';
 import './App.css';
 
+const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
+const selectNomiLive = (s: AiChatState) => nomiLive(s.messages, s.isLoading);
+const LOCAL_TABS = [...LOCAL_MANAGE_TABS];
+
+/** The Nomi conversation: the only part that rerenders per streamed frame (its live turn). */
+const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationView>, 'live'>> = (
+  props,
+) => {
+  const live = useAiChatSelector(selectNomiLive, sameLive);
+  return <ConversationView {...props} live={live} />;
+};
+
 const AiChatContent: React.FC = () => {
-  const { state, actions } = useAiChat();
+  // Slices, not the whole state: a streamed frame changes only the live tail, which
+  // NomiConversation subscribes to; App and the rest of the tree stay put.
+  const { actions, store: chatStore } = useAiChatActions();
+  const isLoading = useAiChatSelector(selectIsLoading);
+  const ipcClient = useAiChatSelector(selectIpcClient);
+  const firstMessageId = useAiChatSelector(selectFirstMessageId);
+  const messageCount = useAiChatSelector(selectMessageCount);
+  const settledNomi = useAiChatSelector(selectSettledNomi, shallowArrayEqual);
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
-  const nomiConv = useMemo(
-    () => splitNomiMessages(state.messages, state.isLoading),
-    [state.messages, state.isLoading],
-  );
+  const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
   const cliConvMessages = useMemo(
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
+  // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
+  const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  const cliSlots = useMemo<ConvSlots | undefined>(
+    () =>
+      activeCliTabId
+        ? {
+            errorActions: (m, { retry }) =>
+              m.geminiTrust ? (
+                <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
+              ) : null,
+          }
+        : undefined,
+    [activeCliTabId],
+  );
+  // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
+  useRestoreNomiOnMain(
+    tabs.state?.activeTabId,
+    () => ipcClient.conversationStore?.(),
+    () => actions.loadChatHistory(),
+  );
   const nomiQueue = useSendQueue(
-    state.isLoading,
-    (text) => actions.sendStreamMessage(text),
-    state.messages[0]?.id,
+    isLoading,
+    // 入队时冻结的意图：知识库问答排的队，出队后仍走带引用的问答
+    (text, opts) => (opts?.kb ? actions.askKnowledge(text) : actions.sendStreamMessage(text)),
+    firstMessageId,
   );
   /** 重新生成 / 重试：找到这条助手消息之前的用户消息，从那里重发 */
   const precedingUser = <T extends { id: string; role: string }>(
@@ -107,9 +167,7 @@ const AiChatContent: React.FC = () => {
   }, [toast]);
   const [tabRename, setTabRename] = useState(0);
   const [tabNew, setTabNew] = useState(0);
-  const [showProviders, setShowProviders] = useState(false);
 
-  // 托盘「Provider 设置…」→ 主进程通知打开面板
   // 首屏后空闲时预取设置 / 面板 chunk（不占首屏，打开时无需等待）
   useEffect(() => {
     const ric = (window as { requestIdleCallback?: (cb: () => void, o?: object) => number })
@@ -122,18 +180,25 @@ const AiChatContent: React.FC = () => {
       else window.clearTimeout(id);
     };
   }, []);
-  useEffect(() => providerClient.onOpenPanel(() => setShowProviders(true)), []);
   // mascot holds a thinking pose while a reply is being generated
   useEffect(() => {
-    if (!state.isLoading) return;
+    if (!isLoading) return;
     onboardingClient.mascot({ type: 'motion', name: 'think-on' });
     return () => onboardingClient.mascot({ type: 'motion', name: 'think-off' });
-  }, [state.isLoading]);
+  }, [isLoading]);
   const [showDesktop, setShowDesktop] = useState(false);
   // 托盘「桌面能力…」→ 打开桌面能力面板
   useEffect(() => desktopClient.onOpenPanel(() => setShowDesktop(true)), []);
   const [showHub, setShowHub] = useState(false);
   const [hubTab, setHubTab] = useState<HubTab>('kb');
+  useEffect(
+    () =>
+      desktopClient.onOpenSchedule(() => {
+        setHubTab('schedule');
+        setShowHub(true);
+      }),
+    [],
+  );
   const [showScreen, setShowScreen] = useState(false);
   const [showExt, setShowExt] = useState(false);
   const [showLocal, setShowLocal] = useState(false);
@@ -191,9 +256,16 @@ const AiChatContent: React.FC = () => {
     setShowExt(false);
     setShowLocal(false);
     setShowDesktop(false);
-    setShowProviders(false);
     setSettings(sec);
   }, []);
+  // 托盘「模型设置…」→ 设置 →「模型」
+  useEffect(() => providerClient.onOpenPanel(() => openSettings('models')), [openSettings]);
+  useEffect(() => watchNomiModel(), []);
+  // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音
+  useEffect(
+    () => desktopClient.onOpenVoiceSettings(() => openSettings('senses', 'voice')),
+    [openSettings],
+  );
   // ---- 斜杠命令：输入 / 弹出命令面板，命令结果以系统卡片显示在会话流里 ----
   const harness = useHarnessState();
   const slashTab = isDev && tabs.isCliTab ? tabs.activeTab : null;
@@ -201,13 +273,15 @@ const AiChatContent: React.FC = () => {
     ? 'nomi'
     : (slashTab?.backend ?? harness?.backend ?? 'nomi');
   const slashCwd = slashBackend === 'nomi' ? '' : slashTab ? slashTab.cwd : (harness?.cwd ?? '');
-  const slashScope = slashTab ? slashTab.id : `nomi:${state.messages[0]?.id ?? 'new'}`;
+  /** Nomi 主对话当前会话的标识（不论眼下显示的是不是它） */
+  const nomiScope = nomiScopeKey(ipcClient.conversationStore?.(), firstMessageId);
+  const slashScope = slashTab ? slashTab.id : nomiScope;
   const [showPlugins, setShowPlugins] = useState(false);
   const slash = useSlashCommands({
     backend: slashBackend,
     cwd: slashCwd,
     scopeKey: slashScope,
-    messages: slashTab ? cliConvMessages : nomiConv.messages,
+    messages: slashTab ? cliConvMessages : nomiMessages,
     session:
       slashBackend === 'nomi'
         ? null
@@ -217,17 +291,31 @@ const AiChatContent: React.FC = () => {
               running: slashTab.status === 'running' || slashTab.status === 'queued',
             }
           : { id: harness?.cliSessionId ?? null, running: !!harness?.busy },
+    tabId: slashTab?.id ?? null,
     send: (text) => {
       if (slashTab) void tabs.send(text);
-      else if (state.isLoading) nomiQueue.enqueue(text);
+      else if (isLoading) nomiQueue.enqueue(text);
       else void actions.sendStreamMessage(text);
     },
+    // 异步命令的结果回到「发起命令的会话」，与现在显示哪个标签无关
+    sendTo: async (target, text) => {
+      if (target.tabId) {
+        // CLI 标签：目标标签已关闭 / 后端或目录被改过（重置）→ false，什么都不发
+        return tabs.sendToTab(target.tabId, text, { backend: target.backend, cwd: target.cwd });
+      }
+      // Nomi 主对话：只有它仍是当前这个会话才发（新建 / 切换过会话则丢弃）
+      if (nomiScope !== target.scopeKey) return false;
+      if (isLoading) nomiQueue.enqueue(text);
+      else void actions.sendStreamMessage(text);
+      return true;
+    },
+    tabExists: tabs.hasTab,
     newSession: () => {
       if (slashTab) void tabs.create(slashTab.backend, slashTab.cwd);
       else void actions.newConversation();
     },
     onOpenPlugins: () => setShowPlugins(true),
-    onOpenProviders: () => setShowProviders(true),
+    onOpenProviders: () => openSettings('models'),
     onOpenSettings: () => {
       if (slashBackend !== 'nomi') setProviderEndpoint(slashBackend);
       openSettings('coding');
@@ -251,7 +339,7 @@ const AiChatContent: React.FC = () => {
 
   const runForkSame = useCallback(
     async (id: string) => {
-      const store = state.ipcClient.conversationStore?.();
+      const store = ipcClient.conversationStore?.();
       if (!store) return;
       try {
         const r = await forkSameBackend(store, id);
@@ -268,12 +356,12 @@ const AiChatContent: React.FC = () => {
         setToast(e instanceof Error ? e.message : String(e));
       }
     },
-    [state.ipcClient, setMode, tabs, actions],
+    [ipcClient, setMode, tabs, actions],
   );
 
   const runForkCross = useCallback(
     async (id: string, target: ConversationBackend, cwd?: string) => {
-      const store = state.ipcClient.conversationStore?.();
+      const store = ipcClient.conversationStore?.();
       if (!store) return;
       setForkCross(null);
       try {
@@ -290,18 +378,18 @@ const AiChatContent: React.FC = () => {
         setToast(e instanceof Error ? e.message : String(e));
       }
     },
-    [state.ipcClient, setMode, tabs, actions],
+    [ipcClient, setMode, tabs, actions],
   );
 
   const onForkRequest = useCallback(
     (id: string, mode: 'same' | 'cross') => {
-      const store = state.ipcClient.conversationStore?.();
+      const store = ipcClient.conversationStore?.();
       const meta = store?.get(id);
       if (!meta) return;
       if (mode === 'same') void runForkSame(id);
       else if (isDev) setForkCross({ id, backend: meta.backend }); // 普通模式不允许分叉到其他端
     },
-    [state.ipcClient, runForkSame, isDev],
+    [ipcClient, runForkSame, isDev],
   );
 
   useEffect(() => {
@@ -309,14 +397,14 @@ const AiChatContent: React.FC = () => {
       if (e.defaultPrevented || e.isComposing) return;
       if (!(isMac() ? e.metaKey : e.ctrlKey) || !e.shiftKey || e.altKey || e.code !== 'KeyF')
         return;
-      const id = state.ipcClient.currentConversationId?.();
+      const id = ipcClient.currentConversationId?.();
       if (!id) return;
       e.preventDefault();
       void runForkSame(id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state.ipcClient, runForkSame]);
+  }, [ipcClient, runForkSame]);
 
   const shortcutActions = useMemo<Partial<Record<ShortcutId, () => void>>>(
     () => ({
@@ -429,6 +517,58 @@ const AiChatContent: React.FC = () => {
     ],
     [bindings, shortcutActions, openSettings],
   );
+  // ───── stable props for the memoized composer / conversation / panels ─────
+  const onNomiRetry = useCallback(
+    (id: string) => {
+      const u = precedingUser(chatStore.get().messages, id);
+      if (u) void actions.resendFrom(u.id);
+    },
+    [chatStore, actions],
+  );
+  const onNomiEdit = useCallback(
+    (id: string, text: string) => void actions.resendFrom(id, text),
+    [actions],
+  );
+  const cliActive = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  const tabSend = tabs.send;
+  const tabCancel = tabs.cancel;
+  const inputModeProps = useMemo(
+    () =>
+      cliActive
+        ? {
+            onSend: (text: string) => void tabSend(text),
+            busyOverride: cliActive.status === 'running' || cliActive.status === 'queued',
+            placeholder: cliTabPlaceholder(cliActive),
+            queue: {
+              onQueue: (text: string) => void tabSend(text),
+              onStop: () => void tabCancel(),
+            },
+          }
+        : { queue: { onQueue: nomiQueue.enqueue } },
+    [cliActive, tabSend, tabCancel, nomiQueue.enqueue],
+  );
+  const openPlugins = useCallback(() => setShowPlugins(true), []);
+  const closePlugins = useCallback(() => setShowPlugins(false), []);
+  const openProviders = useCallback(() => openSettings('models'), [openSettings]);
+  const onInputSettings = useCallback(
+    (sec?: SettingsSection, endpoint?: unknown) => {
+      if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
+      openSettings(sec);
+    },
+    [openSettings],
+  );
+  const openDesktop = useCallback(() => setShowDesktop(true), []);
+  const closeDesktop = useCallback(() => setShowDesktop(false), []);
+  const openHub = useCallback(() => setShowHub(true), []);
+  const closeHub = useCallback(() => setShowHub(false), []);
+  const openScreen = useCallback(() => setShowScreen(true), []);
+  const closeScreen = useCallback(() => setShowScreen(false), []);
+  const openExt = useCallback(() => setShowExt(true), []);
+  const closeExt = useCallback(() => setShowExt(false), []);
+  const openLocal = useCallback(() => setShowLocal(true), []);
+  const closeLocal = useCallback(() => setShowLocal(false), []);
+  const closeSettings = useCallback(() => setSettings(null), []);
+
   const paletteEl = (
     <CommandPalette open={palette} onClose={() => setPalette(false)} commands={paletteCommands} />
   );
@@ -476,15 +616,23 @@ const AiChatContent: React.FC = () => {
             <ChatTabs
               renameRequest={tabRename}
               newTabRequest={tabNew}
-              mainLoading={state.isLoading}
+              mainLoading={isLoading}
               onForkTab={(tabId, mode) => {
-                const meta = state.ipcClient.conversationStore?.()?.findByTabId(tabId);
+                const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
                 if (meta) onForkRequest(meta.id, mode);
               }}
             />
           )}
+          {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
+          <div className="session-bar">
+            <SessionControls
+              onManageNomi={() => openSettings('models')}
+              onOpenModels={() => openSettings('models')}
+            />
+          </div>
           {/* 对话区域 */}
           <main className="chat-container">
+            <ChatBackgroundLayer />
             {isDev && tabs.isCliTab ? (
               <>
                 {tabs.messages.length === 0 &&
@@ -519,13 +667,21 @@ const AiChatContent: React.FC = () => {
                       if (u) void tabs.send(u.content);
                     }}
                     onEdit={(_, text) => void tabs.send(text)}
+                    slots={cliSlots}
                     cards={slash.cards}
                     onDismissCard={slash.dismissCard}
                     dormant={tabs.activeTab!.dormant}
+                    backgroundAgents={tabs.activeTab!.backgroundAgents}
+                    backgroundCount={tabs.activeTab!.background}
+                    onStopAgent={(agentId) =>
+                      void harnessClient
+                        .stopAgent(tabs.activeTab!.id, agentId)
+                        .catch(() => undefined)
+                    }
                   />
                 )}
               </>
-            ) : state.messages.length === 0 && slash.cards.length === 0 ? (
+            ) : messageCount === 0 && slash.cards.length === 0 ? (
               <div className="welcome-screen" data-testid="welcome-screen">
                 <div className="welcome-content">
                   <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
@@ -550,18 +706,14 @@ const AiChatContent: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <ConversationView
-                scopeId={`nomi:${state.messages[0]?.id ?? 'new'}`}
-                messages={nomiConv.messages}
-                live={nomiConv.live}
-                phase={state.isLoading ? 'running' : 'idle'}
+              <NomiConversation
+                scopeId={`nomi:${firstMessageId ?? 'new'}`}
+                messages={nomiMessages}
+                phase={isLoading ? 'running' : 'idle'}
                 queued={nomiQueue.queue}
                 onRemoveQueued={nomiQueue.remove}
-                onRetry={(id) => {
-                  const u = precedingUser(state.messages, id);
-                  if (u) void actions.resendFrom(u.id);
-                }}
-                onEdit={(id, text) => void actions.resendFrom(id, text)}
+                onRetry={onNomiRetry}
+                onEdit={onNomiEdit}
                 slots={nomiSlots}
                 cards={slash.cards}
                 onDismissCard={slash.dismissCard}
@@ -572,30 +724,16 @@ const AiChatContent: React.FC = () => {
           {/* 输入区域 */}
           <footer className="input-container">
             <MessageInput
-              {...(isDev && tabs.isCliTab
-                ? {
-                    onSend: (text: string) => void tabs.send(text),
-                    busyOverride:
-                      tabs.activeTab!.status === 'running' || tabs.activeTab!.status === 'queued',
-                    placeholder: cliTabPlaceholder(tabs.activeTab!),
-                    queue: {
-                      onQueue: (text: string) => void tabs.send(text),
-                      onStop: () => void tabs.cancel(),
-                    },
-                  }
-                : { queue: { onQueue: nomiQueue.enqueue } })}
+              {...inputModeProps}
               slash={slash.bridge}
-              onPluginsClick={() => setShowPlugins(true)}
-              onProvidersClick={() => setShowProviders(true)}
-              onSettingsClick={(sec, endpoint) => {
-                if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
-                openSettings(sec);
-              }}
-              onDesktopClick={() => setShowDesktop(true)}
-              onHubClick={() => setShowHub(true)}
-              onScreenClick={() => setShowScreen(true)}
-              onExtClick={() => setShowExt(true)}
-              onLocalClick={() => setShowLocal(true)}
+              onPluginsClick={openPlugins}
+              onProvidersClick={openProviders}
+              onSettingsClick={onInputSettings}
+              onDesktopClick={openDesktop}
+              onHubClick={openHub}
+              onScreenClick={openScreen}
+              onExtClick={openExt}
+              onLocalClick={openLocal}
             />
           </footer>
         </div>
@@ -608,7 +746,7 @@ const AiChatContent: React.FC = () => {
             section={settings}
             deepLink={settingsLink}
             onSection={setSettings}
-            onClose={() => setSettings(null)}
+            onClose={closeSettings}
           />
         </div>
       )}
@@ -617,7 +755,7 @@ const AiChatContent: React.FC = () => {
       {paletteEl}
       <PluginPanel
         isVisible={showPlugins}
-        onClose={() => setShowPlugins(false)}
+        onClose={closePlugins}
         backend={slashBackend}
         cwd={slashCwd}
         entries={slash.discovered}
@@ -627,29 +765,24 @@ const AiChatContent: React.FC = () => {
           setShowExt(true);
         }}
       />
-      <ProviderPanel isVisible={showProviders} onClose={() => setShowProviders(false)} />
       <ModalHostContext.Provider value={drawerHost.desktop}>
-        <DesktopPanel isVisible={showDesktop} onClose={() => setShowDesktop(false)} />
+        <DesktopPanel isVisible={showDesktop} onClose={closeDesktop} />
       </ModalHostContext.Provider>
       <HubPanel
         isVisible={showHub}
-        onClose={() => setShowHub(false)}
+        onClose={closeHub}
         tab={hubTab}
         onTab={setHubTab}
         onOpenSettings={openSettings}
       />
       <ModalHostContext.Provider value={drawerHost.screen}>
-        <ScreenPanel isVisible={showScreen} onClose={() => setShowScreen(false)} />
+        <ScreenPanel isVisible={showScreen} onClose={closeScreen} />
       </ModalHostContext.Provider>
       <ModalHostContext.Provider value={drawerHost.ext}>
-        <ExtensionsPanel isVisible={showExt} onClose={() => setShowExt(false)} />
+        <ExtensionsPanel isVisible={showExt} onClose={closeExt} />
       </ModalHostContext.Provider>
       <ModalHostContext.Provider value={drawerHost.local}>
-        <LocalPanel
-          isVisible={showLocal}
-          onClose={() => setShowLocal(false)}
-          tabs={[...LOCAL_MANAGE_TABS]}
-        />
+        <LocalPanel isVisible={showLocal} onClose={closeLocal} tabs={LOCAL_TABS} />
       </ModalHostContext.Provider>
       <ForkTargetMenu
         open={!!forkCross}
@@ -667,12 +800,12 @@ const AiChatContent: React.FC = () => {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 120,
-            padding: '8px 14px',
-            borderRadius: 10,
-            background: 'var(--cd-color-surface-raised, #121a2a)',
+            padding: 'var(--cd-space-2) var(--cd-space-3)',
+            borderRadius: 'var(--cd-radius-md)',
+            background: 'var(--cd-color-surface-raised)',
             border: '1px solid var(--cd-color-border)',
-            boxShadow: '0 8px 24px rgba(0,0,0,.35)',
-            fontSize: 13,
+            boxShadow: 'var(--cd-shadow-popover)',
+            fontSize: 'var(--cd-font-size-sm)',
           }}
         >
           {toast}

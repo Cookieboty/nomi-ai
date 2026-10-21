@@ -1,6 +1,7 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
 import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,12 +10,18 @@ import React, {
   type KeyboardEvent,
 } from 'react';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectError,
+  selectIsLoading,
+  selectStreaming,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
+import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
 import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
-import { effectiveProviderLabel } from '../../services/providerClient';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -34,6 +41,7 @@ import {
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
+import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
@@ -58,7 +66,7 @@ interface MessageInputProps {
    * 运行中也能继续输入：Enter 把消息排进队列（当前轮结束后自动发送）；输入为空时发送键变成「停止」。
    * 不传则保持原行为（运行中禁用输入）。
    */
-  queue?: { onQueue: (text: string) => void; onStop?: () => void };
+  queue?: { onQueue: (text: string, opts?: { kb?: boolean }) => void; onStop?: () => void };
   disabled?: boolean;
   onProvidersClick?: () => void;
   onDesktopClick?: () => void;
@@ -75,7 +83,7 @@ interface MessageInputProps {
   onPluginsClick?: () => void;
 }
 
-export const MessageInput: React.FC<MessageInputProps> = ({
+const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
   placeholder = tr('输入消息...'),
@@ -108,7 +116,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
     el.style.height = next > 0 ? `${next}px` : '';
   }, [message]);
-  const { state, actions } = useAiChat();
+  // slices only: streamed frames (message content) do not rerender the composer
+  const { dispatch, actions, store: chatStore } = useAiChatActions();
+  const isLoading = useAiChatSelector(selectIsLoading);
+  const streaming = useAiChatSelector(selectStreaming);
+  const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
   const [kbMode, setKbMode] = useState(() => {
     try {
@@ -225,17 +237,21 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [screenOk, snip]);
-  const chatModel = effectiveProviderLabel() ?? '';
-  const visionWarn = images.length > 0 && !likelyVision(chatModel);
+  const chatModel = nomiModelLabel() ?? '';
+  // 模型元数据写明了视觉能力就以它为准，否则按名字猜
+  const visionKnown = nomiModelMeta()?.vision;
+  const visionWarn = images.length > 0 && !(visionKnown ?? likelyVision(chatModel));
 
   const handleSend = async () => {
     let trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');
     if (!trimmedMessage) return;
     // 斜杠命令：原生命令 / 未知命令 / 自定义命令都在这里被接管；`//x` 转义成普通文字 `/x`
     if (slash && !images.length && trimmedMessage.startsWith('/')) {
+      const scopeAtStart = slash.scope?.();
       const r = await slash.run(trimmedMessage, getRegistry());
       if (r.handled) {
-        setMessage('');
+        // 命令是异步的：完成时用户若已切到别的会话，输入框里是那边的草稿，不能清掉
+        if (scopeAtStart === undefined || slash.scope?.() === scopeAtStart) setMessage('');
         return;
       }
       if (r.text !== undefined) trimmedMessage = r.text;
@@ -243,7 +259,9 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (busy) {
       // 运行中：文字消息进队列（带图片的消息不排队，等当前轮结束再发）
       if (queue && !images.length) {
-        queue.onQueue(trimmedMessage);
+        // 入队时冻结知识库模式：排队期间切换开关不改变这条消息的去向
+        if (kbMode && kbAvailable) queue.onQueue(trimmedMessage, { kb: true });
+        else queue.onQueue(trimmedMessage);
         setMessage('');
       }
       return;
@@ -300,9 +318,16 @@ export const MessageInput: React.FC<MessageInputProps> = ({
         return;
       }
     }
+    // Shift+Tab：切换编程助手的权限模式（同 Claude Code）；没有模式按钮时保持默认行为
+    if (e.key === 'Tab' && e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+      const detail: CyclePermissionDetail = { handled: false };
+      window.dispatchEvent(new CustomEvent(CYCLE_PERMISSION_EVENT, { detail }));
+      if (detail.handled) e.preventDefault();
+      return;
+    }
     // ↑ 在空输入框里找回上一条提问（同 Codex）
     if (e.key === 'ArrowUp' && !message) {
-      const last = [...state.messages].reverse().find((m) => m.role === 'user');
+      const last = [...chatStore.get().messages].reverse().find((m) => m.role === 'user');
       if (last) {
         e.preventDefault();
         setMessage(last.content);
@@ -340,18 +365,14 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     if (e.target.value === '/') slash?.refresh();
   };
 
-  const busy = busyOverride ?? state.isLoading;
+  const busy = busyOverride ?? isLoading;
   const isDisabled =
     disabled ||
-    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : state.isLoading);
+    (busyOverride !== undefined ? (queue ? false : busyOverride) : queue ? false : isLoading);
 
   // 停止：Nomi 流式生成中，或编程助手标签自带的停止；输入为空才显示（有字时发送键是「排队」）
   const stopFn =
-    busyOverride === undefined
-      ? state.streaming
-        ? actions.stopGeneration
-        : undefined
-      : queue?.onStop;
+    busyOverride === undefined ? (streaming ? actions.stopGeneration : undefined) : queue?.onStop;
   // 仅在运行中（busy）才可能出现停止键：排队模式下输入为空才停止（有字时发送键是「排队」）。
   // 旧写法缺 busy 前置条件，导致 CLI 标签空闲时也显示停止键（点击 tabs.cancel 空操作）。
   const canStop = !!stopFn && busy && (!queue || (!message.trim() && !images.length));
@@ -520,7 +541,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argState?.args ? argCmd : null;
+  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
   // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
   const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
   // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
@@ -543,8 +564,11 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   }
   /** 从面板选中命令：需要参数的先补全成 `/name `，其余直接执行 */
   function pickCommand(c: SlashCommand, mode: 'run' | 'complete') {
+    // 被禁用的同名项没有可补的参数：直接执行，让执行层给出不能发送的说明
     const needsArgs =
-      !!c.args && (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
+      !c.disabled &&
+      !!c.args &&
+      (c.kind === 'passthrough' || c.kind === 'expand' || c.args.hint.startsWith('<'));
     if (mode === 'complete' || (needsArgs && slash)) {
       setMessage(`/${c.name} `);
       setSlashIdx(0);
@@ -620,7 +644,12 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
   return (
     <div className={styles.messageInputContainer}>
-      {state.error && <ErrorHint error={state.error} />}
+      {chatError && (
+        <ErrorHint
+          error={chatError}
+          onDismiss={() => dispatch({ type: 'SET_ERROR', payload: undefined })}
+        />
+      )}
 
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
@@ -767,11 +796,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
               </button>
             )}
             <div className={styles.modelStatus}>
-              <EndpointControls
-                className={styles.currentModel}
-                onManageNomi={() => onProvidersClick?.()}
-                onManageCli={(b) => onSettingsClick?.('coding', b)}
-              />
+              <EndpointControls />
             </div>
           </div>
           <div className={styles.composerRight} data-zone="right">
@@ -812,3 +837,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
     </div>
   );
 };
+
+/** Memoized: App rerenders (tabs, panels) do not rerender the composer unless its props change. */
+export const MessageInput = memo(MessageInputImpl);

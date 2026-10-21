@@ -1,9 +1,7 @@
-import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { mascotReducer, type MascotState } from '../../src/contexts/MascotContext';
-import { createVrmBackend } from '../../src/mascot/backends/vrm';
-import { nextModel, parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
+import { parseCatalog, pickModel, type MascotModel } from '../../src/mascot/catalog';
 import { directiveForEvent, expressionForText } from '../../src/mascot/expressionDirector';
 import { mascotRegistry, type MascotBackend } from '../../src/mascot/MascotBackend';
 import { applyDirective } from '../../src/mascot/mood';
@@ -27,20 +25,18 @@ describe('catalog', () => {
     expect(parseCatalog(null)).toEqual([]);
   });
 
-  it('picks the saved model or falls back to the first', () => {
+  it('picks the named model or falls back to the first (Nomi)', () => {
     const list = [model('a'), model('b')];
     expect(pickModel(list, 'b')?.name).toBe('b');
     expect(pickModel(list, 'gone')?.name).toBe('a');
-    expect(nextModel(list, 'a')?.name).toBe('b');
-    expect(nextModel(list, 'b')?.name).toBe('a');
-    expect(nextModel([], null)).toBeUndefined();
+    expect(pickModel(list, null)?.name).toBe('a');
   });
 
   it('bundles only Nomi (no VRM or other sprites)', async () => {
     const fs = await import('node:fs');
     const raw = JSON.parse(
       fs.readFileSync(
-        new URL('../../public/assets/models/vrm/model-list.json', import.meta.url),
+        new URL('../../public/assets/models/model-list.json', import.meta.url),
         'utf8',
       ),
     );
@@ -75,7 +71,7 @@ describe('mascotRegistry + applyDirective', () => {
   it('applies then reverts expressions on the attached backend', () => {
     vi.useFakeTimers();
     const setExpression = vi.fn();
-    const backend = { kind: 'vrm', setExpression } as unknown as MascotBackend;
+    const backend = { kind: 'sprite', setExpression } as unknown as MascotBackend;
     const detach = mascotRegistry.attach(backend);
     applyDirective({ expression: 'happy', holdMs: 1000 });
     expect(setExpression).toHaveBeenLastCalledWith('happy');
@@ -86,67 +82,6 @@ describe('mascotRegistry + applyDirective', () => {
   });
 });
 
-function fakeVrm() {
-  const values = new Map<string, number>();
-  const names = ['aa', 'oh', 'blink', 'happy', 'angry', 'sad', 'relaxed', 'neutral', 'Surprised'];
-  const bones = new Map<string, THREE.Object3D>();
-  const vrm = {
-    expressionManager: {
-      expressionMap: Object.fromEntries(names.map((n) => [n, {}])),
-      getExpression: (n: string) => (names.includes(n) ? {} : null),
-      setValue: (n: string, v: number) => values.set(n, v),
-    },
-    humanoid: {
-      getNormalizedBoneNode: (n: string) => {
-        if (!bones.has(n)) bones.set(n, new THREE.Object3D());
-        return bones.get(n)!;
-      },
-    },
-    lookAt: { target: null as THREE.Object3D | null },
-    scene: new THREE.Group(),
-  };
-  return { vrm, values, bones };
-}
-
-describe('VRM backend', () => {
-  it('drives lip-sync, expressions, blink and idle motion', () => {
-    const { vrm, values, bones } = fakeVrm();
-    const scene = new THREE.Scene();
-
-    const b = createVrmBackend(vrm as any, scene);
-    expect(vrm.lookAt.target).not.toBeNull();
-    expect(b.capabilities()).toMatchObject({ lipSync: true, blink: true, lookAt: true });
-
-    b.setMouthOpen(1);
-    b.setExpression('angry');
-    for (let i = 0; i < 60; i++) b.update(1 / 60, i / 60);
-    expect(values.get('aa')!).toBeGreaterThan(0.5);
-    expect(values.get('angry')!).toBeGreaterThan(0.9);
-
-    b.setExpression('sad');
-    b.setMouthOpen(0);
-    for (let i = 0; i < 120; i++) b.update(1 / 60, 1 + i / 60);
-    expect(values.get('angry')!).toBeLessThan(0.05);
-    expect(values.get('sad')!).toBeGreaterThan(0.9);
-    expect(values.get('aa')!).toBeLessThan(0.05);
-
-    b.setExpression('surprised');
-    for (let i = 0; i < 60; i++) b.update(1 / 60, 2 + i / 60);
-    expect(values.get('Surprised')!).toBeGreaterThan(0.9);
-
-    b.blink();
-    b.update(0.08, 3);
-    expect(values.get('blink')!).toBeGreaterThan(0.9);
-    b.update(0.1, 3.1);
-    expect(values.get('blink')).toBe(0);
-
-    b.update(0.1, 5);
-    expect(bones.get('neck')!.rotation.y).not.toBe(0);
-    b.dispose();
-    expect(scene.children).toHaveLength(0);
-  });
-});
-
 describe('MascotContext reducer', () => {
   const base: MascotState = {
     currentMessage: null,
@@ -154,7 +89,6 @@ describe('MascotContext reducer', () => {
     dragEnabled: false,
     modelList: [],
     modelName: 'b',
-    pickerOpen: false,
     panel: null,
   };
 

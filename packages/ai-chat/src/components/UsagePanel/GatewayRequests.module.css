@@ -1,0 +1,77 @@
+/* 用量面板 →「最近请求」（统一网关请求日志） */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  min-width: 0;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-2) 0;
+  border-bottom: 1px solid var(--cd-color-border);
+  min-width: 0;
+}
+.item:last-child {
+  border-bottom: none;
+}
+.line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1) var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  min-width: 0;
+}
+.time,
+.ms,
+.meta {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.client {
+  color: var(--cd-color-text);
+  font-weight: var(--cd-font-weight-medium);
+}
+.wire {
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}
+.target {
+  color: var(--cd-color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.model {
+  color: var(--cd-color-text-muted);
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cd-space-1);
+}
+.error {
+  margin: 0;
+  color: var(--cd-color-danger-text);
+  font-size: var(--cd-font-size-xs);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

@@ -77,6 +77,12 @@ describe('汇总 / 趋势 / 分布', () => {
     expect(s.estimatedCalls).toBe(1);
   });
 
+  it('缓存命中率 = 缓存读 / (未命中输入 + 缓存读)，缓存写不算；没有输入时为 null', () => {
+    const s = summarize([R({ input: 300, output: 5, cacheRead: 100, cacheWrite: 50 })], priceOf);
+    expect(s.cacheHitRate).toBeCloseTo(0.25, 6);
+    expect(summarize([], priceOf).cacheHitRate).toBeNull();
+  });
+
   it('今日趋势按小时落桶，7 天趋势按天落桶并补零', () => {
     const today = series(recs, rangeOf('today', NOW), priceOf);
     expect(today).toHaveLength(24);

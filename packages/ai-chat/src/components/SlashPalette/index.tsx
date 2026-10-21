@@ -78,6 +78,7 @@ export const SlashPalette: React.FC<Props> = ({
                 role="menuitem"
                 className={`${styles.item} ${on ? styles.on : ''}`}
                 data-kind={c.kind}
+                {...(c.disabled ? { 'data-disabled': 'true', title: c.disabled.reason } : {})}
                 data-testid={`slash-${c.name}`}
                 aria-current={on ? 'true' : undefined}
                 onMouseDown={(e) => e.preventDefault()}
@@ -88,9 +89,11 @@ export const SlashPalette: React.FC<Props> = ({
                   /{highlight(c.name, ranges)}
                   {c.args && <span className={styles.args}> {c.args.hint}</span>}
                 </span>
-                <span className={styles.desc}>{c.description}</span>
+                <span className={styles.desc}>
+                  {c.disabled ? c.disabled.reason : c.description}
+                </span>
                 {c.badge && <span className={styles.badge}>{c.badge}</span>}
-                <span className={styles.kind}>{kindLabel(c.kind)}</span>
+                <span className={styles.kind}>{c.disabled ? t('不可用') : kindLabel(c.kind)}</span>
               </button>
             );
           })}

@@ -49,6 +49,10 @@ export interface UsageRecord {
   cacheWrite1h?: number;
   /** true = 这次请求走了「快速模式」（Claude usage.speed === 'fast'），输入输出按 2 倍计价；缺省 = 标准速度 */
   fast?: boolean;
+  /** 路由记录：上游响应 / 消息 id（Anthropic msg_… / Chat completion id / Responses id），用来和工具日志精确联结 */
+  rid?: string;
+  /** 路由记录：已被哪条日志记录认领（一对一；认领后别的日志不能再并入这条路由记录） */
+  logKey?: string;
   /** 会话 id（CLI 会话 id / Nomi 对话 id） */
   session?: string;
   /** 项目目录名 */

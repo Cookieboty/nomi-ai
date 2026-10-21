@@ -61,6 +61,8 @@ export interface UsageState {
   detected: string[];
   records: number;
   lastScanAt: number;
+  /** degraded = 最近一次写盘失败，pendingRecords 条记录还在内存里等待重试 */
+  persist?: { degraded: boolean; pendingRecords: number; cursorDirty: boolean };
   pricing: { date: string; builtin: UsageBuiltinPrice[]; sync?: UsagePriceSyncState };
 }
 
@@ -74,6 +76,8 @@ export interface UsageSummary {
   calls: number;
   estimatedCalls: number;
   unpriced: Array<{ model: string; tokens: number; calls: number }>;
+  /** 缓存命中率 = 缓存读 / (未命中输入 + 缓存读)；没有输入时为 null（旧主进程没有这个字段） */
+  cacheHitRate?: number | null;
 }
 
 export interface UsageSeriesPoint {
@@ -217,6 +221,65 @@ export interface UsageQuotaHook {
   problem?: 'invalid-settings' | 'unsupported-statusline';
 }
 
+/** 网关请求日志的一条（主进程 usage/gatewayRequests.ts；只有元数据，不含 Key 和对话内容） */
+export interface GatewayRequestEntry {
+  id: string;
+  ts: number;
+  client: string;
+  ingress: string;
+  wire?: string;
+  providerId?: string;
+  provider?: string;
+  keyId?: string;
+  key?: string;
+  model?: string;
+  status: number;
+  ms: number;
+  firstByteMs?: number;
+  attempts: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  reasoning?: number;
+  notes?: string[];
+  error?: string;
+}
+
+export interface GatewayAggRow {
+  key: string;
+  label: string;
+  requests: number;
+  failed: number;
+  fallbacks: number;
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  tokens: number;
+  cacheHitRate: number | null;
+  avgMs: number;
+}
+
+export interface GatewayRequestsView {
+  requests: GatewayRequestEntry[];
+  summary: {
+    requests: number;
+    failed: number;
+    fallbacks: number;
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    cacheHitRate: number | null;
+    avgMs: number;
+    avgFirstByteMs: number | null;
+  };
+  byProvider: GatewayAggRow[];
+  byKey: GatewayAggRow[];
+  trace: { enabled: boolean; dir: string };
+}
+
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
@@ -259,6 +322,13 @@ export const usageClient = {
   quotaHook: () => call<UsageQuotaHook>('quota-hook'),
   setQuotaHook: (enabled: boolean) => call<UsageQuotaHook>('quota-hook-set', enabled),
   onChanged: (fn: () => void) => bridge()?.on('ai:usage:changed', () => fn()) ?? (() => undefined),
+  /** 统一网关最近 200 条请求 + 按供应商 / 按 Key 汇总 + 调试模式状态 */
+  gatewayRequests: () => call<GatewayRequestsView>('gateway-requests'),
+  setGatewayTrace: (enabled: boolean) =>
+    call<{ enabled: boolean; dir: string }>('gateway-trace-set', enabled),
+  clearGatewayRequests: () => call<GatewayRequestsView>('gateway-clear'),
+  onGatewayChanged: (fn: () => void) =>
+    bridge()?.on('ai:usage:gateway-changed', () => fn()) ?? (() => undefined),
 };
 
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */

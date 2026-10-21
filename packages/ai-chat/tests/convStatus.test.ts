@@ -39,7 +39,7 @@ describe('deriveStatus 等待态', () => {
     expect(
       deriveStatus({
         ...base,
-        live: { text: '', permission: { id: 'p', summary: 'x' }, status: { kind: 'compact' } },
+        live: { text: '', permissions: [{ id: 'p', summary: 'x' }], status: { kind: 'compact' } },
       })!.kind,
     ).toBe('permission');
     expect(deriveStatus({ ...base, live: { text: '', status: { kind: 'compact' } } })!.kind).toBe(

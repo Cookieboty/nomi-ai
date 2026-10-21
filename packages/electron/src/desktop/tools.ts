@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
+import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
 import type { AppTrash } from './AppTrash';
 import type { AuditLog } from './AuditLog';
-import type { Danger } from './consent';
+import { isLocalBaseURL, type Danger } from './consent';
 import { createP2Tools, P2_DANGER, type P2Deps } from './p2tools';
 import { createP3Tools, P3_DANGER, type P3Deps } from './p3tools';
 import { DOC_EXTS, extOf, isSupported } from './parse/extract';
@@ -32,6 +32,8 @@ export interface DesktopToolDeps {
   /** 用 summary 角色的 provider 生成摘要 */
   summarize: (text: string, instruction: string, signal?: AbortSignal) => Promise<string>;
   providerFor: (role: 'chat' | 'agent-tools' | 'summary') => ProviderInfo | null;
+  /** 把「跑本轮工具循环的 provider」（ctx.provider）转成带名字 / 本地标记的信息；缺省时用 id 当名字 */
+  describeProvider?: (p: ToolCallProvider) => ProviderInfo;
   /** 打开系统文件夹选择框；用户取消返回 null */
   pickFolder: (suggested?: string) => Promise<string | null>;
   /** P2：笔记 / 提醒 / 剪贴板（缺省时不注册这些工具） */
@@ -160,12 +162,49 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
     return d;
   }
 
-  async function beforeSend(role: 'chat' | 'agent-tools' | 'summary', signal?: AbortSignal) {
-    const r = await broker.checkSend(deps.providerFor(role), signal);
-    if (r === 'local_only')
-      throw new ToolError('local_only', '已开启「仅本地模型可读文件」，当前模型是云端服务');
-    if (r === 'user_denied')
-      throw new ToolError('user_denied', '用户不同意把文件内容发送给云端模型');
+  type SendRole = 'chat' | 'agent-tools' | 'summary';
+
+  /**
+   * 这次工具调用的结果会发给谁。
+   * - 有 ctx.provider（跑工具循环的那个 provider）：就是它——不再按角色猜，也不受之后的路由变更影响；
+   * - 没有（不是经 LLM 工具循环调用）：取候选角色里的全部 provider，逐个校验（最严格，失败关闭）。
+   */
+  function receiversOf(provider: ToolCallProvider | undefined, roles: SendRole[]): ProviderInfo[] {
+    if (provider)
+      return [
+        deps.describeProvider?.(provider) ?? {
+          id: provider.id,
+          name: provider.id,
+          local: isLocalBaseURL(provider.baseURL),
+        },
+      ];
+    const out: ProviderInfo[] = [];
+    for (const r of roles) {
+      const p = deps.providerFor(r);
+      if (p && !out.some((x) => x.id === p.id)) out.push(p);
+    }
+    return out;
+  }
+
+  /** 内容即将发给 roles 对应的处理者 / ctx.provider 指明的实际接收者：任何一个不满足本地 / 同意规则就拒绝 */
+  async function beforeSend(
+    roles: SendRole | SendRole[],
+    signal?: AbortSignal,
+    provider?: ToolCallProvider,
+    processors: SendRole[] = [],
+  ) {
+    const targets = [
+      // 本机处理者（如摘要模型）先校验，再校验最终接收者
+      ...processors.flatMap((r) => receiversOf(undefined, [r])),
+      ...receiversOf(provider, Array.isArray(roles) ? roles : [roles]),
+    ];
+    for (const t of targets) {
+      const r = await broker.checkSend(t, signal);
+      if (r === 'local_only')
+        throw new ToolError('local_only', '已开启「仅本地模型可读文件」，当前模型是云端服务');
+      if (r === 'user_denied')
+        throw new ToolError('user_denied', '用户不同意把文件内容发送给云端模型');
+    }
   }
 
   async function readExtracted(real: string): Promise<Extract<ParseResult, { ok: true }>> {
@@ -398,7 +437,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         return run('fs_read_text', i, ctx.signal, async () => {
           const g = await guard(i.path, 'read');
           const r = await readExtracted(g.real);
-          await beforeSend('agent-tools', ctx.signal);
+          await beforeSend(['chat', 'agent-tools'], ctx.signal, ctx.provider);
           let text = r.text;
           const pages = r.pageTexts ? parsePages(i.pages, r.pageTexts.length) : null;
           if (pages && r.pageTexts)
@@ -430,7 +469,8 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
           const g = await guard(i.path, 'read');
           const r = await readExtracted(g.real);
           if (!r.text.trim()) throw new ToolError('empty', '没有提取到文本（可能是扫描版 PDF）');
-          await beforeSend('summary', ctx.signal);
+          // 摘要在 summary 模型里生成，结果又会交给实际接收者（聊天模型）：两边都要校验
+          await beforeSend(['chat', 'agent-tools'], ctx.signal, ctx.provider, ['summary']);
           const summary = await summarizeText(deps, r.text, i, path.basename(g.real), ctx.signal);
           broker.markRead(ctx.signal);
           return {
@@ -484,8 +524,16 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
           } else {
             const rec = await trash.trash(g.real);
             await fs.promises.writeFile(g.real, i.text, { flag: 'wx' });
+            // 撤销 = 先把新版本移入回收站，再恢复旧版本；记下新版本的 size / mtime，
+            // 用户之后改过新文件就拒绝撤销（避免丢掉用户的修改）
+            const written = await fs.promises.stat(g.real);
             inverse.push(
-              { op: 'trash', path: g.real },
+              {
+                op: 'trash',
+                path: g.real,
+                expectSize: written.size,
+                expectMtimeMs: written.mtimeMs,
+              },
               { op: 'restore', stored: rec.stored, original: rec.original },
             );
           }
@@ -565,7 +613,7 @@ export function createDesktopTools(deps: DesktopToolDeps): ToolDefinition[] {
         run,
         confirm,
         markRead: (sg) => broker.markRead(sg),
-        beforeSend: (sg) => beforeSend('agent-tools', sg),
+        beforeSend: (sg, provider) => beforeSend(['chat', 'agent-tools'], sg, provider),
       }),
     );
   return tools;

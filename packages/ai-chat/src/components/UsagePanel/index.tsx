@@ -1,5 +1,5 @@
 /**
- * 设置 → 用量与费用：Token 用量、预估费用、分布 / 排行 / 趋势 / 全年热力图、明细与 CSV、价格表。
+ * 设置 → 用量与费用：Token 用量、预估费用、分布 / 排行 / 趋势 / 全年热力图、明细与 CSV、订阅额度、价格表。
  * 数据来自主进程 UsageService（ai:usage:*）；全部只存本机。
  */
 import { Button, EmptyState, ErrorState, Notice, Skeleton, Tabs, t } from '@nomi-ai/ui';
@@ -20,13 +20,14 @@ import { AppIcon } from '../AppIcons';
 import { Budget } from './Budget';
 import { Details, type DetailRange } from './Details';
 import { listSep } from './format';
+import { GatewayRequests } from './GatewayRequests';
 import styles from './index.module.css';
 import { Overview } from './Overview';
 import { Pricing } from './Pricing';
 import { QuotaCard } from './Quota';
 import type { Fx } from './shared';
 
-type Tab = 'overview' | 'details' | 'pricing' | 'budget';
+type Tab = 'overview' | 'details' | 'requests' | 'quota' | 'pricing' | 'budget';
 
 export const UsagePanel: React.FC = () => {
   const [tab, setTab] = useState<Tab>('overview');
@@ -100,7 +101,8 @@ export const UsagePanel: React.FC = () => {
       <header className={styles.head}>
         <h2 className={styles.h2}>{t('用量与费用')}</h2>
         <span className={styles.grow} />
-        {tab === 'overview' && (
+        {/* 订阅额度卡片里的「本期用量」也按这个范围统计 */}
+        {(tab === 'overview' || tab === 'quota') && (
           <Tabs<UsageRangeId>
             aria-label={t('统计时间范围')}
             value={range}
@@ -146,6 +148,14 @@ export const UsagePanel: React.FC = () => {
           </>
         )}
       </p>
+      {state?.persist?.degraded && (
+        <Notice tone="warning" data-testid="usage-persist-degraded">
+          {t(
+            '用量记录暂时写不进磁盘：{0} 条记录先保存在内存里，会自动重试。请检查磁盘空间和权限；恢复之前退出应用，这些记录可能丢失。',
+            String(state.persist.pendingRecords),
+          )}
+        </Notice>
+      )}
 
       <Tabs<Tab>
         aria-label={t('用量分区')}
@@ -154,6 +164,8 @@ export const UsagePanel: React.FC = () => {
         items={[
           { value: 'overview', label: t('概览') },
           { value: 'details', label: t('明细') },
+          { value: 'requests', label: t('最近请求') },
+          { value: 'quota', label: t('订阅额度') },
           { value: 'pricing', label: t('价格') },
           { value: 'budget', label: t('预算与隐私') },
         ]}
@@ -188,8 +200,9 @@ export const UsagePanel: React.FC = () => {
               }}
             />
           )}
-          {tab === 'overview' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
+          {tab === 'quota' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
+          {tab === 'requests' && <GatewayRequests />}
           {tab === 'pricing' && (
             <Pricing
               state={state}

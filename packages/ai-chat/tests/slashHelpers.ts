@@ -1,6 +1,10 @@
 import { vi } from 'vitest';
 
-import type { SlashDiscoveryEntry } from '../src/services/harnessClient';
+import type {
+  BackendModelCatalog,
+  SlashDiscoveryEntry,
+  TabSource,
+} from '../src/services/harnessClient';
 import { adapterFor, scopeOrderFor } from '../src/slash/adapters';
 import { buildRegistry } from '../src/slash/registry';
 import type { SlashContext, SlashData } from '../src/slash/types';
@@ -11,8 +15,10 @@ export const emptyData = (): SlashData => ({
   cli: null,
   usage: null,
   quota: null,
-  cliProviders: null,
+  cliAccount: null,
+  cliTab: null,
   nomiProviders: null,
+  nomiGateway: null,
 });
 
 export function entry(p: Partial<SlashDiscoveryEntry> & { name: string }): SlashDiscoveryEntry {
@@ -49,8 +55,13 @@ export function makeCtx(
     openProviders: vi.fn(),
     openSettings: vi.fn(),
     switchNomiModel: vi.fn(async () => undefined),
-    activateCliProfile: vi.fn(async () => ({ ok: true })),
-    deactivateCliProfile: vi.fn(async () => ({ ok: true })),
+    setTabSource: vi.fn(async (_source: TabSource, _model?: string) => true),
+    tabModels: vi.fn(async () => ({
+      catalog: null as BackendModelCatalog | null,
+      current: null as string | null,
+      source: 'official' as TabSource,
+    })),
+    setTabModel: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => ({ ok: true, status: '', stat: '', diff: '', truncated: false })),
     expand: vi.fn(async () => null as { text: string; shellInjection: boolean } | null),
     nomiSkillBody: vi.fn(async () => null as string | null),

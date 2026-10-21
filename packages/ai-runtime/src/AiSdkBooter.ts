@@ -20,7 +20,7 @@ import {
   type IgPluginsOptions,
 } from './igPlugins';
 import { ConsoleRuntimeLogger, type RuntimeLogger } from './logger';
-import type { RoutedLLMRegistry } from './providers/ProviderRouter';
+import type { GatewayRoute, RoutedLLMRegistry } from './providers/ProviderRouter';
 import type { ProviderStore } from './providers/ProviderStore';
 
 export interface AiSdkBooterOptions {
@@ -38,6 +38,8 @@ export interface AiSdkBooterOptions {
 
 export interface AiSdkProvidersOptions {
   store?: ProviderStore;
+  /** 统一网关路由（有就优先走网关） */
+  gateway?: GatewayRoute;
   onRegistry?: (registry: RoutedLLMRegistry) => void;
 }
 
@@ -59,6 +61,7 @@ export function defaultAiSdkPlugins(
         config: {
           providers: llmProvidersFromEnv(env),
           store: providers.store,
+          gateway: providers.gateway,
           overrideId: providerOverrideFromEnv(env),
           onRegistry: providers.onRegistry,
         },

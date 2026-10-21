@@ -32,6 +32,11 @@ export interface SelectOption {
 
 export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'size'> {
   size?: 'sm' | 'md';
+  /**
+   * 外观：default 实底；ghost 透明底（与旁边的透明按钮 / chip 同一行时用）；
+   * chip 胶囊形、ms 高（输入栏工具行，与模型 / 权限按钮同形同高，忽略 size）
+   */
+  variant?: 'default' | 'ghost' | 'chip';
   /** 简写：传 options；也可以继续写 <option>/<optgroup> children */
   options?: SelectOption[];
   /** 是否显示搜索框；默认选项多于 8 个时自动开启 */
@@ -39,6 +44,8 @@ export interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectE
   placeholder?: string;
   /** 弹层最小宽度（默认与触发器同宽） */
   menuMinWidth?: number;
+  /** 触发器上显示的内容（默认与选项的 label 相同；如列表里只写模型名、触发器写「供应商 / 模型」） */
+  renderValue?: (option: SelectOption) => React.ReactNode;
 }
 
 const SEARCH_THRESHOLD = 8;
@@ -102,12 +109,14 @@ interface MenuPos {
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select(
   {
     size = 'md',
+    variant = 'default',
     options,
     className,
     children,
     searchable,
     placeholder = tr('请选择'),
     menuMinWidth,
+    renderValue,
     value,
     defaultValue,
     disabled,
@@ -386,7 +395,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
 
   return (
     <div
-      className={cx('cd-dropdown', size === 'sm' && 'cd-dropdown--sm', className)}
+      className={cx(
+        'cd-dropdown',
+        size === 'sm' && 'cd-dropdown--sm',
+        variant !== 'default' && `cd-dropdown--${variant}`,
+        className,
+      )}
       style={style}
       data-open={open || undefined}
     >
@@ -427,7 +441,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       >
         {selected?.icon && <span className="cd-dropdown__icon">{selected.icon}</span>}
         <span className={cx('cd-dropdown__value cd-truncate', !selected && 'is-placeholder')}>
-          {selected ? tr(selected.label) : current || placeholder}
+          {selected
+            ? renderValue
+              ? renderValue(selected)
+              : tr(selected.label)
+            : current || placeholder}
         </span>
         <Chevron />
       </button>

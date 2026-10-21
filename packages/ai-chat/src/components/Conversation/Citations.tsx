@@ -1,5 +1,5 @@
 /**
- * 知识库回答的引用：正文里的 [n] 变成可点击的上标；底部列出来源卡片。
+ * 知识库回答的引用：正文里的 [n] 由 citeRefs.tsx 在 Markdown 中变成可点击的上标；底部列出来源卡片。
  * 点击来源 → 预览片段，可「打开文件」或「在文件夹中显示」（主进程重新检查授权）；笔记直接显示全文。
  */
 import { t, Icon } from '@nomi-ai/ui';
@@ -11,49 +11,6 @@ import { createPortal } from 'react-dom';
 import { kbClient, shortPath, type KbSource } from '../../services/kbClient';
 
 import styles from './Citations.module.css';
-
-/** 把 "…[1][2]…" 拆成文本与引用编号（纯函数，便于测试） */
-export function splitCitations(text: string, valid: Set<number>): Array<string | number> {
-  const out: Array<string | number> = [];
-  let last = 0;
-  for (const m of text.matchAll(/\[(\d{1,2})\]/g)) {
-    const n = Number(m[1]);
-    if (!valid.has(n)) continue;
-    if (m.index! > last) out.push(text.slice(last, m.index));
-    out.push(n);
-    last = m.index! + m[0].length;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
-export const CitedText: React.FC<{
-  text: string;
-  sources: KbSource[];
-  onPick: (s: KbSource) => void;
-}> = ({ text, sources, onPick }) => {
-  const byN = new Map(sources.map((s) => [s.n, s]));
-  return (
-    <>
-      {splitCitations(text, new Set(byN.keys())).map((p, i) =>
-        typeof p === 'string' ? (
-          <React.Fragment key={i}>{p}</React.Fragment>
-        ) : (
-          <button
-            key={i}
-            type="button"
-            className={styles.cite}
-            onClick={() => onPick(byN.get(p)!)}
-            title={t(byN.get(p)!.title)}
-            data-testid="kb-cite"
-          >
-            {p}
-          </button>
-        ),
-      )}
-    </>
-  );
-};
 
 export const SourceList: React.FC<{ sources: KbSource[]; onPick: (s: KbSource) => void }> = ({
   sources,

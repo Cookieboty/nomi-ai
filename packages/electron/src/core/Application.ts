@@ -3,9 +3,19 @@
  * 负责应用初始化、服务注册和生命周期管理
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
-import { app, session } from 'electron';
+import {
+  createSafeStorageCipher,
+  envProviderConfig,
+  findPreset,
+  llmProvidersFromEnv,
+  migrateStoreData,
+} from '@nomi-ai/ai-runtime';
+import type { ProviderQuirks } from '@nomi-ai/gateway';
+import { app, BrowserWindow, safeStorage, session } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -13,13 +23,22 @@ import { ClipboardGateway } from '../ai/ClipboardGateway';
 import { ScreenCapture } from '../ai/ScreenCapture';
 import { TtsElectronNativeProvider } from '../ai/TtsElectronNativeProvider';
 import { registerChatAssetProtocol } from '../chat/assetProtocol';
+import { ChatBackgroundService } from '../chat/ChatBackgroundService';
+import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
+import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
-import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
-import { initCliRouteService } from '../cli/routing/CliRouteService';
+import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
+import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
+import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
+import {
+  gatewayTerminalSource,
+  initTerminalCommands,
+  registerTerminalIpc,
+} from '../gateway/TerminalCommands';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
@@ -28,7 +47,6 @@ import { initKnowledgeService } from '../knowledge/KnowledgeService';
 import { getLocalHubService, initLocalHubService } from '../local/LocalHubService';
 import { getLocalModelService, initLocalModelService } from '../local/LocalModelService';
 import { getMemoryService, initMemoryService } from '../memory/MemoryService';
-import { getModelService } from '../models/ModelService';
 import { OnboardingService } from '../onboarding/OnboardingService';
 import { getSchedulerService, initSchedulerService } from '../schedule/SchedulerService';
 import { getScreenService, initScreenService } from '../screen/ScreenService';
@@ -38,7 +56,16 @@ import { CacheService } from '../services/CacheService';
 import { ConfigService } from '../services/ConfigService';
 import { LoggerService, LogLevel } from '../services/LoggerService';
 import { getUpdateService } from '../services/UpdateService';
+import {
+  planStartup,
+  shouldQuitOnMainClose,
+  shouldRaiseMainOnReactivate,
+  type StartupPlan,
+} from '../startup/startupPlan';
+import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
+import { registerTtsModel } from '../tts/registerTtsModel';
+import { initGatewayRequestLog } from '../usage/GatewayRequestLog';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -63,6 +90,21 @@ export interface IApplication {
   getServiceContainer(): IServiceContainer;
 }
 
+/** 环境变量供应商的显示名与提供 Key 的变量名（与 ai-runtime llmProvidersFromEnv 对应） */
+const ENV_PROVIDER_NAME: Record<string, string> = {
+  deepseek: 'DeepSeek',
+  openai: 'OpenAI',
+  claude: 'Anthropic',
+  gemini: 'Google Gemini',
+  ollama: 'Ollama',
+};
+const ENV_PROVIDER_KEY: Record<string, string> = {
+  deepseek: 'DEEPSEEK_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  claude: 'ANTHROPIC_API_KEY',
+  gemini: 'GEMINI_API_KEY',
+};
+
 export class Application implements IApplication {
   private container: IServiceContainer;
   private logger!: LoggerService;
@@ -75,6 +117,9 @@ export class Application implements IApplication {
   private aiRuntime?: AIRuntimeBootHandle;
   private clipboardGateway?: ClipboardGateway;
   private trayManager?: TrayManager;
+  private startupService?: StartupService;
+  /** start() 走完后才为 true：之前的 macOS activate 等事件不应触发「打开主界面」 */
+  private launched = false;
   private isInitialized = false;
   /** 有后台定时器 / 子进程 / 监听端口 / worker 的服务，退出时统一 stop */
   private readonly lifecycle = new LifecycleRegistry();
@@ -164,11 +209,6 @@ export class Application implements IApplication {
       }
       this.logger.info('Electron应用准备就绪');
 
-      // 模型注册表 / 商店 / 用户导入（cdmodel:// 协议 + models:* IPC）
-      const models = getModelService(this.logger);
-      models.registerProtocol();
-      models.registerIpc();
-
       // 会话消息中的 Markdown 图片本地协议：chat-asset:// → userData/chat/images/<rel>
       registerChatAssetProtocol();
 
@@ -183,6 +223,7 @@ export class Application implements IApplication {
       desktop.attachWindows({
         main: () => this.windowManager.getMainWindow(),
         openChat: () => this.windowManager.createAiChatWindow(),
+        mascotHidden: () => this.windowManager.mascotHidden(),
       });
 
       // 本地知识库：先于 AI runtime 创建（kb_search 工具随桌面工具注册），LLM 调用延迟绑定
@@ -297,12 +338,19 @@ export class Application implements IApplication {
         logger: this.logger as never,
         desktop,
         providers: () => this.aiRuntime?.providers as never,
+        gateway: () => getGatewayService(),
       });
       localLlm.registerIpc();
 
       // 界面主题（设置 → 通用 → 主题），对话窗口与看板娘同步
       const themes = new ThemeService(path.join(app.getPath('userData'), 'theme.json'));
       themes.registerIpc();
+      // 对话主面板背景（设置 → 通用 → 聊天背景）
+      const chatBg = new ChatBackgroundService(
+        path.join(app.getPath('userData'), 'chat-background.json'),
+        path.join(app.getPath('userData'), 'chat', 'images'),
+      );
+      chatBg.registerIpc();
       // 对话窗口一体化标题栏跟随主题（窗口底色 + Windows / Linux 原生按钮配色）
       this.windowManager.chromeTheme = () => themes.get().resolved;
       themes.onChange((st) => {
@@ -310,25 +358,45 @@ export class Application implements IApplication {
         if (w) applyTitleBarTheme(w, st.resolved);
       });
 
-      // 首次启动引导（语言 / 主题 / 角色与声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
+      // 首次启动引导（语言 / 主题 / 声音 / 称呼与语气 / 供应商 / 隐私），显示在对话窗口里
       const onboarding = new OnboardingService({
         userData: app.getPath('userData'),
         openChat: async () => {
           await this.windowManager.createAiChatWindow();
         },
-        listCharacters: async () =>
-          (
-            (await getModelService(this.logger).list()) as Array<{
-              id: string;
-              name: string;
-              origin?: string;
-            }>
-          ).map((m) => ({ id: m.id, name: m.name, source: m.origin })),
       });
       onboarding.registerIpc();
-      if (onboarding.shouldAutoOpen()) {
-        // 等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
-        setTimeout(() => void this.windowManager.createAiChatWindow(), 1500);
+
+      // 启动后默认界面（看板娘 / 软件主界面）：设置与引导里都能改，默认看板娘（历史行为）
+      const startup = new StartupService(path.join(app.getPath('userData'), 'startup.json'));
+      startup.registerIpc();
+      this.startupService = startup;
+      // 看板娘显示开关（工具栏「关闭看板娘」/ 设置里重新打开）：立即显隐，隐藏时静音
+      this.windowManager.mascotHidden = () => !startup.get().showMascot;
+      let showMascot = startup.get().showMascot;
+      startup.onChange((st) => {
+        if (st.showMascot === showMascot) return;
+        showMascot = st.showMascot;
+        this.windowManager.setMascotVisible(showMascot);
+        // 关掉看板娘后保证主界面可达（#55）：主界面没开 / 被藏起时把它打开，避免进入无界面状态
+        if (!showMascot && this.launched) {
+          const chat = this.windowManager.getAiChatWindow();
+          if (!chat || chat.isDestroyed() || !chat.isVisible()) this.openMainInterface();
+        }
+      });
+
+      // 离线 TTS 模型按需下载（不再随安装包分发）；语音已开但缺模型时启动即下载
+      registerTtsModel(this.configService).start();
+      const startupPlan = planStartup({
+        defaultView: startup.get().defaultView,
+        onboardingPending: onboarding.shouldAutoOpen(),
+      });
+      // 关闭主界面时：quit → 完全退出（看板娘、托盘一起）；hide（默认）→ 只关窗口
+      this.windowManager.shouldQuitOnChatClose = () =>
+        shouldQuitOnMainClose(startup.get().closeMain, this.shutdown.isQuitting());
+      if (startupPlan.openMain && startupPlan.delayMs > 0) {
+        // 首次引导：等看板娘窗口先出来，再打开引导（她会在引导中打招呼）
+        setTimeout(() => void this.windowManager.createAiChatWindow(), startupPlan.delayMs);
       }
 
       // 编程助手进度：监视本机 Codex / Claude Code 等会话文件，看板娘提醒完成/失败
@@ -382,34 +450,152 @@ export class Application implements IApplication {
         logger: this.logger as never,
       });
       cliUpdate.registerIpc();
-      const cliProviders = initCliProviderBridge({
-        root: path.join(app.getPath('userData'), 'cli-providers'),
+      const cliRoot = path.join(app.getPath('userData'), 'cli-providers');
+      // 统一网关（docs/design/unified-gateway.md）：首次启动从旧存储迁移，网关跑在独立的 utilityProcess 里。
+      // 旧版本写进 CLI 全局配置的第三方设置在迁移后撤销（§6.3 第 7 步）；撤销全部成功之前，
+      // 终端里的 CLI 可能还带着旧路由令牌，网关继续接受它（§10.2）。
+      let legacyRevoke: RevokeLegacyResult | null = null;
+      const legacyToken = (): string | null => {
+        if (!legacyRevoke?.failed.length) return null;
+        try {
+          return fs.readFileSync(path.join(cliRoot, 'routing.token'), 'utf8').trim() || null;
+        } catch {
+          return null;
+        }
+      };
+      // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
+      const gatewayRequests = initGatewayRequestLog({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        logger: this.logger as never,
+        names: (pid, kid) => {
+          const p = getGatewayService()
+            ?.store.providers()
+            .find((x) => x.id === pid);
+          const k = p?.keys.find((x) => x.id === kid);
+          return { provider: p?.name, key: k ? (k.name ?? k.masked) : undefined };
+        },
+        onTraceChange: () => getGatewayService()?.refresh(),
+      });
+      gatewayRequests.registerIpc();
+      this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
+      const gateway = initGatewayService({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        cipher: createSafeStorageCipher(safeStorage),
+        logger: this.logger as never,
+        onUsage: (e) => void gatewayRequests.add(e),
+        traceDir: () => gatewayRequests.traceDir(),
+        presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
+        // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
+        envProviders: () =>
+          llmProvidersFromEnv()
+            .filter((e) =>
+              e.id === 'ollama'
+                ? Boolean(process.env.OLLAMA_BASE_URL || process.env.OLLAMA_MODEL)
+                : Boolean(e.apiKey),
+            )
+            .map((e) => {
+              const c = envProviderConfig(e);
+              return {
+                id: e.id,
+                name: `${ENV_PROVIDER_NAME[e.id] ?? e.id}（环境变量）`,
+                wire: c.protocol === 'anthropic' ? ('messages' as const) : ('chat' as const),
+                url: c.baseURL ?? '',
+                ...(e.apiKey ? { key: e.apiKey, keyEnv: ENV_PROVIDER_KEY[e.id] } : {}),
+                ...(c.defaultModel && c.defaultModel !== 'default'
+                  ? { model: c.defaultModel }
+                  : {}),
+              };
+            })
+            .filter((e) => e.url),
+        legacy: {
+          nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
+          cliRoot,
+          cliDecrypt: decryptLegacyCliKey,
+          normalizeNomi: (raw) => migrateStoreData(raw).data,
+          token: legacyToken,
+          // 旧本地路由不再启动：网关接管它的端口
+          routeListening: () => false,
+        },
+        broadcast: (channel, payload) => {
+          for (const w of BrowserWindow.getAllWindows())
+            if (!w.isDestroyed()) w.webContents.send(channel, payload);
+        },
+      });
+      gateway.registerIpc();
+      // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
+      gateway.init();
+      // 终端启动命令（unified-gateway §12.6，默认关）：端口 / 令牌 / 分配变化时重新生成脚本
+      const terminal = initTerminalCommands({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        source: gatewayTerminalSource(gateway),
         logger: this.logger as never,
       });
-      const cliRoute = initCliRouteService({
-        root: path.join(app.getPath('userData'), 'cli-providers'),
-        logger: this.logger as never,
-        resolveUpstream: (kind) => getCliProviderBridge()?.resolveUpstream(kind) ?? null,
-      });
-      cliProviders.registerIpc();
-      cliRoute.registerIpc();
-      this.lifecycle.register({ name: 'cli-route', stop: () => cliRoute.stop() });
-      if (cliRoute.getSettings().enabled) void cliRoute.start().catch(() => undefined);
+      registerTerminalIpc(terminal);
+      terminal.refresh();
+      gateway.onChange(() => terminal.refresh());
+      try {
+        legacyRevoke = revokeLegacyGlobalConfig({
+          home: os.homedir(),
+          cliRoot,
+          backupRoot: path.join(app.getPath('userData'), 'gateway', 'backups'),
+          decrypt: decryptLegacyCliKey,
+          logger: this.logger as never,
+        });
+        gateway.setLegacyRevoke(legacyRevoke);
+      } catch (e) {
+        this.logger.warn('revoke legacy CLI config failed', e);
+      }
+      this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,
         defaultCwd: app.getPath('documents'),
-        dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
-        grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
+        // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
+        gateway: {
+          defaults: (kind) => gateway.cliDefaults(kind),
+          launch: (kind, tabId, model) => gateway.cliLaunch(kind, tabId, model),
+          officialEnv: (env) => gateway.officialEnv(env),
+          models: () => gateway.cliModels(),
+        },
+        // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
+        prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
+        // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
+        grokAcp: process.env.NOMI_GROK_ACP !== '0',
+        // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
+        codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
-      // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
-      cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
+      // 官方账号（docs/design/cli-official-accounts.md）：切换后让来源为官方的长驻进程按新登录重拉。
+      // 第三方不再写全局配置，所以不再「切官方账号时停用第三方」（unified-gateway §13 第 2 条）
+      const accounts: AccountService = new AccountService({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        logger: this.logger as never,
+        onActivated: (kind) => {
+          harness.recycleBackend(kind);
+          // 换了号：上一个账号的订阅额度不能再显示
+          getUsageService()?.forgetAccountQuota(kind);
+        },
+        onChanged: () => accounts.broadcastChanged(),
+      });
+      accounts.registerIpc();
+      const accountLogin = new AccountLogin({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        accounts,
+        logger: this.logger as never,
+        emit: broadcastLogin,
+      });
+      accountLogin.registerIpc();
+      this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
         openTab: (o) => harness.openHistorySession(o),
+        accountLabel: (backend, accountId) => {
+          if (backend !== 'codex') return undefined;
+          const a = accounts.findByAccountId('codex', accountId);
+          return a ? (a.identity?.email ?? a.label) : undefined;
+        },
       }).registerIpc();
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
@@ -426,6 +612,7 @@ export class Application implements IApplication {
         const rt = this.aiRuntime;
         desktop.attachRuntime({
           resolveProvider: (role) => rt.resolveProvider(role),
+          lookupProvider: (id) => rt.lookupProvider(id),
           complete: async (messages, role, signal) => {
             const resp = await rt.client.chat.sendMessage({ role, messages, signal });
             return typeof resp?.content === 'string' ? resp.content : '';
@@ -464,8 +651,9 @@ export class Application implements IApplication {
         return permission === 'media';
       });
 
-      // 创建主窗口
-      await this.windowManager.createMainWindow();
+      // 创建看板娘窗口（始终创建：定时任务 / 提醒 / 编程助手进度都靠它播报；
+      // 默认界面为「软件主界面」时它不抢焦点）
+      await this.windowManager.createMainWindow({ activate: startupPlan.activateMascot });
       // 提醒调度：主窗口创建后开始（错过的提醒要在看板娘气泡里播报）
       desktop.startReminders();
       kb.start();
@@ -475,6 +663,10 @@ export class Application implements IApplication {
 
       // 托盘：一键切换 AI provider
       this.startTray();
+
+      // 默认界面为「软件主界面」：看板娘就绪后直接打开主界面；失败只记日志，仍可用看板娘
+      this.launched = true;
+      if (startupPlan.openMain && startupPlan.delayMs === 0) this.openMainInterface(startupPlan);
 
       this.logger.info('应用启动完成');
       eventBus.emit('app:started');
@@ -518,12 +710,39 @@ export class Application implements IApplication {
     }
   }
 
+  private openMainInterface(plan?: Pick<StartupPlan, 'activateMain'>): void {
+    this.windowManager.createAiChatWindow({ activate: plan?.activateMain ?? true }).catch((error) =>
+      this.logger.warn('启动时打开主界面失败，保留看板娘', {
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
+
+  /**
+   * 已运行实例被再次唤起（第二实例 / macOS Dock / Windows 托盘左键）：
+   * 默认界面为「软件主界面」时把主界面带到前台，返回 true；否则返回 false，调用方保持历史行为。
+   */
+  raiseMainOnReactivate(): boolean {
+    if (!this.launched || !this.startupService) return false;
+    if (!shouldRaiseMainOnReactivate(this.startupService.get().defaultView)) return false;
+    this.openMainInterface();
+    return true;
+  }
+
   /** 系统托盘（provider 快速切换）；失败不影响启动。 */
   private startTray(): void {
     const providers = this.aiRuntime?.providers;
     if (!providers || this.trayManager) return;
+    const gateway = getGatewayService();
     this.trayManager = new TrayManager({
       providers,
+      models: gateway
+        ? {
+            state: () => gateway.state(),
+            select: (ref) => gateway.setAssignment('nomi', { models: { main: ref } }),
+            onChange: (fn) => gateway.onChange(fn),
+          }
+        : undefined,
       logger: this.logger,
       openChat: () => {
         void this.windowManager.createAiChatWindow();
@@ -534,8 +753,8 @@ export class Application implements IApplication {
       openDesktopPanel: () => {
         void this.windowManager.openProviderPanel('ai:desktop:open-panel');
       },
+      onActivate: () => this.raiseMainOnReactivate(),
       quit: () => app.quit(),
-      models: getModelService(this.logger),
       screenMemory: getScreenService()
         ? {
             active: () => getScreenService()!.active(),
@@ -803,6 +1022,8 @@ export class Application implements IApplication {
       if (this.windowManager.getMainWindow() === null) {
         await this.windowManager.createMainWindow();
       }
+      // 默认界面为「软件主界面」时，点 Dock 图标回到主界面
+      this.raiseMainOnReactivate();
     });
 
     // 应用退出前：必须同步 preventDefault，等 stop() 真正完成后再 app.exit(0)；

@@ -21,7 +21,7 @@
 }
 .tool {
   display: inline-flex;
-  gap: 4px;
+  gap: var(--cd-space-1);
   align-items: center;
 }
 .section {
@@ -31,5 +31,5 @@
 }
 .h3 {
   margin: 0;
-  font-size: var(--cd-font-size-md, 14px);
+  font-size: var(--cd-font-size-md);
 }

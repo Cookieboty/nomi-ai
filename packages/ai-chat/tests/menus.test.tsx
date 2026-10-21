@@ -30,25 +30,35 @@ const deleteConversation = vi.fn(async (id: string) => {
   }
 });
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
-    state: {
-      messages: [],
-      ipcClient: {
-        listConversations: async () => list,
-        currentConversationId: () => currentId,
-        conversationStore: () => ({
-          updateMeta,
-          upsertFromTab: () => undefined,
-          list: () => [],
-          removeByTabId: () => undefined,
-        }),
-        deleteConversation,
-      },
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑。
+// 首次调用时才建对象：此时文件顶层的 vi.fn 已初始化。
+vi.mock('../src/contexts/AiChatContext', () => {
+  let api: unknown;
+  return {
+    useAiChat: () => {
+      if (api) return api;
+      const store = {
+        updateMeta,
+        upsertFromTab: () => undefined,
+        list: () => [],
+        removeByTabId: () => undefined,
+      };
+      api = {
+        state: {
+          messages: [],
+          ipcClient: {
+            listConversations: async () => list,
+            currentConversationId: () => currentId,
+            conversationStore: () => store,
+            deleteConversation,
+          },
+        },
+        actions: { loadChatHistory, clearChatHistory },
+      };
+      return api;
     },
-    actions: { loadChatHistory, clearChatHistory },
-  }),
-}));
+  };
+});
 
 const tab = (o: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   id: 't1',
@@ -92,6 +102,8 @@ beforeEach(() => {
   clearChatHistory.mockClear();
   deleteConversation.mockClear();
   currentId = 'b';
+  tabsState.tabs = [tab({ id: 'main', backend: 'nomi', title: 'Nomi' }), tab({})];
+  tabsState.activeTabId = 't1';
   list.splice(
     0,
     list.length,
@@ -237,6 +249,32 @@ describe('one conversation context menu', () => {
     expect(r.getByTestId('conversation-close')).toBeTruthy();
     fireEvent.click(r.getByTestId('fork-cross'));
     expect(onForkTab).toHaveBeenCalledWith('t1', 'cross');
+  });
+
+  it('the tab menu can close tabs to the left or right', async () => {
+    const invoke = mockIpc();
+    tabsState.tabs = [
+      tab({ id: 'main', backend: 'nomi', title: 'Nomi' }),
+      tab({ id: 'left', title: '左侧' }),
+      tab({ id: 't1', title: '当前' }),
+      tab({ id: 'right', title: '右侧' }),
+    ];
+    const r = render(
+      <HarnessTabsProvider>
+        <ChatTabs />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => r.getByTestId('chat-tab-2'));
+    fireEvent.contextMenu(r.getByTestId('chat-tab-2'));
+    expect(r.getByTestId('conversation-close-left')).toBeTruthy();
+    expect(r.getByTestId('conversation-close-right')).toBeTruthy();
+    fireEvent.click(r.getByTestId('conversation-close-left'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'left'));
+    expect(invoke).not.toHaveBeenCalledWith('ai:harness:tab-close', 'right');
+
+    fireEvent.contextMenu(r.getByTestId('chat-tab-2'));
+    fireEvent.click(r.getByTestId('conversation-close-right'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'right'));
   });
 });
 

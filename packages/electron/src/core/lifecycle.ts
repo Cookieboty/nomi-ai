@@ -77,6 +77,8 @@ export interface ShutdownOptions {
 export function createShutdown(opts: ShutdownOptions): {
   stop(): Promise<void>;
   requestQuit(): void;
+  /** 已进入退出流程（stop 或 requestQuit 被调用过） */
+  isQuitting(): boolean;
 } {
   let stopPromise: Promise<void> | undefined;
   let quitRequested = false;
@@ -112,5 +114,5 @@ export function createShutdown(opts: ShutdownOptions): {
       .finally(() => opts.exit());
   };
 
-  return { stop, requestQuit };
+  return { stop, requestQuit, isQuitting: () => quitRequested || stopPromise !== undefined };
 }

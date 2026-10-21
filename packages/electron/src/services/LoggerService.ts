@@ -41,11 +41,23 @@ export class LoggerService implements ILoggerService {
   private logFile: string;
   private maxLogSize = 10 * 1024 * 1024; // 10MB
   private maxLogFiles = 5;
+  /**
+   * 写盘缓冲：原来每条日志都同步 existsSync ×2 + statSync + appendFileSync，流式对话时日志密集，
+   * 直接卡主进程。现在攒一批（FLUSH_MS）异步追加，错误级别立即写；文件大小在内存里累计，用于轮转；
+   * 进程退出时把剩下的同步写完。
+   */
+  private pending: string[] = [];
+  private fileSize = -1;
+  private writing = false;
+  private flushTimer: NodeJS.Timeout | null = null;
+  private dirReady = false;
+  private static readonly FLUSH_MS = 100;
 
   constructor() {
     this.logDir = path.join(app.getPath('userData'), 'logs');
     this.logFile = path.join(this.logDir, 'app.log');
     this.ensureLogDirectory();
+    process.once('exit', () => this.flushSync());
   }
 
   /**
@@ -142,22 +154,86 @@ export class LoggerService implements ILoggerService {
   }
 
   /**
-   * 输出到文件
+   * 输出到文件（缓冲 + 异步批量追加）
    */
   private logToFile(entry: LogEntry): void {
-    this.ensureLogDirectory();
     try {
-      const logLine = JSON.stringify(entry) + '\n';
+      this.pending.push(JSON.stringify(entry) + '\n');
+    } catch (error) {
+      console.error('Failed to write to log file:', error);
+      return;
+    }
+    if (entry.level === LogLevel.ERROR) this.scheduleFlush(0);
+    else this.scheduleFlush(LoggerService.FLUSH_MS);
+  }
 
-      // 检查文件大小，如果超过限制则轮转
-      if (fs.existsSync(this.logFile)) {
-        const stats = fs.statSync(this.logFile);
-        if (stats.size > this.maxLogSize) {
-          this.rotateLogFile();
-        }
+  private scheduleFlush(ms: number): void {
+    if (this.flushTimer) {
+      if (ms > 0) return;
+      clearTimeout(this.flushTimer);
+    }
+    this.flushTimer = setTimeout(() => {
+      this.flushTimer = null;
+      this.flush();
+    }, ms);
+    this.flushTimer.unref?.();
+  }
+
+  /** 取出缓冲并在需要时先轮转；返回要写的内容（没有则 null） */
+  private takeBatch(): string | null {
+    if (!this.pending.length) return null;
+    if (!this.dirReady) this.ensureLogDirectory();
+    const batch = this.pending.join('');
+    this.pending = [];
+    if (this.fileSize < 0) {
+      try {
+        this.fileSize = fs.existsSync(this.logFile) ? fs.statSync(this.logFile).size : 0;
+      } catch {
+        this.fileSize = 0;
       }
+    }
+    if (this.fileSize > this.maxLogSize) {
+      this.rotateLogFile();
+      this.fileSize = 0;
+    }
+    return batch;
+  }
 
-      fs.appendFileSync(this.logFile, logLine);
+  /** 异步写出缓冲（同一时间只有一次写入在途，写完若又有新日志就接着写） */
+  flush(): void {
+    if (this.writing) return;
+    const batch = this.takeBatch();
+    if (batch === null) return;
+    this.writing = true;
+    const done = (error: NodeJS.ErrnoException | null) => {
+      this.writing = false;
+      if (error) console.error('Failed to write to log file:', error);
+      else this.fileSize += Buffer.byteLength(batch);
+      if (this.pending.length) this.scheduleFlush(0);
+    };
+    fs.appendFile(this.logFile, batch, (error) => {
+      // 运行中日志目录被删了：重建后再试一次
+      if (error?.code === 'ENOENT') {
+        this.ensureLogDirectory();
+        this.fileSize = 0;
+        fs.appendFile(this.logFile, batch, done);
+        return;
+      }
+      done(error);
+    });
+  }
+
+  /** 同步写出缓冲（进程退出 / 测试） */
+  flushSync(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    const batch = this.takeBatch();
+    if (batch === null) return;
+    try {
+      fs.appendFileSync(this.logFile, batch);
+      this.fileSize += Buffer.byteLength(batch);
     } catch (error) {
       console.error('Failed to write to log file:', error);
     }
@@ -171,6 +247,7 @@ export class LoggerService implements ILoggerService {
       if (!fs.existsSync(this.logDir)) {
         fs.mkdirSync(this.logDir, { recursive: true });
       }
+      this.dirReady = true;
     } catch (error) {
       console.error('Failed to create log directory:', error);
     }

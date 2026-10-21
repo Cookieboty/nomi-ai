@@ -2,7 +2,7 @@
  * 渲染后端无关的看板娘 seam 名称。
  *
  * 历史原因，服务 key（`ctx.live2d`）、IPC facade（`client.live2d.*`）与事件名（`live2d:touch` 等）
- * 仍沿用旧名以保持协议兼容；实际渲染后端已是 VRM（见 renderer/src/mascot）。
+ * 仍沿用旧名以保持协议兼容；实际渲染的是 2D 看板娘 Nomi（见 renderer/src/mascot）。
  * 新代码请使用这里的 Mascot* 名称。
  */
 export type {

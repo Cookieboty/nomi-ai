@@ -11,6 +11,7 @@ import {
   ProviderService,
   ProviderStore,
   RoutedLLMRegistry,
+  GATEWAY_PROVIDER_ID,
   TrackedProvider,
   createSafeStorageCipher,
   estimateTokens,
@@ -254,6 +255,83 @@ describe('TrackedProvider 调用明细（用量与计费）', () => {
     expect(e.outputTokens).toBeGreaterThan(0);
   });
 
+  describe('计费模型：用解析后的实际模型，不记 default 占位符 / 映射前别名', () => {
+    const usage = { promptTokens: 10, completionTokens: 5, totalTokens: 15 };
+    /** 模拟 AiSdkLlmProvider：响应 / usage 末包里回报解析后的真实模型 */
+    const resolving = (resolved: string, withUsage = true): LLMProvider => ({
+      id: 'k1',
+      async chat(r) {
+        return {
+          reqId: r.reqId,
+          provider: 'k1',
+          model: resolved,
+          content: 'ok',
+          finishReason: 'stop',
+          ...(withUsage ? { usage } : {}),
+        };
+      },
+      async *stream() {
+        yield { type: 'delta', content: 'ok' } as ChatChunk;
+        if (withUsage) yield { type: 'usage', usage, model: resolved } as ChatChunk;
+        yield { type: 'done', finishReason: 'stop' } as ChatChunk;
+      },
+      abort() {},
+    });
+    const modelOf = (sink: ReturnType<typeof sinkOf>) => sink.recordCall.mock.calls[0]![0].model;
+
+    it('chat / stream / agent（withTools）：请求 default → 记 provider 实际解析出的默认模型', async () => {
+      const mk = () => {
+        const sink = sinkOf();
+        const inner = { ...resolving('gpt-4o'), withTools: () => resolving('gpt-4o') };
+        return { sink, p: new TrackedProvider('p1', [inner], sink, 'gpt-4o') };
+      };
+      const a = mk();
+      await a.p.chat(req({ model: 'default' }));
+      expect(modelOf(a.sink)).toBe('gpt-4o');
+      const b = mk();
+      for await (const c of b.p.stream(req({ model: 'default', stream: true }))) void c;
+      expect(modelOf(b.sink)).toBe('gpt-4o');
+      const c = mk();
+      await c.p.withTools([]).chat(req({ model: 'default' }));
+      expect(modelOf(c.sink)).toBe('gpt-4o');
+      const d = mk();
+      for await (const x of d.p.withTools([]).stream(req({ model: 'default', stream: true })))
+        void x;
+      expect(modelOf(d.sink)).toBe('gpt-4o');
+    });
+
+    it('别名 / 通配映射：记映射后的真实模型；显式真实模型不变', async () => {
+      const sink = sinkOf();
+      const p = new TrackedProvider('p1', [resolving('claude-sonnet-4-5')], sink, undefined, [
+        { from: 'sonnet', to: 'claude-sonnet-4-5' },
+      ]);
+      await p.chat(req({ model: 'sonnet' }));
+      expect(modelOf(sink)).toBe('claude-sonnet-4-5');
+      const sink2 = sinkOf();
+      const p2 = new TrackedProvider('p1', [resolving('gpt-4o')], sink2, 'x');
+      await p2.chat(req({ model: 'gpt-4o' }));
+      expect(modelOf(sink2)).toBe('gpt-4o');
+    });
+
+    it('无 usage（估算）且上游没回报模型：自己按 默认模型 / modelMap 解析，仍不记占位符或别名', async () => {
+      const mk = (m: string, map?: { from: string; to: string }[], dflt?: string) => {
+        const sink = sinkOf();
+        const inner = resolving('', false);
+        return { sink, p: new TrackedProvider('p1', [inner], sink, dflt, map), m };
+      };
+      const a = mk('default', undefined, 'gpt-4o');
+      await a.p.chat(req({ model: 'default' }));
+      expect(modelOf(a.sink)).toBe('gpt-4o');
+      expect(a.sink.recordCall.mock.calls[0]![0].estimated).toBe(true);
+      const b = mk('x', [{ from: '*', to: 'real-model' }]);
+      for await (const c of b.p.stream(req({ model: 'alias-1', stream: true }))) void c;
+      expect(modelOf(b.sink)).toBe('real-model');
+      const c = mk('x', [{ from: 'sonnet', to: 'claude-sonnet-4-5' }], 'gpt-4o');
+      await c.p.chat(req({ model: 'sonnet' }));
+      expect(modelOf(c.sink)).toBe('claude-sonnet-4-5');
+    });
+  });
+
   it('stream：取 usage 末包与模型；失败的调用不记明细；key 回退只记最终成功的一次', async () => {
     const sink = sinkOf();
     const p = new TrackedProvider(
@@ -384,6 +462,56 @@ describe('RoutedLLMRegistry routing', () => {
     return fakeProvider(o.id, { text: `${o.id}@${o.baseURL}` });
   };
   beforeEach(() => (built.length = 0));
+
+  it('gateway route wins when available, per role; falls back to the store when it is not', async () => {
+    const store = new ProviderStore({ cipher: fakeCipher });
+    const a = store.upsert({
+      presetId: 'custom',
+      baseURL: 'http://a.test/v1',
+      apiKey: 'ka-123456',
+    });
+    store.setActive(a.id);
+    let up = true;
+    const gateway = {
+      resolve: (role: 'chat' | 'agent-tools' | 'summary') =>
+        up
+          ? {
+              baseURL: 'http://127.0.0.1:18721/v1',
+              token: 'nomi-gw-nomi-x',
+              model: role === 'summary' ? 'deepseek/deepseek-v4-flash' : 'kimi/kimi-k3',
+              protocol: 'openai-chat' as const,
+              receiver:
+                role === 'summary'
+                  ? { id: 'deepseek', baseURL: 'https://api.deepseek.com/v1' }
+                  : { id: 'kimi', baseURL: 'https://api.moonshot.cn/v1' },
+            }
+          : null,
+    };
+    const reg = new RoutedLLMRegistry({ store, factory, gateway });
+    const chat = reg.resolve('chat')!;
+    expect(chat).toMatchObject({ provider: { id: GATEWAY_PROVIDER_ID }, model: 'kimi/kimi-k3' });
+    expect(built.at(-1)).toMatchObject({
+      baseURL: 'http://127.0.0.1:18721/v1',
+      apiKey: 'nomi-gw-nomi-x',
+      defaultModel: 'kimi/kimi-k3',
+      protocol: 'openai-chat',
+      // 工具结果的接收者是真正的上游，不是网关回环地址
+      receiver: { id: 'kimi', baseURL: 'https://api.moonshot.cn/v1' },
+    });
+    expect(reg.resolve('summary')!.model).toBe('deepseek/deepseek-v4-flash');
+    expect(built.at(-1)!.receiver).toEqual({
+      id: 'deepseek',
+      baseURL: 'https://api.deepseek.com/v1',
+    });
+    // 同一地址 / 令牌 / 协议 / 上游复用同一个实例
+    reg.resolve('summary');
+    const n = built.length;
+    reg.resolve('summary');
+    expect(built.length).toBe(n);
+    // 网关不可用：退回旧存储
+    up = false;
+    expect(reg.resolve('chat')!.provider.id).toBe(a.id);
+  });
 
   it('precedence: override > role route > active > env order; switching is live', async () => {
     const store = new ProviderStore({ cipher: fakeCipher });
@@ -524,7 +652,7 @@ describe('ProviderService', () => {
 });
 
 describe('ProviderIpcServer', () => {
-  it('exposes ai:providers:* channels, broadcasts masked state on change', async () => {
+  it('exposes only the remaining read / switch channels, broadcasts masked state on change', async () => {
     const { createFakeIpcAdapter } = await import('./helpers/fakeIpc');
     const { ProviderIpcServer, PROVIDERS_CHANGED_EVENT } = await import('../src/providers');
     const adapter = createFakeIpcAdapter();
@@ -533,16 +661,19 @@ describe('ProviderIpcServer', () => {
     const svc = new ProviderService({ store, envEntries: [], getRegistry: () => undefined });
     const server = new ProviderIpcServer({ adapter, service: svc });
     server.start();
-    expect(server.channels).toContain('ai:providers:upsert');
-    const view = (await adapter.invoke(7, 'ai:providers:upsert', {
-      presetId: 'qwen',
-      apiKey: 'dashscope-secret-1',
-    })) as { id: string };
+    // 增删改、任务路由、Key 管理已由统一网关取代
+    expect([...server.channels].sort()).toEqual([
+      'ai:providers:meta',
+      'ai:providers:presets',
+      'ai:providers:setActive',
+      'ai:providers:state',
+    ]);
+    const view = svc.upsert({ presetId: 'qwen', apiKey: 'dashscope-secret-1' });
     await adapter.invoke(7, 'ai:providers:setActive', view.id);
     const changed = wc.sent.filter((s) => s.channel === PROVIDERS_CHANGED_EVENT);
     expect(changed.length).toBeGreaterThanOrEqual(2);
     expect(JSON.stringify(wc.sent)).not.toContain('dashscope-secret-1');
-    await expect(adapter.invoke(7, 'ai:providers:remove', 42)).rejects.toThrow(/字符串/);
+    await expect(adapter.invoke(7, 'ai:providers:setActive', 42)).rejects.toThrow(/字符串/);
     server.stop();
     expect(adapter.handlers.size).toBe(0);
   });

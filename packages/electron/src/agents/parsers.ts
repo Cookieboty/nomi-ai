@@ -41,6 +41,12 @@ export interface SessionInfo {
   /** 父会话 id（子代理 / sidechain） */
   parentId?: string;
   cwd?: string;
+  /** 会话实际使用的模型（从 CLI 会话事件读取，而不是 UI 默认值） */
+  model?: string;
+  /** 会话实际使用的推理档位（若 CLI 记录了） */
+  reasoningEffort?: string;
+  /** CLI 记录的权限 / 安全模式（各 CLI 原生值） */
+  permissionMode?: string;
   /** 第一条用户提问（截断） */
   title?: string;
   phase: LastPhase;
@@ -64,7 +70,11 @@ export function readTail(content: string, max = TAIL): string {
 }
 
 export function jsonlEvents(text: string, limit = 400): Array<Record<string, unknown>> {
-  const lines = text.split('\n').filter((l) => l.trim().startsWith('{'));
+  // Windows 上的工具可能写出 UTF-8 BOM / CRLF：去掉 BOM，否则首行（常含会话 id / cwd）被丢弃
+  const lines = text
+    .replace(/^\uFEFF/, '')
+    .split('\n')
+    .filter((l) => l.trim().startsWith('{'));
   const out: Array<Record<string, unknown>> = [];
   for (const line of lines.slice(-limit)) {
     try {
@@ -78,6 +88,30 @@ export function jsonlEvents(text: string, limit = 400): Array<Record<string, unk
 }
 
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
+
+function codexPermissionMode(payload: Record<string, unknown>): string | undefined {
+  const explicit = str(payload.permission_mode) ?? str(payload.permissionMode);
+  if (explicit) return explicit;
+  const rawSandbox = payload.sandbox_policy ?? payload.sandboxPolicy ?? payload.sandbox_mode;
+  const sandbox =
+    typeof rawSandbox === 'string'
+      ? rawSandbox
+      : rawSandbox && typeof rawSandbox === 'object'
+        ? str(
+            (rawSandbox as Record<string, unknown>).type ??
+              (rawSandbox as Record<string, unknown>).mode,
+          )
+        : undefined;
+  const approval = str(payload.approval_policy) ?? str(payload.approvalPolicy);
+  // 与 permissionLaunch('codex') 的启动参数互逆：sandbox 与 approval 合起来才是 Nomi 的档位。
+  // read-only 同时对应「计划」和「逐项确认」；回放成「逐项确认」，不给续接的会话凭空加计划前缀。
+  const sb = sandbox?.toLowerCase().replace(/[_\s]+/g, '-');
+  if (sb === 'danger-full-access' || sb === 'dangerfullaccess') return 'bypass';
+  if (sb === 'read-only' || sb === 'readonly') return 'manual';
+  if (sb === 'workspace-write' || sb === 'workspacewrite')
+    return approval?.toLowerCase().replace(/_/g, '-') === 'on-request' ? 'auto' : 'acceptEdits';
+  return sandbox ?? approval;
+}
 const ts = (v: unknown): number | undefined => {
   if (typeof v === 'number' && Number.isFinite(v)) return v > 1e12 ? v : v * 1000;
   if (typeof v === 'string') {
@@ -91,6 +125,11 @@ const ts = (v: unknown): number | undefined => {
 export function cleanTitle(raw: string | undefined, max = 80): string | undefined {
   if (!raw) return undefined;
   let s = raw;
+  // Nomi 换工作目录 / 分叉时带入的前文（cli/contextCarry.ts）：标题取用户原话
+  if (/^\s*\[Nomi\]/.test(s)) {
+    const end = s.indexOf('</previous_conversation>\n\n---\n\n');
+    if (end >= 0) s = s.slice(end + '</previous_conversation>\n\n---\n\n'.length);
+  }
   // Claude Code 的 slash 命令包装 / 本地命令输出
   if (/^\s*<(command-name|local-command-stdout|command-message|system-reminder)/.test(s)) {
     const m = /<command-name>([^<]+)<\/command-name>/.exec(s);
@@ -141,6 +180,12 @@ export function parseClaudeSession(head: string, tail: string): SessionInfo {
   for (const e of jsonlEvents(head, 200)) {
     info.sessionId ??= str(e.sessionId);
     info.cwd ??= str(e.cwd);
+    const message = e.message as Record<string, unknown> | undefined;
+    info.model = str(message?.model) ?? str(e.model) ?? info.model;
+    info.reasoningEffort =
+      str(e.effort) ?? str(e.perTurnEffort) ?? str(message?.effort) ?? info.reasoningEffort;
+    info.permissionMode =
+      str(e.permissionMode) ?? str(message?.permissionMode) ?? info.permissionMode;
     if (e.isSidechain === true && !info.parentId) info.parentId = str(e.sessionId);
     if (!info.title && e.type === 'user' && e.isMeta !== true && e.isSidechain !== true) {
       const msg = e.message as Record<string, unknown> | undefined;
@@ -156,6 +201,12 @@ export function parseClaudeSession(head: string, tail: string): SessionInfo {
     const t = String(e.type ?? '');
     info.sessionId ??= str(e.sessionId);
     info.cwd ??= str(e.cwd);
+    const message = e.message as Record<string, unknown> | undefined;
+    info.model = str(message?.model) ?? str(e.model) ?? info.model;
+    info.reasoningEffort =
+      str(e.effort) ?? str(e.perTurnEffort) ?? str(message?.effort) ?? info.reasoningEffort;
+    info.permissionMode =
+      str(e.permissionMode) ?? str(message?.permissionMode) ?? info.permissionMode;
     if (t === 'result') {
       // stream-json / -p 模式
       const err = e.is_error === true || String(e.subtype ?? '').startsWith('error');
@@ -214,6 +265,15 @@ export function parseCodexSession(head: string, tail: string): SessionInfo {
     if (e.type === 'session_meta') {
       info.sessionId ??= str(p.id);
       info.cwd ??= str(p.cwd);
+      info.model = str(p.model) ?? info.model;
+      info.reasoningEffort = str(p.reasoning_effort) ?? str(p.effort) ?? info.reasoningEffort;
+      info.permissionMode = codexPermissionMode(p) ?? info.permissionMode;
+    }
+    if (e.type === 'turn_context') {
+      info.model = str(p.model) ?? info.model;
+      info.cwd ??= str(p.cwd);
+      info.reasoningEffort = str(p.reasoning_effort) ?? str(p.effort) ?? info.reasoningEffort;
+      info.permissionMode = codexPermissionMode(p) ?? info.permissionMode;
     }
     // 旧格式第一行就是 meta：{ id, timestamp, instructions }
     if (!e.type && str(e.id)) info.sessionId ??= str(e.id);
@@ -230,6 +290,12 @@ export function parseCodexSession(head: string, tail: string): SessionInfo {
     const t = String(e.type ?? '');
     const p = (e.payload ?? {}) as Record<string, unknown>;
     const pt = String(p.type ?? '');
+    if (t === 'session_meta' || t === 'turn_context') {
+      info.model = str(p.model) ?? info.model;
+      info.cwd ??= str(p.cwd);
+      info.reasoningEffort = str(p.reasoning_effort) ?? str(p.effort) ?? info.reasoningEffort;
+      info.permissionMode = codexPermissionMode(p) ?? info.permissionMode;
+    }
     const at = ts(e.timestamp);
     // 新格式
     if (t === 'event_msg') {
@@ -303,33 +369,225 @@ export function parseCodexSession(head: string, tail: string): SessionInfo {
   return info;
 }
 
+/** Grok Build 的 updates.jsonl：尽力提取会话元信息，兼容 ACP update / 旧版顶层字段。 */
+export function parseGrokSession(text: string, fallbackSessionId?: string): SessionInfo {
+  const info: SessionInfo = { phase: 'unknown', sessionId: fallbackSessionId };
+  for (const e of jsonlEvents(text, 1000)) {
+    const params = (e.params ?? e) as Record<string, unknown>;
+    const update = (params.update ?? params) as Record<string, unknown>;
+    info.sessionId ??= str(e.sessionId) ?? str(params.sessionId) ?? str(update.sessionId);
+    info.cwd ??= str(e.cwd) ?? str(params.cwd) ?? str(update.cwd);
+    const usage = (update.usage ?? params.usage ?? e.usage) as Record<string, unknown> | undefined;
+    const modelUsage = usage?.modelUsage as Record<string, unknown> | undefined;
+    const model = modelUsage && Object.keys(modelUsage).find((x) => x && x !== 'unknown');
+    info.model = model ?? str(usage?.model) ?? str(update.model) ?? str(params.model) ?? info.model;
+    const effort =
+      str(update.reasoningEffort) ?? str(params.reasoningEffort) ?? str(e.reasoningEffort);
+    info.reasoningEffort = effort ?? info.reasoningEffort;
+    info.permissionMode =
+      str(update.currentModeId) ??
+      str(params.currentModeId) ??
+      str(e.currentModeId) ??
+      info.permissionMode;
+    const title =
+      str(update.prompt) ?? str(update.userMessage) ?? str(params.prompt) ?? str(e.prompt);
+    if (!info.title) info.title = cleanTitle(title);
+    const at = ts(e.timestamp ?? e.time ?? update.timestamp);
+    if (at) info.lastAt = at;
+    if (str(update.sessionUpdate) === 'turn_completed') info.phase = 'turn-done';
+  }
+  return info;
+}
+
 // ---------------------------------------------------------------- Gemini CLI
+
+export interface GeminiChat {
+  sessionId?: string;
+  startTime?: string;
+  lastUpdated?: string;
+  /** 'main' | 'subagent'（0.62 起写在头部；旧文件没有） */
+  kind?: string;
+  summary?: string;
+  messages: Array<Record<string, unknown>>;
+}
+
+/**
+ * Gemini CLI 会话文件 → 头部 + 消息列表。兼容两种格式：
+ * - 旧版 `session-*.json`：一整份 `{ sessionId, messages: [...] }`
+ * - 0.62 起 `session-*.jsonl`：首行头部，之后每行一条消息（同一 id 会被重写多次，后写的为准），
+ *   `{ $set: {...} }` 行更新头部字段
+ * 截断的 / 正在写入的半行直接跳过。
+ */
+export function foldGeminiChat(raw: string): GeminiChat {
+  const trimmed = raw.trimStart();
+  if (trimmed.startsWith('{') && !trimmed.includes('\n{')) {
+    try {
+      const j = JSON.parse(trimmed) as Record<string, unknown>;
+      if (Array.isArray(j.messages)) {
+        return {
+          sessionId: str(j.sessionId),
+          startTime: str(j.startTime),
+          lastUpdated: str(j.lastUpdated),
+          kind: str(j.kind),
+          summary: str(j.summary),
+          messages: j.messages as Array<Record<string, unknown>>,
+        };
+      }
+    } catch {
+      /* 不是整份 JSON：按 JSONL 继续 */
+    }
+  }
+  const head: Record<string, unknown> = {};
+  const order: string[] = [];
+  const byId = new Map<string, Record<string, unknown>>();
+  let n = 0;
+  for (const line of raw.split('\n')) {
+    const l = line.trim();
+    if (!l.startsWith('{')) continue;
+    let o: Record<string, unknown>;
+    try {
+      o = JSON.parse(l) as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    if (o.$set && typeof o.$set === 'object') {
+      Object.assign(head, o.$set);
+      continue;
+    }
+    if (typeof o.type === 'string' && ('content' in o || 'toolCalls' in o)) {
+      const id = str(o.id) ?? `#${n++}`;
+      if (!byId.has(id)) order.push(id);
+      byId.set(id, o);
+      continue;
+    }
+    if (str(o.sessionId)) Object.assign(head, o);
+  }
+  return {
+    sessionId: str(head.sessionId),
+    startTime: str(head.startTime),
+    lastUpdated: str(head.lastUpdated),
+    kind: str(head.kind),
+    summary: str(head.summary),
+    messages: order.map((id) => byId.get(id)!),
+  };
+}
+
+/** Gemini 消息内容：字符串，或 `[{ text }]` 分段（没有 type 字段） */
+export function geminiText(content: unknown): string | undefined {
+  if (typeof content === 'string') return content || undefined;
+  if (Array.isArray(content)) {
+    const parts = content
+      .map((c) => (c && typeof c === 'object' ? str((c as Record<string, unknown>).text) : str(c)))
+      .filter((x): x is string => Boolean(x));
+    return parts.length ? parts.join('\n') : undefined;
+  }
+  return undefined;
+}
 
 export function parseGeminiSession(raw: string): SessionInfo {
   const info: SessionInfo = { phase: 'unknown' };
-  try {
-    const j = JSON.parse(raw) as {
-      sessionId?: string;
-      projectHash?: string;
-      messages?: Array<Record<string, unknown>>;
-      lastUpdated?: string;
-    };
-    info.sessionId = str(j.sessionId);
-    const msgs = Array.isArray(j.messages) ? j.messages : [];
-    const firstUser = msgs.find((m) => m.type === 'user');
-    info.title = cleanTitle(contentText(firstUser?.content));
-    const last = msgs[msgs.length - 1];
-    info.lastAt = ts(last?.timestamp) ?? ts(j.lastUpdated);
-    if (!last) return info;
-    if (last.type === 'gemini' || last.type === 'model') {
-      const calls = last.toolCalls as unknown[] | undefined;
-      info.phase = Array.isArray(calls) && calls.length ? 'tool' : 'turn-done';
-      info.detail = cleanTitle(contentText(last.content), 120);
-    } else if (last.type === 'error') info.phase = 'error';
-    else info.phase = 'working';
-  } catch {
-    /* 正在写入的半份 JSON */
+  const j = foldGeminiChat(raw);
+  info.sessionId = j.sessionId;
+  const msgs = j.messages;
+  const firstUser = msgs.find((m) => m.type === 'user');
+  info.title = cleanTitle(j.summary) ?? cleanTitle(geminiText(firstUser?.content));
+  // Gemini writes the effective model on each model response. Newer versions
+  // may also persist thinking / permission settings alongside that response;
+  // keep the last observed value so opening history reflects the actual CLI.
+  for (const m of msgs) {
+    const thinking = m.thinkingConfig as Record<string, unknown> | undefined;
+    info.model =
+      str(m.model) ??
+      str(m.modelName) ??
+      str((m.metadata as Record<string, unknown> | undefined)?.model) ??
+      info.model;
+    info.reasoningEffort =
+      str(m.reasoningEffort) ??
+      str(m.reasoning_effort) ??
+      str(m.effort) ??
+      str(m.reasoning) ??
+      str(thinking?.effort) ??
+      str(thinking?.thinkingLevel) ??
+      str(thinking?.thinking_level) ??
+      info.reasoningEffort;
+    info.permissionMode =
+      str(m.permissionMode) ??
+      str(m.permission_mode) ??
+      str(m.approvalMode) ??
+      str(m.mode) ??
+      info.permissionMode;
   }
+  const last = msgs[msgs.length - 1];
+  info.lastAt = ts(last?.timestamp) ?? ts(j.lastUpdated);
+  if (!last) return info;
+  if (last.type === 'gemini' || last.type === 'model') {
+    // 有工具调用：还有没出结果的 → 在跑工具；全都有结果 → 模型还要接着回复
+    const calls = (Array.isArray(last.toolCalls) ? last.toolCalls : []) as Array<
+      Record<string, unknown>
+    >;
+    info.phase = !calls.length
+      ? 'turn-done'
+      : calls.some((c) => c.result === undefined && c.status !== 'error')
+        ? 'tool'
+        : 'working';
+    info.detail = cleanTitle(geminiText(last.content), 120);
+  } else if (last.type === 'error') info.phase = 'error';
+  else info.phase = 'working';
+  return info;
+}
+
+/** dsh session.v4.jsonl：提取会话实际使用的模型、思考档位和安全设置。 */
+export function parseDshSession(text: string, fallbackSessionId?: string): SessionInfo {
+  const info: SessionInfo = { phase: 'unknown', sessionId: fallbackSessionId };
+  let permissionMode: string | undefined;
+  let permissionPriority = -1;
+  for (const e of jsonlEvents(text, 1000)) {
+    const data = (e.data ?? {}) as Record<string, unknown>;
+    const context = (data.context ?? data.request ?? {}) as Record<string, unknown>;
+    info.sessionId ??= str(e.id) ?? str(e.sessionId);
+    info.cwd ??= str(e.cwd) ?? str(data.cwd);
+    info.model =
+      str(data.model) ??
+      str(data.modelName) ??
+      str(data.modelAlias) ??
+      str(context.model) ??
+      str((data.message as Record<string, unknown> | undefined)?.model) ??
+      info.model;
+    info.reasoningEffort =
+      str(data.reasoningEffort) ??
+      str(data.reasoning_effort) ??
+      str(data.effort) ??
+      str(context.reasoningEffort) ??
+      str(context.reasoning_effort) ??
+      str(context.effort) ??
+      str(data.thinkingLevel) ??
+      str(context.thinkingLevel) ??
+      info.reasoningEffort;
+    // preset is the user-facing safety choice; sandbox / approval are its
+    // derived enforcement details and must not overwrite it.
+    if (e.type === 'permission/preset' && str(data.preset) && permissionPriority < 3) {
+      permissionMode = str(data.preset);
+      permissionPriority = 3;
+    }
+    if (e.type === 'sandbox/mode' && str(data.mode) && permissionPriority < 2) {
+      permissionMode = str(data.mode);
+      permissionPriority = 2;
+    }
+    if (e.type === 'approval/policy' && str(data.policy) && permissionPriority < 1) {
+      permissionMode = str(data.policy);
+      permissionPriority = 1;
+    }
+    if (!info.title && e.type === 'session/title') info.title = cleanTitle(str(data.title));
+    if (!info.title && (e.type === 'user/message' || e.type === 'agent/inbox/spliced')) {
+      const content = data.content ?? (data.inserted as Record<string, unknown>[])?.[0]?.content;
+      info.title = cleanTitle(geminiText(content) ?? contentText(content));
+    }
+    if (e.type === 'turn/end') info.phase = 'turn-done';
+    else if (e.type === 'assistant/message') info.phase = 'working';
+    const at = ts(e.time ?? e.timestamp);
+    if (at) info.lastAt = at;
+  }
+  if (permissionMode) info.permissionMode = permissionMode;
   return info;
 }
 
@@ -470,6 +728,7 @@ export function parseDshProjcache(raw: string): Omit<SessionInfo, 'phase'> {
         rows?: {
           title?: { val?: unknown };
           titleInput?: { val?: { first?: { text?: unknown } } };
+          permissions?: { val?: { preset?: unknown; sandbox?: unknown; approval?: unknown } };
         };
       };
     };
@@ -479,9 +738,15 @@ export function parseDshProjcache(raw: string): Omit<SessionInfo, 'phase'> {
       (typeof rows?.titleInput?.val?.first?.text === 'string' && rows.titleInput.val.first.text) ||
       undefined;
     const cwd = j.record?.identity?.cwd;
+    const permissions = rows?.permissions?.val;
     return {
       cwd: typeof cwd === 'string' ? cwd : undefined,
       title: title ? title.slice(0, 80) : undefined,
+      permissionMode:
+        (typeof permissions?.preset === 'string' && permissions.preset) ||
+        (typeof permissions?.sandbox === 'string' && permissions.sandbox) ||
+        (typeof permissions?.approval === 'string' && permissions.approval) ||
+        undefined,
     };
   } catch {
     return {};

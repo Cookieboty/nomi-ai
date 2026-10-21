@@ -27,6 +27,12 @@ export interface FileCursor {
   /** 上次看到的文件大小 / mtime，用来识别被截断或替换 */
   size: number;
   mtimeMs: number;
+  /** 文件身份（dev / inode；Windows 上取不到时缺省）：换了文件（rename 替换 / 恢复备份）就丢弃游标 */
+  dev?: number;
+  ino?: number;
+  /** 已消费区域末尾（至多 fpLen 字节）的 sha1：原地重写 / 等长替换时内容对不上就从头读 */
+  fp?: string;
+  fpLen?: number;
   /** 各解析器自己的续读状态（Codex：当前模型 / 上一次累计值等） */
   state?: Record<string, unknown>;
 }
@@ -35,6 +41,23 @@ type Logger = { warn(m: string, d?: unknown): void };
 
 /** 路由请求与日志记录的去重窗口：日志时间落在 [路由开始 - SLACK, 路由结束 + SLACK] 内视为同一次 */
 const ROUTE_SLACK_MS = 15_000;
+/** 无共享 id 时，路由记录与日志记录的提示词 token 允许的差异（相对 / 绝对取大者） */
+const PROMPT_TOL_REL = 0.1;
+const PROMPT_TOL_ABS = 16;
+
+/** 日志记录的身份，用来判断它是不是某条路由记录的同一次请求 */
+export interface RouteHint {
+  key: string;
+  session?: string;
+  /** 输入 + 缓存读写 */
+  prompt: number;
+  output: number;
+}
+
+/** 日志键以上游响应 id 结尾（`claude:<id>` / `claude:<会话>:<id>`）= 同一次请求 */
+function sameRequestId(logKey: string, rid: string): boolean {
+  return logKey === rid || logKey.endsWith(`:${rid}`);
+}
 
 export class UsageLedger {
   private readonly file: string;
@@ -42,8 +65,21 @@ export class UsageLedger {
   private recs = new Map<string, UsageRecord>();
   /** 按 ts 升序的快照（查询用；脏了再重建） */
   private sorted: UsageRecord[] | null = null;
+  /**
+   * 只含路由记录（via === 'route'）的按时间排序索引。扫描编程工具日志时每条日志记录都要查
+   * routeCovering：原来走全量 snapshot()，而每次 upsert 都会让全量排序失效，导入日志时
+   * 变成「每条记录重排整本账」（O(N² log N)），几十万条时主进程卡几秒。路由记录通常很少，单独索引。
+   */
+  private routeSorted: UsageRecord[] | null = null;
   private cursors: Record<string, FileCursor> = {};
-  private pending: string[] = [];
+  /**
+   * 还没落盘的记录键。只存键、落盘时取内存里的最新值：写失败时队列不丢，
+   * 且长时间写不进去也只会占 O(记录数) 内存（同键多次更新合并为一条）。
+   */
+  private dirty = new Set<string>();
+  /** 上一次追加写失败过：可能留下半行，下一次追加先补一个换行把残行隔开（load 会忽略空行 / 坏行） */
+  private appendTainted = false;
+  private degraded = false;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private cursorDirty = false;
   private lines = 0;
@@ -51,7 +87,14 @@ export class UsageLedger {
   private ver = 0;
 
   constructor(
-    private readonly d: { root: string; logger?: Logger; flushMs?: number; now?: () => number },
+    private readonly d: {
+      root: string;
+      logger?: Logger;
+      flushMs?: number;
+      now?: () => number;
+      /** 进入 / 退出落盘降级时回调（让界面及时显示「暂存在内存」，#42） */
+      onPersistChange?: (degraded: boolean) => void;
+    },
   ) {
     fs.mkdirSync(d.root, { recursive: true });
     this.file = path.join(d.root, 'ledger.jsonl');
@@ -128,10 +171,11 @@ export class UsageLedger {
         return false;
       r = merged;
     }
+    if (r.via === 'route' || prev?.via === 'route') this.routeSorted = null;
     this.recs.set(r.key, r);
-    this.sorted = null;
+    this.placeInSorted(prev, r);
     this.ver++;
-    this.pending.push(JSON.stringify(r));
+    this.dirty.add(r.key);
     this.lines++;
     this.scheduleFlush();
     return true;
@@ -142,18 +186,47 @@ export class UsageLedger {
     return this.ver;
   }
 
-  /** 给已有记录补会话 / 项目（只补缺的字段，不改 token）；返回 true = 有变化 */
-  attribute(key: string, patch: { session?: string; project?: string }): boolean {
+  /**
+   * 给已有记录补缺的字段（不改 token）：会话 / 项目，以及计价分档 cacheWrite1h / fast
+   * （同一次调用的日志比路由嗅探拆得更细时，用来补齐费用口径；只增不减，1h 档不超过缓存写总量）。
+   * 返回 true = 有变化。
+   */
+  attribute(
+    key: string,
+    patch: {
+      session?: string;
+      project?: string;
+      cacheWrite1h?: number;
+      fast?: boolean;
+      /** 认领这条路由记录的日志键（只在还没被认领时写入） */
+      logKey?: string;
+    },
+  ): boolean {
     const prev = this.recs.get(key);
     if (!prev) return false;
     const next: UsageRecord = { ...prev };
     if (!prev.session && patch.session) next.session = patch.session;
     if (!prev.project && patch.project) next.project = patch.project;
-    if (next.session === prev.session && next.project === prev.project) return false;
+    const w1h = Math.min(
+      Math.max(prev.cacheWrite1h ?? 0, patch.cacheWrite1h ?? 0),
+      prev.cacheWrite,
+    );
+    if (w1h > (prev.cacheWrite1h ?? 0)) next.cacheWrite1h = w1h;
+    if (patch.fast && !prev.fast) next.fast = true;
+    if (patch.logKey && !prev.logKey) next.logKey = patch.logKey;
+    if (
+      next.session === prev.session &&
+      next.project === prev.project &&
+      next.cacheWrite1h === prev.cacheWrite1h &&
+      next.fast === prev.fast &&
+      next.logKey === prev.logKey
+    )
+      return false;
+    if (prev.via === 'route') this.routeSorted = null;
     this.recs.set(key, next);
-    this.sorted = null;
+    this.placeInSorted(prev, next);
     this.ver++;
-    this.pending.push(JSON.stringify(next));
+    this.dirty.add(key);
     this.lines++;
     this.scheduleFlush();
     return true;
@@ -161,6 +234,10 @@ export class UsageLedger {
 
   has(key: string): boolean {
     return this.recs.has(key);
+  }
+
+  get(key: string): UsageRecord | undefined {
+    return this.recs.get(key);
   }
 
   /** 按时间范围取记录（升序） */
@@ -195,11 +272,58 @@ export class UsageLedger {
   }
 
   /**
+   * 增量维护排好序的视图，避免每次写入都让下一次查询整本重排：
+   * 新记录不早于末尾 → 直接追加；更新且时间没变 → 原位替换；其它情况才作废重排。
+   */
+  private placeInSorted(prev: UsageRecord | undefined, next: UsageRecord): void {
+    const arr = this.sorted;
+    if (!arr) return;
+    if (!prev) {
+      if (!arr.length || arr[arr.length - 1]!.ts <= next.ts) arr.push(next);
+      else this.sorted = null;
+      return;
+    }
+    if (prev.ts === next.ts) {
+      let lo = 0;
+      let hi = arr.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (arr[mid]!.ts < prev.ts) lo = mid + 1;
+        else hi = mid;
+      }
+      for (let i = lo; i < arr.length && arr[i]!.ts === prev.ts; i++)
+        if (arr[i] === prev) {
+          arr[i] = next;
+          return;
+        }
+    }
+    this.sorted = null;
+  }
+
+  private routeSnapshot(): UsageRecord[] {
+    if (!this.routeSorted) {
+      const out: UsageRecord[] = [];
+      for (const r of this.recs.values()) if (r.via === 'route') out.push(r);
+      this.routeSorted = out.sort((a, b) => a.ts - b.ts);
+    }
+    return this.routeSorted;
+  }
+
+  /**
    * 编程工具日志里的这条记录，是不是已经由 Nomi 本地路由记过账？
    * （走本地路由的请求，日志里也有一份；以路由的为准，日志的跳过，避免重复计数）
+   *
+   * 不带 hint：只看来源 + 时间窗口（旧口径，返回第一个匹配）。
+   * 带 hint（日志记录的身份）时必须是同一次请求才算：
+   * 1. 稳定 id 联结：路由记录的键 / 上游响应 id 与日志键相同 → 精确匹配；
+   * 2. 路由已被另一条日志认领（logKey）→ 不能再并入（一对一）；
+   * 3. 两边都是 Anthropic msg_… 而 id 不同 → 不是同一次；会话 id 都有但不同 → 不是同一次；
+   * 4. 提示词 token（输入 + 缓存读写）要接近，日志输出不能明显超过路由输出；
+   * 5. 多个都满足时取 token 最接近、时间最近的一个。
+   * 没有唯一可信的匹配就返回 null，让日志记录照常入账（宁可保留待核对的记录，也不吞掉独立请求）。
    */
-  routeCovering(source: UsageSource, ts: number): UsageRecord | null {
-    const arr = this.snapshot();
+  routeCovering(source: UsageSource, ts: number, hint?: RouteHint): UsageRecord | null {
+    const arr = this.routeSnapshot();
     // 找到第一个 ts >= 窗口左界的路由记录
     const left = ts - ROUTE_SLACK_MS - 10 * 60_000; // 路由单次最长按 10 分钟估
     let lo = 0;
@@ -209,12 +333,27 @@ export class UsageLedger {
       if (arr[mid]!.ts < left) lo = mid + 1;
       else hi = mid;
     }
+    let best: { r: UsageRecord; score: number } | null = null;
     for (let i = lo; i < arr.length && arr[i]!.ts <= ts + ROUTE_SLACK_MS; i++) {
       const r = arr[i]!;
       if (r.via !== 'route' || r.source !== source) continue;
-      if (ts >= r.ts - ROUTE_SLACK_MS && ts <= r.ts + (r.dur ?? 0) + ROUTE_SLACK_MS) return r;
+      if (ts < r.ts - ROUTE_SLACK_MS || ts > r.ts + (r.dur ?? 0) + ROUTE_SLACK_MS) continue;
+      if (!hint) return r;
+      if (r.key === hint.key || (r.rid && sameRequestId(hint.key, r.rid))) return r;
+      if (r.logKey) {
+        if (r.logKey === hint.key) return r;
+        continue;
+      }
+      if (r.rid?.startsWith('msg_') && hint.key.startsWith('claude:msg_')) continue;
+      if (r.session && hint.session && r.session !== hint.session) continue;
+      const rp = r.input + r.cacheRead + r.cacheWrite;
+      const dp = Math.abs(rp - hint.prompt);
+      if (dp > Math.max(PROMPT_TOL_ABS, rp * PROMPT_TOL_REL)) continue;
+      if (hint.output > r.output + Math.max(PROMPT_TOL_ABS, r.output * PROMPT_TOL_REL)) continue;
+      const score = dp + Math.abs(r.output - hint.output) + Math.abs(ts - r.ts) / 1000;
+      if (!best || score < best.score) best = { r, score };
     }
-    return null;
+    return best?.r ?? null;
   }
 
   coveredByRoute(source: UsageSource, ts: number): boolean {
@@ -258,6 +397,7 @@ export class UsageLedger {
     }
     if (n) {
       this.sorted = null;
+      this.routeSorted = null;
       this.ver++;
       this.compact();
     }
@@ -271,8 +411,10 @@ export class UsageLedger {
   clear(): void {
     this.recs.clear();
     this.sorted = null;
+    this.routeSorted = null;
     this.ver++;
-    this.pending = [];
+    this.dirty.clear();
+    this.appendTainted = false;
     this.lines = 0;
     try {
       writePrivateFile(this.file, '');
@@ -290,7 +432,8 @@ export class UsageLedger {
       const tmp = `${this.file}.tmp`;
       writePrivateFile(tmp, body ? `${body}\n` : '');
       fs.renameSync(tmp, this.file);
-      this.pending = [];
+      this.dirty.clear();
+      this.appendTainted = false;
       this.lines = this.recs.size;
     } catch (e) {
       this.d.logger?.warn('usage compact failed', String(e));
@@ -306,31 +449,72 @@ export class UsageLedger {
     (this.flushTimer as { unref?: () => void }).unref?.();
   }
 
+  /** 落盘状态：degraded = 最近一次写盘失败，记录 / 游标还留在内存里等待重试 */
+  persistState(): { degraded: boolean; pendingRecords: number; cursorDirty: boolean } {
+    return {
+      degraded: this.degraded,
+      pendingRecords: this.dirty.size,
+      cursorDirty: this.cursorDirty,
+    };
+  }
+
+  /**
+   * 落盘：先追加记录，成功后才摘掉对应的待写键；游标只在没有待写记录时才写
+   * （持久游标不能越过未持久化的记录，否则重启后日志被判定「已读」而账本里没有）。
+   * 任一步失败都保留全部可重试状态并安排重试。
+   */
   flush(): void {
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    try {
-      if (this.pending.length) {
-        const chunk = `${this.pending.join('\n')}\n`;
-        this.pending = [];
-        const fresh = !fs.existsSync(this.file);
-        fs.appendFileSync(this.file, chunk, { mode: 0o600 });
-        if (fresh) {
-          try {
-            fs.chmodSync(this.file, 0o600);
-          } catch {
-            /* Windows */
+    let failed: unknown = null;
+    if (this.dirty.size) {
+      const keys = [...this.dirty];
+      const body = keys
+        .map((k) => this.recs.get(k))
+        .filter((r): r is UsageRecord => !!r)
+        .map((r) => JSON.stringify(r))
+        .join('\n');
+      if (!body) {
+        this.dirty.clear();
+      } else {
+        try {
+          const fresh = !fs.existsSync(this.file);
+          fs.appendFileSync(this.file, `${this.appendTainted ? '\n' : ''}${body}\n`, {
+            mode: 0o600,
+          });
+          this.appendTainted = false;
+          for (const k of keys) this.dirty.delete(k);
+          if (fresh) {
+            try {
+              fs.chmodSync(this.file, 0o600);
+            } catch {
+              /* Windows */
+            }
           }
+        } catch (e) {
+          failed = e;
+          this.appendTainted = true;
         }
       }
-      if (this.cursorDirty) {
-        this.cursorDirty = false;
-        writePrivateFile(this.cursorFile, JSON.stringify(this.cursors));
-      }
-    } catch (e) {
-      this.d.logger?.warn('usage flush failed', String(e));
     }
+    if (!failed && !this.dirty.size && this.cursorDirty) {
+      try {
+        writePrivateFile(this.cursorFile, JSON.stringify(this.cursors));
+        this.cursorDirty = false;
+      } catch (e) {
+        failed = e;
+      }
+    }
+    const was = this.degraded;
+    if (failed) {
+      if (!this.degraded) this.d.logger?.warn('usage flush failed', String(failed));
+      this.degraded = true;
+      this.scheduleFlush(); // 存储恢复后自动重试
+    } else {
+      this.degraded = false;
+    }
+    if (was !== this.degraded) this.d.onPersistChange?.(this.degraded);
   }
 }

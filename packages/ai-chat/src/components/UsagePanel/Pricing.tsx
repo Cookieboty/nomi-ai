@@ -97,17 +97,59 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  // 外部设置变化（保存 / 另一个窗口修改）时同步表单：渲染期比较，避免 effect 里 setState
-  const [seen, setSeen] = useState({ prices: st.customPrices, rate: st.cnyPerUsd });
-  if (seen.prices !== st.customPrices || seen.rate !== st.cnyPerUsd) {
-    setSeen({ prices: st.customPrices, rate: st.cnyPerUsd });
+  // 草稿状态：用户改过但没保存的表单不能被「内容没变的新引用」冲掉（用量刷新每次都会带回克隆出来的新数组）
+  const [pricesDirty, setPricesDirty] = useState(false);
+  const [rateDirty, setRateDirty] = useState(false);
+  const [conflictPrices, setConflictPrices] = useState(false);
+  const [conflictRate, setConflictRate] = useState(false);
+  const conflict = conflictPrices || conflictRate;
+  // 外部设置变化（保存 / 另一个窗口修改）时同步表单：渲染期比较「语义内容」而不是引用
+  const priceKey = JSON.stringify(st.customPrices);
+  const [seen, setSeen] = useState({ prices: priceKey, rate: st.cnyPerUsd });
+  if (seen.prices !== priceKey || seen.rate !== st.cnyPerUsd) {
+    const pricesChanged = seen.prices !== priceKey;
+    const rateChanged = seen.rate !== st.cnyPerUsd;
+    setSeen({ prices: priceKey, rate: st.cnyPerUsd });
+    if (pricesChanged) {
+      if (pricesDirty)
+        setConflictPrices(true); // 保留草稿，提示外部已变化
+      else setRows(st.customPrices.map(toRow));
+    }
+    if (rateChanged) {
+      if (rateDirty) setConflictRate(true);
+      else setRate(String(st.cnyPerUsd));
+    }
+  }
+  /** 放弃草稿，载入最新的已保存值 */
+  const reloadLatest = () => {
     setRows(st.customPrices.map(toRow));
     setRate(String(st.cnyPerUsd));
-  }
+    setPricesDirty(false);
+    setRateDirty(false);
+    setConflictPrices(false);
+    setConflictRate(false);
+    setErr(null);
+  };
 
   const patch = async (p: Partial<UsageSettings>) => {
     try {
-      onSettings(await usageClient.setSettings(p));
+      const next = await usageClient.setSettings(p);
+      // 先把「已保存」的基线挪到新值，再通知父级：保存产生的变化不算外部冲突
+      setSeen((cur) => ({
+        prices: p.customPrices ? JSON.stringify(next.customPrices) : cur.prices,
+        rate: p.cnyPerUsd != null ? next.cnyPerUsd : cur.rate,
+      }));
+      if (p.customPrices) {
+        setRows(next.customPrices.map(toRow)); // 显示规范化后的值
+        setPricesDirty(false);
+        setConflictPrices(false);
+      }
+      if (p.cnyPerUsd != null) {
+        setRate(String(next.cnyPerUsd));
+        setRateDirty(false);
+        setConflictRate(false);
+      }
+      onSettings(next);
       setErr(null);
       return true;
     } catch (e) {
@@ -117,10 +159,12 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
   };
   const update = (i: number, k: keyof Row, v: string) => {
     setSaved(false);
+    setPricesDirty(true);
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, [k]: v } : r)));
   };
   const add = (model = '') => {
     setSaved(false);
+    setPricesDirty(true);
     setRows((rs) => [...rs, { model, input: '', output: '', cacheRead: '', cacheWrite: '' }]);
   };
   const save = async () => {
@@ -154,6 +198,14 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
 
   return (
     <div className={styles.stack} data-testid="usage-pricing">
+      {conflict && (
+        <Notice tone="warning" icon={Info} data-testid="usage-pricing-conflict">
+          {t('价格 / 汇率已在别处更新；你还没保存的修改已保留。直接保存会覆盖最新值。')}
+          <button type="button" className={styles.chip} onClick={reloadLatest}>
+            {t('放弃修改并载入最新')}
+          </button>
+        </Notice>
+      )}
       <section className={styles.panel}>
         <header className={styles.panelHead}>
           <h3>{t('币种与汇率')}</h3>
@@ -169,7 +221,10 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
               value={rate}
               data-testid="usage-rate"
               aria-label={t('美元兑人民币汇率')}
-              onChange={(e) => setRate(e.target.value)}
+              onChange={(e) => {
+                setRate(e.target.value);
+                setRateDirty(true);
+              }}
               onBlur={() => void saveRate()}
             />
             <span>CNY</span>
@@ -292,6 +347,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                         aria-label={t('删除这一行')}
                         onClick={() => {
                           setSaved(false);
+                          setPricesDirty(true);
                           setRows((rs) => rs.filter((_, j) => j !== i));
                         }}
                       >

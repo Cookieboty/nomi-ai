@@ -1,0 +1,180 @@
+/* 输入栏：权限模式按钮与下拉（下拉样式与「模型 · 思考深度」浮层一致） */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
+  max-width: 100%;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2) 0 var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-full);
+  /* 透明底：与旁边的端点切换一致，不在输入栏里铺一块灰底 */
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  /* 输入栏变窄时按钮跟着收缩（文字省略号），不能越过右侧的语音 / 发送按钮 */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.chip > svg {
+  flex: none;
+}
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 极窄输入栏（与 MessageInput 的 composer 容器同一档）：只留图标 + 箭头，模式名在 aria-label / title 里 */
+@container composer (max-width: 440px) {
+  .label {
+    display: none;
+  }
+}
+.chip:hover {
+  background: var(--cd-color-hover);
+}
+.danger {
+  border-color: var(--cd-color-danger);
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
+}
+.note {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  white-space: nowrap;
+}
+.menu {
+  /* 挂在 body 上、由组件算好 left / bottom：不受输入栏 overflow 裁剪 */
+  position: fixed;
+  z-index: var(--cd-z-tooltip);
+  width: 320px;
+  padding: var(--cd-space-1-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-popover);
+}
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  width: 100%;
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: var(--cd-control-h-ms);
+  font-size: var(--cd-font-size-sm);
+}
+.item:hover,
+.item:focus-visible {
+  background: var(--cd-color-hover);
+}
+.item[aria-checked='true'] {
+  background: var(--cd-color-selected-bg);
+  color: var(--cd-color-selected-text);
+}
+/* 图标放进小方块，和文字两行垂直居中 */
+.itemIcon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--cd-radius-sm);
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text-muted);
+}
+.item[aria-checked='true'] .itemIcon {
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-accent-strong);
+}
+.itemDanger .itemIcon,
+.itemDanger .itemLabel {
+  color: var(--cd-color-danger-text);
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.itemLabel {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-bold);
+  line-height: 18px;
+}
+.itemHint {
+  font-size: var(--cd-font-size-xs);
+  line-height: 16px;
+  color: var(--cd-color-text-muted);
+}
+.itemCheck {
+  flex: none;
+  display: inline-flex;
+  color: var(--cd-color-accent-strong);
+}
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  margin-top: var(--cd-space-1);
+  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-0-5);
+  border-top: 1px solid var(--cd-color-border);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.kbd {
+  padding: 0 5px;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-xs);
+  background: var(--cd-color-surface);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  line-height: 16px;
+}
+.link {
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--cd-space-2);
+}
+/* 确认框里注明作用于哪个标签 / 目录 */
+.target {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  word-break: break-all;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}

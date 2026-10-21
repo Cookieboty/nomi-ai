@@ -107,6 +107,7 @@ describe('LoggerService', () => {
   describe('文件输出', () => {
     test('应该写入日志文件', () => {
       loggerService.info('test message');
+      loggerService.flushSync();
 
       expect(mockFs.appendFileSync).toHaveBeenCalled();
       const writeCall = (mockFs.appendFileSync as jest.Mock).mock.calls[0];
@@ -124,6 +125,7 @@ describe('LoggerService', () => {
 
       const errorSpy = jest.spyOn(console, 'error');
       loggerService.info('test message');
+      loggerService.flushSync();
 
       expect(errorSpy).toHaveBeenCalledWith('Failed to write to log file:', expect.any(Error));
     });
@@ -138,6 +140,7 @@ describe('LoggerService', () => {
       } as any);
 
       loggerService.info('test message');
+      loggerService.flushSync();
 
       // 应该调用文件重命名来进行轮转
       expect(mockFs.renameSync).toHaveBeenCalled();
@@ -146,7 +149,9 @@ describe('LoggerService', () => {
     test('应该创建日志目录', () => {
       mockFs.existsSync.mockReturnValue(false);
 
+      loggerService = new LoggerService();
       loggerService.info('test message');
+      loggerService.flushSync();
 
       expect(mockFs.mkdirSync).toHaveBeenCalledWith(expect.any(String), { recursive: true });
     });
@@ -188,7 +193,9 @@ describe('LoggerService', () => {
       });
 
       const errorSpy = jest.spyOn(console, 'error');
+      loggerService = new LoggerService();
       loggerService.info('test message');
+      loggerService.flushSync();
 
       expect(errorSpy).toHaveBeenCalledWith('Failed to create log directory:', expect.any(Error));
     });
@@ -202,8 +209,54 @@ describe('LoggerService', () => {
 
       const errorSpy = jest.spyOn(console, 'error');
       loggerService.info('test message');
+      loggerService.flushSync();
 
       expect(errorSpy).toHaveBeenCalledWith('Failed to rotate log file:', expect.any(Error));
+    });
+  });
+
+  describe('缓冲写入', () => {
+    test('多条日志合成一次异步写入，不再逐条同步写盘', () => {
+      jest.useFakeTimers();
+      try {
+        const logger = new LoggerService();
+        (mockFs.appendFile as unknown as jest.Mock).mockImplementation(
+          (_f: string, _d: string, cb: (e: null) => void) => cb(null),
+        );
+        logger.info('a');
+        logger.info('b');
+        logger.warn('c');
+        expect(mockFs.appendFileSync).not.toHaveBeenCalled();
+        expect(mockFs.appendFile).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(150);
+        expect(mockFs.appendFile).toHaveBeenCalledTimes(1);
+        const data = (mockFs.appendFile as unknown as jest.Mock).mock.calls[0][1] as string;
+        expect(
+          data
+            .trim()
+            .split('\n')
+            .map((l) => JSON.parse(l).message),
+        ).toEqual(['a', 'b', 'c']);
+        // 只在第一次写入前 stat 一次
+        const stats = (mockFs.statSync as jest.Mock).mock.calls.length;
+        logger.info('d');
+        jest.advanceTimersByTime(150);
+        expect((mockFs.statSync as jest.Mock).mock.calls.length).toBe(stats);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    test('错误日志立即写出', () => {
+      jest.useFakeTimers();
+      try {
+        const logger = new LoggerService();
+        logger.error('boom');
+        jest.advanceTimersByTime(0);
+        expect(mockFs.appendFile).toHaveBeenCalledTimes(1);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

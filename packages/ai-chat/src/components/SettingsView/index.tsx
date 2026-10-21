@@ -5,9 +5,9 @@
 import { t, Icon } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
-import { cliProviderClient } from '../../services/cliProviderClient';
+import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
@@ -15,6 +15,7 @@ import { ProvidersPage } from '../ProvidersPage';
 import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
+import { ChatBackgroundSettings } from './ChatBackgroundSettings';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -33,10 +34,16 @@ import {
 } from './sections';
 import { SensesSection } from './SensesSection';
 import { ShortcutSettings } from './ShortcutSettings';
+import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
 export { SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+
+/** 「模型」页懒加载 */
+const ModelsPage = React.lazy(() =>
+  import('../ModelsPage').then((m) => ({ default: m.ModelsPage })),
+);
 
 interface Props {
   section: SettingsSection;
@@ -93,13 +100,14 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         return (
           <>
             <LanguageSettings />
+            <StartupSettings />
             <AppIconSettings />
             <MascotSizeSettings />
             <UpdateSettings />
             <section className={styles.block}>
               <h2 className={styles.h2}>{t('新手引导')}</h2>
               <p className={styles.muted}>
-                {t('重新走一遍：语言、主题、角色与声音、称呼与语气、模型供应商和隐私说明。')}
+                {t('重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。')}
               </p>
               <button
                 type="button"
@@ -114,14 +122,25 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               </button>
             </section>
             <ThemeSettings />
+            <ChatBackgroundSettings />
             <PinsSettings />
           </>
         );
       case 'shortcuts':
         return <ShortcutSettings />;
+      case 'models':
+        return (
+          <Suspense fallback={null}>
+            <ModelsPage />
+          </Suspense>
+        );
       case 'coding':
-        return cliProviderClient.available() ? (
-          <ProvidersPage onOpenedTab={onClose} onOpenNotify={() => onSection('notify')} />
+        return harnessClient.available() ? (
+          <ProvidersPage
+            onOpenedTab={onClose}
+            onOpenNotify={() => onSection('notify')}
+            onOpenModels={() => onSection('models')}
+          />
         ) : (
           <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>
         );

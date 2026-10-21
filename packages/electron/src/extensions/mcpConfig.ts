@@ -117,17 +117,35 @@ export function parseImport(text: string, existing: string[] = []): McpServerEnt
 
 const SECRET_KEY = /(key|token|secret|password|passwd|auth|cookie|credential)/i;
 
+/**
+ * 取值本身像凭据（字段名不一定带 key / token）：带账号口令的 URL、Bearer / Basic、常见令牌前缀、
+ * 或 ≥ 32 个字符、只含令牌字符且至少 4 个数字的随机串。用于落盘加密与打码（导入其他工具的配置时尤其需要，#58）。
+ */
+export function isSecretValue(v: string): boolean {
+  if (!v) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\/[^/\s:@]+:[^/\s@]+@/i.test(v)) return true;
+  if (/^(bearer|basic)\s+\S{8,}/i.test(v)) return true;
+  if (/^(sk-|ghp_|gho_|ghu_|github_pat_|glpat-|xox[abprs]-|AKIA|AIza|ya29\.)/.test(v)) return true;
+  // 长度 ≥ 32、只有 token 字符、至少 4 个数字：像随机令牌而不是普通单词 / 路径
+  return (
+    v.length >= 32 &&
+    /^[A-Za-z0-9_\-+=.~]+$/.test(v) &&
+    (v.match(/\d/g)?.length ?? 0) >= 4 &&
+    /[A-Za-z]/.test(v)
+  );
+}
+
 /** 给界面看的版本：敏感值打码 */
 export function maskServer(e: McpServerEntry): McpServerEntry {
-  const mask = (m?: Record<string, string>) =>
+  const mask = (m?: Record<string, string>, all = false) =>
     m &&
     Object.fromEntries(
       Object.entries(m).map(([k, v]) => [
         k,
-        SECRET_KEY.test(k) && v ? `${v.slice(0, 2)}••••••` : v,
+        (all || SECRET_KEY.test(k) || isSecretValue(v)) && v ? `${v.slice(0, 2)}••••••` : v,
       ]),
     );
-  return { ...e, env: mask(e.env), headers: mask(e.headers) };
+  return { ...e, env: mask(e.env), headers: mask(e.headers, true) };
 }
 
 /** 编辑时：打码值原样回传 → 保留旧值 */
@@ -144,6 +162,64 @@ export function mergeSecrets(
 
 export function isSecretKey(k: string): boolean {
   return SECRET_KEY.test(k);
+}
+
+/** `--api-key=xxx` / `API_KEY=xxx` 形式的参数：返回 [名字, 值] */
+const SECRET_ARG_ASSIGN =
+  /^(-{0,2}[\w.-]*(?:key|token|secret|password|passwd|auth|cookie|credential)[\w.-]*)=([\s\S]*)$/i;
+const SECRET_FLAG =
+  /^-{1,2}[\w.-]*(?:key|token|secret|password|passwd|auth|cookie|credential)[\w.-]*$/i;
+const URL_LIKE = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/** 去掉 URL 里的账号口令、query 与 fragment（常见的 `?key=` / `?token=` 放凭据处），只保留 origin + path */
+export function stripUrlCredentials(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.username = '';
+    u.password = '';
+    u.search = '';
+    u.hash = '';
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * 导出用：生成「只有结构、没有凭据」的 MCP 服务配置。
+ * 是否是密钥只由字段语义决定，与落盘时是否加密（`enc:` 前缀）无关：
+ * - env / headers 的全部取值一律替换为占位符（鉴权头名称千奇百怪，不靠名字白名单）；
+ * - url 去掉账号口令 / query / fragment；
+ * - args 里形如 `--token=xxx`、`--api-key xxx`、`KEY=xxx`、带凭据的 URL 都打码。
+ */
+export function redactServerForExport<T extends Partial<McpServerEntry>>(
+  e: T,
+  placeholder: string,
+): T {
+  const blank = (m?: Record<string, string>) =>
+    m && Object.fromEntries(Object.keys(m).map((k) => [k, placeholder]));
+  const out: Record<string, unknown> = { ...e };
+  if ('env' in e) out.env = blank(e.env);
+  if ('headers' in e) out.headers = blank(e.headers);
+  if (typeof e.url === 'string') out.url = stripUrlCredentials(e.url);
+  if (Array.isArray(e.args)) {
+    let maskNext = false;
+    out.args = e.args.map((a) => {
+      const arg = String(a);
+      if (maskNext) {
+        maskNext = false;
+        return placeholder;
+      }
+      const m = SECRET_ARG_ASSIGN.exec(arg);
+      if (m) return `${m[1]}=${placeholder}`;
+      if (SECRET_FLAG.test(arg)) {
+        maskNext = true;
+        return arg;
+      }
+      return URL_LIKE.test(arg) ? stripUrlCredentials(arg) : arg;
+    });
+  }
+  return out as T;
 }
 
 /** 只读判断（MCP annotations） */

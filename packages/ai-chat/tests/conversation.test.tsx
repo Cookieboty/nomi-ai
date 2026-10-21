@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConversationView } from '../src/components/Conversation';
 import { Markdown } from '../src/components/Conversation/Markdown';
@@ -283,7 +283,7 @@ describe('CliConversation 运行中', () => {
       <CliConversation
         tab={tab({ status: 'running' })}
         messages={[]}
-        live={{ ...liveBase, permission: { id: 'p1', summary: 'Bash: rm -rf x' } }}
+        live={{ ...liveBase, permissions: [{ id: 'p1', summary: 'Bash: rm -rf x' }] }}
         onPermission={onPermission}
       />,
     );
@@ -293,6 +293,58 @@ describe('CliConversation 运行中', () => {
     fireEvent.click(getByTestId('conv-permission-deny'));
     expect(onPermission).toHaveBeenNthCalledWith(1, 'p1', true);
     expect(onPermission).toHaveBeenNthCalledWith(2, 'p1', false);
+  });
+
+  it('并行子代理的权限请求全部排出：标注来源与倒计时，各自回复各自的 id（docs/design/cli-subagents.md §5）', () => {
+    const onPermission = vi.fn();
+    const soon = Date.now() + 90_000;
+    const { getAllByTestId, getByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissions: [
+            { id: 'pa', summary: 'Bash: rm a.tmp', agent: 'agent A', expiresAt: soon },
+            { id: 'pb', summary: 'Bash: rm b.tmp', agent: 'agent B', expiresAt: soon },
+          ],
+        }}
+        onPermission={onPermission}
+      />,
+    );
+    const cards = getAllByTestId('conv-permission-card');
+    expect(cards).toHaveLength(2);
+    expect(getAllByTestId('conv-permission-agent').map((e) => e.textContent)).toEqual([
+      '子代理 · agent A',
+      '子代理 · agent B',
+    ]);
+    expect(getAllByTestId('conv-permission-timer')[0]!.textContent).toMatch(
+      /^(89|90) 秒后自动拒绝$/,
+    );
+    expect(getByTestId('conv-permission-queue').textContent).toContain('2 项待确认');
+    expect(getByTestId('conv-status').textContent).toContain('2 项');
+    fireEvent.click(getAllByTestId('conv-permission-deny')[1]!);
+    fireEvent.click(getAllByTestId('conv-permission-allow')[0]!);
+    expect(onPermission.mock.calls).toEqual([
+      ['pb', false],
+      ['pa', true],
+    ]);
+  });
+
+  it('超时自动拒绝后短暂提示（含来源子代理）', () => {
+    const { getByTestId, queryByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissionExpired: { summary: 'Bash: rm a.tmp', agent: 'agent A', at: Date.now() },
+        }}
+        onPermission={vi.fn()}
+      />,
+    );
+    expect(getByTestId('conv-permission-expired').textContent).toContain('agent A');
+    expect(queryByTestId('conv-permission-card')).toBeNull();
   });
 
   it('排队中显示明确的等待提示', () => {
@@ -378,6 +430,89 @@ describe('CliConversation 自动滚动（贴底才跟，上滑不抢）', () => 
       />,
     );
     expect(el.scrollTop).toBe(1000);
+  });
+});
+
+describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', () => {
+  const proto = HTMLElement.prototype;
+  const saved = {
+    sh: Object.getOwnPropertyDescriptor(proto, 'scrollHeight'),
+    ch: Object.getOwnPropertyDescriptor(proto, 'clientHeight'),
+    ro: (globalThis as { ResizeObserver?: unknown }).ResizeObserver,
+  };
+  let height = 1000;
+  let reads = 0;
+  const observers: Array<() => void> = [];
+  beforeEach(() => {
+    height = 1000;
+    reads = 0;
+    observers.length = 0;
+    Object.defineProperty(proto, 'scrollHeight', {
+      configurable: true,
+      get: () => {
+        reads++;
+        return height;
+      },
+    });
+    Object.defineProperty(proto, 'clientHeight', { configurable: true, get: () => 400 });
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
+      cb: () => void;
+      constructor(cb: () => void) {
+        this.cb = cb;
+        observers.push(() => this.cb());
+      }
+      observe() {}
+      disconnect() {}
+    };
+  });
+  afterEach(() => {
+    if (saved.sh) Object.defineProperty(proto, 'scrollHeight', saved.sh);
+    else delete (proto as unknown as Record<string, unknown>).scrollHeight;
+    if (saved.ch) Object.defineProperty(proto, 'clientHeight', saved.ch);
+    else delete (proto as unknown as Record<string, unknown>).clientHeight;
+    (globalThis as { ResizeObserver?: unknown }).ResizeObserver = saved.ro;
+  });
+  const fireResize = () => act(() => observers.forEach((f) => f()));
+
+  it('streamed text frames do not read scrollHeight; growth sticks via the observer; wheel-up stops it', () => {
+    const run = tab({ status: 'running' });
+    const live = (text: string): TabLive => ({ text, startedAt: Date.now() });
+    const view = (text: string) => (
+      <CliConversation
+        tab={run}
+        messages={messages.slice(0, 1)}
+        live={live(text)}
+        onPermission={() => undefined}
+      />
+    );
+    const { getByTestId, rerender } = render(view('a'));
+    const el = getByTestId('conv-scroll');
+    expect(el.scrollTop).toBe(1000);
+    reads = 0;
+    for (let i = 0; i < 10; i++) rerender(view('a'.repeat(i + 2)));
+    expect(reads).toBe(0); // no layout effect touching scrollHeight per frame
+    height = 1300;
+    fireResize();
+    expect(el.scrollTop).toBe(1300);
+    fireEvent.wheel(el, { deltaY: -40 });
+    height = 1600;
+    fireResize();
+    expect(el.scrollTop).toBe(1300);
+  });
+
+  it('completed turns get content-visibility; the live (last) turn does not', () => {
+    const { getAllByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[...messages, { id: 'u2', role: 'user', content: 'next', timestamp: 3 }]}
+        live={{ text: 'x', startedAt: Date.now() }}
+        onPermission={() => undefined}
+      />,
+    );
+    const turns = getAllByTestId('conv-turn');
+    expect(turns.length).toBeGreaterThan(1);
+    expect(turns.at(-1)!.className).not.toMatch(/turnDone/);
+    expect(turns[0]!.className).toMatch(/turnDone/);
   });
 });
 

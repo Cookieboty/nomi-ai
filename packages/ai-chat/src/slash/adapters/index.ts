@@ -4,6 +4,7 @@ import type { AdapterInput, SlashCommand } from '../types';
 import { claudeAdapter } from './claude';
 import { codexAdapter } from './codex';
 import { dshAdapter } from './dsh';
+import { geminiAdapter } from './gemini';
 import { grokAdapter } from './grok';
 import { nomiAdapter } from './nomi';
 
@@ -20,6 +21,8 @@ export function adapterFor(backend: ConversationBackend, input: AdapterInput): S
       return grokAdapter(input);
     case 'dsh':
       return dshAdapter();
+    case 'gemini':
+      return geminiAdapter();
   }
 }
 

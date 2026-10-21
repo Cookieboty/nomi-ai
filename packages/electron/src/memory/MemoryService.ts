@@ -8,13 +8,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { ToolDefinition } from '@nomi-ai/bundle-ig-base';
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { BrowserWindow, dialog, shell } from 'electron';
 import { z } from 'zod';
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import type { DesktopService } from '../desktop/DesktopService';
 import { t as tr } from '../i18n';
 import { b64ToVec, vecToB64 } from '../knowledge/vector';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   DEFAULT_MEMORY_SETTINGS,
@@ -68,6 +69,8 @@ export class MemError extends Error {
   }
 }
 
+/** 发给摘要模型的最近消息条数上限（只限制上下文，不参与「是否有新内容」判断） */
+const SUMMARY_WINDOW = 80;
 const MAX_EPISODES = 2000;
 const MAX_FACTS = 500;
 
@@ -199,13 +202,17 @@ export class MemoryService {
   ): Promise<{ episode?: Episode; skipped?: string }> {
     if (!this.settings.enabled) return { skipped: 'disabled' };
     if (!opts.force && !this.settings.autoSummarize) return { skipped: 'auto-off' };
-    const clean = msgs
-      .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim())
-      .slice(-80);
+    const all = msgs.filter(
+      (m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim(),
+    );
+    // 有效消息总数用来判断「有没有新内容」并持久化；只有发给摘要模型的上下文才截成最近 80 条。
+    // （旧版本把截断后的 80 当作 messageCount 存盘，超过 80 条后差值恒为 0，摘要永久停更）
+    const total = all.length;
+    const clean = all.slice(-SUMMARY_WINDOW);
     const prev = this.data.episodes.find((e) => e.conversationId === conversationId);
-    if (clean.length < (opts.force ? 2 : this.settings.minMessages))
-      return { skipped: 'too-short' };
-    if (prev && !opts.force && clean.length - prev.messageCount < 2) return { skipped: 'no-new' };
+    if (total < (opts.force ? 2 : this.settings.minMessages)) return { skipped: 'too-short' };
+    const sig = windowSig(all, total - 1);
+    if (prev && !opts.force && newSinceLast(all, prev) < 2) return { skipped: 'no-new' };
     if (prev?.edited && !opts.force) return { skipped: 'edited' };
     if (this.busy.has(conversationId)) return { skipped: 'busy' };
     this.busy.add(conversationId);
@@ -221,7 +228,8 @@ export class MemoryService {
             ...prev,
             ...p,
             updatedAt: now,
-            messageCount: clean.length,
+            messageCount: total,
+            windowSig: sig,
             edited: false,
             vec: undefined,
           }
@@ -233,7 +241,8 @@ export class MemoryService {
             keywords: p.keywords,
             createdAt: now,
             updatedAt: now,
-            messageCount: clean.length,
+            messageCount: total,
+            windowSig: sig,
             pinned: false,
             edited: false,
           };
@@ -612,17 +621,20 @@ export class MemoryService {
   registerIpc(): void {
     if (this.ipcDone) return;
     this.ipcDone = true;
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          if (err instanceof MemError) return { __error: { code: err.code, message: err.message } };
-          throw err;
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(
+        ch,
+        async (...a: unknown[]) => {
+          try {
+            return await fn(...a);
+          } catch (err) {
+            if (err instanceof MemError)
+              return { __error: { code: err.code, message: err.message } };
+            throw err;
+          }
+        },
+        { owner: 'MemoryService', wrapErrors: false },
+      );
     const toMsgs = (h: unknown): TurnMsg[] =>
       Array.isArray(h)
         ? (h as Array<{ role: unknown; content: unknown }>)
@@ -665,4 +677,37 @@ export function initMemoryService(d: MemoryDeps): MemoryService {
 }
 export function getMemoryService(): MemoryService | null {
   return instance;
+}
+
+/** 会话存储默认最多保留的消息数（electron/config/default.json 的 maxMessages）：到上限后条数不再增长 */
+const HISTORY_CAP = 1000;
+/** 回找上次摘要位置时最多往前看的消息数 */
+const RESYNC_LOOKBACK = 200;
+
+const msgHash = (m: TurnMsg) => createHash('sha1').update(`${m.role}\0${m.content}`).digest('hex');
+
+/** 以 end 结尾的最近 SUMMARY_WINDOW 条消息的指纹 */
+function windowSig(all: TurnMsg[], end: number, hashes?: string[]): string {
+  const from = Math.max(0, end - SUMMARY_WINDOW + 1);
+  const h = createHash('sha1');
+  for (let i = from; i <= end; i++) h.update(hashes ? hashes[i]! : msgHash(all[i]!));
+  return h.digest('hex');
+}
+
+/**
+ * 上次摘要之后新增了多少条；历史被编辑 / 重新生成（找不到上次的窗口）返回 Infinity。
+ * 旧数据没有 windowSig：按条数判断，但条数已到存储上限时无从判断，视为有新内容（迁移一次）。
+ */
+function newSinceLast(all: TurnMsg[], prev: Episode): number {
+  if (!prev.windowSig) {
+    const added = all.length - prev.messageCount;
+    if (added < 0 || all.length >= HISTORY_CAP) return Infinity;
+    return added;
+  }
+  const hashes = all.map(msgHash);
+  const stop = Math.max(0, all.length - 1 - RESYNC_LOOKBACK);
+  for (let end = all.length - 1; end >= stop; end--) {
+    if (windowSig(all, end, hashes) === prev.windowSig) return all.length - 1 - end;
+  }
+  return Infinity;
 }

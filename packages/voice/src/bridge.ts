@@ -8,13 +8,17 @@ export type AsrErrorCode =
   'no_engine' | 'no_model' | 'no_provider' | 'cloud_not_acked' | 'local_only' | 'empty' | 'failed';
 
 export interface VoiceSettingsView {
-  engine: 'whisper-cpp' | 'openai-compat';
+  engine: 'whisper-cpp' | 'openai-compat' | 'volc';
   language: string;
   whisperModel: string;
   whisperCliPath: string;
   providerId: string;
   customBaseURL: string;
   cloudModel: string;
+  /** 豆包流式语音识别 2.0 资源（小时版 / 并发版） */
+  volcResourceId: string;
+  /** 豆包失败后改用已安装的本地模型 */
+  volcFallback: boolean;
   cloudAcked: string[];
   autoSend: boolean;
   bargeIn: boolean;
@@ -42,6 +46,14 @@ export interface VoiceStateView {
   cli: { path: string; source: 'downloaded' | 'custom' | 'path' } | null;
   readiness: { ok: boolean; code?: AsrErrorCode; message?: string; local: boolean };
   vadReady: boolean;
+  /** 豆包流式语音识别 2.0：只回传是否已保存 Key，不回传 Key 本身 */
+  volc?: {
+    hasKey: boolean;
+    host: string;
+    resources: string[];
+    canStoreKey: boolean;
+    fallbackReady: boolean;
+  };
   providers: Array<{ id: string; name: string; local: boolean }>;
   activity: string;
 }
@@ -55,7 +67,18 @@ export interface ProgressEvent {
 }
 
 export type TranscribeResult =
-  { ok: true; text: string } | { ok: false; code: AsrErrorCode; error: string };
+  { ok: true; text: string; fallback?: boolean } | { ok: false; code: AsrErrorCode; error: string };
+
+export type StreamStartResult =
+  { ok: true; id: string } | { ok: false; code: AsrErrorCode; error: string };
+
+export interface StreamEvent {
+  id: string;
+  type: 'partial' | 'error';
+  text?: string;
+  code?: AsrErrorCode;
+  error?: string;
+}
 
 export function voiceApi(b: VoiceBridge) {
   return {
@@ -80,6 +103,19 @@ export function voiceApi(b: VoiceBridge) {
       b.invoke('ai:voice:transcribe', wav, { source, purpose }) as Promise<TranscribeResult>,
     activity: (a: string, source: string) => b.invoke('ai:voice:activity', a, source),
     sendToChat: (text: string) => b.invoke('ai:voice:sendToChat', text),
+    // 豆包流式语音识别 2.0（#61）
+    volcSetKey: (key: string) =>
+      b.invoke('ai:voice:volcSetKey', key) as Promise<{ ok: boolean; error?: string }>,
+    volcClearKey: () => b.invoke('ai:voice:volcClearKey') as Promise<boolean>,
+    volcTest: () => b.invoke('ai:voice:volcTest') as Promise<{ ok: boolean; message: string }>,
+    streamStart: (source: string) =>
+      b.invoke('ai:voice:streamStart', { source }) as Promise<StreamStartResult>,
+    streamPush: (id: string, pcm: Uint8Array) =>
+      b.invoke('ai:voice:streamPush', id, pcm) as Promise<boolean>,
+    streamStop: (id: string) => b.invoke('ai:voice:streamStop', id) as Promise<TranscribeResult>,
+    streamCancel: (id: string) => b.invoke('ai:voice:streamCancel', id) as Promise<boolean>,
+    onStream: (fn: (e: StreamEvent) => void) =>
+      b.on('ai:voice:stream', (p) => fn(p as StreamEvent)),
     onProgress: (fn: (e: ProgressEvent) => void) =>
       b.on('ai:voice:progress', (p) => fn(p as ProgressEvent)),
     onChanged: (fn: () => void) => b.on('ai:voice:changed', () => fn()),

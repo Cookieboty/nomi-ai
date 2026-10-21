@@ -119,3 +119,15 @@ describe('createShutdown', () => {
     expect(exit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('createShutdown.isQuitting', () => {
+  it('is false until stop / requestQuit is called', async () => {
+    const s = createShutdown({ work: async () => undefined, timeoutMs: 1000, exit: jest.fn() });
+    expect(s.isQuitting()).toBe(false);
+    s.requestQuit();
+    expect(s.isQuitting()).toBe(true);
+    const s2 = createShutdown({ work: async () => undefined, timeoutMs: 1000, exit: jest.fn() });
+    await s2.stop();
+    expect(s2.isQuitting()).toBe(true);
+  });
+});

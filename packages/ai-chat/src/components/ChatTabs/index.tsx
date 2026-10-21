@@ -3,7 +3,7 @@
  * 状态点：灰 = 空闲 · 蓝（脉动）= 运行中 · 黄 = 排队 · 红 = 出错 · 绿 = 有未读结果。
  */
 import { t, Icon } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -20,11 +20,12 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { ConcurrencyControl } from './ConcurrencyControl';
 import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
 
-const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok'];
+const CLI_BACKENDS: HarnessBackend[] = ['claude', 'codex', 'dsh', 'grok', 'gemini'];
 
 /** 标签悬停提示：标题 · 端点 · 状态，其后依次是工作目录、会话、最近错误 */
 function tabTooltip(tab: HarnessTabMeta, status: string): string {
@@ -42,6 +43,7 @@ export function tabDotStatus(tab: HarnessTabMeta, mainLoading = false): string {
   if (tab.id === MAIN_TAB_ID && mainLoading) return 'running';
   if (tab.status !== 'idle') return tab.status;
   if (tab.unread > 0) return 'unread';
+  if (tab.background) return 'background';
   return tab.dormant ? 'dormant' : 'idle';
 }
 
@@ -56,7 +58,9 @@ function statusLabel(s: string): string {
           ? t('有新结果')
           : s === 'dormant'
             ? t('已休眠')
-            : t('空闲');
+            : s === 'background'
+              ? t('后台运行中')
+              : t('空闲');
 }
 
 export const ChatTabs: React.FC<{
@@ -130,6 +134,24 @@ export const ChatTabs: React.FC<{
     )
       return;
     void tabs.close(tab.id);
+  };
+
+  const closeTabs = (targets: HarnessTabMeta[]) => {
+    const closable = targets.filter((tab) => tab.id !== MAIN_TAB_ID);
+    if (!closable.length) return;
+    const active = closable.filter((tab) => tab.status === 'running' || tab.status === 'queued');
+    if (
+      active.length > 0 &&
+      !window.confirm(
+        active.length === 1
+          ? t('该标签仍在运行，关闭会中止它。确定关闭？')
+          : t('有 {0} 个标签仍在运行，关闭会中止它们。确定关闭？', active.length),
+      )
+    )
+      return;
+    void (async () => {
+      for (const tab of closable) await tabs.close(tab.id);
+    })();
   };
 
   const commitRename = () => {
@@ -230,6 +252,9 @@ export const ChatTabs: React.FC<{
         (() => {
           const tab = st.tabs.find((x) => x.id === ctx.tabId);
           if (!tab) return null;
+          const i = st.tabs.findIndex((x) => x.id === tab.id);
+          const leftTabs = st.tabs.slice(0, i).filter((x) => x.id !== MAIN_TAB_ID);
+          const rightTabs = st.tabs.slice(i + 1).filter((x) => x.id !== MAIN_TAB_ID);
           return (
             <ConversationMenu
               x={ctx.x}
@@ -243,30 +268,17 @@ export const ChatTabs: React.FC<{
               onFork={() => onForkTab?.(tab.id, 'same')}
               onForkCross={() => onForkTab?.(tab.id, 'cross')}
               onClose={() => closeTab(tab)}
+              onCloseLeft={leftTabs.length ? () => closeTabs(leftTabs) : undefined}
+              onCloseRight={rightTabs.length ? () => closeTabs(rightTabs) : undefined}
             />
           );
         })()}
-      <label
-        className={styles.load}
-        data-testid="chat-tabs-load"
-        title={t('同时运行的编程助手标签上限（1–8）')}
-      >
-        <span>{t('运行 {0}/', st.running)}</span>
-        <select
-          className={styles.limitSelect}
-          data-testid="chat-tabs-max-concurrent"
-          aria-label={t('并发上限')}
-          value={st.maxConcurrent}
-          onChange={(e) => void tabs.setMaxConcurrent(Number(e.target.value))}
-        >
-          {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
-        {st.queued ? <span>{t(' · 排队 {0}', st.queued)}</span> : null}
-      </label>
+      <ConcurrencyControl
+        running={st.running}
+        queued={st.queued}
+        max={st.maxConcurrent}
+        onChange={(n) => void tabs.setMaxConcurrent(n)}
+      />
       <div className={styles.add} ref={menuRef}>
         <button
           type="button"
@@ -277,7 +289,7 @@ export const ChatTabs: React.FC<{
           title={`${t('新建编程助手标签')} (${formatCombo(bindings.newTab)})`}
           onClick={() => setMenu((v) => !v)}
         >
-          +
+          <Icon icon={Plus} />
         </button>
         {menu && (
           <NewChatMenu

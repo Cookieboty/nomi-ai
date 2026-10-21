@@ -1,6 +1,6 @@
 /**
  * ExtensionsPanel —— 扩展：MCP 服务器（添加 / 预设 / 导入 JSON / 连接 / 工具与信任级别）
- * 和 SKILL.md 技能包（启用、编辑、新建、从文件夹导入）。
+ * 和 SKILL.md 技能包（启用、编辑、新建、从文件夹导入），以及「从其他工具导入」（Claude Code / Codex，#58）。
  */
 import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
@@ -36,6 +36,7 @@ import {
 } from '../../services/extClient';
 
 import styles from './index.module.css';
+import { MigrateDialog } from './MigrateDialog';
 
 type Tab = 'mcp' | 'skills';
 const TRUST_OPTIONS = (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
@@ -112,6 +113,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
   const [busy, setBusy] = useState<string | null>(null);
   const [skill, setSkill] = useState<(SkillDoc & { originalName?: string }) | null>(null);
   const [skillErr, setSkillErr] = useState('');
+  const [migrating, setMigrating] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -210,7 +212,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
       open={isVisible}
       // 子弹窗打开时 Esc 只关子弹窗
       onClose={() => {
-        if (draft || skill || importing !== null) return;
+        if (draft || skill || importing !== null || migrating) return;
         onClose();
       }}
       title={tr('扩展：MCP 与技能')}
@@ -242,6 +244,9 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                   : tr('MCP 服务器可以给助手接入新工具（文件、网页、数据库…）')}
               </span>
               <span className={styles.grow} />
+              <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
+                {tr('从其他工具导入')}
+              </Button>
               <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
                 {tr('导入 JSON')}
               </Button>
@@ -419,6 +424,13 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
               </Button>
               <Button
                 size="sm"
+                onClick={() => setMigrating(true)}
+                data-testid="migrate-open-skills"
+              >
+                {tr('从其他工具导入')}
+              </Button>
+              <Button
+                size="sm"
                 onClick={() => void run('import', () => extClient.skillImport())}
                 data-testid="skill-import"
               >
@@ -538,6 +550,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             <label className={styles.field}>
               {tr('名称')}
               <Input
+                size="sm"
                 value={tr(draft.name)}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                 placeholder={tr('例如：项目文件')}
@@ -681,6 +694,12 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
           {err && <div className={styles.err}>{err}</div>}
         </div>
       </Modal>
+
+      <MigrateDialog
+        open={migrating}
+        onClose={() => setMigrating(false)}
+        onDone={() => void load()}
+      />
 
       {/* 技能编辑 */}
       <Modal

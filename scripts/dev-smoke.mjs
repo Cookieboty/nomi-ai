@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // `pnpm dev` 冒烟测试（CI 用，也可本地跑）：启动完整开发栈，等到
 //   - 看板娘窗口加载完成（main-did-finish-load）
-//   - VRM 模型加载完成（main:mascot-model-loaded）
+//   - 看板娘模型加载完成（main:mascot-model-loaded）
 //   - 对话窗口 dev server（:6128，dev-ports.json）返回页面
 // 然后结束整个进程树。超时或进程提前退出则失败并打印日志尾部。
 // 用法：node scripts/dev-smoke.mjs [timeoutSec=420]   （Linux 无显示器：xvfb-run -a node scripts/dev-smoke.mjs）

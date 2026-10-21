@@ -10,6 +10,7 @@ import { useThrottledText } from '../../hooks/useThrottledText';
 import { hasLangFence, hasOpenFence, splitMarkdownChunks } from '../../utils/markdown';
 import { streamRenderIntervalMs } from '../../utils/streamPolicy';
 
+import { CiteRef, remarkCiteRefs } from './citeRefs';
 import { sanitizeHref, urlTransform } from './Markdown.helpers';
 import styles from './Markdown.module.css';
 import {
@@ -147,6 +148,17 @@ const components: Components = {
   h4: (p) => <h5>{p.children}</h5>,
   h5: (p) => <h6>{p.children}</h6>,
   h6: (p) => <h6>{p.children}</h6>,
+  // 知识库引用 [n]（remarkCiteRefs 产出 <sup data-cite="n">）；其它 sup（脚注等）照常
+  sup(props) {
+    const { children, node, ...rest } = props as React.HTMLAttributes<HTMLElement> & {
+      node?: unknown;
+      'data-cite'?: string;
+    };
+    void node;
+    const n = Number(rest['data-cite']);
+    if (rest['data-cite'] !== undefined && Number.isInteger(n)) return <CiteRef n={n} />;
+    return <sup {...rest}>{children}</sup>;
+  },
   li(props) {
     const { className, children, ...rest } = props as React.LiHTMLAttributes<HTMLLIElement> & {
       className?: string;
@@ -186,13 +198,14 @@ function serializeHljsChildren(nodes: React.ReactNode): string {
 
 /** 一段（块边界之间）的渲染：文本不变就不重新解析 / 渲染；流式输出时只有最后一段在变 */
 const REMARK_PLUGINS = [remarkGfm];
+const REMARK_PLUGINS_CITE = [remarkGfm, remarkCiteRefs];
 const REHYPE_HIGHLIGHT = [rehypeHighlightShared];
 const REHYPE_NONE: never[] = [];
 
-function renderChunk(text: string, highlight: boolean): React.ReactElement {
+function renderChunk(text: string, highlight: boolean, cite = false): React.ReactElement {
   // ReactMarkdown 是不含 hook 的同步函数组件：直接调用拿到元素树，便于按文本缓存
   return ReactMarkdown({
-    remarkPlugins: REMARK_PLUGINS,
+    remarkPlugins: cite ? REMARK_PLUGINS_CITE : REMARK_PLUGINS,
     rehypePlugins: highlight ? REHYPE_HIGHLIGHT : REHYPE_NONE,
     urlTransform,
     components,
@@ -209,15 +222,20 @@ const CACHE_CHAR_BUDGET = 600_000;
 const chunkCache = new Map<string, React.ReactElement>();
 let cacheChars = 0;
 
-export function renderChunkCached(text: string, highlight = true): React.ReactElement {
-  const key = `${highlight ? 1 : 0}${text}`;
+export function renderChunkCached(
+  text: string,
+  highlight = true,
+  cite = false,
+): React.ReactElement {
+  // 引用按钮通过 context 取来源 / 点击回调，元素树本身只依赖文本：可以按文本缓存
+  const key = `${highlight ? 1 : 0}${cite ? 'c' : ''}${text}`;
   const hit = chunkCache.get(key);
   if (hit) {
     chunkCache.delete(key);
     chunkCache.set(key, hit);
     return hit;
   }
-  const el = renderChunk(text, highlight);
+  const el = renderChunk(text, highlight, cite);
   if (text.length <= CACHE_CHAR_BUDGET / 4) {
     chunkCache.set(key, el);
     cacheChars += key.length;
@@ -240,12 +258,14 @@ const MarkdownChunk = memo(function MarkdownChunk({
   text,
   settled,
   highlight,
+  cite,
 }: {
   text: string;
   settled: boolean;
   highlight: boolean;
+  cite: boolean;
 }) {
-  return settled ? renderChunkCached(text, highlight) : renderChunk(text, highlight);
+  return settled ? renderChunkCached(text, highlight, cite) : renderChunk(text, highlight, cite);
 });
 
 /** 语法高亮器是否已加载（加载好后订阅者重渲染，带语言的代码块这时才上色） */
@@ -263,7 +283,9 @@ export const Markdown: React.FC<{
    * 前面已成型的块仍走缓存。回合结束（streaming 变 false）时立即用最终文本渲染并高亮一次。
    */
   streaming?: boolean;
-}> = memo(({ text: source, className, settled = false, streaming = false }) => {
+  /** 知识库回答：正文里的 [n] 渲染成引用按钮（需外层 CiteProvider 提供来源） */
+  citations?: boolean;
+}> = memo(({ text: source, className, settled = false, streaming = false, citations = false }) => {
   const text = useThrottledText(
     source,
     streaming ? streamRenderIntervalMs(source.length) : 0,
@@ -286,6 +308,7 @@ export const Markdown: React.FC<{
             text={c}
             settled={settled || !last}
             highlight={ready && !(last && lastOpen)}
+            cite={citations}
           />
         );
       })}

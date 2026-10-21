@@ -6,12 +6,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createSpriteBackend } from '../../src/mascot/backends/sprite';
 import { directiveForEvent } from '../../src/mascot/expressionDirector';
 import { RigAnimator } from '../../src/mascot/layeredRig';
-import { MOTION_LABELS } from '../../src/mascot/motion/library';
+import { MOTION_LABELS } from '../../src/mascot/motion/labels';
 import { ActionManager } from '../../src/mascot/rig/actionManager';
 import { ACTIONS, ACTION_LABELS } from '../../src/mascot/rig/actions';
 import { compileAction, sampleTrack, type ActionDef } from '../../src/mascot/rig/actionTypes';
 import { IdleBehavior, pickIdleAction } from '../../src/mascot/rig/idleBehavior';
-import { HAND, IDX, PARAM_DEFS, PARAM_INDEX } from '../../src/mascot/rig/params';
+import { HAND, IDX, MOUTH, PARAM_DEFS, PARAM_INDEX } from '../../src/mascot/rig/params';
 
 const mk = (over: Partial<ActionDef> & { id: string }): ActionDef => ({
   label: over.id,
@@ -491,5 +491,23 @@ describe('parameter registry', () => {
       expect(p.def).toBeLessThanOrEqual(p.max);
       expect(PARAM_INDEX[p.name]).toBeDefined();
     }
+  });
+
+  it('blow_kiss keeps the pout phase: mouth goes auto → pout → smile → auto (#53)', () => {
+    const m = new ActionManager(ACTIONS);
+    m.play('blow_kiss');
+    const at: Record<string, number> = {};
+    let t = 0;
+    for (const probe of [0.1, 0.6, 1.5, 2.2]) {
+      while (t < probe) {
+        m.update(0.05);
+        t += 0.05;
+      }
+      at[String(probe)] = m.out.v[IDX.mouth];
+    }
+    expect(at['0.1']).toBe(MOUTH.auto);
+    expect(at['0.6']).toBe(MOUTH.pout);
+    expect(at['1.5']).toBe(MOUTH.smile);
+    expect(at['2.2']).toBe(MOUTH.auto);
   });
 });

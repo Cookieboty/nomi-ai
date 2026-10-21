@@ -1,16 +1,16 @@
 .input {
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 12px;
-  border-radius: var(--cd-radius-md, 10px);
-  border: 1px solid var(--cd-border, rgba(127, 127, 127, 0.3));
-  background: var(--cd-surface-2, transparent);
+  padding: 10px var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-sunken);
   color: inherit;
   font: inherit;
   outline: none;
 }
 .input:focus-visible {
-  border-color: var(--cd-accent, #fb9466);
+  border-color: var(--cd-color-accent-strong);
 }
 .list {
   list-style: none;
@@ -23,16 +23,16 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: var(--cd-space-2) 10px;
+  border-radius: var(--cd-radius-md);
   cursor: pointer;
 }
 .active {
-  background: var(--cd-accent-soft, rgba(251, 148, 102, 0.16));
+  background: var(--cd-color-accent-soft);
 }
 .group {
   flex: 0 0 72px;
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   opacity: 0.6;
 }
 .label {
@@ -48,6 +48,6 @@
   opacity: 0.7;
 }
 .empty {
-  padding: 12px;
+  padding: var(--cd-space-3);
   opacity: 0.6;
 }

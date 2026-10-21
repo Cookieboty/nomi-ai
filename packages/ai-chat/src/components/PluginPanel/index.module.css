@@ -5,7 +5,7 @@
 }
 .where {
   margin: 0;
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   overflow-wrap: anywhere;
@@ -23,7 +23,7 @@
 .row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
   padding: var(--cd-space-2) var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-md);
@@ -32,11 +32,11 @@
 .head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cd-space-2);
   flex-wrap: wrap;
 }
 .name {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-bold);
 }
@@ -50,8 +50,8 @@
   overflow-wrap: anywhere;
 }
 .path {
-  font-family: var(--cd-font-mono, monospace);
-  font-size: 11px;
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
   overflow-wrap: anywhere;
 }

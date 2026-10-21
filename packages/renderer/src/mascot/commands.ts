@@ -14,9 +14,7 @@ export type VoiceStyle = keyof typeof VOICE_STYLES | 'off';
 export type MascotCommand =
   | { type: 'motion'; name: string }
   | { type: 'expression'; name: string }
-  | { type: 'open-picker' }
   | { type: 'open-panel'; panel: string }
-  | { type: 'select-model'; id: string }
   | { type: string; [k: string]: unknown };
 
 /** 执行指令；返回是否被识别并执行。 */
@@ -32,16 +30,9 @@ export function handleMascotCommand(raw: unknown): boolean {
       applyDirective({ expression: name, holdMs: name === 'neutral' ? 0 : 5000 });
       return true;
     }
-    case 'select-model':
-      if (typeof cmd.id !== 'string') return false;
-      window.dispatchEvent(new CustomEvent('mascot:select-model', { detail: { id: cmd.id } }));
-      return true;
     case 'open-panel':
       if (typeof cmd.panel !== 'string') return false;
       window.dispatchEvent(new CustomEvent('mascot:open-panel', { detail: { panel: cmd.panel } }));
-      return true;
-    case 'open-picker':
-      window.dispatchEvent(new CustomEvent('mascot:open-picker'));
       return true;
     case 'say': {
       // 新手引导等：在气泡里说一句（可附带动作）

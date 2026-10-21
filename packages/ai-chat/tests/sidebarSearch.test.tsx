@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
-import type { HistorySession } from '../src/services/historyClient';
+import { HISTORY_MAX_ITEMS, type HistorySession } from '../src/services/historyClient';
 
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
@@ -20,32 +20,43 @@ const conv = (id: string, name: string, backend: string, age: number, extra = {}
 let convs: ReturnType<typeof conv>[] = [];
 let currentId = 'n1';
 const switchConversation = vi.fn(async () => undefined);
+const listConversations = vi.fn(async () => convs);
 const FIRST: Record<string, string> = { n2: '帮我整理 login 日志，按天归档' };
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
-    state: {
-      messages: [],
-      ipcClient: {
-        listConversations: async () => convs,
-        currentConversationId: () => currentId,
-        switchConversation,
-        conversationStore: () => ({
-          upsertFromTab: () => undefined,
-          removeByTabId: () => undefined,
-          list: () => convs,
-          currentId: () => currentId,
-          ensureCurrent: () => currentId ?? 'new',
-          get: (id: string) => convs.find((x) => x.id === id),
-          updateMeta: () => undefined,
-          getMessages: (id: string) => (FIRST[id] ? [{ role: 'user', content: FIRST[id] }] : []),
-          firstUserPreview: (id: string) => FIRST[id] ?? '',
-        }),
-      },
+// 与生产一致：state.ipcClient 与 conversationStore() 是稳定引用。每次调用都返回新对象会让
+// Sidebar 的 refresh effect 每次渲染都重跑（每秒数千次），慢的 CI 机器上把其他等待拖到超时。
+vi.mock('../src/contexts/AiChatContext', () => {
+  let api: unknown;
+  return {
+    useAiChat: () => {
+      if (api) return api;
+      const store = {
+        upsertFromTab: () => undefined,
+        removeByTabId: () => undefined,
+        list: () => convs,
+        currentId: () => currentId,
+        ensureCurrent: () => currentId ?? 'new',
+        get: (id: string) => convs.find((x) => x.id === id),
+        updateMeta: () => undefined,
+        getMessages: (id: string) => (FIRST[id] ? [{ role: 'user', content: FIRST[id] }] : []),
+        firstUserPreview: (id: string) => FIRST[id] ?? '',
+      };
+      api = {
+        state: {
+          messages: [],
+          ipcClient: {
+            listConversations,
+            currentConversationId: () => currentId,
+            switchConversation,
+            conversationStore: () => store,
+          },
+        },
+        actions: { loadChatHistory: async () => undefined },
+      };
+      return api;
     },
-    actions: { loadChatHistory: async () => undefined },
-  }),
-}));
+  };
+});
 
 const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySession> = {}) =>
   ({
@@ -122,6 +133,7 @@ beforeEach(() => {
   setChatMode('dev');
   currentId = 'n1';
   switchConversation.mockClear();
+  listConversations.mockClear();
   convs = [
     conv('n1', '周报', 'nomi', 1),
     conv('n2', '今天的待办', 'nomi', 2),
@@ -151,6 +163,14 @@ describe('sidebar search', () => {
     expect(nb.getAttribute('aria-label')).toBe('新对话');
     expect(nb.getAttribute('title')).toContain('新对话');
     expect(nb.textContent).toBe(''); // 只有图标，没有整行文字
+  });
+
+  it('settles after mount instead of refreshing the list in a loop', async () => {
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-session-item'));
+    const settled = listConversations.mock.calls.length;
+    await act(() => new Promise((res) => setTimeout(res, 300)));
+    expect(listConversations.mock.calls.length - settled).toBeLessThanOrEqual(2);
   });
 
   it('filters in real time (150ms debounce) over title, first message, workspace and endpoint name', async () => {
@@ -268,18 +288,18 @@ describe('sidebar search', () => {
 });
 
 describe('large history', () => {
-  it('搜索时先取第一页（20），「搜索更早的历史」逐页加载，最多索引到每端 100 条', async () => {
+  it('搜索时先取第一页（20），「搜索更早的历史」逐页加载，最多索引到每端硬上限条', async () => {
+    const pages = HISTORY_MAX_ITEMS / 20;
     const page = (p: number) =>
       Array.from({ length: 20 }, (_, i) => h('claude', p * 20 + i, { title: `bulk ${p}-${i}` }));
-    // 6 页 × 20，但前端只索引到第 100 条（5 页）
-    indexPages = { claude: [0, 1, 2, 3, 4, 5].map(page), codex: [[]] };
+    // 比硬上限多一页，但前端只索引到第 HISTORY_MAX_ITEMS 条
+    indexPages = { claude: Array.from({ length: pages + 1 }, (_, p) => page(p)), codex: [[]] };
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'qqqzzzxxx');
-    // 第一页取回后按钮可点（共 6 页）
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
     expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(1);
-    // 逐页点到第 5 页（offset=80）为止：累计 100 条后前端主动收尾，按钮消失。
+    // 逐页点到最后一页为止：累计到硬上限后前端主动收尾，按钮消失。
     // loading 期间按钮是 disabled，需要等它恢复可用再点
     const clickMoreWhenEnabled = async () => {
       await waitFor(() =>
@@ -287,7 +307,8 @@ describe('large history', () => {
       );
       fireEvent.click(r.getByTestId('sidebar-search-more'));
     };
-    for (const off of [20, 40, 60, 80]) {
+    for (let p = 1; p < pages; p++) {
+      const off = p * 20;
       await clickMoreWhenEnabled();
       await waitFor(() =>
         expect(
@@ -297,10 +318,12 @@ describe('large history', () => {
         ).toHaveLength(1),
       );
     }
-    // 累计 5 次（首页 + 4 次更多），到 100 条硬上限；第 6 页不会再被请求
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(5);
+    // 到硬上限；多出来的那一页不会再被请求
+    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
+      pages,
+    );
     await waitFor(() => expect(r.queryByTestId('sidebar-search-more')).toBeNull());
-  });
+  }, 30_000);
 
   it('renders at most 100 results and says so', async () => {
     // claude 与 codex 各 5 页 × 20 = 各 100 条同名命中 → 合并候选 200 条，超过渲染上限 100

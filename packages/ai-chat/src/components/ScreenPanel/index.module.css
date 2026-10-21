@@ -34,9 +34,9 @@
   color: var(--cd-color-text);
 }
 .keys kbd {
-  font-family: var(--cd-font-mono, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
-  padding: 0 4px;
+  padding: 0 var(--cd-space-1);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface-sunken);
@@ -53,8 +53,8 @@
   align-items: center;
   gap: var(--cd-space-2);
   align-self: flex-start;
-  padding: 2px var(--cd-space-2);
-  border-radius: 999px;
+  padding: var(--cd-space-0-5) var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
   font-size: var(--cd-font-size-xs);
   background: var(--cd-color-surface-sunken);
   border: 1px solid var(--cd-color-border);
@@ -113,7 +113,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
 }
 .entryHead {
   display: flex;
@@ -135,9 +135,9 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px var(--cd-space-2);
-  border-radius: 999px;
+  gap: var(--cd-space-1);
+  padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
   border: 1px solid var(--cd-color-border);
   font-size: var(--cd-font-size-xs);
   background: var(--cd-color-surface-sunken);
@@ -147,7 +147,7 @@
   background: none;
   cursor: pointer;
   color: var(--cd-color-text-muted);
-  padding: 0 4px;
+  padding: 0 var(--cd-space-1);
 }
 .preview {
   max-width: 100%;

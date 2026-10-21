@@ -5,9 +5,11 @@
  * - Claude Code   ~/.claude/projects/<编码后的 cwd>/<sessionId>.jsonl
  * - Codex         ~/.codex/sessions/YYYY/MM/DD/rollout-<ts>-<uuid>.jsonl
  * - dsh           $DSH_HOME/sessions/<编码后的 cwd>/session-<uuid>/session.v4.jsonl(.zstd)
+ * - Gemini CLI    ~/.gemini/tmp/<项目>/chats/session-<时间>-<id 前 8 位>.jsonl（旧版 .json）
  */
-import { cleanTitle } from '../agents/parsers';
+import { cleanTitle, foldGeminiChat, geminiText } from '../agents/parsers';
 
+import { stripCarriedContext } from './contextCarry';
 import { inputText, outputText } from './streamParse';
 import { buildTrace } from './traceBuilder';
 import type { HarnessTabMessage, HarnessTraceEvent, HarnessUsage } from './types';
@@ -19,7 +21,7 @@ type Json = Record<string, unknown>;
 
 function lines(text: string): Json[] {
   const out: Json[] = [];
-  for (const l of text.split('\n')) {
+  for (const l of text.replace(/^\uFEFF/, '').split('\n')) {
     const s = l.trim();
     if (!s.startsWith('{')) continue;
     try {
@@ -97,7 +99,7 @@ class Builder {
   private turnStart = 0;
 
   user(text: string, at: number): void {
-    const content = text.trim();
+    const content = stripCarriedContext(text).trim();
     if (!content || injected(content)) return;
     this.turnStart = at;
     this.out.push({
@@ -365,6 +367,42 @@ export function parseCodexTranscript(text: string, fallbackAt = 0): HarnessTabMe
   return b.result();
 }
 
+/** Grok Build ACP updates.jsonl：兼容 user_message / agent_message(_chunk) 等版本事件。 */
+export function parseGrokTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
+  const b = new Builder();
+  for (const e of lines(text)) {
+    const params = (e.params ?? e) as Json;
+    const u = (params.update ?? params) as Json;
+    const kind = str(u.sessionUpdate) ?? str(params.sessionUpdate) ?? str(e.sessionUpdate) ?? '';
+    const at = when(e.timestamp ?? e.time ?? u.timestamp, fallbackAt);
+    const content = u.content ?? u.message ?? u.text ?? params.content ?? params.message;
+    const { text: body, tools } = blocks(content);
+    if (kind === 'user_message' || kind === 'user_prompt' || kind === 'prompt') {
+      if (body) b.user(body, at);
+    } else if (
+      kind === 'agent_message' ||
+      kind === 'agent_message_chunk' ||
+      kind === 'assistant_message' ||
+      kind === 'assistant_message_chunk'
+    ) {
+      b.assistant(body, tools, at);
+    } else if (kind === 'tool_call' || kind === 'tool_call_started') {
+      const name = str(u.name) ?? str(u.tool) ?? str(u.toolName);
+      if (name)
+        b.toolStart({
+          id: str(u.toolCallId) ?? str(u.id) ?? `grok-${at}`,
+          name,
+          input: u.input ?? u.args,
+          at,
+        });
+    } else if (kind === 'tool_call_update' || kind === 'tool_result') {
+      const id = str(u.toolCallId) ?? str(u.id) ?? `grok-${at}`;
+      b.toolEnd({ id, output: u.output ?? u.result ?? content, error: u.status === 'error', at });
+    }
+  }
+  return b.result();
+}
+
 export function parseDshTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
   const b = new Builder();
   for (const e of lines(text)) {
@@ -391,7 +429,50 @@ export function parseDshTranscript(text: string, fallbackAt = 0): HarnessTabMess
   return b.result();
 }
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh';
+/**
+ * Gemini：消息 type 为 user / gemini（另有 info / error / warning 等系统消息，不显示）；
+ * gemini 消息带 thoughts（subject + description）、toolCalls（args / result / status）与 tokens。
+ */
+export function parseGeminiTranscript(text: string, fallbackAt = 0): HarnessTabMessage[] {
+  const b = new Builder();
+  for (const m of foldGeminiChat(text).messages) {
+    const at = when(m.timestamp, fallbackAt);
+    if (m.type === 'user') {
+      b.user(geminiText(m.content) ?? '', at);
+      continue;
+    }
+    if (m.type !== 'gemini' && m.type !== 'model') continue;
+    for (const th of (Array.isArray(m.thoughts) ? m.thoughts : []) as Json[]) {
+      b.thinking([str(th.subject), str(th.description)].filter(Boolean).join('\n'), at);
+    }
+    for (const c of (Array.isArray(m.toolCalls) ? m.toolCalls : []) as Json[]) {
+      const id = str(c.id) ?? str(c.name) ?? 'tool';
+      const name = str(c.name) ?? 'tool';
+      const cAt = when(c.timestamp, at);
+      b.toolStart({ id, name, input: c.args, at: cAt });
+      if (c.result !== undefined || c.status === 'error' || c.status === 'cancelled')
+        b.toolEnd({
+          id,
+          output: c.resultDisplay ?? c.result,
+          error: c.status === 'error' || c.status === 'cancelled',
+          at: cAt,
+        });
+    }
+    const tk = (m.tokens ?? {}) as Json;
+    const usage =
+      typeof tk.input === 'number' || typeof tk.output === 'number'
+        ? {
+            ...(typeof tk.input === 'number' ? { inputTokens: tk.input } : {}),
+            ...(typeof tk.output === 'number' ? { outputTokens: tk.output } : {}),
+            ...(typeof tk.cached === 'number' && tk.cached ? { cacheReadTokens: tk.cached } : {}),
+          }
+        : undefined;
+    b.assistant(geminiText(m.content) ?? '', [], at, usage);
+  }
+  return b.result();
+}
+
+export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini' | 'grok';
 
 export function parseTranscript(
   backend: HistoryBackend,
@@ -400,6 +481,8 @@ export function parseTranscript(
 ): HarnessTabMessage[] {
   if (backend === 'claude') return parseClaudeTranscript(text, fallbackAt);
   if (backend === 'codex') return parseCodexTranscript(text, fallbackAt);
+  if (backend === 'grok') return parseGrokTranscript(text, fallbackAt);
+  if (backend === 'gemini') return parseGeminiTranscript(text, fallbackAt);
   return parseDshTranscript(text, fallbackAt);
 }
 

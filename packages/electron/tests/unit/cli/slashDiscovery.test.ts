@@ -56,7 +56,19 @@ describe('slashDiscovery', () => {
   it('walks up to the git root and not beyond', () => {
     const chain = projectChain(path.join(proj, 'pkg', 'a'));
     expect(chain).toEqual([path.join(proj, 'pkg', 'a'), path.join(proj, 'pkg'), proj]);
-    expect(projectChain(path.join(root, 'home'))).toEqual([path.join(root, 'home')]);
+    // 不在任何 git 仓库里时只有自己；临时目录本身落在某个仓库里（turbo 下 TMPDIR 在本仓库 .tmp/ 里）
+    // 时应一直走到那个仓库的根并停下，不再往上
+    const h = path.join(root, 'home');
+    const up: string[] = [];
+    let gitRoot: string | null = null;
+    for (let d = path.dirname(h); d !== path.dirname(d); d = path.dirname(d)) {
+      up.push(d);
+      if (fs.existsSync(path.join(d, '.git'))) {
+        gitRoot = d;
+        break;
+      }
+    }
+    expect(projectChain(h)).toEqual(gitRoot ? [h, ...up] : [h]);
   });
 
   it('discovers Claude commands (namespaced), skills, agents and .mcp.json server names only', () => {
@@ -110,6 +122,139 @@ describe('slashDiscovery', () => {
     write(path.join(home, '.claude.json'), '{"mcpServers":{"leak":{}}}');
     const d = discoverSlash('claude', proj, home);
     expect(d.entries.map((e) => e.name)).toEqual(['x']);
+  });
+
+  describe('符号链接不能绕过凭据拒读（#16）', () => {
+    const SECRET = 'SYNTHETIC_SECRET_VALUE_9f3a';
+    const itPosix = process.platform === 'win32' ? it.skip : it;
+    const link = (target: string, at: string) => {
+      fs.mkdirSync(path.dirname(at), { recursive: true });
+      fs.symlinkSync(target, at);
+    };
+    const noLeak = (backend: 'claude' | 'codex', id?: string) => {
+      const d = discoverSlash(backend, proj, home);
+      expect(JSON.stringify(d)).not.toContain(SECRET);
+      if (id) {
+        const x = expandSlash(backend, proj, id, '', home);
+        expect(x === null || !x.text.includes(SECRET)).toBe(true);
+      }
+      return d;
+    };
+
+    itPosix('叶子 SKILL.md → 项目 .env：不进发现结果，描述与展开都不含密钥', () => {
+      write(path.join(proj, '.env'), `${SECRET}\n`);
+      link(path.join(proj, '.env'), path.join(proj, '.agents/skills/evil/SKILL.md'));
+      const d = noLeak('codex', 'project:skill::evil');
+      expect(d.entries.map((e) => e.name)).not.toContain('evil');
+      expect(expandSlash('codex', proj, 'project:skill::evil', '', home)).toBeNull();
+    });
+
+    itPosix('叶子 SKILL.md → auth.json / *.pem / ~/.ssh/id_rsa / .git/config 均被拒', () => {
+      write(path.join(proj, 'auth.json'), SECRET);
+      write(path.join(proj, 'k.pem'), SECRET);
+      write(path.join(proj, '.git/config'), `[remote "o"]\n url = https://${SECRET}@h/x\n`);
+      write(path.join(home, '.ssh/id_rsa'), SECRET);
+      link(path.join(proj, 'auth.json'), path.join(proj, '.agents/skills/a/SKILL.md'));
+      link(path.join(proj, 'k.pem'), path.join(proj, '.agents/skills/b/SKILL.md'));
+      link(path.join(proj, '.git/config'), path.join(proj, '.agents/skills/c/SKILL.md'));
+      link(path.join(home, '.ssh/id_rsa'), path.join(proj, '.agents/skills/d/SKILL.md'));
+      const d = noLeak('codex');
+      expect(d.entries).toEqual([]);
+    });
+
+    itPosix(
+      '父目录链接：skill 目录 → 项目外目录 / ~/.ssh 类目录，目标里的 SKILL.md 不被读取',
+      () => {
+        write(path.join(root, 'outside/SKILL.md'), `${SECRET}\n`);
+        write(path.join(home, '.aws/SKILL.md'), `${SECRET}\n`);
+        link(path.join(root, 'outside'), path.join(proj, '.claude/skills/out'));
+        link(path.join(home, '.aws'), path.join(proj, '.claude/skills/aws'));
+        const d = noLeak('claude', 'project:skill::out');
+        expect(d.entries).toEqual([]);
+      },
+    );
+
+    itPosix('用户目录里的 skill 也不能链接到凭据文件', () => {
+      write(path.join(home, '.env'), SECRET);
+      link(path.join(home, '.env'), path.join(home, '.agents/skills/u/SKILL.md'));
+      const d = noLeak('codex', 'user:skill::u');
+      expect(d.entries).toEqual([]);
+    });
+
+    itPosix('合法共享 skill 仍可用：用户目录链到别处、项目内链接、项目链到用户 agent 目录', () => {
+      write(path.join(root, 'shared/one/SKILL.md'), '---\ndescription: shared one\n---\nbody one');
+      link(path.join(root, 'shared/one'), path.join(home, '.agents/skills/one'));
+      write(path.join(proj, 'tools/two/SKILL.md'), '---\ndescription: two\n---\nbody two');
+      link(path.join(proj, 'tools/two'), path.join(proj, '.agents/skills/two'));
+      write(path.join(home, '.agents/skills/common/SKILL.md'), '---\ndescription: c\n---\nbody c');
+      link(path.join(home, '.agents/skills/common'), path.join(proj, '.agents/skills/common2'));
+      const d = discoverSlash('codex', proj, home);
+      expect(d.entries.map((e) => `${e.scope}:${e.name}`).sort()).toEqual([
+        'project:common2',
+        'project:two',
+        'user:common',
+        'user:one',
+      ]);
+      expect(expandSlash('codex', proj, 'user:skill::one', '', home)?.text).toContain('body one');
+      expect(expandSlash('codex', proj, 'project:skill::two', '', home)?.text).toContain(
+        'body two',
+      );
+    });
+
+    itPosix(
+      '项目 skill 不能链到 ~/.claude 的会话历史 / 会话记录 / 配置（只允许内容子目录）',
+      () => {
+        write(path.join(home, '.claude/history.jsonl'), `{"display":"${SECRET}"}\n`);
+        write(path.join(home, '.claude/projects/p/s.jsonl'), `{"m":"${SECRET}"}\n`);
+        write(path.join(home, '.claude/config.json'), `{"k":"${SECRET}"}`);
+        // 扩展名一致、但不在内容子目录里的 .md 也不行
+        write(
+          path.join(home, '.claude/projects/p/notes.md'),
+          `---\ndescription: n\n---\n${SECRET}`,
+        );
+        link(
+          path.join(home, '.claude/history.jsonl'),
+          path.join(proj, '.claude/skills/h/SKILL.md'),
+        );
+        link(
+          path.join(home, '.claude/projects/p/s.jsonl'),
+          path.join(proj, '.claude/commands/s.md'),
+        );
+        link(path.join(home, '.claude/config.json'), path.join(proj, '.claude/agents/c.md'));
+        link(
+          path.join(home, '.claude/projects/p/notes.md'),
+          path.join(proj, '.claude/skills/n/SKILL.md'),
+        );
+        link(path.join(home, '.claude/projects'), path.join(proj, '.claude/skills/dir'));
+        const d = noLeak('claude', 'project:skill::n');
+        expect(d.entries).toEqual([]);
+        expect(expandSlash('claude', proj, 'project:command::s', '', home)).toBeNull();
+      },
+    );
+
+    itPosix('链接不能改变文件类型；同扩展名的常见密钥文件名一律拒读', () => {
+      write(path.join(proj, 'notes.txt'), `---\ndescription: t\n---\n${SECRET}`);
+      link(path.join(proj, 'notes.txt'), path.join(proj, '.agents/skills/t/SKILL.md'));
+      write(path.join(proj, '.agents/skills/ok/SKILL.md'), '---\ndescription: ok\n---\nfine');
+      expect(noLeak('codex', 'project:skill::t').entries.map((e) => e.name)).toEqual(['ok']);
+      // plugin.json → 同为 .json 的服务账号密钥：扩展名规则拦不住，靠文件名拒读
+      const manifest = JSON.stringify({ name: 'evil', description: SECRET });
+      for (const name of ['service-account.json', 'secrets.json', 'prod.tfvars.json']) {
+        write(path.join(proj, 'deploy', name), manifest);
+        link(path.join(proj, 'deploy', name), path.join(proj, `.grok/plugins/${name}/plugin.json`));
+      }
+      const g = discoverSlash('grok', proj, home);
+      expect(JSON.stringify(g)).not.toContain(SECRET);
+    });
+
+    itPosix('发现之后 SKILL.md 被换成指向凭据的链接：展开时重新校验，不外发', () => {
+      write(path.join(proj, '.agents/skills/swap/SKILL.md'), '---\ndescription: ok\n---\nfine');
+      write(path.join(proj, '.env'), SECRET);
+      expect(discoverSlash('codex', proj, home).entries.map((e) => e.name)).toContain('swap');
+      fs.rmSync(path.join(proj, '.agents/skills/swap/SKILL.md'));
+      link(path.join(proj, '.env'), path.join(proj, '.agents/skills/swap/SKILL.md'));
+      expect(expandSlash('codex', proj, 'project:skill::swap', '', home)).toBeNull();
+    });
   });
 
   it('discovers Codex .agents/skills and Grok skills / commands / plugins', () => {

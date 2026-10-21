@@ -8,12 +8,18 @@
  * Dev / unpackaged: status stays "idle" / "unavailable"; check() returns a clear reason so
  * Settings can explain that updates only apply to installed builds.
  */
-import { BrowserWindow, app, ipcMain } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { BrowserWindow, app } from 'electron';
 import {
   autoUpdater as defaultAutoUpdater,
   type ProgressInfo,
   type UpdateInfo,
 } from 'electron-updater';
+
+import { guardedHandle } from '../security/guardedIpc';
+import { writePrivateFileAtomic } from '../utils/privateFile';
 
 import { type ILoggerService } from './LoggerService';
 
@@ -64,6 +70,35 @@ export interface UpdateServiceOptions {
   intervalMs?: number;
   /** force "packaged" for tests */
   packaged?: boolean;
+  /**
+   * Where the "check automatically" switch is persisted. Defaults to
+   * `<userData>/update-settings.json`; `null` disables persistence.
+   */
+  settingsFile?: string | null;
+}
+
+interface StoredUpdateSettings {
+  version: 1;
+  autoCheck: boolean;
+}
+
+function defaultSettingsFile(): string | null {
+  try {
+    return path.join(app.getPath('userData'), 'update-settings.json');
+  } catch {
+    return null;
+  }
+}
+
+/** Only an explicit stored `false` turns the switch off; a missing / corrupt file keeps the default (on). */
+function loadAutoCheck(file: string | null): boolean {
+  if (!file) return true;
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<StoredUpdateSettings> | null;
+    return raw?.autoCheck !== false;
+  } catch {
+    return true;
+  }
 }
 
 const CHANNEL = {
@@ -83,7 +118,8 @@ export class UpdateService {
   private readonly packaged: boolean;
   private readonly launchDelayMs: number;
   private readonly intervalMs: number;
-  private autoCheck = true;
+  private autoCheck: boolean;
+  private readonly settingsFile: string | null;
   private state: UpdateState;
   private launchTimer: ReturnType<typeof setTimeout> | null = null;
   private intervalTimer: ReturnType<typeof setInterval> | null = null;
@@ -97,10 +133,13 @@ export class UpdateService {
     this.packaged = opts.packaged ?? app.isPackaged;
     this.launchDelayMs = opts.launchDelayMs ?? DEFAULT_LAUNCH_DELAY;
     this.intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL;
+    // 必须在 start() 之前就恢复用户的选择：启动检查 / 定时器都读这个值
+    this.settingsFile = opts.settingsFile === undefined ? defaultSettingsFile() : opts.settingsFile;
+    this.autoCheck = loadAutoCheck(this.settingsFile);
     this.state = {
       status: this.packaged ? 'idle' : 'unavailable',
       currentVersion: app.getVersion(),
-      autoCheck: true,
+      autoCheck: this.autoCheck,
     };
   }
 
@@ -109,19 +148,19 @@ export class UpdateService {
   }
 
   registerIpc(): void {
-    ipcMain.removeHandler(CHANNEL.get);
-    ipcMain.removeHandler(CHANNEL.check);
-    ipcMain.removeHandler(CHANNEL.download);
-    ipcMain.removeHandler(CHANNEL.install);
-    ipcMain.removeHandler(CHANNEL.setAutoCheck);
-    ipcMain.handle(CHANNEL.get, () => this.getState());
-    ipcMain.handle(CHANNEL.check, () => this.check());
-    ipcMain.handle(CHANNEL.download, () => this.download());
-    ipcMain.handle(CHANNEL.install, () => this.install());
-    ipcMain.handle(CHANNEL.setAutoCheck, (_e, on: unknown) => {
-      this.setAutoCheck(on === true);
-      return this.getState();
-    });
+    const opts = { owner: 'UpdateService', wrapErrors: false };
+    guardedHandle(CHANNEL.get, () => this.getState(), opts);
+    guardedHandle(CHANNEL.check, () => this.check(), opts);
+    guardedHandle(CHANNEL.download, () => this.download(), opts);
+    guardedHandle(CHANNEL.install, () => this.install(), opts);
+    guardedHandle(
+      CHANNEL.setAutoCheck,
+      (on) => {
+        this.setAutoCheck(on === true);
+        return this.getState();
+      },
+      opts,
+    );
   }
 
   /** Wire updater events and schedule launch / periodic checks. Safe to call once. */
@@ -207,8 +246,20 @@ export class UpdateService {
 
   setAutoCheck(on: boolean): void {
     this.autoCheck = on;
+    this.persistAutoCheck();
     this.patch({ autoCheck: on });
     this.rescheduleInterval();
+  }
+
+  private persistAutoCheck(): void {
+    if (!this.settingsFile) return;
+    try {
+      fs.mkdirSync(path.dirname(this.settingsFile), { recursive: true });
+      const data: StoredUpdateSettings = { version: 1, autoCheck: this.autoCheck };
+      writePrivateFileAtomic(this.settingsFile, JSON.stringify(data));
+    } catch (err) {
+      this.logger.warn('[updater] failed to persist autoCheck', { error: String(err) });
+    }
   }
 
   async check(): Promise<UpdateState> {

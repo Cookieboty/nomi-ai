@@ -72,6 +72,72 @@ describe('undo journal + app trash', () => {
     expect(fs.readFileSync(f, 'utf8')).toBe('new one');
   });
 
+  it('overwrite inverse [trash new, restore old] pre-checks sequentially (#27)', async () => {
+    const f = path.join(root, 'docs', 'o.txt');
+    fs.writeFileSync(f, 'old');
+    const rec = await trash.trash(f);
+    fs.writeFileSync(f, 'new!');
+    const st = fs.statSync(f);
+    journal.record('fs_write_text', 'overwrite o.txt', [
+      { op: 'trash', path: f, expectSize: st.size, expectMtimeMs: st.mtimeMs },
+      { op: 'restore', stored: rec.stored, original: f },
+    ]);
+    expect(journal.check(journal.last()!)).toBeNull();
+    await journal.undo(journal.last()!);
+    expect(fs.readFileSync(f, 'utf8')).toBe('old');
+    expect(journal.last()).toBeNull();
+  });
+
+  it('a restore whose original is occupied with no preceding trash still conflicts (#27)', async () => {
+    const f = path.join(root, 'docs', 'p.txt');
+    fs.writeFileSync(f, 'old');
+    const rec = await trash.trash(f);
+    fs.writeFileSync(f, 'user file');
+    journal.record('x', 'restore only', [{ op: 'restore', stored: rec.stored, original: f }]);
+    expect(journal.check(journal.last()!)).toMatch(/无法恢复/);
+  });
+
+  it('overwrite undo is refused when the new file changed; copies stay intact (#27)', async () => {
+    const f = path.join(root, 'docs', 'q.txt');
+    fs.writeFileSync(f, 'old');
+    const rec = await trash.trash(f);
+    fs.writeFileSync(f, 'new!');
+    const st = fs.statSync(f);
+    journal.record('fs_write_text', 'overwrite q.txt', [
+      { op: 'trash', path: f, expectSize: st.size, expectMtimeMs: st.mtimeMs },
+      { op: 'restore', stored: rec.stored, original: f },
+    ]);
+    fs.writeFileSync(f, 'edited by user after');
+    await expect(journal.undo(journal.last()!)).rejects.toMatchObject({ code: 'conflict' });
+    expect(fs.readFileSync(f, 'utf8')).toBe('edited by user after');
+    expect(fs.readFileSync(rec.stored, 'utf8')).toBe('old');
+  });
+
+  it('rolls back executed steps when a later step fails (#27)', async () => {
+    const f = path.join(root, 'docs', 'r.txt');
+    fs.writeFileSync(f, 'old');
+    const rec = await trash.trash(f);
+    fs.writeFileSync(f, 'new!');
+    const st = fs.statSync(f);
+    journal.record('fs_write_text', 'overwrite r.txt', [
+      { op: 'trash', path: f, expectSize: st.size, expectMtimeMs: st.mtimeMs },
+      { op: 'restore', stored: rec.stored, original: f },
+    ]);
+    // 检查通过之后、执行之前让恢复失败：回收站里旧副本被清掉的同时 check 之后才发生
+    const realRestore = trash.restore.bind(trash);
+    let calls = 0;
+    jest.spyOn(trash, 'restore').mockImplementation(async (r) => {
+      calls += 1;
+      if (calls === 1) throw new Error('disk error');
+      return realRestore(r);
+    });
+    await expect(journal.undo(journal.last()!)).rejects.toThrow('disk error');
+    // 新文件被放回原处，旧副本仍在回收站
+    expect(fs.readFileSync(f, 'utf8')).toBe('new!');
+    expect(fs.readFileSync(rec.stored, 'utf8')).toBe('old');
+    expect(journal.last()).not.toBeNull();
+  });
+
   it('purges trash folders older than 30 days', async () => {
     const old = new AppTrash(path.join(root, 'trash'), () => Date.parse('2020-01-01T00:00:00Z'));
     const f = path.join(root, 'docs', 'o.txt');

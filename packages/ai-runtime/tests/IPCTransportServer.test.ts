@@ -10,6 +10,7 @@
 
 import { AIClient } from '@nomi-ai/ai-sdk';
 import { LLMRegistryKey, ToolRegistryKey, UserProfileKey } from '@nomi-ai/bundle-ig-base';
+import { TtsKey } from '@nomi-ai/bundle-ig-electron-caps/seams';
 import { describe, it, expect } from 'vitest';
 
 import { IPC_METHODS, channelName, chunkChannelName } from '../src/channels';
@@ -89,6 +90,37 @@ describe('IPCTransportServer', () => {
     expect(last.done).toBe(true);
   });
 
+  it('tts.stream：位置参数不被改写——服务端用原始 (text, opts) 调用（reqId 在 envelope 里）', async () => {
+    const ctx = createFakeSdkCtx();
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(createFakeLLM('fake')));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const calls: unknown[][] = [];
+    ctx.provide(TtsKey, {
+      stream(...a: unknown[]) {
+        calls.push(a);
+        return (async function* () {
+          yield { audio: 'x' };
+        })();
+      },
+    } as never);
+    const adapter = createFakeIpcAdapter();
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+    }).start();
+    const ack = (await adapter.invoke(5, 'ai:tts:stream', { reqId: 'tts-1' }, 'hello', {
+      voice: 'v1',
+    })) as { ok: true; reqId: string };
+    await new Promise((r) => setTimeout(r, 5));
+    expect(ack.reqId).toBe('tts-1');
+    expect(calls).toEqual([['hello', { voice: 'v1' }]]);
+    const chunkCh = chunkChannelName({ facade: 'tts', method: 'stream' });
+    const sent = (adapter.senderStreams.get(5) ?? []).filter((s) => s.channel === chunkCh);
+    expect((sent[0]!.payload as { reqId: string }).reqId).toBe('tts-1');
+  });
+
   it('窗口中途销毁：停止推送 chunk，并中止上游生成（不抛未处理异常）', async () => {
     const ctx = createFakeSdkCtx();
     const llm = createFakeLLM('fake');
@@ -116,16 +148,60 @@ describe('IPCTransportServer', () => {
       provider: 'fake',
       messages: [{ role: 'user', content: 'hi' }],
     })) as { reqId: string };
-    await new Promise((r) => setTimeout(r, 5));
+    // 文本片段按帧（16ms）合批：等 'a' 发出去再销毁窗口
+    await new Promise((r) => setTimeout(r, 40));
     adapter.destroySender(7);
     gate.release?.();
-    await new Promise((r) => setTimeout(r, 10));
+    await new Promise((r) => setTimeout(r, 40));
 
     const sent = (adapter.senderStreams.get(7) ?? []).map(
       (s) => (s.payload as { value?: { content?: string } }).value?.content,
     );
     expect(sent).toEqual(['a']); // 销毁之后的 b / c / done 都不再发送
     expect(llm.aborted).toContain(ack.reqId);
+  });
+
+  it('逐 token 的文本片段按帧合批，其它 chunk 保持顺序', async () => {
+    const ctx = createFakeSdkCtx();
+    const llm = createFakeLLM('fake');
+    llm.stream = (req) => {
+      llm.streamCalls.push(req);
+      return (async function* () {
+        for (const c of ['你', '好', '，']) yield { type: 'delta', content: c } as never;
+        yield { type: 'reasoning', content: '想' } as never;
+        yield { type: 'reasoning', content: '想' } as never;
+        yield { type: 'tool_call.delta', id: 't1', name: 'x', argumentsJson: '{}' } as never;
+        for (const c of ['世', '界']) yield { type: 'delta', content: c } as never;
+        yield { type: 'done', finishReason: 'stop' } as never;
+      })();
+    };
+    ctx.provide(LLMRegistryKey, createFakeLLMRegistry(llm));
+    ctx.provide(ToolRegistryKey, createFakeToolRegistry());
+    ctx.provide(UserProfileKey, createFakeProfileService());
+    const adapter = createFakeIpcAdapter();
+    new IPCTransportServer({
+      client: new AIClient(ctx),
+      adapter,
+      logger: NoopRuntimeLogger,
+    }).start();
+    await adapter.invoke(7, 'ai:chat:stream', {
+      provider: 'fake',
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+    await new Promise((r) => setTimeout(r, 60));
+    const values = (adapter.senderStreams.get(7) ?? [])
+      .map((s) => (s.payload as { value?: { type: string; content?: string } }).value)
+      .filter(Boolean)
+      .map((v) => `${v!.type}:${v!.content ?? ''}`);
+    expect(values).toEqual([
+      'delta:你好，',
+      'reasoning:想想',
+      'tool_call.delta:',
+      'delta:世界',
+      'done:',
+    ]);
+    const last = adapter.senderStreams.get(7)!.at(-1)!.payload as { done: boolean };
+    expect(last.done).toBe(true);
   });
 
   it('scenario#4 · isSenderAllowed=false → reject with error', async () => {

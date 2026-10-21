@@ -32,6 +32,10 @@ describe('buildRegistry 重名规则', () => {
     expect(r.map((c) => c.name)).toEqual(['review', 'project:review', 'user:review']);
     expect(r[0]!.source).toBe('builtin');
     expect(r[1]!.qualified).toBe(true);
+    // 透传的自定义项被改成限定名后不可发送；裸名属于内置
+    expect(r[1]!.disabled?.reason).toBeTruthy();
+    expect(r[2]!.disabled?.reason).toBeTruthy();
+    expect(r[0]!.disabled).toBeUndefined();
     expect(new Set(r.map((c) => c.id)).size).toBe(3);
   });
   it('自定义命令之间：Claude 个人优先，其它端项目优先', () => {

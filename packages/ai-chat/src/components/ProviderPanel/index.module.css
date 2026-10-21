@@ -38,9 +38,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-2);
-  padding: 2px 10px;
+  padding: var(--cd-space-0-5) 10px;
   border: 1px solid var(--cd-color-border);
-  border-radius: 999px;
+  border-radius: var(--cd-radius-full);
   font-size: var(--cd-font-size-xs);
 }
 .keys {
@@ -69,14 +69,14 @@
 .catNav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--cd-space-0-5);
 }
 .catItem {
   display: flex;
   justify-content: space-between;
-  padding: 8px 10px;
+  padding: var(--cd-space-2) 10px;
   border: 0;
-  border-radius: var(--cd-radius-sm, 8px);
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -93,12 +93,12 @@
   gap: var(--cd-space-3);
   max-height: 460px;
   overflow: auto;
-  padding-right: 4px;
+  padding-right: var(--cd-space-1);
 }
 .catTitle {
   margin: 0 0 var(--cd-space-2);
   font-size: var(--cd-font-size-sm);
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
   opacity: 0.75;
 }
 .presetGrid {
@@ -110,9 +110,9 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-3);
-  padding: 10px 12px;
+  padding: 10px var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md, 10px);
+  border-radius: var(--cd-radius-md);
   background: var(--cd-color-surface-sunken);
   color: inherit;
   font: inherit;
@@ -134,7 +134,7 @@
   white-space: nowrap;
 }
 .presetName {
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
 }
 
 /* ---- editor ---- */
@@ -186,26 +186,26 @@
   margin-top: var(--cd-space-2);
   overflow: auto;
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md, 10px);
+  border-radius: var(--cd-radius-md);
 }
 .modelRow {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  padding: 6px 10px;
+  padding: var(--cd-space-1-5) 10px;
   cursor: pointer;
 }
 .modelRow:hover {
   background: var(--cd-color-surface-sunken);
 }
 .modelId {
-  font-family: var(--cd-font-mono, ui-monospace, monospace);
+  font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
 }
 .linkBtn {
   border: 0;
   background: transparent;
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
   font: inherit;
   font-size: var(--cd-font-size-xs);
   cursor: pointer;
@@ -216,12 +216,12 @@
   gap: var(--cd-space-3);
   padding: var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md, 10px);
+  border-radius: var(--cd-radius-md);
 }
 .advHead {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
   border: 0;
   background: transparent;
   color: inherit;
@@ -230,7 +230,7 @@
   cursor: pointer;
 }
 .advHead > span:first-child {
-  font-weight: 600;
+  font-weight: var(--cd-font-weight-bold);
 }
 .mapList {
   display: flex;

@@ -26,6 +26,7 @@ import {
   Settings,
   ShieldCheck,
   SlidersHorizontal,
+  Boxes,
   SquareTerminal,
   type LucideIcon,
   type LucideProps,
@@ -51,6 +52,8 @@ export const SETTINGS_ICONS = {
   /** 通用：偏好调节 */
   general: SlidersHorizontal,
   shortcuts: Keyboard,
+  /** 模型：第三方供应商与模型分配 */
+  models: Boxes,
   /** 编程助手：终端 */
   coding: SquareTerminal,
   /** 用量与费用：硬币 */

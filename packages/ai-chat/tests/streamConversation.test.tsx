@@ -11,15 +11,16 @@ type Api = ReturnType<typeof useAiChat>;
 
 /** 可手动推送 chunk 的假流；abort(reqId) 会触发 AbortController，并让流以 abort 错误收尾 */
 function fakeClient() {
-  const queue: Array<{ type: string; content?: string }> = [];
+  const queue: Array<{ type: string; content?: string; error?: string }> = [];
   let wake: (() => void) | undefined;
   let finished = false;
   const upstream = new AbortController();
   const abortCalls: string[] = [];
-  const seen: { reqId?: string } = {};
+  const seen: { reqId?: string; messages?: Array<{ content: string }> } = {};
   const chat = {
-    agentStream(opts: { reqId?: string }) {
+    agentStream(opts: { reqId?: string; messages?: Array<{ content: string }> }) {
       seen.reqId = opts.reqId;
+      seen.messages = opts.messages;
       return (async function* () {
         for (;;) {
           if (upstream.signal.aborted) throw new Error('aborted upstream');
@@ -56,6 +57,11 @@ function fakeClient() {
     },
     finish() {
       finished = true;
+      wake?.();
+    },
+    /** 上游以错误帧收尾（主进程已压成 `[code] message`） */
+    fail(error: string) {
+      queue.push({ type: 'error', error });
       wake?.();
     },
     upstream,
@@ -185,6 +191,53 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     expect(ref.api.state.error).toBeUndefined();
   });
 
+  it('这一轮失败：错误只在卡片里显示一次，底部不再弹全局错误提示（#78）', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    const store = (ref.api.state.ipcClient as SdkIPCClient).conversationStore();
+    const A = store.ensureCurrent();
+
+    let done!: Promise<void>;
+    await act(async () => {
+      done = ref.api.actions.sendStreamMessage('活着吗');
+      await new Promise((r) => setTimeout(r, 5));
+    });
+    f.push('半句');
+    f.fail('[upstream_channel_error] upstream channel request failed');
+    await act(async () => {
+      await done;
+    });
+
+    const failed = ref.api.state.messages[1]!;
+    expect(failed.content).toBe('半句');
+    expect(failed.error).toContain('上游通道请求失败');
+    expect(failed.error).toContain('upstream_channel_error');
+    expect(failed.error).not.toContain('发送流式消息失败');
+    expect(store.getMessages(A)[1]!.error).toBe(failed.error);
+    expect(ref.api.state.error).toBeUndefined();
+    expect(ref.api.state.isLoading).toBe(false);
+  });
+
+  it('全局错误提示在新建 / 切换会话时清掉', async () => {
+    const f = fakeClient();
+    const ref = mount(f.client);
+    await flush();
+    await act(async () => {
+      ref.api.dispatch({ type: 'SET_ERROR', payload: '加载失败' });
+    });
+    expect(ref.api.state.error).toBe('加载失败');
+    await act(async () => {
+      await ref.api.actions.newConversation();
+    });
+    expect(ref.api.state.error).toBeUndefined();
+    await act(async () => {
+      ref.api.dispatch({ type: 'SET_ERROR', payload: '加载失败' });
+      await ref.api.actions.loadChatHistory();
+    });
+    expect(ref.api.state.error).toBeUndefined();
+  });
+
   it('没有任何内容就停止：落一条空的 stopped 助手消息（界面显示灰色提示）', async () => {
     const f = fakeClient();
     const ref = mount(f.client);
@@ -242,5 +295,144 @@ describe('Nomi 流式回复 · 会话固定与停止生成', () => {
     });
     await waitFor(() => expect(ref.api.state.messages.map((m) => m.content)).toEqual(['in B']));
     spy.mockRestore();
+  });
+
+  describe('流式中途删除会话（#36）', () => {
+    const start = async (f: ReturnType<typeof fakeClient>) => {
+      const ref = mount(f.client);
+      await flush();
+      const ipc = ref.api.state.ipcClient as SdkIPCClient;
+      const store = ipc.conversationStore();
+      const A = store.ensureCurrent();
+      let done!: Promise<void>;
+      await act(async () => {
+        done = ref.api.actions.sendStreamMessage('你好');
+        await new Promise((r) => setTimeout(r, 5));
+      });
+      f.push('部分');
+      await flush();
+      expect(ref.api.state.messages.map((m) => m.content)).toEqual(['你好', '部分']);
+      return { ref, ipc, store, A, done: () => done };
+    };
+    /** Sidebar 删除最后一个会话的做法：删 store → 清空消息区 */
+    const deleteLast = async (ref: { api: Api }, ipc: SdkIPCClient, A: string) => {
+      await act(async () => {
+        await ipc.deleteConversation(A);
+        await ref.api.actions.clearChatHistory();
+      });
+    };
+
+    it('删除最后一个会话后晚到的 chunk / finish：界面保持为空，store 不复活，下一轮 history 不含已删除内容', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      await deleteLast(ref, ipc, A);
+      expect(ref.api.state.messages).toEqual([]);
+
+      f.push('晚到');
+      await flush();
+      expect(ref.api.state.messages).toEqual([]); // 晚到 chunk 不会让 A 的消息回到界面
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages).toEqual([]);
+      expect(store.get(A)).toBeUndefined();
+
+      // 再发一条：新会话的 provider messages 里没有 A 的任何文本
+      const f2seen = f.seen;
+      await act(async () => {
+        await ref.api.actions.sendStreamMessage('新问题');
+      });
+      const texts = (f2seen.messages ?? []).map((m) => m.content);
+      expect(texts).not.toContain('你好');
+      expect(texts).not.toContain('部分');
+      expect(texts).not.toContain('部分晚到');
+    });
+
+    it('删除前先 abortConversation：在途流被中止，错误路径也不写回界面', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      await act(async () => {
+        ref.api.actions.abortConversation(A);
+      });
+      expect(f.upstream.signal.aborted).toBe(true);
+      expect(f.abortCalls[0]).toBe(f.seen.reqId);
+      await deleteLast(ref, ipc, A);
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages).toEqual([]);
+      expect(store.get(A)).toBeUndefined();
+      expect(ref.api.state.streaming).toBe(false);
+    });
+
+    it('abortConversation 只中止属于该会话的流（控制用例：别的会话 id 不影响）', async () => {
+      const f = fakeClient();
+      const { ref, done } = await start(f);
+      await act(async () => {
+        ref.api.actions.abortConversation('some-other-conversation');
+      });
+      expect(f.upstream.signal.aborted).toBe(false);
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+    });
+
+    it('删除的是别的会话（有 B 回退，A 仍在显示）：A 的流不受影响', async () => {
+      const f = fakeClient();
+      const { ref, ipc, store, A, done } = await start(f);
+      const B = store.create().id;
+      store.switchTo(A);
+      await act(async () => {
+        await ipc.deleteConversation(B);
+      });
+      f.push('继续');
+      f.finish();
+      await act(async () => {
+        await done();
+      });
+      expect(ref.api.state.messages.map((m) => m.content)).toEqual(['你好', '部分继续']);
+      expect(store.getMessages(A).map((m) => m.content)).toEqual(['你好', '部分继续']);
+    });
+  });
+
+  describe('知识库问答的重新生成（#37）', () => {
+    it('kb 标记的用户消息重新生成 / 编辑重发：走 kbClient.ask，不走 agentStream', async () => {
+      const f = fakeClient();
+      const asks: unknown[][] = [];
+      (window as unknown as { aiIPC: unknown }).aiIPC = {
+        invoke: vi.fn(async (ch: string, ...a: unknown[]) => {
+          if (ch === 'ai:kb:ask') {
+            asks.push(a);
+            return { answer: '带引用的回答', sources: [], mode: 'hybrid' };
+          }
+          return null;
+        }),
+        on: () => () => undefined,
+      };
+      const ref = mount(f.client);
+      await flush();
+      const store = (ref.api.state.ipcClient as SdkIPCClient).conversationStore();
+      const A = store.ensureCurrent();
+      await act(async () => {
+        await ref.api.actions.askKnowledge('问题一');
+      });
+      const u = ref.api.state.messages.find((m) => m.role === 'user')!;
+      expect(u.kb).toBe(true);
+      expect(asks).toHaveLength(1);
+
+      await act(async () => {
+        await ref.api.actions.resendFrom(u.id, '改过的问题');
+      });
+      expect(asks).toHaveLength(2);
+      expect(asks[1]![0]).toBe('改过的问题');
+      expect(f.seen.reqId).toBeUndefined(); // agentStream 没被调用
+      const msgs = ref.api.state.messages;
+      expect(msgs.map((m) => m.content)).toEqual(['改过的问题', '带引用的回答']);
+      expect(msgs.every((m) => m.kb)).toBe(true);
+      expect(store.getMessages(A).length).toBeGreaterThan(0);
+      delete (window as unknown as { aiIPC?: unknown }).aiIPC;
+    });
   });
 });

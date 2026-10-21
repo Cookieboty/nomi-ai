@@ -11,6 +11,8 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
+import { revealToolbar } from './toolbarReveal';
+
 /**
  * E11 · 真实应用 · 气泡安全 + 工具栏
  * 1. 看板娘窗口带 CSP（script-src 'self' + wasm-unsafe-eval，无 unsafe-inline / unsafe-eval），内联脚本被拦截；
@@ -122,7 +124,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
     await main
-      .waitForFunction(() => document.documentElement.dataset.mascotBackend === 'vrm', undefined, {
+      .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
       })
       .catch(() => undefined);
@@ -261,19 +263,28 @@ test.describe('E11 · bubble security + toolbar', () => {
     );
     await reveal();
     const bar = main.locator('[data-testid="mascot-toolbar"]');
+    // 只有悬停在角色 / 工具栏上才显示
+    const hoverBar = () => revealToolbar(main);
+    await hoverBar();
     await expect(bar).toBeVisible();
     await main.waitForTimeout(800);
-    for (const id of [
-      'ai-chat',
-      'switch-model',
-      'motion',
-      'voice-settings',
-      'toggle-top',
-      'more',
-    ]) {
+    for (const id of ['ai-chat', 'task-board', 'motion', 'voice-settings', 'more']) {
       await expect(main.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
-    await main.screenshot(shot('01-toolbar-calm.png'));
+    // 常驻按钮顺序（PRIMARY_TOOLS）；麦克风只在语音识别可用时出现。角色切换已移除
+    const order = await bar
+      .locator('[role="toolbar"] button[data-testid^="tool-"]')
+      .evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.testid));
+    expect(order.filter((id) => id !== 'tool-voice-input')).toEqual([
+      'tool-ai-chat',
+      'tool-task-board',
+      'tool-motion',
+      'tool-voice-settings',
+      'tool-more',
+    ]);
+    await expect(main.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);
+    await expect(bar).toHaveAttribute('data-style', 'dark');
+    await main.screenshot(shot('01-toolbar-dark.png'));
 
     // 不与角色包围盒重叠
     const box = await charBox(main);
@@ -301,43 +312,49 @@ test.describe('E11 · bubble security + toolbar', () => {
     await main.waitForTimeout(300);
     await expect(main.locator('[role="tooltip"]', { hasText: 'AI 对话' })).toBeVisible();
     await main.screenshot(shot('02-toolbar-tooltip.png'));
-    await main.locator('[data-testid="tool-switch-model"]').focus();
+    await main.locator('[data-testid="tool-ai-chat"]').focus();
     await main.keyboard.press('Tab');
     await main.waitForTimeout(200);
     await main.screenshot(shot('03-toolbar-focus-ring.png'));
 
-    // 更多菜单 + 配色
+    // 「更多」→ 功能面板：主功能行 + 「更多」展开其余工具与设置 + 工具栏样式
     await main.click('[data-testid="tool-more"]');
     const menu = main.locator('[data-testid="toolbar-menu"]');
     await expect(menu).toBeVisible();
-    for (const id of ['info', 'tts-config', 'voice-mode-toggle', 'quit']) {
+    for (const id of ['ai-chat', 'task-board', 'motion', 'voice-settings']) {
+      await expect(menu.locator(`[data-testid="panel-${id}"]`)).toBeVisible();
+    }
+    await main.screenshot(shot('04-toolbar-panel.png'));
+    await menu.locator('[data-testid="panel-more"]').click();
+    for (const id of ['info', 'voice-mode-toggle', 'close-mascot', 'quit']) {
       await expect(menu.locator(`[data-testid="tool-${id}"]`)).toBeVisible();
     }
-    await main.screenshot(shot('04-toolbar-more-menu.png'));
-    for (const p of ['light', 'warm']) {
-      await main.click(`[data-testid="toolbar-palette-${p}"]`);
-      await expect(bar).toHaveAttribute('data-palette', p);
+    await expect(menu.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);
+    await main.screenshot(shot('04b-toolbar-panel-more.png'));
+    for (const st of ['light', 'glass', 'minimal']) {
+      await main.click(`[data-testid="toolbar-style-${st}"]`);
+      await expect(bar).toHaveAttribute('data-style', st);
       await main.waitForTimeout(250);
-      await main.screenshot(shot(`05-toolbar-palette-${p}.png`));
+      await main.screenshot(shot(`05-toolbar-style-${st}.png`));
     }
-    await main.click('[data-testid="toolbar-palette-calm"]');
-    await expect(bar).toHaveAttribute('data-palette', 'calm');
-    // 默认：跟随应用主题令牌
-    await main.click('[data-testid="toolbar-palette-theme"]');
-    await expect(bar).toHaveAttribute('data-palette', 'theme');
+    await main.click('[data-testid="toolbar-style-dark"]');
+    await expect(bar).toHaveAttribute('data-style', 'dark');
 
     // 收起为单个「更多」按钮
     await main.click('[data-testid="toolbar-compact"]');
     await main.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(bar.locator('[data-testid="tool-ai-chat"]')).toHaveCount(0);
+    await hoverBar();
     await expect(main.locator('[data-testid="tool-more"]')).toBeVisible();
     await main.waitForTimeout(250);
     await main.screenshot(shot('06-toolbar-compact.png'));
     await main.click('[data-testid="tool-more"]');
-    await expect(menu.locator('[data-testid="tool-ai-chat"]')).toBeVisible();
+    await expect(menu.locator('[data-testid="panel-ai-chat"]')).toBeVisible();
+    await menu.locator('[data-testid="panel-more"]').click();
     await main.click('[data-testid="toolbar-compact"]');
     await main.keyboard.press('Escape');
+    await hoverBar();
     await expect(bar.locator('[data-testid="tool-ai-chat"]')).toBeVisible();
 
     // 贴近右侧屏幕边缘 → 翻到左侧
@@ -380,15 +397,25 @@ test.describe('E11 · bubble security + toolbar', () => {
         availWidth,
       };
     });
+    // 左侧槽位放得下工具栏时必须翻过去（placeGutter：间距 8、边距 6）。Nomi 的 2D 布局两侧留 60px
+    // 边距（MASCOT_PAD.x），44px 胶囊放得下；放不下时留在右侧并夹在窗口内（下面仍断言不压住角色）。
+    const leftFits = await main.evaluate(() => {
+      const left = Number((document.documentElement.dataset.mascotBox ?? '').split(',')[0]);
+      const bw = document.querySelector<HTMLElement>(
+        '[data-testid="mascot-toolbar"] [role="toolbar"]',
+      )!.offsetWidth;
+      return Number.isFinite(left) && left - 8 - bw >= 6;
+    });
     await expect
       .poll(() => main.evaluate(() => document.documentElement.dataset.toolbarSide), {
         timeout: 15_000,
         intervals: [200],
       })
-      .toBe('left');
+      .toBe(leftFits ? 'left' : 'right');
     await reveal();
+    await hoverBar();
     await main.waitForTimeout(500);
-    await main.screenshot(shot('07-toolbar-flipped-left.png'));
+    await main.screenshot(shot('07-toolbar-at-right-edge.png'));
     // 翻转后依旧不压住角色（物理落地 / 走动后角色可能离开边缘、工具栏再翻回来，所以同一时刻取侧边与位置）
     const snap = await main.evaluate(() => {
       const r = document.querySelector('[data-testid="mascot-toolbar"]')!.getBoundingClientRect();
@@ -401,8 +428,11 @@ test.describe('E11 · bubble security + toolbar', () => {
         r: r.right,
         left,
         right,
+        vw: window.innerWidth,
       };
     });
+    expect(snap.l).toBeGreaterThanOrEqual(0);
+    expect(snap.r).toBeLessThanOrEqual(snap.vw);
     if (Number.isFinite(snap.left)) {
       if (snap.side === 'left') expect(snap.r).toBeLessThanOrEqual(snap.left! + 10);
       else expect(snap.l).toBeGreaterThanOrEqual(snap.right! - 10);
@@ -411,6 +441,7 @@ test.describe('E11 · bubble security + toolbar', () => {
     // 空闲自动隐藏（需要能把真实光标移出窗口）
     if (hasXdo) {
       execFileSync('xdotool', ['mousemove', '0', '0']);
+      await main.mouse.move(0, 0);
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-leave')),
       );

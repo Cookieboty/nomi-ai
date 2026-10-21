@@ -8,41 +8,42 @@
 }
 .panel {
   width: min(360px, calc(100vw - 32px));
-  padding: 16px;
-  border-radius: 14px;
-  background: var(--cd-color-surface-raised, #121a2a);
+  padding: var(--cd-space-4);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
   border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-md, 0 12px 32px rgba(0, 0, 0, 0.4));
+  box-shadow: var(--cd-shadow-md);
 }
 .title {
-  font-size: 15px;
-  font-weight: 650;
-  margin-bottom: 6px;
+  font-size: var(--cd-font-size-lg);
+  font-weight: var(--cd-font-weight-bold);
+  margin-bottom: var(--cd-space-1-5);
 }
 .hint {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
-  margin: 0 0 12px;
+  margin: 0 0 var(--cd-space-3);
   line-height: 1.45;
 }
 .list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--cd-space-1);
 }
 .item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-1-5) var(--cd-space-2);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--cd-font-size-sm);
   cursor: pointer;
   text-align: left;
+  min-height: var(--cd-control-h-ms);
 }
 .item:hover:not(:disabled) {
   background: var(--cd-color-hover);
@@ -53,15 +54,15 @@
 }
 .miss {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }
 .cancel {
-  margin-top: 12px;
+  margin-top: var(--cd-space-3);
   width: 100%;
   height: 34px;
   border: 1px solid var(--cd-color-border);
-  border-radius: 8px;
+  border-radius: var(--cd-radius-md);
   background: transparent;
   color: var(--cd-color-text-muted);
   cursor: pointer;
@@ -76,12 +77,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cd-space-2);
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--cd-color-border);
 }
 .wsLabel {
-  font-size: 12px;
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }

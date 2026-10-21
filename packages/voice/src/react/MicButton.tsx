@@ -13,7 +13,8 @@ export interface MicButtonProps {
   disabled?: boolean;
   onStart(): void;
   onStop(cancel: boolean): void;
-  size?: 'sm' | 'md';
+  /** sm 28 / ms 32（与输入栏工具行同高）/ md 36 */
+  size?: 'sm' | 'ms' | 'md';
   tooltip?: string;
   tooltipPlacement?: 'top' | 'top-end' | 'bottom' | 'left' | 'right';
   className?: string;
@@ -127,7 +128,7 @@ export const MicButton: React.FC<MicButtonProps> = ({
         {busy ? (
           <span className="cd-voice-spinner" aria-hidden />
         ) : (
-          <MicIcon size={size === 'sm' ? 16 : 18} />
+          <MicIcon size={size === 'md' ? 18 : 16} />
         )}
       </button>
     </Tooltip>

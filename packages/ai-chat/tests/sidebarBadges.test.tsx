@@ -1,9 +1,9 @@
 // @vitest-environment happy-dom
-import { cleanup, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, visibleEndpoints } from '../src/services/chatPrefs';
 
 const list = [
   { id: 'a', name: '修复登录', backend: 'codex', createdAt: 1, updatedAt: Date.now(), tabId: 't1' },
@@ -11,8 +11,9 @@ const list = [
   { id: 'c', name: '重构模块', backend: 'claude', createdAt: 1, updatedAt: Date.now() - 2000 },
 ];
 
-vi.mock('../src/contexts/AiChatContext', () => ({
-  useAiChat: () => ({
+// 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
+vi.mock('../src/contexts/AiChatContext', () => {
+  const api = {
     state: {
       messages: [],
       ipcClient: {
@@ -22,8 +23,9 @@ vi.mock('../src/contexts/AiChatContext', () => ({
       },
     },
     actions: {},
-  }),
-}));
+  };
+  return { useAiChat: () => api };
+});
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
@@ -64,5 +66,49 @@ describe('Sidebar rows', () => {
     expect(
       r.getByTestId('endpoint-filter-claude').querySelector('[data-testid="endpoint-icon-claude"]'),
     ).toBeTruthy();
+  });
+});
+
+describe('Sidebar 按端：显示哪些端点', () => {
+  it('visibleEndpoints：Nomi 总显示；显式显示 / 隐藏优先；没设置的为 0 时不显示', () => {
+    const all = ['nomi', 'claude', 'codex', 'dsh', 'grok', 'gemini'] as const;
+    expect(visibleEndpoints(all, {}, { claude: 2 })).toEqual(['nomi', 'claude']);
+    expect(visibleEndpoints(all, { grok: 'show', claude: 'hide' }, { claude: 2 })).toEqual([
+      'nomi',
+      'grok',
+    ]);
+  });
+
+  it('为 0 且没设置的 CLI 不出现；在设置里改成「显示」/「隐藏」即时生效并记住', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    const r = render(
+      <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
+    );
+    await waitFor(() => r.getByTestId('endpoint-filter-codex'));
+    expect(r.getByTestId('endpoint-filter-claude')).toBeTruthy();
+    for (const b of ['dsh', 'grok', 'gemini'])
+      expect(r.queryByTestId(`endpoint-filter-${b}`)).toBeNull();
+
+    fireEvent.click(r.getByTestId('endpoint-visibility'));
+    const menu = r.getByTestId('endpoint-visibility-menu');
+    expect(menu.textContent).not.toContain('Nomi');
+    expect(r.getByTestId('endpoint-visibility-grok-auto').getAttribute('aria-checked')).toBe(
+      'true',
+    );
+    fireEvent.click(r.getByTestId('endpoint-visibility-grok-show'));
+    fireEvent.click(r.getByTestId('endpoint-visibility-codex-hide'));
+    await waitFor(() => r.getByTestId('endpoint-filter-grok'));
+    expect(r.queryByTestId('endpoint-filter-codex')).toBeNull();
+    expect(JSON.parse(localStorage.getItem('ai-chat:sidebarEndpoints') ?? '{}')).toEqual({
+      grok: 'show',
+      codex: 'hide',
+    });
+
+    // 改回「自动」：grok 没有对话，又不显示了
+    fireEvent.click(r.getByTestId('endpoint-visibility-grok-auto'));
+    await waitFor(() => expect(r.queryByTestId('endpoint-filter-grok')).toBeNull());
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(r.queryByTestId('endpoint-visibility-menu')).toBeNull());
   });
 });

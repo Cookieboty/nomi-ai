@@ -163,6 +163,8 @@ export async function readGrokAuthStatus(d: GrokAuthReaderDeps = {}): Promise<st
           }
         }
       });
+      // stdin 的异步 EPIPE / 关闭竞态是 Writable 的 error 事件：没有监听会变成主进程 uncaughtException
+      child.stdin?.on?.('error', () => finish(null));
       try {
         child.stdin?.write(
           `${JSON.stringify({

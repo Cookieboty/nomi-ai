@@ -138,38 +138,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       };
     },
   },
-  /** 模型注册表 / 商店 / 用户导入 */
-  models: {
-    list: () => ipcRenderer.invoke('models:list'),
-    storeState: (refresh?: boolean) => ipcRenderer.invoke('models:store-state', refresh),
-    install: (id: string) => ipcRenderer.invoke('models:install', id),
-    cancel: (id: string) => ipcRenderer.invoke('models:cancel', id),
-    remove: (id: string) => ipcRenderer.invoke('models:remove', id),
-    importVrm: (filePath?: string, config?: unknown) =>
-      ipcRenderer.invoke('models:import-vrm', filePath, config),
-    pathForFile: (file: File) => webUtils.getPathForFile(file),
-    replaceVrm: (id: string, filePath?: string) =>
-      ipcRenderer.invoke('models:replace-vrm', id, filePath),
-    updateConfig: (id: string, config: unknown) =>
-      ipcRenderer.invoke('models:update-config', id, config),
-    exportConfig: (id: string) => ipcRenderer.invoke('models:export-config', id),
-    importConfig: (id: string, json?: string) =>
-      ipcRenderer.invoke('models:import-config', id, json),
-    onProgress: (cb: (p: unknown) => void) => {
-      const l = (_: unknown, p: unknown) => cb(p);
-      ipcRenderer.on('models:progress', l);
-      return () => {
-        ipcRenderer.removeListener('models:progress', l);
-      };
-    },
-    onChanged: (cb: () => void) => {
-      const l = () => cb();
-      ipcRenderer.on('models:changed', l);
-      return () => {
-        ipcRenderer.removeListener('models:changed', l);
-      };
-    },
-  },
   /** Auto-update (GitHub Releases via electron-updater) */
   updates: {
     get: () => ipcRenderer.invoke('updates:get'),
@@ -212,35 +180,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveVoiceSettings: (settings: any) => {
     ipcRenderer.send('save-voice-settings', settings);
   },
+  /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
+  onVoiceSettingsChanged: (callback: (settings: any) => void) => {
+    const fn = (_: unknown, s: unknown) => callback(s);
+    ipcRenderer.on('voice-settings:changed', fn);
+    return () => {
+      ipcRenderer.removeListener('voice-settings:changed', fn);
+    };
+  },
 
   // AI对话相关API
   openAiChat: async () => {
     return await ipcRenderer.invoke('open-ai-chat');
   },
+  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
+  openTaskBoard: async () => {
+    return await ipcRenderer.invoke('open-task-board');
+  },
 
-  // TTS配置相关API
-  openTTSConfig: async () => {
-    return await ipcRenderer.invoke('open-tts-config');
-  },
-  getTTSConfig: async () => {
-    return await ipcRenderer.invoke('getTTSConfig');
-  },
-  saveTTSConfig: async (config: any) => {
-    return await ipcRenderer.invoke('saveTTSConfig', config);
-  },
-  testTTSConnection: async (config: any) => {
-    return await ipcRenderer.invoke('testTTSConnection', config);
-  },
-  resetTTSConfig: async () => {
-    return await ipcRenderer.invoke('resetTTSConfig');
+  /** 打开对话窗口的语音设置（朗读引擎配置已并入设置） */
+  openVoiceSettings: async () => {
+    return await ipcRenderer.invoke('open-voice-settings');
   },
   ttsSpeak: async (req: { text: string; referenceId?: string; volume?: number }) => {
     return await ipcRenderer.invoke('tts:speak', req);
   },
   ttsHealth: async (config?: unknown) => {
     return await ipcRenderer.invoke('tts:health', config);
-  },
-  ttsSherpaStatus: async () => {
-    return await ipcRenderer.invoke('tts:sherpa:status');
   },
 } as IpcApi);

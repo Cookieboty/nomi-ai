@@ -9,6 +9,7 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from 'react';
 
@@ -22,13 +23,15 @@ import {
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
-import { effectiveProviderLabel } from '../services/providerClient';
+import { nomiModelLabel } from '../services/nomiModel';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
 
-interface AiChatState {
+import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+
+export interface AiChatState {
   messages: ChatMessage[];
   config: ChatConfig;
   isLoading: boolean;
@@ -38,7 +41,7 @@ interface AiChatState {
   ipcClient: IPCClient;
 }
 
-type AiChatAction =
+export type AiChatAction =
   | { type: 'SET_MESSAGES'; payload: ChatMessage[] }
   | { type: 'ADD_MESSAGE'; payload: ChatMessage }
   | { type: 'UPDATE_MESSAGE'; payload: { id: string; content: string } }
@@ -68,7 +71,14 @@ const buildInitialState = (): AiChatState => ({
   ipcClient: createIPCClient(),
 });
 
-function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
+/** Every field of `patch` is already identical on `cur`. */
+function sameFields(cur: ChatMessage, patch: ChatMessage): boolean {
+  for (const k of Object.keys(patch) as Array<keyof ChatMessage>)
+    if (cur[k] !== patch[k]) return false;
+  return true;
+}
+
+export function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
   switch (action.type) {
     case 'SET_MESSAGES':
       return { ...state, messages: action.payload };
@@ -85,6 +95,7 @@ function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
       let messages = state.messages;
       for (const m of action.payload) {
         const i = messages.findIndex((x) => x.id === m.id);
+        if (i >= 0 && sameFields(messages[i]!, m)) continue; // unchanged: keep identity (memoized rows)
         messages =
           i < 0 ? [...messages, m] : messages.map((x, idx) => (idx === i ? { ...x, ...m } : x));
       }
@@ -107,30 +118,37 @@ function aiChatReducer(state: AiChatState, action: AiChatAction): AiChatState {
   }
 }
 
-interface AiChatContextType {
-  state: AiChatState;
+export interface AiChatActionsValue {
   dispatch: React.Dispatch<AiChatAction>;
-  actions: {
-    sendMessage: (content: string) => Promise<void>;
-    sendStreamMessage: (
-      content: string,
-      images?: ImageAttachment[],
-      override?: { history: ChatMessage[] },
-    ) => Promise<void>;
-    /**
-     * 从某条用户消息重新来过（重新生成 / 编辑重发）：丢弃它及之后的消息，
-     * 用原文（或 newText）重新发送；运行中无操作。
-     */
-    resendFrom: (userMessageId: string, newText?: string) => Promise<void>;
-    /** 停止当前流式生成：中止上游请求，已生成的内容落盘；没有进行中的流时无操作 */
-    stopGeneration: () => void;
-    askKnowledge: (content: string) => Promise<void>;
-    loadChatHistory: () => Promise<void>;
-    clearChatHistory: () => Promise<void>;
-    newConversation: () => Promise<void>;
-    loadConfig: () => Promise<void>;
-    updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
-  };
+  actions: AiChatActions;
+}
+
+interface AiChatContextType extends AiChatActionsValue {
+  state: AiChatState;
+}
+
+export interface AiChatActions {
+  sendMessage: (content: string) => Promise<void>;
+  sendStreamMessage: (
+    content: string,
+    images?: ImageAttachment[],
+    override?: { history: ChatMessage[] },
+  ) => Promise<void>;
+  /**
+   * 从某条用户消息重新来过（重新生成 / 编辑重发）：丢弃它及之后的消息，
+   * 用原文（或 newText）重新发送；运行中无操作。
+   */
+  resendFrom: (userMessageId: string, newText?: string) => Promise<void>;
+  /** 停止当前流式生成：中止上游请求，已生成的内容落盘；没有进行中的流时无操作 */
+  stopGeneration: () => void;
+  /** 删除会话前调用：若进行中的流属于该会话则中止它（晚到的回调也不会再写回界面 / 记忆） */
+  abortConversation: (convoId: string) => void;
+  askKnowledge: (content: string, override?: { history: ChatMessage[] }) => Promise<void>;
+  loadChatHistory: () => Promise<void>;
+  clearChatHistory: () => Promise<void>;
+  newConversation: () => Promise<void>;
+  loadConfig: () => Promise<void>;
+  updateConfig: (config: Partial<ChatConfig>) => Promise<void>;
 }
 
 const AiChatContext = createContext<AiChatContextType | undefined>(undefined);
@@ -147,8 +165,13 @@ export interface AiChatContextProviderProps {
  */
 export interface ConversationTurn {
   convoId: string | undefined;
-  /** 发起这一轮的会话是否仍是当前展示的会话 */
+  /**
+   * 发起这一轮的会话是否仍是当前展示的会话（且仍存在）。
+   * 会话被删除后 store 的 current 可能变成 undefined 或另一个会话，二者都不算 active。
+   */
   isActive: () => boolean;
+  /** 发起这一轮的会话是否还在 store 里（已删除的会话不应再触发摘要 / 记忆写入） */
+  exists: () => boolean;
   save: (message: ChatMessage) => Promise<void>;
 }
 
@@ -156,10 +179,11 @@ export function openTurn(client: IPCClient): ConversationTurn {
   const convoId = client.ensureConversationId?.() ?? client.currentConversationId?.();
   return {
     convoId,
-    isActive: () => {
-      const cur = client.currentConversationId?.();
-      return !convoId || !cur || cur === convoId;
-    },
+    // 有 convoId 时必须 cur === convoId：current 为 undefined 说明会话刚被删光，不能当作仍在显示。
+    // 只有完全没有会话 id 接口的旧实现（convoId 为空）才走无 id 的兜底。
+    isActive: () => !convoId || client.currentConversationId?.() === convoId,
+    exists: () =>
+      !convoId || !client.conversationStore || !!client.conversationStore()?.get(convoId),
     save: (message) =>
       convoId && client.saveMessageTo
         ? client.saveMessageTo(message, convoId)
@@ -256,6 +280,30 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     [ipcClient],
   );
 
+  // 主标签接在编程助手上时，CLI 自发的一轮（后台子代理完成后的跟进）由主进程广播，这里落进当前会话
+  useEffect(
+    () =>
+      harnessClient.onTabMessage(({ tabId, message }) => {
+        if (tabId !== 'main' || message.origin !== 'background' || message.role !== 'assistant')
+          return;
+        const m: ChatMessage = {
+          id: message.id,
+          role: 'assistant',
+          content: message.content,
+          timestamp: message.timestamp,
+          origin: 'background',
+          modelId: 'claude-code',
+          ...(message.error ? { error: message.content } : {}),
+          ...(message.stopped ? { stopped: true } : {}),
+          ...(message.trace?.length ? { trace: message.trace } : {}),
+          ...(message.durationMs !== undefined ? { durationMs: message.durationMs } : {}),
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: m });
+        void ipcClient.saveMessage(m);
+      }),
+    [ipcClient],
+  );
+
   // 把文件拖到看板娘身上 → 主进程总结完成后推送到对话窗口
   useEffect(
     () =>
@@ -293,7 +341,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
         };
         // 本轮之前的会话消息作为多轮上下文（state.messages 尚未包含本轮 userMessage）
         const history = s.messages;
@@ -327,14 +375,14 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: response,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
 
         await turn.save(userMessage);
         await turn.save(aiMessage);
-        maybeIngest([...history, userMessage, aiMessage], turn.convoId);
+        if (turn.exists()) maybeIngest([...history, userMessage, aiMessage], turn.convoId);
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
@@ -345,43 +393,46 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   );
 
   // 知识库问答：主进程检索本地索引 → 模型带引用回答
-  const askKnowledge = useCallback(async (content: string) => {
-    const s = stateRef.current;
-    const turn = openTurn(s.ipcClient);
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: undefined });
-      const userMessage: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'user',
-        content,
-        timestamp: Date.now(),
-        kb: true,
-      };
-      const history = s.messages
-        .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
-        .slice(-6)
-        .map((m) => ({ role: m.role, content: m.content }));
-      dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
-      const r = await kbClient.ask(content, history);
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: r.answer,
-        timestamp: Date.now(),
-        modelId: effectiveProviderLabel(),
-        sources: r.sources,
-        kb: true,
-      };
-      if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
-      await turn.save(userMessage);
-      await turn.save(aiMessage);
-    } catch (error) {
-      dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, []);
+  const askKnowledge = useCallback(
+    async (content: string, override?: { history: ChatMessage[] }) => {
+      const s = stateRef.current;
+      const turn = openTurn(s.ipcClient);
+      try {
+        dispatch({ type: 'SET_LOADING', payload: true });
+        dispatch({ type: 'SET_ERROR', payload: undefined });
+        const userMessage: ChatMessage = {
+          id: Date.now().toString(),
+          role: 'user',
+          content,
+          timestamp: Date.now(),
+          kb: true,
+        };
+        const history = (override?.history ?? s.messages)
+          .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
+          .slice(-6)
+          .map((m) => ({ role: m.role, content: m.content }));
+        dispatch({ type: 'ADD_MESSAGE', payload: userMessage });
+        const r = await kbClient.ask(content, history);
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: r.answer,
+          timestamp: Date.now(),
+          modelId: nomiModelLabel(),
+          sources: r.sources,
+          kb: true,
+        };
+        if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
+        await turn.save(userMessage);
+        await turn.save(aiMessage);
+      } catch (error) {
+        dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
+      } finally {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    },
+    [],
+  );
 
   // 发送流式消息
   const sendStreamMessage = useCallback(
@@ -414,7 +465,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(images?.length
             ? {
                 images: images.map((i) => ({
@@ -459,7 +510,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: '',
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -475,6 +526,13 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         // 流式 UI 更新按帧合批：一帧内到达的文本 / 工具事件只 dispatch 一次（逐 chunk dispatch 会让整条消息列表重渲染）
         let raf = 0;
         let timer = 0;
+        // 只有轨迹变了才换新数组：纯文本帧沿用同一引用，实时工具时间线不必每帧重算
+        let traceSnap: HarnessTraceEvent[] | undefined;
+        const traceNow = () => {
+          if (!trace.length) return undefined;
+          if (traceSnap?.length !== trace.length) traceSnap = [...trace];
+          return traceSnap;
+        };
         const flushUi = () => {
           if (raf) cancelAnimationFrame(raf);
           if (timer) window.clearTimeout(timer);
@@ -489,7 +547,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               {
                 ...aiMessage,
                 content: accumulated,
-                ...(trace.length ? { trace: [...trace] } : {}),
+                ...(trace.length ? { trace: traceNow() } : {}),
               },
             ],
           });
@@ -535,7 +593,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             dispatch({ type: 'UPSERT_MESSAGES', payload: [userMessage, failed] });
           await turn.save(userMessage);
           await turn.save(failed);
-          throw err;
+          // 错误已经显示在这一轮的卡片里（含详情 / 重试 / 复制）：不再抛给外层，避免底部再弹一条同样的提示（#78）
+          return;
         }
         flushUi();
 
@@ -553,7 +612,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         }
         await turn.save(userMessage);
         await turn.save(finalAiMessage);
-        if (!stopped) maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
+        if (!stopped && turn.exists())
+          maybeIngest([...history, userMessage, finalAiMessage], turn.convoId);
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
@@ -577,9 +637,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       const convoId = s.ipcClient.currentConversationId?.();
       if (store && convoId) store.setMessages(convoId, kept);
       dispatch({ type: 'SET_MESSAGES', payload: kept });
-      await sendStreamMessage(newText ?? target.content, undefined, { history: kept });
+      // 知识库问答的消息重新生成 / 编辑重发时仍走带引用的问答，不能无提示降级成普通对话
+      if (target.kb) await askKnowledge(newText ?? target.content, { history: kept });
+      else await sendStreamMessage(newText ?? target.content, undefined, { history: kept });
     },
-    [sendStreamMessage],
+    [sendStreamMessage, askKnowledge],
   );
 
   const stopGeneration = useCallback(() => {
@@ -590,9 +652,18 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     stateRef.current.ipcClient.abortStream?.(a.reqId);
   }, []);
 
+  const abortConversation = useCallback((convoId: string) => {
+    const a = activeStream.current;
+    if (!a || a.convoId !== convoId || a.controller.signal.aborted) return;
+    a.controller.abort();
+    stateRef.current.ipcClient.abortStream?.(a.reqId);
+  }, []);
+
   // 加载对话历史
   const loadChatHistory = useCallback(async () => {
     const my = ++historySeq.current;
+    // 换了会话：上一个会话的错误提示不再适用（#78）
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       const history = await stateRef.current.ipcClient.getChatHistory();
       // 期间又发起了新的加载 / 清空 / 新建会话：这次结果已过期
@@ -607,6 +678,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 清空对话历史
   const clearChatHistory = useCallback(async () => {
     historySeq.current++;
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       await stateRef.current.ipcClient.clearChatHistory();
       dispatch({ type: 'CLEAR_MESSAGES' });
@@ -618,6 +690,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
   // 新建会话（旧会话保留在本地存储中；进行中的流继续写回旧会话）
   const newConversation = useCallback(async () => {
     historySeq.current++;
+    dispatch({ type: 'SET_ERROR', payload: undefined });
     try {
       ingestCurrent();
       await stateRef.current.ipcClient.newConversation();
@@ -660,6 +733,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendStreamMessage,
       resendFrom,
       stopGeneration,
+      abortConversation,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,
@@ -672,6 +746,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       sendStreamMessage,
       resendFrom,
       stopGeneration,
+      abortConversation,
       askKnowledge,
       loadChatHistory,
       clearChatHistory,
@@ -685,8 +760,18 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
     () => ({ state, dispatch, actions }),
     [state, actions],
   );
+  // External store for selector subscribers (aiChatStore.tsx): published after commit
+  const [store] = useState(() => createAiChatStore(state));
+  useLayoutEffect(() => {
+    store.set(state);
+  }, [store, state]);
+  const storeValue = useMemo(() => ({ store, dispatch, actions }), [store, actions]);
 
-  return <AiChatContext.Provider value={contextValue}>{children}</AiChatContext.Provider>;
+  return (
+    <AiChatStoreContext.Provider value={storeValue}>
+      <AiChatContext.Provider value={contextValue}>{children}</AiChatContext.Provider>
+    </AiChatStoreContext.Provider>
+  );
 }
 
 export function useAiChat() {

@@ -42,6 +42,34 @@ export interface UseChatResult {
   reset: () => void;
 }
 
+/**
+ * 真实的 ChatChunk 是按 `type` 区分的联合（见 bundle-ig-base）：文本在 `{type:'delta', content}`，
+ * 失败是 `{type:'error', error}`，其余（usage / done / reasoning / tool_call.*）不是正文。
+ * 旧的 `deltaText` / `text` 形状只在这个边界里兼容，不在别处猜字段。
+ */
+function textOfChunk(chunk: unknown): string {
+  const c = chunk as
+    | { type?: string; content?: unknown; error?: unknown; deltaText?: unknown; text?: unknown }
+    | undefined;
+  if (!c || typeof c !== 'object') return '';
+  switch (c.type) {
+    case 'delta':
+      return typeof c.content === 'string' ? c.content : '';
+    case 'error':
+      throw new SDKError(
+        SDKErrorCodes.IPC_STREAM_ABORTED,
+        typeof c.error === 'string' ? c.error : 'stream error',
+      );
+    case undefined: {
+      // legacy 形状
+      const t = c.deltaText ?? c.text;
+      return typeof t === 'string' ? t : '';
+    }
+    default:
+      return '';
+  }
+}
+
 export function useChat(): UseChatResult {
   const client = useAIClient();
   const [messages, setMessages] = useState<UseChatMessage[]>([]);
@@ -102,8 +130,7 @@ export function useChat(): UseChatResult {
           messages: [{ role: 'user', content: userText }],
         });
         for await (const chunk of iter) {
-          const c = chunk as { deltaText?: string; text?: string } | undefined;
-          const text = c?.deltaText ?? c?.text ?? '';
+          const text = textOfChunk(chunk);
           if (!text) continue;
           setMessages((prev) => {
             const last = prev[prev.length - 1];

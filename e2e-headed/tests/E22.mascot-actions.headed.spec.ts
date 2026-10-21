@@ -73,20 +73,13 @@ test.describe('E22 · mascot action library', () => {
       timeout: 30_000,
     });
     const page = await app.firstWindow({ timeout: 20_000 });
-    await page.waitForFunction(
-      () => document.documentElement.dataset.mascotBackend !== undefined,
-      undefined,
-      { timeout: 90_000 },
-    );
-    await page.evaluate(() =>
-      window.dispatchEvent(new CustomEvent('mascot:select-model', { detail: { id: 'nomi' } })),
-    );
+    // Nomi is the only character: it loads on its own with the Rive renderer
     await page.waitForFunction(
       () =>
         document.documentElement.dataset.mascotModel === 'nomi' &&
         document.documentElement.dataset.mascotBackend === 'rive',
       undefined,
-      { timeout: 60_000 },
+      { timeout: 90_000 },
     );
 
     const motions = (

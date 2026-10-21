@@ -9,8 +9,8 @@ import path from 'node:path';
 
 import { buildCliEnv, isNomiInternalEnv } from '../../../src/cli/cliEnv';
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
-import { CliProviderBridge } from '../../../src/cli/CliProviderBridge';
 import { claudeSettingsPath, codexAuthPath, codexConfigPath } from '../../../src/cli/configPatch';
+import { TEST_GATEWAY_TOKEN, TEST_GATEWAY_URL, testGateway } from '../../helpers/gateway';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -63,7 +63,7 @@ describe('buildCliEnv', () => {
 describe('provider isolation: Nomi key never reaches CLI launches', () => {
   const NOMI_KEY = 'sk-nomi-amux-SECRET';
 
-  it('spawned CLI sees no Nomi key / config; Codex store empty → no active profile', async () => {
+  it('spawned CLI sees no Nomi key / config', async () => {
     // 模拟 Nomi 自有 ai-providers.json（含 Amux key）与 Nomi 相关环境变量
     const userData = tmp('nomi-ud-');
     fs.writeFileSync(
@@ -71,13 +71,6 @@ describe('provider isolation: Nomi key never reaches CLI launches', () => {
       JSON.stringify({ providers: [{ id: 'amux', apiKey: NOMI_KEY }] }),
     );
     const home = tmp('nomi-home-');
-    const bridge = new CliProviderBridge({
-      root: path.join(userData, 'cli-providers'),
-      home,
-      logger,
-    });
-    expect(bridge.state().profiles.filter((p) => p.kind === 'codex')).toHaveLength(0);
-    expect(bridge.dshEnv()).toEqual({});
 
     // CLI 打印自己看到的环境，以及 ~/.codex 是否被写
     const dir = tmp('nomi-envcli-');
@@ -100,7 +93,6 @@ describe('provider isolation: Nomi key never reaches CLI launches', () => {
         root: path.join(dir, 'root'),
         logger,
         defaultCwd: dir,
-        dshEnv: () => bridge.dshEnv(),
       });
       h.setBackend('codex');
       const r = await h.send('hi');
@@ -119,165 +111,56 @@ describe('provider isolation: Nomi key never reaches CLI launches', () => {
     }
   });
 
-  it('activating a Claude profile does not touch the Codex store or config', () => {
+  it('third-party tabs get only the gateway token; inherited keys are stripped; official tabs drop gateway leftovers', async () => {
     const home = tmp('nomi-home-');
-    const root = tmp('nomi-root-');
-    const b = new CliProviderBridge({ root, home, logger });
-    const p = b.upsert({
-      kind: 'claude',
-      name: 'C',
-      baseUrl: 'https://c.example',
-      model: 'm',
-      apiKey: 'sk-c',
-    });
-    expect(b.activate(p.id).ok).toBe(true);
-    expect(fs.existsSync(codexConfigPath(home))).toBe(false);
-    expect(b.state().profiles.filter((x) => x.kind === 'codex')).toHaveLength(0);
-  });
-});
-
-describe('CliProviderBridge.deactivate (back to CLI default login)', () => {
-  it('claude: removes only managed env keys', () => {
-    const home = tmp('nomi-home-');
-    const root = tmp('nomi-root-');
-    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
-    fs.writeFileSync(claudeSettingsPath(home), JSON.stringify({ env: { KEEP: '1' }, theme: 'x' }));
-    const b = new CliProviderBridge({ root, home, logger });
-    const p = b.upsert({
-      kind: 'claude',
-      name: 'C',
-      baseUrl: 'https://c',
-      model: 'm',
-      apiKey: 'k',
-    });
-    b.activate(p.id);
-    const r = b.deactivate('claude');
-    expect(r.ok).toBe(true);
-    const s = JSON.parse(fs.readFileSync(claudeSettingsPath(home), 'utf8'));
-    expect(s.env).toEqual({ KEEP: '1' });
-    expect(s.theme).toBe('x');
-    expect(b.state().profiles.find((x) => x.id === p.id)?.active).toBe(false);
-  });
-
-  it('codex: removes nomi provider block and own key, keeps other content', () => {
-    const home = tmp('nomi-home-');
-    const root = tmp('nomi-root-');
-    fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
-    fs.writeFileSync(codexConfigPath(home), '# mine\n[projects."/x"]\ntrust = true\n');
-    fs.writeFileSync(codexAuthPath(home), JSON.stringify({ tokens: { a: 1 } }));
-    const b = new CliProviderBridge({ root, home, logger });
-    const p = b.upsert({
-      kind: 'codex',
-      name: 'X',
-      baseUrl: 'https://x/v1',
-      model: 'gpt-x',
-      apiKey: 'sk-x',
-    });
-    expect(b.activate(p.id).ok).toBe(true);
-    expect(fs.readFileSync(codexConfigPath(home), 'utf8')).toContain('model_provider = "nomi"');
-    expect(b.deactivate('codex').ok).toBe(true);
-    const conf = fs.readFileSync(codexConfigPath(home), 'utf8');
-    expect(conf).not.toContain('model_provider');
-    expect(conf).not.toContain('[model_providers.nomi]');
-    expect(conf).toContain('# mine');
-    expect(conf).toContain('[projects."/x"]');
-    const auth = JSON.parse(fs.readFileSync(codexAuthPath(home), 'utf8'));
-    expect(auth.OPENAI_API_KEY).toBeUndefined();
-    expect(auth.tokens).toEqual({ a: 1 });
-  });
-});
-
-describe('CliProviderBridge.testProfile (测速)', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const http = require('node:http') as typeof import('node:http');
-  const serve = (
-    handler: (
-      req: import('node:http').IncomingMessage,
-      res: import('node:http').ServerResponse,
-    ) => void,
-  ) =>
-    new Promise<{ url: string; close: () => void }>((resolve) => {
-      const srv = http.createServer(handler);
-      srv.listen(0, '127.0.0.1', () => {
-        const port = (srv.address() as { port: number }).port;
-        resolve({ url: `http://127.0.0.1:${port}`, close: () => srv.close() });
+    const dir = tmp('nomi-envcli-');
+    const bin = path.join(dir, 'env-codex.mjs');
+    fs.writeFileSync(
+      bin,
+      [
+        "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+        "emit({ type: 'thread.started', thread_id: 't1' });",
+        "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: JSON.stringify({ env: process.env, argv: process.argv.slice(2) }) } });",
+        "emit({ type: 'turn.completed', usage: {} });",
+      ].join('\n'),
+    );
+    const saved = { ...process.env };
+    process.env.NOMI_CODEX_BIN = bin;
+    process.env.NOMI_USE_MOCK_CLI = '0';
+    process.env.OPENAI_API_KEY = 'sk-user-own-openai';
+    process.env.ANTHROPIC_BASE_URL = TEST_GATEWAY_URL;
+    try {
+      const h = new CliHarnessService({
+        root: path.join(dir, 'root'),
+        logger,
+        defaultCwd: dir,
+        home,
+        gateway: testGateway(),
       });
-    });
-
-  it('sends the key as the format-specific header and reports latency', async () => {
-    const seen: Record<string, string | string[] | undefined>[] = [];
-    const srv = await serve((req, res) => {
-      seen.push({ url: req.url, auth: req.headers.authorization, xkey: req.headers['x-api-key'] });
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end('{"data":[]}');
-    });
-    const b = new CliProviderBridge({ root: tmp('nomi-root-'), home: tmp('nomi-home-'), logger });
-    const oa = b.upsert({
-      kind: 'codex',
-      name: 'oa',
-      baseUrl: `${srv.url}/v1`,
-      model: 'm',
-      apiKey: 'sk-test',
-    });
-    const an = b.upsert({
-      kind: 'claude',
-      name: 'an',
-      baseUrl: srv.url,
-      model: 'm',
-      apiKey: 'sk-ant',
-      apiFormat: 'anthropic_messages',
-    });
-    const r1 = await b.testProfile(oa.id);
-    const r2 = await b.testProfile(an.id);
-    srv.close();
-    expect(r1.ok).toBe(true);
-    expect(typeof r1.latencyMs).toBe('number');
-    expect(seen[0]).toMatchObject({ url: '/v1/models', auth: 'Bearer sk-test' });
-    expect(r2.ok).toBe(true);
-    expect(seen[1]).toMatchObject({ url: '/v1/models', xkey: 'sk-ant' });
-  });
-
-  it('reports 401 as a key problem and never echoes the key', async () => {
-    const srv = await serve((_req, res) => {
-      res.writeHead(401);
-      res.end('bad key sk-secret');
-    });
-    const b = new CliProviderBridge({ root: tmp('nomi-root-'), home: tmp('nomi-home-'), logger });
-    const p = b.upsert({
-      kind: 'codex',
-      name: 'x',
-      baseUrl: srv.url,
-      model: 'm',
-      apiKey: 'sk-secret',
-    });
-    const r = await b.testProfile(p.id);
-    srv.close();
-    expect(r.ok).toBe(false);
-    expect(r.status).toBe(401);
-    expect(JSON.stringify(r)).not.toContain('sk-secret');
-    // 连接失败也不泄漏 key
-    const dead = b.upsert({
-      kind: 'codex',
-      name: 'd',
-      baseUrl: 'http://127.0.0.1:1',
-      model: 'm',
-      apiKey: 'sk-secret',
-    });
-    const r2 = await b.testProfile(dead.id);
-    expect(r2.ok).toBe(false);
-    expect(JSON.stringify(r2)).not.toContain('sk-secret');
-  });
-
-  it('treats 404 on /models as reachable', async () => {
-    const srv = await serve((_req, res) => {
-      res.writeHead(404);
-      res.end();
-    });
-    const b = new CliProviderBridge({ root: tmp('nomi-root-'), home: tmp('nomi-home-'), logger });
-    const p = b.upsert({ kind: 'codex', name: 'x', baseUrl: srv.url, model: 'm' });
-    const r = await b.testProfile(p.id);
-    srv.close();
-    expect(r.ok).toBe(true);
-    expect(r.note).toBeTruthy();
+      const third = h.createTab({ backend: 'codex', source: 'thirdParty' });
+      const r = JSON.parse((await h.sendTab(third.id, 'hi')).text) as {
+        env: Record<string, string>;
+        argv: string[];
+      };
+      expect(r.env.NOMI_GATEWAY_KEY).toBe(TEST_GATEWAY_TOKEN);
+      expect(r.env.OPENAI_API_KEY).toBeUndefined();
+      expect(r.argv.join(' ')).toContain('model_provider="nomi_gateway"');
+      expect(r.argv.join(' ')).toContain('model="gw/main"');
+      const official = h.createTab({ backend: 'codex' });
+      const o = JSON.parse((await h.sendTab(official.id, 'hi')).text) as {
+        env: Record<string, string>;
+        argv: string[];
+      };
+      // 用户自己的 Key 照旧继承；指向网关的残留被剔除；不带网关参数
+      expect(o.env.OPENAI_API_KEY).toBe('sk-user-own-openai');
+      expect(o.env.ANTHROPIC_BASE_URL).toBeUndefined();
+      expect(o.env.NOMI_GATEWAY_KEY).toBeUndefined();
+      expect(o.argv.join(' ')).not.toContain('nomi_gateway');
+      expect(fs.existsSync(codexConfigPath(home))).toBe(false);
+      expect(fs.existsSync(codexAuthPath(home))).toBe(false);
+    } finally {
+      for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+      Object.assign(process.env, saved);
+    }
   });
 });

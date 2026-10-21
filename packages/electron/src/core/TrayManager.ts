@@ -1,7 +1,8 @@
 /**
- * TrayManager —— 系统托盘：一键切换 AI provider、打开对话 / Provider 设置。
+ * TrayManager —— 系统托盘：一键切换 Nomi 对话的模型、打开对话 / 模型设置。
  *
- * 菜单由 ProviderService.state() 生成（只含名称与掩码信息，无 key），store 变化即重建。
+ * 有第三方供应商时菜单由统一网关的状态生成（Nomi 对话的 main 模型）；网关里一个都没有时
+ * 退回旧的 ProviderService.state()（只剩环境变量供应商的情况）。只含名称，无 key，变化即重建。
  * `IG_DISABLE_TRAY=1` 可关闭（无托盘的桌面环境 / 测试）。
  */
 import * as path from 'path';
@@ -17,6 +18,7 @@ import {
 
 import { broadcastMascotCommand } from '../ai/mascotCommand';
 import { APP_DISPLAY_NAME } from '../brand';
+import type { GatewayStateView } from '../gateway/GatewayService';
 import { onLocaleChange, t } from '../i18n';
 import type { ILoggerService } from '../services/LoggerService';
 
@@ -27,6 +29,56 @@ export interface ProviderMenuEntry {
   label: string;
   checked: boolean;
   enabled: boolean;
+  /** 网关条目：点了之后设为 Nomi 对话 main 的 `供应商/模型` */
+  ref?: string;
+}
+
+/**
+ * 纯函数：网关状态 → 菜单项。每个启用的供应商一项；当前 main 所在的供应商打勾并显示当前模型，
+ * 其余显示它第一个启用的模型（点了就切到那个模型）。
+ */
+export function gatewayMenuEntries(
+  view: Pick<GatewayStateView, 'providers' | 'clients' | 'recentNomi'>,
+): ProviderMenuEntry[] {
+  const main = view.clients.nomi?.models.main ?? '';
+  const find = (ref: string) => {
+    const i = ref.indexOf('/');
+    const p = i > 0 ? view.providers.find((x) => x.enabled && x.id === ref.slice(0, i)) : undefined;
+    const m = p?.models.find((x) => x.enabled && x.id === ref.slice(i + 1));
+    return p && m ? { p, m } : null;
+  };
+  // 最近用过的 5 个模型（§4.3）；当前的排第一
+  const recent = [...new Set([main, ...(view.recentNomi ?? [])].filter(Boolean))]
+    .map((ref) => ({ ref, hit: find(ref) }))
+    .filter((x) => x.hit)
+    .slice(0, 5);
+  if (recent.length)
+    return recent.map(({ ref, hit }) => ({
+      id: hit!.p.id,
+      label: t('{0} · {1}', providerName(hit!.p.name), hit!.m.label ?? hit!.m.id),
+      checked: ref === main,
+      enabled: true,
+      ref,
+    }));
+  // 还没有使用记录：每个启用的供应商一项（它第一个能用的模型）
+  return view.providers
+    .filter((p) => p.enabled)
+    .flatMap((p) => {
+      const model = (
+        p.models.find((m) => m.enabled && m.toolCalling !== false) ??
+        p.models.find((m) => m.enabled)
+      )?.id;
+      if (!model) return [];
+      return [
+        {
+          id: p.id,
+          label: t('{0} · {1}', providerName(p.name), model),
+          checked: false,
+          enabled: true,
+          ref: `${p.id}/${model}`,
+        },
+      ];
+    });
 }
 
 /** 供应商显示名：预设名与「（环境变量）」后缀按当前语言翻译，用户自定义名字原样保留。 */
@@ -65,16 +117,27 @@ export function providerMenuEntries(state: ProviderState): ProviderMenuEntry[] {
   return entries;
 }
 
+/** 统一网关（Nomi 对话的模型分配） */
+export interface TrayModelSource {
+  state(): Pick<GatewayStateView, 'providers' | 'clients' | 'recentNomi'>;
+  select(ref: string): void;
+  onChange(fn: () => void): () => void;
+}
+
 export interface TrayManagerOptions {
   providers: ProviderService;
+  models?: TrayModelSource;
   logger: ILoggerService;
   openChat: () => void;
+  /**
+   * 左键点击托盘图标（仅 Windows；macOS 点击会弹出菜单）。
+   * 返回 true 表示已处理（例如「启动后默认显示主界面」时打开主界面）；缺省 / 返回 false 时保持原样（什么都不做）。
+   */
+  onActivate?: () => boolean;
   openProviderPanel: () => void;
   /** 桌面能力设置（授权文件夹 / 权限 / 操作记录） */
   openDesktopPanel?: () => void;
   quit: () => void;
-  /** 统一模型注册表（托盘「切换角色」子菜单）；可选 */
-  models?: { list(): Promise<RegistryModelLite[]>; onChange(fn: () => void): () => void };
   /** 屏幕记忆（开启时托盘提示 + 菜单「暂停」）；可选 */
   screenMemory?: {
     active(): boolean;
@@ -83,14 +146,6 @@ export interface TrayManagerOptions {
     open(): void;
   };
 }
-
-export interface RegistryModelLite {
-  id: string;
-  name: string;
-  origin: string;
-}
-
-const ORIGIN_LABEL: Record<string, string> = { bundled: '', remote: ' · 商店', user: ' · 导入' };
 
 /** 托盘「看板娘动作」菜单项 */
 export const TRAY_MOTIONS: Array<[string, string]> = [
@@ -173,10 +228,21 @@ export class TrayManager {
         if (!img.isEmpty() && this.tray && !this.tray.isDestroyed()) this.tray.setImage(img);
       });
       this.tray.setToolTip(APP_DISPLAY_NAME);
+      if (process.platform === 'win32' && this.opts.onActivate) {
+        const onActivate = this.opts.onActivate;
+        this.tray.on('click', () => {
+          try {
+            onActivate();
+          } catch (error) {
+            this.opts.logger.warn('托盘点击处理失败', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        });
+      }
       this.rebuild();
       this.unsubscribe = this.opts.providers.onChange(() => this.rebuild());
-      this.unsubscribeModels = this.opts.models?.onChange(() => void this.refreshModels());
-      void this.refreshModels();
+      this.unsubscribeModels = this.opts.models?.onChange(() => this.rebuild());
       this.unsubscribeScreen = this.opts.screenMemory?.onChange(() => this.rebuild());
       // 切换界面语言后立即重建托盘菜单
       this.unsubscribeLocale = onLocaleChange(() => this.rebuild());
@@ -189,19 +255,8 @@ export class TrayManager {
   }
 
   private unsubscribeLocale?: () => void;
-  private unsubscribeIcon?: () => void;
-  private models: RegistryModelLite[] = [];
   private unsubscribeModels?: () => void;
-
-  private async refreshModels(): Promise<void> {
-    try {
-      this.models = (await this.opts.models?.list()) ?? [];
-    } catch {
-      this.models = [];
-    }
-    this.rebuild();
-  }
-
+  private unsubscribeIcon?: () => void;
   /** 仅测试用：当前是否持有存活的托盘 */
   isAlive(): boolean {
     return !!this.tray && !this.tray.isDestroyed();
@@ -210,17 +265,21 @@ export class TrayManager {
   rebuild(): void {
     if (!this.tray || this.tray.isDestroyed()) return;
     const state = this.opts.providers.state();
-    const providerItems: MenuItemConstructorOptions[] = providerMenuEntries(state).map((e) => ({
+    const gw = this.opts.models?.state();
+    const viaGateway = Boolean(gw?.providers.some((p) => p.enabled));
+    const entries = viaGateway ? gatewayMenuEntries(gw!) : providerMenuEntries(state);
+    const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',
       checked: e.checked,
       enabled: e.enabled && !state.overrideId,
       click: () => {
         try {
-          this.opts.providers.setActive(e.id);
-          this.opts.logger.info('托盘切换 provider', { id: e.id });
+          if (e.ref) this.opts.models?.select(e.ref);
+          else this.opts.providers.setActive(e.id);
+          this.opts.logger.info('托盘切换模型', { id: e.id, ref: e.ref });
         } catch (error) {
-          this.opts.logger.warn('托盘切换 provider 失败', {
+          this.opts.logger.warn('托盘切换模型失败', {
             error: error instanceof Error ? error.message : String(error),
           });
         }
@@ -231,11 +290,11 @@ export class TrayManager {
       { label: t('打开 AI 对话'), click: () => this.opts.openChat() },
       { type: 'separator' },
       {
-        label: state.overrideId ? t('AI Provider（已被 NOMI_PROVIDER 锁定）') : 'AI Provider',
+        label: state.overrideId ? t('对话模型（已被 NOMI_PROVIDER 锁定）') : t('对话模型'),
         enabled: false,
       },
       ...providerItems,
-      { label: t('Provider 设置…'), click: () => this.opts.openProviderPanel() },
+      { label: t('模型设置…'), click: () => this.opts.openProviderPanel() },
       { label: t('桌面能力（文件授权 / 操作记录）…'), click: () => this.opts.openDesktopPanel?.() },
       { type: 'separator' },
       {
@@ -244,21 +303,6 @@ export class TrayManager {
           label: t(label),
           click: () => broadcastMascotCommand({ type: 'motion', name }),
         })),
-      },
-      ...(this.models.length
-        ? [
-            {
-              label: t('切换角色'),
-              submenu: this.models.map((m) => ({
-                label: `${m.name}${t(ORIGIN_LABEL[m.origin] ?? '')}`,
-                click: () => broadcastMascotCommand({ type: 'select-model', id: m.id }),
-              })),
-            } satisfies MenuItemConstructorOptions,
-          ]
-        : []),
-      {
-        label: t('选择角色 / 模型商店…'),
-        click: () => broadcastMascotCommand({ type: 'open-picker' }),
       },
       {
         label: t('互动设置（穿透 / 重力 / 散步）…'),
@@ -274,10 +318,14 @@ export class TrayManager {
     this.unsubscribeLocale?.();
     this.unsubscribeIcon?.();
     this.unsubscribe?.();
-    this.unsubscribeScreen?.();
     this.unsubscribeModels?.();
-    this.unsubscribeLocale = this.unsubscribeIcon = this.unsubscribe = undefined;
-    this.unsubscribeScreen = this.unsubscribeModels = undefined;
+    this.unsubscribeScreen?.();
+    this.unsubscribeLocale =
+      this.unsubscribeIcon =
+      this.unsubscribe =
+      this.unsubscribeModels =
+        undefined;
+    this.unsubscribeScreen = undefined;
   }
 
   dispose(): void {

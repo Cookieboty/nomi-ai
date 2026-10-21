@@ -4,6 +4,7 @@ jest.unmock('node:fs');
 import { spawn } from 'node:child_process';
 
 import { killProcessTree, listDescendants } from '../../../src/cli/processTree';
+import { until } from '../../helpers/wait';
 
 const alive = (pid: number): boolean => {
   try {
@@ -12,14 +13,6 @@ const alive = (pid: number): boolean => {
   } catch {
     return false;
   }
-};
-const until = async (fn: () => boolean, ms = 3000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (fn()) return true;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  return fn();
 };
 
 // pgrep / kill(pid,0) 语义仅 POSIX 适用；Windows 走 taskkill，不在此验证
@@ -41,8 +34,10 @@ d('killProcessTree', () => {
     expect(listDescendants(child.pid!)).toContain(grandPid);
 
     killProcessTree(child);
-    expect(await until(() => !alive(grandPid))).toBe(true);
-    expect(await until(() => child.exitCode !== null || child.signalCode !== null)).toBe(true);
+    await until(() => !alive(grandPid), { what: 'grandchild killed' });
+    await until(() => child.exitCode !== null || child.signalCode !== null, {
+      what: 'child exited',
+    });
   });
 
   it('没有 pid / 已退出的进程不抛错', () => {

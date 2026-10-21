@@ -3,15 +3,9 @@ export interface OnboardingState {
   done: boolean;
   skipped?: boolean;
 }
-export interface Character {
-  id: string;
-  name: string;
-  source?: string;
-}
 export type MascotCmd =
   | { type: 'say'; text: string; motion?: string }
   | { type: 'voice-style'; style: VoiceStyle; preview?: string }
-  | { type: 'select-model'; id: string }
   | { type: 'motion'; name: string };
 export type VoiceStyle = 'soft' | 'lively' | 'calm' | 'off';
 
@@ -40,12 +34,6 @@ export const onboardingClient = {
     if (b) await b.invoke('ai:onboarding:reopen').catch(() => undefined);
     // 同一窗口内立即显示（主进程也会广播 ai:onboarding:show）
     window.dispatchEvent(new CustomEvent('cd:onboarding-show'));
-  },
-  async characters(): Promise<Character[]> {
-    const r = await bridge()
-      ?.invoke('ai:onboarding:characters')
-      .catch(() => []);
-    return Array.isArray(r) ? (r as Character[]) : [];
   },
   mascot(cmd: MascotCmd): void {
     void bridge()

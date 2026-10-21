@@ -59,9 +59,8 @@ extraResources:
     to: ai-chat
   - from: assets
     to: assets
-  # 离线 TTS 模型（~133MB）：由 scripts/sync-tts-model.mjs 在 package 前同步到 resources/，不进 git
-  - from: resources/tts-models
-    to: tts-models
+  # 离线 TTS 模型不再打包：用户开启语音时按需下载到 userData（docs/design/tts-on-demand.md）。
+  # sherpa-onnx 原生库仍随包（见 asarUnpack）。
 
 directories:
   buildResources: assets
@@ -76,7 +75,9 @@ protocols:
       - nomi
 
 # ---------------------------------------------------------------
-# macOS · DMG（默认）。签名：CSC_LINK / CSC_KEY_PASSWORD（Developer ID Application .p12）。
+# macOS · DMG（首次手动安装）+ ZIP（electron-updater / Squirrel.Mac 自动更新必需：
+# MacUpdater 只会从 latest-mac.yml 的 files 里挑 zip，没有 zip 会抛 ERR_UPDATER_ZIP_FILE_NOT_FOUND）。
+# x64 / arm64 各一份 dmg + zip，latest-mac.yml 同时列出它们。签名：CSC_LINK / CSC_KEY_PASSWORD（Developer ID Application .p12）。
 # 公证：electron-builder 检测到 APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID 即自动
 # notarize（notarytool）。CI 由 scripts/release/signing-env.mjs 门控：整组齐全才导出，否则未签名 / 不公证。
 # ---------------------------------------------------------------
@@ -84,6 +85,10 @@ mac:
   category: public.app-category.productivity
   target:
     - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
       arch:
         - x64
         - arm64

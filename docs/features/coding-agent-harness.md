@@ -43,7 +43,7 @@
 - **配置**：`~/.codex/config.toml` + `auth.json`；切换供应商后多数情况需**重启终端 / daemon**。
 - **更新**：`codex update`（发行版自更新）；另可用 npm / 官方安装器。
 
-推荐接管实现：优先 **`codex exec --json` 单轮 + resume 续聊**（实现简单、事件模型清晰）；P1 再评估 `codex app-server`（stdio/WS）做真正的长连接 UI。
+接管实现（2026-10-20 起）：**`codex app-server` 长驻**（见下文「Codex 长驻」）；`codex exec --json` 单轮 + resume 续聊作为回退。
 
 ### 3.3 Grok Build（`@xai-official/grok`）
 
@@ -57,14 +57,14 @@
 
 ### 3.5 CLI 供应商与本地路由（Nomi 自建）
 
-| 概念               | 含义                        | Nomi 实现                                                                                                   |
-| ------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 按工具的供应商档案 | Claude / Codex 各自一组档案 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
-| 一键启用           | 只改连接字段，备份后写回    | 原子写 + `userData/cli-providers/backups/`                                                                  |
-| Direct             | CLI 直连上游（原生协议）    | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
-| 本地路由           | 本机代理做协议转换          | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用档案                                |
-| Aggregation        | 多上游模型列表合并          | **P2**                                                                                                      |
-| Apps 页升级        | 检测版本、安装、升级        | 对标「版本与更新」章节，由看板娘执行                                                                        |
+| 概念                 | 含义                          | Nomi 实现                                                                                                   |
+| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 按工具的第三方供应商 | Claude / Codex 各自一组供应商 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
+| 一键启用             | 只改连接字段，备份后写回      | 原子写 + `userData/cli-providers/backups/`                                                                  |
+| Direct               | CLI 直连上游（原生协议）      | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
+| 本地路由             | 本机代理做协议转换            | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商                        |
+| Aggregation          | 多上游模型列表合并            | **P2**                                                                                                      |
+| Apps 页升级          | 检测版本、安装、升级          | 对标「版本与更新」章节，由看板娘执行                                                                        |
 
 **上游格式（按 CLI 不同）：**
 
@@ -76,7 +76,7 @@
 
 - Ollama 默认上下文约 2k token，而 Claude Code 每轮系统提示 + 工具定义约 16k token，超出部分会被**静默截断**，表现为空回复或答非所问。
 - 启动 Ollama 时设置 `OLLAMA_CONTEXT_LENGTH=20480`（或更大）：`OLLAMA_CONTEXT_LENGTH=20480 ollama serve`；Codex 的提示约 6k token，同样建议 ≥ 8192。
-- 档案的 API 地址填 `http://127.0.0.1:11434/v1`，格式选 OpenAI Chat Completions，开启路由并接管对应 CLI。
+- 供应商的 API 地址填 `http://127.0.0.1:11434/v1`，格式选 OpenAI Chat Completions，开启路由并接管对应 CLI。
 
 ## 4. 用户体验
 
@@ -117,11 +117,11 @@
 设置 → **「编程助手」** 页（见 §13.4 与 §14：一个页面，顶部按端点切换，Nomi / Claude Code / Codex / dsh 各自独立，外加「监视与会话」）：
 
 - 分栏：按端点（Claude Code | Codex | dsh）。
-- 档案列表：名称、base URL、model、**上游格式**、启用态；Key 走 **同一套 safeStorage**，不入明文 JSON。
+- 供应商列表：名称、base URL、model、**上游格式**、启用态；Key 走 **同一套 safeStorage**，不入明文 JSON。
 - 预设：Anthropic 官方、OpenAI 官方、OpenRouter、DeepSeek、硅基流动、自定义……（可从 Nomi 已有 presets 映射）。
 - **启用**：备份 → 写 `~/.claude/settings.json` env 或 `~/.codex/config.toml` + auth 字段 → Claude 热生效；Codex 提示重启。
-- **开启路由**：高级设置开关；开启后非原生格式档案可启用，CLI 配置写入本机路由地址与占位 Key，真实上游由路由转发并转换协议。
-- **从 Nomi 导入**：把原生供应商的 baseURL/model/key 复制为 CLI 档案（用户确认）。
+- **开启路由**：高级设置开关；开启后非原生格式供应商可启用，CLI 配置写入本机路由地址与占位 Key，真实上游由路由转发并转换协议。
+- **从 Nomi 导入**：把原生供应商的 baseURL/model/key 复制为 CLI 供应商（用户确认）。
 
 Aggregation（多上游合并）仍为 **P2**。
 
@@ -151,13 +151,20 @@ Aggregation（多上游合并）仍为 **P2**。
 | 后端        | 进程策略                                                                                                                                                                                                                                                                                                                            | 输入                                 | 输出               |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ | ------------------ |
 | Claude Code | **会话级长驻**：每标签一个 `claude -p --input-format stream-json --output-format stream-json --verbose --permission-prompt-tool stdio` 子进程（cwd 固定）；多轮向 stdin 写 user NDJSON，等 `result` 后**不**关 stdin；换 cwd / 后端 / 关标签 / 取消当前轮时拆除。进程异常退出则下一轮带 `--resume` 重拉（明确降级，非「永不掉线」） | stdin NDJSON user / control_response | stdout stream-json |
-| Codex       | 每用户消息一次 `exec --json`（或 `exec resume`）；P1 可升 app-server                                                                                                                                                                                                                                                                | argv / stdin prompt                  | stdout NDJSON      |
+| Codex       | **会话级长驻**：每标签一个 `codex app-server`（stdio JSON-RPC），每轮 `turn/start`；起不来时退回每用户消息一次 `exec --json`（或 `exec resume`）                                                                                                                                                                                    | argv / stdin prompt                  | stdout NDJSON      |
 | Nomi        | 无外部进程                                                                                                                                                                                                                                                                                                                          | —                                    | AIClient 事件      |
 
 **Claude 长驻说明（2026-10-15 对照 CLI 2.1.299）：**
 
 - 官方 print 模式支持 `--input-format stream-json` 保持 stdin 打开跨多轮；会话身份在启动时用 `--resume` 绑定，中途不能换会话（见 anthropics/claude-code#84060）。
-- Nomi 实现为**会话级进程复用**（一标签一进程），不是全局单例 daemon；中断发 `control_request{subtype:interrupt}` 后 `SIGKILL`，下一轮 `--resume`。
+- Nomi 实现为**会话级进程复用**（一标签一进程），不是全局单例 daemon。
+- **流式**：启动参数带 `--include-partial-messages`，正文按 `stream_event` 的 `text_delta` 逐 token 显示；同一轮里新的文本块开始时补一个段落分隔，子代理（带 `parent_tool_use_id`）的流式片段不进主回答。
+- **停止（2026-10-20，对照 2.1.304）**：只发 `control_request{subtype:interrupt}`，CLI 以 `error_during_execution` 的 `result` 结束这一轮、进程继续，下一轮不用冷启动。interrupt 没有应答、这条消息仍在 CLI 队列里（`still_queued`），或 5 秒内没收到 `result` 时才拆进程，下一轮 `--resume`。
+- **切换模型**：只差模型时，下一轮发送前用 `control_request{subtype:set_model}` 原地切换（`default` 回到 CLI 默认模型），不重启进程；被拒就拆进程按新 `--model` 重拉。思考深度没有可靠的原地切换（`apply_flag_settings` 的 `effortLevel` 不校验取值、也压不过 `--effort`），仍是空闲时回收、下一轮按新参数重启。模型变化本身会让服务端提示缓存失效，这一点无法避免。
+- **预热**：新建 Claude 会话、切到一个没有长驻进程的 Claude 标签时预先拉起进程（`NOMI_HARNESS_PREWARM=0` 关闭）。没发过消息的预热进程同样参与空闲回收，回收后不标「已休眠」。
+- **Grok 长驻（2026-10-20，对照 1.0.62）**：Grok 改走 ACP（`grok agent stdio`），与 Gemini 共用一套长驻会话：流式正文、`session/cancel` 停止不杀进程、`session/set_mode` 原地切权限（`plan` / `default` / `acceptEdits` / `bypassPermissions`，支持逐项确认）、发送前用 `session/set_model` 与 `session/set_config_option reasoning_effort` 原地切模型 / 思考深度（清掉覆盖时按模型目录的默认值切回，不知道默认值才换进程）。`grok -p` 建的会话可用 `session/load` 接上。拒绝一次工具调用时 Grok 以 `cancelled` 结束整轮，按正常结束落盘。握手阶段进程就退出（CLI 太旧）时退回每轮一个进程的 `grok -p`；`NOMI_GROK_ACP=0` 强制用 `-p`。
+- **Codex 长驻（2026-10-20，对照 0.163.0）**：每标签一个 `codex app-server`。initialize 后有会话 id 就 `thread/resume`，新会话的 `thread/start` 推迟到第一条消息（预热不留空会话）；每轮 `turn/start` 带这一轮的沙箱 / 审批策略（与 exec 的 `-c` 同一张表，见 `codex/appServer.ts`）以及模型 / 思考深度，所以权限、模型、思考深度都在下一条消息即时生效、不重启进程；清掉覆盖时按模型目录（`config.toml`）的默认值切回，不知道默认值才换进程。正文经 `item/agentMessage/delta` 流式到达；条目（camelCase）转成 exec 的条目交给 `parseCodexLine`，工具名与展示和 exec 一致；子代理线程的条目不进主回答。用量按 `thread/tokenUsage/updated` 的线程累计求差。停止发 `turn/interrupt`（实测 18ms），进程保留；拿不到应答或 5 秒内没结束才拆进程。逐项确认：审批策略 `untrusted`，`item/commandExecution/requestApproval` / `item/fileChange/requestApproval` 进权限卡片。exec 建的会话可在 app-server 里续接，反之亦然（实测）。起不来 app-server（版本过旧）时退回 `codex exec`，那时逐项确认没有审批通道、按只读沙箱跑；`NOMI_CODEX_APP_SERVER=0` 强制用 exec。
+- **新会话沿用设置**：每个后端记住最近一次选的权限模式 / 模型 / 思考深度（`tabs.json` 的 `lastSettings`），`/clear`、新标签、打开历史都从它开始。「完全放开」不记；换官方账号或第三方供应商时清掉模型 / 思考深度；启用第三方供应商时不沿用模型；设置页改默认档后不再沿用旧的权限模式。
 - 若本机 Claude 在 stream-json 下仍每轮退出：harness 会在下一发送时自动重拉并带 `--resume`，功能不丢，只是少了「免冷启动」；以 mock 单测断言「同一 pid 跨两轮」为回归护栏。
 
 **空闲回收（2026-10-18）：** 长驻进程会一直占内存，所以空闲超过阈值（默认 30 分钟；环境变量 `NOMI_HARNESS_IDLE_MS`，`0` 关闭）就回收：只回收「没有进行中的轮次、没有待处理的权限请求、标签不在 running / queued、已有可续接的 `cliSessionId`」的进程（策略见 `cli/idleReclaim.ts`）。被回收的标签在 `ai:harness:tabs` 里带 `dormant: true`（仅内存，不落盘）：侧栏 / 标签的圆点显示空心、会话底部提示「已休眠」，转录与会话 id 都保留；下一条消息走原有的 `--resume <cliSessionId>` 重拉，休眠标记随之清除。Codex / dsh / Grok 本来每轮一个进程，不需要回收。
@@ -169,6 +176,10 @@ Aggregation（多上游合并）仍为 **P2**。
 - `codex exec --json` 的 NDJSON 事件为 `thread.*` / `turn.*` / `item.*` 等，**没有**可回写的交互式 approval / permission 事件；`--approve-for-me` 为自动审批，`--dangerously-bypass-approvals-and-sandbox` 为跳过，均非 UI 桥。
 - 交互式审批存在于实验性 **`codex app-server`**（JSON-RPC：`ExecCommandApproval*` / `CommandExecutionRequestApproval*` / `FileChangeRequestApproval*` 等），**不属于**当前 P0 的 `exec` 路径。
 - **结论：P0 不对 Codex 做假权限 UI**；dsh headless 同样自行决策。看板娘气泡提醒仍走监视器完成/失败通道。P1 若接 app-server 再对标 Claude 权限桥。
+
+**权限模式（2026-10-19）：** 四个后端统一为「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」五档，按标签设置并映射到各 CLI 原生参数（Codex `-c sandbox_mode=…`、dsh `DSH_PERMISSION_MODE`、Claude / Grok `--permission-mode`）。修复了 Codex `exec` 默认只读、禁网导致无法改文件的问题；Grok 不再默认 `--yolo`。详见 [编程助手权限模式](../design/cli-permission-modes.md)。
+
+**子代理（2026-10-19）：** 四个后端都会派生子代理（Codex 的 `multi_agent` 默认开启）。Claude 的后台子代理会在一轮 `result` 之后继续输出并让主代理自发开新一轮，并行子代理会同时请求权限；接管层据此改成轮次队列与权限队列，子代理统一成 `agent` 事件。详见 [编程助手子代理](../design/cli-subagents.md)。
 
 **安全：**
 
@@ -183,7 +194,7 @@ Aggregation（多上游合并）仍为 **P2**。
 | 数据                                      | 位置                                                                           |
 | ----------------------------------------- | ------------------------------------------------------------------------------ |
 | 后端偏好、每会话 backend/cwd/cliSessionId | `userData/harness/sessions.json` + 对话元数据字段                              |
-| CLI 供应商档案（无明文 key）              | `userData/cli-providers/claude/store.json`、`…/codex/store.json` + safeStorage |
+| CLI 第三方供应商（无明文 key）            | `userData/cli-providers/claude/store.json`、`…/codex/store.json` + safeStorage |
 | 配置备份                                  | `userData/cli-providers/backups/`                                              |
 | 本地路由设置                              | `userData/cli-providers/routing.json`                                          |
 | 更新缓存（latest 查询）                   | `userData/cli-update/cache.json`                                               |
@@ -242,7 +253,7 @@ Aggregation（多上游合并）仍为 **P2**。
 4. **默认后端**：保持 **Nomi**。
 5. **更新范围**：~~Claude Code + Codex；Cursor 仅检测~~ → 2026-10-15 验收后改为 **Claude Code + Codex + dsh 都可检测、安装、更新**（见 §14.2）；Cursor 仍**仅检测**。
 6. **工作目录**：对话级绑定（P0 用全局 harness cwd + 选目录按钮）。
-7. **三套供应商隔离**：Nomi `ai-providers.json`｜Claude CLI 档案｜Codex CLI 档案；各写各的路径。
+7. **三套供应商隔离**：Nomi `ai-providers.json`｜Claude CLI 供应商｜Codex CLI 供应商；各写各的路径。
 8. **本地路由**：非原生上游格式须「开启路由」后才能启用。
 
 ## 11. 批准后的首个实现切片（仍等批准）
@@ -274,10 +285,10 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 | 会话存储 | `$DSH_HOME/sessions/<编码后的 cwd>/session-<uuid>/{session.lock, session.v4.jsonl.zstd}`；运行中的会话持有 `session.lock`                                                                                                                                                        |
 | 供应商   | 默认使用 DeepSeek 官方接口（`DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL`）；内置适配器原生支持 `openai-completions`、`openai-responses`、`anthropic-messages`，**不需要本地路由**                                                                                                    |
 
-### 12.2 dsh 供应商档案（第 4 套档案库）
+### 12.2 dsh 第三方供应商（第 4 套第三方供应商列表）
 
-- 档案库位于 `userData/cli-providers/dsh/store.json`，与 Nomi / Claude / Codex 的档案相互隔离。
-- 启用档案时，在 `$DSH_HOME/cordis.patch.yml` 中写入一段带 `# >>> nomi managed (dsh provider) >>>` 标记的区块，其余内容原样保留，并且先备份再原子写入：
+- 第三方供应商列表位于 `userData/cli-providers/dsh/store.json`，与 Nomi / Claude / Codex 的供应商相互隔离。
+- 启用第三方供应商时，在 `$DSH_HOME/cordis.patch.yml` 中写入一段带 `# >>> nomi managed (dsh provider) >>>` 标记的区块，其余内容原样保留，并且先备份再原子写入：
 
 ```yaml
 - id: llm-pi-ai
@@ -295,8 +306,8 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
     model: <model>
 ```
 
-- **密钥不落盘到 dsh 配置**：由接管服务在启动 dsh 时注入环境变量 `NOMI_DSH_API_KEY`。用户在终端里自己运行 dsh 时，需要自行导出该变量，或停用档案、回到 dsh 默认供应商。
-- 停用档案时只移除标记区块。
+- **密钥不落盘到 dsh 配置**：由接管服务在启动 dsh 时注入环境变量 `NOMI_DSH_API_KEY`。用户在终端里自己运行 dsh 时，需要自行导出该变量，或停用第三方供应商、回到 dsh 默认供应商。
+- 停用第三方供应商时只移除标记区块。
 
 ### 12.3 接管适配器
 
@@ -342,7 +353,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 - **切换后端**：有消息的会话不会静默改写身份。BackendSwitcher 会为新后端新建会话 / 标签；空会话可原地切换。跨端复制历史请用分叉。
 - **侧栏视图**（「全部 | 按端」，持久化）：
   - 全部：所有会话 + 端点色标（与灵动岛一致：nomi 珊瑚 / claude 橙 / codex 蓝 / dsh 蓝紫）。
-  - 按端：先选端点芯片（未安装的 CLI 禁用），再只看该端。
+  - 按端：先选端点按钮（未安装的 CLI 禁用），再只看该端。
   - 「新对话」：普通 → 总是 Nomi；开发 + 按端 → 当前端；全部 → 弹出端点菜单。
 - **分叉**（侧栏右键 / Mod+Shift+F）：
   1. **分叉为新对话**：同端复制可见消息，标题「原标题 (副本)」。
@@ -358,10 +369,10 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 **查证结果（用大白话）**
 
-1. **显示是错的，配置没有串。** 输入栏里的「供应商 / 模型」选择器原来是 Nomi 自己的，不管当前是哪个端点都显示它，所以看起来像是 CLI 在用 Nomi 的模型。实际上 CLI 标签发消息时只读它自己的配置，不读 Nomi 的选择。已改为：CLI 标签显示**该 CLI 自己的**供应商 / 模型（只列该端点自己档案库里的档案）；没有启用任何档案时明确显示「CLI 默认 / 已登录」；🔑 按钮直达该端点的供应商设置页。
+1. **显示是错的，配置没有串。** 输入栏里的「供应商 / 模型」选择器原来是 Nomi 自己的，不管当前是哪个端点都显示它，所以看起来像是 CLI 在用 Nomi 的模型。实际上 CLI 标签发消息时只读它自己的配置，不读 Nomi 的选择。已改为：CLI 标签显示**该 CLI 自己的**供应商 / 模型（只列该端点自己第三方供应商列表里的供应商）；没有启用任何供应商时明确显示「CLI 默认 / 已登录」；🔑 按钮直达该端点的供应商设置页。
 2. **启动 CLI 子进程时会把 Nomi 的环境变量带进去。** 原来直接继承 Nomi 进程的环境变量（`NOMI_*`、`IG_*`、`CD_*`、MCP 相关变量）。这些不是 CLI 的配置，但属于不该泄露的内部状态。已改为子进程环境统一经过 `buildCliEnv`：剥掉这些内部变量，其余（`PATH`、`HOME`、用户自己设置的 `ANTHROPIC_*` / `OPENAI_*` 等）原样保留；dsh 的 Key 只通过显式的 `NOMI_DSH_API_KEY` 注入。
-3. **没有档案时不会写任何 CLI 配置文件。** Codex 档案库为空时，既不写 `~/.codex/config.toml` 也不写 `auth.json`；启用 Claude 档案不会碰 Codex 的文件，反之亦然。（有隔离测试 `CliIsolation.test.ts`。）
-4. **补上了「停用」。** 以前启用过的档案没办法退回 CLI 自带登录。现在每个端点都能「改用 CLI 自带登录/默认配置」：Claude 只移除我们写入的 `ANTHROPIC_API_KEY / BASE_URL / MODEL`；Codex 移除 `[model_providers.nomi]`、对应的 `model` / `model_provider` 和我们写入的 `OPENAI_API_KEY`；dsh 只移除带标记的区块；都先备份。
+3. **没有供应商时不会写任何 CLI 配置文件。** Codex 第三方供应商列表为空时，既不写 `~/.codex/config.toml` 也不写 `auth.json`；启用 Claude 供应商不会碰 Codex 的文件，反之亦然。（有隔离测试 `CliIsolation.test.ts`。）
+4. **补上了「停用」。** 以前启用过的供应商没办法退回 CLI 自带登录。现在每个端点都能「改用 CLI 自带登录/默认配置」：Claude 只移除我们写入的 `ANTHROPIC_API_KEY / BASE_URL / MODEL`；Codex 移除 `[model_providers.nomi]`、对应的 `model` / `model_provider` 和我们写入的 `OPENAI_API_KEY`；dsh 只移除带标记的区块；都先备份。
 5. **已知限制**：Nomi 自己（主标签）的任务路由 / 供应商仍是 Nomi 自己的一套，与 CLI 无关；用户在自己的 shell 里导出的 `ANTHROPIC_*` / `OPENAI_*` 会被 CLI 继承，这是用户自己的环境，不做剥离。
 
 ### 13.2 端点命名、图标、工作目录（反馈 1 / 4 / 5）
@@ -409,12 +420,12 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 设置 →「编程助手」只有一个页面。顶部标签：Nomi / Claude Code / Codex / dsh / 监视与会话（选择会记住），每个端点是**完全独立**的一块，切换只是换视图，不改动任何配置。三个 CLI 端点与 Nomi 用**同一套**第三方供应商交互（见 §14.1）：
 
 - **说明**：配置写到哪里、与其它端点互相独立。Claude Code 只改 `~/.claude/settings.json` 的 env；Codex 只改 `~/.codex/config.toml` 与同目录 `auth.json` 的 `OPENAI_API_KEY`；dsh 只写 `$DSH_HOME/cordis.patch.yml` 里带标记的区块（密钥不落盘，启动时用环境变量注入）；Nomi 用自己的 `ai-providers.json`。以上都先备份、保留无关内容。
-- **当前使用**：供应商名称、**来源**（Nomi 档案库 / CLI 自带登录或默认配置）、上游格式、模型、**本地路由状态与原因**（直连：原生格式；已开启：非原生格式经本机路由转换；需要但未开启：提示去「高级」打开；dsh：无需路由）。
-- **档案**：启用 / 测速 / 编辑 / 删除。测速（主进程 `ai:cli-provider:test`）对上游发一次 `GET /models`（OpenAI 兼容 Bearer；Anthropic 用 `x-api-key`；Gemini 用 `x-goog-api-key`），8 秒超时，返回耗时；401/403 提示 Key 无效；没有模型列表接口（404/405）视为已连通；错误信息里的 Key 会被抹掉。
-- **「高级」**：本地路由开关（Claude Code / Codex）、档案库与写入文件路径。dsh 的高级里只有说明（原生支持三种协议，无需路由）。
+- **当前使用**：供应商名称、**来源**（Nomi 第三方供应商 / CLI 自带登录或默认配置）、上游格式、模型、**本地路由状态与原因**（直连：原生格式；已开启：非原生格式经本机路由转换；需要但未开启：提示去「高级」打开；dsh：无需路由）。
+- **供应商**：启用 / 测速 / 编辑 / 删除。测速（主进程 `ai:cli-provider:test`）对上游发一次 `GET /models`（OpenAI 兼容 Bearer；Anthropic 用 `x-api-key`；Gemini 用 `x-goog-api-key`），8 秒超时，返回耗时；401/403 提示 Key 无效；没有模型列表接口（404/405）视为已连通；错误信息里的 Key 会被抹掉。
+- **「高级」**：本地路由开关（Claude Code / Codex）、第三方供应商列表与写入文件路径。dsh 的高级里只有说明（原生支持三种协议，无需路由）。
 - **任务路由**（对话 / 工具调用 / 摘要）只在 **Nomi** 区，沿用原有 `ProviderPanel`；CLI 端点没有任务路由。
 - 存储与 IPC 语义不变：`ai:cli-provider:*`（`upsert` / `remove` / `activate` / `deactivate` / `state` / 新增 `test`）、`ai:cli-route:*`。
-- 入口：设置 → 编程助手；输入栏供应商芯片的「管理」直接跳到对应端点。「日程与日历」没有编程助手标签（§14.3）。
+- 入口：设置 → 编程助手；输入栏供应商按钮的「管理」直接跳到对应端点。「日程与日历」没有编程助手标签（§14.3）。
 
 ### 13.5 历史会话（Claude Code / Codex / dsh）
 
@@ -442,9 +453,10 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 - 设置里「编程助手」是一个页面，标签：`Nomi` · `Claude Code` · `Codex` · `dsh` · `监视与会话`（`CodingTab`，记在 `chatPrefs`）。
 - Claude Code / Codex / dsh 与 Nomi 使用同样的视觉与流程：**卡片列表**（图标 · 名称 · 「使用中」徽标 · 上游格式 · 地址 · 模型 · 打码 Key）→ **添加供应商**打开预设模板网格（含「自定义」）→ 表单（名称、接口地址、API Key、模型、上游格式）→ 保存；每张卡片有 测速 / 编辑 / 删除（删除前确认）/ 启用。预设模板复用 Nomi 的预设（只预填名称 / 地址 / 模型 / Key）；新建上游格式一律取该 CLI 端点原生默认（Claude=`anthropic_messages`，Codex / dsh=`openai_responses`），不被预设 protocol 改写；用户可再改格式，非原生时提示需本地路由。
-- **默认是「CLI 自带登录 / 默认配置」**：列表第一张固定卡片，没有任何档案启用时它就是「当前」；启用某个档案后可随时「改用 CLI 自带登录/默认配置」。
-- **隔离不变**：四套档案库互相独立；本地路由仍在 Claude Code / Codex 各自的「高级」里；dsh 无需路由。
-- 档案新增 `presetId`（可选，旧档案没有时按地址推测品牌图标），仅用于显示品牌图标。
+- **默认是「CLI 自带登录 / 默认配置」**：列表第一张固定卡片，没有任何供应商启用时它就是「当前」；启用某个供应商后可随时「改用 CLI 自带登录/默认配置」。
+- **隔离不变**：四套第三方供应商列表互相独立；本地路由仍在 Claude Code / Codex 各自的「高级」里；dsh 无需路由。
+- 供应商新增 `presetId`（可选，旧供应商没有时按地址推测品牌图标），仅用于显示品牌图标。
+- **第三方供应商下按标签切模型（2026-10-20）**：启用供应商后，编程助手标签输入栏的模型按钮照常显示（与官方账号同一个按钮），列的是供应商上游 `/models`（用供应商自己保存的密钥；读不到时只留供应商配置的模型并显示原因），供应商里配置的模型作「默认模型」，直接打开模型列表、没有思考深度。标签的选择按来源分开记（`modelScope` / `modelByScope`：官方账号与各供应商各一份），换供应商或回到官方账号时各自取回，模型名不会跨来源发出去。下发方式：Claude `--model` / `set_model`、Codex `turn/start.model`（或 exec `-c model=`）、Grok ACP `set_model`（或 `-m`）；dsh 用 `--patch` 叠加一份只给这个进程的供应商定义（实测叠加会整段替换供应商，所以带完整 api / baseURL / 密钥变量）。Claude / Codex 走本地路由时，路由只放行这些标签选中的模型，其余（如 CLI 自带的官方模型名）仍改成供应商配置的模型。
 
 ### 14.2 版本检测、安装与更新（Claude Code / Codex / dsh）
 

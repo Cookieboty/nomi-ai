@@ -6,9 +6,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { broadcastMascotCommand, type MascotCommand } from '../ai/mascotCommand';
+import { guardedHandle } from '../security/guardedIpc';
 
 export interface OnboardingState {
   done: boolean;
@@ -17,14 +18,12 @@ export interface OnboardingState {
 }
 
 /** 引导里允许转发给看板娘的指令（不开放任意指令） */
-const ALLOWED = new Set(['say', 'voice-style', 'select-model', 'motion']);
+const ALLOWED = new Set(['say', 'voice-style', 'motion']);
 
 export interface OnboardingDeps {
   userData: string;
   /** 打开对话窗口（引导显示在里面） */
   openChat: () => void | Promise<void>;
-  /** 角色列表（与托盘「切换角色」同源） */
-  listCharacters: () => Promise<Array<{ id: string; name: string; source?: string }>>;
 }
 
 export class OnboardingService {
@@ -91,16 +90,13 @@ export class OnboardingService {
   }
 
   registerIpc(): void {
-    const h = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, (_e, ...a: unknown[]) => fn(...a));
-    };
+    const h = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'OnboardingService', wrapErrors: false });
     h('ai:onboarding:get', () => this.get());
     h('ai:onboarding:complete', (o) =>
       this.complete(Boolean((o as { skipped?: boolean })?.skipped)),
     );
     h('ai:onboarding:reopen', () => this.reopen());
-    h('ai:onboarding:characters', () => this.deps.listCharacters().catch(() => []));
     h('ai:onboarding:mascot', (cmd) => this.mascot(cmd));
   }
 }

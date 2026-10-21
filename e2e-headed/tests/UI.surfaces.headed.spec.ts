@@ -9,10 +9,12 @@ import type { ElectronApplication, Page } from '@playwright/test';
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
+import { revealToolbar } from './toolbarReveal';
+
 /**
  * UI 巡检截图（非断言型冒烟）：只有设置了 UI_SHOTS_DIR 才运行，CI 默认跳过。
  *   UI_SHOTS_DIR=/workspace/screenshots/ui-before xvfb-run -a pnpm test:e2e:headed -g "UI surfaces"
- * 覆盖：mascot（VRM 3D / 自定义图片）+ 工具栏 + 语音设置弹层、AI 对话窗口、
+ * 覆盖：mascot（内置 2D 角色 Nomi）+ 工具栏 + 语音设置弹层 + 致谢面板、AI 对话窗口、
  * 配置面板、Provider 面板、Provider 切换器、TTS 配置窗口。
  */
 const shotDir = process.env.UI_SHOTS_DIR;
@@ -59,18 +61,21 @@ test.describe('UI surfaces', () => {
     const main = await app.firstWindow({ timeout: 20_000 });
     await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
     await main
-      .waitForFunction(() => document.documentElement.dataset.mascotBackend === 'vrm', undefined, {
+      .waitForFunction(() => document.documentElement.dataset.mascotModel === 'nomi', undefined, {
         timeout: 60_000,
       })
       .catch(() => undefined);
     await main.waitForTimeout(1_500);
-    await shot(main, '01-mascot-vrm');
-    if (process.env.VRM_SHOT) await main.screenshot({ path: process.env.VRM_SHOT });
+    await shot(main, '01-mascot-nomi');
+    if (process.env.MASCOT_SHOT) await main.screenshot({ path: process.env.MASCOT_SHOT });
 
-    const hover = () =>
-      app!.evaluate(({ BrowserWindow }) =>
+    // 工具栏只在悬停角色 / 工具栏时显示：把指针移到工具栏所在位置
+    const hover = async () => {
+      await app!.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
       );
+      await revealToolbar(main);
+    };
     await hover();
     await main.waitForTimeout(600);
     await shot(main, '02-mascot-toolbar');
@@ -114,33 +119,21 @@ test.describe('UI surfaces', () => {
       await shot(main, `05-motion-${motion}`);
       await main.waitForTimeout(1_800);
     }
+    await hover();
     await main.locator('[data-testid="tool-motion"]').click({ button: 'right' });
     await main.waitForTimeout(600);
     await shot(main, '06-motion-menu');
     await main.keyboard.press('Escape');
     await main.waitForTimeout(300);
-    // 角色选择器
-    await main.evaluate(() => window.dispatchEvent(new CustomEvent('mascot:open-picker')));
-    await main.waitForTimeout(800);
-    await shot(main, '06b-model-picker');
-    await main.click('[data-testid="open-credits"]');
+    // 致谢面板：工具栏「更多」→ 致谢 / Credits
+    await hover();
+    await main.click('[data-testid="tool-more"]');
+    await main.click('[data-testid="panel-more"]');
+    await main.click('[data-testid="tool-info"]');
+    await main.waitForSelector('[data-testid="credits"]', { timeout: 10_000 });
     await main.waitForTimeout(800);
     await shot(main, '06c-credits');
     await main.keyboard.press('Escape');
-
-    // TTS 配置窗口
-    const ttsWin = app.waitForEvent('window', { timeout: 15_000 }).catch(() => null);
-    await main.evaluate(() =>
-      (
-        window as unknown as { electronAPI: { openTTSConfig(): Promise<unknown> } }
-      ).electronAPI.openTTSConfig(),
-    );
-    const tts = await ttsWin;
-    if (tts) {
-      await tts.waitForLoadState('domcontentloaded');
-      await tts.waitForTimeout(800);
-      await shot(tts, '07-tts-config-window');
-    }
 
     // AI 对话窗口
     const chatWin = app.waitForEvent('window', { timeout: 20_000 });
@@ -157,15 +150,18 @@ test.describe('UI surfaces', () => {
     await chat.fill('textarea', '你好，帮我写一段 TypeScript 示例');
     await shot(chat, '11-chat-typing');
 
-    await chat.click('[data-testid="open-provider-panel"]');
-    await expect(chat.locator('[data-testid="provider-panel"]')).toBeVisible();
+    await chat.click('[data-testid="open-models-settings"]');
+    await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
     await chat.waitForTimeout(400);
-    await shot(chat, '13-provider-panel');
-    await chat.click('[data-testid="add-provider-btn"]');
+    await shot(chat, '13-models-page');
+    await chat.click('[data-testid="add-provider"]');
     await chat.click('[data-testid="preset-deepseek"]');
-    await chat.fill('[data-testid="draft-key"]', 'sk-demo-not-a-real-key-0000');
-    await shot(chat, '14-provider-panel-draft');
-    await chat.click('[aria-label="关闭"]');
+    await chat.fill('[data-testid="add-provider-keys"]', 'sk-demo-not-a-real-key-0000');
+    await shot(chat, '14-add-provider-draft');
+    await chat.keyboard.press('Escape');
+    await expect(chat.locator('[data-testid="add-provider-dialog"]')).toHaveCount(0);
+    await chat.keyboard.press('Escape');
+    await expect(chat.locator('[data-testid="models-page"]')).toHaveCount(0);
 
     const collapse = chat.locator('[data-testid="sidebar-toggle"]');
     if (await collapse.count()) {
@@ -173,8 +169,8 @@ test.describe('UI surfaces', () => {
       await chat.waitForTimeout(400);
       await shot(chat, '15-chat-sidebar-collapsed');
     }
-    await chat.locator('[data-testid="provider-switch"]').focus();
-    await shot(chat, '16-provider-switcher');
+    await chat.locator('[data-testid="nomi-model-switch"] [role="combobox"]').focus();
+    await shot(chat, '16-model-switcher');
 
     // 左上角常驻入口：默认 4 个；右键取消固定；设置 → 通用 → 常驻入口 恢复默认
     for (const id of ['newchat', 'snip', 'kb', 'handsfree'])

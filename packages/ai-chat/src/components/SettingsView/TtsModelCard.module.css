@@ -1,0 +1,70 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin-bottom: var(--cd-space-2);
+  cursor: pointer;
+}
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: var(--cd-space-1-5) 0 10px;
+}
+.bar {
+  flex: 1 1 200px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cd-color-border);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  background: var(--cd-color-accent-strong);
+  transition: width 0.2s ease;
+}
+.label {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.btn {
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.btn:hover {
+  background: var(--cd-color-hover);
+}
+.error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: var(--cd-space-1-5) 0 10px;
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-danger);
+}
+
+/* 朗读引擎（TtsEngineCard）表单 */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+  max-width: 560px;
+  margin-top: var(--cd-space-3);
+}
+.grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--cd-space-3);
+}
+.result {
+  max-width: 560px;
+  margin-top: var(--cd-space-3);
+}

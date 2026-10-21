@@ -11,11 +11,13 @@ type Call = [string, ...unknown[]];
 let calls: Call[] = [];
 let persona = '我喜欢猫';
 let done = false;
+let startupView: 'mascot' | 'main' = 'mascot';
 
 beforeEach(() => {
   calls = [];
   persona = '我喜欢猫';
   done = false;
+  startupView = 'mascot';
   (window as unknown as { aiIPC: unknown }).aiIPC = {
     invoke: async (ch: string, ...a: unknown[]) => {
       calls.push([ch, ...a]);
@@ -24,11 +26,11 @@ beforeEach(() => {
         done = true;
         return { done };
       }
-      if (ch === 'ai:onboarding:characters')
-        return [
-          { id: 'hiyori', name: 'Hiyori' },
-          { id: 'miku', name: 'Miku' },
-        ];
+      if (ch === 'ai:startup:get') return { defaultView: startupView };
+      if (ch === 'ai:startup:set') {
+        startupView = (a[0] as { defaultView: 'mascot' | 'main' }).defaultView;
+        return { defaultView: startupView };
+      }
       if (ch === 'ai:mem:persona') return persona;
       if (ch === 'ai:mem:set-persona') {
         persona = String(a[0]);
@@ -58,7 +60,7 @@ const mascot = () =>
   calls.filter((c) => c[0] === 'ai:onboarding:mascot').map((c) => c[1] as { type: string });
 
 describe('first-launch onboarding', () => {
-  it('walks language → theme → character & voice → name & tone → provider → privacy', async () => {
+  it('walks language → theme → startup → character & voice → name & tone → provider → privacy', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-language');
     // 看板娘打招呼
@@ -73,23 +75,28 @@ describe('first-launch onboarding', () => {
 
     // 2 主题：默认暖墨，可选跟随系统
     await screen.findByTestId('onboarding-step-theme');
-    expect(screen.getByTestId('onb-theme-ink')).toBeTruthy();
+    expect(screen.getByTestId('onb-theme-sunset')).toBeTruthy();
     act(() => fireEvent.click(screen.getByTestId('onb-theme-system')));
     expect(currentTheme().pref).toBe('system');
     fireEvent.click(screen.getByTestId('onboarding-next'));
 
-    // 3 角色 + 声音
-    fireEvent.click(await screen.findByTestId('onb-char-miku'));
-    fireEvent.click(screen.getByTestId('onb-voice-lively'));
+    // 3 启动方式：默认看板娘；不选直接下一步不会写设置
+    await screen.findByTestId('onboarding-step-startup');
+    expect(screen.getByTestId('onb-startup-mascot').getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+
+    // 4 声音（只内置 Nomi，不再选角色）
+    fireEvent.click(await screen.findByTestId('onb-voice-lively'));
+    expect(screen.queryByTestId('onb-char-nomi')).toBeNull();
     expect(mascot()).toEqual(
-      expect.arrayContaining([
-        { type: 'select-model', id: 'miku' },
-        expect.objectContaining({ type: 'voice-style', style: 'lively' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ type: 'voice-style', style: 'lively' })]),
     );
+    expect(mascot().some((c) => (c as { type: string }).type === 'select-model')).toBe(false);
     fireEvent.click(screen.getByTestId('onboarding-next'));
 
-    // 4 称呼 + 语气 → 写进 persona（保留原有内容）
+    // 5 称呼 + 语气 → 写进 persona（保留原有内容）
     await screen.findByTestId('onboarding-step-persona');
     fireEvent.change(screen.getByTestId('onb-name'), { target: { value: '小林' } });
     fireEvent.click(screen.getByTestId('onb-tone-concise'));
@@ -99,15 +106,63 @@ describe('first-launch onboarding', () => {
     expect(persona).toContain('简洁专业');
     expect(persona).toContain('我喜欢猫');
 
-    // 5 供应商：可跳过
+    // 6 供应商：可跳过
     expect(screen.getByTestId('onb-provider')).toBeTruthy();
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
 
-    // 6 隐私 → 开始使用
+    // 7 隐私 → 开始使用
     await screen.findByTestId('onboarding-step-privacy');
     fireEvent.click(screen.getByTestId('onboarding-finish'));
     await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
     expect(calls).toContainEqual(['ai:onboarding:complete', { skipped: false }]);
+  });
+
+  it('lets the user open with the main window; choice is saved immediately and survives skipping', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-language');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-theme');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-startup');
+    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以看板娘方式打开');
+    expect(screen.getByTestId('onb-startup-main').textContent).toContain(
+      '以控制台（主界面）方式打开',
+    );
+    fireEvent.click(screen.getByTestId('onb-startup-main'));
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
+    );
+    expect(calls).toContainEqual(['ai:startup:set', { defaultView: 'main' }]);
+    expect(startupView).toBe('main');
+    // 跳过整个引导：已选的启动方式不回滚
+    fireEvent.click(screen.getByTestId('onboarding-skip-all'));
+    await waitFor(() => expect(screen.queryByTestId('onboarding')).toBeNull());
+    expect(startupView).toBe('main');
+  });
+
+  it('startup step is skippable and keeps the mascot default', async () => {
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-language');
+    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
+    fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
+    await screen.findByTestId('onboarding-step-startup');
+    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
+    await screen.findByTestId('onboarding-step-character');
+    expect(startupView).toBe('mascot');
+    expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+  });
+
+  it('reopened onboarding preselects the currently saved startup mode', async () => {
+    startupView = 'main';
+    render(<OnboardingHost />);
+    await screen.findByTestId('onboarding-step-language');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-theme');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
+    await screen.findByTestId('onboarding-step-startup');
+    await waitFor(() =>
+      expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('true'),
+    );
   });
 
   it('can be skipped entirely and is not shown again once done', async () => {

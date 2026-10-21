@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { waitForShellPath } from './shellPath';
 import type { CliKind, UpdatableCli } from './types';
 
 const ENV_BIN: Record<CliKind, string> = {
@@ -16,6 +17,7 @@ const ENV_BIN: Record<CliKind, string> = {
   codex: 'NOMI_CODEX_BIN',
   dsh: 'NOMI_DSH_BIN',
   grok: 'NOMI_GROK_BIN',
+  gemini: 'NOMI_GEMINI_BIN',
   cursor: 'NOMI_CURSOR_BIN',
 };
 
@@ -24,12 +26,58 @@ const CANDIDATES: Record<CliKind, string[]> = {
   codex: ['codex'],
   dsh: ['dsh'],
   grok: ['grok'],
+  gemini: ['gemini'],
   cursor: ['cursor-agent', 'agent'],
 };
+
+/** 运行中发现的额外目录（npm 实际的全局 bin 等），优先于下面的兜底目录 */
+const rememberedDirs: string[] = [];
+
+/** 记住一个 CLI 所在目录（如 `npm config get prefix` 的 bin），之后的探测 / 子进程 PATH 都带上 */
+export function rememberCliDir(dir: string | null | undefined): void {
+  const d = dir?.trim();
+  if (!d || rememberedDirs.includes(d)) return;
+  rememberedDirs.unshift(d);
+  forgetMissingCliBins();
+}
+
+/** 之前「没找到」的探测结果作废（PATH / 搜索目录变了，新目录里可能就有） */
+export function forgetMissingCliBins(): void {
+  for (const [kind, hit] of binCache) if (!hit.bin) binCache.delete(kind);
+  nodeBinCache = null;
+}
+
+/** npm 全局前缀对应的 bin 目录（Windows 的全局 bin 就是前缀本身） */
+export function npmPrefixBinDir(prefix: string, platform = process.platform): string {
+  return platform === 'win32' ? prefix : path.join(prefix, 'bin');
+}
+
+/** ~/.nvm/versions/node 下按版本从新到旧排的 bin 目录 */
+function nvmBinDirs(home: string, env: NodeJS.ProcessEnv): string[] {
+  const out: string[] = [];
+  if (env.NVM_BIN?.trim()) out.push(env.NVM_BIN.trim());
+  const root = path.join(env.NVM_DIR?.trim() || path.join(home, '.nvm'), 'versions', 'node');
+  try {
+    const versions = fs
+      .readdirSync(root)
+      .filter((v) => /^v?\d+\.\d+\.\d+/.test(v))
+      .sort((a, b) => {
+        const pa = a.replace(/^v/, '').split('.').map(Number);
+        const pb = b.replace(/^v/, '').split('.').map(Number);
+        for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return (pb[i] ?? 0) - (pa[i] ?? 0);
+        return 0;
+      });
+    for (const v of versions) out.push(path.join(root, v, 'bin'));
+  } catch {
+    /* 没装 nvm */
+  }
+  return out;
+}
 
 /**
  * 从 Dock / 开始菜单启动的应用拿到的 PATH 往往很短（macOS 没有 /opt/homebrew/bin、/usr/local/bin），
  * 探测与安装 CLI 时补上常见的 Node / npm / CLI 目录（只补不删，保持用户 PATH 的优先级）。
+ * 启动时还会读一次登录 shell 的 PATH（shellPath.ts）；读不到时靠这里的兜底目录（#76）。
  */
 export function cliSearchDirs(
   home = os.homedir(),
@@ -41,20 +89,44 @@ export function cliSearchDirs(
     // env we will actually spawn with (not a stale process.env snapshot).
     const winHome = env.USERPROFILE?.trim() || home;
     const appData = env.APPDATA?.trim() || path.join(winHome, 'AppData', 'Roaming');
-    return [
+    const localAppData = env.LOCALAPPDATA?.trim() || path.join(winHome, 'AppData', 'Local');
+    return unique([
+      ...rememberedDirs,
+      ...(env.NPM_CONFIG_PREFIX?.trim() ? [env.NPM_CONFIG_PREFIX.trim()] : []),
       path.join(winHome, '.grok', 'bin'),
       path.join(appData, 'npm'),
       path.join(winHome, '.local'),
-    ];
+      ...(env.PNPM_HOME?.trim() ? [env.PNPM_HOME.trim()] : []),
+      path.join(localAppData, 'pnpm'),
+      path.join(env.VOLTA_HOME?.trim() || path.join(localAppData, 'Volta'), 'bin'),
+      path.join(winHome, '.bun', 'bin'),
+    ]);
   }
-  return [
+  return unique([
+    ...rememberedDirs,
+    ...(env.NPM_CONFIG_PREFIX?.trim() ? [path.join(env.NPM_CONFIG_PREFIX.trim(), 'bin')] : []),
     path.join(home, '.grok', 'bin'),
     path.join(home, '.local', 'bin'),
     path.join(home, '.npm-global', 'bin'),
     path.join(home, '.local', 'npm-global', 'bin'),
+    path.join(home, '.npm-packages', 'bin'),
     '/opt/homebrew/bin',
     '/usr/local/bin',
-  ];
+    // Node 版本管理器 / 其它包管理器
+    ...nvmBinDirs(home, env),
+    path.join(env.VOLTA_HOME?.trim() || path.join(home, '.volta'), 'bin'),
+    ...(env.PNPM_HOME?.trim() ? [env.PNPM_HOME.trim()] : []),
+    path.join(home, 'Library', 'pnpm'),
+    path.join(home, '.local', 'share', 'pnpm'),
+    path.join(home, '.bun', 'bin'),
+    path.join(home, '.asdf', 'shims'),
+    path.join(home, '.local', 'share', 'mise', 'shims'),
+    path.join(home, '.claude', 'local'),
+  ]);
+}
+
+function unique(dirs: string[]): string[] {
+  return [...new Set(dirs)];
 }
 
 export function withCliPath(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
@@ -185,6 +257,7 @@ export function refreshCliBin(kind: CliKind): Promise<string | null> {
 /** 测试用：清空探测缓存 */
 export function resetCliBinCache(): void {
   binCache.clear();
+  rememberedDirs.length = 0;
   inflight.clear();
   nodeBinCache = null;
 }
@@ -240,6 +313,13 @@ export function guessInstallMethod(bin: string | null): 'npm' | 'native' | 'unkn
   if (!bin) return 'unknown';
   const n = bin.replace(/\\/g, '/').toLowerCase();
   if (n.includes('node_modules') || n.includes('npm-global')) return 'npm';
+  // Node 版本管理器 / pnpm / bun 的 bin 都是 npm 包的软链接（#76：nvm 的 /versions/ 曾被认成原生安装）
+  if (
+    /\/\.nvm\/versions\/node\/|\/\.volta\/|\/fnm|\/\.asdf\/|\/mise\/|\/pnpm\/|\/\.bun\/|\/\.npm-packages\//.test(
+      n,
+    )
+  )
+    return 'npm';
   if (n.includes('/.local/share/claude') || n.includes('/versions/')) return 'native';
   return 'unknown';
 }
@@ -277,6 +357,7 @@ export const NPM_PKG: Record<UpdatableCli, string> = {
   codex: '@openai/codex',
   dsh: '@deepseek-ai/dsh',
   grok: '@xai-official/grok',
+  gemini: '@google/gemini-cli',
 };
 
 /** 各 CLI 运行所需的最低 Node 主版本（claude-code engines ≥ 22；codex ≥ 16；dsh 需要 24） */
@@ -285,6 +366,8 @@ export const CLI_MIN_NODE_MAJOR: Record<UpdatableCli, number> = {
   codex: 16,
   dsh: 24,
   grok: 18,
+  // @google/gemini-cli 0.62.0 package.json engines：node >= 20
+  gemini: 20,
 };
 
 /** dsh 依赖 Node ≥ 24（import.meta.main）；更低版本下静默无输出 */
@@ -347,6 +430,7 @@ async function whichAsync(cmd: string): Promise<string | null> {
 }
 
 export async function resolveNpmBinAsync(): Promise<string | null> {
+  await waitForShellPath();
   const env = process.env.NOMI_NPM_BIN?.trim();
   if (env && fs.existsSync(env)) return env;
   return (
@@ -360,6 +444,7 @@ export async function resolveCliBinAsync(kind: CliKind): Promise<string | null> 
 }
 
 async function probeCliBinAsync(kind: CliKind): Promise<string | null> {
+  await waitForShellPath();
   const env = pickedBin(process.env[ENV_BIN[kind]]);
   if (env) return env;
   for (const c of CANDIDATES[kind]) {

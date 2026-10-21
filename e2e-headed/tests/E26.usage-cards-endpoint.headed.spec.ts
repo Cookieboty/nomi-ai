@@ -5,7 +5,7 @@
  *   - CODEX_HOME 下 7 天的 rollout 会话日志（两个模型，带 rate_limits 额度快照）；
  *   - userData/usage/claude-statusline.json（Claude Code 官方 statusline 的 rate_limits 快照）。
  * 验证：
- *   1. 设置 → 用量与计费：额度是卡片网格（每个编程工具一张），不是 Tabs；
+ *   1. 设置 → 用量与计费 →「订阅额度」分区：额度是卡片网格（每个编程工具一张），卡片里没有 Tabs；
  *   2. 单卡「刷新」只动自己这一张（另一张的更新时间 / 额度不变），失败只在这张卡上显示；
  *   3. 「全部刷新」仍在；
  *   4. 对话窗 → 按端 → 左下角端点信息卡；点开是右侧抽屉，关闭按钮是文字「关闭」。
@@ -111,6 +111,19 @@ function seedClaudeStatusline(userData: string, now: number) {
   );
 }
 
+/**
+ * 关闭「主动刷新额度」：点卡片「刷新」只重读本机数据，不拉起官方 CLI。
+ * 否则开发机上装了真的 codex / claude 时，刷新会用临时 CODEX_HOME 启动它，CLI 报「未登录」，
+ * 应用按设计清掉这张卡的额度（端点信息卡的额度条随之消失）—— 结果取决于机器上装了什么。
+ */
+function seedUsageSettings(userData: string) {
+  const dir = join(userData, 'usage');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'settings.json'), JSON.stringify({ activeQuotaRefresh: false }), {
+    mode: 0o600,
+  });
+}
+
 async function launch(
   userData: string,
   codexHome: string,
@@ -182,6 +195,7 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     const now = Date.now();
     seedCodex(codexHome, now);
     seedClaudeStatusline(userData, now);
+    seedUsageSettings(userData);
   });
   test.afterAll(async () => {
     await close(app);
@@ -196,6 +210,11 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     // ── 1. 用量页：卡片网格，没有 Tabs
     await chat.click('[data-testid="open-settings"]', { timeout: 15_000 });
     await chat.click('[data-testid="settings-nav-usage"]');
+    // 订阅额度从 9b591103 起是「用量分区」里单独的一个 Tab（不再和概览挤在一起）
+    await chat
+      .getByRole('tablist', { name: '用量分区' })
+      .getByRole('tab', { name: '订阅额度', exact: true })
+      .click();
     const grid = chat.locator('[data-testid="usage-quota-grid"]');
     await expect(grid).toBeVisible({ timeout: 30_000 });
     await expect(chat.locator('[data-testid="usage-quota-claude"]')).toBeVisible();
@@ -231,6 +250,14 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
         await byEndpoint.click({ timeout: 5_000 });
       await expect(byEndpoint).toHaveAttribute('aria-pressed', 'true', { timeout: 3_000 });
     }).toPass({ timeout: 60_000 });
+    // 没有对话的端点默认不显示（fdde8f0a）；这里的 Codex 日志只有用量、没有对话，所以显式设为「显示」。
+    // 以前能过是因为本机 ~/.codex 里恰好有真实会话；CI 上没有。
+    await chat.click('[data-testid="endpoint-visibility"]');
+    const codexShow = chat.locator('[data-testid="endpoint-visibility-codex-show"]');
+    await codexShow.click();
+    await expect(codexShow).toHaveAttribute('aria-checked', 'true');
+    await chat.click('[data-testid="endpoint-visibility"]');
+    await expect(chat.locator('[data-testid="endpoint-visibility-menu"]')).toHaveCount(0);
     await chat.locator('[data-testid="endpoint-filter-codex"]').click();
     const card = chat.locator('[data-testid="endpoint-info-card"]');
     await expect(card).toBeVisible({ timeout: 20_000 });
@@ -245,7 +272,7 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     const drawer = chat.locator('[data-testid="endpoint-drawer"]');
     await expect(drawer).toBeVisible();
     await expect(chat.locator('[data-testid="endpoint-trend"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="endpoint-drawer-models"]')).toContainText('gpt-5');
+    await expect(chat.locator('[data-testid="endpoint-drawer-usage"]')).toBeVisible();
     await expect(chat.locator('[data-testid="endpoint-drawer-config"]')).toBeVisible();
     await shot(chat, '04-endpoint-drawer');
     const closeBtn = chat.getByRole('button', { name: '关闭', exact: true });
@@ -253,7 +280,7 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     await closeBtn.click();
     await expect(drawer).toHaveCount(0);
 
-    // 切到 Nomi：没有订阅额度，信息卡仍在（用量 / 模型），不报错
+    // 切到 Nomi：没有订阅额度，信息卡仍在（用量），不报错
     await chat.locator('[data-testid="endpoint-filter-nomi"]').click();
     await expect(card).toBeVisible();
     await shot(chat, '05-sidebar-endpoint-card-nomi');

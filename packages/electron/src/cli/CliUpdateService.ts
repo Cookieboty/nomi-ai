@@ -15,9 +15,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
 
 import { t } from '../i18n';
+import { guardedHandle } from '../security/guardedIpc';
 
 import {
   CLI_MIN_NODE_MAJOR,
@@ -25,8 +26,10 @@ import {
   dshRuntimeProblemAsync,
   fetchNpmLatest,
   guessInstallMethod,
+  npmPrefixBinDir,
   readPathNodeVersionAsync,
   readVersionAsync,
+  rememberCliDir,
   resolveCliBinAsync,
   resolveNpmBinAsync,
   withCliPath,
@@ -75,7 +78,13 @@ export function updateRecipes(
   scope: CliInstallScope = 'global',
 ): UpdateRecipe[] {
   const recipes: UpdateRecipe[] = [];
-  if (bin && kind !== 'dsh' && (method === 'native' || method === 'unknown' || kind === 'grok')) {
+  // dsh / Gemini 没有自更新子命令，只走 npm
+  if (
+    bin &&
+    kind !== 'dsh' &&
+    kind !== 'gemini' &&
+    (method === 'native' || method === 'unknown' || kind === 'grok')
+  ) {
     recipes.push({ kind: kind as 'claude' | 'codex' | 'grok', via: 'self', argv: [bin, 'update'] });
   }
   recipes.push({
@@ -120,7 +129,8 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
       pkg === '@anthropic-ai/claude-code@latest' ||
       pkg === '@openai/codex@latest' ||
       pkg === '@deepseek-ai/dsh@latest' ||
-      pkg === '@xai-official/grok@latest';
+      pkg === '@xai-official/grok@latest' ||
+      pkg === '@google/gemini-cli@latest';
     if (!pkgOk) return false;
     if (rest.length === 3) return true;
     return rest.length === 5 && rest[3] === '--prefix' && rest[4] === userPrefix();
@@ -129,11 +139,15 @@ export function isAllowedUpdateArgv(argv: string[]): boolean {
 }
 
 export function isUpdatable(kind: CliKind): kind is UpdatableCli {
-  return kind === 'claude' || kind === 'codex' || kind === 'dsh' || kind === 'grok';
+  return (
+    kind === 'claude' || kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
+  );
 }
 
 function toUpdatable(kind: unknown): UpdatableCli {
-  return kind === 'codex' || kind === 'dsh' || kind === 'grok' ? kind : 'claude';
+  return kind === 'codex' || kind === 'dsh' || kind === 'grok' || kind === 'gemini'
+    ? kind
+    : 'claude';
 }
 
 function toScope(v: unknown): CliInstallScope {
@@ -271,18 +285,23 @@ export class CliUpdateService {
   }
 
   async inspect(refreshLatest = false): Promise<CliInstallInfo[]> {
-    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'cursor'];
+    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini', 'cursor'];
     try {
-      if (refreshLatest || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
-        const [cl, cx, ds, gk] = await Promise.all([
+      // 缓存里缺某个端点（例如新加入的 Gemini）也当作过期，否则 6 小时内都显示不出最新版本
+      const missing = (['claude', 'codex', 'dsh', 'grok', 'gemini'] as const).some(
+        (k) => !(k in this.cache.latest),
+      );
+      if (refreshLatest || missing || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
+        const [cl, cx, ds, gk, gm] = await Promise.all([
           fetchNpmLatest(NPM_PKG.claude),
           fetchNpmLatest(NPM_PKG.codex),
           fetchNpmLatest(NPM_PKG.dsh),
           fetchNpmLatest(NPM_PKG.grok),
+          fetchNpmLatest(NPM_PKG.gemini),
         ]);
         this.cache = {
           checkedAt: Date.now(),
-          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, cursor: null },
+          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, gemini: gm, cursor: null },
         };
         try {
           this.save();
@@ -554,7 +573,18 @@ export class CliUpdateService {
         logs.push(t('命令失败（退出码 {0}）', res.code ?? '—'));
       }
       const log = logs.join('\n').slice(-8000);
-      const bin = await resolveCliBinAsync(kind);
+      let bin = await resolveCliBinAsync(kind);
+      // npm 装到了不在 PATH / 常见目录里的前缀（nvm、自定义 prefix 等，#76）：去 npm 实际的全局 bin 找，
+      // 找到就记住这个目录，之后探测与启动都能用
+      let npmBinDir: string | null = null;
+      if (!bin && ok) {
+        const prefix = scope === 'user' ? userPrefix() : await this.probe.npmPrefix();
+        if (prefix) {
+          npmBinDir = npmPrefixBinDir(prefix);
+          rememberCliDir(npmBinDir);
+          bin = await resolveCliBinAsync(kind);
+        }
+      }
       const version = bin ? await readVersionAsync(bin) : null;
       if (!ok) {
         this.finishJob(kind, { ok: false, log, version });
@@ -563,10 +593,16 @@ export class CliUpdateService {
       }
       let note: string | undefined;
       if (!bin) {
-        note = t(
-          '命令已执行完成，但在 PATH 和常见目录里没有找到 {0}；请检查 npm 的全局 bin 目录是否在 PATH 里。',
-          kind,
-        );
+        note = npmBinDir
+          ? t(
+              '命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。',
+              kind,
+              npmBinDir,
+            )
+          : t(
+              '命令已执行完成，但在 PATH 和常见目录里没有找到 {0}；请检查 npm 的全局 bin 目录是否在 PATH 里。',
+              kind,
+            );
       } else if (scope === 'user') {
         const dir = path.dirname(bin);
         const inPath = (process.env.PATH ?? '').split(path.delimiter).includes(dir);
@@ -612,16 +648,8 @@ export class CliUpdateService {
   }
 
   registerIpc(): void {
-    const handle = (ch: string, fn: (...a: unknown[]) => unknown) => {
-      ipcMain.removeHandler(ch);
-      ipcMain.handle(ch, async (_e, ...a) => {
-        try {
-          return await fn(...a);
-        } catch (err) {
-          return { __error: { message: err instanceof Error ? err.message : String(err) } };
-        }
-      });
-    };
+    const handle = (ch: string, fn: (...a: unknown[]) => unknown) =>
+      guardedHandle(ch, fn, { owner: 'CliUpdateService' });
     handle('ai:cli-update:inspect', (refresh) => this.inspect(refresh === true));
     handle('ai:cli-update:preview', (kind, scope) =>
       this.previewUpdate(toUpdatable(kind), toScope(scope)),

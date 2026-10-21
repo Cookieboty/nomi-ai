@@ -1,6 +1,6 @@
 /**
  * 唯一的对话右键菜单：侧栏条目与顶部标签共用。
- * 重命名 / 分叉为新对话 / 分叉到其他端 /（CLI 标签）关闭标签 /（Nomi 对话）删除对话。
+ * 重命名 / 分叉为新对话 / 分叉到其他端 /（CLI 标签）关闭标签 / 关闭左右标签 /（Nomi 对话）删除对话。
  * 关闭 = 仅关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话。
  */
 import { t } from '@nomi-ai/ui';
@@ -21,6 +21,8 @@ export interface ConversationMenuProps {
   onFork?: () => void;
   onForkCross?: () => void;
   onClose?: () => void;
+  onCloseLeft?: () => void;
+  onCloseRight?: () => void;
   onDelete?: () => void;
   onDismiss: () => void;
 }
@@ -34,6 +36,8 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
   onFork,
   onForkCross,
   onClose,
+  onCloseLeft,
+  onCloseRight,
   onDelete,
   onDismiss,
 }) => {
@@ -76,7 +80,8 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
 
   // 贴边时往里收一点，避免菜单被窗口裁掉
   const left = Math.max(4, Math.min(x, window.innerWidth - 210));
-  const top = Math.max(4, Math.min(y, window.innerHeight - 220));
+  const menuHeight = onCloseLeft || onCloseRight ? 330 : 220;
+  const top = Math.max(4, Math.min(y, window.innerHeight - menuHeight));
 
   return (
     <div
@@ -144,6 +149,28 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
         >
           {t('关闭标签')}
           <span className={styles.key}>{formatCombo(bindings.closeTab)}</span>
+        </button>
+      )}
+      {onCloseLeft && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={act(onCloseLeft)}
+          data-testid="conversation-close-left"
+        >
+          {t('关闭左侧标签')}
+        </button>
+      )}
+      {onCloseRight && (
+        <button
+          type="button"
+          role="menuitem"
+          className={styles.item}
+          onClick={act(onCloseRight)}
+          data-testid="conversation-close-right"
+        >
+          {t('关闭右侧标签')}
         </button>
       )}
       {onDelete && (

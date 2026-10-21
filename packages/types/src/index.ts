@@ -15,29 +15,25 @@ export interface IpcApi {
   // 语音相关API - 简化后只保留必要的
   getVoiceSettings: () => Promise<VoiceSettings>;
   saveVoiceSettings: (settings: VoiceSettings) => void;
+  /** 主进程改了语音开关（TTS 模型下载失败回滚等）；返回取消订阅 */
+  onVoiceSettingsChanged?: (callback: (settings: Partial<VoiceSettings>) => void) => () => void;
 
-  // TTS配置相关API（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）
-  getTTSConfig: () => Promise<TTSConfig | null>;
-  saveTTSConfig: (config: TTSConfig) => Promise<void>;
-  testTTSConnection: (config: TTSConfig) => Promise<TTSTestResult>;
-  resetTTSConfig: () => Promise<void>;
+  // 朗读（内置 sherpa-onnx 离线 TTS / 可选 Fish / legacy 外部服务）；配置在对话窗口的设置里
   /** Main-process TTS synthesize; on failure renderer stays silent */
   ttsSpeak?: (req: TTSSpeakRequest) => Promise<TTSSpeakResult>;
   ttsHealth?: (config?: Partial<TTSConfig>) => Promise<TTSTestResult>;
-  /** sherpa 离线 TTS 模型状态（bundled / env / 缺失） */
-  ttsSherpaStatus?: () => Promise<SherpaModelStatus>;
 
   // AI对话相关API
   openAiChat: () => Promise<{ success: boolean; error?: string }>;
+  /** 打开对话窗口的日程页（看板娘工具栏「任务看板」） */
+  openTaskBoard?: () => Promise<{ success: boolean; error?: string }>;
 
-  // TTS配置窗口API
-  openTTSConfig: () => Promise<{ success: boolean; error?: string }>;
+  /** 打开对话窗口的「设置 → 语音与屏幕 → 语音」（朗读引擎等） */
+  openVoiceSettings?: () => Promise<{ success: boolean; error?: string }>;
 
   /** 主进程 → 看板娘指令：{ type: 'motion' | 'expression' | 'parameter', ... } */
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
-  /** 模型注册表 / 商店 / 用户导入（主进程实现） */
-  models?: import('./models').ModelsApi;
   /** 看板娘窗口互动 */
   mascotWindow?: import('./models').MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */
@@ -187,9 +183,29 @@ export * from './models';
 
 /** sherpa-onnx offline TTS model status (extraResources / env / auto-fetched for dev). */
 export interface SherpaModelStatus {
-  state: 'ready' | 'missing' | 'error';
-  /** where the model was found */
+  /**
+   * ready：模型可用；missing：未下载；downloading：下载 / 解压中；error：上次下载失败（message 为原因）。
+   * 模型不再随安装包分发，按需下载到 userData/tts-models（见 docs/design/tts-on-demand.md）。
+   */
+  state: 'ready' | 'missing' | 'downloading' | 'error';
+  /** where the model was found（'resources' 仅旧版本；新版不再打包模型） */
   source?: 'env' | 'resources' | 'dev' | 'userData';
   modelId: string;
   message?: string;
+  /** downloading 时：download | extract */
+  phase?: 'download' | 'extract';
+  /** 已下载字节（含续传前已有部分） */
+  received?: number;
+  /** 总字节（manifest 固定值） */
+  total?: number;
+  /** 磁盘上可续传的半成品字节数（missing / error 时 >0 表示「继续下载」） */
+  partialBytes?: number;
+  /** 安装后占用（字节，manifest 固定值），设置页展示用 */
+  installedBytes?: number;
+  /** 压缩包大小（字节） */
+  archiveBytes?: number;
+  /** missing / error：下载 + 解压的磁盘峰值需求（压缩包剩余部分 + 解压后文件 + 余量） */
+  diskRequired?: number;
+  /** missing / error：模型目录所在卷的可用字节（拿不到时缺省） */
+  diskFree?: number;
 }

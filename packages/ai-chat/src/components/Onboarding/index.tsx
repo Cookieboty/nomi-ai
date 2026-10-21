@@ -1,10 +1,9 @@
 /**
- * 首次启动引导：语言 → 主题 → 角色与声音 → 称呼与语气 → 供应商 → 隐私。
+ * 首次启动引导：语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 供应商 → 隐私。
  * 每一步都能「跳过这一步」，右上角「跳过引导」直接结束；完成后可在「设置 → 通用」重新打开。
  * 看板娘在引导中打招呼、回应每一步的选择。
  */
 import {
-  ModalHostContext,
   THEMES,
   currentTheme,
   getLocalePref,
@@ -20,13 +19,11 @@ import {
 import { Cloud, FolderLock, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ProviderPanel } from '../ProviderPanel';
+import { startupClient, type StartupView } from '../../services/startupClient';
+import { ModelsPage } from '../ModelsPage';
 
-import { mergePersona, onboardingClient, type Character, type VoiceStyle } from './client';
+import { mergePersona, onboardingClient, type VoiceStyle } from './client';
 import styles from './index.module.css';
-
-/** 供应商面板以内嵌方式渲染在引导卡片里（不弹出自己的对话框） */
-const INLINE = { mode: 'inline' } as const;
 
 /** 引导里嵌入的面板出错时不影响整个引导（仍可跳过这一步） */
 class StepBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
@@ -43,13 +40,22 @@ class StepBoundary extends React.Component<{ children: React.ReactNode }, { fail
   }
 }
 
-const STEPS = ['language', 'theme', 'character', 'persona', 'provider', 'privacy'] as const;
+const STEPS = [
+  'language',
+  'theme',
+  'startup',
+  'character',
+  'persona',
+  'provider',
+  'privacy',
+] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_TITLE: Record<Step, () => string> = {
   language: () => t('选择界面语言'),
   theme: () => t('选一个喜欢的外观'),
-  character: () => t('选一位陪伴你的伙伴'),
+  startup: () => t('启动 Nomi 后先看到什么？'),
+  character: () => t('选一个喜欢的声音'),
   persona: () => t('她该怎么称呼你？'),
   provider: () => t('接入一个 AI 模型'),
   privacy: () => t('你的数据只留在这台电脑上'),
@@ -58,7 +64,8 @@ const STEP_TITLE: Record<Step, () => string> = {
 const STEP_LINE: Record<Step, () => string> = {
   language: () => t('你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！'),
   theme: () => t('先挑一个看着舒服的外观吧，我们每天都要见面呢。'),
-  character: () => t('想让我以什么样子陪着你？点一下就能换，之后也能随时改。'),
+  startup: () => t('每次启动，是先让我出现在桌面上，还是直接打开主界面？之后都能改哦。'),
+  character: () => t('想让我用什么样的声音和你说话？点一下就能试听，之后也能随时改。'),
   persona: () => t('告诉我怎么称呼你，我会好好记住。'),
   provider: () => t('接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。'),
   privacy: () => t('放心，我们的对话和记忆都只留在这台电脑上。'),
@@ -69,6 +76,19 @@ const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
   // i18n-ignore
   { id: 'zh-CN', label: () => '中文', hint: () => '简体中文' },
   { id: 'en', label: () => 'English', hint: () => 'English' },
+];
+
+const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
+  {
+    id: 'mascot',
+    label: () => t('以看板娘方式打开'),
+    hint: () => t('桌面上先出现看板娘，点她的「AI 对话」进入主界面（默认）'),
+  },
+  {
+    id: 'main',
+    label: () => t('以控制台（主界面）方式打开'),
+    hint: () => t('直接打开软件主界面，看板娘在桌面待命'),
+  },
 ];
 
 const VOICES: { id: VoiceStyle; label: () => string; hint: () => string }[] = [
@@ -94,14 +114,14 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const step = STEPS[i]!;
   const [lang, setLang] = useState<LocalePref>(getLocalePref);
   const [theme, setThemeSel] = useState<ThemePref>(() => currentTheme().pref);
-  const [chars, setChars] = useState<Character[]>([]);
-  const [char, setChar] = useState<string | null>(null);
   const [voice, setVoice] = useState<VoiceStyle | null>(null);
   const [name, setName] = useState('');
   const [tone, setTone] = useState<string | null>(null);
+  // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
+  const [startup, setStartup] = useState<StartupView>('mascot');
 
   useEffect(() => {
-    void onboardingClient.characters().then(setChars);
+    void startupClient.get().then(setStartup);
   }, []);
   // 每进入一步，看板娘说一句
   useEffect(() => {
@@ -175,8 +195,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </div>
         );
       case 'theme': {
-        const main = THEMES.filter((x) => x.id === 'ink' || x.id === 'system');
-        const more = THEMES.filter((x) => x.id !== 'ink' && x.id !== 'system');
+        const main = THEMES.filter((x) => x.id === 'sunset' || x.id === 'system');
+        const more = THEMES.filter((x) => x.id !== 'sunset' && x.id !== 'system');
         const card = (x: (typeof THEMES)[number], big: boolean) => (
           <button
             key={x.id}
@@ -214,37 +234,38 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           </>
         );
       }
+      case 'startup':
+        return (
+          <>
+            <div className={styles.options} role="radiogroup" aria-label={t('启动方式')}>
+              {STARTUPS.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={startup === x.id}
+                  data-testid={`onb-startup-${x.id}`}
+                  className={`${styles.option} ${startup === x.id ? styles.optionOn : ''}`}
+                  onClick={() => {
+                    const prev = startup;
+                    setStartup(x.id);
+                    void startupClient.set(x.id).then((saved) => setStartup(saved ?? prev));
+                  }}
+                >
+                  <span className={styles.optionTitle}>{x.label()}</span>
+                  <span className={styles.optionHint}>{x.hint()}</span>
+                </button>
+              ))}
+            </div>
+            <p className={styles.note}>
+              {t('依赖定时任务 / 提醒的话，选看板娘更顺手；主要在主界面里工作，就选主界面。')}
+              {t('之后可在「设置 → 通用」随时修改。')}
+            </p>
+          </>
+        );
       case 'character':
         return (
           <>
-            {chars.length ? (
-              <div className={styles.chars} role="radiogroup" aria-label={t('角色')}>
-                {chars.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={char === c.id}
-                    data-testid={`onb-char-${c.id}`}
-                    className={`${styles.char} ${char === c.id ? styles.optionOn : ''}`}
-                    onClick={() => {
-                      setChar(c.id);
-                      onboardingClient.mascot({ type: 'select-model', id: c.id });
-                    }}
-                  >
-                    <span className={styles.charAvatar} aria-hidden>
-                      {c.name.slice(0, 1).toUpperCase()}
-                    </span>
-                    <span className={styles.charName}>{c.name}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.note}>
-                {t('角色列表加载中…也可以之后在 Nomi 右键菜单里切换。')}
-              </p>
-            )}
-            <div className={styles.subLabel}>{t('她的声音')}</div>
             <div className={styles.options} role="radiogroup" aria-label={t('声音')}>
               {VOICES.map((v) => (
                 <button
@@ -269,7 +290,8 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}
+              {t('点一下就能试听；之后可在「设置 → 语音与屏幕」细调。')}{' '}
+              {t('首次开启声音会下载离线语音模型（约 115 MB），下载完成后才能试听。')}
             </p>
           </>
         );
@@ -313,14 +335,12 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <>
             <p className={styles.note}>
               {t(
-                '添加一个模型服务商（OpenAI 兼容、Anthropic、本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 编程助手 → Nomi」里添加。',
+                '添加一个第三方供应商（厂商、中转平台或本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 模型」里添加。',
               )}
             </p>
             <div className={styles.provider} data-testid="onb-provider">
               <StepBoundary>
-                <ModalHostContext.Provider value={INLINE}>
-                  <ProviderPanel isVisible onClose={() => undefined} />
-                </ModalHostContext.Provider>
+                <ModelsPage />
               </StepBoundary>
             </div>
           </>

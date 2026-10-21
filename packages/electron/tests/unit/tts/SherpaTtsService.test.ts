@@ -47,7 +47,7 @@ describe('SherpaTtsService', () => {
     const loadAddon = jest.fn(() => addon);
     const root = modelRoot();
     const svc = new SherpaTtsService({
-      resourcesRoot: () => root,
+      userRoot: () => root,
       loadAddon,
       manifest,
     });
@@ -71,7 +71,7 @@ describe('SherpaTtsService', () => {
     const { addon, createAsync, generate } = fakeAddon();
     const root = modelRoot();
     const svc = new SherpaTtsService({
-      resourcesRoot: () => root,
+      userRoot: () => root,
       loadAddon: () => addon,
       manifest,
     });
@@ -104,7 +104,7 @@ describe('SherpaTtsService', () => {
   it('defaults to sid 0 / speed 1.0 and disables external buffers (Electron)', async () => {
     const { addon, generate } = fakeAddon();
     const svc = new SherpaTtsService({
-      resourcesRoot: () => modelRoot(),
+      userRoot: () => modelRoot(),
       loadAddon: () => addon,
       manifest,
     });
@@ -117,23 +117,81 @@ describe('SherpaTtsService', () => {
     });
   });
 
-  it('missing model without installRoot → not_ready (caller falls back to system speech)', async () => {
+  it('missing model → not_ready with a hint; never downloads, never loads the addon', async () => {
     const loadAddon = jest.fn();
+    const install = jest.fn();
     const svc = new SherpaTtsService({
-      resourcesRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-empty-')),
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-empty-')),
       loadAddon,
+      install: install as never,
       manifest,
     });
-    await expect(svc.synthesize('你好')).rejects.toMatchObject({ code: 'not_ready' });
+    await expect(svc.synthesize('你好')).rejects.toMatchObject({
+      code: 'not_ready',
+      message: expect.stringMatching(/enable voice in Settings/),
+    });
+    await expect(svc.warmup()).rejects.toMatchObject({ code: 'not_ready' });
+    expect(install).not.toHaveBeenCalled();
     expect(loadAddon).not.toHaveBeenCalled();
-    expect(svc.getStatus()).toMatchObject({ state: 'missing', modelId: 'tiny' });
+    expect(svc.getStatus()).toMatchObject({ state: 'missing', modelId: 'tiny', partialBytes: 0 });
   });
 
-  describe('missing model with installRoot → background download', () => {
+  it('missing status reports disk need (archive + extracted + margin) and free space', () => {
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-disk-')),
+      freeBytes: () => 10 * 1024 * 1024 * 1024,
+      manifest,
+    });
+    const st = svc.getStatus();
+    expect(st).toMatchObject({ state: 'missing', archiveBytes: 1, diskFree: 10 * 1024 ** 3 });
+    expect(st.diskRequired).toBe(1 + 1 + 32 * 1024 * 1024);
+  });
+
+  it('download() refuses with disk_full (and a clear message) when free space is short', async () => {
+    const install = jest.fn();
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-full-')),
+      freeBytes: () => 1024,
+      install: install as never,
+      manifest,
+    });
+    await expect(svc.download()).rejects.toMatchObject({ code: 'disk_full' });
+    expect(install).not.toHaveBeenCalled();
+    const st = svc.getStatus();
+    expect(st.state).toBe('error');
+    expect(st.message).toMatch(/disk space|磁盘空间不足/);
+  });
+
+  it('unknown free space (statfs unavailable) does not block the download', async () => {
+    const install = jest.fn(async () => undefined);
+    const svc = new SherpaTtsService({
+      userRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-nofs-')),
+      freeBytes: () => null,
+      install: install as never,
+      manifest,
+    });
+    await svc.download().catch(() => undefined);
+    expect(install).toHaveBeenCalled();
+    expect(svc.getStatus().diskFree).toBeUndefined();
+  });
+
+  it('no userData at all → status missing and synth not_ready (no crash)', async () => {
+    const svc = new SherpaTtsService({
+      userRoot: () => {
+        throw new Error('app not ready');
+      },
+      manifest,
+    });
+    expect(svc.getStatus().state).toBe('missing');
+    await expect(svc.synthesize('你好')).rejects.toMatchObject({ code: 'not_ready' });
+    await expect(svc.download()).rejects.toMatchObject({ code: 'not_ready' });
+  });
+
+  describe('explicit download()', () => {
     function setup() {
-      const { addon, createAsync, generate } = fakeAddon();
+      const { addon, createAsync } = fakeAddon();
       const loadAddon = jest.fn(() => addon);
-      const installRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-install-'));
+      const userRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-install-'));
       let release!: () => void;
       let fail!: (e: Error) => void;
       const gate = new Promise<void>((res, rej) => {
@@ -143,109 +201,121 @@ describe('SherpaTtsService', () => {
       let onProgress:
         | ((phase: 'download' | 'extract', p: { received: number; total: number }) => void)
         | undefined;
+      const seen: Array<{ installRoot: string; resume?: boolean; signal?: AbortSignal }> = [];
       const install = jest.fn(
-        async (o: { installRoot: string; onProgress?: typeof onProgress }) => {
+        async (o: {
+          installRoot: string;
+          resume?: boolean;
+          signal?: AbortSignal;
+          onProgress?: typeof onProgress;
+        }) => {
+          seen.push(o);
           onProgress = o.onProgress;
-          await gate;
+          await new Promise<void>((res, rej) => {
+            gate.then(res, rej);
+            o.signal?.addEventListener('abort', () => rej(new Error('aborted')));
+          });
           const dir = path.join(o.installRoot, 'tiny');
           fs.mkdirSync(dir, { recursive: true });
           fs.writeFileSync(path.join(dir, 'model.onnx'), 'x');
           return dir;
         },
       );
-      let now = 1_000_000;
-      const logs: string[] = [];
+      const statuses: string[] = [];
       const svc = new SherpaTtsService({
-        resourcesRoot: () => fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-sherpa-empty-')),
-        installRoot: () => installRoot,
-        userRoot: () => installRoot,
+        userRoot: () => userRoot,
         loadAddon,
         install: install as never,
         manifest,
-        now: () => now,
-        log: (m: string) => logs.push(m),
+        log: () => undefined,
       });
+      svc.onStatus((st) => statuses.push(st.state));
       return {
         svc,
         install,
+        seen,
         loadAddon,
         createAsync,
-        generate,
-        logs,
+        userRoot,
+        statuses,
         release,
         fail,
-        progress: (pct: number) => onProgress?.('download', { received: pct, total: 100 }),
-        advance: (ms: number) => {
-          now += ms;
-        },
+        progress: (n: number) => onProgress?.('download', { received: n, total: 100 }),
       };
     }
 
-    it('never awaits the download: request rejects immediately with downloading; single-flight; then auto-uses sherpa', async () => {
+    it('downloads into userData with resume on; single-flight; progress; then sherpa works offline', async () => {
       const t = setup();
-      expect(t.svc.getStatus().state).toBe('missing');
-      // 下载挂起期间：多条并发请求都立刻返回 downloading，只启动一次下载
-      const rs = await Promise.allSettled([
-        t.svc.synthesize('你好'),
-        t.svc.synthesize('世界'),
-        t.svc.synthesize('再见'),
-      ]);
-      for (const r of rs) {
-        expect(r.status).toBe('rejected');
-        expect((r as PromiseRejectedResult).reason).toMatchObject({ code: 'downloading' });
-      }
+      const p1 = t.svc.download();
+      const p2 = t.svc.download();
       expect(t.install).toHaveBeenCalledTimes(1);
-      expect(t.loadAddon).not.toHaveBeenCalled();
+      expect(t.seen[0]).toMatchObject({ installRoot: t.userRoot, resume: true });
+      expect(t.svc.getStatus()).toMatchObject({ state: 'downloading', phase: 'download' });
+      await expect(t.svc.synthesize('你好')).rejects.toMatchObject({ code: 'downloading' });
       t.progress(42);
-      await expect(t.svc.synthesize('x')).rejects.toThrow(/42%/);
-      expect(t.svc.getStatus()).toMatchObject({ state: 'missing' });
-      expect(t.svc.getStatus().message).toMatch(/下载中/);
-
-      // 下载完成 → 下一条请求自动用 sherpa
+      expect(t.svc.getStatus()).toMatchObject({ received: 42, total: 100 });
       t.release();
-      await new Promise((r) => setTimeout(r, 20));
+      await Promise.all([p1, p2]);
+      expect(t.svc.getStatus()).toMatchObject({ state: 'ready', source: 'userData' });
+      expect(t.statuses).toContain('downloading');
+      expect(t.statuses[t.statuses.length - 1]).toBe('ready');
       const r = await t.svc.synthesize('你好');
       expect(r.sentences).toBe(1);
+      // 已就绪再调用：不再下载
+      await t.svc.download();
       expect(t.install).toHaveBeenCalledTimes(1);
-      expect(t.createAsync).toHaveBeenCalledTimes(1);
-      expect(t.svc.getStatus()).toMatchObject({ state: 'ready' });
     });
 
-    it('rate-limits the "模型下载中 x%" log', async () => {
+    it('failure → state error with the message; synth stays not_ready; retry downloads again', async () => {
       const t = setup();
-      await t.svc.synthesize('a').catch(() => undefined);
-      t.progress(10);
-      for (let i = 0; i < 5; i++) await t.svc.synthesize('b').catch(() => undefined);
-      const lines = () => t.logs.filter((l) => /模型下载中/.test(l));
-      expect(lines()).toHaveLength(1);
-      t.advance(6000);
-      await t.svc.synthesize('c').catch(() => undefined);
-      expect(lines()).toHaveLength(2);
-      t.release();
-    });
-
-    it('download failure → logged, falls back with the error, cooldown then retries', async () => {
-      const t = setup();
-      await t.svc.synthesize('a').catch(() => undefined);
+      const p = t.svc.download();
       t.fail(new Error('connect ETIMEDOUT github.com'));
-      await new Promise((r) => setTimeout(r, 20));
-      expect(t.logs.some((l) => /install FAILED/.test(l) && /ETIMEDOUT/.test(l))).toBe(true);
-      expect(t.svc.getStatus()).toMatchObject({ state: 'error' });
-      await expect(t.svc.synthesize('b')).rejects.toMatchObject({
-        code: 'not_ready',
-        message: expect.stringMatching(/ETIMEDOUT.*自动重试/),
-      });
-      expect(t.install).toHaveBeenCalledTimes(1);
-      t.advance(121_000);
-      await expect(t.svc.synthesize('c')).rejects.toMatchObject({ code: 'downloading' });
+      await expect(p).rejects.toMatchObject({ code: 'not_ready', message: /ETIMEDOUT/ });
+      expect(t.svc.getStatus()).toMatchObject({ state: 'error', message: /ETIMEDOUT/ });
+      await expect(t.svc.synthesize('b')).rejects.toMatchObject({ code: 'not_ready' });
+      void t.svc.download().catch(() => undefined);
       expect(t.install).toHaveBeenCalledTimes(2);
+    });
+
+    it('cancelDownload aborts, rejects with superseded and removes the partial files', async () => {
+      const t = setup();
+      const tmp = path.join(t.userRoot, '.download');
+      fs.mkdirSync(tmp, { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'tiny.tar.bz2.part'), 'abc');
+      expect(t.svc.getStatus().state).toBe('missing');
+      const p = t.svc.download();
+      await t.svc.cancelDownload();
+      await expect(p).rejects.toMatchObject({ code: 'superseded' });
+      expect(t.seen[0]!.signal!.aborted).toBe(true);
+      expect(fs.existsSync(tmp)).toBe(false);
+      expect(t.svc.getStatus()).toMatchObject({ state: 'missing', partialBytes: 0 });
+    });
+
+    it('reports partialBytes left by a previous (quit mid-download) run', () => {
+      const t = setup();
+      const tmp = path.join(t.userRoot, '.download');
+      fs.mkdirSync(tmp, { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'tiny.tar.bz2.part'), 'abcd');
+      expect(t.svc.getStatus()).toMatchObject({ state: 'missing', partialBytes: 4 });
+    });
+
+    it('deleteModel removes the userData model and resets the engine', async () => {
+      const t = setup();
+      const p = t.svc.download();
+      t.release();
+      await p;
+      await t.svc.synthesize('你好');
+      const st = await t.svc.deleteModel();
+      expect(st.state).toBe('missing');
+      expect(fs.existsSync(path.join(t.userRoot, 'tiny'))).toBe(false);
+      await expect(t.svc.synthesize('你好')).rejects.toMatchObject({ code: 'not_ready' });
     });
   });
 
   it('addon native-load error is surfaced verbatim (engine_failed) and logged', async () => {
     const logs: string[] = [];
     const svc = new SherpaTtsService({
-      resourcesRoot: () => modelRoot(),
+      userRoot: () => modelRoot(),
       loadAddon: () => {
         throw new SherpaAddonLoadError('缺少 VC++ 运行库 VCRUNTIME140_1.dll');
       },
@@ -265,7 +335,7 @@ describe('SherpaTtsService', () => {
       throw new Error('dlopen failed');
     });
     const svc = new SherpaTtsService({
-      resourcesRoot: () => modelRoot(),
+      userRoot: () => modelRoot(),
       loadAddon,
       manifest,
       now: () => now,
@@ -281,7 +351,7 @@ describe('SherpaTtsService', () => {
   it('rejects empty, unreadable and over-long text', async () => {
     const { addon } = fakeAddon();
     const svc = new SherpaTtsService({
-      resourcesRoot: () => modelRoot(),
+      userRoot: () => modelRoot(),
       loadAddon: () => addon,
       manifest,
     });
@@ -290,9 +360,12 @@ describe('SherpaTtsService', () => {
     await expect(svc.synthesize('啊'.repeat(1501))).rejects.toMatchObject({ code: 'too_long' });
   });
 
-  it('reports ready when resourcesRoot has a valid model', () => {
+  it('reports ready when userData has a valid model; env dir wins', () => {
     const root = modelRoot();
-    const svc = new SherpaTtsService({ resourcesRoot: () => root, manifest });
-    expect(svc.getStatus()).toMatchObject({ state: 'ready', source: 'resources', modelId: 'tiny' });
+    const svc = new SherpaTtsService({ userRoot: () => root, manifest });
+    expect(svc.getStatus()).toMatchObject({ state: 'ready', source: 'userData', modelId: 'tiny' });
+    const env = path.join(modelRoot(), 'tiny');
+    const svc2 = new SherpaTtsService({ envDir: () => env, userRoot: () => root, manifest });
+    expect(svc2.getStatus()).toMatchObject({ state: 'ready', source: 'env' });
   });
 });

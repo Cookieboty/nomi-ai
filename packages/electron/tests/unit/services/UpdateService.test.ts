@@ -1,4 +1,11 @@
+jest.unmock('fs');
+jest.unmock('node:fs');
+jest.unmock('path');
+
 import { EventEmitter } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 jest.mock('electron', () => ({
   app: {
@@ -169,5 +176,78 @@ describe('UpdateService', () => {
     svc.start();
     svc.setAutoCheck(false);
     expect(svc.getState().autoCheck).toBe(false);
+  });
+
+  describe('autoCheck 持久化（#32）', () => {
+    let dir: string;
+    let file: string;
+    const make = (opts: { launchDelayMs?: number; intervalMs?: number } = {}) =>
+      new UpdateService(logger as never, {
+        updater,
+        packaged: true,
+        launchDelayMs: opts.launchDelayMs ?? 15_000,
+        intervalMs: opts.intervalMs ?? 6 * 60 * 60 * 1000,
+        settingsFile: file,
+      });
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'upd-'));
+      file = path.join(dir, 'nested', 'update-settings.json');
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('关闭后重建服务（模拟重启）仍为关闭：启动延迟与 6 小时后都不自动检查', async () => {
+      const a = make();
+      a.setAutoCheck(false);
+      a.stop();
+
+      const spy = jest.spyOn(updater, 'checkForUpdates');
+      const b = make();
+      expect(b.getState().autoCheck).toBe(false);
+      b.start();
+      await jest.advanceTimersByTimeAsync(15_000 + 1000);
+      await jest.advanceTimersByTimeAsync(6 * 60 * 60 * 1000 + 1000);
+      expect(spy).not.toHaveBeenCalled();
+
+      // 手动检查不受影响
+      const s = await b.check();
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(s.status).toBe('available');
+      b.stop();
+    });
+
+    it('默认开启；重新打开后重启仍开启并自动检查', async () => {
+      const a = make();
+      expect(a.getState().autoCheck).toBe(true);
+      a.setAutoCheck(false);
+      a.setAutoCheck(true);
+      a.stop();
+      const spy = jest.spyOn(updater, 'checkForUpdates');
+      const b = make();
+      expect(b.getState().autoCheck).toBe(true);
+      b.start();
+      await jest.advanceTimersByTimeAsync(15_000 + 1000);
+      expect(spy).toHaveBeenCalledTimes(1);
+      b.stop();
+    });
+
+    it('设置文件损坏 / 内容异常时回退到默认开启，不抛错', () => {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, '{not json');
+      expect(make().getState().autoCheck).toBe(true);
+      fs.writeFileSync(file, JSON.stringify({ autoCheck: 'no' }));
+      expect(make().getState().autoCheck).toBe(true);
+    });
+
+    it('文件带版本号且为 0600', () => {
+      const a = make();
+      a.setAutoCheck(false);
+      expect(JSON.parse(fs.readFileSync(file, 'utf8'))).toEqual({ version: 1, autoCheck: false });
+      if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    });
   });
 });

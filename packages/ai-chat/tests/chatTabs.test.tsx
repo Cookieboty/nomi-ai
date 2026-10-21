@@ -96,8 +96,7 @@ describe('ChatTabs', () => {
     expect(r.getByTestId('chat-tab-1').getAttribute('data-status')).toBe('running');
     expect(r.getByTestId('chat-tab-2').getAttribute('data-status')).toBe('unread');
     expect(r.getByTestId('chat-tab-unread').textContent).toBe('2');
-    expect(r.getByTestId('chat-tabs-load').textContent).toContain('运行 1/');
-    expect((r.getByTestId('chat-tabs-max-concurrent') as HTMLSelectElement).value).toBe('3');
+    expect(r.getByTestId('chat-tabs-load').textContent).toContain('1/3');
     // main 标签没有关闭按钮
     expect(r.queryByTestId('chat-tab-close-0')).toBeNull();
   });
@@ -109,17 +108,24 @@ describe('ChatTabs', () => {
         <ChatTabs />
       </HarnessTabsProvider>,
     );
-    await waitFor(() => expect(r.getByTestId('chat-tabs-max-concurrent')).toBeTruthy());
-    const sel = r.getByTestId('chat-tabs-max-concurrent') as HTMLSelectElement;
-    expect(sel.value).toBe('3');
-    expect(r.getByTestId('chat-tabs-load').textContent).toContain('1');
+    const chip = await r.findByTestId('chat-tabs-load');
+    expect(chip.textContent).toContain('1/3');
+    // 平时只是小按钮，不再摆一个原生下拉
+    expect(r.queryByRole('combobox')).toBeNull();
+    fireEvent.click(chip);
+    const pop = r.getByTestId('chat-tabs-load-pop');
+    // 弹层挂在 body 上，不会被标签栏裁掉
+    expect(pop.parentElement).toBe(document.body);
+    expect(pop.textContent).toContain('排队');
+    expect(r.getByTestId('chat-tabs-max-3').getAttribute('aria-checked')).toBe('true');
     await act(async () => {
-      fireEvent.change(sel, { target: { value: '5' } });
+      fireEvent.click(r.getByTestId('chat-tabs-max-5'));
     });
     await waitFor(() => {
       expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:set-max-concurrent', 5);
-      expect((r.getByTestId('chat-tabs-max-concurrent') as HTMLSelectElement).value).toBe('5');
+      expect(r.getByTestId('chat-tabs-load').textContent).toContain('/5');
     });
+    expect(r.queryByTestId('chat-tabs-load-pop')).toBeNull();
   });
 
   it('activates, renames and creates tabs', async () => {
@@ -184,5 +190,59 @@ describe('cliTabPlaceholder', () => {
     expect(cliTabPlaceholder({ title: 'x', backend: 'dsh', status: 'queued' })).not.toContain(
       'AI模型',
     );
+  });
+});
+
+describe('关闭仍有后台任务的标签（docs/design/cli-subagents.md §5）', () => {
+  it('先确认：取消则不关闭，确认后才关闭', async () => {
+    const ipc = mockIpc({
+      ...base(),
+      tabs: [
+        tab({ id: 'main', title: 'Chat', backend: 'nomi' }),
+        tab({ id: 'a', title: 'Claude Code', background: 2 }),
+      ],
+    });
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    (window as unknown as { confirm: unknown }).confirm = confirm;
+    const r = render(
+      <HarnessTabsProvider>
+        <ChatTabs />
+      </HarnessTabsProvider>,
+    );
+    const close = await r.findByTestId('chat-tab-close-1');
+    await act(async () => fireEvent.click(close));
+    expect(confirm.mock.calls[0]![0]).toContain('2 个后台任务');
+    expect(ipc.invoke).not.toHaveBeenCalledWith('ai:harness:tab-close', 'a');
+    await act(async () => fireEvent.click(close));
+    await waitFor(() => expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:tab-close', 'a'));
+    delete (window as { confirm?: unknown }).confirm;
+  });
+});
+
+describe('「+」新建标签菜单', () => {
+  it('列出全部五个编程助手', async () => {
+    const ipc = mockIpc(base());
+    const r = render(
+      <HarnessTabsProvider>
+        <ChatTabs />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => r.getByTestId('chat-tab-add'));
+    fireEvent.click(r.getByTestId('chat-tab-add'));
+    for (const b of ['claude', 'codex', 'dsh', 'grok', 'gemini'])
+      expect(r.getByTestId(`chat-tab-new-${b}`)).toBeTruthy();
+    expect(ipc.invoke).toBeTruthy();
+  });
+
+  it('标签栏容器不裁剪溢出：否则弹出菜单会被裁成只剩第一项', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../src/components/ChatTabs/index.module.css'),
+      'utf8',
+    );
+    // 去掉注释（注释里正好写着「不能 overflow: hidden」）再看规则本身
+    const bar = (/^\.bar\s*\{([^}]*)\}/m.exec(css)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(bar).not.toMatch(/overflow\s*:\s*(hidden|clip|auto|scroll)/);
   });
 });

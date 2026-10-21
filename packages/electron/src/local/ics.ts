@@ -140,7 +140,33 @@ export function parseDuration(v: string): number {
 
 const DAYS = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
 
-/** 把事件展开到 [from, to) 内的具体发生（重复事件最多展开 500 次） */
+/** 单个重复事件在窗口内最多返回的发生次数 */
+const MAX_OCCURRENCES_PER_EVENT = 500;
+/** 单个重复事件最多迭代的周期数（防止超老 / 高频规则造成长时间阻塞） */
+const MAX_PERIODS = 20_000;
+const DAY_MS = 86_400_000;
+
+/**
+ * 无 COUNT 的规则不需要知道「第几次发生」，可以把周期起点直接推进到查询窗附近
+ * （留 1 个周期余量覆盖夏令时 / 跨窗发生）；有 COUNT 必须从头数，不跳。
+ */
+function startPeriod(freq: string, interval: number, base: Date, target: number): number {
+  const t = new Date(target);
+  let periods = 0;
+  if (freq === 'DAILY') periods = Math.floor((target - base.getTime()) / (DAY_MS * interval));
+  else if (freq === 'WEEKLY')
+    periods = Math.floor((target - base.getTime()) / (7 * DAY_MS * interval));
+  else if (freq === 'MONTHLY')
+    periods = Math.floor(
+      (t.getFullYear() * 12 + t.getMonth() - (base.getFullYear() * 12 + base.getMonth())) /
+        interval,
+    );
+  else if (freq === 'YEARLY')
+    periods = Math.floor((t.getFullYear() - base.getFullYear()) / interval);
+  return Math.max(0, periods - 1);
+}
+
+/** 把事件展开到 [from, to) 内的具体发生（每个重复事件最多返回 500 次；历史发生次数不占用该上限） */
 export function expand(events: CalEvent[], from: number, to: number): Occurrence[] {
   const out: Occurrence[] = [];
   for (const e of events) {
@@ -177,7 +203,13 @@ export function expand(events: CalEvent[], from: number, to: number): Occurrence
       : [];
     const base = new Date(e.start);
     let n = 0;
-    for (let k = 0; k < 2000 && n < count && n < 500; k++) {
+    let emitted = 0;
+    const k0 = count === Infinity ? startPeriod(freq ?? '', interval, base, from - dur) : 0;
+    for (
+      let k = k0;
+      k < k0 + MAX_PERIODS && n < count && emitted < MAX_OCCURRENCES_PER_EVENT;
+      k++
+    ) {
       const cands: Date[] = [];
       const d = new Date(base);
       if (freq === 'DAILY') d.setDate(base.getDate() + k * interval);
@@ -206,7 +238,9 @@ export function expand(events: CalEvent[], from: number, to: number): Occurrence
           stop = true;
           break;
         }
+        const before = out.length;
         push(t);
+        if (out.length > before) emitted++;
       }
       if (stop) break;
     }

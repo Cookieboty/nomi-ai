@@ -6,6 +6,7 @@ import { SETTINGS_ICONS } from '../AppIcons';
 export type SettingsSection =
   | 'general'
   | 'shortcuts'
+  | 'models'
   | 'coding'
   | 'usage'
   | 'senses'
@@ -23,6 +24,7 @@ export const SETTINGS_SECTIONS: Array<{
 }> = [
   { id: 'general', icon: SETTINGS_ICONS.general, label: '通用' },
   { id: 'shortcuts', icon: SETTINGS_ICONS.shortcuts, label: '快捷键' },
+  { id: 'models', icon: SETTINGS_ICONS.models, label: '模型' },
   { id: 'coding', icon: SETTINGS_ICONS.coding, label: '编程助手' },
   { id: 'usage', icon: SETTINGS_ICONS.usage, label: '用量与费用' },
   { id: 'senses', icon: SETTINGS_ICONS.senses, label: '语音与屏幕' },

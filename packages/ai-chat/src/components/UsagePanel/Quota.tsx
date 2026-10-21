@@ -302,7 +302,7 @@ export const QuotaCard: React.FC<QuotaCardProps> = ({
 
       {tools.length === 0 ? (
         <p className={styles.dim} data-testid="usage-quota-empty">
-          {t('没有检测到以账号 / 订阅登录的编程工具。')}
+          {t('没有检测到以账号 / 订阅登录的编程工具。点「全部刷新」可检测各工具的登录状态。')}
         </p>
       ) : (
         <div className={styles.toolGrid} data-testid="usage-quota-grid">

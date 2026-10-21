@@ -5,15 +5,14 @@ import { MascotProvider, type MascotConfig } from './contexts/MascotContext';
 
 const MASCOT_CONFIG: MascotConfig = {
   tools: [
-    'switch-model',
     'ai-chat',
     'voice-input',
+    'task-board',
     'info',
     'voice-settings',
     'voice-mode-toggle',
-    'tts-config',
     'motion',
-    'toggle-top',
+    'close-mascot',
     'quit',
   ],
   drag: true,

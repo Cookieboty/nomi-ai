@@ -3,7 +3,13 @@ import { RefreshCw, X, PanelLeft, SquarePen } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List } from 'react-window';
 
-import { useAiChat } from '../../contexts/AiChatContext';
+import {
+  selectIpcClient,
+  selectIsLoading,
+  selectMessageCount,
+  useAiChatActions,
+  useAiChatSelector,
+} from '../../contexts/aiChatStore';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useCliHistory } from '../../hooks/useCliHistory';
@@ -11,12 +17,14 @@ import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
+import { visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
   HISTORY_BACKENDS,
   historyClient,
   type HistoryBackend,
+  type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
 import { SEARCH_CHATS_EVENT, formatCombo, useShortcutBindings } from '../../services/shortcuts';
@@ -29,6 +37,7 @@ import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
 import styles from './index.module.css';
 import {
   firstUserMessageCache,
@@ -61,8 +70,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onNotice,
   onOpenSettings,
 }) => {
-  const { state, actions } = useAiChat();
-  const ipc = state.ipcClient;
+  const { actions } = useAiChatActions();
+  const ipc = useAiChatSelector(selectIpcClient);
+  const messageCount = useAiChatSelector(selectMessageCount);
+  const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
   const { isDev, isNormal, setMode } = useChatMode();
   const {
@@ -70,6 +81,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setView,
     endpointFilter,
     setEndpointFilter,
+    endpointVisibility,
+    setEndpointVisibility,
   } = useConversationListView();
   // 普通模式只有 Nomi：视图固定为「全部」，但不改动已保存的选择，切回开发模式即恢复
   const view = isNormal ? 'all' : storedView;
@@ -106,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => window.removeEventListener(CONVERSATIONS_CHANGED_EVENT, refresh);
   }, [refresh]);
   // loading 变化时也刷新：首个会话在第一条消息保存时才创建，发送结束后需要让它出现在列表里
-  useEffect(refresh, [refresh, state.messages.length, state.isLoading]);
+  useEffect(refresh, [refresh, messageCount, isLoading]);
 
   useEffect(() => {
     if (!harnessClient.available()) return;
@@ -150,6 +163,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       codex: 0,
       dsh: 0,
       grok: 0,
+      gemini: 0,
     };
     for (const x of navList) c[x.backend] = (c[x.backend] ?? 0) + 1;
     return c;
@@ -254,6 +268,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return;
       await tabs.close(meta.tabId);
     } else {
+      // 先中止属于该会话的在途流：删除后它的回调不能再写回界面或记忆
+      actions.abortConversation?.(id);
       await ipc.deleteConversation?.(id);
       if (id === current) {
         // store 已把当前会话切到同后端最近更新的会话；一个不剩则只清空消息区，不新建会话
@@ -314,8 +330,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
       : undefined;
-  // 磁盘历史扫描仅支持 claude/codex/dsh（HISTORY_BACKENDS）；grok 暂无转录扫描，
-  // 不能把 'grok' 传给 history.items —— 其状态表没有该键会读到 undefined.items 而崩溃
+  // 磁盘历史扫描由主进程按各 CLI 的本地格式完成，包含 Grok 的 updates.jsonl。
   const histScopeSupported =
     histScope === undefined || (HISTORY_BACKENDS as readonly string[]).includes(histScope);
   const histItems: HistorySession[] =
@@ -323,6 +338,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : history.items(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
+
+  // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
+  const endpointActivity = useMemo(() => {
+    const a: Partial<Record<ConversationBackend, number>> = { ...counts };
+    for (const b of histBackends) a[b] = (a[b] ?? 0) + history.items(b).length;
+    return a;
+  }, [counts, histBackends, history]);
+  const shownEndpoints = useMemo(() => {
+    const shown = visibleEndpoints(CONVERSATION_BACKENDS, endpointVisibility, endpointActivity);
+    // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
+    if (!shown.includes(endpointFilter) && endpointVisibility[endpointFilter] !== 'hide')
+      return CONVERSATION_BACKENDS.filter((b) => b === endpointFilter || shown.includes(b));
+    return shown;
+  }, [endpointVisibility, endpointActivity, endpointFilter]);
 
   const openHistory = async (h: HistorySession) => {
     if (openingKey) return;
@@ -621,7 +650,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           {isDev && view === 'by-endpoint' && (
             <div className={styles.epRow} role="group" aria-label={t('按端点筛选')}>
-              {CONVERSATION_BACKENDS.map((b) => (
+              {shownEndpoints.map((b) => (
                 <button
                   key={b}
                   type="button"
@@ -637,6 +666,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className={styles.epCount}>{counts[b]}</span>
                 </button>
               ))}
+              <EndpointVisibilityMenu
+                backends={CONVERSATION_BACKENDS}
+                visibility={endpointVisibility}
+                activity={endpointActivity}
+                onChange={(b, v) => {
+                  setEndpointVisibility(b, v);
+                  // 隐藏了正在看的端点：回到 Nomi，免得筛选停在看不见的端点上
+                  if (v === 'hide' && b === endpointFilter) setEndpointFilter('nomi');
+                }}
+              />
             </div>
           )}
         </div>
@@ -831,7 +870,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     data-session-id={h.sessionId}
                     data-cwd-missing={h.cwdMissing || undefined}
                     aria-busy={openingKey === h.key}
-                    title={[h.title, h.cwd, h.cwdMissing ? t('原目录已不存在') : '']
+                    title={[
+                      h.title,
+                      h.cwd,
+                      ...historyOrigin(h),
+                      h.cwdMissing ? t('原目录已不存在') : '',
+                    ]
                       .filter(Boolean)
                       .join('\n')}
                     onClick={() => void openHistory(h)}
@@ -845,6 +889,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className={styles.dot} aria-hidden />
                     <EndpointIcon backend={h.backend} size={14} />
                     <span className={styles.threadName}>{h.title}</span>
+                    {routeTag(h) && (
+                      <span className={styles.histTag} data-testid="history-route-tag">
+                        {routeTag(h)}
+                      </span>
+                    )}
                     <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
                   </button>
                   {/* 磁盘历史是只读的：没有重命名 / 删除，「更多」里只有「在标签中打开」 */}
@@ -919,3 +968,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+
+const CLIENT_LABELS: Record<HistoryClient, string> = {
+  cli: 'CLI',
+  desktop: 'Desktop',
+  ide: 'IDE',
+  exec: 'exec',
+  nomi: 'Nomi',
+};
+
+/** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */
+function routeTag(h: HistorySession): string | null {
+  if (h.route === 'gateway') return t('第三方');
+  if (h.route === 'custom') return h.provider || t('第三方');
+  return null;
+}
+
+/** 悬停提示里的来源信息：客户端、线路、账号 */
+function historyOrigin(h: HistorySession): string[] {
+  const out: string[] = [];
+  if (h.client) out.push(t('客户端：{0}', CLIENT_LABELS[h.client]));
+  if (h.route === 'official') out.push(t('线路：官方'));
+  else if (h.route === 'gateway') out.push(t('线路：第三方（Nomi 网关）'));
+  else if (h.route === 'custom') out.push(t('线路：其他第三方（{0}）', h.provider || '?'));
+  if (h.account) out.push(t('账号：{0}', h.account));
+  return out;
+}

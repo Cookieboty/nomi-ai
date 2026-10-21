@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
 /**
  * Mock dsh CLI for CI / headed e2e.
  * Supports: --version | --profile headless --json [--session-id <id>] <prompt>
@@ -29,13 +30,40 @@ if (resumed === 'session-unknown') {
 }
 const sessionId = resumed || process.env.NOMI_MOCK_SESSION || 'session-mock-dsh-1';
 const prompt = args[args.length - 1];
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
+}
+logPrompt(prompt);
 const keyState = process.env.NOMI_DSH_API_KEY ? 'key' : 'nokey';
+// --patch 叠加配置里 agent-default-model 的模型（与真实 dsh 一样在 profile 之后生效）
+const patchFile = flag('--patch');
+let patchedModel = '';
+if (patchFile) {
+  const fs = await import('node:fs');
+  patchedModel = /model:\s*"([^"]+)"\s*$/m.exec(fs.readFileSync(patchFile, 'utf8'))?.[1] ?? '';
+}
 const reply =
   process.env.NOMI_MOCK_DSH_REPLY ||
-  `【Mock dsh】${resumed ? 'resumed' : 'new'} ${keyState}: ${prompt}`;
+  `【Mock dsh】${resumed ? 'resumed' : 'new'} ${keyState}${patchedModel ? ` ${patchedModel}` : ''}: ${prompt}`;
 const usage = { inputTokens: 10, outputTokens: 8, totalTokens: 18, cacheReadTokens: 0 };
 
 emit({ type: 'session', sessionId, cwd: process.cwd() });
+// 上游报错（NOMI_MOCK_DSH_UPSTREAM_ERROR=<消息>，对齐 0.2.0-rc.2 实测）：turn_end 带错误、final 为空、退出码 1
+if (process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR) {
+  const message = process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR;
+  emit({ type: 'status', phase: 'turn_start', turn: 1 });
+  emit({
+    type: 'status',
+    phase: 'turn_end',
+    turn: 1,
+    reason: { kind: 'error', error: { message, code: 'AUTH' } },
+  });
+  emit({ type: 'final', text: '' });
+  process.stderr.write(`dsh: AUTH: ${message}\n`);
+  process.exit(1);
+}
 emit({ type: 'status', phase: 'turn_start', turn: 1 });
 emit({ type: 'status', phase: 'step_start', turn: 1, step: 1 });
 emit({ type: 'thinking', text: 'thinking…' });

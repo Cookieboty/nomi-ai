@@ -9,10 +9,39 @@
  * Env: NOMI_MOCK_CLAUDE_REPLY, NOMI_MOCK_SESSION, NOMI_MOCK_ASK_PERMISSION,
  *      NOMI_MOCK_PERMISSION_ID, NOMI_MOCK_TOOLS（1 = 单个 Bash；rich = 多种工具调用演示）,
  *      NOMI_MOCK_STEP_MS（rich 场景下每个事件之间的停顿）, NOMI_MOCK_DELAY_MS,
- *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append 一行，测复用）
+ *      NOMI_MOCK_CLAUDE_BOOT_LOG（可选：每次进程启动 append「pid 参数」一行，测复用）,
+ *      NOMI_MOCK_CLAUDE_CONTROL_LOG（可选：收到 set_permission_mode 时 append「pid 模式」）,
+ *      NOMI_MOCK_CLAUDE_MODE_ACK（set_permission_mode 的应答：缺省 success；error 负确认；
+ *        none 不应答；wrong-id 用别的 request_id 应答）,
+ *      NOMI_MOCK_CLAUDE_MODEL_ACK（set_model 的应答：缺省 success；error 负确认）,
+ *      NOMI_MOCK_INTERRUPT（interrupt 的处理：缺省与真实 CLI 一致——应答后以 error_during_execution
+ *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）
  */
-import fs from 'node:fs';
+import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
 
 const args = process.argv.slice(2);
 const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
@@ -26,13 +55,52 @@ if (args.includes('update')) {
 }
 
 const bootLog = process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
+const controlLog = process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG;
 if (bootLog) {
   try {
-    fs.appendFileSync(bootLog, `${process.pid}\n`);
+    fs.appendFileSync(bootLog, `${process.pid} ${args.join(' ')}\n`);
   } catch {
     /* */
   }
 }
+
+if (args[0] === 'auth' && args[1] === 'login') {
+  const url = 'https://claude.com/cai/oauth/authorize?code=true&client_id=mock&state=mock';
+  process.stdout.write(
+    `Opening browser to sign in…\nIf the browser didn't open, visit: \x1b]8;;${url}\x07${url}\x1b]8;;\x07\nPaste code here if prompted > `,
+  );
+  const rl = createInterface({ input: process.stdin });
+  rl.once('line', (line) => {
+    if (line.trim() !== 'CODE-OK') {
+      process.stdout.write('\nInvalid code\n');
+      process.exit(1);
+    }
+    const email = process.env.NOMI_MOCK_LOGIN_EMAIL || 'mock@claude.ai';
+    const dir = process.env.CLAUDE_CONFIG_DIR;
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      `${dir}/.credentials.json`,
+      JSON.stringify({
+        claudeAiOauth: {
+          accessToken: 'at',
+          refreshToken: `rt-${email}`,
+          expiresAt: Date.now() + 3_600_000,
+          subscriptionType: 'max',
+        },
+      }),
+    );
+    fs.writeFileSync(
+      `${dir}/.claude.json`,
+      JSON.stringify({ oauthAccount: { accountUuid: `u-${email}`, emailAddress: email } }),
+    );
+    process.stdout.write('\nLogin successful.\n');
+    process.exit(0);
+  });
+  await new Promise(() => {});
+}
+
+const modelIdx = args.indexOf('--model');
+let currentModel = modelIdx >= 0 ? args[modelIdx + 1] : 'mock-claude';
 
 const resumeIdx = args.indexOf('--resume');
 const ownSession = process.env.NOMI_MOCK_SESSION || 'mock-claude-session-1';
@@ -44,8 +112,17 @@ function sleep() {
   if (delayMs > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
 }
 
+/** 被 interrupt 的这一轮：之后的输出丢弃，直到下一轮开始 */
+let muted = false;
 function emit(obj) {
+  if (muted && obj.type !== 'control_response') return;
   process.stdout.write(`${JSON.stringify(obj)}\n`);
+}
+
+/** 测试用：记下这一轮实际收到的消息（验证换目录时带入的前文） */
+function logPrompt(text) {
+  const f = process.env.NOMI_MOCK_PROMPT_LOG;
+  if (f) appendFileSync(f, `${JSON.stringify(text)}\n`);
 }
 
 function extractUserText(line) {
@@ -56,7 +133,12 @@ function extractUserText(line) {
     if (typeof j.prompt === 'string') return { kind: 'user', text: j.prompt };
     if (j?.message?.content != null) {
       const c = j.message.content;
-      return { kind: 'user', text: typeof c === 'string' ? c : JSON.stringify(c) };
+      logPrompt(typeof c === 'string' ? c : JSON.stringify(c));
+      return {
+        kind: 'user',
+        text: typeof c === 'string' ? c : JSON.stringify(c),
+        uuid: typeof j.uuid === 'string' ? j.uuid : undefined,
+      };
     }
     if (typeof j.content === 'string') return { kind: 'user', text: j.content };
   } catch {
@@ -65,7 +147,176 @@ function extractUserText(line) {
   return { kind: 'user', text: line };
 }
 
+/**
+ * 后台子代理（NOMI_MOCK_BG_AGENT=1，对齐 Claude 2.1.303 实测）：本轮启动一个后台子代理并立刻以 STARTED 结束；
+ * NOMI_MOCK_BG_MS（默认 300）后子代理在 result 之后继续输出（带 parent_tool_use_id），完成通知后
+ * 主代理在没有用户消息的情况下自发跟进一轮（FOLLOWUP + 第二个 result）。
+ */
+function bgAgentTurn() {
+  const toolUseId = 'toolu_bg_1';
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: {
+      role: 'assistant',
+      content: [
+        {
+          type: 'tool_use',
+          id: toolUseId,
+          name: 'Agent',
+          input: {
+            description: 'bg task',
+            subagent_type: 'general-purpose',
+            run_in_background: true,
+          },
+        },
+      ],
+    },
+  });
+  emit({
+    type: 'system',
+    subtype: 'task_started',
+    session_id: sessionId,
+    task_id: 'task_bg_1',
+    tool_use_id: toolUseId,
+    description: 'bg task',
+    subagent_type: 'general-purpose',
+    task_type: 'local_agent',
+    is_backgrounded: true,
+  });
+  emit({
+    type: 'user',
+    session_id: sessionId,
+    message: {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: toolUseId, content: 'Async agent launched' }],
+    },
+  });
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text: 'STARTED' }] },
+  });
+  emit({ type: 'result', session_id: sessionId, result: 'STARTED', subtype: 'success' });
+  setTimeout(
+    () => {
+      queue.unshift({ auto: true });
+      pump();
+    },
+    Number(process.env.NOMI_MOCK_BG_MS || 300),
+  );
+}
+
+function bgFollowup() {
+  const toolUseId = 'toolu_bg_1';
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    parent_tool_use_id: toolUseId,
+    message: {
+      role: 'assistant',
+      content: [
+        { type: 'tool_use', id: 'toolu_bg_read', name: 'Read', input: { file_path: 'a.txt' } },
+      ],
+    },
+  });
+  emit({
+    type: 'user',
+    session_id: sessionId,
+    parent_tool_use_id: toolUseId,
+    message: {
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_bg_read', content: 'hello' }],
+    },
+  });
+  emit({
+    type: 'system',
+    subtype: 'task_notification',
+    session_id: sessionId,
+    task_id: 'task_bg_1',
+    tool_use_id: toolUseId,
+    status: 'completed',
+    summary: 'bg done',
+  });
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text: 'FOLLOWUP' }] },
+  });
+  emit({
+    type: 'result',
+    session_id: sessionId,
+    result: 'FOLLOWUP',
+    subtype: 'success',
+    usage: { input_tokens: 10, output_tokens: 2 },
+  });
+}
+
+/**
+ * 两个子代理并行请求权限（NOMI_MOCK_PARALLEL_PERMS=1）：各自的 can_use_tool 带 tool_use_id，
+ * 两个都答复后才结束本轮；最终文本写明各自的答复（allow / deny）。
+ */
+async function parallelPermsTurn() {
+  const content = (id, name, input) => [{ type: 'tool_use', id, name, input }];
+  for (const [id, d] of [
+    ['toolu_a', 'agent A'],
+    ['toolu_b', 'agent B'],
+  ])
+    emit({
+      type: 'assistant',
+      session_id: sessionId,
+      message: { role: 'assistant', content: content(id, 'Agent', { description: d }) },
+    });
+  for (const [parent, id, cmd] of [
+    ['toolu_a', 'toolu_a_bash', 'rm a.tmp'],
+    ['toolu_b', 'toolu_b_bash', 'rm b.tmp'],
+  ])
+    emit({
+      type: 'assistant',
+      session_id: sessionId,
+      parent_tool_use_id: parent,
+      message: { role: 'assistant', content: content(id, 'Bash', { command: cmd }) },
+    });
+  const answers = await new Promise((resolve) => {
+    const got = {};
+    multiWaiter = (reqId, allowed) => {
+      got[reqId] = allowed ? 'allow' : 'deny';
+      if (Object.keys(got).length === 2) {
+        multiWaiter = null;
+        resolve(got);
+      }
+    };
+    for (const [reqId, toolUseId, cmd] of [
+      ['perm-a', 'toolu_a_bash', 'rm a.tmp'],
+      ['perm-b', 'toolu_b_bash', 'rm b.tmp'],
+    ])
+      emit({
+        type: 'control_request',
+        request_id: reqId,
+        request: {
+          subtype: 'can_use_tool',
+          tool_name: 'Bash',
+          input: { command: cmd },
+          tool_use_id: toolUseId,
+        },
+      });
+  });
+  const text = `A=${answers['perm-a']} B=${answers['perm-b']}`;
+  emit({
+    type: 'assistant',
+    session_id: sessionId,
+    message: { role: 'assistant', content: [{ type: 'text', text }] },
+  });
+  emit({ type: 'result', session_id: sessionId, result: text, subtype: 'success' });
+}
+
 async function runOnce(_prompt) {
+  if (process.env.NOMI_MOCK_PARALLEL_PERMS === '1') return parallelPermsTurn();
+  if (process.env.NOMI_MOCK_BG_AGENT === '1' && !bgStarted) {
+    bgStarted = true;
+    bgAgentTurn();
+    return;
+  }
   sleep();
   // 固定回复，便于既有单测断言；续接「外会话」时带 session id
   let text =
@@ -76,7 +327,7 @@ async function runOnce(_prompt) {
     type: 'system',
     subtype: 'init',
     session_id: sessionId,
-    model: 'mock-claude',
+    model: currentModel,
     pid: process.pid,
   });
 
@@ -148,7 +399,7 @@ async function runOnce(_prompt) {
   }
 
   const firstToken = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
-  if (firstToken > 0) await new Promise((r) => setTimeout(r, firstToken));
+  if (firstToken > 0 && isSlow(_prompt)) await sleepCancellable('turn', firstToken);
   if (process.env.NOMI_MOCK_FAIL === '1') {
     emit({
       type: 'result',
@@ -416,6 +667,8 @@ function readStdinLine() {
 
 /** 长驻：permission 等待队列 */
 let permissionWaiter = null;
+/** 并行权限场景：按 request_id 收答复 */
+let multiWaiter = null;
 function waitPermission() {
   return new Promise((resolve) => {
     permissionWaiter = resolve;
@@ -427,27 +680,50 @@ const inlineCandidate = promptIdx >= 0 ? args[promptIdx + 1] : '';
 const inline = inlineCandidate && !String(inlineCandidate).startsWith('-') ? inlineCandidate : '';
 const streamIn = args.includes('--input-format') && args.includes('stream-json');
 
+let bgStarted = false;
+const replay = args.includes('--replay-user-messages');
+let busy = false;
+const queue = [];
+// 与真实 CLI 一致：开始处理某条用户消息时才回显它（带原 uuid、isReplay），自发轮次不回显
+const pump = () => {
+  if (busy) return;
+  const next = queue.shift();
+  if (!next) return;
+  busy = true;
+  muted = false;
+  if (next.auto) {
+    bgFollowup();
+    busy = false;
+    pump();
+    return;
+  }
+  if (replay && next.uuid)
+    emit({
+      type: 'user',
+      session_id: sessionId,
+      uuid: next.uuid,
+      isReplay: true,
+      message: { role: 'user', content: next.text },
+    });
+  void runOnce(next.text)
+    .catch(() => {})
+    .finally(() => {
+      busy = false;
+      pump();
+    });
+};
+
 if (streamIn) {
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
-  let busy = false;
-  const queue = [];
-
-  const pump = () => {
-    if (busy) return;
-    const next = queue.shift();
-    if (!next) return;
-    busy = true;
-    void runOnce(next)
-      .catch(() => {})
-      .finally(() => {
-        busy = false;
-        pump();
-      });
-  };
 
   rl.on('line', (line) => {
     const parsed = extractUserText(line);
     if (parsed.kind === 'control') {
+      if (multiWaiter) {
+        const r = parsed.j?.response;
+        multiWaiter(r?.request_id, r?.response?.behavior === 'allow');
+        return;
+      }
       if (permissionWaiter) {
         const allowed = parsed.j?.response?.response?.behavior === 'allow';
         const w = permissionWaiter;
@@ -457,14 +733,120 @@ if (streamIn) {
       return;
     }
     if (parsed.kind === 'control_request') {
-      // interrupt 等：直接退出，模拟被中止
+      // initialize：与真实 CLI 一样在响应里带 models（Nomi 据此列模型，不写死）
+      if (parsed.j?.request?.subtype === 'initialize') {
+        const effort = ['low', 'medium', 'high', 'xhigh', 'max'];
+        const m = (value, resolvedModel, displayName, levels = effort) => ({
+          value,
+          resolvedModel,
+          displayName,
+          description: `${displayName} (mock)`,
+          ...(levels ? { supportsEffort: true, supportedEffortLevels: levels } : {}),
+        });
+        emit({
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: parsed.j.request_id,
+            response: {
+              commands: [],
+              models: [
+                m('default', 'claude-opus-mock', 'Default (recommended)'),
+                m('opus', 'claude-opus-mock', 'Opus Mock'),
+                m('sonnet', 'claude-sonnet-mock', 'Sonnet Mock'),
+                m('claude-haiku-old', 'claude-haiku-old', 'Haiku Old', null),
+                m('claude-opus-old', 'claude-opus-old', 'Opus Old', [
+                  'low',
+                  'medium',
+                  'high',
+                  'max',
+                ]),
+              ],
+            },
+          },
+        });
+        return;
+      }
+      // interrupt：与真实 CLI（2.1.304 实测）一致——应答，以 error_during_execution 结束这一轮，进程继续
       if (parsed.j?.request?.subtype === 'interrupt') {
-        process.exit(0);
+        const how = process.env.NOMI_MOCK_INTERRUPT || '';
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} interrupt\n`);
+        if (how === 'exit') process.exit(0);
+        if (how === 'ignore') return;
+        emit({
+          type: 'control_response',
+          response: {
+            subtype: 'success',
+            request_id: parsed.j.request_id,
+            response: { still_queued: [] },
+          },
+        });
+        if (busy) {
+          wake('turn');
+          emit({
+            type: 'result',
+            subtype: 'error_during_execution',
+            is_error: true,
+            session_id: sessionId,
+            result: '',
+          });
+          muted = true;
+          // 卡在权限确认上的这一轮随之结束
+          if (permissionWaiter) {
+            const w = permissionWaiter;
+            permissionWaiter = null;
+            w(false);
+          }
+        }
+        return;
+      }
+      if (parsed.j?.request?.subtype === 'set_model') {
+        const model = parsed.j.request.model ?? 'default';
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} set_model ${model}\n`);
+        const ok = (process.env.NOMI_MOCK_CLAUDE_MODEL_ACK || 'success') === 'success';
+        emit({
+          type: 'control_response',
+          response: ok
+            ? { subtype: 'success', request_id: parsed.j.request_id }
+            : { subtype: 'error', request_id: parsed.j.request_id, error: 'unknown model (mock)' },
+        });
+        if (ok) currentModel = model;
+        return;
+      }
+      if (parsed.j?.request?.subtype === 'stop_task') {
+        const taskId = parsed.j.request.task_id;
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} stop_task ${taskId}\n`);
+        emit({
+          type: 'control_response',
+          response: { subtype: 'success', request_id: parsed.j.request_id, response: {} },
+        });
+        emit({
+          type: 'system',
+          subtype: 'task_notification',
+          session_id: sessionId,
+          task_id: taskId,
+          status: 'stopped',
+          summary: 'stopped by user',
+        });
+      }
+      if (parsed.j?.request?.subtype === 'set_permission_mode') {
+        const mode = parsed.j.request.mode;
+        if (controlLog) fs.appendFileSync(controlLog, `${process.pid} ${mode}\n`);
+        const ack = process.env.NOMI_MOCK_CLAUDE_MODE_ACK || 'success';
+        if (ack === 'none') return;
+        const requestId = ack === 'wrong-id' ? 'not-the-request' : parsed.j.request_id;
+        emit({
+          type: 'control_response',
+          response:
+            ack === 'error'
+              ? { subtype: 'error', request_id: requestId, error: 'mode change rejected (mock)' }
+              : { subtype: 'success', request_id: requestId, response: { mode } },
+        });
       }
       return;
     }
     if (parsed.text.trim()) {
-      queue.push(parsed.text);
+      queue.push({ text: parsed.text, uuid: parsed.uuid });
       pump();
     }
   });

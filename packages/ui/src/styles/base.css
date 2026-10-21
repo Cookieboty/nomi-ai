@@ -21,7 +21,7 @@
 .cd-btn:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
   background: var(--cd-color-surface-raised);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .cd-btn:focus-visible {
   outline: none;
@@ -58,13 +58,15 @@
   border-color: transparent;
   color: var(--cd-color-text-muted);
 }
+/* 与透明 chip / 下拉框 / 各处幽灵图标按钮同一种 hover（中性底色，不用强调色） */
 .cd-btn--ghost:hover:not(:disabled) {
-  background: var(--cd-color-accent-soft);
+  background: var(--cd-color-hover);
   border-color: transparent;
+  color: var(--cd-color-text);
 }
 .cd-btn--danger {
   color: var(--cd-color-danger);
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-danger) 35%, transparent);
 }
 .cd-btn--danger:hover:not(:disabled) {
   background: var(--cd-color-danger-soft);
@@ -179,11 +181,11 @@
 }
 .cd-switch[aria-checked='true'] .cd-switch__track {
   background: var(--cd-color-accent);
-  border-color: var(--cd-color-accent);
+  border-color: var(--cd-color-accent-strong);
 }
 .cd-switch[aria-checked='true'] .cd-switch__thumb {
   left: 18px;
-  background: #fff;
+  background: var(--cd-color-text-on-accent);
 }
 .cd-switch:focus-visible {
   outline: none;
@@ -259,10 +261,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--cd-space-5);
+  /* 无模糊、无淡入：纯半透明遮罩（弹窗不做动画，见 tests/popupMotion.test.ts） */
   background: var(--cd-color-overlay);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  animation: cd-fade-in 0.15s ease-out;
 }
 .cd-modal {
   display: flex;
@@ -275,7 +275,6 @@
   box-shadow: var(--cd-shadow-lg), var(--cd-shadow-glow);
   color: var(--cd-color-text);
   font-family: var(--cd-font-sans);
-  animation: cd-pop-in 0.18s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .cd-modal--lg {
   width: min(820px, 100%);
@@ -313,17 +312,17 @@
 /* ---------- Tabs ---------- */
 .cd-tabs {
   display: flex;
-  gap: var(--cd-space-1);
-  padding: 3px;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-0-5);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-color-bg-subtle);
   border: 1px solid var(--cd-color-border);
   width: fit-content;
 }
 .cd-tab {
-  height: 28px;
+  height: var(--cd-control-h-sm);
   padding: 0 var(--cd-space-3);
-  border: 0;
+  border: 1px solid transparent;
   border-radius: var(--cd-radius-sm);
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -331,14 +330,17 @@
   font-size: var(--cd-font-size-sm);
   cursor: pointer;
   transition: var(--cd-transition);
+  font-weight: var(--cd-font-weight-medium);
 }
 .cd-tab:hover {
+  background: var(--cd-color-hover);
   color: var(--cd-color-text);
 }
+/* 选中态：selected-bg 填充 + selected-text 文字（对比度 ≥ 4.5:1，见 tests/theme-contrast.test.ts） */
 .cd-tab[aria-selected='true'] {
-  background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
-  box-shadow: inset 0 0 0 1px var(--cd-color-border-strong);
+  background: var(--cd-color-surface);
+  color: var(--cd-color-text);
+  border-color: var(--cd-color-border);
 }
 .cd-tab:focus-visible {
   outline: none;
@@ -359,7 +361,7 @@
   vertical-align: middle;
   white-space: nowrap;
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
   border: 1px solid transparent;
 }
 .cd-badge__icon {
@@ -370,7 +372,7 @@
   margin-left: var(--cd-space-1);
 }
 .cd-badge--neutral {
-  background: rgba(148, 163, 184, 0.14);
+  background: var(--cd-color-hover);
   color: var(--cd-color-text-muted);
 }
 .cd-badge--success {
@@ -405,7 +407,11 @@
   box-shadow: var(--cd-shadow-md);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-xs);
-  white-space: nowrap;
+  /* 短提示一行；长描述按最大宽度换行，不会一路伸出窗口 / 压到旁边的栏 */
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  white-space: normal;
+  overflow-wrap: anywhere;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -427,6 +433,10 @@
   top: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
+}
+.cd-tooltip__bubble--bottom-start {
+  top: calc(100% + 6px);
+  left: 0;
 }
 .cd-tooltip__bubble--left {
   right: calc(100% + 6px);
@@ -465,7 +475,6 @@
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
   pointer-events: auto;
-  animation: cd-pop-in 0.18s ease-out;
 }
 .cd-toast--success {
   border-left-color: var(--cd-color-success);
@@ -514,15 +523,15 @@
 }
 .cd-notice--success {
   background: var(--cd-color-success-soft);
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-success) 35%, transparent);
 }
 .cd-notice--warning {
   background: var(--cd-color-warning-soft);
-  border-color: rgba(245, 158, 11, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-warning) 35%, transparent);
 }
 .cd-notice--danger {
   background: var(--cd-color-danger-soft);
-  border-color: rgba(239, 68, 68, 0.35);
+  border-color: color-mix(in srgb, var(--cd-color-danger) 35%, transparent);
 }
 
 /* ---------- EmptyState ---------- */
@@ -595,7 +604,7 @@
   margin-bottom: var(--cd-space-1);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent);
+  color: var(--cd-color-accent-strong);
 }
 .cd-empty__icon svg {
   width: 22px;
@@ -658,7 +667,7 @@
   padding: 1px var(--cd-space-1);
   border-radius: var(--cd-radius-xs);
   background: var(--cd-color-surface-sunken);
-  color: var(--cd-color-accent-2);
+  color: var(--cd-color-accent-strong);
 }
 .cd-section-title {
   margin: 0 0 var(--cd-space-2);
@@ -683,34 +692,7 @@
 }
 .cd-table td {
   padding: var(--cd-space-1) var(--cd-space-2);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
-}
-
-@keyframes cd-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-@keyframes cd-pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cd-modal,
-  .cd-modal-overlay,
-  .cd-toast {
-    animation: none;
-  }
+  border-bottom: 1px solid var(--cd-color-border);
 }
 
 /* 首字母头像（供应商卡片 / 表单） */

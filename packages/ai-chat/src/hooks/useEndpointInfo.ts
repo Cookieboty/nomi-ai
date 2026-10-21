@@ -1,11 +1,10 @@
 /**
  * 「按端」信息卡 / 详情抽屉的数据：安装 / 版本（cli-update）、登录方式与额度（usage quota）、
- * 今日 / 近 7 天用量与模型 / 供应商（usage endpoint）、激活的供应商与配置路径（cli-provider，只有路径）。
+ * 今日 / 近 7 天用量与模型 / 供应商（usage endpoint）、CLI 默认的配置文件路径（只有路径）。
  * 全部来自本机主进程；不读取任何凭据，不自动联网（检查更新只在用户点击时执行）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { cliProviderClient, type CliProviderState } from '../services/cliProviderClient';
 import { cliUpdateClient, type CliInstallInfo } from '../services/cliUpdateClient';
 import {
   usageClient,
@@ -20,7 +19,6 @@ import { isQuotaTool, useToolQuota, type ToolCardState } from './useToolQuota';
 export interface EndpointInfo {
   backend: ConversationBackend;
   cli: CliInstallInfo | null;
-  providers: CliProviderState | null;
   usage: UsageEndpointInfo | null;
   quota: UsageQuotaEntry | null;
   /** 额度刷新（仅 claude / codex / grok）的逐卡状态 */
@@ -48,31 +46,24 @@ const isEndpointInfo = (u: unknown): u is UsageEndpointInfo => {
   );
 };
 
-/** 配置文件路径（只是路径字符串，用于展示；Nomi 不读取其中内容） */
+/** CLI 默认的配置文件路径（只是路径字符串，用于展示；Nomi 不读取其中内容） */
+const CONFIG_PATHS: Partial<Record<ConversationBackend, { label: string; path: string }>> = {
+  claude: { label: 'settings.json', path: '~/.claude/settings.json' },
+  codex: { label: 'config.toml', path: '~/.codex/config.toml' },
+  grok: { label: 'config.toml', path: '~/.grok/config.toml' },
+  gemini: { label: 'settings.json', path: '~/.gemini/settings.json' },
+};
+
 export function configPathsOf(
   backend: ConversationBackend,
-  p: CliProviderState | null,
 ): Array<{ label: string; path: string }> {
-  if (!p) return [];
-  const pick = (label: string, path?: string) => (path ? [{ label, path }] : []);
-  switch (backend) {
-    case 'claude':
-      return pick('settings.json', p.claudeSettings);
-    case 'codex':
-      return pick('config.toml', p.codexConfig);
-    case 'dsh':
-      return pick('config', p.dshConfig);
-    case 'grok':
-      return pick('config.toml', p.grokConfig);
-    default:
-      return [];
-  }
+  const p = CONFIG_PATHS[backend];
+  return p ? [p] : [];
 }
 
 export function useEndpointInfo(backend: ConversationBackend, enabled = true): EndpointInfo {
   const q = useToolQuota({ poll: false });
   const [cli, setCli] = useState<CliInstallInfo[] | null>(null);
-  const [providers, setProviders] = useState<CliProviderState | null>(null);
   const [usage, setUsage] = useState<Record<string, UsageEndpointInfo>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +88,7 @@ export function useEndpointInfo(backend: ConversationBackend, enabled = true): E
     [],
   );
 
-  // 静态信息：只在启用时读一次（安装 / 版本 / 供应商 / 配置路径）
+  // 静态信息：只在启用时读一次（安装 / 版本）
   useEffect(() => {
     if (!enabled) return;
     if (cliUpdateClient.available())
@@ -105,10 +96,6 @@ export function useEndpointInfo(backend: ConversationBackend, enabled = true): E
         .inspect(false)
         .then((r) => alive.current && setCli(Array.isArray(r) ? r : null))
         .catch(() => undefined);
-    void cliProviderClient
-      .state()
-      .then((s) => alive.current && setProviders(s && Array.isArray(s.profiles) ? s : null))
-      .catch(() => undefined);
   }, [enabled]);
 
   // 用量：切换端或账本变化时重读（节流 1.5 秒，账本写入很频繁）
@@ -159,7 +146,6 @@ export function useEndpointInfo(backend: ConversationBackend, enabled = true): E
   return {
     backend,
     cli: cli?.find((c) => c.kind === backend) ?? null,
-    providers,
     usage: usage[backend] ?? null,
     quota,
     quotaState,

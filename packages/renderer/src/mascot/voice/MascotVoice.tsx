@@ -9,8 +9,11 @@ import React, { useCallback, useEffect, useRef } from 'react';
 
 import { directiveForEvent } from '../expressionDirector';
 import { applyDirective } from '../mood';
+import { openVoiceSettings } from '../openVoiceSettings';
+import { useMascotShown } from '../presence';
 import { stopAllSpeech } from '../speechStop';
 
+import styles from './MascotVoice.module.css';
 import { voiceDirective } from './voiceMood';
 
 import { useWaifuMessage } from '@/hooks/useWaifuMessage';
@@ -20,11 +23,6 @@ let toggleImpl: (() => Promise<void>) | null = null;
 /** 工具栏菜单项 / 右键：切换免按键对话 */
 export function toggleMascotHandsfree(): Promise<void> {
   return toggleImpl ? toggleImpl() : Promise.resolve();
-}
-
-function openChat(): void {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 遗留 preload
-  (window as any).electronAPI?.openAiChat?.();
 }
 
 export const MascotMicTool: React.FC<{
@@ -51,7 +49,9 @@ export const MascotMicTool: React.FC<{
         data-testid="tool-voice-input"
         onStart={() => void v.pttStart()}
         onStop={(cancel) => void v.pttStop(cancel)}
-        tooltip={continuous ? t('免按键对话中（右键关闭）') : t('按住说话（右键：免按键对话）')}
+        tooltip={
+          continuous ? t('语音交互\n免按键对话中 · 右键关闭') : t('语音交互\n按住说话 · 右键免按键')
+        }
         tooltipPlacement={tipSide}
       />
     </span>
@@ -114,37 +114,31 @@ export const MascotVoiceBridge: React.FC = () => {
   );
 
   // 唤醒词（默认关闭）：开启后看板娘常驻监听
-  const wake = v.config?.settings.wakeWord.enabled ?? false;
+  // 看板娘被关闭（窗口隐藏）时停掉唤醒词 / 免按键监听，不在看不见的窗口里继续开麦（#55）
+  const shown = useMascotShown();
+  const wake = (v.config?.settings.wakeWord.enabled ?? false) && shown;
   const ready = v.config?.readiness.ok ?? false;
   useEffect(() => {
     if (!v.controller) return;
+    if (!shown && v.state.mode !== 'off') {
+      void v.setContinuous('off');
+      return;
+    }
     if (wake && ready && v.state.mode === 'off') void v.setContinuous('wake');
     if (!wake && v.state.mode === 'wake') void v.setContinuous('off');
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在开关/就绪变化时
-  }, [wake, ready, v.controller]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅在开关/就绪/显示变化时
+  }, [wake, ready, shown, v.controller]);
 
   if (!v.available) return null;
   const visible = v.state.phase !== 'idle' || !!v.state.error;
   if (!visible) return null;
   return (
-    <div
-      data-testid="mascot-voice-status"
-      style={{
-        position: 'absolute',
-        left: 8,
-        right: 8,
-        bottom: 6,
-        display: 'flex',
-        justifyContent: 'center',
-        zIndex: 30,
-        pointerEvents: 'none',
-      }}
-    >
-      <div style={{ pointerEvents: 'auto', maxWidth: '100%' }}>
+    <div className={styles.wrap} data-testid="mascot-voice-status">
+      <div className={styles.inner}>
         <VoiceStatus
           state={v.state}
           wakePhrase={v.config?.settings.wakeWord.phrase}
-          onOpenSettings={openChat}
+          onOpenSettings={() => void openVoiceSettings()}
           onDismissError={() => v.controller?.clearError()}
           onStop={() => void v.setContinuous('off')}
           className="cd-voice-status--floating"

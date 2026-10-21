@@ -19,6 +19,7 @@ import type {
   ChatResponse,
   ChatUsage,
   LLMProvider,
+  ToolCallProvider,
   ToolDefinition,
 } from '@nomi-ai/bundle-ig-base';
 import { ENV_ENDPOINT_DEFAULTS } from '@nomi-ai/bundle-ig-base';
@@ -40,6 +41,7 @@ import {
 } from '../providers/protocol';
 
 import { toAiSdkToolSet } from './mapTools';
+import { describeStreamError } from './streamError';
 
 export interface AiSdkLlmProviderOptions {
   id: string;
@@ -61,6 +63,11 @@ export interface AiSdkLlmProviderOptions {
   fetchImpl?: typeof fetch;
   /** Extra HTTP headers sent with every request (e.g. gateway routing / org id). */
   headers?: Record<string, string>;
+  /**
+   * 工具结果的实际接收者（隐私判断用）。缺省是 { id, baseURL }；经统一网关时 baseURL 是本机回环，
+   * 必须换成真正的上游，否则云端供应商会被当成本地。
+   */
+  receiver?: ToolCallProvider;
 }
 
 /** 每条消息最多带几张图、总 base64 体积上限（约 12 MB 原图） */
@@ -240,7 +247,13 @@ export class AiSdkLlmProvider implements LLMProvider {
 
   /** Attach ToolDefinitions for a single request (agent loop). */
   withTools(defs: ToolDefinition[]): { chat: LLMProvider['chat']; stream: LLMProvider['stream'] } {
-    const tools = toAiSdkToolSet(defs) as ToolSet;
+    const tools = toAiSdkToolSet(
+      defs,
+      this.opts.receiver ?? {
+        id: this.id,
+        ...(this.opts.baseURL ? { baseURL: this.opts.baseURL } : {}),
+      },
+    ) as ToolSet;
     return {
       chat: (req) => this.runChat(req, tools),
       stream: (req) => this.runStream(req, tools),
@@ -371,14 +384,11 @@ export class AiSdkLlmProvider implements LLMProvider {
           if (u) yield { type: 'usage', usage: u, model: this.resolveModel(request) };
           yield { type: 'done', finishReason: finishOf(part.finishReason) };
         } else if (part.type === 'error') {
-          yield {
-            type: 'error',
-            error: part.error instanceof Error ? part.error.message : String(part.error),
-          };
+          yield { type: 'error', error: describeStreamError(part.error) };
         }
       }
     } catch (err) {
-      yield { type: 'error', error: err instanceof Error ? err.message : String(err) };
+      yield { type: 'error', error: describeStreamError(err) };
     } finally {
       this.aborts.delete(request.reqId);
     }

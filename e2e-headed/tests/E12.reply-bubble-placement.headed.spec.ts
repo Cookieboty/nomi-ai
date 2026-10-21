@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -14,7 +14,7 @@ import { safeRm } from '../fixtures/fsutil';
 /**
  * E12 · 真实应用 · AI 回复进气泡 + 气泡避开脸
  * mock 模型返回三句话；气泡只显示前两句 +「查看全文」；关掉设置后不再显示；
- * 气泡矩形在默认模型 / 另一个内置模型、待机与动作中都不与头部矩形相交。
+ * 气泡矩形在内置 2D 角色 Nomi 待机 / 动作 / 长文本 / 工具栏显示时都不与头部矩形相交。
  */
 const REPLY =
   '第一句话在这里。第二句也很短。第三句不应该出现在气泡里，因为气泡只显示开头的一两句话，剩下的去对话窗口看全文吧。';
@@ -113,7 +113,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     await main.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 20_000 });
     const bubble = main.locator('[data-testid="mascot-bubble"]');
 
-    // ---- 1. 先开对话窗（Windows 上等 VRM 再开窗易拖垮/拖慢渲染进程）----
+    // ---- 1. 先开对话窗（Windows 上先等角色就绪再开窗易拖垮/拖慢渲染进程）----
     const chatWindow = app.waitForEvent('window', { timeout: 30_000 });
     await main.evaluate(() =>
       (
@@ -124,13 +124,15 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     await chat.waitForLoadState('domcontentloaded').catch(() => undefined);
     const input = chat.locator('[data-testid="chat-input"], textarea').first();
     await input.waitFor({ state: 'visible', timeout: 60_000 });
-    // VRM 与对话并行就绪；脸部避让断言需要它
-    const vrm = await main
-      .waitForFunction(() => document.documentElement.dataset.mascotBackend === 'vrm', undefined, {
-        timeout: 60_000,
-      })
-      .then(() => true)
-      .catch(() => false);
+    // Nomi 与对话并行就绪；脸部避让断言需要它的头部矩形（data-mascot-head）
+    await main.waitForFunction(
+      () => {
+        const d = document.documentElement.dataset;
+        return d.mascotModel === 'nomi' && !!d.mascotHead;
+      },
+      undefined,
+      { timeout: 60_000 },
+    );
     await input.fill('hello');
     await input.press('Enter');
     await expect(chat.locator('body')).toContainText('剩下的去对话窗口看全文吧', {
@@ -142,7 +144,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     const more = main.locator('[data-testid="bubble-see-more"]');
     await expect(more).toBeVisible({ timeout: 15_000 });
     await main.waitForTimeout(600);
-    if (vrm) {
+    {
       const o = await overlap(main);
       expect(o.ok, o.reason).toBe(true);
     }
@@ -174,8 +176,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
     await expect(bubble).not.toContainText('第一句话在这里');
     await chat.close().catch(() => undefined);
 
-    // ---- 3. 气泡不压脸：待机 / 动作 / 长文本 / 另一个模型 ----
-    test.skip(!vrm, 'WebGL 不可用：没有头部矩形');
+    // ---- 3. 气泡不压脸：待机 / 动作 / 长文本 ----
     const long = '这是一段很长的提示。'.repeat(30);
     const sayLong = () =>
       main.evaluate(
@@ -239,61 +240,7 @@ test.describe('E12 · reply bubble + face-safe placement', () => {
       await main.waitForTimeout(1200);
     }
 
-    // 另一个内置 / 商店模型（有的话）
-    // 另一个模型：CI 只有一个内置模型；本地可用 E12_EXTRA_VRM 指向一个 VRM（如商店模型 Shapell）导入
-    const extra = process.env.E12_EXTRA_VRM;
-    if (extra && existsSync(extra)) {
-      await main.evaluate(
-        (f) =>
-          (
-            window as unknown as {
-              electronAPI: { models: { importVrm(p: string): Promise<unknown> } };
-            }
-          ).electronAPI.models.importVrm(f),
-        extra,
-      );
-      await main.reload();
-      await main.waitForFunction(
-        () => document.documentElement.dataset.mascotBackend === 'vrm',
-        undefined,
-        {
-          timeout: 60_000,
-        },
-      );
-    }
-    const before2 = await main.evaluate(() => document.documentElement.dataset.mascotModel ?? '');
-    await app.evaluate(({ BrowserWindow }) =>
-      BrowserWindow.getAllWindows().forEach((w) => w.webContents.send('window-mouse-enter')),
-    );
-    await main.click('[data-testid="tool-switch-model"]');
-    const switched = await main
-      .waitForFunction(
-        (prev) => {
-          const d = document.documentElement.dataset;
-          return (d.mascotModel ?? '') !== prev && d.mascotBackend === 'vrm';
-        },
-        before2,
-        { timeout: extra ? 60_000 : 5_000 },
-      )
-      .then(() => true)
-      .catch(() => false);
-    if (switched) {
-      await main.waitForTimeout(1500);
-      await sayLong();
-      await main.waitForTimeout(800);
-      o = await overlap(main);
-      expect(o.ok, `second model: ${o.reason}`).toBe(true);
-      await main.evaluate(() =>
-        window.dispatchEvent(
-          new CustomEvent('mascot:say', {
-            detail: { text: '换了个样子，看得到我吗？', ms: 60000 },
-          }),
-        ),
-      );
-      await main.waitForTimeout(600);
-      o = await overlap(main);
-      expect(o.ok, `second model short: ${o.reason}`).toBe(true);
-      await main.screenshot(shot('05-second-model.png'));
-    }
+    // 只有 Nomi：不再有角色切换入口
+    await expect(main.locator('[data-testid="tool-switch-model"]')).toHaveCount(0);
   });
 });
