@@ -46,6 +46,22 @@ export interface ProviderQuirks {
   /** 多轮工具调用时必须把历史推理原样发回（DeepSeek、MiniMax 的 Chat 接口），否则 400 */
   reasoningPassback?: boolean;
   userAgent?: string;
+  /**
+   * 按上游协议合并进请求体的额外字段（协议转换与请求修正之后、dropParams 之前），
+   * 如 MiniMax Chat 的 reasoning_split
+   */
+  extraBody?: Partial<Record<Wire, Record<string, unknown>>>;
+  /** 针对上游毛病的修正开关（§11.3、§12.7.3），都默认开；设为 false 关掉 */
+  fixes?: {
+    /** Chat 流修正（空 reasoning_content、finish_reason ""、重复空工具名、空 tool_calls） */
+    chatStream?: boolean;
+    /** 正文里写出的工具调用转成工具调用 */
+    textToolCalls?: boolean;
+    /** 复读检测 */
+    repetition?: boolean;
+    /** Chat 上游的工具名映射 */
+    toolNames?: boolean;
+  };
 }
 
 export interface RuntimeProvider {
@@ -86,6 +102,8 @@ export interface LearnedState {
   wireDown?: Partial<Record<Wire, { at: number; reason: string }>>;
   modelWire?: Record<string, Wire[]>;
   droppedParams?: Record<string, string[]>;
+  /** Responses 接口拒绝 custom 工具的模型：之后都从转换模式开始（§11.3） */
+  customToolsRefused?: string[];
 }
 
 export interface GatewayConfig {
@@ -98,4 +116,6 @@ export interface GatewayConfig {
   /** 用户确认过的回环 / 私网上游（host:port），见 §15 */
   allowedPrivateHosts?: string[];
   learned?: Record<string, LearnedState>;
+  /** 会话归属表文件（§11.4）；缺省只在内存里 */
+  sessionsFile?: string;
 }

@@ -14,7 +14,8 @@ import {
   MessagesEncoder,
   ResponsesEncoder,
 } from './encoders';
-import type { StreamDecoder, StreamEncoder } from './events';
+import type { NormEvent, StreamDecoder, StreamEncoder } from './events';
+import { EventFixer, fixEvents, fixesEnabled, type ResponseFixOptions } from './fixer';
 import { jsonToEvents } from './json';
 import { SseParser } from './sse';
 
@@ -29,6 +30,15 @@ export interface StreamConverter {
   end(): string;
   /** 上游中途失败（网络中断等）→ 下游错误事件 */
   fail(message: string): string;
+  /** 响应修正决定提前结束（复读检测）：调用方停止读上游 */
+  readonly stopped: boolean;
+}
+
+export interface ConvertOptions {
+  model?: string;
+  customTools?: ReadonlySet<string>;
+  /** 响应方向的上游毛病修正（§11.3）；不传时不做 */
+  fixes?: ResponseFixOptions;
 }
 
 function makeDecoder(f: UpstreamStreamFormat): StreamDecoder {
@@ -64,25 +74,38 @@ function makeEncoder(
 export function createStreamConverter(
   from: UpstreamStreamFormat,
   to: DownstreamStreamFormat,
-  opts: { model?: string; customTools?: ReadonlySet<string> } = {},
+  opts: ConvertOptions = {},
 ): StreamConverter {
   const parser = new SseParser();
   const dec = makeDecoder(from);
   const enc = makeEncoder(to, opts.model ?? '', opts.customTools);
+  const fixer = opts.fixes && fixesEnabled(opts.fixes) ? new EventFixer(opts.fixes) : null;
+  const emit = (n: NormEvent): string => {
+    if (!fixer) return enc.encode(n);
+    let s = '';
+    for (const f of fixer.push(n)) s += enc.encode(f);
+    return s;
+  };
   return {
     push(chunk) {
       let s = '';
-      for (const ev of parser.push(chunk)) for (const n of dec.push(ev)) s += enc.encode(n);
+      for (const ev of parser.push(chunk)) {
+        for (const n of dec.push(ev)) s += emit(n);
+        if (fixer?.tripped) break;
+      }
       return s;
     },
     end() {
       let s = '';
-      for (const ev of parser.end()) for (const n of dec.push(ev)) s += enc.encode(n);
-      for (const n of dec.end()) s += enc.encode(n);
+      for (const ev of parser.end()) for (const n of dec.push(ev)) s += emit(n);
+      for (const n of dec.end()) s += emit(n);
       return s + enc.end();
     },
     fail(message) {
       return enc.encode({ type: 'error', message, errorType: 'api_error' }) + enc.end();
+    },
+    get stopped() {
+      return fixer?.tripped === true;
     },
   };
 }
@@ -92,11 +115,11 @@ export function jsonToSse(
   from: UpstreamStreamFormat,
   to: DownstreamStreamFormat,
   body: unknown,
-  opts: { model?: string; customTools?: ReadonlySet<string> } = {},
+  opts: ConvertOptions = {},
 ): string {
   const enc = makeEncoder(to, opts.model ?? '', opts.customTools);
   let s = '';
-  for (const n of jsonToEvents(from, body)) s += enc.encode(n);
+  for (const n of jsonEvents(from, body, opts)) s += enc.encode(n);
   return s + enc.end();
 }
 
@@ -105,9 +128,17 @@ export function jsonToJson(
   from: UpstreamStreamFormat,
   to: DownstreamStreamFormat,
   body: unknown,
-  opts: { model?: string; customTools?: ReadonlySet<string> } = {},
+  opts: ConvertOptions = {},
 ): AggregateResult {
-  return eventsToJson(to, jsonToEvents(from, body), opts);
+  return eventsToJson(to, jsonEvents(from, body, opts), opts);
+}
+
+function jsonEvents(from: UpstreamStreamFormat, body: unknown, opts: ConvertOptions): NormEvent[] {
+  const evs = jsonToEvents(from, body);
+  // 非流式不做复读检测（整段已经生成完）
+  return opts.fixes && fixesEnabled(opts.fixes)
+    ? fixEvents(evs, { ...opts.fixes, repetition: false })
+    : evs;
 }
 
 export type { AggregateResult } from './aggregate';
@@ -116,3 +147,4 @@ export { SseParser, formatSse } from './sse';
 export type { NormEvent, StopReason, StreamUsage } from './events';
 export { mergeUsage } from './events';
 export { geminiErrorStatus } from './errors';
+export type { ResponseFixOptions, ResponseFixSwitches } from './fixer';

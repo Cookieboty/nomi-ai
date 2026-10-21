@@ -9,6 +9,7 @@ import {
   cleanToolSchema,
   filterAnthropicBeta,
   IMAGE_OMITTED_TEXT,
+  serverToolError,
   toolLimitError,
 } from '../src/fixes';
 import type { Wire } from '../src/ir';
@@ -267,7 +268,8 @@ describe('tool schema cleanup', () => {
       ],
     }) as J;
     expect(m.tools[0].input_schema).toEqual(cleaned);
-    expect(m.tools[1]).toEqual({ type: 'web_search_20250305', name: 'ws' });
+    // 与普通工具混在一起的服务端工具在第三方上游被去掉（见下方 server tools）
+    expect(m.tools).toHaveLength(1);
     const c = applyRequestFixes(cand('chat'), {
       tools: [{ type: 'function', function: { name: 'a', parameters: schema } }],
     }) as J;
@@ -457,5 +459,79 @@ describe('upstreamBody applies the fixes on both paths', () => {
     }
     const same = upstreamBody('responses', cand('responses'), body, { stream: false }) as J;
     expect(same.include).toEqual(['reasoning.encrypted_content']);
+  });
+});
+
+describe('server tools (web_search / web_fetch)', () => {
+  const search = { type: 'web_search_20250305', name: 'web_search', max_uses: 8 };
+  const fetchTool = { type: 'web_fetch_20250910', name: 'web_fetch' };
+  const bash = { name: 'Bash', input_schema: { type: 'object' } };
+  const ask = { model: 'm', messages: [{ role: 'user', content: 'search x' }] };
+
+  it('a dedicated server-tool request fails before sending on a third-party upstream', () => {
+    const c = cand('messages');
+    const msg = '当前模型不支持联网搜索（DeepSeek）';
+    expect(serverToolError(c, 'messages', { ...ask, tools: [search] })).toBe(msg);
+    // tool_choice 强制用服务端工具也算单独发起
+    expect(
+      serverToolError(c, 'messages', {
+        ...ask,
+        tools: [bash, search],
+        tool_choice: { type: 'tool', name: 'web_search' },
+      }),
+    ).toBe(msg);
+    // 跨协议：入口请求体里有，上游副本里已被解码器丢掉，所以按入口检查
+    expect(serverToolError(cand('chat'), 'messages', { ...ask, tools: [fetchTool] })).toBe(msg);
+    // 同协议时上游副本保留了服务端工具，toolLimitError 一并拦下
+    const sent = upstreamBody('messages', c, { ...ask, tools: [search] }, { stream: false }) as J;
+    expect(sent.tools).toEqual([search]);
+    expect(toolLimitError(c, sent)).toBe(msg);
+  });
+
+  it('passes through untouched on Anthropic official and for other ingress protocols', () => {
+    const official = cand('messages', {}, anthropicOfficial);
+    expect(serverToolError(official, 'messages', { ...ask, tools: [search] })).toBeNull();
+    expect(toolLimitError(official, { ...ask, tools: [search] })).toBeNull();
+    const out = applyRequestFixes(official, { ...ask, tools: [bash, search] }) as J;
+    expect(out.tools).toEqual([bash, search]);
+    expect(serverToolError(cand('chat'), 'chat', { ...ask, tools: [search] })).toBeNull();
+  });
+
+  it('mixed with normal tools: server tools are dropped from the upstream copy with a note', () => {
+    const c = cand('messages');
+    const body = { ...ask, tools: [bash, search, fetchTool] };
+    expect(serverToolError(c, 'messages', body)).toBeNull();
+    const notes: string[] = [];
+    const out = applyRequestFixes(c, body, notes) as J;
+    expect(out.tools).toEqual([bash]);
+    expect(body.tools).toHaveLength(3);
+    expect(notes).toContain('服务端工具 web_search、web_fetch 已去掉（上游不是 Anthropic 官方）');
+    expect(toolLimitError(c, out)).toBeNull();
+  });
+});
+
+describe('quirks.extraBody', () => {
+  const minimax = { quirks: { extraBody: { chat: { reasoning_split: true } } } };
+
+  it('merges the fields for the upstream wire after conversion', () => {
+    const c = cand('chat', {}, minimax);
+    const out = upstreamBody(
+      'messages',
+      c,
+      { model: 'm', max_tokens: 10, messages: [{ role: 'user', content: 'hi' }] },
+      { stream: true },
+    ) as J;
+    expect(out).toMatchObject({ model: 'deepseek-v4-pro', reasoning_split: true, stream: true });
+    const same = upstreamBody('chat', c, { model: 'x', messages: [] }, { stream: false }) as J;
+    expect(same.reasoning_split).toBe(true);
+  });
+
+  it('only applies to its own wire, and dropParams still wins', () => {
+    expect(
+      (applyRequestFixes(cand('messages', {}, minimax), { messages: [] }) as J).reasoning_split,
+    ).toBeUndefined();
+    const c = { ...cand('chat', {}, minimax), dropParams: ['reasoning_split'] };
+    const out = upstreamBody('chat', c, { model: 'x', messages: [] }, { stream: false }) as J;
+    expect(out).not.toHaveProperty('reasoning_split');
   });
 });

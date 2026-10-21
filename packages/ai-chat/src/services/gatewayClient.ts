@@ -72,6 +72,8 @@ export interface LearnedState {
   wireDown?: Partial<Record<Wire, { at: number; reason: string }>>;
   modelWire?: Record<string, Wire[]>;
   droppedParams?: Record<string, string[]>;
+  /** Responses 接口不接受 custom 工具的模型（改用转换模式） */
+  customToolsRefused?: string[];
 }
 
 export interface ClientModels {
@@ -111,6 +113,7 @@ export interface ProviderInput {
     dropParams?: string[];
     reasoningPassback?: boolean;
     preferWire?: Wire;
+    extraBody?: Partial<Record<Wire, Record<string, unknown>>>;
   };
 }
 

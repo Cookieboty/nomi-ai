@@ -377,4 +377,54 @@ describe('GatewayService', () => {
     t.svc.clearLearned('r');
     expect(t.svc.state().providers[0]!.learned).toBeUndefined();
   });
+
+  it('records key status from the gateway on the key, clears it on recovery', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'R',
+      urls: { chat: 'https://r/v1' },
+      newKeys: [{ value: 'sk-1' }],
+    });
+    const key = t.svc.state().providers[0]!.keys[0]!;
+    const pushes = t.children[0]!.sent.length;
+    t.svc.keyStatus({
+      providerId: 'r',
+      keyId: key.id,
+      wire: 'chat',
+      status: 'auth',
+      error: 'invalid key',
+    });
+    expect(t.svc.state().providers[0]!.keys[0]!.lastError).toBe('Chat 鉴权失败：invalid key');
+    // 只落盘、通知界面，不重推配置
+    expect(t.children[0]!.sent.length).toBe(pushes);
+    t.svc.keyStatus({ providerId: 'r', keyId: key.id, wire: 'chat', status: 'ok' });
+    expect(t.svc.state().providers[0]!.keys[0]!.lastError).toBeUndefined();
+  });
+
+  it('fills preset quirks into the runtime snapshot; saved quirks win', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-quirks-'));
+    const svc = new GatewayService({
+      root,
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+      presetQuirks: (id) =>
+        id === 'minimax'
+          ? { extraBody: { chat: { reasoning_split: true } }, dropParams: ['a'] }
+          : undefined,
+    });
+    svc.init();
+    svc.upsertProvider({
+      name: 'MM',
+      presetId: 'minimax',
+      urls: { chat: 'https://m/v1' },
+      quirks: { dropParams: ['b'] },
+    });
+    const p = svc.runtimeConfig().providers[0]!;
+    expect(p.quirks).toEqual({ extraBody: { chat: { reasoning_split: true } }, dropParams: ['b'] });
+  });
 });

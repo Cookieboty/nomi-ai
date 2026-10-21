@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { createSafeStorageCipher, migrateStoreData } from '@nomi-ai/ai-runtime';
+import { createSafeStorageCipher, findPreset, migrateStoreData } from '@nomi-ai/ai-runtime';
+import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
@@ -439,6 +440,7 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
+        presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
         legacy: {
           nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
           cliRoot,

@@ -15,6 +15,7 @@ import {
   type ClientModels,
   type GatewayConfig,
   type LearnedState,
+  type ProviderQuirks,
   type RuntimeProvider,
 } from '@nomi-ai/gateway';
 
@@ -68,7 +69,15 @@ export function providerSlug(name: string): string {
 export class GatewayStore {
   private data: GatewayStoreData;
 
-  constructor(private readonly d: { file: string; cipher: SecretCipher; logger?: Logger }) {
+  constructor(
+    private readonly d: {
+      file: string;
+      cipher: SecretCipher;
+      logger?: Logger;
+      /** 按预设 id 取厂商差异（ai-runtime 的 presets，由调用方注入，避免这里加载 AI SDK） */
+      presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
+    },
+  ) {
     this.data = this.load();
   }
 
@@ -229,6 +238,12 @@ export class GatewayStore {
     this.data.learned[providerId] = learned;
   }
 
+  private quirksOf(p: GatewayProvider): ProviderQuirks | undefined {
+    const preset = this.d.presetQuirks?.(p.presetId);
+    if (!preset && !p.quirks) return undefined;
+    return { ...preset, ...p.quirks };
+  }
+
   /* ------------------------------ 运行时快照 ------------------------------ */
 
   runtimeConfig(
@@ -272,7 +287,9 @@ export class GatewayStore {
             ),
           }
         : {}),
-      ...(p.quirks ? { quirks: p.quirks } : {}),
+      // 预设里的厂商差异随版本更新（如后来补上的 MiniMax reasoning_split），已保存的供应商也能用上；
+      // 保存时带的值优先
+      ...(this.quirksOf(p) ? { quirks: this.quirksOf(p) } : {}),
     }));
     const clients: GatewayConfig['clients'] = {};
     for (const id of CLIENT_IDS) {

@@ -7,21 +7,28 @@ import { timingSafeEqual } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
 
+import { Affinity, sessionKey } from './affinity';
 import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
-import { customToolNames } from './customTools';
+import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
+import { customToolNames, isCustomToolRefusal } from './customTools';
 import { errorResponse, kindOfStatus, upstreamMessage } from './errors';
-import { applyRequestFixes, toolLimitError } from './fixes';
+import { applyRequestFixes, serverToolError, toolLimitError } from './fixes';
 import { ingressFromPath, type Ingress } from './ingress';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { modelsBody } from './models';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { hasSealedReasoning, REASONING_REJECTION, stripSealedReasoning } from './reasoning';
+import { responseFixOptions } from './responseFixes';
 import { completeResponsesBody, ResponsesUsagePatcher } from './responsesUsage';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
+import { SessionTable } from './sessions';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
-import { estimateRequestTokens } from './tokens';
+import { patchChatJson } from './stream/chatPatch';
+import { createPassthrough } from './stream/passthrough';
+import { calibratedCount, measuredInputTokens, recordUsage, sessionKeyOf } from './tokens';
 import { upstreamBody, upstreamHeaders, upstreamUrl } from './upstream';
 import { usageOfJson, UsageTap } from './usageTap';
 
@@ -61,12 +68,16 @@ export interface GatewayHooks {
   onUsage?: (e: UsageEvent) => void;
   /** 运行时学到的东西（主进程持久化，§7.4） */
   onLearn?: (e: LearnEvent) => void;
+  /** Key × wire 的状态变化（401/403 → auth，429 → limited，之后恢复 → ok；§11.1），主进程记 lastError */
+  onKeyStatus?: (e: KeyStatusEvent) => void;
   logger?: { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
   /** 测试注入 */
   fetchImpl?: typeof fetch;
   lookupAll?: LookupAll;
   firstByteTimeoutMs?: number;
   streamIdleTimeoutMs?: number;
+  /** 冷却与亲和用的时钟（测试注入假时钟） */
+  now?: () => number;
 }
 
 function tokenEquals(a: string, b: string): boolean {
@@ -75,9 +86,15 @@ function tokenEquals(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
-function sendJson(res: http.ServerResponse, status: number, body: unknown) {
+function sendJson(
+  res: http.ServerResponse,
+  status: number,
+  body: unknown,
+  extra?: Record<string, string>,
+) {
   const data = JSON.stringify(body);
   res.writeHead(status, {
+    ...extra,
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(data),
   });
@@ -137,6 +154,12 @@ type Attempt =
       /** 上游错误体与本次发出的请求体（运行时学习分类用，§7.4） */
       text?: string;
       sent?: unknown;
+      /** 上游真实返回的状态码（冷却按它判断，§11.1） */
+      upstreamStatus?: number;
+      /** 连接失败或首字节前超时 */
+      network?: boolean;
+      /** 上游的 Retry-After 原文（冷却时长；最终错误原样转发，§9.6） */
+      retryAfter?: string;
     };
 
 export class GatewayServer {
@@ -144,11 +167,21 @@ export class GatewayServer {
   private readonly sockets = new Set<Socket>();
 
   private readonly learner: Learner;
+  private readonly cooldowns: Cooldowns;
+  private readonly affinity: Affinity;
+  private readonly sessions: SessionTable;
 
   constructor(
     private cfg: GatewayConfig,
     private readonly hooks: GatewayHooks = {},
   ) {
+    const now = hooks.now ?? Date.now;
+    this.cooldowns = new Cooldowns((e) => {
+      this.hooks.logger?.info('gateway key status', e);
+      this.hooks.onKeyStatus?.(e);
+    }, now);
+    this.affinity = new Affinity(now);
+    this.sessions = new SessionTable(cfg.sessionsFile ?? null, now);
     this.learner = new Learner((e) => {
       this.hooks.logger?.info('gateway learned', e);
       this.hooks.onLearn?.(e);
@@ -180,6 +213,7 @@ export class GatewayServer {
   }
 
   stop(): void {
+    this.sessions.flush();
     const s = this.server;
     this.server = null;
     try {
@@ -265,9 +299,11 @@ export class GatewayServer {
     ingress: Ingress,
   ): Promise<void> {
     const startedAt = Date.now();
-    const fail = (status: number, message: string) => {
+    const fail = (status: number, message: string, retryAfter?: string) => {
       const e = errorResponse(ingress.wire, kindOfStatus(status, message), message);
-      if (!res.headersSent) sendJson(res, e.status, e.body);
+      // 上游给了 Retry-After 时原样转发，CLI 自带的重试会照着等（§9.6）
+      if (!res.headersSent)
+        sendJson(res, e.status, e.body, retryAfter ? { 'Retry-After': retryAfter } : undefined);
       else res.end();
     };
     let body: unknown;
@@ -304,21 +340,70 @@ export class GatewayServer {
     const errors: string[] = [];
     let attempts = 0;
     let last: Attempt | null = null;
-    // 被短期压制的候选排到后面；学习触发的重试（换 wire / 去掉字段）插到队首，每个请求最多 2 次（§7.4）
-    const queue = this.withSuppression(cfg, r.candidates, ingress.wire);
+    // 排序：被短期压制的（§7.4）和冷却中的（§11.1）排到后面，亲和的排到第一（§11.2）。
+    // 学习触发的重试（换 wire / 去掉字段）插到队首，每个请求最多 2 次（§7.4）
+    const session = sessionKey(ingress.wire, req.headers, body, client);
+    // 会话归属（§11.4）只认 CLI 给的会话标识，不用内容哈希
+    const owner = sessionKey(ingress.wire, req.headers, body, client, { hashFallback: false });
+    let stripAll = false;
+    const queue = this.ordered(
+      this.withSuppression(cfg, r.candidates, ingress.wire),
+      session ? this.affinity.get(session) : null,
+    );
     let learnRetries = 0;
     while (queue.length && attempts < MAX_ATTEMPTS) {
       if (Date.now() - startedAt > FIRST_BYTE_BUDGET_MS || abort.signal.aborted) break;
       const cand = queue.shift()!;
       attempts++;
-      last = await this.attempt(cfg, req, ingress, cand, body, wantsStream, abort.signal);
+      // 同协议透传：历史里的加密推理和签名只在上一轮是同一 (供应商, Key, 协议) 时保留（§9.3）
+      const keep =
+        !stripAll &&
+        ingress.wire === cand.wire &&
+        this.sessions.canKeep(owner, {
+          providerId: cand.provider.id,
+          keyId: cand.key.id,
+          wire: cand.wire,
+        });
+      const sendBody =
+        ingress.wire === cand.wire && !keep ? stripSealedReasoning(ingress.wire, body) : body;
+      last = await this.attempt(cfg, req, ingress, cand, sendBody, wantsStream, abort.signal);
       if (last.kind === 'response') {
         this.learner.success(cand);
+        this.cooldowns.success(cand);
+        if (session)
+          this.affinity.set(session, { providerId: cand.provider.id, keyId: cand.key.id });
+        this.sessions.record(owner, {
+          providerId: cand.provider.id,
+          keyId: cand.key.id,
+          wire: cand.wire,
+          model: cand.publicModel,
+        });
         break;
+      }
+      // 带着保留下来的推理被拒：剥掉全部重试一次，这个会话之后都不再保留（§9.3 被拒后的兜底）
+      if (
+        keep &&
+        last.status === 400 &&
+        learnRetries < MAX_LEARN_RETRIES &&
+        hasSealedReasoning(ingress.wire, body) &&
+        REASONING_REJECTION.test(last.text ?? last.message)
+      ) {
+        this.sessions.markNoKeep(owner);
+        stripAll = true;
+        learnRetries++;
+        errors.push(`${cand.provider.name}·${cand.wire}: ${last.message}`);
+        queue.unshift(cand);
+        continue;
       }
       errors.push(
         `${cand.provider.name}·${cand.key.name ?? cand.key.id}·${cand.wire}: ${last.message}`,
       );
+      if (coolsDown(last) && !abort.signal.aborted)
+        this.cooldowns.fail(cand, {
+          upstreamStatus: last.upstreamStatus,
+          retryAfter: last.retryAfter,
+          message: last.message,
+        });
       const hint =
         last.text !== undefined
           ? this.learner.failure(cand, classifyFailure(last.status, last.text, last.sent))
@@ -334,7 +419,27 @@ export class GatewayServer {
         queue.unshift(retry);
         continue;
       }
-      if (!last.retryable) break;
+      // 学习类错误换不了 wire 时也换下一个候选；其余按 §11.1 的规则
+      // Responses 上游不接受 custom 工具：转成函数工具重试一次，记下来之后都用转换模式（§11.3）
+      if (
+        last.text !== undefined &&
+        cand.wire === 'responses' &&
+        !cand.customToolsAsFunctions &&
+        learnRetries < MAX_LEARN_RETRIES &&
+        isCustomToolRefusal(last.status, last.text, last.sent)
+      ) {
+        this.learner.customToolsRefused(cand);
+        learnRetries++;
+        queue.unshift({ ...cand, customToolsAsFunctions: true });
+        continue;
+      }
+      // 模型在这个供应商不存在：同供应商的其它 Key 也没有，跳到回退的供应商
+      if (last.status === 404) {
+        const others = queue.filter((c) => c.provider.id !== cand.provider.id);
+        queue.splice(0, queue.length, ...others);
+        if (others.length) continue;
+      }
+      if (!last.retryable && !hint) break;
     }
     if (!last || last.kind === 'failed') {
       const status = last?.status ?? 502;
@@ -342,7 +447,7 @@ export class GatewayServer {
         errors.length > 1
           ? `Nomi 网关：所有候选都失败了 —— ${errors.join('；')}`
           : (last?.message ?? 'Nomi 网关：没有可用的候选');
-      fail(status, message);
+      fail(status, message, last?.retryAfter);
       this.hooks.onUsage?.({
         client,
         ingress: ingress.wire,
@@ -363,8 +468,19 @@ export class GatewayServer {
       });
       return;
     }
-    const { res: up, cand, notes } = last;
-    const usage = await this.respond(res, ingress, cand, up, body, wantsStream, abort);
+    const { res: up, cand } = last;
+    // 请求修正（attempt）之后再追加响应修正（respond，§11.3）
+    const notes = [...(last.notes ?? [])];
+    const usage = await this.respond(res, ingress, cand, up, body, wantsStream, abort, notes);
+    // 用真实用量校准 count_tokens（§10.3）
+    recordUsage({
+      sessionKey: sessionKeyOf(ingress.wire, req.headers, body),
+      providerId: cand.provider.id,
+      model: cand.upstreamModel,
+      wire: ingress.wire,
+      body,
+      inputTokens: measuredInputTokens(cand.wire, usage),
+    });
     this.hooks.onUsage?.({
       client,
       ingress: ingress.wire,
@@ -377,7 +493,7 @@ export class GatewayServer {
       startedAt,
       ms: Date.now() - startedAt,
       attempts,
-      ...(notes ? { notes } : {}),
+      ...(notes.length ? { notes } : {}),
     });
   }
 
@@ -397,6 +513,26 @@ export class GatewayServer {
       tail.push(c);
     }
     return [...head, ...tail];
+  }
+
+  /**
+   * 冷却中的 (供应商, Key, wire) 排到队尾（没有别的可用时照样尝试，§11.1）；
+   * 会话上次成功的 (供应商, Key) 不在冷却期就排到第一（§11.2）。其余保持原顺序。
+   */
+  private ordered(
+    cands: Candidate[],
+    sticky: { providerId: string; keyId: string } | null,
+  ): Candidate[] {
+    const first: Candidate[] = [];
+    const rest: Candidate[] = [];
+    const cooling: Candidate[] = [];
+    for (const c of cands) {
+      if (this.cooldowns.isCooling(c)) cooling.push(c);
+      else if (sticky && c.provider.id === sticky.providerId && c.key.id === sticky.keyId)
+        first.push(c);
+      else rest.push(c);
+    }
+    return [...first, ...rest, ...cooling];
   }
 
   /** 一次上游尝试；拿到 2xx 响应头就算成功（之后不再换候选） */
@@ -435,6 +571,9 @@ export class GatewayServer {
     // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
     const tooMany = toolLimitError(cand, sent);
     if (tooMany) return { kind: 'failed', status: 400, message: tooMany, retryable: true, cand };
+    // 专门的联网搜索请求发给不支持服务端工具的上游：明确报错，不返回没有搜索结果的回答
+    const noSearch = serverToolError(cand, ingress.wire, body);
+    if (noSearch) return { kind: 'failed', status: 400, message: noSearch, retryable: true, cand };
     if (notes.length)
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
     const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
@@ -460,19 +599,16 @@ export class GatewayServer {
         message: timedOut ? '上游在首字节前超时' : `连接上游失败：${(e as Error).message}`,
         retryable: !signal.aborted,
         cand,
+        network: !signal.aborted,
       };
     }
     if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
     const text = await res.text().catch(() => '');
     const s = res.status;
-    const retryable =
-      s === 429 ||
-      s >= 500 ||
-      s === 401 ||
-      s === 403 ||
-      s === 404 ||
-      s === 405 ||
-      (s >= 300 && s < 400);
+    // §11.1：429 / 5xx / 529 / 401 / 403 换下一个候选；其余 4xx 不换（学习类错误由调用方另算）。
+    // 重定向按网关错误（502）处理，换下一个候选，但不冷却
+    const retryable = s === 429 || s >= 500 || s === 401 || s === 403 || (s >= 300 && s < 400);
+    const retryAfter = res.headers.get('retry-after') ?? undefined;
     return {
       kind: 'failed',
       status: s >= 300 && s < 400 ? 502 : s,
@@ -481,10 +617,12 @@ export class GatewayServer {
       cand,
       text,
       sent,
+      upstreamStatus: s,
+      ...(retryAfter ? { retryAfter } : {}),
     };
   }
 
-  /** 把上游的 2xx 响应按入口协议写回客户端，返回用量 */
+  /** 把上游的 2xx 响应按入口协议写回客户端，返回用量；做了的响应修正追加到 notes（§11.3） */
   private async respond(
     res: http.ServerResponse,
     ingress: Ingress,
@@ -493,12 +631,16 @@ export class GatewayServer {
     body: unknown,
     wantsStream: boolean,
     abort: AbortController,
+    notes: string[] = [],
   ): Promise<StreamUsage> {
-    const same = ingress.wire === cand.wire;
+    // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
+    const passthrough = ingress.wire === cand.wire && !cand.customToolsAsFunctions;
     const isSse = (up.headers.get('content-type') ?? '').includes('text/event-stream');
+    const fixes = responseFixOptions(ingress.wire, cand, body, notes);
     const convOpts = {
       model: cand.publicModel,
       customTools: ingress.wire === 'responses' ? customToolNames(body) : undefined,
+      fixes,
     };
     if (wantsStream && isSse && up.body) {
       res.writeHead(200, {
@@ -507,9 +649,12 @@ export class GatewayServer {
         Connection: 'keep-alive',
       });
       const tap = new UsageTap(cand.wire);
-      const conv = same ? null : createStreamConverter(cand.wire, ingress.wire, convOpts);
+      // 同协议：按事件透传，只在修正触发时改事件；跨协议：解码 → 修正 → 编码
+      const pass = passthrough ? createPassthrough(cand.wire, fixes) : null;
+      const conv = passthrough ? null : createStreamConverter(cand.wire, ingress.wire, convOpts);
       // Responses 入口：补全严格客户端要求的用量字段（同协议透传与转换都要）
       const usageFix = ingress.wire === 'responses' ? new ResponsesUsagePatcher() : null;
+      const raw = passthrough && !pass && !usageFix;
       const write = (chunk: string) => {
         const out = usageFix ? usageFix.push(chunk) : chunk;
         if (out) res.write(out);
@@ -519,6 +664,7 @@ export class GatewayServer {
       const idleMs = this.hooks.streamIdleTimeoutMs ?? STREAM_IDLE_TIMEOUT_MS;
       let idle: ReturnType<typeof setTimeout> | null = null;
       let idleFired = false;
+      let stopped = false;
       const arm = () => {
         if (idle) clearTimeout(idle);
         idle = setTimeout(() => {
@@ -535,16 +681,28 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
-          if (!conv && !usageFix) res.write(Buffer.from(value));
-          else write(conv ? conv.push(text) : text);
+          if (raw) res.write(Buffer.from(value));
+          else write(conv ? conv.push(text) : pass ? pass.push(text) : text);
+          // 复读检测触发：错误事件已经写出，不再读上游
+          if (conv?.stopped || pass?.stopped) {
+            stopped = true;
+            break;
+          }
         }
-        const rest = decoder.decode();
-        tap.push(rest);
-        if (conv) write(conv.push(rest) + conv.end());
-        else if (rest) write(rest);
+        if (!stopped) {
+          const rest = decoder.decode();
+          tap.push(rest);
+          if (conv) write(conv.push(rest) + conv.end());
+          else if (pass) write(pass.push(rest) + pass.end());
+          else if (rest) write(rest);
+        }
         if (usageFix) {
           const tail = usageFix.end();
           if (tail) res.write(tail);
+        }
+        if (stopped) {
+          if (idle) clearTimeout(idle);
+          await reader.cancel().catch(() => undefined);
         }
       } catch (e) {
         if (!res.destroyed) {
@@ -583,14 +741,20 @@ export class GatewayServer {
       }
       return usage;
     }
-    if (same || typeof parsed !== 'object') {
+    if (passthrough || typeof parsed !== 'object' || !parsed) {
       res.writeHead(up.status, {
         'Content-Type': up.headers.get('content-type') ?? 'application/json',
       });
+      const patched =
+        passthrough && cand.wire === 'chat' && parsed && typeof parsed === 'object'
+          ? patchChatJson(parsed, fixes)
+          : parsed;
       res.end(
         ingress.wire === 'responses' && parsed && typeof parsed === 'object'
           ? JSON.stringify(completeResponsesBody(parsed))
-          : text,
+          : patched !== parsed
+            ? JSON.stringify(patched)
+            : text,
       );
       return usage;
     }
@@ -634,7 +798,14 @@ export class GatewayServer {
         /* 退回本地估算 */
       }
     }
-    const n = estimateRequestTokens(body);
+    // 用同一会话最近的真实用量校准（§10.3）；res.req 是这次的入站请求
+    const n = calibratedCount({
+      sessionKey: sessionKeyOf(ingress.wire, res.req.headers, body),
+      providerId: cand.provider.id,
+      model: cand.upstreamModel,
+      wire: ingress.wire,
+      body,
+    });
     sendJson(res, 200, ingress.wire === 'gemini' ? { totalTokens: n } : { input_tokens: n });
   }
 }

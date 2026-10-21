@@ -542,6 +542,9 @@ const LearnedInfo: React.FC<{ learned: LearnedState; onClear: () => void }> = ({
     ...Object.entries(learned.modelWire ?? {}).map(([m, ws]) =>
       t('{0} 只走 {1}', m, ws.map((w) => WIRE_LABEL[w]).join(' / ')),
     ),
+    ...(learned.customToolsRefused ?? []).map((m) =>
+      t('{0} 的 Responses 接口不接受自定义工具，改用转换', m),
+    ),
     ...Object.entries(learned.droppedParams ?? {}).map(([w, ps]) =>
       t('{0} 不发送字段：{1}', WIRE_LABEL[w as Wire] ?? w, ps.join('、')),
     ),

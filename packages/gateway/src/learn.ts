@@ -14,7 +14,9 @@ import type { Candidate } from './route/resolve';
 export type LearnEvent =
   | { type: 'model-wire'; providerId: string; model: string; exclude: Wire }
   | { type: 'dropped-param'; providerId: string; wire: Wire; param: string }
-  | { type: 'wire-suspect'; providerId: string; wire: Wire; reason: string };
+  | { type: 'wire-suspect'; providerId: string; wire: Wire; reason: string }
+  /** Responses 上游拒绝 custom 工具：主进程把 model 追加到 learned[providerId].customToolsRefused */
+  | { type: 'custom-tools-refused'; providerId: string; model: string };
 
 export type Failure =
   | { kind: 'wire-missing' }
@@ -113,6 +115,11 @@ export class Learner {
     this.streaks.delete(k);
     this.reported.delete(k);
     this.suppressedUntil.delete(`${c.provider.id}|${c.key.id}|${c.wire}`);
+  }
+
+  /** Responses 上游拒绝了 custom 工具（§11.3）：报给主进程，之后这个模型从转换模式开始 */
+  customToolsRefused(c: Candidate): void {
+    this.onLearn({ type: 'custom-tools-refused', providerId: c.provider.id, model: modelOf(c) });
   }
 
   /** 记一次失败，返回这次请求该怎么重试（null = 不按学习重试） */

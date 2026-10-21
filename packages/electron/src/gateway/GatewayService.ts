@@ -19,6 +19,7 @@ import {
   type DetectResult,
   type GatewayConfig,
   type LearnedState,
+  type KeyStatusEvent,
   type LearnEvent,
   type ProviderQuirks,
   type UsageEvent,
@@ -43,12 +44,20 @@ import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './t
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type NomiRole = 'chat' | 'agent-tools' | 'summary';
 
+const WIRE_LABEL: Record<Wire, string> = {
+  messages: 'Anthropic',
+  responses: 'Responses',
+  chat: 'Chat',
+  gemini: 'Gemini',
+};
+
 function hasLearned(l: LearnedState | undefined): l is LearnedState {
   return Boolean(
     l &&
     (Object.keys(l.wireDown ?? {}).length ||
       Object.keys(l.modelWire ?? {}).length ||
-      Object.keys(l.droppedParams ?? {}).length),
+      Object.keys(l.droppedParams ?? {}).length ||
+      l.customToolsRefused?.length),
   );
 }
 
@@ -115,6 +124,8 @@ export interface GatewayServiceDeps {
     routeListening: () => boolean;
   };
   onUsage?: (e: UsageEvent) => void;
+  /** 按预设 id 取厂商差异（ai-runtime presets） */
+  presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
   detectImpl?: typeof detect;
   broadcast?: (channel: string, payload: unknown) => void;
@@ -129,6 +140,7 @@ export class GatewayService {
       file: path.join(d.root, 'store.json'),
       cipher: d.cipher,
       logger: d.logger,
+      presetQuirks: d.presetQuirks,
     });
     this.proc =
       d.process ??
@@ -136,6 +148,7 @@ export class GatewayService {
         logger: d.logger,
         onUsage: (e) => d.onUsage?.(e),
         onLearn: (e) => void this.learn(e),
+        onKeyStatus: (e) => this.keyStatus(e),
         onStatus: () => this.changed(),
       });
   }
@@ -177,6 +190,8 @@ export class GatewayService {
   /** 推给网关进程的快照 */
   runtimeConfig(): GatewayConfig {
     const cfg = this.store.runtimeConfig({ legacyToken: this.d.legacy?.token() ?? undefined });
+    // 会话归属表由网关进程自己读写（§11.4）
+    cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;
@@ -518,6 +533,10 @@ export class GatewayService {
       // 一个都不剩：说明判断不可靠，不学（宁可让请求照常失败）
       if (!allowed.length) return;
       cur.modelWire = { ...cur.modelWire, [e.model]: allowed };
+    } else if (e.type === 'custom-tools-refused') {
+      // 这个模型的 Responses 接口不接受 custom 工具：之后一开始就用转换模式（§11.3）
+      if (cur.customToolsRefused?.includes(e.model)) return;
+      cur.customToolsRefused = [...(cur.customToolsRefused ?? []), e.model];
     } else {
       const url = p.urls[e.wire];
       if (!url) return;
@@ -541,6 +560,30 @@ export class GatewayService {
     this.d.logger.info('gateway learned', e);
     this.store.setLearned(p.id, cur);
     this.commit();
+  }
+
+  /**
+   * 网关报回来的 Key 状态（§11.1）：鉴权失败 / 限流时把原因记在这个 Key 上（「模型」页标红），
+   * 恢复后清掉。只落盘和通知界面，不推新配置给网关。
+   */
+  keyStatus(e: KeyStatusEvent): void {
+    const p = this.store.providers().find((x) => x.id === e.providerId);
+    const k = p?.keys.find((x) => x.id === e.keyId);
+    if (!p || !k) return;
+    const label = WIRE_LABEL[e.wire] ?? e.wire;
+    const next =
+      e.status === 'ok'
+        ? undefined
+        : e.status === 'auth'
+          ? tr('{0} 鉴权失败：{1}', label, e.error ?? '')
+          : tr('{0} 被限流：{1}', label, e.error ?? '');
+    if (k.lastError === next) return;
+    this.store.upsertProvider({
+      ...p,
+      keys: p.keys.map((x) => (x.id === k.id ? { ...x, lastError: next } : x)),
+    });
+    this.store.save();
+    this.changed();
   }
 
   confirmPrivateHost(hostPort: string): void {

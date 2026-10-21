@@ -10,6 +10,7 @@ import * as path from 'path';
 
 import type {
   GatewayConfig,
+  KeyStatusEvent,
   LearnEvent,
   UsageEvent,
   WorkerInbound,
@@ -71,6 +72,7 @@ export class GatewayProcess {
       logger: Logger;
       onUsage?: (e: UsageEvent) => void;
       onLearn?: (e: LearnEvent) => void;
+      onKeyStatus?: (e: KeyStatusEvent) => void;
       onStatus?: (s: GatewayStatus) => void;
       fork?: ForkGateway;
       /** 网关入口文件（默认与本文件同目录的 worker.js） */
@@ -143,6 +145,8 @@ export class GatewayProcess {
       this.d.onUsage?.(m.event);
     } else if (m.type === 'learn') {
       this.d.onLearn?.(m.event);
+    } else if (m.type === 'key-status') {
+      this.d.onKeyStatus?.(m.event);
     } else if (m.type === 'error') {
       this.d.logger.warn('gateway error', m.message);
       // 端口被占用等启动失败：换配置前不再重试

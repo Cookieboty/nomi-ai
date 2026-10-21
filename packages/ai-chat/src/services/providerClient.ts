@@ -56,6 +56,9 @@ export interface ProviderPreset {
     dropParams?: string[];
     reasoningPassback?: boolean;
     preferWire?: 'messages' | 'responses' | 'chat' | 'gemini';
+    extraBody?: Partial<
+      Record<'messages' | 'responses' | 'chat' | 'gemini', Record<string, unknown>>
+    >;
   };
   codingPlan?: boolean;
 }

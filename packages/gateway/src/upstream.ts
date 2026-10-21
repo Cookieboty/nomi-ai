@@ -2,6 +2,7 @@
  * 上游请求的拼装：地址（§8.1 的约定）、鉴权头（§8.3）、请求体（同协议外科式改写 / 跨协议经 IR）。
  */
 import type { AuthStyle } from './config';
+import { customToolsToFunctions } from './customTools';
 import { applyRequestFixes, filterAnthropicBeta, isAnthropicOfficial } from './fixes';
 import { geminiModelPath } from './ingress';
 import type { Wire } from './ir';
@@ -106,6 +107,13 @@ export function upstreamBody(
   if (ingress === c.wire) {
     out =
       c.wire === 'gemini' ? body : { ...(body as Record<string, unknown>), model: c.upstreamModel };
+    // Responses 上游拒绝过 custom 工具：改成函数发出（§11.3），回程由 respond 还原
+    if (c.customToolsAsFunctions && c.wire === 'responses') {
+      const converted = customToolsToFunctions(out);
+      if (converted !== out)
+        opts.notes?.push('custom 工具已改成函数发出（上游不支持 custom 工具）');
+      out = converted;
+    }
   } else {
     out = convertRequest(ingress, c.wire, body, {
       model: opts.ingressModel,

@@ -282,5 +282,7 @@ describe('preset verification metadata', () => {
     expect(by('zhipu-coding').codingPlan).toBe(true);
     expect(by('deepseek').quirks?.reasoningPassback).toBe(true);
     expect(by('kimi').quirks?.dropParams).toContain('temperature');
+    // MiniMax Chat 不加 reasoning_split 时思考以 <think> 标签混在正文里
+    expect(by('minimax').quirks?.extraBody).toEqual({ chat: { reasoning_split: true } });
   });
 });

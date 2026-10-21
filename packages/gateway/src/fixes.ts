@@ -6,6 +6,7 @@
 import type { RuntimeModel } from './config';
 import type { Wire } from './ir';
 import type { Candidate } from './route/resolve';
+import { mapChatToolNames } from './toolNames';
 
 type Obj = Record<string, unknown>;
 
@@ -55,14 +56,63 @@ export function toolCount(wire: Wire, body: unknown): number {
   return n;
 }
 
-/** 工具数超过 quirks.maxTools 时返回给用户的错误信息；没超过返回 null */
+/** 工具数超过 quirks.maxTools（或上游不支持单独的服务端工具请求）时返回给用户的错误信息；否则 null */
 export function toolLimitError(c: Candidate, body: unknown): string | null {
+  // 同协议（Messages → Messages）时单独发起的服务端工具请求原样留在上游副本里，在这里拦下
+  const server = serverToolError(c, c.wire, body);
+  if (server) return server;
   const max = c.provider.quirks?.maxTools;
   if (!max || max <= 0) return null;
   const n = toolCount(c.wire, body);
   return n > max
     ? `当前供应商一次最多支持 ${max} 个工具，这次请求带了 ${n} 个，请减少 MCP 工具`
     : null;
+}
+
+/* ------------------------------- 服务端工具 ------------------------------- */
+
+/** Anthropic 服务端工具（在 Anthropic 那边执行）：web_search_*、web_fetch_*、code_execution_* */
+const SERVER_TOOL_RE = /^(web_search|web_fetch|code_execution)_/;
+
+export const SERVER_TOOL_UNSUPPORTED = '当前模型不支持联网搜索';
+
+function isServerTool(t: unknown): t is Obj {
+  return isObj(t) && typeof t.type === 'string' && SERVER_TOOL_RE.test(t.type);
+}
+
+/** Messages 请求是「单独发起的服务端工具请求」：工具只有服务端工具，或 tool_choice 强制用其中一个 */
+function isDedicatedServerToolRequest(o: Obj): boolean {
+  const tools = Array.isArray(o.tools) ? o.tools : [];
+  const server = tools.filter(isServerTool);
+  if (!server.length) return false;
+  if (server.length === tools.length) return true;
+  const tc = o.tool_choice;
+  return isObj(tc) && tc.type === 'tool' && server.some((t) => t.name === tc.name);
+}
+
+/**
+ * 服务端工具的预检（§12.7.3）：上游不是 Anthropic 官方、而请求是单独发起的服务端工具请求时，
+ * 返回给用户的错误（不发请求，避免静默返回一个没有搜索结果的回答）；否则 null。
+ * body 是 Messages 协议的请求体（入口请求体，或同协议时发给上游的请求体）。
+ */
+export function serverToolError(c: Candidate, ingress: Wire, body: unknown): string | null {
+  if (ingress !== 'messages' || isAnthropicOfficial(c) || !isObj(body)) return null;
+  return isDedicatedServerToolRequest(body)
+    ? `${SERVER_TOOL_UNSUPPORTED}（${c.provider.name}）`
+    : null;
+}
+
+/** 与普通工具混在一起的服务端工具：从上游副本里去掉 */
+function dropServerTools(o: Obj, notes: string[]): void {
+  if (!Array.isArray(o.tools) || isDedicatedServerToolRequest(o)) return;
+  const kept = o.tools.filter((t) => !isServerTool(t));
+  if (kept.length === o.tools.length) return;
+  const names = o.tools
+    .filter(isServerTool)
+    .map((t) => String(t.name ?? t.type))
+    .join('、');
+  o.tools = kept;
+  notes.push(`服务端工具 ${names} 已去掉（上游不是 Anthropic 官方）`);
 }
 
 /* ------------------------------- 输出上限 / 推理 ------------------------------- */
@@ -327,6 +377,7 @@ export function applyRequestFixes(c: Candidate, body: unknown, notes: string[] =
   if (!isAnthropicOfficial(c) && !isOpenAIOfficial(c)) cleanTools(o, wire);
   if (wire === 'messages' && !isAnthropicOfficial(c)) {
     mergeSystemMessages(o, notes);
+    dropServerTools(o, notes);
     for (const k of ANTHROPIC_ONLY_FIELDS) {
       if (k in o) {
         delete o[k];
@@ -334,5 +385,10 @@ export function applyRequestFixes(c: Candidate, body: unknown, notes: string[] =
       }
     }
   }
+  // Chat 上游的工具名必须匹配 ^[a-zA-Z0-9_-]{1,64}$，回程在 respond 里还原（toolNames.ts）
+  if (wire === 'chat' && c.provider.quirks?.fixes?.toolNames !== false) mapChatToolNames(o, notes);
+  // 厂商要求的额外字段（quirks.extraBody），调用方随后再去掉 dropParams
+  const extra = c.provider.quirks?.extraBody?.[wire];
+  if (extra) Object.assign(o, extra);
   return o;
 }

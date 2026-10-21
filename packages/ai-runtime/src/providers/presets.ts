@@ -73,6 +73,8 @@ export interface PresetQuirks {
   /** 多轮工具调用时必须把历史推理发回（Chat 写进 reasoning_content） */
   reasoningPassback?: boolean;
   preferWire?: PresetWire;
+  /** 按上游协议合并进请求体的额外字段（如 MiniMax Chat 的 reasoning_split） */
+  extraBody?: Partial<Record<PresetWire, Record<string, unknown>>>;
 }
 
 /** 预设核对日期 */
@@ -220,7 +222,8 @@ const GATEWAY_EXT: Readonly<Record<string, Partial<ProviderPreset>>> = {
     ],
   },
   // https://platform.minimax.cn/docs/api-reference/text-openai-api ；/text-anthropic-api ：没有 Responses；
-  // 工具调用对话必须原样发回思考；M3.1-Flash 不支持 service_tier
+  // 工具调用对话必须原样发回思考；M3.1-Flash 不支持 service_tier；
+  // Chat 接口默认把思考以 <think> 标签混在 content 里，reasoning_split=true 时改为单独的 reasoning_content
   minimax: {
     urls: {
       chat: 'https://api.minimax.cn/v1',
@@ -244,7 +247,11 @@ const GATEWAY_EXT: Readonly<Record<string, Partial<ProviderPreset>>> = {
         toolCalling: true,
       },
     ],
-    quirks: { dropParams: ['service_tier'], reasoningPassback: true },
+    quirks: {
+      dropParams: ['service_tier'],
+      reasoningPassback: true,
+      extraBody: { chat: { reasoning_split: true } },
+    },
   },
   // 只核对了地址，没有整理模型元数据
   openai: { urls: { chat: 'https://api.openai.com/v1', responses: 'https://api.openai.com/v1' } },

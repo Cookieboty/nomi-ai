@@ -4,6 +4,7 @@
  * 这里不依赖 Electron：port 只要有 on('message') / postMessage 即可，单测用假的 port。
  */
 import type { GatewayConfig } from './config';
+import type { KeyStatusEvent } from './cooldown';
 import type { LearnEvent } from './learn';
 import { createGateway, type GatewayHooks, type GatewayServer, type UsageEvent } from './server';
 
@@ -13,6 +14,7 @@ export type WorkerOutbound =
   | { type: 'listening'; port: number; url: string }
   | { type: 'usage'; event: UsageEvent }
   | { type: 'learn'; event: LearnEvent }
+  | { type: 'key-status'; event: KeyStatusEvent }
   | { type: 'error'; message: string; fatal: boolean }
   | { type: 'stopped' };
 
@@ -23,7 +25,7 @@ export interface WorkerPort {
 
 export function runGatewayWorker(
   port: WorkerPort,
-  hooks: Omit<GatewayHooks, 'onUsage' | 'onLearn'> = {},
+  hooks: Omit<GatewayHooks, 'onUsage' | 'onLearn' | 'onKeyStatus'> = {},
 ): void {
   let gw: GatewayServer | null = null;
   let listenKey = '';
@@ -41,6 +43,7 @@ export function runGatewayWorker(
       ...hooks,
       onUsage: (event) => port.postMessage({ type: 'usage', event }),
       onLearn: (event) => port.postMessage({ type: 'learn', event }),
+      onKeyStatus: (event) => port.postMessage({ type: 'key-status', event }),
     });
     try {
       await gw.start();

@@ -23,6 +23,8 @@ export interface Candidate {
   wire: Wire;
   /** 发给上游前去掉的顶层字段（厂商 quirks + 运行时学到的 + 本次重试要去掉的，§7.4） */
   dropParams?: string[];
+  /** Responses 上游拒绝过 custom 工具：custom 改成函数发出，回程还原（§11.3 customToolsRefused） */
+  customToolsAsFunctions?: boolean;
 }
 
 export type ResolveResult =
@@ -117,7 +119,15 @@ function withDrops(c: Candidate, learned: LearnedState | undefined): Candidate {
       ...(learned?.droppedParams?.[c.wire] ?? []),
     ]),
   ];
-  return drops.length ? { ...c, dropParams: drops } : c;
+  const model = c.publicModel.slice(c.provider.id.length + 1);
+  const customOff = c.wire === 'responses' && learned?.customToolsRefused?.includes(model);
+  return drops.length || customOff
+    ? {
+        ...c,
+        ...(drops.length ? { dropParams: drops } : {}),
+        ...(customOff ? { customToolsAsFunctions: true } : {}),
+      }
+    : c;
 }
 
 /**
@@ -135,7 +145,7 @@ export function alternateWire(
   const usable = wiresFor(c.provider, model, c.key, learned).filter((w) => !exclude.includes(w));
   const wire = pickWire(c.provider, model, ingress, usable);
   if (!wire) return null;
-  const { dropParams: _ignored, ...rest } = c;
+  const { dropParams: _ignored, customToolsAsFunctions: _custom, ...rest } = c;
   return withDrops({ ...rest, wire }, learned);
 }
 

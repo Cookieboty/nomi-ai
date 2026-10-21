@@ -836,3 +836,92 @@ describe('gateway: Responses results completed for strict clients', () => {
     expect(json.usage.input_tokens_details).toEqual({ cached_tokens: 0 });
   });
 });
+
+describe('gateway: loop integrations (M4)', () => {
+  it('a model missing on one provider skips its other keys and goes to the fallback provider', async () => {
+    const a = await upstream((_s, res) => {
+      res.writeHead(404, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'The model `glm-5` does not exist' } }));
+    });
+    const b = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          choices: [
+            { index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' },
+          ],
+        }),
+      );
+    });
+    const { url } = await gateway(
+      {
+        providers: [
+          provider(
+            'zp',
+            { chat: `${a.base}/v1` },
+            {
+              keys: [
+                { id: 'k1', value: 'a1', enabled: true },
+                { id: 'k2', value: 'a2', enabled: true },
+              ],
+              fallback: ['bk/glm-5'],
+            },
+          ),
+          provider('bk', { chat: `${b.base}/v1` }),
+        ],
+      },
+      [a.hostPort, b.hostPort],
+    );
+    const res = await post(
+      url,
+      '/v1/chat/completions',
+      { model: 'zp/glm-5', messages: [{ role: 'user', content: 'hi' }] },
+      { authorization: 'Bearer tok-codex' },
+    );
+    expect(res.status).toBe(200);
+    expect(a.seen).toHaveLength(1);
+    expect(b.seen).toHaveLength(1);
+  });
+
+  it('a Responses upstream refusing custom tools is retried with function tools and learned', async () => {
+    const up = await upstream((s, res) => {
+      const tools = (s.body.tools ?? []) as Array<{ type: string }>;
+      if (tools.some((t) => t.type === 'custom')) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ error: { message: "Unsupported tool type 'custom'" } }));
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'r',
+          object: 'response',
+          status: 'completed',
+          output: [],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+      );
+    });
+    const { url, learned } = await gateway(
+      { providers: [provider('zp', { responses: `${up.base}/v1` })] },
+      [up.hostPort],
+    );
+    const res = await post(
+      url,
+      '/v1/responses',
+      {
+        model: 'zp/glm-5',
+        input: 'hi',
+        tools: [{ type: 'custom', name: 'apply_patch', description: 'patch' }],
+      },
+      { authorization: 'Bearer tok-codex' },
+    );
+    expect(res.status).toBe(200);
+    expect(up.seen).toHaveLength(2);
+    expect((up.seen[1]!.body.tools as Array<{ type: string }>)[0]!.type).toBe('function');
+    expect(learned).toContainEqual({
+      type: 'custom-tools-refused',
+      providerId: 'zp',
+      model: 'glm-5',
+    });
+  });
+});

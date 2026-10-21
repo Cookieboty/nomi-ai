@@ -98,5 +98,6 @@
   "「官方」用 CLI 自己的账号；「第三方」经 Nomi 网关。只影响当前标签，下一条消息起生效。": "\"Official\" uses the CLI's own account; \"Third-party\" goes through the Nomi gateway. Only the current tab is affected, starting with the next message.",
   "终端里的 CLI 已恢复为你自己的配置和官方登录；第三方模型现在在 Nomi 的标签里使用（右上角选「第三方」）。": "CLIs in your terminal are back to your own config and official login. Third-party models are now used in Nomi's tabs (pick \"Third-party\" at the top right).",
   "知道了": "Got it",
-  "没能撤销旧版本写进 {0} 全局配置的第三方设置：{1}。请手动检查，下次启动会再试。": "Couldn't undo the third-party settings an earlier version wrote into {0}'s global config: {1}. Please check it manually; Nomi will retry on next launch."
+  "没能撤销旧版本写进 {0} 全局配置的第三方设置：{1}。请手动检查，下次启动会再试。": "Couldn't undo the third-party settings an earlier version wrote into {0}'s global config: {1}. Please check it manually; Nomi will retry on next launch.",
+  "{0} 的 Responses 接口不接受自定义工具，改用转换": "{0}'s Responses API rejects custom tools; converting instead"
 }

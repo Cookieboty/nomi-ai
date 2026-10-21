@@ -251,6 +251,8 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 本地路由的协议转换迁到新的 `@nomi-ai/gateway` 包，请求方向统一经过中间表示（行为与之前一致）；上游为 Gemini 协议时，模型名里的 `/`（如 `google/gemini-3-flash`）不再被转义成 `%2F`，聚合网关不再报「Unknown model」。 (`@nomi-ai/electron` patch)
 - 标签栏的并发上限改成小按钮「运行数/上限」（排队时显示「· 排队 N」），点开是与应用主题一致的弹层：一句说明 + 1–8 的按钮选择上限，不再使用样式跟不上主题的系统下拉框。 (`@nomi-ai/ai-chat` patch)
 - 模型网关会从上游的报错里自动学习：接口不存在时换同一个 Key 的其他协议重试，某个模型不支持某个接口、某个可选字段不被接受时记下来，之后的请求直接避开。确认某个协议确实不可用前会先探测一次。学到的内容显示在「模型」页对应供应商的详情里，可以清除重新学习。 (`@nomi-ai/gateway` minor, `@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
+- 模型网关更可靠了：某个 Key 被限流或鉴权失败时自动换下一个 Key / 供应商并冷却一段时间（遵守上游的 Retry-After），「模型」页对应的 Key 会标红写明原因，恢复后自动清除；同一个会话尽量留在同一个 Key 上，提示缓存更容易命中。换供应商续接时会自动去掉对方接口不认的推理签名，避免被拒。修正了第三方模型的常见毛病：把写在正文里的工具调用转成真正的工具调用、修正不规范的流式输出、检测复读并及时停止、自动映射编程助手里不被接受的工具名。联网搜索发给不支持的模型时给出明确提示；MiniMax 的思考内容不再混进正文；Claude Code 估算上下文用量时用真实用量校准。 (`@nomi-ai/gateway` minor, `@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/ai-runtime` patch)
+- 灵动岛支持 `CD_ISLAND_SIMULATE_NOTCH=0` 强制按无刘海屏幕布局（便于在带刘海的 Mac 上调试胶囊形态）。 (`@nomi-ai/electron` patch)
 - 用量面板：订阅额度改为按工具 Tabs + 可扩展卡片（登录方式 / 额度 / 用量费用 / 状态）；修复 Windows 上 Grok 订阅额度探测（`.cmd` 解成 node+script，避免 ACP stdin 被 cmd 打断）。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` patch)
 - 界面样式修正：看板娘「选择角色」卡片在浅色主题下角色名看不清、选中描边不随主题的问题已修复；命令面板等处的高亮颜色跟随主题； (`@nomi-ai/ai-chat` patch, `@nomi-ai/renderer` patch)
 - 界面样式修正：看板娘「选择角色」卡片在浅色主题下角色名看不清、选中描边不随主题的问题已修复；命令面板等处的高亮颜色跟随主题； (`@nomi-ai/ui` patch)

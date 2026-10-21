@@ -109,6 +109,7 @@ function chatFinish(r: unknown): StopReason | null {
       return 'tool_use';
     case null:
     case undefined:
+    case '':
       return null;
     default:
       return 'end_turn';

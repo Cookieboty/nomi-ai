@@ -645,5 +645,7 @@
   "先在「模型」页给这个编程助手分配一个第三方模型": "Assign a third-party model to this coding assistant on the Models page first",
   "第三方模型": "Third-party models",
   "这个标签还没有选第三方模型，请先在「模型」页给它分配一个": "This tab has no third-party model yet. Assign one on the Models page first.",
-  "模型网关没有运行，暂时不能使用第三方模型": "The model gateway isn't running, so third-party models can't be used right now"
+  "模型网关没有运行，暂时不能使用第三方模型": "The model gateway isn't running, so third-party models can't be used right now",
+  "{0} 鉴权失败：{1}": "{0} authentication failed: {1}",
+  "{0} 被限流：{1}": "{0} rate limited: {1}"
 }
