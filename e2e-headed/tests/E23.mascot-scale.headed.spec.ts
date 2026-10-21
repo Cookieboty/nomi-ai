@@ -79,7 +79,10 @@ function grab(name: string, w: number, h: number): void {
 
 const bounds = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop());
+    // 看板娘窗口：置顶，但不是同样置顶的灵动岛
+    const w = BrowserWindow.getAllWindows().find(
+      (b) => b.isAlwaysOnTop() && b.getTitle() !== 'Nomi Island',
+    );
     return w ? w.getBounds() : { x: 0, y: 0, width: 0, height: 0 };
   }) as Promise<Rect>;
 /** 脚底中心（屏幕坐标）：窗口位置 + 渲染进程上报的角色包围盒（底边中点） */

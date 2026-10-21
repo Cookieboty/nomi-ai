@@ -423,8 +423,9 @@ test.describe('E27 · slash commands', () => {
     await expect(chat.locator('[data-testid="slash-card-status"]')).toContainText('Nomi', SLOW);
     await run(chat, '/context');
     await expect(chat.locator('[data-testid="ctx-bar"]')).toBeVisible();
+    // 还没有任何第三方供应商：/model 给出去「模型」页添加的提示
     await run(chat, '/model');
-    await expect(chat.locator('[data-testid="slash-card-list"]').last()).toBeVisible();
+    await expect(cards(chat).last()).toContainText('还没有可切换的模型', SLOW);
     await run(chat, '/help');
     await expect(chat.locator('[data-testid="slash-card-list"]').last()).toContainText(
       '/context',
