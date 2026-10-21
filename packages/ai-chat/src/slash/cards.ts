@@ -5,6 +5,8 @@
 import { t } from '@nomi-ai/ui';
 
 import type { BackendModelCatalog } from '../services/harnessClient';
+import { nomiModelChoices, splitRef } from '../services/nomiModel';
+import { providerDisplayName } from '../services/providerClient';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -46,6 +48,18 @@ export interface ModelInfo {
 
 export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
   if (ctx.backend === 'nomi') {
+    const gw = data.nomiGateway;
+    const main = gw?.clients.nomi?.models.main;
+    const r = main ? splitRef(main) : null;
+    if (r) {
+      const p = gw!.providers.find((x) => x.id === r.provider);
+      return {
+        model: r.model,
+        provider: p ? providerDisplayName(p.name) : r.provider,
+        profile: false,
+      };
+    }
+    // 网关里还没分配：旧存储（环境变量供应商等）
     const np = data.nomiProviders;
     const id = np?.effectiveProviderId;
     const prov = np?.providers.find((p) => p.id === id);
@@ -208,36 +222,25 @@ interface ModelChoice {
   run: () => Promise<void>;
 }
 
-const MAX_MODELS_PER_PROVIDER = 12;
-
 function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
+  const out: ModelChoice[] = nomiModelChoices(data.nomiGateway).map((c) => ({
+    label: c.label,
+    provider: c.provider,
+    model: c.model,
+    active: c.current,
+    run: () => ctx.actions.switchNomiModel(c.ref),
+  }));
+  // 环境变量提供的供应商还不在网关里（过渡期）：网关没有分配时由旧存储路由
   const np = data.nomiProviders;
-  if (!np) return [];
-  const out: ModelChoice[] = [];
-  const act = np.effectiveProviderId;
-  for (const p of np.providers) {
-    if (!p.enabled) continue;
-    const models = Array.from(new Set([p.defaultModel, ...p.models].filter(Boolean))).slice(
-      0,
-      MAX_MODELS_PER_PROVIDER,
-    );
-    for (const model of models)
+  const gatewayMain = data.nomiGateway?.clients.nomi?.models.main;
+  for (const e of np?.envProviders ?? [])
+    if (e.defaultModel && (e.hasKey || e.keyless))
       out.push({
-        label: `${p.name} · ${model}`,
-        provider: p.name,
-        model,
-        active: p.id === act && model === np.effectiveModel,
-        run: () => ctx.actions.switchNomiModel(p.id, model),
-      });
-  }
-  for (const p of np.envProviders)
-    if (p.defaultModel)
-      out.push({
-        label: `${p.name} · ${p.defaultModel}`,
-        provider: p.name,
-        model: p.defaultModel,
-        active: p.id === act && p.defaultModel === np.effectiveModel,
-        run: () => ctx.actions.switchNomiModel(p.id, p.defaultModel),
+        label: `${e.name} · ${e.defaultModel}`,
+        provider: e.name,
+        model: e.defaultModel,
+        active: !gatewayMain && np?.effectiveProviderId === e.id,
+        run: () => ctx.actions.useNomiEnvProvider(e.id, e.defaultModel!),
       });
   return out;
 }
@@ -385,7 +388,7 @@ export async function modelCard(
   const choices = ctx.backend === 'nomi' ? nomiChoices(ctx, data) : cliChoices(ctx, data);
   const note =
     ctx.backend === 'nomi'
-      ? t('这里只列出在「供应商与模型」里启用的供应商。')
+      ? t('这里列出设置 →「模型」里启用的模型。')
       : t(
           '切换会改写这个 CLI 的配置（自动备份），下一轮对话生效；用 CLI 自带账号登录时由 CLI 自己选模型。',
         );
@@ -433,7 +436,9 @@ export async function modelCard(
     items: list.map(toItem),
     empty: choices.length
       ? t('没有匹配的模型。')
-      : t('还没有可切换的模型，请先在「供应商与模型」里添加。'),
+      : ctx.backend === 'nomi'
+        ? t('还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。')
+        : t('还没有可切换的模型，请先在「供应商与模型」里添加。'),
     actions: [
       {
         id: 'open-providers',

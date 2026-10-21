@@ -188,6 +188,33 @@ describe('gateway migration (§6.3)', () => {
     if (process.platform !== 'win32') expect(fs.statSync(t.store.file).mode & 0o777).toBe(0o600);
   });
 
+  it('local / LAN addresses from the old config count as confirmed, so chat keeps working', () => {
+    const t = setup();
+    const raw = JSON.parse(fs.readFileSync(t.nomiFile, 'utf8'));
+    raw.providers.push({
+      id: 'p-ollama',
+      presetId: 'ollama',
+      name: 'Ollama（本地）',
+      protocol: 'openai-chat',
+      baseURL: 'http://localhost:11434/v1',
+      fullUrl: false,
+      defaultModel: 'qwen3',
+      models: ['qwen3'],
+      enabled: true,
+      keys: [],
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    raw.activeProviderId = 'p-ollama';
+    fs.writeFileSync(t.nomiFile, JSON.stringify(raw));
+    migrateLegacy(t.store, t.sources);
+    const data = t.store.snapshot();
+    expect(data.allowedPrivateHosts).toEqual(['localhost:11434']);
+    expect(data.clients.nomi!.models.main).toBe('ollama/qwen3');
+    // 没有 Key 的本地服务在快照里能被路由
+    expect(t.store.runtimeConfig().providers.find((p) => p.id === 'ollama')!.keys).toHaveLength(1);
+  });
+
   it('the runtime snapshot carries decrypted keys and a token per client', () => {
     const t = setup();
     migrateLegacy(t.store, t.sources);

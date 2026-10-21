@@ -97,7 +97,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(s.getByTestId('settings-calendar')).toBeTruthy();
   });
 
-  it('菜单只有合并后的 11 个分区', () => {
+  it('菜单只有合并后的 12 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -105,6 +105,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(ids).toEqual([
       'general',
       'shortcuts',
+      'models',
       'coding',
       'usage',
       'senses',

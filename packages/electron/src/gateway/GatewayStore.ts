@@ -186,7 +186,16 @@ export class GatewayStore {
     if (!c) throw new Error(`unknown client ${id}`);
     this.data.clients[id] = {
       ...c,
-      ...(patch.models ? { models: { ...c.models, ...patch.models } } : {}),
+      // null / 空串表示清除（如「跟随对话」）
+      ...(patch.models
+        ? {
+            models: Object.fromEntries(
+              Object.entries({ ...c.models, ...patch.models }).filter(
+                ([, v]) => v !== null && v !== undefined && v !== '',
+              ),
+            ) as ClientModels,
+          }
+        : {}),
       ...(patch.newTabSource ? { newTabSource: patch.newTabSource } : {}),
     };
   }
@@ -231,20 +240,23 @@ export class GatewayStore {
       name: p.name,
       enabled: p.enabled,
       urls: p.urls,
-      keys: p.keys.flatMap((k) => {
-        const value = this.decrypt(k.enc, k.encryption);
-        return value === null
-          ? []
-          : [
-              {
-                id: k.id,
-                ...(k.name ? { name: k.name } : {}),
-                value,
-                ...(k.wire ? { wire: k.wire } : {}),
-                enabled: k.enabled,
-              },
-            ];
-      }),
+      // 一个 Key 都没存的（本地服务）给一个空 Key，否则路由找不到候选
+      keys: !p.keys.length
+        ? [{ id: 'none', value: '', enabled: true }]
+        : p.keys.flatMap((k) => {
+            const value = this.decrypt(k.enc, k.encryption);
+            return value === null
+              ? []
+              : [
+                  {
+                    id: k.id,
+                    ...(k.name ? { name: k.name } : {}),
+                    value,
+                    ...(k.wire ? { wire: k.wire } : {}),
+                    enabled: k.enabled,
+                  },
+                ];
+          }),
       models: p.models,
       ...(p.fallback ? { fallback: p.fallback } : {}),
       ...(p.headers ? { headers: p.headers } : {}),

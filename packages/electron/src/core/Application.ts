@@ -28,7 +28,7 @@ import { initCliRouteService } from '../cli/routing/CliRouteService';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
-import { initGatewayService } from '../gateway/GatewayService';
+import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
@@ -312,6 +312,7 @@ export class Application implements IApplication {
         logger: this.logger as never,
         desktop,
         providers: () => this.aiRuntime?.providers as never,
+        gateway: () => getGatewayService(),
       });
       localLlm.registerIpc();
 
@@ -651,8 +652,16 @@ export class Application implements IApplication {
   private startTray(): void {
     const providers = this.aiRuntime?.providers;
     if (!providers || this.trayManager) return;
+    const gateway = getGatewayService();
     this.trayManager = new TrayManager({
       providers,
+      models: gateway
+        ? {
+            state: () => gateway.state(),
+            select: (ref) => gateway.setAssignment('nomi', { models: { main: ref } }),
+            onChange: (fn) => gateway.onChange(fn),
+          }
+        : undefined,
       logger: this.logger,
       openChat: () => {
         void this.windowManager.createAiChatWindow();

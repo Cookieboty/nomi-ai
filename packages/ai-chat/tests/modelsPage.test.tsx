@@ -1,69 +1,211 @@
 // @vitest-environment happy-dom
 /**
- * 「模型」页原型（M1.5，假数据）：分配区、编程助手行、添加第三方供应商的三步流程。
+ * 「模型」页（统一网关）：分配 Nomi 对话的模型、第三方供应商列表、添加第三方供应商的三步流程。
+ * 主进程用一个内存里的假 ai:gateway:* 代替。
  */
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ModelsPage } from '../src/components/ModelsPage';
+import type { DetectResult, GatewayState, ProviderView } from '../src/services/gatewayClient';
 
-beforeEach(() => vi.useFakeTimers());
+const PRESETS = [
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    category: 'vendor',
+    protocol: 'openai-chat',
+    baseURL: 'https://api.deepseek.com/v1',
+    defaultModel: 'deepseek-v4-pro',
+    models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+    requiresApiKey: true,
+  },
+  {
+    id: 'ollama',
+    name: 'Ollama（本地）',
+    category: 'platform',
+    protocol: 'openai-chat',
+    baseURL: 'http://localhost:11434/v1',
+    defaultModel: '',
+    models: [],
+    requiresApiKey: false,
+  },
+];
+
+const okDetect = (url: string): DetectResult => ({
+  wires: {
+    chat: { wire: 'chat', url, ok: true, ms: 10 },
+    messages: { wire: 'messages', url: `${url}/anthropic`, ok: false, status: 404, ms: 10 },
+  },
+  byKey: {},
+  models: ['deepseek-v4-pro', 'deepseek-v4-flash', 'text-embedding-v4'],
+  urls: { chat: url },
+});
+
+function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult } = {}) {
+  const state: GatewayState = {
+    status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+    providers: [],
+    clients: { nomi: { models: {} } },
+    allowedPrivateHosts: [],
+    port: 1,
+  };
+  const calls: Array<[string, unknown[]]> = [];
+  let changed: (() => void) | null = null;
+  const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
+    calls.push([ch, args]);
+    switch (ch) {
+      case 'ai:providers:presets':
+        return PRESETS;
+      case 'ai:providers:state':
+        return { providers: [], envProviders: [], overrideId: null };
+      case 'ai:gateway:state':
+        return structuredClone(state);
+      case 'ai:gateway:detect':
+        return (o.detect ?? ((i) => okDetect(String(i.url))))(args[0] as Record<string, unknown>);
+      case 'ai:gateway:confirm-private-host':
+        state.allowedPrivateHosts.push(String(args[0]));
+        break;
+      case 'ai:gateway:upsert-provider': {
+        const i = args[0] as ProviderView & { newKeys?: Array<{ value: string }> };
+        const id = i.id ?? i.presetId ?? i.name.toLowerCase();
+        const prev = state.providers.find((p) => p.id === id);
+        const p: ProviderView = {
+          id,
+          name: i.name,
+          presetId: i.presetId,
+          enabled: true,
+          urls: i.urls,
+          keys:
+            prev?.keys ??
+            (i.newKeys ?? []).map((k, n) => ({
+              id: `k${n}`,
+              masked: `${k.value.slice(0, 3)}…${k.value.slice(-4)}`,
+              enabled: true,
+              decryptable: true,
+            })),
+          models: i.models ?? prev?.models ?? [],
+          source: 'user',
+          detected: i.detected,
+          createdAt: 0,
+          updatedAt: 0,
+        };
+        state.providers = [...state.providers.filter((x) => x.id !== id), p];
+        changed?.();
+        return p;
+      }
+      case 'ai:gateway:remove-provider':
+        state.providers = state.providers.filter((p) => p.id !== args[0]);
+        changed?.();
+        break;
+      case 'ai:gateway:set-assignment': {
+        const patch = (args[1] as { models: Record<string, string | null> }).models;
+        const next = { ...state.clients.nomi!.models, ...patch } as Record<string, unknown>;
+        for (const k of Object.keys(next)) if (next[k] == null) delete next[k];
+        state.clients.nomi = { models: next };
+        changed?.();
+        break;
+      }
+    }
+    return undefined;
+  });
+  (window as unknown as { aiIPC: unknown }).aiIPC = {
+    invoke,
+    on: (ch: string, fn: () => void) => {
+      if (ch === 'ai:gateway:changed') changed = fn;
+      return () => undefined;
+    },
+  };
+  return { state, calls };
+}
+
+beforeEach(() => {
+  window.confirm = vi.fn(() => true);
+});
 afterEach(() => {
   cleanup();
-  vi.useRealTimers();
+  vi.restoreAllMocks();
+  delete (window as unknown as { aiIPC?: unknown }).aiIPC;
 });
 
 const dialog = () => screen.getByTestId('add-provider-dialog');
 
-function addFlow(presetId: string, key: string) {
-  fireEvent.click(screen.getByTestId('add-provider'));
-  fireEvent.click(within(dialog()).getByTestId(`preset-${presetId}`));
-  fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), { target: { value: key } });
+async function addFlow(presetId: string, key?: string) {
+  fireEvent.click(await screen.findByTestId('add-provider'));
+  fireEvent.click(await within(dialog()).findByTestId(`preset-${presetId}`));
+  if (key)
+    fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), { target: { value: key } });
   fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
 }
 
-describe('ModelsPage prototype', () => {
-  it('shows assignments, one row per coding assistant, and the provider list', () => {
+describe('ModelsPage', () => {
+  it('empty state, then add a preset: real detection, keys, models, and the one-click offer', async () => {
+    const m = fakeMain();
     render(<ModelsPage />);
-    expect(screen.getByTestId('assign-chat').closest('div')?.textContent).toContain(
-      'DeepSeek / deepseek-v4-pro',
-    );
-    for (const id of ['claude', 'codex', 'gemini', 'grok', 'dsh'])
-      expect(screen.getByTestId(`cli-row-${id}`)).toBeTruthy();
-    // 没安装的编程助手：变灰并给出安装按钮
-    expect(within(screen.getByTestId('cli-row-dsh')).getByText('安装')).toBeTruthy();
-    // 环境变量提供的供应商只读显示
-    expect(
-      within(screen.getByTestId('provider-env-openrouter')).getByText('环境变量'),
-    ).toBeTruthy();
-  });
-
-  it('add provider: pick a preset, paste keys, detection runs and saving adds it', () => {
-    render(<ModelsPage />);
-    addFlow('zhipu', 'sk-aaaa1111\nsk-bbbb2222');
-    const save = within(dialog()).getByTestId('add-provider-save') as HTMLButtonElement;
-    // 探测还没全部返回时不能保存
-    expect(save.disabled).toBe(true);
-    act(() => void vi.advanceTimersByTime(3000));
-    const result = within(dialog()).getByTestId('add-provider-probe-result');
-    expect(result.textContent).toContain('Anthropic');
-    // 预设没有的协议只是跳过（灰色），不算失败
+    expect(await screen.findByTestId('models-empty')).toBeTruthy();
+    await addFlow('deepseek', 'sk-aaaa1111\nsk-bbbb2222');
+    const result = await within(dialog()).findByTestId('add-provider-probe-result');
+    await waitFor(() => expect(result.querySelectorAll('[data-state="ok"]')).toHaveLength(1));
+    // 没探测到的协议只是跳过，探测失败的写明原因
     expect(result.querySelectorAll('[data-state="skip"]')).toHaveLength(2);
-    expect(result.querySelectorAll('[data-state="fail"]')).toHaveLength(0);
-    expect(save.disabled).toBe(false);
-    fireEvent.click(save);
-    expect(screen.queryByTestId('add-provider-dialog')).toBeNull();
-    const row = screen.getAllByText('智谱 GLM')[0]!.closest('[data-testid^="provider-"]')!;
+    expect(result.querySelector('[data-state="fail"]')!.textContent).toContain('HTTP 404');
+    const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
+    expect(detect).toMatchObject({
+      url: 'https://api.deepseek.com/v1',
+      urls: { chat: 'https://api.deepseek.com/v1' },
+      keys: ['sk-aaaa1111', 'sk-bbbb2222'],
+      fallbackModel: 'deepseek-v4-pro',
+    });
+    // 预设推荐的默认启用，不能对话的模型列出来但不启用
+    const checks = within(dialog()).getAllByRole('checkbox') as HTMLInputElement[];
+    expect(checks.map((c) => c.checked)).toEqual([true, true, false]);
+    fireEvent.click(within(dialog()).getByTestId('add-provider-save'));
+    await waitFor(() => expect(screen.queryByTestId('add-provider-dialog')).toBeNull());
+    const saved = m.calls.find(([c]) => c === 'ai:gateway:upsert-provider')![1][0];
+    expect(saved).toMatchObject({
+      name: 'DeepSeek',
+      presetId: 'deepseek',
+      urls: { chat: 'https://api.deepseek.com/v1' },
+      newKeys: [{ value: 'sk-aaaa1111' }, { value: 'sk-bbbb2222' }],
+      detected: { chat: { ok: true }, messages: { ok: false, status: 404 } },
+    });
+    const row = await screen.findByTestId('provider-deepseek');
     expect(row.textContent).toContain('2 个 Key');
+    expect(row.textContent).toContain('2 个模型');
+    // Nomi 对话还没模型：提示一键填好
+    fireEvent.click(within(await screen.findByTestId('models-offer')).getByText('一键填好'));
+    await waitFor(() => expect(m.state.clients.nomi!.models.main).toBe('deepseek/deepseek-v4-pro'));
+    await waitFor(() =>
+      expect(screen.getByTestId('assign-chat').closest('div')?.textContent).toContain(
+        'DeepSeek / deepseek-v4-pro',
+      ),
+    );
   });
 
-  it('cannot save when every API fails, and says why', () => {
+  it('cannot save when every protocol fails, and shows each reason', async () => {
+    fakeMain({
+      detect: () => ({
+        wires: {
+          chat: {
+            wire: 'chat',
+            url: 'https://x/v1',
+            ok: false,
+            error: 'Key 无效或没有权限（鉴权失败）',
+            ms: 5,
+          },
+        },
+        byKey: {},
+        models: [],
+        urls: {},
+      }),
+    });
     render(<ModelsPage />);
-    addFlow('deepseek', 'sk-bad-key');
-    act(() => void vi.advanceTimersByTime(3000));
-    expect(within(dialog()).getByTestId('add-provider-probe-result').textContent).toContain(
-      'Key 无效（401）',
+    await addFlow('deepseek', 'sk-bad');
+    await waitFor(() =>
+      expect(within(dialog()).getByTestId('add-provider-probe-result').textContent).toContain(
+        'Key 无效或没有权限',
+      ),
     );
     expect((within(dialog()).getByTestId('add-provider-save') as HTMLButtonElement).disabled).toBe(
       true,
@@ -73,10 +215,11 @@ describe('ModelsPage prototype', () => {
     ).toBeTruthy();
   });
 
-  it('custom address needs an address before detection; local presets need no key', () => {
+  it('custom address needs an address; local presets need no key and are confirmed automatically', async () => {
+    const m = fakeMain();
     render(<ModelsPage />);
-    fireEvent.click(screen.getByTestId('add-provider'));
-    fireEvent.click(within(dialog()).getByTestId('preset-custom'));
+    fireEvent.click(await screen.findByTestId('add-provider'));
+    fireEvent.click(await within(dialog()).findByTestId('preset-custom'));
     fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), {
       target: { value: 'sk-1234' },
     });
@@ -89,8 +232,57 @@ describe('ModelsPage prototype', () => {
     fireEvent.click(within(dialog()).getByTestId('add-provider-back'));
     fireEvent.click(within(dialog()).getByTestId('preset-ollama'));
     expect(within(dialog()).getByText('本地服务不需要 Key。')).toBeTruthy();
-    expect((within(dialog()).getByTestId('add-provider-probe') as HTMLButtonElement).disabled).toBe(
-      false,
+    fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
+    await waitFor(() => expect(m.state.allowedPrivateHosts).toEqual(['localhost:11434']));
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+
+  it('a custom private address asks first; declining does not probe', async () => {
+    const m = fakeMain();
+    vi.mocked(window.confirm).mockReturnValue(false);
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('add-provider'));
+    fireEvent.click(await within(dialog()).findByTestId('preset-custom'));
+    fireEvent.change(within(dialog()).getByTestId('add-provider-url'), {
+      target: { value: 'http://192.168.1.20:8000/v1' },
+    });
+    fireEvent.change(within(dialog()).getByTestId('add-provider-keys'), {
+      target: { value: 'sk-1' },
+    });
+    fireEvent.click(within(dialog()).getByTestId('add-provider-probe'));
+    await waitFor(() => expect(window.confirm).toHaveBeenCalled());
+    await waitFor(() => expect(within(dialog()).getByTestId('add-provider-url')).toBeTruthy());
+    expect(m.calls.some(([c]) => c === 'ai:gateway:detect')).toBe(false);
+    expect(m.state.allowedPrivateHosts).toEqual([]);
+  });
+
+  it('toggling a model and removing a provider go through the gateway', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      {
+        id: 'kimi',
+        name: 'Kimi',
+        enabled: true,
+        urls: { messages: 'https://api.moonshot.cn/anthropic' },
+        keys: [{ id: 'k0', masked: 'sk-…a702', enabled: true, decryptable: true }],
+        models: [
+          { id: 'kimi-k3', enabled: true },
+          { id: 'kimi-k3-turbo', enabled: true },
+        ],
+        source: 'user',
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ];
+    render(<ModelsPage />);
+    const row = await screen.findByTestId('provider-kimi');
+    fireEvent.click(within(row).getByRole('button', { expanded: false }));
+    expect(within(row).getByText('主 Key')).toBeTruthy();
+    fireEvent.click(within(row).getAllByRole('checkbox')[1]!);
+    await waitFor(() =>
+      expect(m.state.providers[0]!.models.map((x) => x.enabled)).toEqual([true, false]),
     );
+    fireEvent.click(within(screen.getByTestId('provider-kimi')).getByText('删除'));
+    await waitFor(() => expect(screen.queryByTestId('provider-kimi')).toBeNull());
   });
 });

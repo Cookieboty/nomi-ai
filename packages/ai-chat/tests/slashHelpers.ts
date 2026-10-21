@@ -13,6 +13,7 @@ export const emptyData = (): SlashData => ({
   quota: null,
   cliProviders: null,
   nomiProviders: null,
+  nomiGateway: null,
 });
 
 export function entry(p: Partial<SlashDiscoveryEntry> & { name: string }): SlashDiscoveryEntry {
@@ -49,6 +50,7 @@ export function makeCtx(
     openProviders: vi.fn(),
     openSettings: vi.fn(),
     switchNomiModel: vi.fn(async () => undefined),
+    useNomiEnvProvider: vi.fn(async () => undefined),
     activateCliProfile: vi.fn(async () => ({ ok: true })),
     deactivateCliProfile: vi.fn(async () => ({ ok: true })),
     tabModels: vi.fn(async () => ({

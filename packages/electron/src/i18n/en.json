@@ -24,8 +24,6 @@
   "● 屏幕记忆中（仅保存在本机）": "● Screen memory on (stored only on this device)",
   "暂停屏幕记忆 1 小时": "Pause screen memory for 1 hour",
   "打开 AI 对话": "Open AI chat",
-  "AI Provider（已被 NOMI_PROVIDER 锁定）": "AI Provider (locked by NOMI_PROVIDER)",
-  "Provider 设置…": "Provider settings…",
   "桌面能力（文件授权 / 操作记录）…": "Desktop abilities (file grants / activity log)…",
   "Nomi 动作": "Nomi motions",
   "互动设置（穿透 / 重力 / 散步）…": "Interaction settings (click-through / gravity / stroll)…",
@@ -627,5 +625,14 @@
   "Codex 没能启动 app-server": "Codex could not start the app-server",
   "Codex 没有返回会话": "Codex did not return a session",
   "第三方供应商的模型不能在这里调思考深度": "Reasoning effort can't be set here for third-party provider models",
-  "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。": "The command finished, but {0} wasn't found in PATH, the common directories or npm's global bin directory ({1}). Make sure the same npm was used for the install."
+  "命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。": "The command finished, but {0} wasn't found in PATH, the common directories or npm's global bin directory ({1}). Make sure the same npm was used for the install.",
+  "对话模型（已被 NOMI_PROVIDER 锁定）": "Chat model (locked by NOMI_PROVIDER)",
+  "对话模型": "Chat model",
+  "模型设置…": "Model settings…",
+  "当前环境无法启动网关进程": "The gateway process can't be started in this environment",
+  "网关进程连续 {0} 次异常退出（{1}）": "The gateway process exited abnormally {0} times in a row ({1})",
+  "名称不能为空": "Name can't be empty",
+  "环境变量提供的供应商是只读的": "Providers from environment variables are read-only",
+  "地址格式应为 host:port": "The address must be host:port",
+  "未知客户端": "Unknown client"
 }

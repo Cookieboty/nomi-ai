@@ -1,6 +1,7 @@
 /** 命令执行时按需读取的本机数据（只读主进程缓存 / 账本，不联网、不碰凭据） */
 import { cliProviderClient } from '../services/cliProviderClient';
 import { cliUpdateClient } from '../services/cliUpdateClient';
+import { gatewayClient, gatewayClientAvailable } from '../services/gatewayClient';
 import { providerClient } from '../services/providerClient';
 import { usageClient, type UsageEndpointInfo } from '../services/usageClient';
 import type { ConversationBackend } from '../types/chat';
@@ -22,7 +23,7 @@ const isEndpoint = (u: unknown): u is UsageEndpointInfo => {
 
 export async function loadSlashData(backend: ConversationBackend): Promise<SlashData> {
   const cli = backend !== 'nomi';
-  const [clis, usage, quotas, cliProviders, nomiProviders] = await Promise.all([
+  const [clis, usage, quotas, cliProviders, nomiProviders, nomiGateway] = await Promise.all([
     cli && cliUpdateClient.available()
       ? soft(() => cliUpdateClient.inspect(false))
       : Promise.resolve(null),
@@ -30,6 +31,7 @@ export async function loadSlashData(backend: ConversationBackend): Promise<Slash
     cli && usageClient.available() ? soft(() => usageClient.quota()) : Promise.resolve(null),
     cli ? soft(() => cliProviderClient.state()) : Promise.resolve(null),
     !cli ? soft(() => providerClient.state()) : Promise.resolve(null),
+    !cli && gatewayClientAvailable() ? soft(() => gatewayClient.state()) : Promise.resolve(null),
   ]);
   return {
     cli: Array.isArray(clis) ? (clis.find((c) => c.kind === backend) ?? null) : null,
@@ -37,5 +39,6 @@ export async function loadSlashData(backend: ConversationBackend): Promise<Slash
     quota: Array.isArray(quotas) ? (quotas.find((q) => q.id === backend) ?? null) : null,
     cliProviders: cliProviders && Array.isArray(cliProviders.profiles) ? cliProviders : null,
     nomiProviders: nomiProviders && Array.isArray(nomiProviders.providers) ? nomiProviders : null,
+    nomiGateway: nomiGateway && Array.isArray(nomiGateway.providers) ? nomiGateway : null,
   };
 }

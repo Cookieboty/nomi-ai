@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { CliProviderState } from '../src/services/cliProviderClient';
 import type { CliInstallInfo } from '../src/services/cliUpdateClient';
+import type { GatewayState } from '../src/services/gatewayClient';
 import type { BackendModelCatalog } from '../src/services/harnessClient';
 import type { ProviderState } from '../src/services/providerClient';
 import { executeSlash, findCommand, flattenGroups, searchCommands } from '../src/slash/registry';
@@ -278,6 +279,36 @@ describe('/model', () => {
       effectiveModel: 'gpt-5',
     }) as unknown as ProviderState;
 
+  const gateway = (): GatewayState =>
+    ({
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'a',
+          name: 'OpenAI',
+          enabled: true,
+          urls: { responses: 'https://api.openai.com/v1' },
+          keys: [],
+          models: [
+            { id: 'gpt-5', enabled: true },
+            { id: 'gpt-5-mini', enabled: true },
+            { id: 'gpt-5-nano', enabled: false },
+          ],
+        },
+        {
+          id: 'b',
+          name: 'Off',
+          enabled: false,
+          urls: {},
+          keys: [],
+          models: [{ id: 'x', enabled: true }],
+        },
+      ],
+      clients: { nomi: { models: { main: 'a/gpt-5' } } },
+      allowedPrivateHosts: [],
+      port: 1,
+    }) as unknown as GatewayState;
+
   const tabCatalog = {
     backend: 'claude',
     defaultModel: { id: 'default', label: 'Opus 5.5', reasoning: true, efforts: [] },
@@ -345,18 +376,55 @@ describe('/model', () => {
     expect(actions.activateCliProfile).toHaveBeenCalledWith('p2');
     expect(cardOf(r).kind).toBe('notice');
   });
-  it('Nomi：只列启用的供应商；/model gpt-5-mini 直接切换', async () => {
+  it('Nomi：只列网关里启用的模型；/model gpt-5-mini 直接切换', async () => {
     const { r, actions } = await run('nomi', '/model gpt-5-mini', {
-      data: { nomiProviders: nomi() },
+      data: { nomiGateway: gateway() },
     });
-    expect(actions.switchNomiModel).toHaveBeenCalledWith('a', 'gpt-5-mini');
+    expect(actions.switchNomiModel).toHaveBeenCalledWith('a/gpt-5-mini');
     expect(cardOf(r).title).toContain('切换');
-    const l = await run('nomi', '/model', { data: { nomiProviders: nomi() } });
+    const l = await run('nomi', '/model', { data: { nomiGateway: gateway() } });
     const c = cardOf(l.r);
-    expect(c.kind === 'list' && c.items.length).toBe(2);
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => [i.label, i.active])).toEqual([
+      ['OpenAI · gpt-5', true],
+      ['OpenAI · gpt-5-mini', false],
+    ]);
+  });
+  it('Nomi：环境变量供应商（还不在网关里）也能选；选中时清掉网关分配', async () => {
+    const legacy = {
+      ...nomi(),
+      envProviders: [
+        {
+          id: 'ollama',
+          name: 'Ollama（环境变量）',
+          defaultModel: 'qwen3',
+          hasKey: false,
+          keyless: true,
+        },
+      ],
+      effectiveProviderId: 'ollama',
+    } as unknown as ProviderState;
+    const empty = { ...gateway(), clients: {} } as GatewayState;
+    const l = await run('nomi', '/model', { data: { nomiGateway: empty, nomiProviders: legacy } });
+    const c = cardOf(l.r);
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items.at(-1)).toMatchObject({ label: 'Ollama（环境变量） · qwen3', active: true });
+    const { actions } = await run('nomi', '/model qwen3', {
+      data: { nomiGateway: gateway(), nomiProviders: legacy },
+    });
+    expect(actions.useNomiEnvProvider).toHaveBeenCalledWith('ollama', 'qwen3');
+  });
+  it('Nomi /status：网关分配优先；没有分配时退回旧存储', async () => {
+    const a = await run('nomi', '/status', {
+      data: { nomiGateway: gateway(), nomiProviders: nomi() },
+    });
+    expect(JSON.stringify(cardOf(a.r))).toContain('gpt-5');
+    const empty = { ...gateway(), clients: {} } as GatewayState;
+    const b = await run('nomi', '/status', { data: { nomiGateway: empty, nomiProviders: nomi() } });
+    expect(JSON.stringify(cardOf(b.r))).toContain('OpenAI');
   });
   it('多个命中 → 只列表不切换；切换失败 → 错误卡片', async () => {
-    const m = await run('nomi', '/model gpt', { data: { nomiProviders: nomi() } });
+    const m = await run('nomi', '/model gpt', { data: { nomiGateway: gateway() } });
     expect(m.actions.switchNomiModel).not.toHaveBeenCalled();
     expect(cardOf(m.r).kind).toBe('list');
     const { ctx, commands, actions } = makeCtx('claude', { data: { cliProviders: cli() } });

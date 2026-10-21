@@ -95,7 +95,6 @@
   "正在运行": "Running",
   "消息数": "Messages",
   "切换失败": "Switch failed",
-  "这里只列出在「供应商与模型」里启用的供应商。": "Only providers enabled in “Providers & models” are listed here.",
   "切换会改写这个 CLI 的配置（自动备份），下一轮对话生效；用 CLI 自带账号登录时由 CLI 自己选模型。": "Switching rewrites this CLI's config (with a backup) and takes effect on the next turn; with the CLI's own account login, the CLI picks the model itself.",
   "切换": "Switch",
   "已经在使用 {0}": "Already using {0}",

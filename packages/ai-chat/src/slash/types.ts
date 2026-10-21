@@ -6,6 +6,7 @@
  */
 import type { CliProviderState } from '../services/cliProviderClient';
 import type { CliInstallInfo } from '../services/cliUpdateClient';
+import type { GatewayState } from '../services/gatewayClient';
 import type {
   BackendModelCatalog,
   GitDiffResult,
@@ -168,6 +169,9 @@ export interface SlashData {
   usage: UsageEndpointInfo | null;
   quota: UsageQuotaEntry | null;
   cliProviders: CliProviderState | null;
+  /** Nomi 对话的模型分配（统一网关） */
+  nomiGateway: GatewayState | null;
+  /** 旧存储（网关里还没分配时的保底，如只有环境变量供应商） */
   nomiProviders: ProviderState | null;
 }
 
@@ -190,8 +194,10 @@ export interface SlashActions {
   openPlugins: () => void;
   openProviders: () => void;
   openSettings: () => void;
-  /** Nomi：切换激活的供应商 / 模型 */
-  switchNomiModel: (providerId: string | null, model?: string) => Promise<void>;
+  /** Nomi：切换对话模型（`供应商/模型`，写网关的分配） */
+  switchNomiModel: (ref: string) => Promise<void>;
+  /** Nomi：改用环境变量提供的供应商（清掉网关里的分配，由旧存储路由；过渡期） */
+  useNomiEnvProvider: (id: string, model: string) => Promise<void>;
   /** CLI：启用 / 停用第三方供应商（写 CLI 的配置，主进程会备份，下一轮生效） */
   activateCliProfile: (profileId: string) => Promise<{ ok: boolean; error?: string }>;
   deactivateCliProfile: () => Promise<{ ok: boolean; error?: string }>;

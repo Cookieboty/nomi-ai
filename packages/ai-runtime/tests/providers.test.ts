@@ -11,6 +11,7 @@ import {
   ProviderService,
   ProviderStore,
   RoutedLLMRegistry,
+  GATEWAY_PROVIDER_ID,
   TrackedProvider,
   createSafeStorageCipher,
   estimateTokens,
@@ -461,6 +462,56 @@ describe('RoutedLLMRegistry routing', () => {
     return fakeProvider(o.id, { text: `${o.id}@${o.baseURL}` });
   };
   beforeEach(() => (built.length = 0));
+
+  it('gateway route wins when available, per role; falls back to the store when it is not', async () => {
+    const store = new ProviderStore({ cipher: fakeCipher });
+    const a = store.upsert({
+      presetId: 'custom',
+      baseURL: 'http://a.test/v1',
+      apiKey: 'ka-123456',
+    });
+    store.setActive(a.id);
+    let up = true;
+    const gateway = {
+      resolve: (role: 'chat' | 'agent-tools' | 'summary') =>
+        up
+          ? {
+              baseURL: 'http://127.0.0.1:18721/v1',
+              token: 'nomi-gw-nomi-x',
+              model: role === 'summary' ? 'deepseek/deepseek-v4-flash' : 'kimi/kimi-k3',
+              protocol: 'openai-chat' as const,
+              receiver:
+                role === 'summary'
+                  ? { id: 'deepseek', baseURL: 'https://api.deepseek.com/v1' }
+                  : { id: 'kimi', baseURL: 'https://api.moonshot.cn/v1' },
+            }
+          : null,
+    };
+    const reg = new RoutedLLMRegistry({ store, factory, gateway });
+    const chat = reg.resolve('chat')!;
+    expect(chat).toMatchObject({ provider: { id: GATEWAY_PROVIDER_ID }, model: 'kimi/kimi-k3' });
+    expect(built.at(-1)).toMatchObject({
+      baseURL: 'http://127.0.0.1:18721/v1',
+      apiKey: 'nomi-gw-nomi-x',
+      defaultModel: 'kimi/kimi-k3',
+      protocol: 'openai-chat',
+      // 工具结果的接收者是真正的上游，不是网关回环地址
+      receiver: { id: 'kimi', baseURL: 'https://api.moonshot.cn/v1' },
+    });
+    expect(reg.resolve('summary')!.model).toBe('deepseek/deepseek-v4-flash');
+    expect(built.at(-1)!.receiver).toEqual({
+      id: 'deepseek',
+      baseURL: 'https://api.deepseek.com/v1',
+    });
+    // 同一地址 / 令牌 / 协议 / 上游复用同一个实例
+    reg.resolve('summary');
+    const n = built.length;
+    reg.resolve('summary');
+    expect(built.length).toBe(n);
+    // 网关不可用：退回旧存储
+    up = false;
+    expect(reg.resolve('chat')!.provider.id).toBe(a.id);
+  });
 
   it('precedence: override > role route > active > env order; switching is live', async () => {
     const store = new ProviderStore({ cipher: fakeCipher });

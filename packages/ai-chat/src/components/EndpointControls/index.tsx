@@ -3,7 +3,7 @@
  *
  * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
  * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
- *   Nomi：Nomi 自有供应商 / 模型切换（ProviderSwitcher）；
+ *   Nomi：Nomi 对话的模型切换（NomiModelSwitch，统一网关）；
  *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的供应商（CliProviderChip），绝不出现 Nomi 供应商。
  * 普通模式只有 Nomi，不显示端点切换。
  */
@@ -15,14 +15,14 @@ import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useHarnessState } from '../../hooks/useHarnessState';
 import type { CliProviderKind } from '../../services/cliProviderClient';
+import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
-import { providerClientAvailable } from '../../services/providerClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
 import { CliProviderChip } from '../CliProviderChip';
 import { ModelControls } from '../ModelControls';
+import { NomiModelSwitch } from '../NomiModelSwitch';
 import { PermissionModeChip } from '../PermissionModeChip';
-import { ProviderSwitcher } from '../ProviderSwitcher';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
@@ -118,7 +118,7 @@ export const SessionControls: React.FC<{
     if (target) void apply(target.next, mode, target);
   };
 
-  const nomiProviders = !cli && providerClientAvailable();
+  const nomiProviders = !cli && gatewayClientAvailable();
   if (!cli && !nomiProviders) return null;
 
   return (
@@ -146,7 +146,7 @@ export const SessionControls: React.FC<{
       {cli ? (
         <CliProviderChip backend={cli} onManage={() => onManageCli(cli)} />
       ) : (
-        nomiProviders && <ProviderSwitcher onManage={onManageNomi} />
+        nomiProviders && <NomiModelSwitch onManage={onManageNomi} />
       )}
       {pending && (
         <Modal

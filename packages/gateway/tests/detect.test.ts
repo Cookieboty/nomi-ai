@@ -53,6 +53,34 @@ describe('normalizeBases (§8.1)', () => {
 });
 
 describe('detect (§8.2)', () => {
+  it('a local service without a key: probes without any auth header', async () => {
+    const auths: Array<string | undefined> = [];
+    const server = http.createServer((req, res) => {
+      auths.push(req.headers.authorization ?? (req.headers['x-api-key'] as string | undefined));
+      if (req.url === '/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ data: [{ id: 'qwen3' }] }));
+      }
+      if (req.url === '/v1/chat/completions') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ choices: [{ message: { content: 'x' } }] }));
+      }
+      res.writeHead(404);
+      res.end();
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    cleanups.push(() => server.close());
+    const hp = `127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const r = await detect({
+      bases: { chat: `http://${hp}/v1` },
+      keys: [],
+      allowedPrivateHosts: [hp],
+    });
+    expect(r.wires.chat).toMatchObject({ ok: true });
+    expect(r.models).toEqual(['qwen3']);
+    expect(auths.every((a) => a === undefined)).toBe(true);
+  });
+
   it('probes each wire per key, learns auth styles and models, keeps only working URLs', async () => {
     const seen: string[] = [];
     const server = http.createServer((req, res) => {

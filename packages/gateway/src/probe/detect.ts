@@ -106,9 +106,12 @@ function probeBody(wire: Wire, model: string): unknown {
 
 function authHeaders(wire: Wire, auth: AuthStyle, key: string): Record<string, string> {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (auth === 'x-api-key') h['x-api-key'] = key;
-  else if (auth === 'x-goog-api-key') h['x-goog-api-key'] = key;
-  else h.Authorization = `Bearer ${key}`;
+  // 本地服务没有 Key：不发鉴权头
+  if (key) {
+    if (auth === 'x-api-key') h['x-api-key'] = key;
+    else if (auth === 'x-goog-api-key') h['x-goog-api-key'] = key;
+    else h.Authorization = `Bearer ${key}`;
+  }
   if (wire === 'messages') h['anthropic-version'] = '2023-06-01';
   return h;
 }

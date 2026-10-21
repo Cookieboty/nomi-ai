@@ -2,115 +2,225 @@
  * 添加第三方供应商（§4.2）：三步，没有协议字段。
  *   1. 选来源：搜索预设（厂商 / 中转平台 / 本地服务），或自定义地址；
  *   2. 填凭据：可一次粘贴多个 Key（每行一个，依次成为主 Key 与备用 Key）；自定义地址贴什么形式都行；
- *   3. 检测并选模型：并行探测四种协议，至少一种可用才能保存。
+ *   3. 检测并选模型：主进程并行探测四种协议（ai:gateway:detect），至少一种可用才能保存。
+ * 本机 / 局域网地址要先确认才会被访问（§15）：本地服务预设自动确认，自定义地址弹窗确认。
  */
 import { BrandIcon, Button, Icon, Input, Modal, ModalHostContext, Textarea, t } from '@nomi-ai/ui';
 import { Check, Globe, Loader2, Minus, Search, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import {
-  fakeProbe,
-  PRESET_GROUP_LABEL,
-  PRESETS,
+  gatewayClient,
+  hostPortOf,
+  isPrivateUrl,
   WIRE_LABEL,
-  type PresetGroup,
-  type ProbeLine,
-  type ProtoModel,
-  type ProtoPreset,
-  type ProtoProvider,
-} from './fakeData';
+  WIRES,
+  type DetectResult,
+  type GatewayModel,
+  type ProviderView,
+  type StoredProbe,
+  type Wire,
+} from '../../services/gatewayClient';
+import {
+  providerClient,
+  providerClientAvailable,
+  type Protocol,
+  type ProviderPreset,
+} from '../../services/providerClient';
+
 import styles from './index.module.css';
 
 type Step = 1 | 2 | 3;
+type PresetGroup = 'vendor' | 'platform' | 'local';
+
+const GROUP_LABEL: Record<PresetGroup, string> = {
+  vendor: '模型厂商',
+  platform: '中转平台',
+  local: '本地服务',
+};
+
+const PROTOCOL_WIRE: Record<Protocol, Wire> = {
+  anthropic: 'messages',
+  'openai-responses': 'responses',
+  'openai-chat': 'chat',
+};
+
+/** 不能用来对话的模型（图像、向量、语音等）：列出来但默认不启用，也不给编程助手选 */
+const NON_CHAT = /image|embed|tts|whisper|dall-e|audio|speech|video|seedance|rerank|moderation/i;
+
+const groupOf = (p: ProviderPreset): PresetGroup =>
+  !p.requiresApiKey && isPrivateUrl(p.baseURL)
+    ? 'local'
+    : p.category === 'platform'
+      ? 'platform'
+      : 'vendor';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (p: ProtoProvider) => void;
+  onSaved: (p: ProviderView) => void;
 }
 
 /** 关闭即卸载：下次打开是全新的状态 */
 export const AddProviderDialog: React.FC<Props> = (props) =>
   props.open ? <AddProviderFlow {...props} /> : null;
 
-const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
+interface ModelRow {
+  id: string;
+  recommended: boolean;
+  chat: boolean;
+}
+
+const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
+  const [presets, setPresets] = useState<ProviderPreset[]>([]);
   const [step, setStep] = useState<Step>(1);
   const [query, setQuery] = useState('');
-  const [preset, setPreset] = useState<ProtoPreset | null>(null);
-  const [custom, setCustom] = useState(false);
+  const [preset, setPreset] = useState<ProviderPreset | null>(null);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
+  const [testModel, setTestModel] = useState('');
   const [keysText, setKeysText] = useState('');
-  const [probe, setProbe] = useState<{ lines: ProbeLine[]; models: ProtoModel[] } | null>(null);
-  const [shown, setShown] = useState(0);
+  const [result, setResult] = useState<DetectResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState<Set<string>>(new Set());
 
+  useEffect(() => {
+    if (!providerClientAvailable()) return;
+    let alive = true;
+    providerClient
+      .presets()
+      .then((ps) => alive && setPresets(ps.filter((p) => p.category !== 'custom')))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const custom = preset === null;
   const keys = keysText
     .split('\n')
     .map((k) => k.trim())
     .filter(Boolean);
-  const needsKey = custom || (preset?.needsKey ?? true);
-
-  // 探测结果按各协议的耗时逐条出现，模拟并行请求陆续返回
-  useEffect(() => {
-    if (step !== 3 || !probe) return;
-    const timers = [...probe.lines]
-      .map((l, i) => ({ i, ms: l.ms }))
-      .sort((a, b) => a.ms - b.ms)
-      .map((x, n) => setTimeout(() => setShown(n + 1), x.ms));
-    return () => timers.forEach(clearTimeout);
-  }, [step, probe]);
-  const finished = probe ? shown >= probe.lines.length : false;
-  const okLines = probe?.lines.filter((l) => l.ok) ?? [];
-  const visible = useMemo(() => {
-    if (!probe) return new Set<ProbeLine>();
-    return new Set([...probe.lines].sort((a, b) => a.ms - b.ms).slice(0, shown));
-  }, [probe, shown]);
+  const needsKey = custom || preset.requiresApiKey;
+  const baseUrl = custom ? url.trim() : preset.baseURL;
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = PRESETS.filter((p) =>
-      `${p.name} ${p.id} ${p.keywords ?? ''}`.toLowerCase().includes(q),
+    const list = presets.filter((p) =>
+      `${p.name} ${p.id} ${(p.keywords ?? []).join(' ')}`.toLowerCase().includes(q),
     );
-    return (Object.keys(PRESET_GROUP_LABEL) as PresetGroup[])
-      .map((g) => ({ g, items: list.filter((p) => p.group === g) }))
+    return (Object.keys(GROUP_LABEL) as PresetGroup[])
+      .map((g) => ({ g, items: list.filter((p) => groupOf(p) === g) }))
       .filter((x) => x.items.length);
-  }, [query]);
+  }, [presets, query]);
 
-  const choose = (p: ProtoPreset | null) => {
+  const models: ModelRow[] = useMemo(() => {
+    if (!result) return [];
+    const recommended = new Set([...(preset?.models ?? []), preset?.defaultModel ?? '']);
+    const listed = result.models.length
+      ? result.models
+      : [...(preset?.models ?? []), testModel.trim()].filter(Boolean);
+    return [...new Set(listed)].map((id) => ({
+      id,
+      recommended: recommended.has(id),
+      chat: !NON_CHAT.test(id),
+    }));
+  }, [result, preset, testModel]);
+
+  const okWires = WIRES.filter((w) => result?.wires[w]?.ok);
+
+  const choose = (p: ProviderPreset | null) => {
     setPreset(p);
-    setCustom(p === null);
     setName(p?.name ?? '');
+    setUrl('');
+    setError(null);
     setStep(2);
   };
 
-  const runProbe = () => {
-    const r = fakeProbe(preset, url, keys);
-    setShown(0);
-    setProbe(r);
-    setEnabled(new Set(r.models.filter((x) => x.toolCalling !== false).map((x) => x.id)));
+  /** 本机 / 局域网地址：本地预设自动确认，自定义地址问一次；拒绝则返回 false */
+  const confirmPrivate = async (): Promise<boolean> => {
+    if (!isPrivateUrl(baseUrl)) return true;
+    const hp = hostPortOf(baseUrl);
+    if (!hp) return true;
+    if (custom && !window.confirm(t('「{0}」是本机或局域网地址，允许 Nomi 访问它吗？', hp)))
+      return false;
+    await gatewayClient.confirmPrivateHost(hp);
+    return true;
+  };
+
+  const runDetect = async () => {
+    setError(null);
+    setBusy(true);
+    setResult(null);
     setStep(3);
+    try {
+      if (!(await confirmPrivate())) {
+        setStep(2);
+        return;
+      }
+      const r = await gatewayClient.detect({
+        url: baseUrl,
+        ...(preset ? { urls: { [PROTOCOL_WIRE[preset.protocol]]: preset.baseURL } } : {}),
+        keys,
+        fallbackModel: testModel.trim() || preset?.defaultModel || undefined,
+      });
+      setResult(r);
+      const rec = new Set(preset?.models ?? []);
+      const chatModels = (r.models.length ? r.models : [...rec, testModel.trim()]).filter(
+        (id) => id && !NON_CHAT.test(id),
+      );
+      // 预设推荐的模型在列表里就只默认启用推荐的，否则全部对话模型
+      const preferred = chatModels.filter((id) => rec.has(id));
+      setEnabled(new Set(preferred.length ? preferred : chatModels));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const save = () => {
-    if (!probe) return;
-    onSave({
-      id: `${(preset?.id ?? (name || 'custom')).toLowerCase().replace(/[^a-z0-9-]+/g, '-')}-${Date.now().toString(36).slice(-4)}`,
-      name: name.trim() || preset?.name || t('自定义供应商'),
-      brand: preset?.brand,
-      wires: okLines.map((l) => l.wire),
-      keys: keys.length
-        ? keys.map((k, i) => ({
-            name: i === 0 ? t('主 Key') : t('备用 Key {0}', String(i)),
-            masked: `${k.slice(0, 3)}…${k.slice(-4)}`,
-          }))
-        : [{ name: t('无需 Key'), masked: '—' }],
-      models: probe.models.map((x) => ({ ...x, enabled: enabled.has(x.id) })),
-    });
+  const save = async () => {
+    if (!result) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const at = Date.now();
+      const detected: Partial<Record<Wire, StoredProbe>> = {};
+      for (const w of WIRES) {
+        const l = result.wires[w];
+        if (l)
+          detected[w] = {
+            ok: l.ok,
+            at,
+            ...(l.status ? { status: l.status } : {}),
+            ...(l.model ? { model: l.model } : {}),
+            ...(l.auth ? { auth: l.auth } : {}),
+            ...(l.error ? { error: l.error } : {}),
+          };
+      }
+      const list: GatewayModel[] = models.map((m) => ({
+        id: m.id,
+        enabled: enabled.has(m.id),
+        ...(m.chat ? {} : { toolCalling: false }),
+      }));
+      const saved = await gatewayClient.upsertProvider({
+        name: name.trim() || preset?.name || t('自定义供应商'),
+        ...(preset ? { presetId: preset.id } : {}),
+        urls: result.urls,
+        newKeys: keys.map((value) => ({ value })),
+        models: list,
+        detected,
+      });
+      onSaved(saved);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const canNext =
-    step === 2 && (custom ? url.trim().length > 0 : true) && (!needsKey || keys.length > 0);
+  const canNext = step === 2 && baseUrl.length > 0 && (!needsKey || keys.length > 0);
 
   const footer = (
     <div className={styles.dialogFooter}>
@@ -118,6 +228,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
       {step > 1 && (
         <Button
           variant="ghost"
+          disabled={busy}
           onClick={() => setStep((s) => (s - 1) as Step)}
           data-testid="add-provider-back"
         >
@@ -131,7 +242,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
         <Button
           variant="primary"
           disabled={!canNext}
-          onClick={runProbe}
+          onClick={() => void runDetect()}
           data-testid="add-provider-probe"
         >
           {t('检测')}
@@ -140,8 +251,8 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
       {step === 3 && (
         <Button
           variant="primary"
-          disabled={!finished || okLines.length === 0 || enabled.size === 0}
-          onClick={save}
+          disabled={busy || okWires.length === 0 || enabled.size === 0}
+          onClick={() => void save()}
           data-testid="add-provider-save"
         >
           {t('保存')}
@@ -176,7 +287,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
             </div>
             {groups.map(({ g, items }) => (
               <div key={g} className={styles.presetGroup}>
-                <div className={styles.groupTitle}>{t(PRESET_GROUP_LABEL[g])}</div>
+                <div className={styles.groupTitle}>{t(GROUP_LABEL[g])}</div>
                 <div className={styles.presetGrid}>
                   {items.map((p) => (
                     <button
@@ -186,7 +297,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
                       onClick={() => choose(p)}
                       data-testid={`preset-${p.id}`}
                     >
-                      <BrandIcon brand={p.brand} name={p.name} size={22} />
+                      <BrandIcon brand={p.icon ?? p.id} name={p.name} size={22} />
                       <span>{p.name}</span>
                     </button>
                   ))}
@@ -216,6 +327,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('自定义供应商')}
+                data-testid="add-provider-name"
               />
             </label>
             {custom ? (
@@ -235,14 +347,13 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
               </label>
             ) : (
               <div className={styles.presetUrls}>
-                {Object.entries(preset?.urls ?? {}).map(([w, u]) => (
-                  <div key={w}>
-                    <span className={styles.wireTag}>
-                      {WIRE_LABEL[w as keyof typeof WIRE_LABEL]}
-                    </span>
-                    <code>{u}</code>
-                  </div>
-                ))}
+                <div>
+                  <span className={styles.wireTag}>
+                    {WIRE_LABEL[PROTOCOL_WIRE[preset.protocol]]}
+                  </span>
+                  <code>{preset.baseURL}</code>
+                </div>
+                {preset.hint && <small className={styles.help}>{t(preset.hint)}</small>}
               </div>
             )}
             {needsKey ? (
@@ -268,21 +379,37 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
             ) : (
               <p className={styles.help}>{t('本地服务不需要 Key。')}</p>
             )}
+            <label className={styles.field}>
+              <span>{t('测试用模型（可选）')}</span>
+              <Input
+                value={testModel}
+                onChange={(e) => setTestModel(e.target.value)}
+                placeholder={preset?.defaultModel || 'model-id'}
+                data-testid="add-provider-test-model"
+              />
+              <small className={styles.help}>
+                {t('服务不提供模型列表时，用这个模型名检测，并加入模型列表。')}
+              </small>
+            </label>
           </div>
         )}
 
-        {step === 3 && probe && (
+        {step === 3 && (
           <div className={styles.stepBody}>
             <div className={styles.probe} data-testid="add-provider-probe-result">
-              {probe.lines.map((l) => {
-                const done = l.skipped || visible.has(l);
-                const state = !done ? undefined : l.skipped ? 'skip' : l.ok ? 'ok' : 'fail';
+              {WIRES.map((w) => {
+                const l = result?.wires[w];
+                const state = !result ? undefined : !l ? 'skip' : l.ok ? 'ok' : 'fail';
                 return (
-                  <div key={l.wire} className={styles.probeLine} data-state={state}>
+                  <div key={w} className={styles.probeLine} data-state={state}>
                     <span className={styles.probeIcon}>
-                      {!done ? (
-                        <Icon icon={Loader2} size={14} className={styles.spin} />
-                      ) : l.skipped ? (
+                      {!result ? (
+                        busy ? (
+                          <Icon icon={Loader2} size={14} className={styles.spin} />
+                        ) : (
+                          <Icon icon={Minus} size={14} />
+                        )
+                      ) : !l ? (
                         <Icon icon={Minus} size={14} />
                       ) : l.ok ? (
                         <Icon icon={Check} size={14} />
@@ -290,45 +417,51 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
                         <Icon icon={X} size={14} />
                       )}
                     </span>
-                    <span className={styles.probeWire}>{WIRE_LABEL[l.wire]}</span>
-                    <code className={styles.probeUrl}>{l.url}</code>
+                    <span className={styles.probeWire}>{WIRE_LABEL[w]}</span>
+                    <code className={styles.probeUrl}>{l?.url ?? '—'}</code>
                     <span className={styles.probeReason}>
-                      {done && !l.ok ? t(l.reason ?? '') : ''}
+                      {l && !l.ok ? (l.error ?? (l.status ? `HTTP ${l.status}` : '')) : ''}
                     </span>
                   </div>
                 );
               })}
             </div>
-            {finished && okLines.length === 0 && (
+            {error && <p className={styles.error}>{error}</p>}
+            {result && okWires.length === 0 && (
               <p className={styles.error}>
                 {t('所有协议都不可用，不能保存。请检查上面每一条的原因。')}
               </p>
             )}
-            {finished && probe.models.length > 0 && (
+            {result && okWires.length > 0 && models.length === 0 && (
+              <p className={styles.error}>{t('没有拿到模型列表。请返回上一步填写测试用模型。')}</p>
+            )}
+            {result && okWires.length > 0 && models.length > 0 && (
               <>
                 <div className={styles.modelsHead}>
-                  <span>{t('发现 {0} 个模型', String(probe.models.length))}</span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setEnabled(new Set(probe.models.map((x) => x.id)))}
-                  >
-                    {t('全部启用')}
-                  </Button>
+                  <span>{t('发现 {0} 个模型', String(models.length))}</span>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() =>
-                      setEnabled(
-                        new Set(probe.models.filter((x) => x.recommended).map((x) => x.id)),
-                      )
+                      setEnabled(new Set(models.filter((x) => x.chat).map((x) => x.id)))
                     }
                   >
-                    {t('只启用推荐的')}
+                    {t('全部启用')}
                   </Button>
+                  {models.some((x) => x.recommended) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setEnabled(new Set(models.filter((x) => x.recommended).map((x) => x.id)))
+                      }
+                    >
+                      {t('只启用推荐的')}
+                    </Button>
+                  )}
                 </div>
                 <div className={styles.modelChecks}>
-                  {probe.models.map((x) => (
+                  {models.map((x) => (
                     <label key={x.id} className={styles.modelCheck}>
                       <input
                         type="checkbox"
@@ -342,9 +475,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSave }) => {
                       />
                       <span>{x.id}</span>
                       {x.recommended && <span className={styles.badgeSoft}>{t('推荐')}</span>}
-                      {x.toolCalling === false && (
-                        <span className={styles.badgeMuted}>{t('不支持工具调用')}</span>
-                      )}
+                      {!x.chat && <span className={styles.badgeMuted}>{t('不支持工具调用')}</span>}
                     </label>
                   ))}
                 </div>

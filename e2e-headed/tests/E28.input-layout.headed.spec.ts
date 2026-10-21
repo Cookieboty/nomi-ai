@@ -240,15 +240,15 @@ test.describe('E28 · composer toolbar layout', () => {
     const r = await launch(join(root, 'user-data'), home, false);
     app = r.app;
     const chat = r.chat;
-    const v = (await invoke(chat, 'ai:providers:upsert', {
+    const v = (await invoke(chat, 'ai:gateway:upsert-provider', {
       name: 'My Very Long Provider Name For Layout',
-      protocol: 'openai-chat',
-      baseURL: 'http://127.0.0.1:9/v1',
-      defaultModel: LONG_MODEL,
-      models: [LONG_MODEL],
-      apiKey: 'e28-fake-key',
+      urls: { chat: 'http://127.0.0.1:9/v1' },
+      models: [{ id: LONG_MODEL, enabled: true }],
+      newKeys: [{ value: 'e28-fake-key' }],
     })) as { id: string };
-    await invoke(chat, 'ai:providers:setActive', v.id, LONG_MODEL);
+    await invoke(chat, 'ai:gateway:set-assignment', 'nomi', {
+      models: { main: `${v.id}/${LONG_MODEL}` },
+    });
     await chat.reload();
     await chat.locator('[data-testid="chat-input"]').waitFor();
     await sweep(chat, 'nomi-normal', [1024, 800]);

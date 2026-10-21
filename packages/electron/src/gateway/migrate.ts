@@ -11,7 +11,7 @@ import fs from 'fs';
 import path from 'path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
-import type { ClientId, Wire } from '@nomi-ai/gateway';
+import { isPrivateHost, type ClientId, type Wire } from '@nomi-ai/gateway';
 
 import { DEFAULT_GATEWAY_PORT, type GatewayStore } from './GatewayStore';
 import type { GatewayModel, GatewayProvider } from './types';
@@ -232,7 +232,7 @@ export function migrateLegacy(
       ...(first.presetId ? { presetId: first.presetId } : {}),
       enabled: g.entries.some((e) => e.enabled),
       urls,
-      keys: g.keys.map((k, i) => store.makeKey(k, { name: i === 0 ? '主 Key' : `备用 Key ${i}` })),
+      keys: g.keys.map((k) => store.makeKey(k)),
       models,
       modelsSource: 'manual',
       ...(g.entries.find((e) => e.modelMap)?.modelMap
@@ -289,6 +289,18 @@ export function migrateLegacy(
   const port = Number(routing?.port);
   if (Number.isInteger(port) && port > 0 && port < 65536 && port !== DEFAULT_GATEWAY_PORT)
     data.port = port;
+  // 旧配置里本机 / 局域网的地址（Ollama、自建服务）是用户自己填的：视为已确认，否则升级后直接被网关拦下
+  for (const p of data.providers)
+    for (const u of Object.values(p.urls)) {
+      try {
+        const url = new URL(u!);
+        if (!isPrivateHost(url.hostname)) continue;
+        const hp = `${url.hostname.replace(/^\[|\]$/g, '').toLowerCase()}:${url.port || (url.protocol === 'https:' ? '443' : '80')}`;
+        if (!data.allowedPrivateHosts.includes(hp)) data.allowedPrivateHosts.push(hp);
+      } catch {
+        /* 地址无效：网关会单独报错 */
+      }
+    }
   data.migratedFrom = { at: now, files };
   store.replace(data);
   store.save();

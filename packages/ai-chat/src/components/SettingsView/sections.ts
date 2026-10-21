@@ -2,12 +2,6 @@ import type { LucideIcon } from 'lucide-react';
 
 import { SETTINGS_ICONS } from '../AppIcons';
 
-/**
- * 「模型」页还是交互原型（假数据，docs/design/unified-gateway.md M1.5）：只在开发运行时出现，
- * 生产构建与单元测试里都没有（测试按生产菜单断言；原型自己的测试直接渲染页面）。
- */
-export const SHOW_MODELS_PROTOTYPE = import.meta.env.DEV && import.meta.env.MODE !== 'test';
-
 /** 设置分区（纯数据，App 首屏也要用，不随设置页懒加载）。 */
 export type SettingsSection =
   | 'general'
@@ -30,9 +24,7 @@ export const SETTINGS_SECTIONS: Array<{
 }> = [
   { id: 'general', icon: SETTINGS_ICONS.general, label: '通用' },
   { id: 'shortcuts', icon: SETTINGS_ICONS.shortcuts, label: '快捷键' },
-  ...(SHOW_MODELS_PROTOTYPE
-    ? [{ id: 'models' as const, icon: SETTINGS_ICONS.models, label: '模型' }]
-    : []),
+  { id: 'models', icon: SETTINGS_ICONS.models, label: '模型' },
   { id: 'coding', icon: SETTINGS_ICONS.coding, label: '编程助手' },
   { id: 'usage', icon: SETTINGS_ICONS.usage, label: '用量与费用' },
   { id: 'senses', icon: SETTINGS_ICONS.senses, label: '语音与屏幕' },

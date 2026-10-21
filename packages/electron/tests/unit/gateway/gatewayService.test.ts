@@ -141,8 +141,8 @@ describe('GatewayService', () => {
     expect(t.svc.state().providers[0]!.keys[0]).toMatchObject({
       masked: 'sk-…3456',
       decryptable: true,
-      name: '主 Key',
     });
+    expect(t.svc.state().providers[0]!.keys[0]!.name).toBeUndefined();
   });
 
   it('upserts providers (new keys, reorder, delete), pushes configs and broadcasts', () => {
@@ -194,5 +194,131 @@ describe('GatewayService', () => {
     expect(() => t.svc.confirmPrivateHost('not a host')).toThrow();
     t.svc.confirmPrivateHost('127.0.0.1:11434');
     expect(t.lastConfig().allowedPrivateHosts).toEqual(['127.0.0.1:11434']);
+  });
+
+  it("routes Nomi chat roles through the gateway with each model's own wire", async () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'Relay',
+      urls: { chat: 'https://r.example.com/v1', messages: 'https://r.example.com' },
+      newKeys: [{ value: 'sk-r' }],
+      models: [
+        { id: 'claude-opus-5', enabled: true },
+        { id: 'glm-5', enabled: true },
+      ],
+    });
+    t.svc.upsertProvider({
+      name: 'DS',
+      urls: { chat: 'https://api.deepseek.com/v1' },
+      newKeys: [{ value: 'sk-d' }],
+      models: [{ id: 'deepseek-v4-flash', enabled: true }],
+    });
+    t.svc.setAssignment('nomi', {
+      models: { main: 'relay/claude-opus-5', summary: 'ds/deepseek-v4-flash' },
+    });
+    expect(t.svc.nomiRoute('chat')).toBeNull(); // 网关还没就绪
+    t.children[0]!.say({ type: 'listening', port: 18721, url: 'http://127.0.0.1:18721' });
+    await t.svc.whenReady(100);
+    expect(t.svc.nomiRoute('chat')).toMatchObject({
+      baseURL: 'http://127.0.0.1:18721',
+      protocol: 'anthropic',
+      model: 'relay/claude-opus-5',
+      token: expect.stringMatching(/^nomi-gw-nomi-/),
+    });
+    expect(t.svc.nomiRoute('summary')).toMatchObject({
+      baseURL: 'http://127.0.0.1:18721/v1',
+      protocol: 'openai-chat',
+      model: 'ds/deepseek-v4-flash',
+    });
+    // tools 没设：跟随 main
+    expect(t.svc.nomiRoute('agent-tools')!.model).toBe('relay/claude-opus-5');
+    t.svc.setAssignment('nomi', { models: { main: 'relay/glm-5' } });
+    expect(t.svc.nomiRoute('chat')).toMatchObject({
+      protocol: 'openai-chat',
+      model: 'relay/glm-5',
+      // 工具结果的接收者是真正的上游
+      receiver: { id: 'relay', baseURL: 'https://r.example.com/v1' },
+    });
+    // 「跟随对话」：null 清除
+    t.svc.setAssignment('nomi', { models: { summary: null as unknown as string } });
+    expect(t.svc.state().clients.nomi!.models).toEqual({ main: 'relay/glm-5' });
+  });
+
+  it('reports the real upstream for privacy checks, cloud wins over local fallbacks', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'Cloud',
+      urls: { chat: 'https://api.cloud.example/v1' },
+      newKeys: [{ value: 'sk-c' }],
+      models: [{ id: 'm', enabled: true }],
+    });
+    t.svc.confirmPrivateHost('127.0.0.1:11434');
+    t.svc.upsertProvider({
+      name: 'Ollama',
+      presetId: 'ollama',
+      urls: { chat: 'http://127.0.0.1:11434/v1' },
+      models: [{ id: 'qwen3', enabled: true }],
+      fallback: ['cloud/m'],
+    });
+    // 网关还没就绪也能回答「现在用的是谁」
+    t.svc.setAssignment('nomi', { models: { main: 'cloud/m' } });
+    expect(t.svc.nomiProvider('chat')).toEqual({
+      id: 'cloud',
+      name: 'Cloud',
+      baseURL: 'https://api.cloud.example/v1',
+      model: 'm',
+    });
+    // 首选是本机，但回退到云端：按云端算
+    t.svc.setAssignment('nomi', { models: { main: 'ollama/qwen3' } });
+    expect(t.svc.nomiProvider('chat')).toMatchObject({
+      id: 'ollama',
+      model: 'qwen3',
+      baseURL: 'https://api.cloud.example/v1',
+    });
+    expect(t.svc.providerInfo('ollama')).toEqual({
+      id: 'ollama',
+      name: 'Ollama',
+      baseURL: 'http://127.0.0.1:11434/v1',
+    });
+    expect(t.svc.providerInfo('nope')).toBeNull();
+    // 没有 Key 的本地服务在快照里有一个空 Key（否则路由找不到候选）
+    expect(t.lastConfig().providers.find((p) => p.id === 'ollama')!.keys).toEqual([
+      { id: 'none', value: '', enabled: true },
+    ]);
+  });
+
+  it('credentials for embeddings / ASR come from the Chat address, keys never leave the main process', () => {
+    const t = setup();
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'DS',
+      urls: { chat: 'https://api.deepseek.com/v1', messages: 'https://api.deepseek.com/anthropic' },
+      newKeys: [{ value: 'sk-ds' }],
+    });
+    t.svc.upsertProvider({ name: 'OnlyMsg', urls: { messages: 'https://m.example' } });
+    expect(t.svc.listOpenAiCompatible()).toEqual([
+      { id: 'ds', name: 'DS', baseURL: 'https://api.deepseek.com/v1' },
+    ]);
+    expect(t.svc.credentials('ds')).toEqual({
+      id: 'ds',
+      name: 'DS',
+      baseURL: 'https://api.deepseek.com/v1',
+      apiKey: 'sk-ds',
+    });
+    expect(t.svc.credentials('onlymsg')).toBeNull();
+  });
+
+  it('notifies in-process listeners on changes', () => {
+    const t = setup();
+    t.svc.init();
+    const fn = jest.fn();
+    const off = t.svc.onChange(fn);
+    t.svc.upsertProvider({ name: 'X', urls: { chat: 'https://x.example/v1' } });
+    expect(fn).toHaveBeenCalledTimes(1);
+    off();
+    t.svc.removeProvider('x');
+    expect(fn).toHaveBeenCalledTimes(1);
   });
 });

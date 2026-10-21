@@ -151,3 +151,30 @@ export function resolveCandidates(
   }
   return { ok: true, candidates };
 }
+
+/**
+ * 给自带 SDK 的客户端（Nomi 对话）选入口协议（§12.5）：用候选列表第一项「自己会选的协议」，
+ * 这样网关那一侧是同协议透传，没有转换损失。解析不到返回 null。
+ */
+export function preferredWire(
+  cfg: GatewayConfig,
+  client: ClientId,
+  ref: string,
+): {
+  wire: Wire;
+  publicModel: string;
+  /** 可能收到这次请求的上游（首选在前，之后是回退），去重；隐私判断要看全部 */
+  upstreams: Array<{ providerId: string; name: string; url: string }>;
+} | null {
+  // 以 Chat 为入口算一遍：规则 2 / 3 / 4.5 / 5 都与入口无关，Chat 可用时就用 Chat（实现最完整）
+  const r = resolveCandidates(cfg, client, ref, 'chat');
+  if (!r.ok) return null;
+  const c = r.candidates[0]!;
+  const upstreams: Array<{ providerId: string; name: string; url: string }> = [];
+  for (const x of r.candidates) {
+    const url = x.provider.urls[x.wire] ?? '';
+    if (!upstreams.some((u) => u.providerId === x.provider.id && u.url === url))
+      upstreams.push({ providerId: x.provider.id, name: x.provider.name, url });
+  }
+  return { wire: c.wire, publicModel: c.publicModel, upstreams };
+}

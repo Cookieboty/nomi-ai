@@ -153,7 +153,7 @@ export const CliProviderChip: React.FC<{
         </span>
       )}
       {onManage && (
-        // 与 Nomi 模式同一位置的按钮（ProviderSwitcher）同一个组件、同一尺寸
+        // 与 Nomi 模式同一位置的按钮（NomiModelSwitch）同一个组件、同一尺寸
         <IconButton
           size="sm"
           data-testid="open-cli-provider-panel"

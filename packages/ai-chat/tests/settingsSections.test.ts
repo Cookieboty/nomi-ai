@@ -3,10 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('11 个分区，高频在前；没有独立的「更新」「屏幕」「语音」', () => {
+  it('12 个分区，高频在前；没有独立的「更新」「屏幕」「语音」', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
       'shortcuts',
+      'models',
       'coding',
       'usage',
       'senses',
@@ -20,6 +21,7 @@ describe('设置分区：合并后的菜单', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.label)).toEqual([
       '通用',
       '快捷键',
+      '模型',
       '编程助手',
       '用量与费用',
       '语音与屏幕',

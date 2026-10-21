@@ -4,7 +4,6 @@
  * 看板娘在引导中打招呼、回应每一步的选择。
  */
 import {
-  ModalHostContext,
   THEMES,
   currentTheme,
   getLocalePref,
@@ -21,13 +20,10 @@ import { Cloud, FolderLock, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { startupClient, type StartupView } from '../../services/startupClient';
-import { ProviderPanel } from '../ProviderPanel';
+import { ModelsPage } from '../ModelsPage';
 
 import { mergePersona, onboardingClient, type VoiceStyle } from './client';
 import styles from './index.module.css';
-
-/** 供应商面板以内嵌方式渲染在引导卡片里（不弹出自己的对话框） */
-const INLINE = { mode: 'inline' } as const;
 
 /** 引导里嵌入的面板出错时不影响整个引导（仍可跳过这一步） */
 class StepBoundary extends React.Component<{ children: React.ReactNode }, { failed: boolean }> {
@@ -339,14 +335,12 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
           <>
             <p className={styles.note}>
               {t(
-                '添加一个模型服务商（OpenAI 兼容、Anthropic、本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 编程助手 → Nomi」里添加。',
+                '添加一个第三方供应商（厂商、中转平台或本机 Ollama 等）。不着急的话可以先跳过，之后在「设置 → 模型」里添加。',
               )}
             </p>
             <div className={styles.provider} data-testid="onb-provider">
               <StepBoundary>
-                <ModalHostContext.Provider value={INLINE}>
-                  <ProviderPanel isVisible onClose={() => undefined} />
-                </ModalHostContext.Provider>
+                <ModelsPage />
               </StepBoundary>
             </div>
           </>

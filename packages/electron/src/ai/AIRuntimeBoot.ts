@@ -20,6 +20,7 @@ import {
   AiChatCompat,
   CapabilityIpcServer,
   EventBroadcaster,
+  GATEWAY_PROVIDER_ID,
   IPCTransportServer,
   ProviderIpcServer,
   ProviderService,
@@ -40,12 +41,15 @@ import type { AIClient } from '@nomi-ai/ai-sdk';
 import { FileSessionStorePlugin } from '@nomi-ai/bundle-ig-electron-caps';
 import { app, safeStorage } from 'electron';
 
+import { isLocalBaseURL as isLocalUrl } from '../desktop/consent';
 import { desktopIgPlugins } from '../desktop/plugin';
 import { getExtensionsService } from '../extensions/ExtensionsService';
+import { getGatewayService } from '../gateway/GatewayService';
 import { isTrustedAiSender } from '../security/ipcSenderGuard';
 import type { ILoggerService } from '../services/LoggerService';
 import { getUsageService } from '../usage/UsageService';
 
+import { splitGatewayUsage } from './gatewayUsage';
 import { mascotIgPlugins } from './mascotBridge';
 import type { TtsProvider } from './TtsElectronNativeProvider';
 
@@ -164,8 +168,8 @@ export async function startAIRuntime(
         dur: e.durationMs,
         source: 'nomi',
         via: 'chat',
-        provider: e.providerId,
-        model: e.model,
+        // 经统一网关：模型名是「供应商/模型」，拆回真正的供应商与模型（显示名与计价按它们算）
+        ...splitGatewayUsage(e.providerId, e.model),
         promptTokens: e.inputTokens,
         outputTokens: e.outputTokens,
         cacheRead: e.cacheReadTokens,
@@ -199,6 +203,8 @@ export async function startAIRuntime(
       mcpToolGuard: (server, def) => getExtensionsService()?.guardEnvTool(server, def) ?? def,
       providers: {
         store: providerStore,
+        // 统一网关：Nomi 对话优先经网关（网关未就绪 / 没配模型时退回旧存储）
+        gateway: { resolve: (role) => getGatewayService()?.nomiRoute(role) ?? null },
         onRegistry: (r) => {
           registry = r;
         },
@@ -269,6 +275,8 @@ export async function startAIRuntime(
     resolveProvider(role) {
       const p = registry?.resolve(role)?.provider;
       if (!p) return null;
+      // 经统一网关：报真正的上游供应商与地址（网关本身是本机回环，不能据此判断本地）
+      if (p.id === GATEWAY_PROVIDER_ID) return getGatewayService()?.nomiProvider(role) ?? null;
       const st = providerService.state();
       const v =
         st.providers.find((x) => x.id === p.id) ?? st.envProviders.find((x) => x.id === p.id);
@@ -277,9 +285,16 @@ export async function startAIRuntime(
     lookupProvider(id) {
       const st = providerService.state();
       const v = st.providers.find((x) => x.id === id) ?? st.envProviders.find((x) => x.id === id);
-      return v ? { id: v.id, name: v.name, baseURL: v.baseURL } : null;
+      const legacy = v ? { id: v.id, name: v.name, baseURL: v.baseURL } : null;
+      const gw = getGatewayService()?.providerInfo(id) ?? null;
+      // 两边都有同名 id（迁移前后）时取更严的那个：有云端地址的
+      if (gw && legacy) return isLocalUrl(gw.baseURL) ? legacy : gw;
+      return gw ?? legacy;
     },
     providerCredentials(id) {
+      // 网关的供应商优先（「模型」页新加的都在这里）；旧存储的 id 继续可用（已有的知识库 / 语音设置）
+      const gw = getGatewayService()?.credentials(id);
+      if (gw) return gw;
       const p = providerStore.providers().find((x) => x.id === id);
       if (!p) return null;
       return {
@@ -290,7 +305,13 @@ export async function startAIRuntime(
       };
     },
     listProviders() {
-      return providerStore.providers().map((p) => ({ id: p.id, name: p.name, baseURL: p.baseURL }));
+      const gw = getGatewayService()?.listOpenAiCompatible() ?? [];
+      const legacy = providerStore
+        .providers()
+        // 迁移过来的同一个供应商只列网关那份（id 可能不同，地址相同）
+        .filter((p) => !gw.some((g) => g.id === p.id || g.baseURL === p.baseURL))
+        .map((p) => ({ id: p.id, name: p.name, baseURL: p.baseURL }));
+      return [...gw, ...legacy];
     },
     channels: {
       business: transport.channels,

@@ -15,7 +15,6 @@ import type { LocalPanel as LocalPanelT } from './LocalPanel';
 import type { MemoryPanel as MemoryPanelT } from './MemoryPanel';
 import type { NotesPanel as NotesPanelT } from './NotesPanel';
 import { PanelFallback } from './PanelFallback';
-import type { ProviderPanel as ProviderPanelT } from './ProviderPanel';
 import type { SchedulePanel as SchedulePanelT } from './SchedulePanel';
 import type { ScreenPanel as ScreenPanelT } from './ScreenPanel';
 import type { SettingsView as SettingsViewT } from './SettingsView';
@@ -88,9 +87,6 @@ export function lazyPanel<P extends { isVisible: boolean }>(load: Loader<P>): Re
 
 export const SettingsView: React.FC<PropsOf<typeof SettingsViewT>> = lazyComponent(() =>
   import('./SettingsView').then((m) => m.SettingsView),
-);
-export const ProviderPanel: React.FC<PropsOf<typeof ProviderPanelT>> = lazyPanel(() =>
-  import('./ProviderPanel').then((m) => m.ProviderPanel),
 );
 export const DesktopPanel: React.FC<PropsOf<typeof DesktopPanelT>> = lazyPanel(() =>
   import('./DesktopPanel').then((m) => m.DesktopPanel),

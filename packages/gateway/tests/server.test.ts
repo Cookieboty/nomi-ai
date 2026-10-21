@@ -168,6 +168,36 @@ describe('gateway: access control', () => {
 });
 
 describe('gateway: routing and conversion', () => {
+  it('a local service without a key: routed with an empty key and no auth header', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.end(chatStream);
+    });
+    const { url } = await gateway(
+      {
+        providers: [
+          provider(
+            'ollama',
+            { chat: `${up.base}/v1` },
+            { keys: [{ id: 'none', value: '', enabled: true }] },
+          ),
+        ],
+        clients: { codex: { token: 'tok-codex', models: { main: 'ollama/glm-5' } } },
+      },
+      [up.hostPort],
+    );
+    const res = await post(
+      url,
+      '/v1/chat/completions',
+      { model: 'ollama/glm-5', stream: true, messages: [{ role: 'user', content: 'hi' }] },
+      { authorization: 'Bearer tok-codex' },
+    );
+    expect(res.status).toBe(200);
+    await res.text();
+    expect(up.seen[0]!.headers.authorization).toBeUndefined();
+    expect(up.seen[0]!.headers['x-api-key']).toBeUndefined();
+  });
+
   it('Claude Code (Messages) on a Chat-only provider: converts both ways and reports usage', async () => {
     const up = await upstream((_s, res) => {
       res.writeHead(200, { 'content-type': 'text/event-stream' });

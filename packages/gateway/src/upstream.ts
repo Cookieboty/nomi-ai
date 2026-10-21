@@ -64,9 +64,12 @@ export function upstreamHeaders(
     Accept: opts.stream ? 'text/event-stream' : 'application/json',
   };
   const auth = c.provider.detected?.[c.wire]?.auth ?? DEFAULT_AUTH[c.wire];
-  if (auth === 'x-api-key') h['x-api-key'] = c.key.value;
-  else if (auth === 'x-goog-api-key') h['x-goog-api-key'] = c.key.value;
-  else h.Authorization = `Bearer ${c.key.value}`;
+  // 本地服务（Ollama / LM Studio / llama.cpp）没有 Key：不发鉴权头
+  if (c.key.value) {
+    if (auth === 'x-api-key') h['x-api-key'] = c.key.value;
+    else if (auth === 'x-goog-api-key') h['x-goog-api-key'] = c.key.value;
+    else h.Authorization = `Bearer ${c.key.value}`;
+  }
   const header = (name: string) => {
     const v = opts.clientHeaders[name];
     return typeof v === 'string' && v ? v : undefined;

@@ -16,6 +16,26 @@ vi.mock('../src/contexts/AiChatContext', () => ({
   }),
 }));
 
+const GATEWAY_STATE = {
+  status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+  providers: [
+    {
+      id: 'amux',
+      name: 'Amux',
+      enabled: true,
+      urls: { chat: 'https://gateway.amux.ai/v1' },
+      keys: [],
+      models: [{ id: 'gpt-x', enabled: true }],
+      source: 'user',
+      createdAt: 0,
+      updatedAt: 0,
+    },
+  ],
+  clients: { nomi: { models: { main: 'amux/gpt-x' } } },
+  allowedPrivateHosts: [],
+  port: 1,
+};
+
 const NOMI_STATE = {
   providers: [
     {
@@ -89,6 +109,7 @@ function mockIpc(opts: {
     if (ch === 'ai:cli-account:list') return opts.accounts ?? [];
     if (ch === 'ai:cli-account:activate') return {};
     if (ch === 'ai:providers:state') return NOMI_STATE;
+    if (ch === 'ai:gateway:state') return GATEWAY_STATE;
     if (ch === 'ai:cli-provider:state') return opts.cli;
     if (ch === 'ai:cli-provider:activate') return { ok: true, backups: [] };
     if (ch === 'ai:cli-provider:deactivate') return { ok: true, backups: [] };
@@ -381,8 +402,7 @@ describe('EndpointControls', () => {
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('cli-provider-chip')).toBeTruthy());
-    expect(r.queryByTestId('provider-switcher')).toBeNull();
-    expect(r.queryByTestId('model-switch')).toBeNull();
+    expect(r.queryByTestId('nomi-model-switch')).toBeNull();
     expect(r.container.textContent).not.toContain('Amux');
   });
 
@@ -396,7 +416,8 @@ describe('EndpointControls', () => {
         </>
       </HarnessTabsProvider>,
     );
-    await waitFor(() => expect(r.getByTestId('provider-switcher')).toBeTruthy());
+    await waitFor(() => expect(r.getByTestId('nomi-model-switch')).toBeTruthy());
+    expect(r.getByTestId('nomi-model-switch').textContent).toContain('Amux / gpt-x');
     expect(r.queryByTestId('cli-provider-chip')).toBeNull();
   });
 });

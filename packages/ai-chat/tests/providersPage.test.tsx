@@ -11,10 +11,6 @@ import type {
   CliRouteSettings,
 } from '../src/services/cliProviderClient';
 
-vi.mock('../src/components/lazyPanels', () => ({
-  ProviderPanel: () => <div data-testid="nomi-provider-panel-stub">任务路由</div>,
-}));
-
 const PRESETS = [
   {
     id: 'custom',
@@ -145,14 +141,16 @@ describe('routingStatus（路由开关与原因）', () => {
 });
 
 describe('ProvidersPage', () => {
-  it('Nomi 区含任务路由面板；切到 Codex 后不再出现，且各端点独立', async () => {
+  it('Nomi 区只有指向「模型」页的入口；切到 Codex 后不再出现，且各端点独立', async () => {
     setup([]);
-    const r = render(<ProvidersPage />);
+    const onOpenModels = vi.fn();
+    const r = render(<ProvidersPage onOpenModels={onOpenModels} />);
     expect(r.getByTestId('providers-section-nomi')).toBeTruthy();
-    expect(r.getByTestId('nomi-provider-panel-stub')).toBeTruthy();
+    fireEvent.click(r.getByTestId('providers-open-models'));
+    expect(onOpenModels).toHaveBeenCalled();
     fireEvent.click(r.getByTestId('providers-endpoint-codex'));
     await waitFor(() => expect(r.getByTestId('providers-section-codex')).toBeTruthy());
-    expect(r.queryByTestId('nomi-provider-panel-stub')).toBeNull();
+    expect(r.queryByTestId('providers-open-models')).toBeNull();
     expect(r.getByTestId('cli-ep-intro').textContent).toContain(
       '~/.codex/config.toml'.replace('~', '/home/u'),
     );

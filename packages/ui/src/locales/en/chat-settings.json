@@ -38,7 +38,6 @@
   "语音服务不可用（仅在桌面应用中提供）。": "Voice service unavailable (desktop app only).",
   "语音输入": "Voice input",
   "快捷键": "Shortcuts",
-  "供应商管理仅在桌面应用中可用；模型配置见「通用」。": "Provider management is only available in the desktop app; see “General” for model settings.",
   "对话、记忆、知识库索引、屏幕记忆都只保存在这台电脑上，不做云同步。": "Chats, memories, the knowledge base index and screen memory are all stored only on this computer, with no cloud sync.",
   "编程助手进度只读取本机日志 / 状态文件，不登录、不抓取任何账号。": "Coding agent progress only reads local logs / status files; it never signs in or scrapes any account.",
   "屏幕记忆可随时暂停；桌面文件访问需逐个文件夹授权，操作都有记录可撤销。": "Screen memory can be paused anytime; desktop file access requires granting each folder, and every action is logged and undoable.",

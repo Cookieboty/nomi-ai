@@ -202,7 +202,8 @@ const remember = (raw: ProviderState): ProviderState => {
 /** 当前生效 provider 的显示名（用于消息标签）；未知时 undefined。 */
 export function effectiveProviderLabel(): string | undefined {
   const s = lastState;
-  if (!s?.effectiveProviderId) return undefined;
+  // 经统一网关时旧存储只知道一个占位 id，标签由网关的分配给出（services/nomiModel）
+  if (!s?.effectiveProviderId || s.effectiveProviderId === 'nomi-gateway') return undefined;
   const id = s.effectiveProviderId;
   const name =
     s.providers.find((p) => p.id === id)?.name ??

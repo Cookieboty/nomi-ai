@@ -174,7 +174,6 @@
   "记忆只保存在本机。整理摘要使用当前对话模型；开启知识库的向量检索后，回忆会更准确。": "Memories are stored only on this device. Summaries use the current chat model; recall is more accurate with knowledge-base vector search on.",
   "长期记忆已关闭：不会整理新对话，也不会在回答时参考记忆。": "Long-term memory is off: new conversations aren't summarized and memories aren't used in answers.",
   "开启": "Turn on",
-  "已开启": "On",
   "对话记忆": "Conversation memories",
   "关于我": "About me",
   "档案字数": "Profile length",

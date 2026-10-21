@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig, RuntimeProvider } from '../src/config';
 import { checkUpstream } from '../src/net/upstreamGuard';
 import { pickWire, wiresFor, WIRE_DOWN_TTL_MS } from '../src/route/native';
-import { mapBuiltinModel, resolveCandidates, splitRef } from '../src/route/resolve';
+import { mapBuiltinModel, preferredWire, resolveCandidates, splitRef } from '../src/route/resolve';
 import { upstreamUrl } from '../src/upstream';
 
 const p = (extra: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
@@ -107,6 +107,25 @@ describe('resolve (§6.2 / §7.2)', () => {
     expect(r.ok && r.candidates.map((c) => c.publicModel)).toEqual(['a/x', 'b/big']);
     const bare = resolveCandidates(cfg([a, b]), 'claude', 'dup', 'messages');
     expect(bare.ok && bare.candidates[0]!.provider.id).toBe('a');
+  });
+  it('preferredWire lists every upstream that may receive the request, fallbacks included', () => {
+    const a = p({
+      id: 'a',
+      urls: { chat: 'http://127.0.0.1:11434/v1' },
+      keys: [
+        { id: 'k1', value: 'v', enabled: true },
+        { id: 'k2', value: 'w', enabled: true },
+      ],
+      models: [{ id: 'x', enabled: true }],
+      fallback: ['b/big'],
+    });
+    const b = p({ id: 'b', name: 'B', models: [{ id: 'big', enabled: true }] });
+    const r = preferredWire(cfg([a, b]), 'nomi', 'a/x');
+    expect(r).toMatchObject({ wire: 'chat', publicModel: 'a/x' });
+    expect(r!.upstreams).toEqual([
+      { providerId: 'a', name: 'Relay', url: 'http://127.0.0.1:11434/v1' },
+      { providerId: 'b', name: 'B', url: 'https://r/v1' },
+    ]);
   });
   it('a disabled provider or one without keys is not a candidate', () => {
     const r = resolveCandidates(cfg([p({ id: 'a', keys: [] })]), 'claude', 'a/x', 'chat');

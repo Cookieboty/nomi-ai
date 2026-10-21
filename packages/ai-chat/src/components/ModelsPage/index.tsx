@@ -1,91 +1,66 @@
 /**
- * 设置 →「模型」页（docs/design/unified-gateway.md §4.1）。
- * M1.5 原型：数据全部来自 fakeData，只在开发模式出现，用于评审交互；M2 接网关（ai:gateway:*）。
- * 官方账号不在这里：仍在「编程助手」页原位置。
+ * 设置 →「模型」页（docs/design/unified-gateway.md §4.1）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
+ * - 分配：目前只有 Nomi 对话（main / tools / summary）；编程助手的第三方模型 M3 接入，暂时仍在「编程助手」页；
+ * - 官方账号不在这里：仍在「编程助手」页原位置。
  */
-import {
-  BrandIcon,
-  Button,
-  Icon,
-  ModelPicker,
-  Select,
-  Switch,
-  t,
-  type SelectOption,
-} from '@nomi-ai/ui';
-import { AlertCircle, Check, ChevronDown, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
+import { BrandIcon, Button, Icon, ModelPicker, Switch, t } from '@nomi-ai/ui';
+import { AlertCircle, Check, MoreHorizontal, Plus } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
-import { EndpointIcon } from '../EndpointIcon';
+import {
+  gatewayClient,
+  WIRE_LABEL,
+  WIRES,
+  type ClientModels,
+  type ProviderView,
+} from '../../services/gatewayClient';
+import { pickerProviders, useGatewayState } from '../../services/nomiModel';
+import { providerDisplayName } from '../../services/providerClient';
 
 import { AddProviderDialog } from './AddProviderDialog';
-import {
-  CLAUDE_TIERS,
-  CLIS,
-  INITIAL_ASSIGNMENT,
-  INITIAL_PROVIDERS,
-  pickerProviders,
-  RECENT,
-  WIRE_LABEL,
-  type Assignment,
-  type CliId,
-  type ProtoCli,
-  type ProtoProvider,
-} from './fakeData';
 import styles from './index.module.css';
 
 const FOLLOW = 'follow';
-const UNSET = 'unset';
 
 export const ModelsPage: React.FC = () => {
-  const [providers, setProviders] = useState<ProtoProvider[]>(INITIAL_PROVIDERS);
-  const [a, setA] = useState<Assignment>(INITIAL_ASSIGNMENT);
+  const state = useGatewayState();
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
-  const [terminal, setTerminal] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [claudeOpen, setClaudeOpen] = useState(false);
-  const [offer, setOffer] = useState<ProtoProvider | null>(null);
+  const [offer, setOffer] = useState<ProviderView | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
-  const common = { providers: picker, recent: RECENT, showWire, size: 'sm' as const };
+  const nomi = state?.clients.nomi?.models ?? {};
+  const common = { providers: picker, showWire, size: 'sm' as const };
 
-  const setCli = (id: CliId, patch: Partial<Assignment['cli'][CliId]>) =>
-    setA((p) => ({ ...p, cli: { ...p.cli, [id]: { ...p.cli[id], ...patch } } }));
+  const run = (p: Promise<unknown>) => {
+    setError(null);
+    p.catch((e: Error) => setError(e.message));
+  };
+  /** null 表示清除（跟随对话） */
+  const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
+    run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
 
-  const onSaved = (p: ProtoProvider) => {
-    const hadAssignment = Boolean(a.chat) || Object.values(a.cli).some((c) => c.main);
-    setProviders((list) => [...list, p]);
+  const onSaved = (p: ProviderView) => {
     setAdding(false);
-    if (!hadAssignment) setOffer(p);
+    if (!nomi.main && p.models.some((m) => m.enabled)) setOffer(p);
   };
 
-  /** 一键把新供应商的第一个模型填进分配区（「新标签默认用」不改，官方账号保持原样） */
-  const applyOffer = (p: ProtoProvider) => {
+  /** 一键把新供应商的第一个模型设为 Nomi 对话的模型 */
+  const applyOffer = (p: ProviderView) => {
     const first = p.models.find((x) => x.enabled && x.toolCalling !== false);
-    if (!first) return setOffer(null);
-    const ref = `${p.id}/${first.id}`;
-    setA((prev) => ({
-      ...prev,
-      chat: prev.chat ?? ref,
-      cli: Object.fromEntries(
-        CLIS.map((c) => [
-          c.id,
-          c.installed && !prev.cli[c.id].main ? { ...prev.cli[c.id], main: ref } : prev.cli[c.id],
-        ]),
-      ) as Assignment['cli'],
-    }));
+    if (first) assign({ main: `${p.id}/${first.id}` });
     setOffer(null);
   };
 
+  const status = state?.status;
   return (
     <div className={styles.page} data-testid="models-page">
       <div className={styles.head}>
         <div>
-          <h2 className={styles.title}>
-            {t('模型')}
-            <span className={styles.protoBadge}>{t('原型 · 假数据')}</span>
-          </h2>
+          <h2 className={styles.title}>{t('模型')}</h2>
           <p className={styles.sub}>
             {t(
               '一个第三方供应商就能同时给 Nomi 对话和各编程助手用，协议由 Nomi 自动转换。官方账号的登录与切换仍在「编程助手」页。',
@@ -98,9 +73,24 @@ export const ModelsPage: React.FC = () => {
         </label>
       </div>
 
+      {status?.state === 'failed' && (
+        <div className={styles.offer} role="alert" data-testid="gateway-failed">
+          <Icon icon={AlertCircle} size={14} />
+          <span>{t('模型网关没有启动：{0}', status.error)}</span>
+          <Button size="sm" variant="secondary" onClick={() => run(gatewayClient.retry())}>
+            {t('重试')}
+          </Button>
+        </div>
+      )}
+      {error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
+
       {offer && (
         <div className={styles.offer} role="status" data-testid="models-offer">
-          <span>{t('要让 Nomi 对话和已安装的编程助手都用「{0}」吗？', offer.name)}</span>
+          <span>{t('要让 Nomi 对话用「{0}」吗？', offer.name)}</span>
           <Button size="sm" variant="primary" onClick={() => applyOffer(offer)}>
             {t('一键填好')}
           </Button>
@@ -119,8 +109,10 @@ export const ModelsPage: React.FC = () => {
           <ModelPicker
             {...common}
             className={styles.pickerWide}
-            value={a.chat}
-            onChange={(v) => setA((p) => ({ ...p, chat: v }))}
+            value={nomi.main ?? null}
+            onChange={(v) => assign({ main: v })}
+            placeholder={picker.length ? t('选择模型') : t('先添加第三方供应商')}
+            disabled={!picker.length}
             aria-label={t('Nomi 对话的模型')}
             data-testid="assign-chat"
           />
@@ -131,38 +123,27 @@ export const ModelsPage: React.FC = () => {
             {...common}
             className={styles.picker}
             extraOptions={[{ value: FOLLOW, label: t('跟随对话') }]}
-            value={a.tools ?? FOLLOW}
-            onChange={(v) => setA((p) => ({ ...p, tools: v === FOLLOW ? null : v }))}
+            value={nomi.tools ?? FOLLOW}
+            onChange={(v) => assign({ tools: v === FOLLOW ? null : v })}
+            disabled={!picker.length}
             aria-label={t('工具调用的模型')}
+            data-testid="assign-tools"
           />
           <span className={styles.rowLabel}>{t('摘要')}</span>
           <ModelPicker
             {...common}
             className={styles.picker}
-            value={a.summary}
-            onChange={(v) => setA((p) => ({ ...p, summary: v }))}
+            extraOptions={[{ value: FOLLOW, label: t('跟随对话') }]}
+            value={nomi.summary ?? FOLLOW}
+            onChange={(v) => assign({ summary: v === FOLLOW ? null : v })}
+            disabled={!picker.length}
             aria-label={t('摘要的模型')}
+            data-testid="assign-summary"
           />
         </div>
-
-        <div className={styles.cliHead}>
-          <span>{t('编程助手的第三方模型')}</span>
-          <span>{t('新标签默认用')}</span>
-        </div>
-        {CLIS.map((c) => (
-          <CliRow
-            key={c.id}
-            cli={c}
-            a={a}
-            common={common}
-            open={c.id === 'claude' && claudeOpen}
-            onToggle={() => setClaudeOpen((x) => !x)}
-            setCli={setCli}
-            setSource={(s) =>
-              setA((p) => ({ ...p, newTabSource: { ...p.newTabSource, [c.id]: s } }))
-            }
-          />
-        ))}
+        <p className={styles.sub}>
+          {t('编程助手的第三方模型暂时仍在「编程助手」页配置，之后会合并到这里。')}
+        </p>
       </section>
 
       <section className={styles.card} aria-labelledby="models-providers">
@@ -174,173 +155,63 @@ export const ModelsPage: React.FC = () => {
             size="sm"
             variant="secondary"
             onClick={() => setAdding(true)}
+            disabled={!state}
             data-testid="add-provider"
           >
             <Icon icon={Plus} size={14} />
             {t('添加')}
           </Button>
         </div>
+        {state && !providers.length && (
+          <p className={styles.muted} data-testid="models-empty">
+            {t('还没有第三方供应商。添加一个，Nomi 对话就能用它的模型。')}
+          </p>
+        )}
         {providers.map((p) => (
           <ProviderRow
             key={p.id}
             p={p}
             open={expanded === p.id}
             onToggle={() => setExpanded((x) => (x === p.id ? null : p.id))}
-            onChange={(next) => setProviders((list) => list.map((x) => (x.id === p.id ? next : x)))}
-            onRemove={() => setProviders((list) => list.filter((x) => x.id !== p.id))}
+            onModels={(models) =>
+              run(gatewayClient.upsertProvider({ id: p.id, name: p.name, urls: p.urls, models }))
+            }
+            onRemove={() => {
+              if (window.confirm(t('删除供应商「{0}」及其所有 Key？', p.name)))
+                run(gatewayClient.removeProvider(p.id));
+            }}
           />
         ))}
       </section>
 
-      <section className={`${styles.card} ${styles.terminal}`}>
-        <div>
-          <div className={styles.cardTitle}>{t('终端启动命令')}</div>
-          <p className={styles.sub}>
-            {t(
-              '在终端里用 nomi-claude、nomi-codex 等命令使用第三方模型；直接运行 claude、codex 仍是官方登录。',
-            )}
-          </p>
-        </div>
-        <Switch checked={terminal} onChange={setTerminal} aria-label={t('终端启动命令')} />
-      </section>
-
-      <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSave={onSaved} />
+      <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSaved={onSaved} />
     </div>
-  );
-};
-
-/* ------------------------------ 编程助手一行 ------------------------------ */
-
-const CliRow: React.FC<{
-  cli: ProtoCli;
-  a: Assignment;
-  common: Omit<React.ComponentProps<typeof ModelPicker>, 'value' | 'onChange'>;
-  open: boolean;
-  onToggle: () => void;
-  setCli: (id: CliId, patch: Partial<Assignment['cli'][CliId]>) => void;
-  setSource: (s: 'official' | 'third-party') => void;
-}> = ({ cli, a, common, open, onToggle, setCli, setSource }) => {
-  const v = a.cli[cli.id];
-  const unset: SelectOption = { value: UNSET, label: t('未设置') };
-  const sourceOptions: SelectOption[] = [
-    {
-      value: 'official',
-      label: t('官方账号'),
-      disabled: !cli.account,
-      description: cli.account ?? t('未登录'),
-    },
-    {
-      value: 'third-party',
-      label: t('第三方'),
-      disabled: !v.main,
-      description: v.main ? undefined : t('先选第三方模型'),
-    },
-  ];
-  if (!cli.installed) {
-    return (
-      <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${cli.id}`}>
-        <span className={styles.cliName}>
-          <EndpointIcon backend={cli.id} size={16} decorative />
-          {cli.name}
-        </span>
-        <span className={styles.muted}>{t('未安装')}</span>
-        <Button size="sm" variant="secondary">
-          {t('安装')}
-        </Button>
-      </div>
-    );
-  }
-  return (
-    <>
-      <div className={styles.cliRow} data-testid={`cli-row-${cli.id}`}>
-        <span className={styles.cliName}>
-          <EndpointIcon backend={cli.id} size={16} decorative />
-          {cli.name}
-        </span>
-        <span className={styles.cliPickers}>
-          {cli.id === 'claude' && <span className={styles.tierLabel}>{t('主')}</span>}
-          <ModelPicker
-            {...common}
-            purpose="coding"
-            className={styles.picker}
-            extraOptions={[unset]}
-            value={v.main ?? UNSET}
-            onChange={(x) => setCli(cli.id, { main: x === UNSET ? null : x })}
-            aria-label={t('{0} 的第三方模型', cli.name)}
-          />
-          {cli.id === 'claude' && (
-            <>
-              <span className={styles.tierLabel}>{t('小')}</span>
-              <ModelPicker
-                {...common}
-                purpose="coding"
-                className={styles.picker}
-                extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-                value={v.small ?? FOLLOW}
-                onChange={(x) => setCli(cli.id, { small: x === FOLLOW ? null : x })}
-                aria-label={t('Claude Code 的小模型')}
-              />
-              <button
-                type="button"
-                className={styles.expand}
-                aria-expanded={open}
-                aria-label={t('各档模型')}
-                onClick={onToggle}
-              >
-                <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-              </button>
-            </>
-          )}
-        </span>
-        <Select
-          size="sm"
-          className={styles.source}
-          options={sourceOptions}
-          value={a.newTabSource[cli.id]}
-          onChange={(e) => setSource(e.target.value as 'official' | 'third-party')}
-          aria-label={t('{0} 新标签默认用', cli.name)}
-          menuMinWidth={220}
-        />
-      </div>
-      {open &&
-        CLAUDE_TIERS.map((tier) => (
-          <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
-            <span className={styles.cliName}>{t(tier.label)}</span>
-            <span className={styles.cliPickers}>
-              <ModelPicker
-                {...common}
-                purpose="coding"
-                className={styles.picker}
-                extraOptions={[
-                  {
-                    value: FOLLOW,
-                    label: tier.follows === 'main' ? t('跟随主模型') : t('跟随小模型'),
-                  },
-                ]}
-                value={v.tiers[tier.id] ?? FOLLOW}
-                onChange={(x) =>
-                  setCli('claude', { tiers: { ...v.tiers, [tier.id]: x === FOLLOW ? null : x } })
-                }
-                aria-label={t('Claude Code 的{0}', t(tier.label))}
-              />
-            </span>
-            <span />
-          </div>
-        ))}
-    </>
   );
 };
 
 /* ------------------------------ 供应商一行 ------------------------------ */
 
+/** Key 的显示名：用户起的名字原样显示，否则按顺序「主 Key / 备用 Key N」 */
+const keyName = (k: { name?: string }, i: number): string =>
+  k.name || (i === 0 ? t('主 Key') : t('备用 Key {0}', String(i)));
+
 const ProviderRow: React.FC<{
-  p: ProtoProvider;
+  p: ProviderView;
   open: boolean;
   onToggle: () => void;
-  onChange: (p: ProtoProvider) => void;
+  onModels: (models: ProviderView['models']) => void;
   onRemove: () => void;
-}> = ({ p, open, onToggle, onChange, onRemove }) => {
+}> = ({ p, open, onToggle, onModels, onRemove }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
+  const fromEnv = p.source === 'env';
+  const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
+  const fi = p.keys.findIndex((k) => k.enabled && (k.lastError || !k.decryptable));
+  const failing = fi >= 0 ? p.keys[fi]! : undefined;
+  const warning = failing
+    ? failing.decryptable
+      ? t('{0} 最近一次请求失败：{1}', keyName(failing, fi), failing.lastError ?? '')
+      : t('{0} 无法解密，请重新填写', keyName(failing, fi))
+    : undefined;
   return (
     <div className={styles.provider} data-testid={`provider-${p.id}`}>
       <div className={styles.providerRow}>
@@ -350,17 +221,17 @@ const ProviderRow: React.FC<{
           onClick={onToggle}
           aria-expanded={open}
         >
-          <BrandIcon brand={p.brand} name={p.name} size={20} />
-          <span className={styles.providerName}>{p.name}</span>
-          {p.warning && (
-            <span className={styles.warnDot} title={p.warning} aria-label={p.warning}>
+          <BrandIcon brand={p.presetId ?? p.id} name={p.name} size={20} />
+          <span className={styles.providerName}>{providerDisplayName(p.name)}</span>
+          {warning && (
+            <span className={styles.warnDot} title={warning} aria-label={warning}>
               <Icon icon={AlertCircle} size={14} />
             </span>
           )}
-          {p.fromEnv && <span className={styles.badgeMuted}>{t('环境变量')}</span>}
+          {fromEnv && <span className={styles.badgeMuted}>{t('环境变量')}</span>}
           <span className={styles.muted}>{t('{0} 个 Key', String(p.keys.length))}</span>
           <span className={styles.wires}>
-            {p.wires.map((w) => (
+            {wires.map((w) => (
               <span key={w} className={styles.wireTag}>
                 <Icon icon={Check} size={12} />
                 {WIRE_LABEL[w]}
@@ -377,13 +248,14 @@ const ProviderRow: React.FC<{
         <div className={styles.detail}>
           <div className={styles.detailCol}>
             <div className={styles.groupTitle}>{t('Key（按顺序回退）')}</div>
-            {p.keys.map((k) => (
-              <div key={k.name} className={styles.keyLine}>
-                <span>{t(k.name)}</span>
+            {p.keys.map((k, i) => (
+              <div key={k.id} className={styles.keyLine}>
+                <span>{keyName(k, i)}</span>
                 <code>{k.masked}</code>
-                {k.lastError && <span className={styles.errorText}>{t(k.lastError)}</span>}
+                {k.lastError && <span className={styles.errorText}>{k.lastError}</span>}
               </div>
             ))}
+            {!p.keys.length && <span className={styles.muted}>{t('无需 Key')}</span>}
           </div>
           <div className={styles.detailCol}>
             <div className={styles.groupTitle}>{t('模型')}</div>
@@ -391,19 +263,18 @@ const ProviderRow: React.FC<{
               <label key={x.id} className={styles.modelCheck}>
                 <input
                   type="checkbox"
-                  disabled={Boolean(p.fromEnv)}
+                  disabled={fromEnv}
                   checked={x.enabled}
                   onChange={(e) =>
-                    onChange({
-                      ...p,
-                      models: p.models.map((y) =>
+                    onModels(
+                      p.models.map((y) =>
                         y.id === x.id ? { ...y, enabled: e.target.checked } : y,
                       ),
-                    })
+                    )
                   }
                 />
                 <span>{x.id}</span>
-                {x.metaKnown === false && (
+                {x.metaSource === 'default' && (
                   <span className={styles.badgeMuted}>{t('参数未知')}</span>
                 )}
                 {x.toolCalling === false && (
@@ -413,10 +284,7 @@ const ProviderRow: React.FC<{
             ))}
           </div>
           <div className={styles.detailActions}>
-            <Button size="sm" variant="ghost" disabled>
-              {t('高级')}
-            </Button>
-            {!p.fromEnv && (
+            {!fromEnv && (
               <Button size="sm" variant="danger" onClick={onRemove}>
                 {t('删除')}
               </Button>

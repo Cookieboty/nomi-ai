@@ -10,6 +10,8 @@ import * as path from 'path';
 
 import type { GatewayConfig, UsageEvent, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
 
+import { t as tr } from '../i18n';
+
 export interface GatewayChild {
   postMessage(m: WorkerInbound): void;
   on(ev: 'message', fn: (m: WorkerOutbound) => void): void;
@@ -113,7 +115,7 @@ export class GatewayProcess {
     const fork = this.d.fork ?? defaultFork();
     const modulePath = this.d.modulePath ?? path.join(__dirname, 'worker.js');
     if (!fork || (!this.d.fork && !fs.existsSync(modulePath))) {
-      this.setStatus({ state: 'failed', error: '当前环境无法启动网关进程' });
+      this.setStatus({ state: 'failed', error: tr('当前环境无法启动网关进程') });
       return;
     }
     this.setStatus({ state: 'starting' });
@@ -156,7 +158,7 @@ export class GatewayProcess {
     if (this.failures >= MAX_FAILURES) {
       this.setStatus({
         state: 'failed',
-        error: `网关进程连续 ${MAX_FAILURES} 次异常退出（${code}）`,
+        error: tr('网关进程连续 {0} 次异常退出（{1}）', MAX_FAILURES, code),
       });
       return;
     }

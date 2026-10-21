@@ -7,11 +7,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { cliProviderClient } from '../services/cliProviderClient';
 import { extClient } from '../services/extClient';
+import { gatewayClient } from '../services/gatewayClient';
 import {
   harnessClient,
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
+import { setNomiModel } from '../services/nomiModel';
 import { providerClient } from '../services/providerClient';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
@@ -245,8 +247,14 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       openPlugins: () => latest.current.onOpenPlugins(),
       openProviders: () => latest.current.onOpenProviders(),
       openSettings: () => latest.current.onOpenSettings(),
-      switchNomiModel: async (providerId, model) => {
-        await providerClient.setActive(providerId, model);
+      switchNomiModel: async (ref) => {
+        await setNomiModel(ref);
+      },
+      useNomiEnvProvider: async (id, model) => {
+        await gatewayClient.setAssignment('nomi', {
+          models: { main: null as unknown as string },
+        });
+        await providerClient.setActive(id, model);
       },
       activateCliProfile: async (id) => {
         const r = await cliProviderClient.activate(id);
