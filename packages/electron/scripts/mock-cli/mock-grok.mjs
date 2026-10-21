@@ -118,7 +118,9 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       waiting.set(id, resolve);
       send({ id, method, params });
     });
-  const keyState = () => (process.env.XAI_API_KEY ? 'key' : 'nokey');
+  // 第三方会话的令牌由私有 GROK_HOME 配置里的 env_key（NOMI_GROK_API_KEY）指定
+  const keyState = () =>
+    process.env.XAI_API_KEY || process.env.NOMI_GROK_API_KEY ? 'key' : 'nokey';
   /** 多种工具调用演示（NOMI_MOCK_SCENARIO=rich，与 -p 模式的 rich 同一组工具；NOMI_MOCK_STEP_MS 控制节奏） */
   async function richTurn(sid) {
     const step = Number(process.env.NOMI_MOCK_STEP_MS || 0);
@@ -246,7 +248,14 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       log({
         method: j.method,
         params: j.params,
-        ...(j.method === 'initialize' ? { argv: args, key: keyState(), cwd: process.cwd() } : {}),
+        ...(j.method === 'initialize'
+          ? {
+              argv: args,
+              key: keyState(),
+              cwd: process.cwd(),
+              grokHome: process.env.GROK_HOME ?? null,
+            }
+          : {}),
       });
     if (j.method === undefined && waiting.has(j.id)) {
       waiting.get(j.id)(j.result);
@@ -347,7 +356,7 @@ if (effortOverride && !knownEfforts.includes(effortOverride)) {
   process.stderr.write(`mock-grok: invalid reasoning effort ${effortOverride}\n`);
   process.exit(2);
 }
-const keyState = process.env.XAI_API_KEY ? 'key' : 'nokey';
+const keyState = process.env.XAI_API_KEY || process.env.NOMI_GROK_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_GROK_REPLY ||
   `【Mock Grok】${resumed ? 'resumed' : 'new'} ${keyState}: ${prompt.trim()}`;

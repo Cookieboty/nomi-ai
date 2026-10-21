@@ -627,10 +627,7 @@ const AiChatContent: React.FC = () => {
           <div className="session-bar">
             <SessionControls
               onManageNomi={() => openSettings('models')}
-              onManageCli={(b) => {
-                setProviderEndpoint(b);
-                openSettings('coding');
-              }}
+              onOpenModels={() => openSettings('models')}
             />
           </div>
           {/* 对话区域 */}

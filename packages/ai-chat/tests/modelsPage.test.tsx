@@ -122,10 +122,19 @@ function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult
         changed?.();
         break;
       case 'ai:gateway:set-assignment': {
-        const patch = (args[1] as { models: Record<string, string | null> }).models;
-        const next = { ...state.clients.nomi!.models, ...patch } as Record<string, unknown>;
+        const client = args[0] as keyof GatewayState['clients'];
+        const p = args[1] as {
+          models?: Record<string, string | null>;
+          newTabSource?: 'official' | 'thirdParty';
+        };
+        const prev = state.clients[client] ?? { models: {} };
+        const next = { ...prev.models, ...p.models } as Record<string, unknown>;
         for (const k of Object.keys(next)) if (next[k] == null) delete next[k];
-        state.clients.nomi = { models: next };
+        state.clients[client] = {
+          ...prev,
+          models: next,
+          ...(p.newTabSource ? { newTabSource: p.newTabSource } : {}),
+        };
         changed?.();
         break;
       }
@@ -350,5 +359,128 @@ describe('ModelsPage', () => {
     expect(box.textContent).toContain('Chat 不发送字段：service_tier');
     fireEvent.click(within(box).getByTestId('provider-learned-clear'));
     await waitFor(() => expect(screen.queryByTestId('provider-learned')).toBeNull());
+  });
+
+  describe('编程助手的第三方模型（§4.1）', () => {
+    const seed = (m: ReturnType<typeof fakeMain>) => {
+      m.state.providers = [
+        {
+          id: 'ds',
+          name: 'DeepSeek',
+          enabled: true,
+          urls: { chat: 'https://api.deepseek.com/v1' },
+          keys: [],
+          models: [
+            { id: 'v4', enabled: true, toolCalling: true },
+            { id: 'flash', enabled: true, toolCalling: true },
+            { id: 'embed', enabled: true, toolCalling: false },
+          ],
+          source: 'user',
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ];
+    };
+    const assignments = (m: ReturnType<typeof fakeMain>) =>
+      m.calls.filter(([c]) => c === 'ai:gateway:set-assignment').map(([, a]) => a);
+    const pick = (testId: string, value: string) =>
+      fireEvent.change(screen.getByTestId(testId), { target: { value } });
+
+    it('每个 CLI 一行；主模型写 set-assignment，「未设置」写 null，不在这里装 CLI 或显示账号', async () => {
+      const m = fakeMain();
+      seed(m);
+      render(<ModelsPage />);
+      for (const k of ['claude', 'codex', 'gemini', 'grok', 'dsh'])
+        expect(await screen.findByTestId(`cli-row-${k}`)).toBeTruthy();
+      expect(screen.getByTestId('models-cli').textContent).not.toContain('安装');
+      // 编程助手只能选支持工具调用的模型
+      const opts = Array.from(
+        (screen.getByTestId('cli-main-codex') as HTMLSelectElement).options,
+      ).map((o) => o.value);
+      expect(opts).toContain('ds/v4');
+      expect(opts).not.toContain('ds/embed');
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-main-codex') as HTMLSelectElement).disabled).toBe(false),
+      );
+      pick('cli-main-codex', 'ds/v4');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['codex', { models: { main: 'ds/v4' } }]),
+      );
+      await waitFor(() => expect(m.state.clients.codex?.models.main).toBe('ds/v4'));
+      pick('cli-main-codex', 'unset');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['codex', { models: { main: null } }]),
+      );
+    });
+
+    it('新标签默认用：没设主模型时「第三方」不可选；设了就能选，清掉主模型时退回官方', async () => {
+      const m = fakeMain();
+      seed(m);
+      render(<ModelsPage />);
+      const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
+      const third = () =>
+        Array.from(src.options).find((o) => o.value === 'thirdParty') as HTMLOptionElement;
+      expect(third().disabled).toBe(true);
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-main-grok') as HTMLSelectElement).disabled).toBe(false),
+      );
+      pick('cli-main-grok', 'ds/flash');
+      await waitFor(() => expect(third().disabled).toBe(false));
+      pick('cli-source-grok', 'thirdParty');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['grok', { newTabSource: 'thirdParty' }]),
+      );
+      await waitFor(() => expect(m.state.clients.grok?.newTabSource).toBe('thirdParty'));
+      pick('cli-main-grok', 'unset');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual([
+          'grok',
+          { models: { main: null }, newTabSource: 'official' },
+        ]),
+      );
+    });
+
+    it('Claude Code：小模型（跟随主模型 = null）、展开各档和子代理', async () => {
+      const m = fakeMain();
+      seed(m);
+      m.state.clients.claude = { models: { main: 'ds/v4', tiers: { opus: 'ds/v4' } } };
+      render(<ModelsPage />);
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-small-claude') as HTMLSelectElement).disabled).toBe(false),
+      );
+      pick('cli-small-claude', 'ds/flash');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['claude', { models: { small: 'ds/flash' } }]),
+      );
+      pick('cli-small-claude', 'follow');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['claude', { models: { small: null } }]),
+      );
+      expect(screen.queryByTestId('cli-tier-haiku')).toBeNull();
+      fireEvent.click(screen.getByTestId('cli-tiers-toggle'));
+      expect(screen.getByTestId('cli-tiers-toggle').getAttribute('aria-expanded')).toBe('true');
+      pick('cli-tier-haiku', 'ds/flash');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual([
+          'claude',
+          { models: { tiers: { opus: 'ds/v4', haiku: 'ds/flash' } } },
+        ]),
+      );
+      // 等新的网关状态回来再改下一档（各档整体写回，不丢已设的档）
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-tier-haiku') as HTMLSelectElement).value).toBe('ds/flash'),
+      );
+      pick('cli-tier-opus', 'follow');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual([
+          'claude',
+          { models: { tiers: { opus: null, haiku: 'ds/flash' } } },
+        ]),
+      );
+      pick('cli-subagent', 'ds/flash');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['claude', { models: { subagent: 'ds/flash' } }]),
+      );
+    });
   });
 });

@@ -4,7 +4,8 @@
  * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
  * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
  *   Nomi：Nomi 对话的模型切换（NomiModelSwitch，统一网关）；
- *   Claude Code / Codex / dsh / Grok / Gemini：只显示该后端自己的供应商（CliProviderChip），绝不出现 Nomi 供应商。
+ *   Claude Code / Codex / dsh / Grok / Gemini：这个标签的来源菜单（CliSourceMenu：官方账号 / 第三方模型），
+ *   不显示 Nomi 对话的模型分配。
  * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
@@ -14,12 +15,12 @@ import React, { useState } from 'react';
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
 import { useHarnessState } from '../../hooks/useHarnessState';
-import type { CliProviderKind } from '../../services/cliProviderClient';
+import { isCliKind } from '../../services/cliSource';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { BackendSwitcher } from '../BackendSwitcher';
-import { CliProviderChip } from '../CliProviderChip';
+import { CliSourceMenu } from '../CliSourceMenu';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
 import { PermissionModeChip } from '../PermissionModeChip';
@@ -71,9 +72,13 @@ export const EndpointControls: React.FC = () => {
 /** 对话区右上角：工作目录（CLI）、「带上前文」标记、供应商 / 账号 */
 export const SessionControls: React.FC<{
   onManageNomi: () => void;
-  onManageCli: (backend: CliProviderKind) => void;
-}> = ({ onManageNomi, onManageCli }) => {
+  /** CLI 标签的来源菜单里「打开模型设置」 */
+  onOpenModels: () => void;
+}> = ({ onManageNomi, onOpenModels }) => {
   const { tabs, harness, cli, tab } = useEndpoint();
+  // 主对话标签切到 CLI 后端时，来源也按主进程里的那个标签走
+  const srcTab =
+    tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID && x.backend === cli) ?? null;
   const cwd = tab ? tab.cwd : (harness?.cwd ?? '');
   const hasSession = tab ? !!tab.cliSessionId : !!harness?.cliSessionId;
   const running = tab ? tab.status === 'running' || tab.status === 'queued' : !!harness?.busy;
@@ -143,11 +148,17 @@ export const SessionControls: React.FC<{
         </span>
       ) : null}
       {cli && <WorkspacePicker value={cwd} onChange={changeCwd} testId="cli-workspace" />}
-      {cli ? (
-        <CliProviderChip backend={cli} onManage={() => onManageCli(cli)} />
-      ) : (
-        nomiProviders && <NomiModelSwitch onManage={onManageNomi} />
-      )}
+      {cli
+        ? isCliKind(cli) && (
+            <CliSourceMenu
+              key={cli}
+              backend={cli}
+              tab={srcTab}
+              hasMessages={hasSession || visibleMessages > 0}
+              onOpenModels={onOpenModels}
+            />
+          )
+        : nomiProviders && <NomiModelSwitch onManage={onManageNomi} />}
       {pending && (
         <Modal
           open

@@ -61,7 +61,6 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
     }
     if (ch === 'ai:harness:recent-cwds') return [];
     if (ch === 'ai:harness:tab-messages') return [];
-    if (ch === 'ai:cli-provider:state') return { profiles: [] };
     return {};
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -73,7 +72,7 @@ const mount = () =>
     <HarnessTabsProvider>
       <>
         <EndpointControls />
-        <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
       </>
     </HarnessTabsProvider>,
   );
@@ -222,7 +221,6 @@ describe('「完全放开」确认绑定发起的标签（#66）', () => {
       if (ch === 'ai:harness:state') return { backend: 'nomi', cwd: '/w', bins: { claude: '/c' } };
       if (ch === 'ai:harness:recent-cwds') return [];
       if (ch === 'ai:harness:tab-messages') return [];
-      if (ch === 'ai:cli-provider:state') return { profiles: [] };
       return {};
     });
     const on = (ch: string, fn: (p: unknown) => void) => {
@@ -329,12 +327,12 @@ describe('输入栏只留端点与权限模式', () => {
     );
     await bar.findByTestId('permission-mode-chip');
     expect(bar.queryByTestId('cli-workspace')).toBeNull();
-    expect(bar.queryByTestId('cli-provider-chip')).toBeNull();
+    expect(bar.queryByTestId('cli-source-menu')).toBeNull();
     bar.unmount();
 
     const top = render(
       <HarnessTabsProvider>
-        <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+        <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
       </HarnessTabsProvider>,
     );
     await top.findByTestId('cli-workspace');

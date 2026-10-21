@@ -199,6 +199,9 @@ export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking
  * id 为 'main' 的标签即原有对话（可为 Nomi 或任一 CLI，消息存于 Nomi 历史）；
  * 其它标签只绑定 CLI 后端，消息存于 harness/tabs/<id>.json。
  */
+/** 标签来源：官方账号（CLI 自带配置）/ 第三方模型（经 Nomi 统一网关，§4.3） */
+export type HarnessTabSource = 'official' | 'thirdParty';
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
@@ -233,6 +236,8 @@ export interface HarnessTabMeta {
   modelScope?: string | null;
   /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
   modelByScope?: Record<string, { model: string | null; effort: string | null }>;
+  /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
+  source?: HarnessTabSource;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

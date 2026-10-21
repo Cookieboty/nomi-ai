@@ -27,7 +27,7 @@ type Deferred<T> = ReturnType<typeof deferred<T>>;
 
 const gitDiffCalls: Array<{ cwd: string; gate: Deferred<unknown> }> = [];
 const expandCalls: Array<{ backend: string; cwd: string; id: string }> = [];
-const deactivateCalls: string[] = [];
+const sourceCalls: unknown[][] = [];
 vi.mock('../src/services/harnessClient', async (orig) => {
   const m = (await orig()) as Record<string, unknown> & { harnessClient: object };
   return {
@@ -41,26 +41,19 @@ vi.mock('../src/services/harnessClient', async (orig) => {
         gitDiffCalls.push({ cwd, gate });
         return gate.promise;
       },
+      tabs: async () => ({
+        tabs: [
+          { id: 'a', backend: 'codex', cwd: '/a', cliSessionId: null },
+          { id: 'b', backend: 'claude', cwd: '/b', cliSessionId: null },
+        ],
+      }),
+      setTabSource: async (...args: unknown[]) => {
+        sourceCalls.push(args);
+        return {};
+      },
       slashExpand: async (backend: string, cwd: string, id: string) => {
         expandCalls.push({ backend, cwd, id });
         return { text: `展开:${backend}:${cwd}`, shellInjection: false };
-      },
-    },
-  };
-});
-vi.mock('../src/services/cliProviderClient', async (orig) => {
-  const m = (await orig()) as Record<string, unknown> & { cliProviderClient: object };
-  return {
-    ...m,
-    cliProviderClient: {
-      ...m.cliProviderClient,
-      deactivate: async (kind: string) => {
-        deactivateCalls.push(kind);
-        return { ok: true };
-      },
-      deactivateDsh: async () => {
-        deactivateCalls.push('dsh');
-        return { ok: true };
       },
     },
   };
@@ -69,7 +62,7 @@ vi.mock('../src/services/cliProviderClient', async (orig) => {
 beforeEach(() => {
   gitDiffCalls.length = 0;
   expandCalls.length = 0;
-  deactivateCalls.length = 0;
+  sourceCalls.length = 0;
 });
 afterEach(cleanup);
 
@@ -224,7 +217,7 @@ describe('A 发起 → 切到 B → 异步返回：B 什么都收不到', () => 
     expect((inA[0]!.body as { tone: string }).tone).toBe('error');
   });
 
-  it('A/B 目录与后端不同：命令只读 A 的 cwd / backend（gitDiff、expand、deactivate 都不受切换影响）', async () => {
+  it('A/B 目录与后端不同：命令只读 A 的 cwd / backend（gitDiff、expand、切换来源都不受切换影响）', async () => {
     const t = setup({ sendTo: sink().sendTo });
     // gitDiff 在发起时就用 A 的目录
     const p1 = t.run('/diff');
@@ -234,7 +227,7 @@ describe('A 发起 → 切到 B → 异步返回：B 什么都收不到', () => 
       gitDiffCalls[0]!.gate.resolve(diffOk);
       await p1;
     });
-    // 命令在 await 之后才调用 expand / deactivate：仍必须用 A 的 backend / cwd
+    // 命令在 await 之后才调用 expand / 切换来源：仍必须用 A 的 backend / cwd
     const gate = deferred<void>();
     const late = cmd({
       name: 'late',
@@ -245,7 +238,7 @@ describe('A 发起 → 切到 B → 异步返回：B 什么都收不到', () => 
       run: async (_a, ctx) => {
         await gate.promise;
         await ctx.actions.expand('x', '');
-        await ctx.actions.deactivateCliProfile();
+        await ctx.actions.setTabSource('thirdParty', 'gw/m');
         return { type: 'noop' };
       },
     });
@@ -257,7 +250,7 @@ describe('A 发起 → 切到 B → 异步返回：B 什么都收不到', () => 
       await p2;
     });
     expect(expandCalls).toEqual([{ backend: 'codex', cwd: '/a', id: 'x' }]);
-    expect(deactivateCalls).toEqual(['codex']);
+    expect(sourceCalls).toEqual([['a', 'thirdParty', 'gw/m']]);
   });
 
   it('两个请求反序返回：各回各的会话', async () => {

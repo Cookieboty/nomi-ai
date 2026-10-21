@@ -28,6 +28,13 @@ import {
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 
+import {
+  agentLaunch,
+  stripGatewayLeftovers,
+  type AgentKind,
+  type AgentLaunch,
+  type ModelMeta,
+} from './agents';
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore } from './GatewayStore';
 import { migrateLegacy } from './migrate';
@@ -88,6 +95,8 @@ export interface GatewayStateView {
   allowedPrivateHosts: string[];
   port: number;
   migratedFrom?: { at: number; files: string[] };
+  /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步）：撤销了哪些、哪些没撤成 */
+  legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }
 
 export interface GatewayServiceDeps {
@@ -153,6 +162,16 @@ export class GatewayService {
     }
     if (this.store.ensureClients() || !this.store.exists()) this.store.save();
     this.push();
+  }
+
+  private legacyRevoke: GatewayStateView['legacyRevoke'];
+
+  /** 撤销旧全局配置的结果：撤销没全部成功时继续接受旧路由令牌（§10.2），并在「模型」页提示 */
+  setLegacyRevoke(r: { revoked: string[]; failed: Array<{ kind: string; error: string }> }): void {
+    this.legacyRevoke =
+      r.revoked.length || r.failed.length ? { revoked: r.revoked, failed: r.failed } : undefined;
+    this.push();
+    this.changed();
   }
 
   /** 推给网关进程的快照 */
@@ -239,6 +258,73 @@ export class GatewayService {
       protocol: picked.wire === 'responses' ? 'openai-responses' : 'openai-chat',
       receiver,
     };
+  }
+
+  /* ------------------------------ 编程助手（§12） ------------------------------ */
+
+  /** 新标签默认用哪种来源、第三方时用哪个模型（clients.<cli>） */
+  cliDefaults(kind: AgentKind): { source: 'official' | 'thirdParty'; model: string | null } {
+    const c = this.store.snapshot().clients[kind];
+    const model = c?.models.main ?? null;
+    return { source: c?.newTabSource === 'thirdParty' && model ? 'thirdParty' : 'official', model };
+  }
+
+  /** 第三方标签可选的模型（启用的供应商里启用的模型，`供应商/模型`） */
+  cliModels(): Array<{ ref: string; provider: string; label: string; reasoning?: boolean }> {
+    return this.store
+      .providers()
+      .filter((p) => p.enabled)
+      .flatMap((p) =>
+        p.models
+          .filter((m) => m.enabled && m.toolCalling !== false)
+          .map((m) => ({
+            ref: `${p.id}/${m.id}`,
+            provider: p.name,
+            label: m.label ?? m.id,
+            ...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
+          })),
+      );
+  }
+
+  /**
+   * 第三方会话的进程级注入（环境变量、参数、要剔除的继承变量）。网关没在运行时返回 null，
+   * 调用方报错而不是悄悄走官方。dir：这个标签的私有目录（Grok 私有 GROK_HOME、dsh 叠加文件）。
+   */
+  cliLaunch(kind: AgentKind, tabId: string, model: string): AgentLaunch | null {
+    const ep = this.endpoint(kind);
+    if (!ep) return null;
+    const metaOf = (ref: string): ModelMeta | undefined => {
+      const i = ref.indexOf('/');
+      const p = i > 0 ? this.store.providers().find((x) => x.id === ref.slice(0, i)) : undefined;
+      const m = p?.models.find((x) => x.id === ref.slice(i + 1));
+      return p && m
+        ? {
+            label: m.label ?? m.id,
+            provider: p.name,
+            ctx: m.ctx,
+            maxOutput: m.maxOutput,
+            reasoning: m.reasoning,
+            vision: m.vision,
+          }
+        : undefined;
+    };
+    return agentLaunch(kind, {
+      url: ep.url,
+      token: ep.token,
+      model,
+      metaOf,
+      catalog: this.cliModels().map((m) => m.ref),
+      models: this.store.snapshot().clients[kind]?.models ?? {},
+      dir: path.join(this.d.root, 'agents', kind, tabId.replace(/[^\w-]/g, '_')),
+    });
+  }
+
+  /** 官方会话的环境：剔除指向网关的残留变量 */
+  officialEnv<T extends Record<string, string | undefined>>(env: T): T {
+    const s = this.proc.getStatus();
+    if (s.state !== 'running') return env;
+    const tokens = CLIENT_IDS.map((c) => this.store.clientToken(c) ?? '').filter(Boolean);
+    return stripGatewayLeftovers(env, { url: s.url, tokens }) as T;
   }
 
   /** 某个角色当前用的供应商与模型（桌面工具判断本地 / 云端、托盘与屏幕面板显示）；不要求网关在运行 */
@@ -329,6 +415,7 @@ export class GatewayService {
       allowedPrivateHosts: data.allowedPrivateHosts,
       port: data.port,
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
+      ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
     };
   }
 

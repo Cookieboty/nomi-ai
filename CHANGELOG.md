@@ -176,6 +176,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Other
 
 - Claude Code 会话更快：回复逐字流式显示；点「停止」只中断当前一轮、不再重启进程；只换模型时原地切换， (`@nomi-ai/electron` minor)
+- Claude Code、Codex、Gemini CLI、Grok、dsh 的第三方模型改为经本地统一网关、只作用于 Nomi 启动的那个进程：每个标签在右上角选「官方账号」或「第三方」，同一个 CLI 可以一个标签用官方、另一个用 GLM / DeepSeek 等第三方模型；不再写 CLI 的全局配置，终端里的 CLI 始终是你自己的配置和官方登录。「模型」页新增「编程助手」一栏设置各 CLI 的第三方模型和新标签默认来源；编程助手页移除旧的第三方供应商卡片。旧版本写进全局配置的第三方设置在升级后自动撤销一次（有备份）。第三方会话会带上模型的真实上下文窗口和输出上限；网关补齐输出上限、推理预算、图片、工具 schema 等修正，并兼容 Grok 对 Responses 结果的严格解析。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/gateway` minor)
 - Codex 以 `.js` / `.mjs` 入口（如 `NOMI_CODEX_BIN` 指向的脚本）启动时也带上权限模式对应的沙箱 / 审批 / 联网参数和工作目录（#73）：新建与续接都与普通可执行入口用同一份参数，标签选的「计划」「自动改文件」等不再因入口形式不同而失效。 (`@nomi-ai/electron` patch)
 - Codex 会话改为长驻进程（`codex app-server`）：回复逐字显示，点「停止」不再重启进程，切换模型、思考深度和 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
 - DeepSeek、智谱 GLM、Kimi、通义千问（百炼）、MiniMax 的预设补全了 Anthropic、Chat、Responses 各协议的官方地址和主力模型的上下文、输出上限、推理 / 视觉 / 工具调用能力（按官方文档核对，2026-10-21），新增 GLM Coding Plan 和百炼 Coding Plan 预设。添加这些供应商时只检测它们官方提供的协议，模型参数一起保存；网关按厂商要求处理固定参数和多轮推理内容（如 Kimi 的固定 temperature、DeepSeek 工具调用时必须带回推理内容）。 (`@nomi-ai/ai-runtime` minor, `@nomi-ai/gateway` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)

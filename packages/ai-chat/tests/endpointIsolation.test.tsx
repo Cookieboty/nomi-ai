@@ -2,11 +2,10 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CliProviderChip, activeProfileOf } from '../src/components/CliProviderChip';
+import { CliSourceMenu } from '../src/components/CliSourceMenu';
 import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
-import type { CliProviderProfile, CliProviderState } from '../src/services/cliProviderClient';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
 
 vi.mock('../src/contexts/AiChatContext', () => ({
@@ -25,13 +24,20 @@ const GATEWAY_STATE = {
       enabled: true,
       urls: { chat: 'https://gateway.amux.ai/v1' },
       keys: [],
-      models: [{ id: 'gpt-x', enabled: true }],
+      models: [
+        { id: 'gpt-x', enabled: true },
+        { id: 'embed-x', enabled: true, toolCalling: false },
+        { id: 'kimi-k3', enabled: true, toolCalling: true },
+      ],
       source: 'user',
       createdAt: 0,
       updatedAt: 0,
     },
   ],
-  clients: { nomi: { models: { main: 'amux/gpt-x' } } },
+  clients: {
+    nomi: { models: { main: 'amux/gpt-x' } },
+    codex: { models: { main: 'amux/kimi-k3' } },
+  },
   allowedPrivateHosts: [],
   port: 1,
 };
@@ -63,29 +69,6 @@ const NOMI_STATE = {
   encryption: 'none',
 };
 
-const prof = (over: Partial<CliProviderProfile>): CliProviderProfile => ({
-  id: 'p',
-  kind: 'claude',
-  name: 'P',
-  baseUrl: 'https://x',
-  model: 'm',
-  apiFormat: 'anthropic_messages',
-  needsRouting: false,
-  hasKey: true,
-  keyHint: '',
-  active: false,
-  ...over,
-});
-
-const cliState = (profiles: CliProviderProfile[]): CliProviderState => ({
-  profiles,
-  claudeStore: '',
-  codexStore: '',
-  claudeSettings: '',
-  codexConfig: '',
-  routing: null,
-});
-
 const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   id: 'x',
   title: 'X',
@@ -99,20 +82,13 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
   ...over,
 });
 
-function mockIpc(opts: {
-  cli: CliProviderState;
-  tabs: HarnessTabsState;
-  backend?: string;
-  accounts?: unknown[];
-}) {
+function mockIpc(opts: { tabs: HarnessTabsState; backend?: string; accounts?: unknown[] }) {
   const invoke = vi.fn(async (ch: string, ..._a: unknown[]) => {
     if (ch === 'ai:cli-account:list') return opts.accounts ?? [];
     if (ch === 'ai:cli-account:activate') return {};
     if (ch === 'ai:providers:state') return NOMI_STATE;
     if (ch === 'ai:gateway:state') return GATEWAY_STATE;
-    if (ch === 'ai:cli-provider:state') return opts.cli;
-    if (ch === 'ai:cli-provider:activate') return { ok: true, backups: [] };
-    if (ch === 'ai:cli-provider:deactivate') return { ok: true, backups: [] };
+    if (ch === 'ai:harness:tab-source') return tab({ id: String(_a[0]), source: _a[1] as never });
     if (ch === 'ai:harness:tabs') return opts.tabs;
     if (ch === 'ai:harness:state')
       return {
@@ -134,25 +110,28 @@ afterEach(() => {
   localStorage.clear();
 });
 
-describe('activeProfileOf', () => {
-  it('only considers the profile list of that kind', () => {
-    const s = cliState([prof({ id: 'a', kind: 'claude', active: true })]);
-    expect(activeProfileOf(s, 'claude')?.id).toBe('a');
-    expect(activeProfileOf(s, 'codex')).toBeNull();
-  });
-});
+const noop = () => undefined;
+const EMPTY_TABS = {
+  tabs: [],
+  activeTabId: 'main',
+  maxConcurrent: 3,
+  running: 0,
+  queued: 0,
+} as unknown as HarnessTabsState;
+const optionValues = () =>
+  Array.from(document.querySelectorAll('[data-value]')).map((x) => x.getAttribute('data-value'));
+const menu = (
+  backend: 'claude' | 'codex' | 'dsh',
+  t?: HarnessTabMeta | null,
+  hasMessages = false,
+) => (
+  <CliSourceMenu backend={backend} tab={t ?? null} hasMessages={hasMessages} onOpenModels={noop} />
+);
 
-describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md）', () => {
-  it('没有第三方供应商时显示当前官方账号；下拉里选官方账号会全局切换', async () => {
+describe('CliSourceMenu · 官方账号（docs/design/cli-official-accounts.md）', () => {
+  it('显示当前官方账号；下拉里选别的官方账号会全局切换', async () => {
     const invoke = mockIpc({
-      cli: { profiles: [] } as unknown as CliProviderState,
-      tabs: {
-        tabs: [],
-        activeTabId: 'main',
-        maxConcurrent: 3,
-        running: 0,
-        queued: 0,
-      } as unknown as HarnessTabsState,
+      tabs: EMPTY_TABS,
       accounts: [
         {
           id: 'a1',
@@ -172,15 +151,27 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
         },
       ],
     });
-    const r = render(<CliProviderChip backend="codex" />);
+    const r = render(menu('codex', tab({ id: 'cx' })));
     await waitFor(() =>
-      expect(r.getByTestId('cli-provider-chip').textContent).toContain('官方 · a@x.com'),
+      expect(r.getByTestId('cli-source-menu').textContent).toContain('官方 · a@x.com'),
     );
+    expect(r.getByTestId('cli-source-menu').getAttribute('data-source')).toBe('official');
     fireEvent.click(r.getByRole('combobox'));
     fireEvent.click(document.querySelector('[data-value="account:a2"]')!);
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:cli-account:activate', 'a2', 'codex'),
     );
+    // 已经是官方来源：不切换标签来源
+    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-source')).toBe(false);
+  });
+
+  it('dsh 没有官方账号：官方一项是「dsh 自带配置」，不读账号列表', async () => {
+    const invoke = mockIpc({ tabs: EMPTY_TABS });
+    const r = render(menu('dsh', tab({ id: 'd', backend: 'dsh' })));
+    await waitFor(() =>
+      expect(r.getByTestId('cli-source-menu').textContent).toContain('dsh 自带配置'),
+    );
+    expect(invoke.mock.calls.some((c) => c[0] === 'ai:cli-account:list')).toBe(false);
   });
 
   describe('切换后端后不残留上一个后端的账号（#69）', () => {
@@ -206,7 +197,6 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
             waiting.push({ kind, release: () => res(LISTS[kind] ?? []) }),
           );
         }
-        if (ch === 'ai:cli-provider:state') return cliState([]);
         return {};
       });
       (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -219,22 +209,18 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
       };
       return { invoke, release };
     }
-    const optionValues = () =>
-      Array.from(document.querySelectorAll('[data-value]')).map((x) =>
-        x.getAttribute('data-value'),
-      );
     const activateCalls = (invoke: ReturnType<typeof vi.fn>) =>
       invoke.mock.calls.filter((c) => c[0] === 'ai:cli-account:activate');
 
     it('Codex 账号加载后切到 dsh：账号标签与选项立即消失，不会发出 Codex 的切换', async () => {
       const m = mockDeferred();
-      const r = render(<CliProviderChip backend="codex" />);
+      const r = render(menu('codex'));
       await m.release('codex');
       await waitFor(() =>
-        expect(r.getByTestId('cli-provider-chip').textContent).toContain('codex-a@x.com'),
+        expect(r.getByTestId('cli-source-menu').textContent).toContain('codex-a@x.com'),
       );
-      r.rerender(<CliProviderChip backend="dsh" />);
-      expect(r.getByTestId('cli-provider-chip').textContent).not.toContain('codex-a@x.com');
+      r.rerender(menu('dsh'));
+      expect(r.getByTestId('cli-source-menu').textContent).not.toContain('codex-a@x.com');
       fireEvent.click(r.getByRole('combobox'));
       expect(optionValues().some((v) => v?.startsWith('account:'))).toBe(false);
       expect(activateCalls(m.invoke)).toHaveLength(0);
@@ -242,32 +228,32 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
 
     it('Codex → Claude 且 Claude 列表还没回来：等待期间不显示、不能选 Codex 账号', async () => {
       const m = mockDeferred();
-      const r = render(<CliProviderChip backend="codex" />);
+      const r = render(menu('codex'));
       await m.release('codex');
       await waitFor(() =>
-        expect(r.getByTestId('cli-provider-chip').textContent).toContain('codex-a@x.com'),
+        expect(r.getByTestId('cli-source-menu').textContent).toContain('codex-a@x.com'),
       );
-      r.rerender(<CliProviderChip backend="claude" />);
+      r.rerender(menu('claude'));
       fireEvent.click(r.getByRole('combobox'));
       expect(optionValues()).not.toContain('account:cx2');
-      expect(r.getByTestId('cli-provider-chip').textContent).not.toContain('codex-a@x.com');
+      expect(r.getByTestId('cli-source-menu').textContent).not.toContain('codex-a@x.com');
       await m.release('claude');
       await waitFor(() =>
-        expect(r.getByTestId('cli-provider-chip').textContent).toContain('claude-a@x.com'),
+        expect(r.getByTestId('cli-source-menu').textContent).toContain('claude-a@x.com'),
       );
       expect(activateCalls(m.invoke)).toHaveLength(0);
     });
 
     it('A → B → A 且请求乱序返回：只显示当前后端的账号', async () => {
       const m = mockDeferred();
-      const r = render(<CliProviderChip backend="codex" />);
-      r.rerender(<CliProviderChip backend="claude" />);
-      r.rerender(<CliProviderChip backend="codex" />);
+      const r = render(menu('codex'));
+      r.rerender(menu('claude'));
+      r.rerender(menu('codex'));
       await m.release('codex', true); // 当前（第二次）的 codex 请求先回来
       await m.release('claude'); // 晚到的 claude 请求：组件已经切回 codex
       await m.release('codex'); // 更晚到的第一次 codex 请求
       await waitFor(() =>
-        expect(r.getByTestId('cli-provider-chip').textContent).toContain('codex-a@x.com'),
+        expect(r.getByTestId('cli-source-menu').textContent).toContain('codex-a@x.com'),
       );
       fireEvent.click(r.getByRole('combobox'));
       expect(optionValues()).not.toContain('account:cl1');
@@ -278,81 +264,89 @@ describe('CliProviderChip · 官方账号（docs/design/cli-official-accounts.md
   });
 });
 
-describe('CliProviderChip', () => {
-  it('shows CLI default when the backend store has no active profile', async () => {
-    // Claude 启用了第三方供应商，Codex 一个都没有 → Codex 按钮必须显示默认配置
-    mockIpc({
-      cli: cliState([prof({ id: 'c1', kind: 'claude', name: 'MyClaude', active: true })]),
-      tabs: { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 },
-    });
-    const r = render(<CliProviderChip backend="codex" />);
-    await waitFor(() => expect(r.getByTestId('cli-provider-chip')).toBeTruthy());
-    await waitFor(() =>
-      expect(r.getByTestId('cli-provider-chip').getAttribute('data-source')).toBe('cli-default'),
-    );
-    expect(r.getByTestId('cli-provider-chip').textContent).toContain('CLI 默认 / 已登录');
-    expect(r.queryByText('Amux')).toBeNull();
-    expect(r.queryByText('MyClaude')).toBeNull();
+describe('CliSourceMenu · 第三方（docs/design/unified-gateway.md §4.3）', () => {
+  afterEach(() => {
+    delete (window as { confirm?: unknown }).confirm;
   });
 
-  it('shows the backend own active profile and model, and activates only its profiles', async () => {
-    const invoke = mockIpc({
-      cli: cliState([
-        prof({ id: 'x1', kind: 'codex', name: 'Local', model: 'qwen', active: true }),
-        prof({ id: 'x2', kind: 'codex', name: 'Other', model: 'gpt-y' }),
-        prof({ id: 'c1', kind: 'claude', name: 'ClaudeOnly' }),
-      ]),
-      tabs: { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 },
-    });
-    const r = render(<CliProviderChip backend="codex" />);
+  it('第三方分组只列能给编程助手用的网关模型；选中即 tab-source(标签, thirdParty, ref)', async () => {
+    const invoke = mockIpc({ tabs: EMPTY_TABS });
+    const r = render(menu('codex', tab({ id: 'cx' })));
+    fireEvent.click(r.getByRole('combobox'));
+    await waitFor(() => expect(optionValues()).toContain('amux/gpt-x'));
+    // 不支持工具调用的模型不出现
+    expect(optionValues()).not.toContain('amux/embed-x');
+    fireEvent.click(document.querySelector('[data-value="amux/kimi-k3"]')!);
     await waitFor(() =>
-      expect(r.getByTestId('cli-provider-chip').getAttribute('data-source')).toBe('own-store'),
+      expect(invoke).toHaveBeenCalledWith(
+        'ai:harness:tab-source',
+        'cx',
+        'thirdParty',
+        'amux/kimi-k3',
+      ),
     );
-    // 只切换来源，不显示模型（模型在输入框的模型按钮里）
-    expect(r.queryByTestId('cli-model-label')).toBeNull();
-    fireEvent.click(r.getByRole('combobox'));
-    const opts = Array.from(document.querySelectorAll('[role="option"]')).map((o) => o.textContent);
-    expect(opts.join('|')).toContain('Other');
-    expect(opts.join('|')).not.toContain('ClaudeOnly');
-    fireEvent.click(document.querySelector('[data-value="x2"]')!);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:cli-provider:activate', 'x2'));
-    fireEvent.click(r.getByRole('combobox'));
-    fireEvent.click(document.querySelector('[data-value=""]')!);
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:cli-provider:deactivate', 'codex'));
   });
-});
 
-describe('each CLI chip shows only its own store', () => {
-  it.each([
-    ['claude', 'ClaudeP', 'claude-m'],
-    ['codex', 'CodexP', 'codex-m'],
-    ['dsh', 'DshP', 'dsh-m'],
-  ] as const)(
-    '%s shows its own active profile and nothing else (no model label)',
-    async (kind, name, model) => {
-      mockIpc({
-        cli: cliState([
-          prof({ id: 'c', kind: 'claude', name: 'ClaudeP', model: 'claude-m', active: true }),
-          prof({ id: 'x', kind: 'codex', name: 'CodexP', model: 'codex-m', active: true }),
-          prof({ id: 'd', kind: 'dsh', name: 'DshP', model: 'dsh-m', active: true }),
-        ]),
-        tabs: { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 },
-      });
-      const r = render(<CliProviderChip backend={kind} />);
-      await waitFor(() =>
-        expect(r.getByTestId('cli-provider-chip').getAttribute('data-source')).toBe('own-store'),
-      );
-      const text = r.getByTestId('cli-provider-chip').textContent ?? '';
-      expect(text).toContain(name);
-      expect(text).not.toContain(model);
-      for (const other of ['ClaudeP', 'CodexP', 'DshP'].filter((n) => n !== name))
-        expect(text).not.toContain(other);
-    },
-  );
+  it('第三方标签显示「供应商 / 模型」；没选模型时用这个 CLI 分配的默认模型', async () => {
+    mockIpc({ tabs: EMPTY_TABS });
+    const r = render(menu('codex', tab({ id: 'cx', source: 'thirdParty', modelOverride: null })));
+    await waitFor(() =>
+      expect(r.getByTestId('cli-source-menu').textContent).toContain('Amux / kimi-k3'),
+    );
+    expect(r.getByTestId('cli-source-menu').getAttribute('data-source')).toBe('thirdParty');
+    r.rerender(menu('codex', tab({ id: 'cx', source: 'thirdParty', modelOverride: 'amux/gpt-x' })));
+    expect(r.getByTestId('cli-source-menu').textContent).toContain('Amux / gpt-x');
+  });
 
-  it('the settings button opens that endpoint provider page', async () => {
+  it('第三方 → 官方且已有对话：先确认；取消不切换，确认后 tab-source(标签, official)', async () => {
+    const invoke = mockIpc({ tabs: EMPTY_TABS });
+    const confirm = vi.fn().mockReturnValueOnce(false).mockReturnValueOnce(true);
+    window.confirm = confirm;
+    const r = render(menu('codex', tab({ id: 'cx', source: 'thirdParty' }), true));
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="official"]')!);
+    await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
+    expect(confirm.mock.calls[0]![0]).toContain('第三方的推理内容不能发给官方接口');
+    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-source')).toBe(false);
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="official"]')!);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-source', 'cx', 'official'),
+    );
+  });
+
+  it('空标签第三方 → 官方：不确认，直接切换', async () => {
+    const invoke = mockIpc({ tabs: EMPTY_TABS });
+    const confirm = vi.fn(() => true);
+    window.confirm = confirm;
+    const r = render(menu('codex', tab({ id: 'cx', source: 'thirdParty' }), false));
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="official"]')!);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-source', 'cx', 'official'),
+    );
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('「打开模型设置」调 onOpenModels，不切换来源', async () => {
+    const invoke = mockIpc({ tabs: EMPTY_TABS });
+    const onOpenModels = vi.fn();
+    const r = render(
+      <CliSourceMenu
+        backend="claude"
+        tab={tab({ id: 'c', backend: 'claude' })}
+        hasMessages={false}
+        onOpenModels={onOpenModels}
+      />,
+    );
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="__open-models"]')!);
+    expect(onOpenModels).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-source')).toBe(false);
+  });
+
+  it('SessionControls：CLI 标签的「打开模型设置」走 onOpenModels', async () => {
     mockIpc({
-      cli: cliState([]),
       tabs: {
         tabs: [
           tab({ id: 'main', backend: 'nomi' }),
@@ -364,18 +358,16 @@ describe('each CLI chip shows only its own store', () => {
         queued: 0,
       },
     });
-    const onManageCli = vi.fn();
+    const onOpenModels = vi.fn();
     const r = render(
       <HarnessTabsProvider>
-        <>
-          <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} onManageCli={onManageCli} />
-        </>
+        <SessionControls onManageNomi={noop} onOpenModels={onOpenModels} />
       </HarnessTabsProvider>,
     );
-    await waitFor(() => r.getByTestId('open-cli-provider-panel'));
-    fireEvent.click(r.getByTestId('open-cli-provider-panel'));
-    expect(onManageCli).toHaveBeenCalledWith('codex');
+    await waitFor(() => r.getByTestId('cli-source-menu'));
+    fireEvent.click(r.getByRole('combobox'));
+    fireEvent.click(document.querySelector('[data-value="__open-models"]')!);
+    expect(onOpenModels).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -392,32 +384,36 @@ describe('EndpointControls', () => {
   });
 
   it('Codex tab never renders the Nomi provider switcher (Amux)', async () => {
-    mockIpc({ cli: cliState([]), tabs: tabsState('codex') });
+    mockIpc({ tabs: tabsState('codex') });
     const r = render(
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+          <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
         </>
       </HarnessTabsProvider>,
     );
-    await waitFor(() => expect(r.getByTestId('cli-provider-chip')).toBeTruthy());
+    await waitFor(() => expect(r.getByTestId('cli-source-menu')).toBeTruthy());
     expect(r.queryByTestId('nomi-model-switch')).toBeNull();
-    expect(r.container.textContent).not.toContain('Amux');
+    // 标签用官方来源：不显示 Nomi 对话的模型分配
+    expect(r.getByTestId('cli-source-menu').getAttribute('data-source')).toBe('official');
+    expect(
+      r.getByTestId('cli-source-menu').querySelector('[role="combobox"]')!.textContent,
+    ).not.toContain('Amux');
   });
 
   it('Nomi main tab renders the Nomi provider switcher', async () => {
-    mockIpc({ cli: cliState([]), tabs: tabsState('main') });
+    mockIpc({ tabs: tabsState('main') });
     const r = render(
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+          <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
         </>
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(r.getByTestId('nomi-model-switch')).toBeTruthy());
     expect(r.getByTestId('nomi-model-switch').textContent).toContain('Amux / gpt-x');
-    expect(r.queryByTestId('cli-provider-chip')).toBeNull();
+    expect(r.queryByTestId('cli-source-menu')).toBeNull();
   });
 });

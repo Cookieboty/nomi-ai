@@ -279,15 +279,18 @@ test.describe('E28 · composer toolbar layout', () => {
     await sweep(chat, 'dev-nomi', [1024]);
 
     await invoke(chat, 'ai:harness:set-cwd', longCwd);
+    const longProvider = (await invoke(chat, 'ai:gateway:upsert-provider', {
+      name: 'Long Profile Name Provider',
+      urls: { chat: 'http://127.0.0.1:9/v1' },
+      newKeys: [{ value: 'e28-fake-key' }],
+      models: [{ id: LONG_MODEL, enabled: true }],
+    })) as { id: string };
     for (const kind of ['claude', 'codex', 'grok', 'dsh'] as const) {
-      const p = (await invoke(chat, 'ai:cli-provider:upsert', {
-        kind,
-        name: `Long Profile Name ${kind}`,
-        baseUrl: 'http://127.0.0.1:9/v1',
-        model: LONG_MODEL,
-        apiKey: 'e28-fake-key',
-      })) as { id: string };
-      await invoke(chat, 'ai:cli-provider:activate', p.id);
+      // 新标签默认用第三方（统一网关）：右上角来源菜单显示长供应商名 / 模型名
+      await invoke(chat, 'ai:gateway:set-assignment', kind, {
+        models: { main: `${longProvider.id}/${LONG_MODEL}` },
+        newTabSource: 'thirdParty',
+      });
       await newTab(chat, kind);
       await sweep(
         chat,

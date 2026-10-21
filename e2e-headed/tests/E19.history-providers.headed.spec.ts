@@ -9,7 +9,14 @@
  * 截图目录：CHAT_V2_SHOTS_DIR（可选）。
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -148,6 +155,15 @@ function seedHome(home: string, work: string): { dsh: boolean } {
 function utimes(p: string, t: Date) {
   utimesSync(p, t, t);
 }
+
+const invoke = (chat: Page, channel: string, ...args: unknown[]) =>
+  chat.evaluate(
+    ([c, a]) =>
+      (
+        window as unknown as { aiIPC: { invoke(ch: string, ...x: unknown[]): Promise<unknown> } }
+      ).aiIPC.invoke(c as string, ...(a as unknown[])),
+    [channel, args] as const,
+  );
 
 test.describe('E19 · endpoints · history sessions · provider page', () => {
   let app: ElectronApplication | null = null;
@@ -356,33 +372,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await shot(chat, '09-providers-nomi');
 
     await chat.click('[data-testid="providers-endpoint-claude"]');
-    await expect(chat.locator('[data-testid="cli-ep-active"]')).toContainText(
-      '使用 CLI 自带登录/默认配置',
-    );
-    await shot(chat, '10-providers-claude-default');
-    // 与 Nomi 同样的交互：添加供应商 → 选预设模板（这里用自定义）→ 表单 → 保存
-    await chat.click('[data-testid="cli-add-provider"]');
-    await expect(chat.locator('[data-testid="preset-deepseek"]')).toBeVisible();
-    await shot(chat, '10b-providers-claude-presets');
-    await chat.click('[data-testid="preset-custom"]');
-    await chat.fill('[data-testid="cli-provider-baseurl"]', upstreamUrl);
-    await chat.fill('[data-testid="cli-provider-name"]', '本地中转');
-    await chat.fill('[data-testid="cli-provider-model"]', 'claude-x');
-    await chat.fill('[data-testid="cli-provider-key"]', 'sk-test-123456');
-    await shot(chat, '10c-providers-claude-editor');
-    await chat.click('[data-testid="cli-provider-save"]');
-    const row = chat.locator('[data-testid^="cli-provider-row-"]').first();
-    await expect(row).toContainText('本地中转');
-    await row.locator('[data-testid="cli-provider-test"]').click();
-    await expect(row.locator('[data-testid="cli-provider-test-result"]')).toContainText('ms');
-    await row.locator('[data-testid="cli-provider-enable"]').click();
-    await expect(chat.locator('[data-testid="cli-ep-active"]')).toHaveText('本地中转');
-    await expect(chat.locator('[data-testid="cli-ep-source"]')).toContainText('Nomi 第三方供应商');
-    await expect(chat.locator('[data-testid="cli-ep-routing"]')).toHaveAttribute(
-      'data-mode',
-      'direct',
-    );
-    await shot(chat, '11-providers-claude-active');
+    // 第三方模型改在「模型」页统一设置（统一网关 M3）：编程助手页只留入口
+    await expect(chat.locator('[data-testid="cli-third-party-claude"]')).toBeVisible();
+    await shot(chat, '10-providers-claude');
 
     // 版本卡片：点「更新」先弹确认框，展示完整命令，取消则什么都不执行
     // Windows 上探测 npm / 版本较慢：等按钮可点，对话框给足时间
@@ -398,18 +390,22 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="cli-version-cancel"]');
     await expect(chat.locator('[data-testid="cli-version-dialog-claude"]')).toHaveCount(0);
 
-    // 其它端点互不影响：Codex 仍是自带登录
-    await chat.click('[data-testid="providers-endpoint-codex"]');
-    await expect(chat.locator('[data-testid="cli-ep-active"]')).toContainText(
-      '使用 CLI 自带登录/默认配置',
+    // 「在模型页设置第三方模型」直达「模型」页；加一个第三方供应商（检测流程由 E7 覆盖），给 Claude 分配模型
+    await chat.click('[data-testid="cli-open-models"]');
+    await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
+    const relay = (await invoke(chat, 'ai:gateway:upsert-provider', {
+      name: '本地中转',
+      urls: { chat: upstreamUrl },
+      newKeys: [{ value: 'sk-test-123456' }],
+      models: [{ id: 'claude-x', enabled: true }],
+    })) as { id: string };
+    await invoke(chat, 'ai:gateway:set-assignment', 'claude', {
+      models: { main: `${relay.id}/claude-x` },
+    });
+    await expect(chat.locator('[data-testid="cli-main-claude"]').locator('..')).toContainText(
+      'claude-x',
     );
-    await shot(chat, '12-providers-codex');
-    await chat.click('[data-testid="providers-endpoint-dsh"]');
-    await expect(chat.locator('[data-testid="cli-ep-routing"]')).toHaveAttribute(
-      'data-mode',
-      'n/a',
-    );
-    await shot(chat, '13-providers-dsh');
+    await shot(chat, '12-models-cli-rows');
 
     // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的供应商 + 模型；Codex 标签显示默认
     await chat.locator('[data-testid="settings-back"]').click();
@@ -423,39 +419,26 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.keyboard.press('Escape');
     await expect(chat.locator('[data-testid="sched-panel"]')).toHaveCount(0);
     await chat.locator('[data-testid="chat-tab-1"]').click();
-    const chip = chat.locator('[data-testid="cli-provider-chip"]');
-    await expect(chip).toHaveAttribute('data-backend', 'claude');
-    await expect(chip).toHaveAttribute('data-source', 'own-store');
-    await expect(chip).toContainText('本地中转');
-    // 右上角只切换来源；模型在输入框的模型按钮里（第三方供应商下列它的模型，默认是供应商配置的）
-    await expect(chat.locator('[data-testid="cli-model-label"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="model-chip"]')).toContainText('claude-x');
-    await shot(chat, '14-cli-chip-claude-own-profile');
+    // 右上角：每个标签各选来源（官方账号 / 第三方），互不影响
+    const menu = chat.locator('[data-testid="cli-source-menu"]');
+    await expect(menu).toHaveAttribute('data-backend', 'claude');
+    await expect(menu).toHaveAttribute('data-source', 'official');
+    await chat.selectOption('[data-testid="cli-source-switch"]', `${relay.id}/claude-x`);
+    await expect(menu).toHaveAttribute('data-source', 'thirdParty');
+    await expect(menu.locator('[role="combobox"]')).toContainText('本地中转');
+    await shot(chat, '14-cli-source-claude-third-party');
     await chat.locator('[data-testid="chat-tab-2"]').click();
-    await expect(chip).toHaveAttribute('data-backend', 'codex');
-    await expect(chip).toHaveAttribute('data-source', 'cli-default');
-    await expect(chip).toContainText('CLI 默认 / 已登录');
-    await expect(chip).not.toContainText('本地中转');
-    await shot(chat, '15-cli-chip-codex-default');
-    // 🔑 直达该端点的供应商设置
-    await chat.click('[data-testid="open-cli-provider-panel"]');
-    await expect(chat.locator('[data-testid="providers-endpoint-codex"]')).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-
-    // Claude 改用 CLI 自带登录：settings.json 里我们写的 env 被移除
-    await chat.click('[data-testid="providers-endpoint-claude"]');
+    await expect(menu).toHaveAttribute('data-backend', 'codex');
+    await expect(menu).toHaveAttribute('data-source', 'official');
+    await expect(menu.locator('[role="combobox"]')).not.toContainText('本地中转');
+    await shot(chat, '15-cli-source-codex-official');
+    // 第三方只作用于 Nomi 启动的进程：不写 CLI 的全局配置
     const settingsPath = join(home, '.claude', 'settings.json');
-    expect(readFileSync(settingsPath, 'utf8')).toContain('ANTHROPIC_BASE_URL');
-    await chat.click('[data-testid="cli-ep-use-default"]');
-    await expect(chat.locator('[data-testid="cli-ep-active"]')).toContainText(
-      '使用 CLI 自带登录/默认配置',
+    expect(existsSync(settingsPath) ? readFileSync(settingsPath, 'utf8') : '').not.toContain(
+      'ANTHROPIC_BASE_URL',
     );
-    expect(readFileSync(settingsPath, 'utf8')).not.toContain('ANTHROPIC_BASE_URL');
 
     // ── 普通模式：侧栏只剩 Nomi 会话，没有「全部 / 按端」与 CLI 历史 ─────────────
-    await chat.locator('[data-testid="settings-back"]').click();
     await chat.click('[data-testid="chat-mode-normal"]');
     await expect(chat.locator('[data-testid="list-view-all"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="cli-history"]')).toHaveCount(0);

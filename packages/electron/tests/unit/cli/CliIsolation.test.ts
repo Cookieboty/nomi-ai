@@ -11,6 +11,7 @@ import { buildCliEnv, isNomiInternalEnv } from '../../../src/cli/cliEnv';
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { CliProviderBridge } from '../../../src/cli/CliProviderBridge';
 import { claudeSettingsPath, codexAuthPath, codexConfigPath } from '../../../src/cli/configPatch';
+import { TEST_GATEWAY_TOKEN, TEST_GATEWAY_URL, testGateway } from '../../helpers/gateway';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -100,7 +101,6 @@ describe('provider isolation: Nomi key never reaches CLI launches', () => {
         root: path.join(dir, 'root'),
         logger,
         defaultCwd: dir,
-        dshEnv: () => bridge.dshEnv(),
       });
       h.setBackend('codex');
       const r = await h.send('hi');
@@ -113,6 +113,59 @@ describe('provider isolation: Nomi key never reaches CLI launches', () => {
       expect(fs.existsSync(codexConfigPath(home))).toBe(false);
       expect(fs.existsSync(codexAuthPath(home))).toBe(false);
       expect(fs.existsSync(claudeSettingsPath(home))).toBe(false);
+    } finally {
+      for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+      Object.assign(process.env, saved);
+    }
+  });
+
+  it('third-party tabs get only the gateway token; inherited keys are stripped; official tabs drop gateway leftovers', async () => {
+    const home = tmp('nomi-home-');
+    const dir = tmp('nomi-envcli-');
+    const bin = path.join(dir, 'env-codex.mjs');
+    fs.writeFileSync(
+      bin,
+      [
+        "const emit = (o) => process.stdout.write(JSON.stringify(o) + '\\n');",
+        "emit({ type: 'thread.started', thread_id: 't1' });",
+        "emit({ type: 'item.completed', item: { id: 'i', type: 'agent_message', text: JSON.stringify({ env: process.env, argv: process.argv.slice(2) }) } });",
+        "emit({ type: 'turn.completed', usage: {} });",
+      ].join('\n'),
+    );
+    const saved = { ...process.env };
+    process.env.NOMI_CODEX_BIN = bin;
+    process.env.NOMI_USE_MOCK_CLI = '0';
+    process.env.OPENAI_API_KEY = 'sk-user-own-openai';
+    process.env.ANTHROPIC_BASE_URL = TEST_GATEWAY_URL;
+    try {
+      const h = new CliHarnessService({
+        root: path.join(dir, 'root'),
+        logger,
+        defaultCwd: dir,
+        home,
+        gateway: testGateway(),
+      });
+      const third = h.createTab({ backend: 'codex', source: 'thirdParty' });
+      const r = JSON.parse((await h.sendTab(third.id, 'hi')).text) as {
+        env: Record<string, string>;
+        argv: string[];
+      };
+      expect(r.env.NOMI_GATEWAY_KEY).toBe(TEST_GATEWAY_TOKEN);
+      expect(r.env.OPENAI_API_KEY).toBeUndefined();
+      expect(r.argv.join(' ')).toContain('model_provider="nomi_gateway"');
+      expect(r.argv.join(' ')).toContain('model="gw/main"');
+      const official = h.createTab({ backend: 'codex' });
+      const o = JSON.parse((await h.sendTab(official.id, 'hi')).text) as {
+        env: Record<string, string>;
+        argv: string[];
+      };
+      // 用户自己的 Key 照旧继承；指向网关的残留被剔除；不带网关参数
+      expect(o.env.OPENAI_API_KEY).toBe('sk-user-own-openai');
+      expect(o.env.ANTHROPIC_BASE_URL).toBeUndefined();
+      expect(o.env.NOMI_GATEWAY_KEY).toBeUndefined();
+      expect(o.argv.join(' ')).not.toContain('nomi_gateway');
+      expect(fs.existsSync(codexConfigPath(home))).toBe(false);
+      expect(fs.existsSync(codexAuthPath(home))).toBe(false);
     } finally {
       for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
       Object.assign(process.env, saved);

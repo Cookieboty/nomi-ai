@@ -7,7 +7,7 @@ import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft } from 'lucide-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
-import { cliProviderClient } from '../../services/cliProviderClient';
+import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
@@ -135,7 +135,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           </Suspense>
         );
       case 'coding':
-        return cliProviderClient.available() ? (
+        return harnessClient.available() ? (
           <ProvidersPage
             onOpenedTab={onClose}
             onOpenNotify={() => onSection('notify')}

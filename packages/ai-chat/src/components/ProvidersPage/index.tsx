@@ -1,8 +1,7 @@
 /**
  * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话。
- * - 四个端点各自独立：Nomi 的第三方供应商与模型分配已移到设置 →「模型」（统一网关），这里只留一个入口；
- *   Claude Code / Codex / dsh / Grok 用与 Nomi 相同的供应商卡片交互（预设模板、添加 / 编辑 / 启用 / 测速 / 删除），
- *   默认「使用 CLI 自带登录/默认配置」；每个 CLI 端点还有「版本」卡片（检测 / 更新 / 安装）与「高级」（本地路由）。
+ * - 第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口；
+ *   每个 CLI 端点有「版本」卡片（检测 / 更新 / 安装）和官方账号。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
@@ -11,7 +10,7 @@ import { Radio } from 'lucide-react';
 import React from 'react';
 
 import { useProviderEndpoint } from '../../hooks/useProviderEndpoint';
-import { cliProviderClient } from '../../services/cliProviderClient';
+import { harnessClient } from '../../services/harnessClient';
 import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CodingMonitor } from '../CodingMonitor';
@@ -28,7 +27,7 @@ export const ProvidersPage: React.FC<{
   onOpenModels?: () => void;
 }> = ({ onOpenedTab, onOpenNotify, onOpenModels }) => {
   const [ep, setEp] = useProviderEndpoint();
-  const cliOk = cliProviderClient.available();
+  const cliOk = harnessClient.available();
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
@@ -44,7 +43,7 @@ export const ProvidersPage: React.FC<{
         <h2 className={styles.title}>{t('编程助手')}</h2>
         <p className={styles.sub}>
           {t(
-            '管理 Nomi 和 Claude Code / Codex / dsh / Grok：版本、第三方供应商与本地路由，以及本机编程助手的进度监视。每个端点的配置互相独立，在这里切换只是换一个视图。',
+            '管理 Claude Code / Codex / dsh / Grok / Gemini 的版本与官方账号，以及本机编程助手的进度监视。第三方模型在「模型」页设置。',
           )}
         </p>
         <div
@@ -104,7 +103,7 @@ export const ProvidersPage: React.FC<{
           )}
         </div>
       ) : cliOk ? (
-        <CliEndpointSection key={ep} kind={ep} />
+        <CliEndpointSection key={ep} kind={ep} onOpenModels={onOpenModels} />
       ) : (
         <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
       )}

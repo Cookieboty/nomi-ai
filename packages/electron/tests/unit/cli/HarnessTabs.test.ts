@@ -10,6 +10,7 @@ import path from 'node:path';
 
 import { CliHarnessService, MAIN_TAB_ID } from '../../../src/cli/CliHarnessService';
 import type { HarnessTabsState } from '../../../src/cli/types';
+import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
@@ -218,21 +219,20 @@ describe('CliHarnessService tabs', () => {
     });
   });
 
-  it('换账号 / 供应商后新会话不再沿用模型；启用第三方供应商时不沿用模型', () => {
-    let profile = false;
+  it('换账号后新会话不再沿用模型；第三方来源的新标签不沿用官方下选的模型', () => {
     const h = new CliHarnessService({
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: os.tmpdir(),
-      hasProviderProfile: () => profile,
+      gateway: testGateway(),
     });
     made.push(h);
     const a = h.createTab({ backend: 'claude' });
     h.setTabPermissionMode(a.id, 'plan');
     h.setTabModel(a.id, 'claude-sonnet-5-5');
-    profile = true;
-    expect(h.createTab({ backend: 'claude' }).modelOverride ?? null).toBeNull();
-    profile = false;
+    const third = h.createTab({ backend: 'claude', source: 'thirdParty' });
+    expect(third.source).toBe('thirdParty');
+    expect(third.modelOverride ?? null).toBeNull();
     h.recycleBackend('claude');
     const c = h.createTab({ backend: 'claude' });
     expect(c.modelOverride ?? null).toBeNull();

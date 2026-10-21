@@ -565,11 +565,6 @@
 .composerBar .modelStatus [data-testid='cli-workspace'] button svg {
   flex: none;
 }
-.composerBar .modelStatus [data-testid='open-cli-provider-panel'] {
-  height: 28px;
-  padding: 0 var(--cd-space-1-5);
-}
-.composerBar .modelStatus [data-testid='open-cli-provider-panel'],
 .composerBar .modelStatus [data-testid='open-provider-panel'] {
   flex: none;
 }
@@ -588,7 +583,6 @@
 }
 @container composer (max-width: 440px) {
   /* 极窄：供应商管理入口（设置里仍可进入）让位给选择器 */
-  .composerBar .modelStatus [data-testid='open-cli-provider-panel'],
   .composerBar .modelStatus [data-testid='open-provider-panel'] {
     display: none;
   }

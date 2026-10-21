@@ -260,26 +260,30 @@ test.describe('E27 · slash commands', () => {
     await run(chat, '/model sonnet');
     await expect(cards(chat).last()).toContainText('已切换到 Sonnet Mock', SLOW);
     await expect(chat.locator('[data-testid="model-chip"]')).toContainText('Sonnet Mock', SLOW);
-    // 启用第三方供应商后 /model 列供应商的模型（上游不可达：只留供应商配置的模型），/status 显示供应商
-    // （HOME 是临时目录，写的是临时配置）
-    const profile = (await invoke(chat, 'ai:cli-provider:upsert', {
-      kind: 'claude',
+    // 标签改用第三方（统一网关）后 /model 列网关里的模型，/status 显示第三方来源
+    const glm = (await invoke(chat, 'ai:gateway:upsert-provider', {
       name: 'MockGLM',
-      baseUrl: 'http://127.0.0.1:9/anthropic',
-      model: 'glm-4.6',
-      apiKey: 'e27-fake-key',
+      urls: { messages: 'http://127.0.0.1:9/anthropic' },
+      newKeys: [{ value: 'e27-fake-key' }],
+      models: [{ id: 'glm-4.6', enabled: true }],
     })) as { id: string };
-    await invoke(chat, 'ai:cli-provider:activate', profile.id);
+    const tabs = (await invoke(chat, 'ai:harness:tabs')) as { activeTabId: string };
+    await invoke(
+      chat,
+      'ai:harness:tab-source',
+      tabs.activeTabId,
+      'thirdParty',
+      `${glm.id}/glm-4.6`,
+    );
     await run(chat, '/model');
     const provList = chat.locator('[data-testid="slash-card-list"]').last();
     await expect(provList).toContainText('glm-4.6', SLOW);
     await expect(provList).toContainText('MockGLM');
     await run(chat, '/status');
     await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText(
-      'MockGLM（第三方供应商）',
+      'MockGLM / glm-4.6（第三方）',
       SLOW,
     );
-    await expect(chat.locator('[data-testid="slash-card-status"]').last()).toContainText('glm-4.6');
     await shot(chat, '07-status-after-model');
 
     // 6) 项目自定义命令：Enter 先补全并给出参数提示，再回车透传

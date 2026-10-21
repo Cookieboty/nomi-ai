@@ -1,36 +1,65 @@
 /**
  * 设置 →「模型」页（docs/design/unified-gateway.md §4.1）：第三方供应商与模型分配，数据来自网关（ai:gateway:*）。
- * - 分配：目前只有 Nomi 对话（main / tools / summary）；编程助手的第三方模型 M3 接入，暂时仍在「编程助手」页；
- * - 官方账号不在这里：仍在「编程助手」页原位置。
+ * - 分配：Nomi 对话（main / tools / summary）；各编程助手的第三方模型（标签选「第三方」时用）与「新标签默认用」；
+ * - 官方账号不在这里：仍在「编程助手」页原位置（安装、账号也在那里）。
  */
-import { BrandIcon, Button, Icon, ModelPicker, Switch, t } from '@nomi-ai/ui';
-import { AlertCircle, Check, MoreHorizontal, Plus } from 'lucide-react';
+import {
+  BrandIcon,
+  Button,
+  Icon,
+  ModelPicker,
+  Select,
+  Switch,
+  t,
+  type SelectOption,
+} from '@nomi-ai/ui';
+import { AlertCircle, Check, ChevronDown, ChevronRight, MoreHorizontal, Plus } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
+import { CLI_KINDS, type CliKind } from '../../services/cliSource';
 import {
   gatewayClient,
   WIRE_LABEL,
   WIRES,
   type ClientModels,
+  type GatewayState,
   type LearnedState,
   type ProviderView,
   type Wire,
 } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
+import { EndpointIcon } from '../EndpointIcon';
 
 import { AddProviderDialog } from './AddProviderDialog';
 import styles from './index.module.css';
 
 const FOLLOW = 'follow';
+const UNSET = 'unset';
+
+type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tiers'>> & {
+  tiers?: Partial<Record<TierId, string | null>>;
+};
+type TierId = keyof NonNullable<ClientModels['tiers']>;
+
+/** Claude Code 可单独指定的档位（不展开时跟随主模型 / 小模型） */
+const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string; follows: 'main' | 'small' }> = [
+  { id: 'opus', label: 'Opus 档', follows: 'main' },
+  { id: 'sonnet', label: 'Sonnet 档', follows: 'main' },
+  { id: 'haiku', label: 'Haiku 档', follows: 'small' },
+  { id: 'fable', label: 'Fable 档', follows: 'main' },
+];
 
 export const ModelsPage: React.FC = () => {
   const state = useGatewayState();
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [claudeOpen, setClaudeOpen] = useState(false);
   const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revokeSeen, setRevokeSeen] = useState(false);
 
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -44,6 +73,15 @@ export const ModelsPage: React.FC = () => {
   /** null 表示清除（跟随对话） */
   const assign = (patch: Partial<Record<keyof ClientModels, string | null>>) =>
     run(gatewayClient.setAssignment('nomi', { models: patch as ClientModels }));
+
+  /** 编程助手的第三方模型 / 新标签默认用；null 表示清除 */
+  const assignCli = (
+    kind: CliKind,
+    patch: { models?: ModelsPatch; newTabSource?: 'official' | 'thirdParty' },
+  ) =>
+    run(
+      gatewayClient.setAssignment(kind, patch as Parameters<typeof gatewayClient.setAssignment>[1]),
+    );
 
   const onSaved = (p: ProviderView) => {
     setAdding(false);
@@ -84,6 +122,32 @@ export const ModelsPage: React.FC = () => {
           </Button>
         </div>
       )}
+      {state?.legacyRevoke?.revoked.length && !revokeSeen ? (
+        <div className={styles.offer} role="status" data-testid="legacy-revoked">
+          <span>
+            {t(
+              '终端里的 CLI 已恢复为你自己的配置和官方登录；第三方模型现在在 Nomi 的标签里使用（右上角选「第三方」）。',
+            )}
+          </span>
+          <Button size="sm" variant="ghost" onClick={() => setRevokeSeen(true)}>
+            {t('知道了')}
+          </Button>
+        </div>
+      ) : null}
+      {state?.legacyRevoke?.failed.map((f) => (
+        <p
+          key={f.kind}
+          className={styles.error}
+          role="alert"
+          data-testid={`legacy-revoke-failed-${f.kind}`}
+        >
+          {t(
+            '没能撤销旧版本写进 {0} 全局配置的第三方设置：{1}。请手动检查，下次启动会再试。',
+            f.kind,
+            f.error,
+          )}
+        </p>
+      ))}
       {error && (
         <p className={styles.error} role="alert">
           {error}
@@ -143,9 +207,33 @@ export const ModelsPage: React.FC = () => {
             data-testid="assign-summary"
           />
         </div>
+      </section>
+
+      <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
+        <h3 id="models-cli" className={styles.cardTitle}>
+          {t('编程助手')}
+        </h3>
         <p className={styles.sub}>
-          {t('编程助手的第三方模型暂时仍在「编程助手」页配置，之后会合并到这里。')}
+          {t(
+            '每个编程助手的标签都可以在右上角选「官方账号」或「第三方」。这里设置选「第三方」时默认用的模型，以及新建标签默认用哪个；不会改 CLI 的全局配置。',
+          )}
         </p>
+        <div className={styles.cliHead}>
+          <span>{t('第三方模型')}</span>
+          <span>{t('新标签默认用')}</span>
+        </div>
+        {CLI_KINDS.map((kind) => (
+          <CliRow
+            key={kind}
+            kind={kind}
+            client={state?.clients[kind]}
+            common={common}
+            disabled={!picker.length}
+            open={kind === 'claude' && claudeOpen}
+            onToggle={() => setClaudeOpen((x) => !x)}
+            onAssign={(patch) => assignCli(kind, patch)}
+          />
+        ))}
       </section>
 
       <section className={styles.card} aria-labelledby="models-providers">
@@ -189,6 +277,147 @@ export const ModelsPage: React.FC = () => {
 
       <AddProviderDialog open={adding} onClose={() => setAdding(false)} onSaved={onSaved} />
     </div>
+  );
+};
+
+/* ------------------------------ 编程助手一行 ------------------------------ */
+
+const CliRow: React.FC<{
+  kind: CliKind;
+  client: GatewayState['clients'][CliKind];
+  common: Pick<React.ComponentProps<typeof ModelPicker>, 'providers' | 'showWire' | 'size'>;
+  disabled: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onAssign: (patch: { models?: ModelsPatch; newTabSource?: 'official' | 'thirdParty' }) => void;
+}> = ({ kind, client, common, disabled, open, onToggle, onAssign }) => {
+  const m = client?.models ?? {};
+  const name = ENDPOINT_NAME[kind];
+  const source = client?.newTabSource ?? 'official';
+  const claude = kind === 'claude';
+  const sourceOptions: SelectOption[] = [
+    { value: 'official', label: kind === 'dsh' ? t('dsh 自带配置') : t('官方账号') },
+    {
+      value: 'thirdParty',
+      label: t('第三方'),
+      disabled: !m.main,
+      description: m.main ? undefined : t('先选第三方模型'),
+    },
+  ];
+  const setMain = (v: string) => {
+    if (v !== UNSET) return onAssign({ models: { main: v } });
+    // 清掉主模型后「第三方」不能再作新标签默认
+    onAssign({
+      models: { main: null },
+      ...(source === 'thirdParty' ? { newTabSource: 'official' as const } : {}),
+    });
+  };
+  const setTier = (id: TierId, v: string) =>
+    onAssign({ models: { tiers: { ...m.tiers, [id]: v === FOLLOW ? null : v } } });
+  return (
+    <>
+      <div className={styles.cliRow} data-testid={`cli-row-${kind}`}>
+        <span className={styles.cliName}>
+          <EndpointIcon backend={kind} size={16} decorative />
+          {name}
+        </span>
+        <span className={styles.cliPickers}>
+          {claude && <span className={styles.tierLabel}>{t('主')}</span>}
+          <ModelPicker
+            {...common}
+            purpose="coding"
+            className={styles.picker}
+            extraOptions={[{ value: UNSET, label: t('未设置') }]}
+            value={m.main ?? UNSET}
+            onChange={setMain}
+            disabled={disabled}
+            aria-label={t('{0} 的第三方模型', name)}
+            data-testid={`cli-main-${kind}`}
+          />
+          {claude && (
+            <>
+              <span className={styles.tierLabel}>{t('小')}</span>
+              <ModelPicker
+                {...common}
+                purpose="coding"
+                className={styles.picker}
+                extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
+                value={m.small ?? FOLLOW}
+                onChange={(v) => onAssign({ models: { small: v === FOLLOW ? null : v } })}
+                disabled={disabled}
+                aria-label={t('Claude Code 的小模型')}
+                data-testid="cli-small-claude"
+              />
+              <button
+                type="button"
+                className={styles.expand}
+                aria-expanded={open}
+                aria-label={t('各档模型')}
+                data-testid="cli-tiers-toggle"
+                onClick={onToggle}
+              >
+                <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+              </button>
+            </>
+          )}
+        </span>
+        <Select
+          size="sm"
+          className={styles.source}
+          options={sourceOptions}
+          value={source}
+          onChange={(e) => onAssign({ newTabSource: e.target.value as 'official' | 'thirdParty' })}
+          aria-label={t('{0} 新标签默认用', name)}
+          data-testid={`cli-source-${kind}`}
+          menuMinWidth={200}
+        />
+      </div>
+      {open && (
+        <>
+          {CLAUDE_TIERS.map((tier) => (
+            <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
+              <span className={styles.cliName}>{t(tier.label)}</span>
+              <span className={styles.cliPickers}>
+                <ModelPicker
+                  {...common}
+                  purpose="coding"
+                  className={styles.picker}
+                  extraOptions={[
+                    {
+                      value: FOLLOW,
+                      label: tier.follows === 'main' ? t('跟随主模型') : t('跟随小模型'),
+                    },
+                  ]}
+                  value={m.tiers?.[tier.id] ?? FOLLOW}
+                  onChange={(v) => setTier(tier.id, v)}
+                  disabled={disabled}
+                  aria-label={t('Claude Code 的{0}', t(tier.label))}
+                  data-testid={`cli-tier-${tier.id}`}
+                />
+              </span>
+              <span />
+            </div>
+          ))}
+          <div className={`${styles.cliRow} ${styles.tierRow}`}>
+            <span className={styles.cliName}>{t('子代理')}</span>
+            <span className={styles.cliPickers}>
+              <ModelPicker
+                {...common}
+                purpose="coding"
+                className={styles.picker}
+                extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
+                value={m.subagent ?? FOLLOW}
+                onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
+                disabled={disabled}
+                aria-label={t('Claude Code 的子代理模型')}
+                data-testid="cli-subagent"
+              />
+            </span>
+            <span />
+          </div>
+        </>
+      )}
+    </>
   );
 };
 

@@ -43,15 +43,6 @@ function mockIpc(
       return { providers: [], envProviders: [], routes: {}, roles: [], encryption: 'none' };
     if (ch === 'ai:harness:recent-cwds') return ['/recent/one', '/recent/two'];
     if (ch === 'ai:harness:pick-dir') return picked;
-    if (ch === 'ai:cli-provider:state')
-      return {
-        profiles: [],
-        claudeStore: '',
-        codexStore: '',
-        claudeSettings: '',
-        codexConfig: '',
-        routing: null,
-      };
     if (ch === 'ai:harness:tab-messages') return messages;
     return {};
   });
@@ -115,7 +106,7 @@ describe('EndpointControls workspace for CLI tabs', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} onManageCli={() => undefined} />
+          <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
         </>
       </HarnessTabsProvider>,
     );

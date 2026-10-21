@@ -15,6 +15,7 @@ import {
   pickPermissionOption,
 } from '../../../src/cli/gemini/geminiEvents';
 import { geminiModeId } from '../../../src/cli/permissionMode';
+import { TEST_GATEWAY_TOKEN, testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
@@ -129,8 +130,7 @@ describe('CliHarnessService Gemini backend', () => {
       root,
       logger: { info() {}, warn() {} },
       defaultCwd: root,
-      geminiEnv: (): Record<string, string> =>
-        process.env.TEST_GEMINI_KEY ? { GEMINI_API_KEY: process.env.TEST_GEMINI_KEY } : {},
+      ...(process.env.TEST_GEMINI_3P ? { gateway: testGateway({ source: 'thirdParty' }) } : {}),
     });
     harnesses.push(h);
     return { h, root };
@@ -187,8 +187,8 @@ describe('CliHarnessService Gemini backend', () => {
     expect(tabs.find((x) => x.id === idle.id)?.dormant).toBeFalsy();
   }, 15_000);
 
-  it('injects the active provider profile env into the ACP process', async () => {
-    process.env.TEST_GEMINI_KEY = 'AIza-profile';
+  it('third-party tabs get the gateway token via env (no settings files)', async () => {
+    process.env.TEST_GEMINI_3P = '1';
     try {
       const { h, root } = mk();
       const log = path.join(root, 'acp.log');
@@ -199,9 +199,9 @@ describe('CliHarnessService Gemini backend', () => {
         env: Record<string, string | null>;
       };
       // 不再全局跳过 Gemini 的文件夹信任
-      expect(init.env).toEqual({ GEMINI_API_KEY: 'AIza-profile', trust: null });
+      expect(init.env).toEqual({ GEMINI_API_KEY: TEST_GATEWAY_TOKEN, trust: null });
     } finally {
-      delete process.env.TEST_GEMINI_KEY;
+      delete process.env.TEST_GEMINI_3P;
     }
   }, 15_000);
 

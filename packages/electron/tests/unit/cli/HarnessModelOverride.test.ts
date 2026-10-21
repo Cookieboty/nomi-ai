@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarnessService';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -40,7 +40,7 @@ describe('CliHarnessService model / effort overrides', () => {
     for (const h of made.splice(0)) h.dispose();
     process.env = { ...saved };
   });
-  const mk = (o: { hasProviderProfile?: (backend: string) => boolean } = {}) => {
+  const mk = (o: { gateway?: HarnessGateway } = {}) => {
     const h = new CliHarnessService({
       root,
       logger: { info() {}, warn() {} },
@@ -328,119 +328,122 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(restored.reasoningEffort).toBeNull();
   });
 
-  it('只知道「启用了供应商」、不知道是哪个时：不注入覆盖参数，也拒绝设置新覆盖；停用后恢复官方的选择', async () => {
-    let profile = false;
-    const h = mk({ hasProviderProfile: (b) => profile && b === 'codex' });
-    const tab = h.createTab({ backend: 'codex' });
-    h.setTabModel(tab.id, 'gpt-5.6-sol');
-    h.setTabReasoningEffort(tab.id, 'high');
-
-    profile = true;
-    expect(() => h.setTabModel(tab.id, 'gpt-5.5')).toThrow();
-    expect(() => h.setTabReasoningEffort(tab.id, 'low')).toThrow();
-    await h.sendTab(tab.id, '供应商启用');
-    const during = readArgv().at(-1)!;
-    expect(during.some((x) => x.startsWith('model='))).toBe(false);
-    expect(during.some((x) => x.startsWith('model_reasoning_effort='))).toBe(false);
-
-    profile = false;
-    await h.sendTab(tab.id, '供应商停用');
-    expect(readArgv().at(-1)!).toContain('model="gpt-5.6-sol"');
-    expect(readArgv().at(-1)!).toContain('model_reasoning_effort="high"');
-  });
-
-  describe('第三方供应商下按标签切模型', () => {
-    type P = { id: string; name: string; model: string } | null;
-    const setup = (o: { models?: () => Promise<string[]> } = {}) => {
-      let profile: P = null;
-      const h = mk({
-        providerProfile: (b: string) => (b === 'codex' || b === 'grok' ? profile : null),
-        providerModels: o.models ?? (async () => ['vendor/a', 'vendor/b']),
-      } as never);
-      return {
-        h,
-        use: (p: P) => {
-          profile = p;
-          h.recycleBackend('codex');
+  describe('第三方来源（经统一网关，§12）', () => {
+    const fakeGateway = (
+      o: { source?: 'official' | 'thirdParty'; main?: string | null; running?: boolean } = {},
+    ) => {
+      const launches: Array<[string, string, string]> = [];
+      const gateway: HarnessGateway = {
+        defaults: () => ({
+          source: o.source ?? 'official',
+          model: o.main === undefined ? 'gw/a' : o.main,
+        }),
+        launch: (kind, tabId, model) => {
+          launches.push([kind, tabId, model]);
+          return o.running === false
+            ? null
+            : {
+                env: { NOMI_GATEWAY_KEY: 'nomi-gw-codex-test' },
+                args: ['-c', 'model_provider="nomi_gateway"'],
+                strip: ['OPENAI_API_KEY'],
+              };
         },
+        officialEnv: (env) => env,
+        models: () => [
+          { ref: 'gw/a', provider: 'GW', label: 'a' },
+          { ref: 'gw/b', provider: 'GW', label: 'b' },
+        ],
       };
+      return { gateway, launches };
     };
-    const A = { id: 'prov-a', name: 'Gateway A', model: 'vendor/a' };
-    const B = { id: 'prov-b', name: 'Gateway B', model: 'other/x' };
 
-    it('模型目录换成供应商的 /models，供应商配置的模型排第一作默认，没有思考深度', async () => {
-      const { h, use } = setup();
-      use(A);
-      const c = (await h.modelCatalogFor('codex'))!;
-      expect(c.provider).toEqual({ id: 'prov-a', name: 'Gateway A' });
-      expect(c.defaultModel?.id).toBe('vendor/a');
-      expect(c.models.map((m) => m.id)).toEqual(['vendor/a', 'vendor/b']);
+    it('第三方的模型目录来自网关，默认是「模型」页给这个编程助手分配的，没有思考深度', async () => {
+      const h = mk({ gateway: fakeGateway().gateway } as never);
+      const c = (await h.modelCatalogFor('codex', { source: 'thirdParty' }))!;
+      expect(c.provider).toEqual({ id: 'gateway', name: '第三方模型' });
+      expect(c.defaultModel?.id).toBe('gw/a');
+      expect(c.models.map((m) => [m.id, m.label])).toEqual([
+        ['gw/a', 'GW / a'],
+        ['gw/b', 'GW / b'],
+      ]);
       expect(c.models.every((m) => !m.reasoning && m.efforts.length === 0)).toBe(true);
     });
 
-    it('读不到上游列表：只保留供应商配置的模型并带上原因', async () => {
-      const { h, use } = setup({ models: async () => Promise.reject(new Error('Key 无效')) });
-      use(A);
-      const c = (await h.modelCatalogFor('codex'))!;
-      expect(c.models.map((m) => m.id)).toEqual(['vendor/a']);
-      expect(c.error).toBe('Key 无效');
-    });
-
-    it('标签可选供应商的模型并下发；不能调思考深度', async () => {
-      const { h, use } = setup();
-      use(A);
+    it('切到第三方：注入网关参数、按标签模型下发、不带思考深度；切回官方取回之前的选择', async () => {
+      const { gateway, launches } = fakeGateway();
+      const h = mk({ gateway } as never);
       const tab = h.createTab({ backend: 'codex' });
-      expect(h.setTabModel(tab.id, 'vendor/b')).toMatchObject({
-        modelOverride: 'vendor/b',
-        modelScope: 'prov-a',
+      expect(tab.source).toBe('official');
+      h.setTabModel(tab.id, 'gpt-5.6-sol');
+      h.setTabReasoningEffort(tab.id, 'high');
+      expect(h.setTabSource(tab.id, 'thirdParty', 'gw/b')).toMatchObject({
+        source: 'thirdParty',
+        modelOverride: 'gw/b',
+        modelScope: 'gateway',
         reasoningEffort: null,
       });
       expect(() => h.setTabReasoningEffort(tab.id, 'high')).toThrow();
-      await h.sendTab(tab.id, 'hi');
-      expect(readArgv().at(-1)!).toContain('model="vendor/b"');
-      expect(
-        readArgv()
-          .at(-1)!
-          .some((x) => x.startsWith('model_reasoning_effort=')),
-      ).toBe(false);
-      expect([...h.routeModels('codex')]).toEqual(['vendor/b']);
-    });
-
-    it('官方 / 各供应商各记各的：切换后取回那个来源上次的选择，不会把模型名发到别的来源', async () => {
-      const { h, use } = setup();
-      const tab = h.createTab({ backend: 'codex' });
-      h.setTabModel(tab.id, 'gpt-5.6-sol');
-      h.setTabReasoningEffort(tab.id, 'high');
-      use(A);
-      const row = () => h.listTabs().tabs.find((x) => x.id === tab.id)!;
-      expect(row().modelOverride ?? null).toBeNull();
-      h.setTabModel(tab.id, 'vendor/b');
-      use(B);
-      expect(row().modelOverride ?? null).toBeNull();
-      await h.sendTab(tab.id, 'on B');
-      expect(
-        readArgv()
-          .at(-1)!
-          .some((x) => x.startsWith('model=')),
-      ).toBe(false);
-      use(A);
-      expect(row()).toMatchObject({ modelOverride: 'vendor/b', modelScope: 'prov-a' });
-      use(null);
-      expect(row()).toMatchObject({ modelOverride: 'gpt-5.6-sol', reasoningEffort: 'high' });
+      await h.sendTab(tab.id, 'third party');
+      const third = readArgv().at(-1)!;
+      expect(third).toContain('model_provider="nomi_gateway"');
+      expect(third).toContain('model="gw/b"');
+      expect(third.some((x) => x.startsWith('model_reasoning_effort='))).toBe(false);
+      expect(launches.at(-1)).toEqual(['codex', tab.id, 'gw/b']);
+      // 第三方 → 官方：带上下文的新会话（第三方的推理内容不能发给官方）
+      const back = h.setTabSource(tab.id, 'official');
+      expect(back).toMatchObject({
+        source: 'official',
+        modelOverride: 'gpt-5.6-sol',
+        reasoningEffort: 'high',
+      });
+      expect(back.cliSessionId).toBeNull();
+      expect(back.carriedMessages).toBeGreaterThan(0);
+      await h.sendTab(tab.id, 'official again');
+      const official = readArgv().at(-1)!;
+      expect(official).toContain('model="gpt-5.6-sol"');
+      expect(official.some((x) => x.includes('nomi_gateway'))).toBe(false);
       // 跨重启保留各来源的选择
       h.dispose();
-      const again = mk({ providerProfile: () => null } as never);
-      expect(again.listTabs().tabs.find((x) => x.id === tab.id)?.modelByScope).toEqual({
-        'prov-a': { model: 'vendor/b', effort: null },
+      expect(
+        mk({ gateway } as never)
+          .listTabs()
+          .tabs.find((x) => x.id === tab.id)?.modelByScope,
+      ).toEqual({
+        gateway: { model: 'gw/b', effort: null },
       });
     });
 
+    it('新标签按「新标签默认用」：第三方时没选模型就用分配的模型', async () => {
+      const h = mk({
+        gateway: fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,
+      } as never);
+      const tab = h.createTab({ backend: 'codex' });
+      expect(tab.source).toBe('thirdParty');
+      await h.sendTab(tab.id, 'hi');
+      expect(readArgv().at(-1)!).toContain('model="gw/a"');
+      // 没分配模型：新标签仍是官方
+      const none = mk({
+        gateway: fakeGateway({ source: 'thirdParty', main: null }).gateway,
+      } as never);
+      expect(none.createTab({ backend: 'codex' }).source).toBe('official');
+      expect(() =>
+        none.setTabSource(none.createTab({ backend: 'codex' }).id, 'thirdParty'),
+      ).toThrow(/模型/);
+    });
+
+    it('网关没在运行：第三方标签明确报错，不悄悄走官方', async () => {
+      const h = mk({
+        gateway: fakeGateway({ source: 'thirdParty', running: false }).gateway,
+      } as never);
+      const tab = h.createTab({ backend: 'codex' });
+      await expect(h.sendTab(tab.id, 'hi')).rejects.toThrow(/网关/);
+    });
+
     it('新会话只沿用同一来源下的模型', async () => {
-      const { h, use } = setup();
-      use(A);
+      const h = mk({ gateway: fakeGateway({ source: 'thirdParty' }).gateway } as never);
       const a = h.createTab({ backend: 'codex' });
-      h.setTabModel(a.id, 'vendor/b');
-      expect(h.createTab({ backend: 'codex' }).modelOverride).toBe('vendor/b');
+      h.setTabModel(a.id, 'gw/b');
+      expect(h.createTab({ backend: 'codex' }).modelOverride).toBe('gw/b');
     });
   });
 

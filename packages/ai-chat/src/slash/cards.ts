@@ -4,7 +4,13 @@
  */
 import { t } from '@nomi-ai/ui';
 
-import type { BackendModelCatalog } from '../services/harnessClient';
+import {
+  codingModelChoices,
+  refSlashLabel,
+  tabSourceOf,
+  thirdPartyRefOf,
+} from '../services/cliSource';
+import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
@@ -42,8 +48,8 @@ export const notice = (
 export interface ModelInfo {
   model?: string;
   provider?: string;
-  /** 来自 Nomi 里启用的 CLI 供应商 */
-  profile: boolean;
+  /** CLI 标签用的是第三方（经网关） */
+  thirdParty: boolean;
 }
 
 export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
@@ -56,7 +62,7 @@ export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
       return {
         model: r.model,
         provider: p ? providerDisplayName(p.name) : r.provider,
-        profile: false,
+        thirdParty: false,
       };
     }
     // 网关里还没分配：旧存储（环境变量供应商等）
@@ -67,16 +73,38 @@ export function currentModel(ctx: SlashContext, data: SlashData): ModelInfo {
     return {
       model: np?.effectiveModel,
       provider: prov?.name ?? env?.name,
-      profile: false,
+      thirdParty: false,
     };
   }
-  const active = data.cliProviders?.profiles.find((p) => p.kind === ctx.backend && p.active);
-  if (active) {
-    const model = active.model && active.model !== 'unknown' ? active.model : undefined;
-    return { ...(model ? { model } : {}), provider: active.name, profile: true };
+  const tab = data.cliTab;
+  if (tabSourceOf(tab) === 'thirdParty') {
+    const ref = thirdPartyRefOf(tab, ctx.backend, data.nomiGateway);
+    const r = ref ? splitRef(ref) : null;
+    const p = r ? data.nomiGateway?.providers.find((x) => x.id === r.provider) : undefined;
+    return {
+      ...(r ? { model: r.model, provider: p ? providerDisplayName(p.name) : r.provider } : {}),
+      thirdParty: true,
+    };
   }
-  const used = data.usage?.byModel?.find((r) => r.key && r.key !== 'unknown')?.key;
-  return { ...(used ? { model: used } : {}), profile: false };
+  const own = tab?.modelOverride?.trim();
+  const used = own || data.usage?.byModel?.find((r) => r.key && r.key !== 'unknown')?.key;
+  return { ...(used ? { model: used } : {}), thirdParty: false };
+}
+
+/** CLI 标签的来源，给 /status 的「供应商」一行：官方账号 /「供应商 / 模型」 */
+function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
+  const label = t('供应商');
+  if (tabSourceOf(data.cliTab) === 'thirdParty') {
+    const ref = thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway);
+    return ref
+      ? { label, value: t('{0}（第三方）', refSlashLabel(data.nomiGateway, ref)) }
+      : { label, value: t('第三方 · 未设置模型'), tone: 'warn' };
+  }
+  if (ctx.backend === 'dsh') return { label, value: t('dsh 自带配置') };
+  const a = data.cliAccount;
+  return a
+    ? { label, value: t('官方 · {0}', a.identity?.email ?? a.label) }
+    : { label, value: t('官方'), tone: 'muted' };
 }
 
 // ───────────────────────────── /context ─────────────────────────────
@@ -167,29 +195,27 @@ export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
           tone: 'muted',
         },
   );
-  rows.push({
-    label: t('供应商'),
-    value: m.provider
-      ? m.profile
-        ? t('{0}（第三方供应商）', m.provider)
-        : m.provider
-      : ctx.backend === 'nomi'
-        ? t('未配置')
-        : t('CLI 自带登录 / 默认配置'),
-    ...(m.provider ? {} : { tone: 'muted' as const }),
-  });
+  rows.push(
+    ctx.backend === 'nomi'
+      ? {
+          label: t('供应商'),
+          value: m.provider ?? t('未配置'),
+          ...(m.provider ? {} : { tone: 'muted' as const }),
+        }
+      : cliSourceLine(ctx, data),
+  );
   const auth = data.quota?.auth;
   rows.push({
     label: t('登录方式'),
     value:
-      ctx.backend === 'nomi' || m.profile
+      ctx.backend === 'nomi' || m.thirdParty
         ? t('API 密钥')
         : auth === 'subscription'
           ? t('账号登录（订阅）')
           : auth === 'api'
             ? t('API 密钥')
             : t('未确认'),
-    ...(ctx.backend !== 'nomi' && !m.profile && !auth ? { tone: 'muted' as const } : {}),
+    ...(ctx.backend !== 'nomi' && !m.thirdParty && !auth ? { tone: 'muted' as const } : {}),
   });
   if (data.quota?.plan) rows.push({ label: t('套餐'), value: data.quota.plan });
   if (ctx.backend !== 'nomi')
@@ -245,51 +271,61 @@ function nomiChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
   return out;
 }
 
-function cliChoices(ctx: SlashContext, data: SlashData): ModelChoice[] {
-  const profiles = (data.cliProviders?.profiles ?? []).filter((p) => p.kind === ctx.backend);
-  const fail = (e?: string) => {
-    throw new Error(e || t('切换失败'));
+const cancelled = (ok: boolean) => {
+  if (!ok) throw new Error(t('已取消切换'));
+};
+
+/** CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认） */
+function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
+  const a = data.cliAccount;
+  const label =
+    ctx.backend === 'dsh'
+      ? t('dsh 自带配置')
+      : a
+        ? t('官方 · {0}', a.identity?.email ?? a.label)
+        : t('官方');
+  return {
+    label,
+    provider: t('官方'),
+    model: 'official',
+    active: source === 'official',
+    run: async () => cancelled(await ctx.actions.setTabSource('official')),
   };
-  const out: ModelChoice[] = [
-    {
-      label: t('CLI 自带登录 / 默认配置'),
-      provider: t('默认'),
-      model: '',
-      active: !profiles.some((p) => p.active),
-      run: async () => {
-        const r = await ctx.actions.deactivateCliProfile();
-        if (!r.ok) fail(r.error);
-      },
-    },
-  ];
-  for (const p of profiles)
-    out.push({
-      label: `${p.name} · ${p.model}`,
-      provider: p.name,
-      model: p.model,
-      active: p.active,
-      run: async () => {
-        const r = await ctx.actions.activateCliProfile(p.id);
-        if (!r.ok) fail(r.error);
-      },
-    });
-  return out;
+}
+
+/** CLI 标签的第三方候选：网关里能给编程助手用的模型，选中即让标签改用第三方的这个模型 */
+function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice[] {
+  const cur =
+    source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;
+  return codingModelChoices(data.nomiGateway).map((c) => ({
+    label: t('第三方 · {0}', c.label),
+    provider: c.provider,
+    model: c.ref,
+    active: c.ref === cur,
+    run: async () => cancelled(await ctx.actions.setTabSource('thirdParty', c.ref)),
+  }));
 }
 
 /** 与输入框模型按钮、主进程同一套模型 id 字符集（自定义模型 id 用） */
 const MODEL_ID = /^[A-Za-z0-9_][A-Za-z0-9._:/[\]-]{0,127}$/;
 
 /**
- * CLI 标签的 `/model`：与输入框的模型按钮一致——列这个标签的模型目录（官方账号读 CLI 自己，
- * 第三方供应商读它的 /models），切换只作用于当前标签、下一条消息起生效；参数可以是自定义模型 id。
+ * CLI 标签的 `/model`：与输入框的模型按钮一致——列这个标签的模型目录（官方来源读 CLI 自己，
+ * 第三方来源是网关的模型），再附上另一种来源的候选（切换来源）。只作用于当前标签、下一条消息起生效；
+ * 官方来源时参数可以是自定义模型 id。
  */
 async function tabModelCard(
   ctx: SlashContext,
   catalog: BackendModelCatalog,
   current: string | null,
   args: string,
+  tabSource: TabSource,
+  /** 另一种来源的候选（官方标签列第三方模型，第三方标签列「官方」） */
+  others: ModelChoice[],
 ): Promise<SlashCardInput> {
-  const source = catalog.provider?.name || ENDPOINT_FULL[ctx.backend]();
+  const thirdParty = tabSource === 'thirdParty';
+  const source =
+    catalog.provider?.name || (thirdParty ? t('第三方模型') : ENDPOINT_FULL[ctx.backend]());
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   const pick = (model: string) => ctx.actions.setTabModel(model);
   const choices: ModelChoice[] = [
@@ -316,6 +352,7 @@ async function tabModelCard(
       active: true,
       run: () => pick(current),
     });
+  choices.push(...others);
   const done = (label: string) =>
     notice(t('模型已切换'), t('已切换到 {0}', label), 'info', {
       detail: t('只影响当前标签，下一条消息起生效。'),
@@ -336,8 +373,8 @@ async function tabModelCard(
         await c.run();
         return done(c.label);
       }
-      // 目录里没有：和模型按钮的「自定义模型 id」一样直接用
-      if (!ranked.length && MODEL_ID.test(q)) {
+      // 目录里没有：和模型按钮的「自定义模型 id」一样直接用（第三方只能从网关的模型里选）
+      if (!thirdParty && !ranked.length && MODEL_ID.test(q)) {
         await pick(q);
         return done(t('{0}（自定义）', q));
       }
@@ -360,12 +397,14 @@ async function tabModelCard(
         },
       },
     })),
-    empty: t('没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>'),
+    empty: thirdParty
+      ? t('没有匹配的模型。')
+      : t('没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>'),
     actions: [
-      { id: 'switch-provider', label: t('切换供应商'), run: () => ctx.actions.openSettings() },
+      { id: 'open-models', label: t('打开模型设置'), run: () => ctx.actions.openProviders() },
     ],
     note: [
-      catalog.provider ? t('列的是「{0}」的模型。', catalog.provider.name) : '',
+      thirdParty ? t('这个标签用第三方模型（经 Nomi 网关）。') : '',
       catalog.error ? t('没能从 {0} 读到模型列表：{1}', source, catalog.error) : '',
       t('只影响当前标签，下一条消息起生效；与输入框的模型按钮是同一个设置。'),
     ]
@@ -380,18 +419,27 @@ export async function modelCard(
   data: SlashData,
   args: string,
 ): Promise<SlashCardInput> {
+  let choices: ModelChoice[];
   if (ctx.backend !== 'nomi') {
     const tm = await ctx.actions.tabModels();
-    if (tm.catalog) return tabModelCard(ctx, tm.catalog, tm.current, args);
-  }
-  // Nomi 对话；以及不能按标签切模型的 CLI（Gemini / 未启用第三方的 dsh）：列供应商
-  const choices = ctx.backend === 'nomi' ? nomiChoices(ctx, data) : cliChoices(ctx, data);
+    const official = officialChoice(ctx, data, tm.source);
+    const third = thirdPartyChoices(ctx, data, tm.source);
+    if (tm.catalog)
+      return tabModelCard(
+        ctx,
+        tm.catalog,
+        tm.current,
+        args,
+        tm.source,
+        tm.source === 'thirdParty' ? [official] : third,
+      );
+    // 不能按标签切模型的 CLI（如 Gemini / dsh 官方）：只列来源
+    choices = [official, ...third];
+  } else choices = nomiChoices(ctx, data);
   const note =
     ctx.backend === 'nomi'
       ? t('这里列出设置 →「模型」里启用的模型。')
-      : t(
-          '切换会改写这个 CLI 的配置（自动备份），下一轮对话生效；用 CLI 自带账号登录时由 CLI 自己选模型。',
-        );
+      : t('「官方」用 CLI 自己的账号；「第三方」经 Nomi 网关。只影响当前标签，下一条消息起生效。');
   const toItem = (c: ModelChoice): CardListItem => ({
     label: c.label,
     active: c.active,
@@ -422,7 +470,7 @@ export async function modelCard(
           t('模型已切换'),
           t('已切换到 {0}', c.label),
           'info',
-          ctx.backend === 'nomi' ? undefined : { detail: t('下一轮对话生效。') },
+          ctx.backend === 'nomi' ? undefined : { detail: t('只影响当前标签，下一条消息起生效。') },
         );
       } catch (e) {
         return notice(t('切换失败'), e instanceof Error ? e.message : String(e), 'error');
@@ -436,15 +484,12 @@ export async function modelCard(
     items: list.map(toItem),
     empty: choices.length
       ? t('没有匹配的模型。')
-      : ctx.backend === 'nomi'
-        ? t('还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。')
-        : t('还没有可切换的模型，请先在「供应商与模型」里添加。'),
+      : t('还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。'),
     actions: [
       {
         id: 'open-providers',
-        label: t('打开供应商设置'),
-        run: () =>
-          ctx.backend === 'nomi' ? ctx.actions.openProviders() : ctx.actions.openSettings(),
+        label: t('打开模型设置'),
+        run: () => ctx.actions.openProviders(),
       },
     ],
     note,

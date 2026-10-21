@@ -90,13 +90,8 @@ const knownModel = (key: string | undefined): string | undefined => {
   return k && k !== 'unknown' ? k : undefined;
 };
 
-/** 当前模型 · 供应商：优先 CLI 里激活的供应商，其次近 7 天用量最高的模型 */
+/** 当前模型 · 供应商：近 7 天用量最高的模型 */
 function modelLine(info: EndpointInfo): string | null {
-  const active = info.providers?.profiles.find((p) => p.kind === info.backend && p.active);
-  if (active) {
-    const model = knownModel(active.model);
-    return [model, active.name].filter(Boolean).join(' · ') || null;
-  }
   const m = knownModel(info.usage?.byModel.find((r) => knownModel(r.key))?.key);
   if (!m) return null;
   const v = info.usage?.byProvider[0]?.key;
@@ -261,7 +256,7 @@ const EndpointDrawer: React.FC<{
   const auth = authOf(backend, quota);
   const isApi = quota?.status === 'api' || quota?.auth === 'api';
   const money = (usd: number) => formatMoney(usd, fx.currency, fx.rate);
-  const paths = configPathsOf(backend, info.providers);
+  const paths = configPathsOf(backend);
   const model = modelLine(info);
   const series = usage?.series ?? [];
   const peak = Math.max(1, ...series.map((p) => p.tokens));

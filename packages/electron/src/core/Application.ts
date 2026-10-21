@@ -3,6 +3,8 @@
  * 负责应用初始化、服务注册和生命周期管理
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { createSafeStorageCipher, migrateStoreData } from '@nomi-ai/ai-runtime';
@@ -17,18 +19,14 @@ import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
-import { getCliHarnessService, initCliHarnessService } from '../cli/CliHarnessService';
-import {
-  decrypt as decryptLegacyCliKey,
-  getCliProviderBridge,
-  initCliProviderBridge,
-} from '../cli/CliProviderBridge';
+import { initCliHarnessService } from '../cli/CliHarnessService';
+import { decrypt as decryptLegacyCliKey, initCliProviderBridge } from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
-import { initCliRouteService } from '../cli/routing/CliRouteService';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
+import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
@@ -424,34 +422,31 @@ export class Application implements IApplication {
         logger: this.logger as never,
       });
       cliUpdate.registerIpc();
-      const cliProviders = initCliProviderBridge({
-        root: path.join(app.getPath('userData'), 'cli-providers'),
-        logger: this.logger as never,
-      });
-      const cliRoute = initCliRouteService({
-        root: path.join(app.getPath('userData'), 'cli-providers'),
-        logger: this.logger as never,
-        resolveUpstream: (kind) => getCliProviderBridge()?.resolveUpstream(kind) ?? null,
-        // 编程助手标签为当前供应商选中的模型照发，其余改成供应商配置的模型
-        allowedModels: (kind) => getCliHarnessService()?.routeModels(kind) ?? new Set<string>(),
-      });
-      cliProviders.registerIpc();
-      cliRoute.registerIpc();
-      this.lifecycle.register({ name: 'cli-route', stop: () => cliRoute.stop() });
-      if (cliRoute.getSettings().enabled) void cliRoute.start().catch(() => undefined);
+      const cliRoot = path.join(app.getPath('userData'), 'cli-providers');
       // 统一网关（docs/design/unified-gateway.md）：首次启动从旧存储迁移，网关跑在独立的 utilityProcess 里。
-      // M3 之前终端里的 CLI 仍连旧路由，所以不接受旧共享令牌；旧路由开着时网关先用临时端口。
+      // 旧版本写进 CLI 全局配置的第三方设置在迁移后撤销（§6.3 第 7 步）；撤销全部成功之前，
+      // 终端里的 CLI 可能还带着旧路由令牌，网关继续接受它（§10.2）。
+      let legacyRevoke: RevokeLegacyResult | null = null;
+      const legacyToken = (): string | null => {
+        if (!legacyRevoke?.failed.length) return null;
+        try {
+          return fs.readFileSync(path.join(cliRoot, 'routing.token'), 'utf8').trim() || null;
+        } catch {
+          return null;
+        }
+      };
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
         legacy: {
           nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
-          cliRoot: path.join(app.getPath('userData'), 'cli-providers'),
+          cliRoot,
           cliDecrypt: decryptLegacyCliKey,
           normalizeNomi: (raw) => migrateStoreData(raw).data,
-          token: () => null,
-          routeListening: () => cliRoute.getSettings().enabled,
+          token: legacyToken,
+          // 旧本地路由不再启动：网关接管它的端口
+          routeListening: () => false,
         },
         broadcast: (channel, payload) => {
           for (const w of BrowserWindow.getAllWindows())
@@ -459,19 +454,35 @@ export class Application implements IApplication {
         },
       });
       gateway.registerIpc();
+      // 先迁移（读旧存储里「启用中」的标记），再撤销旧版本写进全局配置的东西（会清掉这些标记）
       gateway.init();
+      try {
+        legacyRevoke = revokeLegacyGlobalConfig({
+          home: os.homedir(),
+          cliRoot,
+          backupRoot: path.join(app.getPath('userData'), 'gateway', 'backups'),
+          decrypt: decryptLegacyCliKey,
+          logger: this.logger as never,
+        });
+        gateway.setLegacyRevoke(legacyRevoke);
+      } catch (e) {
+        this.logger.warn('revoke legacy CLI config failed', e);
+      }
+      // 旧的第三方供应商桥只剩读写旧存储（不再写 CLI 全局配置）；旧本地路由不再启动
+      const cliProviders = initCliProviderBridge({ root: cliRoot, logger: this.logger as never });
+      cliProviders.registerIpc();
       this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,
         defaultCwd: app.getPath('documents'),
-        dshEnv: () => getCliProviderBridge()?.dshEnv() ?? {},
-        grokEnv: () => getCliProviderBridge()?.grokEnv() ?? {},
-        geminiEnv: () => getCliProviderBridge()?.geminiEnv() ?? {},
-        hasProviderProfile: (kind) => getCliProviderBridge()?.hasActiveProfile(kind) ?? false,
-        providerProfile: (kind) => getCliProviderBridge()?.activeProfile(kind) ?? null,
-        providerModels: (kind) => getCliProviderBridge()?.listModels(kind) ?? Promise.resolve([]),
-        dshModelPatch: (model) => getCliProviderBridge()?.dshPatchFor(model) ?? null,
+        // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
+        gateway: {
+          defaults: (kind) => gateway.cliDefaults(kind),
+          launch: (kind, tabId, model) => gateway.cliLaunch(kind, tabId, model),
+          officialEnv: (env) => gateway.officialEnv(env),
+          models: () => gateway.cliModels(),
+        },
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
         // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
@@ -479,16 +490,12 @@ export class Application implements IApplication {
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
-      // 供应商写的是进程启动时才读的配置。启用/停用后悄悄拆掉空闲的 Claude 长驻进程。
-      cliProviders.setOnApplied((kind) => harness.recycleBackend(kind));
-      // 官方账号（docs/design/cli-official-accounts.md）：切换后停用该 CLI 的第三方供应商，
-      // 并让长驻进程按新登录重拉
+      // 官方账号（docs/design/cli-official-accounts.md）：切换后让来源为官方的长驻进程按新登录重拉。
+      // 第三方不再写全局配置，所以不再「切官方账号时停用第三方」（unified-gateway §13 第 2 条）
       const accounts: AccountService = new AccountService({
         root: path.join(app.getPath('userData'), 'cli-accounts'),
         logger: this.logger as never,
         onActivated: (kind) => {
-          const bridge = getCliProviderBridge();
-          if (bridge?.hasActiveProfile(kind)) bridge.deactivate(kind);
           harness.recycleBackend(kind);
           // 换了号：上一个账号的订阅额度不能再显示
           getUsageService()?.forgetAccountQuota(kind);

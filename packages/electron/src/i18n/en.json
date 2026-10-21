@@ -608,7 +608,6 @@
   "Gemini 正在修改受信任文件夹列表，请稍后再试。": "Gemini is updating its trusted folders list. Please try again in a moment.",
   "环境变量 {0} 让 Gemini 始终不信任任何文件夹，写入受信任列表也不会生效。请先去掉它。": "The environment variable {0} makes Gemini distrust every folder, so adding this folder to the trusted list would have no effect. Remove it first.",
   "这个编程助手不支持切换模型": "This coding assistant doesn't support switching models",
-  "已启用第三方供应商，模型由供应商配置决定": "A third-party provider is active; its configuration decides the model",
   "模型名不合法": "Invalid model name",
   "未知思考深度": "Unknown reasoning effort",
   "这个模型不支持思考深度": "This model doesn't support reasoning effort",
@@ -634,5 +633,17 @@
   "名称不能为空": "Name can't be empty",
   "环境变量提供的供应商是只读的": "Providers from environment variables are read-only",
   "地址格式应为 host:port": "The address must be host:port",
-  "未知客户端": "Unknown client"
+  "未知客户端": "Unknown client",
+  "无法读取 {0}：{1}": "Cannot read {0}: {1}",
+  "{0} 内容无法解析，已保留原样": "{0} could not be parsed and was left unchanged",
+  "无法写入 {0}：{1}": "Cannot write {0}: {1}",
+  "撤销 {0} 的旧配置失败：{1}": "Failed to revoke the old {0} configuration: {1}",
+  "Nomi 对话没有来源可选": "Nomi chat has no source to choose",
+  "未知来源": "Unknown source",
+  "模型网关不可用": "The model gateway is unavailable",
+  "这一轮结束后再切换": "Switch after this turn finishes",
+  "先在「模型」页给这个编程助手分配一个第三方模型": "Assign a third-party model to this coding assistant on the Models page first",
+  "第三方模型": "Third-party models",
+  "这个标签还没有选第三方模型，请先在「模型」页给它分配一个": "This tab has no third-party model yet. Assign one on the Models page first.",
+  "模型网关没有运行，暂时不能使用第三方模型": "The model gateway isn't running, so third-party models can't be used right now"
 }

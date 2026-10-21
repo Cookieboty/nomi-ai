@@ -92,6 +92,8 @@ export interface GatewayState {
   allowedPrivateHosts: string[];
   port: number;
   migratedFrom?: { at: number; files: string[] };
+  /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步） */
+  legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
 }
 
 export interface ProviderInput {
