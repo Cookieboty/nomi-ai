@@ -372,26 +372,26 @@ describe('SessionHistoryService', () => {
     expect(ids.size).toBe(45);
   });
 
-  it('只返回最近 100 条（硬上限），更早的会话不再翻页', async () => {
-    for (let i = 0; i < 130; i++)
+  it('只返回最近 500 条（硬上限），更早的会话不再翻页', async () => {
+    for (let i = 0; i < 530; i++)
       writeClaude(`s${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 + i * 1000);
     const svc = mk();
     const seen: string[] = [];
     let offset: number | undefined;
-    for (let guard = 0; guard < 20; guard++) {
+    for (let guard = 0; guard < 40; guard++) {
       const page = await svc.list('claude', { offset });
       seen.push(...page.items.map((x) => x.sessionId));
       if (!page.hasMore) break;
       offset = page.nextOffset ?? undefined;
     }
-    expect(seen).toHaveLength(100);
-    expect(seen).toContain('s129');
+    expect(seen).toHaveLength(500);
+    expect(seen).toContain('s529');
     expect(seen).toContain('s030');
     expect(seen).not.toContain('s029');
     expect(seen).not.toContain('s000');
   });
 
-  it('无标题 / sidechain 文件不会占满 100 条可见历史的上限', async () => {
+  it('无标题 / sidechain 文件不会占满 500 条可见历史的上限', async () => {
     for (let i = 0; i < 12; i++) {
       const p = path.join(claudeDir(), `sub-${String(i).padStart(3, '0')}.jsonl`);
       fs.writeFileSync(
@@ -400,20 +400,20 @@ describe('SessionHistoryService', () => {
       );
       touch(p, 2_000_000 - i);
     }
-    for (let i = 0; i < 100; i++)
+    for (let i = 0; i < 500; i++)
       writeClaude(`visible-${String(i).padStart(3, '0')}`, `task ${i}`, 1_000_000 - i);
     const svc = mk();
     const seen: string[] = [];
     let offset: number | undefined;
-    for (let guard = 0; guard < 10; guard++) {
+    for (let guard = 0; guard < 40; guard++) {
       const page = await svc.list('claude', { offset });
       seen.push(...page.items.map((x) => x.sessionId));
       if (!page.hasMore) break;
       offset = page.nextOffset ?? undefined;
     }
-    expect(seen).toHaveLength(100);
+    expect(seen).toHaveLength(500);
     expect(seen).toContain('visible-000');
-    expect(seen).toContain('visible-099');
+    expect(seen).toContain('visible-499');
   });
 
   it('index: hands out compact entries in 20-item resumable pages (for sidebar search)', async () => {
@@ -558,6 +558,126 @@ describe('SessionHistoryService', () => {
     // 一次拉满也只有两条
     const all = await mk().list('codex', { limit: 50, force: true });
     expect(all.items.map((x) => x.key).sort()).toEqual(keys);
+  });
+
+  describe('codex: compressed rollouts, sources and the sqlite index', () => {
+    const day = () => path.join(home, '.codex', 'sessions', '2026', '10', '14');
+    const rollout = (id: string, title: string, meta: Record<string, unknown> = {}): string =>
+      [
+        {
+          timestamp: '2026-10-14T13:30:12.603Z',
+          type: 'session_meta',
+          payload: { id, cwd: work, source: 'cli', ...meta },
+        },
+        {
+          timestamp: '2026-10-14T13:30:13.000Z',
+          type: 'response_item',
+          payload: {
+            type: 'message',
+            role: 'user',
+            content: [{ type: 'input_text', text: title }],
+          },
+        },
+      ]
+        .map((e) => JSON.stringify(e))
+        .join('\n') + '\n';
+    const write = (id: string, text: string, mtime: number, zst = false) => {
+      fs.mkdirSync(day(), { recursive: true });
+      const p = path.join(day(), `rollout-2026-10-14T21-30-12-${id}.jsonl${zst ? '.zst' : ''}`);
+      if (zst) {
+        const z = zstdCompress(text);
+        if (!z) return null;
+        fs.writeFileSync(p, z);
+      } else fs.writeFileSync(p, text);
+      touch(p, mtime);
+      return p;
+    };
+    const ids = Array.from({ length: 6 }, (_, i) => `01a13a9b-34b0-7612-ba36-61300000000${i}`);
+
+    it('lists .jsonl.zst rollouts, tags client / route, skips sub-agents and archived files', async () => {
+      if (
+        !write(
+          ids[0]!,
+          rollout(ids[0]!, 'compressed one', { originator: 'Codex Desktop', source: 'vscode' }),
+          5_000,
+          true,
+        )
+      )
+        return; // 没有 zstd 时跳过
+      write(ids[1]!, rollout(ids[1]!, 'plain cli', { model_provider: 'openai' }), 4_000);
+      write(
+        ids[2]!,
+        rollout(ids[2]!, 'guardian', { source: { subagent: { other: 'guardian' } } }),
+        3_000,
+      );
+      write(
+        ids[3]!,
+        rollout(ids[3]!, 'via cc-switch', {
+          model_provider: 'custom',
+          originator: 'codex_exec',
+          source: 'exec',
+        }),
+        2_000,
+      );
+      write(
+        ids[4]!,
+        rollout(ids[4]!, 'from nomi', {
+          model_provider: 'nomi_gateway',
+          originator: 'nomi',
+          source: 'vscode',
+        }),
+        1_000,
+      );
+      const arch = path.join(home, '.codex', 'archived_sessions');
+      fs.mkdirSync(arch, { recursive: true });
+      fs.writeFileSync(
+        path.join(arch, `rollout-2026-10-14T21-30-12-${ids[5]}.jsonl`),
+        rollout(ids[5]!, 'archived'),
+      );
+
+      const page = await mk().list('codex');
+      expect(page.items.map((x) => [x.title, x.client, x.route, x.provider])).toEqual([
+        ['compressed one', 'desktop', 'official', undefined],
+        ['plain cli', 'cli', 'official', undefined],
+        ['via cc-switch', 'exec', 'custom', 'custom'],
+        ['from nomi', 'nomi', 'gateway', undefined],
+      ]);
+      // 压缩的会话也能读出可见对话
+      const tr = await mk().transcript('codex', ids[0]!);
+      expect(tr.messages.map((m) => m.content)).toEqual(['compressed one']);
+    });
+
+    it('prefers the state_5.sqlite index: renamed title, latest provider, account label', async () => {
+      let Db: (new (f: string) => { exec(sql: string): void; close(): void }) | undefined;
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        Db = (require('node:sqlite') as { DatabaseSync: typeof Db }).DatabaseSync;
+      } catch {
+        return; // 没有 node:sqlite 的环境跳过
+      }
+      // 压缩文件很大且没有元信息可读：只能靠索引
+      if (!write(ids[0]!, 'not json at all', 5_000, true)) return;
+      write(ids[1]!, rollout(ids[1]!, 'first prompt', { model_provider: 'openai' }), 4_000);
+      const db = new Db!(path.join(home, '.codex', 'state_5.sqlite'));
+      db.exec(`CREATE TABLE threads (id TEXT PRIMARY KEY, source TEXT, model_provider TEXT,
+        cwd TEXT, title TEXT, name TEXT, first_user_message TEXT, model TEXT,
+        creator_account_id TEXT, extra_new_column TEXT);
+        INSERT INTO threads VALUES ('${ids[0]}', 'vscode', 'openai', '${work}', 'indexed title',
+          NULL, 'x', 'gpt-5.5', 'acct-1', NULL);
+        INSERT INTO threads VALUES ('${ids[1]}', 'cli', 'nomi_gateway', '${work}', 'first prompt',
+          'renamed by user', 'first prompt', NULL, 'acct-unknown', NULL);`);
+      db.close();
+      const svc = mk({
+        accountLabel: (b, id) => (b === 'codex' && id === 'acct-1' ? 'me@example.com' : undefined),
+      });
+      const page = await svc.list('codex');
+      expect(page.items.map((x) => [x.title, x.route, x.account, x.model])).toEqual([
+        ['indexed title', 'official', 'me@example.com', 'gpt-5.5'],
+        // Codex 续接后把供应商改成了本次的：线路以索引为准；账号对不上就不显示
+        ['renamed by user', 'gateway', undefined, undefined],
+      ]);
+      expect(page.items[0]).not.toHaveProperty('accountId');
+    });
   });
 
   const dshSetup = (id: string): boolean => {

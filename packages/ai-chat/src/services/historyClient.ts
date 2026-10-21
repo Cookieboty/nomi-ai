@@ -14,7 +14,12 @@ export const HISTORY_BACKENDS: readonly HistoryBackend[] = [
 /** 列表 / 搜索索引每页条数（须与主进程 SessionHistoryService.HISTORY_PAGE_SIZE 一致） */
 export const HISTORY_PAGE_SIZE = 20;
 /** 历史会话最多展示条数（须与主进程 HISTORY_MAX_ITEMS 一致，按 mtime 取最近 N 条） */
-export const HISTORY_MAX_ITEMS = 100;
+export const HISTORY_MAX_ITEMS = 500;
+
+/** 会话由哪个客户端创建（须与主进程 HistoryClient 一致） */
+export type HistoryClient = 'cli' | 'desktop' | 'ide' | 'exec' | 'nomi';
+/** 线路：官方 / Nomi 网关 / 其他自定义供应商 */
+export type HistoryRoute = 'official' | 'gateway' | 'custom';
 
 export interface HistorySession {
   key: string;
@@ -27,6 +32,12 @@ export interface HistorySession {
   model?: string;
   reasoningEffort?: string;
   permissionMode?: string;
+  client?: HistoryClient;
+  route?: HistoryRoute;
+  /** 线路为 custom 时的供应商名 */
+  provider?: string;
+  /** 创建会话的官方账号（邮箱或名称） */
+  account?: string;
 }
 
 export interface HistoryPage {

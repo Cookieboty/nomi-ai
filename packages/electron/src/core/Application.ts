@@ -481,6 +481,11 @@ export class Application implements IApplication {
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
         openTab: (o) => harness.openHistorySession(o),
+        accountLabel: (backend, accountId) => {
+          if (backend !== 'codex') return undefined;
+          const a = accounts.findByAccountId('codex', accountId);
+          return a ? (a.identity?.email ?? a.label) : undefined;
+        },
       }).registerIpc();
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
