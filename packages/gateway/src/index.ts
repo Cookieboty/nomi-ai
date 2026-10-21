@@ -20,4 +20,5 @@ export * from './route/resolve';
 export * from './server';
 export * from './tokens';
 export * from './upstream';
+export * from './worker';
 export { UsageTap, usageOfJson } from './usageTap';
