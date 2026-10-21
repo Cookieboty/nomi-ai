@@ -133,7 +133,7 @@ def split():
 
     # ---- neck backfill: under lower face (y >= 150) — mirror neck skin upward about chin
     # only the jaw/chin band slides over the static neck; above it the moving skull backs itself
-    tgt_n = (((face | nose | mouth) & (yy >= cy - 28)) | (side & (yy >= 200))) & opaque
+    tgt_n = (((face | nose | mouth) & (yy >= cy - 4)) | (side & (yy >= 200))) & opaque
     nk = neck & opaque & skin
     out = L["neck"]
     miss = np.zeros_like(tgt_n)
