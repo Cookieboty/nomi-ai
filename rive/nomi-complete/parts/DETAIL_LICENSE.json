@@ -957,6 +957,69 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND41: head.png eye-socket/black cutouts filled from nearest original skin pixels"
+    },
+    "reference/svg-rig/head-clipres.png": {
+      "sha256": "a4c2163675e9987de7f2266f319c47752d87f49e4c585dd578ec173a10fb642a",
+      "bytes": 2280,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-cap.png": {
+      "sha256": "f20423fa87287d1ea118f8dccf4cc32e768f666b5dfe99dc1847e0c27328e336",
+      "bytes": 38614,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-nose.png": {
+      "sha256": "03068cc104d78990ee96c4c8b800120d6062685c76c5931defb75ed74597a8dc",
+      "bytes": 1475,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-mouth.png": {
+      "sha256": "714ebb007e50dba3d4b08a9e2948e7193b6111d5abad01486b2820dd3bf268ab",
+      "bytes": 1971,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-face.png": {
+      "sha256": "03023bf0547a0aca3e067678a9364c0905053b2008819d477cb16afd4b104485",
+      "bytes": 24596,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-socket.png": {
+      "sha256": "7d5dbe38437f6da8f4d59d2f0f9f79c605df7218cdc5c5a1bbbbe8a85e3d3fc5",
+      "bytes": 4967,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-sidebits.png": {
+      "sha256": "40c128146bc360561c7e6f766a78558ed016717eb2d779d3e5a4339d3dd721fc",
+      "bytes": 25679,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-neck.png": {
+      "sha256": "8304efeebc06a1c2159831bd1dde03bc8294a3e0f3c2a47bc4e764ad2c23489d",
+      "bytes": 33467,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-scalp.png": {
+      "sha256": "e41681dda0c84b3cc63b2ec71b6b161b664b33aff6835166ad07a5f27cd852e0",
+      "bytes": 68514,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
     }
   },
   "round32": {
