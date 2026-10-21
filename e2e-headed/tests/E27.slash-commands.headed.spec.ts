@@ -21,7 +21,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
-import { isolatedHomeEnv } from '../fixtures/homeEnv';
+import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.SLASH_SHOTS_DIR;
@@ -94,7 +94,12 @@ async function launch(
   delete env.NODE_ENV;
   const app = await electron.launch({
     executablePath: resolveElectronExecutable(),
-    args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
+    args: [
+      electronPkgDir,
+      `--user-data-dir=${userData}`,
+      '--enable-unsafe-swiftshader',
+      ...ISOLATED_HOME_ARGS,
+    ],
     cwd: electronPkgDir,
     env,
     timeout: 60_000,

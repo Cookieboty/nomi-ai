@@ -15,6 +15,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
+import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
@@ -89,7 +90,12 @@ esac
     delete env.DSH_HOME;
     app = await electron.launch({
       executablePath: resolveElectronExecutable(),
-      args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
+      args: [
+        electronPkgDir,
+        `--user-data-dir=${userData}`,
+        '--enable-unsafe-swiftshader',
+        ...ISOLATED_HOME_ARGS,
+      ],
       cwd: electronPkgDir,
       env,
       timeout: 60_000,

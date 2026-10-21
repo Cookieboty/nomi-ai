@@ -55,11 +55,16 @@ export const SHADOW_MARGIN = { x: 14, bottom: 18 };
 /** macOS 刘海宽度约 180–210pt（14"/16" MacBook Pro、Air），取中间值 */
 export const NOTCH_WIDTH = 196;
 
-/** 调试 / 截图：CD_ISLAND_SIMULATE_NOTCH=1 在任意平台模拟 37pt 菜单栏 + 刘海 */
+/**
+ * 调试 / 截图：CD_ISLAND_SIMULATE_NOTCH=1 在任意平台模拟 37pt 菜单栏 + 刘海；
+ * =0 当作没有刘海（在带刘海的 Mac 上测胶囊形态）
+ */
 const simulate = () => process.env.CD_ISLAND_SIMULATE_NOTCH === '1';
+const noNotch = () => process.env.CD_ISLAND_SIMULATE_NOTCH === '0';
 
 export function hasNotch(platform: NodeJS.Platform, d: DisplayLike): boolean {
   if (simulate()) return true;
+  if (noNotch()) return false;
   if (platform !== 'darwin') return false;
   const menuBar = d.workArea.y - d.bounds.y;
   return d.internal !== false && menuBar >= 30;

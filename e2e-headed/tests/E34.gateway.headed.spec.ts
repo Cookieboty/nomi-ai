@@ -17,7 +17,7 @@ import {
 } from '@playwright/test';
 
 import { resolveElectronExecutable } from '../fixtures/electronApp';
-import { isolatedHomeEnv } from '../fixtures/homeEnv';
+import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const electronPkgDir = resolve(__dirname, '..', '..', 'packages', 'electron');
@@ -42,8 +42,7 @@ async function launch(
       electronPkgDir,
       `--user-data-dir=${userData}`,
       '--enable-unsafe-swiftshader',
-      // 隔离的 HOME 下没有登录钥匙串：safeStorage 会弹系统授权框卡住主进程，用模拟钥匙串
-      ...(process.platform === 'darwin' ? ['--use-mock-keychain'] : []),
+      ...ISOLATED_HOME_ARGS,
     ],
     cwd: electronPkgDir,
     env,
