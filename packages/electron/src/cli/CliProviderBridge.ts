@@ -310,8 +310,10 @@ export class CliProviderBridge {
   }
 
   /**
-   * 启动 Gemini 时注入的环境变量（仅供应商启用时）：系统级设置把认证方式定为 API Key / 网关，
+   * 启动 Gemini 时注入的环境变量（仅供应商启用时）：认证方式定为 API Key，
    * Key、地址、模型都走环境变量，不改用户的 ~/.gemini，也就不会动到 Google 登录。
+   * 0.65.0 起系统级设置文件必须属 root 才会加载、且不再接受 gateway 认证方式，
+   * 所以由 GEMINI_CLI_AUTH_OVERRIDE 按进程指定；系统级设置文件留给不认识该变量的旧版本。
    */
   geminiEnv(): Record<string, string> {
     const p = this.data.gemini.profiles.find((x) => x.active);
@@ -319,6 +321,7 @@ export class CliProviderBridge {
     if (!p || !fs.existsSync(file)) return {};
     return {
       GEMINI_CLI_SYSTEM_SETTINGS_PATH: file,
+      GEMINI_CLI_AUTH_OVERRIDE: 'gemini-api-key',
       GEMINI_API_KEY: decrypt(p.keyEnc) || 'nomi-local',
       ...(p.baseUrl.trim() ? { GOOGLE_GEMINI_BASE_URL: p.baseUrl.trim() } : {}),
       ...(p.model.trim() ? { GEMINI_MODEL: p.model.trim() } : {}),

@@ -479,6 +479,7 @@ describe('CliProviderBridge Gemini profiles', () => {
     expect(t.b.activate(p.id)).toMatchObject({ ok: true, usedRouting: false });
     const env = t.b.geminiEnv();
     expect(env).toMatchObject({
+      GEMINI_CLI_AUTH_OVERRIDE: 'gemini-api-key',
       GEMINI_API_KEY: 'AIza-test',
       GOOGLE_GEMINI_BASE_URL: 'https://gw.example/v1beta',
       GEMINI_MODEL: 'gemini-x',
@@ -510,6 +511,7 @@ describe('CliProviderBridge Gemini profiles', () => {
     const env = t.b.geminiEnv();
     expect(env.GOOGLE_GEMINI_BASE_URL).toBeUndefined();
     expect(env.GEMINI_MODEL).toBeUndefined();
+    expect(env.GEMINI_CLI_AUTH_OVERRIDE).toBe('gemini-api-key');
     expect(JSON.parse(fs.readFileSync(env.GEMINI_CLI_SYSTEM_SETTINGS_PATH!, 'utf8'))).toEqual({
       security: { auth: { selectedType: 'gemini-api-key' } },
     });
