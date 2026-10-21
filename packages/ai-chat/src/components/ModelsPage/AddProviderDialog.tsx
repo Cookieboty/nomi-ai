@@ -48,6 +48,14 @@ const PROTOCOL_WIRE: Record<Protocol, Wire> = {
 /** 不能用来对话的模型（图像、向量、语音等）：列出来但默认不启用，也不给编程助手选 */
 const NON_CHAT = /image|embed|tts|whisper|dall-e|audio|speech|video|seedance|rerank|moderation/i;
 
+/** 预设里各协议的地址：有多地址扩展（§8.4）用它，否则只有 baseURL 那一种 */
+const presetUrls = (p: ProviderPreset): Partial<Record<Wire, string>> =>
+  p.urls ?? { [PROTOCOL_WIRE[p.protocol]]: p.baseURL };
+
+/** 预设推荐的模型：整理过元数据的主力模型 */
+const recommendedOf = (p: ProviderPreset | null): string[] =>
+  p ? [...(p.modelMeta ?? []).map((m) => m.id), ...p.models] : [];
+
 const groupOf = (p: ProviderPreset): PresetGroup =>
   !p.requiresApiKey && isPrivateUrl(p.baseURL)
     ? 'local'
@@ -117,10 +125,10 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
 
   const models: ModelRow[] = useMemo(() => {
     if (!result) return [];
-    const recommended = new Set([...(preset?.models ?? []), preset?.defaultModel ?? '']);
+    const recommended = new Set(recommendedOf(preset));
     const listed = result.models.length
       ? result.models
-      : [...(preset?.models ?? []), testModel.trim()].filter(Boolean);
+      : [...recommended, testModel.trim()].filter(Boolean);
     return [...new Set(listed)].map((id) => ({
       id,
       recommended: recommended.has(id),
@@ -159,14 +167,14 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
         setStep(2);
         return;
       }
+      // 预设只测它写明的地址（不再推导别的协议）；自定义地址由主进程推导四种
       const r = await gatewayClient.detect({
-        url: baseUrl,
-        ...(preset ? { urls: { [PROTOCOL_WIRE[preset.protocol]]: preset.baseURL } } : {}),
+        ...(preset ? { urls: presetUrls(preset) } : { url: baseUrl }),
         keys,
-        fallbackModel: testModel.trim() || preset?.defaultModel || undefined,
+        fallbackModel: testModel.trim() || recommendedOf(preset)[0] || undefined,
       });
       setResult(r);
-      const rec = new Set(preset?.models ?? []);
+      const rec = new Set(recommendedOf(preset));
       const chatModels = (r.models.length ? r.models : [...rec, testModel.trim()]).filter(
         (id) => id && !NON_CHAT.test(id),
       );
@@ -199,14 +207,31 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
             ...(l.error ? { error: l.error } : {}),
           };
       }
-      const list: GatewayModel[] = models.map((m) => ({
-        id: m.id,
-        enabled: enabled.has(m.id),
-        ...(m.chat ? {} : { toolCalling: false }),
-      }));
+      const meta = new Map((preset?.modelMeta ?? []).map((m) => [m.id, m]));
+      const list: GatewayModel[] = models.map((m) => {
+        const known = meta.get(m.id);
+        return {
+          id: m.id,
+          enabled: enabled.has(m.id),
+          // 预设整理过的元数据（§12.7.2 第 2 级）一起存下，编程助手按它注入上下文与输出上限
+          ...(known
+            ? {
+                ctx: known.ctx,
+                maxOutput: known.maxOutput,
+                reasoning: known.reasoning,
+                vision: known.vision,
+                toolCalling: known.toolCalling,
+                metaSource: 'preset' as const,
+              }
+            : m.chat
+              ? {}
+              : { toolCalling: false }),
+        };
+      });
       const saved = await gatewayClient.upsertProvider({
         name: name.trim() || preset?.name || t('自定义供应商'),
         ...(preset ? { presetId: preset.id } : {}),
+        ...(preset?.quirks ? { quirks: preset.quirks } : {}),
         urls: result.urls,
         newKeys: keys.map((value) => ({ value })),
         models: list,
@@ -347,12 +372,12 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
               </label>
             ) : (
               <div className={styles.presetUrls}>
-                <div>
-                  <span className={styles.wireTag}>
-                    {WIRE_LABEL[PROTOCOL_WIRE[preset.protocol]]}
-                  </span>
-                  <code>{preset.baseURL}</code>
-                </div>
+                {Object.entries(presetUrls(preset)).map(([w, u]) => (
+                  <div key={w}>
+                    <span className={styles.wireTag}>{WIRE_LABEL[w as Wire]}</span>
+                    <code>{u}</code>
+                  </div>
+                ))}
                 {preset.hint && <small className={styles.help}>{t(preset.hint)}</small>}
               </div>
             )}
@@ -384,7 +409,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
               <Input
                 value={testModel}
                 onChange={(e) => setTestModel(e.target.value)}
-                placeholder={preset?.defaultModel || 'model-id'}
+                placeholder={recommendedOf(preset)[0] || 'model-id'}
                 data-testid="add-provider-test-model"
               />
               <small className={styles.help}>

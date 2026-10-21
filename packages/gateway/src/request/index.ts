@@ -6,7 +6,13 @@ import type { IRRequest, Wire } from '../ir';
 import type { Json } from '../util';
 
 import { decodeChat, decodeGemini, decodeMessages, decodeResponses } from './decode';
-import { encodeChat, encodeGemini, encodeMessages, encodeResponses } from './encode';
+import {
+  encodeChat,
+  encodeGemini,
+  encodeMessages,
+  encodeResponses,
+  type EncodeOptions,
+} from './encode';
 
 export interface DecodeOptions {
   /** Gemini 入口：模型名与是否流式都在路径里 */
@@ -28,14 +34,19 @@ export function decodeRequest(wire: Wire, body: unknown, opts: DecodeOptions = {
 }
 
 /** @param model 上游的模型名；Gemini 的模型在路径里，请求体不带 */
-export function encodeRequest(wire: Wire, ir: IRRequest, model?: string): Json {
+export function encodeRequest(
+  wire: Wire,
+  ir: IRRequest,
+  model?: string,
+  opts: EncodeOptions = {},
+): Json {
   switch (wire) {
     case 'messages':
       return encodeMessages(ir, model);
     case 'responses':
       return encodeResponses(ir, model);
     case 'chat':
-      return encodeChat(ir, model);
+      return encodeChat(ir, model, opts);
     case 'gemini':
       return encodeGemini(ir);
   }
@@ -45,10 +56,16 @@ export function convertRequest(
   from: Wire,
   to: Wire,
   body: unknown,
-  opts: DecodeOptions & { upstreamModel?: string } = {},
+  opts: DecodeOptions & EncodeOptions & { upstreamModel?: string } = {},
 ): Json {
-  return encodeRequest(to, decodeRequest(from, body, opts), opts.upstreamModel);
+  return encodeRequest(to, decodeRequest(from, body, opts), opts.upstreamModel, opts);
 }
 
 export { decodeChat, decodeGemini, decodeMessages, decodeResponses } from './decode';
-export { encodeChat, encodeGemini, encodeMessages, encodeResponses } from './encode';
+export {
+  encodeChat,
+  encodeGemini,
+  encodeMessages,
+  encodeResponses,
+  type EncodeOptions,
+} from './encode';

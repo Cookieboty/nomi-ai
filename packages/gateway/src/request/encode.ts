@@ -1,7 +1,8 @@
 /**
  * IR → 上游请求体。
  * 推理参数（reasoning）与签名 / 加密推理的去留由上游能力和会话归属决定（§9.3、§12.7），
- * 这里只按协议能表达的内容编码：Chat / Responses / Gemini 不下发历史推理，Messages 只保留带签名的。
+ * 这里只按协议能表达的内容编码：Chat / Responses / Gemini 不下发历史推理（Chat 在厂商要求时写回
+ * reasoning_content），Messages 只保留带签名的。
  */
 import type { IRMessage, IRPart, IRRequest, IRToolChoice } from '../ir';
 import { argsObject, DEFAULT_MAX_TOKENS, toDataUrl, type Json } from '../util';
@@ -22,7 +23,12 @@ function customInput(args: string | undefined): string {
 
 /* --------------------------- OpenAI Chat Completions --------------------------- */
 
-export function encodeChat(ir: IRRequest, model?: string): Json {
+export interface EncodeOptions {
+  /** Chat：历史推理写回 assistant 消息的 reasoning_content（厂商 quirks.reasoningPassback） */
+  reasoningPassback?: boolean;
+}
+
+export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = {}): Json {
   const messages: Json[] = [];
   const sys = systemJoined(ir, '\n');
   if (sys) messages.push({ role: 'system', content: sys });
@@ -42,6 +48,13 @@ export function encodeChat(ir: IRRequest, model?: string): Json {
         }));
       const msg: Record<string, Json> = { role: 'assistant', content: text || null };
       if (toolCalls.length) msg.tool_calls = toolCalls;
+      if (opts.reasoningPassback) {
+        const thinking = m.parts
+          .filter((p) => p.kind === 'thinking' && p.text)
+          .map((p) => p.text)
+          .join('');
+        if (thinking) msg.reasoning_content = thinking;
+      }
       if (text || toolCalls.length) messages.push(msg);
       continue;
     }

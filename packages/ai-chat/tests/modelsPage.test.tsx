@@ -17,9 +17,25 @@ const PRESETS = [
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://api.deepseek.com/v1',
-    defaultModel: 'deepseek-v4-pro',
-    models: ['deepseek-v4-pro', 'deepseek-v4-flash'],
+    defaultModel: '',
+    models: [],
     requiresApiKey: true,
+    urls: {
+      chat: 'https://api.deepseek.com/v1',
+      messages: 'https://api.deepseek.com/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'deepseek-v4-pro',
+        ctx: 1_000_000,
+        maxOutput: 393_216,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+      { id: 'deepseek-v4-flash', ctx: 1_000_000, reasoning: true, vision: true, toolCalling: true },
+    ],
+    quirks: { reasoningPassback: true },
   },
   {
     id: 'ollama',
@@ -63,7 +79,9 @@ function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult
       case 'ai:gateway:state':
         return structuredClone(state);
       case 'ai:gateway:detect':
-        return (o.detect ?? ((i) => okDetect(String(i.url))))(args[0] as Record<string, unknown>);
+        return (
+          o.detect ?? ((i) => okDetect(String((i.urls as { chat?: string })?.chat ?? i.url)))
+        )(args[0] as Record<string, unknown>);
       case 'ai:gateway:confirm-private-host':
         state.allowedPrivateHosts.push(String(args[0]));
         break;
@@ -155,9 +173,10 @@ describe('ModelsPage', () => {
     expect(result.querySelectorAll('[data-state="skip"]')).toHaveLength(2);
     expect(result.querySelector('[data-state="fail"]')!.textContent).toContain('HTTP 404');
     const detect = m.calls.find(([c]) => c === 'ai:gateway:detect')![1][0];
+    // 预设写明的各协议地址直接拿去测，不再从 baseURL 推导
+    expect(detect).not.toHaveProperty('url');
     expect(detect).toMatchObject({
-      url: 'https://api.deepseek.com/v1',
-      urls: { chat: 'https://api.deepseek.com/v1' },
+      urls: { chat: 'https://api.deepseek.com/v1', messages: 'https://api.deepseek.com/anthropic' },
       keys: ['sk-aaaa1111', 'sk-bbbb2222'],
       fallbackModel: 'deepseek-v4-pro',
     });
@@ -173,6 +192,18 @@ describe('ModelsPage', () => {
       urls: { chat: 'https://api.deepseek.com/v1' },
       newKeys: [{ value: 'sk-aaaa1111' }, { value: 'sk-bbbb2222' }],
       detected: { chat: { ok: true }, messages: { ok: false, status: 404 } },
+      quirks: { reasoningPassback: true },
+    });
+    // 预设整理的元数据随模型一起存
+    expect((saved as { models: unknown[] }).models[0]).toEqual({
+      id: 'deepseek-v4-pro',
+      enabled: true,
+      ctx: 1_000_000,
+      maxOutput: 393_216,
+      reasoning: true,
+      vision: false,
+      toolCalling: true,
+      metaSource: 'preset',
     });
     const row = await screen.findByTestId('provider-deepseek');
     expect(row.textContent).toContain('2 个 Key');

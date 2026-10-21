@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
+import { convertRequest } from '../src/request';
 import {
   chatCompletionsToMessages,
   messagesToChatCompletions,
@@ -536,5 +537,37 @@ describe('Chat Completions → Messages (Codex chat entry → anthropic upstream
       ],
     }) as any;
     expect(o.messages[0].content[0].input).toEqual({ _raw: '{bad' });
+  });
+});
+
+describe('reasoning passback (quirks.reasoningPassback)', () => {
+  const body = {
+    model: 'm',
+    max_tokens: 100,
+    messages: [
+      { role: 'user', content: 'hi' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'thinking', thinking: 'let me look', signature: 'sig' },
+          { type: 'tool_use', id: 't1', name: 'read', input: { p: 'a' } },
+        ],
+      },
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'x' }] },
+    ],
+  };
+  it('Chat target writes earlier thinking back as reasoning_content only when asked', () => {
+    const on = convertRequest('messages', 'chat', body, { reasoningPassback: true }) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(on.messages.find((m) => m.role === 'assistant')).toMatchObject({
+      reasoning_content: 'let me look',
+    });
+    const off = convertRequest('messages', 'chat', body) as {
+      messages: Array<Record<string, unknown>>;
+    };
+    expect(off.messages.find((m) => m.role === 'assistant')).not.toHaveProperty(
+      'reasoning_content',
+    );
   });
 });

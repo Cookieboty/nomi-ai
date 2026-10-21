@@ -38,7 +38,13 @@ async function launch(
   delete env.NODE_ENV;
   const app = await electron.launch({
     executablePath: resolveElectronExecutable(),
-    args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
+    args: [
+      electronPkgDir,
+      `--user-data-dir=${userData}`,
+      '--enable-unsafe-swiftshader',
+      // 隔离的 HOME 下没有登录钥匙串：safeStorage 会弹系统授权框卡住主进程，用模拟钥匙串
+      ...(process.platform === 'darwin' ? ['--use-mock-keychain'] : []),
+    ],
     cwd: electronPkgDir,
     env,
     timeout: 60_000,

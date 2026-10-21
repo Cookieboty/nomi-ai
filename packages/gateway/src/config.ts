@@ -43,8 +43,9 @@ export interface ProviderQuirks {
   preferWire?: Wire;
   maxTools?: number;
   dropParams?: string[];
-  userAgent?: string;
+  /** 多轮工具调用时必须把历史推理原样发回（DeepSeek、MiniMax 的 Chat 接口），否则 400 */
   reasoningPassback?: boolean;
+  userAgent?: string;
 }
 
 export interface RuntimeProvider {

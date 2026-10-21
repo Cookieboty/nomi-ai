@@ -104,6 +104,12 @@ export interface ProviderInput {
   keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
   models?: GatewayModel[];
   detected?: Partial<Record<Wire, StoredProbe>>;
+  quirks?: {
+    maxTools?: number;
+    dropParams?: string[];
+    reasoningPassback?: boolean;
+    preferWire?: Wire;
+  };
 }
 
 export interface ProbeLine {

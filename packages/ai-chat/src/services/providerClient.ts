@@ -40,6 +40,24 @@ export interface ProviderPreset {
   /** 单独核对日期（缺省用全局 2026-10-11） */
   checkedAt?: string;
   icon?: string;
+  /** 统一网关：每种协议一个地址（§8.4） */
+  urls?: Partial<Record<'messages' | 'responses' | 'chat' | 'gemini', string>>;
+  /** 主力模型的元数据 */
+  modelMeta?: Array<{
+    id: string;
+    ctx?: number;
+    maxOutput?: number;
+    reasoning?: boolean;
+    vision?: boolean;
+    toolCalling?: boolean;
+  }>;
+  quirks?: {
+    maxTools?: number;
+    dropParams?: string[];
+    reasoningPassback?: boolean;
+    preferWire?: 'messages' | 'responses' | 'chat' | 'gemini';
+  };
+  codingPlan?: boolean;
 }
 
 export interface FetchedModel {

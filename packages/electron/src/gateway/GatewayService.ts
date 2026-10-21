@@ -20,6 +20,7 @@ import {
   type GatewayConfig,
   type LearnedState,
   type LearnEvent,
+  type ProviderQuirks,
   type UsageEvent,
   type Wire,
 } from '@nomi-ai/gateway';
@@ -68,6 +69,8 @@ export interface ProviderInput {
   userAgent?: string;
   fallback?: string[];
   detected?: Partial<Record<Wire, StoredProbe>>;
+  /** 预设带来的厂商差异（§12.7.4） */
+  quirks?: ProviderQuirks;
 }
 
 export interface ProviderView extends Omit<GatewayProvider, 'keys'> {
@@ -375,6 +378,7 @@ export class GatewayService {
       ...(input.userAgent !== undefined ? { userAgent: input.userAgent || undefined } : {}),
       ...(input.fallback ? { fallback: input.fallback } : {}),
       ...(input.detected ? { detected: input.detected } : {}),
+      ...(input.quirks ? { quirks: input.quirks } : {}),
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
     } as GatewayProvider;

@@ -106,6 +106,7 @@ export function upstreamBody(
       model: opts.ingressModel,
       stream: opts.stream,
       upstreamModel: c.upstreamModel,
+      reasoningPassback: c.provider.quirks?.reasoningPassback,
     });
   }
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {
