@@ -670,3 +670,169 @@ describe('gateway: runtime learning (§7.4)', () => {
     ]);
   });
 });
+
+describe('gateway: request fixes (§12.7.3)', () => {
+  it('too many tools: fails before sending, in the ingress error shape', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{}');
+    });
+    const { url, usage } = await gateway(
+      {
+        providers: [provider('zp', { messages: up.base }, { quirks: { maxTools: 2 } })],
+      },
+      [up.hostPort],
+    );
+    const tool = (name: string) => ({ name, input_schema: { type: 'object' } });
+    const res = await post(
+      url,
+      '/v1/messages',
+      {
+        model: 'zp/glm-5',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: [tool('a'), tool('b'), tool('c')],
+      },
+      { 'x-api-key': 'tok-claude' },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      type: 'error',
+      error: {
+        type: 'invalid_request_error',
+        message: '当前供应商一次最多支持 2 个工具，这次请求带了 3 个，请减少 MCP 工具',
+      },
+    });
+    expect(up.seen).toHaveLength(0);
+    expect(usage[0]).toMatchObject({ status: 400 });
+  });
+
+  it('Claude Code toward a third-party Messages upstream: clamped, merged, filtered; notes in usage', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'm1',
+          type: 'message',
+          role: 'assistant',
+          model: 'glm-5',
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 3, output_tokens: 1 },
+        }),
+      );
+    });
+    const { url, usage } = await gateway(
+      {
+        providers: [
+          provider(
+            'zp',
+            { messages: up.base },
+            { models: [{ id: 'glm-5', enabled: true, maxOutput: 8192, vision: false }] },
+          ),
+        ],
+      },
+      [up.hostPort],
+    );
+    const res = await post(
+      url,
+      '/v1/messages',
+      {
+        model: 'zp/glm-5',
+        max_tokens: 32000,
+        system: 'base',
+        output_config: { effort: 'high' },
+        messages: [
+          { role: 'system', content: 'caps' },
+          {
+            role: 'user',
+            content: [{ type: 'image', source: { type: 'url', url: 'https://x/y.png' } }],
+          },
+        ],
+      },
+      {
+        'x-api-key': 'tok-claude',
+        'anthropic-beta': 'context-1m-2025-08-07,interleaved-thinking-2025-05-14',
+      },
+    );
+    expect(res.status).toBe(200);
+    const seen = up.seen[0]!;
+    expect(seen.headers['anthropic-beta']).toBe('interleaved-thinking-2025-05-14');
+    expect(seen.body).toMatchObject({ max_tokens: 8192, system: 'base\n\ncaps' });
+    expect(seen.body.output_config).toBeUndefined();
+    expect(seen.body.messages).toEqual([
+      {
+        role: 'user',
+        content: [{ type: 'text', text: '[图片已省略：当前模型不支持图片输入]' }],
+      },
+    ]);
+    expect(usage[0]!.notes?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('gateway: Responses results completed for strict clients', () => {
+  it('fills usage details and an empty completed.output from the streamed items', async () => {
+    const item = {
+      type: 'message',
+      id: 'm1',
+      role: 'assistant',
+      status: 'completed',
+      content: [{ type: 'output_text', text: 'pong', annotations: [] }],
+    };
+    // 中转站常见：completed 里 output 是空的
+    const completed = {
+      type: 'response.completed',
+      response: {
+        id: 'r',
+        status: 'completed',
+        output: [],
+        usage: { input_tokens: 5, output_tokens: 2 },
+      },
+    };
+    const up = await upstream((s, res) => {
+      if (s.body.stream) {
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        return res.end(
+          sse([
+            [
+              'response.output_item.done',
+              { type: 'response.output_item.done', output_index: 0, item },
+            ],
+            ['response.completed', completed],
+          ]),
+        );
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(completed.response));
+    });
+    const { url } = await gateway({ providers: [provider('zp', { responses: `${up.base}/v1` })] }, [
+      up.hostPort,
+    ]);
+    const streamed = await post(
+      url,
+      '/v1/responses',
+      { model: 'zp/glm-5', input: 'hi', stream: true },
+      {
+        authorization: 'Bearer tok-codex',
+      },
+    );
+    const ev = events(await streamed.text()).find((e) => e.ev === 'response.completed')!;
+    expect((ev.data.response as { output: unknown }).output).toEqual([item]);
+    expect((ev.data.response as { usage: unknown }).usage).toEqual({
+      input_tokens: 5,
+      output_tokens: 2,
+      total_tokens: 7,
+      input_tokens_details: { cached_tokens: 0 },
+      output_tokens_details: { reasoning_tokens: 0 },
+    });
+    const json = (await (
+      await post(
+        url,
+        '/v1/responses',
+        { model: 'zp/glm-5', input: 'hi' },
+        { authorization: 'Bearer tok-codex' },
+      )
+    ).json()) as { usage: Record<string, unknown> };
+    expect(json.usage.input_tokens_details).toEqual({ cached_tokens: 0 });
+  });
+});

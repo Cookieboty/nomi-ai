@@ -11,6 +11,7 @@ export * from './stream';
 export * from './config';
 export * from './customTools';
 export * from './errors';
+export * from './fixes';
 export { modelsBody } from './models';
 export * from './net/address';
 export * from './net/loopback';

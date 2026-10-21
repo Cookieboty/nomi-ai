@@ -11,12 +11,14 @@ import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
 import { customToolNames } from './customTools';
 import { errorResponse, kindOfStatus, upstreamMessage } from './errors';
+import { applyRequestFixes, toolLimitError } from './fixes';
 import { ingressFromPath, type Ingress } from './ingress';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { modelsBody } from './models';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { completeResponsesBody, ResponsesUsagePatcher } from './responsesUsage';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { estimateRequestTokens } from './tokens';
@@ -51,6 +53,8 @@ export interface UsageEvent {
   ms: number;
   attempts: number;
   error?: string;
+  /** 网关对请求做的修正（§12.7.3，如省略了图片、压低了输出上限），用量面板展示提示 */
+  notes?: string[];
 }
 
 export interface GatewayHooks {
@@ -123,7 +127,7 @@ function legacyClient(ingress: Ingress | null, ua: string): ClientId | null {
 }
 
 type Attempt =
-  | { kind: 'response'; res: Response; cand: Candidate }
+  | { kind: 'response'; res: Response; cand: Candidate; notes?: string[] }
   | {
       kind: 'failed';
       status: number;
@@ -359,7 +363,7 @@ export class GatewayServer {
       });
       return;
     }
-    const { res: up, cand } = last;
+    const { res: up, cand, notes } = last;
     const usage = await this.respond(res, ingress, cand, up, body, wantsStream, abort);
     this.hooks.onUsage?.({
       client,
@@ -373,6 +377,7 @@ export class GatewayServer {
       startedAt,
       ms: Date.now() - startedAt,
       attempts,
+      ...(notes ? { notes } : {}),
     });
   }
 
@@ -421,10 +426,17 @@ export class GatewayServer {
         cand,
       };
     }
+    const notes: string[] = [];
     const sent = upstreamBody(ingress.wire, cand, body, {
       stream: wantsStream,
       ingressModel: ingress.model,
+      notes,
     });
+    // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
+    const tooMany = toolLimitError(cand, sent);
+    if (tooMany) return { kind: 'failed', status: 400, message: tooMany, retryable: true, cand };
+    if (notes.length)
+      this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
     const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
     const both = AbortSignal.any([signal, timeout]);
     let res: Response;
@@ -450,7 +462,7 @@ export class GatewayServer {
         cand,
       };
     }
-    if (res.ok) return { kind: 'response', res, cand };
+    if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
     const text = await res.text().catch(() => '');
     const s = res.status;
     const retryable =
@@ -496,6 +508,12 @@ export class GatewayServer {
       });
       const tap = new UsageTap(cand.wire);
       const conv = same ? null : createStreamConverter(cand.wire, ingress.wire, convOpts);
+      // Responses 入口：补全严格客户端要求的用量字段（同协议透传与转换都要）
+      const usageFix = ingress.wire === 'responses' ? new ResponsesUsagePatcher() : null;
+      const write = (chunk: string) => {
+        const out = usageFix ? usageFix.push(chunk) : chunk;
+        if (out) res.write(out);
+      };
       const decoder = new TextDecoder();
       const reader = up.body.getReader();
       const idleMs = this.hooks.streamIdleTimeoutMs ?? STREAM_IDLE_TIMEOUT_MS;
@@ -517,16 +535,15 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
-          if (!conv) res.write(Buffer.from(value));
-          else {
-            const out = conv.push(text);
-            if (out) res.write(out);
-          }
+          if (!conv && !usageFix) res.write(Buffer.from(value));
+          else write(conv ? conv.push(text) : text);
         }
         const rest = decoder.decode();
         tap.push(rest);
-        if (conv) {
-          const tail = conv.push(rest) + conv.end();
+        if (conv) write(conv.push(rest) + conv.end());
+        else if (rest) write(rest);
+        if (usageFix) {
+          const tail = usageFix.end();
           if (tail) res.write(tail);
         }
       } catch (e) {
@@ -558,18 +575,27 @@ export class GatewayServer {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache',
       });
-      res.end(jsonToSse(cand.wire, ingress.wire, parsed, convOpts));
+      const sse = jsonToSse(cand.wire, ingress.wire, parsed, convOpts);
+      if (ingress.wire !== 'responses') res.end(sse);
+      else {
+        const fix = new ResponsesUsagePatcher();
+        res.end(fix.push(sse) + fix.end());
+      }
       return usage;
     }
     if (same || typeof parsed !== 'object') {
       res.writeHead(up.status, {
         'Content-Type': up.headers.get('content-type') ?? 'application/json',
       });
-      res.end(text);
+      res.end(
+        ingress.wire === 'responses' && parsed && typeof parsed === 'object'
+          ? JSON.stringify(completeResponsesBody(parsed))
+          : text,
+      );
       return usage;
     }
     const r = jsonToJson(cand.wire, ingress.wire, parsed, convOpts);
-    sendJson(res, r.status, r.body);
+    sendJson(res, r.status, ingress.wire === 'responses' ? completeResponsesBody(r.body) : r.body);
     return usage;
   }
 
@@ -594,7 +620,9 @@ export class GatewayServer {
         const up = await (this.hooks.fetchImpl ?? fetch)(target, {
           method: 'POST',
           headers: upstreamHeaders(cand, { stream: false, clientHeaders: {}, sameWire: true }),
-          body: JSON.stringify({ ...(body as object), model: cand.upstreamModel }),
+          body: JSON.stringify(
+            applyRequestFixes(cand, { ...(body as object), model: cand.upstreamModel }),
+          ),
           redirect: 'manual',
           signal: AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS),
         });

@@ -6,7 +6,8 @@
  *
  *   pnpm --filter @nomi-ai/gateway build
  *   MATRIX_KEY=sk-... MATRIX_CHAT=https://x/v1 MATRIX_MESSAGES=https://x \
- *     MATRIX_MODELS=z-ai/glm-5.3,moonshotai/kimi-k3 node scripts/gateway-matrix.mjs [out.json]
+ *     MATRIX_MODELS=z-ai/glm-5.3,moonshotai/kimi-k3 [MATRIX_NO_VISION=deepseek/deepseek-v4-pro] \
+ *     node scripts/gateway-matrix.mjs [out.json]
  *
  * Key 只从环境变量读，不写进输出。不需要 Electron。
  */
@@ -20,6 +21,8 @@ const CHAT = process.env.MATRIX_CHAT;
 const MESSAGES = process.env.MATRIX_MESSAGES;
 const MODELS = (process.env.MATRIX_MODELS ?? '').split(',').filter(Boolean);
 const ONLY = process.env.MATRIX_ONLY; // 只跑名字里含这个串的场景
+// 不支持图片的模型（逗号分隔）：网关按 vision:false 把图片换成一行说明（§12.7.3）
+const NO_VISION = new Set((process.env.MATRIX_NO_VISION ?? '').split(',').filter(Boolean));
 if (!KEY || !MODELS.length || (!CHAT && !MESSAGES)) {
   process.stderr.write(
     '需要 MATRIX_KEY、MATRIX_MODELS，以及 MATRIX_CHAT / MATRIX_MESSAGES 至少一个\n',
@@ -379,7 +382,11 @@ const providers = targets.map((t) => ({
   enabled: true,
   urls: t.urls,
   keys: [{ id: 'k', value: KEY, enabled: true }],
-  models: MODELS.map((id) => ({ id, enabled: true })),
+  models: MODELS.map((id) => ({
+    id,
+    enabled: true,
+    ...(NO_VISION.has(id) ? { vision: false } : {}),
+  })),
 }));
 const gw = createGateway({
   host: '127.0.0.1',

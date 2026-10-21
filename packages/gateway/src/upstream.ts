@@ -2,6 +2,7 @@
  * 上游请求的拼装：地址（§8.1 的约定）、鉴权头（§8.3）、请求体（同协议外科式改写 / 跨协议经 IR）。
  */
 import type { AuthStyle } from './config';
+import { applyRequestFixes, filterAnthropicBeta, isAnthropicOfficial } from './fixes';
 import { geminiModelPath } from './ingress';
 import type { Wire } from './ir';
 import { convertRequest } from './request';
@@ -76,7 +77,9 @@ export function upstreamHeaders(
   };
   if (c.wire === 'messages') {
     h['anthropic-version'] = (opts.sameWire && header('anthropic-version')) || '2023-06-01';
-    const beta = opts.sameWire ? header('anthropic-beta') : undefined;
+    let beta = opts.sameWire ? header('anthropic-beta') : undefined;
+    // 第三方 Messages 上游不认识 context-1m-… 等 Anthropic 专有 beta（§12.7.3）
+    if (beta && !isAnthropicOfficial(c)) beta = filterAnthropicBeta(beta);
     if (beta) h['anthropic-beta'] = beta;
   }
   const userAgent =
@@ -90,12 +93,14 @@ export function upstreamHeaders(
  * 同协议：只做外科式改写（替换模型名），其余字段原样保留，避免丢掉协议的新字段（§9.2）；
  * 跨协议：入口解码成 IR，再编码成上游协议。
  * Chat 流式时补 stream_options.include_usage，否则拿不到用量。
+ * 两条路径最后都过一遍 §12.7.3 的请求修正（输出上限、推理、图片、工具 schema 等），
+ * 修正说明追加到 opts.notes。
  */
 export function upstreamBody(
   ingress: Wire,
   c: Candidate,
   body: unknown,
-  opts: { stream: boolean; ingressModel?: string },
+  opts: { stream: boolean; ingressModel?: string; notes?: string[] },
 ): unknown {
   let out: unknown;
   if (ingress === c.wire) {
@@ -112,6 +117,7 @@ export function upstreamBody(
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {
     out = { ...(out as object), stream: true, stream_options: { include_usage: true } };
   }
+  out = applyRequestFixes(c, out, opts.notes);
   // 厂商不接受的可选字段（quirks.dropParams + 运行时学到的，§7.4）
   if (c.dropParams?.length && out && typeof out === 'object' && !Array.isArray(out)) {
     const o = { ...(out as Record<string, unknown>) };
