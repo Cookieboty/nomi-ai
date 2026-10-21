@@ -39,6 +39,7 @@
     "@nomi-ai/bundle-ig-base": "workspace:*",
     "@nomi-ai/bundle-ig-electron-caps": "workspace:*",
     "@nomi-ai/bundle-ig-mascot": "workspace:*",
+    "@nomi-ai/gateway": "workspace:*",
     "@nomi-ai/types": "workspace:*",
     "ai": "^7.0.136",
     "electron-updater": "^6.6.2",

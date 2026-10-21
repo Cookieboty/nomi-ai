@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- 测试中以动态 JSON 断言 SSE 负载 */
-import { jsonToSse, SseParser } from '../../../../src/cli/routing/stream';
+import { describe, it, expect } from 'vitest';
+
+import { jsonToSse, SseParser } from '../src/stream';
 
 function parse(raw: string) {
   const p = new SseParser();

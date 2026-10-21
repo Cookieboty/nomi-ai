@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- 测试中以动态 JSON 断言转换结果 */
-import { jsonToJson } from '../../../../src/cli/routing/stream';
+import { describe, it, expect } from 'vitest';
+
+import { jsonToJson } from '../src/stream';
 
 const chatTool = {
   id: 'chatcmpl-1',

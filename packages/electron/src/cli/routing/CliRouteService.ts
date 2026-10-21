@@ -8,6 +8,26 @@ import http from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
 import path from 'node:path';
 
+import {
+  chatCompletionsResponseToMessages,
+  chatCompletionsResponseToResponses,
+  chatCompletionsToMessages,
+  createStreamConverter,
+  geminiResponseToMessages,
+  jsonToJson,
+  jsonToSse,
+  messagesResponseToChatCompletions,
+  messagesResponseToResponses,
+  messagesToChatCompletions,
+  messagesToGemini,
+  messagesToResponses,
+  responsesResponseToMessages,
+  responsesToChatCompletions,
+  responsesToMessages,
+  type DownstreamStreamFormat,
+  type UpstreamStreamFormat,
+} from '@nomi-ai/gateway';
+
 import { guardedHandle } from '../../security/guardedIpc';
 import {
   emptySniffed,
@@ -24,28 +44,6 @@ import {
   type CliApiFormat,
   formatNeedsRouting,
 } from '../formats';
-
-import {
-  createStreamConverter,
-  jsonToJson,
-  jsonToSse,
-  type DownstreamStreamFormat,
-  type UpstreamStreamFormat,
-} from './stream';
-import {
-  chatCompletionsResponseToMessages,
-  chatCompletionsResponseToResponses,
-  geminiResponseToMessages,
-  messagesResponseToChatCompletions,
-  messagesResponseToResponses,
-  messagesToChatCompletions,
-  messagesToGemini,
-  messagesToResponses,
-  responsesResponseToMessages,
-  responsesToChatCompletions,
-  responsesToMessages,
-  chatCompletionsToMessages,
-} from './transforms';
 
 /** 流式转换方向；null 表示上游与下游同协议，原样透传字节 */
 export type StreamPlan = { from: UpstreamStreamFormat; to: DownstreamStreamFormat } | null;

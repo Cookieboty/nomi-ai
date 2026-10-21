@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- 测试中以动态 JSON 断言 SSE 负载 */
-import {
-  createStreamConverter,
-  jsonToJson,
-  jsonToSse,
-  SseParser,
-} from '../../../../src/cli/routing/stream';
+import { describe, it, expect } from 'vitest';
+
+import { createStreamConverter, jsonToJson, jsonToSse, SseParser } from '../src/stream';
 
 const custom = new Set(['apply_patch']);
 const PATCH = '*** Begin Patch\n*** Add File: a.txt\n+hi\n*** End Patch';

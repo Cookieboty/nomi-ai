@@ -1,10 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- 测试中以动态 JSON 断言 SSE 负载 */
+import { describe, it, expect } from 'vitest';
+
 import {
   createStreamConverter,
   SseParser,
   type DownstreamStreamFormat,
   type UpstreamStreamFormat,
-} from '../../../../src/cli/routing/stream';
+} from '../src/stream';
 
 /** 把对象数组编成上游 SSE 文本 */
 function sse(events: Array<[string | undefined, unknown]>, crlf = false): string {

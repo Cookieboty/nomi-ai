@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- 测试中以动态 JSON 断言转换结果 */
+import { describe, it, expect } from 'vitest';
+
 import {
   chatCompletionsToMessages,
   messagesToChatCompletions,
@@ -6,7 +7,7 @@ import {
   messagesToResponses,
   responsesToChatCompletions,
   responsesToMessages,
-} from '../../../../src/cli/routing/transforms';
+} from '../src/transforms';
 
 const PNG = 'iVBORw0KGgo=';
 const schema = {

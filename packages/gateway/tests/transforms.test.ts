@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   chatCompletionsResponseToMessages,
   chatCompletionsToMessages,
@@ -6,7 +8,7 @@ import {
   messagesToResponses,
   responsesToChatCompletions,
   responsesToMessages,
-} from '../../../src/cli/routing/transforms';
+} from '../src/transforms';
 
 describe('routing transforms', () => {
   const messagesBody = {

@@ -9,9 +9,10 @@ import type { AddressInfo } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 
+import { SseParser } from '@nomi-ai/gateway';
+
 import type { CliApiFormat } from '../../../../src/cli/formats';
 import { CliRouteService } from '../../../../src/cli/routing/CliRouteService';
-import { SseParser } from '../../../../src/cli/routing/stream';
 
 /** 假上游：记录请求，按脚本分片吐 SSE */
 function startUpstream(
