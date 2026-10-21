@@ -1057,53 +1057,53 @@
       "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
     },
     "reference/svg-rig/mouth-viseme-a.png": {
-      "sha256": "16d936ba5f0b094d24b8aaea18a0f77b09942cac1fcc5de843eba64a58672fc8",
-      "bytes": 717,
+      "sha256": "ac01c2b70ad2ac31f6ac78b381ec0d9d36b3be7944d47aa4855fd4fcfe9dc577",
+      "bytes": 979,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: redrawn open mouths ~half R45 size; soft gradients + thin lip line sampled from face-smile/head-mouth. Cavity/teeth still NEW (not in source). Rest/M use original head-mouthline pixels."
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
     },
     "reference/svg-rig/mouth-viseme-i.png": {
-      "sha256": "e557d02d4cb1e6b566aef901d5c042208b6907b0ff9757f503704465de0664f6",
-      "bytes": 591,
+      "sha256": "a32771ffb7515d9a4747c57ad121f4bf14f18cee695c6a98b330c7b8d439a4d3",
+      "bytes": 773,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: redrawn open mouths ~half R45 size; soft gradients + thin lip line sampled from face-smile/head-mouth. Cavity/teeth still NEW (not in source). Rest/M use original head-mouthline pixels."
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
     },
     "reference/svg-rig/mouth-viseme-u.png": {
-      "sha256": "e993ee1c48a27d56fe5404090cb1812d207c2f0d11a8d3fef952b6a91e180f3d",
-      "bytes": 618,
+      "sha256": "fcba675006ed0f2c92792bfe4cc700c65550ce31145c71ed7f894dc7385353bd",
+      "bytes": 907,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: redrawn open mouths ~half R45 size; soft gradients + thin lip line sampled from face-smile/head-mouth. Cavity/teeth still NEW (not in source). Rest/M use original head-mouthline pixels."
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
     },
     "reference/svg-rig/mouth-viseme-e.png": {
-      "sha256": "816d783b36285ed62cd048900ed7c819ea524725d3db19e61fccca6fec49ecbe",
-      "bytes": 667,
+      "sha256": "8a4c6c2710b637f91ad2d9d858179b3738681b3a302100ca44bfe4e07619ef89",
+      "bytes": 863,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: redrawn open mouths ~half R45 size; soft gradients + thin lip line sampled from face-smile/head-mouth. Cavity/teeth still NEW (not in source). Rest/M use original head-mouthline pixels."
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
     },
     "reference/svg-rig/mouth-viseme-o.png": {
-      "sha256": "b981aeaf2447f2f21d0867ed23d859c1beb031ade7cba1382c0fe99943bc6c7e",
-      "bytes": 727,
+      "sha256": "7643ddf749d06067b8bd06c3169c66bd02ef637e216f794753c848aaa93196e8",
+      "bytes": 1063,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: redrawn open mouths ~half R45 size; soft gradients + thin lip line sampled from face-smile/head-mouth. Cavity/teeth still NEW (not in source). Rest/M use original head-mouthline pixels."
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
     },
     "reference/svg-rig/mouth-viseme-m.png": {
       "sha256": "c706daf1acd8dbe4d50b866ea2b0a4074ccbc3ec991e4bba82922b45099afe8b",
       "bytes": 991,
       "ai_generated": false,
       "in_scene": true,
-      "method": "ROUND46: crop of original head-mouth.png / unused for draw (rest+M = mouthline)"
+      "method": "ROUND47: crop of original head-mouth.png (draw uses mouthline for rest/M)"
     },
     "reference/svg-rig/mouth-viseme-rest.png": {
       "sha256": "c706daf1acd8dbe4d50b866ea2b0a4074ccbc3ec991e4bba82922b45099afe8b",
       "bytes": 991,
       "ai_generated": false,
       "in_scene": false,
-      "method": "ROUND46: crop of original head-mouth.png / unused for draw (rest+M = mouthline)"
+      "method": "ROUND47: crop of original head-mouth.png (draw uses mouthline for rest/M)"
     }
   },
   "round32": {
