@@ -5,7 +5,7 @@ step / cheer.
 Chest local keys (rotation sp, scaleY ss about the chest joint at rest world y 440) on top of each clip's own
 pelvis / lumbar (full.torso) keys, computed from the clip's baked motion (FK) every 2 f:
   walk/run  chest counter-roll  sp = -0.45 * pelvis roll   (shoulder line tilts against the dropping hip, on top of
-            the lumbar -0.6x; chest world ~ -1.05x pelvis) ; run: ss = 1 - 0.008 * stance dip (front-view lean hint)
+            the lumbar -0.6x; chest world ~ -1.05x pelvis) ; run: ss = 1 - 0.018 * stance dip (R40 front-view lean hint)
   hop/squat follow-through of the lumbar tilt  sp = 0.5 * torso_rot(f - 4) ; crouch ss = 1 - 0.03*clip(dy/100,-0.4,1)
             (pose drop dy: squat 100 px -> chest 3 % shorter = front view of the trunk flexing forward; hop rise -> 1.2 % taller)
   step      lateral flexion toward the weight shift sp = 0.0015 * pose.x (<= 0.010 rad)
@@ -61,7 +61,7 @@ def main():
         for f in frames:
             if clip in ("full.walk", "full.run"):
                 sp = -1.35 * g("full.pelvis", "rotation", f)   # R36: lumbar = pelvis roll -> chest world = -0.35 x pelvis
-                ss = 1.0 - (0.008 * max(0.0, g("full.pose", "y", f)) / 16.0 if clip == "full.run" else 0.0)
+                ss = 1.0 - (0.018 * max(0.0, g("full.pose", "y", f)) / 16.0 if clip == "full.run" else 0.0)  # R40 lean
             elif clip in ("full.hop", "full.squat"):
                 sp = 0.5 * g("full.torso", "rotation", fr(f - 4))
                 ss = 1.0 - 0.03 * min(max(g("full.pose", "y", f) / 100.0, -0.4), 1.0)

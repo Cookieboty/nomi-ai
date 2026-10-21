@@ -67,7 +67,7 @@ def walk_frame(f):
 # ------------------------------------------------------------------ run
 R_CYC, R_N, R_SETTLE, R_RAMP = 40, 4, 18, 10
 R = dict(stance=0.35, dip=16.0, rise=14.0, lift=70.0, knee=0.032, shift=4.0, pel=0.045, arm=0.13, abd=0.09, elbow=0.55,
-         elbow_sw=0.20, curl=0.35, head=6.0, crouch=0.012)
+         elbow_sw=0.20, curl=0.35, head=8.0, crouch=0.022)  # R40: slight front-view lean cue)
 
 
 def run_frame(f):
