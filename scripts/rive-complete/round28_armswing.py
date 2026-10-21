@@ -33,7 +33,8 @@ P = {
     "walk": dict(Af=0.34, Ab=0.28, phi0=0.24, phi_f=0.20, phi_b=0.0, LAT=0.05, ABD=0.0, E0=0.05, E1=0.06, FMIN=0.55, HK=0.15, LAG=0.06),
     "run":  dict(Af=0.55, Ab=0.60, phi0=1.30, phi_f=0.25, phi_b=0.20, LAT=0.06, ABD=0.03, E0=0.28, E1=0.62, FMIN=0.32, HK=0.25, LAG=0.0,
                  R37=dict(Af=0.60, Ab=0.55, LAT=0.04, ABD=0.12, ABB=0.05, EB=0.20, EF=1.95, U0=0.50,
-                          TB=0.80, TF=0.62, DIP=0.50, HK=0.06, HW=0.0)),  # ROUND37: screen-plane ~90 deg elbow
+                          TB=0.80, TF=0.62, DIP=0.50, HK=0.06, HW=0.0),  # ROUND37: screen-plane ~90 deg elbow
+                 R40=dict(Af=0.55, Ab=0.38, LAT=0.01, ABD=0.15, ABB=0.12, EB=0.95, EF=1.78, U0=0.32, TB=0.92, TF=0.70, DIP=0.22, HK=0.08, HW=0.10)),
 }
 
 
@@ -49,6 +50,8 @@ def phase(clip, f):
 def arm_pose(clip, g, env, side):
     p = P[clip]; ins = 1.0 if side == "r" else -1.0
     gg = g if side == "r" else -g
+    if clip == "run" and "R40" in p:
+        return run_pose_r40(p["R40"], gg, env, ins)
     if clip == "run" and "R37" in p:
         return run_pose_r37(p["R37"], gg, env, ins)
     th = (p["Af"] * gg if gg > 0 else p["Ab"] * gg) * env
@@ -60,6 +63,34 @@ def arm_pose(clip, g, env, side):
     return dict(th=th, phi=phi, su=su, sf=sf, sh=hk / (su * sf),
                 du=ins * (p["LAT"] * math.sin(th) + p["ABD"] * env),
                 de=ins * (p["E0"] * env + p["E1"] * max(gg, 0) * env))
+
+
+def run_pose_r40(q, gg, env, ins):
+    """ROUND40 run arms - front-view running form (coach / biomechanics / anim refs).
+
+    Spec (URLs in REPORT-ROUND40): elbow ~90 deg kept fairly constant, opening a little on the backswing;
+    hands travel fore-aft from hip to chest on their OWN side (never past the midline); opposite arm/leg;
+    loose cupped hand (R40a RUN_CURL); shoulders down; slight lean is the existing R28 chest scaleY.
+
+    Front-view compromise vs a true sagittal pump: a real 90 deg elbow on the backswing points the forearm at the
+    camera (end-on stump).  Anime / coaching diagrams still draw an L-shaped bent elbow, so we keep a SCREEN-plane
+    elbow like R37, but clamp the inward travel (EF 1.25 vs R37 1.95, LAT 0.02, ABD 0.14) so the wrist stays outside
+    the shoulder line toward the hip, never across the belly.  Forearm projected length stays long enough that the
+    puffy sleeve does not collapse into a plate (TB/TF floor)."""
+    u = 0.5 * (gg + 1.0)
+    th = (q["Af"] * gg if gg > 0 else q["Ab"] * gg) * env
+    su = math.cos(th)
+    w = min(max((u - q["U0"]) / (1.0 - q["U0"]), 0.0), 1.0); w = w * w * (3 - 2 * w)
+    eps = (q["EB"] + (q["EF"] - q["EB"]) * w) * env          # back ~60 deg, front ~72 deg screen bend (~90+ with rest)
+    Tu = q["TB"] + (q["TF"] - q["TB"]) * w - q["DIP"] * math.sin(math.pi * w)
+    T = 1.0 - (1.0 - Tu) * env
+    sf = T / max(su, 0.35)
+    hk = 1.0 - q["HK"] * env
+    # ins*(+) = inward; ABD+ABB keep the elbow/fist OUTSIDE the hip on the back half; tiny LAT on forward only
+    du = ins * (q["LAT"] * math.sin(th) - (q["ABD"] + q["ABB"] * (1 - u) ** 2) * env)
+    de = ins * eps
+    return dict(th=th, phi=eps, su=su, sf=sf, sh=hk / (su * sf),
+                du=du, de=de, hand=-ins * q["HW"] * eps)
 
 
 def run_pose_r37(q, gg, env, ins):
@@ -117,7 +148,10 @@ def main():
                 put(b + "shoulder", "rotation", f, rest[b + "shoulder"] + K_SH * a["du"])
                 put(b + "fore", "rotation", f, rest[b + "fore"] + a["de"])
                 put(b + "fore", "scaleX", f, a["sf"])
-                put(b + "hand", "rotation", f, rest[b + "hand"] + a.get("hand", -0.25 * a["de"]))
+                hr = rest[b + "hand"] + a.get("hand", -0.25 * a["de"])
+                if "align" in a:   # R40: hand local y exactly on the fore axis (no skew from the inherited 1-axis squash)
+                    hr += a["align"] * (round(rest[b + "hand"] / (math.pi / 2)) * (math.pi / 2) - rest[b + "hand"])
+                put(b + "hand", "rotation", f, hr)
                 put(b + "hand", "scaleY", f, a["sh"])
                 put(f"full.coat-{sd}.front", "scaleX", f, 1.0 / a["su"])
         add = "".join(f'\n            <KeyedObject objectId="{o}"><KeyedProperty property="{pr}">' +
