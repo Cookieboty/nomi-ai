@@ -1,0 +1,157 @@
+import { describe, expect, it } from 'vitest';
+
+import type { GatewayConfig, RuntimeProvider } from '../src/config';
+import { checkUpstream } from '../src/net/upstreamGuard';
+import { pickWire, wiresFor, WIRE_DOWN_TTL_MS } from '../src/route/native';
+import { mapBuiltinModel, resolveCandidates, splitRef } from '../src/route/resolve';
+import { upstreamUrl } from '../src/upstream';
+
+const p = (extra: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
+  id: 'relay',
+  name: 'Relay',
+  enabled: true,
+  urls: { chat: 'https://r/v1', responses: 'https://r/v1', messages: 'https://r' },
+  keys: [{ id: 'k', value: 'v', enabled: true }],
+  models: [],
+  ...extra,
+});
+
+describe('pickWire (§7.3)', () => {
+  const all = ['chat', 'responses', 'messages'] as const;
+  it('Claude models prefer Messages even before same-protocol passthrough', () => {
+    expect(pickWire(p(), 'claude-opus-5', 'chat', all)).toBe('messages');
+    expect(pickWire(p(), 'anthropic/claude-opus-5', 'responses', all)).toBe('messages');
+  });
+  it('a manual wire on the model turns rule 2 off', () => {
+    const q = p({ models: [{ id: 'claude-opus-5', enabled: true, wires: ['chat'] }] });
+    expect(pickWire(q, 'claude-opus-5', 'chat', ['chat'])).toBe('chat');
+  });
+  it('same protocol, then OpenAI → Responses, then preferWire, then chat first', () => {
+    expect(pickWire(p(), 'glm-5', 'responses', all)).toBe('responses');
+    expect(pickWire(p(), 'gpt-6', 'messages', ['chat', 'responses'])).toBe('responses');
+    expect(pickWire(p({ quirks: { preferWire: 'messages' } }), 'glm-5', 'gemini', all)).toBe(
+      'messages',
+    );
+    expect(pickWire(p(), 'glm-5', 'gemini', all)).toBe('chat');
+    expect(pickWire(p(), 'glm-5', 'gemini', [])).toBeNull();
+  });
+});
+
+describe('wiresFor', () => {
+  it('drops wires that probing, learning, the model or the key rule out', () => {
+    const now = 10 * WIRE_DOWN_TTL_MS;
+    const q = p({ detected: { responses: { ok: false } } });
+    expect(wiresFor(q, 'm', q.keys[0], undefined, now).sort()).toEqual(['chat', 'messages']);
+    expect(
+      wiresFor(q, 'm', q.keys[0], { wireDown: { chat: { at: now - 1000, reason: '404' } } }, now),
+    ).toEqual(['messages']);
+    // 过期的 wireDown 不再生效
+    expect(
+      wiresFor(
+        q,
+        'm',
+        q.keys[0],
+        { wireDown: { chat: { at: now - WIRE_DOWN_TTL_MS, reason: '' } } },
+        now,
+      ).sort(),
+    ).toEqual(['chat', 'messages']);
+    expect(
+      wiresFor(q, 'm', { id: 'k2', value: '', enabled: true, wire: 'messages' }, undefined, now),
+    ).toEqual(['messages']);
+    expect(wiresFor(q, 'm', q.keys[0], { modelWire: { m: ['chat'] } }, now)).toEqual(['chat']);
+  });
+});
+
+describe('resolve (§6.2 / §7.2)', () => {
+  const cfg = (providers: RuntimeProvider[]): GatewayConfig => ({
+    host: '127.0.0.1',
+    port: 1,
+    providers,
+    clients: {
+      claude: { token: 't', models: { main: 'a/x', small: 'a/y', tiers: { opus: 'b/big' } } },
+    },
+  });
+  it('splits on the first slash only', () => {
+    expect(splitRef('relay/anthropic/claude-opus')).toEqual({
+      provider: 'relay',
+      model: 'anthropic/claude-opus',
+    });
+    expect(splitRef('glm-5')).toEqual({ provider: null, model: 'glm-5' });
+  });
+  it('Claude built-in names map to tiers / small / main', () => {
+    const models = cfg([]).clients.claude!.models;
+    expect(mapBuiltinModel('claude', models, 'claude-opus-4-8')).toBe('b/big');
+    expect(mapBuiltinModel('claude', models, 'claude-haiku-4-5')).toBe('a/y');
+    expect(mapBuiltinModel('claude', models, 'claude-sonnet-5')).toBe('a/x');
+    expect(mapBuiltinModel('claude', models, '')).toBe('a/x');
+    expect(mapBuiltinModel('nomi', models, 'whatever')).toBeNull();
+  });
+  it('aliases still resolve, bare names prefer the home provider, and fallbacks are appended', () => {
+    const a = p({
+      id: 'a',
+      aliases: ['old-a'],
+      models: [
+        { id: 'x', enabled: true },
+        { id: 'dup', enabled: true },
+      ],
+      fallback: ['b/big'],
+    });
+    const b = p({
+      id: 'b',
+      models: [
+        { id: 'big', enabled: true },
+        { id: 'dup', enabled: true },
+      ],
+    });
+    const r = resolveCandidates(cfg([a, b]), 'claude', 'old-a/x', 'messages');
+    expect(r.ok && r.candidates.map((c) => c.publicModel)).toEqual(['a/x', 'b/big']);
+    const bare = resolveCandidates(cfg([a, b]), 'claude', 'dup', 'messages');
+    expect(bare.ok && bare.candidates[0]!.provider.id).toBe('a');
+  });
+  it('a disabled provider or one without keys is not a candidate', () => {
+    const r = resolveCandidates(cfg([p({ id: 'a', keys: [] })]), 'claude', 'a/x', 'chat');
+    expect(r).toMatchObject({ ok: false, status: 400 });
+    expect(
+      resolveCandidates(cfg([p({ id: 'a', enabled: false })]), 'claude', 'a/x', 'chat').ok,
+    ).toBe(false);
+  });
+});
+
+describe('upstream addresses', () => {
+  it('builds per-wire URLs', () => {
+    expect(upstreamUrl('messages', 'https://api.deepseek.com/anthropic', 'm')).toBe(
+      'https://api.deepseek.com/anthropic/v1/messages',
+    );
+    expect(upstreamUrl('messages', 'https://x/v1/', 'm', { countTokens: true })).toBe(
+      'https://x/v1/messages/count_tokens',
+    );
+    expect(upstreamUrl('chat', 'https://x/v1', 'm')).toBe('https://x/v1/chat/completions');
+    expect(upstreamUrl('gemini', 'https://x/v1beta', 'google/gemini-3', { stream: true })).toBe(
+      'https://x/v1beta/models/google/gemini-3:streamGenerateContent?alt=sse',
+    );
+  });
+
+  it('upstream guard: public ok, private needs confirmation, never the gateway itself', async () => {
+    const lookupAll = async (h: string) => [
+      { address: h === 'rebind.example' ? '10.0.0.5' : '93.184.216.34', family: 4 },
+    ];
+    await expect(checkUpstream('https://api.example.com/v1', { lookupAll })).resolves.toBeTruthy();
+    await expect(checkUpstream('https://rebind.example/v1', { lookupAll })).rejects.toThrow(
+      '局域网',
+    );
+    await expect(checkUpstream('http://127.0.0.1:11434/v1', {})).rejects.toThrow('确认');
+    await expect(
+      checkUpstream('http://127.0.0.1:11434/v1', { allowedPrivateHosts: ['127.0.0.1:11434'] }),
+    ).resolves.toBeTruthy();
+    await expect(
+      checkUpstream('http://localhost:18721/v1', {
+        allowedPrivateHosts: ['localhost:18721'],
+        selfPort: 18721,
+      }),
+    ).rejects.toThrow('网关自己');
+    await expect(checkUpstream('ftp://x/y', {})).rejects.toThrow('http');
+    await expect(checkUpstream('https://u:p@x.example/', { lookupAll })).rejects.toThrow(
+      '账号密码',
+    );
+  });
+});
