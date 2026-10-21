@@ -25,6 +25,16 @@ function hostPort(u: URL): string {
   return `${u.hostname.replace(/^\[|\]$/g, '').toLowerCase()}:${port}`;
 }
 
+/**
+ * 代理软件的 fake-ip（Clash / Surge 等默认用 198.18.0.0/15，RFC 2544 测试保留段）：
+ * 开着这类代理时所有公网域名都解析到这里。它不是真实的局域网，域名解析到这里时放行；
+ * 直接写成 IP 字面量的仍按保留地址处理。
+ */
+export function isFakeIp(address: string): boolean {
+  const v4 = parseIPv4(address);
+  return Boolean(v4 && v4[0] === 198 && (v4[1] === 18 || v4[1] === 19));
+}
+
 function isLoopbackName(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, '').toLowerCase();
   if (h === 'localhost' || h === '::1') return true;
@@ -57,7 +67,7 @@ export async function checkUpstream(
   if (parseIPv4(host) || parseIPv6(host)) return u;
   const addrs = await (opts.lookupAll ?? defaultLookupAll)(host);
   if (!addrs.length) throw new UpstreamBlockedError(`无法解析上游地址 ${host}`);
-  if (addrs.some((a) => isPrivateHost(a.address)) && !allowed.has(hp))
+  if (addrs.some((a) => isPrivateHost(a.address) && !isFakeIp(a.address)) && !allowed.has(hp))
     throw new UpstreamBlockedError(
       `上游地址 ${host} 解析到了本机或局域网地址，需要先在供应商设置里确认`,
     );

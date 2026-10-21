@@ -14,6 +14,7 @@ export { modelsBody } from './models';
 export * from './net/address';
 export * from './net/loopback';
 export * from './net/upstreamGuard';
+export * from './probe/detect';
 export * from './route/native';
 export * from './route/resolve';
 export * from './server';

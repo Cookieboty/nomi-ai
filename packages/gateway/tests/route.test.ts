@@ -150,6 +150,12 @@ describe('upstream addresses', () => {
       }),
     ).rejects.toThrow('网关自己');
     await expect(checkUpstream('ftp://x/y', {})).rejects.toThrow('http');
+    // 代理的 fake-ip：域名解析到 198.18.0.0/15 放行，IP 字面量仍要确认
+    const fake = async () => [{ address: '198.18.2.35', family: 4 }];
+    await expect(
+      checkUpstream('https://gateway.example/v1', { lookupAll: fake }),
+    ).resolves.toBeTruthy();
+    await expect(checkUpstream('https://198.18.2.35/v1', {})).rejects.toThrow('确认');
     await expect(checkUpstream('https://u:p@x.example/', { lookupAll })).rejects.toThrow(
       '账号密码',
     );
