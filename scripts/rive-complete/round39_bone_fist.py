@@ -42,6 +42,7 @@ DEG_F = (80, 95, 50)
 LEAD = {"index": 12, "middle": 13, "ring": 14, "little": 15, "thumb": 20}
 CAP_R = 2.5
 KIN = 0.3
+THUMB_FS = 0.5
 VIS_MIN = 0.12
 
 
@@ -286,7 +287,7 @@ def main():
             # the phalanx along its axis, |visible| = cos(cumulative flex) (fingers fold away from the viewer, so a
             # folded-back distal phalanx (cos < 0) points back over the proximal one and is drawn under it).
             kin = 1.0 if fg == "thumb" else KIN
-            fs = 0.0 if fg == "thumb" else 1.0                       # thumb: in-plane wrap only, no foreshortening
+            fs = THUMB_FS if fg == "thumb" else 1.0                 # thumb: mostly in-plane wrap, tip half-tucked
             e = [0.0 if f in (0, dur) else env(f) for f in frames]
             th = [math.radians(DEG.get(fg, DEG_F)[i]) for i in range(3)]
             ph, sg, Ls, R0 = phis[(sd, fg)], curl[(sd, fg)], seglen[(sd, fg)], rest[(sd, fg)]
@@ -305,7 +306,7 @@ def main():
                 kf = "".join(f'<KeyFrameDouble value="{v:.6f}" frame="{f}" interpolationType="linear"/>' for f, v in zip(frames, vv))
                 kp += f'<KeyedProperty property="{prop}">{kf}</KeyedProperty>'
             add.append(f'\n            <KeyedObject objectId="{bid}">{kp}</KeyedObject>')
-            if fs and k >= 1:          # p1 / p2 folded past ~83 deg are behind the hand: fade with the visible length
+            if fs == 1.0 and k >= 1:          # p1 / p2 folded past ~83 deg are behind the hand: fade with the visible length
                 occ[(sd, fg, f"p{k}")] = [ss((v - VIS_MIN) / 0.25) for v in scl]
         # same original pixels either way: pieces replace the skinned finger crops from frame 1 (curl ~0) until the last frame
         hold = lambda on: (f'<KeyFrameDouble value="{0 if on else 1}" frame="0" interpolationType="hold"/>'
