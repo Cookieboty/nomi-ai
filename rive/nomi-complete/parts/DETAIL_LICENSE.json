@@ -1008,8 +1008,8 @@
       "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
     },
     "reference/svg-rig/head-neck.png": {
-      "sha256": "1065d81f861cfb1f8d22d7def4e0a58cdc925bd676497c81f87acde139bb5718",
-      "bytes": 30877,
+      "sha256": "8304efeebc06a1c2159831bd1dde03bc8294a3e0f3c2a47bc4e764ad2c23489d",
+      "bytes": 33467,
       "ai_generated": false,
       "in_scene": true,
       "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"

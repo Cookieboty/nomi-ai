@@ -56,4 +56,3 @@ python3 round40_run_arm_layer.py
 python3 round41_head_yaw_rig.py
 python3 round41_head_yaw_motion.py
 python3 round42_head_rig.py
-python3 round42_head_yaw_motion.py
