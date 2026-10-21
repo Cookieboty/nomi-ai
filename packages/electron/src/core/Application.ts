@@ -5,7 +5,8 @@
 
 import path from 'node:path';
 
-import { app, session } from 'electron';
+import { createSafeStorageCipher, migrateStoreData } from '@nomi-ai/ai-runtime';
+import { app, BrowserWindow, safeStorage, session } from 'electron';
 
 import { getAgentProgressService, initAgentProgressService } from '../agents/AgentProgressService';
 import { startAIRuntime, type AIRuntimeBootHandle } from '../ai/AIRuntimeBoot';
@@ -17,12 +18,17 @@ import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
 import { getCliHarnessService, initCliHarnessService } from '../cli/CliHarnessService';
-import { initCliProviderBridge, getCliProviderBridge } from '../cli/CliProviderBridge';
+import {
+  decrypt as decryptLegacyCliKey,
+  getCliProviderBridge,
+  initCliProviderBridge,
+} from '../cli/CliProviderBridge';
 import { initCliUpdateService } from '../cli/CliUpdateService';
 import { initCliRouteService } from '../cli/routing/CliRouteService';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
+import { initGatewayService } from '../gateway/GatewayService';
 import { IpcRegistry } from '../handlers/ipc/IpcRegistry';
 import { t as tr } from '../i18n';
 import { LocaleService } from '../i18n';
@@ -432,6 +438,28 @@ export class Application implements IApplication {
       cliRoute.registerIpc();
       this.lifecycle.register({ name: 'cli-route', stop: () => cliRoute.stop() });
       if (cliRoute.getSettings().enabled) void cliRoute.start().catch(() => undefined);
+      // 统一网关（docs/design/unified-gateway.md）：首次启动从旧存储迁移，网关跑在独立的 utilityProcess 里。
+      // M3 之前终端里的 CLI 仍连旧路由，所以不接受旧共享令牌；旧路由开着时网关先用临时端口。
+      const gateway = initGatewayService({
+        root: path.join(app.getPath('userData'), 'gateway'),
+        cipher: createSafeStorageCipher(safeStorage),
+        logger: this.logger as never,
+        legacy: {
+          nomiFile: path.join(app.getPath('userData'), 'ai-providers.json'),
+          cliRoot: path.join(app.getPath('userData'), 'cli-providers'),
+          cliDecrypt: decryptLegacyCliKey,
+          normalizeNomi: (raw) => migrateStoreData(raw).data,
+          token: () => null,
+          routeListening: () => cliRoute.getSettings().enabled,
+        },
+        broadcast: (channel, payload) => {
+          for (const w of BrowserWindow.getAllWindows())
+            if (!w.isDestroyed()) w.webContents.send(channel, payload);
+        },
+      });
+      gateway.registerIpc();
+      gateway.init();
+      this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,

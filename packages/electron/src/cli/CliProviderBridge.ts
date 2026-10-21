@@ -81,7 +81,8 @@ function encrypt(plain: string): string {
   return Buffer.from(plain, 'utf8').toString('base64');
 }
 
-function decrypt(enc: string): string {
+/** 旧 CLI 存储的 keyEnc 解密（网关一次性迁移也用它，见 gateway/migrate.ts） */
+export function decrypt(enc: string): string {
   if (!enc) return '';
   try {
     if (safeStorage.isEncryptionAvailable()) {
