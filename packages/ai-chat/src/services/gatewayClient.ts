@@ -62,8 +62,16 @@ export interface ProviderView {
   models: GatewayModel[];
   source: 'user' | 'env';
   detected?: Partial<Record<Wire, StoredProbe>>;
+  /** 运行时学到的状态（§7.4） */
+  learned?: LearnedState;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface LearnedState {
+  wireDown?: Partial<Record<Wire, { at: number; reason: string }>>;
+  modelWire?: Record<string, Wire[]>;
+  droppedParams?: Record<string, string[]>;
 }
 
 export interface ClientModels {

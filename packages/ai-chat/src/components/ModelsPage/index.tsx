@@ -12,7 +12,9 @@ import {
   WIRE_LABEL,
   WIRES,
   type ClientModels,
+  type LearnedState,
   type ProviderView,
+  type Wire,
 } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
@@ -176,6 +178,7 @@ export const ModelsPage: React.FC = () => {
             onModels={(models) =>
               run(gatewayClient.upsertProvider({ id: p.id, name: p.name, urls: p.urls, models }))
             }
+            onClearLearned={() => run(gatewayClient.clearLearned(p.id))}
             onRemove={() => {
               if (window.confirm(t('删除供应商「{0}」及其所有 Key？', p.name)))
                 run(gatewayClient.removeProvider(p.id));
@@ -201,7 +204,8 @@ const ProviderRow: React.FC<{
   onToggle: () => void;
   onModels: (models: ProviderView['models']) => void;
   onRemove: () => void;
-}> = ({ p, open, onToggle, onModels, onRemove }) => {
+  onClearLearned: () => void;
+}> = ({ p, open, onToggle, onModels, onRemove, onClearLearned }) => {
   const enabledCount = p.models.filter((x) => x.enabled).length;
   const fromEnv = p.source === 'env';
   const wires = WIRES.filter((w) => p.detected?.[w]?.ok ?? Boolean(p.urls[w]));
@@ -283,6 +287,7 @@ const ProviderRow: React.FC<{
               </label>
             ))}
           </div>
+          {p.learned && <LearnedInfo learned={p.learned} onClear={onClearLearned} />}
           <div className={styles.detailActions}>
             {!fromEnv && (
               <Button size="sm" variant="danger" onClick={onRemove}>
@@ -292,6 +297,37 @@ const ProviderRow: React.FC<{
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+/** 运行时学到的（§7.4）：哪些协议暂时不可用、哪些模型只走某些协议、去掉了哪些字段；可以清除重新学 */
+const LearnedInfo: React.FC<{ learned: LearnedState; onClear: () => void }> = ({
+  learned,
+  onClear,
+}) => {
+  const lines = [
+    ...Object.entries(learned.wireDown ?? {}).map(([w, d]) =>
+      t('{0} 暂时不可用：{1}', WIRE_LABEL[w as Wire], d!.reason),
+    ),
+    ...Object.entries(learned.modelWire ?? {}).map(([m, ws]) =>
+      t('{0} 只走 {1}', m, ws.map((w) => WIRE_LABEL[w]).join(' / ')),
+    ),
+    ...Object.entries(learned.droppedParams ?? {}).map(([w, ps]) =>
+      t('{0} 不发送字段：{1}', WIRE_LABEL[w as Wire] ?? w, ps.join('、')),
+    ),
+  ];
+  return (
+    <div className={styles.detailCol} data-testid="provider-learned">
+      <div className={styles.groupTitle}>{t('自动学到的')}</div>
+      {lines.map((l) => (
+        <span key={l} className={styles.muted}>
+          {l}
+        </span>
+      ))}
+      <Button size="sm" variant="ghost" onClick={onClear} data-testid="provider-learned-clear">
+        {t('清除，重新学习')}
+      </Button>
     </div>
   );
 };

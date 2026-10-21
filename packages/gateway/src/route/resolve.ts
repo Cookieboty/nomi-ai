@@ -1,7 +1,14 @@
 /**
  * 模型名 → 候选列表（docs/design/unified-gateway.md §6.2、§7.2）。
  */
-import type { ClientId, ClientModels, GatewayConfig, RuntimeKey, RuntimeProvider } from '../config';
+import type {
+  ClientId,
+  ClientModels,
+  GatewayConfig,
+  LearnedState,
+  RuntimeKey,
+  RuntimeProvider,
+} from '../config';
 import type { Wire } from '../ir';
 
 import { pickWire, wiresFor } from './native';
@@ -14,6 +21,8 @@ export interface Candidate {
   /** 发给上游的真实模型名（经 modelMap） */
   upstreamModel: string;
   wire: Wire;
+  /** 发给上游前去掉的顶层字段（厂商 quirks + 运行时学到的 + 本次重试要去掉的，§7.4） */
+  dropParams?: string[];
 }
 
 export type ResolveResult =
@@ -101,6 +110,35 @@ function suggest(cfg: GatewayConfig, requested: string): string[] {
     .slice(0, 3);
 }
 
+function withDrops(c: Candidate, learned: LearnedState | undefined): Candidate {
+  const drops = [
+    ...new Set([
+      ...(c.provider.quirks?.dropParams ?? []),
+      ...(learned?.droppedParams?.[c.wire] ?? []),
+    ]),
+  ];
+  return drops.length ? { ...c, dropParams: drops } : c;
+}
+
+/**
+ * 同一个 (供应商, Key, 模型) 换一个协议（§7.4：接口不存在 / 模型不支持这个接口时本次重试用）；
+ * 没有别的协议可走时返回 null。
+ */
+export function alternateWire(
+  cfg: GatewayConfig,
+  c: Candidate,
+  ingress: Wire,
+  exclude: readonly Wire[],
+): Candidate | null {
+  const model = c.publicModel.slice(c.provider.id.length + 1);
+  const learned = cfg.learned?.[c.provider.id];
+  const usable = wiresFor(c.provider, model, c.key, learned).filter((w) => !exclude.includes(w));
+  const wire = pickWire(c.provider, model, ingress, usable);
+  if (!wire) return null;
+  const { dropParams: _ignored, ...rest } = c;
+  return withDrops({ ...rest, wire }, learned);
+}
+
 /** 展开一个 (供应商, 模型) 的候选：每个可用 Key 一个，各自选 wire */
 function expand(cfg: GatewayConfig, p: RuntimeProvider, model: string, ingress: Wire): Candidate[] {
   const out: Candidate[] = [];
@@ -108,7 +146,13 @@ function expand(cfg: GatewayConfig, p: RuntimeProvider, model: string, ingress: 
   const upstreamModel = upstreamName(p, model);
   for (const key of p.keys.filter((k) => k.enabled)) {
     const wire = pickWire(p, model, ingress, wiresFor(p, model, key, learned));
-    if (wire) out.push({ provider: p, key, publicModel: `${p.id}/${model}`, upstreamModel, wire });
+    if (wire)
+      out.push(
+        withDrops(
+          { provider: p, key, publicModel: `${p.id}/${model}`, upstreamModel, wire },
+          learned,
+        ),
+      );
   }
   return out;
 }

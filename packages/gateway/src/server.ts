@@ -13,10 +13,11 @@ import { customToolNames } from './customTools';
 import { errorResponse, kindOfStatus, upstreamMessage } from './errors';
 import { ingressFromPath, type Ingress } from './ingress';
 import type { Wire } from './ir';
+import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { modelsBody } from './models';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
-import { resolveCandidates, type Candidate } from './route/resolve';
+import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { estimateRequestTokens } from './tokens';
 import { upstreamBody, upstreamHeaders, upstreamUrl } from './upstream';
@@ -26,6 +27,8 @@ export const GATEWAY_VERSION = '1';
 
 /** 每个请求最多尝试的候选数（§11.1） */
 const MAX_ATTEMPTS = 4;
+/** 每个请求因运行时学习而重试的上限（计入 MAX_ATTEMPTS） */
+const MAX_LEARN_RETRIES = 2;
 /** 首字节前单次尝试的超时 */
 const FIRST_BYTE_TIMEOUT_MS = 30_000;
 /** 首字节之前所有尝试的总时长上限 */
@@ -52,6 +55,8 @@ export interface UsageEvent {
 
 export interface GatewayHooks {
   onUsage?: (e: UsageEvent) => void;
+  /** 运行时学到的东西（主进程持久化，§7.4） */
+  onLearn?: (e: LearnEvent) => void;
   logger?: { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
   /** 测试注入 */
   fetchImpl?: typeof fetch;
@@ -119,16 +124,32 @@ function legacyClient(ingress: Ingress | null, ua: string): ClientId | null {
 
 type Attempt =
   | { kind: 'response'; res: Response; cand: Candidate }
-  | { kind: 'failed'; status: number; message: string; retryable: boolean; cand: Candidate };
+  | {
+      kind: 'failed';
+      status: number;
+      message: string;
+      retryable: boolean;
+      cand: Candidate;
+      /** 上游错误体与本次发出的请求体（运行时学习分类用，§7.4） */
+      text?: string;
+      sent?: unknown;
+    };
 
 export class GatewayServer {
   private server: http.Server | null = null;
   private readonly sockets = new Set<Socket>();
 
+  private readonly learner: Learner;
+
   constructor(
     private cfg: GatewayConfig,
     private readonly hooks: GatewayHooks = {},
-  ) {}
+  ) {
+    this.learner = new Learner((e) => {
+      this.hooks.logger?.info('gateway learned', e);
+      this.hooks.onLearn?.(e);
+    });
+  }
 
   /** 换新配置：进行中的请求继续用各自拿到的旧快照 */
   update(cfg: GatewayConfig): void {
@@ -279,14 +300,36 @@ export class GatewayServer {
     const errors: string[] = [];
     let attempts = 0;
     let last: Attempt | null = null;
-    for (const cand of r.candidates.slice(0, MAX_ATTEMPTS)) {
+    // 被短期压制的候选排到后面；学习触发的重试（换 wire / 去掉字段）插到队首，每个请求最多 2 次（§7.4）
+    const queue = this.withSuppression(cfg, r.candidates, ingress.wire);
+    let learnRetries = 0;
+    while (queue.length && attempts < MAX_ATTEMPTS) {
       if (Date.now() - startedAt > FIRST_BYTE_BUDGET_MS || abort.signal.aborted) break;
+      const cand = queue.shift()!;
       attempts++;
       last = await this.attempt(cfg, req, ingress, cand, body, wantsStream, abort.signal);
-      if (last.kind === 'response') break;
+      if (last.kind === 'response') {
+        this.learner.success(cand);
+        break;
+      }
       errors.push(
         `${cand.provider.name}·${cand.key.name ?? cand.key.id}·${cand.wire}: ${last.message}`,
       );
+      const hint =
+        last.text !== undefined
+          ? this.learner.failure(cand, classifyFailure(last.status, last.text, last.sent))
+          : null;
+      const retry =
+        hint && learnRetries < MAX_LEARN_RETRIES
+          ? 'dropParam' in hint
+            ? { ...cand, dropParams: [...(cand.dropParams ?? []), hint.dropParam] }
+            : alternateWire(cfg, cand, ingress.wire, [hint.excludeWire])
+          : null;
+      if (retry) {
+        learnRetries++;
+        queue.unshift(retry);
+        continue;
+      }
       if (!last.retryable) break;
     }
     if (!last || last.kind === 'failed') {
@@ -333,6 +376,24 @@ export class GatewayServer {
     });
   }
 
+  /**
+   * 被短期压制的 (供应商, Key, wire)：同一个 Key 先换别的协议，原候选排到最后（仍可用，§7.4）。
+   */
+  private withSuppression(cfg: GatewayConfig, cands: Candidate[], ingress: Wire): Candidate[] {
+    const head: Candidate[] = [];
+    const tail: Candidate[] = [];
+    for (const c of cands) {
+      if (!this.learner.isSuppressed(c)) {
+        head.push(c);
+        continue;
+      }
+      const alt = alternateWire(cfg, c, ingress, [c.wire]);
+      if (alt && !this.learner.isSuppressed(alt)) head.push(alt);
+      tail.push(c);
+    }
+    return [...head, ...tail];
+  }
+
   /** 一次上游尝试；拿到 2xx 响应头就算成功（之后不再换候选） */
   private async attempt(
     cfg: GatewayConfig,
@@ -360,6 +421,10 @@ export class GatewayServer {
         cand,
       };
     }
+    const sent = upstreamBody(ingress.wire, cand, body, {
+      stream: wantsStream,
+      ingressModel: ingress.model,
+    });
     const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
     const both = AbortSignal.any([signal, timeout]);
     let res: Response;
@@ -371,12 +436,7 @@ export class GatewayServer {
           clientHeaders: req.headers,
           sameWire: ingress.wire === cand.wire,
         }),
-        body: JSON.stringify(
-          upstreamBody(ingress.wire, cand, body, {
-            stream: wantsStream,
-            ingressModel: ingress.model,
-          }),
-        ),
+        body: JSON.stringify(sent),
         redirect: 'manual',
         signal: both,
       });
@@ -407,6 +467,8 @@ export class GatewayServer {
       message: s >= 300 && s < 400 ? `上游返回重定向（${s}），网关不跟随` : upstreamMessage(text),
       retryable,
       cand,
+      text,
+      sent,
     };
   }
 

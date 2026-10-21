@@ -37,6 +37,7 @@ function setup() {
   const children: FakeChild[] = [];
   const statuses: GatewayStatus[] = [];
   const usage: unknown[] = [];
+  const learned: unknown[] = [];
   const gp = new GatewayProcess({
     logger: { info() {}, warn() {} },
     fork: () => {
@@ -47,8 +48,9 @@ function setup() {
     backoffMs: () => 1,
     onStatus: (s) => statuses.push(s),
     onUsage: (e) => usage.push(e),
+    onLearn: (e) => learned.push(e),
   });
-  return { gp, children, statuses, usage };
+  return { gp, children, statuses, usage, learned };
 }
 
 const tick = (ms = 5) => new Promise((r) => setTimeout(r, ms));
@@ -68,6 +70,11 @@ describe('GatewayProcess', () => {
     expect(t.children[0]!.sent).toHaveLength(2);
     t.children[0]!.say({ type: 'usage', event: { client: 'nomi' } as never });
     expect(t.usage).toHaveLength(1);
+    t.children[0]!.say({
+      type: 'learn',
+      event: { type: 'dropped-param', providerId: 'p', wire: 'chat', param: 'store' },
+    });
+    expect(t.learned).toHaveLength(1);
   });
 
   it('restarts after a crash with backoff and gives up after 3 failures', async () => {

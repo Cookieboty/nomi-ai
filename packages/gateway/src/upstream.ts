@@ -111,5 +111,11 @@ export function upstreamBody(
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {
     out = { ...(out as object), stream: true, stream_options: { include_usage: true } };
   }
+  // 厂商不接受的可选字段（quirks.dropParams + 运行时学到的，§7.4）
+  if (c.dropParams?.length && out && typeof out === 'object' && !Array.isArray(out)) {
+    const o = { ...(out as Record<string, unknown>) };
+    for (const k of c.dropParams) delete o[k];
+    out = o;
+  }
   return out;
 }

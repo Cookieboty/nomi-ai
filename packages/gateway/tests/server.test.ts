@@ -7,6 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig, RuntimeProvider } from '../src/config';
+import type { LearnEvent } from '../src/learn';
 import { createGateway, type GatewayServer, type UsageEvent } from '../src/server';
 
 interface Seen {
@@ -77,6 +78,7 @@ function provider(
 
 async function gateway(cfg: Partial<GatewayConfig>, hosts: string[] = []) {
   const usage: UsageEvent[] = [];
+  const learned: LearnEvent[] = [];
   const gw: GatewayServer = createGateway(
     {
       host: '127.0.0.1',
@@ -90,11 +92,11 @@ async function gateway(cfg: Partial<GatewayConfig>, hosts: string[] = []) {
       allowedPrivateHosts: hosts,
       ...cfg,
     },
-    { onUsage: (e) => usage.push(e), streamIdleTimeoutMs: 300 },
+    { onUsage: (e) => usage.push(e), onLearn: (e) => learned.push(e), streamIdleTimeoutMs: 300 },
   );
   await gw.start();
   cleanups.push(() => gw.stop());
-  return { gw, usage, url: gw.listenUrl()! };
+  return { gw, usage, learned, url: gw.listenUrl()! };
 }
 
 const post = (url: string, path: string, body: unknown, headers: Record<string, string> = {}) =>
@@ -542,5 +544,129 @@ describe('gateway: routing and conversion', () => {
     ).text();
     expect(up.seen[0]!.body.model).toBe('glm-5');
     expect(usage[0]).toMatchObject({ client: 'legacy' });
+  });
+});
+
+describe('gateway: runtime learning (§7.4)', () => {
+  const chatJson = {
+    choices: [{ index: 0, message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+  };
+  const send = (url: string, body: Record<string, unknown>) =>
+    post(
+      url,
+      '/v1/chat/completions',
+      { model: 'zp/glm-5', messages: [{ role: 'user', content: 'hi' }], ...body },
+      {
+        authorization: 'Bearer tok-codex',
+      },
+    );
+
+  it('an optional field the upstream rejects is dropped and retried, and reported', async () => {
+    const up = await upstream((s, res) => {
+      if ('service_tier' in s.body) {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end(
+          JSON.stringify({ error: { message: "Unsupported parameter: 'service_tier'" } }),
+        );
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(chatJson));
+    });
+    const { url, learned } = await gateway(
+      { providers: [provider('zp', { chat: `${up.base}/v1` })] },
+      [up.hostPort],
+    );
+    const res = await send(url, { service_tier: 'priority' });
+    expect(res.status).toBe(200);
+    expect(up.seen).toHaveLength(2);
+    expect(up.seen[1]!.body).not.toHaveProperty('service_tier');
+    expect(learned).toEqual([
+      { type: 'dropped-param', providerId: 'zp', wire: 'chat', param: 'service_tier' },
+    ]);
+  });
+
+  it('learned dropped params and quirks are applied up front', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(chatJson));
+    });
+    const { url } = await gateway(
+      {
+        providers: [
+          provider('zp', { chat: `${up.base}/v1` }, { quirks: { dropParams: ['metadata'] } }),
+        ],
+        learned: { zp: { droppedParams: { chat: ['service_tier'] } } },
+      },
+      [up.hostPort],
+    );
+    await send(url, { service_tier: 'priority', metadata: { a: 1 }, user: 'u' });
+    expect(up.seen).toHaveLength(1);
+    expect(up.seen[0]!.body).not.toHaveProperty('service_tier');
+    expect(up.seen[0]!.body).not.toHaveProperty('metadata');
+    expect(up.seen[0]!.body).toMatchObject({ user: 'u' });
+  });
+
+  it('a missing endpoint falls back to another wire of the same key; the bad wire is ranked last', async () => {
+    const up = await upstream((s, res) => {
+      if (s.url === '/v1/chat/completions') {
+        res.writeHead(404, { 'content-type': 'text/plain' });
+        return res.end('404 page not found');
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          id: 'msg',
+          type: 'message',
+          role: 'assistant',
+          model: 'glm-5',
+          content: [{ type: 'text', text: 'ok' }],
+          stop_reason: 'end_turn',
+          usage: { input_tokens: 1, output_tokens: 1 },
+        }),
+      );
+    });
+    const { url, learned } = await gateway(
+      { providers: [provider('zp', { chat: `${up.base}/v1`, messages: up.base })] },
+      [up.hostPort],
+    );
+    const res = await send(url, {});
+    expect(res.status).toBe(200);
+    expect(up.seen.map((x) => x.url)).toEqual(['/v1/chat/completions', '/v1/messages']);
+    // 压制期内：同一个 Key 直接走 Messages
+    await send(url, {});
+    expect(up.seen.at(-1)!.url).toBe('/v1/messages');
+    expect(up.seen).toHaveLength(3);
+    // 只有一个模型出过错：不报疑似不可用
+    expect(learned).toEqual([]);
+  });
+
+  it('a model that does not support an endpoint is reported per model and retried on another wire', async () => {
+    const up = await upstream((s, res) => {
+      if (s.url === '/v1/responses') {
+        res.writeHead(400, { 'content-type': 'application/json' });
+        return res.end(
+          JSON.stringify({
+            error: { message: 'model glm-5 is not supported on this endpoint /responses' },
+          }),
+        );
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(chatJson));
+    });
+    const { url, learned } = await gateway(
+      { providers: [provider('zp', { chat: `${up.base}/v1`, responses: `${up.base}/v1` })] },
+      [up.hostPort],
+    );
+    const res = await post(
+      url,
+      '/v1/responses',
+      { model: 'zp/glm-5', input: 'hi' },
+      { authorization: 'Bearer tok-codex' },
+    );
+    expect(res.status).toBe(200);
+    expect(up.seen.map((x) => x.url)).toEqual(['/v1/responses', '/v1/chat/completions']);
+    expect(learned).toEqual([
+      { type: 'model-wire', providerId: 'zp', model: 'glm-5', exclude: 'responses' },
+    ]);
   });
 });

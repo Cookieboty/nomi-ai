@@ -129,12 +129,13 @@ describe('SettingsView 合并后的标签页分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     fireEvent.click(r.getByText('屏幕记忆与排除'));
     expect(r.getByTestId('settings-senses').getAttribute('data-tab')).toBe('screen');
-    const inner = await r.findByRole('tab', { name: '隐私与排除' });
+    // 屏幕面板是懒加载的：整仓并行跑时加载可能超过默认的 1 秒
+    const inner = await r.findByRole('tab', { name: '隐私与排除' }, { timeout: 5000 });
     expect(inner.getAttribute('aria-selected')).toBe('true');
     fireEvent.click(r.getByTestId('settings-nav-general'));
     fireEvent.click(r.getByTestId('settings-nav-senses'));
     fireEvent.click(r.getByTestId('settings-senses-tab-screen'));
-    const again = await r.findByRole('tab', { name: '隐私与排除' });
+    const again = await r.findByRole('tab', { name: '隐私与排除' }, { timeout: 5000 });
     expect(again.getAttribute('aria-selected')).toBe('false');
   });
 

@@ -57,5 +57,10 @@
   "Nomi 对话用的第三方供应商与模型（对话 / 工具调用 / 摘要）在设置 →「模型」里管理。Claude Code / Codex / dsh / Grok 不会读取 Nomi 的配置。": "Third-party providers and models for Nomi chat (chat / tool calls / summaries) are managed under Settings → Models. Claude Code / Codex / dsh / Grok never read Nomi's configuration.",
   "打开「模型」": "Open Models",
   "这里列出设置 →「模型」里启用的模型。": "Lists the models enabled under Settings → Models.",
-  "还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。": "No models to switch to yet. Add a third-party provider under Settings → Models first."
+  "还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。": "No models to switch to yet. Add a third-party provider under Settings → Models first.",
+  "{0} 暂时不可用：{1}": "{0} temporarily unavailable: {1}",
+  "{0} 只走 {1}": "{0} only uses {1}",
+  "{0} 不发送字段：{1}": "{0} omits fields: {1}",
+  "自动学到的": "Learned automatically",
+  "清除，重新学习": "Clear and relearn"
 }

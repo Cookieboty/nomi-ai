@@ -8,7 +8,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import type { GatewayConfig, UsageEvent, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
+import type {
+  GatewayConfig,
+  LearnEvent,
+  UsageEvent,
+  WorkerInbound,
+  WorkerOutbound,
+} from '@nomi-ai/gateway';
 
 import { t as tr } from '../i18n';
 
@@ -64,6 +70,7 @@ export class GatewayProcess {
     private readonly d: {
       logger: Logger;
       onUsage?: (e: UsageEvent) => void;
+      onLearn?: (e: LearnEvent) => void;
       onStatus?: (s: GatewayStatus) => void;
       fork?: ForkGateway;
       /** 网关入口文件（默认与本文件同目录的 worker.js） */
@@ -134,6 +141,8 @@ export class GatewayProcess {
       this.d.logger.info('gateway running', m.url);
     } else if (m.type === 'usage') {
       this.d.onUsage?.(m.event);
+    } else if (m.type === 'learn') {
+      this.d.onLearn?.(m.event);
     } else if (m.type === 'error') {
       this.d.logger.warn('gateway error', m.message);
       // 端口被占用等启动失败：换配置前不再重试

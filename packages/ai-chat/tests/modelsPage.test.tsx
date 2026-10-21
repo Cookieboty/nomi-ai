@@ -95,6 +95,10 @@ function fakeMain(o: { detect?: (input: Record<string, unknown>) => DetectResult
         changed?.();
         return p;
       }
+      case 'ai:gateway:clear-learned':
+        for (const p of state.providers) if (p.id === args[0]) delete p.learned;
+        changed?.();
+        break;
       case 'ai:gateway:remove-provider':
         state.providers = state.providers.filter((p) => p.id !== args[0]);
         changed?.();
@@ -284,5 +288,36 @@ describe('ModelsPage', () => {
     );
     fireEvent.click(within(screen.getByTestId('provider-kimi')).getByText('删除'));
     await waitFor(() => expect(screen.queryByTestId('provider-kimi')).toBeNull());
+  });
+
+  it('shows what was learned at runtime and clears it', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      {
+        id: 'r',
+        name: 'Relay',
+        enabled: true,
+        urls: { chat: 'https://r/v1', responses: 'https://r/v1' },
+        keys: [],
+        models: [{ id: 'glm-5', enabled: true }],
+        source: 'user',
+        learned: {
+          wireDown: { responses: { at: 1, reason: '3 次接口不存在' } },
+          modelWire: { 'glm-5': ['chat'] },
+          droppedParams: { chat: ['service_tier'] },
+        },
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ];
+    render(<ModelsPage />);
+    const row = await screen.findByTestId('provider-r');
+    fireEvent.click(within(row).getByRole('button', { expanded: false }));
+    const box = within(row).getByTestId('provider-learned');
+    expect(box.textContent).toContain('Responses 暂时不可用：3 次接口不存在');
+    expect(box.textContent).toContain('glm-5 只走 Chat');
+    expect(box.textContent).toContain('Chat 不发送字段：service_tier');
+    fireEvent.click(within(box).getByTestId('provider-learned-clear'));
+    await waitFor(() => expect(screen.queryByTestId('provider-learned')).toBeNull());
   });
 });

@@ -9,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
-import type { GatewayConfig, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
+import type { detect, GatewayConfig, WorkerInbound, WorkerOutbound } from '@nomi-ai/gateway';
 
 import { GatewayProcess } from '../../../src/gateway/GatewayProcess';
 import { GatewayService } from '../../../src/gateway/GatewayService';
@@ -34,7 +34,9 @@ class FakeChild extends EventEmitter {
   }
 }
 
-function setup(o: { routeListening?: boolean; legacyNomi?: unknown } = {}) {
+function setup(
+  o: { routeListening?: boolean; legacyNomi?: unknown; detectImpl?: typeof detect } = {},
+) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-svc-'));
   const nomiFile = path.join(root, 'ai-providers.json');
   if (o.legacyNomi) fs.writeFileSync(nomiFile, JSON.stringify(o.legacyNomi));
@@ -62,6 +64,7 @@ function setup(o: { routeListening?: boolean; legacyNomi?: unknown } = {}) {
       routeListening: () => Boolean(o.routeListening),
     },
     broadcast: (ch) => broadcasts.push(ch),
+    detectImpl: o.detectImpl,
   });
   const lastConfig = () =>
     (
@@ -320,5 +323,58 @@ describe('GatewayService', () => {
     off();
     t.svc.removeProvider('x');
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists what the gateway learns; a suspect wire is confirmed by a probe first', async () => {
+    let probeOk = true;
+    const probes: unknown[] = [];
+    const t = setup({
+      detectImpl: (async (o: unknown) => {
+        probes.push(o);
+        return { wires: { chat: { ok: probeOk } }, byKey: {}, models: [], urls: {} };
+      }) as never,
+    });
+    t.svc.init();
+    t.svc.upsertProvider({
+      name: 'R',
+      urls: {
+        chat: 'https://r.example/v1',
+        responses: 'https://r.example/v1',
+        messages: 'https://r.example',
+      },
+      newKeys: [{ value: 'sk-r' }],
+      models: [{ id: 'glm-5', enabled: true }],
+    });
+    await t.svc.learn({ type: 'dropped-param', providerId: 'r', wire: 'chat', param: 'store' });
+    await t.svc.learn({ type: 'dropped-param', providerId: 'r', wire: 'chat', param: 'store' });
+    await t.svc.learn({
+      type: 'model-wire',
+      providerId: 'r',
+      model: 'glm-5',
+      exclude: 'responses',
+    });
+    expect(t.lastConfig().learned!.r).toEqual({
+      droppedParams: { chat: ['store'] },
+      modelWire: { 'glm-5': ['chat', 'messages'] },
+    });
+    // 探测还能通：不写 wireDown
+    await t.svc.learn({ type: 'wire-suspect', providerId: 'r', wire: 'chat', reason: 'x' });
+    expect(probes[0]).toMatchObject({
+      bases: { chat: 'https://r.example/v1' },
+      keys: [{ value: 'sk-r' }],
+    });
+    expect(t.lastConfig().learned!.r!.wireDown).toBeUndefined();
+    probeOk = false;
+    await t.svc.learn({
+      type: 'wire-suspect',
+      providerId: 'r',
+      wire: 'chat',
+      reason: '3 次接口不存在',
+    });
+    expect(t.lastConfig().learned!.r!.wireDown!.chat).toMatchObject({ reason: '3 次接口不存在' });
+    // 界面能看到，并且可以清除
+    expect(t.svc.state().providers[0]!.learned).toBeDefined();
+    t.svc.clearLearned('r');
+    expect(t.svc.state().providers[0]!.learned).toBeUndefined();
   });
 });

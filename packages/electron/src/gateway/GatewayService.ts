@@ -18,6 +18,8 @@ import {
   type ClientModels,
   type DetectResult,
   type GatewayConfig,
+  type LearnedState,
+  type LearnEvent,
   type UsageEvent,
   type Wire,
 } from '@nomi-ai/gateway';
@@ -32,6 +34,15 @@ import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './t
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type NomiRole = 'chat' | 'agent-tools' | 'summary';
+
+function hasLearned(l: LearnedState | undefined): l is LearnedState {
+  return Boolean(
+    l &&
+    (Object.keys(l.wireDown ?? {}).length ||
+      Object.keys(l.modelWire ?? {}).length ||
+      Object.keys(l.droppedParams ?? {}).length),
+  );
+}
 
 function privateUrl(url: string): boolean {
   try {
@@ -61,6 +72,8 @@ export interface ProviderInput {
 
 export interface ProviderView extends Omit<GatewayProvider, 'keys'> {
   keys: Array<Omit<GatewayKey, 'enc' | 'encryption'> & { decryptable: boolean }>;
+  /** 运行时学到的状态（§7.4），「模型」页显示并可清除 */
+  learned?: LearnedState;
 }
 
 export interface GatewayStateView {
@@ -90,6 +103,8 @@ export interface GatewayServiceDeps {
     routeListening: () => boolean;
   };
   onUsage?: (e: UsageEvent) => void;
+  /** 测试注入：疑似不可用的协议用它确认 */
+  detectImpl?: typeof detect;
   broadcast?: (channel: string, payload: unknown) => void;
 }
 
@@ -108,6 +123,7 @@ export class GatewayService {
       new GatewayProcess({
         logger: d.logger,
         onUsage: (e) => d.onUsage?.(e),
+        onLearn: (e) => void this.learn(e),
         onStatus: () => this.changed(),
       });
   }
@@ -292,6 +308,7 @@ export class GatewayService {
           ...k,
           decryptable: this.store.decrypt(enc, encryption) !== null,
         })),
+        ...(hasLearned(data.learned[p.id]) ? { learned: data.learned[p.id] } : {}),
       })),
       clients: Object.fromEntries(
         CLIENT_IDS.flatMap((id) => {
@@ -389,6 +406,49 @@ export class GatewayService {
 
   clearLearned(providerId: string): void {
     this.store.setLearned(providerId, {});
+    this.commit();
+  }
+
+  /**
+   * 网关报回来的运行时学习（§7.4）：modelWire / droppedParams 直接记下；
+   * 疑似不可用的协议先用这个供应商保存的 Key 跑一次单协议探测，确实不通才写 wireDown（TTL 见网关）。
+   */
+  async learn(e: LearnEvent): Promise<void> {
+    const p = this.store.providers().find((x) => x.id === e.providerId);
+    if (!p) return;
+    const cur: LearnedState = structuredClone(this.store.snapshot().learned[p.id] ?? {});
+    if (e.type === 'dropped-param') {
+      const list = cur.droppedParams?.[e.wire] ?? [];
+      if (list.includes(e.param)) return;
+      cur.droppedParams = { ...cur.droppedParams, [e.wire]: [...list, e.param] };
+    } else if (e.type === 'model-wire') {
+      const all = (Object.keys(p.urls) as Wire[]).filter((w) => p.urls[w]);
+      const allowed = (cur.modelWire?.[e.model] ?? all).filter((w) => w !== e.exclude);
+      // 一个都不剩：说明判断不可靠，不学（宁可让请求照常失败）
+      if (!allowed.length) return;
+      cur.modelWire = { ...cur.modelWire, [e.model]: allowed };
+    } else {
+      const url = p.urls[e.wire];
+      if (!url) return;
+      const keys = p.keys
+        .filter((k) => k.enabled)
+        .flatMap((k) => {
+          const value = this.store.decrypt(k.enc, k.encryption);
+          return value !== null ? [{ id: k.id, value }] : [];
+        });
+      const s = this.proc.getStatus();
+      const r = await (this.d.detectImpl ?? detect)({
+        bases: { [e.wire]: url },
+        keys,
+        fallbackModel: p.models.find((m) => m.enabled)?.id,
+        allowedPrivateHosts: this.store.snapshot().allowedPrivateHosts,
+        ...(s.state === 'running' ? { selfPort: s.port } : {}),
+      }).catch(() => null);
+      if (!r || r.wires[e.wire]?.ok) return;
+      cur.wireDown = { ...cur.wireDown, [e.wire]: { at: Date.now(), reason: e.reason } };
+    }
+    this.d.logger.info('gateway learned', e);
+    this.store.setLearned(p.id, cur);
     this.commit();
   }
 
