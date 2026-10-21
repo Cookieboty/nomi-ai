@@ -71,7 +71,8 @@ describe('SessionTable (§11.4)', () => {
     expect(t.canKeep('s1', own)).toBe(false);
     t.record('s2', own);
     t.flush();
-    expect(fs.statSync(file).mode & 0o777).toBe(0o600);
+    // Windows does not expose POSIX permission bits; the file is still persisted and reloaded.
+    if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o600);
     const again = new SessionTable(file, () => now);
     expect(again.canKeep('s2', own)).toBe(true);
     now += SESSIONS_TTL_MS + 1;

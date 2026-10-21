@@ -1,6 +1,4 @@
 ---
-'@nomi-ai/ai-chat': minor
-'@nomi-ai/electron': minor
 '@nomi-ai/gateway': minor
 ---
 

@@ -272,7 +272,7 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     const drawer = chat.locator('[data-testid="endpoint-drawer"]');
     await expect(drawer).toBeVisible();
     await expect(chat.locator('[data-testid="endpoint-trend"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="endpoint-drawer-models"]')).toContainText('gpt-5');
+    await expect(chat.locator('[data-testid="endpoint-drawer-usage"]')).toBeVisible();
     await expect(chat.locator('[data-testid="endpoint-drawer-config"]')).toBeVisible();
     await shot(chat, '04-endpoint-drawer');
     const closeBtn = chat.getByRole('button', { name: '关闭', exact: true });
@@ -280,7 +280,7 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
     await closeBtn.click();
     await expect(drawer).toHaveCount(0);
 
-    // 切到 Nomi：没有订阅额度，信息卡仍在（用量 / 模型），不报错
+    // 切到 Nomi：没有订阅额度，信息卡仍在（用量），不报错
     await chat.locator('[data-testid="endpoint-filter-nomi"]').click();
     await expect(card).toBeVisible();
     await shot(chat, '05-sidebar-endpoint-card-nomi');

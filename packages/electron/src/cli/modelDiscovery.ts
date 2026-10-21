@@ -30,6 +30,9 @@ export interface ModelDiscoveryDeps {
   spawn: (backend: CliBackend, args: string[]) => ChildProcessWithoutNullStreams | null;
   /** Codex 的 config.toml 路径（读不传参数时的默认模型） */
   codexConfigPath: string;
+  /** Grok 自己维护的模型缓存 / 设置缓存（ACP 版本返回不完整时兜底） */
+  grokModelsCachePath?: string;
+  grokSettingsCachePath?: string;
   timeoutMs?: number;
 }
 
@@ -183,7 +186,22 @@ function discoverGrok(deps: ModelDiscoveryDeps, timeoutMs: number) {
           { cwd: os.tmpdir(), mcpServers: [] },
           opts,
         );
-        const catalog = parseGrokModels(session);
+        const acpCatalog = parseGrokModels(session);
+        const cacheCatalog = readGrokCache(deps);
+        // Grok 1.0.60 的 ACP 在部分登录 / 版本组合下只返回部分模型；
+        // models_cache.json 是 CLI 刚从同一模型接口写下的完整目录，补齐缺项但保留 ACP 顺序。
+        const catalog = cacheCatalog
+          ? {
+              ...acpCatalog,
+              models: [
+                ...acpCatalog.models,
+                ...cacheCatalog.models.filter(
+                  (m) => !acpCatalog.models.some((existing) => existing.id === m.id),
+                ),
+              ],
+              defaultModel: acpCatalog.defaultModel ?? cacheCatalog.defaultModel,
+            }
+          : acpCatalog;
         // 只为读目录建的会话：关掉，不留在 Grok 的会话列表里（失败不影响结果）
         const sessionId = typeof session.sessionId === 'string' ? session.sessionId : '';
         if (sessionId) {
@@ -197,5 +215,42 @@ function discoverGrok(deps: ModelDiscoveryDeps, timeoutMs: number) {
         fail(reason ? new Error(reason) : e instanceof Error ? e : new Error(String(e)));
       }
     })();
+  }).catch((error: unknown) => {
+    // ACP 启动可能被 Grok 的 managed policy 锁权限拦住；CLI 自己的缓存仍然是
+    // 最近一次真实模型接口返回，优先让模型选择器可用，发送消息时再由 CLI 报具体认证错误。
+    return readGrokCache(deps) ?? Promise.reject(error);
   });
+}
+
+/** 从 Grok 自己的缓存读取完整模型目录；读取失败时继续使用 ACP 结果。 */
+function readGrokCache(deps: ModelDiscoveryDeps): BackendModelCatalog | null {
+  const file = deps.grokModelsCachePath;
+  if (!file) return null;
+  try {
+    const catalog = parseGrokModels(JSON.parse(fs.readFileSync(file, 'utf8')));
+    if (deps.grokSettingsCachePath) {
+      try {
+        const settings = JSON.parse(fs.readFileSync(deps.grokSettingsCachePath, 'utf8')) as {
+          payload?: unknown;
+        };
+        const payload =
+          typeof settings.payload === 'string' ? JSON.parse(settings.payload) : settings.payload;
+        const defaultModel =
+          payload && typeof payload === 'object'
+            ? ((payload as { settings?: { default_model?: unknown }; default_model?: unknown })
+                .default_model ??
+              (payload as { settings?: { default_model?: unknown } }).settings?.default_model)
+            : undefined;
+        if (typeof defaultModel === 'string') {
+          const found = catalog.models.find((m) => m.id === defaultModel);
+          if (found) return { ...catalog, defaultModel: found };
+        }
+      } catch {
+        /* 设置缓存不是模型目录的必要条件 */
+      }
+    }
+    return catalog.models.length ? catalog : null;
+  } catch {
+    return null;
+  }
 }

@@ -31,7 +31,7 @@ import {
   codexTurnUsage,
   type CodexTokenTotals,
 } from './codex/appServer';
-import { codexConfigPath } from './configPatch';
+import { codexConfigPath, grokHomePath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
@@ -1339,6 +1339,8 @@ export class CliHarnessService {
       codexConfigPath: process.env.CODEX_HOME
         ? path.join(process.env.CODEX_HOME, 'config.toml')
         : codexConfigPath(this.home),
+      grokModelsCachePath: path.join(grokHomePath(this.home, process.env), 'models_cache.json'),
+      grokSettingsCachePath: path.join(grokHomePath(this.home, process.env), 'settings_cache.json'),
     })
       .catch((e: unknown): BackendModelCatalog => {
         const error = e instanceof Error ? e.message : String(e);
