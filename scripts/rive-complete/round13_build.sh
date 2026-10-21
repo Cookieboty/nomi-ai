@@ -51,3 +51,4 @@ python3 round35_hair_ornaments.py
 python3 round35_coat_badge.py
 python3 round35_bake_committed.py
 python3 round37_run_fist.py
+python3 round38_fist_swap.py
