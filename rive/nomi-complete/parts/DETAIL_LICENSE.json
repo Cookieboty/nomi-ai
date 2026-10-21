@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams). ROUND23: removed never-drawn assets sleeve-l-upper.png, sleeve-l-lower.png, sleeve-r-upper.png, sleeve-r-lower.png, coat-l-shoulder-orange.png, sleeve-l-upper-dark.png, sleeve-l-upper-orange.png, sleeve-l-lower-dark.png, sleeve-l-lower-orange.png, coat-r-shoulder-orange.png, sleeve-r-upper-dark.png, sleeve-r-upper-orange.png, sleeve-r-lower-dark.png, sleeve-r-lower-orange.png, sleeve-l-bent.png, sleeve-r-bent.png. ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother (under belt band / coat edge), inpainted from neighbouring source pixels. ROUND25: shoulder-cap pixels moved (not copied) from head.png into arm-l/r-shoulder-skin.png (same screen position; deterministic, no AI). ROUND27: coat front panels (placket, lining strip, leather trim, hem-tail lines) moved (not copied) from sleeve-{l,r}-full(.dark).png into coat-{l,r}-front.png; sleeve under the panel's opaque core backfilled by deterministic cv2 Telea inpaint from neighbouring sleeve pixels (10 px seam band + shaded underside). ROUND30: strengthen sleeve-{l,r}-full.png backfill under the full coat panel body (no 2px erosion / alpha feather) so R27d gravity hang no longer reveals background holes. ROUND31: body-backfill converted to bare-skin torso/hip underlay; shoulder-skin orange rim cleaned; arm-l/r-under-skin added under sleeves for coat-hide continuity. ROUND31c: shorts side orange accents split into shorts-side-orange.png. ROUND32: anatomical bare-body backfill + tapered arm-under-skin; neutral underlayer top/bottom layers; finger rest loop-safe (R32a). ROUND33a: socks split from leg skins into sock-l/r. ROUND33b: thigh strap split from leg-l-skin. ROUND33c: hair-bow extracted from hair-lock-r. ROUND34a: belt split from fabric; waist-backfill under belt. ROUND34b: pouch split + skinned with lag. ROUND34c: badge split + skinned lanyard. ROUND35a: real choker split from mouth/head; tank neckline into torso-tank. ROUND35b: hair-lock-l/back orange ornaments migrated to ornament-l/bow; coat blobs to coat. ROUND35c: neutral coat scraps cleaned; belt lanyard ring \u2192 badge. ROUND35c belt left scrap.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose \u2014 face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams). ROUND23: removed never-drawn assets sleeve-l-upper.png, sleeve-l-lower.png, sleeve-r-upper.png, sleeve-r-lower.png, coat-l-shoulder-orange.png, sleeve-l-upper-dark.png, sleeve-l-upper-orange.png, sleeve-l-lower-dark.png, sleeve-l-lower-orange.png, coat-r-shoulder-orange.png, sleeve-r-upper-dark.png, sleeve-r-upper-orange.png, sleeve-r-lower-dark.png, sleeve-r-lower-orange.png, sleeve-l-bent.png, sleeve-r-bent.png. ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother (under belt band / coat edge), inpainted from neighbouring source pixels. ROUND25: shoulder-cap pixels moved (not copied) from head.png into arm-l/r-shoulder-skin.png (same screen position; deterministic, no AI). ROUND27: coat front panels (placket, lining strip, leather trim, hem-tail lines) moved (not copied) from sleeve-{l,r}-full(.dark).png into coat-{l,r}-front.png; sleeve under the panel's opaque core backfilled by deterministic cv2 Telea inpaint from neighbouring sleeve pixels (10 px seam band + shaded underside). ROUND30: strengthen sleeve-{l,r}-full.png backfill under the full coat panel body (no 2px erosion / alpha feather) so R27d gravity hang no longer reveals background holes. ROUND31: body-backfill converted to bare-skin torso/hip underlay; shoulder-skin orange rim cleaned; arm-l/r-under-skin added under sleeves for coat-hide continuity. ROUND31c: shorts side orange accents split into shorts-side-orange.png. ROUND32: anatomical bare-body backfill + tapered arm-under-skin; neutral underlayer top/bottom layers; finger rest loop-safe (R32a). ROUND33a: socks split from leg skins into sock-l/r. ROUND33b: thigh strap split from leg-l-skin. ROUND33c: hair-bow extracted from hair-lock-r. ROUND34a: belt split from fabric; waist-backfill under belt. ROUND34b: pouch split + skinned with lag. ROUND34c: badge split + skinned lanyard. ROUND35a: real choker split from mouth/head; tank neckline into torso-tank. ROUND35b: hair-lock-l/back orange ornaments migrated to ornament-l/bow; coat blobs to coat. ROUND35c: neutral coat scraps cleaned; belt lanyard ring \u2192 badge. ROUND35c belt left scrap. ROUND39 bone fist: every finger crop split into meta/p0/p1/p2 phalanx pieces (original pixels, knuckle caps from original opaque pixels), rigid to joint-centred bones; R38 procedural fist removed.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -642,6 +642,293 @@
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: orange side ornaments from hair-lock-l; cloned lock-l mesh"
+    },
+    "reference/svg-rig/hand-l-thumb-meta.png": {
+      "sha256": "5276e24e64c268abaa0a78571c9952105fc9dc811c16a4b42537adb63943241d",
+      "bytes": 10601,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p0.png": {
+      "sha256": "7fa59a4a6436486c8591f6476658ccc6779831a0316c213864e77136f3df8246",
+      "bytes": 10747,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p1.png": {
+      "sha256": "9b733bf4210b383c3ff9092eda813e0de886424e5032e7faf72fe466ababaf5b",
+      "bytes": 10648,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p2.png": {
+      "sha256": "d9b3c51b2c9c5bc09f5a0d37f52d0f03972568b4b5f36d668ce56e53ad0923d4",
+      "bytes": 10625,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-meta.png": {
+      "sha256": "b43c8096f9b8b6fe797a180ed204af3c195f95ce820a857d5f77d37121fd75aa",
+      "bytes": 10549,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p0.png": {
+      "sha256": "1821c0056bcbf0a9d85352e1ddd6e60558d23fac5cce0dc633c99ccf9532af4a",
+      "bytes": 10692,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p1.png": {
+      "sha256": "cd1f159b142fb7e71266f6f5ef9b76fe34527fc73fb20b47613bcc3d2d5dd6b7",
+      "bytes": 10608,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p2.png": {
+      "sha256": "0dccff8da420f0d2301b40c08427a7f0726156acf5dff98c519d386eabbf52b8",
+      "bytes": 10633,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-meta.png": {
+      "sha256": "1c84c9407f5d59a4325fca64632ff43a77e3c5cf8216e4663fe05a780bae0b79",
+      "bytes": 10560,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p0.png": {
+      "sha256": "ebd15cbc7098c3facce4dac92856b7a07d27b266246b18843b9cf2166fc23033",
+      "bytes": 10596,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p1.png": {
+      "sha256": "4c21ea2abedfbdefaacd814f99ec7336cd5cdb75427b91c00c98d18781425d9c",
+      "bytes": 10602,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p2.png": {
+      "sha256": "25b8e1b45b8b708786f024e9a2e6591e1931c5e10ac2bf05baa974676079103f",
+      "bytes": 10605,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-meta.png": {
+      "sha256": "49af5b45a1b64ca82fcbbddbe63cfae9e5cccaccb475aea8bfd6a6b4394b14f4",
+      "bytes": 10555,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p0.png": {
+      "sha256": "09a6909e23eca76d11f4fea5340ace4e11780f74214b22e73ac27a8220c10332",
+      "bytes": 10569,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p1.png": {
+      "sha256": "4bfd8e52cb24ae335457246484b6ba6ebc59188a841e25f2271d8c90ef432b12",
+      "bytes": 10611,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p2.png": {
+      "sha256": "0402065c70d867f36bb9269a0fdbb0b41ba6d38632809a35816f56e7acb23c70",
+      "bytes": 10614,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-meta.png": {
+      "sha256": "3962f9e3ba118a5f5fb0d4ade9c38f46599847e4f1ac40646578b6cc2634455a",
+      "bytes": 10536,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p0.png": {
+      "sha256": "70e1cd4e1e215cfe137271adc270ba0b0c8285a431fb2063269d7651284e1013",
+      "bytes": 10573,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p1.png": {
+      "sha256": "39490f80e58f2f8420b298ff50e99bfa9f28c052dc770dae1b9d4fb5aff9ec73",
+      "bytes": 10560,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p2.png": {
+      "sha256": "479de54edd501d412e83b57b7adba8a94ae136c50836bfc9e1b12b70882ca4d3",
+      "bytes": 10580,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-meta.png": {
+      "sha256": "78936217a7312b1870c9bf5d0d79cd0a54a3b0da27ca3fed83fcf2ccb6c80038",
+      "bytes": 10149,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p0.png": {
+      "sha256": "7dc37ca2eac2415c2f361e7b4bb7354c8bbda8f9520e36ea98807aeb0db08122",
+      "bytes": 10224,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p1.png": {
+      "sha256": "524428ea52e02daee659682aa881eccc05c803b3629d95dce755d87849c2efd3",
+      "bytes": 10176,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p2.png": {
+      "sha256": "c43761791611b18661cc2b2427848e65b516ae161a1a267e0d323bcdd10f7b77",
+      "bytes": 10159,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-meta.png": {
+      "sha256": "7fea6aa11794e2704645fe100b7883a02e4e742f525d929b97f17059fce965ae",
+      "bytes": 10101,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p0.png": {
+      "sha256": "559f5f32a0866aba500a9872d39d27d19f4087da7bc3b84d48be30c1aff791d3",
+      "bytes": 10189,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p1.png": {
+      "sha256": "6489bcea1507c0fceed8822cff04ff8b6b39c490cf03e6329d0f441396f7671c",
+      "bytes": 10148,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p2.png": {
+      "sha256": "895fd43da78dfa0de6669a8819687b2c697695a8c5f96831a0e7aab3dfd16016",
+      "bytes": 10250,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p0.png": {
+      "sha256": "3ce4bbbdd595f3a248ba5b2cb0ad7a7c9bb8168052eecac9134cead4d7fee49e",
+      "bytes": 10139,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p1.png": {
+      "sha256": "a2f9fb4faa751f2725dc0a38f4a05f5849a46434f6e4070b19e350ab23301fb5",
+      "bytes": 10119,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p2.png": {
+      "sha256": "28d34f0cd009b51ad6234f6500dad98fb7ca24897affca7b361c2a7fc7d39c01",
+      "bytes": 10131,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-meta.png": {
+      "sha256": "f05d01d54235c26108946518bff8466893eee0af3bf1fd81a233ef4c19d32f3a",
+      "bytes": 10088,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p0.png": {
+      "sha256": "1e736133c80c3f147e417697541578bbf0e6e582ff94344442b03e75f39bbdc0",
+      "bytes": 10126,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p1.png": {
+      "sha256": "de0e7556ac6fcf3ccda3e06844a441f64bc8c8a97fcbe0afdfd7c14c3b86992c",
+      "bytes": 10115,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p2.png": {
+      "sha256": "7728a32cc583da6504773aaf3343af39cf8c925f1d9dfb534564df5b1350a9d6",
+      "bytes": 10120,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-meta.png": {
+      "sha256": "d68bb2c1bf4ad17c0c2da552a7bc7eda2467ac687c30b7f17c06dc809d3e6175",
+      "bytes": 10095,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p0.png": {
+      "sha256": "aaa1ab0b75422a47e5515c5a1a075c9d6a280e70f015afb20a8689f52b565808",
+      "bytes": 10105,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p1.png": {
+      "sha256": "8e89f22d9a04d436537b92fb080fc722f109151c4f15c09163d41ab4c4e201e1",
+      "bytes": 10104,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p2.png": {
+      "sha256": "f82967b1089daa25731bdc17f6750c25c856d35ea4ee9f15b92868499550ff38",
+      "bytes": 10115,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-palm-meta.png": {
+      "sha256": "89fe7dfd44e09b114883049ee445007105e5579f5949d2f6f1eb1c9c6f0fbaf8",
+      "bytes": 7807,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-l-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
+    },
+    "reference/svg-rig/hand-r-palm-meta.png": {
+      "sha256": "f78afc39b3c29144536098c85206d077a1a778c95773fdbd68fcd04e4b153df0",
+      "bytes": 7518,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-r-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
     }
   },
   "round32": {
