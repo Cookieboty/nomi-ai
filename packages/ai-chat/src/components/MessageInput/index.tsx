@@ -43,12 +43,13 @@ import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../..
 import type { SlashBridge, SlashCommand } from '../../slash/types';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
-import { EndpointControls } from '../EndpointControls';
+import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
 import type { SettingsSection } from '../SettingsView/sections';
 import { SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
+import { ImageLightbox } from './ImageLightbox';
 import styles from './index.module.css';
 
 const log = createLogger('message-input');
@@ -155,6 +156,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   // ───── 图片附件：粘贴 / 拖入 / 截图提问 ─────
   const [images, setImages] = useState<ImageAttachment[]>([]);
+  /** 点缩略图放大查看的那张 */
+  const [viewing, setViewing] = useState<ImageAttachment | null>(null);
+  const closeViewer = useCallback(() => setViewing(null), []);
   const [imgErr, setImgErr] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [snipping, setSnipping] = useState(false);
@@ -654,36 +658,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       <div className={styles.voiceRow}>
         <VoiceStatusRow cv={cv} />
       </div>
-      {(images.length > 0 || imgErr) && (
-        <div className={styles.attachRow} data-testid="attach-row">
-          {images.map((i) => (
-            <div key={i.id} className={styles.attachItem} title={`${i.width}×${i.height}`}>
-              <img src={i.thumb} alt={tr('附件图片')} className={styles.attachThumb} />
-              <button
-                type="button"
-                className={styles.attachRemove}
-                aria-label={tr('移除图片')}
-                onClick={() => setImages((c) => c.filter((x) => x.id !== i.id))}
-              >
-                <Icon icon={X} size={12} />
-              </button>
-            </div>
-          ))}
-          <div className={styles.attachMeta}>
-            {imgErr ? (
-              <span className={styles.attachErr}>{imgErr}</span>
-            ) : visionWarn ? (
-              <span className={styles.attachWarn} data-testid="vision-warn">
-                {tr('当前模型可能不支持看图，建议切换到视觉模型（如 qwen2.5vl、llava、gpt-4o）')}
-              </span>
-            ) : (
-              <span className={styles.attachHint}>
-                {tr('图片将随这条消息发送 · 原图不会保存在聊天记录里')}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      <PermissionTip />
+      {viewing && <ImageLightbox image={viewing} onClose={closeViewer} />}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {
@@ -718,6 +694,44 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
               /{argHint.name} {argHint.args.hint}
             </code>
             <span>{argHint.description}</span>
+          </div>
+        )}
+        {(images.length > 0 || imgErr) && (
+          <div className={styles.attachRow} data-testid="attach-row">
+            {images.map((i) => (
+              <div key={i.id} className={styles.attachItem} title={`${i.width}×${i.height}`}>
+                <button
+                  type="button"
+                  className={styles.attachOpen}
+                  aria-label={tr('查看图片')}
+                  data-testid="attach-open"
+                  onClick={() => setViewing(i)}
+                >
+                  <img src={i.thumb} alt={tr('附件图片')} className={styles.attachThumb} />
+                </button>
+                <button
+                  type="button"
+                  className={styles.attachRemove}
+                  aria-label={tr('移除图片')}
+                  onClick={() => setImages((c) => c.filter((x) => x.id !== i.id))}
+                >
+                  <Icon icon={X} size={12} />
+                </button>
+              </div>
+            ))}
+            <div className={styles.attachMeta}>
+              {imgErr ? (
+                <span className={styles.attachErr}>{imgErr}</span>
+              ) : visionWarn ? (
+                <span className={styles.attachWarn} data-testid="vision-warn">
+                  {tr('当前模型可能不支持看图，建议切换到视觉模型（如 qwen2.5vl、llava、gpt-4o）')}
+                </span>
+              ) : (
+                <span className={styles.attachHint}>
+                  {tr('图片将随这条消息发送 · 原图不会保存在聊天记录里')}
+                </span>
+              )}
+            </div>
           </div>
         )}
         <textarea

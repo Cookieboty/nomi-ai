@@ -237,6 +237,7 @@
   "取消固定{0}": "Unpin {0}",
   "固定{0}到左上角": "Pin {0} to top-left",
   "附件图片": "Attached image",
+  "查看图片": "View image",
   "移除图片": "Remove image",
   "当前模型可能不支持看图，建议切换到视觉模型（如 qwen2.5vl、llava、gpt-4o）": "The current model may not support images; consider switching to a vision model (e.g. qwen2.5vl, llava, gpt-4o)",
   "图片将随这条消息发送 · 原图不会保存在聊天记录里": "Images are sent with this message · originals aren't saved in chat history",
