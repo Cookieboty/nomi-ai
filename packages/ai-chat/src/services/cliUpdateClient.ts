@@ -81,9 +81,39 @@ async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   return r;
 }
 
+/**
+ * 渲染进程侧的 inspect 共享：选择条和版本分组同时挂载时只发一次；记住上次结果，
+ * 切换助手 / 重新打开页面时先显示它，再在后台静默校验（主进程另有探测缓存）。
+ */
+let lastInspect: CliInstallInfo[] | null = null;
+let inspecting: Promise<CliInstallInfo[]> | null = null;
+function inspect(refresh = false): Promise<CliInstallInfo[]> {
+  if (!refresh && inspecting) return inspecting;
+  const p = call<CliInstallInfo[]>('inspect', refresh).then((rows) => {
+    if (Array.isArray(rows)) lastInspect = rows;
+    return rows;
+  });
+  if (!refresh) {
+    inspecting = p;
+    void p
+      .catch(() => undefined)
+      .finally(() => {
+        if (inspecting === p) inspecting = null;
+      });
+  }
+  return p;
+}
+
 export const cliUpdateClient = {
   available: () => !!bridge(),
-  inspect: (refresh = false) => call<CliInstallInfo[]>('inspect', refresh),
+  inspect,
+  /** 上次 inspect 的结果（还没查过为 null），用于先渲染再校验 */
+  cached: (): CliInstallInfo[] | null => lastInspect,
+  /** 测试用：清掉共享状态 */
+  resetCache: () => {
+    lastInspect = null;
+    inspecting = null;
+  },
   preview: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>
     call<CliInstallPlan>('preview', kind, scope),
   run: (kind: CliUpdatableKind, scope: CliInstallScope = 'global') =>

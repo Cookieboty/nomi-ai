@@ -139,6 +139,5 @@ test.describe('v1.1.1 settings layout', () => {
 
     await chat.locator('[data-testid="settings-nav-coding"]').click();
     await expect(chat.locator('[data-testid="providers-endpoint-claude"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="providers-endpoint-status-nomi"]')).toHaveText('内置');
   });
 });

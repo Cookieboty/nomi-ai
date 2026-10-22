@@ -1,20 +1,20 @@
 /**
- * 「监视与会话」：本机编程助手进度监视（开关 / 系统通知 / 检测到的工具 / 立即扫描）
+ * 「监视与会话」：进度监视（开关 / 系统通知 / 语音播报）、监视哪些助手（检测 / 立即扫描）
  * + 活跃会话列表（按端点筛选；Nomi 标签可直接打开）。
  * 只读本地日志与进程列表，不登录、不抓取任何账号。通知样式与灵动岛在「通知 / 灵动岛」里设置。
  */
 import {
   Badge,
   Button,
-  Card,
   createLogger,
   EmptyState,
   Notice,
+  SettingRow,
+  SettingsGroup,
   Switch,
   t as tr,
-  Icon,
 } from '@nomi-ai/ui';
-import { SquareTerminal, Check } from 'lucide-react';
+import { SquareTerminal } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -77,99 +77,127 @@ export const CodingMonitor: React.FC<{
     };
   }, [loadAgents]);
 
+  const setSettings = (p: Parameters<typeof agentsClient.setSettings>[0]) =>
+    void agentsClient.setSettings(p).then(loadAgents);
+
   return (
     <div className={styles.stack} data-testid="coding-monitor">
-      <p className={styles.hint}>
-        {tr(
-          '监视本机编程助手会话（Claude Code / Codex / dsh / Gemini CLI / Cursor / Aider / Cline / Continue）：只算「文件刚有写入且进程还在」的会话，按会话去重。只读本地日志与进程列表，不登录、不刮取任何账号。',
-        )}
-      </p>
       {!agentsClient.available() && (
         <Notice tone="warning">{tr('当前环境无法访问主进程监视器。')}</Notice>
       )}
       {agents && (
         <>
-          <section className={styles.section}>
-            <h3 className={styles.h3}>{tr('监视设置')}</h3>
-            <Switch
-              checked={agents.settings.enabled}
-              onChange={(v) => void agentsClient.setSettings({ enabled: v }).then(loadAgents)}
-              label={tr('监视编程助手进度')}
-              data-testid="agents-enabled"
-            />
-            <Switch
-              checked={agents.settings.osNotify}
-              onChange={(v) => void agentsClient.setSettings({ osNotify: v }).then(loadAgents)}
-              label={tr('任务完成 / 卡住时发送系统通知')}
-              data-testid="agents-os-notify"
-            />
-            <Switch
-              checked={agents.settings.summaryEnabled}
-              disabled={!agents.settings.enabled}
-              onChange={(v) =>
-                void agentsClient.setSettings({ summaryEnabled: v }).then(loadAgents)
-              }
-              label={tr('编程助手消息语音播报（Codex 等）')}
-              data-testid="agents-summary"
-            />
-            <p className={styles.hint}>
-              {tr(
-                '开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时任务状态提示保留提示音，定时汇总只显示提示。遵守语音开关与静音。',
+          <SettingsGroup
+            title={tr('进度监视')}
+            description={tr(
+              '只算「文件刚有写入且进程还在」的会话，按会话去重。只读本地日志与进程列表，不登录、不刮取任何账号。',
+            )}
+          >
+            <SettingRow
+              title={tr('监视编程助手进度')}
+              description={tr('任务完成、失败、卡住或等待确认时在气泡 / 灵动岛里提示。')}
+            >
+              <Switch
+                checked={agents.settings.enabled}
+                onChange={(v) => setSettings({ enabled: v })}
+                aria-label={tr('监视编程助手进度')}
+                data-testid="agents-enabled"
+              />
+            </SettingRow>
+            <SettingRow title={tr('任务完成 / 卡住时发送系统通知')}>
+              <Switch
+                checked={agents.settings.osNotify}
+                onChange={(v) => setSettings({ osNotify: v })}
+                aria-label={tr('任务完成 / 卡住时发送系统通知')}
+                data-testid="agents-os-notify"
+              />
+            </SettingRow>
+            <SettingRow
+              title={tr('语音播报')}
+              description={tr(
+                '任务状态和定时汇总在提示音之外再朗读一遍；关闭时只保留提示音。遵守语音开关与静音。',
               )}
-            </p>
-            <p className={styles.hint}>
-              {tr('灵动岛样式、通知类型与免打扰在「通知 / 灵动岛」和「日程与日历」里设置。')}{' '}
-              {onOpenNotify && (
+            >
+              <Switch
+                checked={agents.settings.summaryEnabled}
+                disabled={!agents.settings.enabled}
+                onChange={(v) => setSettings({ summaryEnabled: v })}
+                aria-label={tr('编程助手消息语音播报（Codex 等）')}
+                data-testid="agents-summary"
+              />
+            </SettingRow>
+            {onOpenNotify && (
+              <SettingRow
+                title={tr('灵动岛与免打扰')}
+                description={tr(
+                  '通知样式、类型与免打扰时段在「通知 / 灵动岛」和「日程与日历」里设置。',
+                )}
+              >
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="secondary"
                   data-testid="agents-open-notify"
                   onClick={onOpenNotify}
                 >
                   {tr('打开通知 / 灵动岛')}
                 </Button>
-              )}
-            </p>
-            <div className={styles.row}>
-              {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => (
-                <label key={k} className={`${styles.hint} ${styles.tool}`}>
-                  <input
-                    type="checkbox"
-                    checked={agents.settings.tools[k]}
-                    disabled={!agents.settings.enabled}
-                    onChange={(e) =>
-                      void agentsClient
-                        .setSettings({
-                          tools: { [k]: e.target.checked } as Partial<Record<AgentKind, boolean>>,
-                        })
-                        .then(loadAgents)
-                    }
-                    data-testid={`agents-tool-${k}`}
-                  />
-                  {tr(AGENT_LABEL[k])}
-                  {agents.detected.includes(k) ? <Icon icon={Check} size={14} /> : null}
-                </label>
-              ))}
-            </div>
-            <div className={styles.row}>
+              </SettingRow>
+            )}
+          </SettingsGroup>
+
+          <SettingsGroup
+            title={tr('监视哪些助手')}
+            description={
+              <>
+                {tr('已检测：')}
+                {agents.detected.length
+                  ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
+                  : tr('无')}
+              </>
+            }
+            actions={
               <Button
                 size="sm"
+                variant="secondary"
                 onClick={() => void agentsClient.scan().then(setAgents)}
                 data-testid="agents-scan"
               >
                 {tr('立即扫描')}
               </Button>
-              <span className={styles.hint}>
-                {tr('已检测：')}
-                {agents.detected.length
-                  ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
-                  : tr('无')}
-              </span>
+            }
+          >
+            <div className={styles.tools}>
+              {(Object.keys(AGENT_LABEL) as AgentKind[]).map((k) => {
+                const found = agents.detected.includes(k);
+                return (
+                  <div key={k} className={styles.tool}>
+                    <span className={styles.toolName}>
+                      {tr(AGENT_LABEL[k])}
+                      <span className={styles.toolState} data-found={found ? '1' : undefined}>
+                        {found ? tr('已检测到') : tr('未检测到')}
+                      </span>
+                    </span>
+                    <Switch
+                      checked={agents.settings.tools[k]}
+                      disabled={!agents.settings.enabled}
+                      onChange={(v) =>
+                        setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
+                      }
+                      aria-label={tr('监视 {0}', tr(AGENT_LABEL[k]))}
+                      data-testid={`agents-tool-${k}`}
+                    />
+                  </div>
+                );
+              })}
             </div>
-          </section>
+          </SettingsGroup>
 
-          <section className={styles.section}>
-            <h3 className={styles.h3}>{tr('活跃会话')}</h3>
+          <SettingsGroup
+            title={tr('活跃会话')}
+            description={tr(
+              'Claude Code / Codex / dsh / Gemini CLI / Cursor / Aider / Cline / Continue 与 Nomi 里的编程助手标签。',
+            )}
+          >
             {agents.sessions.length > 0 && (
               <div
                 className={styles.row}
@@ -208,64 +236,73 @@ export const CodingMonitor: React.FC<{
                 )}
               />
             ) : (
-              <div className={styles.stack} data-testid="agents-sessions">
+              <div data-testid="agents-sessions">
                 {filterSessions(agents.sessions, agentFilter)
                   .slice(0, 20)
                   .map((s) => (
-                    <Card key={s.id} flat data-testid={`agents-session-${s.source ?? 'file'}`}>
-                      <div className={styles.row}>
-                        {s.kind === 'nomi' ||
-                        s.kind === 'claude' ||
-                        s.kind === 'codex' ||
-                        s.kind === 'dsh' ? (
-                          <EndpointIcon backend={s.kind} size={16} />
-                        ) : null}
-                        <strong className={styles.grow} title={s.cwd || s.path}>
-                          {s.title}
-                        </strong>
-                        <Badge
-                          tone={
-                            s.status === 'failed' || s.status === 'stalled'
-                              ? 'warning'
-                              : s.status === 'completed'
-                                ? 'success'
-                                : undefined
+                    <SettingRow
+                      key={s.id}
+                      data-testid={`agents-session-${s.source ?? 'file'}`}
+                      title={
+                        <span className={styles.sessionTitle} title={s.cwd || s.path}>
+                          {s.kind === 'nomi' ||
+                          s.kind === 'claude' ||
+                          s.kind === 'codex' ||
+                          s.kind === 'dsh' ? (
+                            <EndpointIcon backend={s.kind} size={16} />
+                          ) : null}
+                          <span className={styles.grow}>{s.title}</span>
+                        </span>
+                      }
+                      description={
+                        <span
+                          className={styles.meta}
+                          title={s.summary || undefined}
+                          data-testid="agents-session-meta"
+                        >
+                          {[
+                            s.label,
+                            s.project,
+                            tr('最后活动 {0}', relTime(s.mtime)),
+                            s.usage ? sessionUsageText(s.usage, fx.currency, fx.rate) : '',
+                            s.summary,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </span>
+                      }
+                    >
+                      <Badge
+                        tone={
+                          s.status === 'failed' || s.status === 'stalled'
+                            ? 'warning'
+                            : s.status === 'completed'
+                              ? 'success'
+                              : undefined
+                        }
+                      >
+                        {tr(STATUS_LABEL[s.status])}
+                      </Badge>
+                      {s.source === 'tab' && s.tabId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          data-testid="agents-open-tab"
+                          onClick={() =>
+                            void harnessClient
+                              .activateTab(s.tabId!)
+                              .then(() => onOpenedTab?.())
+                              .catch(() => undefined)
                           }
                         >
-                          {tr(STATUS_LABEL[s.status])}
-                        </Badge>
-                        {s.source === 'tab' && s.tabId && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            data-testid="agents-open-tab"
-                            onClick={() =>
-                              void harnessClient
-                                .activateTab(s.tabId!)
-                                .then(() => onOpenedTab?.())
-                                .catch(() => undefined)
-                            }
-                          >
-                            {s.unread ? tr('查看 {0} 条新结果', s.unread) : tr('打开标签')}
-                          </Button>
-                        )}
-                      </div>
-                      <p className={styles.hint} data-testid="agents-session-meta">
-                        {[
-                          s.label,
-                          s.project,
-                          tr('最后活动 {0}', relTime(s.mtime)),
-                          s.usage ? sessionUsageText(s.usage, fx.currency, fx.rate) : '',
-                          s.summary,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    </Card>
+                          {s.unread ? tr('查看 {0} 条新结果', s.unread) : tr('打开标签')}
+                        </Button>
+                      )}
+                    </SettingRow>
                   ))}
               </div>
             )}
-          </section>
+          </SettingsGroup>
         </>
       )}
     </div>

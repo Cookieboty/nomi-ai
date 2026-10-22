@@ -242,8 +242,22 @@ export const defaultRunner: CliRunner = (argv, onLine, { timeoutMs }) =>
     });
   });
 
+const INSPECT_KINDS: readonly CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini', 'cursor'];
+/** 本机探测结果的有效期：设置页来回切换不再反复起进程；终端里自己升级的版本最晚这么久后显示 */
+const PROBE_TTL_MS = 5 * 60_000;
+const LATEST_TTL_MS = 6 * 60 * 60_000;
+
+interface LocalProbe {
+  kind: CliKind;
+  bin: string | null;
+  version: string | null;
+  runtimeWarning: CliInstallInfo['runtimeWarning'];
+}
+
 export class CliUpdateService {
   private cache: CliUpdateCache = { checkedAt: 0, latest: {} };
+  private probed: { at: number; rows: Promise<LocalProbe[]> } | null = null;
+  private latestRefresh: Promise<void> | null = null;
   private readonly cachePath: string;
   /** 每个端点最近一次任务（运行中 / 已结束，直到用户关闭） */
   private readonly jobs = new Map<UpdatableCli, CliJobSnapshot>();
@@ -284,65 +298,105 @@ export class CliUpdateService {
     fs.writeFileSync(this.cachePath, JSON.stringify(this.cache, null, 2), 'utf8');
   }
 
+  /** 「最新版本」查询（npm registry）；并发调用共用一次 */
+  private refreshLatest(): Promise<void> {
+    this.latestRefresh ??= (async () => {
+      const [cl, cx, ds, gk, gm] = await Promise.all([
+        fetchNpmLatest(NPM_PKG.claude),
+        fetchNpmLatest(NPM_PKG.codex),
+        fetchNpmLatest(NPM_PKG.dsh),
+        fetchNpmLatest(NPM_PKG.grok),
+        fetchNpmLatest(NPM_PKG.gemini),
+      ]);
+      // 网络失败（null）时保留上次查到的值，不要把已知的最新版本冲掉
+      const old = this.cache.latest;
+      this.cache = {
+        checkedAt: Date.now(),
+        latest: {
+          claude: cl ?? old.claude ?? null,
+          codex: cx ?? old.codex ?? null,
+          dsh: ds ?? old.dsh ?? null,
+          grok: gk ?? old.grok ?? null,
+          gemini: gm ?? old.gemini ?? null,
+          cursor: null,
+        },
+      };
+      try {
+        this.save();
+      } catch {
+        /* cache 写失败不影响探测结果 */
+      }
+    })()
+      .catch((err) => this.d.logger.warn('cli-update latest check failed', err))
+      .finally(() => {
+        this.latestRefresh = null;
+      });
+    return this.latestRefresh;
+  }
+
+  /** 本机探测：可执行文件路径 + `--version`（每个 CLI 起一个进程，较慢） */
+  private probeLocal(): Promise<LocalProbe[]> {
+    return Promise.all(
+      INSPECT_KINDS.map(async (kind) => {
+        let bin: string | null = null;
+        let version: string | null = null;
+        try {
+          const resolved = await resolveCliBinAsync(kind);
+          bin = resolved;
+          version = resolved ? await readVersionAsync(resolved) : null;
+        } catch {
+          /* 探测失败当作未安装 */
+        }
+        // 真实 dsh（非 .mjs Mock）才检查 Node 版本
+        const runtimeWarning =
+          kind === 'dsh' && bin && !/\.(mjs|js)$/.test(bin) ? await dshRuntimeProblemAsync() : null;
+        return { kind, bin, version, runtimeWarning };
+      }),
+    );
+  }
+
+  /**
+   * 已装版本 + 最新版本。
+   * - 本机探测结果缓存 PROBE_TTL_MS，并发调用共用一次；安装 / 更新结束或显式「检查更新」时重新探测。
+   * - 最新版本缓存 6 小时：过期时先返回旧值、后台刷新（不让打开页面卡在网络请求上）；
+   *   缓存里缺某个端点（例如新加入的 Gemini）或显式「检查更新」时才等待查询。
+   */
   async inspect(refreshLatest = false): Promise<CliInstallInfo[]> {
-    const kinds: CliKind[] = ['claude', 'codex', 'dsh', 'grok', 'gemini', 'cursor'];
+    const kinds = INSPECT_KINDS;
     try {
-      // 缓存里缺某个端点（例如新加入的 Gemini）也当作过期，否则 6 小时内都显示不出最新版本
       const missing = (['claude', 'codex', 'dsh', 'grok', 'gemini'] as const).some(
         (k) => !(k in this.cache.latest),
       );
-      if (refreshLatest || missing || Date.now() - this.cache.checkedAt > 6 * 60 * 60_000) {
-        const [cl, cx, ds, gk, gm] = await Promise.all([
-          fetchNpmLatest(NPM_PKG.claude),
-          fetchNpmLatest(NPM_PKG.codex),
-          fetchNpmLatest(NPM_PKG.dsh),
-          fetchNpmLatest(NPM_PKG.grok),
-          fetchNpmLatest(NPM_PKG.gemini),
-        ]);
-        this.cache = {
-          checkedAt: Date.now(),
-          latest: { claude: cl, codex: cx, dsh: ds, grok: gk, gemini: gm, cursor: null },
-        };
-        try {
-          this.save();
-        } catch {
-          /* cache 写失败不影响探测结果 */
-        }
+      let latestTask: Promise<void> | null = null;
+      if (refreshLatest || missing) latestTask = this.refreshLatest();
+      else if (Date.now() - this.cache.checkedAt > LATEST_TTL_MS) void this.refreshLatest();
+      let probed = this.probed;
+      if (refreshLatest || !probed || Date.now() - probed.at > PROBE_TTL_MS) {
+        const entry = { at: Date.now(), rows: this.probeLocal() };
+        probed = this.probed = entry;
+        entry.rows.catch(() => {
+          if (this.probed === entry) this.probed = null;
+        });
       }
-      return Promise.all(
-        kinds.map(async (kind) => {
-          let bin: string | null = null;
-          let version: string | null = null;
-          try {
-            const resolved = await resolveCliBinAsync(kind);
-            bin = resolved;
-            version = resolved ? await readVersionAsync(resolved) : null;
-          } catch {
-            /* 探测失败当作未安装 */
-          }
-          const latest = this.cache.latest[kind] ?? null;
-          const method = kind === 'dsh' && bin ? 'npm' : guessInstallMethod(bin);
-          const updateSupported = isUpdatable(kind);
-          // 真实 dsh（非 .mjs Mock）才检查 Node 版本
-          const runtimeWarning =
-            kind === 'dsh' && bin && !/\.(mjs|js)$/.test(bin)
-              ? await dshRuntimeProblemAsync()
-              : null;
-          return {
-            kind,
-            runtimeWarning,
-            path: bin,
-            version,
-            latest,
-            installMethod: method,
-            updateAvailable: Boolean(
-              updateSupported && version && latest && isNewer(latest, version),
-            ),
-            updateSupported,
-            installSupported: updateSupported,
-          };
-        }),
-      );
+      const [local] = await Promise.all([probed.rows, latestTask]);
+      return local.map(({ kind, bin, version, runtimeWarning }) => {
+        const latest = this.cache.latest[kind] ?? null;
+        const method = kind === 'dsh' && bin ? 'npm' : guessInstallMethod(bin);
+        const updateSupported = isUpdatable(kind);
+        return {
+          kind,
+          runtimeWarning,
+          path: bin,
+          version,
+          latest,
+          installMethod: method,
+          updateAvailable: Boolean(
+            updateSupported && version && latest && isNewer(latest, version),
+          ),
+          updateSupported,
+          installSupported: updateSupported,
+        };
+      });
     } catch (err) {
       this.d.logger.warn('cli-update inspect failed', err);
       return kinds.map((kind) => ({
@@ -473,6 +527,8 @@ export class CliUpdateService {
   }
 
   private finishJob(kind: UpdatableCli, r: CliRunResult): void {
+    // 装 / 更新过：下次 inspect 重新探测本机版本
+    this.probed = null;
     const j = this.jobs.get(kind);
     if (!j || j.status !== 'running') return;
     j.status = r.ok ? 'done' : 'error';

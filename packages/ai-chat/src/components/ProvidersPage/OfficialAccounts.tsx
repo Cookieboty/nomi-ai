@@ -2,7 +2,7 @@
  * 编程助手的官方账号（docs/design/cli-official-accounts.md §6）：多个官方账号登录与全局切换。
  * 切换会改写该 CLI 的全局登录：用户在终端里直接用的 CLI 也跟着切。界面只拿得到身份（邮箱 / 套餐）。
  */
-import { Badge, Button, Card, Icon, Modal, Notice, t } from '@nomi-ai/ui';
+import { Badge, Button, Icon, Modal, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { Copy, ExternalLink, LogIn, UserRound } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -194,20 +194,33 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
 
   const liveKnown = !!live && accounts.some((a) => a.identity?.key === live.key);
 
+  const loginBusy =
+    !!login && login.state !== 'done' && login.state !== 'error' && login.state !== 'cancelled';
+
   return (
-    <section className={styles.card} data-testid={`cli-accounts-${kind}`}>
-      <div className={ppStyles.stack}>
-        <div className={ppStyles.inline}>
-          <strong>{t('官方账号')}</strong>
-          <span className="cd-muted" data-testid="cli-accounts-live">
+    <SettingsGroup
+      title={t('官方账号')}
+      data-testid={`cli-accounts-${kind}`}
+      description={
+        <>
+          <span data-testid="cli-accounts-live">
             {live
               ? t('终端当前登录：{0}', live.email ?? t('未知账号'))
               : t('终端当前没有登录官方账号')}
           </span>
-          <span className="cd-spacer" />
+          {' · '}
+          {t(
+            '切换会改写 {0} 的全局登录，终端里直接运行的 {0} 也会跟着切换；切换前会先备份当前凭据。',
+            NAME[kind],
+          )}
+        </>
+      }
+      actions={
+        <>
           {live && !liveKnown && (
             <Button
               size="sm"
+              variant="secondary"
               disabled={!!busy}
               data-testid="cli-accounts-import"
               onClick={() =>
@@ -220,13 +233,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           <Button
             size="sm"
             variant="primary"
-            disabled={
-              !!busy ||
-              (!!login &&
-                login.state !== 'done' &&
-                login.state !== 'error' &&
-                login.state !== 'cancelled')
-            }
+            disabled={!!busy || loginBusy}
             data-testid="cli-accounts-add"
             onClick={() =>
               void cliAccountClient
@@ -238,95 +245,89 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             <Icon icon={LogIn} size={14} />
             {t('添加官方账号')}
           </Button>
-        </div>
-        <p className="cd-muted" style={{ fontSize: 'var(--cd-font-size-xs)' }}>
-          {t(
-            '可以登录多个 {0} 官方账号并随时切换。切换会改写 {0} 的全局登录，你在终端里直接运行的 {0} 也会跟着切换；切换前会先保存当前登录的最新凭据并备份。',
-            NAME[kind],
+        </>
+      }
+    >
+      {msg && (
+        <Notice tone={msg.tone} data-testid="cli-accounts-msg">
+          {msg.text}
+        </Notice>
+      )}
+      {accounts.map((a) => (
+        <SettingRow
+          key={a.id}
+          data-testid="cli-account-card"
+          data-active={a.active ? '1' : undefined}
+          title={
+            <span className={styles.accountTitle}>
+              <EndpointIcon backend={kind} size={18} decorative />
+              <span>{a.label}</span>
+              {a.identity?.plan && <Badge tone="neutral">{a.identity.plan}</Badge>}
+              {a.active && (
+                <Badge tone="success" data-testid="cli-account-current">
+                  {t('当前')}
+                </Badge>
+              )}
+            </span>
+          }
+          description={
+            [a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') || undefined
+          }
+        >
+          {!a.active && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!!busy}
+              data-testid="cli-account-activate"
+              onClick={() =>
+                void run(
+                  `a:${a.id}`,
+                  () => cliAccountClient.activate(a.id, a.kind),
+                  t('已切换到 {0}', a.label),
+                )
+              }
+            >
+              {busy === `a:${a.id}` ? t('正在切换…') : t('切换')}
+            </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            onClick={() => {
+              const next = window.prompt(t('账号名称'), a.label);
+              if (next && next.trim() && next.trim() !== a.label)
+                void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
+            }}
+          >
+            {t('重命名')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            data-testid="cli-account-remove"
+            onClick={() => {
+              if (
+                window.confirm(
+                  t('从 Nomi 删除账号「{0}」？{1} 现在的登录不会被退出。', a.label, NAME[kind]),
+                )
+              )
+                void run(`d:${a.id}`, () => cliAccountClient.remove(a.id));
+            }}
+          >
+            {t('删除')}
+          </Button>
+        </SettingRow>
+      ))}
+      {accounts.length === 0 && (
+        <p className={styles.empty} data-testid="cli-accounts-empty">
+          <Icon icon={UserRound} size={14} />
+          {t('还没有保存的官方账号。登录后可以在多个账号之间随时切换。')}
         </p>
-        {msg && (
-          <Notice tone={msg.tone} data-testid="cli-accounts-msg">
-            {msg.text}
-          </Notice>
-        )}
-        {accounts.map((a) => (
-          <Card
-            key={a.id}
-            active={a.active}
-            className={ppStyles.card}
-            data-testid="cli-account-card"
-            title={
-              <span className={ppStyles.inline}>
-                <EndpointIcon backend={kind} size={22} decorative />
-                <span>{a.label}</span>
-                {a.identity?.plan && <Badge>{a.identity.plan}</Badge>}
-                {a.active && <Badge data-testid="cli-account-current">{t('当前')}</Badge>}
-              </span>
-            }
-            subtitle={[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') || undefined}
-            actions={
-              <span className={ppStyles.inline}>
-                {!a.active && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    disabled={!!busy}
-                    data-testid="cli-account-activate"
-                    onClick={() =>
-                      void run(
-                        `a:${a.id}`,
-                        () => cliAccountClient.activate(a.id, a.kind),
-                        t('已切换到 {0}', a.label),
-                      )
-                    }
-                  >
-                    {busy === `a:${a.id}` ? t('正在切换…') : t('切换')}
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!!busy}
-                  onClick={() => {
-                    const next = window.prompt(t('账号名称'), a.label);
-                    if (next && next.trim() && next.trim() !== a.label)
-                      void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
-                  }}
-                >
-                  {t('重命名')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!!busy}
-                  data-testid="cli-account-remove"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        t(
-                          '从 Nomi 删除账号「{0}」？{1} 现在的登录不会被退出。',
-                          a.label,
-                          NAME[kind],
-                        ),
-                      )
-                    )
-                      void run(`d:${a.id}`, () => cliAccountClient.remove(a.id));
-                  }}
-                >
-                  {t('删除')}
-                </Button>
-              </span>
-            }
-          />
-        ))}
-        {accounts.length === 0 && (
-          <p className="cd-muted" data-testid="cli-accounts-empty">
-            <Icon icon={UserRound} size={14} /> {t('还没有保存的官方账号')}
-          </p>
-        )}
-      </div>
+      )}
       {login && <LoginDialog kind={kind} event={login} onClose={() => setLogin(null)} />}
-    </section>
+    </SettingsGroup>
   );
 };

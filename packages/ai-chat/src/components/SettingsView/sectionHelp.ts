@@ -53,7 +53,7 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
     { icon: SquareTerminal, title: '终端启动命令', desc: '在终端里用第三方模型启动编程助手。' },
   ],
   coding: [
-    { icon: AppWindow, title: '助手卡片', desc: '切换要查看的编程助手，卡片上显示安装状态。' },
+    { icon: AppWindow, title: '助手', desc: '选择要查看的编程助手，选择条上显示安装状态。' },
     { icon: Download, title: '版本与账号', desc: '检测、安装或更新 CLI，管理官方账号登录。' },
     { icon: Activity, title: '监视与会话', desc: '本机编程助手的进度监视与活跃会话。' },
   ],

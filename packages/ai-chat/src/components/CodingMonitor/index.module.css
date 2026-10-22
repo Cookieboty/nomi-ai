@@ -1,7 +1,7 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-3);
+  gap: var(--cd-space-4);
 }
 .row {
   display: flex;
@@ -12,24 +12,54 @@
 .grow {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.hint {
-  font-size: var(--cd-font-size-xs);
-  line-height: var(--cd-line-height-xs);
-  color: var(--cd-color-text-muted);
-  margin: 0;
+/* 监视哪些助手：两列，每项名称 + 检测状态 + 开关 */
+.tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--cd-space-1) var(--cd-space-6);
+}
+@media (max-width: 560px) {
+  .tools {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 .tool {
-  display: inline-flex;
-  gap: var(--cd-space-1);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-3);
+  min-height: var(--cd-control-h-md);
 }
-.section {
+.toolName {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
+  min-width: 0;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
 }
-.h3 {
-  margin: 0;
-  font-size: var(--cd-font-size-md);
+.toolState {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-regular);
+  color: var(--cd-color-text-subtle);
+}
+.toolState[data-found] {
+  color: var(--cd-color-success);
+}
+.sessionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+.meta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }

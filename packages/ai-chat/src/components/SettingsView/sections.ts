@@ -48,7 +48,7 @@ export const SETTINGS_SECTIONS: Array<{
     icon: SETTINGS_ICONS.coding,
     label: '编程助手',
     intro:
-      '管理 Claude Code / Codex / dsh / Grok / Gemini 的版本与官方账号，以及本机编程助手的进度监视。第三方模型在「模型」页设置。',
+      '管理 Claude Code / Codex / dsh / Grok / Gemini 的版本与官方账号，以及本机编程助手的进度监视。Nomi 自己和各助手的第三方模型都在「模型」页设置。',
   },
   {
     id: 'usage',

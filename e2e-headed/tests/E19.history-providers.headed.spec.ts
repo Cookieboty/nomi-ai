@@ -376,10 +376,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
-    // Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话
-    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(7);
-    await expect(chat.locator('[data-testid="providers-section-nomi"]')).toBeVisible();
-    await shot(chat, '09-providers-nomi');
+    // 「助手」分段下的选择条：Claude Code / Codex / dsh / Grok / Gemini
+    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(5);
+    await shot(chat, '09-providers-assistants');
 
     await chat.click('[data-testid="providers-endpoint-claude"]');
     // 第三方模型改在「模型」页统一设置（统一网关 M3）：编程助手页只留入口

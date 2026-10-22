@@ -7,6 +7,8 @@ export interface TabItem<T extends string = string> {
   value: T;
   label: React.ReactNode;
   disabled?: boolean;
+  /** 渲染为该标签按钮的 data-testid */
+  testId?: string;
 }
 
 export interface TabsProps<T extends string = string> {
@@ -52,6 +54,7 @@ export function Tabs<T extends string = string>({
           tabIndex={it.value === value ? 0 : -1}
           disabled={it.disabled}
           className="cd-tab"
+          data-testid={it.testId}
           onClick={() => onChange(it.value)}
         >
           {t(it.label)}

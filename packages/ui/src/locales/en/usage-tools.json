@@ -22,7 +22,6 @@
   "合十": "Prayer hands",
   "OK 手势": "OK gesture",
   "编程助手消息语音播报（Codex 等）": "Spoken coding-assistant notifications (Codex and more)",
-  "开启后，Codex、Claude Code 等任务完成、失败、卡住、等待确认和定时汇总会在气泡 / 灵动岛与提示音之外朗读；关闭时任务状态提示保留提示音，定时汇总只显示提示。遵守语音开关与静音。": "When on, Codex, Claude Code and other task completion, failure, stalled, permission and digest notifications are read aloud in addition to the bubble / island and cue sound. When off, task status notifications keep their cue sounds, while the periodic digest only shows a notification. Respects the voice switch and mute.",
   "用量与费用": "Usage & cost",
   "输入": "Input",
   "输出": "Output",
