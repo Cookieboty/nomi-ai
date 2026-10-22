@@ -616,6 +616,7 @@ export class GatewayService {
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
     } as GatewayProvider;
+    this.bumpLearn(p.id);
     this.store.upsertProvider(p);
     this.commit();
     return this.state().providers.find((x) => x.id === p.id)!;
@@ -625,6 +626,7 @@ export class GatewayService {
     const p = this.store.providers().find((x) => x.id === id);
     if (!p) return;
     if (p.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    this.bumpLearn(id);
     this.store.removeProvider(id);
     this.commit();
   }
@@ -648,7 +650,17 @@ export class GatewayService {
     this.commit();
   }
 
+  /**
+   * 供应商学习状态的代次：清除学习、改 / 删供应商时加一。异步探测回来时代次变了就作废，
+   * 不把旧地址 / 旧 Key 的结论写回、也不复活已清除的状态（#96）
+   */
+  private readonly learnGen = new Map<string, number>();
+  private bumpLearn(providerId: string): void {
+    this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
+  }
+
   clearLearned(providerId: string): void {
+    this.bumpLearn(providerId);
     this.store.setLearned(providerId, {});
     this.commit();
   }
@@ -685,6 +697,7 @@ export class GatewayService {
           return value !== null ? [{ id: k.id, value }] : [];
         });
       const s = this.proc.getStatus();
+      const gen = this.learnGen.get(p.id) ?? 0;
       const r = await (this.d.detectImpl ?? detect)({
         bases: { [e.wire]: url },
         keys,
@@ -693,7 +706,16 @@ export class GatewayService {
         ...(s.state === 'running' ? { selfPort: s.port } : {}),
       }).catch(() => null);
       if (!r || r.wires[e.wire]?.ok) return;
-      cur.wireDown = { ...cur.wireDown, [e.wire]: { at: Date.now(), reason: e.reason } };
+      // 探测期间清除了学习、改了 / 删了供应商：结论已过时，丢弃
+      const now = this.store.providers().find((x) => x.id === p.id);
+      if ((this.learnGen.get(p.id) ?? 0) !== gen || now?.urls[e.wire] !== url) return;
+      // 基于最新状态只合并 wireDown：探测期间别的学习（dropped-param 等）不能被旧快照盖掉
+      const latest: LearnedState = structuredClone(this.store.snapshot().learned[p.id] ?? {});
+      latest.wireDown = { ...latest.wireDown, [e.wire]: { at: Date.now(), reason: e.reason } };
+      this.d.logger.info('gateway learned', e);
+      this.store.setLearned(p.id, latest);
+      this.commit();
+      return;
     }
     this.d.logger.info('gateway learned', e);
     this.store.setLearned(p.id, cur);

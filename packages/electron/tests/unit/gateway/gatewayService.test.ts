@@ -442,6 +442,54 @@ describe('GatewayService', () => {
     expect(t.svc.state().providers[0]!.learned).toBeUndefined();
   });
 
+  it('a wire probe that finishes late does not revive cleared state or drop newer learning (#96)', async () => {
+    const pending: Array<() => void> = [];
+    const t = setup({
+      detectImpl: (async () => {
+        await new Promise<void>((r) => pending.push(r));
+        return { wires: { chat: { ok: false } }, byKey: {}, models: [], urls: {} };
+      }) as never,
+    });
+    t.svc.init();
+    const input = {
+      name: 'R',
+      urls: { chat: 'https://r.example/v1' },
+      newKeys: [{ value: 'sk-r' }],
+      models: [{ id: 'glm-5', enabled: true }],
+    };
+    t.svc.upsertProvider(input);
+    const suspect = { type: 'wire-suspect', providerId: 'r', wire: 'chat', reason: 'x' } as const;
+    const learned = () => t.svc.state().providers.find((p) => p.id === 'r')!.learned;
+    const settle = async (run: Promise<void>) => {
+      while (!pending.length) await new Promise((r) => setTimeout(r, 1));
+      pending.shift()!();
+      await run;
+    };
+
+    // 1) 探测中清除学习：回来后不复活
+    await t.svc.learn({ type: 'dropped-param', providerId: 'r', wire: 'chat', param: 'a' });
+    let run = t.svc.learn(suspect);
+    t.svc.clearLearned('r');
+    await settle(run);
+    expect(learned()).toBeUndefined();
+
+    // 2) 探测中别的学习写进来：回来后保留
+    run = t.svc.learn(suspect);
+    await t.svc.learn({ type: 'dropped-param', providerId: 'r', wire: 'chat', param: 'b' });
+    await settle(run);
+    expect(learned()).toMatchObject({
+      droppedParams: { chat: ['b'] },
+      wireDown: { chat: { reason: 'x' } },
+    });
+
+    // 3) 探测中改了地址：旧地址的结论不写
+    t.svc.clearLearned('r');
+    run = t.svc.learn(suspect);
+    t.svc.upsertProvider({ ...input, id: 'r', urls: { chat: 'https://r2.example/v1' } } as never);
+    await settle(run);
+    expect(learned()?.wireDown).toBeUndefined();
+  });
+
   it('records key status from the gateway on the key, clears it on recovery', () => {
     const t = setup();
     t.svc.init();
