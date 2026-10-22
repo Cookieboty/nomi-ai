@@ -1,0 +1,122 @@
+{
+ "removed": [
+  "reference/svg-rig/coat-l-tail.png",
+  "reference/svg-rig/coat-r-tail.png"
+ ],
+ "ribbons": {
+  "l": {
+   "pivot_world": [
+    365.32,
+    578.91
+   ],
+   "length": 230.2,
+   "bones": [
+    "full.hem.ribbon.l",
+    "full.hem.ribbon.l.s1",
+    "full.hem.ribbon.l.s2",
+    "full.hem.ribbon.l.s3"
+   ],
+   "link_len": [
+    48.5,
+    115.1,
+    191.7
+   ]
+  },
+  "r": {
+   "pivot_world": [
+    592.57,
+    596.68
+   ],
+   "length": 202.3,
+   "bones": [
+    "full.hem.ribbon.r",
+    "full.hem.ribbon.r.s1",
+    "full.hem.ribbon.r.s2",
+    "full.hem.ribbon.r.s3"
+   ],
+   "link_len": [
+    43.9,
+    101.1,
+    168.4
+   ]
+  }
+ },
+ "baked": {
+  "full.idle": {
+   "l": 0.013,
+   "r": 0.013
+  },
+  "full.nod": {
+   "l": 0.0034,
+   "r": 0.0035
+  },
+  "full.flinch": {
+   "l": 0.0222,
+   "r": 0.0347
+  },
+  "full.poke": {
+   "l": 0.0196,
+   "r": 0.0201
+  },
+  "full.fist_pump": {
+   "l": 0.0031,
+   "r": 0.0032
+  },
+  "full.typing": {
+   "l": 0.0609,
+   "r": 0.0612
+  },
+  "full.explain": {
+   "l": 0.0876,
+   "r": 0.0888
+  },
+  "full.eureka": {
+   "l": 0.0056,
+   "r": 0.0059
+  },
+  "full.peek": {
+   "l": 0.0253,
+   "r": 0.0257
+  },
+  "full.shy": {
+   "l": 0.0101,
+   "r": 0.0167
+  },
+  "full.surprise": {
+   "l": 0.0067,
+   "r": 0.0071
+  },
+  "full.inhale": {
+   "l": 0.0053,
+   "r": 0.006
+  },
+  "full.smug": {
+   "l": 0.036,
+   "r": 0.0324
+  },
+  "full.tears": {
+   "l": 0.0034,
+   "r": 0.0035
+  },
+  "full.cold_sweat": {
+   "l": 0.0856,
+   "r": 0.0725
+  },
+  "full.daze": {
+   "l": 0.085,
+   "r": 0.0707
+  },
+  "full.hop": {
+   "l": 0.03,
+   "r": 0.031
+  },
+  "full.yawn": {
+   "l": 0.0032,
+   "r": 0.0035
+  }
+ },
+ "base_cleared": {
+  "l": 681,
+  "r": 671
+ }
+}

@@ -1,0 +1,21 @@
+{
+ "panel_px": 5499,
+ "panel_bbox": [
+  1,
+  95,
+  57,
+  355
+ ],
+ "deleted_sleeve_px": 5251,
+ "deleted_dark_px": 720,
+ "band_px": 2888,
+ "under_px": 2685,
+ "seam_aa_px": 248,
+ "hem_tail_px": 0,
+ "split_sha": "855f1e5da0195311dc8ff737ee884c84f812237bc32f14a616d014f53bd2bd12",
+ "round30_backfill": {
+  "filled_px": 0,
+  "before_miss": 0,
+  "before_weak": 0
+ }
+}
