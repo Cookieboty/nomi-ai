@@ -52,6 +52,10 @@
   gap: var(--cd-space-2);
 }
 .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--cd-font-size-xs);
   padding: 1px var(--cd-space-2);
   border-radius: var(--cd-radius-full);
