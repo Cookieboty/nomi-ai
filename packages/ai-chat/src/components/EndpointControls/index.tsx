@@ -23,7 +23,7 @@ import { BackendSwitcher } from '../BackendSwitcher';
 import { CliSourceMenu } from '../CliSourceMenu';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
-import { PermissionModeChip } from '../PermissionModeChip';
+import { BypassTip, PermissionModeChip } from '../PermissionModeChip';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
@@ -67,6 +67,15 @@ export const EndpointControls: React.FC = () => {
       )}
     </>
   );
+};
+
+/** 输入框上方：「完全放开」提示条（只在 CLI 标签处于完全放开时出现） */
+export const PermissionTip: React.FC = () => {
+  const { tabs, cli, tab } = useEndpoint();
+  const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
+  if (!cli || !modeTab) return null;
+  const def = tabs.state?.defaultPermissionMode;
+  return <BypassTip tab={modeTab} exitMode={def && def !== 'bypass' ? def : 'acceptEdits'} />;
 };
 
 /** 对话区右上角：工作目录（CLI）、「带上前文」标记、供应商 / 账号 */

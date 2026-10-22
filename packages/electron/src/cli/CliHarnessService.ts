@@ -1243,6 +1243,10 @@ export class CliHarnessService {
       this.claudeLive.get(id)?.modeChange?.done,
       this.acpLive.get(id)?.modeChange?.done,
     ]);
+    // 切到「完全放开」后，这一轮里还在等确认的请求一并放行：不用停掉重来
+    if (r.permissionMode === 'bypass')
+      for (const requestId of [...(this.pendingPermissions.get(id)?.keys() ?? [])])
+        this.replyPermission(id, requestId, true);
     return { ...this.requireTab(id), degraded: r.degraded };
   }
 

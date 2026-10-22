@@ -285,6 +285,25 @@ describe('CliHarnessService Grok over ACP', () => {
     expect(h.tabMessages(tab.id).at(-1)?.error).toBeFalsy();
   }, 15_000);
 
+  it('等待确认时切到完全放开：原地切换并放行在等的请求，这一轮继续跑完', async () => {
+    process.env.NOMI_MOCK_GROK_PERM = '1';
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'grok' });
+    h.setTabPermissionMode(tab.id, 'manual');
+    const run = h.sendTab(tab.id, 'run it');
+    await until(() => events.some((e) => e.type === 'permission'), { what: 'permission asked' });
+    const perm = events.find((e) => e.type === 'permission') as Extract<
+      HarnessEvent,
+      { type: 'permission' }
+    >;
+    await h.applyTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'permission-resolved', id: perm.id, reason: 'allowed' }),
+    );
+    expect((await run).text).toContain('run it');
+    expect(count('initialize')).toBe(1);
+  }, 15_000);
+
   it('第三方来源：私有 GROK_HOME 与网关令牌注入 ACP 进程，~/.grok 不动；换模型重启进程', async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-home-'));
     fs.mkdirSync(path.join(home, '.grok'), { recursive: true });

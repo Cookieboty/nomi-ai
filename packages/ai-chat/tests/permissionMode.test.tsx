@@ -2,11 +2,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
+import {
+  EndpointControls,
+  PermissionTip,
+  SessionControls,
+} from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
 import type { HarnessTabMeta, HarnessTabsState } from '../src/services/harnessClient';
@@ -71,6 +75,7 @@ const mount = () =>
   render(
     <HarnessTabsProvider>
       <>
+        <PermissionTip />
         <EndpointControls />
         <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
       </>
@@ -149,22 +154,38 @@ describe('输入栏的权限模式按钮', () => {
     expect(r.queryByTestId('permission-mode-menu')).not.toBeNull();
   });
 
-  it('「完全放开」先确认，确认后带 confirmed 发送；取消则不发送', async () => {
+  it('在下拉里选「完全放开」即生效（带 confirmed 与标签的后端 / 目录），不弹确认框', async () => {
     const invoke = mockIpc();
     const r = mount();
     fireEvent.click(await r.findByTestId('permission-mode-chip'));
     fireEvent.click(r.getByTestId('permission-mode-bypass'));
-    await r.findByTestId('permission-bypass-confirm');
-    expect(invoke.mock.calls.some((c) => c[0] === 'ai:harness:tab-permission-mode')).toBe(false);
-    // 确认框写明作用于哪个标签 / 目录
-    expect(r.getByTestId('permission-bypass-target').textContent).toContain('/w');
-    fireEvent.click(r.getByTestId('permission-bypass-ok'));
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'bypass', {
         confirmed: true,
         expect: { backend: 'claude', cwd: '/w' },
       }),
     );
+    expect(r.queryByRole('dialog')).toBeNull();
+  });
+
+  it('「完全放开」时输入框上方有提示条：可退回默认档，也可只关掉提示', async () => {
+    const invoke = mockIpc({ permissionMode: 'bypass' });
+    const r = mount();
+    fireEvent.click(await r.findByTestId('permission-bypass-exit'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'cx', 'acceptEdits', {
+        confirmed: false,
+      }),
+    );
+    fireEvent.click(r.getByTestId('permission-bypass-tip-close'));
+    expect(r.queryByTestId('permission-bypass-tip')).toBeNull();
+  });
+
+  it('不是「完全放开」时没有提示条', async () => {
+    mockIpc();
+    const r = mount();
+    await r.findByTestId('permission-mode-chip');
+    expect(r.queryByTestId('permission-bypass-tip')).toBeNull();
   });
 
   it('输入框 Shift+Tab 切到下一档（事件被按钮处理）', async () => {
@@ -199,93 +220,6 @@ describe('输入栏的权限模式按钮', () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));
     await new Promise((res) => setTimeout(res, 50));
     expect(r.queryByTestId('permission-mode-chip')).toBeNull();
-  });
-});
-
-describe('「完全放开」确认绑定发起的标签（#66）', () => {
-  // 两个 Claude 标签 A / B；推送 ai:harness:tabs 模拟切标签（快捷键、程序切换都走这条）
-  function mockTwoTabs() {
-    const a = tab({ id: 'ta', title: 'A', cwd: '/repo-a' });
-    const b = tab({ id: 'tb', title: 'B', cwd: '/repo-b' });
-    const state = (activeTabId: string, tabs = [a, b]): HarnessTabsState => ({
-      tabs: [tab({ id: 'main', backend: 'nomi' }), ...tabs],
-      activeTabId,
-      maxConcurrent: 3,
-      running: 0,
-      queued: 0,
-      defaultPermissionMode: 'acceptEdits',
-    });
-    let push: (s: HarnessTabsState) => void = () => undefined;
-    const invoke = vi.fn(async (ch: string) => {
-      if (ch === 'ai:harness:tabs') return state('ta');
-      if (ch === 'ai:harness:state') return { backend: 'nomi', cwd: '/w', bins: { claude: '/c' } };
-      if (ch === 'ai:harness:recent-cwds') return [];
-      if (ch === 'ai:harness:tab-messages') return [];
-      return {};
-    });
-    const on = (ch: string, fn: (p: unknown) => void) => {
-      if (ch === 'ai:harness:tabs') push = fn as typeof push;
-      return () => undefined;
-    };
-    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on };
-    return { invoke, a, b, state, push: (s: HarnessTabsState) => act(() => push(s)) };
-  }
-  const bypassCalls = (invoke: ReturnType<typeof vi.fn>) =>
-    invoke.mock.calls.filter((c) => c[0] === 'ai:harness:tab-permission-mode');
-
-  const openConfirm = async (r: ReturnType<typeof mount>) => {
-    fireEvent.click(await r.findByTestId('permission-mode-chip'));
-    fireEvent.click(r.getByTestId('permission-mode-bypass'));
-    await r.findByTestId('permission-bypass-confirm');
-  };
-
-  it('确认框打开时切到另一个标签：确认作废，不会放开 B；切回 A 也不复活', async () => {
-    const m = mockTwoTabs();
-    const r = mount();
-    await openConfirm(r);
-    m.push(m.state('tb'));
-    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
-    m.push(m.state('ta'));
-    await new Promise((res) => setTimeout(res, 20));
-    expect(r.queryByTestId('permission-bypass-confirm')).toBeNull();
-    expect(bypassCalls(m.invoke)).toHaveLength(0);
-  });
-
-  it('确认期间原标签换了目录或被关闭：确认作废', async () => {
-    const m = mockTwoTabs();
-    const r = mount();
-    await openConfirm(r);
-    m.push(m.state('ta', [{ ...m.a, cwd: '/elsewhere' }, m.b]));
-    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
-
-    await openConfirm(r);
-    m.push(m.state('tb', [m.b]));
-    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
-    expect(bypassCalls(m.invoke)).toHaveLength(0);
-  });
-
-  it('不切换时确认只发给 A，并带上 A 的后端 / 目录供主进程核对', async () => {
-    const m = mockTwoTabs();
-    const r = mount();
-    await openConfirm(r);
-    expect(r.getByTestId('permission-bypass-target').textContent).toContain('/repo-a');
-    fireEvent.click(r.getByTestId('permission-bypass-ok'));
-    await waitFor(() => expect(bypassCalls(m.invoke)).toHaveLength(1));
-    expect(bypassCalls(m.invoke)[0]).toEqual([
-      'ai:harness:tab-permission-mode',
-      'ta',
-      'bypass',
-      { confirmed: true, expect: { backend: 'claude', cwd: '/repo-a' } },
-    ]);
-  });
-
-  it('取消不发送任何请求', async () => {
-    const m = mockTwoTabs();
-    const r = mount();
-    await openConfirm(r);
-    fireEvent.click(r.getByText('取消', { selector: '.cd-modal__footer button' }));
-    await waitFor(() => expect(r.queryByTestId('permission-bypass-confirm')).toBeNull());
-    expect(bypassCalls(m.invoke)).toHaveLength(0);
   });
 });
 

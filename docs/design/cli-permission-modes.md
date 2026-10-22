@@ -66,7 +66,8 @@ Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实
   - `ai:harness:permission-defaults({ defaultPermissionMode?, codexNetwork? })` → 返回 `HarnessTabsState`。
   - `ai:harness:tab-create` 接受 `permissionMode`（分叉继承用）。
 - **安全约束**
-  - `bypass` 必须带 `confirmed: true`，否则抛错（防止渲染层绕过确认框）。
+  - `bypass` 必须带 `confirmed: true`，否则抛错（只有在下拉里显式选中才会带上）。
+  - 切到 `bypass` 并经长驻进程确认后，这个标签里还在等确认的工具请求一并放行，当前这一轮不用停掉重来。
   - 确认框带 `expect: { backend, cwd }`（发起确认时的标签后端 / 目录）；与标签当前值不一致（期间换了后端或目录、会话已重置）即拒绝，要求重新确认。
   - `bypass` 不能设为默认、不能经 `tab-create` 继承、**不跨重启保留**（重启后回到默认档）。
 - **迁移**：旧数据没有 `permissionMode` 时，Claude 标签还原为 `manual`（保持原来的逐项确认），其它后端用默认档 `acceptEdits`。行为变化只有 Grok：从全部放开降到「自动改文件」（见 changeset）。
@@ -78,15 +79,15 @@ Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实
 与下面原计划的差异：
 
 - 「新标签默认模式」放在模式下拉底部（「设为新标签默认」），没有单独的设置页；「Codex 允许联网」保持默认开，暂无界面开关。
-- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从按钮进入并确认。
+- 另加了 `/mode plan|manual|edits|auto` 命令；`/mode bypass` 会被拒绝，只能从按钮的下拉里选择。
 - `degraded` 的提示显示在按钮旁（5 秒后消失），StatusLine 暂未显示模式。
-- 「完全放开」确认框绑定发起时的标签（id / 后端 / 目录），并写明标签名与目录；确认框打开期间切走标签（含 `Mod+数字`、`Ctrl+Tab`、程序切换）、关闭标签或换了后端 / 目录，确认即作废，切回来也不会复活，绝不转投到当前标签（#66）。
+- 「完全放开」在下拉里选中即生效，请求带上当前标签的后端 / 目录（`expect`），主进程核对不一致就拒绝（#66）。
 
 原计划：
 
 - 输入框底部、后端切换器旁放模式 chip（图标 + 文字），点开下拉；当前后端不支持的档位置灰并说明原因。
 - 输入框聚焦时 `Shift+Tab` 在支持的档位间循环，**跳过「完全放开」**。
-- 「完全放开」只能从下拉进入，先弹确认框；之后标签、状态栏、chip 用 `var(--cd-danger)` 标红。
+- 「完全放开」只能从下拉进入，不弹确认框；之后 chip 标红，输入框上方显示提示条，可以「退出完全放开」（回到新标签默认档）或只关掉提示（再次进入时重新显示）。
 - 设置 → 编程助手：「新标签默认模式」（默认自动改文件）、「Codex 允许联网」（默认开）。
 - `StatusLine` 显示当前模式；`degraded` 时提示（如「dsh 不支持逐项确认，已使用计划模式」）。
 - 分叉 / 跨后端切换：渲染层把来源标签的 `permissionMode` 传给 `tab-create`（`forkConversation.ts`）。
