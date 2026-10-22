@@ -70,7 +70,6 @@ function setup(opts: { catalog: BackendModelCatalog | null; tabOver?: Partial<Ha
   let current = { ...baseTab, ...opts.tabOver };
   const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
     if (ch === 'ai:harness:model-catalog') return opts.catalog;
-    if (ch === 'ai:cli-provider:state') return { profiles: [] };
     if (ch === 'ai:harness:tab-model') {
       const model = String(a[1] ?? '');
       current = { ...current, modelOverride: model || null };
@@ -240,36 +239,19 @@ describe('ModelControls', () => {
     await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tab-effort', 'cx', 'max'));
   });
 
-  it('第三方供应商激活：列供应商的模型，直接打开模型列表、没有思考深度，选完关闭浮层', async () => {
-    let current = { ...baseTab };
-    const providerCatalog: BackendModelCatalog = {
+  it('第三方来源的标签：按 source=thirdParty 要网关的模型，直接打开模型列表、没有思考深度和自定义 id', async () => {
+    let current: HarnessTabMeta = { ...baseTab, source: 'thirdParty' };
+    const gatewayCatalog: BackendModelCatalog = {
       backend: 'codex',
-      provider: { id: 'p1', name: 'Gateway' },
-      defaultModel: { id: 'vendor/a', reasoning: false, efforts: [] },
+      provider: { id: 'gateway', name: '第三方模型' },
+      defaultModel: { id: 'ds/v4', label: 'DeepSeek / v4', reasoning: false, efforts: [] },
       models: [
-        { id: 'vendor/a', reasoning: false, efforts: [] },
-        { id: 'vendor/b', reasoning: false, efforts: [] },
+        { id: 'ds/v4', label: 'DeepSeek / v4', reasoning: false, efforts: [] },
+        { id: 'kimi/k3', label: 'Kimi / k3', reasoning: false, efforts: [] },
       ],
     };
     const invoke = vi.fn(async (ch: string, ...a: unknown[]) => {
-      if (ch === 'ai:harness:model-catalog') return providerCatalog;
-      if (ch === 'ai:cli-provider:state')
-        return {
-          profiles: [
-            {
-              kind: 'codex',
-              id: 'p1',
-              name: 'Gateway',
-              baseUrl: 'https://x',
-              model: 'vendor/a',
-              apiFormat: 'responses',
-              needsRouting: false,
-              hasKey: true,
-              keyHint: 'k…',
-              active: true,
-            },
-          ],
-        };
+      if (ch === 'ai:harness:model-catalog') return gatewayCatalog;
       if (ch === 'ai:harness:tab-model') {
         current = { ...current, modelOverride: String(a[1] ?? '') || null };
         return { ...current };
@@ -279,17 +261,47 @@ describe('ModelControls', () => {
     (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
     const r = render(<ModelControls tab={current} />);
     const chip = await r.findByTestId('model-chip');
-    expect(chip.textContent).toContain('vendor/a');
+    expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+      source: 'thirdParty',
+    });
+    expect(chip.textContent).toContain('DeepSeek / v4');
     fireEvent.click(chip);
     const menu = await r.findByTestId('model-menu');
-    expect(within(menu).getByTestId('model-provider').textContent).toContain('Gateway');
+    expect(within(menu).getByTestId('model-provider').textContent).toContain('第三方模型');
     expect(within(menu).queryByTestId('effort-view')).toBeNull();
+    expect(within(menu).queryByTestId('effort-slider')).toBeNull();
     expect(within(menu).queryByText('无思考深度')).toBeNull();
-    fireEvent.click(within(menu).getByTestId('model-vendor/b'));
+    expect(within(menu).queryByTestId('model-custom-toggle')).toBeNull();
+    fireEvent.click(within(menu).getByTestId('model-kimi/k3'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'vendor/b'),
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'kimi/k3'),
     );
     await waitFor(() => expect(r.queryByTestId('model-menu')).toBeNull());
+    fireEvent.click(r.getByTestId('model-chip'));
+    fireEvent.click(within(await r.findByTestId('model-menu')).getByTestId('model-refresh'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+        refresh: true,
+        source: 'thirdParty',
+      }),
+    );
+  });
+
+  it('来源从官方切到第三方：重新按第三方要目录；官方仍不带 source', async () => {
+    const invoke = vi.fn(async (ch: string) => {
+      if (ch === 'ai:harness:model-catalog') return catalog;
+      return {};
+    });
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={baseTab} />);
+    await r.findByTestId('model-chip');
+    expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {});
+    r.rerender(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:model-catalog', 'codex', {
+        source: 'thirdParty',
+      }),
+    );
   });
 
   it('Claude：按钮显示 CLI 给的默认模型名；不支持思考深度的模型不显示滑杆', async () => {
@@ -339,7 +351,6 @@ describe('ModelControls', () => {
     const pending = new Promise<BackendModelCatalog>((r) => (resolve = r));
     const invoke = vi.fn(async (ch: string) => {
       if (ch === 'ai:harness:model-catalog') return pending;
-      if (ch === 'ai:cli-provider:state') return { profiles: [] };
       return {};
     });
     (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };

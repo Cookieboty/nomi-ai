@@ -46,11 +46,26 @@ export interface ProvidersLike {
   setActive(id: string | null, model?: string): unknown;
 }
 
+/** 统一网关（GatewayService）的最小子集：Nomi 对话的模型以网关为准 */
+export interface GatewayLike {
+  state(): { providers: Array<{ id: string; presetId?: string }> };
+  upsertProvider(input: {
+    id?: string;
+    name: string;
+    presetId?: string;
+    urls: { chat?: string };
+    models: Array<{ id: string; enabled: boolean }>;
+  }): { id: string };
+  setAssignment(client: 'nomi', patch: { models: { main: string } }): void;
+  confirmPrivateHost(hostPort: string): void;
+}
+
 export interface LocalDeps {
   root: string;
   logger: Logger;
   desktop: DesktopService;
   providers: () => ProvidersLike | undefined;
+  gateway?: () => GatewayLike | null;
   fetchImpl?: typeof fetch;
 }
 
@@ -58,6 +73,8 @@ interface Settings {
   activeModel?: string;
   autoStart: boolean;
   providerId?: string;
+  /** 网关里对应的供应商 id */
+  gatewayProviderId?: string;
   threads?: number;
   ollamaUrl: string;
 }
@@ -65,6 +82,7 @@ interface Settings {
 type ServerStatus = 'stopped' | 'starting' | 'running' | 'error';
 
 const PROVIDER_NAME = 'llama.cpp（本机）';
+const LOCAL_PRESET_ID = 'llamacpp';
 const RUNTIME_ID = 'llama-runtime';
 
 export class LocalModelService {
@@ -90,6 +108,8 @@ export class LocalModelService {
       activeModel: typeof raw.activeModel === 'string' ? raw.activeModel : undefined,
       autoStart: raw.autoStart === true,
       providerId: typeof raw.providerId === 'string' ? raw.providerId : undefined,
+      gatewayProviderId:
+        typeof raw.gatewayProviderId === 'string' ? raw.gatewayProviderId : undefined,
       threads: Number.isInteger(raw.threads) ? raw.threads : undefined,
       ollamaUrl:
         typeof raw.ollamaUrl === 'string' && /^https?:\/\//.test(raw.ollamaUrl)
@@ -392,8 +412,34 @@ export class LocalModelService {
       note: tr('本机 llama.cpp {0} · {1}（{2}）', LLAMA_RUNTIME.tag, m.name, m.license),
     });
     this.settings.providerId = v.id;
+    this.registerInGateway(m, baseURL);
     this.save();
     return v.id;
+  }
+
+  /** 网关里同样登记一个（地址是本机回环，需要确认；没有 Key） */
+  private registerInGateway(m: LocalLlm, baseURL: string): void {
+    const gw = this.d.gateway?.();
+    if (!gw) return;
+    try {
+      const u = new URL(baseURL);
+      gw.confirmPrivateHost(`${u.hostname}:${u.port || '80'}`);
+      const existing = gw
+        .state()
+        .providers.find(
+          (p) => p.id === this.settings.gatewayProviderId || p.presetId === LOCAL_PRESET_ID,
+        );
+      const v = gw.upsertProvider({
+        ...(existing ? { id: existing.id } : {}),
+        name: PROVIDER_NAME,
+        presetId: LOCAL_PRESET_ID,
+        urls: { chat: baseURL },
+        models: [{ id: m.id, enabled: true }],
+      });
+      this.settings.gatewayProviderId = v.id;
+    } catch (e) {
+      this.d.logger.warn('register local model in gateway failed', e);
+    }
   }
 
   async stop() {
@@ -429,6 +475,12 @@ export class LocalModelService {
     if (!ps || !this.settings.providerId || this.status !== 'running')
       throw new Error(tr('本地模型还没有运行'));
     ps.setActive(this.settings.providerId, this.running);
+    // Nomi 对话以网关的分配为准（旧存储只是网关没就绪时的保底）
+    const gw = this.d.gateway?.();
+    if (gw && this.settings.gatewayProviderId && this.running)
+      gw.setAssignment('nomi', {
+        models: { main: `${this.settings.gatewayProviderId}/${this.running}` },
+      });
     this.changed();
     return true;
   }

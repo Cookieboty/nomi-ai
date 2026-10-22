@@ -14,9 +14,9 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-1-5);
+  gap: var(--cd-space-1);
   width: 100%;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border: none;
   border-radius: inherit;
   background: transparent;
@@ -119,18 +119,6 @@
   color: var(--cd-color-text);
   font-weight: var(--cd-font-weight-medium);
   font-variant-numeric: tabular-nums;
-}
-.ellipsis {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.more {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  color: var(--cd-color-text-subtle);
 }
 .err {
   display: block;
@@ -235,28 +223,6 @@
   border-radius: 2px 2px 0 0;
   background: var(--cd-color-accent);
   opacity: 0.8;
-}
-.models {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-2);
-}
-.modelHead {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-}
-.modelHead > span:first-child {
-  flex: 1;
-}
-.modelHead b {
-  min-width: 56px;
-  text-align: right;
-  font-weight: var(--cd-font-weight-medium);
 }
 .path {
   font-family: var(--cd-font-mono);

@@ -5,9 +5,9 @@
 import { t, Icon } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
-import { cliProviderClient } from '../../services/cliProviderClient';
+import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
 import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
@@ -39,6 +39,11 @@ import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
 export { SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+
+/** 「模型」页懒加载 */
+const ModelsPage = React.lazy(() =>
+  import('../ModelsPage').then((m) => ({ default: m.ModelsPage })),
+);
 
 interface Props {
   section: SettingsSection;
@@ -123,9 +128,19 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         );
       case 'shortcuts':
         return <ShortcutSettings />;
+      case 'models':
+        return (
+          <Suspense fallback={null}>
+            <ModelsPage />
+          </Suspense>
+        );
       case 'coding':
-        return cliProviderClient.available() ? (
-          <ProvidersPage onOpenedTab={onClose} onOpenNotify={() => onSection('notify')} />
+        return harnessClient.available() ? (
+          <ProvidersPage
+            onOpenedTab={onClose}
+            onOpenNotify={() => onSection('notify')}
+            onOpenModels={() => onSection('models')}
+          />
         ) : (
           <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>
         );

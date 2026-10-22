@@ -147,6 +147,18 @@ export class AccountService {
     );
   }
 
+  /**
+   * 按 CLI 记录的账号 id 反查保险箱里的账号（只返回身份元信息，不解密凭据）。
+   * Codex 的 ChatGPT account_id 存在 identity.org，复合的 identity.key 里也带着它。
+   */
+  findByAccountId(kind: AccountKind, accountId: string): AccountView | undefined {
+    const id = accountId.trim();
+    if (!id) return undefined;
+    return this.list(kind).find(
+      (a) => a.identity?.org === id || (a.identity?.key.split('|').includes(id) ?? false),
+    );
+  }
+
   /** 当前全局登录的身份（不含凭据） */
   async live(kind: AccountKind): Promise<AccountIdentity | null> {
     return (await this.adapter(kind).read())?.identity ?? null;

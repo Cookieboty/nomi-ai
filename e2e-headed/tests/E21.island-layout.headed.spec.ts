@@ -15,6 +15,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
+import { ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.CHAT_V2_SHOTS_DIR;
@@ -52,11 +53,16 @@ async function openIsland(simulateNotch: boolean) {
     ELECTRON_DISABLE_SECURITY_WARNINGS: '1',
   };
   delete env.NODE_ENV;
-  if (simulateNotch) env.CD_ISLAND_SIMULATE_NOTCH = '1';
-  else delete env.CD_ISLAND_SIMULATE_NOTCH;
+  // 胶囊用例在带刘海的 Mac 上也要是胶囊：显式当作没有刘海
+  env.CD_ISLAND_SIMULATE_NOTCH = simulateNotch ? '1' : '0';
   const app = await electron.launch({
     executablePath: resolveElectronExecutable(),
-    args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
+    args: [
+      electronPkgDir,
+      `--user-data-dir=${userData}`,
+      '--enable-unsafe-swiftshader',
+      ...ISOLATED_HOME_ARGS,
+    ],
     cwd: electronPkgDir,
     env,
     timeout: 60_000,

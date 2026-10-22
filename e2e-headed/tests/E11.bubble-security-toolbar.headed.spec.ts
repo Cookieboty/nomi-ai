@@ -358,7 +358,6 @@ test.describe('E11 · bubble security + toolbar', () => {
     await expect(bar.locator('[data-testid="tool-ai-chat"]')).toBeVisible();
 
     // 贴近右侧屏幕边缘 → 翻到左侧
-    expect(await main.evaluate(() => document.documentElement.dataset.toolbarSide)).toBe('right');
     // Free-place so physics does not pull the window back after we pin it.
     await main.evaluate(() =>
       (
@@ -367,6 +366,15 @@ test.describe('E11 · bubble security + toolbar', () => {
         }
       ).electronAPI.mascotWindow.setConfig({ gravity: false }),
     );
+    await app.evaluate(({ BrowserWindow, screen }) => {
+      const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop())!;
+      const wa = screen.getPrimaryDisplay().workArea;
+      const b = w.getBounds();
+      w.setPosition(Math.round(wa.x + (wa.width - b.width) / 2), b.y);
+    });
+    await expect
+      .poll(() => main.evaluate(() => document.documentElement.dataset.toolbarSide))
+      .toBe('right');
     // Move the always-on-top mascot BrowserWindow so its right gutter is past the
     // work-area edge (renderer setPosition / drag is unreliable on CI / Linux WM).
     await app!.evaluate(({ BrowserWindow, screen }) => {

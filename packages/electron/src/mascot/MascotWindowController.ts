@@ -1,6 +1,8 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, ipcMain, screen } from 'electron';
 
+import { setWindowBounds } from '../utils/windowBounds';
+
 import {
   advance,
   areaUnder,
@@ -24,6 +26,7 @@ import {
   MIN_MASCOT_SCALE,
   fitMascotScale,
   maxScaleForArea,
+  mascotWindowSize,
   resizeMascotBounds,
   roundMascotScale,
   stepMascotScale,
@@ -348,11 +351,7 @@ export class MascotWindowController {
         workAreas: this.workAreas,
       });
       try {
-        // Linux(GTK) 的不可缩放窗口会把尺寸提示锁死；程序化缩放时临时放开
-        const lock = process.platform === 'linux' && !this.win.isResizable();
-        if (lock) this.win.setResizable(true);
-        this.win.setBounds(nb);
-        if (lock) this.win.setResizable(false);
+        setWindowBounds(this.win, nb);
       } catch (err) {
         this.logger.warn('缩放看板娘窗口失败', { error: String(err) });
         return this.scaleState();
@@ -555,7 +554,12 @@ export class MascotWindowController {
     const nx = Math.round(this.body.x);
     const ny = Math.round(this.body.y);
     if (nx !== wx || ny !== wy) {
-      this.win.setPosition(nx, ny);
+      // Windows 分数 DPI 下不可缩放透明窗的 setPosition 会逐次放大窗口。
+      // 同时校正尺寸，避免拖动 / 物理移动积累偏差并改变角色缩放。
+      if (process.platform === 'win32') {
+        const size = mascotWindowSize(this.scale);
+        setWindowBounds(this.win, { x: nx, y: ny, ...size });
+      } else this.win.setPosition(nx, ny);
       this.lastActivityAt = now;
     }
 

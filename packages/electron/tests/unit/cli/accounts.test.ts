@@ -92,6 +92,20 @@ const readCodex = (home: string) =>
 describe('AccountService · Codex（全局 auth.json）', () => {
   beforeEach(() => (safe.available = true));
 
+  it('findByAccountId：按 Codex 会话记录的 account_id 反查账号（不解密凭据）', async () => {
+    const t = setup();
+    writeCodex(t.home, codexAuth('a@x.com', '2026-10-01T00:00:00Z'));
+    const a = await t.svc.importCurrent('codex');
+    expect(t.svc.findByAccountId('codex', 'acct-a@x.com')).toMatchObject({
+      id: a.id,
+      identity: { email: 'a@x.com' },
+    });
+    expect(t.svc.findByAccountId('codex', ' acct-a@x.com ')?.id).toBe(a.id);
+    expect(t.svc.findByAccountId('codex', 'acct-other')).toBeUndefined();
+    expect(t.svc.findByAccountId('codex', '')).toBeUndefined();
+    expect(t.svc.findByAccountId('claude', 'acct-a@x.com')).toBeUndefined();
+  });
+
   it('导入当前登录 → 加入第二个账号 → 切换改写全局 auth.json，备份旧的，凭据加密落盘', async () => {
     const t = setup();
     writeCodex(t.home, codexAuth('a@x.com', '2026-10-01T00:00:00Z'));

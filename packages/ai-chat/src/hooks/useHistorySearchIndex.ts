@@ -1,6 +1,6 @@
 /**
  * 侧栏搜索用的「磁盘历史会话索引」：搜索激活后先取第一页（20 条），
- * 之后由「搜索更早的历史」按钮逐页加载，每端最多索引最近 100 条。
+ * 之后由「搜索更早的历史」按钮逐页加载，每端最多索引最近 500 条（与后端硬上限一致）。
  * 数据在主进程里是增量解析的（只重读变化的文件），界面只做防抖后的内存过滤，不整盘扫描。
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -14,10 +14,10 @@ import {
   type HistorySession,
 } from '../services/historyClient';
 
-/** 每端最多索引最近 100 条（与后端硬上限一致），避免一次解析过多会话 */
+/** 每端最多索引的条数（与后端硬上限一致），避免一次解析过多会话 */
 const MAX_INDEX_PER_BACKEND = HISTORY_MAX_ITEMS;
-/** 搜索结果渲染上限：最多展示 100 条 */
-export const MAX_RESULTS = HISTORY_MAX_ITEMS;
+/** 搜索结果渲染上限：最多展示 100 条（比索引上限小，命中太多时提示用户缩小关键词） */
+export const MAX_RESULTS = 100;
 
 interface Slot {
   items: HistorySession[];
@@ -77,7 +77,7 @@ export function useHistorySearchIndex(
     slotsRef.current = fresh;
   }, [runKey]);
 
-  // 取一页（force 仅用于搜索开始时的第一页刷新）；累计到 100 条硬上限即收尾
+  // 取一页（force 仅用于搜索开始时的第一页刷新）；累计到硬上限即收尾
   const fetchPage = useCallback(async (b: HistoryBackend, my: number, force: boolean) => {
     const slot = slotsRef.current[b];
     if (slot.done) return;

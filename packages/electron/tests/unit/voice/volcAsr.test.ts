@@ -44,6 +44,7 @@ import {
   mapServerError,
   resultText,
 } from '../../../src/voice/volcAsr';
+import { until } from '../../helpers/wait';
 
 const KEY = 'volc-test-key-0123456789abcdef';
 const RES = 'volc.seedasr.sauc.duration';
@@ -549,8 +550,11 @@ describe('VoiceService · volc', () => {
     const a = wc();
     const id = (v.streamStart(a as never, 'chat') as { id: string }).id;
     v.streamPush(a as never, id, pcm(200));
-    await new Promise((r) => setTimeout(r, 100));
-    const before = (m.frames[0] ?? []).filter((f) => f.type === MSG.AUDIO).length;
+    const audioFrames = () => (m.frames[0] ?? []).filter((f) => f.type === MSG.AUDIO).length;
+    // 已推的音频先全部到达服务端，再记基准
+    await until(() => audioFrames() > 0, { what: 'audio reached the server' });
+    await new Promise((r) => setTimeout(r, 50));
+    const before = audioFrames();
     localOnly = true;
     expect(v.streamPush(a as never, id, pcm(200))).toBe(false);
     expect(v.streamPush(a as never, id, pcm(200))).toBe(false);

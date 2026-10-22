@@ -18,7 +18,7 @@ import type { ElectronApplication, Page } from '@playwright/test';
 
 import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
-import { isolatedHomeEnv } from '../fixtures/homeEnv';
+import { isolatedHomeEnv, ISOLATED_HOME_ARGS } from '../fixtures/homeEnv';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.INPUT_SHOTS_DIR;
@@ -44,7 +44,12 @@ async function launch(
   delete env.NODE_ENV;
   const app = await electron.launch({
     executablePath: resolveElectronExecutable(),
-    args: [electronPkgDir, `--user-data-dir=${userData}`, '--enable-unsafe-swiftshader'],
+    args: [
+      electronPkgDir,
+      `--user-data-dir=${userData}`,
+      '--enable-unsafe-swiftshader',
+      ...ISOLATED_HOME_ARGS,
+    ],
     cwd: electronPkgDir,
     env,
     timeout: 60_000,
@@ -240,15 +245,15 @@ test.describe('E28 · composer toolbar layout', () => {
     const r = await launch(join(root, 'user-data'), home, false);
     app = r.app;
     const chat = r.chat;
-    const v = (await invoke(chat, 'ai:providers:upsert', {
+    const v = (await invoke(chat, 'ai:gateway:upsert-provider', {
       name: 'My Very Long Provider Name For Layout',
-      protocol: 'openai-chat',
-      baseURL: 'http://127.0.0.1:9/v1',
-      defaultModel: LONG_MODEL,
-      models: [LONG_MODEL],
-      apiKey: 'e28-fake-key',
+      urls: { chat: 'http://127.0.0.1:9/v1' },
+      models: [{ id: LONG_MODEL, enabled: true }],
+      newKeys: [{ value: 'e28-fake-key' }],
     })) as { id: string };
-    await invoke(chat, 'ai:providers:setActive', v.id, LONG_MODEL);
+    await invoke(chat, 'ai:gateway:set-assignment', 'nomi', {
+      models: { main: `${v.id}/${LONG_MODEL}` },
+    });
     await chat.reload();
     await chat.locator('[data-testid="chat-input"]').waitFor();
     await sweep(chat, 'nomi-normal', [1024, 800]);
@@ -273,15 +278,18 @@ test.describe('E28 · composer toolbar layout', () => {
     await sweep(chat, 'dev-nomi', [1024]);
 
     await invoke(chat, 'ai:harness:set-cwd', longCwd);
+    const longProvider = (await invoke(chat, 'ai:gateway:upsert-provider', {
+      name: 'Long Profile Name Provider',
+      urls: { chat: 'http://127.0.0.1:9/v1' },
+      newKeys: [{ value: 'e28-fake-key' }],
+      models: [{ id: LONG_MODEL, enabled: true }],
+    })) as { id: string };
     for (const kind of ['claude', 'codex', 'grok', 'dsh'] as const) {
-      const p = (await invoke(chat, 'ai:cli-provider:upsert', {
-        kind,
-        name: `Long Profile Name ${kind}`,
-        baseUrl: 'http://127.0.0.1:9/v1',
-        model: LONG_MODEL,
-        apiKey: 'e28-fake-key',
-      })) as { id: string };
-      await invoke(chat, 'ai:cli-provider:activate', p.id);
+      // 新标签默认用第三方（统一网关）：右上角来源菜单显示长供应商名 / 模型名
+      await invoke(chat, 'ai:gateway:set-assignment', kind, {
+        models: { main: `${longProvider.id}/${LONG_MODEL}` },
+        newTabSource: 'thirdParty',
+      });
       await newTab(chat, kind);
       await sweep(
         chat,

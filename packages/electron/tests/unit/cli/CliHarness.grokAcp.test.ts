@@ -7,8 +7,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarnessService';
 import type { HarnessEvent } from '../../../src/cli/types';
+import { testGateway } from '../../helpers/gateway';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -29,6 +31,7 @@ describe('CliHarnessService Grok over ACP', () => {
     'NOMI_MOCK_GROK_MODE',
     'NOMI_MOCK_GROK_NO_ACP',
     'NOMI_MOCK_FIRST_TOKEN_MS',
+    'NOMI_MOCK_SLOW_PROMPT',
     'NOMI_MOCK_ARGV_LOG',
   ];
   let saved: Record<string, string | undefined> = {};
@@ -50,9 +53,7 @@ describe('CliHarnessService Grok over ACP', () => {
       else process.env[k] = saved[k];
     }
   });
-  const mk = (
-    o: { grokEnv?: () => Record<string, string>; prewarmClaude?: boolean; grokAcp?: boolean } = {},
-  ) => {
+  const mk = (o: { gateway?: HarnessGateway; prewarmClaude?: boolean; grokAcp?: boolean } = {}) => {
     const h = new CliHarnessService({
       root,
       logger: { info() {}, warn() {} },
@@ -243,16 +244,16 @@ describe('CliHarnessService Grok over ACP', () => {
   }, 15_000);
 
   it('停止：session/cancel 结束这一轮、进程保留，下一轮直接复用', async () => {
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '3000';
+    // 只有 'long' 这一轮会等（session/cancel 会打断）；下一轮在同一个进程里立即回复
+    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '60000';
+    process.env.NOMI_MOCK_SLOW_PROMPT = 'long';
     const { h } = mk();
     const tab = h.createTab({ backend: 'grok' });
     const p = h.sendTab(tab.id, 'long');
-    for (let i = 0; i < 100 && count('session/prompt') === 0; i++)
-      await new Promise((r) => setTimeout(r, 20));
+    await until(() => count('session/prompt') > 0, { what: 'session/prompt sent' });
     expect(h.cancelTab(tab.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(h.tabMessages(tab.id).at(-1)).toMatchObject({ stopped: true });
-    process.env.NOMI_MOCK_FIRST_TOKEN_MS = '0';
     expect((await h.sendTab(tab.id, 'next')).text).toContain('next');
     expect(count('initialize')).toBe(1);
     expect(count('session/cancel')).toBe(1);
@@ -284,11 +285,26 @@ describe('CliHarnessService Grok over ACP', () => {
     expect(h.tabMessages(tab.id).at(-1)?.error).toBeFalsy();
   }, 15_000);
 
-  it('第三方供应商的环境变量注入 ACP 进程', async () => {
-    const { h } = mk({ grokEnv: () => ({ XAI_API_KEY: 'xai-test' }) });
+  it('第三方来源：私有 GROK_HOME 与网关令牌注入 ACP 进程，~/.grok 不动；换模型重启进程', async () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-home-'));
+    fs.mkdirSync(path.join(home, '.grok'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.grok', 'config.toml'), '# user config\n');
+    const { h } = mk({ gateway: testGateway({ source: 'thirdParty', main: 'zp/glm-5', home }) });
     const tab = h.createTab({ backend: 'grok' });
     expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock Grok】acp new key: hi');
-    expect(calls().find((c) => c.method === 'initialize')?.key).toBe('key');
+    const init = calls().find((c) => c.method === 'initialize') as unknown as { grokHome: string };
+    expect(init.grokHome).toBeTruthy();
+    expect(fs.readFileSync(path.join(init.grokHome, 'config.toml'), 'utf8')).toContain(
+      'model = "zp/glm-5"',
+    );
+    expect(fs.lstatSync(path.join(init.grokHome, 'sessions')).isSymbolicLink()).toBe(true);
+    expect(fs.readFileSync(path.join(home, '.grok', 'config.toml'), 'utf8')).toBe(
+      '# user config\n',
+    );
+    const before = acpLive(h).get(tab.id);
+    h.setTabModel(tab.id, 'zp/glm-5-air');
+    await h.sendTab(tab.id, 'again');
+    expect(acpLive(h).get(tab.id)).not.toBe(before);
   }, 15_000);
 
   it('这台机器的 Grok 起不来 ACP：退回 grok -p，之后都用 -p', async () => {

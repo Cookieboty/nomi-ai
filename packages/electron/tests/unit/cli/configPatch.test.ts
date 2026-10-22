@@ -22,13 +22,6 @@ import {
   patchCodexAuth,
   patchCodexToml,
 } from '../../../src/cli/configPatch';
-import {
-  claudeFormatNeedsRouting,
-  codexFormatNeedsRouting,
-  defaultFormat,
-  formatNeedsRouting,
-  grokApiBackend,
-} from '../../../src/cli/formats';
 
 describe('configPatch', () => {
   it('patches claude settings env only', () => {
@@ -88,33 +81,6 @@ describe('configPatch', () => {
     const dest = backupFile(src, path.join(dir, 'b'), 'a.json');
     expect(dest).toBeTruthy();
     expect(fs.readFileSync(dest!, 'utf8')).toBe('{"a":1}');
-  });
-});
-
-describe('api formats routing flags', () => {
-  it('claude native does not need routing; others do', () => {
-    expect(claudeFormatNeedsRouting('anthropic_messages')).toBe(false);
-    expect(claudeFormatNeedsRouting('openai_chat_completions')).toBe(true);
-    expect(claudeFormatNeedsRouting('openai_responses')).toBe(true);
-    expect(claudeFormatNeedsRouting('gemini_generate_content')).toBe(true);
-  });
-
-  it('codex native does not need routing; others do', () => {
-    expect(codexFormatNeedsRouting('openai_responses')).toBe(false);
-    expect(codexFormatNeedsRouting('openai_chat_completions')).toBe(true);
-    expect(codexFormatNeedsRouting('anthropic_messages')).toBe(true);
-    expect(formatNeedsRouting('codex', 'openai_chat_completions')).toBe(true);
-  });
-
-  it('defaultFormat is each CLI native protocol', () => {
-    expect(defaultFormat('claude')).toBe('anthropic_messages');
-    expect(defaultFormat('codex')).toBe('openai_responses');
-    expect(defaultFormat('dsh')).toBe('openai_responses');
-    expect(defaultFormat('grok')).toBe('openai_responses');
-    expect(formatNeedsRouting('claude', defaultFormat('claude'))).toBe(false);
-    expect(formatNeedsRouting('codex', defaultFormat('codex'))).toBe(false);
-    expect(formatNeedsRouting('dsh', defaultFormat('dsh'))).toBe(false);
-    expect(formatNeedsRouting('grok', defaultFormat('grok'))).toBe(false);
   });
 });
 
@@ -179,16 +145,6 @@ describe('patchDshYaml', () => {
   it('removes only the block', () => {
     expect(patchDshYaml(patchDshYaml('- id: mine\n', patch), null)).toBe('- id: mine\n');
     expect(patchDshYaml(patchDshYaml(null, patch), null)).toBe('');
-  });
-});
-
-describe('grok formats', () => {
-  it('defaultFormat is openai_responses and never needs routing', () => {
-    expect(defaultFormat('grok')).toBe('openai_responses');
-    expect(formatNeedsRouting('grok', defaultFormat('grok'))).toBe(false);
-    expect(grokApiBackend('openai_responses')).toBe('responses');
-    expect(grokApiBackend('openai_chat_completions')).toBe('chat_completions');
-    expect(grokApiBackend('anthropic_messages')).toBe('messages');
   });
 });
 

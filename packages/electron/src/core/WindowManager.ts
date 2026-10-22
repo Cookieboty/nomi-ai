@@ -15,6 +15,7 @@ import { type IConfigService } from '../services/ConfigService';
 import { type ILoggerService } from '../services/LoggerService';
 import { perfEnabled, perfMark } from '../utils/perfMarks';
 import { installPreloadGuard } from '../utils/preloadGuard';
+import { setWindowBounds } from '../utils/windowBounds';
 
 import { windowIconPath } from './appIcon';
 import { devChatUrl, devRendererUrl } from './devPorts';
@@ -125,6 +126,7 @@ export class WindowManager implements IWindowManager {
       };
 
       this.mainWindow = await this.createWindow(windowOptions, 'main');
+      if (process.platform === 'win32') setWindowBounds(this.mainWindow, { x, y, ...size });
       // 看板娘已关闭：整窗静音（音效 / TTS 音频），渲染端另外跳过朗读
       this.mainWindow.webContents.setAudioMuted(this.mascotHidden());
 
@@ -362,6 +364,14 @@ export class WindowManager implements IWindowManager {
       if (keepHidden) this.logger.info('看板娘已关闭，窗口保持隐藏');
       else if (options.showInactive) window.showInactive();
       else window.show();
+      if (type === 'main' && process.platform === 'win32') {
+        setWindowBounds(window, {
+          x: options.x!,
+          y: options.y!,
+          width: options.width!,
+          height: options.height!,
+        });
+      }
 
       // 开发环境打开开发者工具
       if (isDevMode()) {

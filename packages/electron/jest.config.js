@@ -42,6 +42,8 @@ module.exports = {
 
   // 覆盖率配置
   collectCoverage: true,
+  // 独立启动器通过函数序列化在子进程执行；插桩会引入无法序列化的覆盖率闭包。
+  coveragePathIgnorePatterns: ['/src/gateway/windowsTerminal.ts$'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html', 'json'],
   collectCoverageFrom: [

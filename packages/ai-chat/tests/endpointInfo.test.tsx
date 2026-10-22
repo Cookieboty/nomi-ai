@@ -116,16 +116,6 @@ beforeEach(() => {
           return ENDPOINT(String(a[0]));
         case 'ai:cli-update:inspect':
           return cli;
-        case 'ai:cli-provider:state':
-          return {
-            profiles: [
-              { id: 'p1', kind: 'codex', name: 'OpenAI 官方', model: 'gpt-5', active: true },
-            ],
-            claudeSettings: '/home/u/.claude/settings.json',
-            codexConfig: '/home/u/.codex/config.toml',
-            dshConfig: '/home/u/.dsh/config.json',
-            grokConfig: '/home/u/.grok/config.toml',
-          };
       }
       return null;
     }),
@@ -155,7 +145,7 @@ const renderCard = (
 };
 
 describe('按端信息卡（左下角）', () => {
-  it('展示端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量 / 模型 / 运行中', async () => {
+  it('展示端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量 / 运行中', async () => {
     const { findByTestId, getByTestId } = renderCard();
     const card = await findByTestId('endpoint-info-card');
     await waitFor(() => expect(card.textContent).toContain('v0.46.0'));
@@ -176,8 +166,8 @@ describe('按端信息卡（左下角）', () => {
     expect(card.textContent).toContain('每周');
     await waitFor(() => expect(getByTestId('endpoint-card-usage').textContent).toContain('12.3K'));
     expect(getByTestId('endpoint-card-usage').textContent).toContain('$0.120');
-    // 模型 · 供应商：优先 CLI 里激活的供应商
-    expect(card.textContent).toContain('gpt-5 · OpenAI 官方');
+    // 卡片不展示默认模型或历史用量模型，避免混淆两种含义
+    expect(card.textContent).not.toContain('gpt-5 · OpenAI');
   });
 
   it('单端刷新：只带本端参数调用额度刷新 + 重读用量，不触发其他端', async () => {
@@ -281,12 +271,11 @@ describe('按端详情抽屉', () => {
     expect(quotaSec.textContent).toContain('已用 74%');
     expect(getByTestId('endpoint-drawer-status').textContent).toContain('codex app-server');
     await waitFor(() => expect(getByTestId('endpoint-trend').children).toHaveLength(7));
-    await waitFor(() =>
-      expect(getByTestId('endpoint-drawer-models').textContent).toContain('gpt-5-mini'),
-    );
+    expect(getByTestId('endpoint-drawer-usage')).toBeTruthy();
+    expect(getByTestId('endpoint-drawer').textContent).not.toContain('按模型 · 供应商');
     expect(getByTestId('endpoint-drawer-usage').textContent).toContain('$1.84');
     const cfg = getByTestId('endpoint-drawer-config');
-    expect(cfg.textContent).toContain('/home/u/.codex/config.toml');
+    expect(cfg.textContent).toContain('~/.codex/config.toml');
     expect(cfg.textContent).toContain('不读取');
     // 不会为了展示配置而读文件：没有任何 fs / 凭据相关 IPC
     expect(calls.some((c) => /auth|credential|keychain/i.test(c[0]))).toBe(false);
@@ -327,20 +316,12 @@ describe('按端详情抽屉', () => {
 });
 
 describe('配置路径（只有路径，不读内容）', () => {
-  it('按端取对应配置文件路径；Nomi 没有', () => {
-    const p = {
-      profiles: [],
-      claudeSettings: '/c/settings.json',
-      codexConfig: '/x/config.toml',
-      dshConfig: '/d/config',
-      grokConfig: '/g/config.toml',
-    } as never;
-    expect(configPathsOf('claude', p)).toEqual([
-      { label: 'settings.json', path: '/c/settings.json' },
+  it('按端取 CLI 默认的配置文件路径；Nomi 没有', () => {
+    expect(configPathsOf('claude')).toEqual([
+      { label: 'settings.json', path: '~/.claude/settings.json' },
     ]);
-    expect(configPathsOf('codex', p)[0]!.path).toBe('/x/config.toml');
-    expect(configPathsOf('grok', p)[0]!.path).toBe('/g/config.toml');
-    expect(configPathsOf('nomi', p)).toEqual([]);
-    expect(configPathsOf('codex', null)).toEqual([]);
+    expect(configPathsOf('codex')[0]!.path).toBe('~/.codex/config.toml');
+    expect(configPathsOf('grok')[0]!.path).toBe('~/.grok/config.toml');
+    expect(configPathsOf('nomi')).toEqual([]);
   });
 });

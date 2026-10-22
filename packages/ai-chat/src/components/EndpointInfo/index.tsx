@@ -1,12 +1,12 @@
 /**
  * 「按端」左下角端信息卡 + 点击后的右侧详情抽屉。
- * 卡片（紧凑）：端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量费用 / 模型与供应商 /
- * 运行中标签数 / 最近活动；抽屉（完整）：全部额度窗口、近 7 天趋势、按模型用量、配置路径（仅路径）、
+ * 卡片（紧凑）：端图标 / 名称 / 版本 / 安装状态 / 登录方式 / 套餐 / 迷你额度条 / 今日用量费用 /
+ * 运行中标签数 / 最近活动；抽屉（完整）：全部额度窗口、近 7 天趋势、配置路径（仅路径）、
  * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/design/endpoint-info-card.md。
  * 数据都来自本机主进程；Nomi 不读取任何凭据。
  */
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
-import { ChevronRight, KeyRound, LoaderCircle, RefreshCw, UserRound } from 'lucide-react';
+import { KeyRound, LoaderCircle, RefreshCw, UserRound } from 'lucide-react';
 import React, { useState } from 'react';
 
 import { configPathsOf, useEndpointInfo, type EndpointInfo } from '../../hooks/useEndpointInfo';
@@ -17,7 +17,7 @@ import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { AppIcon } from '../AppIcons';
 import { relTime } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
-import { formatMoney, formatTokens, quotaWindowShort, share } from '../UsagePanel/format';
+import { formatMoney, formatTokens, quotaWindowShort } from '../UsagePanel/format';
 import { authLabel, ORIGIN_LABEL } from '../UsagePanel/quotaNote';
 import { QuotaWindowList, quotaTone } from '../UsagePanel/QuotaWindows';
 import { useUsageFx } from '../UsagePanel/useFx';
@@ -84,25 +84,6 @@ function installedOf(
   return info.cli ? !!info.cli.path : null;
 }
 
-/** 用量里解析失败时写入的占位，不当成模型名显示 */
-const knownModel = (key: string | undefined): string | undefined => {
-  const k = key?.trim();
-  return k && k !== 'unknown' ? k : undefined;
-};
-
-/** 当前模型 · 供应商：优先 CLI 里激活的供应商，其次近 7 天用量最高的模型 */
-function modelLine(info: EndpointInfo): string | null {
-  const active = info.providers?.profiles.find((p) => p.kind === info.backend && p.active);
-  if (active) {
-    const model = knownModel(active.model);
-    return [model, active.name].filter(Boolean).join(' · ') || null;
-  }
-  const m = knownModel(info.usage?.byModel.find((r) => knownModel(r.key))?.key);
-  if (!m) return null;
-  const v = info.usage?.byProvider[0]?.key;
-  return v ? `${m} · ${v}` : m;
-}
-
 const lastActivity = (info: EndpointInfo, tabAt: number | null): number | null => {
   const a = info.usage?.lastActivityAt ?? null;
   return a && tabAt ? Math.max(a, tabAt) : (a ?? tabAt);
@@ -127,7 +108,6 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
   const wins = shownWindows(info.quota);
   const isApi = info.quota?.status === 'api' || info.quota?.auth === 'api';
   const today = info.usage?.today;
-  const model = modelLine(info);
   const last = lastActivity(info, lastTabActivity);
   const canRefresh = isQuotaTool(backend) || !!info.usage;
 
@@ -200,14 +180,6 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
                 </span>
                 <span className={styles.dim}>{last ? relTime(last) : t('暂无活动')}</span>
               </span>
-              <span className={styles.kv}>
-                <span className={styles.ellipsis} title={model ?? undefined}>
-                  {model ?? ''}
-                </span>
-                <span className={styles.more}>
-                  {t('详情')} <AppIcon icon={ChevronRight} size={12} />
-                </span>
-              </span>
             </>
           )}
         </button>
@@ -261,12 +233,10 @@ const EndpointDrawer: React.FC<{
   const auth = authOf(backend, quota);
   const isApi = quota?.status === 'api' || quota?.auth === 'api';
   const money = (usd: number) => formatMoney(usd, fx.currency, fx.rate);
-  const paths = configPathsOf(backend, info.providers);
-  const model = modelLine(info);
+  const paths = configPathsOf(backend);
   const series = usage?.series ?? [];
   const peak = Math.max(1, ...series.map((p) => p.tokens));
   const weekCost = usage?.week.costUsd ?? 0;
-  const totalModelTokens = (usage?.byModel ?? []).reduce((s, r) => s + r.tokens, 0);
   const refreshable = isQuotaTool(backend);
   const state = info.quotaState;
 
@@ -326,11 +296,6 @@ const EndpointDrawer: React.FC<{
               {t('最近活动')} {last ? relTime(last, now) : t('暂无活动')}
             </Badge>
           </div>
-          {model ? (
-            <div className={styles.dim}>
-              {t('当前模型 · 供应商')}：{model}
-            </div>
-          ) : null}
           {cli?.path ? (
             <div className={styles.dim}>
               {cli.installMethod === 'npm'
@@ -432,46 +397,6 @@ const EndpointDrawer: React.FC<{
               />
             ))}
           </div>
-        </section>
-
-        <section className={styles.panel} data-testid="endpoint-drawer-models">
-          <h3 className={styles.h3}>
-            {t('按模型 · 供应商')}
-            <span className={styles.dim}>{t('近 7 天')}</span>
-          </h3>
-          {usage && usage.byModel.some((r) => knownModel(r.key)) ? (
-            <ul className={styles.models}>
-              {usage.byModel
-                .filter((r) => knownModel(r.key))
-                .slice(0, 6)
-                .map((r) => (
-                  <li key={r.key}>
-                    <div className={styles.modelHead}>
-                      <span className={styles.ellipsis} title={r.key}>
-                        {r.key}
-                      </span>
-                      <span className={styles.dim}>{formatTokens(r.tokens)}</span>
-                      <span className={styles.dim}>{share(r.tokens, totalModelTokens)}</span>
-                      <b>{r.hasUnpriced && r.costUsd === 0 ? t('未定价') : money(r.costUsd)}</b>
-                    </div>
-                    <div className={styles.bar} aria-hidden>
-                      <i
-                        style={{
-                          width: `${Math.max(1, totalModelTokens ? (r.tokens / totalModelTokens) * 100 : 0)}%`,
-                        }}
-                      />
-                    </div>
-                  </li>
-                ))}
-            </ul>
-          ) : (
-            <span className={styles.dim}>{t('近 7 天还没有读到该工具的用量。')}</span>
-          )}
-          {usage && usage.byProvider.length > 0 ? (
-            <div className={styles.dim}>
-              {t('供应商')}：{usage.byProvider.map((p) => p.key || t('未知')).join(' / ')}
-            </div>
-          ) : null}
         </section>
 
         <section className={styles.panel} data-testid="endpoint-drawer-config">

@@ -17,6 +17,7 @@ import {
   resetCliBinCache,
 } from '../../../src/cli/detect';
 import {
+  LOGIN_SHELL_ARGS,
   loadLoginShellPath,
   mergePath,
   parseShellPath,
@@ -56,21 +57,43 @@ describe('loadLoginShellPath (real child process, fake shell)', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  posix('runs the shell with -ilc, merges its PATH after the current one', async () => {
-    // 假 shell：打印 rc 噪音，再按登录 shell 的 PATH 执行传进来的命令
-    const shell = path.join(dir, 'fake-shell');
-    fs.writeFileSync(
-      shell,
-      '#!/bin/sh\necho "rc noise"\nPATH=/fake/nvm/bin:/usr/bin:/bin\nexport PATH\nexec /bin/sh -c "$2"\n',
-      { mode: 0o755 },
-    );
-    process.env.SHELL = shell;
+  posix('asks the login shell for PATH and merges it after the current one', async () => {
+    process.env.SHELL = '/opt/fake/zsh';
     process.env.PATH = '/usr/bin:/bin';
+    const calls: Array<[string, string[]]> = [];
     const added: string[][] = [];
-    await loadLoginShellPath((a) => added.push(a));
+    await loadLoginShellPath((a) => added.push(a), {
+      run: async (shell, args) => {
+        calls.push([shell, args]);
+        return parseShellPath(
+          'rc noise\n__NOMI_PATH_START__/fake/nvm/bin:/usr/bin:/bin__NOMI_PATH_END__',
+        );
+      },
+    });
+    expect(calls).toEqual([['/opt/fake/zsh', LOGIN_SHELL_ARGS]]);
+    expect(LOGIN_SHELL_ARGS[0]).toBe('-ilc');
     expect(process.env.PATH).toBe('/usr/bin:/bin:/fake/nvm/bin');
     expect(added).toEqual([['/fake/nvm/bin']]);
   });
+
+  posix(
+    'really runs the shell with -ilc (integration)',
+    async () => {
+      // 假 shell：打印 rc 噪音，再按登录 shell 的 PATH 执行传进来的命令。
+      // 超时放宽：全仓并行跑测试时拉起 shell 可能很慢，这里只验证参数与引号能被真实 shell 正确执行
+      const shell = path.join(dir, 'fake-shell');
+      fs.writeFileSync(
+        shell,
+        '#!/bin/sh\necho "rc noise"\nPATH=/fake/nvm/bin:/usr/bin:/bin\nexport PATH\nexec /bin/sh -c "$2"\n',
+        { mode: 0o755 },
+      );
+      process.env.SHELL = shell;
+      process.env.PATH = '/usr/bin:/bin';
+      await loadLoginShellPath(undefined, { timeoutMs: 30_000 });
+      expect(process.env.PATH).toBe('/usr/bin:/bin:/fake/nvm/bin');
+    },
+    40_000,
+  );
 
   posix('keeps PATH unchanged when the shell fails', async () => {
     process.env.SHELL = path.join(dir, 'missing-shell');

@@ -38,7 +38,7 @@ const h = (backend: HistorySession['backend'], i: number, o: Partial<HistorySess
     ...o,
   }) as HistorySession;
 
-function mockIpc(opts: { openResult?: unknown } = {}) {
+function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } = {}) {
   const calls: Array<[string, unknown[]]> = [];
   const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
     calls.push([ch, args]);
@@ -55,7 +55,11 @@ function mockIpc(opts: { openResult?: unknown } = {}) {
           : { items: [h('claude', 9)], nextOffset: null, hasMore: false };
       }
       if (b === 'codex')
-        return { items: [h('codex', 2, { cwdMissing: true })], nextOffset: null, hasMore: false };
+        return {
+          items: opts.codexItems ?? [h('codex', 2, { cwdMissing: true })],
+          nextOffset: null,
+          hasMore: false,
+        };
       return { items: [], nextOffset: null, hasMore: false };
     }
     if (ch === 'ai:history:open') return opts.openResult ?? { ok: true };
@@ -103,6 +107,29 @@ describe('CLI history in the sidebar', () => {
     expect(r.getAllByTestId('history-session-item').some((x) => x.dataset.backend === 'dsh')).toBe(
       false,
     );
+  });
+
+  it('marks non-official routes on the row and lists client / route / account in the tooltip', async () => {
+    mockIpc({
+      codexItems: [
+        h('codex', 2, { client: 'desktop', route: 'gateway', account: 'me@example.com' }),
+        h('codex', 4, { client: 'cli', route: 'custom', provider: 'packycode' }),
+        h('codex', 5, { client: 'ide', route: 'official' }),
+      ],
+    });
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-session-item'));
+    const row = (id: string) =>
+      r.getAllByTestId('history-session-item').find((x) => x.dataset.sessionId === id)!;
+    expect(row('codex-2').textContent).toContain('第三方');
+    expect(row('codex-2').title).toContain('客户端：Desktop');
+    expect(row('codex-2').title).toContain('线路：第三方（Nomi 网关）');
+    expect(row('codex-2').title).toContain('账号：me@example.com');
+    expect(row('codex-4').textContent).toContain('packycode');
+    expect(row('codex-4').title).toContain('线路：其他第三方（packycode）');
+    // 官方会话不加行内标签，只在提示里写线路
+    expect(row('codex-5').querySelector('[data-testid="history-route-tag"]')).toBeNull();
+    expect(row('codex-5').title).toContain('线路：官方');
   });
 
   it('normal mode does not show or scan history', async () => {

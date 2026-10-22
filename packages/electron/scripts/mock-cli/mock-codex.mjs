@@ -1,5 +1,28 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
+
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
 /**
  * Mock Codex CLI for CI / headed e2e.
  * Supports: --version | exec --json [prompt] | update
@@ -144,7 +167,7 @@ if (args[0] === 'app-server') {
     const wait =
       Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0) +
       Number(process.env.NOMI_MOCK_DELAY_MS || 0);
-    if (wait) await new Promise((r) => setTimeout(r, wait));
+    if (wait && isSlow(text)) await sleepCancellable(turnId, wait);
     if (interrupted.has(turnId)) return;
     if (process.env.NOMI_MOCK_CODEX_FAIL === '1') {
       return notify('turn/completed', {
@@ -224,6 +247,7 @@ if (args[0] === 'app-server') {
       }
       case 'turn/interrupt':
         interrupted.add(p.turnId);
+        wake(p.turnId);
         reply(j.id, {});
         return notify('turn/completed', {
           threadId: p.threadId,

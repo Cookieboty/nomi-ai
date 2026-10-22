@@ -31,7 +31,7 @@ import {
   codexTurnUsage,
   type CodexTokenTotals,
 } from './codex/appServer';
-import { codexConfigPath } from './configPatch';
+import { codexConfigPath, grokHomePath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
   DSH_MIN_NODE_MAJOR,
@@ -54,12 +54,12 @@ import { pickIdle, resolveIdleReclaimMs, sweepIntervalMs } from './idleReclaim';
 import {
   effortsForModel,
   isValidModelId,
-  providerCatalog,
   isReasoningEffort,
   overrideArgs,
   sanitizeEffort,
   supportsModelOverride,
   type BackendModelCatalog,
+  type CatalogModel,
 } from './modelCatalog';
 import { discoverModels } from './modelDiscovery';
 import {
@@ -98,12 +98,57 @@ import type {
   HarnessSessionState,
   HarnessTabMessage,
   HarnessTabMeta,
+  HarnessTabSource,
   HarnessTabsState,
 } from './types';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 type CliBackend = Exclude<HarnessBackend, 'nomi'>;
+
+/** 统一网关提供给编程助手的能力（主进程 GatewayService，§12） */
+export interface HarnessGateway {
+  /** 新标签默认来源与第三方时用的模型（clients.<cli>） */
+  defaults(kind: CliBackend): { source: HarnessTabSource; model: string | null };
+  /** 第三方会话的进程级注入；网关没在运行时返回 null */
+  launch(
+    kind: CliBackend,
+    tabId: string,
+    model: string,
+  ): {
+    env: Record<string, string>;
+    args: string[];
+    strip: readonly string[];
+    modelInConfig?: boolean;
+  } | null;
+  /** 官方会话：剔除指向网关的残留变量 */
+  officialEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
+  /** 第三方可选模型 */
+  models(): Array<{ ref: string; provider: string; label: string }>;
+}
+
+/** 一次启动的来源注入（见 launchFor） */
+interface TabLaunch {
+  env: Record<string, string>;
+  args: string[];
+  strip: readonly string[];
+  official: boolean;
+  modelInConfig: boolean;
+  /** 长驻进程复用键的一部分 */
+  sig: string;
+}
+
+const OFFICIAL_LAUNCH: TabLaunch = {
+  env: {},
+  args: [],
+  strip: [],
+  official: true,
+  modelInConfig: false,
+  sig: 'official',
+};
+
+/** 第三方来源在 modelScope / modelByScope 里的键 */
+const GATEWAY_SCOPE = 'gateway';
 
 export const MAIN_TAB_ID = 'main';
 export const DEFAULT_MAX_CONCURRENT = 3;
@@ -415,20 +460,11 @@ export class CliHarnessService {
       logger: Logger;
       home?: string;
       defaultCwd?: string;
-      /** 启动 dsh 时注入的额外环境变量（例如启用第三方供应商的 NOMI_DSH_API_KEY） */
-      dshEnv?: () => Record<string, string>;
-      /** 启动 Grok 时注入的额外环境变量（例如启用第三方供应商写入的 XAI_API_KEY） */
-      grokEnv?: () => Record<string, string>;
-      /** Gemini 第三方供应商（CliProviderBridge.geminiEnv） */
-      geminiEnv?: () => Record<string, string>;
-      /** 该 CLI 是否启用了第三方供应商（只有它、没有 providerProfile 时：启用后不能按标签切模型） */
-      hasProviderProfile?: (backend: CliBackend) => boolean;
-      /** 该 CLI 启用中的第三方供应商：模型目录换成它的模型，标签的模型选择按供应商分开记 */
-      providerProfile?: (backend: CliBackend) => { id: string; name: string; model: string } | null;
-      /** 启用中第三方供应商的上游模型列表（GET /models，用供应商自己的密钥） */
-      providerModels?: (backend: CliBackend) => Promise<string[]>;
-      /** dsh：用某个模型生成叠加配置（`--patch`），标签选的模型只作用于那一个进程 */
-      dshModelPatch?: (model: string) => string | null;
+      /**
+       * 统一网关（docs/design/unified-gateway.md §12）：第三方标签的进程级注入、新标签默认来源、
+       * 第三方可选模型、官方标签剔除网关残留变量。没有时只有官方来源。
+       */
+      gateway?: HarnessGateway;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -834,6 +870,8 @@ export class CliHarnessService {
       /** 历史会话实际使用的模型 / 推理档位；只接受合法值，优先于该后端最近设置 */
       modelOverride?: string | null;
       reasoningEffort?: string | null;
+      /** 来源；缺省按「模型」页给这个编程助手设的「新标签默认用」 */
+      source?: HarnessTabSource;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -864,6 +902,8 @@ export class CliHarnessService {
       ).mode,
       ...(opts.permissionModeSource ? { permissionModeSource: opts.permissionModeSource } : {}),
     };
+    // 新标签的来源：显式指定的，否则「模型」页给这个编程助手设的「新标签默认用」
+    tab.source = this.defaultSource(backend, opts.source);
     this.inheritSettings(
       tab,
       isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
@@ -1057,6 +1097,13 @@ export class CliHarnessService {
       }
     }
     tab.backend = backend;
+    // 来源属于后端：换后端时按新后端的默认来源
+    if (switched) {
+      if (backend === 'nomi') delete tab.source;
+      else tab.source = this.defaultSource(backend);
+      tab.modelScope = this.scopeOf(tab);
+      delete tab.modelByScope;
+    }
     // 新后端不支持当前档位时降到更安全的一档
     tab.permissionMode = effectiveMode(backend, tab.permissionMode).mode;
     // 模型 / 思考深度覆盖只属于产生它的后端（模型名跨后端无意义），切换即清除
@@ -1066,6 +1113,53 @@ export class CliHarnessService {
     }
     // 后端没变（侧栏切回 Nomi 会话时会再设一次）：不必落盘 / 广播
     if (switched) this.changed();
+    return { ...tab };
+  }
+
+  /** 新标签的默认来源：显式要第三方且网关里给这个编程助手分配了模型才是第三方 */
+  private defaultSource(backend: HarnessBackend, want?: HarnessTabSource): HarnessTabSource {
+    const g = this.d.gateway;
+    if (!g || backend === 'nomi') return 'official';
+    const d = g.defaults(backend as CliBackend);
+    const source = want ?? d.source;
+    return source === 'thirdParty' && (d.model || want) ? 'thirdParty' : 'official';
+  }
+
+  /**
+   * 切换标签的来源（§4.3、§13 第 5 条）。来源决定进程级注入，换来源一定重启进程：
+   * - 空标签：直接切换；
+   * - 第三方之间换模型：走 setTabModel（原地切换）；
+   * - 官方 → 第三方：续接原会话；Codex 例外，用带上下文的新会话（原会话会被 Codex 改到网关名下）；
+   * - 第三方 → 官方：第三方的推理内容不能发给官方接口，用带上下文的新会话，原会话保留。
+   */
+  setTabSource(id: string, source: HarnessTabSource, model?: string): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    if (tab.backend === 'nomi') throw new Error(t('Nomi 对话没有来源可选'));
+    if (source !== 'official' && source !== 'thirdParty') throw new Error(t('未知来源'));
+    if (source === 'thirdParty' && !this.d.gateway) throw new Error(t('模型网关不可用'));
+    if (tab.status === 'running' || tab.status === 'queued')
+      throw new Error(t('这一轮结束后再切换'));
+    const ref = model?.trim() || '';
+    if (ref && !isValidModelId(ref)) throw new Error(t('模型名不合法'));
+    if (source === this.sourceOf(tab)) return ref ? this.setTabModel(id, ref) : { ...tab };
+    if (
+      source === 'thirdParty' &&
+      !ref &&
+      !this.d.gateway?.defaults(tab.backend as CliBackend).model
+    )
+      throw new Error(t('先在「模型」页给这个编程助手分配一个第三方模型'));
+    const hadSession = Boolean(tab.cliSessionId) || this.tabMessages(id).length > 0;
+    this.teardownClaudeLive(id);
+    this.teardownCodexLive(id);
+    this.teardownAcpLive(id);
+    tab.source = source;
+    this.adoptScope(tab);
+    if (ref) tab.modelOverride = ref;
+    if (hadSession && (source === 'official' || tab.backend === 'codex')) {
+      tab.cliSessionId = null;
+      this.setCarried(tab, this.tabMessages(id), tab.cwd);
+    }
+    this.changed();
     return { ...tab };
   }
 
@@ -1219,14 +1313,11 @@ export class CliHarnessService {
    */
   async modelCatalogFor(
     backend: HarnessBackend,
-    opts: { refresh?: boolean } = {},
+    opts: { refresh?: boolean; source?: HarnessTabSource } = {},
   ): Promise<BackendModelCatalog | null> {
     // 读目录时顺手把这个后端的标签对齐当前来源（重启后第一次打开模型按钮时也正确）
     this.adoptScopes(backend);
-    const profile =
-      backend !== 'nomi' && this.d.providerProfile ? this.activeProfile(backend) : null;
-    if (profile && this.canOverride(backend))
-      return this.providerCatalogFor(backend as CliBackend, profile, opts);
+    if (opts.source === 'thirdParty' && backend !== 'nomi') return this.gatewayCatalog(backend);
     if (!supportsModelOverride(backend)) return null;
     const cached = this.modelCatalogs.get(backend);
     if (!opts.refresh && cached && Date.now() - cached.at < MODEL_CATALOG_TTL_MS) {
@@ -1239,20 +1330,17 @@ export class CliHarnessService {
         const bin = resolveHarnessBin(b);
         if (!bin) return null;
         const useNode = isScript(bin);
-        let extra: Record<string, string> = {};
-        try {
-          extra = (b === 'grok' ? this.d.grokEnv?.() : undefined) ?? {};
-        } catch (e) {
-          this.d.logger.warn('harness grok env failed', e);
-        }
+        // 官方来源的目录：从 CLI 自己读，不带任何第三方注入
         return spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...args] : args, {
           cwd: os.tmpdir(),
-          env: cliChildEnv(useNode, extra),
+          env: this.childEnv(useNode, OFFICIAL_LAUNCH),
         });
       },
       codexConfigPath: process.env.CODEX_HOME
         ? path.join(process.env.CODEX_HOME, 'config.toml')
         : codexConfigPath(this.home),
+      grokModelsCachePath: path.join(grokHomePath(this.home, process.env), 'models_cache.json'),
+      grokSettingsCachePath: path.join(grokHomePath(this.home, process.env), 'settings_cache.json'),
     })
       .catch((e: unknown): BackendModelCatalog => {
         const error = e instanceof Error ? e.message : String(e);
@@ -1270,42 +1358,23 @@ export class CliHarnessService {
     return run;
   }
 
-  /**
-   * 第三方供应商的模型目录：上游 `/models`（用供应商自己的密钥），供应商里配置的模型作默认。
-   * 读不到列表时只保留默认模型并带上原因；结果按后端缓存，换了供应商就重读。
-   */
-  private async providerCatalogFor(
-    backend: CliBackend,
-    profile: { id: string; name: string; model: string },
-    opts: { refresh?: boolean },
-  ): Promise<BackendModelCatalog> {
-    const cached = this.modelCatalogs.get(backend);
-    if (
-      !opts.refresh &&
-      cached &&
-      cached.catalog.provider?.id === profile.id &&
-      Date.now() - cached.at < MODEL_CATALOG_TTL_MS
-    )
-      return cached.catalog;
-    const inflight = this.modelCatalogInflight.get(backend);
-    if (inflight) return inflight as Promise<BackendModelCatalog>;
-    const run = (this.d.providerModels?.(backend) ?? Promise.resolve([]))
-      .then(
-        (ids) => providerCatalog(backend, profile, ids),
-        (e: unknown) => {
-          const error = e instanceof Error ? e.message : String(e);
-          this.d.logger.warn('harness provider model list failed', { backend, error });
-          return providerCatalog(backend, profile, [], error);
-        },
-      )
-      .then((catalog) => {
-        if (catalog.error) this.modelCatalogs.delete(backend);
-        else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
-        return catalog;
-      })
-      .finally(() => this.modelCatalogInflight.delete(backend));
-    this.modelCatalogInflight.set(backend, run);
-    return run;
+  /** 第三方来源的模型目录：网关里启用的模型（`供应商/模型`），默认 = 「模型」页给这个编程助手分配的 */
+  private gatewayCatalog(backend: CliBackend): BackendModelCatalog {
+    const g = this.d.gateway;
+    const list = g?.models() ?? [];
+    const def = g?.defaults(backend).model ?? null;
+    const models: CatalogModel[] = list.map((m) => ({
+      id: m.ref,
+      label: `${m.provider} / ${m.label}`,
+      reasoning: false,
+      efforts: [],
+    }));
+    return {
+      backend,
+      models,
+      defaultModel: (def && models.find((m) => m.id === def)) || null,
+      provider: { id: GATEWAY_SCOPE, name: t('第三方模型') },
+    };
   }
 
   /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
@@ -1324,11 +1393,9 @@ export class CliHarnessService {
   setTabModel(id: string, model: string): HarnessTabMeta {
     const tab = this.requireTab(id);
     const backend = tab.backend;
-    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
     const name = model.trim();
     const scope = this.adoptScope(tab);
-    if (name && !this.d.providerProfile && scope)
-      throw new Error(t('已启用第三方供应商，模型由供应商配置决定'));
     if (!name) {
       if (tab.modelOverride || tab.reasoningEffort) {
         tab.modelOverride = null;
@@ -1372,7 +1439,7 @@ export class CliHarnessService {
       }
       return { ...tab };
     }
-    if (!this.canOverride(backend)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
     if (this.adoptScope(tab)) throw new Error(t('第三方供应商的模型不能在这里调思考深度'));
     if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
     const levels = effortsForModel(this.cachedCatalog(backend), tab.modelOverride);
@@ -1401,37 +1468,33 @@ export class CliHarnessService {
     if (live && !live.turn && !claudeBackgroundActive(live)) this.teardownClaudeLive(tab.id);
   }
 
-  /** 该 CLI 启用中的第三方供应商（没有 providerProfile 时按 hasProviderProfile 给一个占位） */
-  private activeProfile(
-    backend: HarnessBackend,
-  ): { id: string; name: string; model: string } | null {
-    if (backend === 'nomi') return null;
-    const p = this.d.providerProfile?.(backend);
-    if (p) return p;
-    return this.d.hasProviderProfile?.(backend) ? { id: 'provider', name: '', model: '' } : null;
+  /** 标签的来源：第三方（经统一网关）/ 官方账号（CLI 自带配置） */
+  private sourceOf(tab: HarnessTabMeta): HarnessTabSource {
+    return tab.backend !== 'nomi' && tab.source === 'thirdParty' && this.d.gateway
+      ? 'thirdParty'
+      : 'official';
   }
 
-  /** 当前的模型来源：第三方供应商 id；null = 官方账号（CLI 自带配置） */
-  private scopeOf(backend: HarnessBackend): string | null {
-    return this.activeProfile(backend)?.id ?? null;
+  /** 当前的模型来源键：第三方为 'gateway'；null = 官方账号 */
+  private scopeOf(tab: HarnessTabMeta): string | null {
+    return this.sourceOf(tab) === 'thirdParty' ? GATEWAY_SCOPE : null;
   }
 
   /**
-   * 能否按标签切模型：带模型目录的后端（claude / codex / grok）；dsh 只在启用了第三方供应商时
-   * （模型经 `--patch` 叠加配置下发）。
+   * 能否按标签切模型：官方来源要 CLI 有模型目录（claude / codex / grok）；
+   * 第三方来源都可以（模型经网关解析，Gemini / Grok / dsh 换模型时重启进程）。
    */
-  private canOverride(backend: HarnessBackend): boolean {
-    if (backend === 'dsh')
-      return Boolean(this.d.dshModelPatch) && this.d.providerProfile?.('dsh') != null;
-    return supportsModelOverride(backend);
+  private canOverride(tab: HarnessTabMeta): boolean {
+    if (tab.backend === 'nomi') return false;
+    return this.sourceOf(tab) === 'thirdParty' || supportsModelOverride(tab.backend);
   }
 
   /**
-   * 让标签上的模型 / 思考深度对应当前来源：来源变了（换了供应商 / 回到官方账号）就把旧来源的选择
-   * 收进 modelByScope，取出新来源上次的选择。返回当前来源。
+   * 让标签上的模型 / 思考深度对应当前来源：来源变了（官方 ↔ 第三方）就把旧来源的选择
+   * 收进 modelByScope，取出新来源上次的选择。返回当前来源键。
    */
   private adoptScope(tab: HarnessTabMeta): string | null {
-    const scope = this.scopeOf(tab.backend);
+    const scope = this.scopeOf(tab);
     const had = tab.modelScope ?? null;
     if (had === scope) return scope;
     const key = (s: string | null) => s ?? 'official';
@@ -1448,32 +1511,77 @@ export class CliHarnessService {
     return scope;
   }
 
-  /** 该后端所有标签对齐当前模型来源（换供应商 / 账号后、读模型目录时调用） */
+  /** 该后端所有标签对齐各自的来源（读模型目录、换账号时调用） */
   private adoptScopes(backend: HarnessBackend) {
     let moved = false;
     for (const tab of this.tabs.values()) {
-      if (tab.backend !== backend || (tab.modelScope ?? null) === this.scopeOf(backend)) continue;
+      if (tab.backend !== backend || (tab.modelScope ?? null) === this.scopeOf(tab)) continue;
       this.adoptScope(tab);
       moved = true;
     }
     if (moved) this.changed();
   }
 
-  /** 该标签所在 CLI 启用了第三方供应商 */
-  private profileManaged(tab: HarnessTabMeta): boolean {
-    return this.activeProfile(tab.backend) !== null;
+  /**
+   * 本轮实际下发的模型 / 思考深度。只下发属于当前来源的选择（官方账号下选的模型名不发到网关，
+   * 反之亦然）。第三方来源没选模型时用「模型」页给这个编程助手分配的模型；第三方不带思考深度。
+   */
+  private effectiveOverrides(tab: HarnessTabMeta): { model: string | null; effort: string | null } {
+    const scope = this.scopeOf(tab);
+    if (scope) {
+      const own = (tab.modelScope ?? null) === scope ? tab.modelOverride?.trim() : '';
+      return {
+        model: own || this.d.gateway?.defaults(tab.backend as CliBackend).model || null,
+        effort: null,
+      };
+    }
+    if ((tab.modelScope ?? null) !== null) return { model: null, effort: null };
+    return { model: tab.modelOverride?.trim() || null, effort: tab.reasoningEffort ?? null };
   }
 
   /**
-   * 本轮实际注入的模型 / 思考深度。只下发属于当前来源的选择：供应商启用时，官方账号下选的模型名
-   * 不能发到第三方端点（反之亦然）；第三方供应商的模型不带思考深度。
+   * 这一次启动的进程级注入（§12）：第三方 → 网关地址、令牌、模型参数、要剔除的继承变量；
+   * 官方 → 只剔除指向网关的残留变量。sig 决定长驻进程能否复用：来源、网关地址或令牌、
+   * 写在配置里的模型（Gemini / Grok / dsh）变了就重启。
    */
-  private effectiveOverrides(tab: HarnessTabMeta): { model: string | null; effort: string | null } {
-    const scope = this.scopeOf(tab.backend);
-    if ((tab.modelScope ?? null) !== scope) return { model: null, effort: null };
-    if (scope && !this.d.providerProfile) return { model: null, effort: null };
-    const model = tab.modelOverride?.trim() || null;
-    return { model, effort: scope ? null : (tab.reasoningEffort ?? null) };
+  private launchFor(tab: HarnessTabMeta): TabLaunch {
+    if (this.sourceOf(tab) === 'official')
+      return {
+        env: {},
+        args: [],
+        strip: [],
+        official: true,
+        modelInConfig: false,
+        sig: 'official',
+      };
+    const model = this.effectiveOverrides(tab).model;
+    if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
+    const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
+    if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
+    const modelInConfig = Boolean(l.modelInConfig);
+    const stable = Object.fromEntries(
+      Object.entries(l.env).filter(([k]) => modelInConfig || !/MODEL/.test(k)),
+    );
+    return {
+      env: l.env,
+      args: l.args,
+      strip: l.strip,
+      official: false,
+      modelInConfig,
+      sig: JSON.stringify(['thirdParty', stable, l.args, modelInConfig ? model : '']),
+    };
+  }
+
+  /** 子进程环境：剔除 Nomi 内部变量后叠加注入；官方来源去掉网关残留，第三方剔除会抢鉴权的继承变量 */
+  private childEnv(
+    useNode: boolean,
+    l: TabLaunch,
+    extra: Record<string, string> = {},
+  ): NodeJS.ProcessEnv {
+    let env = cliChildEnv(useNode, { ...extra, ...l.env });
+    if (l.official && this.d.gateway) env = this.d.gateway.officialEnv(env);
+    for (const k of l.strip) delete env[k];
+    return env;
   }
 
   /** 本地路由放行的模型：这个 CLI 的标签为当前供应商选中的模型 */
@@ -1607,13 +1715,12 @@ export class CliHarnessService {
    * 第三方供应商，反之亦然；换供应商 / 账号时 recycleBackend 已清掉记下的值）。
    */
   private inheritSettings(tab: HarnessTabMeta, explicitMode: boolean) {
-    tab.modelScope = this.scopeOf(tab.backend);
+    tab.modelScope = this.scopeOf(tab);
     const s = this.lastSettings.get(tab.backend);
     if (!s) return;
     if (!explicitMode && s.permissionMode)
       tab.permissionMode = effectiveMode(tab.backend, s.permissionMode).mode;
-    if (!this.canOverride(tab.backend) || (s.modelScope ?? null) !== tab.modelScope) return;
-    if (tab.modelScope && !this.d.providerProfile) return;
+    if (!this.canOverride(tab) || (s.modelScope ?? null) !== tab.modelScope) return;
     if (s.modelOverride) tab.modelOverride = s.modelOverride;
     if (s.reasoningEffort && !tab.modelScope) tab.reasoningEffort = s.reasoningEffort;
   }
@@ -1787,7 +1894,7 @@ export class CliHarnessService {
     if (!text.trim()) throw new Error(t('消息为空'));
     const backend = tab.backend;
     // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
-    if ((tab.modelScope ?? null) !== this.scopeOf(backend)) {
+    if ((tab.modelScope ?? null) !== this.scopeOf(tab)) {
       this.adoptScope(tab);
       this.changed();
     }
@@ -2077,9 +2184,12 @@ export class CliHarnessService {
   private ensureClaudeLive(tab: HarnessTabMeta): ClaudeLiveSession {
     const existing = this.claudeLive.get(tab.id);
     const overrides = this.effectiveOverrides(tab);
+    const launch = this.launchFor(tab);
     if (
       existing &&
       existing.cwd === tab.cwd &&
+      // 来源 / 网关地址 / 令牌变了：进程级注入不同，必须重启
+      existing.launchSig === launch.sig &&
       // 已生效（后端确认过）的档位与标签一致，且没有还在等确认的切换
       existing.permissionMode === tab.permissionMode &&
       !existing.modeChange &&
@@ -2115,11 +2225,12 @@ export class CliHarnessService {
       ...permissionLaunch('claude', tab.permissionMode).args,
       // 标签级模型 / 思考深度（长驻进程，随复用键变化而重启）
       ...overrideArgs('claude', overrides),
+      ...launch.args,
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: cliChildEnv(useNode),
+      env: this.childEnv(useNode, launch),
     });
     const live: ClaudeLiveSession = {
       child,
@@ -2132,6 +2243,7 @@ export class CliHarnessService {
       controls: new Map(),
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
+      launchSig: launch.sig,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -2341,7 +2453,13 @@ export class CliHarnessService {
     // 还在等确认的模式切换先有结果：失败时会话已拆除，下面按标签档位重新建立（#72）
     await this.acpLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     const existing = this.acpLive.get(tab.id);
-    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+    const launch = this.launchFor(tab);
+    if (
+      existing &&
+      existing.cwd === tab.cwd &&
+      existing.launchSig === launch.sig &&
+      !existing.conn.isClosed
+    ) {
       await existing.ready;
       return this.confirmAcpMode(tab, existing);
     }
@@ -2359,10 +2477,8 @@ export class CliHarnessService {
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
-      env: cliChildEnv(
-        useNode,
-        backend === 'grok' ? this.grokExtraEnv() : { ...this.d.geminiEnv?.() },
-      ),
+      // 第三方：Grok 用私有 GROK_HOME、Gemini 用环境变量指向网关；官方剔除网关残留
+      env: this.childEnv(useNode, launch),
     });
     let stderrTail = '';
     child.stderr.on('data', (c) => {
@@ -2373,6 +2489,7 @@ export class CliHarnessService {
       backend,
       model: null,
       effort: null,
+      launchSig: launch.sig,
       child,
       conn: null as unknown as AcpConnection,
       sessionId: null,
@@ -2656,6 +2773,8 @@ export class CliHarnessService {
    */
   private async syncAcpOverrides(tab: HarnessTabMeta, live: AcpLiveSession): Promise<boolean> {
     if (live.backend !== 'grok' || !live.sessionId) return true;
+    // 第三方：模型写在私有 GROK_HOME 的配置里，换模型时按 launchSig 重启进程
+    if (this.sourceOf(tab) === 'thirdParty') return true;
     const want = this.effectiveOverrides(tab);
     if (live.model === want.model && live.effort === want.effort) return true;
     const catalog = this.cachedCatalog('grok');
@@ -2694,16 +2813,6 @@ export class CliHarnessService {
       live.effort = want.effort;
     }
     return true;
-  }
-
-  /** 启动 Grok 时注入的额外环境变量（第三方供应商的 XAI_API_KEY 等）；读取失败不阻塞启动 */
-  private grokExtraEnv(): Record<string, string> {
-    try {
-      return this.d.grokEnv?.() ?? {};
-    } catch (e) {
-      this.d.logger.warn('harness grok env failed', e);
-      return {};
-    }
   }
 
   private cancelAcpTurn(live: AcpLiveSession) {
@@ -2908,13 +3017,14 @@ export class CliHarnessService {
   }
 
   /**
-   * 供应商配置已经落到磁盘。正在跑的进程不会重读环境变量和配置文件。
+   * 官方账号已经切换（凭据落到了 CLI 自己的存储）。正在跑的进程不会重读凭据。
+   * 只处理来源为官方的标签；第三方标签走网关，不受影响（§13 第 3 条）。
    * Claude 是唯一跨轮长驻的进程：空闲的悄悄拆掉，下一轮用原来的 cliSessionId
    * 带 --resume 重拉。这一轮还在输出时先记下，等它正常结束再拆，避免「已中止」或休眠条。
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
   recycleBackend(kind: HarnessBackend): void {
-    // 换了账号 / 供应商：可选模型跟着变，下次打开浮层重新从 CLI 读
+    // 换了账号：官方可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
     // 标签上的模型选择换成新来源的（官方 ↔ 某个供应商各记各的）
     this.adoptScopes(kind);
@@ -2925,10 +3035,15 @@ export class CliHarnessService {
       delete last.reasoningEffort;
       this.persist();
     }
+    // 换的是官方账号：第三方标签走网关，与官方凭据无关，不重启（§13 第 3 条）
+    const official = (id: string) => {
+      const tab = this.tabs.get(id);
+      return !tab || this.sourceOf(tab) === 'official';
+    };
     if (kind === 'gemini' || kind === 'grok') {
-      // 登录 / 供应商在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
+      // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
       for (const [id, gl] of [...this.acpLive.entries()]) {
-        if (gl.backend !== kind) continue;
+        if (gl.backend !== kind || !official(id)) continue;
         if (gl.turn) gl.recycleAfterTurn = true;
         else this.teardownAcpLive(id);
       }
@@ -2937,6 +3052,7 @@ export class CliHarnessService {
     if (kind === 'codex') {
       // 供应商写的是 config.toml：app-server 只在启动时读，空闲的直接拆，正在跑的这一轮结束后再拆
       for (const [id, cl] of [...this.codexLive.entries()]) {
+        if (!official(id)) continue;
         if (cl.turn) cl.recycleAfterTurn = true;
         else this.teardownCodexLive(id);
       }
@@ -2944,6 +3060,7 @@ export class CliHarnessService {
     }
     if (kind !== 'claude') return;
     for (const [id, live] of [...this.claudeLive.entries()]) {
+      if (!official(id)) continue;
       if (live.turn && !live.turn.settled) {
         live.recycleAfterTurn = true;
         continue;
@@ -3044,7 +3161,13 @@ export class CliHarnessService {
     signal?: AbortSignal,
   ): Promise<CodexLiveSession> {
     const existing = this.codexLive.get(tab.id);
-    if (existing && existing.cwd === tab.cwd && !existing.conn.isClosed) {
+    const launch = this.launchFor(tab);
+    if (
+      existing &&
+      existing.cwd === tab.cwd &&
+      existing.launchSig === launch.sig &&
+      !existing.conn.isClosed
+    ) {
       await existing.ready;
       return existing;
     }
@@ -3052,10 +3175,11 @@ export class CliHarnessService {
     const bin = resolveHarnessBin('codex');
     if (!bin) throw new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）'));
     const useNode = isScript(bin);
-    const argv = ['app-server'];
+    // 第三方：-c 指向网关（模型按轮下发，见 runCodexLive）
+    const argv = ['app-server', ...launch.args];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: cliChildEnv(useNode),
+      env: this.childEnv(useNode, launch),
     });
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
@@ -3067,6 +3191,7 @@ export class CliHarnessService {
       cwd: tab.cwd,
       model: null,
       effort: null,
+      launchSig: launch.sig,
       turn: null,
       perms: new Map(),
       totals: null,
@@ -3347,23 +3472,40 @@ export class CliHarnessService {
 
   /**
    * 停止 Codex 这一轮：turn/interrupt（实测 18ms 内以 interrupted 结束，进程保留）。
-   * 拿不到应答、或宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   * 宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   * turn/start 的应答还没回来时不立刻拆：轮询等 turnId，到了再 interrupt；
+   * 否则用户刚点发送就点停止会误杀整个 app-server（macOS CI 上更容易撞上）。
    */
   private interruptCodexTurn(id: string, live: CodexLiveSession, turn: CodexTurn) {
     for (const fin of [...live.perms.values()]) fin(null);
+    const grace = this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS;
     const fallback = () => {
       if (this.codexLive.get(id) === live && live.turn === turn && !turn.settled)
         this.teardownCodexLive(id);
     };
-    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
-    // turn/start 的应答还没回来（拿不到 turnId）：只能拆进程
-    if (!turn.id || !live.threadId) {
-      fallback();
+    setTimeout(fallback, grace).unref?.();
+    const send = () => {
+      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) return;
+      if (!turn.id || !live.threadId) return;
+      live.conn
+        .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
+        .catch(fallback);
+    };
+    if (turn.id && live.threadId) {
+      send();
       return;
     }
-    live.conn
-      .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
-      .catch(fallback);
+    const poll = setInterval(() => {
+      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) {
+        clearInterval(poll);
+        return;
+      }
+      if (turn.id && live.threadId) {
+        clearInterval(poll);
+        send();
+      }
+    }, 20);
+    poll.unref?.();
   }
 
   private teardownCodexLive(tabId: string) {
@@ -3399,8 +3541,14 @@ export class CliHarnessService {
     const sandbox = permissionLaunch('codex', tab.permissionMode, {
       codexNetwork: this.codexNetwork,
     }).args;
-    // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）
-    const modelArgs = overrideArgs('codex', this.effectiveOverrides(tab));
+    let launch: TabLaunch;
+    try {
+      launch = this.launchFor(tab);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+    // 标签级模型 / 思考深度覆盖（进程级 -c，不写全局 config.toml）；第三方再加指向网关的 -c
+    const modelArgs = [...launch.args, ...overrideArgs('codex', this.effectiveOverrides(tab))];
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     // 同一份逻辑参数：.js / .mjs 入口只是经 node 启动、前面多一个脚本路径，
     // 沙箱 / 审批 / 联网参数不能因入口形式不同而丢掉（#73）
@@ -3430,6 +3578,7 @@ export class CliHarnessService {
       argv: useNode ? [bin, ...argv] : argv,
       parseLine: parseCodexLine,
       kind: 'codex',
+      launch,
       asNode: useNode,
     });
   }
@@ -3442,38 +3591,26 @@ export class CliHarnessService {
     const bin = resolveHarnessBin('dsh');
     if (!bin) return Promise.reject(new Error(t('未找到 dsh（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
-    const argv = ['--profile', 'headless', '--json'];
-    // 标签为第三方供应商选的模型：写一份只给这个进程用的叠加配置（dsh 的 --patch 在 profile 之后生效）
-    const model = this.canOverride('dsh') ? this.effectiveOverrides(tab).model : null;
-    const overlay = model ? this.d.dshModelPatch?.(model) : null;
-    if (overlay) {
-      const file = path.join(this.d.root, 'dsh-patches', `${tab.id.replace(/[^\w-]/g, '_')}.yml`);
-      try {
-        fs.mkdirSync(path.dirname(file), { recursive: true });
-        fs.writeFileSync(file, overlay, 'utf8');
-        argv.splice(2, 0, '--patch', file);
-      } catch (e) {
-        this.d.logger.warn('harness dsh model patch failed', e);
-      }
+    // 第三方：网关地址与模型写在只给这个进程用的叠加配置里（--patch 在 profile 之后生效）
+    let launch: TabLaunch;
+    try {
+      launch = this.launchFor(tab);
+    } catch (e) {
+      return Promise.reject(e);
     }
+    const argv = ['--profile', 'headless', ...launch.args, '--json'];
     if (tab.cliSessionId) argv.push('--session-id', tab.cliSessionId);
     if (tab.permissionMode === 'plan') prompt = planPromptPrefix('dsh') + prompt;
     // 以 - 开头的提示会被当成参数，前置空格规避
     argv.push(prompt.startsWith('-') ? ` ${prompt}` : prompt);
-    let extraEnv: Record<string, string> = {};
-    try {
-      extraEnv = this.d.dshEnv?.() ?? {};
-    } catch (e) {
-      this.d.logger.warn('harness dsh env failed', e);
-    }
-    // 沙箱档位：DSH_PERMISSION_MODE（read-only / workspace-write / danger-full-access）
-    extraEnv = { ...extraEnv, ...permissionLaunch('dsh', tab.permissionMode).env };
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv: useNode ? [bin, ...argv] : argv,
       parseLine: createDshParser(),
       kind: 'dsh',
-      env: extraEnv,
+      // 沙箱档位：DSH_PERMISSION_MODE（read-only / workspace-write / danger-full-access）
+      env: permissionLaunch('dsh', tab.permissionMode).env,
+      launch,
       asNode: useNode,
     });
   }
@@ -3509,6 +3646,12 @@ export class CliHarnessService {
     const bin = resolveHarnessBin('grok');
     if (!bin) return Promise.reject(new Error(t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
+    let launch: TabLaunch;
+    try {
+      launch = this.launchFor(tab);
+    } catch (e) {
+      return Promise.reject(e);
+    }
     const argv = [
       '-p',
       prompt.startsWith('-') ? ` ${prompt}` : prompt,
@@ -3516,23 +3659,18 @@ export class CliHarnessService {
       'streaming-json',
       '--no-auto-update',
       ...permissionLaunch('grok', tab.permissionMode).args,
-      // 标签级模型 / 思考深度覆盖（进程级 -m / --reasoning-effort，不写全局配置）
-      ...overrideArgs('grok', this.effectiveOverrides(tab)),
+      // 标签级模型 / 思考深度覆盖（进程级 -m / --reasoning-effort，不写全局配置）；
+      // 第三方的模型写在私有配置里
+      ...(launch.modelInConfig ? [] : overrideArgs('grok', this.effectiveOverrides(tab))),
     ];
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     if (tab.cwd) argv.push('--cwd', tab.cwd);
-    let extraEnv: Record<string, string> = {};
-    try {
-      extraEnv = this.d.grokEnv?.() ?? {};
-    } catch (e) {
-      this.d.logger.warn('harness grok env failed', e);
-    }
     return this.spawnCollect(tab, {
       cmd: useNode ? process.execPath : bin,
       argv: useNode ? [bin, ...argv] : argv,
       parseLine: createGrokParser(),
       kind: 'grok',
-      env: extraEnv,
+      launch,
       asNode: useNode,
     });
   }
@@ -3545,6 +3683,8 @@ export class CliHarnessService {
       parseLine: (line: string) => HarnessEvent[];
       kind: CliBackend;
       env?: Record<string, string>;
+      /** 来源注入（第三方：网关；官方：剔除网关残留）；缺省按官方 */
+      launch?: TabLaunch;
       /** 通过 process.execPath 跑 .mjs/.js 时为 true（需 ELECTRON_RUN_AS_NODE） */
       asNode?: boolean;
       /** 仅特殊 mock 需要保持 stdin；Codex/dsh 必须立刻 EOF。Claude 走 ensureClaudeLive */
@@ -3570,7 +3710,7 @@ export class CliHarnessService {
         cwd: tab.cwd,
         // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
         // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
-        env: cliChildEnv(Boolean(opts.asNode), opts.env),
+        env: this.childEnv(Boolean(opts.asNode), opts.launch ?? OFFICIAL_LAUNCH, opts.env),
       });
       this.children.set(tab.id, child);
 
@@ -3839,7 +3979,7 @@ export class CliHarnessService {
     const msg = this.tabMessages(tabId).find((m) => m.id === messageId);
     const folder = msg?.geminiTrust?.folder;
     if (!folder) throw new Error(t('这条消息没有需要信任的文件夹'));
-    const env = { ...process.env, ...this.d.geminiEnv?.() };
+    const env = { ...process.env };
     const r = await trustGeminiFolder(folder, { home: this.home, env });
     this.d.logger.info('gemini folder trusted by user', { folder: r.folder, file: r.file });
     // 旧进程在信任前就已退出；保险起见清掉，下一轮按新的信任状态重新启动
@@ -3935,7 +4075,18 @@ export class CliHarnessService {
     handle('ai:harness:model-catalog', (b, o) =>
       this.modelCatalogFor(String(b ?? '') as HarnessBackend, {
         refresh: (o as { refresh?: unknown } | undefined)?.refresh === true,
+        source:
+          (o as { source?: unknown } | undefined)?.source === 'thirdParty'
+            ? 'thirdParty'
+            : 'official',
       }),
+    );
+    handle('ai:harness:tab-source', (id, src, m) =>
+      this.setTabSource(
+        String(id),
+        src as HarnessTabSource,
+        m === undefined || m === null ? undefined : String(m),
+      ),
     );
     handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
     handle('ai:harness:tab-effort', (id, e) =>
@@ -4016,6 +4167,8 @@ type CodexTurn = {
 
 /** `codex app-server` 长驻进程：一个标签一个线程 */
 type CodexLiveSession = {
+  /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
+  launchSig: string;
   child: ChildProcessWithoutNullStreams;
   conn: AcpConnection;
   /** 线程 id（= cliSessionId）；新会话在第一条消息时才 thread/start */
@@ -4049,6 +4202,8 @@ type AcpTurn = {
 };
 
 type AcpLiveSession = {
+  /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
+  launchSig: string;
   backend: AcpBackend;
   /** 已下发到会话的标签级模型 / 思考深度覆盖（null = 沿用 CLI 默认；仅 Grok） */
   model: string | null;
@@ -4099,6 +4254,8 @@ function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
 }
 
 type ClaudeLiveSession = {
+  /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
+  launchSig: string;
   child: ChildProcessWithoutNullStreams;
   parseLine: (line: string) => HarnessEvent[];
   buf: string;

@@ -1,13 +1,5 @@
 /** 编程助手 CLI 接入 · 共享类型 */
 
-import type {
-  ClaudeApiFormat,
-  CodexApiFormat,
-  CliApiFormat,
-  DshApiFormat,
-  GrokApiFormat,
-} from './formats';
-
 export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /**
@@ -18,7 +10,7 @@ export type HarnessPermissionMode = 'plan' | 'manual' | 'acceptEdits' | 'auto' |
 
 export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
 
-/** 拥有独立第三方供应商列表的 CLI */
+/** 旧版有独立第三方供应商存储的 CLI（迁移 / 撤销旧全局配置时用） */
 export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
 
 /** 支持版本更新的 CLI */
@@ -36,33 +28,6 @@ export interface CliInstallInfo {
   installSupported?: boolean;
   /** 运行时问题（目前仅 dsh：PATH 上的 Node 低于 24） */
   runtimeWarning?: { nodeVersion: string | null; required: number } | null;
-}
-
-export interface CliProviderProfile {
-  id: string;
-  kind: CliProviderKind;
-  name: string;
-  baseUrl: string;
-  model: string;
-  apiFormat: CliApiFormat;
-  /** 非原生格式需要本地路由 */
-  needsRouting: boolean;
-  hasKey: boolean;
-  keyHint: string;
-  active: boolean;
-  /** 来自哪个预设模板（品牌图标 / 来源提示）；自定义为 'custom' */
-  presetId?: string;
-}
-
-export interface CliProviderInput {
-  id?: string;
-  kind: CliProviderKind;
-  name: string;
-  baseUrl: string;
-  model: string;
-  apiFormat?: ClaudeApiFormat | CodexApiFormat | DshApiFormat | GrokApiFormat;
-  apiKey?: string;
-  presetId?: string;
 }
 
 export interface HarnessSessionState {
@@ -199,6 +164,9 @@ export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking
  * id 为 'main' 的标签即原有对话（可为 Nomi 或任一 CLI，消息存于 Nomi 历史）；
  * 其它标签只绑定 CLI 后端，消息存于 harness/tabs/<id>.json。
  */
+/** 标签来源：官方账号（CLI 自带配置）/ 第三方模型（经 Nomi 统一网关，§4.3） */
+export type HarnessTabSource = 'official' | 'thirdParty';
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
@@ -233,6 +201,8 @@ export interface HarnessTabMeta {
   modelScope?: string | null;
   /** 其它模型来源下这个标签上次的选择（key：供应商 id，官方账号为 "official"） */
   modelByScope?: Record<string, { model: string | null; effort: string | null }>;
+  /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
+  source?: HarnessTabSource;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

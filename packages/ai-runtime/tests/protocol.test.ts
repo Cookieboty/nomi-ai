@@ -248,4 +248,41 @@ describe('preset verification metadata', () => {
       expect(p.models, p.id).toEqual([]);
     }
   });
+
+  it('gateway extension (§8.4): per-wire URLs, model metadata and quirks for the first vendors', async () => {
+    const { PROVIDER_PRESETS, GATEWAY_PRESETS_CHECKED_AT } = await import('../src/providers');
+    const by = (id: string) => PROVIDER_PRESETS.find((p) => p.id === id)!;
+    // 首批要写明 Anthropic 入口的厂商
+    for (const id of [
+      'deepseek',
+      'zhipu',
+      'zhipu-coding',
+      'kimi',
+      'qwen',
+      'qwen-coding',
+      'minimax',
+    ]) {
+      const p = by(id);
+      expect(p.urls?.messages, id).toMatch(/^https:\/\/[^/]+.*[^/]$/);
+      expect(p.urls?.chat, id).toBeTruthy();
+      expect(p.checkedAt, id).toBe(GATEWAY_PRESETS_CHECKED_AT);
+      expect(p.modelMeta?.length, id).toBeGreaterThan(0);
+      for (const m of p.modelMeta!) {
+        expect(m.ctx, `${id}/${m.id}`).toBeGreaterThan(0);
+        expect(typeof m.toolCalling, `${id}/${m.id}`).toBe('boolean');
+      }
+    }
+    // 地址不带接口路径（拼接由网关做）
+    for (const p of PROVIDER_PRESETS)
+      for (const u of Object.values(p.urls ?? {}))
+        expect(u, p.id).not.toMatch(/\/(chat\/completions|responses|messages)$/);
+    expect(by('xai').urls?.messages).toBeUndefined(); // 已弃用
+    expect(by('minimax').urls?.responses).toBeUndefined(); // 文档没有
+    expect(by('qwen-coding').urls?.responses).toBeUndefined();
+    expect(by('zhipu-coding').codingPlan).toBe(true);
+    expect(by('deepseek').quirks?.reasoningPassback).toBe(true);
+    expect(by('kimi').quirks?.dropParams).toContain('temperature');
+    // MiniMax Chat 不加 reasoning_split 时思考以 <think> 标签混在正文里
+    expect(by('minimax').quirks?.extraBody).toEqual({ chat: { reasoning_split: true } });
+  });
 });

@@ -100,7 +100,6 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
       await ipc.invoke('ai:harness:set-max-concurrent', 2);
     });
     await shot(chat, '01-main-tab');
-
     const input = chat.locator('[data-testid="chat-input"]');
     const tabs = chat.locator('[role="tab"]');
     await expect(tabs).toHaveCount(1);
@@ -154,12 +153,17 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await chat.keyboard.press(`${mod}+2`);
     await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
     await expect(chat.locator('.ai-chat-app')).toContainText('Mock Claude');
-    await expect(chat.locator('[data-testid="chat-tab-unread"]')).toHaveCount(1);
+    // 按标签断言：Nomi 窗口不在前台时（本机跑测试焦点常在终端），当时正看着的标签完成也算未读，
+    // 总数会随焦点变化
+    const badge = (i: number) => tabs.nth(i).locator('[data-testid="chat-tab-unread"]');
+    await expect(badge(1)).toHaveCount(0);
+    await expect(badge(2)).toHaveCount(1);
     // Ctrl+Tab → Codex 标签
     await chat.keyboard.press('Control+Tab');
     await expect(tabs.nth(2)).toHaveAttribute('aria-selected', 'true');
     await expect(chat.locator('.ai-chat-app')).toContainText('Mock Codex');
-    await expect(chat.locator('[data-testid="chat-tab-unread"]')).toHaveCount(0);
+    await expect(badge(1)).toHaveCount(0);
+    await expect(badge(2)).toHaveCount(0);
     await shot(chat, '05-codex-tab');
 
     // 重命名（双击）

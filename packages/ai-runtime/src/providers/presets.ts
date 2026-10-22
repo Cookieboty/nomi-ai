@@ -39,12 +39,245 @@ export interface ProviderPreset {
   checkedAt?: string;
   /** 品牌图标 id（packages/ui 的 BrandIcon，来源 @lobehub/icons-static-svg，MIT） */
   icon?: string;
+  /**
+   * 统一网关用：每种协议一个地址（docs/design/unified-gateway.md §8.4）。没写的协议由网关从
+   * baseURL 推导后探测；写了的优先。messages 是拼 /v1/messages 之前的部分。
+   */
+  urls?: Partial<Record<PresetWire, string>>;
+  /** 主力模型的元数据（§12.7.2 第 2 级来源），按官方文档整理，查证日期见 checkedAt */
+  modelMeta?: PresetModel[];
+  /** 厂商差异（§12.7.4），网关按它修正请求 */
+  quirks?: PresetQuirks;
+  /** Coding Plan 类套餐（§12.7.5）：专用 Key，走套餐额度 */
+  codingPlan?: boolean;
+}
+
+export type PresetWire = 'messages' | 'responses' | 'chat' | 'gemini';
+
+export interface PresetModel {
+  id: string;
+  /** 上下文窗口（token） */
+  ctx?: number;
+  /** 输出上限（token）；文档没写为 undefined */
+  maxOutput?: number;
+  reasoning?: boolean;
+  vision?: boolean;
+  toolCalling?: boolean;
+}
+
+export interface PresetQuirks {
+  /** 一次请求最多带几个工具 */
+  maxTools?: number;
+  /** 发往上游前去掉的顶层字段（厂商固定值、传了会报错的参数） */
+  dropParams?: string[];
+  /** 多轮工具调用时必须把历史推理发回（Chat 写进 reasoning_content） */
+  reasoningPassback?: boolean;
+  preferWire?: PresetWire;
+  /** 按上游协议合并进请求体的额外字段（如 MiniMax Chat 的 reasoning_split） */
+  extraBody?: Partial<Record<PresetWire, Record<string, unknown>>>;
 }
 
 /** 预设核对日期 */
 export const PRESETS_CHECKED_AT = '2026-10-11';
 
-const P = (p: ProviderPreset): ProviderPreset => p;
+/** 多协议地址、模型元数据与厂商差异的查证日期（官方文档 + 无 Key 请求确认路由存在） */
+export const GATEWAY_PRESETS_CHECKED_AT = '2026-10-21';
+
+/**
+ * 统一网关用的扩展字段（§8.4），按预设 id 合并进下面的列表。每项后面的注释是官方文档出处。
+ * 无 Key 请求的结果：Kimi、百炼、MiniMax 先路由后鉴权，写入的地址都确认存在（返回 401 / 403，
+ * 不存在的路径返回 404）；DeepSeek、智谱先鉴权，只能确认主机可达，路径以文档为准，添加时的探测会再确认。
+ */
+const GATEWAY_EXT: Readonly<Record<string, Partial<ProviderPreset>>> = {
+  // https://api-docs.deepseek.com/guides/anthropic_api ；/guides/responses_api（2026-08-13 起原生 Responses）
+  // https://api-docs.deepseek.com/guides/thinking_mode：带工具时历史 reasoning_content 必须全部发回，否则 400
+  deepseek: {
+    urls: {
+      chat: 'https://api.deepseek.com',
+      responses: 'https://api.deepseek.com',
+      messages: 'https://api.deepseek.com/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'deepseek-v4-pro',
+        ctx: 1_000_000,
+        maxOutput: 393_216,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+      {
+        id: 'deepseek-flash',
+        ctx: 1_000_000,
+        maxOutput: 393_216,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+    ],
+    quirks: { reasoningPassback: true },
+  },
+  // https://docs.bigmodel.cn/cn/guide/develop/claude/introduction ；API 参考「对话补全」：最多 128 个工具，
+  // glm-5.3 / glm-5.3-flash 的思考不能关；交错思考要求原样发回 reasoning_content
+  zhipu: {
+    urls: {
+      chat: 'https://open.bigmodel.cn/api/paas/v4',
+      messages: 'https://open.bigmodel.cn/api/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'glm-5.3',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+      {
+        id: 'glm-5.3-flash',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+      {
+        id: 'glm-5.2',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+      {
+        id: 'glm-5.1',
+        ctx: 200_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+    ],
+    quirks: { maxTools: 128, reasoningPassback: true },
+  },
+  // https://platform.kimi.com/docs/api/messages（Bearer 鉴权）、/docs/api/responses、/docs/api/chat：
+  // temperature / top_p / n / penalty 是固定值，k2.x 传别的值报错；k3 多轮必须发回完整 assistant 消息
+  kimi: {
+    urls: {
+      chat: 'https://api.moonshot.cn/v1',
+      responses: 'https://api.moonshot.cn/v1',
+      messages: 'https://api.moonshot.cn/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'kimi-k3',
+        ctx: 1_000_000,
+        maxOutput: 1_048_576,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+      { id: 'kimi-k2.7-code', ctx: 262_144, reasoning: true, vision: true, toolCalling: true },
+      { id: 'kimi-k2.6', ctx: 262_144, reasoning: true, vision: true, toolCalling: true },
+    ],
+    quirks: {
+      dropParams: ['temperature', 'top_p', 'n', 'presence_penalty', 'frequency_penalty'],
+      reasoningPassback: true,
+    },
+  },
+  // https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope ；/compatibility-with-openai-responses-api ；
+  // https://www.alibabacloud.com/help/zh/model-studio/anthropic-api-messages 。推荐的 WorkspaceId 域名需要用户填写，
+  // 这里用文档写明「仍可用」的旧域名（三条路由无 Key 请求均确认存在）
+  qwen: {
+    urls: {
+      chat: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      responses: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+      messages: 'https://dashscope.aliyuncs.com/apps/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'qwen3.8-max',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+      {
+        id: 'qwen3.8-flash',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+      {
+        id: 'qwen3.7-plus',
+        ctx: 1_000_000,
+        maxOutput: 65_536,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+    ],
+  },
+  // https://platform.minimax.cn/docs/api-reference/text-openai-api ；/text-anthropic-api ：没有 Responses；
+  // 工具调用对话必须原样发回思考；M3.1-Flash 不支持 service_tier；
+  // Chat 接口默认把思考以 <think> 标签混在 content 里，reasoning_split=true 时改为单独的 reasoning_content
+  minimax: {
+    urls: {
+      chat: 'https://api.minimax.cn/v1',
+      messages: 'https://api.minimax.cn/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'MiniMax-M3',
+        ctx: 1_000_000,
+        maxOutput: 524_288,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+      {
+        id: 'MiniMax-M3.1-Flash',
+        ctx: 1_000_000,
+        maxOutput: 524_288,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+    ],
+    quirks: {
+      dropParams: ['service_tier'],
+      reasoningPassback: true,
+      extraBody: { chat: { reasoning_split: true } },
+    },
+  },
+  // 只核对了地址，没有整理模型元数据
+  openai: { urls: { chat: 'https://api.openai.com/v1', responses: 'https://api.openai.com/v1' } },
+  anthropic: { urls: { messages: 'https://api.anthropic.com' } },
+  gemini: {
+    urls: {
+      gemini: 'https://generativelanguage.googleapis.com/v1beta',
+      chat: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    },
+  },
+  // xAI 的 Anthropic 兼容接口已弃用，Chat Completions 标为 legacy：不写 messages
+  xai: { urls: { responses: 'https://api.x.ai/v1', chat: 'https://api.x.ai/v1' } },
+  // Anthropic 兼容入口只保证 Anthropic 自家模型
+  openrouter: {
+    urls: {
+      chat: 'https://openrouter.ai/api/v1',
+      responses: 'https://openrouter.ai/api/v1',
+      messages: 'https://openrouter.ai/api',
+    },
+  },
+};
+
+const P = (p: ProviderPreset): ProviderPreset => {
+  const ext = GATEWAY_EXT[p.id];
+  return ext ? { ...p, ...ext, checkedAt: GATEWAY_PRESETS_CHECKED_AT } : p;
+};
 
 export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   P({
@@ -180,6 +413,84 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     keywords: ['qwen', '阿里', '百炼', 'aliyun', 'dashscope'],
     hint: '请把 {WorkspaceId} 换成你的业务空间 ID',
   }),
+  // https://docs.bigmodel.cn/cn/coding-plan/quick-start ：Anthropic 地址与按量付费相同（Key 决定计费），
+  // Chat 走 /api/coding/paas/v4；Responses 的完整路径文档没写，不预填（探测时由地址推导）
+  P({
+    id: 'zhipu-coding',
+    name: 'GLM Coding Plan',
+    category: 'vendor',
+    protocol: 'anthropic',
+    baseURL: 'https://open.bigmodel.cn/api/anthropic',
+    defaultModel: '',
+    models: [],
+    requiresApiKey: true,
+    websiteUrl: 'https://bigmodel.cn/claude-code',
+    docsUrl: 'https://docs.bigmodel.cn/cn/coding-plan/quick-start',
+    modelsEndpoint: null,
+    verified: true,
+    icon: 'zhipu',
+    keywords: ['智谱', 'glm', 'coding plan', '编程套餐'],
+    hint: '编程套餐专用 Key',
+    codingPlan: true,
+    urls: {
+      chat: 'https://open.bigmodel.cn/api/coding/paas/v4',
+      messages: 'https://open.bigmodel.cn/api/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'glm-5.3',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: false,
+        toolCalling: true,
+      },
+      {
+        id: 'glm-5.3-flash',
+        ctx: 1_000_000,
+        maxOutput: 131_072,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+    ],
+    quirks: { maxTools: 128, reasoningPassback: true },
+    checkedAt: GATEWAY_PRESETS_CHECKED_AT,
+  }),
+  // https://help.aliyun.com/zh/model-studio/coding-plan-faq ：只有 Chat 和 Anthropic，没有 Responses；专用 Key
+  P({
+    id: 'qwen-coding',
+    name: '百炼 Coding Plan',
+    category: 'vendor',
+    protocol: 'anthropic',
+    baseURL: 'https://coding.dashscope.aliyuncs.com/apps/anthropic',
+    defaultModel: '',
+    models: [],
+    requiresApiKey: true,
+    websiteUrl: 'https://bailian.console.aliyun.com',
+    docsUrl: 'https://help.aliyun.com/zh/model-studio/coding-plan-faq',
+    modelsEndpoint: null,
+    verified: true,
+    icon: 'qwen',
+    keywords: ['qwen', '通义', '百炼', 'coding plan', '编程套餐'],
+    hint: '编程套餐专用 Key',
+    codingPlan: true,
+    urls: {
+      chat: 'https://coding.dashscope.aliyuncs.com/v1',
+      messages: 'https://coding.dashscope.aliyuncs.com/apps/anthropic',
+    },
+    modelMeta: [
+      {
+        id: 'qwen3.7-plus',
+        ctx: 1_000_000,
+        maxOutput: 65_536,
+        reasoning: true,
+        vision: true,
+        toolCalling: true,
+      },
+    ],
+    checkedAt: GATEWAY_PRESETS_CHECKED_AT,
+  }),
   P({
     id: 'doubao',
     name: '火山方舟 豆包',
@@ -271,6 +582,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'https://gateway.amux.ai/v1',
+    urls: {
+      chat: 'https://gateway.amux.ai/v1',
+      responses: 'https://gateway.amux.ai/v1',
+      messages: 'https://gateway.amux.ai/v1',
+    },
     defaultModel: '',
     models: [],
     requiresApiKey: true,

@@ -26,6 +26,7 @@ jest.mock('electron', () => ({
 }));
 
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { until } from '../../helpers/wait';
 
 describe('CliHarnessService persistence', () => {
   let root: string;
@@ -49,7 +50,10 @@ describe('CliHarnessService persistence', () => {
     const writes = jest.spyOn(fs.promises, 'writeFile');
     const ids = Array.from({ length: 10 }, () => h.createTab({ backend: 'claude' }).id);
     expect(fs.existsSync(path.join(root, 'tabs.json'))).toBe(false);
-    await new Promise((r) => setTimeout(r, 400));
+    const file = path.join(root, 'tabs.json');
+    await until(() => fs.existsSync(file), { what: 'debounced tabs.json write' });
+    // 写完之后不应再有第二次写入（同一波变更只写一次）
+    await new Promise((r) => setTimeout(r, 50));
     const tabsWrites = writes.mock.calls.filter((c) => String(c[0]).includes('tabs.json'));
     expect(tabsWrites).toHaveLength(1);
     const saved = JSON.parse(fs.readFileSync(path.join(root, 'tabs.json'), 'utf8'));

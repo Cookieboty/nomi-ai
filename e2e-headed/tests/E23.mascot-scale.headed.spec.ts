@@ -79,7 +79,10 @@ function grab(name: string, w: number, h: number): void {
 
 const bounds = (app: ElectronApplication) =>
   app.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((b) => b.isAlwaysOnTop());
+    // 看板娘窗口：置顶，但不是同样置顶的灵动岛
+    const w = BrowserWindow.getAllWindows().find(
+      (b) => b.isAlwaysOnTop() && b.getTitle() !== 'Nomi Island',
+    );
     return w ? w.getBounds() : { x: 0, y: 0, width: 0, height: 0 };
   }) as Promise<Rect>;
 /** 脚底中心（屏幕坐标）：窗口位置 + 渲染进程上报的角色包围盒（底边中点） */
@@ -159,7 +162,10 @@ test.describe('E23 · mascot size', () => {
   ) {
     await expect.poll(async () => (await scaleOf(page)).scale, { timeout: 5_000 }).toBe(want);
     const b = await bounds(app!);
-    expect([b.width, b.height]).toEqual([winSize(want).width, winSize(want).height]);
+    // 分数 DPI 下不同屏幕坐标的物理像素取整最多相差 1 DIP，不允许移动累计放大。
+    const sizeTol = process.platform === 'win32' ? 1 : 0;
+    expect(Math.abs(b.width - winSize(want).width)).toBeLessThanOrEqual(sizeTol);
+    expect(Math.abs(b.height - winSize(want).height)).toBeLessThanOrEqual(sizeTol);
     const f = await feetNow(app!, page);
     const info = JSON.stringify({ want, anchor, f, b });
     expect(Math.abs(f.x - anchor.x), info).toBeLessThanOrEqual(ANCHOR_TOL);
@@ -214,10 +220,19 @@ test.describe('E23 · mascot size', () => {
         [Math.round(f.x), Math.round(f.y) - 20, Math.round(tx - f.x)] as [number, number, number],
       );
       await sleep(400);
+      return {
+        before: f,
+        after: await feetNow(app!, page),
+        bounds: await bounds(app!),
+        snapshot: await snap(page),
+      };
     };
-    await moveFeetTo(wa.x + wa.width / 2);
+    const initiallyMoved = await moveFeetTo(wa.x + wa.width / 2);
     const anchor = await feetNow(app!, page);
-    expect(Math.abs(anchor.x - (wa.x + wa.width / 2))).toBeLessThanOrEqual(ANCHOR_TOL);
+    expect(
+      Math.abs(anchor.x - (wa.x + wa.width / 2)),
+      JSON.stringify(initiallyMoved),
+    ).toBeLessThanOrEqual(ANCHOR_TOL);
     await shot('00-default');
 
     const bodyPoint = async () => {

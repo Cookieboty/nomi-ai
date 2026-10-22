@@ -24,6 +24,7 @@ import {
   HISTORY_BACKENDS,
   historyClient,
   type HistoryBackend,
+  type HistoryClient,
   type HistorySession,
 } from '../../services/historyClient';
 import { SEARCH_CHATS_EVENT, formatCombo, useShortcutBindings } from '../../services/shortcuts';
@@ -869,7 +870,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     data-session-id={h.sessionId}
                     data-cwd-missing={h.cwdMissing || undefined}
                     aria-busy={openingKey === h.key}
-                    title={[h.title, h.cwd, h.cwdMissing ? t('原目录已不存在') : '']
+                    title={[
+                      h.title,
+                      h.cwd,
+                      ...historyOrigin(h),
+                      h.cwdMissing ? t('原目录已不存在') : '',
+                    ]
                       .filter(Boolean)
                       .join('\n')}
                     onClick={() => void openHistory(h)}
@@ -883,6 +889,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <span className={styles.dot} aria-hidden />
                     <EndpointIcon backend={h.backend} size={14} />
                     <span className={styles.threadName}>{h.title}</span>
+                    {routeTag(h) && (
+                      <span className={styles.histTag} data-testid="history-route-tag">
+                        {routeTag(h)}
+                      </span>
+                    )}
                     <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
                   </button>
                   {/* 磁盘历史是只读的：没有重命名 / 删除，「更多」里只有「在标签中打开」 */}
@@ -957,3 +968,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
     </aside>
   );
 };
+
+const CLIENT_LABELS: Record<HistoryClient, string> = {
+  cli: 'CLI',
+  desktop: 'Desktop',
+  ide: 'IDE',
+  exec: 'exec',
+  nomi: 'Nomi',
+};
+
+/** 行内只标出非官方线路，官方会话不加标签，保持列表干净 */
+function routeTag(h: HistorySession): string | null {
+  if (h.route === 'gateway') return t('第三方');
+  if (h.route === 'custom') return h.provider || t('第三方');
+  return null;
+}
+
+/** 悬停提示里的来源信息：客户端、线路、账号 */
+function historyOrigin(h: HistorySession): string[] {
+  const out: string[] = [];
+  if (h.client) out.push(t('客户端：{0}', CLIENT_LABELS[h.client]));
+  if (h.route === 'official') out.push(t('线路：官方'));
+  else if (h.route === 'gateway') out.push(t('线路：第三方（Nomi 网关）'));
+  else if (h.route === 'custom') out.push(t('线路：其他第三方（{0}）', h.provider || '?'));
+  if (h.account) out.push(t('账号：{0}', h.account));
+  return out;
+}

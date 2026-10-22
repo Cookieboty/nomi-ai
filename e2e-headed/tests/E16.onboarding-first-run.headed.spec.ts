@@ -102,21 +102,26 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     const step = chat.locator('[data-testid="onb-provider"]');
     await shot(chat, 'onboarding-2-provider');
 
-    await step.locator('[data-testid="add-provider-btn"]').click();
-    await chat.click('[data-testid="preset-custom"]');
-    await chat.fill('[data-testid="draft-name"]', 'First Run');
-    await chat.fill('[data-testid="draft-key"]', 'sk-first-0123456789abcd');
-    await chat.fill('[data-testid="draft-baseurl"]', `http://127.0.0.1:${mock.port}/v1`);
-    await chat.click('[data-testid="fetch-models"]');
-    await expect(chat.locator('[data-testid="fetch-ok"]')).toBeVisible({ timeout: 15_000 });
-    await chat.locator('[data-testid="model-default-first-a"]').click();
-    await chat.click('[data-testid="draft-test"]');
-    await expect(chat.locator('[data-testid="test-ok"]')).toBeVisible({ timeout: 15_000 });
-    expect(mock.seen.some((r) => r.ping)).toBe(true);
+    // 「模型」页嵌在引导里：自定义地址 → 检测 → 保存 → 一键设为 Nomi 对话的模型
+    chat.on('dialog', (d) => void d.accept()); // 本机地址确认
+    await step.locator('[data-testid="add-provider"]').click();
+    const dlg = chat.locator('[data-testid="add-provider-dialog"]');
+    await dlg.locator('[data-testid="preset-custom"]').click();
+    await dlg.locator('[data-testid="add-provider-name"]').fill('First Run');
+    await dlg.locator('[data-testid="add-provider-url"]').fill(`http://127.0.0.1:${mock.port}/v1`);
+    await dlg.locator('[data-testid="add-provider-keys"]').fill('sk-first-0123456789abcd');
+    await dlg.locator('[data-testid="add-provider-probe"]').click();
+    await expect(dlg.locator('[data-state="ok"]')).toHaveCount(1, { timeout: 15_000 });
+    expect(mock.seen.some((r) => r.method === 'POST' && r.path === '/v1/chat/completions')).toBe(
+      true,
+    );
     await shot(chat, 'onboarding-3-test-ok');
-    await chat.click('[data-testid="draft-save-activate"]');
-    await expect(chat.locator('[data-testid="provider-editor"]')).toHaveCount(0);
-    await expect(step.locator('[data-testid^="provider-card-"]')).not.toHaveCount(0);
+    await dlg.locator('[data-testid="add-provider-save"]').click();
+    await expect(dlg).toHaveCount(0);
+    await step.locator('[data-testid="models-offer"]').getByText('一键填好').click();
+    await expect(step.locator('[data-testid="assign-chat"]').locator('..')).toContainText(
+      'First Run / first-a',
+    );
 
     // 完成引导
     await chat.click('[data-testid="onboarding-next"]');

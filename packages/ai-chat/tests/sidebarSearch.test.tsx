@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
-import type { HistorySession } from '../src/services/historyClient';
+import { HISTORY_MAX_ITEMS, type HistorySession } from '../src/services/historyClient';
 
 const now = Date.now();
 const conv = (id: string, name: string, backend: string, age: number, extra = {}) => ({
@@ -288,18 +288,18 @@ describe('sidebar search', () => {
 });
 
 describe('large history', () => {
-  it('搜索时先取第一页（20），「搜索更早的历史」逐页加载，最多索引到每端 100 条', async () => {
+  it('搜索时先取第一页（20），「搜索更早的历史」逐页加载，最多索引到每端硬上限条', async () => {
+    const pages = HISTORY_MAX_ITEMS / 20;
     const page = (p: number) =>
       Array.from({ length: 20 }, (_, i) => h('claude', p * 20 + i, { title: `bulk ${p}-${i}` }));
-    // 6 页 × 20，但前端只索引到第 100 条（5 页）
-    indexPages = { claude: [0, 1, 2, 3, 4, 5].map(page), codex: [[]] };
+    // 比硬上限多一页，但前端只索引到第 HISTORY_MAX_ITEMS 条
+    indexPages = { claude: Array.from({ length: pages + 1 }, (_, p) => page(p)), codex: [[]] };
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
     await type(r, 'qqqzzzxxx');
-    // 第一页取回后按钮可点（共 6 页）
     await waitFor(() => r.getByTestId('sidebar-search-empty'));
     expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(1);
-    // 逐页点到第 5 页（offset=80）为止：累计 100 条后前端主动收尾，按钮消失。
+    // 逐页点到最后一页为止：累计到硬上限后前端主动收尾，按钮消失。
     // loading 期间按钮是 disabled，需要等它恢复可用再点
     const clickMoreWhenEnabled = async () => {
       await waitFor(() =>
@@ -307,7 +307,8 @@ describe('large history', () => {
       );
       fireEvent.click(r.getByTestId('sidebar-search-more'));
     };
-    for (const off of [20, 40, 60, 80]) {
+    for (let p = 1; p < pages; p++) {
+      const off = p * 20;
       await clickMoreWhenEnabled();
       await waitFor(() =>
         expect(
@@ -317,10 +318,12 @@ describe('large history', () => {
         ).toHaveLength(1),
       );
     }
-    // 累计 5 次（首页 + 4 次更多），到 100 条硬上限；第 6 页不会再被请求
-    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(5);
+    // 到硬上限；多出来的那一页不会再被请求
+    expect(calls.filter(([c, a]) => c === 'ai:history:index' && a[0] === 'claude')).toHaveLength(
+      pages,
+    );
     await waitFor(() => expect(r.queryByTestId('sidebar-search-more')).toBeNull());
-  });
+  }, 30_000);
 
   it('renders at most 100 results and says so', async () => {
     // claude 与 codex 各 5 页 × 20 = 各 100 条同名命中 → 合并候选 200 条，超过渲染上限 100

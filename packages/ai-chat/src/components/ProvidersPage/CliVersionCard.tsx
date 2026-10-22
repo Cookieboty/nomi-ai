@@ -4,8 +4,7 @@
  * 没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
  * 进度与日志来自主进程按行推送的事件；失败原因原样展示。
  */
-import { Button, Modal, Notice, t, Icon } from '@nomi-ai/ui';
-import { CircleCheck, CircleX } from 'lucide-react';
+import { Button, Notice, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -18,6 +17,7 @@ import {
   type CliUpdatableKind,
 } from '../../services/cliUpdateClient';
 
+import { CliPlanDialog } from './CliPlanDialog';
 import styles from './index.module.css';
 
 const NAME: Record<CliUpdatableKind, string> = {
@@ -279,76 +279,14 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         </Notice>
       )}
 
-      <Modal
-        open={Boolean(plan)}
+      <CliPlanDialog
+        plan={plan}
+        name={name}
+        testKind={kind}
         onClose={() => setPlan(null)}
-        title={plan?.mode === 'install' ? t('安装 {0}', name) : t('更新 {0}', name)}
-        data-testid={`cli-version-dialog-${kind}`}
-        footer={
-          <>
-            <Button size="sm" onClick={() => setPlan(null)} data-testid="cli-version-cancel">
-              {t('取消')}
-            </Button>
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={!plan || plan.blockers.length > 0}
-              onClick={() => void confirm()}
-              data-testid="cli-version-confirm"
-            >
-              {plan?.mode === 'install' ? t('确认安装') : t('确认更新')}
-            </Button>
-          </>
-        }
-      >
-        {plan && (
-          <div style={{ display: 'grid', gap: 8 }}>
-            <span>{t('将在本机执行以下命令（不会使用 sudo / 管理员权限）：')}</span>
-            <code className={styles.cmd} data-testid="cli-version-command">
-              {plan.command}
-            </code>
-            {plan.requirements.length > 0 && (
-              <ul className={styles.reqList} aria-label={t('前置检查')}>
-                {plan.requirements.map((r) => (
-                  <li
-                    key={r.id}
-                    className={r.ok ? styles.reqOk : styles.reqBad}
-                    data-testid={`cli-version-req-${r.id}`}
-                    data-ok={r.ok ? '1' : '0'}
-                  >
-                    <Icon
-                      icon={r.ok ? CircleCheck : CircleX}
-                      size={14}
-                      className={styles.reqIcon}
-                    />
-                    {r.label} — {r.detail}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {plan.blockers.map((b) => (
-              <Notice key={b} tone="danger" data-testid="cli-version-blocker">
-                {b}
-              </Notice>
-            ))}
-            {plan.userScopeCommand && plan.scope === 'global' && (
-              <div style={{ display: 'grid', gap: 6 }}>
-                <span>{t('或者改装到你的用户目录（不需要管理员权限）：')}</span>
-                <code className={styles.cmd}>{plan.userScopeCommand}</code>
-                <div>
-                  <Button
-                    size="sm"
-                    data-testid="cli-version-user-scope"
-                    onClick={() => void openPlan('user')}
-                  >
-                    {t('改用用户目录安装')}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+        onConfirm={() => void confirm()}
+        onUserScope={() => void openPlan('user')}
+      />
     </section>
   );
 };

@@ -21,7 +21,6 @@ import {
   ExtensionsPanel,
   HubPanel,
   LocalPanel,
-  ProviderPanel,
   ScreenPanel,
   SettingsView,
   prefetchPanels,
@@ -59,6 +58,7 @@ import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient } from './services/harnessClient';
+import { watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ScreenState } from './services/screenClient';
 import {
@@ -167,9 +167,7 @@ const AiChatContent: React.FC = () => {
   }, [toast]);
   const [tabRename, setTabRename] = useState(0);
   const [tabNew, setTabNew] = useState(0);
-  const [showProviders, setShowProviders] = useState(false);
 
-  // 托盘「Provider 设置…」→ 主进程通知打开面板
   // 首屏后空闲时预取设置 / 面板 chunk（不占首屏，打开时无需等待）
   useEffect(() => {
     const ric = (window as { requestIdleCallback?: (cb: () => void, o?: object) => number })
@@ -182,7 +180,6 @@ const AiChatContent: React.FC = () => {
       else window.clearTimeout(id);
     };
   }, []);
-  useEffect(() => providerClient.onOpenPanel(() => setShowProviders(true)), []);
   // mascot holds a thinking pose while a reply is being generated
   useEffect(() => {
     if (!isLoading) return;
@@ -259,9 +256,11 @@ const AiChatContent: React.FC = () => {
     setShowExt(false);
     setShowLocal(false);
     setShowDesktop(false);
-    setShowProviders(false);
     setSettings(sec);
   }, []);
+  // 托盘「模型设置…」→ 设置 →「模型」
+  useEffect(() => providerClient.onOpenPanel(() => openSettings('models')), [openSettings]);
+  useEffect(() => watchNomiModel(), []);
   // 看板娘「TTS 语音配置」/ 语音错误「去设置」→ 设置 → 语音与屏幕 → 语音
   useEffect(
     () => desktopClient.onOpenVoiceSettings(() => openSettings('senses', 'voice')),
@@ -316,7 +315,7 @@ const AiChatContent: React.FC = () => {
       else void actions.newConversation();
     },
     onOpenPlugins: () => setShowPlugins(true),
-    onOpenProviders: () => setShowProviders(true),
+    onOpenProviders: () => openSettings('models'),
     onOpenSettings: () => {
       if (slashBackend !== 'nomi') setProviderEndpoint(slashBackend);
       openSettings('coding');
@@ -550,8 +549,7 @@ const AiChatContent: React.FC = () => {
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
-  const openProviders = useCallback(() => setShowProviders(true), []);
-  const closeProviders = useCallback(() => setShowProviders(false), []);
+  const openProviders = useCallback(() => openSettings('models'), [openSettings]);
   const onInputSettings = useCallback(
     (sec?: SettingsSection, endpoint?: unknown) => {
       if (isConversationBackend(endpoint)) setProviderEndpoint(endpoint);
@@ -628,11 +626,8 @@ const AiChatContent: React.FC = () => {
           {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
           <div className="session-bar">
             <SessionControls
-              onManageNomi={() => setShowProviders(true)}
-              onManageCli={(b) => {
-                setProviderEndpoint(b);
-                openSettings('coding');
-              }}
+              onManageNomi={() => openSettings('models')}
+              onOpenModels={() => openSettings('models')}
             />
           </div>
           {/* 对话区域 */}
@@ -770,7 +765,6 @@ const AiChatContent: React.FC = () => {
           setShowExt(true);
         }}
       />
-      <ProviderPanel isVisible={showProviders} onClose={closeProviders} />
       <ModalHostContext.Provider value={drawerHost.desktop}>
         <DesktopPanel isVisible={showDesktop} onClose={closeDesktop} />
       </ModalHostContext.Provider>

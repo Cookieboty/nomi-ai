@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { CliProviderState } from '../src/services/cliProviderClient';
+import type { CliAccount } from '../src/services/cliAccountClient';
 import type { CliInstallInfo } from '../src/services/cliUpdateClient';
-import type { BackendModelCatalog } from '../src/services/harnessClient';
+import type { GatewayState } from '../src/services/gatewayClient';
+import type { BackendModelCatalog, HarnessTabMeta } from '../src/services/harnessClient';
 import type { ProviderState } from '../src/services/providerClient';
 import { executeSlash, findCommand, flattenGroups, searchCommands } from '../src/slash/registry';
 
@@ -253,14 +254,6 @@ describe('/help /diff', () => {
 });
 
 describe('/model', () => {
-  const cli = (): CliProviderState =>
-    ({
-      profiles: [
-        { id: 'p1', kind: 'claude', name: 'GLM', model: 'glm-4.6', active: true },
-        { id: 'p2', kind: 'claude', name: 'Kimi', model: 'kimi-k2', active: false },
-        { id: 'p3', kind: 'codex', name: 'Other', model: 'o3', active: false },
-      ],
-    }) as unknown as CliProviderState;
   const nomi = (): ProviderState =>
     ({
       providers: [
@@ -278,6 +271,36 @@ describe('/model', () => {
       effectiveModel: 'gpt-5',
     }) as unknown as ProviderState;
 
+  const gateway = (): GatewayState =>
+    ({
+      status: { state: 'running', port: 1, url: 'http://127.0.0.1:1' },
+      providers: [
+        {
+          id: 'a',
+          name: 'OpenAI',
+          enabled: true,
+          urls: { responses: 'https://api.openai.com/v1' },
+          keys: [],
+          models: [
+            { id: 'gpt-5', enabled: true },
+            { id: 'gpt-5-mini', enabled: true },
+            { id: 'gpt-5-nano', enabled: false },
+          ],
+        },
+        {
+          id: 'b',
+          name: 'Off',
+          enabled: false,
+          urls: {},
+          keys: [],
+          models: [{ id: 'x', enabled: true }],
+        },
+      ],
+      clients: { nomi: { models: { main: 'a/gpt-5' } } },
+      allowedPrivateHosts: [],
+      port: 1,
+    }) as unknown as GatewayState;
+
   const tabCatalog = {
     backend: 'claude',
     defaultModel: { id: 'default', label: 'Opus 5.5', reasoning: true, efforts: [] },
@@ -289,7 +312,11 @@ describe('/model', () => {
 
   it('CLI 标签：与模型按钮一致，列这个标签的模型（默认 + 目录），标出当前', async () => {
     const { ctx, commands, actions } = makeCtx('claude');
-    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: 'fable' });
+    actions.tabModels.mockResolvedValue({
+      catalog: tabCatalog,
+      current: 'fable',
+      source: 'official',
+    });
     const r = await executeSlash('/model', commands, ctx);
     const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
     if (c?.kind !== 'list') throw new Error('list');
@@ -297,73 +324,179 @@ describe('/model', () => {
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['Fable 5.1']);
     await c.items[1]!.action!.run();
     expect(actions.setTabModel).toHaveBeenCalledWith('opus');
-    expect(actions.activateCliProfile).not.toHaveBeenCalled();
+    expect(actions.setTabSource).not.toHaveBeenCalled();
+  });
+  it('官方标签：目录后面附上网关里能给编程助手用的第三方模型，选中即切到第三方', async () => {
+    const { ctx, commands, actions } = makeCtx('claude', { data: { nomiGateway: gateway() } });
+    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null, source: 'official' });
+    const r = await executeSlash('/model', commands, ctx);
+    const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
+    if (c?.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => i.label)).toEqual([
+      '默认模型 · Opus 5.5',
+      'Opus 5.5',
+      'Fable 5.1',
+      '第三方 · OpenAI / gpt-5',
+      '第三方 · OpenAI / gpt-5-mini',
+    ]);
+    await c.items[3]!.action!.run();
+    expect(actions.setTabSource).toHaveBeenCalledWith('thirdParty', 'a/gpt-5');
+    // /model gpt-5-mini：唯一命中第三方模型 → 直接切换来源
+    const m = await executeSlash('/model a/gpt-5-mini', commands, ctx);
+    expect(actions.setTabSource).toHaveBeenLastCalledWith('thirdParty', 'a/gpt-5-mini');
+    expect(m.handled && m.outcome.type === 'card' && m.outcome.card.kind).toBe('notice');
   });
   it('CLI 标签：/model opus 直接切换当前标签；目录里没有的完整 id 当自定义模型', async () => {
     const { ctx, commands, actions } = makeCtx('claude');
-    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null });
+    actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null, source: 'official' });
     const a = await executeSlash('/model opus', commands, ctx);
     expect(actions.setTabModel).toHaveBeenCalledWith('opus');
     expect(a.handled && a.outcome.type === 'card' && a.outcome.card.kind).toBe('notice');
     await executeSlash('/model claude-opus-4-6', commands, ctx);
     expect(actions.setTabModel).toHaveBeenLastCalledWith('claude-opus-4-6');
   });
-  it('CLI 标签 + 第三方供应商：列供应商的模型并注明来源', async () => {
-    const { ctx, commands, actions } = makeCtx('codex');
+  it('第三方标签：列网关的模型（tab-model），附「官方」一项（切回官方）；不接受自定义 id', async () => {
+    const { ctx, commands, actions } = makeCtx('codex', {
+      data: {
+        cliAccount: {
+          id: 'x',
+          kind: 'codex',
+          label: 'x',
+          identity: { key: 'k', email: 'a@x.com' },
+          active: true,
+          createdAt: 0,
+        } as CliAccount,
+      },
+    });
     actions.tabModels.mockResolvedValue({
       catalog: {
         backend: 'codex',
-        provider: { id: 'p', name: 'Gateway' },
-        defaultModel: { id: 'vendor/a', reasoning: false, efforts: [] },
+        provider: { id: 'gateway', name: '第三方模型' },
+        defaultModel: { id: 'vendor/a', label: 'Vendor / a', reasoning: false, efforts: [] },
         models: [
-          { id: 'vendor/a', reasoning: false, efforts: [] },
-          { id: 'vendor/b', reasoning: false, efforts: [] },
+          { id: 'vendor/a', label: 'Vendor / a', reasoning: false, efforts: [] },
+          { id: 'vendor/b', label: 'Vendor / b', reasoning: false, efforts: [] },
         ],
       } as BackendModelCatalog,
-      current: null,
+      current: 'vendor/b',
+      source: 'thirdParty',
     });
     const r = await executeSlash('/model', commands, ctx);
     const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
     if (c?.kind !== 'list') throw new Error('list');
-    expect(c.items.map((i) => i.label)).toEqual(['默认模型 · vendor/a', 'vendor/a', 'vendor/b']);
-    expect(c.note).toContain('Gateway');
+    expect(c.items.map((i) => i.label)).toEqual([
+      '默认模型 · Vendor / a',
+      'Vendor / a',
+      'Vendor / b',
+      '官方 · a@x.com',
+    ]);
+    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['Vendor / b']);
+    expect(c.note).toContain('第三方');
+    await c.items[1]!.action!.run();
+    expect(actions.setTabModel).toHaveBeenCalledWith('vendor/a');
+    await c.items[3]!.action!.run();
+    expect(actions.setTabSource).toHaveBeenCalledWith('official');
+    actions.setTabModel.mockClear();
+    await executeSlash('/model some-unknown-id', commands, ctx);
+    expect(actions.setTabModel).not.toHaveBeenCalled();
   });
 
-  it('不能按标签切模型的 CLI：仍列这个端的供应商 + 默认项，标出当前', async () => {
-    const { r } = await run('claude', '/model', { data: { cliProviders: cli() } });
+  it('不能按标签切模型的 CLI：列「官方」+ 网关的第三方模型，标出当前来源', async () => {
+    const { r } = await run('claude', '/model', { data: { nomiGateway: gateway() } });
     const c = cardOf(r);
     if (c.kind !== 'list') throw new Error('list');
     expect(c.items.map((i) => i.label)).toEqual([
-      expect.stringContaining('CLI'),
-      'GLM · glm-4.6',
-      'Kimi · kimi-k2',
+      '官方',
+      '第三方 · OpenAI / gpt-5',
+      '第三方 · OpenAI / gpt-5-mini',
     ]);
-    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['GLM · glm-4.6']);
+    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['官方']);
   });
-  it('CLI：/model kimi 唯一命中 → 直接激活供应商', async () => {
-    const { r, actions } = await run('claude', '/model kimi', { data: { cliProviders: cli() } });
-    expect(actions.activateCliProfile).toHaveBeenCalledWith('p2');
+  it('第三方标签（不能按标签切模型）：当前模型是分配的默认模型；dsh 的官方一项是「dsh 自带配置」', async () => {
+    const gw = gateway();
+    gw.clients.dsh = { models: { main: 'a/gpt-5-mini' } };
+    const { ctx, commands, actions } = makeCtx('dsh', {
+      data: { nomiGateway: gw, cliTab: { id: 't', source: 'thirdParty' } as HarnessTabMeta },
+    });
+    actions.tabModels.mockResolvedValue({ catalog: null, current: null, source: 'thirdParty' });
+    const r = await executeSlash('/model', commands, ctx);
+    if (!r.handled) throw new Error('not handled');
+    const c = cardOf(r);
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items[0]!.label).toBe('dsh 自带配置');
+    expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual([
+      '第三方 · OpenAI / gpt-5-mini',
+    ]);
+  });
+  it('CLI：/model gpt-5-mini 唯一命中 → 标签切到第三方的这个模型', async () => {
+    const { r, actions } = await run('claude', '/model a/gpt-5-mini', {
+      data: { nomiGateway: gateway() },
+    });
+    expect(actions.setTabSource).toHaveBeenCalledWith('thirdParty', 'a/gpt-5-mini');
     expect(cardOf(r).kind).toBe('notice');
   });
-  it('Nomi：只列启用的供应商；/model gpt-5-mini 直接切换', async () => {
+  it('Nomi：只列网关里启用的模型；/model gpt-5-mini 直接切换', async () => {
     const { r, actions } = await run('nomi', '/model gpt-5-mini', {
-      data: { nomiProviders: nomi() },
+      data: { nomiGateway: gateway() },
     });
-    expect(actions.switchNomiModel).toHaveBeenCalledWith('a', 'gpt-5-mini');
+    expect(actions.switchNomiModel).toHaveBeenCalledWith('a/gpt-5-mini');
     expect(cardOf(r).title).toContain('切换');
-    const l = await run('nomi', '/model', { data: { nomiProviders: nomi() } });
+    const l = await run('nomi', '/model', { data: { nomiGateway: gateway() } });
     const c = cardOf(l.r);
-    expect(c.kind === 'list' && c.items.length).toBe(2);
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items.map((i) => [i.label, i.active])).toEqual([
+      ['OpenAI · gpt-5', true],
+      ['OpenAI · gpt-5-mini', false],
+    ]);
+  });
+  it('Nomi：环境变量供应商在网关里只读列出；没有分配时它就是当前模型', async () => {
+    const withEnv = {
+      ...gateway(),
+      clients: {},
+      providers: [
+        ...gateway().providers,
+        {
+          id: 'env-ollama',
+          name: 'Ollama（环境变量）',
+          enabled: true,
+          source: 'env',
+          urls: { chat: 'http://127.0.0.1:11434/v1' },
+          keys: [],
+          models: [{ id: 'qwen3', enabled: true }],
+        },
+      ],
+    } as unknown as GatewayState;
+    const l = await run('nomi', '/model', { data: { nomiGateway: withEnv } });
+    const c = cardOf(l.r);
+    if (c.kind !== 'list') throw new Error('list');
+    expect(c.items.find((i) => i.label.includes('qwen3'))).toMatchObject({ active: true });
+    const { actions } = await run('nomi', '/model qwen3', { data: { nomiGateway: withEnv } });
+    // 已经在用：不切换
+    expect(actions.switchNomiModel).not.toHaveBeenCalled();
+  });
+  it('Nomi /status：网关分配优先；没有分配时退回旧存储', async () => {
+    const a = await run('nomi', '/status', {
+      data: { nomiGateway: gateway(), nomiProviders: nomi() },
+    });
+    expect(JSON.stringify(cardOf(a.r))).toContain('gpt-5');
+    const empty = { ...gateway(), clients: {} } as GatewayState;
+    const b = await run('nomi', '/status', { data: { nomiGateway: empty, nomiProviders: nomi() } });
+    expect(JSON.stringify(cardOf(b.r))).toContain('OpenAI');
   });
   it('多个命中 → 只列表不切换；切换失败 → 错误卡片', async () => {
-    const m = await run('nomi', '/model gpt', { data: { nomiProviders: nomi() } });
+    const m = await run('nomi', '/model gpt', { data: { nomiGateway: gateway() } });
     expect(m.actions.switchNomiModel).not.toHaveBeenCalled();
     expect(cardOf(m.r).kind).toBe('list');
-    const { ctx, commands, actions } = makeCtx('claude', { data: { cliProviders: cli() } });
-    actions.activateCliProfile.mockResolvedValueOnce({ ok: false, error: '写入失败' } as never);
-    const r = await executeSlash('/model kimi', commands, ctx);
+    const { ctx, commands, actions } = makeCtx('claude', { data: { nomiGateway: gateway() } });
+    actions.setTabSource.mockRejectedValueOnce(new Error('写入失败'));
+    const r = await executeSlash('/model a/gpt-5-mini', commands, ctx);
     const c = r.handled && r.outcome.type === 'card' ? r.outcome.card : null;
     expect(c?.kind === 'notice' && c.tone).toBe('error');
+    // 用户在确认框里取消：也是一张提示卡，不当成切换成功
+    actions.setTabSource.mockResolvedValueOnce(false);
+    const r2 = await executeSlash('/model a/gpt-5-mini', commands, ctx);
+    const c2 = r2.handled && r2.outcome.type === 'card' ? r2.outcome.card : null;
+    expect(c2?.kind === 'notice' && c2.text).toContain('已取消');
   });
 });
 
@@ -407,11 +540,7 @@ describe('/status /context /cost', () => {
     const { r } = await run('claude', '/context', {
       messages: msgs,
       data: {
-        cliProviders: {
-          profiles: [
-            { id: 'p', kind: 'claude', name: 'X', model: 'claude-sonnet-4-5', active: true },
-          ],
-        } as unknown as CliProviderState,
+        cliTab: { id: 't', modelOverride: 'claude-sonnet-4-5' } as HarnessTabMeta,
       },
     });
     const c = cardOf(r);

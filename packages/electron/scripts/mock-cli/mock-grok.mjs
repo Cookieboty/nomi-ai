@@ -1,5 +1,28 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
+
+/** 可被取消打断的等待：收到取消时立即醒来（与真实 CLI 一样马上结束这一轮，测试不用白等） */
+const wakers = new Map();
+function sleepCancellable(key, ms) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      wakers.delete(key);
+      resolve();
+    };
+    const timer = setTimeout(done, ms);
+    wakers.set(key, done);
+  });
+}
+function wake(key) {
+  wakers.get(key)?.();
+}
+
+/** NOMI_MOCK_SLOW_PROMPT：只有内容包含它的那一轮才按 FIRST_TOKEN / DELAY 等待（常驻进程的环境变量启动后改不了） */
+function isSlow(text) {
+  const marker = process.env.NOMI_MOCK_SLOW_PROMPT;
+  return !marker || String(text).includes(marker);
+}
 /**
  * Mock Grok Build CLI for CI / unit tests.
  * Supports: --version | -p <prompt> --output-format streaming-json [--resume <id>] [--cwd <dir>]
@@ -95,7 +118,9 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       waiting.set(id, resolve);
       send({ id, method, params });
     });
-  const keyState = () => (process.env.XAI_API_KEY ? 'key' : 'nokey');
+  // 第三方会话的令牌由私有 GROK_HOME 配置里的 env_key（NOMI_GROK_API_KEY）指定
+  const keyState = () =>
+    process.env.XAI_API_KEY || process.env.NOMI_GROK_API_KEY ? 'key' : 'nokey';
   /** 多种工具调用演示（NOMI_MOCK_SCENARIO=rich，与 -p 模式的 rich 同一组工具；NOMI_MOCK_STEP_MS 控制节奏） */
   async function richTurn(sid) {
     const step = Number(process.env.NOMI_MOCK_STEP_MS || 0);
@@ -200,7 +225,7 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       });
     }
     const wait = Number(process.env.NOMI_MOCK_FIRST_TOKEN_MS || 0);
-    if (wait) await new Promise((r) => setTimeout(r, wait));
+    if (wait && isSlow(text)) await sleepCancellable(sid, wait);
     if (cancelled.has(sid)) return reply(id, { stopReason: 'cancelled' });
     const answer =
       process.env.NOMI_MOCK_GROK_REPLY ||
@@ -223,7 +248,14 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
       log({
         method: j.method,
         params: j.params,
-        ...(j.method === 'initialize' ? { argv: args, key: keyState(), cwd: process.cwd() } : {}),
+        ...(j.method === 'initialize'
+          ? {
+              argv: args,
+              key: keyState(),
+              cwd: process.cwd(),
+              grokHome: process.env.GROK_HOME ?? null,
+            }
+          : {}),
       });
     if (j.method === undefined && waiting.has(j.id)) {
       waiting.get(j.id)(j.result);
@@ -265,6 +297,7 @@ if (args[0] === 'agent' && args[1] === 'stdio') {
         return;
       case 'session/cancel':
         cancelled.add(p.sessionId);
+        wake(p.sessionId);
         return;
       case 'session/close':
         return reply(j.id, {});
@@ -323,7 +356,7 @@ if (effortOverride && !knownEfforts.includes(effortOverride)) {
   process.stderr.write(`mock-grok: invalid reasoning effort ${effortOverride}\n`);
   process.exit(2);
 }
-const keyState = process.env.XAI_API_KEY ? 'key' : 'nokey';
+const keyState = process.env.XAI_API_KEY || process.env.NOMI_GROK_API_KEY ? 'key' : 'nokey';
 const reply =
   process.env.NOMI_MOCK_GROK_REPLY ||
   `【Mock Grok】${resumed ? 'resumed' : 'new'} ${keyState}: ${prompt.trim()}`;

@@ -150,15 +150,18 @@ test.describe('UI surfaces', () => {
     await chat.fill('textarea', '你好，帮我写一段 TypeScript 示例');
     await shot(chat, '11-chat-typing');
 
-    await chat.click('[data-testid="open-provider-panel"]');
-    await expect(chat.locator('[data-testid="provider-panel"]')).toBeVisible();
+    await chat.click('[data-testid="open-models-settings"]');
+    await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
     await chat.waitForTimeout(400);
-    await shot(chat, '13-provider-panel');
-    await chat.click('[data-testid="add-provider-btn"]');
+    await shot(chat, '13-models-page');
+    await chat.click('[data-testid="add-provider"]');
     await chat.click('[data-testid="preset-deepseek"]');
-    await chat.fill('[data-testid="draft-key"]', 'sk-demo-not-a-real-key-0000');
-    await shot(chat, '14-provider-panel-draft');
-    await chat.click('[aria-label="关闭"]');
+    await chat.fill('[data-testid="add-provider-keys"]', 'sk-demo-not-a-real-key-0000');
+    await shot(chat, '14-add-provider-draft');
+    await chat.keyboard.press('Escape');
+    await expect(chat.locator('[data-testid="add-provider-dialog"]')).toHaveCount(0);
+    await chat.keyboard.press('Escape');
+    await expect(chat.locator('[data-testid="models-page"]')).toHaveCount(0);
 
     const collapse = chat.locator('[data-testid="sidebar-toggle"]');
     if (await collapse.count()) {
@@ -166,8 +169,8 @@ test.describe('UI surfaces', () => {
       await chat.waitForTimeout(400);
       await shot(chat, '15-chat-sidebar-collapsed');
     }
-    await chat.locator('[data-testid="provider-switch"]').focus();
-    await shot(chat, '16-provider-switcher');
+    await chat.locator('[data-testid="nomi-model-switch"] [role="combobox"]').focus();
+    await shot(chat, '16-model-switcher');
 
     // 左上角常驻入口：默认 4 个；右键取消固定；设置 → 通用 → 常驻入口 恢复默认
     for (const id of ['newchat', 'snip', 'kb', 'handsfree'])

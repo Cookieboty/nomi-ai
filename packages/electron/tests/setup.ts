@@ -151,6 +151,22 @@ expect.extend({
 process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error';
 
+// CLI 配置目录必须由用例显式设置，避免继承开发机 / 编程助手的目录并读取真实配置或日志。
+for (const key of [
+  'CLAUDE_CONFIG_DIR',
+  'CODEX_HOME',
+  'GEMINI_CLI_HOME',
+  'GROK_HOME',
+  'QWEN_HOME',
+  'OPENCODE_HOME',
+  'XDG_DATA_HOME',
+  'COPILOT_HOME',
+  'KIMI_HOME',
+  'KIMI_CODE_HOME',
+]) {
+  delete process.env[key];
+}
+
 // 静默控制台输出（测试期间）
 const originalConsole = {
   log: console.log,

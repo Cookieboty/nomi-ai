@@ -164,6 +164,34 @@ describe('modelCatalog', () => {
       expect(c.models[0]!.defaultEffort).toBe('high');
       expect(c.models[1]!.reasoning).toBe(false);
     });
+
+    it('兼容 Grok models_cache.json 的 map 结构与 snake_case 元数据', () => {
+      const c = parseGrokModels({
+        default_model: 'grok-4.7',
+        models: {
+          'grok-4.7': {
+            info: {
+              id: 'grok-4.7',
+              name: 'Grok 4.7',
+              supports_reasoning_effort: true,
+              reasoning_efforts: [
+                { id: 'xhigh', value: 'xhigh', default: false },
+                { id: 'high', value: 'high', default: true },
+                { id: 'low', value: 'low', default: false },
+              ],
+              reasoning_effort: 'high',
+            },
+          },
+          'grok-4.7-build-fast': {
+            info: { id: 'grok-4.7-build-fast', name: 'Grok 4.7 Fast' },
+          },
+        },
+      });
+      expect(c.models.map((m) => m.id)).toEqual(['grok-4.7', 'grok-4.7-build-fast']);
+      expect(c.defaultModel?.id).toBe('grok-4.7');
+      expect(c.models[0]!.efforts).toEqual(['low', 'high', 'xhigh']);
+      expect(c.models[0]!.defaultEffort).toBe('high');
+    });
   });
 
   describe('基于读到的目录做校验', () => {

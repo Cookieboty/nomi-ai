@@ -20,8 +20,8 @@ import {
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
+import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
 import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
-import { effectiveProviderLabel } from '../../services/providerClient';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -237,8 +237,10 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [screenOk, snip]);
-  const chatModel = effectiveProviderLabel() ?? '';
-  const visionWarn = images.length > 0 && !likelyVision(chatModel);
+  const chatModel = nomiModelLabel() ?? '';
+  // 模型元数据写明了视觉能力就以它为准，否则按名字猜
+  const visionKnown = nomiModelMeta()?.vision;
+  const visionWarn = images.length > 0 && !(visionKnown ?? likelyVision(chatModel));
 
   const handleSend = async () => {
     let trimmedMessage = message.trim() || (images.length ? tr('请看看这张图片。') : '');

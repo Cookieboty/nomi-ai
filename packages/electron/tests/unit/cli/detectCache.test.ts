@@ -23,8 +23,12 @@ describe('CLI 可执行文件探测缓存', () => {
     resetCliBinCache();
     delete process.env.NOMI_DSH_BIN;
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'detect-cache-'));
-    bin = path.join(dir, 'dsh');
-    fs.writeFileSync(bin, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    bin = path.join(dir, process.platform === 'win32' ? 'dsh.cmd' : 'dsh');
+    fs.writeFileSync(
+      bin,
+      process.platform === 'win32' ? '@echo off\r\nexit /b 0\r\n' : '#!/bin/sh\nexit 0\n',
+      { mode: 0o755 },
+    );
     process.env.PATH = `${dir}${path.delimiter}${saved.path ?? ''}`;
   });
 
@@ -71,6 +75,7 @@ describe('CLI 可执行文件探测缓存', () => {
 
   it('Windows 上优先 .cmd 垫片，而不是 npm 的无扩展名脚本', () => {
     if (process.platform !== 'win32') return;
+    fs.writeFileSync(path.join(dir, 'dsh'), '#!/bin/sh\n');
     fs.writeFileSync(path.join(dir, 'dsh.cmd'), '@echo off\r\n');
     resetCliBinCache();
     const found = resolveCliBinCached('dsh');
@@ -94,10 +99,12 @@ describe('CLI 可执行文件探测缓存', () => {
       HOME: process.env.HOME,
       USERPROFILE: process.env.USERPROFILE,
       APPDATA: process.env.APPDATA,
+      LOCALAPPDATA: process.env.LOCALAPPDATA,
     };
     process.env.HOME = dir;
     process.env.USERPROFILE = dir;
     process.env.APPDATA = dir;
+    process.env.LOCALAPPDATA = dir;
     // 兜底目录还会查 nvm / volta / pnpm 等（#76）：别命中开发机上真实安装的 dsh
     const homeSpy = jest.spyOn(os, 'homedir').mockReturnValue(dir);
     const vm = Object.fromEntries(
@@ -122,6 +129,26 @@ describe('CLI 可执行文件探测缓存', () => {
       process.env.HOME = savedEnv.HOME;
       process.env.USERPROFILE = savedEnv.USERPROFILE;
       process.env.APPDATA = savedEnv.APPDATA;
+      if (savedEnv.LOCALAPPDATA === undefined) delete process.env.LOCALAPPDATA;
+      else process.env.LOCALAPPDATA = savedEnv.LOCALAPPDATA;
     }
+  });
+});
+
+describe('NOMI_USE_MOCK_CLI detection', () => {
+  const saved = process.env.NOMI_USE_MOCK_CLI;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.NOMI_USE_MOCK_CLI;
+    else process.env.NOMI_USE_MOCK_CLI = saved;
+    resetCliBinCache();
+  });
+
+  it('treats mock-*.mjs as installed so Models / Providers pages match the harness', async () => {
+    process.env.NOMI_USE_MOCK_CLI = '1';
+    resetCliBinCache();
+    const found = await resolveCliBinAsync('claude');
+    expect(found).toMatch(/mock-claude\.mjs$/);
+    expect(peekCliBin('claude')).toBe(found);
+    expect(resolveCliBinCached('codex')).toMatch(/mock-codex\.mjs$/);
   });
 });

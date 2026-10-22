@@ -33,8 +33,13 @@ export interface HarnessTabMeta {
   /** 权限模式（主进程已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode?: PermissionMode;
   /**
-   * 标签级模型覆盖（仅带模型目录的官方账号后端，如 Codex）。
-   * null/缺省 = 沿用 CLI 默认模型；以进程级 -c model= 注入，不改全局 CLI 配置。
+   * 标签的来源（docs/design/unified-gateway.md §4.3）：官方账号 / 第三方（经网关）；缺省 = 官方。
+   * 切换走 setTabSource，规则由主进程执行（空标签直接切；官方 → 第三方续接；第三方 → 官方带上下文新开）。
+   */
+  source?: TabSource;
+  /**
+   * 标签级模型覆盖。官方来源：CLI 的模型 id，null/缺省 = 沿用 CLI 默认模型（进程级参数注入，不改全局配置）；
+   * 第三方来源：网关的 `供应商/模型`，null = 这个 CLI 在「模型」页分配的默认模型。
    */
   modelOverride?: string | null;
   /** 标签级思考深度覆盖（仅推理模型）；null = 沿用 CLI 默认档位 */
@@ -152,6 +157,9 @@ export interface LiveAgentEvent {
 
 export const MAIN_TAB_ID = 'main';
 
+/** CLI 标签的来源：官方账号（CLI 直连）/ 第三方（经网关） */
+export type TabSource = 'official' | 'thirdParty';
+
 /** 思考深度档位（各 CLI 取值的并集，由浅到深）；某个模型支持哪些以 CLI 返回的目录为准 */
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
@@ -177,7 +185,7 @@ export interface BackendModelCatalog {
   permissionModes?: string[];
   /** 读取失败的原因（此时 models 为空） */
   error?: string;
-  /** 目录来自启用中的第三方供应商（它的 /models；没有思考深度） */
+  /** 目录来自第三方（网关的模型，id 是 `供应商/模型`；没有思考深度） */
   provider?: { id: string; name: string };
 }
 
@@ -284,9 +292,15 @@ export const harnessClient = {
   ) => call<HarnessTabMeta & { degraded?: boolean }>('tab-permission-mode', id, mode, opts),
   setPermissionDefaults: (o: { defaultPermissionMode?: PermissionMode; codexNetwork?: boolean }) =>
     call<HarnessTabsState>('permission-defaults', o),
-  /** 从 CLI 读到的模型目录（主进程缓存）；不支持切换模型的后端返回 null；refresh 强制重读 */
-  modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean } = {}) =>
+  /**
+   * 模型目录：官方来源从 CLI 读（主进程缓存），第三方来源（source: 'thirdParty'）是网关里能给编程助手用的模型；
+   * 不支持切换模型的后端返回 null；refresh 强制重读
+   */
+  modelCatalog: (backend: HarnessBackend, opts: { refresh?: boolean; source?: TabSource } = {}) =>
     call<BackendModelCatalog | null>('model-catalog', backend, opts),
+  /** 切换标签来源；第三方时 model 是网关的 `供应商/模型`（省略 = 这个 CLI 分配的默认模型） */
+  setTabSource: (id: string, source: TabSource, model?: string) =>
+    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])),
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
   setTabModel: (id: string, model: string) => call<HarnessTabMeta>('tab-model', id, model),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */

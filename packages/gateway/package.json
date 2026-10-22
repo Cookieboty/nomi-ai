@@ -1,0 +1,35 @@
+{
+  "name": "@nomi-ai/gateway",
+  "version": "0.0.1",
+  "private": true,
+  "description": "统一网关内核：Messages / Responses / Chat / Gemini 四种协议的请求与流式互转（纯 Node，不依赖 Electron）",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/run-bin.mjs tsup",
+    "dev": "node ../../scripts/run-bin.mjs tsup --watch",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node ../../scripts/run-bin.mjs vitest run",
+    "clean": "node ../../scripts/run-bin.mjs rimraf dist coverage .turbo"
+  },
+  "devDependencies": {
+    "rimraf": "^6.1.3",
+    "tsup": "^8.3.5",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
+  }
+}

@@ -7,7 +7,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarnessService';
+import { testGateway } from '../../helpers/gateway';
+import { until } from '../../helpers/wait';
 
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
@@ -162,11 +164,11 @@ describe('CliHarnessService mock CLI', () => {
       h.setMaxConcurrent(1);
       const a = h.createTab({ backend: 'claude' });
       const b = h.createTab({ backend: 'claude' });
+      const status = (id: string) => h.listTabs().tabs.find((t) => t.id === id)?.status;
       const runA = h.sendTab(a.id, 'one').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 300));
+      await until(() => status(a.id) === 'running', { what: 'tab a running' });
       const runB = h.sendTab(b.id, 'two').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 100));
-      expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('queued');
+      await until(() => status(b.id) === 'queued', { what: 'tab b queued' });
       expect(h.cancelTab(b.id)).toBe(true);
       await runB;
       expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('idle');
@@ -443,6 +445,25 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 20_000);
 
+  it('switching official accounts leaves third-party Claude tabs running (§13 rule 3)', async () => {
+    const h = track(
+      new CliHarnessService({
+        root: path.join(os.tmpdir(), `harness-recycle-3p-${Date.now()}`),
+        logger: { info() {}, warn() {} },
+        defaultCwd: process.cwd(),
+        gateway: testGateway({ source: 'thirdParty' }),
+      }),
+    );
+    const tab = h.createTab({ backend: 'claude' });
+    expect(tab.source).toBe('thirdParty');
+    await h.sendTab(tab.id, 'one');
+    const live = (h as unknown as { claudeLive: Map<string, unknown> }).claudeLive;
+    const before = live.get(tab.id);
+    expect(before).toBeDefined();
+    h.recycleBackend('claude');
+    expect(live.get(tab.id)).toBe(before);
+  }, 20_000);
+
   it('waits for the current Claude reply before recycling the process', async () => {
     const boot = path.join(os.tmpdir(), `claude-boot-recycle-live-${Date.now()}.log`);
     const prevBoot = process.env.NOMI_MOCK_CLAUDE_BOOT_LOG;
@@ -557,13 +578,13 @@ describe('CliHarnessService session handling', () => {
 
   describe('dsh backend', () => {
     const mockDsh = path.resolve(__dirname, '../../../scripts/mock-cli/mock-dsh.mjs');
-    const mk = (dshEnv?: () => Record<string, string>) =>
+    const mk = (gateway?: HarnessGateway) =>
       track(
         new CliHarnessService({
           root: fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-')),
           logger: { info() {}, warn() {} },
           defaultCwd: process.cwd(),
-          dshEnv,
+          gateway,
         }),
       );
     let prev: string | undefined;
@@ -606,12 +627,14 @@ describe('CliHarnessService session handling', () => {
       expect(r2.text).toBe('【Mock dsh】resumed nokey: again');
     });
 
-    it('injects provider env (API key) only into the dsh child', async () => {
-      const h = mk(() => ({ NOMI_DSH_API_KEY: 'sk-test' }));
-      h.setBackend('dsh');
-      const r = await h.send('hi');
-      expect(r.text).toContain('new key');
+    it('第三方来源：网关令牌只注入 dsh 子进程，模型经 --patch 叠加配置下发', async () => {
+      const h = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+      const tab = h.createTab({ backend: 'dsh' });
+      expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock dsh】new key deepseek/flash: hi');
       expect(process.env.NOMI_DSH_API_KEY).toBeUndefined();
+      // 第三方之间换模型：下一轮的叠加配置跟着换
+      h.setTabModel(tab.id, 'deepseek/pro');
+      expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed key deepseek/pro: b');
     });
 
     it('surfaces the dsh error message when resume fails', async () => {
@@ -624,35 +647,14 @@ describe('CliHarnessService session handling', () => {
       await expect(h.send('x')).rejects.toThrow('session not found: session-unknown');
     });
 
-    it('第三方供应商下按标签切模型：经 --patch 叠加配置只作用于这个进程', async () => {
-      const h = track(
-        new CliHarnessService({
-          root: fs.mkdtempSync(path.join(os.tmpdir(), 'harness-dsh-')),
-          logger: { info() {}, warn() {} },
-          defaultCwd: process.cwd(),
-          providerProfile: (b) =>
-            b === 'dsh' ? { id: 'gw', name: 'Gateway', model: 'deepseek/flash' } : null,
-          providerModels: async () => ['deepseek/flash', 'deepseek/pro'],
-          dshModelPatch: (model) =>
-            `- id: agent-default-model\n  config:\n    provider: nomi\n    model: "${model}"\n`,
-        }),
-      );
-      const tab = h.createTab({ backend: 'dsh' });
-      expect((await h.modelCatalogFor('dsh'))?.models.map((m) => m.id)).toEqual([
-        'deepseek/flash',
-        'deepseek/pro',
-      ]);
-      expect((await h.sendTab(tab.id, 'a')).text).toBe('【Mock dsh】new nokey: a');
-      h.setTabModel(tab.id, 'deepseek/pro');
-      expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed nokey deepseek/pro: b');
-    });
-
     it('上游报错（第三方密钥 / 模型不对）：显示 dsh 给的原因，不当成「无文本输出」', async () => {
       process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR = 'nomi API error (401): Missing API key';
       try {
-        const h = mk(() => ({ NOMI_DSH_API_KEY: 'sk-test' }));
-        h.setBackend('dsh');
-        await expect(h.send('hi')).rejects.toThrow('nomi API error (401): Missing API key');
+        const h = mk(testGateway({ source: 'thirdParty' }));
+        const tab = h.createTab({ backend: 'dsh' });
+        await expect(h.sendTab(tab.id, 'hi')).rejects.toThrow(
+          'nomi API error (401): Missing API key',
+        );
       } finally {
         delete process.env.NOMI_MOCK_DSH_UPSTREAM_ERROR;
       }
@@ -942,12 +944,21 @@ describe('CliHarnessService permission modes', () => {
 
     it('等权限模式确认时点停止：不再拉起进程、这一轮不发送（#75）', async () => {
       process.env.NOMI_MOCK_CLAUDE_MODE_ACK = 'none';
-      const prompts = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-')), 'p.log');
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-stop-'));
+      const prompts = path.join(dir, 'p.log');
+      const control = path.join(dir, 'control.log');
       process.env.NOMI_MOCK_PROMPT_LOG = prompts;
+      process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
       const { h, tab, boots } = await liveTab('bypass', { claudeControlTimeoutMs: 1500 });
       h.setTabPermissionMode(tab.id, 'plan');
       const p = h.sendTab(tab.id, 'two').catch((e: Error) => e);
-      await new Promise((r) => setTimeout(r, 100));
+      // CLI 收到 set_permission_mode（还没确认）时停止
+      await until(
+        () => fs.existsSync(control) && fs.readFileSync(control, 'utf8').includes('plan'),
+        {
+          what: 'set_permission_mode received',
+        },
+      );
       expect(h.cancelTab(tab.id)).toBe(true);
       expect(await p).toBeInstanceOf(Error);
       await new Promise((r) => setTimeout(r, 1700)); // 原本的确认超时过后也不会补发
@@ -1107,14 +1118,6 @@ describe('CliHarnessService Claude background subagents (docs/design/cli-subagen
     harnesses.push(h);
     return h;
   };
-  const until = async (fn: () => boolean, ms = 5000) => {
-    const t0 = Date.now();
-    while (!fn()) {
-      if (Date.now() - t0 > ms) throw new Error('timeout');
-      await new Promise((r) => setTimeout(r, 20));
-    }
-  };
-
   it('persists the follow-up turn the CLI starts on its own after a background subagent', async () => {
     const h = mk();
     const finished: string[] = [];

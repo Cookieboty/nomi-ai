@@ -1,14 +1,15 @@
 /**
- * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok；dsh 在启用第三方供应商时）。
+ * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
- * 启用了第三方供应商时同一个按钮列供应商的模型（主进程读它的 `/models`，供应商里配置的模型作默认），
- * 直接打开模型列表、没有思考深度；标签的选择按来源（官方 / 各供应商）分开记，切换供应商后各自取回。
+ * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮列网关里能给编程助手用的模型
+ * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`），直接打开模型列表、没有思考深度；
+ * 「默认模型」= 这个 CLI 在「模型」页分配的模型。
  *
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
  * - 默认页：大字显示当前档位，下面「模型名 ›」，再下面是分档滑杆（只在推理模型上出现）；
  *   不选档位 = 不发覆盖参数，沿用 CLI 默认；CLI 告诉我们默认档位时滑块定位到该档位；
  * - 点「模型名 ›」进入模型页：跟随 CLI 默认 / 目录内模型 / 自定义模型 id，选完回到滑杆。
- * 模型列表、每个模型的档位与默认档位全部来自 CLI 自己（主进程读取并缓存，见
+ * 官方来源的模型列表、每个模型的档位与默认档位全部来自 CLI 自己（主进程读取并缓存，见
  * electron/src/cli/modelDiscovery.ts），这里不写死任何模型或档位；读不到时只保留默认与自定义。
  * 覆盖是标签级的，主进程在每轮启动时以进程级参数注入
  * （codex `-c model=...`、grok `-m ... --reasoning-effort ...`、claude `--model ... --effort ...`），
@@ -27,20 +28,17 @@ import {
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import {
-  cliProviderClient,
-  type CliProviderKind,
-  type CliProviderState,
-} from '../../services/cliProviderClient';
+import { tabSourceOf } from '../../services/cliSource';
+import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
   harnessClient,
   type BackendModelCatalog,
   type HarnessTabMeta,
   type ModelCatalogModel,
   type ReasoningEffort,
+  type TabSource,
 } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { activeProfileOf } from '../CliProviderChip';
 
 import styles from './index.module.css';
 
@@ -88,35 +86,52 @@ function validCatalog(c: unknown): BackendModelCatalog | null {
   return { ...cat, defaultModel: cat.defaultModel ?? null } as BackendModelCatalog;
 }
 
-/** 向主进程要目录（主进程从 CLI 读取并缓存）；IPC 本身失败当作不支持 */
-function fetchCatalog(backend: string, refresh: boolean): Promise<BackendModelCatalog | null> {
+/** 向主进程要目录（官方：主进程从 CLI 读取并缓存；第三方：网关的模型）；IPC 本身失败当作不支持 */
+function fetchCatalog(
+  backend: string,
+  refresh: boolean,
+  source: TabSource,
+): Promise<BackendModelCatalog | null> {
+  const opts = {
+    ...(refresh ? { refresh } : {}),
+    ...(source === 'thirdParty' ? { source } : {}),
+  };
   return harnessClient
-    .modelCatalog(backend as HarnessTabMeta['backend'], refresh ? { refresh } : {})
+    .modelCatalog(backend as HarnessTabMeta['backend'], opts)
     .then(validCatalog)
     .catch(() => null);
 }
 
 /**
  * 某个后端的模型目录。catalog：undefined = 还在读；null = 该后端不支持切换（按钮整体不渲染）。
- * refresh 让主进程重新从 CLI 读；重读失败时保留原目录。
+ * refresh 让主进程重新读；重读失败时保留原目录。第三方来源在网关的供应商 / 模型变化时自动重读。
  */
-function useCatalog(backend: string, source: string) {
-  const [catalog, setCatalog] = useState<BackendModelCatalog | null | undefined>(undefined);
+function useCatalog(backend: string, source: TabSource) {
+  // 目录按「后端 + 来源」存放：换了来源（官方 / 第三方）旧目录自动作废，回到「还在读」
+  const key = `${backend}|${source}`;
+  const [st, setSt] = useState<{ key: string; catalog: BackendModelCatalog | null } | null>(null);
+  const catalog = st?.key === key ? st.catalog : undefined;
   const [refreshing, setRefreshing] = useState(false);
-  // source：模型来源（官方 / 某个第三方供应商）；换了来源就重读目录
   useEffect(() => {
     let alive = true;
-    void fetchCatalog(backend, false).then((c) => {
-      if (alive) setCatalog(c);
-    });
+    const load = () =>
+      void fetchCatalog(backend, false, source).then((c) => {
+        if (alive) setSt({ key: `${backend}|${source}`, catalog: c });
+      });
+    load();
+    const off =
+      source === 'thirdParty' && gatewayClientAvailable()
+        ? gatewayClient.onChanged(load)
+        : () => undefined;
     return () => {
       alive = false;
+      off();
     };
   }, [backend, source]);
   const refresh = () => {
     setRefreshing(true);
-    void fetchCatalog(backend, true).then((c) => {
-      if (c) setCatalog(c);
+    void fetchCatalog(backend, true, source).then((c) => {
+      if (c) setSt({ key, catalog: c });
       setRefreshing(false);
     });
   };
@@ -305,8 +320,10 @@ const ModelChip: React.FC<{
   const menuRef = useRef<HTMLDivElement>(null);
 
   const current = tab.modelOverride?.trim() || null;
-  // 第三方供应商的目录：直接是模型列表，没有思考深度页
-  const provider = catalog.provider ?? null;
+  // 第三方来源的目录：直接是模型列表，没有思考深度页
+  const thirdParty = tabSourceOf(tab) === 'thirdParty';
+  const provider =
+    catalog.provider ?? (thirdParty ? { id: 'gateway', name: t('第三方模型') } : null);
   const currentModel = useMemo(
     () => catalog.models.find((m) => m.id === current) ?? null,
     [catalog, current],
@@ -339,7 +356,7 @@ const ModelChip: React.FC<{
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
-  // 模型列表从哪来：官方账号是 CLI 自己，第三方供应商是它的名字
+  // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
 
   useEffect(() => {
@@ -536,50 +553,53 @@ const ModelChip: React.FC<{
                   </button>
                 )}
               </div>
-              <div className={styles.custom}>
-                {customOpen ? (
-                  <form
-                    className={styles.customForm}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const name = customName.trim();
-                      if (name) pickModel(name);
-                    }}
-                  >
-                    <input
-                      autoFocus
-                      className={styles.customInput}
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder={t('模型 id')}
-                      aria-label={t('自定义模型 id')}
-                      maxLength={128}
-                      data-testid="model-custom-input"
-                    />
-                    <button
-                      type="submit"
-                      className={styles.link}
-                      disabled={!customName.trim()}
-                      data-testid="model-custom-ok"
+              {/* 第三方的模型只能从网关的列表里选（值是 `供应商/模型`），不提供自定义 id */}
+              {!thirdParty && (
+                <div className={styles.custom}>
+                  {customOpen ? (
+                    <form
+                      className={styles.customForm}
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const name = customName.trim();
+                        if (name) pickModel(name);
+                      }}
                     >
-                      {t('使用')}
+                      <input
+                        autoFocus
+                        className={styles.customInput}
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                        placeholder={t('模型 id')}
+                        aria-label={t('自定义模型 id')}
+                        maxLength={128}
+                        data-testid="model-custom-input"
+                      />
+                      <button
+                        type="submit"
+                        className={styles.link}
+                        disabled={!customName.trim()}
+                        data-testid="model-custom-ok"
+                      >
+                        {t('使用')}
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.link}
+                      data-testid="model-custom-toggle"
+                      onClick={() => {
+                        setCustomName(current ?? '');
+                        setCustomOpen(true);
+                      }}
+                    >
+                      <Icon icon={PencilLine} size={13} />
+                      {t('自定义模型 id')}
                     </button>
-                  </form>
-                ) : (
-                  <button
-                    type="button"
-                    className={styles.link}
-                    data-testid="model-custom-toggle"
-                    onClick={() => {
-                      setCustomName(current ?? '');
-                      setCustomOpen(true);
-                    }}
-                  >
-                    <Icon icon={PencilLine} size={13} />
-                    {t('自定义模型 id')}
-                  </button>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
             </>
           )}
         </ChipMenu>
@@ -623,37 +643,10 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
   );
 };
 
-/** 输入栏入口：无模型目录的后端不渲染；第三方供应商激活时列供应商的模型 */
+/** 输入栏入口：无模型目录的后端不渲染；第三方来源列网关的模型 */
 export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
-  const [providers, setProviders] = useState<CliProviderState | null>(null);
-  const profile =
-    tab.backend !== 'nomi' ? activeProfileOf(providers, tab.backend as CliProviderKind) : null;
-  // 换了供应商（或停用回到官方账号）：目录跟着重读
-  const source = profile ? `${profile.id}:${profile.model}` : 'official';
-  const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
-  // 供应商状态到之前不渲染，避免按钮先出现再因供应商激活消失
-  const [providersReady, setProvidersReady] = useState(() => !cliProviderClient.available());
-
-  useEffect(() => {
-    if (!cliProviderClient.available()) return;
-    let alive = true;
-    const settle = (s: CliProviderState | null) => {
-      if (!alive) return;
-      setProviders(s);
-      setProvidersReady(true);
-    };
-    void cliProviderClient
-      .state()
-      .then(settle)
-      .catch(() => settle(null));
-    const off = cliProviderClient.onChanged(settle);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, []);
-
-  if (catalog === null || !providersReady) return null;
+  const { catalog, refreshing, refresh } = useCatalog(tab.backend, tabSourceOf(tab));
+  if (catalog === null) return null;
   if (catalog === undefined) return <LoadingChip tab={tab} />;
   return <ModelChip tab={tab} catalog={catalog} refreshing={refreshing} onRefresh={refresh} />;
 };

@@ -23,7 +23,7 @@ import {
 import { createIPCClient } from '../services/IPCClient';
 import { kbClient } from '../services/kbClient';
 import { ingestConversation, memoryContext } from '../services/memClient';
-import { effectiveProviderLabel } from '../services/providerClient';
+import { nomiModelLabel } from '../services/nomiModel';
 import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
@@ -341,7 +341,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
         };
         // 本轮之前的会话消息作为多轮上下文（state.messages 尚未包含本轮 userMessage）
         const history = s.messages;
@@ -375,7 +375,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: response,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -418,7 +418,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: r.answer,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           sources: r.sources,
           kb: true,
         };
@@ -465,7 +465,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'user',
           content,
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(images?.length
             ? {
                 images: images.map((i) => ({
@@ -510,7 +510,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: '',
           timestamp: Date.now(),
-          modelId: effectiveProviderLabel(),
+          modelId: nomiModelLabel(),
           ...(mem.used.length ? { memories: mem.used } : {}),
         };
         if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });

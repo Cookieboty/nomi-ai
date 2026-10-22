@@ -84,6 +84,19 @@ describe('工具执行上下文带上实际接收 provider（#17）', () => {
     expect(seen[0]!.provider).toEqual({ id: 'p-cloud', baseURL: 'https://api.example.com/v1' });
   });
 
+  it('经统一网关：ctx.provider 是真正的上游，不是网关的本机回环地址', async () => {
+    const seen: ToolExecContext[] = [];
+    const viaGateway = new AiSdkLlmProvider({
+      id: 'nomi-gateway',
+      apiKey: 'nomi-gw-nomi-x',
+      baseURL: 'http://127.0.0.1:18721/v1',
+      receiver: { id: 'deepseek', baseURL: 'https://api.deepseek.com/v1' },
+    });
+    (viaGateway as unknown as { modelFactory: unknown }).modelFactory = () => toolLoopModel();
+    await drain(viaGateway.withTools([probeTool(seen)]).stream(req));
+    expect(seen[0]!.provider).toEqual({ id: 'deepseek', baseURL: 'https://api.deepseek.com/v1' });
+  });
+
   it('经 TrackedProvider（多 key 包装）同样带上，且是被调用的 provider 而非别的角色', async () => {
     const seen: ToolExecContext[] = [];
     const cloud = new AiSdkLlmProvider({

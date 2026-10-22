@@ -131,9 +131,17 @@ describe('installModel', () => {
     const installRoot = tmp();
     const tampered = Buffer.from(FIXTURE);
     tampered[tampered.length - 1]! ^= 0xff;
+    const waits: number[] = [];
     await expect(
-      installModel({ installRoot, manifest, fetchImpl: okFetch(tampered) }),
+      installModel({
+        installRoot,
+        manifest,
+        fetchImpl: okFetch(tampered),
+        // 校验失败会按退避重试；不真的等，只记下退避时长
+        sleep: async (ms) => void waits.push(ms),
+      }),
     ).rejects.toThrow();
+    expect(waits).toEqual([1500, 3000]);
     expect(fs.existsSync(path.join(installRoot, 'tiny'))).toBe(false);
     expect(fs.existsSync(path.join(installRoot, '.download', 'tiny.tar.bz2'))).toBe(false);
     expect(fs.existsSync(path.join(installRoot, '.download', 'tiny.tar.bz2.part'))).toBe(false);

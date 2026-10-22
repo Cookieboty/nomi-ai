@@ -1,0 +1,75 @@
+/**
+ * 对话区右上角：Nomi 对话的模型一键切换（统一网关的 clients.nomi.models.main，
+ * 与托盘、斜杠命令 /model、设置 →「模型」页共享，实时同步）。
+ */
+import { Icon, IconButton, ModelPicker, t } from '@nomi-ai/ui';
+import { Boxes } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+import { gatewayClientAvailable } from '../../services/gatewayClient';
+import {
+  nomiMainRef,
+  pickerProviders,
+  setNomiModel,
+  useGatewayState,
+} from '../../services/nomiModel';
+import {
+  effectiveProviderLabel,
+  providerClient,
+  providerClientAvailable,
+  type ProviderState,
+} from '../../services/providerClient';
+
+import styles from './index.module.css';
+
+export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: string }> = ({
+  onManage,
+  className,
+}) => {
+  const state = useGatewayState();
+  const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
+  // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
+  const [override, setOverride] = useState<string | null>(null);
+  // 网关里还没分配时，对话由旧存储路由（如环境变量供应商）：显示它，不显示「未配置」
+  const [legacyLabel, setLegacyLabel] = useState<string | undefined>();
+  useEffect(() => {
+    if (!providerClientAvailable()) return;
+    const apply = (s: ProviderState) => {
+      setOverride(s.overrideId ?? null);
+      setLegacyLabel(effectiveProviderLabel());
+    };
+    providerClient
+      .state()
+      .then(apply)
+      .catch(() => undefined);
+    return providerClient.onChanged(apply);
+  }, []);
+
+  if (!gatewayClientAvailable() || !state) return null;
+  return (
+    <span
+      className={[styles.switch, className].filter(Boolean).join(' ')}
+      data-testid="nomi-model-switch"
+    >
+      <ModelPicker
+        size="sm"
+        variant="ghost"
+        className={styles.picker}
+        providers={providers}
+        value={nomiMainRef(state)}
+        onChange={(ref) => void setNomiModel(ref).catch(() => undefined)}
+        disabled={Boolean(override) || !providers.length}
+        placeholder={legacyLabel ?? (providers.length ? t('选择模型') : t('（未配置）'))}
+        aria-label={override ? t('已被 NOMI_PROVIDER 锁定') : t('Nomi 对话的模型')}
+        data-testid="nomi-model-picker"
+      />
+      <IconButton
+        size="sm"
+        data-testid="open-models-settings"
+        onClick={onManage}
+        label={t('第三方供应商与模型')}
+        icon={<Icon icon={Boxes} />}
+      />
+    </span>
+  );
+};

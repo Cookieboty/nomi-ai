@@ -21,6 +21,7 @@ import * as path from 'path';
 import { PermissionBroker } from '../../../src/desktop/PermissionBroker';
 import type { DocRec } from '../../../src/knowledge/KnowledgeIndex';
 import { KnowledgeService } from '../../../src/knowledge/KnowledgeService';
+import { until } from '../../helpers/wait';
 
 function setup() {
   // 用 native realpath：与 PermissionBroker / 索引（fs.promises.realpath，libuv）同一口径。
@@ -91,8 +92,6 @@ function setup() {
   return { root, a, b, broker, scopeA, scopeB, svc, asked };
 }
 
-const flush = () => new Promise((r) => setTimeout(r, 20));
-
 describe('知识库撤权（#29）', () => {
   it('授权有效时两个来源都可检索', async () => {
     const t = setup();
@@ -133,8 +132,7 @@ describe('知识库撤权（#29）', () => {
     const t = setup();
     t.svc.start();
     t.broker.revoke(t.scopeA.id);
-    await flush();
-    expect(t.svc.index.get('da')).toBeUndefined();
+    await until(() => t.svc.index.get('da') === undefined, { what: 'revoked source purged' });
     expect(t.svc.index.get('db')).toBeDefined();
     await t.svc.dispose();
   });
@@ -152,8 +150,7 @@ describe('知识库撤权（#29）', () => {
     const t = setup();
     t.broker.revoke(t.scopeA.id);
     await t.svc.search('quarterly');
-    await flush();
-    expect(t.svc.index.get('da')).toBeUndefined();
+    await until(() => t.svc.index.get('da') === undefined, { what: 'revoked source purged' });
     t.broker.grant(t.a, 'read');
     await t.svc.reindex(['sa']);
     const r = await t.svc.search('ALPHA');

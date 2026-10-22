@@ -5,14 +5,14 @@
 import { createLogger, t } from '@nomi-ai/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { cliProviderClient } from '../services/cliProviderClient';
+import { switchTabSource, tabSourceOf } from '../services/cliSource';
 import { extClient } from '../services/extClient';
 import {
   harnessClient,
   type HarnessTabMeta,
   type SlashDiscoveryEntry,
 } from '../services/harnessClient';
-import { providerClient } from '../services/providerClient';
+import { setNomiModel } from '../services/nomiModel';
 import type { ConversationBackend } from '../types/chat';
 import type { ConvMessage } from '../types/conversation';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
@@ -245,29 +245,33 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
       openPlugins: () => latest.current.onOpenPlugins(),
       openProviders: () => latest.current.onOpenProviders(),
       openSettings: () => latest.current.onOpenSettings(),
-      switchNomiModel: async (providerId, model) => {
-        await providerClient.setActive(providerId, model);
+      switchNomiModel: async (ref) => {
+        await setNomiModel(ref);
       },
-      activateCliProfile: async (id) => {
-        const r = await cliProviderClient.activate(id);
-        return r.ok ? { ok: true } : { ok: false, error: r.error ?? t('切换失败') };
-      },
-      deactivateCliProfile: async () => {
-        const b = target.backend;
-        const r =
-          b === 'dsh'
-            ? await cliProviderClient.deactivateDsh()
-            : await cliProviderClient.deactivate(b as 'claude' | 'codex' | 'grok');
-        return r.ok ? { ok: true } : { ok: false, error: r.error ?? t('切换失败') };
+      setTabSource: async (source, model) => {
+        if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
+        const tabs = await harnessClient.tabs().catch(() => null);
+        const tab = tabs?.tabs.find((x) => x.id === target.tabId);
+        if (!tab) throw new Error(t('会话已关闭或已重置'));
+        const L = latest.current;
+        // 已有对话：标签有会话 id，或发起命令的会话就是当前显示的、里面有消息
+        const hasMessages =
+          !!tab.cliSessionId || (target.scopeKey === L.scopeKey && L.messages.length > 0);
+        const r = await switchTabSource(tab, source, { model, hasMessages });
+        return !!r;
       },
       tabModels: async () => {
-        if (!target.tabId) return { catalog: null, current: null };
-        const [catalog, tabs] = await Promise.all([
-          harnessClient.modelCatalog(target.backend as HarnessTabMeta['backend']).catch(() => null),
-          harnessClient.tabs().catch(() => null),
-        ]);
+        if (!target.tabId) return { catalog: null, current: null, source: 'official' as const };
+        const tabs = await harnessClient.tabs().catch(() => null);
         const tab = tabs?.tabs.find((x) => x.id === target.tabId);
-        return { catalog, current: tab?.modelOverride?.trim() || null };
+        const source = tabSourceOf(tab);
+        const catalog = await harnessClient
+          .modelCatalog(
+            target.backend as HarnessTabMeta['backend'],
+            source === 'thirdParty' ? { source } : {},
+          )
+          .catch(() => null);
+        return { catalog, current: tab?.modelOverride?.trim() || null, source };
       },
       setTabModel: async (model) => {
         if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
@@ -347,7 +351,7 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
           messages: L.messages,
           session: L.session,
           commands: () => all,
-          load: () => loadSlashData(target.backend),
+          load: () => loadSlashData(target.backend, target.tabId),
           actions: makeActions(target),
         };
         const r = await executeSlash(text, all, ctx);
