@@ -117,8 +117,8 @@ jobs:
   # E2E · headless（vitest，e2e/tests）
   # ---------------------------------------------------------------
   e2e-headless:
-    # 重任务：PR 上只有带 ci:full 标签才跑
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: e2e-headless (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -153,8 +153,8 @@ jobs:
   # ---------------------------------------------------------------
   # Linux 用 xvfb 虚拟显示；Windows runner 自带交互桌面，可直接跑 headed Electron。
   e2e-headed:
-    # 重任务：PR 上只有带 ci:full 标签才跑
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: e2e-headed (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -221,8 +221,8 @@ jobs:
   # 开发模式冒烟：全新 install 后跑 `pnpm dev`，等看板娘窗口 + 看板娘模型 + 对话窗口 dev server 就绪后退出，
   # 防止开发启动链路（预构建、端口等待、preload 打包、Electron 二进制下载）再次悄悄坏掉。
   dev-smoke:
-    # 重任务：PR 上只有带 ci:full 标签才跑
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) }}
+    # 重任务：PR 上只有带 ci:full 标签才跑；已带 ci:full 时再加别的标签不重跑（#85）
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.package_only) && (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'ci:full')) && !(github.event.action == 'labeled' && github.event.label.name != 'ci:full') }}
     name: dev-smoke (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 20
