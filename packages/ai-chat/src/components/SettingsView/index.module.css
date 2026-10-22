@@ -440,11 +440,21 @@
   width: 100%;
   height: auto;
   aspect-ratio: 2048 / 768;
-  margin: 0 0 var(--cd-space-4);
-  border-radius: var(--cd-radius-lg);
-  border: 1px solid var(--cd-color-border);
   pointer-events: none;
   user-select: none;
+  /* 无边框：左右与底部渐隐，融进页面底色 */
+  -webkit-mask-image:
+    linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, #000 72%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%),
+    linear-gradient(to bottom, #000 72%, transparent 100%);
+  mask-composite: intersect;
+}
+/* 横幅下方内容：顶部留白收小，卡片紧跟横幅 */
+.innerAfterBanner {
+  padding-top: var(--cd-space-2);
 }
 @media (max-width: 760px) {
   .nav {

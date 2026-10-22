@@ -238,18 +238,22 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         ))}
       </nav>
       <main className={styles.content} aria-label={t(current.label)}>
-        <div className={styles.inner}>
+        {section === 'general' && (
+          <>
+            {/* 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色 */}
+            <img
+              src="./brand/nomi-banner.webp"
+              alt=""
+              aria-hidden="true"
+              className={styles.banner}
+              data-testid="settings-banner"
+              draggable={false}
+            />
+          </>
+        )}
+        <div className={`${styles.inner} ${section === 'general' ? styles.innerAfterBanner : ''}`}>
           {section === 'general' ? (
             <>
-              {/* 「通用」页顶部横幅（纯装饰，读屏忽略）；分区名只给读屏 */}
-              <img
-                src="./brand/nomi-banner.webp"
-                alt=""
-                aria-hidden="true"
-                className={styles.banner}
-                data-testid="settings-banner"
-                draggable={false}
-              />
               <h1 className={styles.srOnly} data-testid="settings-section-title">
                 {t(current.label)}
               </h1>
