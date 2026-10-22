@@ -134,3 +134,21 @@ describe('CLI 可执行文件探测缓存', () => {
     }
   });
 });
+
+describe('NOMI_USE_MOCK_CLI detection', () => {
+  const saved = process.env.NOMI_USE_MOCK_CLI;
+  afterEach(() => {
+    if (saved === undefined) delete process.env.NOMI_USE_MOCK_CLI;
+    else process.env.NOMI_USE_MOCK_CLI = saved;
+    resetCliBinCache();
+  });
+
+  it('treats mock-*.mjs as installed so Models / Providers pages match the harness', async () => {
+    process.env.NOMI_USE_MOCK_CLI = '1';
+    resetCliBinCache();
+    const found = await resolveCliBinAsync('claude');
+    expect(found).toMatch(/mock-claude\.mjs$/);
+    expect(peekCliBin('claude')).toBe(found);
+    expect(resolveCliBinCached('codex')).toMatch(/mock-codex\.mjs$/);
+  });
+});

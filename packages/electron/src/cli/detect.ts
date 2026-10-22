@@ -30,6 +30,26 @@ const CANDIDATES: Record<CliKind, string[]> = {
   cursor: ['cursor-agent', 'agent'],
 };
 
+/**
+ * `NOMI_USE_MOCK_CLI=1` 时与 CliHarnessService 一致：把 mock-*.mjs 当作已安装，
+ * 这样「模型」/「编程助手」页不会在 e2e / 开发环境下把 Mock CLI 显示成「未安装」。
+ * cursor 没有 mock，返回 null。
+ */
+export function mockCliBin(kind: CliKind): string | null {
+  if (process.env.NOMI_USE_MOCK_CLI !== '1' || kind === 'cursor') return null;
+  const candidates = [
+    path.resolve(__dirname, '../../scripts/mock-cli'),
+    path.resolve(__dirname, '../scripts/mock-cli'),
+    path.resolve(process.cwd(), 'packages/electron/scripts/mock-cli'),
+    path.resolve(process.cwd(), 'scripts/mock-cli'),
+  ];
+  for (const dir of candidates) {
+    const file = path.join(dir, `mock-${kind}.mjs`);
+    if (fs.existsSync(file)) return file;
+  }
+  return null;
+}
+
 /** 运行中发现的额外目录（npm 实际的全局 bin 等），优先于下面的兜底目录 */
 const rememberedDirs: string[] = [];
 
@@ -223,6 +243,8 @@ export function peekCliBin(kind: CliKind): string | null | undefined {
   // 环境变量覆盖（测试 / Mock / 特殊安装）始终优先且改了立即生效，不经缓存
   const env = pickedBin(process.env[ENV_BIN[kind]]);
   if (env) return env;
+  const mock = mockCliBin(kind);
+  if (mock) return mock;
   const hit = binCache.get(kind);
   if (!hit) return undefined;
   if (hit.bin) {
@@ -273,6 +295,8 @@ function pickedBin(raw: string | undefined): string | null {
 export function resolveCliBin(kind: CliKind): string | null {
   const env = pickedBin(process.env[ENV_BIN[kind]]);
   if (env) return env;
+  const mock = mockCliBin(kind);
+  if (mock) return mock;
   for (const c of CANDIDATES[kind]) {
     const p = which(c);
     if (p) return p;
@@ -447,6 +471,8 @@ async function probeCliBinAsync(kind: CliKind): Promise<string | null> {
   await waitForShellPath();
   const env = pickedBin(process.env[ENV_BIN[kind]]);
   if (env) return env;
+  const mock = mockCliBin(kind);
+  if (mock) return mock;
   for (const c of CANDIDATES[kind]) {
     const p = await whichAsync(c);
     if (p) return p;

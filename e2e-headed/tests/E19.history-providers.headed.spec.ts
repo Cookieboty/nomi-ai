@@ -412,8 +412,11 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await invoke(chat, 'ai:gateway:set-assignment', 'claude', {
       models: { main: `${relay.id}/claude-x` },
     });
+    // Mock CLI 计为已安装；等网关状态推到模型页后再断言
+    await expect(chat.locator('[data-testid="cli-main-claude"]')).toBeVisible({ timeout: 20_000 });
     await expect(chat.locator('[data-testid="cli-main-claude"]').locator('..')).toContainText(
       'claude-x',
+      { timeout: 20_000 },
     );
     await shot(chat, '12-models-cli-rows');
 
