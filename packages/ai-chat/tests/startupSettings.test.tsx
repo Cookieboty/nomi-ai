@@ -69,7 +69,7 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    expect(mascot.textContent).toContain('看板娘');
+    expect(mascot.textContent).toContain('Nomi');
     expect(main.textContent).toContain('软件主界面');
   });
 
@@ -158,7 +158,7 @@ describe('Settings → General → startup default view', () => {
     stored = { defaultView: 'main', closeMain: 'hide', showMascot: true };
     render(<StartupSettings />);
     const sw = await screen.findByTestId('startup-show-mascot');
-    expect(sw.getAttribute('aria-label')).toBe('显示看板娘');
+    expect(sw.getAttribute('aria-label')).toBe('显示 Nomi');
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
     expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
@@ -186,7 +186,7 @@ describe('Settings → General → startup default view', () => {
     expect(rule).not.toMatch(/color:\s*var\(--cd-color-accent\)/);
   });
 
-  it('groups: 启动与窗口 holds the language slot; 桌面看板娘 gets the size slot with the switch state', async () => {
+  it('groups: 启动与窗口 holds the language slot; 桌面 Nomi gets the size slot with the switch state', async () => {
     stored = { defaultView: 'main', closeMain: 'hide', showMascot: false };
     render(
       <StartupSettings

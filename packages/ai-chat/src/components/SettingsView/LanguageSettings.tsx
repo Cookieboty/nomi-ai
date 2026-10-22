@@ -36,8 +36,8 @@ export const LanguageSettings: React.FC = () => {
       title={locale === 'zh-CN' ? t('语言') + ' · Language' : 'Language'}
       description={
         pref === 'system'
-          ? t('跟随系统，当前为 {0}；对话、看板娘、托盘与通知即时切换。', current)
-          : t('对话、看板娘、托盘与通知即时切换。')
+          ? t('跟随系统，当前为 {0}；对话、Nomi、托盘与通知即时切换。', current)
+          : t('对话、Nomi、托盘与通知即时切换。')
       }
     >
       <SegmentedControl
