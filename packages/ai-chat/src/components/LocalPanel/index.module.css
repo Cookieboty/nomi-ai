@@ -171,3 +171,15 @@ textarea.mono {
   align-items: center;
   gap: var(--cd-space-2);
 }
+
+/* 页面内的列表：随页面滚动，不再自己限高滚动 */
+.listFlow {
+  max-height: none;
+  overflow: visible;
+}
+.groupTitle {
+  margin: var(--cd-space-2) 0 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}

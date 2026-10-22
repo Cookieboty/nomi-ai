@@ -802,12 +802,21 @@
   display: flex;
   flex-direction: column;
 }
+/* 标题区与第一行之间多留一点，避免说明文字贴着设置行 */
+.cd-sgroup__head + .cd-sgroup__rows {
+  margin-top: var(--cd-space-1);
+}
 .cd-srow {
   display: flex;
   align-items: center;
   gap: var(--cd-space-4);
   min-height: var(--cd-control-h-md);
   padding: var(--cd-space-2) 0;
+}
+/* 组内非设置行的内容（提示条、输入行、列表）之间留间距，设置行之间仍只用分隔线 */
+.cd-sgroup__rows > :not(.cd-srow) + *,
+.cd-sgroup__rows > * + :not(.cd-srow) {
+  margin-top: var(--cd-space-2);
 }
 .cd-srow + .cd-srow {
   border-top: 1px solid var(--cd-color-border-subtle);

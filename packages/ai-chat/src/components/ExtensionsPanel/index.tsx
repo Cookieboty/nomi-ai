@@ -230,7 +230,6 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
     >
       <div className={styles.stack}>
         <Tabs<Tab>
-          variant="underline"
           items={[
             {
               value: 'mcp',

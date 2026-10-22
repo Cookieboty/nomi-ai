@@ -3,7 +3,7 @@
  * 默认内置离线语音（sherpa-onnx，模型下载见上方 TtsModelCard）；Fish 本地 / Fish 云 / 自建 legacy 为高级选项。
  * 语音开关由 TtsModelCard 负责，这里保存时沿用主进程里的最新开关，不会互相覆盖。
  */
-import { Button, FormField, Input, Notice, Select, t } from '@nomi-ai/ui';
+import { Button, FormField, Input, Notice, Select, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -124,12 +124,11 @@ export const TtsEngineCard: React.FC = () => {
   const fish = p === 'fish-local' || p === 'fish-cloud';
 
   return (
-    <section className={styles.block} data-testid="settings-tts-engine">
-      <h2 className={styles.h2}>{t('朗读引擎')}</h2>
-      <p className={styles.note}>
-        {t('默认用内置离线语音，在本机合成、无需联网；模型缺失或合成失败时保持静默。')}
-      </p>
-
+    <SettingsGroup
+      title={t('朗读引擎')}
+      description={t('默认用内置离线语音，在本机合成、无需联网；模型缺失或合成失败时保持静默。')}
+      data-testid="settings-tts-engine"
+    >
       <div className={card.form}>
         <FormField label={t('提供方')}>
           <Select
@@ -187,17 +186,14 @@ export const TtsEngineCard: React.FC = () => {
               </FormField>
             )}
             {p === 'fish-cloud' && cfg.hasApiKey && (
-              <label className={card.row}>
-                <input
-                  type="checkbox"
-                  checked={clearKey}
-                  onChange={(e) => {
-                    setClearKey(e.target.checked);
-                    setDirty(true);
-                  }}
-                />
-                <span>{t('清除已保存的 Key')}</span>
-              </label>
+              <Switch
+                checked={clearKey}
+                onChange={(v) => {
+                  setClearKey(v);
+                  setDirty(true);
+                }}
+                label={t('清除已保存的 Key')}
+              />
             )}
             <Notice data-testid="fish-attribution">
               {t(
@@ -268,6 +264,6 @@ export const TtsEngineCard: React.FC = () => {
           {t('重置为内置默认')}
         </Button>
       </div>
-    </section>
+    </SettingsGroup>
   );
 };

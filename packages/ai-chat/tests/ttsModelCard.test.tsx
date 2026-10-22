@@ -63,8 +63,8 @@ describe('TtsModelCard', () => {
 
   it('missing model: voice off, explains the ~115 MB download', async () => {
     render(<TtsModelCard />);
-    const toggle = (await screen.findByTestId('tts-voice-toggle')) as HTMLInputElement;
-    expect(toggle.checked).toBe(false);
+    const toggle = await screen.findByTestId('tts-voice-toggle');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
     expect(screen.getByTestId('tts-model-missing').textContent).toMatch(/115\.0 MB/);
   });
 
@@ -86,7 +86,7 @@ describe('TtsModelCard', () => {
     fireEvent.click(await screen.findByTestId('tts-voice-toggle'));
     const err = await screen.findByTestId('tts-model-error');
     expect(err.textContent).toMatch(/HTTP 503/);
-    expect((screen.getByTestId('tts-voice-toggle') as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByTestId('tts-voice-toggle').getAttribute('aria-checked')).toBe('false');
     calls = [];
     fireEvent.click(screen.getByTestId('tts-model-retry'));
     await waitFor(() => expect(calls).toContainEqual(['ai:tts-model:set-voice-enabled', true]));

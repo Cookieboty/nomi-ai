@@ -152,4 +152,4 @@ export function tabOf<S extends keyof typeof SECTION_TABS>(
 }
 
 /** 「本机管理」（设置分区与顶栏抽屉共用）显示的 LocalPanel 标签：不含「日历」，日历在「日程与日历」里 */
-export const LOCAL_MANAGE_TABS = ['clipboard', 'export', 'models', 'ollama'] as const;
+export const LOCAL_MANAGE_TABS = ['clipboard', 'export', 'models'] as const;

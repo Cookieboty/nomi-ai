@@ -20,18 +20,17 @@ const noop = () => undefined;
 const VoiceSection: React.FC = () => {
   const v = useVoice('chat');
   return (
-    <>
+    <div className={styles.groups}>
       <TtsModelCard />
       <TtsEngineCard />
       {v.api ? (
-        <section className={styles.block} data-testid="settings-voice">
-          <h2 className={styles.h2}>{t('语音输入')}</h2>
+        <div data-testid="settings-voice">
           <VoiceSettingsPanel api={v.api} config={v.config} onRefresh={() => void v.refresh()} />
-        </section>
+        </div>
       ) : (
         <p className={styles.note}>{t('语音服务不可用（仅在桌面应用中提供）。')}</p>
       )}
-    </>
+    </div>
   );
 };
 

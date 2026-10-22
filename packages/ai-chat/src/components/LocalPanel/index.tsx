@@ -13,11 +13,14 @@ import {
   Modal,
   Notice,
   Select,
+  SettingRow,
+  SettingsGroup,
   SkeletonList,
   Switch,
   Tabs,
+  IconButton,
 } from '@nomi-ai/ui';
-import { Cpu, CalendarDays, ClipboardList, MapPin, Plus, X } from 'lucide-react';
+import { Cpu, CalendarDays, ClipboardList, MapPin, Plus, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -40,8 +43,9 @@ import {
 
 import styles from './index.module.css';
 
-type Tab = 'models' | 'ollama' | 'calendar' | 'clipboard' | 'export';
-const TABS: Tab[] = ['calendar', 'clipboard', 'export', 'models', 'ollama'];
+/** 「本机模型」同时管理内置 llama.cpp 与可选的 Ollama（原 Ollama 标签已并入） */
+type Tab = 'models' | 'calendar' | 'clipboard' | 'export';
+const TABS: Tab[] = ['calendar', 'clipboard', 'export', 'models'];
 const EXPORT_ITEMS: Array<{ key: string; label: string }> = [
   { key: 'conversations', label: '聊天记录' },
   { key: 'memory', label: '记忆' },
@@ -171,7 +175,7 @@ export const LocalPanel: React.FC<{
     if (!isVisible) return;
     // 切 Tab 时按需拉取（内部通过 await 后 setState，等效外部数据同步），豁免 set-state-in-effect
     /* eslint-disable react-hooks/set-state-in-effect */
-    if (tab === 'ollama' && ollama === null) void loadOllama();
+    if (tab === 'models' && ollama === null) void loadOllama();
     if (tab === 'calendar') void loadCal();
     if (tab === 'clipboard') void loadClips();
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -269,31 +273,18 @@ export const LocalPanel: React.FC<{
       </Notice>
       {!st.runtime.supported && (
         <Notice tone="warning">
-          {t('当前系统暂不支持内置的 llama.cpp 运行时，可以改用 Ollama 标签页。')}
+          {t('当前系统暂不支持内置的 llama.cpp 运行时，可以改用下方的 Ollama。')}
         </Notice>
       )}
-      <div className={styles.card} data-testid="local-server">
-        <div className={styles.cardHead}>
-          <b className={styles.grow}>
+      <SettingsGroup
+        data-testid="local-server"
+        title={
+          <>
             {t('本机推理服务（llama.cpp')} {st.runtime.tag}）
-          </b>
-          <Badge
-            tone={
-              running
-                ? 'success'
-                : srv?.status === 'error'
-                  ? 'danger'
-                  : srv?.status === 'starting'
-                    ? 'accent'
-                    : 'neutral'
-            }
-            data-testid="local-server-status"
-          >
-            {t(STATUS_LABEL[srv!.status])}
-          </Badge>
-        </div>
-        <div className={styles.meta}>
-          {running
+          </>
+        }
+        description={
+          running
             ? t(
                 '{0} · {1} · 已注册为「llama.cpp（本机）」',
                 st.models.find((m) => m.id === srv!.model)?.name ?? srv!.model,
@@ -301,53 +292,82 @@ export const LocalPanel: React.FC<{
               )
             : st.runtime.installed
               ? t('运行时已就绪，选一个已下载的模型点「启动」。')
-              : t('运行时会在第一次下载模型时按需获取（{0}）。', st.runtime.license)}
-        </div>
+              : t(
+                  'Nomi 自带，不需要安装 Ollama；运行时会在第一次下载模型时按需获取（{0}）。',
+                  st.runtime.license,
+                )
+        }
+        actions={
+          <>
+            {running && (
+              <>
+                <Button
+                  size="sm"
+                  onClick={() => void run('stop', () => localClient.stop())}
+                  data-testid="local-stop"
+                >
+                  {t('停止')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => void run('use', () => localClient.use())}
+                  data-testid="local-use"
+                >
+                  {t('设为聊天模型')}
+                </Button>
+              </>
+            )}
+            <Badge
+              tone={
+                running
+                  ? 'success'
+                  : srv?.status === 'error'
+                    ? 'danger'
+                    : srv?.status === 'starting'
+                      ? 'accent'
+                      : 'neutral'
+              }
+              data-testid="local-server-status"
+            >
+              {t(STATUS_LABEL[srv!.status])}
+            </Badge>
+          </>
+        }
+      >
         {srv?.error && <div className={styles.err}>{srv.error}</div>}
         {prog['llama-runtime'] && !st.runtime.installed && (
           <Bar p={prog['llama-runtime']} label={t('下载运行时')} />
         )}
-        <div className={styles.row}>
-          {running && (
-            <>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => void run('use', () => localClient.use())}
-                data-testid="local-use"
-              >
-                {t('设为聊天模型')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void run('stop', () => localClient.stop())}
-                data-testid="local-stop"
-              >
-                {t('停止')}
-              </Button>
-            </>
-          )}
-          <span className={styles.grow} />
-          <label className={styles.check}>
-            <Switch
-              checked={st.settings.autoStart}
-              onChange={(v) => void run('as', () => localClient.setSettings({ autoStart: v }))}
-              aria-label={t('开机自动启动本地模型')}
-            />
-            {t('启动应用时自动运行')}
-          </label>
-          <label className={styles.check}>
-            <Switch
-              checked={st.offline}
-              onChange={(v) => void run('off', () => localClient.offline(v))}
-              aria-label={t('离线模式')}
-              data-testid="local-offline"
-            />
-            {t('离线模式（仅本地模型）')}
-          </label>
-        </div>
-      </div>
-      <div className={styles.list} data-testid="local-models">
+        <SettingRow title={t('启动应用时自动运行')}>
+          <Switch
+            checked={st.settings.autoStart}
+            onChange={(v) => void run('as', () => localClient.setSettings({ autoStart: v }))}
+            aria-label={t('开机自动启动本地模型')}
+          />
+        </SettingRow>
+        <SettingRow title={t('离线模式')} description={t('只用本机模型，不向任何云端模型发请求。')}>
+          <Switch
+            checked={st.offline}
+            onChange={(v) => void run('off', () => localClient.offline(v))}
+            aria-label={t('离线模式')}
+            data-testid="local-offline"
+          />
+        </SettingRow>
+        {st.runtime.installed && !running && (
+          <SettingRow title={t('运行时占用约 {0}', fmtBytes(st.runtime.bytes))}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void run('rr', () => localClient.removeRuntime())}
+            >
+              {t('删除运行时')}
+            </Button>
+          </SettingRow>
+        )}
+      </SettingsGroup>
+      <h3 className={styles.groupTitle}>{t('可下载的模型')}</h3>
+      <div className={`${styles.list} ${styles.listFlow}`} data-testid="local-models">
         {st.models.map((m) => {
           const p = prog[m.id] ?? m.downloading;
           const isRun = running && srv?.model === m.id;
@@ -444,58 +464,50 @@ export const LocalPanel: React.FC<{
           );
         })}
       </div>
-      {st.runtime.installed && !running && (
-        <div className={styles.row}>
-          <span className={styles.hint}>
-            {t('运行时占用约')} {fmtBytes(st.runtime.bytes)}
-          </span>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => void run('rr', () => localClient.removeRuntime())}
-          >
-            {t('删除运行时')}
-          </Button>
-        </div>
-      )}
     </div>
   );
 
-  const ollamaTab = (
-    <div className={styles.stack}>
-      <p className={styles.hint}>
-        {t('已安装 Ollama 的话，可以在这里管理它的模型（地址：')}
-        {st?.settings.ollamaUrl}
-        {t('）。请只拉取许可证允许你使用的模型。')}
-      </p>
-      <div className={styles.row}>
-        <Input
-          className={styles.grow}
-          size="sm"
-          value={pullName}
-          placeholder={t('模型名，例如 qwen3:0.6b')}
-          onChange={(e) => setPullName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && pullName.trim())
-              void run('pull', () => localClient.ollamaPull(pullName.trim()), loadOllama);
-          }}
-          data-testid="ollama-name"
-        />
-        <Button
-          size="sm"
-          variant="primary"
-          disabled={!pullName.trim() || !!busy}
-          onClick={() =>
-            void run('pull', () => localClient.ollamaPull(pullName.trim()), loadOllama)
-          }
-          data-testid="ollama-pull"
-        >
-          {t('拉取')}
-        </Button>
+  const ollamaGroup = (
+    <SettingsGroup
+      data-testid="local-ollama"
+      title={t('Ollama（可选）')}
+      description={t(
+        '已安装 Ollama 的话也可以用它跑本机模型，和上面的内置引擎互不依赖。地址：{0}；请只拉取许可证允许你使用的模型。',
+        st?.settings.ollamaUrl ?? '',
+      )}
+      actions={
         <Button size="sm" onClick={() => void loadOllama()}>
           {t('刷新')}
         </Button>
-      </div>
+      }
+    >
+      {!ollamaErr && (
+        <div className={styles.row}>
+          <Input
+            className={styles.grow}
+            size="sm"
+            value={pullName}
+            placeholder={t('模型名，例如 qwen3:0.6b')}
+            onChange={(e) => setPullName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && pullName.trim())
+                void run('pull', () => localClient.ollamaPull(pullName.trim()), loadOllama);
+            }}
+            data-testid="ollama-name"
+          />
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!pullName.trim() || !!busy}
+            onClick={() =>
+              void run('pull', () => localClient.ollamaPull(pullName.trim()), loadOllama)
+            }
+            data-testid="ollama-pull"
+          >
+            {t('拉取')}
+          </Button>
+        </div>
+      )}
       {busy === 'pull' && <Bar p={prog[`ollama:${pullName.trim()}`]} label={t('拉取中')} />}
       {ollamaErr && (
         <Notice tone="warning" data-testid="ollama-error">
@@ -521,22 +533,21 @@ export const LocalPanel: React.FC<{
                 {m.params && <Badge tone="neutral">{m.params}</Badge>}
                 {m.quant && <Badge tone="neutral">{m.quant}</Badge>}
                 <span className={styles.hint}>{fmtBytes(m.size)}</span>
-                <Button
+                <IconButton
                   size="sm"
-                  variant="danger"
+                  label={t('从 Ollama 删除 {0}', m.name)}
+                  icon={<Icon icon={Trash2} size={14} />}
                   onClick={() => {
                     if (window.confirm(t('从 Ollama 删除 {0}？', m.name)))
                       void run(`od:${m.name}`, () => localClient.ollamaDelete(m.name), loadOllama);
                   }}
-                >
-                  {t('删除')}
-                </Button>
+                />
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </SettingsGroup>
   );
 
   const color = (cal: string) =>
@@ -860,8 +871,25 @@ export const LocalPanel: React.FC<{
 
   const clipboard = (
     <div className={styles.stack}>
-      <div className={styles.row}>
-        <label className={styles.check}>
+      <SettingsGroup
+        title={t('剪贴板历史')}
+        description={t('只存本机，默认关闭。看起来像密码、密钥、令牌的内容会自动跳过。')}
+        actions={
+          clips?.items.length ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (window.confirm(t('清空未固定的剪贴板历史？')))
+                  void run('cc', () => hubClient.clipClear(), loadClips);
+              }}
+            >
+              {t('清空')}
+            </Button>
+          ) : undefined
+        }
+      >
+        <SettingRow title={t('记录剪贴板历史')}>
           <Switch
             checked={!!clips?.settings.enabled}
             onChange={(v) =>
@@ -870,32 +898,16 @@ export const LocalPanel: React.FC<{
             aria-label={t('记录剪贴板历史')}
             data-testid="clip-enabled"
           />
-          {t('记录剪贴板历史（只存本机，默认关闭）')}
-        </label>
-        <label className={styles.check}>
+        </SettingRow>
+        <SettingRow title={t('包含图片')}>
           <Switch
             checked={!!clips?.settings.images}
             disabled={!clips?.settings.enabled}
             onChange={(v) => void run('ci', () => hubClient.clipSettings({ images: v }), loadClips)}
             aria-label={t('包含图片')}
           />
-          {t('包含图片')}
-        </label>
-        <span className={styles.grow} />
-        {!!clips?.items.length && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              if (window.confirm(t('清空未固定的剪贴板历史？')))
-                void run('cc', () => hubClient.clipClear(), loadClips);
-            }}
-          >
-            {t('清空')}
-          </Button>
-        )}
-      </div>
-      <p className={styles.hint}>{t('看起来像密码、密钥、令牌的内容会自动跳过。')}</p>
+        </SettingRow>
+      </SettingsGroup>
       {clips === null ? (
         <SkeletonList rows={3} />
       ) : clips.items.length === 0 ? (
@@ -995,45 +1007,50 @@ export const LocalPanel: React.FC<{
 
   const exportTab = (
     <div className={styles.stack}>
-      <p className={styles.hint}>
-        {t('把你的数据打包成一个 .zip 文件，随时带走。API 密钥、CalDAV 密码等敏感信息不会被导出。')}
-      </p>
-      <div className={styles.presets}>
-        {EXPORT_ITEMS.map((x) => (
-          <label key={x.key} className={styles.check}>
-            <Switch
-              checked={exp.has(x.key)}
-              onChange={(v) => {
-                const n = new Set(exp);
-                if (v) n.add(x.key);
-                else n.delete(x.key);
-                setExp(n);
-              }}
-              aria-label={t(x.label)}
-            />
-            {t(x.label)}
-          </label>
-        ))}
-      </div>
-      <div className={styles.row}>
-        <Button
-          variant="primary"
-          disabled={!exp.size || !!busy}
-          data-testid="export-run"
-          onClick={() =>
-            void run('exp', async () => {
-              setExpDone('');
-              const r = await hubClient.exportAll(
-                [...exp],
-                exp.has('conversations') ? collectConversations() : undefined,
-              );
-              if (r) setExpDone(t('已导出到 {0}（{1}）', r.file, fmtBytes(r.bytes)));
-            })
-          }
-        >
-          {busy === 'exp' ? t('打包中…') : t('导出为 .zip')}
-        </Button>
-      </div>
+      <SettingsGroup
+        title={t('导出数据')}
+        description={t(
+          '把你的数据打包成一个 .zip 文件，随时带走。API 密钥、CalDAV 密码等敏感信息不会被导出。',
+        )}
+        actions={
+          <Button
+            size="sm"
+            variant="primary"
+            disabled={!exp.size || !!busy}
+            data-testid="export-run"
+            onClick={() =>
+              void run('exp', async () => {
+                setExpDone('');
+                const r = await hubClient.exportAll(
+                  [...exp],
+                  exp.has('conversations') ? collectConversations() : undefined,
+                );
+                if (r) setExpDone(t('已导出到 {0}（{1}）', r.file, fmtBytes(r.bytes)));
+              })
+            }
+          >
+            {busy === 'exp' ? t('打包中…') : t('导出为 .zip')}
+          </Button>
+        }
+      >
+        <div className={styles.presets}>
+          {EXPORT_ITEMS.map((x) => (
+            <label key={x.key} className={styles.check}>
+              <Switch
+                checked={exp.has(x.key)}
+                onChange={(v) => {
+                  const n = new Set(exp);
+                  if (v) n.add(x.key);
+                  else n.delete(x.key);
+                  setExp(n);
+                }}
+                aria-label={t(x.label)}
+              />
+              {t(x.label)}
+            </label>
+          ))}
+        </div>
+      </SettingsGroup>
       {expDone && (
         <Notice tone="success" data-testid="export-done">
           {expDone}
@@ -1067,11 +1084,7 @@ export const LocalPanel: React.FC<{
                 { value: 'calendar', label: t('日历') },
                 { value: 'clipboard', label: t('剪贴板') },
                 { value: 'export', label: t('数据导出') },
-                {
-                  value: 'models',
-                  label: running ? t('本机小模型 · 运行中') : t('本机小模型（辅助）'),
-                },
-                { value: 'ollama', label: t('Ollama（可选）') },
+                { value: 'models', label: running ? t('本机模型 · 运行中') : t('本机模型') },
               ] as Array<{ value: Tab; label: string }>
             ).filter((x) => shown.includes(x.value))}
             value={tab}
@@ -1081,8 +1094,12 @@ export const LocalPanel: React.FC<{
         )}
         {err && <ErrorState data-testid="local-error" detail={err} onRetry={() => void load()} />}
         {!st && !err && <LoadingState rows={3} />}
-        {st && tab === 'models' && models}
-        {st && tab === 'ollama' && ollamaTab}
+        {st && tab === 'models' && (
+          <>
+            {models}
+            {ollamaGroup}
+          </>
+        )}
         {tab === 'calendar' && calendar}
         {tab === 'clipboard' && clipboard}
         {tab === 'export' && exportTab}

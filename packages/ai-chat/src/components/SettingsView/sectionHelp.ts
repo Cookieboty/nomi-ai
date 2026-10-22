@@ -85,7 +85,7 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
   local: [
     { icon: ClipboardList, title: '剪贴板', desc: '本机剪贴板历史。' },
     { icon: Download, title: '数据导出', desc: '把聊天、记忆、日程等导出到本机文件。' },
-    { icon: Cpu, title: '本机小模型与 Ollama', desc: '辅助用的本地模型，以及可选的 Ollama。' },
+    { icon: Cpu, title: '本机模型', desc: '内置 llama.cpp 本地模型，以及可选的 Ollama。' },
   ],
   privacy: [
     { icon: Shield, title: '隐私与数据', desc: '数据怎么存、怎么导出和清除。' },
