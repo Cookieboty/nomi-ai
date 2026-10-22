@@ -34,7 +34,7 @@
 <table>
   <tr>
     <td align="center" width="30%"><img src="docs/screenshots/mascot.webp" alt="Nomi on the desktop with a chat bubble"><br><sub>桌面伙伴 / Desktop companion</sub></td>
-    <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>对话窗口 / Chat</sub></td>
+    <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>助手模式对话 / Assistant-mode chat</sub></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><img src="docs/screenshots/coding-agent.webp" alt="Claude Code conversation with tool calls and a subagent" width="49%"> <img src="docs/screenshots/permission-modes.webp" alt="Permission mode menu in the composer" width="49%"><br><sub>编程助手对话 · 权限模式 / Coding agents · Permission modes</sub></td>
