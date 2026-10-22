@@ -23,7 +23,8 @@ describe('i18n', () => {
 
   it('language picker switches live without reload', () => {
     render(<LanguageSettings />);
-    expect(screen.getByRole('heading').textContent).toContain('语言');
+    expect(screen.getByTestId('language-settings').textContent).toContain('语言');
+    expect(screen.getByRole('radiogroup', { name: '语言' })).toBeTruthy();
     act(() => {
       fireEvent.click(screen.getByTestId('locale-en'));
     });

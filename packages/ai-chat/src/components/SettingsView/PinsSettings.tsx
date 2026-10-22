@@ -1,5 +1,5 @@
 /** 设置 → 通用 → 常驻入口：勾选要固定到左上角的功能，拖拽或 Alt+↑/↓ 排序，可恢复默认。 */
-import { t, Icon } from '@nomi-ai/ui';
+import { Button, Icon, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import { GripVertical } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -36,14 +36,30 @@ export const PinsSettings: React.FC = () => {
   };
 
   return (
-    <section className={styles.block} data-testid="pins-settings" id="pins-settings">
-      <h2 className={styles.h2}>{t('常驻入口（左上角）')}</h2>
-      <p className={styles.note}>
-        {t('选择要固定在对话窗口左上角的功能（最多')} {MAX_PINS}{' '}
-        {t(
-          '个）。拖动或用 Alt+↑/↓ 调整顺序；也可以在左上角图标上右键「取消固定」，或在 ＋ 菜单、右上角图标上固定。',
-        )}
-      </p>
+    <SettingsGroup
+      title={t('常驻入口（左上角）')}
+      data-testid="pins-settings"
+      id="pins-settings"
+      description={
+        <>
+          {t('选择要固定在对话窗口左上角的功能（最多')} {MAX_PINS}{' '}
+          {t(
+            '个）。拖动或用 Alt+↑/↓ 调整顺序；也可以在左上角图标上右键「取消固定」，或在 ＋ 菜单、右上角图标上固定。',
+          )}
+        </>
+      }
+      actions={
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => update([...DEFAULT_PINS])}
+          data-testid="pins-reset"
+        >
+          {t('恢复默认')}
+        </Button>
+      }
+    >
       <div className={styles.pinsGrid}>
         <div>
           <div className={styles.sub}>
@@ -110,14 +126,6 @@ export const PinsSettings: React.FC = () => {
               );
             })}
           </ol>
-          <button
-            type="button"
-            className="cd-btn cd-btn--sm"
-            onClick={() => update([...DEFAULT_PINS])}
-            data-testid="pins-reset"
-          >
-            {t('恢复默认')}
-          </button>
           <span className={styles.srOnly} aria-live="polite">
             {live}
           </span>
@@ -128,21 +136,19 @@ export const PinsSettings: React.FC = () => {
             {PIN_POOL.map((d) => {
               const on = pins.includes(d.id);
               return (
-                <li key={d.id}>
-                  <label className={`${styles.check} ${!on && full ? styles.checkOff : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={on}
-                      disabled={!on && full}
-                      onChange={() => update(togglePin(pins, d.id))}
-                      data-testid={`pin-check-${d.id}`}
-                    />
-                    <span aria-hidden>
-                      <AppIcon icon={d.icon} size={16} />
-                    </span>
-                    <span className={styles.orderLabel}>{t(d.label)}</span>
-                    {pinHint(d) && <span className={styles.hint}>{pinHint(d)}</span>}
-                  </label>
+                <li key={d.id} className={`${styles.check} ${!on && full ? styles.checkOff : ''}`}>
+                  <span aria-hidden>
+                    <AppIcon icon={d.icon} size={16} />
+                  </span>
+                  <span className={styles.orderLabel}>{t(d.label)}</span>
+                  {pinHint(d) && <kbd className={styles.keycap}>{pinHint(d)}</kbd>}
+                  <Switch
+                    checked={on}
+                    disabled={!on && full}
+                    onChange={() => update(togglePin(pins, d.id))}
+                    aria-label={t('固定{0}', t(d.label))}
+                    data-testid={`pin-check-${d.id}`}
+                  />
                 </li>
               );
             })}
@@ -154,6 +160,6 @@ export const PinsSettings: React.FC = () => {
           )}
         </div>
       </div>
-    </section>
+    </SettingsGroup>
   );
 };

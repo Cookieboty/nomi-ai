@@ -1,8 +1,14 @@
 /** 设置 → 通用 → 语言：跟随系统 / 中文 / English，切换即时生效（对话窗口、看板娘、托盘、通知同步）。 */
-import { getLocalePref, setLocalePref, t, useLocale, type LocalePref } from '@nomi-ai/ui';
+import {
+  getLocalePref,
+  SegmentedControl,
+  SettingRow,
+  setLocalePref,
+  t,
+  useLocale,
+  type LocalePref,
+} from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
-
-import styles from './index.module.css';
 
 // 语言名始终用其本身的文字显示
 // i18n-ignore
@@ -14,6 +20,7 @@ const OPTIONS: { id: LocalePref; label: () => string }[] = [
   { id: 'en', label: () => 'English' },
 ];
 
+/** 一行设置（放在「启动与窗口」分组里） */
 export const LanguageSettings: React.FC = () => {
   const locale = useLocale();
   const [pref, setPref] = useState<LocalePref>(getLocalePref);
@@ -22,27 +29,23 @@ export const LanguageSettings: React.FC = () => {
     window.addEventListener('cd:locale-changed', on);
     return () => window.removeEventListener('cd:locale-changed', on);
   }, []);
+  const current = locale === 'zh-CN' ? ZH : 'English';
   return (
-    <section className={styles.block} data-testid="language-settings">
-      <h2 className={styles.h2}>{locale === 'zh-CN' ? t('语言') + ' · Language' : 'Language'}</h2>
-      <div className={styles.langs} role="radiogroup" aria-label={t('语言')}>
-        {OPTIONS.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={pref === o.id}
-            className={`${styles.lang} ${pref === o.id ? styles.langOn : ''}`}
-            onClick={() => void setLocalePref(o.id)}
-            data-testid={`locale-${o.id}`}
-          >
-            {o.label()}
-            {o.id === 'system' && pref === 'system' && (
-              <span className={styles.langHint}>{locale === 'zh-CN' ? ZH : 'English'}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </section>
+    <SettingRow
+      data-testid="language-settings"
+      title={locale === 'zh-CN' ? t('语言') + ' · Language' : 'Language'}
+      description={
+        pref === 'system'
+          ? t('跟随系统，当前为 {0}；对话、看板娘、托盘与通知即时切换。', current)
+          : t('对话、看板娘、托盘与通知即时切换。')
+      }
+    >
+      <SegmentedControl
+        aria-label={t('语言')}
+        value={pref}
+        onChange={(v) => void setLocalePref(v)}
+        options={OPTIONS.map((o) => ({ value: o.id, label: o.label(), testId: `locale-${o.id}` }))}
+      />
+    </SettingRow>
   );
 };

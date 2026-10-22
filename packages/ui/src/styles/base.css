@@ -361,7 +361,8 @@
   color: var(--cd-color-text);
 }
 /* 选中态：selected-bg 填充 + selected-text 文字（对比度 ≥ 4.5:1，见 tests/theme-contrast.test.ts） */
-.cd-tab[aria-selected='true'] {
+.cd-tab[aria-selected='true'],
+.cd-tab[aria-checked='true'] {
   background: var(--cd-color-surface);
   color: var(--cd-color-text);
   border-color: var(--cd-color-border);
@@ -369,6 +370,15 @@
 .cd-tab:focus-visible {
   outline: none;
   box-shadow: var(--cd-focus-ring);
+}
+/* 分段单选：禁用时整体变淡 */
+.cd-tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.cd-tab:disabled:hover {
+  background: transparent;
+  color: var(--cd-color-text-muted);
 }
 /* 下划线：页内二级标签，无底板，选中项下方 2px 强调色 */
 .cd-tabs--underline {

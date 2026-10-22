@@ -1,8 +1,9 @@
 /**
- * 设置 → 通用 → 启动 Nomi 后默认显示：看板娘（默认）/ 软件主界面；桌面看板娘显示开关。
+ * 设置 → 通用：「启动与窗口」（语言 + 启动后默认显示 + 关闭主界面时）与「桌面看板娘」（显示开关 + 大小）两组。
+ * 默认界面与看板娘开关互相联动，所以两组由同一个组件持有状态；语言行和大小滑块由调用方以插槽传入。
  * 主进程 startup/StartupService（ai:startup:*）持久化，下次启动生效；首次引导里有同一个选项。
  */
-import { Switch, t, useLocale } from '@nomi-ai/ui';
+import { SegmentedControl, SettingRow, SettingsGroup, Switch, t, useLocale } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -12,7 +13,6 @@ import {
 } from '../../services/startupClient';
 
 import base from './index.module.css';
-import styles from './StartupSettings.module.css';
 
 const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
@@ -40,8 +40,14 @@ const CLOSE_OPTIONS: { id: CloseMainAction; label: () => string; hint: () => str
   },
 ];
 
-export const StartupSettings: React.FC = () => {
-  useLocale();
+export const StartupSettings: React.FC<{
+  /** 放在「启动与窗口」最上面的行（语言） */
+  language?: React.ReactNode;
+  /** 「桌面看板娘」组里开关下面的行（大小）；参数为看板娘当前是否显示 */
+  mascotSize?: (shown: boolean) => React.ReactNode;
+}> = ({ language, mascotSize }) => {
+  // 中文句子之间不加空格，英文要
+  const sep = useLocale() === 'zh-CN' ? '' : ' ';
   const [view, setView] = useState<StartupView | null>(null);
   const [closeMain, setCloseMain] = useState<CloseMainAction | null>(null);
   const [showMascot, setShowMascot] = useState<boolean | null>(null);
@@ -66,7 +72,12 @@ export const StartupSettings: React.FC = () => {
       off();
     };
   }, []);
-  if (!startupClient.available() || !view || !closeMain || showMascot === null) return null;
+  if (!startupClient.available() || !view || !closeMain || showMascot === null)
+    return language ? (
+      <SettingsGroup title={t('启动与窗口')} data-testid="settings-basic-group" id="settings-basic">
+        {language}
+      </SettingsGroup>
+    ) : null;
 
   const toggleMascot = (next: boolean) => {
     const prev = showMascot;
@@ -104,74 +115,74 @@ export const StartupSettings: React.FC = () => {
     void startupClient.set(next).then((saved) => setView(saved ?? prev));
   };
 
+  const viewHint = OPTIONS.find((o) => o.id === view)!.hint();
+  const closeHint = CLOSE_OPTIONS.find((o) => o.id === closeMain)!.hint();
+
   return (
-    <section className={base.block} data-testid="settings-startup">
-      <h2 className={base.h2}>{t('启动 Nomi 后默认显示')}</h2>
-      <div className={styles.opts} role="radiogroup" aria-label={t('启动 Nomi 后默认显示')}>
-        {OPTIONS.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={view === o.id}
-            data-testid={`startup-view-${o.id}`}
-            className={`${styles.opt} ${view === o.id ? styles.optOn : ''}`}
-            onClick={() => choose(o.id)}
-          >
-            <span className={styles.optTitle}>{o.label()}</span>
-            <span className={styles.optHint}>{o.hint()}</span>
-          </button>
-        ))}
-      </div>
-      <p className={base.muted}>{t('下次启动生效。')}</p>
-      <h2 className={base.h2}>{t('桌面看板娘')}</h2>
-      <Switch
-        checked={showMascot}
-        onChange={toggleMascot}
-        label={t('显示看板娘')}
-        data-testid="startup-show-mascot"
-      />
-      {switchedNotice && (
-        <p className={base.muted} role="status" data-testid="startup-mascot-switched">
-          {t('看板娘已关闭，启动后默认显示已改为「软件主界面」。')}
-        </p>
-      )}
-      <p className={base.muted}>
-        {view === 'mascot'
-          ? t(
-              '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；启动后默认显示会自动改为「软件主界面」，保证随时能进入 Nomi。随时可在此重新打开。',
-            )
-          : t(
-              '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；灵动岛和系统通知照常提醒。看板娘工具栏里的「关闭看板娘」也会关掉这里，随时可在此重新打开。',
-            )}
-      </p>
-      <h2 className={base.h2}>{t('关闭主界面时')}</h2>
-      <div
-        className={styles.opts}
-        role="radiogroup"
-        aria-label={t('关闭主界面时')}
-        data-testid="settings-close-main"
-      >
-        {CLOSE_OPTIONS.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={closeMain === o.id}
-            data-testid={`close-main-${o.id}`}
-            className={`${styles.opt} ${closeMain === o.id ? styles.optOn : ''}`}
-            onClick={() => chooseClose(o.id)}
-          >
-            <span className={styles.optTitle}>{o.label()}</span>
-            <span className={styles.optHint}>{o.hint()}</span>
-          </button>
-        ))}
-      </div>
-      <p className={base.muted}>
-        {t(
-          '立即生效。⌘Q（macOS）和托盘菜单里的「退出」始终会完全退出；macOS 上红色按钮和 ⌘W 也按这里的选择处理。',
+    <>
+      <SettingsGroup title={t('启动与窗口')} data-testid="settings-basic-group" id="settings-basic">
+        {language}
+        <SettingRow
+          data-testid="settings-startup"
+          title={t('启动 Nomi 后默认显示')}
+          description={[viewHint, t('下次启动生效。')].join(sep)}
+        >
+          <SegmentedControl
+            aria-label={t('启动 Nomi 后默认显示')}
+            value={view}
+            onChange={choose}
+            options={OPTIONS.map((o) => ({
+              value: o.id,
+              label: o.label(),
+              testId: `startup-view-${o.id}`,
+            }))}
+          />
+        </SettingRow>
+        <SettingRow
+          title={t('关闭主界面时')}
+          description={[closeHint, t('⌘Q（macOS）与托盘菜单里的「退出」始终完全退出。')].join(sep)}
+        >
+          <SegmentedControl
+            aria-label={t('关闭主界面时')}
+            data-testid="settings-close-main"
+            value={closeMain}
+            onChange={chooseClose}
+            options={CLOSE_OPTIONS.map((o) => ({
+              value: o.id,
+              label: o.label(),
+              testId: `close-main-${o.id}`,
+            }))}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title={t('桌面看板娘')} data-testid="settings-mascot-group">
+        <SettingRow
+          title={t('显示看板娘')}
+          description={
+            view === 'mascot'
+              ? t(
+                  '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；启动后默认显示会自动改为「软件主界面」，保证随时能进入 Nomi。随时可在此重新打开。',
+                )
+              : t(
+                  '关闭后看板娘从桌面隐藏、不再播放语音和监听唤醒词；灵动岛和系统通知照常提醒。看板娘工具栏里的「关闭看板娘」也会关掉这里，随时可在此重新打开。',
+                )
+          }
+        >
+          <Switch
+            checked={showMascot}
+            onChange={toggleMascot}
+            aria-label={t('显示看板娘')}
+            data-testid="startup-show-mascot"
+          />
+        </SettingRow>
+        {switchedNotice && (
+          <p className={base.muted} role="status" data-testid="startup-mascot-switched">
+            {t('看板娘已关闭，启动后默认显示已改为「软件主界面」。')}
+          </p>
         )}
-      </p>
-    </section>
+        {mascotSize?.(showMascot)}
+      </SettingsGroup>
+    </>
   );
 };

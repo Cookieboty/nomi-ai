@@ -2,7 +2,7 @@
  * 统一设置页（参考 Codex app 的 Settings：左侧分区导航，右侧内容）。
  * 各分区直接复用原有面板，通过 ModalHostContext 以「内嵌」方式渲染，功能与 test id 不变。
  */
-import { t, Icon } from '@nomi-ai/ui';
+import { Button, Icon, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
 import { ChevronLeft, Lightbulb } from 'lucide-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
@@ -16,6 +16,7 @@ import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
 import { ChatBackgroundSettings } from './ChatBackgroundSettings';
+import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
@@ -103,37 +104,45 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
     switch (section) {
       case 'general':
         return (
-          <>
-            {/* 视觉稿「基础设置」：语言与启动合在一张卡里（只是分组，控件与行为不变） */}
-            <div className={styles.group} data-testid="settings-basic-group">
-              <h2 className={styles.groupTitle}>{t('基础设置')}</h2>
-              <LanguageSettings />
-              <StartupSettings />
-            </div>
-            <AppIconSettings />
-            <MascotSizeSettings />
-            <UpdateSettings />
-            <section className={styles.block}>
-              <h2 className={styles.h2}>{t('新手引导')}</h2>
-              <p className={styles.muted}>
-                {t('重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。')}
-              </p>
-              <button
-                type="button"
-                className={styles.lang}
-                data-testid="settings-reopen-onboarding"
-                onClick={() => {
-                  onClose();
-                  void onboardingClient.reopen();
-                }}
-              >
-                {t('重新打开新手引导')}
-              </button>
-            </section>
-            <ThemeSettings />
-            <ChatBackgroundSettings />
+          <div className={styles.groups}>
+            <GeneralHero />
+            <SettingsGroup
+              title={t('外观')}
+              description={t('主题、应用图标与聊天背景，即时生效。')}
+              id="settings-appearance"
+              data-testid="settings-appearance"
+            >
+              <ThemeSettings />
+              <AppIconSettings />
+              <ChatBackgroundSettings />
+            </SettingsGroup>
+            <StartupSettings
+              language={<LanguageSettings />}
+              mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
+            />
             <PinsSettings />
-          </>
+            <UpdateSettings>
+              <SettingRow
+                title={t('新手引导')}
+                description={t(
+                  '重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。',
+                )}
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  data-testid="settings-reopen-onboarding"
+                  onClick={() => {
+                    onClose();
+                    void onboardingClient.reopen();
+                  }}
+                >
+                  {t('重新打开')}
+                </Button>
+              </SettingRow>
+            </UpdateSettings>
+          </div>
         );
       case 'shortcuts':
         return <ShortcutSettings />;
@@ -244,17 +253,15 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
       </nav>
       <main className={styles.content} aria-label={t(current.label)}>
         {section === 'general' && (
-          <>
-            {/* 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色 */}
-            <img
-              src="./brand/nomi-banner.webp"
-              alt=""
-              aria-hidden="true"
-              className={styles.banner}
-              data-testid="settings-banner"
-              draggable={false}
-            />
-          </>
+          // 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色
+          <img
+            src="./brand/nomi-banner.webp"
+            alt=""
+            aria-hidden="true"
+            className={styles.banner}
+            data-testid="settings-banner"
+            draggable={false}
+          />
         )}
         <div className={`${styles.inner} ${section === 'general' ? styles.innerAfterBanner : ''}`}>
           {section === 'general' ? (

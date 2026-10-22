@@ -164,10 +164,34 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('shortcut-conflict-banner')).toBeNull();
   });
 
-  it('通用：语言与启动合在「基础设置」卡里', () => {
+  it('通用：横幅下是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、常驻入口、关于与更新', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
+    for (const id of ['version', 'theme', 'language'])
+      expect(r.getByTestId(`settings-hero-${id}`)).toBeTruthy();
+    expect(r.getByTestId('settings-hero-theme').textContent).toContain('主题');
+    const appearance = r.getByTestId('settings-appearance');
+    expect(appearance.querySelector('[data-testid="theme-settings"]')).toBeTruthy();
+    expect(appearance.querySelector('[data-testid="settings-chat-bg"]')).toBeTruthy();
+    // 没有桌面桥时「启动与窗口」只有语言一行
     const g = r.getByTestId('settings-basic-group');
     expect(g.querySelector('[data-testid="language-settings"]')).toBeTruthy();
+    const order = [...r.container.querySelectorAll('[data-testid]')]
+      .map((e) => e.getAttribute('data-testid'))
+      .filter((id) =>
+        [
+          'settings-appearance',
+          'settings-basic-group',
+          'pins-settings',
+          'settings-updates',
+        ].includes(id!),
+      );
+    expect(order).toEqual([
+      'settings-appearance',
+      'settings-basic-group',
+      'pins-settings',
+      'settings-updates',
+    ]);
+    expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
   it('菜单只有合并后的 12 个分区', () => {

@@ -10,6 +10,8 @@ export type { CardProps } from './Card';
 export { Modal, Dialog, ModalHostContext } from './Modal';
 export type { ModalProps, ModalHost } from './Modal';
 export { Tabs } from './Tabs';
+export { SegmentedControl } from './SegmentedControl';
+export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl';
 export type { TabsProps, TabItem } from './Tabs';
 export { Badge, Tag } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
