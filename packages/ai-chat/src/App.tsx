@@ -752,12 +752,6 @@ const AiChatContent: React.FC = () => {
                   : undefined
               }
             />
-            {isDev && tabs.isCliTab && tabs.activeTab ? (
-              <>
-                <SessionChangesPanel messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
-                <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
-              </>
-            ) : null}
             <MessageInput
               {...inputModeProps}
               slash={slash.bridge}
@@ -772,6 +766,13 @@ const AiChatContent: React.FC = () => {
             />
           </footer>
         </div>
+
+        {isDev && tabs.isCliTab && tabs.activeTab ? (
+          <aside className="files-rail" data-testid="files-rail">
+            <SessionChangesPanel rail messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+            <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+          </aside>
+        ) : null}
       </div>
 
       {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}

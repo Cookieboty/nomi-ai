@@ -60,6 +60,33 @@ body {
   z-index: 1;
 }
 
+/* Codex 整页第三列：右文件栏（与 Sidebar / main-content 横排全高） */
+.files-rail {
+  width: min(320px, 32vw);
+  min-width: 220px;
+  max-width: 360px;
+  height: 100vh;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  border-left: 1px solid var(--cd-color-border, #333);
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
+}
+.files-rail > * {
+  flex: 1;
+  min-height: 0;
+}
+/* 窄窗仍保持三栏横排，只压缩列宽（不要默认堆成单列） */
+@media (max-width: 900px) {
+  .files-rail {
+    width: min(240px, 28vw);
+    min-width: 180px;
+  }
+}
+
 /* 对话区右上角的工作目录 / 供应商：一条靠右的窄栏，不压在消息上（用户气泡靠右） */
 .session-bar {
   display: flex;

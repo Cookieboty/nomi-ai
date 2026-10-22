@@ -1,6 +1,6 @@
-/** Codex 风格完整变更工作台：左来源 / 中 Diff / 右文件树 */
+/** 次要详情页：完整变更工作台（默认「查看变更」应聚焦右侧文件栏，不走此 portal） */
 import { t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, FileCode2, Filter, Search, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, Filter, Search, X } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -12,99 +12,18 @@ import {
   projectNameFromCwd,
   summarizeChanges,
   type ChangeEntry,
-  type ChangeTreeNode,
 } from '../../utils/sessionChanges';
 import { DiffView } from '../Conversation/DiffView';
 
+import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
 import styles from './SessionWorkspace.module.css';
-
-function TreeNodes({
-  nodes,
-  depth,
-  active,
-  onPick,
-  filter,
-}: {
-  nodes: ChangeTreeNode[];
-  depth: number;
-  active: string | null;
-  onPick: (file: string) => void;
-  filter: string;
-}) {
-  const [open, setOpen] = useState<Record<string, boolean>>({});
-  const q = filter.trim().toLowerCase();
-
-  const match = (path: string) => !q || path.toLowerCase().includes(q);
-
-  return (
-    <>
-      {nodes.map((n) => {
-        if (n.kind === 'dir') {
-          const any =
-            !q ||
-            n.children.some(function walk(c): boolean {
-              return c.kind === 'file' ? match(c.path) : c.children.some(walk);
-            });
-          if (!any) return null;
-          const isOpen = open[n.path] ?? true;
-          return (
-            <div key={n.path || n.name} className={styles.wbTreeDir}>
-              <button
-                type="button"
-                className={styles.wbTreeDirHead}
-                style={{ paddingLeft: 8 + depth * 12 }}
-                onClick={() => setOpen((o) => ({ ...o, [n.path]: !isOpen }))}
-              >
-                {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                <span>{n.name || '/'}</span>
-              </button>
-              {isOpen ? (
-                <TreeNodes
-                  nodes={n.children}
-                  depth={depth + 1}
-                  active={active}
-                  onPick={onPick}
-                  filter={filter}
-                />
-              ) : null}
-            </div>
-          );
-        }
-        if (!match(n.path)) return null;
-        const e = n.entry;
-        return (
-          <button
-            key={n.path}
-            type="button"
-            className={styles.wbTreeFile}
-            style={{ paddingLeft: 8 + depth * 12 }}
-            data-active={active === n.path || undefined}
-            data-testid="wb-file"
-            data-file={n.path}
-            onClick={() => onPick(n.path)}
-          >
-            <FileCode2 size={12} className={styles.wbFileIcon} />
-            <span className={styles.wbFileName} title={n.path}>
-              {n.name}
-            </span>
-            <span className={styles.wbDot} aria-hidden />
-            <span className={styles.stat}>
-              <span className={styles.add}>+{e.added}</span>
-              <span className={styles.del}>−{e.removed}</span>
-            </span>
-          </button>
-        );
-      })}
-    </>
-  );
-}
 
 export const ChangesWorkbenchHost: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
 }> = ({ messages, cwd }) => {
-  const { workbench, closeWorkbench } = useChangesUi();
+  const { detail: workbench, closeDetail: closeWorkbench } = useChangesUi();
   const [scopeAll, setScopeAll] = useState(false);
   const [filter, setFilter] = useState('');
   const [activeFile, setActiveFile] = useState<string | null>(null);
@@ -281,9 +200,8 @@ export const ChangesWorkbenchHost: React.FC<{
           </label>
           <div className={styles.wbTreeHead}>{t('已更改的文件')}</div>
           <div className={styles.wbTree} data-testid="wb-file-tree">
-            <TreeNodes
+            <ChangeFileTree
               nodes={tree}
-              depth={0}
               active={active?.file ?? null}
               onPick={setActiveFile}
               filter={filter}
