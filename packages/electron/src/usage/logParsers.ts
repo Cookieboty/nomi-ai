@@ -38,17 +38,21 @@ function lines(
   const needles = typeof mustInclude === 'string' ? [mustInclude] : mustInclude;
   for (const l of text.split('\n')) {
     if (needles && !needles.some((n) => l.includes(n))) continue;
-    const s = l.trim();
-    if (!s || s[0] !== '{') continue;
-    try {
-      const o = JSON.parse(s) as unknown;
-      const r = obj(o);
-      if (r) out.push(r);
-    } catch {
-      /* 损坏行跳过 */
-    }
+    const r = jsonLine(l);
+    if (r) out.push(r);
   }
   return out;
+}
+
+/** 一行 JSONL → 对象；空行 / 非对象 / 损坏行返回 null */
+function jsonLine(l: string): Record<string, unknown> | null {
+  const s = l.trim();
+  if (!s || s[0] !== '{') return null;
+  try {
+    return obj(JSON.parse(s) as unknown) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const base = (p: unknown): string | undefined => {
@@ -150,7 +154,12 @@ const CODEX_LINES = ['"session_meta"', '"turn_context"', '"token_count"'] as con
  */
 export function parseCodexChunk(text: string, state: ParseState): UsageRecord[] {
   const out: UsageRecord[] = [];
-  for (const o of lines(text, CODEX_LINES)) {
+  for (const l of text.split('\n')) {
+    const wanted = CODEX_LINES.some((n) => l.includes(n));
+    // 分叉开头的重放阶段所有行都参与「行间距」判断：只看用量行会把中间跳过的正文行算成间隔（#86）
+    if (!wanted && !(state.forked && state.replay)) continue;
+    const o = jsonLine(l);
+    if (!o) continue;
     const p = obj(o.payload);
     const lineTs = parseTs(o.timestamp);
     if (state.forked && state.replay) {
@@ -159,6 +168,7 @@ export function parseCodexChunk(text: string, state: ParseState): UsageRecord[] 
         state.replay = false;
       else state.prevTs = lineTs;
     }
+    if (!wanted) continue;
     if (o.type === 'session_meta' && p) {
       if (!state.metaSeen && !state.sid) {
         state.metaSeen = true;
