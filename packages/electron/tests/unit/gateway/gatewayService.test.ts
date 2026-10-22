@@ -467,6 +467,31 @@ describe('GatewayService', () => {
     expect(p.quirks).toEqual({ extraBody: { chat: { reasoning_split: true } }, dropParams: ['b'] });
   });
 
+  it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-release-'));
+    const svc = new GatewayService({
+      root,
+      cipher,
+      logger: { info() {}, warn() {} },
+      process: new GatewayProcess({
+        logger: { info() {}, warn() {} },
+        fork: () => new FakeChild() as never,
+      }),
+    });
+    // 模拟 grok 私有 GROK_HOME：配置文件 + 指向用户 ~/.grok 条目的软链
+    const agentDir = path.join(root, 'agents', 'grok', 'tab-1');
+    fs.mkdirSync(agentDir, { recursive: true });
+    fs.writeFileSync(path.join(agentDir, 'config.toml'), 'x');
+    const sentinel = path.join(root, 'user-real-file');
+    fs.writeFileSync(sentinel, 'keep me');
+    fs.symlinkSync(sentinel, path.join(agentDir, 'sessions-link'));
+
+    svc.releaseAgent('grok', 'tab-1');
+
+    expect(fs.existsSync(agentDir)).toBe(false);
+    expect(fs.readFileSync(sentinel, 'utf8')).toBe('keep me');
+  });
+
   it('env providers: read-only in state, in the snapshot, default for Nomi chat, local URLs allowed', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-env-'));
     const children: FakeChild[] = [];

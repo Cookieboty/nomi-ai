@@ -687,6 +687,45 @@ describe('CliHarnessService session handling', () => {
       expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed key deepseek/pro: b');
     });
 
+    it('打开历史会话按历史来源建标签，不用新标签默认来源（#90）', () => {
+      const open = (h: CliHarnessService, sessionId: string, source: 'official' | 'thirdParty') =>
+        h.openHistorySession({
+          backend: 'codex',
+          sessionId,
+          cwd: process.cwd(),
+          title: 'h',
+          messages: [],
+          modelOverride: 'gpt-5-upstream',
+          source,
+        }).tab;
+      // 默认第三方，打开官方历史：仍是官方，保留历史模型
+      const third = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+      expect(open(third, 's-official', 'official')).toMatchObject({
+        source: 'official',
+        modelOverride: 'gpt-5-upstream',
+      });
+      // 默认官方，打开网关历史：第三方，上游裸模型名不当作网关模型覆盖
+      const official = mk(testGateway({ source: 'official', main: 'deepseek/flash' }));
+      const tab = open(official, 's-gateway', 'thirdParty');
+      expect(tab.source).toBe('thirdParty');
+      expect(tab.modelOverride).toBeFalsy();
+    });
+
+    it('关闭第三方标签时回收它的网关进程级私有目录', async () => {
+      const gw = testGateway({ source: 'thirdParty', main: 'deepseek/flash' });
+      const released: Array<[string, string]> = [];
+      const wrapped = {
+        ...gw,
+        releaseAgent: (kind: string, tabId: string) => released.push([kind, tabId]),
+      };
+      const h = mk(wrapped);
+      const tab = h.createTab({ backend: 'dsh' });
+      await h.sendTab(tab.id, 'hi');
+      expect(released).toEqual([]);
+      h.closeTab(tab.id);
+      expect(released).toEqual([['dsh', tab.id]]);
+    });
+
     it('surfaces the dsh error message when resume fails', async () => {
       const h = mk();
       h.setBackend('dsh');

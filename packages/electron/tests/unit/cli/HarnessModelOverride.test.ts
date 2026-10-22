@@ -353,6 +353,7 @@ describe('CliHarnessService model / effort overrides', () => {
           { ref: 'gw/a', provider: 'GW', label: 'a' },
           { ref: 'gw/b', provider: 'GW', label: 'b' },
         ],
+        releaseAgent: () => undefined,
       };
       return { gateway, launches };
     };

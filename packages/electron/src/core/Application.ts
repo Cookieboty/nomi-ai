@@ -556,6 +556,7 @@ export class Application implements IApplication {
           launch: (kind, tabId, model) => gateway.cliLaunch(kind, tabId, model),
           officialEnv: (env) => gateway.officialEnv(env),
           models: () => gateway.cliModels(),
+          releaseAgent: (kind, tabId) => gateway.releaseAgent(kind, tabId),
         },
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',

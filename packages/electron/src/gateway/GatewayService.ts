@@ -5,6 +5,7 @@
  * - 旧的本地路由服务开着且占用同一端口时，网关先用临时端口，等旧路由移除（M3）后接管；
  * - IPC 一律 ai:gateway:*；返回给渲染进程的数据里 Key 只给掩码，令牌不返回。
  */
+import fs from 'node:fs';
 import path from 'path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
@@ -371,6 +372,11 @@ export class GatewayService {
       );
   }
 
+  /** 这个标签的进程级私有目录（Grok 私有 GROK_HOME、dsh 叠加文件等） */
+  private agentDir(kind: AgentKind, tabId: string): string {
+    return path.join(this.d.root, 'agents', kind, tabId.replace(/[^\w-]/g, '_'));
+  }
+
   /**
    * 第三方会话的进程级注入（环境变量、参数、要剔除的继承变量）。网关没在运行时返回 null，
    * 调用方报错而不是悄悄走官方。dir：这个标签的私有目录（Grok 私有 GROK_HOME、dsh 叠加文件）。
@@ -400,8 +406,20 @@ export class GatewayService {
       metaOf,
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
-      dir: path.join(this.d.root, 'agents', kind, tabId.replace(/[^\w-]/g, '_')),
+      dir: this.agentDir(kind, tabId),
     });
+  }
+
+  /**
+   * 标签关闭后回收它的进程级私有目录。里面只有 Nomi 生成的配置文件和指向用户 CLI 目录的软链，
+   * 令牌只在子进程环境里、不落盘。rm 不跟随软链，用户的 ~/.grok 等不受影响。
+   */
+  releaseAgent(kind: AgentKind, tabId: string): void {
+    try {
+      fs.rmSync(this.agentDir(kind, tabId), { recursive: true, force: true });
+    } catch (e) {
+      this.d.logger.warn('gateway agent dir cleanup failed', e);
+    }
   }
 
   /** 官方会话的环境：剔除指向网关的残留变量 */

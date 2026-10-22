@@ -125,6 +125,8 @@ export interface HarnessGateway {
   officialEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
   /** 第三方可选模型 */
   models(): Array<{ ref: string; provider: string; label: string }>;
+  /** 标签关闭后回收它的进程级私有目录 */
+  releaseAgent(kind: CliBackend, tabId: string): void;
 }
 
 /** 一次启动的来源注入（见 launchFor） */
@@ -967,6 +969,7 @@ export class CliHarnessService {
     reasoningEffort?: string | null;
     permissionMode?: HarnessPermissionMode;
     permissionModeSource?: 'history-cli';
+    source?: HarnessTabSource;
   }): { tab: HarnessTabMeta; reused: boolean } {
     const existing = [...this.tabs.values()].find(
       (x) => x.backend === o.backend && x.cliSessionId === o.sessionId,
@@ -981,10 +984,13 @@ export class CliHarnessService {
       title: o.title,
       messages: o.messages,
       cliSessionId: o.sessionId,
-      modelOverride: o.modelOverride,
+      // 第三方续接：历史里记的是上游裸模型名，不属于网关的「供应商/模型」命名空间，
+      // 不能作为第三方模型覆盖（否则按裸名解析可能歧义）；用网关给这个助手分配的默认模型。
+      ...(o.source !== 'thirdParty' && o.modelOverride ? { modelOverride: o.modelOverride } : {}),
       reasoningEffort: o.reasoningEffort,
       permissionMode: o.permissionMode,
       permissionModeSource: o.permissionModeSource,
+      ...(o.source ? { source: o.source } : {}),
     });
     return { tab, reused: false };
   }
@@ -1021,7 +1027,7 @@ export class CliHarnessService {
 
   closeTab(id: string): HarnessTabsState {
     if (id === MAIN_TAB_ID) throw new Error(t('主对话标签不能关闭'));
-    this.requireTab(id);
+    const tab = this.requireTab(id);
     this.cancelTab(id);
     this.teardownClaudeLive(id);
     const order = [...this.tabs.keys()];
@@ -1038,6 +1044,7 @@ export class CliHarnessService {
     } catch {
       /* */
     }
+    if (tab.backend !== 'nomi') this.d.gateway?.releaseAgent(tab.backend, id);
     if (this.activeTabId === id) {
       const rest = order.filter((x) => x !== id);
       this.activeTabId = rest[Math.max(0, idx - 1)] ?? MAIN_TAB_ID;
