@@ -137,7 +137,8 @@ export interface ChangeTreeFile {
   kind: 'file';
   name: string;
   path: string;
-  entry: ChangeEntry;
+  /** 有本轮/会话变更时带标注；纯磁盘文件可无 */
+  entry?: ChangeEntry;
 }
 
 export type ChangeTreeNode = ChangeTreeDir | ChangeTreeFile;
@@ -189,6 +190,98 @@ export function buildChangeFileTree(entries: readonly ChangeEntry[]): ChangeTree
     if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
+}
+
+/** 磁盘目录树节点（与 harness workspace-list 对齐） */
+export interface WorkspaceDiskNode {
+  kind: 'file' | 'dir';
+  name: string;
+  path: string;
+  children?: WorkspaceDiskNode[];
+}
+
+function normRel(p: string): string {
+  return p.replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+function sortTreeNodes(nodes: ChangeTreeNode[]): ChangeTreeNode[] {
+  return [...nodes].sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/** 把变更文件插入已有树（路径分段）；返回是否插入成功 */
+function insertChangeFile(roots: ChangeTreeNode[], entry: ChangeEntry): void {
+  const parts = normRel(entry.file).split('/').filter(Boolean);
+  if (!parts.length) return;
+  let children = roots;
+  let prefix = '';
+  for (let i = 0; i < parts.length - 1; i++) {
+    const name = parts[i]!;
+    prefix = prefix ? `${prefix}/${name}` : name;
+    let dir = children.find((n): n is ChangeTreeDir => n.kind === 'dir' && n.name === name);
+    if (!dir) {
+      dir = { kind: 'dir', name, path: prefix, children: [] };
+      children.push(dir);
+    }
+    children = dir.children;
+  }
+  const name = parts[parts.length - 1]!;
+  const path = normRel(entry.file);
+  const existing = children.find((n) => n.kind === 'file' && normRel(n.path) === path);
+  if (existing && existing.kind === 'file') {
+    existing.entry = entry;
+    return;
+  }
+  children.push({ kind: 'file', name, path: entry.file, entry });
+}
+
+/**
+ * 工作区全量目录树 + 会话变更标注。
+ * 变更里有、磁盘尚无的路径（未落盘 / 已删）也会挂到树上。
+ */
+export function mergeWorkspaceAndChanges(
+  disk: readonly WorkspaceDiskNode[],
+  changes: readonly ChangeEntry[],
+): ChangeTreeNode[] {
+  const byPath = new Map(changes.map((c) => [normRel(c.file), c]));
+  const seen = new Set<string>();
+
+  const walk = (nodes: readonly WorkspaceDiskNode[]): ChangeTreeNode[] => {
+    const out: ChangeTreeNode[] = [];
+    for (const n of nodes) {
+      if (n.kind === 'dir') {
+        out.push({
+          kind: 'dir',
+          name: n.name,
+          path: n.path,
+          children: walk(n.children ?? []),
+        });
+      } else {
+        const key = normRel(n.path);
+        seen.add(key);
+        out.push({
+          kind: 'file',
+          name: n.name,
+          path: n.path,
+          entry: byPath.get(key),
+        });
+      }
+    }
+    return sortTreeNodes(out);
+  };
+
+  const roots = walk(disk);
+  for (const c of changes) {
+    if (!seen.has(normRel(c.file))) insertChangeFile(roots, c);
+  }
+  // 插入后可能打乱顺序，递归再排
+  const resort = (nodes: ChangeTreeNode[]): ChangeTreeNode[] =>
+    sortTreeNodes(
+      nodes.map((n) => (n.kind === 'dir' ? { ...n, children: resort(n.children) } : n)),
+    );
+  return resort(roots);
 }
 
 export function projectNameFromCwd(cwd?: string | null): string {

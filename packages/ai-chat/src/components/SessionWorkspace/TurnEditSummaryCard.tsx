@@ -1,6 +1,6 @@
 /** Codex 风格：助手消息下方「已编辑 N 个文件」摘要卡 */
 import { t } from '@nomi-ai/ui';
-import { ChevronDown, ExternalLink, FileDiff, RotateCcw } from 'lucide-react';
+import { ChevronDown, Expand, ExternalLink, FileDiff, RotateCcw } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -18,7 +18,7 @@ export const TurnEditSummaryCard: React.FC<{
   cwd?: string | null;
   sourceLabel?: string;
 }> = ({ messageId, entries, cwd, sourceLabel }) => {
-  const { openWorkbench } = useChangesUi();
+  const { openWorkbench, openDetail } = useChangesUi();
   const [expanded, setExpanded] = useState(false);
   const [undone, setUndone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -30,6 +30,14 @@ export const TurnEditSummaryCard: React.FC<{
 
   const open = () =>
     openWorkbench({
+      messageId,
+      entries,
+      sourceLabel: sourceLabel || messageId.slice(0, 12),
+      file: entries[0]?.file,
+    });
+
+  const openFullscreen = () =>
+    openDetail({
       messageId,
       entries,
       sourceLabel: sourceLabel || messageId.slice(0, 12),
@@ -100,6 +108,16 @@ export const TurnEditSummaryCard: React.FC<{
           >
             <RotateCcw size={14} />
             {t('撤销')}
+          </button>
+          <button
+            type="button"
+            className={styles.turnFullscreen}
+            onClick={openFullscreen}
+            data-testid="turn-open-fullscreen"
+            title={t('全屏审查')}
+          >
+            <Expand size={14} />
+            {t('全屏审查')}
           </button>
           <button
             type="button"

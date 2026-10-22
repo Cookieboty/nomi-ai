@@ -60,13 +60,36 @@ body {
   z-index: 1;
 }
 
-/* Codex 整页第三列：右文件栏（与 Sidebar / main-content 横排全高） */
+/* Codex 整页第三列：右文件栏（与 Sidebar / main-content 横排全高；宽度由分割线拖动） */
+.files-rail-splitter {
+  width: 5px;
+  margin: 0 -2px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 3;
+  background: transparent;
+  touch-action: none;
+}
+.files-rail-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: var(--cd-color-border, #333);
+  opacity: 0.85;
+}
+.files-rail-splitter:hover::after,
+.files-rail-splitter:active::after {
+  background: var(--cd-color-accent-strong, #5b8def);
+  opacity: 1;
+  inset: 0 1.5px;
+}
 .files-rail {
-  width: min(320px, 32vw);
+  width: 320px;
   min-width: 220px;
-  max-width: 360px;
+  max-width: 560px;
   height: 100vh;
-  flex-shrink: 1;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -78,11 +101,13 @@ body {
 .files-rail > * {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 /* 窄窗仍保持三栏横排，只压缩列宽（不要默认堆成单列） */
 @media (max-width: 900px) {
   .files-rail {
-    width: min(240px, 28vw);
     min-width: 180px;
   }
 }

@@ -4,6 +4,7 @@
   "估算 · 经验表": "Estimate · lookup table",
   "估算 · 默认窗口": "Estimate · default window",
   "上下文占用": "Context usage",
+  "当前上下文 {0} / {1}": "Current context {0} / {1}",
   "工作区": "Workspace",
   "本轮变更": "Session changes",
   "工作区 Git": "Working tree",
@@ -67,5 +68,16 @@
   "筛选文件…": "Filter files…",
   "已更改的文件": "Changed files",
   "其它 {0} 个文件": "{0} more files",
-  "打开完整变更工作台": "Open full changes workbench"
+  "打开完整变更工作台": "Open full changes workbench",
+  "全屏审查": "Full-screen review",
+  "关闭预览聚焦": "Clear preview focus",
+  "工作区布局": "Workspace layout",
+  "预览区": "Preview",
+  "文件树": "File tree",
+  "左右分栏": "Side by side",
+  "工作区文件": "Workspace files",
+  "工作区为空": "Workspace is empty",
+  "选择文件以预览 Diff 或内容": "Select a file to preview diff or content",
+  "拖动调整聊天与工作区宽度；双击恢复默认": "Drag to resize chat vs workspace; double-click to reset",
+  "拖动调整预览与文件树宽度；双击恢复默认": "Drag to resize preview vs file tree; double-click to reset"
 }

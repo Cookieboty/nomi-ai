@@ -1,4 +1,7 @@
-/** 输入区旁迷你上下文占用条：used/max + %，点击展开分类明细 */
+/**
+ * 发送钮旁上下文占用环：默认只显示橙色进度环；悬停浮窗展示「当前上下文 xK / 最大」。
+ * 用量优先取 CLI 最近一轮真实 usage，否则本地估算（界面标明）。
+ */
 import { t } from '@nomi-ai/ui';
 import React, { useMemo, useState } from 'react';
 
@@ -7,11 +10,16 @@ import type { ConvMessage } from '../../types/conversation';
 
 import styles from './SessionWorkspace.module.css';
 
+const R = 9;
+const C = 2 * Math.PI * R;
+
 export const ContextUsageBar: React.FC<{
   messages: readonly ConvMessage[];
   model?: string | null;
-}> = ({ messages, model }) => {
-  const [open, setOpen] = useState(false);
+  /** 紧凑环（嵌在 composer 右侧）；默认 true */
+  compact?: boolean;
+}> = ({ messages, model, compact = true }) => {
+  const [hover, setHover] = useState(false);
   const win = useMemo(() => contextWindowFor(model ?? undefined), [model]);
   const est = useMemo(
     () =>
@@ -24,7 +32,7 @@ export const ContextUsageBar: React.FC<{
       }),
     [messages],
   );
-  const pct = Math.min(100, Math.round((est.used / win.size) * 100));
+  const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
   const level = pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   const basisLabel =
     est.basis === 'actual'
@@ -32,51 +40,70 @@ export const ContextUsageBar: React.FC<{
       : win.source === 'table'
         ? t('估算 · 经验表')
         : t('估算 · 默认窗口');
+  const tip = t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
+  const dash = (pct / 100) * C;
 
   return (
-    <div className={styles.contextBar} data-testid="context-usage-bar">
+    <div
+      className={compact ? styles.contextRingWrap : styles.contextBar}
+      data-testid="context-usage-bar"
+      data-basis={est.basis}
+      data-level={level}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onFocus={() => setHover(true)}
+      onBlur={() => setHover(false)}
+    >
       <button
         type="button"
-        className={styles.contextMain}
-        onClick={() => setOpen((o) => !o)}
-        title={`${basisLabel} · ${formatTokens(est.used)} / ${formatTokens(win.size)} (${pct}%)`}
-        aria-expanded={open}
-        aria-label={t('上下文占用')}
+        className={styles.contextRingBtn}
+        aria-label={`${t('上下文占用')} ${pct}% · ${tip}`}
+        title={undefined}
         data-testid="context-usage-toggle"
       >
-        <div
-          className={styles.contextTrack}
-          role="meter"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
+        <svg
+          className={styles.contextRingSvg}
+          width={22}
+          height={22}
+          viewBox="0 0 22 22"
+          aria-hidden
         >
-          <div className={styles.contextFill} style={{ width: `${pct}%` }} data-level={level} />
-        </div>
-        <span className={styles.contextLabel}>
-          <span className={styles.contextPct} data-level={level}>
-            {pct}%
-          </span>
-          {formatTokens(est.used)}/{formatTokens(win.size)}
-          <span className={styles.contextBasis}>{basisLabel}</span>
-        </span>
+          <circle
+            className={styles.contextRingTrack}
+            cx={11}
+            cy={11}
+            r={R}
+            fill="none"
+            strokeWidth={2.2}
+            strokeDasharray="1.6 2.2"
+          />
+          <circle
+            className={styles.contextRingProg}
+            data-level={level}
+            cx={11}
+            cy={11}
+            r={R}
+            fill="none"
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeDasharray={`${dash} ${C}`}
+            transform="rotate(-90 11 11)"
+          />
+        </svg>
+        {/* 默认不显示百分比；仅供读屏 / 测试属性 */}
+        <span className={styles.srOnly}>{pct}%</span>
       </button>
-      {open && (
-        <div className={styles.contextDetail} data-testid="context-usage-detail">
-          {est.categories.length === 0 ? (
-            <div className={styles.contextCat}>
-              <span className={styles.contextCatName}>{t('暂无分类明细')}</span>
-            </div>
-          ) : (
-            est.categories.map((c) => (
-              <div key={c.key} className={styles.contextCat}>
-                <span className={styles.contextCatName}>{c.label}</span>
-                <span>{formatTokens(c.tokens)}</span>
-              </div>
-            ))
-          )}
+      {hover ? (
+        <div className={styles.contextRingTip} role="tooltip" data-testid="context-usage-detail">
+          <div className={styles.contextRingTipMain}>{tip}</div>
+          <div className={styles.contextRingTipMeta}>
+            {basisLabel}
+            {est.categories.length
+              ? ` · ${est.categories.map((c) => `${c.label} ${formatTokens(c.tokens)}`).join(' · ')}`
+              : ''}
+          </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

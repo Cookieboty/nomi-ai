@@ -213,3 +213,111 @@ export function gitCheckoutWorkspaceFile(cwd: string, filePath: string): Workspa
 
 /** 测试 / 单测导出 */
 export const _test = { resolveInCwd, TEXT_MAX };
+
+const LIST_SKIP = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  'build',
+  'out',
+  '.next',
+  'coverage',
+  '__pycache__',
+  '.turbo',
+  '.cache',
+  '.venv',
+  'venv',
+  '.idea',
+  '.vscode',
+]);
+
+export interface WorkspaceTreeNode {
+  kind: 'file' | 'dir';
+  name: string;
+  /** 相对 cwd，posix 斜杠 */
+  path: string;
+  children?: WorkspaceTreeNode[];
+}
+
+export interface WorkspaceTreeResult {
+  ok: boolean;
+  entries?: WorkspaceTreeNode[];
+  truncated?: boolean;
+  error?: string;
+  code?: WorkspaceFileResult['code'] | 'too-many';
+}
+
+/**
+ * 沙箱下列出 cwd 下目录树（跳过常见大目录；有深度/数量上限）。
+ * 供右栏「工作区」展示全量文件，变更标注由渲染端叠加。
+ */
+export function listWorkspaceTree(
+  cwd: string,
+  opts: { maxDepth?: number; maxFiles?: number } = {},
+): WorkspaceTreeResult {
+  const root = path.resolve(String(cwd ?? ''));
+  if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    return { ok: false, error: 'invalid cwd', code: 'invalid' };
+  }
+  const maxDepth = Math.min(Math.max(opts.maxDepth ?? 8, 1), 16);
+  const maxFiles = Math.min(Math.max(opts.maxFiles ?? 2000, 50), 8000);
+  let fileCount = 0;
+  let truncated = false;
+
+  const walk = (absDir: string, relDir: string, depth: number): WorkspaceTreeNode[] => {
+    if (truncated || depth > maxDepth) {
+      truncated = true;
+      return [];
+    }
+    let names: string[];
+    try {
+      names = fs.readdirSync(absDir);
+    } catch (e) {
+      return [];
+    }
+    names.sort((a, b) => a.localeCompare(b));
+    const out: WorkspaceTreeNode[] = [];
+    for (const name of names) {
+      if (truncated) break;
+      if (name === '.' || name === '..') continue;
+      if (LIST_SKIP.has(name)) continue;
+      if (name.startsWith('.') && name !== '.env' && name !== '.env.local') continue;
+      const abs = path.join(absDir, name);
+      const rel = relDir ? `${relDir}/${name}` : name;
+      let st: fs.Stats;
+      try {
+        st = fs.lstatSync(abs);
+      } catch {
+        continue;
+      }
+      if (st.isSymbolicLink()) continue;
+      if (st.isDirectory()) {
+        const children = walk(abs, rel.replace(/\\/g, '/'), depth + 1);
+        out.push({ kind: 'dir', name, path: rel.replace(/\\/g, '/'), children });
+      } else if (st.isFile()) {
+        fileCount += 1;
+        if (fileCount > maxFiles) {
+          truncated = true;
+          break;
+        }
+        out.push({ kind: 'file', name, path: rel.replace(/\\/g, '/') });
+      }
+    }
+    out.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    return out;
+  };
+
+  try {
+    const entries = walk(root, '', 1);
+    return { ok: true, entries, truncated: truncated || undefined };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : String(e),
+      code: 'io',
+    };
+  }
+}

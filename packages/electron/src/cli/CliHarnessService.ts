@@ -120,6 +120,7 @@ import type {
 import {
   deleteWorkspaceFile,
   gitCheckoutWorkspaceFile,
+  listWorkspaceTree,
   readWorkspaceFile,
   writeWorkspaceFile,
 } from './workspaceFiles';
@@ -4307,6 +4308,9 @@ export class CliHarnessService {
     );
     handle('ai:harness:workspace-git-checkout', (cwd, filePath) =>
       gitCheckoutWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
+    );
+    handle('ai:harness:workspace-list', (cwd) =>
+      listWorkspaceTree(validDir(String(cwd ?? '')), {}),
     );
     handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
       this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {

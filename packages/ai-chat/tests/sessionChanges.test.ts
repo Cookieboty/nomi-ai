@@ -6,9 +6,11 @@ import {
   aggregateSessionChanges,
   aggregateTurnChanges,
   buildChangeFileTree,
+  mergeWorkspaceAndChanges,
   projectNameFromCwd,
   splitPathDisplay,
   summarizeChanges,
+  type ChangeEntry,
 } from '../src/utils/sessionChanges';
 import { undoTurnChanges } from '../src/utils/undoTurnChanges';
 
@@ -215,5 +217,53 @@ describe('aggregateTurnChanges / tree / undo', () => {
     });
     expect(r2[0]!.method).toBe('delete');
     expect(removes[0]).toContain('new.ts');
+  });
+});
+
+describe('mergeWorkspaceAndChanges', () => {
+  it('annotates disk files and keeps unchanged without stats', () => {
+    const disk = [
+      {
+        kind: 'dir' as const,
+        name: 'src',
+        path: 'src',
+        children: [
+          { kind: 'file' as const, name: 'a.ts', path: 'src/a.ts' },
+          { kind: 'file' as const, name: 'b.ts', path: 'src/b.ts' },
+        ],
+      },
+    ];
+    const changes: ChangeEntry[] = [
+      {
+        file: 'src/a.ts',
+        added: 2,
+        removed: 1,
+        status: 'modified',
+        letter: 'M',
+        messageId: 'm1',
+      },
+    ];
+    const tree = mergeWorkspaceAndChanges(disk, changes);
+    expect(tree[0]?.kind).toBe('dir');
+    if (tree[0]?.kind !== 'dir') return;
+    const a = tree[0].children.find((c) => c.kind === 'file' && c.name === 'a.ts');
+    const b = tree[0].children.find((c) => c.kind === 'file' && c.name === 'b.ts');
+    expect(a && a.kind === 'file' && a.entry?.added).toBe(2);
+    expect(b && b.kind === 'file' && b.entry).toBeUndefined();
+  });
+
+  it('inserts changed paths missing on disk', () => {
+    const changes: ChangeEntry[] = [
+      {
+        file: 'new/x.ts',
+        added: 1,
+        removed: 0,
+        status: 'added',
+        letter: 'A',
+        messageId: 'm1',
+      },
+    ];
+    const tree = mergeWorkspaceAndChanges([], changes);
+    expect(tree.some((n) => n.kind === 'dir' && n.name === 'new')).toBe(true);
   });
 });

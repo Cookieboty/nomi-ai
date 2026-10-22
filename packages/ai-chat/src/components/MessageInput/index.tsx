@@ -41,10 +41,12 @@ import {
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
+import type { ConvMessage } from '../../types/conversation';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
 import { SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
@@ -54,8 +56,9 @@ import styles from './index.module.css';
 
 const log = createLogger('message-input');
 
-/** 发文框最高高度。再长的内容在框内滚动，不再把输入区撑高。 */
-export const COMPOSER_MAX_HEIGHT_PX = 200;
+/** 发文框默认更高；超过 COMPOSER_MAX 后框内滚动。 */
+export const COMPOSER_MIN_HEIGHT_PX = 72;
+export const COMPOSER_MAX_HEIGHT_PX = 240;
 
 interface MessageInputProps {
   /** CLI 标签可附带图片；第二参仅在有附图时传入 */
@@ -88,6 +91,9 @@ interface MessageInputProps {
   slash?: SlashBridge;
   /** 打开「插件 / 命令」只读面板 */
   onPluginsClick?: () => void;
+  /** 发送钮旁上下文占用环的数据源 */
+  contextMessages?: readonly ConvMessage[];
+  contextModel?: string | null;
 }
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
@@ -106,6 +112,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSettingsClick,
   slash,
   onPluginsClick,
+  contextMessages,
+  contextModel,
 }) => {
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
@@ -121,8 +129,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     if (!el) return;
     el.style.maxHeight = `${COMPOSER_MAX_HEIGHT_PX}px`;
     el.style.height = '0px';
-    const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
-    el.style.height = next > 0 ? `${next}px` : '';
+    const next = Math.min(
+      Math.max(el.scrollHeight, COMPOSER_MIN_HEIGHT_PX),
+      COMPOSER_MAX_HEIGHT_PX,
+    );
+    el.style.height = `${next}px`;
   }, [message]);
   // slices only: streamed frames (message content) do not rerender the composer
   const { dispatch, actions, store: chatStore } = useAiChatActions();
@@ -828,6 +839,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           </div>
           <div className={styles.composerRight} data-zone="right">
             <VoiceButtons cv={cv} disabled={disabled} />
+            {contextMessages ? (
+              <ContextUsageBar messages={contextMessages} model={contextModel} />
+            ) : null}
             {canStop ? (
               <button
                 type="button"

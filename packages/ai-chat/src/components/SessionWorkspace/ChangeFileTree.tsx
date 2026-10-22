@@ -1,4 +1,4 @@
-/** 已更改文件树（右栏 / 详情页共用） */
+/** 工作区 / 变更文件树（右栏横排「文件」侧；详情页共用） */
 import { ChevronDown, ChevronRight, FileCode2, LocateFixed } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -69,11 +69,13 @@ export const ChangeFileTree: React.FC<{
         }
         if (!match(n.path)) return null;
         const e = n.entry;
+        const changed = !!e;
         return (
           <div
             key={n.path}
             className={styles.wbTreeFileRow}
             data-active={active === n.path || undefined}
+            data-changed={changed || undefined}
             data-testid="change-row"
             data-file={n.path}
           >
@@ -82,6 +84,7 @@ export const ChangeFileTree: React.FC<{
               className={styles.wbTreeFile}
               style={{ paddingLeft: 8 + depth * 12 }}
               data-active={active === n.path || undefined}
+              data-changed={changed || undefined}
               data-testid={`${testIdPrefix}-file`}
               data-file={n.path}
               onClick={() => onPick(n.path)}
@@ -90,20 +93,22 @@ export const ChangeFileTree: React.FC<{
               <span className={styles.wbFileName} title={n.path}>
                 {n.name}
               </span>
-              <span className={styles.wbDot} aria-hidden />
-              <span className={styles.stat}>
-                <span className={styles.add}>+{e.added}</span>
-                <span className={styles.del}>−{e.removed}</span>
-              </span>
+              {changed ? <span className={styles.wbDot} aria-hidden /> : null}
+              {e ? (
+                <span className={styles.stat}>
+                  <span className={styles.add}>+{e.added}</span>
+                  <span className={styles.del}>−{e.removed}</span>
+                </span>
+              ) : null}
             </button>
-            {onLocate ? (
+            {onLocate && e?.messageId ? (
               <button
                 type="button"
                 className={styles.iconBtn}
                 data-testid="change-locate"
                 title="locate"
                 aria-label="locate"
-                onClick={() => onLocate(n.path, messageIdByFile?.[n.path])}
+                onClick={() => onLocate(n.path, messageIdByFile?.[n.path] ?? e.messageId)}
               >
                 <LocateFixed size={12} />
               </button>

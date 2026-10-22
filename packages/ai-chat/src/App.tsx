@@ -2,7 +2,7 @@ import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
@@ -33,7 +33,6 @@ import { PluginPanel } from './components/PluginPanel';
 import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
-  ContextUsageBar,
   SessionChangesPanel,
 } from './components/SessionWorkspace';
 import {
@@ -104,7 +103,68 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   return <ConversationView {...props} live={live} />;
 };
 
+const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';
+const FILES_RAIL_W_DEFAULT = 320;
+const FILES_RAIL_W_MIN = 220;
+const FILES_RAIL_W_MAX = 560;
+
+function readFilesRailWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
+    if (Number.isFinite(n)) {
+      return Math.min(FILES_RAIL_W_MAX, Math.max(FILES_RAIL_W_MIN, Math.round(n)));
+    }
+  } catch {
+    /* ignore */
+  }
+  return FILES_RAIL_W_DEFAULT;
+}
+
 const AiChatContent: React.FC = () => {
+  const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
+  const filesRailDrag = useRef<{ startX: number; startW: number } | null>(null);
+
+  const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    filesRailDrag.current = { startX: e.clientX, startW: filesRailWidth };
+    el.setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      const d = filesRailDrag.current;
+      if (!d) return;
+      const next = Math.min(
+        FILES_RAIL_W_MAX,
+        Math.max(FILES_RAIL_W_MIN, d.startW + (d.startX - ev.clientX)),
+      );
+      setFilesRailWidth(next);
+    };
+    const onUp = (ev: PointerEvent) => {
+      filesRailDrag.current = null;
+      el.releasePointerCapture(ev.pointerId);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setFilesRailWidth((w) => {
+        try {
+          localStorage.setItem(FILES_RAIL_W_KEY, String(w));
+        } catch {
+          /* ignore */
+        }
+        return w;
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  const onFilesRailSplitterDbl = () => {
+    setFilesRailWidth(FILES_RAIL_W_DEFAULT);
+    try {
+      localStorage.setItem(FILES_RAIL_W_KEY, String(FILES_RAIL_W_DEFAULT));
+    } catch {
+      /* ignore */
+    }
+  };
+
   // Slices, not the whole state: a streamed frame changes only the live tail, which
   // NomiConversation subscribes to; App and the rest of the tree stay put.
   const { actions, store: chatStore } = useAiChatActions();
@@ -744,16 +804,14 @@ const AiChatContent: React.FC = () => {
 
           {/* 输入区域 */}
           <footer className="input-container">
-            <ContextUsageBar
-              messages={tabs.isCliTab ? cliConvMessages : nomiMessages}
-              model={
+            <MessageInput
+              {...inputModeProps}
+              contextMessages={tabs.isCliTab ? cliConvMessages : nomiMessages}
+              contextModel={
                 tabs.isCliTab
                   ? (tabs.activeTab?.modelOverride ?? tabs.activeTab?.backend)
                   : undefined
               }
-            />
-            <MessageInput
-              {...inputModeProps}
               slash={slash.bridge}
               onPluginsClick={openPlugins}
               onProvidersClick={openProviders}
@@ -768,10 +826,33 @@ const AiChatContent: React.FC = () => {
         </div>
 
         {isDev && tabs.isCliTab && tabs.activeTab ? (
-          <aside className="files-rail" data-testid="files-rail">
-            <SessionChangesPanel rail messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
-            <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
-          </aside>
+          <>
+            <div
+              className="files-rail-splitter"
+              data-testid="files-rail-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-valuenow={filesRailWidth}
+              aria-valuemin={FILES_RAIL_W_MIN}
+              aria-valuemax={FILES_RAIL_W_MAX}
+              onPointerDown={onFilesRailSplitterDown}
+              onDoubleClick={onFilesRailSplitterDbl}
+              title={t('拖动调整聊天与工作区宽度；双击恢复默认')}
+            />
+            <aside
+              className="files-rail"
+              data-testid="files-rail"
+              style={{
+                width: filesRailWidth,
+                minWidth: FILES_RAIL_W_MIN,
+                maxWidth: FILES_RAIL_W_MAX,
+                flexShrink: 0,
+              }}
+            >
+              <SessionChangesPanel rail messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+            </aside>
+          </>
         ) : null}
       </div>
 

@@ -1,83 +1,83 @@
 /* Codex 密度：统一 --cd-* token，深浅色共用 */
 
-.contextBar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1, 4px);
-  padding: 2px 4px 6px;
-  font-size: var(--cd-font-size-xs, 11px);
-  color: var(--cd-color-text-muted, #888);
-}
-.contextMain {
-  display: flex;
+.contextRingWrap {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: var(--cd-space-2, 8px);
-  width: 100%;
-  background: none;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
+  flex-shrink: 0;
+}
+.contextRingBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  text-align: left;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
 }
-.contextMain:hover .contextTrack {
-  outline: 1px solid var(--cd-color-border, #333);
+.contextRingBtn:hover {
+  background: color-mix(in srgb, var(--cd-color-border, #333) 35%, transparent);
 }
-.contextMain:focus-visible {
+.contextRingBtn:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong, #5b8def);
   outline-offset: 2px;
-  border-radius: var(--cd-radius-sm, 4px);
 }
-.contextTrack {
-  flex: 1;
-  height: 4px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--cd-color-border, #333) 60%, transparent);
-  overflow: hidden;
-  min-width: 48px;
+.contextRingSvg {
+  display: block;
 }
-.contextFill {
-  height: 100%;
-  border-radius: 2px;
-  background: var(--cd-color-accent, #5b8def);
-  transition: width 0.2s ease;
+.contextRingTrack {
+  stroke: color-mix(in srgb, var(--cd-color-text-muted, #888) 55%, transparent);
 }
-.contextFill[data-level='mid'] {
-  background: var(--cd-color-warning, #d4a017);
+.contextRingProg {
+  stroke: #f5a623;
+  transition: stroke-dasharray 0.25s ease;
 }
-.contextFill[data-level='high'] {
-  background: var(--cd-color-danger, #e35d6a);
+.contextRingProg[data-level='mid'] {
+  stroke: #e8920b;
 }
-.contextLabel {
+.contextRingProg[data-level='high'] {
+  stroke: #e35d6a;
+}
+.contextRingTip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 140px;
+  max-width: 280px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #2a241c;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
-.contextPct {
+.contextRingTip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 10px;
+  border: 6px solid transparent;
+  border-top-color: #2a241c;
+}
+.contextRingTipMain {
   font-weight: 600;
-  margin-right: 4px;
 }
-.contextBasis {
-  margin-left: 6px;
-  opacity: 0.75;
+.contextRingTipMeta {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.78;
+  white-space: normal;
 }
-.contextDetail {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 0 0;
-  border-top: 1px solid var(--cd-color-border, #333);
-  margin-top: 2px;
-}
-.contextCat {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
-}
-.contextCatName {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* 兼容旧 class 名（若仍有引用） */
+.contextBar {
+  display: none;
 }
 
 .panel {
@@ -884,4 +884,148 @@
   border-radius: 50%;
   background: var(--cd-color-accent-strong, #5b8def);
   flex-shrink: 0;
+}
+
+/* —— 右栏横排 Diff | 文件树 —— */
+.railTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px 0;
+  min-height: 28px;
+}
+.railTitle {
+  font-weight: 650;
+  font-size: 12px;
+  color: var(--cd-color-text, #eee);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40%;
+}
+.fullscreenBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 16%, transparent);
+  border: 1px solid var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.fullscreenBtn:hover {
+  border-color: var(--cd-color-accent-strong, #5b8def);
+}
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 6px;
+  border-bottom: 1px solid var(--cd-color-border, #333);
+}
+.segBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--cd-color-text-muted, #888);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.segBtn[data-active] {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 14%, transparent);
+  border-color: var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+}
+.segBtn:hover {
+  color: var(--cd-color-text, #eee);
+}
+.railBody {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+.railPreviewPane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 0;
+}
+.railPreviewPane :global([data-testid='file-preview']),
+.railPreviewPane > * {
+  flex: 1;
+  min-height: 0;
+}
+.railTreePane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-left: 1px solid var(--cd-color-border, #333);
+  background: var(--cd-color-surface-raised, #161616);
+}
+.railInnerSplitter {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 2;
+  background: transparent;
+  touch-action: none;
+}
+.railInnerSplitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: var(--cd-color-border, #333);
+}
+.railInnerSplitter:hover::after,
+.railInnerSplitter:active::after {
+  background: var(--cd-color-accent-strong, #5b8def);
+}
+.panel[data-rail] {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+.panel[data-rail] .panelHead {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+}
+.panel[data-rail] .tabs {
+  padding: 4px 8px;
+}
+.turnFullscreen {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.turnFullscreen:hover {
+  border-color: var(--cd-color-accent-strong, #5b8def);
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
 }

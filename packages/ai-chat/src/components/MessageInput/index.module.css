@@ -43,8 +43,8 @@
   resize: none;
   font-size: var(--cd-font-size-lg);
   line-height: 1.6;
-  min-height: 24px;
-  max-height: 200px;
+  min-height: 72px;
+  max-height: 240px;
   overflow-y: auto;
   font-family: inherit;
   color: var(--cd-color-text);

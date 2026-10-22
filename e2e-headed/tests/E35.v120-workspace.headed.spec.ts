@@ -131,10 +131,19 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
       if (id) await b.invoke('ai:harness:tab-cwd', id, cwd, {});
     }, workDir);
 
+    // 上下文环：默认只显示环（无旁侧 % 文字）；悬停浮窗再出「当前上下文 xK / 最大」
     const bar = chat.locator('[data-testid="context-usage-bar"]');
     await expect(bar).toBeVisible({ timeout: 15_000 });
-    await bar.click();
+    await expect(chat.locator('[data-testid="context-usage-detail"]')).toHaveCount(0);
+    await bar.hover();
+    await expect(chat.locator('[data-testid="context-usage-detail"]')).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(chat.locator('[data-testid="context-usage-detail"]')).toContainText(
+      /当前上下文|Current context/,
+    );
     await shot(chat, '10-context-usage-bar');
+    await chat.locator('[data-testid="chat-input"]').hover(); // 移开以收起 tip
 
     const input = chat.locator('[data-testid="chat-input"]');
     await expect(input).toBeEnabled();
@@ -146,7 +155,8 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="session-changes-panel"]')).toBeVisible({
       timeout: 30_000,
     });
-    const rows = chat.locator('[data-testid="rail-file"]');
+    // 完整 cwd 树含未改文件；变更行带 data-changed
+    const rows = chat.locator('[data-testid="rail-file"][data-changed]');
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
 
@@ -160,12 +170,35 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(railPanel).toHaveAttribute('data-focused', 'true', { timeout: 10_000 });
     await expect(chat.locator('[data-testid="files-rail-tree"]')).toBeVisible();
     await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
-    // 一眼左中右：侧栏 + 对话 + 右文件栏
+    // 一眼左中右：侧栏 + 对话 + 右文件栏；外层分割线存在
+    await expect(chat.locator('[data-testid="files-rail-splitter"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="rail-open-fullscreen"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="turn-open-fullscreen"]').first()).toBeVisible();
+    // 完整 cwd 树（至少含 src/）；变更标注行存在
+    await expect(chat.locator('[data-testid="files-rail-tree"]')).toContainText(/src|alpha|beta/i);
+    // 默认左右分栏时应有内部分割线
+    const bothBtn = chat.locator('[data-testid="rail-layout-both"]');
+    if (await bothBtn.count()) {
+      await bothBtn.click().catch(() => undefined);
+      await expect(chat.locator('[data-testid="files-rail-inner-splitter"]')).toBeVisible({
+        timeout: 5_000,
+      });
+    }
     await shot(chat, '19-app-lcr-files-rail');
     // 全屏工作台仅为次要入口，默认不应出现
     await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0);
+    // 显式全屏入口可用：点开后应出现工作台，再关
+    await chat.locator('[data-testid="rail-open-fullscreen"]').click();
+    await expect(chat.locator('[data-testid="changes-workbench"]')).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(chat.locator('[data-testid="wb-close"]')).toBeVisible();
+    await chat.locator('[data-testid="wb-close"]').click();
+    await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0, {
+      timeout: 10_000,
+    });
 
-    await chat.locator('[data-testid="rail-file"]').first().click();
+    await chat.locator('[data-testid="rail-file"][data-changed]').first().click();
     await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
     await expect(chat.locator('[data-testid="preview-file-tabs"]')).toBeVisible();
     await shot(chat, '14-multi-file-preview-diff');

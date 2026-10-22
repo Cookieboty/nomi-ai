@@ -274,6 +274,21 @@ export interface WorkspaceFileResult {
   code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid' | 'not-git';
 }
 
+export interface WorkspaceTreeNode {
+  kind: 'file' | 'dir';
+  name: string;
+  path: string;
+  children?: WorkspaceTreeNode[];
+}
+
+export interface WorkspaceTreeResult {
+  ok: boolean;
+  entries?: WorkspaceTreeNode[];
+  truncated?: boolean;
+  error?: string;
+  code?: WorkspaceFileResult['code'] | 'too-many';
+}
+
 export const harnessClient = {
   available: () => !!bridge(),
   state: () => call<HarnessState>('state'),
@@ -290,6 +305,7 @@ export const harnessClient = {
     call<WorkspaceFileResult>('workspace-delete', cwd, filePath),
   workspaceGitCheckout: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-git-checkout', cwd, filePath),
+  workspaceList: (cwd: string) => call<WorkspaceTreeResult>('workspace-list', cwd),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
   setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),

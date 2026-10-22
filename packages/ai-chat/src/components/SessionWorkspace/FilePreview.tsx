@@ -61,6 +61,14 @@ export const FilePreview: React.FC<{
   );
   const active = files[idx] ?? files[0];
 
+  // 无 diff 时自动切到文件内容，避免空 Diff 占位
+  useEffect(() => {
+    const f = files.find((x) => x.key === activeKey) ?? files[0];
+    if (!f) return;
+    if (!(f.change?.diff || f.gitDiff)) setMode('file');
+    else setMode('diff');
+  }, [activeKey, files]);
+
   const crumbs = useMemo(() => {
     const p = active?.path ?? '';
     return p.split(/[/\\]/).filter(Boolean);
