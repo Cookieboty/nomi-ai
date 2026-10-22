@@ -122,7 +122,7 @@ export const GeneralHero: React.FC = () => {
           icon={Globe}
           label={t('语言')}
           value={pref === 'system' ? t('跟随系统') : langName}
-          sub={pref === 'system' ? t('当前为 {0}', langName) : t('对话、看板娘与通知同步')}
+          sub={pref === 'system' ? t('当前为 {0}', langName) : t('对话、Nomi 与通知同步')}
           target="settings-basic"
           testId="settings-hero-language"
         />

@@ -1,7 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/voice': patch
-'@nomi-ai/ui': patch
 ---
 
 整理「语音与屏幕」与「本机管理」：

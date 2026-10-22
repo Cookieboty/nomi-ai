@@ -137,7 +137,7 @@ export const Budget: React.FC<Props> = ({ state, onSettings, onCleared }) => {
         </div>
         <p className={styles.dim}>
           {t(
-            '花费到预算的 80% 和 100% 时各提醒一次（看板娘气泡 + 灵动岛，只显示不朗读）。单个任务指同一会话连续使用，超过提醒线时提醒一次。留空 = 不提醒。',
+            '花费到预算的 80% 和 100% 时各提醒一次（Nomi 气泡 + 灵动岛，只显示不朗读）。单个任务指同一会话连续使用，超过提醒线时提醒一次。留空 = 不提醒。',
           )}
         </p>
         <p className={styles.dim}>

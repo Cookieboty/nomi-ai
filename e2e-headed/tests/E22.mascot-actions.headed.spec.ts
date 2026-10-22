@@ -38,6 +38,10 @@ const RIVE_MOTION_ALIASES: Record<string, string> = {
   listen: 'think',
   peek_note: 'peek',
   interact: 'hello',
+  // ROUND18/26 leg clips: shared AI names route to authored native triggers
+  crouch: 'squat',
+  march: 'step',
+  jog: 'run',
 };
 
 test.describe('E22 · mascot action library', () => {

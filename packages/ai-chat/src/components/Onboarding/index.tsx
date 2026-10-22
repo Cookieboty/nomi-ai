@@ -81,13 +81,13 @@ const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
 const STARTUPS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('以看板娘方式打开'),
-    hint: () => t('桌面上先出现看板娘，点她的「AI 对话」进入主界面（默认）'),
+    label: () => t('以 Nomi 方式打开'),
+    hint: () => t('桌面上先出现 Nomi，点她的「AI 对话」进入主界面（默认）'),
   },
   {
     id: 'main',
     label: () => t('以控制台（主界面）方式打开'),
-    hint: () => t('直接打开软件主界面，看板娘在桌面待命'),
+    hint: () => t('直接打开软件主界面，Nomi 在桌面待命'),
   },
 ];
 
@@ -258,7 +258,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
               ))}
             </div>
             <p className={styles.note}>
-              {t('依赖定时任务 / 提醒的话，选看板娘更顺手；主要在主界面里工作，就选主界面。')}
+              {t('依赖定时任务 / 提醒的话，选 Nomi 更顺手；主要在主界面里工作，就选主界面。')}
               {t('之后可在「设置 → 通用」随时修改。')}
             </p>
           </>
