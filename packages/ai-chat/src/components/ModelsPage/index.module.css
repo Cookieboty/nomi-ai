@@ -590,6 +590,20 @@
   width: 160px;
 }
 
+.linkBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.linkBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+
 .masked {
   flex: 1;
   color: var(--cd-color-text-subtle);

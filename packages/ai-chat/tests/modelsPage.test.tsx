@@ -438,6 +438,44 @@ describe('ModelsPage', () => {
     ]);
   });
 
+  it('keys: replace a saved key in place; a key pasted into the name is offered as a replacement', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…0000', enabled: true, decryptable: true },
+          {
+            id: 'k1',
+            name: 'sk-pasted_Into_Name_1234567890',
+            masked: 'sk-…1111',
+            enabled: true,
+            decryptable: true,
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-key-replace-k0'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-replace-input-k0'), {
+      target: { value: '  sk-fresh-0000aaaa ' },
+    });
+    fireEvent.click(within(dlg).getByTestId('pd-key-name-to-replace-k1'));
+    expect(within(dlg).queryByTestId('pd-key-name-hint-k1')).toBeNull();
+    expect((within(dlg).getByTestId('pd-key-replace-input-k1') as HTMLInputElement).value).toBe(
+      'sk-pasted_Into_Name_1234567890',
+    );
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.keys).toEqual([]);
+    expect(payload.newKeys).toEqual([
+      { value: 'sk-fresh-0000aaaa', position: 0, enabled: true },
+      { value: 'sk-pasted_Into_Name_1234567890', position: 1, enabled: true },
+    ]);
+  });
+
   it('models: add an id by hand; 刷新 merges newly listed models as disabled', async () => {
     const m = fakeMain({
       detect: () => ({

@@ -2018,11 +2018,14 @@ export class CliHarnessService {
           tab.status = 'error';
           tab.lastError = message;
           // 失败前已生成的文字保留在前面，错误信息跟在后面（不当成成功，也不丢已输出内容）
+          // Claude 的 API 错误会先以 assistant 正文输出一遍、再在 result 里重复一遍，已出现过就不再追加
           const partText = part?.text ?? '';
+          const repeated = !!message.trim() && partText.trimEnd().endsWith(message.trim());
           this.appendMessage(id, {
             id: randomUUID(),
             role: 'assistant',
-            content: partText.trim() ? `${partText}\n\n${message}` : message,
+            content:
+              !partText.trim() || repeated ? partText || message : `${partText}\n\n${message}`,
             timestamp: Date.now(),
             error: true,
             durationMs,

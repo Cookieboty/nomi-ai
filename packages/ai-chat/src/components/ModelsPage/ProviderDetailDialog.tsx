@@ -1,6 +1,7 @@
 /**
  * 供应商详情（docs/design/unified-gateway.md §4.2 末尾）：点供应商一行或「⋯」打开。
- * - 名称；Key 列表（上下移动即回退顺序、启用、改名、删除、一次贴多个新增；每个 Key 显示最近一次错误）；
+ * - 名称；Key 列表（上下移动即回退顺序、启用、改名、原位更换、删除、一次贴多个新增；
+ *   每个 Key 显示最近一次错误）；
  * - 模型列表（勾选启用、手动添加、「刷新」重新列出：新发现的默认不启用，已有设置不变）；回退链；
  * - 「高级」折叠区：各协议地址（留空 = 关闭该协议）、模型限定协议、Key 限定协议、模型映射、
  *   自定义请求头、User-Agent、清除自动学到的状态（§7.4）；改了地址后提示重新检测。
@@ -27,6 +28,7 @@ import {
   ArrowUp,
   ChevronDown,
   ChevronRight,
+  KeyRound,
   Loader2,
   Plus,
   RefreshCw,
@@ -64,7 +66,19 @@ interface KeyDraft {
   wire?: Wire;
   /** 只有本次新增的 Key 带明文；已有 Key 永不返回明文。 */
   value?: string;
+  /** 已有 Key 正在更换成的新值（undefined = 没在更换；保存时在原位置换成新 Key，名称保留） */
+  replace?: string;
 }
+
+/** 草稿里这个 Key 要写入的新明文：新增的 Key，或填了新值的「更换」 */
+const freshValue = (k: KeyDraft): string | undefined =>
+  k.value?.trim() || k.replace?.trim() || undefined;
+
+/** 名称框里贴进来的像是 Key 本身（一长串无空白、字母数字混排）：提示改用「更换」，免得明文当名称存下 */
+export const looksLikeKey = (s: string): boolean => {
+  const v = s.trim();
+  return /^\S{20,}$/.test(v) && /\d/.test(v) && /[A-Za-z]/.test(v) && /[-_]/.test(v);
+};
 interface Draft {
   name: string;
   keys: KeyDraft[];
@@ -92,10 +106,10 @@ const initDraft = (p: ProviderView): Draft => ({
 export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
   const orig = new Map(p.keys.map((k) => [k.id, k]));
   const newKeys = d.keys
-    .map((k, position) => ({ ...k, position }))
-    .filter((k) => k.value?.trim())
+    .map((k, position) => ({ ...k, position, fresh: freshValue(k) }))
+    .filter((k) => k.fresh)
     .map((k) => ({
-      value: k.value!.trim(),
+      value: k.fresh!,
       position: k.position,
       enabled: k.enabled,
       ...(k.name.trim() ? { name: k.name.trim() } : {}),
@@ -110,8 +124,9 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
     urls: Object.fromEntries(
       WIRES.filter((w) => d.urls[w].trim() || p.urls[w]).map((w) => [w, d.urls[w].trim()]),
     ),
+    // 更换了值的已有 Key 不在这里：主进程按 newKeys 的 position 在原位置放新 Key、丢掉旧的
     keys: d.keys
-      .filter((k) => k.value === undefined)
+      .filter((k) => k.value === undefined && !freshValue(k))
       .map((k) => ({
         id: k.id,
         enabled: k.enabled,
@@ -300,14 +315,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
     try {
       if (!(await confirmPrivate())) return;
       const fresh = d.keys
-        .filter((k) => k.enabled && k.value)
-        .map((k) => k.value!.trim())
-        .filter(Boolean);
+        .filter((k) => k.enabled)
+        .map(freshValue)
+        .filter((v): v is string => !!v);
       const r = await gatewayClient.detect({
         providerId: p.id,
         // 空串覆盖保存的地址：关掉的协议不再测
         urls: Object.fromEntries(WIRES.map((w) => [w, d.urls[w].trim()])),
-        savedKeyIds: d.keys.filter((k) => k.enabled && k.value === undefined).map((k) => k.id),
+        savedKeyIds: d.keys
+          .filter((k) => k.enabled && k.value === undefined && !freshValue(k))
+          .map((k) => k.id),
         ...(fresh.length ? { keys: fresh } : {}),
       });
       const have = new Set(d.models.map((m) => m.id));
@@ -426,6 +443,8 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
             {(readOnly ? p.keys.map((k) => ({ ...k, name: k.name ?? '' })) : d.keys).map((k, i) => {
               const view = p.keys.find((x) => x.id === k.id);
               const label = keyName({ name: k.name || view?.name }, i);
+              const replacing = 'replace' in k && k.replace !== undefined;
+              const nameIsKey = !readOnly && !!view && !replacing && looksLikeKey(k.name);
               return (
                 <div
                   key={k.id}
@@ -472,6 +491,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                     {'value' in k && typeof k.value === 'string' && (
                       <span className={styles.badgeSoft}>{t('新')}</span>
                     )}
+                    {replacing && <span className={styles.badgeSoft}>{t('待更换')}</span>}
                     <code className={styles.masked}>
                       {'value' in k && typeof k.value === 'string'
                         ? k.value.length > 8
@@ -481,6 +501,16 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                     </code>
                     {!readOnly && (
                       <>
+                        {view && (
+                          <IconButton
+                            size="sm"
+                            label={replacing ? t('取消更换 {0}', label) : t('更换 {0}', label)}
+                            icon={<Icon icon={KeyRound} size={14} />}
+                            aria-pressed={replacing}
+                            onClick={() => setKey(i, { replace: replacing ? undefined : '' })}
+                            data-testid={`pd-key-replace-${k.id}`}
+                          />
+                        )}
                         <Switch
                           checked={k.enabled}
                           onChange={(v) => setKey(i, { enabled: v })}
@@ -496,6 +526,32 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                       </>
                     )}
                   </div>
+                  {replacing && (
+                    <Input
+                      size="sm"
+                      autoFocus
+                      autoComplete="off"
+                      spellCheck={false}
+                      value={(k as KeyDraft).replace}
+                      placeholder={t('粘贴新的 Key，保存后替换 {0}', label)}
+                      onChange={(e) => setKey(i, { replace: e.target.value })}
+                      aria-label={t('{0} 的新值', label)}
+                      data-testid={`pd-key-replace-input-${k.id}`}
+                    />
+                  )}
+                  {nameIsKey && (
+                    <span className={styles.errorText} data-testid={`pd-key-name-hint-${k.id}`}>
+                      {t('名称看起来像一个 Key。名称只是备注，不会改变请求用的 Key。')}{' '}
+                      <button
+                        type="button"
+                        className={styles.linkBtn}
+                        onClick={() => setKey(i, { replace: k.name.trim(), name: '' })}
+                        data-testid={`pd-key-name-to-replace-${k.id}`}
+                      >
+                        {t('改为用它更换这个 Key')}
+                      </button>
+                    </span>
+                  )}
                   {view && !view.decryptable && (
                     <span className={styles.errorText}>{t('无法解密，请重新填写')}</span>
                   )}
