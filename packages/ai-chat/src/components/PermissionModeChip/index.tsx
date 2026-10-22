@@ -312,26 +312,32 @@ export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode
   tab,
   exitMode,
 }) => {
-  const [dismissed, setDismissed] = useState<string | null>(null);
+  /** 关掉提示的标签：离开完全放开后移除，再次进入时重新显示 */
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const [err, setErr] = useState<string | null>(null);
   const bypass = tab.permissionMode === 'bypass';
-  if (!bypass && dismissed === tab.id) setDismissed(null);
-  if (!bypass || dismissed === tab.id) return null;
+  if (!bypass && dismissed.has(tab.id))
+    setDismissed((d) => new Set([...d].filter((x) => x !== tab.id)));
+  if (!bypass && err) setErr(null);
+  if (!bypass || dismissed.has(tab.id)) return null;
   const name = tab.backend === 'nomi' ? '' : ENDPOINT_NAME[tab.backend];
   return (
     <div className={styles.tip} role="status" data-testid="permission-bypass-tip">
       <Icon icon={ShieldAlert} size={14} />
       <span className={styles.tipText}>
-        {t('完全放开：{0} 不再询问，可以修改任何文件、运行任何命令。只对当前标签生效。', name)}
+        {err ??
+          t('完全放开：{0} 不再询问，可以修改任何文件、运行任何命令。只对当前标签生效。', name)}
       </span>
       <button
         type="button"
         className={styles.tipAction}
         data-testid="permission-bypass-exit"
-        onClick={() =>
+        onClick={() => {
+          setErr(null);
           void harnessClient
             .setTabPermissionMode(tab.id, exitMode, { confirmed: false })
-            .catch(() => undefined)
-        }
+            .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+        }}
       >
         {t('退出完全放开')}
       </button>
@@ -341,7 +347,7 @@ export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode
         aria-label={t('关闭提示')}
         title={t('关闭提示')}
         data-testid="permission-bypass-tip-close"
-        onClick={() => setDismissed(tab.id)}
+        onClick={() => setDismissed((d) => new Set(d).add(tab.id))}
       >
         <Icon icon={X} size={12} />
       </button>

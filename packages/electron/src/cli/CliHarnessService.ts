@@ -1251,7 +1251,7 @@ export class CliHarnessService {
       this.acpLive.get(id)?.modeChange?.done,
     ]);
     // 切到「完全放开」后，这一轮里还在等确认的请求一并放行：不用停掉重来
-    if (r.permissionMode === 'bypass')
+    if (this.bypassInEffect(id))
       for (const requestId of [...(this.pendingPermissions.get(id)?.keys() ?? [])])
         this.replyPermission(id, requestId, true);
     return { ...this.requireTab(id), degraded: r.degraded };
@@ -2410,14 +2410,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        if (!this.allowIfBypass(tabId, ev.id))
+        this.allowIfBypass(tabId, ev.id, () =>
           this.events.emit('permission-needed', {
             tabId,
             title: tab?.title ?? 'Claude Code',
             backend: 'claude' as HarnessBackend,
             summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
             background: this.activeTabId !== tabId || !anyWindowFocused(),
-          });
+          }),
+        );
       }
       if ((ev.type === 'done' || ev.type === 'error') && turn && turn === live.auto) {
         this.finishAutoTurn(tabId, live, ev.type === 'error' ? ev.message : undefined);
@@ -2695,14 +2696,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        if (!this.allowIfBypass(tabId, ev.id))
+        this.allowIfBypass(tabId, ev.id, () =>
           this.events.emit('permission-needed', {
             tabId,
             title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
             backend: live.backend as HarnessBackend,
             summary: ev.summary,
             background: this.activeTabId !== tabId || !anyWindowFocused(),
-          });
+          }),
+        );
       }
     }
   }
@@ -3435,14 +3437,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        if (!this.allowIfBypass(tabId, ev.id))
+        this.allowIfBypass(tabId, ev.id, () =>
           this.events.emit('permission-needed', {
             tabId,
             title: tab?.title ?? 'Codex',
             backend: 'codex' as HarnessBackend,
             summary: ev.summary,
             background: this.activeTabId !== tabId || !anyWindowFocused(),
-          });
+          }),
+        );
       }
     }
   }
@@ -3755,14 +3758,15 @@ export class CliHarnessService {
           if (live) this.emitEvent(tab.id, ev);
           if (ev.type === 'permission') {
             this.armPermissionTimeout(tab.id, ev.id);
-            if (!this.allowIfBypass(tab.id, ev.id))
+            this.allowIfBypass(tab.id, ev.id, () =>
               this.events.emit('permission-needed', {
                 tabId: tab.id,
                 title: tab.title,
                 backend: tab.backend,
                 summary: ev.summary,
                 background: this.activeTabId !== tab.id || !anyWindowFocused(),
-              });
+              }),
+            );
           }
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
@@ -4006,13 +4010,30 @@ export class CliHarnessService {
   }
 
   /**
-   * 标签已是「完全放开」，CLI 却仍发来确认请求（Codex 的审批策略在开轮时定下、切换生效前的竞态等）：
-   * 直接放行，不再弹卡片和通知。卡片事件已发出，放行后随 permission-resolved 一起移除。
+   * 这个标签的「完全放开」是否已在 CLI 侧生效。长驻进程（Claude / Gemini / Grok）以进程确认过的档位为准：
+   * 切换被拒（如组织策略禁用了完全放开）或还在等确认时都不算，不能替 CLI 放行它要问的请求。
+   * Codex 每轮按标签档位下发审批策略，本轮的旧策略仍会来问，按标签档位算。
    */
-  private allowIfBypass(tabId: string, requestId: string): boolean {
-    if (this.tabs.get(tabId)?.permissionMode !== 'bypass') return false;
-    queueMicrotask(() => this.replyPermission(tabId, requestId, true));
-    return true;
+  private bypassInEffect(tabId: string): boolean {
+    const tab = this.tabs.get(tabId);
+    if (tab?.permissionMode !== 'bypass') return false;
+    const live = this.claudeLive.get(tabId) ?? this.acpLive.get(tabId);
+    if (live) return live.permissionMode === 'bypass' && !live.modeChange;
+    return tab.backend === 'codex' && this.codexLive.has(tabId);
+  }
+
+  /**
+   * 「完全放开」已生效，CLI 却仍发来确认请求（Codex 本轮的审批策略在开轮时定下等）：直接放行，
+   * 不再发通知。卡片事件已发出，放行后随 permission-resolved 一起移除；放行没写进去就照常通知。
+   */
+  private allowIfBypass(tabId: string, requestId: string, notify: () => void): void {
+    if (!this.bypassInEffect(tabId)) {
+      notify();
+      return;
+    }
+    queueMicrotask(() => {
+      if (!this.replyPermission(tabId, requestId, true)) notify();
+    });
   }
 
   private armPermissionTimeout(tabId: string, requestId: string) {

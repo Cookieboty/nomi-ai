@@ -659,7 +659,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
         <VoiceStatusRow cv={cv} />
       </div>
       <PermissionTip />
-      {viewing && <ImageLightbox image={viewing} onClose={closeViewer} />}
+      {viewing && images.some((x) => x.id === viewing.id) && (
+        <ImageLightbox image={viewing} onClose={closeViewer} />
+      )}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {

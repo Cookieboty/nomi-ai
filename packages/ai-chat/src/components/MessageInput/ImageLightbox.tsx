@@ -1,9 +1,9 @@
 /**
  * 附件图片放大查看：挂到 body 上的全屏遮罩，显示原图；点遮罩、关闭按钮或按 Esc 关闭，关闭后焦点回到缩略图。
  */
-import { Icon, t } from '@nomi-ai/ui';
+import { Icon, t, useFocusTrap } from '@nomi-ai/ui';
 import { X } from 'lucide-react';
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ImageAttachment } from '../../services/screenClient';
@@ -14,24 +14,13 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
   image,
   onClose,
 }) => {
-  const closeRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const back = document.activeElement as HTMLElement | null;
-    closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', onKey, true);
-    return () => {
-      window.removeEventListener('keydown', onKey, true);
-      back?.focus();
-    };
-  }, [onClose]);
+  const rootRef = useRef<HTMLDivElement>(null);
+  // 焦点留在遮罩里（Tab 不会跑到背后的输入框），Esc 关闭，关闭后焦点回到缩略图
+  useFocusTrap(rootRef, true, onClose);
 
   return createPortal(
     <div
+      ref={rootRef}
       className={styles.backdrop}
       role="dialog"
       aria-modal="true"
@@ -46,8 +35,8 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
         onClick={(e) => e.stopPropagation()}
       />
       <button
-        ref={closeRef}
         type="button"
+        data-autofocus
         className={styles.close}
         aria-label={t('关闭')}
         onClick={onClose}
