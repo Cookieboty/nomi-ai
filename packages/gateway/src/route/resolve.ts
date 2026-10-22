@@ -233,10 +233,18 @@ export function preferredWire(
   const routed = resolveCandidates(cfg, client, ref, c.wire);
   if (!routed.ok) return null;
   const upstreams: Array<{ providerId: string; name: string; url: string }> = [];
-  for (const x of routed.candidates) {
-    const url = x.provider.urls[x.wire] ?? '';
+  const add = (x: Candidate, url: string) => {
     if (!upstreams.some((u) => u.providerId === x.provider.id && u.url === url))
       upstreams.push({ providerId: x.provider.id, name: x.provider.name, url });
+  };
+  for (const x of routed.candidates) {
+    add(x, x.provider.urls[x.wire] ?? '');
+    // 运行时还可能换到同一个 Key 的其它协议（alternateWire / 学习重试），那些地址也可能收到请求：
+    // 按 Key 限定能走的全部地址都算上，取严（#100）
+    for (const w of Object.keys(x.provider.urls) as Wire[]) {
+      const url = x.provider.urls[w];
+      if (url && w !== x.wire && (!x.key.wire || x.key.wire === w)) add(x, url);
+    }
   }
   return { wire: c.wire, publicModel: c.publicModel, upstreams };
 }
