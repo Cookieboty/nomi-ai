@@ -154,3 +154,20 @@ textarea.mono {
   align-items: center;
   font-size: var(--cd-font-size-sm);
 }
+
+/* 工具栏：左边说明可换行，右边按钮组不换行 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+}
+.toolbarText {
+  flex: 1;
+  min-width: 0;
+}
+.toolbarActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-2);
+}

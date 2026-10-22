@@ -466,6 +466,12 @@
     padding: var(--cd-space-5) var(--cd-space-5) 40px;
   }
 }
+/* 一页里的多个 SettingsGroup 纵向排列 */
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+}
 .stackSm {
   display: flex;
   flex-direction: column;

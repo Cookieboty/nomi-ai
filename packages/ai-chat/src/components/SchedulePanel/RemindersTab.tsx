@@ -1,5 +1,5 @@
 import { t as tr } from '@nomi-ai/ui';
-import { Badge, Button, EmptyState, Input, Select } from '@nomi-ai/ui';
+import { Badge, Button, EmptyState, Input, Select, Switch } from '@nomi-ai/ui';
 import { BellRing, Repeat } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -201,10 +201,12 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
           )}
         </div>
       )}
-      <label className={styles.hint}>
-        <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />{' '}
-        {tr('显示已结束的提醒')}
-      </label>
+      <Switch
+        className={styles.listToggle}
+        checked={all}
+        onChange={setAll}
+        label={tr('显示已结束的提醒')}
+      />
       {err && <span className={styles.hint}>{err}</span>}
       {items === null ? null : items.length === 0 ? (
         <EmptyState

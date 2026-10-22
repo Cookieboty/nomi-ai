@@ -3,7 +3,7 @@
  * 下方是本地中心的日历面板（只显示日历，不带剪贴板 / 小模型标签；本地事件、导入 .ics、ICS 订阅、CalDAV：Google / iCloud）。
  * 读到的日程会进入「日程提醒」标签里的每日简报和 AI 的 calendar_list 工具。
  */
-import { Badge, Button, Input, t } from '@nomi-ai/ui';
+import { Badge, Button, Input, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { hubClient, localClient, type CalSource } from '../../services/localClient';
@@ -56,90 +56,103 @@ export const CalendarSettings: React.FC = () => {
     }
   };
 
+  const status = src && (
+    <Badge tone={src.lastError ? 'warning' : 'success'} data-testid="cal-system-status">
+      {src.lastError ? t('未连接') : t('已连接 · {0} 个日程', String(src.count ?? 0))}
+    </Badge>
+  );
+  const connect = (
+    <Button
+      type="button"
+      size="sm"
+      variant="secondary"
+      disabled={busy}
+      data-testid="cal-system-connect"
+      onClick={() => void run(() => hubClient.calSystemConnect())}
+    >
+      {src ? t('重新同步') : t('连接系统日历')}
+    </Button>
+  );
+  const supported = localClient.available() && !!info?.provider;
   return (
-    <>
-      <section className={styles.block} data-testid="settings-calendar">
-        <h2 className={styles.h2}>{t('系统日历')}</h2>
-        {!localClient.available() ? (
-          <p className={styles.muted}>{t('仅在桌面应用中提供。')}</p>
-        ) : !info?.provider ? (
-          <p className={styles.muted}>
-            {t('当前系统不支持读取系统日历，请用下方的 ICS / CalDAV。')}
+    <div className={styles.groups}>
+      <SettingsGroup
+        title={t('系统日历')}
+        description={
+          !localClient.available()
+            ? t('仅在桌面应用中提供。')
+            : !info?.provider
+              ? t('当前系统不支持读取系统日历，请用下方的 ICS / CalDAV。')
+              : t(PROVIDER_NOTE[info.provider])
+        }
+        actions={
+          supported ? (
+            <>
+              {status}
+              {connect}
+            </>
+          ) : undefined
+        }
+        data-testid="settings-calendar"
+      >
+        {supported && src?.lastError && (
+          <p className={styles.note} role="alert" data-testid="cal-system-error">
+            {src.lastError}
           </p>
-        ) : (
-          <>
-            <p className={styles.note}>{t(PROVIDER_NOTE[info.provider])}</p>
-            <div className={styles.actions}>
-              <Button
-                type="button"
-                size="sm"
-                disabled={busy}
-                data-testid="cal-system-connect"
-                onClick={() => void run(() => hubClient.calSystemConnect())}
-              >
-                {src ? t('重新同步') : t('连接系统日历')}
-              </Button>
-              {src && (
-                <Badge tone={src.lastError ? 'warning' : 'success'} data-testid="cal-system-status">
-                  {src.lastError ? t('未连接') : t('已连接 · {0} 个日程', String(src.count ?? 0))}
-                </Badge>
-              )}
-            </div>
-            {src?.lastError && (
-              <p className={styles.note} role="alert" data-testid="cal-system-error">
-                {src.lastError}
-              </p>
-            )}
-            {info.canCreate && src && !src.lastError && (
-              <div className={styles.actions}>
-                <Input
-                  size="sm"
-                  placeholder={t('新事件标题')}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  data-testid="cal-system-title"
-                />
-                <Input
-                  size="sm"
-                  type="datetime-local"
-                  value={when}
-                  onChange={(e) => setWhen(e.target.value)}
-                  data-testid="cal-system-when"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  disabled={busy || !title.trim() || !when}
-                  data-testid="cal-system-create"
-                  onClick={() =>
-                    void run(async () => {
-                      const start = new Date(when).getTime();
-                      const r = await hubClient.calSystemCreate({
-                        summary: title.trim(),
-                        start,
-                        end: start + 3_600_000,
-                      });
-                      setMsg(r.ok ? t('已创建到「{0}」', r.calendar ?? '') : t('已取消'));
-                      if (r.ok) setTitle('');
-                    })
-                  }
-                >
-                  {t('创建到系统日历（会先确认）')}
-                </Button>
-              </div>
-            )}
-            {msg && (
-              <p className={styles.muted} role="status">
-                {msg}
-              </p>
-            )}
-          </>
         )}
-      </section>
-      <section className={styles.block}>
+        {supported && info?.canCreate && src && !src.lastError && (
+          <SettingRow
+            title={t('新建系统日历事件')}
+            description={t('创建前会先请你确认；默认时长 1 小时。')}
+          >
+            <Input
+              size="sm"
+              placeholder={t('新事件标题')}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              aria-label={t('新事件标题')}
+              data-testid="cal-system-title"
+            />
+            <Input
+              size="sm"
+              type="datetime-local"
+              value={when}
+              onChange={(e) => setWhen(e.target.value)}
+              aria-label={t('开始时间')}
+              data-testid="cal-system-when"
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={busy || !title.trim() || !when}
+              data-testid="cal-system-create"
+              onClick={() =>
+                void run(async () => {
+                  const start = new Date(when).getTime();
+                  const r = await hubClient.calSystemCreate({
+                    summary: title.trim(),
+                    start,
+                    end: start + 3_600_000,
+                  });
+                  setMsg(r.ok ? t('已创建到「{0}」', r.calendar ?? '') : t('已取消'));
+                  if (r.ok) setTitle('');
+                })
+              }
+            >
+              {t('创建')}
+            </Button>
+          </SettingRow>
+        )}
+        {msg && (
+          <p className={styles.muted} role="status">
+            {msg}
+          </p>
+        )}
+      </SettingsGroup>
+      <SettingsGroup title={t('日历')}>
         <LocalPanel isVisible onClose={() => undefined} tabs={['calendar']} />
-      </section>
-    </>
+      </SettingsGroup>
+    </div>
   );
 };

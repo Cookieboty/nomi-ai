@@ -124,7 +124,6 @@
   "已连接 · {0} 个日程": "Connected · {0} events",
   "新事件标题": "New event title",
   "已创建到「{0}」": "Created in “{0}”",
-  "创建到系统日历（会先确认）": "Add to system calendar (asks first)",
   "灵动岛通知": "Dynamic Island notifications",
   "检测到刘海屏：通知会从刘海里展开，点一下打开对话。": "Notch display detected: notifications expand out of the notch; click to open chat.",
   "当前屏幕没有刘海：通知显示为屏幕顶部居中的胶囊。": "No notch on this display: notifications appear as a pill at the top centre.",

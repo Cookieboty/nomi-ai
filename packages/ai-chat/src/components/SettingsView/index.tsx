@@ -86,7 +86,8 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
     setScreenSub(sub);
     onSection(s);
   };
-  const inline = useMemo(() => ({ mode: 'inline' as const }), []);
+  // 每个分区都有统一页头（标题 + 说明），内嵌面板自己的标题只留给读屏
+  const inline = useMemo(() => ({ mode: 'inline' as const, hideTitle: true }), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // 子对话框打开时 Esc 交给它

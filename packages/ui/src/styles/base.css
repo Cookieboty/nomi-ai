@@ -754,3 +754,86 @@
   background: var(--cd-color-surface-sunken);
   font-weight: 600;
 }
+
+/* ---------- SettingsGroup / SettingRow ---------- */
+/* 设置分组：普通卡片（规范 §12：bg-surface + border-default，无明显阴影） */
+.cd-sgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-4) var(--cd-space-5);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+  color: var(--cd-color-text);
+}
+.cd-sgroup__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cd-space-4);
+}
+.cd-sgroup__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  min-width: 0;
+}
+.cd-sgroup__title {
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  line-height: var(--cd-line-height-md);
+}
+.cd-sgroup__desc {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  color: var(--cd-color-text-muted);
+}
+.cd-sgroup__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.cd-sgroup__rows {
+  display: flex;
+  flex-direction: column;
+}
+.cd-srow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-4);
+  min-height: var(--cd-control-h-md);
+  padding: var(--cd-space-2) 0;
+}
+.cd-srow + .cd-srow {
+  border-top: 1px solid var(--cd-color-border-subtle);
+}
+.cd-srow__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  min-width: 0;
+}
+.cd-srow__title {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  line-height: var(--cd-line-height-sm);
+  color: var(--cd-color-text);
+}
+.cd-srow__desc {
+  margin: 0;
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-line-height-xs);
+  color: var(--cd-color-text-muted);
+}
+.cd-srow__ctrl {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-2);
+}

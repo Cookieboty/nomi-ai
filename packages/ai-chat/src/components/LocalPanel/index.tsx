@@ -563,36 +563,39 @@ export const LocalPanel: React.FC<{
   };
   const calendar = (
     <div className={styles.stack}>
-      <div className={styles.row}>
-        <span className={styles.hint}>
+      <div className={styles.toolbar}>
+        <span className={`${styles.hint} ${styles.toolbarText}`}>
           {t('未来两周的日程，助手也能读取（工具 calendar_list），晨间简报会提到今天的安排。')}
         </span>
-        <span className={styles.grow} />
-        <Button
-          size="sm"
-          onClick={() => void run('imp', () => hubClient.calImport(), loadCal)}
-          data-testid="cal-import"
-        >
-          {t('导入 .ics')}
-        </Button>
-        <Button
-          size="sm"
-          onClick={() =>
-            setNewSrc({ kind: 'ics-url', name: '', url: '', username: '', password: '' })
-          }
-          data-testid="cal-add-source"
-        >
-          {t('订阅 / CalDAV')}
-        </Button>
-        <Button
-          size="sm"
-          variant="primary"
-          onClick={() => setNewEv({ summary: '', date: ymd, time: '10:00', mins: '60', rrule: '' })}
-          data-testid="cal-new"
-        >
-          <Icon icon={Plus} size={14} />
-          {t('新日程')}
-        </Button>
+        <span className={styles.toolbarActions}>
+          <Button
+            size="sm"
+            onClick={() => void run('imp', () => hubClient.calImport(), loadCal)}
+            data-testid="cal-import"
+          >
+            {t('导入 .ics')}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() =>
+              setNewSrc({ kind: 'ics-url', name: '', url: '', username: '', password: '' })
+            }
+            data-testid="cal-add-source"
+          >
+            {t('订阅 / CalDAV')}
+          </Button>
+          <Button
+            size="sm"
+            variant="primary"
+            onClick={() =>
+              setNewEv({ summary: '', date: ymd, time: '10:00', mins: '60', rrule: '' })
+            }
+            data-testid="cal-new"
+          >
+            <Icon icon={Plus} size={14} />
+            {t('新日程')}
+          </Button>
+        </span>
       </div>
       {newEv && (
         <div className={styles.card} data-testid="cal-editor">

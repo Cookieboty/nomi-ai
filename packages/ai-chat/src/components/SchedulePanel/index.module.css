@@ -166,3 +166,21 @@
   border-bottom: 1px solid var(--cd-color-border);
   vertical-align: top;
 }
+
+/* 设置行右侧的固定宽度控件 */
+.ctrlMd {
+  width: 220px;
+}
+.timeRange {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.timeRange input {
+  width: 110px;
+}
+/* 列表上方的小开关（显示已结束等）：右对齐，弱化 */
+.listToggle {
+  align-self: flex-end;
+  font-size: var(--cd-font-size-xs);
+}

@@ -9,7 +9,8 @@ import {
   EmptyState,
   Input,
   Modal,
-  Notice,
+  SettingRow,
+  SettingsGroup,
   Select,
   Switch,
   Tabs,
@@ -169,6 +170,39 @@ const TaskEditor: React.FC<{
   );
 };
 
+/** 「09:00 至 21:00」：两个时间输入 + 中间的连接词 */
+const TimeRange: React.FC<{
+  start: string;
+  end: string;
+  sep: string;
+  disabled?: boolean;
+  onStart: (v: string) => void;
+  onEnd: (v: string) => void;
+  testIds?: [string, string];
+}> = ({ start, end, sep, disabled, onStart, onEnd, testIds }) => (
+  <span className={styles.timeRange}>
+    <Input
+      size="sm"
+      type="time"
+      value={start}
+      disabled={disabled}
+      onChange={(e) => onStart(e.target.value)}
+      aria-label={tr('开始时间')}
+      data-testid={testIds?.[0]}
+    />
+    <span className={styles.hint}>{sep}</span>
+    <Input
+      size="sm"
+      type="time"
+      value={end}
+      disabled={disabled}
+      onChange={(e) => onEnd(e.target.value)}
+      aria-label={tr('结束时间')}
+      data-testid={testIds?.[1]}
+    />
+  </span>
+);
+
 export const SchedulePanel: React.FC<{
   isVisible: boolean;
   onClose: () => void;
@@ -278,6 +312,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </Badge>
             </div>
             <Tabs
+              variant="underline"
               value={tab}
               onChange={(v) => {
                 setTab(v as Tab);
@@ -417,21 +452,23 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             )}
 
             {tab === 'proactive' && (
-              <div className={styles.stack} data-testid="sched-proactive">
-                <Notice>
-                  {tr(
-                    '开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。',
-                  )}
-                </Notice>
-                <Switch
-                  checked={st.settings.proactive.enabled}
-                  onChange={(v) => set({ proactive: { enabled: v } })}
-                  label={tr('允许主动聊天')}
-                  data-testid="proactive-enabled"
-                />
-                <div className={styles.row}>
-                  <span className={styles.grow}>{tr('频率')}</span>
-                  <span style={{ width: 220 }}>
+              <SettingsGroup
+                title={tr('主动聊天')}
+                description={tr(
+                  '开启后，Nomi 会在你空闲时偶尔主动搭话（结合长期记忆里的话题）。默认关闭；免打扰时段、你刚聊过天或不在电脑前时不会打扰。',
+                )}
+                data-testid="sched-proactive"
+              >
+                <SettingRow title={tr('允许主动聊天')}>
+                  <Switch
+                    checked={st.settings.proactive.enabled}
+                    onChange={(v) => set({ proactive: { enabled: v } })}
+                    aria-label={tr('允许主动聊天')}
+                    data-testid="proactive-enabled"
+                  />
+                </SettingRow>
+                <SettingRow title={tr('频率')}>
+                  <span className={styles.ctrlMd}>
                     <Select
                       size="sm"
                       value={st.settings.proactive.frequency}
@@ -440,39 +477,37 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                       onChange={(e) =>
                         set({ proactive: { frequency: e.target.value as Frequency } })
                       }
+                      aria-label={tr('频率')}
                       data-testid="proactive-frequency"
                     />
                   </span>
-                </div>
-                <div className={styles.row}>
-                  <span className={styles.grow}>{tr('只在这个时段')}</span>
-                  <Input
-                    size="sm"
-                    type="time"
-                    value={st.settings.proactive.activeStart}
+                </SettingRow>
+                <SettingRow
+                  title={tr('只在这个时段')}
+                  description={tr('这个时段之外不会主动搭话。')}
+                >
+                  <TimeRange
+                    start={st.settings.proactive.activeStart}
+                    end={st.settings.proactive.activeEnd}
+                    sep={tr('至')}
                     disabled={!st.settings.proactive.enabled}
-                    onChange={(e) => set({ proactive: { activeStart: e.target.value } })}
-                    style={{ width: 110 }}
+                    onStart={(v) => set({ proactive: { activeStart: v } })}
+                    onEnd={(v) => set({ proactive: { activeEnd: v } })}
                   />
-                  <span className={styles.hint}>{tr('至')}</span>
-                  <Input
-                    size="sm"
-                    type="time"
-                    value={st.settings.proactive.activeEnd}
-                    disabled={!st.settings.proactive.enabled}
-                    onChange={(e) => set({ proactive: { activeEnd: e.target.value } })}
-                    style={{ width: 110 }}
-                  />
-                </div>
-                <div className={styles.row}>
-                  <span className={`${styles.hint} ${styles.grow}`} data-testid="proactive-gate">
-                    {st.settings.proactive.enabled
-                      ? st.proactive.gate.ok
-                        ? tr('现在可以搭话，空闲时会随机开口')
-                        : tr('暂不搭话：{0}', st.proactive.gate.reason)
-                      : tr('已关闭')}
-                    {st.proactive.lastAt ? tr(' · 上次 {0}', fmt(st.proactive.lastAt)) : ''}
-                  </span>
+                </SettingRow>
+                <SettingRow
+                  title={tr('当前状态')}
+                  description={
+                    <span data-testid="proactive-gate">
+                      {st.settings.proactive.enabled
+                        ? st.proactive.gate.ok
+                          ? tr('现在可以搭话，空闲时会随机开口')
+                          : tr('暂不搭话：{0}', st.proactive.gate.reason)
+                        : tr('已关闭')}
+                      {st.proactive.lastAt ? tr(' · 上次 {0}', fmt(st.proactive.lastAt)) : ''}
+                    </span>
+                  }
+                >
                   <Button
                     size="sm"
                     variant="secondary"
@@ -489,55 +524,54 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   >
                     {busy ? tr('想一想…') : tr('现在试一下')}
                   </Button>
-                </div>
-              </div>
+                </SettingRow>
+              </SettingsGroup>
             )}
 
             {tab === 'quiet' && (
               <div className={styles.stack} data-testid="sched-quiet">
-                <Switch
-                  checked={st.settings.quiet.enabled}
-                  onChange={(v) => set({ quiet: { enabled: v } })}
-                  label={tr('免打扰时段')}
-                  data-testid="quiet-enabled"
-                />
-                <div className={styles.row}>
-                  <span className={styles.grow}>{tr('从')}</span>
-                  <Input
-                    size="sm"
-                    type="time"
-                    value={st.settings.quiet.start}
-                    disabled={!st.settings.quiet.enabled}
-                    onChange={(e) => set({ quiet: { start: e.target.value } })}
-                    style={{ width: 110 }}
-                    data-testid="quiet-start"
-                  />
-                  <span className={styles.hint}>{tr('到')}</span>
-                  <Input
-                    size="sm"
-                    type="time"
-                    value={st.settings.quiet.end}
-                    disabled={!st.settings.quiet.enabled}
-                    onChange={(e) => set({ quiet: { end: e.target.value } })}
-                    style={{ width: 110 }}
-                    data-testid="quiet-end"
-                  />
-                </div>
-                <p className={styles.hint}>
-                  {tr(
+                <SettingsGroup
+                  title={tr('免打扰')}
+                  description={tr(
                     '免打扰期间到点的提醒会先攒着，结束后一起告诉你；定时任务照常运行，结果只写进对话窗口。支持跨午夜（如 22:30 – 08:00）。',
                   )}
-                </p>
-                <Switch
-                  checked={st.settings.osNotify}
-                  onChange={(v) => set({ osNotify: v })}
-                  label={tr('同时发送系统通知')}
-                />
-                {!st.notifySupported && (
-                  <span className={styles.hint}>
-                    {tr('当前系统不支持通知，只会在 Nomi 气泡里提醒。')}
-                  </span>
-                )}
+                >
+                  <SettingRow title={tr('免打扰时段')}>
+                    <Switch
+                      checked={st.settings.quiet.enabled}
+                      onChange={(v) => set({ quiet: { enabled: v } })}
+                      aria-label={tr('免打扰时段')}
+                      data-testid="quiet-enabled"
+                    />
+                  </SettingRow>
+                  <SettingRow title={tr('时段')}>
+                    <TimeRange
+                      start={st.settings.quiet.start}
+                      end={st.settings.quiet.end}
+                      sep={tr('到')}
+                      disabled={!st.settings.quiet.enabled}
+                      onStart={(v) => set({ quiet: { start: v } })}
+                      onEnd={(v) => set({ quiet: { end: v } })}
+                      testIds={['quiet-start', 'quiet-end']}
+                    />
+                  </SettingRow>
+                </SettingsGroup>
+                <SettingsGroup title={tr('通知')}>
+                  <SettingRow
+                    title={tr('同时发送系统通知')}
+                    description={
+                      st.notifySupported
+                        ? tr('提醒到点时，除了 Nomi 气泡也发一条系统通知。')
+                        : tr('当前系统不支持通知，只会在 Nomi 气泡里提醒。')
+                    }
+                  >
+                    <Switch
+                      checked={st.settings.osNotify}
+                      onChange={(v) => set({ osNotify: v })}
+                      aria-label={tr('同时发送系统通知')}
+                    />
+                  </SettingRow>
+                </SettingsGroup>
                 <p className={styles.hint}>
                   {tr('快捷键：')}
                   <span className={styles.kbd}>Ctrl/⌘ + Shift + D</span> {tr('打开日程 ·')}{' '}

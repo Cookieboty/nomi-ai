@@ -75,7 +75,6 @@
   "无": "None",
   "暂无活跃会话": "No active sessions",
   "免打扰时段": "Do-not-disturb hours",
-  "从": "From",
   "到": "to",
   "免打扰期间到点的提醒会先攒着，结束后一起告诉你；定时任务照常运行，结果只写进对话窗口。支持跨午夜（如 22:30 – 08:00）。": "Reminders due during do-not-disturb are held and delivered together afterwards; scheduled tasks still run, with results only written to the chat window. Spanning midnight is supported (e.g. 22:30 – 08:00).",
   "当前系统不支持通知，只会在 Nomi 气泡里提醒。": "Notifications aren't supported on this system; reminders appear only in Nomi's bubble.",

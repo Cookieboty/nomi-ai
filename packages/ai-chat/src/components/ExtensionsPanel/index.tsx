@@ -6,17 +6,26 @@ import { ErrorState, LoadingState, t as tr, Icon } from '@nomi-ai/ui';
 import {
   Badge,
   Button,
+  IconButton,
   EmptyState,
   Input,
   Modal,
   Notice,
   Select,
-  SkeletonList,
   Switch,
   Tabs,
   Textarea,
 } from '@nomi-ai/ui';
-import { Blocks, BookOpen, ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import {
+  Blocks,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -221,6 +230,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
     >
       <div className={styles.stack}>
         <Tabs<Tab>
+          variant="underline"
           items={[
             {
               value: 'mcp',
@@ -237,28 +247,29 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
 
         {list && tab === 'mcp' && (
           <div className={styles.stack}>
-            <div className={styles.row}>
-              <span className={styles.hint}>
+            <div className={styles.toolbar}>
+              <span className={`${styles.hint} ${styles.toolbarText}`}>
                 {connectedTools
                   ? tr('已向模型提供 {0} 个扩展工具', connectedTools)
                   : tr('MCP 服务器可以给助手接入新工具（文件、网页、数据库…）')}
               </span>
-              <span className={styles.grow} />
-              <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
-                {tr('从其他工具导入')}
-              </Button>
-              <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
-                {tr('导入 JSON')}
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() => setDraft(emptyDraft())}
-                data-testid="mcp-add"
-              >
-                <Icon icon={Plus} size={14} />
-                {tr('添加服务器')}
-              </Button>
+              <span className={styles.toolbarActions}>
+                <Button size="sm" onClick={() => setMigrating(true)} data-testid="migrate-open">
+                  {tr('从其他工具导入')}
+                </Button>
+                <Button size="sm" onClick={() => setImporting('')} data-testid="mcp-import-open">
+                  {tr('导入 JSON')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setDraft(emptyDraft())}
+                  data-testid="mcp-add"
+                >
+                  <Icon icon={Plus} size={14} />
+                  {tr('添加服务器')}
+                </Button>
+              </span>
             </div>
             {!list.ready && (
               <Notice tone="warning">{tr('AI 服务还在启动，连接功能稍后可用。')}</Notice>
@@ -414,39 +425,43 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
 
         {skills && tab === 'skills' && (
           <div className={styles.stack}>
-            <div className={styles.row}>
-              <span className={styles.hint}>
+            <div className={styles.toolbar}>
+              <span className={`${styles.hint} ${styles.toolbarText}`}>
                 {tr('技能是一份 SKILL.md 说明书：助手平时只看到名称和描述，用到时才读取全文。')}
               </span>
-              <span className={styles.grow} />
-              <Button size="sm" onClick={() => void extClient.skillOpen()}>
-                {tr('打开技能文件夹')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setMigrating(true)}
-                data-testid="migrate-open-skills"
-              >
-                {tr('从其他工具导入')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => void run('import', () => extClient.skillImport())}
-                data-testid="skill-import"
-              >
-                {tr('从文件夹导入')}
-              </Button>
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={() =>
-                  setSkill({ meta: { name: '', description: '' }, body: '', files: [] })
-                }
-                data-testid="skill-new"
-              >
-                <Icon icon={Plus} size={14} />
-                {tr('新建技能')}
-              </Button>
+              <span className={styles.toolbarActions}>
+                <IconButton
+                  size="sm"
+                  label={tr('打开技能文件夹')}
+                  icon={<Icon icon={FolderOpen} size={14} />}
+                  onClick={() => void extClient.skillOpen()}
+                />
+                <Button
+                  size="sm"
+                  onClick={() => setMigrating(true)}
+                  data-testid="migrate-open-skills"
+                >
+                  {tr('从其他工具导入')}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void run('import', () => extClient.skillImport())}
+                  data-testid="skill-import"
+                >
+                  {tr('从文件夹导入')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() =>
+                    setSkill({ meta: { name: '', description: '' }, body: '', files: [] })
+                  }
+                  data-testid="skill-new"
+                >
+                  <Icon icon={Plus} size={14} />
+                  {tr('新建技能')}
+                </Button>
+              </span>
             </div>
             {skills.length === 0 ? (
               <EmptyState
@@ -468,6 +483,28 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                         </Badge>
                       )}
                       {!s.error && (
+                        <IconButton
+                          size="sm"
+                          label={tr('编辑技能 {0}', s.name)}
+                          icon={<Icon icon={Pencil} size={14} />}
+                          onClick={async () =>
+                            setSkill({
+                              ...(await extClient.skillGet(s.name)),
+                              originalName: s.name,
+                            })
+                          }
+                        />
+                      )}
+                      <IconButton
+                        size="sm"
+                        label={tr('删除技能 {0}', s.name)}
+                        icon={<Icon icon={Trash2} size={14} />}
+                        onClick={() => {
+                          if (window.confirm(tr('删除技能「{0}」及其文件夹？', s.name)))
+                            void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
+                        }}
+                      />
+                      {!s.error && (
                         <Switch
                           checked={s.enabled}
                           onChange={(v) =>
@@ -484,31 +521,6 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
                       </div>
                     ) : (
                       <div className={styles.meta}>{tr(s.description)}</div>
-                    )}
-                    {!s.error && (
-                      <div className={styles.row}>
-                        <Button
-                          size="sm"
-                          onClick={async () =>
-                            setSkill({
-                              ...(await extClient.skillGet(s.name)),
-                              originalName: s.name,
-                            })
-                          }
-                        >
-                          {tr('编辑')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          onClick={() => {
-                            if (window.confirm(tr('删除技能「{0}」及其文件夹？', s.name)))
-                              void run(`d:${s.name}`, () => extClient.skillRemove(s.name));
-                          }}
-                        >
-                          {tr('删除')}
-                        </Button>
-                      </div>
                     )}
                   </div>
                 ))}

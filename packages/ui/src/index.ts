@@ -26,6 +26,8 @@ export type { EmptyStateProps } from './EmptyState';
 export { FormField } from './FormField';
 export type { FormFieldProps } from './FormField';
 export { SectionTitle } from './SectionTitle';
+export { SettingsGroup, SettingRow } from './Settings';
+export type { SettingsGroupProps, SettingRowProps } from './Settings';
 export type { SectionTitleProps } from './SectionTitle';
 export { Notice } from './Notice';
 export type { NoticeProps } from './Notice';

@@ -50,17 +50,22 @@ textarea.mono {
 }
 .card {
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
-  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  padding: var(--cd-space-3) var(--cd-space-4);
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
-  background: var(--cd-color-surface);
+  gap: var(--cd-space-1-5);
+  background: var(--cd-color-surface-raised);
+  transition: border-color var(--cd-duration-fast) var(--cd-ease);
+}
+.card:hover {
+  border-color: var(--cd-color-border-strong);
 }
 .cardHead {
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
+  min-height: var(--cd-control-h-sm);
   font-size: var(--cd-font-size-sm);
 }
 .expand {
@@ -102,16 +107,37 @@ textarea.mono {
   flex-direction: column;
   gap: var(--cd-space-1);
   text-align: left;
-  padding: var(--cd-space-3);
-  border-radius: var(--cd-radius-md);
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border-radius: var(--cd-radius-lg);
   border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-color-surface-raised);
   color: var(--cd-color-text);
   cursor: pointer;
   font: inherit;
   font-size: var(--cd-font-size-sm);
 }
-.preset:hover,
+.preset:hover {
+  border-color: var(--cd-color-border-strong);
+  background: var(--cd-color-hover);
+}
 .preset:focus-visible {
-  border-color: var(--cd-color-accent);
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+
+/* 工具栏：左边说明可换行，右边按钮组不换行 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+}
+.toolbarText {
+  flex: 1;
+  min-width: 0;
+}
+.toolbarActions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-2);
 }
