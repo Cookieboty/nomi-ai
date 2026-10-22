@@ -76,7 +76,7 @@ def split():
     assert sum(m.astype(int) for m in parts).max() == 1 and (sum(m.astype(int) for m in parts) > 0).sum() == A.sum()
 
     # Backfill targets are generous; texels that would be visible at rest (under semi-transparent
-    # layers / at window edges) are removed by the calibrated trim mask (round42_calibrate_trim.py).
+    # layers / at window edges) are removed by the calibrated trim mask (offline round42_calibrate_trim.py, removed; see git history).
     opaque = A
     def layer(m):
         o = np.zeros_like(im); o[m] = im[m]; return o
