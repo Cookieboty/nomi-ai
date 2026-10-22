@@ -183,6 +183,11 @@ const remember = (raw: ProviderState): ProviderState => {
   return s;
 };
 
+/** NOMI_PROVIDER 环境变量锁定了 provider：网关的分配不生效，实际按锁定的 provider 路由 */
+export function providerOverrideActive(): boolean {
+  return Boolean(lastState?.overrideId);
+}
+
 /** 当前生效 provider 的显示名（用于消息标签）；未知时 undefined。 */
 export function effectiveProviderLabel(): string | undefined {
   const s = lastState;

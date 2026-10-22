@@ -56,7 +56,8 @@ export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: strin
         variant="ghost"
         className={styles.picker}
         providers={providers}
-        value={nomiMainRef(state)}
+        // 锁定时不显示网关分配（实际不生效），占位显示锁定的 provider（#91）
+        value={override ? null : nomiMainRef(state)}
         onChange={(ref) => void setNomiModel(ref).catch(() => undefined)}
         disabled={Boolean(override) || !providers.length}
         placeholder={legacyLabel ?? (providers.length ? t('选择模型') : t('（未配置）'))}

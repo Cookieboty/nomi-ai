@@ -14,7 +14,11 @@ import {
   type GatewayState,
   type ProviderView,
 } from './gatewayClient';
-import { effectiveProviderLabel, providerDisplayName } from './providerClient';
+import {
+  effectiveProviderLabel,
+  providerDisplayName,
+  providerOverrideActive,
+} from './providerClient';
 
 let cached: GatewayState | null = null;
 const listeners = new Set<(s: GatewayState) => void>();
@@ -96,8 +100,9 @@ export function nomiMainRef(s: GatewayState | null): string | null {
   return env ? `${env.id}/${env.models[0]!.id}` : null;
 }
 
-/** 消息上的模型标签：网关分配优先，没有再看旧存储 */
+/** 消息上的模型标签：NOMI_PROVIDER 锁定时用锁定的 provider（#91）；否则网关分配优先，没有再看旧存储 */
 export function nomiModelLabel(): string | undefined {
+  if (providerOverrideActive()) return effectiveProviderLabel();
   const main = nomiMainRef(cached);
   if (main) return refLabel(cached, main);
   return effectiveProviderLabel();
@@ -105,6 +110,8 @@ export function nomiModelLabel(): string | undefined {
 
 /** 当前 main 模型的元数据（视觉等能力判断用）；不知道时 undefined */
 export function nomiModelMeta(): ProviderView['models'][number] | undefined {
+  // NOMI_PROVIDER 锁定时不知道实际模型的能力
+  if (providerOverrideActive()) return undefined;
   const r = splitRef(nomiMainRef(cached) ?? '');
   if (!r) return undefined;
   return cached?.providers.find((p) => p.id === r.provider)?.models.find((m) => m.id === r.model);
