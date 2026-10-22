@@ -62,8 +62,8 @@
 
 
       "features.label": "功能亮点",
-      "features.title": "一个诺米，两种用法",
-      "features.lead": "助手模式陪你日常；工作台模式管好编程助手。从云端到完全离线，按你的方式使用。",
+      "features.title": "她能帮你做什么",
+      "features.lead": "从桌面伙伴到知识库、本地模型与自动化——云端或离线，按你的方式使用。",
       "features.mascot.title": "桌面伙伴",
       "features.mascot.desc": "全身 Rive 角色：会眨眼、挥手、有表情，说话时口型同步；摸头互动、对话气泡、拖文件总结。",
       "features.chat.title": "助手模式对话",
@@ -391,8 +391,8 @@
 
 
       "features.label": "Highlights",
-      "features.title": "One Nomi, two ways",
-      "features.lead": "Assistant mode for everyday; Workbench mode for coding agents. Cloud to fully offline — your way.",
+      "features.title": "What she can do for you",
+      "features.lead": "From desktop companion to knowledge base, local models and automation — cloud or offline, your way.",
       "features.mascot.title": "Desktop companion",
       "features.mascot.desc": "A full-body Rive character that blinks, waves, emotes and lip-syncs; head pats, speech bubbles, drag files to summarize.",
       "features.chat.title": "Assistant-mode chat",
