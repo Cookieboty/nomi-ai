@@ -57,8 +57,7 @@ export const TrendChart: React.FC<{
   fmt: (v: number) => string;
   /** 费用模式取值（USD → 当前币种） */
   costOf: (usd: number) => number;
-  testId?: string;
-}> = ({ points, bucket, metric, fmt, costOf, testId = 'usage-trend' }) => {
+}> = ({ points, bucket, metric, fmt, costOf }) => {
   const [hover, setHover] = useState<number | null>(null);
   const W = 720;
   const H = 210;
@@ -79,7 +78,7 @@ export const TrendChart: React.FC<{
   const every = Math.max(1, Math.ceil(n / 8));
   const hp = hover != null ? points[hover] : undefined;
   return (
-    <div data-testid={testId}>
+    <div data-testid="usage-trend">
       <div className={styles.trendTip} aria-live="polite">
         {hp ? (
           <>

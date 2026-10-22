@@ -106,61 +106,11 @@ const BreakdownList: React.FC<{
   );
 };
 
-/**
- * 成本明细（视觉稿）：按模型列出用量 / 平均单价 / 费用 / 费用占比。
- * 单价 = 该模型本期费用 ÷ Token 数，按每 1K Token 折算（真实账本派生，不另取价目表）。
- */
-const CostTable: React.FC<{ rows: UsageBreakdownRow[]; fx: Fx }> = ({ rows, fx }) => {
-  const money = moneyOf(fx);
-  const sorted = [...rows].sort(
-    (a, b) => Number(a.hasUnpriced) - Number(b.hasUnpriced) || b.costUsd - a.costUsd,
-  );
-  const totalCost = rows.reduce((x, r) => x + r.costUsd, 0);
-  return (
-    <section className={styles.panel} data-testid="usage-cost-table-card">
-      <header className={styles.panelHead}>
-        <h3>{t('成本明细')}</h3>
-      </header>
-      {sorted.length === 0 ? (
-        <p className={styles.dim}>{t('本期没有按模型记账的调用。')}</p>
-      ) : (
-        <table className={styles.costTable} data-testid="usage-cost-table">
-          <thead>
-            <tr>
-              <th scope="col">{t('模型')}</th>
-              <th scope="col">{t('用量')}</th>
-              <th scope="col">{t('单价')}</th>
-              <th scope="col">{t('费用')}</th>
-              <th scope="col">{t('占比')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((r) => (
-              <tr key={r.key}>
-                <td title={r.key}>{r.key}</td>
-                <td>{t('{0} Tokens', formatTokens(r.tokens))}</td>
-                <td>
-                  {r.hasUnpriced || r.tokens === 0
-                    ? '—'
-                    : t('{0} / 1K', money((r.costUsd / r.tokens) * 1000))}
-                </td>
-                <td>
-                  <CostCell usd={r.hasUnpriced ? null : r.costUsd} fx={fx} />
-                </td>
-                <td>{r.hasUnpriced ? '—' : share(r.costUsd, totalCost)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
-  );
-};
-
 export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, onDay, onScan }) => {
+  const [metric, setMetric] = useState<TrendMetric>('tokens');
   const [heatMetric, setHeatMetric] = useState<TrendMetric>('tokens');
   const [dist, setDist] = useState<'source' | 'provider'>('source');
-  const [rankBy, setRankBy] = useState<'tokens' | 'cost'>('cost');
+  const [rankBy, setRankBy] = useState<'tokens' | 'cost'>('tokens');
   const [pick, setPick] = useState<string | null>(null);
   const money = moneyOf(fx);
   const costOf = (usd: number) => convert(usd, fx.currency, fx.rate);
@@ -169,22 +119,11 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
   const s = data.summary;
   const vs = data.range.id === 'today' ? t('较昨日') : t('较上一周期');
   const empty = s.calls === 0 && state.records === 0;
+  const fmtTrend = (v: number) =>
+    metric === 'tokens' ? formatTokens(v) : formatMoney(v / costOf(1), fx.currency, fx.rate);
   const fmtHeat = (v: number, m: TrendMetric) =>
     m === 'tokens' ? `${formatInt(v)} tokens` : formatMoney(v / costOf(1), fx.currency, fx.rate);
 
-  const cacheNote =
-    s.cacheRead + s.cacheWrite > 0 ? (
-      <span className={styles.dim}>
-        {t('含缓存 {0}', formatTokens(s.cacheRead + s.cacheWrite))}
-        {s.cacheHitRate != null && (
-          <span data-testid="usage-cache-hit">
-            {' · '}
-            {t('缓存命中率 {0}', share(s.cacheHitRate, 1))}
-          </span>
-        )}
-      </span>
-    ) : undefined;
-  // 视觉稿：Token 用量 / 预估费用 / 请求次数 三张卡；输入 / 输出拆分放在 Token 卡里
   const cards: Array<{
     id: string;
     label: string;
@@ -194,22 +133,6 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
     spark: number[];
     note?: React.ReactNode;
   }> = [
-    {
-      id: 'total',
-      label: t('Token 用量'),
-      value: formatTokens(s.total),
-      cur: s.total,
-      prev: data.prev.total,
-      spark: data.series.map((p) => p.tokens),
-      note: (
-        <span className={styles.dim} data-testid="usage-card-split">
-          {t('输入 {0}', formatTokens(s.input))}
-          {' · '}
-          {t('输出 {0}', formatTokens(s.output))}
-          {cacheNote && <> · {cacheNote}</>}
-        </span>
-      ),
-    },
     {
       id: 'cost',
       label: t('预估费用'),
@@ -224,12 +147,40 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
       ) : undefined,
     },
     {
-      id: 'calls',
-      label: t('请求次数'),
-      value: formatInt(s.calls),
-      cur: s.calls,
-      prev: data.prev.calls,
-      spark: data.series.map((p) => p.calls),
+      id: 'total',
+      label: t('总 Token'),
+      value: formatTokens(s.total),
+      cur: s.total,
+      prev: data.prev.total,
+      spark: data.series.map((p) => p.tokens),
+    },
+    {
+      id: 'input',
+      label: t('输入 Token'),
+      value: formatTokens(s.input),
+      cur: s.input,
+      prev: data.prev.input,
+      spark: data.series.map((p) => p.input),
+      note:
+        s.cacheRead + s.cacheWrite > 0 ? (
+          <span className={styles.dim}>
+            {t('含缓存 {0}', formatTokens(s.cacheRead + s.cacheWrite))}
+            {s.cacheHitRate != null && (
+              <span data-testid="usage-cache-hit">
+                {' · '}
+                {t('缓存命中率 {0}', share(s.cacheHitRate, 1))}
+              </span>
+            )}
+          </span>
+        ) : undefined,
+    },
+    {
+      id: 'output',
+      label: t('输出 Token'),
+      value: formatTokens(s.output),
+      cur: s.output,
+      prev: data.prev.output,
+      spark: data.series.map((p) => p.output),
     },
   ];
 
@@ -290,32 +241,31 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
         ))}
       </div>
 
-      <div className={styles.two}>
-        {(['tokens', 'cost'] as const).map((m) => (
-          <section
-            key={m}
-            className={styles.panel}
-            data-testid={m === 'tokens' ? 'usage-trend-card' : 'usage-cost-trend-card'}
-          >
-            <header className={styles.panelHead}>
-              <h3>{m === 'tokens' ? t('Token 用量趋势') : t('费用趋势')}</h3>
-              <span className={styles.dim}>
-                {data.range.bucket === 'hour' ? t('按小时') : t('按天')}
-              </span>
-            </header>
-            <TrendChart
-              testId={m === 'tokens' ? 'usage-trend' : 'usage-cost-trend'}
-              points={data.series}
-              bucket={data.range.bucket}
-              metric={m}
-              fmt={(v) =>
-                m === 'tokens' ? formatTokens(v) : formatMoney(v / costOf(1), fx.currency, fx.rate)
-              }
-              costOf={costOf}
-            />
-          </section>
-        ))}
-      </div>
+      <section className={styles.panel} data-testid="usage-trend-card">
+        <header className={styles.panelHead}>
+          <h3>{t('趋势')}</h3>
+          <span className={styles.dim}>
+            {data.range.bucket === 'hour' ? t('按小时') : t('按天')}
+          </span>
+          <Tabs
+            className={styles.tabsSm}
+            value={metric}
+            onChange={setMetric}
+            aria-label={t('趋势指标')}
+            items={[
+              { value: 'tokens', label: 'Token' },
+              { value: 'cost', label: t('费用') },
+            ]}
+          />
+        </header>
+        <TrendChart
+          points={data.series}
+          bucket={data.range.bucket}
+          metric={metric}
+          fmt={fmtTrend}
+          costOf={costOf}
+        />
+      </section>
 
       <div className={styles.two}>
         <section className={styles.panel}>
@@ -340,23 +290,21 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
         </section>
         <section className={styles.panel}>
           <header className={styles.panelHead}>
-            <h3>{t('按模型费用')}</h3>
+            <h3>{t('模型排行')}</h3>
             <Tabs
               className={styles.tabsSm}
               value={rankBy}
               onChange={setRankBy}
               aria-label={t('排序依据')}
               items={[
-                { value: 'cost', label: t('费用') },
                 { value: 'tokens', label: 'Token' },
+                { value: 'cost', label: t('费用') },
               ]}
             />
           </header>
           <BreakdownList rows={data.byModel} by="model" fx={fx} limit={10} rankBy={rankBy} />
         </section>
       </div>
-
-      <CostTable rows={data.byModel} fx={fx} />
 
       <section className={styles.panel} data-testid="usage-heat-card">
         <header className={styles.panelHead}>
