@@ -230,21 +230,31 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           </button>
         ))}
       </nav>
-      <main className={styles.content}>
+      <main className={styles.content} aria-label={t(current.label)}>
         <div className={styles.inner}>
-          <header className={styles.pageHead} data-testid="settings-page-head">
-            <h1 className={styles.pageTitle}>{t(current.label)}</h1>
-            <p className={styles.pageIntro}>{t(current.intro)}</p>
-            {/* 纯装饰：看板娘插画（视觉稿页头右侧）；不可交互、读屏忽略，窄窗口缩小 / 隐藏 */}
-            <img
-              src="./brand/nomi-header.webp"
-              alt=""
-              aria-hidden="true"
-              className={styles.pageArt}
-              data-testid="settings-page-art"
-              draggable={false}
-            />
-          </header>
+          {section === 'general' ? (
+            <>
+              {/* 「通用」页顶部横幅（纯装饰，读屏忽略）；分区名只给读屏 */}
+              <img
+                src="./brand/nomi-banner.webp"
+                alt=""
+                aria-hidden="true"
+                className={styles.banner}
+                data-testid="settings-banner"
+                draggable={false}
+              />
+              <h1 className={styles.srOnly} data-testid="settings-section-title">
+                {t(current.label)}
+              </h1>
+            </>
+          ) : (
+            <header className={styles.pageHead} data-testid="settings-page-head">
+              <h1 className={styles.pageTitle} data-testid="settings-section-title">
+                {t(current.label)}
+              </h1>
+              <p className={styles.pageIntro}>{t(current.intro)}</p>
+            </header>
+          )}
           <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
         </div>
       </main>

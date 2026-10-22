@@ -97,21 +97,28 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(s.getByTestId('settings-calendar')).toBeTruthy();
   });
 
-  it('v1.1.1 视觉稿：侧栏品牌头、页头装饰，右侧每个分区统一页头（标题 + 说明）', () => {
+  it('侧栏品牌头；「通用」顶部是横幅且无可见页头；其余分区有标题 + 说明、无横幅', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     expect(r.getByTestId('settings-brand').textContent).toContain('Nomi · 诺米');
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
-    const art = r.getByTestId('settings-page-art');
-    expect(art.getAttribute('aria-hidden')).toBe('true');
-    expect(art.tagName).toBe('IMG');
-    expect(art.getAttribute('alt')).toBe('');
-    expect(art.getAttribute('src')).toContain('nomi-header.webp');
+    const banner = r.getByTestId('settings-banner');
+    expect(banner.tagName).toBe('IMG');
+    expect(banner.getAttribute('aria-hidden')).toBe('true');
+    expect(banner.getAttribute('alt')).toBe('');
+    expect(banner.getAttribute('src')).toContain('nomi-banner.webp');
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
-      const head = r.getByTestId('settings-page-head');
-      expect(head.querySelector('h1')!.textContent).toBe(s.label);
-      expect(head.querySelector('p')!.textContent).toBe(s.intro);
-      expect(s.intro.length).toBeGreaterThan(0);
+      expect(r.getByTestId('settings-section-title').textContent).toBe(s.label);
+      expect(r.getByRole('main').getAttribute('aria-label')).toBe(s.label);
+      const general = s.id === 'general';
+      expect(r.queryAllByTestId('settings-banner')).toHaveLength(general ? 1 : 0);
+      if (general) {
+        expect(r.queryByTestId('settings-page-head')).toBeNull();
+      } else {
+        const head = r.getByTestId('settings-page-head');
+        expect(head.querySelector('h1')!.textContent).toBe(s.label);
+        expect(head.querySelector('p')!.textContent).toBe(s.intro);
+      }
     }
   });
 

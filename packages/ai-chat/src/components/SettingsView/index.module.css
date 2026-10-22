@@ -371,49 +371,9 @@
   transition: width 0.2s ease;
 }
 
-/* 页头：每个分区统一「大标题 + 一句说明」（视觉稿） */
+/* 页头：除「通用」外每个分区「大标题 + 一句说明」 */
 .pageHead {
-  position: relative;
   margin: 0 0 var(--cd-space-5);
-  /* 给右侧插画留出位置，标题 / 说明不会被压住 */
-  padding-right: 290px;
-  min-height: 170px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.pageArt {
-  position: absolute;
-  top: -14px;
-  right: -16px;
-  width: 270px;
-  height: 185px;
-  object-fit: contain;
-  pointer-events: none;
-  user-select: none;
-  /* 插画自带柔边透明；再用椭圆渐隐把四周融进页面底色，不留矩形边 */
-  -webkit-mask-image: radial-gradient(ellipse 58% 62% at 58% 46%, #000 58%, transparent 100%);
-  mask-image: radial-gradient(ellipse 58% 62% at 58% 46%, #000 58%, transparent 100%);
-}
-@media (max-width: 1080px) {
-  .pageHead {
-    padding-right: 210px;
-    min-height: 130px;
-  }
-  .pageArt {
-    width: 200px;
-    height: 137px;
-    top: -10px;
-  }
-}
-@media (max-width: 860px) {
-  .pageHead {
-    padding-right: 0;
-    min-height: 0;
-  }
-  .pageArt {
-    display: none;
-  }
 }
 .pageTitle {
   font: var(--cd-text-display);
@@ -425,6 +385,18 @@
   font-size: var(--cd-font-size-sm);
   line-height: 1.6;
   color: var(--cd-color-text-muted);
+}
+/* 「通用」页顶部横幅：整幅原图，随内容宽度等比缩放，圆角与卡片一致 */
+.banner {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2048 / 768;
+  margin: 0 0 var(--cd-space-4);
+  border-radius: var(--cd-radius-lg);
+  border: 1px solid var(--cd-color-border);
+  pointer-events: none;
+  user-select: none;
 }
 @media (max-width: 760px) {
   .nav {

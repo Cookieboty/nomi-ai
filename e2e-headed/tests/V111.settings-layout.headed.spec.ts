@@ -10,7 +10,7 @@ import { safeRm } from '../fixtures/fsutil';
 
 /**
  * v1.1.1 设置页视觉稿（真实应用，日落橙默认主题）：
- * 侧栏品牌头 + 12 个分区；页头右侧看板娘装饰；每个分区右侧统一页头（标题 + 说明）；
+ * 侧栏品牌头 + 12 个分区；「通用」顶部装饰横幅（无可见页头），其余分区标题 + 说明；每个分区右侧统一页头（标题 + 说明）；
  * 快捷键页「应用内 / 全局」标签；编程助手页顶部为助手卡片。
  * 设 V111_SHOTS_DIR 时把每个分区截图存进去。
  */
@@ -102,19 +102,23 @@ test.describe('v1.1.1 settings layout', () => {
 
     for (const [id, label] of SECTIONS) {
       await chat.locator(`[data-testid="settings-nav-${id}"]`).click();
-      const head = chat.locator('[data-testid="settings-page-head"]');
-      await expect(head.locator('h1')).toHaveText(label);
-      await expect(head.locator('p')).not.toBeEmpty();
-      // 装饰图不与标题 / 说明重叠，且不吃点击
-      const art = await chat.locator('[data-testid="settings-page-art"]').boundingBox();
-      const intro = await head.locator('p').boundingBox();
-      const title = await head.locator('h1').boundingBox();
-      expect(art).not.toBeNull();
-      for (const b of [intro!, title!]) expect(b.x + b.width).toBeLessThanOrEqual(art!.x + 1);
-      await expect(chat.locator('[data-testid="settings-page-art"]')).toHaveCSS(
-        'pointer-events',
-        'none',
-      );
+      await expect(chat.locator('[data-testid="settings-section-title"]')).toHaveText(label);
+      // 横幅只在「通用」：铺满内容宽度、保持 2048:768 比例、不吃点击
+      const banner = chat.locator('[data-testid="settings-banner"]');
+      if (id === 'general') {
+        await expect(banner).toHaveCSS('pointer-events', 'none');
+        await expect
+          .poll(() => banner.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+          .toBe(2048);
+        const bb = (await banner.boundingBox())!;
+        expect(Math.abs(bb.width / bb.height - 2048 / 768)).toBeLessThan(0.03);
+        await expect(chat.locator('[data-testid="settings-page-head"]')).toHaveCount(0);
+      } else {
+        await expect(banner).toHaveCount(0);
+        const head = chat.locator('[data-testid="settings-page-head"]');
+        await expect(head.locator('h1')).toHaveText(label);
+        await expect(head.locator('p')).not.toBeEmpty();
+      }
       await shot(`settings-${id}`);
     }
 
