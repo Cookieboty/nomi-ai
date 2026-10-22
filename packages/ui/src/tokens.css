@@ -342,43 +342,43 @@
 /* D · Sunset Orange 日落橙：暖杏浅底（对齐 sunset 图标 #FFF6EC）+ 鲜明品牌橙默认强调 */
 [data-theme='sunset'] {
   color-scheme: light;
-  --cd-color-bg: #fff6ec;
-  --cd-color-bg-gradient: #fff6ec;
-  --cd-color-surface: #ffefe3;
+  --cd-color-bg: #fff9f1; /* 视觉稿「页面背景」 */
+  --cd-color-bg-gradient: #fff9f1;
+  --cd-color-surface: #fffcf8;
   --cd-color-surface-raised: #fffbf7;
-  --cd-color-surface-sunken: #f8e0cc;
-  --cd-color-border: rgba(61, 41, 24, 0.1);
+  --cd-color-surface-sunken: #f8ece1; /* 视觉稿「卡片背景」 */
+  --cd-color-border: #e8d9ca; /* 视觉稿「边框」 */
   --cd-color-border-strong: rgba(61, 41, 24, 0.27);
-  --cd-color-text: #3d2918;
+  --cd-color-text: #45352b; /* 视觉稿「主文字」 */
   --cd-color-text-muted: #55402f;
-  --cd-color-text-subtle: #6e5a48;
+  --cd-color-text-subtle: #6e5a48; /* 视觉稿「次级文字」#8B7869 正文对比度不足 4.5:1，文字保留加深值 */
   --cd-color-text-on-accent: #2a211a;
-  --cd-accent-rgb: 251, 148, 102; /* Nomi Orange #FB9466 */
+  --cd-accent-rgb: 239, 160, 111; /* 视觉稿「主色橙」#EFA06F */
   --cd-accent-2-rgb: 253, 186, 148;
   --cd-accent-3-rgb: 242, 133, 85;
-  --cd-color-accent: #fb9466;
-  --cd-color-accent-hover: #f17f4e;
+  --cd-color-accent: #efa06f;
+  --cd-color-accent-hover: #e98d55;
   --cd-color-accent-2: #fdba94;
   --cd-color-accent-3: #f28555;
-  --cd-color-accent-strong: #9c3d12; /* 深橙棕：浅色底上文字 / 链接 / 图标 ≥ 4.7:1 */
+  --cd-color-accent-strong: #9c3d12; /* 深橙棕：视觉稿「强调棕」#A9471D 在侧栏悬停底上 < 4.5:1，文字用加深值 */
   --cd-color-selected-bg: rgba(var(--cd-accent-rgb), 0.28);
   --cd-color-selected-text: var(--cd-color-text); /* 深棕字 on 暖橙淡底（≥ 8:1） */
   --cd-chart-1: #d4551f;
   --cd-chart-2: #8c6a4f;
   --cd-chart-3: #b7791f;
-  --cd-color-accent-soft: rgba(251, 148, 102, 0.14);
-  --cd-color-success: #166a3f;
-  --cd-color-success-soft: rgba(22, 106, 63, 0.1);
-  --cd-color-warning: #8a4f05;
-  --cd-color-warning-soft: rgba(138, 79, 5, 0.1);
-  --cd-color-danger: #c4302b;
-  --cd-color-danger-soft: rgba(196, 48, 43, 0.08);
+  --cd-color-accent-soft: rgba(239, 160, 111, 0.14);
+  --cd-color-success: #166a3f; /* 文字用加深值；视觉稿原色见 --cd-palette-success */
+  --cd-color-success-soft: rgba(39, 134, 91, 0.1);
+  --cd-color-warning: #8a4f05; /* 文字用加深值；视觉稿原色见 --cd-palette-warning */
+  --cd-color-warning-soft: rgba(200, 134, 43, 0.1);
+  --cd-color-danger: #c94a36;
+  --cd-color-danger-soft: rgba(201, 74, 54, 0.08);
   --cd-color-danger-text: #b42318;
   --cd-color-overlay: rgba(61, 41, 24, 0.32);
   --cd-color-hover: rgba(61, 41, 24, 0.045);
   --cd-color-active: rgba(61, 41, 24, 0.08);
-  --cd-color-bg-subtle: #f8e0cc;
-  --cd-color-user-msg: #f8e0cc;
+  --cd-color-bg-subtle: #f6dfcc; /* 视觉稿「侧边栏」 */
+  --cd-color-user-msg: #f8ece1;
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
   --cd-app-glow: none;
@@ -389,7 +389,10 @@
   --cd-focus-ring: 0 0 0 2px rgba(156, 61, 18, 0.8);
   --cd-bubble-bg: rgba(255, 251, 247, 0.97);
   --cd-bubble-border: rgba(61, 41, 24, 0.1);
-  --cd-bubble-text: #3d2918;
+  --cd-bubble-text: #45352b;
   --cd-bubble-link: #9c3d12;
   --cd-bubble-shadow: 0 6px 20px rgba(61, 41, 24, 0.12);
+  /* 视觉稿 v1.1.1 原色（强调棕 / 成功绿）：只用于强调条、状态点等非正文填充（≥ 3:1） */
+  --cd-palette-accent: #a9471d;
+  --cd-palette-success: #27865b;
 }
