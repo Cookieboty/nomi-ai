@@ -103,8 +103,9 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
     const art = r.getByTestId('settings-page-art');
     expect(art.getAttribute('aria-hidden')).toBe('true');
-    expect(art.textContent).toContain('Nomi!');
-    expect(art.querySelector('img')!.getAttribute('alt')).toBe('');
+    expect(art.tagName).toBe('IMG');
+    expect(art.getAttribute('alt')).toBe('');
+    expect(art.getAttribute('src')).toContain('nomi-header.webp');
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
       const head = r.getByTestId('settings-page-head');

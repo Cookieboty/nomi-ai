@@ -375,64 +375,35 @@
 .pageHead {
   position: relative;
   margin: 0 0 var(--cd-space-5);
-  /* 给右侧装饰留出位置，标题 / 说明不会被压住 */
-  padding-right: 200px;
-  min-height: 96px;
+  /* 给右侧插画留出位置，标题 / 说明不会被压住 */
+  padding-right: 290px;
+  min-height: 170px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .pageArt {
   position: absolute;
-  top: -12px;
-  right: 0;
-  width: 180px;
-  height: 108px;
+  top: -14px;
+  right: -16px;
+  width: 270px;
+  height: 185px;
+  object-fit: contain;
   pointer-events: none;
   user-select: none;
+  /* 插画自带柔边透明；再用椭圆渐隐把四周融进页面底色，不留矩形边 */
+  -webkit-mask-image: radial-gradient(ellipse 58% 62% at 58% 46%, #000 58%, transparent 100%);
+  mask-image: radial-gradient(ellipse 58% 62% at 58% 46%, #000 58%, transparent 100%);
 }
-.pageArtImg {
-  position: absolute;
-  right: 36px;
-  bottom: 0;
-  width: 104px;
-  height: 104px;
-  border-radius: 50%;
-  object-fit: cover;
-  -webkit-mask-image: radial-gradient(circle, #000 62%, transparent 72%);
-  mask-image: radial-gradient(circle, #000 62%, transparent 72%);
-}
-.bubble {
-  position: absolute;
-  padding: 3px 10px;
-  border-radius: var(--cd-radius-full);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-raised);
-  box-shadow: var(--cd-shadow-sm);
-  color: var(--cd-color-accent-strong);
-  font-size: var(--cd-font-size-xs);
-  font-weight: var(--cd-font-weight-bold);
-  white-space: nowrap;
-  animation: bubbleFloat 3.6s ease-in-out infinite;
-}
-.bubbleA {
-  left: 0;
-  top: 34px;
-}
-.bubbleB {
-  right: 0;
-  top: 4px;
-  animation-delay: -1.8s;
-}
-@keyframes bubbleFloat {
-  0%,
-  100% {
-    transform: translateY(0);
+@media (max-width: 1080px) {
+  .pageHead {
+    padding-right: 210px;
+    min-height: 130px;
   }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bubble {
-    animation: none;
+  .pageArt {
+    width: 200px;
+    height: 137px;
+    top: -10px;
   }
 }
 @media (max-width: 860px) {

@@ -235,12 +235,15 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <header className={styles.pageHead} data-testid="settings-page-head">
             <h1 className={styles.pageTitle}>{t(current.label)}</h1>
             <p className={styles.pageIntro}>{t(current.intro)}</p>
-            {/* 纯装饰：看板娘头像 + 气泡（视觉稿）；不可交互、读屏忽略，窄窗口隐藏 */}
-            <div className={styles.pageArt} aria-hidden="true" data-testid="settings-page-art">
-              <img src="./brand/nomi-thumb.png" alt="" className={styles.pageArtImg} />
-              <span className={`${styles.bubble} ${styles.bubbleA}`}>Nomi!</span>
-              <span className={`${styles.bubble} ${styles.bubbleB}`}>{t('有我在～')}</span>
-            </div>
+            {/* 纯装饰：看板娘插画（视觉稿页头右侧）；不可交互、读屏忽略，窄窗口缩小 / 隐藏 */}
+            <img
+              src="./brand/nomi-header.webp"
+              alt=""
+              aria-hidden="true"
+              className={styles.pageArt}
+              data-testid="settings-page-art"
+              draggable={false}
+            />
           </header>
           <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
         </div>
