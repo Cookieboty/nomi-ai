@@ -414,6 +414,38 @@ describe('CliHarnessService model / effort overrides', () => {
       });
     });
 
+    it('第三方 Claude 换主模型：档位变量跟着变就重启，档位单独指定时 set_model 原地切换（#99）', async () => {
+      const run = async (follow: boolean) => {
+        const boot = path.join(root, `claude-boot-${follow}.log`);
+        const control = path.join(root, `claude-control-${follow}.log`);
+        process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+        process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+        const gateway: HarnessGateway = {
+          ...fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,
+          launch: (_kind, _tabId, model) => ({
+            env: {
+              ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
+              ANTHROPIC_DEFAULT_OPUS_MODEL: follow ? model : 'gw/fixed',
+            },
+            args: [],
+            strip: [],
+          }),
+        };
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'claude' });
+        h.setTabModel(tab.id, 'gw/a');
+        await h.sendTab(tab.id, 'one');
+        h.setTabModel(tab.id, 'gw/b');
+        await h.sendTab(tab.id, 'two');
+        const boots = fs.readFileSync(boot, 'utf8').trim().split('\n');
+        const sent = fs.existsSync(control) ? fs.readFileSync(control, 'utf8').trim() : '';
+        h.dispose();
+        return { boots: boots.length, setModel: sent.includes('set_model gw/b') };
+      };
+      expect(await run(true)).toEqual({ boots: 2, setModel: false });
+      expect(await run(false)).toEqual({ boots: 1, setModel: true });
+    }, 30_000);
+
     it('新标签按「新标签默认用」：第三方时没选模型就用分配的模型', async () => {
       const h = mk({
         gateway: fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,

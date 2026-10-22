@@ -138,6 +138,11 @@ interface TabLaunch {
   modelInConfig: boolean;
   /** 长驻进程复用键的一部分 */
   sig: string;
+  /**
+   * 跟着模型走的辅助变量（Claude 的各档位 / 小模型 / 子代理模型）。只换主模型时 set_model 改不到它们，
+   * 变了就要重启进程（#99）；与 sig 分开，后台任务还在跑时可以先沿用旧进程。
+   */
+  modelSig: string;
 }
 
 const OFFICIAL_LAUNCH: TabLaunch = {
@@ -147,6 +152,7 @@ const OFFICIAL_LAUNCH: TabLaunch = {
   official: true,
   modelInConfig: false,
   sig: 'official',
+  modelSig: '',
 };
 
 /** 第三方来源在 modelScope / modelByScope 里的键 */
@@ -1564,15 +1570,16 @@ export class CliHarnessService {
         official: true,
         modelInConfig: false,
         sig: 'official',
+        modelSig: '',
       };
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
     const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
     if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
     const modelInConfig = Boolean(l.modelInConfig);
-    const stable = Object.fromEntries(
-      Object.entries(l.env).filter(([k]) => modelInConfig || !/MODEL/.test(k)),
-    );
+    const byModel = (k: string) => !modelInConfig && /MODEL/.test(k);
+    const stable = Object.fromEntries(Object.entries(l.env).filter(([k]) => !byModel(k)));
+    const aux = Object.fromEntries(Object.entries(l.env).filter(([k]) => byModel(k)));
     return {
       env: l.env,
       args: l.args,
@@ -1580,6 +1587,7 @@ export class CliHarnessService {
       official: false,
       modelInConfig,
       sig: JSON.stringify(['thirdParty', stable, l.args, modelInConfig ? model : '']),
+      modelSig: JSON.stringify(aux),
     };
   }
 
@@ -2183,6 +2191,14 @@ export class CliHarnessService {
     if (!live || live.turn || live.auto) return;
     const o = this.effectiveOverrides(tab);
     if (live.modelOverride === o.model || live.reasoningEffort !== o.effort) return;
+    // 档位 / 小模型等辅助变量也跟着变了（没单独指定、跟随主模型）：set_model 改不到，交给重启（#99）
+    let modelSig: string;
+    try {
+      modelSig = this.launchFor(tab).modelSig;
+    } catch {
+      return;
+    }
+    if (modelSig !== live.modelSig) return;
     try {
       await this.requestClaudeControl(live, { subtype: 'set_model', model: o.model ?? 'default' });
       if (this.claudeLive.get(tab.id) === live) live.modelOverride = o.model;
@@ -2211,7 +2227,8 @@ export class CliHarnessService {
       // 只差模型 / 思考深度时，后台任务还在跑就先沿用旧进程（拆了会杀掉后台子代理），
       // 等后台结束后的下一条消息再按新参数重启
       ((existing.modelOverride === overrides.model &&
-        existing.reasoningEffort === overrides.effort) ||
+        existing.reasoningEffort === overrides.effort &&
+        existing.modelSig === launch.modelSig) ||
         claudeBackgroundActive(existing)) &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
@@ -2259,6 +2276,7 @@ export class CliHarnessService {
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
       launchSig: launch.sig,
+      modelSig: launch.modelSig,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -4306,6 +4324,8 @@ function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
 type ClaudeLiveSession = {
   /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
   launchSig: string;
+  /** 启动时的 TabLaunch.modelSig */
+  modelSig: string;
   child: ChildProcessWithoutNullStreams;
   parseLine: (line: string) => HarnessEvent[];
   buf: string;
