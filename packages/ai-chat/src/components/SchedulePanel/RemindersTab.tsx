@@ -245,7 +245,7 @@ export const RemindersTab: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }
                   {r.status === 'pending' && (
                     <Button
                       size="sm"
-                      variant="danger"
+                      variant="secondary"
                       onClick={() => void desktopClient.cancelReminder(r.id)}
                     >
                       {r.repeat ? tr('停止') : tr('取消')}

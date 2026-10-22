@@ -25,13 +25,9 @@
   "搜索…": "Search…",
   "无匹配项": "No matches",
   "Warm Ink 暖墨": "Warm Ink",
-  "暖中性暗色 + Nomi 品牌橙": "Warm neutral dark + Nomi orange",
   "Graphite 石墨": "Graphite",
-  "中性暗色 + 低饱和靛蓝": "Neutral dark + muted indigo",
   "Cream 奶油": "Cream",
-  "品牌奶油浅色 + 暖棕与橙": "Brand cream light + warm brown & orange",
   "Cool Mist 冷雾": "Cool Mist",
-  "冷灰蓝底 + 青蓝强调": "Cool gray-blue + cyan accent",
   "跟随系统": "Follow system",
   "深色 → 石墨 · 浅色 → 奶油": "Dark → Graphite · Light → Cream",
   "选择界面语言": "Choose your language",
@@ -222,7 +218,6 @@
   "关闭右侧标签": "Close tabs to the right",
   "下一个标签": "Next tab",
   "Sunset Orange 日落橙（默认）": "Sunset Orange (default)",
-  "暖杏浅底 + Nomi 品牌橙": "Warm apricot light + Nomi orange",
   "启动 Nomi 后先看到什么？": "What should you see when Nomi starts?",
   "每次启动，是先让我出现在桌面上，还是直接打开主界面？之后都能改哦。": "Should I show up on your desktop first, or should Nomi open the main window directly? You can change it any time.",
   "以看板娘方式打开": "Open with the mascot",
@@ -252,5 +247,10 @@
   "立即更新窗口、正在运行的任务栏按钮和托盘图标。已固定到任务栏的图标由系统缓存，可能要重启应用后才更新（个别情况需取消固定后重新固定）；安装包、可执行文件和开始菜单 / 桌面快捷方式始终为默认墨色。": "Updates the window, the running taskbar button and the tray icon right away. A taskbar pin is cached by Windows and may only change after you restart the app (sometimes you need to unpin and pin it again). The installer, executable and Start-menu / desktop shortcuts always keep the default ink icon.",
   "选一个喜欢的声音": "Pick a voice you like",
   "想让我用什么样的声音和你说话？点一下就能试听，之后也能随时改。": "How should I sound when I talk to you? Tap to preview — you can change it any time.",
-  "重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。": "Walk through it again: language, theme, startup view, voice, how she addresses you and her tone, model provider, and privacy."
+  "重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。": "Walk through it again: language, theme, startup view, voice, how she addresses you and her tone, model provider, and privacy.",
+  "暖奶油底 + 日落橙，品牌主主题": "Warm cream with sunset orange — the signature theme",
+  "深咖啡底 + 日落橙，温暖的深色主题": "Deep coffee with sunset orange — a warm dark theme",
+  "中性炭黑 + 靛蓝，技术型深色主题": "Neutral charcoal with indigo — a technical dark theme",
+  "奶油白 + 柔和桃色，最轻盈的浅色主题": "Cream white with soft peach — the lightest theme",
+  "冷灰浅底 + 雾蓝，清爽低刺激": "Cool grey with mist blue — clear and calm"
 }

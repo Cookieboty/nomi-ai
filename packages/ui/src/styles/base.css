@@ -7,10 +7,10 @@
   gap: var(--cd-space-1);
   height: 32px;
   padding: 0 var(--cd-space-3);
-  border: 1px solid var(--cd-color-border);
+  border: 1px solid var(--cd-color-btn-secondary-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface);
-  color: var(--cd-color-text);
+  background: var(--cd-color-btn-secondary-bg);
+  color: var(--cd-color-btn-secondary-text);
   font: inherit;
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
@@ -18,17 +18,21 @@
   cursor: pointer;
   transition: var(--cd-transition);
 }
+/* 次按钮：悬停 bg-surface-hover + 强边框，按下 bg-selected（规范 §9.1） */
 .cd-btn:hover:not(:disabled) {
   border-color: var(--cd-color-border-strong);
-  background: var(--cd-color-surface-raised);
-  color: var(--cd-color-accent-strong);
+  background: var(--cd-color-hover);
+}
+.cd-btn:active:not(:disabled) {
+  background: var(--cd-color-active);
 }
 .cd-btn:focus-visible {
   outline: none;
   box-shadow: var(--cd-focus-ring);
 }
 .cd-btn:disabled {
-  opacity: 0.5;
+  border-color: var(--cd-color-border-subtle);
+  color: var(--cd-color-disabled-text);
   cursor: not-allowed;
 }
 .cd-btn--sm {
@@ -45,13 +49,20 @@
   background: var(--cd-color-accent);
   border-color: transparent;
   color: var(--cd-color-text-on-accent);
-  box-shadow: var(--cd-shadow-sm);
 }
 .cd-btn--primary:hover:not(:disabled) {
   background: var(--cd-color-accent-hover);
   color: var(--cd-color-text-on-accent);
-  box-shadow: var(--cd-shadow-sm);
   border-color: transparent;
+}
+.cd-btn--primary:active:not(:disabled) {
+  background: var(--cd-color-accent-pressed);
+}
+.cd-btn--primary:disabled,
+.cd-btn--danger:disabled {
+  background: var(--cd-color-disabled-bg);
+  border-color: transparent;
+  color: var(--cd-color-disabled-text);
 }
 .cd-btn--ghost {
   background: transparent;
@@ -64,14 +75,25 @@
   border-color: transparent;
   color: var(--cd-color-text);
 }
+.cd-btn--ghost:active:not(:disabled) {
+  background: var(--cd-color-active);
+}
+.cd-btn--ghost:disabled {
+  border-color: transparent;
+}
+/* 危险按钮：实底白字（规范 §9.1），只用于删除、清除等不可撤销的动作 */
 .cd-btn--danger {
-  color: var(--cd-color-danger);
-  border-color: color-mix(in srgb, var(--cd-color-danger) 35%, transparent);
+  background: var(--cd-color-danger-fill);
+  border-color: transparent;
+  color: var(--cd-color-text-on-danger);
 }
 .cd-btn--danger:hover:not(:disabled) {
-  background: var(--cd-color-danger-soft);
-  border-color: var(--cd-color-danger);
-  color: var(--cd-color-danger);
+  background: var(--cd-color-danger-fill-hover);
+  border-color: transparent;
+  color: var(--cd-color-text-on-danger);
+}
+.cd-btn--danger:active:not(:disabled) {
+  background: var(--cd-color-danger-fill-pressed);
 }
 .cd-btn--block {
   width: 100%;
@@ -102,7 +124,7 @@
   padding: 0 var(--cd-space-3);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  background: var(--cd-color-input-bg);
   color: var(--cd-color-text);
   font: inherit;
   font-size: var(--cd-font-size-sm);
@@ -130,13 +152,15 @@
 .cd-select:focus,
 .cd-textarea:focus {
   outline: none;
-  border-color: var(--cd-color-accent-2);
-  box-shadow: var(--cd-focus-ring);
+  border-color: var(--cd-color-border-focus);
+  box-shadow: var(--cd-input-ring);
 }
 .cd-input:disabled,
 .cd-select:disabled,
 .cd-textarea:disabled {
-  opacity: 0.5;
+  border-color: var(--cd-color-border-subtle);
+  background: var(--cd-color-surface-sunken);
+  color: var(--cd-color-disabled-text);
   cursor: not-allowed;
 }
 .cd-input--invalid {
@@ -165,8 +189,8 @@
   height: 18px;
   flex: none;
   border-radius: var(--cd-radius-full);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-sunken);
+  border: 1px solid transparent;
+  background: var(--cd-color-switch-off);
   transition: var(--cd-transition);
 }
 .cd-switch__thumb {
@@ -176,16 +200,16 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: var(--cd-color-text-muted);
+  /* 滑块始终白色，开 / 关靠轨道明暗区分（规范 §11） */
+  background: var(--cd-color-switch-thumb);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   transition: var(--cd-transition);
 }
 .cd-switch[aria-checked='true'] .cd-switch__track {
-  background: var(--cd-color-accent);
-  border-color: var(--cd-color-accent-strong);
+  background: var(--cd-color-brand);
 }
 .cd-switch[aria-checked='true'] .cd-switch__thumb {
   left: 18px;
-  background: var(--cd-color-text-on-accent);
 }
 .cd-switch:focus-visible {
   outline: none;

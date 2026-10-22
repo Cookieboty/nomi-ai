@@ -97,7 +97,7 @@
 .cliRow {
   display: grid;
   /* 标签列 | 模型列 | 弹性 | 末列：两张卡片共用同一套列宽，选择框左缘在同一条竖线上 */
-  grid-template-columns: var(--models-label-w) var(--models-picker-w) minmax(0, 1fr) var(
+  grid-template-columns: var(--models-label-w) var(--models-picker-w) minmax(96px, 1fr) var(
       --models-end-w
     );
   align-items: center;

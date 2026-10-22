@@ -67,12 +67,14 @@ describe('theme contrast (all themes, all pairs)', () => {
 });
 
 describe('key pairs called out in the sunset feedback', () => {
-  it.each(['sunset', 'cream'])(
-    '%s: selected segmented/tab text is dark brown on peach (≥ 7:1)',
+  // 规范 §3.3 / §13：选中导航用 bg-selected 底 + 深一档强调色（accent-strong）的文字与图标
+  it.each(['sunset', 'cream', 'mist'])(
+    '%s: selected nav/tab text is the deep accent on bg-selected (≥ 4.5:1)',
     (id) => {
+      expect(hex(id, '--cd-color-selected-text')).toBe(hex(id, '--cd-color-accent-strong'));
       for (const s of ['bg', 'surface', 'raised', 'sunken', 'subtle']) {
         const r = find(id, `selected-text on selected-bg over ${s} (segmented/tab/sidebar active)`);
-        expect(r.ratio).toBeGreaterThanOrEqual(7);
+        expect(r.ratio).toBeGreaterThanOrEqual(4.5);
       }
     },
   );

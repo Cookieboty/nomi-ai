@@ -59,7 +59,7 @@ export const AppIconSettings: React.FC = () => {
               color: 'inherit',
               border:
                 s.variant === v
-                  ? '2px solid var(--color-accent, #FB9466)'
+                  ? '2px solid var(--cd-color-accent-strong)'
                   : '2px solid transparent',
             }}
           >

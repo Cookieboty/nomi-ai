@@ -1,6 +1,6 @@
 /**
  * 主题：用户选择（ThemePref，含「跟随系统」）→ 实际主题（ThemeId）写到 <html data-theme>。
- * Cool Mist 为 :root 基础令牌（不设属性），其余主题以 data-theme 覆盖。
+ * :root 为日落橙（默认）令牌，每个主题都写 data-theme（含 sunset）。
  * 桌面端由主进程 `ai:theme:*` 持久化、解析「跟随系统」（nativeTheme）并广播给所有窗口；
  * 无 IPC 时退回 localStorage + prefers-color-scheme。
  *
@@ -21,38 +21,38 @@ export const THEMES: ThemeInfo[] = [
   {
     id: 'sunset',
     name: 'Sunset Orange 日落橙（默认）',
-    desc: '暖杏浅底 + Nomi 品牌橙',
-    swatch: ['#fff9f1', '#fffcf8', '#45352b', '#efa06f'],
+    desc: '暖奶油底 + 日落橙，品牌主主题',
+    swatch: ['#fff8f1', '#ffffff', '#3f332d', '#c45425'],
   },
   {
     id: 'ink',
     name: 'Warm Ink 暖墨',
-    desc: '暖中性暗色 + Nomi 品牌橙',
-    swatch: ['#1a1917', '#272522', '#ece8e1', '#fb9466'],
+    desc: '深咖啡底 + 日落橙，温暖的深色主题',
+    swatch: ['#201a17', '#302722', '#f5ede6', '#f08a5d'],
   },
   {
     id: 'graphite',
     name: 'Graphite 石墨',
-    desc: '中性暗色 + 低饱和靛蓝',
-    swatch: ['#0f0f11', '#1b1b1e', '#ededef', '#5a64d8'],
+    desc: '中性炭黑 + 靛蓝，技术型深色主题',
+    swatch: ['#13161b', '#20252d', '#f0f2f6', '#7887f5'],
   },
   {
     id: 'cream',
     name: 'Cream 奶油',
-    desc: '品牌奶油浅色 + 暖棕与橙',
-    swatch: ['#fcefe1', '#fff9f3', '#33291f', '#fb9466'],
+    desc: '奶油白 + 柔和桃色，最轻盈的浅色主题',
+    swatch: ['#fffcf6', '#ffffff', '#403126', '#ab653e'],
   },
   {
     id: 'mist',
     name: 'Cool Mist 冷雾',
-    desc: '冷灰蓝底 + 青蓝强调',
-    swatch: ['#0a0f1a', '#1e293b', '#e8eef7', '#3898c4'],
+    desc: '冷灰浅底 + 雾蓝，清爽低刺激',
+    swatch: ['#f5f8f9', '#ffffff', '#20343d', '#4f7182'],
   },
   {
     id: 'system',
     name: '跟随系统',
     desc: '深色 → 石墨 · 浅色 → 奶油',
-    swatch: ['#0f0f11', '#1b1b1e', '#fcefe1', '#fb9466'],
+    swatch: ['#13161b', '#20252d', '#fffcf6', '#7887f5'],
   },
 ];
 
@@ -100,8 +100,7 @@ let state: ThemeState = { pref: DEFAULT_THEME, resolved: resolveTheme(DEFAULT_TH
 function apply(next: ThemeState): void {
   state = next;
   const el = document.documentElement;
-  if (next.resolved === 'mist') el.removeAttribute('data-theme');
-  else el.setAttribute('data-theme', next.resolved);
+  el.setAttribute('data-theme', next.resolved);
   el.setAttribute('data-theme-pref', next.pref);
   try {
     localStorage.setItem(KEY, next.pref);

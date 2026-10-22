@@ -33,10 +33,10 @@ describe('integrated title bar', () => {
       setTitleBarOverlay: jest.fn(),
     };
     applyTitleBarTheme(win as never, 'cream', 'win32');
-    expect(win.setBackgroundColor).toHaveBeenCalledWith('#fcefe1');
+    expect(win.setBackgroundColor).toHaveBeenCalledWith('#fffcf6');
     expect(win.setTitleBarOverlay).toHaveBeenCalledWith({
-      color: '#fcefe1',
-      symbolColor: '#33291f',
+      color: '#fffcf6',
+      symbolColor: '#403126',
       height: 36,
     });
     win.setTitleBarOverlay.mockClear();
@@ -51,8 +51,7 @@ describe('integrated title bar', () => {
       return css.slice(i, css.indexOf('}', i));
     };
     const bgOf = (b: string) => /--cd-color-bg:\s*(#[0-9a-f]+)/i.exec(b)?.[1];
-    expect(bgOf(block(':root'))).toBe(THEME_CHROME.mist.bg);
-    for (const th of ['graphite', 'ink', 'cream', 'sunset'] as const)
+    for (const th of ['mist', 'graphite', 'ink', 'cream', 'sunset'] as const)
       expect(bgOf(block(`[data-theme='${th}']`))).toBe(THEME_CHROME[th].bg);
   });
 });

@@ -29,7 +29,7 @@ export const CHAT_BG_IMAGE_STEM = 'panel-bg';
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   mode: 'default',
-  solidColor: '#fff9f1',
+  solidColor: '#fff8f1',
   imageUrl: null,
   blur: 0,
   opacity: 0.35,

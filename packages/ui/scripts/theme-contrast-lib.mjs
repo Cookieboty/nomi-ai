@@ -16,7 +16,7 @@ export const UI = 3; // WCAG AA 大字 / 非文字 UI
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
-/** 返回 { mist: {...:root}, graphite: {...:root + overrides}, ... }（与浏览器级联一致） */
+/** 返回 { sunset: {...}, graphite: {...:root + overrides}, ... }（与浏览器级联一致） */
 export function parseThemes(cssText) {
   const css = stripComments(cssText);
   const blocks = [];
@@ -27,11 +27,15 @@ export function parseThemes(cssText) {
     for (const d of m[2].matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) vars[d[1]] = d[2].trim();
     blocks.push({ selector: m[1].trim(), vars });
   }
-  const root = blocks.find((b) => b.selector === ':root')?.vars ?? {};
-  const out = { mist: { ...root } };
+  const sels = (b) => b.selector.split(',').map((x) => x.trim());
+  // :root = 非颜色令牌 + 默认主题（sunset）的颜色；按出现顺序合并，与浏览器级联一致
+  const root = Object.assign(
+    {},
+    ...blocks.filter((b) => sels(b).includes(':root')).map((b) => b.vars),
+  );
+  const out = {};
   for (const id of THEME_IDS) {
-    if (id === 'mist') continue;
-    const b = blocks.find((x) => x.selector === `[data-theme='${id}']`);
+    const b = blocks.find((x) => sels(x).includes(`[data-theme='${id}']`));
     if (!b) throw new Error(`theme block missing: ${id}`);
     out[id] = { ...root, ...b.vars };
   }
@@ -154,19 +158,14 @@ export function pairDefs() {
       TEXT,
     );
 
-  // 用户气泡 / 发送按钮：accent 以 0.88 / 0.9 不透明度叠在背景上，上面是 text-on-accent
-  for (const [a, what] of [
-    ['0.88', 'user message bubble'],
-    ['0.9', 'send button'],
-  ])
-    for (const s of ['bg', 'surface'])
-      add(
-        'button',
-        `text-on-accent on accent@${a} over ${s} (${what})`,
-        'text-on-accent',
-        [...STACKS[s], `accent@${a}`],
-        TEXT,
-      );
+  // 用户气泡 / 发送按钮：accent 实底，上面是 text-on-accent
+  add(
+    'button',
+    'text-on-accent on accent (user message bubble / send button)',
+    'text-on-accent',
+    ['accent'],
+    TEXT,
+  );
 
   // 次要 / 弱化文字落在品牌淡色底上（菜单项 hover、斜杠面板选中项、徽标旁说明）
   for (const s of ['surface', 'subtle'])

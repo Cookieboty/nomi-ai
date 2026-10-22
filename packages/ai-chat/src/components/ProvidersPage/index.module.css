@@ -74,7 +74,7 @@
   margin-right: var(--cd-space-1);
   border-radius: 50%;
   vertical-align: middle;
-  background: var(--cd-palette-success, var(--cd-color-success));
+  background: var(--cd-color-success);
 }
 .intro {
   display: grid;
