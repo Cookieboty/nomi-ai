@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { ModalHostContext, Modal } from '@nomi-ai/ui';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -120,6 +120,23 @@ describe('SettingsView 合并后的标签页分区', () => {
     const global = r.getByTestId('settings-shortcuts-global');
     expect(global.querySelectorAll('tbody tr')).toHaveLength(1);
     expect(global.textContent).toContain('截图提问');
+  });
+
+  it('快捷键冲突时顶部出现横幅，列出冲突项；恢复后消失', async () => {
+    const { setBinding, resetBindings } = await import('../src/services/shortcuts');
+    setBinding('newChat', 'Mod+K'); // 与「命令面板」相同
+    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
+    const banner = r.getByTestId('shortcut-conflict-banner');
+    expect(banner.textContent).toContain('命令面板');
+    expect(banner.textContent).toContain('新对话');
+    act(() => resetBindings());
+    expect(r.queryByTestId('shortcut-conflict-banner')).toBeNull();
+  });
+
+  it('通用：语言与启动合在「基础设置」卡里', () => {
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    const g = r.getByTestId('settings-basic-group');
+    expect(g.querySelector('[data-testid="language-settings"]')).toBeTruthy();
   });
 
   it('菜单只有合并后的 12 个分区', () => {

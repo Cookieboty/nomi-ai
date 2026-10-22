@@ -380,5 +380,7 @@
   "编程助手完成、需要确认或出错时，在灵动岛与系统通知里提醒你。": "Get notified in the Dynamic Island and system notifications when a coding assistant finishes, needs confirmation or fails.",
   "管理 MCP 服务器、插件与技能，扩展 Nomi 能调用的工具。": "Manage MCP servers, plugins and skills to extend the tools Nomi can use.",
   "管理本机的剪贴板历史、数据导出、本地模型与 Ollama。": "Manage clipboard history, data export, local models and Ollama on this machine.",
-  "截图提问（需在「语音与屏幕 → 屏幕」开启截图快捷键）": "Screenshot question (enable the screenshot hotkey in Voice & Screen → Screen)"
+  "截图提问（需在「语音与屏幕 → 屏幕」开启截图快捷键）": "Screenshot question (enable the screenshot hotkey in Voice & Screen → Screen)",
+  "检测到快捷键冲突：{0}。在下方对应行点「修改」换一个组合键。": "Shortcut conflict detected: {0}. Click \"Edit\" on that row below to pick another combination.",
+  "基础设置": "Basics"
 }

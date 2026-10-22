@@ -76,9 +76,7 @@ export const ShortcutSettings: React.FC = () => {
     >
       {tab === 'global' ? (
         <section className={styles.block} data-testid="settings-shortcuts-global">
-          <p className={styles.note}>
-            {t('全局快捷键由系统注册，Nomi 不在前台时也能触发。')}
-          </p>
+          <p className={styles.note}>{t('全局快捷键由系统注册，Nomi 不在前台时也能触发。')}</p>
           <table className={styles.shortcutTable}>
             <thead>
               <tr>
@@ -99,101 +97,115 @@ export const ShortcutSettings: React.FC = () => {
           </table>
         </section>
       ) : (
-    <section className={styles.block} data-testid="settings-shortcuts">
-      <p className={styles.note}>
-        {t('点击「修改」后按下新的组合键（需包含 ⌘/Ctrl 或 Alt，或使用 F1–F12）；Esc 取消。')}
-      </p>
-      <table className={styles.shortcutTable}>
-        <thead>
-          <tr>
-            <th scope="col">{t('功能')}</th>
-            <th scope="col">{t('快捷键')}</th>
-            <th scope="col" className={styles.shortcutActions}>
-              {t('操作')}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {SHORTCUT_DEFS.map((d) => {
-            const c = conflicts[d.id];
-            const rec = recording === d.id;
-            const custom = bindings[d.id] !== d.combo;
-            return (
-              <tr key={d.id} data-testid={`shortcut-row-${d.id}`}>
-                <th scope="row">{t(d.label)}</th>
-                <td>
-                  <kbd
-                    className={styles.kbd}
-                    data-testid={`shortcut-combo-${d.id}`}
-                    data-shortcut-recording={rec ? 'true' : undefined}
-                  >
-                    {rec ? t('请按下新的组合键…') : formatCombo(bindings[d.id])}
-                  </kbd>
-                  {rec && invalid && (
-                    <div className={styles.warn} role="alert">
-                      {t('需要包含 ⌘/Ctrl 或 Alt（或使用 F1–F12）')}
-                    </div>
-                  )}
-                  {!rec && c && (
-                    <div
-                      className={styles.warn}
-                      role="alert"
-                      data-testid={`shortcut-conflict-${d.id}`}
-                    >
-                      {c.with.length > 0 &&
-                        t('与「{0}」冲突，只有一个会生效', c.with.map(labelOf).join('、'))}
-                      {c.with.length > 0 && c.reserved && ' · '}
-                      {c.reserved && t('与系统快捷键「{0}」冲突', t(c.reserved))}
-                    </div>
-                  )}
-                </td>
-                <td className={styles.shortcutActions}>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    data-testid={`shortcut-edit-${d.id}`}
-                    aria-label={t('修改「{0}」的快捷键', t(d.label))}
-                    onClick={() => {
-                      setInvalid(false);
-                      setRecording(rec ? null : d.id);
-                    }}
-                  >
-                    {rec ? t('取消') : t('修改')}
-                  </Button>
-                  {custom && !rec && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      data-testid={`shortcut-reset-${d.id}`}
-                      aria-label={t('恢复「{0}」的默认快捷键', t(d.label))}
-                      onClick={() => setBinding(d.id, null)}
-                    >
-                      {t('恢复默认')}
-                    </Button>
-                  )}
-                </td>
+        <section className={styles.block} data-testid="settings-shortcuts">
+          {Object.keys(conflicts).length > 0 && (
+            <div
+              className={styles.conflictBanner}
+              role="alert"
+              data-testid="shortcut-conflict-banner"
+            >
+              {t(
+                '检测到快捷键冲突：{0}。在下方对应行点「修改」换一个组合键。',
+                SHORTCUT_DEFS.filter((d) => conflicts[d.id])
+                  .map((d) => `${t(d.label)}（${formatCombo(bindings[d.id])}）`)
+                  .join('、'),
+              )}
+            </div>
+          )}
+          <p className={styles.note}>
+            {t('点击「修改」后按下新的组合键（需包含 ⌘/Ctrl 或 Alt，或使用 F1–F12）；Esc 取消。')}
+          </p>
+          <table className={styles.shortcutTable}>
+            <thead>
+              <tr>
+                <th scope="col">{t('功能')}</th>
+                <th scope="col">{t('快捷键')}</th>
+                <th scope="col" className={styles.shortcutActions}>
+                  {t('操作')}
+                </th>
               </tr>
-            );
-          })}
-          {FIXED_SHORTCUTS.map(([k, label]) => (
-            <tr key={k}>
-              <th scope="row">{t(label)}</th>
-              <td>
-                <kbd className={styles.kbd}>{t(k)}</kbd>
-              </td>
-              <td className={styles.shortcutActions}>
-                <span className={styles.note}>{t('固定')}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {anyCustom && (
-        <Button size="sm" onClick={resetBindings} data-testid="shortcut-reset-all">
-          {t('全部恢复默认')}
-        </Button>
-      )}
-    </section>
+            </thead>
+            <tbody>
+              {SHORTCUT_DEFS.map((d) => {
+                const c = conflicts[d.id];
+                const rec = recording === d.id;
+                const custom = bindings[d.id] !== d.combo;
+                return (
+                  <tr key={d.id} data-testid={`shortcut-row-${d.id}`}>
+                    <th scope="row">{t(d.label)}</th>
+                    <td>
+                      <kbd
+                        className={styles.kbd}
+                        data-testid={`shortcut-combo-${d.id}`}
+                        data-shortcut-recording={rec ? 'true' : undefined}
+                      >
+                        {rec ? t('请按下新的组合键…') : formatCombo(bindings[d.id])}
+                      </kbd>
+                      {rec && invalid && (
+                        <div className={styles.warn} role="alert">
+                          {t('需要包含 ⌘/Ctrl 或 Alt（或使用 F1–F12）')}
+                        </div>
+                      )}
+                      {!rec && c && (
+                        <div
+                          className={styles.warn}
+                          role="alert"
+                          data-testid={`shortcut-conflict-${d.id}`}
+                        >
+                          {c.with.length > 0 &&
+                            t('与「{0}」冲突，只有一个会生效', c.with.map(labelOf).join('、'))}
+                          {c.with.length > 0 && c.reserved && ' · '}
+                          {c.reserved && t('与系统快捷键「{0}」冲突', t(c.reserved))}
+                        </div>
+                      )}
+                    </td>
+                    <td className={styles.shortcutActions}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid={`shortcut-edit-${d.id}`}
+                        aria-label={t('修改「{0}」的快捷键', t(d.label))}
+                        onClick={() => {
+                          setInvalid(false);
+                          setRecording(rec ? null : d.id);
+                        }}
+                      >
+                        {rec ? t('取消') : t('修改')}
+                      </Button>
+                      {custom && !rec && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          data-testid={`shortcut-reset-${d.id}`}
+                          aria-label={t('恢复「{0}」的默认快捷键', t(d.label))}
+                          onClick={() => setBinding(d.id, null)}
+                        >
+                          {t('恢复默认')}
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {FIXED_SHORTCUTS.map(([k, label]) => (
+                <tr key={k}>
+                  <th scope="row">{t(label)}</th>
+                  <td>
+                    <kbd className={styles.kbd}>{t(k)}</kbd>
+                  </td>
+                  <td className={styles.shortcutActions}>
+                    <span className={styles.note}>{t('固定')}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {anyCustom && (
+            <Button size="sm" onClick={resetBindings} data-testid="shortcut-reset-all">
+              {t('全部恢复默认')}
+            </Button>
+          )}
+        </section>
       )}
     </SectionPage>
   );
