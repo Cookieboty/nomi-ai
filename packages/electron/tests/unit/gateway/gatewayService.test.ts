@@ -565,6 +565,21 @@ describe('GatewayService', () => {
     expect(fs.readFileSync(sentinel, 'utf8')).toBe('keep me');
   });
 
+  it('servedSession: reads the gateway session table for Claude sessions only (#90)', () => {
+    const t = setup();
+    fs.mkdirSync(path.join(t.root, 'gateway'), { recursive: true });
+    fs.writeFileSync(
+      path.join(t.root, 'gateway', 'sessions.json'),
+      JSON.stringify({
+        version: 1,
+        sessions: [['claude:cc:s1', { providerId: 'p', keyId: 'k', wire: 'messages', at: 1 }]],
+      }),
+    );
+    expect(t.svc.servedSession('claude', 's1')).toBe(true);
+    expect(t.svc.servedSession('claude', 's2')).toBe(false);
+    expect(t.svc.servedSession('codex', 's1')).toBe(false);
+  });
+
   it('env providers: read-only in state, in the snapshot, default for Nomi chat, local URLs allowed', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-env-'));
     const children: FakeChild[] = [];

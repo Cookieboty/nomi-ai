@@ -825,6 +825,18 @@ describe('SessionHistoryService', () => {
     expect(page.items[0]!.model).toBeUndefined();
   });
 
+  it('open: Claude sessions the gateway served resume as third party; others keep the default (#90)', async () => {
+    writeClaude('a', 'via gateway', 2_000_000);
+    writeClaude('b', 'unknown', 1_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const svc = mk({ openTab, gatewaySession: (_b, id) => id === 'a' });
+    await svc.open('claude', 'a');
+    await svc.open('claude', 'b');
+    const arg = (i: number) => (openTab.mock.calls[i] as unknown as [Record<string, unknown>])[0];
+    expect(arg(0)).toMatchObject({ sessionId: 'a', source: 'thirdParty' });
+    expect(arg(1)).not.toHaveProperty('source');
+  });
+
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {
     writeClaude('a', 'task a', 1_000_000);
     const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));

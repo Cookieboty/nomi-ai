@@ -422,6 +422,23 @@ export class GatewayService {
     }
   }
 
+  /**
+   * 这个编程助手会话是否经网关跑过（网关的会话归属表，§11.4）。用于打开历史会话时推断来源（#90）。
+   * 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）；查不到（含 30 天淘汰）返回 false。
+   */
+  servedSession(kind: AgentKind, sessionId: string): boolean {
+    if (kind !== 'claude' || !sessionId) return false;
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, 'sessions.json'), 'utf8')) as {
+        sessions?: Array<[string, unknown]>;
+      };
+      const key = `claude:cc:${sessionId}`;
+      return (raw.sessions ?? []).some(([k]) => k === key);
+    } catch {
+      return false;
+    }
+  }
+
   /** 官方会话的环境：剔除指向网关的残留变量 */
   officialEnv<T extends Record<string, string | undefined>>(env: T): T {
     const s = this.proc.getStatus();

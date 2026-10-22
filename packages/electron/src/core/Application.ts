@@ -592,6 +592,8 @@ export class Application implements IApplication {
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
         openTab: (o) => harness.openHistorySession(o),
+        gatewaySession: (backend, sessionId) =>
+          backend !== 'dsh' && gateway.servedSession(backend, sessionId),
         accountLabel: (backend, accountId) => {
           if (backend !== 'codex') return undefined;
           const a = accounts.findByAccountId('codex', accountId);
