@@ -1,7 +1,7 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, ipcMain, screen } from 'electron';
 
-import { setWindowBounds } from '../utils/windowBounds';
+import { moveWindowTo, setWindowBounds } from '../utils/windowBounds';
 
 import {
   advance,
@@ -554,12 +554,9 @@ export class MascotWindowController {
     const nx = Math.round(this.body.x);
     const ny = Math.round(this.body.y);
     if (nx !== wx || ny !== wy) {
-      // Windows 分数 DPI 下不可缩放透明窗的 setPosition 会逐次放大窗口。
-      // 同时校正尺寸，避免拖动 / 物理移动积累偏差并改变角色缩放。
-      if (process.platform === 'win32') {
-        const size = mascotWindowSize(this.scale);
-        setWindowBounds(this.win, { x: nx, y: ny, ...size });
-      } else this.win.setPosition(nx, ny);
+      // Windows：setPosition 会在分数 DPI 下逐次放大不可缩放透明窗。
+      // moveWindowTo 只在尺寸漂移时做 unlock+校正；拖拽高频路径不再每帧 setResizable。
+      moveWindowTo(this.win, nx, ny, mascotWindowSize(this.scale));
       this.lastActivityAt = now;
     }
 
