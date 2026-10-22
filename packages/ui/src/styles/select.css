@@ -208,6 +208,21 @@
   padding-left: 0;
   padding-right: 0;
 }
+/* 内嵌且外层已有同名标签：标题只留给读屏 */
+.cd-modal--inline > .cd-modal__header--sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.cd-modal--inline > .cd-modal__header--sr + .cd-modal__body {
+  padding-top: 0;
+}
 .cd-modal--inline > .cd-modal__body {
   padding-left: 0;
   padding-right: 0;

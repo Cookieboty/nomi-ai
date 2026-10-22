@@ -346,6 +346,30 @@
   outline: none;
   box-shadow: var(--cd-focus-ring);
 }
+/* 下划线：页内二级标签，无底板，选中项下方 2px 强调色 */
+.cd-tabs--underline {
+  width: 100%;
+  gap: var(--cd-space-4);
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--cd-color-border);
+  border-radius: 0;
+  background: transparent;
+}
+.cd-tabs--underline .cd-tab {
+  padding: 0;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+.cd-tabs--underline .cd-tab:hover {
+  background: transparent;
+}
+.cd-tabs--underline .cd-tab[aria-selected='true'] {
+  background: transparent;
+  border-bottom-color: var(--cd-color-accent-strong);
+}
 
 /* ---------- Badge / Tag ---------- */
 .cd-badge {

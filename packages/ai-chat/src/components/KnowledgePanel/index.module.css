@@ -19,23 +19,27 @@
   color: var(--cd-color-text-muted);
   margin: 0;
 }
+/* 统计：一条分栏条，不再是四张独立卡片 */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: var(--cd-space-2);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
 }
 .stat {
-  background: var(--cd-color-surface-sunken);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
-  padding: var(--cd-space-2) var(--cd-space-3);
+  padding: var(--cd-space-2) var(--cd-space-4);
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-0-5);
 }
+.stat + .stat {
+  border-left: 1px solid var(--cd-color-border);
+}
 .statNum {
   font-size: var(--cd-font-size-lg);
   font-weight: var(--cd-font-weight-bold);
+  font-variant-numeric: tabular-nums;
   color: var(--cd-color-text);
 }
 .statLabel {
@@ -134,10 +138,53 @@
 .section {
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
-  padding: var(--cd-space-3);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+  padding: var(--cd-space-4);
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-2);
+}
+.items {
+  display: flex;
+  flex-direction: column;
+}
+/* 设置行：左边标题 + 说明，右边控件；相邻行之间一条分隔线 */
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-4);
+  min-height: var(--cd-control-h-md);
+  padding: var(--cd-space-2) 0;
+}
+.item + .item {
+  border-top: 1px solid var(--cd-color-border);
+}
+/* 分组里只有一行时不再叠加上下留白 */
+.section > .item {
+  padding: 0;
+}
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+.itemTitle {
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.itemCtrl {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.selectBox {
+  flex: none;
+  width: 112px;
 }
 .sectionTitle {
   margin: 0;

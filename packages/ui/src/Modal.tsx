@@ -26,6 +26,8 @@ export interface ModalProps {
  */
 export interface ModalHost {
   mode: 'inline' | 'drawer';
+  /** 内嵌时外层已有同名标签 / 标题：面板标题只留给读屏，不再显示 */
+  hideTitle?: boolean;
   /** 抽屉头部「在设置中打开」 */
   onOpenSettings?: () => void;
 }
@@ -68,7 +70,7 @@ export const Modal: React.FC<ModalProps> = ({
         className={cx('cd-modal', 'cd-modal--inline', className)}
         data-testid={testId}
       >
-        <div className="cd-modal__header">
+        <div className={cx('cd-modal__header', host.hideTitle && 'cd-modal__header--sr')}>
           <h2 id={titleId} className="cd-modal__title">
             {title}
           </h2>
