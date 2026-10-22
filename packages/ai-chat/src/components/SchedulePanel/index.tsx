@@ -91,6 +91,7 @@ const TaskEditor: React.FC<{
         }
       }}
     >
+      <h3 className={styles.editorTitle}>{task ? tr('编辑任务') : tr('新建任务')}</h3>
       <div className={styles.row}>
         <Input
           size="sm"
@@ -289,27 +290,71 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         {!st && !err && <LoadingState rows={3} />}
         {st && (
           <>
-            <div className={styles.statusRow}>
-              <Badge
-                tone={st.quietNow ? 'warning' : 'success'}
-                icon={st.quietNow ? Moon : Bell}
+            {/* 概览：一条分栏统计卡，点一格跳到对应标签 */}
+            <div className={styles.overview}>
+              <button
+                type="button"
+                className={styles.overviewCell}
+                data-tone={st.quietNow ? 'warning' : 'success'}
                 data-testid="quiet-badge"
+                onClick={() => setTab(st.quietNow ? 'quiet' : 'reminders')}
               >
-                {st.quietNow ? tr('免打扰中（至 {0}）', st.settings.quiet.end) : tr('正常提醒')}
-              </Badge>
-              {st.deferred > 0 && (
-                <Badge tone="warning">
-                  {st.deferred} {tr('条提醒待补报')}
-                </Badge>
-              )}
-              <Badge icon={MessageCircle}>
-                {st.settings.proactive.enabled
-                  ? tr('主动聊天：今天 {0} 次', st.proactive.today)
-                  : tr('主动聊天：关')}
-              </Badge>
-              <Badge icon={ListChecks}>
-                {tr('定时任务')} {st.tasks.filter((t) => t.enabled).length} {tr('个')}
-              </Badge>
+                <span className={styles.overviewLabel}>
+                  <Icon icon={st.quietNow ? Moon : Bell} size={14} />
+                  {tr('提醒')}
+                </span>
+                <span className={styles.overviewValue}>
+                  {st.quietNow ? tr('免打扰中') : tr('正常提醒')}
+                </span>
+                <span className={styles.overviewSub}>
+                  {st.deferred > 0 ? (
+                    <span className={styles.overviewWarn}>
+                      {st.deferred} {tr('条提醒待补报')}
+                    </span>
+                  ) : st.quietNow ? (
+                    tr('到 {0} 恢复', st.settings.quiet.end)
+                  ) : st.settings.quiet.enabled ? (
+                    tr('免打扰 {0}–{1}', st.settings.quiet.start, st.settings.quiet.end)
+                  ) : (
+                    tr('未设免打扰')
+                  )}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.overviewCell}
+                data-testid="sched-overview-tasks"
+                onClick={() => setTab('tasks')}
+              >
+                <span className={styles.overviewLabel}>
+                  <Icon icon={ListChecks} size={14} />
+                  {tr('定时任务')}
+                </span>
+                <span className={styles.overviewValue}>
+                  {tr('{0} 个启用', st.tasks.filter((t) => t.enabled).length)}
+                </span>
+                <span className={styles.overviewSub}>{tr('共 {0} 个', st.tasks.length)}</span>
+              </button>
+              <button
+                type="button"
+                className={styles.overviewCell}
+                data-tone={st.settings.proactive.enabled ? 'success' : undefined}
+                data-testid="sched-overview-proactive"
+                onClick={() => setTab('proactive')}
+              >
+                <span className={styles.overviewLabel}>
+                  <Icon icon={MessageCircle} size={14} />
+                  {tr('主动聊天')}
+                </span>
+                <span className={styles.overviewValue}>
+                  {st.settings.proactive.enabled ? tr('已开启') : tr('已关闭')}
+                </span>
+                <span className={styles.overviewSub}>
+                  {st.settings.proactive.enabled
+                    ? tr('今天 {0} 次', st.proactive.today)
+                    : tr('Nomi 不会主动搭话')}
+                </span>
+              </button>
             </div>
             <Tabs
               variant="underline"

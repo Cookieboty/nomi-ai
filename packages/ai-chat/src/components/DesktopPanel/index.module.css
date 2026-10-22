@@ -53,3 +53,17 @@
   margin: var(--cd-space-1) 0;
   font-size: var(--cd-font-size-sm);
 }
+
+/* 已授权路径：等宽，长路径可换行 */
+.path {
+  font-family: var(--cd-font-mono);
+  font-size: var(--cd-font-size-xs);
+  word-break: break-all;
+}
+/* 工具权限表：确认方式列的下拉框固定宽度，行垂直居中 */
+.toolsTable td {
+  vertical-align: middle;
+}
+.toolsTable td:last-child {
+  width: 220px;
+}
