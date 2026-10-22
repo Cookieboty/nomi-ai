@@ -380,3 +380,40 @@ describe('cooldown / affinity units', () => {
     expect(a.get('s1')).toBeNull();
   });
 });
+
+describe('non-stream first-byte timeout (thinking models)', () => {
+  it('does not abort a slow non-stream JSON response under the short stream first-byte limit', async () => {
+    // 旧行为：FIRST_BYTE_TIMEOUT_MS=30s 对非流式也生效 → deepseek-v4-pro 思考阶段被客户端断开。
+    // 这里用 hooks 把「流式首字节」压到 80ms，非流式放到 2s；上游 200ms 才出头，应成功。
+    const { chat } = await setup(
+      (_s, res) => {
+        setTimeout(() => {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              id: 'c1',
+              choices: [
+                { index: 0, message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' },
+              ],
+            }),
+          );
+        }, 200);
+      },
+      { firstByteTimeoutMs: 80, nonStreamFirstByteTimeoutMs: 2_000 },
+    );
+    const r = await chat({ stream: false });
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { choices: Array<{ message: { content: string } }> };
+    expect(j.choices[0]?.message.content).toBe('hi');
+  });
+
+  it('still times out non-stream when nonStreamFirstByteTimeoutMs elapses', async () => {
+    const { chat } = await setup(() => undefined, {
+      firstByteTimeoutMs: 5_000,
+      nonStreamFirstByteTimeoutMs: 100,
+    });
+    const r = await chat({ stream: false });
+    expect(r.status).toBeGreaterThanOrEqual(500);
+    expect(await r.text()).toContain('首字节前超时');
+  });
+});

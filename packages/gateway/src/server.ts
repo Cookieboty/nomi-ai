@@ -28,10 +28,35 @@ import { SessionTable } from './sessions';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { patchChatJson } from './stream/chatPatch';
 import { createPassthrough } from './stream/passthrough';
+import {
+  candidateIsReasoning,
+  resolveFirstByteBudgetMs,
+  resolveFirstByteTimeoutMs,
+  resolveStreamIdleTimeoutMs,
+  FIRST_BYTE_TIMEOUT_MS,
+  NON_STREAM_FIRST_BYTE_TIMEOUT_MS,
+  REASONING_NON_STREAM_FIRST_BYTE_TIMEOUT_MS,
+  FIRST_BYTE_BUDGET_MS,
+  NON_STREAM_FIRST_BYTE_BUDGET_MS,
+  STREAM_IDLE_TIMEOUT_MS,
+} from './timeouts';
 import { calibratedCount, measuredInputTokens, recordUsage, sessionKeyOf } from './tokens';
 import { startTrace, type RequestTrace } from './trace';
 import { upstreamBody, upstreamHeaders, upstreamUrl } from './upstream';
 import { usageOfJson, UsageTap } from './usageTap';
+
+export {
+  FIRST_BYTE_TIMEOUT_MS,
+  NON_STREAM_FIRST_BYTE_TIMEOUT_MS,
+  REASONING_NON_STREAM_FIRST_BYTE_TIMEOUT_MS,
+  FIRST_BYTE_BUDGET_MS,
+  NON_STREAM_FIRST_BYTE_BUDGET_MS,
+  STREAM_IDLE_TIMEOUT_MS,
+  candidateIsReasoning,
+  resolveFirstByteTimeoutMs,
+  resolveFirstByteBudgetMs,
+  resolveStreamIdleTimeoutMs,
+};
 
 export const GATEWAY_VERSION = '1';
 
@@ -39,17 +64,11 @@ export const GATEWAY_VERSION = '1';
 const MAX_ATTEMPTS = 4;
 /** 每个请求因运行时学习而重试的上限（计入 MAX_ATTEMPTS） */
 const MAX_LEARN_RETRIES = 2;
-/** 首字节前单次尝试的超时 */
-const FIRST_BYTE_TIMEOUT_MS = 30_000;
 /**
  * 响应头：实际服务这次请求的模型（`供应商/模型`）。回退到别的候选时与请求模型不同，
  * Nomi 对话据此记账（#97；ai-runtime 的 NOMI_SERVED_MODEL_HEADER 与此一致）
  */
 export const SERVED_MODEL_HEADER = 'x-nomi-served-model';
-/** 首字节之前所有尝试的总时长上限 */
-const FIRST_BYTE_BUDGET_MS = 60_000;
-/** 首字节之后上游连续无事件的上限 */
-const STREAM_IDLE_TIMEOUT_MS = 180_000;
 
 export type GatewayClient = ClientId | 'legacy';
 
@@ -82,7 +101,17 @@ export interface GatewayHooks {
   /** 测试注入 */
   fetchImpl?: typeof fetch;
   lookupAll?: LookupAll;
+  /** 流式首字节超时（默认 30s）；测试可缩短 */
   firstByteTimeoutMs?: number;
+  /** 非流式首字节超时（默认 5min）；思考模型另见 reasoningNonStream… */
+  nonStreamFirstByteTimeoutMs?: number;
+  /** 非流式 + reasoning 模型首字节超时（默认 10min） */
+  reasoningNonStreamFirstByteTimeoutMs?: number;
+  /** 流式：首字节前换候选总预算（默认 60s） */
+  firstByteBudgetMs?: number;
+  /** 非流式：首字节前换候选总预算（默认 15min） */
+  nonStreamFirstByteBudgetMs?: number;
+  /** 流式空闲超时（默认 180s） */
   streamIdleTimeoutMs?: number;
   /** 冷却与亲和用的时钟（测试注入假时钟） */
   now?: () => number;
@@ -368,7 +397,11 @@ export class GatewayServer {
     );
     let learnRetries = 0;
     while (queue.length && attempts < MAX_ATTEMPTS) {
-      if (Date.now() - startedAt > FIRST_BYTE_BUDGET_MS || abort.signal.aborted) break;
+      if (
+        Date.now() - startedAt > resolveFirstByteBudgetMs(wantsStream, this.hooks) ||
+        abort.signal.aborted
+      )
+        break;
       const cand = queue.shift()!;
       attempts++;
       // 同协议透传：历史里的加密推理和签名只在上一轮是同一 (供应商, Key, 协议) 时保留（§9.3）
@@ -622,11 +655,14 @@ export class GatewayServer {
     if (notes.length)
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
     // 只管到响应头为止：拿到响应后撤销，正文由流的空闲超时 / 用户取消管（#93）
+    // 非流式时「首字节」= 整轮生成完才出头；思考模型用更长超时（见 timeouts.ts）
     const firstByte = new AbortController();
-    const timer = setTimeout(
-      () => firstByte.abort(),
-      this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS,
+    const firstByteMs = resolveFirstByteTimeoutMs(
+      wantsStream,
+      candidateIsReasoning(cand),
+      this.hooks,
     );
+    const timer = setTimeout(() => firstByte.abort(), firstByteMs);
     const both = AbortSignal.any([signal, firstByte.signal]);
     const headers = upstreamHeaders(cand, {
       stream: wantsStream,
@@ -725,7 +761,7 @@ export class GatewayServer {
       };
       const decoder = new TextDecoder();
       const reader = up.body.getReader();
-      const idleMs = this.hooks.streamIdleTimeoutMs ?? STREAM_IDLE_TIMEOUT_MS;
+      const idleMs = resolveStreamIdleTimeoutMs(this.hooks);
       let idle: ReturnType<typeof setTimeout> | null = null;
       let idleFired = false;
       let stopped = false;
@@ -867,7 +903,9 @@ export class GatewayServer {
             applyRequestFixes(cand, { ...(body as object), model: cand.upstreamModel }),
           ),
           redirect: 'manual',
-          signal: AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS),
+          signal: AbortSignal.timeout(
+            resolveFirstByteTimeoutMs(false, candidateIsReasoning(cand), this.hooks),
+          ),
         });
         if (up.ok) {
           sendJson(res, 200, await up.json());

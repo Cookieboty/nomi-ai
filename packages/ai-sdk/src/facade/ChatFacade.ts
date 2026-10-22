@@ -5,6 +5,10 @@
  * - `agent` / `agentStream`：当 provider 暴露 `withTools`（Vercel AI SDK 后端）时，
  *   把 ToolRegistry 中的工具交给 AI SDK `stopWhen: stepCountIs` 循环；否则退化为
  *   单次 stream/chat（保持 IPC 契约稳定）。
+ * - 思考/推理模型（DeepSeek、Claude thinking、o-series 等）：UI 路径用 `stream` /
+ *   `agentStream`（`stream: true`）。`sendMessage` / `agent` 仍走非流式 `chat()`；
+ *   经统一网关时由 gateway `timeouts.ts` 对非流式 / reasoning 使用更长首字节超时，
+ *   避免旧默认 30s 在思考阶段被客户端主动断开。
  */
 
 import {
