@@ -24,9 +24,5 @@ export const MOTION_LABELS: Record<string, string> = {
   flinch: '受惊',
   poke: '被戳',
   walk: '散步',
-  squat: '下蹲',
-  crouch: '下蹲',
-  step: '迈步',
-  march: '原地踏步',
   ...ACTION_LABELS,
 };
