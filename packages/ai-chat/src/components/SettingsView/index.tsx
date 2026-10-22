@@ -101,8 +101,12 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
       case 'general':
         return (
           <>
-            <LanguageSettings />
-            <StartupSettings />
+            {/* 视觉稿「基础设置」：语言与启动合在一张卡里（只是分组，控件与行为不变） */}
+            <div className={styles.group} data-testid="settings-basic-group">
+              <h2 className={styles.groupTitle}>{t('基础设置')}</h2>
+              <LanguageSettings />
+              <StartupSettings />
+            </div>
             <AppIconSettings />
             <MascotSizeSettings />
             <UpdateSettings />

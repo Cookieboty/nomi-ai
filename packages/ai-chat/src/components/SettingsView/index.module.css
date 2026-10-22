@@ -481,3 +481,44 @@
   background-position: center;
   flex: none;
 }
+
+/* 卡片分组：内部的小节不再各自成卡，只用分隔线 */
+.group {
+  margin-bottom: var(--cd-space-4);
+  padding: var(--cd-space-4) var(--cd-space-5);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+}
+.groupTitle {
+  margin: 0 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-lg);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+.group > .block {
+  margin: 0;
+  padding: var(--cd-space-3) 0;
+  border: none;
+  border-top: 1px solid var(--cd-color-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.group > .block .h2 {
+  font-size: var(--cd-font-size-md);
+}
+/* 快捷键冲突横幅（视觉稿） */
+.conflictBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  margin-bottom: var(--cd-space-3);
+  padding: 10px var(--cd-space-3);
+  border-radius: var(--cd-radius-md);
+  border: 1px solid rgba(var(--cd-accent-rgb), 0.35);
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-sm);
+}
