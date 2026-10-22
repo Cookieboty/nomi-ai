@@ -49,7 +49,7 @@ async function launch(
     ).electronAPI.openAiChat(),
   );
   const chat = await chatWin;
-  await chat.setViewportSize({ width: 1200, height: 800 }).catch(() => undefined);
+  await chat.setViewportSize({ width: 1400, height: 860 }).catch(() => undefined);
   await chat.locator('[data-testid="chat-mode-dev"]').click({ timeout: 30_000 });
   await chat.locator('[data-testid="chat-tabs"]').waitFor({ timeout: 30_000 });
   return { app, chat };
@@ -146,24 +146,26 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="session-changes-panel"]')).toBeVisible({
       timeout: 30_000,
     });
-    const rows = chat.locator('[data-testid="change-row"]');
+    const rows = chat.locator('[data-testid="rail-file"]');
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
 
-    // 会话内摘要卡 + 完整变更工作台
+    // 整页左会话 | 中 chat | 右文件栏；「查看变更」聚焦右栏（非全屏工作台）
+    await expect(chat.locator('[data-testid="files-rail"]')).toBeVisible({ timeout: 15_000 });
     const turnCard = chat.locator('[data-testid="turn-edit-summary"]').first();
     await expect(turnCard).toBeVisible({ timeout: 30_000 });
     await shot(chat, '18-turn-edit-summary');
     await turnCard.locator('[data-testid="turn-view-changes"]').click();
-    await expect(chat.locator('[data-testid="changes-workbench"]')).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(chat.locator('[data-testid="wb-file-tree"]')).toBeVisible();
-    await shot(chat, '19-changes-workbench');
-    await chat.locator('[data-testid="wb-close"]').click();
+    const railPanel = chat.locator('[data-testid="session-changes-panel"][data-rail]');
+    await expect(railPanel).toHaveAttribute('data-focused', 'true', { timeout: 10_000 });
+    await expect(chat.locator('[data-testid="files-rail-tree"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
+    // 一眼左中右：侧栏 + 对话 + 右文件栏
+    await shot(chat, '19-app-lcr-files-rail');
+    // 全屏工作台仅为次要入口，默认不应出现
     await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0);
 
-    await rows.first().locator('button').first().click();
+    await chat.locator('[data-testid="rail-file"]').first().click();
     await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
     await expect(chat.locator('[data-testid="preview-file-tabs"]')).toBeVisible();
     await shot(chat, '14-multi-file-preview-diff');

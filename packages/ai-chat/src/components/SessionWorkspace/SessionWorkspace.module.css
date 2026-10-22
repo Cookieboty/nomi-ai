@@ -89,6 +89,52 @@
   font-size: var(--cd-font-size-xs, 12px);
   color: var(--cd-color-text, #eee);
 }
+/* 整页右栏：全高，不再压在输入区上方变成上下叠 */
+.panel[data-rail] {
+  border-top: 0;
+  max-height: none;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  background: transparent;
+}
+.panel[data-rail][data-focused] {
+  outline: 1px solid color-mix(in srgb, var(--cd-color-accent, #5b8def) 45%, transparent);
+  outline-offset: -1px;
+}
+.railTree {
+  flex: 1;
+  overflow: auto;
+  min-height: 80px;
+  padding-bottom: 8px;
+}
+.detailLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  background: none;
+  border: 0;
+  color: var(--cd-color-accent-strong, #5b8def);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 0;
+  align-self: flex-start;
+}
+.detailLink:hover {
+  text-decoration: underline;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .panelHead {
   display: flex;
   align-items: center;
@@ -166,6 +212,11 @@
   padding: 4px 8px 8px;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.panel[data-rail] .body {
+  flex: 1;
 }
 .hint {
   margin: 2px 0 6px;
@@ -293,6 +344,17 @@
   min-height: 140px;
   background: var(--cd-color-surface-sunken, #111);
 }
+.panel[data-rail] .preview {
+  max-height: none;
+  flex: 1.2;
+  min-height: 180px;
+  border-top: 1px solid var(--cd-color-border, #333);
+}
+.panel[data-rail] .previewBody {
+  max-height: none;
+  flex: 1;
+}
+
 .previewHead {
   display: flex;
   align-items: center;
@@ -775,17 +837,27 @@
   padding: 3px 8px;
   text-align: left;
 }
+.wbTreeFileRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+.wbTreeFileRow[data-active] {
+  background: color-mix(in srgb, var(--cd-color-danger, #e35d6a) 12%, transparent);
+}
 .wbTreeFile {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   width: 100%;
   background: none;
   border: 0;
   color: var(--cd-color-text, #eee);
   cursor: pointer;
-  font-size: 12px;
-  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.25;
+  padding: 2px 6px;
   text-align: left;
 }
 .wbTreeFile:hover {

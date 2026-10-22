@@ -1,12 +1,14 @@
-/** Codex 风格：本轮变更 + 工作区 Git（只读列表）+ 多文件预览/可编辑保存 */
+/** Codex 风格右侧文件栏：已更改文件树 + Diff/本地预览（整页左会话|中 chat|右本栏） */
 import { t } from '@nomi-ai/ui';
 import {
   ChevronDown,
   ChevronRight,
+  ExternalLink,
   FileDiff,
   GitBranch,
-  LocateFixed,
   RefreshCw,
+  Search,
+  X,
 } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -21,57 +23,18 @@ import {
 import { parsePatch } from '../../utils/lineDiff';
 import {
   aggregateSessionChanges,
+  buildChangeFileTree,
   locateChangeMessage,
   summarizeChanges,
-  type ChangeEntry,
 } from '../../utils/sessionChanges';
 import type { FileDiff as ToolFileDiff } from '../../utils/toolTrace';
 
+import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
 import { FilePreview, type PreviewFile } from './FilePreview';
 import styles from './SessionWorkspace.module.css';
 
 type Tab = 'changes' | 'git';
-
-const ChangeRow: React.FC<{
-  entry: ChangeEntry;
-  selected: boolean;
-  onSelect: () => void;
-  onLocate: () => void;
-}> = ({ entry, selected, onSelect, onLocate }) => (
-  <div
-    className={styles.row}
-    data-testid="change-row"
-    data-selected={selected || undefined}
-    data-file={entry.file}
-  >
-    <button type="button" className={styles.rowHead} onClick={onSelect}>
-      <span className={styles.letter} data-letter={entry.letter} title={entry.status}>
-        {entry.letter}
-      </span>
-      <span className={styles.file} title={entry.file}>
-        {entry.file}
-      </span>
-      <span className={styles.stat}>
-        <span className={styles.add}>+{entry.added}</span>
-        <span className={styles.del}>−{entry.removed}</span>
-      </span>
-    </button>
-    <button
-      type="button"
-      className={styles.iconBtn}
-      title={t('定位到会话')}
-      aria-label={t('定位到会话')}
-      data-testid="change-locate"
-      onClick={(e) => {
-        e.stopPropagation();
-        onLocate();
-      }}
-    >
-      <LocateFixed size={12} />
-    </button>
-  </div>
-);
 
 const GitRow: React.FC<{
   entry: GitFileEntry;
@@ -112,20 +75,24 @@ const GitRow: React.FC<{
 export const SessionChangesPanel: React.FC<{
   messages: readonly ConvMessage[];
   cwd?: string | null;
-}> = ({ messages, cwd }) => {
+  /** 整页右栏全高模式 */
+  rail?: boolean;
+}> = ({ messages, cwd, rail = false }) => {
   const [tab, setTab] = useState<Tab>('changes');
   const [collapsed, setCollapsed] = useState(false);
   const [git, setGit] = useState<GitDiffResult | null>(null);
   const [gitBusy, setGitBusy] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [filter, setFilter] = useState('');
   const [badgePulse, setBadgePulse] = useState(false);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
-  const { openWorkbench } = useChangesUi();
+  const { workbench, closeWorkbench, openDetail } = useChangesUi();
 
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const summary = useMemo(() => summarizeChanges(changes), [changes]);
+  const tree = useMemo(() => buildChangeFileTree(changes), [changes]);
 
   const refreshGit = useCallback(async () => {
     if (!cwd) {
@@ -161,6 +128,21 @@ export const SessionChangesPanel: React.FC<{
     }
     prevCount.current = changes.length;
   }, [changes.length]);
+
+  /** 摘要卡「查看变更」→ 聚焦本右栏，不另开全屏三栏 */
+  useEffect(() => {
+    if (!workbench) return;
+    setCollapsed(false);
+    setTab('changes');
+    setFilter('');
+    const file = workbench.file ?? workbench.entries?.[0]?.file ?? changes[0]?.file ?? null;
+    if (file) {
+      setSelectedFile(file);
+      setPreviewKey(`c:${file}`);
+    }
+    panelRef.current?.focus({ preventScroll: true });
+    panelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
 
   const openGit = useCallback(() => {
     setTab('git');
@@ -208,22 +190,24 @@ export const SessionChangesPanel: React.FC<{
         !panelRef.current?.contains(document.activeElement) &&
         document.activeElement !== panelRef.current
       ) {
-        // still allow when preview open
-        if (!previewKey) return;
+        if (!previewKey && !workbench) return;
       }
       if (e.key === 'Escape') {
         if (previewKey) {
           e.preventDefault();
           setPreviewKey(null);
-        } else if (!collapsed) {
+          closeWorkbench();
+        } else if (!collapsed && !rail) {
           e.preventDefault();
           setCollapsed(true);
+        } else if (workbench) {
+          closeWorkbench();
         }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [previewKey, collapsed]);
+  }, [previewKey, collapsed, rail, workbench, closeWorkbench]);
 
   if (!changes.length && !cwd) return null;
 
@@ -233,11 +217,18 @@ export const SessionChangesPanel: React.FC<{
     return git.error || t('无法读取 git 状态');
   })();
 
+  const pickChange = (file: string) => {
+    setSelectedFile(file);
+    setPreviewKey(`c:${file}`);
+  };
+
   return (
     <section
       ref={panelRef}
       className={styles.panel}
       data-testid="session-changes-panel"
+      data-rail={rail || undefined}
+      data-focused={workbench ? 'true' : undefined}
       tabIndex={-1}
     >
       <header className={styles.panelHead}>
@@ -248,7 +239,7 @@ export const SessionChangesPanel: React.FC<{
           aria-expanded={!collapsed}
         >
           {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-          {t('工作区')}
+          {rail ? t('已更改的文件') : t('工作区')}
           {summary.files > 0 ? (
             <span
               className={styles.summary}
@@ -303,6 +294,21 @@ export const SessionChangesPanel: React.FC<{
                 <RefreshCw size={12} className={gitBusy ? styles.spin : undefined} />
               </button>
             ) : null}
+            {rail && workbench ? (
+              <button
+                type="button"
+                className={styles.iconBtn}
+                aria-label={t('关闭')}
+                title={t('关闭预览聚焦')}
+                data-testid="files-rail-clear-focus"
+                onClick={() => {
+                  setPreviewKey(null);
+                  closeWorkbench();
+                }}
+              >
+                <X size={12} />
+              </button>
+            ) : null}
           </div>
         )}
       </header>
@@ -313,34 +319,44 @@ export const SessionChangesPanel: React.FC<{
             <p className={styles.empty}>{t('本会话尚无文件变更')}</p>
           ) : (
             <>
-              <p className={styles.hint}>{t('会话工具写入 · 点击文件打开预览')}</p>
+              <label className={styles.wbFilter}>
+                <Search size={12} />
+                <input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t('筛选文件…')}
+                  data-testid="files-rail-filter"
+                />
+              </label>
+              <div className={styles.wbTreeHead}>{t('已更改的文件')}</div>
+              <div className={styles.railTree} data-testid="files-rail-tree">
+                <ChangeFileTree
+                  nodes={tree}
+                  active={selectedFile}
+                  onPick={pickChange}
+                  filter={filter}
+                  testIdPrefix="rail"
+                  messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}
+                  onLocate={(_file, messageId) => {
+                    if (messageId) locateChangeMessage(messageId);
+                  }}
+                />
+              </div>
               <button
                 type="button"
-                className={styles.turnPrimary}
-                style={{ marginBottom: 8, alignSelf: 'flex-start' }}
+                className={styles.detailLink}
                 data-testid="panel-open-workbench"
                 onClick={() =>
-                  openWorkbench({
+                  openDetail({
                     entries: changes,
-                    file: changes[0]?.file,
+                    file: selectedFile ?? changes[0]?.file,
                     sourceLabel: t('全部'),
                   })
                 }
               >
+                <ExternalLink size={12} />
                 {t('打开完整变更工作台')}
               </button>
-              {changes.map((c) => (
-                <ChangeRow
-                  key={c.file}
-                  entry={c}
-                  selected={selectedFile === c.file || previewKey === `c:${c.file}`}
-                  onSelect={() => {
-                    setSelectedFile(c.file);
-                    setPreviewKey(`c:${c.file}`);
-                  }}
-                  onLocate={() => locateChangeMessage(c.messageId)}
-                />
-              ))}
             </>
           )}
         </div>
@@ -393,7 +409,10 @@ export const SessionChangesPanel: React.FC<{
           activeKey={previewKey}
           cwd={cwd}
           onActiveKey={setPreviewKey}
-          onClose={() => setPreviewKey(null)}
+          onClose={() => {
+            setPreviewKey(null);
+            closeWorkbench();
+          }}
           onSaved={() => {
             void refreshGit();
           }}
