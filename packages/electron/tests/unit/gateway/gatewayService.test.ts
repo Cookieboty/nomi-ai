@@ -352,6 +352,31 @@ describe('GatewayService', () => {
     expect(t.svc.credentials('onlymsg')).toBeNull();
   });
 
+  it('credentials skip keys restricted to another wire (#95)', () => {
+    const t = setup();
+    t.svc.init();
+    const urls = { chat: 'https://c.example/v1', messages: 'https://m.example' };
+    t.svc.upsertProvider({
+      name: 'Mix',
+      urls,
+      newKeys: [
+        { value: 'sk-msg', wire: 'messages' },
+        { value: 'sk-chat', wire: 'chat' },
+      ],
+    });
+    expect(t.svc.credentials('mix')?.apiKey).toBe('sk-chat');
+    t.svc.upsertProvider({
+      name: 'MsgOnly',
+      urls,
+      newKeys: [{ value: 'sk-msg', wire: 'messages' }],
+    });
+    expect(t.svc.credentials('msgonly')).toEqual({
+      id: 'msgonly',
+      name: 'MsgOnly',
+      baseURL: 'https://c.example/v1',
+    });
+  });
+
   it('notifies in-process listeners on changes', () => {
     const t = setup();
     t.svc.init();

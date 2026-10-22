@@ -461,8 +461,10 @@ export class GatewayService {
   credentials(id: string): { id: string; name: string; baseURL: string; apiKey?: string } | null {
     const p = this.store.providers().find((x) => x.id === id && x.enabled);
     if (!p?.urls.chat) return null;
+    // 只用 Chat 协议能用的 Key（未限定协议或限定为 chat），与网关路由的 wiresFor 一致；
+    // 限定给 messages 等其它协议的 Key 不发到 Chat 地址（#95）
     const key = p.keys
-      .filter((k) => k.enabled)
+      .filter((k) => k.enabled && (!k.wire || k.wire === 'chat'))
       .map((k) => this.store.decrypt(k.enc, k.encryption))
       .find((v): v is string => Boolean(v));
     return { id: p.id, name: p.name, baseURL: p.urls.chat, ...(key ? { apiKey: key } : {}) };
