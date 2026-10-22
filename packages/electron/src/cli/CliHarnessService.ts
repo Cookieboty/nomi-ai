@@ -1591,7 +1591,8 @@ export class CliHarnessService {
   ): NodeJS.ProcessEnv {
     let env = cliChildEnv(useNode, { ...extra, ...l.env });
     if (l.official && this.d.gateway) env = this.d.gateway.officialEnv(env);
-    for (const k of l.strip) delete env[k];
+    // strip 只清继承来的同名变量，不清这次注入的（如 ANTHROPIC_SMALL_FAST_MODEL 既要剔除旧值又要注入新值，#98）
+    for (const k of l.strip) if (!(k in l.env) && !(k in extra)) delete env[k];
     return env;
   }
 

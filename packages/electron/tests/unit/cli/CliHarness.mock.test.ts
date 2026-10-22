@@ -711,6 +711,35 @@ describe('CliHarnessService session handling', () => {
       expect(tab.modelOverride).toBeFalsy();
     });
 
+    it('第三方注入的变量不被 strip 清掉，继承的同名变量才清（#98）', () => {
+      const keys = ['ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_API_KEY'] as const;
+      const saved = keys.map((k) => process.env[k]);
+      process.env.ANTHROPIC_SMALL_FAST_MODEL = 'inherited-old';
+      process.env.ANTHROPIC_API_KEY = 'sk-inherited';
+      try {
+        const h = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+        const env = (
+          h as unknown as {
+            childEnv(useNode: boolean, l: unknown): NodeJS.ProcessEnv;
+          }
+        ).childEnv(false, {
+          env: { ANTHROPIC_SMALL_FAST_MODEL: 'zp/small' },
+          args: [],
+          strip: [...keys],
+          official: false,
+          modelInConfig: false,
+          sig: '',
+        });
+        expect(env.ANTHROPIC_SMALL_FAST_MODEL).toBe('zp/small');
+        expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+      } finally {
+        keys.forEach((k, i) => {
+          if (saved[i] === undefined) delete process.env[k];
+          else process.env[k] = saved[i];
+        });
+      }
+    });
+
     it('关闭第三方标签时回收它的网关进程级私有目录', async () => {
       const gw = testGateway({ source: 'thirdParty', main: 'deepseek/flash' });
       const released: Array<[string, string]> = [];
