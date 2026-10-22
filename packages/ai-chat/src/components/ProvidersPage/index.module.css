@@ -6,52 +6,71 @@
   display: grid;
   gap: var(--cd-space-2);
 }
-.title {
-  margin: 0;
-  font-size: var(--cd-font-size-lg);
-}
 .sub {
   margin: 0;
   font-size: var(--cd-font-size-sm);
   color: var(--cd-color-text-muted);
 }
 .tabs {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: var(--cd-space-0-5);
-  padding: var(--cd-space-0-5);
-  border: 1px solid var(--cd-color-border);
-  border-radius: calc(var(--cd-radius-md) + var(--cd-space-0-5));
-  background: var(--cd-color-bg-subtle);
-  width: fit-content;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--cd-space-2);
 }
+/* 助手卡片（视觉稿「助手配置」）：图标 + 名称 + 安装状态 */
 .tab {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1-5);
-  height: var(--cd-control-h-ms);
-  padding: 0 var(--cd-space-3);
-  border: 1px solid transparent;
-  border-radius: var(--cd-radius-md);
-  background: transparent;
-  color: var(--cd-color-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cd-space-2);
+  min-height: 72px;
+  padding: var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-text);
   font: inherit;
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-medium);
+  text-align: left;
   cursor: pointer;
 }
 .tab:hover {
-  color: var(--cd-color-text);
   background: var(--cd-color-hover);
 }
 .tab:focus-visible {
-  outline: 2px solid var(--cd-color-accent);
+  outline: 2px solid var(--cd-color-accent-strong);
   outline-offset: 1px;
 }
 .tabOn {
-  background: var(--cd-color-surface);
-  border-color: var(--cd-color-border);
-  color: var(--cd-color-text);
+  border-color: var(--cd-color-accent-strong);
+  box-shadow: 0 0 0 1px var(--cd-color-accent-strong) inset;
+  background: var(--cd-color-surface-sunken);
+}
+.cardName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.chip {
+  font-size: var(--cd-font-size-xs);
+  padding: 1px var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  background: var(--cd-color-active);
+  color: var(--cd-color-text-muted);
+}
+.chipOk {
+  background: var(--cd-color-success-soft);
+  color: var(--cd-color-success);
+}
+.chipOk::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: var(--cd-space-1);
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--cd-palette-success, var(--cd-color-success));
 }
 .intro {
   display: grid;
@@ -279,11 +298,6 @@
   font-size: var(--cd-font-size-xs);
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-/* 「监视与会话」标签与四个端点标签之间留出分隔 */
-.tabMonitor {
-  margin-left: auto;
 }
 
 /* 官方账号登录弹窗里的一次性码（docs/design/cli-official-accounts.md §6） */
