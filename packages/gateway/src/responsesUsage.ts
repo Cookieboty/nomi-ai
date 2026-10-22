@@ -7,6 +7,9 @@
  */
 type Obj = Record<string, unknown>;
 
+/** 一个事件的结尾：空行（LF 或 CRLF，可混用） */
+const EVENT_END = /\r?\n\r?\n/;
+
 const isObj = (v: unknown): v is Obj => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
 /** 补全一个 usage 对象；不是对象时原样返回 */
@@ -48,10 +51,11 @@ export class ResponsesUsagePatcher {
   push(text: string): string {
     this.buf += text;
     let out = '';
-    let i: number;
-    while ((i = this.buf.indexOf('\n\n')) >= 0) {
-      out += this.patch(this.buf.slice(0, i + 2));
-      this.buf = this.buf.slice(i + 2);
+    // 事件之间的空行可以是 LF 或 CRLF（与 SseParser 一致）；分隔符原样保留（#94）
+    for (let m = EVENT_END.exec(this.buf); m; m = EVENT_END.exec(this.buf)) {
+      const end = m.index + m[0].length;
+      out += this.patch(this.buf.slice(0, end));
+      this.buf = this.buf.slice(end);
     }
     return out;
   }
@@ -65,10 +69,11 @@ export class ResponsesUsagePatcher {
   private patch(block: string): string {
     const watch = block.includes('"usage"') || block.includes('output_item.done');
     if (!watch) return block;
-    const lines = block.split('\n');
+    // 奇数位是换行符本身（LF / CRLF），只改数据行，换行原样拼回
+    const parts = block.split(/(\r?\n)/);
     let changed = false;
-    const next = lines.map((line) => {
-      if (!line.startsWith('data:')) return line;
+    const next = parts.map((line, idx) => {
+      if (idx % 2 || !line.startsWith('data:')) return line;
       const raw = line.slice(5).trim();
       try {
         const ev = JSON.parse(raw) as Obj;
@@ -90,6 +95,6 @@ export class ResponsesUsagePatcher {
         return line;
       }
     });
-    return changed ? next.join('\n') : block;
+    return changed ? next.join('') : block;
   }
 }

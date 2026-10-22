@@ -765,6 +765,9 @@ export class GatewayServer {
         }
       } catch (e) {
         if (!res.destroyed) {
+          // 已收到的完整事件先写出去，再报错（Responses 补全层还缓存着的部分，#94）
+          const tail = usageFix?.end();
+          if (tail) res.write(tail);
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
