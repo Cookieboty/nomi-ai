@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { CONFIRM_MIN_W, intersects, placeConfirmBubble } from '../../src/mascot/bubblePlacement';
@@ -51,5 +54,25 @@ describe('placeConfirmBubble', () => {
       screen: { winX: 1700, availLeft: 0, availWidth: 1920 },
     });
     expect(1700 + p.x + p.width).toBeLessThanOrEqual(1920);
+  });
+});
+
+// 摆放算的是 border-box 尺寸：气泡必须按 border-box 渲染、按摆放高度封顶，否则会越出窗口裁掉按钮（#80）
+describe('DesktopConfirm bubble honours the placement box', () => {
+  const dir = resolve(__dirname, '../../src/components/Mascot');
+  const css = readFileSync(resolve(dir, 'DesktopConfirm.module.css'), 'utf8');
+  const tsx = readFileSync(resolve(dir, 'DesktopConfirm.tsx'), 'utf8');
+
+  it('uses border-box and lets only the text scroll', () => {
+    const bubble = /\.bubble \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(bubble).toMatch(/box-sizing:\s*border-box/);
+    const text = /\.text \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(text).toMatch(/overflow-y:\s*auto/);
+  });
+
+  it('caps the height at the placement height and measures without that cap', () => {
+    expect(tsx).toMatch(/maxHeight: place\.height/);
+    expect(tsx).not.toMatch(/minHeight: place\.height/);
+    expect(tsx).toMatch(/el\.style\.maxHeight = 'none'/);
   });
 });

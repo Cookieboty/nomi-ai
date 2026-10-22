@@ -66,6 +66,8 @@ export const DesktopConfirm: React.FC = () => {
         const prev = el.style.cssText;
         el.style.width = `${w}px`;
         el.style.height = 'auto';
+        // 量自然高度：不能被上一次摆放的 max-height 截住，否则只会越量越矮
+        el.style.maxHeight = 'none';
         const h = el.offsetHeight;
         el.style.cssText = prev;
         return h;
@@ -155,7 +157,8 @@ export const DesktopConfirm: React.FC = () => {
                 top: place.y,
                 width: place.width,
                 right: 'auto',
-                minHeight: place.height,
+                // 摆放可能把高度压小（头部上下空间不够）：说明文字在气泡内滚动，按钮行始终可见（#80）
+                maxHeight: place.height,
               }
             : fallbackRight !== null
               ? { right: fallbackRight }
