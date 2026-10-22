@@ -34,6 +34,11 @@ function setup() {
     calls.push([ch, args]);
     if (ch === 'ai:agents:state' || ch === 'ai:agents:scan') return AGENTS;
     if (ch === 'ai:cli-account:list') return [];
+    if (ch === 'ai:cli-update:inspect')
+      return [
+        { kind: 'claude', path: '/usr/bin/claude', version: '2.1.0' },
+        { kind: 'codex', path: null, version: null },
+      ];
     return {};
   });
   (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
@@ -47,6 +52,17 @@ afterEach(() => {
 });
 
 describe('ProvidersPage', () => {
+  it('助手卡片显示主进程报告的安装状态；没报告的端点不显示状态', async () => {
+    setup();
+    const r = render(<ProvidersPage />);
+    await waitFor(() =>
+      expect(r.getByTestId('providers-endpoint-status-claude').textContent).toBe('已安装 2.1.0'),
+    );
+    expect(r.getByTestId('providers-endpoint-status-codex').textContent).toBe('未安装');
+    expect(r.getByTestId('providers-endpoint-status-nomi').textContent).toBe('内置');
+    expect(r.queryByTestId('providers-endpoint-status-grok')).toBeNull();
+  });
+
   it('Nomi 区只有指向「模型」页的入口；五个 CLI 端点 + 「监视与会话」', async () => {
     setup();
     const onOpenModels = vi.fn();

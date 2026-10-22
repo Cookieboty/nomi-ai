@@ -97,6 +97,31 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(s.getByTestId('settings-calendar')).toBeTruthy();
   });
 
+  it('v1.1.1 视觉稿：侧栏品牌头 / 底部标语，右侧每个分区统一页头（标题 + 说明）', () => {
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    expect(r.getByTestId('settings-brand').textContent).toContain('Nomi · 诺米');
+    expect(r.getByTestId('settings-sidebar-foot').textContent).toContain('让 AI 更懂你');
+    for (const s of SETTINGS_SECTIONS) {
+      fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
+      const head = r.getByTestId('settings-page-head');
+      expect(head.querySelector('h1')!.textContent).toBe(s.label);
+      expect(head.querySelector('p')!.textContent).toBe(s.intro);
+      expect(s.intro.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('快捷键：「应用内快捷键 / 全局快捷键」两个标签，全局只列系统注册的截图快捷键', () => {
+    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
+    const page = 'settings-shortcuts-page';
+    expect(r.getByTestId(`${page}-tab-app`).getAttribute('aria-selected')).toBe('true');
+    expect(r.getByTestId('settings-shortcuts')).toBeTruthy();
+    fireEvent.click(r.getByTestId(`${page}-tab-global`));
+    expect(r.queryByTestId('settings-shortcuts')).toBeNull();
+    const global = r.getByTestId('settings-shortcuts-global');
+    expect(global.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(global.textContent).toContain('截图提问');
+  });
+
   it('菜单只有合并后的 12 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r

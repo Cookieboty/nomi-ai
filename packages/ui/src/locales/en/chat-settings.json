@@ -365,5 +365,20 @@
   "API Key 无效，请到供应商设置里检查": "The API key is invalid. Check it in provider settings",
   "上游找不到这个模型，请换一个模型": "The upstream doesn't have this model. Pick another model",
   "对话太长，超出了模型的上下文长度，请新开会话或精简内容": "The conversation exceeds the model's context length. Start a new chat or shorten it",
-  "上游返回错误（{0}）：{1}": "Upstream error ({0}): {1}"
+  "上游返回错误（{0}）：{1}": "Upstream error ({0}): {1}",
+  "已安装 {0}": "Installed {0}",
+  "应用内快捷键": "In-app shortcuts",
+  "全局快捷键": "Global shortcuts",
+  "快捷键分区": "Shortcut sections",
+  "全局快捷键由系统注册，Nomi 不在前台时也能触发。": "Global shortcuts are registered with the system and work even when Nomi is not in front.",
+  "功能": "Action",
+  "Nomi · 诺米": "Nomi",
+  "让 AI 更懂你，让工作与生活更轻松。": "An AI that knows you, making work and life easier.",
+  "配置 Nomi 的基础行为与外观设置。": "Configure Nomi's basic behavior and appearance.",
+  "配置 Nomi 的全局快捷键与应用内快捷键，提升你的工作效率。": "Configure Nomi's global and in-app shortcuts to work faster.",
+  "查看 Token 使用、成本统计与费用趋势。": "Review token usage, cost statistics and spending trends.",
+  "编程助手完成、需要确认或出错时，在灵动岛与系统通知里提醒你。": "Get notified in the Dynamic Island and system notifications when a coding assistant finishes, needs confirmation or fails.",
+  "管理 MCP 服务器、插件与技能，扩展 Nomi 能调用的工具。": "Manage MCP servers, plugins and skills to extend the tools Nomi can use.",
+  "管理本机的剪贴板历史、数据导出、本地模型与 Ollama。": "Manage clipboard history, data export, local models and Ollama on this machine.",
+  "截图提问（需在「语音与屏幕 → 屏幕」开启截图快捷键）": "Screenshot question (enable the screenshot hotkey in Voice & Screen → Screen)"
 }
