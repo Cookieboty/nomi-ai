@@ -261,6 +261,18 @@ export interface GitDiffResult {
   truncated: boolean;
   error?: string;
 }
+export interface WorkspaceFileResult {
+  ok: boolean;
+  path?: string;
+  rel?: string;
+  content?: string;
+  truncated?: boolean;
+  binary?: boolean;
+  size?: number;
+  mtimeMs?: number;
+  error?: string;
+  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid';
+}
 
 export const harnessClient = {
   available: () => !!bridge(),
@@ -270,6 +282,10 @@ export const harnessClient = {
   slashExpand: (backend: string, cwd: string, id: string, args: string) =>
     call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
   gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
+  workspaceRead: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-read', cwd, filePath),
+  workspaceWrite: (cwd: string, filePath: string, content: string) =>
+    call<WorkspaceFileResult>('workspace-write', cwd, filePath, content),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
   setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),

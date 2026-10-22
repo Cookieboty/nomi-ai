@@ -10,3 +10,15 @@ export function shortenPath(full: string, max = 28): string {
   const tail = parts.slice(-2).join('/');
   return `…/${tail}`.length <= max ? `…/${tail}` : `…/${parts[parts.length - 1]}`;
 }
+
+/** 将绝对路径收成 cwd 相对路径（若落在工作区内）；否则原样返回 */
+export function workspaceRelPath(cwd: string | null | undefined, filePath: string): string {
+  if (!cwd || !filePath) return filePath;
+  const norm = (s: string) => s.replace(/\\/g, '/').replace(/\/+$/, '');
+  const c = norm(cwd);
+  let f = norm(filePath);
+  if (f.startsWith('file://')) f = decodeURIComponent(f.slice(7));
+  if (f === c) return f.split('/').pop() || f;
+  if (f.startsWith(`${c}/`)) return f.slice(c.length + 1);
+  return filePath;
+}

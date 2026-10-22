@@ -117,6 +117,7 @@ import type {
   HarnessTabSource,
   HarnessTabsState,
 } from './types';
+import { readWorkspaceFile, writeWorkspaceFile } from './workspaceFiles';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -4286,6 +4287,16 @@ export class CliHarnessService {
       ),
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
+    handle('ai:harness:workspace-read', (cwd, filePath) =>
+      readWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
+    );
+    handle('ai:harness:workspace-write', (cwd, filePath, content) =>
+      writeWorkspaceFile(
+        validDir(String(cwd ?? '')),
+        String(filePath ?? ''),
+        String(content ?? ''),
+      ),
+    );
     handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
       this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,

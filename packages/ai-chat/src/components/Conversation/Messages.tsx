@@ -186,7 +186,7 @@ export const UserMessage = memo(function UserMessage({
     onEdit?.(message.id, text);
   };
   return (
-    <div className={styles.user} data-testid="msg-user">
+    <div className={styles.user} data-testid="msg-user" data-message-id={message.id}>
       {timeLabel && (
         <time className={styles.time} dateTime={new Date(message.at).toISOString()} title={full}>
           {timeLabel}
@@ -275,7 +275,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   const body = slots?.body?.(message);
   const retry = canRetry && onRetry ? () => onRetry(message.id) : undefined;
   return (
-    <div className={styles.assistant} data-testid="msg-assistant">
+    <div className={styles.assistant} data-testid="msg-assistant" data-message-id={message.id}>
       {message.origin === 'background' && (
         <div className={styles.stopped} data-testid="background-followup-note">
           <Icon icon={Layers} size={13} />

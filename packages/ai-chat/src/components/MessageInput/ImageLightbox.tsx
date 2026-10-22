@@ -1,9 +1,9 @@
 /**
- * 附件图片放大查看：挂到 body 上的全屏遮罩，显示原图；点遮罩、关闭按钮或按 Esc 关闭，关闭后焦点回到缩略图。
+ * 附件图片放大查看：缩放 / Esc 关闭；挂到 body。
  */
 import { Icon, t, useFocusTrap } from '@nomi-ai/ui';
-import { X } from 'lucide-react';
-import React, { useRef } from 'react';
+import { Minus, Plus, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ImageAttachment } from '../../services/screenClient';
@@ -15,7 +15,7 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
   onClose,
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
-  // 焦点留在遮罩里（Tab 不会跑到背后的输入框），Esc 关闭，关闭后焦点回到缩略图
+  const [zoom, setZoom] = useState(1);
   useFocusTrap(rootRef, true, onClose);
 
   return createPortal(
@@ -32,8 +32,31 @@ export const ImageLightbox: React.FC<{ image: ImageAttachment; onClose: () => vo
         src={`data:${image.mime};base64,${image.data}`}
         alt={t('附件图片')}
         className={styles.image}
+        style={{ transform: `scale(${zoom})`, transition: 'transform 0.15s ease' }}
         onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => {
+          e.stopPropagation();
+          setZoom((z) => Math.min(4, Math.max(0.5, z + (e.deltaY < 0 ? 0.1 : -0.1))));
+        }}
       />
+      <div className={styles.toolbar} onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label={t('缩小')}
+          onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+        >
+          <Icon icon={Minus} size={14} />
+        </button>
+        <button
+          type="button"
+          className={styles.toolBtn}
+          aria-label={t('放大')}
+          onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
+        >
+          <Icon icon={Plus} size={14} />
+        </button>
+      </div>
       <button
         type="button"
         data-autofocus

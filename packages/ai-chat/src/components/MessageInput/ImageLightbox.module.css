@@ -36,3 +36,27 @@
 .close:focus-visible {
   outline: 2px solid var(--cd-color-accent-strong);
 }
+
+.toolbar {
+  position: absolute;
+  bottom: var(--cd-space-6, 24px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--cd-space-2, 8px);
+}
+.toolBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-sm, 28px);
+  height: var(--cd-control-h-sm, 28px);
+  border: none;
+  border-radius: var(--cd-radius-full);
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.toolBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+}
