@@ -69,7 +69,7 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    expect(mascot.textContent).toContain('Nomi');
+    expect(mascot.textContent).toContain('诺米');
     expect(main.textContent).toContain('软件主界面');
   });
 
@@ -111,7 +111,7 @@ describe('Settings → General → startup default view', () => {
     expect(main.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radiogroup', { name: 'Show on startup' })).toBeTruthy();
     expect(main.textContent).toContain('Main window');
-    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Mascot');
+    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Nomi');
   });
 
   it('close main window: defaults to hide to tray, can switch to quit and persists', async () => {

@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/ui': patch
 ---
 
 整理「设置 → 知识与记忆」：

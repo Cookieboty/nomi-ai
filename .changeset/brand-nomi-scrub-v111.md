@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
 '@nomi-ai/renderer': patch
-'@nomi-ai/ui': patch
 '@nomi-ai/electron': patch
 ---
 
