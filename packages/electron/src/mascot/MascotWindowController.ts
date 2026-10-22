@@ -499,7 +499,15 @@ export class MascotWindowController {
       // Free place: stay exactly where dropped (no slide / throw residual)
       this.body = { ...this.body, vx: 0, vy: 0, mode: 'idle' };
     }
+    // User just placed/released — don't let an overdue auto-wander steal the pose
+    // on the next tick (manual wander-now used to leave nextWanderAt in the past).
+    this.scheduleNextWander();
     this.send('mascot:physics-event', { type: 'release', vx: v.vx, vy: v.vy });
+  }
+
+  /** Next auto-wander in 20–60s (same window as the idle tick scheduler). */
+  private scheduleNextWander(from = performance.now()): void {
+    this.nextWanderAt = from + 20000 + this.rnd() * 40000;
   }
 
   private startWander(): void {
@@ -510,6 +518,9 @@ export class MascotWindowController {
       mode: 'walking',
       walkTargetX: pickWanderTarget(this.body, env, this.rnd),
     };
+    // Manual wander-now and auto-wander share this path; always push the next
+    // slot forward so finishing a walk doesn't immediately re-trigger walking.
+    this.scheduleNextWander();
   }
 
   private tick(): void {
@@ -540,7 +551,8 @@ export class MascotWindowController {
       this.body.vy = this.tracker.vy;
     } else if (env) {
       if (this.cfg.wander && this.body.mode === 'idle' && now >= this.nextWanderAt) {
-        this.nextWanderAt = now + 20000 + this.rnd() * 40000;
+        // Push the slot first so a missing env (no box yet) cannot hot-loop at 60Hz.
+        this.scheduleNextWander(now);
         this.startWander();
       }
       this.acc += dt;
