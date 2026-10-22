@@ -238,6 +238,8 @@ export type ProviderFactory = (opts: AiSdkLlmProviderOptions) => LLMProvider;
 
 /** 经统一网关的 Nomi 对话在用量 / 记账里显示的 provider id */
 export const GATEWAY_PROVIDER_ID = 'nomi-gateway';
+/** 统一网关报回实际服务模型的响应头（与 @nomi-ai/gateway 的 SERVED_MODEL_HEADER 一致） */
+export const NOMI_SERVED_MODEL_HEADER = 'x-nomi-served-model';
 
 export const defaultProviderFactory: ProviderFactory = (opts) => new AiSdkLlmProvider(opts);
 
@@ -379,6 +381,8 @@ export class RoutedLLMRegistry implements LLMRegistry {
       apiKey: r.token,
       requiresApiKey: true,
       receiver: r.receiver,
+      // 网关回退到别的候选时，记账按实际服务的模型（#97）
+      servedModelHeader: NOMI_SERVED_MODEL_HEADER,
     });
     // 用量仍由这里记账（网关对 nomi 客户端的用量回调不再重复记）
     const provider = new TrackedProvider(GATEWAY_PROVIDER_ID, [p], this.opts.store, r.model);

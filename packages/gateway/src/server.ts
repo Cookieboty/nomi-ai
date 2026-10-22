@@ -41,6 +41,11 @@ const MAX_ATTEMPTS = 4;
 const MAX_LEARN_RETRIES = 2;
 /** 首字节前单次尝试的超时 */
 const FIRST_BYTE_TIMEOUT_MS = 30_000;
+/**
+ * 响应头：实际服务这次请求的模型（`供应商/模型`）。回退到别的候选时与请求模型不同，
+ * Nomi 对话据此记账（#97；ai-runtime 的 NOMI_SERVED_MODEL_HEADER 与此一致）
+ */
+export const SERVED_MODEL_HEADER = 'x-nomi-served-model';
 /** 首字节之前所有尝试的总时长上限 */
 const FIRST_BYTE_BUDGET_MS = 60_000;
 /** 首字节之后上游连续无事件的上限 */
@@ -691,6 +696,7 @@ export class GatewayServer {
     notes: string[] = [],
     trace?: RequestTrace | null,
   ): Promise<StreamUsage> {
+    res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
     const passthrough = ingress.wire === cand.wire && !cand.customToolsAsFunctions;
     const isSse = (up.headers.get('content-type') ?? '').includes('text/event-stream');

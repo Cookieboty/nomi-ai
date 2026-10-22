@@ -68,6 +68,11 @@ export interface AiSdkLlmProviderOptions {
    * 必须换成真正的上游，否则云端供应商会被当成本地。
    */
   receiver?: ToolCallProvider;
+  /**
+   * 上游在这个响应头里报回实际服务的模型（统一网关回退到别的候选时与请求模型不同）。
+   * 只给可信的上游（Nomi 网关）设置；记账用它，缺省用请求解析出的模型（#97）。
+   */
+  servedModelHeader?: string;
 }
 
 /** 每条消息最多带几张图、总 base64 体积上限（约 12 MB 原图） */
@@ -273,6 +278,13 @@ export class AiSdkLlmProvider implements LLMProvider {
     this.aborts.delete(reqId);
   }
 
+  /** 上游报回的实际模型（只认 servedModelHeader 指定的头） */
+  private servedModel(headers: Record<string, string> | undefined): string | undefined {
+    const name = this.opts.servedModelHeader;
+    const v = name && headers ? headers[name.toLowerCase()] : undefined;
+    return v?.trim() || undefined;
+  }
+
   private resolveModel(request: ChatRequest): string {
     const asked =
       request.model && request.model !== 'default'
@@ -324,7 +336,7 @@ export class AiSdkLlmProvider implements LLMProvider {
       return {
         reqId: request.reqId,
         provider: this.id,
-        model: this.resolveModel(request),
+        model: this.servedModel(result.response?.headers) ?? this.resolveModel(request),
         content: result.text,
         toolCalls,
         finishReason: finishOf(result.finishReason),
@@ -351,8 +363,11 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(thinkingOptions(this.opts) ? { providerOptions: thinkingOptions(this.opts) } : {}),
         ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? 5) } : {}),
       });
+      let served: string | undefined;
       for await (const part of result.fullStream) {
-        if (part.type === 'text-delta') {
+        if (part.type === 'finish-step') {
+          served = this.servedModel(part.response?.headers) ?? served;
+        } else if (part.type === 'text-delta') {
           yield { type: 'delta', content: part.text };
         } else if (part.type === 'reasoning-delta') {
           if (part.text) yield { type: 'reasoning', content: part.text };
@@ -381,7 +396,7 @@ export class AiSdkLlmProvider implements LLMProvider {
           };
         } else if (part.type === 'finish') {
           const u = usageOf(part.totalUsage);
-          if (u) yield { type: 'usage', usage: u, model: this.resolveModel(request) };
+          if (u) yield { type: 'usage', usage: u, model: served ?? this.resolveModel(request) };
           yield { type: 'done', finishReason: finishOf(part.finishReason) };
         } else if (part.type === 'error') {
           yield { type: 'error', error: describeStreamError(part.error) };

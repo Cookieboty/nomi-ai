@@ -17,7 +17,7 @@ import {
   type KeyStatusEvent,
 } from '../src/cooldown';
 import type { Candidate } from '../src/route/resolve';
-import { createGateway, type UsageEvent } from '../src/server';
+import { createGateway, SERVED_MODEL_HEADER, type UsageEvent } from '../src/server';
 
 interface Seen {
   key: string;
@@ -269,6 +269,15 @@ describe('first-byte timeout (#93)', () => {
     const r = await chat();
     expect(r.status).toBeGreaterThanOrEqual(500);
     expect(await r.text()).toContain('首字节前超时');
+  });
+});
+
+describe('served model header (#97)', () => {
+  it('tells the client which candidate actually served the request', async () => {
+    const { chat } = await setup((_s, res) => ok(res));
+    const r = await chat();
+    expect(r.headers.get(SERVED_MODEL_HEADER)).toBe('zp/glm-5');
+    await r.text();
   });
 });
 
