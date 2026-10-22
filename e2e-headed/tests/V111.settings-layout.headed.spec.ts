@@ -118,6 +118,14 @@ test.describe('v1.1.1 settings layout', () => {
         const head = chat.locator('[data-testid="settings-page-head"]');
         await expect(head.locator('h1')).toHaveText(label);
         await expect(head.locator('p')).not.toBeEmpty();
+        // 宽窗口：右侧「配置说明」可见，在页头下方、主列右侧，不重叠
+        const help = chat.locator('[data-testid="settings-help"]');
+        await expect(help).toBeVisible();
+        const hb = (await help.boundingBox())!;
+        const pb = (await head.boundingBox())!;
+        expect(pb.y + pb.height).toBeLessThanOrEqual(hb.y + 1);
+        const mb = (await chat.locator('[data-testid="settings-main-col"]').boundingBox())!;
+        expect(mb.x + mb.width).toBeLessThanOrEqual(hb.x + 1);
       }
       await shot(`settings-${id}`);
     }

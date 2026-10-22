@@ -4,7 +4,7 @@
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Lightbulb } from 'lucide-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -25,6 +25,7 @@ import { MascotSizeSettings } from './MascotSizeSettings';
 import { PinsSettings } from './PinsSettings';
 import { PrivacySection } from './PrivacySection';
 import { ScheduleSection } from './ScheduleSection';
+import { SECTION_HELP } from './sectionHelp';
 import {
   LOCAL_MANAGE_TABS,
   SECTION_TABS,
@@ -197,8 +198,13 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
     <div className={styles.settings} data-testid="settings-view">
       <nav className={styles.nav} aria-label={t('设置分区')}>
         <div className={styles.brand} data-testid="settings-brand">
-          <EndpointIcon backend="nomi" size={24} decorative />
-          <span>{t('Nomi · 诺米')}</span>
+          <span className={styles.brandBadge}>
+            <EndpointIcon backend="nomi" size={22} decorative />
+          </span>
+          <span className={styles.brandText}>
+            <span className={styles.brandName}>{t('Nomi · 诺米')}</span>
+            <span className={styles.brandSub}>{t('你的桌面 AI 助手')}</span>
+          </span>
         </div>
         <button
           type="button"
@@ -210,6 +216,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <Icon icon={ChevronLeft} />
           {t('返回对话')}
         </button>
+        <div className={styles.navGroup}>{t('设置')}</div>
         {SETTINGS_SECTIONS.map((s) => (
           <button
             key={s.id}
@@ -249,13 +256,43 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             </>
           ) : (
             <header className={styles.pageHead} data-testid="settings-page-head">
-              <h1 className={styles.pageTitle} data-testid="settings-section-title">
-                {t(current.label)}
-              </h1>
-              <p className={styles.pageIntro}>{t(current.intro)}</p>
+              <span className={styles.pageBadge} aria-hidden="true">
+                <AppIcon icon={current.icon} size={22} />
+              </span>
+              <div className={styles.pageHeadText}>
+                <h1 className={styles.pageTitle} data-testid="settings-section-title">
+                  {t(current.label)}
+                </h1>
+                <p className={styles.pageIntro}>{t(current.intro)}</p>
+              </div>
             </header>
           )}
-          <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
+          <div className={styles.columns}>
+            <div className={styles.mainCol} data-testid="settings-main-col">
+              <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
+            </div>
+            {section !== 'general' && (
+              <aside className={styles.help} aria-label={t('配置说明')} data-testid="settings-help">
+                <h2 className={styles.helpTitle}>
+                  <Icon icon={Lightbulb} size={16} />
+                  {t('配置说明')}
+                </h2>
+                <ul className={styles.helpList}>
+                  {SECTION_HELP[section].map((h) => (
+                    <li key={h.title} className={styles.helpItem}>
+                      <span className={styles.helpIcon} aria-hidden="true">
+                        <Icon icon={h.icon} size={15} />
+                      </span>
+                      <span>
+                        <span className={styles.helpItemTitle}>{t(h.title)}</span>
+                        <span className={styles.helpDesc}>{t(h.desc)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            )}
+          </div>
         </div>
       </main>
     </div>

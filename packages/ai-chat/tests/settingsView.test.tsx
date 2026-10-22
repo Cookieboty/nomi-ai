@@ -122,6 +122,20 @@ describe('SettingsView 合并后的标签页分区', () => {
     }
   });
 
+  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏有副标题与「设置」分组', async () => {
+    const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 AI 助手');
+    expect(r.queryByTestId('settings-help')).toBeNull();
+    fireEvent.click(r.getByTestId('settings-nav-models'));
+    const help = r.getByTestId('settings-help');
+    const items = help.querySelectorAll('li');
+    expect(items).toHaveLength(SECTION_HELP.models.length);
+    expect(help.textContent).toContain('第三方供应商');
+    for (const s of SETTINGS_SECTIONS)
+      if (s.id !== 'general') expect(SECTION_HELP[s.id].length).toBeGreaterThan(0);
+  });
+
   it('快捷键：「应用内快捷键 / 全局快捷键」两个标签，全局只列系统注册的截图快捷键', () => {
     const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
     const page = 'settings-shortcuts-page';

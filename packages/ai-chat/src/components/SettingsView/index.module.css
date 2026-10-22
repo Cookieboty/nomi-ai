@@ -41,10 +41,39 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: var(--cd-space-1) var(--cd-space-3) var(--cd-space-3);
-  font-size: var(--cd-font-size-md);
+  padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-4);
+}
+.brandBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--cd-radius-lg);
+  /* 橙色品牌徽章 */
+  background: linear-gradient(135deg, var(--cd-color-accent-2), var(--cd-color-accent));
+  box-shadow: 0 2px 6px rgba(var(--cd-accent-rgb), 0.35);
+}
+.brandText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.brandName {
+  font-size: var(--cd-font-size-lg);
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
+  line-height: 1.25;
+}
+.brandSub {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.navGroup {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  padding: var(--cd-space-4) var(--cd-space-3) var(--cd-space-1-5);
 }
 .navItem.navActive {
   background: var(--cd-color-selected-bg);
@@ -75,7 +104,7 @@
 }
 .inner {
   min-width: 0;
-  max-width: 960px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 28px 40px 56px;
   font-size: var(--cd-font-size-md);
@@ -373,7 +402,26 @@
 
 /* 页头：除「通用」外每个分区「大标题 + 一句说明」 */
 .pageHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-4);
   margin: 0 0 var(--cd-space-5);
+}
+/* 页头左侧圆形淡橙图标徽章 */
+.pageBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--cd-color-accent-soft);
+  border: 1px solid rgba(var(--cd-accent-rgb), 0.3);
+  color: var(--cd-color-accent-strong);
+}
+.pageHeadText {
+  min-width: 0;
 }
 .pageTitle {
   font: var(--cd-text-display);
@@ -522,4 +570,70 @@
   background: var(--cd-color-accent-soft);
   color: var(--cd-color-text);
   font-size: var(--cd-font-size-sm);
+}
+
+/* 主列 + 右侧「配置说明」 */
+.columns {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-5);
+}
+.mainCol {
+  flex: 1;
+  min-width: 0;
+  max-width: 960px;
+}
+.help {
+  position: sticky;
+  top: 0;
+  width: 248px;
+  flex: none;
+  padding: var(--cd-space-4);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+}
+.helpTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin: 0 0 var(--cd-space-3);
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+.helpList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.helpItem {
+  display: flex;
+  gap: 10px;
+  font-size: var(--cd-font-size-xs);
+  line-height: 1.55;
+}
+.helpIcon {
+  display: inline-flex;
+  margin-top: 1px;
+  color: var(--cd-color-accent-strong);
+}
+.helpItemTitle {
+  display: block;
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text);
+}
+.helpDesc {
+  display: block;
+  color: var(--cd-color-text-muted);
+}
+@media (max-width: 1200px) {
+  .help {
+    display: none;
+  }
 }
