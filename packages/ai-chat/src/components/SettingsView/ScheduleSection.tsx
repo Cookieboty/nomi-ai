@@ -20,11 +20,7 @@ export const ScheduleSection: React.FC<{
 }> = ({ tab, onTab }) => (
   <SectionPage
     testId="settings-schedule"
-    title="日程与日历"
     tabsLabel="日程与日历分区"
-    intro={t(
-      '提醒、定时任务和主动聊天在「日程提醒」；系统日历、.ics 与 CalDAV 在「日历接入」。读到的日程会进入每日简报，AI 也能通过日历工具查看。',
-    )}
     tabs={SECTION_TABS.schedule}
     value={tab}
     onChange={onTab}

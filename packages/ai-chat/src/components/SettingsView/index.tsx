@@ -9,6 +9,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
+import { EndpointIcon } from '../EndpointIcon';
 import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
@@ -94,6 +95,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   }, [onClose]);
 
   const noop = () => undefined;
+  const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
   const body = (() => {
     switch (section) {
       case 'general':
@@ -190,6 +192,10 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   return (
     <div className={styles.settings} data-testid="settings-view">
       <nav className={styles.nav} aria-label={t('设置分区')}>
+        <div className={styles.brand} data-testid="settings-brand">
+          <EndpointIcon backend="nomi" size={24} decorative />
+          <span>{t('Nomi · 诺米')}</span>
+        </div>
         <button
           type="button"
           className={styles.back}
@@ -200,7 +206,6 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <Icon icon={ChevronLeft} />
           {t('返回对话')}
         </button>
-        <div className={styles.navTitle}>{t('设置')}</div>
         {SETTINGS_SECTIONS.map((s) => (
           <button
             key={s.id}
@@ -220,9 +225,17 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             {t(s.label)}
           </button>
         ))}
+        <div className={styles.navFoot} data-testid="settings-sidebar-foot">
+          <EndpointIcon backend="nomi" size={32} decorative />
+          <span>{t('让 AI 更懂你，让工作与生活更轻松。')}</span>
+        </div>
       </nav>
       <main className={styles.content}>
         <div className={styles.inner}>
+          <header className={styles.pageHead} data-testid="settings-page-head">
+            <h1 className={styles.pageTitle}>{t(current.label)}</h1>
+            <p className={styles.pageIntro}>{t(current.intro)}</p>
+          </header>
           <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
         </div>
       </main>

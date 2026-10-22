@@ -43,9 +43,7 @@ export const SensesSection: React.FC<{
 }> = ({ tab, onTab, screenTab }) => (
   <SectionPage
     testId="settings-senses"
-    title="语音与屏幕"
     tabsLabel="语音与屏幕分区"
-    intro={t('语音输入与朗读，以及截图提问、屏幕记忆：Nomi 听你说、看你屏幕的方式都在这里设置。')}
     tabs={SECTION_TABS.senses}
     value={tab}
     onChange={onTab}

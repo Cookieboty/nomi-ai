@@ -110,14 +110,6 @@ export const ModelsPage: React.FC = () => {
   return (
     <div className={styles.page} data-testid="models-page">
       <div className={styles.head}>
-        <div>
-          <h2 className={styles.title}>{t('模型')}</h2>
-          <p className={styles.sub}>
-            {t(
-              '一个第三方供应商就能同时给 Nomi 对话和各编程助手用，协议由 Nomi 自动转换。官方账号的登录与切换仍在「编程助手」页。',
-            )}
-          </p>
-        </div>
         <label className={styles.inlineSwitch}>
           <Switch checked={showWire} onChange={setShowWire} aria-label={t('显示协议')} />
           <span>{t('显示协议')}</span>

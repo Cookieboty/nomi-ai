@@ -27,11 +27,7 @@ export const PrivacySection: React.FC<{
   return (
     <SectionPage
       testId="settings-privacy-page"
-      title="隐私与权限"
       tabsLabel="隐私与权限分区"
-      intro={t(
-        '数据怎么存、怎么导出和清除，以及 Nomi 能访问哪些文件夹、用哪些工具。所有内容都只保存在本机。',
-      )}
       tabs={SECTION_TABS.privacy}
       value={tab}
       onChange={onTab}

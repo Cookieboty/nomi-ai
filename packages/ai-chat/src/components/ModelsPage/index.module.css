@@ -7,17 +7,8 @@
 .head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--cd-space-4);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  margin: 0;
-  font-size: var(--cd-font-size-xl);
-  font-weight: var(--cd-font-weight-bold);
 }
 
 .protoBadge {

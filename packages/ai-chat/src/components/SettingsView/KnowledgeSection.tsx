@@ -18,11 +18,7 @@ export const KnowledgeSection: React.FC<{
 }> = ({ tab, onTab }) => (
   <SectionPage
     testId="settings-knowledge"
-    title="知识与记忆"
     tabsLabel="知识与记忆分区"
-    intro={t(
-      '知识库来自你加入的文件夹和笔记，长期记忆来自你和 Nomi 的对话，笔记是你的本地 Markdown 笔记库；提问时它们会一起被检索，并在回答里标出引用。都只保存在本机。',
-    )}
     tabs={SECTION_TABS.knowledge}
     value={tab}
     onChange={onTab}

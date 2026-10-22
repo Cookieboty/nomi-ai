@@ -1,5 +1,5 @@
 /**
- * 设置分区的统一「标题 + 说明 + 标签页」外壳（样式与「编程助手」页的标签一致）。
+ * 设置分区的统一「标签页」外壳（标题与说明由 SettingsView 页头统一渲染）（样式与「编程助手」页的标签一致）。
  * - 标签是 WAI-ARIA tablist：左右方向键 / Home / End 切换并移动焦点（roving tabindex）；
  * - 只渲染当前标签的内容（面板各自懒加载、切换分区时的状态行为与原先一致）。
  */
@@ -17,8 +17,6 @@ export interface SectionTabDef<T extends string> {
 interface Props<T extends string> {
   /** 外层 data-testid，标签为 `<testId>-tab-<id>`，面板为 `<testId>-panel` */
   testId: string;
-  title: string;
-  intro: React.ReactNode;
   tabsLabel: string;
   tabs: ReadonlyArray<SectionTabDef<T>>;
   value: T;
@@ -28,8 +26,6 @@ interface Props<T extends string> {
 
 export function SectionPage<T extends string>({
   testId,
-  title,
-  intro,
   tabsLabel,
   tabs,
   value,
@@ -56,8 +52,6 @@ export function SectionPage<T extends string>({
   return (
     <div className={styles.page} data-testid={testId} data-tab={value}>
       <div className={styles.head}>
-        <h2 className={styles.title}>{t(title)}</h2>
-        <p className={styles.sub}>{intro}</p>
         <div
           role="tablist"
           aria-label={t(tabsLabel)}

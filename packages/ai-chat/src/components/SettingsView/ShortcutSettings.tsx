@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 
 import {
   FIXED_SHORTCUTS,
+  GLOBAL_SHORTCUTS,
   SHORTCUT_DEFS,
   comboFromEvent,
   findConflicts,
@@ -19,11 +20,19 @@ import {
 } from '../../services/shortcuts';
 
 import styles from './index.module.css';
+import { SectionPage } from './SectionPage';
+
+const SHORTCUT_TABS = [
+  { id: 'app', label: '应用内快捷键' },
+  { id: 'global', label: '全局快捷键' },
+] as const;
+type ShortcutTab = (typeof SHORTCUT_TABS)[number]['id'];
 
 export const ShortcutSettings: React.FC = () => {
   const bindings = useShortcutBindings();
   const [recording, setRecording] = useState<ShortcutId | null>(null);
   const [invalid, setInvalid] = useState(false);
+  const [tab, setTab] = useState<ShortcutTab>('app');
   const conflicts = findConflicts(bindings);
   const labelOf = (id: ShortcutId) => t(SHORTCUT_DEFS.find((d) => d.id === id)!.label);
 
@@ -55,12 +64,55 @@ export const ShortcutSettings: React.FC = () => {
   const anyCustom = SHORTCUT_DEFS.some((d) => bindings[d.id] !== d.combo);
 
   return (
+    <SectionPage
+      testId="settings-shortcuts-page"
+      tabsLabel="快捷键分区"
+      tabs={SHORTCUT_TABS}
+      value={tab}
+      onChange={(x) => {
+        setRecording(null);
+        setTab(x);
+      }}
+    >
+      {tab === 'global' ? (
+        <section className={styles.block} data-testid="settings-shortcuts-global">
+          <p className={styles.note}>
+            {t('全局快捷键由系统注册，Nomi 不在前台时也能触发。')}
+          </p>
+          <table className={styles.shortcutTable}>
+            <thead>
+              <tr>
+                <th scope="col">{t('快捷键')}</th>
+                <th scope="col">{t('功能')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GLOBAL_SHORTCUTS.map(([k, label]) => (
+                <tr key={k}>
+                  <td>
+                    <kbd className={styles.kbd}>{formatCombo(k)}</kbd>
+                  </td>
+                  <td>{t(label)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : (
     <section className={styles.block} data-testid="settings-shortcuts">
-      <h2 className={styles.h2}>{t('快捷键')}</h2>
       <p className={styles.note}>
         {t('点击「修改」后按下新的组合键（需包含 ⌘/Ctrl 或 Alt，或使用 F1–F12）；Esc 取消。')}
       </p>
       <table className={styles.shortcutTable}>
+        <thead>
+          <tr>
+            <th scope="col">{t('功能')}</th>
+            <th scope="col">{t('快捷键')}</th>
+            <th scope="col" className={styles.shortcutActions}>
+              {t('操作')}
+            </th>
+          </tr>
+        </thead>
         <tbody>
           {SHORTCUT_DEFS.map((d) => {
             const c = conflicts[d.id];
@@ -142,5 +194,7 @@ export const ShortcutSettings: React.FC = () => {
         </Button>
       )}
     </section>
+      )}
+    </SectionPage>
   );
 };
