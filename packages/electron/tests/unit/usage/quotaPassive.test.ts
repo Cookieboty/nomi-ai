@@ -26,9 +26,10 @@ const put = (f: string, s: string) => {
   fs.writeFileSync(f, s);
 };
 
-function setup() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qp-root-'));
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qp-home-'));
+function setup(
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qp-root-')),
+  home = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-qp-home-')),
+) {
   put(path.join(home, '.claude', 'projects', 'p', 's.jsonl'), '');
   put(path.join(home, '.codex', 'sessions', '2026', '10', '16', 'rollout-x.jsonl'), '');
   put(path.join(home, '.grok', 'config.toml'), '');
@@ -162,5 +163,30 @@ describe('主动刷新关闭时，Claude 退出登录也不再显示旧账号额
     const cfg = path.join(home, 'cfg');
     put(path.join(cfg, '.claude.json'), '{"oauthAccount":{"accountUuid":"y"}}');
     expect(claudeOAuthPresent(home, { CLAUDE_CONFIG_DIR: cfg })).toBe(true);
+  });
+});
+
+describe('上一次官方登录状态的结论落盘，重启后被动读取沿用', () => {
+  it('Codex 配了自定义 model_provider，但官方说是 ChatGPT 登录：重启后不再显示成 API 计费', async () => {
+    const t = setup();
+    put(path.join(t.home, '.codex', 'config.toml'), 'model_provider = "custom"\n');
+    // 冷启动、还没刷新过：只能按本地配置推断
+    expect((await t.svc.quotaView()).find((e) => e.id === 'codex')?.auth).toBe('api');
+    await t.svc.refreshQuota('codex');
+    expect((await t.svc.quotaView()).find((e) => e.id === 'codex')?.auth).toBe('subscription');
+
+    const again = setup(t.root, t.home);
+    expect((await again.svc.quotaView()).find((e) => e.id === 'codex')?.auth).toBe('subscription');
+    expect(again.probes()).toBe(0);
+  });
+
+  it('切换官方账号 / 清空用量数据：忘掉上一次的结论', async () => {
+    const t = setup();
+    put(path.join(t.home, '.codex', 'config.toml'), 'model_provider = "custom"\n');
+    await t.svc.refreshQuota('codex');
+    t.svc.forgetAccountQuota('codex');
+    expect((await setup(t.root, t.home).svc.quotaView()).find((e) => e.id === 'codex')?.auth).toBe(
+      'api',
+    );
   });
 });
