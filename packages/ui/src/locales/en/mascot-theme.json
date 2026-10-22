@@ -180,7 +180,6 @@
   "未安装": "Not installed",
   "目录": "Folder",
   "编程助手接入需要在桌面应用中使用": "Coding-agent harness requires the desktop app",
-  "编程助手后端暂不支持图片，请切回 Nomi": "Coding-agent backends do not support images yet; switch back to Nomi",
   "Claude 错误": "Claude error",
   "Codex 错误": "Codex error",
   "{0} 退出码 {1}": "{0} exited with code {1}",
@@ -249,5 +248,7 @@
   "深咖啡底 + 日落橙，温暖的深色主题": "Deep coffee with sunset orange — a warm dark theme",
   "中性炭黑 + 靛蓝，技术型深色主题": "Neutral charcoal with indigo — a technical dark theme",
   "奶油白 + 柔和桃色，最轻盈的浅色主题": "Cream white with soft peach — the lightest theme",
-  "冷灰浅底 + 雾蓝，清爽低刺激": "Cool grey with mist blue — clear and calm"
+  "冷灰浅底 + 雾蓝，清爽低刺激": "Cool grey with mist blue — clear and calm",
+  "当前编程助手暂不支持图片，请去掉图片后再发，或换到 Claude / Codex / Grok / Gemini。": "This coding assistant does not support images here. Remove the images or switch to Claude / Codex / Grok / Gemini.",
+  "编程助手后端暂不支持图片，请切回 Nomi": "The coding-assistant backend does not support images here. Switch back to Nomi."
 }

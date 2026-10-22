@@ -129,10 +129,22 @@ export type HarnessSendReply = Omit<HarnessSendResult, 'events'>;
 /** 标签运行状态 */
 export type HarnessTabStatus = 'idle' | 'queued' | 'running' | 'error';
 
+/** 渲染层 → 主进程的用户附图（base64，不含 data: 前缀） */
+export interface HarnessImageInput {
+  mime: string;
+  data: string;
+  width?: number;
+  height?: number;
+  thumb?: string;
+  source?: string;
+}
+
 export interface HarnessTabMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** 用户附图缩略图（不存全尺寸 base64） */
+  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];

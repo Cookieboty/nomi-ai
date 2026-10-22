@@ -58,9 +58,15 @@ const log = createLogger('message-input');
 export const COMPOSER_MAX_HEIGHT_PX = 200;
 
 interface MessageInputProps {
-  onSend?: (message: string) => void;
+  /** CLI 标签可附带图片；第二参仅在有附图时传入 */
+  onSend?: (message: string, images?: ImageAttachment[]) => void;
   /** 独立于 Nomi 对话的忙碌状态（CLI 标签）；设置后不再看 Nomi 的 isLoading / 模型 */
   busyOverride?: boolean;
+  /**
+   * CLI 标签的发图能力。不传 = Nomi 路径（走 vision）。
+   * `none`：可预览附件但发送时明确提示，不静默丢图。
+   */
+  imageCapability?: 'full' | 'none';
   /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
   placeholder?: string;
   /**
@@ -87,6 +93,7 @@ interface MessageInputProps {
 const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
+  imageCapability,
   placeholder = tr('输入消息...'),
   queue,
   disabled = false,
@@ -276,10 +283,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setMessage('');
       setImages([]);
       setImgErr('');
-      if (sendImages.length && busyOverride !== undefined) {
-        setImgErr(tr('编程助手后端暂不支持图片，请切回 Nomi'));
+      if (sendImages.length && imageCapability === 'none') {
+        setImgErr(
+          tr('当前编程助手暂不支持图片，请去掉图片后再发，或换到 Claude / Codex / Grok / Gemini。'),
+        );
         setImages(sendImages);
         setMessage(trimmedMessage);
+      } else if (sendImages.length && onSend && busyOverride !== undefined) {
+        onSend(trimmedMessage, sendImages);
       } else if (sendImages.length) {
         await actions.sendStreamMessage(trimmedMessage, sendImages);
       } else if (onSend) {

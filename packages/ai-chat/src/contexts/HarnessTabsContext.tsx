@@ -18,6 +18,7 @@ import {
   MAIN_TAB_ID,
   harnessClient,
   type HarnessBackend,
+  type HarnessImageInput,
   type HarnessLiveEvent,
   type HarnessTabMessage,
   type HarnessTabMeta,
@@ -44,8 +45,8 @@ interface HarnessTabsValue {
   activate: (id: string) => Promise<void>;
   cycle: (dir: 1 | -1) => void;
   selectIndex: (i: number) => void;
-  /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送 */
-  send: (text: string) => Promise<void>;
+  /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送。附图仅空闲直发（排队不带图）。 */
+  send: (text: string, images?: HarnessImageInput[]) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
    * 目标运行 / 排队中时进该标签的队列；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
@@ -55,6 +56,7 @@ interface HarnessTabsValue {
     tabId: string,
     text: string,
     expect?: { backend?: HarnessBackend; cwd?: string },
+    images?: HarnessImageInput[],
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
   hasTab: (tabId: string) => boolean;
@@ -271,16 +273,20 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [ids, activate],
   );
-  const dispatchSend = useCallback(async (tabId: string, text: string) => {
-    setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
-    // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
-    await harnessClient.sendTab(tabId, text).catch(() => undefined);
-  }, []);
+  const dispatchSend = useCallback(
+    async (tabId: string, text: string, images?: HarnessImageInput[]) => {
+      setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
+      // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
+      await harnessClient.sendTab(tabId, text, images).catch(() => undefined);
+    },
+    [],
+  );
   const sendToTab = useCallback(
     async (
       tabId: string,
       text: string,
       expect?: { backend?: HarnessBackend; cwd?: string },
+      images?: HarnessImageInput[],
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -288,12 +294,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (expect?.backend !== undefined && tab.backend !== expect.backend) return false;
       if (expect?.cwd !== undefined && tab.cwd !== expect.cwd) return false;
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
+        // 排队不带图：有附图时拒绝入队，避免静默丢图
+        if (images?.length) return false;
         setQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), text] }));
         return true;
       }
       dispatching.current.add(tabId);
       try {
-        await dispatchSend(tabId, text);
+        await dispatchSend(tabId, text, images);
       } finally {
         dispatching.current.delete(tabId);
         setTick((n) => n + 1);
@@ -307,9 +315,9 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [],
   );
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, images?: HarnessImageInput[]) => {
       if (!isCliTab) return;
-      await sendToTab(activeId, text);
+      await sendToTab(activeId, text, undefined, images);
     },
     [isCliTab, activeId, sendToTab],
   );

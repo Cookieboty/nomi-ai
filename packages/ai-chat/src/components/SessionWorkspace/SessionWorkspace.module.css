@@ -1,0 +1,156 @@
+.contextBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px 6px;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+}
+.contextTrack {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--border, #333) 60%, transparent);
+  overflow: hidden;
+  min-width: 48px;
+}
+.contextFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, #5b8def);
+  transition: width 0.2s ease;
+}
+.contextFill[data-level='mid'] {
+  background: #d4a017;
+}
+.contextFill[data-level='high'] {
+  background: #e35d6a;
+}
+.contextLabel {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.contextBasis {
+  margin-left: 6px;
+  opacity: 0.75;
+}
+.panel {
+  border-top: 1px solid var(--border, #333);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 80%, transparent);
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border, #333);
+}
+.collapse {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 600;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.tab[data-active] {
+  color: var(--text, #eee);
+  background: color-mix(in srgb, var(--accent, #5b8def) 18%, transparent);
+}
+.count {
+  font-size: 10px;
+  opacity: 0.8;
+}
+.body {
+  overflow: auto;
+  padding: 4px 8px 8px;
+}
+.empty {
+  margin: 8px 0;
+  color: var(--text-muted, #888);
+}
+.row {
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 2px;
+  text-align: left;
+}
+.file {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.stat {
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  gap: 6px;
+}
+.add {
+  color: #3fb950;
+}
+.del {
+  color: #f85149;
+}
+.badge {
+  font-size: 10px;
+  opacity: 0.75;
+}
+.detail {
+  padding: 0 0 6px 18px;
+}
+.status,
+.statBlock,
+.gitDiff {
+  margin: 4px 0;
+  padding: 6px 8px;
+  background: color-mix(in srgb, var(--bg, #111) 90%, transparent);
+  border-radius: 4px;
+  overflow: auto;
+  max-height: 160px;
+  white-space: pre-wrap;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+.refresh {
+  margin-top: 4px;
+  background: none;
+  border: 1px solid var(--border, #333);
+  color: inherit;
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+}

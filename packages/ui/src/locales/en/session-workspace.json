@@ -1,0 +1,17 @@
+{
+  "系统提示 / 工具定义 / 记忆": "System prompt / tool defs / memory",
+  "真实用量": "Actual usage",
+  "估算 · 经验表": "Estimate · lookup table",
+  "估算 · 默认窗口": "Estimate · default window",
+  "上下文占用": "Context usage",
+  "工作区": "Workspace",
+  "本轮变更": "Session changes",
+  "工作区 Git": "Working tree",
+  "变更": "Changed",
+  "本会话尚无文件变更": "No file changes in this session yet",
+  "当前会话没有工作目录": "This session has no working directory",
+  "读取 git…": "Reading git…",
+  "无法读取 git 状态": "Could not read git status",
+  "工作区干净": "Working tree clean",
+  "diff 已截断": "Diff truncated"
+}

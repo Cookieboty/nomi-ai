@@ -636,5 +636,6 @@
   "无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。": "Cannot safely launch {0}. Reinstall the CLI or use its native executable.",
   "参数无效": "Invalid arguments",
   "这个标签的模型来源已经变了，请重新选择模型": "This tab's model source has changed. Pick the model again.",
-  "第三方模型里没有「{0}」，请在「模型」页启用后再选": "“{0}” isn't among the third-party models. Enable it on the Models page first."
+  "第三方模型里没有「{0}」，请在「模型」页启用后再选": "“{0}” isn't among the third-party models. Enable it on the Models page first.",
+  "{0} 暂不支持在编程助手会话里发送图片，请去掉图片或换到支持的端（Claude / Codex / Grok / Gemini）。": "{0} does not support sending images in coding-assistant sessions. Remove the images or switch to Claude / Codex / Grok / Gemini."
 }

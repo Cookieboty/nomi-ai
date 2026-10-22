@@ -62,10 +62,21 @@ export interface HarnessTabsState {
   codexNetwork?: boolean;
 }
 
+export interface HarnessImageInput {
+  mime: string;
+  data: string;
+  width?: number;
+  height?: number;
+  thumb?: string;
+  source?: string;
+}
+
 export interface HarnessTabMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** 用户附图缩略图 */
+  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];
@@ -318,7 +329,8 @@ export const harnessClient = {
   recentCwds: () => call<string[]>('recent-cwds'),
   pickTabCwd: (id: string) => call<HarnessTabMeta>('tab-pick-cwd', id),
   tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
-  sendTab: (id: string, prompt: string) => call<HarnessSendResult>('tab-send', id, prompt),
+  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) =>
+    call<HarnessSendResult>('tab-send', id, prompt, images),
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),

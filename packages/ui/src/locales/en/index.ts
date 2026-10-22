@@ -5,6 +5,7 @@ import knowledge_local from './knowledge-local.json';
 import mascot_theme from './mascot-theme.json';
 import models from './models.json';
 import providers_schedule from './providers-schedule.json';
+import session_workspace from './session-workspace.json';
 import slash_commands from './slash-commands.json';
 import usage_tools from './usage-tools.json';
 import voice_mascot from './voice-mascot.json';
@@ -16,6 +17,7 @@ const en = {
   ...chat_settings,
   ...voice_mascot,
   ...mascot_theme,
+  ...session_workspace,
   ...cli_monitor,
   ...usage_tools,
   ...slash_commands,

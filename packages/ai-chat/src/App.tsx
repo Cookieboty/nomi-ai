@@ -9,6 +9,7 @@ import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
@@ -29,6 +30,7 @@ import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
+import { ContextUsageBar, SessionChangesPanel } from './components/SessionWorkspace';
 import {
   LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
@@ -60,7 +62,7 @@ import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient } from './services/harnessClient';
 import { watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
-import { screenClient, type ScreenState } from './services/screenClient';
+import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
 import {
   SEARCH_CHATS_EVENT,
   SHORTCUT_DEFS,
@@ -74,6 +76,7 @@ import { nomiScopeKey } from './slash/nomiScope';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
+import { cliImageSupport } from './utils/cliImageSupport';
 import {
   fromHarnessMessage,
   nomiConvMessages,
@@ -119,12 +122,12 @@ const AiChatContent: React.FC = () => {
   const cliSlots = useMemo<ConvSlots | undefined>(
     () =>
       activeCliTabId
-        ? {
+        ? buildCliSlots({
             errorActions: (m, { retry }) =>
               m.geminiTrust ? (
                 <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
               ) : null,
-          }
+          })
         : undefined,
     [activeCliTabId],
   );
@@ -536,8 +539,19 @@ const AiChatContent: React.FC = () => {
     () =>
       cliActive
         ? {
-            onSend: (text: string) => void tabSend(text),
+            onSend: (text: string, images?: ImageAttachment[]) => {
+              const imgs = images?.map((im) => ({
+                mime: im.mime,
+                data: im.data,
+                width: im.width,
+                height: im.height,
+                thumb: im.thumb,
+                source: im.source,
+              }));
+              void tabSend(text, imgs);
+            },
             busyOverride: cliActive.status === 'running' || cliActive.status === 'queued',
+            imageCapability: cliImageSupport(cliActive.backend),
             placeholder: cliTabPlaceholder(cliActive),
             queue: {
               onQueue: (text: string) => void tabSend(text),
@@ -723,6 +737,17 @@ const AiChatContent: React.FC = () => {
 
           {/* 输入区域 */}
           <footer className="input-container">
+            <ContextUsageBar
+              messages={tabs.isCliTab ? cliConvMessages : nomiMessages}
+              model={
+                tabs.isCliTab
+                  ? (tabs.activeTab?.modelOverride ?? tabs.activeTab?.backend)
+                  : undefined
+              }
+            />
+            {isDev && tabs.isCliTab && tabs.activeTab ? (
+              <SessionChangesPanel messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+            ) : null}
             <MessageInput
               {...inputModeProps}
               slash={slash.bridge}
