@@ -7,6 +7,7 @@ export const RIVE_NATIVE_MOTIONS = [
   'celebrate',
   'cheer',
   'fist_pump',
+  'fist',
   'nod',
   'flinch',
   'poke',
@@ -44,6 +45,10 @@ export const RIVE_NATIVE_MOTIONS = [
   'tongue',
   'yawn',
   'stretch',
+  'squat',
+  'step',
+  'walk',
+  'run',
 ] as const;
 
 /**
@@ -65,13 +70,13 @@ export const RIVE_MOTION_ALIASES: Record<string, (typeof RIVE_NATIVE_MOTIONS)[nu
   listen: 'think',
   peek_note: 'peek',
   interact: 'hello',
+  crouch: 'squat',
+  march: 'step',
+  jog: 'run',
 };
 
 /** All accepted names shown to the motion menu and exposed to AI callers. */
-export const RIVE_MOTIONS = [
-  ...RIVE_NATIVE_MOTIONS,
-  ...Object.keys(RIVE_MOTION_ALIASES),
-] as const;
+export const RIVE_MOTIONS = [...RIVE_NATIVE_MOTIONS, ...Object.keys(RIVE_MOTION_ALIASES)] as const;
 
 /** Backwards-compatible name used by existing renderer tests and commands. */
 export const RIVE_POC_MOTIONS = RIVE_MOTIONS;
@@ -85,9 +90,24 @@ export const RIVE_EXPRESSIONS = [
   'surprised',
 ] as const;
 
+/** Viseme index exposed on the Rive ViewModel Number `viseme` (ROUND45). */
+export const RIVE_VISEME_INDEX = {
+  rest: 0,
+  SIL: 0,
+  M: 6,
+  B: 6,
+  P: 6,
+  A: 1,
+  I: 2,
+  U: 3,
+  E: 4,
+  O: 5,
+} as const;
+
 /** the slice of Rive's ViewModelInstance we use (keeps the backend unit-testable without wasm) */
 export interface RiveTriggerHost {
   trigger(name: string): { trigger(): void } | null;
+  number?(name: string): { value: number } | null;
 }
 
 /**
@@ -119,7 +139,14 @@ export function createRiveBackend(host: () => RiveTriggerHost | null | undefined
       else fire(`expr-${next}`);
     },
     setMouthOpen(value) {
-      const next = Number.isFinite(value) && value > 0.22;
+      const v = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+      const hostInst = host();
+      const num = hostInst?.number?.('mouthOpen');
+      if (num) num.value = v;
+      const vis = hostInst?.number?.('viseme');
+      // open envelope → A (1); closed → rest (0). Fine-grained visemes use setViseme via number.
+      if (vis) vis.value = v > 0.22 ? 1 : 0;
+      const next = v > 0.22;
       if (next === mouthOpen) return;
       mouthOpen = next;
       fire(next ? 'mouth-open' : 'mouth-close');
@@ -142,6 +169,9 @@ export function createRiveBackend(host: () => RiveTriggerHost | null | undefined
     setTalking(value) {
       if (value === talking) return;
       talking = value;
+      const num = host()?.number?.('mouthOpen');
+      if (num && value) num.value = Math.max(num.value, 0.35);
+      if (num && !value) num.value = 0;
       fire(value ? 'talking' : 'mouth-close');
     },
     capabilities(): MascotCapabilities {

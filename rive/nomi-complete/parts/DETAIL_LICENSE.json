@@ -1,5 +1,5 @@
 {
-  "note": "Production Rive scene uses only the supplied full-body mother and deterministic source-pixel rig layers. Segmented clothing, sleeve, cuff, palm and finger mattes are derived from the same mother image.",
+  "note": "Production Rive scene uses the mother image and deterministic source-pixel rig layers. ROUND7: full decompose — face/hair/choker/belt/hem/legs crops + selective Mesh on legs/fingers/coat-tails. Finger phalanx sub-crops skipped. ROUND8: vest/shorts/belt-band, continuous leg skin, all cut from the mother pixels.  ROUND9: one continuous hand crop per side (wrist+palm+thumb+fingers cut once from the mother, skinned to a finger skeleton); hand/ribbon/thigh pixels removed from cuff, sleeve and hem crops. ROUND10: cuff band drawn once (sleeve crops lose the baked-in band), orange ribbon shards removed from cuff/sleeve crops. ROUND10 hand pieces: palm + 5 finger pieces cut from the single ROUND9 hand crop by capsule ownership (hinge/edge overlap <= 2.5px), each skinned only to its own bones. ROUND13 hem: coat-tail crops removed (fully hidden duplicates); hem ribbons unchanged pixels, now skinned. ROUND13 hair: side-lock pixels moved (not copied) out of the head-group crops into hair-lock-{l,r}. ROUND13 collar: hair-l strand tip on the shoulder moved (not copied) into hair-tip-l. ROUND14 eyes: eye pixels moved (not copied) into per-part eye layers; eyelid skin inpainted from neighbouring skin. ROUND14 brows: brow-line px moved into brow-l/r; the hair under them in head.png is inpainted from the neighbouring bangs. ROUND14 bangs: bang px moved into bangs-{a,b,c}; the forehead under them in head.png is inpainted from neighbouring skin (hair px kept where never uncovered). ROUND20 backhair: neck-side peeks moved from head into hair-back-{l,r} skinned chains. ROUND20 lid: closed-eye skin re-shade + feather; head eye-hole rim soften. ROUND22: coat-l/r-shoulder dark lining pixels moved into coat-l/r-shoulder-lining (+2 px border copy under the lapel against filtering seams). ROUND23: removed never-drawn assets sleeve-l-upper.png, sleeve-l-lower.png, sleeve-r-upper.png, sleeve-r-lower.png, coat-l-shoulder-orange.png, sleeve-l-upper-dark.png, sleeve-l-upper-orange.png, sleeve-l-lower-dark.png, sleeve-l-lower-orange.png, coat-r-shoulder-orange.png, sleeve-r-upper-dark.png, sleeve-r-upper-orange.png, sleeve-r-lower-dark.png, sleeve-r-lower-orange.png, sleeve-l-bent.png, sleeve-r-bent.png. ROUND24: body-backfill gains the two enclosed right-waist cut-outs of the mother (under belt band / coat edge), inpainted from neighbouring source pixels. ROUND25: shoulder-cap pixels moved (not copied) from head.png into arm-l/r-shoulder-skin.png (same screen position; deterministic, no AI). ROUND27: coat front panels (placket, lining strip, leather trim, hem-tail lines) moved (not copied) from sleeve-{l,r}-full(.dark).png into coat-{l,r}-front.png; sleeve under the panel's opaque core backfilled by deterministic cv2 Telea inpaint from neighbouring sleeve pixels (10 px seam band + shaded underside). ROUND30: strengthen sleeve-{l,r}-full.png backfill under the full coat panel body (no 2px erosion / alpha feather) so R27d gravity hang no longer reveals background holes. ROUND31: body-backfill converted to bare-skin torso/hip underlay; shoulder-skin orange rim cleaned; arm-l/r-under-skin added under sleeves for coat-hide continuity. ROUND31c: shorts side orange accents split into shorts-side-orange.png. ROUND32: anatomical bare-body backfill + tapered arm-under-skin; neutral underlayer top/bottom layers; finger rest loop-safe (R32a). ROUND33a: socks split from leg skins into sock-l/r. ROUND33b: thigh strap split from leg-l-skin. ROUND33c: hair-bow extracted from hair-lock-r. ROUND34a: belt split from fabric; waist-backfill under belt. ROUND34b: pouch split + skinned with lag. ROUND34c: badge split + skinned lanyard. ROUND35a: real choker split from mouth/head; tank neckline into torso-tank. ROUND35b: hair-lock-l/back orange ornaments migrated to ornament-l/bow; coat blobs to coat. ROUND35c: neutral coat scraps cleaned; belt lanyard ring → badge. ROUND35c belt left scrap. ROUND39 bone fist: every finger crop split into meta/p0/p1/p2 phalanx pieces (original pixels, knuckle caps from original opaque pixels), rigid to joint-centred bones; R38 procedural fist removed.",
   "assets": {
     "source-nomi-master.png": {
       "sha256": "87e7400bffb471dd11bc2557284d216dad83978a8a3ed114f2dd86cba01f237b",
@@ -9,207 +9,1156 @@
       "method": "user supplied full-body mother"
     },
     "reference/svg-rig/fullbody-base-no-head-arms.png": {
-      "sha256": "d163807a70227811c3203f271fbe6f4d5d31a508b13c02aa3afcffa4fa97ba00",
-      "bytes": 1479002,
+      "sha256": "caec7f3adf227f9b2e6d8c0d769f77bbdddd1ce18d87e81274ea99f79d7d412a",
+      "bytes": 1339611,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35c: orange/white coat-edge remnants removed (moved to coat or deleted)"
     },
     "reference/svg-rig/body-backfill.png": {
-      "sha256": "ca454761ddbd79d705a53dad55e1c2a1f3256754529cdd339348ac849397ef64",
-      "bytes": 1475156,
+      "sha256": "1caaf9e4f56810beebcdc201619f4409ce667cec45f1fcf5a5b55a845377063b",
+      "bytes": 65215,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel torso underlay derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND32: redrawn anatomical torso/hip bare-skin (master-seed Telea + cel shade + line); replaces R31 flat fill; derived not AI-generated",
+      "round": "R32"
     },
     "reference/svg-rig/arm-l-shoulder-skin.png": {
-      "sha256": "f075a438892275ba7f8e810eff1ba1a6609d0205025cfcaeedd271a7b5033c21",
-      "bytes": 55774,
+      "sha256": "3d184cb421b67d171c03cf9cf4265492922aee34976cc276f2de03f4a462a63c",
+      "bytes": 7627,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND31: orange coat rim removed, skin Telea-inpainted"
     },
     "reference/svg-rig/arm-l-cuff.png": {
-      "sha256": "7e8368ef2db5c151d61bebe575b342c33dec1b135cce7694332352d337a02376",
-      "bytes": 43729,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/coat-l-tail.png": {
-      "sha256": "6b4e1b7dbf7f4d8af3cc318f3aa8d917c1aae321460b2669e9e7cd7e551f45c0",
-      "bytes": 168078,
+      "sha256": "99e9f6f7f5f1ce9bee5a135ae11baeb1cce292768186a1f64a5611b458d34453",
+      "bytes": 42558,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/head.png": {
-      "sha256": "7da1028ddf5087226fab52445a564d28614d02d54439630a75b2169d31c22eb4",
-      "bytes": 275595,
+      "sha256": "1d072d631a85db79803e4b438d2047bb802252f96939954214a14793c463afae",
+      "bytes": 81519,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: choker edge scraps removed; skin backfilled"
+    },
+    "reference/svg-rig/nomi-fullbody-mother.svg": {
+      "sha256": "8f6016be8af8461b8381eaf2dbad879f002df404a9bc7ca649e10c704430030d",
+      "bytes": 4063576,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
-    "reference/svg-rig/nomi-fullbody-mother.svg": {
-      "sha256": "6e3ff6b1cf67d28b5498ab6b1d5f935bf3ab8d12a05b02952e38da9f0986faf5",
-      "bytes": 4063580,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic SVG-backed full-body rig asset"
-    },
     "reference/svg-rig/face-smile.png": {
-      "sha256": "a341446a13291c5ae427dfa92eb94ce7ebdebf136b13fc3f2df4ab30f34829e3",
-      "bytes": 1405,
+      "sha256": "3a744a418f9404fdd88501ccca9123fa6979a5c2869932b995125b746395b6a5",
+      "bytes": 1421,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/arm-r-shoulder-skin.png": {
-      "sha256": "ad9f0949cc4cc51447a16607e2bebd4d36fccf3785c93bafb88c348dd25954e6",
-      "bytes": 55811,
+      "sha256": "ab702ee91fda981dc4a0ed690dd83c4f1198f4dca440204983e4b479f7088904",
+      "bytes": 8318,
       "ai_generated": false,
       "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND31: orange coat rim removed, skin Telea-inpainted"
     },
     "reference/svg-rig/arm-r-cuff.png": {
-      "sha256": "0161a4772bca6012666ec69f4f61e6443d4678a12505d1472ddd6f2d7026eb10",
-      "bytes": 41336,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/coat-r-tail.png": {
-      "sha256": "1680a7498eb0d1fea0ae61120a25c1261c332b3acd91bda9ba5acfd14197aff7",
-      "bytes": 165570,
+      "sha256": "48a00b6da5d77f316ea4883a4b97bf97b3a673cdc4b349ee72f608eae7f18c05",
+      "bytes": 40375,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-l-shoulder.png": {
-      "sha256": "7692dc4d5b608546c561958df0a9ee972c5380aa20f06f30935b82dad1ca399b",
-      "bytes": 55153,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/sleeve-l-upper.png": {
-      "sha256": "0c5ee5dbb6d33d9cfc6b1dd845e77699ba944dbc7e10e5a5cfb349321bd2282e",
-      "bytes": 76251,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/sleeve-l-lower.png": {
-      "sha256": "4fee750c43647308d6fe152a7a36a8906ef3a4bca8526020d7b15aba9cadbc3f",
-      "bytes": 89261,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-palm.png": {
-      "sha256": "70466ec154d7aa438efd68063e548fb85308bf824f5c0ead91980292a697819a",
-      "bytes": 20859,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-thumb.png": {
-      "sha256": "da28a7b1f18fd2b430bec7fd9e1dd45fd17f84fbb3aec067fe91d682ff56d2a5",
-      "bytes": 21453,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-index.png": {
-      "sha256": "03abd8459849130224cdec86721961f2471b5b8d075411c2d0ab49dfb614305c",
-      "bytes": 21646,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-middle.png": {
-      "sha256": "d5ec01df38c3ce002c37fc178c97c7e72f96e2ffaa211cc439d650be6f35446d",
-      "bytes": 21678,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-ring.png": {
-      "sha256": "6eb84213b9559f707c6cdf1189909604c3a756ebf047e6163b14a500290b3792",
-      "bytes": 21751,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-l-little.png": {
-      "sha256": "8a12c1ce2bf214a4fe30156beab57b03ff684b044d5b37368902292499daeddf",
-      "bytes": 21685,
+      "sha256": "6056d339f02b4f441bd779f97f1efb08b93ce2da2bfbe7d3dc83a45c384ccbe2",
+      "bytes": 61818,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/coat-r-shoulder.png": {
-      "sha256": "5b6b85205bf7a89037b7ba3def353711e0865ff7fad9d2ca468a6192c735f150",
-      "bytes": 53726,
+      "sha256": "685c0cab2d9e5161a6a31f12c1e97c996371c307387bae6f6735604715c349c6",
+      "bytes": 62780,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
-    "reference/svg-rig/sleeve-r-upper.png": {
-      "sha256": "c1ea8343347e0d43d2810111fa9ec445cf2bef4091c5382215b67591055dc8d5",
-      "bytes": 73850,
+    "reference/svg-rig/arm-l-upper-skin.png": {
+      "sha256": "4dae42845ab9bbcff7c53a1f8007c8ab0604d87a54da7a640322b0fe6def5018",
+      "bytes": 43531,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
-    "reference/svg-rig/sleeve-r-lower.png": {
-      "sha256": "9a9da40ca782355ece154c9c86853be915bce7e843e22331a2cd0a0045f2f565",
-      "bytes": 89492,
+    "reference/svg-rig/arm-r-upper-skin.png": {
+      "sha256": "b9658457076c7cdf64b82512d0b0f028cdd665eb80729e125a98346f2c4d5f7c",
+      "bytes": 44207,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-shoulder-dark.png": {
+      "sha256": "d347b40accf59414713c9e04992860744e8982c442b2b8febd5e30f414b23e72",
+      "bytes": 67453,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-r-shoulder-dark.png": {
+      "sha256": "00e98a1e35c6d8adae9822710d97ff85e2840537bb29afa73c9a93812125c922",
+      "bytes": 65990,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-l-full-dark.png": {
+      "sha256": "e57fa4c45ed35060ed76026a605306c1b4ef2bdaa59658dd12a6819d534702f1",
+      "bytes": 142083,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-l-full.png": {
+      "sha256": "94728e129252d3f05c74c76c6964c366dccef196cfd174f2192e62ed0e5def84",
+      "bytes": 133602,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother ROUND30: sleeve under coat-front body footprint backfilled solid (Telea, no feather) so panel hang does not open alpha holes."
+    },
+    "reference/svg-rig/sleeve-r-full-dark.png": {
+      "sha256": "2563ac23ddac98199204b4dfef0b0f7ccd04509052fddafc20a282f58672bce0",
+      "bytes": 140234,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-r-full.png": {
+      "sha256": "855f1e5da0195311dc8ff737ee884c84f812237bc32f14a616d014f53bd2bd12",
+      "bytes": 137981,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother ROUND30: sleeve under coat-front body footprint backfilled solid (Telea, no feather) so panel hang does not open alpha holes."
+    },
+    "reference/svg-rig/sleeve-l-stump.png": {
+      "sha256": "ff83b2cb9af9f054816f4e0e387f7683243b3e6bbf8fe07a6c393db3de15d490",
+      "bytes": 95427,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/sleeve-r-stump.png": {
+      "sha256": "d6c92f02db02aee38a9f323e49a1c40612b8c7e340bccbff697be411e7885b0b",
+      "bytes": 95163,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l.png": {
+      "sha256": "581295003495e2f0b46af8a4af826b7739676c3c590edcaa1875a1bbe12507a4",
+      "bytes": 17577,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r.png": {
+      "sha256": "a81e4ff932a3a15e43c2bd7f12f321acf098f03cbb14e5d493a82acaff2f6a67",
+      "bytes": 18857,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/brow-l.png": {
+      "sha256": "402d971bfb8e37e39f0131e7ae0dea3fc0365412a8a671aa8288502f4aa76ac4",
+      "bytes": 550,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/brow-r.png": {
+      "sha256": "cc3ff32fd5a99a8fc0c33f418ff89c45acb5f75cb23b4c023b06e02ab6c8dadb",
+      "bytes": 625,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/mouth.png": {
+      "sha256": "21781c5c9a10d33beeb91eb2d60a9fc9fc23853bf12e590cdac0d19398cf236a",
+      "bytes": 13605,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: choker pixels moved out; neck skin backfilled"
+    },
+    "reference/svg-rig/hair-l.png": {
+      "sha256": "1afc2e5698acc7eb3f6d474db7a0fb54f6b3f2cec749b0dc2ac8d5df20e0201f",
+      "bytes": 58782,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-r.png": {
+      "sha256": "dcbd0ebb3d98087ebb80ef5163a3936b6aef631f442f5e8e2a1044c081219420",
+      "bytes": 61635,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-back-l.png": {
+      "sha256": "e97f0b53e66dd8383498030415ebe9d90e0b48b0eba20224d88944e616683c01",
+      "bytes": 5460,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: orange cleaned"
+    },
+    "reference/svg-rig/hair-back-r.png": {
+      "sha256": "b9c6f65e746f22937abf1a00129d4cb5aad04f55d93c388bbed15e306077e2bb",
+      "bytes": 3578,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: orange cleaned"
+    },
+    "reference/svg-rig/hair-clip.png": {
+      "sha256": "86eacf432c15f8d352142d2781d8362ced33d83fd1228c925aeb8a3236aed503",
+      "bytes": 25698,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-bow.png": {
+      "sha256": "130e1c3cc9927dc71f73e143dca7bb9bb21b4f5bd237fbc63998ac6589a0d806",
+      "bytes": 11989,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: may receive hair-back-r ribbons"
+    },
+    "reference/svg-rig/choker.png": {
+      "sha256": "d411eb5422e7e0bd91324b99b79c0f50d5cded5eb37a297c3e930a79c806c9e4",
+      "bytes": 2200,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: real black choker + gold cross extracted from mouth/head; tank neckline vacated"
+    },
+    "reference/svg-rig/belt-id.png": {
+      "sha256": "c0e41b9d187b20473c8bfd9c18316e9cb8cad9f2406a3e9d7c6f690e1e38aaf7",
+      "bytes": 8795,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35c: received lanyard ring from belt-band"
+    },
+    "reference/svg-rig/belt-pouch.png": {
+      "sha256": "97a837f88de8f566636fe2b3729ba4d07c2737fe6c877bc40e4bb5b43bc7c03e",
+      "bytes": 14393,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34b: pouch + hanger strap + clip only (skinned pelvis->pouch bone); surrounding fabric/orange moved out"
+    },
+    "reference/svg-rig/hem-ribbon-l.png": {
+      "sha256": "a53aec4072043ce76b01781b556a46ff17a305dd0bee2a633031a3d2ac78b42d",
+      "bytes": 44182,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hem-ribbon-r.png": {
+      "sha256": "db23e780a89fb4a2a9d810af5c6b058fd49a8eedd5fd04615ca317e50698424b",
+      "bytes": 40684,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/shoe-l.png": {
+      "sha256": "b22906794cbb2f280fb227a9370316fee196cc93921fa4efb6ed1c6461e49828",
+      "bytes": 54013,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/shoe-r.png": {
+      "sha256": "b6b9414199f324d6fddef8980055298398542b14a889c5bf047033f9d0ed1daa",
+      "bytes": 57816,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/torso-tank.png": {
+      "sha256": "30c8ce8db6523a40f50984e99732baeba3f7e042f45e18e5a1076b6999d098d4",
+      "bytes": 45852,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: absorbed legacy choker.png tank-neckline (canvas expanded up)"
+    },
+    "reference/svg-rig/belt-band.png": {
+      "sha256": "ff00563b3856ae9cb8302f34cacb220dae62ff6d7a7f8284c4c5274e2f536d2e",
+      "bytes": 9925,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35c: far-left coat scrap cleared from belt"
+    },
+    "reference/svg-rig/shorts.png": {
+      "sha256": "72077482fd714af485111870638d0a9b024ccc1c7e3cade3202137344e91a8c2",
+      "bytes": 97559,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35c: badge-adjacent orange scrap cleared if present"
+    },
+    "reference/svg-rig/leg-l-skin.png": {
+      "sha256": "f949ed7ee7b4f631ae3bbf1e8b83c57aa5860aada930404a4c6546b615db5840",
+      "bytes": 76398,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33b: thigh strap moved out into thigh-strap.png; thigh skin backfilled"
+    },
+    "reference/svg-rig/leg-r-skin.png": {
+      "sha256": "72c2e8b535714a96ffb6baea4e61aa0d98fad0c28aa5dc95550c669c9857a510",
+      "bytes": 80056,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33a: sock pixels moved out into sock-r.png; ankle skin backfilled"
+    },
+    "reference/svg-rig/hand-l-palm.png": {
+      "sha256": "4540726d8f3669b4d7809e9cb708b07d290dedbdb0e71be70f3bb4c2d376f5d3",
+      "bytes": 10743,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-web.png": {
+      "sha256": "29c321e66a377d7ba1f2789048649851ffba102b202db043bc0045916512b25d",
+      "bytes": 569,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-little.png": {
+      "sha256": "3dfba56182ec0e26cfbe78b22daa412edebcd4d11ab37afeab2241addcf26730",
+      "bytes": 10664,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-ring.png": {
+      "sha256": "ca3f80ad25a2e210cda1851c5aefd61373187456a610a8889f52576404e56b9c",
+      "bytes": 10700,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-middle.png": {
+      "sha256": "d31488f45d2066a19f0d80cb9600b39d2d7ee8e7acc9e53e34b5d9fc49c97380",
+      "bytes": 10687,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-index.png": {
+      "sha256": "af67f509041bd320fe95ea962c41f568d758ea87a869aa0dfdfd0b4d0989b93a",
+      "bytes": 10825,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-l-thumb.png": {
+      "sha256": "60cfdc5ebe42cec7ba71fe4b4674de975192fd2912565be41acc42c8226d6002",
+      "bytes": 10937,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hand-r-palm.png": {
-      "sha256": "e5de53e8e094316b281e7b4d4c1dac7214c4694c90ea742672bca57b5152110c",
-      "bytes": 19412,
+      "sha256": "ef5764cb46b01ef73317ceae635abb920660944193320556627c60de275d9a3b",
+      "bytes": 10411,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
-    "reference/svg-rig/hand-r-thumb.png": {
-      "sha256": "f5decc67a8e95a4c4e8cf0af0b316c20840a69325380ffed0705f7042448e2ca",
-      "bytes": 20434,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-r-index.png": {
-      "sha256": "387973ca3b57ae597c4f394f8abf8e0c9c13c2cf771d123ce46cb66d6b162854",
-      "bytes": 20591,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-r-middle.png": {
-      "sha256": "44db35947f04869b7b169fd9ed8549b3e6316d03da419c0ce4df0bead96d1726",
-      "bytes": 20807,
-      "ai_generated": false,
-      "in_scene": true,
-      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
-    },
-    "reference/svg-rig/hand-r-ring.png": {
-      "sha256": "a38517dc3a795447efee33dcf17c2dfa535a0de2ef0b736538fc01cafca392f0",
-      "bytes": 20756,
+    "reference/svg-rig/hand-r-web.png": {
+      "sha256": "216072fe9972334ca8be57eb50c77c6fd518b38c186c6dd2f6aacae75ff432a9",
+      "bytes": 467,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
     },
     "reference/svg-rig/hand-r-little.png": {
-      "sha256": "849d5c550e8bcf030a53069e46bd5d266b3e95750b0ae08a3f852b5647c4dd8b",
-      "bytes": 20596,
+      "sha256": "9894b7cf24fdf48b9a7dbc7ae77a01f337c8d3c82f9ec92271e8a5bff1850d1b",
+      "bytes": 10166,
       "ai_generated": false,
       "in_scene": true,
       "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-ring.png": {
+      "sha256": "cfbff335b197e9071d074d4a61cf58bc36dc8bd5e24f8a800c7f02458a21ea2b",
+      "bytes": 10186,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-middle.png": {
+      "sha256": "5f28b7b7df6e3f73efb22b7edf5fe0271cc0ea560df35bcfc46549460eace41c",
+      "bytes": 10219,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-index.png": {
+      "sha256": "c0908ad478d9864d13bc6ab1b528e1c9e88ec1c7e97c8f214bede551e3dc0544",
+      "bytes": 10374,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hand-r-thumb.png": {
+      "sha256": "bfd5bfb274e5e2b3e283dd1ebe374b8f4337f8f31f852eb31bd1bf489fbac63d",
+      "bytes": 10378,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/hair-lock-l.png": {
+      "sha256": "b7d99ce5a6b5179ac65ef9c38870d9bb0140b9fadc910cd3e9ea43636178af5f",
+      "bytes": 22262,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: orange ornaments moved to hair-ornament-l"
+    },
+    "reference/svg-rig/hair-lock-r.png": {
+      "sha256": "b4e16b53100126836e7f7596d4fbd9dcf3cc15e4d7d28f86a659c24e50d53276",
+      "bytes": 18208,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33c: orange bow ribbon moved out into hair-bow.png; hair backfilled"
+    },
+    "reference/svg-rig/hair-tip-l.png": {
+      "sha256": "1b3eb88e71c36946e5064c859794e835fd6c1eb8dc819be788c4167aea07d0a1",
+      "bytes": 912,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-lash.png": {
+      "sha256": "a01af00f8235889a64965e9c99bb550e7cd2df6f3fbe70df9fa53cf1b4cbb6e1",
+      "bytes": 1630,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-lid.png": {
+      "sha256": "342a9dcd759858a581de0176b9920440877b7fffb6e0f97a815a677adaa7c911",
+      "bytes": 754,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-hl.png": {
+      "sha256": "8c3481cdf71b07c2b53f895704233e770e23f5bac296c4de15d588c04276214b",
+      "bytes": 182,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-iris.png": {
+      "sha256": "88bd975f87088874b2873c0c261360cafec9d2c71eead607e03b6c94c06b0fc3",
+      "bytes": 1454,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-sclera.png": {
+      "sha256": "e11cb8121fbaff8ec13a3298c0c3224053aebcc86abffe0236158e9e1e57e5ea",
+      "bytes": 1488,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-l-skin.png": {
+      "sha256": "81c2489a9cd90a2a1c2018d52f7ff22dec7a7aa8f78cbbaa42c86757e30480b6",
+      "bytes": 624,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND20 lid: closed-eye underlayer matched to socket neighbours + feathered alpha"
+    },
+    "reference/svg-rig/eye-r-lash.png": {
+      "sha256": "03f0b3fa1daa7902fdc2e29c00c054d1c03ebb747e1b9cdc45b6a5d40f5dab33",
+      "bytes": 1661,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-lid.png": {
+      "sha256": "cad0f5f7f3fbf1d2dd4525c90406752c41c161325b0533ba9d0cc2e7d6974ce1",
+      "bytes": 864,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-hl.png": {
+      "sha256": "a3ddb742d2bac205f05e497af4756e912d61cd3da54cd295385aafe2dafc6058",
+      "bytes": 173,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-iris.png": {
+      "sha256": "6b0d6448b9bef6e63f7f3f68e64aff04d60195712258598b49e8bc5531602694",
+      "bytes": 1647,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-sclera.png": {
+      "sha256": "4b41e1b20996948f0c003762674d36e0bfc7a6b81adf44b52accd709914d9cba",
+      "bytes": 1696,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/eye-r-skin.png": {
+      "sha256": "ca06780bab0a425d46b6b51df5109f26adbcf39be8ef935f680813e0fdc2669e",
+      "bytes": 650,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND20 lid: closed-eye underlayer matched to socket neighbours + feathered alpha"
+    },
+    "reference/svg-rig/bangs-a.png": {
+      "sha256": "fa82fca7b161abb5c9ec0370f5738f12c39cf2dfadd036d423f115d0af30f1f4",
+      "bytes": 5253,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/bangs-b.png": {
+      "sha256": "5900220a6154a41267e111c24013c0aa095f4904f0ad07fd075dba68d06fe651",
+      "bytes": 8092,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/bangs-c.png": {
+      "sha256": "77727ed68bb8b8652e7c645c4816c62f15d099edf26d112b6383e14adb6305fc",
+      "bytes": 4402,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-shoulder-lining.png": {
+      "sha256": "849fef4b9098318f27ca205ad6b388c6850fb3798c74e2a6f61ad1605e79690e",
+      "bytes": 10523,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-r-shoulder-lining.png": {
+      "sha256": "054a9e8983190b027df23cfab3ceb1735652d4fdaad63612523aa6ff22e6ef08",
+      "bytes": 7892,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother"
+    },
+    "reference/svg-rig/coat-l-front.png": {
+      "ai_generated": false,
+      "in_scene": true,
+      "sha256": "74a7491654460564dbd1fca0cebd556a325258629e4cdc7fab989003e0e3c63a",
+      "bytes": 142508,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b/c: received orange from hair-back/neutral/belt scrap"
+    },
+    "reference/svg-rig/coat-r-front.png": {
+      "ai_generated": false,
+      "in_scene": true,
+      "sha256": "6138d2c8198961e318fcfe9fd23c9e1e796752bb765e7d230008a98b14b53eb1",
+      "bytes": 139385,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b/c: received orange from hair-back/neutral"
+    },
+    "reference/svg-rig/arm-l-under-skin.png": {
+      "sha256": "9519e9406f1fd5f2c8a3ffd471c23a31909dfc3aa946a3518dc5e61c946818bf",
+      "bytes": 13602,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND32: tapered arm under-sleeve skin (width profile upper→wrist from upper-skin/palm means); replaces R31 capsule",
+      "round": "R32"
+    },
+    "reference/svg-rig/arm-r-under-skin.png": {
+      "sha256": "e7590d8784d45437866e8d590ca1d109e3659d8eac2f7040663948896c09f9b0",
+      "bytes": 14456,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND32: tapered arm under-sleeve skin (width profile upper→wrist from upper-skin/palm means); replaces R31 capsule",
+      "round": "R32"
+    },
+    "reference/svg-rig/shorts-side-orange.png": {
+      "sha256": "2c53f23b66acbd30d8d408b8854c9d9f84f348500e4c965b594320f9e924f84a",
+      "bytes": 15545,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35c: received leftover badge-adjacent orange from shorts if any"
+    },
+    "reference/svg-rig/underlayer-top.png": {
+      "sha256": "d5d658d94969012358bd0a90d152e03b5aced37c174c9061681660b3e10d3f0c",
+      "bytes": 4457,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35a: canvas expanded to match torso-tank box",
+      "round": "R32"
+    },
+    "reference/svg-rig/underlayer-bottom.png": {
+      "sha256": "73b2b38bb830cfc7a0d227593cdc6e6173614a26617af1162f52a4ec825b586c",
+      "bytes": 3316,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND32: new bike-shorts underlayer (procedural dark fabric on shorts canvas); SFW form-fitting",
+      "round": "R32"
+    },
+    "reference/svg-rig/sock-l.png": {
+      "sha256": "2a09ce59de0b713df8355f67bcd1797f180c06f40077a4468c68480e5201f081",
+      "bytes": 6846,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33a: white+orange-star sock moved from leg-l-skin (cloned leg mesh)"
+    },
+    "reference/svg-rig/sock-r.png": {
+      "sha256": "0db618026e21986005097455afe5973db88a7c01b8a055eb80c6e3ade5100393",
+      "bytes": 6501,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33a: white+orange-star sock moved from leg-r-skin (cloned leg mesh)"
+    },
+    "reference/svg-rig/thigh-strap.png": {
+      "sha256": "44ad04eaebacbdb5c995da5837fa33d11879845f42c77afe41b9d50f9c0f085c",
+      "bytes": 8623,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND33b: black strap+silver buckle+orange keepers from leg-l-skin (cloned leg-l mesh)"
+    },
+    "reference/svg-rig/waist-backfill.png": {
+      "sha256": "454af0f03f5dbebd3acccb141e5f2b3f8ac69b3702b847dee272f8417835e74a",
+      "bytes": 14147,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND34a: non-belt pixels of the old belt crop + Telea/NS inpainted waistband fabric under the belt (procedural, not hand-painted)"
+    },
+    "reference/svg-rig/hair-ornament-l.png": {
+      "sha256": "aa3673a12c8c96ce4b8bd1a76fa3b2dee6a3bcd9b7a7fe6c4a4a3e65fc7d494e",
+      "bytes": 3432,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "deterministic source-pixel rig layer derived from user supplied full-body mother; ROUND35b: orange side ornaments from hair-lock-l; cloned lock-l mesh"
+    },
+    "reference/svg-rig/hand-l-thumb-meta.png": {
+      "sha256": "5276e24e64c268abaa0a78571c9952105fc9dc811c16a4b42537adb63943241d",
+      "bytes": 10601,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p0.png": {
+      "sha256": "7fa59a4a6436486c8591f6476658ccc6779831a0316c213864e77136f3df8246",
+      "bytes": 10747,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p1.png": {
+      "sha256": "9b733bf4210b383c3ff9092eda813e0de886424e5032e7faf72fe466ababaf5b",
+      "bytes": 10648,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-thumb-p2.png": {
+      "sha256": "d9b3c51b2c9c5bc09f5a0d37f52d0f03972568b4b5f36d668ce56e53ad0923d4",
+      "bytes": 10625,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-meta.png": {
+      "sha256": "b43c8096f9b8b6fe797a180ed204af3c195f95ce820a857d5f77d37121fd75aa",
+      "bytes": 10549,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p0.png": {
+      "sha256": "1821c0056bcbf0a9d85352e1ddd6e60558d23fac5cce0dc633c99ccf9532af4a",
+      "bytes": 10692,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p1.png": {
+      "sha256": "cd1f159b142fb7e71266f6f5ef9b76fe34527fc73fb20b47613bcc3d2d5dd6b7",
+      "bytes": 10608,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-index-p2.png": {
+      "sha256": "0dccff8da420f0d2301b40c08427a7f0726156acf5dff98c519d386eabbf52b8",
+      "bytes": 10633,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-meta.png": {
+      "sha256": "1c84c9407f5d59a4325fca64632ff43a77e3c5cf8216e4663fe05a780bae0b79",
+      "bytes": 10560,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p0.png": {
+      "sha256": "ebd15cbc7098c3facce4dac92856b7a07d27b266246b18843b9cf2166fc23033",
+      "bytes": 10596,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p1.png": {
+      "sha256": "4c21ea2abedfbdefaacd814f99ec7336cd5cdb75427b91c00c98d18781425d9c",
+      "bytes": 10602,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-middle-p2.png": {
+      "sha256": "25b8e1b45b8b708786f024e9a2e6591e1931c5e10ac2bf05baa974676079103f",
+      "bytes": 10605,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-meta.png": {
+      "sha256": "49af5b45a1b64ca82fcbbddbe63cfae9e5cccaccb475aea8bfd6a6b4394b14f4",
+      "bytes": 10555,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p0.png": {
+      "sha256": "09a6909e23eca76d11f4fea5340ace4e11780f74214b22e73ac27a8220c10332",
+      "bytes": 10569,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p1.png": {
+      "sha256": "4bfd8e52cb24ae335457246484b6ba6ebc59188a841e25f2271d8c90ef432b12",
+      "bytes": 10611,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-ring-p2.png": {
+      "sha256": "0402065c70d867f36bb9269a0fdbb0b41ba6d38632809a35816f56e7acb23c70",
+      "bytes": 10614,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-meta.png": {
+      "sha256": "3962f9e3ba118a5f5fb0d4ade9c38f46599847e4f1ac40646578b6cc2634455a",
+      "bytes": 10536,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p0.png": {
+      "sha256": "70e1cd4e1e215cfe137271adc270ba0b0c8285a431fb2063269d7651284e1013",
+      "bytes": 10573,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p1.png": {
+      "sha256": "39490f80e58f2f8420b298ff50e99bfa9f28c052dc770dae1b9d4fb5aff9ec73",
+      "bytes": 10560,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-little-p2.png": {
+      "sha256": "479de54edd501d412e83b57b7adba8a94ae136c50836bfc9e1b12b70882ca4d3",
+      "bytes": 10580,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-l-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-meta.png": {
+      "sha256": "78936217a7312b1870c9bf5d0d79cd0a54a3b0da27ca3fed83fcf2ccb6c80038",
+      "bytes": 10149,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p0.png": {
+      "sha256": "7dc37ca2eac2415c2f361e7b4bb7354c8bbda8f9520e36ea98807aeb0db08122",
+      "bytes": 10224,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p1.png": {
+      "sha256": "524428ea52e02daee659682aa881eccc05c803b3629d95dce755d87849c2efd3",
+      "bytes": 10176,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-thumb-p2.png": {
+      "sha256": "c43761791611b18661cc2b2427848e65b516ae161a1a267e0d323bcdd10f7b77",
+      "bytes": 10159,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-thumb.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-meta.png": {
+      "sha256": "7fea6aa11794e2704645fe100b7883a02e4e742f525d929b97f17059fce965ae",
+      "bytes": 10101,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p0.png": {
+      "sha256": "559f5f32a0866aba500a9872d39d27d19f4087da7bc3b84d48be30c1aff791d3",
+      "bytes": 10189,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p1.png": {
+      "sha256": "6489bcea1507c0fceed8822cff04ff8b6b39c490cf03e6329d0f441396f7671c",
+      "bytes": 10148,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-index-p2.png": {
+      "sha256": "895fd43da78dfa0de6669a8819687b2c697695a8c5f96831a0e7aab3dfd16016",
+      "bytes": 10250,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-index.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p0.png": {
+      "sha256": "3ce4bbbdd595f3a248ba5b2cb0ad7a7c9bb8168052eecac9134cead4d7fee49e",
+      "bytes": 10139,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p1.png": {
+      "sha256": "a2f9fb4faa751f2725dc0a38f4a05f5849a46434f6e4070b19e350ab23301fb5",
+      "bytes": 10119,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-middle-p2.png": {
+      "sha256": "28d34f0cd009b51ad6234f6500dad98fb7ca24897affca7b361c2a7fc7d39c01",
+      "bytes": 10131,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-middle.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-meta.png": {
+      "sha256": "f05d01d54235c26108946518bff8466893eee0af3bf1fd81a233ef4c19d32f3a",
+      "bytes": 10088,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p0.png": {
+      "sha256": "1e736133c80c3f147e417697541578bbf0e6e582ff94344442b03e75f39bbdc0",
+      "bytes": 10126,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p1.png": {
+      "sha256": "de0e7556ac6fcf3ccda3e06844a441f64bc8c8a97fcbe0afdfd7c14c3b86992c",
+      "bytes": 10115,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-ring-p2.png": {
+      "sha256": "7728a32cc583da6504773aaf3343af39cf8c925f1d9dfb534564df5b1350a9d6",
+      "bytes": 10120,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-ring.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-meta.png": {
+      "sha256": "d68bb2c1bf4ad17c0c2da552a7bc7eda2467ac687c30b7f17c06dc809d3e6175",
+      "bytes": 10095,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: meta phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p0.png": {
+      "sha256": "aaa1ab0b75422a47e5515c5a1a075c9d6a280e70f015afb20a8689f52b565808",
+      "bytes": 10105,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p0 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p1.png": {
+      "sha256": "8e89f22d9a04d436537b92fb080fc722f109151c4f15c09163d41ab4c4e201e1",
+      "bytes": 10104,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p1 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-r-little-p2.png": {
+      "sha256": "f82967b1089daa25731bdc17f6750c25c856d35ea4ee9f15b92868499550ff38",
+      "bytes": 10115,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: p2 phalanx piece of hand-r-little.png (original mother pixels, split at the measured joint line; knuckle cap = original opaque pixels within 2.5 px of the joint + 2 px underlap)"
+    },
+    "reference/svg-rig/hand-l-palm-meta.png": {
+      "sha256": "08e7170886209bb65e16d2549a9b2b096b0568d9d5bbe5a3dac54d353c718605",
+      "bytes": 7799,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-l-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
+    },
+    "reference/svg-rig/hand-r-palm-meta.png": {
+      "sha256": "07c3999754fba160b6d2c6eb39cfb1e571a8a2f7640bee241570cd42b391acab",
+      "bytes": 7499,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND39: palm backfill under the phalanx pieces; colours = nearest original opaque hand-r-palm.png texel (mother pixels), 1 px blur; shown only while full.fist / full.run curl the fingers"
+    },
+    "reference/svg-rig/head-cheek-l.png": {
+      "sha256": "bf9551ad867102d7e4106710f90a7783c489a0241449d54b0d7bfce339213aed",
+      "bytes": 80542,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
+    },
+    "reference/svg-rig/head-cheek-c.png": {
+      "sha256": "921b8a07543f3c483c33eb0752a409823306ceadf8f0a01a222336b2b7a30771",
+      "bytes": 81071,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
+    },
+    "reference/svg-rig/head-cheek-r.png": {
+      "sha256": "4647cdcd926eb0fcfc1a9bd8d9859f3467de35394bac156e556699409ff7a272",
+      "bytes": 80665,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND41: vertical cheek/face band of head.png (original mother pixels; 12 px underlap at seams)"
+    },
+    "reference/svg-rig/head-face-backfill.png": {
+      "sha256": "ebbb9a12d5877ac83c4089e2f5554d7d1c0887eee1ca7ba9f9f22c50e94bd91b",
+      "bytes": 85757,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND41: head.png eye-socket/black cutouts filled from nearest original skin pixels"
+    },
+    "reference/svg-rig/head-clipres.png": {
+      "sha256": "a4c2163675e9987de7f2266f319c47752d87f49e4c585dd578ec173a10fb642a",
+      "bytes": 2280,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-cap.png": {
+      "sha256": "f20423fa87287d1ea118f8dccf4cc32e768f666b5dfe99dc1847e0c27328e336",
+      "bytes": 38614,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-nose.png": {
+      "sha256": "03068cc104d78990ee96c4c8b800120d6062685c76c5931defb75ed74597a8dc",
+      "bytes": 1475,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-mouth.png": {
+      "sha256": "714ebb007e50dba3d4b08a9e2948e7193b6111d5abad01486b2820dd3bf268ab",
+      "bytes": 1971,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-face.png": {
+      "sha256": "03023bf0547a0aca3e067678a9364c0905053b2008819d477cb16afd4b104485",
+      "bytes": 24596,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-socket.png": {
+      "sha256": "7d5dbe38437f6da8f4d59d2f0f9f79c605df7218cdc5c5a1bbbbe8a85e3d3fc5",
+      "bytes": 4967,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-sidebits.png": {
+      "sha256": "40c128146bc360561c7e6f766a78558ed016717eb2d779d3e5a4339d3dd721fc",
+      "bytes": 25679,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-neck.png": {
+      "sha256": "8304efeebc06a1c2159831bd1dde03bc8294a3e0f3c2a47bc4e764ad2c23489d",
+      "bytes": 33467,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-scalp.png": {
+      "sha256": "e41681dda0c84b3cc63b2ec71b6b161b664b33aff6835166ad07a5f27cd852e0",
+      "bytes": 68514,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND42: per-pixel layer split of head.png (original mother pixels); backfill only under opaque px — forehead Telea from face skin, neck mirror of neck skin, scalp per-column reflection of cap hair band"
+    },
+    "reference/svg-rig/head-face-r44.png": {
+      "sha256": "4c5c31870b6d6e83a94b1c75556df72ff8e5fccee607048081562c71bfc27b46",
+      "bytes": 32272,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/head-eyezone.png": {
+      "sha256": "7a058f74a5a4fbb3dd65886b103e245aa3909b1d3125f95c8d3feae0da3bf061",
+      "bytes": 7185,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/head-eyeback.png": {
+      "sha256": "7f9b504ca6a2cb7fa9552ff4119bc873d5aeb3ec0bfe976f118502dfb69ecc9e",
+      "bytes": 2045,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/eye-l-r44.png": {
+      "sha256": "62f133fdb9cb772eacd0356b7004bcc83d64a7550cce52564668787e12703de7",
+      "bytes": 17605,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/eye-r-r44.png": {
+      "sha256": "38b89fecbf9ed3405aaeaf479b58530d0fa53d44ca9df3ed75838c3997d63dbd",
+      "bytes": 18859,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND44a: eye-l/r cheek patch merged into head-face (original px, rest composite); eye-zone patch of original face px around eye2 parts (feathered) rides g.eyes"
+    },
+    "reference/svg-rig/mouth-viseme-a.png": {
+      "sha256": "507d817bb8bbb81cb642fc8ec39b2864778045713a2c0e0fce1b22db0a1c9317",
+      "bytes": 890,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-i.png": {
+      "sha256": "bec6d809a9791f5d056d74e0e65f5948c03799d2948a306d13afca601df37fb8",
+      "bytes": 737,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-u.png": {
+      "sha256": "f4829269d7d70e2d2f695817fc3e94a3f1c10225402fa2230dfaa5ebc78ab918",
+      "bytes": 677,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-e.png": {
+      "sha256": "8ac636f722a559a60ec08abb403c6ffccf88e3611b8addda5633174901f92b32",
+      "bytes": 784,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-o.png": {
+      "sha256": "da6738b3a185c885035e98c60f2186989fe078a3f13a2a0534434bb4597c2b87",
+      "bytes": 870,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: feathered elliptical skin fringe (no rectangular cover); soft lips + cavity/teeth still NEW art from face-smile/head-mouth/face palette. Rest/M = original mouthline."
+    },
+    "reference/svg-rig/mouth-viseme-m.png": {
+      "sha256": "c706daf1acd8dbe4d50b866ea2b0a4074ccbc3ec991e4bba82922b45099afe8b",
+      "bytes": 991,
+      "ai_generated": false,
+      "in_scene": true,
+      "method": "ROUND47: crop of original head-mouth.png (draw uses mouthline for rest/M)"
+    },
+    "reference/svg-rig/mouth-viseme-rest.png": {
+      "sha256": "c706daf1acd8dbe4d50b866ea2b0a4074ccbc3ec991e4bba82922b45099afe8b",
+      "bytes": 991,
+      "ai_generated": false,
+      "in_scene": false,
+      "method": "ROUND47: crop of original head-mouth.png (draw uses mouthline for rest/M)"
+    }
+  },
+  "round32": {
+    "body": {
+      "opaque": 102860,
+      "skin": 96322,
+      "mean": [
+        250.6,
+        230.0,
+        215.6
+      ],
+      "hw_chest": 119.0,
+      "hw_waist": 100.6,
+      "hw_hip": 122.0,
+      "sha256": "1caaf9e4f56810beebcdc201619f4409ce667cec45f1fcf5a5b55a845377063b"
+    },
+    "arms": {
+      "l": {
+        "side": "l",
+        "opaque": 15981,
+        "sha256": "9519e9406f1fd5f2c8a3ffd471c23a31909dfc3aa946a3518dc5e61c946818bf",
+        "mean_u": [
+          252.0,
+          218.6,
+          200.8
+        ],
+        "mean_p": [
+          250.2,
+          215.7,
+          200.6
+        ]
+      },
+      "r": {
+        "side": "r",
+        "opaque": 15869,
+        "sha256": "e7590d8784d45437866e8d590ca1d109e3659d8eac2f7040663948896c09f9b0",
+        "mean_u": [
+          252.4,
+          222.7,
+          202.8
+        ],
+        "mean_p": [
+          250.3,
+          216.9,
+          202.0
+        ]
+      }
+    },
+    "underlayer_top": {
+      "opaque": 9860,
+      "sha256": "045b6054b86bb32701e44ca4cabe3acb7c1004dc7b2bee72cb02b15ef5f04c00"
+    },
+    "underlayer_bottom": {
+      "opaque": 41963,
+      "sha256": "73b2b38bb830cfc7a0d227593cdc6e6173614a26617af1162f52a4ec825b586c"
     }
   }
 }

@@ -61,6 +61,26 @@ describe('rive backend', () => {
     }
   });
 
+  it('exposes the authored leg clips (ROUND18 step/squat, ROUND26 walk/run) as native triggers baked into the .riv', () => {
+    const fire = vi.fn();
+    const b = createRiveBackend(() => ({ trigger: (name) => ({ trigger: () => fire(name) }) }));
+    const riv = fs.readFileSync(path.join(__dirname, '../../public/assets/models/rive/nomi-complete.riv'));
+    for (const clip of ['squat', 'step', 'walk', 'run']) {
+      expect(b.playMotion(clip), clip).toBe(true);
+      expect(fire).toHaveBeenLastCalledWith(clip);
+      expect(riv.includes(Buffer.from(`full.${clip}`)), `full.${clip} animation`).toBe(true);
+    }
+    expect(b.playMotion('crouch')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('squat');
+    expect(b.playMotion('march')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('step');
+    // ROUND26: walk / run are their own gait clips, no longer aliased to the march-in-place step
+    expect(b.playMotion('walk')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('walk');
+    expect(b.playMotion('jog')).toBe(true);
+    expect(fire).toHaveBeenLastCalledWith('run');
+  });
+
   it('drives expression, talking, and thresholded lip-sync triggers', () => {
     const fired: string[] = [];
     const b = createRiveBackend(() => ({
@@ -75,6 +95,30 @@ describe('rive backend', () => {
     expect(fired).toEqual(['smile', 'mouth-open', 'talking', 'mouth-close']);
     expect(b.capabilities().expressions).toEqual([...RIVE_EXPRESSIONS]);
     expect(b.capabilities().lipSync).toBe(true);
+  });
+
+  it('writes viseme and mouthOpen ViewModel numbers when the host exposes them', () => {
+    const nums: Record<string, number> = {};
+    const fired: string[] = [];
+    const b = createRiveBackend(() => ({
+      trigger: (name) => ({ trigger: () => fired.push(name) }),
+      number: (name) => ({
+        get value() {
+          return nums[name] ?? 0;
+        },
+        set value(v: number) {
+          nums[name] = v;
+        },
+      }),
+    }));
+    b.setMouthOpen(0.5);
+    expect(nums.mouthOpen).toBe(0.5);
+    expect(nums.viseme).toBe(1); // A
+    expect(fired).toContain('mouth-open');
+    b.setMouthOpen(0);
+    expect(nums.mouthOpen).toBe(0);
+    expect(nums.viseme).toBe(0); // rest
+    expect(fired).toContain('mouth-close');
   });
 });
 
