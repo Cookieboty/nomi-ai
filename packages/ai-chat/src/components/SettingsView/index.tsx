@@ -229,16 +229,18 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             {t(s.label)}
           </button>
         ))}
-        <div className={styles.navFoot} data-testid="settings-sidebar-foot">
-          <EndpointIcon backend="nomi" size={32} decorative />
-          <span>{t('让 AI 更懂你，让工作与生活更轻松。')}</span>
-        </div>
       </nav>
       <main className={styles.content}>
         <div className={styles.inner}>
           <header className={styles.pageHead} data-testid="settings-page-head">
             <h1 className={styles.pageTitle}>{t(current.label)}</h1>
             <p className={styles.pageIntro}>{t(current.intro)}</p>
+            {/* 纯装饰：看板娘头像 + 气泡（视觉稿）；不可交互、读屏忽略，窄窗口隐藏 */}
+            <div className={styles.pageArt} aria-hidden="true" data-testid="settings-page-art">
+              <img src="./brand/nomi-thumb.png" alt="" className={styles.pageArtImg} />
+              <span className={`${styles.bubble} ${styles.bubbleA}`}>Nomi!</span>
+              <span className={`${styles.bubble} ${styles.bubbleB}`}>{t('有我在～')}</span>
+            </div>
           </header>
           <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
         </div>

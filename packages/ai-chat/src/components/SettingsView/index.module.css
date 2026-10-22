@@ -46,17 +46,6 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
 }
-/* 侧栏底部：看板娘头像 + 标语（视觉稿） */
-.navFoot {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: var(--cd-space-4) var(--cd-space-3) var(--cd-space-1);
-  font-size: var(--cd-font-size-xs);
-  line-height: 1.5;
-  color: var(--cd-color-text-muted);
-}
 .navItem.navActive {
   background: var(--cd-color-selected-bg);
   color: var(--cd-color-selected-text);
@@ -384,7 +373,76 @@
 
 /* 页头：每个分区统一「大标题 + 一句说明」（视觉稿） */
 .pageHead {
+  position: relative;
   margin: 0 0 var(--cd-space-5);
+  /* 给右侧装饰留出位置，标题 / 说明不会被压住 */
+  padding-right: 200px;
+  min-height: 96px;
+}
+.pageArt {
+  position: absolute;
+  top: -12px;
+  right: 0;
+  width: 180px;
+  height: 108px;
+  pointer-events: none;
+  user-select: none;
+}
+.pageArtImg {
+  position: absolute;
+  right: 36px;
+  bottom: 0;
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  object-fit: cover;
+  -webkit-mask-image: radial-gradient(circle, #000 62%, transparent 72%);
+  mask-image: radial-gradient(circle, #000 62%, transparent 72%);
+}
+.bubble {
+  position: absolute;
+  padding: 3px 10px;
+  border-radius: var(--cd-radius-full);
+  border: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+  color: var(--cd-color-accent-strong);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  white-space: nowrap;
+  animation: bubbleFloat 3.6s ease-in-out infinite;
+}
+.bubbleA {
+  left: 0;
+  top: 34px;
+}
+.bubbleB {
+  right: 0;
+  top: 4px;
+  animation-delay: -1.8s;
+}
+@keyframes bubbleFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble {
+    animation: none;
+  }
+}
+@media (max-width: 860px) {
+  .pageHead {
+    padding-right: 0;
+    min-height: 0;
+  }
+  .pageArt {
+    display: none;
+  }
 }
 .pageTitle {
   font: var(--cd-text-display);

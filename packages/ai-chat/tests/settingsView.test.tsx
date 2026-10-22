@@ -97,10 +97,14 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(s.getByTestId('settings-calendar')).toBeTruthy();
   });
 
-  it('v1.1.1 视觉稿：侧栏品牌头 / 底部标语，右侧每个分区统一页头（标题 + 说明）', () => {
+  it('v1.1.1 视觉稿：侧栏品牌头、页头装饰，右侧每个分区统一页头（标题 + 说明）', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     expect(r.getByTestId('settings-brand').textContent).toContain('Nomi · 诺米');
-    expect(r.getByTestId('settings-sidebar-foot').textContent).toContain('让 AI 更懂你');
+    expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
+    const art = r.getByTestId('settings-page-art');
+    expect(art.getAttribute('aria-hidden')).toBe('true');
+    expect(art.textContent).toContain('Nomi!');
+    expect(art.querySelector('img')!.getAttribute('alt')).toBe('');
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
       const head = r.getByTestId('settings-page-head');

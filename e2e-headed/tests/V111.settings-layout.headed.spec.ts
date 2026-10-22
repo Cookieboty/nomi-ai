@@ -10,7 +10,7 @@ import { safeRm } from '../fixtures/fsutil';
 
 /**
  * v1.1.1 设置页视觉稿（真实应用，日落橙默认主题）：
- * 侧栏品牌头 + 12 个分区 + 底部标语；每个分区右侧统一页头（标题 + 说明）；
+ * 侧栏品牌头 + 12 个分区；页头右侧看板娘装饰；每个分区右侧统一页头（标题 + 说明）；
  * 快捷键页「应用内 / 全局」标签；编程助手页顶部为助手卡片。
  * 设 V111_SHOTS_DIR 时把每个分区截图存进去。
  */
@@ -83,13 +83,19 @@ test.describe('v1.1.1 settings layout', () => {
     await chat.keyboard.press(`${mod}+Comma`);
     await expect(chat.locator('[data-testid="settings-view"]')).toBeVisible();
     await expect(chat.locator('[data-testid="settings-brand"]')).toContainText('Nomi · 诺米');
-    await expect(chat.locator('[data-testid="settings-sidebar-foot"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="settings-sidebar-foot"]')).toHaveCount(0);
 
     const shot = async (name: string) => {
       if (!shotDir) return;
       await chat.waitForTimeout(600); // 懒加载面板 + 入场动画
       await chat.evaluate(() =>
-        Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+        Promise.all(
+          document
+            .getAnimations()
+            // 无限循环的装饰动画（页头气泡）永远不会 finished，跳过
+            .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+            .map((a) => a.finished.catch(() => undefined)),
+        ),
       );
       await chat.screenshot({ path: join(shotDir, `${name}.png`) });
     };
@@ -99,6 +105,16 @@ test.describe('v1.1.1 settings layout', () => {
       const head = chat.locator('[data-testid="settings-page-head"]');
       await expect(head.locator('h1')).toHaveText(label);
       await expect(head.locator('p')).not.toBeEmpty();
+      // 装饰图不与标题 / 说明重叠，且不吃点击
+      const art = await chat.locator('[data-testid="settings-page-art"]').boundingBox();
+      const intro = await head.locator('p').boundingBox();
+      const title = await head.locator('h1').boundingBox();
+      expect(art).not.toBeNull();
+      for (const b of [intro!, title!]) expect(b.x + b.width).toBeLessThanOrEqual(art!.x + 1);
+      await expect(chat.locator('[data-testid="settings-page-art"]')).toHaveCSS(
+        'pointer-events',
+        'none',
+      );
       await shot(`settings-${id}`);
     }
 
