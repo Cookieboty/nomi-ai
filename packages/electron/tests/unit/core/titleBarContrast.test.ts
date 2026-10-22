@@ -11,9 +11,8 @@ import { THEME_CHROME, type ChromeTheme } from '../../../src/core/titleBar';
 
 const tokens = fs.readFileSync(path.resolve(__dirname, '../../../../ui/src/tokens.css'), 'utf8');
 
-/** :root 是 mist；其余取 [data-theme='x'] 块 */
+/** 每个主题取 [data-theme='x'] 块（sunset 与 :root 写在同一块：`:root,\n[data-theme='sunset'] {`） */
 const block = (theme: ChromeTheme): string => {
-  if (theme === 'mist') return tokens.slice(tokens.indexOf(':root {'), tokens.indexOf('\n}\n'));
   const a = tokens.indexOf(`[data-theme='${theme}'] {`);
   return tokens.slice(a, tokens.indexOf('\n}\n', a));
 };

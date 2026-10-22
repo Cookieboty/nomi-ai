@@ -15,7 +15,7 @@ export interface ChatBackgroundState {
 
 export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   mode: 'default',
-  solidColor: '#fff6ec',
+  solidColor: '#fff8f1',
   imageUrl: null,
   blur: 0,
   opacity: 0.35,

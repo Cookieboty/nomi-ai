@@ -27,7 +27,8 @@ describe('themes', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('sunset');
     localStorage.setItem('cd.theme', 'mist');
     initTheme();
-    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+    // 每个主题都写 data-theme（:root 只是日落橙的默认值）
+    expect(document.documentElement.getAttribute('data-theme')).toBe('mist');
     expect(THEMES.map((t) => t.id).sort()).toEqual([
       'cream',
       'graphite',

@@ -10,11 +10,11 @@ export type ChromeTheme = 'mist' | 'graphite' | 'ink' | 'cream' | 'sunset';
 
 /** 与 packages/ui/src/tokens.css 中各主题的 --cd-color-bg / --cd-color-text 保持一致 */
 export const THEME_CHROME: Record<ChromeTheme, { bg: string; fg: string }> = {
-  mist: { bg: '#0a0f1a', fg: '#e8eef7' },
-  graphite: { bg: '#0f0f11', fg: '#ededef' },
-  ink: { bg: '#1a1917', fg: '#ece8e1' },
-  cream: { bg: '#fcefe1', fg: '#33291f' },
-  sunset: { bg: '#fff6ec', fg: '#3d2918' },
+  mist: { bg: '#f5f8f9', fg: '#20343d' },
+  graphite: { bg: '#13161b', fg: '#f0f2f6' },
+  ink: { bg: '#201a17', fg: '#f5ede6' },
+  cream: { bg: '#fffcf6', fg: '#403126' },
+  sunset: { bg: '#fff8f1', fg: '#3f332d' },
 };
 
 export const TITLEBAR_HEIGHT = { mac: 38, other: 36 } as const;

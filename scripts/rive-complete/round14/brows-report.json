@@ -1,0 +1,59 @@
+{
+ "scraps": {
+  "brow-l": {
+   "hidden_dropped": 1,
+   "folded_into_head": 87
+  },
+  "brow-r": {
+   "hidden_dropped": 5,
+   "folded_into_head": 110
+  }
+ },
+ "brows": {
+  "l": {
+   "px": 93,
+   "core": 66,
+   "moved_from": {
+    "hair-l": 10,
+    "head": 89
+   },
+   "box": [
+    445,
+    129,
+    481,
+    139
+   ],
+   "centre_mother": [
+    464.1,
+    133.7
+   ],
+   "hair_fill_px": 93
+  },
+  "r": {
+   "px": 123,
+   "core": 75,
+   "moved_from": {
+    "head": 123
+   },
+   "box": [
+    518,
+    122,
+    550,
+    133
+   ],
+   "centre_mother": [
+    534.7,
+    127.9
+   ],
+   "hair_fill_px": 123
+  }
+ },
+ "expressions": [
+  "full.surprise",
+  "full.angry",
+  "full.aggrieved",
+  "full.tears",
+  "full.apology",
+  "full.shy"
+ ]
+}

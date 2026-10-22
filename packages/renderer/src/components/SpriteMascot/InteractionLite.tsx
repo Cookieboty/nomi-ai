@@ -155,7 +155,13 @@ const InteractionLite: FC<InteractionLiteProps> = ({ canvasRef, geometry, regist
       s.cursor.fresh = true;
       document.documentElement.dataset.mascotDragging = '0';
     };
+    /** Chromium emits both pointermove and a compatibility mousemove; without
+     *  dedupe every drag IPC (and gate sample) runs twice and doubles main-process work. */
+    let lastMoveKey = '';
     const onMove = (e: PointerEvent | MouseEvent) => {
+      const key = `${e.screenX}|${e.screenY}|${e.buttons}|${(e as PointerEvent).pointerType ?? 'mouse'}`;
+      if (key === lastMoveKey) return;
+      lastMoveKey = key;
       s.cursor = { x: e.clientX, y: e.clientY, inside: true, fresh: true };
       // Prefer our own held flag: under setPointerCapture / click-through toggles,
       // Chromium on Windows frequently delivers move events with buttons=0.

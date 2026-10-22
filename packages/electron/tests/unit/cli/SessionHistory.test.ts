@@ -748,6 +748,30 @@ describe('SessionHistoryService', () => {
         db.close();
       }
     });
+
+    it('open: 网关线路按第三方续接，官方与 custom 线路按官方续接（#90）', async () => {
+      write(
+        ids[0]!,
+        rollout(ids[0]!, 'third party chat', {
+          model_provider: 'nomi_gateway',
+          originator: 'nomi',
+          source: 'vscode',
+        }),
+        3_000,
+      );
+      write(ids[1]!, rollout(ids[1]!, 'official chat', { model_provider: 'openai' }), 2_000);
+      write(ids[2]!, rollout(ids[2]!, 'custom chat', { model_provider: 'my_proxy' }), 1_000);
+      const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+      const svc = mk({ openTab });
+      const arg = (i: number) => (openTab.mock.calls[i] as unknown as [Record<string, unknown>])[0];
+
+      await svc.open('codex', ids[0]!);
+      expect(arg(0)).toMatchObject({ sessionId: ids[0], source: 'thirdParty' });
+      await svc.open('codex', ids[1]!);
+      expect(arg(1)).toMatchObject({ sessionId: ids[1], source: 'official' });
+      await svc.open('codex', ids[2]!);
+      expect(arg(2)).toMatchObject({ sessionId: ids[2], source: 'official' });
+    });
   });
 
   const dshSetup = (id: string): boolean => {
@@ -799,6 +823,18 @@ describe('SessionHistoryService', () => {
       permissionMode: 'acceptEdits',
     });
     expect(page.items[0]!.model).toBeUndefined();
+  });
+
+  it('open: Claude sessions the gateway served resume as third party; others keep the default (#90)', async () => {
+    writeClaude('a', 'via gateway', 2_000_000);
+    writeClaude('b', 'unknown', 1_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const svc = mk({ openTab, gatewaySession: (_b, id) => id === 'a' });
+    await svc.open('claude', 'a');
+    await svc.open('claude', 'b');
+    const arg = (i: number) => (openTab.mock.calls[i] as unknown as [Record<string, unknown>])[0];
+    expect(arg(0)).toMatchObject({ sessionId: 'a', source: 'thirdParty' });
+    expect(arg(1)).not.toHaveProperty('source');
   });
 
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {

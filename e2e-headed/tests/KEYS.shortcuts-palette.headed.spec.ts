@@ -55,7 +55,13 @@ test.describe('Shortcuts and command palette', () => {
       if (!shotDir) return;
       // 等入场动画结束再截图（否则弹层半透明）
       await p.evaluate(() =>
-        Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))),
+        Promise.all(
+          document
+            .getAnimations()
+            // 无限循环的装饰动画（页头气泡）永远不会 finished，跳过
+            .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+            .map((a) => a.finished.catch(() => undefined)),
+        ),
       );
       await p.screenshot({ path: join(shotDir, `${name}.png`) });
     };

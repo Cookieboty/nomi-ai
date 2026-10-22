@@ -2,11 +2,11 @@
  * 输入栏的权限模式按钮（docs/design/cli-permission-modes.md §4）：
  * - 点开下拉选档位；只列当前编程助手支持的档位（不支持的不显示，选了也没意义）；
  * - 输入框里 Shift+Tab 在支持的档位间循环，跳过「完全放开」；
- * - 「完全放开」只能从下拉进入，先确认；之后按钮标红。确认绑定发起时的标签（id / 后端 / 目录），
- *   确认框打开期间切走标签、关闭标签或换了后端 / 目录即作废，绝不转投到当前标签；
+ * - 「完全放开」只能从下拉进入（在下拉里选中即确认，带上当前标签的后端 / 目录供主进程核对）；
+ *   之后按钮标红，输入框上方显示提示条（BypassTip），可关掉提示或一键退出；
  * - 下拉底部可以把当前档设为新标签的默认档（「完全放开」不能设为默认）。
  */
-import { Button, Icon, Modal, t } from '@nomi-ai/ui';
+import { Icon, t } from '@nomi-ai/ui';
 import {
   Check,
   ChevronDown,
@@ -15,6 +15,7 @@ import {
   Hand,
   ShieldAlert,
   Sparkles,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -82,7 +83,7 @@ function nativePermissionModes(
   return out.length ? out : null;
 }
 
-/** 「完全放开」确认的目标：发起确认时的标签身份 */
+/** 「完全放开」的目标：选中时的标签身份 */
 interface BypassTarget {
   tabId: string;
   backend: HarnessBackend;
@@ -95,7 +96,6 @@ export const PermissionModeChip: React.FC<{
   defaultMode?: PermissionMode;
 }> = ({ tab, defaultMode }) => {
   const [open, setOpen] = useState(false);
-  const [confirmBypass, setConfirmBypass] = useState<BypassTarget | null>(null);
   /** 提示只显示在产生它的标签上（异步结果回来时用户可能已切到别的标签） */
   const [note, setNote] = useState<{ tabId: string; text: string } | null>(null);
   const [cliModes, setCliModes] = useState<PermissionMode[] | null>(null);
@@ -134,17 +134,6 @@ export const PermissionModeChip: React.FC<{
   const supported = cliModes ?? supportedModes(backend);
   const name = backend === 'nomi' ? '' : ENDPOINT_NAME[backend];
 
-  // 确认框打开期间显示的已不是发起确认的标签（切标签 / 关闭 / 换后端 / 换目录）：确认作废，
-  // 不能把对 A 的确认用到 B 上。在渲染期按身份比对后清掉，切回 A 也不会复活旧确认框。
-  const bypassTarget =
-    confirmBypass &&
-    confirmBypass.tabId === tab.id &&
-    confirmBypass.backend === tab.backend &&
-    confirmBypass.cwd === tab.cwd
-      ? confirmBypass
-      : null;
-  if (confirmBypass && !bypassTarget) setConfirmBypass(null);
-
   /** target：「完全放开」确认时冻结的标签；主进程再核对一次后端 / 目录，变了就拒绝 */
   const apply = async (next: PermissionMode, target?: BypassTarget) => {
     const tabId = target?.tabId ?? tab.id;
@@ -176,8 +165,9 @@ export const PermissionModeChip: React.FC<{
     setOpen(false);
     btnRef.current?.focus();
     if (m === mode) return;
+    // 在下拉里点「完全放开」就是确认；绑定此刻的标签，主进程再核对后端 / 目录
     if (m === 'bypass')
-      setConfirmBypass({ tabId: tab.id, backend: tab.backend, cwd: tab.cwd, title: tab.title });
+      void apply('bypass', { tabId: tab.id, backend: tab.backend, cwd: tab.cwd, title: tab.title });
     else void apply(m);
   };
 
@@ -310,40 +300,57 @@ export const PermissionModeChip: React.FC<{
           </div>,
           document.body,
         )}
-      {bypassTarget && (
-        <Modal
-          open
-          onClose={() => setConfirmBypass(null)}
-          title={t('切换到「完全放开」？')}
-          closeLabel={t('取消')}
-          data-testid="permission-bypass-confirm"
-          footer={
-            <div className={styles.actions}>
-              <Button onClick={() => setConfirmBypass(null)}>{t('取消')}</Button>
-              <Button
-                variant="danger"
-                data-testid="permission-bypass-ok"
-                onClick={() => {
-                  setConfirmBypass(null);
-                  void apply('bypass', bypassTarget);
-                }}
-              >
-                {t('完全放开')}
-              </Button>
-            </div>
-          }
-        >
-          <p>
-            {t(
-              '{0} 将不再询问，可以修改任何文件、运行任何命令（包括工作目录之外）。只建议在隔离环境里使用。这个设置只对当前标签生效，重启 Nomi 后会恢复为默认档。',
-              name,
-            )}
-          </p>
-          <p className={styles.target} data-testid="permission-bypass-target">
-            {t('标签「{0}」', bypassTarget.title)} · <code>{bypassTarget.cwd}</code>
-          </p>
-        </Modal>
-      )}
+    </div>
+  );
+};
+
+/**
+ * 「完全放开」期间输入框上方的提示条：说明风险，可以只关掉提示，或直接退回 exitMode。
+ * 关掉的提示只对这个标签的这一次「完全放开」有效：退出后再进入会重新显示。
+ */
+export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode }> = ({
+  tab,
+  exitMode,
+}) => {
+  /** 关掉提示的标签：离开完全放开后移除，再次进入时重新显示 */
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(() => new Set());
+  const [err, setErr] = useState<string | null>(null);
+  const bypass = tab.permissionMode === 'bypass';
+  if (!bypass && dismissed.has(tab.id))
+    setDismissed((d) => new Set([...d].filter((x) => x !== tab.id)));
+  if (!bypass && err) setErr(null);
+  if (!bypass || dismissed.has(tab.id)) return null;
+  const name = tab.backend === 'nomi' ? '' : ENDPOINT_NAME[tab.backend];
+  return (
+    <div className={styles.tip} role="status" data-testid="permission-bypass-tip">
+      <Icon icon={ShieldAlert} size={14} />
+      <span className={styles.tipText}>
+        {err ??
+          t('完全放开：{0} 不再询问，可以修改任何文件、运行任何命令。只对当前标签生效。', name)}
+      </span>
+      <button
+        type="button"
+        className={styles.tipAction}
+        data-testid="permission-bypass-exit"
+        onClick={() => {
+          setErr(null);
+          void harnessClient
+            .setTabPermissionMode(tab.id, exitMode, { confirmed: false })
+            .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
+        }}
+      >
+        {t('退出完全放开')}
+      </button>
+      <button
+        type="button"
+        className={styles.tipClose}
+        aria-label={t('关闭提示')}
+        title={t('关闭提示')}
+        data-testid="permission-bypass-tip-close"
+        onClick={() => setDismissed((d) => new Set(d).add(tab.id))}
+      >
+        <Icon icon={X} size={12} />
+      </button>
     </div>
   );
 };

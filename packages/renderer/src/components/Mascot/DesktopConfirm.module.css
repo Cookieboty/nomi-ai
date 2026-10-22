@@ -1,5 +1,9 @@
 .bubble {
   position: absolute;
+  /* 摆放按 border-box 计算宽高（bubblePlacement）：内边距和边框算在宽度里，不会越出窗口（#80） */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   top: 8px;
   left: 12px;
   right: 72px;
@@ -21,6 +25,15 @@
   line-height: 1.5;
   margin: 0 0 6px;
   word-break: break-all;
+  /* 气泡被压矮时只有说明文字滚动 */
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.meta,
+.actions {
+  flex: none;
 }
 
 .meta {

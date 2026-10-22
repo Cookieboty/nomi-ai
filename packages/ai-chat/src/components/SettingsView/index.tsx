@@ -2,9 +2,9 @@
  * 统一设置页（参考 Codex app 的 Settings：左侧分区导航，右侧内容）。
  * 各分区直接复用原有面板，通过 ModalHostContext 以「内嵌」方式渲染，功能与 test id 不变。
  */
-import { t, Icon } from '@nomi-ai/ui';
+import { Button, Icon, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { ModalHostContext } from '@nomi-ai/ui';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Lightbulb } from 'lucide-react';
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
@@ -16,17 +16,21 @@ import type { ScreenTab } from '../ScreenPanel';
 
 import { AppIconSettings } from './AppIconSettings';
 import { ChatBackgroundSettings } from './ChatBackgroundSettings';
+import { GeneralHero } from './GeneralHero';
 import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
+import { NomiMark } from './NomiMark';
 import { PinsSettings } from './PinsSettings';
 import { PrivacySection } from './PrivacySection';
 import { ScheduleSection } from './ScheduleSection';
+import { SECTION_HELP } from './sectionHelp';
 import {
   LOCAL_MANAGE_TABS,
   SECTION_TABS,
+  SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
   tabOf as pickTab,
   type SettingsSection,
@@ -38,7 +42,7 @@ import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
-export { SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
 
 /** 「模型」页懒加载 */
 const ModelsPage = React.lazy(() =>
@@ -83,7 +87,8 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
     setScreenSub(sub);
     onSection(s);
   };
-  const inline = useMemo(() => ({ mode: 'inline' as const }), []);
+  // 每个分区都有统一页头（标题 + 说明），内嵌面板自己的标题只留给读屏
+  const inline = useMemo(() => ({ mode: 'inline' as const, hideTitle: true }), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // 子对话框打开时 Esc 交给它
@@ -94,37 +99,50 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   }, [onClose]);
 
   const noop = () => undefined;
+  const current = SETTINGS_SECTIONS.find((s) => s.id === section) ?? SETTINGS_SECTIONS[0]!;
   const body = (() => {
     switch (section) {
       case 'general':
         return (
-          <>
-            <LanguageSettings />
-            <StartupSettings />
-            <AppIconSettings />
-            <MascotSizeSettings />
-            <UpdateSettings />
-            <section className={styles.block}>
-              <h2 className={styles.h2}>{t('新手引导')}</h2>
-              <p className={styles.muted}>
-                {t('重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。')}
-              </p>
-              <button
-                type="button"
-                className={styles.lang}
-                data-testid="settings-reopen-onboarding"
-                onClick={() => {
-                  onClose();
-                  void onboardingClient.reopen();
-                }}
-              >
-                {t('重新打开新手引导')}
-              </button>
-            </section>
-            <ThemeSettings />
-            <ChatBackgroundSettings />
+          <div className={styles.groups}>
+            <GeneralHero />
+            <SettingsGroup
+              title={t('外观')}
+              description={t('主题、应用图标与聊天背景，即时生效。')}
+              id="settings-appearance"
+              data-testid="settings-appearance"
+            >
+              <ThemeSettings />
+              <AppIconSettings />
+              <ChatBackgroundSettings />
+            </SettingsGroup>
+            <StartupSettings
+              language={<LanguageSettings />}
+              mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
+            />
             <PinsSettings />
-          </>
+            <UpdateSettings>
+              <SettingRow
+                title={t('新手引导')}
+                description={t(
+                  '重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。',
+                )}
+              >
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  data-testid="settings-reopen-onboarding"
+                  onClick={() => {
+                    onClose();
+                    void onboardingClient.reopen();
+                  }}
+                >
+                  {t('重新打开')}
+                </Button>
+              </SettingRow>
+            </UpdateSettings>
+          </div>
         );
       case 'shortcuts':
         return <ShortcutSettings />;
@@ -190,6 +208,13 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   return (
     <div className={styles.settings} data-testid="settings-view">
       <nav className={styles.nav} aria-label={t('设置分区')}>
+        <div className={styles.brand} data-testid="settings-brand">
+          <NomiMark className={styles.brandMark} />
+          <span className={styles.brandText}>
+            <span className={styles.brandName}>{t('Nomi · 诺米')}</span>
+            <span className={styles.brandSub}>{t('你的桌面 Nomi·诺米')}</span>
+          </span>
+        </div>
         <button
           type="button"
           className={styles.back}
@@ -200,30 +225,90 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <Icon icon={ChevronLeft} />
           {t('返回对话')}
         </button>
-        <div className={styles.navTitle}>{t('设置')}</div>
-        {SETTINGS_SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`${styles.navItem} ${s.id === section ? styles.navActive : ''}`}
-            aria-current={s.id === section ? 'page' : undefined}
-            onClick={() => {
-              setLocalTab(undefined);
-              setScreenSub(undefined);
-              onSection(s.id);
-            }}
-            data-testid={`settings-nav-${s.id}`}
-          >
-            <span className={styles.navIcon}>
-              <AppIcon icon={s.icon} size="nav" />
-            </span>
-            {t(s.label)}
-          </button>
+        {SETTINGS_NAV_GROUPS.map((group, gi) => (
+          <div key={gi} className={styles.navSection}>
+            {group
+              .map((id) => SETTINGS_SECTIONS.find((x) => x.id === id)!)
+              .map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`${styles.navItem} ${s.id === section ? styles.navActive : ''}`}
+                  aria-current={s.id === section ? 'page' : undefined}
+                  onClick={() => {
+                    setLocalTab(undefined);
+                    setScreenSub(undefined);
+                    onSection(s.id);
+                  }}
+                  data-testid={`settings-nav-${s.id}`}
+                >
+                  <span className={styles.navIcon}>
+                    <AppIcon icon={s.icon} size="nav" />
+                  </span>
+                  {t(s.label)}
+                </button>
+              ))}
+          </div>
         ))}
       </nav>
-      <main className={styles.content}>
-        <div className={styles.inner}>
-          <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
+      <main className={styles.content} aria-label={t(current.label)}>
+        {section === 'general' && (
+          // 「通用」页顶部横幅（纯装饰，读屏忽略）：铺满内容区顶部与两侧，四周渐隐进页面底色
+          <img
+            src="./brand/nomi-banner.webp"
+            alt=""
+            aria-hidden="true"
+            className={styles.banner}
+            data-testid="settings-banner"
+            draggable={false}
+          />
+        )}
+        <div className={`${styles.inner} ${section === 'general' ? styles.innerAfterBanner : ''}`}>
+          {section === 'general' ? (
+            <>
+              <h1 className={styles.srOnly} data-testid="settings-section-title">
+                {t(current.label)}
+              </h1>
+            </>
+          ) : (
+            <header className={styles.pageHead} data-testid="settings-page-head">
+              <span className={styles.pageBadge} aria-hidden="true">
+                <AppIcon icon={current.icon} size={22} />
+              </span>
+              <div className={styles.pageHeadText}>
+                <h1 className={styles.pageTitle} data-testid="settings-section-title">
+                  {t(current.label)}
+                </h1>
+                <p className={styles.pageIntro}>{t(current.intro)}</p>
+              </div>
+            </header>
+          )}
+          <div className={styles.columns}>
+            <div className={styles.mainCol} data-testid="settings-main-col">
+              <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
+            </div>
+            {section !== 'general' && (
+              <aside className={styles.help} aria-label={t('配置说明')} data-testid="settings-help">
+                <h2 className={styles.helpTitle}>
+                  <Icon icon={Lightbulb} size={16} />
+                  {t('配置说明')}
+                </h2>
+                <ul className={styles.helpList}>
+                  {SECTION_HELP[section].map((h) => (
+                    <li key={h.title} className={styles.helpItem}>
+                      <span className={styles.helpIcon} aria-hidden="true">
+                        <Icon icon={h.icon} size={15} />
+                      </span>
+                      <span>
+                        <span className={styles.helpItemTitle}>{t(h.title)}</span>
+                        <span className={styles.helpDesc}>{t(h.desc)}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </aside>
+            )}
+          </div>
         </div>
       </main>
     </div>

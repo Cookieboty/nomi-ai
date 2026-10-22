@@ -318,6 +318,56 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 15_000);
 
+  describe('完全放开放行确认请求', () => {
+    beforeEach(() => {
+      process.env.NOMI_MOCK_ASK_PERMISSION = '1';
+    });
+    afterEach(() => {
+      delete process.env.NOMI_MOCK_ASK_PERMISSION;
+    });
+    const mkClaude = (name: string) => {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-${name}-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      h.setBackend('claude');
+      const seen: { type: string; id?: string; reason?: string }[] = [];
+      h.events.on('event', (p: { event: { type: string; id?: string; reason?: string } }) =>
+        seen.push(p.event),
+      );
+      return { h, seen };
+    };
+
+    it('等待确认时切到完全放开：放行在等的请求，这一轮继续跑完', async () => {
+      const { h, seen } = mkClaude('perm-switch');
+      const run = h.send('hello');
+      await until(() => seen.some((e) => e.type === 'permission'), { what: 'permission asked' });
+      const tabId = h.listTabs().activeTabId;
+      await h.applyTabPermissionMode(tabId, 'bypass', { confirmed: true });
+      const r = await run;
+      expect(seen).toContainEqual(
+        expect.objectContaining({ type: 'permission-resolved', reason: 'allowed' }),
+      );
+      expect(r.text).not.toContain('权限被拒绝');
+    }, 15_000);
+
+    it('已是完全放开时 CLI 仍来问：直接放行，不发桌面通知', async () => {
+      const { h, seen } = mkClaude('perm-bypass');
+      const needed: unknown[] = [];
+      h.events.on('permission-needed', (p) => needed.push(p));
+      h.setTabPermissionMode(h.listTabs().activeTabId, 'bypass', { confirmed: true });
+      const r = await h.send('hello');
+      expect(r.text).not.toContain('权限被拒绝');
+      expect(seen).toContainEqual(
+        expect.objectContaining({ type: 'permission-resolved', reason: 'allowed' }),
+      );
+      expect(needed).toHaveLength(0);
+    }, 15_000);
+  });
+
   it('defaults to nomi with tools enabled', () => {
     const h = track(
       new CliHarnessService({
@@ -628,13 +678,87 @@ describe('CliHarnessService session handling', () => {
     });
 
     it('第三方来源：网关令牌只注入 dsh 子进程，模型经 --patch 叠加配置下发', async () => {
-      const h = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+      const h = mk(
+        testGateway({
+          source: 'thirdParty',
+          main: 'deepseek/flash',
+          models: ['deepseek/flash', 'deepseek/pro'],
+        }),
+      );
       const tab = h.createTab({ backend: 'dsh' });
       expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock dsh】new key deepseek/flash: hi');
       expect(process.env.NOMI_DSH_API_KEY).toBeUndefined();
       // 第三方之间换模型：下一轮的叠加配置跟着换
       h.setTabModel(tab.id, 'deepseek/pro');
       expect((await h.sendTab(tab.id, 'b')).text).toBe('【Mock dsh】resumed key deepseek/pro: b');
+    });
+
+    it('打开历史会话按历史来源建标签，不用新标签默认来源（#90）', () => {
+      const open = (h: CliHarnessService, sessionId: string, source: 'official' | 'thirdParty') =>
+        h.openHistorySession({
+          backend: 'codex',
+          sessionId,
+          cwd: process.cwd(),
+          title: 'h',
+          messages: [],
+          modelOverride: 'gpt-5-upstream',
+          source,
+        }).tab;
+      // 默认第三方，打开官方历史：仍是官方，保留历史模型
+      const third = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+      expect(open(third, 's-official', 'official')).toMatchObject({
+        source: 'official',
+        modelOverride: 'gpt-5-upstream',
+      });
+      // 默认官方，打开网关历史：第三方，上游裸模型名不当作网关模型覆盖
+      const official = mk(testGateway({ source: 'official', main: 'deepseek/flash' }));
+      const tab = open(official, 's-gateway', 'thirdParty');
+      expect(tab.source).toBe('thirdParty');
+      expect(tab.modelOverride).toBeFalsy();
+    });
+
+    it('第三方注入的变量不被 strip 清掉，继承的同名变量才清（#98）', () => {
+      const keys = ['ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_API_KEY'] as const;
+      const saved = keys.map((k) => process.env[k]);
+      process.env.ANTHROPIC_SMALL_FAST_MODEL = 'inherited-old';
+      process.env.ANTHROPIC_API_KEY = 'sk-inherited';
+      try {
+        const h = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+        const env = (
+          h as unknown as {
+            childEnv(useNode: boolean, l: unknown): NodeJS.ProcessEnv;
+          }
+        ).childEnv(false, {
+          env: { ANTHROPIC_SMALL_FAST_MODEL: 'zp/small' },
+          args: [],
+          strip: [...keys],
+          official: false,
+          modelInConfig: false,
+          sig: '',
+        });
+        expect(env.ANTHROPIC_SMALL_FAST_MODEL).toBe('zp/small');
+        expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+      } finally {
+        keys.forEach((k, i) => {
+          if (saved[i] === undefined) delete process.env[k];
+          else process.env[k] = saved[i];
+        });
+      }
+    });
+
+    it('关闭第三方标签时回收它的网关进程级私有目录', async () => {
+      const gw = testGateway({ source: 'thirdParty', main: 'deepseek/flash' });
+      const released: Array<[string, string]> = [];
+      const wrapped = {
+        ...gw,
+        releaseAgent: (kind: string, tabId: string) => released.push([kind, tabId]),
+      };
+      const h = mk(wrapped);
+      const tab = h.createTab({ backend: 'dsh' });
+      await h.sendTab(tab.id, 'hi');
+      expect(released).toEqual([]);
+      h.closeTab(tab.id);
+      expect(released).toEqual([['dsh', tab.id]]);
     });
 
     it('surfaces the dsh error message when resume fails', async () => {

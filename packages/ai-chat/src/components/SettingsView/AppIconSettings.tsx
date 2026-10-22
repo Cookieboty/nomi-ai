@@ -1,7 +1,8 @@
 /**
- * 设置 → 通用：应用图标（sunset 默认 / cream / ink）。主进程 core/appIcon.ts（app-icon:*）。
+ * 设置 → 通用 → 外观：应用图标（sunset 默认 / cream / ink），一行设置，右侧三个小图标单选。
+ * 主进程 core/appIcon.ts（app-icon:*）。
  */
-import { t } from '@nomi-ai/ui';
+import { SettingRow, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import styles from './index.module.css';
@@ -36,47 +37,36 @@ export const AppIconSettings: React.FC = () => {
   const pick = (v: Variant) =>
     void invoke()?.('app-icon:set', v).then((r) => setS({ ...s, variant: r as Variant }));
   return (
-    <section className={styles.block} data-testid="settings-app-icon">
-      <h2 className={styles.h2}>{t('应用图标')}</h2>
-      <div role="radiogroup" aria-label={t('应用图标')} style={{ display: 'flex', gap: 16 }}>
+    <SettingRow
+      data-testid="settings-app-icon"
+      title={t('应用图标')}
+      description={
+        s.platform === 'darwin'
+          ? t(
+              '立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。',
+            )
+          : t(
+              '立即更新窗口、正在运行的任务栏按钮和托盘图标。已固定到任务栏的图标由系统缓存，可能要重启应用后才更新（个别情况需取消固定后重新固定）；安装包、可执行文件和开始菜单 / 桌面快捷方式始终为默认墨色。',
+            )
+      }
+    >
+      <div role="radiogroup" aria-label={t('应用图标')} className={styles.icons}>
         {(Object.keys(LABEL) as Variant[]).map((v) => (
           <button
             key={v}
             type="button"
             role="radio"
             aria-checked={s.variant === v}
+            aria-label={t(LABEL[v])}
+            title={t(LABEL[v])}
             data-variant={v}
+            className={`${styles.iconOpt} ${s.variant === v ? styles.iconOptOn : ''}`}
             onClick={() => pick(v)}
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 6,
-              padding: 10,
-              borderRadius: 14,
-              cursor: 'pointer',
-              background: 'transparent',
-              color: 'inherit',
-              border:
-                s.variant === v
-                  ? '2px solid var(--color-accent, #FB9466)'
-                  : '2px solid transparent',
-            }}
           >
-            <img src={s.previews[v]} width={64} height={64} alt="" />
-            <span>{t(LABEL[v])}</span>
+            <img src={s.previews[v]} width={36} height={36} alt="" />
           </button>
         ))}
       </div>
-      <p className={styles.muted}>
-        {s.platform === 'darwin'
-          ? t(
-              '立即更新 Dock 图标（仅本次运行期间；退出后 Finder / 启动台仍显示默认墨色图标）。菜单栏托盘保持单色模板图标。',
-            )
-          : t(
-              '立即更新窗口、正在运行的任务栏按钮和托盘图标。已固定到任务栏的图标由系统缓存，可能要重启应用后才更新（个别情况需取消固定后重新固定）；安装包、可执行文件和开始菜单 / 桌面快捷方式始终为默认墨色。',
-            )}
-      </p>
-    </section>
+    </SettingRow>
   );
 };

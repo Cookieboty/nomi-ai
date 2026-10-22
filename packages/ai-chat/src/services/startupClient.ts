@@ -52,7 +52,7 @@ export const startupClient = {
       .catch(() => null);
     return pickClose(r);
   },
-  /** 是否显示桌面看板娘；读取失败 / 老配置回落到显示 */
+  /** 是否显示桌面 Nomi；读取失败 / 老配置回落到显示 */
   async getShowMascot(): Promise<boolean> {
     const r = await bridge()
       ?.invoke('ai:startup:get')

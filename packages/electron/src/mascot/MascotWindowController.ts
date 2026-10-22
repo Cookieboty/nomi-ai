@@ -1,7 +1,7 @@
 import type { MascotScaleState } from '@nomi-ai/types';
 import { type BrowserWindow, ipcMain, screen } from 'electron';
 
-import { setWindowBounds } from '../utils/windowBounds';
+import { moveWindowTo, setWindowBounds } from '../utils/windowBounds';
 
 import {
   advance,
@@ -499,7 +499,15 @@ export class MascotWindowController {
       // Free place: stay exactly where dropped (no slide / throw residual)
       this.body = { ...this.body, vx: 0, vy: 0, mode: 'idle' };
     }
+    // User just placed/released — don't let an overdue auto-wander steal the pose
+    // on the next tick (manual wander-now used to leave nextWanderAt in the past).
+    this.scheduleNextWander();
     this.send('mascot:physics-event', { type: 'release', vx: v.vx, vy: v.vy });
+  }
+
+  /** Next auto-wander in 20–60s (same window as the idle tick scheduler). */
+  private scheduleNextWander(from = performance.now()): void {
+    this.nextWanderAt = from + 20000 + this.rnd() * 40000;
   }
 
   private startWander(): void {
@@ -510,6 +518,9 @@ export class MascotWindowController {
       mode: 'walking',
       walkTargetX: pickWanderTarget(this.body, env, this.rnd),
     };
+    // Manual wander-now and auto-wander share this path; always push the next
+    // slot forward so finishing a walk doesn't immediately re-trigger walking.
+    this.scheduleNextWander();
   }
 
   private tick(): void {
@@ -540,7 +551,8 @@ export class MascotWindowController {
       this.body.vy = this.tracker.vy;
     } else if (env) {
       if (this.cfg.wander && this.body.mode === 'idle' && now >= this.nextWanderAt) {
-        this.nextWanderAt = now + 20000 + this.rnd() * 40000;
+        // Push the slot first so a missing env (no box yet) cannot hot-loop at 60Hz.
+        this.scheduleNextWander(now);
         this.startWander();
       }
       this.acc += dt;
@@ -554,12 +566,9 @@ export class MascotWindowController {
     const nx = Math.round(this.body.x);
     const ny = Math.round(this.body.y);
     if (nx !== wx || ny !== wy) {
-      // Windows 分数 DPI 下不可缩放透明窗的 setPosition 会逐次放大窗口。
-      // 同时校正尺寸，避免拖动 / 物理移动积累偏差并改变角色缩放。
-      if (process.platform === 'win32') {
-        const size = mascotWindowSize(this.scale);
-        setWindowBounds(this.win, { x: nx, y: ny, ...size });
-      } else this.win.setPosition(nx, ny);
+      // Windows：setPosition 会在分数 DPI 下逐次放大不可缩放透明窗。
+      // moveWindowTo 只在尺寸漂移时做 unlock+校正；拖拽高频路径不再每帧 setResizable。
+      moveWindowTo(this.win, nx, ny, mascotWindowSize(this.scale));
       this.lastActivityAt = now;
     }
 

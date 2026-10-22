@@ -57,6 +57,14 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'renameTab', label: '重命名标签', combo: 'Mod+Shift+R' },
 ];
 
+/**
+ * 系统级全局快捷键（主进程 globalShortcut 注册，Nomi 不在前台也生效）。
+ * 与 packages/electron/src/screen/ScreenService.ts 的 SNIP_HOTKEY 一致；开关在「语音与屏幕 → 屏幕」。
+ */
+export const GLOBAL_SHORTCUTS: Array<[string, string]> = [
+  ['Mod+Alt+A', '截图提问（需在「语音与屏幕 → 屏幕」开启截图快捷键）'],
+];
+
 /** 不可改绑、仅展示的按键 */
 export const FIXED_SHORTCUTS: Array<[string, string]> = [
   ['/', '在输入框里打开命令'],

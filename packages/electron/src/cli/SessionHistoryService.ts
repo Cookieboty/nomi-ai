@@ -40,7 +40,12 @@ import { dbSignature } from '../usage/sqliteRead';
 import { readCodexThreads, type CodexThreadRow } from './codexThreadIndex';
 import { parseTranscript, titleFromMessages, type HistoryBackend } from './historyTranscript';
 import { fromCliPermissionMode } from './permissionMode';
-import type { HarnessPermissionMode, HarnessTabMessage, HarnessTabMeta } from './types';
+import type {
+  HarnessPermissionMode,
+  HarnessTabMessage,
+  HarnessTabMeta,
+  HarnessTabSource,
+} from './types';
 
 export const HISTORY_PAGE_SIZE = 20;
 /** 历史会话最多展示的条数（列表与搜索索引共同的硬上限，按 mtime 取最近的 N 条） */
@@ -141,7 +146,11 @@ export interface SessionHistoryDeps {
     reasoningEffort?: string | null;
     permissionMode?: HarnessPermissionMode;
     permissionModeSource?: 'history-cli';
+    /** 会话原本的来源（由历史线路推断）：避免用新标签默认来源续接，官方 / 第三方互相串用 */
+    source?: HarnessTabSource;
   }) => { tab: HarnessTabMeta; reused: boolean };
+  /** 会话是否经统一网关跑过（网关会话归属表）：历史里没记线路的后端（Claude）据此推断来源（#90） */
+  gatewaySession?: (backend: HistoryBackend, sessionId: string) => boolean;
   /** 会话的官方账号 id → 展示用的标签（邮箱 / 名称）；对不上返回 undefined */
   accountLabel?: (backend: HistoryBackend, accountId: string) => string | undefined;
 }
@@ -664,6 +673,9 @@ export class SessionHistoryService {
       }
       const tr = await this.transcript(backend, sessionId);
       const title = f.meta.title || titleFromMessages(tr.messages) || sessionId;
+      // 历史没记线路（非 Codex）时看网关的会话归属表：经网关跑过 → 第三方
+      const route =
+        f.meta.route ?? (this.d.gatewaySession?.(backend, sessionId) ? 'gateway' : undefined);
       const r = this.d.openTab({
         backend,
         sessionId,
@@ -674,6 +686,11 @@ export class SessionHistoryService {
         ...(f.meta.reasoningEffort ? { reasoningEffort: f.meta.reasoningEffort } : {}),
         ...(f.meta.permissionMode ? { permissionMode: f.meta.permissionMode } : {}),
         ...(!f.meta.permissionMode ? { permissionModeSource: 'history-cli' as const } : {}),
+        // 按历史记录的线路续接，不用新标签默认来源（#90）：网关 → 第三方；官方与用户自己在
+        // config.toml 配的 custom 供应商都是 CLI 原生配置 → 官方。推断不出的沿用默认。
+        ...(route
+          ? { source: route === 'gateway' ? ('thirdParty' as const) : ('official' as const) }
+          : {}),
       });
       const notice = r.reused
         ? undefined

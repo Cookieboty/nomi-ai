@@ -1,10 +1,10 @@
 /**
- * 端点页的「版本」卡片：已装版本 / 最新版本 / 检查更新 / 一键更新；未安装时一键安装。
+ * 端点页的「版本」分组：已装版本 / 最新版本 / 检查更新 / 一键更新；未安装时一键安装。
  * 执行前一定弹出确认框，展示确切命令与前置检查（Node / npm / 写权限）；
  * 没有写权限时不会偷偷提权，只提供「改装到用户目录」或自行在终端处理。
  * 进度与日志来自主进程按行推送的事件；失败原因原样展示。
  */
-import { Button, Notice, t } from '@nomi-ai/ui';
+import { Badge, type BadgeTone, Button, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
@@ -37,9 +37,15 @@ export function versionState(info: CliInstallInfo | null): VersionState {
   return info.version && info.latest ? 'current' : 'unknown';
 }
 
+const cachedInfo = (kind: CliUpdatableKind): CliInstallInfo | null =>
+  cliUpdateClient.cached()?.find((r) => r.kind === kind) ?? null;
+
 export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) => {
-  const [info, setInfo] = useState<CliInstallInfo | null>(null);
+  // 先用上次的检测结果渲染（切换助手不闪「检测中」），挂载后再在后台校验
+  const [info, setInfo] = useState<CliInstallInfo | null>(() => cachedInfo(kind));
   const [checking, setChecking] = useState(false);
+  /** 第一次检测是否已结束：之前显示「检测中」，不要冒充「无法检测」 */
+  const [loaded, setLoaded] = useState(() => cachedInfo(kind) !== null);
   const [plan, setPlan] = useState<CliInstallPlan | null>(null);
   const [running, setRunning] = useState(false);
   /** 当前正在安装 / 更新的端点（全局同时只有一个）；不是本卡片时也要禁用操作 */
@@ -52,7 +58,8 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
   const [lastKind, setLastKind] = useState(kind);
   if (lastKind !== kind) {
     setLastKind(kind);
-    setInfo(null);
+    setInfo(cachedInfo(kind));
+    setLoaded(cachedInfo(kind) !== null);
     setResult(null);
     setLines([]);
     setRunning(false);
@@ -60,7 +67,9 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
 
   const load = useCallback(
     async (refreshLatest: boolean) => {
-      setChecking(true);
+      // 后台静默校验（已有结果）不占用按钮；显式「检查更新」才显示「检查中…」
+      const quiet = !refreshLatest && cachedInfo(kind) !== null;
+      if (!quiet) setChecking(true);
       setError('');
       try {
         const rows = await cliUpdateClient.inspect(refreshLatest);
@@ -69,6 +78,7 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setChecking(false);
+        setLoaded(true);
       }
     },
     [kind],
@@ -180,8 +190,18 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
           ? t('已是最新')
           : info
             ? t('已安装')
-            : // 主进程没返回这个端点（例如应用还没重启到新版本）：不要冒充「已安装」
-              t('无法检测，请重启 Nomi 后再试');
+            : !loaded
+              ? t('检测中…')
+              : // 主进程没返回这个端点（例如应用还没重启到新版本）：不要冒充「已安装」
+                t('无法检测，请重启 Nomi 后再试');
+  const statusTone: BadgeTone =
+    state === 'current'
+      ? 'success'
+      : state === 'outdated'
+        ? 'warning'
+        : state === 'unknown' && loaded && !info
+          ? 'danger'
+          : 'neutral';
 
   const actionLabel =
     state === 'missing'
@@ -191,46 +211,58 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         : t('重新安装最新版');
 
   return (
-    <section className={styles.card} data-testid={`cli-version-card-${kind}`}>
-      <h3 className={styles.cardTitle}>{t('版本')}</h3>
-      <div className={styles.verRow}>
-        <dl className={styles.verFacts}>
-          <dt>{t('状态')}</dt>
-          <dd data-testid={`cli-version-state-${kind}`} data-state={state}>
-            {statusText}
-          </dd>
-          <dt>{t('已装版本')}</dt>
-          <dd data-testid={`cli-version-installed-${kind}`}>{info?.version ?? '—'}</dd>
-          <dt>{t('最新版本')}</dt>
-          <dd data-testid={`cli-version-latest-${kind}`}>{info?.latest ?? '—'}</dd>
-          {info?.path && (
-            <>
-              <dt>{t('位置')}</dt>
-              <dd>{info.path}</dd>
-            </>
-          )}
-        </dl>
-        <div className={styles.verActions}>
+    <SettingsGroup
+      title={t('版本')}
+      data-testid={`cli-version-card-${kind}`}
+      actions={
+        <>
           <Button
             size="sm"
+            variant="ghost"
             disabled={checking || running}
             data-testid={`cli-version-check-${kind}`}
             onClick={() => void load(true)}
           >
             {checking ? t('检查中…') : t('检查更新')}
           </Button>
-          <Button
-            size="sm"
-            variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}
-            disabled={checking || running || otherBusy || !info}
-            title={otherBusy ? t('已有安装 / 更新在进行') : undefined}
-            data-testid={`cli-version-action-${kind}`}
-            onClick={() => void openPlan()}
-          >
-            {running ? t('进行中…') : actionLabel}
-          </Button>
-        </div>
-      </div>
+          {/* 第一次检测完成前不知道该装还是该更新：先不显示主操作 */}
+          {loaded && (
+            <Button
+              size="sm"
+              variant={state === 'missing' || state === 'outdated' ? 'primary' : 'secondary'}
+              disabled={checking || running || otherBusy || !info}
+              title={otherBusy ? t('已有安装 / 更新在进行') : undefined}
+              data-testid={`cli-version-action-${kind}`}
+              onClick={() => void openPlan()}
+            >
+              {running ? t('进行中…') : actionLabel}
+            </Button>
+          )}
+        </>
+      }
+    >
+      <SettingRow
+        title={t('已装版本')}
+        description={
+          info?.path ? (
+            <span className={styles.path} title={info.path}>
+              {info.path}
+            </span>
+          ) : undefined
+        }
+      >
+        <span className={styles.ver} data-testid={`cli-version-installed-${kind}`}>
+          {info?.version ?? '—'}
+        </span>
+        <Badge tone={statusTone} data-testid={`cli-version-state-${kind}`} data-state={state}>
+          {statusText}
+        </Badge>
+      </SettingRow>
+      <SettingRow title={t('最新版本')}>
+        <span className={styles.ver} data-testid={`cli-version-latest-${kind}`}>
+          {info?.latest ?? '—'}
+        </span>
+      </SettingRow>
 
       {info?.runtimeWarning && (
         <Notice tone="warning" data-testid={`cli-runtime-warning-${kind}`}>
@@ -287,6 +319,6 @@ export const CliVersionCard: React.FC<{ kind: CliUpdatableKind }> = ({ kind }) =
         onConfirm={() => void confirm()}
         onUserScope={() => void openPlan('user')}
       />
-    </section>
+    </SettingsGroup>
   );
 };

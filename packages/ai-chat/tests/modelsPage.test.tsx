@@ -438,6 +438,44 @@ describe('ModelsPage', () => {
     ]);
   });
 
+  it('keys: replace a saved key in place; a key pasted into the name is offered as a replacement', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…0000', enabled: true, decryptable: true },
+          {
+            id: 'k1',
+            name: 'sk-pasted_Into_Name_1234567890',
+            masked: 'sk-…1111',
+            enabled: true,
+            decryptable: true,
+          },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-key-replace-k0'));
+    fireEvent.change(within(dlg).getByTestId('pd-key-replace-input-k0'), {
+      target: { value: '  sk-fresh-0000aaaa ' },
+    });
+    fireEvent.click(within(dlg).getByTestId('pd-key-name-to-replace-k1'));
+    expect(within(dlg).queryByTestId('pd-key-name-hint-k1')).toBeNull();
+    expect((within(dlg).getByTestId('pd-key-replace-input-k1') as HTMLInputElement).value).toBe(
+      'sk-pasted_Into_Name_1234567890',
+    );
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    const payload = upserts(m)[0]!;
+    expect(payload.keys).toEqual([]);
+    expect(payload.newKeys).toEqual([
+      { value: 'sk-fresh-0000aaaa', position: 0, enabled: true },
+      { value: 'sk-pasted_Into_Name_1234567890', position: 1, enabled: true },
+    ]);
+  });
+
   it('models: add an id by hand; 刷新 merges newly listed models as disabled', async () => {
     const m = fakeMain({
       detect: () => ({
@@ -789,30 +827,27 @@ describe('ModelsPage', () => {
       expect(screen.queryByTestId('cli-install-grok')).toBeNull();
     });
 
-    it('Claude Code：小模型（跟随主模型 = null）、展开各档和子代理', async () => {
+    it('Claude Code：一行只有主模型；展开各档（Haiku 档并入旧「小模型」）和子代理', async () => {
       const m = fakeMain();
       seed(m);
-      m.state.clients.claude = { models: { main: 'ds/v4', tiers: { opus: 'ds/v4' } } };
+      m.state.clients.claude = {
+        models: { main: 'ds/v4', small: 'ds/v4', tiers: { opus: 'ds/v4' } },
+      };
       render(<ModelsPage />);
       await waitFor(() =>
-        expect((screen.getByTestId('cli-small-claude') as HTMLSelectElement).disabled).toBe(false),
+        expect((screen.getByTestId('cli-main-claude') as HTMLSelectElement).disabled).toBe(false),
       );
-      pick('cli-small-claude', 'ds/flash');
-      await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['claude', { models: { small: 'ds/flash' } }]),
-      );
-      pick('cli-small-claude', 'follow');
-      await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['claude', { models: { small: null } }]),
-      );
+      expect(screen.queryByTestId('cli-small-claude')).toBeNull();
       expect(screen.queryByTestId('cli-tier-haiku')).toBeNull();
       fireEvent.click(screen.getByTestId('cli-tiers-toggle'));
       expect(screen.getByTestId('cli-tiers-toggle').getAttribute('aria-expanded')).toBe('true');
+      // 旧配置的「小模型」显示在 Haiku 档；改 Haiku 档时清掉旧字段
+      expect((screen.getByTestId('cli-tier-haiku') as HTMLSelectElement).value).toBe('ds/v4');
       pick('cli-tier-haiku', 'ds/flash');
       await waitFor(() =>
         expect(assignments(m)).toContainEqual([
           'claude',
-          { models: { tiers: { opus: 'ds/v4', haiku: 'ds/flash' } } },
+          { models: { tiers: { opus: 'ds/v4', haiku: 'ds/flash' }, small: null } },
         ]),
       );
       // 等新的网关状态回来再改下一档（各档整体写回，不丢已设的档）

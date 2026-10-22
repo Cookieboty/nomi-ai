@@ -34,7 +34,7 @@
 <table>
   <tr>
     <td align="center" width="30%"><img src="docs/screenshots/mascot.webp" alt="Nomi on the desktop with a chat bubble"><br><sub>桌面伙伴 / Desktop companion</sub></td>
-    <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>对话窗口 / Chat</sub></td>
+    <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>助手模式对话 / Assistant-mode chat</sub></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><img src="docs/screenshots/coding-agent.webp" alt="Claude Code conversation with tool calls and a subagent" width="49%"> <img src="docs/screenshots/permission-modes.webp" alt="Permission mode menu in the composer" width="49%"><br><sub>编程助手对话 · 权限模式 / Coding agents · Permission modes</sub></td>
@@ -67,7 +67,7 @@
 
 ## 中文
 
-Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的桌面伙伴，加上一个干净好用的对话窗口。
+Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说话的 Nomi，加上一个干净好用的对话窗口。
 它能连接你喜欢的云端大模型，也能完全离线使用本地模型；它记得你、会主动提醒你，还能帮你读文件、看屏幕、管日程。
 
 ### ✨ 功能
@@ -168,7 +168,7 @@ Nomi 是一个运行在你电脑上的 AI 助手：一位会动、会说话的�
 #### 🎨 个性化
 
 - **主题**：日落橙（默认）、暖墨、石墨、奶油、冷雾，可跟随系统；聊天背景可换纯色或图片
-- **启动方式**：启动后默认显示看板娘或主界面；关闭主界面时隐藏到托盘或直接退出
+- **启动方式**：启动后默认显示 Nomi 或主界面；关闭主界面时隐藏到托盘或直接退出
 - **应用图标**：多款图标可选，窗口、任务栏与托盘即时更新
 - **快捷键**：`Ctrl/⌘+K` 命令面板、`Ctrl/⌘+N` 新对话、`Ctrl/⌘+L` 聚焦输入框、`Ctrl/⌘+,` 设置……全部可在设置中查看与改键，并提示冲突
 - **中文 / English** 界面，可跟随系统
@@ -256,7 +256,7 @@ Nomi 构建在这些优秀的开源项目之上：
 
 ## English
 
-Nomi is an AI assistant that runs on your computer: an animated, talking desktop companion plus a clean chat window.
+Nomi·诺米 is a desktop AI companion that runs on your computer: an animated, talking Nomi plus a clean chat window.
 Connect the cloud models you already like, or go fully offline with local models. Nomi remembers you, can nudge you with reminders, and helps with files, your screen, and your calendar.
 
 ### ✨ Features
@@ -358,7 +358,7 @@ Connect the cloud models you already like, or go fully offline with local models
 #### 🎨 Personalization
 
 - **Themes**: Sunset Orange (default), Warm Ink, Graphite, Cream, Cool Mist — can follow the system; solid-color or image chat background
-- **Startup**: open to the mascot or the main window; closing the main window hides to the tray or quits
+- **Startup**: open to Nomi or the main window; closing the main window hides to the tray or quits
 - **App icons**: several options; window, taskbar, and tray update instantly
 - **Shortcuts**: `Ctrl/⌘+K` command palette, `Ctrl/⌘+N` new chat, `Ctrl/⌘+L` focus input, `Ctrl/⌘+,` settings — all viewable/remappable with conflict hints
 - **Chinese / English** UI, can follow the system

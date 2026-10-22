@@ -51,7 +51,8 @@ export const HUB_TABS: ReadonlyArray<{
 ];
 
 const noop = () => undefined;
-const INLINE: ModalHost = { mode: 'inline' };
+/** 顶部标签已写明分区名，面板自己的标题只留给读屏 */
+const INLINE: ModalHost = { mode: 'inline', hideTitle: true };
 
 interface Props {
   isVisible: boolean;

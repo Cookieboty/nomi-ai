@@ -125,6 +125,27 @@ describe('resolve (§6.2 / §7.2)', () => {
     expect(r!.upstreams).toEqual([
       { providerId: 'a', name: 'Relay', url: 'http://127.0.0.1:11434/v1' },
       { providerId: 'b', name: 'B', url: 'https://r/v1' },
+      // B 的 Messages 地址：运行时可能换协议过去（#100）
+      { providerId: 'b', name: 'B', url: 'https://r' },
+    ]);
+  });
+  it('preferredWire also counts other-wire addresses the same key may switch to (#100)', () => {
+    const a = p({
+      id: 'a',
+      urls: { chat: 'http://127.0.0.1:11434/v1', messages: 'https://cloud.example' },
+      keys: [{ id: 'k1', value: 'v', enabled: true }],
+      models: [{ id: 'x', enabled: true }],
+    });
+    const r = preferredWire(cfg([a]), 'nomi', 'a/x');
+    expect(r!.wire).toBe('chat');
+    expect(r!.upstreams.map((u) => u.url)).toEqual([
+      'http://127.0.0.1:11434/v1',
+      'https://cloud.example',
+    ]);
+    // Key 限定在 chat 时不会换到 messages，不算
+    const pinned = p({ ...a, keys: [{ id: 'k1', value: 'v', enabled: true, wire: 'chat' }] });
+    expect(preferredWire(cfg([pinned]), 'nomi', 'a/x')!.upstreams.map((u) => u.url)).toEqual([
+      'http://127.0.0.1:11434/v1',
     ]);
   });
   it('SDK wire selection uses native preferences before committing to an ingress', () => {

@@ -124,7 +124,7 @@ describe('first-launch onboarding', () => {
     await screen.findByTestId('onboarding-step-theme');
     fireEvent.click(screen.getByTestId('onboarding-next'));
     await screen.findByTestId('onboarding-step-startup');
-    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以看板娘方式打开');
+    expect(screen.getByTestId('onb-startup-mascot').textContent).toContain('以 Nomi 方式打开');
     expect(screen.getByTestId('onb-startup-main').textContent).toContain(
       '以控制台（主界面）方式打开',
     );

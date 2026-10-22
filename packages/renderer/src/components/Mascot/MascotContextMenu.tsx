@@ -73,7 +73,7 @@ export const MascotContextMenu: React.FC = () => {
       ref={ref}
       className={styles.menu}
       role="menu"
-      aria-label={t('看板娘大小')}
+      aria-label={t('Nomi 大小')}
       data-mascot-ui=""
       data-testid="mascot-context-menu"
       style={{ left: pos.x, top: pos.y, width: MENU_W }}

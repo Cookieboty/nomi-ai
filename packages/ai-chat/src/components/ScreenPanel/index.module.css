@@ -27,17 +27,42 @@
   color: var(--cd-color-text-muted);
 }
 .keys {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  align-items: center;
   gap: var(--cd-space-1);
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text);
+}
+.plus {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+/* 「Enter 确认 · F 整屏 · Esc 取消」 */
+.keyHints {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.keyHints {
+  gap: var(--cd-space-3);
+}
+.keyHint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
 }
 .keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-2xs);
+  padding: 0 var(--cd-space-1-5);
   font-family: var(--cd-font-mono);
   font-size: var(--cd-font-size-xs);
-  padding: 0 var(--cd-space-1);
+  color: var(--cd-color-text);
   border: 1px solid var(--cd-color-border);
+  border-bottom-width: 2px;
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface-sunken);
 }
@@ -163,4 +188,18 @@
   background: var(--cd-color-surface-sunken);
   padding: var(--cd-space-2);
   border-radius: var(--cd-radius-md);
+}
+
+/* 记录列表的标题行：左边「记录 · N」，右边「清空全部记录」 */
+.listHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--cd-space-2);
+}
+.listTitle {
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
 }

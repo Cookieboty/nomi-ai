@@ -33,7 +33,13 @@ import {
   type Labels,
   type RangeId,
 } from './aggregate';
-import { AuthModeDetector, applyAuthModes, type AuthDeps, type AuthMode } from './authMode';
+import {
+  AuthModeDetector,
+  applyAuthModes,
+  type AuthDeps,
+  type AuthInfo,
+  type AuthMode,
+} from './authMode';
 import {
   disableHook,
   enableHook,
@@ -288,6 +294,22 @@ function accumulate(
   else e.costUsd = (e.costUsd ?? 0) + c;
 }
 
+/** quota.json 里的登录方式结论：只认订阅 / API 两种模式与 16 位十六进制指纹 */
+function savedAuthModes(v: unknown): Record<string, AuthInfo> {
+  const out: Record<string, AuthInfo> = {};
+  if (!v || typeof v !== 'object') return out;
+  for (const id of ['claude', 'codex', 'grok']) {
+    const r = (v as Record<string, unknown>)[id] as Partial<AuthInfo> | undefined;
+    if (!r || (r.mode !== 'subscription' && r.mode !== 'api')) continue;
+    out[id] = {
+      mode: r.mode,
+      fp: typeof r.fp === 'string' && /^[0-9a-f]{16}$/.test(r.fp) ? r.fp : null,
+      ...(typeof r.plan === 'string' ? { plan: r.plan.slice(0, 64) } : {}),
+    };
+  }
+  return out;
+}
+
 export class UsageService {
   readonly ledger: UsageLedger;
   private settings: UsageSettings = { ...DEFAULT_USAGE_SETTINGS };
@@ -335,6 +357,8 @@ export class UsageService {
   private scanShared: Promise<void> | null = null;
   readonly quotaSources = new QuotaRegistry();
   private readonly auth: AuthModeDetector;
+  /** quota.json 里上一次官方登录状态的结论，构造完探测器后交给它 */
+  private savedAuth: Record<string, AuthInfo> = {};
   private sessionCache: {
     ver: number;
     prices: unknown;
@@ -386,6 +410,8 @@ export class UsageService {
               ? !!this.grokCache.get()?.windows.length
               : false,
     });
+    this.auth.restoreKnown(this.savedAuth);
+    this.auth.setOnKnownChange(() => this.saveQuota());
     this.quotaSources.register({
       id: 'codex',
       label: 'Codex',
@@ -489,6 +515,7 @@ export class UsageService {
         claude?: unknown;
         grok?: unknown;
         grokFp?: unknown;
+        auth?: unknown;
       };
       const fp = (v: unknown) => (typeof v === 'string' && /^[0-9a-f]{16}$/.test(v) ? v : null);
       this.codexFp = fp(o.codexFp);
@@ -515,6 +542,7 @@ export class UsageService {
       const savedGrokFp = fp(o.grokFp);
       if (grok && savedGrokFp && savedGrokFp === this.currentGrokFp())
         this.grokCache.restore(savedGrokFp, grok);
+      this.savedAuth = savedAuthModes(o.auth);
     } catch {
       /* 没有快照 */
     }
@@ -525,6 +553,8 @@ export class UsageService {
    * 不能把旧账号的数字显示给新账号。凭据由账号模块处理，这里只收到通知。
    */
   forgetAccountQuota(kind: string): void {
+    // 换了号：上一次登录状态里的账号指纹 / 套餐也作废
+    if (kind === 'claude' || kind === 'codex' || kind === 'grok') this.auth.forgetKnown(kind);
     if (kind === 'claude') {
       this.dropClaudeQuota();
       this.claudeFp = null;
@@ -567,6 +597,9 @@ export class UsageService {
   }
 
   private saveQuota(): void {
+    // 构造期间（登录方式探测器还没建好）沿用刚读到的值
+    const auth = this.auth as AuthModeDetector | undefined;
+    const authKnown = auth ? auth.knownSnapshot() : this.savedAuth;
     try {
       writePrivateFile(
         this.quotaPath,
@@ -576,6 +609,7 @@ export class UsageService {
           ...(this.claudeFp ? { claudeFp: this.claudeFp } : {}),
           ...(this.quotaFloor ? { floor: this.quotaFloor } : {}),
           ...(this.claudeCache.snapshot() ? { claude: this.claudeCache.snapshot()!.value } : {}),
+          ...(authKnown && Object.keys(authKnown).length ? { auth: authKnown } : {}),
           ...(this.grokCache.snapshot()
             ? {
                 grok: this.grokCache.snapshot()!.value,
@@ -1424,6 +1458,7 @@ export class UsageService {
     this.codexCache.clear();
     this.claudeCache.clear();
     this.grokCache.clear();
+    this.auth.forgetKnown();
     try {
       fs.rmSync(this.quotaPath, { force: true });
       fs.rmSync(path.join(this.d.root, SNAPSHOT_FILE), { force: true });

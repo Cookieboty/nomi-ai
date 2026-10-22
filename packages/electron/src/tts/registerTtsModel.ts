@@ -36,6 +36,15 @@ export function registerTtsModel(config: IConfigService): TtsModelController {
     sherpa,
     getVoiceEnabled: () => Boolean(config.get<VoiceSettings | undefined>('voiceSettings')?.enabled),
     setVoiceEnabled,
+    enableEngine: () => {
+      try {
+        const fish = getFishTtsService();
+        const cfg = fish.getConfig();
+        if (!cfg.enabled) fish.saveConfig({ ...cfg, enabled: true });
+      } catch {
+        /* 引擎配置读写失败不影响开关本身 */
+      }
+    },
     usesSherpa: () => {
       try {
         return getFishTtsService().getConfig().provider === 'sherpa-theresa';

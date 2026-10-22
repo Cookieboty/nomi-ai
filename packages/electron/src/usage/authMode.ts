@@ -282,6 +282,8 @@ export interface AuthInfo {
   plan?: string;
   /** 官方命令明确说已退出登录（mode 仍为 unknown）。与「探测失败 / CLI 不存在 / 超时」不同：调用方要立即清掉旧账号额度 */
   signedOut?: boolean;
+  /** 结论来自官方登录状态命令（不是本地配置兜底）：只有这种才记作「上一次的结论」落盘 */
+  fromCli?: boolean;
 }
 
 const TTL_MS = 5 * 60_000;
@@ -312,6 +314,13 @@ async function runStatus(kind: 'claude' | 'codex' | 'grok'): Promise<string | nu
 export class AuthModeDetector {
   private readonly cache = new Map<string, { at: number; info: AuthInfo }>();
   private readonly inflight = new Map<string, Promise<AuthInfo>>();
+  /**
+   * 上一次官方登录状态命令给出的结论（订阅 / API），落盘、重启后恢复。
+   * 被动读取在本次会话还没探测过时用它，而不是只凭本地配置猜（例如 Codex 配了自定义
+   * model_provider 但官方说是 ChatGPT 登录）。invalidate 不清它；明确退出登录时清掉。
+   */
+  private readonly known = new Map<string, AuthInfo>();
+  private onKnownChange: (() => void) | null = null;
 
   constructor(private readonly d: AuthDeps = {}) {}
 
@@ -340,11 +349,53 @@ export class AuthModeDetector {
     const p = this.probe(id)
       .then((info) => {
         this.cache.set(id, { at: this.now(), info });
+        if (info.signedOut) this.setKnown(id, null);
+        else if (info.fromCli)
+          this.setKnown(id, {
+            mode: info.mode,
+            fp: info.fp,
+            ...(info.plan ? { plan: info.plan } : {}),
+          });
         return info;
       })
       .finally(() => this.inflight.delete(id));
     this.inflight.set(id, p);
     return p;
+  }
+
+  /** known 变化时调用（UsageService 用来落盘） */
+  setOnKnownChange(fn: () => void): void {
+    this.onKnownChange = fn;
+  }
+
+  /** 落盘用：每个工具上一次官方探测的结论（只有模式 / 套餐 / 加盐指纹，不含凭据） */
+  knownSnapshot(): Record<string, AuthInfo> {
+    return Object.fromEntries(this.known);
+  }
+
+  /** 启动时恢复上一次的结论；不占用探测缓存，「刷新」时照常重新探测 */
+  restoreKnown(saved: Record<string, AuthInfo>): void {
+    for (const [id, info] of Object.entries(saved)) this.known.set(id, info);
+  }
+
+  /** 换号 / 清空数据：忘掉上一次的结论（不带参数 = 全部） */
+  forgetKnown(id?: string): void {
+    if (id) this.setKnown(id, null);
+    else for (const k of [...this.known.keys()]) this.setKnown(k, null);
+  }
+
+  private setKnown(id: string, info: AuthInfo | null): void {
+    const prev = this.known.get(id);
+    if (info) {
+      if (prev && prev.mode === info.mode && prev.fp === info.fp && prev.plan === info.plan) return;
+      this.known.set(id, info);
+    } else if (prev) this.known.delete(id);
+    else return;
+    try {
+      this.onKnownChange?.();
+    } catch {
+      /* 落盘失败不影响探测结果 */
+    }
   }
 
   /** 不带参数：清掉全部；带工具 id：只清该工具的登录状态缓存（单工具刷新用） */
@@ -367,12 +418,14 @@ export class AuthModeDetector {
       const env = this.d.env ?? process.env;
       if (claudeOAuthPresent(home, env) === false && claudeAuthFromConfig(home, env) !== 'api') {
         this.cache.delete(id);
+        this.setKnown(id, null);
         return { mode: 'unknown', fp: null, signedOut: true };
       }
     }
     const hit = this.cache.get(id);
     if (hit) return hit.info;
-    return this.beforeCli(id) ?? this.afterCli(id, false);
+    // 本地就能确定的（自定义 / 托管 API 配置）优先；其次是上一次官方命令的结论
+    return this.beforeCli(id) ?? this.known.get(id) ?? this.afterCli(id, false);
   }
 
   /** 不需要（也不允许）起进程就能确定的结论：自定义 / 托管 API 配置，或本机根本没有 Grok */
@@ -426,7 +479,12 @@ export class AuthModeDetector {
     if (fromCli && fromCli !== 'unknown') {
       const ident =
         id === 'claude' && text && this.d.salt ? parseClaudeIdentity(text, this.d.salt()) : null;
-      return { mode: fromCli, fp: ident?.fp ?? null, ...(ident?.plan ? { plan: ident.plan } : {}) };
+      return {
+        mode: fromCli,
+        fp: ident?.fp ?? null,
+        ...(ident?.plan ? { plan: ident.plan } : {}),
+        fromCli: true,
+      };
     }
     const signedOut =
       (id === 'claude' || id === 'codex') && !!text && isDefinitelySignedOut(id, text);

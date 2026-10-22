@@ -75,6 +75,33 @@ interface Picked {
 }
 
 export function createChatFacade(ctx: SdkContext): ChatFacade {
+  /**
+   * 在途请求 → 实际执行它的 provider 实例。abort 必须通知这些实例：网关 provider 是单槽缓存，
+   * 别的角色 / 配置的请求会把它替换掉，按当前路由 `reg.list()` 找不到原实例（#92）。
+   */
+  const inflight = new Map<string, Set<LLMProvider>>();
+  const own = (reqId: string, provider: LLMProvider): (() => void) => {
+    let set = inflight.get(reqId);
+    if (!set) {
+      set = new Set();
+      inflight.set(reqId, set);
+    }
+    set.add(provider);
+    const mine = set;
+    return () => {
+      mine.delete(provider);
+      if (!mine.size && inflight.get(reqId) === mine) inflight.delete(reqId);
+    };
+  };
+  const owned = async <T>(req: ChatRequest, provider: LLMProvider, run: () => Promise<T>) => {
+    const release = own(req.reqId, provider);
+    try {
+      return await run();
+    } finally {
+      release();
+    }
+  };
+
   const pick = (opts: ChatStreamOptions, defaultRole: LLMRole): Picked => {
     const reg = ctx.inject(LLMRegistryKey);
     if (!reg) {
@@ -134,10 +161,15 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
    * 看板娘气泡据此显示回复摘要。只对 stream / agentStream / regenerate（用户对话）发出；
    * sendMessage（后台摘要等）不发。中途出错 / 中止且没有文本时不发。
    */
-  const tap = (it: AsyncIterable<ChatChunk>, req: ChatRequest): AsyncIterable<ChatChunk> => ({
+  const tap = (
+    it: AsyncIterable<ChatChunk>,
+    req: ChatRequest,
+    provider: LLMProvider,
+  ): AsyncIterable<ChatChunk> => ({
     async *[Symbol.asyncIterator]() {
       let text = '';
       let finish: ChatResponse['finishReason'] | undefined;
+      const release = own(req.reqId, provider);
       try {
         for await (const c of it) {
           if (c.type === 'delta') text += c.content;
@@ -145,6 +177,7 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
           yield c;
         }
       } finally {
+        release();
         if (text.trim()) {
           try {
             ctx.emit('session/assistant-message', {
@@ -168,31 +201,34 @@ export function createChatFacade(ctx: SdkContext): ChatFacade {
   return {
     async sendMessage(opts) {
       const picked = pick(opts, 'chat');
-      return picked.provider.chat(buildRequest(opts, picked));
+      const req = buildRequest(opts, picked);
+      return owned(req, picked.provider, () => picked.provider.chat(req));
     },
     stream(opts) {
       const picked = pick(opts, 'chat');
       const req = { ...buildRequest(opts, picked), stream: true };
-      return tap(picked.provider.stream(req), req);
+      return tap(picked.provider.stream(req), req, picked.provider);
     },
     async agent(opts) {
       const picked = pick(opts, 'agent-tools');
-      return runAgent(picked).chat(buildRequest(opts, picked));
+      const req = buildRequest(opts, picked);
+      return owned(req, picked.provider, () => runAgent(picked).chat(req));
     },
     agentStream(opts) {
       const picked = pick(opts, 'agent-tools');
       const req = { ...buildRequest(opts, picked), stream: true };
-      return tap(runAgent(picked).stream(req), req);
+      return tap(runAgent(picked).stream(req), req, picked.provider);
     },
     abort(reqId) {
-      const reg = ctx.inject(LLMRegistryKey);
-      if (!reg) return;
-      for (const p of reg.list()) p.abort(reqId);
+      // 先通知实际在跑的实例，再按当前路由兜底（还没开始迭代的流等）
+      const targets = new Set(inflight.get(reqId));
+      for (const p of ctx.inject(LLMRegistryKey)?.list() ?? []) targets.add(p);
+      for (const p of targets) p.abort(reqId);
     },
     regenerate(opts) {
       const picked = pick(opts, 'chat');
       const req = { ...buildRequest(opts, picked), reqId: cryptoRandomId(), stream: true };
-      return tap(picked.provider.stream(req), req);
+      return tap(picked.provider.stream(req), req, picked.provider);
     },
   };
 }

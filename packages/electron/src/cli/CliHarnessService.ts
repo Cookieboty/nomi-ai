@@ -125,6 +125,8 @@ export interface HarnessGateway {
   officialEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
   /** 第三方可选模型 */
   models(): Array<{ ref: string; provider: string; label: string }>;
+  /** 标签关闭后回收它的进程级私有目录 */
+  releaseAgent(kind: CliBackend, tabId: string): void;
 }
 
 /** 一次启动的来源注入（见 launchFor） */
@@ -136,6 +138,11 @@ interface TabLaunch {
   modelInConfig: boolean;
   /** 长驻进程复用键的一部分 */
   sig: string;
+  /**
+   * 跟着模型走的辅助变量（Claude 的各档位 / 小模型 / 子代理模型）。只换主模型时 set_model 改不到它们，
+   * 变了就要重启进程（#99）；与 sig 分开，后台任务还在跑时可以先沿用旧进程。
+   */
+  modelSig: string;
 }
 
 const OFFICIAL_LAUNCH: TabLaunch = {
@@ -145,6 +152,7 @@ const OFFICIAL_LAUNCH: TabLaunch = {
   official: true,
   modelInConfig: false,
   sig: 'official',
+  modelSig: '',
 };
 
 /** 第三方来源在 modelScope / modelByScope 里的键 */
@@ -453,6 +461,8 @@ export class CliHarnessService {
     { at: number; catalog: BackendModelCatalog }
   >();
   private readonly modelCatalogInflight = new Map<HarnessBackend, Promise<BackendModelCatalog>>();
+  /** 官方目录的代次：换账号 / 供应商（recycleBackend）时加一，之前发出的读取回来后不写缓存（#83） */
+  private readonly modelCatalogGen = new Map<HarnessBackend, number>();
 
   constructor(
     private readonly d: {
@@ -967,6 +977,7 @@ export class CliHarnessService {
     reasoningEffort?: string | null;
     permissionMode?: HarnessPermissionMode;
     permissionModeSource?: 'history-cli';
+    source?: HarnessTabSource;
   }): { tab: HarnessTabMeta; reused: boolean } {
     const existing = [...this.tabs.values()].find(
       (x) => x.backend === o.backend && x.cliSessionId === o.sessionId,
@@ -981,10 +992,13 @@ export class CliHarnessService {
       title: o.title,
       messages: o.messages,
       cliSessionId: o.sessionId,
-      modelOverride: o.modelOverride,
+      // 第三方续接：历史里记的是上游裸模型名，不属于网关的「供应商/模型」命名空间，
+      // 不能作为第三方模型覆盖（否则按裸名解析可能歧义）；用网关给这个助手分配的默认模型。
+      ...(o.source !== 'thirdParty' && o.modelOverride ? { modelOverride: o.modelOverride } : {}),
       reasoningEffort: o.reasoningEffort,
       permissionMode: o.permissionMode,
       permissionModeSource: o.permissionModeSource,
+      ...(o.source ? { source: o.source } : {}),
     });
     return { tab, reused: false };
   }
@@ -1021,7 +1035,7 @@ export class CliHarnessService {
 
   closeTab(id: string): HarnessTabsState {
     if (id === MAIN_TAB_ID) throw new Error(t('主对话标签不能关闭'));
-    this.requireTab(id);
+    const tab = this.requireTab(id);
     this.cancelTab(id);
     this.teardownClaudeLive(id);
     const order = [...this.tabs.keys()];
@@ -1038,6 +1052,7 @@ export class CliHarnessService {
     } catch {
       /* */
     }
+    if (tab.backend !== 'nomi') this.d.gateway?.releaseAgent(tab.backend, id);
     if (this.activeTabId === id) {
       const rest = order.filter((x) => x !== id);
       this.activeTabId = rest[Math.max(0, idx - 1)] ?? MAIN_TAB_ID;
@@ -1243,6 +1258,10 @@ export class CliHarnessService {
       this.claudeLive.get(id)?.modeChange?.done,
       this.acpLive.get(id)?.modeChange?.done,
     ]);
+    // 切到「完全放开」后，这一轮里还在等确认的请求一并放行：不用停掉重来
+    if (this.bypassInEffect(id))
+      for (const requestId of [...(this.pendingPermissions.get(id)?.keys() ?? [])])
+        this.replyPermission(id, requestId, true);
     return { ...this.requireTab(id), degraded: r.degraded };
   }
 
@@ -1325,6 +1344,8 @@ export class CliHarnessService {
     }
     const inflight = this.modelCatalogInflight.get(backend);
     if (inflight) return inflight;
+    const gen = this.modelCatalogGen.get(backend) ?? 0;
+    const current = () => (this.modelCatalogGen.get(backend) ?? 0) === gen;
     const run = discoverModels(backend, {
       spawn: (b, args) => {
         const bin = resolveHarnessBin(b);
@@ -1348,12 +1369,17 @@ export class CliHarnessService {
         return { backend, models: [], defaultModel: null, error };
       })
       .then((catalog) => {
+        // 读取期间换了账号 / 供应商：这是旧账号的目录，不写缓存（也不清掉新账号的）
+        if (!current()) return catalog;
         // 失败结果不缓存，下次打开浮层再试
         if (catalog.error) this.modelCatalogs.delete(backend);
         else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
         return catalog;
       })
-      .finally(() => this.modelCatalogInflight.delete(backend));
+      .finally(() => {
+        if (this.modelCatalogInflight.get(backend) === run)
+          this.modelCatalogInflight.delete(backend);
+      });
     this.modelCatalogInflight.set(backend, run);
     return run;
   }
@@ -1390,10 +1416,17 @@ export class CliHarnessService {
    * （思考深度随之变化时仍是空闲即回收、下一轮用新参数重启）。
    * 切到非推理模型时同步清除思考深度。
    */
-  setTabModel(id: string, model: string): HarnessTabMeta {
+  setTabModel(
+    id: string,
+    model: string,
+    opts: { expectSource?: HarnessTabSource } = {},
+  ): HarnessTabMeta {
     const tab = this.requireTab(id);
     const backend = tab.backend;
     if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
+    // 选择时界面看到的来源与标签当前来源不一致（期间切了来源）：不把那个来源的模型写进来（#83）
+    if (opts.expectSource && opts.expectSource !== this.sourceOf(tab))
+      throw new Error(t('这个标签的模型来源已经变了，请重新选择模型'));
     const name = model.trim();
     const scope = this.adoptScope(tab);
     if (!name) {
@@ -1407,6 +1440,9 @@ export class CliHarnessService {
       return { ...tab };
     }
     if (!isValidModelId(name)) throw new Error(t('模型名不合法'));
+    // 第三方来源只能选网关里启用的模型
+    if (scope && this.d.gateway && !this.d.gateway.models().some((m) => m.ref === name))
+      throw new Error(t('第三方模型里没有「{0}」，请在「模型」页启用后再选', name));
     if (tab.modelOverride !== name) {
       tab.modelOverride = name;
       tab.modelScope = scope;
@@ -1553,15 +1589,16 @@ export class CliHarnessService {
         official: true,
         modelInConfig: false,
         sig: 'official',
+        modelSig: '',
       };
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
     const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
     if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
     const modelInConfig = Boolean(l.modelInConfig);
-    const stable = Object.fromEntries(
-      Object.entries(l.env).filter(([k]) => modelInConfig || !/MODEL/.test(k)),
-    );
+    const byModel = (k: string) => !modelInConfig && /MODEL/.test(k);
+    const stable = Object.fromEntries(Object.entries(l.env).filter(([k]) => !byModel(k)));
+    const aux = Object.fromEntries(Object.entries(l.env).filter(([k]) => byModel(k)));
     return {
       env: l.env,
       args: l.args,
@@ -1569,6 +1606,7 @@ export class CliHarnessService {
       official: false,
       modelInConfig,
       sig: JSON.stringify(['thirdParty', stable, l.args, modelInConfig ? model : '']),
+      modelSig: JSON.stringify(aux),
     };
   }
 
@@ -1580,7 +1618,8 @@ export class CliHarnessService {
   ): NodeJS.ProcessEnv {
     let env = cliChildEnv(useNode, { ...extra, ...l.env });
     if (l.official && this.d.gateway) env = this.d.gateway.officialEnv(env);
-    for (const k of l.strip) delete env[k];
+    // strip 只清继承来的同名变量，不清这次注入的（如 ANTHROPIC_SMALL_FAST_MODEL 既要剔除旧值又要注入新值，#98）
+    for (const k of l.strip) if (!(k in l.env) && !(k in extra)) delete env[k];
     return env;
   }
 
@@ -2018,11 +2057,14 @@ export class CliHarnessService {
           tab.status = 'error';
           tab.lastError = message;
           // 失败前已生成的文字保留在前面，错误信息跟在后面（不当成成功，也不丢已输出内容）
+          // Claude 的 API 错误会先以 assistant 正文输出一遍、再在 result 里重复一遍，已出现过就不再追加
           const partText = part?.text ?? '';
+          const repeated = !!message.trim() && partText.trimEnd().endsWith(message.trim());
           this.appendMessage(id, {
             id: randomUUID(),
             role: 'assistant',
-            content: partText.trim() ? `${partText}\n\n${message}` : message,
+            content:
+              !partText.trim() || repeated ? partText || message : `${partText}\n\n${message}`,
             timestamp: Date.now(),
             error: true,
             durationMs,
@@ -2168,6 +2210,14 @@ export class CliHarnessService {
     if (!live || live.turn || live.auto) return;
     const o = this.effectiveOverrides(tab);
     if (live.modelOverride === o.model || live.reasoningEffort !== o.effort) return;
+    // 档位 / 小模型等辅助变量也跟着变了（没单独指定、跟随主模型）：set_model 改不到，交给重启（#99）
+    let modelSig: string;
+    try {
+      modelSig = this.launchFor(tab).modelSig;
+    } catch {
+      return;
+    }
+    if (modelSig !== live.modelSig) return;
     try {
       await this.requestClaudeControl(live, { subtype: 'set_model', model: o.model ?? 'default' });
       if (this.claudeLive.get(tab.id) === live) live.modelOverride = o.model;
@@ -2196,7 +2246,8 @@ export class CliHarnessService {
       // 只差模型 / 思考深度时，后台任务还在跑就先沿用旧进程（拆了会杀掉后台子代理），
       // 等后台结束后的下一条消息再按新参数重启
       ((existing.modelOverride === overrides.model &&
-        existing.reasoningEffort === overrides.effort) ||
+        existing.reasoningEffort === overrides.effort &&
+        existing.modelSig === launch.modelSig) ||
         claudeBackgroundActive(existing)) &&
       !existing.child.killed &&
       existing.child.exitCode === null &&
@@ -2244,6 +2295,7 @@ export class CliHarnessService {
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
       launchSig: launch.sig,
+      modelSig: launch.modelSig,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -2396,13 +2448,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? 'Claude Code',
-          backend: 'claude' as HarnessBackend,
-          summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        this.allowIfBypass(tabId, ev.id, () =>
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? 'Claude Code',
+            backend: 'claude' as HarnessBackend,
+            summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          }),
+        );
       }
       if ((ev.type === 'done' || ev.type === 'error') && turn && turn === live.auto) {
         this.finishAutoTurn(tabId, live, ev.type === 'error' ? ev.message : undefined);
@@ -2680,13 +2734,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
-          backend: live.backend as HarnessBackend,
-          summary: ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        this.allowIfBypass(tabId, ev.id, () =>
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
+            backend: live.backend as HarnessBackend,
+            summary: ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          }),
+        );
       }
     }
   }
@@ -3026,6 +3082,9 @@ export class CliHarnessService {
   recycleBackend(kind: HarnessBackend): void {
     // 换了账号：官方可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
+    // 换账号前发出的读取作废：回来后不写缓存，下一次读取重新发起
+    this.modelCatalogGen.set(kind, (this.modelCatalogGen.get(kind) ?? 0) + 1);
+    this.modelCatalogInflight.delete(kind);
     // 标签上的模型选择换成新来源的（官方 ↔ 某个供应商各记各的）
     this.adoptScopes(kind);
     // 新会话也不再沿用旧账号 / 供应商下选的模型与思考深度（权限模式照旧）
@@ -3419,13 +3478,15 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? 'Codex',
-          backend: 'codex' as HarnessBackend,
-          summary: ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        this.allowIfBypass(tabId, ev.id, () =>
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? 'Codex',
+            backend: 'codex' as HarnessBackend,
+            summary: ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          }),
+        );
       }
     }
   }
@@ -3738,13 +3799,15 @@ export class CliHarnessService {
           if (live) this.emitEvent(tab.id, ev);
           if (ev.type === 'permission') {
             this.armPermissionTimeout(tab.id, ev.id);
-            this.events.emit('permission-needed', {
-              tabId: tab.id,
-              title: tab.title,
-              backend: tab.backend,
-              summary: ev.summary,
-              background: this.activeTabId !== tab.id || !anyWindowFocused(),
-            });
+            this.allowIfBypass(tab.id, ev.id, () =>
+              this.events.emit('permission-needed', {
+                tabId: tab.id,
+                title: tab.title,
+                backend: tab.backend,
+                summary: ev.summary,
+                background: this.activeTabId !== tab.id || !anyWindowFocused(),
+              }),
+            );
           }
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
@@ -3987,6 +4050,33 @@ export class CliHarnessService {
     return r;
   }
 
+  /**
+   * 这个标签的「完全放开」是否已在 CLI 侧生效。长驻进程（Claude / Gemini / Grok）以进程确认过的档位为准：
+   * 切换被拒（如组织策略禁用了完全放开）或还在等确认时都不算，不能替 CLI 放行它要问的请求。
+   * Codex 每轮按标签档位下发审批策略，本轮的旧策略仍会来问，按标签档位算。
+   */
+  private bypassInEffect(tabId: string): boolean {
+    const tab = this.tabs.get(tabId);
+    if (tab?.permissionMode !== 'bypass') return false;
+    const live = this.claudeLive.get(tabId) ?? this.acpLive.get(tabId);
+    if (live) return live.permissionMode === 'bypass' && !live.modeChange;
+    return tab.backend === 'codex' && this.codexLive.has(tabId);
+  }
+
+  /**
+   * 「完全放开」已生效，CLI 却仍发来确认请求（Codex 本轮的审批策略在开轮时定下等）：直接放行，
+   * 不再发通知。卡片事件已发出，放行后随 permission-resolved 一起移除；放行没写进去就照常通知。
+   */
+  private allowIfBypass(tabId: string, requestId: string, notify: () => void): void {
+    if (!this.bypassInEffect(tabId)) {
+      notify();
+      return;
+    }
+    queueMicrotask(() => {
+      if (!this.replyPermission(tabId, requestId, true)) notify();
+    });
+  }
+
   private armPermissionTimeout(tabId: string, requestId: string) {
     let m = this.pendingPermissions.get(tabId);
     if (!m) {
@@ -4088,7 +4178,12 @@ export class CliHarnessService {
         m === undefined || m === null ? undefined : String(m),
       ),
     );
-    handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
+    handle('ai:harness:tab-model', (id, m, o) => {
+      const want = (o as { expectSource?: unknown } | undefined)?.expectSource;
+      return this.setTabModel(String(id), String(m ?? ''), {
+        ...(want === 'official' || want === 'thirdParty' ? { expectSource: want } : {}),
+      });
+    });
     handle('ai:harness:tab-effort', (id, e) =>
       this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
     );
@@ -4256,6 +4351,8 @@ function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
 type ClaudeLiveSession = {
   /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
   launchSig: string;
+  /** 启动时的 TabLaunch.modelSig */
+  modelSig: string;
   child: ChildProcessWithoutNullStreams;
   parseLine: (line: string) => HarnessEvent[];
   buf: string;

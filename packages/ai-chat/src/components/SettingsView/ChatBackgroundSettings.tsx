@@ -1,8 +1,9 @@
 /**
- * 设置 → 通用 → 聊天背景：主题色 / 纯色 / 图片，模糊与透明度，重置。
+ * 设置 → 通用 → 外观 → 聊天背景：跟随主题 / 纯色 / 图片（分段单选），选了纯色或图片后再出现
+ * 颜色 / 图片、模糊与透明度几行；恢复默认。
  * 仅对话主面板；主进程 chat/ChatBackgroundService.ts（chat-bg:*）。
  */
-import { Button, t } from '@nomi-ai/ui';
+import { Button, SegmentedControl, SettingRow, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
@@ -31,63 +32,63 @@ export const ChatBackgroundSettings: React.FC = () => {
 
   const patch = (p: Partial<ChatBackgroundState>) => void setChatBackground(p).then(setS);
 
-  return (
-    <section className={styles.block} data-testid="settings-chat-bg">
-      <h2 className={styles.h2}>{t('聊天背景')}</h2>
-      <p className={styles.muted}>
-        {t(
-          '只改变对话主面板的背景，不影响侧栏与窗口其它区域。可选纯色或图片，并调节模糊与透明度。',
-        )}
-      </p>
+  const pristine = s.mode === 'default' && s.blur === 0 && s.opacity === DEFAULT_CHAT_BG.opacity;
 
-      <div className={styles.bgModes} role="radiogroup" aria-label={t('聊天背景')}>
-        {MODES.map((m) => (
-          <button
-            key={m.id}
+  return (
+    <>
+      <SettingRow
+        data-testid="settings-chat-bg"
+        title={t('聊天背景')}
+        description={t('只改变对话主面板的背景，不影响侧栏与窗口其它区域。')}
+      >
+        {!pristine && (
+          <Button
             type="button"
-            role="radio"
-            aria-checked={s.mode === m.id}
-            data-testid={`chat-bg-mode-${m.id}`}
-            className={`${styles.bgMode} ${s.mode === m.id ? styles.bgModeOn : ''}`}
-            onClick={() => patch({ mode: m.id })}
+            variant="ghost"
+            size="sm"
+            data-testid="chat-bg-reset"
+            onClick={() => void resetChatBackground().then(setS)}
           >
-            {t(m.label)}
-          </button>
-        ))}
-      </div>
+            <RotateCcw size={14} strokeWidth={1.75} aria-hidden />
+            {t('恢复默认')}
+          </Button>
+        )}
+        <SegmentedControl
+          aria-label={t('聊天背景')}
+          value={s.mode}
+          onChange={(mode) => patch({ mode })}
+          options={MODES.map((m) => ({
+            value: m.id,
+            label: t(m.label),
+            testId: `chat-bg-mode-${m.id}`,
+          }))}
+        />
+      </SettingRow>
 
       {s.mode === 'solid' && (
-        <label className={styles.bgRow}>
-          <span>{t('颜色')}</span>
+        <SettingRow title={t('颜色')} description={s.solidColor}>
           <input
             type="color"
+            className={styles.colorInput}
             value={s.solidColor}
+            aria-label={t('颜色')}
             data-testid="chat-bg-color"
             onChange={(e) => patch({ solidColor: e.target.value })}
           />
-          <span className={styles.muted}>{s.solidColor}</span>
-        </label>
+        </SettingRow>
       )}
 
       {s.mode === 'image' && (
-        <div className={styles.bgRow}>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            data-testid="chat-bg-pick"
-            onClick={() => void pickChatBackgroundImage().then(setS)}
-          >
-            <ImagePlus size={16} strokeWidth={1.75} aria-hidden />
-            {t('选择图片…')}
-          </Button>
-          {s.imageUrl ? (
-            <span className={styles.muted} data-testid="chat-bg-image-set">
-              {t('已选择图片')}
-            </span>
-          ) : (
-            <span className={styles.muted}>{t('尚未选择图片')}</span>
-          )}
+        <SettingRow
+          title={t('图片')}
+          description={
+            s.imageUrl ? (
+              <span data-testid="chat-bg-image-set">{t('已选择图片')}</span>
+            ) : (
+              t('尚未选择图片')
+            )
+          }
+        >
           {s.imageUrl && (
             <span
               className={styles.bgThumb}
@@ -95,13 +96,22 @@ export const ChatBackgroundSettings: React.FC = () => {
               aria-hidden
             />
           )}
-        </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            data-testid="chat-bg-pick"
+            onClick={() => void pickChatBackgroundImage().then(setS)}
+          >
+            <ImagePlus size={14} strokeWidth={1.75} aria-hidden />
+            {t('选择图片…')}
+          </Button>
+        </SettingRow>
       )}
 
       {s.mode !== 'default' && (
         <>
-          <label className={styles.bgRow}>
-            <span>{t('模糊')}</span>
+          <SettingRow title={t('模糊')}>
             <input
               type="range"
               className={styles.range}
@@ -109,13 +119,13 @@ export const ChatBackgroundSettings: React.FC = () => {
               max={40}
               step={1}
               value={s.blur}
+              aria-label={t('模糊')}
               data-testid="chat-bg-blur"
               onChange={(e) => patch({ blur: Number(e.target.value) })}
             />
-            <span className={styles.muted}>{s.blur}px</span>
-          </label>
-          <label className={styles.bgRow}>
-            <span>{t('透明度')}</span>
+            <span className={styles.sizeValue}>{s.blur}px</span>
+          </SettingRow>
+          <SettingRow title={t('透明度')}>
             <input
               type="range"
               className={styles.range}
@@ -123,27 +133,14 @@ export const ChatBackgroundSettings: React.FC = () => {
               max={100}
               step={1}
               value={Math.round(s.opacity * 100)}
+              aria-label={t('透明度')}
               data-testid="chat-bg-opacity"
               onChange={(e) => patch({ opacity: Number(e.target.value) / 100 })}
             />
-            <span className={styles.muted}>{Math.round(s.opacity * 100)}%</span>
-          </label>
+            <span className={styles.sizeValue}>{Math.round(s.opacity * 100)}%</span>
+          </SettingRow>
         </>
       )}
-
-      <div className={styles.actions}>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          data-testid="chat-bg-reset"
-          disabled={s.mode === 'default' && s.blur === 0 && s.opacity === DEFAULT_CHAT_BG.opacity}
-          onClick={() => void resetChatBackground().then(setS)}
-        >
-          <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
-          {t('恢复默认背景')}
-        </Button>
-      </div>
-    </section>
+    </>
   );
 };

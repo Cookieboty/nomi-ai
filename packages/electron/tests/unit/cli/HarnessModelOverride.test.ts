@@ -101,6 +101,19 @@ describe('CliHarnessService model / effort overrides', () => {
     expect((await h.modelCatalogFor('codex'))!.error).toBeUndefined();
   }, 20_000);
 
+  it('换账号前发出的目录读取晚到：不写缓存，下次重新读（#83）', async () => {
+    const h = mk();
+    const cache = (h as unknown as { modelCatalogs: Map<string, unknown> }).modelCatalogs;
+    const stale = h.modelCatalogFor('codex');
+    h.recycleBackend('codex');
+    await stale;
+    expect(cache.has('codex')).toBe(false);
+    const fresh = h.modelCatalogFor('codex');
+    expect(fresh).not.toBe(stale);
+    await fresh;
+    expect(cache.has('codex')).toBe(true);
+  }, 20_000);
+
   it('Codex 默认模型 / 档位取 config.toml', async () => {
     fs.mkdirSync(path.join(root, '.codex'), { recursive: true });
     fs.writeFileSync(
@@ -353,6 +366,7 @@ describe('CliHarnessService model / effort overrides', () => {
           { ref: 'gw/a', provider: 'GW', label: 'a' },
           { ref: 'gw/b', provider: 'GW', label: 'b' },
         ],
+        releaseAgent: () => undefined,
       };
       return { gateway, launches };
     };
@@ -411,6 +425,52 @@ describe('CliHarnessService model / effort overrides', () => {
       ).toEqual({
         gateway: { model: 'gw/b', effort: null },
       });
+    });
+
+    it('第三方 Claude 换主模型：档位变量跟着变就重启，档位单独指定时 set_model 原地切换（#99）', async () => {
+      const run = async (follow: boolean) => {
+        const boot = path.join(root, `claude-boot-${follow}.log`);
+        const control = path.join(root, `claude-control-${follow}.log`);
+        process.env.NOMI_MOCK_CLAUDE_BOOT_LOG = boot;
+        process.env.NOMI_MOCK_CLAUDE_CONTROL_LOG = control;
+        const gateway: HarnessGateway = {
+          ...fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,
+          launch: (_kind, _tabId, model) => ({
+            env: {
+              ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
+              ANTHROPIC_DEFAULT_OPUS_MODEL: follow ? model : 'gw/fixed',
+            },
+            args: [],
+            strip: [],
+          }),
+        };
+        const h = mk({ gateway } as never);
+        const tab = h.createTab({ backend: 'claude' });
+        h.setTabModel(tab.id, 'gw/a');
+        await h.sendTab(tab.id, 'one');
+        h.setTabModel(tab.id, 'gw/b');
+        await h.sendTab(tab.id, 'two');
+        const boots = fs.readFileSync(boot, 'utf8').trim().split('\n');
+        const sent = fs.existsSync(control) ? fs.readFileSync(control, 'utf8').trim() : '';
+        h.dispose();
+        return { boots: boots.length, setModel: sent.includes('set_model gw/b') };
+      };
+      expect(await run(true)).toEqual({ boots: 2, setModel: false });
+      expect(await run(false)).toEqual({ boots: 1, setModel: true });
+    }, 30_000);
+
+    it('选模型时来源已变就拒绝；第三方只接受网关里的模型（#83）', () => {
+      const h = mk({
+        gateway: fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,
+      } as never);
+      const tab = h.createTab({ backend: 'codex' });
+      expect(() => h.setTabModel(tab.id, 'gpt-5.6-sol', { expectSource: 'official' })).toThrow(
+        /来源已经变了/,
+      );
+      expect(() => h.setTabModel(tab.id, 'gw/missing')).toThrow(/没有「gw\/missing」/);
+      expect(h.setTabModel(tab.id, 'gw/b', { expectSource: 'thirdParty' }).modelOverride).toBe(
+        'gw/b',
+      );
     });
 
     it('新标签按「新标签默认用」：第三方时没选模型就用分配的模型', async () => {

@@ -376,10 +376,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.click('[data-testid="open-settings"]');
     await chat.click('[data-testid="settings-nav-coding"]');
     await expect(chat.locator('[data-testid="providers-page"]')).toBeVisible();
-    // Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话
-    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(7);
-    await expect(chat.locator('[data-testid="providers-section-nomi"]')).toBeVisible();
-    await shot(chat, '09-providers-nomi');
+    // 「助手」分段下的选择条：Claude Code / Codex / dsh / Grok / Gemini
+    await expect(chat.locator('[data-testid="providers-endpoint-tabs"] [role=tab]')).toHaveCount(5);
+    await shot(chat, '09-providers-assistants');
 
     await chat.click('[data-testid="providers-endpoint-claude"]');
     // 第三方模型改在「模型」页统一设置（统一网关 M3）：编程助手页只留入口
@@ -419,6 +418,15 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
       { timeout: 20_000 },
     );
     await shot(chat, '12-models-cli-rows');
+    // Claude Code 展开各档：Haiku 档即后台任务模型（旧「小模型」已并入），选择框与主模型同列
+    await chat.locator('[data-testid="cli-tiers-toggle"]').click();
+    await expect(chat.locator('[data-testid="cli-tier-haiku"]')).toBeVisible();
+    const mainBox = (await chat.locator('[data-testid="cli-main-claude"]').boundingBox())!;
+    const haikuBox = (await chat.locator('[data-testid="cli-tier-haiku"]').boundingBox())!;
+    expect(Math.abs(mainBox.x - haikuBox.x)).toBeLessThan(1);
+    await chat.locator('[data-testid="add-provider"]').scrollIntoViewIfNeeded();
+    await shot(chat, '12b-models-claude-tiers');
+    await chat.locator('[data-testid="cli-tiers-toggle"]').click();
 
     // 回到对话：Claude 标签的输入栏只显示 Claude 自己启用的供应商 + 模型；Codex 标签显示默认
     await chat.locator('[data-testid="settings-back"]').click();

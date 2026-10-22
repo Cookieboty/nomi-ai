@@ -146,7 +146,9 @@ describe('ModelControls', () => {
     expect(queryByTestId('effort-slider')).toBeNull();
     fireEvent.click(getByTestId('model-gpt-5.6-sol'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-5.6-sol'),
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-5.6-sol', {
+        expectSource: 'official',
+      }),
     );
     expect(getByTestId('effort-slider')).toBeTruthy();
   });
@@ -160,7 +162,9 @@ describe('ModelControls', () => {
     fireEvent.change(input, { target: { value: 'gpt-7-codex' } });
     fireEvent.click(getByTestId('model-custom-ok'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-7-codex'),
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'gpt-7-codex', {
+        expectSource: 'official',
+      }),
     );
   });
 
@@ -274,7 +278,9 @@ describe('ModelControls', () => {
     expect(within(menu).queryByTestId('model-custom-toggle')).toBeNull();
     fireEvent.click(within(menu).getByTestId('model-kimi/k3'));
     await waitFor(() =>
-      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'kimi/k3'),
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'kimi/k3', {
+        expectSource: 'thirdParty',
+      }),
     );
     await waitFor(() => expect(r.queryByTestId('model-menu')).toBeNull());
     fireEvent.click(r.getByTestId('model-chip'));

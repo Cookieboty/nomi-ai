@@ -19,6 +19,12 @@ let exitHooked = false;
  */
 export class CoalescedWriter {
   private readonly pending = new Map<string, Produce>();
+  /**
+   * Async writes already produced but not yet renamed into place. `flushSync` / the read barrier
+   * must cover them too, or quitting / re-reading right after the debounce fires loses the
+   * newest snapshot (#81).
+   */
+  private readonly inflight = new Map<string, { data: string; g: number }>();
   /** Bumped on every write start; an async write only renames if it is still the newest. */
   private readonly gen = new Map<string, number>();
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -51,6 +57,7 @@ export class CoalescedWriter {
   /** Drop a pending write (e.g. the file is about to be deleted). */
   cancel(file: string): void {
     this.pending.delete(file);
+    this.inflight.delete(file);
     this.gen.set(file, (this.gen.get(file) ?? 0) + 1);
   }
 
@@ -60,6 +67,7 @@ export class CoalescedWriter {
 
   hasPendingUnder(dir: string): boolean {
     for (const f of this.pending.keys()) if (f.startsWith(dir)) return true;
+    for (const f of this.inflight.keys()) if (f.startsWith(dir)) return true;
     return false;
   }
 
@@ -85,7 +93,9 @@ export class CoalescedWriter {
     const jobs: Array<{ file: string; data: string; g: number }> = [];
     for (const [file, produce] of batch) {
       try {
-        jobs.push({ file, data: produce(), g: this.bump(file) });
+        const job = { file, data: produce(), g: this.bump(file) };
+        jobs.push(job);
+        this.inflight.set(file, { data: job.data, g: job.g });
       } catch (e) {
         this.onError(file, e);
       }
@@ -94,6 +104,9 @@ export class CoalescedWriter {
       Promise.all(
         jobs.map(async ({ file, data, g }) => {
           const tmp = `${file}.${process.pid}.${++this.seq}.tmp`;
+          const done = () => {
+            if (this.inflight.get(file)?.g === g) this.inflight.delete(file);
+          };
           try {
             await fs.promises.writeFile(tmp, data, 'utf8');
             // newer write (sync flush / later batch) or a cancel happened meanwhile: keep that
@@ -105,6 +118,8 @@ export class CoalescedWriter {
           } catch (e) {
             await fs.promises.rm(tmp, { force: true }).catch(() => undefined);
             this.onError(file, e);
+          } finally {
+            done();
           }
         }),
       ).then(() => undefined),
@@ -114,7 +129,13 @@ export class CoalescedWriter {
 
   /** Write everything pending now, synchronously. */
   flushSync(): void {
-    for (const [file, produce] of this.take()) {
+    const batch: Array<[string, Produce]> = this.take();
+    // in-flight async writes with nothing newer pending: write their data now (the late
+    // async rename is then dropped by the generation check)
+    for (const [file, { data }] of this.inflight)
+      if (!batch.some(([f]) => f === file)) batch.push([file, () => data]);
+    this.inflight.clear();
+    for (const [file, produce] of batch) {
       this.bump(file);
       const tmp = `${file}.${process.pid}.${++this.seq}.tmp`;
       try {

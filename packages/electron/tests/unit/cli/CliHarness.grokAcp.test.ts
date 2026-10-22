@@ -28,6 +28,7 @@ describe('CliHarnessService Grok over ACP', () => {
     'NOMI_MOCK_GROK_ACP_LOG',
     'NOMI_MOCK_GROK_PERM',
     'NOMI_MOCK_GROK_SET_MODEL',
+    'NOMI_MOCK_GROK_SET_MODE',
     'NOMI_MOCK_GROK_MODE',
     'NOMI_MOCK_GROK_NO_ACP',
     'NOMI_MOCK_FIRST_TOKEN_MS',
@@ -285,11 +286,55 @@ describe('CliHarnessService Grok over ACP', () => {
     expect(h.tabMessages(tab.id).at(-1)?.error).toBeFalsy();
   }, 15_000);
 
+  it('等待确认时切到完全放开：原地切换并放行在等的请求，这一轮继续跑完', async () => {
+    process.env.NOMI_MOCK_GROK_PERM = '1';
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'grok' });
+    h.setTabPermissionMode(tab.id, 'manual');
+    const run = h.sendTab(tab.id, 'run it');
+    await until(() => events.some((e) => e.type === 'permission'), { what: 'permission asked' });
+    const perm = events.find((e) => e.type === 'permission') as Extract<
+      HarnessEvent,
+      { type: 'permission' }
+    >;
+    await h.applyTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'permission-resolved', id: perm.id, reason: 'allowed' }),
+    );
+    expect((await run).text).toContain('run it');
+    expect(count('initialize')).toBe(1);
+  }, 15_000);
+
+  it('Grok 拒绝切到完全放开：在等的请求不自动放行，界面不当成已生效', async () => {
+    process.env.NOMI_MOCK_GROK_PERM = '1';
+    process.env.NOMI_MOCK_GROK_MODE = 'default';
+    process.env.NOMI_MOCK_GROK_SET_MODE = 'error';
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'grok' });
+    h.setTabPermissionMode(tab.id, 'manual');
+    const run = h.sendTab(tab.id, 'run it').catch(() => undefined);
+    await until(() => events.some((e) => e.type === 'permission'), { what: 'permission asked' });
+    await expect(h.applyTabPermissionMode(tab.id, 'bypass', { confirmed: true })).rejects.toThrow(
+      /mode rejected/,
+    );
+    await run;
+    expect(events).not.toContainEqual(
+      expect.objectContaining({ type: 'permission-resolved', reason: 'allowed' }),
+    );
+  }, 15_000);
+
   it('第三方来源：私有 GROK_HOME 与网关令牌注入 ACP 进程，~/.grok 不动；换模型重启进程', async () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-home-'));
     fs.mkdirSync(path.join(home, '.grok'), { recursive: true });
     fs.writeFileSync(path.join(home, '.grok', 'config.toml'), '# user config\n');
-    const { h } = mk({ gateway: testGateway({ source: 'thirdParty', main: 'zp/glm-5', home }) });
+    const { h } = mk({
+      gateway: testGateway({
+        source: 'thirdParty',
+        main: 'zp/glm-5',
+        home,
+        models: ['zp/glm-5', 'zp/glm-5-air'],
+      }),
+    });
     const tab = h.createTab({ backend: 'grok' });
     expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock Grok】acp new key: hi');
     const init = calls().find((c) => c.method === 'initialize') as unknown as { grokHome: string };

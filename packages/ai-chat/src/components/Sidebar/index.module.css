@@ -427,7 +427,7 @@
   background: var(--cd-color-selected-bg);
   color: var(--cd-color-text);
   /* 左侧强调条：选中行不再只靠淡色填充区分 */
-  box-shadow: inset 3px 0 0 var(--cd-color-accent-strong);
+  box-shadow: inset 3px 0 0 var(--cd-color-brand);
 }
 .rowActions {
   position: absolute;

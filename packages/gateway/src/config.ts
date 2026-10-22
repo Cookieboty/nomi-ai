@@ -85,6 +85,7 @@ export interface RuntimeProvider {
 
 export interface ClientModels {
   main?: string;
+  /** 旧版本的「小模型」：界面已并入 Haiku 档，只读作 Haiku 档没设时的值 */
   small?: string;
   tiers?: Partial<Record<'opus' | 'sonnet' | 'haiku' | 'fable', string>>;
   subagent?: string;

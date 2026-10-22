@@ -69,7 +69,7 @@ describe('Settings → General → startup default view', () => {
     expect(screen.getByRole('radiogroup', { name: '启动 Nomi 后默认显示' })).toBeTruthy();
     expect(mascot.getAttribute('aria-checked')).toBe('true');
     expect(main.getAttribute('aria-checked')).toBe('false');
-    expect(mascot.textContent).toContain('看板娘');
+    expect(mascot.textContent).toContain('诺米');
     expect(main.textContent).toContain('软件主界面');
   });
 
@@ -111,7 +111,7 @@ describe('Settings → General → startup default view', () => {
     expect(main.getAttribute('aria-checked')).toBe('true');
     expect(screen.getByRole('radiogroup', { name: 'Show on startup' })).toBeTruthy();
     expect(main.textContent).toContain('Main window');
-    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Mascot');
+    expect(screen.getByTestId('startup-view-mascot').textContent).toContain('Nomi');
   });
 
   it('close main window: defaults to hide to tray, can switch to quit and persists', async () => {
@@ -158,7 +158,7 @@ describe('Settings → General → startup default view', () => {
     stored = { defaultView: 'main', closeMain: 'hide', showMascot: true };
     render(<StartupSettings />);
     const sw = await screen.findByTestId('startup-show-mascot');
-    expect(sw.textContent).toContain('显示看板娘');
+    expect(sw.getAttribute('aria-label')).toBe('显示 Nomi');
     fireEvent.click(sw);
     await waitFor(() => expect(stored).toMatchObject({ showMascot: false }));
     expect(calls).toContainEqual(['ai:startup:set', { showMascot: false }]);
@@ -176,14 +176,30 @@ describe('Settings → General → startup default view', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('uses the sunset-safe selected tokens, not raw accent text', () => {
-    const css = readFileSync(
-      resolve(process.cwd(), 'src/components/SettingsView/StartupSettings.module.css'),
-      'utf8',
+  it('uses the shared segmented control: checked option shares the selected-tab style', () => {
+    const css = readFileSync(resolve(process.cwd(), '../ui/src/styles/base.css'), 'utf8');
+    const rule =
+      /\.cd-tab\[aria-selected='true'\],\s*\.cd-tab\[aria-checked='true'\]\s*\{([^}]*)\}/.exec(
+        css,
+      )?.[1];
+    expect(rule).toBeTruthy();
+    expect(rule).not.toMatch(/color:\s*var\(--cd-color-accent\)/);
+  });
+
+  it('groups: 启动与窗口 holds the language slot; 桌面 Nomi gets the size slot with the switch state', async () => {
+    stored = { defaultView: 'main', closeMain: 'hide', showMascot: false };
+    render(
+      <StartupSettings
+        language={<div data-testid="slot-language" />}
+        mascotSize={(shown) => <div data-testid="slot-size" data-shown={String(shown)} />}
+      />,
     );
-    const on = /\.opt\.optOn\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
-    expect(on).toContain('var(--cd-color-selected-bg)');
-    expect(on).toContain('var(--cd-color-selected-text)');
-    expect(on).not.toMatch(/color:\s*var\(--cd-color-accent\)/);
+    const basic = await screen.findByTestId('settings-basic-group');
+    expect(basic.querySelector('[data-testid="slot-language"]')).toBeTruthy();
+    expect(basic.querySelector('[data-testid="settings-close-main"]')).toBeTruthy();
+    const mascot = screen.getByTestId('settings-mascot-group');
+    expect(mascot.querySelector('[data-testid="slot-size"]')!.getAttribute('data-shown')).toBe(
+      'false',
+    );
   });
 });

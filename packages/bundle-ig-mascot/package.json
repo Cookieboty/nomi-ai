@@ -2,7 +2,7 @@
   "name": "@nomi-ai/bundle-ig-mascot",
   "version": "0.0.1",
   "private": true,
-  "description": "插件包：看板娘渲染进程能力（mascot seam / 触摸感官注入 / TTS 嘴型联动 / 桌宠专属工具 + agent preset）",
+  "description": "插件包：Nomi 渲染进程能力（mascot seam / 触摸感官注入 / TTS 嘴型联动 / 桌宠专属工具 + agent preset）",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

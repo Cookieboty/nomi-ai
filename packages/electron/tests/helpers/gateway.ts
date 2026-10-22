@@ -53,5 +53,8 @@ export function testGateway(
         provider: 'GW',
         label: ref.slice(3),
       })),
+    releaseAgent: (kind, tabId) => {
+      fs.rmSync(path.join(dir, kind, tabId), { recursive: true, force: true });
+    },
   };
 }

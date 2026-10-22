@@ -216,6 +216,30 @@ describe('@nomi-ai/ui', () => {
     expect(onChange.mock.calls).toEqual([['b'], ['b']]);
   });
 
+  it('Tabs: underline variant for in-page sub tabs', () => {
+    render(
+      <Tabs
+        variant="underline"
+        items={[{ value: 'a', label: 'A' }]}
+        value="a"
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('tablist').className).toContain('cd-tabs--underline');
+  });
+
+  it('Modal inline + hideTitle: title stays for screen readers only', () => {
+    render(
+      <ModalHostContext.Provider value={{ mode: 'inline', hideTitle: true }}>
+        <Modal open onClose={vi.fn()} title="知识库">
+          body
+        </Modal>
+      </ModalHostContext.Provider>,
+    );
+    const region = screen.getByRole('region', { name: '知识库' });
+    expect(region.querySelector('.cd-modal__header')!.className).toContain('cd-modal__header--sr');
+  });
+
   it('Card / Badge / EmptyState / Notice render their slots', () => {
     render(
       <Card

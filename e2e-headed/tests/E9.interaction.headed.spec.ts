@@ -272,7 +272,11 @@ test.describe('E9 · mascot desktop interaction', () => {
     expect(mode === 'idle' || Math.abs(x1 - x0) > 5).toBe(true);
 
     // 6) 重力关闭 = 自由摆放：拖到半空松手后停在原处（IPC drag，避开 xdo 命中抖动）
-    await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: false }));
+    // Turn wander off so section 5's "立即走一走" cannot race the free-place idle assert
+    // (auto-wander used to fire when nextWanderAt was left overdue after wander-now).
+    await page.evaluate(() =>
+      window.electronAPI!.mascotWindow!.setConfig({ gravity: false, wander: false }),
+    );
     await sleep(400);
     await page.evaluate(async () => {
       const api = window.electronAPI!.mascotWindow!;
@@ -287,11 +291,14 @@ test.describe('E9 · mascot desktop interaction', () => {
     await expect.poll(async () => (await snap(page)).body.mode, { timeout: 8_000 }).toBe('held');
     const yWhileHeld = (await snap(page)).body.y;
     await page.evaluate(() => window.electronAPI!.mascotWindow!.dragEnd());
-    await sleep(800);
+    await expect
+      .poll(async () => (await snap(page)).body.mode, { timeout: 5_000, intervals: [50] })
+      .toBe('idle');
     const placed = await snap(page);
     expect(placed.body.mode).toBe('idle');
     expect(Math.abs(placed.body.y - yWhileHeld)).toBeLessThan(40); // stays where dropped
     expect(placed.cfg?.gravity ?? false).toBe(false);
+    expect(placed.cfg?.wander ?? false).toBe(false);
 
     // 7) 关闭点击穿透：透明区也接收鼠标
     await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ clickThrough: false }));

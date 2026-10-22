@@ -1,0 +1,59 @@
+{
+ "eyes": {
+  "l": {
+   "moved_from": {
+    "hair-l": 60,
+    "eye-l": 705,
+    "brow-l": 315,
+    "head": 270
+   },
+   "px": {
+    "lash": 301,
+    "lid": 76,
+    "hl": 23,
+    "iris": 283,
+    "sclera": 182
+   },
+   "skin_px": 1164,
+   "lid_line_mother": [
+    463.9,
+    175.0
+   ],
+   "lash_drop_art": 17.44,
+   "ids": {
+    "group": "0:45362",
+    "ball": "0:45363",
+    "lash": "0:45364"
+   }
+  },
+  "r": {
+   "moved_from": {
+    "eye-r": 253,
+    "brow-r": 247,
+    "head": 718
+   },
+   "px": {
+    "lash": 289,
+    "lid": 81,
+    "hl": 20,
+    "iris": 328,
+    "sclera": 220
+   },
+   "skin_px": 1253,
+   "lid_line_mother": [
+    544.3,
+    171.0
+   ],
+   "lash_drop_art": 18.15,
+   "ids": {
+    "group": "0:45365",
+    "ball": "0:45366",
+    "lash": "0:45367"
+   }
+  }
+ },
+ "hidden_duplicates_removed": {
+  "eye-r": 2,
+  "brow-r": 1
+ }
+}

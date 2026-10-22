@@ -6,15 +6,6 @@
   display: grid;
   gap: var(--cd-space-2);
 }
-.title {
-  margin: 0;
-  font-size: var(--cd-font-size-lg);
-}
-.sub {
-  margin: 0;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
-}
 .tabs {
   display: inline-flex;
   flex-wrap: wrap;
@@ -22,7 +13,7 @@
   padding: var(--cd-space-0-5);
   border: 1px solid var(--cd-color-border);
   border-radius: calc(var(--cd-radius-md) + var(--cd-space-0-5));
-  background: var(--cd-color-bg-subtle);
+  background: var(--cd-color-surface-raised);
   width: fit-content;
   max-width: 100%;
 }
@@ -50,8 +41,9 @@
   outline-offset: 1px;
 }
 .tabOn {
-  background: var(--cd-color-surface);
-  border-color: var(--cd-color-border);
+  /* 选中：橙色描边 + 淡橙底（文字仍用深色，保证对比度） */
+  background: var(--cd-color-accent-soft);
+  border-color: var(--cd-color-accent-strong);
   color: var(--cd-color-text);
 }
 .panel {

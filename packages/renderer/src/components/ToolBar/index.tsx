@@ -179,7 +179,7 @@ export const ToolBar: React.FC = () => {
   // 关闭看板娘：隐藏窗口并停止语音（应用继续运行），在主界面「设置 → 通用」里可重新打开
   const hideMascot = useCallback(async () => {
     stopAllSpeech();
-    if (!(await closeMascot())) showMessage(tr('关闭看板娘失败，请稍后再试'));
+    if (!(await closeMascot())) showMessage(tr('关闭 Nomi 失败，请稍后再试'));
   }, [showMessage]);
 
   // 拍照功能
@@ -592,7 +592,7 @@ export const ToolBar: React.FC = () => {
       case 'quit':
         return tr('关闭应用');
       case 'close-mascot':
-        return tr('关闭看板娘（可在设置中重新打开）');
+        return tr('关闭 Nomi（可在设置中重新打开）');
       case 'voice-settings':
         return voiceEnabled
           ? [tr('声音：开'), tr('点按静音 · 右键语音偏好')].join('\n')
@@ -867,7 +867,7 @@ export const ToolBar: React.FC = () => {
                   />
                 </div>
                 {size && (
-                  <div className={styles.menuRow} role="group" aria-label={tr('看板娘大小')}>
+                  <div className={styles.menuRow} role="group" aria-label={tr('Nomi 大小')}>
                     <span>{tr('大小')}</span>
                     <div className={styles.sizeCtl}>
                       <button

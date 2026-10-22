@@ -20,18 +20,17 @@ const noop = () => undefined;
 const VoiceSection: React.FC = () => {
   const v = useVoice('chat');
   return (
-    <>
+    <div className={styles.groups}>
       <TtsModelCard />
       <TtsEngineCard />
       {v.api ? (
-        <section className={styles.block} data-testid="settings-voice">
-          <h2 className={styles.h2}>{t('语音输入')}</h2>
+        <div data-testid="settings-voice">
           <VoiceSettingsPanel api={v.api} config={v.config} onRefresh={() => void v.refresh()} />
-        </section>
+        </div>
       ) : (
         <p className={styles.note}>{t('语音服务不可用（仅在桌面应用中提供）。')}</p>
       )}
-    </>
+    </div>
   );
 };
 
@@ -43,9 +42,7 @@ export const SensesSection: React.FC<{
 }> = ({ tab, onTab, screenTab }) => (
   <SectionPage
     testId="settings-senses"
-    title="语音与屏幕"
     tabsLabel="语音与屏幕分区"
-    intro={t('语音输入与朗读，以及截图提问、屏幕记忆：Nomi 听你说、看你屏幕的方式都在这里设置。')}
     tabs={SECTION_TABS.senses}
     value={tab}
     onChange={onTab}

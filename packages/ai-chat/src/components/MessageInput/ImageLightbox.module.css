@@ -1,0 +1,38 @@
+/* 附件图片放大查看 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--cd-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--cd-space-8);
+  background: var(--cd-color-overlay);
+  cursor: zoom-out;
+}
+.image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--cd-radius-md);
+  box-shadow: var(--cd-shadow-lg);
+  cursor: default;
+}
+.close {
+  position: absolute;
+  top: var(--cd-space-4);
+  right: var(--cd-space-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  border: none;
+  border-radius: var(--cd-radius-full);
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  cursor: pointer;
+}
+.close:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+}

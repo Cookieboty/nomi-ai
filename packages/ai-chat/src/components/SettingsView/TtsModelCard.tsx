@@ -4,7 +4,7 @@
  * 下载失败或取消 → 语音保持关闭并显示原因。语音已开但缺模型（升级 / 切到 sherpa）→ 显示「下载」按钮，由用户触发（#60）。
  * 下载前显示磁盘峰值需求与可用空间，不足时禁用下载并提示。
  */
-import { t } from '@nomi-ai/ui';
+import { Button, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import { formatMB, ttsModelClient, type TtsModelState } from '../../services/ttsModelClient';
@@ -63,27 +63,47 @@ export const TtsModelCard: React.FC = () => {
       : false;
 
   return (
-    <section className={styles.block} data-testid="settings-tts-model">
-      <h2 className={styles.h2}>{t('朗读（离线语音）')}</h2>
-      <label className={card.row}>
-        <input
-          type="checkbox"
-          role="switch"
-          data-testid="tts-voice-toggle"
+    <SettingsGroup
+      title={t('朗读')}
+      description={t('Nomi 的回复用离线语音读出来，在本机合成、无需联网。')}
+      actions={
+        st.state === 'ready' && st.source === 'userData' ? (
+          <Button
+            size="sm"
+            variant="ghost"
+            data-testid="tts-model-delete"
+            onClick={() => {
+              if (!window.confirm(t('删除离线语音模型？语音会关闭，之后重新开启需要再次下载。')))
+                return;
+              void ttsModelClient.remove().then((s) => s && setSt(s));
+            }}
+          >
+            {t('删除模型')}
+          </Button>
+        ) : undefined
+      }
+      data-testid="settings-tts-model"
+    >
+      <SettingRow
+        title={t('开启语音')}
+        description={
+          st.state === 'ready' ? (
+            <span data-testid="tts-model-ready">
+              {st.source === 'userData'
+                ? t('离线语音模型已下载（{0}），无需联网即可朗读。', formatMB(st.installedBytes))
+                : t('离线语音模型已就绪，无需联网即可朗读。')}
+            </span>
+          ) : undefined
+        }
+      >
+        <Switch
           checked={st.voiceEnabled}
           disabled={busy && !downloading}
-          onChange={(e) => void toggle(e.target.checked)}
+          onChange={(v) => void toggle(v)}
+          aria-label={t('开启语音')}
+          data-testid="tts-voice-toggle"
         />
-        <span>{t('开启语音')}</span>
-      </label>
-
-      {st.state === 'ready' && (
-        <p className={styles.note} data-testid="tts-model-ready">
-          {st.source === 'userData'
-            ? t('离线语音模型已下载（{0}），无需联网即可朗读。', formatMB(st.installedBytes))
-            : t('离线语音模型已就绪，无需联网即可朗读。')}
-        </p>
-      )}
+      </SettingRow>
 
       {missing && (
         <p className={styles.note} data-testid="tts-model-missing">
@@ -126,15 +146,17 @@ export const TtsModelCard: React.FC = () => {
       )}
 
       {missing && st.voiceEnabled && !shownError && (
-        <button
-          type="button"
-          className={card.btn}
-          data-testid="tts-model-download"
-          disabled={busy}
-          onClick={() => void download(true)}
-        >
-          {t('下载离线语音模型')}
-        </button>
+        <div>
+          <Button
+            size="sm"
+            variant="primary"
+            data-testid="tts-model-download"
+            disabled={busy}
+            onClick={() => void download(true)}
+          >
+            {t('下载离线语音模型')}
+          </Button>
+        </div>
       )}
 
       {downloading && (
@@ -158,14 +180,14 @@ export const TtsModelCard: React.FC = () => {
               : t('下载中 {0}%（{1} / {2}）', pct, formatMB(st.received), formatMB(st.total))}
           </span>
           {st.phase !== 'extract' && (
-            <button
-              type="button"
-              className={card.btn}
+            <Button
+              size="sm"
+              variant="ghost"
               data-testid="tts-model-cancel"
               onClick={() => void ttsModelClient.cancel().then((s) => s && setSt(s))}
             >
               {t('取消')}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -177,31 +199,15 @@ export const TtsModelCard: React.FC = () => {
               ? t('离线语音模型下载失败：{0}', shownError)
               : t('离线语音模型下载失败，语音已关闭：{0}', shownError)}
           </span>
-          <button
-            type="button"
-            className={card.btn}
+          <Button
+            size="sm"
             data-testid="tts-model-retry"
             onClick={() => void download(st.voiceEnabled)}
           >
             {t('重试')}
-          </button>
+          </Button>
         </div>
       )}
-
-      {st.state === 'ready' && st.source === 'userData' && (
-        <button
-          type="button"
-          className={card.btn}
-          data-testid="tts-model-delete"
-          onClick={() => {
-            if (!window.confirm(t('删除离线语音模型？语音会关闭，之后重新开启需要再次下载。')))
-              return;
-            void ttsModelClient.remove().then((s) => s && setSt(s));
-          }}
-        >
-          {t('删除模型')}
-        </button>
-      )}
-    </section>
+    </SettingsGroup>
   );
 };

@@ -181,6 +181,7 @@
   flex-direction: column;
   gap: var(--cd-space-4, 16px);
 }
+/* 分组之间留白：组内用 SettingRow 的细分隔线 */
 .cd-voice-section {
   display: flex;
   flex-direction: column;
@@ -210,20 +211,19 @@
   font-size: var(--cd-font-size-xs, 12px);
   word-break: break-all;
 }
+/* 未就绪提示：原因 + 「同意发送录音」按钮同一行 */
 .cd-voice-ready {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--cd-radius-md, 8px);
-  font-size: var(--cd-font-size-sm, 13px);
 }
-.cd-voice-ready.is-ok {
-  background: var(--cd-color-success-soft);
+/* 设置行右侧控件宽度 */
+.cd-voice-ctrl {
+  width: 260px;
 }
-.cd-voice-ready.is-warn {
-  background: var(--cd-color-warning-soft);
+.cd-voice-ctrl--sm {
+  width: 120px;
 }
 .cd-voice-asset {
   display: flex;
@@ -286,8 +286,8 @@
   position: relative;
 }
 .cd-voice-range {
-  width: 100%;
-  accent-color: var(--cd-color-accent);
+  width: 220px;
+  accent-color: var(--cd-color-brand, var(--cd-color-accent));
 }
 .cd-voice-buttons {
   display: flex;

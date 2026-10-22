@@ -68,7 +68,7 @@ export const SETTINGS_ICONS = {
   notify: PanelTop,
   /** 扩展 / MCP：积木模块 */
   ext: Blocks,
-  /** 本机管理：芯片（剪贴板 / 数据导出 / 本机小模型） */
+  /** 本机管理：芯片（剪贴板 / 数据导出 / 本机模型） */
   local: Cpu,
   /** 隐私与权限：盾牌 */
   privacy: ShieldCheck,

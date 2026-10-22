@@ -55,6 +55,8 @@ function mockIpc(over: Record<string, unknown> = {}) {
         sources: [{ id: 'local', name: '我的日历', kind: 'local', color: '#f00', enabled: true }],
       };
     if (ch === 'ai:hub:cal-range') return [];
+    // 「本机模型」标签里同时列出 Ollama 的模型
+    if (ch === 'ai:local:ollama-list') return [];
     if (ch === 'ai:hub:clip-state')
       return { settings: { enabled: false, max: 200, images: true }, items: [] };
     return true;
@@ -67,7 +69,7 @@ describe('LocalPanel', () => {
   it('shows RAM recommendation and downloads runtime + model after license consent', async () => {
     const invoke = mockIpc();
     const r = render(<LocalPanel isVisible onClose={() => undefined} />);
-    fireEvent.click(r.getByRole('tab', { name: /本机小模型/ }));
+    fireEvent.click(r.getByRole('tab', { name: /本机模型/ }));
     await waitFor(() => expect(r.getByTestId('local-ram').textContent).toContain('8 GB'));
     const card = r.getByTestId('local-model-qwen3-1.7b-q8');
     expect(card.textContent).toContain('推荐');
@@ -85,7 +87,7 @@ describe('LocalPanel', () => {
   it('starts an installed model; running server offers use/stop', async () => {
     const invoke = mockIpc();
     const r = render(<LocalPanel isVisible onClose={() => undefined} />);
-    fireEvent.click(r.getByRole('tab', { name: /本机小模型/ }));
+    fireEvent.click(r.getByRole('tab', { name: /本机模型/ }));
     await waitFor(() => r.getByTestId('local-model-qwen3-0.6b-q8'));
     fireEvent.click(
       r.getByTestId('local-model-qwen3-0.6b-q8').querySelector('[data-testid=local-start]')!,
@@ -102,7 +104,7 @@ describe('LocalPanel', () => {
       },
     });
     const r2 = render(<LocalPanel isVisible onClose={() => undefined} />);
-    fireEvent.click(r2.getByRole('tab', { name: /本机小模型/ }));
+    fireEvent.click(r2.getByRole('tab', { name: /本机模型/ }));
     await waitFor(() => expect(r2.getByTestId('local-server-status').textContent).toBe('运行中'));
     expect(r2.getByTestId('local-use')).toBeTruthy();
     expect(r2.getByTestId('local-stop')).toBeTruthy();
@@ -157,17 +159,12 @@ describe('localClient helpers', () => {
     expect(cal.getByRole('heading', { name: '日历' })).toBeTruthy();
     cal.unmount();
     const rest = render(
-      <LocalPanel
-        isVisible
-        onClose={() => undefined}
-        tabs={['clipboard', 'export', 'models', 'ollama']}
-      />,
+      <LocalPanel isVisible onClose={() => undefined} tabs={['clipboard', 'export', 'models']} />,
     );
     expect(rest.getAllByRole('tab').map((x) => x.textContent)).toEqual([
       '剪贴板',
       '数据导出',
-      '本机小模型（辅助）',
-      'Ollama（可选）',
+      '本机模型',
     ]);
     expect(rest.getByTestId('local-panel')).toBeTruthy();
     expect(rest.getByRole('heading', { name: '本机管理' })).toBeTruthy();
@@ -181,19 +178,15 @@ describe('localClient helpers', () => {
         .map((x) => x.textContent);
     const alt = (n: number) => fireEvent.keyDown(window, { key: String(n), altKey: true });
 
-    it('本机管理（无日历）：Alt+1 是剪贴板，Alt+3 是小模型，Alt+5 无效', async () => {
+    it('本机管理（无日历）：Alt+1 是剪贴板，Alt+3 是本机模型，Alt+5 无效', async () => {
       mockIpc();
       const r = render(
-        <LocalPanel
-          isVisible
-          onClose={() => undefined}
-          tabs={['clipboard', 'export', 'models', 'ollama']}
-        />,
+        <LocalPanel isVisible onClose={() => undefined} tabs={['clipboard', 'export', 'models']} />,
       );
       alt(1);
       await waitFor(() => expect(sel(r)).toEqual(['剪贴板']));
       alt(3);
-      await waitFor(() => expect(sel(r)).toEqual(['本机小模型（辅助）']));
+      await waitFor(() => expect(sel(r)).toEqual(['本机模型']));
       alt(2);
       await waitFor(() => expect(sel(r)).toEqual(['数据导出']));
       alt(5);
@@ -209,7 +202,7 @@ describe('localClient helpers', () => {
       expect(r.queryAllByRole('tab')).toHaveLength(0);
     });
 
-    it('不限制标签时仍按完整 5 个：Alt+2 是剪贴板', async () => {
+    it('不限制标签时按完整 4 个：Alt+2 是剪贴板', async () => {
       mockIpc();
       const r = render(<LocalPanel isVisible onClose={() => undefined} />);
       alt(2);

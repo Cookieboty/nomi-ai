@@ -188,6 +188,35 @@ describe('Codex fork / subagent 重放去重', () => {
     expect(b[0]!.key).toBe('codex:child-0002:3000');
   });
 
+  it('重放段里被跳过的正文行也算行间距：不会把桥接起来的重放当成真实请求（#86）', () => {
+    const at = (ms: number) => new Date(Date.UTC(2026, 9, 14, 11, 0, 0, ms)).toISOString();
+    const meta = line({
+      timestamp: at(0),
+      type: 'session_meta',
+      payload: { id: 'c', forked_from_id: 'p', cwd: '/w/x' },
+    });
+    const msg = (ms: number) =>
+      line({ timestamp: at(ms), type: 'response_item', payload: { type: 'message' } });
+    const usage = line({
+      timestamp: at(1500),
+      type: 'event_msg',
+      payload: {
+        type: 'token_count',
+        info: {
+          total_token_usage: { total_tokens: 50 },
+          last_token_usage: { input_tokens: 40, output_tokens: 10 },
+        },
+      },
+    });
+    const text = meta + msg(500) + msg(1000) + usage;
+    expect(parseCodexChunk(text, {})).toEqual([]);
+    // 分块读取同样成立
+    const state = {};
+    const rows = text.split('\n').filter(Boolean);
+    const recs = rows.flatMap((r) => parseCodexChunk(`${r}\n`, state));
+    expect(recs).toEqual([]);
+  });
+
   it('重放行保留父会话原时间戳（早于分叉时刻）也不记账', () => {
     const meta = line({
       timestamp: '2026-10-14T11:00:00.000Z',

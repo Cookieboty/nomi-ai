@@ -5,6 +5,7 @@
  * - 旧的本地路由服务开着且占用同一端口时，网关先用临时端口，等旧路由移除（M3）后接管；
  * - IPC 一律 ai:gateway:*；返回给渲染进程的数据里 Key 只给掩码，令牌不返回。
  */
+import fs from 'node:fs';
 import path from 'path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
@@ -371,6 +372,11 @@ export class GatewayService {
       );
   }
 
+  /** 这个标签的进程级私有目录（Grok 私有 GROK_HOME、dsh 叠加文件等） */
+  private agentDir(kind: AgentKind, tabId: string): string {
+    return path.join(this.d.root, 'agents', kind, tabId.replace(/[^\w-]/g, '_'));
+  }
+
   /**
    * 第三方会话的进程级注入（环境变量、参数、要剔除的继承变量）。网关没在运行时返回 null，
    * 调用方报错而不是悄悄走官方。dir：这个标签的私有目录（Grok 私有 GROK_HOME、dsh 叠加文件）。
@@ -400,8 +406,37 @@ export class GatewayService {
       metaOf,
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
-      dir: path.join(this.d.root, 'agents', kind, tabId.replace(/[^\w-]/g, '_')),
+      dir: this.agentDir(kind, tabId),
     });
+  }
+
+  /**
+   * 标签关闭后回收它的进程级私有目录。里面只有 Nomi 生成的配置文件和指向用户 CLI 目录的软链，
+   * 令牌只在子进程环境里、不落盘。rm 不跟随软链，用户的 ~/.grok 等不受影响。
+   */
+  releaseAgent(kind: AgentKind, tabId: string): void {
+    try {
+      fs.rmSync(this.agentDir(kind, tabId), { recursive: true, force: true });
+    } catch (e) {
+      this.d.logger.warn('gateway agent dir cleanup failed', e);
+    }
+  }
+
+  /**
+   * 这个编程助手会话是否经网关跑过（网关的会话归属表，§11.4）。用于打开历史会话时推断来源（#90）。
+   * 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）；查不到（含 30 天淘汰）返回 false。
+   */
+  servedSession(kind: AgentKind, sessionId: string): boolean {
+    if (kind !== 'claude' || !sessionId) return false;
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, 'sessions.json'), 'utf8')) as {
+        sessions?: Array<[string, unknown]>;
+      };
+      const key = `claude:cc:${sessionId}`;
+      return (raw.sessions ?? []).some(([k]) => k === key);
+    } catch {
+      return false;
+    }
   }
 
   /** 官方会话的环境：剔除指向网关的残留变量 */
@@ -443,8 +478,10 @@ export class GatewayService {
   credentials(id: string): { id: string; name: string; baseURL: string; apiKey?: string } | null {
     const p = this.store.providers().find((x) => x.id === id && x.enabled);
     if (!p?.urls.chat) return null;
+    // 只用 Chat 协议能用的 Key（未限定协议或限定为 chat），与网关路由的 wiresFor 一致；
+    // 限定给 messages 等其它协议的 Key 不发到 Chat 地址（#95）
     const key = p.keys
-      .filter((k) => k.enabled)
+      .filter((k) => k.enabled && (!k.wire || k.wire === 'chat'))
       .map((k) => this.store.decrypt(k.enc, k.encryption))
       .find((v): v is string => Boolean(v));
     return { id: p.id, name: p.name, baseURL: p.urls.chat, ...(key ? { apiKey: key } : {}) };
@@ -596,6 +633,7 @@ export class GatewayService {
       createdAt: prev?.createdAt ?? now,
       updatedAt: now,
     } as GatewayProvider;
+    this.bumpLearn(p.id);
     this.store.upsertProvider(p);
     this.commit();
     return this.state().providers.find((x) => x.id === p.id)!;
@@ -605,6 +643,7 @@ export class GatewayService {
     const p = this.store.providers().find((x) => x.id === id);
     if (!p) return;
     if (p.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    this.bumpLearn(id);
     this.store.removeProvider(id);
     this.commit();
   }
@@ -628,7 +667,17 @@ export class GatewayService {
     this.commit();
   }
 
+  /**
+   * 供应商学习状态的代次：清除学习、改 / 删供应商时加一。异步探测回来时代次变了就作废，
+   * 不把旧地址 / 旧 Key 的结论写回、也不复活已清除的状态（#96）
+   */
+  private readonly learnGen = new Map<string, number>();
+  private bumpLearn(providerId: string): void {
+    this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
+  }
+
   clearLearned(providerId: string): void {
+    this.bumpLearn(providerId);
     this.store.setLearned(providerId, {});
     this.commit();
   }
@@ -665,6 +714,7 @@ export class GatewayService {
           return value !== null ? [{ id: k.id, value }] : [];
         });
       const s = this.proc.getStatus();
+      const gen = this.learnGen.get(p.id) ?? 0;
       const r = await (this.d.detectImpl ?? detect)({
         bases: { [e.wire]: url },
         keys,
@@ -673,7 +723,16 @@ export class GatewayService {
         ...(s.state === 'running' ? { selfPort: s.port } : {}),
       }).catch(() => null);
       if (!r || r.wires[e.wire]?.ok) return;
-      cur.wireDown = { ...cur.wireDown, [e.wire]: { at: Date.now(), reason: e.reason } };
+      // 探测期间清除了学习、改了 / 删了供应商：结论已过时，丢弃
+      const now = this.store.providers().find((x) => x.id === p.id);
+      if ((this.learnGen.get(p.id) ?? 0) !== gen || now?.urls[e.wire] !== url) return;
+      // 基于最新状态只合并 wireDown：探测期间别的学习（dropped-param 等）不能被旧快照盖掉
+      const latest: LearnedState = structuredClone(this.store.snapshot().learned[p.id] ?? {});
+      latest.wireDown = { ...latest.wireDown, [e.wire]: { at: Date.now(), reason: e.reason } };
+      this.d.logger.info('gateway learned', e);
+      this.store.setLearned(p.id, latest);
+      this.commit();
+      return;
     }
     this.d.logger.info('gateway learned', e);
     this.store.setLearned(p.id, cur);

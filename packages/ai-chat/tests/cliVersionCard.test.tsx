@@ -4,6 +4,7 @@ import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CliVersionCard, versionState } from '../src/components/ProvidersPage/CliVersionCard';
+import { cliUpdateClient } from '../src/services/cliUpdateClient';
 import type { CliInstallInfo, CliInstallPlan } from '../src/services/cliUpdateClient';
 
 const info = (o: Partial<CliInstallInfo>): CliInstallInfo => ({
@@ -52,6 +53,7 @@ function setup(handlers: Record<string, Handler>) {
 
 afterEach(() => {
   cleanup();
+  cliUpdateClient.resetCache();
   delete (window as unknown as { aiIPC?: unknown }).aiIPC;
 });
 

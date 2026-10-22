@@ -1,22 +1,56 @@
-/** 设置 → 通用 → 主题：四套配色 + 跟随系统，点选即时生效（对话窗口与看板娘同步）。 */
-import { t as tr } from '@nomi-ai/ui';
+/** 设置 → 通用 → 外观 → 主题：跟随系统 + 五套配色，一行小色卡，点选即时生效（对话窗口与看板娘同步）。 */
+import { Icon, SettingRow, t as tr } from '@nomi-ai/ui';
 import { THEMES, currentTheme, setTheme, type ThemeState } from '@nomi-ai/ui';
+import { Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import styles from './index.module.css';
 
-export const ThemeSettings: React.FC = () => {
+/** 跟随系统放最前，其余按 THEMES 顺序 */
+const ORDERED = [
+  ...THEMES.filter((x) => x.id === 'system'),
+  ...THEMES.filter((x) => x.id !== 'system'),
+];
+
+/** 当前主题的显示名（品牌卡速览也用） */
+export function themeLabel(cur: ThemeState): string {
+  const def = THEMES.find((x) => x.id === cur.pref);
+  if (cur.pref === 'system')
+    return tr('跟随系统 · {0}', cur.resolved === 'cream' ? tr('奶油') : tr('石墨'));
+  return def ? tr(def.name) : cur.pref;
+}
+
+export function useThemeState(): ThemeState {
   const [cur, setCur] = useState<ThemeState>(currentTheme);
   useEffect(() => {
     const on = (e: Event) => setCur((e as CustomEvent<ThemeState>).detail);
     window.addEventListener('cd:theme-changed', on);
     return () => window.removeEventListener('cd:theme-changed', on);
   }, []);
+  return cur;
+}
+
+export const ThemeSettings: React.FC = () => {
+  const cur = useThemeState();
+  const sel = THEMES.find((x) => x.id === cur.pref);
   return (
-    <section className={styles.block} data-testid="theme-settings">
-      <h2 className={styles.h2}>{tr('主题')}</h2>
+    <div className={styles.themeBlock} data-testid="theme-settings" id="settings-theme">
+      <SettingRow
+        title={tr('主题')}
+        description={
+          sel
+            ? sel.id === 'system'
+              ? tr(
+                  '{0}（当前：{1}）',
+                  tr(sel.desc),
+                  cur.resolved === 'cream' ? tr('奶油') : tr('石墨'),
+                )
+              : tr(sel.desc)
+            : undefined
+        }
+      />
       <div className={styles.themes} role="radiogroup" aria-label={tr('主题')}>
-        {THEMES.map((t) => {
+        {ORDERED.map((t) => {
           const on = cur.pref === t.id;
           const sys = t.id === 'system';
           return (
@@ -25,6 +59,7 @@ export const ThemeSettings: React.FC = () => {
               type="button"
               role="radio"
               aria-checked={on}
+              title={tr(t.desc)}
               className={`${styles.theme} ${on ? styles.themeOn : ''}`}
               onClick={() => void setTheme(t.id)}
               data-testid={`theme-${t.id}`}
@@ -49,21 +84,17 @@ export const ThemeSettings: React.FC = () => {
                     <span style={{ background: t.swatch[3] }} className={styles.themeDot} />
                   </span>
                 )}
+                {on && (
+                  <span className={styles.themeCheck}>
+                    <Icon icon={Check} size={12} />
+                  </span>
+                )}
               </span>
               <span className={styles.themeName}>{tr(t.name)}</span>
-              <span className={styles.themeDesc}>
-                {sys && on
-                  ? tr(
-                      '{0}（当前：{1}）',
-                      tr(t.desc),
-                      cur.resolved === 'cream' ? tr('奶油') : tr('石墨'),
-                    )
-                  : tr(t.desc)}
-              </span>
             </button>
           );
         })}
       </div>
-    </section>
+    </div>
   );
 };

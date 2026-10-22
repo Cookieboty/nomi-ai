@@ -23,29 +23,6 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-danger);
 }
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--cd-space-2);
-}
-.stat {
-  background: var(--cd-color-surface-sunken);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
-  padding: var(--cd-space-2) var(--cd-space-3);
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-0-5);
-}
-.statNum {
-  font-size: var(--cd-font-size-lg);
-  font-weight: var(--cd-font-weight-bold);
-  color: var(--cd-color-text);
-}
-.statLabel {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}
 .status {
   display: flex;
   align-items: center;
@@ -120,19 +97,94 @@
   flex: none;
   width: 112px;
 }
-.statusRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--cd-space-2);
+/* 概览统计卡：一条分栏卡片，每格是一个跳转到对应标签的按钮 */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+  overflow: hidden;
 }
+.overviewCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  padding: var(--cd-space-3) var(--cd-space-4);
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.overviewCell + .overviewCell {
+  border-left: 1px solid var(--cd-color-border);
+}
+.overviewCell:hover {
+  background: var(--cd-color-hover);
+}
+.overviewCell:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.overviewLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.overviewValue {
+  font-size: var(--cd-font-size-lg);
+  font-weight: var(--cd-font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+.overviewCell[data-tone='success'] .overviewLabel,
+.overviewCell[data-tone='success'] .overviewValue {
+  color: var(--cd-color-success);
+}
+.overviewCell[data-tone='warning'] .overviewLabel,
+.overviewCell[data-tone='warning'] .overviewValue,
+.overviewWarn {
+  color: var(--cd-color-warning);
+}
+.overviewSub {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+@media (max-width: 560px) {
+  .overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .overviewCell + .overviewCell {
+    border-left: 0;
+    border-top: 1px solid var(--cd-color-border);
+  }
+}
+/* 任务编辑器：与设置分组同一种卡片 */
 .editor {
   display: flex;
   flex-direction: column;
-  gap: var(--cd-space-2);
-  padding: var(--cd-space-3);
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-4) var(--cd-space-5);
   border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
-  background: var(--cd-color-surface-sunken);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
+}
+.editorTitle {
+  margin: 0;
+  font-size: var(--cd-font-size-md);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
 }
 .prompt {
   margin: 0;
@@ -165,4 +217,22 @@
   padding: var(--cd-space-1-5) var(--cd-space-2);
   border-bottom: 1px solid var(--cd-color-border);
   vertical-align: top;
+}
+
+/* 设置行右侧的固定宽度控件 */
+.ctrlMd {
+  width: 220px;
+}
+.timeRange {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+}
+.timeRange input {
+  width: 110px;
+}
+/* 列表上方的小开关（显示已结束等）：右对齐，弱化 */
+.listToggle {
+  align-self: flex-end;
+  font-size: var(--cd-font-size-xs);
 }

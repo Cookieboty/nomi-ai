@@ -47,7 +47,7 @@ describe('agent launches (§12, §12.7.1)', () => {
       ANTHROPIC_AUTH_TOKEN: 'nomi-gw-x-token',
       ANTHROPIC_DEFAULT_OPUS_MODEL: 'zp/glm-5',
       ANTHROPIC_DEFAULT_HAIKU_MODEL: 'ds/chat',
-      ANTHROPIC_SMALL_FAST_MODEL: 'zp/glm-5',
+      ANTHROPIC_SMALL_FAST_MODEL: 'ds/chat',
       CLAUDE_CODE_MAX_CONTEXT_TOKENS: '200000',
       CLAUDE_CODE_MAX_OUTPUT_TOKENS: '131072',
       MAX_THINKING_TOKENS: '16000',
@@ -58,6 +58,13 @@ describe('agent launches (§12, §12.7.1)', () => {
     });
     expect(l.env.ANTHROPIC_API_KEY).toBeUndefined();
     expect(l.strip).toContain('ANTHROPIC_API_KEY');
+    // 旧配置只有「小模型」：Haiku 档与 SMALL_FAST 都用它（新版 Claude Code 只读 DEFAULT_HAIKU）
+    const legacy = agentLaunch('claude', base({ models: { small: 'ds/chat' } }));
+    expect(legacy.env).toMatchObject({
+      ANTHROPIC_DEFAULT_HAIKU_MODEL: 'ds/chat',
+      ANTHROPIC_SMALL_FAST_MODEL: 'ds/chat',
+      ANTHROPIC_DEFAULT_SONNET_MODEL: 'zp/glm-5',
+    });
     // 没有元数据：保守默认值，非推理
     const plain = agentLaunch('claude', base());
     expect(plain.env).toMatchObject({

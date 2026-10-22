@@ -1,17 +1,19 @@
 /**
- * 「编程助手」页：顶部标签 Nomi / Claude Code / Codex / dsh / Grok / Gemini / 监视与会话。
- * - 第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口；
- *   每个 CLI 端点有「版本」卡片（检测 / 更新 / 安装）和官方账号。
+ * 「编程助手」页：分段标签「助手 / 监视与会话」。
+ * - 助手：一排紧凑的助手选择条（Claude Code / Codex / dsh / Grok / Gemini，带安装状态），
+ *   下面是选中助手的分组：版本（检测 / 更新 / 安装）、官方账号、第三方模型入口。
+ *   第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
-import { Button, Icon, t } from '@nomi-ai/ui';
-import { Radio } from 'lucide-react';
-import React from 'react';
+import { t, Tabs } from '@nomi-ai/ui';
+import React, { useEffect, useState } from 'react';
 
 import { useProviderEndpoint } from '../../hooks/useProviderEndpoint';
+import { isCliKind, type CliKind } from '../../services/cliSource';
+import { cliUpdateClient, type CliInstallInfo } from '../../services/cliUpdateClient';
 import { harnessClient } from '../../services/harnessClient';
-import { CONVERSATION_BACKENDS, type ConversationBackend } from '../../types/chat';
+import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
@@ -19,7 +21,10 @@ import { EndpointIcon } from '../EndpointIcon';
 import { CliEndpointSection } from './CliEndpointSection';
 import styles from './index.module.css';
 
-const TABS = [...CONVERSATION_BACKENDS, 'monitor'] as const;
+/** 助手选择条的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
+const CLIS = CONVERSATION_BACKENDS.filter((b): b is CliKind => b !== 'nomi');
+
+type Tone = 'ok' | 'warn' | 'off';
 
 export const ProvidersPage: React.FC<{
   onOpenedTab?: () => void;
@@ -28,84 +33,113 @@ export const ProvidersPage: React.FC<{
 }> = ({ onOpenedTab, onOpenNotify, onOpenModels }) => {
   const [ep, setEp] = useProviderEndpoint();
   const cliOk = harnessClient.available();
+  // 「监视与会话」时记住上次看的助手；旧的「nomi」选中值落到第一个助手
+  const [lastCli, setLastCli] = useState<CliKind>(() => (isCliKind(ep) ? ep : CLIS[0]!));
+  const cli: CliKind = ep === 'monitor' || ep === 'nomi' ? lastCli : ep;
+  const view = ep === 'monitor' ? 'monitor' : 'assistants';
+  const pick = (k: CliKind) => {
+    setLastCli(k);
+    setEp(k);
+  };
+
+  // 选择条上的安装状态：复用「版本」分组的 cliUpdateClient.inspect（只读，不触发联网检查）
+  const [infos, setInfos] = useState<CliInstallInfo[] | null>(() => cliUpdateClient.cached());
+  useEffect(() => {
+    if (!cliUpdateClient.available()) return;
+    let alive = true;
+    const refresh = () =>
+      cliUpdateClient
+        .inspect(false)
+        .then((rows) => alive && setInfos(Array.isArray(rows) ? rows : []))
+        .catch(() => undefined);
+    void refresh();
+    // 装 / 更新结束后主进程会重新探测：选择条上的状态跟着刷新
+    const off = cliUpdateClient.onEvent((e) => {
+      if (e.phase === 'done' || e.phase === 'error') void refresh();
+    });
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+  const statusOf = (b: CliKind): { label: string; tone: Tone } | null => {
+    const info = infos?.find((x) => x.kind === b);
+    if (!info) return null; // 主进程没报告这个端点：不猜
+    if (!info.path) return { label: t('未安装'), tone: 'off' };
+    if (info.updateAvailable) return { label: t('有新版本'), tone: 'warn' };
+    return { label: info.version ? t('已安装 {0}', info.version) : t('已安装'), tone: 'ok' };
+  };
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-    const i = TABS.indexOf(ep);
-    const n = TABS.length;
-    setEp(TABS[(i + (e.key === 'ArrowRight' ? 1 : n - 1)) % n]!);
+    const i = CLIS.indexOf(cli);
+    const n = CLIS.length;
+    pick(CLIS[(i + (e.key === 'ArrowRight' ? 1 : n - 1)) % n]!);
     e.preventDefault();
   };
 
   return (
     <div className={styles.page} data-testid="providers-page" data-endpoint={ep}>
-      <div className={styles.head}>
-        <h2 className={styles.title}>{t('编程助手')}</h2>
-        <p className={styles.sub}>
-          {t(
-            '管理 Claude Code / Codex / dsh / Grok / Gemini 的版本与官方账号，以及本机编程助手的进度监视。第三方模型在「模型」页设置。',
-          )}
-        </p>
-        <div
-          role="tablist"
-          aria-label={t('编程助手分区')}
-          className={styles.tabs}
-          data-testid="providers-endpoint-tabs"
-          onKeyDown={onKey}
-        >
-          {CONVERSATION_BACKENDS.map((b: ConversationBackend) => (
-            <button
-              key={b}
-              type="button"
-              role="tab"
-              aria-selected={ep === b}
-              tabIndex={ep === b ? 0 : -1}
-              className={`${styles.tab} ${ep === b ? styles.tabOn : ''}`}
-              data-testid={`providers-endpoint-${b}`}
-              onClick={() => setEp(b)}
-            >
-              <EndpointIcon backend={b} size={16} decorative />
-              {t(ENDPOINT_NAME[b])}
-            </button>
-          ))}
-          <button
-            type="button"
-            role="tab"
-            aria-selected={ep === 'monitor'}
-            tabIndex={ep === 'monitor' ? 0 : -1}
-            className={`${styles.tab} ${styles.tabMonitor} ${ep === 'monitor' ? styles.tabOn : ''}`}
-            data-testid="providers-endpoint-monitor"
-            onClick={() => setEp('monitor')}
-          >
-            <Icon icon={Radio} />
-            {t('监视与会话')}
-          </button>
-        </div>
-      </div>
+      <Tabs
+        aria-label={t('编程助手分区')}
+        value={view}
+        onChange={(v) => (v === 'monitor' ? setEp('monitor') : pick(cli))}
+        items={[
+          { value: 'assistants', label: t('助手'), testId: 'providers-view-assistants' },
+          { value: 'monitor', label: t('监视与会话'), testId: 'providers-endpoint-monitor' },
+        ]}
+      />
 
-      {ep === 'monitor' ? (
+      {view === 'monitor' ? (
         <div data-testid="providers-section-monitor">
           <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
         </div>
-      ) : ep === 'nomi' ? (
-        <div data-testid="providers-section-nomi">
-          <div className={styles.intro}>
-            <p>
-              {t(
-                'Nomi 对话用的第三方供应商与模型（对话 / 工具调用 / 摘要）在设置 →「模型」里管理。Claude Code / Codex / dsh / Grok 不会读取 Nomi 的配置。',
-              )}
-            </p>
-          </div>
-          {onOpenModels && (
-            <Button variant="secondary" onClick={onOpenModels} data-testid="providers-open-models">
-              {t('打开「模型」')}
-            </Button>
-          )}
-        </div>
-      ) : cliOk ? (
-        <CliEndpointSection key={ep} kind={ep} onOpenModels={onOpenModels} />
       ) : (
-        <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
+        <>
+          <div
+            role="tablist"
+            aria-label={t('选择编程助手')}
+            className={styles.picker}
+            data-testid="providers-endpoint-tabs"
+            onKeyDown={onKey}
+          >
+            {CLIS.map((b) => {
+              const st = statusOf(b);
+              const on = cli === b;
+              return (
+                <button
+                  key={b}
+                  type="button"
+                  role="tab"
+                  aria-selected={on}
+                  tabIndex={on ? 0 : -1}
+                  className={`${styles.pick} ${on ? styles.pickOn : ''}`}
+                  data-testid={`providers-endpoint-${b}`}
+                  onClick={() => pick(b)}
+                >
+                  <EndpointIcon backend={b} size={20} decorative />
+                  <span className={styles.pickText}>
+                    <span className={styles.pickName}>{t(ENDPOINT_NAME[b])}</span>
+                    {st && (
+                      <span
+                        className={styles.pickStatus}
+                        data-tone={st.tone}
+                        data-testid={`providers-endpoint-status-${b}`}
+                      >
+                        {st.label}
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {cliOk ? (
+            <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+          ) : (
+            <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
+          )}
+        </>
       )}
     </div>
   );

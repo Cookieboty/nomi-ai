@@ -3,7 +3,7 @@
     {
       "name": "nomi",
       "displayName": "Nomi·诺米",
-      "description": "Nomi 品牌看板娘（默认角色，2D 表情立绘）",
+      "description": "Nomi·诺米（默认角色，2D 表情立绘）",
       "path": "./assets/models/sprite/nomi/manifest.json",
       "thumbnail": "./assets/models/sprite/nomi/thumb.png",
       "author": "Nomi-ai project owner (AI-generated)",

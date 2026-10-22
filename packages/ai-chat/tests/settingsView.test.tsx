@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
 import { ModalHostContext, Modal } from '@nomi-ai/ui';
-import { cleanup, fireEvent, render } from '@testing-library/react';
+import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SettingsView,
+  SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
   type SettingsSection,
   type SettingsTab,
@@ -32,6 +33,10 @@ const Harness = ({
 };
 
 describe('SettingsView', () => {
+  it('nav groups list every section exactly once, in section order', () => {
+    expect(SETTINGS_NAV_GROUPS.flat()).toEqual(SETTINGS_SECTIONS.map((s) => s.id));
+  });
+
   it('lists every section and switches between them; Esc returns to chat', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);
@@ -95,6 +100,98 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(s.getByTestId('settings-schedule').getAttribute('data-tab')).toBe('reminders');
     fireEvent.click(s.getByTestId('settings-schedule-tab-calendar'));
     expect(s.getByTestId('settings-calendar')).toBeTruthy();
+  });
+
+  it('侧栏品牌头；「通用」顶部是横幅且无可见页头；其余分区有标题 + 说明、无横幅', () => {
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    expect(r.getByTestId('settings-brand').textContent).toContain('Nomi · 诺米');
+    expect(r.queryByTestId('settings-sidebar-foot')).toBeNull();
+    const banner = r.getByTestId('settings-banner');
+    expect(banner.tagName).toBe('IMG');
+    expect(banner.getAttribute('aria-hidden')).toBe('true');
+    expect(banner.getAttribute('alt')).toBe('');
+    expect(banner.getAttribute('src')).toContain('nomi-banner.webp');
+    for (const s of SETTINGS_SECTIONS) {
+      fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
+      expect(r.getByTestId('settings-section-title').textContent).toBe(s.label);
+      expect(r.getByRole('main').getAttribute('aria-label')).toBe(s.label);
+      const general = s.id === 'general';
+      expect(r.queryAllByTestId('settings-banner')).toHaveLength(general ? 1 : 0);
+      if (general) {
+        expect(r.queryByTestId('settings-page-head')).toBeNull();
+      } else {
+        const head = r.getByTestId('settings-page-head');
+        expect(head.querySelector('h1')!.textContent).toBe(s.label);
+        expect(head.querySelector('p')!.textContent).toBe(s.intro);
+      }
+    }
+  });
+
+  it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏有副标题与「设置」分组', async () => {
+    const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 Nomi·诺米');
+    expect(r.queryByTestId('settings-help')).toBeNull();
+    fireEvent.click(r.getByTestId('settings-nav-models'));
+    const help = r.getByTestId('settings-help');
+    const items = help.querySelectorAll('li');
+    expect(items).toHaveLength(SECTION_HELP.models.length);
+    expect(help.textContent).toContain('第三方供应商');
+    for (const s of SETTINGS_SECTIONS)
+      if (s.id !== 'general') expect(SECTION_HELP[s.id].length).toBeGreaterThan(0);
+  });
+
+  it('快捷键：「应用内快捷键 / 全局快捷键」两个标签，全局只列系统注册的截图快捷键', () => {
+    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
+    const page = 'settings-shortcuts-page';
+    expect(r.getByTestId(`${page}-tab-app`).getAttribute('aria-selected')).toBe('true');
+    expect(r.getByTestId('settings-shortcuts')).toBeTruthy();
+    fireEvent.click(r.getByTestId(`${page}-tab-global`));
+    expect(r.queryByTestId('settings-shortcuts')).toBeNull();
+    const global = r.getByTestId('settings-shortcuts-global');
+    expect(global.querySelectorAll('tbody tr')).toHaveLength(1);
+    expect(global.textContent).toContain('截图提问');
+  });
+
+  it('快捷键冲突时顶部出现横幅，列出冲突项；恢复后消失', async () => {
+    const { setBinding, resetBindings } = await import('../src/services/shortcuts');
+    setBinding('newChat', 'Mod+K'); // 与「命令面板」相同
+    const r = render(<Harness onClose={() => undefined} start="shortcuts" />);
+    const banner = r.getByTestId('shortcut-conflict-banner');
+    expect(banner.textContent).toContain('命令面板');
+    expect(banner.textContent).toContain('新对话');
+    act(() => resetBindings());
+    expect(r.queryByTestId('shortcut-conflict-banner')).toBeNull();
+  });
+
+  it('通用：横幅下是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、常驻入口、关于与更新', () => {
+    const r = render(<Harness onClose={() => undefined} start="general" />);
+    for (const id of ['version', 'theme', 'language'])
+      expect(r.getByTestId(`settings-hero-${id}`)).toBeTruthy();
+    expect(r.getByTestId('settings-hero-theme').textContent).toContain('主题');
+    const appearance = r.getByTestId('settings-appearance');
+    expect(appearance.querySelector('[data-testid="theme-settings"]')).toBeTruthy();
+    expect(appearance.querySelector('[data-testid="settings-chat-bg"]')).toBeTruthy();
+    // 没有桌面桥时「启动与窗口」只有语言一行
+    const g = r.getByTestId('settings-basic-group');
+    expect(g.querySelector('[data-testid="language-settings"]')).toBeTruthy();
+    const order = [...r.container.querySelectorAll('[data-testid]')]
+      .map((e) => e.getAttribute('data-testid'))
+      .filter((id) =>
+        [
+          'settings-appearance',
+          'settings-basic-group',
+          'pins-settings',
+          'settings-updates',
+        ].includes(id!),
+      );
+    expect(order).toEqual([
+      'settings-appearance',
+      'settings-basic-group',
+      'pins-settings',
+      'settings-updates',
+    ]);
+    expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
   it('菜单只有合并后的 12 个分区', () => {

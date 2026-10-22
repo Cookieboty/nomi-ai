@@ -41,6 +41,11 @@ const MAX_ATTEMPTS = 4;
 const MAX_LEARN_RETRIES = 2;
 /** 首字节前单次尝试的超时 */
 const FIRST_BYTE_TIMEOUT_MS = 30_000;
+/**
+ * 响应头：实际服务这次请求的模型（`供应商/模型`）。回退到别的候选时与请求模型不同，
+ * Nomi 对话据此记账（#97；ai-runtime 的 NOMI_SERVED_MODEL_HEADER 与此一致）
+ */
+export const SERVED_MODEL_HEADER = 'x-nomi-served-model';
 /** 首字节之前所有尝试的总时长上限 */
 const FIRST_BYTE_BUDGET_MS = 60_000;
 /** 首字节之后上游连续无事件的上限 */
@@ -616,8 +621,13 @@ export class GatewayServer {
     if (noSearch) return { kind: 'failed', status: 400, message: noSearch, retryable: true, cand };
     if (notes.length)
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
-    const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
-    const both = AbortSignal.any([signal, timeout]);
+    // 只管到响应头为止：拿到响应后撤销，正文由流的空闲超时 / 用户取消管（#93）
+    const firstByte = new AbortController();
+    const timer = setTimeout(
+      () => firstByte.abort(),
+      this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS,
+    );
+    const both = AbortSignal.any([signal, firstByte.signal]);
     const headers = upstreamHeaders(cand, {
       stream: wantsStream,
       clientHeaders: req.headers,
@@ -641,7 +651,7 @@ export class GatewayServer {
         signal: both,
       });
     } catch (e) {
-      const timedOut = timeout.aborted && !signal.aborted;
+      const timedOut = firstByte.signal.aborted && !signal.aborted;
       return {
         kind: 'failed',
         status: timedOut ? 504 : 502,
@@ -650,6 +660,8 @@ export class GatewayServer {
         cand,
         network: !signal.aborted,
       };
+    } finally {
+      clearTimeout(timer);
     }
     if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
     const text = await res.text().catch(() => '');
@@ -684,6 +696,7 @@ export class GatewayServer {
     notes: string[] = [],
     trace?: RequestTrace | null,
   ): Promise<StreamUsage> {
+    res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
     const passthrough = ingress.wire === cand.wire && !cand.customToolsAsFunctions;
     const isSse = (up.headers.get('content-type') ?? '').includes('text/event-stream');
@@ -758,6 +771,9 @@ export class GatewayServer {
         }
       } catch (e) {
         if (!res.destroyed) {
+          // 已收到的完整事件先写出去，再报错（Responses 补全层还缓存着的部分，#94）
+          const tail = usageFix?.end();
+          if (tail) res.write(tail);
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
@@ -771,7 +787,17 @@ export class GatewayServer {
       }
       return tap.end();
     }
-    const text = await up.text();
+    let text: string;
+    try {
+      text = await up.text();
+    } catch (e) {
+      // 非流式正文读到一半上游断开：按入口协议回错误，不让请求挂着
+      const msg = `Nomi 网关：上游中断（${(e as Error).message}）`;
+      const err = errorResponse(ingress.wire, kindOfStatus(502, msg), msg);
+      if (!res.headersSent) sendJson(res, err.status, err.body);
+      else res.end();
+      return {};
+    }
     trace?.response(up.status, text);
     let parsed: unknown = text;
     try {

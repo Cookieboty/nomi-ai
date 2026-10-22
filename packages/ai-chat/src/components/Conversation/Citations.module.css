@@ -65,7 +65,7 @@
 
 .userMessage .messageContent {
   align-self: flex-end;
-  background: rgba(var(--cd-accent-rgb), 0.88);
+  background: var(--cd-color-accent);
   color: var(--cd-color-text-on-accent);
   padding: var(--cd-space-3) var(--cd-space-4);
   border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);

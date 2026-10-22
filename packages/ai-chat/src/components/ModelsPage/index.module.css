@@ -1,4 +1,7 @@
 .page {
+  --models-label-w: 144px;
+  --models-picker-w: minmax(180px, 280px);
+  --models-end-w: minmax(120px, 150px);
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-4);
@@ -7,17 +10,8 @@
 .head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--cd-space-4);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  margin: 0;
-  font-size: var(--cd-font-size-xl);
-  font-weight: var(--cd-font-weight-bold);
 }
 
 .protoBadge {
@@ -60,6 +54,15 @@
   font-size: var(--cd-font-size-sm);
 }
 
+/* 可关闭提示条：橙色淡底 + 图标 + 「知道了 ×」 */
+.notice {
+  border: 1px solid rgba(var(--cd-accent-rgb), 0.35);
+  color: var(--cd-color-text);
+}
+.notice > svg {
+  flex: none;
+  color: var(--cd-color-accent-strong);
+}
 .offer > span {
   flex: 1;
 }
@@ -67,7 +70,8 @@
 .card {
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
   padding: var(--cd-space-4);
   display: flex;
   flex-direction: column;
@@ -75,6 +79,9 @@
 }
 
 .cardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
   margin: 0;
   font-size: var(--cd-font-size-md);
   font-weight: var(--cd-font-weight-bold);
@@ -86,51 +93,48 @@
   justify-content: space-between;
 }
 
-.row {
-  display: flex;
+.row,
+.cliRow {
+  display: grid;
+  /* 标签列 | 模型列 | 弹性 | 末列：两张卡片共用同一套列宽，选择框左缘在同一条竖线上 */
+  grid-template-columns: var(--models-label-w) var(--models-picker-w) minmax(96px, 1fr) var(
+      --models-end-w
+    );
   align-items: center;
   gap: var(--cd-space-3);
   min-height: var(--cd-control-h-sm);
 }
 
-.subRow {
-  padding-left: var(--cd-space-4);
+.rowLabel {
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text);
+  white-space: nowrap;
 }
 
-.rowLabel {
-  min-width: 72px;
-  font-size: var(--cd-font-size-sm);
+/* 子项：只缩进标签，选择框仍与上一行对齐 */
+.rowLabelSub,
+.tierRow .cliName {
+  padding-left: var(--cd-space-5);
   color: var(--cd-color-text-muted);
 }
 
 .picker {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 供应商详情里「添加回退模型」 */
+.fallbackAdd {
   width: 220px;
 }
 
-.pickerWide {
-  width: 320px;
-}
-
 .cliHead {
-  display: flex;
-  justify-content: space-between;
   margin-top: var(--cd-space-3);
+  min-height: 0;
   padding-bottom: var(--cd-space-1);
   border-bottom: 1px solid var(--cd-color-border);
-  font-size: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
-}
-
-.cliRow {
-  display: grid;
-  grid-template-columns: 120px 1fr 150px;
-  align-items: center;
-  gap: var(--cd-space-3);
-  min-height: var(--cd-control-h-sm);
-}
-
-.cliMissing {
-  grid-template-columns: 120px 1fr auto;
 }
 
 /* 没安装：名称与说明变灰，「安装」按钮保持可用的样子 */
@@ -139,37 +143,29 @@
   opacity: 0.6;
 }
 
-.tierRow {
-  padding-left: var(--cd-space-5);
-}
-
-.tierRow .cliName {
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-muted);
+.cliMissing > button {
+  justify-self: start;
 }
 
 .cliName {
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-2);
+  min-width: 0;
   font-size: var(--cd-font-size-sm);
   white-space: nowrap;
 }
 
-.cliPickers {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  min-width: 0;
-}
-
-.tierLabel {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
-}
-
 .source {
-  width: 150px;
+  width: 100%;
+}
+
+.expand {
+  justify-self: start;
+  gap: var(--cd-space-1);
+  padding: 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  white-space: nowrap;
 }
 
 .expand,
@@ -177,7 +173,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--cd-control-h-sm);
+  min-width: var(--cd-control-h-sm);
   height: var(--cd-control-h-sm);
   border: none;
   border-radius: var(--cd-radius-sm);
@@ -217,11 +213,14 @@
 
 .providerMain {
   flex: 1;
-  display: flex;
+  min-width: 0;
+  display: grid;
+  /* 名称 | 协议 | Key 数 | 模型数 | 箭头：各行列宽固定，数字右对齐 */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px) 64px 72px 14px;
   align-items: center;
   gap: var(--cd-space-3);
   min-height: var(--cd-control-h-md);
-  padding: var(--cd-space-1) var(--cd-space-1);
+  padding: var(--cd-space-1) var(--cd-space-2);
   border: none;
   border-radius: var(--cd-radius-sm);
   background: transparent;
@@ -235,15 +234,32 @@
 }
 
 .providerName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+
+.providerLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: var(--cd-font-weight-medium);
-  min-width: 96px;
 }
 
 .wires {
   display: inline-flex;
   flex-wrap: wrap;
   gap: var(--cd-space-1);
-  flex: 1;
+  min-width: 0;
+}
+
+.count {
+  justify-self: end;
+  font-size: var(--cd-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
 }
 
 .wireTag {
@@ -588,6 +604,20 @@
 
 .keyNameInput {
   width: 160px;
+}
+
+.linkBtn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+}
+
+.linkBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
 }
 
 .masked {

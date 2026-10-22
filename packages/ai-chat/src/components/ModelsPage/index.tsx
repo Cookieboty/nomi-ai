@@ -19,8 +19,13 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Boxes,
+  Info,
   MoreHorizontal,
   Plus,
+  SquareTerminal,
+  Waypoints,
+  X,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
@@ -52,12 +57,15 @@ type ModelsPatch = Partial<Omit<Record<keyof ClientModels, string | null>, 'tier
 };
 type TierId = keyof NonNullable<ClientModels['tiers']>;
 
-/** Claude Code 可单独指定的档位（不展开时跟随主模型 / 小模型） */
-const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string; follows: 'main' | 'small' }> = [
-  { id: 'opus', label: 'Opus 档', follows: 'main' },
-  { id: 'sonnet', label: 'Sonnet 档', follows: 'main' },
-  { id: 'haiku', label: 'Haiku 档', follows: 'small' },
-  { id: 'fable', label: 'Fable 档', follows: 'main' },
+/**
+ * Claude Code 可单独指定的档位（不展开时都跟随主模型）。
+ * Haiku 档就是 Claude Code 跑后台任务（起标题、摘要等）用的快速模型，旧版本的「小模型」已并入这里。
+ */
+const CLAUDE_TIERS: ReadonlyArray<{ id: TierId; label: string }> = [
+  { id: 'opus', label: 'Opus 档' },
+  { id: 'sonnet', label: 'Sonnet 档' },
+  { id: 'haiku', label: 'Haiku 档 · 后台任务' },
+  { id: 'fable', label: 'Fable 档' },
 ];
 
 export const ModelsPage: React.FC = () => {
@@ -110,14 +118,6 @@ export const ModelsPage: React.FC = () => {
   return (
     <div className={styles.page} data-testid="models-page">
       <div className={styles.head}>
-        <div>
-          <h2 className={styles.title}>{t('模型')}</h2>
-          <p className={styles.sub}>
-            {t(
-              '一个第三方供应商就能同时给 Nomi 对话和各编程助手用，协议由 Nomi 自动转换。官方账号的登录与切换仍在「编程助手」页。',
-            )}
-          </p>
-        </div>
         <label className={styles.inlineSwitch}>
           <Switch checked={showWire} onChange={setShowWire} aria-label={t('显示协议')} />
           <span>{t('显示协议')}</span>
@@ -134,7 +134,12 @@ export const ModelsPage: React.FC = () => {
         </div>
       )}
       {state?.legacyRevoke?.revoked.length && !revokeSeen ? (
-        <div className={styles.offer} role="status" data-testid="legacy-revoked">
+        <div
+          className={`${styles.offer} ${styles.notice}`}
+          role="status"
+          data-testid="legacy-revoked"
+        >
+          <Icon icon={Info} size={16} />
           <span>
             {t(
               '终端里的 CLI 已恢复为你自己的配置和官方登录；第三方模型现在在 Nomi 的标签里使用（右上角选「第三方」）。',
@@ -142,6 +147,7 @@ export const ModelsPage: React.FC = () => {
           </span>
           <Button size="sm" variant="ghost" onClick={() => setRevokeSeen(true)}>
             {t('知道了')}
+            <Icon icon={X} size={14} />
           </Button>
         </div>
       ) : null}
@@ -179,13 +185,14 @@ export const ModelsPage: React.FC = () => {
 
       <section className={styles.card} aria-labelledby="models-assign">
         <h3 id="models-assign" className={styles.cardTitle}>
+          <Icon icon={Waypoints} size={16} />
           {t('分配')}
         </h3>
         <div className={styles.row}>
           <span className={styles.rowLabel}>{t('Nomi 对话')}</span>
           <ModelPicker
             {...common}
-            className={styles.pickerWide}
+            className={styles.picker}
             value={nomi.main ?? null}
             onChange={(v) => assign({ main: v })}
             placeholder={picker.length ? t('选择模型') : t('先添加第三方供应商')}
@@ -194,8 +201,8 @@ export const ModelsPage: React.FC = () => {
             data-testid="assign-chat"
           />
         </div>
-        <div className={`${styles.row} ${styles.subRow}`}>
-          <span className={styles.rowLabel}>{t('工具调用')}</span>
+        <div className={styles.row}>
+          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>{t('工具调用')}</span>
           <ModelPicker
             {...common}
             className={styles.picker}
@@ -206,7 +213,9 @@ export const ModelsPage: React.FC = () => {
             aria-label={t('工具调用的模型')}
             data-testid="assign-tools"
           />
-          <span className={styles.rowLabel}>{t('摘要')}</span>
+        </div>
+        <div className={styles.row}>
+          <span className={`${styles.rowLabel} ${styles.rowLabelSub}`}>{t('摘要')}</span>
           <ModelPicker
             {...common}
             className={styles.picker}
@@ -222,6 +231,7 @@ export const ModelsPage: React.FC = () => {
 
       <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
         <h3 id="models-cli" className={styles.cardTitle}>
+          <Icon icon={SquareTerminal} size={16} />
           {t('编程助手')}
         </h3>
         <p className={styles.sub}>
@@ -229,8 +239,10 @@ export const ModelsPage: React.FC = () => {
             '每个编程助手的标签都可以在右上角选「官方账号」或「第三方」。这里设置选「第三方」时默认用的模型，以及新建标签默认用哪个；不会改 CLI 的全局配置。',
           )}
         </p>
-        <div className={styles.cliHead}>
+        <div className={`${styles.cliRow} ${styles.cliHead}`}>
+          <span />
           <span>{t('第三方模型')}</span>
+          <span />
           <span>{t('新标签默认用')}</span>
         </div>
         {CLI_KINDS.map((kind) => (
@@ -254,6 +266,7 @@ export const ModelsPage: React.FC = () => {
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>
           <h3 id="models-providers" className={styles.cardTitle}>
+            <Icon icon={Boxes} size={16} />
             {t('第三方供应商')}
           </h3>
           <Button
@@ -332,6 +345,7 @@ const CliRow: React.FC<{
           {name}
         </span>
         <span className={styles.muted}>{t('未安装')}</span>
+        <span />
         <Button
           size="sm"
           variant="secondary"
@@ -365,8 +379,15 @@ const CliRow: React.FC<{
       ...(source === 'thirdParty' ? { newTabSource: 'official' as const } : {}),
     });
   };
+  /** 旧配置只设了「小模型」时，Haiku 档显示它；改 Haiku 档时一并清掉旧字段 */
+  const tierValue = (id: TierId) => m.tiers?.[id] ?? (id === 'haiku' ? m.small : undefined);
   const setTier = (id: TierId, v: string) =>
-    onAssign({ models: { tiers: { ...m.tiers, [id]: v === FOLLOW ? null : v } } });
+    onAssign({
+      models: {
+        tiers: { ...m.tiers, [id]: v === FOLLOW ? null : v },
+        ...(id === 'haiku' && m.small ? { small: null } : {}),
+      },
+    });
   return (
     <>
       <div className={styles.cliRow} data-testid={`cli-row-${kind}`}>
@@ -374,46 +395,31 @@ const CliRow: React.FC<{
           <EndpointIcon backend={kind} size={16} decorative />
           {name}
         </span>
-        <span className={styles.cliPickers}>
-          {claude && <span className={styles.tierLabel}>{t('主')}</span>}
-          <ModelPicker
-            {...common}
-            purpose="coding"
-            className={styles.picker}
-            extraOptions={[{ value: UNSET, label: t('未设置') }]}
-            value={m.main ?? UNSET}
-            onChange={setMain}
-            disabled={disabled}
-            aria-label={t('{0} 的第三方模型', name)}
-            data-testid={`cli-main-${kind}`}
-          />
-          {claude && (
-            <>
-              <span className={styles.tierLabel}>{t('小')}</span>
-              <ModelPicker
-                {...common}
-                purpose="coding"
-                className={styles.picker}
-                extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-                value={m.small ?? FOLLOW}
-                onChange={(v) => onAssign({ models: { small: v === FOLLOW ? null : v } })}
-                disabled={disabled}
-                aria-label={t('Claude Code 的小模型')}
-                data-testid="cli-small-claude"
-              />
-              <button
-                type="button"
-                className={styles.expand}
-                aria-expanded={open}
-                aria-label={t('各档模型')}
-                data-testid="cli-tiers-toggle"
-                onClick={onToggle}
-              >
-                <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-              </button>
-            </>
-          )}
-        </span>
+        <ModelPicker
+          {...common}
+          purpose="coding"
+          className={styles.picker}
+          extraOptions={[{ value: UNSET, label: t('未设置') }]}
+          value={m.main ?? UNSET}
+          onChange={setMain}
+          disabled={disabled}
+          aria-label={t('{0} 的第三方模型', name)}
+          data-testid={`cli-main-${kind}`}
+        />
+        {claude ? (
+          <button
+            type="button"
+            className={styles.expand}
+            aria-expanded={open}
+            data-testid="cli-tiers-toggle"
+            onClick={onToggle}
+          >
+            <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+            {t('各档模型')}
+          </button>
+        ) : (
+          <span />
+        )}
         <Select
           size="sm"
           className={styles.source}
@@ -430,43 +436,32 @@ const CliRow: React.FC<{
           {CLAUDE_TIERS.map((tier) => (
             <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
               <span className={styles.cliName}>{t(tier.label)}</span>
-              <span className={styles.cliPickers}>
-                <ModelPicker
-                  {...common}
-                  purpose="coding"
-                  className={styles.picker}
-                  extraOptions={[
-                    {
-                      value: FOLLOW,
-                      label: tier.follows === 'main' ? t('跟随主模型') : t('跟随小模型'),
-                    },
-                  ]}
-                  value={m.tiers?.[tier.id] ?? FOLLOW}
-                  onChange={(v) => setTier(tier.id, v)}
-                  disabled={disabled}
-                  aria-label={t('Claude Code 的{0}', t(tier.label))}
-                  data-testid={`cli-tier-${tier.id}`}
-                />
-              </span>
-              <span />
-            </div>
-          ))}
-          <div className={`${styles.cliRow} ${styles.tierRow}`}>
-            <span className={styles.cliName}>{t('子代理')}</span>
-            <span className={styles.cliPickers}>
               <ModelPicker
                 {...common}
                 purpose="coding"
                 className={styles.picker}
                 extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-                value={m.subagent ?? FOLLOW}
-                onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
+                value={tierValue(tier.id) ?? FOLLOW}
+                onChange={(v) => setTier(tier.id, v)}
                 disabled={disabled}
-                aria-label={t('Claude Code 的子代理模型')}
-                data-testid="cli-subagent"
+                aria-label={t('Claude Code 的{0}', t(tier.label))}
+                data-testid={`cli-tier-${tier.id}`}
               />
-            </span>
-            <span />
+            </div>
+          ))}
+          <div className={`${styles.cliRow} ${styles.tierRow}`}>
+            <span className={styles.cliName}>{t('子代理')}</span>
+            <ModelPicker
+              {...common}
+              purpose="coding"
+              className={styles.picker}
+              extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
+              value={m.subagent ?? FOLLOW}
+              onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
+              disabled={disabled}
+              aria-label={t('Claude Code 的子代理模型')}
+              data-testid="cli-subagent"
+            />
           </div>
         </>
       )}
@@ -498,15 +493,16 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
           aria-haspopup="dialog"
           data-testid={`provider-open-${p.id}`}
         >
-          <BrandIcon brand={p.presetId ?? p.id} name={p.name} size={20} />
-          <span className={styles.providerName}>{name}</span>
-          {warning && (
-            <span className={styles.warnDot} title={warning} aria-label={warning}>
-              <Icon icon={AlertCircle} size={14} />
-            </span>
-          )}
-          {fromEnv && <span className={styles.badgeMuted}>{t('环境变量')}</span>}
-          <span className={styles.muted}>{t('{0} 个 Key', String(p.keys.length))}</span>
+          <span className={styles.providerName}>
+            <BrandIcon brand={p.presetId ?? p.id} name={p.name} size={20} />
+            <span className={styles.providerLabel}>{name}</span>
+            {warning && (
+              <span className={styles.warnDot} title={warning} aria-label={warning}>
+                <Icon icon={AlertCircle} size={14} />
+              </span>
+            )}
+            {fromEnv && <span className={styles.badgeMuted}>{t('环境变量')}</span>}
+          </span>
           <span className={styles.wires}>
             {wires.map((w) => (
               <span key={w} className={styles.wireTag}>
@@ -515,7 +511,9 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
               </span>
             ))}
           </span>
-          <span className={styles.muted}>{t('{0} 个模型', String(enabledCount))}</span>
+          <span className={styles.count}>{t('{0} 个 Key', String(p.keys.length))}</span>
+          <span className={styles.count}>{t('{0} 个模型', String(enabledCount))}</span>
+          <Icon icon={ChevronRight} size={14} />
         </button>
         <button
           type="button"

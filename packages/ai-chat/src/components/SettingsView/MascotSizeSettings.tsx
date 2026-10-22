@@ -1,11 +1,11 @@
 /**
- * 设置 → 通用：看板娘大小（滑块 + 重置）。
+ * 设置 → 通用：Nomi 大小（滑块 + 重置）。
  * 主进程 mascot/MascotWindowController.ts（mascot:scale-*）负责夹紧到当前屏幕、调整窗口并保持
  * 脚底中心不动、持久化；看板娘本体上的 Ctrl/⌘+滚轮、右键菜单、工具栏「更多」是另外几个入口，
  * 它们改动后会广播到这里，滑块同步。
  */
 import type { MascotScaleState } from '@nomi-ai/types';
-import { Button, t } from '@nomi-ai/ui';
+import { Button, SettingRow, t } from '@nomi-ai/ui';
 import { Minus, Plus } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
@@ -25,7 +25,8 @@ function api(): MascotApi | null {
 
 const pct = (v: number) => Math.round(v * 100);
 
-export const MascotSizeSettings: React.FC = () => {
+/** 一行设置（放在「桌面 Nomi」分组里）；看板娘隐藏时整行置灰 */
+export const MascotSizeSettings: React.FC<{ disabled?: boolean }> = ({ disabled = false }) => {
   const [state, setState] = useState<MascotScaleState | null>(null);
   const [value, setValue] = useState<number | null>(null);
   const dragging = useRef(false);
@@ -58,9 +59,28 @@ export const MascotSizeSettings: React.FC = () => {
     if (state) setValue(state.scale);
   };
 
+  const off = !s || disabled;
+
   return (
-    <section className={styles.block} data-testid="settings-mascot-size">
-      <h2 className={styles.h2}>{t('看板娘大小')}</h2>
+    <SettingRow
+      data-testid="settings-mascot-size"
+      title={t('Nomi 大小')}
+      description={
+        <>
+          {disabled
+            ? t('Nomi 已隐藏，打开后才能调整大小。')
+            : t('也可以在 Nomi 身上按住 Ctrl（macOS 为 ⌘）并滚动滚轮，或右键选择放大 / 缩小。')}
+          {s && s.max < s.hardMax - 1e-6 && (
+            <>
+              {' '}
+              <span data-testid="mascot-size-cap">
+                {t('当前屏幕最大 {0}%').replace('{0}', String(pct(s.max)))}
+              </span>
+            </>
+          )}
+        </>
+      }
+    >
       <div className={styles.sizeRow}>
         <Button
           type="button"
@@ -68,7 +88,7 @@ export const MascotSizeSettings: React.FC = () => {
           size="sm"
           aria-label={t('缩小')}
           data-testid="mascot-size-minus"
-          disabled={!s || shown <= s.min + 1e-6}
+          disabled={off || shown <= s.min + 1e-6}
           onClick={() => s && set(Math.max(s.min, Math.round((shown - s.step) * 100) / 100))}
         >
           <Minus size={16} strokeWidth={1.75} aria-hidden />
@@ -80,8 +100,8 @@ export const MascotSizeSettings: React.FC = () => {
           max={s?.max ?? 1.5}
           step={0.01}
           value={shown}
-          disabled={!s}
-          aria-label={t('看板娘大小')}
+          disabled={off}
+          aria-label={t('Nomi 大小')}
           aria-valuetext={`${pct(shown)}%`}
           data-testid="mascot-size-slider"
           onPointerDown={() => {
@@ -98,7 +118,7 @@ export const MascotSizeSettings: React.FC = () => {
           size="sm"
           aria-label={t('放大')}
           data-testid="mascot-size-plus"
-          disabled={!s || shown >= s.max - 1e-6}
+          disabled={off || shown >= s.max - 1e-6}
           onClick={() => s && set(Math.min(s.max, Math.round((shown + s.step) * 100) / 100))}
         >
           <Plus size={16} strokeWidth={1.75} aria-hidden />
@@ -108,10 +128,10 @@ export const MascotSizeSettings: React.FC = () => {
         </span>
         <Button
           type="button"
-          variant="secondary"
+          variant="ghost"
           size="sm"
           data-testid="mascot-size-reset"
-          disabled={!s || Math.abs(shown - s.default) < 1e-6}
+          disabled={off || Math.abs(shown - s.default) < 1e-6}
           onClick={() =>
             void a.scaleReset().then((r) => {
               setState(r);
@@ -119,20 +139,9 @@ export const MascotSizeSettings: React.FC = () => {
             })
           }
         >
-          {t('重置为默认')}
+          {t('重置')}
         </Button>
       </div>
-      <p className={styles.muted}>
-        {t('也可以在看板娘身上按住 Ctrl（macOS 为 ⌘）并滚动滚轮，或右键选择放大 / 缩小。')}
-        {s && s.max < s.hardMax - 1e-6 && (
-          <>
-            {' '}
-            <span data-testid="mascot-size-cap">
-              {t('当前屏幕最大 {0}%').replace('{0}', String(pct(s.max)))}
-            </span>
-          </>
-        )}
-      </p>
-    </section>
+    </SettingRow>
   );
 };

@@ -26,6 +26,11 @@ export interface TtsModelControllerDeps {
   getVoiceEnabled: () => boolean;
   /** 持久化 voiceSettings.enabled 并广播给渲染进程 */
   setVoiceEnabled: (enabled: boolean) => void;
+  /**
+   * 用户打开语音时把朗读引擎配置（tts-config.json）也设为启用：旧版设置页关掉的引擎没有别的入口
+   * 能再打开，否则开关是开的、朗读却一直是「tts disabled」（#82）。关闭语音时不动它。
+   */
+  enableEngine?: () => void;
   /** 当前 TTS provider 是否本地 sherpa（只有 sherpa 需要模型） */
   usesSherpa: () => boolean;
   /** CD_TTS=off（E2E）时不自动下载 */
@@ -92,6 +97,7 @@ export class TtsModelController {
       return { ok: true, voiceEnabled: false, status: this.state() };
     }
     if (!alreadyPersisted) this.deps.setVoiceEnabled(true);
+    this.deps.enableEngine?.();
     this.push();
     if (!this.deps.usesSherpa() || this.deps.sherpa.isReady()) {
       return { ok: true, voiceEnabled: true, status: this.state() };

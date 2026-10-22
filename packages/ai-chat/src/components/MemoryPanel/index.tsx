@@ -422,6 +422,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               </span>
             )}
             <Tabs
+              variant="underline"
               value={tab}
               onChange={(v) => {
                 setTab(v as Tab);
@@ -581,122 +582,185 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             {tab === 'settings' && (
               <div className={styles.stack} data-testid="mem-settings">
-                <Switch
-                  checked={st.settings.enabled}
-                  onChange={(v) => void memClient.setSettings({ enabled: v })}
-                  label={tr('启用长期记忆')}
-                />
-                <Switch
-                  checked={st.settings.autoSummarize}
-                  disabled={!st.settings.enabled}
-                  onChange={(v) => void memClient.setSettings({ autoSummarize: v })}
-                  label={tr('自动整理对话（关闭窗口、新建对话或每 10 条消息）')}
-                />
-                <Switch
-                  checked={st.settings.recall}
-                  disabled={!st.settings.enabled}
-                  onChange={(v) => void memClient.setSettings({ recall: v })}
-                  label={tr('回答时回忆相关的过往对话')}
-                />
-                <div className={styles.row}>
-                  <span className={styles.grow}>{tr('每次最多回忆')}</span>
-                  <span className={styles.selectBox}>
-                    <Select
-                      size="sm"
-                      value={String(st.settings.topK)}
-                      options={[1, 2, 3, 5, 8].map((n) => ({
-                        value: String(n),
-                        label: tr('{0} 条', n),
-                      }))}
-                      onChange={(e) => void memClient.setSettings({ topK: Number(e.target.value) })}
-                      data-testid="mem-topk"
-                    />
-                  </span>
-                </div>
-                <div className={styles.row}>
-                  <span className={styles.grow}>
-                    {tr('向量：')}
-                    {st.stats.vectors} / {st.stats.episodes + st.stats.facts}
-                    {tr('（使用知识库「向量与重排」里配置的服务）')}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void memClient
-                        .backfill()
-                        .then((n) =>
-                          setMsg(
-                            n
-                              ? tr('已补全 {0} 条向量', n)
-                              : tr('没有可补全的向量（请先在知识库里开启向量服务）'),
-                          ),
-                        )
-                    }
-                  >
-                    {tr('补全向量')}
-                  </Button>
-                </div>
-                <h4 className={styles.sectionTitle}>{tr('导出与清除')}</h4>
-                <div className={styles.row}>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => void doExport('json')}
-                    data-testid="mem-export-json"
-                  >
-                    {tr('导出 JSON')}
-                  </Button>
-                  <Button size="sm" variant="secondary" onClick={() => void doExport('md')}>
-                    {tr('导出 Markdown')}
-                  </Button>
-                  <span className={styles.grow} />
-                  {confirmClear ? (
-                    <>
-                      <span className={styles.err}>
-                        {tr('将删除全部对话记忆和「关于我」，无法撤销')}
+                <section className={styles.section} aria-labelledby="mem-set-recall">
+                  <h4 id="mem-set-recall" className={styles.sectionTitle}>
+                    {tr('记忆')}
+                  </h4>
+                  <div className={styles.items}>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('启用长期记忆')}</span>
+                        <p className={styles.hint}>
+                          {tr('关闭后不再整理新对话，回答时也不参考记忆；已有记忆保留。')}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={st.settings.enabled}
+                        onChange={(v) => void memClient.setSettings({ enabled: v })}
+                        aria-label={tr('启用长期记忆')}
+                      />
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('自动整理对话')}</span>
+                        <p className={styles.hint}>{tr('关闭窗口、新建对话或每 10 条消息时')}</p>
+                      </div>
+                      <Switch
+                        checked={st.settings.autoSummarize}
+                        disabled={!st.settings.enabled}
+                        onChange={(v) => void memClient.setSettings({ autoSummarize: v })}
+                        aria-label={tr('自动整理对话（关闭窗口、新建对话或每 10 条消息）')}
+                      />
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('回答时回忆相关的过往对话')}</span>
+                      </div>
+                      <Switch
+                        checked={st.settings.recall}
+                        disabled={!st.settings.enabled}
+                        onChange={(v) => void memClient.setSettings({ recall: v })}
+                        aria-label={tr('回答时回忆相关的过往对话')}
+                      />
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('每次最多回忆')}</span>
+                      </div>
+                      <span className={styles.selectBox}>
+                        <Select
+                          size="sm"
+                          value={String(st.settings.topK)}
+                          options={[1, 2, 3, 5, 8].map((n) => ({
+                            value: String(n),
+                            label: tr('{0} 条', n),
+                          }))}
+                          onChange={(e) =>
+                            void memClient.setSettings({ topK: Number(e.target.value) })
+                          }
+                          aria-label={tr('每次最多回忆')}
+                          data-testid="mem-topk"
+                        />
                       </span>
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>
+                          {tr('向量：')}
+                          {st.stats.vectors} / {st.stats.episodes + st.stats.facts}
+                        </span>
+                        <p className={styles.hint}>{tr('使用知识库「向量与重排」里配置的服务')}</p>
+                      </div>
                       <Button
                         size="sm"
-                        variant="danger"
+                        variant="secondary"
                         onClick={() =>
-                          void memClient.clear().then(() => {
-                            setConfirmClear(false);
-                            setMsg(tr('已清除全部记忆'));
-                          })
+                          void memClient
+                            .backfill()
+                            .then((n) =>
+                              setMsg(
+                                n
+                                  ? tr('已补全 {0} 条向量', n)
+                                  : tr('没有可补全的向量（请先在知识库里开启向量服务）'),
+                              ),
+                            )
                         }
                       >
-                        {tr('确认清除')}
+                        {tr('补全向量')}
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setConfirmClear(false)}>
-                        {tr('取消')}
+                    </div>
+                  </div>
+                </section>
+
+                <section className={styles.section} aria-labelledby="mem-set-data">
+                  <h4 id="mem-set-data" className={styles.sectionTitle}>
+                    {tr('导出与清除')}
+                  </h4>
+                  <div className={styles.items}>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('导出全部记忆')}</span>
+                        <p className={styles.hint}>
+                          {tr('包括对话记忆、「关于我」和回复偏好画像。')}
+                        </p>
+                      </div>
+                      <div className={styles.itemCtrl}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => void doExport('json')}
+                          data-testid="mem-export-json"
+                        >
+                          {tr('导出 JSON')}
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => void doExport('md')}>
+                          {tr('导出 Markdown')}
+                        </Button>
+                      </div>
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('重置偏好画像')}</span>
+                        <p className={styles.hint}>
+                          {tr(
+                            '规则提取的回复偏好（语言 / 风格 / 语气）保存在用户画像里，也会一并导出。',
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          void memClient.resetProfile().then(() => setMsg(tr('已重置用户画像')))
+                        }
+                      >
+                        {tr('重置')}
                       </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setConfirmClear(true)}
-                      data-testid="mem-clear"
-                    >
-                      {tr('清除全部记忆')}
-                    </Button>
-                  )}
-                </div>
-                <div className={styles.row}>
-                  <span className={`${styles.hint} ${styles.grow}`}>
-                    {tr('规则提取的回复偏好（语言 / 风格 / 语气）保存在用户画像里，也会一并导出。')}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() =>
-                      void memClient.resetProfile().then(() => setMsg(tr('已重置用户画像')))
-                    }
-                  >
-                    {tr('重置偏好画像')}
-                  </Button>
-                </div>
+                    </div>
+                    <div className={styles.item}>
+                      <div className={styles.itemText}>
+                        <span className={styles.itemTitle}>{tr('清除全部记忆')}</span>
+                        <p className={confirmClear ? styles.err : styles.hint}>
+                          {tr('将删除全部对话记忆和「关于我」，无法撤销')}
+                        </p>
+                      </div>
+                      <div className={styles.itemCtrl}>
+                        {confirmClear ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setConfirmClear(false)}
+                            >
+                              {tr('取消')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() =>
+                                void memClient.clear().then(() => {
+                                  setConfirmClear(false);
+                                  setMsg(tr('已清除全部记忆'));
+                                })
+                              }
+                            >
+                              {tr('确认清除')}
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            onClick={() => setConfirmClear(true)}
+                            data-testid="mem-clear"
+                          >
+                            {tr('清除')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </section>
                 <p className={styles.hint}>
                   {tr('快捷键：')}
                   <span className={styles.kbd}>Ctrl/⌘ + Shift + M</span> {tr('打开记忆 ·')}{' '}

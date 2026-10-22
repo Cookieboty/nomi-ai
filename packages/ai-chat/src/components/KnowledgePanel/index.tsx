@@ -288,12 +288,27 @@ const OcrRow: React.FC<{
   const pct = dl && dl.total ? Math.round((dl.received / dl.total) * 100) : 0;
   return (
     <>
-      <Card
-        data-testid={`kb-ocr-${a.lang}`}
-        title={tr(a.name)}
-        subtitle={`${fmtBytes(a.bytes)} · ${a.license}`}
-        actions={
-          a.installed ? (
+      <div className={styles.item} data-testid={`kb-ocr-${a.lang}`}>
+        <div className={styles.itemText}>
+          <span className={styles.itemTitle}>{tr(a.name)}</span>
+          <p className={styles.hint}>
+            {fmtBytes(a.bytes)} · {a.license} · {tr(a.description)}
+          </p>
+          {dl && (
+            <div className={styles.stack} style={{ gap: 4 }}>
+              <div className={styles.bar}>
+                <div className={styles.barFill} style={{ width: `${pct}%` }} />
+              </div>
+              <span className={styles.hint}>
+                {fmtBytes(dl.received)} / {fmtBytes(dl.total)}（{pct}%）
+              </span>
+            </div>
+          )}
+          {live?.phase === 'error' && <span className={styles.err}>{live.error}</span>}
+          {live?.phase === 'cancelled' && <span className={styles.hint}>{tr('已取消下载')}</span>}
+        </div>
+        <div className={styles.itemCtrl}>
+          {a.installed ? (
             <>
               <Badge tone="success">{tr('已安装')}</Badge>
               <Button size="sm" variant="ghost" onClick={() => void kbClient.ocrRemove(a.id)}>
@@ -312,29 +327,15 @@ const OcrRow: React.FC<{
           ) : (
             <Button
               size="sm"
-              variant="primary"
+              variant="secondary"
               onClick={() => setConfirm(true)}
               data-testid="kb-ocr-download"
             >
               {tr('下载')}
             </Button>
-          )
-        }
-      >
-        <p className={styles.hint}>{tr(a.description)}</p>
-        {dl && (
-          <div className={styles.stack} style={{ gap: 4 }}>
-            <div className={styles.bar}>
-              <div className={styles.barFill} style={{ width: `${pct}%` }} />
-            </div>
-            <span className={styles.hint}>
-              {fmtBytes(dl.received)} / {fmtBytes(dl.total)}（{pct}%）
-            </span>
-          </div>
-        )}
-        {live?.phase === 'error' && <span className={styles.err}>{live.error}</span>}
-        {live?.phase === 'cancelled' && <span className={styles.hint}>{tr('已取消下载')}</span>}
-      </Card>
+          )}
+        </div>
+      </div>
       {/* 弹层挂到 body：外层 Modal / Card 的 backdrop-filter 会让 fixed 定位失效 */}
       {confirm &&
         createPortal(
@@ -493,6 +494,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
             </div>
             <ProgressBox p={st.progress} />
             <Tabs
+              variant="underline"
               value={tab}
               onChange={(v) => {
                 setTab(v as Tab);
@@ -515,6 +517,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
               <div className={styles.stack} data-testid="kb-sources">
                 <div className={styles.row}>
                   <Button
+                    size="sm"
                     variant="primary"
                     onClick={() => void addFolder()}
                     data-testid="kb-add-folder"
@@ -524,6 +527,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   </Button>
                   {!hasNotes && (
                     <Button
+                      size="sm"
                       variant="secondary"
                       onClick={() => void kbClient.addNotes()}
                       data-testid="kb-add-notes"
@@ -560,11 +564,6 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     description={tr(
                       '加入一个文件夹（支持 txt / md / pdf / docx / odt / rtf / xlsx / csv，开启 OCR 后还能识别图片），Nomi 就能基于你的资料回答并标注出处。',
                     )}
-                    action={
-                      <Button variant="primary" onClick={() => void addFolder()}>
-                        {tr('选择文件夹')}
-                      </Button>
-                    }
                   />
                 ) : (
                   st.sources.map((s) => (
@@ -703,44 +702,59 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   onMsg={setMsg}
                 />
                 <section className={styles.section}>
-                  <div className={styles.row}>
-                    <h4 className={`${styles.sectionTitle} ${styles.grow}`}>
-                      {tr('每次引用片段数')}
-                    </h4>
-                    <Select
-                      size="sm"
-                      value={String(st.settings.topK)}
-                      onChange={(e) => void kbClient.setSettings({ topK: Number(e.target.value) })}
-                      options={[4, 6, 8, 10].map((n) => ({
-                        value: String(n),
-                        label: tr('{0} 段', n),
-                      }))}
-                      data-testid="kb-topk"
-                    />
+                  <div className={styles.item}>
+                    <div className={styles.itemText}>
+                      <h4 className={styles.sectionTitle}>{tr('每次引用片段数')}</h4>
+                      <p className={styles.hint}>
+                        {tr('知识库问答时附给模型的片段数量；越多越全面，也越占上下文。')}
+                      </p>
+                    </div>
+                    <span className={styles.selectBox}>
+                      <Select
+                        size="sm"
+                        value={String(st.settings.topK)}
+                        onChange={(e) =>
+                          void kbClient.setSettings({ topK: Number(e.target.value) })
+                        }
+                        options={[4, 6, 8, 10].map((n) => ({
+                          value: String(n),
+                          label: tr('{0} 段', n),
+                        }))}
+                        data-testid="kb-topk"
+                      />
+                    </span>
                   </div>
                 </section>
               </div>
             )}
 
             {tab === 'ocr' && (
-              <div className={styles.stack} data-testid="kb-ocr">
-                <Switch
-                  checked={st.settings.ocr.enabled}
-                  onChange={(v) =>
-                    void kbClient.setSettings({ ocr: { ...st.settings.ocr, enabled: v } })
-                  }
-                  label={tr('索引图片中的文字（png / jpg / webp / bmp / tiff）')}
-                  data-testid="kb-ocr-enabled"
-                />
+              <section className={styles.section} data-testid="kb-ocr">
+                <div className={styles.row}>
+                  <h4 className={`${styles.sectionTitle} ${styles.grow}`}>
+                    {tr('识别图片中的文字（OCR）')}
+                  </h4>
+                  <Switch
+                    checked={st.settings.ocr.enabled}
+                    onChange={(v) =>
+                      void kbClient.setSettings({ ocr: { ...st.settings.ocr, enabled: v } })
+                    }
+                    label={tr('启用')}
+                    aria-label={tr('索引图片中的文字（png / jpg / webp / bmp / tiff）')}
+                    data-testid="kb-ocr-enabled"
+                  />
+                </div>
                 <p className={styles.hint}>
                   {tr(
-                    '使用 tesseract.js 在本机离线识别。需要先下载对应语言的识别数据；开启后点「更新索引」。',
+                    '索引 png / jpg / webp / bmp / tiff 里的文字。使用 tesseract.js 在本机离线识别，需要先下载对应语言的识别数据；开启后点「更新索引」。',
                   )}
                 </p>
-                {st.ocr.map((a) => (
-                  <OcrRow key={a.id} a={a} live={dl[a.id]} onMsg={setMsg} />
-                ))}
-              </div>
+                <div className={styles.items}>
+                  {st.ocr.map((a) => (
+                    <OcrRow key={a.id} a={a} live={dl[a.id]} onMsg={setMsg} />
+                  ))}
+                </div>
+              </section>
             )}
           </>
         )}

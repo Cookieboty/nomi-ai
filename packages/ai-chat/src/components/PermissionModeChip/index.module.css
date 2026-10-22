@@ -162,16 +162,61 @@
   cursor: pointer;
   padding: 0;
 }
-.actions {
+/* 「完全放开」提示条：输入框上方一行，可退出或关掉 */
+.tip {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: var(--cd-space-2);
-}
-/* 确认框里注明作用于哪个标签 / 目录 */
-.target {
+  min-height: var(--cd-control-h-sm);
+  /* 比输入框（max-width 820px、居中）两侧各窄一点 */
+  box-sizing: border-box;
+  width: calc(min(100%, 820px) - 2 * var(--cd-space-4));
+  margin: 0 auto var(--cd-space-1-5);
+  padding: var(--cd-space-0-5) var(--cd-space-1) var(--cd-space-0-5) var(--cd-space-3);
+  border: 1px solid var(--cd-color-danger);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-  word-break: break-all;
+}
+.tip > svg {
+  flex: none;
+}
+.tipText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tipAction,
+.tipClose {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--cd-control-h-xs);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.tipAction {
+  padding: 0 var(--cd-space-2);
+  font-weight: var(--cd-font-weight-bold);
+}
+.tipClose {
+  width: var(--cd-control-h-xs);
+}
+.tipAction:hover,
+.tipClose:hover {
+  background: var(--cd-color-hover);
+}
+.tipAction:focus-visible,
+.tipClose:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
 }
 @media (prefers-reduced-motion: reduce) {
   .chip {
