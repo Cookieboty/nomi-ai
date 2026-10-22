@@ -3,7 +3,8 @@
  * 打开后生成 ~/.nomi/bin/nomi-claude 等脚本；加 PATH 要改 shell 配置文件，先弹窗确认。
  * Windows 经确认后加入用户 PATH，关闭时只移除 Nomi 添加的项。
  */
-import { Button, Modal, Switch, t } from '@nomi-ai/ui';
+import { Button, Icon, Modal, Switch, t } from '@nomi-ai/ui';
+import { SquareTerminal } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
 import {
@@ -47,7 +48,10 @@ export const TerminalCommandsCard: React.FC = () => {
   return (
     <section className={styles.card} data-testid="terminal-commands-card">
       <div className={styles.head}>
-        <h3 className={styles.title}>{t('终端启动命令')}</h3>
+        <h3 className={styles.title}>
+          <Icon icon={SquareTerminal} size={16} />
+          {t('终端启动命令')}
+        </h3>
         <Switch
           checked={enabled}
           disabled={!st || busy}

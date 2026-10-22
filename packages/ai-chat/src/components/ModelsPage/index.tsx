@@ -19,8 +19,13 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  Boxes,
+  Info,
   MoreHorizontal,
   Plus,
+  SquareTerminal,
+  Waypoints,
+  X,
 } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
@@ -126,7 +131,12 @@ export const ModelsPage: React.FC = () => {
         </div>
       )}
       {state?.legacyRevoke?.revoked.length && !revokeSeen ? (
-        <div className={styles.offer} role="status" data-testid="legacy-revoked">
+        <div
+          className={`${styles.offer} ${styles.notice}`}
+          role="status"
+          data-testid="legacy-revoked"
+        >
+          <Icon icon={Info} size={16} />
           <span>
             {t(
               '终端里的 CLI 已恢复为你自己的配置和官方登录；第三方模型现在在 Nomi 的标签里使用（右上角选「第三方」）。',
@@ -134,6 +144,7 @@ export const ModelsPage: React.FC = () => {
           </span>
           <Button size="sm" variant="ghost" onClick={() => setRevokeSeen(true)}>
             {t('知道了')}
+            <Icon icon={X} size={14} />
           </Button>
         </div>
       ) : null}
@@ -171,6 +182,7 @@ export const ModelsPage: React.FC = () => {
 
       <section className={styles.card} aria-labelledby="models-assign">
         <h3 id="models-assign" className={styles.cardTitle}>
+          <Icon icon={Waypoints} size={16} />
           {t('分配')}
         </h3>
         <div className={styles.row}>
@@ -214,6 +226,7 @@ export const ModelsPage: React.FC = () => {
 
       <section className={styles.card} aria-labelledby="models-cli" data-testid="models-cli">
         <h3 id="models-cli" className={styles.cardTitle}>
+          <Icon icon={SquareTerminal} size={16} />
           {t('编程助手')}
         </h3>
         <p className={styles.sub}>
@@ -246,6 +259,7 @@ export const ModelsPage: React.FC = () => {
       <section className={styles.card} aria-labelledby="models-providers">
         <div className={styles.cardHeadRow}>
           <h3 id="models-providers" className={styles.cardTitle}>
+            <Icon icon={Boxes} size={16} />
             {t('第三方供应商')}
           </h3>
           <Button
@@ -508,6 +522,7 @@ const ProviderRow: React.FC<{ p: ProviderView; onOpen: () => void }> = ({ p, onO
             ))}
           </span>
           <span className={styles.muted}>{t('{0} 个模型', String(enabledCount))}</span>
+          <Icon icon={ChevronRight} size={14} />
         </button>
         <button
           type="button"

@@ -1,7 +1,8 @@
 .card {
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-sm);
   padding: var(--cd-space-4);
   display: flex;
   flex-direction: column;
@@ -16,9 +17,12 @@
 }
 
 .title {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
   margin: 0;
   font-size: var(--cd-font-size-md);
-  font-weight: var(--cd-font-weight-medium);
+  font-weight: var(--cd-font-weight-bold);
 }
 
 .desc {
