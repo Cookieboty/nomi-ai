@@ -13,6 +13,16 @@ const frames = (values) =>
     .join('\n');
 const track = (objectId, property, values) =>
   `            <KeyedObject objectId="0:${objectId}">\n                <KeyedProperty property="${property}">\n${frames(values)}\n                </KeyedProperty>\n            </KeyedObject>`;
+const idFrames = (values) =>
+  values
+    .map(
+      ([frame, value]) =>
+        `                    <KeyFrameId value="${value}" frame="${frame}" interpolationType="hold"/>`,
+    )
+    .join('\n');
+const idTrack = (objectId, property, values) =>
+  `            <KeyedObject objectId="0:${objectId}">\n                <KeyedProperty property="${property}">\n${idFrames(values)}\n                </KeyedProperty>\n            </KeyedObject>`;
+
 const anim = (name, id, duration, tracks) =>
   `        <LinearAnimation name="full.${name}" loopValue="oneShot" duration="${duration}" fps="60" id="0:${id}">\n${tracks.join('\n')}\n        </LinearAnimation>`;
 
@@ -20,115 +30,137 @@ const clips = {
   // The sleeve and cuff bones inherit the arm chain.  They are intentionally
   // left unkeyed here: a second rotation on a raster sleeve is what produced
   // the black slivers and detached cuffs in the earlier build.
-  wave: anim('wave', 196, 96, [
-    track(9213, 'rotation', [
-      [0, 0],
-      [14, -0.3],
-      [28, -0.58],
-      [42, -0.46],
-      [58, -0.62],
-      [74, -0.46],
-      [90, 0],
-      [96, 0],
+  // ROUND6: windshield-wiper wave (real human greeting).
+  // Bake interior≈|fore_delta| → fore≈-1.55 for ~90° elbow.
+  // upper≈-1.10 raises elbow higher (less U sag); hand at head side.
+  // Wrist relative cancels chain so palm faces camera (rh≈0.2–0.5 + wiper).
+  // Solo stays hang — bent Solo still tears at wave angles (tried ROUND6).
+  // Mesh B=20 hard elbow crease (add-arm-meshes) for polyline not rubber hose.
+  wave: anim('wave', 196, 108, [
+    idTrack(9821, 'activeComponentId', [
+      [0, '0:9823'],
+      [108, '0:9823'],
     ]),
-    track(9215, 'rotation', [
+    track(9219, 'rotation', [
       [0, 0],
-      [14, -0.12],
-      [28, -0.28],
-      [42, -0.18],
-      [58, -0.28],
-      [74, -0.18],
-      [90, 0],
-      [96, 0],
+      [10, -0.4],
+      [22, -0.78],
+      [32, -1.0],
+      [42, -1.1],
+      [52, -1.1],
+      [62, -1.1],
+      [72, -1.0],
+      [84, -0.55],
+      [98, -0.14],
+      [108, 0],
     ]),
-    track(9217, 'rotation', [
+    track(9221, 'rotation', [
       [0, 0],
-      [28, 0.18],
-      [42, -0.14],
-      [58, 0.18],
-      [74, -0.14],
-      [90, 0],
-      [96, 0],
+      [10, -0.55],
+      [22, -1.15],
+      [32, -1.5],
+      [42, -1.68],
+      [52, -1.48],
+      [62, -1.68],
+      [72, -1.52],
+      [84, -0.85],
+      [98, -0.22],
+      [108, 0],
     ]),
-    track(9243, 'rotation', [
+    // Palm-cancel: thh ≈ target_rh - thu - thf
+    track(9223, 'rotation', [
       [0, 0],
-      [28, 0.18],
-      [42, -0.12],
-      [58, 0.18],
-      [74, -0.12],
-      [90, 0],
-      [96, 0],
+      [10, 0.95],
+      [22, 2.15],
+      [32, 2.75],
+      [42, 3.2],
+      [52, 2.9],
+      [62, 3.2],
+      [72, 2.75],
+      [84, 1.55],
+      [98, 0.4],
+      [108, 0],
     ]),
-    track(9244, 'rotation', [
+    track(9248, 'rotation', [
       [0, 0],
-      [28, -0.12],
-      [42, 0.16],
-      [58, -0.12],
-      [74, 0.16],
-      [90, 0],
+      [22, -0.4],
+      [72, -0.4],
       [96, 0],
+      [108, 0],
     ]),
-    track(9245, 'rotation', [
+    track(9249, 'rotation', [
       [0, 0],
-      [28, -0.16],
-      [42, 0.2],
-      [58, -0.16],
-      [74, 0.2],
-      [90, 0],
+      [22, 0.28],
+      [72, 0.28],
       [96, 0],
+      [108, 0],
+    ]),
+    track(9250, 'rotation', [
+      [0, 0],
+      [22, 0.22],
+      [72, 0.22],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9251, 'rotation', [
+      [0, 0],
+      [22, 0.25],
+      [72, 0.25],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(9252, 'rotation', [
+      [0, 0],
+      [22, 0.32],
+      [72, 0.32],
+      [96, 0],
+      [108, 0],
+    ]),
+    track(190, 'y', [
+      [0, 0],
+      [28, -4],
+      [72, -3],
+      [100, 0],
+      [108, 0],
     ]),
   ]),
   cheer: anim('cheer', 197, 96, [
     track(9213, 'rotation', [
       [0, 0],
-      [18, -0.28],
-      [38, -0.55],
-      [58, -0.44],
-      [78, 0],
+      [16, -0.35],
+      [36, -0.65],
+      [56, -0.5],
+      [78, -0.2],
       [96, 0],
     ]),
     track(9215, 'rotation', [
       [0, 0],
-      [18, -0.1],
-      [38, -0.22],
-      [58, -0.14],
-      [78, 0],
+      [16, -0.55],
+      [36, -0.9],
+      [56, -0.7],
+      [78, -0.3],
       [96, 0],
     ]),
     track(9219, 'rotation', [
       [0, 0],
-      [18, 0.28],
-      [38, 0.55],
-      [58, 0.44],
-      [78, 0],
+      [16, 0.35],
+      [36, 0.65],
+      [56, 0.5],
+      [78, 0.2],
       [96, 0],
     ]),
     track(9221, 'rotation', [
       [0, 0],
-      [18, 0.1],
-      [38, 0.22],
-      [58, 0.14],
-      [78, 0],
-      [96, 0],
-    ]),
-    track(9217, 'rotation', [
-      [0, 0],
-      [38, -0.14],
-      [58, 0.12],
-      [78, 0],
-      [96, 0],
-    ]),
-    track(9223, 'rotation', [
-      [0, 0],
-      [38, 0.14],
-      [58, -0.12],
-      [78, 0],
+      [16, 0.55],
+      [36, 0.9],
+      [56, 0.7],
+      [78, 0.3],
       [96, 0],
     ]),
     track(190, 'y', [
       [0, 0],
-      [38, -8],
-      [58, -4],
+      [36, -10],
+      [56, -4],
       [78, 0],
       [96, 0],
     ]),
@@ -408,83 +440,90 @@ const clips = {
       [72, 0],
     ]),
   ]),
-  clap: anim('clap', 204, 90, [
-    // Keep the upper arms beside the torso and bend at the elbows.  At the
-    // contact keys the two palms resolve to the same chest point (about x=480,
-    // y=510 in artboard space), so the sleeves stay in front of the body.
+  clap: anim('clap', 204, 96, [
+    // ROUND3: less arm.rig chest pull (reduces jacket tear); Solo bent sleeves at peak.
+    // hang Solo children: 0:9822 / 0:9823; bent: 0:9824 / 0:9825.
+    // ROUND3: keep hang continuous sleeve (bent Solo child reserved; warp art still tears).
+    idTrack(9820, 'activeComponentId', [
+      [0, '0:9822'],
+      [96, '0:9822'],
+    ]),
+    idTrack(9821, 'activeComponentId', [
+      [0, '0:9823'],
+      [96, '0:9823'],
+    ]),
+    // ROUND4: further cut arm.rig chest pull; orange collar is torso-static.
+    track(9378, 'x', [
+      [0, 317.8],
+      [28, 326],
+      [40, 325],
+      [52, 326],
+      [82, 317.8],
+      [96, 317.8],
+    ]),
+    track(9379, 'x', [
+      [0, 642.8],
+      [28, 634],
+      [40, 635],
+      [52, 634],
+      [82, 642.8],
+      [96, 642.8],
+    ]),
     track(9213, 'rotation', [
       [0, 0],
-      [12, -0.06],
-      [26, -0.12],
-      [38, -0.08],
-      [50, -0.12],
-      [64, -0.06],
-      [78, 0],
-      [90, 0],
+      [28, -0.55],
+      [52, -0.55],
+      [96, 0],
     ]),
     track(9215, 'rotation', [
       [0, 0],
-      [12, -0.56],
-      [26, -1.05],
-      [38, -0.82],
-      [50, -1.05],
-      [64, -0.56],
-      [78, 0],
-      [90, 0],
+      [14, -0.55],
+      [28, -1.05],
+      [40, -0.88],
+      [52, -1.05],
+      [66, -0.55],
+      [82, 0],
+      [96, 0],
     ]),
     track(9219, 'rotation', [
       [0, 0],
-      [12, 0.06],
-      [26, 0.12],
-      [38, 0.08],
-      [50, 0.12],
-      [64, 0.06],
-      [78, 0],
-      [90, 0],
+      [28, 0.58],
+      [52, 0.58],
+      [96, 0],
     ]),
     track(9221, 'rotation', [
       [0, 0],
-      [12, 0.56],
-      [26, 1.05],
-      [38, 0.82],
-      [50, 1.05],
-      [64, 0.56],
-      [78, 0],
-      [90, 0],
+      [14, 0.55],
+      [28, 1.08],
+      [40, 0.9],
+      [52, 1.08],
+      [66, 0.55],
+      [82, 0],
+      [96, 0],
     ]),
     track(9217, 'rotation', [
       [0, 0],
-      [26, -0.06],
-      [38, 0.04],
-      [50, -0.06],
-      [64, 0],
-      [78, 0],
-      [90, 0],
+      [28, 0.55],
+      [52, 0.55],
+      [96, 0],
     ]),
     track(9223, 'rotation', [
       [0, 0],
-      [26, 0.06],
-      [38, -0.04],
-      [50, 0.06],
-      [64, 0],
-      [78, 0],
-      [90, 0],
+      [28, -0.55],
+      [52, -0.55],
+      [96, 0],
     ]),
-    track(9244, 'rotation', [
+    track(9243, 'rotation', [
       [0, 0],
-      [26, -0.04],
-      [38, 0.03],
-      [50, -0.04],
-      [64, 0],
-      [90, 0],
+      [28, 0.35],
+      [52, 0.35],
+      [96, 0],
     ]),
-    track(9249, 'rotation', [
+    track(9248, 'rotation', [
       [0, 0],
-      [26, 0.04],
-      [38, -0.03],
-      [50, 0.04],
-      [64, 0],
-      [90, 0],
+      [28, -0.35],
+      [52, -0.35],
+      [96, 0],
     ]),
   ]),
   think: anim('think', 205, 90, [
@@ -570,10 +609,10 @@ const clips = {
 
 for (const [name, replacement] of Object.entries(clips)) {
   const re = new RegExp(
-    `        <LinearAnimation name="full\\.${name}"[\\s\\S]*?        </LinearAnimation>`,
+    '[ \t]*<LinearAnimation name="full\\.' + name + '"[\\s\\S]*?<\\/LinearAnimation>',
   );
-  if (!re.test(scene)) throw new Error(`animation not found: ${name}`);
-  scene = scene.replace(re, replacement);
+  if (!re.test(scene)) throw new Error('animation not found: ' + name);
+  scene = scene.replace(re, replacement.trimEnd());
 }
 
 fs.writeFileSync(path, scene);

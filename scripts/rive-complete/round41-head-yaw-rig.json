@@ -1,0 +1,41 @@
+{
+  "ears": "absent \u2014 head.png side cut-outs, no ear asset; not invented",
+  "nose": "baked into head.png (tiny dot), rides cheek/center strips",
+  "bands": {
+    "l": {
+      "lo": 139,
+      "hi": 240,
+      "px": 11278,
+      "cx": 196.4,
+      "cy": 196.7,
+      "local": [
+        -55.5,
+        -87.44
+      ]
+    },
+    "c": {
+      "lo": 184,
+      "hi": 313,
+      "px": 30294,
+      "cx": 250.5,
+      "cy": 176.6,
+      "local": [
+        -9.77,
+        -104.39
+      ]
+    },
+    "r": {
+      "lo": 257,
+      "hi": 358,
+      "px": 17749,
+      "cx": 309.3,
+      "cy": 188.3,
+      "local": [
+        40.0,
+        -94.49
+      ]
+    }
+  },
+  "backfill_px": 4205,
+  "hair_tip_l_rebind": "torso+spine -> lock.l.s3 100% (tips follow hair lock secondary)"
+}

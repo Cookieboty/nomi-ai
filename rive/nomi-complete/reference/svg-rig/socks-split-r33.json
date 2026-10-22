@@ -1,0 +1,11 @@
+{
+  "method": "ROUND33a: socks moved (not copied) from leg-*-skin into sock-*.png",
+  "cuff_l": 549,
+  "moved_l": 2827,
+  "sock_l_sha": "2a09ce59de0b713df8355f67bcd1797f180c06f40077a4468c68480e5201f081",
+  "leg_l_sha": "6d3dec0a32703dbd55fb407a8b49e3dc6170bcc095858d8a85587906efac5a14",
+  "cuff_r": 550,
+  "moved_r": 2745,
+  "sock_r_sha": "0db618026e21986005097455afe5973db88a7c01b8a055eb80c6e3ade5100393",
+  "leg_r_sha": "72c2e8b535714a96ffb6baea4e61aa0d98fad0c28aa5dc95550c669c9857a510"
+}
