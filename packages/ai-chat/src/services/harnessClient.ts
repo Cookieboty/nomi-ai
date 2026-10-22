@@ -302,7 +302,9 @@ export const harnessClient = {
   setTabSource: (id: string, source: TabSource, model?: string) =>
     call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])),
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
-  setTabModel: (id: string, model: string) => call<HarnessTabMeta>('tab-model', id, model),
+  /** expectSource：选模型时看到的目录来源；主进程发现标签来源已变就拒绝（#83） */
+  setTabModel: (id: string, model: string, opts: { expectSource?: TabSource } = {}) =>
+    call<HarnessTabMeta>('tab-model', id, model, opts),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
     call<HarnessTabMeta>('tab-effort', id, effort),

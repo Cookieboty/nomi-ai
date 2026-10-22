@@ -314,7 +314,7 @@ async function tabModelCard(
   const source =
     catalog.provider?.name || (thirdParty ? t('第三方模型') : ENDPOINT_FULL[ctx.backend]());
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
-  const pick = (model: string) => ctx.actions.setTabModel(model);
+  const pick = (model: string) => ctx.actions.setTabModel(model, tabSource);
   const choices: ModelChoice[] = [
     {
       label: defaultLabel ? t('默认模型 · {0}', defaultLabel) : t('默认模型'),

@@ -323,7 +323,7 @@ describe('/model', () => {
     expect(c.items.map((i) => i.label)).toEqual(['默认模型 · Opus 5.5', 'Opus 5.5', 'Fable 5.1']);
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['Fable 5.1']);
     await c.items[1]!.action!.run();
-    expect(actions.setTabModel).toHaveBeenCalledWith('opus');
+    expect(actions.setTabModel).toHaveBeenCalledWith('opus', 'official');
     expect(actions.setTabSource).not.toHaveBeenCalled();
   });
   it('官方标签：目录后面附上网关里能给编程助手用的第三方模型，选中即切到第三方', async () => {
@@ -350,10 +350,10 @@ describe('/model', () => {
     const { ctx, commands, actions } = makeCtx('claude');
     actions.tabModels.mockResolvedValue({ catalog: tabCatalog, current: null, source: 'official' });
     const a = await executeSlash('/model opus', commands, ctx);
-    expect(actions.setTabModel).toHaveBeenCalledWith('opus');
+    expect(actions.setTabModel).toHaveBeenCalledWith('opus', 'official');
     expect(a.handled && a.outcome.type === 'card' && a.outcome.card.kind).toBe('notice');
     await executeSlash('/model claude-opus-4-6', commands, ctx);
-    expect(actions.setTabModel).toHaveBeenLastCalledWith('claude-opus-4-6');
+    expect(actions.setTabModel).toHaveBeenLastCalledWith('claude-opus-4-6', 'official');
   });
   it('第三方标签：列网关的模型（tab-model），附「官方」一项（切回官方）；不接受自定义 id', async () => {
     const { ctx, commands, actions } = makeCtx('codex', {
@@ -393,7 +393,7 @@ describe('/model', () => {
     expect(c.items.filter((i) => i.active).map((i) => i.label)).toEqual(['Vendor / b']);
     expect(c.note).toContain('第三方');
     await c.items[1]!.action!.run();
-    expect(actions.setTabModel).toHaveBeenCalledWith('vendor/a');
+    expect(actions.setTabModel).toHaveBeenCalledWith('vendor/a', 'thirdParty');
     await c.items[3]!.action!.run();
     expect(actions.setTabSource).toHaveBeenCalledWith('official');
     actions.setTabModel.mockClear();

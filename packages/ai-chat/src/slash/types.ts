@@ -216,7 +216,7 @@ export interface SlashActions {
     source: TabSource;
   }>;
   /** CLI 标签：切换这个标签的模型（空串 = 默认模型），下一条消息起生效 */
-  setTabModel: (model: string) => Promise<void>;
+  setTabModel: (model: string, expectSource?: TabSource) => Promise<void>;
   gitDiff: () => Promise<GitDiffResult>;
   /** 主进程按 id 展开（Codex / Grok 的自定义命令与 skill） */
   expand: (id: string, args: string) => Promise<SlashExpansion | null>;

@@ -678,7 +678,13 @@ describe('CliHarnessService session handling', () => {
     });
 
     it('第三方来源：网关令牌只注入 dsh 子进程，模型经 --patch 叠加配置下发', async () => {
-      const h = mk(testGateway({ source: 'thirdParty', main: 'deepseek/flash' }));
+      const h = mk(
+        testGateway({
+          source: 'thirdParty',
+          main: 'deepseek/flash',
+          models: ['deepseek/flash', 'deepseek/pro'],
+        }),
+      );
       const tab = h.createTab({ backend: 'dsh' });
       expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock dsh】new key deepseek/flash: hi');
       expect(process.env.NOMI_DSH_API_KEY).toBeUndefined();

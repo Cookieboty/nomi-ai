@@ -101,6 +101,19 @@ describe('CliHarnessService model / effort overrides', () => {
     expect((await h.modelCatalogFor('codex'))!.error).toBeUndefined();
   }, 20_000);
 
+  it('换账号前发出的目录读取晚到：不写缓存，下次重新读（#83）', async () => {
+    const h = mk();
+    const cache = (h as unknown as { modelCatalogs: Map<string, unknown> }).modelCatalogs;
+    const stale = h.modelCatalogFor('codex');
+    h.recycleBackend('codex');
+    await stale;
+    expect(cache.has('codex')).toBe(false);
+    const fresh = h.modelCatalogFor('codex');
+    expect(fresh).not.toBe(stale);
+    await fresh;
+    expect(cache.has('codex')).toBe(true);
+  }, 20_000);
+
   it('Codex 默认模型 / 档位取 config.toml', async () => {
     fs.mkdirSync(path.join(root, '.codex'), { recursive: true });
     fs.writeFileSync(
@@ -445,6 +458,20 @@ describe('CliHarnessService model / effort overrides', () => {
       expect(await run(true)).toEqual({ boots: 2, setModel: false });
       expect(await run(false)).toEqual({ boots: 1, setModel: true });
     }, 30_000);
+
+    it('选模型时来源已变就拒绝；第三方只接受网关里的模型（#83）', () => {
+      const h = mk({
+        gateway: fakeGateway({ source: 'thirdParty', main: 'gw/a' }).gateway,
+      } as never);
+      const tab = h.createTab({ backend: 'codex' });
+      expect(() => h.setTabModel(tab.id, 'gpt-5.6-sol', { expectSource: 'official' })).toThrow(
+        /来源已经变了/,
+      );
+      expect(() => h.setTabModel(tab.id, 'gw/missing')).toThrow(/没有「gw\/missing」/);
+      expect(h.setTabModel(tab.id, 'gw/b', { expectSource: 'thirdParty' }).modelOverride).toBe(
+        'gw/b',
+      );
+    });
 
     it('新标签按「新标签默认用」：第三方时没选模型就用分配的模型', async () => {
       const h = mk({

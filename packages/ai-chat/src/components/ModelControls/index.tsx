@@ -387,7 +387,7 @@ const ModelChip: React.FC<{
     setView('effort');
     if (provider) setOpen(false);
     if (model === (current ?? '')) return;
-    void run(() => harnessClient.setTabModel(tab.id, model));
+    void run(() => harnessClient.setTabModel(tab.id, model, { expectSource: tabSourceOf(tab) }));
   };
 
   const pickEffort = (e: ReasoningEffort | null) => {

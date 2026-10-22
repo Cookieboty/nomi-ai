@@ -273,9 +273,9 @@ export function useSlashCommands(p: SlashHookParams): SlashHook {
           .catch(() => null);
         return { catalog, current: tab?.modelOverride?.trim() || null, source };
       },
-      setTabModel: async (model) => {
+      setTabModel: async (model, expectSource) => {
         if (!target.tabId) throw new Error(t('会话已关闭或已重置'));
-        await harnessClient.setTabModel(target.tabId, model);
+        await harnessClient.setTabModel(target.tabId, model, expectSource ? { expectSource } : {});
       },
       gitDiff: async () => {
         try {

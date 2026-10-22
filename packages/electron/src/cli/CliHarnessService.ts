@@ -461,6 +461,8 @@ export class CliHarnessService {
     { at: number; catalog: BackendModelCatalog }
   >();
   private readonly modelCatalogInflight = new Map<HarnessBackend, Promise<BackendModelCatalog>>();
+  /** 官方目录的代次：换账号 / 供应商（recycleBackend）时加一，之前发出的读取回来后不写缓存（#83） */
+  private readonly modelCatalogGen = new Map<HarnessBackend, number>();
 
   constructor(
     private readonly d: {
@@ -1342,6 +1344,8 @@ export class CliHarnessService {
     }
     const inflight = this.modelCatalogInflight.get(backend);
     if (inflight) return inflight;
+    const gen = this.modelCatalogGen.get(backend) ?? 0;
+    const current = () => (this.modelCatalogGen.get(backend) ?? 0) === gen;
     const run = discoverModels(backend, {
       spawn: (b, args) => {
         const bin = resolveHarnessBin(b);
@@ -1365,12 +1369,17 @@ export class CliHarnessService {
         return { backend, models: [], defaultModel: null, error };
       })
       .then((catalog) => {
+        // 读取期间换了账号 / 供应商：这是旧账号的目录，不写缓存（也不清掉新账号的）
+        if (!current()) return catalog;
         // 失败结果不缓存，下次打开浮层再试
         if (catalog.error) this.modelCatalogs.delete(backend);
         else this.modelCatalogs.set(backend, { at: Date.now(), catalog });
         return catalog;
       })
-      .finally(() => this.modelCatalogInflight.delete(backend));
+      .finally(() => {
+        if (this.modelCatalogInflight.get(backend) === run)
+          this.modelCatalogInflight.delete(backend);
+      });
     this.modelCatalogInflight.set(backend, run);
     return run;
   }
@@ -1407,10 +1416,17 @@ export class CliHarnessService {
    * （思考深度随之变化时仍是空闲即回收、下一轮用新参数重启）。
    * 切到非推理模型时同步清除思考深度。
    */
-  setTabModel(id: string, model: string): HarnessTabMeta {
+  setTabModel(
+    id: string,
+    model: string,
+    opts: { expectSource?: HarnessTabSource } = {},
+  ): HarnessTabMeta {
     const tab = this.requireTab(id);
     const backend = tab.backend;
     if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
+    // 选择时界面看到的来源与标签当前来源不一致（期间切了来源）：不把那个来源的模型写进来（#83）
+    if (opts.expectSource && opts.expectSource !== this.sourceOf(tab))
+      throw new Error(t('这个标签的模型来源已经变了，请重新选择模型'));
     const name = model.trim();
     const scope = this.adoptScope(tab);
     if (!name) {
@@ -1424,6 +1440,9 @@ export class CliHarnessService {
       return { ...tab };
     }
     if (!isValidModelId(name)) throw new Error(t('模型名不合法'));
+    // 第三方来源只能选网关里启用的模型
+    if (scope && this.d.gateway && !this.d.gateway.models().some((m) => m.ref === name))
+      throw new Error(t('第三方模型里没有「{0}」，请在「模型」页启用后再选', name));
     if (tab.modelOverride !== name) {
       tab.modelOverride = name;
       tab.modelScope = scope;
@@ -3063,6 +3082,9 @@ export class CliHarnessService {
   recycleBackend(kind: HarnessBackend): void {
     // 换了账号：官方可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
+    // 换账号前发出的读取作废：回来后不写缓存，下一次读取重新发起
+    this.modelCatalogGen.set(kind, (this.modelCatalogGen.get(kind) ?? 0) + 1);
+    this.modelCatalogInflight.delete(kind);
     // 标签上的模型选择换成新来源的（官方 ↔ 某个供应商各记各的）
     this.adoptScopes(kind);
     // 新会话也不再沿用旧账号 / 供应商下选的模型与思考深度（权限模式照旧）
@@ -4156,7 +4178,12 @@ export class CliHarnessService {
         m === undefined || m === null ? undefined : String(m),
       ),
     );
-    handle('ai:harness:tab-model', (id, m) => this.setTabModel(String(id), String(m ?? '')));
+    handle('ai:harness:tab-model', (id, m, o) => {
+      const want = (o as { expectSource?: unknown } | undefined)?.expectSource;
+      return this.setTabModel(String(id), String(m ?? ''), {
+        ...(want === 'official' || want === 'thirdParty' ? { expectSource: want } : {}),
+      });
+    });
     handle('ai:harness:tab-effort', (id, e) =>
       this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
     );

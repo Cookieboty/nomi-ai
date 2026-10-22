@@ -634,5 +634,7 @@
   "找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。": "Token not found. Turn \"Terminal commands\" off and on again in Nomi Settings → Models.",
   "没有找到 {0}：请先安装。": "{0} was not found. Please install it first.",
   "无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。": "Cannot safely launch {0}. Reinstall the CLI or use its native executable.",
-  "参数无效": "Invalid arguments"
+  "参数无效": "Invalid arguments",
+  "这个标签的模型来源已经变了，请重新选择模型": "This tab's model source has changed. Pick the model again.",
+  "第三方模型里没有「{0}」，请在「模型」页启用后再选": "“{0}” isn't among the third-party models. Enable it on the Models page first."
 }

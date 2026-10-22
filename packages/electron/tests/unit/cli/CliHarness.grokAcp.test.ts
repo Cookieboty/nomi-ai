@@ -327,7 +327,14 @@ describe('CliHarnessService Grok over ACP', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'grok-home-'));
     fs.mkdirSync(path.join(home, '.grok'), { recursive: true });
     fs.writeFileSync(path.join(home, '.grok', 'config.toml'), '# user config\n');
-    const { h } = mk({ gateway: testGateway({ source: 'thirdParty', main: 'zp/glm-5', home }) });
+    const { h } = mk({
+      gateway: testGateway({
+        source: 'thirdParty',
+        main: 'zp/glm-5',
+        home,
+        models: ['zp/glm-5', 'zp/glm-5-air'],
+      }),
+    });
     const tab = h.createTab({ backend: 'grok' });
     expect((await h.sendTab(tab.id, 'hi')).text).toBe('【Mock Grok】acp new key: hi');
     const init = calls().find((c) => c.method === 'initialize') as unknown as { grokHome: string };
