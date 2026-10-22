@@ -30,7 +30,12 @@ import { MessageInput } from './components/MessageInput';
 import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
-import { ContextUsageBar, SessionChangesPanel } from './components/SessionWorkspace';
+import {
+  ChangesUiProvider,
+  ChangesWorkbenchHost,
+  ContextUsageBar,
+  SessionChangesPanel,
+} from './components/SessionWorkspace';
 import {
   LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
@@ -119,17 +124,19 @@ const AiChatContent: React.FC = () => {
   );
   // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
   const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  const activeCwd = tabs.isCliTab ? (tabs.activeTab?.cwd ?? null) : null;
   const cliSlots = useMemo<ConvSlots | undefined>(
     () =>
       activeCliTabId
         ? buildCliSlots({
+            cwd: activeCwd,
             errorActions: (m, { retry }) =>
               m.geminiTrust ? (
                 <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
               ) : null,
           })
         : undefined,
-    [activeCliTabId],
+    [activeCliTabId, activeCwd],
   );
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
@@ -746,7 +753,10 @@ const AiChatContent: React.FC = () => {
               }
             />
             {isDev && tabs.isCliTab && tabs.activeTab ? (
-              <SessionChangesPanel messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <>
+                <SessionChangesPanel messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+                <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              </>
             ) : null}
             <MessageInput
               {...inputModeProps}
@@ -858,7 +868,9 @@ function App() {
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <AiChatContent />
+          <ChangesUiProvider>
+            <AiChatContent />
+          </ChangesUiProvider>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />

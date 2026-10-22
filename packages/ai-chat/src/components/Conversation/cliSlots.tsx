@@ -4,6 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { HarnessTabMessage } from '../../services/harnessClient';
+import { aggregateTurnChanges } from '../../utils/sessionChanges';
+import {
+  hasRunning,
+  reduceTrace,
+  entriesFromLegacyTools,
+  buildTimeline,
+} from '../../utils/toolTrace';
+import { TurnEditSummaryCard } from '../SessionWorkspace/TurnEditSummaryCard';
 
 import styles from './index.module.css';
 import type { ConvSlots } from './Messages';
@@ -127,7 +135,8 @@ const ImageRow: React.FC<{ images: NonNullable<HarnessTabMessage['images']> }> =
   );
 };
 
-export function buildCliSlots(base?: ConvSlots): ConvSlots {
+export function buildCliSlots(opts?: ConvSlots & { cwd?: string | null }): ConvSlots {
+  const { cwd, ...base } = opts ?? {};
   return {
     ...base,
     before: (m) => {
@@ -139,6 +148,27 @@ export function buildCliSlots(base?: ConvSlots): ConvSlots {
         <>
           <ImageRow images={imgs} />
           {prev}
+        </>
+      );
+    },
+    after: (m) => {
+      const prev = base?.after?.(m) ?? null;
+      if (m.role !== 'assistant') return prev;
+      const entries = aggregateTurnChanges(m);
+      if (!entries.length) return prev;
+      const timeline = buildTimeline(
+        m.trace?.length ? reduceTrace(m.trace) : entriesFromLegacyTools(m.legacyTools ?? []),
+      );
+      if (hasRunning(timeline)) return prev;
+      return (
+        <>
+          {prev}
+          <TurnEditSummaryCard
+            messageId={m.id}
+            entries={entries}
+            cwd={cwd}
+            sourceLabel={m.id.slice(0, 16)}
+          />
         </>
       );
     },

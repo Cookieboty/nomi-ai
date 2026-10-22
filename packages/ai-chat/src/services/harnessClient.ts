@@ -271,7 +271,7 @@ export interface WorkspaceFileResult {
   size?: number;
   mtimeMs?: number;
   error?: string;
-  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid';
+  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid' | 'not-git';
 }
 
 export const harnessClient = {
@@ -286,6 +286,10 @@ export const harnessClient = {
     call<WorkspaceFileResult>('workspace-read', cwd, filePath),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>
     call<WorkspaceFileResult>('workspace-write', cwd, filePath, content),
+  workspaceDelete: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-delete', cwd, filePath),
+  workspaceGitCheckout: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-git-checkout', cwd, filePath),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
   setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),

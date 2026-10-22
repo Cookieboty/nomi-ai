@@ -53,5 +53,19 @@
   "缩小": "Zoom out",
   "放大": "Zoom in",
   "附件图片": "Attachment",
-  "关闭": "Close"
+  "关闭": "Close",
+  "已编辑 {0} 个文件": "Edited {0} files",
+  "查看变更": "View changes",
+  "撤销": "Undo",
+  "再显示 {0} 个文件": "Show {0} more files",
+  "撤销本轮对这些文件的写入？仅限工作区内，写回旧内容或安全 git checkout。": "Undo this turn's writes to these files? Workspace only — restore from diff or safe git checkout.",
+  "部分文件撤销失败：{0}": "Some files failed to undo:\n{0}",
+  "来源": "Source",
+  "查看全部": "View all",
+  "上一轮": "Last turn",
+  "全部": "All",
+  "筛选文件…": "Filter files…",
+  "已更改的文件": "Changed files",
+  "其它 {0} 个文件": "{0} more files",
+  "打开完整变更工作台": "Open full changes workbench"
 }

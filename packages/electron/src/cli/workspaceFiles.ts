@@ -2,6 +2,7 @@
  * 会话工作区内只读/写文本文件（Changes 预览编辑）。
  * 路径必须落在 cwd 内；禁止 .. 与绝对路径逃逸。
  */
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -18,7 +19,7 @@ export interface WorkspaceFileResult {
   size?: number;
   mtimeMs?: number;
   error?: string;
-  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid';
+  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid' | 'not-git';
 }
 
 function resolveInCwd(
@@ -146,6 +147,59 @@ export function writeWorkspaceFile(
       size: st.size,
       mtimeMs: st.mtimeMs,
     };
+  } catch (e) {
+    return {
+      ok: false,
+      path: r.abs,
+      rel: r.rel,
+      error: e instanceof Error ? e.message : String(e),
+      code: 'io',
+    };
+  }
+}
+
+export function deleteWorkspaceFile(cwd: string, filePath: string): WorkspaceFileResult {
+  const r = resolveInCwd(cwd, filePath);
+  if (!r.ok) return { ok: false, error: r.error, code: r.code };
+  try {
+    if (!fs.existsSync(r.abs)) {
+      return { ok: true, path: r.abs, rel: r.rel }; // already gone
+    }
+    if (fs.statSync(r.abs).isDirectory()) {
+      return { ok: false, path: r.abs, rel: r.rel, error: 'is a directory', code: 'is-dir' };
+    }
+    fs.unlinkSync(r.abs);
+    return { ok: true, path: r.abs, rel: r.rel };
+  } catch (e) {
+    return {
+      ok: false,
+      path: r.abs,
+      rel: r.rel,
+      error: e instanceof Error ? e.message : String(e),
+      code: 'io',
+    };
+  }
+}
+
+/**
+ * 安全路径下 `git checkout -- <rel>`：仅还原已跟踪文件到 HEAD。
+ * 不执行其它 git 写操作。
+ */
+export function gitCheckoutWorkspaceFile(cwd: string, filePath: string): WorkspaceFileResult {
+  const r = resolveInCwd(cwd, filePath);
+  if (!r.ok) return { ok: false, error: r.error, code: r.code };
+  try {
+    const gitDir = path.join(path.resolve(String(cwd ?? '')), '.git');
+    if (!fs.existsSync(gitDir)) {
+      return { ok: false, path: r.abs, rel: r.rel, error: 'not a git repository', code: 'not-git' };
+    }
+    execFileSync('git', ['checkout', '--', r.rel], {
+      cwd: path.resolve(String(cwd ?? '')),
+      encoding: 'utf8',
+      timeout: 30_000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return { ok: true, path: r.abs, rel: r.rel };
   } catch (e) {
     return {
       ok: false,

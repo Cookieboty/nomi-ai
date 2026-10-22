@@ -149,6 +149,20 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     const rows = chat.locator('[data-testid="change-row"]');
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
+
+    // 会话内摘要卡 + 完整变更工作台
+    const turnCard = chat.locator('[data-testid="turn-edit-summary"]').first();
+    await expect(turnCard).toBeVisible({ timeout: 30_000 });
+    await shot(chat, '18-turn-edit-summary');
+    await turnCard.locator('[data-testid="turn-view-changes"]').click();
+    await expect(chat.locator('[data-testid="changes-workbench"]')).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(chat.locator('[data-testid="wb-file-tree"]')).toBeVisible();
+    await shot(chat, '19-changes-workbench');
+    await chat.locator('[data-testid="wb-close"]').click();
+    await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0);
+
     await rows.first().locator('button').first().click();
     await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
     await expect(chat.locator('[data-testid="preview-file-tabs"]')).toBeVisible();

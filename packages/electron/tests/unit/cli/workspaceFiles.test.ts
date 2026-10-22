@@ -3,12 +3,20 @@ jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
 jest.unmock('node:os');
+jest.unmock('node:child_process');
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { readWorkspaceFile, writeWorkspaceFile, _test } from '../../../src/cli/workspaceFiles';
+import {
+  deleteWorkspaceFile,
+  gitCheckoutWorkspaceFile,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+  _test,
+} from '../../../src/cli/workspaceFiles';
 
 describe('workspaceFiles sandbox', () => {
   let cwd: string;
@@ -52,5 +60,24 @@ describe('workspaceFiles sandbox', () => {
   it('resolveInCwd blocks null byte', () => {
     const r = _test.resolveInCwd(cwd, 'a\0b');
     expect(r.ok).toBe(false);
+  });
+
+  it('deletes file inside cwd; rejects escape', () => {
+    writeWorkspaceFile(cwd, 'src/t.ts', 'x');
+    expect(deleteWorkspaceFile(cwd, 'src/t.ts').ok).toBe(true);
+    expect(fs.existsSync(path.join(cwd, 'src/t.ts'))).toBe(false);
+    expect(deleteWorkspaceFile(cwd, '../x').code).toBe('outside');
+  });
+
+  it('git checkout restores tracked file', () => {
+    execSync('git init', { cwd });
+    execSync('git config user.email t@t', { cwd });
+    execSync('git config user.name t', { cwd });
+    fs.writeFileSync(path.join(cwd, 'f.txt'), 'v1\n');
+    execSync('git add f.txt && git commit -m i', { cwd });
+    fs.writeFileSync(path.join(cwd, 'f.txt'), 'v2\n');
+    const r = gitCheckoutWorkspaceFile(cwd, 'f.txt');
+    expect(r.ok).toBe(true);
+    expect(fs.readFileSync(path.join(cwd, 'f.txt'), 'utf8')).toBe('v1\n');
   });
 });

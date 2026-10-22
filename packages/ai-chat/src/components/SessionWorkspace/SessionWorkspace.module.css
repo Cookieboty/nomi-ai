@@ -428,3 +428,388 @@
   color: var(--cd-color-warning, #d4a017);
   pointer-events: none;
 }
+
+/* —— 会话内摘要卡 —— */
+.turnCard {
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--cd-color-border, #333);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, #000);
+}
+.turnCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.turnCardTitleCol {
+  min-width: 0;
+}
+.turnCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.turnCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+  flex-shrink: 0;
+}
+.turnCardTitle {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--cd-color-text, #eee);
+}
+.turnCardLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0 36px;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--cd-color-text-muted, #888);
+  font-size: 12px;
+  cursor: pointer;
+}
+.turnCardLink:hover {
+  color: var(--cd-color-accent-strong, #5b8def);
+}
+.turnCardActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.turnUndo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: var(--cd-color-text-muted, #888);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.turnUndo:hover:not(:disabled) {
+  color: var(--cd-color-text, #eee);
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 12%, transparent);
+}
+.turnUndo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.turnPrimary {
+  background: color-mix(in srgb, var(--cd-color-border, #444) 80%, #222);
+  border: 1px solid var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.turnPrimary:hover {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 22%, transparent);
+}
+.turnFileList {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.turnFileRow {
+  margin: 0;
+}
+.turnFileBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 2px;
+  border-radius: 4px;
+  text-align: left;
+}
+.turnFileBtn:hover {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
+}
+.turnPath {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--cd-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+.turnDir {
+  color: var(--cd-color-text-muted, #888);
+}
+.turnName {
+  color: var(--cd-color-text, #eee);
+  font-weight: 600;
+}
+.turnMore {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  background: none;
+  border: 0;
+  color: var(--cd-color-text-muted, #888);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 0;
+}
+.turnMore:hover {
+  color: var(--cd-color-text, #eee);
+}
+
+/* —— 完整变更工作台 —— */
+.wbOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, #000 55%, transparent);
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 24px 18px;
+}
+.wbFrame {
+  flex: 1;
+  max-width: 1280px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  border: 1px solid var(--cd-color-border, #333);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cd-color-surface, #121212);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+.wbLeft,
+.wbRight {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--cd-color-border, #333);
+  background: var(--cd-color-surface-raised, #161616);
+  min-height: 0;
+}
+.wbRight {
+  border-right: 0;
+  border-left: 1px solid var(--cd-color-border, #333);
+}
+.wbProject {
+  padding: 12px;
+  border-bottom: 1px solid var(--cd-color-border, #333);
+}
+.wbProjectName {
+  font-weight: 650;
+  font-size: 14px;
+  color: var(--cd-color-text, #eee);
+}
+.wbProjectMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--cd-color-text-muted, #888);
+}
+.wbSources {
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+}
+.wbSourcesHead {
+  font-size: 11px;
+  color: var(--cd-color-text-muted, #888);
+  padding: 0 6px 4px;
+}
+.wbSourceItem {
+  text-align: left;
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 14%, transparent);
+  border: 1px solid var(--cd-color-border, #333);
+  color: var(--cd-color-text, #eee);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  font-family: var(--cd-font-mono, ui-monospace, monospace);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wbViewAll {
+  margin-top: auto;
+  background: none;
+  border: 0;
+  color: var(--cd-color-accent-strong, #5b8def);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 8px 6px;
+  text-align: left;
+}
+.wbCenter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--cd-color-surface-sunken, #0e0e0e);
+}
+.wbCenterHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--cd-color-border, #333);
+  font-size: 12px;
+}
+.wbCenterTab {
+  font-weight: 650;
+  color: var(--cd-color-text, #eee);
+}
+.wbCenterScope {
+  color: var(--cd-color-text-muted, #888);
+}
+.wbSpacer {
+  flex: 1;
+}
+.wbDiffScroll {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 10px 16px;
+}
+.wbOtherFiles {
+  margin-top: 12px;
+  border-top: 1px solid var(--cd-color-border, #333);
+  padding-top: 8px;
+}
+.wbOtherToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: var(--cd-color-text-muted, #888);
+  cursor: pointer;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.wbOtherHead {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 6px 2px;
+  font-size: 12px;
+}
+.wbOtherHead:hover {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
+}
+.wbRightTools {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px 0;
+  color: var(--cd-color-text-muted, #888);
+}
+.wbFilter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 10px;
+  padding: 4px 8px;
+  border: 1px solid var(--cd-color-border, #333);
+  border-radius: 6px;
+  color: var(--cd-color-text-muted, #888);
+}
+.wbFilter input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--cd-color-text, #eee);
+  font-size: 12px;
+  outline: none;
+}
+.wbTreeHead {
+  padding: 4px 12px 6px;
+  font-size: 11px;
+  color: var(--cd-color-text-muted, #888);
+}
+.wbTree {
+  flex: 1;
+  overflow: auto;
+  padding-bottom: 12px;
+}
+.wbTreeDirHead {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--cd-color-text-muted, #888);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 8px;
+  text-align: left;
+}
+.wbTreeFile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: 0;
+  color: var(--cd-color-text, #eee);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  text-align: left;
+}
+.wbTreeFile:hover {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
+}
+.wbTreeFile[data-active] {
+  background: color-mix(in srgb, var(--cd-color-danger, #e35d6a) 16%, transparent);
+  color: #ffb4b4;
+}
+.wbFileIcon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+.wbFileName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wbDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cd-color-accent-strong, #5b8def);
+  flex-shrink: 0;
+}

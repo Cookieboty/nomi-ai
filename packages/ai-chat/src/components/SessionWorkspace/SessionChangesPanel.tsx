@@ -27,6 +27,7 @@ import {
 } from '../../utils/sessionChanges';
 import type { FileDiff as ToolFileDiff } from '../../utils/toolTrace';
 
+import { useChangesUi } from './ChangesUiContext';
 import { FilePreview, type PreviewFile } from './FilePreview';
 import styles from './SessionWorkspace.module.css';
 
@@ -121,6 +122,7 @@ export const SessionChangesPanel: React.FC<{
   const [badgePulse, setBadgePulse] = useState(false);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
+  const { openWorkbench } = useChangesUi();
 
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const summary = useMemo(() => summarizeChanges(changes), [changes]);
@@ -312,6 +314,21 @@ export const SessionChangesPanel: React.FC<{
           ) : (
             <>
               <p className={styles.hint}>{t('会话工具写入 · 点击文件打开预览')}</p>
+              <button
+                type="button"
+                className={styles.turnPrimary}
+                style={{ marginBottom: 8, alignSelf: 'flex-start' }}
+                data-testid="panel-open-workbench"
+                onClick={() =>
+                  openWorkbench({
+                    entries: changes,
+                    file: changes[0]?.file,
+                    sourceLabel: t('全部'),
+                  })
+                }
+              >
+                {t('打开完整变更工作台')}
+              </button>
               {changes.map((c) => (
                 <ChangeRow
                   key={c.file}
