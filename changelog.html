@@ -11,7 +11,7 @@
   <title>更新日志 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261023a" />
+  <link rel="stylesheet" href="css/styles.css?v=20261023b" />
 </head>
 <body data-page="changelog" id="top">
   <header class="site-header">
@@ -55,6 +55,19 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v111">
+          <header class="release-head">
+            <h2 data-i18n="cl.v111.title">v1.1.1 — 品牌统一、Windows 拖动与自由放置游荡</h2>
+            <time datetime="2026-10-23">2026-10-23</time>
+          </header>
+          <ul class="release-list">
+            <li data-i18n="cl.v111.i1">品牌文案统一为 Nomi·诺米 / Nomi：设置、引导、工具栏、关于与 README 不再使用「AI 助手」「看板娘」称呼（聊天模式名「助手 / 工作台」不变）。</li>
+            <li data-i18n="cl.v111.i2">修复 Windows 下拖动桌面 Nomi 严重卡顿（越拖越卡）：拖动路径不再每帧解锁窗口尺寸，仅在 DPI 尺寸漂移时校正。</li>
+            <li data-i18n="cl.v111.i3">自由放置后不再被过期的自动游荡定时器立刻抢走：点「立即走一走」或拖动结束后会重新安排下次游荡。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v1.1.1" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v110">
           <header class="release-head">
             <h2 data-i18n="cl.v110.title">v1.1.0 — 本地统一模型网关与按标签页第三方编程助手</h2>
@@ -198,7 +211,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261023a"></script>
-  <script src="js/main.js?v=20261023a"></script>
+  <script src="js/i18n.js?v=20261023b"></script>
+  <script src="js/main.js?v=20261023b"></script>
 </body>
 </html>
