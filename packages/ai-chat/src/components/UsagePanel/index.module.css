@@ -77,7 +77,7 @@ p.dim {
 /* 摘要卡片 */
 .cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--cd-space-3);
 }
 @media (max-width: 900px) {
@@ -694,4 +694,29 @@ i.heatCell {
   .spin {
     animation: none;
   }
+}
+
+/* 成本明细表（视觉稿） */
+.costTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--cd-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+.costTable th,
+.costTable td {
+  padding: var(--cd-space-1-5) var(--cd-space-2);
+  border-bottom: 1px solid var(--cd-color-border);
+  text-align: left;
+}
+.costTable th {
+  font-weight: var(--cd-font-weight-medium);
+  color: var(--cd-color-text-muted);
+  background: var(--cd-color-surface-sunken);
+}
+.costTable td:first-child {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

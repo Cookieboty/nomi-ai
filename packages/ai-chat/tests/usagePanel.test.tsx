@@ -282,15 +282,30 @@ afterEach(() => {
 const queries = () => calls.filter((c) => c[0] === 'ai:usage:query').map((c) => c[1]);
 
 describe('UsagePanel 概览', () => {
-  it('四张摘要卡片 + 未定价提示 + 估算提示 + 趋势 / 分布 / 排行 / 热力图', async () => {
+  it('三张摘要卡片 + 未定价提示 + 估算提示 + 趋势 / 分布 / 排行 / 热力图', async () => {
     const { findByTestId, getByTestId } = render(<UsagePanel />);
     const cost = await findByTestId('usage-card-cost');
     expect(cost.textContent).toContain('$12.50');
     expect(cost.textContent).toContain('+150%');
     expect(getByTestId('usage-card-total').textContent).toContain('2.3M');
-    expect(getByTestId('usage-card-input').textContent).toContain('2M');
-    expect(getByTestId('usage-card-input').textContent).toContain('510K');
-    expect(getByTestId('usage-card-output').textContent).toContain('300K');
+    // 视觉稿三张卡：Token 用量（含输入 / 输出拆分与缓存）、预估费用、请求次数
+    expect(getByTestId('usage-card-split').textContent).toContain('输入 2M');
+    expect(getByTestId('usage-card-total').textContent).toContain('510K');
+    expect(getByTestId('usage-card-split').textContent).toContain('输出 300K');
+    expect(getByTestId('usage-card-calls')).toBeTruthy();
+    expect(getByTestId('usage-cost-trend')).toBeTruthy();
+    // 成本明细：未定价模型的单价 / 占比显示「—」，费用显示「未定价」
+    const table = getByTestId('usage-cost-table');
+    const unpricedRow = [...table.querySelectorAll('tbody tr')].find((r) =>
+      r.textContent!.includes('mystery-1'),
+    )!;
+    expect(unpricedRow.textContent).toContain('未定价');
+    expect(unpricedRow.textContent).toContain('—');
+    const priced = [...table.querySelectorAll('tbody tr')].filter(
+      (r) => !r.textContent!.includes('未定价'),
+    );
+    expect(priced.length).toBeGreaterThan(0);
+    for (const r of priced) expect(r.textContent).toMatch(/\/ 1K/);
     expect(getByTestId('usage-unpriced-notice').textContent).toContain('mystery-1');
     expect(getByTestId('usage-estimated-notice').textContent).toContain('3');
     expect(getByTestId('usage-trend')).toBeTruthy();
