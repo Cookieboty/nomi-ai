@@ -2403,13 +2403,14 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? 'Claude Code',
-          backend: 'claude' as HarnessBackend,
-          summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        if (!this.allowIfBypass(tabId, ev.id))
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? 'Claude Code',
+            backend: 'claude' as HarnessBackend,
+            summary: ev.agent ? t('子代理「{0}」：{1}', ev.agent, ev.summary) : ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          });
       }
       if ((ev.type === 'done' || ev.type === 'error') && turn && turn === live.auto) {
         this.finishAutoTurn(tabId, live, ev.type === 'error' ? ev.message : undefined);
@@ -2687,13 +2688,14 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
-          backend: live.backend as HarnessBackend,
-          summary: ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        if (!this.allowIfBypass(tabId, ev.id))
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
+            backend: live.backend as HarnessBackend,
+            summary: ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          });
       }
     }
   }
@@ -3426,13 +3428,14 @@ export class CliHarnessService {
       if (ev.type === 'permission') {
         this.armPermissionTimeout(tabId, ev.id);
         const tab = this.tabs.get(tabId);
-        this.events.emit('permission-needed', {
-          tabId,
-          title: tab?.title ?? 'Codex',
-          backend: 'codex' as HarnessBackend,
-          summary: ev.summary,
-          background: this.activeTabId !== tabId || !anyWindowFocused(),
-        });
+        if (!this.allowIfBypass(tabId, ev.id))
+          this.events.emit('permission-needed', {
+            tabId,
+            title: tab?.title ?? 'Codex',
+            backend: 'codex' as HarnessBackend,
+            summary: ev.summary,
+            background: this.activeTabId !== tabId || !anyWindowFocused(),
+          });
       }
     }
   }
@@ -3745,13 +3748,14 @@ export class CliHarnessService {
           if (live) this.emitEvent(tab.id, ev);
           if (ev.type === 'permission') {
             this.armPermissionTimeout(tab.id, ev.id);
-            this.events.emit('permission-needed', {
-              tabId: tab.id,
-              title: tab.title,
-              backend: tab.backend,
-              summary: ev.summary,
-              background: this.activeTabId !== tab.id || !anyWindowFocused(),
-            });
+            if (!this.allowIfBypass(tab.id, ev.id))
+              this.events.emit('permission-needed', {
+                tabId: tab.id,
+                title: tab.title,
+                backend: tab.backend,
+                summary: ev.summary,
+                background: this.activeTabId !== tab.id || !anyWindowFocused(),
+              });
           }
           if (ev.type === 'error') lastError = ev.message;
           if (ev.type === 'done') {
@@ -3992,6 +3996,16 @@ export class CliHarnessService {
     // 旧进程在信任前就已退出；保险起见清掉，下一轮按新的信任状态重新启动
     if (this.acpLive.has(tabId)) this.teardownAcpLive(tabId);
     return r;
+  }
+
+  /**
+   * 标签已是「完全放开」，CLI 却仍发来确认请求（Codex 的审批策略在开轮时定下、切换生效前的竞态等）：
+   * 直接放行，不再弹卡片和通知。卡片事件已发出，放行后随 permission-resolved 一起移除。
+   */
+  private allowIfBypass(tabId: string, requestId: string): boolean {
+    if (this.tabs.get(tabId)?.permissionMode !== 'bypass') return false;
+    queueMicrotask(() => this.replyPermission(tabId, requestId, true));
+    return true;
   }
 
   private armPermissionTimeout(tabId: string, requestId: string) {

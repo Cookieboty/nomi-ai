@@ -318,6 +318,56 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 15_000);
 
+  describe('完全放开放行确认请求', () => {
+    beforeEach(() => {
+      process.env.NOMI_MOCK_ASK_PERMISSION = '1';
+    });
+    afterEach(() => {
+      delete process.env.NOMI_MOCK_ASK_PERMISSION;
+    });
+    const mkClaude = (name: string) => {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-${name}-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      h.setBackend('claude');
+      const seen: { type: string; id?: string; reason?: string }[] = [];
+      h.events.on('event', (p: { event: { type: string; id?: string; reason?: string } }) =>
+        seen.push(p.event),
+      );
+      return { h, seen };
+    };
+
+    it('等待确认时切到完全放开：放行在等的请求，这一轮继续跑完', async () => {
+      const { h, seen } = mkClaude('perm-switch');
+      const run = h.send('hello');
+      await until(() => seen.some((e) => e.type === 'permission'), { what: 'permission asked' });
+      const tabId = h.listTabs().activeTabId;
+      await h.applyTabPermissionMode(tabId, 'bypass', { confirmed: true });
+      const r = await run;
+      expect(seen).toContainEqual(
+        expect.objectContaining({ type: 'permission-resolved', reason: 'allowed' }),
+      );
+      expect(r.text).not.toContain('权限被拒绝');
+    }, 15_000);
+
+    it('已是完全放开时 CLI 仍来问：直接放行，不发桌面通知', async () => {
+      const { h, seen } = mkClaude('perm-bypass');
+      const needed: unknown[] = [];
+      h.events.on('permission-needed', (p) => needed.push(p));
+      h.setTabPermissionMode(h.listTabs().activeTabId, 'bypass', { confirmed: true });
+      const r = await h.send('hello');
+      expect(r.text).not.toContain('权限被拒绝');
+      expect(seen).toContainEqual(
+        expect.objectContaining({ type: 'permission-resolved', reason: 'allowed' }),
+      );
+      expect(needed).toHaveLength(0);
+    }, 15_000);
+  });
+
   it('defaults to nomi with tools enabled', () => {
     const h = track(
       new CliHarnessService({

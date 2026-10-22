@@ -312,6 +312,23 @@ describe('CliHarnessService Codex over app-server', () => {
     expect(turnStarts()[0]!.params.approvalPolicy).toBe('untrusted');
   }, 15_000);
 
+  it('等待审批时切到完全放开：放行在等的请求，这一轮照常跑完，下一轮按新策略开始', async () => {
+    process.env.NOMI_MOCK_CODEX_PERM = '1';
+    const { h, events } = mk();
+    const tab = h.createTab({ backend: 'codex' });
+    h.setTabPermissionMode(tab.id, 'manual');
+    const run = h.sendTab(tab.id, 'list');
+    await until(() => events.some((e) => e.type === 'permission'), { what: 'approval asked' });
+    await h.applyTabPermissionMode(tab.id, 'bypass', { confirmed: true });
+    const r = await run;
+    expect(r.events.find((e) => e.type === 'tool' && e.status !== 'start')).toMatchObject({
+      status: 'done',
+    });
+    await h.sendTab(tab.id, 'next');
+    expect(turnStarts().map((c) => c.params.approvalPolicy)).toEqual(['untrusted', 'never']);
+    expect(count('initialize')).toBe(1);
+  }, 15_000);
+
   it('这一轮失败：报出 Codex 给的原因', async () => {
     process.env.NOMI_MOCK_CODEX_FAIL = '1';
     const { h } = mk();
