@@ -53,20 +53,33 @@ function setup(o: { voice?: boolean; ready?: boolean; sherpa?: boolean; ttsOff?:
   const setVoice = jest.fn((v: boolean) => {
     voice = v;
   });
+  const enableEngine = jest.fn();
   const ctl = new TtsModelController({
     sherpa,
     getVoiceEnabled: () => voice,
     setVoiceEnabled: setVoice,
+    enableEngine,
     usesSherpa: () => o.sherpa ?? true,
     ttsDisabled: () => o.ttsOff ?? false,
     broadcast: (s) => broadcasts.push(s),
   });
-  return { ctl, sherpa, setVoice, broadcasts, voice: () => voice };
+  return { ctl, sherpa, setVoice, enableEngine, broadcasts, voice: () => voice };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 describe('TtsModelController', () => {
+  it('turning voice on also enables the TTS engine config; turning it off leaves it (#82)', async () => {
+    const t = setup({ sherpa: false });
+    await t.ctl.setVoiceEnabled(true);
+    expect(t.enableEngine).toHaveBeenCalledTimes(1);
+    await t.ctl.setVoiceEnabled(false);
+    expect(t.enableEngine).toHaveBeenCalledTimes(1);
+    // 工具栏开关（已持久化）同样启用
+    await t.ctl.setVoiceEnabled(true, true);
+    expect(t.enableEngine).toHaveBeenCalledTimes(2);
+  });
+
   it('startup: voice on + no model → does NOT download (user must click download, #60)', () => {
     const t = setup({ voice: true });
     t.ctl.start();
