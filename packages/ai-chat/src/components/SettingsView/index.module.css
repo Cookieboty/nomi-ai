@@ -43,17 +43,9 @@
   gap: 10px;
   padding: var(--cd-space-1) var(--cd-space-2) var(--cd-space-4);
 }
-.brandBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
+.brandMark {
   flex: none;
-  border-radius: var(--cd-radius-lg);
-  /* 橙色品牌徽章 */
-  background: linear-gradient(135deg, var(--cd-color-accent-2), var(--cd-color-accent));
-  box-shadow: 0 2px 6px rgba(var(--cd-accent-rgb), 0.35);
+  color: var(--cd-color-text);
 }
 .brandText {
   display: flex;
@@ -70,17 +62,23 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
-.navGroup {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-  padding: var(--cd-space-4) var(--cd-space-3) var(--cd-space-1-5);
+/* 分组之间只用一条细线隔开（不加组标题）；第一组紧跟「返回对话」 */
+.navSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-2) 0;
+}
+.navSection + .navSection {
+  border-top: 1px solid var(--cd-color-border);
 }
 .navItem.navActive {
   background: var(--cd-color-selected-bg);
   color: var(--cd-color-selected-text);
   font-weight: var(--cd-font-weight-bold);
   /* 左侧强调条：当前项在同色系淡底上也能一眼分辨 */
-  box-shadow: inset 3px 0 0 var(--cd-palette-accent, var(--cd-color-accent-strong));
+  /* 规范 §13：选中导航左侧 3px 主色强调线 */
+  box-shadow: inset 3px 0 0 var(--cd-color-brand);
 }
 .navIcon {
   display: inline-flex;

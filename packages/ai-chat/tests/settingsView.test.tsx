@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SettingsView,
+  SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
   type SettingsSection,
   type SettingsTab,
@@ -32,6 +33,10 @@ const Harness = ({
 };
 
 describe('SettingsView', () => {
+  it('nav groups list every section exactly once, in section order', () => {
+    expect(SETTINGS_NAV_GROUPS.flat()).toEqual(SETTINGS_SECTIONS.map((s) => s.id));
+  });
+
   it('lists every section and switches between them; Esc returns to chat', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);

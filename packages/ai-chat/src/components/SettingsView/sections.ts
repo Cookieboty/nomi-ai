@@ -103,6 +103,17 @@ export const SETTINGS_SECTIONS: Array<{
   },
 ];
 
+/**
+ * 侧栏分组（只用细分隔线，不加组标题）：基础 / AI 能力与花费 / 感知与陪伴 / 系统与数据。
+ * 每个分区恰好出现一次，顺序与 SETTINGS_SECTIONS 一致。
+ */
+export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
+  ['general', 'shortcuts'],
+  ['models', 'coding', 'usage'],
+  ['senses', 'knowledge', 'schedule', 'notify'],
+  ['ext', 'local', 'privacy'],
+];
+
 /** 有标签页的分区：标签 id 与显示文案（文案作 i18n key，渲染时过 t()）。 */
 export const SECTION_TABS = {
   senses: [

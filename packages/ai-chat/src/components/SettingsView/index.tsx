@@ -9,7 +9,6 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
-import { EndpointIcon } from '../EndpointIcon';
 import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
@@ -22,6 +21,7 @@ import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
+import { NomiMark } from './NomiMark';
 import { PinsSettings } from './PinsSettings';
 import { PrivacySection } from './PrivacySection';
 import { ScheduleSection } from './ScheduleSection';
@@ -29,6 +29,7 @@ import { SECTION_HELP } from './sectionHelp';
 import {
   LOCAL_MANAGE_TABS,
   SECTION_TABS,
+  SETTINGS_NAV_GROUPS,
   SETTINGS_SECTIONS,
   tabOf as pickTab,
   type SettingsSection,
@@ -40,7 +41,7 @@ import { StartupSettings } from './StartupSettings';
 import { ThemeSettings } from './ThemeSettings';
 import { UpdateSettings } from './UpdateSettings';
 
-export { SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
+export { SETTINGS_NAV_GROUPS, SETTINGS_SECTIONS, type SettingsSection, type SettingsTab };
 
 /** 「模型」页懒加载 */
 const ModelsPage = React.lazy(() =>
@@ -198,9 +199,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
     <div className={styles.settings} data-testid="settings-view">
       <nav className={styles.nav} aria-label={t('设置分区')}>
         <div className={styles.brand} data-testid="settings-brand">
-          <span className={styles.brandBadge}>
-            <EndpointIcon backend="nomi" size={22} decorative />
-          </span>
+          <NomiMark className={styles.brandMark} />
           <span className={styles.brandText}>
             <span className={styles.brandName}>{t('Nomi · 诺米')}</span>
             <span className={styles.brandSub}>{t('你的桌面 AI 助手')}</span>
@@ -216,25 +215,30 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <Icon icon={ChevronLeft} />
           {t('返回对话')}
         </button>
-        <div className={styles.navGroup}>{t('设置')}</div>
-        {SETTINGS_SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`${styles.navItem} ${s.id === section ? styles.navActive : ''}`}
-            aria-current={s.id === section ? 'page' : undefined}
-            onClick={() => {
-              setLocalTab(undefined);
-              setScreenSub(undefined);
-              onSection(s.id);
-            }}
-            data-testid={`settings-nav-${s.id}`}
-          >
-            <span className={styles.navIcon}>
-              <AppIcon icon={s.icon} size="nav" />
-            </span>
-            {t(s.label)}
-          </button>
+        {SETTINGS_NAV_GROUPS.map((group, gi) => (
+          <div key={gi} className={styles.navSection}>
+            {group
+              .map((id) => SETTINGS_SECTIONS.find((x) => x.id === id)!)
+              .map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`${styles.navItem} ${s.id === section ? styles.navActive : ''}`}
+                  aria-current={s.id === section ? 'page' : undefined}
+                  onClick={() => {
+                    setLocalTab(undefined);
+                    setScreenSub(undefined);
+                    onSection(s.id);
+                  }}
+                  data-testid={`settings-nav-${s.id}`}
+                >
+                  <span className={styles.navIcon}>
+                    <AppIcon icon={s.icon} size="nav" />
+                  </span>
+                  {t(s.label)}
+                </button>
+              ))}
+          </div>
         ))}
       </nav>
       <main className={styles.content} aria-label={t(current.label)}>
