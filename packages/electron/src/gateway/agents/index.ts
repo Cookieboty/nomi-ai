@@ -86,6 +86,10 @@ const thinkingBudget = (maxOutput: number) => Math.min(16_000, Math.floor(maxOut
 const capabilities = (m: ModelMeta | undefined) =>
   m?.reasoning ? 'thinking,interleaved_thinking' : 'temperature';
 
+/** Claude Code 某一档实际用的模型；Haiku 档（后台任务）没设时先看旧版本的「小模型」 */
+const claudeTier = (c: LaunchContext, tier: (typeof TIERS)[number]) =>
+  c.models.tiers?.[tier] ?? (tier === 'haiku' ? c.models.small : undefined) ?? c.model;
+
 function claude(c: LaunchContext): AgentLaunch {
   const meta = c.metaOf?.(c.model);
   const ctx = meta?.ctx ?? DEFAULT_CTX;
@@ -94,7 +98,8 @@ function claude(c: LaunchContext): AgentLaunch {
     ANTHROPIC_BASE_URL: c.url,
     // 用 AUTH_TOKEN 不用 API_KEY：后者会弹「是否使用这个 Key」并写进 ~/.claude.json（§12.1）
     ANTHROPIC_AUTH_TOKEN: c.token,
-    ANTHROPIC_SMALL_FAST_MODEL: c.models.small ?? c.model,
+    // 旧版 Claude Code 的后台任务模型；新版改读 ANTHROPIC_DEFAULT_HAIKU_MODEL，两者取同一个值
+    ANTHROPIC_SMALL_FAST_MODEL: claudeTier(c, 'haiku'),
     // 模型的真实参数（§12.7.1）：不认识的模型 Claude Code 会按默认窗口压缩
     CLAUDE_CODE_MAX_CONTEXT_TOKENS: String(ctx),
     CLAUDE_CODE_MAX_OUTPUT_TOKENS: String(maxOutput),
@@ -104,7 +109,7 @@ function claude(c: LaunchContext): AgentLaunch {
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   };
   for (const tier of TIERS) {
-    const ref = c.models.tiers?.[tier] ?? c.model;
+    const ref = claudeTier(c, tier);
     const m = c.metaOf?.(ref);
     const key = `ANTHROPIC_DEFAULT_${tier.toUpperCase()}_MODEL`;
     env[key] = ref;

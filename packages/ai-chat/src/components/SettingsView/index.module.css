@@ -434,12 +434,16 @@
   line-height: 1.6;
   color: var(--cd-color-text-muted);
 }
-/* 「通用」页顶部横幅：整幅原图，随内容宽度等比缩放，圆角与卡片一致 */
+/* 「通用」页顶部横幅：宽度与内容区一致；高度封顶，宽屏时裁掉上下而不是无限变高 */
 .banner {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: 2048 / 768;
+  max-width: 1240px;
+  margin: 0 auto;
+  height: clamp(200px, 28vw, 340px);
+  object-fit: cover;
+  /* 裁切时保住 logo 与人物的脸 */
+  object-position: center 40%;
   pointer-events: none;
   user-select: none;
   /* 无边框：左右与底部渐隐，融进页面底色 */

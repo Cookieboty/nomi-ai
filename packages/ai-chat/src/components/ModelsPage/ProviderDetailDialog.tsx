@@ -712,7 +712,7 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                 providers={fallbackPicker}
                 showWire={showWire}
                 size="sm"
-                className={styles.picker}
+                className={styles.fallbackAdd}
                 value={null}
                 onChange={(ref) =>
                   ref && !d.fallback.includes(ref) && patch({ fallback: [...d.fallback, ref] })

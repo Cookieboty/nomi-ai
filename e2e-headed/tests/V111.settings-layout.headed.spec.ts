@@ -103,15 +103,17 @@ test.describe('v1.1.1 settings layout', () => {
     for (const [id, label] of SECTIONS) {
       await chat.locator(`[data-testid="settings-nav-${id}"]`).click();
       await expect(chat.locator('[data-testid="settings-section-title"]')).toHaveText(label);
-      // 横幅只在「通用」：铺满内容宽度、保持 2048:768 比例、不吃点击
+      // 横幅只在「通用」：铺满内容宽度、高度封顶（宽屏裁切而不是无限变高）、不吃点击
       const banner = chat.locator('[data-testid="settings-banner"]');
       if (id === 'general') {
         await expect(banner).toHaveCSS('pointer-events', 'none');
         await expect
           .poll(() => banner.evaluate((el) => (el as HTMLImageElement).naturalWidth))
           .toBe(2048);
+        await expect(banner).toHaveCSS('object-fit', 'cover');
         const bb = (await banner.boundingBox())!;
-        expect(Math.abs(bb.width / bb.height - 2048 / 768)).toBeLessThan(0.03);
+        expect(bb.height).toBeGreaterThanOrEqual(199);
+        expect(bb.height).toBeLessThanOrEqual(341);
         await expect(chat.locator('[data-testid="settings-page-head"]')).toHaveCount(0);
       } else {
         await expect(banner).toHaveCount(0);
