@@ -23,7 +23,9 @@ try {
   }
   if ($changed) { $key.SetValue('Path', $next, $kind) }
 } finally { $key.Dispose() }
-if ($changed) {
+# Broadcast is best-effort; registry write already succeeded. Tests can skip the
+# cold Add-Type compile with NOMI_SKIP_ENV_BROADCAST=1.
+if ($changed -and $env:NOMI_SKIP_ENV_BROADCAST -ne '1') {
   try {
   Add-Type -Namespace Nomi -Name EnvironmentBroadcast -MemberDefinition @'
 [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
@@ -31,10 +33,12 @@ public static extern System.IntPtr SendMessageTimeout(System.IntPtr h, uint m, S
 '@
   $result = [UIntPtr]::Zero
   [void][Nomi.EnvironmentBroadcast]::SendMessageTimeout([IntPtr]0xffff, 0x1a, [UIntPtr]::Zero, 'Environment', 2, 2000, [ref]$result)
-  } catch { } # Broadcasting is best effort after the registry write succeeds.
+  } catch { }
 }
 [Console]::Write($(if ($changed) { '1' } else { '0' }))
 `;
+  // Cold PowerShell 5 + Add-Type on CI runners can exceed 15s; 45s covers that
+  // without hanging a hung shell forever. Registry write itself is fast.
   return (
     execFileSync(
       'powershell.exe',
@@ -49,7 +53,7 @@ public static extern System.IntPtr SendMessageTimeout(System.IntPtr h, uint m, S
         env: { ...process.env, NOMI_PATH_DIRECTORY: directory, NOMI_PATH_ADD: add ? '1' : '0' },
         encoding: 'utf8',
         windowsHide: true,
-        timeout: 15_000,
+        timeout: 45_000,
       },
     ).trim() === '1'
   );

@@ -22,7 +22,8 @@ const ps = (source: string) =>
           'utf16le',
         ).toString('base64'),
       ],
-      { encoding: 'utf8', windowsHide: true, timeout: 15_000 },
+      // GHA Windows runners often cold-start Windows PowerShell 5 slowly.
+      { encoding: 'utf8', windowsHide: true, timeout: 60_000 },
     )
     .trim();
 
@@ -45,7 +46,13 @@ const ps = (source: string) =>
             source.replace("CreateSubKey('Environment')", `CreateSubKey('${key}')`),
             'utf16le',
           ).toString('base64');
-          return native.execFileSync(file, forwarded, options);
+          const opts = (options ?? {}) as ChildProcess.ExecFileSyncOptions;
+          return native.execFileSync(file, forwarded, {
+            ...opts,
+            // 单测只验证 PATH 读写；跳过冷启动下很慢的 Add-Type 广播。
+            env: { ...(opts.env as NodeJS.ProcessEnv | undefined), NOMI_SKIP_ENV_BROADCAST: '1' },
+            timeout: Math.max(Number(opts.timeout ?? 0), 60_000),
+          });
         });
         const read = () =>
           JSON.parse(
@@ -67,7 +74,7 @@ const ps = (source: string) =>
           ps(`[Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree('${key}', $false)`);
         }
       },
-      30_000,
+      90_000,
     );
   },
 );

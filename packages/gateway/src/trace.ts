@@ -110,7 +110,8 @@ export function pruneTraces(dir: string, now = Date.now(), maxAgeMs = TRACE_MAX_
   }
   let removed = 0;
   for (const n of names) {
-    if (!n.endsWith('.json')) continue;
+    // 正式追踪是 .json；崩溃留下的 .*.tmp 也清掉，避免目录堆积
+    if (!n.endsWith('.json') && !n.endsWith('.tmp')) continue;
     const f = path.join(dir, n);
     try {
       if (now - fs.statSync(f).mtimeMs > maxAgeMs) {
@@ -230,10 +231,16 @@ export class RequestTrace {
       let file = '';
       for (let i = 0; i < 20; i++) {
         file = path.join(this.dir, i ? `${base}-${i + 1}.json` : `${base}.json`);
+        // 先写完整内容到临时文件，再用 link 独占发布：读者永远看不到半截 JSON。
+        // （直接 writeFile 到最终路径时，readdir 能先看到文件、read 却读到不完整内容。）
+        const tmp = `${file}.${process.pid}.${i}.tmp`;
         try {
-          await fs.promises.writeFile(file, data, { mode: 0o600, flag: 'wx' });
+          await fs.promises.writeFile(tmp, data, { mode: 0o600 });
+          await fs.promises.link(tmp, file);
+          await fs.promises.unlink(tmp).catch(() => undefined);
           break;
         } catch (e) {
+          await fs.promises.unlink(tmp).catch(() => undefined);
           if ((e as NodeJS.ErrnoException).code !== 'EEXIST' || i === 19) throw e;
         }
       }

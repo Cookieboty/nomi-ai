@@ -146,7 +146,10 @@ describe('RequestTrace', () => {
     const file = await t.finish({ status: 200, ms: 12, attempts: 1 });
     expect(file).toBeTruthy();
     expect(path.basename(file!)).toBe('2026-10-21T08-00-00-005Z-claude.json');
+    // finish() 在原子发布完成后才返回：立刻读就应是完整 JSON，目录里也不该留 .tmp
+    expect(fs.readdirSync(dir).filter((n) => n.endsWith('.tmp'))).toEqual([]);
     const raw = fs.readFileSync(file!, 'utf8');
+    expect(() => JSON.parse(raw)).not.toThrow();
     expect(raw).not.toContain('zp-secret-value-123456');
     expect(raw).not.toContain('tok-claude-abcdef');
     if (process.platform !== 'win32') expect(fs.statSync(file!).mode & 0o777).toBe(0o600);
@@ -206,13 +209,24 @@ describe('gateway with traceDir', () => {
     });
     expect(r.status).toBe(200);
     await r.text();
-    // 写盘是异步的
-    for (let i = 0; i < 50 && !(fs.existsSync(dir) && fs.readdirSync(dir).length); i++)
+    // 写盘是异步的；等可解析的 .json（忽略 .tmp），避免读到尚未写完的文件
+    let raw = '';
+    let files: string[] = [];
+    for (let i = 0; i < 100; i++) {
+      files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((n) => n.endsWith('.json')) : [];
+      if (files.length === 1) {
+        try {
+          raw = fs.readFileSync(path.join(dir, files[0]!), 'utf8');
+          JSON.parse(raw);
+          break;
+        } catch {
+          raw = '';
+        }
+      }
       await new Promise((res) => setTimeout(res, 20));
-    const files = fs.readdirSync(dir);
+    }
     expect(files).toHaveLength(1);
     expect(files[0]).toMatch(/-claude\.json$/);
-    const raw = fs.readFileSync(path.join(dir, files[0]!), 'utf8');
     expect(raw).not.toContain('tok-claude-abcdef');
     expect(raw).not.toContain('zp-secret-value-123456');
     const doc = JSON.parse(raw);
