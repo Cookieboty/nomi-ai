@@ -35,3 +35,82 @@ describe('AIClient · provider routing', () => {
     await client.dispose();
   });
 });
+
+describe('AIClient · abort reaches the provider that is actually running (#92)', () => {
+  /** 流在 abort 前一直挂着；abort 记录 reqId 并结束流 */
+  const slowLLM = (id: string) => {
+    const aborted: string[] = [];
+    let wake: () => void = () => undefined;
+    const p: LLMProvider & { aborted: string[] } = {
+      id,
+      aborted,
+      async chat() {
+        await new Promise<void>((r) => (wake = r));
+        return { reqId: 'x', provider: id, model: 'm', content: '', finishReason: 'stop' } as never;
+      },
+      async *stream() {
+        yield { type: 'delta', content: 'hi' } as never;
+        await new Promise<void>((r) => (wake = r));
+      },
+      abort(reqId: string) {
+        aborted.push(reqId);
+        wake();
+      },
+    } as never;
+    return p;
+  };
+
+  it('stream: the routed instance was replaced in the registry, abort still reaches it', async () => {
+    const old = slowLLM('gw-old');
+    const fresh = slowLLM('gw-new');
+    let current: LLMProvider = old;
+    const ctx = createFakeSdkCtx();
+    ctx.provide(LLMRegistryKey, {
+      register() {},
+      get: () => undefined,
+      list: () => [current],
+      resolve: () => ({ provider: current }),
+    });
+    const client = new AIClient(ctx);
+    const stream = client.chat.agentStream({
+      reqId: 'r1',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    const it = stream[Symbol.asyncIterator]();
+    expect((await it.next()).value).toMatchObject({ type: 'delta' });
+    // 另一个角色的请求把网关单槽缓存换成了新实例
+    current = fresh;
+    const done = it.next();
+    client.chat.abort('r1');
+    await done;
+    expect(old.aborted).toEqual(['r1']);
+    // 结束后释放：之后的 abort 只按当前路由兜底
+    client.chat.abort('r1');
+    expect(old.aborted).toEqual(['r1']);
+    await client.dispose();
+  });
+
+  it('sendMessage: abort reaches the instance even after the registry moved on', async () => {
+    const old = slowLLM('gw-old');
+    let current: LLMProvider = old;
+    const ctx = createFakeSdkCtx();
+    ctx.provide(LLMRegistryKey, {
+      register() {},
+      get: () => undefined,
+      list: () => [current],
+      resolve: () => ({ provider: current }),
+    });
+    const client = new AIClient(ctx);
+    const run = client.chat.sendMessage({
+      reqId: 'r2',
+      role: 'summary',
+      messages: [{ role: 'user', content: 'x' }],
+    });
+    current = slowLLM('gw-new');
+    await Promise.resolve();
+    client.chat.abort('r2');
+    await run;
+    expect(old.aborted).toEqual(['r2']);
+    await client.dispose();
+  });
+});
