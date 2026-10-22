@@ -22,7 +22,7 @@ export const THEMES: ThemeInfo[] = [
     id: 'sunset',
     name: 'Sunset Orange 日落橙（默认）',
     desc: '暖杏浅底 + Nomi 品牌橙',
-    swatch: ['#fff6ec', '#ffefe3', '#3d2918', '#fb9466'],
+    swatch: ['#fff9f1', '#fffcf8', '#45352b', '#efa06f'],
   },
   {
     id: 'ink',

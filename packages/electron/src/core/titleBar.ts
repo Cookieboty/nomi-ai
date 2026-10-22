@@ -14,7 +14,7 @@ export const THEME_CHROME: Record<ChromeTheme, { bg: string; fg: string }> = {
   graphite: { bg: '#0f0f11', fg: '#ededef' },
   ink: { bg: '#1a1917', fg: '#ece8e1' },
   cream: { bg: '#fcefe1', fg: '#33291f' },
-  sunset: { bg: '#fff6ec', fg: '#3d2918' },
+  sunset: { bg: '#fff9f1', fg: '#45352b' },
 };
 
 export const TITLEBAR_HEIGHT = { mac: 38, other: 36 } as const;
