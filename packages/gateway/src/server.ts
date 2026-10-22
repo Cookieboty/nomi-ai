@@ -616,8 +616,13 @@ export class GatewayServer {
     if (noSearch) return { kind: 'failed', status: 400, message: noSearch, retryable: true, cand };
     if (notes.length)
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
-    const timeout = AbortSignal.timeout(this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS);
-    const both = AbortSignal.any([signal, timeout]);
+    // 只管到响应头为止：拿到响应后撤销，正文由流的空闲超时 / 用户取消管（#93）
+    const firstByte = new AbortController();
+    const timer = setTimeout(
+      () => firstByte.abort(),
+      this.hooks.firstByteTimeoutMs ?? FIRST_BYTE_TIMEOUT_MS,
+    );
+    const both = AbortSignal.any([signal, firstByte.signal]);
     const headers = upstreamHeaders(cand, {
       stream: wantsStream,
       clientHeaders: req.headers,
@@ -641,7 +646,7 @@ export class GatewayServer {
         signal: both,
       });
     } catch (e) {
-      const timedOut = timeout.aborted && !signal.aborted;
+      const timedOut = firstByte.signal.aborted && !signal.aborted;
       return {
         kind: 'failed',
         status: timedOut ? 504 : 502,
@@ -650,6 +655,8 @@ export class GatewayServer {
         cand,
         network: !signal.aborted,
       };
+    } finally {
+      clearTimeout(timer);
     }
     if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
     const text = await res.text().catch(() => '');
@@ -771,7 +778,17 @@ export class GatewayServer {
       }
       return tap.end();
     }
-    const text = await up.text();
+    let text: string;
+    try {
+      text = await up.text();
+    } catch (e) {
+      // 非流式正文读到一半上游断开：按入口协议回错误，不让请求挂着
+      const msg = `Nomi 网关：上游中断（${(e as Error).message}）`;
+      const err = errorResponse(ingress.wire, kindOfStatus(502, msg), msg);
+      if (!res.headersSent) sendJson(res, err.status, err.body);
+      else res.end();
+      return {};
+    }
     trace?.response(up.status, text);
     let parsed: unknown = text;
     try {

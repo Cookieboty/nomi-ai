@@ -84,7 +84,7 @@ function provider(base: string): RuntimeProvider {
   };
 }
 
-async function setup(script: Script) {
+async function setup(script: Script, hooks: Parameters<typeof createGateway>[1] = {}) {
   const up = await upstream(script);
   const clock = { now: 1_000_000 };
   const usage: UsageEvent[] = [];
@@ -104,6 +104,7 @@ async function setup(script: Script) {
     onKeyStatus: (e) => status.push(e),
     now: () => clock.now,
     streamIdleTimeoutMs: 300,
+    ...hooks,
   });
   await gw.start();
   cleanups.push(() => gw.stop());
@@ -232,6 +233,42 @@ describe('cooldown (§11.1)', () => {
     expect(r.headers.get('retry-after')).toBe('7');
     expect(await r.json()).toMatchObject({ type: 'error', error: { type: 'rate_limit_error' } });
     expect(t.up.seen.map((s) => s.key)).toEqual(['k1', 'k2']);
+  });
+});
+
+describe('first-byte timeout (#93)', () => {
+  it('only covers the wait for response headers: a steady stream longer than it completes', async () => {
+    const { chat } = await setup(
+      (_s, res) => {
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        let n = 0;
+        const tick = setInterval(() => {
+          n++;
+          res.write(
+            `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: `p${n}` } }] })}\n\n`,
+          );
+          if (n === 6) {
+            clearInterval(tick);
+            res.end(
+              `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n` +
+                'data: [DONE]\n\n',
+            );
+          }
+        }, 50);
+      },
+      { firstByteTimeoutMs: 100 },
+    );
+    const text = await (await chat()).text();
+    expect(text).toContain('p6');
+    expect(text).toContain('[DONE]');
+    expect(text).not.toContain('上游中断');
+  });
+
+  it('still fails over when the upstream sends no headers in time', async () => {
+    const { chat } = await setup(() => undefined, { firstByteTimeoutMs: 100 });
+    const r = await chat();
+    expect(r.status).toBeGreaterThanOrEqual(500);
+    expect(await r.text()).toContain('首字节前超时');
   });
 });
 
