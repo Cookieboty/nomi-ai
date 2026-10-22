@@ -3472,23 +3472,40 @@ export class CliHarnessService {
 
   /**
    * 停止 Codex 这一轮：turn/interrupt（实测 18ms 内以 interrupted 结束，进程保留）。
-   * 拿不到应答、或宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   * 宽限期内这一轮没结束，才拆进程兜底（下一轮 thread/resume 接上）。
+   * turn/start 的应答还没回来时不立刻拆：轮询等 turnId，到了再 interrupt；
+   * 否则用户刚点发送就点停止会误杀整个 app-server（macOS CI 上更容易撞上）。
    */
   private interruptCodexTurn(id: string, live: CodexLiveSession, turn: CodexTurn) {
     for (const fin of [...live.perms.values()]) fin(null);
+    const grace = this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS;
     const fallback = () => {
       if (this.codexLive.get(id) === live && live.turn === turn && !turn.settled)
         this.teardownCodexLive(id);
     };
-    setTimeout(fallback, this.d.claudeInterruptGraceMs ?? CLAUDE_INTERRUPT_GRACE_MS).unref?.();
-    // turn/start 的应答还没回来（拿不到 turnId）：只能拆进程
-    if (!turn.id || !live.threadId) {
-      fallback();
+    setTimeout(fallback, grace).unref?.();
+    const send = () => {
+      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) return;
+      if (!turn.id || !live.threadId) return;
+      live.conn
+        .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
+        .catch(fallback);
+    };
+    if (turn.id && live.threadId) {
+      send();
       return;
     }
-    live.conn
-      .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
-      .catch(fallback);
+    const poll = setInterval(() => {
+      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) {
+        clearInterval(poll);
+        return;
+      }
+      if (turn.id && live.threadId) {
+        clearInterval(poll);
+        send();
+      }
+    }, 20);
+    poll.unref?.();
   }
 
   private teardownCodexLive(tabId: string) {

@@ -263,6 +263,16 @@ describe('CliHarnessService Codex over app-server', () => {
     const tab = h.createTab({ backend: 'codex' });
     const p = h.sendTab(tab.id, 'long');
     await until(() => turnStarts().length > 0, { what: 'turn/start sent' });
+    // turn/start 已发出不等于已拿到 turnId；等 id 落盘后再停，避免误杀进程
+    await until(
+      () => {
+        const live = (
+          h as unknown as { codexLive: Map<string, { turn: { id: string | null } | null }> }
+        ).codexLive.get(tab.id);
+        return Boolean(live?.turn?.id);
+      },
+      { what: 'turn id assigned' },
+    );
     expect(h.cancelTab(tab.id)).toBe(true);
     await expect(p).rejects.toThrow();
     expect(h.tabMessages(tab.id).at(-1)).toMatchObject({ stopped: true });
