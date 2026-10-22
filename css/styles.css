@@ -622,6 +622,48 @@ h3 { font-size: 1.25rem; letter-spacing: -0.02em; }
   color: var(--nomi-warm-gray);
 }
 
+
+/* ——— Modes (Assistant / Workbench) ——— */
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.25rem;
+}
+@media (max-width: 700px) {
+  .modes { grid-template-columns: 1fr; }
+}
+.mode-card {
+  position: relative;
+  background: var(--nomi-card);
+  border: 1px solid var(--nomi-border);
+  border-radius: var(--radius);
+  padding: 1.85rem 1.5rem;
+  text-align: left;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  overflow: hidden;
+}
+.mode-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--nomi-peach-soft), var(--nomi-orange));
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.mode-card:hover {
+  box-shadow: var(--nomi-shadow-lg);
+  border-color: rgba(251, 148, 102, 0.35);
+  transform: translateY(-3px);
+}
+.mode-card:hover::after { opacity: 1; }
+.mode-card h3 { margin-bottom: 0.4rem; }
+.mode-card p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--nomi-warm-gray);
+}
+
 /* ——— Spotlight rows (alternating) ——— */
 .spotlight {
   display: grid;
