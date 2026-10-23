@@ -32,6 +32,14 @@ interface ChangesUiValue {
   /** 中栏预览挂载点（右栏用 portal 渲染进来） */
   previewSlot: HTMLElement | null;
   setPreviewSlot: (el: HTMLElement | null) => void;
+  /** 右栏请求把一段文字填进输入框（nonce 区分重复请求） */
+  composerFill: ComposerFill | null;
+  fillComposer: (text: string) => void;
+}
+
+export interface ComposerFill {
+  text: string;
+  nonce: number;
 }
 
 const Ctx = createContext<ChangesUiValue | null>(null);
@@ -41,6 +49,11 @@ export const ChangesUiProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [detail, setDetail] = useState<WorkbenchOpen | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewSlot, setPreviewSlot] = useState<HTMLElement | null>(null);
+  const [composerFill, setComposerFill] = useState<ComposerFill | null>(null);
+  const fillComposer = useCallback(
+    (text: string) => setComposerFill((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 })),
+    [],
+  );
   const openWorkbench = useCallback((o: WorkbenchOpen = {}) => setWorkbench(o), []);
   const closeWorkbench = useCallback(() => setWorkbench(null), []);
   const openDetail = useCallback((o: WorkbenchOpen = {}) => setDetail(o), []);
@@ -57,6 +70,8 @@ export const ChangesUiProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setPreviewOpen,
       previewSlot,
       setPreviewSlot,
+      composerFill,
+      fillComposer,
     }),
     [
       workbench,
@@ -67,6 +82,8 @@ export const ChangesUiProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       closeDetail,
       previewOpen,
       previewSlot,
+      composerFill,
+      fillComposer,
     ],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -86,6 +103,8 @@ export function useChangesUi(): ChangesUiValue {
       setPreviewOpen: () => undefined,
       previewSlot: null,
       setPreviewSlot: () => undefined,
+      composerFill: null,
+      fillComposer: () => undefined,
     };
   }
   return v;

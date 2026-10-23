@@ -198,3 +198,80 @@
     padding: 0 var(--cd-space-1-5);
   }
 }
+
+/* 改动视图：筛选框 + 「本会话」开关同一行，与列表同一条左边线 */
+.toolRow {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  margin: var(--cd-space-2) 10px;
+  min-width: 0;
+}
+.toolRow > label {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: var(--cd-control-h-xs);
+  padding: 0 var(--cd-space-2);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.chip:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.chip[data-active] {
+  border-color: var(--cd-color-accent-strong);
+  color: var(--cd-color-accent-strong);
+}
+
+/* 本会话助手改过的文件：行内小机器人图标 */
+.sessionMark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  color: var(--cd-color-accent-strong);
+}
+
+/* 改动列表顶部（筛选框上方）：交给助手提交；主按钮占满一行，推送是次要入口 */
+.commitBar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin: var(--cd-space-2) 10px 0;
+}
+.commitBar > :first-child {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+/* 改动列表：有暂存内容时分「已暂存 / 未暂存」两组 */
+.gitGroup + .gitGroup {
+  margin-top: var(--cd-space-2);
+}
+.gitGroupHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-1) 2px;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-medium);
+}

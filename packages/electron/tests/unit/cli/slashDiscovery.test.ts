@@ -403,6 +403,16 @@ describe('slashDiscovery', () => {
     expect(r.status).toContain('a.txt');
     expect(r.diff).toContain('-one');
     expect(r.diff).toContain('+two');
+    expect(r.unstaged).toContain('+two');
+    expect(r.staged).toBe('');
+    // 暂存后再改：已暂存 / 未暂存各自一份 diff
+    g('add', 'a.txt');
+    write(path.join(proj, 'a.txt'), 'three\n');
+    const both = await gitDiff(proj);
+    expect(both.staged).toContain('+two');
+    expect(both.staged).not.toContain('three');
+    expect(both.unstaged).toContain('-two');
+    expect(both.unstaged).toContain('+three');
     const bad = await gitDiff(path.join(root, 'nope'));
     expect(bad.ok).toBe(false);
   });

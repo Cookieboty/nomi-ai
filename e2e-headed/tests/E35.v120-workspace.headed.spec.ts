@@ -166,14 +166,15 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await shot(chat, '18-turn-edit-summary');
     await turnCard.locator('[data-testid="turn-view-changes"]').click();
     await expect(chat.locator('[data-testid="files-rail"]')).toBeVisible({ timeout: 15_000 });
-    // 右栏「变更」视图；变更行带 data-changed
-    const rows = chat.locator('[data-testid="rail-file"][data-changed]');
+    // 右栏「改动」视图：工作目录是 git 仓库，列表来自 git status；助手改过的行带标记
+    const rows = chat.locator('[data-testid="git-row"][data-session]');
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
     const railPanel = chat.locator('[data-testid="session-changes-panel"][data-rail]');
     await expect(railPanel).toHaveAttribute('data-focused', 'true', { timeout: 10_000 });
-    await expect(railPanel).toHaveAttribute('data-files-mode', 'changed');
-    await expect(chat.locator('[data-testid="files-rail-tree"]')).toBeVisible();
+    await expect(railPanel).toHaveAttribute('data-view', 'changes');
+    await expect(railPanel).toHaveAttribute('data-source', 'git');
+    await expect(chat.locator('[data-testid="git-list"]')).toBeVisible();
     await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible({
       timeout: 10_000,
     });
@@ -197,8 +198,8 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="rail-layout-preview"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="rail-layout-tree"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="chat-tabs-max-concurrent"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="files-rail-tree"]')).toContainText(/src|alpha|beta/i);
-    await expect(chat.locator('[data-testid="rail-tab-files"]')).toHaveAttribute(
+    await expect(chat.locator('[data-testid="git-list"]')).toContainText(/alpha|beta/i);
+    await expect(chat.locator('[data-testid="rail-tab-changes"]')).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -217,18 +218,13 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
       timeout: 10_000,
     });
 
-    await chat.locator('[data-testid="rail-file"][data-changed]').first().click();
-    await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible();
+    // 点改动行：中栏显示该文件的 git Diff 预览（真实磁盘状态）
+    await rows.first().locator('button').first().click();
+    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
     await shot(chat, '14-multi-file-preview-diff');
-
-    // 多文件：点另一变更文件，中栏 Diff 仍可见（可多块）
     if (rowCount > 1) {
-      await chat.locator('[data-testid="rail-file"][data-changed]').nth(1).click();
-      await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible();
-      await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible();
+      await rows.nth(1).locator('button').first().click();
+      await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible();
       await shot(chat, '15-multi-file-preview-switched');
     }
 
@@ -239,21 +235,17 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
       await chat.waitForTimeout(300);
     }
 
-    // Git 标签：真实工作区变更 → 打开预览 → 文件模式编辑保存
-    await chat.locator('[data-testid="rail-tab-git"]').click();
-    await expect(chat.locator('[data-testid="git-list"]')).toBeVisible();
-    await chat
-      .locator('[data-testid="git-refresh"], [aria-label="刷新"]')
-      .first()
-      .click()
-      .catch(() => undefined);
-    await chat.waitForTimeout(500);
-    const gitRow = chat.locator('[data-testid="git-row"]').first();
-    await expect(gitRow).toBeVisible({ timeout: 15_000 });
-    await gitRow.locator('button').first().click();
-    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible();
-    await shot(chat, '16-git-preview');
+    // 让助手提交：只把指令填进输入框，不自动发送
+    await chat.locator('[data-testid="rail-ask-commit"]').click();
+    await expect(input).toHaveValue(/请提交以下未提交的改动/);
+    await expect(input).toHaveValue(/只提交，不要推送/);
+    await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0);
+    await shot(chat, '16-ask-commit-filled');
+    await input.fill('');
 
+    // 预览切到文件模式编辑保存
+    await rows.first().locator('button').first().click();
+    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible();
     await chat.locator('[data-testid="preview-mode-file"]').click();
     const editor = chat.locator('[data-testid="preview-editor"]');
     await expect(editor).toBeVisible({ timeout: 10_000 });

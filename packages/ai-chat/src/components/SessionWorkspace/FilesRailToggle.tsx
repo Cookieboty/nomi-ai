@@ -1,4 +1,4 @@
-/** 顶栏右侧：展开 / 收起右栏（变更 · 未提交 · 文件），带本会话变更文件数 */
+/** 顶栏右侧：展开 / 收起右栏（改动 · 文件），带本会话变更文件数 */
 import { Icon, t, Tooltip } from '@nomi-ai/ui';
 import { PanelRight } from 'lucide-react';
 import React from 'react';

@@ -265,6 +265,10 @@ export interface GitDiffResult {
   status: string;
   stat: string;
   diff: string;
+  /** 暂存区相对 HEAD（`git diff --cached`）；右栏「已暂存」分组用 */
+  staged?: string;
+  /** 工作区相对暂存区（`git diff`）；右栏「未暂存」分组用 */
+  unstaged?: string;
   truncated: boolean;
   error?: string;
 }

@@ -624,6 +624,10 @@ export interface GitDiffResult {
   status: string;
   stat: string;
   diff: string;
+  /** 暂存区相对 HEAD（`git diff --cached`）；右栏「已暂存」分组用 */
+  staged?: string;
+  /** 工作区相对暂存区（`git diff`）；右栏「未暂存」分组用 */
+  unstaged?: string;
   truncated: boolean;
   error?: string;
 }
@@ -653,10 +657,22 @@ export async function gitDiff(cwd: string): Promise<GitDiffResult> {
     const flags = ['--no-ext-diff', '--no-textconv', '--no-color'];
     const status = (await git(cwd, ['status', '--short', '--untracked-files=normal'])).trim();
     const stat = (await git(cwd, ['diff', ...flags, '--stat', 'HEAD']).catch(() => '')).trim();
-    let diff = await git(cwd, ['diff', ...flags, 'HEAD']).catch(() => '');
-    const truncated = diff.length > DIFF_MAX;
-    if (truncated) diff = diff.slice(0, DIFF_MAX);
-    return { ok: true, status, stat, diff, truncated };
+    const [full, cached, work] = await Promise.all([
+      git(cwd, ['diff', ...flags, 'HEAD']).catch(() => ''),
+      git(cwd, ['diff', ...flags, '--cached']).catch(() => ''),
+      git(cwd, ['diff', ...flags]).catch(() => ''),
+    ]);
+    const truncated = [full, cached, work].some((d) => d.length > DIFF_MAX);
+    const cap = (d: string) => (d.length > DIFF_MAX ? d.slice(0, DIFF_MAX) : d);
+    return {
+      ok: true,
+      status,
+      stat,
+      diff: cap(full),
+      staged: cap(cached),
+      unstaged: cap(work),
+      truncated,
+    };
   } catch (e) {
     return {
       ok: false,

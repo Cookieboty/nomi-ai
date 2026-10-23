@@ -16,6 +16,8 @@ export const ChangeFileTree: React.FC<{
   /** 可选：定位到会话中的编辑步骤 */
   onLocate?: (file: string, messageId?: string) => void;
   messageIdByFile?: Record<string, string>;
+  /** 目录默认展开；工作区全树传 false，只展开用户点开的 */
+  defaultOpen?: boolean;
 }> = ({
   nodes,
   depth = 0,
@@ -25,6 +27,7 @@ export const ChangeFileTree: React.FC<{
   testIdPrefix = 'wb',
   onLocate,
   messageIdByFile,
+  defaultOpen = true,
 }) => {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const q = filter.trim().toLowerCase();
@@ -40,7 +43,7 @@ export const ChangeFileTree: React.FC<{
               return c.kind === 'file' ? match(c.path) : c.children.some(walk);
             });
           if (!any) return null;
-          const isOpen = open[n.path] ?? true;
+          const isOpen = open[n.path] ?? (defaultOpen || !!q);
           return (
             <div key={n.path || n.name} className={styles.wbTreeDir}>
               <button
@@ -64,6 +67,7 @@ export const ChangeFileTree: React.FC<{
                   testIdPrefix={testIdPrefix}
                   onLocate={onLocate}
                   messageIdByFile={messageIdByFile}
+                  defaultOpen={defaultOpen}
                 />
               ) : null}
             </div>
