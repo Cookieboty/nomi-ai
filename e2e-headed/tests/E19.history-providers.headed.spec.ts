@@ -290,6 +290,9 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     );
     // 选中的 Nomi 对话与其他行一样只在悬浮 / 焦点时浮现三个图标；改名 Enter 确认 / Esc 取消
     const nomiRow = chat.locator('[data-testid="conversation-row"][data-active]').first();
+    // 点「Nomi」菜单项的位置恰好落在新行范围内：指针停在那里，Windows 上会把它算作悬浮
+    // （Linux 不重算 :hover）。先把指针移开，再断言「未悬浮」基线。
+    await chat.mouse.move(5, 5);
     await expect(nomiRow.locator('[data-testid="row-actions"]')).toHaveCSS('opacity', '0');
     await nomiRow.hover();
     await expect(nomiRow.locator('[data-testid="row-actions"]')).toHaveCSS('opacity', '1');
