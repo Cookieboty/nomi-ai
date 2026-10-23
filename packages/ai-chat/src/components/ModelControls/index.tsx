@@ -43,15 +43,7 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import styles from './index.module.css';
 
 /** 档位由浅到深的顺序（只用于排序 CLI 返回的值，不代表某个模型支持哪些） */
-const EFFORT_ORDER: ReasoningEffort[] = [
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-  'ultra',
-];
+const EFFORT_ORDER: ReasoningEffort[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 export function effortLabel(e: ReasoningEffort): string {
   switch (e) {
@@ -67,8 +59,6 @@ export function effortLabel(e: ReasoningEffort): string {
       return t('极高');
     case 'max':
       return t('最高');
-    case 'ultra':
-      return t('极限');
   }
 }
 

@@ -105,10 +105,11 @@ describe('modelCatalog', () => {
       ],
     };
 
-    it('只列 visibility=list，按 priority 排序，档位由浅到深（含 ultra）', () => {
+    it('只列 visibility=list，按 priority 排序，档位由浅到深（丢弃 ultra）', () => {
       const c = parseCodexModels(json);
       expect(c.models.map((m) => m.id)).toEqual(['a', 'b']);
-      expect(c.models[1]!.efforts).toEqual(['low', 'max', 'ultra']);
+      // fixture 含 ultra，normalizeEfforts 过滤掉（非官方枚举）
+      expect(c.models[1]!.efforts).toEqual(['low', 'max']);
       expect(c.models[0]!.defaultEffort).toBe('medium');
     });
 
@@ -229,9 +230,10 @@ describe('modelCatalog', () => {
     });
   });
 
-  it('normalizeEfforts 去掉不认识的值（如 none）并排序', () => {
-    expect(normalizeEfforts(['high', 'none', 'low', 'high', 7])).toEqual(['low', 'high']);
-    expect(isReasoningEffort('ultra')).toBe(true);
+  it('normalizeEfforts 去掉不认识的值（如 none / ultra）并排序', () => {
+    expect(normalizeEfforts(['high', 'none', 'low', 'high', 7, 'ultra'])).toEqual(['low', 'high']);
+    expect(isReasoningEffort('max')).toBe(true);
+    expect(isReasoningEffort('ultra')).toBe(false);
     expect(isReasoningEffort('none')).toBe(false);
   });
 
@@ -249,11 +251,11 @@ describe('modelCatalog', () => {
 
   describe('overrideArgs', () => {
     it('codex：-c model / model_reasoning_effort', () => {
-      expect(overrideArgs('codex', { model: 'm', effort: 'ultra' })).toEqual([
+      expect(overrideArgs('codex', { model: 'm', effort: 'max' })).toEqual([
         '-c',
         'model="m"',
         '-c',
-        'model_reasoning_effort="ultra"',
+        'model_reasoning_effort="max"',
       ]);
     });
     it('grok：-m / --reasoning-effort', () => {

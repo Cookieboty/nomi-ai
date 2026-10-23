@@ -18,10 +18,11 @@ import type { HarnessBackend } from './types';
 export type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
 /**
- * 思考深度档位（各 CLI 取值的并集，顺序即由浅到深）。
+ * 思考深度档位（官方枚举并集，顺序由浅到深；不含 ultra）。
  * 只用于识别 / 排序 CLI 返回的值；某个模型实际支持哪些档位以 CLI 返回为准。
+ * ultra 非 Responses API reasoning.effort，也不在 Codex Desktop 常见 5 档 UI 中。
  */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'minimal',
@@ -30,7 +31,6 @@ export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'high',
   'xhigh',
   'max',
-  'ultra',
 ];
 
 export function isReasoningEffort(v: unknown): v is ReasoningEffort {
