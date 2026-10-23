@@ -6,7 +6,12 @@
 import { t } from '@nomi-ai/ui';
 import React, { useMemo, useState } from 'react';
 
-import { contextWindowFor, estimateContext, formatTokens } from '../../slash/tokens';
+import {
+  contextWindowFor,
+  estimateContext,
+  formatTokens,
+  reportedContextWindow,
+} from '../../slash/tokens';
 import type { ConvMessage } from '../../types/conversation';
 
 import styles from './SessionWorkspace.module.css';
@@ -21,7 +26,10 @@ export const ContextUsageBar: React.FC<{
   compact?: boolean;
 }> = ({ messages, model, compact = true }) => {
   const [hover, setHover] = useState(false);
-  const win = useMemo(() => contextWindowFor(model ?? undefined), [model]);
+  const win = useMemo(
+    () => contextWindowFor(model ?? undefined, reportedContextWindow(messages)),
+    [model, messages],
+  );
   const est = useMemo(
     () =>
       estimateContext(
@@ -41,12 +49,14 @@ export const ContextUsageBar: React.FC<{
   const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   /** 依据标签按行拆开，避免「估算 · 经验表」挤在一行 */
-  const basisRows =
-    est.basis === 'actual'
-      ? [t('真实用量')]
+  const basisRows = [
+    est.basis === 'actual' ? t('真实用量') : t('估算'),
+    win.source === 'reported'
+      ? t('窗口：CLI 上报')
       : win.source === 'table'
-        ? [t('估算'), t('经验表')]
-        : [t('估算'), t('默认窗口')];
+        ? t('窗口：经验表')
+        : t('窗口：默认值'),
+  ];
   const tip = over
     ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
     : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));

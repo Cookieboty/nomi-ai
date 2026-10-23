@@ -1,9 +1,9 @@
 /**
- * /context 用的 token 估算与上下文窗口表。
+ * /context 与输入栏上下文环用的 token 估算与上下文窗口表。
  *
- * 全部是**估算**：没有任何一家 CLI 在非交互模式下公开「当前上下文构成」，
- * 所以这里只做两件事：① 优先用最近一次请求返回的真实用量作为总量；
- * ② 按消息类型粗估各部分占比，并在界面上明确标注「估算」。
+ * 各部分构成全部是**估算**：没有任何一家 CLI 在非交互模式下公开「当前上下文构成」。
+ * 总量优先用主进程算好的 usage.contextTokens（最后一次请求的输入 + 输出）；
+ * 每轮的 input / cache / output 是整轮累计（计费口径），一轮多次请求时远大于上下文，不能拿来当总量。
  */
 import type { ConvMessage } from '../types/conversation';
 
@@ -38,9 +38,25 @@ const WINDOWS: Array<[RegExp, number]> = [
   [/gpt-4o|gpt-4/i, 128_000],
 ];
 
-export function contextWindowFor(model?: string): { size: number; source: 'table' | 'default' } {
+export type ContextWindowSource = 'reported' | 'table' | 'default';
+
+/** reported：CLI 上报的窗口（如 Claude modelUsage.contextWindow），优先于经验表 */
+export function contextWindowFor(
+  model?: string,
+  reported?: number,
+): { size: number; source: ContextWindowSource } {
+  if (reported && reported > 0) return { size: reported, source: 'reported' };
   if (model) for (const [re, size] of WINDOWS) if (re.test(model)) return { size, source: 'table' };
   return { size: 128_000, source: 'default' };
+}
+
+/** 最近一条带 CLI 上报窗口的助手消息的窗口大小 */
+export function reportedContextWindow(messages: readonly ConvMessage[]): number | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const w = messages[i]!.usage?.contextWindow;
+    if (messages[i]!.role === 'assistant' && w && w > 0) return w;
+  }
+  return undefined;
 }
 
 export interface ContextEstimate {
@@ -49,25 +65,6 @@ export interface ContextEstimate {
   categories: ContextCategory[];
   /** used 是否已超过给定窗口（由调用方结合 window 判断后展示「已超窗口」） */
   overWindow?: boolean;
-}
-
-/**
- * 把一轮 HarnessUsage 折成「当前上下文占用」token 数。
- * - 单位必须是 tokens（禁止把字符/字节当 token）。
- * - OpenAI / Grok 风格：cache 已含在 input 内（cache ≤ input）→ 只计 input，避免重复累加。
- * - Anthropic / dsh 风格：input 与 cache 互斥 → input + cache。
- * - 再加 output（本轮回复已进入下一轮上下文）。
- */
-export function contextTokensOf(u: {
-  inputTokens?: number;
-  outputTokens?: number;
-  cacheReadTokens?: number;
-}): number {
-  const input = Math.max(0, u.inputTokens ?? 0);
-  const cache = Math.max(0, u.cacheReadTokens ?? 0);
-  const output = Math.max(0, u.outputTokens ?? 0);
-  const prompt = cache > 0 && input > 0 && cache <= input ? input : input + cache;
-  return prompt + output;
 }
 
 /** 一条消息按类型拆分（估算） */
@@ -85,11 +82,10 @@ function splitMessage(m: ConvMessage): Record<'user' | 'assistant' | 'tools' | '
 }
 
 /**
- * 用量 = 最近一次带真实用量的助手消息的「上下文占用」+ 之后新增消息的估算；
- * 没有任何真实用量时全部估算。分类始终是估算，真实总量比分类之和大的部分记为「系统提示 / 工具定义 / 记忆」。
- *
- * 注意：历史多步 agent 若错误地把每步 input 累加，会得到远超窗口的假用量；
- * 此时回退到本地估算，避免环被撑满（见单测）。
+ * 用量 = 最近一条带 usage.contextTokens 的助手消息的上下文占用 + 之后新增消息的估算；
+ * 没有时全部估算（只有整轮累计用量的旧记录 / 不给逐请求用量的 CLI 也走估算，不冒充「真实」）。
+ * 分类始终是估算，真实总量比分类之和大的部分记为「系统提示 / 工具定义 / 记忆」。
+ * 兜底：真实总量仍比窗口与估算大一个数量级时（错单位等）回退估算，避免环被撑满（见单测）。
  */
 export function estimateContext(
   messages: readonly ConvMessage[],
@@ -105,10 +101,10 @@ export function estimateContext(
     sums.assistant += s.assistant;
     sums.tools += s.tools;
     sums.thinking += s.thinking;
-    const u = m.usage;
-    if (m.role === 'assistant' && u && (u.inputTokens || u.outputTokens || u.cacheReadTokens)) {
+    const ctx = m.usage?.contextTokens;
+    if (m.role === 'assistant' && ctx && ctx > 0) {
       lastActualIdx = i;
-      actual = contextTokensOf(u);
+      actual = ctx;
     }
   });
   const est = sums.user + sums.assistant + sums.tools + sums.thinking;

@@ -159,7 +159,13 @@ describe('history transcript parsers (fixtures)', () => {
       status: 'error',
       output: 'exit 1',
     });
-    expect(m[1]!.usage).toEqual({ inputTokens: 20, outputTokens: 12, cacheReadTokens: 100 });
+    // 计费字段：input/cache 末步、output 累加；上下文取最后一次请求（20 + 7）
+    expect(m[1]!.usage).toEqual({
+      inputTokens: 20,
+      outputTokens: 12,
+      cacheReadTokens: 100,
+      contextTokens: 27,
+    });
   });
 
   it('codex: function_call / function_call_output pair into a trace; JSON output unwrapped, non-zero exit is an error', () => {

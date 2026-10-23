@@ -26,6 +26,7 @@ import { resolveHarnessLaunch } from './cliLaunch';
 import {
   codexApprovalSummary,
   codexExecItem,
+  codexLastContext,
   codexTokenTotals,
   codexTurnPolicy,
   codexTurnUsage,
@@ -91,6 +92,7 @@ import {
 } from './promptImages';
 import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
+  acpMetaContext,
   createClaudeParser,
   createDshParser,
   createGrokParser,
@@ -2814,13 +2816,16 @@ export class CliHarnessService {
       if (r?.stopReason === 'cancelled' && !turn.text.trim())
         turn.text = t('已拒绝这次工具调用，这一轮已结束');
       const tc = r?._meta?.quota?.token_count;
-      const usage =
+      // 上面两种都是整轮累计；当前上下文：Gemini 取最后一条 usage_update，Grok 取 _meta 的末次请求
+      const ctx = { ...acpMetaContext(r?._meta), ...turn.mapper.context() };
+      const turnUsage =
         tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
           ? {
               ...(tc.input_tokens !== undefined ? { inputTokens: tc.input_tokens } : {}),
               ...(tc.output_tokens !== undefined ? { outputTokens: tc.output_tokens } : {}),
             }
           : parseUsage(r?._meta?.usage, {});
+      const usage = turnUsage || Object.keys(ctx).length ? { ...turnUsage, ...ctx } : undefined;
       const done: HarnessEvent = {
         type: 'done',
         text: turn.text,
@@ -3435,6 +3440,7 @@ export class CliHarnessService {
     live.lastActivityAt = Date.now();
     if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
       live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
+      live.context = codexLastContext(params.tokenUsage) ?? live.context;
       return;
     }
     const turn = live.turn;
@@ -3536,7 +3542,8 @@ export class CliHarnessService {
         ),
       );
     } else {
-      const usage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const turnUsage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const usage = turnUsage && live.context ? { ...turnUsage, ...live.context } : turnUsage;
       const ev: HarnessEvent = {
         type: 'done',
         text: turn.text,
@@ -4340,6 +4347,8 @@ type CodexLiveSession = {
   perms: Map<string, (allow: boolean | null) => void>;
   /** 最近一次 thread/tokenUsage/updated 的线程累计 */
   totals: CodexTokenTotals | null;
+  /** 同一通知里的最后一次请求（当前上下文）与模型窗口 */
+  context?: { contextTokens?: number; contextWindow?: number } | null;
   lastActivityAt: number;
   ready: Promise<void>;
   used?: boolean;

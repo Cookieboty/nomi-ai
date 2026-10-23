@@ -109,6 +109,13 @@ export interface HarnessUsage {
   costUsd?: number;
   /** CLI 自己上报的总耗时（ms） */
   durationMs?: number;
+  /**
+   * 当前上下文占用：这一轮**最后一次**模型请求的全部输入（含缓存读 / 写）+ 该次输出。
+   * 上面几项是整轮累计（计费口径），一轮里多次请求时远大于真实上下文；CLI 给了逐请求用量才有此值。
+   */
+  contextTokens?: number;
+  /** CLI 上报的模型上下文窗口（如 Claude modelUsage.contextWindow），优先于前端经验表 */
+  contextWindow?: number;
 }
 
 export interface HarnessSendResult {

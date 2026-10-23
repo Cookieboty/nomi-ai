@@ -46,6 +46,8 @@ function toolName(kind: string, title: string): string {
 
 export function createGeminiMapper() {
   let thought = '';
+  /** 最后一条 usage_update：used = 该次请求 prompt + 输出（当前上下文），size = 模型窗口 */
+  let context: { contextTokens?: number; contextWindow?: number } = {};
   const names = new Map<string, string>();
   const flushThought = (): HarnessEvent[] => {
     if (!thought.trim()) return [];
@@ -59,6 +61,17 @@ export function createGeminiMapper() {
       if (kind === 'agent_thought_chunk') {
         const c = u.content as Json | undefined;
         if (typeof c?.text === 'string') thought += c.text;
+        return [];
+      }
+      if (kind === 'usage_update') {
+        const n = (v: unknown) =>
+          typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined;
+        const used = n(u.used);
+        const size = n(u.size);
+        context = {
+          ...(used !== undefined ? { contextTokens: used } : {}),
+          ...(size !== undefined ? { contextWindow: size } : {}),
+        };
         return [];
       }
       const out = flushThought();
@@ -110,6 +123,8 @@ export function createGeminiMapper() {
     },
     /** 一轮结束：把还没发出的思考补上 */
     flush: flushThought,
+    /** 这一轮最后一次请求的上下文占用与窗口（没有 usage_update 时为空） */
+    context: () => context,
   };
 }
 
