@@ -97,6 +97,8 @@ describe('workspaceFiles sandbox', () => {
     execSync('git init', { cwd });
     execSync('git config user.email t@t', { cwd });
     execSync('git config user.name t', { cwd });
+    // Hermetic EOL: Windows runners ship core.autocrlf=true, which checks out 'v1\r\n'.
+    execSync('git config core.autocrlf false', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v1\n');
     execSync('git add f.txt && git commit -m i', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v2\n');
