@@ -439,19 +439,8 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await chat.keyboard.press('Escape');
     await expect(chat.locator('[data-testid="sched-panel"]')).toHaveCount(0);
     await chat.locator('[data-testid="chat-tab-1"]').click();
-    // 右上角：每个标签各选来源（官方账号 / 第三方），互不影响
-    const menu = chat.locator('[data-testid="cli-source-menu"]');
-    await expect(menu).toHaveAttribute('data-backend', 'claude');
-    await expect(menu).toHaveAttribute('data-source', 'official');
-    await chat.selectOption('[data-testid="cli-source-switch"]', `${relay.id}/claude-x`);
-    await expect(menu).toHaveAttribute('data-source', 'thirdParty');
-    await expect(menu.locator('[role="combobox"]')).toContainText('本地中转');
-    await shot(chat, '14-cli-source-claude-third-party');
-    await chat.locator('[data-testid="chat-tab-2"]').click();
-    await expect(menu).toHaveAttribute('data-backend', 'codex');
-    await expect(menu).toHaveAttribute('data-source', 'official');
-    await expect(menu.locator('[role="combobox"]')).not.toContainText('本地中转');
-    await shot(chat, '15-cli-source-codex-official');
+    // 供应商不在输入框下方选：新标签默认在侧栏信息卡（cli-default-source），已有会话用 /model 换
+    await expect(chat.locator('[data-testid="cli-source-menu"]')).toHaveCount(0);
     // 第三方只作用于 Nomi 启动的进程：不写 CLI 的全局配置
     const settingsPath = join(home, '.claude', 'settings.json');
     expect(existsSync(settingsPath) ? readFileSync(settingsPath, 'utf8') : '').not.toContain(

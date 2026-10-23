@@ -8,6 +8,7 @@ import {
   Bot,
   Expand,
   FolderTree,
+  GitBranch,
   GitCommitHorizontal,
   LocateFixed,
   PanelRightClose,
@@ -17,6 +18,7 @@ import {
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import { useGitBranch } from '../../hooks/useGitBranch';
 import {
   harnessClient,
   type GitDiffResult,
@@ -63,6 +65,9 @@ interface GitItem {
   area: GitArea;
   letter: GitFileEntry['letter'];
   diff?: ParsedDiffFile;
+  /** 增删行数：numstat 优先（diff 文本过大被截断时也完整），没有时取解析出的 diff */
+  added?: number;
+  removed?: number;
   key: string;
 }
 
@@ -152,6 +157,9 @@ export const SessionChangesPanel: React.FC<{
   const [diskBusy, setDiskBusy] = useState(false);
   const [diskErr, setDiskErr] = useState<string | null>(null);
   const [openDiskPaths, setOpenDiskPaths] = useState<string[]>([]);
+  /** 手动刷新时连同分支一起重读 */
+  const [branchNonce, setBranchNonce] = useState(0);
+  const branch = useGitBranch(cwd, busy, branchNonce);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
   const {
@@ -282,20 +290,37 @@ export const SessionChangesPanel: React.FC<{
     };
     const staged = byPath(git?.staged);
     const unstaged = byPath(git?.unstaged);
+    const ns = git?.numstat;
+    const counts = (n: { added: number; removed: number } | undefined, d?: ParsedDiffFile) =>
+      n ? { added: n.added, removed: n.removed } : { added: d?.added, removed: d?.removed };
     const out: GitItem[] = [];
     for (const g of gitFiles) {
       if (g.staged) {
         const diff = staged.get(g.path);
-        out.push({ entry: g, area: 'staged', letter: g.index, diff, key: `g:s:${g.path}` });
+        out.push({
+          entry: g,
+          area: 'staged',
+          letter: g.index,
+          diff,
+          ...counts(ns?.staged[g.path], diff),
+          key: `g:s:${g.path}`,
+        });
       }
       if (g.unstaged) {
         const letter = g.untracked ? '?' : g.work;
         const diff = unstaged.get(g.path);
-        out.push({ entry: g, area: 'unstaged', letter, diff, key: `g:u:${g.path}` });
+        out.push({
+          entry: g,
+          area: 'unstaged',
+          letter,
+          diff,
+          ...counts(ns?.unstaged[g.path], diff),
+          key: `g:u:${g.path}`,
+        });
       }
     }
     return out;
-  }, [gitFiles, gitDiffs, git?.staged, git?.unstaged]);
+  }, [gitFiles, gitDiffs, git?.staged, git?.unstaged, git?.numstat]);
   const sessionInGit = useMemo(
     () => gitFiles.filter((g) => changeByRel.has(g.path)).length,
     [gitFiles, changeByRel],
@@ -316,12 +341,13 @@ export const SessionChangesPanel: React.FC<{
     if (source !== 'git') return summarizeChanges(changes);
     let added = 0;
     let removed = 0;
-    for (const d of gitDiffs) {
+    // 合计也用 numstat（diff 文本被截断时只能算出前半截）
+    for (const d of git?.numstat ? Object.values(git.numstat.head) : gitDiffs) {
       added += d.added;
       removed += d.removed;
     }
     return { files: gitFiles.length, added, removed };
-  }, [source, changes, gitDiffs, gitFiles.length]);
+  }, [source, changes, gitDiffs, gitFiles.length, git?.numstat]);
 
   // 未提交 / 磁盘文件的预览显示在中栏（右栏只导航）；本会话变更走 workbench
   const previewing =
@@ -349,11 +375,11 @@ export const SessionChangesPanel: React.FC<{
 
   const previewFiles: PreviewFile[] = useMemo(() => {
     if (view === 'changes' && source === 'git') {
-      return gitItems.map(({ entry: g, letter, diff: d, key }) => {
+      return gitItems.map(({ entry: g, letter, diff: d, added, removed, key }) => {
         const gitDiff: ToolFileDiff | undefined = d
           ? { file: d.file, diff: parsePatch(d.body) }
           : undefined;
-        return { key, path: g.path, letter, added: d?.added, removed: d?.removed, gitDiff };
+        return { key, path: g.path, letter, added, removed, gitDiff };
       });
     }
     const fromChanges = changes.map((c) => ({
@@ -574,7 +600,10 @@ export const SessionChangesPanel: React.FC<{
           <button
             type="button"
             className={styles.iconBtn}
-            onClick={() => void refresh()}
+            onClick={() => {
+              setBranchNonce((n) => n + 1);
+              void refresh();
+            }}
             disabled={refreshing}
             aria-label={t('刷新')}
             title={t('刷新')}
@@ -608,6 +637,17 @@ export const SessionChangesPanel: React.FC<{
           </button>
         ) : null}
       </header>
+      {/* 当前分支：改动和文件说的都是这个分支上的工作区 */}
+      {branch ? (
+        <div
+          className={styles.branchBar}
+          title={t('当前分支：{0}', branch)}
+          data-testid="rail-git-branch"
+        >
+          <GitBranch size={13} aria-hidden />
+          <span className={styles.branchName}>{branch}</span>
+        </div>
+      ) : null}
 
       {changesActive && source === 'git' ? (
         <>
@@ -664,8 +704,8 @@ export const SessionChangesPanel: React.FC<{
                         entry={r.entry}
                         letter={r.letter}
                         area={r.area}
-                        added={r.diff?.added}
-                        removed={r.diff?.removed}
+                        added={r.added}
+                        removed={r.removed}
                         session={changeByRel.get(r.entry.path)}
                         selected={
                           previewKey?.startsWith('g:')

@@ -11,10 +11,12 @@ import React, { useState } from 'react';
 
 import { configPathsOf, useEndpointInfo, type EndpointInfo } from '../../hooks/useEndpointInfo';
 import { isQuotaTool } from '../../hooks/useToolQuota';
+import { isCliKind } from '../../services/cliSource';
 import type { UsageQuotaEntry, UsageQuotaWindow } from '../../services/usageClient';
 import type { ConversationBackend } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { AppIcon } from '../AppIcons';
+import { CliDefaultSource } from '../CliDefaultSource';
 import { relTime } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 import { formatMoney, formatTokens, quotaWindowShort } from '../UsagePanel/format';
@@ -196,6 +198,8 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             <RefreshGlyph busy={info.busy} />
           </button>
         )}
+        {/* 新标签默认用官方还是第三方供应商（当前会话的供应商在输入框左下角换） */}
+        {isCliKind(backend) && installed !== false && <CliDefaultSource backend={backend} />}
         {info.error && (
           <span className={styles.err} role="status" data-testid="endpoint-card-error">
             {info.error}

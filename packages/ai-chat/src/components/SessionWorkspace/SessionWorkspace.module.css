@@ -1022,3 +1022,22 @@
 :global(html[data-chat-bg]) .centerChanges .preview {
   background: color-mix(in srgb, var(--cd-color-surface-sunken, #111) 60%, transparent);
 }
+
+/* 右栏顶部：当前分支（只读） */
+.branchBar {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  min-width: 0;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-color-border);
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-xs);
+}
+.branchName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--cd-font-mono);
+}

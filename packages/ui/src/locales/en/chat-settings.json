@@ -442,5 +442,7 @@
   "铺满整个工作台：侧栏、对话区与右侧面板都会透出背景。": "Covers the whole workbench: the sidebar, chat area and right-hand panels all show the background.",
   "左侧栏模糊": "Sidebar blur",
   "对话区模糊": "Chat area blur",
-  "右侧面板模糊": "Right panels blur"
+  "右侧面板模糊": "Right panels blur",
+  "新标签默认": "New tabs use",
+  "只影响以后新开的 {0} 标签，已有会话不变": "Only affects {0} tabs opened from now on; existing sessions stay as they are"
 }

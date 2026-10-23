@@ -19,6 +19,7 @@ import type { ConvMessage } from '../src/types/conversation';
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
     workspaceList: vi.fn(async () => ({ ok: true, entries: [] })),
+    gitBranch: vi.fn(async () => ({ branch: 'main' })),
     gitDiff: vi.fn(async () => ({
       ok: true,
       status: '',
@@ -204,6 +205,49 @@ describe('Codex four-column changes layout', () => {
     expect(screen.getByTestId('center-changes-pane')).toBeTruthy();
     const active = document.querySelector('[data-testid="center-diff-block"][data-active]');
     expect(active).toBeTruthy();
+  });
+
+  it('git repo: 行数与合计取 numstat——diff 文本被截断、后面的文件没有 diff 时也完整；顶部显示分支', async () => {
+    vi.mocked(harnessClient.gitBranch).mockResolvedValue({ branch: 'merge/202610' });
+    vi.mocked(harnessClient.gitDiff).mockResolvedValue({
+      ok: true,
+      status: ' M a.ts\n M zz/locales/en.json',
+      stat: '',
+      // 只有第一个文件的 diff（第二个被上限截掉了）
+      diff: [
+        'diff --git a/a.ts b/a.ts',
+        '--- a/a.ts',
+        '+++ b/a.ts',
+        '@@ -1 +1 @@',
+        '-x',
+        '+y',
+        '',
+      ].join('\n'),
+      truncated: true,
+      numstat: {
+        head: { 'a.ts': { added: 1, removed: 1 }, 'zz/locales/en.json': { added: 40, removed: 7 } },
+        staged: {},
+        unstaged: {
+          'a.ts': { added: 1, removed: 1 },
+          'zz/locales/en.json': { added: 40, removed: 7 },
+        },
+      },
+    });
+    render(
+      <ChangesUiProvider>
+        <SessionChangesPanel rail messages={messages} cwd="/tmp/proj" />
+      </ChangesUiProvider>,
+    );
+    await waitFor(() => expect(screen.getAllByTestId('git-row')).toHaveLength(2));
+    const json = screen
+      .getAllByTestId('git-row')
+      .find((r) => r.getAttribute('data-file') === 'zz/locales/en.json')!;
+    expect(json.textContent).toContain('+40');
+    expect(json.textContent).toContain('−7');
+    expect(screen.getByTestId('changes-summary').textContent).toMatch(/\+41\s*−8/);
+    await waitFor(() =>
+      expect(screen.getByTestId('rail-git-branch').textContent).toContain('merge/202610'),
+    );
   });
 
   it('git repo: 改动 lists git status, marks assistant files, and fills a commit prompt', async () => {

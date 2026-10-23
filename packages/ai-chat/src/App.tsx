@@ -14,7 +14,7 @@ import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
-import { SessionControls } from './components/EndpointControls';
+import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
@@ -857,13 +857,17 @@ const AiChatContent: React.FC = () => {
                 ) : undefined
               }
               trailing={
-                railTabId ? (
-                  <FilesRailToggle
-                    open={railOpen}
-                    count={sessionChangeCount}
-                    onToggle={toggleRail}
-                  />
-                ) : undefined
+                <>
+                  {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
+                  <WorkspaceControl />
+                  {railTabId ? (
+                    <FilesRailToggle
+                      open={railOpen}
+                      count={sessionChangeCount}
+                      onToggle={toggleRail}
+                    />
+                  ) : null}
+                </>
               }
             >
               {screenActive && (
@@ -997,10 +1001,7 @@ const AiChatContent: React.FC = () => {
               />
               {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
               <div className="session-bar">
-                <SessionControls
-                  onManageNomi={() => openSettings('models')}
-                  onOpenModels={() => openSettings('models')}
-                />
+                <SessionControls onManageNomi={() => openSettings('models')} />
               </div>
             </footer>
           </div>

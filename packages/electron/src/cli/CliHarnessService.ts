@@ -91,7 +91,13 @@ import {
   type NormalizedImage,
   type StagedImage,
 } from './promptImages';
-import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
+import {
+  discoverSlash,
+  expandSlash,
+  gitBranch,
+  gitDiff,
+  type SlashBackend,
+} from './slashDiscovery';
 import {
   acpMetaContext,
   createClaudeParser,
@@ -4299,6 +4305,7 @@ export class CliHarnessService {
       ),
     );
     handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
+    handle('ai:harness:git-branch', (cwd) => gitBranch(validDir(String(cwd ?? ''))));
     handle('ai:harness:workspace-read', (cwd, filePath) =>
       readWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
     );

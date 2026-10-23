@@ -75,5 +75,6 @@
   "{0} {1}% · {2}": "{0} {1}% · {2}",
   "- {0}": "- {0}",
   "估算值：还没有这个会话的真实用量": "Estimate: no real usage reported for this session yet",
-  "未识别模型，窗口按 128K 计": "Unknown model; assuming a 128K window"
+  "未识别模型，窗口按 128K 计": "Unknown model; assuming a 128K window",
+  "当前分支：{0}": "Current branch: {0}"
 }

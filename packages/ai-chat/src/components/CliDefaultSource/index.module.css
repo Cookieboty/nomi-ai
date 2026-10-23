@@ -1,0 +1,19 @@
+.select {
+  width: auto;
+  max-width: 260px;
+}
+
+/* 侧栏信息卡里的「新标签默认」一行 */
+.defaultSource {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  padding: 0 var(--cd-space-1) var(--cd-space-1) var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+}
+.defaultLabel {
+  color: var(--cd-color-text-subtle);
+  white-space: nowrap;
+}

@@ -3,7 +3,11 @@ import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ChatTabs } from '../src/components/ChatTabs';
-import { EndpointControls, SessionControls } from '../src/components/EndpointControls';
+import {
+  EndpointControls,
+  SessionControls,
+  WorkspaceControl,
+} from '../src/components/EndpointControls';
 import { WorkspacePicker } from '../src/components/WorkspacePicker';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -106,7 +110,9 @@ describe('EndpointControls workspace for CLI tabs', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
+          {/* 工作目录在对话顶栏（WorkspaceControl），供应商在输入框左下角（SessionControls） */}
+          <WorkspaceControl />
+          <SessionControls onManageNomi={() => undefined} />
         </>
       </HarnessTabsProvider>,
     );

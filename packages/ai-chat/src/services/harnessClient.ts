@@ -279,8 +279,11 @@ export interface GitDiffResult {
   /** 工作区相对暂存区（`git diff`）；右栏「未暂存」分组用 */
   unstaged?: string;
   truncated: boolean;
+  /** 每个文件的增删行数（`git diff --numstat`，不受 diff 文本上限影响）；老版本主进程没有 */
+  numstat?: { head: GitNumstat; staged: GitNumstat; unstaged: GitNumstat };
   error?: string;
 }
+export type GitNumstat = Record<string, { added: number; removed: number }>;
 export interface ContextBreakdown {
   system: number;
   user: number;
@@ -326,6 +329,9 @@ export const harnessClient = {
   slashExpand: (backend: string, cwd: string, id: string, args: string) =>
     call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
   gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
+  /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
+  gitBranch: (cwd: string) =>
+    call<{ branch: string | null; detached?: string } | null>('git-branch', cwd),
   workspaceRead: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-read', cwd, filePath),
   workspaceWrite: (cwd: string, filePath: string, content: string) =>
