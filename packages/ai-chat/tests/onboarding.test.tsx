@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { OnboardingHost } from '../src/components/Onboarding';
 import { mergePersona } from '../src/components/Onboarding/client';
+import { getLayoutDensity, setLayoutDensity } from '../src/services/chatPrefs';
 
 type Call = [string, ...unknown[]];
 let calls: Call[] = [];
@@ -51,6 +52,7 @@ beforeEach(() => {
   };
 });
 afterEach(() => {
+  setLayoutDensity('full');
   cleanup();
   applyLocale('zh-CN');
   delete (window as unknown as { aiIPC?: unknown }).aiIPC;
@@ -60,7 +62,7 @@ const mascot = () =>
   calls.filter((c) => c[0] === 'ai:onboarding:mascot').map((c) => c[1] as { type: string });
 
 describe('first-launch onboarding', () => {
-  it('walks language → theme → startup → character & voice → name & tone → provider → privacy', async () => {
+  it('walks language → theme → startup → layout → character & voice → name & tone → provider → privacy', async () => {
     render(<OnboardingHost />);
     await screen.findByTestId('onboarding-step-language');
     // 看板娘打招呼
@@ -86,6 +88,14 @@ describe('first-launch onboarding', () => {
     expect(screen.getByTestId('onb-startup-main').getAttribute('aria-checked')).toBe('false');
     fireEvent.click(screen.getByTestId('onboarding-next'));
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
+
+    // 3b 界面模式：默认全量；选精简即时保存（工作台用）
+    await screen.findByTestId('onboarding-step-layout');
+    expect(screen.getByTestId('onb-layout-full').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByTestId('onb-layout-compact'));
+    expect(screen.getByTestId('onb-layout-compact').getAttribute('aria-checked')).toBe('true');
+    expect(getLayoutDensity()).toBe('compact');
+    fireEvent.click(screen.getByTestId('onboarding-next'));
 
     // 4 声音（只内置 Nomi，不再选角色）
     fireEvent.click(await screen.findByTestId('onb-voice-lively'));
@@ -147,8 +157,12 @@ describe('first-launch onboarding', () => {
     fireEvent.click(await screen.findByTestId('onboarding-skip-step'));
     await screen.findByTestId('onboarding-step-startup');
     fireEvent.click(screen.getByTestId('onboarding-skip-step'));
+    // 界面模式也能跳过，保持全量
+    await screen.findByTestId('onboarding-step-layout');
+    fireEvent.click(screen.getByTestId('onboarding-skip-step'));
     await screen.findByTestId('onboarding-step-character');
     expect(startupView).toBe('mascot');
+    expect(getLayoutDensity()).toBe('full');
     expect(calls.some((c) => c[0] === 'ai:startup:set')).toBe(false);
   });
 

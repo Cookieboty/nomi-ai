@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, setLayoutDensity } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
 // 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
@@ -83,6 +83,7 @@ const mount = (onNotice = vi.fn()) =>
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
+  setLayoutDensity('full');
   cleanup();
   localStorage.clear();
   delete (window as { aiIPC?: unknown }).aiIPC;
@@ -221,6 +222,18 @@ describe('CLI history in the sidebar', () => {
     fireEvent.click(r.getByTestId('endpoint-filter-nomi'));
     expect(r.queryByTestId('cli-history-refresh')).toBeNull();
     expect(r.getByTestId('list-title').textContent).toContain('1');
+  });
+
+  it('精简模式不显示按端信息卡；切回全量后出现', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'claude');
+    setLayoutDensity('compact');
+    mockIpc();
+    const r = mount();
+    await r.findByTestId('cli-history');
+    expect(r.queryByTestId('endpoint-info-card')).toBeNull();
+    act(() => setLayoutDensity('full'));
+    expect(await r.findByTestId('endpoint-info-card')).toBeTruthy();
   });
 
   it('普通模式不显示按端信息卡', async () => {

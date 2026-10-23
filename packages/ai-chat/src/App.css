@@ -552,3 +552,28 @@ html[data-chat-bg] .files-rail::before {
   backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
   -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
 }
+
+/* 精简模式：顶栏不放对话标签条，只显示当前会话标题（与右侧按钮同高、贴底，同一中线） */
+.chat-compact-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  align-self: flex-end;
+  height: var(--cd-control-h-ms);
+  min-width: 0;
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-md);
+}
+.chat-compact-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-compact-title-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cd-color-accent);
+}

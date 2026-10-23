@@ -21,6 +21,7 @@ import styles from './index.module.css';
 import { IslandSettings } from './IslandSettings';
 import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
+import { LayoutDensitySettings } from './LayoutDensitySettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
 import { PrivacySection } from './PrivacySection';
@@ -107,11 +108,12 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             <GeneralHero />
             <SettingsGroup
               title={t('外观')}
-              description={t('主题、应用图标与聊天背景，即时生效。')}
+              description={t('主题、界面模式、应用图标与聊天背景，即时生效。')}
               id="settings-appearance"
               data-testid="settings-appearance"
             >
               <ThemeSettings />
+              <LayoutDensitySettings />
               <AppIconSettings />
               <ChatBackgroundSettings />
             </SettingsGroup>
@@ -123,7 +125,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               <SettingRow
                 title={t('新手引导')}
                 description={t(
-                  '重新走一遍：语言、主题、启动方式、声音、称呼与语气、模型供应商和隐私说明。',
+                  '重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。',
                 )}
               >
                 <Button

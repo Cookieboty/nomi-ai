@@ -425,7 +425,6 @@
   "对话、Nomi 与通知同步": "Chat, Nomi and notifications follow it",
   "版本信息仅在桌面应用中提供": "Version info is only available in the desktop app",
   "对话、Nomi、托盘与通知即时切换。": "Chat, Nomi, tray and notifications switch instantly.",
-  "主题、应用图标与聊天背景，即时生效。": "Theme, app icon and chat background — applied instantly.",
   "⌘Q（macOS）与托盘菜单里的「退出」始终完全退出。": "⌘Q (macOS) and Quit in the tray menu always quit completely.",
   "Nomi 已隐藏，打开后才能调整大小。": "Nomi is hidden; show it to adjust its size.",
   "尚未检查更新": "Not checked yet",
@@ -444,5 +443,13 @@
   "对话区模糊": "Chat area blur",
   "右侧面板模糊": "Right panels blur",
   "新标签默认": "New tabs use",
-  "只影响以后新开的 {0} 标签，已有会话不变": "Only affects {0} tabs opened from now on; existing sessions stay as they are"
+  "只影响以后新开的 {0} 标签，已有会话不变": "Only affects {0} tabs opened from now on; existing sessions stay as they are",
+  "界面模式": "Layout",
+  "全量模式": "Full mode",
+  "精简模式": "Compact mode",
+  "顶部显示对话标签，侧栏底部显示编程助手信息卡（版本、账号、额度、今日用量）": "Conversation tabs at the top and the coding assistant info card (version, account, quota, today’s usage) at the bottom of the sidebar",
+  "隐藏顶部对话标签与侧栏底部的信息卡，只留会话列表和对话；在侧栏里切换会话": "Hides the conversation tabs and the sidebar info card, leaving just the conversation list and the chat; switch conversations from the sidebar",
+  "{0}。只影响工作台，助手模式没有这两块。": "{0}. Only affects the workbench; assistant mode has neither.",
+  "主题、界面模式、应用图标与聊天背景，即时生效。": "Theme, layout, app icon and chat background — applied instantly.",
+  "重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。": "Go through it again: language, theme, startup, layout, voice, name and tone, model providers and the privacy note."
 }

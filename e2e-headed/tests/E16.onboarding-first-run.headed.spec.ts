@@ -95,7 +95,7 @@ test.describe('E16 · first run: onboarding → provider setup → test connecti
     await shot(chat, 'onboarding-1-language');
 
     // 前进到「模型服务」一步
-    for (let i = 0; i < 6 && (await onb.getAttribute('data-step')) !== 'provider'; i++) {
+    for (let i = 0; i < 8 && (await onb.getAttribute('data-step')) !== 'provider'; i++) {
       await chat.click('[data-testid="onboarding-next"]');
     }
     await expect(onb).toHaveAttribute('data-step', 'provider');

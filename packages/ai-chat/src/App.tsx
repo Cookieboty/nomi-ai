@@ -61,6 +61,7 @@ import {
 import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useLayoutDensity } from './hooks/useLayoutDensity';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
@@ -243,6 +244,9 @@ const AiChatContent: React.FC = () => {
   const settledNomi = useAiChatSelector(selectSettledNomi, shallowArrayEqual);
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
+  // 精简模式（工作台）：不显示顶部对话标签条，顶栏只放当前会话的标题
+  const { isCompact } = useLayoutDensity();
+  const compactTabs = isDev && isCompact;
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
@@ -630,6 +634,14 @@ const AiChatContent: React.FC = () => {
       screen: () => setShowScreen((v) => !v),
       newTab: () => {
         if (!isDev) return;
+        // 精简模式没有标签条（「+」菜单）：按当前标签的端和目录直接新开；Nomi 标签则新开对话
+        if (compactTabs) {
+          const cur = tabs.activeTab;
+          if (cur && cur.backend !== 'nomi')
+            void tabs.create(cur.backend, cur.cwd).catch(() => undefined);
+          else newChat();
+          return;
+        }
         setTabNew((n) => n + 1);
       },
       closeTab: () => {
@@ -645,11 +657,12 @@ const AiChatContent: React.FC = () => {
         tabs.cycle(-1);
       },
       renameTab: () => {
-        if (!isDev) return;
+        // 改名框在标签条上；精简模式在侧栏的会话列表里改名
+        if (!isDev || compactTabs) return;
         setTabRename((n) => n + 1);
       },
     }),
-    [newChat, focusInput, tabs, isDev],
+    [newChat, focusInput, tabs, isDev, compactTabs],
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -846,7 +859,18 @@ const AiChatContent: React.FC = () => {
           >
             <ChatHeader
               tabs={
-                isDev ? (
+                compactTabs ? (
+                  <div
+                    className="chat-compact-title"
+                    data-testid="chat-compact-title"
+                    title={tabs.activeTab?.title}
+                  >
+                    {tabs.activeTab?.status === 'running' ? (
+                      <span className="chat-compact-title-dot" aria-label={t('运行中')} />
+                    ) : null}
+                    <span className="chat-compact-title-text">{tabs.activeTab?.title ?? ''}</span>
+                  </div>
+                ) : isDev ? (
                   <ChatTabs
                     embedded
                     renameRequest={tabRename}

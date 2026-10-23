@@ -16,6 +16,7 @@ import { useCliHistory } from '../../hooks/useCliHistory';
 import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
+import { useLayoutDensity } from '../../hooks/useLayoutDensity';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
 import { orderEndpoints, splitShownEndpoints, visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
@@ -84,6 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isLoading = useAiChatSelector(selectIsLoading);
   const tabs = useHarnessTabs();
   const { isDev, isNormal, setMode } = useChatMode();
+  const { isCompact } = useLayoutDensity();
   const {
     view: storedView,
     setView,
@@ -999,8 +1001,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       )}
 
-      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉） */}
-      {!collapsed && !searching && isDev && view === 'by-endpoint' && (
+      {/* 「按端」视图：选中某端后，左下角固定一张该端的信息卡（点击打开详情抽屉）；精简模式不显示 */}
+      {!collapsed && !searching && isDev && !isCompact && view === 'by-endpoint' && (
         <EndpointInfoCard
           backend={endpointFilter}
           running={endpointRunning}
