@@ -1,5 +1,6 @@
 /**
- * 发送钮旁上下文占用环：默认只显示橙色进度环；悬停浮窗展示「当前上下文 xK / 最大」。
+ * 发送钮旁上下文占用环：默认只显示橙色进度环；悬停浮窗展示「当前上下文 xK / 最大」
+ * 及按行明细（估算依据 + 各角色 token）。
  * 用量优先取 CLI 最近一轮真实 usage，否则本地估算（界面标明）。
  */
 import { t } from '@nomi-ai/ui';
@@ -39,12 +40,13 @@ export const ContextUsageBar: React.FC<{
   const over = est.used > win.size;
   const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
-  const basisLabel =
+  /** 依据标签按行拆开，避免「估算 · 经验表」挤在一行 */
+  const basisRows =
     est.basis === 'actual'
-      ? t('真实用量')
+      ? [t('真实用量')]
       : win.source === 'table'
-        ? t('估算 · 经验表')
-        : t('估算 · 默认窗口');
+        ? [t('估算'), t('经验表')]
+        : [t('估算'), t('默认窗口')];
   const tip = over
     ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
     : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
@@ -105,10 +107,17 @@ export const ContextUsageBar: React.FC<{
         <div className={styles.contextRingTip} role="tooltip" data-testid="context-usage-detail">
           <div className={styles.contextRingTipMain}>{tip}</div>
           <div className={styles.contextRingTipMeta}>
-            {basisLabel}
-            {est.categories.length
-              ? ` · ${est.categories.map((c) => `${c.label} ${formatTokens(c.tokens)}`).join(' · ')}`
-              : ''}
+            {basisRows.map((row) => (
+              <div key={row} className={styles.contextRingTipRow}>
+                {row}
+              </div>
+            ))}
+            {est.categories.map((c) => (
+              <div key={c.key} className={styles.contextRingTipRow}>
+                <span className={styles.contextRingTipLabel}>{c.label}</span>
+                <span className={styles.contextRingTipValue}>{formatTokens(c.tokens)}</span>
+              </div>
+            ))}
           </div>
         </div>
       ) : null}

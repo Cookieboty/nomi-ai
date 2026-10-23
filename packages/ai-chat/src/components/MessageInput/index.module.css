@@ -1,6 +1,9 @@
 .messageInputContainer {
   padding: 0;
   background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .inputWrapper {

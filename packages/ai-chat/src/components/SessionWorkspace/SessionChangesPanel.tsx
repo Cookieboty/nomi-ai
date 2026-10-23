@@ -1,4 +1,4 @@
-/** Codex 右栏：文件树（搜索、+/−、蓝点）；中栏 Diff 见 CenterChangesHost；外层与 chat 分割见 App */
+/** Codex 右栏：默认「已更改的文件」树（筛选、+/−、蓝点）；工作区全树为次要入口；中栏 Diff 见 CenterChangesHost */
 import { t } from '@nomi-ai/ui';
 import { Expand, FolderTree, GitBranch, RefreshCw, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,6 +18,7 @@ import {
 import { parsePatch } from '../../utils/lineDiff';
 import {
   aggregateSessionChanges,
+  buildChangeFileTree,
   locateChangeMessage,
   mergeWorkspaceAndChanges,
   projectNameFromCwd,
@@ -31,6 +32,8 @@ import { FilePreview, type PreviewFile } from './FilePreview';
 import styles from './SessionWorkspace.module.css';
 
 type Tab = 'files' | 'git';
+/** 文件 Tab 内：默认已更改列表；工作区全树为次要 */
+type FilesMode = 'changed' | 'workspace';
 
 const GitRow: React.FC<{
   entry: GitFileEntry;
@@ -75,6 +78,7 @@ export const SessionChangesPanel: React.FC<{
   rail?: boolean;
 }> = ({ messages, cwd, rail = false }) => {
   const [tab, setTab] = useState<Tab>('files');
+  const [filesMode, setFilesMode] = useState<FilesMode>('changed');
   const [git, setGit] = useState<GitDiffResult | null>(null);
   const [gitBusy, setGitBusy] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -92,7 +96,12 @@ export const SessionChangesPanel: React.FC<{
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const summary = useMemo(() => summarizeChanges(changes), [changes]);
   const changeByFile = useMemo(() => new Map(changes.map((c) => [c.file, c])), [changes]);
-  const tree = useMemo(() => mergeWorkspaceAndChanges(diskTree, changes), [diskTree, changes]);
+  const changedTree = useMemo(() => buildChangeFileTree(changes), [changes]);
+  const workspaceTree = useMemo(
+    () => mergeWorkspaceAndChanges(diskTree, changes),
+    [diskTree, changes],
+  );
+  const tree = filesMode === 'changed' ? changedTree : workspaceTree;
   const project = projectNameFromCwd(cwd);
 
   const refreshDisk = useCallback(async () => {
@@ -143,12 +152,13 @@ export const SessionChangesPanel: React.FC<{
   }, [cwd]);
 
   useEffect(() => {
-    void refreshDisk();
-  }, [refreshDisk]);
+    if (filesMode === 'workspace') void refreshDisk();
+  }, [refreshDisk, filesMode]);
 
   useEffect(() => {
     if (changes.length > prevCount.current) {
       setTab('files');
+      setFilesMode('changed');
       setBadgePulse(true);
       const tmr = window.setTimeout(() => setBadgePulse(false), 1200);
       prevCount.current = changes.length;
@@ -157,10 +167,11 @@ export const SessionChangesPanel: React.FC<{
     prevCount.current = changes.length;
   }, [changes.length]);
 
-  /** 摘要卡「查看变更」→ 中栏 Diff + 右栏高亮文件 */
+  /** 摘要卡「查看变更」→ 中栏 Diff + 右栏高亮文件；右栏保持「已更改」模式 */
   useEffect(() => {
     if (!workbench) return;
     setTab('files');
+    setFilesMode('changed');
     setFilter('');
     const file = workbench.file ?? workbench.entries?.[0]?.file ?? changes[0]?.file ?? null;
     if (file) {
@@ -258,7 +269,6 @@ export const SessionChangesPanel: React.FC<{
     } else {
       setPreviewKey(`d:${file}`);
       setOpenDiskPaths((prev) => (prev.includes(file) ? prev : [...prev, file]));
-      // 无 diff 的磁盘文件：仍打开中栏范围（会话全部），便于对照
       if (changes.length) {
         openWorkbench({ file, entries: changes, sourceLabel: t('全部') });
       }
@@ -273,6 +283,15 @@ export const SessionChangesPanel: React.FC<{
       messageId: changes[0]?.messageId,
     });
 
+  const title =
+    tab === 'git'
+      ? t('工作区 Git')
+      : filesMode === 'changed'
+        ? t('已更改的文件')
+        : rail
+          ? project
+          : t('工作区');
+
   return (
     <section
       ref={panelRef}
@@ -281,20 +300,20 @@ export const SessionChangesPanel: React.FC<{
       data-rail={rail || undefined}
       data-focused={workbench ? 'true' : undefined}
       data-layout="tree"
+      data-files-mode={tab === 'files' ? filesMode : undefined}
       tabIndex={-1}
     >
       <header className={styles.panelHead}>
         <div className={styles.railTitleRow}>
           <span className={styles.railTitle} title={cwd || undefined}>
-            {rail ? project : t('工作区')}
+            {title}
           </span>
-          {summary.files > 0 ? (
+          {summary.files > 0 && filesMode === 'changed' ? (
             <span
               className={styles.summary}
               data-pulse={badgePulse || undefined}
               data-testid="changes-summary"
             >
-              {t('{0} 个文件', summary.files)} ·{' '}
               <span className={styles.add}>+{summary.added}</span>{' '}
               <span className={styles.del}>−{summary.removed}</span>
             </span>
@@ -333,14 +352,17 @@ export const SessionChangesPanel: React.FC<{
           <button
             type="button"
             role="tab"
-            aria-selected={tab === 'files'}
+            aria-selected={tab === 'files' && filesMode === 'changed'}
             className={styles.tab}
-            data-active={tab === 'files' || undefined}
+            data-active={(tab === 'files' && filesMode === 'changed') || undefined}
             data-testid="rail-tab-files"
-            onClick={() => setTab('files')}
+            onClick={() => {
+              setTab('files');
+              setFilesMode('changed');
+            }}
           >
             <FolderTree size={12} />
-            {t('文件')}
+            {t('已更改')}
             {changes.length ? (
               <span className={styles.count} data-pulse={badgePulse || undefined}>
                 {changes.length}
@@ -350,13 +372,30 @@ export const SessionChangesPanel: React.FC<{
           <button
             type="button"
             role="tab"
+            aria-selected={tab === 'files' && filesMode === 'workspace'}
+            className={styles.tab}
+            data-active={(tab === 'files' && filesMode === 'workspace') || undefined}
+            data-testid="rail-tab-workspace"
+            title={t('工作区全树（次要）')}
+            onClick={() => {
+              setTab('files');
+              setFilesMode('workspace');
+              void refreshDisk();
+            }}
+          >
+            {t('工作区')}
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={tab === 'git'}
             className={styles.tab}
             data-active={tab === 'git' || undefined}
+            data-testid="rail-tab-git"
             onClick={openGit}
           >
             <GitBranch size={12} />
-            {t('变更')}
+            {t('工作区 Git')}
           </button>
           {tab === 'git' ? (
             <button
@@ -370,7 +409,7 @@ export const SessionChangesPanel: React.FC<{
             >
               <RefreshCw size={12} className={gitBusy ? styles.spin : undefined} />
             </button>
-          ) : (
+          ) : filesMode === 'workspace' ? (
             <button
               type="button"
               className={styles.iconBtn}
@@ -382,7 +421,7 @@ export const SessionChangesPanel: React.FC<{
             >
               <RefreshCw size={12} className={diskBusy ? styles.spin : undefined} />
             </button>
-          )}
+          ) : null}
         </div>
       </header>
 
@@ -391,7 +430,7 @@ export const SessionChangesPanel: React.FC<{
           <div
             className={styles.railTreePane}
             data-testid="rail-tree-pane"
-            style={{ flex: '1 1 auto', minWidth: 0 }}
+            style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
           >
             <label className={styles.wbFilter}>
               <Search size={12} />
@@ -402,15 +441,15 @@ export const SessionChangesPanel: React.FC<{
                 data-testid="files-rail-filter"
               />
             </label>
-            <div className={styles.wbTreeHead}>
-              {t('已更改的文件')}
-              {diskBusy ? ` · ${t('读取中…')}` : null}
-            </div>
-            {diskErr ? (
+            {filesMode === 'workspace' && diskErr ? (
               <p className={styles.empty} data-testid="files-rail-disk-error">
                 {diskErr}
               </p>
-            ) : !diskTree.length && !changes.length && !diskBusy ? (
+            ) : filesMode === 'changed' && !changes.length ? (
+              <p className={styles.empty} data-testid="files-rail-no-changes">
+                {t('本会话尚无文件变更')}
+              </p>
+            ) : filesMode === 'workspace' && !diskTree.length && !changes.length && !diskBusy ? (
               <p className={styles.empty}>{cwd ? t('工作区为空') : t('当前会话没有工作目录')}</p>
             ) : (
               <div className={styles.railTree} data-testid="files-rail-tree">

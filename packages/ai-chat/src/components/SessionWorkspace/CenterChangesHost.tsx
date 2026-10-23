@@ -1,10 +1,10 @@
 /**
- * Codex 中栏「变更」Diff：与对话可分割；多文件块、顶栏 +/−。
+ * Codex 中栏「变更」Diff：与对话水平并排、全高；多文件块、顶栏 +/−。
  * 全屏审查仍走 ChangesWorkbenchHost（openDetail）。
  */
 import { t } from '@nomi-ai/ui';
 import { X } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';
 import {
@@ -23,6 +23,7 @@ export const CenterChangesHost: React.FC<{
 }> = ({ messages }) => {
   const { workbench, closeWorkbench } = useChangesUi();
   const [scopeAll, setScopeAll] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   const sessionEntries = useMemo(() => aggregateSessionChanges(messages), [messages]);
 
@@ -65,6 +66,14 @@ export const CenterChangesHost: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [workbench, closeWorkbench]);
 
+  useEffect(() => {
+    if (!activeFile || !bodyRef.current) return;
+    const el = bodyRef.current.querySelector<HTMLElement>(
+      `[data-testid="center-diff-block"][data-file="${CSS.escape(activeFile)}"]`,
+    );
+    el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [activeFile, ordered.length]);
+
   if (!workbench) return null;
 
   return (
@@ -74,27 +83,29 @@ export const CenterChangesHost: React.FC<{
       aria-label={t('变更')}
     >
       <header className={styles.centerChangesHead}>
-        <span className={styles.wbCenterTab}>{t('变更')}</span>
-        <button
-          type="button"
-          className={styles.wbCenterScope}
-          data-active={!scopeAll || undefined}
-          onClick={() => setScopeAll(false)}
-        >
-          {workbench.sourceLabel || t('上一轮')}
-        </button>
-        <button
-          type="button"
-          className={styles.wbViewAll}
-          data-testid="center-changes-view-all"
-          data-active={scopeAll || undefined}
-          onClick={() => setScopeAll(true)}
-        >
-          {t('全部')}
-        </button>
-        <span className={styles.stat}>
+        <span className={styles.centerChangesTitle}>{t('变更')}</span>
+        <span className={styles.stat} data-testid="center-changes-stat">
           <span className={styles.add}>+{summary.added}</span>
           <span className={styles.del}>−{summary.removed}</span>
+        </span>
+        <span className={styles.centerChangesScope} data-testid="center-changes-scope">
+          <button
+            type="button"
+            className={styles.wbCenterScope}
+            data-active={!scopeAll || undefined}
+            onClick={() => setScopeAll(false)}
+          >
+            {workbench.sourceLabel || t('上一轮')}
+          </button>
+          <button
+            type="button"
+            className={styles.wbViewAll}
+            data-testid="center-changes-view-all"
+            data-active={scopeAll || undefined}
+            onClick={() => setScopeAll(true)}
+          >
+            {t('全部')}
+          </button>
         </span>
         <span className={styles.wbSpacer} />
         <button
@@ -107,7 +118,7 @@ export const CenterChangesHost: React.FC<{
           <X size={14} />
         </button>
       </header>
-      <div className={styles.centerChangesBody}>
+      <div className={styles.centerChangesBody} ref={bodyRef}>
         {!ordered.length ? (
           <p className={styles.empty}>{t('本会话尚无文件变更')}</p>
         ) : (

@@ -60,7 +60,65 @@ body {
   z-index: 1;
 }
 
-/* Codex 整页第三列：右文件栏（与 Sidebar / main-content 横排全高；宽度由分割线拖动） */
+/* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高） */
+.main-content--with-changes {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.chat-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+}
+
+.main-content--with-changes .chat-column {
+  flex: 0 0 auto;
+  border-right: none;
+}
+
+.center-changes-splitter {
+  width: 5px;
+  margin: 0 -2px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 3;
+  background: transparent;
+  touch-action: none;
+  align-self: stretch;
+}
+.center-changes-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: var(--cd-color-border, #333);
+  opacity: 0.85;
+}
+.center-changes-splitter:hover::after,
+.center-changes-splitter:active::after {
+  background: var(--cd-color-accent-strong, #5b8def);
+  opacity: 1;
+  inset: 0 1.5px;
+}
+
+/* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
+.main-content--with-changes [data-testid='center-changes-pane'] {
+  flex: 1 1 0;
+  min-width: 280px;
+  min-height: 0;
+  height: 100%;
+  max-height: none !important;
+  align-self: stretch;
+  border-top: none !important;
+  border-left: 1px solid var(--cd-color-border, #333);
+}
+
+/* Codex 整页最右列：已更改文件栏（与 Sidebar / main-content 横排全高；宽度由分割线拖动） */
 .files-rail-splitter {
   width: 5px;
   margin: 0 -2px;

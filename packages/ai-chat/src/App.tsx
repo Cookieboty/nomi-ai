@@ -35,6 +35,7 @@ import {
   ChangesWorkbenchHost,
   CenterChangesHost,
   SessionChangesPanel,
+  useChangesUi,
 } from './components/SessionWorkspace';
 import {
   LOCAL_MANAGE_TABS,
@@ -109,6 +110,12 @@ const FILES_RAIL_W_DEFAULT = 260;
 const FILES_RAIL_W_MIN = 200;
 const FILES_RAIL_W_MAX = 420;
 
+/** 中栏 Diff 打开时：对话列宽度（可拖；仿 files-rail） */
+const CHAT_COL_W_KEY = 'nomi.chatColumnWidth';
+const CHAT_COL_W_DEFAULT = 440;
+const CHAT_COL_W_MIN = 300;
+const CHAT_COL_W_MAX = 720;
+
 function readFilesRailWidth(): number {
   try {
     const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
@@ -121,9 +128,24 @@ function readFilesRailWidth(): number {
   return FILES_RAIL_W_DEFAULT;
 }
 
+function readChatColumnWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(CHAT_COL_W_KEY));
+    if (Number.isFinite(n)) {
+      return Math.min(CHAT_COL_W_MAX, Math.max(CHAT_COL_W_MIN, Math.round(n)));
+    }
+  } catch {
+    /* ignore */
+  }
+  return CHAT_COL_W_DEFAULT;
+}
+
 const AiChatContent: React.FC = () => {
   const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
   const filesRailDrag = useRef<{ startX: number; startW: number } | null>(null);
+  const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
+  const chatColDrag = useRef<{ startX: number; startW: number } | null>(null);
+  const { workbench } = useChangesUi();
 
   const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -161,6 +183,47 @@ const AiChatContent: React.FC = () => {
     setFilesRailWidth(FILES_RAIL_W_DEFAULT);
     try {
       localStorage.setItem(FILES_RAIL_W_KEY, String(FILES_RAIL_W_DEFAULT));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onChatColSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    chatColDrag.current = { startX: e.clientX, startW: chatColumnWidth };
+    el.setPointerCapture(e.pointerId);
+    const onMove = (ev: PointerEvent) => {
+      const d = chatColDrag.current;
+      if (!d) return;
+      const next = Math.min(
+        CHAT_COL_W_MAX,
+        Math.max(CHAT_COL_W_MIN, d.startW + (ev.clientX - d.startX)),
+      );
+      setChatColumnWidth(next);
+    };
+    const onUp = (ev: PointerEvent) => {
+      chatColDrag.current = null;
+      el.releasePointerCapture(ev.pointerId);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setChatColumnWidth((w) => {
+        try {
+          localStorage.setItem(CHAT_COL_W_KEY, String(w));
+        } catch {
+          /* ignore */
+        }
+        return w;
+      });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  const onChatColSplitterDbl = () => {
+    setChatColumnWidth(CHAT_COL_W_DEFAULT);
+    try {
+      localStorage.setItem(CHAT_COL_W_KEY, String(CHAT_COL_W_DEFAULT));
     } catch {
       /* ignore */
     }
@@ -671,163 +734,201 @@ const AiChatContent: React.FC = () => {
           onOpenSettings={(sec) => openSettings(sec)}
         />
 
-        {/* 主内容区域 */}
-        <div className="main-content">
-          <ChatHeader
-            onHub={() => setShowHub(true)}
-            onExt={() => setShowExt(true)}
-            onLocal={() => setShowLocal(true)}
-            onSettings={() => openSettings()}
-            onNewChat={handleNewChat}
-            onCustomize={() => openSettings('general')}
+        {/* 主内容：无 Diff 时对话全宽；有 workbench 时 chat-column | Diff 横排全高（对齐 Codex 截图） */}
+        <div
+          className={
+            workbench && isDev && tabs.isCliTab
+              ? 'main-content main-content--with-changes'
+              : 'main-content'
+          }
+          data-with-changes={workbench && isDev && tabs.isCliTab ? 'true' : undefined}
+        >
+          <div
+            className="chat-column"
+            data-testid="chat-column"
+            style={{
+              ...(workbench && isDev && tabs.isCliTab
+                ? {
+                    width: chatColumnWidth,
+                    minWidth: CHAT_COL_W_MIN,
+                    maxWidth: CHAT_COL_W_MAX,
+                    flexShrink: 0,
+                  }
+                : {}),
+            }}
           >
-            {screenActive && (
-              <button
-                type="button"
-                className="screen-mem-indicator"
-                onClick={() => setShowScreen(true)}
-                title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
-                data-testid="screen-mem-indicator"
-              >
-                <span className="screen-mem-dot" />
-                {t('屏幕记忆中')}
-              </button>
-            )}
-          </ChatHeader>
-          {isDev && (
-            <ChatTabs
-              renameRequest={tabRename}
-              newTabRequest={tabNew}
-              mainLoading={isLoading}
-              onForkTab={(tabId, mode) => {
-                const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
-                if (meta) onForkRequest(meta.id, mode);
-              }}
-            />
-          )}
-          {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
-          <div className="session-bar">
-            <SessionControls
-              onManageNomi={() => openSettings('models')}
-              onOpenModels={() => openSettings('models')}
-            />
-          </div>
-          {/* 对话区域 */}
-          <main className="chat-container">
-            <ChatBackgroundLayer />
-            {isDev && tabs.isCliTab ? (
-              <>
-                {tabs.messages.length === 0 &&
-                !tabs.live[tabs.activeTab!.id] &&
-                slash.cards.length === 0 &&
-                tabs.activeTab!.status === 'idle' ? (
-                  <div className="welcome-screen" data-testid="cli-tab-empty">
-                    <div className="welcome-content">
-                      <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
-                      <p className="welcome-subtitle">
-                        {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <ConversationView
-                    scopeId={tabs.activeTab!.id}
-                    messages={cliConvMessages}
-                    live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
-                    phase={
-                      tabs.activeTab!.status === 'running'
-                        ? 'running'
-                        : tabs.activeTab!.status === 'queued'
-                          ? 'queued'
-                          : 'idle'
-                    }
-                    queued={tabs.queues[tabs.activeTab!.id]}
-                    onRemoveQueued={tabs.removeQueued}
-                    onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
-                    onRetry={(id) => {
-                      const u = precedingUser(tabs.messages, id);
-                      if (u) void tabs.send(u.content);
-                    }}
-                    onEdit={(_, text) => void tabs.send(text)}
-                    slots={cliSlots}
-                    cards={slash.cards}
-                    onDismissCard={slash.dismissCard}
-                    dormant={tabs.activeTab!.dormant}
-                    backgroundAgents={tabs.activeTab!.backgroundAgents}
-                    backgroundCount={tabs.activeTab!.background}
-                    onStopAgent={(agentId) =>
-                      void harnessClient
-                        .stopAgent(tabs.activeTab!.id, agentId)
-                        .catch(() => undefined)
-                    }
-                  />
-                )}
-              </>
-            ) : messageCount === 0 && slash.cards.length === 0 ? (
-              <div className="welcome-screen" data-testid="welcome-screen">
-                <div className="welcome-content">
-                  <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
-                  <div className="quick-actions">
-                    {[
-                      [t('你好，请介绍一下自己'), t('打个招呼')],
-                      [t('帮我写一段代码'), t('写一段代码')],
-                      [t('帮我整理今天的待办'), t('整理今天的待办')],
-                    ].map(([prompt, label]) => (
-                      <button
-                        key={label}
-                        className="quick-action-btn"
-                        onClick={() => actions.sendMessage(prompt)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="welcome-subtitle">
-                    {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <NomiConversation
-                scopeId={`nomi:${firstMessageId ?? 'new'}`}
-                messages={nomiMessages}
-                phase={isLoading ? 'running' : 'idle'}
-                queued={nomiQueue.queue}
-                onRemoveQueued={nomiQueue.remove}
-                onRetry={onNomiRetry}
-                onEdit={onNomiEdit}
-                slots={nomiSlots}
-                cards={slash.cards}
-                onDismissCard={slash.dismissCard}
+            <ChatHeader
+              onHub={() => setShowHub(true)}
+              onExt={() => setShowExt(true)}
+              onLocal={() => setShowLocal(true)}
+              onSettings={() => openSettings()}
+              onNewChat={handleNewChat}
+              onCustomize={() => openSettings('general')}
+            >
+              {screenActive && (
+                <button
+                  type="button"
+                  className="screen-mem-indicator"
+                  onClick={() => setShowScreen(true)}
+                  title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
+                  data-testid="screen-mem-indicator"
+                >
+                  <span className="screen-mem-dot" />
+                  {t('屏幕记忆中')}
+                </button>
+              )}
+            </ChatHeader>
+            {isDev && (
+              <ChatTabs
+                renameRequest={tabRename}
+                newTabRequest={tabNew}
+                mainLoading={isLoading}
+                onForkTab={(tabId, mode) => {
+                  const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
+                  if (meta) onForkRequest(meta.id, mode);
+                }}
               />
             )}
-          </main>
+            {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
+            <div className="session-bar">
+              <SessionControls
+                onManageNomi={() => openSettings('models')}
+                onOpenModels={() => openSettings('models')}
+              />
+            </div>
+            {/* 对话区域 */}
+            <main className="chat-container">
+              <ChatBackgroundLayer />
+              {isDev && tabs.isCliTab ? (
+                <>
+                  {tabs.messages.length === 0 &&
+                  !tabs.live[tabs.activeTab!.id] &&
+                  slash.cards.length === 0 &&
+                  tabs.activeTab!.status === 'idle' ? (
+                    <div className="welcome-screen" data-testid="cli-tab-empty">
+                      <div className="welcome-content">
+                        <h2 className="welcome-title">
+                          {t('{0} · 新会话', tabs.activeTab!.title)}
+                        </h2>
+                        <p className="welcome-subtitle">
+                          {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <ConversationView
+                      scopeId={tabs.activeTab!.id}
+                      messages={cliConvMessages}
+                      live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
+                      phase={
+                        tabs.activeTab!.status === 'running'
+                          ? 'running'
+                          : tabs.activeTab!.status === 'queued'
+                            ? 'queued'
+                            : 'idle'
+                      }
+                      queued={tabs.queues[tabs.activeTab!.id]}
+                      onRemoveQueued={tabs.removeQueued}
+                      onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
+                      onRetry={(id) => {
+                        const u = precedingUser(tabs.messages, id);
+                        if (u) void tabs.send(u.content);
+                      }}
+                      onEdit={(_, text) => void tabs.send(text)}
+                      slots={cliSlots}
+                      cards={slash.cards}
+                      onDismissCard={slash.dismissCard}
+                      dormant={tabs.activeTab!.dormant}
+                      backgroundAgents={tabs.activeTab!.backgroundAgents}
+                      backgroundCount={tabs.activeTab!.background}
+                      onStopAgent={(agentId) =>
+                        void harnessClient
+                          .stopAgent(tabs.activeTab!.id, agentId)
+                          .catch(() => undefined)
+                      }
+                    />
+                  )}
+                </>
+              ) : messageCount === 0 && slash.cards.length === 0 ? (
+                <div className="welcome-screen" data-testid="welcome-screen">
+                  <div className="welcome-content">
+                    <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
+                    <div className="quick-actions">
+                      {[
+                        [t('你好，请介绍一下自己'), t('打个招呼')],
+                        [t('帮我写一段代码'), t('写一段代码')],
+                        [t('帮我整理今天的待办'), t('整理今天的待办')],
+                      ].map(([prompt, label]) => (
+                        <button
+                          key={label}
+                          className="quick-action-btn"
+                          onClick={() => actions.sendMessage(prompt)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="welcome-subtitle">
+                      {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <NomiConversation
+                  scopeId={`nomi:${firstMessageId ?? 'new'}`}
+                  messages={nomiMessages}
+                  phase={isLoading ? 'running' : 'idle'}
+                  queued={nomiQueue.queue}
+                  onRemoveQueued={nomiQueue.remove}
+                  onRetry={onNomiRetry}
+                  onEdit={onNomiEdit}
+                  slots={nomiSlots}
+                  cards={slash.cards}
+                  onDismissCard={slash.dismissCard}
+                />
+              )}
+            </main>
 
-          {isDev && tabs.isCliTab && tabs.activeTab ? (
-            <CenterChangesHost messages={cliConvMessages} />
+            {/* 输入区域 */}
+            <footer className="input-container">
+              <MessageInput
+                {...inputModeProps}
+                contextMessages={tabs.isCliTab ? cliConvMessages : nomiMessages}
+                contextModel={
+                  tabs.isCliTab
+                    ? (tabs.activeTab?.modelOverride ?? tabs.activeTab?.backend)
+                    : undefined
+                }
+                slash={slash.bridge}
+                onPluginsClick={openPlugins}
+                onProvidersClick={openProviders}
+                onSettingsClick={onInputSettings}
+                onDesktopClick={openDesktop}
+                onHubClick={openHub}
+                onScreenClick={openScreen}
+                onExtClick={openExt}
+                onLocalClick={openLocal}
+              />
+            </footer>
+          </div>
+
+          {workbench && isDev && tabs.isCliTab && tabs.activeTab ? (
+            <>
+              <div
+                className="center-changes-splitter"
+                data-testid="center-changes-splitter"
+                role="separator"
+                aria-orientation="vertical"
+                aria-valuenow={chatColumnWidth}
+                aria-valuemin={CHAT_COL_W_MIN}
+                aria-valuemax={CHAT_COL_W_MAX}
+                onPointerDown={onChatColSplitterDown}
+                onDoubleClick={onChatColSplitterDbl}
+                title={t('拖动调整对话与变更 Diff 宽度；双击恢复默认')}
+              />
+              <CenterChangesHost messages={cliConvMessages} />
+            </>
           ) : null}
-
-          {/* 输入区域 */}
-          <footer className="input-container">
-            <MessageInput
-              {...inputModeProps}
-              contextMessages={tabs.isCliTab ? cliConvMessages : nomiMessages}
-              contextModel={
-                tabs.isCliTab
-                  ? (tabs.activeTab?.modelOverride ?? tabs.activeTab?.backend)
-                  : undefined
-              }
-              slash={slash.bridge}
-              onPluginsClick={openPlugins}
-              onProvidersClick={openProviders}
-              onSettingsClick={onInputSettings}
-              onDesktopClick={openDesktop}
-              onHubClick={openHub}
-              onScreenClick={openScreen}
-              onExtClick={openExt}
-              onLocalClick={openLocal}
-            />
-          </footer>
         </div>
 
         {isDev && tabs.isCliTab && tabs.activeTab ? (

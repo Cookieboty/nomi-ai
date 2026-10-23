@@ -155,19 +155,23 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="session-changes-panel"]')).toBeVisible({
       timeout: 30_000,
     });
-    // 完整 cwd 树含未改文件；变更行带 data-changed
+    // 右栏默认「已更改的文件」；变更行带 data-changed
     const rows = chat.locator('[data-testid="rail-file"][data-changed]');
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
 
-    // 整页左会话 | 中 chat+变更 Diff | 右文件树；「查看变更」打开中栏 Diff（非全屏）
+    // 四栏：左会话 | 中对话列 | 中全高 Diff | 右已更改文件；「查看变更」打开并排 Diff（非竖叠、非全屏）
     await expect(chat.locator('[data-testid="files-rail"]')).toBeVisible({ timeout: 15_000 });
+    await expect(chat.locator('[data-testid="composer-changes-pill"]')).toBeVisible({
+      timeout: 15_000,
+    });
     const turnCard = chat.locator('[data-testid="turn-edit-summary"]').first();
     await expect(turnCard).toBeVisible({ timeout: 30_000 });
     await shot(chat, '18-turn-edit-summary');
     await turnCard.locator('[data-testid="turn-view-changes"]').click();
     const railPanel = chat.locator('[data-testid="session-changes-panel"][data-rail]');
     await expect(railPanel).toHaveAttribute('data-focused', 'true', { timeout: 10_000 });
+    await expect(railPanel).toHaveAttribute('data-files-mode', 'changed');
     await expect(chat.locator('[data-testid="files-rail-tree"]')).toBeVisible();
     await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible({
       timeout: 10_000,
@@ -175,7 +179,16 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible({
       timeout: 10_000,
     });
-    // 一眼左中右：侧栏 + 对话/变更 + 右文件栏；外层分割线；无预览/分栏分段按钮
+    await expect(chat.locator('[data-testid="chat-column"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="center-changes-splitter"]')).toBeVisible();
+    // Diff 不得落在 chat-column / input-container 内
+    await expect(
+      chat.locator('[data-testid="chat-column"] [data-testid="center-changes-pane"]'),
+    ).toHaveCount(0);
+    await expect(
+      chat.locator('[data-testid="input-container"] [data-testid="center-changes-pane"]'),
+    ).toHaveCount(0);
+    // 一眼四栏；外层分割线；无预览/分栏分段按钮
     await expect(chat.locator('[data-testid="files-rail-splitter"]')).toBeVisible();
     await expect(chat.locator('[data-testid="rail-open-fullscreen"]')).toBeVisible();
     await expect(chat.locator('[data-testid="turn-open-fullscreen"]').first()).toBeVisible();
@@ -184,7 +197,9 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(chat.locator('[data-testid="rail-layout-tree"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="chat-tabs-max-concurrent"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="files-rail-tree"]')).toContainText(/src|alpha|beta/i);
+    await expect(railPanel).toContainText(/已更改的文件/);
     await shot(chat, '19-app-lcr-files-rail');
+    await shot(chat, '20-codex-four-column');
     // 全屏工作台仅为次要入口，默认不应出现
     await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0);
     // 显式全屏入口可用：点开后应出现工作台，再关

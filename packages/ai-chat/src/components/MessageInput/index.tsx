@@ -46,6 +46,7 @@ import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
 import { SlashPalette } from '../SlashPalette';
@@ -684,6 +685,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
+      {contextMessages ? <ComposerChangesPill messages={contextMessages} /> : null}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {
