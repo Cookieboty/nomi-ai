@@ -1,16 +1,28 @@
 /** Codex 风格：助手消息下方「已编辑 N 个文件」摘要卡 */
 import { t } from '@nomi-ai/ui';
-import { ChevronDown, Expand, ExternalLink, FileDiff, RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronRight, Expand, ExternalLink, FileDiff, RotateCcw } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { splitPathDisplay, summarizeChanges, type ChangeEntry } from '../../utils/sessionChanges';
 import { undoTurnChanges } from '../../utils/undoTurnChanges';
+import { DiffView } from '../Conversation/DiffView';
 
 import { useChangesUi } from './ChangesUiContext';
 import styles from './SessionWorkspace.module.css';
 
+/**
+ * 缩小版路径列表「再显示」预览条数。
+ * 与 INLINE_DIFF_MAX_FILES 对齐：少文件展开行级 Diff，多文件才用缩小卡。
+ */
 const PREVIEW = 3;
+
+/**
+ * 文件数 ≤ 此阈值：卡内直接渲染各文件 DiffView（可折叠）；
+ * ≥ 阈值+1：缩小版（标题 + 路径列表 +「再显示 N」）。
+ * 依据：用户说明「文件特别多」才收成缩小卡 + 现有 PREVIEW=3；公开 Codex 资料无精确阈值。
+ */
+export const INLINE_DIFF_MAX_FILES = 3;
 
 export const TurnEditSummaryCard: React.FC<{
   messageId: string;
@@ -22,7 +34,10 @@ export const TurnEditSummaryCard: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [undone, setUndone] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** 少文件模式下各文件 Diff 折叠态；默认展开 */
+  const [diffOpen, setDiffOpen] = useState<Record<string, boolean>>({});
   const summary = useMemo(() => summarizeChanges(entries), [entries]);
+  const inline = entries.length > 0 && entries.length <= INLINE_DIFF_MAX_FILES;
   const shown = expanded ? entries : entries.slice(0, PREVIEW);
   const more = Math.max(0, entries.length - PREVIEW);
 
@@ -76,8 +91,19 @@ export const TurnEditSummaryCard: React.FC<{
     }
   };
 
+  const isDiffOpen = (file: string) => diffOpen[file] !== false;
+
+  const toggleDiff = (file: string) => {
+    setDiffOpen((prev) => ({ ...prev, [file]: !isDiffOpen(file) }));
+  };
+
   return (
-    <div className={styles.turnCard} data-testid="turn-edit-summary" data-message-id={messageId}>
+    <div
+      className={styles.turnCard}
+      data-testid="turn-edit-summary"
+      data-message-id={messageId}
+      data-mode={inline ? 'inline' : 'compact'}
+    >
       <div className={styles.turnCardTop}>
         <div className={styles.turnCardTitleCol}>
           <div className={styles.turnCardTitleRow}>
@@ -129,47 +155,94 @@ export const TurnEditSummaryCard: React.FC<{
           </button>
         </div>
       </div>
-      <ul className={styles.turnFileList}>
-        {shown.map((e) => {
-          const { dir, name } = splitPathDisplay(e.file);
-          return (
-            <li key={e.file} className={styles.turnFileRow} data-testid="turn-edit-file">
-              <button
-                type="button"
-                className={styles.turnFileBtn}
-                onClick={() =>
-                  openWorkbench({
-                    messageId,
-                    entries,
-                    file: e.file,
-                    sourceLabel: sourceLabel || messageId.slice(0, 12),
-                  })
-                }
+
+      {inline ? (
+        <div className={styles.turnInlineDiffs} data-testid="turn-inline-diffs">
+          {entries.map((e) => {
+            const { dir, name } = splitPathDisplay(e.file);
+            const openFile = isDiffOpen(e.file);
+            return (
+              <div
+                key={e.file}
+                className={styles.turnInlineBlock}
+                data-testid="turn-inline-diff"
+                data-file={e.file}
+                data-open={openFile || undefined}
               >
-                <span className={styles.turnPath} title={e.file}>
-                  {dir ? <span className={styles.turnDir}>{dir}</span> : null}
-                  <span className={styles.turnName}>{name}</span>
-                </span>
-                <span className={styles.stat}>
-                  <span className={styles.add}>+{e.added}</span>
-                  <span className={styles.del}>−{e.removed}</span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
-      {!expanded && more > 0 ? (
-        <button
-          type="button"
-          className={styles.turnMore}
-          onClick={() => setExpanded(true)}
-          data-testid="turn-show-more"
-        >
-          {t('再显示 {0} 个文件', more)}
-          <ChevronDown size={14} />
-        </button>
-      ) : null}
+                <button
+                  type="button"
+                  className={styles.turnInlineToggle}
+                  onClick={() => toggleDiff(e.file)}
+                  aria-expanded={openFile}
+                  data-testid="turn-inline-toggle"
+                >
+                  {openFile ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                  <span className={styles.turnPath} title={e.file}>
+                    {dir ? <span className={styles.turnDir}>{dir}</span> : null}
+                    <span className={styles.turnName}>{name}</span>
+                  </span>
+                  <span className={styles.stat}>
+                    <span className={styles.add}>+{e.added}</span>
+                    <span className={styles.del}>−{e.removed}</span>
+                  </span>
+                </button>
+                {openFile && e.diff ? (
+                  <div className={styles.turnInlineBody}>
+                    <DiffView diff={e.diff} />
+                  </div>
+                ) : null}
+                {openFile && !e.diff ? (
+                  <p className={styles.turnInlineEmpty}>{t('无行级 Diff')}</p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <ul className={styles.turnFileList}>
+            {shown.map((e) => {
+              const { dir, name } = splitPathDisplay(e.file);
+              return (
+                <li key={e.file} className={styles.turnFileRow} data-testid="turn-edit-file">
+                  <button
+                    type="button"
+                    className={styles.turnFileBtn}
+                    onClick={() =>
+                      openWorkbench({
+                        messageId,
+                        entries,
+                        file: e.file,
+                        sourceLabel: sourceLabel || messageId.slice(0, 12),
+                      })
+                    }
+                  >
+                    <span className={styles.turnPath} title={e.file}>
+                      {dir ? <span className={styles.turnDir}>{dir}</span> : null}
+                      <span className={styles.turnName}>{name}</span>
+                    </span>
+                    <span className={styles.stat}>
+                      <span className={styles.add}>+{e.added}</span>
+                      <span className={styles.del}>−{e.removed}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {!expanded && more > 0 ? (
+            <button
+              type="button"
+              className={styles.turnMore}
+              onClick={() => setExpanded(true)}
+              data-testid="turn-show-more"
+            >
+              {t('再显示 {0} 个文件', more)}
+              <ChevronDown size={14} />
+            </button>
+          ) : null}
+        </>
+      )}
     </div>
   );
 };

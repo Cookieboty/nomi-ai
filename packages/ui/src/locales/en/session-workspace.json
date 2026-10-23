@@ -79,5 +79,6 @@
   "工作区为空": "Workspace is empty",
   "选择文件以预览 Diff 或内容": "Select a file to preview diff or content",
   "拖动调整聊天与工作区宽度；双击恢复默认": "Drag to resize chat vs workspace; double-click to reset",
-  "拖动调整预览与文件树宽度；双击恢复默认": "Drag to resize preview vs file tree; double-click to reset"
+  "拖动调整预览与文件树宽度；双击恢复默认": "Drag to resize preview vs file tree; double-click to reset",
+  "无行级 Diff": "No line-level diff"
 }

@@ -82,6 +82,13 @@ import { nomiScopeKey } from './slash/nomiScope';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
+import {
+  CHAT_COL_W_DEFAULT,
+  CHAT_COL_W_MAX,
+  CHAT_COL_W_MIN,
+  persistChatColumnWidth,
+  readChatColumnWidth,
+} from './utils/chatColumnWidth';
 import { cliImageSupport } from './utils/cliImageSupport';
 import {
   fromHarnessMessage,
@@ -110,12 +117,6 @@ const FILES_RAIL_W_DEFAULT = 260;
 const FILES_RAIL_W_MIN = 200;
 const FILES_RAIL_W_MAX = 420;
 
-/** 中栏 Diff 打开时：对话列宽度（可拖；仿 files-rail） */
-const CHAT_COL_W_KEY = 'nomi.chatColumnWidth';
-const CHAT_COL_W_DEFAULT = 440;
-const CHAT_COL_W_MIN = 300;
-const CHAT_COL_W_MAX = 720;
-
 function readFilesRailWidth(): number {
   try {
     const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
@@ -126,18 +127,6 @@ function readFilesRailWidth(): number {
     /* ignore */
   }
   return FILES_RAIL_W_DEFAULT;
-}
-
-function readChatColumnWidth(): number {
-  try {
-    const n = Number(localStorage.getItem(CHAT_COL_W_KEY));
-    if (Number.isFinite(n)) {
-      return Math.min(CHAT_COL_W_MAX, Math.max(CHAT_COL_W_MIN, Math.round(n)));
-    }
-  } catch {
-    /* ignore */
-  }
-  return CHAT_COL_W_DEFAULT;
 }
 
 const AiChatContent: React.FC = () => {
@@ -208,11 +197,7 @@ const AiChatContent: React.FC = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       setChatColumnWidth((w) => {
-        try {
-          localStorage.setItem(CHAT_COL_W_KEY, String(w));
-        } catch {
-          /* ignore */
-        }
+        persistChatColumnWidth(w);
         return w;
       });
     };
@@ -222,11 +207,7 @@ const AiChatContent: React.FC = () => {
 
   const onChatColSplitterDbl = () => {
     setChatColumnWidth(CHAT_COL_W_DEFAULT);
-    try {
-      localStorage.setItem(CHAT_COL_W_KEY, String(CHAT_COL_W_DEFAULT));
-    } catch {
-      /* ignore */
-    }
+    persistChatColumnWidth(CHAT_COL_W_DEFAULT);
   };
 
   // Slices, not the whole state: a streamed frame changes only the live tail, which

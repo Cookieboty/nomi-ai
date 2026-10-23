@@ -60,7 +60,8 @@ body {
   z-index: 1;
 }
 
-/* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高） */
+/* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高）。
+   chat 默认占主要宽度（见 chatColumnWidth），Diff flex:1 吃剩余。 */
 .main-content--with-changes {
   flex-direction: row;
   align-items: stretch;

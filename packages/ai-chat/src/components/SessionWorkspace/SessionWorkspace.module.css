@@ -662,6 +662,46 @@
   color: var(--cd-color-text, #eee);
 }
 
+/* 少文件：卡内行级 Diff（可折叠） */
+.turnInlineDiffs {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.turnInlineBlock {
+  border: 1px solid color-mix(in srgb, var(--cd-color-border, #333) 80%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.turnInlineToggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 88%, transparent);
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 12px;
+}
+.turnInlineToggle:hover {
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
+}
+.turnInlineBody {
+  border-top: 1px solid color-mix(in srgb, var(--cd-color-border, #333) 70%, transparent);
+  max-height: 360px;
+  overflow: auto;
+}
+.turnInlineEmpty {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--cd-color-text-muted, #888);
+}
+
 /* —— 完整变更工作台 —— */
 .wbOverlay {
   position: fixed;

@@ -99,7 +99,7 @@ const FourColumnShell: React.FC<{ withWorkbench?: boolean }> = ({ withWorkbench 
         <div
           className="chat-column"
           data-testid="chat-column"
-          style={{ display: 'flex', flexDirection: 'column', width: open ? 360 : '100%' }}
+          style={{ display: 'flex', flexDirection: 'column', width: open ? 720 : '100%' }}
         >
           <main className="chat-container" data-testid="chat-container" style={{ flex: 1 }}>
             chat
