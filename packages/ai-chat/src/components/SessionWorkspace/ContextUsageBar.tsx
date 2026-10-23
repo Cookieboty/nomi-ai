@@ -22,9 +22,7 @@ const C = 2 * Math.PI * R;
 export const ContextUsageBar: React.FC<{
   messages: readonly ConvMessage[];
   model?: string | null;
-  /** 紧凑环（嵌在 composer 右侧）；默认 true */
-  compact?: boolean;
-}> = ({ messages, model, compact = true }) => {
+}> = ({ messages, model }) => {
   const [hover, setHover] = useState(false);
   const win = useMemo(
     () => contextWindowFor(model ?? undefined, reportedContextWindow(messages)),
@@ -60,7 +58,7 @@ export const ContextUsageBar: React.FC<{
 
   return (
     <div
-      className={compact ? styles.contextRingWrap : styles.contextBar}
+      className={styles.contextRingWrap}
       data-testid="context-usage-bar"
       data-basis={est.basis}
       data-level={level}

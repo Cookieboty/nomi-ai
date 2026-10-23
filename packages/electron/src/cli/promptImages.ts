@@ -49,8 +49,7 @@ export interface StagedImage extends NormalizedImage {
 export type ImageSupport = 'full' | 'none';
 
 export function imageSupportFor(backend: HarnessBackend): ImageSupport {
-  if (backend === 'dsh' || backend === 'nomi') return backend === 'nomi' ? 'full' : 'none';
-  return 'full';
+  return backend === 'dsh' ? 'none' : 'full';
 }
 
 export function unsupportedImageMessage(backend: HarnessBackend): string {

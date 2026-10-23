@@ -56,7 +56,6 @@ function mockIpc(
 const state = (cli: Partial<HarnessTabMeta> = {}): HarnessTabsState => ({
   tabs: [tab({ id: 'main', backend: 'nomi', cwd: '/docs' }), tab({ id: 'cx', ...cli })],
   activeTabId: 'cx',
-  maxConcurrent: 3,
   running: 0,
   queued: 0,
 });
@@ -202,7 +201,6 @@ describe('EndpointControls workspace for CLI tabs', () => {
     const st = (activeTabId: string, list = [a, b]): HarnessTabsState => ({
       tabs: [tab({ id: 'main', backend: 'nomi', cwd: '/docs' }), ...list],
       activeTabId,
-      maxConcurrent: 3,
       running: 0,
       queued: 0,
     });

@@ -57,8 +57,7 @@ beforeEach(() => {
         cwd: '/w',
         bins: { claude: '/c', codex: '/x', dsh: '/d', grok: '/g', gemini: '/m' },
       };
-    if (ch === 'ai:harness:tabs')
-      return { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 };
+    if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
     if (ch === 'ai:history:list') return { items: [], nextOffset: null, hasMore: false };
     return {};
   });

@@ -20,8 +20,7 @@ beforeEach(() => {
     invoke: vi.fn(async (ch: string) => {
       if (ch === 'ai:harness:state')
         return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: null, dsh: '/d' } };
-      if (ch === 'ai:harness:tabs')
-        return { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 };
+      if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
       return {};
     }),
     on: () => () => undefined,

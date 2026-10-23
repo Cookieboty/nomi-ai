@@ -85,10 +85,7 @@ function seedHarness(root: string, tabs: number, turns: number, cwd: string) {
     }
     writeFileSync(join(root, 'tabs', `${id}.json`), JSON.stringify(messages));
   }
-  writeFileSync(
-    join(root, 'tabs.json'),
-    JSON.stringify({ activeTabId: 'main', maxConcurrent: 2, tabs: metas }),
-  );
+  writeFileSync(join(root, 'tabs.json'), JSON.stringify({ activeTabId: 'main', tabs: metas }));
 }
 
 /**

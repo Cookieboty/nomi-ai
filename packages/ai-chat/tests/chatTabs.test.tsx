@@ -42,11 +42,6 @@ function mockIpc(initial: HarnessTabsState) {
       return t;
     }
     if (ch === 'ai:harness:tab-messages') return [];
-    if (ch === 'ai:harness:set-max-concurrent') {
-      state = { ...state, maxConcurrent: Number(a[0]) };
-      listeners['ai:harness:tabs']?.forEach((f) => f(state));
-      return state;
-    }
     return state;
   });
   const on = (ch: string, fn: (p: unknown) => void) => {
@@ -70,7 +65,6 @@ const base = (): HarnessTabsState => ({
     tab({ id: 'b', title: 'dsh', backend: 'dsh', unread: 2 }),
   ],
   activeTabId: 'main',
-  maxConcurrent: 3,
   running: 1,
   queued: 0,
 });

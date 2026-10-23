@@ -624,7 +624,6 @@ export class CliHarnessService {
     try {
       const raw = JSON.parse(fs.readFileSync(this.tabsPath, 'utf8')) as {
         activeTabId?: string;
-        maxConcurrent?: number;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
         lastSettings?: Record<string, unknown>;
@@ -689,7 +688,6 @@ export class CliHarnessService {
   private tabsSnapshot() {
     return {
       activeTabId: this.activeTabId,
-      maxConcurrent: 0 /* 已取消上限 */,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       lastSettings: Object.fromEntries(this.lastSettings),
@@ -890,7 +888,6 @@ export class CliHarnessService {
         };
       }),
       activeTabId: this.activeTabId,
-      maxConcurrent: 0 /* 已取消上限 */,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
       defaultPermissionMode: this.defaultPermissionMode,
@@ -1862,11 +1859,6 @@ export class CliHarnessService {
     });
     if (r.canceled || !r.filePaths[0]) return { ...tab };
     return this.setTabCwd(id, r.filePaths[0]);
-  }
-
-  /** @deprecated 已取消并发上限；保留 IPC 以免旧客户端报错 */
-  setMaxConcurrent(_n: number): HarnessTabsState {
-    return this.listTabs();
   }
 
   /**
@@ -4315,7 +4307,6 @@ export class CliHarnessService {
     handle('ai:harness:stop-agent', (id, agentId) =>
       this.stopAgent(String(id), String(agentId ?? '')),
     );
-    handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>
       discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),

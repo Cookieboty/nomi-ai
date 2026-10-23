@@ -334,7 +334,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
   另外：中键关闭标签，标签获得焦点时 ←/→ 切换。
 
-- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、标签元数据；`maxConcurrent` 字段兼容保留恒为 0）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
+- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、标签元数据）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
 - **看板娘监视器**：一个列表聚合所有端点，按最近活动排序：
   - Claude Code：`~/.claude/projects/*/*.jsonl`
   - Codex：`~/.codex/sessions/**/rollout-*.jsonl`

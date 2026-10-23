@@ -53,7 +53,6 @@ export interface HarnessTabMeta {
 export interface HarnessTabsState {
   tabs: HarnessTabMeta[];
   activeTabId: string;
-  maxConcurrent: number;
   running: number;
   queued: number;
   /** 新标签默认权限模式（不会是「完全放开」） */
@@ -415,7 +414,6 @@ export const harnessClient = {
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
-  setMaxConcurrent: (n: number) => call<HarnessTabsState>('set-max-concurrent', n),
   /**
    * 用户确认后，把这条错误消息记录的文件夹（只此一个）加入 Gemini 的受信任文件夹列表。
    * 文件夹由主进程按消息查出，界面不传路径。
