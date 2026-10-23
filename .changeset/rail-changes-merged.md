@@ -1,7 +1,6 @@
 ---
 '@nomi-ai/ai-chat': patch
 '@nomi-ai/electron': patch
-'@nomi-ai/ui': patch
 ---
 
 右栏把「变更」和「未提交」合并为「改动」：git 仓库里以 git 状态为准，分「已暂存 / 未暂存」两组，
