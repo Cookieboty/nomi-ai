@@ -29,7 +29,7 @@ jest.mock('electron', () => ({
 import { mascotWindowSize } from '../../../src/mascot/mascotSize';
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
-function setup() {
+function setup(Ctrl: typeof MascotWindowController = MascotWindowController) {
   const size = mascotWindowSize(1);
   const b = { x: 700, y: 1040 - size.height, ...size };
   const wc = {
@@ -56,7 +56,7 @@ function setup() {
     setShape: jest.fn(),
   };
   // Deterministic rnd → scheduleNextWander always adds 20s + 0.5*40s = 40s
-  const c = new MascotWindowController(
+  const c = new Ctrl(
     win as unknown as BrowserWindow,
     { info: jest.fn(), warn: jest.fn() },
     () => 0.5,
@@ -97,6 +97,45 @@ describe('MascotWindowController · drag and wander scheduling', () => {
 
     expect(s.b.x).toBe(before.x + 90);
     expect(s.b.y).toBe(before.y - 55);
+  });
+
+  it('applies every drag sample within one frame (no 16.7ms throttle)', () => {
+    const s = setup();
+    const startX = s.b.x + 40;
+    const startY = s.b.y + 40;
+    s.emit('mascot:drag-start', startX, startY);
+    const before = { x: s.b.x, y: s.b.y };
+    s.emit('mascot:drag-move', startX + 10, startY);
+    s.emit('mascot:drag-move', startX + 20, startY);
+    expect(s.b.x).toBe(before.x + 20);
+    expect(s.b.y).toBe(before.y);
+  });
+
+  it('on Windows follows the OS cursor instead of the renderer screenX/Y', () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      let Ctrl!: typeof MascotWindowController;
+      jest.isolateModules(() => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        Ctrl = require('../../../src/mascot/MascotWindowController').MascotWindowController;
+      });
+      const { screen } = jest.requireMock('electron') as {
+        screen: { getCursorScreenPoint: jest.Mock };
+      };
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
+      screen.getCursorScreenPoint.mockReturnValueOnce({ x: startX + 30, y: startY - 20 });
+      // Stale renderer coordinates (window origin lagging behind the move) are ignored.
+      s.emit('mascot:drag-move', startX + 999, startY + 999);
+      expect(s.b.x).toBe(before.x + 30);
+      expect(s.b.y).toBe(before.y - 20);
+    } finally {
+      Object.defineProperty(process, 'platform', platform);
+    }
   });
 
   it('wander-now pushes nextWanderAt so free-place idle is not stolen after the startup 15s', () => {

@@ -68,9 +68,10 @@ export interface MascotScaleHooks {
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 const TICK_MS = 1000 / 60;
-/** Keep native window moves at the display cadence. Pointer coordinates are
- * still consumed immediately; only the expensive Windows call is coalesced. */
-const DRAG_MOVE_MS = TICK_MS;
+/** Windows：渲染进程的 screenX/Y 由它缓存的窗口原点推算，主进程移窗后会滞后一拍，
+ *  分数 DPI 下还与 getPosition 的取整不一致，喂回 setPosition 就会来回抖。
+ *  拖拽中改读系统光标（与 setPosition 同一坐标系），渲染进程的 drag-move 只当作“立即移动”的信号。 */
+const DRAG_FROM_OS_CURSOR = process.platform === 'win32';
 /** 空闲（无拖拽 / 无物理运动 / 光标静止）时降频，避免 60Hz 永久空转占主线程。
  *  取 ~8Hz：光标“第一动”最长 120ms 后即提频，视线跟随无可察觉延迟 */
 const IDLE_TICK_MS = 120;
@@ -196,7 +197,8 @@ export class MascotWindowController {
     on('mascot:drag-move', (_e, sx, sy) => {
       const x = num(sx);
       const y = num(sy);
-      if (this.drag && x !== null && y !== null) this.updateDragPosition({ x, y });
+      if (!this.drag || x === null || y === null) return;
+      this.updateDragPosition(DRAG_FROM_OS_CURSOR ? screen.getCursorScreenPoint() : { x, y });
     });
     on('mascot:drag-end', () => this.dragEnd());
     on('mascot:interaction-config', (_e, cfg) => this.setConfig(cfg));
@@ -584,12 +586,8 @@ export class MascotWindowController {
       this.appliedDragPoint &&
       this.appliedDragPoint.x === point.x &&
       this.appliedDragPoint.y === point.y
-    ) {
-      // A throttled point may already be reflected in body but not in the
-      // native window yet. Keep the pending position eligible for the tick.
-      if (now - this.lastDragMoveAt >= DRAG_MOVE_MS) this.moveBodyWindow(now);
+    )
       return;
-    }
     const env = this.env();
     let next: BodyState = {
       ...this.body,
@@ -602,9 +600,10 @@ export class MascotWindowController {
     this.body.vx = this.tracker.vx;
     this.body.vy = this.tracker.vy;
     this.appliedDragPoint = { ...point };
-    if (forceMove || now - this.lastDragMoveAt >= DRAG_MOVE_MS) {
-      this.moveBodyWindow(now);
-    }
+    // 每个指针采样立即移窗，不再按 16.7ms 节流：Windows 定时器精度 ~15.6ms，
+    // 节流掉的点要等下一个 tick（实际可能 ~31ms），表现为隔帧卡顿；
+    // 120Hz 屏上同理会把拖拽压到 60Hz 以下。同一位置由 moveBodyWindow 去重。
+    this.moveBodyWindow(now);
   }
 
   private moveBodyWindow(
@@ -649,7 +648,8 @@ export class MascotWindowController {
     let events: PhysicsEvent[] = [];
     if (this.drag) {
       this.lastActivityAt = now;
-      if (this.dragPoint) this.updateDragPosition(this.dragPoint);
+      const p = DRAG_FROM_OS_CURSOR ? cursor : this.dragPoint;
+      if (p) this.updateDragPosition(p);
     } else if (env) {
       if (this.cfg.wander && this.body.mode === 'idle' && now >= this.nextWanderAt) {
         // Push the slot first so a missing env (no box yet) cannot hot-loop at 60Hz.
