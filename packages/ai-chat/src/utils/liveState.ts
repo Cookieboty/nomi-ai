@@ -37,6 +37,12 @@ export interface TabLive {
   /** 本轮出现过的子代理（按 id）；卡片按 callId 关联到派生它的工具调用 */
   agents?: Record<string, LiveAgent>;
   status?: LiveStatus;
+  /**
+   * 本轮最近一次主线程请求的上下文占用（或压缩后的新占用）。轮末 usage 落盘前，上下文环以它为准；
+   * tokens 为 null：刚压缩、大小未知。model：CLI 实际使用的模型（标签没设模型时用来查窗口）；
+   * window：CLI 上报的模型窗口（Codex / Gemini）。
+   */
+  context?: { tokens: number | null; model?: string; window?: number };
 }
 
 /** 一个子代理的实时状态（start / progress / end 折叠而来） */
@@ -153,6 +159,13 @@ export function applyLiveEvents(
         touch();
         break;
       }
+      case 'context':
+        next.context = {
+          tokens: e.tokens,
+          model: e.model ?? next.context?.model,
+          window: e.window ?? next.context?.window,
+        };
+        break;
       case 'status':
         if (e.kind === 'clear') delete next.status;
         else next.status = { kind: e.kind, text: e.text, attempt: e.attempt, max: e.max };

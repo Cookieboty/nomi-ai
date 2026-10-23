@@ -48,15 +48,11 @@ export const ContextUsageBar: React.FC<{
   const over = est.used > win.size;
   const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
-  /** 依据标签按行拆开，避免「估算 · 经验表」挤在一行 */
+  /** 只在数字可能不准时提示一行；准确时不显示来源（「CLI 上报 / 对照表」对用户没有意义） */
   const basisRows = [
-    est.basis === 'actual' ? t('真实用量') : t('估算'),
-    win.source === 'reported'
-      ? t('窗口：CLI 上报')
-      : win.source === 'table'
-        ? t('窗口：经验表')
-        : t('窗口：默认值'),
-  ];
+    est.basis === 'estimate' ? t('估算值：还没有这个会话的真实用量') : null,
+    win.source === 'default' ? t('未识别模型，窗口按 128K 计') : null,
+  ].filter((row): row is string => !!row);
   const tip = over
     ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
     : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));

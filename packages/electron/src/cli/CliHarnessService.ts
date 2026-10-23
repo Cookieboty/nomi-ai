@@ -18,6 +18,7 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { claudeConfigDir } from '../usage/cliHomes';
 import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWriter';
 import { writePrivateFile } from '../utils/privateFile';
 
@@ -107,6 +108,7 @@ import {
   mergeUsage,
   stampEvent,
 } from './traceBuilder';
+import { claudeTranscriptContext } from './transcriptContext';
 import type {
   HarnessBackend,
   HarnessEvent,
@@ -118,6 +120,7 @@ import type {
   HarnessTabMeta,
   HarnessTabSource,
   HarnessTabsState,
+  HarnessUsage,
 } from './types';
 import {
   deleteWorkspaceFile,
@@ -413,7 +416,13 @@ export class CliHarnessService {
   /** 每个运行中标签这一轮已收到的文本 / 轨迹事件：中断或失败时据此保留已有进度 */
   private readonly partial = new Map<
     string,
-    { text: string; breaks: number[]; events: HarnessEvent[] }
+    {
+      text: string;
+      breaks: number[];
+      events: HarnessEvent[];
+      /** 最近一次实时上下文占用：中断 / 失败时随消息落盘，重启后上下文环不会退回旧值 */
+      context?: HarnessUsage;
+    }
   >();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
@@ -2075,6 +2084,7 @@ export class CliHarnessService {
             stopped: true,
             ...(trace.length ? { trace } : {}),
             ...(part?.breaks.length ? { textBreaks: part.breaks } : {}),
+            ...(part?.context ? { usage: part.context } : {}),
           });
           this.progress.delete(id);
           this.changed();
@@ -2093,6 +2103,7 @@ export class CliHarnessService {
             timestamp: Date.now(),
             error: true,
             durationMs,
+            ...(part?.context ? { usage: part.context } : {}),
             // Gemini 不信任这个文件夹：界面在错误卡片上提供「信任此文件夹」
             ...(e instanceof GeminiUntrustedError
               ? {
@@ -3440,7 +3451,17 @@ export class CliHarnessService {
     live.lastActivityAt = Date.now();
     if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
       live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
-      live.context = codexLastContext(params.tokenUsage) ?? live.context;
+      const ctx = codexLastContext(params.tokenUsage);
+      live.context = ctx ?? live.context;
+      // 一轮进行中实时上报（自动压缩后的下一次请求会带上新的占用）
+      if (live.turn && ctx?.contextTokens)
+        this.onCodexEvents(tabId, live, [
+          {
+            type: 'context',
+            tokens: ctx.contextTokens,
+            ...(ctx.contextWindow ? { window: ctx.contextWindow } : {}),
+          },
+        ]);
       return;
     }
     const turn = live.turn;
@@ -3973,6 +3994,16 @@ export class CliHarnessService {
     this.trackProgress(tabId, ev);
     const part = this.partial.get(tabId);
     let outgoing = ev;
+    if (part && ev.type === 'context') {
+      part.context =
+        ev.tokens === null
+          ? undefined
+          : {
+              contextTokens: ev.tokens,
+              ...(ev.window ? { contextWindow: ev.window } : {}),
+              ...(ev.model ? { model: ev.model } : {}),
+            };
+    }
     if (part) {
       const folded = foldAssistantEvent(part.text, part.breaks, ev);
       part.text = folded.text;
@@ -4285,6 +4316,16 @@ export class CliHarnessService {
       gitCheckoutWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
     );
     handle('ai:harness:workspace-list', (cwd) => listWorkspaceTree(validDir(String(cwd ?? ''))));
+    // 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）
+    handle('ai:harness:tab-context', async (tabId) => {
+      const tab = this.tabs.get(String(tabId));
+      if (!tab || tab.backend !== 'claude' || !tab.cliSessionId) return null;
+      return claudeTranscriptContext(
+        claudeConfigDir(this.home, process.env),
+        tab.cwd,
+        tab.cliSessionId,
+      ).catch(() => null);
+    });
     handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
       this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,

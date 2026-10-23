@@ -106,6 +106,13 @@ export interface HarnessUsage {
   contextTokens?: number;
   /** CLI 上报的模型上下文窗口（如 Claude modelUsage.contextWindow），优先于前端经验表 */
   contextWindow?: number;
+  /** CLI 实际使用的主模型（标签没指定模型时据此查窗口经验表） */
+  model?: string;
+  /**
+   * 仅渲染端：从 CLI 会话记录算出的分项（加起来等于 contextTokens，见主进程 transcriptContext.ts）。
+   * 有它时上下文环直接用，不再按 Nomi 落盘的消息估算。
+   */
+  breakdown?: ContextBreakdown;
 }
 
 /** 工具调用 / 思考事件（主进程 stampEvent 带 at 时间戳；detail 为调用 id，codex 为命令行） */
@@ -137,6 +144,8 @@ export type HarnessLiveEvent =
       attempt?: number;
       max?: number;
     }
+  /** 一轮进行中的实时上下文占用（每次主线程请求 / 压缩后）；null = 压缩了但大小未知 */
+  | { tabId: string; type: 'context'; tokens: number | null; model?: string; window?: number }
   | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }
   | { tabId: string; type: 'error'; message: string }
   | {
@@ -272,6 +281,14 @@ export interface GitDiffResult {
   truncated: boolean;
   error?: string;
 }
+export interface ContextBreakdown {
+  system: number;
+  user: number;
+  assistant: number;
+  tools: number;
+  thinking: number;
+}
+
 export interface WorkspaceFileResult {
   ok: boolean;
   path?: string;
@@ -318,6 +335,14 @@ export const harnessClient = {
   workspaceGitCheckout: (cwd: string, filePath: string) =>
     call<WorkspaceFileResult>('workspace-git-checkout', cwd, filePath),
   workspaceList: (cwd: string) => call<WorkspaceTreeResult>('workspace-list', cwd),
+  /** Claude 标签：从 CLI 自己的会话记录读当前上下文（最近一次请求 / 压缩后），没有时 null */
+  tabContext: (tabId: string) =>
+    call<{
+      contextTokens: number;
+      model?: string;
+      compacted?: boolean;
+      breakdown?: ContextBreakdown;
+    } | null>('tab-context', tabId),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
   setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),

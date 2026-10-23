@@ -98,6 +98,15 @@ export type HarnessEvent =
       attempt?: number;
       max?: number;
     }
+  /**
+   * 一轮进行中的实时上下文占用：主线程每次模型请求的输入 + 输出（与 usage.contextTokens 同口径），
+   * 以及上下文压缩后的新占用。一轮里可能多次请求、甚至自动压缩，只看轮末 usage 会一直停在旧值。
+   * tokens 为 null：压缩了但 CLI 没给压缩后的大小，丢弃旧值、等下一次请求。
+   * 各后端来源：Claude assistant.usage / compact_boundary；Codex thread/tokenUsage/updated；
+   * Gemini·Grok(ACP) usage_update；Grok streaming-json 逐请求 usage 行；dsh status/step_end。
+   * window：CLI 同时给了模型窗口时附带（Codex modelContextWindow、Gemini usage_update.size）。
+   */
+  | { type: 'context'; tokens: number | null; model?: string; window?: number }
   | { type: 'done'; sessionId?: string; text: string; usage?: HarnessUsage }
   | { type: 'error'; message: string };
 
@@ -116,6 +125,8 @@ export interface HarnessUsage {
   contextTokens?: number;
   /** CLI 上报的模型上下文窗口（如 Claude modelUsage.contextWindow），优先于前端经验表 */
   contextWindow?: number;
+  /** CLI 实际使用的主模型（标签没指定模型时，前端据此查窗口经验表） */
+  model?: string;
 }
 
 export interface HarnessSendResult {

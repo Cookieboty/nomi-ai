@@ -1,6 +1,5 @@
 {
   "系统提示 / 工具定义 / 记忆": "System prompt / tool defs / memory",
-  "真实用量": "Actual usage",
   "当前上下文 {0} / {1}": "Current context {0} / {1}",
   "变更": "Changed",
   "本会话尚无文件变更": "No file changes in this session yet",
@@ -46,9 +45,6 @@
   "{0}（{1} 个文件已更改）": "{0} ({1} files changed)",
   "文件预览": "File preview",
   "关闭（Esc）": "Close (Esc)",
-  "窗口：CLI 上报": "Window: reported by CLI",
-  "窗口：经验表": "Window: lookup table",
-  "窗口：默认值": "Window: default",
   "窗口大小取自 CLI 上报的模型信息。": "The window size comes from the model info reported by the CLI.",
   "改动": "Changes",
   "本会话里助手改过": "Edited by the assistant in this session",
@@ -77,5 +73,7 @@
   "{0} 个文件已更改": "{0} files changed",
   "当前上下文 {0} / {1} · 已超窗口": "Current context {0} / {1} · over the window",
   "{0} {1}% · {2}": "{0} {1}% · {2}",
-  "- {0}": "- {0}"
+  "- {0}": "- {0}",
+  "估算值：还没有这个会话的真实用量": "Estimate: no real usage reported for this session yet",
+  "未识别模型，窗口按 128K 计": "Unknown model; assuming a 128K window"
 }

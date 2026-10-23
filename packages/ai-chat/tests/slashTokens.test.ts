@@ -7,6 +7,8 @@ import {
   formatTokens,
   formatUsd,
   reportedContextWindow,
+  reportedModel,
+  withLiveContext,
 } from '../src/slash/tokens';
 import type { ConvMessage } from '../src/types/conversation';
 
@@ -21,6 +23,8 @@ describe('tokens', () => {
     expect(contextWindowFor('claude-sonnet-4-5')).toEqual({ size: 200_000, source: 'table' });
     expect(contextWindowFor('claude-opus-4[1m]').size).toBe(1_000_000);
     expect(contextWindowFor('gpt-5-codex').size).toBe(400_000);
+    // Claude Code 对 claude-opus-5-5 上报的窗口是 1M
+    expect(contextWindowFor('claude-opus-5-5').size).toBe(1_000_000);
     expect(contextWindowFor('some-unknown-model')).toEqual({ size: 128_000, source: 'default' });
     expect(contextWindowFor(undefined).source).toBe('default');
   });
@@ -120,5 +124,112 @@ describe('estimateContext：只认 contextTokens', () => {
     const est = estimateContext(msgs, labels, { windowSize: 128_000 });
     expect(est.basis).toBe('actual');
     expect(est.used).toBe(1240);
+  });
+});
+
+describe('一轮进行中的实时上下文（含自动压缩）', () => {
+  // 复现：压缩前上一轮落盘 372K；本轮中途自动压缩，之后每次请求上报 ~60–76K
+  const big = 'x'.repeat(4 * 40_000); // ≈ 40K token 的工具输出
+  const msgs: ConvMessage[] = [
+    { id: 'u1', role: 'user', text: '旧问题', at: 1 },
+    {
+      id: 'a1',
+      role: 'assistant',
+      text: '旧回答',
+      at: 2,
+      trace: [
+        { type: 'tool', name: 'Read', status: 'done', output: big },
+        { type: 'tool', name: 'Read', status: 'done', output: big },
+        { type: 'tool', name: 'Read', status: 'done', output: big },
+      ],
+      usage: { contextTokens: 372_301 },
+    },
+    { id: 'u2', role: 'user', text: '拉取 merge/202610 分支', at: 3 },
+  ];
+
+  it('没有实时值时仍是上一轮落盘的值（旧行为，环会停在 372K）', () => {
+    expect(estimateContext(msgs, labels, { windowSize: 1_000_000 }).used).toBeGreaterThan(372_000);
+  });
+
+  it('实时值覆盖上一轮的旧值；分类只算最近的消息，不超过总量', () => {
+    const est = estimateContext(withLiveContext(msgs, { tokens: 75_684 }), labels, {
+      windowSize: 1_000_000,
+    });
+    expect(est).toMatchObject({ used: 75_684, basis: 'actual' });
+    const sum = est.categories.reduce((n, c) => n + c.tokens, 0);
+    expect(sum).toBeLessThanOrEqual(75_684 + 4);
+    expect(est.categories.find((c) => c.key === 'system')).toBeUndefined();
+  });
+
+  it('刚压缩、大小未知：丢弃旧值回退估算', () => {
+    const est = estimateContext(withLiveContext(msgs, { tokens: null }), labels, {
+      windowSize: 1_000_000,
+    });
+    expect(est.basis).toBe('estimate');
+    expect(est.used).toBeLessThan(372_301);
+  });
+
+  it('Codex / Gemini 实时上报的窗口优先于经验表', () => {
+    const live = withLiveContext(msgs, { tokens: 50_000, window: 272_000 });
+    expect(contextWindowFor('codex', reportedContextWindow(live))).toEqual({
+      size: 272_000,
+      source: 'reported',
+    });
+  });
+
+  it('没有 live 时消息原样返回', () => {
+    expect(withLiveContext(msgs, undefined)).toBe(msgs);
+  });
+});
+
+describe('压缩摘要之后（重启后没有实时值）', () => {
+  const msgs: ConvMessage[] = [
+    { id: 'u1', role: 'user', text: '按顺序修复', at: 1 },
+    {
+      id: 'a1',
+      role: 'assistant',
+      text: 'P0 和 P1 都按顺序修完了',
+      at: 2,
+      usage: { contextTokens: 372_301, model: 'claude-opus-5-5' },
+    },
+    {
+      id: 'u2',
+      role: 'user',
+      text: 'This session is being continued from a previous conversation that ran out of context. Summary…',
+      at: 3,
+    },
+  ];
+
+  it('压缩前的真实用量作废，只估算摘要及之后', () => {
+    const est = estimateContext(msgs, labels, { windowSize: 1_000_000 });
+    expect(est.basis).toBe('estimate');
+    expect(est.used).toBeLessThan(1000);
+  });
+
+  it('摘要之后又有真实用量 / CLI 记录的值时以它为准', () => {
+    const est = estimateContext(withLiveContext(msgs, { tokens: 248_542 }), labels, {
+      windowSize: 1_000_000,
+    });
+    expect(est).toMatchObject({ used: 248_542, basis: 'actual' });
+  });
+
+  it('CLI 会话记录给了分项时直接用（总和 = 总量），不再凑「系统提示」', () => {
+    const breakdown = {
+      system: 58_805,
+      user: 12_613,
+      assistant: 8_058,
+      tools: 175_156,
+      thinking: 492,
+    };
+    const est = estimateContext(withLiveContext(msgs, { tokens: 255_124, breakdown }), labels, {
+      windowSize: 1_000_000,
+    });
+    expect(est.used).toBe(255_124);
+    expect(Object.fromEntries(est.categories.map((c) => [c.key, c.tokens]))).toEqual(breakdown);
+  });
+
+  it('模型名从用量里取，标签没指定模型也能查到 1M 窗口', () => {
+    expect(reportedModel(msgs)).toBe('claude-opus-5-5');
+    expect(contextWindowFor(reportedModel(msgs)).size).toBe(1_000_000);
   });
 });

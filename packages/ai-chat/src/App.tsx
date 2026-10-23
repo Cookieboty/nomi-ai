@@ -67,7 +67,7 @@ import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
-import { harnessClient } from './services/harnessClient';
+import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
@@ -81,6 +81,7 @@ import {
   type ShortcutId,
 } from './services/shortcuts';
 import { nomiScopeKey } from './slash/nomiScope';
+import { reportedModel, withLiveContext } from './slash/tokens';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
@@ -252,6 +253,52 @@ const AiChatContent: React.FC = () => {
   // 右栏（改动 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
   // 有变更时顶栏开关带数字提示，点摘要卡「查看变更」也会展开
   const [railPref, setRailPref] = useState(readFilesRailOpen);
+  // 上下文环 / `/context`：优先用 CLI 自己的会话记录（Claude：总量 + 分项都准，含重启后、压缩后被中断、
+  // 在终端里直接用过 CLI 的情况）；没有时用一轮进行中实时上报的占用；都没有才按落盘消息估算。
+  // 作为一条只带用量的助手消息接在消息末尾（见 withLiveContext）
+  const activeTabId = tabs.activeTab?.id;
+  const activeRunning = tabs.activeTab?.status === 'running';
+  const streamContext = activeTabId ? tabs.live[activeTabId]?.context : undefined;
+  const [cliRecordContext, setCliRecordContext] = useState<{
+    tabId: string;
+    tokens: number;
+    model?: string;
+    breakdown?: ContextBreakdown;
+  } | null>(null);
+  useEffect(() => {
+    if (!tabs.isCliTab || !activeTabId) return;
+    let stale = false;
+    harnessClient
+      .tabContext(activeTabId)
+      .then((r) => {
+        if (!stale)
+          setCliRecordContext(
+            r
+              ? {
+                  tabId: activeTabId,
+                  tokens: r.contextTokens,
+                  model: r.model,
+                  breakdown: r.breakdown,
+                }
+              : null,
+          );
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+    // 运行中每次实时上报（≈ 每次模型请求）重读一次；主进程按文件大小 + 修改时间缓存
+  }, [tabs.isCliTab, activeTabId, activeRunning, cliConvMessages.length, streamContext?.tokens]);
+  const recordContext =
+    cliRecordContext && cliRecordContext.tabId === activeTabId ? cliRecordContext : undefined;
+  const liveContext = useMemo(
+    () => (recordContext ? { ...recordContext, window: streamContext?.window } : streamContext),
+    [recordContext, streamContext],
+  );
+  const cliContextMessages = useMemo(
+    () => withLiveContext(cliConvMessages, liveContext),
+    [cliConvMessages, liveContext],
+  );
   const sessionChangeCount = useMemo(
     () => aggregateSessionChanges(cliConvMessages).length,
     [cliConvMessages],
@@ -441,7 +488,7 @@ const AiChatContent: React.FC = () => {
     backend: slashBackend,
     cwd: slashCwd,
     scopeKey: slashScope,
-    messages: slashTab ? cliConvMessages : nomiMessages,
+    messages: slashTab ? cliContextMessages : nomiMessages,
     session:
       slashBackend === 'nomi'
         ? null
@@ -928,10 +975,13 @@ const AiChatContent: React.FC = () => {
             <footer className="input-container">
               <MessageInput
                 {...inputModeProps}
-                contextMessages={tabs.isCliTab ? cliConvMessages : nomiMessages}
+                contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
                 contextModel={
                   tabs.isCliTab
-                    ? (tabs.activeTab?.modelOverride ?? tabs.activeTab?.backend)
+                    ? (tabs.activeTab?.modelOverride ??
+                      liveContext?.model ??
+                      reportedModel(cliConvMessages) ??
+                      tabs.activeTab?.backend)
                     : undefined
                 }
                 slash={slash.bridge}

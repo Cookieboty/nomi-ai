@@ -268,28 +268,29 @@ function anthropicRequestContext(u: unknown): number | undefined {
 function claudeContext(
   j: Record<string, unknown>,
   state?: ClaudeStreamState,
-): { contextTokens?: number; contextWindow?: number } {
+): { contextTokens?: number; contextWindow?: number; model?: string } {
   const usage = (j.usage ?? {}) as Record<string, unknown>;
   const its = Array.isArray(usage.iterations) ? (usage.iterations as unknown[]) : [];
   const contextTokens = anthropicRequestContext(its[its.length - 1]) ?? state?.lastContext;
   let contextWindow: number | undefined;
+  let model: string | undefined;
   let best = -1;
   const mu = j.modelUsage;
   if (mu && typeof mu === 'object') {
-    for (const m of Object.values(mu as Record<string, Record<string, unknown>>)) {
-      const w = num(m?.contextWindow);
-      if (w === undefined) continue;
+    // 主模型 = 输入最多的那个（子代理 / 摘要可能用别的小模型）；没给窗口的也记下模型名
+    for (const [name, m] of Object.entries(mu as Record<string, Record<string, unknown>>)) {
       const load =
-        (num(m.inputTokens) ?? 0) +
-        (num(m.cacheReadInputTokens) ?? 0) +
-        (num(m.cacheCreationInputTokens) ?? 0);
+        (num(m?.inputTokens) ?? 0) +
+        (num(m?.cacheReadInputTokens) ?? 0) +
+        (num(m?.cacheCreationInputTokens) ?? 0);
       if (load > best) {
         best = load;
-        contextWindow = w;
+        model = name;
+        contextWindow = num(m?.contextWindow);
       }
     }
   }
-  return { contextTokens, contextWindow };
+  return { contextTokens, contextWindow, model };
 }
 
 export function parseClaudeLine(line: string, state?: ClaudeStreamState): HarnessEvent[] {
@@ -330,7 +331,19 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     // 子代理的请求不算主对话的上下文
     if (state && !(typeof j.parent_tool_use_id === 'string' && j.parent_tool_use_id)) {
       const ctx = anthropicRequestContext(msg?.usage);
-      if (ctx !== undefined) state.lastContext = ctx;
+      if (ctx !== undefined) {
+        // 同一次请求的多个内容块带同一份 usage：只在数值变化时上报
+        if (ctx !== state.lastContext) {
+          const model = (msg as { model?: unknown } | undefined)?.model;
+          out.push(
+            withOpt(
+              { type: 'context' as const, tokens: ctx },
+              { model: typeof model === 'string' ? model : undefined },
+            ),
+          );
+        }
+        state.lastContext = ctx;
+      }
     }
     const text = extractClaudeText(msg?.content);
     if (text) {
@@ -385,6 +398,11 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     if (ev) out.push(ev);
   } else if (type === 'system' && j.subtype === 'compact_boundary') {
     out.push({ type: 'status', kind: 'clear' });
+    // 压缩后的上下文大小：stream-json 是 compact_metadata.post_tokens，transcript 是 compactMetadata.postTokens
+    const meta = (j.compact_metadata ?? j.compactMetadata ?? {}) as Record<string, unknown>;
+    const post = num(meta.post_tokens) ?? num(meta.postTokens);
+    out.push({ type: 'context', tokens: post ?? null });
+    if (state) state.lastContext = post;
   } else if (type === 'error' || (type === 'system' && j.subtype === 'error')) {
     out.push({ type: 'error', message: String(j.error ?? j.message ?? t('Claude 错误')) });
   } else if (type === 'control_request') {
@@ -866,6 +884,8 @@ export function createDshParser(): (line: string) => HarnessEvent[] {
   // dsh 没有整轮用量事件：每步 status/step_end 带该步 usage（0.2.1 源码）。
   // 整轮计费 = 各步之和；当前上下文 = 最后一步 totalTokens（input + output + 缓存读写）
   let turn: HarnessUsage | undefined;
+  /** 这一行刚结束的一步的上下文占用：作为实时 context 事件发出 */
+  let stepContext: number | undefined;
   const takeStep = (line: string) => {
     if (!line.includes('step_end')) return;
     let j: Record<string, unknown>;
@@ -881,6 +901,7 @@ export function createDshParser(): (line: string) => HarnessEvent[] {
     const cacheRead = num(u.cacheReadTokens) ?? 0;
     const ctx = num(u.totalTokens) ?? input + output + cacheRead + (num(u.cacheWriteTokens) ?? 0);
     if (!ctx) return;
+    stepContext = ctx;
     turn = {
       inputTokens: (turn?.inputTokens ?? 0) + input,
       outputTokens: (turn?.outputTokens ?? 0) + output,
@@ -891,37 +912,42 @@ export function createDshParser(): (line: string) => HarnessEvent[] {
     };
   };
   return (line) => {
+    stepContext = undefined;
     takeStep(line);
-    return parseDshLine(line).flatMap((ev) => {
-      // 最终回答（没有 sessionId 的 done）带上这一轮的用量
-      if (ev.type === 'done' && !ev.sessionId && turn) {
-        const withUsage = { ...ev, usage: { ...turn, ...ev.usage } };
-        turn = undefined;
-        return [withUsage];
-      }
-      if (ev.type !== 'tool' || !ev.detail) return [ev];
-      if (ev.status === 'start') {
-        names.set(ev.detail, ev.name);
-        return DSH_SUBAGENT_TOOLS.has(ev.name) ? [ev, dshAgentStart(ev.detail, ev.input)] : [ev];
-      }
-      const name = names.get(ev.detail);
-      if (name) names.delete(ev.detail);
-      const named = name ? { ...ev, name } : ev;
-      if (!name || !DSH_SUBAGENT_TOOLS.has(name)) return [named];
-      // 无头 JSON 只投影主会话：子代理内部不可见，结束时用工具结果做摘要
-      return [
-        named,
-        withOpt(
-          {
-            type: 'agent',
-            op: 'end',
-            id: ev.detail,
-            status: ev.status === 'error' ? 'failed' : 'completed',
-          } as HarnessEvent,
-          { summary: ev.output?.slice(0, 2000) },
-        ),
-      ];
-    });
+    const live: HarnessEvent[] =
+      stepContext !== undefined ? [{ type: 'context', tokens: stepContext }] : [];
+    return live.concat(
+      parseDshLine(line).flatMap((ev) => {
+        // 最终回答（没有 sessionId 的 done）带上这一轮的用量
+        if (ev.type === 'done' && !ev.sessionId && turn) {
+          const withUsage = { ...ev, usage: { ...turn, ...ev.usage } };
+          turn = undefined;
+          return [withUsage];
+        }
+        if (ev.type !== 'tool' || !ev.detail) return [ev];
+        if (ev.status === 'start') {
+          names.set(ev.detail, ev.name);
+          return DSH_SUBAGENT_TOOLS.has(ev.name) ? [ev, dshAgentStart(ev.detail, ev.input)] : [ev];
+        }
+        const name = names.get(ev.detail);
+        if (name) names.delete(ev.detail);
+        const named = name ? { ...ev, name } : ev;
+        if (!name || !DSH_SUBAGENT_TOOLS.has(name)) return [named];
+        // 无头 JSON 只投影主会话：子代理内部不可见，结束时用工具结果做摘要
+        return [
+          named,
+          withOpt(
+            {
+              type: 'agent',
+              op: 'end',
+              id: ev.detail,
+              status: ev.status === 'error' ? 'failed' : 'completed',
+            } as HarnessEvent,
+            { summary: ev.output?.slice(0, 2000) },
+          ),
+        ];
+      }),
+    );
   };
 }
 
@@ -1062,7 +1088,13 @@ export function parseGrokLine(line: string): HarnessEvent[] {
             },
           )
         : undefined;
-      return usage ? [{ type: 'done', text: '', usage }] : [];
+      if (!usage) return [];
+      return usage.contextTokens
+        ? [
+            { type: 'context', tokens: usage.contextTokens },
+            { type: 'done', text: '', usage },
+          ]
+        : [{ type: 'done', text: '', usage }];
     }
     case 'plan':
     case 'available_commands':

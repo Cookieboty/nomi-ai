@@ -72,7 +72,10 @@ export function createGeminiMapper() {
           ...(used !== undefined ? { contextTokens: used } : {}),
           ...(size !== undefined ? { contextWindow: size } : {}),
         };
-        return [];
+        // 一轮进行中实时上报（压缩后的下一次请求会带上新的占用）
+        return used !== undefined
+          ? [{ type: 'context', tokens: used, ...(size !== undefined ? { window: size } : {}) }]
+          : [];
       }
       const out = flushThought();
       if (kind === 'agent_message_chunk') {

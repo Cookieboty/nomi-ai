@@ -78,3 +78,45 @@ describe('current context per CLI', () => {
     ]);
   });
 });
+
+/** 一轮进行中的实时上下文（context 事件）：自动压缩后下一次请求就回到真实值，不必等轮末 */
+describe('live context events per CLI', () => {
+  const live = (events: HarnessEvent[]) => events.filter((e) => e.type === 'context');
+
+  it('grok streaming-json: one context event per request line', () => {
+    const parse = createGrokParser();
+    const line = (usage: Record<string, number>) => JSON.stringify({ type: 'usage', usage });
+    expect(
+      live(parse(line({ input_tokens: 229, output_tokens: 33, cache_read_input_tokens: 19456 }))),
+    ).toEqual([{ type: 'context', tokens: 229 + 19456 + 33 }]);
+    // 压缩后
+    expect(live(parse(line({ input_tokens: 3000, output_tokens: 10 })))).toEqual([
+      { type: 'context', tokens: 3010 },
+    ]);
+  });
+
+  it('gemini / grok ACP: each usage_update carries tokens + window', () => {
+    const m = createGeminiMapper();
+    expect(m.update({ sessionUpdate: 'usage_update', used: 900_000, size: 1_048_576 })).toEqual([
+      { type: 'context', tokens: 900_000, window: 1_048_576 },
+    ]);
+    expect(m.update({ sessionUpdate: 'usage_update', used: 40_000 })).toEqual([
+      { type: 'context', tokens: 40_000 },
+    ]);
+    expect(m.update({ sessionUpdate: 'usage_update' })).toEqual([]);
+  });
+
+  it('dsh: each step_end emits the step context, the rest of the line still parses', () => {
+    const parse = createDshParser();
+    const step = (usage: Record<string, number>) =>
+      JSON.stringify({ type: 'status', phase: 'step_end', usage });
+    expect(live(parse(step({ totalTokens: 250_000 })))).toEqual([
+      { type: 'context', tokens: 250_000 },
+    ]);
+    expect(live(parse(step({ inputTokens: 8000, outputTokens: 200 })))).toEqual([
+      { type: 'context', tokens: 8200 },
+    ]);
+    // 非 step_end 行不发
+    expect(live(parse(JSON.stringify({ type: 'final', text: 'OK' })))).toEqual([]);
+  });
+});

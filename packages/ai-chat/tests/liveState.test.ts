@@ -12,6 +12,18 @@ const tool = (i: number, status: 'start' | 'done' = 'start'): HarnessLiveEvent =
 });
 
 describe('applyLiveEvents', () => {
+  it('keeps the latest live context and remembers the model across a compaction', () => {
+    const a = applyLiveEvents(
+      undefined,
+      [{ tabId: 't', type: 'context', tokens: 372_301, model: 'claude-opus-5-5' }],
+      1,
+    );
+    const b = applyLiveEvents(a, [{ tabId: 't', type: 'context', tokens: 15_996 }], 2);
+    expect(b.context).toEqual({ tokens: 15_996, model: 'claude-opus-5-5' });
+    const c = applyLiveEvents(b, [{ tabId: 't', type: 'context', tokens: null }], 3);
+    expect(c.context?.tokens).toBeNull();
+  });
+
   it('folds a whole batch into one new state: text appended, trace copied once', () => {
     const prev = applyLiveEvents(undefined, [{ tabId: 't', type: 'text-delta', text: 'a' }], 1000);
     const before = prev.trace;
