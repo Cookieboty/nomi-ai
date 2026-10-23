@@ -52,6 +52,21 @@ export function contextWindowFor(
   return { size: 128_000, source: 'default' };
 }
 
+const WINDOW_TIERS = [128_000, 200_000, 256_000, 400_000, 1_000_000];
+
+/**
+ * 窗口来自经验表 / 默认值（不是 CLI 上报）时，用量不能超过窗口——否则环会显示「已超窗口」，
+ * 其实只是猜小了。取不小于用量的最小常见档位；CLI 上报的窗口是权威值，原样保留。
+ */
+export function fitContextWindow(
+  win: { size: number; source: ContextWindowSource },
+  used: number,
+): { size: number; source: ContextWindowSource; widened?: true } {
+  if (win.source === 'reported' || used <= win.size) return win;
+  const size = WINDOW_TIERS.find((t) => t >= used) ?? Math.ceil(used / 100_000) * 100_000;
+  return { size, source: win.source, widened: true };
+}
+
 /** 最近一条带 CLI 上报窗口的助手消息的窗口大小 */
 export function reportedContextWindow(messages: readonly ConvMessage[]): number | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {

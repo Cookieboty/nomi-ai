@@ -78,6 +78,7 @@
   "这个会话还没有真实用量记录，总量和各类占比都是估算。": "This session has no real usage record yet; both the total and the shares are estimates.",
   "窗口大小来自内置的常见模型对照表，可能与实际不符。": "The window size comes from a built-in table of common models and may not match reality.",
   "无法识别当前模型的窗口大小，暂按 128K 估算。": "The window size of the current model is unknown; assuming 128K.",
+  "窗口大小未知，已按当前用量放宽，实际窗口可能更小。": "The window size is unknown and was widened to fit current usage; the real window may be smaller.",
   "这是 Nomi 按会话记录做的统计，和 CLI 内部的统计（含自动压缩）可能不同。": "This is computed by Nomi from the session record and may differ from the CLI's own accounting (including auto-compaction).",
   "有 {0} 轮没有返回用量数据，未计入。": "{0} turns returned no usage data and are not counted.",
   "这一端没有返回费用；今日 / 近 7 天按本机价格表估算。": "This endpoint does not report cost; today / last 7 days are estimated from the local price table.",

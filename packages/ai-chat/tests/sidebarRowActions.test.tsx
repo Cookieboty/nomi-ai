@@ -77,7 +77,6 @@ function mockIpc() {
       return {
         tabs: [{ id: 't1', backend: 'claude', cwd: '/w', status: tabStatus, unread: 0 }],
         activeTabId: 'main',
-        maxConcurrent: 3,
         running: 0,
         queued: 0,
       };

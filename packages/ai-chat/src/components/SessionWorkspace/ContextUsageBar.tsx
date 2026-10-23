@@ -8,6 +8,7 @@ import React, { useMemo, useState } from 'react';
 
 import {
   contextWindowFor,
+  fitContextWindow,
   estimateContext,
   formatTokens,
   reportedContextWindow,
@@ -22,11 +23,9 @@ const C = 2 * Math.PI * R;
 export const ContextUsageBar: React.FC<{
   messages: readonly ConvMessage[];
   model?: string | null;
-  /** 紧凑环（嵌在 composer 右侧）；默认 true */
-  compact?: boolean;
-}> = ({ messages, model, compact = true }) => {
+}> = ({ messages, model }) => {
   const [hover, setHover] = useState(false);
-  const win = useMemo(
+  const baseWin = useMemo(
     () => contextWindowFor(model ?? undefined, reportedContextWindow(messages)),
     [model, messages],
   );
@@ -41,17 +40,22 @@ export const ContextUsageBar: React.FC<{
           thinking: t('思考'),
           system: t('系统提示 / 工具定义 / 记忆'),
         },
-        { windowSize: win.size },
+        { windowSize: baseWin.size },
       ),
-    [messages, win.size],
+    [messages, baseWin.size],
   );
+  const win = useMemo(() => fitContextWindow(baseWin, est.used), [baseWin, est.used]);
   const over = est.used > win.size;
   const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   /** 只在数字可能不准时提示一行；准确时不显示来源（「CLI 上报 / 对照表」对用户没有意义） */
   const basisRows = [
     est.basis === 'estimate' ? t('估算值：还没有这个会话的真实用量') : null,
-    win.source === 'default' ? t('未识别模型，窗口按 128K 计') : null,
+    win.widened
+      ? t('窗口大小是估算的，实际可能更小')
+      : win.source === 'default'
+        ? t('未识别模型，窗口按 128K 计')
+        : null,
   ].filter((row): row is string => !!row);
   const tip = over
     ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
@@ -60,7 +64,7 @@ export const ContextUsageBar: React.FC<{
 
   return (
     <div
-      className={compact ? styles.contextRingWrap : styles.contextBar}
+      className={styles.contextRingWrap}
       data-testid="context-usage-bar"
       data-basis={est.basis}
       data-level={level}

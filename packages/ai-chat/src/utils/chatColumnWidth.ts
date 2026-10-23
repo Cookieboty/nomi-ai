@@ -13,9 +13,13 @@ export const CHAT_COL_W_MIN = 360;
 /** 拖动上限 */
 export const CHAT_COL_W_MAX = 1100;
 
+/** 写入过用户拖动结果的标记：有它之后，MIN 以上的宽度都原样记住（包括窄于 TOO_NARROW 的） */
+export const CHAT_COL_W_USER_KEY = 'nomi.chatColumnWidth.user';
+
 /**
- * 读入 localStorage 时：低于此视为历史过窄默认（旧默认 440 等），回退到 CHAT_COL_W_DEFAULT。
- * 用户仍可拖到 MIN；仅纠正「一开变更 chat 就剩一条」的坏默认。
+ * 读入 localStorage 时：没有「用户拖动过」标记且低于此值，视为历史过窄默认（旧默认 440 等），
+ * 回退到 CHAT_COL_W_DEFAULT；仅纠正「一开变更 chat 就剩一条」的坏默认。
+ * 用户拖动后（persistChatColumnWidth 会写标记）可以拖到 MIN 并被记住。
  */
 export const CHAT_COL_W_TOO_NARROW = 520;
 
@@ -28,7 +32,7 @@ export function readChatColumnWidth(): number {
     const n = Number(localStorage.getItem(CHAT_COL_W_KEY));
     if (Number.isFinite(n)) {
       const rounded = Math.round(n);
-      if (rounded < CHAT_COL_W_TOO_NARROW) {
+      if (rounded < CHAT_COL_W_TOO_NARROW && localStorage.getItem(CHAT_COL_W_USER_KEY) !== '1') {
         try {
           localStorage.setItem(CHAT_COL_W_KEY, String(CHAT_COL_W_DEFAULT));
         } catch {
@@ -47,6 +51,7 @@ export function readChatColumnWidth(): number {
 export function persistChatColumnWidth(w: number): void {
   try {
     localStorage.setItem(CHAT_COL_W_KEY, String(clampChatColumnWidth(w)));
+    localStorage.setItem(CHAT_COL_W_USER_KEY, '1');
   } catch {
     /* ignore */
   }

@@ -5,7 +5,7 @@ import React, { useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { splitPathDisplay, summarizeChanges, type ChangeEntry } from '../../utils/sessionChanges';
-import { undoTurnChanges } from '../../utils/undoTurnChanges';
+import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
 
@@ -35,6 +35,9 @@ export const TurnEditSummaryCard: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [undone, setUndone] = useState(false);
   const [busy, setBusy] = useState(false);
+  /** 应用内确认 / 错误提示（取代 window.confirm / alert：在 Electron 里会打断焦点且无法统一样式） */
+  const [confirming, setConfirming] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   /** 少文件模式下各文件 Diff 折叠态；默认收起（只列文件，点开再看行级 Diff，避免长 Diff 撑满对话） */
   const [diffOpen, setDiffOpen] = useState<Record<string, boolean>>({});
   const summary = useMemo(() => summarizeChanges(entries), [entries]);
@@ -60,33 +63,39 @@ export const TurnEditSummaryCard: React.FC<{
       file: entries[0]?.file,
     });
 
-  const onUndo = async () => {
+  const askUndo = () => {
+    setNotice(null);
     if (!cwd) {
-      window.alert(t('当前会话没有工作目录'));
+      setNotice(t('当前会话没有工作目录'));
       return;
     }
-    if (
-      !window.confirm(t('撤销本轮对这些文件的写入？仅限工作区内，写回旧内容或安全 git checkout。'))
-    ) {
-      return;
-    }
+    setConfirming(true);
+  };
+
+  const onUndo = async () => {
+    if (!cwd) return;
+    setConfirming(false);
     setBusy(true);
     try {
       const results = await undoTurnChanges(cwd, entries, {
+        read: (c, rel) => harnessClient.workspaceRead(c, rel),
         write: (c, rel, content) => harnessClient.workspaceWrite(c, rel, content),
         remove: (c, rel) => harnessClient.workspaceDelete(c, rel),
         gitCheckout: (c, rel) => harnessClient.workspaceGitCheckout(c, rel),
       });
       const failed = results.filter((r) => !r.ok);
       if (failed.length) {
-        window.alert(
-          t('部分文件撤销失败：{0}', failed.map((f) => `${f.file}: ${f.error || '?'}`).join('\n')),
+        setNotice(
+          t(
+            '部分文件撤销失败：{0}',
+            failed.map((f) => `${f.file}: ${undoErrorText(f.error, t)}`).join('\n'),
+          ),
         );
       } else {
         setUndone(true);
       }
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : String(e));
+      setNotice(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -129,8 +138,8 @@ export const TurnEditSummaryCard: React.FC<{
           <button
             type="button"
             className={styles.turnUndo}
-            onClick={() => void onUndo()}
-            disabled={busy || !cwd}
+            onClick={askUndo}
+            disabled={busy || !cwd || confirming}
             data-testid="turn-undo"
           >
             <RotateCcw size={14} />
@@ -156,6 +165,44 @@ export const TurnEditSummaryCard: React.FC<{
           </button>
         </div>
       </div>
+
+      {confirming ? (
+        <div className={styles.turnConfirm} role="alertdialog" data-testid="turn-undo-confirm">
+          <span>
+            {t('撤销本轮对这些文件的写入？仅限工作区内，写回旧内容或安全 git checkout。')}
+          </span>
+          <span className={styles.turnConfirmBtns}>
+            <button
+              type="button"
+              className={styles.turnConfirmCancel}
+              onClick={() => setConfirming(false)}
+              data-testid="turn-undo-cancel"
+            >
+              {t('取消')}
+            </button>
+            <button
+              type="button"
+              className={styles.turnConfirmOk}
+              onClick={() => void onUndo()}
+              data-testid="turn-undo-confirm-ok"
+            >
+              {t('确认撤销')}
+            </button>
+          </span>
+        </div>
+      ) : null}
+      {notice ? (
+        <div className={styles.turnNotice} role="alert" data-testid="turn-undo-notice">
+          <span>{notice}</span>
+          <button
+            type="button"
+            className={styles.turnConfirmCancel}
+            onClick={() => setNotice(null)}
+          >
+            {t('关闭')}
+          </button>
+        </div>
+      ) : null}
 
       {inline ? (
         <div className={styles.turnInlineDiffs} data-testid="turn-inline-diffs">

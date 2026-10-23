@@ -16,7 +16,6 @@ vi.mock('../src/contexts/HarnessTabsContext', () => ({
         { id: 't2', title: 'Claude', backend: 'claude', status: 'queued', unread: 0 },
       ],
       activeTabId: 'main',
-      maxConcurrent: 3,
       running: 1,
       queued: 1,
     },

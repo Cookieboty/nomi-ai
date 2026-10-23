@@ -210,98 +210,6 @@
   right: 0;
 }
 
-.load {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--cd-space-1);
-  height: var(--cd-control-h-sm);
-  padding: 0 var(--cd-space-2);
-  border: 1px solid transparent;
-  border-radius: var(--cd-radius-md);
-  background: transparent;
-  color: var(--cd-color-text-subtle);
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  cursor: pointer;
-}
-.load:hover,
-.load[aria-expanded='true'] {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.loadQueued {
-  color: var(--cd-color-text);
-}
-.loadPop {
-  position: fixed;
-  z-index: var(--cd-z-tooltip);
-  width: 232px;
-  padding: var(--cd-space-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
-  color: var(--cd-color-text);
-  box-shadow: var(--cd-shadow-popover);
-}
-.loadTitle {
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-bold);
-}
-.loadGrid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: var(--cd-space-1);
-}
-.loadOpt {
-  height: 26px;
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text);
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  cursor: pointer;
-}
-.loadOpt:hover {
-  background: var(--cd-color-hover);
-}
-.loadOpt[aria-checked='true'] {
-  border-color: var(--cd-color-accent);
-  background: var(--cd-color-accent-soft);
-  color: var(--cd-color-accent-strong);
-  font-weight: var(--cd-font-weight-bold);
-}
-.loadHint,
-.loadNow {
-  margin: 0;
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-}
-
-.live {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  max-width: 820px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 10px 14px;
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-bg-subtle);
-  font-size: var(--cd-font-size-md);
-  white-space: pre-wrap;
-}
-.liveTool {
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-subtle);
-}
-
 .perm {
   display: flex;
   flex-direction: column;
@@ -336,26 +244,6 @@
   background: var(--cd-color-accent);
   color: var(--cd-color-text-on-accent);
   border-color: transparent;
-}
-
-.toolList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-0-5);
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-subtle);
-}
-.toolList li[data-status='done'] {
-  color: var(--cd-color-success);
-}
-.toolList li[data-status='error'] {
-  color: var(--cd-color-danger);
-}
-.toolList li[data-status='start'] {
-  color: var(--cd-color-accent-strong);
 }
 
 /* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */

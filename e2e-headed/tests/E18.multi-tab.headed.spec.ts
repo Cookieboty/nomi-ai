@@ -20,8 +20,6 @@ import { safeRm } from '../fixtures/fsutil';
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.MULTI_TAB_SHOTS_DIR;
 
-type AiIpc = { invoke: (c: string, ...a: unknown[]) => Promise<unknown> };
-
 async function launch(userData: string): Promise<{ app: ElectronApplication; chat: Page }> {
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
@@ -95,10 +93,6 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     let chat: Page;
     ({ app, chat } = await launch(userData));
     const mod = await chat.evaluate(() => (/Mac/.test(navigator.platform) ? 'Meta' : 'Control'));
-    await chat.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      await ipc.invoke('ai:harness:set-max-concurrent', 2);
-    });
     await shot(chat, '01-main-tab');
     const input = chat.locator('[data-testid="chat-input"]');
     const tabs = chat.locator('[role="tab"]');

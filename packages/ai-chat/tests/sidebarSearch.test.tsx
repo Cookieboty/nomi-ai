@@ -83,7 +83,6 @@ function mockIpc() {
           { id: 't1', backend: 'claude', cwd: '/work/pay-service', status: 'idle', unread: 0 },
         ],
         activeTabId: 'main',
-        maxConcurrent: 3,
         running: 0,
         queued: 0,
       };

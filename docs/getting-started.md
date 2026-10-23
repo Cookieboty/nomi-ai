@@ -23,10 +23,16 @@ Linux AppImage：`chmod +x Nomi-<版本号>.AppImage && ./Nomi-<版本号>.AppIm
 
 ### 首次引导
 
-第一次启动会打开对话窗口并进入 7 步引导：**界面语言 → 主题 → 启动方式 → 角色与声音 → 称呼与语气 → 模型供应商 → 隐私**。
+第一次启动会打开对话窗口并进入 8 步引导：**界面语言 → 主题 → 启动方式 → 界面模式 → 角色与声音 → 称呼与语气 → 模型供应商 → 隐私**。
 每一步都可以跳过，之后可在「设置 → 重新打开新手引导」再走一遍。
 
 「启动方式」决定以后启动 Nomi 先看到什么：**看板娘**（默认，点她的「AI 对话」进入主界面）或**软件主界面**（直接进入主界面，看板娘仍在桌面待命，定时任务和提醒照常播报）。随时可在「设置 → 通用 → 启动 Nomi 后默认显示」修改，设计见 [启动默认界面](design/startup-default-view.md)。
+
+「界面模式」选 **全量**（默认，工作台顶部显示对话标签，侧栏底部显示编程助手信息卡）或 **精简**（隐藏这两块，只留会话列表和对话）。随时可在「设置 → 通用 → 外观」修改。
+
+### 编程助手工作台（v1.2.0）
+
+切到「工作台」后是左中右三栏：左侧会话，中间对话，右侧「改动 · 文件」（可收起；分割线可拖动，位置会被记住，双击复位）。助手每轮改了文件，消息下会出现「已编辑 N 个文件」卡片，点「查看变更」在中栏看 Diff，或「全屏审查」逐个文件过一遍；要提交时用右栏的「让助手提交」，它只把指令填进输入框，由你确认后发送。输入栏旁的环形指示是当前上下文占用，悬停查看数值。详见 [编程助手工作台](features/coding-workspace.md)。
 
 ### 接入一个模型
 
@@ -73,10 +79,16 @@ The current builds are not signed / notarized. If Windows shows SmartScreen, cli
 
 ### First-run onboarding
 
-On first launch the chat window opens a 7-step guide: **UI language → theme → startup mode → character & voice → how to address you & tone → model provider → privacy**.
+On first launch the chat window opens an 8-step guide: **UI language → theme → startup mode → layout mode → character & voice → how to address you & tone → model provider → privacy**.
 Every step is skippable; you can rerun it later from Settings → Reopen onboarding.
 
 “Startup mode” decides what you see when Nomi starts: the **mascot** (default; click her “AI chat” to open the main window) or the **main window** (opens straight away while the mascot keeps waiting on your desktop, so scheduled tasks and reminders still work). Change it any time in Settings → General → Show on startup. Design: [Startup default view](design/startup-default-view.md).
+
+“Layout mode” is **Full** (default: conversation tabs at the top of the workbench and the coding-assistant info card at the bottom of the sidebar) or **Compact** (hides both, leaving the session list and the chat). Change it any time in Settings → General → Appearance.
+
+### Coding-agent workbench (v1.2.0)
+
+Switch to “Workbench” for three columns: sessions on the left, chat in the middle, “Changes · Files” on the right (collapsible; dividers are draggable, remembered, and reset on double-click). When the assistant edits files in a turn, an “Edited N files” card appears under the message: “View changes” opens the diff in the middle column, “Full-screen review” walks through every file. To commit, use “Ask assistant to commit” in the right column — it only fills the instruction into the input box, and you confirm before sending. The ring next to the input is the current context usage; hover for the numbers. See [Coding workspace](features/coding-workspace.md).
 
 ### Connect a model
 

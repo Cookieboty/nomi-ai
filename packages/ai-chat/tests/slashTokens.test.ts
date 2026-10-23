@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   contextWindowFor,
+  fitContextWindow,
   estimateContext,
   estimateTokens,
   formatTokens,
@@ -27,6 +28,19 @@ describe('tokens', () => {
     expect(contextWindowFor('claude-opus-5-5').size).toBe(1_000_000);
     expect(contextWindowFor('some-unknown-model')).toEqual({ size: 128_000, source: 'default' });
     expect(contextWindowFor(undefined).source).toBe('default');
+  });
+  it('经验表 / 默认窗口比用量小时放宽到下一档；CLI 上报的窗口原样保留', () => {
+    const dflt = contextWindowFor('some-unknown-model');
+    expect(fitContextWindow(dflt, 100_000)).toEqual(dflt);
+    expect(fitContextWindow(dflt, 150_000)).toEqual({
+      size: 200_000,
+      source: 'default',
+      widened: true,
+    });
+    expect(fitContextWindow(dflt, 900_000).size).toBe(1_000_000);
+    expect(fitContextWindow(dflt, 1_234_567).size).toBe(1_300_000);
+    const rep = { size: 200_000, source: 'reported' as const };
+    expect(fitContextWindow(rep, 250_000)).toBe(rep);
   });
   it('格式化', () => {
     expect(formatTokens(999)).toBe('999');

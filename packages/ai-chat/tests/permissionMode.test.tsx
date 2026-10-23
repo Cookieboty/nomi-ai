@@ -52,7 +52,6 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
       return {
         tabs: [tab({ id: 'main', backend: 'nomi' }), current],
         activeTabId: 'cx',
-        maxConcurrent: 3,
         running: 0,
         queued: 0,
         defaultPermissionMode: 'acceptEdits',

@@ -71,16 +71,48 @@ describe('workspaceFiles sandbox', () => {
     expect(deleteWorkspaceFile(cwd, '../x').code).toBe('outside');
   });
 
-  it('git checkout restores tracked file', () => {
+  it('rejects symlinks that point outside cwd (read / write / delete)', () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-out-'));
+    try {
+      fs.writeFileSync(path.join(outDir, 'secret.txt'), 'secret');
+      fs.symlinkSync(outDir, path.join(cwd, 'link'), 'dir');
+      fs.symlinkSync(path.join(outDir, 'secret.txt'), path.join(cwd, 'file-link'));
+      expect(readWorkspaceFile(cwd, 'link/secret.txt').code).toBe('outside');
+      expect(readWorkspaceFile(cwd, 'file-link').code).toBe('outside');
+      expect(writeWorkspaceFile(cwd, 'link/new.txt', 'x').code).toBe('outside');
+      expect(fs.existsSync(path.join(outDir, 'new.txt'))).toBe(false);
+      expect(deleteWorkspaceFile(cwd, 'link/secret.txt').code).toBe('outside');
+      expect(fs.existsSync(path.join(outDir, 'secret.txt'))).toBe(true);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
+  it('allows names that merely start with two dots', () => {
+    expect(writeWorkspaceFile(cwd, '..foo.txt', 'x').ok).toBe(true);
+    expect(readWorkspaceFile(cwd, '..foo.txt').content).toBe('x');
+  });
+
+  it('git checkout restores tracked file (async)', async () => {
     execSync('git init', { cwd });
     execSync('git config user.email t@t', { cwd });
     execSync('git config user.name t', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v1\n');
     execSync('git add f.txt && git commit -m i', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v2\n');
-    const r = gitCheckoutWorkspaceFile(cwd, 'f.txt');
+    const r = await gitCheckoutWorkspaceFile(cwd, 'f.txt');
     expect(r.ok).toBe(true);
     expect(fs.readFileSync(path.join(cwd, 'f.txt'), 'utf8')).toBe('v1\n');
+  });
+
+  it('git checkout: not a repo / untracked / escape return errors', async () => {
+    expect((await gitCheckoutWorkspaceFile(cwd, 'f.txt')).code).toBe('not-git');
+    execSync('git init', { cwd });
+    fs.writeFileSync(path.join(cwd, 'u.txt'), 'x\n');
+    const untracked = await gitCheckoutWorkspaceFile(cwd, 'u.txt');
+    expect(untracked.ok).toBe(false);
+    expect(untracked.error).toMatch(/pathspec|did not match/);
+    expect((await gitCheckoutWorkspaceFile(cwd, '../x')).ok).toBe(false);
   });
 });
 

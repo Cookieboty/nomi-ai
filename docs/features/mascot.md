@@ -1,6 +1,6 @@
 # 桌面伙伴 Nomi
 
-![Nomi](../screenshots/mascot.png)
+![Nomi](../screenshots/mascot.webp)
 
 Nomi 住在一个透明、置顶的小窗口里，只有角色本身可以点击，其余区域鼠标直接穿透到下面的窗口。
 

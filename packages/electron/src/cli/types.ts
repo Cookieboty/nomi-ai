@@ -249,7 +249,6 @@ export interface HarnessTabMeta {
 export interface HarnessTabsState {
   tabs: HarnessTabMeta[];
   activeTabId: string;
-  maxConcurrent: number;
   running: number;
   queued: number;
   /** 新标签默认权限模式（不会是 bypass） */

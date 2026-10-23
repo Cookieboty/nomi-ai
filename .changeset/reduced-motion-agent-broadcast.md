@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/ui': patch
 '@nomi-ai/electron': patch
 '@nomi-ai/ai-chat': patch
 ---

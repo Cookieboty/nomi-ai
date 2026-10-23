@@ -42,8 +42,7 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
   const calls: Array<[string, unknown[]]> = [];
   const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
     calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
-      return { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 };
+    if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
     if (ch === 'ai:harness:state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
     if (ch === 'ai:harness:recent-cwds') return [];

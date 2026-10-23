@@ -162,7 +162,7 @@ describe('aggregateTurnChanges / tree / undo', () => {
     expect(projectNameFromCwd('/tmp/nomi-ai')).toBe('nomi-ai');
   });
 
-  it('undo prefers reconstruct then delete for added', async () => {
+  it('undo reverse-applies the diff to the current file, then deletes for added', async () => {
     const writes: { rel: string; content: string }[] = [];
     const removes: string[] = [];
     const entryEdit = {
@@ -186,6 +186,7 @@ describe('aggregateTurnChanges / tree / undo', () => {
     };
     expect(reconstructOldText(entryEdit.diff.diff)).toBe('old');
     const r1 = await undoTurnChanges('/cwd', [entryEdit], {
+      read: async () => ({ ok: true, content: 'new' }),
       write: async (_c, rel, content) => {
         writes.push({ rel, content });
         return { ok: true };

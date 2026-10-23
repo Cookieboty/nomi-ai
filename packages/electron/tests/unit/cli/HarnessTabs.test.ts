@@ -69,7 +69,6 @@ describe('CliHarnessService tabs', () => {
     const h = mk();
     const s0 = h.listTabs();
     expect(s0.tabs.map((x) => x.id)).toEqual([MAIN_TAB_ID]);
-    expect(s0.maxConcurrent).toBe(0);
     const a = h.createTab({ backend: 'codex' });
     const b = h.createTab({ backend: 'codex' });
     expect(a.title).toBe('Codex');
@@ -146,7 +145,6 @@ describe('CliHarnessService tabs', () => {
 
     const h2 = mk();
     const s = h2.listTabs();
-    expect(s.maxConcurrent).toBe(0);
     expect(s.activeTabId).toBe(a.id);
     const t = s.tabs.find((x) => x.id === a.id)!;
     expect(t).toMatchObject({ title: 'Refactor API', backend: 'dsh', status: 'idle' });

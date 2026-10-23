@@ -3,7 +3,11 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { COMPOSER_MAX_HEIGHT_PX, MessageInput } from '../src/components/MessageInput';
+import {
+  COMPOSER_MAX_HEIGHT_PX,
+  COMPOSER_MIN_HEIGHT_PX,
+  MessageInput,
+} from '../src/components/MessageInput';
 
 import { NomiConversation } from './nomiRender';
 
@@ -101,10 +105,11 @@ describe('运行中继续输入（排队）', () => {
         return this.value.split('\n').length * 24;
       },
     });
-    fireEvent.change(input, { target: { value: '第一行\n第二行\n第三行' } });
-    expect(input.style.height).toBe('72px');
+    fireEvent.change(input, { target: { value: '1\n2\n3\n4\n5' } });
+    expect(input.style.height).toBe('120px');
+    // 内容不足最小高度时停在最小高度（输入栏不会缩成一行）
     fireEvent.change(input, { target: { value: '只剩一行' } });
-    expect(input.style.height).toBe('24px');
+    expect(input.style.height).toBe(`${COMPOSER_MIN_HEIGHT_PX}px`);
   });
 
   it('输入再长也不会超过高度上限', () => {

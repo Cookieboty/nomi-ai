@@ -41,7 +41,6 @@ const state: HarnessTabsState = {
     },
   ],
   activeTabId: 'a',
-  maxConcurrent: 3,
   running: 1,
   queued: 0,
 };

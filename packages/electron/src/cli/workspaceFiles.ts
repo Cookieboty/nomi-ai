@@ -2,7 +2,7 @@
  * 会话工作区内只读/写文本文件（Changes 预览编辑）。
  * 路径必须落在 cwd 内；禁止 .. 与绝对路径逃逸。
  */
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -36,10 +36,7 @@ function resolveInCwd(
   // 禁止绝对路径直接落到 cwd 外；绝对路径也必须仍在 root 下
   const abs = path.resolve(root, raw);
   const rel = path.relative(root, abs);
-  if (!rel && rel !== '') {
-    // abs === root：不允许把目录当文件写
-  }
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
     return { ok: false, error: 'path outside workspace', code: 'outside' };
   }
   // Windows 盘符差异
@@ -50,7 +47,34 @@ function resolveInCwd(
       return { ok: false, error: 'path outside workspace', code: 'outside' };
     }
   }
+  if (!insideRealRoot(root, abs)) {
+    return { ok: false, error: 'path outside workspace', code: 'outside' };
+  }
   return { ok: true, abs, rel: rel || path.basename(abs) };
+}
+
+/** 最深的已存在祖先解析符号链接后仍须在 cwd 的真实路径内（仓库里指向外部的 symlink 不能当跳板） */
+function insideRealRoot(root: string, abs: string): boolean {
+  let realRoot: string;
+  try {
+    realRoot = fs.realpathSync(root);
+  } catch {
+    return false;
+  }
+  let cur = abs;
+  for (;;) {
+    try {
+      const real = fs.realpathSync(cur);
+      const rel = path.relative(realRoot, real);
+      return (
+        rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+      );
+    } catch {
+      const up = path.dirname(cur);
+      if (up === cur) return false;
+      cur = up;
+    }
+  }
 }
 
 function looksBinary(buf: Buffer): boolean {
@@ -183,32 +207,39 @@ export function deleteWorkspaceFile(cwd: string, filePath: string): WorkspaceFil
 
 /**
  * 安全路径下 `git checkout -- <rel>`：仅还原已跟踪文件到 HEAD。
- * 不执行其它 git 写操作。
+ * 不执行其它 git 写操作。异步 execFile：不阻塞主进程（大仓库 checkout 可能耗时数秒）。
  */
-export function gitCheckoutWorkspaceFile(cwd: string, filePath: string): WorkspaceFileResult {
+export async function gitCheckoutWorkspaceFile(
+  cwd: string,
+  filePath: string,
+): Promise<WorkspaceFileResult> {
   const r = resolveInCwd(cwd, filePath);
   if (!r.ok) return { ok: false, error: r.error, code: r.code };
-  try {
-    const gitDir = path.join(path.resolve(String(cwd ?? '')), '.git');
-    if (!fs.existsSync(gitDir)) {
-      return { ok: false, path: r.abs, rel: r.rel, error: 'not a git repository', code: 'not-git' };
-    }
-    execFileSync('git', ['checkout', '--', r.rel], {
-      cwd: path.resolve(String(cwd ?? '')),
-      encoding: 'utf8',
-      timeout: 30_000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    return { ok: true, path: r.abs, rel: r.rel };
-  } catch (e) {
-    return {
-      ok: false,
-      path: r.abs,
-      rel: r.rel,
-      error: e instanceof Error ? e.message : String(e),
-      code: 'io',
-    };
+  const root = path.resolve(String(cwd ?? ''));
+  if (!fs.existsSync(path.join(root, '.git'))) {
+    return { ok: false, path: r.abs, rel: r.rel, error: 'not a git repository', code: 'not-git' };
   }
+  return new Promise<WorkspaceFileResult>((resolve) => {
+    execFile(
+      'git',
+      ['checkout', '--', r.rel],
+      { cwd: root, encoding: 'utf8', timeout: 30_000 },
+      (err, _stdout, stderr) => {
+        if (err) {
+          const detail = String(stderr || '').trim();
+          resolve({
+            ok: false,
+            path: r.abs,
+            rel: r.rel,
+            error: detail || err.message,
+            code: 'io',
+          });
+          return;
+        }
+        resolve({ ok: true, path: r.abs, rel: r.rel });
+      },
+    );
+  });
 }
 
 /** 测试 / 单测导出 */

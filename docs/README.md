@@ -30,6 +30,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴（**你的桌面 AI 伙
 | [语音](features/voice.md)                                  | 语音输入、免按键对话、唤醒词、语音播报与自定义 TTS   |
 | [编程助手监视](features/agent-monitor.md)                  | Claude Code、Codex、Cursor 等的进度提醒              |
 | [编程助手接入（设计稿）](features/coding-agent-harness.md) | 会话接管、CLI 供应商切换、版本更新（待审）           |
+| [编程助手工作台（v1.2.0）](features/coding-workspace.md)   | 三栏工作区、改动 · 文件、全屏审查、上下文环、附图    |
 | [灵动岛通知](features/dynamic-island.md)                   | macOS 刘海处的通知                                   |
 | [个性化](features/personalization.md)                      | 主题、应用图标、快捷键、语言、无障碍                 |
 | [自动更新](features/auto-update.md)                        | 后台检查与确认安装                                   |
@@ -58,26 +59,27 @@ Nomi is your desktop AI companion (**Your desktop AI companion** — lives on yo
 
 ### Features
 
-| Module                                                            | About                                                                     |
-| ----------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| [Desktop companion Nomi](features/mascot.md)                      | Character, expressions & interaction                                      |
-| [AI chat](features/chat.md)                                       | Chat window, image & screenshot Q&A, command palette                      |
-| [Slash commands](features/slash-commands.md)                      | `/` palette; /context, /status etc. run inside the UI                     |
-| [Providers & models](features/providers.md)                       | Presets, protocol detection, one-click switch, multi-key, per-task models |
-| [Knowledge base](features/knowledge-base.md)                      | Answer from your folders & notes with citations                           |
-| [Long-term memory](features/memory.md)                            | Chat memories, About me, user profile                                     |
-| [Schedule & calendar](features/scheduling-calendar.md)            | Reminders, jobs, proactive chat, DND, system calendar                     |
-| [Screen Q&A](features/screen-qa.md)                               | Screenshot ask, image attachments, screen memory                          |
-| [MCP & skills](features/mcp-skills.md)                            | MCP server management, SKILL.md packs                                     |
-| [Local models](features/local-models.md)                          | One-click small models, Ollama management, offline mode                   |
-| [Automation & desktop caps](features/automation.md)               | Files, notes, reminders, clipboard, controlled browser, sandbox           |
-| [Voice](features/voice.md)                                        | STT, hands-free, wake word, TTS & custom voice                            |
-| [Coding-agent monitor](features/agent-monitor.md)                 | Progress bubbles for Claude Code, Codex, Cursor, and more                 |
-| [Coding-agent harness (design)](features/coding-agent-harness.md) | Session takeover, CLI provider switch, updates (draft)                    |
-| [Dynamic Island](features/dynamic-island.md)                      | Notch-style notifications on macOS                                        |
-| [Personalization](features/personalization.md)                    | Themes, app icons, shortcuts, language, accessibility                     |
-| [Auto-update](features/auto-update.md)                            | Background check and confirm-to-install                                   |
-| [Privacy & security](features/privacy-security.md)                | Data location, local-only mode, permission prompts, export                |
+| Module                                                            | About                                                                             |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Desktop companion Nomi](features/mascot.md)                      | Character, expressions & interaction                                              |
+| [AI chat](features/chat.md)                                       | Chat window, image & screenshot Q&A, command palette                              |
+| [Slash commands](features/slash-commands.md)                      | `/` palette; /context, /status etc. run inside the UI                             |
+| [Providers & models](features/providers.md)                       | Presets, protocol detection, one-click switch, multi-key, per-task models         |
+| [Knowledge base](features/knowledge-base.md)                      | Answer from your folders & notes with citations                                   |
+| [Long-term memory](features/memory.md)                            | Chat memories, About me, user profile                                             |
+| [Schedule & calendar](features/scheduling-calendar.md)            | Reminders, jobs, proactive chat, DND, system calendar                             |
+| [Screen Q&A](features/screen-qa.md)                               | Screenshot ask, image attachments, screen memory                                  |
+| [MCP & skills](features/mcp-skills.md)                            | MCP server management, SKILL.md packs                                             |
+| [Local models](features/local-models.md)                          | One-click small models, Ollama management, offline mode                           |
+| [Automation & desktop caps](features/automation.md)               | Files, notes, reminders, clipboard, controlled browser, sandbox                   |
+| [Voice](features/voice.md)                                        | STT, hands-free, wake word, TTS & custom voice                                    |
+| [Coding-agent monitor](features/agent-monitor.md)                 | Progress bubbles for Claude Code, Codex, Cursor, and more                         |
+| [Coding-agent harness (design)](features/coding-agent-harness.md) | Session takeover, CLI provider switch, updates (draft)                            |
+| [Coding workspace (v1.2.0)](features/coding-workspace.md)         | Three-column workspace, Changes · Files, full-screen review, context ring, images |
+| [Dynamic Island](features/dynamic-island.md)                      | Notch-style notifications on macOS                                                |
+| [Personalization](features/personalization.md)                    | Themes, app icons, shortcuts, language, accessibility                             |
+| [Auto-update](features/auto-update.md)                            | Background check and confirm-to-install                                           |
+| [Privacy & security](features/privacy-security.md)                | Data location, local-only mode, permission prompts, export                        |
 
 ### Development
 

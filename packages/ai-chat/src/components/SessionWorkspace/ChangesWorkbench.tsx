@@ -63,14 +63,17 @@ export const ChangesWorkbenchHost: React.FC<{
 
   useEffect(() => {
     if (!workbench) return;
+    // 捕获阶段并拦下：全屏审查是最上层的模态，Esc 只关它自己，
+    // 不要同时把后面的中栏 Diff / 文件预览（它们也在 window 上监听 Esc）一起关掉
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
         closeWorkbench();
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [workbench, closeWorkbench]);
 
   // 点文件树：滚到对应文件的 Diff（全部文件依次排开，不再只显示一个 + 折叠其余）

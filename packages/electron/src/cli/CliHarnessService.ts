@@ -84,8 +84,9 @@ import {
   grokPromptJsonArgv,
   imageSupportFor,
   modelNoVisionMessage,
+  rejectedImagesMessage,
   imageThumbsForMessage,
-  normalizeImages,
+  inspectImages,
   stageImages,
   unsupportedImageMessage,
   type HarnessImageInput,
@@ -624,7 +625,6 @@ export class CliHarnessService {
     try {
       const raw = JSON.parse(fs.readFileSync(this.tabsPath, 'utf8')) as {
         activeTabId?: string;
-        maxConcurrent?: number;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
         lastSettings?: Record<string, unknown>;
@@ -689,7 +689,6 @@ export class CliHarnessService {
   private tabsSnapshot() {
     return {
       activeTabId: this.activeTabId,
-      maxConcurrent: 0 /* 已取消上限 */,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       lastSettings: Object.fromEntries(this.lastSettings),
@@ -890,7 +889,6 @@ export class CliHarnessService {
         };
       }),
       activeTabId: this.activeTabId,
-      maxConcurrent: 0 /* 已取消上限 */,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
       defaultPermissionMode: this.defaultPermissionMode,
@@ -1864,11 +1862,6 @@ export class CliHarnessService {
     return this.setTabCwd(id, r.filePaths[0]);
   }
 
-  /** @deprecated 已取消并发上限；保留 IPC 以免旧客户端报错 */
-  setMaxConcurrent(_n: number): HarnessTabsState {
-    return this.listTabs();
-  }
-
   /**
    * 中止标签当前轮次。Claude 用户轮次只发 interrupt、进程保留（下一轮不用冷启动）；
    * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
@@ -1984,7 +1977,8 @@ export class CliHarnessService {
     if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
       throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
-    const normalized = normalizeImages(images);
+    const { images: normalized, rejected } = inspectImages(images);
+    if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
     if (!text.trim() && !normalized.length) throw new Error(t('消息为空'));
     const backend = tab.backend;
     if (normalized.length && imageSupportFor(backend) === 'none') {
@@ -4315,7 +4309,6 @@ export class CliHarnessService {
     handle('ai:harness:stop-agent', (id, agentId) =>
       this.stopAgent(String(id), String(agentId ?? '')),
     );
-    handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>
       discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),

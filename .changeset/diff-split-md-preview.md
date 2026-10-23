@@ -1,6 +1,5 @@
 ---
 '@nomi-ai/ai-chat': patch
-'@nomi-ai/ui': patch
 ---
 
 中栏 / 全屏审查 / 文件预览的 Diff 在宽度够（≥ 900px）时左右并排，头部可切回单列并全局记住；

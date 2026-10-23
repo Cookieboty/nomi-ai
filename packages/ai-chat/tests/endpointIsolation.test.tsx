@@ -124,7 +124,6 @@ afterEach(() => {
 const EMPTY_TABS = {
   tabs: [],
   activeTabId: 'main',
-  maxConcurrent: 3,
   running: 0,
   queued: 0,
 } as unknown as HarnessTabsState;
@@ -151,7 +150,6 @@ describe('EndpointControls', () => {
       tab({ id: 'cx', backend: 'codex', title: 'Codex' }),
     ],
     activeTabId: activeBackend === 'main' ? 'main' : 'cx',
-    maxConcurrent: 3,
     running: 0,
     queued: 0,
   });
