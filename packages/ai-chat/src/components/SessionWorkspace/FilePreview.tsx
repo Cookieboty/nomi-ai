@@ -44,7 +44,9 @@ export const FilePreview: React.FC<{
   onActiveKey: (key: string) => void;
   onClose: () => void;
   onSaved?: () => void;
-}> = ({ files, activeKey, cwd, onActiveKey, onClose, onSaved }) => {
+  /** 旁边已有文件列表（右栏）时不再显示文件标签条 */
+  hideFileTabs?: boolean;
+}> = ({ files, activeKey, cwd, onActiveKey, onClose, onSaved, hideFileTabs = false }) => {
   const [mode, setMode] = useState<PreviewMode>('diff');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -384,36 +386,38 @@ export const FilePreview: React.FC<{
         </div>
       </header>
 
-      <div className={styles.fileTabs} role="tablist" data-testid="preview-file-tabs">
-        {files.map((f) => (
-          <button
-            key={f.key}
-            type="button"
-            role="tab"
-            aria-selected={f.key === active.key}
-            data-active={f.key === active.key || undefined}
-            className={styles.fileTab}
-            title={f.path}
-            onClick={() => {
-              persistView();
-              onActiveKey(f.key);
-            }}
-          >
-            {f.letter ? (
-              <span className={styles.letter} data-letter={f.letter}>
-                {f.letter}
-              </span>
-            ) : null}
-            <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
-            {f.added || f.removed ? (
-              <span className={styles.stat}>
-                {f.added ? <span className={styles.add}>+{f.added}</span> : null}
-                {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
+      {!hideFileTabs && (
+        <div className={styles.fileTabs} role="tablist" data-testid="preview-file-tabs">
+          {files.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              role="tab"
+              aria-selected={f.key === active.key}
+              data-active={f.key === active.key || undefined}
+              className={styles.fileTab}
+              title={f.path}
+              onClick={() => {
+                persistView();
+                onActiveKey(f.key);
+              }}
+            >
+              {f.letter ? (
+                <span className={styles.letter} data-letter={f.letter}>
+                  {f.letter}
+                </span>
+              ) : null}
+              <span className={styles.fileTabName}>{f.path.split(/[/\\]/).pop()}</span>
+              {f.added || f.removed ? (
+                <span className={styles.stat}>
+                  {f.added ? <span className={styles.add}>+{f.added}</span> : null}
+                  {f.removed ? <span className={styles.del}>−{f.removed}</span> : null}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
 
       {err ? (
         <p className={styles.previewErr} data-testid="preview-error">
@@ -429,9 +433,9 @@ export const FilePreview: React.FC<{
           onScroll={() => persistView()}
         >
           {active.change?.diff ? (
-            <DiffView diff={active.change.diff} />
+            <DiffView diff={active.change.diff} cwd={cwd} fill />
           ) : active.gitDiff ? (
-            <DiffView diff={active.gitDiff} />
+            <DiffView diff={active.gitDiff} cwd={cwd} fill />
           ) : (
             <p className={styles.empty}>{t('无 diff，可切换到「文件」查看磁盘内容')}</p>
           )}

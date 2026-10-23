@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 
 import type { DiffLine } from '../../utils/lineDiff';
 import type { FileDiff } from '../../utils/toolTrace';
+import { workspaceRelPath } from '../../utils/workspacePath';
 
 import styles from './Tool.module.css';
 
@@ -52,17 +53,23 @@ function buildRows(lines: DiffLine[]): Row[] {
   return out;
 }
 
-export const DiffView: React.FC<{ diff: FileDiff }> = ({ diff }) => {
+export const DiffView: React.FC<{
+  diff: FileDiff;
+  /** 给了工作目录时文件名显示为相对路径（完整路径放 tooltip） */
+  cwd?: string | null;
+  /** 独立面板里铺满高度、不在块内再滚动（对话里仍限高） */
+  fill?: boolean;
+}> = ({ diff, cwd, fill = false }) => {
   const { lines, added, removed } = diff.diff;
   const shown = useMemo(() => lines.slice(0, MAX_LINES), [lines]);
   const rows = useMemo(() => buildRows(shown), [shown]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   return (
-    <div className={styles.diff} data-testid="tool-diff">
+    <div className={styles.diff} data-fill={fill || undefined} data-testid="tool-diff">
       <div className={styles.diffHead}>
         <span className={styles.diffFile} title={diff.file}>
-          {diff.file || t('（未命名文件）')}
+          {diff.file ? workspaceRelPath(cwd, diff.file) : t('（未命名文件）')}
         </span>
         {diff.changeKind && <span className={styles.diffKind}>{diff.changeKind}</span>}
         {!diff.summaryOnly && (

@@ -2,6 +2,7 @@
 import type { ConvMessage } from '../types/conversation';
 
 import { diffsOf, reduceTrace, type FileDiff, type ToolCall } from './toolTrace';
+import { workspaceRelPath } from './workspacePath';
 
 export interface ChangeEntry {
   file: string;
@@ -143,8 +144,31 @@ export interface ChangeTreeFile {
 
 export type ChangeTreeNode = ChangeTreeDir | ChangeTreeFile;
 
+export interface ChangeTreeOptions {
+  /** 工作目录：树按相对路径分组（不从 /Users/… 开始）；文件节点的 path 仍是原路径 */
+  cwd?: string | null;
+  /** 只有一个子目录的目录链压成一行（packages/ai-chat/src） */
+  compact?: boolean;
+}
+
+/** 把「只有一个子目录」的目录链合并成一个节点 */
+export function compactChangeTree(nodes: ChangeTreeNode[]): ChangeTreeNode[] {
+  return nodes.map((n) => {
+    if (n.kind === 'file') return n;
+    let d: ChangeTreeDir = n;
+    while (d.children.length === 1 && d.children[0]!.kind === 'dir') {
+      const c = d.children[0] as ChangeTreeDir;
+      d = { kind: 'dir', name: `${d.name}/${c.name}`, path: c.path, children: c.children };
+    }
+    return { ...d, children: compactChangeTree(d.children) };
+  });
+}
+
 /** 按目录分组的变更树（右栏） */
-export function buildChangeFileTree(entries: readonly ChangeEntry[]): ChangeTreeNode[] {
+export function buildChangeFileTree(
+  entries: readonly ChangeEntry[],
+  opts: ChangeTreeOptions = {},
+): ChangeTreeNode[] {
   type MutableDir = {
     kind: 'dir';
     name: string;
@@ -166,7 +190,7 @@ export function buildChangeFileTree(entries: readonly ChangeEntry[]): ChangeTree
   };
 
   for (const e of entries) {
-    const parts = e.file.replace(/\\/g, '/').split('/').filter(Boolean);
+    const parts = workspaceRelPath(opts.cwd, e.file).replace(/\\/g, '/').split('/').filter(Boolean);
     if (!parts.length) continue;
     let cur = root;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -186,10 +210,11 @@ export function buildChangeFileTree(entries: readonly ChangeEntry[]): ChangeTree
     return { kind: 'dir', name: d.name, path: d.path, children };
   };
 
-  return root.children.map(freeze).sort((a, b) => {
+  const tree = root.children.map(freeze).sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
+  return opts.compact ? compactChangeTree(tree) : tree;
 }
 
 /** 磁盘目录树节点（与 harness workspace-list 对齐） */
@@ -212,8 +237,8 @@ function sortTreeNodes(nodes: ChangeTreeNode[]): ChangeTreeNode[] {
 }
 
 /** 把变更文件插入已有树（路径分段）；返回是否插入成功 */
-function insertChangeFile(roots: ChangeTreeNode[], entry: ChangeEntry): void {
-  const parts = normRel(entry.file).split('/').filter(Boolean);
+function insertChangeFile(roots: ChangeTreeNode[], entry: ChangeEntry, rel: string): void {
+  const parts = rel.split('/').filter(Boolean);
   if (!parts.length) return;
   let children = roots;
   let prefix = '';
@@ -228,8 +253,7 @@ function insertChangeFile(roots: ChangeTreeNode[], entry: ChangeEntry): void {
     children = dir.children;
   }
   const name = parts[parts.length - 1]!;
-  const path = normRel(entry.file);
-  const existing = children.find((n) => n.kind === 'file' && normRel(n.path) === path);
+  const existing = children.find((n) => n.kind === 'file' && normRel(n.path) === rel);
   if (existing && existing.kind === 'file') {
     existing.entry = entry;
     return;
@@ -244,8 +268,11 @@ function insertChangeFile(roots: ChangeTreeNode[], entry: ChangeEntry): void {
 export function mergeWorkspaceAndChanges(
   disk: readonly WorkspaceDiskNode[],
   changes: readonly ChangeEntry[],
+  /** 变更里是绝对路径、磁盘树是相对路径：按 cwd 换算后再对上 */
+  cwd?: string | null,
 ): ChangeTreeNode[] {
-  const byPath = new Map(changes.map((c) => [normRel(c.file), c]));
+  const relOf = (c: ChangeEntry) => normRel(workspaceRelPath(cwd, c.file));
+  const byPath = new Map(changes.map((c) => [relOf(c), c]));
   const seen = new Set<string>();
 
   const walk = (nodes: readonly WorkspaceDiskNode[]): ChangeTreeNode[] => {
@@ -274,7 +301,8 @@ export function mergeWorkspaceAndChanges(
 
   const roots = walk(disk);
   for (const c of changes) {
-    if (!seen.has(normRel(c.file))) insertChangeFile(roots, c);
+    const rel = relOf(c);
+    if (!seen.has(rel)) insertChangeFile(roots, c, rel);
   }
   // 插入后可能打乱顺序，递归再排
   const resort = (nodes: ChangeTreeNode[]): ChangeTreeNode[] =>

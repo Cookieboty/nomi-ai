@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { harnessClient } from '../../services/harnessClient';
 import { splitPathDisplay, summarizeChanges, type ChangeEntry } from '../../utils/sessionChanges';
 import { undoTurnChanges } from '../../utils/undoTurnChanges';
+import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
 
 import { useChangesUi } from './ChangesUiContext';
@@ -34,7 +35,7 @@ export const TurnEditSummaryCard: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const [undone, setUndone] = useState(false);
   const [busy, setBusy] = useState(false);
-  /** 少文件模式下各文件 Diff 折叠态；默认展开 */
+  /** 少文件模式下各文件 Diff 折叠态；默认收起（只列文件，点开再看行级 Diff，避免长 Diff 撑满对话） */
   const [diffOpen, setDiffOpen] = useState<Record<string, boolean>>({});
   const summary = useMemo(() => summarizeChanges(entries), [entries]);
   const inline = entries.length > 0 && entries.length <= INLINE_DIFF_MAX_FILES;
@@ -91,7 +92,7 @@ export const TurnEditSummaryCard: React.FC<{
     }
   };
 
-  const isDiffOpen = (file: string) => diffOpen[file] !== false;
+  const isDiffOpen = (file: string) => diffOpen[file] === true;
 
   const toggleDiff = (file: string) => {
     setDiffOpen((prev) => ({ ...prev, [file]: !isDiffOpen(file) }));
@@ -159,7 +160,7 @@ export const TurnEditSummaryCard: React.FC<{
       {inline ? (
         <div className={styles.turnInlineDiffs} data-testid="turn-inline-diffs">
           {entries.map((e) => {
-            const { dir, name } = splitPathDisplay(e.file);
+            const { dir, name } = splitPathDisplay(workspaceRelPath(cwd, e.file));
             const openFile = isDiffOpen(e.file);
             return (
               <div
@@ -188,7 +189,7 @@ export const TurnEditSummaryCard: React.FC<{
                 </button>
                 {openFile && e.diff ? (
                   <div className={styles.turnInlineBody}>
-                    <DiffView diff={e.diff} />
+                    <DiffView diff={e.diff} cwd={cwd} />
                   </div>
                 ) : null}
                 {openFile && !e.diff ? (
@@ -202,7 +203,7 @@ export const TurnEditSummaryCard: React.FC<{
         <>
           <ul className={styles.turnFileList}>
             {shown.map((e) => {
-              const { dir, name } = splitPathDisplay(e.file);
+              const { dir, name } = splitPathDisplay(workspaceRelPath(cwd, e.file));
               return (
                 <li key={e.file} className={styles.turnFileRow} data-testid="turn-edit-file">
                   <button

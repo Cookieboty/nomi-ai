@@ -6,3 +6,4 @@ export { ChangesWorkbenchHost } from './ChangesWorkbench';
 export { CenterChangesHost } from './CenterChangesHost';
 export { ChangeFileTree } from './ChangeFileTree';
 export { ComposerChangesPill } from './ComposerChangesPill';
+export { FilesRailToggle } from './FilesRailToggle';

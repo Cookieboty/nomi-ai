@@ -267,3 +267,47 @@ describe('mergeWorkspaceAndChanges', () => {
     expect(tree.some((n) => n.kind === 'dir' && n.name === 'new')).toBe(true);
   });
 });
+
+describe('change tree relative to cwd', () => {
+  const entry = (file: string) => ({
+    file,
+    added: 1,
+    removed: 0,
+    status: 'modified' as const,
+    letter: 'M' as const,
+    messageId: 'm',
+  });
+  const cwd = '/Users/me/proj';
+
+  it('groups by cwd-relative path and compacts single-child chains', () => {
+    const tree = buildChangeFileTree(
+      [entry(`${cwd}/packages/ai-chat/src/a.ts`), entry(`${cwd}/packages/ai-chat/src/b.ts`)],
+      { cwd, compact: true },
+    );
+    expect(tree).toHaveLength(1);
+    const dir = tree[0]!;
+    expect(dir.kind === 'dir' && dir.name).toBe('packages/ai-chat/src');
+    // 文件节点保留原路径（选中 / 定位用）
+    expect(dir.kind === 'dir' && dir.children.map((c) => c.path)).toEqual([
+      `${cwd}/packages/ai-chat/src/a.ts`,
+      `${cwd}/packages/ai-chat/src/b.ts`,
+    ]);
+  });
+
+  it('merges absolute change paths onto the relative disk tree', () => {
+    const disk = [
+      {
+        kind: 'dir' as const,
+        name: 'src',
+        path: 'src',
+        children: [{ kind: 'file' as const, name: 'a.ts', path: 'src/a.ts' }],
+      },
+    ];
+    const tree = mergeWorkspaceAndChanges(disk, [entry(`${cwd}/src/a.ts`)], cwd);
+    expect(tree).toHaveLength(1);
+    const src = tree[0]!;
+    expect(src.kind === 'dir' && src.children).toHaveLength(1);
+    const file = src.kind === 'dir' ? src.children[0]! : null;
+    expect(file?.kind === 'file' && file.entry?.file).toBe(`${cwd}/src/a.ts`);
+  });
+});

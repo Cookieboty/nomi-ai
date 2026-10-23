@@ -291,6 +291,9 @@
   font-size: var(--conv-code, 14px);
   line-height: 1.5;
 }
+.diff[data-fill] .diffBody {
+  max-height: none;
+}
 .diffLine {
   display: flex;
   min-width: max-content;

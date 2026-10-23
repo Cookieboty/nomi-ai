@@ -34,6 +34,7 @@ import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
   CenterChangesHost,
+  FilesRailToggle,
   SessionChangesPanel,
   useChangesUi,
 } from './components/SessionWorkspace';
@@ -98,6 +99,7 @@ import {
   settledNomiMessages,
   tabLiveToConv,
 } from './utils/convAdapters';
+import { aggregateSessionChanges } from './utils/sessionChanges';
 import './App.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
@@ -117,6 +119,25 @@ const FILES_RAIL_W_DEFAULT = 260;
 const FILES_RAIL_W_MIN = 200;
 const FILES_RAIL_W_MAX = 420;
 
+const FILES_RAIL_OPEN_KEY = 'nomi.filesRailOpen';
+
+/** 右栏开关：默认收起，只有用户展开过才记住为展开 */
+function readFilesRailOpen(): boolean {
+  try {
+    return localStorage.getItem(FILES_RAIL_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function persistFilesRailOpen(open: boolean): void {
+  try {
+    localStorage.setItem(FILES_RAIL_OPEN_KEY, open ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
 function readFilesRailWidth(): number {
   try {
     const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
@@ -134,7 +155,7 @@ const AiChatContent: React.FC = () => {
   const filesRailDrag = useRef<{ startX: number; startW: number } | null>(null);
   const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
   const chatColDrag = useRef<{ startX: number; startW: number } | null>(null);
-  const { workbench } = useChangesUi();
+  const { workbench, previewOpen } = useChangesUi();
 
   const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -227,6 +248,29 @@ const AiChatContent: React.FC = () => {
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
+  // 右栏（变更 · 未提交 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
+  // 有变更时顶栏开关带数字提示，点摘要卡「查看变更」也会展开
+  const [railPref, setRailPref] = useState(readFilesRailOpen);
+  const sessionChangeCount = useMemo(
+    () => aggregateSessionChanges(cliConvMessages).length,
+    [cliConvMessages],
+  );
+  const railTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
+  const centerOpen = !!railTabId && (!!workbench || previewOpen);
+  const railOpen = !!railTabId && railPref;
+  const setRailOpen = useCallback((open: boolean) => {
+    setRailPref(open);
+    persistFilesRailOpen(open);
+  }, []);
+  const toggleRail = useCallback(() => setRailOpen(!railOpen), [railOpen, setRailOpen]);
+  const closeRail = useCallback(() => setRailOpen(false), [setRailOpen]);
+  // 摘要卡「查看变更」要在右栏定位文件：收起着也展开（渲染期比对，不在 effect 里 setState）
+  const [prevWorkbench, setPrevWorkbench] = useState(workbench);
+  if (prevWorkbench !== workbench) {
+    setPrevWorkbench(workbench);
+    if (workbench && railTabId && !railPref) setRailOpen(true);
+  }
   // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
   const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
   const activeCwd = tabs.isCliTab ? (tabs.activeTab?.cwd ?? null) : null;
@@ -715,25 +759,22 @@ const AiChatContent: React.FC = () => {
           onOpenSettings={(sec) => openSettings(sec)}
         />
 
-        {/* 主内容：无 Diff 时对话全宽；有 workbench 时 chat-column | Diff 横排全高（对齐 Codex 截图） */}
+        {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
         <div
-          className={
-            workbench && isDev && tabs.isCliTab
-              ? 'main-content main-content--with-changes'
-              : 'main-content'
-          }
-          data-with-changes={workbench && isDev && tabs.isCliTab ? 'true' : undefined}
+          className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
+          data-with-changes={centerOpen ? 'true' : undefined}
         >
           <div
             className="chat-column"
             data-testid="chat-column"
             style={{
-              ...(workbench && isDev && tabs.isCliTab
+              ...(centerOpen
                 ? {
                     width: chatColumnWidth,
                     minWidth: CHAT_COL_W_MIN,
                     maxWidth: CHAT_COL_W_MAX,
-                    flexShrink: 0,
+                    // 窗口不够时先压对话列（到 MIN），不把中栏挤没
+                    flexShrink: 1,
                   }
                 : {}),
             }}
@@ -745,6 +786,29 @@ const AiChatContent: React.FC = () => {
               onSettings={() => openSettings()}
               onNewChat={handleNewChat}
               onCustomize={() => openSettings('general')}
+              tabs={
+                isDev ? (
+                  <ChatTabs
+                    embedded
+                    renameRequest={tabRename}
+                    newTabRequest={tabNew}
+                    mainLoading={isLoading}
+                    onForkTab={(tabId, mode) => {
+                      const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
+                      if (meta) onForkRequest(meta.id, mode);
+                    }}
+                  />
+                ) : undefined
+              }
+              trailing={
+                railTabId ? (
+                  <FilesRailToggle
+                    open={railOpen}
+                    count={sessionChangeCount}
+                    onToggle={toggleRail}
+                  />
+                ) : undefined
+              }
             >
               {screenActive && (
                 <button
@@ -759,24 +823,6 @@ const AiChatContent: React.FC = () => {
                 </button>
               )}
             </ChatHeader>
-            {isDev && (
-              <ChatTabs
-                renameRequest={tabRename}
-                newTabRequest={tabNew}
-                mainLoading={isLoading}
-                onForkTab={(tabId, mode) => {
-                  const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
-                  if (meta) onForkRequest(meta.id, mode);
-                }}
-              />
-            )}
-            {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
-            <div className="session-bar">
-              <SessionControls
-                onManageNomi={() => openSettings('models')}
-                onOpenModels={() => openSettings('models')}
-              />
-            </div>
             {/* 对话区域 */}
             <main className="chat-container">
               <ChatBackgroundLayer />
@@ -890,10 +936,17 @@ const AiChatContent: React.FC = () => {
                 onExtClick={openExt}
                 onLocalClick={openLocal}
               />
+              {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
+              <div className="session-bar">
+                <SessionControls
+                  onManageNomi={() => openSettings('models')}
+                  onOpenModels={() => openSettings('models')}
+                />
+              </div>
             </footer>
           </div>
 
-          {workbench && isDev && tabs.isCliTab && tabs.activeTab ? (
+          {centerOpen && tabs.activeTab ? (
             <>
               <div
                 className="center-changes-splitter"
@@ -907,12 +960,12 @@ const AiChatContent: React.FC = () => {
                 onDoubleClick={onChatColSplitterDbl}
                 title={t('拖动调整对话与变更 Diff 宽度；双击恢复默认')}
               />
-              <CenterChangesHost messages={cliConvMessages} />
+              <CenterChangesHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
             </>
           ) : null}
         </div>
 
-        {isDev && tabs.isCliTab && tabs.activeTab ? (
+        {railOpen && tabs.activeTab ? (
           <>
             <div
               className="files-rail-splitter"
@@ -936,7 +989,12 @@ const AiChatContent: React.FC = () => {
                 flexShrink: 0,
               }}
             >
-              <SessionChangesPanel rail messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+              <SessionChangesPanel
+                rail
+                messages={cliConvMessages}
+                cwd={tabs.activeTab.cwd}
+                onClose={closeRail}
+              />
               <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
             </aside>
           </>

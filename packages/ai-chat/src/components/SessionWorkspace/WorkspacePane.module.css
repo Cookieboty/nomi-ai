@@ -1,0 +1,200 @@
+/* 工作区（中栏查看区 + 右栏导航）的共享样式：分段控件、空状态、面板字号 */
+
+/* 面板里的代码：13px（行高 1.5 ≈ 20px），比对话正文 16px 小、比说明文字大（DiffView 读 --conv-code / --conv-meta） */
+.codeScale {
+  --conv-code: var(--cd-font-size-sm);
+  --conv-meta: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-md);
+}
+
+/* 中栏头部：与 ChatHeader / 右栏头部同高（44px）、同一条底边线 */
+.centerHead {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  height: 44px;
+  padding: 0 var(--cd-space-3);
+  border-bottom: 1px solid var(--cd-color-border);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  font-size: var(--cd-font-size-md);
+}
+.centerTitle {
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text);
+}
+
+/* 分段控件（sm 高度）：右栏「变更 · 未提交 · 文件」与中栏「这一轮 · 全部」共用 */
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  padding: var(--cd-space-0-5);
+  border-radius: var(--cd-radius-md);
+  background: var(--cd-color-surface-sunken);
+  min-width: 0;
+}
+.segBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
+  height: calc(var(--cd-control-h-sm) - 2 * var(--cd-space-0-5));
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font: inherit;
+  font-size: var(--cd-font-size-md);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.segBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.segBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.segBtn[data-active] {
+  background: var(--cd-color-surface-raised);
+  color: var(--cd-color-text);
+  font-weight: var(--cd-font-weight-medium);
+  box-shadow: var(--cd-shadow-sm);
+}
+
+/* 右栏空状态：与筛选框 / 列表同一条左边线（10px） */
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-4) 10px;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-md);
+}
+.empty p {
+  margin: 0;
+}
+.emptyActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cd-space-1);
+}
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-0-5) 0;
+  border: none;
+  background: none;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  cursor: pointer;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.link:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+
+/* 未提交列表：文件名在前、目录淡色在后（长路径只截目录，不截文件名） */
+.gitName {
+  flex: none;
+  max-width: 70%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text);
+}
+.gitDir {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-subtle);
+}
+
+/* 头部里的项目名 / 分隔符 / 计数 / 图标按钮 */
+.crumb {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+}
+.crumbSep {
+  color: var(--cd-color-text-subtle);
+}
+.meta {
+  color: var(--cd-color-text-subtle);
+  font-size: var(--cd-font-size-sm);
+  white-space: nowrap;
+}
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.iconBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.iconBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+
+/* 全屏审查：左侧全部 Diff 依次排开（整列滚动）| 右侧文件树 */
+.wbBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.wbDiffs {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--cd-space-3) var(--cd-space-4) var(--cd-space-5);
+}
+.wbTreePane {
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--cd-color-border);
+  background: var(--cd-color-surface-raised);
+}
+@media (max-width: 900px) {
+  .wbTreePane {
+    flex-basis: 220px;
+  }
+}
+
+/* 右栏头部的 +/− 统计：不换行；右栏窄时让位给分段控件与按钮（数字在「变更」计数与文件树里都有） */
+.railSummary {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@container files-rail (max-width: 300px) {
+  .railSummary {
+    display: none;
+  }
+}
+@container files-rail (max-width: 250px) {
+  .segBtn {
+    padding: 0 var(--cd-space-1-5);
+  }
+}

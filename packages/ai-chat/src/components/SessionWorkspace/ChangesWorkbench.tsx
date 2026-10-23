@@ -1,7 +1,10 @@
-/** 次要详情页：完整变更工作台（默认「查看变更」应聚焦右侧文件栏，不走此 portal） */
+/**
+ * 全屏审查（次要详情页）：头部一行 + 左侧全部文件 Diff 依次排开 | 右侧相对路径文件树。
+ * 默认「查看变更」走中栏 Diff，不走此 portal。
+ */
 import { t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, Filter, Search, X } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Search, X } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import type { ConvMessage } from '../../types/conversation';
@@ -18,6 +21,7 @@ import { DiffView } from '../Conversation/DiffView';
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
 import styles from './SessionWorkspace.module.css';
+import pane from './WorkspacePane.module.css';
 
 export const ChangesWorkbenchHost: React.FC<{
   messages: readonly ConvMessage[];
@@ -27,7 +31,8 @@ export const ChangesWorkbenchHost: React.FC<{
   const [scopeAll, setScopeAll] = useState(false);
   const [filter, setFilter] = useState('');
   const [activeFile, setActiveFile] = useState<string | null>(null);
-  const [collapsedOthers, setCollapsedOthers] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const sessionEntries = useMemo(() => aggregateSessionChanges(messages), [messages]);
 
@@ -45,7 +50,7 @@ export const ChangesWorkbenchHost: React.FC<{
   }, [workbench, scopeAll, sessionEntries, turnEntries]);
 
   const summary = useMemo(() => summarizeChanges(entries), [entries]);
-  const tree = useMemo(() => buildChangeFileTree(entries), [entries]);
+  const tree = useMemo(() => buildChangeFileTree(entries, { cwd, compact: true }), [entries, cwd]);
   const project = projectNameFromCwd(cwd);
 
   useEffect(() => {
@@ -53,7 +58,7 @@ export const ChangesWorkbenchHost: React.FC<{
     setScopeAll(!workbench.messageId);
     setActiveFile(workbench.file ?? entries[0]?.file ?? null);
     setFilter('');
-    setCollapsedOthers(false);
+    closeRef.current?.focus({ preventScroll: true });
   }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- reset on open only
 
   useEffect(() => {
@@ -68,10 +73,16 @@ export const ChangesWorkbenchHost: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [workbench, closeWorkbench]);
 
-  if (!workbench || typeof document === 'undefined') return null;
+  // 点文件树：滚到对应文件的 Diff（全部文件依次排开，不再只显示一个 + 折叠其余）
+  useEffect(() => {
+    if (!activeFile || !bodyRef.current) return;
+    const el = bodyRef.current.querySelector<HTMLElement>(
+      `[data-testid="wb-diff-block"][data-file="${CSS.escape(activeFile)}"]`,
+    );
+    el?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }, [activeFile]);
 
-  const active = entries.find((e) => e.file === activeFile) ?? entries[0];
-  const others = entries.filter((e) => e.file !== active?.file);
+  if (!workbench || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
@@ -79,135 +90,104 @@ export const ChangesWorkbenchHost: React.FC<{
       data-testid="changes-workbench"
       role="dialog"
       aria-modal="true"
+      aria-label={t('全屏审查')}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) closeWorkbench();
+      }}
     >
-      <div className={styles.wbFrame}>
-        <aside className={styles.wbLeft}>
-          <div className={styles.wbProject}>
-            <div className={styles.wbProjectName}>{project}</div>
-            <div className={styles.wbProjectMeta}>
-              <span>{t('变更')}</span>
-              <span className={styles.stat}>
-                <span className={styles.add}>+{summary.added.toLocaleString()}</span>
-                <span className={styles.del}>−{summary.removed.toLocaleString()}</span>
-              </span>
-            </div>
-          </div>
-          <div className={styles.wbSources}>
-            <div className={styles.wbSourcesHead}>{t('来源')}</div>
-            <button
-              type="button"
-              className={styles.wbSourceItem}
-              data-active={!scopeAll || undefined}
-              onClick={() => setScopeAll(false)}
-            >
-              {workbench.sourceLabel || workbench.messageId?.slice(0, 18) || t('上一轮')}
-            </button>
-            <button
-              type="button"
-              className={styles.wbViewAll}
-              data-testid="wb-view-all"
-              onClick={() => setScopeAll(true)}
-            >
-              {t('查看全部')}
-            </button>
-          </div>
-        </aside>
-
-        <main className={styles.wbCenter}>
-          <header className={styles.wbCenterHead}>
-            <span className={styles.wbCenterTab}>{t('变更')}</span>
-            <span className={styles.wbCenterScope}>{scopeAll ? t('全部') : t('上一轮')}</span>
-            <span className={styles.stat}>
-              <span className={styles.add}>+{summary.added}</span>
-              <span className={styles.del}>−{summary.removed}</span>
+      <div className={`${styles.wbFrame} ${pane.codeScale}`}>
+        <header className={pane.centerHead}>
+          <span className={pane.crumb} title={cwd || undefined}>
+            {project}
+          </span>
+          <span className={pane.crumbSep} aria-hidden>
+            /
+          </span>
+          <span className={pane.centerTitle}>{t('变更')}</span>
+          <span className={styles.stat}>
+            <span className={styles.add}>+{summary.added.toLocaleString()}</span>
+            <span className={styles.del}>−{summary.removed.toLocaleString()}</span>
+          </span>
+          {workbench.messageId ? (
+            <span className={pane.seg} role="group">
+              <button
+                type="button"
+                className={pane.segBtn}
+                aria-pressed={!scopeAll}
+                data-active={!scopeAll || undefined}
+                onClick={() => setScopeAll(false)}
+              >
+                {workbench.sourceLabel || t('上一轮')}
+              </button>
+              <button
+                type="button"
+                className={pane.segBtn}
+                aria-pressed={scopeAll}
+                data-active={scopeAll || undefined}
+                data-testid="wb-view-all"
+                onClick={() => setScopeAll(true)}
+              >
+                {t('全部')}
+              </button>
             </span>
-            <span className={styles.wbSpacer} />
-            <button
-              type="button"
-              className={styles.iconBtn}
-              aria-label={t('关闭')}
-              data-testid="wb-close"
-              onClick={closeWorkbench}
-            >
-              <X size={16} />
-            </button>
-          </header>
-          <div className={styles.wbDiffScroll}>
-            {!entries.length ? (
-              <p className={styles.empty}>{t('本会话尚无文件变更')}</p>
-            ) : active?.diff ? (
-              <>
-                <DiffView diff={active.diff} />
-                {others.length > 0 ? (
-                  <div className={styles.wbOtherFiles}>
-                    <button
-                      type="button"
-                      className={styles.wbOtherToggle}
-                      onClick={() => setCollapsedOthers((c) => !c)}
-                    >
-                      {collapsedOthers ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
-                      {t('其它 {0} 个文件', others.length)}
-                    </button>
-                    {!collapsedOthers
-                      ? others.map((e) =>
-                          e.diff ? (
-                            <button
-                              key={e.file}
-                              type="button"
-                              className={styles.wbOtherHead}
-                              onClick={() => setActiveFile(e.file)}
-                            >
-                              <span className={styles.turnPath} title={e.file}>
-                                {e.file}
-                              </span>
-                              <span className={styles.stat}>
-                                <span className={styles.add}>+{e.added}</span>
-                                <span className={styles.del}>−{e.removed}</span>
-                              </span>
-                            </button>
-                          ) : null,
-                        )
-                      : null}
-                    {!collapsedOthers
-                      ? others.map((e) =>
-                          e.diff && e.file === others[0]?.file ? (
-                            <DiffView key={`d-${e.file}`} diff={e.diff} />
-                          ) : null,
-                        )
-                      : null}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <p className={styles.empty}>{t('无 diff，可切换到「文件」查看磁盘内容')}</p>
-            )}
-          </div>
-        </main>
+          ) : null}
+          <span className={styles.wbSpacer} />
+          <span className={pane.meta}>{t('{0} 个文件', String(summary.files))}</span>
+          <button
+            ref={closeRef}
+            type="button"
+            className={pane.iconBtn}
+            aria-label={t('关闭')}
+            title={t('关闭（Esc）')}
+            data-testid="wb-close"
+            onClick={closeWorkbench}
+          >
+            <X size={16} />
+          </button>
+        </header>
 
-        <aside className={styles.wbRight}>
-          <div className={styles.wbRightTools}>
-            <Filter size={14} />
-            <Search size={14} />
-          </div>
-          <label className={styles.wbFilter}>
-            <Search size={12} />
-            <input
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder={t('筛选文件…')}
-              data-testid="wb-filter"
-            />
-          </label>
-          <div className={styles.wbTreeHead}>{t('已更改的文件')}</div>
-          <div className={styles.wbTree} data-testid="wb-file-tree">
-            <ChangeFileTree
-              nodes={tree}
-              active={active?.file ?? null}
-              onPick={setActiveFile}
-              filter={filter}
-            />
-          </div>
-        </aside>
+        <div className={pane.wbBody}>
+          <main className={pane.wbDiffs} ref={bodyRef}>
+            {!entries.length ? (
+              <p className={pane.empty}>{t('本会话尚无文件变更')}</p>
+            ) : (
+              entries.map((e) =>
+                e.diff ? (
+                  <div
+                    key={e.file}
+                    className={styles.centerDiffBlock}
+                    data-active={e.file === activeFile || undefined}
+                    data-testid="wb-diff-block"
+                    data-file={e.file}
+                  >
+                    <DiffView diff={e.diff} cwd={cwd} fill />
+                  </div>
+                ) : null,
+              )
+            )}
+          </main>
+
+          <aside className={pane.wbTreePane}>
+            <label className={styles.wbFilter}>
+              <Search size={14} />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t('筛选文件…')}
+                aria-label={t('筛选文件…')}
+                data-testid="wb-filter"
+              />
+            </label>
+            <div className={styles.wbTree} data-testid="wb-file-tree">
+              <ChangeFileTree
+                nodes={tree}
+                active={activeFile}
+                onPick={setActiveFile}
+                filter={filter}
+              />
+            </div>
+          </aside>
+        </div>
       </div>
     </div>,
     document.body,

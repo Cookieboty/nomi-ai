@@ -61,7 +61,8 @@ describe('TurnEditSummaryCard', () => {
     expect(card.getAttribute('data-mode')).toBe('inline');
     expect(screen.getByTestId('turn-inline-diffs')).toBeTruthy();
     expect(screen.getAllByTestId('turn-inline-diff')).toHaveLength(3);
-    expect(screen.getAllByTestId('tool-diff').length).toBeGreaterThanOrEqual(3);
+    // 默认只列文件，行级 Diff 收起
+    expect(screen.queryByTestId('tool-diff')).toBeNull();
     expect(screen.queryByTestId('turn-edit-file')).toBeNull();
     expect(screen.queryByTestId('turn-show-more')).toBeNull();
     expect(screen.getByTestId('turn-view-changes')).toBeTruthy();
@@ -82,17 +83,17 @@ describe('TurnEditSummaryCard', () => {
     expect(screen.getByTestId('turn-show-more').textContent).toMatch(/再显示\s*1/);
   });
 
-  it('collapses an inline Diff when toggle clicked', () => {
+  it('expands an inline Diff on toggle and collapses it again', () => {
     const entries = [entry('only.ts', 0)];
     render(
       <ChangesUiProvider>
         <TurnEditSummaryCard messageId="m1" entries={entries} cwd="/tmp" />
       </ChangesUiProvider>,
     );
-    expect(screen.getByTestId('tool-diff')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('turn-inline-toggle'));
     expect(screen.queryByTestId('tool-diff')).toBeNull();
     fireEvent.click(screen.getByTestId('turn-inline-toggle'));
     expect(screen.getByTestId('tool-diff')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('turn-inline-toggle'));
+    expect(screen.queryByTestId('tool-diff')).toBeNull();
   });
 });

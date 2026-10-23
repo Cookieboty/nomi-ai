@@ -145,7 +145,7 @@ describe('Codex four-column changes layout', () => {
     expect(main!.contains(screen.getByTestId('chat-column'))).toBe(true);
   });
 
-  it('files-rail defaults to changed-files list titled 已更改的文件', () => {
+  it('files-rail defaults to the 变更 view with its count', () => {
     render(
       <ChangesUiProvider>
         <FourColumnShell withWorkbench />
@@ -154,7 +154,8 @@ describe('Codex four-column changes layout', () => {
     fireEvent.click(screen.getByTestId('open-wb'));
     const panel = screen.getByTestId('session-changes-panel');
     expect(panel.getAttribute('data-files-mode')).toBe('changed');
-    expect(panel.textContent).toContain('已更改的文件');
+    expect(screen.getByTestId('rail-tab-files').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('rail-tab-files').textContent).toMatch(/变更\s*\d+/);
     expect(screen.getByTestId('files-rail-tree').textContent).toMatch(
       /MascotWindowController|windowBounds/,
     );

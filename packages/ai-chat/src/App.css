@@ -72,6 +72,8 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  /* 顶栏按对话列自身宽度决定标签是否换到第二行（ChatHeader 的 @container） */
+  container: chat-column / inline-size;
   min-height: 0;
   height: 100%;
   position: relative;
@@ -110,7 +112,7 @@ body {
 /* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
 .main-content--with-changes [data-testid='center-changes-pane'] {
   flex: 1 1 0;
-  min-width: 280px;
+  min-width: 360px;
   min-height: 0;
   height: 100%;
   max-height: none !important;
@@ -171,13 +173,18 @@ body {
   }
 }
 
-/* 对话区右上角的工作目录 / 供应商：一条靠右的窄栏，不压在消息上（用户气泡靠右） */
+/* 输入框下方的工作目录 / 供应商：与输入框同宽、左对齐的一行轻量信息（菜单向上弹） */
 .session-bar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
+  gap: var(--cd-space-2);
   min-height: 0;
-  padding: var(--cd-space-1-5) var(--cd-space-4) 0;
+  width: 100%;
+  max-width: 820px;
+  margin: var(--cd-space-1-5) auto 0;
+  padding: 0 var(--cd-space-1);
+  box-sizing: border-box;
   position: relative;
   z-index: 2;
 }

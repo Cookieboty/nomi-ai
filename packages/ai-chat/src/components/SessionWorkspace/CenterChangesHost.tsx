@@ -1,5 +1,7 @@
 /**
- * Codex 中栏「变更」Diff：与对话水平并排、全高；多文件块、顶栏 +/−。
+ * Codex 中栏：与对话水平并排、全高，是唯一的查看区。
+ * - workbench：本会话「变更」Diff，多文件块、顶栏 +/−
+ * - 否则右栏在预览未提交 / 磁盘文件时，这里只给出挂载点，FilePreview 由右栏 portal 进来
  * 全屏审查仍走 ChangesWorkbenchHost（openDetail）。
  */
 import { t } from '@nomi-ai/ui';
@@ -17,11 +19,13 @@ import { DiffView } from '../Conversation/DiffView';
 
 import { useChangesUi } from './ChangesUiContext';
 import styles from './SessionWorkspace.module.css';
+import pane from './WorkspacePane.module.css';
 
 export const CenterChangesHost: React.FC<{
   messages: readonly ConvMessage[];
-}> = ({ messages }) => {
-  const { workbench, closeWorkbench } = useChangesUi();
+  cwd?: string | null;
+}> = ({ messages, cwd }) => {
+  const { workbench, closeWorkbench, previewOpen, setPreviewSlot } = useChangesUi();
   const [scopeAll, setScopeAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -74,39 +78,54 @@ export const CenterChangesHost: React.FC<{
     el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [activeFile, ordered.length]);
 
-  if (!workbench) return null;
+  if (!workbench) {
+    if (!previewOpen) return null;
+    return (
+      <section
+        ref={setPreviewSlot}
+        className={`${styles.centerChanges} ${pane.codeScale}`}
+        data-testid="center-preview-pane"
+        aria-label={t('文件预览')}
+      />
+    );
+  }
 
   return (
     <section
-      className={styles.centerChanges}
+      className={`${styles.centerChanges} ${pane.codeScale}`}
       data-testid="center-changes-pane"
       aria-label={t('变更')}
     >
-      <header className={styles.centerChangesHead}>
-        <span className={styles.centerChangesTitle}>{t('变更')}</span>
+      <header className={pane.centerHead}>
+        <span className={pane.centerTitle}>{t('变更')}</span>
         <span className={styles.stat} data-testid="center-changes-stat">
           <span className={styles.add}>+{summary.added}</span>
           <span className={styles.del}>−{summary.removed}</span>
         </span>
-        <span className={styles.centerChangesScope} data-testid="center-changes-scope">
-          <button
-            type="button"
-            className={styles.wbCenterScope}
-            data-active={!scopeAll || undefined}
-            onClick={() => setScopeAll(false)}
-          >
-            {workbench.sourceLabel || t('上一轮')}
-          </button>
-          <button
-            type="button"
-            className={styles.wbViewAll}
-            data-testid="center-changes-view-all"
-            data-active={scopeAll || undefined}
-            onClick={() => setScopeAll(true)}
-          >
-            {t('全部')}
-          </button>
-        </span>
+        {/* 只有聚焦某一轮时才有「这一轮 / 全部」可切 */}
+        {workbench.messageId ? (
+          <span className={pane.seg} role="group" data-testid="center-changes-scope">
+            <button
+              type="button"
+              className={pane.segBtn}
+              aria-pressed={!scopeAll}
+              data-active={!scopeAll || undefined}
+              onClick={() => setScopeAll(false)}
+            >
+              {workbench.sourceLabel || t('上一轮')}
+            </button>
+            <button
+              type="button"
+              className={pane.segBtn}
+              aria-pressed={scopeAll}
+              data-testid="center-changes-view-all"
+              data-active={scopeAll || undefined}
+              onClick={() => setScopeAll(true)}
+            >
+              {t('全部')}
+            </button>
+          </span>
+        ) : null}
         <span className={styles.wbSpacer} />
         <button
           type="button"
@@ -131,7 +150,7 @@ export const CenterChangesHost: React.FC<{
                 data-testid="center-diff-block"
                 data-file={e.file}
               >
-                <DiffView diff={e.diff} />
+                <DiffView diff={e.diff} cwd={cwd} fill />
               </div>
             ) : null,
           )
