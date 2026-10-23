@@ -7,7 +7,6 @@ import * as url from 'url';
 
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
-import { t } from '../i18n';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';

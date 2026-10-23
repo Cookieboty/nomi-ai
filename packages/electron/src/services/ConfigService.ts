@@ -207,7 +207,7 @@ export class ConfigService implements IConfigService {
     const result = { ...base };
 
     for (const key in override) {
-      if (override.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(override, key)) {
         if (
           typeof override[key] === 'object' &&
           override[key] !== null &&

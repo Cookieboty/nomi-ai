@@ -311,7 +311,7 @@ export class GlobalErrorHandler implements IErrorHandler {
 
     // 处理未处理的Promise拒绝
     process.removeAllListeners('unhandledRejection');
-    process.on('unhandledRejection', (reason, promise) => {
+    process.on('unhandledRejection', (reason) => {
       this.handleUnhandledRejection(reason);
     });
 

@@ -195,7 +195,6 @@ const OFFICIAL_LAUNCH: TabLaunch = {
 const GATEWAY_SCOPE = 'gateway';
 
 export const MAIN_TAB_ID = 'main';
-export const DEFAULT_MAX_CONCURRENT = 3;
 const MAX_TAB_MESSAGES = 300;
 /** Trailing debounce for session.json / tabs.json / tab message files */
 const PERSIST_DEBOUNCE_MS = 200;
@@ -347,7 +346,7 @@ function persistImageAliases(chatRoot: string, aliases: Map<string, string>): vo
 
 export function rewriteGeneratedImageLinks(text: string, aliases: Map<string, string>): string {
   if (!aliases.size || !text.includes('![')) return text;
-  return text.replace(/(!\[[^\]]*\]\()([^\)]+)(\))/g, (full, before, rawUrl, after) => {
+  return text.replace(/(!\[[^\]]*\]\()([^)]+)(\))/g, (full, before, rawUrl, after) => {
     const key = String(rawUrl).trim();
     let decoded = key;
     try {
@@ -4598,10 +4597,6 @@ function cliChildEnv(useNode: boolean, extra: Record<string, string> = {}): Node
     withCliPath(process.env),
     useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra,
   );
-}
-
-function clampLimit(n: number): number {
-  return Number.isFinite(n) ? Math.min(8, Math.max(1, Math.round(n))) : DEFAULT_MAX_CONCURRENT;
 }
 
 function validDir(cwd: string): string {

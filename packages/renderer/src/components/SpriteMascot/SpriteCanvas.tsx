@@ -345,6 +345,9 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('resize', onResize);
 
+    // Map 本身从不重新赋值；清理时用 effect 内取的引用，避免「cleanup 时 ref 已变」的歧义
+    const loadedImgs = imgs.current;
+    const loadedRigImgs = rigImgs.current;
     return () => {
       cancelled = true;
       window.clearTimeout(greetTimer);
@@ -355,8 +358,8 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
       detach?.();
       backendRef.current?.dispose();
       backendRef.current = null;
-      releaseImages(imgs.current);
-      releaseImages(rigImgs.current);
+      releaseImages(loadedImgs);
+      releaseImages(loadedRigImgs);
       delete document.documentElement.dataset.mascotRig;
     };
   }, [manifestPath]);

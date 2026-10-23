@@ -3,7 +3,6 @@
  * 「日程提醒」= 提醒（含重复）/ 定时任务 / 主动聊天 / 免打扰；「日历接入」= 系统日历、本地日历、.ics、订阅、CalDAV。
  * 日历读到的日程会进入「日程提醒」里的每日简报，所以放在同一页。
  */
-import { t } from '@nomi-ai/ui';
 import React from 'react';
 
 import { SchedulePanel } from '../lazyPanels';

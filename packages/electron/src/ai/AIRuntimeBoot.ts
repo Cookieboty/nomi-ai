@@ -13,7 +13,6 @@
  * `SEAM_NOT_INJECTED`，不影响业务门面。
  */
 
-import { existsSync } from 'fs';
 import * as path from 'path';
 
 import {
