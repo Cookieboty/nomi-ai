@@ -22,8 +22,9 @@ const ps = (source: string) =>
           'utf16le',
         ).toString('base64'),
       ],
-      // GHA Windows runners often cold-start Windows PowerShell 5 slowly.
-      { encoding: 'utf8', windowsHide: true, timeout: 60_000 },
+      // GHA Windows runners cold-start Windows PowerShell 5 slowly (~5s per spawn, one spawn
+      // once took >60s under parallel jest load), so keep a wide per-spawn limit.
+      { encoding: 'utf8', windowsHide: true, timeout: 180_000 },
     )
     .trim();
 
@@ -51,7 +52,7 @@ const ps = (source: string) =>
             ...opts,
             // 单测只验证 PATH 读写；跳过冷启动下很慢的 Add-Type 广播。
             env: { ...(opts.env as NodeJS.ProcessEnv | undefined), NOMI_SKIP_ENV_BROADCAST: '1' },
-            timeout: Math.max(Number(opts.timeout ?? 0), 60_000),
+            timeout: Math.max(Number(opts.timeout ?? 0), 180_000),
           });
         });
         const read = () =>
@@ -74,7 +75,7 @@ const ps = (source: string) =>
           ps(`[Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree('${key}', $false)`);
         }
       },
-      90_000,
+      300_000,
     );
   },
 );

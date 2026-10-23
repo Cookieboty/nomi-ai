@@ -137,7 +137,8 @@ const run = (file: string, args: string[], env: NodeJS.ProcessEnv, verbatim = fa
         args: ['--model', 'relay/other', '-p', 'a b & echo injected', '--x'],
       });
     });
-    // Cold-start Windows PowerShell 5 on GHA often exceeds the suite's 10s default.
+    // Cold-start Windows PowerShell 5 on GHA takes 40-55s under parallel jest load (60s was
+    // exceeded once in CI), far above the suite's 10s default: give it generous headroom.
     it('PowerShell 5 bootstrap preserves embedded quotes, empty arguments and Unicode', async () => {
       const args = ['-p', 'say "hello" & echo injected', '', '中文', '--nomi-model=relay/other'];
       const command = `$ProgressPreference = 'SilentlyContinue'; [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); & ${psQuote(path.join(tc.binDir, 'nomi-claude.ps1'))} ${args.map(psQuote).join(' ')}`;
@@ -150,7 +151,7 @@ const run = (file: string, args: string[], env: NodeJS.ProcessEnv, verbatim = fa
       expect(result.err).toBe('');
       expect(result.code).toBe(0);
       expect(JSON.parse(result.out).args).toEqual(['--model', 'relay/other', ...args.slice(0, -1)]);
-    }, 60_000);
+    }, 180_000);
     it('rejects an invalid model before executing any CLI', async () => {
       const result = await run(
         process.execPath,
