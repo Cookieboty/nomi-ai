@@ -824,15 +824,27 @@ export class GatewayServer {
       return tap.end();
     }
     let text: string;
+    // 非流式正文也要有上限：上游发完响应头后卡住（不发正文也不断开）时，不能让请求永远挂着。
+    // 取非流式「整轮」超时（5 分钟 / 思考模型 10 分钟），超时即中断上游连接（abort 与上游 fetch 同一个 signal）
+    const bodyMs = resolveFirstByteTimeoutMs(false, candidateIsReasoning(cand), this.hooks);
+    let bodyTimedOut = false;
+    const bodyTimer = setTimeout(() => {
+      bodyTimedOut = true;
+      abort.abort();
+    }, bodyMs);
     try {
       text = await up.text();
     } catch (e) {
-      // 非流式正文读到一半上游断开：按入口协议回错误，不让请求挂着
-      const msg = `Nomi 网关：上游中断（${(e as Error).message}）`;
+      // 非流式正文读到一半上游断开 / 超时：按入口协议回错误，不让请求挂着
+      const msg = bodyTimedOut
+        ? `Nomi 网关：上游响应正文 ${Math.max(1, Math.round(bodyMs / 1000))} 秒内没有读完，已中断`
+        : `Nomi 网关：上游中断（${(e as Error).message}）`;
       const err = errorResponse(ingress.wire, kindOfStatus(502, msg), msg);
       if (!res.headersSent) sendJson(res, err.status, err.body);
       else res.end();
       return {};
+    } finally {
+      clearTimeout(bodyTimer);
     }
     trace?.response(up.status, text);
     let parsed: unknown = text;

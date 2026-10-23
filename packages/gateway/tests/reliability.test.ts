@@ -272,6 +272,44 @@ describe('first-byte timeout (#93)', () => {
   });
 });
 
+describe('non-stream body read timeout', () => {
+  const chatJson = JSON.stringify({
+    id: 'c1',
+    object: 'chat.completion',
+    choices: [{ index: 0, message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+  });
+
+  it('upstream sends headers then stalls the body: fails with an error instead of hanging', async () => {
+    const { chat } = await setup(
+      (_s, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.write(chatJson.slice(0, 10)); // 发了一半就不再发，也不断开
+      },
+      { nonStreamFirstByteTimeoutMs: 200 },
+    );
+    const t0 = Date.now();
+    const r = await chat({ stream: false });
+    const text = await r.text();
+    expect(r.status).toBe(502);
+    expect(text).toContain('没有读完');
+    expect(Date.now() - t0).toBeLessThan(3000);
+  }, 8000);
+
+  it('a body that arrives within the limit is unaffected', async () => {
+    const { chat } = await setup(
+      (_s, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        setTimeout(() => res.end(chatJson), 50);
+      },
+      { nonStreamFirstByteTimeoutMs: 1000 },
+    );
+    const r = await chat({ stream: false });
+    expect(r.status).toBe(200);
+    expect(await r.text()).toContain('"hi"');
+  });
+});
+
 describe('served model header (#97)', () => {
   it('tells the client which candidate actually served the request', async () => {
     const { chat } = await setup((_s, res) => ok(res));
