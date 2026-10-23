@@ -17,8 +17,6 @@
   "对话模式": "Chat mode",
   "助手模式：只和诺米对话。切换到工作台模式可使用 Claude Code / Codex / dsh 标签。": "Assistant mode: chat with Nomi only. Switch to Workbench for Claude Code / Codex / dsh tabs.",
   "工作台模式：可用编程助手标签、后端切换与监视器联动。": "Workbench mode: coding-agent tabs, backend switcher, and monitor integration.",
-  "{0} 运行中": "{0} running",
-  "有编程助手标签仍在后台运行": "Coding-agent tabs are still running in the background",
   "分叉为新对话": "Fork as new chat",
   "分叉到其他端": "Fork to another endpoint",
   "删除对话": "Delete chat",
