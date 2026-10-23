@@ -309,6 +309,8 @@ export class AgentProgressService {
     tools: { ...DEFAULT_AGENT_WATCH.tools },
   };
   private tracked = new Map<string, Tracked>();
+  /** 上次广播时的会话快照签名：tick 结果没变就不广播（否则每个轮询周期都让渲染进程回拉一次） */
+  private trackedSig = '';
   private timer: ReturnType<typeof setInterval> | null = null;
   private digestTimer: ReturnType<typeof setInterval> | null = null;
   private lastRemindAt = 0;
@@ -772,6 +774,13 @@ export class AgentProgressService {
         this.runStart.delete(id);
       }
     }
+    const sig = JSON.stringify(
+      [...this.tracked.values()].map(
+        ({ updatedAt: _u, lastRemindAt: _a, lastRemindStatus: _b, ...v }) => v,
+      ),
+    );
+    if (sig === this.trackedSig) return;
+    this.trackedSig = sig;
     this.broadcast();
   }
 
