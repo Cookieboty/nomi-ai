@@ -22,6 +22,31 @@ function letterOf(ch: string): GitFileStatus {
   return 'M';
 }
 
+/** git 对含空格 / 引号 / 控制字符的路径会加引号并做 C 风格转义（`"a b.txt"`）：还原成真实路径 */
+export function unquoteGitPath(p: string): string {
+  if (p.length < 2 || !p.startsWith('"') || !p.endsWith('"')) return p;
+  const body = p.slice(1, -1);
+  const bytes: number[] = [];
+  const enc = new TextEncoder();
+  const simple: Record<string, string> = { n: '\n', t: '\t', r: '\r', '"': '"', '\\': '\\' };
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i]!;
+    if (ch !== '\\') {
+      bytes.push(...enc.encode(ch));
+      continue;
+    }
+    const oct = /^[0-7]{3}/.exec(body.slice(i + 1));
+    if (oct) {
+      bytes.push(parseInt(oct[0], 8));
+      i += 3;
+      continue;
+    }
+    const next = body[++i] ?? '';
+    bytes.push(...enc.encode(simple[next] ?? next));
+  }
+  return new TextDecoder().decode(Uint8Array.from(bytes));
+}
+
 /** 解析一行 porcelain：`XY path` 或 `XY old -> new` */
 export function parseStatusLine(line: string): GitFileEntry | null {
   const raw = line.replace(/\r$/, '');
@@ -32,6 +57,7 @@ export function parseStatusLine(line: string): GitFileEntry | null {
   let path = raw.slice(2).trim();
   if (path.includes(' -> ')) path = path.split(' -> ').pop()!.trim();
   if (!path) return null;
+  path = unquoteGitPath(path);
   const index = letterOf(x === '?' ? '?' : x);
   const work = letterOf(y === '?' ? '?' : y);
   const untracked = x === '?' && y === '?';
