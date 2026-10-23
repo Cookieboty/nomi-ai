@@ -21,7 +21,7 @@ const catalog: BackendModelCatalog = {
       id: 'gpt-6-pro',
       label: 'GPT-6 Pro',
       reasoning: true,
-      efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
+      efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
       defaultEffort: 'medium',
     },
     { id: 'gpt-4.1', label: 'GPT-4.1', reasoning: false, efforts: [] },
@@ -223,11 +223,10 @@ describe('ModelControls', () => {
     expect(getByTestId('model-current-custom').getAttribute('aria-selected')).toBe('true');
   });
 
-  it('没选模型且 CLI 没给默认模型：滑杆用目录并集（含 max，不含 ultra）', async () => {
+  it('没选模型且 CLI 没给默认模型：滑杆用目录并集（含 ultra）', async () => {
     const { findByTestId, queryByTestId, getByTestId } = setup({ catalog });
     fireEvent.click(await findByTestId('model-chip'));
-    expect(getByTestId('effort-max')).toBeTruthy();
-    expect(queryByTestId('effort-ultra')).toBeNull();
+    expect(getByTestId('effort-ultra')).toBeTruthy();
     expect(getByTestId('effort-low')).toBeTruthy();
     expect(queryByTestId('effort-minimal')).toBeNull();
   });
