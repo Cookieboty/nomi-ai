@@ -292,6 +292,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 按「Nomi 视觉色彩系统规范 v1.0」重做五套主题：日落橙（默认）、奶油、冷雾为浅色，暖墨、石墨为深色。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 按「Nomi 视觉色彩系统规范 v1.0」重做五套主题：日落橙（默认）、奶油、冷雾为浅色，暖墨、石墨为深色。 (`@nomi-ai/ui` minor)
 - 换工作目录的确认框绑定发起它的标签（#68）：框里写明标签名与原目录；打开期间切到别的标签、切回主对话、关闭原标签或原标签换了目录，确认即作废，不会把「开新会话 / 带上当前对话」用到另一个会话上。 (`@nomi-ai/ai-chat` patch)
+- 改动多的会话打开「查看变更」/ 全屏审查更快：文件 Diff 滚到附近才渲染，不再一次性渲染全部文件；一轮结束、窗口重新聚焦等接连触发的 git 状态刷新合并成一次。 (`@nomi-ai/ai-chat` patch)
 - 整理「日程与日历」「通知 / 灵动岛」「扩展 / MCP」三页： (`@nomi-ai/ai-chat` patch)
 - 整理「日程与日历」「通知 / 灵动岛」「扩展 / MCP」三页： (`@nomi-ai/ui` minor)
 - 整理「编程助手」设置页： (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)

@@ -16,10 +16,10 @@ import {
   summarizeChanges,
   type ChangeEntry,
 } from '../../utils/sessionChanges';
-import { DiffView } from '../Conversation/DiffView';
 
 import { ChangeFileTree } from './ChangeFileTree';
 import { useChangesUi } from './ChangesUiContext';
+import { LazyDiffBlock } from './LazyDiffBlock';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
 
@@ -153,15 +153,14 @@ export const ChangesWorkbenchHost: React.FC<{
             ) : (
               entries.map((e) =>
                 e.diff ? (
-                  <div
+                  <LazyDiffBlock
                     key={e.file}
-                    className={styles.centerDiffBlock}
-                    data-active={e.file === activeFile || undefined}
-                    data-testid="wb-diff-block"
-                    data-file={e.file}
-                  >
-                    <DiffView diff={e.diff} cwd={cwd} fill split="auto" />
-                  </div>
+                    diff={e.diff}
+                    active={e.file === activeFile}
+                    cwd={cwd}
+                    testId="wb-diff-block"
+                    root={bodyRef}
+                  />
                 ) : null,
               )
             )}

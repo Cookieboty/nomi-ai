@@ -969,6 +969,10 @@
   overflow: hidden;
   scroll-margin-top: 8px;
 }
+/* 未挂载的 Diff 占位：文件头 + 按行数估高（行高同 .diffBody） */
+.diffPlaceholder {
+  height: calc(var(--cd-control-h-ms) + var(--diff-rows, 0) * var(--conv-code, 14px) * 1.5);
+}
 .centerDiffBlock[data-active] {
   border-color: color-mix(in srgb, var(--cd-color-accent, #5b8def) 55%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cd-color-accent, #5b8def) 35%, transparent);

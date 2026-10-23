@@ -405,4 +405,23 @@ describe('Codex four-column changes layout', () => {
     expect(tree.textContent).toContain('a.ts');
     vi.mocked(harnessClient.workspaceList).mockResolvedValue({ ok: true, entries: [] } as never);
   });
+
+  it('一轮结束（busy 下降沿）与窗口重新聚焦接连发生：合并成一次 git diff', async () => {
+    vi.mocked(harnessClient.gitDiff).mockResolvedValue(notRepo);
+    const r = render(
+      <ChangesUiProvider>
+        <SessionChangesPanel rail messages={messages} cwd="/tmp/proj" busy />
+      </ChangesUiProvider>,
+    );
+    await waitFor(() => expect(harnessClient.gitDiff).toHaveBeenCalledTimes(1));
+    r.rerender(
+      <ChangesUiProvider>
+        <SessionChangesPanel rail messages={messages} cwd="/tmp/proj" busy={false} />
+      </ChangesUiProvider>,
+    );
+    window.dispatchEvent(new Event('focus'));
+    window.dispatchEvent(new Event('focus'));
+    await new Promise((res) => setTimeout(res, 500));
+    expect(harnessClient.gitDiff).toHaveBeenCalledTimes(2);
+  });
 });

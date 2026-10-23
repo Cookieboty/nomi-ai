@@ -52,6 +52,9 @@ import { FilePreview, type PreviewFile } from './FilePreview';
 import styles from './SessionWorkspace.module.css';
 import pane from './WorkspacePane.module.css';
 
+/** 自动触发的 git diff 刷新合并窗口 */
+const GIT_REFRESH_DEBOUNCE_MS = 300;
+
 type View = 'changes' | 'workspace';
 
 const relOf = (cwd: string | null | undefined, file: string) =>
@@ -240,21 +243,33 @@ export const SessionChangesPanel: React.FC<{
     setGitBusy(false);
   }, [cwd]);
 
-  // 换目录、助手又改了文件、一轮跑完、窗口重新拿到焦点：各刷新一次
+  // 换目录：立即刷新。助手又改了文件、一轮跑完、窗口重新拿到焦点：常在同一刻接连发生
+  // （一轮结束时新消息落地 + busy 下降沿），合并成一次 git diff
   useEffect(() => setGit(null), [cwd]);
   useEffect(() => {
     void refreshGit();
-  }, [refreshGit, changes.length]);
+  }, [refreshGit]);
+  const gitTimer = useRef(0);
+  const scheduleGit = useCallback(() => {
+    window.clearTimeout(gitTimer.current);
+    gitTimer.current = window.setTimeout(() => void refreshGit(), GIT_REFRESH_DEBOUNCE_MS);
+  }, [refreshGit]);
+  useEffect(() => () => window.clearTimeout(gitTimer.current), []);
+  const prevChangeCount = useRef(changes.length);
+  useEffect(() => {
+    if (prevChangeCount.current === changes.length) return;
+    prevChangeCount.current = changes.length;
+    scheduleGit();
+  }, [changes.length, scheduleGit]);
   const wasBusy = useRef(busy);
   useEffect(() => {
-    if (wasBusy.current && !busy) void refreshGit();
+    if (wasBusy.current && !busy) scheduleGit();
     wasBusy.current = busy;
-  }, [busy, refreshGit]);
+  }, [busy, scheduleGit]);
   useEffect(() => {
-    const onFocus = () => void refreshGit();
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [refreshGit]);
+    window.addEventListener('focus', scheduleGit);
+    return () => window.removeEventListener('focus', scheduleGit);
+  }, [scheduleGit]);
 
   useEffect(() => {
     if (view === 'workspace') void refreshDisk();
