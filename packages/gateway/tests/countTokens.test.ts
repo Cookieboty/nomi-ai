@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { GatewayConfig } from '../src/config';
-import { createGateway } from '../src/server';
+import { createGateway, type GatewayHooks } from '../src/server';
 import { recordUsage, resetCalibration } from '../src/tokens';
 
 const cleanups: Array<() => void> = [];
@@ -29,7 +29,11 @@ async function upstream() {
   return { seen, base: `http://127.0.0.1:${port}`, hostPort: `127.0.0.1:${port}` };
 }
 
-async function gateway(urls: Record<string, string>, hosts: string[] = []) {
+async function gateway(
+  urls: Record<string, string>,
+  hosts: string[] = [],
+  hooks: GatewayHooks = {},
+) {
   const cfg: GatewayConfig = {
     host: '127.0.0.1',
     port: 0,
@@ -46,7 +50,7 @@ async function gateway(urls: Record<string, string>, hosts: string[] = []) {
     clients: { claude: { token: 'tok', models: { main: 'zp/glm-5' } } },
     allowedPrivateHosts: hosts,
   };
-  const gw = createGateway(cfg);
+  const gw = createGateway(cfg, hooks);
   await gw.start();
   cleanups.push(() => void gw.stop());
   return gw.listenUrl()!;
@@ -80,6 +84,34 @@ describe('gateway: count_tokens calibration', () => {
     });
     expect(((await miss.json()) as { input_tokens: number }).input_tokens).toBeLessThan(100);
   });
+});
+
+describe('gateway: count_tokens upstream timeout', () => {
+  it('一个卡住的上游只等短超时，然后退回本地估算（不是非流式的 5/10 分钟）', async () => {
+    const server = http.createServer(() => {
+      /* 永不回应 */
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
+    cleanups.push(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+    const port = (server.address() as AddressInfo).port;
+    const url = await gateway({ messages: `http://127.0.0.1:${port}` }, [`127.0.0.1:${port}`], {
+      firstByteTimeoutMs: 150,
+      // 若误用非流式超时，这里会让测试卡到超时
+      nonStreamFirstByteTimeoutMs: 60_000,
+      reasoningNonStreamFirstByteTimeoutMs: 60_000,
+    });
+    const t0 = Date.now();
+    const res = await post(url, '/v1/messages/count_tokens', {
+      model: 'zp/glm-5',
+      messages: [{ role: 'user', content: 'hello world' }],
+    });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { input_tokens: number }).input_tokens).toBeGreaterThan(0);
+    expect(Date.now() - t0).toBeLessThan(5_000);
+  }, 15_000);
 });
 
 describe('gateway: server tools on a third-party upstream', () => {

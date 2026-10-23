@@ -153,6 +153,54 @@ test.describe('E23 · mascot size', () => {
     return page;
   }
 
+  /**
+   * 脚本化拖拽（走 mascot:drag-* IPC）。Windows 上主进程在拖拽中读系统光标
+   * （screen.getCursorScreenPoint，见 ecd65cd5），渲染进程传来的 drag-move 坐标只当"立即移动"
+   * 的信号；Playwright 合成的 IPC 拖拽没有真实光标可跟，所以在 win32 上把主进程的光标读数
+   * 临时指到脚本给出的坐标（拖拽结束即还原）。其它平台仍用 IPC 传入的坐标，不做任何替换。
+   */
+  async function scriptedDrag(
+    page: Page,
+    start: [number, number],
+    points: Array<[number, number]>,
+    stepMs = 40,
+    settleMs = 200,
+  ): Promise<void> {
+    const fake = process.platform === 'win32';
+    const setCursor = (pt: [number, number] | null) =>
+      app!.evaluate(({ screen }, at) => {
+        const g = globalThis as unknown as {
+          __origCursor?: () => { x: number; y: number };
+          __fakeCursor?: { x: number; y: number } | null;
+        };
+        if (at === null) {
+          if (g.__origCursor) screen.getCursorScreenPoint = g.__origCursor;
+          g.__origCursor = undefined;
+          g.__fakeCursor = null;
+          return;
+        }
+        if (!g.__origCursor) {
+          const orig = screen.getCursorScreenPoint.bind(screen);
+          g.__origCursor = orig;
+          screen.getCursorScreenPoint = () => g.__fakeCursor ?? orig();
+        }
+        g.__fakeCursor = { x: at[0], y: at[1] };
+      }, pt);
+    try {
+      if (fake) await setCursor(start);
+      await page.evaluate(([sx, sy]) => window.electronAPI!.mascotWindow!.dragStart(sx, sy), start);
+      for (const pt of points) {
+        if (fake) await setCursor(pt);
+        await page.evaluate(([x, y]) => window.electronAPI!.mascotWindow!.dragMove(x, y), pt);
+        await sleep(stepMs);
+      }
+      await sleep(settleMs);
+    } finally {
+      await page.evaluate(() => window.electronAPI!.mascotWindow!.dragEnd());
+      if (fake) await setCursor(null);
+    }
+  }
+
   /** 缩放后：窗口 = 期望大小，脚底中心不动（容差 2px），仍在工作区内 */
   async function expectScaled(
     page: Page,
@@ -206,18 +254,13 @@ test.describe('E23 · mascot size', () => {
     // 先拖到屏幕中间（默认停在右下角，贴着屏幕边缘时放大会被夹住，夹紧单独在后面验证）
     const moveFeetTo = async (tx: number) => {
       const f = await feetNow(app!, page);
-      await page.evaluate(
-        async ([sx, sy, dx]) => {
-          const api = window.electronAPI!.mascotWindow!;
-          api.dragStart(sx, sy);
-          for (let i = 1; i <= 10; i += 1) {
-            api.dragMove(sx + (dx * i) / 10, sy);
-            await new Promise((r) => setTimeout(r, 40));
-          }
-          await new Promise((r) => setTimeout(r, 200));
-          api.dragEnd();
-        },
-        [Math.round(f.x), Math.round(f.y) - 20, Math.round(tx - f.x)] as [number, number, number],
+      const sx = Math.round(f.x);
+      const sy = Math.round(f.y) - 20;
+      const dx = Math.round(tx - f.x);
+      await scriptedDrag(
+        page,
+        [sx, sy],
+        Array.from({ length: 10 }, (_, k) => [sx + (dx * (k + 1)) / 10, sy] as [number, number]),
       );
       await sleep(400);
       return {
@@ -481,6 +524,7 @@ test.describe('E23 · mascot size', () => {
     // 拖拽：按住身体拖动 → 窗口移动、大小不变
     await page.evaluate(() => window.electronAPI!.mascotWindow!.setConfig({ gravity: false }));
     const b0 = await bounds(app!);
+    let bRef = b0;
     // 躯干上第一个真正落在画布上的点（气泡 / 工具栏盖住的点不算）
     const hp = await page.evaluate(() => {
       const v = document.documentElement.dataset.mascotHead!.split(',').map(Number);
@@ -524,26 +568,25 @@ test.describe('E23 · mascot size', () => {
       });
       expect(process.platform, `指针拖拽没有移动窗口（${diag}）`).toBe('win32');
       test.info().annotations.push({ type: 'pointer-drag-fallback', description: diag });
-      await page.evaluate(
-        async ([sx, sy]) => {
-          const api = window.electronAPI!.mascotWindow!;
-          api.dragStart(sx, sy);
-          for (let i = 1; i <= 10; i += 1) {
-            api.dragMove(sx - 9 * i, sy - 5 * i);
-            await new Promise((r) => setTimeout(r, 40));
-          }
-          await new Promise((r) => setTimeout(r, 200));
-          api.dragEnd();
-        },
-        [b0.x + Math.round(hp.x), b0.y + Math.round(hp.y)] as [number, number],
+      // 合成的指针拖拽在 Windows 上没有真实光标可跟，窗口可能已被带到别处：以此刻的位置为基准重拖
+      bRef = await bounds(app!);
+      const sx = bRef.x + Math.round(hp.x);
+      const sy = bRef.y + Math.round(hp.y);
+      await scriptedDrag(
+        page,
+        [sx, sy],
+        Array.from(
+          { length: 10 },
+          (_, k) => [sx - 9 * (k + 1), sy - 5 * (k + 1)] as [number, number],
+        ),
       );
       await expect
-        .poll(async () => b0.x - (await bounds(app!)).x, { timeout: 3_000 })
+        .poll(async () => bRef.x - (await bounds(app!)).x, { timeout: 3_000 })
         .toBeGreaterThanOrEqual(40);
     }
     await sleep(400);
     const b1 = await bounds(app!);
-    expect(b0.x - b1.x).toBeGreaterThanOrEqual(40);
+    expect(bRef.x - b1.x).toBeGreaterThanOrEqual(40);
     expect([b1.width, b1.height]).toEqual([b0.width, b0.height]);
     // 拖到新位置后继续缩放：以新的脚底中心为锚点
     await sleep(800);

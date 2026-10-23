@@ -320,7 +320,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 - **标签 = 会话**：每个标签绑定 `{backend, cliSessionId, cwd}`，互不阻塞。`CliHarnessService` 维护 `Map<tabId, 标签状态>`，每个标签同一时刻最多一个子进程。
 - **Nomi 只在主标签**：主标签（`id = main`）即原有对话，后端可选 Nomi 或任一 CLI；新建的标签只能绑定 Claude Code / Codex / dsh。原因：Nomi 的对话历史、模型选择与工具状态由 `AiChatContext` 单例管理，只有一条「当前对话」，多个 Nomi 标签会互相覆盖；CLI 的会话由各自的 CLI 持久化，天然可多开。
-- **并发上限**：全局信号量，默认 3（可调 1–8，`ai:harness:set-max-concurrent`）；超出的轮次状态为 `queued`，有空位时按先来先到开始运行。标签栏右侧显示「运行 x/上限 · 排队 n」。
+- **并发**：各标签可同时运行，**无**「最多同时运行」全局上限（已移除排队信号量与 UI）。
 - **状态与未读**：状态点 灰 = 空闲 · 蓝（脉动）= 运行中 · 黄 = 排队 · 红 = 出错 · 绿 = 有未读结果；标签不在前台（或窗口无焦点）时完成一轮，未读数 +1，切换过去即清零。关闭运行中的标签会先确认并终止子进程；切换后端或 cwd 会丢弃该标签的 `cliSessionId`。
 - **快捷键**（Mod = macOS ⌘ / 其它 Ctrl，可在设置 → 快捷键改绑）：
 
@@ -334,7 +334,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
   另外：中键关闭标签，标签获得焦点时 ←/→ 切换。
 
-- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、`maxConcurrent`、标签元数据）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
+- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、标签元数据）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
 - **看板娘监视器**：一个列表聚合所有端点，按最近活动排序：
   - Claude Code：`~/.claude/projects/*/*.jsonl`
   - Codex：`~/.codex/sessions/**/rollout-*.jsonl`
@@ -345,8 +345,8 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 ### 12.5 普通 / 开发模式、端点隔离与分叉（HIGHLIGHT）
 
-- **对话模式**（顶栏左侧「普通 | 开发」，默认普通，localStorage `ai-chat:chatMode`）：
-  - **普通**：仅 Nomi。隐藏标签栏、后端切换器、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件显示「N 运行中」徽标；切回开发恢复标签栏与未读。
+- **对话模式**（侧栏 Nomi 标志右侧「助手 | 工作台」，默认普通，localStorage `ai-chat:chatMode`）：
+  - **普通**：仅 Nomi。隐藏标签栏、后端切换器、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件旁显示运行中的数量；切回开发恢复标签栏与未读。
   - **开发**：完整 chrome。选中 / 新建非 Nomi 会话会打开或聚焦对应 CLI 标签；Nomi 会话始终走主标签 + nomi 后端。
 - **会话归属**：每条 ConversationStore 元信息带 `backend: nomi|claude|codex|dsh` 与可选 `tabId`。旧行迁移为 `nomi`。侧栏列表不再混合身份——点 Nomi 只加载 Nomi；点 Claude 只聚焦该 Claude 标签。
 - **CLI 标签进侧栏**：创建 / 重命名 / 关闭 / 消息时同步一条 ConversationStore 元信息（消息仍在 `userData/harness/tabs/<id>.json`）。删除侧栏项会关闭对应标签（运行中仍走原确认）。
@@ -396,8 +396,8 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 约定：
 
 - **关闭 vs 删除**：关闭 = 只关掉标签，CLI 会话仍在磁盘，可从历史重新打开；删除 = 永久移除 Nomi 对话。CLI 条目不提供「删除」，Nomi 条目不提供「关闭」，避免两个含义不清的按钮。
-- 「普通 / 开发」模式开关保持在顶栏左上角，位置与行为不变。
-- 顶栏右侧的功能入口（知识 · 记忆 · 日程 / 扩展 / 本机 / 设置）与「固定到左上角」右键菜单不变。
+- 「助手 / 工作台」模式开关在侧栏 Nomi 标志右侧。
+- 应用级入口（设置 / 知识 · 记忆 · 日程 / 扩展 / 本机）在侧栏底部；顶栏只放对话标签与变更栏开关。
 - 菜单可键盘操作：打开后焦点落在第一项，↑/↓ 移动，Enter 确认，Esc 关闭。
 
 **快捷键清单**（Mod = macOS ⌘ / 其它 Ctrl；可在设置 → 快捷键改绑，设置页同样展示固定键位）：
@@ -476,7 +476,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 - 「日程与日历」只含提醒、定时与日历，没有「编程助手」标签。
 - 原标签里的内容拆开：**版本**→ 各端点页（§14.2）；**监视开关、系统通知开关、已检测工具、立即扫描、会话列表（按端点筛选、打开标签）**→ 编程助手 →「监视与会话」；**通知 / 灵动岛的来源与样式设置**仍在「通知 / 灵动岛」，「监视与会话」里有一个按钮直达。
-- 日程在顶栏「知识 · 记忆 · 日程」抽屉的「日程」标签，也在设置 → 日程与日历（快捷键 `Mod+Shift+M` 打开抽屉）。
+- 日程在侧栏底部「知识 · 记忆 · 日程」抽屉的「日程」标签，也在设置 → 日程与日历（快捷键 `Mod+Shift+M` 打开抽屉）。
 
 ### 14.4 菜单栏图标消失（macOS，开发模式）
 

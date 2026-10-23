@@ -1,7 +1,7 @@
 /**
  * 设置 → 通用 → 外观 → 聊天背景：跟随主题 / 纯色 / 图片（分段单选），选了纯色或图片后再出现
- * 颜色 / 图片、模糊与透明度几行；恢复默认。
- * 仅对话主面板；主进程 chat/ChatBackgroundService.ts（chat-bg:*）。
+ * 颜色 / 图片、左 / 中 / 右三栏模糊与透明度几行；恢复默认。
+ * 铺满整个工作台；主进程 chat/ChatBackgroundService.ts（chat-bg:*）。
  */
 import { Button, SegmentedControl, SettingRow, t } from '@nomi-ai/ui';
 import { ImagePlus, RotateCcw } from 'lucide-react';
@@ -20,6 +20,13 @@ import {
 
 import styles from './index.module.css';
 
+type BlurKey = 'blurLeft' | 'blurCenter' | 'blurRight';
+const BLURS: { key: BlurKey; label: string; testId: string }[] = [
+  { key: 'blurLeft', label: '左侧栏模糊', testId: 'chat-bg-blur-left' },
+  { key: 'blurCenter', label: '对话区模糊', testId: 'chat-bg-blur-center' },
+  { key: 'blurRight', label: '右侧面板模糊', testId: 'chat-bg-blur-right' },
+];
+
 const MODES: { id: ChatBgMode; label: string }[] = [
   { id: 'default', label: '跟随主题' },
   { id: 'solid', label: '纯色' },
@@ -32,14 +39,17 @@ export const ChatBackgroundSettings: React.FC = () => {
 
   const patch = (p: Partial<ChatBackgroundState>) => void setChatBackground(p).then(setS);
 
-  const pristine = s.mode === 'default' && s.blur === 0 && s.opacity === DEFAULT_CHAT_BG.opacity;
+  const pristine =
+    s.mode === 'default' &&
+    BLURS.every((b) => s[b.key] === 0) &&
+    s.opacity === DEFAULT_CHAT_BG.opacity;
 
   return (
     <>
       <SettingRow
         data-testid="settings-chat-bg"
         title={t('聊天背景')}
-        description={t('只改变对话主面板的背景，不影响侧栏与窗口其它区域。')}
+        description={t('铺满整个工作台：侧栏、对话区与右侧面板都会透出背景。')}
       >
         {!pristine && (
           <Button
@@ -111,20 +121,22 @@ export const ChatBackgroundSettings: React.FC = () => {
 
       {s.mode !== 'default' && (
         <>
-          <SettingRow title={t('模糊')}>
-            <input
-              type="range"
-              className={styles.range}
-              min={0}
-              max={40}
-              step={1}
-              value={s.blur}
-              aria-label={t('模糊')}
-              data-testid="chat-bg-blur"
-              onChange={(e) => patch({ blur: Number(e.target.value) })}
-            />
-            <span className={styles.sizeValue}>{s.blur}px</span>
-          </SettingRow>
+          {BLURS.map((b) => (
+            <SettingRow key={b.key} title={t(b.label)}>
+              <input
+                type="range"
+                className={styles.range}
+                min={0}
+                max={40}
+                step={1}
+                value={s[b.key]}
+                aria-label={t(b.label)}
+                data-testid={b.testId}
+                onChange={(e) => patch({ [b.key]: Number(e.target.value) })}
+              />
+              <span className={styles.sizeValue}>{s[b.key]}px</span>
+            </SettingRow>
+          ))}
           <SettingRow title={t('透明度')}>
             <input
               type="range"

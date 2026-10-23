@@ -1,8 +1,10 @@
 # Nomi 应用图标变体
 
 原创矢量（MIT，与仓库同许可），由 `scripts/brand/build-app-icon.py` 生成，
-`scripts/brand/render-icons.mjs`（Electron 自带 Chromium）栅格化。依据品牌板：流畅曲线 N +
-橙色四角星光，配色 `#FB9466` / 奶油 `#FFF6EC` / 深棕 `#33291F`。
+`scripts/brand/build-icon-assets.py`（headless Chrome 栅格化 + Pillow 打包）产出 `packages/electron/assets` 下的位图 / ico / icns
+（也可用 `scripts/brand/render-icons.mjs` 以 Electron 自带 Chromium 栅格化）。依据品牌板与
+`docs/brand/nomi-app-icon.svg` / `nomi-mark.svg`：**双色**流畅曲线 N（主笔画 + 画在下层的橙色次笔画 `#F7A67C`，
+形成橙色阴影 / 衬底）+ 橙色四角星光，配色 `#FB9466` / 奶油 `#FFF6EC` / 深棕 `#33291F`。N 与星光的几何直接取自品牌 svg。
 
 | 变体                | 底色     | N    | 星光 | 说明                                                      |
 | ------------------- | -------- | ---- | ---- | --------------------------------------------------------- |
@@ -10,19 +12,21 @@
 | **B · ink（默认）** | 深棕渐变 | 奶油 | 橙   | 与默认主题 Warm Ink 一致；深浅背景都清楚，16px 仍可辨     |
 | C · sunset          | 橙渐变   | 奶油 | 深棕 | 最醒目；用作 Windows / Linux 托盘图标（深浅任务栏都可见） |
 
+次笔画颜色：cream / ink 为品牌橙 `#F7A67C`；sunset 底色本身是橙色，`#F7A67C` 会隐形，改用赤陶橙 `#C2531F`。
+
 文件：
 
 - `nomi-<变体>-mac.svg`：Apple 图标网格（1024 画布，824 连续曲率圆角矩形，四周 100px 留白）→ `icon.icns`
 - `nomi-<变体>-flat.svg`：满版圆角（22%）→ `icon.ico`（≥64px）、`icons/*.png`、`icon.png`
-- `nomi-<变体>-flat-small.svg`：加粗笔画、星光放大的小号版本 → 16 / 24 / 32 / 48px
-- `nomi-tray-template.svg`：macOS 托盘模板图（纯黑 + alpha，系统自动反色）
+- `nomi-<变体>-flat-small.svg`：加粗笔画（主 52 / 次 44）、图形放大 12%、星光放大 1.3 倍的小号版本，仍保留两色 → 16 / 24 / 32 / 48px
+- `nomi-tray-template.svg`：macOS 托盘模板图（纯黑 + alpha，系统自动反色；按系统约定保持单色，不画次笔画）
 - `nomi-tray-color.svg`：Windows / Linux 托盘（sunset 小号）
 
 重新生成：
 
 ```bash
 python3 scripts/brand/build-app-icon.py
-# 然后见 scripts/brand/render-icons.mjs 顶部注释（electron 栅格化），再用 Pillow 打包 ico / icns
+python3 scripts/brand/build-icon-assets.py   # 需要 Pillow + headless Chrome；写 icon.icns / icon.ico / icons/*.png / app-icons/*
 ```
 
 `preview.png` 为三种变体在浅 / 深背景下 1024 → 16px 的对照。

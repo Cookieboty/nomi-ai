@@ -240,6 +240,10 @@ test.describe('E25 · unified conversation view', () => {
 
   test.describe('C · nomi conversation', () => {
     let server: Server | null = null;
+    // Streaming requests seen by the mock (reset per test). The 2nd one is the turn the test
+    // stops: it keeps streaming until the client aborts, so "click Stop" can never race a turn
+    // that finishes by itself (a slow runner / screenshot used to let it end in ~4s first).
+    let streamRequests = 0;
     test.beforeAll(async () => {
       server = createServer((req, res) => {
         let raw = '';
@@ -254,6 +258,7 @@ test.describe('E25 · unified conversation view', () => {
             return;
           }
           res.writeHead(200, { 'content-type': 'text/event-stream' });
+          const holdOpen = (streamRequests += 1) === 2;
           const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
           const parts = [
             '## 回答\n\n',
@@ -267,7 +272,7 @@ test.describe('E25 · unified conversation view', () => {
             if (i < parts.length) {
               send({ choices: [{ index: 0, delta: { role: 'assistant', content: parts[i++] } }] });
               setTimeout(tick, 900);
-            } else {
+            } else if (!holdOpen) {
               send({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] });
               send({
                 choices: [],
@@ -287,6 +292,7 @@ test.describe('E25 · unified conversation view', () => {
 
     test('markdown body, time, copy, queue while streaming, stop, regenerate', async () => {
       test.setTimeout(240_000);
+      streamRequests = 0;
       userData = mkdtempSync(join(tmpdir(), 'e25-c-'));
       const port = (server!.address() as AddressInfo).port;
       let chat: Page;

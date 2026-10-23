@@ -166,18 +166,6 @@ test.describe('E6 · real app · AI chat history', () => {
     await chat.waitForFunction(() => document.body.innerText.includes('answer3'));
     await send('继续', 'answer4');
 
-    // 左上角常驻入口：默认 4 个，右键取消固定，设置里重新勾选（本机持久化）
-    for (const id of ['newchat', 'snip', 'kb', 'handsfree'])
-      await expect(chat.locator(`[data-testid="pin-${id}"]`)).toHaveCount(1);
-    await chat.click('[data-testid="pin-kb"]', { button: 'right' });
-    await chat.click('[data-testid="pin-unpin"]');
-    await expect(chat.locator('[data-testid="pin-kb"]')).toHaveCount(0);
-    await chat.click('[data-testid="open-settings"]');
-    await chat.click('[data-testid="settings-nav-general"]');
-    await chat.click('[data-testid="pin-check-kb"]');
-    await chat.click('[data-testid="settings-back"]');
-    await expect(chat.locator('[data-testid="pin-kb"]')).toHaveCount(1);
-
     // 新建对话时，上一段对话被整理进长期记忆
     expect(summaries.length).toBeGreaterThanOrEqual(1);
     expect(requests[2]!.stream).toBeFalsy(); // AI SDK omit stream on generateText

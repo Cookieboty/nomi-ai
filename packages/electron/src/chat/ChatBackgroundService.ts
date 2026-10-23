@@ -1,6 +1,6 @@
 /**
- * 对话主面板背景（设置 → 通用 → 聊天背景）：纯色或图片，可选模糊与透明度，重置回默认。
- * 仅作用于对话主面板（.chat-container），不改整窗 / OS。
+ * 工作台背景（设置 → 通用 → 聊天背景）：纯色或图片，左 / 中 / 右三栏各自的模糊与整体透明度，重置回默认。
+ * 铺满对话窗工作台（侧栏、对话列、Diff 与文件栏），不改 OS。
  * 持久化：userData/chat-background.json；图片落到 userData/chat/images/panel-bg.*（chat-asset://）。
  */
 import fs from 'node:fs';
@@ -18,8 +18,10 @@ export interface ChatBackgroundState {
   solidColor: string;
   /** chat-asset://images/panel-bg.ext，mode=image 时使用 */
   imageUrl: string | null;
-  /** 背景层模糊半径 px（0–40） */
-  blur: number;
+  /** 各栏透出背景时的模糊半径 px（0–40）：左 = 侧栏，中 = 对话列，右 = Diff 与文件栏 */
+  blurLeft: number;
+  blurCenter: number;
+  blurRight: number;
   /** 背景层不透明度 0.05–1 */
   opacity: number;
 }
@@ -31,7 +33,9 @@ export const DEFAULT_CHAT_BG: ChatBackgroundState = {
   mode: 'default',
   solidColor: '#fff8f1',
   imageUrl: null,
-  blur: 0,
+  blurLeft: 0,
+  blurCenter: 0,
+  blurRight: 0,
   opacity: 0.35,
 };
 
@@ -42,7 +46,10 @@ const IMG_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
-  const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<ChatBackgroundState>;
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<ChatBackgroundState> & {
+    /** 旧版只有一个 blur（只作用于对话区）：没有分栏值时三栏都沿用它 */
+    blur?: unknown;
+  };
   const mode = MODES.includes(o.mode as ChatBgMode) ? (o.mode as ChatBgMode) : 'default';
   const solidColor =
     typeof o.solidColor === 'string' && HEX.test(o.solidColor)
@@ -52,12 +59,22 @@ export function sanitizeChatBg(raw: unknown): ChatBackgroundState {
     typeof o.imageUrl === 'string' && o.imageUrl.startsWith('chat-asset://images/')
       ? o.imageUrl
       : null;
-  const blur = typeof o.blur === 'number' && Number.isFinite(o.blur) ? clamp(o.blur, 0, 40) : 0;
+  const px = (v: unknown, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) ? clamp(v, 0, 40) : fallback;
+  const legacy = px(o.blur, 0);
   const opacity =
     typeof o.opacity === 'number' && Number.isFinite(o.opacity)
       ? clamp(o.opacity, 0.05, 1)
       : DEFAULT_CHAT_BG.opacity;
-  return { mode, solidColor, imageUrl, blur, opacity };
+  return {
+    mode,
+    solidColor,
+    imageUrl,
+    blurLeft: px(o.blurLeft, legacy),
+    blurCenter: px(o.blurCenter, legacy),
+    blurRight: px(o.blurRight, legacy),
+    opacity,
+  };
 }
 
 export class ChatBackgroundService {

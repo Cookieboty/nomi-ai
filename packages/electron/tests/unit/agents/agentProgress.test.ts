@@ -1,7 +1,11 @@
 jest.unmock('fs');
 jest.unmock('path');
+const mockWindows: Array<{
+  isDestroyed: () => boolean;
+  webContents: { isDestroyed: () => boolean; send: jest.Mock };
+}> = [];
 jest.mock('electron', () => ({
-  BrowserWindow: { getAllWindows: () => [] },
+  BrowserWindow: { getAllWindows: () => mockWindows },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   Notification: Object.assign(
     jest.fn(() => ({ show: jest.fn() })),
@@ -293,6 +297,50 @@ describe('AgentProgressService', () => {
     now += 31 * 60_000;
     svc.tick();
     expect(svc.state().sessions).toHaveLength(0);
+  });
+
+  it('轮询结果没变就不广播；会话状态变化才通知渲染进程', () => {
+    let now = Date.parse('2026-10-14T10:00:00Z');
+    const home = tmp();
+    const svc = new AgentProgressService({
+      root: tmp(),
+      home,
+      logger: { info: jest.fn(), warn: jest.fn() },
+      desktop: { say } as never,
+      now: () => now,
+      pollMs: 60_000,
+      processes: () => [{ pid: 1, kind: 'claude', cwd: '/w/a' }] as never,
+    });
+    const send = jest.fn();
+    mockWindows.push({ isDestroyed: () => false, webContents: { isDestroyed: () => false, send } });
+    const changed = () => send.mock.calls.filter(([ch]) => ch === 'ai:agents:changed').length;
+    try {
+      const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
+      write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now);
+      svc.tick();
+      expect(changed()).toBe(1);
+
+      // 时间推进但文件与进程都没变：不再广播
+      now += 5_000;
+      svc.tick();
+      now += 5_000;
+      svc.tick();
+      expect(changed()).toBe(1);
+
+      // 写入 end_turn：状态变了 → 广播
+      write(
+        file,
+        claudeLines('s', '/w/a', '跑测试', {
+          type: 'assistant',
+          message: { stop_reason: 'end_turn', content: [{ type: 'text', text: '好了' }] },
+        }),
+        now,
+      );
+      svc.tick();
+      expect(changed()).toBe(2);
+    } finally {
+      mockWindows.length = 0;
+    }
   });
 
   it('codex: no start reminder; remind when running → waiting, dedupe by session id', () => {

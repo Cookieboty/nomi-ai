@@ -171,19 +171,5 @@ test.describe('UI surfaces', () => {
     }
     await chat.locator('[data-testid="nomi-model-switch"] [role="combobox"]').focus();
     await shot(chat, '16-model-switcher');
-
-    // 左上角常驻入口：默认 4 个；右键取消固定；设置 → 通用 → 常驻入口 恢复默认
-    for (const id of ['newchat', 'snip', 'kb', 'handsfree'])
-      await expect(chat.locator(`[data-testid="pin-${id}"]`)).toBeVisible();
-    await chat.click('[data-testid="pin-handsfree"]', { button: 'right' });
-    await chat.click('[data-testid="pin-unpin"]');
-    await expect(chat.locator('[data-testid="pin-handsfree"]')).toHaveCount(0);
-    await chat.click('[data-testid="open-settings"]');
-    await chat.click('[data-testid="settings-nav-general"]');
-    await expect(chat.locator('[data-testid="pins-settings"]')).toBeVisible();
-    await shot(chat, '17-settings-pins');
-    await chat.click('[data-testid="pins-reset"]');
-    await chat.keyboard.press('Escape');
-    await expect(chat.locator('[data-testid="pin-handsfree"]')).toBeVisible();
   });
 });

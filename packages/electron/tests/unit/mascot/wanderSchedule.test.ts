@@ -29,7 +29,7 @@ jest.mock('electron', () => ({
 import { mascotWindowSize } from '../../../src/mascot/mascotSize';
 import { MascotWindowController } from '../../../src/mascot/MascotWindowController';
 
-function setup() {
+function setup(Ctrl: typeof MascotWindowController = MascotWindowController) {
   const size = mascotWindowSize(1);
   const b = { x: 700, y: 1040 - size.height, ...size };
   const wc = {
@@ -56,7 +56,7 @@ function setup() {
     setShape: jest.fn(),
   };
   // Deterministic rnd → scheduleNextWander always adds 20s + 0.5*40s = 40s
-  const c = new MascotWindowController(
+  const c = new Ctrl(
     win as unknown as BrowserWindow,
     { info: jest.fn(), warn: jest.fn() },
     () => 0.5,
@@ -76,7 +76,31 @@ function setup() {
   return { b, c, emit, wc };
 }
 
-describe('MascotWindowController · wander schedule after manual walk / place', () => {
+/**
+ * MascotWindowController snapshots `process.platform` at module load (DRAG_FROM_OS_CURSOR: Windows
+ * follows the OS cursor, everyone else the renderer's screenX/Y). Tests that assert one drag source
+ * must pin the platform and load a fresh copy of the module, or they only pass on the host OS
+ * they happened to be written on.
+ */
+function withPlatform<T>(
+  platform: NodeJS.Platform,
+  run: (Ctrl: typeof MascotWindowController) => T,
+): T {
+  const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { value: platform });
+  try {
+    let Ctrl!: typeof MascotWindowController;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Ctrl = require('../../../src/mascot/MascotWindowController').MascotWindowController;
+    });
+    return run(Ctrl);
+  } finally {
+    Object.defineProperty(process, 'platform', original);
+  }
+}
+
+describe('MascotWindowController · drag and wander scheduling', () => {
   beforeEach(() => {
     handlers.clear();
     listeners.clear();
@@ -84,6 +108,53 @@ describe('MascotWindowController · wander schedule after manual walk / place', 
   });
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('moves immediately when a drag point arrives instead of waiting for the next tick', () => {
+    withPlatform('darwin', (Ctrl) => {
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
+
+      s.emit('mascot:drag-move', startX + 90, startY - 55);
+
+      expect(s.b.x).toBe(before.x + 90);
+      expect(s.b.y).toBe(before.y - 55);
+    });
+  });
+
+  it('applies every drag sample within one frame (no 16.7ms throttle)', () => {
+    withPlatform('darwin', (Ctrl) => {
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
+      s.emit('mascot:drag-move', startX + 10, startY);
+      s.emit('mascot:drag-move', startX + 20, startY);
+      expect(s.b.x).toBe(before.x + 20);
+      expect(s.b.y).toBe(before.y);
+    });
+  });
+
+  it('on Windows follows the OS cursor instead of the renderer screenX/Y', () => {
+    withPlatform('win32', (Ctrl) => {
+      const { screen } = jest.requireMock('electron') as {
+        screen: { getCursorScreenPoint: jest.Mock };
+      };
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
+      screen.getCursorScreenPoint.mockReturnValueOnce({ x: startX + 30, y: startY - 20 });
+      // Stale renderer coordinates (window origin lagging behind the move) are ignored.
+      s.emit('mascot:drag-move', startX + 999, startY + 999);
+      expect(s.b.x).toBe(before.x + 30);
+      expect(s.b.y).toBe(before.y - 20);
+    });
   });
 
   it('wander-now pushes nextWanderAt so free-place idle is not stolen after the startup 15s', () => {

@@ -87,7 +87,7 @@ export class MCPConfigManager {
       let userDataPath: string;
       try {
         userDataPath = app.getPath('userData');
-      } catch (error) {
+      } catch {
         // Fallback到用户配置目录
         userDataPath = path.join(
           os.homedir(),

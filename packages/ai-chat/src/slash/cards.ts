@@ -16,7 +16,12 @@ import { providerDisplayName } from '../services/providerClient';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
-import { contextWindowFor, estimateContext } from './tokens';
+import {
+  contextWindowFor,
+  estimateContext,
+  fitContextWindow,
+  reportedContextWindow,
+} from './tokens';
 import type {
   CardAction,
   CardListItem,
@@ -111,7 +116,7 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
 
 export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput {
   const m = currentModel(ctx, data);
-  const win = contextWindowFor(m.model);
+  const baseWin = contextWindowFor(m.model, reportedContextWindow(ctx.messages));
   const est = estimateContext(ctx.messages, {
     user: t('你的消息'),
     assistant: t('助手回复'),
@@ -119,6 +124,7 @@ export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput 
     thinking: t('思考'),
     system: t('系统提示 / 工具定义 / 记忆（推算）'),
   });
+  const win = fitContextWindow(baseWin, est.used);
   const notes: string[] = [];
   notes.push(
     est.basis === 'actual'
@@ -126,9 +132,13 @@ export function contextCard(ctx: SlashContext, data: SlashData): SlashCardInput 
       : t('这个会话还没有真实用量记录，总量和各类占比都是估算。'),
   );
   notes.push(
-    win.source === 'table'
-      ? t('窗口大小来自内置的常见模型对照表，可能与实际不符。')
-      : t('无法识别当前模型的窗口大小，暂按 128K 估算。'),
+    win.widened
+      ? t('窗口大小未知，已按当前用量放宽，实际窗口可能更小。')
+      : win.source === 'reported'
+        ? t('窗口大小取自 CLI 上报的模型信息。')
+        : win.source === 'table'
+          ? t('窗口大小来自内置的常见模型对照表，可能与实际不符。')
+          : t('无法识别当前模型的窗口大小，暂按 128K 估算。'),
   );
   if (ctx.backend !== 'nomi')
     notes.push(t('这是 Nomi 按会话记录做的统计，和 CLI 内部的统计（含自动压缩）可能不同。'));

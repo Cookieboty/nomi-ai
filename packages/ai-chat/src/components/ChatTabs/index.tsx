@@ -4,7 +4,7 @@
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { Plus, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
@@ -20,7 +20,6 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
 
-import { ConcurrencyControl } from './ConcurrencyControl';
 import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
@@ -70,16 +69,31 @@ export const ChatTabs: React.FC<{
   mainLoading?: boolean;
   /** 右键菜单里的分叉（tabId → 由上层映射到对话） */
   onForkTab?: (tabId: string, mode: 'same' | 'cross') => void;
-}> = ({ renameRequest = 0, newTabRequest = 0, mainLoading = false, onForkTab }) => {
+  /** 嵌在 ChatHeader 里（与顶栏同一行，底边线由顶栏画） */
+  embedded?: boolean;
+}> = ({
+  renameRequest = 0,
+  newTabRequest = 0,
+  mainLoading = false,
+  onForkTab,
+  embedded = false,
+}) => {
   const tabs = useHarnessTabs();
   const bindings = useShortcutBindings();
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [menu, setMenu] = useState(false);
+  const [menuAlign, setMenuAlign] = useState<'start' | 'end'>('start');
   const [ctx, setCtx] = useState<{ tabId: string; x: number; y: number } | null>(null);
   const [bins, setBins] = useState<Record<string, string | null>>({});
   const ws = useNewWorkspace();
   const menuRef = useRef<HTMLDivElement>(null);
+  // 菜单打开时（点击「+」或 Mod+T）按「+」右侧剩余空间决定向哪边展开
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return;
+    const r = menuRef.current.getBoundingClientRect();
+    setMenuAlign(window.innerWidth - r.left < MENU_ROOM ? 'end' : 'start');
+  }, [menu]);
   const stripRef = useRef<HTMLDivElement>(null);
 
   const st = tabs.state;
@@ -162,7 +176,7 @@ export const ChatTabs: React.FC<{
   };
 
   return (
-    <div className={styles.bar} data-testid="chat-tabs">
+    <div className={styles.bar} data-embedded={embedded || undefined} data-testid="chat-tabs">
       <div
         className={styles.strip}
         ref={stripRef}
@@ -273,13 +287,7 @@ export const ChatTabs: React.FC<{
             />
           );
         })()}
-      <ConcurrencyControl
-        running={st.running}
-        queued={st.queued}
-        max={st.maxConcurrent}
-        onChange={(n) => void tabs.setMaxConcurrent(n)}
-      />
-      <div className={styles.add} ref={menuRef}>
+      <div className={styles.add} ref={menuRef} data-align={menuAlign}>
         <button
           type="button"
           className={styles.addBtn}
@@ -313,6 +321,8 @@ export const ChatTabs: React.FC<{
 };
 
 const CLI_LABEL: Record<string, string> = ENDPOINT_NAME;
+/** 新建菜单向右展开所需的大致宽度 */
+const MENU_ROOM = 340;
 
 /** CLI 标签的输入框提示：随运行状态与后端变化（不显示 Nomi 的「请先选择AI模型」） */
 export function cliTabPlaceholder(tab: { title: string; backend: string; status: string }): string {

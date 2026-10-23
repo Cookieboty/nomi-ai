@@ -27,20 +27,6 @@
   flex: none;
   width: 200px;
 }
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-muted);
-  flex: 1;
-  min-width: 180px;
-}
-.mono textarea,
-textarea.mono {
-  font-family: var(--cd-font-mono);
-  font-size: var(--cd-font-size-sm);
-}
 .list {
   display: flex;
   flex-direction: column;
@@ -63,57 +49,16 @@ textarea.mono {
   gap: var(--cd-space-2);
   font-size: var(--cd-font-size-sm);
 }
-.expand {
-  border: none;
-  background: none;
-  color: var(--cd-color-text-muted);
-  cursor: pointer;
-  padding: 0 var(--cd-space-0-5);
-  font: inherit;
-}
 .meta {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
   font-family: var(--cd-font-mono);
   overflow-wrap: anywhere;
 }
-.tools {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  font-size: var(--cd-font-size-xs);
-}
-.tools li {
-  display: flex;
-  gap: var(--cd-space-2);
-  align-items: center;
-  flex-wrap: wrap;
-}
 .presets {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--cd-space-2);
-}
-.preset {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-  text-align: left;
-  padding: var(--cd-space-3);
-  border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface-sunken);
-  color: var(--cd-color-text);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-}
-.preset:hover,
-.preset:focus-visible {
-  border-color: var(--cd-color-accent);
 }
 .bar {
   height: 6px;

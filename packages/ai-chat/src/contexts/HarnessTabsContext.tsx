@@ -12,12 +12,14 @@ import React, {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 
 import {
   MAIN_TAB_ID,
   harnessClient,
   type HarnessBackend,
+  type HarnessImageInput,
   type HarnessLiveEvent,
   type HarnessTabMessage,
   type HarnessTabMeta,
@@ -37,15 +39,14 @@ interface HarnessTabsValue {
   /** 当前标签是独立的 CLI 标签（非 main） */
   isCliTab: boolean;
   messages: HarnessTabMessage[];
-  live: Record<string, TabLive>;
   create: (backend: HarnessBackend, cwd?: string) => Promise<void>;
   close: (id: string) => Promise<void>;
   rename: (id: string, title: string) => Promise<void>;
   activate: (id: string) => Promise<void>;
   cycle: (dir: 1 | -1) => void;
   selectIndex: (i: number) => void;
-  /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送 */
-  send: (text: string) => Promise<void>;
+  /** 发送；当前标签正在运行 / 排队时改为进队列，当前轮结束后自动发送。附图仅空闲直发（排队不带图）。 */
+  send: (text: string, images?: HarnessImageInput[]) => Promise<void>;
   /**
    * 向指定标签发送（与当前激活的标签无关）：异步结果（如斜杠命令展开）要回到发起它的标签。
    * 目标运行 / 排队中时进该标签的队列；标签不存在 / 已关闭、是 main、或后端 / 目录与 `expect` 不符
@@ -55,6 +56,7 @@ interface HarnessTabsValue {
     tabId: string,
     text: string,
     expect?: { backend?: HarnessBackend; cwd?: string },
+    images?: HarnessImageInput[],
   ) => Promise<boolean>;
   /** 标签是否仍存在（读最新状态，不依赖渲染闭包） */
   hasTab: (tabId: string) => boolean;
@@ -63,12 +65,43 @@ interface HarnessTabsValue {
   removeQueued: (index: number) => void;
   cancel: () => Promise<void>;
   replyPermission: (requestId: string, allow: boolean) => Promise<void>;
-  setMaxConcurrent: (n: number) => Promise<void>;
   /** 最近使用的编程助手后端（新建标签默认） */
   lastBackend: HarnessBackend;
 }
 
 const Ctx = createContext<HarnessTabsValue | null>(null);
+
+type LiveMap = Record<string, TabLive>;
+
+/**
+ * 各标签的实时进度单独作为外部 store：流式期间约每帧更新一次，放进上面的 value 会让所有
+ * useHarnessTabs() 的消费者（含 App）每帧重渲染。订阅方用 useHarnessLive 只取自己要的切片。
+ */
+interface LiveStore {
+  get(): LiveMap;
+  set(next: LiveMap): void;
+  subscribe(listener: () => void): () => void;
+}
+
+function createLiveStore(): LiveStore {
+  let live: LiveMap = {};
+  const listeners = new Set<() => void>();
+  return {
+    get: () => live,
+    set(next) {
+      if (next === live) return;
+      live = next;
+      for (const l of [...listeners]) l();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+const EMPTY_LIVE_STORE = createLiveStore();
+const LiveCtx = createContext<LiveStore>(EMPTY_LIVE_STORE);
 const EMPTY_MESSAGES: HarnessTabMessage[] = [];
 const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
 
@@ -83,7 +116,12 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const available = harnessClient.available();
   const [state, setState] = useState<HarnessTabsState | null>(null);
   const [cache, setCache] = useState<Record<string, HarnessTabMessage[]>>({});
-  const [live, setLive] = useState<Record<string, TabLive>>({});
+  const [live, setLive] = useState<LiveMap>({});
+  // 提交后再发布给 useHarnessLive 的订阅方（同 aiChatStore）
+  const [liveStore] = useState(createLiveStore);
+  useLayoutEffect(() => {
+    liveStore.set(live);
+  }, [liveStore, live]);
   const [queues, setQueues] = useState<Record<string, string[]>>({});
   /** 已派发、尚未观察到标签进入运行态的标签：防止在状态更新前重复派发队列 */
   const dispatching = useRef(new Set<string>());
@@ -271,16 +309,20 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [ids, activate],
   );
-  const dispatchSend = useCallback(async (tabId: string, text: string) => {
-    setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
-    // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
-    await harnessClient.sendTab(tabId, text).catch(() => undefined);
-  }, []);
+  const dispatchSend = useCallback(
+    async (tabId: string, text: string, images?: HarnessImageInput[]) => {
+      setLive((cur) => ({ ...cur, [tabId]: { text: '', startedAt: Date.now() } }));
+      // 结果经 tab-message 事件进入缓存；这里只吞掉错误（错误也会作为消息写入标签）
+      await harnessClient.sendTab(tabId, text, images).catch(() => undefined);
+    },
+    [],
+  );
   const sendToTab = useCallback(
     async (
       tabId: string,
       text: string,
       expect?: { backend?: HarnessBackend; cwd?: string },
+      images?: HarnessImageInput[],
     ): Promise<boolean> => {
       if (tabId === MAIN_TAB_ID) return false;
       const tab = stateRef.current?.tabs.find((t) => t.id === tabId);
@@ -288,12 +330,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       if (expect?.backend !== undefined && tab.backend !== expect.backend) return false;
       if (expect?.cwd !== undefined && tab.cwd !== expect.cwd) return false;
       if (tab.status === 'running' || tab.status === 'queued' || dispatching.current.has(tabId)) {
+        // 排队不带图：有附图时拒绝入队，避免静默丢图
+        if (images?.length) return false;
         setQueues((cur) => ({ ...cur, [tabId]: [...(cur[tabId] ?? []), text] }));
         return true;
       }
       dispatching.current.add(tabId);
       try {
-        await dispatchSend(tabId, text);
+        await dispatchSend(tabId, text, images);
       } finally {
         dispatching.current.delete(tabId);
         setTick((n) => n + 1);
@@ -307,9 +351,9 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     [],
   );
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, images?: HarnessImageInput[]) => {
       if (!isCliTab) return;
-      await sendToTab(activeId, text);
+      await sendToTab(activeId, text, undefined, images);
     },
     [isCliTab, activeId, sendToTab],
   );
@@ -362,10 +406,6 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     },
     [isCliTab, activeId],
   );
-  const setMaxConcurrent = useCallback(async (n: number) => {
-    const next = await harnessClient.setMaxConcurrent(n);
-    setState(next);
-  }, []);
 
   const messages = (isCliTab && cache[activeId]) || EMPTY_MESSAGES;
   const value = useMemo<HarnessTabsValue>(
@@ -375,7 +415,6 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       activeTab,
       isCliTab,
       messages,
-      live,
       create,
       close,
       rename,
@@ -389,7 +428,6 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       removeQueued,
       cancel,
       replyPermission,
-      setMaxConcurrent,
       lastBackend,
     }),
     [
@@ -398,7 +436,6 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       activeTab,
       isCliTab,
       messages,
-      live,
       create,
       close,
       rename,
@@ -412,11 +449,14 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
       removeQueued,
       cancel,
       replyPermission,
-      setMaxConcurrent,
       lastBackend,
     ],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      <LiveCtx.Provider value={liveStore}>{children}</LiveCtx.Provider>
+    </Ctx.Provider>
+  );
 }
 
 const EMPTY: HarnessTabsValue = {
@@ -425,7 +465,6 @@ const EMPTY: HarnessTabsValue = {
   activeTab: null,
   isCliTab: false,
   messages: [],
-  live: {},
   create: async () => undefined,
   close: async () => undefined,
   rename: async () => undefined,
@@ -439,10 +478,19 @@ const EMPTY: HarnessTabsValue = {
   removeQueued: () => undefined,
   cancel: async () => undefined,
   replyPermission: async () => undefined,
-  setMaxConcurrent: async () => undefined,
   lastBackend: 'claude',
 };
 
 export function useHarnessTabs(): HarnessTabsValue {
   return useContext(Ctx) ?? EMPTY;
+}
+
+/**
+ * 订阅实时进度的一个切片：只有选出的值变了才重渲染。各标签的进度对象只在它自己有新事件时换引用，
+ * 选择器应返回其中的对象 / 原始值（不要每次新建对象，否则每帧都算变化）。
+ */
+export function useHarnessLive<T>(selector: (live: LiveMap) => T): T {
+  const store = useContext(LiveCtx);
+  const get = () => selector(store.get());
+  return useSyncExternalStore(store.subscribe, get, get);
 }

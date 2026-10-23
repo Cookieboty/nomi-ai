@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Sidebar } from '../src/components/Sidebar';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
-import { setChatMode } from '../src/services/chatPrefs';
+import { setChatMode, setLayoutDensity } from '../src/services/chatPrefs';
 import type { HistorySession } from '../src/services/historyClient';
 
 // 返回稳定引用（与生产一致）；每次新对象会让 Sidebar 的 refresh effect 每次渲染都重跑
@@ -42,8 +42,7 @@ function mockIpc(opts: { openResult?: unknown; codexItems?: HistorySession[] } =
   const calls: Array<[string, unknown[]]> = [];
   const invoke = vi.fn(async (ch: string, ...args: unknown[]) => {
     calls.push([ch, args]);
-    if (ch === 'ai:harness:tabs')
-      return { tabs: [], activeTabId: 'main', maxConcurrent: 3, running: 0, queued: 0 };
+    if (ch === 'ai:harness:tabs') return { tabs: [], activeTabId: 'main', running: 0, queued: 0 };
     if (ch === 'ai:harness:state')
       return { backend: 'nomi', cwd: '/w', bins: { claude: '/c', codex: '/x', dsh: null } };
     if (ch === 'ai:harness:recent-cwds') return [];
@@ -83,6 +82,7 @@ const mount = (onNotice = vi.fn()) =>
 
 beforeEach(() => setChatMode('dev'));
 afterEach(() => {
+  setLayoutDensity('full');
   cleanup();
   localStorage.clear();
   delete (window as { aiIPC?: unknown }).aiIPC;
@@ -121,11 +121,15 @@ describe('CLI history in the sidebar', () => {
     await waitFor(() => r.getAllByTestId('history-session-item'));
     const row = (id: string) =>
       r.getAllByTestId('history-session-item').find((x) => x.dataset.sessionId === id)!;
-    expect(row('codex-2').textContent).toContain('第三方');
+    // 行内只显示首字母，完整名称在标签的 aria-label 与行的提示里
+    const tag = (id: string) => row(id).querySelector('[data-testid="history-route-tag"]')!;
+    expect(tag('codex-2').textContent).toBe('N');
+    expect(tag('codex-2').getAttribute('aria-label')).toBe('第三方');
     expect(row('codex-2').title).toContain('客户端：Desktop');
     expect(row('codex-2').title).toContain('线路：第三方（Nomi 网关）');
     expect(row('codex-2').title).toContain('账号：me@example.com');
-    expect(row('codex-4').textContent).toContain('packycode');
+    expect(tag('codex-4').textContent).toBe('P');
+    expect(tag('codex-4').getAttribute('aria-label')).toBe('packycode');
     expect(row('codex-4').title).toContain('线路：其他第三方（packycode）');
     // 官方会话不加行内标签，只在提示里写线路
     expect(row('codex-5').querySelector('[data-testid="history-route-tag"]')).toBeNull();
@@ -169,9 +173,9 @@ describe('CLI history in the sidebar', () => {
     const r = mount();
     const card = await r.findByTestId('endpoint-info-card');
     expect(card.getAttribute('data-endpoint')).toBe('claude');
-    // 卡片在可滚动的会话列表（含「编程助手历史会话」）之外，固定在侧栏底部
+    // 卡片在可滚动的会话列表（含「本机历史」）之外，固定在侧栏底部
     expect(r.getByTestId('conversation-list').contains(card)).toBe(false);
-    expect(r.getByTestId('cli-history')).toBeTruthy();
+    expect(await r.findByTestId('cli-history')).toBeTruthy();
     fireEvent.click(r.getByTestId('endpoint-filter-codex'));
     await waitFor(() =>
       expect(r.getByTestId('endpoint-info-card').getAttribute('data-endpoint')).toBe('codex'),
@@ -179,6 +183,56 @@ describe('CLI history in the sidebar', () => {
     // 切到「全部」后消失
     fireEvent.click(r.getByTestId('list-view-all'));
     await waitFor(() => expect(r.queryByTestId('endpoint-info-card')).toBeNull());
+  });
+
+  it('一行筛选：从「全部」直接点端点图标即切到该端；悬停提示带对话数与本机历史数', async () => {
+    mockIpc();
+    const r = mount();
+    await waitFor(() => expect(r.getAllByTestId('history-session-item')).toHaveLength(3));
+    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('true');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('false');
+    expect(r.getByTestId('endpoint-filter-claude').title).toBe('Claude Code · 2 条本机历史');
+    expect(r.getByTestId('list-title').textContent).toContain('对话');
+
+    fireEvent.click(r.getByTestId('endpoint-filter-claude'));
+    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
+    expect(r.getByTestId('list-title').textContent).toContain('Claude Code');
+    expect(r.getByTestId('new-chat').title).toContain('新建 Claude Code 对话');
+    await waitFor(() =>
+      expect(
+        r.getAllByTestId('history-session-item').every((x) => x.dataset.backend === 'claude'),
+      ).toBe(true),
+    );
+    // 刷新按钮在标题行，不再单独占一个「历史会话」头
+    expect(r.getByTestId('cli-history-refresh')).toBeTruthy();
+  });
+
+  it('选中的端没有本机历史时不显示空的历史分组；Nomi 不显示刷新', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'codex');
+    mockIpc({ codexItems: [] });
+    const r = mount();
+    await waitFor(() => r.getByTestId('cli-history-refresh'));
+    await waitFor(() => r.getByTestId('conversation-list-empty'));
+    expect(r.queryByTestId('cli-history')).toBeNull();
+    expect(r.queryByText('没有找到本机的历史会话')).toBeNull();
+
+    fireEvent.click(r.getByTestId('endpoint-filter-nomi'));
+    expect(r.queryByTestId('cli-history-refresh')).toBeNull();
+    expect(r.getByTestId('list-title').textContent).toContain('1');
+  });
+
+  it('精简模式不显示按端信息卡；切回全量后出现', async () => {
+    localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
+    localStorage.setItem('ai-chat:endpointFilter', 'claude');
+    setLayoutDensity('compact');
+    mockIpc();
+    const r = mount();
+    await r.findByTestId('cli-history');
+    expect(r.queryByTestId('endpoint-info-card')).toBeNull();
+    act(() => setLayoutDensity('full'));
+    expect(await r.findByTestId('endpoint-info-card')).toBeTruthy();
   });
 
   it('普通模式不显示按端信息卡', async () => {

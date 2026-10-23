@@ -1,10 +1,3 @@
-.row {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  margin-bottom: var(--cd-space-2);
-  cursor: pointer;
-}
 .progress {
   display: flex;
   align-items: center;
@@ -27,19 +20,6 @@
 .label {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
-}
-.btn {
-  padding: var(--cd-space-1) var(--cd-space-3);
-  border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-surface);
-  color: var(--cd-color-text);
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  cursor: pointer;
-}
-.btn:hover {
-  background: var(--cd-color-hover);
 }
 .error {
   display: flex;

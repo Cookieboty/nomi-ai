@@ -4,8 +4,10 @@ import {
   getConversationListView,
   setConversationListView as persist,
   getEndpointFilter,
+  getEndpointOrder,
   getEndpointVisibility,
   setEndpointFilter as persistFilter,
+  setEndpointOrder as persistOrder,
   setEndpointVisibility as persistVisibility,
   subscribeConversationListView,
   type ConversationListView,
@@ -22,6 +24,9 @@ export function useConversationListView(): {
   /** 侧栏「按端」各端点的显式显示设置（没有的 = 自动） */
   endpointVisibility: EndpointVisibilityMap;
   setEndpointVisibility: (b: ConversationBackend, v: EndpointVisibility) => void;
+  /** 自定义的端点顺序；null = 按对话数自动排序 */
+  endpointOrder: ConversationBackend[] | null;
+  setEndpointOrder: (order: readonly ConversationBackend[] | null) => void;
 } {
   const view = useSyncExternalStore(
     subscribeConversationListView,
@@ -44,6 +49,15 @@ export function useConversationListView(): {
     (b: ConversationBackend, v: EndpointVisibility) => persistVisibility(b, v),
     [],
   );
+  const endpointOrder = useSyncExternalStore(
+    subscribeConversationListView,
+    getEndpointOrder,
+    () => null,
+  );
+  const setEndpointOrder = useCallback(
+    (order: readonly ConversationBackend[] | null) => persistOrder(order),
+    [],
+  );
   return {
     view,
     setView,
@@ -51,5 +65,7 @@ export function useConversationListView(): {
     setEndpointFilter,
     endpointVisibility,
     setEndpointVisibility,
+    endpointOrder,
+    setEndpointOrder,
   };
 }

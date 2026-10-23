@@ -77,6 +77,9 @@
 .meta {
   display: flex;
   align-items: center;
+  /* 窄对话列：整段换行，单项不拆（否则「Claude Code / 09:53 / 用时」被挤成竖排） */
+  flex-wrap: wrap;
+  row-gap: 0;
   min-height: 20px;
   gap: var(--cd-space-2);
   font-size: var(--conv-meta);
@@ -242,8 +245,13 @@
 .spacer {
   flex: 1;
 }
+.meta > *,
+.summary > span {
+  white-space: nowrap;
+}
 .summary {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: var(--cd-space-2);
   color: var(--cd-color-text-subtle);
   font-variant-numeric: tabular-nums;
@@ -545,4 +553,82 @@
 .bgStop:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.imageThumbBtn {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  cursor: zoom-out;
+}
+.lightboxImg {
+  max-width: min(92vw, 1200px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Changes 面板定位闪高亮 */
+.assistant[data-change-flash],
+.user[data-change-flash] {
+  animation: changeFlash 1.4s ease;
+  outline: 2px solid var(--cd-color-accent-strong, #5b8def);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+@keyframes changeFlash {
+  0% {
+    background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 28%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.imageRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 6px;
+  margin: 4px 0 8px;
+  max-width: 320px;
+}
+.imageThumb {
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  display: block;
+  border-radius: 6px;
+  border: 1px solid var(--cd-color-border, #333);
+}
+.lightboxToolbar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1;
+}
+.lightboxBtn {
+  background: rgb(0 0 0 / 0.65);
+  color: #fff;
+  border: 0;
+  border-radius: 999px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 18px;
 }

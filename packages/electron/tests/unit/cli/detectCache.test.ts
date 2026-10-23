@@ -82,6 +82,14 @@ describe('CLI 可执行文件探测缓存', () => {
     expect(found && path.basename(found).toLowerCase()).toBe('dsh.cmd');
   });
 
+  it('PATH 垫片靠目录扫描找到（不依赖 where 子进程；回归 Windows CI 超时）', () => {
+    // 根因：where 偶发卡满 3s，失败后 cliSearchDirs 又不扫 PATH → null。
+    // 现改为 findOnPath 扫 PATH；此处仍用临时 PATH 垫片验证产品行为。
+    resetCliBinCache();
+    const found = resolveCliBinCached('dsh');
+    expect(found && fs.realpathSync.native(found)).toBe(fs.realpathSync.native(bin));
+  });
+
   it('环境变量覆盖始终优先、立即生效，不受缓存影响', () => {
     expect(resolveCliBinCached('dsh')).toBeTruthy();
     const other = path.join(dir, 'other-dsh');

@@ -27,14 +27,38 @@ const tmpRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'chat-bg-'));
 describe('ChatBackgroundService', () => {
   it('sanitizes and defaults', () => {
     expect(sanitizeChatBg(null)).toEqual(DEFAULT_CHAT_BG);
-    expect(sanitizeChatBg({ mode: 'solid', solidColor: '#ff0000', blur: 99, opacity: 2 })).toEqual({
+    expect(
+      sanitizeChatBg({
+        mode: 'solid',
+        solidColor: '#ff0000',
+        blurLeft: 99,
+        blurCenter: -3,
+        blurRight: 12,
+        opacity: 2,
+      }),
+    ).toEqual({
       mode: 'solid',
       solidColor: '#ff0000',
       imageUrl: null,
-      blur: 40,
+      blurLeft: 40,
+      blurCenter: 0,
+      blurRight: 12,
       opacity: 1,
     });
     expect(sanitizeChatBg({ mode: 'image', imageUrl: 'http://evil' }).imageUrl).toBeNull();
+  });
+
+  it('migrates the legacy single blur to all three panels', () => {
+    expect(sanitizeChatBg({ mode: 'image', blur: 8 })).toMatchObject({
+      blurLeft: 8,
+      blurCenter: 8,
+      blurRight: 8,
+    });
+    expect(sanitizeChatBg({ mode: 'image', blur: 8, blurRight: 2 })).toMatchObject({
+      blurLeft: 8,
+      blurCenter: 8,
+      blurRight: 2,
+    });
   });
 
   it('persists set/reset to disk', () => {
@@ -43,10 +67,13 @@ describe('ChatBackgroundService', () => {
     const images = path.join(root, 'images');
     const s = new ChatBackgroundService(file, images);
     expect(s.get().mode).toBe('default');
-    expect(s.set({ mode: 'solid', solidColor: '#abcdef', blur: 8, opacity: 0.5 })).toMatchObject({
+    expect(
+      s.set({ mode: 'solid', solidColor: '#abcdef', blurLeft: 8, opacity: 0.5 }),
+    ).toMatchObject({
       mode: 'solid',
       solidColor: '#abcdef',
-      blur: 8,
+      blurLeft: 8,
+      blurCenter: 0,
       opacity: 0.5,
     });
     expect(JSON.parse(fs.readFileSync(file, 'utf8')).mode).toBe('solid');

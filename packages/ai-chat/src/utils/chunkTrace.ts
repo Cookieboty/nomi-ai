@@ -5,6 +5,8 @@ export interface StreamUsage {
   inputTokens?: number;
   outputTokens?: number;
   cacheReadTokens?: number;
+  /** 最后一步请求的上下文占用（多步工具循环时 < inputTokens） */
+  contextTokens?: number;
 }
 
 type Chunk = { type: string; [k: string]: unknown };
@@ -50,6 +52,8 @@ export function chunkToUsage(c: Chunk): StreamUsage | null {
   const i = n(u.promptTokens);
   const o = n(u.completionTokens);
   const cr = n(u.cacheReadTokens);
+  const ctx = n(u.contextTokens);
+  if (ctx !== undefined) out.contextTokens = ctx;
   if (i !== undefined) out.inputTokens = i;
   if (o !== undefined) out.outputTokens = o;
   if (cr !== undefined) out.cacheReadTokens = cr;

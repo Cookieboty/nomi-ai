@@ -16,7 +16,6 @@ vi.mock('../src/contexts/HarnessTabsContext', () => ({
         { id: 't2', title: 'Claude', backend: 'claude', status: 'queued', unread: 0 },
       ],
       activeTabId: 'main',
-      maxConcurrent: 3,
       running: 1,
       queued: 1,
     },
@@ -47,7 +46,10 @@ describe('ChatModeSwitch', () => {
     render(<ChatModeSwitch />);
     expect(screen.getByTestId('chat-mode-normal').getAttribute('aria-pressed')).toBe('true');
     expect(screen.getByTestId('chat-mode-dev').getAttribute('aria-pressed')).toBe('false');
-    expect(screen.getByTestId('chat-mode-running-badge').textContent).toContain('运行中');
+    // 侧栏顶行放不下长文案：徽标只显示数字，说明放在 title 里
+    const badge = screen.getByTestId('chat-mode-running-badge');
+    expect(badge.textContent).toMatch(/^\d+$/);
+    expect(badge.title).toContain('运行中');
   });
 
   it('switches to dev and clears the running badge', () => {

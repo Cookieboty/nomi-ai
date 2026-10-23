@@ -1,3 +1,4 @@
+import type { ReasoningEffort } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
@@ -53,7 +54,6 @@ export interface HarnessTabMeta {
 export interface HarnessTabsState {
   tabs: HarnessTabMeta[];
   activeTabId: string;
-  maxConcurrent: number;
   running: number;
   queued: number;
   /** 新标签默认权限模式（不会是「完全放开」） */
@@ -62,10 +62,21 @@ export interface HarnessTabsState {
   codexNetwork?: boolean;
 }
 
+export interface HarnessImageInput {
+  mime: string;
+  data: string;
+  width?: number;
+  height?: number;
+  thumb?: string;
+  source?: string;
+}
+
 export interface HarnessTabMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** 用户附图缩略图 */
+  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
   timestamp: number;
   error?: boolean;
   tools?: string[];
@@ -88,6 +99,20 @@ export interface HarnessUsage {
   cacheReadTokens?: number;
   costUsd?: number;
   durationMs?: number;
+  /**
+   * 当前上下文占用：这一轮**最后一次**模型请求的全部输入（含缓存读 / 写）+ 该次输出。
+   * 上面几项是整轮累计（计费口径），一轮里多次请求时远大于真实上下文；CLI 给了逐请求用量才有此值。
+   */
+  contextTokens?: number;
+  /** CLI 上报的模型上下文窗口（如 Claude modelUsage.contextWindow），优先于前端经验表 */
+  contextWindow?: number;
+  /** CLI 实际使用的主模型（标签没指定模型时据此查窗口经验表） */
+  model?: string;
+  /**
+   * 仅渲染端：从 CLI 会话记录算出的分项（加起来等于 contextTokens，见主进程 transcriptContext.ts）。
+   * 有它时上下文环直接用，不再按 Nomi 落盘的消息估算。
+   */
+  breakdown?: ContextBreakdown;
 }
 
 /** 工具调用 / 思考事件（主进程 stampEvent 带 at 时间戳；detail 为调用 id，codex 为命令行） */
@@ -119,6 +144,8 @@ export type HarnessLiveEvent =
       attempt?: number;
       max?: number;
     }
+  /** 一轮进行中的实时上下文占用（每次主线程请求 / 压缩后）；null = 压缩了但大小未知 */
+  | { tabId: string; type: 'context'; tokens: number | null; model?: string; window?: number }
   | { tabId: string; type: 'done'; text: string; sessionId?: string; usage?: HarnessUsage }
   | { tabId: string; type: 'error'; message: string }
   | {
@@ -160,8 +187,8 @@ export const MAIN_TAB_ID = 'main';
 /** CLI 标签的来源：官方账号（CLI 直连）/ 第三方（经网关） */
 export type TabSource = 'official' | 'thirdParty';
 
-/** 思考深度档位（各 CLI 取值的并集，由浅到深）；某个模型支持哪些以 CLI 返回的目录为准 */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+/** 思考深度档位：与主进程共用 @nomi-ai/types 里的唯一定义 */
+export type { ReasoningEffort };
 
 /** 从 CLI 读到的可选模型 */
 export interface ModelCatalogModel {
@@ -174,6 +201,8 @@ export interface ModelCatalogModel {
   efforts: ReasoningEffort[];
   /** CLI 对该模型的默认档位（仅显示） */
   defaultEffort?: ReasoningEffort;
+  /** 能不能看图：CLI / 网关明确说了才有（Codex input_modalities、网关模型的 vision）；没有 = 不知道 */
+  vision?: boolean;
 }
 /** 主进程从 CLI 读到的模型目录（不写死） */
 export interface BackendModelCatalog {
@@ -247,8 +276,51 @@ export interface GitDiffResult {
   status: string;
   stat: string;
   diff: string;
+  /** 暂存区相对 HEAD（`git diff --cached`）；右栏「已暂存」分组用 */
+  staged?: string;
+  /** 工作区相对暂存区（`git diff`）；右栏「未暂存」分组用 */
+  unstaged?: string;
   truncated: boolean;
+  /** 每个文件的增删行数（`git diff --numstat`，不受 diff 文本上限影响）；老版本主进程没有 */
+  numstat?: { head: GitNumstat; staged: GitNumstat; unstaged: GitNumstat };
   error?: string;
+}
+export type GitNumstat = Record<string, { added: number; removed: number }>;
+export interface ContextBreakdown {
+  system: number;
+  user: number;
+  assistant: number;
+  tools: number;
+  thinking: number;
+}
+
+export interface WorkspaceFileResult {
+  ok: boolean;
+  path?: string;
+  rel?: string;
+  content?: string;
+  truncated?: boolean;
+  binary?: boolean;
+  size?: number;
+  mtimeMs?: number;
+  error?: string;
+  code?: 'outside' | 'not-found' | 'is-dir' | 'too-large' | 'io' | 'invalid' | 'not-git';
+}
+
+export interface WorkspaceTreeNode {
+  kind: 'file' | 'dir';
+  name: string;
+  path: string;
+  /** 被 .gitignore 忽略（仍展示，置灰） */
+  ignored?: boolean;
+  children?: WorkspaceTreeNode[];
+}
+
+export interface WorkspaceTreeResult {
+  ok: boolean;
+  entries?: WorkspaceTreeNode[];
+  error?: string;
+  code?: WorkspaceFileResult['code'];
 }
 
 export const harnessClient = {
@@ -259,6 +331,26 @@ export const harnessClient = {
   slashExpand: (backend: string, cwd: string, id: string, args: string) =>
     call<SlashExpansion | null>('slash-expand', backend, cwd, id, args),
   gitDiff: (cwd: string) => call<GitDiffResult>('git-diff', cwd),
+  /** 当前分支（只读，对话顶栏用）；不是 git 仓库时 null */
+  gitBranch: (cwd: string) =>
+    call<{ branch: string | null; detached?: string } | null>('git-branch', cwd),
+  workspaceRead: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-read', cwd, filePath),
+  workspaceWrite: (cwd: string, filePath: string, content: string) =>
+    call<WorkspaceFileResult>('workspace-write', cwd, filePath, content),
+  workspaceDelete: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-delete', cwd, filePath),
+  workspaceGitCheckout: (cwd: string, filePath: string) =>
+    call<WorkspaceFileResult>('workspace-git-checkout', cwd, filePath),
+  workspaceList: (cwd: string) => call<WorkspaceTreeResult>('workspace-list', cwd),
+  /** Claude 标签：从 CLI 自己的会话记录读当前上下文（最近一次请求 / 压缩后），没有时 null */
+  tabContext: (tabId: string) =>
+    call<{
+      contextTokens: number;
+      model?: string;
+      compacted?: boolean;
+      breakdown?: ContextBreakdown;
+    } | null>('tab-context', tabId),
   setBackend: (b: HarnessBackend) => call<HarnessState>('set-backend', b),
   /** carry=true：把当前对话作为前文带进新目录的新会话 */
   setCwd: (c: string, opts: { carry?: boolean } = {}) => call<HarnessState>('set-cwd', c, opts),
@@ -318,11 +410,11 @@ export const harnessClient = {
   recentCwds: () => call<string[]>('recent-cwds'),
   pickTabCwd: (id: string) => call<HarnessTabMeta>('tab-pick-cwd', id),
   tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
-  sendTab: (id: string, prompt: string) => call<HarnessSendResult>('tab-send', id, prompt),
+  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) =>
+    call<HarnessSendResult>('tab-send', id, prompt, images),
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),
-  setMaxConcurrent: (n: number) => call<HarnessTabsState>('set-max-concurrent', n),
   /**
    * 用户确认后，把这条错误消息记录的文件夹（只此一个）加入 Gemini 的受信任文件夹列表。
    * 文件夹由主进程按消息查出，界面不传路径。

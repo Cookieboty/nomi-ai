@@ -268,6 +268,16 @@
   .cd-toast {
     animation: none;
   }
+  /* 总兜底：各组件漏写的无限动画（spinner、录制红点、进度条）与过渡也停下；
+     时长压到极短而非 none，animationend / transitionend 照常触发 */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* scrollbars */

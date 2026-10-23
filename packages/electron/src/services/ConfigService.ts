@@ -32,6 +32,8 @@ export interface WindowSettings {
 
 export interface AppConfig {
   windowPosition: { x: number; y: number };
+  /** 对话窗口（主界面）上次关闭时的位置与大小（见 core/chatWindowBounds.ts）；没有时居中默认尺寸 */
+  chatWindowBounds?: { x: number; y: number; width: number; height: number; maximized?: boolean };
   /** mascot on-screen size relative to the original 420×450 (default 0.5, see mascotSize.ts) */
   mascotScale: number;
   modelName: string;
@@ -205,7 +207,7 @@ export class ConfigService implements IConfigService {
     const result = { ...base };
 
     for (const key in override) {
-      if (override.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(override, key)) {
         if (
           typeof override[key] === 'object' &&
           override[key] !== null &&

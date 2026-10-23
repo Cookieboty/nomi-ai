@@ -19,6 +19,13 @@
   font-size: var(--cd-font-size-xs);
   cursor: pointer;
 }
+.chip[data-size='ms'] {
+  height: var(--cd-control-h-ms);
+  font-size: var(--cd-font-size-sm);
+}
+.chip[data-variant='ghost'] {
+  border-color: transparent;
+}
 .chip:hover:not(:disabled) {
   background: var(--cd-color-hover);
   color: var(--cd-color-text);

@@ -1,0 +1,56 @@
+/**
+ * 编程助手标签的会话视图：只有它订阅当前标签的实时进度（流式期间约每帧一次），
+ * App 和其余 useHarnessTabs() 的消费者不跟着重渲染。
+ */
+import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+
+import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
+import { harnessClient } from '../../services/harnessClient';
+import { tabLiveToConv } from '../../utils/convAdapters';
+
+import { ConversationView } from './index';
+
+type Props = Omit<
+  React.ComponentProps<typeof ConversationView>,
+  'live' | 'onPermission' | 'onRetry' | 'onEdit' | 'onStopAgent'
+>;
+
+export const CliConversation: React.FC<Props> = (props) => {
+  const tabs = useHarnessTabs();
+  const tabLive = useHarnessLive((l) => l[props.scopeId]);
+  const live = useMemo(() => tabLiveToConv(tabLive), [tabLive]);
+  // 回调保持引用稳定：内联箭头会击穿每条消息的 memo，让窗口内所有助手消息重跑变更聚合 / trace 归并。
+  // 回调里读 ref 拿最新的标签状态。
+  const tabsRef = useRef(tabs);
+  useLayoutEffect(() => {
+    tabsRef.current = tabs;
+  });
+  const onPermission = useCallback((id: string, allow: boolean) => {
+    void tabsRef.current.replyPermission(id, allow);
+  }, []);
+  /** 重新生成 / 重试：从这条助手消息之前的用户消息重发 */
+  const onRetry = useCallback((id: string) => {
+    const { messages, send } = tabsRef.current;
+    const i = messages.findIndex((m) => m.id === id);
+    for (let k = i - 1; k >= 0; k--)
+      if (messages[k]!.role === 'user') return void send(messages[k]!.content);
+  }, []);
+  const onEdit = useCallback((_: string, text: string) => {
+    void tabsRef.current.send(text);
+  }, []);
+  const scopeId = props.scopeId;
+  const onStopAgent = useCallback(
+    (agentId: string) => void harnessClient.stopAgent(scopeId, agentId).catch(() => undefined),
+    [scopeId],
+  );
+  return (
+    <ConversationView
+      {...props}
+      live={live}
+      onPermission={onPermission}
+      onRetry={onRetry}
+      onEdit={onEdit}
+      onStopAgent={onStopAgent}
+    />
+  );
+};

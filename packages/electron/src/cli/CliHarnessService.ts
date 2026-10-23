@@ -4,7 +4,7 @@
  * - 标签 'main'：原有对话，后端可为 Nomi 或任一 CLI；消息由渲染层存进 Nomi 历史。
  *   旧的单会话接口（state / setBackend / setCwd / send）都作用于它。
  * - 其它标签：只绑定 CLI 后端，带独立的 CLI 会话与 cwd，消息存于 harness/tabs/<id>.json。
- * - 全局并发上限（默认 3）：超出的轮次排队（status = queued）。
+ * - 各标签可同时运行（已取消「最多同时运行」全局排队上限）。
  * - CLI 模式下禁用 Nomi 工具（send 不走 AIClient）。
  */
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -18,6 +18,7 @@ import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
+import { claudeConfigDir } from '../usage/cliHomes';
 import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWriter';
 import { writePrivateFile } from '../utils/privateFile';
 
@@ -26,6 +27,7 @@ import { resolveHarnessLaunch } from './cliLaunch';
 import {
   codexApprovalSummary,
   codexExecItem,
+  codexLastContext,
   codexTokenTotals,
   codexTurnPolicy,
   codexTurnUsage,
@@ -73,8 +75,33 @@ import {
   planPromptPrefix,
 } from './permissionMode';
 import { killProcessTree } from './processTree';
-import { discoverSlash, expandSlash, gitDiff, type SlashBackend } from './slashDiscovery';
 import {
+  acpPromptParts,
+  cleanupStagedDir,
+  claudeContentBlocks,
+  codexImageArgs,
+  codexTurnInput,
+  grokPromptFileArgv,
+  imageSupportFor,
+  modelNoVisionMessage,
+  rejectedImagesMessage,
+  imageThumbsForMessage,
+  inspectImages,
+  stageImages,
+  unsupportedImageMessage,
+  type HarnessImageInput,
+  type NormalizedImage,
+  type StagedImage,
+} from './promptImages';
+import {
+  discoverSlash,
+  expandSlash,
+  gitBranch,
+  gitDiff,
+  type SlashBackend,
+} from './slashDiscovery';
+import {
+  acpMetaContext,
   createClaudeParser,
   createDshParser,
   createGrokParser,
@@ -89,6 +116,7 @@ import {
   mergeUsage,
   stampEvent,
 } from './traceBuilder';
+import { claudeTranscriptContext } from './transcriptContext';
 import type {
   HarnessBackend,
   HarnessEvent,
@@ -100,7 +128,15 @@ import type {
   HarnessTabMeta,
   HarnessTabSource,
   HarnessTabsState,
+  HarnessUsage,
 } from './types';
+import {
+  deleteWorkspaceFile,
+  gitCheckoutWorkspaceFile,
+  listWorkspaceTree,
+  readWorkspaceFile,
+  writeWorkspaceFile,
+} from './workspaceFiles';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -124,7 +160,7 @@ export interface HarnessGateway {
   /** 官方会话：剔除指向网关的残留变量 */
   officialEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
   /** 第三方可选模型 */
-  models(): Array<{ ref: string; provider: string; label: string }>;
+  models(): Array<{ ref: string; provider: string; label: string; vision?: boolean }>;
   /** 标签关闭后回收它的进程级私有目录 */
   releaseAgent(kind: CliBackend, tabId: string): void;
 }
@@ -159,7 +195,6 @@ const OFFICIAL_LAUNCH: TabLaunch = {
 const GATEWAY_SCOPE = 'gateway';
 
 export const MAIN_TAB_ID = 'main';
-export const DEFAULT_MAX_CONCURRENT = 3;
 const MAX_TAB_MESSAGES = 300;
 /** Trailing debounce for session.json / tabs.json / tab message files */
 const PERSIST_DEBOUNCE_MS = 200;
@@ -311,7 +346,7 @@ function persistImageAliases(chatRoot: string, aliases: Map<string, string>): vo
 
 export function rewriteGeneratedImageLinks(text: string, aliases: Map<string, string>): string {
   if (!aliases.size || !text.includes('![')) return text;
-  return text.replace(/(!\[[^\]]*\]\()([^\)]+)(\))/g, (full, before, rawUrl, after) => {
+  return text.replace(/(!\[[^\]]*\]\()([^)]+)(\))/g, (full, before, rawUrl, after) => {
     const key = String(rawUrl).trim();
     let decoded = key;
     try {
@@ -388,7 +423,13 @@ export class CliHarnessService {
   /** 每个运行中标签这一轮已收到的文本 / 轨迹事件：中断或失败时据此保留已有进度 */
   private readonly partial = new Map<
     string,
-    { text: string; breaks: number[]; events: HarnessEvent[] }
+    {
+      text: string;
+      breaks: number[];
+      events: HarnessEvent[];
+      /** 最近一次实时上下文占用：中断 / 失败时随消息落盘，重启后上下文环不会退回旧值 */
+      context?: HarnessUsage;
+    }
   >();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
@@ -423,14 +464,8 @@ export class CliHarnessService {
   private readonly dormant = new Set<string>();
   private idleReclaimMs: number;
   private idleTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly waiters: Array<{
-    tabId: string;
-    resume: () => void;
-    abort: (e: Error) => void;
-  }> = [];
   private running = 0;
   private activeTabId = MAIN_TAB_ID;
-  private maxConcurrent = DEFAULT_MAX_CONCURRENT;
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
   /**
    * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
@@ -538,6 +573,20 @@ export class CliHarnessService {
     });
   }
 
+  /**
+   * 渲染层传来的 cwd 必须是已知工作区：某个标签正在用的目录或最近用过的目录。
+   * 否则被攻陷的渲染进程可以借 workspace-read / write / delete / git 读写任意目录。
+   * 新目录只能经「新建标签 / 换目录 / 选择器」这些入口进入，之后才算已知。
+   */
+  knownDir(cwd: unknown): string {
+    const abs = validDir(String(cwd ?? ''));
+    const key = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+    const want = key(abs);
+    for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
+    if (this.recent.some((p) => key(p) === want)) return abs;
+    throw new Error(t('工作目录无效'));
+  }
+
   private rememberCwd(abs: string) {
     this.recent = [abs, ...this.recent.filter((p) => p !== abs)].slice(0, MAX_RECENT_CWDS);
     try {
@@ -589,13 +638,11 @@ export class CliHarnessService {
     try {
       const raw = JSON.parse(fs.readFileSync(this.tabsPath, 'utf8')) as {
         activeTabId?: string;
-        maxConcurrent?: number;
         defaultPermissionMode?: unknown;
         codexNetwork?: unknown;
         lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
-      if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
       if (isPermissionMode(raw.defaultPermissionMode) && raw.defaultPermissionMode !== 'bypass') {
         this.defaultPermissionMode = raw.defaultPermissionMode;
       }
@@ -655,7 +702,6 @@ export class CliHarnessService {
   private tabsSnapshot() {
     return {
       activeTabId: this.activeTabId,
-      maxConcurrent: this.maxConcurrent,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       lastSettings: Object.fromEntries(this.lastSettings),
@@ -856,7 +902,6 @@ export class CliHarnessService {
         };
       }),
       activeTabId: this.activeTabId,
-      maxConcurrent: this.maxConcurrent,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
       defaultPermissionMode: this.defaultPermissionMode,
@@ -1394,6 +1439,7 @@ export class CliHarnessService {
       label: `${m.provider} / ${m.label}`,
       reasoning: false,
       efforts: [],
+      ...(m.vision !== undefined ? { vision: m.vision } : {}),
     }));
     return {
       backend,
@@ -1401,6 +1447,25 @@ export class CliHarnessService {
       defaultModel: (def && models.find((m) => m.id === def)) || null,
       provider: { id: GATEWAY_SCOPE, name: t('第三方模型') },
     };
+  }
+
+  /**
+   * 这个标签当前模型能不能看图：第三方取网关模型的 vision，官方取 CLI 模型目录（已缓存的）里的；
+   * 不知道时返回 null（不拦）。
+   */
+  private visionOf(tab: HarnessTabMeta): { model: string; vision: boolean } | null {
+    if (tab.backend === 'nomi') return null;
+    const own = tab.modelOverride?.trim() || null;
+    if (this.sourceOf(tab) === 'thirdParty') {
+      const ref = own || this.d.gateway?.defaults(tab.backend as CliBackend).model;
+      const m = ref ? this.d.gateway?.models().find((x) => x.ref === ref) : undefined;
+      return m && m.vision !== undefined
+        ? { model: `${m.provider} / ${m.label}`, vision: m.vision }
+        : null;
+    }
+    const cat = this.cachedCatalog(tab.backend);
+    const m = own ? cat?.models.find((x) => x.id === own) : cat?.defaultModel;
+    return m && m.vision !== undefined ? { model: m.label ?? m.id, vision: m.vision } : null;
   }
 
   /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
@@ -1810,13 +1875,6 @@ export class CliHarnessService {
     return this.setTabCwd(id, r.filePaths[0]);
   }
 
-  setMaxConcurrent(n: number): HarnessTabsState {
-    this.maxConcurrent = clampLimit(n);
-    this.pump();
-    this.changed();
-    return this.listTabs();
-  }
-
   /**
    * 中止标签当前轮次。Claude 用户轮次只发 interrupt、进程保留（下一轮不用冷启动）；
    * CLI 没应答 / 这条消息还在它的队列里 / 宽限期内这一轮没结束时，才拆进程（下一轮 --resume）。
@@ -1863,8 +1921,6 @@ export class CliHarnessService {
     if (!this.children.has(id) && !live) {
       if (queued) {
         // 还在排队：直接退出等待队列
-        const i = this.waiters.findIndex((w) => w.tabId === id);
-        if (i >= 0) this.waiters.splice(i, 1)[0]!.abort(new Error(t('已停止')));
         return true;
       }
       this.stopRequested.delete(id);
@@ -1921,8 +1977,12 @@ export class CliHarnessService {
     for (const id of [...this.pendingPermissions.keys()]) this.clearPermissionTimeouts(id);
   }
 
-  /** 发送一轮到指定标签；多个标签并发，超出上限排队 */
-  async sendTab(id: string, prompt: string): Promise<HarnessSendResult> {
+  /** 发送一轮到指定标签；各标签可并行（无全局排队上限） */
+  async sendTab(
+    id: string,
+    prompt: string,
+    images?: HarnessImageInput[],
+  ): Promise<HarnessSendResult> {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi') throw new Error(t('当前为 Nomi 后端，请走原生对话'));
     // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
@@ -1930,26 +1990,33 @@ export class CliHarnessService {
     if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
       throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
-    if (!text.trim()) throw new Error(t('消息为空'));
+    const { images: normalized, rejected } = inspectImages(images);
+    if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
+    if (!text.trim() && !normalized.length) throw new Error(t('消息为空'));
     const backend = tab.backend;
+    if (normalized.length && imageSupportFor(backend) === 'none') {
+      throw new Error(unsupportedImageMessage(backend));
+    }
+    // 能不能看图看模型：CLI / 网关明确说这个模型不支持时才拦（不知道就交给 CLI / 网关处理）
+    const vision = normalized.length ? this.visionOf(tab) : null;
+    if (vision && !vision.vision) throw new Error(modelNoVisionMessage(vision.model));
     // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
     if ((tab.modelScope ?? null) !== this.scopeOf(tab)) {
       this.adoptScope(tab);
       this.changed();
     }
+    const thumbs = normalized.length ? imageThumbsForMessage(normalized) : undefined;
     this.appendMessage(id, {
       id: randomUUID(),
       role: 'user',
       content: text,
+      ...(thumbs?.length ? { images: thumbs } : {}),
       timestamp: Date.now(),
     });
-    tab.status = 'queued';
     tab.lastError = undefined;
-    this.changed();
     try {
       await this.acquire(id);
     } catch (e) {
-      // 排队时被用户停止
       this.stopRequested.delete(id);
       if (this.tabs.has(id)) {
         tab.status = 'idle';
@@ -1965,7 +2032,6 @@ export class CliHarnessService {
       }
       throw e;
     }
-    // 排队期间标签可能被关闭
     if (!this.tabs.has(id)) {
       this.release();
       throw new Error(t('标签已关闭'));
@@ -1982,17 +2048,20 @@ export class CliHarnessService {
     const stored = tab.cliSessionId ? null : this.carriedText(id);
     const carried = stored ? fitCarried(stored, carriedBudget(backend, process.platform)) : null;
     const toCli = withCarriedContext(carried, text);
+    const stageDir = normalized.length ? this.promptImageDir(id) : null;
+    let staged: StagedImage[] = [];
     try {
+      if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
       const result =
         backend === 'claude'
-          ? await this.runClaude(tab, toCli, abort.signal)
+          ? await this.runClaude(tab, toCli, abort.signal, normalized)
           : backend === 'dsh'
             ? await this.runDsh(tab, toCli)
             : backend === 'grok'
-              ? await this.runGrokTurn(tab, toCli, abort.signal)
+              ? await this.runGrokTurn(tab, toCli, abort.signal, normalized)
               : backend === 'gemini'
-                ? await this.runAcp(tab, toCli, abort.signal)
-                : await this.runCodexTurn(tab, toCli, abort.signal);
+                ? await this.runAcp(tab, toCli, abort.signal, normalized)
+                : await this.runCodexTurn(tab, toCli, abort.signal, staged);
       if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
         tab.cliSessionId = result.sessionId;
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
@@ -2050,6 +2119,7 @@ export class CliHarnessService {
             stopped: true,
             ...(trace.length ? { trace } : {}),
             ...(part?.breaks.length ? { textBreaks: part.breaks } : {}),
+            ...(part?.context ? { usage: part.context } : {}),
           });
           this.progress.delete(id);
           this.changed();
@@ -2068,6 +2138,7 @@ export class CliHarnessService {
             timestamp: Date.now(),
             error: true,
             durationMs,
+            ...(part?.context ? { usage: part.context } : {}),
             // Gemini 不信任这个文件夹：界面在错误卡片上提供「信任此文件夹」
             ...(e instanceof GeminiUntrustedError
               ? {
@@ -2085,6 +2156,7 @@ export class CliHarnessService {
       }
       throw e;
     } finally {
+      if (stageDir) cleanupStagedDir(stageDir);
       if (this.sendAborts.get(id) === abort) this.sendAborts.delete(id);
       this.partial.delete(id);
       this.stopRequested.delete(id);
@@ -2117,32 +2189,15 @@ export class CliHarnessService {
     this.events.emit('tab-finished', ev);
   }
 
-  // ───────────────────────── 并发控制 ─────────────────────────
+  // ───────────────────────── 运行计数（已取消「最多同时运行」上限）─────────────────────────
 
-  private acquire(tabId: string): Promise<void> {
-    if (this.running < this.maxConcurrent) {
-      this.running += 1;
-      return Promise.resolve();
-    }
-    return new Promise((resolve, reject) => {
-      this.waiters.push({
-        tabId,
-        resume: () => {
-          this.running += 1;
-          resolve();
-        },
-        abort: reject,
-      });
-    });
+  private acquire(_tabId: string): Promise<void> {
+    this.running += 1;
+    return Promise.resolve();
   }
 
   private release() {
     this.running = Math.max(0, this.running - 1);
-    this.pump();
-  }
-
-  private pump() {
-    while (this.running < this.maxConcurrent && this.waiters.length) this.waiters.shift()!.resume();
   }
 
   // ───────────────────────── CLI 适配器 ─────────────────────────
@@ -2157,6 +2212,7 @@ export class CliHarnessService {
     tab: HarnessTabMeta,
     prompt: string,
     signal?: AbortSignal,
+    images?: NormalizedImage[],
   ): Promise<HarnessSendResult> {
     // 刚切过权限模式、后端还没确认：先等结果。确认了就复用进程；失败时进程已拆，下面按标签档位
     // 重新拉起。不会把这一轮发进档位未确认的进程（#72）
@@ -2187,7 +2243,7 @@ export class CliHarnessService {
       live.lastActivityAt = Date.now();
       this.children.set(tab.id, live.child);
       try {
-        this.writeClaudeUser(live, prompt, live.turnUuid);
+        this.writeClaudeUser(live, prompt, live.turnUuid, images);
       } catch (e) {
         live.turn = null;
         this.children.delete(tab.id);
@@ -2353,12 +2409,18 @@ export class CliHarnessService {
     return live;
   }
 
-  private writeClaudeUser(live: ClaudeLiveSession, prompt: string, uuid: string) {
+  private writeClaudeUser(
+    live: ClaudeLiveSession,
+    prompt: string,
+    uuid: string,
+    images?: NormalizedImage[],
+  ) {
     if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
+    const content = images?.length ? claudeContentBlocks(prompt, images) : prompt;
     const payload = {
       type: 'user',
       uuid,
-      message: { role: 'user', content: prompt },
+      message: { role: 'user', content },
     };
     live.child.stdin.write(`${JSON.stringify(payload)}\n`);
   }
@@ -2751,6 +2813,7 @@ export class CliHarnessService {
     tab: HarnessTabMeta,
     prompt: string,
     signal?: AbortSignal,
+    images?: NormalizedImage[],
   ): Promise<HarnessSendResult> {
     let live = await this.ensureAcpLive(tab, signal);
     if (!(await this.syncAcpOverrides(tab, live))) {
@@ -2775,7 +2838,12 @@ export class CliHarnessService {
         };
       }>(
         'session/prompt',
-        { sessionId: live.sessionId, prompt: [{ type: 'text', text: prompt }] },
+        {
+          sessionId: live.sessionId,
+          prompt: images?.length
+            ? acpPromptParts(prompt, images)
+            : [{ type: 'text', text: prompt }],
+        },
         {
           // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
           idle: true,
@@ -2794,13 +2862,16 @@ export class CliHarnessService {
       if (r?.stopReason === 'cancelled' && !turn.text.trim())
         turn.text = t('已拒绝这次工具调用，这一轮已结束');
       const tc = r?._meta?.quota?.token_count;
-      const usage =
+      // 上面两种都是整轮累计；当前上下文：Gemini 取最后一条 usage_update，Grok 取 _meta 的末次请求
+      const ctx = { ...acpMetaContext(r?._meta), ...turn.mapper.context() };
+      const turnUsage =
         tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
           ? {
               ...(tc.input_tokens !== undefined ? { inputTokens: tc.input_tokens } : {}),
               ...(tc.output_tokens !== undefined ? { outputTokens: tc.output_tokens } : {}),
             }
           : parseUsage(r?._meta?.usage, {});
+      const usage = turnUsage || Object.keys(ctx).length ? { ...turnUsage, ...ctx } : undefined;
       const done: HarnessEvent = {
         type: 'done',
         text: turn.text,
@@ -3194,17 +3265,18 @@ export class CliHarnessService {
     tab: HarnessTabMeta,
     prompt: string,
     signal: AbortSignal,
+    staged: StagedImage[] = [],
   ): Promise<HarnessSendResult> {
     if (this.usesCodexApp()) {
       try {
-        return await this.runCodexLive(tab, prompt, signal);
+        return await this.runCodexLive(tab, prompt, signal, staged);
       } catch (e) {
         if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
         this.codexAppUnavailable = true;
         this.d.logger.warn('harness codex app-server unavailable, falling back to codex exec', e);
       }
     }
-    return this.runCodex(tab, prompt);
+    return this.runCodex(tab, prompt, staged);
   }
 
   private usesCodexApp(): boolean {
@@ -3329,6 +3401,7 @@ export class CliHarnessService {
     tab: HarnessTabMeta,
     prompt: string,
     signal: AbortSignal,
+    staged: StagedImage[] = [],
   ): Promise<HarnessSendResult> {
     let live = await this.ensureCodexLive(tab, signal);
     // 清掉了覆盖、又不知道 CLI 的默认值：换新进程（按 config.toml 的默认模型 / 档位续接）
@@ -3379,7 +3452,9 @@ export class CliHarnessService {
       live.conn
         .request<{ turn?: { id?: string } } | null>('turn/start', {
           threadId: live.threadId,
-          input: [{ type: 'text', text, text_elements: [] }],
+          input: staged.length
+            ? codexTurnInput(text, staged)
+            : [{ type: 'text', text, text_elements: [] }],
           cwd: tab.cwd,
           ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
           ...(model ? { model } : {}),
@@ -3411,6 +3486,17 @@ export class CliHarnessService {
     live.lastActivityAt = Date.now();
     if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
       live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
+      const ctx = codexLastContext(params.tokenUsage);
+      live.context = ctx ?? live.context;
+      // 一轮进行中实时上报（自动压缩后的下一次请求会带上新的占用）
+      if (live.turn && ctx?.contextTokens)
+        this.onCodexEvents(tabId, live, [
+          {
+            type: 'context',
+            tokens: ctx.contextTokens,
+            ...(ctx.contextWindow ? { window: ctx.contextWindow } : {}),
+          },
+        ]);
       return;
     }
     const turn = live.turn;
@@ -3512,7 +3598,8 @@ export class CliHarnessService {
         ),
       );
     } else {
-      const usage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const turnUsage = codexTurnUsage(turn.totalsBefore, live.totals);
+      const usage = turnUsage && live.context ? { ...turnUsage, ...live.context } : turnUsage;
       const ev: HarnessEvent = {
         type: 'done',
         text: turn.text,
@@ -3593,7 +3680,11 @@ export class CliHarnessService {
     }
   }
 
-  private runCodex(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+  private runCodex(
+    tab: HarnessTabMeta,
+    prompt: string,
+    staged: StagedImage[] = [],
+  ): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('codex');
     if (!bin) return Promise.reject(new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
@@ -3613,6 +3704,7 @@ export class CliHarnessService {
     prompt = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     // 同一份逻辑参数：.js / .mjs 入口只是经 node 启动、前面多一个脚本路径，
     // 沙箱 / 审批 / 联网参数不能因入口形式不同而丢掉（#73）
+    const imgArgs = staged.length ? codexImageArgs(staged) : [];
     const argv = tab.cliSessionId
       ? [
           'exec',
@@ -3621,6 +3713,7 @@ export class CliHarnessService {
           '--skip-git-repo-check',
           ...sandbox,
           ...modelArgs,
+          ...imgArgs,
           tab.cliSessionId,
           prompt,
         ]
@@ -3632,6 +3725,7 @@ export class CliHarnessService {
           ...modelArgs,
           '--cd',
           tab.cwd,
+          ...imgArgs,
           prompt,
         ];
     return this.spawnCollect(tab, {
@@ -3684,17 +3778,23 @@ export class CliHarnessService {
     tab: HarnessTabMeta,
     prompt: string,
     signal: AbortSignal,
+    images?: NormalizedImage[],
   ): Promise<HarnessSendResult> {
     if (this.d.grokAcp && !this.grokAcpUnavailable) {
       try {
-        return await this.runAcp(tab, prompt, signal);
+        return await this.runAcp(tab, prompt, signal, images);
       } catch (e) {
         if (!(e instanceof AcpUnavailableError) || signal.aborted) throw e;
         this.grokAcpUnavailable = true;
         this.d.logger.warn('harness grok ACP unavailable, falling back to grok -p', e);
       }
     }
-    return this.runGrok(tab, prompt);
+    return this.runGrok(tab, prompt, images);
+  }
+
+  /** 一轮消息的附图 / 提示文件临时目录（轮次结束 finally 里整个删除） */
+  private promptImageDir(tabId: string): string {
+    return path.join(this.d.root, 'prompt-images', tabId.replace(/[^\w-]/g, '_'));
   }
 
   /**
@@ -3703,7 +3803,11 @@ export class CliHarnessService {
    * 续接：`--resume <sessionId>`。无头权限事件格式未在真机验证，暂不开放「逐项确认」。
    * 官方：docs.x.ai/build/cli/headless-scripting 。
    */
-  private runGrok(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
+  private runGrok(
+    tab: HarnessTabMeta,
+    prompt: string,
+    images?: NormalizedImage[],
+  ): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('grok');
     if (!bin) return Promise.reject(new Error(t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')));
     const useNode = isScript(bin);
@@ -3713,9 +3817,11 @@ export class CliHarnessService {
     } catch (e) {
       return Promise.reject(e);
     }
+    const promptArgv = images?.length
+      ? grokPromptFileArgv(this.promptImageDir(tab.id), prompt, images)
+      : ['-p', prompt.startsWith('-') ? ` ${prompt}` : prompt];
     const argv = [
-      '-p',
-      prompt.startsWith('-') ? ` ${prompt}` : prompt,
+      ...promptArgv,
       '--output-format',
       'streaming-json',
       '--no-auto-update',
@@ -3928,6 +4034,16 @@ export class CliHarnessService {
     this.trackProgress(tabId, ev);
     const part = this.partial.get(tabId);
     let outgoing = ev;
+    if (part && ev.type === 'context') {
+      part.context =
+        ev.tokens === null
+          ? undefined
+          : {
+              contextTokens: ev.tokens,
+              ...(ev.window ? { contextWindow: ev.window } : {}),
+              ...(ev.model ? { model: ev.model } : {}),
+            };
+    }
     if (part) {
       const folded = foldAssistantEvent(part.text, part.breaks, ev);
       part.text = folded.text;
@@ -4196,27 +4312,56 @@ export class CliHarnessService {
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
     handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
-    handle('ai:harness:tab-send', async (id, p) =>
-      slimResult(await this.sendTab(String(id), String(p ?? ''))),
+    handle('ai:harness:tab-send', async (id, p, images) =>
+      slimResult(
+        await this.sendTab(
+          String(id),
+          String(p ?? ''),
+          Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
+        ),
+      ),
     );
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:stop-agent', (id, agentId) =>
       this.stopAgent(String(id), String(agentId ?? '')),
     );
-    handle('ai:harness:set-max-concurrent', (n) => this.setMaxConcurrent(Number(n)));
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>
-      discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),
+      discoverSlash(asSlashBackend(b), this.knownDir(cwd)),
     );
     handle('ai:harness:slash-expand', (b, cwd, id, args) =>
       expandSlash(
         asSlashBackend(b),
-        validDir(String(cwd ?? '')),
+        this.knownDir(cwd),
         String(id ?? ''),
         String(args ?? '').slice(0, 4000),
       ),
     );
-    handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
+    handle('ai:harness:git-diff', (cwd) => gitDiff(this.knownDir(cwd)));
+    handle('ai:harness:git-branch', (cwd) => gitBranch(this.knownDir(cwd)));
+    handle('ai:harness:workspace-read', (cwd, filePath) =>
+      readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
+    );
+    handle('ai:harness:workspace-write', (cwd, filePath, content) =>
+      writeWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''), String(content ?? '')),
+    );
+    handle('ai:harness:workspace-delete', (cwd, filePath) =>
+      deleteWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
+    );
+    handle('ai:harness:workspace-git-checkout', (cwd, filePath) =>
+      gitCheckoutWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
+    );
+    handle('ai:harness:workspace-list', (cwd) => listWorkspaceTree(this.knownDir(cwd)));
+    // 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）
+    handle('ai:harness:tab-context', async (tabId) => {
+      const tab = this.tabs.get(String(tabId));
+      if (!tab || tab.backend !== 'claude' || !tab.cliSessionId) return null;
+      return claudeTranscriptContext(
+        claudeConfigDir(this.home, process.env),
+        tab.cwd,
+        tab.cliSessionId,
+      ).catch(() => null);
+    });
     handle('ai:harness:gemini-trust-folder', (tabId, messageId, o) =>
       this.trustGeminiFolder(String(tabId), String(messageId ?? ''), {
         confirmed: (o as { confirmed?: unknown } | undefined)?.confirmed === true,
@@ -4277,6 +4422,8 @@ type CodexLiveSession = {
   perms: Map<string, (allow: boolean | null) => void>;
   /** 最近一次 thread/tokenUsage/updated 的线程累计 */
   totals: CodexTokenTotals | null;
+  /** 同一通知里的最后一次请求（当前上下文）与模型窗口 */
+  context?: { contextTokens?: number; contextWindow?: number } | null;
   lastActivityAt: number;
   ready: Promise<void>;
   used?: boolean;
@@ -4450,10 +4597,6 @@ function cliChildEnv(useNode: boolean, extra: Record<string, string> = {}): Node
     withCliPath(process.env),
     useNode ? { ELECTRON_RUN_AS_NODE: '1', ...extra } : extra,
   );
-}
-
-function clampLimit(n: number): number {
-  return Number.isFinite(n) ? Math.min(8, Math.max(1, Math.round(n))) : DEFAULT_MAX_CONCURRENT;
 }
 
 function validDir(cwd: string): string {

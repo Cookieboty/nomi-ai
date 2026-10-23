@@ -33,6 +33,11 @@ export interface ChatUsage {
   cacheReadTokens?: number;
   /** 写入缓存的输入 token（上游返回时才有） */
   cacheWriteTokens?: number;
+  /**
+   * 当前上下文占用：最后一步请求的输入 + 输出。多步工具循环时上面几项是各步累加（计费口径），
+   * 远大于真实上下文；有逐步用量时才填。
+   */
+  contextTokens?: number;
 }
 
 export interface ChatResponse {

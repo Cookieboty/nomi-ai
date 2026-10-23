@@ -42,11 +42,6 @@ function mockIpc(initial: HarnessTabsState) {
       return t;
     }
     if (ch === 'ai:harness:tab-messages') return [];
-    if (ch === 'ai:harness:set-max-concurrent') {
-      state = { ...state, maxConcurrent: Number(a[0]) };
-      listeners['ai:harness:tabs']?.forEach((f) => f(state));
-      return state;
-    }
     return state;
   });
   const on = (ch: string, fn: (p: unknown) => void) => {
@@ -70,7 +65,6 @@ const base = (): HarnessTabsState => ({
     tab({ id: 'b', title: 'dsh', backend: 'dsh', unread: 2 }),
   ],
   activeTabId: 'main',
-  maxConcurrent: 3,
   running: 1,
   queued: 0,
 });
@@ -85,7 +79,7 @@ describe('tabDotStatus', () => {
 });
 
 describe('ChatTabs', () => {
-  it('renders status dots, unread badges and the load counter', async () => {
+  it('renders status dots and unread badges (concurrency control removed)', async () => {
     mockIpc(base());
     const r = render(
       <HarnessTabsProvider>
@@ -96,36 +90,13 @@ describe('ChatTabs', () => {
     expect(r.getByTestId('chat-tab-1').getAttribute('data-status')).toBe('running');
     expect(r.getByTestId('chat-tab-2').getAttribute('data-status')).toBe('unread');
     expect(r.getByTestId('chat-tab-unread').textContent).toBe('2');
-    expect(r.getByTestId('chat-tabs-load').textContent).toContain('1/3');
+    expect(r.queryByTestId('chat-tabs-load')).toBeNull();
     // main 标签没有关闭按钮
     expect(r.queryByTestId('chat-tab-close-0')).toBeNull();
   });
 
-  it('shows and changes the concurrency limit (1–8)', async () => {
-    const ipc = mockIpc(base());
-    const r = render(
-      <HarnessTabsProvider>
-        <ChatTabs />
-      </HarnessTabsProvider>,
-    );
-    const chip = await r.findByTestId('chat-tabs-load');
-    expect(chip.textContent).toContain('1/3');
-    // 平时只是小按钮，不再摆一个原生下拉
-    expect(r.queryByRole('combobox')).toBeNull();
-    fireEvent.click(chip);
-    const pop = r.getByTestId('chat-tabs-load-pop');
-    // 弹层挂在 body 上，不会被标签栏裁掉
-    expect(pop.parentElement).toBe(document.body);
-    expect(pop.textContent).toContain('排队');
-    expect(r.getByTestId('chat-tabs-max-3').getAttribute('aria-checked')).toBe('true');
-    await act(async () => {
-      fireEvent.click(r.getByTestId('chat-tabs-max-5'));
-    });
-    await waitFor(() => {
-      expect(ipc.invoke).toHaveBeenCalledWith('ai:harness:set-max-concurrent', 5);
-      expect(r.getByTestId('chat-tabs-load').textContent).toContain('/5');
-    });
-    expect(r.queryByTestId('chat-tabs-load-pop')).toBeNull();
+  it.skip('shows and changes the concurrency limit (removed)', async () => {
+    /* 已删除「最多同时运行」 */
   });
 
   it('activates, renames and creates tabs', async () => {

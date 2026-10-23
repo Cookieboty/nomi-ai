@@ -55,6 +55,12 @@ export const CodingMonitor: React.FC<{
   const [agents, setAgents] = useState<AgentWatchState | null>(null);
   const [agentFilter, setAgentFilter] = useState<EndpointFilter>('all');
   const fx = useUsageFx();
+  // 「最后活动 N 分钟前」本地走时：主进程只在会话有变化时才广播，不能靠广播刷新相对时间
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const loadAgents = useCallback(() => {
     if (!agentsClient.available()) return;
@@ -263,7 +269,7 @@ export const CodingMonitor: React.FC<{
                           {[
                             s.label,
                             s.project,
-                            tr('最后活动 {0}', relTime(s.mtime)),
+                            tr('最后活动 {0}', relTime(s.mtime, now)),
                             s.usage ? sessionUsageText(s.usage, fx.currency, fx.rate) : '',
                             s.summary,
                           ]

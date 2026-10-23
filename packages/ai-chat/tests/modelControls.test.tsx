@@ -205,7 +205,7 @@ describe('ModelControls', () => {
   });
 
   it('非推理模型（gpt-4.1）不显示滑杆', async () => {
-    const { findByTestId, getByTestId, queryByTestId } = setup({
+    const { findByTestId, queryByTestId } = setup({
       catalog,
       tabOver: { modelOverride: 'gpt-4.1' },
     });

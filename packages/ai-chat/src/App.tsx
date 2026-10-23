@@ -2,17 +2,20 @@ import type { ClientAIClient } from '@nomi-ai/ai-sdk-client';
 import * as AISdkReact from '@nomi-ai/ai-sdk-client/react';
 import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AppEntries } from './components/AppEntries';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { CliConversation } from './components/Conversation/CliConversation';
+import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
 import { nomiSlots } from './components/Conversation/nomiSlots';
-import { SessionControls } from './components/EndpointControls';
+import { SessionControls, WorkspaceControl } from './components/EndpointControls';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ForkTargetMenu } from './components/ForkMenu';
 import type { HubTab } from './components/HubPanel';
@@ -30,13 +33,21 @@ import { OnboardingHost } from './components/Onboarding';
 import { onboardingClient } from './components/Onboarding/client';
 import { PluginPanel } from './components/PluginPanel';
 import {
+  ChangesUiProvider,
+  ChangesWorkbenchHost,
+  CenterChangesHost,
+  FilesRailToggle,
+  SessionChangesPanel,
+  useChangesUi,
+} from './components/SessionWorkspace';
+import {
   LOCAL_MANAGE_TABS,
   SETTINGS_SECTIONS,
   type SettingsSection,
   type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
-import { AppTitleBar } from './components/TitleBar';
+import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
@@ -48,19 +59,20 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from './contexts/aiChatStore';
-import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
+import { HarnessTabsProvider, useHarnessLive, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
+import { useLayoutDensity } from './hooks/useLayoutDensity';
 import { useRestoreNomiOnMain } from './hooks/useRestoreNomiOnMain';
 import { useSendQueue } from './hooks/useSendQueue';
 import { setProviderEndpoint } from './services/chatPrefs';
 import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
-import { harnessClient } from './services/harnessClient';
+import { harnessClient, type ContextBreakdown } from './services/harnessClient';
 import { watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
-import { screenClient, type ScreenState } from './services/screenClient';
+import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
 import {
   SEARCH_CHATS_EVENT,
   SHORTCUT_DEFS,
@@ -71,17 +83,27 @@ import {
   type ShortcutId,
 } from './services/shortcuts';
 import { nomiScopeKey } from './slash/nomiScope';
+import { reportedModel, withLiveContext } from './slash/tokens';
 import { useSlashCommands } from './slash/useSlashCommands';
 import type { ConversationBackend } from './types/chat';
 import { isConversationBackend } from './types/chat';
+import {
+  CHAT_COL_W_DEFAULT,
+  CHAT_COL_W_MAX,
+  CHAT_COL_W_MIN,
+  persistChatColumnWidth,
+  readChatColumnWidth,
+} from './utils/chatColumnWidth';
+import { useCliImageSupport } from './utils/cliImageSupport';
 import {
   fromHarnessMessage,
   nomiConvMessages,
   nomiLive,
   sameLive,
   settledNomiMessages,
-  tabLiveToConv,
 } from './utils/convAdapters';
+import { aggregateSessionChanges } from './utils/sessionChanges';
+import { startSplitDrag } from './utils/splitDrag';
 import './App.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
@@ -96,7 +118,113 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   return <ConversationView {...props} live={live} />;
 };
 
+const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';
+const FILES_RAIL_W_DEFAULT = 260;
+const FILES_RAIL_W_MIN = 200;
+const FILES_RAIL_W_MAX = 420;
+
+const FILES_RAIL_OPEN_KEY = 'nomi.filesRailOpen';
+
+/** 右栏开关：默认收起，只有用户展开过才记住为展开 */
+function readFilesRailOpen(): boolean {
+  try {
+    return localStorage.getItem(FILES_RAIL_OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function persistFilesRailOpen(open: boolean): void {
+  try {
+    localStorage.setItem(FILES_RAIL_OPEN_KEY, open ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+function readFilesRailWidth(): number {
+  try {
+    const n = Number(localStorage.getItem(FILES_RAIL_W_KEY));
+    if (Number.isFinite(n)) {
+      return Math.min(FILES_RAIL_W_MAX, Math.max(FILES_RAIL_W_MIN, Math.round(n)));
+    }
+  } catch {
+    /* ignore */
+  }
+  return FILES_RAIL_W_DEFAULT;
+}
+
 const AiChatContent: React.FC = () => {
+  const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
+  const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
+  const { workbench, previewOpen, composerFill } = useChangesUi();
+
+  const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = filesRailWidth;
+    startSplitDrag({
+      el: e.currentTarget,
+      pointerId: e.pointerId,
+      onMove: (ev) =>
+        setFilesRailWidth(
+          Math.min(FILES_RAIL_W_MAX, Math.max(FILES_RAIL_W_MIN, startW + (startX - ev.clientX))),
+        ),
+      onEnd: (cancelled) => {
+        if (cancelled) {
+          setFilesRailWidth(startW);
+          return;
+        }
+        setFilesRailWidth((w) => {
+          try {
+            localStorage.setItem(FILES_RAIL_W_KEY, String(w));
+          } catch {
+            /* ignore */
+          }
+          return w;
+        });
+      },
+    });
+  };
+
+  const onFilesRailSplitterDbl = () => {
+    setFilesRailWidth(FILES_RAIL_W_DEFAULT);
+    try {
+      localStorage.setItem(FILES_RAIL_W_KEY, String(FILES_RAIL_W_DEFAULT));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const onChatColSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = chatColumnWidth;
+    startSplitDrag({
+      el: e.currentTarget,
+      pointerId: e.pointerId,
+      onMove: (ev) =>
+        setChatColumnWidth(
+          Math.min(CHAT_COL_W_MAX, Math.max(CHAT_COL_W_MIN, startW + (ev.clientX - startX))),
+        ),
+      onEnd: (cancelled) => {
+        if (cancelled) {
+          setChatColumnWidth(startW);
+          return;
+        }
+        setChatColumnWidth((w) => {
+          persistChatColumnWidth(w);
+          return w;
+        });
+      },
+    });
+  };
+
+  const onChatColSplitterDbl = () => {
+    setChatColumnWidth(CHAT_COL_W_DEFAULT);
+    persistChatColumnWidth(CHAT_COL_W_DEFAULT);
+  };
+
   // Slices, not the whole state: a streamed frame changes only the live tail, which
   // NomiConversation subscribes to; App and the rest of the tree stay put.
   const { actions, store: chatStore } = useAiChatActions();
@@ -107,6 +235,9 @@ const AiChatContent: React.FC = () => {
   const settledNomi = useAiChatSelector(selectSettledNomi, shallowArrayEqual);
   const tabs = useHarnessTabs();
   const { isDev, setMode } = useChatMode();
+  // 精简模式（工作台）：不显示顶部对话标签条，顶栏只放当前会话的标题
+  const { isCompact } = useLayoutDensity();
+  const compactTabs = isDev && isCompact;
   // ───── 统一会话视图的数据：Nomi 主对话与编程助手标签走同一个 ConversationView ─────
   const nomiMessages = useMemo(() => nomiConvMessages(settledNomi), [settledNomi]);
   const cliBackend = tabs.activeTab?.backend ?? 'claude';
@@ -114,19 +245,90 @@ const AiChatContent: React.FC = () => {
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
+  // 右栏（改动 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
+  // 有变更时顶栏开关带数字提示，点摘要卡「查看变更」也会展开
+  const [railPref, setRailPref] = useState(readFilesRailOpen);
+  // 上下文环 / `/context`：优先用 CLI 自己的会话记录（Claude：总量 + 分项都准，含重启后、压缩后被中断、
+  // 在终端里直接用过 CLI 的情况）；没有时用一轮进行中实时上报的占用；都没有才按落盘消息估算。
+  // 作为一条只带用量的助手消息接在消息末尾（见 withLiveContext）
+  const activeTabId = tabs.activeTab?.id;
+  const activeRunning = tabs.activeTab?.status === 'running';
+  const streamContext = useHarnessLive((l) => (activeTabId ? l[activeTabId]?.context : undefined));
+  const [cliRecordContext, setCliRecordContext] = useState<{
+    tabId: string;
+    tokens: number;
+    model?: string;
+    breakdown?: ContextBreakdown;
+  } | null>(null);
+  useEffect(() => {
+    if (!tabs.isCliTab || !activeTabId) return;
+    let stale = false;
+    harnessClient
+      .tabContext(activeTabId)
+      .then((r) => {
+        if (!stale)
+          setCliRecordContext(
+            r
+              ? {
+                  tabId: activeTabId,
+                  tokens: r.contextTokens,
+                  model: r.model,
+                  breakdown: r.breakdown,
+                }
+              : null,
+          );
+      })
+      .catch(() => undefined);
+    return () => {
+      stale = true;
+    };
+    // 运行中每次实时上报（≈ 每次模型请求）重读一次；主进程按文件大小 + 修改时间缓存
+  }, [tabs.isCliTab, activeTabId, activeRunning, cliConvMessages.length, streamContext?.tokens]);
+  const recordContext =
+    cliRecordContext && cliRecordContext.tabId === activeTabId ? cliRecordContext : undefined;
+  const liveContext = useMemo(
+    () => (recordContext ? { ...recordContext, window: streamContext?.window } : streamContext),
+    [recordContext, streamContext],
+  );
+  const cliContextMessages = useMemo(
+    () => withLiveContext(cliConvMessages, liveContext),
+    [cliConvMessages, liveContext],
+  );
+  const sessionChangeCount = useMemo(
+    () => aggregateSessionChanges(cliConvMessages).length,
+    [cliConvMessages],
+  );
+  const railTabId = isDev && tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  // 中栏查看区：本会话 Diff（workbench）或右栏的文件预览
+  const centerOpen = !!railTabId && (!!workbench || previewOpen);
+  const railOpen = !!railTabId && railPref;
+  const setRailOpen = useCallback((open: boolean) => {
+    setRailPref(open);
+    persistFilesRailOpen(open);
+  }, []);
+  const toggleRail = useCallback(() => setRailOpen(!railOpen), [railOpen, setRailOpen]);
+  const closeRail = useCallback(() => setRailOpen(false), [setRailOpen]);
+  // 摘要卡「查看变更」要在右栏定位文件：收起着也展开（渲染期比对，不在 effect 里 setState）
+  const [prevWorkbench, setPrevWorkbench] = useState(workbench);
+  if (prevWorkbench !== workbench) {
+    setPrevWorkbench(workbench);
+    if (workbench && railTabId && !railPref) setRailOpen(true);
+  }
   // 编程助手标签的错误卡片：Gemini 不信任工作目录时提供「信任此文件夹」
   const activeCliTabId = tabs.isCliTab ? (tabs.activeTab?.id ?? null) : null;
+  const activeCwd = tabs.isCliTab ? (tabs.activeTab?.cwd ?? null) : null;
   const cliSlots = useMemo<ConvSlots | undefined>(
     () =>
       activeCliTabId
-        ? {
+        ? buildCliSlots({
+            cwd: activeCwd,
             errorActions: (m, { retry }) =>
               m.geminiTrust ? (
                 <GeminiTrustAction key={m.id} tabId={activeCliTabId} message={m} retry={retry} />
               ) : null,
-          }
+          })
         : undefined,
-    [activeCliTabId],
+    [activeCliTabId, activeCwd],
   );
   // 不论从哪个入口回到主标签（顶栏 / 快捷键 / 侧栏 / 分叉后），都把当前会话恢复成 Nomi 会话
   useRestoreNomiOnMain(
@@ -149,6 +351,7 @@ const AiChatContent: React.FC = () => {
     for (let k = i - 1; k >= 0; k--) if (list[k]!.role === 'user') return list[k]!;
     return undefined;
   };
+  const cliHasLive = useHarnessLive((l) => !!(activeCliTabId && l[activeCliTabId]));
   const [forkCross, setForkCross] = useState<{
     id: string;
     backend: ConversationBackend;
@@ -281,7 +484,7 @@ const AiChatContent: React.FC = () => {
     backend: slashBackend,
     cwd: slashCwd,
     scopeKey: slashScope,
-    messages: slashTab ? cliConvMessages : nomiMessages,
+    messages: slashTab ? cliContextMessages : nomiMessages,
     session:
       slashBackend === 'nomi'
         ? null
@@ -423,6 +626,14 @@ const AiChatContent: React.FC = () => {
       screen: () => setShowScreen((v) => !v),
       newTab: () => {
         if (!isDev) return;
+        // 精简模式没有标签条（「+」菜单）：按当前标签的端和目录直接新开；Nomi 标签则新开对话
+        if (compactTabs) {
+          const cur = tabs.activeTab;
+          if (cur && cur.backend !== 'nomi')
+            void tabs.create(cur.backend, cur.cwd).catch(() => undefined);
+          else newChat();
+          return;
+        }
         setTabNew((n) => n + 1);
       },
       closeTab: () => {
@@ -438,11 +649,12 @@ const AiChatContent: React.FC = () => {
         tabs.cycle(-1);
       },
       renameTab: () => {
-        if (!isDev) return;
+        // 改名框在标签条上；精简模式在侧栏的会话列表里改名
+        if (!isDev || compactTabs) return;
         setTabRename((n) => n + 1);
       },
     }),
-    [newChat, focusInput, tabs, isDev],
+    [newChat, focusInput, tabs, isDev, compactTabs],
   );
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -530,14 +742,28 @@ const AiChatContent: React.FC = () => {
     [actions],
   );
   const cliActive = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  // 能不能附图看这个会话当前用的模型（dsh 例外：命令行没有图片输入）
+  const cliImages = useCliImageSupport(cliActive);
   const tabSend = tabs.send;
   const tabCancel = tabs.cancel;
   const inputModeProps = useMemo(
     () =>
       cliActive
         ? {
-            onSend: (text: string) => void tabSend(text),
+            onSend: (text: string, images?: ImageAttachment[]) => {
+              const imgs = images?.map((im) => ({
+                mime: im.mime,
+                data: im.data,
+                width: im.width,
+                height: im.height,
+                thumb: im.thumb,
+                source: im.source,
+              }));
+              void tabSend(text, imgs);
+            },
             busyOverride: cliActive.status === 'running' || cliActive.status === 'queued',
+            imageCapability: cliImages.capability,
+            imageUnsupportedReason: cliImages.reason,
             placeholder: cliTabPlaceholder(cliActive),
             queue: {
               onQueue: (text: string) => void tabSend(text),
@@ -545,7 +771,7 @@ const AiChatContent: React.FC = () => {
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [cliActive, tabSend, tabCancel, nomiQueue.enqueue],
+    [cliActive, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);
@@ -575,7 +801,11 @@ const AiChatContent: React.FC = () => {
 
   return (
     <div className="ai-chat-app">
-      <AppTitleBar />
+      <ChatBackgroundLayer />
+      <AppTitleBar
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+      />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
       <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
@@ -583,160 +813,261 @@ const AiChatContent: React.FC = () => {
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          showToggle={!hasAppTitleBar()}
           onNewChat={handleNewChat}
           onForkRequest={onForkRequest}
           onNotice={setToast}
           onOpenSettings={(sec) => openSettings(sec)}
+          footer={
+            <AppEntries
+              collapsed={sidebarCollapsed}
+              onHub={() => setShowHub(true)}
+              onExt={() => setShowExt(true)}
+              onLocal={() => setShowLocal(true)}
+              onSettings={() => openSettings()}
+            />
+          }
         />
 
-        {/* 主内容区域 */}
-        <div className="main-content">
-          <ChatHeader
-            onHub={() => setShowHub(true)}
-            onExt={() => setShowExt(true)}
-            onLocal={() => setShowLocal(true)}
-            onSettings={() => openSettings()}
-            onNewChat={handleNewChat}
-            onCustomize={() => openSettings('general')}
+        {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
+        <div
+          className={centerOpen ? 'main-content main-content--with-changes' : 'main-content'}
+          data-with-changes={centerOpen ? 'true' : undefined}
+        >
+          <div
+            className="chat-column"
+            data-testid="chat-column"
+            style={{
+              ...(centerOpen
+                ? {
+                    width: chatColumnWidth,
+                    // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
+                    minWidth: 'var(--cd-chat-col-min)',
+                    maxWidth: CHAT_COL_W_MAX,
+                    // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
+                    flexShrink: 1,
+                  }
+                : {}),
+            }}
           >
-            {screenActive && (
-              <button
-                type="button"
-                className="screen-mem-indicator"
-                onClick={() => setShowScreen(true)}
-                title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
-                data-testid="screen-mem-indicator"
-              >
-                <span className="screen-mem-dot" />
-                {t('屏幕记忆中')}
-              </button>
-            )}
-          </ChatHeader>
-          {isDev && (
-            <ChatTabs
-              renameRequest={tabRename}
-              newTabRequest={tabNew}
-              mainLoading={isLoading}
-              onForkTab={(tabId, mode) => {
-                const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
-                if (meta) onForkRequest(meta.id, mode);
-              }}
-            />
-          )}
-          {/* 对话区右上角：工作目录与供应商（输入栏只留端点与权限模式） */}
-          <div className="session-bar">
-            <SessionControls
-              onManageNomi={() => openSettings('models')}
-              onOpenModels={() => openSettings('models')}
-            />
-          </div>
-          {/* 对话区域 */}
-          <main className="chat-container">
-            <ChatBackgroundLayer />
-            {isDev && tabs.isCliTab ? (
-              <>
-                {tabs.messages.length === 0 &&
-                !tabs.live[tabs.activeTab!.id] &&
-                slash.cards.length === 0 &&
-                tabs.activeTab!.status === 'idle' ? (
-                  <div className="welcome-screen" data-testid="cli-tab-empty">
-                    <div className="welcome-content">
-                      <h2 className="welcome-title">{t('{0} · 新会话', tabs.activeTab!.title)}</h2>
-                      <p className="welcome-subtitle">
-                        {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
-                      </p>
-                    </div>
+            <ChatHeader
+              tabs={
+                compactTabs ? (
+                  <div
+                    className="chat-compact-title"
+                    data-testid="chat-compact-title"
+                    title={tabs.activeTab?.title}
+                  >
+                    {tabs.activeTab?.status === 'running' ? (
+                      <span className="chat-compact-title-dot" aria-label={t('运行中')} />
+                    ) : null}
+                    <span className="chat-compact-title-text">{tabs.activeTab?.title ?? ''}</span>
                   </div>
-                ) : (
-                  <ConversationView
-                    scopeId={tabs.activeTab!.id}
-                    messages={cliConvMessages}
-                    live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
-                    phase={
-                      tabs.activeTab!.status === 'running'
-                        ? 'running'
-                        : tabs.activeTab!.status === 'queued'
-                          ? 'queued'
-                          : 'idle'
-                    }
-                    queued={tabs.queues[tabs.activeTab!.id]}
-                    onRemoveQueued={tabs.removeQueued}
-                    onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
-                    onRetry={(id) => {
-                      const u = precedingUser(tabs.messages, id);
-                      if (u) void tabs.send(u.content);
+                ) : isDev ? (
+                  <ChatTabs
+                    embedded
+                    renameRequest={tabRename}
+                    newTabRequest={tabNew}
+                    mainLoading={isLoading}
+                    onForkTab={(tabId, mode) => {
+                      const meta = ipcClient.conversationStore?.()?.findByTabId(tabId);
+                      if (meta) onForkRequest(meta.id, mode);
                     }}
-                    onEdit={(_, text) => void tabs.send(text)}
-                    slots={cliSlots}
-                    cards={slash.cards}
-                    onDismissCard={slash.dismissCard}
-                    dormant={tabs.activeTab!.dormant}
-                    backgroundAgents={tabs.activeTab!.backgroundAgents}
-                    backgroundCount={tabs.activeTab!.background}
-                    onStopAgent={(agentId) =>
-                      void harnessClient
-                        .stopAgent(tabs.activeTab!.id, agentId)
-                        .catch(() => undefined)
-                    }
                   />
-                )}
-              </>
-            ) : messageCount === 0 && slash.cards.length === 0 ? (
-              <div className="welcome-screen" data-testid="welcome-screen">
-                <div className="welcome-content">
-                  <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
-                  <div className="quick-actions">
-                    {[
-                      [t('你好，请介绍一下自己'), t('打个招呼')],
-                      [t('帮我写一段代码'), t('写一段代码')],
-                      [t('帮我整理今天的待办'), t('整理今天的待办')],
-                    ].map(([prompt, label]) => (
-                      <button
-                        key={label}
-                        className="quick-action-btn"
-                        onClick={() => actions.sendMessage(prompt)}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                ) : undefined
+              }
+              trailing={
+                <>
+                  {/* 工作目录 + 这个目录的改动 / 文件：都是当前会话所在的工作区 */}
+                  <WorkspaceControl />
+                  {railTabId ? (
+                    <FilesRailToggle
+                      open={railOpen}
+                      count={sessionChangeCount}
+                      onToggle={toggleRail}
+                    />
+                  ) : null}
+                </>
+              }
+            >
+              {screenActive && (
+                <button
+                  type="button"
+                  className="screen-mem-indicator"
+                  onClick={() => setShowScreen(true)}
+                  title={t('屏幕记忆开启中（仅保存在本机），点击管理或暂停')}
+                  data-testid="screen-mem-indicator"
+                >
+                  <span className="screen-mem-dot" />
+                  {t('屏幕记忆中')}
+                </button>
+              )}
+            </ChatHeader>
+            {/* 对话区域 */}
+            <main className="chat-container">
+              {isDev && tabs.isCliTab ? (
+                <>
+                  {tabs.messages.length === 0 &&
+                  !cliHasLive &&
+                  slash.cards.length === 0 &&
+                  tabs.activeTab!.status === 'idle' ? (
+                    <div className="welcome-screen" data-testid="cli-tab-empty">
+                      <div className="welcome-content">
+                        <h2 className="welcome-title">
+                          {t('{0} · 新会话', tabs.activeTab!.title)}
+                        </h2>
+                        <p className="welcome-subtitle">
+                          {t('消息会转发给本机编程助手；多个标签可以同时运行。')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <CliConversation
+                      scopeId={tabs.activeTab!.id}
+                      messages={cliConvMessages}
+                      phase={
+                        tabs.activeTab!.status === 'running'
+                          ? 'running'
+                          : tabs.activeTab!.status === 'queued'
+                            ? 'queued'
+                            : 'idle'
+                      }
+                      queued={tabs.queues[tabs.activeTab!.id]}
+                      onRemoveQueued={tabs.removeQueued}
+                      slots={cliSlots}
+                      cards={slash.cards}
+                      onDismissCard={slash.dismissCard}
+                      dormant={tabs.activeTab!.dormant}
+                      backgroundAgents={tabs.activeTab!.backgroundAgents}
+                      backgroundCount={tabs.activeTab!.background}
+                    />
+                  )}
+                </>
+              ) : messageCount === 0 && slash.cards.length === 0 ? (
+                <div className="welcome-screen" data-testid="welcome-screen">
+                  <div className="welcome-content">
+                    <h2 className="welcome-title">{t('今天想做点什么？')}</h2>
+                    <div className="quick-actions">
+                      {[
+                        [t('你好，请介绍一下自己'), t('打个招呼')],
+                        [t('帮我写一段代码'), t('写一段代码')],
+                        [t('帮我整理今天的待办'), t('整理今天的待办')],
+                      ].map(([prompt, label]) => (
+                        <button
+                          key={label}
+                          className="quick-action-btn"
+                          onClick={() => actions.sendMessage(prompt)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="welcome-subtitle">
+                      {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
+                    </p>
                   </div>
-                  <p className="welcome-subtitle">
-                    {t('输入 / 查看命令 · ＋ 打开知识库、语音、模型与设置')}
-                  </p>
                 </div>
-              </div>
-            ) : (
-              <NomiConversation
-                scopeId={`nomi:${firstMessageId ?? 'new'}`}
-                messages={nomiMessages}
-                phase={isLoading ? 'running' : 'idle'}
-                queued={nomiQueue.queue}
-                onRemoveQueued={nomiQueue.remove}
-                onRetry={onNomiRetry}
-                onEdit={onNomiEdit}
-                slots={nomiSlots}
-                cards={slash.cards}
-                onDismissCard={slash.dismissCard}
-              />
-            )}
-          </main>
+              ) : (
+                <NomiConversation
+                  scopeId={`nomi:${firstMessageId ?? 'new'}`}
+                  messages={nomiMessages}
+                  phase={isLoading ? 'running' : 'idle'}
+                  queued={nomiQueue.queue}
+                  onRemoveQueued={nomiQueue.remove}
+                  onRetry={onNomiRetry}
+                  onEdit={onNomiEdit}
+                  slots={nomiSlots}
+                  cards={slash.cards}
+                  onDismissCard={slash.dismissCard}
+                />
+              )}
+            </main>
 
-          {/* 输入区域 */}
-          <footer className="input-container">
-            <MessageInput
-              {...inputModeProps}
-              slash={slash.bridge}
-              onPluginsClick={openPlugins}
-              onProvidersClick={openProviders}
-              onSettingsClick={onInputSettings}
-              onDesktopClick={openDesktop}
-              onHubClick={openHub}
-              onScreenClick={openScreen}
-              onExtClick={openExt}
-              onLocalClick={openLocal}
-            />
-          </footer>
+            {/* 输入区域 */}
+            <footer className="input-container">
+              <MessageInput
+                {...inputModeProps}
+                contextMessages={tabs.isCliTab ? cliContextMessages : nomiMessages}
+                contextModel={
+                  tabs.isCliTab
+                    ? (tabs.activeTab?.modelOverride ??
+                      liveContext?.model ??
+                      reportedModel(cliConvMessages) ??
+                      tabs.activeTab?.backend)
+                    : undefined
+                }
+                slash={slash.bridge}
+                fill={composerFill}
+                onPluginsClick={openPlugins}
+                onProvidersClick={openProviders}
+                onSettingsClick={onInputSettings}
+                onDesktopClick={openDesktop}
+                onHubClick={openHub}
+                onScreenClick={openScreen}
+                onExtClick={openExt}
+                onLocalClick={openLocal}
+              />
+              {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
+              <div className="session-bar">
+                <SessionControls onManageNomi={() => openSettings('models')} />
+              </div>
+            </footer>
+          </div>
+
+          {centerOpen && tabs.activeTab ? (
+            <>
+              <div
+                className="center-changes-splitter"
+                data-testid="center-changes-splitter"
+                role="separator"
+                aria-orientation="vertical"
+                aria-valuenow={chatColumnWidth}
+                aria-valuemin={CHAT_COL_W_MIN}
+                aria-valuemax={CHAT_COL_W_MAX}
+                onPointerDown={onChatColSplitterDown}
+                onDoubleClick={onChatColSplitterDbl}
+                title={t('拖动调整对话与变更 Diff 宽度；双击恢复默认')}
+              />
+              <CenterChangesHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+            </>
+          ) : null}
         </div>
+
+        {railOpen && tabs.activeTab ? (
+          <>
+            <div
+              className="files-rail-splitter"
+              data-testid="files-rail-splitter"
+              role="separator"
+              aria-orientation="vertical"
+              aria-valuenow={filesRailWidth}
+              aria-valuemin={FILES_RAIL_W_MIN}
+              aria-valuemax={FILES_RAIL_W_MAX}
+              onPointerDown={onFilesRailSplitterDown}
+              onDoubleClick={onFilesRailSplitterDbl}
+              title={t('拖动调整聊天与工作区宽度；双击恢复默认')}
+            />
+            <aside
+              className="files-rail"
+              data-testid="files-rail"
+              style={{
+                width: filesRailWidth,
+                minWidth: 'var(--cd-files-rail-min)',
+                maxWidth: FILES_RAIL_W_MAX,
+                flexShrink: 1,
+              }}
+            >
+              <SessionChangesPanel
+                rail
+                messages={cliConvMessages}
+                cwd={tabs.activeTab.cwd}
+                busy={tabs.activeTab.status === 'running' || tabs.activeTab.status === 'queued'}
+                onClose={closeRail}
+              />
+              <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />
+            </aside>
+          </>
+        ) : null}
       </div>
 
       {/* 设置为覆盖层：会话树保持挂载，仅被此层盖住；关闭即瞬时回到原会话 */}
@@ -833,7 +1164,9 @@ function App() {
     <ErrorBoundary>
       <AiChatContextProvider client={client}>
         <HarnessTabsProvider>
-          <AiChatContent />
+          <ChangesUiProvider>
+            <AiChatContent />
+          </ChangesUiProvider>
         </HarnessTabsProvider>
         {/* 首次启动引导（未完成时覆盖在对话窗口上；设置 → 通用 可重新打开） */}
         <OnboardingHost />

@@ -17,6 +17,7 @@ import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import {
   harnessClient,
+  MAIN_TAB_ID,
   type HarnessTraceEvent,
   type HarnessUsage,
 } from '../services/harnessClient';
@@ -484,8 +485,21 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (harnessClient.available()) {
           const hs = await harnessClient.state();
           if (hs.backend !== 'nomi') {
-            if (images?.length) throw new Error(t('编程助手后端暂不支持图片，请切回 Nomi'));
-            const r = await harnessClient.send(content);
+            // 主对话标签切到编程助手：和普通标签同一条路径（能不能附图由主进程按模型能力判断）
+            const r = images?.length
+              ? await harnessClient.sendTab(
+                  MAIN_TAB_ID,
+                  content,
+                  images.map((i) => ({
+                    mime: i.mime,
+                    data: i.data,
+                    width: i.width,
+                    height: i.height,
+                    thumb: i.thumb,
+                    source: i.source,
+                  })),
+                )
+              : await harnessClient.send(content);
             const done: ChatMessage = {
               id: (Date.now() + 1).toString(),
               role: 'assistant',

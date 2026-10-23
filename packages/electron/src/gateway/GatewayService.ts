@@ -357,7 +357,13 @@ export class GatewayService {
   }
 
   /** 第三方标签可选的模型（启用的供应商里启用的模型，`供应商/模型`） */
-  cliModels(): Array<{ ref: string; provider: string; label: string; reasoning?: boolean }> {
+  cliModels(): Array<{
+    ref: string;
+    provider: string;
+    label: string;
+    reasoning?: boolean;
+    vision?: boolean;
+  }> {
     return [...this.store.providers(), ...this.envViews()]
       .filter((p) => p.enabled)
       .flatMap((p) =>
@@ -368,6 +374,7 @@ export class GatewayService {
             provider: p.name,
             label: m.label ?? m.id,
             ...(m.reasoning !== undefined ? { reasoning: m.reasoning } : {}),
+            ...(m.vision !== undefined ? { vision: m.vision } : {}),
           })),
       );
   }

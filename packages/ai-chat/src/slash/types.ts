@@ -118,7 +118,7 @@ export type CardBody =
       used: number;
       windowSize: number;
       /** 窗口大小来源：内置经验表 / 无法识别的默认值 */
-      windowSource: 'table' | 'default';
+      windowSource: 'reported' | 'table' | 'default';
       /** 已用量依据：CLI / 供应商返回的真实用量 + 之后的估算，或全部估算 */
       basis: 'actual' | 'estimate';
       categories: ContextCategory[];

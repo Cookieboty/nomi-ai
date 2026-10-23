@@ -14,11 +14,24 @@ body {
 }
 
 .ai-chat-app {
+  /*
+   * 四栏（侧栏 296 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
+   * 旧版写死 360 + 360 + 200，加侧栏恰好约 1240px；窗口再窄，右栏就被挤出屏外（body 是 overflow:hidden，看起来像「被切掉」）。
+   * 这里按「侧栏 296 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
+   * 各自有上限（宽屏沿用原来的 360 / 360 / 200）与下限；窗口最小 760px 时三栏之和仍不超过剩余宽度。
+   * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
+   */
+  --cd-pane-avail: calc(100vw - 312px);
+  --cd-chat-col-min: clamp(180px, calc(var(--cd-pane-avail) * 0.4), 360px);
+  --cd-center-pane-min: clamp(140px, calc(var(--cd-pane-avail) * 0.38), 360px);
+  --cd-files-rail-min: clamp(90px, calc(var(--cd-pane-avail) * 0.18), 200px);
   height: 100vh;
   display: flex;
   background: transparent;
   overflow: hidden;
   position: relative;
+  /* 自成层叠上下文：工作台背景层用负 z-index 垫在侧栏 / 主区 / 右栏之下 */
+  isolation: isolate;
 }
 
 /* 会话树保活：正常态 display:contents 让 Sidebar / 主区仍是 .ai-chat-app 的直接 flex 子项，
@@ -60,13 +73,130 @@ body {
   z-index: 1;
 }
 
-/* 对话区右上角的工作目录 / 供应商：一条靠右的窄栏，不压在消息上（用户气泡靠右） */
+/* Codex 四栏：有变更 Diff 时 main-content 内横排 chat-column | Diff（全高）。
+   chat 默认占主要宽度（见 chatColumnWidth），Diff flex:1 吃剩余。 */
+.main-content--with-changes {
+  flex-direction: row;
+  align-items: stretch;
+  /* 主区自己的最小宽度 = 对话列 + 中栏 + 分割线：窗口再窄时先把右栏（flex-shrink: 1）压到它的最小宽度，
+     而不是让主区缩到 0、子栏溢出压到右栏上。窄窗仍保持横排，只压缩列宽（不要默认堆成单列）。 */
+  min-width: calc(var(--cd-chat-col-min) + var(--cd-center-pane-min) + 5px);
+}
+
+.chat-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* 顶栏按对话列自身宽度决定标签是否换到第二行（ChatHeader 的 @container） */
+  container: chat-column / inline-size;
+  min-height: 0;
+  height: 100%;
+  position: relative;
+}
+
+.main-content--with-changes .chat-column {
+  flex: 0 0 auto;
+  border-right: none;
+}
+
+.center-changes-splitter {
+  width: 5px;
+  margin: 0 -2px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 3;
+  background: transparent;
+  touch-action: none;
+  align-self: stretch;
+}
+.center-changes-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: var(--cd-color-border, #333);
+  opacity: 0.85;
+}
+.center-changes-splitter:hover::after,
+.center-changes-splitter:active::after {
+  background: var(--cd-color-accent-strong, #5b8def);
+  opacity: 1;
+  inset: 0 1.5px;
+}
+
+/* Diff 旁列：占满剩余宽度与全高（不压在对话/输入下面） */
+.main-content--with-changes [data-testid='center-changes-pane'],
+.main-content--with-changes [data-testid='center-preview-pane'] {
+  flex: 1 1 0;
+  min-width: var(--cd-center-pane-min);
+  min-height: 0;
+  height: 100%;
+  max-height: none !important;
+  align-self: stretch;
+  border-top: none !important;
+  border-left: 1px solid var(--cd-color-border, #333);
+}
+
+/* Codex 整页最右列：已更改文件栏（与 Sidebar / main-content 横排全高；宽度由分割线拖动） */
+.files-rail-splitter {
+  width: 5px;
+  margin: 0 -2px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  position: relative;
+  z-index: 3;
+  background: transparent;
+  touch-action: none;
+}
+.files-rail-splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0 1px;
+  background: var(--cd-color-border, #333);
+  opacity: 0.85;
+}
+.files-rail-splitter:hover::after,
+.files-rail-splitter:active::after {
+  background: var(--cd-color-accent-strong, #5b8def);
+  opacity: 1;
+  inset: 0 1.5px;
+}
+.files-rail {
+  width: 260px;
+  min-width: var(--cd-files-rail-min);
+  max-width: 420px;
+  height: 100vh;
+  /* 窗口窄时允许收缩到 min-width（宽屏时不会触发，宽度仍是拖动值） */
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+  z-index: 1;
+  border-left: 1px solid var(--cd-color-border, #333);
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
+}
+.files-rail > * {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 输入框下方的工作目录 / 供应商：与输入框同宽、左对齐的一行轻量信息（菜单向上弹） */
 .session-bar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
+  gap: var(--cd-space-2);
   min-height: 0;
-  padding: var(--cd-space-1-5) var(--cd-space-4) 0;
+  width: 100%;
+  max-width: 820px;
+  margin: var(--cd-space-1-5) auto 0;
+  padding: 0 var(--cd-space-1);
+  box-sizing: border-box;
   position: relative;
   z-index: 2;
 }
@@ -90,22 +220,19 @@ body {
   isolation: isolate;
 }
 
-/* 聊天主面板自定义背景（设置 → 通用 → 聊天背景）；仅本容器 */
+/* 工作台自定义背景（设置 → 通用 → 聊天背景）：铺满整个 .ai-chat-app */
 .chat-bg-layer {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background-color: var(--cd-chat-bg-color, transparent);
   background-image: var(--cd-chat-bg-image, none);
   background-size: cover;
   background-position: center;
-  filter: blur(var(--cd-chat-bg-blur, 0px));
   opacity: var(--cd-chat-bg-opacity, 0.35);
-  transform: scale(1.06);
-  transform-origin: center;
 }
-.chat-container > :not(.chat-bg-layer) {
+.chat-container > * {
   position: relative;
   z-index: var(--cd-z-chat-content);
 }
@@ -345,6 +472,34 @@ html[data-platform='darwin'] .app-titlebar {
   padding-left: 78px; /* 红绿灯 */
   padding-right: 78px;
 }
+/* 侧栏开关：macOS 紧跟红绿灯，其它平台在最左 */
+.app-titlebar-toggle {
+  position: absolute;
+  left: var(--cd-space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+html[data-platform='darwin'] .app-titlebar-toggle {
+  left: 78px;
+}
+.app-titlebar-toggle:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.app-titlebar-toggle:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
 .app-titlebar-title {
   font: var(--cd-text-label);
   color: var(--cd-color-text-muted);
@@ -381,4 +536,54 @@ html[data-platform='win32'] {
 html[data-platform='linux'] {
   --cd-font-size-sm: 14px;
   --cd-font-size-md: 14.5px;
+}
+
+/* 开启工作台背景时，各栏不透明底色换成半透明，让背景透出来（层叠见 .chat-bg-layer）。
+   各栏模糊用 ::before 上的 backdrop-filter：直接加在栏上会让栏成为 position:fixed
+   子元素的包含块，栏内弹出的菜单会错位。 */
+html[data-chat-bg] .app-titlebar,
+html[data-platform='darwin'][data-chat-bg] .app-titlebar {
+  background: color-mix(in srgb, var(--cd-color-bg) 55%, transparent);
+}
+html[data-chat-bg] .files-rail {
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 55%, transparent);
+}
+html[data-chat-bg] .chat-column::before,
+html[data-chat-bg] .files-rail::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
+}
+html[data-chat-bg] .files-rail::before {
+  backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+}
+
+/* 精简模式：顶栏不放对话标签条，只显示当前会话标题（与右侧按钮同高、贴底，同一中线） */
+.chat-compact-title {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  align-self: flex-end;
+  height: var(--cd-control-h-ms);
+  min-width: 0;
+  color: var(--cd-color-text);
+  font-size: var(--cd-font-size-md);
+}
+.chat-compact-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-compact-title-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cd-color-accent);
 }

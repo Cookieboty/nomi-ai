@@ -5,7 +5,12 @@
  */
 export function onWindowResized(cb: () => void, delayMs = 120): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let width = window.innerWidth;
+  let height = window.innerHeight;
   const handler = () => {
+    if (window.innerWidth === width && window.innerHeight === height) return;
+    width = window.innerWidth;
+    height = window.innerHeight;
     if (timer) return;
     timer = setTimeout(() => {
       timer = null;

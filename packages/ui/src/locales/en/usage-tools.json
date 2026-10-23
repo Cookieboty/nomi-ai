@@ -372,5 +372,8 @@
   "记录请求和响应正文": "Record request and response bodies",
   "打开后，网关会把每次请求的请求体和响应正文写到本机目录，用来排查第三方供应商的问题。Key、令牌和 Authorization 头会被替换掉；文件 24 小时后自动删除。默认关闭。": "When on, the gateway writes each request's body and response to a local folder to help troubleshoot third-party providers. API keys, tokens and Authorization headers are redacted; files are deleted automatically after 24 hours. Off by default.",
   "正文里可能有你的代码和对话内容，排查完记得关掉。目录：{0}": "Bodies may contain your code and conversations; turn this off when you're done. Folder: {0}",
-  "缓存命中率 {0}": "cache hit rate {0}"
+  "缓存命中率 {0}": "cache hit rate {0}",
+  "{0} 行未修改": "{0} unmodified lines",
+  "未修改行已折叠": "Unmodified lines folded",
+  "收起未修改行": "Collapse unmodified lines"
 }

@@ -12,16 +12,14 @@
  * 覆盖参数在每轮启动时以进程级参数（`-c` / `--model` / `-m` …）注入，不改写用户的
  * 全局 CLI 配置，因此终端里直接运行的 CLI 不受影响。
  */
+import type { ReasoningEffort } from '@nomi-ai/types';
+
 import type { HarnessBackend } from './types';
 
 /** 编程助手后端（排除 Nomi 自有） */
 export type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
-/**
- * 思考深度档位（各 CLI 取值的并集，顺序即由浅到深）。
- * 只用于识别 / 排序 CLI 返回的值；某个模型实际支持哪些档位以 CLI 返回为准。
- */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+export type { ReasoningEffort };
 
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'minimal',
@@ -55,6 +53,11 @@ export interface CatalogModel {
   efforts: ReasoningEffort[];
   /** CLI 对该模型的默认档位（仅显示用：没选档位时不发参数） */
   defaultEffort?: ReasoningEffort;
+  /**
+   * 能不能看图：CLI / 网关明确说了才有（Codex input_modalities、网关模型的 vision）；
+   * 没有 = 不知道，界面不拦，交给 CLI / 网关自己处理。
+   */
+  vision?: boolean;
 }
 
 export interface BackendModelCatalog {
@@ -279,6 +282,8 @@ export function parseCodexModels(
     const levels = Array.isArray(o.supported_reasoning_levels) ? o.supported_reasoning_levels : [];
     const efforts = normalizeEfforts(levels.map((l) => asObj(l).effort));
     const def = o.default_reasoning_level;
+    // input_modalities: ["text", "image"]（0.163 实测）；没给时不判断
+    const modalities = Array.isArray(o.input_modalities) ? o.input_modalities : null;
     rows.push({
       m: {
         id,
@@ -287,6 +292,7 @@ export function parseCodexModels(
         reasoning: efforts.length > 0,
         efforts,
         ...(isReasoningEffort(def) ? { defaultEffort: def } : {}),
+        ...(modalities ? { vision: modalities.includes('image') } : {}),
       },
       // Codex 按 priority 升序展示
       priority: typeof o.priority === 'number' ? o.priority : Number.MAX_SAFE_INTEGER,

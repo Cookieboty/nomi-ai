@@ -14,15 +14,6 @@
   gap: var(--cd-space-4);
 }
 
-.protoBadge {
-  font-size: var(--cd-font-size-xs);
-  font-weight: var(--cd-font-weight-medium);
-  color: var(--cd-color-warning);
-  background: var(--cd-color-warning-soft);
-  border-radius: var(--cd-radius-full);
-  padding: var(--cd-space-0-5) var(--cd-space-2);
-}
-
 .sub {
   margin: var(--cd-space-1) 0 0;
   font-size: var(--cd-font-size-sm);
@@ -297,48 +288,10 @@
   background: var(--cd-color-accent-soft);
 }
 
-.detail {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--cd-space-4);
-  padding: var(--cd-space-2) var(--cd-space-2) var(--cd-space-3) var(--cd-space-8);
-}
-
-.detailCol {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-}
-
-.detailActions {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--cd-space-2);
-}
-
-.keyLine {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-}
-
-.keyLine code {
-  color: var(--cd-color-text-subtle);
-}
-
 .errorText,
 .error {
   color: var(--cd-color-danger-text);
   font-size: var(--cd-font-size-sm);
-}
-
-.terminal {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cd-space-4);
 }
 
 /* ------------------------------ 添加弹窗 ------------------------------ */

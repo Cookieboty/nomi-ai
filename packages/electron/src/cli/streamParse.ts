@@ -220,6 +220,17 @@ export function parseUsage(
   return Object.keys(out).length ? out : undefined;
 }
 
+/**
+ * Grok ACP 的 session/prompt 结果：_meta.usage 是整轮累计（含 modelCalls），
+ * _meta.inputTokens / outputTokens 恰为最后一次请求（1.0.67 实测，input 已含缓存）→ 当前上下文。
+ */
+export function acpMetaContext(meta: unknown): { contextTokens?: number } {
+  const m = meta && typeof meta === 'object' ? (meta as Record<string, unknown>) : {};
+  const input = num(m.inputTokens);
+  const output = num(m.outputTokens);
+  return input !== undefined ? { contextTokens: input + (output ?? 0) } : {};
+}
+
 /** 只在有值时附加可选字段，保持事件对象干净 */
 function withOpt<T extends object>(ev: T, extra: Record<string, unknown>): T {
   for (const [k, x] of Object.entries(extra))
@@ -231,6 +242,55 @@ function withOpt<T extends object>(ev: T, extra: Record<string, unknown>): T {
 export interface ClaudeStreamState {
   /** 这一轮已经有正文：新的文本块开始时先补一个段落分隔，避免两段流式文本粘在一起 */
   textSeen: boolean;
+  /** 主线程最近一次请求的上下文占用（result 里没有 iterations 时兜底） */
+  lastContext?: number;
+}
+
+/** Anthropic 单次请求的上下文：input / cache_read / cache_creation 互斥，三者相加 + 该次输出 */
+function anthropicRequestContext(u: unknown): number | undefined {
+  if (!u || typeof u !== 'object') return undefined;
+  const o = u as Record<string, unknown>;
+  const parts = [
+    o.input_tokens,
+    o.cache_read_input_tokens,
+    o.cache_creation_input_tokens,
+    o.output_tokens,
+  ].map(num);
+  if (parts.every((x) => x === undefined)) return undefined;
+  return parts.reduce<number>((s, x) => s + (x ?? 0), 0);
+}
+
+/**
+ * Claude result 的 usage 是整轮累计（2.1.309 实测：cache_read = 各请求之和），不能当上下文大小。
+ * 当前上下文取 usage.iterations 的最后一项（逐请求明细），没有时用流里最后一条主线程 assistant 的 usage；
+ * 窗口取 modelUsage 里主模型（输入最多的那个）的 contextWindow。
+ */
+function claudeContext(
+  j: Record<string, unknown>,
+  state?: ClaudeStreamState,
+): { contextTokens?: number; contextWindow?: number; model?: string } {
+  const usage = (j.usage ?? {}) as Record<string, unknown>;
+  const its = Array.isArray(usage.iterations) ? (usage.iterations as unknown[]) : [];
+  const contextTokens = anthropicRequestContext(its[its.length - 1]) ?? state?.lastContext;
+  let contextWindow: number | undefined;
+  let model: string | undefined;
+  let best = -1;
+  const mu = j.modelUsage;
+  if (mu && typeof mu === 'object') {
+    // 主模型 = 输入最多的那个（子代理 / 摘要可能用别的小模型）；没给窗口的也记下模型名
+    for (const [name, m] of Object.entries(mu as Record<string, Record<string, unknown>>)) {
+      const load =
+        (num(m?.inputTokens) ?? 0) +
+        (num(m?.cacheReadInputTokens) ?? 0) +
+        (num(m?.cacheCreationInputTokens) ?? 0);
+      if (load > best) {
+        best = load;
+        model = name;
+        contextWindow = num(m?.contextWindow);
+      }
+    }
+  }
+  return { contextTokens, contextWindow, model };
 }
 
 export function parseClaudeLine(line: string, state?: ClaudeStreamState): HarnessEvent[] {
@@ -267,7 +327,24 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     }
     if (ev?.content_block) out.push(...imageEvent(ev.content_block));
   } else if (type === 'assistant') {
-    const msg = j.message as { content?: unknown } | undefined;
+    const msg = j.message as { content?: unknown; usage?: unknown } | undefined;
+    // 子代理的请求不算主对话的上下文
+    if (state && !(typeof j.parent_tool_use_id === 'string' && j.parent_tool_use_id)) {
+      const ctx = anthropicRequestContext(msg?.usage);
+      if (ctx !== undefined) {
+        // 同一次请求的多个内容块带同一份 usage：只在数值变化时上报
+        if (ctx !== state.lastContext) {
+          const model = (msg as { model?: unknown } | undefined)?.model;
+          out.push(
+            withOpt(
+              { type: 'context' as const, tokens: ctx },
+              { model: typeof model === 'string' ? model : undefined },
+            ),
+          );
+        }
+        state.lastContext = ctx;
+      }
+    }
     const text = extractClaudeText(msg?.content);
     if (text) {
       out.push({ type: 'text', text });
@@ -275,10 +352,15 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     }
     out.push(...imageEvent(msg?.content));
   } else if (type === 'result') {
-    if (state) state.textSeen = false;
+    const ctx = claudeContext(j, state);
+    if (state) {
+      state.textSeen = false;
+      state.lastContext = undefined;
+    }
     const text = typeof j.result === 'string' ? j.result : blockText(j.result);
     const sid = typeof j.session_id === 'string' ? j.session_id : undefined;
-    const usage = parseUsage(j.usage, { costUsd: j.total_cost_usd, durationMs: j.duration_ms });
+    const base = parseUsage(j.usage, { costUsd: j.total_cost_usd, durationMs: j.duration_ms });
+    const usage = base ? withOpt({ ...base }, ctx) : undefined;
     const failed =
       j.is_error === true || (typeof j.subtype === 'string' && j.subtype.startsWith('error'));
     // 失败的一轮（限流 / 上下文超限 / 执行出错）不当作正常回答：按错误处理，界面显示错误卡片并可重试
@@ -316,6 +398,11 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     if (ev) out.push(ev);
   } else if (type === 'system' && j.subtype === 'compact_boundary') {
     out.push({ type: 'status', kind: 'clear' });
+    // 压缩后的上下文大小：stream-json 是 compact_metadata.post_tokens，transcript 是 compactMetadata.postTokens
+    const meta = (j.compact_metadata ?? j.compactMetadata ?? {}) as Record<string, unknown>;
+    const post = num(meta.post_tokens) ?? num(meta.postTokens);
+    out.push({ type: 'context', tokens: post ?? null });
+    if (state) state.lastContext = post;
   } else if (type === 'error' || (type === 'system' && j.subtype === 'error')) {
     out.push({ type: 'error', message: String(j.error ?? j.message ?? t('Claude 错误')) });
   } else if (type === 'control_request') {
@@ -794,31 +881,74 @@ export function parseDshLine(line: string): HarnessEvent[] {
  */
 export function createDshParser(): (line: string) => HarnessEvent[] {
   const names = new Map<string, string>();
-  return (line) =>
-    parseDshLine(line).flatMap((ev) => {
-      if (ev.type !== 'tool' || !ev.detail) return [ev];
-      if (ev.status === 'start') {
-        names.set(ev.detail, ev.name);
-        return DSH_SUBAGENT_TOOLS.has(ev.name) ? [ev, dshAgentStart(ev.detail, ev.input)] : [ev];
-      }
-      const name = names.get(ev.detail);
-      if (name) names.delete(ev.detail);
-      const named = name ? { ...ev, name } : ev;
-      if (!name || !DSH_SUBAGENT_TOOLS.has(name)) return [named];
-      // 无头 JSON 只投影主会话：子代理内部不可见，结束时用工具结果做摘要
-      return [
-        named,
-        withOpt(
-          {
-            type: 'agent',
-            op: 'end',
-            id: ev.detail,
-            status: ev.status === 'error' ? 'failed' : 'completed',
-          } as HarnessEvent,
-          { summary: ev.output?.slice(0, 2000) },
-        ),
-      ];
-    });
+  // dsh 没有整轮用量事件：每步 status/step_end 带该步 usage（0.2.1 源码）。
+  // 整轮计费 = 各步之和；当前上下文 = 最后一步 totalTokens（input + output + 缓存读写）
+  let turn: HarnessUsage | undefined;
+  /** 这一行刚结束的一步的上下文占用：作为实时 context 事件发出 */
+  let stepContext: number | undefined;
+  const takeStep = (line: string) => {
+    if (!line.includes('step_end')) return;
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(line.trim()) as Record<string, unknown>;
+    } catch {
+      return;
+    }
+    if (j.type !== 'status' || j.phase !== 'step_end') return;
+    const u = (j.usage ?? {}) as Record<string, unknown>;
+    const input = num(u.inputTokens) ?? 0;
+    const output = num(u.outputTokens) ?? 0;
+    const cacheRead = num(u.cacheReadTokens) ?? 0;
+    const ctx = num(u.totalTokens) ?? input + output + cacheRead + (num(u.cacheWriteTokens) ?? 0);
+    if (!ctx) return;
+    stepContext = ctx;
+    turn = {
+      inputTokens: (turn?.inputTokens ?? 0) + input,
+      outputTokens: (turn?.outputTokens ?? 0) + output,
+      ...(cacheRead || turn?.cacheReadTokens
+        ? { cacheReadTokens: (turn?.cacheReadTokens ?? 0) + cacheRead }
+        : {}),
+      contextTokens: ctx,
+    };
+  };
+  return (line) => {
+    stepContext = undefined;
+    takeStep(line);
+    const live: HarnessEvent[] =
+      stepContext !== undefined ? [{ type: 'context', tokens: stepContext }] : [];
+    return live.concat(
+      parseDshLine(line).flatMap((ev) => {
+        // 最终回答（没有 sessionId 的 done）带上这一轮的用量
+        if (ev.type === 'done' && !ev.sessionId && turn) {
+          const withUsage = { ...ev, usage: { ...turn, ...ev.usage } };
+          turn = undefined;
+          return [withUsage];
+        }
+        if (ev.type !== 'tool' || !ev.detail) return [ev];
+        if (ev.status === 'start') {
+          names.set(ev.detail, ev.name);
+          return DSH_SUBAGENT_TOOLS.has(ev.name) ? [ev, dshAgentStart(ev.detail, ev.input)] : [ev];
+        }
+        const name = names.get(ev.detail);
+        if (name) names.delete(ev.detail);
+        const named = name ? { ...ev, name } : ev;
+        if (!name || !DSH_SUBAGENT_TOOLS.has(name)) return [named];
+        // 无头 JSON 只投影主会话：子代理内部不可见，结束时用工具结果做摘要
+        return [
+          named,
+          withOpt(
+            {
+              type: 'agent',
+              op: 'end',
+              id: ev.detail,
+              status: ev.status === 'error' ? 'failed' : 'completed',
+            } as HarnessEvent,
+            { summary: ev.output?.slice(0, 2000) },
+          ),
+        ];
+      }),
+    );
+  };
 }
 
 /** dsh 派生子代理的工具（headless 档案：subagent = spawn，subagent_fork = fork） */
@@ -926,12 +1056,16 @@ export function parseGrokLine(line: string): HarnessEvent[] {
       const endText = str(j.text);
       const image =
         imageMarkdown(j.output ?? j.content ?? j.images) || imageMarkdown(endText, false);
+      // end.usage 是整轮累计（计费口径）；当前上下文已由前面逐请求的 usage 行给出，合并时保留
       return [
-        {
-          type: 'done',
-          text: textWithImage(endText, image),
-          sessionId: str(j.sessionId) || undefined,
-        },
+        withOpt(
+          {
+            type: 'done',
+            text: textWithImage(endText, image),
+            sessionId: str(j.sessionId) || undefined,
+          } as HarnessEvent,
+          { usage: parseUsage(j.usage) },
+        ),
       ];
     }
     case 'error':
@@ -941,8 +1075,26 @@ export function parseGrokLine(line: string): HarnessEvent[] {
       return data ? [{ type: 'thinking', text: clip(data, MAX_THINKING) }] : [];
     }
     case 'usage': {
-      const usage = parseUsage(j.usage ?? j.data ?? j, { costUsd: j.costUsd ?? j.cost });
-      return usage ? [{ type: 'done', text: '', usage }] : [];
+      // 每次请求一行（1.0.67 实测，end.usage 才是整轮累计）：input_tokens 不含缓存 → 当前上下文要加上缓存读
+      const raw = (j.usage ?? j.data ?? j) as Record<string, unknown>;
+      const base = parseUsage(raw, { costUsd: j.costUsd ?? j.cost });
+      const usage = base
+        ? withOpt(
+            { ...base },
+            {
+              contextTokens:
+                (base.inputTokens ?? 0) + (base.cacheReadTokens ?? 0) + (base.outputTokens ?? 0) ||
+                undefined,
+            },
+          )
+        : undefined;
+      if (!usage) return [];
+      return usage.contextTokens
+        ? [
+            { type: 'context', tokens: usage.contextTokens },
+            { type: 'done', text: '', usage },
+          ]
+        : [{ type: 'done', text: '', usage }];
     }
     case 'plan':
     case 'available_commands':

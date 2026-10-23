@@ -1,7 +1,7 @@
 /**
  * E18 · 多标签并发编程助手（真实 dist 应用 + Mock CLI）
  *
- * 1. 新建 Claude Code / Codex / dsh 三个标签，各发一条消息；并发上限设为 2 → 两个运行、一个排队；
+ * 1. 新建 Claude Code / Codex / dsh 三个标签，各发一条消息；并发上限已取消 → 三个同时运行、无排队；
  * 2. 后台标签完成后出现未读角标；切换标签（Ctrl+Tab / Mod+数字）后清零；
  * 3. 重命名、关闭标签；监视器（设置 → 编程助手 → 监视与会话）里能看到 Nomi 标签；
  * 4. 重启应用：标签、标题、会话与消息都还在。
@@ -19,8 +19,6 @@ import { safeRm } from '../fixtures/fsutil';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const shotDir = process.env.MULTI_TAB_SHOTS_DIR;
-
-type AiIpc = { invoke: (c: string, ...a: unknown[]) => Promise<unknown> };
 
 async function launch(userData: string): Promise<{ app: ElectronApplication; chat: Page }> {
   const env: Record<string, string> = {
@@ -95,10 +93,6 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     let chat: Page;
     ({ app, chat } = await launch(userData));
     const mod = await chat.evaluate(() => (/Mac/.test(navigator.platform) ? 'Meta' : 'Control'));
-    await chat.evaluate(async () => {
-      const ipc = (window as unknown as { aiIPC: AiIpc }).aiIPC;
-      await ipc.invoke('ai:harness:set-max-concurrent', 2);
-    });
     await shot(chat, '01-main-tab');
     const input = chat.locator('[data-testid="chat-input"]');
     const tabs = chat.locator('[role="tab"]');
@@ -129,20 +123,18 @@ test.describe('E18 · concurrent chat tabs · mock CLI', () => {
     await expect(tabs).toHaveCount(4);
     await send('update the docs');
 
-    // 并发上限 2：两个运行、一个排队（按钮显示「运行数/上限 · 排队 N」）
-    await expect(chat.locator('[data-testid="chat-tabs-load"]')).toContainText('2/2');
-    await expect(chat.locator('[data-testid="chat-tabs-load"]')).toContainText('排队 1');
-    await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(2);
-    await expect(chat.locator('[role="tab"][data-status="queued"]')).toHaveCount(1);
-    await expect(chat.locator('[data-testid="conv-live"]')).toContainText('排队等待');
+    // 并发上限已取消（7569e979 移除「最多同时运行」及其 chat-tabs-load 控件）：三个同时运行、不排队
+    await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(3);
+    await expect(chat.locator('[role="tab"][data-status="queued"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="chat-tabs-load"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="conv-live"]')).toBeVisible();
     await shot(chat, '03-concurrent-running-queued');
 
-    // 全部完成：concurrency 控件常驻，等 running/queued 归零（勿断言 chat-tabs-load 消失）
+    // 全部完成：等 running/queued 归零
     await expect(chat.locator('[role="tab"][data-status="running"]')).toHaveCount(0, {
       timeout: 60_000,
     });
     await expect(chat.locator('[role="tab"][data-status="queued"]')).toHaveCount(0);
-    await expect(chat.locator('[data-testid="chat-tabs-load"]')).toContainText('0/2');
     await expect(chat.locator('[data-testid="chat-tab-unread"]')).toHaveCount(2);
     await expect(chat.locator('.ai-chat-app')).toContainText('update the docs');
     await expect(chat.locator('.ai-chat-app')).toContainText('Mock dsh');

@@ -83,7 +83,6 @@ function mockIpc() {
           { id: 't1', backend: 'claude', cwd: '/work/pay-service', status: 'idle', unread: 0 },
         ],
         activeTabId: 'main',
-        maxConcurrent: 3,
         running: 0,
         queued: 0,
       };
@@ -359,7 +358,6 @@ describe('normal mode: Nomi only', () => {
     const r = mount(onNewChat);
     await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(3));
     expect(r.queryByTestId('list-view-all')).toBeNull();
-    expect(r.queryByTestId('list-view-by-endpoint')).toBeNull();
     expect(r.queryByTestId('cli-history')).toBeNull();
     expect(r.queryAllByTestId('history-item').every((x) => x.dataset.backend === 'nomi')).toBe(
       true,
@@ -386,10 +384,10 @@ describe('normal mode: Nomi only', () => {
     localStorage.setItem('ai-chat:endpointFilter', 'claude');
     const r = mount();
     await waitFor(() => r.getAllByTestId('history-item'));
-    expect(r.queryByTestId('list-view-by-endpoint')).toBeNull();
+    expect(r.queryByTestId('list-view-all')).toBeNull();
     act(() => setChatMode('dev'));
-    await waitFor(() => r.getByTestId('list-view-by-endpoint'));
-    expect(r.getByTestId('list-view-by-endpoint').getAttribute('aria-pressed')).toBe('true');
+    await waitFor(() => r.getByTestId('list-view-all'));
+    expect(r.getByTestId('list-view-all').getAttribute('aria-pressed')).toBe('false');
     expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-pressed')).toBe('true');
   });
 });

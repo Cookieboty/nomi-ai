@@ -156,6 +156,28 @@ export function codexTokenTotals(tokenUsage: unknown): CodexTokenTotals | null {
   };
 }
 
+/**
+ * 当前上下文与模型窗口（0.163.0 实测）：tokenUsage.last 是最近一次请求（inputTokens 已含 cached），
+ * total 是线程累计；last.totalTokens = input + output。
+ */
+export function codexLastContext(
+  tokenUsage: unknown,
+): { contextTokens?: number; contextWindow?: number } | null {
+  const u = tokenUsage as { last?: Json; modelContextWindow?: unknown } | undefined;
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
+  const last = u?.last && typeof u.last === 'object' ? u.last : undefined;
+  const contextTokens = last
+    ? (n(last.totalTokens) ??
+      ((n(last.inputTokens) ?? 0) + (n(last.outputTokens) ?? 0) || undefined))
+    : undefined;
+  const contextWindow = n(u?.modelContextWindow);
+  if (contextTokens === undefined && contextWindow === undefined) return null;
+  return {
+    ...(contextTokens !== undefined ? { contextTokens } : {}),
+    ...(contextWindow !== undefined ? { contextWindow } : {}),
+  };
+}
+
 /** 这一轮的用量 = 结束时的线程累计 − 开始时的线程累计（与 exec 的 turn.completed.usage 同口径） */
 export function codexTurnUsage(
   before: CodexTokenTotals | null,

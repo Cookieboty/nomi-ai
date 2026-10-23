@@ -21,7 +21,21 @@ export const WorkspacePicker: React.FC<{
   label?: string;
   testId?: string;
   className?: string;
-}> = ({ value, onChange, disabled, up = false, label, testId = 'workspace-picker', className }) => {
+  /** sm：输入栏一带（默认）；ms：对话顶栏，与旁边的「改动 · 文件」开关同高 */
+  size?: 'sm' | 'ms';
+  /** outline：带边框（默认）；ghost：无边框，对话顶栏用 */
+  variant?: 'outline' | 'ghost';
+}> = ({
+  value,
+  onChange,
+  disabled,
+  up = false,
+  label,
+  testId = 'workspace-picker',
+  className,
+  size = 'sm',
+  variant = 'outline',
+}) => {
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const ref = useRef<HTMLSpanElement>(null);
@@ -81,6 +95,8 @@ export const WorkspacePicker: React.FC<{
       <button
         type="button"
         className={styles.chip}
+        data-size={size}
+        data-variant={variant}
         disabled={disabled}
         aria-haspopup="menu"
         aria-expanded={open}

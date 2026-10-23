@@ -13,12 +13,7 @@
   "知识库": "Knowledge base",
   "扩展 / MCP": "Extensions / MCP",
   "设置": "Settings",
-  "更多入口（{0}）": "More shortcuts ({0})",
-  "更多入口": "More shortcuts",
   "取消固定": "Unpin",
-  "左上角已满（最多 {0} 个）": "Top-left is full (max {0})",
-  "固定到左上角": "Pin to top-left",
-  "自定义常驻入口…": "Customize pinned shortcuts…",
   "模型配置已保存": "Model settings saved",
   "连接测试失败: {0}": "Connection test failed: {0}",
   "API 密钥": "API key",
@@ -248,5 +243,6 @@
   "用户级": "User",
   "本机项目级": "Local project",
   "Nomi 里已有同名服务器：": "Nomi already has a server with this name:",
-  "Nomi 里已有同名技能：": "Nomi already has a skill with this name:"
+  "Nomi 里已有同名技能：": "Nomi already has a skill with this name:",
+  "应用入口": "App shortcuts"
 }

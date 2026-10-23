@@ -26,6 +26,8 @@ export interface UpdateState {
   releaseNotes?: string | null;
   percent?: number;
   error?: string;
+  /** 失败在哪一步：检查 / 下载 / 安装 */
+  errorStage?: 'check' | 'download' | 'install';
   checkedAt?: number;
   autoCheck: boolean;
 }
@@ -57,7 +59,13 @@ export function statusLabel(s: UpdateState): string {
     case 'downloaded':
       return t('更新已下载，重启后安装');
     case 'error':
-      return t('检查更新失败：{0}').replace('{0}', s.error ?? '');
+      return (
+        s.errorStage === 'download'
+          ? t('下载更新失败：{0}')
+          : s.errorStage === 'install'
+            ? t('安装更新失败：{0}')
+            : t('检查更新失败：{0}')
+      ).replace('{0}', s.error ?? '');
     case 'unavailable':
       return t('自动更新仅在安装版中可用（开发模式请从源码运行）');
     default:
@@ -133,7 +141,8 @@ export const UpdateSettings: React.FC<{ children?: React.ReactNode }> = ({ child
           data-testid="updates-check"
           onClick={() => void run(() => api()!.check())}
         >
-          {t('检查更新')}
+          {/* 失败后重新检查会接着重新下载（主进程先取消卡住的下载） */}
+          {s?.status === 'error' ? t('重试') : t('检查更新')}
         </Button>
         {canInstall && !confirmInstall && (
           <Button

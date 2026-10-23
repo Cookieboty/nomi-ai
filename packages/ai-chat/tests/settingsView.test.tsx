@@ -130,7 +130,7 @@ describe('SettingsView 合并后的标签页分区', () => {
   it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏有副标题与「设置」分组', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
     const r = render(<Harness onClose={() => undefined} start="general" />);
-    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 Nomi·诺米');
+    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 AI 助手');
     expect(r.queryByTestId('settings-help')).toBeNull();
     fireEvent.click(r.getByTestId('settings-nav-models'));
     const help = r.getByTestId('settings-help');
@@ -164,7 +164,7 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.queryByTestId('shortcut-conflict-banner')).toBeNull();
   });
 
-  it('通用：横幅下是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、常驻入口、关于与更新', () => {
+  it('通用：横幅下是版本 / 主题 / 语言速览；分组依次为外观、（启动与窗口）、关于与更新', () => {
     const r = render(<Harness onClose={() => undefined} start="general" />);
     for (const id of ['version', 'theme', 'language'])
       expect(r.getByTestId(`settings-hero-${id}`)).toBeTruthy();
@@ -178,19 +178,9 @@ describe('SettingsView 合并后的标签页分区', () => {
     const order = [...r.container.querySelectorAll('[data-testid]')]
       .map((e) => e.getAttribute('data-testid'))
       .filter((id) =>
-        [
-          'settings-appearance',
-          'settings-basic-group',
-          'pins-settings',
-          'settings-updates',
-        ].includes(id!),
+        ['settings-appearance', 'settings-basic-group', 'settings-updates'].includes(id!),
       );
-    expect(order).toEqual([
-      'settings-appearance',
-      'settings-basic-group',
-      'pins-settings',
-      'settings-updates',
-    ]);
+    expect(order).toEqual(['settings-appearance', 'settings-basic-group', 'settings-updates']);
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 

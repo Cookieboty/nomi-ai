@@ -364,9 +364,12 @@ export class AiSdkLlmProvider implements LLMProvider {
         ...(tools ? { tools, stopWhen: stepCountIs(this.opts.maxSteps ?? 5) } : {}),
       });
       let served: string | undefined;
+      // 最后一步的用量 = 当前上下文（finish 的 totalUsage 是各步累加）
+      let lastStep: ChatUsage | undefined;
       for await (const part of result.fullStream) {
         if (part.type === 'finish-step') {
           served = this.servedModel(part.response?.headers) ?? served;
+          lastStep = usageOf(part.usage) ?? lastStep;
         } else if (part.type === 'text-delta') {
           yield { type: 'delta', content: part.text };
         } else if (part.type === 'reasoning-delta') {
@@ -395,7 +398,11 @@ export class AiSdkLlmProvider implements LLMProvider {
             error: part.error instanceof Error ? part.error.message : String(part.error),
           };
         } else if (part.type === 'finish') {
-          const u = usageOf(part.totalUsage);
+          const total = usageOf(part.totalUsage);
+          const u =
+            total && lastStep
+              ? { ...total, contextTokens: lastStep.promptTokens + lastStep.completionTokens }
+              : total;
           if (u) yield { type: 'usage', usage: u, model: served ?? this.resolveModel(request) };
           yield { type: 'done', finishReason: finishOf(part.finishReason) };
         } else if (part.type === 'error') {

@@ -1,3 +1,5 @@
+import type { DesktopApi, MascotWindowApi } from './models';
+
 // 定义IPC通信接口
 export interface IpcApi {
   quit: () => void;
@@ -35,9 +37,9 @@ export interface IpcApi {
   onMascotCommand?: (callback: (cmd: unknown) => void) => () => void;
 
   /** 看板娘窗口互动 */
-  mascotWindow?: import('./models').MascotWindowApi;
+  mascotWindow?: MascotWindowApi;
   /** 桌面能力（确认 / 拖文件总结） */
-  desktop?: import('./models').DesktopApi;
+  desktop?: DesktopApi;
 }
 
 // 在渲染进程中可用的Electron API

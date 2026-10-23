@@ -365,6 +365,7 @@ describe('CliHarnessService model / effort overrides', () => {
         models: () => [
           { ref: 'gw/a', provider: 'GW', label: 'a' },
           { ref: 'gw/b', provider: 'GW', label: 'b' },
+          { ref: 'gw/text-only', provider: 'GW', label: 'text-only', vision: false },
         ],
         releaseAgent: () => undefined,
       };
@@ -379,8 +380,26 @@ describe('CliHarnessService model / effort overrides', () => {
       expect(c.models.map((m) => [m.id, m.label])).toEqual([
         ['gw/a', 'GW / a'],
         ['gw/b', 'GW / b'],
+        ['gw/text-only', 'GW / text-only'],
       ]);
+      // 网关模型的 vision 带到目录里（不知道的不写）
+      expect(c.models.map((m) => m.vision)).toEqual([undefined, undefined, false]);
       expect(c.models.every((m) => !m.reasoning && m.efforts.length === 0)).toBe(true);
+    });
+
+    it('附图看模型能力：第三方模型明确不支持看图时拒绝，不知道的放行', async () => {
+      const h = mk({ gateway: fakeGateway().gateway } as never);
+      const tab = h.createTab({ backend: 'codex' });
+      const png = {
+        mime: 'image/png',
+        data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        width: 1,
+        height: 1,
+      };
+      h.setTabSource(tab.id, 'thirdParty', 'gw/text-only');
+      await expect(h.sendTab(tab.id, 'look', [png])).rejects.toThrow(/GW \/ text-only.*不支持图片/);
+      h.setTabSource(tab.id, 'thirdParty', 'gw/b');
+      await expect(h.sendTab(tab.id, 'look', [png])).resolves.toBeTruthy();
     });
 
     it('切到第三方：注入网关参数、按标签模型下发、不带思考深度；切回官方取回之前的选择', async () => {

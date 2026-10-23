@@ -1,51 +1,3 @@
-.messageContainer {
-  margin-bottom: 0;
-  padding: 0;
-  max-width: 100%;
-  word-wrap: break-word;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-2);
-  animation: messageSlideIn 0.25s ease-out;
-}
-
-.userMessage {
-  align-items: flex-end;
-}
-
-.assistantMessage {
-  align-items: flex-start;
-}
-
-.messageHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  font-size: var(--conv-meta, 13px);
-  color: var(--cd-color-text-muted);
-  font-weight: var(--cd-font-weight-medium);
-  padding: 0 var(--cd-space-1);
-}
-
-.userMessage .messageHeader {
-  justify-content: flex-end;
-}
-
-.assistantMessage .messageHeader {
-  justify-content: flex-start;
-}
-
-.role {
-  font-weight: var(--cd-font-weight-bold);
-  color: var(--cd-color-text);
-}
-
-.timestamp {
-  color: var(--cd-color-text-subtle);
-  font-size: var(--conv-meta, 13px);
-}
-
-.model,
 .kbTag {
   background: var(--cd-color-accent-soft);
   color: var(--cd-color-accent-strong);
@@ -54,50 +6,6 @@
   font-size: var(--conv-meta, 13px);
   font-weight: var(--cd-font-weight-medium);
   border: 1px solid var(--cd-color-border);
-}
-
-.messageContent {
-  line-height: var(--cd-line-height);
-  max-width: min(720px, 92%);
-  position: relative;
-  transition: var(--cd-transition);
-}
-
-.userMessage .messageContent {
-  align-self: flex-end;
-  background: var(--cd-color-accent);
-  color: var(--cd-color-text-on-accent);
-  padding: var(--cd-space-3) var(--cd-space-4);
-  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs) var(--cd-radius-xl);
-  border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-sm);
-}
-
-.assistantMessage .messageContent {
-  align-self: flex-start;
-  background: var(--cd-color-surface-raised);
-  color: var(--cd-color-text);
-  padding: var(--cd-space-3) var(--cd-space-4);
-  border-radius: var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xl) var(--cd-radius-xs);
-  border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-sm);
-}
-
-.contentText {
-  white-space: pre-wrap;
-  font-size: var(--conv-text, 16px);
-  line-height: 1.65;
-  margin: 0;
-}
-
-.userMessage .contentText {
-  color: var(--cd-color-text-on-accent);
-}
-
-.errorMessage {
-  background: var(--cd-color-danger-soft) !important;
-  color: var(--cd-color-danger-text) !important;
-  border: 1px solid rgba(239, 68, 68, 0.4) !important;
 }
 
 .errorText {
@@ -133,39 +41,6 @@
     transform: translateY(0);
   }
 }
-
-/* ===== Codex 风格：用户消息淡色小块，助手回复为纯文本；元信息悬停才显示 ===== */
-.messageContainer {
-  gap: var(--cd-space-1);
-}
-.messageHeader {
-  opacity: 0;
-  transition: opacity 0.15s;
-  font-size: var(--conv-meta, 13px);
-  margin: var(--cd-space-0-5) 0 0;
-}
-.messageContainer:hover .messageHeader {
-  opacity: 1;
-}
-.userMessage .messageContent {
-  background: var(--cd-color-user-msg);
-  color: var(--cd-color-text);
-  border: none;
-  box-shadow: none;
-  border-radius: var(--cd-radius-xl);
-  padding: var(--cd-space-2) 14px;
-}
-.assistantMessage .messageContent {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  max-width: 100%;
-}
-.assistantMessage .contentText {
-  line-height: 1.75;
-}
-.model,
 .kbTag {
   background: transparent;
   border: none;
@@ -206,15 +81,6 @@
   padding: 0 0 0 10px;
   border-left: 1px solid var(--cd-color-border);
   list-style: none;
-}
-/* 用户消息不再是强调色底，文字用正文色（浅色主题也清晰） */
-.userMessage .contentText {
-  color: var(--cd-color-text);
-}
-.stoppedNote {
-  margin-top: var(--cd-space-1);
-  font-size: var(--conv-meta, 13px);
-  color: var(--cd-color-text-subtle);
 }
 
 /* ===== 知识库引用 / 来源 / 预览（2eac397 迁移会话视图时丢失，按原样式用现有 token 恢复） ===== */

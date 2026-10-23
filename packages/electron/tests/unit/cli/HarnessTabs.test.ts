@@ -69,7 +69,6 @@ describe('CliHarnessService tabs', () => {
     const h = mk();
     const s0 = h.listTabs();
     expect(s0.tabs.map((x) => x.id)).toEqual([MAIN_TAB_ID]);
-    expect(s0.maxConcurrent).toBe(3);
     const a = h.createTab({ backend: 'codex' });
     const b = h.createTab({ backend: 'codex' });
     expect(a.title).toBe('Codex');
@@ -79,10 +78,9 @@ describe('CliHarnessService tabs', () => {
     expect(() => h.closeTab(MAIN_TAB_ID)).toThrow();
   });
 
-  it('runs tabs concurrently up to the limit and queues the rest', async () => {
+  it('runs all tabs in parallel (no max-concurrent queue)', async () => {
     process.env.NOMI_MOCK_DELAY_MS = '400';
     const h = mk();
-    h.setMaxConcurrent(2);
     const ids = [
       h.createTab({ backend: 'claude' }).id,
       h.createTab({ backend: 'codex' }).id,
@@ -94,8 +92,8 @@ describe('CliHarnessService tabs', () => {
     expect(results[0]!.text).toContain('Mock Claude');
     expect(results[1]!.text).toContain('Mock Codex');
     expect(results[2]!.text).toContain('job 2');
-    expect(Math.max(...snapshots.map((s) => s.running))).toBe(2);
-    expect(Math.max(...snapshots.map((s) => s.queued))).toBeGreaterThanOrEqual(1);
+    expect(Math.max(...snapshots.map((s) => s.running))).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...snapshots.map((s) => s.queued))).toBe(0);
     expect(h.listTabs().tabs.every((x) => x.status === 'idle')).toBe(true);
   });
 
@@ -143,12 +141,10 @@ describe('CliHarnessService tabs', () => {
     const a = h.createTab({ backend: 'dsh', title: 'Refactor' });
     await h.sendTab(a.id, 'remember me');
     h.renameTab(a.id, 'Refactor API');
-    h.setMaxConcurrent(5);
     h.renameTab(MAIN_TAB_ID, 'Home');
 
     const h2 = mk();
     const s = h2.listTabs();
-    expect(s.maxConcurrent).toBe(5);
     expect(s.activeTabId).toBe(a.id);
     const t = s.tabs.find((x) => x.id === a.id)!;
     expect(t).toMatchObject({ title: 'Refactor API', backend: 'dsh', status: 'idle' });

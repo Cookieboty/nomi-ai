@@ -589,7 +589,9 @@ describe('usage / status events', () => {
 
   it('grok: usage event yields a done event carrying camelCase usage', () => {
     expect(parseGrokLine('{"type":"usage","usage":{"inputTokens":3,"outputTokens":4}}')).toEqual([
-      { type: 'done', text: '', usage: { inputTokens: 3, outputTokens: 4 } },
+      // 每行是一次请求：当前上下文 = 输入 + 缓存读 + 输出；先实时上报，再并入轮末用量
+      { type: 'context', tokens: 7 },
+      { type: 'done', text: '', usage: { inputTokens: 3, outputTokens: 4, contextTokens: 7 } },
     ]);
   });
 });
@@ -694,5 +696,103 @@ describe('subagent events from real CLI recordings', () => {
     expect(
       agents(p(JSON.stringify({ type: 'tool_call', callId: 'c2', tool: 'read_file', input: {} }))),
     ).toEqual([]);
+  });
+});
+
+describe('Claude context usage (2.1.309 实测口径)', () => {
+  // result.usage 是整轮累计：cache_read 36548 = 11334 + 25214；iterations 是逐请求明细
+  const assistant = (usage: Record<string, number>, parent?: string) =>
+    JSON.stringify({
+      type: 'assistant',
+      parent_tool_use_id: parent ?? null,
+      message: { content: [{ type: 'text', text: 'x' }], usage },
+    });
+  const result = (iterations?: Record<string, number>[]) =>
+    JSON.stringify({
+      type: 'result',
+      subtype: 'success',
+      result: 'OK',
+      usage: {
+        input_tokens: 4,
+        cache_creation_input_tokens: 14201,
+        cache_read_input_tokens: 36548,
+        output_tokens: 226,
+        ...(iterations ? { iterations } : {}),
+      },
+      modelUsage: {
+        'claude-haiku-5-5': {
+          inputTokens: 4,
+          cacheReadInputTokens: 36548,
+          cacheCreationInputTokens: 14201,
+          contextWindow: 1000000,
+        },
+        'claude-tiny': { inputTokens: 1, contextWindow: 200000 },
+      },
+    });
+  const last = {
+    input_tokens: 2,
+    cache_read_input_tokens: 25214,
+    cache_creation_input_tokens: 321,
+    output_tokens: 4,
+  };
+
+  it('takes the last iteration as the current context and the main model window', () => {
+    const done = parseClaudeLine(result([{ input_tokens: 2, output_tokens: 8 }, last]))[0];
+    expect(done).toMatchObject({
+      type: 'done',
+      usage: {
+        // 计费口径仍是整轮累计
+        inputTokens: 4,
+        cacheReadTokens: 36548,
+        outputTokens: 226,
+        contextTokens: 2 + 25214 + 321 + 4,
+        contextWindow: 1000000,
+        // 主模型 = 输入最多的那个
+        model: 'claude-haiku-5-5',
+      },
+    });
+  });
+
+  it('falls back to the last main-thread assistant usage when iterations are missing', () => {
+    const parse = createClaudeParser();
+    parse(assistant({ input_tokens: 2, cache_read_input_tokens: 11334, output_tokens: 8 }));
+    parse(assistant(last));
+    // 子代理的请求不算
+    parse(assistant({ input_tokens: 9, cache_read_input_tokens: 999999 }, 'toolu_1'));
+    const done = parse(result()).find((e) => e.type === 'done');
+    expect(done?.type === 'done' && done.usage?.contextTokens).toBe(2 + 25214 + 321 + 4);
+  });
+  it('reports the live context per main-thread request (once per value) and after compaction', () => {
+    const parse = createClaudeParser();
+    const ctx = (line: string) => parse(line).filter((e) => e.type === 'context');
+    const withModel = (usage: Record<string, number>) =>
+      JSON.stringify({
+        type: 'assistant',
+        parent_tool_use_id: null,
+        message: { model: 'claude-opus-5-5', content: [{ type: 'text', text: 'x' }], usage },
+      });
+    expect(ctx(withModel(last))).toEqual([
+      { type: 'context', tokens: 2 + 25214 + 321 + 4, model: 'claude-opus-5-5' },
+    ]);
+    // 同一次请求的下一个内容块：同一份 usage 不重复上报
+    expect(ctx(withModel(last))).toEqual([]);
+    // 子代理不算
+    expect(ctx(assistant({ input_tokens: 9, cache_read_input_tokens: 999999 }, 'toolu_1'))).toEqual(
+      [],
+    );
+    // 自动压缩：372K → 16K
+    expect(
+      ctx(
+        JSON.stringify({
+          type: 'system',
+          subtype: 'compact_boundary',
+          compact_metadata: { trigger: 'auto', pre_tokens: 372759, post_tokens: 15996 },
+        }),
+      ),
+    ).toEqual([{ type: 'context', tokens: 15996 }]);
+    // 没给压缩后大小：上报 null，丢弃旧值
+    expect(
+      ctx(JSON.stringify({ type: 'system', subtype: 'compact_boundary', compact_metadata: {} })),
+    ).toEqual([{ type: 'context', tokens: null }]);
   });
 });

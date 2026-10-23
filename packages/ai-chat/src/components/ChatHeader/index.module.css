@@ -8,37 +8,11 @@
   position: relative;
   z-index: 3;
 }
-.left {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  min-width: 0;
-}
 .actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: var(--cd-space-0-5);
-}
-.btn {
-  width: var(--cd-control-h-ms);
-  height: var(--cd-control-h-ms);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--cd-radius-md);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  cursor: pointer;
-}
-/* 与侧栏、输入栏的幽灵图标按钮同一种 hover；键盘焦点另有描边（只换底色看不出焦点） */
-.btn:hover {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.btn:focus-visible {
-  outline: 2px solid var(--cd-color-accent-strong);
-  outline-offset: 2px;
 }
 .actions :global(.cd-tooltip__bubble--bottom) {
   left: auto;
@@ -46,64 +20,35 @@
   transform: none;
   white-space: nowrap;
 }
-.left {
-  flex: 1;
-  overflow: visible;
-  gap: var(--cd-space-0-5);
-}
-.pin {
-  font-size: var(--cd-font-size-lg);
-  flex-shrink: 0;
-}
-.moreWrap {
-  position: relative;
-  flex-shrink: 0;
-}
-.popup {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 60;
-  min-width: 220px;
-  padding: var(--cd-space-1-5);
-  border-radius: var(--cd-radius-lg);
-  background: var(--cd-color-surface-raised);
-  border: 1px solid var(--cd-color-border);
-  box-shadow: var(--cd-shadow-popover);
-  display: flex;
-  flex-direction: column;
-}
-.ctx {
-  position: fixed;
-  top: auto;
-}
-.popItem {
-  display: flex;
-  align-items: center;
+.header[data-with-tabs] {
   gap: var(--cd-space-2);
-  padding: var(--cd-space-1-5) var(--cd-space-2);
-  border: none;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text);
-  font: inherit;
-  font-size: var(--cd-font-size-sm);
-  text-align: left;
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: var(--cd-control-h-ms);
+  border-bottom: 1px solid var(--cd-color-border);
 }
-.popItem:hover:not(:disabled) {
-  background: var(--cd-color-hover);
+/* 标签贴底（ms 高），右侧按钮也贴底、同高：两边同一条中线（居中会比标签高半个差值） */
+.header[data-with-tabs] .actions {
+  align-self: flex-end;
+  height: var(--cd-control-h-ms);
 }
-.popItem:disabled {
-  color: var(--cd-color-text-subtle);
-  cursor: not-allowed;
-}
-.popLabel {
+.tabsSlot {
+  display: flex;
   flex: 1;
+  min-width: 0;
+  align-self: stretch;
 }
-.popHint {
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-subtle);
+/* 对话列窄（中栏打开或窗口小）：标签换到第二行占满宽度，不被右侧入口挤没 */
+@container chat-column (max-width: 640px) {
+  .header[data-with-tabs] {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 0;
+  }
+  .header[data-with-tabs] .actions {
+    align-self: center;
+    height: 44px;
+  }
+  .header[data-with-tabs] .tabsSlot {
+    order: 1;
+    flex-basis: 100%;
+    height: calc(var(--cd-control-h-ms) + var(--cd-space-1));
+  }
 }

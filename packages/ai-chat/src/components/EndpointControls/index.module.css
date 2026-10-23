@@ -57,7 +57,7 @@
 .session {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--cd-space-2);
   min-width: 0;
   flex-wrap: nowrap;

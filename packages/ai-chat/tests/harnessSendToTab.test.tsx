@@ -27,7 +27,6 @@ const tab = (over: Partial<HarnessTabMeta>): HarnessTabMeta => ({
 const stateOf = (tabs: HarnessTabMeta[], activeTabId: string): HarnessTabsState => ({
   tabs: [tab({ id: 'main', title: 'Chat', backend: 'nomi' }), ...tabs],
   activeTabId,
-  maxConcurrent: 3,
   running: 0,
   queued: 0,
 });

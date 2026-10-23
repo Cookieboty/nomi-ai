@@ -19,8 +19,10 @@ import {
 import { Cloud, FolderLock, KeyRound, Lock } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useLayoutDensity } from '../../hooks/useLayoutDensity';
 import { startupClient, type StartupView } from '../../services/startupClient';
 import { ModelsPage } from '../ModelsPage';
+import { LAYOUT_DENSITIES } from '../SettingsView/LayoutDensitySettings';
 
 import { mergePersona, onboardingClient, type VoiceStyle } from './client';
 import styles from './index.module.css';
@@ -44,6 +46,7 @@ const STEPS = [
   'language',
   'theme',
   'startup',
+  'layout',
   'character',
   'persona',
   'provider',
@@ -55,6 +58,7 @@ const STEP_TITLE: Record<Step, () => string> = {
   language: () => t('选择界面语言'),
   theme: () => t('选一个喜欢的外观'),
   startup: () => t('启动 Nomi 后先看到什么？'),
+  layout: () => t('工作台要精简一点，还是全都摆出来？'),
   character: () => t('选一个喜欢的声音'),
   persona: () => t('她该怎么称呼你？'),
   provider: () => t('接入一个 AI 模型'),
@@ -65,6 +69,7 @@ const STEP_LINE: Record<Step, () => string> = {
   language: () => t('你好，我是 Nomi·诺米，住在你桌面上的 AI 伙伴。花一分钟认识一下吧！'),
   theme: () => t('先挑一个看着舒服的外观吧，我们每天都要见面呢。'),
   startup: () => t('每次启动，是先让我出现在桌面上，还是直接打开主界面？之后都能改哦。'),
+  layout: () => t('喜欢清爽就选精简，经常同时开好几个会话就选全量～'),
   character: () => t('想让我用什么样的声音和你说话？点一下就能试听，之后也能随时改。'),
   persona: () => t('告诉我怎么称呼你，我会好好记住。'),
   provider: () => t('接上一个 AI 模型，我就能帮你规划任务、把想法变成行动。'),
@@ -119,6 +124,7 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
   const [tone, setTone] = useState<string | null>(null);
   // 启动方式：默认看板娘（保持历史行为）；点选即写入设置，跳过 / 不选则不改
   const [startup, setStartup] = useState<StartupView>('mascot');
+  const { density, setDensity } = useLayoutDensity();
 
   useEffect(() => {
     void startupClient.get().then(setStartup);
@@ -260,6 +266,30 @@ export const Onboarding: React.FC<{ onDone: (skipped: boolean) => void }> = ({ o
             <p className={styles.note}>
               {t('依赖定时任务 / 提醒的话，选 Nomi 更顺手；主要在主界面里工作，就选主界面。')}
               {t('之后可在「设置 → 通用」随时修改。')}
+            </p>
+          </>
+        );
+      case 'layout':
+        return (
+          <>
+            <div className={styles.options} role="radiogroup" aria-label={t('界面模式')}>
+              {LAYOUT_DENSITIES.map((x) => (
+                <button
+                  key={x.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={density === x.id}
+                  data-testid={`onb-layout-${x.id}`}
+                  className={`${styles.option} ${density === x.id ? styles.optionOn : ''}`}
+                  onClick={() => setDensity(x.id)}
+                >
+                  <span className={styles.optionTitle}>{x.label()}</span>
+                  <span className={styles.optionHint}>{x.hint()}</span>
+                </button>
+              ))}
+            </div>
+            <p className={styles.note}>
+              {t('只影响工作台（编程助手）；之后可在「设置 → 通用 → 外观」随时修改。')}
             </p>
           </>
         );

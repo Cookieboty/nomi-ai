@@ -172,7 +172,6 @@ export class CacheService implements ICacheService {
    * 清理过期项
    */
   cleanup(): number {
-    const now = Date.now();
     let cleanedCount = 0;
 
     for (const [key, item] of this.cache.entries()) {

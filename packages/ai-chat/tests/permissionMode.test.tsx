@@ -10,6 +10,7 @@ import {
   EndpointControls,
   PermissionTip,
   SessionControls,
+  WorkspaceControl,
 } from '../src/components/EndpointControls';
 import { HarnessTabsProvider } from '../src/contexts/HarnessTabsContext';
 import { setChatMode } from '../src/services/chatPrefs';
@@ -51,7 +52,6 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
       return {
         tabs: [tab({ id: 'main', backend: 'nomi' }), current],
         activeTabId: 'cx',
-        maxConcurrent: 3,
         running: 0,
         queued: 0,
         defaultPermissionMode: 'acceptEdits',
@@ -77,7 +77,7 @@ const mount = () =>
       <>
         <PermissionTip />
         <EndpointControls />
-        <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
+        <SessionControls onManageNomi={() => undefined} />
       </>
     </HarnessTabsProvider>,
   );
@@ -252,7 +252,7 @@ describe('/mode 斜杠命令', () => {
 });
 
 describe('输入栏只留端点与权限模式', () => {
-  it('输入栏组件里没有工作目录和供应商；它们在对话区右上角的 SessionControls 里', async () => {
+  it('输入栏组件里没有工作目录和供应商：工作目录在对话顶栏，供应商在侧栏信息卡', async () => {
     mockIpc({ backend: 'codex' });
     const bar = render(
       <HarnessTabsProvider>
@@ -264,13 +264,21 @@ describe('输入栏只留端点与权限模式', () => {
     expect(bar.queryByTestId('cli-source-menu')).toBeNull();
     bar.unmount();
 
-    const top = render(
+    const header = render(
       <HarnessTabsProvider>
-        <SessionControls onManageNomi={() => undefined} onOpenModels={() => undefined} />
+        <WorkspaceControl />
       </HarnessTabsProvider>,
     );
-    await top.findByTestId('cli-workspace');
-    expect(top.getByTestId('session-controls')).toBeTruthy();
-    expect(top.queryByTestId('permission-mode-chip')).toBeNull();
+    await header.findByTestId('cli-workspace');
+    header.unmount();
+
+    // 输入框下方：CLI 标签没有「带上前文」时什么都不显示（供应商不在这里选）
+    const below = render(
+      <HarnessTabsProvider>
+        <SessionControls onManageNomi={() => undefined} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(below.queryByTestId('session-controls')).toBeNull());
+    expect(below.queryByTestId('cli-source-menu')).toBeNull();
   });
 });

@@ -241,15 +241,8 @@ test.describe('E26 · 额度卡片 + 按端信息卡', () => {
 
     // ── 3. 按端信息卡
     await chat.click('[data-testid="settings-back"]');
-    // 切到「按端」视图：点击偶尔在 Windows 上卡在 performing click（状态其实已切换），
-    // 所以按 aria-pressed 判断、短超时重试，而不是一次长超时点击
-    const byEndpoint = chat.locator('[data-testid="list-view-by-endpoint"]');
-    await expect(byEndpoint).toBeVisible({ timeout: 20_000 });
-    await expect(async () => {
-      if ((await byEndpoint.getAttribute('aria-pressed')) !== 'true')
-        await byEndpoint.click({ timeout: 5_000 });
-      await expect(byEndpoint).toHaveAttribute('aria-pressed', 'true', { timeout: 3_000 });
-    }).toPass({ timeout: 60_000 });
+    // 端点筛选行（「全部」+ 各端图标）在开发模式下一直显示
+    await expect(chat.locator('[data-testid="list-view-all"]')).toBeVisible({ timeout: 20_000 });
     // 没有对话的端点默认不显示（fdde8f0a）；这里的 Codex 日志只有用量、没有对话，所以显式设为「显示」。
     // 以前能过是因为本机 ~/.codex 里恰好有真实会话；CI 上没有。
     await chat.click('[data-testid="endpoint-visibility"]');

@@ -241,6 +241,10 @@ describe('first-byte timeout (#93)', () => {
     const { chat } = await setup(
       (_s, res) => {
         res.writeHead(200, { 'content-type': 'text/event-stream' });
+        // writeHead alone does not put the headers on the wire until the first body write
+        // (50ms later); flush so the 100ms first-byte budget measures only the header wait
+        // and a loaded runner cannot push the headers past it.
+        res.flushHeaders();
         let n = 0;
         const tick = setInterval(() => {
           n++;
@@ -269,6 +273,44 @@ describe('first-byte timeout (#93)', () => {
     const r = await chat();
     expect(r.status).toBeGreaterThanOrEqual(500);
     expect(await r.text()).toContain('首字节前超时');
+  });
+});
+
+describe('non-stream body read timeout', () => {
+  const chatJson = JSON.stringify({
+    id: 'c1',
+    object: 'chat.completion',
+    choices: [{ index: 0, message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' }],
+    usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+  });
+
+  it('upstream sends headers then stalls the body: fails with an error instead of hanging', async () => {
+    const { chat } = await setup(
+      (_s, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.write(chatJson.slice(0, 10)); // 发了一半就不再发，也不断开
+      },
+      { nonStreamFirstByteTimeoutMs: 200 },
+    );
+    const t0 = Date.now();
+    const r = await chat({ stream: false });
+    const text = await r.text();
+    expect(r.status).toBe(502);
+    expect(text).toContain('没有读完');
+    expect(Date.now() - t0).toBeLessThan(3000);
+  }, 8000);
+
+  it('a body that arrives within the limit is unaffected', async () => {
+    const { chat } = await setup(
+      (_s, res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        setTimeout(() => res.end(chatJson), 50);
+      },
+      { nonStreamFirstByteTimeoutMs: 1000 },
+    );
+    const r = await chat({ stream: false });
+    expect(r.status).toBe(200);
+    expect(await r.text()).toContain('"hi"');
   });
 });
 
@@ -378,5 +420,42 @@ describe('cooldown / affinity units', () => {
     expect(a.get('s2')).toBeNull();
     t = 1_001;
     expect(a.get('s1')).toBeNull();
+  });
+});
+
+describe('non-stream first-byte timeout (thinking models)', () => {
+  it('does not abort a slow non-stream JSON response under the short stream first-byte limit', async () => {
+    // 旧行为：FIRST_BYTE_TIMEOUT_MS=30s 对非流式也生效 → deepseek-v4-pro 思考阶段被客户端断开。
+    // 这里用 hooks 把「流式首字节」压到 80ms，非流式放到 2s；上游 200ms 才出头，应成功。
+    const { chat } = await setup(
+      (_s, res) => {
+        setTimeout(() => {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              id: 'c1',
+              choices: [
+                { index: 0, message: { role: 'assistant', content: 'hi' }, finish_reason: 'stop' },
+              ],
+            }),
+          );
+        }, 200);
+      },
+      { firstByteTimeoutMs: 80, nonStreamFirstByteTimeoutMs: 2_000 },
+    );
+    const r = await chat({ stream: false });
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { choices: Array<{ message: { content: string } }> };
+    expect(j.choices[0]?.message.content).toBe('hi');
+  });
+
+  it('still times out non-stream when nonStreamFirstByteTimeoutMs elapses', async () => {
+    const { chat } = await setup(() => undefined, {
+      firstByteTimeoutMs: 5_000,
+      nonStreamFirstByteTimeoutMs: 100,
+    });
+    const r = await chat({ stream: false });
+    expect(r.status).toBeGreaterThanOrEqual(500);
+    expect(await r.text()).toContain('首字节前超时');
   });
 });

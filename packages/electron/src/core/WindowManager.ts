@@ -7,7 +7,6 @@ import * as url from 'url';
 
 import { BrowserWindow, screen, app, type BrowserWindowConstructorOptions } from 'electron';
 
-import { t } from '../i18n';
 import { fitMascotScale, maxScaleForArea, mascotWindowSize } from '../mascot/mascotSize';
 import { MascotWindowController } from '../mascot/MascotWindowController';
 import { installWindowGuards } from '../security/windowGuards';
@@ -18,9 +17,11 @@ import { installPreloadGuard } from '../utils/preloadGuard';
 import { setWindowBounds } from '../utils/windowBounds';
 
 import { windowIconPath } from './appIcon';
+import { restoreChatBounds } from './chatWindowBounds';
 import { devChatUrl, devRendererUrl } from './devPorts';
 import { eventBus } from './EventBus';
 import { type ChromeTheme, titleBarOptions } from './titleBar';
+import { onGeometryChange } from './windowGeometryEvents';
 
 /** 开发模式：未打包且显式声明 NODE_ENV，防止打包应用被注入环境变量后加载本机 dev server */
 const isDevMode = (): boolean => !app.isPackaged && process.env.NODE_ENV === 'development';
@@ -62,6 +63,9 @@ export interface IWindowManager {
   /** 打开对话窗口并发送面板通道（默认「供应商设置」） */
   openProviderPanel(channel?: string): Promise<void>;
 }
+
+/** 对话窗口的最小尺寸（设置是全窗布局，再小放不下） */
+const CHAT_MIN_SIZE = { width: 760, height: 560 };
 
 export class WindowManager implements IWindowManager {
   /** 当前主题（Application 注入，决定对话窗口标题栏配色） */
@@ -176,10 +180,20 @@ export class WindowManager implements IWindowManager {
       const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
 
       // 设置是全窗布局，给足空间；小屏按工作区收缩
-      const windowWidth = Math.min(1120, screenWidth - 40);
-      const windowHeight = Math.min(820, screenHeight - 40);
-      const x = Math.round((screenWidth - windowWidth) / 2);
-      const y = Math.round((screenHeight - windowHeight) / 2);
+      const defaultWidth = Math.min(1120, screenWidth - 40);
+      const defaultHeight = Math.min(820, screenHeight - 40);
+      // 上次关闭时的位置与大小（按现在的显示器校正）；没有时居中默认尺寸
+      const restored = restoreChatBounds(
+        this.configService.getConfig().chatWindowBounds,
+        [primaryDisplay, ...screen.getAllDisplays().filter((d) => d.id !== primaryDisplay.id)].map(
+          (d) => d.workArea,
+        ),
+        CHAT_MIN_SIZE,
+      );
+      const windowWidth = restored?.width ?? defaultWidth;
+      const windowHeight = restored?.height ?? defaultHeight;
+      const x = restored?.x ?? Math.round((screenWidth - windowWidth) / 2);
+      const y = restored?.y ?? Math.round((screenHeight - windowHeight) / 2);
 
       const windowOptions: WindowOptions = {
         width: windowWidth,
@@ -196,12 +210,13 @@ export class WindowManager implements IWindowManager {
         preloadScript: 'ai-chat-preload.bundle.js',
         chrome: {
           ...titleBarOptions(process.platform, this.chromeTheme()),
-          minWidth: 760,
-          minHeight: 560,
+          minWidth: CHAT_MIN_SIZE.width,
+          minHeight: CHAT_MIN_SIZE.height,
         },
       };
 
       this.aiChatWindow = await this.createWindow(windowOptions, 'aiChat');
+      if (restored?.maximized) this.aiChatWindow.maximize();
 
       // 设置窗口事件监听
       this.setupAiChatWindowEvents(this.aiChatWindow);
@@ -402,7 +417,7 @@ export class WindowManager implements IWindowManager {
 
     // 窗口移动事件：物理 / 拖拽时每秒会移动很多次，防抖后再落盘
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
-    window.on('moved', () => {
+    onGeometryChange(window, () => {
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         if (window.isDestroyed()) return;
@@ -464,7 +479,36 @@ export class WindowManager implements IWindowManager {
       this.logger.info('AI对话窗口内容加载完成');
     });
 
+    // 记住位置与大小：移动 / 缩放停下来后、关闭时各存一次（最大化时存的是还原后的大小）
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+    const saveBounds = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = null;
+      if (window.isDestroyed() || window.isMinimized() || window.isFullScreen()) return;
+      const b = window.getNormalBounds();
+      this.configService.set('chatWindowBounds', {
+        x: b.x,
+        y: b.y,
+        width: b.width,
+        height: b.height,
+        ...(window.isMaximized() ? { maximized: true } : {}),
+      });
+      this.configService.save().catch((error) => {
+        this.logger.warn('保存对话窗口大小失败', { error: String(error) });
+      });
+    };
+    const saveSoon = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveBounds, 500);
+    };
+    // Linux 没有 moved / resized，改听连续的 move / resize（saveSoon 自带防抖）
+    onGeometryChange(window, saveSoon, { resize: true });
+    window.on('maximize', saveSoon);
+    window.on('unmaximize', saveSoon);
+    window.on('close', saveBounds);
+
     window.on('closed', () => {
+      if (saveTimer) clearTimeout(saveTimer);
       this.aiChatWindow = null;
       this.logger.info('AI对话窗口已关闭');
       // 「关闭主界面时：退出 Nomi」：走统一退出流程（看板娘、托盘、后台服务一起收尾）

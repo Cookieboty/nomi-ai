@@ -1,8 +1,8 @@
 /**
- * 顶栏左侧：助手模式 / 工作台模式（内部值 normal / dev）。
- * 助手模式隐藏 CLI 标签栏、后端切换与 Mod+T；后台 CLI 仍运行，徽标提示「N 运行中」。
+ * 侧栏 Nomi 标志右侧：助手模式 / 工作台模式（内部值 normal / dev）。
+ * 助手模式隐藏 CLI 标签栏、后端切换与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
  */
-import { getLocale, t, Tooltip } from '@nomi-ai/ui';
+import { getLocale, t } from '@nomi-ai/ui';
 import React, { useMemo } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
@@ -35,36 +35,34 @@ export const ChatModeSwitch: React.FC = () => {
 
   return (
     <div className={styles.wrap} data-testid="chat-mode-switch">
-      {/* 开关贴着对话区左缘：提示左对齐，不压到侧栏上 */}
-      <Tooltip placement="bottom-start" content={tip}>
-        <div className={styles.seg} role="group" aria-label={t('对话模式')}>
-          <button
-            type="button"
-            className={styles.btn}
-            aria-pressed={mode === 'normal'}
-            data-testid="chat-mode-normal"
-            onClick={() => setMode('normal')}
-          >
-            {modeLabel('助手', 'Assistant') /* i18n-ignore */}
-          </button>
-          <button
-            type="button"
-            className={styles.btn}
-            aria-pressed={mode === 'dev'}
-            data-testid="chat-mode-dev"
-            onClick={() => setMode('dev')}
-          >
-            {modeLabel('工作台', 'Workbench') /* i18n-ignore */}
-          </button>
-        </div>
-      </Tooltip>
+      {/* 侧栏 overflow: hidden 会裁掉 CSS 提示，这里用原生 title */}
+      <div className={styles.seg} role="group" aria-label={t('对话模式')} title={tip}>
+        <button
+          type="button"
+          className={styles.btn}
+          aria-pressed={mode === 'normal'}
+          data-testid="chat-mode-normal"
+          onClick={() => setMode('normal')}
+        >
+          {modeLabel('助手', 'Assistant') /* i18n-ignore */}
+        </button>
+        <button
+          type="button"
+          className={styles.btn}
+          aria-pressed={mode === 'dev'}
+          data-testid="chat-mode-dev"
+          onClick={() => setMode('dev')}
+        >
+          {modeLabel('工作台', 'Workbench') /* i18n-ignore */}
+        </button>
+      </div>
       {mode === 'normal' && runningCount > 0 && (
         <span
           className={styles.badge}
           data-testid="chat-mode-running-badge"
-          title={t('有编程助手标签仍在后台运行')}
+          title={`${t('有编程助手标签仍在后台运行')} · ${t('{0} 运行中', runningCount)}`}
         >
-          {t('{0} 运行中', runningCount)}
+          {runningCount}
         </span>
       )}
     </div>

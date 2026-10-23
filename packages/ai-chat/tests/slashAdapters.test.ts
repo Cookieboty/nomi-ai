@@ -534,7 +534,13 @@ describe('/status /context /cost', () => {
   it('/context：优先真实用量，分类为估算，窗口来自对照表', async () => {
     const msgs = [
       user('1', '你好'.repeat(50)),
-      asst('2', 'x'.repeat(400), { inputTokens: 1000, cacheReadTokens: 9000, outputTokens: 500 }),
+      // 总量只认 contextTokens（最后一次请求）；其余字段是整轮累计
+      asst('2', 'x'.repeat(400), {
+        inputTokens: 1000,
+        cacheReadTokens: 9000,
+        outputTokens: 500,
+        contextTokens: 10_500,
+      }),
       user('3', '后面的提问'),
     ];
     const { r } = await run('claude', '/context', {

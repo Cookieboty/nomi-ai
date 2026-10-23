@@ -9,7 +9,22 @@
   background: var(--cd-color-bg-subtle);
   border-right: 1px solid var(--cd-color-border);
   transition: width 0.18s ease;
+  position: relative;
   overflow: hidden;
+}
+/* 工作台背景开启：侧栏半透明，透出 App 级背景层 */
+:global(html[data-chat-bg]) .sidebar {
+  background: color-mix(in srgb, var(--cd-color-bg-subtle) 55%, transparent);
+}
+/* 模糊放在 ::before 上，避免侧栏成为 position:fixed 子元素的包含块 */
+:global(html[data-chat-bg]) .sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
 }
 .collapsed {
   width: 52px;
@@ -21,7 +36,8 @@
  */
 .sidebar:not(.collapsed) > .top,
 .sidebar:not(.collapsed) > .listHeader,
-.sidebar:not(.collapsed) > .threads {
+.sidebar:not(.collapsed) > .threads,
+.sidebar:not(.collapsed) > [data-testid='app-entries'] {
   min-width: 280px;
 }
 .sidebar:not(.collapsed) > [data-testid='endpoint-info-card'] {
@@ -37,11 +53,11 @@
   display: flex;
   align-items: center;
   gap: var(--cd-space-2);
-  height: 36px;
+  height: 44px;
   padding: 0 var(--cd-space-0-5);
 }
 .brand {
-  font-size: var(--cd-font-size-md);
+  font-size: var(--cd-font-size-xl);
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text);
   white-space: nowrap;
@@ -49,7 +65,8 @@
 .brandWrap {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--cd-space-2);
+  padding-left: var(--cd-space-1);
   min-width: 0;
 }
 .spacer {
@@ -136,10 +153,10 @@
   text-overflow: ellipsis;
 }
 .iconBtn,
-.newChat,
 .thread,
 .segBtn,
-.epChip {
+.epChip,
+.epAll {
   border: none;
   background: transparent;
   color: var(--cd-color-text-muted);
@@ -155,21 +172,11 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.newChat {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 9px;
-  font-size: var(--cd-font-size-md);
-  color: var(--cd-color-text);
-  position: relative;
-}
 .iconBtn:hover,
-.newChat:hover,
 .thread:hover,
 .segBtn:hover,
-.epChip:hover {
+.epChip:hover,
+.epAll:hover {
   background: var(--cd-color-hover);
   color: var(--cd-color-text);
 }
@@ -209,16 +216,26 @@
   flex-wrap: wrap;
   gap: var(--cd-space-1);
 }
-.epChip {
+.epChip,
+.epAll {
   display: inline-flex;
   align-items: center;
-  gap: var(--cd-space-1);
-  height: 28px;
-  padding: 0 var(--cd-space-2);
-  font-size: var(--cd-font-size-sm);
-  font-weight: var(--cd-font-weight-bold);
+  justify-content: center;
+  flex-shrink: 0;
+  height: var(--cd-control-h-sm);
   border: 1px solid transparent;
 }
+/* 端点只放图标：名称与数量在悬停提示里，6 个端点 +「全部」+ 设置一行放得下 */
+.epChip {
+  width: var(--cd-control-h-sm);
+  padding: 0;
+}
+.epAll {
+  padding: 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  font-weight: var(--cd-font-weight-medium);
+}
+.epAll[aria-pressed='true'],
 .epChip[aria-pressed='true'] {
   border-color: var(--cd-color-border);
   background: var(--cd-color-active);
@@ -227,6 +244,41 @@
 .epChip:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+.headActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-0-5);
+  flex-shrink: 0;
+}
+/* 标题行的小图标按钮：刷新 · 搜索 · 新对话 */
+.headBtn {
+  width: var(--cd-control-h-sm);
+  height: var(--cd-control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  border-radius: var(--cd-radius-md);
+  cursor: pointer;
+}
+.headBtn:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.headBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.headBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.listCount {
+  color: var(--cd-color-text-subtle);
+  font-variant-numeric: tabular-nums;
 }
 .epCount {
   font-weight: var(--cd-font-weight-medium);
@@ -303,23 +355,23 @@
   white-space: nowrap;
   margin-left: auto;
 }
-.badge {
-  font-size: var(--cd-font-size-xs);
-  font-weight: var(--cd-font-weight-bold);
-  padding: 1px var(--cd-space-1-5);
-  border-radius: var(--cd-radius-full);
-  letter-spacing: 0.01em;
-  flex-shrink: 0;
+.histTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  min-width: 0;
 }
 .histTag {
   flex-shrink: 0;
-  max-width: 7em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  line-height: 1;
   color: var(--cd-color-text-subtle);
-  padding: 0 var(--cd-space-1-5);
   border: 1px solid var(--cd-color-border);
   border-radius: var(--cd-radius-full);
 }
@@ -353,23 +405,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-.histRefresh {
-  border: none;
-  background: transparent;
-  color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-md);
-  width: 24px;
-  height: 24px;
-  border-radius: var(--cd-radius-sm);
-  cursor: pointer;
-}
-.histRefresh:hover:not(:disabled) {
-  background: var(--cd-color-hover);
-  color: var(--cd-color-text);
-}
-.histRefresh:disabled {
-  opacity: 0.5;
 }
 .histRow {
   content-visibility: auto;
@@ -527,6 +562,7 @@
 /* 侧栏「按端」的端点显示设置 */
 .epVisWrap {
   display: inline-flex;
+  margin-left: auto;
 }
 .epVisMenu {
   position: absolute;
@@ -551,14 +587,135 @@
 .epVisRow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--cd-space-2);
+  gap: var(--cd-space-1);
+  border-radius: var(--cd-radius-md);
 }
+.epVisRow[draggable='true'] {
+  cursor: grab;
+}
+.epVisRow[data-dragging] {
+  opacity: 0.4;
+}
+/* 名称一行显示，过长时省略（不再把「Claude Code」折成两行） */
 .epVisName {
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
+  flex: 1;
   font-size: var(--cd-font-size-sm);
   font-weight: var(--cd-font-weight-bold);
   min-width: 0;
+  white-space: nowrap;
+}
+.epVisLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.epVisRow .seg {
+  flex-shrink: 0;
+}
+.epVisRow .segBtn {
+  padding: 0 var(--cd-space-1-5);
+}
+.epVisGrip {
+  flex-shrink: 0;
+  width: var(--cd-control-h-2xs);
+  height: var(--cd-control-h-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-subtle);
+  cursor: grab;
+}
+.epVisGrip:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.epVisGrip:focus-visible,
+.epVisReset:focus-visible,
+.epMoreItem:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+.epVisOrder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-subtle);
+}
+.epVisReset {
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  padding: var(--cd-space-0-5) var(--cd-space-1);
+  border-radius: var(--cd-radius-sm);
+  cursor: pointer;
+}
+.epVisReset:hover {
+  background: var(--cd-color-hover);
+}
+/* 「更多」：弹层与显示设置一样以整行为锚，这里不设 position */
+.epMoreWrap {
+  display: inline-flex;
+}
+.epMoreBtn {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text-muted);
+}
+.epMoreMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: var(--cd-space-1);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  box-shadow: var(--cd-shadow-popover);
+}
+.epMoreItem {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  height: var(--cd-control-h-ms);
+  padding: 0 var(--cd-space-2);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text);
+  font: inherit;
+  font-size: var(--cd-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.epMoreItem .epVisLabel {
+  flex: 1;
+}
+.epMoreItem:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+}
+.epMoreItem:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

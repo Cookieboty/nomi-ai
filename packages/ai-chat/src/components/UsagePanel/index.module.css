@@ -523,12 +523,6 @@ i.heatCell {
   width: 168px;
   flex: none;
 }
-.sessCell {
-  max-width: 76px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .sub2 {
   font-size: var(--cd-font-size-xs);

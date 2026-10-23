@@ -225,6 +225,8 @@ export function patchDshYaml(raw: string | null, patch: DshPatch | null): string
   }
   while (kept.length && kept[kept.length - 1]!.trim() === '') kept.pop();
   if (patch) {
+    // 之前移除后留下的空数组占位：要追加列表项时去掉，否则 `[]` 后接 `- id` 不是合法 YAML
+    if (kept.length === 1 && kept[0]!.trim() === '[]') kept.pop();
     if (kept.length) kept.push('');
     kept.push(
       DSH_MARK_BEGIN,
@@ -244,7 +246,8 @@ export function patchDshYaml(raw: string | null, patch: DshPatch | null): string
       DSH_MARK_END,
     );
   }
-  return kept.length ? `${kept.join('\n')}\n` : '';
+  // dsh 要求顶层是 YAML 数组：空文件会让它启动即退出（patches … must be a top-level YAML array）
+  return kept.length ? `${kept.join('\n')}\n` : '[]\n';
 }
 
 /** Grok Build 家目录：GROK_HOME 或 ~/.grok */

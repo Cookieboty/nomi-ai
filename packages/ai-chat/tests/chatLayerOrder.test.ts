@@ -29,7 +29,7 @@ describe('聊天区层级：输入区高于聊天内容', () => {
   });
 
   it('.chat-container > 内容用 content token，.input-container 定位 + 用 input token', () => {
-    const content = ruleBody(app, '.chat-container > :not(.chat-bg-layer)');
+    const content = ruleBody(app, '.chat-container > *');
     expect(content).toMatch(/position:\s*relative/);
     expect(content).toMatch(/z-index:\s*var\(--cd-z-chat-content/);
     const input = ruleBody(app, '.input-container');

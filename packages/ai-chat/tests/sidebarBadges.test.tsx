@@ -56,13 +56,16 @@ describe('Sidebar rows', () => {
     }
   });
 
-  it('endpoint filter chips carry icon + plain name', async () => {
+  it('endpoint filter chips are icon-only; name lives in the label / tooltip', async () => {
     localStorage.setItem('ai-chat:conversationListView', 'by-endpoint');
     const r = render(
       <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={() => undefined} />,
     );
     await waitFor(() => r.getByTestId('endpoint-filter-claude'));
-    expect(r.getByTestId('endpoint-filter-claude').textContent).toContain('Claude Code');
+    expect(r.getByTestId('endpoint-filter-claude').getAttribute('aria-label')).toContain(
+      'Claude Code',
+    );
+    expect(r.getByTestId('endpoint-filter-claude').title).toContain('Claude Code');
     expect(
       r.getByTestId('endpoint-filter-claude').querySelector('[data-testid="endpoint-icon-claude"]'),
     ).toBeTruthy();

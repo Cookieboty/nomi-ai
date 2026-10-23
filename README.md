@@ -33,6 +33,9 @@
 
 <table>
   <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/v1.2.0-workspace.webp" alt="v1.2.0 three-column workspace: sessions, chat, Diff and Changes · Files" width="49%"> <img src="docs/screenshots/v1.2.0-turn-edit.webp" alt="v1.2.0 per-turn edit summary card" width="49%"><br><sub>v1.2.0 三栏工作区 · 本轮改动摘要卡（由 mock CLI 驱动的真实界面，内容仅作演示）/ v1.2.0 three-column workspace · per-turn edit summary (real UI driven by a mock CLI; content is demo-only)</sub></td>
+  </tr>
+  <tr>
     <td align="center" width="30%"><img src="docs/screenshots/mascot.webp" alt="Nomi on the desktop with a chat bubble"><br><sub>桌面伙伴 / Desktop companion</sub></td>
     <td align="center"><img src="docs/screenshots/chat.webp" alt="Chat window"><br><sub>助手模式对话 / Assistant-mode chat</sub></td>
   </tr>
@@ -40,7 +43,7 @@
     <td align="center" colspan="2"><img src="docs/screenshots/coding-agent.webp" alt="Claude Code conversation with tool calls and a subagent" width="49%"> <img src="docs/screenshots/permission-modes.webp" alt="Permission mode menu in the composer" width="49%"><br><sub>编程助手对话 · 权限模式 / Coding agents · Permission modes</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/coding-accounts.webp" alt="Claude Code page with version and official accounts" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Coding assistants settings with Nomi providers" width="49%"><br><sub>官方账号与版本 · 供应商与模型 / Official accounts & version · Providers & models</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/coding-accounts.webp" alt="Claude Code page with version and official accounts" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Models page with third-party model assignment and provider list" width="49%"><br><sub>官方账号与版本 · 供应商与模型 / Official accounts & version · Providers & models</sub></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><img src="docs/screenshots/command-palette.webp" alt="Command palette" width="32%"> <img src="docs/screenshots/import-tools.webp" alt="Import MCP servers and skills from Claude Code and Codex" width="32%"> <img src="docs/screenshots/themes.webp" alt="Themes and chat background" width="32%"><br><sub>命令面板 · 从其他工具导入 · 主题与聊天背景 / Command palette · Import from other tools · Themes & chat background</sub></td>
@@ -85,10 +88,10 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 
 #### 💬 AI 对话
 
-- **简洁的对话窗口**：类 Codex 的平静布局，流式输出，会话列表、侧栏可收起
+- **简洁的对话窗口**：类 Codex 的平静布局，流式输出，会话列表、侧栏可收起；聊天背景铺满整个窗口，可分别调侧栏、对话区、右侧面板的模糊程度
 - **图片与截图提问**：`Ctrl/⌘+Alt+A` 框选屏幕任意区域，直接带图提问
 - **快捷命令**：输入框里按 `/` 打开命令，`↑` 找回上一条提问
-- **首次引导**：几步完成语言、主题、角色与声音、称呼与语气、模型和隐私设置
+- **首次引导**：几步完成语言、主题、启动方式、界面模式、角色与声音、称呼与语气、模型和隐私设置
 
 #### 🧑‍💻 编程助手
 
@@ -97,6 +100,19 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 - **官方账号**：登录多个官方账号随时切换，也可改用第三方供应商
 - **切换工作目录**：可带上当前对话继续
 - **斜杠命令**：输入 `/` 使用 CLI 命令、项目命令与 Skills
+
+**v1.2.0 新增 · 左中右三栏工作区**（对照 Codex Desktop 的布局）
+
+- **三栏布局**：左侧会话 | 中间对话 | 右侧「改动 · 文件」；右栏可随时收起；对话列与右栏、Diff 与文件树之间的分割线可拖动，位置会被记住（双击复位）
+- **改动 · 文件**：git 仓库里以 git 状态为准，分「已暂存 / 未暂存」，助手本会话改过的文件带标记、可只看本会话；文件树列出工作目录全部文件（依赖与缓存目录除外，被 `.gitignore` 忽略的置灰）并叠加变更标注，分支名显示在顶部
+- **Diff 与审查**：Diff 在中栏查看，宽度够时左右并排；「全屏审查」把全部改动依次排开并配文件树；文件预览可直接编辑并保存，Markdown 文件多一个「预览」模式
+- **本轮改动摘要卡**：助手每轮消息下显示「已编辑 N 个文件」（路径 +/−），≤3 个文件可在卡内展开行级 Diff，更多文件用列表卡；可确认后撤销本轮写入
+- **让助手提交**：右栏的「让助手提交 / 提交并推送」只把提交指令填进输入框，由你确认后再发送；Nomi 的 Git 面板本身只读
+- **上下文占用环**：输入栏旁的环形指示，悬停显示「当前上下文 xK / 最大」，默认只显示环形；用量取这一轮最后一次模型请求（Claude Code、Codex、Grok、Gemini、dsh 各按实测口径），窗口大小优先用 CLI 上报值（如 Claude 1M）
+- **附图给编程助手**：粘贴 / 拖入图片发给 Claude Code、Codex、Grok、Gemini；能否附图按当前模型能力判断，明确不支持时提示是哪个模型；dsh 明确拒绝附图
+- **思考深度**：minimal / low / medium / high / xhigh / max，Codex 另有 ultra（与 max 是两个独立档位）
+- **界面模式「精简 / 全量」**：设置 → 通用 → 外观（新手引导里也能选）；精简模式隐藏工作台顶部对话标签条与侧栏底部信息卡
+- **记住窗口位置与大小**：主界面关闭前的位置、大小（含最大化）下次打开时恢复；原位置已不在任何屏幕上时居中到主屏
 
 #### 🔑 第三方供应商与模型
 
@@ -177,6 +193,7 @@ Nomi·诺米 是运行在你电脑上的桌面 AI 伙伴：一位会动、会说
 #### 🔄 自动更新
 
 - 安装版会在后台检查并下载新版本，**经你确认后**才重启安装
+- 检查 / 下载 / 安装失败时会说明失败在哪一步并给出「重试」；下载 90 秒没有进度会自动取消并标为失败
 
 #### 🔒 隐私
 
@@ -274,10 +291,10 @@ Connect the cloud models you already like, or go fully offline with local models
 
 #### 💬 AI chat
 
-- **Calm chat window**: Codex-like layout, streaming replies, session list, collapsible sidebar
+- **Calm chat window**: Codex-like layout, streaming replies, session list, collapsible sidebar; the chat background fills the whole window, with separate blur levels for the sidebar, chat area and right panel
 - **Ask with images & screenshots**: `Ctrl/⌘+Alt+A` to select any screen region and ask with the image
 - **Slash commands**: press `/` in the input; `↑` recalls the last question
-- **First-run onboarding**: language, theme, character & voice, how to address you & tone, model, and privacy — in a few steps
+- **First-run onboarding**: language, theme, startup mode, layout mode, character & voice, how to address you & tone, model, and privacy — in a few steps
 
 #### 🧑‍💻 Coding agents
 
@@ -286,6 +303,19 @@ Connect the cloud models you already like, or go fully offline with local models
 - **Official accounts**: sign in to several official accounts and switch any time, or use a third-party provider
 - **Switch workspace**: optionally carry the current conversation along
 - **Slash commands**: type `/` for CLI commands, project commands and Skills
+
+**New in v1.2.0 · three-column workspace** (modelled on Codex Desktop's layout)
+
+- **Three columns**: sessions on the left | chat in the middle | "Changes · Files" on the right; the right column can be collapsed any time; the dividers between chat and right column, and between Diff and file tree, are draggable, remembered, and reset on double-click
+- **Changes · Files**: in a git repo it follows git status, split into "Staged / Unstaged", with files the assistant touched this session marked (and filterable); the file tree lists every file in the working directory (dependency and cache folders excluded, `.gitignore`d files greyed out) with change markers, and the branch name sits at the top
+- **Diff & review**: diffs open in the middle column, side by side when wide enough; "Full-screen review" lays out all changes in sequence with a file tree; the file preview is editable and saveable, and Markdown files get a "Preview" mode
+- **Per-turn edit summary**: under each assistant reply, "Edited N files" (path +/−); up to 3 files can expand line-level diffs inline, more files use a list card; undoing the turn's writes asks for confirmation first
+- **Ask the assistant to commit**: "Ask assistant to commit / commit and push" in the right column only fills a commit instruction into the input box — you confirm before it is sent; Nomi's Git panel itself is read-only
+- **Context ring**: a ring next to the input box; hover to see "current context xK / max" (ring only by default); usage is taken from the last model request of the turn (Claude Code, Codex, Grok, Gemini and dsh each measured their own way), and the window size prefers the value reported by the CLI (e.g. Claude 1M)
+- **Images for coding agents**: paste or drop images for Claude Code, Codex, Grok and Gemini; whether images are accepted depends on the current model, and the hint names the model when it is not; dsh explicitly refuses images
+- **Reasoning effort**: minimal / low / medium / high / xhigh / max, plus ultra for Codex (a separate level from max)
+- **UI mode "Compact / Full"**: Settings → General → Appearance (also in onboarding); Compact hides the conversation tab strip at the top of the workbench and the info card at the bottom of the sidebar
+- **Window position & size memory**: the main window's position and size (including maximized) are restored on the next launch; if the saved position is no longer on any screen it is centred on the primary display
 
 #### 🔑 Providers & token management
 
@@ -367,6 +397,7 @@ Connect the cloud models you already like, or go fully offline with local models
 #### 🔄 Auto-update
 
 - Installed builds check and download updates in the background; restart/install only **after you confirm**
+- When checking / downloading / installing fails, the stage is named with a "Retry" button; a download with no progress for 90 s is cancelled and marked failed
 
 #### 🔒 Privacy
 

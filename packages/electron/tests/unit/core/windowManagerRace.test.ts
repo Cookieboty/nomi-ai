@@ -1,12 +1,20 @@
 jest.mock('electron', () => ({
   BrowserWindow: class {},
-  screen: { getPrimaryDisplay: () => ({ workAreaSize: { width: 1920, height: 1080 } }) },
+  screen: {
+    getPrimaryDisplay: () => ({
+      id: 1,
+      workAreaSize: { width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1080 },
+    }),
+    getAllDisplays: () => [],
+  },
   app: { isPackaged: true, getPath: () => '/tmp' },
 }));
 
 import { WindowManager } from '../../../src/core/WindowManager';
 
 const newWin = () => ({
+  maximize: jest.fn(),
   focus: jest.fn(),
   show: jest.fn(),
   showInactive: jest.fn(),
@@ -20,9 +28,19 @@ type Internals = {
   loadAiChatWindowContent: (w: unknown) => Promise<void>;
 };
 
-function make() {
+/** 只实现对话窗口用到的配置读写（上次的位置与大小） */
+const configStub = (saved?: unknown) => {
+  const store: Record<string, unknown> = { chatWindowBounds: saved };
+  return {
+    getConfig: () => store,
+    set: jest.fn((k: string, v: unknown) => (store[k] = v)),
+    save: jest.fn(async () => undefined),
+  };
+};
+
+function make(saved?: unknown) {
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
-  const wm = new WindowManager(logger as never, {} as never);
+  const wm = new WindowManager(logger as never, configStub(saved) as never);
   const win = newWin();
   const internals = wm as unknown as Internals;
   let release!: () => void;
@@ -103,6 +121,57 @@ describe('WindowManager.createAiChatWindow 显示方式', () => {
     m.release();
     await m.wm.createAiChatWindow({ activate: false });
     expect(m.createWindow.mock.calls[0]![0]).toMatchObject({ showInactive: true });
+  });
+});
+
+describe('WindowManager 对话窗口记住上次的位置与大小', () => {
+  it('有保存的位置与大小：按它创建，最大化的再最大化', async () => {
+    const m = make({ x: 100, y: 60, width: 1300, height: 900, maximized: true });
+    m.release();
+    await m.wm.createAiChatWindow();
+    expect(m.createWindow.mock.calls[0]![0]).toMatchObject({
+      x: 100,
+      y: 60,
+      width: 1300,
+      height: 900,
+    });
+    expect(m.win.maximize).toHaveBeenCalledTimes(1);
+  });
+
+  it('没有保存过：居中默认尺寸，不最大化', async () => {
+    const m = make();
+    m.release();
+    await m.wm.createAiChatWindow();
+    expect(m.createWindow.mock.calls[0]![0]).toMatchObject({ width: 1120, height: 820 });
+    expect(m.win.maximize).not.toHaveBeenCalled();
+  });
+
+  it('关闭时保存还原后的位置与大小（最大化只记标记）', () => {
+    const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+    const config = configStub();
+    const wm = new WindowManager(logger as never, config as never);
+    const handlers: Record<string, () => void> = {};
+    const win = {
+      on: (ev: string, fn: () => void) => (handlers[ev] = fn),
+      webContents: { on: jest.fn() },
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      isFullScreen: () => false,
+      isMaximized: () => true,
+      getNormalBounds: () => ({ x: 10, y: 20, width: 1000, height: 700 }),
+    };
+    (wm as unknown as { setupAiChatWindowEvents: (w: unknown) => void }).setupAiChatWindowEvents(
+      win,
+    );
+    handlers.close!();
+    expect(config.set).toHaveBeenCalledWith('chatWindowBounds', {
+      x: 10,
+      y: 20,
+      width: 1000,
+      height: 700,
+      maximized: true,
+    });
+    expect(config.save).toHaveBeenCalled();
   });
 });
 

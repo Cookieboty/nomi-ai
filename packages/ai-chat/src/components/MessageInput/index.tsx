@@ -1,5 +1,5 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
-import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
+import { BookOpen, Blocks, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
   memo,
   useCallback,
@@ -21,7 +21,6 @@ import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
-import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -41,10 +40,13 @@ import {
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
+import type { ConvMessage } from '../../types/conversation';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
 import { ErrorHint } from '../ErrorHint';
+import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
+import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
 import { SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
@@ -54,13 +56,22 @@ import styles from './index.module.css';
 
 const log = createLogger('message-input');
 
-/** 发文框最高高度。再长的内容在框内滚动，不再把输入区撑高。 */
-export const COMPOSER_MAX_HEIGHT_PX = 200;
+/** 发文框默认更高；超过 COMPOSER_MAX 后框内滚动。 */
+export const COMPOSER_MIN_HEIGHT_PX = 72;
+export const COMPOSER_MAX_HEIGHT_PX = 240;
 
 interface MessageInputProps {
-  onSend?: (message: string) => void;
+  /** CLI 标签可附带图片；第二参仅在有附图时传入 */
+  onSend?: (message: string, images?: ImageAttachment[]) => void;
   /** 独立于 Nomi 对话的忙碌状态（CLI 标签）；设置后不再看 Nomi 的 isLoading / 模型 */
   busyOverride?: boolean;
+  /**
+   * CLI 标签的发图能力。不传 = Nomi 路径（走 vision）。
+   * `none`：可预览附件但发送时明确提示，不静默丢图。
+   */
+  imageCapability?: 'full' | 'none';
+  /** 不能附图的原因（模型不支持看图 / dsh 没有图片输入） */
+  imageUnsupportedReason?: string;
   /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
   placeholder?: string;
   /**
@@ -82,11 +93,18 @@ interface MessageInputProps {
   slash?: SlashBridge;
   /** 打开「插件 / 命令」只读面板 */
   onPluginsClick?: () => void;
+  /** 发送钮旁上下文占用环的数据源 */
+  contextMessages?: readonly ConvMessage[];
+  contextModel?: string | null;
+  /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
+  fill?: { text: string; nonce: number } | null;
 }
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
+  imageCapability,
+  imageUnsupportedReason,
   placeholder = tr('输入消息...'),
   queue,
   disabled = false,
@@ -99,11 +117,13 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSettingsClick,
   slash,
   onPluginsClick,
+  contextMessages,
+  contextModel,
+  fill,
 }) => {
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  const { pins, update: updatePins } = usePins();
   const [slashIdx, setSlashIdx] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -114,9 +134,27 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     if (!el) return;
     el.style.maxHeight = `${COMPOSER_MAX_HEIGHT_PX}px`;
     el.style.height = '0px';
-    const next = Math.min(el.scrollHeight, COMPOSER_MAX_HEIGHT_PX);
-    el.style.height = next > 0 ? `${next}px` : '';
+    const next = Math.min(
+      Math.max(el.scrollHeight, COMPOSER_MIN_HEIGHT_PX),
+      COMPOSER_MAX_HEIGHT_PX,
+    );
+    el.style.height = `${next}px`;
   }, [message]);
+  // 挂载时已有的请求视为处理过（切标签重挂载不再重复填入）
+  const seenFill = useRef(fill?.nonce);
+  const fillNonce = fill?.nonce;
+  useEffect(() => {
+    if (!fill || fill.nonce === seenFill.current) return;
+    seenFill.current = fill.nonce;
+    setMessage((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')}\n\n${fill.text}` : fill.text));
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [fillNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- 只按 nonce 触发
   // slices only: streamed frames (message content) do not rerender the composer
   const { dispatch, actions, store: chatStore } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
@@ -276,10 +314,12 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setMessage('');
       setImages([]);
       setImgErr('');
-      if (sendImages.length && busyOverride !== undefined) {
-        setImgErr(tr('编程助手后端暂不支持图片，请切回 Nomi'));
+      if (sendImages.length && imageCapability === 'none') {
+        setImgErr(imageUnsupportedReason ?? tr('当前模型不支持图片，请去掉图片后再发。'));
         setImages(sendImages);
         setMessage(trimmedMessage);
+      } else if (sendImages.length && onSend && busyOverride !== undefined) {
+        onSend(trimmedMessage, sendImages);
       } else if (sendImages.length) {
         await actions.sendStreamMessage(trimmedMessage, sendImages);
       } else if (onSend) {
@@ -546,20 +586,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
   const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
-  // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
-  const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
-  // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
-
-  cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
-  useEffect(() => {
-    const on = (e: Event) => {
-      const id = String((e as CustomEvent<string>).detail ?? '');
-      if (id === 'handsfree') return void cmdRef.current.hf();
-      cmdRef.current.list.find((c) => c.id === id)?.run();
-    };
-    window.addEventListener('cd:cmd', on);
-    return () => window.removeEventListener('cd:cmd', on);
-  }, []);
   function runCommand(c: Cmd | undefined) {
     if (!c) return;
     setMenuOpen(false);
@@ -599,52 +625,23 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   }, [menuOpen]);
 
   const renderItems = (list: Cmd[]) =>
-    list.map((c) => {
-      const item = (
-        <button
-          key={c.id}
-          type="button"
-          role="menuitem"
-          className={styles.menuItem}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCommand(c)}
-          data-testid={c.testId}
-          aria-pressed={c.active}
-          title={tr(c.label)}
-        >
-          <span className={styles.menuIcon}>{c.icon}</span>
-          <span className={styles.menuLabel}>{tr(c.label)}</span>
-          <span className={styles.menuHint}>{tr(c.hint)}</span>
-        </button>
-      );
-      if (!pinDef(c.id)) return item;
-      const pinned = pins.includes(c.id);
-      const full = !pinned && pins.length >= MAX_PINS;
-      return (
-        <div key={c.id} className={styles.menuRow}>
-          {item}
-          <button
-            type="button"
-            className={`${styles.pinBtn} ${pinned ? styles.pinOn : ''}`}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => updatePins(togglePin(pins, c.id))}
-            disabled={full}
-            title={
-              pinned
-                ? tr('取消固定')
-                : full
-                  ? tr('左上角最多 {0} 个', MAX_PINS)
-                  : tr('固定到左上角')
-            }
-            aria-label={pinned ? tr('取消固定{0}', c.label) : tr('固定{0}到左上角', c.label)}
-            aria-pressed={pinned}
-            data-testid={`pin-toggle-${c.id}`}
-          >
-            <Icon icon={Pin} size={14} />
-          </button>
-        </div>
-      );
-    });
+    list.map((c) => (
+      <button
+        key={c.id}
+        type="button"
+        role="menuitem"
+        className={styles.menuItem}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => runCommand(c)}
+        data-testid={c.testId}
+        aria-pressed={c.active}
+        title={tr(c.label)}
+      >
+        <span className={styles.menuIcon}>{c.icon}</span>
+        <span className={styles.menuLabel}>{tr(c.label)}</span>
+        <span className={styles.menuHint}>{tr(c.hint)}</span>
+      </button>
+    ));
 
   return (
     <div className={styles.messageInputContainer}>
@@ -662,6 +659,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
+      {contextMessages ? <ComposerChangesPill messages={contextMessages} /> : null}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {
@@ -817,6 +815,9 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           </div>
           <div className={styles.composerRight} data-zone="right">
             <VoiceButtons cv={cv} disabled={disabled} />
+            {contextMessages ? (
+              <ContextUsageBar messages={contextMessages} model={contextModel} />
+            ) : null}
             {canStop ? (
               <button
                 type="button"

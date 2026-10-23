@@ -291,6 +291,9 @@
   font-size: var(--conv-code, 14px);
   line-height: 1.5;
 }
+.diff[data-fill] .diffBody {
+  max-height: none;
+}
 .diffLine {
   display: flex;
   min-width: max-content;
@@ -328,6 +331,80 @@
 .diffLine[data-type='hunk'] {
   color: var(--cd-color-text-subtle);
   background: var(--cd-color-hover);
+}
+.diffLayoutBtn {
+  display: inline-flex;
+  flex: none;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.diffStat + .diffLayoutBtn {
+  margin-left: 0;
+}
+.diffLayoutBtn:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.diffLayoutBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: -2px;
+}
+/* 左右并排：两侧等宽，长行在各自一侧折行（不需要同步横向滚动） */
+.splitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+.splitSide {
+  display: flex;
+  min-width: 0;
+}
+.splitSide + .splitSide {
+  border-left: 1px solid var(--cd-color-border);
+}
+.splitSide .diffText {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.splitSide[data-type='add'] {
+  background: color-mix(in srgb, var(--cd-color-success) 16%, transparent);
+}
+.splitSide[data-type='add'] .diffSign {
+  color: var(--cd-color-success);
+}
+.splitSide[data-type='del'] {
+  background: color-mix(in srgb, var(--cd-color-danger) 16%, transparent);
+}
+.splitSide[data-type='del'] .diffSign {
+  color: var(--cd-color-danger);
+}
+.splitSide[data-empty] {
+  background: var(--cd-color-hover);
+}
+.diffFold {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px 8px 2px 56px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary, #8b949e);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.diffFold:hover {
+  color: var(--text-secondary, #c9d1d9);
+  background: color-mix(in srgb, var(--border, #30363d) 40%, transparent);
 }
 .diffMore {
   padding: 3px 10px;

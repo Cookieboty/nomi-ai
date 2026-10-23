@@ -45,6 +45,8 @@ function isSlow(text) {
 
 const args = process.argv.slice(2);
 const delayMs = Number(process.env.NOMI_MOCK_DELAY_MS || 0);
+/** rich 场景里「被编辑文件」所在的根目录（默认 /repo；E2E 指到临时工作区以便和 git 状态对上） */
+const REPO = process.env.NOMI_MOCK_EDIT_ROOT || '/repo';
 if (args.includes('--version') || args.includes('-v')) {
   process.stdout.write('2.0.0-mock (Claude Code Mock)\n');
   process.exit(0);
@@ -570,7 +572,7 @@ async function richScenario() {
     },
   });
   await pause();
-  await call('LS', { path: '/repo/src' }, 'cli/\nutils/\nindex.ts');
+  await call('LS', { path: `${REPO}/src` }, 'cli/\nutils/\nindex.ts');
   await call(
     'Grep',
     { pattern: 'registerHandler', path: 'src' },
@@ -579,10 +581,10 @@ async function richScenario() {
   await call('Grep', { pattern: 'TODO', path: 'src' }, 'No matches found');
   await call(
     'Read',
-    { file_path: '/repo/src/cli/a.ts' },
+    { file_path: `${REPO}/src/cli/a.ts` },
     'export function registerHandler() {\n  return 1;\n}\n',
   );
-  await call('Read', { file_path: '/repo/src/cli/b.ts' }, 'export const b = 2;\n');
+  await call('Read', { file_path: `${REPO}/src/cli/b.ts` }, 'export const b = 2;\n');
   await call('Glob', { pattern: 'src/**/*.test.ts' }, 'src/cli/a.test.ts');
   const task = 'rich-task';
   emit({
@@ -606,7 +608,9 @@ async function richScenario() {
   });
   await pause();
   await call('Grep', { pattern: 'addEventListener' }, 'src/ui/a.tsx:8', { parent: task });
-  await call('Read', { file_path: '/repo/src/ui/a.tsx' }, 'useEffect(() => {})', { parent: task });
+  await call('Read', { file_path: `${REPO}/src/ui/a.tsx` }, 'useEffect(() => {})', {
+    parent: task,
+  });
   emit({
     type: 'user',
     session_id: sessionId,
@@ -626,16 +630,16 @@ async function richScenario() {
   await call(
     'Edit',
     {
-      file_path: '/repo/src/cli/a.ts',
+      file_path: `${REPO}/src/cli/a.ts`,
       old_string: 'export function registerHandler() {\n  return 1;\n}',
       new_string:
         'export function registerHandler(opts = {}) {\n  const id = opts.id ?? 1;\n  return id;\n}',
     },
-    'The file /repo/src/cli/a.ts has been updated.',
+    `The file ${REPO}/src/cli/a.ts has been updated.`,
   );
   await call(
     'Write',
-    { file_path: '/repo/src/cli/new.ts', content: 'export const x = 1;\nexport const y = 2;\n' },
+    { file_path: `${REPO}/src/cli/new.ts`, content: 'export const x = 1;\nexport const y = 2;\n' },
     'File created',
   );
   await call(

@@ -15,8 +15,10 @@ import {
   discoverSlash,
   expandSlash,
   expandTemplate,
+  gitBranch,
   gitDiff,
   parseFrontmatter,
+  parseNumstat,
   projectChain,
   splitArgs,
 } from '../../../src/cli/slashDiscovery';
@@ -388,6 +390,45 @@ describe('slashDiscovery', () => {
     expect(d.entries.length).toBeLessThanOrEqual(200);
   });
 
+  it('parseNumstat: plain, renamed (takes the new path) and binary (skipped)', () => {
+    expect(
+      parseNumstat(
+        [
+          '3\t1\tsrc/a.ts',
+          '0\t5\t',
+          'old/b.ts',
+          'new/b.ts',
+          '-\t-\tlogo.png',
+          '12\t0\t中文.md',
+          '',
+        ].join('\0'),
+      ),
+    ).toEqual({
+      'src/a.ts': { added: 3, removed: 1 },
+      'new/b.ts': { added: 0, removed: 5 },
+      '中文.md': { added: 12, removed: 0 },
+    });
+    expect(parseNumstat('')).toEqual({});
+  });
+
+  it('gitBranch: branch name, short sha when detached, null outside a repo', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const g = (...a: string[]) =>
+      execFileSync('git', ['-c', 'user.email=a@b', '-c', 'user.name=t', ...a], { cwd: proj });
+    fs.rmSync(path.join(proj, '.git'), { recursive: true });
+    g('init', '-q', '-b', 'merge/202610');
+    // 还没有提交也能读到分支名
+    expect(await gitBranch(proj)).toEqual({ branch: 'merge/202610' });
+    write(path.join(proj, 'a.txt'), 'one\n');
+    g('add', 'a.txt');
+    g('commit', '-q', '-m', 'init');
+    g('checkout', '-q', '--detach');
+    const detached = await gitBranch(proj);
+    expect(detached?.branch).toBeNull();
+    expect(detached?.detached).toMatch(/^[0-9a-f]{4,}$/);
+    expect(await gitBranch(path.join(root, 'nope'))).toBeNull();
+  });
+
   it('gitDiff reports status and diff for a real repo, and a clean error otherwise', async () => {
     const { execFileSync } = await import('node:child_process');
     const g = (...a: string[]) =>
@@ -403,6 +444,19 @@ describe('slashDiscovery', () => {
     expect(r.status).toContain('a.txt');
     expect(r.diff).toContain('-one');
     expect(r.diff).toContain('+two');
+    expect(r.unstaged).toContain('+two');
+    expect(r.staged).toBe('');
+    // 暂存后再改：已暂存 / 未暂存各自一份 diff
+    g('add', 'a.txt');
+    write(path.join(proj, 'a.txt'), 'three\n');
+    const both = await gitDiff(proj);
+    expect(both.staged).toContain('+two');
+    expect(both.staged).not.toContain('three');
+    expect(both.unstaged).toContain('-two');
+    expect(both.unstaged).toContain('+three');
+    // 行数另由 numstat 给全（diff 文本有上限，过大时会截断）
+    expect(both.numstat?.staged['a.txt']).toEqual({ added: 1, removed: 1 });
+    expect(both.numstat?.head['a.txt']).toEqual({ added: 1, removed: 1 });
     const bad = await gitDiff(path.join(root, 'nope'));
     expect(bad.ok).toBe(false);
   });

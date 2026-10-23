@@ -1,9 +1,10 @@
 /**
  * 输入栏的「模型 · 思考深度」按钮（编程助手标签：Codex / Claude Code / Grok 等）。
  *
- * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮列网关里能给编程助手用的模型
- * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`），直接打开模型列表、没有思考深度；
- * 「默认模型」= 这个 CLI 在「模型」页分配的模型。
+ * 标签来源是第三方（docs/design/unified-gateway.md §4.3）时，同一个按钮只列**当前供应商**的模型
+ * （主进程 ai:harness:model-catalog 带 source: 'thirdParty'，id 是 `供应商/模型`，这里按供应商筛选），
+ * 直接打开模型列表、没有思考深度；换供应商用 `/model`，新标签默认在侧栏信息卡（CliDefaultSource）。
+ * 「默认模型」= 这个 CLI 在「模型」页分配的模型（属于当前供应商时）。
  *
  * 交互参考 Codex：一个按钮显示「模型 · 档位」，点开一个浮层，节省输入栏空间；
  * - 默认页：大字显示当前档位，下面「模型名 ›」，再下面是分档滑杆（只在推理模型上出现）；
@@ -28,7 +29,7 @@ import {
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { tabSourceOf } from '../../services/cliSource';
+import { scopeCatalogToProvider, tabSourceOf, thirdPartyRefOf } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
   harnessClient,
@@ -38,6 +39,7 @@ import {
   type ReasoningEffort,
   type TabSource,
 } from '../../services/harnessClient';
+import { useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
@@ -645,8 +647,16 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
 
 /** 输入栏入口：无模型目录的后端不渲染；第三方来源列网关的模型 */
 export const ModelControls: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
-  const { catalog, refreshing, refresh } = useCatalog(tab.backend, tabSourceOf(tab));
-  if (catalog === null) return null;
-  if (catalog === undefined) return <LoadingChip tab={tab} />;
-  return <ModelChip tab={tab} catalog={catalog} refreshing={refreshing} onRefresh={refresh} />;
+  const source = tabSourceOf(tab);
+  const { catalog, refreshing, refresh } = useCatalog(tab.backend, source);
+  const gateway = useGatewayState();
+  const thirdRef = source === 'thirdParty' ? thirdPartyRefOf(tab, tab.backend, gateway) : null;
+  // 第三方：只列当前供应商的模型
+  const scoped = useMemo(
+    () => (catalog && thirdRef ? scopeCatalogToProvider(catalog, thirdRef, gateway) : catalog),
+    [catalog, thirdRef, gateway],
+  );
+  if (scoped === null) return null;
+  if (scoped === undefined) return <LoadingChip tab={tab} />;
+  return <ModelChip tab={tab} catalog={scoped} refreshing={refreshing} onRefresh={refresh} />;
 };

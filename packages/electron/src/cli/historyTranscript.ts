@@ -203,9 +203,13 @@ class Builder {
 }
 
 function addUsage(a: HarnessUsage | undefined, b: HarnessUsage): HarnessUsage {
+  // 同轮多步：input/cache 取最后一步（当前上下文大小），output 累加（计费与工具环）
   const out: HarnessUsage = { ...a };
-  for (const k of ['inputTokens', 'outputTokens', 'cacheReadTokens'] as const)
-    if (b[k] !== undefined) out[k] = (out[k] ?? 0) + b[k]!;
+  if (b.inputTokens !== undefined) out.inputTokens = b.inputTokens;
+  if (b.cacheReadTokens !== undefined) out.cacheReadTokens = b.cacheReadTokens;
+  if (b.outputTokens !== undefined) out.outputTokens = (out.outputTokens ?? 0) + b.outputTokens;
+  // 当前上下文：最后一次请求（逐请求的 usage 才有，见 usageOf）
+  if (b.contextTokens !== undefined) out.contextTokens = b.contextTokens;
   return out;
 }
 
@@ -299,6 +303,14 @@ function usageOf(u: Json): HarnessUsage | undefined {
   if (input !== undefined) out.inputTokens = input;
   if (output !== undefined) out.outputTokens = output;
   if (cache !== undefined) out.cacheReadTokens = cache;
+  // Anthropic 风格（Claude transcript 每条 assistant 即一次请求）：input / cache_read / cache_creation 互斥
+  const creation = n(u.cache_creation_input_tokens);
+  if (
+    u.input_tokens !== undefined ||
+    u.cache_read_input_tokens !== undefined ||
+    creation !== undefined
+  )
+    out.contextTokens = (input ?? 0) + (cache ?? 0) + (creation ?? 0) + (output ?? 0);
   return Object.keys(out).length ? out : undefined;
 }
 

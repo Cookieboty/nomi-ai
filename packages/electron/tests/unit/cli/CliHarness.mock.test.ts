@@ -149,30 +149,31 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 20_000);
 
-  it('stopping a queued tab leaves the wait queue immediately', async () => {
+  it('stopping one of two parallel tabs leaves the other running', async () => {
     const prev = { t: process.env.NOMI_MOCK_TOOLS, s: process.env.NOMI_MOCK_STEP_MS };
     process.env.NOMI_MOCK_TOOLS = 'rich';
     process.env.NOMI_MOCK_STEP_MS = '200';
     try {
       const h = track(
         new CliHarnessService({
-          root: path.join(os.tmpdir(), `harness-queue-${Date.now()}`),
+          root: path.join(os.tmpdir(), `harness-parallel-${Date.now()}`),
           logger: { info() {}, warn() {} },
           defaultCwd: process.cwd(),
         }),
       );
-      h.setMaxConcurrent(1);
       const a = h.createTab({ backend: 'claude' });
       const b = h.createTab({ backend: 'claude' });
       const status = (id: string) => h.listTabs().tabs.find((t) => t.id === id)?.status;
       const runA = h.sendTab(a.id, 'one').catch((e: Error) => e);
-      await until(() => status(a.id) === 'running', { what: 'tab a running' });
       const runB = h.sendTab(b.id, 'two').catch((e: Error) => e);
-      await until(() => status(b.id) === 'queued', { what: 'tab b queued' });
+      await until(() => status(a.id) === 'running', { what: 'tab a running' });
+      await until(() => status(b.id) === 'running', { what: 'tab b running' });
+      expect(h.listTabs().queued).toBe(0);
       expect(h.cancelTab(b.id)).toBe(true);
       await runB;
       expect(h.listTabs().tabs.find((t) => t.id === b.id)?.status).toBe('idle');
       expect(h.tabMessages(b.id).pop()).toMatchObject({ role: 'assistant', stopped: true });
+      expect(status(a.id)).toBe('running');
       h.cancelTab(a.id);
       await runA;
     } finally {

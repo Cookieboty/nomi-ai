@@ -624,8 +624,41 @@ export interface GitDiffResult {
   status: string;
   stat: string;
   diff: string;
+  /** 暂存区相对 HEAD（`git diff --cached`）；右栏「已暂存」分组用 */
+  staged?: string;
+  /** 工作区相对暂存区（`git diff`）；右栏「未暂存」分组用 */
+  unstaged?: string;
   truncated: boolean;
+  /**
+   * 每个文件的增删行数（`git diff --numstat`，不受 diff 文本上限影响）：head = 相对 HEAD，
+   * staged / unstaged 同上面两份 diff。二进制文件不在里面。
+   */
+  numstat?: { head: NumstatMap; staged: NumstatMap; unstaged: NumstatMap };
   error?: string;
+}
+
+export type NumstatMap = Record<string, { added: number; removed: number }>;
+
+/**
+ * 解析 `git diff --numstat -z`：普通文件「增\t删\t路径\0」；改名「增\t删\t\0旧路径\0新路径\0」（取新路径）；
+ * 二进制的增删是 "-"，跳过。
+ */
+export function parseNumstat(raw: string): NumstatMap {
+  const out: NumstatMap = {};
+  const parts = raw.split('\0');
+  for (let i = 0; i < parts.length; i++) {
+    const m = /^(-|\d+)\t(-|\d+)\t([\s\S]*)$/.exec(parts[i]!.replace(/^\n/, ''));
+    if (!m) continue;
+    let file = m[3]!;
+    if (!file) {
+      // 改名：后面两段是旧路径 / 新路径
+      file = parts[i + 2] ?? '';
+      i += 2;
+    }
+    if (!file || m[1] === '-' || m[2] === '-') continue;
+    out[file] = { added: Number(m[1]), removed: Number(m[2]) };
+  }
+  return out;
 }
 
 function git(cwd: string, args: string[]): Promise<string> {
@@ -636,7 +669,7 @@ function git(cwd: string, args: string[]): Promise<string> {
       {
         cwd,
         timeout: 8000,
-        maxBuffer: 4 * 1024 * 1024,
+        maxBuffer: 32 * 1024 * 1024,
         windowsHide: true,
         env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', NO_COLOR: '1' },
       },
@@ -645,7 +678,23 @@ function git(cwd: string, args: string[]): Promise<string> {
   });
 }
 
-const DIFF_MAX = 120 * 1024;
+/** 每份 diff 文本的上限：多语言 json / 生成文件改得多时一轮就能有几百 KB；行数另由 numstat 给全 */
+const DIFF_MAX = 4 * 1024 * 1024;
+
+export interface GitBranchResult {
+  /** 当前分支名；游离 HEAD 时为 null */
+  branch: string | null;
+  /** 游离 HEAD 时的短提交号 */
+  detached?: string;
+}
+
+/** 对话顶栏的分支提示（只读）：不是 git 仓库 / git 不可用时返回 null */
+export async function gitBranch(cwd: string): Promise<GitBranchResult | null> {
+  const branch = (await git(cwd, ['symbolic-ref', '--short', '-q', 'HEAD']).catch(() => '')).trim();
+  if (branch) return { branch };
+  const sha = (await git(cwd, ['rev-parse', '--short', 'HEAD']).catch(() => '')).trim();
+  return sha ? { branch: null, detached: sha } : null;
+}
 
 /** `/diff`：只读的 git status / diff（不跑外部 diff 驱动与 textconv） */
 export async function gitDiff(cwd: string): Promise<GitDiffResult> {
@@ -653,10 +702,30 @@ export async function gitDiff(cwd: string): Promise<GitDiffResult> {
     const flags = ['--no-ext-diff', '--no-textconv', '--no-color'];
     const status = (await git(cwd, ['status', '--short', '--untracked-files=normal'])).trim();
     const stat = (await git(cwd, ['diff', ...flags, '--stat', 'HEAD']).catch(() => '')).trim();
-    let diff = await git(cwd, ['diff', ...flags, 'HEAD']).catch(() => '');
-    const truncated = diff.length > DIFF_MAX;
-    if (truncated) diff = diff.slice(0, DIFF_MAX);
-    return { ok: true, status, stat, diff, truncated };
+    const [full, cached, work, nsHead, nsStaged, nsWork] = await Promise.all([
+      git(cwd, ['diff', ...flags, 'HEAD']).catch(() => ''),
+      git(cwd, ['diff', ...flags, '--cached']).catch(() => ''),
+      git(cwd, ['diff', ...flags]).catch(() => ''),
+      git(cwd, ['diff', ...flags, '--numstat', '-z', 'HEAD']).catch(() => ''),
+      git(cwd, ['diff', ...flags, '--numstat', '-z', '--cached']).catch(() => ''),
+      git(cwd, ['diff', ...flags, '--numstat', '-z']).catch(() => ''),
+    ]);
+    const truncated = [full, cached, work].some((d) => d.length > DIFF_MAX);
+    const cap = (d: string) => (d.length > DIFF_MAX ? d.slice(0, DIFF_MAX) : d);
+    return {
+      ok: true,
+      status,
+      stat,
+      diff: cap(full),
+      staged: cap(cached),
+      unstaged: cap(work),
+      truncated,
+      numstat: {
+        head: parseNumstat(nsHead),
+        staged: parseNumstat(nsStaged),
+        unstaged: parseNumstat(nsWork),
+      },
+    };
   } catch (e) {
     return {
       ok: false,
