@@ -64,7 +64,16 @@ export function setLayoutDensity(density: LayoutDensity): void {
 
 export function subscribeLayoutDensity(fn: Listener): () => void {
   densitySubs.add(fn);
-  return () => void densitySubs.delete(fn);
+  // 其它窗口（对话窗口 / 设置窗口等）改了界面模式：同源 localStorage 的 storage 事件只在「别的」窗口触发，
+  // 在这里转成本窗口的订阅通知；key 为 null 表示被 clear()，也要刷新
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === null || e.key === DENSITY_KEY) fn();
+  };
+  if (typeof window !== 'undefined') window.addEventListener('storage', onStorage);
+  return () => {
+    densitySubs.delete(fn);
+    if (typeof window !== 'undefined') window.removeEventListener('storage', onStorage);
+  };
 }
 
 export function getConversationListView(): ConversationListView {
