@@ -81,7 +81,7 @@ import {
   claudeContentBlocks,
   codexImageArgs,
   codexTurnInput,
-  grokPromptJsonArgv,
+  grokPromptFileArgv,
   imageSupportFor,
   modelNoVisionMessage,
   rejectedImagesMessage,
@@ -572,6 +572,20 @@ export class CliHarnessService {
         return false;
       }
     });
+  }
+
+  /**
+   * 渲染层传来的 cwd 必须是已知工作区：某个标签正在用的目录或最近用过的目录。
+   * 否则被攻陷的渲染进程可以借 workspace-read / write / delete / git 读写任意目录。
+   * 新目录只能经「新建标签 / 换目录 / 选择器」这些入口进入，之后才算已知。
+   */
+  knownDir(cwd: unknown): string {
+    const abs = validDir(String(cwd ?? ''));
+    const key = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+    const want = key(abs);
+    for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
+    if (this.recent.some((p) => key(p) === want)) return abs;
+    throw new Error(t('工作目录无效'));
   }
 
   private rememberCwd(abs: string) {
@@ -2035,9 +2049,7 @@ export class CliHarnessService {
     const stored = tab.cliSessionId ? null : this.carriedText(id);
     const carried = stored ? fitCarried(stored, carriedBudget(backend, process.platform)) : null;
     const toCli = withCarriedContext(carried, text);
-    const stageDir = normalized.length
-      ? path.join(this.d.root, 'prompt-images', id.replace(/[^\w-]/g, '_'))
-      : null;
+    const stageDir = normalized.length ? this.promptImageDir(id) : null;
     let staged: StagedImage[] = [];
     try {
       if (stageDir && normalized.length) staged = stageImages(stageDir, normalized);
@@ -3781,6 +3793,11 @@ export class CliHarnessService {
     return this.runGrok(tab, prompt, images);
   }
 
+  /** 一轮消息的附图 / 提示文件临时目录（轮次结束 finally 里整个删除） */
+  private promptImageDir(tabId: string): string {
+    return path.join(this.d.root, 'prompt-images', tabId.replace(/[^\w-]/g, '_'));
+  }
+
   /**
    * Grok Build 无头模式：`grok -p <prompt> --output-format streaming-json --no-auto-update`，
    * 权限按标签模式加 `--permission-mode <mode>`（完全放开为 `--yolo`）。
@@ -3802,7 +3819,7 @@ export class CliHarnessService {
       return Promise.reject(e);
     }
     const promptArgv = images?.length
-      ? grokPromptJsonArgv(prompt, images)
+      ? grokPromptFileArgv(this.promptImageDir(tab.id), prompt, images)
       : ['-p', prompt.startsWith('-') ? ` ${prompt}` : prompt];
     const argv = [
       ...promptArgv,
@@ -4311,35 +4328,31 @@ export class CliHarnessService {
     );
     // 斜杠命令：只读发现 / 按 id 展开 / 只读 git diff（见 slashDiscovery.ts）
     handle('ai:harness:slash-discover', (b, cwd) =>
-      discoverSlash(asSlashBackend(b), validDir(String(cwd ?? ''))),
+      discoverSlash(asSlashBackend(b), this.knownDir(cwd)),
     );
     handle('ai:harness:slash-expand', (b, cwd, id, args) =>
       expandSlash(
         asSlashBackend(b),
-        validDir(String(cwd ?? '')),
+        this.knownDir(cwd),
         String(id ?? ''),
         String(args ?? '').slice(0, 4000),
       ),
     );
-    handle('ai:harness:git-diff', (cwd) => gitDiff(validDir(String(cwd ?? ''))));
-    handle('ai:harness:git-branch', (cwd) => gitBranch(validDir(String(cwd ?? ''))));
+    handle('ai:harness:git-diff', (cwd) => gitDiff(this.knownDir(cwd)));
+    handle('ai:harness:git-branch', (cwd) => gitBranch(this.knownDir(cwd)));
     handle('ai:harness:workspace-read', (cwd, filePath) =>
-      readWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
+      readWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );
     handle('ai:harness:workspace-write', (cwd, filePath, content) =>
-      writeWorkspaceFile(
-        validDir(String(cwd ?? '')),
-        String(filePath ?? ''),
-        String(content ?? ''),
-      ),
+      writeWorkspaceFile(this.knownDir(cwd), String(filePath ?? ''), String(content ?? '')),
     );
     handle('ai:harness:workspace-delete', (cwd, filePath) =>
-      deleteWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
+      deleteWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );
     handle('ai:harness:workspace-git-checkout', (cwd, filePath) =>
-      gitCheckoutWorkspaceFile(validDir(String(cwd ?? '')), String(filePath ?? '')),
+      gitCheckoutWorkspaceFile(this.knownDir(cwd), String(filePath ?? '')),
     );
-    handle('ai:harness:workspace-list', (cwd) => listWorkspaceTree(validDir(String(cwd ?? ''))));
+    handle('ai:harness:workspace-list', (cwd) => listWorkspaceTree(this.knownDir(cwd)));
     // 上下文环：Claude 标签空闲时以 CLI 自己的会话记录为准（见 transcriptContext.ts）
     handle('ai:harness:tab-context', async (tabId) => {
       const tab = this.tabs.get(String(tabId));

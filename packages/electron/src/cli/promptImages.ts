@@ -244,21 +244,16 @@ export function acpPromptParts(
 }
 
 /**
- * Grok `-p` 回退：官方 headless 支持 `--prompt-json` 多模态 JSON。
+ * Grok `-p` 回退带图：把 ACP content blocks（含 base64 图片）写进临时 `.json` 文件，
+ * 用 `--prompt-file <file>`（`.json` 按 content blocks 解析）传入，base64 不进 argv
+ * （命令行参数有长度上限，也会出现在进程列表里）。文件随会话临时目录一起清理。
  * 返回应替换 `-p <prompt>` 的 argv 片段（含 flag）。
  */
-export function grokPromptJsonArgv(text: string, images: NormalizedImage[]): string[] {
-  const content: Array<Record<string, unknown>> = [];
-  if (text.trim()) content.push({ type: 'text', text });
-  for (const im of images) {
-    content.push({
-      type: 'image',
-      source: { type: 'base64', media_type: im.mime, data: im.data },
-    });
-  }
-  if (!content.length) content.push({ type: 'text', text: '' });
-  const payload = JSON.stringify({ role: 'user', content });
-  return ['--prompt-json', payload];
+export function grokPromptFileArgv(dir: string, text: string, images: NormalizedImage[]): string[] {
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, `grok-prompt-${randomUUID()}.json`);
+  fs.writeFileSync(file, JSON.stringify(acpPromptParts(text, images)), { mode: 0o600 });
+  return ['--prompt-file', file];
 }
 
 /** 清理临时目录（最佳努力） */

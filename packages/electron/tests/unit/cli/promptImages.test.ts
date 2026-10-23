@@ -13,7 +13,7 @@ import {
   claudeContentBlocks,
   codexImageArgs,
   codexTurnInput,
-  grokPromptJsonArgv,
+  grokPromptFileArgv,
   imageSupportFor,
   imageThumbsForMessage,
   modelNoVisionMessage,
@@ -102,10 +102,20 @@ describe('promptImages', () => {
       fs.rmSync(dir, { recursive: true, force: true });
     }
 
-    const argv = grokPromptJsonArgv('hi', imgs);
-    expect(argv[0]).toBe('--prompt-json');
-    const payload = JSON.parse(argv[1]!);
-    expect(payload.content.some((c: { type: string }) => c.type === 'image')).toBe(true);
+    const gdir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-grok-'));
+    try {
+      const argv = grokPromptFileArgv(gdir, 'hi', imgs);
+      // base64 不进 argv：只传文件路径（.json 按 content blocks 解析）
+      expect(argv).toHaveLength(2);
+      expect(argv[0]).toBe('--prompt-file');
+      expect(argv[1]!.endsWith('.json')).toBe(true);
+      expect(argv.join(' ')).not.toContain(png);
+      const payload = JSON.parse(fs.readFileSync(argv[1]!, 'utf8'));
+      expect(payload).toEqual(acpPromptParts('hi', imgs));
+      expect(payload.some((c: { type: string }) => c.type === 'image')).toBe(true);
+    } finally {
+      fs.rmSync(gdir, { recursive: true, force: true });
+    }
   });
 
   it('thumbs omit full base64 payload size concern via separate thumb field', () => {
