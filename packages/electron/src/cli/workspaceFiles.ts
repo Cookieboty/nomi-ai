@@ -2,7 +2,7 @@
  * 会话工作区内只读/写文本文件（Changes 预览编辑）。
  * 路径必须落在 cwd 内；禁止 .. 与绝对路径逃逸。
  */
-import { execFileSync } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -214,105 +214,175 @@ export function gitCheckoutWorkspaceFile(cwd: string, filePath: string): Workspa
 /** 测试 / 单测导出 */
 export const _test = { resolveInCwd, TEXT_MAX };
 
-const LIST_SKIP = new Set([
-  '.git',
+/** 依赖目录：不展示（动辄几万到几十万个文件，没人会在文件树里翻）。依赖与缓存之外的文件即使被 .gitignore 忽略也展示 */
+const DEP_DIRS = new Set([
   'node_modules',
-  'dist',
-  'build',
-  'out',
-  '.next',
-  'coverage',
-  '__pycache__',
-  '.turbo',
-  '.cache',
+  '.pnpm-store',
+  'bower_components',
+  'jspm_packages',
   '.venv',
   'venv',
-  '.idea',
-  '.vscode',
+  '__pycache__',
+  'Pods',
 ]);
+/** 版本库内部目录 */
+const VCS_DIRS = new Set(['.git', '.hg', '.svn']);
+/** 框架 / 工具的缓存目录：都是可再生成的中间产物，展示没有意义（构建产物 dist、build 仍展示） */
+const CACHE_DIRS = new Set([
+  '.nuxt',
+  '.svelte-kit',
+  '.turbo',
+  '.cache',
+  '.parcel-cache',
+  '.vite',
+  '.angular',
+  '.expo',
+  '.gradle',
+  '.pytest_cache',
+  '.mypy_cache',
+  '.ruff_cache',
+  '.tox',
+  '.eslintcache',
+]);
+/** Next.js 缓存：.next 以及自定义 distDir 的 .next-dev / .next-xxx */
+const NEXT_CACHE = /^\.next(-.+)?$/;
+const skipDir = (name: string) =>
+  DEP_DIRS.has(name) || VCS_DIRS.has(name) || CACHE_DIRS.has(name) || NEXT_CACHE.test(name);
+/** 系统垃圾文件 */
+const JUNK_FILES = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
 
 export interface WorkspaceTreeNode {
   kind: 'file' | 'dir';
   name: string;
   /** 相对 cwd，posix 斜杠 */
   path: string;
+  /** 被 .gitignore 忽略（仍展示，渲染端置灰） */
+  ignored?: boolean;
   children?: WorkspaceTreeNode[];
 }
 
 export interface WorkspaceTreeResult {
   ok: boolean;
   entries?: WorkspaceTreeNode[];
-  truncated?: boolean;
   error?: string;
-  code?: WorkspaceFileResult['code'] | 'too-many';
+  code?: WorkspaceFileResult['code'];
 }
 
 /**
- * 沙箱下列出 cwd 下目录树（跳过常见大目录；有深度/数量上限）。
- * 供右栏「工作区」展示全量文件，变更标注由渲染端叠加。
+ * git 仓库里被忽略的路径：`git ls-files --others --ignored --exclude-standard --directory`，
+ * 整个被忽略的目录只输出一条 `dir/`，量很小。不是仓库 / git 不可用时返回空集。异步，不阻塞主进程。
  */
-export function listWorkspaceTree(
-  cwd: string,
-  opts: { maxDepth?: number; maxFiles?: number } = {},
-): WorkspaceTreeResult {
+function listGitIgnored(root: string): Promise<Set<string>> {
+  return new Promise((resolve) => {
+    execFile(
+      'git',
+      ['ls-files', '-z', '--others', '--ignored', '--exclude-standard', '--directory'],
+      { cwd: root, encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024 },
+      (err, stdout) => resolve(new Set(err ? [] : stdout.split('\0').filter(Boolean))),
+    );
+  });
+}
+
+/**
+ * 异步广度优先遍历 cwd 下全部文件：同层目录并发读取，Dirent 自带类型（不逐个 lstat）；
+ * 跳过依赖目录、版本库目录与符号链接（避免环）。不设数量 / 深度上限。
+ */
+async function walkDisk(root: string): Promise<{ files: string[]; dirs: string[] }> {
+  const files: string[] = [];
+  const dirs: string[] = [];
+  const CONCURRENCY = 32;
+  let level: string[] = [''];
+  while (level.length) {
+    const next: string[] = [];
+    for (let i = 0; i < level.length; i += CONCURRENCY) {
+      await Promise.all(
+        level.slice(i, i + CONCURRENCY).map(async (relDir) => {
+          let entries: fs.Dirent[];
+          try {
+            entries = await fs.promises.readdir(path.join(root, relDir), { withFileTypes: true });
+          } catch {
+            return;
+          }
+          for (const e of entries) {
+            const rel = relDir ? `${relDir}/${e.name}` : e.name;
+            if (e.isDirectory()) {
+              if (skipDir(e.name)) continue;
+              dirs.push(rel);
+              next.push(rel);
+            } else if (e.isFile() && !JUNK_FILES.has(e.name)) {
+              files.push(rel);
+            }
+          }
+        }),
+      );
+    }
+    level = next;
+  }
+  return { files, dirs };
+}
+
+/** 把相对路径（posix）列表组装成树；目录在前、同类按名称排序；被忽略的目录其子孙也标记忽略 */
+function buildTree(
+  files: readonly string[],
+  dirs: readonly string[],
+  ignored: ReadonlySet<string>,
+): WorkspaceTreeNode[] {
+  const roots: WorkspaceTreeNode[] = [];
+  const dirIndex = new Map<string, { children: WorkspaceTreeNode[]; ignored: boolean }>([
+    ['', { children: roots, ignored: false }],
+  ]);
+  const ensureDir = (rel: string): { children: WorkspaceTreeNode[]; ignored: boolean } => {
+    const hit = dirIndex.get(rel);
+    if (hit) return hit;
+    const cut = rel.lastIndexOf('/');
+    const parent = ensureDir(cut < 0 ? '' : rel.slice(0, cut));
+    const isIgnored = parent.ignored || ignored.has(`${rel}/`) || ignored.has(rel);
+    const children: WorkspaceTreeNode[] = [];
+    parent.children.push({
+      kind: 'dir',
+      name: rel.slice(cut + 1),
+      path: rel,
+      ...(isIgnored ? { ignored: true } : {}),
+      children,
+    });
+    const entry = { children, ignored: isIgnored };
+    dirIndex.set(rel, entry);
+    return entry;
+  };
+  for (const d of dirs) ensureDir(d);
+  for (const f of files) {
+    const cut = f.lastIndexOf('/');
+    const parent = ensureDir(cut < 0 ? '' : f.slice(0, cut));
+    parent.children.push({
+      kind: 'file',
+      name: f.slice(cut + 1),
+      path: f,
+      ...(parent.ignored || ignored.has(f) ? { ignored: true } : {}),
+    });
+  }
+  const sort = (nodes: WorkspaceTreeNode[]) => {
+    nodes.sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    for (const n of nodes) if (n.children) sort(n.children);
+  };
+  sort(roots);
+  return roots;
+}
+
+/**
+ * 列出 cwd 下的全部文件（不截断），供右栏「工作区」展示，变更标注由渲染端叠加。
+ * 只跳过依赖目录；被 .gitignore 忽略的文件照样列出并打 ignored 标记。
+ */
+export async function listWorkspaceTree(cwd: string): Promise<WorkspaceTreeResult> {
   const root = path.resolve(String(cwd ?? ''));
   if (!root || !fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
     return { ok: false, error: 'invalid cwd', code: 'invalid' };
   }
-  const maxDepth = Math.min(Math.max(opts.maxDepth ?? 8, 1), 16);
-  const maxFiles = Math.min(Math.max(opts.maxFiles ?? 2000, 50), 8000);
-  let fileCount = 0;
-  let truncated = false;
-
-  const walk = (absDir: string, relDir: string, depth: number): WorkspaceTreeNode[] => {
-    if (truncated || depth > maxDepth) {
-      truncated = true;
-      return [];
-    }
-    let names: string[];
-    try {
-      names = fs.readdirSync(absDir);
-    } catch (e) {
-      return [];
-    }
-    names.sort((a, b) => a.localeCompare(b));
-    const out: WorkspaceTreeNode[] = [];
-    for (const name of names) {
-      if (truncated) break;
-      if (name === '.' || name === '..') continue;
-      if (LIST_SKIP.has(name)) continue;
-      if (name.startsWith('.') && name !== '.env' && name !== '.env.local') continue;
-      const abs = path.join(absDir, name);
-      const rel = relDir ? `${relDir}/${name}` : name;
-      let st: fs.Stats;
-      try {
-        st = fs.lstatSync(abs);
-      } catch {
-        continue;
-      }
-      if (st.isSymbolicLink()) continue;
-      if (st.isDirectory()) {
-        const children = walk(abs, rel.replace(/\\/g, '/'), depth + 1);
-        out.push({ kind: 'dir', name, path: rel.replace(/\\/g, '/'), children });
-      } else if (st.isFile()) {
-        fileCount += 1;
-        if (fileCount > maxFiles) {
-          truncated = true;
-          break;
-        }
-        out.push({ kind: 'file', name, path: rel.replace(/\\/g, '/') });
-      }
-    }
-    out.sort((a, b) => {
-      if (a.kind !== b.kind) return a.kind === 'dir' ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-    return out;
-  };
-
   try {
-    const entries = walk(root, '', 1);
-    return { ok: true, entries, truncated: truncated || undefined };
+    const [disk, ignored] = await Promise.all([walkDisk(root), listGitIgnored(root)]);
+    return { ok: true, entries: buildTree(disk.files, disk.dirs, ignored) };
   } catch (e) {
     return {
       ok: false,

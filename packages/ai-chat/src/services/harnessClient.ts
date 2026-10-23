@@ -289,15 +289,16 @@ export interface WorkspaceTreeNode {
   kind: 'file' | 'dir';
   name: string;
   path: string;
+  /** 被 .gitignore 忽略（仍展示，置灰） */
+  ignored?: boolean;
   children?: WorkspaceTreeNode[];
 }
 
 export interface WorkspaceTreeResult {
   ok: boolean;
   entries?: WorkspaceTreeNode[];
-  truncated?: boolean;
   error?: string;
-  code?: WorkspaceFileResult['code'] | 'too-many';
+  code?: WorkspaceFileResult['code'];
 }
 
 export const harnessClient = {

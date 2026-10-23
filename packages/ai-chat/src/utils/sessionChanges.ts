@@ -131,6 +131,8 @@ export interface ChangeTreeDir {
   kind: 'dir';
   name: string;
   path: string;
+  /** 工作区全树：被 .gitignore 忽略（置灰展示） */
+  ignored?: boolean;
   children: ChangeTreeNode[];
 }
 
@@ -140,6 +142,8 @@ export interface ChangeTreeFile {
   path: string;
   /** 有本轮/会话变更时带标注；纯磁盘文件可无 */
   entry?: ChangeEntry;
+  /** 工作区全树：被 .gitignore 忽略（置灰展示） */
+  ignored?: boolean;
 }
 
 export type ChangeTreeNode = ChangeTreeDir | ChangeTreeFile;
@@ -222,6 +226,7 @@ export interface WorkspaceDiskNode {
   kind: 'file' | 'dir';
   name: string;
   path: string;
+  ignored?: boolean;
   children?: WorkspaceDiskNode[];
 }
 
@@ -283,6 +288,7 @@ export function mergeWorkspaceAndChanges(
           kind: 'dir',
           name: n.name,
           path: n.path,
+          ...(n.ignored ? { ignored: true } : {}),
           children: walk(n.children ?? []),
         });
       } else {
@@ -293,6 +299,7 @@ export function mergeWorkspaceAndChanges(
           name: n.name,
           path: n.path,
           entry: byPath.get(key),
+          ...(n.ignored ? { ignored: true } : {}),
         });
       }
     }

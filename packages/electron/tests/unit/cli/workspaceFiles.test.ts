@@ -5,7 +5,7 @@ jest.unmock('node:path');
 jest.unmock('node:os');
 jest.unmock('node:child_process');
 
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,6 +14,7 @@ import {
   deleteWorkspaceFile,
   gitCheckoutWorkspaceFile,
   listWorkspaceTree,
+  type WorkspaceTreeNode,
   readWorkspaceFile,
   writeWorkspaceFile,
   _test,
@@ -92,19 +93,80 @@ describe('listWorkspaceTree', () => {
     fs.rmSync(cwd, { recursive: true, force: true });
   });
 
-  it('lists files and dirs under cwd; skips node_modules/.git', () => {
-    fs.mkdirSync(path.join(cwd, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, 'src', 'a.ts'), 'a');
-    fs.writeFileSync(path.join(cwd, 'README.md'), 'hi');
-    fs.mkdirSync(path.join(cwd, 'node_modules', 'x'), { recursive: true });
-    fs.writeFileSync(path.join(cwd, 'node_modules', 'x', 'index.js'), '1');
-    fs.mkdirSync(path.join(cwd, '.git'), { recursive: true });
-    const r = listWorkspaceTree(cwd);
+  const put = (rel: string, body = '') => {
+    fs.mkdirSync(path.dirname(path.join(cwd, rel)), { recursive: true });
+    fs.writeFileSync(path.join(cwd, rel), body);
+  };
+  const topNames = (r: Awaited<ReturnType<typeof listWorkspaceTree>>) =>
+    (r.entries ?? []).map((e) => e.name);
+  const flat = (nodes: WorkspaceTreeNode[] = []): WorkspaceTreeNode[] =>
+    nodes.flatMap((e) => (e.kind === 'file' ? [e] : flat(e.children)));
+
+  it('lists every file without a cap; skips dependency dirs, .git and junk files', async () => {
+    put('src/a.ts');
+    put('README.md');
+    put('.env');
+    put('.github/workflows/ci.yml');
+    put('dist/bundle.js');
+    put('node_modules/x/index.js');
+    put('packages/app/node_modules/y/index.js');
+    put('.git/HEAD');
+    put('web/.next/cache/a.pack');
+    put('web/.next-dev/server/b.js');
+    put('web/.turbo/c.log');
+    put('web/page.tsx');
+    put('.DS_Store');
+    // 一个排在最前面的大目录不能吃掉后面兄弟目录的配额
+    for (let i = 0; i < 2500; i++) put(`a-big/f${i}.txt`);
+    put('z-small/keep.txt');
+    const r = await listWorkspaceTree(cwd);
     expect(r.ok).toBe(true);
-    const names = (r.entries ?? []).map((e) => e.name).sort();
-    expect(names).toEqual(['README.md', 'src']);
-    const src = (r.entries ?? []).find((e) => e.name === 'src');
-    expect(src?.kind).toBe('dir');
-    expect(src?.children?.some((c) => c.name === 'a.ts')).toBe(true);
+    expect(topNames(r)).toEqual([
+      '.github',
+      'a-big',
+      'dist',
+      'packages',
+      'src',
+      'web',
+      'z-small',
+      '.env',
+      'README.md',
+    ]);
+    const files = flat(r.entries).map((f) => f.path);
+    expect(files).toHaveLength(2500 + 7);
+    expect(files).toContain('web/page.tsx');
+    expect(files.some((f) => /\.next|\.turbo/.test(f))).toBe(false);
+    expect(files).toContain('z-small/keep.txt');
+    expect(files.some((f) => f.includes('node_modules'))).toBe(false);
   });
+
+  const hasGit = (() => {
+    try {
+      execFileSync('git', ['--version'], { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  (hasGit ? it : it.skip)(
+    'in a git repo still lists .gitignore-d files, marked ignored',
+    async () => {
+      execFileSync('git', ['init', '-q'], { cwd, stdio: 'ignore' });
+      put('.gitignore', 'logs/\n*.db\nnode_modules/\n');
+      put('logs/x.log');
+      put('data.db');
+      put('src/a.ts');
+      put('node_modules/z/index.js');
+      const r = await listWorkspaceTree(cwd);
+      expect(topNames(r)).toEqual(['logs', 'src', '.gitignore', 'data.db']);
+      const byPath = new Map(flat(r.entries).map((f) => [f.path, f.ignored ?? false]));
+      expect(Object.fromEntries(byPath)).toEqual({
+        'logs/x.log': true,
+        'src/a.ts': false,
+        '.gitignore': false,
+        'data.db': true,
+      });
+      expect(r.entries!.find((e) => e.name === 'logs')?.ignored).toBe(true);
+    },
+  );
 });

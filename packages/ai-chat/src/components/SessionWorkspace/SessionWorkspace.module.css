@@ -768,6 +768,11 @@
   gap: 2px;
   width: 100%;
 }
+/* 被 .gitignore 忽略的文件 / 目录：照常展示，置灰区分 */
+.wbTreeDir[data-ignored] > .wbTreeDirHead,
+.wbTreeFileRow[data-ignored] .wbTreeFile {
+  opacity: 0.55;
+}
 .wbTreeFileRow[data-active] {
   background: color-mix(in srgb, var(--cd-color-danger, #e35d6a) 12%, transparent);
 }

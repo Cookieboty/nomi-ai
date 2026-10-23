@@ -45,7 +45,11 @@ export const ChangeFileTree: React.FC<{
           if (!any) return null;
           const isOpen = open[n.path] ?? (defaultOpen || !!q);
           return (
-            <div key={n.path || n.name} className={styles.wbTreeDir}>
+            <div
+              key={n.path || n.name}
+              className={styles.wbTreeDir}
+              data-ignored={n.ignored || undefined}
+            >
               <button
                 type="button"
                 className={styles.wbTreeDirHead}
@@ -84,6 +88,7 @@ export const ChangeFileTree: React.FC<{
             className={styles.wbTreeFileRow}
             data-active={active === id || undefined}
             data-changed={changed || undefined}
+            data-ignored={n.ignored || undefined}
             data-testid="change-row"
             data-file={n.path}
           >

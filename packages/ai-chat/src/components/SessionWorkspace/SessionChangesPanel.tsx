@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import {
@@ -145,6 +145,8 @@ export const SessionChangesPanel: React.FC<{
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  /** 全树可能有上万个文件：过滤用延迟值，输入框不被整树重渲染卡住 */
+  const treeFilter = useDeferredValue(filter);
   const [badgePulse, setBadgePulse] = useState(false);
   const [diskTree, setDiskTree] = useState<WorkspaceTreeNode[]>([]);
   const [diskBusy, setDiskBusy] = useState(false);
@@ -497,7 +499,7 @@ export const SessionChangesPanel: React.FC<{
         nodes={changesActive ? changedTree : workspaceTree}
         active={selectedFile}
         onPick={pickFile}
-        filter={filter}
+        filter={treeFilter}
         testIdPrefix="rail"
         defaultOpen={changesActive}
         messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}

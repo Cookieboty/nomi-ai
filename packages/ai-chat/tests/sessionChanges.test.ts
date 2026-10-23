@@ -252,6 +252,25 @@ describe('mergeWorkspaceAndChanges', () => {
     expect(b && b.kind === 'file' && b.entry).toBeUndefined();
   });
 
+  it('keeps the .gitignore ignored flag on dirs and files', () => {
+    const tree = mergeWorkspaceAndChanges(
+      [
+        {
+          kind: 'dir',
+          name: 'logs',
+          path: 'logs',
+          ignored: true,
+          children: [{ kind: 'file', name: 'x.log', path: 'logs/x.log', ignored: true }],
+        },
+        { kind: 'file', name: 'a.ts', path: 'a.ts' },
+      ],
+      [],
+    );
+    expect(tree[0]).toMatchObject({ kind: 'dir', ignored: true });
+    expect(tree[0]?.kind === 'dir' && tree[0].children[0]).toMatchObject({ ignored: true });
+    expect(tree[1]).not.toHaveProperty('ignored');
+  });
+
   it('inserts changed paths missing on disk', () => {
     const changes: ChangeEntry[] = [
       {
