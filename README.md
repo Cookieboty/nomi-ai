@@ -43,7 +43,7 @@
     <td align="center" colspan="2"><img src="docs/screenshots/coding-agent.webp" alt="Claude Code conversation with tool calls and a subagent" width="49%"> <img src="docs/screenshots/permission-modes.webp" alt="Permission mode menu in the composer" width="49%"><br><sub>编程助手对话 · 权限模式 / Coding agents · Permission modes</sub></td>
   </tr>
   <tr>
-    <td align="center" colspan="2"><img src="docs/screenshots/coding-accounts.webp" alt="Claude Code page with version and official accounts" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Coding assistants settings with Nomi providers" width="49%"><br><sub>官方账号与版本 · 供应商与模型 / Official accounts & version · Providers & models</sub></td>
+    <td align="center" colspan="2"><img src="docs/screenshots/coding-accounts.webp" alt="Claude Code page with version and official accounts" width="49%"> <img src="docs/screenshots/settings-providers.webp" alt="Models page with third-party model assignment and provider list" width="49%"><br><sub>官方账号与版本 · 供应商与模型 / Official accounts & version · Providers & models</sub></td>
   </tr>
   <tr>
     <td align="center" colspan="2"><img src="docs/screenshots/command-palette.webp" alt="Command palette" width="32%"> <img src="docs/screenshots/import-tools.webp" alt="Import MCP servers and skills from Claude Code and Codex" width="32%"> <img src="docs/screenshots/themes.webp" alt="Themes and chat background" width="32%"><br><sub>命令面板 · 从其他工具导入 · 主题与聊天背景 / Command palette · Import from other tools · Themes & chat background</sub></td>
