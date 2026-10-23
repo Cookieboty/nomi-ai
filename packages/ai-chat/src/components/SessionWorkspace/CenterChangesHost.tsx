@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { ConvMessage } from '../../types/conversation';
+import { shouldIgnoreEscape } from '../../utils/keyboard';
 import {
   aggregateSessionChanges,
   aggregateTurnChanges,
@@ -53,15 +54,19 @@ export const CenterChangesHost: React.FC<{
     return [...head, ...rest];
   }, [entries, activeFile]);
 
-  useEffect(() => {
-    if (!workbench) return;
+  // 打开 / 换了一次查看目标：范围回到「这一轮 / 全部」的默认值（渲染期调整，避免 effect 里同步 setState）
+  const [scopeFor, setScopeFor] = useState<typeof workbench | null>(null);
+  if (workbench && scopeFor !== workbench) {
+    setScopeFor(workbench);
     setScopeAll(!workbench.messageId);
-  }, [workbench]);
+  }
 
   useEffect(() => {
     if (!workbench) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // 聊天输入框 / 其它输入控件里按 Esc 不关中间的 Diff
+        if (shouldIgnoreEscape(e)) return;
         e.preventDefault();
         closeWorkbench();
       }

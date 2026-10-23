@@ -33,6 +33,7 @@ import {
   type GitFileEntry,
   type ParsedDiffFile,
 } from '../../utils/gitStatusParse';
+import { shouldIgnoreEscape } from '../../utils/keyboard';
 import { parsePatch } from '../../utils/lineDiff';
 import {
   aggregateSessionChanges,
@@ -420,6 +421,16 @@ export const SessionChangesPanel: React.FC<{
         if (!previewKey && !workbench) return;
       }
       if (e.key === 'Escape') {
+        // 聊天输入框等面板外的输入控件里按 Esc 不关预览 / 中栏 Diff；预览里的编辑框仍算自己人
+        if (
+          shouldIgnoreEscape(
+            e,
+            (tg) =>
+              !!panelRef.current?.contains(tg as Node) ||
+              !!(tg as Element | null)?.closest?.('[data-testid="file-preview"]'),
+          )
+        )
+          return;
         if (previewKey) {
           e.preventDefault();
           setPreviewKey(null);

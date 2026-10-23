@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Eye, FileCode2, RotateCcw, Save, X } from 'l
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
+import { shouldIgnoreEscape } from '../../utils/keyboard';
 import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
 import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
@@ -51,7 +52,6 @@ export const FilePreview: React.FC<{
   /** 旁边已有文件列表（右栏）时不再显示文件标签条 */
   hideFileTabs?: boolean;
 }> = ({ files, activeKey, cwd, onActiveKey, onClose, onSaved, hideFileTabs = false }) => {
-  const [mode, setMode] = useState<PreviewMode>('diff');
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [disk, setDisk] = useState<string>('');
@@ -59,7 +59,14 @@ export const FilePreview: React.FC<{
   const [saving, setSaving] = useState(false);
   /** 应用内确认「丢弃本轮变更」（取代 window.confirm） */
   const [confirmDiscard, setConfirmDiscard] = useState(false);
-  const [dirtyTick, setDirtyTick] = useState(0);
+  /** 每个文件的草稿 / 是否有未保存改动（渲染要用，所以放 state；滚动 / 选区不参与渲染，留在 viewState） */
+  const [meta, setMeta] = useState<Record<string, { draft?: string; dirty?: boolean }>>({});
+  const commitMeta = useCallback((key: string, draft: string | undefined, dirty: boolean) => {
+    setMeta((m) =>
+      m[key]?.draft === draft && !!m[key]?.dirty === dirty ? m : { ...m, [key]: { draft, dirty } },
+    );
+  }, []);
+  const rootRef = useRef<HTMLDivElement>(null);
   const viewState = useRef<Map<string, FileViewState>>(new Map());
   const bodyRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -70,11 +77,17 @@ export const FilePreview: React.FC<{
   const active = files[idx] ?? files[0];
 
   // 换文件时：有 diff 先看 Diff，没有就直接编辑。只看文件和有没有 diff，
-  // 列表刷新（窗口重新聚焦会刷新 git）不打断正在编辑 / 预览的文件
+  // 列表刷新（窗口重新聚焦会刷新 git）不打断正在编辑 / 预览的文件。
+  // 在渲染期就把模式 / 待确认丢弃重置好（而不是等 effect 之后再来一次渲染）：
+  // 读盘 effect 只会看到最终的模式，切文件不会为旧模式多读一次盘
   const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
-  useEffect(() => {
+  const [mode, setMode] = useState<PreviewMode>(activeHasDiff ? 'diff' : 'file');
+  const [modeKey, setModeKey] = useState(activeKey);
+  if (modeKey !== activeKey) {
+    setModeKey(activeKey);
     setMode(activeHasDiff ? 'diff' : 'file');
-  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps -- 只在换文件时重置
+    setConfirmDiscard(false); // 确认的是上一个文件
+  }
 
   const crumbs = useMemo(() => {
     const p = active?.path ?? '';
@@ -94,11 +107,12 @@ export const FilePreview: React.FC<{
       prev.selEnd = taRef.current.selectionEnd;
       prev.draft = taRef.current.value;
       prev.dirty = taRef.current.value !== disk;
+      commitMeta(active.key, prev.draft, prev.dirty);
     } else if (bodyRef.current) {
       prev.scrollTop = bodyRef.current.scrollTop;
     }
     viewState.current.set(active.key, prev);
-  }, [active, disk, mode]);
+  }, [active, commitMeta, disk, mode]);
 
   const go = useCallback(
     (delta: number) => {
@@ -130,8 +144,6 @@ export const FilePreview: React.FC<{
   });
   const activeFileKey = active?.key;
   const activePath = active?.path;
-  // 换了文件就取消待确认的丢弃（确认的是上一个文件）
-  useEffect(() => setConfirmDiscard(false), [activeFileKey]);
   const loadDisk = useCallback(async () => {
     if (!cwd || !activeFileKey || !activePath) {
       setDisk('');
@@ -172,31 +184,29 @@ export const FilePreview: React.FC<{
   }, [activeFileKey, activePath, cwd]);
 
   useEffect(() => {
+    // loadDisk 是「读盘 → 写 state」的数据同步，loading / 重置 state 在其开头同步设置是有意的
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (mode === 'file' || mode === 'render') void loadDisk();
     else {
       requestAnimationFrame(() => {
         const el = bodyRef.current;
-        const st = active ? viewState.current.get(active.key) : undefined;
+        const st = activeFileKey ? viewState.current.get(activeFileKey) : undefined;
         if (el && st) el.scrollTop = st.scrollTop;
       });
     }
-  }, [active?.key, mode, loadDisk]);
+  }, [activeFileKey, mode, loadDisk]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'TEXTAREA' || tag === 'INPUT') {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          onClose();
-        }
-        return;
-      }
       if (e.key === 'Escape') {
+        // 聊天输入框等预览之外的输入控件里按 Esc 不关预览；预览自己的编辑框仍可 Esc 关闭
+        if (shouldIgnoreEscape(e, (tg) => !!rootRef.current?.contains(tg as Node))) return;
         e.preventDefault();
         onClose();
         return;
       }
+      if (tag === 'TEXTAREA' || tag === 'INPUT') return;
       if (e.key === 'ArrowLeft' || e.key === '[') {
         e.preventDefault();
         go(-1);
@@ -214,11 +224,6 @@ export const FilePreview: React.FC<{
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [go, onClose]);
-
-  const dirty = useMemo(() => {
-    const st = active ? viewState.current.get(active.key) : undefined;
-    return !!st?.dirty;
-  }, [active, disk, mode, dirtyTick]);
 
   const save = async () => {
     if (!cwd || !active || binary) return;
@@ -244,7 +249,7 @@ export const FilePreview: React.FC<{
       st.dirty = false;
       st.draft = content;
       viewState.current.set(active.key, st);
-      setDirtyTick((n) => n + 1);
+      commitMeta(active.key, content, false);
       onSaved?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -284,7 +289,7 @@ export const FilePreview: React.FC<{
         st.dirty = false;
         st.draft = undefined;
       }
-      setDirtyTick((n) => n + 1);
+      commitMeta(active.key, undefined, false);
       await loadDisk();
       onSaved?.();
     } catch (e) {
@@ -299,10 +304,11 @@ export const FilePreview: React.FC<{
   const hasDiff = !!(active.change?.diff || active.gitDiff);
   const isMd = isMarkdownPath(active.path);
   // 预览渲染未保存的草稿（切到预览前 persistView 已存下）
-  const renderText = viewState.current.get(active.key)?.draft ?? disk;
+  const renderText = meta[active.key]?.draft ?? disk;
+  const dirty = !!meta[active.key]?.dirty;
 
   return (
-    <div className={styles.preview} data-testid="file-preview" tabIndex={-1}>
+    <div ref={rootRef} className={styles.preview} data-testid="file-preview" tabIndex={-1}>
       <header className={styles.previewHead}>
         <div className={styles.previewNav}>
           <button
@@ -539,7 +545,7 @@ export const FilePreview: React.FC<{
                 st.draft = e.target.value;
                 st.dirty = e.target.value !== disk;
                 viewState.current.set(active.key, st);
-                setDirtyTick((n) => n + 1);
+                commitMeta(active.key, st.draft, !!st.dirty);
               }}
               onScroll={() => persistView()}
               onSelect={() => persistView()}

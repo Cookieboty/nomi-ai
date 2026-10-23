@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ChangesUiProvider,
+  CenterChangesHost,
   ChangesWorkbenchHost,
   useChangesUi,
 } from '../src/components/SessionWorkspace';
@@ -48,5 +49,38 @@ describe('全屏审查 Esc', () => {
     } finally {
       window.removeEventListener('keydown', behind);
     }
+  });
+});
+
+const CenterOpener: React.FC = () => {
+  const { openWorkbench } = useChangesUi();
+  return (
+    <button type="button" data-testid="open" onClick={() => openWorkbench({})}>
+      open
+    </button>
+  );
+};
+
+describe('中栏 Diff 的 Esc', () => {
+  it('聊天输入框里按 Esc 不关中栏 Diff；在别处按 Esc 仍然关闭', () => {
+    render(
+      <ChangesUiProvider>
+        <CenterOpener />
+        <textarea data-testid="chat-input" />
+        <CenterChangesHost messages={[]} cwd="/tmp/p" />
+      </ChangesUiProvider>,
+    );
+    fireEvent.click(screen.getByTestId('open'));
+    expect(screen.getByTestId('center-changes-pane')).toBeTruthy();
+
+    act(() => {
+      fireEvent.keyDown(screen.getByTestId('chat-input'), { key: 'Escape' });
+    });
+    expect(screen.getByTestId('center-changes-pane')).toBeTruthy();
+
+    act(() => {
+      fireEvent.keyDown(document.body, { key: 'Escape' });
+    });
+    expect(screen.queryByTestId('center-changes-pane')).toBeNull();
   });
 });
