@@ -362,20 +362,32 @@ export class UpdateService {
   }
 
   /**
-   * 下载中每次有进展都重新计时；超过 stallMs 没动静就取消并转为失败，让用户能重试。
-   * 「发现新版本」也算：总是自动下载，第一个进度到达前就卡住时状态还停在 available。
+   * 检查 / 下载中每次有进展都重新计时；超过 stallMs 没动静就取消并转为失败，让用户能重试。
+   * 「发现新版本」也算：总是自动下载，第一个进度到达前就卡住时状态还停在 available；
+   * 「检查中」同理：网络黑洞会让 checkForUpdates 一直不返回，界面永远停在检查中。
    */
   private watchStall(): void {
     this.clearStall();
-    const active = () => this.state.status === 'downloading' || this.state.status === 'available';
+    const active = () =>
+      this.state.status === 'downloading' ||
+      this.state.status === 'available' ||
+      this.state.status === 'checking';
     if (this.stallMs <= 0 || !active()) return;
     this.stallTimer = setTimeout(() => {
       this.stallTimer = null;
       if (!active()) return;
       const secs = Math.round(this.stallMs / 1000);
-      this.logger.warn('[updater] download stalled', { secs });
+      const checking = this.state.status === 'checking';
+      this.logger.warn(checking ? '[updater] check stalled' : '[updater] download stalled', {
+        secs,
+      });
       this.cancelDownload();
-      this.fail(`download stalled: no progress for ${secs}s`, 'download');
+      this.fail(
+        checking
+          ? `update check stalled: no response for ${secs}s`
+          : `download stalled: no progress for ${secs}s`,
+        checking ? 'check' : 'download',
+      );
     }, this.stallMs);
     // 不阻止应用退出
     if (typeof this.stallTimer === 'object' && 'unref' in this.stallTimer) this.stallTimer.unref();

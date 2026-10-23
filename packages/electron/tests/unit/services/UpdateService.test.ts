@@ -233,6 +233,40 @@ describe('UpdateService', () => {
       }
     });
 
+    it('检查卡住（checkForUpdates 一直不返回）：超时后转为「检查失败」，能再次检查', async () => {
+      jest.useFakeTimers();
+      try {
+        const u = new FakeUpdater();
+        let hang = true;
+        u.checkForUpdates = (() => {
+          u.emit('checking-for-update');
+          return hang ? new Promise(() => undefined) : Promise.resolve(null);
+        }) as never;
+        const s = new UpdateService(logger as never, {
+          updater: u,
+          packaged: true,
+          launchDelayMs: 0,
+          intervalMs: 0,
+          stallMs: 5000,
+        });
+        s.start();
+        void s.check();
+        expect(s.getState().status).toBe('checking');
+        jest.advanceTimersByTime(4999);
+        expect(s.getState().status).toBe('checking');
+        jest.advanceTimersByTime(1);
+        expect(s.getState()).toMatchObject({ status: 'error', errorStage: 'check' });
+        expect(s.getState().error).toMatch(/check stalled/);
+        // 正常的检查结果到来不会被旧计时器打断
+        hang = false;
+        void s.check();
+        expect(s.getState().status).toBe('checking');
+        s.stop();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('有进度就不算卡住', async () => {
       jest.useFakeTimers();
       try {
