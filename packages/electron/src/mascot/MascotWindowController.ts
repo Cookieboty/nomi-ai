@@ -68,6 +68,9 @@ export interface MascotScaleHooks {
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 const TICK_MS = 1000 / 60;
+/** Keep native window moves at the display cadence. Pointer coordinates are
+ * still consumed immediately; only the expensive Windows call is coalesced. */
+const DRAG_MOVE_MS = TICK_MS;
 /** 空闲（无拖拽 / 无物理运动 / 光标静止）时降频，避免 60Hz 永久空转占主线程。
  *  取 ~8Hz：光标“第一动”最长 120ms 后即提频，视线跟随无可察觉延迟 */
 const IDLE_TICK_MS = 120;
@@ -125,6 +128,17 @@ export class MascotWindowController {
   private drag: { dx: number; dy: number } | null = null;
   /** 拖拽中的指针屏幕坐标（渲染进程上报；指针捕获保证窗口移动时仍能收到） */
   private dragPoint: { x: number; y: number } | null = null;
+  private appliedDragPoint: { x: number; y: number } | null = null;
+  private lastDragMoveAt = -Infinity;
+  /** Actual native size captured at drag start; position-only moves must not
+   * repeatedly write a recomputed DPI size into a transparent window. */
+  private dragWindowSize: { width: number; height: number } | null = null;
+  /** Windows grows a non-resizable transparent window when moved at fractional DPI.
+   * Unlock once for the whole drag so position-only moves stay cheap and stable. */
+  private dragUnlocked = false;
+  /** Last position requested by us. During a drag, avoid synchronous native
+   * getPosition() reads on every pointer sample. */
+  private requestedPosition: { x: number; y: number } | null = null;
   private readonly tracker = new VelocityTracker();
   private prevV = { vx: 0, vy: 0 };
   private nextWanderAt = 0;
@@ -151,6 +165,7 @@ export class MascotWindowController {
       this.pref = this.scaleHooks?.get() ?? this.scale;
     }
     const [x, y] = this.win.getPosition();
+    this.requestedPosition = { x, y };
     this.body = { x, y, vx: 0, vy: 0, mode: 'idle' };
     const onDisplays = () => {
       this.refreshDisplays();
@@ -181,7 +196,7 @@ export class MascotWindowController {
     on('mascot:drag-move', (_e, sx, sy) => {
       const x = num(sx);
       const y = num(sy);
-      if (this.drag && x !== null && y !== null) this.dragPoint = { x, y };
+      if (this.drag && x !== null && y !== null) this.updateDragPosition({ x, y });
     });
     on('mascot:drag-end', () => this.dragEnd());
     on('mascot:interaction-config', (_e, cfg) => this.setConfig(cfg));
@@ -290,6 +305,10 @@ export class MascotWindowController {
   dispose(): void {
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    if (this.dragUnlocked && !this.win.isDestroyed()) {
+      this.win.setResizable(false);
+      this.dragUnlocked = false;
+    }
     for (const d of this.disposers.splice(0)) d();
   }
 
@@ -373,6 +392,7 @@ export class MascotWindowController {
         this.drag = { dx: this.drag.dx - (nb.x - b.x), dy: this.drag.dy - (nb.y - b.y) };
       }
       this.body = { ...this.body, x: nb.x, y: nb.y };
+      this.requestedPosition = { x: nb.x, y: nb.y };
       this.scale = target;
       this.hitKnown = false;
     }
@@ -480,6 +500,14 @@ export class MascotWindowController {
     this.schedule(TICK_MS);
     const c = sx !== null && sy !== null ? { x: sx, y: sy } : screen.getCursorScreenPoint();
     this.dragPoint = c;
+    this.appliedDragPoint = null;
+    this.lastDragMoveAt = -Infinity;
+    const [width, height] = this.win.getSize();
+    this.dragWindowSize = { width, height };
+    if (process.platform === 'win32' && !this.win.isResizable()) {
+      this.win.setResizable(true);
+      this.dragUnlocked = true;
+    }
     const [x, y] = this.win.getPosition();
     this.drag = { dx: c.x - x, dy: c.y - y };
     this.applyIgnore(false);
@@ -490,8 +518,32 @@ export class MascotWindowController {
 
   private dragEnd(): void {
     if (!this.drag) return;
+    // Apply the final IPC point before leaving held mode; otherwise the next
+    // idle tick can leave the window one pointer sample behind.
+    if (this.dragPoint) this.updateDragPosition(this.dragPoint, true);
     // 重力只在真正拖拽松手后生效
     this.drag = null;
+    this.appliedDragPoint = null;
+    const dragSize = this.dragWindowSize;
+    this.dragWindowSize = null;
+    if (this.dragUnlocked && !this.win.isDestroyed()) {
+      try {
+        const [width, height] = this.win.getSize();
+        if (
+          dragSize &&
+          (Math.abs(width - dragSize.width) > 1 || Math.abs(height - dragSize.height) > 1)
+        ) {
+          setWindowBounds(
+            this.win,
+            { x: Math.round(this.body.x), y: Math.round(this.body.y), ...dragSize },
+            process.platform,
+          );
+        }
+      } finally {
+        this.win.setResizable(false);
+        this.dragUnlocked = false;
+      }
+    }
     const v = this.tracker.release(performance.now());
     if (this.cfg.gravity) {
       this.body = { ...this.body, vx: v.vx, vy: v.vy, mode: 'falling' };
@@ -523,6 +575,63 @@ export class MascotWindowController {
     this.scheduleNextWander();
   }
 
+  private updateDragPosition(point: { x: number; y: number }, forceMove = false): void {
+    if (!this.drag) return;
+    this.dragPoint = point;
+    const now = performance.now();
+    if (
+      !forceMove &&
+      this.appliedDragPoint &&
+      this.appliedDragPoint.x === point.x &&
+      this.appliedDragPoint.y === point.y
+    ) {
+      // A throttled point may already be reflected in body but not in the
+      // native window yet. Keep the pending position eligible for the tick.
+      if (now - this.lastDragMoveAt >= DRAG_MOVE_MS) this.moveBodyWindow(now);
+      return;
+    }
+    const env = this.env();
+    let next: BodyState = {
+      ...this.body,
+      x: point.x - this.drag.dx,
+      y: point.y - this.drag.dy,
+    };
+    if (env) next = clampToWorld(next, env);
+    this.body = next;
+    this.tracker.sample(next.x, next.y, now);
+    this.body.vx = this.tracker.vx;
+    this.body.vy = this.tracker.vy;
+    this.appliedDragPoint = { ...point };
+    if (forceMove || now - this.lastDragMoveAt >= DRAG_MOVE_MS) {
+      this.moveBodyWindow(now);
+    }
+  }
+
+  private moveBodyWindow(
+    now: number,
+    verifySize = !this.drag || this.lastDragMoveAt === -Infinity,
+  ): void {
+    if (this.win.isDestroyed()) return;
+    const nx = Math.round(this.body.x);
+    const ny = Math.round(this.body.y);
+    const size =
+      this.drag && this.dragWindowSize ? this.dragWindowSize : mascotWindowSize(this.scale);
+    const sameRequested = this.requestedPosition?.x === nx && this.requestedPosition?.y === ny;
+    if (this.drag && sameRequested) return;
+    if (!this.drag) {
+      const [wx, wy] = this.win.getPosition();
+      if (nx === wx && ny === wy) {
+        if (!verifySize) return;
+        const [width, height] = this.win.getSize();
+        if (Math.abs(width - size.width) <= 1 && Math.abs(height - size.height) <= 1) return;
+      }
+    }
+    moveWindowTo(this.win, nx, ny, size, process.platform, verifySize, this.drag !== null);
+    this.requestedPosition = { x: nx, y: ny };
+    this.lastDragMoveAt = now;
+    this.lastActivityAt = now;
+  }
+
   private tick(): void {
     if (this.win.isDestroyed()) return this.dispose();
     const now = performance.now();
@@ -540,15 +649,7 @@ export class MascotWindowController {
     let events: PhysicsEvent[] = [];
     if (this.drag) {
       this.lastActivityAt = now;
-      const p = this.dragPoint ?? cursor;
-      const tx = p.x - this.drag.dx;
-      const ty = p.y - this.drag.dy;
-      let next: BodyState = { ...this.body, x: tx, y: ty };
-      if (env) next = clampToWorld(next, env);
-      this.body = next;
-      this.tracker.sample(next.x, next.y, now);
-      this.body.vx = this.tracker.vx;
-      this.body.vy = this.tracker.vy;
+      if (this.dragPoint) this.updateDragPosition(this.dragPoint);
     } else if (env) {
       if (this.cfg.wander && this.body.mode === 'idle' && now >= this.nextWanderAt) {
         // Push the slot first so a missing env (no box yet) cannot hot-loop at 60Hz.
@@ -562,15 +663,7 @@ export class MascotWindowController {
       events = r.events;
     }
 
-    const [wx, wy] = this.win.getPosition();
-    const nx = Math.round(this.body.x);
-    const ny = Math.round(this.body.y);
-    if (nx !== wx || ny !== wy) {
-      // Windows：setPosition 会在分数 DPI 下逐次放大不可缩放透明窗。
-      // moveWindowTo 只在尺寸漂移时做 unlock+校正；拖拽高频路径不再每帧 setResizable。
-      moveWindowTo(this.win, nx, ny, mascotWindowSize(this.scale));
-      this.lastActivityAt = now;
-    }
+    this.moveBodyWindow(now);
 
     // 运动状态 → 渲染进程（弹簧骨骼惯性 / 悬空姿态 / 走路动画）
     const ax = (this.body.vx - this.prevV.vx) / Math.max(dt, 1e-3);
@@ -590,6 +683,8 @@ export class MascotWindowController {
     }
     for (const e of events) this.send('mascot:physics-event', e);
 
+    const nx = Math.round(this.body.x);
+    const ny = Math.round(this.body.y);
     const rx = cursor.x - nx;
     const ry = cursor.y - ny;
     if (rx !== this.lastCursor.x || ry !== this.lastCursor.y) {

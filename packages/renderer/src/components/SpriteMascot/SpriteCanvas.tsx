@@ -179,7 +179,11 @@ export const SpriteCanvas: React.FC<SpriteCanvasProps> = ({
     let frameN = 0;
     // canvas 视口矩形缓存：窗口缩放时失效（位置移动不影响 client 坐标）
     let cachedRect: DOMRect | null = null;
+    let cachedViewport = `${window.innerWidth}x${window.innerHeight}`;
     const onResize = () => {
+      const viewport = `${window.innerWidth}x${window.innerHeight}`;
+      if (viewport === cachedViewport) return;
+      cachedViewport = viewport;
       cachedRect = null;
     };
     const tick = (now: number) => {

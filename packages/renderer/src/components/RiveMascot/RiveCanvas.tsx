@@ -85,6 +85,9 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     let rive: Rive | null = null;
     let detach: (() => void) | null = null;
     let settled = false;
+    let laidOutWidth = -1;
+    let laidOutHeight = -1;
+    let laidOutCanvas = '';
     let loadTimer: ReturnType<typeof setTimeout> | undefined;
     const fail = (reason: string) => {
       if (settled) return;
@@ -94,15 +97,27 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
       setError(reason);
       onFailureRef.current?.(reason);
     };
-    const place = () => {
+    const place = (forceSurface = false) => {
       const b = characterBox(wrap.clientWidth, wrap.clientHeight);
+      const canvasKey = `${b.x},${b.y},${b.w},${b.h}`;
+      const changed =
+        wrap.clientWidth !== laidOutWidth ||
+        wrap.clientHeight !== laidOutHeight ||
+        canvasKey !== laidOutCanvas;
+      if (!forceSurface && !changed) return;
       Object.assign(canvas.style, {
         left: `${b.x}px`,
         top: `${b.y}px`,
         width: `${b.w}px`,
         height: `${b.h}px`,
       });
-      rive?.resizeDrawingSurfaceToCanvas();
+      laidOutWidth = wrap.clientWidth;
+      laidOutHeight = wrap.clientHeight;
+      laidOutCanvas = canvasKey;
+      // Windows may dispatch resize while a transparent window is only moving.
+      // Rebuilding Rive's surface for an unchanged viewport is expensive and
+      // accumulates enough work to delay animation and voice playback.
+      if (rive && (forceSurface || changed)) rive.resizeDrawingSurfaceToCanvas();
     };
     place();
     try {
@@ -118,7 +133,9 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
           if (settled) return;
           settled = true;
           clearTimeout(loadTimer);
-          place();
+          // The first load must initialize the drawing surface even though the
+          // CSS viewport was measured before Rive existed.
+          place(true);
           const backend = createRiveBackend(() => rive?.viewModelInstance);
           detach = mascotRegistry.attach(backend);
           if (process.env.NODE_ENV === 'development') {
@@ -143,15 +160,17 @@ export const RiveCanvas: React.FC<RiveCanvasProps> = ({ src = DEFAULT_SRC, style
     } catch (e) {
       fail(`Rive init failed: ${e instanceof Error ? e.message : String(e)}`);
     }
-    const ro = new ResizeObserver(place);
+    const onWindowResize = () => place();
+    const onObservedResize = () => place();
+    const ro = new ResizeObserver(onObservedResize);
     ro.observe(wrap);
     // window resize events fire before the next frame's rAF callbacks (ResizeObserver runs after
     // them), so the canvas is already placed when the interaction loop reads the geometry
-    window.addEventListener('resize', place);
+    window.addEventListener('resize', onWindowResize);
     return () => {
       settled = true;
       clearTimeout(loadTimer);
-      window.removeEventListener('resize', place);
+      window.removeEventListener('resize', onWindowResize);
       ro.disconnect();
       detach?.();
       rive?.cleanup();

@@ -130,7 +130,7 @@ describe('SettingsView 合并后的标签页分区', () => {
   it('右侧「配置说明」：非通用分区按 SECTION_HELP 列出卡片说明，通用页没有；侧栏有副标题与「设置」分组', async () => {
     const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
     const r = render(<Harness onClose={() => undefined} start="general" />);
-    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 Nomi·诺米');
+    expect(r.getByTestId('settings-brand').textContent).toContain('你的桌面 AI 助手');
     expect(r.queryByTestId('settings-help')).toBeNull();
     fireEvent.click(r.getByTestId('settings-nav-models'));
     const help = r.getByTestId('settings-help');

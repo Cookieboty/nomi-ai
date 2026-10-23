@@ -21,6 +21,12 @@ export function setWindowBounds(
   const locked = unlock && (platform === 'win32' || platform === 'linux') && !win.isResizable();
   if (locked) win.setResizable(true);
   try {
+    // High-frequency position-only moves do not need a synchronous readback
+    // and correction loop. The caller verifies size at drag boundaries.
+    if (!unlock) {
+      win.setBounds({ ...bounds });
+      return;
+    }
     let requested = { ...bounds };
     for (let n = 0; n < (platform === 'win32' ? 3 : 1); n++) {
       win.setBounds(requested);
@@ -58,9 +64,15 @@ export function moveWindowTo(
   y: number,
   size: { width: number; height: number },
   platform: NodeJS.Platform = process.platform,
+  verifySize = true,
+  positionOnly = false,
 ): void {
-  if (platform !== 'win32') {
+  if (platform !== 'win32' || positionOnly) {
     win.setPosition(x, y);
+    return;
+  }
+  if (!verifySize) {
+    setWindowBounds(win, { x, y, ...size }, platform, { unlockSize: false });
     return;
   }
   const actual = win.getBounds();
@@ -69,8 +81,10 @@ export function moveWindowTo(
   if (drifted) {
     setWindowBounds(win, { x, y, ...size }, platform);
   } else {
-    // Position-only: one setBounds, no setResizable flap (root cause of Win drag jank).
-    setWindowBounds(win, { x, y, width: actual.width, height: actual.height }, platform, {
+    // Position-only: keep asking for the stable scale-derived size. This avoids
+    // feeding a 1px DPI error back into the next move while skipping the
+    // setResizable flap that caused the original drag stutter.
+    setWindowBounds(win, { x, y, ...size }, platform, {
       unlockSize: false,
     });
   }

@@ -76,7 +76,7 @@ function setup() {
   return { b, c, emit, wc };
 }
 
-describe('MascotWindowController · wander schedule after manual walk / place', () => {
+describe('MascotWindowController · drag and wander scheduling', () => {
   beforeEach(() => {
     handlers.clear();
     listeners.clear();
@@ -84,6 +84,19 @@ describe('MascotWindowController · wander schedule after manual walk / place', 
   });
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  it('moves immediately when a drag point arrives instead of waiting for the next tick', () => {
+    const s = setup();
+    const startX = s.b.x + 40;
+    const startY = s.b.y + 40;
+    s.emit('mascot:drag-start', startX, startY);
+    const before = { x: s.b.x, y: s.b.y };
+
+    s.emit('mascot:drag-move', startX + 90, startY - 55);
+
+    expect(s.b.x).toBe(before.x + 90);
+    expect(s.b.y).toBe(before.y - 55);
   });
 
   it('wander-now pushes nextWanderAt so free-place idle is not stolen after the startup 15s', () => {

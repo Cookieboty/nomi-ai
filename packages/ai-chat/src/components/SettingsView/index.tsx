@@ -212,7 +212,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <NomiMark className={styles.brandMark} />
           <span className={styles.brandText}>
             <span className={styles.brandName}>{t('Nomi · 诺米')}</span>
-            <span className={styles.brandSub}>{t('你的桌面 Nomi·诺米')}</span>
+            <span className={styles.brandSub}>{t('你的桌面 AI 助手')}</span>
           </span>
         </div>
         <button
