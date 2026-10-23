@@ -241,6 +241,10 @@ describe('first-byte timeout (#93)', () => {
     const { chat } = await setup(
       (_s, res) => {
         res.writeHead(200, { 'content-type': 'text/event-stream' });
+        // writeHead alone does not put the headers on the wire until the first body write
+        // (50ms later); flush so the 100ms first-byte budget measures only the header wait
+        // and a loaded runner cannot push the headers past it.
+        res.flushHeaders();
         let n = 0;
         const tick = setInterval(() => {
           n++;
