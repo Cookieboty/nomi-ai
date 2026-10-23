@@ -185,25 +185,56 @@ export function resolveNpmBin(): string | null {
   return which(process.platform === 'win32' ? 'npm.cmd' : 'npm') ?? which('npm');
 }
 
-function which(cmd: string): string | null {
-  try {
-    const lines = execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], {
-      encoding: 'utf8',
-      timeout: 3000,
-      windowsHide: true,
-      env: withCliPath(),
-    })
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    for (const line of lines) {
-      const found = windowsExecutable(line);
-      if (fs.existsSync(found)) return found;
+/**
+ * 在 PATH 目录里找可执行文件（Windows 按 PATHEXT 补扩展名），纯 fs 扫描、不 spawn。
+ *
+ * 设计取舍（Windows CI / #windows-where）：
+ * - 旧实现同步 spawn `where`/`which`，在 windows-latest 上偶发卡满 3s 超时；
+ *   超时后 cliSearchDirs 又不扫 PATH，导致临时 PATH 垫片（及部分真实安装）探测为 null。
+ * - 产品意图本就是「PATH 上有就能探测到」，用目录扫描比依赖 where 更稳、也更快，
+ *   避免主进程被 where 拖住。App Paths 等注册表入口极少用于 npm CLI，此处不覆盖。
+ */
+export function findOnPath(
+  cmd: string,
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  exists: (p: string) => boolean = fs.existsSync,
+): string | null {
+  const key = Object.keys(env).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
+  const dirs = (env[key] ?? '').split(path.delimiter).filter(Boolean);
+  if (!dirs.length) return null;
+
+  const names: string[] = [];
+  if (platform === 'win32') {
+    // 已带扩展名则只找精确名；否则按 PATHEXT 顺序试（与 cmd.exe 解析一致）
+    if (/\.[a-z0-9]+$/i.test(cmd)) {
+      names.push(cmd);
+    } else {
+      const pathext = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';');
+      for (const raw of pathext) {
+        const ext = raw.trim();
+        if (!ext) continue;
+        names.push(`${cmd}${ext.startsWith('.') ? ext : `.${ext}`}`);
+      }
+      names.push(cmd); // 无扩展名脚本（再经 windowsExecutable 升到 .cmd）
     }
-    return null;
-  } catch {
-    return null;
+  } else {
+    names.push(cmd);
   }
+
+  for (const dir of dirs) {
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+      if (!exists(candidate)) continue;
+      const found = windowsExecutable(candidate, platform, exists);
+      if (exists(found)) return found;
+    }
+  }
+  return null;
+}
+
+function which(cmd: string): string | null {
+  return findOnPath(cmd, withCliPath());
 }
 
 let nodeBinCache: { bin: string | null; at: number } | null = null;
@@ -224,9 +255,8 @@ export function resolveNodeBin(): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// 探测结果缓存：resolveCliBin 每个候选名都会同步 spawn `which` / `where`。
-// 切换会话 / 标签、每次标签状态变化（changed → state()）都会走到这里，
-// 实测 Linux 上 4 个后端累计 ~30ms 阻塞主进程（Windows 的 where 更慢），所有窗口一起停顿。
+// 探测结果缓存：resolveCliBin 会扫 PATH + 兜底目录（findOnPath，不再 spawn where）。
+// 切换会话 / 标签、每次标签状态变化（changed → state()）都会走到这里；
 // 命中且文件仍在就直接返回；「未找到」只缓存很短时间，保证刚装好的 CLI 能很快被发现。
 // ---------------------------------------------------------------------------
 
@@ -432,25 +462,8 @@ export function dshRuntimeProblem(
 const execFileP = promisify(execFile);
 
 async function whichAsync(cmd: string): Promise<string | null> {
-  try {
-    const { stdout } = await execFileP(process.platform === 'win32' ? 'where' : 'which', [cmd], {
-      encoding: 'utf8',
-      timeout: 3000,
-      windowsHide: true,
-      env: withCliPath(),
-    });
-    const lines = String(stdout)
-      .split(/\r?\n/)
-      .map((x) => x.trim())
-      .filter(Boolean);
-    for (const line of lines) {
-      const found = windowsExecutable(line);
-      if (fs.existsSync(found)) return found;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  // 与同步 which 相同：扫 PATH，避免 where 超时拖住 IPC
+  return findOnPath(cmd, withCliPath());
 }
 
 export async function resolveNpmBinAsync(): Promise<string | null> {

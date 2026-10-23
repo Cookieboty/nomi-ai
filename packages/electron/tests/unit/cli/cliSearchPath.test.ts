@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import {
   cliSearchDirs,
+  findOnPath,
   guessInstallMethod,
   npmPrefixBinDir,
   rememberCliDir,
@@ -151,6 +152,49 @@ describe('CLI search directories', () => {
     expect(npmPrefixBinDir('/opt/n', 'darwin')).toBe(path.join('/opt/n', 'bin'));
     expect(npmPrefixBinDir('C:\\Users\\me\\AppData\\Roaming\\npm', 'win32')).toBe(
       'C:\\Users\\me\\AppData\\Roaming\\npm',
+    );
+  });
+});
+
+describe('findOnPath (PATH 目录扫描，替代 where/which)', () => {
+  let dir = '';
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'find-on-path-'));
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('POSIX：在 PATH 目录里找到同名文件', () => {
+    const bin = path.join(dir, 'dsh');
+    fs.writeFileSync(bin, '#!/bin/sh\n', { mode: 0o755 });
+    expect(findOnPath('dsh', { PATH: dir }, 'linux')).toBe(bin);
+    expect(findOnPath('dsh', { PATH: '/nonexistent' }, 'linux')).toBeNull();
+  });
+
+  it('Windows：按 PATHEXT 找到 .cmd，并优先于无扩展名脚本', () => {
+    const shim = path.join(dir, 'dsh.cmd');
+    const script = path.join(dir, 'dsh');
+    fs.writeFileSync(script, '#!/bin/sh\n');
+    fs.writeFileSync(shim, '@echo off\r\n');
+    const found = findOnPath('dsh', { PATH: dir, PATHEXT: '.COM;.EXE;.BAT;.CMD' }, 'win32');
+    expect(found).toBe(shim);
+  });
+
+  it('Windows：已带扩展名的命令只匹配精确文件名', () => {
+    fs.writeFileSync(path.join(dir, 'npm.cmd'), '@echo off\r\n');
+    fs.writeFileSync(path.join(dir, 'npm.exe'), 'MZ');
+    expect(findOnPath('npm.cmd', { PATH: dir, PATHEXT: '.COM;.EXE;.BAT;.CMD' }, 'win32')).toBe(
+      path.join(dir, 'npm.cmd'),
+    );
+  });
+
+  it('Windows：无扩展名命中时经 windowsExecutable 升到旁边的 .cmd', () => {
+    // PATHEXT 故意不含 .CMD，只能先命中无扩展名，再升级
+    fs.writeFileSync(path.join(dir, 'dsh'), '#!/bin/sh\n');
+    fs.writeFileSync(path.join(dir, 'dsh.cmd'), '@echo off\r\n');
+    expect(findOnPath('dsh', { PATH: dir, PATHEXT: '.EXE' }, 'win32')).toBe(
+      path.join(dir, 'dsh.cmd'),
     );
   });
 });
