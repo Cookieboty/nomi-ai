@@ -160,7 +160,7 @@ export const ChangesWorkbenchHost: React.FC<{
                     data-testid="wb-diff-block"
                     data-file={e.file}
                   >
-                    <DiffView diff={e.diff} cwd={cwd} fill />
+                    <DiffView diff={e.diff} cwd={cwd} fill split="auto" />
                   </div>
                 ) : null,
               )

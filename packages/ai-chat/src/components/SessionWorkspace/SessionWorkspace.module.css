@@ -500,6 +500,13 @@
   pointer-events: none;
 }
 
+/* Markdown 预览：与对话正文同一套排版，留出阅读边距 */
+.mdPreview {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--cd-space-4) var(--cd-space-5) var(--cd-space-6);
+}
+
 /* —— 会话内摘要卡 —— */
 .turnCard {
   margin: 10px 0 4px;

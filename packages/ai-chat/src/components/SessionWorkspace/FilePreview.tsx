@@ -3,8 +3,8 @@
  * 磁盘内容可编辑保存（cwd 沙箱）、可选丢弃本轮 diff。
  */
 import { t } from '@nomi-ai/ui';
-import { ChevronLeft, ChevronRight, FileCode2, RotateCcw, Save, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Eye, FileCode2, RotateCcw, Save, X } from 'lucide-react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { reconstructOldText } from '../../utils/diffReconstruct';
@@ -12,10 +12,14 @@ import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
+import { Markdown } from '../Conversation/Markdown';
 
 import styles from './SessionWorkspace.module.css';
 
-export type PreviewMode = 'diff' | 'file';
+/** diff；file = 编辑磁盘内容；render = Markdown 渲染预览（只对 .md） */
+export type PreviewMode = 'diff' | 'file' | 'render';
+
+const isMarkdownPath = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
 
 export interface PreviewFile {
   key: string;
@@ -63,13 +67,12 @@ export const FilePreview: React.FC<{
   );
   const active = files[idx] ?? files[0];
 
-  // 无 diff 时自动切到文件内容，避免空 Diff 占位
+  // 换文件时：有 diff 先看 Diff，没有就直接编辑。只看文件和有没有 diff，
+  // 列表刷新（窗口重新聚焦会刷新 git）不打断正在编辑 / 预览的文件
+  const activeHasDiff = !!(active?.change?.diff || active?.gitDiff);
   useEffect(() => {
-    const f = files.find((x) => x.key === activeKey) ?? files[0];
-    if (!f) return;
-    if (!(f.change?.diff || f.gitDiff)) setMode('file');
-    else setMode('diff');
-  }, [activeKey, files]);
+    setMode(activeHasDiff ? 'diff' : 'file');
+  }, [activeKey]); // eslint-disable-line react-hooks/exhaustive-deps -- 只在换文件时重置
 
   const crumbs = useMemo(() => {
     const p = active?.path ?? '';
@@ -105,8 +108,27 @@ export const FilePreview: React.FC<{
     [files, idx, onActiveKey, persistView],
   );
 
+  const pendingRestore = useRef<{ key: string; content: string } | null>(null);
+  useLayoutEffect(() => {
+    const p = pendingRestore.current;
+    const ta = taRef.current;
+    if (!p || !ta || p.key !== active?.key) return;
+    pendingRestore.current = null;
+    ta.value = p.content;
+    const st = viewState.current.get(p.key);
+    if (st) {
+      ta.scrollTop = st.scrollTop;
+      try {
+        ta.setSelectionRange(st.selStart, st.selEnd);
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+  const activeFileKey = active?.key;
+  const activePath = active?.path;
   const loadDisk = useCallback(async () => {
-    if (!cwd || !active) {
+    if (!cwd || !activeFileKey || !activePath) {
       setDisk('');
       setBinary(false);
       setErr(cwd ? null : t('当前会话没有工作目录'));
@@ -115,7 +137,7 @@ export const FilePreview: React.FC<{
     setLoading(true);
     setErr(null);
     try {
-      const r = await harnessClient.workspaceRead(cwd, workspaceRelPath(cwd, active.path));
+      const r = await harnessClient.workspaceRead(cwd, workspaceRelPath(cwd, activePath));
       if (!r.ok) {
         setDisk('');
         setBinary(false);
@@ -134,33 +156,20 @@ export const FilePreview: React.FC<{
         return;
       }
       setBinary(false);
-      const cached = viewState.current.get(active.key);
+      const cached = viewState.current.get(activeFileKey);
       const content = cached?.dirty && cached.draft != null ? cached.draft : (r.content ?? '');
       setDisk(r.content ?? '');
-      // restore after paint
-      requestAnimationFrame(() => {
-        const ta = taRef.current;
-        if (!ta) return;
-        ta.value = content;
-        const st = viewState.current.get(active.key);
-        if (st) {
-          ta.scrollTop = st.scrollTop;
-          try {
-            ta.setSelectionRange(st.selStart, st.selEnd);
-          } catch {
-            /* ignore */
-          }
-        }
-      });
+      // 读取期间编辑框被卸载：等它重新渲染出来再写回草稿与滚动 / 选区（见下方 layout effect）
+      pendingRestore.current = { key: activeFileKey, content };
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [active, cwd]);
+  }, [activeFileKey, activePath, cwd]);
 
   useEffect(() => {
-    if (mode === 'file') void loadDisk();
+    if (mode === 'file' || mode === 'render') void loadDisk();
     else {
       requestAnimationFrame(() => {
         const el = bodyRef.current;
@@ -210,7 +219,7 @@ export const FilePreview: React.FC<{
 
   const save = async () => {
     if (!cwd || !active || binary) return;
-    const content = taRef.current?.value ?? disk;
+    const content = taRef.current?.value ?? viewState.current.get(active.key)?.draft ?? disk;
     setSaving(true);
     setErr(null);
     try {
@@ -279,6 +288,9 @@ export const FilePreview: React.FC<{
   if (!active) return null;
 
   const hasDiff = !!(active.change?.diff || active.gitDiff);
+  const isMd = isMarkdownPath(active.path);
+  // 预览渲染未保存的草稿（切到预览前 persistView 已存下）
+  const renderText = viewState.current.get(active.key)?.draft ?? disk;
 
   return (
     <div className={styles.preview} data-testid="file-preview" tabIndex={-1}>
@@ -343,12 +355,30 @@ export const FilePreview: React.FC<{
                 setMode('file');
               }}
               data-testid="preview-mode-file"
+              title={t('编辑文件内容，保存后写回工作区')}
             >
               <FileCode2 size={12} />
-              {t('文件')}
+              {t('编辑')}
             </button>
+            {isMd ? (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'render'}
+                data-active={mode === 'render' || undefined}
+                className={styles.modeTab}
+                onClick={() => {
+                  persistView();
+                  setMode('render');
+                }}
+                data-testid="preview-mode-render"
+              >
+                <Eye size={12} />
+                {t('预览')}
+              </button>
+            ) : null}
           </div>
-          {mode === 'file' && !binary && (
+          {mode !== 'diff' && !binary && (
             <button
               type="button"
               className={styles.iconBtn}
@@ -433,12 +463,21 @@ export const FilePreview: React.FC<{
           onScroll={() => persistView()}
         >
           {active.change?.diff ? (
-            <DiffView diff={active.change.diff} cwd={cwd} fill />
+            <DiffView diff={active.change.diff} cwd={cwd} fill split="auto" />
           ) : active.gitDiff ? (
-            <DiffView diff={active.gitDiff} cwd={cwd} fill />
+            <DiffView diff={active.gitDiff} cwd={cwd} fill split="auto" />
           ) : (
             <p className={styles.empty}>{t('无 diff，可切换到「文件」查看磁盘内容')}</p>
           )}
+        </div>
+      ) : mode === 'render' ? (
+        <div className={styles.previewBody} data-testid="preview-render-body">
+          {loading ? (
+            <p className={styles.empty}>{t('读取中…')}</p>
+          ) : (
+            <Markdown text={renderText} className={styles.mdPreview} settled />
+          )}
+          {dirty ? <span className={styles.dirtyHint}>{t('未保存')}</span> : null}
         </div>
       ) : (
         <div className={styles.previewBody} data-testid="preview-file-body">
