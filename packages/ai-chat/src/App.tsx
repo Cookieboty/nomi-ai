@@ -92,7 +92,7 @@ import {
   persistChatColumnWidth,
   readChatColumnWidth,
 } from './utils/chatColumnWidth';
-import { cliImageSupport } from './utils/cliImageSupport';
+import { useCliImageSupport } from './utils/cliImageSupport';
 import {
   fromHarnessMessage,
   nomiConvMessages,
@@ -737,6 +737,8 @@ const AiChatContent: React.FC = () => {
     [actions],
   );
   const cliActive = isDev && tabs.isCliTab ? tabs.activeTab : null;
+  // 能不能附图看这个会话当前用的模型（dsh 例外：命令行没有图片输入）
+  const cliImages = useCliImageSupport(cliActive);
   const tabSend = tabs.send;
   const tabCancel = tabs.cancel;
   const inputModeProps = useMemo(
@@ -755,7 +757,8 @@ const AiChatContent: React.FC = () => {
               void tabSend(text, imgs);
             },
             busyOverride: cliActive.status === 'running' || cliActive.status === 'queued',
-            imageCapability: cliImageSupport(cliActive.backend),
+            imageCapability: cliImages.capability,
+            imageUnsupportedReason: cliImages.reason,
             placeholder: cliTabPlaceholder(cliActive),
             queue: {
               onQueue: (text: string) => void tabSend(text),
@@ -763,7 +766,7 @@ const AiChatContent: React.FC = () => {
             },
           }
         : { queue: { onQueue: nomiQueue.enqueue } },
-    [cliActive, tabSend, tabCancel, nomiQueue.enqueue],
+    [cliActive, cliImages, tabSend, tabCancel, nomiQueue.enqueue],
   );
   const openPlugins = useCallback(() => setShowPlugins(true), []);
   const closePlugins = useCallback(() => setShowPlugins(false), []);

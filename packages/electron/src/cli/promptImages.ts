@@ -66,10 +66,12 @@ export function unsupportedImageMessage(backend: HarnessBackend): string {
             : backend === 'gemini'
               ? 'Gemini'
               : backend;
-  return t(
-    '{0} 暂不支持在编程助手会话里发送图片，请去掉图片或换到支持的端（Claude / Codex / Grok / Gemini）。',
-    name,
-  );
+  return t('{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。', name);
+}
+
+/** 当前模型明确不支持看图（CLI / 网关给了模型能力时才判断） */
+export function modelNoVisionMessage(model: string): string {
+  return t('当前模型 {0} 不支持图片，请去掉图片，或在模型按钮里换一个能看图的模型。', model);
 }
 
 function normalizeMime(mime: string): ImageMime | null {

@@ -70,6 +70,8 @@ interface MessageInputProps {
    * `none`：可预览附件但发送时明确提示，不静默丢图。
    */
   imageCapability?: 'full' | 'none';
+  /** 不能附图的原因（模型不支持看图 / dsh 没有图片输入） */
+  imageUnsupportedReason?: string;
   /** 设置 busyOverride（CLI 标签）时始终使用这里的提示，不显示 Nomi 的模型提示 */
   placeholder?: string;
   /**
@@ -102,6 +104,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   onSend,
   busyOverride,
   imageCapability,
+  imageUnsupportedReason,
   placeholder = tr('输入消息...'),
   queue,
   disabled = false,
@@ -312,9 +315,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       setImages([]);
       setImgErr('');
       if (sendImages.length && imageCapability === 'none') {
-        setImgErr(
-          tr('当前编程助手暂不支持图片，请去掉图片后再发，或换到 Claude / Codex / Grok / Gemini。'),
-        );
+        setImgErr(imageUnsupportedReason ?? tr('当前模型不支持图片，请去掉图片后再发。'));
         setImages(sendImages);
         setMessage(trimmedMessage);
       } else if (sendImages.length && onSend && busyOverride !== undefined) {

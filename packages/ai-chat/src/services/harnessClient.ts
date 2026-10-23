@@ -201,6 +201,8 @@ export interface ModelCatalogModel {
   efforts: ReasoningEffort[];
   /** CLI 对该模型的默认档位（仅显示） */
   defaultEffort?: ReasoningEffort;
+  /** 能不能看图：CLI / 网关明确说了才有（Codex input_modalities、网关模型的 vision）；没有 = 不知道 */
+  vision?: boolean;
 }
 /** 主进程从 CLI 读到的模型目录（不写死） */
 export interface BackendModelCatalog {

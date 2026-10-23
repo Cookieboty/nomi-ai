@@ -112,6 +112,21 @@ describe('modelCatalog', () => {
       expect(c.models[0]!.defaultEffort).toBe('medium');
     });
 
+    it('input_modalities → vision：有 image 才能看图；没给时不判断', () => {
+      const c = parseCodexModels({
+        models: [
+          { slug: 'see', visibility: 'list', input_modalities: ['text', 'image'] },
+          { slug: 'blind', visibility: 'list', input_modalities: ['text'] },
+          { slug: 'unknown', visibility: 'list' },
+        ],
+      });
+      expect(Object.fromEntries(c.models.map((m) => [m.id, m.vision]))).toEqual({
+        see: true,
+        blind: false,
+        unknown: undefined,
+      });
+    });
+
     it('默认模型 / 档位取 config.toml；config 的档位优先于目录默认', () => {
       const c = parseCodexModels(json, { model: 'a', effort: 'xhigh' });
       expect(c.defaultModel?.id).toBe('a');

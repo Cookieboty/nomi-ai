@@ -83,6 +83,7 @@ import {
   codexTurnInput,
   grokPromptJsonArgv,
   imageSupportFor,
+  modelNoVisionMessage,
   imageThumbsForMessage,
   normalizeImages,
   stageImages,
@@ -158,7 +159,7 @@ export interface HarnessGateway {
   /** 官方会话：剔除指向网关的残留变量 */
   officialEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv;
   /** 第三方可选模型 */
-  models(): Array<{ ref: string; provider: string; label: string }>;
+  models(): Array<{ ref: string; provider: string; label: string; vision?: boolean }>;
   /** 标签关闭后回收它的进程级私有目录 */
   releaseAgent(kind: CliBackend, tabId: string): void;
 }
@@ -1427,6 +1428,7 @@ export class CliHarnessService {
       label: `${m.provider} / ${m.label}`,
       reasoning: false,
       efforts: [],
+      ...(m.vision !== undefined ? { vision: m.vision } : {}),
     }));
     return {
       backend,
@@ -1434,6 +1436,25 @@ export class CliHarnessService {
       defaultModel: (def && models.find((m) => m.id === def)) || null,
       provider: { id: GATEWAY_SCOPE, name: t('第三方模型') },
     };
+  }
+
+  /**
+   * 这个标签当前模型能不能看图：第三方取网关模型的 vision，官方取 CLI 模型目录（已缓存的）里的；
+   * 不知道时返回 null（不拦）。
+   */
+  private visionOf(tab: HarnessTabMeta): { model: string; vision: boolean } | null {
+    if (tab.backend === 'nomi') return null;
+    const own = tab.modelOverride?.trim() || null;
+    if (this.sourceOf(tab) === 'thirdParty') {
+      const ref = own || this.d.gateway?.defaults(tab.backend as CliBackend).model;
+      const m = ref ? this.d.gateway?.models().find((x) => x.ref === ref) : undefined;
+      return m && m.vision !== undefined
+        ? { model: `${m.provider} / ${m.label}`, vision: m.vision }
+        : null;
+    }
+    const cat = this.cachedCatalog(tab.backend);
+    const m = own ? cat?.models.find((x) => x.id === own) : cat?.defaultModel;
+    return m && m.vision !== undefined ? { model: m.label ?? m.id, vision: m.vision } : null;
   }
 
   /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
@@ -1969,6 +1990,9 @@ export class CliHarnessService {
     if (normalized.length && imageSupportFor(backend) === 'none') {
       throw new Error(unsupportedImageMessage(backend));
     }
+    // 能不能看图看模型：CLI / 网关明确说这个模型不支持时才拦（不知道就交给 CLI / 网关处理）
+    const vision = normalized.length ? this.visionOf(tab) : null;
+    if (vision && !vision.vision) throw new Error(modelNoVisionMessage(vision.model));
     // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
     if ((tab.modelScope ?? null) !== this.scopeOf(tab)) {
       this.adoptScope(tab);

@@ -16,6 +16,7 @@ import {
   grokPromptJsonArgv,
   imageSupportFor,
   imageThumbsForMessage,
+  modelNoVisionMessage,
   normalizeImages,
   stageImages,
   unsupportedImageMessage,
@@ -41,6 +42,9 @@ describe('promptImages', () => {
     expect(imageSupportFor('dsh')).toBe('none');
     expect(imageSupportFor('claude')).toBe('full');
     expect(unsupportedImageMessage('dsh')).toMatch(/dsh/);
+    // 不再让用户「换到 Claude / Codex…」：能不能看图看模型
+    expect(unsupportedImageMessage('dsh')).not.toMatch(/Claude/);
+    expect(modelNoVisionMessage('GPT-X')).toContain('GPT-X');
   });
 
   it('builds Claude / ACP / Codex / Grok payloads', () => {
