@@ -52,6 +52,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 ### Fixes
 
 - **accounts:** CLI account login always removes its staging directory (success, failure, cancel, timeout, quit and leftovers from a crash), keeps it 0700/0600, and a cancelled login can no longer save the account. (`@nomi-ai/electron` patch)
+- **brand:** 应用图标恢复 N 双色：主笔画下层补回品牌 logo 的橙色次笔画（#F7A67C），图标几何与 nomi-app-icon.svg 一致；重新生成 icns、ico、各尺寸 png 与三种变体图标（macOS 托盘模板图保持单色）。 (`@nomi-ai/electron` patch)
 - **calendar:** long-running recurring events (for example a daily event that started more than 500 days ago) no longer disappear from the current calendar. The 500-occurrence safety limit now counts only occurrences returned for the queried time range, not past ones, and unbounded rules jump straight to the queried range. (`@nomi-ai/ai-chat` patch)
 - **chat:** Alt+number in the Local panel now follows the visible tabs (Local, Calendar access and
 - **chat:** CLI install and update progress, logs and results are kept by the main process per endpoint, so leaving the settings page or switching endpoints no longer loses them; repeated clicks reuse the running task. fix(electron): CLI probing runs asynchronously so the main process is never blocked. fix(chat): a Codex session spread over several rollout files is listed once, which removes the duplicate React key warning.
