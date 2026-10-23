@@ -903,9 +903,9 @@ export class GatewayServer {
             applyRequestFixes(cand, { ...(body as object), model: cand.upstreamModel }),
           ),
           redirect: 'manual',
-          signal: AbortSignal.timeout(
-            resolveFirstByteTimeoutMs(false, candidateIsReasoning(cand), this.hooks),
-          ),
+          // count_tokens 是轻量查询，不是整轮生成：用流式首字节的短超时，卡住就退回本地估算
+          // （不要用非流式的 5/10 分钟，否则客户端先超时）
+          signal: AbortSignal.timeout(resolveFirstByteTimeoutMs(true, false, this.hooks)),
         });
         if (up.ok) {
           sendJson(res, 200, await up.json());
