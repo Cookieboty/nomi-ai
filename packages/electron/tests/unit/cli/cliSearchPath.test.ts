@@ -181,6 +181,19 @@ describe('findOnPath (PATH 目录扫描，替代 where/which)', () => {
     expect(found).toBe(shim);
   });
 
+  it('Windows：大小写不敏感的文件系统也返回磁盘上的真实文件名（PATHEXT 为大写）', () => {
+    const shim = path.join(dir, 'dsh.cmd');
+    fs.writeFileSync(shim, '@echo off\r\n');
+    // 模拟 NTFS / macOS 默认卷：existsSync 不区分大小写（本测试所在 FS 可能区分）
+    const ciExists = (p: string) =>
+      fs
+        .readdirSync(path.dirname(p))
+        .some((n) => n.toLowerCase() === path.basename(p).toLowerCase());
+    expect(
+      findOnPath('dsh', { PATH: dir, PATHEXT: '.COM;.EXE;.BAT;.CMD' }, 'win32', ciExists),
+    ).toBe(shim);
+  });
+
   it('Windows：已带扩展名的命令只匹配精确文件名', () => {
     fs.writeFileSync(path.join(dir, 'npm.cmd'), '@echo off\r\n');
     fs.writeFileSync(path.join(dir, 'npm.exe'), 'MZ');

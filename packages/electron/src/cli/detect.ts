@@ -186,6 +186,25 @@ export function resolveNpmBin(): string | null {
 }
 
 /**
+ * Windows 的 PATHEXT 常是大写（.CMD），而磁盘上的垫片是 dsh.cmd；文件系统大小写不敏感，
+ * `exists` 两者都命中，直接拼出的路径会带上 PATHEXT 的大小写。像 `where` 一样返回磁盘上的真实
+ * 文件名，使结果与 FS 大小写策略（含 macOS 默认的大小写不敏感卷）无关；读目录失败则原样返回。
+ */
+function onDiskCase(file: string): string {
+  try {
+    const dir = path.dirname(file);
+    const base = path.basename(file);
+    const names = fs.readdirSync(dir);
+    if (names.includes(base)) return file;
+    const lower = base.toLowerCase();
+    const real = names.find((n) => n.toLowerCase() === lower);
+    return real ? path.join(dir, real) : file;
+  } catch {
+    return file;
+  }
+}
+
+/**
  * 在 PATH 目录里找可执行文件（Windows 按 PATHEXT 补扩展名），纯 fs 扫描、不 spawn。
  *
  * 设计取舍（Windows CI / #windows-where）：
@@ -227,7 +246,7 @@ export function findOnPath(
       const candidate = path.join(dir, name);
       if (!exists(candidate)) continue;
       const found = windowsExecutable(candidate, platform, exists);
-      if (exists(found)) return found;
+      if (exists(found)) return platform === 'win32' ? onDiskCase(found) : found;
     }
   }
   return null;
