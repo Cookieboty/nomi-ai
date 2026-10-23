@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +8,7 @@ import {
   INLINE_DIFF_MAX_FILES,
   TurnEditSummaryCard,
 } from '../src/components/SessionWorkspace';
+import { harnessClient } from '../src/services/harnessClient';
 import type { ChangeEntry } from '../src/utils/sessionChanges';
 import type { FileDiff } from '../src/utils/toolTrace';
 
@@ -47,7 +48,12 @@ function entry(file: string, i: number): ChangeEntry {
 }
 
 describe('TurnEditSummaryCard', () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.clearAllMocks();
+  });
 
   it(`renders inline DiffView when file count ≤ ${INLINE_DIFF_MAX_FILES}`, () => {
     expect(INLINE_DIFF_MAX_FILES).toBe(3);
@@ -95,5 +101,48 @@ describe('TurnEditSummaryCard', () => {
     expect(screen.getByTestId('tool-diff')).toBeTruthy();
     fireEvent.click(screen.getByTestId('turn-inline-toggle'));
     expect(screen.queryByTestId('tool-diff')).toBeNull();
+  });
+
+  describe('撤销：应用内确认（不再使用 window.confirm / alert）', () => {
+    const renderCard = () =>
+      render(
+        <ChangesUiProvider>
+          <TurnEditSummaryCard messageId="m1" entries={[entry('only.ts', 0)]} cwd="/tmp" />
+        </ChangesUiProvider>,
+      );
+
+    it('先显示确认条，取消后不写盘', () => {
+      const confirm = vi.fn();
+      vi.stubGlobal('confirm', confirm);
+      renderCard();
+      fireEvent.click(screen.getByTestId('turn-undo'));
+      expect(screen.getByTestId('turn-undo-confirm')).toBeTruthy();
+      fireEvent.click(screen.getByTestId('turn-undo-cancel'));
+      expect(screen.queryByTestId('turn-undo-confirm')).toBeNull();
+      expect(harnessClient.workspaceWrite).not.toHaveBeenCalled();
+      expect(confirm).not.toHaveBeenCalled();
+    });
+
+    it('确认后写回旧内容并收起卡片', async () => {
+      vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: true });
+      renderCard();
+      fireEvent.click(screen.getByTestId('turn-undo'));
+      fireEvent.click(screen.getByTestId('turn-undo-confirm-ok'));
+      await waitFor(() => expect(screen.queryByTestId('turn-edit-summary')).toBeNull());
+      expect(harnessClient.workspaceWrite).toHaveBeenCalledWith('/tmp', 'only.ts', 'old');
+    });
+
+    it('失败时在卡片内提示，不弹 window.alert', async () => {
+      const alert = vi.fn();
+      vi.stubGlobal('alert', alert);
+      vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: false, error: 'EACCES' });
+      renderCard();
+      fireEvent.click(screen.getByTestId('turn-undo'));
+      fireEvent.click(screen.getByTestId('turn-undo-confirm-ok'));
+      const notice = await screen.findByTestId('turn-undo-notice');
+      expect(notice.textContent).toContain('EACCES');
+      expect(alert).not.toHaveBeenCalled();
+      expect(screen.getByTestId('turn-edit-summary')).toBeTruthy();
+    });
   });
 });

@@ -93,16 +93,26 @@ describe('workspaceFiles sandbox', () => {
     expect(readWorkspaceFile(cwd, '..foo.txt').content).toBe('x');
   });
 
-  it('git checkout restores tracked file', () => {
+  it('git checkout restores tracked file (async)', async () => {
     execSync('git init', { cwd });
     execSync('git config user.email t@t', { cwd });
     execSync('git config user.name t', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v1\n');
     execSync('git add f.txt && git commit -m i', { cwd });
     fs.writeFileSync(path.join(cwd, 'f.txt'), 'v2\n');
-    const r = gitCheckoutWorkspaceFile(cwd, 'f.txt');
+    const r = await gitCheckoutWorkspaceFile(cwd, 'f.txt');
     expect(r.ok).toBe(true);
     expect(fs.readFileSync(path.join(cwd, 'f.txt'), 'utf8')).toBe('v1\n');
+  });
+
+  it('git checkout: not a repo / untracked / escape return errors', async () => {
+    expect((await gitCheckoutWorkspaceFile(cwd, 'f.txt')).code).toBe('not-git');
+    execSync('git init', { cwd });
+    fs.writeFileSync(path.join(cwd, 'u.txt'), 'x\n');
+    const untracked = await gitCheckoutWorkspaceFile(cwd, 'u.txt');
+    expect(untracked.ok).toBe(false);
+    expect(untracked.error).toMatch(/pathspec|did not match/);
+    expect((await gitCheckoutWorkspaceFile(cwd, '../x')).ok).toBe(false);
   });
 });
 

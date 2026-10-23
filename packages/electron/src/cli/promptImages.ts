@@ -87,24 +87,57 @@ function extFor(mime: ImageMime): string {
   return '.jpg';
 }
 
-/** 规范化并过滤非法 mime / 空 data；最多 max 张 */
-export function normalizeImages(
+/** 单张图片 base64 上限（字符数，约 9MB 原图） */
+export const IMAGE_DATA_MAX = 12_000_000;
+/** 没带缩略图时，用原图当气泡缩略图的上限（再大就不能塞进消息记录里） */
+export const THUMB_FALLBACK_MAX = 600_000;
+
+export type ImageRejectReason = 'mime' | 'empty' | 'too-large' | 'no-thumb' | 'over-max';
+
+export interface RejectedImage {
+  /** 在原始列表里的序号（从 0 开始） */
+  index: number;
+  reason: ImageRejectReason;
+}
+
+/**
+ * 规范化图片并记录被拒绝的原因（不再静默丢弃）：非法 mime / 空 data / 超过大小上限 /
+ * 缺缩略图且原图太大（截断 base64 当缩略图只会是一张坏图）/ 超过张数上限。
+ */
+export function inspectImages(
   raw: HarnessImageInput[] | undefined | null,
   max = 8,
-): NormalizedImage[] {
-  if (!raw?.length) return [];
-  const out: NormalizedImage[] = [];
-  for (const r of raw) {
-    if (out.length >= max) break;
+): { images: NormalizedImage[]; rejected: RejectedImage[] } {
+  const images: NormalizedImage[] = [];
+  const rejected: RejectedImage[] = [];
+  if (!raw?.length) return { images, rejected };
+  raw.forEach((r, index) => {
+    if (images.length >= max) {
+      rejected.push({ index, reason: 'over-max' });
+      return;
+    }
     const mime = normalizeMime(String(r.mime ?? ''));
-    if (!mime || !ALLOWED_MIME.has(mime as never)) continue;
+    if (!mime || !ALLOWED_MIME.has(mime as never)) {
+      rejected.push({ index, reason: 'mime' });
+      return;
+    }
     const data = String(r.data ?? '').replace(/\s+/g, '');
-    if (!data || data.length > 12_000_000) continue;
-    const thumb =
-      typeof r.thumb === 'string' && r.thumb.startsWith('data:')
-        ? r.thumb
-        : `data:${mime};base64,${data.slice(0, 2_000)}`;
-    out.push({
+    if (!data) {
+      rejected.push({ index, reason: 'empty' });
+      return;
+    }
+    if (data.length > IMAGE_DATA_MAX) {
+      rejected.push({ index, reason: 'too-large' });
+      return;
+    }
+    let thumb: string;
+    if (typeof r.thumb === 'string' && r.thumb.startsWith('data:')) thumb = r.thumb;
+    else if (data.length <= THUMB_FALLBACK_MAX) thumb = `data:${mime};base64,${data}`;
+    else {
+      rejected.push({ index, reason: 'no-thumb' });
+      return;
+    }
+    images.push({
       mime,
       data,
       width: Math.max(0, Number(r.width) || 0),
@@ -112,8 +145,28 @@ export function normalizeImages(
       thumb,
       ...(r.source ? { source: String(r.source) } : {}),
     });
-  }
-  return out;
+  });
+  return { images, rejected };
+}
+
+/** 兼容旧调用：只要结果，不关心被拒绝的 */
+export function normalizeImages(
+  raw: HarnessImageInput[] | undefined | null,
+  max = 8,
+): NormalizedImage[] {
+  return inspectImages(raw, max).images;
+}
+
+/** 有图片被拒绝时给用户看的说明（整条消息不发出，让用户自己决定去掉哪张） */
+export function rejectedImagesMessage(rejected: readonly RejectedImage[], max = 8): string {
+  const has = (r: ImageRejectReason) => rejected.some((x) => x.reason === r);
+  const parts: string[] = [];
+  if (has('too-large')) parts.push(t('图片太大（单张不能超过约 9MB）'));
+  if (has('no-thumb')) parts.push(t('图片缺少预览且体积较大，无法生成缩略图'));
+  if (has('mime')) parts.push(t('只支持 PNG / JPEG / WebP / GIF 图片'));
+  if (has('empty')) parts.push(t('图片内容为空'));
+  if (has('over-max')) parts.push(t('一次最多发送 {0} 张图片', max));
+  return t('有 {0} 张图片不能发送：{1}。请去掉后再发。', rejected.length, parts.join('；'));
 }
 
 /** 写入会话临时目录，返回带 absPath 的列表 */

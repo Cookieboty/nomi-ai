@@ -17,7 +17,9 @@ import {
   imageSupportFor,
   imageThumbsForMessage,
   modelNoVisionMessage,
+  inspectImages,
   normalizeImages,
+  rejectedImagesMessage,
   stageImages,
   unsupportedImageMessage,
 } from '../../../src/cli/promptImages';
@@ -36,6 +38,39 @@ describe('promptImages', () => {
     ]);
     expect(out).toHaveLength(1);
     expect(out[0]!.mime).toBe('image/jpeg');
+  });
+
+  it('缺缩略图：小图用原图当缩略图（完整 base64），不再截断成坏图', () => {
+    const [im] = normalizeImages([{ mime: 'image/png', data: png }]);
+    expect(im!.thumb).toBe(`data:image/png;base64,${png}`);
+  });
+
+  it('被拒绝的图片带原因，不再静默丢弃', () => {
+    const big = 'A'.repeat(12_000_001);
+    const noThumbBig = 'A'.repeat(700_000);
+    const { images, rejected } = inspectImages([
+      { mime: 'image/png', data: png },
+      { mime: 'image/svg+xml', data: png },
+      { mime: 'image/png', data: '' },
+      { mime: 'image/png', data: big },
+      { mime: 'image/png', data: noThumbBig },
+      { mime: 'image/png', data: noThumbBig, thumb: 'data:image/png;base64,AAAA' },
+    ]);
+    expect(images).toHaveLength(2);
+    expect(rejected.map((r) => [r.index, r.reason])).toEqual([
+      [1, 'mime'],
+      [2, 'empty'],
+      [3, 'too-large'],
+      [4, 'no-thumb'],
+    ]);
+    expect(rejectedImagesMessage(rejected)).toMatch(/4/);
+  });
+
+  it('超过张数上限也会被记录', () => {
+    const raw = Array.from({ length: 3 }, () => ({ mime: 'image/png', data: png }));
+    const { images, rejected } = inspectImages(raw, 2);
+    expect(images).toHaveLength(2);
+    expect(rejected).toEqual([{ index: 2, reason: 'over-max' }]);
   });
 
   it('reports dsh unsupported', () => {

@@ -76,6 +76,8 @@
   "- {0}": "- {0}",
   "估算值：还没有这个会话的真实用量": "Estimate: no real usage reported for this session yet",
   "未识别模型，窗口按 128K 计": "Unknown model; assuming a 128K window",
+  "窗口大小是估算的，实际可能更小": "The window size is an estimate and may be smaller",
+  "确认撤销": "Confirm undo",
   "当前分支：{0}": "Current branch: {0}",
   "当前模型不支持图片，请去掉图片后再发。": "The current model doesn’t support images; remove the images and send again.",
   "{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。": "The {0} CLI has no image input, so images can’t be sent in this session; remove the images and send again.",

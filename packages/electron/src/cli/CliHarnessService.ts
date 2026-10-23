@@ -84,8 +84,9 @@ import {
   grokPromptJsonArgv,
   imageSupportFor,
   modelNoVisionMessage,
+  rejectedImagesMessage,
   imageThumbsForMessage,
-  normalizeImages,
+  inspectImages,
   stageImages,
   unsupportedImageMessage,
   type HarnessImageInput,
@@ -1976,7 +1977,8 @@ export class CliHarnessService {
     if ((tab.status === 'running' && !autoOnly) || tab.status === 'queued')
       throw new Error(t('上一轮尚未结束'));
     const text = String(prompt ?? '').slice(0, 100_000);
-    const normalized = normalizeImages(images);
+    const { images: normalized, rejected } = inspectImages(images);
+    if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
     if (!text.trim() && !normalized.length) throw new Error(t('消息为空'));
     const backend = tab.backend;
     if (normalized.length && imageSupportFor(backend) === 'none') {

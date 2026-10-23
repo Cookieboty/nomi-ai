@@ -557,6 +557,44 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+.turnConfirm,
+.turnNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--cd-color-border, #444);
+  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 8%, transparent);
+  font-size: var(--cd-font-size-md);
+  white-space: pre-wrap;
+}
+.turnNotice {
+  border-color: color-mix(in srgb, var(--cd-color-danger, #e5484d) 60%, transparent);
+  background: color-mix(in srgb, var(--cd-color-danger, #e5484d) 10%, transparent);
+}
+.turnConfirmBtns {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.turnConfirmCancel,
+.turnConfirmOk {
+  border: 1px solid var(--cd-color-border, #444);
+  background: none;
+  color: var(--cd-color-text, #eee);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: var(--cd-font-size-md);
+  cursor: pointer;
+}
+.turnConfirmOk {
+  background: var(--cd-color-accent, #5b8def);
+  border-color: transparent;
+  color: #fff;
+}
 .turnPrimary {
   background: color-mix(in srgb, var(--cd-color-border, #444) 80%, #222);
   border: 1px solid var(--cd-color-border, #333);
