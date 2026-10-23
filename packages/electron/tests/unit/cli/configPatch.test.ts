@@ -144,7 +144,10 @@ describe('patchDshYaml', () => {
   });
   it('removes only the block', () => {
     expect(patchDshYaml(patchDshYaml('- id: mine\n', patch), null)).toBe('- id: mine\n');
-    expect(patchDshYaml(patchDshYaml(null, patch), null)).toBe('');
+    // 移除后什么都不剩：写空数组而不是空文件（空文件 dsh 启动即退出）
+    expect(patchDshYaml(patchDshYaml(null, patch), null)).toBe('[]\n');
+    // 再次写入：空数组占位被替换成列表
+    expect(patchDshYaml('[]\n', patch)).toBe(patchDshYaml(null, patch));
   });
 });
 
