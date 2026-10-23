@@ -103,6 +103,7 @@ import {
   settledNomiMessages,
 } from './utils/convAdapters';
 import { aggregateSessionChanges } from './utils/sessionChanges';
+import { startSplitDrag } from './utils/splitDrag';
 import './App.css';
 
 const selectSettledNomi = (s: AiChatState) => settledNomiMessages(s.messages, s.isLoading);
@@ -155,41 +156,35 @@ function readFilesRailWidth(): number {
 
 const AiChatContent: React.FC = () => {
   const [filesRailWidth, setFilesRailWidth] = useState(readFilesRailWidth);
-  const filesRailDrag = useRef<{ startX: number; startW: number } | null>(null);
   const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
-  const chatColDrag = useRef<{ startX: number; startW: number } | null>(null);
   const { workbench, previewOpen, composerFill } = useChangesUi();
 
   const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const el = e.currentTarget;
-    filesRailDrag.current = { startX: e.clientX, startW: filesRailWidth };
-    el.setPointerCapture(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      const d = filesRailDrag.current;
-      if (!d) return;
-      const next = Math.min(
-        FILES_RAIL_W_MAX,
-        Math.max(FILES_RAIL_W_MIN, d.startW + (d.startX - ev.clientX)),
-      );
-      setFilesRailWidth(next);
-    };
-    const onUp = (ev: PointerEvent) => {
-      filesRailDrag.current = null;
-      el.releasePointerCapture(ev.pointerId);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setFilesRailWidth((w) => {
-        try {
-          localStorage.setItem(FILES_RAIL_W_KEY, String(w));
-        } catch {
-          /* ignore */
+    const startX = e.clientX;
+    const startW = filesRailWidth;
+    startSplitDrag({
+      el: e.currentTarget,
+      pointerId: e.pointerId,
+      onMove: (ev) =>
+        setFilesRailWidth(
+          Math.min(FILES_RAIL_W_MAX, Math.max(FILES_RAIL_W_MIN, startW + (startX - ev.clientX))),
+        ),
+      onEnd: (cancelled) => {
+        if (cancelled) {
+          setFilesRailWidth(startW);
+          return;
         }
-        return w;
-      });
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+        setFilesRailWidth((w) => {
+          try {
+            localStorage.setItem(FILES_RAIL_W_KEY, String(w));
+          } catch {
+            /* ignore */
+          }
+          return w;
+        });
+      },
+    });
   };
 
   const onFilesRailSplitterDbl = () => {
@@ -203,30 +198,26 @@ const AiChatContent: React.FC = () => {
 
   const onChatColSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const el = e.currentTarget;
-    chatColDrag.current = { startX: e.clientX, startW: chatColumnWidth };
-    el.setPointerCapture(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      const d = chatColDrag.current;
-      if (!d) return;
-      const next = Math.min(
-        CHAT_COL_W_MAX,
-        Math.max(CHAT_COL_W_MIN, d.startW + (ev.clientX - d.startX)),
-      );
-      setChatColumnWidth(next);
-    };
-    const onUp = (ev: PointerEvent) => {
-      chatColDrag.current = null;
-      el.releasePointerCapture(ev.pointerId);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setChatColumnWidth((w) => {
-        persistChatColumnWidth(w);
-        return w;
-      });
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
+    const startX = e.clientX;
+    const startW = chatColumnWidth;
+    startSplitDrag({
+      el: e.currentTarget,
+      pointerId: e.pointerId,
+      onMove: (ev) =>
+        setChatColumnWidth(
+          Math.min(CHAT_COL_W_MAX, Math.max(CHAT_COL_W_MIN, startW + (ev.clientX - startX))),
+        ),
+      onEnd: (cancelled) => {
+        if (cancelled) {
+          setChatColumnWidth(startW);
+          return;
+        }
+        setChatColumnWidth((w) => {
+          persistChatColumnWidth(w);
+          return w;
+        });
+      },
+    });
   };
 
   const onChatColSplitterDbl = () => {
