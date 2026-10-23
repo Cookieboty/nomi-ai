@@ -334,6 +334,7 @@
   "自定义模型 id": "Custom model id",
   "下一条消息起生效，仅影响当前标签": "Takes effect from the next message; current tab only",
   "切换模型：{0}": "Switch model: {0}",
+  "极限": "Ultra",
   "重新从 {0} 读取模型列表": "Reload the model list from {0}",
   "没能从 {0} 读到模型列表：{1}": "Couldn't read the model list from {0}: {1}",
   "模型 id": "Model id",

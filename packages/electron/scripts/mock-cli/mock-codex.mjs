@@ -50,7 +50,7 @@ if (args[0] === 'debug' && args[1] === 'models') {
           visibility: 'list',
           priority: 2,
           default_reasoning_level: 'medium',
-          supported_reasoning_levels: lv('low', 'medium', 'high', 'xhigh', 'max'),
+          supported_reasoning_levels: lv('low', 'medium', 'high', 'xhigh', 'max', 'ultra'),
         },
         {
           slug: 'mock-mini',

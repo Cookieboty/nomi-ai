@@ -74,10 +74,9 @@ describe('CliHarnessService model / effort overrides', () => {
     expect(claude.models.find((m) => m.id === 'claude-haiku-old')?.reasoning).toBe(false);
 
     const codex = (await h.modelCatalogFor('codex'))!;
-    // 只列 visibility=list，按 priority 排序；档位以 CLI 为准（官方枚举，无 ultra）
+    // 只列 visibility=list，按 priority 排序；档位以 CLI 为准（含 ultra）
     expect(codex.models.map((m) => m.id)).toEqual(['mock-mini', 'mock-pro', 'mock-plain']);
-    expect(codex.models[1]!.efforts).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
-    expect(codex.models[1]!.efforts).not.toContain('ultra');
+    expect(codex.models[1]!.efforts).toContain('ultra');
 
     const grok = (await h.modelCatalogFor('grok'))!;
     expect(grok.defaultModel?.id).toBe('grok-mock');
@@ -119,11 +118,11 @@ describe('CliHarnessService model / effort overrides', () => {
     fs.mkdirSync(path.join(root, '.codex'), { recursive: true });
     fs.writeFileSync(
       path.join(root, '.codex', 'config.toml'),
-      'model = "mock-pro"\nmodel_reasoning_effort = "max"\n',
+      'model = "mock-pro"\nmodel_reasoning_effort = "ultra"\n',
     );
     const c = (await mk().modelCatalogFor('codex'))!;
     expect(c.defaultModel?.id).toBe('mock-pro');
-    expect(c.defaultModel?.defaultEffort).toBe('max');
+    expect(c.defaultModel?.defaultEffort).toBe('ultra');
   });
 
   it('设置 / 清除模型覆盖；切到不支持思考深度的模型会清掉档位', async () => {
@@ -132,11 +131,11 @@ describe('CliHarnessService model / effort overrides', () => {
     const tab = h.createTab({ backend: 'codex' });
 
     expect(h.setTabModel(tab.id, 'mock-pro').modelOverride).toBe('mock-pro');
-    expect(h.setTabReasoningEffort(tab.id, 'max').reasoningEffort).toBe('max');
+    expect(h.setTabReasoningEffort(tab.id, 'ultra').reasoningEffort).toBe('ultra');
 
     // 换到不支持该档位的模型：档位清掉（回到 CLI 默认）
     expect(h.setTabModel(tab.id, 'mock-mini').reasoningEffort).toBeNull();
-    expect(() => h.setTabReasoningEffort(tab.id, 'max')).toThrow();
+    expect(() => h.setTabReasoningEffort(tab.id, 'ultra')).toThrow();
 
     // CLI 说不支持思考深度的模型
     h.setTabReasoningEffort(tab.id, 'high');
@@ -164,7 +163,6 @@ describe('CliHarnessService model / effort overrides', () => {
     const codex = h.createTab({ backend: 'codex' });
     expect(() => h.setTabModel(codex.id, 'a b; rm -rf /')).toThrow();
     expect(() => h.setTabModel(codex.id, '--unknown')).toThrow();
-    expect(() => h.setTabReasoningEffort(codex.id, 'ultra')).toThrow();
     expect(() => h.setTabReasoningEffort(codex.id, 'ULTRA')).toThrow();
 
     const dsh = h.createTab({ backend: 'dsh' });

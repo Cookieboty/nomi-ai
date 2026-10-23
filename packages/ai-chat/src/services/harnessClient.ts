@@ -171,8 +171,8 @@ export const MAIN_TAB_ID = 'main';
 /** CLI 标签的来源：官方账号（CLI 直连）/ 第三方（经网关） */
 export type TabSource = 'official' | 'thirdParty';
 
-/** 思考深度档位（官方枚举并集，由浅到深；不含 ultra）；某个模型支持哪些以 CLI 返回的目录为准 */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+/** 思考深度档位（各 CLI 取值的并集，由浅到深；含 Codex client 档 ultra）；某个模型支持哪些以 CLI 返回的目录为准 */
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 
 /** 从 CLI 读到的可选模型 */
 export interface ModelCatalogModel {
