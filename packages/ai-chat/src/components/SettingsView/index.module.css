@@ -116,17 +116,7 @@
   background: var(--cd-color-surface-raised);
   box-shadow: var(--cd-shadow-sm);
 }
-.block > .h2:first-child {
-  margin-top: 0;
-}
-.h2 {
-  font-size: var(--cd-font-size-lg);
-  font-weight: var(--cd-font-weight-bold);
-  margin: var(--cd-space-3) 0;
-  color: var(--cd-color-text);
-}
-.note,
-.list {
+.note {
   font-size: var(--cd-font-size-md);
   color: var(--cd-color-text-muted);
   line-height: 1.8;
@@ -174,11 +164,6 @@
   white-space: nowrap;
   text-align: right !important;
 }
-.sub {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
-  margin-bottom: var(--cd-space-1-5);
-}
 /* 应用图标：右侧三个小图标单选 */
 .icons {
   display: flex;
@@ -212,10 +197,6 @@
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface);
   cursor: pointer;
-}
-.hint {
-  font-size: var(--cd-font-size-xs);
-  color: var(--cd-color-text-subtle);
 }
 .srOnly {
   position: absolute;
@@ -329,16 +310,6 @@
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
 }
-
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--cd-space-3);
-  margin-top: 14px;
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text);
-}
 .muted {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
@@ -437,12 +408,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--cd-space-4);
-}
-.stackSm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: var(--cd-space-3) 0;
 }
 
 .sizeRow {

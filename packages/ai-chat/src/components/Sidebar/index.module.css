@@ -153,7 +153,6 @@
   text-overflow: ellipsis;
 }
 .iconBtn,
-.newChat,
 .thread,
 .segBtn,
 .epChip,
@@ -173,18 +172,7 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.newChat {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 9px;
-  font-size: var(--cd-font-size-md);
-  color: var(--cd-color-text);
-  position: relative;
-}
 .iconBtn:hover,
-.newChat:hover,
 .thread:hover,
 .segBtn:hover,
 .epChip:hover,
@@ -366,14 +354,6 @@
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
   margin-left: auto;
-}
-.badge {
-  font-size: var(--cd-font-size-xs);
-  font-weight: var(--cd-font-weight-bold);
-  padding: 1px var(--cd-space-1-5);
-  border-radius: var(--cd-radius-full);
-  letter-spacing: 0.01em;
-  flex-shrink: 0;
 }
 .histTitle {
   display: flex;

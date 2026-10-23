@@ -210,42 +210,6 @@
   right: 0;
 }
 
-.perm {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1-5);
-  padding: var(--cd-space-2) 10px;
-  border-radius: var(--cd-radius-md);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-bg);
-}
-.permTitle {
-  font-size: var(--cd-font-size-md);
-  font-weight: var(--cd-font-weight-bold);
-}
-.permSummary {
-  font-size: var(--cd-font-size-sm);
-  color: var(--cd-color-text-subtle);
-  word-break: break-all;
-}
-.permActions {
-  display: flex;
-  gap: var(--cd-space-2);
-}
-.permActions button {
-  font-size: var(--cd-font-size-sm);
-  padding: var(--cd-space-1) 10px;
-  border-radius: var(--cd-radius-sm);
-  border: 1px solid var(--cd-color-border);
-  background: var(--cd-color-bg-subtle);
-  cursor: pointer;
-}
-.permActions button:first-child {
-  background: var(--cd-color-accent);
-  color: var(--cd-color-text-on-accent);
-  border-color: transparent;
-}
-
 /* 空闲但还有后台子代理 / 后台任务：强调色空心圆环（docs/design/cli-subagents.md §5） */
 .dot[data-status='background'] {
   background: transparent;

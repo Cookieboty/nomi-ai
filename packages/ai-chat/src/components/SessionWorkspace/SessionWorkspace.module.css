@@ -247,13 +247,6 @@
 .letter[data-letter='C'] {
   color: var(--cd-color-accent-strong, #5b8def);
 }
-.file {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--cd-font-mono, ui-monospace, monospace);
-}
 .stat {
   font-variant-numeric: tabular-nums;
   display: inline-flex;
@@ -823,36 +816,6 @@
   border-radius: 50%;
   background: var(--cd-color-accent-strong, #5b8def);
   flex-shrink: 0;
-}
-
-/* —— 右栏横排 Diff | 文件树 —— */
-.seg {
-  display: flex;
-  gap: 2px;
-  padding: 4px 8px 6px;
-  border-bottom: 1px solid var(--cd-color-border, #333);
-}
-.segBtn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--cd-color-text-muted, #888);
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: var(--cd-font-size-xs);
-  cursor: pointer;
-}
-.segBtn[data-active] {
-  background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 14%, transparent);
-  border-color: var(--cd-color-border, #333);
-  color: var(--cd-color-text, #eee);
-}
-.segBtn:hover {
-  color: var(--cd-color-text, #eee);
 }
 .railBody {
   flex: 1;

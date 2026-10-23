@@ -66,13 +66,6 @@
   border-radius: var(--cd-radius-sm);
   background: var(--cd-color-surface-sunken);
 }
-.modelRow {
-  display: flex;
-  gap: var(--cd-space-2);
-  align-items: center;
-  flex-wrap: wrap;
-  font-size: var(--cd-font-size-sm);
-}
 .indicator {
   display: inline-flex;
   align-items: center;

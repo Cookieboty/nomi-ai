@@ -4,13 +4,6 @@
   gap: var(--cd-space-3);
 }
 
-.row {
-  display: flex;
-  gap: var(--cd-space-2);
-  flex-wrap: wrap;
-  align-items: center;
-}
-
 .hint {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-muted);
@@ -46,11 +39,6 @@
 .list {
   margin: 0;
   padding-left: 18px;
-  font-size: var(--cd-font-size-sm);
-}
-
-.h4 {
-  margin: var(--cd-space-1) 0;
   font-size: var(--cd-font-size-sm);
 }
 

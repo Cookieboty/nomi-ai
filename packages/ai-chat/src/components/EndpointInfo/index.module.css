@@ -101,12 +101,6 @@
   border-radius: 2px;
   background: var(--cd-color-accent);
 }
-.barMid i {
-  background: var(--cd-color-warning);
-}
-.barHigh i {
-  background: var(--cd-color-danger);
-}
 .kv {
   display: flex;
   justify-content: space-between;
