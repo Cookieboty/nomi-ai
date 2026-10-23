@@ -22,6 +22,7 @@ import { restoreChatBounds } from './chatWindowBounds';
 import { devChatUrl, devRendererUrl } from './devPorts';
 import { eventBus } from './EventBus';
 import { type ChromeTheme, titleBarOptions } from './titleBar';
+import { onGeometryChange } from './windowGeometryEvents';
 
 /** 开发模式：未打包且显式声明 NODE_ENV，防止打包应用被注入环境变量后加载本机 dev server */
 const isDevMode = (): boolean => !app.isPackaged && process.env.NODE_ENV === 'development';
@@ -417,7 +418,7 @@ export class WindowManager implements IWindowManager {
 
     // 窗口移动事件：物理 / 拖拽时每秒会移动很多次，防抖后再落盘
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
-    window.on('moved', () => {
+    onGeometryChange(window, () => {
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(() => {
         if (window.isDestroyed()) return;
@@ -501,8 +502,8 @@ export class WindowManager implements IWindowManager {
       if (saveTimer) clearTimeout(saveTimer);
       saveTimer = setTimeout(saveBounds, 500);
     };
-    window.on('resized', saveSoon);
-    window.on('moved', saveSoon);
+    // Linux 没有 moved / resized，改听连续的 move / resize（saveSoon 自带防抖）
+    onGeometryChange(window, saveSoon, { resize: true });
     window.on('maximize', saveSoon);
     window.on('unmaximize', saveSoon);
     window.on('close', saveBounds);
