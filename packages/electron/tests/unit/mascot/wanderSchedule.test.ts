@@ -76,6 +76,30 @@ function setup(Ctrl: typeof MascotWindowController = MascotWindowController) {
   return { b, c, emit, wc };
 }
 
+/**
+ * MascotWindowController snapshots `process.platform` at module load (DRAG_FROM_OS_CURSOR: Windows
+ * follows the OS cursor, everyone else the renderer's screenX/Y). Tests that assert one drag source
+ * must pin the platform and load a fresh copy of the module, or they only pass on the host OS
+ * they happened to be written on.
+ */
+function withPlatform<T>(
+  platform: NodeJS.Platform,
+  run: (Ctrl: typeof MascotWindowController) => T,
+): T {
+  const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { value: platform });
+  try {
+    let Ctrl!: typeof MascotWindowController;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      Ctrl = require('../../../src/mascot/MascotWindowController').MascotWindowController;
+    });
+    return run(Ctrl);
+  } finally {
+    Object.defineProperty(process, 'platform', original);
+  }
+}
+
 describe('MascotWindowController · drag and wander scheduling', () => {
   beforeEach(() => {
     handlers.clear();
@@ -87,39 +111,36 @@ describe('MascotWindowController · drag and wander scheduling', () => {
   });
 
   it('moves immediately when a drag point arrives instead of waiting for the next tick', () => {
-    const s = setup();
-    const startX = s.b.x + 40;
-    const startY = s.b.y + 40;
-    s.emit('mascot:drag-start', startX, startY);
-    const before = { x: s.b.x, y: s.b.y };
+    withPlatform('darwin', (Ctrl) => {
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
 
-    s.emit('mascot:drag-move', startX + 90, startY - 55);
+      s.emit('mascot:drag-move', startX + 90, startY - 55);
 
-    expect(s.b.x).toBe(before.x + 90);
-    expect(s.b.y).toBe(before.y - 55);
+      expect(s.b.x).toBe(before.x + 90);
+      expect(s.b.y).toBe(before.y - 55);
+    });
   });
 
   it('applies every drag sample within one frame (no 16.7ms throttle)', () => {
-    const s = setup();
-    const startX = s.b.x + 40;
-    const startY = s.b.y + 40;
-    s.emit('mascot:drag-start', startX, startY);
-    const before = { x: s.b.x, y: s.b.y };
-    s.emit('mascot:drag-move', startX + 10, startY);
-    s.emit('mascot:drag-move', startX + 20, startY);
-    expect(s.b.x).toBe(before.x + 20);
-    expect(s.b.y).toBe(before.y);
+    withPlatform('darwin', (Ctrl) => {
+      const s = setup(Ctrl);
+      const startX = s.b.x + 40;
+      const startY = s.b.y + 40;
+      s.emit('mascot:drag-start', startX, startY);
+      const before = { x: s.b.x, y: s.b.y };
+      s.emit('mascot:drag-move', startX + 10, startY);
+      s.emit('mascot:drag-move', startX + 20, startY);
+      expect(s.b.x).toBe(before.x + 20);
+      expect(s.b.y).toBe(before.y);
+    });
   });
 
   it('on Windows follows the OS cursor instead of the renderer screenX/Y', () => {
-    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    try {
-      let Ctrl!: typeof MascotWindowController;
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        Ctrl = require('../../../src/mascot/MascotWindowController').MascotWindowController;
-      });
+    withPlatform('win32', (Ctrl) => {
       const { screen } = jest.requireMock('electron') as {
         screen: { getCursorScreenPoint: jest.Mock };
       };
@@ -133,9 +154,7 @@ describe('MascotWindowController · drag and wander scheduling', () => {
       s.emit('mascot:drag-move', startX + 999, startY + 999);
       expect(s.b.x).toBe(before.x + 30);
       expect(s.b.y).toBe(before.y - 20);
-    } finally {
-      Object.defineProperty(process, 'platform', platform);
-    }
+    });
   });
 
   it('wander-now pushes nextWanderAt so free-place idle is not stolen after the startup 15s', () => {
