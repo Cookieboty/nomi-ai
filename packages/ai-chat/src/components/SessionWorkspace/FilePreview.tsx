@@ -7,9 +7,9 @@ import { ChevronLeft, ChevronRight, Eye, FileCode2, RotateCcw, Save, X } from 'l
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
-import { reconstructOldText } from '../../utils/diffReconstruct';
 import type { ChangeEntry } from '../../utils/sessionChanges';
 import type { FileDiff } from '../../utils/toolTrace';
+import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
 import { Markdown } from '../Conversation/Markdown';
@@ -57,6 +57,8 @@ export const FilePreview: React.FC<{
   const [disk, setDisk] = useState<string>('');
   const [binary, setBinary] = useState(false);
   const [saving, setSaving] = useState(false);
+  /** 应用内确认「丢弃本轮变更」（取代 window.confirm） */
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [dirtyTick, setDirtyTick] = useState(0);
   const viewState = useRef<Map<string, FileViewState>>(new Map());
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -108,14 +110,15 @@ export const FilePreview: React.FC<{
     [files, idx, onActiveKey, persistView],
   );
 
-  const pendingRestore = useRef<{ key: string; content: string } | null>(null);
+  const pendingRestore = useRef<{ key: string; disk: string } | null>(null);
   useLayoutEffect(() => {
     const p = pendingRestore.current;
     const ta = taRef.current;
     if (!p || !ta || p.key !== active?.key) return;
     pendingRestore.current = null;
-    ta.value = p.content;
+    // 提交时才取草稿：读盘返回到编辑框重新渲染之间用户已经输入的内容不能被盖掉
     const st = viewState.current.get(p.key);
+    ta.value = st?.dirty && st.draft != null ? st.draft : p.disk;
     if (st) {
       ta.scrollTop = st.scrollTop;
       try {
@@ -127,6 +130,8 @@ export const FilePreview: React.FC<{
   });
   const activeFileKey = active?.key;
   const activePath = active?.path;
+  // 换了文件就取消待确认的丢弃（确认的是上一个文件）
+  useEffect(() => setConfirmDiscard(false), [activeFileKey]);
   const loadDisk = useCallback(async () => {
     if (!cwd || !activeFileKey || !activePath) {
       setDisk('');
@@ -156,11 +161,9 @@ export const FilePreview: React.FC<{
         return;
       }
       setBinary(false);
-      const cached = viewState.current.get(activeFileKey);
-      const content = cached?.dirty && cached.draft != null ? cached.draft : (r.content ?? '');
       setDisk(r.content ?? '');
       // 读取期间编辑框被卸载：等它重新渲染出来再写回草稿与滚动 / 选区（见下方 layout effect）
-      pendingRestore.current = { key: activeFileKey, content };
+      pendingRestore.current = { key: activeFileKey, disk: r.content ?? '' };
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -250,33 +253,39 @@ export const FilePreview: React.FC<{
     }
   };
 
-  const discardTurn = async () => {
+  const askDiscard = () => {
     if (!cwd || !active?.change?.diff || active.change.diff.summaryOnly) {
       setErr(t('没有可丢弃的完整 diff'));
       return;
     }
-    const old = reconstructOldText(active.change.diff.diff);
-    if (old == null) {
-      setErr(t('没有可丢弃的完整 diff'));
-      return;
-    }
-    if (!window.confirm(t('丢弃本轮对该文件的变更并写回旧内容？'))) return;
+    setErr(null);
+    setConfirmDiscard(true);
+  };
+
+  const discardTurn = async () => {
+    setConfirmDiscard(false);
+    if (!cwd || !active?.change?.diff || active.change.diff.summaryOnly) return;
     setSaving(true);
     setErr(null);
     try {
-      const r = await harnessClient.workspaceWrite(cwd, workspaceRelPath(cwd, active.path), old);
-      if (!r.ok) {
-        setErr(r.code === 'outside' ? t('路径不在工作区内，已拒绝写入') : r.error || t('保存失败'));
+      // 只把本轮改的那几处换回旧内容（不是用一小段 diff 覆盖整个文件）；文件之后又被改过则拒绝
+      const [r] = await undoTurnChanges(cwd, [active.change], {
+        read: (c, rel) => harnessClient.workspaceRead(c, rel),
+        write: (c, rel, content) => harnessClient.workspaceWrite(c, rel, content),
+        remove: (c, rel) => harnessClient.workspaceDelete(c, rel),
+        gitCheckout: (c, rel) => harnessClient.workspaceGitCheckout(c, rel),
+      });
+      if (!r?.ok) {
+        setErr(undoErrorText(r?.error, t));
         return;
       }
-      setDisk(old);
-      if (taRef.current) taRef.current.value = old;
       const st = viewState.current.get(active.key);
       if (st) {
         st.dirty = false;
-        st.draft = old;
+        st.draft = undefined;
       }
       setDirtyTick((n) => n + 1);
+      await loadDisk();
       onSaved?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -395,8 +404,8 @@ export const FilePreview: React.FC<{
             <button
               type="button"
               className={styles.iconBtn}
-              onClick={() => void discardTurn()}
-              disabled={saving || !cwd}
+              onClick={askDiscard}
+              disabled={saving || !cwd || confirmDiscard}
               title={t('丢弃本轮变更')}
               aria-label={t('丢弃本轮变更')}
               data-testid="preview-discard"
@@ -448,6 +457,34 @@ export const FilePreview: React.FC<{
           ))}
         </div>
       )}
+
+      {confirmDiscard ? (
+        <div
+          className={styles.turnConfirm}
+          role="alertdialog"
+          data-testid="preview-discard-confirm"
+        >
+          <span>{t('丢弃本轮对该文件的变更并写回旧内容？')}</span>
+          <span className={styles.turnConfirmBtns}>
+            <button
+              type="button"
+              className={styles.turnConfirmCancel}
+              onClick={() => setConfirmDiscard(false)}
+              data-testid="preview-discard-cancel"
+            >
+              {t('取消')}
+            </button>
+            <button
+              type="button"
+              className={styles.turnConfirmOk}
+              onClick={() => void discardTurn()}
+              data-testid="preview-discard-ok"
+            >
+              {t('确认丢弃')}
+            </button>
+          </span>
+        </div>
+      ) : null}
 
       {err ? (
         <p className={styles.previewErr} data-testid="preview-error">

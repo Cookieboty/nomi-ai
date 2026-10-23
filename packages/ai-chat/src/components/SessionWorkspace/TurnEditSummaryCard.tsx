@@ -5,7 +5,7 @@ import React, { useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { splitPathDisplay, summarizeChanges, type ChangeEntry } from '../../utils/sessionChanges';
-import { undoTurnChanges } from '../../utils/undoTurnChanges';
+import { undoErrorText, undoTurnChanges } from '../../utils/undoTurnChanges';
 import { workspaceRelPath } from '../../utils/workspacePath';
 import { DiffView } from '../Conversation/DiffView';
 
@@ -78,6 +78,7 @@ export const TurnEditSummaryCard: React.FC<{
     setBusy(true);
     try {
       const results = await undoTurnChanges(cwd, entries, {
+        read: (c, rel) => harnessClient.workspaceRead(c, rel),
         write: (c, rel, content) => harnessClient.workspaceWrite(c, rel, content),
         remove: (c, rel) => harnessClient.workspaceDelete(c, rel),
         gitCheckout: (c, rel) => harnessClient.workspaceGitCheckout(c, rel),
@@ -85,7 +86,10 @@ export const TurnEditSummaryCard: React.FC<{
       const failed = results.filter((r) => !r.ok);
       if (failed.length) {
         setNotice(
-          t('部分文件撤销失败：{0}', failed.map((f) => `${f.file}: ${f.error || '?'}`).join('\n')),
+          t(
+            '部分文件撤销失败：{0}',
+            failed.map((f) => `${f.file}: ${undoErrorText(f.error, t)}`).join('\n'),
+          ),
         );
       } else {
         setUndone(true);

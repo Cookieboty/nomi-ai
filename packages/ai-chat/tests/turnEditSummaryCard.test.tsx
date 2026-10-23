@@ -14,6 +14,7 @@ import type { FileDiff } from '../src/utils/toolTrace';
 
 vi.mock('../src/services/harnessClient', () => ({
   harnessClient: {
+    workspaceRead: vi.fn(),
     workspaceWrite: vi.fn(),
     workspaceDelete: vi.fn(),
     workspaceGitCheckout: vi.fn(),
@@ -123,18 +124,27 @@ describe('TurnEditSummaryCard', () => {
       expect(confirm).not.toHaveBeenCalled();
     });
 
-    it('确认后写回旧内容并收起卡片', async () => {
+    it('确认后写回旧内容并收起卡片（读当前内容，只把新片段换回旧片段）', async () => {
+      vi.mocked(harnessClient.workspaceRead).mockResolvedValue({
+        ok: true,
+        content: 'head\nnew\ntail\n',
+      });
       vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: true });
       renderCard();
       fireEvent.click(screen.getByTestId('turn-undo'));
       fireEvent.click(screen.getByTestId('turn-undo-confirm-ok'));
       await waitFor(() => expect(screen.queryByTestId('turn-edit-summary')).toBeNull());
-      expect(harnessClient.workspaceWrite).toHaveBeenCalledWith('/tmp', 'only.ts', 'old');
+      expect(harnessClient.workspaceWrite).toHaveBeenCalledWith(
+        '/tmp',
+        'only.ts',
+        'head\nold\ntail\n',
+      );
     });
 
     it('失败时在卡片内提示，不弹 window.alert', async () => {
       const alert = vi.fn();
       vi.stubGlobal('alert', alert);
+      vi.mocked(harnessClient.workspaceRead).mockResolvedValue({ ok: true, content: 'new\n' });
       vi.mocked(harnessClient.workspaceWrite).mockResolvedValue({ ok: false, error: 'EACCES' });
       renderCard();
       fireEvent.click(screen.getByTestId('turn-undo'));
@@ -143,6 +153,16 @@ describe('TurnEditSummaryCard', () => {
       expect(notice.textContent).toContain('EACCES');
       expect(alert).not.toHaveBeenCalled();
       expect(screen.getByTestId('turn-edit-summary')).toBeTruthy();
+    });
+
+    it('文件之后又被改过：提示无法安全撤销，不写盘', async () => {
+      vi.mocked(harnessClient.workspaceRead).mockResolvedValue({ ok: true, content: 'other\n' });
+      renderCard();
+      fireEvent.click(screen.getByTestId('turn-undo'));
+      fireEvent.click(screen.getByTestId('turn-undo-confirm-ok'));
+      const notice = await screen.findByTestId('turn-undo-notice');
+      expect(notice.textContent).toContain('无法安全撤销');
+      expect(harnessClient.workspaceWrite).not.toHaveBeenCalled();
     });
   });
 });
