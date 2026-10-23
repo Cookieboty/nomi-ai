@@ -7,6 +7,7 @@ import {
   CHAT_COL_W_MAX,
   CHAT_COL_W_MIN,
   CHAT_COL_W_TOO_NARROW,
+  CHAT_COL_W_USER_KEY,
   clampChatColumnWidth,
   persistChatColumnWidth,
   readChatColumnWidth,
@@ -16,6 +17,7 @@ describe('chatColumnWidth', () => {
   afterEach(() => {
     try {
       localStorage.removeItem(CHAT_COL_W_KEY);
+      localStorage.removeItem(CHAT_COL_W_USER_KEY);
     } catch {
       /* ignore */
     }
@@ -42,6 +44,12 @@ describe('chatColumnWidth', () => {
     const kept = Math.max(CHAT_COL_W_TOO_NARROW, 600);
     localStorage.setItem(CHAT_COL_W_KEY, String(kept));
     expect(readChatColumnWidth()).toBe(clampChatColumnWidth(kept));
+  });
+
+  it('用户拖窄（MIN 以上、TOO_NARROW 以下）后会被记住，不会被迁移逻辑重置回 720', () => {
+    persistChatColumnWidth(400);
+    expect(readChatColumnWidth()).toBe(400);
+    expect(Number(localStorage.getItem(CHAT_COL_W_KEY))).toBe(400);
   });
 
   it('persistChatColumnWidth clamps into [MIN, MAX]', () => {
