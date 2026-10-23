@@ -14,6 +14,17 @@ body {
 }
 
 .ai-chat-app {
+  /*
+   * 四栏（侧栏 296 | 对话 | 中栏 Diff/预览 | 右栏文件）的最小宽度随窗口收缩。
+   * 旧版写死 360 + 360 + 200，加侧栏恰好约 1240px；窗口再窄，右栏就被挤出屏外（body 是 overflow:hidden，看起来像「被切掉」）。
+   * 这里按「侧栏 296 + 分割线 / 边框约 16px 之后的剩余宽度」分配：对话 40% / 中栏 38% / 右栏 18%，
+   * 各自有上限（宽屏沿用原来的 360 / 360 / 200）与下限；窗口最小 760px 时三栏之和仍不超过剩余宽度。
+   * 数值与不溢出的约束由 tests/narrowWindowLayout.test.ts 校验。
+   */
+  --cd-pane-avail: calc(100vw - 312px);
+  --cd-chat-col-min: clamp(180px, calc(var(--cd-pane-avail) * 0.4), 360px);
+  --cd-center-pane-min: clamp(140px, calc(var(--cd-pane-avail) * 0.38), 360px);
+  --cd-files-rail-min: clamp(90px, calc(var(--cd-pane-avail) * 0.18), 200px);
   height: 100vh;
   display: flex;
   background: transparent;
@@ -67,6 +78,9 @@ body {
 .main-content--with-changes {
   flex-direction: row;
   align-items: stretch;
+  /* 主区自己的最小宽度 = 对话列 + 中栏 + 分割线：窗口再窄时先把右栏（flex-shrink: 1）压到它的最小宽度，
+     而不是让主区缩到 0、子栏溢出压到右栏上。窄窗仍保持横排，只压缩列宽（不要默认堆成单列）。 */
+  min-width: calc(var(--cd-chat-col-min) + var(--cd-center-pane-min) + 5px);
 }
 
 .chat-column {
@@ -115,7 +129,7 @@ body {
 .main-content--with-changes [data-testid='center-changes-pane'],
 .main-content--with-changes [data-testid='center-preview-pane'] {
   flex: 1 1 0;
-  min-width: 360px;
+  min-width: var(--cd-center-pane-min);
   min-height: 0;
   height: 100%;
   max-height: none !important;
@@ -150,10 +164,11 @@ body {
 }
 .files-rail {
   width: 260px;
-  min-width: 200px;
+  min-width: var(--cd-files-rail-min);
   max-width: 420px;
   height: 100vh;
-  flex-shrink: 0;
+  /* 窗口窄时允许收缩到 min-width（宽屏时不会触发，宽度仍是拖动值） */
+  flex-shrink: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -168,12 +183,6 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-/* 窄窗仍保持三栏横排，只压缩列宽（不要默认堆成单列） */
-@media (max-width: 900px) {
-  .files-rail {
-    min-width: 180px;
-  }
 }
 
 /* 输入框下方的工作目录 / 供应商：与输入框同宽、左对齐的一行轻量信息（菜单向上弹） */

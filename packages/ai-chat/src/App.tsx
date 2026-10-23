@@ -841,9 +841,10 @@ const AiChatContent: React.FC = () => {
               ...(centerOpen
                 ? {
                     width: chatColumnWidth,
-                    minWidth: CHAT_COL_W_MIN,
+                    // 窗口窄时最小宽度随窗口收缩（App.css 的 --cd-chat-col-min），宽屏仍是 CHAT_COL_W_MIN
+                    minWidth: 'var(--cd-chat-col-min)',
                     maxWidth: CHAT_COL_W_MAX,
-                    // 窗口不够时先压对话列（到 MIN），不把中栏挤没
+                    // 窗口不够时先压对话列（到最小宽度），不把中栏挤没
                     flexShrink: 1,
                   }
                 : {}),
@@ -1051,9 +1052,9 @@ const AiChatContent: React.FC = () => {
               data-testid="files-rail"
               style={{
                 width: filesRailWidth,
-                minWidth: FILES_RAIL_W_MIN,
+                minWidth: 'var(--cd-files-rail-min)',
                 maxWidth: FILES_RAIL_W_MAX,
-                flexShrink: 0,
+                flexShrink: 1,
               }}
             >
               <SessionChangesPanel
