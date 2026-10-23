@@ -33,6 +33,7 @@ import { PluginPanel } from './components/PluginPanel';
 import {
   ChangesUiProvider,
   ChangesWorkbenchHost,
+  CenterChangesHost,
   SessionChangesPanel,
 } from './components/SessionWorkspace';
 import {
@@ -104,9 +105,9 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
 };
 
 const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';
-const FILES_RAIL_W_DEFAULT = 320;
-const FILES_RAIL_W_MIN = 220;
-const FILES_RAIL_W_MAX = 560;
+const FILES_RAIL_W_DEFAULT = 260;
+const FILES_RAIL_W_MIN = 200;
+const FILES_RAIL_W_MAX = 420;
 
 function readFilesRailWidth(): number {
   try {
@@ -801,6 +802,10 @@ const AiChatContent: React.FC = () => {
               />
             )}
           </main>
+
+          {isDev && tabs.isCliTab && tabs.activeTab ? (
+            <CenterChangesHost messages={cliConvMessages} />
+          ) : null}
 
           {/* 输入区域 */}
           <footer className="input-container">

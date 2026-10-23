@@ -94,7 +94,7 @@ function fromOps(ops: Op[]): DiffResult {
   let removed = 0;
   let oldNo = 1;
   let newNo = 1;
-  let skipped = false;
+  let skipped = 0;
   ops.forEach((op, i) => {
     const o = op.t === 'add' ? undefined : oldNo;
     const n = op.t === 'del' ? undefined : newNo;
@@ -103,11 +103,14 @@ function fromOps(ops: Op[]): DiffResult {
     if (op.t === 'add') added++;
     if (op.t === 'del') removed++;
     if (!keep[i]) {
-      skipped = true;
+      skipped += 1;
       return;
     }
-    if (skipped && lines.length) lines.push({ type: 'hunk', text: '…' });
-    skipped = false;
+    if (skipped && lines.length) {
+      lines.push({ type: 'hunk', text: `${skipped} unmodified lines` });
+      skipped = 0;
+    }
+    skipped = 0;
     lines.push({
       type: op.t,
       text: op.text,

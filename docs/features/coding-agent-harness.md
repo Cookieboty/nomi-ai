@@ -320,7 +320,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
 - **标签 = 会话**：每个标签绑定 `{backend, cliSessionId, cwd}`，互不阻塞。`CliHarnessService` 维护 `Map<tabId, 标签状态>`，每个标签同一时刻最多一个子进程。
 - **Nomi 只在主标签**：主标签（`id = main`）即原有对话，后端可选 Nomi 或任一 CLI；新建的标签只能绑定 Claude Code / Codex / dsh。原因：Nomi 的对话历史、模型选择与工具状态由 `AiChatContext` 单例管理，只有一条「当前对话」，多个 Nomi 标签会互相覆盖；CLI 的会话由各自的 CLI 持久化，天然可多开。
-- **并发上限**：全局信号量，默认 3（可调 1–8，`ai:harness:set-max-concurrent`）；超出的轮次状态为 `queued`，有空位时按先来先到开始运行。标签栏右侧显示「运行 x/上限 · 排队 n」。
+- **并发**：各标签可同时运行，**无**「最多同时运行」全局上限（已移除排队信号量与 UI）。
 - **状态与未读**：状态点 灰 = 空闲 · 蓝（脉动）= 运行中 · 黄 = 排队 · 红 = 出错 · 绿 = 有未读结果；标签不在前台（或窗口无焦点）时完成一轮，未读数 +1，切换过去即清零。关闭运行中的标签会先确认并终止子进程；切换后端或 cwd 会丢弃该标签的 `cliSessionId`。
 - **快捷键**（Mod = macOS ⌘ / 其它 Ctrl，可在设置 → 快捷键改绑）：
 
@@ -334,7 +334,7 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 
   另外：中键关闭标签，标签获得焦点时 ←/→ 切换。
 
-- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、`maxConcurrent`、标签元数据）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
+- **持久化**（均在 `userData/harness/` 下）：主标签 `session.json`（后端、cwd、会话、标题；消息仍走 Nomi 历史）；其它标签 `tabs.json`（`activeTabId`、标签元数据；`maxConcurrent` 字段兼容保留恒为 0）与 `tabs/<tabId>.json`（消息，最多 300 条）。重启后被中断的运行回到空闲。
 - **看板娘监视器**：一个列表聚合所有端点，按最近活动排序：
   - Claude Code：`~/.claude/projects/*/*.jsonl`
   - Codex：`~/.codex/sessions/**/rollout-*.jsonl`

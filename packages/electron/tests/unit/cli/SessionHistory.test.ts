@@ -108,7 +108,7 @@ describe('history transcript parsers (fixtures)', () => {
     expect(a.durationMs).toBe(5000);
   });
 
-  it('claude: tool_result with is_error becomes an error call; usage is summed per turn', () => {
+  it('claude: tool_result with is_error becomes an error call; usage last-wins input/cache, sums output', () => {
     const jl = [
       {
         type: 'user',
@@ -159,7 +159,7 @@ describe('history transcript parsers (fixtures)', () => {
       status: 'error',
       output: 'exit 1',
     });
-    expect(m[1]!.usage).toEqual({ inputTokens: 30, outputTokens: 12, cacheReadTokens: 100 });
+    expect(m[1]!.usage).toEqual({ inputTokens: 20, outputTokens: 12, cacheReadTokens: 100 });
   });
 
   it('codex: function_call / function_call_output pair into a trace; JSON output unwrapped, non-zero exit is an error', () => {

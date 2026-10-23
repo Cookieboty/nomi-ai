@@ -1029,3 +1029,38 @@
   border-color: var(--cd-color-accent-strong, #5b8def);
   background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
 }
+
+/* Codex 中栏「变更」Diff：与对话上下可分割 */
+.centerChanges {
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+  max-height: 48vh;
+  flex: 0 1 auto;
+  border-top: 1px solid var(--cd-color-border, #333);
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 94%, transparent);
+}
+.centerChangesHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--cd-color-border, #333);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.centerChangesBody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 10px 12px;
+}
+.centerDiffBlock {
+  margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--cd-color-border, #333) 80%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.centerDiffBlock[data-active] {
+  border-color: color-mix(in srgb, var(--cd-color-accent, #5b8def) 55%, transparent);
+}

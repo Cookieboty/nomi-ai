@@ -47,6 +47,27 @@ export interface ContextEstimate {
   used: number;
   basis: 'actual' | 'estimate';
   categories: ContextCategory[];
+  /** used 是否已超过给定窗口（由调用方结合 window 判断后展示「已超窗口」） */
+  overWindow?: boolean;
+}
+
+/**
+ * 把一轮 HarnessUsage 折成「当前上下文占用」token 数。
+ * - 单位必须是 tokens（禁止把字符/字节当 token）。
+ * - OpenAI / Grok 风格：cache 已含在 input 内（cache ≤ input）→ 只计 input，避免重复累加。
+ * - Anthropic / dsh 风格：input 与 cache 互斥 → input + cache。
+ * - 再加 output（本轮回复已进入下一轮上下文）。
+ */
+export function contextTokensOf(u: {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+}): number {
+  const input = Math.max(0, u.inputTokens ?? 0);
+  const cache = Math.max(0, u.cacheReadTokens ?? 0);
+  const output = Math.max(0, u.outputTokens ?? 0);
+  const prompt = cache > 0 && input > 0 && cache <= input ? input : input + cache;
+  return prompt + output;
 }
 
 /** 一条消息按类型拆分（估算） */
@@ -64,12 +85,16 @@ function splitMessage(m: ConvMessage): Record<'user' | 'assistant' | 'tools' | '
 }
 
 /**
- * 用量 = 最近一次带真实用量的助手消息（输入 + 缓存读取 + 输出）+ 之后新增消息的估算；
+ * 用量 = 最近一次带真实用量的助手消息的「上下文占用」+ 之后新增消息的估算；
  * 没有任何真实用量时全部估算。分类始终是估算，真实总量比分类之和大的部分记为「系统提示 / 工具定义 / 记忆」。
+ *
+ * 注意：历史多步 agent 若错误地把每步 input 累加，会得到远超窗口的假用量；
+ * 此时回退到本地估算，避免环被撑满（见单测）。
  */
 export function estimateContext(
   messages: readonly ConvMessage[],
   labels: { user: string; assistant: string; tools: string; thinking: string; system: string },
+  opts?: { windowSize?: number },
 ): ContextEstimate {
   const sums = { user: 0, assistant: 0, tools: 0, thinking: 0 };
   let lastActualIdx = -1;
@@ -81,9 +106,9 @@ export function estimateContext(
     sums.tools += s.tools;
     sums.thinking += s.thinking;
     const u = m.usage;
-    if (m.role === 'assistant' && u && (u.inputTokens || u.outputTokens)) {
+    if (m.role === 'assistant' && u && (u.inputTokens || u.outputTokens || u.cacheReadTokens)) {
       lastActualIdx = i;
-      actual = (u.inputTokens ?? 0) + (u.cacheReadTokens ?? 0) + (u.outputTokens ?? 0);
+      actual = contextTokensOf(u);
     }
   });
   const est = sums.user + sums.assistant + sums.tools + sums.thinking;
@@ -100,6 +125,14 @@ export function estimateContext(
     after += s.user + s.assistant + s.tools + s.thinking;
   }
   const used = actual + after;
+  const win = opts?.windowSize;
+  // 累加多步 input / 错单位时，真实用量会比窗口或本地估算大一个数量级——回退估算
+  const insane =
+    (win != null && win > 0 && used > win * 4 && est > 0 && used > est * 3) ||
+    (est > 0 && used > Math.max(est * 8, 2_000_000));
+  if (insane) {
+    return { used: est, basis: 'estimate', categories };
+  }
   const rest = used - est;
   if (rest > 0) categories.unshift({ key: 'system', label: labels.system, tokens: rest });
   return { used, basis: 'actual', categories };

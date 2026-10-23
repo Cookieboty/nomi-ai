@@ -23,24 +23,31 @@ export const ContextUsageBar: React.FC<{
   const win = useMemo(() => contextWindowFor(model ?? undefined), [model]);
   const est = useMemo(
     () =>
-      estimateContext(messages, {
-        user: t('用户'),
-        assistant: t('助手'),
-        tools: t('工具'),
-        thinking: t('思考'),
-        system: t('系统提示 / 工具定义 / 记忆'),
-      }),
-    [messages],
+      estimateContext(
+        messages,
+        {
+          user: t('用户'),
+          assistant: t('助手'),
+          tools: t('工具'),
+          thinking: t('思考'),
+          system: t('系统提示 / 工具定义 / 记忆'),
+        },
+        { windowSize: win.size },
+      ),
+    [messages, win.size],
   );
+  const over = est.used > win.size;
   const pct = Math.min(100, Math.round((est.used / Math.max(1, win.size)) * 100));
-  const level = pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
+  const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   const basisLabel =
     est.basis === 'actual'
       ? t('真实用量')
       : win.source === 'table'
         ? t('估算 · 经验表')
         : t('估算 · 默认窗口');
-  const tip = t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
+  const tip = over
+    ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
+    : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
   const dash = (pct / 100) * C;
 
   return (
@@ -49,6 +56,7 @@ export const ContextUsageBar: React.FC<{
       data-testid="context-usage-bar"
       data-basis={est.basis}
       data-level={level}
+      data-over={over || undefined}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onFocus={() => setHover(true)}

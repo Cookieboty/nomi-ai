@@ -1,16 +1,6 @@
-/** Codex 风格右侧工作区：横排「Diff/预览 | 文件树」；外层与 chat 分割见 App */
+/** Codex 右栏：文件树（搜索、+/−、蓝点）；中栏 Diff 见 CenterChangesHost；外层与 chat 分割见 App */
 import { t } from '@nomi-ai/ui';
-import {
-  Columns2,
-  Expand,
-  FileCode2,
-  FileDiff,
-  FolderTree,
-  GitBranch,
-  RefreshCw,
-  Search,
-  X,
-} from 'lucide-react';
+import { Expand, FolderTree, GitBranch, RefreshCw, Search, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
@@ -41,35 +31,6 @@ import { FilePreview, type PreviewFile } from './FilePreview';
 import styles from './SessionWorkspace.module.css';
 
 type Tab = 'files' | 'git';
-/** 右栏内：仅预览 | 仅文件树 | 左右双栏（Diff | 文件） */
-type RailLayout = 'preview' | 'workspace' | 'both';
-
-const RAIL_LAYOUT_KEY = 'nomi.filesRailLayout';
-const INNER_TREE_W_KEY = 'nomi.filesRailTreeWidth';
-const INNER_TREE_DEFAULT = 168;
-const INNER_TREE_MIN = 120;
-const INNER_TREE_MAX = 280;
-
-function readLayout(): RailLayout {
-  try {
-    const v = localStorage.getItem(RAIL_LAYOUT_KEY);
-    if (v === 'preview' || v === 'workspace' || v === 'both') return v;
-  } catch {
-    /* ignore */
-  }
-  return 'both';
-}
-
-function readTreeWidth(): number {
-  try {
-    const n = Number(localStorage.getItem(INNER_TREE_W_KEY));
-    if (Number.isFinite(n))
-      return Math.min(INNER_TREE_MAX, Math.max(INNER_TREE_MIN, Math.round(n)));
-  } catch {
-    /* ignore */
-  }
-  return INNER_TREE_DEFAULT;
-}
 
 const GitRow: React.FC<{
   entry: GitFileEntry;
@@ -114,8 +75,6 @@ export const SessionChangesPanel: React.FC<{
   rail?: boolean;
 }> = ({ messages, cwd, rail = false }) => {
   const [tab, setTab] = useState<Tab>('files');
-  const [railLayout, setRailLayout] = useState<RailLayout>(readLayout);
-  const [treeWidth, setTreeWidth] = useState(readTreeWidth);
   const [git, setGit] = useState<GitDiffResult | null>(null);
   const [gitBusy, setGitBusy] = useState(false);
   const [previewKey, setPreviewKey] = useState<string | null>(null);
@@ -128,22 +87,13 @@ export const SessionChangesPanel: React.FC<{
   const [openDiskPaths, setOpenDiskPaths] = useState<string[]>([]);
   const prevCount = useRef(0);
   const panelRef = useRef<HTMLElement>(null);
-  const { workbench, closeWorkbench, openDetail } = useChangesUi();
+  const { workbench, closeWorkbench, openDetail, openWorkbench } = useChangesUi();
 
   const changes = useMemo(() => aggregateSessionChanges(messages), [messages]);
   const summary = useMemo(() => summarizeChanges(changes), [changes]);
   const changeByFile = useMemo(() => new Map(changes.map((c) => [c.file, c])), [changes]);
   const tree = useMemo(() => mergeWorkspaceAndChanges(diskTree, changes), [diskTree, changes]);
   const project = projectNameFromCwd(cwd);
-
-  const setLayoutPersist = useCallback((next: RailLayout) => {
-    setRailLayout(next);
-    try {
-      localStorage.setItem(RAIL_LAYOUT_KEY, next);
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   const refreshDisk = useCallback(async () => {
     if (!cwd) {
@@ -207,19 +157,17 @@ export const SessionChangesPanel: React.FC<{
     prevCount.current = changes.length;
   }, [changes.length]);
 
-  /** 摘要卡「查看变更」→ 聚焦本右栏，不另开全屏三栏 */
+  /** 摘要卡「查看变更」→ 中栏 Diff + 右栏高亮文件 */
   useEffect(() => {
     if (!workbench) return;
     setTab('files');
     setFilter('');
-    if (railLayout === 'workspace') setLayoutPersist('both');
     const file = workbench.file ?? workbench.entries?.[0]?.file ?? changes[0]?.file ?? null;
     if (file) {
       setSelectedFile(file);
       setPreviewKey(`c:${file}`);
     }
     panelRef.current?.focus({ preventScroll: true });
-    panelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [workbench]); // eslint-disable-line react-hooks/exhaustive-deps -- focus on open only
 
   const openGit = useCallback(() => {
@@ -288,37 +236,6 @@ export const SessionChangesPanel: React.FC<{
     return () => window.removeEventListener('keydown', onKey);
   }, [previewKey, workbench, closeWorkbench]);
 
-  const onInnerSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = treeWidth;
-    const el = e.currentTarget;
-    el.setPointerCapture(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      // 树在右侧：向左拖 → 树变宽
-      const next = Math.min(
-        INNER_TREE_MAX,
-        Math.max(INNER_TREE_MIN, startW + (startX - ev.clientX)),
-      );
-      setTreeWidth(next);
-    };
-    const onUp = (ev: PointerEvent) => {
-      el.releasePointerCapture(ev.pointerId);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      setTreeWidth((w) => {
-        try {
-          localStorage.setItem(INNER_TREE_W_KEY, String(w));
-        } catch {
-          /* ignore */
-        }
-        return w;
-      });
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-  };
-
   if (!changes.length && !cwd) return null;
 
   const gitErrorFriendly = (() => {
@@ -332,11 +249,20 @@ export const SessionChangesPanel: React.FC<{
     const c = changeByFile.get(file);
     if (c) {
       setPreviewKey(`c:${file}`);
+      openWorkbench({
+        file,
+        messageId: c.messageId,
+        entries: changes,
+        sourceLabel: t('上一轮'),
+      });
     } else {
       setPreviewKey(`d:${file}`);
       setOpenDiskPaths((prev) => (prev.includes(file) ? prev : [...prev, file]));
+      // 无 diff 的磁盘文件：仍打开中栏范围（会话全部），便于对照
+      if (changes.length) {
+        openWorkbench({ file, entries: changes, sourceLabel: t('全部') });
+      }
     }
-    if (railLayout === 'workspace') setLayoutPersist('both');
   };
 
   const openFullscreen = () =>
@@ -347,9 +273,6 @@ export const SessionChangesPanel: React.FC<{
       messageId: changes[0]?.messageId,
     });
 
-  const showPreviewPane = tab === 'files' && (railLayout === 'preview' || railLayout === 'both');
-  const showTreePane = tab === 'files' && (railLayout === 'workspace' || railLayout === 'both');
-
   return (
     <section
       ref={panelRef}
@@ -357,7 +280,7 @@ export const SessionChangesPanel: React.FC<{
       data-testid="session-changes-panel"
       data-rail={rail || undefined}
       data-focused={workbench ? 'true' : undefined}
-      data-layout={tab === 'files' ? railLayout : undefined}
+      data-layout="tree"
       tabIndex={-1}
     >
       <header className={styles.panelHead}>
@@ -417,7 +340,7 @@ export const SessionChangesPanel: React.FC<{
             onClick={() => setTab('files')}
           >
             <FolderTree size={12} />
-            {t('工作区')}
+            {t('文件')}
             {changes.length ? (
               <span className={styles.count} data-pulse={badgePulse || undefined}>
                 {changes.length}
@@ -433,7 +356,7 @@ export const SessionChangesPanel: React.FC<{
             onClick={openGit}
           >
             <GitBranch size={12} />
-            {t('工作区 Git')}
+            {t('变更')}
           </button>
           {tab === 'git' ? (
             <button
@@ -461,144 +384,50 @@ export const SessionChangesPanel: React.FC<{
             </button>
           )}
         </div>
-        {tab === 'files' ? (
-          <div className={styles.seg} role="group" aria-label={t('工作区布局')}>
-            <button
-              type="button"
-              className={styles.segBtn}
-              data-active={railLayout === 'preview' || undefined}
-              data-testid="rail-layout-preview"
-              title={t('预览区')}
-              onClick={() => setLayoutPersist('preview')}
-            >
-              <FileDiff size={12} />
-              {t('预览区')}
-            </button>
-            <button
-              type="button"
-              className={styles.segBtn}
-              data-active={railLayout === 'workspace' || undefined}
-              data-testid="rail-layout-workspace"
-              title={t('工作区')}
-              onClick={() => setLayoutPersist('workspace')}
-            >
-              <FileCode2 size={12} />
-              {t('文件树')}
-            </button>
-            <button
-              type="button"
-              className={styles.segBtn}
-              data-active={railLayout === 'both' || undefined}
-              data-testid="rail-layout-both"
-              title={t('左右分栏')}
-              onClick={() => setLayoutPersist('both')}
-            >
-              <Columns2 size={12} />
-              {t('左右分栏')}
-            </button>
-          </div>
-        ) : null}
       </header>
 
       {tab === 'files' && (
-        <div className={styles.railBody} data-testid="changes-list" data-layout={railLayout}>
-          {showPreviewPane ? (
-            <div
-              className={styles.railPreviewPane}
-              data-testid="rail-preview-pane"
-              style={
-                railLayout === 'both'
-                  ? { flex: '1 1 auto', minWidth: 0 }
-                  : { flex: '1 1 auto', minWidth: 0 }
-              }
-            >
-              {previewKey && previewFiles.length > 0 ? (
-                <FilePreview
-                  files={previewFiles}
-                  activeKey={previewKey}
-                  cwd={cwd}
-                  onActiveKey={setPreviewKey}
-                  onClose={() => {
-                    setPreviewKey(null);
-                    closeWorkbench();
-                  }}
-                  onSaved={() => {
-                    void refreshGit();
-                    void refreshDisk();
-                  }}
-                />
-              ) : (
-                <p className={styles.empty}>{t('选择文件以预览 Diff 或内容')}</p>
-              )}
+        <div className={styles.railBody} data-testid="changes-list" data-layout="tree">
+          <div
+            className={styles.railTreePane}
+            data-testid="rail-tree-pane"
+            style={{ flex: '1 1 auto', minWidth: 0 }}
+          >
+            <label className={styles.wbFilter}>
+              <Search size={12} />
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder={t('筛选文件…')}
+                data-testid="files-rail-filter"
+              />
+            </label>
+            <div className={styles.wbTreeHead}>
+              {t('已更改的文件')}
+              {diskBusy ? ` · ${t('读取中…')}` : null}
             </div>
-          ) : null}
-
-          {railLayout === 'both' ? (
-            <div
-              className={styles.railInnerSplitter}
-              data-testid="files-rail-inner-splitter"
-              role="separator"
-              aria-orientation="vertical"
-              aria-valuenow={treeWidth}
-              onPointerDown={onInnerSplitterDown}
-              onDoubleClick={() => {
-                setTreeWidth(INNER_TREE_DEFAULT);
-                try {
-                  localStorage.setItem(INNER_TREE_W_KEY, String(INNER_TREE_DEFAULT));
-                } catch {
-                  /* ignore */
-                }
-              }}
-              title={t('拖动调整预览与文件树宽度；双击恢复默认')}
-            />
-          ) : null}
-
-          {showTreePane ? (
-            <div
-              className={styles.railTreePane}
-              data-testid="rail-tree-pane"
-              style={
-                railLayout === 'both'
-                  ? { width: treeWidth, flex: `0 0 ${treeWidth}px` }
-                  : { flex: '1 1 auto', minWidth: 0 }
-              }
-            >
-              <label className={styles.wbFilter}>
-                <Search size={12} />
-                <input
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder={t('筛选文件…')}
-                  data-testid="files-rail-filter"
+            {diskErr ? (
+              <p className={styles.empty} data-testid="files-rail-disk-error">
+                {diskErr}
+              </p>
+            ) : !diskTree.length && !changes.length && !diskBusy ? (
+              <p className={styles.empty}>{cwd ? t('工作区为空') : t('当前会话没有工作目录')}</p>
+            ) : (
+              <div className={styles.railTree} data-testid="files-rail-tree">
+                <ChangeFileTree
+                  nodes={tree}
+                  active={selectedFile}
+                  onPick={pickFile}
+                  filter={filter}
+                  testIdPrefix="rail"
+                  messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}
+                  onLocate={(_file, messageId) => {
+                    if (messageId) locateChangeMessage(messageId);
+                  }}
                 />
-              </label>
-              <div className={styles.wbTreeHead}>
-                {t('工作区文件')}
-                {diskBusy ? ` · ${t('读取中…')}` : null}
               </div>
-              {diskErr ? (
-                <p className={styles.empty} data-testid="files-rail-disk-error">
-                  {diskErr}
-                </p>
-              ) : !diskTree.length && !changes.length && !diskBusy ? (
-                <p className={styles.empty}>{cwd ? t('工作区为空') : t('当前会话没有工作目录')}</p>
-              ) : (
-                <div className={styles.railTree} data-testid="files-rail-tree">
-                  <ChangeFileTree
-                    nodes={tree}
-                    active={selectedFile}
-                    onPick={pickFile}
-                    filter={filter}
-                    testIdPrefix="rail"
-                    messageIdByFile={Object.fromEntries(changes.map((c) => [c.file, c.messageId]))}
-                    onLocate={(_file, messageId) => {
-                      if (messageId) locateChangeMessage(messageId);
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          ) : null}
+            )}
+          </div>
         </div>
       )}
 

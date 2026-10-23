@@ -20,7 +20,6 @@ import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { NewChatMenu } from '../NewChatMenu';
 
-import { ConcurrencyControl } from './ConcurrencyControl';
 import styles from './index.module.css';
 
 const KIND_LABEL = ENDPOINT_NAME;
@@ -273,12 +272,6 @@ export const ChatTabs: React.FC<{
             />
           );
         })()}
-      <ConcurrencyControl
-        running={st.running}
-        queued={st.queued}
-        max={st.maxConcurrent}
-        onChange={(n) => void tabs.setMaxConcurrent(n)}
-      />
       <div className={styles.add} ref={menuRef}>
         <button
           type="button"

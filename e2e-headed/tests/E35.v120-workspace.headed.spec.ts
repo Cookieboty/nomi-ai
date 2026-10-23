@@ -1,5 +1,5 @@
 /**
- * E35 · v1.2.0 Codex 对照：上下文条、多文件预览、工作区编辑保存、Git、附图提示
+ * E35 · v1.2.0 Codex 对照：上下文环、中栏变更 Diff、右栏文件树、Git 编辑保存、附图提示
  * 截图：V120_SHOTS_DIR（默认 /workspace/accept-shots/v1.2.0-codex-parity）
  */
 import { execSync } from 'node:child_process';
@@ -160,7 +160,7 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await expect(rows.first()).toBeVisible({ timeout: 60_000 });
     const rowCount = await rows.count();
 
-    // 整页左会话 | 中 chat | 右文件栏；「查看变更」聚焦右栏（非全屏工作台）
+    // 整页左会话 | 中 chat+变更 Diff | 右文件树；「查看变更」打开中栏 Diff（非全屏）
     await expect(chat.locator('[data-testid="files-rail"]')).toBeVisible({ timeout: 15_000 });
     const turnCard = chat.locator('[data-testid="turn-edit-summary"]').first();
     await expect(turnCard).toBeVisible({ timeout: 30_000 });
@@ -169,21 +169,21 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     const railPanel = chat.locator('[data-testid="session-changes-panel"][data-rail]');
     await expect(railPanel).toHaveAttribute('data-focused', 'true', { timeout: 10_000 });
     await expect(chat.locator('[data-testid="files-rail-tree"]')).toBeVisible();
-    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
-    // 一眼左中右：侧栏 + 对话 + 右文件栏；外层分割线存在
+    await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+    // 一眼左中右：侧栏 + 对话/变更 + 右文件栏；外层分割线；无预览/分栏分段按钮
     await expect(chat.locator('[data-testid="files-rail-splitter"]')).toBeVisible();
     await expect(chat.locator('[data-testid="rail-open-fullscreen"]')).toBeVisible();
     await expect(chat.locator('[data-testid="turn-open-fullscreen"]').first()).toBeVisible();
-    // 完整 cwd 树（至少含 src/）；变更标注行存在
+    await expect(chat.locator('[data-testid="rail-layout-both"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="rail-layout-preview"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="rail-layout-tree"]')).toHaveCount(0);
+    await expect(chat.locator('[data-testid="chat-tabs-max-concurrent"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="files-rail-tree"]')).toContainText(/src|alpha|beta/i);
-    // 默认左右分栏时应有内部分割线
-    const bothBtn = chat.locator('[data-testid="rail-layout-both"]');
-    if (await bothBtn.count()) {
-      await bothBtn.click().catch(() => undefined);
-      await expect(chat.locator('[data-testid="files-rail-inner-splitter"]')).toBeVisible({
-        timeout: 5_000,
-      });
-    }
     await shot(chat, '19-app-lcr-files-rail');
     // 全屏工作台仅为次要入口，默认不应出现
     await expect(chat.locator('[data-testid="changes-workbench"]')).toHaveCount(0);
@@ -199,15 +199,17 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     });
 
     await chat.locator('[data-testid="rail-file"][data-changed]').first().click();
-    await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible({ timeout: 10_000 });
-    await expect(chat.locator('[data-testid="preview-file-tabs"]')).toBeVisible();
+    await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible();
     await shot(chat, '14-multi-file-preview-diff');
 
-    // 多文件切换：下一文件，Tab 仍在
+    // 多文件：点另一变更文件，中栏 Diff 仍可见（可多块）
     if (rowCount > 1) {
-      await chat.locator('[data-testid="preview-next"]').click();
-      await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible();
-      await expect(chat.locator('[data-testid="preview-file-tabs"] button')).toHaveCount(rowCount);
+      await chat.locator('[data-testid="rail-file"][data-changed]').nth(1).click();
+      await expect(chat.locator('[data-testid="center-changes-pane"]')).toBeVisible();
+      await expect(chat.locator('[data-testid="center-diff-block"]').first()).toBeVisible();
       await shot(chat, '15-multi-file-preview-switched');
     }
 
@@ -219,7 +221,7 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     }
 
     // Git 标签：真实工作区变更 → 打开预览 → 文件模式编辑保存
-    await chat.getByRole('tab', { name: /工作区 Git|Working tree/ }).click();
+    await chat.getByRole('tab', { name: /变更|Changed|工作区 Git|Working tree/ }).click();
     await expect(chat.locator('[data-testid="git-list"]')).toBeVisible();
     await chat
       .locator('[data-testid="git-refresh"], [aria-label="刷新"]')

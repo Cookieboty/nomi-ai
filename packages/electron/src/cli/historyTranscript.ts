@@ -203,9 +203,11 @@ class Builder {
 }
 
 function addUsage(a: HarnessUsage | undefined, b: HarnessUsage): HarnessUsage {
+  // 同轮多步：input/cache 取最后一步（当前上下文大小），output 累加（计费与工具环）
   const out: HarnessUsage = { ...a };
-  for (const k of ['inputTokens', 'outputTokens', 'cacheReadTokens'] as const)
-    if (b[k] !== undefined) out[k] = (out[k] ?? 0) + b[k]!;
+  if (b.inputTokens !== undefined) out.inputTokens = b.inputTokens;
+  if (b.cacheReadTokens !== undefined) out.cacheReadTokens = b.cacheReadTokens;
+  if (b.outputTokens !== undefined) out.outputTokens = (out.outputTokens ?? 0) + b.outputTokens;
   return out;
 }
 

@@ -85,9 +85,9 @@ body {
   inset: 0 1.5px;
 }
 .files-rail {
-  width: 320px;
-  min-width: 220px;
-  max-width: 560px;
+  width: 260px;
+  min-width: 200px;
+  max-width: 420px;
   height: 100vh;
   flex-shrink: 0;
   display: flex;

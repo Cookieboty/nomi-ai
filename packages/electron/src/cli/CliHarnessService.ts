@@ -4,7 +4,7 @@
  * - 标签 'main'：原有对话，后端可为 Nomi 或任一 CLI；消息由渲染层存进 Nomi 历史。
  *   旧的单会话接口（state / setBackend / setCwd / send）都作用于它。
  * - 其它标签：只绑定 CLI 后端，带独立的 CLI 会话与 cwd，消息存于 harness/tabs/<id>.json。
- * - 全局并发上限（默认 3）：超出的轮次排队（status = queued）。
+ * - 各标签可同时运行（已取消「最多同时运行」全局排队上限）。
  * - CLI 模式下禁用 Nomi 工具（send 不走 AIClient）。
  */
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -446,14 +446,8 @@ export class CliHarnessService {
   private readonly dormant = new Set<string>();
   private idleReclaimMs: number;
   private idleTimer: ReturnType<typeof setInterval> | null = null;
-  private readonly waiters: Array<{
-    tabId: string;
-    resume: () => void;
-    abort: (e: Error) => void;
-  }> = [];
   private running = 0;
   private activeTabId = MAIN_TAB_ID;
-  private maxConcurrent = DEFAULT_MAX_CONCURRENT;
   private defaultPermissionMode: HarnessPermissionMode = DEFAULT_PERMISSION_MODE;
   /**
    * 每个后端最近一次选的权限模式 / 模型 / 思考深度：新会话（/clear、新标签、打开历史）沿用。
@@ -618,7 +612,6 @@ export class CliHarnessService {
         lastSettings?: Record<string, unknown>;
         tabs?: HarnessTabMeta[];
       };
-      if (typeof raw.maxConcurrent === 'number') this.maxConcurrent = clampLimit(raw.maxConcurrent);
       if (isPermissionMode(raw.defaultPermissionMode) && raw.defaultPermissionMode !== 'bypass') {
         this.defaultPermissionMode = raw.defaultPermissionMode;
       }
@@ -678,7 +671,7 @@ export class CliHarnessService {
   private tabsSnapshot() {
     return {
       activeTabId: this.activeTabId,
-      maxConcurrent: this.maxConcurrent,
+      maxConcurrent: 0 /* 已取消上限 */,
       defaultPermissionMode: this.defaultPermissionMode,
       codexNetwork: this.codexNetwork,
       lastSettings: Object.fromEntries(this.lastSettings),
@@ -879,7 +872,7 @@ export class CliHarnessService {
         };
       }),
       activeTabId: this.activeTabId,
-      maxConcurrent: this.maxConcurrent,
+      maxConcurrent: 0 /* 已取消上限 */,
       running: tabs.filter((x) => x.status === 'running').length,
       queued: tabs.filter((x) => x.status === 'queued').length,
       defaultPermissionMode: this.defaultPermissionMode,
@@ -1833,10 +1826,8 @@ export class CliHarnessService {
     return this.setTabCwd(id, r.filePaths[0]);
   }
 
-  setMaxConcurrent(n: number): HarnessTabsState {
-    this.maxConcurrent = clampLimit(n);
-    this.pump();
-    this.changed();
+  /** @deprecated 已取消并发上限；保留 IPC 以免旧客户端报错 */
+  setMaxConcurrent(_n: number): HarnessTabsState {
     return this.listTabs();
   }
 
@@ -1886,8 +1877,6 @@ export class CliHarnessService {
     if (!this.children.has(id) && !live) {
       if (queued) {
         // 还在排队：直接退出等待队列
-        const i = this.waiters.findIndex((w) => w.tabId === id);
-        if (i >= 0) this.waiters.splice(i, 1)[0]!.abort(new Error(t('已停止')));
         return true;
       }
       this.stopRequested.delete(id);
@@ -1944,7 +1933,7 @@ export class CliHarnessService {
     for (const id of [...this.pendingPermissions.keys()]) this.clearPermissionTimeouts(id);
   }
 
-  /** 发送一轮到指定标签；多个标签并发，超出上限排队 */
+  /** 发送一轮到指定标签；各标签可并行（无全局排队上限） */
   async sendTab(
     id: string,
     prompt: string,
@@ -1976,13 +1965,10 @@ export class CliHarnessService {
       ...(thumbs?.length ? { images: thumbs } : {}),
       timestamp: Date.now(),
     });
-    tab.status = 'queued';
     tab.lastError = undefined;
-    this.changed();
     try {
       await this.acquire(id);
     } catch (e) {
-      // 排队时被用户停止
       this.stopRequested.delete(id);
       if (this.tabs.has(id)) {
         tab.status = 'idle';
@@ -1998,7 +1984,6 @@ export class CliHarnessService {
       }
       throw e;
     }
-    // 排队期间标签可能被关闭
     if (!this.tabs.has(id)) {
       this.release();
       throw new Error(t('标签已关闭'));
@@ -2156,32 +2141,15 @@ export class CliHarnessService {
     this.events.emit('tab-finished', ev);
   }
 
-  // ───────────────────────── 并发控制 ─────────────────────────
+  // ───────────────────────── 运行计数（已取消「最多同时运行」上限）─────────────────────────
 
-  private acquire(tabId: string): Promise<void> {
-    if (this.running < this.maxConcurrent) {
-      this.running += 1;
-      return Promise.resolve();
-    }
-    return new Promise((resolve, reject) => {
-      this.waiters.push({
-        tabId,
-        resume: () => {
-          this.running += 1;
-          resolve();
-        },
-        abort: reject,
-      });
-    });
+  private acquire(_tabId: string): Promise<void> {
+    this.running += 1;
+    return Promise.resolve();
   }
 
   private release() {
     this.running = Math.max(0, this.running - 1);
-    this.pump();
-  }
-
-  private pump() {
-    while (this.running < this.maxConcurrent && this.waiters.length) this.waiters.shift()!.resume();
   }
 
   // ───────────────────────── CLI 适配器 ─────────────────────────

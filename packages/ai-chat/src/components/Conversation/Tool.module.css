@@ -329,6 +329,23 @@
   color: var(--cd-color-text-subtle);
   background: var(--cd-color-hover);
 }
+.diffFold {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px 8px 2px 56px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary, #8b949e);
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.diffFold:hover {
+  color: var(--text-secondary, #c9d1d9);
+  background: color-mix(in srgb, var(--border, #30363d) 40%, transparent);
+}
 .diffMore {
   padding: 3px 10px;
   font-size: var(--conv-meta, 13px);
