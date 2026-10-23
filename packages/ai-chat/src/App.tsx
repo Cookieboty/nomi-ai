@@ -746,6 +746,7 @@ const AiChatContent: React.FC = () => {
 
   return (
     <div className="ai-chat-app">
+      <ChatBackgroundLayer />
       <AppTitleBar
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
@@ -833,7 +834,6 @@ const AiChatContent: React.FC = () => {
             </ChatHeader>
             {/* 对话区域 */}
             <main className="chat-container">
-              <ChatBackgroundLayer />
               {isDev && tabs.isCliTab ? (
                 <>
                   {tabs.messages.length === 0 &&

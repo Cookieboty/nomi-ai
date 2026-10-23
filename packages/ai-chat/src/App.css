@@ -19,6 +19,8 @@ body {
   background: transparent;
   overflow: hidden;
   position: relative;
+  /* 自成层叠上下文：工作台背景层用负 z-index 垫在侧栏 / 主区 / 右栏之下 */
+  isolation: isolate;
 }
 
 /* 会话树保活：正常态 display:contents 让 Sidebar / 主区仍是 .ai-chat-app 的直接 flex 子项，
@@ -208,22 +210,19 @@ body {
   isolation: isolate;
 }
 
-/* 聊天主面板自定义背景（设置 → 通用 → 聊天背景）；仅本容器 */
+/* 工作台自定义背景（设置 → 通用 → 聊天背景）：铺满整个 .ai-chat-app */
 .chat-bg-layer {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background-color: var(--cd-chat-bg-color, transparent);
   background-image: var(--cd-chat-bg-image, none);
   background-size: cover;
   background-position: center;
-  filter: blur(var(--cd-chat-bg-blur, 0px));
   opacity: var(--cd-chat-bg-opacity, 0.35);
-  transform: scale(1.06);
-  transform-origin: center;
 }
-.chat-container > :not(.chat-bg-layer) {
+.chat-container > * {
   position: relative;
   z-index: var(--cd-z-chat-content);
 }
@@ -527,4 +526,29 @@ html[data-platform='win32'] {
 html[data-platform='linux'] {
   --cd-font-size-sm: 14px;
   --cd-font-size-md: 14.5px;
+}
+
+/* 开启工作台背景时，各栏不透明底色换成半透明，让背景透出来（层叠见 .chat-bg-layer）。
+   各栏模糊用 ::before 上的 backdrop-filter：直接加在栏上会让栏成为 position:fixed
+   子元素的包含块，栏内弹出的菜单会错位。 */
+html[data-chat-bg] .app-titlebar,
+html[data-platform='darwin'][data-chat-bg] .app-titlebar {
+  background: color-mix(in srgb, var(--cd-color-bg) 55%, transparent);
+}
+html[data-chat-bg] .files-rail {
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 55%, transparent);
+}
+html[data-chat-bg] .chat-column::before,
+html[data-chat-bg] .files-rail::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-center, 0px));
+}
+html[data-chat-bg] .files-rail::before {
+  backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
 }

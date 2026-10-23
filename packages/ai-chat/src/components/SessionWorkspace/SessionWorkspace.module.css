@@ -999,3 +999,21 @@
   color: var(--cd-color-danger, #f85149);
   font-variant-numeric: tabular-nums;
 }
+
+/* 工作台背景开启：中栏 Diff / 预览底色半透明，透出 App 级背景层；归「右侧面板」模糊 */
+:global(html[data-chat-bg]) .centerChanges {
+  position: relative;
+  background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 55%, transparent);
+}
+:global(html[data-chat-bg]) .centerChanges::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-right, 0px));
+}
+:global(html[data-chat-bg]) .centerChanges .preview {
+  background: color-mix(in srgb, var(--cd-color-surface-sunken, #111) 60%, transparent);
+}

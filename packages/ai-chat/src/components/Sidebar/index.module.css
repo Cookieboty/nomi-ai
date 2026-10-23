@@ -9,7 +9,22 @@
   background: var(--cd-color-bg-subtle);
   border-right: 1px solid var(--cd-color-border);
   transition: width 0.18s ease;
+  position: relative;
   overflow: hidden;
+}
+/* 工作台背景开启：侧栏半透明，透出 App 级背景层 */
+:global(html[data-chat-bg]) .sidebar {
+  background: color-mix(in srgb, var(--cd-color-bg-subtle) 55%, transparent);
+}
+/* 模糊放在 ::before 上，避免侧栏成为 position:fixed 子元素的包含块 */
+:global(html[data-chat-bg]) .sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
+  -webkit-backdrop-filter: blur(var(--cd-chat-bg-blur-left, 0px));
 }
 .collapsed {
   width: 52px;

@@ -223,7 +223,6 @@
   "选择图片…": "Choose image…",
   "已选择图片": "Image selected",
   "尚未选择图片": "No image yet",
-  "模糊": "Blur",
   "透明度": "Opacity",
   "密码是旧版本以明文保存的；系统钥匙串可用后会自动加密，也可以移除后重新添加": "This password was saved in plain text by an older version. It's encrypted automatically once the system keychain is available, or remove and re-add the calendar.",
   "密码未加密": "Password not encrypted",
@@ -427,7 +426,6 @@
   "版本信息仅在桌面应用中提供": "Version info is only available in the desktop app",
   "对话、Nomi、托盘与通知即时切换。": "Chat, Nomi, tray and notifications switch instantly.",
   "主题、应用图标与聊天背景，即时生效。": "Theme, app icon and chat background — applied instantly.",
-  "只改变对话主面板的背景，不影响侧栏与窗口其它区域。": "Only changes the chat panel background; the sidebar and the rest of the window stay as they are.",
   "⌘Q（macOS）与托盘菜单里的「退出」始终完全退出。": "⌘Q (macOS) and Quit in the tray menu always quit completely.",
   "Nomi 已隐藏，打开后才能调整大小。": "Nomi is hidden; show it to adjust its size.",
   "尚未检查更新": "Not checked yet",
@@ -440,5 +438,9 @@
   "已恢复按对话数排序": "Sorted by conversation count again",
   "{0}，第 {1} 位。Alt+↑/↓ 调整顺序": "{0}, position {1}. Alt+↑/↓ to reorder",
   "拖动调整顺序": "Drag to reorder",
-  "{0} 移到第 {1} 位": "{0} moved to position {1}"
+  "{0} 移到第 {1} 位": "{0} moved to position {1}",
+  "铺满整个工作台：侧栏、对话区与右侧面板都会透出背景。": "Covers the whole workbench: the sidebar, chat area and right-hand panels all show the background.",
+  "左侧栏模糊": "Sidebar blur",
+  "对话区模糊": "Chat area blur",
+  "右侧面板模糊": "Right panels blur"
 }
