@@ -36,10 +36,7 @@ function resolveInCwd(
   // 禁止绝对路径直接落到 cwd 外；绝对路径也必须仍在 root 下
   const abs = path.resolve(root, raw);
   const rel = path.relative(root, abs);
-  if (!rel && rel !== '') {
-    // abs === root：不允许把目录当文件写
-  }
-  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+  if (rel === '..' || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
     return { ok: false, error: 'path outside workspace', code: 'outside' };
   }
   // Windows 盘符差异
@@ -50,7 +47,34 @@ function resolveInCwd(
       return { ok: false, error: 'path outside workspace', code: 'outside' };
     }
   }
+  if (!insideRealRoot(root, abs)) {
+    return { ok: false, error: 'path outside workspace', code: 'outside' };
+  }
   return { ok: true, abs, rel: rel || path.basename(abs) };
+}
+
+/** 最深的已存在祖先解析符号链接后仍须在 cwd 的真实路径内（仓库里指向外部的 symlink 不能当跳板） */
+function insideRealRoot(root: string, abs: string): boolean {
+  let realRoot: string;
+  try {
+    realRoot = fs.realpathSync(root);
+  } catch {
+    return false;
+  }
+  let cur = abs;
+  for (;;) {
+    try {
+      const real = fs.realpathSync(cur);
+      const rel = path.relative(realRoot, real);
+      return (
+        rel === '' || (rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel))
+      );
+    } catch {
+      const up = path.dirname(cur);
+      if (up === cur) return false;
+      cur = up;
+    }
+  }
 }
 
 function looksBinary(buf: Buffer): boolean {

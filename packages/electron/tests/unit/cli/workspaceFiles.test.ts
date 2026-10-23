@@ -71,6 +71,28 @@ describe('workspaceFiles sandbox', () => {
     expect(deleteWorkspaceFile(cwd, '../x').code).toBe('outside');
   });
 
+  it('rejects symlinks that point outside cwd (read / write / delete)', () => {
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-out-'));
+    try {
+      fs.writeFileSync(path.join(outDir, 'secret.txt'), 'secret');
+      fs.symlinkSync(outDir, path.join(cwd, 'link'), 'dir');
+      fs.symlinkSync(path.join(outDir, 'secret.txt'), path.join(cwd, 'file-link'));
+      expect(readWorkspaceFile(cwd, 'link/secret.txt').code).toBe('outside');
+      expect(readWorkspaceFile(cwd, 'file-link').code).toBe('outside');
+      expect(writeWorkspaceFile(cwd, 'link/new.txt', 'x').code).toBe('outside');
+      expect(fs.existsSync(path.join(outDir, 'new.txt'))).toBe(false);
+      expect(deleteWorkspaceFile(cwd, 'link/secret.txt').code).toBe('outside');
+      expect(fs.existsSync(path.join(outDir, 'secret.txt'))).toBe(true);
+    } finally {
+      fs.rmSync(outDir, { recursive: true, force: true });
+    }
+  });
+
+  it('allows names that merely start with two dots', () => {
+    expect(writeWorkspaceFile(cwd, '..foo.txt', 'x').ok).toBe(true);
+    expect(readWorkspaceFile(cwd, '..foo.txt').content).toBe('x');
+  });
+
   it('git checkout restores tracked file', () => {
     execSync('git init', { cwd });
     execSync('git config user.email t@t', { cwd });
