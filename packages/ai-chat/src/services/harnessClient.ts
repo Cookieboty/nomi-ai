@@ -1,3 +1,4 @@
+import type { ReasoningEffort } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
@@ -186,8 +187,8 @@ export const MAIN_TAB_ID = 'main';
 /** CLI 标签的来源：官方账号（CLI 直连）/ 第三方（经网关） */
 export type TabSource = 'official' | 'thirdParty';
 
-/** 思考深度档位（各 CLI 取值的并集，由浅到深；含 Codex client 档 ultra）；某个模型支持哪些以 CLI 返回的目录为准 */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+/** 思考深度档位：与主进程共用 @nomi-ai/types 里的唯一定义 */
+export type { ReasoningEffort };
 
 /** 从 CLI 读到的可选模型 */
 export interface ModelCatalogModel {

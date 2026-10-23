@@ -120,12 +120,6 @@ function splitMessage(m: ConvMessage): Record<'user' | 'assistant' | 'tools' | '
 }
 
 /**
- * 用量 = 最近一条带 usage.contextTokens 的助手消息的上下文占用 + 之后新增消息的估算；
- * 没有时全部估算（只有整轮累计用量的旧记录 / 不给逐请求用量的 CLI 也走估算，不冒充「真实」）。
- * 分类始终是估算，真实总量比分类之和大的部分记为「系统提示 / 工具定义 / 记忆」。
- * 兜底：真实总量仍比窗口与估算大一个数量级时（错单位等）回退估算，避免环被撑满（见单测）。
- */
-/**
  * Claude Code 压缩上下文后，把摘要作为一条用户消息接着发（固定开头）。它之前的消息和真实用量都已不在上下文里。
  */
 const COMPACT_SUMMARY = /^\s*This session is being continued from a previous conversation/;
@@ -143,6 +137,12 @@ export function reportedModel(messages: readonly ConvMessage[]): string | undefi
   return undefined;
 }
 
+/**
+ * 用量 = 最近一条带 usage.contextTokens 的助手消息的上下文占用 + 之后新增消息的估算；
+ * 没有时全部估算（只有整轮累计用量的旧记录 / 不给逐请求用量的 CLI 也走估算，不冒充「真实」）。
+ * 分类始终是估算，真实总量比分类之和大的部分记为「系统提示 / 工具定义 / 记忆」。
+ * 兜底：真实总量仍比窗口与估算大一个数量级时（错单位等）回退估算，避免环被撑满（见单测）。
+ */
 export function estimateContext(
   messages: readonly ConvMessage[],
   labels: { user: string; assistant: string; tools: string; thinking: string; system: string },

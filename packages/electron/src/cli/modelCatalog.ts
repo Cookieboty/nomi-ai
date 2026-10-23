@@ -12,22 +12,14 @@
  * 覆盖参数在每轮启动时以进程级参数（`-c` / `--model` / `-m` …）注入，不改写用户的
  * 全局 CLI 配置，因此终端里直接运行的 CLI 不受影响。
  */
+import type { ReasoningEffort } from '@nomi-ai/types';
+
 import type { HarnessBackend } from './types';
 
 /** 编程助手后端（排除 Nomi 自有） */
 export type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
-/**
- * 思考深度档位（各 CLI 取值的并集，顺序即由浅到深）。
- * 只用于识别 / 排序 CLI 返回的值；某个模型实际支持哪些档位以 CLI 返回为准。
- *
- * Responses API `reasoning.effort` 含 none|minimal|low|medium|high|xhigh|max（无 ultra）。
- * Codex 协议/CLI/Desktop 另有 client 档 `ultra`：用户侧选 ultra；推理请求边界把 ultra→max，
- * 并开启 proactive multi-agent（Ultra ≠ Max：Max=单任务更深；Ultra=子 agent 并行）。
- * 因此保留 max 与 ultra 为两个独立档位；normalizeEfforts 不得丢弃 CLI 返回的 ultra。
- * 传给 Codex CLI 时原样传 model_reasoning_effort="ultra"（由 Codex 自己转 max）。
- */
-export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
+export type { ReasoningEffort };
 
 export const REASONING_EFFORTS: readonly ReasoningEffort[] = [
   'minimal',
