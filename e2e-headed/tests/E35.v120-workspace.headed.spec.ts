@@ -89,10 +89,24 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     execSync('git init && git config user.email e35@test && git config user.name e35', {
       cwd: workDir,
     });
-    mkdirSync(join(workDir, 'src'), { recursive: true });
+    mkdirSync(join(workDir, 'src', 'cli'), { recursive: true });
+    // mock rich 场景里助手编辑的是 ${NOMI_MOCK_EDIT_ROOT}/src/cli/{a,new}.ts：
+    // 让工作树呈现「编辑已落盘」的状态，右栏才会出现带「本会话」标记的行
+    writeFileSync(
+      join(workDir, 'src', 'cli', 'a.ts'),
+      'export function registerHandler() {\n  return 1;\n}\n',
+    );
     writeFileSync(join(workDir, 'src', 'alpha.ts'), 'export const a = 1;\n');
     writeFileSync(join(workDir, 'src', 'beta.ts'), 'export const b = 2;\n');
     execSync('git add -A && git commit -m init', { cwd: workDir });
+    writeFileSync(
+      join(workDir, 'src', 'cli', 'a.ts'),
+      'export function registerHandler(opts = {}) {\n  const id = opts.id ?? 1;\n  return id;\n}\n',
+    );
+    writeFileSync(
+      join(workDir, 'src', 'cli', 'new.ts'),
+      'export const x = 1;\nexport const y = 2;\n',
+    );
     writeFileSync(join(workDir, 'src', 'alpha.ts'), 'export const a = 1;\nexport const a2 = 2;\n');
     writeFileSync(join(workDir, 'src', 'beta.ts'), 'export const b = 2;\nexport const b2 = 3;\n');
   });
@@ -106,7 +120,7 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
   test('context bar, multi-file preview, save, git, dsh image tip', async () => {
     test.setTimeout(300_000);
     let chat: Page;
-    ({ app, chat } = await launch(userData));
+    ({ app, chat } = await launch(userData, { NOMI_MOCK_EDIT_ROOT: workDir }));
 
     await chat.click('[data-testid="chat-tab-add"]');
     await chat.locator('[data-testid="chat-tab-menu"]').waitFor();
@@ -246,9 +260,15 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     // 预览切到文件模式编辑保存
     await rows.first().locator('button').first().click();
     await expect(chat.locator('[data-testid="file-preview"]')).toBeVisible();
+    // 回归：中栏预览不能被对话列/文件栏挤到 360px 以下（保存按钮会被遮住）
+    const paneW =
+      (await chat.locator('[data-testid="center-preview-pane"]').boundingBox())?.width ?? 0;
+    expect(paneW).toBeGreaterThanOrEqual(355);
     await chat.locator('[data-testid="preview-mode-file"]').click();
     const editor = chat.locator('[data-testid="preview-editor"]');
     await expect(editor).toBeVisible({ timeout: 10_000 });
+    // 切到文件模式时编辑框会先出现、随后在读盘期间被替换：等真实内容读进来再编辑
+    await expect(editor).toHaveValue(/export/, { timeout: 10_000 });
     const before = await editor.inputValue();
     await editor.fill(`${before}\n// e35-save-marker\n`);
     await chat.locator('[data-testid="preview-save"]').click();
@@ -256,9 +276,10 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     await shot(chat, '17-preview-edit-saved');
 
     // 磁盘应含 marker
-    const alpha = readFileSync(join(workDir, 'src', 'alpha.ts'), 'utf8');
-    const beta = readFileSync(join(workDir, 'src', 'beta.ts'), 'utf8');
-    expect(alpha.includes('e35-save-marker') || beta.includes('e35-save-marker')).toBeTruthy();
+    const saved = ['alpha.ts', 'beta.ts', 'cli/a.ts', 'cli/new.ts'].filter((f) =>
+      readFileSync(join(workDir, 'src', f), 'utf8').includes('e35-save-marker'),
+    );
+    expect(saved).toHaveLength(1);
 
     // 沙箱：越界写应失败
     const outside = await chat.evaluate(async (cwd) => {
