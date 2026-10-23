@@ -17,7 +17,7 @@ import { useCliTabSync } from '../../hooks/useCliTabSync';
 import { useConversationListView } from '../../hooks/useConversationListView';
 import { MAX_RESULTS, useHistorySearchIndex } from '../../hooks/useHistorySearchIndex';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
-import { visibleEndpoints } from '../../services/chatPrefs';
+import { orderEndpoints, splitShownEndpoints, visibleEndpoints } from '../../services/chatPrefs';
 import { CONVERSATIONS_CHANGED_EVENT } from '../../services/conversationStore';
 import { MAIN_TAB_ID, harnessClient, type HarnessTabMeta } from '../../services/harnessClient';
 import {
@@ -32,11 +32,13 @@ import type { ConversationBackend } from '../../types/chat';
 import { CONVERSATION_BACKENDS } from '../../types/chat';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { rankItems } from '../../utils/fuzzy';
+import { ChatModeSwitch } from '../ChatModeSwitch';
 import { ConversationMenu } from '../ConversationMenu';
 import { EndpointIcon } from '../EndpointIcon';
 import { EndpointInfoCard } from '../EndpointInfo';
 import { NewChatMenu } from '../NewChatMenu';
 
+import { EndpointMoreMenu } from './EndpointMoreMenu';
 import { EndpointVisibilityMenu } from './EndpointVisibilityMenu';
 import styles from './index.module.css';
 import {
@@ -59,6 +61,10 @@ interface SidebarProps {
   onNotice?: (message: string) => void;
   /** 「按端」信息卡里的跳转：设置 → 编程助手 / 用量与费用 */
   onOpenSettings?: (section: 'coding' | 'usage') => void;
+  /** 是否在侧栏顶部显示收起按钮（桌面应用里它在窗口标题栏，传 false） */
+  showToggle?: boolean;
+  /** 侧栏底部的应用级入口（设置 / 知识 / 扩展 / 本机），由 App 传入 */
+  footer?: React.ReactNode;
 }
 
 /** 侧栏：全部 / 按端 + 端点徽标；点击按后端路由到主对话或 CLI 标签 */
@@ -69,6 +75,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onForkRequest,
   onNotice,
   onOpenSettings,
+  showToggle = true,
+  footer,
 }) => {
   const { actions } = useAiChatActions();
   const ipc = useAiChatSelector(selectIpcClient);
@@ -83,6 +91,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     setEndpointFilter,
     endpointVisibility,
     setEndpointVisibility,
+    endpointOrder,
+    setEndpointOrder,
   } = useConversationListView();
   // 普通模式只有 Nomi：视图固定为「全部」，但不改动已保存的选择，切回开发模式即恢复
   const view = isNormal ? 'all' : storedView;
@@ -352,6 +362,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
       return CONVERSATION_BACKENDS.filter((b) => b === endpointFilter || shown.includes(b));
     return shown;
   }, [endpointVisibility, endpointActivity, endpointFilter]);
+  // 排列：Nomi 最前，其余按自定义顺序或对话数；一次最多显示 5 个，其余进「更多」
+  const epSplit = useMemo(
+    () =>
+      splitShownEndpoints(
+        orderEndpoints(shownEndpoints, endpointActivity, endpointOrder),
+        view === 'by-endpoint' ? endpointFilter : null,
+      ),
+    [shownEndpoints, endpointActivity, endpointOrder, view, endpointFilter],
+  );
+  const pickEndpoint = (b: ConversationBackend) => {
+    setEndpointFilter(b);
+    setView('by-endpoint');
+  };
+
+  // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
+  const endpointTip = (b: ConversationBackend): string => {
+    const hist = (histBackends as readonly string[]).includes(b)
+      ? history.items(b as HistoryBackend).length
+      : 0;
+    return [
+      ENDPOINT_FULL[b](),
+      counts[b] ? t('{0} 个对话', counts[b]) : '',
+      hist ? t('{0} 条本机历史', hist) : '',
+      cliMissing(b) ? t('未安装') : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  };
+  // 本机历史随当前筛选合在同一个列表里：Nomi 没有磁盘历史，不显示
+  const histVisible =
+    isDev &&
+    history.available &&
+    histBackends.length > 0 &&
+    histScopeSupported &&
+    !(view === 'by-endpoint' && endpointFilter === 'nomi');
+  const histScanning = histVisible && histItems.length === 0 && history.loading && !history.loaded;
 
   const openHistory = async (h: HistorySession) => {
     if (openingKey) return;
@@ -515,14 +561,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [activeIdx, searching, shown.length]);
 
   const canSearchMore = isDev && searchIndex.hasMore;
-  const newTip = [t('新对话'), formatCombo(bindings.newChat)].join(' ');
+  // 「按端」时新建跟随当前筛选的端，提示里写明
+  const newLabel =
+    isDev && view === 'by-endpoint'
+      ? t('新建 {0} 对话', ENDPOINT_FULL[endpointFilter]())
+      : t('新对话');
+  const newTip = [newLabel, formatCombo(bindings.newChat)].join(' ');
   const searchTip = [t('搜索对话'), formatCombo(bindings.searchChats)].join(' ');
-  const showHistory = isDev;
 
   const newBtn = (
     <div className={styles.newWrap} ref={menuRef}>
       <button
-        className={styles.iconBtn}
+        className={collapsed ? styles.iconBtn : styles.headBtn}
         onClick={handleNewClick}
         title={newTip}
         aria-label={t('新对话')}
@@ -551,131 +601,166 @@ export const Sidebar: React.FC<SidebarProps> = ({
       data-testid="chat-sidebar"
     >
       <div className={styles.top}>
-        <button
-          className={styles.iconBtn}
-          onClick={onToggle}
-          title={collapsed ? t('展开侧边栏 (⌘/Ctrl+B)') : t('收起侧边栏 (⌘/Ctrl+B)')}
-          aria-label={collapsed ? t('展开侧边栏') : t('收起侧边栏')}
-          data-testid="sidebar-toggle"
-        >
-          <Icon icon={PanelLeft} />
-        </button>
-        {!collapsed && searchOpen && (
-          <div className={styles.searchBox} role="search" data-testid="sidebar-search">
-            <span className={styles.searchGlyph} aria-hidden>
-              <SearchIcon />
-            </span>
-            <input
-              ref={inputRef}
-              className={styles.searchInput}
-              type="text"
-              role="searchbox"
-              value={query}
-              placeholder={t('搜索会话…')}
-              aria-label={t('搜索对话')}
-              aria-controls="sidebar-search-results"
-              aria-activedescendant={
-                searching && shown.length
-                  ? `sb-result-${Math.min(activeIdx, shown.length - 1)}`
-                  : undefined
-              }
-              autoComplete="off"
-              spellCheck={false}
-              data-testid="sidebar-search-input"
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKey}
-            />
-            <button
-              type="button"
-              className={styles.searchClear}
-              title={query ? t('清除搜索') : t('关闭搜索')}
-              aria-label={query ? t('清除搜索') : t('关闭搜索')}
-              data-testid="sidebar-search-clear"
-              onClick={() => (query ? (setQuery(''), inputRef.current?.focus()) : closeSearch())}
-            >
-              <Icon icon={X} size={14} />
-            </button>
-          </div>
+        {/* 桌面应用里收起按钮在窗口标题栏（红绿灯右侧）；没有标题栏（浏览器预览）时放在这里 */}
+        {showToggle && (
+          <button
+            className={styles.iconBtn}
+            onClick={onToggle}
+            title={collapsed ? t('展开侧边栏 (⌘/Ctrl+B)') : t('收起侧边栏 (⌘/Ctrl+B)')}
+            aria-label={collapsed ? t('展开侧边栏') : t('收起侧边栏')}
+            data-testid="sidebar-toggle"
+          >
+            <Icon icon={PanelLeft} />
+          </button>
         )}
-        {!collapsed && !searchOpen && (
+        {collapsed && !showToggle && (
+          // 收起态顶部是 Nomi 标志，点一下展开
+          <button
+            type="button"
+            className={styles.iconBtn}
+            onClick={onToggle}
+            title={t('展开侧边栏 (⌘/Ctrl+B)')}
+            aria-label={t('展开侧边栏')}
+          >
+            <EndpointIcon backend="nomi" size={24} decorative />
+          </button>
+        )}
+        {!collapsed && (
           <>
             <span className={styles.brandWrap}>
-              <EndpointIcon backend="nomi" size={20} decorative />
+              <EndpointIcon backend="nomi" size={28} decorative />
               <span className={styles.brand}>Nomi</span>
             </span>
             <span className={styles.spacer} />
-            <button
-              className={styles.iconBtn}
-              onClick={() => setSearchOpen(true)}
-              title={searchTip}
-              aria-label={t('搜索对话')}
-              data-testid="sidebar-search-toggle"
-            >
-              <SearchIcon />
-            </button>
-            {newBtn}
+            <ChatModeSwitch />
           </>
         )}
       </div>
       {collapsed && <div className={styles.collapsedNew}>{newBtn}</div>}
 
-      {!collapsed && !searching && (
+      {!collapsed && (
         <div className={styles.listHeader}>
-          <div className={styles.listHeadRow}>
-            <span className={styles.sectionTitleInline}>
-              {view === 'by-endpoint' ? ENDPOINT_FULL[endpointFilter]() : t('对话')}
-            </span>
-            {isDev && (
-              <div className={styles.seg} role="group" aria-label={t('对话列表视图')}>
-                <button
-                  type="button"
-                  className={styles.segBtn}
-                  aria-pressed={view === 'all'}
-                  data-testid="list-view-all"
-                  onClick={() => setView('all')}
-                >
-                  {t('全部')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.segBtn}
-                  aria-pressed={view === 'by-endpoint'}
-                  data-testid="list-view-by-endpoint"
-                  onClick={() => setView('by-endpoint')}
-                >
-                  {t('按端')}
-                </button>
-              </div>
-            )}
-          </div>
-          {isDev && view === 'by-endpoint' && (
+          {/* 一行筛选：「全部」+ 各端图标（数量在悬停提示里），点一下即切换 */}
+          {isDev && !searching && (
             <div className={styles.epRow} role="group" aria-label={t('按端点筛选')}>
-              {shownEndpoints.map((b) => (
-                <button
-                  key={b}
-                  type="button"
-                  className={styles.epChip}
-                  aria-pressed={endpointFilter === b}
-                  disabled={cliMissing(b)}
-                  data-testid={`endpoint-filter-${b}`}
-                  onClick={() => setEndpointFilter(b)}
-                  title={ENDPOINT_FULL[b]()}
-                >
-                  <EndpointIcon backend={b} size={14} decorative />
-                  <span>{ENDPOINT_FULL[b]()}</span>
-                  <span className={styles.epCount}>{counts[b]}</span>
-                </button>
-              ))}
+              <button
+                type="button"
+                className={styles.epAll}
+                aria-pressed={view === 'all'}
+                data-testid="list-view-all"
+                onClick={() => setView('all')}
+              >
+                {t('全部')}
+              </button>
+              {epSplit.shown.map((b) => {
+                const tip = endpointTip(b);
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    className={styles.epChip}
+                    aria-pressed={view === 'by-endpoint' && endpointFilter === b}
+                    aria-label={tip}
+                    disabled={cliMissing(b)}
+                    data-testid={`endpoint-filter-${b}`}
+                    onClick={() => pickEndpoint(b)}
+                    title={tip}
+                  >
+                    <EndpointIcon backend={b} size={16} decorative />
+                  </button>
+                );
+              })}
+              {epSplit.more.length > 0 && (
+                <EndpointMoreMenu
+                  backends={epSplit.more}
+                  activity={endpointActivity}
+                  isDisabled={cliMissing}
+                  onPick={pickEndpoint}
+                />
+              )}
               <EndpointVisibilityMenu
-                backends={CONVERSATION_BACKENDS}
+                backends={orderEndpoints(CONVERSATION_BACKENDS, endpointActivity, endpointOrder)}
                 visibility={endpointVisibility}
                 activity={endpointActivity}
+                customOrder={endpointOrder !== null}
+                onReorder={setEndpointOrder}
                 onChange={(b, v) => {
                   setEndpointVisibility(b, v);
-                  // 隐藏了正在看的端点：回到 Nomi，免得筛选停在看不见的端点上
-                  if (v === 'hide' && b === endpointFilter) setEndpointFilter('nomi');
+                  // 隐藏了正在看的端点：回到「全部」，免得筛选停在看不见的端点上
+                  if (v === 'hide' && b === endpointFilter && view === 'by-endpoint')
+                    setView('all');
                 }}
               />
+            </div>
+          )}
+          {searchOpen ? (
+            <div className={styles.searchBox} role="search" data-testid="sidebar-search">
+              <span className={styles.searchGlyph} aria-hidden>
+                <SearchIcon />
+              </span>
+              <input
+                ref={inputRef}
+                className={styles.searchInput}
+                type="text"
+                role="searchbox"
+                value={query}
+                placeholder={t('搜索会话…')}
+                aria-label={t('搜索对话')}
+                aria-controls="sidebar-search-results"
+                aria-activedescendant={
+                  searching && shown.length
+                    ? `sb-result-${Math.min(activeIdx, shown.length - 1)}`
+                    : undefined
+                }
+                autoComplete="off"
+                spellCheck={false}
+                data-testid="sidebar-search-input"
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={onSearchKey}
+              />
+              <button
+                type="button"
+                className={styles.searchClear}
+                title={query ? t('清除搜索') : t('关闭搜索')}
+                aria-label={query ? t('清除搜索') : t('关闭搜索')}
+                data-testid="sidebar-search-clear"
+                onClick={() => (query ? (setQuery(''), inputRef.current?.focus()) : closeSearch())}
+              >
+                <Icon icon={X} size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className={styles.listHeadRow}>
+              <span className={styles.sectionTitleInline} data-testid="list-title">
+                {view === 'by-endpoint' ? ENDPOINT_FULL[endpointFilter]() : t('对话')}
+                <span className={styles.listCount}> · {visible.length}</span>
+              </span>
+              <span className={styles.headActions}>
+                {histVisible && (
+                  <button
+                    type="button"
+                    className={styles.headBtn}
+                    onClick={history.refresh}
+                    disabled={history.loading}
+                    title={t('刷新历史会话')}
+                    aria-label={t('刷新历史会话')}
+                    data-testid="cli-history-refresh"
+                  >
+                    <Icon icon={RefreshCw} size={14} />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.headBtn}
+                  onClick={() => setSearchOpen(true)}
+                  title={searchTip}
+                  aria-label={t('搜索对话')}
+                  data-testid="sidebar-search-toggle"
+                >
+                  <SearchIcon />
+                </button>
+                {newBtn}
+              </span>
             </div>
           )}
         </div>
@@ -783,9 +868,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           )}
-          {!searching && visible.length === 0 && (
-            <div className={styles.empty}>{t('还没有历史对话')}</div>
-          )}
+          {!searching &&
+            visible.length === 0 &&
+            !(histVisible && histItems.length > 0) &&
+            !histScanning && (
+              <div className={styles.empty} data-testid="conversation-list-empty">
+                {t('还没有历史对话')}
+              </div>
+            )}
           {!searching &&
             visible.length > 0 &&
             visible.length <= 100 &&
@@ -830,32 +920,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               />
             </div>
           )}
-          {!searching && showHistory && history.available && histBackends.length > 0 && (
+          {!searching && histVisible && (histItems.length > 0 || histScanning) && (
             <div className={styles.histSection} data-testid="cli-history">
               <div className={styles.histHead}>
-                <span className={styles.sectionTitle}>{t('编程助手历史会话')}</span>
-                <button
-                  type="button"
-                  className={styles.histRefresh}
-                  onClick={history.refresh}
-                  disabled={history.loading}
-                  title={t('刷新历史会话')}
-                  aria-label={t('刷新历史会话')}
-                  data-testid="cli-history-refresh"
-                >
-                  <Icon icon={RefreshCw} size={14} />
-                </button>
+                <span className={styles.sectionTitle}>{t('本机历史')}</span>
               </div>
-              {histItems.length === 0 &&
-                (!histScopeSupported || (history.loaded && !history.loading)) && (
-                  <div className={styles.empty} data-testid="cli-history-empty">
-                    {t('没有找到本机的历史会话')}
-                  </div>
-                )}
-              {histScopeSupported &&
-                histItems.length === 0 &&
-                history.loading &&
-                !history.loaded && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
+              {histScanning && <div className={styles.empty}>{t('正在扫描历史会话…')}</div>}
               {histItems.map((h) => (
                 <div
                   key={h.key}
@@ -888,12 +958,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <span className={styles.dot} aria-hidden />
                     <EndpointIcon backend={h.backend} size={14} />
-                    <span className={styles.threadName}>{h.title}</span>
-                    {routeTag(h) && (
-                      <span className={styles.histTag} data-testid="history-route-tag">
-                        {routeTag(h)}
-                      </span>
-                    )}
+                    {/* 标签放在标题格里：行是 4 列网格，多一个子元素会把时间挤到第二行 */}
+                    <span className={styles.histTitle}>
+                      <span className={styles.threadName}>{h.title}</span>
+                      {routeTag(h) && (
+                        <span
+                          className={styles.histTag}
+                          aria-label={routeTag(h)!}
+                          data-testid="history-route-tag"
+                        >
+                          {routeInitial(h)}
+                        </span>
+                      )}
+                    </span>
                     <span className={styles.threadTime}>{rel(h.updatedAt)}</span>
                   </button>
                   {/* 磁盘历史是只读的：没有重命名 / 删除，「更多」里只有「在标签中打开」 */}
@@ -936,6 +1013,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onOpenSettings={onOpenSettings}
         />
       )}
+      {footer}
 
       {ctx &&
         (() => {
@@ -982,6 +1060,13 @@ function routeTag(h: HistorySession): string | null {
   if (h.route === 'gateway') return t('第三方');
   if (h.route === 'custom') return h.provider || t('第三方');
   return null;
+}
+
+/** 行内只显示首字母（第三方供应商名的首字，Nomi 网关为 N），完整名称在行的悬停提示里 */
+function routeInitial(h: HistorySession): string {
+  if (h.route === 'gateway') return 'N';
+  const name = (h.provider ?? '').trim();
+  return name ? [...name][0]!.toUpperCase() : '?';
 }
 
 /** 悬停提示里的来源信息：客户端、线路、账号 */

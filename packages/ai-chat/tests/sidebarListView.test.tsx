@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { useConversationListView } from '../src/hooks/useConversationListView';
 import {
+  dropRetiredPrefs,
   getConversationListView,
   setChatMode,
   setConversationListView,
@@ -62,5 +63,11 @@ describe('conversation list view prefs', () => {
     expect(screen.getByTestId('view').textContent).toBe('by-endpoint');
     fireEvent.click(screen.getByTestId('endpoint-filter-codex'));
     expect(screen.getByTestId('filter').textContent).toBe('codex');
+  });
+
+  it('drops prefs left behind by retired features (常驻入口)', () => {
+    localStorage.setItem('cd.chat.pins', '["newchat"]');
+    dropRetiredPrefs();
+    expect(localStorage.getItem('cd.chat.pins')).toBeNull();
   });
 });

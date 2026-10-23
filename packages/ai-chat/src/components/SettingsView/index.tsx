@@ -23,7 +23,6 @@ import { KnowledgeSection } from './KnowledgeSection';
 import { LanguageSettings } from './LanguageSettings';
 import { MascotSizeSettings } from './MascotSizeSettings';
 import { NomiMark } from './NomiMark';
-import { PinsSettings } from './PinsSettings';
 import { PrivacySection } from './PrivacySection';
 import { ScheduleSection } from './ScheduleSection';
 import { SECTION_HELP } from './sectionHelp';
@@ -120,7 +119,6 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               language={<LanguageSettings />}
               mascotSize={(shown) => <MascotSizeSettings disabled={!shown} />}
             />
-            <PinsSettings />
             <UpdateSettings>
               <SettingRow
                 title={t('新手引导')}

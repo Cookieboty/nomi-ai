@@ -4,6 +4,7 @@ import { t } from '@nomi-ai/ui';
 import { ModalHostContext, type ModalHost } from '@nomi-ai/ui';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { AppEntries } from './components/AppEntries';
 import { ChatBackgroundLayer } from './components/ChatBackground/ChatBackgroundLayer';
 import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
@@ -45,7 +46,7 @@ import {
   type SettingsTab,
 } from './components/SettingsView/sections';
 import { Sidebar } from './components/Sidebar';
-import { AppTitleBar } from './components/TitleBar';
+import { AppTitleBar, hasAppTitleBar } from './components/TitleBar';
 import { AiChatContextProvider } from './contexts/AiChatContext';
 import type { AiChatState } from './contexts/AiChatContext';
 import {
@@ -155,7 +156,7 @@ const AiChatContent: React.FC = () => {
   const filesRailDrag = useRef<{ startX: number; startW: number } | null>(null);
   const [chatColumnWidth, setChatColumnWidth] = useState(readChatColumnWidth);
   const chatColDrag = useRef<{ startX: number; startW: number } | null>(null);
-  const { workbench, previewOpen } = useChangesUi();
+  const { workbench, previewOpen, composerFill } = useChangesUi();
 
   const onFilesRailSplitterDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -248,7 +249,7 @@ const AiChatContent: React.FC = () => {
     () => (tabs.isCliTab ? tabs.messages.map((m) => fromHarnessMessage(m, cliBackend)) : []),
     [tabs.isCliTab, tabs.messages, cliBackend],
   );
-  // 右栏（变更 · 未提交 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
+  // 右栏（改动 · 文件）默认收起、不常驻：顶栏开关 / 右栏 × 切换，记住上次的选择；
   // 有变更时顶栏开关带数字提示，点摘要卡「查看变更」也会展开
   const [railPref, setRailPref] = useState(readFilesRailOpen);
   const sessionChangeCount = useMemo(
@@ -745,7 +746,10 @@ const AiChatContent: React.FC = () => {
 
   return (
     <div className="ai-chat-app">
-      <AppTitleBar />
+      <AppTitleBar
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((v) => !v)}
+      />
       {/* 会话树保活：打开设置时只隐藏（display:none）不卸载，避免关闭时整树冷重挂载导致卡顿、
           草稿/滚动位置丢失与 IPC 订阅重建 */}
       <div className={settings ? 'chat-keepalive-hidden' : 'chat-keepalive'}>
@@ -753,10 +757,20 @@ const AiChatContent: React.FC = () => {
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          showToggle={!hasAppTitleBar()}
           onNewChat={handleNewChat}
           onForkRequest={onForkRequest}
           onNotice={setToast}
           onOpenSettings={(sec) => openSettings(sec)}
+          footer={
+            <AppEntries
+              collapsed={sidebarCollapsed}
+              onHub={() => setShowHub(true)}
+              onExt={() => setShowExt(true)}
+              onLocal={() => setShowLocal(true)}
+              onSettings={() => openSettings()}
+            />
+          }
         />
 
         {/* 主内容：无查看区时对话全宽；有本会话 Diff 或右栏文件预览时 chat-column | 中栏 横排全高 */}
@@ -780,12 +794,6 @@ const AiChatContent: React.FC = () => {
             }}
           >
             <ChatHeader
-              onHub={() => setShowHub(true)}
-              onExt={() => setShowExt(true)}
-              onLocal={() => setShowLocal(true)}
-              onSettings={() => openSettings()}
-              onNewChat={handleNewChat}
-              onCustomize={() => openSettings('general')}
               tabs={
                 isDev ? (
                   <ChatTabs
@@ -927,6 +935,7 @@ const AiChatContent: React.FC = () => {
                     : undefined
                 }
                 slash={slash.bridge}
+                fill={composerFill}
                 onPluginsClick={openPlugins}
                 onProvidersClick={openProviders}
                 onSettingsClick={onInputSettings}
@@ -993,6 +1002,7 @@ const AiChatContent: React.FC = () => {
                 rail
                 messages={cliConvMessages}
                 cwd={tabs.activeTab.cwd}
+                busy={tabs.activeTab.status === 'running' || tabs.activeTab.status === 'queued'}
                 onClose={closeRail}
               />
               <ChangesWorkbenchHost messages={cliConvMessages} cwd={tabs.activeTab.cwd} />

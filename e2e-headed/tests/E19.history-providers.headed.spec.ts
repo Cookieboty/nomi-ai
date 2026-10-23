@@ -231,7 +231,6 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     await expect(rows.first()).toHaveAttribute('data-backend', 'claude'); // 5 分钟前，最新
     await shot(chat, '02-sidebar-history');
     // 「按端」视图只看 Claude Code
-    await chat.click('[data-testid="list-view-by-endpoint"]');
     await chat.click('[data-testid="endpoint-filter-claude"]');
     await expect(rows).toHaveCount(2);
     await shot(chat, '03-sidebar-history-by-endpoint');
@@ -459,7 +458,7 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
       'ANTHROPIC_BASE_URL',
     );
 
-    // ── 普通模式：侧栏只剩 Nomi 会话，没有「全部 / 按端」与 CLI 历史 ─────────────
+    // ── 普通模式：侧栏只剩 Nomi 会话，没有端点筛选行与 CLI 历史 ─────────────
     await chat.click('[data-testid="chat-mode-normal"]');
     await expect(chat.locator('[data-testid="list-view-all"]')).toHaveCount(0);
     await expect(chat.locator('[data-testid="cli-history"]')).toHaveCount(0);

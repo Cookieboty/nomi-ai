@@ -8,6 +8,7 @@ import '@nomi-ai/voice/styles.css';
 import App from './App';
 import { SnipOverlay } from './components/SnipOverlay';
 import { initChatBackground } from './services/chatBackground';
+import { dropRetiredPrefs } from './services/chatPrefs';
 
 const log = createLogger('main');
 
@@ -15,6 +16,7 @@ const log = createLogger('main');
 initTheme();
 initLocale();
 initChatBackground();
+dropRetiredPrefs();
 
 // 一体化标题栏：主进程用 hiddenInset（mac）/ titleBarOverlay（Win·Linux）创建窗口，
 // 页面顶部留出可拖动的标题栏区域（见 App.css .app-titlebar）

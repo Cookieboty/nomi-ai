@@ -4,7 +4,7 @@
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { Plus, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useNewWorkspace } from '../../hooks/useNewWorkspace';
@@ -83,10 +83,17 @@ export const ChatTabs: React.FC<{
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [menu, setMenu] = useState(false);
+  const [menuAlign, setMenuAlign] = useState<'start' | 'end'>('start');
   const [ctx, setCtx] = useState<{ tabId: string; x: number; y: number } | null>(null);
   const [bins, setBins] = useState<Record<string, string | null>>({});
   const ws = useNewWorkspace();
   const menuRef = useRef<HTMLDivElement>(null);
+  // 菜单打开时（点击「+」或 Mod+T）按「+」右侧剩余空间决定向哪边展开
+  useLayoutEffect(() => {
+    if (!menu || !menuRef.current) return;
+    const r = menuRef.current.getBoundingClientRect();
+    setMenuAlign(window.innerWidth - r.left < MENU_ROOM ? 'end' : 'start');
+  }, [menu]);
   const stripRef = useRef<HTMLDivElement>(null);
 
   const st = tabs.state;
@@ -280,7 +287,7 @@ export const ChatTabs: React.FC<{
             />
           );
         })()}
-      <div className={styles.add} ref={menuRef}>
+      <div className={styles.add} ref={menuRef} data-align={menuAlign}>
         <button
           type="button"
           className={styles.addBtn}
@@ -314,6 +321,8 @@ export const ChatTabs: React.FC<{
 };
 
 const CLI_LABEL: Record<string, string> = ENDPOINT_NAME;
+/** 新建菜单向右展开所需的大致宽度 */
+const MENU_ROOM = 340;
 
 /** CLI 标签的输入框提示：随运行状态与后端变化（不显示 Nomi 的「请先选择AI模型」） */
 export function cliTabPlaceholder(tab: { title: string; backend: string; status: string }): string {

@@ -140,6 +140,85 @@ export function visibleEndpoints(
   });
 }
 
+// ───── 侧栏端点的排列顺序 ─────
+const ENDPOINT_ORDER_KEY = 'ai-chat:sidebarEndpointOrder';
+/** 筛选行一次最多显示的端点图标数（含 Nomi），其余收进「更多」 */
+export const MAX_SHOWN_ENDPOINTS = 5;
+
+let orderCache: { raw: string | null; value: ConversationBackend[] | null } = {
+  raw: null,
+  value: null,
+};
+
+/** 用户拖拽后的编程助手端点顺序；null = 自动（按对话数从多到少）。Nomi 固定在最前，不在其中 */
+export function getEndpointOrder(): ConversationBackend[] | null {
+  let raw: string | null = null;
+  try {
+    if (typeof window !== 'undefined' && window.localStorage)
+      raw = window.localStorage.getItem(ENDPOINT_ORDER_KEY);
+  } catch {
+    raw = null;
+  }
+  if (raw === orderCache.raw) return orderCache.value;
+  let value: ConversationBackend[] | null = null;
+  try {
+    const a = raw ? (JSON.parse(raw) as unknown) : null;
+    if (Array.isArray(a)) {
+      value = [];
+      for (const k of a)
+        if (isConversationBackend(k) && k !== 'nomi' && !value.includes(k)) value.push(k);
+    }
+  } catch {
+    value = null; // 损坏的值按「自动」处理
+  }
+  orderCache = { raw, value };
+  return value;
+}
+
+/** null 恢复为按对话数自动排序 */
+export function setEndpointOrder(order: readonly ConversationBackend[] | null): void {
+  try {
+    if (order === null) window.localStorage?.removeItem(ENDPOINT_ORDER_KEY);
+    else write(ENDPOINT_ORDER_KEY, JSON.stringify(order.filter((b) => b !== 'nomi')));
+  } catch {
+    /* ignore */
+  }
+  listSubs.forEach((fn) => fn());
+}
+
+/**
+ * 端点的排列：Nomi 固定最前；其余按自定义顺序（新出现、不在自定义里的排在后面，按对话数），
+ * 没有自定义时按对话数从多到少，相同时保持默认顺序。
+ */
+export function orderEndpoints(
+  list: readonly ConversationBackend[],
+  activity: Partial<Record<ConversationBackend, number>>,
+  custom: readonly ConversationBackend[] | null,
+): ConversationBackend[] {
+  const cli: ConversationBackend[] = list.filter((b) => b !== 'nomi');
+  const byCount = (a: ConversationBackend, b: ConversationBackend) =>
+    (activity[b] ?? 0) - (activity[a] ?? 0) || cli.indexOf(a) - cli.indexOf(b);
+  const known = custom ? custom.filter((b) => cli.includes(b)) : [];
+  const rest = cli.filter((b) => !known.includes(b)).sort(byCount);
+  return [...(list.includes('nomi') ? (['nomi'] as const) : []), ...known, ...rest];
+}
+
+/**
+ * 筛选行里直接显示的端点（最多 max 个），其余进「更多」。
+ * 选中的端点在「更多」里时，换到最后一个位置上，保证选中项始终可见。
+ */
+export function splitShownEndpoints(
+  ordered: readonly ConversationBackend[],
+  selected: ConversationBackend | null,
+  max = MAX_SHOWN_ENDPOINTS,
+): { shown: ConversationBackend[]; more: ConversationBackend[] } {
+  if (ordered.length <= max) return { shown: [...ordered], more: [] };
+  const shown = ordered.slice(0, max);
+  if (selected && !shown.includes(selected) && ordered.includes(selected))
+    shown[max - 1] = selected;
+  return { shown, more: ordered.filter((b) => !shown.includes(b)) };
+}
+
 // ───── 供应商页当前端点（设置 → 供应商 顶部的端点切换） ─────
 const PROVIDER_ENDPOINT_KEY = 'ai-chat:providerEndpoint';
 const providerEpSubs = new Set<Listener>();
@@ -167,4 +246,18 @@ export function setProviderEndpoint(backend: CodingTab): void {
 export function subscribeProviderEndpoint(fn: Listener): () => void {
   providerEpSubs.add(fn);
   return () => void providerEpSubs.delete(fn);
+}
+
+/** 已下线功能留在本机的设置：启动时删掉，不留无主数据 */
+const RETIRED_KEYS = [
+  // 左上角常驻入口（及设置 → 通用 → 常驻入口）已删除
+  'cd.chat.pins',
+];
+
+export function dropRetiredPrefs(): void {
+  try {
+    for (const k of RETIRED_KEYS) window.localStorage?.removeItem(k);
+  } catch {
+    /* 存储不可用：无需清理 */
+  }
 }

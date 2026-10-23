@@ -29,7 +29,8 @@
   gap: var(--cd-space-0-5);
   overflow-x: auto;
   scrollbar-width: none;
-  flex: 1;
+  /* 按内容宽度：「+」紧跟最后一个标签；放不下时标签区收缩滚动，「+」停在最右 */
+  flex: 0 1 auto;
   min-width: 0;
 }
 .strip::-webkit-scrollbar {
@@ -200,8 +201,13 @@
 .menu {
   position: absolute;
   top: calc(100% + var(--cd-space-1));
-  right: 0;
+  left: 0;
   z-index: 50;
+}
+/* 「+」靠近右缘时菜单向左展开，免得超出窗口 */
+.add[data-align='end'] .menu {
+  left: auto;
+  right: 0;
 }
 
 .load {

@@ -1,5 +1,5 @@
 import { createLogger, t as tr, Icon } from '@nomi-ai/ui';
-import { BookOpen, Blocks, Pin, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
+import { BookOpen, Blocks, X, ArrowUp, ListPlus, Plus, Square } from 'lucide-react';
 import React, {
   memo,
   useCallback,
@@ -21,7 +21,6 @@ import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
 import { nomiModelLabel, nomiModelMeta } from '../../services/nomiModel';
-import { MAX_PINS, pinDef, togglePin, usePins } from '../../services/pins';
 import { schedClient } from '../../services/schedClient';
 import {
   MAX_ATTACHMENTS,
@@ -95,6 +94,8 @@ interface MessageInputProps {
   /** 发送钮旁上下文占用环的数据源 */
   contextMessages?: readonly ConvMessage[];
   contextModel?: string | null;
+  /** 外部（如右栏「让助手提交」）请求填入的文字：接在已有草稿后面并聚焦，不自动发送 */
+  fill?: { text: string; nonce: number } | null;
 }
 
 const MessageInputImpl: React.FC<MessageInputProps> = ({
@@ -115,11 +116,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   onPluginsClick,
   contextMessages,
   contextModel,
+  fill,
 }) => {
   const bindings = useShortcutBindings();
   const [message, setMessage] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  const { pins, update: updatePins } = usePins();
   const [slashIdx, setSlashIdx] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
@@ -136,6 +137,21 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
     );
     el.style.height = `${next}px`;
   }, [message]);
+  // 挂载时已有的请求视为处理过（切标签重挂载不再重复填入）
+  const seenFill = useRef(fill?.nonce);
+  const fillNonce = fill?.nonce;
+  useEffect(() => {
+    if (!fill || fill.nonce === seenFill.current) return;
+    seenFill.current = fill.nonce;
+    setMessage((cur) => (cur.trim() ? `${cur.replace(/\s+$/, '')}\n\n${fill.text}` : fill.text));
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [fillNonce]); // eslint-disable-line react-hooks/exhaustive-deps -- 只按 nonce 触发
   // slices only: streamed frames (message content) do not rerender the composer
   const { dispatch, actions, store: chatStore } = useAiChatActions();
   const isLoading = useAiChatSelector(selectIsLoading);
@@ -569,20 +585,6 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
   const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
-  // 左上角常驻入口 / 其它地方通过 `cd:cmd` 事件触发同一套动作
-  const cmdRef = useRef<{ list: Cmd[]; hf: () => void }>({ list: [], hf: () => undefined });
-  // commands 每次渲染都是新引用，这里用 ref 缓存最新值供事件回调访问，不参与渲染
-
-  cmdRef.current = { list: commands, hf: cv.toggleHandsFree };
-  useEffect(() => {
-    const on = (e: Event) => {
-      const id = String((e as CustomEvent<string>).detail ?? '');
-      if (id === 'handsfree') return void cmdRef.current.hf();
-      cmdRef.current.list.find((c) => c.id === id)?.run();
-    };
-    window.addEventListener('cd:cmd', on);
-    return () => window.removeEventListener('cd:cmd', on);
-  }, []);
   function runCommand(c: Cmd | undefined) {
     if (!c) return;
     setMenuOpen(false);
@@ -622,52 +624,23 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   }, [menuOpen]);
 
   const renderItems = (list: Cmd[]) =>
-    list.map((c) => {
-      const item = (
-        <button
-          key={c.id}
-          type="button"
-          role="menuitem"
-          className={styles.menuItem}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCommand(c)}
-          data-testid={c.testId}
-          aria-pressed={c.active}
-          title={tr(c.label)}
-        >
-          <span className={styles.menuIcon}>{c.icon}</span>
-          <span className={styles.menuLabel}>{tr(c.label)}</span>
-          <span className={styles.menuHint}>{tr(c.hint)}</span>
-        </button>
-      );
-      if (!pinDef(c.id)) return item;
-      const pinned = pins.includes(c.id);
-      const full = !pinned && pins.length >= MAX_PINS;
-      return (
-        <div key={c.id} className={styles.menuRow}>
-          {item}
-          <button
-            type="button"
-            className={`${styles.pinBtn} ${pinned ? styles.pinOn : ''}`}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => updatePins(togglePin(pins, c.id))}
-            disabled={full}
-            title={
-              pinned
-                ? tr('取消固定')
-                : full
-                  ? tr('左上角最多 {0} 个', MAX_PINS)
-                  : tr('固定到左上角')
-            }
-            aria-label={pinned ? tr('取消固定{0}', c.label) : tr('固定{0}到左上角', c.label)}
-            aria-pressed={pinned}
-            data-testid={`pin-toggle-${c.id}`}
-          >
-            <Icon icon={Pin} size={14} />
-          </button>
-        </div>
-      );
-    });
+    list.map((c) => (
+      <button
+        key={c.id}
+        type="button"
+        role="menuitem"
+        className={styles.menuItem}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => runCommand(c)}
+        data-testid={c.testId}
+        aria-pressed={c.active}
+        title={tr(c.label)}
+      >
+        <span className={styles.menuIcon}>{c.icon}</span>
+        <span className={styles.menuLabel}>{tr(c.label)}</span>
+        <span className={styles.menuHint}>{tr(c.hint)}</span>
+      </button>
+    ));
 
   return (
     <div className={styles.messageInputContainer}>

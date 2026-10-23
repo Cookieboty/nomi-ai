@@ -19,8 +19,6 @@
   "工作台模式：可用编程助手标签、后端切换与监视器联动。": "Workbench mode: coding-agent tabs, backend switcher, and monitor integration.",
   "{0} 运行中": "{0} running",
   "有编程助手标签仍在后台运行": "Coding-agent tabs are still running in the background",
-  "按端": "By endpoint",
-  "对话列表视图": "Conversation list view",
   "分叉为新对话": "Fork as new chat",
   "分叉到其他端": "Fork to another endpoint",
   "删除对话": "Delete chat",
@@ -45,7 +43,6 @@
   "↑ / ↓ / Enter（菜单里）": "↑ / ↓ / Enter (in menus)",
   "在菜单项间移动 / 确认": "Move between menu items / confirm",
   "打开历史会话失败": "Could not open the history session",
-  "编程助手历史会话": "Coding assistant history",
   "刷新历史会话": "Refresh history",
   "第三方": "Third-party",
   "客户端：{0}": "Client: {0}",
@@ -53,7 +50,6 @@
   "线路：第三方（Nomi 网关）": "Route: third-party (Nomi gateway)",
   "线路：其他第三方（{0}）": "Route: other third-party ({0})",
   "账号：{0}": "Account: {0}",
-  "没有找到本机的历史会话": "No local history sessions found",
   "正在扫描历史会话…": "Scanning history sessions…",
   "原目录已不存在": "The original directory no longer exists",
   "加载更多": "Load more",
@@ -208,5 +204,9 @@
   "编程进行中…": "Coding in progress…",
   "已休眠": "Dormant",
   "编程助手进程空闲已休眠，发送下一条消息会自动续接会话": "The coding assistant process went dormant after being idle; your next message resumes the session automatically",
-  "{0} · 已休眠": "{0} · dormant"
+  "{0} · 已休眠": "{0} · dormant",
+  "新建 {0} 对话": "New {0} conversation",
+  "{0} 个对话": "{0} conversations",
+  "{0} 条本机历史": "{0} local sessions",
+  "本机历史": "Local history"
 }

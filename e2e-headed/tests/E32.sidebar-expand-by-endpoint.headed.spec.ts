@@ -81,11 +81,11 @@ async function recordExpand(chat: Page): Promise<Frame[]> {
     const frames: Frame[] = [];
     const sample = () => {
       const all = document.querySelector('[data-testid="list-view-all"]');
-      const by = document.querySelector('[data-testid="list-view-by-endpoint"]');
+      const by = document.querySelector('[data-testid^="endpoint-filter-"][aria-pressed="true"]');
       const row = document.querySelector('[data-testid^="endpoint-filter-"]')?.parentElement;
       frames.push({
         allPressed: all?.getAttribute('aria-pressed') === 'true',
-        byPressed: by?.getAttribute('aria-pressed') === 'true',
+        byPressed: Boolean(by),
         backends: [
           ...document.querySelectorAll('[data-testid="conversation-list"] [data-backend]'),
         ].map((e) => e.getAttribute('data-backend') ?? ''),
@@ -130,9 +130,8 @@ test.describe('E32 · #57 sidebar expand in by-endpoint view', () => {
     if (await claude.isVisible().catch(() => false)) await claude.click();
     else await chat.keyboard.press('Escape');
 
-    await chat.click('[data-testid="list-view-by-endpoint"]');
     await chat.click('[data-testid="endpoint-filter-nomi"]');
-    await expect(chat.locator('[data-testid="list-view-by-endpoint"]')).toHaveAttribute(
+    await expect(chat.locator('[data-testid="endpoint-filter-nomi"]')).toHaveAttribute(
       'aria-pressed',
       'true',
     );

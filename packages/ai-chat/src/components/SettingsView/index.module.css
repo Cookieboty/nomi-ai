@@ -174,94 +174,10 @@
   white-space: nowrap;
   text-align: right !important;
 }
-.pinsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: var(--cd-space-5);
-  margin: var(--cd-space-2) 0 var(--cd-space-5);
-}
 .sub {
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
   margin-bottom: var(--cd-space-1-5);
-}
-.order,
-.pool {
-  list-style: none;
-  margin: 0 0 10px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--cd-space-1);
-}
-.orderItem {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  padding: var(--cd-space-1-5) var(--cd-space-2);
-  border: 1px solid var(--cd-color-border);
-  border-radius: var(--cd-radius-md);
-  font-size: var(--cd-font-size-sm);
-  background: var(--cd-color-bg-subtle);
-  cursor: grab;
-}
-.orderItem:focus-visible {
-  outline: none;
-  border-color: rgba(var(--cd-accent-rgb), 0.7);
-}
-.dragging {
-  opacity: 0.4;
-}
-.grip {
-  color: var(--cd-color-text-subtle);
-  font-size: var(--cd-font-size-xs);
-  letter-spacing: -2px;
-}
-.orderLabel {
-  flex: 1;
-}
-.mini {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: var(--cd-radius-sm);
-  background: transparent;
-  color: var(--cd-color-text-muted);
-  cursor: pointer;
-}
-.mini:hover:not(:disabled) {
-  background: var(--cd-color-active);
-}
-.mini:disabled {
-  opacity: 0.25;
-  cursor: default;
-}
-.check {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-2);
-  min-height: var(--cd-control-h-ms);
-  font-size: var(--cd-font-size-sm);
-  padding: 0 var(--cd-space-1-5);
-  border-radius: var(--cd-radius-sm);
-}
-.check:hover {
-  background: var(--cd-color-hover);
-}
-.checkOff {
-  opacity: 0.45;
-}
-/* 快捷键小键帽 */
-.keycap {
-  font-family: var(--cd-font-mono);
-  font-size: var(--cd-font-size-xs);
-  line-height: 1;
-  padding: 3px var(--cd-space-1-5);
-  border: 1px solid var(--cd-color-border);
-  border-bottom-width: 2px;
-  border-radius: var(--cd-radius-sm);
-  background: var(--cd-color-surface);
-  color: var(--cd-color-text-muted);
 }
 /* 应用图标：右侧三个小图标单选 */
 .icons {

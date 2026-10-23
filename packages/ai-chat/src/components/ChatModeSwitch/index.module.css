@@ -21,9 +21,9 @@
   background: transparent;
   color: var(--cd-color-text-muted);
   font: inherit;
-  font-size: var(--cd-font-size-sm);
+  font-size: var(--cd-font-size-md);
   font-weight: var(--cd-font-weight-medium);
-  padding: 0 var(--cd-space-2);
+  padding: 0 var(--cd-space-3);
   border-radius: var(--cd-radius-sm);
   cursor: pointer;
   line-height: 1;
