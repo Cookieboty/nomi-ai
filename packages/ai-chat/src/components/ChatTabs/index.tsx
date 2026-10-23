@@ -69,7 +69,15 @@ export const ChatTabs: React.FC<{
   mainLoading?: boolean;
   /** 右键菜单里的分叉（tabId → 由上层映射到对话） */
   onForkTab?: (tabId: string, mode: 'same' | 'cross') => void;
-}> = ({ renameRequest = 0, newTabRequest = 0, mainLoading = false, onForkTab }) => {
+  /** 嵌在 ChatHeader 里（与顶栏同一行，底边线由顶栏画） */
+  embedded?: boolean;
+}> = ({
+  renameRequest = 0,
+  newTabRequest = 0,
+  mainLoading = false,
+  onForkTab,
+  embedded = false,
+}) => {
   const tabs = useHarnessTabs();
   const bindings = useShortcutBindings();
   const [editing, setEditing] = useState<string | null>(null);
@@ -161,7 +169,7 @@ export const ChatTabs: React.FC<{
   };
 
   return (
-    <div className={styles.bar} data-testid="chat-tabs">
+    <div className={styles.bar} data-embedded={embedded || undefined} data-testid="chat-tabs">
       <div
         className={styles.strip}
         ref={stripRef}

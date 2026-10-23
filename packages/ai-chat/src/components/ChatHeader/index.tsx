@@ -1,6 +1,7 @@
 /**
  * 对话窗口顶栏（参考 Codex app：右上角放常用入口，下面是对话）。
  * 图标打开右侧快速视图（抽屉），详细配置在「设置」里。
+ * 工作台模式下对话标签也在这一行（tabs），常驻入口整组收进「⋯」，把宽度让给标签。
  */
 import { t, Icon } from '@nomi-ai/ui';
 import { Tooltip } from '@nomi-ai/ui';
@@ -43,6 +44,10 @@ interface Props {
   onNewChat: () => void;
   /** 打开 设置 → 通用 → 常驻入口 */
   onCustomize?: () => void;
+  /** 对话标签条（工作台模式）：放在模式切换与右侧入口之间 */
+  tabs?: React.ReactNode;
+  /** 右侧入口最前面的额外按钮（如变更栏开关） */
+  trailing?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -119,8 +124,11 @@ export const ChatHeader: React.FC<Props> = (p) => {
 
   // 窄窗口：放不下的入口收进「⋯」
   const SLOT = 34;
-  const fit =
-    pins.length * SLOT <= width ? pins.length : Math.max(0, Math.floor((width - SLOT) / SLOT));
+  const fit = p.tabs
+    ? 0
+    : pins.length * SLOT <= width
+      ? pins.length
+      : Math.max(0, Math.floor((width - SLOT) / SLOT));
   const shown = pins.slice(0, fit);
   const hidden = pins.slice(fit);
   const run = (id: string) => {
@@ -137,7 +145,11 @@ export const ChatHeader: React.FC<Props> = (p) => {
   const ctxFull = !ctxPinned && pins.length >= MAX_PINS;
 
   return (
-    <header className={styles.header} data-testid="chat-header">
+    <header
+      className={styles.header}
+      data-with-tabs={p.tabs ? 'true' : undefined}
+      data-testid="chat-header"
+    >
       <div className={styles.left} ref={leftRef} data-testid="header-pins">
         <ChatModeSwitch />
         {shown.map((id) => {
@@ -203,6 +215,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
           </div>
         )}
       </div>
+      {p.tabs && <div className={styles.tabsSlot}>{p.tabs}</div>}
       {p.children}
       {menu && (
         <div
@@ -246,6 +259,7 @@ export const ChatHeader: React.FC<Props> = (p) => {
         </div>
       )}
       <div className={styles.actions}>
+        {p.trailing}
         {items.map((i) => (
           <Tooltip key={i.id} placement="bottom" content={`${i.tip}  ${i.key}`}>
             <button

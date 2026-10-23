@@ -10,6 +10,19 @@
   min-width: 0;
 }
 
+/* 嵌在顶栏里：撑满顶栏高度、标签贴底（激活标签的 ::after 盖住顶栏底边线），底边线由顶栏画 */
+.bar[data-embedded] {
+  align-self: stretch;
+  align-items: flex-end;
+  flex: 1;
+  padding: 0;
+  border-bottom: none;
+  min-height: 0;
+}
+.bar[data-embedded] .add {
+  /* sm 按钮在 ms 标签旁对齐中线 */
+  margin-bottom: calc((var(--cd-control-h-ms) - var(--cd-control-h-sm)) / 2);
+}
 .strip {
   display: flex;
   align-items: flex-end;

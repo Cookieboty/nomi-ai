@@ -51,6 +51,37 @@
   overflow: visible;
   gap: var(--cd-space-0-5);
 }
+.header[data-with-tabs] {
+  gap: var(--cd-space-2);
+  border-bottom: 1px solid var(--cd-color-border);
+}
+/* 有标签时左侧只剩模式切换与「⋯」，宽度让给标签条 */
+.header[data-with-tabs] .left {
+  flex: none;
+}
+.tabsSlot {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+}
+/* 对话列窄（中栏打开或窗口小）：标签换到第二行占满宽度，不被右侧入口挤没 */
+@container chat-column (max-width: 640px) {
+  .header[data-with-tabs] {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 0;
+  }
+  .header[data-with-tabs] .left,
+  .header[data-with-tabs] .actions {
+    height: 44px;
+  }
+  .header[data-with-tabs] .tabsSlot {
+    order: 1;
+    flex-basis: 100%;
+    height: calc(var(--cd-control-h-ms) + var(--cd-space-1));
+  }
+}
 .pin {
   font-size: var(--cd-font-size-lg);
   flex-shrink: 0;

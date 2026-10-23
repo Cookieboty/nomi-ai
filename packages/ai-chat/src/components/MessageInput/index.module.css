@@ -20,6 +20,9 @@
   box-shadow: var(--cd-shadow-sm);
   position: relative;
   overflow: hidden;
+  /* 与消息列同宽（Conversation .inner 820）。纵向 flex 里 auto margin 会让它退成内容宽，必须写 width */
+  width: 100%;
+  box-sizing: border-box;
   max-width: 820px;
   margin: 0 auto;
 }

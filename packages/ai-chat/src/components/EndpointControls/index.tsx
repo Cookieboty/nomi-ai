@@ -2,7 +2,7 @@
  * 端点相关的两组控件：
  *
  * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
- * - `SessionControls`（对话区右上角）：工作目录、「带上前文」标记、供应商 / 账号。
+ * - `SessionControls`（输入框下方一行）：工作目录、「带上前文」标记、供应商 / 账号。
  *   Nomi：Nomi 对话的模型切换（NomiModelSwitch，统一网关）；
  *   Claude Code / Codex / dsh / Grok / Gemini：这个标签的来源菜单（CliSourceMenu：官方账号 / 第三方模型），
  *   不显示 Nomi 对话的模型分配。
@@ -78,7 +78,7 @@ export const PermissionTip: React.FC = () => {
   return <BypassTip tab={modeTab} exitMode={def && def !== 'bypass' ? def : 'acceptEdits'} />;
 };
 
-/** 对话区右上角：工作目录（CLI）、「带上前文」标记、供应商 / 账号 */
+/** 输入框下方：工作目录（CLI）、「带上前文」标记、供应商 / 账号（贴近窗口底部，菜单向上弹） */
 export const SessionControls: React.FC<{
   onManageNomi: () => void;
   /** CLI 标签的来源菜单里「打开模型设置」 */
@@ -156,7 +156,7 @@ export const SessionControls: React.FC<{
           </button>
         </span>
       ) : null}
-      {cli && <WorkspacePicker value={cwd} onChange={changeCwd} testId="cli-workspace" />}
+      {cli && <WorkspacePicker up value={cwd} onChange={changeCwd} testId="cli-workspace" />}
       {cli
         ? isCliKind(cli) && (
             <CliSourceMenu
