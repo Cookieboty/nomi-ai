@@ -250,5 +250,9 @@
   "冷灰浅底 + 雾蓝，清爽低刺激": "Cool grey with mist blue — clear and calm",
   "工作台要精简一点，还是全都摆出来？": "Keep the workbench minimal, or show everything?",
   "喜欢清爽就选精简，经常同时开好几个会话就选全量～": "Pick compact if you like it clean, or full if you often run several sessions at once~",
-  "只影响工作台（编程助手）；之后可在「设置 → 通用 → 外观」随时修改。": "Only affects the workbench (coding assistants); change it any time in Settings → General → Appearance."
+  "只影响工作台（编程助手）；之后可在「设置 → 通用 → 外观」随时修改。": "Only affects the workbench (coding assistants); change it any time in Settings → General → Appearance.",
+  "下载更新失败": "Update download failed",
+  "安装更新失败": "Update install failed",
+  "下载更新失败：{0}": "Update download failed: {0}",
+  "安装更新失败：{0}": "Update install failed: {0}"
 }

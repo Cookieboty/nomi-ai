@@ -143,6 +143,139 @@ describe('UpdateService', () => {
   it('check() surfaces updater errors', async () => {
     updater.checkError = new Error('network down');
     svc.start();
+    expect(await svc.check()).toMatchObject({ status: 'error', errorStage: 'check' });
+  });
+
+  describe('失败后能重试', () => {
+    /** 模拟 electron-updater：检查后自动下载（autoDownload），返回取消令牌与下载 promise */
+    const autoDownloadUpdater = (initial: 'fail' | 'stall' | 'ok') => {
+      const u = new FakeUpdater();
+      const ctl = { mode: initial };
+      const tokens: Array<{ cancel: jest.Mock }> = [];
+      u.checkForUpdates = async () => {
+        u.emit('checking-for-update');
+        u.emit('update-available', { version: '1.0.1' });
+        const cancellationToken = { cancel: jest.fn() };
+        tokens.push(cancellationToken);
+        let downloadPromise: Promise<unknown>;
+        if (ctl.mode === 'fail') {
+          u.emit('download-progress', {
+            percent: 10,
+            bytesPerSecond: 1,
+            transferred: 1,
+            total: 10,
+          });
+          const err = new Error('ECONNRESET');
+          u.emit('error', err);
+          downloadPromise = Promise.reject(err);
+        } else if (ctl.mode === 'stall') {
+          u.emit('download-progress', {
+            percent: 30,
+            bytesPerSecond: 1,
+            transferred: 3,
+            total: 10,
+          });
+          downloadPromise = new Promise(() => undefined); // 连接静默断开：永远不结束
+        } else {
+          u.emit('update-downloaded', { version: '1.0.1' });
+          downloadPromise = Promise.resolve([]);
+        }
+        return { updateInfo: { version: '1.0.1' }, cancellationToken, downloadPromise } as never;
+      };
+      return { u, tokens, ctl };
+    };
+
+    it('下载失败：标成「下载失败」，再检查会重新下载直到完成', async () => {
+      const { u, ctl } = autoDownloadUpdater('fail');
+      const s = new UpdateService(logger as never, {
+        updater: u,
+        packaged: true,
+        launchDelayMs: 0,
+        intervalMs: 0,
+      });
+      s.start();
+      expect(await s.check()).toMatchObject({
+        status: 'error',
+        errorStage: 'download',
+        error: 'ECONNRESET',
+      });
+      ctl.mode = 'ok';
+      expect(await s.check()).toMatchObject({ status: 'downloaded', errorStage: undefined });
+      s.stop();
+    });
+
+    it('下载卡住（没有进度也没有 error）：超时后取消并转为失败；重试先取消旧下载再重新检查', async () => {
+      jest.useFakeTimers();
+      try {
+        const { u, tokens } = autoDownloadUpdater('stall');
+        const s = new UpdateService(logger as never, {
+          updater: u,
+          packaged: true,
+          launchDelayMs: 0,
+          intervalMs: 0,
+          stallMs: 5000,
+        });
+        s.start();
+        expect((await s.check()).status).toBe('downloading');
+        jest.advanceTimersByTime(4999);
+        expect(s.getState().status).toBe('downloading');
+        jest.advanceTimersByTime(1);
+        expect(s.getState()).toMatchObject({ status: 'error', errorStage: 'download' });
+        expect(tokens[0]!.cancel).toHaveBeenCalledTimes(1);
+        // 重试：又卡住时，第二次的令牌在下一次重试前被取消
+        await s.check();
+        expect(tokens).toHaveLength(2);
+        await s.check();
+        expect(tokens[1]!.cancel).toHaveBeenCalledTimes(1);
+        s.stop();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('有进度就不算卡住', async () => {
+      jest.useFakeTimers();
+      try {
+        const { u } = autoDownloadUpdater('stall');
+        const s = new UpdateService(logger as never, {
+          updater: u,
+          packaged: true,
+          launchDelayMs: 0,
+          intervalMs: 0,
+          stallMs: 5000,
+        });
+        s.start();
+        await s.check();
+        for (let i = 0; i < 5; i++) {
+          jest.advanceTimersByTime(4000);
+          u.emit('download-progress', {
+            percent: 40 + i,
+            bytesPerSecond: 1,
+            transferred: 4,
+            total: 10,
+          });
+        }
+        expect(s.getState().status).toBe('downloading');
+        s.stop();
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it('安装失败标成「安装失败」', async () => {
+      svc.start();
+      await svc.check();
+      await svc.download();
+      updater.quitAndInstall = () => {
+        throw new Error('not in /Applications');
+      };
+      expect(svc.install()).toMatchObject({ status: 'error', errorStage: 'install' });
+    });
+  });
+
+  it('check() surfaces updater errors (message)', async () => {
+    updater.checkError = new Error('network down');
+    svc.start();
     const s = await svc.check();
     expect(s.status).toBe('error');
     expect(s.error).toMatch(/network down/);

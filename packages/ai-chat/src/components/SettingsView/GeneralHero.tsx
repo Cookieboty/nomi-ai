@@ -27,7 +27,16 @@ function versionFacts(s: UpdateState | null): { value: string; sub: string; tone
     case 'checking':
       return { value: v, sub: t('正在检查更新…'), tone: undefined };
     case 'error':
-      return { value: v, sub: t('检查更新失败'), tone: 'warn' };
+      return {
+        value: v,
+        sub:
+          s.errorStage === 'download'
+            ? t('下载更新失败')
+            : s.errorStage === 'install'
+              ? t('安装更新失败')
+              : t('检查更新失败'),
+        tone: 'warn',
+      };
     case 'unavailable':
       return { value: v, sub: t('开发版，不自动更新'), tone: undefined };
     default:

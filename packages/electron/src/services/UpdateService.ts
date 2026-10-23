@@ -44,6 +44,8 @@ export interface UpdateState {
   transferred?: number;
   total?: number;
   error?: string;
+  /** 失败在哪一步（status 为 error 时）：检查 / 下载 / 安装——界面据此说明，并给「重试」 */
+  errorStage?: 'check' | 'download' | 'install';
   /** last successful check (ms since epoch) */
   checkedAt?: number;
   autoCheck: boolean;
@@ -55,7 +57,12 @@ export interface UpdaterLike {
   autoInstallOnAppQuit: boolean;
   allowPrerelease: boolean;
   logger: unknown;
-  checkForUpdates(): Promise<{ updateInfo: UpdateInfo } | null>;
+  checkForUpdates(): Promise<{
+    updateInfo: UpdateInfo;
+    /** autoDownload 时自动开始的下载可以用它取消（卡住时重试要先取消，否则一直复用卡住的下载） */
+    cancellationToken?: { cancel(): void };
+    downloadPromise?: Promise<unknown> | null;
+  } | null>;
   downloadUpdate(): Promise<unknown>;
   quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
   on(event: string, listener: (...args: unknown[]) => void): unknown;
@@ -70,6 +77,8 @@ export interface UpdateServiceOptions {
   intervalMs?: number;
   /** force "packaged" for tests */
   packaged?: boolean;
+  /** 检查 / 下载多久没有任何进展算卡住（ms）；0 = 不检测 */
+  stallMs?: number;
   /**
    * Where the "check automatically" switch is persisted. Defaults to
    * `<userData>/update-settings.json`; `null` disables persistence.
@@ -111,6 +120,11 @@ const CHANNEL = {
 } as const;
 
 const DEFAULT_LAUNCH_DELAY = 15_000;
+/**
+ * 下载卡住的判定：Electron net 请求上 electron-updater 的 socket 超时不生效，连接静默断开时
+ * 既没有进度也没有 error，状态会永远停在「正在下载」、按钮一直禁用。
+ */
+const DEFAULT_STALL_MS = 90_000;
 const DEFAULT_INTERVAL = 6 * 60 * 60 * 1000; // 6h
 
 export class UpdateService {
@@ -124,6 +138,10 @@ export class UpdateService {
   private launchTimer: ReturnType<typeof setTimeout> | null = null;
   private intervalTimer: ReturnType<typeof setInterval> | null = null;
   private started = false;
+  private readonly stallMs: number;
+  private stallTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 正在进行的自动下载的取消令牌（来自 checkForUpdates 的返回） */
+  private downloadToken: { cancel(): void } | null = null;
 
   constructor(
     private readonly logger: ILoggerService,
@@ -133,6 +151,7 @@ export class UpdateService {
     this.packaged = opts.packaged ?? app.isPackaged;
     this.launchDelayMs = opts.launchDelayMs ?? DEFAULT_LAUNCH_DELAY;
     this.intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL;
+    this.stallMs = opts.stallMs ?? DEFAULT_STALL_MS;
     // 必须在 start() 之前就恢复用户的选择：启动检查 / 定时器都读这个值
     this.settingsFile = opts.settingsFile === undefined ? defaultSettingsFile() : opts.settingsFile;
     this.autoCheck = loadAutoCheck(this.settingsFile);
@@ -220,7 +239,7 @@ export class UpdateService {
     this.updater.on('error', (err) => {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.warn('[updater] error', { error: msg });
-      this.patch({ status: 'error', error: msg });
+      this.fail(msg);
     });
 
     if (!this.packaged) {
@@ -236,6 +255,7 @@ export class UpdateService {
   }
 
   stop(): void {
+    this.clearStall();
     if (this.launchTimer) clearTimeout(this.launchTimer);
     if (this.intervalTimer) clearInterval(this.intervalTimer);
     this.launchTimer = null;
@@ -271,12 +291,18 @@ export class UpdateService {
       });
       return this.getState();
     }
-    this.patch({ status: 'checking', error: undefined });
+    // 上一次的自动下载还挂着（卡住 / 失败后重试）：先取消，否则 electron-updater 会一直复用它
+    this.cancelDownload();
+    this.patch({ status: 'checking', error: undefined, errorStage: undefined });
     try {
-      await this.updater.checkForUpdates();
+      const r = await this.updater.checkForUpdates();
+      this.downloadToken = r?.cancellationToken ?? null;
+      // 自动下载的失败已经通过 error 事件反映到状态上；这里只防止未处理的 rejection
+      void r?.downloadPromise?.catch(() => undefined);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.patch({ status: 'error', error: msg, checkedAt: Date.now() });
+      this.fail(msg, 'check');
+      this.patch({ checkedAt: Date.now() });
     }
     return this.getState();
   }
@@ -287,7 +313,7 @@ export class UpdateService {
       await this.updater.downloadUpdate();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.patch({ status: 'error', error: msg });
+      this.fail(msg, 'download');
     }
     return this.getState();
   }
@@ -299,8 +325,60 @@ export class UpdateService {
     }
     this.logger.info('[updater] quitAndInstall');
     // isSilent=false, isForceRunAfter=true → relaunch after install
-    this.updater.quitAndInstall(false, true);
+    try {
+      this.updater.quitAndInstall(false, true);
+    } catch (err) {
+      this.fail(err instanceof Error ? err.message : String(err), 'install');
+    }
     return this.getState();
+  }
+
+  /** 失败在哪一步：没指定时按失败前的状态推断（下载中 / 刚发现 → 下载，已下载 → 安装，其余 → 检查） */
+  private fail(msg: string, stage?: UpdateState['errorStage']): void {
+    const prev = this.state.status;
+    const inferred: UpdateState['errorStage'] =
+      prev === 'downloading' || prev === 'available'
+        ? 'download'
+        : prev === 'downloaded'
+          ? 'install'
+          : 'check';
+    this.downloadToken = null;
+    this.patch({ status: 'error', error: msg, errorStage: stage ?? inferred });
+  }
+
+  private cancelDownload(): void {
+    const token = this.downloadToken;
+    this.downloadToken = null;
+    try {
+      token?.cancel();
+    } catch {
+      /* 已结束 */
+    }
+  }
+
+  private clearStall(): void {
+    if (this.stallTimer) clearTimeout(this.stallTimer);
+    this.stallTimer = null;
+  }
+
+  /**
+   * 下载中每次有进展都重新计时；超过 stallMs 没动静就取消并转为失败，让用户能重试。
+   * 「发现新版本」也算：总是自动下载，第一个进度到达前就卡住时状态还停在 available。
+   */
+  private watchStall(): void {
+    this.clearStall();
+    const active = () => this.state.status === 'downloading' || this.state.status === 'available';
+    if (this.stallMs <= 0 || !active()) return;
+    this.stallTimer = setTimeout(() => {
+      this.stallTimer = null;
+      if (!active()) return;
+      const secs = Math.round(this.stallMs / 1000);
+      this.logger.warn('[updater] download stalled', { secs });
+      this.cancelDownload();
+      this.fail(`download stalled: no progress for ${secs}s`, 'download');
+    }, this.stallMs);
+    // 不阻止应用退出
+    if (typeof this.stallTimer === 'object' && 'unref' in this.stallTimer) this.stallTimer.unref();
   }
 
   private rescheduleInterval(): void {
@@ -319,6 +397,8 @@ export class UpdateService {
       currentVersion: app.getVersion(),
       autoCheck: this.autoCheck,
     };
+    if (this.state.status !== 'error') this.state.errorStage = undefined;
+    this.watchStall();
     this.broadcast();
   }
 

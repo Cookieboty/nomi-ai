@@ -251,6 +251,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 修复统一网关两处问题：从历史会话继续 Codex 会话时按历史记录的线路续接（网关会话按第三方，官方与自定义供应商按官方），不再跟随「新标签默认来源」把官方会话接到第三方、或反过来（#90）；关闭第三方标签时回收其进程级私有注入目录，避免 userData 中残留目录无限累积。 (`@nomi-ai/electron` patch)
 - 修复统一网关把超过 30 秒的长回复截断（#93）：首字节超时只管到收到响应头为止，之后由流的空闲超时和用户停止控制；非流式正文读取中途断开时按入口协议返回错误。 (`@nomi-ai/gateway` patch)
 - 修复统一网关的异步协议探测结论过时仍被写回（#96）：探测期间清除了学习、修改或删除了供应商时丢弃结论；写回时基于最新状态只合并协议不可用标记，不再覆盖探测期间学到的其它内容。 (`@nomi-ai/electron` patch)
+- 修复自动更新失败后可能无法重试：下载连接静默断开时既没有进度也没有错误，状态一直停在「正在下载」、按钮禁用，重试也会复用卡住的下载。现在 90 秒没有进度就取消并标为下载失败，重试前先取消旧下载；失败信息按阶段区分（检查 / 下载 / 安装），按钮显示「重试」。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 修复输入栏上下文环与 /context 的用量：改为取这一轮最后一次模型请求的输入 + 输出（Claude Code、Codex、Grok、Gemini、dsh 与 Nomi 各按实测口径），不再把整轮累计当成当前上下文；窗口大小优先用 CLI 上报值（如 Claude 1M）。dsh 现在也会显示用量。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch, `@nomi-ai/ai-runtime` patch, `@nomi-ai/ui` patch)
 - 修复非流式（尤其 deepseek-v4-pro 等思考模型）约 30s 被客户端 Abort：首字节超时对流式 / 非流式 / reasoning 分开，默认 30s / 5min / 10min，可用 NOMI_GATEWAY_* 环境变量覆盖；ChatFacade 注明主对话应优先流式。 (`@nomi-ai/gateway` patch, `@nomi-ai/ai-sdk` patch)
 - 切到「完全放开」后的放行对 Claude Code、Codex、Gemini、Grok 都生效：这一轮里还在等的确认会被放行，之后 CLI 仍来问（如 Codex 本轮还按旧审批策略）也直接放行，不再弹卡片和通知。 (`@nomi-ai/electron` patch)
