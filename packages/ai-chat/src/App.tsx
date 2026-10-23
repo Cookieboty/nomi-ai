@@ -10,6 +10,7 @@ import { ChatHeader } from './components/ChatHeader';
 import { ChatTabs, cliTabPlaceholder } from './components/ChatTabs';
 import { CommandPalette, type PaletteCommand } from './components/CommandPalette';
 import { ConversationView } from './components/Conversation';
+import { CliConversation } from './components/Conversation/CliConversation';
 import { buildCliSlots } from './components/Conversation/cliSlots';
 import { GeminiTrustAction } from './components/Conversation/GeminiTrustAction';
 import type { ConvSlots } from './components/Conversation/Messages';
@@ -58,7 +59,7 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from './contexts/aiChatStore';
-import { HarnessTabsProvider, useHarnessTabs } from './contexts/HarnessTabsContext';
+import { HarnessTabsProvider, useHarnessLive, useHarnessTabs } from './contexts/HarnessTabsContext';
 import { useChatMode } from './hooks/useChatMode';
 import { useHarnessState } from './hooks/useHarnessState';
 import { useLayoutDensity } from './hooks/useLayoutDensity';
@@ -100,7 +101,6 @@ import {
   nomiLive,
   sameLive,
   settledNomiMessages,
-  tabLiveToConv,
 } from './utils/convAdapters';
 import { aggregateSessionChanges } from './utils/sessionChanges';
 import './App.css';
@@ -262,7 +262,7 @@ const AiChatContent: React.FC = () => {
   // 作为一条只带用量的助手消息接在消息末尾（见 withLiveContext）
   const activeTabId = tabs.activeTab?.id;
   const activeRunning = tabs.activeTab?.status === 'running';
-  const streamContext = activeTabId ? tabs.live[activeTabId]?.context : undefined;
+  const streamContext = useHarnessLive((l) => (activeTabId ? l[activeTabId]?.context : undefined));
   const [cliRecordContext, setCliRecordContext] = useState<{
     tabId: string;
     tokens: number;
@@ -360,6 +360,7 @@ const AiChatContent: React.FC = () => {
     for (let k = i - 1; k >= 0; k--) if (list[k]!.role === 'user') return list[k]!;
     return undefined;
   };
+  const cliHasLive = useHarnessLive((l) => !!(activeCliTabId && l[activeCliTabId]));
   const [forkCross, setForkCross] = useState<{
     id: string;
     backend: ConversationBackend;
@@ -915,7 +916,7 @@ const AiChatContent: React.FC = () => {
               {isDev && tabs.isCliTab ? (
                 <>
                   {tabs.messages.length === 0 &&
-                  !tabs.live[tabs.activeTab!.id] &&
+                  !cliHasLive &&
                   slash.cards.length === 0 &&
                   tabs.activeTab!.status === 'idle' ? (
                     <div className="welcome-screen" data-testid="cli-tab-empty">
@@ -929,10 +930,9 @@ const AiChatContent: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <ConversationView
+                    <CliConversation
                       scopeId={tabs.activeTab!.id}
                       messages={cliConvMessages}
-                      live={tabLiveToConv(tabs.live[tabs.activeTab!.id])}
                       phase={
                         tabs.activeTab!.status === 'running'
                           ? 'running'
@@ -942,23 +942,12 @@ const AiChatContent: React.FC = () => {
                       }
                       queued={tabs.queues[tabs.activeTab!.id]}
                       onRemoveQueued={tabs.removeQueued}
-                      onPermission={(id, allow) => void tabs.replyPermission(id, allow)}
-                      onRetry={(id) => {
-                        const u = precedingUser(tabs.messages, id);
-                        if (u) void tabs.send(u.content);
-                      }}
-                      onEdit={(_, text) => void tabs.send(text)}
                       slots={cliSlots}
                       cards={slash.cards}
                       onDismissCard={slash.dismissCard}
                       dormant={tabs.activeTab!.dormant}
                       backgroundAgents={tabs.activeTab!.backgroundAgents}
                       backgroundCount={tabs.activeTab!.background}
-                      onStopAgent={(agentId) =>
-                        void harnessClient
-                          .stopAgent(tabs.activeTab!.id, agentId)
-                          .catch(() => undefined)
-                      }
                     />
                   )}
                 </>

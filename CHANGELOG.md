@@ -354,6 +354,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 编程助手历史会话列全：Codex 压缩存放的旧会话（`.jsonl.zst`，大多数会话都是这种）现在也能列出和打开，之前只认 `.jsonl`，大部分 Codex 会话看不到；元信息优先读 Codex 自己的会话索引（只读），子代理会话（审查、派生任务）不再混在列表里。列表上限从 100 条提到 500 条，不按账号或供应商过滤；第三方线路的会话在行尾标出，悬停可以看到创建它的客户端（CLI / Desktop / IDE / Nomi）、线路和官方账号。搜索结果仍最多显示 100 条。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
 - 编程助手标签在「已开始、但这条消息还没发给 CLI」时点停止也能生效（#75）：Gemini 握手（初始化 / 建立或载入会话 / 设置权限模式）期间停止，会拆掉正在初始化的进程，握手随后完成也不会再把这条消息发出去，这一轮标为已停止；Claude Code 等权限模式确认时停止同样不再拉起新进程发送。紧接着的新一轮不受影响。 (`@nomi-ai/electron` patch)
 - 编程助手标签里的 `/model` 改为和输入框的模型按钮一致：列出当前标签可选的模型（第三方供应商下是供应商的模型）， (`@nomi-ai/ai-chat` minor)
+- 编程助手流式输出更流畅：实时进度改为按标签切片订阅，输出过程中侧栏、标签条、输入栏不再每帧重渲染；对话里已有的消息也不再跟着每帧重算变更摘要。 (`@nomi-ai/ai-chat` patch)
 - 编程助手的输入栏新增权限模式按钮：可在「计划 / 逐项确认 / 自动改文件 / 自动 / 完全放开」之间切换，只列当前 CLI 支持的档位；输入框里按 Shift+Tab 循环切换（跳过「完全放开」）；「完全放开」需要确认，之后按钮标红；可把当前档设为新标签默认。另加 `/mode plan|manual|edits|auto` 命令。 (`@nomi-ai/ai-chat` minor)
 - 编程助手第三方模型入口的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
 - 编程助手能不能附图改为看当前模型的能力：Codex 按模型的 input_modalities、第三方按网关模型的「看图」能力判断，明确不支持时提示是哪个模型；不知道时放行。主对话标签切到编程助手后附图不再提示「请切回 Nomi」。dsh 的命令行本身没有图片输入，仍不支持。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
