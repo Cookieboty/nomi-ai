@@ -1,6 +1,6 @@
 /**
  * E35 · v1.2.0 Codex 对照：上下文环、中栏变更 Diff、右栏文件树、Git 编辑保存、附图提示
- * 截图：V120_SHOTS_DIR（默认 /workspace/accept-shots/v1.2.0-codex-parity）
+ * 截图：V120_SHOTS_DIR 或 NOMI_E2E_SHOTS_DIR（默认系统临时目录下 nomi-e2e-shots/v1.2.0-codex-parity，CI 上 /workspace 不可写）
  */
 import { execSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
@@ -14,7 +14,9 @@ import { repoRoot, resolveElectronExecutable } from '../fixtures/electronApp';
 import { safeRm } from '../fixtures/fsutil';
 
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
-const shotDir = process.env.V120_SHOTS_DIR || '/workspace/accept-shots/v1.2.0-codex-parity';
+const shotDir =
+  process.env.V120_SHOTS_DIR ||
+  join(process.env.NOMI_E2E_SHOTS_DIR || join(tmpdir(), 'nomi-e2e-shots'), 'v1.2.0-codex-parity');
 
 async function launch(
   userData: string,
