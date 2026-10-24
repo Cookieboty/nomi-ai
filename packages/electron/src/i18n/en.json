@@ -664,5 +664,6 @@
   "批准并逐项确认": "Approve with step-by-step confirm",
   "继续修改": "Keep editing",
   "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
-  "无效的批准计划选项": "Invalid approve-plan choice"
+  "无效的批准计划选项": "Invalid approve-plan choice",
+  "网关进程在 {0} 秒内异常退出 {1} 次（最近退出码 {2}），已停止自动重启": "The gateway process exited abnormally {1} times within {0}s (last exit code {2}); auto-restart stopped"
 }

@@ -7,6 +7,7 @@ import {
   BrandIcon,
   Button,
   Icon,
+  Input,
   ModelPicker,
   Select,
   Switch,
@@ -79,6 +80,8 @@ export const ModelsPage: React.FC = () => {
   const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
+  /** 模型页顶部「高级」：请求体上限等 */
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const providers = useMemo(() => state?.providers ?? [], [state]);
   const picker = useMemo(() => pickerProviders(providers), [providers]);
@@ -139,7 +142,53 @@ export const ModelsPage: React.FC = () => {
           />
           <span>{t('严格模式')}</span>
         </label>
+        <button
+          type="button"
+          className={styles.advancedToggle}
+          aria-expanded={showAdvanced}
+          data-testid="models-advanced-toggle"
+          onClick={() => setShowAdvanced((v) => !v)}
+        >
+          <Icon icon={showAdvanced ? ChevronDown : ChevronRight} size={14} />
+          <span>{t('高级')}</span>
+        </button>
       </div>
+      {showAdvanced && (
+        <div className={styles.advanced} data-testid="models-advanced">
+          <label
+            className={styles.inlineField}
+            title={t('超过上限的 POST 会返回 413；默认 32 MiB，可调范围 1–256 MiB')}
+          >
+            <span>{t('请求体上限')}</span>
+            <Input
+              size="sm"
+              type="number"
+              min={1}
+              max={256}
+              step={1}
+              inputMode="numeric"
+              className={styles.bodyLimitInput}
+              disabled={!state}
+              value={Math.round((state?.maxRequestBodyBytes ?? 32 * 1024 * 1024) / (1024 * 1024))}
+              onChange={(e) => {
+                const mib = Number(e.target.value);
+                if (!Number.isFinite(mib)) return;
+                run(
+                  gatewayClient.setOptions({
+                    maxRequestBodyBytes: Math.round(mib * 1024 * 1024),
+                  }),
+                );
+              }}
+              aria-label={t('请求体上限')}
+              data-testid="models-body-limit"
+            />
+            <span className={styles.muted}>{t('MiB')}</span>
+          </label>
+          <p className={styles.sub}>
+            {t('超过上限的 POST 会返回 413；默认 32 MiB，可调范围 1–256 MiB')}
+          </p>
+        </div>
+      )}
 
       {status?.state === 'failed' && (
         <div className={styles.offer} role="alert" data-testid="gateway-failed">

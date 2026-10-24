@@ -18,7 +18,12 @@ import {
   type ModelResolution,
 } from './clients/index';
 import { peekCommit, type PeekResult } from './commit';
-import type { ClientId, GatewayConfig } from './config';
+import {
+  clampMaxRequestBodyBytes,
+  DEFAULT_MAX_REQUEST_BODY_BYTES,
+  type ClientId,
+  type GatewayConfig,
+} from './config';
 import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
 import { customToolNames, isCustomToolRefusal } from './customTools';
 import {
@@ -38,7 +43,8 @@ import { GatewayMetrics } from './metrics';
 import { modelsBody } from './models';
 import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
-import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { createUpstreamFetch, type UpstreamFetch } from './net/upstreamFetch';
+import { UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
 import { ProviderStage, specOf } from './providers/index';
 import { stagedResponse } from './providers/stream';
 import {
@@ -213,11 +219,44 @@ function sendJson(
   res.end(data);
 }
 
-function readBody(req: http.IncomingMessage): Promise<unknown> {
+/** 请求体超过上限 */
+export class BodyTooLargeError extends Error {
+  constructor(maxBytes: number) {
+    super(`请求体超过上限（${maxBytes} 字节）`);
+    this.name = 'BodyTooLargeError';
+  }
+}
+
+function readBody(req: http.IncomingMessage, maxBytes: number): Promise<unknown> {
   return new Promise((resolve, reject) => {
+    const cl = req.headers['content-length'];
+    if (cl !== undefined) {
+      const n = Number(cl);
+      if (Number.isFinite(n) && n > maxBytes) {
+        req.resume();
+        reject(new BodyTooLargeError(maxBytes));
+        return;
+      }
+    }
     const chunks: Buffer[] = [];
-    req.on('data', (c) => chunks.push(Buffer.from(c)));
+    let size = 0;
+    let done = false;
+    const onData = (c: Buffer | string) => {
+      if (done) return;
+      const buf = Buffer.isBuffer(c) ? c : Buffer.from(c);
+      size += buf.length;
+      if (size > maxBytes) {
+        done = true;
+        req.off('data', onData);
+        req.resume();
+        reject(new BodyTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(buf);
+    };
+    req.on('data', onData);
     req.on('end', () => {
+      if (done) return;
       const raw = Buffer.concat(chunks).toString('utf8');
       if (!raw) return resolve({});
       try {
@@ -313,6 +352,8 @@ export class GatewayServer {
   private readonly sessions: SessionTable;
   /** 进程内实时 RoutePlan 指标（GET /metrics；重启清零） */
   readonly metrics: GatewayMetrics;
+  /** 钉 IP 的上游 fetch（测试可用 hooks.fetchImpl 覆盖） */
+  private readonly upstreamFetch: UpstreamFetch;
 
   constructor(
     private cfg: GatewayConfig,
@@ -332,6 +373,17 @@ export class GatewayServer {
       this.hooks.onLearn?.(e);
     });
     this.metrics = new GatewayMetrics({ now });
+    this.upstreamFetch = createUpstreamFetch({
+      getGuard: () => ({
+        allowedPrivateHosts: this.cfg.allowedPrivateHosts,
+        selfPort: this.address()?.port ?? this.cfg.port,
+        lookupAll: this.hooks.lookupAll,
+      }),
+    });
+  }
+
+  private doFetch(input: string, init?: RequestInit): Promise<Response> {
+    return (this.hooks.fetchImpl ?? this.upstreamFetch)(input, init);
   }
 
   /** 换新配置：进行中的请求继续用各自拿到的旧快照 */
@@ -551,9 +603,18 @@ export class GatewayServer {
         stream: false,
       });
     let body: unknown;
+    const maxBody = clampMaxRequestBodyBytes(
+      this.cfg.maxRequestBodyBytes ?? DEFAULT_MAX_REQUEST_BODY_BYTES,
+    );
     try {
-      body = await readBody(req);
-    } catch {
+      body = await readBody(req, maxBody);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        const message = `Nomi 网关：请求体超过上限（最大 ${maxBody} 字节）`;
+        fail(413, message);
+        reportLocal(413, message);
+        return;
+      }
       const message = 'Nomi 网关：请求体不是合法的 JSON';
       fail(400, message);
       reportLocal(400, message);
@@ -1024,23 +1085,6 @@ export class GatewayServer {
   ): Promise<Attempt> {
     const base = cand.provider.urls[cand.wire]!;
     const target = upstreamUrl(cand.wire, base, cand.upstreamModel, { stream: wantsStream });
-    try {
-      await checkUpstream(target, {
-        allowedPrivateHosts: cfg.allowedPrivateHosts,
-        selfPort: this.address()?.port ?? cfg.port,
-        lookupAll: this.hooks.lookupAll,
-      });
-    } catch (e) {
-      return {
-        kind: 'failed',
-        status: 400,
-        message: (e as Error).message,
-        retryable: e instanceof UpstreamBlockedError,
-        cand,
-        outcome: 'gateway-error',
-        errorKind: 'blocked-upstream',
-      };
-    }
     const notes: string[] = [];
     let sent: unknown;
     try {
@@ -1116,7 +1160,7 @@ export class GatewayServer {
     });
     let res: Response;
     try {
-      res = await (this.hooks.fetchImpl ?? fetch)(target, {
+      res = await this.doFetch(target, {
         method: 'POST',
         headers,
         body: JSON.stringify(sent),
@@ -1124,6 +1168,17 @@ export class GatewayServer {
         signal: both,
       });
     } catch (e) {
+      if (e instanceof UpstreamBlockedError) {
+        return {
+          kind: 'failed',
+          status: 400,
+          message: e.message,
+          retryable: true,
+          cand,
+          outcome: 'gateway-error',
+          errorKind: 'blocked-upstream',
+        };
+      }
       const timedOut = firstByte.signal.aborted && !signal.aborted;
       return {
         kind: 'failed',
@@ -1402,12 +1457,7 @@ export class GatewayServer {
         countTokens: true,
       });
       try {
-        await checkUpstream(target, {
-          allowedPrivateHosts: cfg.allowedPrivateHosts,
-          selfPort: this.address()?.port ?? cfg.port,
-          lookupAll: this.hooks.lookupAll,
-        });
-        const up = await (this.hooks.fetchImpl ?? fetch)(target, {
+        const up = await this.doFetch(target, {
           method: 'POST',
           headers: upstreamHeaders(cand, { stream: false, clientHeaders: {}, sameWire: true }),
           body: JSON.stringify(

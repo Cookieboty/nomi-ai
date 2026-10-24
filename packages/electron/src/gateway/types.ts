@@ -86,4 +86,6 @@ export interface GatewayStoreData {
   migratedFrom?: { at: number; files: string[] };
   /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 入站请求体上限（字节）；不设 = 32 MiB */
+  maxRequestBodyBytes?: number;
 }

@@ -635,6 +635,33 @@ describe('ModelsPage', () => {
     );
   });
 
+  it('advanced disclosure exposes request body limit and saves via set-options', async () => {
+    const m = fakeMain({
+      extra: {
+        'ai:gateway:set-options': (patch) => {
+          const p = patch as { maxRequestBodyBytes?: number };
+          if (typeof p.maxRequestBodyBytes === 'number') {
+            m.state.maxRequestBodyBytes = p.maxRequestBodyBytes;
+          }
+          return structuredClone(m.state);
+        },
+      },
+    });
+    m.state.maxRequestBodyBytes = 32 * 1024 * 1024;
+    render(<ModelsPage />);
+    expect(screen.queryByTestId('models-advanced')).toBeNull();
+    fireEvent.click(await screen.findByTestId('models-advanced-toggle'));
+    const input = await screen.findByTestId('models-body-limit');
+    expect((input as HTMLInputElement).value).toBe('32');
+    fireEvent.change(input, { target: { value: '64' } });
+    await waitFor(() =>
+      expect(m.calls).toContainEqual([
+        'ai:gateway:set-options',
+        [{ maxRequestBodyBytes: 64 * 1024 * 1024 }],
+      ]),
+    );
+  });
+
   it('per-key limits: only changed limits are sent; blank clears a saved limit', async () => {
     const m = fakeMain();
     m.state.providers = [

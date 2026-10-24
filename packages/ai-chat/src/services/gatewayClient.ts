@@ -105,6 +105,8 @@ export interface GatewayState {
   port: number;
   /** 严格模式（默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 入站请求体上限（字节）；默认 32 MiB */
+  maxRequestBodyBytes?: number;
   migratedFrom?: { at: number; files: string[] };
   /** 这次启动撤销旧版本全局配置的结果（§6.3 第 7 步） */
   legacyRevoke?: { revoked: string[]; failed: Array<{ kind: string; error: string }> };
@@ -251,7 +253,8 @@ export const gatewayClient = {
   clearLearned: (providerId: string) => call<void>('clear-learned', providerId),
   confirmPrivateHost: (hostPort: string) => call<void>('confirm-private-host', hostPort),
   retry: () => call<void>('retry'),
-  setOptions: (patch: { strictParams?: boolean }) => call<GatewayState>('set-options', patch),
+  setOptions: (patch: { strictParams?: boolean; maxRequestBodyBytes?: number }) =>
+    call<GatewayState>('set-options', patch),
   onChanged: (fn: () => void) =>
     bridge()?.on?.('ai:gateway:changed', () => fn()) ?? (() => undefined),
 };

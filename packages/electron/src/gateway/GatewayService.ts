@@ -11,6 +11,7 @@ import path from 'path';
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
+  clampMaxRequestBodyBytes,
   CLIENT_IDS,
   detect,
   isPrivateHost,
@@ -153,6 +154,8 @@ export interface GatewayStateView {
   port: number;
   /** 严格模式（§6.9.6，默认关） */
   strictParams: boolean;
+  /** 入站请求体上限（字节）；默认 32 MiB */
+  maxRequestBodyBytes: number;
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
@@ -654,6 +657,7 @@ export class GatewayService {
       allowedPrivateHosts: data.allowedPrivateHosts,
       port: data.port,
       strictParams: data.strictParams === true,
+      maxRequestBodyBytes: clampMaxRequestBodyBytes(data.maxRequestBodyBytes ?? 32 * 1024 * 1024),
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
       ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
@@ -793,12 +797,20 @@ export class GatewayService {
     this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
   }
 
-  /** 网关全局选项（目前只有严格模式，默认关） */
-  setOptions(patch: { strictParams?: unknown }): GatewayStateView {
+  /** 网关全局选项：严格模式、请求体上限等 */
+  setOptions(patch: { strictParams?: unknown; maxRequestBodyBytes?: unknown }): GatewayStateView {
+    let changed = false;
+    const data = this.store.snapshot();
     if (typeof patch.strictParams === 'boolean') {
-      const data = this.store.snapshot();
       if (patch.strictParams) data.strictParams = true;
       else delete data.strictParams;
+      changed = true;
+    }
+    if (typeof patch.maxRequestBodyBytes === 'number') {
+      data.maxRequestBodyBytes = clampMaxRequestBodyBytes(patch.maxRequestBodyBytes);
+      changed = true;
+    }
+    if (changed) {
       this.store.replace(data);
       this.commit();
     }
@@ -988,7 +1000,7 @@ export class GatewayService {
     handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
     handle('ai:gateway:retry', () => this.proc.retry());
     handle('ai:gateway:set-options', (patch) =>
-      this.setOptions((patch ?? {}) as { strictParams?: unknown }),
+      this.setOptions((patch ?? {}) as { strictParams?: unknown; maxRequestBodyBytes?: unknown }),
     );
   }
 

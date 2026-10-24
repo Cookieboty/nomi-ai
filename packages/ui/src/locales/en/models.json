@@ -162,5 +162,8 @@
   "{0} 的并发上限": "{0} max concurrent requests",
   "{0} 每分钟最多请求数": "{0} max requests per minute",
   "严格模式": "Strict mode",
-  "开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests"
+  "开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests",
+  "请求体上限": "Request body limit",
+  "超过上限的 POST 会返回 413；默认 32 MiB，可调范围 1–256 MiB": "POSTs over the limit get 413; default 32 MiB, adjustable from 1–256 MiB",
+  "MiB": "MiB"
 }

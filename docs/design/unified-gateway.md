@@ -1115,7 +1115,11 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
   - **公网地址**：完整走 netGuard 的规则（只允许 http / https、拒绝内嵌凭据、连接时校验解析结果防 DNS 重绑定）。
   - **回环和私网地址**（Ollama、LM Studio、局域网里的自建服务）：netGuard 默认会拒绝，所以单独放行，但只放行用户**显式配置或确认过**的主机和端口（本地服务预设在添加时自动确认，自定义的私网地址在保存时弹窗确认）。连接时仍校验解析结果必须落在已确认的地址上。
   - 不允许上游地址指向网关自己的端口，防止请求转圈。
-- netGuard 现在在 `electron/src/security/netGuard.ts`，只依赖 Node 内置模块。把它的校验核心搬到 `packages/gateway/src/net/`（纯 Node），electron 包改为从网关包导入，满足「网关不 import electron」的约束。
+  - **DNS 钉 IP（防 TOCTOU 重绑定）**：出站统一走 `packages/gateway/src/net/upstreamFetch.ts` 的 undici Agent。每次请求先 `resolveUpstreamAddresses` 校验一次 DNS，再通过 AsyncLocalStorage 把已校验地址钉进自定义 `lookup`，连接不再二次解析。探测配置校验仍可用 `checkUpstream`，但真正的 fetch 路径不依赖第二次未校验的 DNS。
+  - **系统代理**：若环境变量有 `HTTPS_PROXY` / `HTTP_PROXY`（及小写形式），dispatcher 使用 undici `EnvHttpProxyAgent`（尊重 `NO_PROXY`）；直连与连代理的 connect 均走同一套钉 IP lookup。经代理时目标主机由代理侧解析——这是代理场景下的固有限制，直连场景无 TOCTOU。
+  - **超时**：Agent 设合理的 `connectTimeout` / `headersTimeout` 与 keep-alive。
+- **入站请求体上限**：`readBody` 按 `maxRequestBodyBytes`（默认 32 MiB，可在「模型」页高级设置调整，钳制 1–256 MiB）限制；`Content-Length` 超限立即 413，流式读取累计超限也 413 并停止缓冲。
+- netGuard 校验核心在 `packages/gateway/src/net/`（纯 Node）；electron 包从网关包导入，满足「网关不 import electron」的约束。
 - Key 用 `safeStorage` 加密存储；解密只在主进程进行，通过 MessagePort 传给网关进程，网关进程只在内存里持有。
 - 配置写入用 `writePrivateFile`；备份目录权限 0700。
 - 新增的 IPC 通道都按 `ai:gateway:<动作>` 命名，走 `guardedHandle` 和 `ipcSenderGuard`：`ai:gateway:state`、`ai:gateway:upsert-provider`、`ai:gateway:remove-provider`、`ai:gateway:detect`、`ai:gateway:set-assignment`、`ai:gateway:reset-token`、`ai:gateway:clear-learned`、`ai:gateway:requests`、`ai:gateway:reimport-legacy`（§6.3 第 5 步），变更广播 `ai:gateway:changed`。返回给渲染进程的数据里 Key 只给掩码，令牌不返回。

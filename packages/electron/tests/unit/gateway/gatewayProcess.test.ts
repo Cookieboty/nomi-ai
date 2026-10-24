@@ -77,23 +77,52 @@ describe('GatewayProcess', () => {
     expect(t.learned).toHaveLength(1);
   });
 
-  it('restarts after a crash with backoff and gives up after 3 failures', async () => {
+  it('restarts after a crash with backoff and fuses after 5 failures in the window', async () => {
     const t = setup();
     t.gp.apply(cfg());
-    t.children[0]!.die(1);
+    for (let i = 0; i < 4; i++) {
+      t.children[i]!.die(1);
+      await tick();
+    }
+    expect(t.children).toHaveLength(5);
+    expect(t.gp.getStatus().state).not.toBe('failed');
+    t.children[4]!.die(1);
     await tick();
-    expect(t.children).toHaveLength(2);
-    expect(t.children[1]!.sent[0]).toMatchObject({ type: 'config' });
-    t.children[1]!.die(1);
-    await tick();
-    t.children[2]!.die(1);
-    await tick();
-    expect(t.children).toHaveLength(3);
+    expect(t.children).toHaveLength(5);
     expect(t.gp.getStatus()).toMatchObject({ state: 'failed' });
+    expect(String((t.gp.getStatus() as { error: string }).error)).toMatch(/5/);
     await expect(t.gp.whenReady(10)).resolves.toBe(false);
-    // 用户点「重试」
+    // 用户点「重试」清零熔断
     t.gp.retry();
-    expect(t.children).toHaveLength(4);
+    expect(t.children).toHaveLength(6);
+  });
+
+  it('successful listening clears the crash-fuse window', async () => {
+    const now = 1_000;
+    const children: FakeChild[] = [];
+    const gp = new GatewayProcess({
+      logger: { info() {}, warn() {} },
+      fork: () => {
+        const c = new FakeChild();
+        children.push(c);
+        return c;
+      },
+      backoffMs: () => 1,
+      now: () => now,
+      crashFuseMax: 3,
+      crashFuseWindowMs: 60_000,
+    });
+    gp.apply(cfg());
+    children[0]!.die(1);
+    await tick();
+    children[1]!.die(1);
+    await tick();
+    children[2]!.say({ type: 'listening', port: 1, url: 'http://127.0.0.1:1' });
+    children[2]!.die(1);
+    await tick();
+    // 成功后计数清零，再崩两次仍未熔断（max=3）
+    expect(gp.getStatus().state).not.toBe('failed');
+    expect(children).toHaveLength(4);
   });
 
   it('a fatal start error (port in use) stops retrying; a successful start resets the counter', async () => {

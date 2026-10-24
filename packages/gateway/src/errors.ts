@@ -10,6 +10,7 @@ export type ErrorKind =
   | 'invalid'
   | 'not_found'
   | 'context'
+  | 'payload_too_large'
   | 'upstream'
   | 'timeout';
 
@@ -41,6 +42,7 @@ export function kindOfStatus(status: number, message = ''): ErrorKind {
   if (status === 503 || status === 529) return 'overloaded';
   if (status === 401 || status === 403) return 'auth';
   if (status === 404) return 'not_found';
+  if (status === 413) return 'payload_too_large';
   if (status === 400 && /context|too long|maximum context|token limit/i.test(message))
     return 'context';
   if (status >= 400 && status < 500) return 'invalid';
@@ -54,6 +56,7 @@ const STATUS: Record<ErrorKind, number> = {
   invalid: 400,
   not_found: 404,
   context: 400,
+  payload_too_large: 413,
   upstream: 502,
   timeout: 504,
 };
@@ -72,6 +75,7 @@ export function errorResponse(
       invalid: 'invalid_request_error',
       not_found: 'not_found_error',
       context: 'invalid_request_error',
+      payload_too_large: 'invalid_request_error',
       upstream: 'api_error',
       timeout: 'api_error',
     }[kind];
@@ -90,6 +94,7 @@ export function errorResponse(
       invalid: 'INVALID_ARGUMENT',
       not_found: 'NOT_FOUND',
       context: 'INVALID_ARGUMENT',
+      payload_too_large: 'INVALID_ARGUMENT',
       upstream: 'INTERNAL',
       timeout: 'DEADLINE_EXCEEDED',
     }[kind];
@@ -102,11 +107,12 @@ export function errorResponse(
     invalid: 'invalid_request_error',
     not_found: 'model_not_found',
     context: 'context_length_exceeded',
+    payload_too_large: 'invalid_request_error',
     upstream: 'server_error',
     timeout: 'timeout',
   }[kind];
   const type =
-    kind === 'invalid' || kind === 'context' || kind === 'not_found'
+    kind === 'invalid' || kind === 'context' || kind === 'not_found' || kind === 'payload_too_large'
       ? 'invalid_request_error'
       : code;
   return { status, body: { error: { message, type, code } } };

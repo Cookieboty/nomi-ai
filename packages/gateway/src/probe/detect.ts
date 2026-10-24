@@ -6,6 +6,7 @@
 import type { AuthStyle, ProbeState } from '../config';
 import type { Wire } from '../ir';
 import { WIRES } from '../ir';
+import { createUpstreamFetch } from '../net/upstreamFetch';
 import { checkUpstream, type LookupAll } from '../net/upstreamGuard';
 import { upstreamUrl } from '../upstream';
 
@@ -126,6 +127,17 @@ function looksLikeParamError(text: string): boolean {
   }
 }
 
+function outboundFetch(o: DetectOptions): typeof fetch {
+  if (o.fetchImpl) return o.fetchImpl;
+  return createUpstreamFetch({
+    getGuard: () => ({
+      allowedPrivateHosts: o.allowedPrivateHosts,
+      selfPort: o.selfPort,
+      lookupAll: o.lookupAll,
+    }),
+  }) as unknown as typeof fetch;
+}
+
 async function guarded(url: string, o: DetectOptions): Promise<string | null> {
   try {
     await checkUpstream(url, {
@@ -150,7 +162,7 @@ async function listModels(
   if (await guarded(url, o)) return { models: [] };
   for (const auth of ['bearer', 'x-api-key'] as AuthStyle[]) {
     try {
-      const res = await (o.fetchImpl ?? fetch)(url, {
+      const res = await outboundFetch(o)(url, {
         headers: authHeaders('chat', auth, key),
         redirect: 'manual',
         signal: AbortSignal.timeout(o.timeoutMs ?? TIMEOUT_MS),
@@ -192,7 +204,7 @@ async function probeWire(
   const blocked = await guarded(url, o);
   if (blocked) return { wire, url: base, ok: false, error: blocked, ms: 0 };
   const attempt = async (style: AuthStyle) => {
-    const res = await (o.fetchImpl ?? fetch)(url, {
+    const res = await outboundFetch(o)(url, {
       method: 'POST',
       headers: authHeaders(wire, style, key.value),
       body: JSON.stringify(probeBody(wire, model)),

@@ -11,6 +11,7 @@ import path from 'path';
 import type { SecretCipher } from '@nomi-ai/ai-runtime';
 import {
   CLIENT_IDS,
+  clampMaxRequestBodyBytes,
   type ClientId,
   type ClientModels,
   type GatewayConfig,
@@ -310,6 +311,9 @@ export class GatewayStore {
       allowedPrivateHosts: this.data.allowedPrivateHosts,
       learned: this.data.learned,
       ...(this.data.strictParams ? { strictParams: true } : {}),
+      ...(typeof this.data.maxRequestBodyBytes === 'number'
+        ? { maxRequestBodyBytes: clampMaxRequestBodyBytes(this.data.maxRequestBodyBytes) }
+        : {}),
     };
   }
 }

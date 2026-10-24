@@ -153,6 +153,15 @@ export interface LearnedState {
   models?: Record<string, LearnedModel>;
 }
 
+/** 请求体上限默认 32 MiB；高级设置可调，夹在 1..256 MiB */
+export const DEFAULT_MAX_REQUEST_BODY_BYTES = 32 * 1024 * 1024;
+export const MIN_MAX_REQUEST_BODY_BYTES = 1 * 1024 * 1024;
+export const MAX_MAX_REQUEST_BODY_BYTES = 256 * 1024 * 1024;
+
+export function clampMaxRequestBodyBytes(n: unknown): number {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return DEFAULT_MAX_REQUEST_BODY_BYTES;
+  return Math.min(MAX_MAX_REQUEST_BODY_BYTES, Math.max(MIN_MAX_REQUEST_BODY_BYTES, Math.floor(n)));
+}
 export interface GatewayConfig {
   host: string;
   port: number;
@@ -169,6 +178,8 @@ export interface GatewayConfig {
   traceDir?: string;
   /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
+  /** 入站请求体上限（字节）；不设 = 32 MiB，见 clampMaxRequestBodyBytes */
+  maxRequestBodyBytes?: number;
   /**
    * 路由计划（§6.9.4）：active（默认，未设亦同）= 按新计划选上游协议（模型原生协议优先）；
    * shadow = 只计算新计划、与现有选协议规则比对写日志（回滚用，NOMI_ROUTE_PLAN=shadow）。
