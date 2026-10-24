@@ -499,8 +499,8 @@ export class GatewayService {
   }
 
   /** 第三方标签的进程退出 / 标签关闭：作废它的令牌 */
-  releaseTab(kind: AgentKind, tabId: string): void {
-    this.tabs.remove(kind, tabId);
+  releaseTab(kind: AgentKind, tabId: string, generation?: number): void {
+    this.tabs.remove(kind, tabId, generation);
   }
 
   /**

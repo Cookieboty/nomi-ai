@@ -107,11 +107,15 @@ export class TabTokens {
     return true;
   }
 
-  /** 进程退出 / 标签关闭：作废这个标签的令牌 */
-  remove(client: string, tabId: string): void {
+  /**
+   * 进程退出 / 标签关闭：作废这个标签的令牌。给了 generation（进程退出）时只作废那一代：
+   * 旧进程的退出事件可能晚于新代次的登记（回收后马上发下一条），不能把新进程的令牌一起作废。
+   */
+  remove(client: string, tabId: string, generation?: number): void {
     const key = keyOf(client, tabId);
     const cur = this.active.get(key);
     if (!cur) return;
+    if (generation !== undefined && cur.generation !== generation) return;
     this.active.delete(key);
     this.d.send({ type: 'binding:remove', id: this.nextId(), tokenHash: cur.tokenHash });
   }

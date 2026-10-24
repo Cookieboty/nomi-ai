@@ -94,7 +94,7 @@ describe('第三方标签的标签令牌与绑定（§6.7）', () => {
     const tab = h.createTab({ backend: 'codex', source: 'thirdParty' });
     const env1 = JSON.parse((await h.sendTab(tab.id, 'one')).text) as Record<string, string>;
     expect(env1.NOMI_GATEWAY_KEY).toBe(`nomi-tab-${tab.id}-g1`);
-    await until(() => gw.bindings.includes(`release codex ${tab.id}`));
+    await until(() => gw.bindings.includes(`release codex ${tab.id} g1`));
     const env2 = JSON.parse((await h.sendTab(tab.id, 'two')).text) as Record<string, string>;
     expect(env2.NOMI_GATEWAY_KEY).toBe(`nomi-tab-${tab.id}-g2`);
     expect(registers(gw)).toEqual([
@@ -139,6 +139,18 @@ describe('第三方标签的标签令牌与绑定（§6.7）', () => {
     expect(registers(gw).at(-1)).toBe(`register claude ${tab.id} gw/main g2`);
     h.closeTab(tab.id);
     expect(gw.bindings.at(-1)).toBe(`release claude ${tab.id}`);
+  }, 15_000);
+
+  it('回收后马上发下一条：旧进程晚到的退出只作废它自己那一代，不作废新进程的令牌', async () => {
+    // 登记要等网关确认（这里 300ms）：旧进程的退出事件落在新代次登记之后、确认之前
+    const gw = testGateway({ source: 'thirdParty', tabTokens: true, bindDelayMs: 300 });
+    const h = mk(gw, { grokAcp: true });
+    const tab = h.createTab({ backend: 'grok', source: 'thirdParty' });
+    await h.sendTab(tab.id, 'hi');
+    expect(h.reclaimIdle(Date.now() + 24 * 3600_000)).toContain(tab.id);
+    await h.sendTab(tab.id, 'again');
+    await until(() => gw.bindings.includes(`release grok ${tab.id} g1`));
+    expect(gw.live('grok', tab.id)).toBe(2);
   }, 15_000);
 
   it('Claude 档位变量跟着主模型（restart 方式）：换模型签新代次重启，续接原会话', async () => {

@@ -97,6 +97,25 @@ describe('TabTokens（§6.7 先登记、后启动）', () => {
     await expect(t.tabs.update({ client: 'codex', tabId: 't', models: {} })).resolves.toBe(false);
   });
 
+  it('进程退出按代次作废：旧代次晚到的退出（新代次已登记、等确认中）不作废新令牌', async () => {
+    const t = mk();
+    const p1 = t.tabs.register({ client: 'grok', tabId: 't', models: { main: 'a/b' } });
+    t.ackLast();
+    await p1;
+    // 回收后马上发下一条：第 2 代已在等网关确认，这时第 1 代的进程才退出
+    const p2 = t.tabs.register({ client: 'grok', tabId: 't', models: { main: 'a/b' } });
+    const before = t.sent.length;
+    t.tabs.remove('grok', 't', 1);
+    expect(t.sent.length).toBe(before);
+    expect(t.tabs.has('grok', 't')).toBe(true);
+    t.ackLast();
+    const r2 = await p2;
+    t.tabs.remove('grok', 't', 1);
+    expect(t.tabs.has('grok', 't')).toBe(true);
+    t.tabs.remove('grok', 't', r2.generation);
+    expect(t.tabs.has('grok', 't')).toBe(false);
+  });
+
   it('网关拒绝 / 超时 / 没在运行：reject，且不留下有效绑定', async () => {
     const t = mk();
     const p = t.tabs.register({ client: 'grok', tabId: 'x', models: {} });
