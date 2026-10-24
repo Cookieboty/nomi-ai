@@ -37,6 +37,8 @@ export interface AccountView {
   duplicateOf?: string;
   /** 在终端里用这个账号运行 CLI 的命令（本机登录没有） */
   terminalCommand?: string;
+  /** 共享软链失败（非阻断；Windows 无特权时常见） */
+  problems?: Array<{ entry: string; reason: string }>;
   createdAt: number;
   lastUsedAt?: number;
 }

@@ -236,6 +236,13 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           {msg.text}
         </Notice>
       )}
+      {accounts.some((a) => (a.problems?.length ?? 0) > 0) && (
+        <Notice tone="warning" data-testid="cli-accounts-home-problems">
+          {t(
+            '部分账号的共享目录软链失败（在 Windows 上常见，需要开发者模式或管理员权限）。会话历史可能不会跨账号共享；官方登录与凭据不受影响。',
+          )}
+        </Notice>
+      )}
       {accounts.map((a) => (
         <SettingRow
           key={a.id}
@@ -343,7 +350,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               data-testid="cli-account-remove"
               onClick={() => {
                 if (
-                  window.confirm(
+                  !window.confirm(
                     t(
                       '删除账号「{0}」？会在这个账号的目录里登出 {1}（撤销登录），然后删除这个目录；会话历史保留。',
                       a.label,
@@ -351,7 +358,27 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                     ),
                   )
                 )
-                  void run(`d:${a.id}`, () => cliAccountClient.remove(a.id));
+                  return;
+                void run(`d:${a.id}`, async () => {
+                  try {
+                    await cliAccountClient.remove(a.id);
+                  } catch (e) {
+                    const m = errorText(e);
+                    if (
+                      /无法确认|强制删除|unknown/i.test(m) &&
+                      window.confirm(
+                        t(
+                          '无法确认是否还有 CLI 在用这个账号。请先在终端退出相关 CLI。确认没有进程占用后，仍要强制删除「{0}」吗？',
+                          a.label,
+                        ),
+                      )
+                    ) {
+                      await cliAccountClient.remove(a.id, { force: true });
+                      return;
+                    }
+                    throw e;
+                  }
+                });
               }}
             >
               {t('删除')}

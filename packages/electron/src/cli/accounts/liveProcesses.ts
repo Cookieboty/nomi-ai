@@ -95,8 +95,9 @@ export async function liveProcesses(
   const alive = d.alive ?? pidAlive;
   if (kind === 'claude') {
     const pids = claudeSessionPids(dir, alive);
+    // sessions 目录不存在 = 没有可追踪的 Claude 会话，按 idle（不改走 lsof；Windows 也只靠 sessions）
     if (pids?.length) return { state: 'busy', pids };
-    if (pids) return { state: 'idle' };
+    return { state: 'idle' };
   }
   const platform = d.platform ?? process.platform;
   if (!d.openFiles && platform === 'win32') return { state: 'unknown' };

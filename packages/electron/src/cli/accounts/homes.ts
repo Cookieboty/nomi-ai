@@ -15,6 +15,7 @@ import path from 'node:path';
 
 import { claude, codex, gemini, grok } from '@nomi-ai/cli-plugins/main';
 import type { AccountCapability } from '@nomi-ai/cli-sdk';
+import { ensureSharedHome, linkShared, type LinkProblem } from '@nomi-ai/cli-sdk';
 
 import { claudeConfigDir, codexHomeDir, grokHomeDir } from '../../usage/cliHomes';
 import { writePrivateFileAtomic } from '../../utils/privateFile';
@@ -139,41 +140,12 @@ export function canonicalDir(p: string): string {
   }
 }
 
-export interface HomeProblem {
-  entry: string;
-  reason: string;
-}
-
-function linkOne(
-  target: string,
-  link: string,
-  dir: boolean,
-  platform: NodeJS.Platform,
-): string | null {
-  try {
-    const st = fs.lstatSync(link);
-    if (st.isSymbolicLink()) {
-      if (fs.readlinkSync(link) === target) return null;
-      fs.rmSync(link, { force: true });
-    } else {
-      // 账号目录里已经有同名的真实文件 / 目录（例如 CLI 自己先建了）：保留，不覆盖
-      return null;
-    }
-  } catch {
-    /* 不存在：创建 */
-  }
-  try {
-    fs.mkdirSync(path.dirname(link), { recursive: true });
-    fs.symlinkSync(target, link, dir ? (platform === 'win32' ? 'junction' : 'dir') : 'file');
-    return null;
-  } catch (e) {
-    return e instanceof Error ? e.message : String(e);
-  }
-}
+/** 与 cli-sdk LinkProblem 同形：链不上的共享条目（界面非阻断提示） */
+export type HomeProblem = LinkProblem;
 
 /**
- * 建好 / 补齐账号目录：私有目录本身 0700，共享条目软链回用户目录。返回链不上的条目（界面上说明，
- * 不静默复制导致历史分叉）。可以重复调用（每次启动前都调用一次，补上用户后来新建的共享条目）。
+ * 建好 / 补齐账号目录：私有目录本身 0700，共享条目软链回用户目录（统一走 cli-sdk ensureSharedHome）。
+ * 返回链不上的条目（界面上说明，不静默复制导致历史分叉）。可重复调用。
  */
 export function ensureAccountHome(
   kind: AccountKind,
@@ -181,25 +153,18 @@ export function ensureAccountHome(
   userDir: string,
   platform: NodeJS.Platform = process.platform,
 ): HomeProblem[] {
-  fs.mkdirSync(accountDir, { recursive: true, mode: 0o700 });
-  try {
-    fs.chmodSync(accountDir, 0o700);
-  } catch {
-    /* Windows 上 mode 无效 */
-  }
-  const problems: HomeProblem[] = [];
-  for (const s of LAYOUTS[kind].shared) {
-    const target = path.join(userDir, s.name);
-    if (!fs.existsSync(target)) {
-      if (!s.createIfMissing) continue;
-      if (s.dir) fs.mkdirSync(target, { recursive: true });
-    }
-    const err = linkOne(target, path.join(accountDir, s.name), s.dir, platform);
-    if (err) problems.push({ entry: s.name, reason: err });
-  }
+  const problems = ensureSharedHome({
+    dir: accountDir,
+    userDir,
+    entries: LAYOUTS[kind].shared,
+    platform,
+  });
   if (kind === 'claude') syncClaudeFiles(accountDir, userDir);
   return problems;
 }
+
+/** 单条软链（测试 / 调试用；生产路径走 ensureAccountHome） */
+export const linkOne = linkShared;
 
 function readJson(file: string): Record<string, unknown> | null {
   try {

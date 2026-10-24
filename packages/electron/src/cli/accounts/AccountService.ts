@@ -83,7 +83,7 @@ const primaryKey = (key: string) => key.split('|')[0] ?? key;
 
 export class AccountError extends Error {
   constructor(
-    readonly code: 'not-found' | 'in-use' | 'local' | 'unsupported',
+    readonly code: 'not-found' | 'in-use' | 'local' | 'unsupported' | 'unknown-live',
     message: string,
   ) {
     super(message);
@@ -180,12 +180,18 @@ export class AccountService {
   }
 
   /**
-   * 旧版本的保险箱（userData/cli-accounts/<kind>.json，含加密凭据）与备份：账号转成「需要重新登录」，
-   * 凭据与备份立即删除（§5.10.9）。旧的登录暂存目录里可能有明文凭据，一并删除。
+   * 旧版本的保险箱（userData/cli-accounts/<kind>.json，含加密凭据）与备份：账号转成「需要重新登录」
+   * （§5.10.9）。原子性：先写出 needsLogin 记录并落盘 accounts.json，成功后再删保险箱 / 备份 / 暂存；
+   * 解析失败时尽量为可恢复身份写 stub，并把保险箱挪到一边归档（不静默清空）；写盘失败则保留原文件。
    */
   private migrateVault() {
     const s = this.data!;
+    const beforeLen = s.accounts.length;
     let migrated = 0;
+    /** 解析成功、可安全删除的保险箱 */
+    const pendingDelete: string[] = [];
+    /** 解析失败：写出 stub（如有）后归档，绝不静默 rm */
+    const pendingArchive: string[] = [];
     for (const kind of ACCOUNT_KINDS) {
       const legacy = path.join(this.d.root, `${kind}.json`);
       if (!fs.existsSync(legacy)) continue;
@@ -211,17 +217,81 @@ export class AccountService {
           });
           migrated++;
         }
+        pendingDelete.push(legacy);
       } catch (e) {
-        this.d.logger.warn('legacy account vault unreadable', String(e));
+        this.d.logger.warn('legacy account vault unreadable; will archive after stubs', {
+          kind,
+          error: String(e),
+        });
+        // 解析失败：尽量从残片里捞可展示的身份写 needsLogin stub
+        try {
+          const blob = fs.readFileSync(legacy, 'utf8');
+          const emails = [...blob.matchAll(/"email(?:Address)?"\s*:\s*"([^"]+)"/g)].map(
+            (m) => m[1],
+          );
+          const labels = [...blob.matchAll(/"label"\s*:\s*"([^"]+)"/g)].map((m) => m[1]);
+          const n = Math.max(emails.length, labels.length);
+          for (let i = 0; i < n; i++) {
+            const id = randomUUID();
+            const email = emails[i];
+            const label = String(labels[i] ?? email ?? t('官方账号')).slice(0, 60);
+            s.accounts.push({
+              id,
+              kind,
+              label,
+              dir: accountDirFor(this.d.root, kind, id),
+              identity: email ? { key: email, email } : null,
+              loggedIn: false,
+              needsLogin: true,
+              createdAt: this.now(),
+            });
+            migrated++;
+          }
+        } catch {
+          /* 连残片都读不了 */
+        }
+        pendingArchive.push(legacy);
       }
-      fs.rmSync(legacy, { force: true });
     }
-    for (const dir of ['backups', 'staging'])
-      fs.rmSync(path.join(this.d.root, dir), { recursive: true, force: true });
-    if (migrated) {
+    const touched = pendingDelete.length > 0 || pendingArchive.length > 0;
+    if (!touched) return;
+
+    // 有变更才写 accounts.json；失败则回滚内存并保留保险箱 / 备份 / 暂存
+    if (migrated > 0 || pendingDelete.length > 0) {
+      try {
+        writePrivateFileAtomic(this.file, JSON.stringify(s, null, 2));
+      } catch (e) {
+        s.accounts.length = beforeLen;
+        this.d.logger.warn('legacy vault migration write failed; vault kept', String(e));
+        return;
+      }
+    }
+
+    // 只有 accounts.json 落盘成功（或无需新记录但解析成功）后才动保险箱
+    for (const f of pendingDelete) fs.rmSync(f, { force: true });
+    for (const f of pendingArchive) {
+      const base = path.basename(f, '.json');
+      const archive = path.join(this.d.root, 'vault-unreadable', `${base}-${this.now()}.json`);
+      try {
+        fs.mkdirSync(path.dirname(archive), { recursive: true });
+        fs.renameSync(f, archive);
+        this.d.logger.warn('legacy vault archived (unreadable, not deleted)', {
+          archive,
+        });
+      } catch (err) {
+        this.d.logger.warn('legacy vault left in place (archive failed)', {
+          file: f,
+          error: String(err),
+        });
+      }
+    }
+    // 备份 / 暂存含凭据：仅在成功写出 needsLogin（或干净解析后无账号）后清除
+    if (migrated > 0 || pendingDelete.length > 0) {
+      for (const dir of ['backups', 'staging'])
+        fs.rmSync(path.join(this.d.root, dir), { recursive: true, force: true });
+    }
+    if (migrated)
       this.d.logger.info('legacy account vault migrated (credentials removed)', { migrated });
-      writePrivateFileAtomic(this.file, JSON.stringify(s, null, 2));
-    }
   }
 
   private find(id: string): AccountRecord {
@@ -242,6 +312,22 @@ export class AccountService {
   }
 
   private view(a: AccountRecord): AccountView {
+    let problems: HomeProblem[] | undefined;
+    if (a.dir) {
+      problems = ensureAccountHome(
+        a.kind,
+        a.dir,
+        userCliHome(a.kind, this.env, this.d.home),
+        this.d.platform,
+      );
+      if (problems.length)
+        this.d.logger.warn('account home shared entries not linked', {
+          kind: a.kind,
+          id: a.id,
+          problems,
+        });
+      else problems = undefined;
+    }
     return {
       id: a.id,
       kind: a.kind,
@@ -254,6 +340,7 @@ export class AccountService {
       inUse: this.d.inUse?.(a.kind, a.id) ?? 0,
       duplicateOf: this.duplicateOf(a),
       ...(a.dir ? { terminalCommand: this.terminalCommand(a.kind, a.dir) } : {}),
+      ...(problems?.length ? { problems } : {}),
       createdAt: a.createdAt,
       ...(a.lastUsedAt ? { lastUsedAt: a.lastUsedAt } : {}),
     };
@@ -458,7 +545,7 @@ export class AccountService {
    * 删除账号：确认没有标签在用 → 在账号目录里执行 CLI 自己的登出（撤销令牌）→ 删除目录。
    * 「本机登录」不能删（那是用户自己的 CLI 目录）。
    */
-  async remove(id: string): Promise<void> {
+  async remove(id: string, opts?: { force?: boolean }): Promise<void> {
     const a = this.find(id);
     if (!a.dir)
       throw new AccountError('local', t('「本机登录」是这台电脑上 CLI 自己的登录，不能在这里删除'));
@@ -468,7 +555,7 @@ export class AccountService {
         'in-use',
         t('这个账号还有 {0} 个标签在用，请先关闭或换成别的账号', String(busy)),
       );
-    // 终端里直接运行、用着这个账号目录的 CLI：删掉目录会让它们写到一半（查不出来时不拦）
+    // 终端里直接运行、用着这个账号目录的 CLI：忙则绝不删；查不出（Windows 非 Claude）须 force
     const live = await (
       this.d.liveProcesses ?? ((k, dir) => liveProcesses(k, dir, { platform: this.d.platform }))
     )(a.kind, a.dir).catch((): LiveCheck => ({ state: 'unknown' }));
@@ -481,6 +568,18 @@ export class AccountService {
           live.pids.slice(0, 5).join(', '),
         ),
       );
+    if (live.state === 'unknown' && !opts?.force)
+      throw new AccountError(
+        'unknown-live',
+        t(
+          '无法确认是否还有 CLI 在用这个账号（常见于 Windows）。请先在终端退出相关 CLI，或确认后强制删除。',
+        ),
+      );
+    if (live.state === 'unknown' && opts?.force)
+      this.d.logger.warn('account remove forced while liveProcesses unknown', {
+        id: a.id,
+        kind: a.kind,
+      });
     if (a.loggedIn) {
       const env = officialAccountEnv(a.kind, withCliPath(this.env), a.dir);
       await (this.d.logout ?? cliLogout)(a.kind, env).catch((e) =>
@@ -577,7 +676,11 @@ export class AccountService {
     guardedHandle('ai:cli-account:rename', (id, label) => this.rename(String(id), String(label)), {
       owner,
     });
-    guardedHandle('ai:cli-account:remove', (id) => this.remove(String(id)), { owner });
+    guardedHandle(
+      'ai:cli-account:remove',
+      (id, force) => this.remove(String(id), { force: force === true }),
+      { owner },
+    );
   }
 }
 

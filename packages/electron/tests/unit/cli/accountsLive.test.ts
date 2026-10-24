@@ -27,6 +27,13 @@ import { fakeServer, type Handler } from '../usage/fakeCodexServer';
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 
 describe('liveProcesses（P2.7）', () => {
+  it('Claude：没有 sessions 目录时按 idle（不改走 lsof）', async () => {
+    const dir = tmp('live-claude-nosess-');
+    expect(await liveProcesses('claude', dir, { alive: () => true, platform: 'win32' })).toEqual({
+      state: 'idle',
+    });
+  });
+
   it('Claude：按 sessions/<pid>.json 里还活着的 pid 判断；*.key 不读', async () => {
     const dir = tmp('live-claude-');
     fs.mkdirSync(path.join(dir, 'sessions'));
@@ -105,7 +112,7 @@ function mkService(live: LiveCheck, codexAccount?: jest.Mock) {
 }
 
 describe('删除账号：终端里还有进程在用', () => {
-  it('busy → 拒绝并给出进程号；unknown → 照常删除（界面确认兜底）', async () => {
+  it('busy → 拒绝并给出进程号；unknown → 须 force，否则拒绝', async () => {
     const busy = mkService({ state: 'busy', pids: [101, 202] });
     const a = busy.create('claude');
     await expect(busy.remove(a.id)).rejects.toThrow(/101, 202/);
@@ -114,7 +121,9 @@ describe('删除账号：终端里还有进程在用', () => {
     const unknown = mkService({ state: 'unknown' });
     const b = unknown.create('codex');
     const dir = unknown.officialLaunch('codex', b.id).dir!;
-    await unknown.remove(b.id);
+    await expect(unknown.remove(b.id)).rejects.toThrow(/无法确认|强制删除/);
+    expect(fs.existsSync(dir)).toBe(true);
+    await unknown.remove(b.id, { force: true });
     expect(fs.existsSync(dir)).toBe(false);
   });
 });

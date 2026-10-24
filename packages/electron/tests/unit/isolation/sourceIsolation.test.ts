@@ -290,3 +290,64 @@ describe('多个官方账号（§5.10.8）：编排层', () => {
     expect(third.tab.accountId ?? null).toBeNull();
   });
 });
+
+describe('S6 第三方操作 / 网关侧变更不影响官方账号', () => {
+  const saved = { ...process.env };
+  const made: CliHarnessService[] = [];
+  afterEach(() => {
+    for (const h of made.splice(0)) h.dispose();
+    process.env = { ...saved };
+  });
+
+  it('换模型、改来源、仅回收第三方：官方标签进程与账号目录 / 用户 HOME 不变', () => {
+    process.env.NOMI_CLAUDE_BIN = path.resolve(
+      __dirname,
+      '../../../scripts/mock-cli/mock-claude.mjs',
+    );
+    delete process.env.NOMI_USE_MOCK_CLI;
+    const home = fakeHome();
+    const acctRoot = tmp('nomi-iso-acct-dirs-');
+    const workDir = path.join(acctRoot, 'homes', 'claude', 'work');
+    fs.mkdirSync(workDir, { recursive: true });
+    fs.writeFileSync(path.join(workDir, 'marker.txt'), 'official-keep');
+    const beforeHome = snapshot(home);
+    const beforeAcct = snapshot(acctRoot);
+
+    const h = new CliHarnessService({
+      root: tmp('nomi-iso-s6-'),
+      logger: { info() {}, warn() {} },
+      defaultCwd: os.tmpdir(),
+      gateway: testGateway({ home }),
+      prewarmClaude: true,
+      accounts: {
+        launch: (kind, accountId) => ({
+          env: (accountId
+            ? { CLAUDE_CONFIG_DIR: path.join(acctRoot, 'homes', kind, accountId) }
+            : {}) as Record<string, string>,
+          strip: ['ANTHROPIC_BASE_URL', 'ANTHROPIC_API_KEY'],
+          args: [],
+          sig: `official:${accountId ?? 'local'}`,
+        }),
+        noteSession: () => undefined,
+      },
+    });
+    made.push(h);
+
+    // 官方标签钉在 work 账号上创建（避免 setTabAccount 拆掉预热进程后再断言同一引用）
+    const official = h.createTab({ backend: 'claude', accountId: 'work' });
+    const third = h.createTab({ backend: 'claude', source: 'thirdParty' });
+    const live = (h as unknown as { claudeLive: Map<string, unknown> }).claudeLive;
+    const officialLive = live.get(official.id);
+    expect(officialLive).toBeDefined();
+    expect(live.has(third.id)).toBe(true);
+
+    h.setTabModel(third.id, 'gw/other');
+    // recycleBackend 只动官方；过滤成第三方 = 空操作，官方进程应保留
+    h.recycleBackend('claude', (tab) => tab.source === 'thirdParty');
+
+    expect(live.get(official.id)).toBe(officialLive);
+    expect(snapshot(home)).toEqual(beforeHome);
+    expect(snapshot(acctRoot)).toEqual(beforeAcct);
+    expect(fs.readFileSync(path.join(workDir, 'marker.txt'), 'utf8')).toBe('official-keep');
+  });
+});

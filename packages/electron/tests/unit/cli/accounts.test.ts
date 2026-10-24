@@ -55,11 +55,19 @@ function userHome(): string {
   return home;
 }
 
-function mk(o: { inUse?: number; logout?: jest.Mock; platform?: NodeJS.Platform } = {}) {
+function mk(
+  o: {
+    inUse?: number;
+    logout?: jest.Mock;
+    platform?: NodeJS.Platform;
+    live?: 'idle' | 'busy' | 'unknown';
+  } = {},
+) {
   const home = userHome();
   const root = tmp('acct-root-');
   const changed: AccountKind[] = [];
   const keychain = { get: jest.fn(), set: jest.fn(), remove: jest.fn(async () => undefined) };
+  const liveState = o.live ?? 'idle';
   const svc = new AccountService({
     root,
     logger: { info() {}, warn() {} },
@@ -69,6 +77,12 @@ function mk(o: { inUse?: number; logout?: jest.Mock; platform?: NodeJS.Platform 
     keychain: keychain as never,
     onDefaultChanged: (k) => changed.push(k),
     inUse: () => o.inUse ?? 0,
+    liveProcesses: async () =>
+      liveState === 'busy'
+        ? { state: 'busy' as const, pids: [42] }
+        : liveState === 'unknown'
+          ? { state: 'unknown' as const }
+          : { state: 'idle' as const, pids: [] },
     logout: o.logout ?? jest.fn(async () => undefined),
     identity: {
       // CLI 状态命令的替身（真实实现调用 `claude auth status --json` 等）
@@ -208,6 +222,16 @@ describe('AccountService（账号目录）', () => {
     expect(svc.identityKey('claude', a.id)).toBe('work@x');
   });
 
+  it('删除：liveProcesses unknown 未 force 时拒绝；force 后删除', async () => {
+    const s = mk({ live: 'unknown' });
+    const a = s.svc.create('codex', 'X');
+    const dir = s.svc.officialLaunch('codex', a.id).dir!;
+    await expect(s.svc.remove(a.id)).rejects.toThrow(/无法确认|强制删除/);
+    expect(fs.existsSync(dir)).toBe(true);
+    await s.svc.remove(a.id, { force: true });
+    expect(fs.existsSync(dir)).toBe(false);
+  });
+
   it('删除：本机登录不能删；有标签在用不能删；否则在目录里登出、删钥匙串条目、删目录，默认账号回到本机', async () => {
     const logout = jest.fn(async () => undefined);
     const t = mk({ logout, platform: 'darwin' });
@@ -299,6 +323,70 @@ describe('AccountService（账号目录）', () => {
     const stored = fs.readFileSync(path.join(root, 'accounts.json'), 'utf8');
     expect(stored).not.toMatch(/credEnc|CIPHER/);
   });
+
+  it('旧保险箱解析失败：写可恢复 stub 并归档，不静默删除（§5.10.9）', () => {
+    const home = userHome();
+    const root = tmp('acct-legacy-bad-');
+    fs.writeFileSync(
+      path.join(root, 'claude.json'),
+      '{not-json, "email":"recover@x.com", "label":"Recovered"}',
+    );
+    fs.mkdirSync(path.join(root, 'backups'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'backups', 'x.enc'), 'x');
+    const warns: unknown[] = [];
+    const svc = new AccountService({
+      root,
+      logger: {
+        info() {},
+        warn(_m, d) {
+          warns.push(d);
+        },
+      },
+      home,
+      env: {},
+    });
+    const list = svc.list('claude').filter((x) => !x.local);
+    expect(
+      list.some(
+        (x) => x.needsLogin && /recover@x\.com|Recovered/.test(x.label + (x.identity?.email ?? '')),
+      ),
+    ).toBe(true);
+    expect(fs.existsSync(path.join(root, 'claude.json'))).toBe(false);
+    const archived = fs.existsSync(path.join(root, 'vault-unreadable'))
+      ? fs.readdirSync(path.join(root, 'vault-unreadable'))
+      : [];
+    expect(archived.length).toBeGreaterThan(0);
+    // 有 stub 写出后才清 backups
+    expect(fs.existsSync(path.join(root, 'backups'))).toBe(false);
+  });
+
+  it('旧保险箱写盘失败：保留保险箱与备份，不删（§5.10.9）', () => {
+    const home = userHome();
+    const root = tmp('acct-legacy-wfail-');
+    fs.writeFileSync(
+      path.join(root, 'codex.json'),
+      JSON.stringify({
+        accounts: [
+          { label: 'Work', identity: { key: 'k', email: 'w@x' }, credEnc: 'CIPHER', createdAt: 1 },
+        ],
+      }),
+    );
+    fs.mkdirSync(path.join(root, 'backups'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'backups', '1.enc'), 'x');
+    // 让 accounts.json 无法原子写（同名目录占位 → writeFileSync 失败）
+    fs.mkdirSync(path.join(root, 'accounts.json'));
+    const svc = new AccountService({
+      root,
+      logger: { info() {}, warn() {} },
+      home,
+      env: {},
+    });
+    void svc.list('codex');
+    expect(fs.existsSync(path.join(root, 'codex.json'))).toBe(true);
+    expect(fs.existsSync(path.join(root, 'backups', '1.enc'))).toBe(true);
+    // accounts.json 仍是占位目录，不是迁移写出的文件
+    expect(fs.statSync(path.join(root, 'accounts.json')).isDirectory()).toBe(true);
+  });
 });
 
 describe('S7：账号与用量模块不读凭据文件（静态检查）', () => {
@@ -315,6 +403,12 @@ describe('S7：账号与用量模块不读凭据文件（静态检查）', () =>
         if (/readText\([^)]*(\.credentials\.json|auth\.json|oauth_creds)/.test(src))
           offenders.push(f);
         if (/keychain\.get\(/.test(src)) offenders.push(f);
+        // keychain.ts 只允许 dead stub / remove；禁止真正的 find-generic-password / add-generic-password
+        if (
+          f === 'keychain.ts' &&
+          (/find-generic-password/.test(src) || /add-generic-password/.test(src))
+        )
+          offenders.push(f);
       }
     expect(offenders).toEqual([]);
   });

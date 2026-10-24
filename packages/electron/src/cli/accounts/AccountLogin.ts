@@ -303,7 +303,8 @@ export class AccountLogin {
     if (!failed || !s.created) return;
     const drop = () =>
       void this.d.accounts
-        .remove(s.accountId)
+        // force：这次新建的空账号；子进程已退出。无 lsof / Windows unknown 时仍须清掉，不能留下孤儿目录。
+        .remove(s.accountId, { force: true })
         .catch((e) => this.d.logger.warn('login account cleanup failed', String(e)));
     if (s.child.exitCode === null && s.child.signalCode === null) s.child.once('close', drop);
     else drop();

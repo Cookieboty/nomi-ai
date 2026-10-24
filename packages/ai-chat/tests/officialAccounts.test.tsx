@@ -111,7 +111,7 @@ describe('OfficialAccounts', () => {
     await waitFor(() => expect(r.getAllByTestId('cli-account-remove')).toHaveLength(2));
     await act(async () => fireEvent.click(r.getAllByTestId('cli-account-remove')[0]!));
     expect(String((confirm.mock.calls[0] as unknown[])[0])).toContain('登出');
-    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:remove', 'b');
+    expect(ipc.invoke).toHaveBeenCalledWith('ai:cli-account:remove', 'b', false);
   });
 
   it('同一身份登录在两处：给出提示', async () => {

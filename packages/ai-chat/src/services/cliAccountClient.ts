@@ -31,6 +31,8 @@ export interface CliAccount {
   duplicateOf?: string;
   /** 在终端里用这个账号运行 CLI 的命令 */
   terminalCommand?: string;
+  /** 共享软链失败（非阻断；Windows 无特权时常见） */
+  problems?: Array<{ entry: string; reason: string }>;
   createdAt: number;
   lastUsedAt?: number;
 }
@@ -82,7 +84,8 @@ export const cliAccountClient = {
   /** 设为默认账号：新标签与「跟随默认」的标签用它 */
   setDefault: (kind: AccountKind, id: string) => call<CliAccount>('set-default', kind, id),
   rename: (id: string, label: string) => call<CliAccount>('rename', id, label),
-  remove: (id: string) => call<void>('remove', id),
+  remove: (id: string, opts?: { force?: boolean }) =>
+    call<void>('remove', id, opts?.force === true),
   /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
   loginStart: (kind: AccountKind, accountId?: string) =>
     call<LoginEvent>('login-start', kind, accountId),

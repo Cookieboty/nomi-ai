@@ -8,6 +8,7 @@ import os from 'os';
 import path from 'path';
 
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import { ensurePrivateHome } from '@nomi-ai/cli-sdk';
 import type { ClientModels } from '@nomi-ai/gateway';
 
 import { patchDshYaml } from '../../cli/configPatch';
@@ -230,37 +231,26 @@ function dsh(c: LaunchContext): AgentLaunch {
   };
 }
 
-/** 私有 GROK_HOME 里不链回去的条目：配置、凭据、锁 */
-const GROK_PRIVATE = /^(config\.toml|auth\.json)$|\.lock$/;
-
 /**
  * Grok 没有进程级覆盖（M0 实测），用私有 GROK_HOME：里面放 Nomi 生成的 config.toml，
- * 其余条目（sessions、插件等）软链回 ~/.grok，会话照常写进原来的历史（§12.4）。
+ * 其余条目（sessions、插件等）软链回 ~/.grok（cli-sdk ensurePrivateHome，与账号目录同源）。
  */
 function grok(c: LaunchContext): AgentLaunch {
   const shared = process.env.GROK_HOME?.trim() || path.join(c.home ?? os.homedir(), '.grok');
-  fs.mkdirSync(c.dir, { recursive: true, mode: 0o700 });
   fs.mkdirSync(path.join(shared, 'sessions'), { recursive: true });
-  for (const name of fs.readdirSync(shared)) {
-    if (GROK_PRIVATE.test(name)) continue;
-    const link = path.join(c.dir, name);
-    try {
-      fs.lstatSync(link);
-      continue;
-    } catch {
-      /* 不存在：创建 */
-    }
-    const target = path.join(shared, name);
-    try {
-      const dir = fs.statSync(target).isDirectory();
-      fs.symlinkSync(
-        target,
-        link,
-        dir ? (process.platform === 'win32' ? 'junction' : 'dir') : 'file',
-      );
-    } catch {
-      /* 链不上的条目（权限等）跳过：只是少一份共享设置 */
-    }
+  const problems = ensurePrivateHome({
+    dir: c.dir,
+    userDir: shared,
+    shared: '.*',
+    keepPrivate: ['^(config\\.toml|auth\\.json)$', '\\.lock$'],
+    platform: process.platform,
+  });
+  if (problems.length) {
+    // LaunchContext 无 logger：写 stderr，主进程日志仍能看见（Windows 无特权时常见）
+    console.warn(
+      '[gateway/agents] grok private home softlink problems',
+      problems.map((p) => `${p.entry}: ${p.reason}`).join('; '),
+    );
   }
   fs.writeFileSync(
     path.join(c.dir, 'config.toml'),
