@@ -38,6 +38,9 @@ const OPTIONAL_PARAMS = [
   'top_logprobs',
   'stream_options',
   'reasoning_effort',
+  // 跨协议时按推理意图写入的字段（intent.ts）；不支持推理的模型拒绝时去掉重试
+  'reasoning',
+  'thinking',
   'include',
   'prediction',
   'modalities',

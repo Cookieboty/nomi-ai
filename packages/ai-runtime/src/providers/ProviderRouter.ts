@@ -50,6 +50,23 @@ export interface UsageSink {
   markKey?(id: string, keyIndex: number, error?: string): void;
   /** 每次成功调用一条明细（含模型 / 时间 / 缓存 token） */
   recordCall?(e: UsageCallEvent): void;
+  /** 每次请求（含失败、换 key）一条诊断日志；只有元数据，不含对话内容 */
+  logCall?(e: LlmCallLog): void;
+}
+
+export interface LlmCallLog {
+  provider: string;
+  /** 用的是第几个 key（0 起） */
+  keyIndex: number;
+  reqId: string;
+  /** 请求里写的模型（可能是 default 占位符或空） */
+  requested: string;
+  /** 实际发给上游的模型；解析不出时为 unknown */
+  model: string;
+  stream: boolean;
+  ok: boolean;
+  error?: string;
+  ms: number;
 }
 
 /** 认证 / 限流 / 额度类错误：换下一个 key 有意义。 */
@@ -109,6 +126,7 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
       try {
         const res = await call(this.candidates[i]!);
         this.sink?.markKey?.(this.id, i);
+        this.logCall(req, i, startedAt, false, res.model);
         this.emitCall(req, startedAt, res.model, res.usage, res.content);
         this.sink?.recordUsage(
           this.id,
@@ -126,6 +144,7 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
         lastErr = err;
         const msg = err instanceof Error ? err.message : String(err);
         this.sink?.markKey?.(this.id, i, msg);
+        this.logCall(req, i, startedAt, false, undefined, msg);
         const more = i < this.candidates.length - 1;
         if (!more || !isKeyError(msg) || req.signal?.aborted) break;
       }
@@ -144,6 +163,33 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
     const asked = req.model && req.model !== 'default' ? req.model : (this.defaultModel ?? '');
     const resolved = asked ? mapModel(asked, this.modelMap).trim() : '';
     return resolved || 'unknown';
+  }
+
+  /** 诊断日志：这次请求发给了谁、用的哪个模型、成没成（排查「请求没带模型」之类的问题） */
+  private logCall(
+    req: ChatRequest,
+    keyIndex: number,
+    startedAt: number,
+    stream: boolean,
+    resModel: string | undefined,
+    error?: string,
+  ): void {
+    if (!this.sink?.logCall) return;
+    try {
+      this.sink.logCall({
+        provider: this.id,
+        keyIndex,
+        reqId: req.reqId,
+        requested: req.model ?? '',
+        model: this.billingModel(req, resModel),
+        stream,
+        ok: !error,
+        ...(error ? { error } : {}),
+        ms: Math.max(0, Date.now() - startedAt),
+      });
+    } catch {
+      /* 日志失败不能影响对话 */
+    }
   }
 
   /** 记一条调用明细：上游有 usage 用 usage，没有才按文本估算并标记 estimated */
@@ -226,6 +272,7 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
         yield chunk;
       }
       this.sink?.markKey?.(this.id, i, failed);
+      this.logCall(req, i, startedAt, true, usedModel, failed);
       if (failed && !emitted && more && isKeyError(failed) && !req.signal?.aborted) continue;
       this.sink?.recordUsage(this.id, usage, !failed);
       if (!failed) this.emitCall(req, startedAt, usedModel, fullUsage, outText);
@@ -300,6 +347,8 @@ export interface RoutedRegistryOptions {
   /** `NOMI_PROVIDER` 覆盖 */
   overrideId?: string;
   onError?: (msg: string, err: unknown) => void;
+  /** 每次模型请求的诊断日志（元数据，不含对话内容） */
+  onCall?: (e: LlmCallLog) => void;
 }
 
 export class RoutedLLMRegistry implements LLMRegistry {
@@ -307,10 +356,19 @@ export class RoutedLLMRegistry implements LLMRegistry {
   private readonly extra = new Map<string, LLMProvider>();
   private stored = new Map<string, LLMProvider>();
   private readonly unsubscribe?: () => void;
+  /** store 记账 + 诊断日志 */
+  private readonly sink?: UsageSink;
 
   constructor(private readonly opts: RoutedRegistryOptions = {}) {
+    const store = opts.store;
+    this.sink = store && {
+      recordUsage: (id, u, ok) => store.recordUsage(id, u, ok),
+      markKey: (id, i, error) => store.markKey(id, i, error),
+      recordCall: (e) => store.recordCall(e),
+      ...(opts.onCall ? { logCall: opts.onCall } : {}),
+    };
     for (const p of opts.envProviders ?? []) {
-      this.env.set(p.id, opts.store ? new TrackedProvider(p.id, [p], opts.store) : p);
+      this.env.set(p.id, this.sink ? new TrackedProvider(p.id, [p], this.sink) : p);
     }
     if (opts.store) {
       this.rebuild();
@@ -336,7 +394,7 @@ export class RoutedLLMRegistry implements LLMRegistry {
             p,
             store.resolveKeys(p.id),
             this.opts.factory ?? defaultProviderFactory,
-            store,
+            this.sink,
           ),
         );
       } catch (err) {
@@ -385,7 +443,7 @@ export class RoutedLLMRegistry implements LLMRegistry {
       servedModelHeader: NOMI_SERVED_MODEL_HEADER,
     });
     // 用量仍由这里记账（网关对 nomi 客户端的用量回调不再重复记）
-    const provider = new TrackedProvider(GATEWAY_PROVIDER_ID, [p], this.opts.store, r.model);
+    const provider = new TrackedProvider(GATEWAY_PROVIDER_ID, [p], this.sink, r.model);
     this.gatewayCache = { sig, provider };
     return provider;
   }

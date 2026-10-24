@@ -127,12 +127,17 @@ describe('pruneTraces', () => {
 describe('RequestTrace', () => {
   it('writes a 0600 file named <timestamp>-<client>.json with secrets removed', async () => {
     const dir = path.join(tmpDir(), 'trace');
-    const t = new RequestTrace(dir, cfgBase(), {
-      client: 'claude',
-      ingress: 'messages',
-      path: '/v1/messages',
-      startedAt: Date.UTC(2026, 9, 21, 8, 0, 0, 5),
-    });
+    const t = new RequestTrace(
+      dir,
+      cfgBase(),
+      {
+        client: 'claude',
+        ingress: 'messages',
+        path: '/v1/messages',
+        startedAt: Date.UTC(2026, 9, 21, 8, 0, 0, 5),
+      },
+      { id: 'abc123' },
+    );
     t.request({ 'x-api-key': 'tok-claude-abcdef' }, { model: 'zp/glm-5', max_tokens: 10 });
     t.attempt({
       provider: 'ZP',
@@ -145,7 +150,7 @@ describe('RequestTrace', () => {
     t.response(200, 'data: {"echo":"zp-secret-value-123456"}\n\n');
     const file = await t.finish({ status: 200, ms: 12, attempts: 1 });
     expect(file).toBeTruthy();
-    expect(path.basename(file!)).toBe('2026-10-21T08-00-00-005Z-claude.json');
+    expect(path.basename(file!)).toBe('2026-10-21T08-00-00-005Z-claude-abc123.json');
     // finish() 在原子发布完成后才返回：立刻读就应是完整 JSON，目录里也不该留 .tmp
     expect(fs.readdirSync(dir).filter((n) => n.endsWith('.tmp'))).toEqual([]);
     const raw = fs.readFileSync(file!, 'utf8');
@@ -157,14 +162,19 @@ describe('RequestTrace', () => {
     expect(doc.request.body.max_tokens).toBe(10);
     expect(doc.upstream[0].provider).toBe('ZP');
     // 同一毫秒的第二个请求不覆盖
-    const t2 = new RequestTrace(dir, cfgBase(), {
-      client: 'claude',
-      ingress: 'messages',
-      path: '/v1/messages',
-      startedAt: Date.UTC(2026, 9, 21, 8, 0, 0, 5),
-    });
+    const t2 = new RequestTrace(
+      dir,
+      cfgBase(),
+      {
+        client: 'claude',
+        ingress: 'messages',
+        path: '/v1/messages',
+        startedAt: Date.UTC(2026, 9, 21, 8, 0, 0, 5),
+      },
+      { id: 'abc123' },
+    );
     const f2 = await t2.finish({ status: 200, ms: 1, attempts: 1 });
-    expect(path.basename(f2!)).toBe('2026-10-21T08-00-00-005Z-claude-2.json');
+    expect(path.basename(f2!)).toBe('2026-10-21T08-00-00-005Z-claude-abc123-2.json');
   });
 });
 
@@ -226,7 +236,7 @@ describe('gateway with traceDir', () => {
       await new Promise((res) => setTimeout(res, 20));
     }
     expect(files).toHaveLength(1);
-    expect(files[0]).toMatch(/-claude\.json$/);
+    expect(files[0]).toMatch(/-claude-[0-9a-f]{12}\.json$/);
     expect(raw).not.toContain('tok-claude-abcdef');
     expect(raw).not.toContain('zp-secret-value-123456');
     const doc = JSON.parse(raw);

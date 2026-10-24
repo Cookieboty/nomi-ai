@@ -14,7 +14,7 @@ import {
 import type { StreamDecoder } from './events';
 import { addNote, NOTE_REPETITION } from './fixer';
 import { REPETITION_MESSAGE, RepetitionGuard } from './repetition';
-import { SseParser } from './sse';
+import { formatSse, SseParser } from './sse';
 
 import { createStreamConverter, type UpstreamStreamFormat } from './index';
 
@@ -102,4 +102,46 @@ export function createPassthrough(
 ): Passthrough | null {
   if (wire === 'chat') return new ChatStreamPatcher(opts);
   return opts.repetition ? new RepetitionPassthrough(wire, opts.notes) : null;
+}
+
+/**
+ * 同协议透传时旁路看上游有没有发结束标记（各协议的判定见 BaseDecoder.terminated）。
+ * 透传不经过解码，上游被掐断时客户端只会看到流突然结束：调用方据此补一个入口协议的错误事件。
+ */
+export class TerminalWatch {
+  private readonly parser = new SseParser();
+  private readonly dec: StreamDecoder;
+
+  constructor(wire: UpstreamStreamFormat) {
+    this.dec = decoderFor(wire);
+  }
+
+  push(chunk: string): void {
+    if (this.dec.terminated) return;
+    for (const ev of this.parser.push(chunk)) this.dec.push(ev);
+  }
+
+  /** 上游流已经读完：残留的最后一个事件也算进去 */
+  get terminated(): boolean {
+    if (!this.dec.terminated) for (const ev of this.parser.end()) this.dec.push(ev);
+    return this.dec.terminated;
+  }
+}
+
+/**
+ * 同协议透传中途出错时补给客户端的错误事件。流已经开始了（客户端收到过上游的开头），
+ * 不能像转换器那样再发一次 response.created / message_start；Responses 的 sequence_number
+ * 交给 ResponsesUsagePatcher 接着上游的编号补。
+ */
+export function passthroughFail(wire: UpstreamStreamFormat, message: string): string {
+  if (wire !== 'responses') return createStreamConverter(wire, wire).fail(message);
+  return formatSse('response.failed', {
+    type: 'response.failed',
+    response: {
+      object: 'response',
+      status: 'failed',
+      output: [],
+      error: { code: 'api_error', message },
+    },
+  });
 }

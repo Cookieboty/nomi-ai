@@ -264,9 +264,15 @@ function grok(c: LaunchContext): AgentLaunch {
       'name = "Nomi"',
       'env_key = "NOMI_GROK_API_KEY"',
       'api_backend = "responses"',
+      // 网关在提交前已做回退与重试；Grok 默认的长重试会让上游中断时一直转圈（实测 1.0.67）
+      'max_retries = 1',
       '',
       '[models]',
       'default = "nomi"',
+      // 辅助模型（会话标题 / 摘要、下一句提示）不设时 Grok 用内置名（实测 grok-4.6），网关认不出、
+      // 落到客户端的默认模型，和标签选的模型对不上：一律跟着这个标签的模型走
+      'session_summary = "nomi"',
+      'prompt_suggestion = "nomi"',
       '',
     ].join('\n'),
     { mode: 0o600 },

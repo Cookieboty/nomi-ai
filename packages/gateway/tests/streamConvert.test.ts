@@ -658,8 +658,18 @@ describe('stream → Chat Completions (Codex chat entry)', () => {
 });
 
 describe('stream edge cases', () => {
-  it('stream truncated without terminator still finishes once', () => {
+  it('stream truncated without terminator → error, not a normal finish', () => {
     const raw = sse([[undefined, { id: 'x', choices: [{ index: 0, delta: { content: 'a' } }] }]]);
+    const evs = run('chat', 'messages', raw);
+    expect(types(evs)).not.toContain('message_stop');
+    expect(types(evs).at(-1)).toBe('error');
+  });
+
+  it('finish_reason without [DONE] still finishes once', () => {
+    const raw = sse([
+      [undefined, { id: 'x', choices: [{ index: 0, delta: { content: 'a' } }] }],
+      [undefined, { id: 'x', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }],
+    ]);
     const evs = run('chat', 'messages', raw);
     expect(types(evs).filter((t) => t === 'message_stop')).toHaveLength(1);
   });

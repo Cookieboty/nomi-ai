@@ -3,8 +3,14 @@
  */
 import type { AuthStyle } from './config';
 import { customToolsToFunctions } from './customTools';
-import { applyRequestFixes, filterAnthropicBeta, isAnthropicOfficial } from './fixes';
+import {
+  applyRequestFixes,
+  candidateModel,
+  filterAnthropicBeta,
+  isAnthropicOfficial,
+} from './fixes';
 import { geminiModelPath } from './ingress';
+import { readIntent, renderIntent } from './intent';
 import type { Wire } from './ir';
 import { convertRequest } from './request';
 import type { Candidate } from './route/resolve';
@@ -101,7 +107,7 @@ export function upstreamBody(
   ingress: Wire,
   c: Candidate,
   body: unknown,
-  opts: { stream: boolean; ingressModel?: string; notes?: string[] },
+  opts: { stream: boolean; ingressModel?: string; notes?: string[]; client?: string },
 ): unknown {
   let out: unknown;
   if (ingress === c.wire) {
@@ -121,6 +127,9 @@ export function upstreamBody(
       upstreamModel: c.upstreamModel,
       reasoningPassback: c.provider.quirks?.reasoningPassback,
     });
+    // 跨协议：编码器不写推理参数，按入口的推理意图渲染到上游请求体（§6.9.5）
+    const intent = readIntent(ingress, body, opts.client);
+    if (intent) out = renderIntent(c.wire, out, intent, candidateModel(c), opts.notes);
   }
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {
     out = { ...(out as object), stream: true, stream_options: { include_usage: true } };

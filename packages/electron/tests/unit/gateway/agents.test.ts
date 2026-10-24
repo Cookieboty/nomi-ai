@@ -165,6 +165,9 @@ describe('agent launches (§12, §12.7.1)', () => {
     expect(conf).toContain('model = "zp/glm-5"');
     expect(conf).toContain('base_url = "http://127.0.0.1:18721/v1"');
     expect(conf).toContain('env_key = "NOMI_GROK_API_KEY"');
+    // 标题 / 摘要等辅助请求也走这个标签的模型，不落到网关的默认模型
+    expect(conf).toContain('session_summary = "nomi"');
+    expect(conf).toContain('prompt_suggestion = "nomi"');
     expect(fs.lstatSync(path.join(dir, 'sessions')).isSymbolicLink()).toBe(true);
     expect(fs.lstatSync(path.join(dir, 'installed-plugins')).isSymbolicLink()).toBe(true);
     expect(fs.existsSync(path.join(dir, 'auth.json'))).toBe(false);

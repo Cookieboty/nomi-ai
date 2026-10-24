@@ -2,6 +2,8 @@
  * 上游 SSE → 中间事件。
  * 覆盖：OpenAI Chat Completions、OpenAI Responses、Gemini streamGenerateContent(alt=sse)、Anthropic Messages。
  */
+import { isResponsesKeepAlive } from '../responsesUsage';
+
 import {
   mergeUsage,
   type NormEvent,
@@ -83,14 +85,22 @@ abstract class BaseDecoder implements StreamDecoder {
 
   protected abstract handle(ev: { event?: string; data: string }, out: NormEvent[]): void;
 
+  /** 收到过结束标记（Chat 的 finish_reason / [DONE]、Messages 的 stop_reason / message_stop、
+   * Responses 的 completed / incomplete / failed、Gemini 的 finishReason）或错误 */
+  get terminated(): boolean {
+    return this.done || this.pendingReason !== null;
+  }
+
+  /**
+   * 上游流结束。没有任何结束标记就断了（连接被中转站掐断、只发了保活等）按错误结束：
+   * 当成正常完成的话，客户端拿到的是空回复或截断的正文 / 工具参数，只会静默重试或执行半截调用。
+   */
   end(): NormEvent[] {
     const out: NormEvent[] = [];
     if (!this.done) {
-      if (!this.started && !this.pendingReason) {
-        this.fail(out, 'upstream stream ended without any data', 'api_error');
-      } else {
-        this.finish(out);
-      }
+      if (this.pendingReason) this.finish(out);
+      else if (!this.started) this.fail(out, 'upstream stream ended without any data', 'api_error');
+      else this.fail(out, 'upstream stream ended before completion', 'api_error');
     }
     return out;
   }
@@ -116,8 +126,29 @@ function chatFinish(r: unknown): StopReason | null {
   }
 }
 
+/** Chat 的 content 也可能是数组（Mistral 等）：拆成正文与思考 */
+function chatContent(c: unknown): { text: string; think: string } {
+  if (typeof c === 'string') return { text: c, think: '' };
+  if (!Array.isArray(c)) return { text: '', think: '' };
+  let text = '';
+  let think = '';
+  for (const p of c as unknown[]) {
+    const o = asObj(p);
+    if (o.type === 'text' && typeof o.text === 'string') text += o.text;
+    else if (o.type === 'thinking') {
+      const t = o.thinking;
+      if (typeof t === 'string') think += t;
+      else if (Array.isArray(t)) think += chatContent(t).text;
+    }
+  }
+  return { text, think };
+}
+
 export class ChatCompletionsDecoder extends BaseDecoder {
-  private tools = new Set<string>();
+  /** 已开始的工具调用：key → 调用 id */
+  private tools = new Map<string, string>();
+  /** 上游的 index → 当前对应的 key（同一 index 换了新的调用 id 时开新 key） */
+  private slot = new Map<string, string>();
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
     const data = ev.data.trim();
@@ -150,36 +181,51 @@ export class ChatCompletionsDecoder extends BaseDecoder {
     const c = choices[0];
     if (!c) return;
     const delta = asObj(c.delta);
+    const content = chatContent(delta.content);
     // DeepSeek / Kimi / GLM 等的思考文本（字段名各家不一）
     const reasoning =
       typeof delta.reasoning_content === 'string'
         ? delta.reasoning_content
         : typeof delta.reasoning === 'string'
           ? delta.reasoning
-          : '';
+          : content.think;
     if (reasoning) this.think(out, reasoning);
-    if (typeof delta.content === 'string' && delta.content) {
+    if (content.text) {
       this.thinking = false;
-      out.push({ type: 'text', text: delta.content });
+      out.push({ type: 'text', text: content.text });
     }
     const calls = Array.isArray(delta.tool_calls) ? (delta.tool_calls as Obj[]) : [];
-    for (const tc of calls) {
-      const key = String(tc.index ?? 0);
+    for (const [i, tc] of calls.entries()) {
+      // 不带 index 的上游：按在这一块里的位置；同一 index 出现了新的调用 id 并带着工具名，
+      // 就是另一个调用（只换 id 不带名字的不算：有的上游每个分片都发一个新 id）
+      const index = String(tc.index ?? i);
+      const id = typeof tc.id === 'string' && tc.id ? tc.id : '';
       const fn = asObj(tc.function);
+      let key = this.slot.get(index);
+      const prev = key ? this.tools.get(key) : undefined;
+      if (!key || (id && fn.name && prev && prev !== id)) {
+        key = this.tools.has(index) ? `${index}#${this.tools.size}` : index;
+        this.slot.set(index, key);
+      }
       if (!this.tools.has(key)) {
-        this.tools.add(key);
+        this.tools.set(key, id);
         this.sawTool = true;
         this.thinking = false;
         out.push({
           type: 'tool_start',
           key,
-          id: typeof tc.id === 'string' && tc.id ? tc.id : `call_${key}`,
+          id: id || `call_${key}`,
           name: String(fn.name ?? ''),
         });
       }
-      if (typeof fn.arguments === 'string' && fn.arguments) {
-        out.push({ type: 'tool_args', key, delta: fn.arguments });
-      }
+      // 少数上游把参数给成对象而不是 JSON 字符串
+      const args =
+        typeof fn.arguments === 'string'
+          ? fn.arguments
+          : fn.arguments && typeof fn.arguments === 'object'
+            ? JSON.stringify(fn.arguments)
+            : '';
+      if (args) out.push({ type: 'tool_args', key, delta: args });
     }
     const r = chatFinish(c.finish_reason);
     if (r) this.pendingReason = r;
@@ -188,9 +234,67 @@ export class ChatCompletionsDecoder extends BaseDecoder {
 
 /* -------------------------------- Responses ------------------------------- */
 
+/** message 条目里的完整正文（output_text / refusal 部分） */
+function responsesItemText(item: Obj): string {
+  const parts = Array.isArray(item.content) ? (item.content as unknown[]) : [];
+  return parts
+    .map((p) => {
+      const o = asObj(p);
+      if (o.type === 'output_text' && typeof o.text === 'string') return o.text;
+      if (o.type === 'refusal' && typeof o.refusal === 'string') return o.refusal;
+      return '';
+    })
+    .join('');
+}
+
 export class ResponsesDecoder extends BaseDecoder {
   /** output_index / item_id → key */
   private toolKeys = new Map<string, string>();
+  /** 上游按增量发过正文：之后不再从完整条目补发正文（增量与条目 id 未必对得上） */
+  private streamedText = false;
+  /** 已经整条补发过的条目，完成事件里不再重复发 */
+  private emitted = new Set<string>();
+
+  /**
+   * 有些中转站不发增量事件，只在 output_item.done / response.completed 里给完整条目：
+   * 这些条目还没发过时整条补发，否则客户端收到的是空回复。
+   */
+  private emitWhole(item: Obj, out: NormEvent[]) {
+    const id = typeof item.id === 'string' ? item.id : '';
+    if (item.type === 'message') {
+      if (this.streamedText || (id && this.emitted.has(id))) return;
+      const text = responsesItemText(item);
+      if (id) this.emitted.add(id);
+      if (!text) return;
+      this.start(out);
+      this.thinking = false;
+      out.push({ type: 'text', text });
+      return;
+    }
+    if (item.type !== 'function_call') return;
+    const key = id || String(item.call_id ?? '');
+    // 上游按增量发过工具调用：条目 id 未必对得上号，不补发
+    if (!key || this.toolKeys.size || this.emitted.has(key)) return;
+    this.emitted.add(key);
+    this.start(out);
+    this.thinking = false;
+    this.sawTool = true;
+    out.push({
+      type: 'tool_start',
+      key,
+      id: String(item.call_id ?? key),
+      name: String(item.name ?? ''),
+    });
+    if (typeof item.arguments === 'string' && item.arguments)
+      out.push({ type: 'tool_args', key, delta: item.arguments });
+    out.push({ type: 'tool_end', key });
+  }
+
+  /** 完成事件里的 output：还没发过的条目补发 */
+  private emitOutput(resp: Obj, out: NormEvent[]) {
+    if (!Array.isArray(resp.output)) return;
+    for (const it of resp.output as unknown[]) this.emitWhole(asObj(it), out);
+  }
 
   private keyFor(j: Obj): string | undefined {
     if (typeof j.item_id === 'string' && this.toolKeys.has(j.item_id)) {
@@ -216,7 +320,7 @@ export class ResponsesDecoder extends BaseDecoder {
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
     const j = parseJson(ev.data);
-    if (!j) return;
+    if (!j || isResponsesKeepAlive(j)) return;
     const type = String(j.type ?? ev.event ?? '');
     switch (type) {
       case 'response.created':
@@ -234,7 +338,10 @@ export class ResponsesDecoder extends BaseDecoder {
       case 'response.refusal.delta': {
         this.start(out);
         this.thinking = false;
-        if (typeof j.delta === 'string' && j.delta) out.push({ type: 'text', text: j.delta });
+        if (typeof j.delta === 'string' && j.delta) {
+          this.streamedText = true;
+          out.push({ type: 'text', text: j.delta });
+        }
         return;
       }
       case 'response.reasoning_summary_text.delta':
@@ -284,19 +391,27 @@ export class ResponsesDecoder extends BaseDecoder {
             out.push({ type: 'sealed', by: 'responses', raw: item });
           return;
         }
+        if (type === 'response.output_item.done' && item.type === 'message') {
+          this.emitWhole(item, out);
+          return;
+        }
         if (type === 'response.output_item.done' && item.type !== 'function_call') return;
         const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
         if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
+        else if (type === 'response.output_item.done') this.emitWhole(item, out);
         return;
       }
       case 'response.completed': {
-        this.readUsage(asObj(j.response));
+        const r = asObj(j.response);
+        this.readUsage(r);
+        this.emitOutput(r, out);
         this.finish(out);
         return;
       }
       case 'response.incomplete': {
         const r = asObj(j.response);
         this.readUsage(r);
+        this.emitOutput(r, out);
         const reason = asObj(r.incomplete_details).reason;
         this.finish(out, reason === 'max_output_tokens' ? 'max_tokens' : undefined);
         return;
@@ -399,6 +514,12 @@ export class GeminiDecoder extends BaseDecoder {
         !this.sawTool
       ) {
         this.fail(out, `response blocked: ${fr}`, 'api_error');
+      } else if (
+        ['MALFORMED_FUNCTION_CALL', 'UNEXPECTED_TOOL_CALL', 'TOO_MANY_TOOL_CALLS'].includes(fr) &&
+        !this.sawTool
+      ) {
+        // 模型想调用工具但没生成出合法的调用：按错误报，不当成一次空的正常回复
+        this.fail(out, `model produced an invalid tool call: ${fr}`, 'api_error');
       }
     }
   }

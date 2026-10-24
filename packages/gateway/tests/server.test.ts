@@ -837,6 +837,96 @@ describe('gateway: Responses results completed for strict clients', () => {
   });
 });
 
+describe('gateway: source isolation S2', () => {
+  it('rejects official-format credentials (never treats them as client tokens)', async () => {
+    const { url } = await gateway({});
+    for (const tok of [
+      'sk-ant-oat01-abcdefghijklmnop',
+      'sk-ant-api03-abcdefghijklmnop',
+      'sk-proj-abcdefghijklmnop',
+      'xai-abcdefghijklmnopqrstu',
+      'ya29.a0AfH6SMBabcdefghij',
+    ]) {
+      for (const headers of [{ authorization: `Bearer ${tok}` }, { 'x-api-key': tok }]) {
+        const r = await post(url, '/v1/messages', { model: 'x' }, headers);
+        expect(r.status, `${tok} via ${Object.keys(headers)[0]}`).toBe(401);
+      }
+    }
+  });
+});
+
+describe('gateway: upstream cut off during same-wire passthrough', () => {
+  it('Responses: keep-alives are dropped and a missing response.completed becomes response.failed', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.end(
+        sse([
+          [
+            'response.created',
+            { type: 'response.created', sequence_number: 0, response: { id: 'r' } },
+          ],
+          [
+            'response.output_text.delta',
+            {
+              type: 'response.output_text.delta',
+              item_id: 'SSE-Keep-Alive',
+              delta: '',
+              'SSE-Keep-Alive': true,
+            },
+          ],
+        ]),
+      );
+    });
+    const { url } = await gateway({ providers: [provider('zp', { responses: `${up.base}/v1` })] }, [
+      up.hostPort,
+    ]);
+    const r = await post(
+      url,
+      '/v1/responses',
+      { model: 'zp/glm-5', input: 'hi', stream: true },
+      { authorization: 'Bearer tok-codex' },
+    );
+    const evs = events(await r.text());
+    expect(evs.map((e) => e.ev)).toEqual(['response.created', 'response.failed']);
+    expect(evs[1]!.data.sequence_number).toBe(1);
+  });
+
+  it('Messages: a stream without message_stop ends with an error event', async () => {
+    const up = await upstream((_s, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.end(
+        sse([
+          ['message_start', { type: 'message_start', message: { id: 'm', usage: {} } }],
+          [
+            'content_block_start',
+            { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+          ],
+          [
+            'content_block_delta',
+            { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Hi' } },
+          ],
+        ]),
+      );
+    });
+    const { url } = await gateway({ providers: [provider('zp', { messages: up.base })] }, [
+      up.hostPort,
+    ]);
+    const r = await post(
+      url,
+      '/v1/messages',
+      {
+        model: 'zp/glm-5',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'hi' }],
+        stream: true,
+      },
+      { authorization: 'Bearer tok-claude' },
+    );
+    const evs = events(await r.text());
+    expect(evs.at(-1)!.ev).toBe('error');
+  });
+});
+
 describe('gateway: loop integrations (M4)', () => {
   it('a model missing on one provider skips its other keys and goes to the fallback provider', async () => {
     const a = await upstream((_s, res) => {

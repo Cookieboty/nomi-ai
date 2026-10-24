@@ -27,7 +27,7 @@ import { alternateWire, resolveCandidates, type Candidate } from './route/resolv
 import { SessionTable } from './sessions';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { patchChatJson } from './stream/chatPatch';
-import { createPassthrough } from './stream/passthrough';
+import { createPassthrough, passthroughFail, TerminalWatch } from './stream/passthrough';
 import {
   candidateIsReasoning,
   resolveFirstByteBudgetMs,
@@ -89,6 +89,8 @@ export interface UsageEvent {
   error?: string;
   /** 网关对请求做的修正（§12.7.3，如省略了图片、压低了输出上限），用量面板展示提示 */
   notes?: string[];
+  /** 诊断追踪 id（只有开着诊断日志时才有，§8.3）：与追踪文件、响应头 x-nomi-trace-id 对应 */
+  traceId?: string;
 }
 
 export interface GatewayHooks {
@@ -357,6 +359,7 @@ export class GatewayServer {
       this.hooks.logger,
     );
     trace?.request(req.headers, body);
+    if (trace) tapClientOutput(res, trace);
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const requested =
       ingress.wire === 'gemini'
@@ -417,6 +420,7 @@ export class GatewayServer {
         ingress.wire === cand.wire && !keep ? stripSealedReasoning(ingress.wire, body) : body;
       last = await this.attempt(
         cfg,
+        resolveAs,
         req,
         ingress,
         cand,
@@ -524,6 +528,7 @@ export class GatewayServer {
         ms: Date.now() - startedAt,
         attempts,
         error: message,
+        ...(trace ? { traceId: trace.id } : {}),
       });
       return;
     }
@@ -571,6 +576,7 @@ export class GatewayServer {
       ...(firstByteMs !== undefined ? { firstByteMs } : {}),
       attempts,
       ...(notes.length ? { notes } : {}),
+      ...(trace ? { traceId: trace.id } : {}),
     });
   }
 
@@ -615,6 +621,7 @@ export class GatewayServer {
   /** 一次上游尝试；拿到 2xx 响应头就算成功（之后不再换候选） */
   private async attempt(
     cfg: GatewayConfig,
+    client: string | null,
     req: http.IncomingMessage,
     ingress: Ingress,
     cand: Candidate,
@@ -645,6 +652,7 @@ export class GatewayServer {
       stream: wantsStream,
       ingressModel: ingress.model,
       notes,
+      client: client ?? undefined,
     });
     // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
     const tooMany = toolLimitError(cand, sent);
@@ -751,9 +759,12 @@ export class GatewayServer {
       const tap = new UsageTap(cand.wire);
       // 同协议：按事件透传，只在修正触发时改事件；跨协议：解码 → 修正 → 编码
       const pass = passthrough ? createPassthrough(cand.wire, fixes) : null;
+      // 同协议透传：旁路看上游有没有正常结束（跨协议转换由解码器自己判定）
+      const watch = passthrough ? new TerminalWatch(cand.wire) : null;
       const conv = passthrough ? null : createStreamConverter(cand.wire, ingress.wire, convOpts);
       // Responses 入口：补全严格客户端要求的用量字段（同协议透传与转换都要）
-      const usageFix = ingress.wire === 'responses' ? new ResponsesUsagePatcher() : null;
+      const usageFix =
+        ingress.wire === 'responses' ? new ResponsesUsagePatcher(cand.publicModel) : null;
       const raw = passthrough && !pass && !usageFix;
       const write = (chunk: string) => {
         const out = usageFix ? usageFix.push(chunk) : chunk;
@@ -781,6 +792,7 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
+          watch?.push(text);
           trace?.response(up.status, text);
           if (raw) res.write(Buffer.from(value));
           else write(conv ? conv.push(text) : pass ? pass.push(text) : text);
@@ -793,6 +805,7 @@ export class GatewayServer {
         if (!stopped) {
           const rest = decoder.decode();
           tap.push(rest);
+          watch?.push(rest);
           if (conv) write(conv.push(rest) + conv.end());
           else if (pass) write(pass.push(rest) + pass.end());
           else if (rest) write(rest);
@@ -801,6 +814,9 @@ export class GatewayServer {
           const tail = usageFix.end();
           if (tail) res.write(tail);
         }
+        // 同协议透传时上游没发结束标记就断了：补一个错误事件，客户端报错而不是空等 / 静默重试
+        if (watch && !stopped && !watch.terminated)
+          write(passthroughFail(cand.wire, 'Nomi 网关：上游没有发结束标记就断开了'));
         if (stopped) {
           if (idle) clearTimeout(idle);
           await reader.cancel().catch(() => undefined);
@@ -814,7 +830,7 @@ export class GatewayServer {
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
           if (conv) res.write(conv.fail(msg));
-          else res.write(createStreamConverter(cand.wire, ingress.wire, convOpts).fail(msg));
+          else write(passthroughFail(cand.wire, msg));
         }
       } finally {
         if (idle) clearTimeout(idle);
@@ -863,7 +879,7 @@ export class GatewayServer {
       const sse = jsonToSse(cand.wire, ingress.wire, parsed, convOpts);
       if (ingress.wire !== 'responses') res.end(sse);
       else {
-        const fix = new ResponsesUsagePatcher();
+        const fix = new ResponsesUsagePatcher(cand.publicModel);
         res.end(fix.push(sse) + fix.end());
       }
       return usage;
@@ -878,7 +894,7 @@ export class GatewayServer {
           : parsed;
       res.end(
         ingress.wire === 'responses' && parsed && typeof parsed === 'object'
-          ? JSON.stringify(completeResponsesBody(parsed))
+          ? JSON.stringify(completeResponsesBody(parsed, cand.publicModel))
           : patched !== parsed
             ? JSON.stringify(patched)
             : text,
@@ -886,7 +902,11 @@ export class GatewayServer {
       return usage;
     }
     const r = jsonToJson(cand.wire, ingress.wire, parsed, convOpts);
-    sendJson(res, r.status, ingress.wire === 'responses' ? completeResponsesBody(r.body) : r.body);
+    sendJson(
+      res,
+      r.status,
+      ingress.wire === 'responses' ? completeResponsesBody(r.body, cand.publicModel) : r.body,
+    );
     return usage;
   }
 
@@ -941,4 +961,27 @@ export class GatewayServer {
 
 export function createGateway(cfg: GatewayConfig, hooks: GatewayHooks = {}): GatewayServer {
   return new GatewayServer(cfg, hooks);
+}
+
+/** 诊断追踪响应头（§8.3） */
+export const TRACE_ID_HEADER = 'x-nomi-trace-id';
+
+/**
+ * 追踪开着时：设好 x-nomi-trace-id 响应头，并旁路记录网关实际写给客户端的每一块输出
+ * （之后只把相对上游原文的差异落盘）。不改写输出本身。
+ */
+function tapClientOutput(res: http.ServerResponse, trace: RequestTrace): void {
+  res.setHeader(TRACE_ID_HEADER, trace.id);
+  const text = (c: unknown) =>
+    typeof c === 'string' ? c : c instanceof Uint8Array ? Buffer.from(c).toString('utf8') : '';
+  const write = res.write.bind(res) as (...a: unknown[]) => boolean;
+  const end = res.end.bind(res) as (...a: unknown[]) => http.ServerResponse;
+  (res as unknown as { write: (...a: unknown[]) => boolean }).write = (...a: unknown[]) => {
+    trace.client(text(a[0]));
+    return write(...a);
+  };
+  (res as unknown as { end: (...a: unknown[]) => http.ServerResponse }).end = (...a: unknown[]) => {
+    if (typeof a[0] !== 'function') trace.client(text(a[0]));
+    return end(...a);
+  };
 }

@@ -52,6 +52,11 @@ export const AiSdkLLMProvidersPlugin = definePlugin<AiSdkLLMProvidersConfig>({
       gateway: cfg.gateway,
       overrideId: cfg.overrideId,
       onError: (msg, err) => ctx.logger.error(msg, err),
+      // 每次模型请求记一条（不含对话内容）：Nomi 自己发出的请求不经网关，没有这条就无从排查
+      onCall: (e) =>
+        e.ok
+          ? ctx.logger.info(`llm call ${e.provider} ${e.model}`, e)
+          : ctx.logger.warn(`llm call failed ${e.provider} ${e.model}`, e),
     });
     ctx.provide(LLMRegistryKey, registry);
     cfg.onRegistry?.(registry);
