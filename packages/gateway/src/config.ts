@@ -4,9 +4,24 @@
  */
 import type { Wire } from './ir';
 
-export type ClientId = 'nomi' | 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh';
+/** 内置的客户端（Nomi 自己 + 内置编程助手插件）；宿主据此管理各客户端的令牌 */
+export type BuiltinClientId = 'nomi' | 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh';
 
-export const CLIENT_IDS: readonly ClientId[] = ['nomi', 'claude', 'codex', 'gemini', 'grok', 'dsh'];
+/**
+ * 客户端 id 是开放的（P9.4）：任何登记了客户端规格的 id（registerClientSpec）都可以用；
+ * 网关只认已登记的（认身份时校验）。保留内置 id 的字面量以便补全。
+ */
+export type ClientId = BuiltinClientId | (string & {});
+
+/** 内置客户端 id（宿主的令牌存储按它建）；网关认身份不再用它，改看已登记的规格 */
+export const CLIENT_IDS: readonly BuiltinClientId[] = [
+  'nomi',
+  'claude',
+  'codex',
+  'gemini',
+  'grok',
+  'dsh',
+];
 
 export type AuthStyle = 'bearer' | 'x-api-key' | 'x-goog-api-key';
 

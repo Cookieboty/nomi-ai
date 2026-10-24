@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { BrowserWindow } from 'electron';
 
 import { officialAccountEnv } from '../cli/accounts/homes';
@@ -201,7 +202,12 @@ export type ToolRefresh =
   | { state: 'auth'; reason: string }
   | { state: 'skipped'; reason: 'disabled' | 'not-subscription' };
 
-export type QuotaToolId = 'claude' | 'codex' | 'grok';
+/**
+ * 有订阅额度卡的编程助手：插件清单里声明了 capabilities.usageQuota 的内置 CLI
+ * （tests/unit/usage/quotaTools.test.ts 核对两者一致）。
+ */
+export type QuotaToolId = Extract<BuiltinCliId, 'claude' | 'codex' | 'grok'>;
+export const QUOTA_TOOL_IDS: readonly QuotaToolId[] = ['claude', 'codex', 'grok'];
 
 export interface QuotaRefreshReport {
   entries: QuotaEntry[];

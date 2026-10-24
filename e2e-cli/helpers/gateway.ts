@@ -1,11 +1,16 @@
 /**
  * 进程内启动网关（直接用源码，不依赖 dist），上游指向假上游。
  */
+import { BUILTIN_GATEWAY_ENTRIES } from '../../packages/cli-plugins/src/gateways';
+import { registerClientSpec } from '../../packages/gateway/src/clients/index';
 import type { GatewayConfig, RuntimeModel } from '../../packages/gateway/src/config';
 import type { Wire } from '../../packages/gateway/src/ir';
 import { createGateway, type GatewayServer } from '../../packages/gateway/src/server';
 
 import type { FakeUpstream } from './upstream';
+
+// 和网关进程入口一样：内置编程助手的客户端规格来自插件（P9.5）
+for (const e of BUILTIN_GATEWAY_ENTRIES) registerClientSpec(e.clientSpec);
 
 export const TOKENS = {
   claude: 'nomi-gw-e2e-claude',

@@ -3,6 +3,8 @@
  */
 import type { ClientModels } from '../config';
 import type { Wire } from '../ir';
+import { MESSAGES_EVENTS } from '../spec/messages';
+import { RESPONSES_EVENTS } from '../spec/responses';
 
 import { BUILTIN_CLIENT_SPECS, DEFAULT_SESSION_KEY } from './builtin';
 import type { ClientAdapterHooks, ClientSpec, ConformContext, ModelSlot } from './types';
@@ -22,6 +24,16 @@ export function registerClientSpec(spec: ClientSpec, h?: ClientAdapterHooks): vo
 
 export function clientSpecOf(id: string | null | undefined): ClientSpec | undefined {
   return id ? specs.get(id) : undefined;
+}
+
+/** 已登记的客户端 id（内核自带 + 宿主组装的插件），按登记顺序 */
+export function registeredClientIds(): string[] {
+  return [...specs.keys()];
+}
+
+/** 协议规范表里的事件全集（acceptedEvents: 'spec'）；没有事件类型的协议（Chat / Gemini）不过滤 */
+function specEvents(wire: Wire): ReadonlySet<string> | null {
+  return wire === 'responses' ? RESPONSES_EVENTS : wire === 'messages' ? MESSAGES_EVENTS : null;
 }
 
 export function clientHooksOf(id: string | null | undefined): ClientAdapterHooks | undefined {
@@ -103,10 +115,11 @@ const NOTE_FILLED = (spec: string, type: string) => `已按 ${spec} 的要求补
  */
 export class ClientConformer {
   private buf = '';
-  private readonly accepted: Set<string> | null;
+  private readonly accepted: ReadonlySet<string> | null;
 
   constructor(private readonly ctx: ConformContext) {
-    this.accepted = ctx.spec.acceptedEvents ? new Set(ctx.spec.acceptedEvents) : null;
+    const a = ctx.spec.acceptedEvents;
+    this.accepted = a === 'spec' ? specEvents(ctx.wire) : a ? new Set(a) : null;
   }
 
   /** 这个规格需要校验吗（宽松且没有钩子 → 不需要） */
