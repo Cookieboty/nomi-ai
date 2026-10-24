@@ -16,6 +16,7 @@ import {
 } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import { useGatewayState } from '../../services/nomiModel';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
@@ -36,7 +37,7 @@ export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) =>
   const third = gateway.clients[backend]?.newTabSource === 'thirdParty' && !!main;
   const current = third ? providerOfRef(main) : null;
   const options: SelectOption[] = [
-    { value: OFFICIAL, label: backend === 'dsh' ? t('dsh 自带配置') : t('官方账号') },
+    { value: OFFICIAL, label: hasOfficialAccount(backend) ? t('官方账号') : t('dsh 自带配置') },
     ...providers.map((p) => ({
       value: `${PROVIDER_PREFIX}${p.id}`,
       group: t('第三方供应商'),

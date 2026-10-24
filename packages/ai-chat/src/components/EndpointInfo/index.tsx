@@ -14,6 +14,7 @@ import { isQuotaTool } from '../../hooks/useToolQuota';
 import { isCliKind } from '../../services/cliSource';
 import type { UsageQuotaEntry, UsageQuotaWindow } from '../../services/usageClient';
 import type { ConversationBackend } from '../../types/chat';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 import { AppIcon } from '../AppIcons';
 import { CliDefaultSource } from '../CliDefaultSource';
@@ -164,7 +165,7 @@ export const EndpointInfoCard: React.FC<EndpointInfoProps> = (props) => {
             <>
               {wins.length > 0 ? (
                 <MiniBars windows={wins} />
-              ) : isApi || backend === 'nomi' || backend === 'dsh' ? (
+              ) : isApi || backend === 'nomi' || !hasOfficialAccount(backend) ? (
                 <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
               ) : info.quota ? (
                 <span className={styles.dim}>{t('暂无额度数据')}</span>
@@ -342,7 +343,7 @@ const EndpointDrawer: React.FC<{
               </Button>
             )}
           </h3>
-          {backend === 'nomi' || backend === 'dsh' || isApi ? (
+          {backend === 'nomi' || !hasOfficialAccount(backend) || isApi ? (
             <span className={styles.dim}>{t('API 计费，无订阅额度')}</span>
           ) : quota?.status === 'ok' ? (
             <QuotaWindowList windows={quota.windows} now={now} label={t('{0}额度窗口', name)} />

@@ -1,0 +1,9 @@
+{"type":"summary","summary":"Refactor login flow","leafUuid":"u9"}
+{"type":"user","isSidechain":false,"isMeta":true,"message":{"role":"user","content":"<local-command-caveat>ignore me</local-command-caveat>"},"timestamp":"2026-10-14T10:00:00.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"user","isSidechain":false,"message":{"role":"user","content":"Fix the failing login test"},"timestamp":"2026-10-14T10:00:01.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"assistant","isSidechain":false,"message":{"id":"m1","role":"assistant","content":[{"type":"thinking","thinking":"hmm"},{"type":"text","text":"Let me look at the test."}],"stop_reason":null},"timestamp":"2026-10-14T10:00:02.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"assistant","isSidechain":false,"message":{"id":"m1","role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Read","input":{"file_path":"/work/app/login.test.ts"}}],"stop_reason":"tool_use"},"timestamp":"2026-10-14T10:00:03.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"user","isSidechain":false,"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"file contents"}]},"timestamp":"2026-10-14T10:00:04.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"assistant","isSidechain":true,"message":{"id":"s1","role":"assistant","content":[{"type":"text","text":"sub-agent chatter"}],"stop_reason":"end_turn"},"timestamp":"2026-10-14T10:00:05.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"assistant","isSidechain":false,"message":{"id":"m2","role":"assistant","content":[{"type":"text","text":"The test expected a 401; fixed."}],"stop_reason":"end_turn"},"timestamp":"2026-10-14T10:00:06.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}
+{"type":"user","isSidechain":false,"message":{"role":"user","content":[{"type":"text","text":"Thanks, now run it"}]},"timestamp":"2026-10-14T10:01:00.000Z","sessionId":"cl-tools-1","cwd":"/work/app"}

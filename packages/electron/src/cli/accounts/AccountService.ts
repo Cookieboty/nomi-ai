@@ -14,11 +14,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { claude, codex, gemini, grok, terminalLine } from '@nomi-ai/cli-plugins/main';
+import type { TerminalCapability } from '@nomi-ai/cli-sdk';
 import { BrowserWindow } from 'electron';
 
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
-import { psQuote, shQuote } from '../../security/shellEscape';
 import { runLimited, STDOUT_LIMIT } from '../../usage/limitedProcess';
 import { writePrivateFileAtomic } from '../../utils/privateFile';
 import { resolveCliBinAsync, withCliPath } from '../detect';
@@ -27,6 +28,7 @@ import { claudeAccountName, claudeKeychainService } from './adapters';
 import {
   accountDirFor,
   ensureAccountHome,
+  logoutArgs,
   HOME_ENV,
   OFFICIAL_STRIP,
   officialAccountArgs,
@@ -61,6 +63,14 @@ interface StoreFile {
 }
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
+
+/** 「在终端里用这个账号」的命令（插件给出，§5.10） */
+const TERMINAL: Record<AccountKind, TerminalCapability> = {
+  claude: claude.createMain().terminal!,
+  codex: codex.createMain().terminal!,
+  grok: grok.createMain().terminal!,
+  gemini: gemini.createMain().terminal!,
+};
 
 const FILE = 'accounts.json';
 /** Nomi 启动的官方会话跑在哪个账号里（`<kind>:<sessionId>` → 账号 id）；不含凭据 */
@@ -254,10 +264,11 @@ export class AccountService {
    * 只包含目录路径，不含任何凭据。
    */
   private terminalCommand(kind: AccountKind, dir: string): string {
-    const bin = kind;
-    if ((this.d.platform ?? process.platform) === 'win32')
-      return `$env:${HOME_ENV[kind]}=${psQuote(dir)}; ${bin}`;
-    return `${HOME_ENV[kind]}=${shQuote(dir)} ${bin}`;
+    const cmd = TERMINAL[kind].command({ cwd: '', env: {} });
+    return terminalLine(
+      { ...cmd, env: { [HOME_ENV[kind]]: dir } },
+      this.d.platform ?? process.platform,
+    );
   }
 
   /** S10：同一身份登录在另一个目录（两处各自刷新会让其中一处失效） */
@@ -572,13 +583,7 @@ export class AccountService {
 
 /** 在账号目录里执行 CLI 自己的登出（会撤销令牌）；Gemini 没有登出命令，直接删目录 */
 async function cliLogout(kind: AccountKind, env: NodeJS.ProcessEnv): Promise<void> {
-  const args: Record<AccountKind, string[] | null> = {
-    claude: ['auth', 'logout'],
-    codex: ['logout'],
-    grok: ['logout'],
-    gemini: null,
-  };
-  const a = args[kind];
+  const a = logoutArgs(kind);
   if (!a) return;
   const bin = await resolveCliBinAsync(kind);
   if (!bin) return;

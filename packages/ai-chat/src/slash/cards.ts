@@ -13,6 +13,7 @@ import {
 import type { BackendModelCatalog, TabSource } from '../services/harnessClient';
 import { nomiMainRef, nomiModelChoices, splitRef } from '../services/nomiModel';
 import { providerDisplayName } from '../services/providerClient';
+import { hasOfficialAccount } from '../utils/cliCaps';
 import { ENDPOINT_FULL } from '../utils/endpointBadge';
 import { rankItems } from '../utils/fuzzy';
 
@@ -105,7 +106,7 @@ function cliSourceLine(ctx: SlashContext, data: SlashData): CardRow {
       ? { label, value: t('{0}（第三方）', refSlashLabel(data.nomiGateway, ref)) }
       : { label, value: t('第三方 · 未设置模型'), tone: 'warn' };
   }
-  if (ctx.backend === 'dsh') return { label, value: t('dsh 自带配置') };
+  if (!hasOfficialAccount(ctx.backend)) return { label, value: t('dsh 自带配置') };
   const a = data.cliAccount;
   return a
     ? { label, value: t('官方 · {0}', a.identity?.email ?? a.label) }
@@ -275,12 +276,11 @@ const cancelled = (ok: boolean) => {
 /** CLI 标签的「官方」一项：改用官方账号（第三方 → 官方且已有对话时会先确认） */
 function officialChoice(ctx: SlashContext, data: SlashData, source: TabSource): ModelChoice {
   const a = data.cliAccount;
-  const label =
-    ctx.backend === 'dsh'
-      ? t('dsh 自带配置')
-      : a
-        ? t('官方 · {0}', a.identity?.email ?? a.label)
-        : t('官方');
+  const label = !hasOfficialAccount(ctx.backend)
+    ? t('dsh 自带配置')
+    : a
+      ? t('官方 · {0}', a.identity?.email ?? a.label)
+      : t('官方');
   return {
     label,
     provider: t('官方'),

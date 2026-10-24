@@ -1,8 +1,9 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 
 import type { HarnessTabMeta } from './harnessClient';
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini' | 'grok';
+export type HistoryBackend = BuiltinCliId;
 export const HISTORY_BACKENDS: readonly HistoryBackend[] = [
   'claude',
   'codex',

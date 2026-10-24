@@ -13,17 +13,28 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { claude, codex, gemini, grok } from '@nomi-ai/cli-plugins/main';
+import type { AccountCapability } from '@nomi-ai/cli-sdk';
+
 import { claudeConfigDir, codexHomeDir, grokHomeDir } from '../../usage/cliHomes';
 import { writePrivateFileAtomic } from '../../utils/privateFile';
 
 import type { AccountKind } from './types';
 
+/** 各 CLI 的账号目录数据（变量、剔除、共享条目）在插件里（@nomi-ai/cli-plugins，§5.10） */
+const ACCOUNT_CAPS: Record<AccountKind, AccountCapability> = {
+  claude: claude.accounts,
+  codex: codex.accounts,
+  grok: grok.accounts,
+  gemini: gemini.accounts,
+};
+
 /** 各 CLI 的凭据目录变量 */
 export const HOME_ENV: Record<AccountKind, string> = {
-  claude: 'CLAUDE_CONFIG_DIR',
-  codex: 'CODEX_HOME',
-  grok: 'GROK_HOME',
-  gemini: 'GEMINI_CLI_HOME',
+  claude: ACCOUNT_CAPS.claude.homeEnv,
+  codex: ACCOUNT_CAPS.codex.homeEnv,
+  grok: ACCOUNT_CAPS.grok.homeEnv,
+  gemini: ACCOUNT_CAPS.gemini.homeEnv,
 };
 
 /**
@@ -31,31 +42,16 @@ export const HOME_ENV: Record<AccountKind, string> = {
  * 账号目录变量由 Nomi 按标签的账号重新设置。
  */
 export const OFFICIAL_STRIP: Record<AccountKind, readonly string[]> = {
-  claude: [
-    'ANTHROPIC_BASE_URL',
-    'ANTHROPIC_API_KEY',
-    'ANTHROPIC_AUTH_TOKEN',
-    'CLAUDE_CODE_OAUTH_TOKEN',
-    'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
-    'ANTHROPIC_PROFILE',
-    'CLAUDE_CODE_USE_BEDROCK',
-    'CLAUDE_CODE_USE_VERTEX',
-    'CLAUDE_CODE_USE_FOUNDRY',
-    'CLAUDE_CONFIG_DIR',
-  ],
-  codex: ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY', 'CODEX_HOME'],
-  grok: ['XAI_API_KEY', 'GROK_API_KEY', 'GROK_HOME'],
-  gemini: [
-    'GEMINI_API_KEY',
-    'GOOGLE_API_KEY',
-    'GOOGLE_GEMINI_BASE_URL',
-    'GOOGLE_GENAI_USE_VERTEXAI',
-    'GOOGLE_APPLICATION_CREDENTIALS',
-    'GEMINI_CLI_HOME',
-    'GEMINI_FORCE_ENCRYPTED_FILE_STORAGE',
-    'GEMINI_FORCE_ENCRYPTED_FILE',
-  ],
+  claude: ACCOUNT_CAPS.claude.strip,
+  codex: ACCOUNT_CAPS.codex.strip,
+  grok: ACCOUNT_CAPS.grok.strip,
+  gemini: ACCOUNT_CAPS.gemini.strip,
 };
+
+/** 在账号目录里运行 CLI 自己的登录 / 登出命令的参数（没有登出命令的 CLI 为 null） */
+export const loginArgs = (kind: AccountKind): string[] => ACCOUNT_CAPS[kind].loginArgs;
+export const logoutArgs = (kind: AccountKind): string[] | null =>
+  ACCOUNT_CAPS[kind].logoutArgs ?? null;
 
 /** Claude settings.json 的 env 里会改变路由或鉴权的键（S3），生成账号目录的副本时去掉 */
 const CLAUDE_ROUTING_ENV = new Set([
@@ -92,52 +88,11 @@ export interface HomeLayout {
 }
 
 export const LAYOUTS: Record<AccountKind, HomeLayout> = {
-  claude: {
-    shared: [
-      { name: 'projects', dir: true, createIfMissing: true },
-      { name: 'history.jsonl', dir: false },
-      { name: 'CLAUDE.md', dir: false },
-      { name: 'keybindings.json', dir: false },
-      { name: 'skills', dir: true },
-      { name: 'commands', dir: true },
-      { name: 'agents', dir: true },
-      { name: 'rules', dir: true },
-      { name: 'output-styles', dir: true },
-      { name: 'todos', dir: true },
-    ],
-  },
-  codex: {
-    shared: [
-      { name: 'sessions', dir: true, createIfMissing: true },
-      { name: 'archived_sessions', dir: true },
-      { name: 'config.toml', dir: false },
-      { name: 'skills', dir: true },
-      { name: 'prompts', dir: true },
-      { name: 'AGENTS.md', dir: false },
-    ],
-  },
-  grok: {
-    shared: [
-      { name: 'sessions', dir: true, createIfMissing: true },
-      { name: 'config.toml', dir: false },
-      { name: 'installed-plugins', dir: true },
-      { name: 'memory-v2', dir: true },
-      { name: 'bin', dir: true },
-      { name: 'bundled', dir: true },
-    ],
-  },
-  gemini: {
-    // GEMINI_CLI_HOME 指向账号目录本身，CLI 在其中建 .gemini/；共享条目相对 .gemini
-    shared: [
-      { name: '.gemini/tmp', dir: true, createIfMissing: true },
-      { name: '.gemini/settings.json', dir: false },
-      { name: '.gemini/GEMINI.md', dir: false },
-      { name: '.gemini/commands', dir: true },
-      { name: '.gemini/extensions', dir: true },
-      { name: '.gemini/trustedFolders.json', dir: false },
-      { name: '.gemini/projects.json', dir: false },
-    ],
-  },
+  claude: { shared: ACCOUNT_CAPS.claude.shared },
+  codex: { shared: ACCOUNT_CAPS.codex.shared },
+  grok: { shared: ACCOUNT_CAPS.grok.shared },
+  // GEMINI_CLI_HOME 指向账号目录本身，CLI 在其中建 .gemini/；共享条目相对 .gemini
+  gemini: { shared: ACCOUNT_CAPS.gemini.shared },
 };
 
 /** 用户自己的 CLI 配置目录（默认账号）；Gemini 返回 GEMINI_CLI_HOME 意义上的「主目录」 */
@@ -315,6 +270,5 @@ export function officialAccountEnv(
 
 /** 账号目录追加的启动参数（Codex 在账号目录里强制文件存储，钥匙串条目按目录区分但不必要） */
 export function officialAccountArgs(kind: AccountKind, accountDir: string | null): string[] {
-  if (kind === 'codex' && accountDir) return ['-c', 'cli_auth_credentials_store="file"'];
-  return [];
+  return accountDir ? [...(ACCOUNT_CAPS[kind].accountArgs ?? [])] : [];
 }

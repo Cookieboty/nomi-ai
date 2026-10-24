@@ -7,6 +7,8 @@
  * - dsh           $DSH_HOME/sessions/<编码后的 cwd>/session-<uuid>/session.v4.jsonl(.zstd)
  * - Gemini CLI    ~/.gemini/tmp/<项目>/chats/session-<时间>-<id 前 8 位>.jsonl（旧版 .json）
  */
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+
 import { cleanTitle, foldGeminiChat, geminiText } from '../agents/parsers';
 
 import { stripCarriedContext } from './contextCarry';
@@ -509,7 +511,7 @@ export function parseGeminiTranscript(text: string, fallbackAt = 0): HarnessTabM
   return b.result();
 }
 
-export type HistoryBackend = 'claude' | 'codex' | 'dsh' | 'gemini' | 'grok';
+export type HistoryBackend = BuiltinCliId;
 
 export function parseTranscript(
   backend: HistoryBackend,

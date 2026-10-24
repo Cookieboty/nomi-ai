@@ -31,6 +31,23 @@ export interface ExecDriverOptions {
   newId?: () => string;
   /** 退出码非 0 且没有正文时的错误文案 */
   exitMessage?: (code: number | null) => string;
+  /**
+   * 插件给的「整轮完成」规则（ExecRules.completes）。给了就按严格规则收尾：
+   * - 没见过完成事件就被停止 / 被信号杀死 → 失败（不能因为已有部分文字就当成功）；
+   * - 见过完成事件之后，收尾阶段的非零退出不再翻案为失败；
+   * - 报了错、一个字也没回 → 失败。
+   * 不给则沿用宽松规则（停止时有文字算 cancelled）。
+   */
+  completes?: (ev: HarnessEvent) => boolean;
+  /** 没有任何事件就以 0 退出时的错误（返回 null = 正常）；插件声明 silentExitIsError 时宿主给出文案 */
+  silentExit?: () => string | null;
+  /** stdin 保持打开，见到 done 再 EOF（仅特殊 mock 需要；多数 CLI 必须立刻 EOF） */
+  keepStdin?: boolean;
+  /** 宿主侧的「用户要求停止」（宿主自己杀进程时，driver 据此判定中止） */
+  stopRequested?: () => boolean;
+  /** 被中止时的错误文案 */
+  abortedMessage?: string;
+  onStderr?: (chunk: string) => void;
 }
 
 export class ExecDriver implements SessionDriver {
@@ -84,15 +101,27 @@ export class ExecDriver implements SessionDriver {
       let lastError: string | null = null;
       let usage: TurnResult['usage'];
       let settled = false;
-      const handle = (line: string) => {
+      let completed = false;
+      let count = 0;
+      const strict = !!this.o.completes;
+      const handle = (line: string, tail = false) => {
         if (!line.trim()) return;
         for (const ev of parse(line)) {
+          count++;
           text = appendText(text, ev);
           if (ev.type === 'error') lastError = ev.message;
+          if (this.o.completes?.(ev)) completed = true;
           if (ev.type === 'done') {
             if (ev.sessionId) this.sid = ev.sessionId;
             if (ev.usage) usage = ev.usage;
             if (!text && ev.text) text = ev.text;
+            // 一轮结束：仍开着 stdin 就补 EOF，避免 CLI 空等
+            if (this.o.keepStdin)
+              try {
+                child.stdin.end();
+              } catch {
+                /* */
+              }
           }
           if (ev.type === 'permission')
             this.hub.emit({
@@ -101,7 +130,7 @@ export class ExecDriver implements SessionDriver {
               request: { summary: ev.summary },
               turnId,
             });
-          this.hub.emit({ kind: 'harness', event: ev, turnId });
+          this.hub.emit({ kind: 'harness', event: ev, turnId, ...(tail ? { tail: true } : {}) });
         }
       };
       child.stdout.on('data', (c) => {
@@ -110,15 +139,38 @@ export class ExecDriver implements SessionDriver {
         buf = parts.pop() ?? '';
         for (const line of parts) handle(line);
       });
-      const finish = (code: number | null, err: Error | null) => {
+      child.stderr.on('data', (c) =>
+        this.o.onStderr?.(typeof c === 'string' ? c : c.toString('utf8')),
+      );
+      const finish = (code: number | null, err: Error | null, signal: string | null = null) => {
         if (settled) return;
         settled = true;
         input.signal?.removeEventListener('abort', onAbort);
         if (this.child === child) this.child = null;
-        if (buf.trim()) handle(buf);
+        // 最后一行没有换行：收尾时才解析（不算实时输出）
+        if (buf.trim()) handle(buf, true);
         buf = '';
         if (err) return reject(err);
-        if (this.stopped && !text) return reject(new Error('aborted'));
+        const aborted = new Error(this.o.abortedMessage ?? 'aborted');
+        if (strict) {
+          if (!completed && (this.stopped || this.o.stopRequested?.() || signal))
+            return reject(aborted);
+          const silent = count === 0 && !code ? (this.o.silentExit?.() ?? null) : null;
+          if (silent) return reject(new Error(silent));
+          if (code && !completed)
+            return reject(
+              new Error(lastError ?? this.o.exitMessage?.(code) ?? `exit code ${code}`),
+            );
+          if (lastError && !text.trim()) return reject(new Error(lastError));
+          return resolve({
+            turnId,
+            stopReason: 'end_turn',
+            text,
+            sessionId: this.sid,
+            ...(usage ? { usage } : {}),
+          });
+        }
+        if (this.stopped && !text) return reject(aborted);
         if (code && code !== 0 && !text)
           return reject(new Error(lastError ?? this.o.exitMessage?.(code) ?? `exit code ${code}`));
         resolve({
@@ -131,11 +183,11 @@ export class ExecDriver implements SessionDriver {
         });
       };
       child.on('error', (e) => finish(null, e));
-      child.on('close', (code) => finish(code, null));
+      child.on('close', (code, signal) => finish(code, null, signal ?? null));
       try {
         const data = this.o.stdin?.(input);
         if (data) child.stdin.write(data);
-        child.stdin.end();
+        if (!this.o.keepStdin) child.stdin.end();
       } catch {
         /* 进程已退出：close 事件给结果 */
       }

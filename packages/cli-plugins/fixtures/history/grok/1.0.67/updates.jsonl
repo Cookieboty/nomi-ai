@@ -1,0 +1,5 @@
+{"timestamp": 1792763438, "method": "session/update", "params": {"sessionId": "grok-acp-1", "update": {"sessionUpdate": "user_message_chunk", "content": {"type": "text", "text": "你是什么模型"}}}}
+{"timestamp": 1792763438, "method": "session/update", "params": {"sessionId": "grok-acp-1", "update": {"sessionUpdate": "agent_thought_chunk", "content": {"type": "text", "text": "想一想"}}}}
+{"timestamp": 1792763438, "method": "session/update", "params": {"sessionId": "grok-acp-1", "update": {"sessionUpdate": "tool_call", "toolCallId": "c1", "title": "run_terminal_command", "rawInput": {"command": "ls"}, "_meta": {"x.ai/tool": {"name": "run_terminal_command"}}}}}
+{"timestamp": 1792763438, "method": "session/update", "params": {"sessionId": "grok-acp-1", "update": {"sessionUpdate": "tool_call_update", "toolCallId": "c1", "status": "completed"}}}
+{"timestamp": 1792763438, "method": "session/update", "params": {"sessionId": "grok-acp-1", "update": {"sessionUpdate": "agent_message_chunk", "content": {"type": "text", "text": "我是 Grok"}}}}

@@ -1,6 +1,8 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 /** 编程助手官方账号（docs/design/cli-plugin-architecture.md §5.10：一个账号 = 一个 CLI 配置目录） */
 
-export type AccountKind = 'claude' | 'codex' | 'grok' | 'gemini';
+/** 有官方账号的编程助手（清单 capabilities.officialAccount；dsh 没有官方账号） */
+export type AccountKind = Exclude<BuiltinCliId, 'dsh'>;
 
 export const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
 

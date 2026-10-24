@@ -1,7 +1,9 @@
 /** 编程助手 CLI 接入 · 共享类型 */
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { HarnessEvent, HarnessPermissionMode, HarnessUsage } from '@nomi-ai/cli-sdk';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 按插件目录生成，P9.4） */
+export type HarnessBackend = 'nomi' | BuiltinCliId;
 
 /**
  * 编程助手权限模式（Nomi 统一五档，映射见 cli/permissionMode.ts）：
@@ -9,13 +11,13 @@ export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gem
  */
 export type { HarnessPermissionMode } from '@nomi-ai/cli-sdk';
 
-export type CliKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'cursor';
+export type CliKind = BuiltinCliId | 'cursor';
 
 /** 旧版有独立第三方供应商存储的 CLI（迁移 / 撤销旧全局配置时用） */
-export type CliProviderKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type CliProviderKind = BuiltinCliId;
 
 /** 支持版本更新的 CLI */
-export type UpdatableCli = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type UpdatableCli = BuiltinCliId;
 
 export interface CliInstallInfo {
   kind: CliKind;

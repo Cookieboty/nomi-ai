@@ -69,6 +69,17 @@ export interface UpdateCapability {
   command(): { command: string; args: string[] } | null;
 }
 
+/**
+ * exec 驱动的收尾规则（各 CLI 不同）：哪个事件算「整轮完成」、没有任何输出就退出算不算失败。
+ * done 事件在各 CLI 里含义不同（Codex 每条 agent_message 都带 done、会话 id 也走 done），
+ * 所以要插件给出准确的「完成」判定。
+ */
+export interface ExecRules {
+  completes(ev: HarnessEvent): boolean;
+  /** 没有任何事件就以 0 退出算失败（宿主给出原因文案，如 dsh 需要更新的 Node） */
+  silentExitIsError?: boolean;
+}
+
 /** 对共享驱动的定制（§5.4）：参数、事件映射补丁；插件不再自己实现会话 */
 export interface SessionCustomization {
   /** 驱动的启动参数（在 launch.args 之前） */
@@ -77,6 +88,8 @@ export interface SessionCustomization {
   parser?(): (line: string) => HarnessEvent[];
   /** 驱动事件进编排层之前的补丁（改写 / 丢弃） */
   mapEvent?(e: SessionEvent): SessionEvent | null;
+  /** exec 驱动（每轮一个进程）的收尾规则 */
+  exec?: ExecRules;
   /** 创建驱动（缺省按 transport 用共享驱动） */
   createDriver?(o: { launch: AgentLaunch; ctx: LaunchContext }): SessionDriver;
 }
@@ -89,12 +102,21 @@ export interface ModelCatalogCapability {
 }
 
 export interface PermissionCapability {
+  /** 这个 CLI 支持的档位（不支持的由宿主按「只往更安全的一侧降」降级） */
+  supported: readonly HarnessPermissionMode[];
+  /** Nomi 档位 → 启动参数与环境变量（重启生效的 CLI；调用方先降级） */
+  launch(
+    mode: HarnessPermissionMode,
+    opts?: { network?: boolean },
+  ): { args: string[]; env: Record<string, string> };
   /** Nomi 档位 → 启动参数（重启生效的 CLI） */
   launchArgs?(mode: HarnessPermissionMode): string[];
   /** Nomi 档位 → 协议 mode id（原地切换的 CLI） */
   modeId?(mode: HarnessPermissionMode): string;
   /** 协议 mode id → Nomi 档位（打开历史会话时沿用；认不出返回 null） */
   fromModeId?(id: string): HarnessPermissionMode | null;
+  /** 计划模式下附在用户消息前的提示（CLI 没有原生无头计划模式时） */
+  planPrefix?: string;
 }
 
 /** 历史会话（§5.7） */
@@ -127,8 +149,11 @@ export interface HistoryCapability {
   roots(env: NodeJS.ProcessEnv, home: string): string[];
   /** 列出候选文件（只读目录，不解析内容） */
   scan(root: string): AsyncIterable<HistoryFileRef>;
-  /** 解析元数据与对话；认不出的格式返回 { error }，不要返回 null */
-  parse(text: string, f: HistoryFileRef): HistoryParse;
+  /**
+   * 解析元数据与对话；认不出的格式返回 { error }，不要返回 null。
+   * 可以由宿主补上（内置插件的转录解析暂时仍在主进程，宿主加载时挂到这里）。
+   */
+  parse?(text: string, f: HistoryFileRef): HistoryParse;
   /** 续接时给 CLI 的参数 / ACP 的 session/load */
   resume(sessionId: string): { args?: string[]; loadSession?: boolean };
 }
@@ -153,10 +178,12 @@ export interface AccountCapability {
   strip: string[];
   /** 账号目录里与用户目录共享的条目 */
   shared: Array<{ name: string; dir: boolean; createIfMissing?: boolean }>;
-  /** 登录 / 登出 / 状态命令（在账号目录里运行） */
+  /** 登录 / 登出 / 状态命令（在账号目录里运行）；没有登出命令的 CLI 不给 logoutArgs */
   loginArgs: string[];
   logoutArgs?: string[];
   statusArgs?: string[];
+  /** 在非本机账号目录里启动时追加的参数（如 Codex 强制文件存储凭据） */
+  accountArgs?: string[];
 }
 
 export interface SlashDiscoveryCapability {

@@ -138,7 +138,8 @@ export type PermissionAnswer =
 /** 驱动的会话级事件流 */
 export type SessionEvent =
   /** turnId 为空 = 轮次之外 */
-  | { kind: 'harness'; event: HarnessEvent; turnId?: string }
+  /** tail = 进程结束时才解析出的最后一行（不算实时输出） */
+  | { kind: 'harness'; event: HarnessEvent; turnId?: string; tail?: boolean }
   | { kind: 'commands'; commands: SlashCommand[] }
   | { kind: 'permission'; id: string; request: PermissionRequest; turnId?: string }
   | {

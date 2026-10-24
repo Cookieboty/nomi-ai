@@ -1,3 +1,4 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 
 export interface CliInstallInfo {
@@ -12,7 +13,7 @@ export interface CliInstallInfo {
   runtimeWarning?: { nodeVersion: string | null; required: number } | null;
 }
 
-export type CliUpdatableKind = 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type CliUpdatableKind = BuiltinCliId;
 export type CliInstallScope = 'global' | 'user';
 
 export interface CliRequirement {

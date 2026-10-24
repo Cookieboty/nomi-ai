@@ -103,6 +103,54 @@ export default tseslint.config(
     },
   },
 
+  // 编程助手插件的入口边界（docs/design/cli-plugin-architecture.md §5.1）：
+  // manifest / gateway / renderer 是纯数据，渲染进程与网关进程也会加载，不能依赖 node 与主进程实现；
+  // main 是主进程实现，不能依赖渲染进程入口。整个插件包都不能 import electron。
+  {
+    files: ['packages/cli-plugins/src/**/*.ts'],
+    ignores: [
+      'packages/cli-plugins/src/*/main.ts',
+      'packages/cli-plugins/src/main.ts',
+      'packages/cli-plugins/src/shared/homes.ts',
+      'packages/cli-plugins/src/shared/scan.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
+          patterns: [
+            {
+              group: ['node:*', 'fs', 'path', 'os', 'child_process', 'crypto', 'url'],
+              message: 'manifest / gateway / renderer 入口只能是纯数据，不能依赖 node。',
+            },
+            {
+              group: ['**/main', './main', '../*/main', '../shared/homes', '../shared/scan'],
+              message: 'manifest / gateway / renderer 入口不能依赖主进程实现。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['packages/cli-plugins/src/*/main.ts', 'packages/cli-plugins/src/main.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'electron', message: '插件包不能依赖 electron。' }],
+          patterns: [
+            {
+              group: ['**/renderer', './renderer', '../*/renderer', '../shared/renderer'],
+              message: '主进程实现不能依赖渲染进程入口。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // 测试文件放宽
   {
     files: ['**/*.{test,spec}.{ts,tsx}', '**/tests/**/*.{ts,tsx}'],

@@ -21,6 +21,7 @@ import { geminiLoginEnv } from '../gemini/trust';
 import { killProcessTree } from '../processTree';
 
 import type { AccountService } from './AccountService';
+import { loginArgs } from './homes';
 import type { AccountKind, AccountView } from './types';
 
 export type LoginState = 'starting' | 'waiting' | 'verifying' | 'done' | 'error' | 'cancelled';
@@ -65,14 +66,6 @@ export function parseLoginOutput(raw: string): { url?: string; code?: string; ne
     needsCode: /Paste code here/i.test(text),
   };
 }
-
-const LOGIN_ARGS: Record<AccountKind, string[]> = {
-  claude: ['auth', 'login', '--claudeai'],
-  codex: ['login', '--device-auth', '-c', 'cli_auth_credentials_store="file"'],
-  grok: ['login', '--device-auth'],
-  // Gemini 没有 login 子命令：起 ACP 进程后调用 authenticate（oauth-personal），由 CLI 自己开浏览器
-  gemini: ['--acp'],
-};
 
 interface Session {
   id: string;
@@ -146,7 +139,8 @@ export class AccountLogin {
     const id = account;
     if (this.sessions.has(id)) this.cancel(id);
     const cwd = target.dir ?? os.tmpdir();
-    const args = LOGIN_ARGS[kind];
+    // 登录参数在插件里（Gemini 没有 login 子命令：起 ACP 进程后调用 authenticate）
+    const args = loginArgs(kind);
     const script = bin.endsWith('.mjs') || bin.endsWith('.js');
     const env = buildCliEnv(target.env, {
       // Gemini：只信任这次登录用的目录，不是用户工作区

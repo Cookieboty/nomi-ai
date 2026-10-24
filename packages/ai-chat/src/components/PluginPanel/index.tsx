@@ -11,6 +11,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { extClient, type McpList, type SkillInfo } from '../../services/extClient';
 import type { SlashDiscoveryEntry } from '../../services/harnessClient';
 import type { ConversationBackend } from '../../types/chat';
+import { hasSlashCommands } from '../../utils/cliCaps';
 import { ENDPOINT_FULL } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
@@ -134,7 +135,8 @@ export const PluginPanel: React.FC<Props> = ({
   })) as Array<{ value: Tab; label: string }>;
   const active: Tab = tabs.some((x) => x.value === tab) ? tab : (tabs[0]!.value as Tab);
   const list = rows[active];
-  const unsupported = backend === 'dsh';
+  // 没有斜杠发现能力的 CLI（如 dsh）没有可列的命令 / Skills / 插件
+  const unsupported = !hasSlashCommands(backend);
 
   return (
     <Modal
