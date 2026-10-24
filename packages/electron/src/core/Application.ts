@@ -702,6 +702,7 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'delegate'),
         harness,
         desktop: getDesktopService(this.logger),
+        gateway: harnessGateway(gateway),
       }).registerIpc();
       initSessionHistoryService({
         logger: this.logger as never,

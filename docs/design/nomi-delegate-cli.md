@@ -65,6 +65,9 @@ delegate_to_cli({
   out_of_scope?: string,  // 不要碰的范围
   cwd?: string,           // 缺省：最近使用的工作目录；必须在桌面权限已授权的范围内（§6.2）
   background?: boolean,   // 默认 true（异步）；false 同步等到结束
+  profile?: string,       // AgentProfile id（default / cheap / local / 自定义）；缺省用设置默认档位
+  model?: string,         // 覆盖子 CLI 模型（优先于 profile）；第三方「供应商/模型」，官方 CLI 原生名
+  reasoning_effort?: string, // 覆盖思考深度
 }) → DelegateResult
 
 delegate_followup({ taskId, message }) → DelegateResult   // 第二阶段：在同一个标签里接着问
@@ -145,7 +148,7 @@ Nomi 不另外指定：
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | 来源（官方 / 第三方） | 「模型」页给这个编程助手设的「新标签默认用」（`defaultSource`）                                                                      |
 | 官方账号              | 当前默认账号                                                                                                                         |
-| 模型、思考深度        | 这个编程助手最近一次的设置（`inheritSettings`，只在来源一致时沿用）                                                                  |
+| 模型、思考深度        | 工具 `model` / `profile` / 设置默认档位（见 §12.3）→ 否则这个编程助手最近一次的设置（`inheritSettings`）                             |
 | 权限模式              | 新标签默认档，再按 §5 限制在 Nomi 当前档位以内                                                                                       |
 | 工作目录              | `cwd` 参数，缺省为最近使用的目录                                                                                                     |
 | CLI 自己的配置        | 和用户直接开标签一样：`~/.claude`、`~/.codex` 里的设置、项目说明文件（CLAUDE.md / AGENTS.md）、用户给 CLI 配的 MCP 与 hooks 都会生效 |
@@ -436,3 +439,13 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 - **并发上限**：同时 `running` 的委派 ≤ 3（`concurrency_limit`）。
 - **不做 Docker**；子 CLI 自身 Seatbelt/沙箱仍生效。本地 `info/exclude` 写入 `.nomi-delegate/`。
 - **残留风险**：并行任务改同一文件时后完成的覆盖先完成的；`.nomi-delegate/` 在成功路径会残留直到手动清理 / 取消。
+
+### 12.3 A1 AgentProfile + 委派模型覆盖（已实现）
+
+目标：前台 Nomi 用好模型，后台 `delegate_to_cli` 可指定便宜 / 本地档位，**仍是单层委派**（不做 planner/executor 二层）。
+
+- 类型 `AgentProfile`：`{ id, label, model?, reasoningEffort?, preferLocal? }`。内置 `default`（不覆盖）、`cheap`（可用 `settings.cheapModel`）、`local`（`preferLocal` 元数据，工具白名单留给 B2）。
+- 设置：`userData/delegate/settings.json` 增加 `defaultProfileId` / `profiles` / `cheapModel`；设置页「委派」增加默认档位与 cheap 模型一行。
+- 工具参数：`profile?` / `model?` / `reasoning_effort?`。解析优先级：**显式 model > profile.model >（cheap→cheapModel）> 默认档位 > CLI 默认**。
+- `createTab({ modelOverride, reasoningEffort })`：第三方路径模型须在网关目录，否则 `model_not_in_catalog`；未知档位 `unknown_profile`。
+- **未做**：depth-2 planner、worktree 三路合并、完整工具白名单 profiles。

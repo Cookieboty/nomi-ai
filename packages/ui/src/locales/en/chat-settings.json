@@ -466,5 +466,11 @@
   "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
   "无效的批准计划选项": "Invalid approve-plan choice",
   "当前模型无思考深度": "This model has no reasoning effort",
-  "{0} 没有文档化的思考深度控制，这里不会假装可调": "{0} has no documented reasoning-effort control; Nomi will not pretend it does"
+  "{0} 没有文档化的思考深度控制，这里不会假装可调": "{0} has no documented reasoning-effort control; Nomi will not pretend it does",
+  "默认委派模型档位": "Default handoff model profile",
+  "派出编程助手时默认用哪套模型覆盖。default 沿用 CLI；cheap 可用下方便宜模型；也可在工具参数里传 profile / model。": "Which model override to use when handing off. default keeps the CLI’s model; cheap can use the cheap model below; tools may also pass profile / model.",
+  "默认档位": "Default profile",
+  "对应 AgentProfile：default / cheap / local（本地优先仅作标记）。": "AgentProfile ids: default / cheap / local (preferLocal is metadata only for now).",
+  "便宜模型（cheap）": "Cheap model (cheap)",
+  "档位为 cheap 且未自带 model 时使用；第三方填「供应商/模型」，官方填 CLI 模型名。": "Used when the cheap profile has no model of its own. Third-party: provider/model; official: CLI model id."
 }

@@ -12,14 +12,42 @@ export type DelegateCli = (typeof DELEGATE_CLIS)[number];
 export const DELEGATE_KINDS = ['coding', 'prd', 'review', 'research'] as const;
 export type DelegateKind = (typeof DELEGATE_KINDS)[number];
 
+/** 委派时覆盖子 CLI 模型 / 思考深度的档位（A1：单层委派，不做 planner/executor） */
+export interface AgentProfile {
+  id: string;
+  label: string;
+  /** provider/model 或 CLI 原生模型 id；缺省 = 不覆盖 */
+  model?: string;
+  reasoningEffort?: string | null;
+  /** 元数据占位：后续 B2 工具白名单；本阶段仅透传 */
+  preferLocal?: boolean;
+}
+
+/** 内置档位：default 不覆盖；cheap 可从 settings.cheapModel 解析；local 仅标记 preferLocal */
+export const BUILTIN_AGENT_PROFILES: readonly AgentProfile[] = [
+  { id: 'default', label: '默认（沿用 CLI）' },
+  { id: 'cheap', label: '便宜模型' },
+  { id: 'local', label: '本地优先', preferLocal: true },
+];
+
 export interface DelegateSettings {
   /** 允许 Nomi 委派编程助手 */
   enabled: boolean;
   /** 各任务类型默认交给谁；缺省 = 让 Nomi 选 */
   defaults: Partial<Record<DelegateKind, DelegateCli>>;
+  /** 默认委派档位 id（builtin 或用户自定义） */
+  defaultProfileId?: string;
+  /** 用户自定义 / 覆盖内置的档位（按 id 合并） */
+  profiles?: AgentProfile[];
+  /** cheap 档位未自带 model 时使用的模型 id */
+  cheapModel?: string;
 }
 
-export const DEFAULT_DELEGATE_SETTINGS: DelegateSettings = { enabled: true, defaults: {} };
+export const DEFAULT_DELEGATE_SETTINGS: DelegateSettings = {
+  enabled: true,
+  defaults: {},
+  defaultProfileId: 'default',
+};
 
 export function isDelegateCli(v: unknown): v is DelegateCli {
   return typeof v === 'string' && (DELEGATE_CLIS as readonly string[]).includes(v);
@@ -27,6 +55,54 @@ export function isDelegateCli(v: unknown): v is DelegateCli {
 
 export function isDelegateKind(v: unknown): v is DelegateKind {
   return typeof v === 'string' && (DELEGATE_KINDS as readonly string[]).includes(v);
+}
+
+function sanitizeProfile(raw: unknown): AgentProfile | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const id = typeof r.id === 'string' ? r.id.trim().slice(0, 64) : '';
+  if (!id || !/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(id)) return null;
+  const label = typeof r.label === 'string' && r.label.trim() ? r.label.trim().slice(0, 80) : id;
+  const model =
+    typeof r.model === 'string' && r.model.trim() ? r.model.trim().slice(0, 128) : undefined;
+  const effortRaw = r.reasoningEffort;
+  const reasoningEffort =
+    effortRaw === null
+      ? null
+      : typeof effortRaw === 'string' && effortRaw.trim()
+        ? effortRaw.trim().slice(0, 32)
+        : undefined;
+  const preferLocal = r.preferLocal === true ? true : undefined;
+  return {
+    id,
+    label,
+    ...(model ? { model } : {}),
+    ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
+    ...(preferLocal ? { preferLocal } : {}),
+  };
+}
+
+/** 内置 + 用户档位按 id 合并（用户可覆盖 label/model） */
+export function mergeAgentProfiles(user?: readonly AgentProfile[]): AgentProfile[] {
+  const map = new Map<string, AgentProfile>();
+  for (const p of BUILTIN_AGENT_PROFILES) map.set(p.id, { ...p });
+  for (const raw of user ?? []) {
+    const p = sanitizeProfile(raw);
+    if (!p) continue;
+    const prev = map.get(p.id);
+    map.set(p.id, {
+      id: p.id,
+      label: p.label || prev?.label || p.id,
+      ...(p.model !== undefined ? { model: p.model } : prev?.model ? { model: prev.model } : {}),
+      ...(p.reasoningEffort !== undefined
+        ? { reasoningEffort: p.reasoningEffort }
+        : prev && 'reasoningEffort' in prev
+          ? { reasoningEffort: prev.reasoningEffort }
+          : {}),
+      ...(p.preferLocal || prev?.preferLocal ? { preferLocal: true } : {}),
+    });
+  }
+  return [...map.values()];
 }
 
 export function sanitizeDelegateSettings(raw: unknown): DelegateSettings {
@@ -37,7 +113,85 @@ export function sanitizeDelegateSettings(raw: unknown): DelegateSettings {
       const v = (r.defaults as Record<string, unknown>)[k];
       if (isDelegateCli(v)) defaults[k] = v;
     }
-  return { enabled: r.enabled !== false, defaults };
+  const profiles = Array.isArray(r.profiles)
+    ? (r.profiles.map(sanitizeProfile).filter(Boolean) as AgentProfile[])
+    : undefined;
+  const merged = mergeAgentProfiles(profiles);
+  const defaultProfileId =
+    typeof r.defaultProfileId === 'string' && r.defaultProfileId.trim()
+      ? r.defaultProfileId.trim().slice(0, 64)
+      : 'default';
+  const cheapModel =
+    typeof r.cheapModel === 'string' && r.cheapModel.trim()
+      ? r.cheapModel.trim().slice(0, 128)
+      : undefined;
+  return {
+    enabled: r.enabled !== false,
+    defaults,
+    defaultProfileId: merged.some((p) => p.id === defaultProfileId) ? defaultProfileId : 'default',
+    ...(profiles && profiles.length ? { profiles } : {}),
+    ...(cheapModel ? { cheapModel } : {}),
+  };
+}
+
+export type ResolveDelegateOverridesOk = {
+  ok: true;
+  profileId: string;
+  model?: string;
+  reasoningEffort?: string | null;
+  preferLocal?: boolean;
+};
+export type ResolveDelegateOverridesErr = {
+  ok: false;
+  code: 'unknown_profile';
+  message: string;
+};
+
+/**
+ * 解析委派模型覆盖：显式 model > profile.model >（cheap 时 settings.cheapModel）> 默认档位 > 不覆盖（CLI 默认）。
+ * reasoning_effort：显式 > profile.reasoningEffort。
+ */
+export function resolveDelegateOverrides(input: {
+  model?: string | null;
+  reasoningEffort?: string | null;
+  profile?: string | null;
+  settings: DelegateSettings;
+}): ResolveDelegateOverridesOk | ResolveDelegateOverridesErr {
+  const profiles = mergeAgentProfiles(input.settings.profiles);
+  const requested =
+    (typeof input.profile === 'string' && input.profile.trim()) ||
+    input.settings.defaultProfileId ||
+    'default';
+  const profile = profiles.find((p) => p.id === requested);
+  if (!profile)
+    return {
+      ok: false,
+      code: 'unknown_profile',
+      message: `未知的委派模型档位：${requested}`,
+    };
+
+  const explicitModel = typeof input.model === 'string' ? input.model.trim() : '';
+  let model: string | undefined;
+  if (explicitModel) model = explicitModel.slice(0, 128);
+  else if (profile.model?.trim()) model = profile.model.trim();
+  else if (profile.id === 'cheap' && input.settings.cheapModel?.trim())
+    model = input.settings.cheapModel.trim();
+
+  let reasoningEffort: string | null | undefined;
+  if (input.reasoningEffort !== undefined && input.reasoningEffort !== null) {
+    const e = String(input.reasoningEffort).trim();
+    reasoningEffort = e ? e.slice(0, 32) : null;
+  } else if (profile.reasoningEffort !== undefined) {
+    reasoningEffort = profile.reasoningEffort;
+  }
+
+  return {
+    ok: true,
+    profileId: profile.id,
+    ...(model ? { model } : {}),
+    ...(reasoningEffort !== undefined ? { reasoningEffort } : {}),
+    ...(profile.preferLocal ? { preferLocal: true } : {}),
+  };
 }
 
 const ALIASES: Record<string, DelegateCli> = {

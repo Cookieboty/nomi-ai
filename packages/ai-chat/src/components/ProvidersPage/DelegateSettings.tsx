@@ -3,7 +3,7 @@
  * 允许 Nomi 委派编程助手的总开关，以及按任务类型（编程开发 / PRD / 代码审查 / 调研分析）的默认编程助手。
  * 对话里可以用 `/agent 名字` 临时指定，优先于这里的默认。
  */
-import { Select, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
+import { Input, Select, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -37,11 +37,32 @@ export const DelegateSettings: React.FC = () => {
   if (err) return <p className={styles.sub}>{err}</p>;
   if (!s) return null;
 
-  const save = (next: Pick<DelegateSettingsView, 'enabled' | 'defaults'>) => {
+  const save = (
+    next: Partial<
+      Pick<DelegateSettingsView, 'enabled' | 'defaults' | 'defaultProfileId' | 'cheapModel'>
+    >,
+  ) => {
     const prev = s;
-    setS({ ...s, ...next });
+    const optimistic = { ...s, ...next };
+    setS(optimistic);
     delegateClient
-      .setSettings({ enabled: next.enabled, defaults: next.defaults })
+      .setSettings({
+        enabled: optimistic.enabled,
+        defaults: optimistic.defaults,
+        defaultProfileId: optimistic.defaultProfileId ?? 'default',
+        ...(optimistic.cheapModel !== undefined
+          ? { cheapModel: optimistic.cheapModel || undefined }
+          : s.cheapModel
+            ? { cheapModel: s.cheapModel }
+            : {}),
+        ...(s.profiles ? { profiles: s.profiles } : {}),
+      })
+      .then((v) =>
+        delegateClient.settings().then((full) => {
+          setS(full);
+          void v;
+        }),
+      )
       .catch((e: unknown) => {
         setS(prev);
         setErr(e instanceof Error ? e.message : String(e));
@@ -51,7 +72,7 @@ export const DelegateSettings: React.FC = () => {
     const defaults = { ...s.defaults };
     if (v === AUTO) delete defaults[k];
     else defaults[k] = v as DelegateCli;
-    save({ enabled: s.enabled, defaults });
+    save({ defaults });
   };
   // 下拉只列已安装的；设过但已卸载的保留一项并标出（委派时按「让 Nomi 选」处理）
   const optionsFor = (k: DelegateKind) => {
@@ -82,7 +103,7 @@ export const DelegateSettings: React.FC = () => {
         >
           <Switch
             checked={s.enabled}
-            onChange={(v) => save({ enabled: v, defaults: s.defaults })}
+            onChange={(v) => save({ enabled: v })}
             aria-label={t('允许 Nomi 委派编程助手')}
             data-testid="delegate-enabled"
           />
@@ -107,6 +128,50 @@ export const DelegateSettings: React.FC = () => {
             />
           </SettingRow>
         ))}
+      </SettingsGroup>
+      <SettingsGroup
+        title={t('默认委派模型档位')}
+        description={t(
+          '派出编程助手时默认用哪套模型覆盖。default 沿用 CLI；cheap 可用下方便宜模型；也可在工具参数里传 profile / model。',
+        )}
+      >
+        <SettingRow
+          title={t('默认档位')}
+          description={t('对应 AgentProfile：default / cheap / local（本地优先仅作标记）。')}
+        >
+          <Select
+            size="sm"
+            value={s.defaultProfileId ?? 'default'}
+            disabled={!s.enabled}
+            aria-label={t('默认委派模型档位')}
+            data-testid="delegate-default-profile"
+            onChange={(e) => save({ defaultProfileId: e.target.value })}
+            options={(s.availableProfiles ?? []).map((p) => ({
+              value: p.id,
+              label: p.label,
+            }))}
+          />
+        </SettingRow>
+        <SettingRow
+          title={t('便宜模型（cheap）')}
+          description={t(
+            '档位为 cheap 且未自带 model 时使用；第三方填「供应商/模型」，官方填 CLI 模型名。',
+          )}
+        >
+          <Input
+            key={s.cheapModel ?? ''}
+            size="sm"
+            defaultValue={s.cheapModel ?? ''}
+            disabled={!s.enabled}
+            placeholder="provider/model"
+            aria-label={t('便宜模型（cheap）')}
+            data-testid="delegate-cheap-model"
+            onBlur={(e) => {
+              const v = e.target.value.trim() || undefined;
+              if (v !== (s.cheapModel || undefined)) save({ cheapModel: v });
+            }}
+          />
+        </SettingRow>
       </SettingsGroup>
     </div>
   );

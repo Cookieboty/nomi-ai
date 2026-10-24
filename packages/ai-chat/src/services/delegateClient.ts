@@ -13,15 +13,29 @@ export type DelegateCli = (typeof DELEGATE_CLIS)[number];
 export const DELEGATE_KINDS = ['coding', 'prd', 'review', 'research'] as const;
 export type DelegateKind = (typeof DELEGATE_KINDS)[number];
 
+/** 委派模型档位（与主进程 AgentProfile 对齐） */
+export interface AgentProfile {
+  id: string;
+  label: string;
+  model?: string;
+  reasoningEffort?: string | null;
+  preferLocal?: boolean;
+}
+
 export interface DelegateSettings {
   enabled: boolean;
   defaults: Partial<Record<DelegateKind, DelegateCli>>;
+  defaultProfileId?: string;
+  profiles?: AgentProfile[];
+  cheapModel?: string;
 }
 
 export interface DelegateSettingsView extends DelegateSettings {
   /** 已安装、可以委派的编程助手 */
   installed: DelegateCli[];
   pinned: DelegateCli | null;
+  /** 合并后的可用档位 */
+  availableProfiles: AgentProfile[];
 }
 
 /** 主进程 delegate_to_cli 交回 Nomi 的结果（工具调用的 output） */
@@ -93,7 +107,8 @@ const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (()
 export const delegateClient = {
   available: () => !!bridge(),
   settings: () => call<DelegateSettingsView>('ai:delegate:settings'),
-  setSettings: (s: DelegateSettings) => call<DelegateSettings>('ai:delegate:set-settings', s),
+  setSettings: (s: Partial<DelegateSettings>) =>
+    call<DelegateSettings>('ai:delegate:set-settings', s),
   /** 按 turnId 钉到主进程；turnId 与本轮 Nomi reqId 对齐 */
   pin: (cli: DelegateCli | null, turnId: string) =>
     call<DelegateCli | null>('ai:delegate:pin', cli, turnId),

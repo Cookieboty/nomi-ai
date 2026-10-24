@@ -1,10 +1,12 @@
 import {
   buildDelegatePrompt,
   childPermissionMode,
+  mergeAgentProfiles,
   parseDelegateReport,
   parsePorcelain,
   pickDelegateCli,
   resolveDelegateCli,
+  resolveDelegateOverrides,
   sanitizeDelegateSettings,
   tailText,
 } from '../../../src/cli/delegate/core';
@@ -96,14 +98,60 @@ describe('delegate core', () => {
     ]);
   });
 
-  it('设置：未知值丢弃，开关默认开', () => {
-    expect(sanitizeDelegateSettings(null)).toEqual({ enabled: true, defaults: {} });
+  it('设置：未知值丢弃，开关默认开，带默认档位', () => {
+    expect(sanitizeDelegateSettings(null)).toEqual({
+      enabled: true,
+      defaults: {},
+      defaultProfileId: 'default',
+    });
     expect(
       sanitizeDelegateSettings({
         enabled: false,
         defaults: { coding: 'codex', prd: 'cursor', x: 'claude' },
       }),
-    ).toEqual({ enabled: false, defaults: { coding: 'codex' } });
+    ).toEqual({ enabled: false, defaults: { coding: 'codex' }, defaultProfileId: 'default' });
+  });
+
+  it('AgentProfile：显式 model > profile.model > cheapModel > 不覆盖；未知档位报错', () => {
+    const settings = sanitizeDelegateSettings({
+      cheapModel: 'provider/haiku',
+      profiles: [{ id: 'fast', label: '快', model: 'provider/flash' }],
+      defaultProfileId: 'cheap',
+    });
+    expect(mergeAgentProfiles(settings.profiles).map((p) => p.id)).toEqual([
+      'default',
+      'cheap',
+      'local',
+      'fast',
+    ]);
+    expect(
+      resolveDelegateOverrides({ settings, model: 'provider/opus', profile: 'cheap' }),
+    ).toMatchObject({ ok: true, model: 'provider/opus', profileId: 'cheap' });
+    expect(resolveDelegateOverrides({ settings, profile: 'fast' })).toMatchObject({
+      ok: true,
+      model: 'provider/flash',
+      profileId: 'fast',
+    });
+    expect(resolveDelegateOverrides({ settings })).toMatchObject({
+      ok: true,
+      model: 'provider/haiku',
+      profileId: 'cheap',
+    });
+    expect(
+      resolveDelegateOverrides({ settings: { ...settings, defaultProfileId: 'default' } }),
+    ).toEqual({
+      ok: true,
+      profileId: 'default',
+    });
+    expect(resolveDelegateOverrides({ settings, profile: 'nope' })).toMatchObject({
+      ok: false,
+      code: 'unknown_profile',
+    });
+    expect(resolveDelegateOverrides({ settings, profile: 'local' })).toMatchObject({
+      ok: true,
+      profileId: 'local',
+      preferLocal: true,
+    });
   });
 
   it('截断保留结尾', () => {

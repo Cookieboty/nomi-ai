@@ -43,6 +43,11 @@ function setup(
       id: string;
       delegation?: { by: 'nomi'; approvals: Record<string, number> };
     }>;
+    gateway?: {
+      defaults: (kind: string) => { source: 'official' | 'thirdParty'; model: string | null };
+      models: () => Array<{ ref: string; provider: string; label: string }>;
+    };
+    settings?: Record<string, unknown>;
   } = {},
 ) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'delegate-'));
@@ -99,7 +104,13 @@ function setup(
       checkSend: async () => (o.localOnlyBlocks ? 'local_only' : null),
     },
   };
-  const svc = new DelegateService({ root, harness: harness as never, desktop: desktop as never });
+  const svc = new DelegateService({
+    root,
+    harness: harness as never,
+    desktop: desktop as never,
+    ...(o.gateway ? { gateway: o.gateway as never } : {}),
+  });
+  if (o.settings) svc.setSettings(o.settings);
   const tool = svc.tools()[0]!;
   const run = (input: Record<string, unknown>, ctx: Record<string, unknown> = {}) =>
     tool.execute(
@@ -143,6 +154,55 @@ describe('DelegateService · delegate_to_cli', () => {
     expect(String(r.data?.report?.needsUser)).toContain('<cli-output>');
     expect(s.authorized[0]).toMatchObject({ tool: 'delegate_to_cli', danger: 'write' });
     expect(s.markRead).toHaveBeenCalled();
+  });
+
+  it('profile/model：createTab 带上 modelOverride；显式 model 优先于档位', async () => {
+    const s = setup({
+      settings: { defaultProfileId: 'cheap', cheapModel: 'provider/haiku' },
+      gateway: {
+        defaults: () => ({ source: 'thirdParty', model: 'provider/haiku' }),
+        models: () => [
+          { ref: 'provider/haiku', provider: 'p', label: 'haiku' },
+          { ref: 'provider/opus', provider: 'p', label: 'opus' },
+        ],
+      },
+    });
+    const r = await s.run({});
+    expect(r.ok).toBe(true);
+    expect(s.created[0]).toMatchObject({ modelOverride: 'provider/haiku' });
+
+    const s2 = setup({
+      settings: { defaultProfileId: 'cheap', cheapModel: 'provider/haiku' },
+      gateway: {
+        defaults: () => ({ source: 'thirdParty', model: 'provider/haiku' }),
+        models: () => [
+          { ref: 'provider/haiku', provider: 'p', label: 'haiku' },
+          { ref: 'provider/opus', provider: 'p', label: 'opus' },
+        ],
+      },
+    });
+    const r2 = await s2.run({ model: 'provider/opus', reasoning_effort: 'high' });
+    expect(r2.ok).toBe(true);
+    expect(s2.created[0]).toMatchObject({
+      modelOverride: 'provider/opus',
+      reasoningEffort: 'high',
+    });
+  });
+
+  it('未知 profile / 第三方模型不在目录：清晰报错', async () => {
+    const s = setup({
+      gateway: {
+        defaults: () => ({ source: 'thirdParty', model: 'provider/haiku' }),
+        models: () => [{ ref: 'provider/haiku', provider: 'p', label: 'haiku' }],
+      },
+    });
+    const badProfile = await s.run({ profile: 'nope' });
+    expect(badProfile.ok).toBe(false);
+    expect(badProfile.error?.code).toBe('unknown_profile');
+
+    const badModel = await s.run({ model: 'provider/missing' });
+    expect(badModel.ok).toBe(false);
+    expect(badModel.error?.code).toBe('model_not_in_catalog');
   });
 
   it('/agent 钉住按 turnId：优先于模型填的 cli，cwd/授权通过后才 consume', async () => {
