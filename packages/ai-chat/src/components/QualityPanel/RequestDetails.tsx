@@ -1,26 +1,24 @@
 /**
- * 模型质量 → 请求明细（原「用量与费用 → 最近请求」）：逐条记录，带筛选、排序、分页、
- * 每条的时间线（TTFB / TTFT / 生成 / 结束）、结果与失败原因、各候选的尝试（回退）、追踪 id；可导出 CSV。
- * 只有元数据，不含对话内容。
+ * 模型质量 → 请求明细（原「用量与费用 → 最近请求」）：日志式表格，一行一条请求 / 一轮；
+ * 展开看各候选的尝试、网关修正、解析方式、协议、追踪 id 与错误。只有元数据，不含对话内容。
  */
-import { Badge, Button, EmptyState, Icon, Select, t } from '@nomi-ai/ui';
-import { ChevronDown, ChevronRight, Download, ListX, Network, Trash2, X } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import { Badge, BrandIcon, Icon, Select, t } from '@nomi-ai/ui';
+import { ChevronDown, ChevronRight, FilterX, ListX } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
 
-import { diagnosticsClient, type DiagnosticsView } from '../../services/diagnosticsClient';
 import {
   qualityClient,
-  type QualityDimension,
   type QualityOutcome,
   type QualityRecord,
+  type QualityRequestItem,
   type QualityRequestsQuery,
-  type QualitySettings,
 } from '../../services/qualityClient';
 import { formatDateTime, formatTokens } from '../UsagePanel/format';
 
 import {
+  OUTCOMES,
+  brandOfVendor,
   clientLabel,
-  dimensionLabel,
   formatMs,
   formatTps,
   outcomeLabel,
@@ -30,28 +28,10 @@ import {
   wireLabel,
 } from './format';
 import styles from './index.module.css';
-import { loadingOrError, useQualityData } from './shared';
-import { mergeFilters, type DrillFilters, type QualityBase } from './types';
+import { InlineEmpty, Pager, emptyCopy, loadingOrError, useQualityData } from './shared';
+import type { Filters, QualityBase } from './types';
 
 export const PAGE_SIZE = 50;
-
-const OUTCOMES: QualityOutcome[] = [
-  'ok',
-  'client-cancel',
-  'auth',
-  'rate-limit',
-  'upstream-5xx',
-  'first-byte-timeout',
-  'pre-commit-error',
-  'stream-break',
-  'idle-timeout',
-  'protocol-violation',
-  'repetition-stop',
-  'request-rejected',
-  'gateway-error',
-  'cli-error',
-  'cli-exit',
-];
 
 type SortKey = 'ts' | 'e2e' | 'ttft' | 'tokens';
 
@@ -78,23 +58,13 @@ const Timeline: React.FC<{ r: QualityRecord }> = ({ r }) => {
   const { headersMs, firstContentMs, lastContentMs, endMs } = r.timing;
   const total = Math.max(1, endMs);
   const pct = (v: number) => `${Math.min(100, Math.max(0, (v / total) * 100))}%`;
-  const segs: Array<{ from: number; to: number; cls: string; label: string }> = [];
+  const segs: Array<{ from: number; to: number; cls: string }> = [];
   const ttfb = headersMs ?? undefined;
-  if (ttfb != null) segs.push({ from: 0, to: ttfb, cls: styles.segWait!, label: t('等待响应') });
+  if (ttfb != null) segs.push({ from: 0, to: ttfb, cls: styles.segWait! });
   if (firstContentMs != null)
-    segs.push({
-      from: ttfb ?? 0,
-      to: firstContentMs,
-      cls: styles.segFirst!,
-      label: t('等待首个内容'),
-    });
+    segs.push({ from: ttfb ?? 0, to: firstContentMs, cls: styles.segFirst! });
   if (firstContentMs != null)
-    segs.push({
-      from: firstContentMs,
-      to: lastContentMs ?? endMs,
-      cls: styles.segGen!,
-      label: t('生成'),
-    });
+    segs.push({ from: firstContentMs, to: lastContentMs ?? endMs, cls: styles.segGen! });
   const desc = [
     ttfb != null && t('首字节 {0}', formatMs(ttfb)),
     firstContentMs != null && t('首个内容 {0}', formatMs(firstContentMs)),
@@ -122,298 +92,241 @@ const Timeline: React.FC<{ r: QualityRecord }> = ({ r }) => {
   );
 };
 
-const Row: React.FC<{ r: QualityRecord }> = ({ r }) => {
+const pad = (n: number) => String(n).padStart(2, '0');
+/** 日志里的时间：今天只写时分秒，其余写月-日 时:分 */
+const formatLogTime = (ts: number): string => {
+  const d = new Date(ts);
+  const today = new Date();
+  const hm = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return d.toDateString() === today.toDateString()
+    ? `${hm}:${pad(d.getSeconds())}`
+    : `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${hm}`;
+};
+
+/** 模型名去掉 `供应商/` 前缀（供应商写在下面一行） */
+const shortModel = (m: string | undefined) => (m ? m.slice(m.indexOf('/') + 1) : '—');
+
+/** 模型显示名：认得出的「厂商: 模型」，否则去掉供应商前缀的原名 */
+export const requestModelLabel = (r: QualityRequestItem): string =>
+  r.display ? (r.vendor ? `${r.vendor}: ${r.display}` : r.display) : shortModel(r.model);
+
+const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
   const [open, setOpen] = useState(false);
-  const tokens = (r.tokens.input ?? 0) + (r.tokens.output ?? 0);
+  const tokens = (r.tokens.input ?? 0) + (r.tokens.cacheRead ?? 0) + (r.tokens.output ?? 0);
   const fallback = (r.attempts?.length ?? 0) > 1;
   const tps = tpsOf(r);
+  const hasMore =
+    fallback || !!r.notes?.length || !!r.traceId || !!r.errorKind || !!r.resolved || !!r.ingress;
   return (
-    <li className={styles.req} data-testid="quality-request">
-      <div className={styles.reqLine}>
-        <span className={styles.reqTime}>{formatDateTime(r.ts)}</span>
-        <span>{clientLabel(r.client)}</span>
-        <span className={styles.dim}>{sourceLabel(r.source)}</span>
-        {r.ingress && (
-          <span className={styles.dim} title={t('入口协议 → 上游协议')}>
-            {wireLabel(r.ingress)} → {wireLabel(r.wire)}
-          </span>
-        )}
-        <span className={styles.grow} />
-        {fallback && (
-          <Badge
-            tone="warning"
-            title={t('尝试了 {0} 次', r.attempts!.length)}
-            data-testid="quality-request-fallback"
-          >
-            {t('回退')}
-          </Badge>
-        )}
-        {r.burst && (
-          <Badge tone="neutral" outline title={t('上游缓冲后整段吐出，TPOT / tok/s 不计入')}>
-            {t('整段吐出')}
-          </Badge>
-        )}
-        <Badge tone={outcomeTone(r.outcome)} data-testid="quality-request-outcome">
-          {outcomeLabel(r.outcome)}
-          {r.status ? ` ${r.status}` : ''}
-        </Badge>
-        <span className={styles.reqMs} title={t('总耗时')}>
-          {formatMs(r.timing.endMs)}
-        </span>
-      </div>
-      <div className={styles.reqLine}>
-        <span className={styles.reqTarget}>
-          {[r.provider, r.keyId].filter(Boolean).join(' / ') || t('未到达上游')}
-        </span>
-        {r.model && <span className={styles.reqModel}>{r.model}</span>}
-        {r.resolved && (
-          <span
-            className={styles.dim}
-            title={t('网关怎么选出这个模型')}
-            data-testid="quality-request-resolved"
-          >
-            {resolvedLabel(r.resolved)}
-          </span>
-        )}
-        <span className={styles.grow} />
-        <Timeline r={r} />
-      </div>
-      <div className={styles.reqLine}>
-        {r.timing.firstContentMs != null && (
-          <span className={styles.dim}>TTFT {formatMs(r.timing.firstContentMs)}</span>
-        )}
-        {tps != null && <span className={styles.dim}>{formatTps(tps)}</span>}
-        {tokens > 0 && (
-          <span className={styles.dim}>
-            {formatTokens(tokens)} tokens
-            {(r.tokens.cacheRead ?? 0) > 0 && (
-              <> · {t('缓存读 {0}', formatTokens(r.tokens.cacheRead!))}</>
+    <>
+      <tr className={styles.logRow} data-testid="quality-request" data-open={open ? '' : undefined}>
+        <td className={styles.logTime}>
+          {hasMore ? (
+            <button
+              type="button"
+              className={styles.expand}
+              aria-expanded={open}
+              aria-label={open ? t('收起详情') : t('展开详情')}
+              onClick={() => setOpen((o) => !o)}
+              data-testid="quality-request-toggle"
+            >
+              <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+            </button>
+          ) : (
+            <span className={styles.expandSpacer} aria-hidden />
+          )}
+          <span title={formatDateTime(r.ts)}>{formatLogTime(r.ts)}</span>
+        </td>
+        <td>
+          <span className={styles.badges}>
+            <Badge tone={outcomeTone(r.outcome)} data-testid="quality-request-outcome">
+              {outcomeLabel(r.outcome)}
+              {r.status && r.outcome !== 'ok' && r.outcome !== 'client-cancel'
+                ? ` ${r.status}`
+                : ''}
+            </Badge>
+            {fallback && (
+              <Badge
+                tone="warning"
+                outline
+                title={t('尝试了 {0} 次', r.attempts!.length)}
+                data-testid="quality-request-fallback"
+              >
+                {t('回退')}
+              </Badge>
+            )}
+            {r.burst && (
+              <Badge tone="neutral" outline title={t('上游缓冲后整段吐出，TPOT / tok/s 不计入')}>
+                {t('整段吐出')}
+              </Badge>
             )}
           </span>
-        )}
-        {r.retries ? <span className={styles.dim}>{t('重试 {0} 次', r.retries)}</span> : null}
-        {r.cancelPhase && (
-          <span className={styles.dim}>
-            {r.cancelPhase === 'before-first' ? t('首字前取消') : t('输出中取消')}
+        </td>
+        <td>
+          <span className={styles.logModelCell}>
+            <BrandIcon
+              brand={brandOfVendor(r.vendor)}
+              name={r.display ?? r.model ?? ''}
+              size={16}
+            />
+            <span className={styles.twoLine}>
+              <span className={styles.logModel} title={r.model} data-testid="quality-request-model">
+                {requestModelLabel(r)}
+              </span>
+              <span
+                className={styles.logDim}
+                title={[r.provider, r.keyId].filter(Boolean).join(' / ')}
+              >
+                {[r.providerName ?? r.provider, r.keyName ?? r.keyId].filter(Boolean).join(' / ') ||
+                  t('未到达上游')}
+              </span>
+            </span>
           </span>
-        )}
-        {r.tabId && (
-          <span
-            className={styles.dim}
-            title={t('来自编程助手标签 {0}（第 {1} 次启动的进程）', r.tabId, r.generation ?? 1)}
-            data-testid="quality-request-tab"
-          >
-            {t('标签 {0}', r.tabId.slice(0, 8))}
+        </td>
+        <td>
+          <span className={styles.twoLine}>
+            <span>{clientLabel(r.client)}</span>
+            {r.tabId ? (
+              <span
+                className={styles.logDim}
+                title={t('来自编程助手标签 {0}（第 {1} 次启动的进程）', r.tabId, r.generation ?? 1)}
+                data-testid="quality-request-tab"
+              >
+                {t('标签 {0}', r.tabId.slice(0, 8))}
+              </span>
+            ) : (
+              <span className={styles.logDim}>{sourceLabel(r.source)}</span>
+            )}
           </span>
-        )}
-        {r.traceId && (
-          <span
-            className={styles.dim}
-            title={t('诊断追踪 id：对应日志文件夹 gateway/trace 里的文件')}
-            data-testid="quality-request-trace"
-          >
-            {t('追踪 {0}', r.traceId)}
-          </span>
-        )}
-        {r.errorKind && <span className={styles.errText}>{r.errorKind}</span>}
-        <span className={styles.grow} />
-        {fallback && (
-          <button
-            type="button"
-            className={styles.expand}
-            aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
-            data-testid="quality-request-attempts-toggle"
-          >
-            <Icon icon={open ? ChevronDown : ChevronRight} size={12} />
-            {t('{0} 次尝试', r.attempts!.length)}
-          </button>
-        )}
-      </div>
-      {r.notes?.length ? (
-        <p className={styles.reqNotes} data-testid="quality-request-notes">
-          {t('网关修正：{0}', r.notes.join('；'))}
-        </p>
-      ) : null}
-      {open && r.attempts && (
-        <ol
-          className={styles.attempts}
-          aria-label={t('各候选的尝试')}
-          data-testid="quality-request-attempts"
-        >
-          {r.attempts.map((a, i) => (
-            <li key={i}>
-              <span>{[a.provider, a.keyId].filter(Boolean).join(' / ')}</span>
-              <span className={styles.reqModel}>{a.model}</span>
-              <Badge tone={outcomeTone(a.outcome)}>
-                {outcomeLabel(a.outcome)}
-                {a.status ? ` ${a.status}` : ''}
-              </Badge>
-              <span className={styles.dim}>{formatMs(a.ms)}</span>
-              {a.errorKind && <span className={styles.errText}>{a.errorKind}</span>}
-            </li>
-          ))}
-        </ol>
+        </td>
+        <td className={styles.numCell}>{formatMs(r.timing.firstContentMs)}</td>
+        <td className={styles.numCell}>{formatMs(r.timing.endMs)}</td>
+        <td className={styles.numCell} title={tps != null ? formatTps(tps) : undefined}>
+          {tokens > 0 ? formatTokens(tokens) : '—'}
+        </td>
+        <td className={styles.logTimeline}>
+          <Timeline r={r} />
+        </td>
+      </tr>
+      {open && (
+        <tr className={styles.logDetail}>
+          <td colSpan={8}>
+            <dl className={styles.detailGrid}>
+              <dt>{t('来源')}</dt>
+              <dd>{sourceLabel(r.source)}</dd>
+              {r.ingress && (
+                <>
+                  <dt>{t('协议')}</dt>
+                  <dd>
+                    {wireLabel(r.ingress)} → {wireLabel(r.wire)}
+                    {r.mode && (
+                      <>
+                        {' · '}
+                        {r.mode === 'convert' ? t('转换') : t('透传')}
+                      </>
+                    )}
+                  </dd>
+                </>
+              )}
+              {r.resolved && (
+                <>
+                  <dt>{t('模型怎么选的')}</dt>
+                  <dd data-testid="quality-request-resolved">{resolvedLabel(r.resolved)}</dd>
+                </>
+              )}
+              {tps != null && (
+                <>
+                  <dt>{t('输出速度')}</dt>
+                  <dd>{formatTps(tps)}</dd>
+                </>
+              )}
+              {(r.tokens.cacheRead ?? 0) > 0 && (
+                <>
+                  <dt>{t('缓存读')}</dt>
+                  <dd>{formatTokens(r.tokens.cacheRead!)}</dd>
+                </>
+              )}
+              {r.retries ? (
+                <>
+                  <dt>{t('重试')}</dt>
+                  <dd>{t('{0} 次', r.retries)}</dd>
+                </>
+              ) : null}
+              {r.cancelPhase && (
+                <>
+                  <dt>{t('取消')}</dt>
+                  <dd>{r.cancelPhase === 'before-first' ? t('首字前取消') : t('输出中取消')}</dd>
+                </>
+              )}
+              {r.traceId && (
+                <>
+                  <dt>{t('追踪 id')}</dt>
+                  <dd
+                    className={styles.mono}
+                    title={t('诊断追踪 id：对应日志文件夹 gateway/trace 里的文件')}
+                    data-testid="quality-request-trace"
+                  >
+                    {r.traceId}
+                  </dd>
+                </>
+              )}
+              {r.errorKind && (
+                <>
+                  <dt>{t('错误')}</dt>
+                  <dd className={styles.toneDanger}>{r.errorKind}</dd>
+                </>
+              )}
+              {r.notes?.length ? (
+                <>
+                  <dt>{t('网关修正')}</dt>
+                  <dd data-testid="quality-request-notes">{r.notes.join('；')}</dd>
+                </>
+              ) : null}
+            </dl>
+            {fallback && (
+              <ol
+                className={styles.attempts}
+                aria-label={t('各候选的尝试')}
+                data-testid="quality-request-attempts"
+              >
+                {r.attempts!.map((a, i) => (
+                  <li key={i}>
+                    <span className={styles.meta}>{i + 1}</span>
+                    <span>{[a.provider, a.keyId].filter(Boolean).join(' / ')}</span>
+                    <span className={styles.logModel}>{shortModel(a.model)}</span>
+                    <Badge tone={outcomeTone(a.outcome)}>
+                      {outcomeLabel(a.outcome)}
+                      {a.status ? ` ${a.status}` : ''}
+                    </Badge>
+                    <span className={styles.meta}>{formatMs(a.ms)}</span>
+                    {a.errorKind && <span className={styles.toneDanger}>{a.errorKind}</span>}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </td>
+        </tr>
       )}
-    </li>
-  );
-};
-
-/** 钻取带来的筛选：逐个显示、可移除 */
-const DrillChips: React.FC<{ drill: DrillFilters; onChange: (d: DrillFilters) => void }> = ({
-  drill,
-  onChange,
-}) => {
-  const entries = Object.entries(drill).filter(([, v]) => v && v.length) as Array<
-    [QualityDimension, string[]]
-  >;
-  if (!entries.length) return null;
-  return (
-    <ul className={styles.chips} aria-label={t('当前筛选')} data-testid="quality-drill-chips">
-      {entries.map(([d, v]) => (
-        <li key={d} className={styles.chip}>
-          <span>
-            {dimensionLabel(d)}：
-            {d === 'outcome'
-              ? v.map((x) => outcomeLabel(x as QualityOutcome)).join('、')
-              : v.join('、')}
-          </span>
-          <button
-            type="button"
-            aria-label={t('移除筛选：{0}', dimensionLabel(d))}
-            onClick={() => {
-              const next = { ...drill };
-              delete next[d];
-              onChange(next);
-            }}
-            data-testid={`quality-drill-remove-${d}`}
-          >
-            <Icon icon={X} size={12} />
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-};
-
-/** 数据保留与清空 */
-const Retention: React.FC = () => {
-  const [settings, setSettings] = useState<QualitySettings | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    qualityClient
-      .settings()
-      .then((s) => live && setSettings(s))
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, []);
-  return (
-    <section className={styles.panel} data-testid="quality-retention">
-      <header className={styles.panelHead}>
-        <h3>{t('数据保留')}</h3>
-        <span className={styles.dim}>{t('只存本机，与用量统计同一个总开关；不含对话内容')}</span>
-      </header>
-      <div className={styles.controls}>
-        <Select
-          size="sm"
-          className={styles.toolbarSelect}
-          aria-label={t('保留时长')}
-          data-testid="quality-retention-days"
-          value={String(settings?.retentionDays ?? 30)}
-          disabled={!settings}
-          onChange={(e) =>
-            void qualityClient
-              .setSettings({ retentionDays: Number(e.target.value) })
-              .then(setSettings)
-              .catch((err: unknown) => setMsg(err instanceof Error ? err.message : String(err)))
-          }
-          options={[7, 30, 90].map((d) => ({ value: String(d), label: t('保留 {0} 天', d) }))}
-        />
-        <Button
-          size="sm"
-          variant="danger"
-          onClick={() => {
-            if (!window.confirm(t('清空全部模型质量记录？无法撤销。'))) return;
-            void qualityClient
-              .clear()
-              .then(() => setMsg(t('已清空')))
-              .catch((err: unknown) => setMsg(err instanceof Error ? err.message : String(err)));
-          }}
-          data-testid="quality-clear"
-        >
-          <Icon icon={Trash2} size={14} />
-          {t('清空记录')}
-        </Button>
-        {msg && (
-          <span className={styles.dim} role="status">
-            {msg}
-          </span>
-        )}
-      </div>
-    </section>
-  );
-};
-
-/** 正文追踪状态（开关在「隐私与权限 → 诊断日志」） */
-const TraceStatus: React.FC<{ onOpenPrivacy?: () => void }> = ({ onOpenPrivacy }) => {
-  const [view, setView] = useState<DiagnosticsView | null>(null);
-  const available = diagnosticsClient.available();
-  useEffect(() => {
-    if (!available) return;
-    let live = true;
-    diagnosticsClient
-      .get()
-      .then((v) => live && setView(v))
-      .catch(() => undefined);
-    return () => {
-      live = false;
-    };
-  }, [available]);
-  if (!available) return null;
-  const on = !!view?.enabled && view.bodyTrace;
-  return (
-    <section className={styles.panel} data-testid="quality-trace">
-      <header className={styles.panelHead}>
-        <h3>{t('正文追踪')}</h3>
-      </header>
-      <p className={styles.dim} data-testid="quality-trace-status">
-        {on
-          ? t(
-              '正在记录：每次请求的请求体与响应正文写到本机目录（24 小时后自动删除）。追踪 id 对应其中的文件。',
-            )
-          : t('未记录。需要排查第三方供应商的问题时，在「诊断日志」里打开。')}
-      </p>
-      {onOpenPrivacy && (
-        <Button size="sm" onClick={onOpenPrivacy} data-testid="quality-trace-open-settings">
-          {t('前往诊断日志设置')}
-        </Button>
-      )}
-    </section>
+    </>
   );
 };
 
 export const RequestDetails: React.FC<{
   base: QualityBase;
-  drill: DrillFilters;
-  onDrill: (d: DrillFilters) => void;
-  onOpenPrivacy?: () => void;
-}> = ({ base, drill, onDrill, onOpenPrivacy }) => {
+  filters: Filters;
+  onFilters: (f: Filters) => void;
+  filtered: boolean;
+}> = ({ base, filters, onFilters, filtered }) => {
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: 'ts', desc: true });
-  const [exportMsg, setExportMsg] = useState<string | null>(null);
-  const filters = mergeFilters(base.filters, drill);
   // 筛选或范围变了回到第一页（页码记在当时的筛选键下）
-  const scopeKey = JSON.stringify([base.from, base.to, base.layer, filters ?? null]);
+  const scopeKey = JSON.stringify([base.from, base.to, base.layer, base.filters ?? null]);
   const [paging, setPaging] = useState<{ scope: string; page: number }>({ scope: '', page: 0 });
   const page = paging.scope === scopeKey ? paging.page : 0;
-  const setPage = (p: number) => setPaging({ scope: scopeKey, page: p });
   const query: QualityRequestsQuery = {
     from: base.from,
     to: base.to,
     layer: base.layer,
-    ...(filters ? { filters } : {}),
+    ...(base.filters ? { filters: base.filters } : {}),
     limit: PAGE_SIZE,
     offset: page * PAGE_SIZE,
   };
@@ -427,44 +340,40 @@ export const RequestDetails: React.FC<{
     });
   }, [s.data, sort]);
   const total = s.data?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const outcome = drill.outcome?.[0] ?? '';
+  const outcome = filters.outcome?.length === 1 ? filters.outcome[0]! : '';
 
-  const doExport = () => {
-    setExportMsg(null);
-    void qualityClient
-      .exportCsv('requests', { ...query, offset: 0, limit: Math.max(total, PAGE_SIZE) })
-      .then((r) => setExportMsg(r.ok && r.path ? t('已导出到 {0}', r.path) : null))
-      .catch((e: unknown) => setExportMsg(e instanceof Error ? e.message : String(e)));
-  };
-
-  const placeholder = loadingOrError(s, s.reload, 240);
+  const placeholder = loadingOrError(s, s.reload, 320);
+  const copy = emptyCopy(base.layer, filtered, 'requests');
 
   return (
-    <div className={styles.stack} data-testid="quality-requests">
-      <div className={styles.controls}>
+    <section className={styles.tableCard} data-testid="quality-requests">
+      <div className={styles.tableBar}>
+        <span className={styles.meta}>{t('共 {0} 条 · 排序只作用于当前页', total)}</span>
+        <span className={styles.grow} />
         <Select
           size="sm"
-          className={styles.toolbarSelect}
+          variant="ghost"
+          className={styles.compactSelect}
           aria-label={t('按结果筛选')}
           data-testid="quality-filter-outcome"
           value={outcome}
-          onChange={(e) => {
-            const next = { ...drill };
-            if (e.target.value) next.outcome = [e.target.value];
-            else delete next.outcome;
-            onDrill(next);
-          }}
+          onChange={(e) =>
+            onFilters({ ...filters, outcome: e.target.value ? [e.target.value] : [] })
+          }
           options={[
-            { value: '', label: t('全部结果') },
+            {
+              value: '',
+              label: filters.outcome && filters.outcome.length > 1 ? t('多个结果') : t('全部结果'),
+            },
             ...OUTCOMES.filter((o) =>
               base.layer === 'gateway' ? !o.startsWith('cli-') : true,
-            ).map((o) => ({ value: o, label: outcomeLabel(o) })),
+            ).map((o: QualityOutcome) => ({ value: o, label: outcomeLabel(o) })),
           ]}
         />
         <Select
           size="sm"
-          className={styles.toolbarSelect}
+          variant="ghost"
+          className={styles.compactSelect}
           aria-label={t('排序')}
           data-testid="quality-requests-sort"
           value={`${sort.key}:${sort.desc ? 'desc' : 'asc'}`}
@@ -476,85 +385,65 @@ export const RequestDetails: React.FC<{
             { value: 'ts:desc', label: t('最新在前') },
             { value: 'ts:asc', label: t('最早在前') },
             { value: 'e2e:desc', label: t('耗时最长在前') },
-            { value: 'ttft:desc', label: t('首个内容最慢在前') },
+            { value: 'ttft:desc', label: t('首字最慢在前') },
             { value: 'tokens:desc', label: t('token 最多在前') },
           ]}
         />
-        <span className={styles.grow} />
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={doExport}
-          disabled={total === 0}
-          data-testid="quality-export-requests"
-        >
-          <Icon icon={Download} size={14} />
-          {t('导出 CSV')}
-        </Button>
       </div>
-      <DrillChips drill={drill} onChange={onDrill} />
-      {exportMsg && (
-        <p className={styles.dim} role="status" data-testid="quality-export-msg">
-          {exportMsg}
-        </p>
-      )}
       {placeholder ??
         (items.length === 0 ? (
-          Object.keys(drill).length ? (
-            <EmptyState
-              icon={ListX}
-              title={t('没有符合筛选的请求')}
-              description={t('移除上面的筛选条件，或换一个时间范围。')}
-            />
-          ) : (
-            <EmptyState
-              icon={Network}
-              title={t('这段时间还没有请求')}
-              description={
-                base.layer === 'gateway'
-                  ? t('在编程助手或 Nomi 对话里使用第三方供应商后，这里会列出每次请求。')
-                  : t('在 Nomi 里使用编程助手后，这里会列出每一轮。')
-              }
-            />
-          )
+          <InlineEmpty
+            icon={filtered ? FilterX : ListX}
+            title={copy.title}
+            hint={copy.hint}
+            {...(filtered
+              ? {
+                  action: {
+                    label: t('清除筛选'),
+                    onClick: () => onFilters({}),
+                    testId: 'quality-empty-clear',
+                  },
+                }
+              : {})}
+          />
         ) : (
-          <section className={styles.panel}>
+          <>
             {s.err && <p className={styles.err}>{s.err}</p>}
-            <p className={styles.dim}>
-              {t('共 {0} 条；排序只作用于当前页。不含对话内容。', total)}
-            </p>
-            <ul className={styles.reqList} aria-label={t('请求明细')}>
-              {items.map((r) => (
-                <Row key={r.id} r={r} />
-              ))}
-            </ul>
-            <nav className={styles.pager} aria-label={t('分页')}>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-                data-testid="quality-page-prev"
-              >
-                {t('上一页')}
-              </Button>
-              <span className={styles.dim} data-testid="quality-page">
-                {t('第 {0} / {1} 页', page + 1, pages)}
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={page + 1 >= pages}
-                onClick={() => setPage(page + 1)}
-                data-testid="quality-page-next"
-              >
-                {t('下一页')}
-              </Button>
-            </nav>
-          </section>
+            <div className={styles.scroll}>
+              <table className={styles.logTable} aria-label={t('请求明细')}>
+                <thead>
+                  <tr>
+                    <th scope="col">{t('时间')}</th>
+                    <th scope="col">{t('结果')}</th>
+                    <th scope="col">{t('模型 / 供应商 · Key')}</th>
+                    <th scope="col">{t('客户端')}</th>
+                    <th scope="col" className={styles.numHead}>
+                      {t('首字')}
+                    </th>
+                    <th scope="col" className={styles.numHead}>
+                      {t('耗时')}
+                    </th>
+                    <th scope="col" className={styles.numHead}>
+                      Tokens
+                    </th>
+                    <th scope="col">{t('时间线')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((r) => (
+                    <Row key={r.id} r={r} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pager
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={total}
+              onPage={(p) => setPaging({ scope: scopeKey, page: p })}
+            />
+          </>
         ))}
-      <TraceStatus onOpenPrivacy={onOpenPrivacy} />
-      <Retention />
-    </div>
+    </section>
   );
 };

@@ -2,7 +2,8 @@
  * 模型质量 → 趋势：选指标与分组，按小时 / 天画多条折线（最多 4 条，固定配色顺序）。
  * 纯 SVG，配色走 --cd-viz-*；图例 + 线尾直接标注 + 悬停十字线提示，另有表格视图。
  */
-import { Select, Tabs, t } from '@nomi-ai/ui';
+import { SegmentedControl, Select, t } from '@nomi-ai/ui';
+import { ChartLine, FilterX } from 'lucide-react';
 import React, { useState } from 'react';
 
 import {
@@ -14,9 +15,9 @@ import {
 import { niceMax } from '../UsagePanel/charts';
 import { formatBucket } from '../UsagePanel/format';
 
-import { DIMENSIONS, SERIES_COLORS, formatMs, formatRate, formatTps } from './format';
+import { SERIES_COLORS, dimensionLabel, formatMs, formatRate, formatTps } from './format';
 import styles from './index.module.css';
-import { loadingOrError, useQualityData } from './shared';
+import { InlineEmpty, emptyCopy, loadingOrError, useQualityData } from './shared';
 import type { QualityBase } from './types';
 
 type SeriesMetric = QualitySeriesQuery['metric'];
@@ -33,9 +34,11 @@ const METRIC_OPTIONS: Array<{ value: SeriesMetric; label: string; fmt: (v: numbe
   { value: 'cacheHitTokenRate', label: '缓存命中（token）', fmt: formatRate },
   { value: 'ttft.p50', label: 'TTFT p50', fmt: formatMs },
   { value: 'ttft.p90', label: 'TTFT p90', fmt: formatMs },
+  { value: 'ttft.p95', label: 'TTFT p95', fmt: formatMs },
   { value: 'tpot.p50', label: 'TPOT p50', fmt: formatMs },
   { value: 'e2e.p50', label: 'E2E p50', fmt: formatMs },
   { value: 'e2e.p90', label: 'E2E p90', fmt: formatMs },
+  { value: 'e2e.p95', label: 'E2E p95', fmt: formatMs },
   { value: 'outputTps.p50', label: '输出速度 p50', fmt: formatTps },
 ];
 
@@ -230,26 +233,52 @@ const SeriesTable: React.FC<{
   </div>
 );
 
-export const Trend: React.FC<{ base: QualityBase; rangeDays: number }> = ({ base, rangeDays }) => {
+/** 趋势可按这些维度分组（Key 只在网关层有） */
+const TREND_GROUPS: Array<{ value: QualityDimension; gatewayOnly?: boolean }> = [
+  { value: 'modelFamily' },
+  { value: 'provider' },
+  { value: 'key', gatewayOnly: true },
+  { value: 'client' },
+];
+
+export const Trend: React.FC<{
+  base: QualityBase;
+  rangeDays: number;
+  countBy: 'request' | 'attempt';
+  filtered: boolean;
+  onClearFilters: () => void;
+}> = ({ base, rangeDays, countBy, filtered, onClearFilters }) => {
   const [metric, setMetric] = useState<SeriesMetric>('successRate');
-  const [dim, setDim] = useState<QualityDimension | ''>('provider');
+  const [dim, setDim] = useState<QualityDimension | ''>('modelFamily');
   const [bucket, setBucket] = useState<'hour' | 'day'>(rangeDays <= 2 ? 'hour' : 'day');
   const [view, setView] = useState<'chart' | 'table'>('chart');
   const gateway = base.layer === 'gateway';
   const groupBy =
-    dim && (gateway || !DIMENSIONS.find((d) => d.value === dim)?.gatewayOnly) ? dim : undefined;
-  const query: QualitySeriesQuery = { ...base, metric, bucket, ...(groupBy ? { groupBy } : {}) };
+    dim && (gateway || !TREND_GROUPS.find((d) => d.value === dim)?.gatewayOnly) ? dim : undefined;
+  const query: QualitySeriesQuery = {
+    ...base,
+    metric,
+    bucket,
+    ...(gateway ? { countBy } : {}),
+    ...(groupBy ? { groupBy } : {}),
+  };
   const s = useQualityData<QualitySeries>(JSON.stringify(query), () => qualityClient.series(query));
   const opt = METRIC_OPTIONS.find((m) => m.value === metric)!;
-  const placeholder = loadingOrError(s, s.reload, 230);
-  const hasData = !!s.data && s.data.series.some((x) => x.values.some((v) => v != null));
+  const placeholder = loadingOrError(s, s.reload, 260);
+  // 至少两个时段有值才画得出趋势
+  const points = s.data
+    ? s.data.buckets.filter((_, i) => s.data!.series.some((x) => x.values[i] != null)).length
+    : 0;
 
   return (
-    <div className={styles.stack} data-testid="quality-trend">
-      <div className={styles.controls}>
+    <section className={styles.card} data-testid="quality-trend">
+      <header className={styles.cardHead}>
+        <h3>{t('{0}趋势', t(opt.label))}</h3>
+        <span className={styles.grow} />
         <Select
           size="sm"
-          className={styles.toolbarSelect}
+          variant="ghost"
+          className={styles.compactSelect}
           aria-label={t('指标')}
           data-testid="quality-trend-metric"
           value={metric}
@@ -258,46 +287,64 @@ export const Trend: React.FC<{ base: QualityBase; rangeDays: number }> = ({ base
         />
         <Select
           size="sm"
-          className={styles.toolbarSelect}
+          variant="ghost"
+          className={styles.compactSelect}
           aria-label={t('分组维度')}
           data-testid="quality-trend-groupby"
           value={groupBy ?? ''}
           onChange={(e) => setDim(e.target.value as QualityDimension | '')}
           options={[
-            { value: '', label: t('不分组（总计）') },
-            ...DIMENSIONS.filter((d) => gateway || !d.gatewayOnly).map((d) => ({
+            { value: '', label: t('不分组') },
+            ...TREND_GROUPS.filter((d) => gateway || !d.gatewayOnly).map((d) => ({
               value: d.value,
-              label: t('按{0}', t(d.label)),
+              label: t('按{0}', dimensionLabel(d.value)),
             })),
           ]}
         />
-        <Tabs<'hour' | 'day'>
+        <SegmentedControl<'hour' | 'day'>
           aria-label={t('时间粒度')}
           value={bucket}
           onChange={setBucket}
-          items={[
-            { value: 'hour', label: t('按小时') },
-            { value: 'day', label: t('按天') },
+          options={[
+            { value: 'hour', label: t('小时') },
+            { value: 'day', label: t('天') },
           ]}
         />
-        <span className={styles.grow} />
-        <Tabs<'chart' | 'table'>
+        <SegmentedControl<'chart' | 'table'>
           aria-label={t('视图')}
           value={view}
           onChange={setView}
-          items={[
-            { value: 'chart', label: t('图表') },
-            { value: 'table', label: t('表格') },
+          options={[
+            { value: 'chart', label: t('图表'), testId: 'quality-trend-view-chart' },
+            { value: 'table', label: t('表格'), testId: 'quality-trend-view-table' },
           ]}
         />
-      </div>
+      </header>
       {placeholder ??
-        (!hasData ? (
-          <p className={styles.dim} data-testid="quality-trend-empty">
-            {t('这段时间没有可画的数据。')}
-          </p>
+        (points < 2 ? (
+          filtered && points === 0 ? (
+            <InlineEmpty
+              icon={FilterX}
+              {...emptyCopy(base.layer, true)}
+              action={{ label: t('清除筛选'), onClick: onClearFilters }}
+              testId="quality-trend-empty"
+            />
+          ) : (
+            <InlineEmpty
+              icon={ChartLine}
+              title={points === 0 ? emptyCopy(base.layer, false).title : t('数据点不够画趋势')}
+              hint={
+                points === 0
+                  ? emptyCopy(base.layer, false).hint
+                  : bucket === 'day'
+                    ? t('至少要两个时段有数据：换成按小时，或选更长的时间范围。')
+                    : t('至少要两个时段有数据：选更长的时间范围。')
+              }
+              testId="quality-trend-empty"
+            />
+          )
         ) : (
-          <section className={styles.panel}>
+          <>
             {s.err && <p className={styles.err}>{s.err}</p>}
             {view === 'chart' ? (
               <LineChart
@@ -310,8 +357,8 @@ export const Trend: React.FC<{ base: QualityBase; rangeDays: number }> = ({ base
             ) : (
               <SeriesTable data={s.data!} bucket={bucket} fmt={opt.fmt} />
             )}
-          </section>
+          </>
         ))}
-    </div>
+    </section>
   );
 };

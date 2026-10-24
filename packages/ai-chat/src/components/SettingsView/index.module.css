@@ -356,7 +356,46 @@
   color: var(--cd-color-accent-strong);
 }
 .pageHeadText {
+  flex: 1;
   min-width: 0;
+}
+/* 宽分区页头右侧的「说明」开关：展开后说明列表显示在页头下面 */
+.helpToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1-5);
+  flex: none;
+  height: var(--cd-control-h-sm);
+  padding: 0 var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-md);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-sm);
+  cursor: pointer;
+}
+.helpToggle:hover {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.helpToggle[aria-expanded='true'] {
+  color: var(--cd-color-accent-strong);
+}
+.helpToggle:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 2px;
+}
+.helpInline {
+  margin: 0 0 var(--cd-space-5);
+  padding: var(--cd-space-4);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+}
+.helpInline .helpList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--cd-space-3) var(--cd-space-5);
 }
 .pageTitle {
   font: var(--cd-text-display);
@@ -465,6 +504,10 @@
   flex: 1;
   min-width: 0;
   max-width: 960px;
+}
+/* 宽分区（宽表格）：没有右侧说明栏，用满内容区 */
+.mainColWide {
+  max-width: none;
 }
 .help {
   position: sticky;

@@ -6,9 +6,11 @@ import type {
   QualityAttempt,
   QualityDimension,
   QualityDist,
+  QualityFacets,
   QualityOutcome,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -17,6 +19,8 @@ import type {
   QualityTiming,
   QualityTokens,
 } from '@nomi-ai/types';
+
+import { officialProviderName, prettyModel, vendorOf } from './modelNames';
 
 /** 样本少于这个数时界面只显示中位数 */
 export const MIN_SAMPLES = 20;
@@ -123,7 +127,10 @@ function dimOf(u: Unit, dim: QualityDimension): string | null {
     case 'model':
       return u.model ?? null;
     case 'modelFamily':
-      return r.modelFamily ?? modelFamily(r.upstreamModel ?? u.model) ?? null;
+      // 回退前的尝试可能是别的模型：按这次尝试的模型算
+      return u.final
+        ? (r.modelFamily ?? modelFamily(r.upstreamModel ?? u.model) ?? null)
+        : (modelFamily(u.model) ?? null);
     case 'client':
       return r.client || null;
     case 'source':
@@ -161,7 +168,7 @@ export function inRange(
   return records.filter((r) => r.layer === layer && r.ts >= q.from && r.ts < q.to);
 }
 
-/** 分布：均值与 p50 / p90 / p99（最近秩法） */
+/** 分布：均值与 p50 / p90 / p95 / p99（最近秩法） */
 export function dist(values: readonly number[]): QualityDist {
   // 单遍：过滤非法值、求和，直接填进 Float64Array（内置数值排序比带比较函数的 Array.sort 快得多）
   const xs = new Float64Array(values.length);
@@ -183,7 +190,7 @@ export function dist(values: readonly number[]): QualityDist {
   }
   sample.sort();
   const at = (p: number) => sample[Math.min(sample.length - 1, Math.ceil(p * sample.length) - 1)]!;
-  return { n, mean: sum / n, p50: at(0.5), p90: at(0.9), p99: at(0.99) };
+  return { n, mean: sum / n, p50: at(0.5), p90: at(0.9), p95: at(0.95), p99: at(0.99) };
 }
 
 const num = (v: number | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -198,8 +205,13 @@ function genMs(t: QualityTiming): number | null {
     : null;
 }
 
+/**
+ * 一组的统计。count：成功 / 失败 / 客户端错误 / 总数 / 成功率的计数单位（按 countBy：请求或尝试）；
+ * reqs：其余各列（取消、断流、回退、缓存、延迟、token、费用）始终按请求。
+ */
 function statsOf(
-  units: readonly Unit[],
+  count: readonly Unit[],
+  reqs: readonly Unit[],
   key: string,
   label: string,
   q: Pick<QualityQuery, 'cancelInDenominator' | 'includeRejected'>,
@@ -207,10 +219,31 @@ function statsOf(
   const failures: Partial<Record<QualityOutcome, number>> = {};
   let ok = 0;
   let failed = 0;
+  let clientErrors = 0;
+  let countCancelled = 0;
+  for (const u of count) {
+    switch (u.outcome) {
+      case 'ok':
+        ok++;
+        break;
+      case 'client-cancel':
+        countCancelled++;
+        break;
+      case 'request-rejected':
+        clientErrors++;
+        if (q.includeRejected) {
+          failed++;
+          failures[u.outcome] = (failures[u.outcome] ?? 0) + 1;
+        }
+        break;
+      default:
+        failed++;
+        failures[u.outcome] = (failures[u.outcome] ?? 0) + 1;
+    }
+  }
   let cancelled = 0;
   let cancelBeforeFirst = 0;
   let cancelDuring = 0;
-  let rejected = 0;
   let committed = 0;
   let streamBreak = 0;
   let fallback = 0;
@@ -229,37 +262,23 @@ function statsOf(
   const tpot: number[] = [];
   const e2e: number[] = [];
   const tps: number[] = [];
-  for (const u of units) {
+  const inputLen: number[] = [];
+  for (const u of reqs) {
     const r = u.r;
-    attempts += u.final ? Math.max(1, r.attempts?.length ?? 1) : 1;
-    if (u.final && (r.attempts?.length ?? 0) > 1 && u.outcome === 'ok') fallback++;
-    switch (u.outcome) {
-      case 'ok':
-        ok++;
-        break;
-      case 'client-cancel':
-        cancelled++;
-        if (r.cancelPhase === 'during') cancelDuring++;
-        else cancelBeforeFirst++;
-        break;
-      case 'request-rejected':
-        rejected++;
-        if (q.includeRejected) {
-          failed++;
-          failures[u.outcome] = (failures[u.outcome] ?? 0) + 1;
-        }
-        break;
-      default:
-        failed++;
-        failures[u.outcome] = (failures[u.outcome] ?? 0) + 1;
+    attempts += Math.max(1, r.attempts?.length ?? 1);
+    if ((r.attempts?.length ?? 0) > 1 && u.outcome === 'ok') fallback++;
+    if (u.outcome === 'client-cancel') {
+      cancelled++;
+      if (r.cancelPhase === 'during') cancelDuring++;
+      else cancelBeforeFirst++;
     }
     const t = u.timing;
     if (t.headersMs !== undefined) ttfb.push(t.headersMs);
-    if (u.final && r.stream && t.firstContentMs !== undefined) {
+    if (r.stream && t.firstContentMs !== undefined) {
       committed++;
       if (BREAK_OUTCOMES.has(u.outcome)) streamBreak++;
     }
-    if (u.final && r.burst) burst++;
+    if (r.burst) burst++;
     if (u.outcome === 'ok') {
       if (t.firstContentMs !== undefined) ttft.push(t.firstContentMs);
       if (t.firstTextMs !== undefined) ttftText.push(t.firstTextMs);
@@ -279,6 +298,7 @@ function statsOf(
     tokens.reasoning += num(tk.reasoning);
     const total = num(tk.input) + num(tk.cacheRead) + num(tk.cacheWrite);
     if (total > 0) {
+      inputLen.push(total);
       cacheTotal += total;
       cacheRead += num(tk.cacheRead);
       cacheReqs++;
@@ -289,16 +309,19 @@ function statsOf(
       priced = true;
     }
   }
-  const requests = units.length;
+  const requests = reqs.length;
+  const total = count.length;
   const denom =
-    requests - (q.cancelInDenominator ? 0 : cancelled) - (q.includeRejected ? 0 : rejected);
+    total - (q.cancelInDenominator ? 0 : countCancelled) - (q.includeRejected ? 0 : clientErrors);
   return {
     key,
     label,
     requests,
     attempts,
+    total,
     ok,
     failed,
+    clientErrors,
     cancelled,
     cancelBeforeFirst,
     cancelDuring,
@@ -319,54 +342,134 @@ function statsOf(
     tpot: dist(tpot),
     e2e: dist(e2e),
     outputTps: dist(tps),
+    inputLen: dist(inputLen),
     tokens,
     ...(priced ? { cost } : {}),
   };
 }
 
-function selected(records: readonly QualityRecord[], q: QualityQuery): Unit[] {
-  const countBy = (q.layer ?? 'gateway') === 'gateway' ? (q.countBy ?? 'request') : 'request';
-  return unitsOf(inRange(records, q), countBy).filter((u) => matches(u, q.filters));
+/** 选中的单位：count 按 countBy（仅网关层可按尝试），reqs 始终按请求 */
+function selected(
+  records: readonly QualityRecord[],
+  q: QualityQuery,
+): { count: Unit[]; reqs: Unit[] } {
+  const inR = inRange(records, q);
+  const reqs = unitsOf(inR, 'request').filter((u) => matches(u, q.filters));
+  const byAttempt = (q.layer ?? 'gateway') === 'gateway' && q.countBy === 'attempt';
+  const count = byAttempt ? unitsOf(inR, 'attempt').filter((u) => matches(u, q.filters)) : reqs;
+  return { count, reqs };
 }
 
 function labelFor(dim: QualityDimension, key: string, labelOf?: QualityLabelOf): string {
   const named = labelOf?.(dim, key);
   if (named) return named;
+  if (dim === 'provider') return officialProviderName(key) ?? key;
   return dim === 'key' ? (key.split('\u0000')[1] ?? key) : key;
 }
 
-/** 总计 + 按维度分组（+ 上一个等长周期的总计） */
+function groupUnits(units: readonly Unit[], dim: QualityDimension): Map<string, Unit[]> {
+  const by = new Map<string, Unit[]>();
+  for (const u of units) {
+    const k = dimOf(u, dim);
+    if (k === null) continue;
+    const list = by.get(k);
+    if (list) list.push(u);
+    else by.set(k, [u]);
+  }
+  return by;
+}
+
+/** 分组的展示信息：模型的厂商与好读的名字、供应商的来源 */
+function decorate(s: QualityStats, dim: QualityDimension, reqs: readonly Unit[]): void {
+  s.dim = dim;
+  if (dim === 'modelFamily' || dim === 'model') {
+    const fam = dim === 'model' ? modelFamily(s.key) : s.key;
+    const v = vendorOf(fam);
+    if (v) s.vendor = v.name;
+    const pretty = prettyModel(fam);
+    if (pretty) s.display = pretty;
+  }
+  if (dim === 'provider') {
+    const sources = new Set(reqs.map((u) => u.r.source));
+    if (sources.size === 1) s.tag = [...sources][0];
+  }
+}
+
+/** 多级分组：每一级按计数单位总数降序 */
+function buildLevel(
+  count: readonly Unit[],
+  reqs: readonly Unit[],
+  path: readonly QualityDimension[],
+  depth: number,
+  q: QualityQuery,
+  labelOf?: QualityLabelOf,
+): QualityStats[] {
+  const dim = path[depth]!;
+  const cm = groupUnits(count, dim);
+  const rm = groupUnits(reqs, dim);
+  const keys = new Set([...cm.keys(), ...rm.keys()]);
+  const out: QualityStats[] = [];
+  for (const k of keys) {
+    const c = cm.get(k) ?? [];
+    const r = rm.get(k) ?? [];
+    const s = statsOf(c, r, k, labelFor(dim, k, labelOf), q);
+    decorate(s, dim, r);
+    if (depth + 1 < path.length) s.children = buildLevel(c, r, path, depth + 1, q, labelOf);
+    out.push(s);
+  }
+  return out.sort(
+    (a, b) => b.total - a.total || b.requests - a.requests || a.label.localeCompare(b.label),
+  );
+}
+
+const pathOf = (q: QualityQuery): QualityDimension[] =>
+  q.groupPath?.length ? q.groupPath.slice(0, 3) : q.groupBy ? [q.groupBy] : [];
+
+/** 总计 + 按维度（可多级）分组（+ 上一个等长周期的总计） */
 export function queryQuality(
   records: readonly QualityRecord[],
   q: QualityQuery,
   labelOf?: QualityLabelOf,
 ): QualityResult {
-  const units = selected(records, q);
-  const total = statsOf(units, '*', '*', q);
-  const groups: QualityStats[] = [];
-  if (q.groupBy) {
-    const by = new Map<string, Unit[]>();
-    for (const u of units) {
-      const k = dimOf(u, q.groupBy);
-      if (k === null) continue;
-      const list = by.get(k);
-      if (list) list.push(u);
-      else by.set(k, [u]);
-    }
-    for (const [k, list] of by) groups.push(statsOf(list, k, labelFor(q.groupBy, k, labelOf), q));
-    groups.sort((a, b) => b.requests - a.requests || a.label.localeCompare(b.label));
-  }
+  const { count, reqs } = selected(records, q);
+  const total = statsOf(count, reqs, '*', '*', q);
+  const path = pathOf(q);
+  const groups = path.length ? buildLevel(count, reqs, path, 0, q, labelOf) : [];
   const result: QualityResult = { total, groups, minSamples: MIN_SAMPLES };
   if (q.withPrevious) {
     const span = q.to - q.from;
-    result.previous = statsOf(
-      selected(records, { ...q, from: q.from - span, to: q.from }),
-      '*',
-      '*',
-      q,
-    );
+    const prev = selected(records, { ...q, from: q.from - span, to: q.from });
+    result.previous = statsOf(prev.count, prev.reqs, '*', '*', q);
   }
   return result;
+}
+
+/** 筛选项：这段时间（与口径）里出现过的客户端 / 供应商 / 模型族 / Key，按出现次数降序 */
+export function facetsOf(
+  records: readonly QualityRecord[],
+  q: Pick<QualityQuery, 'from' | 'to' | 'layer'>,
+  labelOf?: QualityLabelOf,
+): QualityFacets {
+  const reqs = unitsOf(inRange(records, q), 'request');
+  const dims: QualityDimension[] = ['client', 'provider', 'modelFamily', 'key'];
+  const out: QualityFacets = {};
+  for (const dim of dims) {
+    const by = groupUnits(reqs, dim);
+    if (!by.size) continue;
+    out[dim] = [...by.entries()]
+      .map(([key, list]) => {
+        const label =
+          dim === 'modelFamily'
+            ? (prettyModel(key) ?? key)
+            : dim === 'key'
+              ? `${labelFor('provider', key.split('\u0000')[0] ?? '', labelOf)} · ${labelFor(dim, key, labelOf)}`
+              : labelFor(dim, key, labelOf);
+        const vendor = dim === 'modelFamily' ? vendorOf(key)?.name : undefined;
+        return { key, label, count: list.length, ...(vendor ? { vendor } : {}) };
+      })
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+  }
+  return out;
 }
 
 /** 桶起点（本地时间的整点 / 零点） */
@@ -386,14 +489,14 @@ function metricOf(s: QualityStats, metric: QualitySeriesQuery['metric']): number
   const dot = metric.indexOf('.');
   if (dot > 0) {
     const d = s[metric.slice(0, dot) as 'ttft' | 'tpot' | 'e2e' | 'outputTps'] as QualityDist;
-    const v = d[metric.slice(dot + 1) as 'p50' | 'p90'];
+    const v = d[metric.slice(dot + 1) as 'p50' | 'p90' | 'p95'];
     return typeof v === 'number' ? v : null;
   }
   const v = s[metric as keyof QualityStats];
   return typeof v === 'number' ? v : null;
 }
 
-/** 时间序列：按小时 / 天分桶；有 groupBy 时每组一条（按请求数取前 8 组） */
+/** 时间序列：按小时 / 天分桶；有 groupBy 时每组一条（按计数单位总数取前 8 组） */
 export function seriesQuality(
   records: readonly QualityRecord[],
   q: QualitySeriesQuery,
@@ -402,33 +505,41 @@ export function seriesQuality(
   const buckets: number[] = [];
   for (let b = bucketStart(q.from, q.bucket); b < q.to; b = nextBucket(b, q.bucket))
     buckets.push(b);
-  const units = selected(records, q);
+  const { count, reqs } = selected(records, q);
   const at = new Map(buckets.map((b, i) => [b, i]));
   const index = (ts: number) => at.get(bucketStart(ts, q.bucket)) ?? -1;
-  const groups = new Map<string, Unit[][]>();
-  const keyOf = (u: Unit) => (q.groupBy ? dimOf(u, q.groupBy) : '*');
-  for (const u of units) {
-    const k = keyOf(u);
-    if (k === null) continue;
+  type Cell = { c: Unit[]; r: Unit[] };
+  const groups = new Map<string, Cell[]>();
+  const put = (u: Unit, side: 'c' | 'r') => {
+    const k = q.groupBy ? dimOf(u, q.groupBy) : '*';
+    if (k === null) return;
     const i = index(u.r.ts);
-    if (i < 0) continue;
+    if (i < 0) return;
     let rows = groups.get(k);
     if (!rows) {
-      rows = buckets.map(() => []);
+      rows = buckets.map(() => ({ c: [], r: [] }));
       groups.set(k, rows);
     }
-    rows[i]!.push(u);
-  }
+    rows[i]![side].push(u);
+  };
+  for (const u of count) put(u, 'c');
+  for (const u of reqs) put(u, 'r');
   const ranked = [...groups.entries()]
-    .map(([k, rows]) => ({ k, rows, n: rows.reduce((a, r) => a + r.length, 0) }))
+    .map(([k, rows]) => ({ k, rows, n: rows.reduce((a, x) => a + x.c.length, 0) }))
     .sort((a, b) => b.n - a.n)
     .slice(0, q.groupBy ? 8 : 1);
   return {
     buckets,
     series: ranked.map(({ k, rows }) => ({
       key: k,
-      label: q.groupBy ? labelFor(q.groupBy, k, labelOf) : '*',
-      values: rows.map((list) => (list.length ? metricOf(statsOf(list, k, k, q), q.metric) : null)),
+      label: !q.groupBy
+        ? '*'
+        : q.groupBy === 'modelFamily'
+          ? (prettyModel(k) ?? k)
+          : labelFor(q.groupBy, k, labelOf),
+      values: rows.map((x) =>
+        x.c.length || x.r.length ? metricOf(statsOf(x.c, x.r, k, k, q), q.metric) : null,
+      ),
     })),
   };
 }
@@ -437,10 +548,33 @@ export function seriesQuality(
 export function listRequests(
   records: readonly QualityRecord[],
   q: QualityRequestsQuery,
-): { items: QualityRecord[]; total: number } {
+  labelOf?: QualityLabelOf,
+): { items: QualityRequestItem[]; total: number } {
   const units = unitsOf(inRange(records, q), 'request').filter((u) => matches(u, q.filters));
   const all = units.map((u) => u.r).sort((a, b) => b.ts - a.ts);
   const offset = Math.max(0, Math.trunc(q.offset ?? 0));
   const limit = Math.min(1000, Math.max(1, Math.trunc(q.limit)));
-  return { items: all.slice(offset, offset + limit), total: all.length };
+  return {
+    items: all.slice(offset, offset + limit).map((r) => requestItem(r, labelOf)),
+    total: all.length,
+  };
+}
+
+/** 请求明细的展示名：模型「厂商: 模型」、供应商与 Key 的名字；认不出的不给，界面显示原 id */
+function requestItem(r: QualityRecord, labelOf?: QualityLabelOf): QualityRequestItem {
+  const item: QualityRequestItem = { ...r };
+  const fam = r.modelFamily ?? modelFamily(r.upstreamModel ?? r.model);
+  const v = vendorOf(fam);
+  if (v) item.vendor = v.name;
+  const pretty = prettyModel(fam);
+  if (pretty) item.display = pretty;
+  if (r.provider) {
+    const name = labelOf?.('provider', r.provider) ?? officialProviderName(r.provider);
+    if (name && name !== r.provider) item.providerName = name;
+  }
+  if (r.keyId) {
+    const name = labelOf?.('key', `${r.provider ?? ''}\u0000${r.keyId}`);
+    if (name && name !== r.keyId) item.keyName = name;
+  }
+  return item;
 }

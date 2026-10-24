@@ -105,13 +105,21 @@ export function requestsCsv(
 }
 
 const pct = (v: number | undefined) => round(v === undefined ? undefined : v * 100, 2);
-const d = (x: QualityDist, k: 'p50' | 'p90' | 'p99' | 'mean') => round(x[k], 1);
+const d = (x: QualityDist | undefined, k: 'p50' | 'p90' | 'p95' | 'p99' | 'mean') =>
+  round(x?.[k], 1);
 
-export function statsCsv(groups: readonly QualityStats[]): string {
+export function statsCsv(groups: ReadonlyArray<QualityStats & { depth?: number }>): string {
   const header = [
     'group',
+    'level',
     'requests',
     'attempts',
+    'total',
+    'ok',
+    'failed',
+    'client_errors',
+    'cancelled',
+    'stream_break',
     'success_rate_pct',
     'failure_rate_pct',
     'cancel_rate_pct',
@@ -123,10 +131,16 @@ export function statsCsv(groups: readonly QualityStats[]): string {
     'ttfb_p50_ms',
     'ttft_p50_ms',
     'ttft_p90_ms',
+    'ttft_p95_ms',
     'ttft_p99_ms',
     'tpot_p50_ms',
     'e2e_p50_ms',
     'e2e_p90_ms',
+    'e2e_p95_ms',
+    'e2e_p99_ms',
+    'input_len_p50',
+    'input_len_p95',
+    'input_len_p99',
     'output_tps_p50',
     'input_tokens',
     'output_tokens',
@@ -134,9 +148,16 @@ export function statsCsv(groups: readonly QualityStats[]): string {
     'cost_usd',
   ];
   const rows = groups.map((s) => [
-    s.label,
+    `${'  '.repeat(s.depth ?? 0)}${s.display ? `${s.vendor ? `${s.vendor}: ` : ''}${s.display}` : s.label}`,
+    (s.depth ?? 0) + 1,
     s.requests,
     s.attempts,
+    s.total,
+    s.ok,
+    s.failed,
+    s.clientErrors,
+    s.cancelled,
+    s.streamBreak,
     pct(s.successRate),
     pct(s.failureRate),
     pct(s.cancelRate),
@@ -148,10 +169,16 @@ export function statsCsv(groups: readonly QualityStats[]): string {
     d(s.ttfb, 'p50'),
     d(s.ttft, 'p50'),
     d(s.ttft, 'p90'),
+    d(s.ttft, 'p95'),
     d(s.ttft, 'p99'),
     d(s.tpot, 'p50'),
     d(s.e2e, 'p50'),
     d(s.e2e, 'p90'),
+    d(s.e2e, 'p95'),
+    d(s.e2e, 'p99'),
+    d(s.inputLen, 'p50'),
+    d(s.inputLen, 'p95'),
+    d(s.inputLen, 'p99'),
     d(s.outputTps, 'p50'),
     s.tokens.input,
     s.tokens.output,

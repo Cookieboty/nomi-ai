@@ -6,8 +6,10 @@ import type {
   QUALITY_IPC as QualityIpc,
   QualityExportRequest,
   QualityExportResult,
+  QualityFacets,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -19,11 +21,14 @@ import { t } from '@nomi-ai/ui';
 export type {
   QualityDimension,
   QualityDist,
+  QualityFacet,
+  QualityFacets,
   QualityExportResult,
   QualityLayer,
   QualityOutcome,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -44,6 +49,7 @@ const QUALITY_IPC = {
   settingsSet: 'ai:quality:settings-set',
   clear: 'ai:quality:clear',
   export: 'ai:quality:export',
+  facets: 'ai:quality:facets',
   changed: 'ai:quality:changed',
 } as const satisfies typeof QualityIpc;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
@@ -54,7 +60,7 @@ void _ipcInSync;
 export const QUALITY_EXPORT_CHANNEL = QUALITY_IPC.export;
 
 export interface QualityRequestsPage {
-  items: QualityRecord[];
+  items: QualityRequestItem[];
   total: number;
 }
 
@@ -88,6 +94,9 @@ export const qualityClient = {
   settings: () => call<QualitySettings>(QUALITY_IPC.settingsGet),
   setSettings: (p: Partial<QualitySettings>) => call<QualitySettings>(QUALITY_IPC.settingsSet, p),
   clear: () => call<void>(QUALITY_IPC.clear),
+  /** 筛选项：这段时间里出现过的客户端 / 供应商 / 模型族 / Key */
+  facets: (q: Pick<QualityQuery, 'from' | 'to' | 'layer'>) =>
+    call<QualityFacets>(QUALITY_IPC.facets, q),
   exportCsv: (
     kind: 'requests' | 'table',
     query: QualityQuery | QualityRequestsQuery,

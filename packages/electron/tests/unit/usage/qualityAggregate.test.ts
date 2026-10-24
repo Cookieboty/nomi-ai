@@ -123,10 +123,13 @@ describe('queryQuality', () => {
     const byAtt = queryQuality(rs, q({ groupBy: 'key', countBy: 'attempt' }));
     const kA = byAtt.groups.find((g) => g.label === 'kA')!;
     const kB = byAtt.groups.find((g) => g.label === 'kB')!;
-    expect(kA).toMatchObject({ requests: 1, failed: 1, ok: 0 });
+    // 计数列（成功 / 失败 / 总数）按尝试；请求数等其余列仍按请求（Key A 没有产出结果的请求）
+    expect(kA).toMatchObject({ total: 1, failed: 1, ok: 0, requests: 0 });
     expect(kA.failures).toEqual({ 'rate-limit': 1 });
-    expect(kB).toMatchObject({ requests: 1, ok: 1 });
-    expect(byAtt.total.requests).toBe(2);
+    expect(kB).toMatchObject({ total: 1, ok: 1, requests: 1 });
+    expect(byAtt.total).toMatchObject({ total: 2, requests: 1, ok: 1, failed: 1 });
+    expect(byAtt.total.successRate).toBeCloseTo(0.5);
+    expect(byReq.total).toMatchObject({ total: 1, requests: 1, ok: 1, failed: 0 });
   });
 
   it('TTFT / TPOT / E2E / 输出速度；突发（整段吐出）不进 TPOT 与 tok/s，单独计数', () => {

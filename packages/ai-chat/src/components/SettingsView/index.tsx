@@ -66,6 +66,8 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
   // 站内跳转指定的「屏幕」内层标签；从侧栏进入其它分区时清掉
   const [screenSub, setScreenSub] = useState<ScreenTab | undefined>();
   const [localTab, setLocalTab] = useState<'export' | undefined>();
+  // 宽分区（不显示右侧说明栏）的页头「说明」是否展开
+  const [helpOpen, setHelpOpen] = useState(false);
   // 有标签页的分区各自记住当前标签（离开设置页后重置）
   const [tabs, setTabs] = useState<TabState>(() =>
     deepLink?.tab && section in SECTION_TABS ? { [section]: deepLink.tab } : {},
@@ -289,13 +291,51 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
                 </h1>
                 <p className={styles.pageIntro}>{t(current.intro)}</p>
               </div>
+              {current.wide && (
+                <button
+                  type="button"
+                  className={styles.helpToggle}
+                  aria-expanded={helpOpen}
+                  aria-controls="settings-help-inline"
+                  onClick={() => setHelpOpen((o) => !o)}
+                  data-testid="settings-help-toggle"
+                >
+                  <Icon icon={Lightbulb} size={14} />
+                  {t('说明')}
+                </button>
+              )}
             </header>
           )}
+          {current.wide && helpOpen && section !== 'general' && (
+            <aside
+              id="settings-help-inline"
+              className={styles.helpInline}
+              aria-label={t('配置说明')}
+              data-testid="settings-help-inline"
+            >
+              <ul className={styles.helpList}>
+                {SECTION_HELP[section].map((h) => (
+                  <li key={h.title} className={styles.helpItem}>
+                    <span className={styles.helpIcon} aria-hidden="true">
+                      <Icon icon={h.icon} size={15} />
+                    </span>
+                    <span>
+                      <span className={styles.helpItemTitle}>{t(h.title)}</span>
+                      <span className={styles.helpDesc}>{t(h.desc)}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </aside>
+          )}
           <div className={styles.columns}>
-            <div className={styles.mainCol} data-testid="settings-main-col">
+            <div
+              className={current.wide ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol}
+              data-testid="settings-main-col"
+            >
               <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
             </div>
-            {section !== 'general' && (
+            {section !== 'general' && !current.wide && (
               <aside className={styles.help} aria-label={t('配置说明')} data-testid="settings-help">
                 <h2 className={styles.helpTitle}>
                   <Icon icon={Lightbulb} size={16} />

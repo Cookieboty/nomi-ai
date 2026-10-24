@@ -117,6 +117,18 @@ export interface QualityRecord {
   notes?: string[];
 }
 
+/** 请求明细的一行：记录本身 + 主进程补的展示名（不落盘） */
+export interface QualityRequestItem extends QualityRecord {
+  /** 模型的厂商（「OpenAI」），认不出没有 */
+  vendor?: string;
+  /** 好读的模型名（「GPT-6.1 Sol」） */
+  display?: string;
+  /** 供应商的名字（已配置的第三方供应商 / 官方服务），认不出没有 */
+  providerName?: string;
+  /** Key 的名字，认不出没有 */
+  keyName?: string;
+}
+
 /** 可分组 / 筛选的维度 */
 export type QualityDimension =
   | 'provider'
@@ -136,7 +148,15 @@ export interface QualityQuery {
   layer?: QualityLayer;
   filters?: Partial<Record<QualityDimension, string[]>>;
   groupBy?: QualityDimension;
-  /** 计数口径：请求（默认）/ 尝试（供应商、Key 视角，仅网关层） */
+  /**
+   * 多级分组（1～3 级，如 模型族 → 供应商 → Key）：结果的每一组带 children。给了它就不看 groupBy。
+   */
+  groupPath?: QualityDimension[];
+  /**
+   * 计数口径（仅网关层）：request（默认）一切按请求计；attempt 时「成功 / 失败 / 客户端错误 / 总数 /
+   * 成功率 / 失败率」按上游尝试计（一次请求回退到多个候选时计多次，失败的 Key 不被后面的成功掩盖），
+   * 其余各列（取消、断流、缓存、延迟、token）仍按请求计。
+   */
   countBy?: 'request' | 'attempt';
   /** 取消计入成功率分母（默认 false） */
   cancelInDenominator?: boolean;
@@ -151,6 +171,7 @@ export interface QualityDist {
   mean?: number;
   p50?: number;
   p90?: number;
+  p95?: number;
   p99?: number;
 }
 
@@ -158,10 +179,25 @@ export interface QualityStats {
   /** 分组键（总计为 '*'） */
   key: string;
   label: string;
+  /** 这一组所在的维度（总计没有） */
+  dim?: QualityDimension;
+  /** 模型 / 模型族的厂商（OpenAI、DeepSeek、Google…），界面显示品牌图标与「厂商: 模型」 */
+  vendor?: string;
+  /** 模型的显示名（如 GPT-6.1 Sol）；没有时用 label */
+  display?: string;
+  /** 供应商组的来源：官方账号 / 第三方 / Nomi 对话；混合时不给 */
+  tag?: 'official' | 'thirdParty' | 'nomi';
+  /** 多级分组的下一级 */
+  children?: QualityStats[];
   requests: number;
   attempts: number;
+  /** 计数单位总数（按 countBy：请求或尝试） */
+  total: number;
   ok: number;
+  /** 失败（不含客户端错误；includeRejected 时含） */
   failed: number;
+  /** 客户端错误：请求本身的问题（400 / 404 / 413 / 上下文超长等，结果为 request-rejected） */
+  clientErrors: number;
   cancelled: number;
   cancelBeforeFirst: number;
   cancelDuring: number;
@@ -186,6 +222,8 @@ export interface QualityStats {
   e2e: QualityDist;
   /** 输出 token ÷ 生成时长 */
   outputTps: QualityDist;
+  /** 输入长度（每次请求的输入 token，含缓存读写） */
+  inputLen: QualityDist;
   tokens: Required<QualityTokens>;
   cost?: number;
 }
@@ -212,9 +250,11 @@ export interface QualitySeriesQuery extends QualityQuery {
       >
     | 'ttft.p50'
     | 'ttft.p90'
+    | 'ttft.p95'
     | 'tpot.p50'
     | 'e2e.p50'
     | 'e2e.p90'
+    | 'e2e.p95'
     | 'outputTps.p50';
 }
 
@@ -247,6 +287,8 @@ export const QUALITY_IPC = {
   clear: 'ai:quality:clear',
   /** 导出 CSV（弹保存对话框）：参数 QualityExportRequest，返回 QualityExportResult */
   export: 'ai:quality:export',
+  /** 筛选项：这段时间里出现过的客户端 / 供应商 / 模型族 / Key（参数 QualityQuery，返回 QualityFacets） */
+  facets: 'ai:quality:facets',
   changed: 'ai:quality:changed',
 } as const;
 
@@ -260,3 +302,14 @@ export interface QualityExportResult {
   path?: string;
   rows: number;
 }
+
+/** 一个维度在这段时间里出现过的取值（筛选下拉用），按出现次数降序 */
+export interface QualityFacet {
+  key: string;
+  label: string;
+  count: number;
+  /** 模型族的厂商（显示品牌图标） */
+  vendor?: string;
+}
+
+export type QualityFacets = Partial<Record<QualityDimension, QualityFacet[]>>;

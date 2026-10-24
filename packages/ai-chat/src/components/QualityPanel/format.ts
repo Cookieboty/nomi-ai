@@ -1,5 +1,5 @@
 /**
- * 模型质量面板：文案、格式化与指标定义（与 docs/design/model-quality.md §2 的口径一致）。
+ * 模型质量面板：文案、格式化、层级预设与对比表的列（与 docs/design/model-quality.md §2 的口径一致）。
  */
 import { t } from '@nomi-ai/ui';
 
@@ -45,11 +45,27 @@ export const formatMs = (ms: number | null | undefined): string =>
       ? `${Math.round(ms)} ms`
       : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
 
-/** 0~1 → 百分数（< 10% 保留一位小数） */
+/** 0~1 → 百分数（< 10% 保留一位小数）：趋势图、上一周期对比用 */
 export const formatRate = (r: number | null | undefined): string => {
   if (r == null || !Number.isFinite(r)) return '—';
   const p = r * 100;
   return `${p > 0 && p < 10 ? p.toFixed(1) : Math.round(p)}%`;
+};
+
+/** 0~1 → 两位小数的百分数（对比表：98.45%） */
+export const formatPct = (r: number | null | undefined): string =>
+  r == null || !Number.isFinite(r) ? '—' : `${(r * 100).toFixed(2)}%`;
+
+const trim = (s: string) => s.replace(/\.?0+$/, '');
+
+/** 计数 / token 数：1234 → 1.23K，78080 → 78.08K，2.5e6 → 2.5M */
+export const formatCount = (v: number | null | undefined): string => {
+  if (v == null || !Number.isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a < 1000) return String(Math.round(v));
+  if (a < 1_000_000) return `${trim((v / 1000).toFixed(2))}K`;
+  if (a < 1_000_000_000) return `${trim((v / 1_000_000).toFixed(2))}M`;
+  return `${trim((v / 1_000_000_000).toFixed(2))}B`;
 };
 
 export const formatTps = (v: number | null | undefined): string =>
@@ -102,193 +118,283 @@ export const sourceLabel = (s: string): string =>
 export const layerLabel = (l: QualityLayer): string =>
   l === 'gateway' ? t('网关层') : t('CLI 层');
 
-export const DIMENSIONS: Array<{ value: QualityDimension; label: string; gatewayOnly?: boolean }> =
-  [
-    { value: 'provider', label: '供应商' },
-    { value: 'key', label: 'Key', gatewayOnly: true },
-    { value: 'model', label: '模型' },
-    { value: 'modelFamily', label: '模型族' },
-    { value: 'client', label: '客户端' },
-    { value: 'source', label: '来源' },
-    { value: 'protocol', label: '协议', gatewayOnly: true },
-    { value: 'resolved', label: '模型解析方式', gatewayOnly: true },
-  ];
-
 export const dimensionLabel = (d: QualityDimension): string =>
-  t(DIMENSIONS.find((x) => x.value === d)?.label ?? (d === 'outcome' ? '结果' : d));
+  ({
+    provider: t('供应商'),
+    key: 'Key',
+    model: t('模型'),
+    modelFamily: t('模型'),
+    client: t('客户端'),
+    source: t('来源'),
+    protocol: t('协议'),
+    resolved: t('模型解析方式'),
+    outcome: t('结果'),
+  })[d];
 
-/** 分组键 → 显示名（分组结果自带 label，这里兜底并本地化少数固定值） */
-export const groupLabel = (d: QualityDimension | undefined, s: QualityStats): string => {
-  if (d === 'client') return clientLabel(s.key);
-  if (d === 'source') return sourceLabel(s.key);
-  if (d === 'resolved') return resolvedLabel(s.key);
-  if (d === 'outcome') return outcomeLabel(s.key as QualityOutcome);
+/** 所有结果类别（顺序即筛选菜单顺序） */
+export const OUTCOMES: QualityOutcome[] = [
+  'ok',
+  'client-cancel',
+  'auth',
+  'rate-limit',
+  'upstream-5xx',
+  'first-byte-timeout',
+  'pre-commit-error',
+  'stream-break',
+  'idle-timeout',
+  'protocol-violation',
+  'repetition-stop',
+  'request-rejected',
+  'gateway-error',
+  'cli-error',
+  'cli-exit',
+];
+
+/** 「失败」列钻取：不含成功、取消与客户端错误 */
+export const FAILURE_OUTCOMES = OUTCOMES.filter(
+  (o) => o !== 'ok' && o !== 'client-cancel' && o !== 'request-rejected',
+);
+/** 「流中断」列钻取 */
+export const BREAK_OUTCOMES: QualityOutcome[] = ['stream-break', 'idle-timeout', 'cli-exit'];
+
+/** 厂商名 → 品牌图标 id（packages/ui brand/icons.ts） */
+const VENDOR_BRAND: Record<string, string> = {
+  OpenAI: 'openai',
+  Anthropic: 'anthropic',
+  Google: 'gemini',
+  DeepSeek: 'deepseek',
+  'Z.ai': 'zhipu',
+  xAI: 'xai',
+  Moonshot: 'kimi',
+  Qwen: 'qwen',
+  MiniMax: 'minimax',
+  ByteDance: 'doubao',
+};
+export const brandOfVendor = (v: string | undefined): string | undefined =>
+  v ? VENDOR_BRAND[v] : undefined;
+
+/** 一行的显示名：模型「厂商: 模型」，客户端 / 来源本地化，其余用聚合给的名字 */
+export const rowLabel = (s: QualityStats): string => {
+  if (s.dim === 'modelFamily' || s.dim === 'model') {
+    const name = s.display ?? s.label;
+    return s.vendor ? `${s.vendor}: ${name}` : name;
+  }
+  if (s.dim === 'client') return clientLabel(s.key);
+  if (s.dim === 'source') return sourceLabel(s.key);
+  if (s.dim === 'resolved') return resolvedLabel(s.key);
+  if (s.dim === 'outcome') return outcomeLabel(s.key as QualityOutcome);
   return s.label || s.key;
 };
 
-type DistKey = 'ttfb' | 'ttft' | 'ttftText' | 'tpot' | 'e2e' | 'outputTps';
-type Pct = 'p50' | 'p90' | 'p99';
+/* --------------------------------- 层级预设 --------------------------------- */
 
-export interface MetricDef {
+export type HierarchyId =
+  'model-provider-key' | 'model-client-provider' | 'client-model-provider' | 'provider-model';
+
+export const HIERARCHIES: Array<{
+  id: HierarchyId;
+  gateway: QualityDimension[];
+  cli: QualityDimension[];
+}> = [
+  {
+    id: 'model-provider-key',
+    gateway: ['modelFamily', 'provider', 'key'],
+    // CLI 层没有 Key
+    cli: ['modelFamily', 'provider'],
+  },
+  {
+    id: 'model-client-provider',
+    gateway: ['modelFamily', 'client', 'provider'],
+    cli: ['modelFamily', 'client', 'provider'],
+  },
+  {
+    id: 'client-model-provider',
+    gateway: ['client', 'modelFamily', 'provider'],
+    cli: ['client', 'modelFamily', 'provider'],
+  },
+  { id: 'provider-model', gateway: ['provider', 'modelFamily'], cli: ['provider', 'modelFamily'] },
+];
+
+export const hierarchyPath = (id: HierarchyId, layer: QualityLayer): QualityDimension[] => {
+  const h = HIERARCHIES.find((x) => x.id === id) ?? HIERARCHIES[0]!;
+  return layer === 'gateway' ? h.gateway : h.cli;
+};
+
+export const hierarchyLabel = (id: HierarchyId, layer: QualityLayer): string =>
+  hierarchyPath(id, layer)
+    .map((d) => dimensionLabel(d))
+    .join(' → ');
+
+/* --------------------------------- 对比表的列 --------------------------------- */
+
+export type ColumnGroup = 'count' | 'token' | 'latency' | 'speed';
+
+export interface Column {
   id: string;
-  /** 列标题（i18n key） */
-  label: string;
-  /** 说明（列标题的提示） */
+  group: ColumnGroup;
+  /** 分组表头下的子表头（P50 / P95 / P99）；没有就是独立列 */
+  sub?: string;
+  /** 独立列的表头 */
+  label?: string;
   hint?: string;
-  group: 'rate' | 'latency' | 'speed' | 'cache' | 'volume';
-  /** 越大越好（排序与升降箭头的语义） */
-  higherIsBetter: boolean;
-  /** 取值；null = 没有数据 */
   value: (s: QualityStats) => number | null;
   format: (v: number | null) => string;
-  /** 分布类指标：样本数（用于样本不足判断） */
+  /** 文字高亮（状态色，带文字说明） */
+  tone?: (s: QualityStats, v: number | null) => 'danger' | 'warning' | 'success' | undefined;
+  /** 点击钻取到请求明细时带的结果筛选；'all' = 不限结果 */
+  drill?: QualityOutcome[] | 'all';
+  /** 分布列：样本数（不足 20 时只显示 P50） */
   dist?: (s: QualityStats) => QualityDist;
-  /** 只在网关层有 */
-  gatewayOnly?: boolean;
 }
 
-const num = (v: number | undefined | null): number | null =>
+const n = (v: number | undefined | null): number | null =>
   v == null || !Number.isFinite(v) ? null : v;
 
-const rate = (
-  id: string,
-  label: string,
-  pick: (s: QualityStats) => number | undefined,
-  higherIsBetter: boolean,
-  hint?: string,
-): MetricDef => ({
-  id,
-  label,
-  hint,
-  group: 'rate',
-  higherIsBetter,
-  value: (s) => num(pick(s)),
-  format: formatRate,
-});
+const pct3 = (
+  group: ColumnGroup,
+  key: 'inputLen' | 'ttft' | 'e2e',
+  format: (v: number | null) => string,
+): Column[] =>
+  (['p50', 'p95', 'p99'] as const).map((p) => ({
+    id: `${key}.${p}`,
+    group,
+    sub: p.toUpperCase(),
+    value: (s: QualityStats) => n(s[key]?.[p]),
+    format,
+    dist: (s: QualityStats) => s[key] ?? { n: 0 },
+  }));
 
-const dist = (
-  key: DistKey,
-  pct: Pct,
-  label: string,
-  opts: { gatewayOnly?: boolean; speed?: boolean; hint?: string } = {},
-): MetricDef => ({
-  id: `${key}.${pct}`,
-  label,
-  hint: opts.hint,
-  group: opts.speed ? 'speed' : 'latency',
-  higherIsBetter: !!opts.speed,
-  value: (s) => num(s[key][pct]),
-  format: opts.speed ? formatTps : formatMs,
-  dist: (s) => s[key],
-  gatewayOnly: opts.gatewayOnly,
-});
-
-const BURST_HINT = '上游缓冲后整段吐出，TPOT / tok/s 不计入';
-
-/** 对比表可选的指标列（顺序即默认列顺序） */
-export const METRICS: MetricDef[] = [
+/** 分组表头（按出现顺序） */
+export const GROUP_HEADS: Array<{ id: string; label: string; hint: string; group: ColumnGroup }> = [
   {
-    id: 'requests',
-    label: '请求数',
-    group: 'volume',
-    higherIsBetter: true,
-    value: (s) => s.requests,
-    format: (v) => (v == null ? '—' : Math.round(v).toLocaleString('en-US')),
+    id: 'ttft',
+    label: '首字（TTFT）',
+    hint: '从发出到第一个内容（正文 / 推理 / 工具参数）',
+    group: 'latency',
   },
-  rate('successRate', '成功率', (s) => s.successRate, true),
-  rate('failureRate', '失败率', (s) => s.failureRate, false),
-  rate('cancelRate', '取消率', (s) => s.cancelRate, false),
-  rate('streamBreakRate', '断流率', (s) => s.streamBreakRate, false),
-  rate('fallbackRate', '回退率', (s) => s.fallbackRate, false),
-  dist('ttfb', 'p50', 'TTFB p50', { gatewayOnly: true, hint: '收到上游响应头的时间' }),
-  dist('ttft', 'p50', 'TTFT p50', { hint: '第一个内容（正文 / 推理 / 工具参数）的时间' }),
-  dist('ttft', 'p90', 'TTFT p90'),
-  dist('ttft', 'p99', 'TTFT p99'),
-  dist('tpot', 'p50', 'TPOT p50', { hint: `每个输出 token 的间隔；${BURST_HINT}` }),
-  dist('tpot', 'p90', 'TPOT p90'),
-  dist('e2e', 'p50', 'E2E p50', { hint: '从发出到结束的总耗时' }),
-  dist('e2e', 'p90', 'E2E p90'),
-  dist('e2e', 'p99', 'E2E p99'),
-  dist('outputTps', 'p50', '输出速度 p50', { speed: true, hint: BURST_HINT }),
-  {
-    id: 'cacheHitTokenRate',
-    label: '缓存命中（token）',
-    hint: '缓存读 ÷ 输入总量',
-    group: 'cache',
-    higherIsBetter: true,
-    value: (s) => num(s.cacheHitTokenRate),
-    format: formatRate,
-  },
-  {
-    id: 'cacheHitRequestRate',
-    label: '缓存命中（请求）',
-    hint: '有缓存读的请求 ÷ 请求数',
-    group: 'cache',
-    higherIsBetter: true,
-    value: (s) => num(s.cacheHitRequestRate),
-    format: formatRate,
-  },
-  {
-    id: 'outputTokens',
-    label: '输出 token',
-    group: 'volume',
-    higherIsBetter: true,
-    value: (s) => s.tokens.output,
-    format: (v) => (v == null ? '—' : Math.round(v).toLocaleString('en-US')),
-  },
-  {
-    id: 'burst',
-    label: '整段吐出',
-    hint: BURST_HINT,
-    group: 'volume',
-    higherIsBetter: false,
-    value: (s) => s.burst,
-    format: (v) => (v == null ? '—' : Math.round(v).toLocaleString('en-US')),
-  },
+  { id: 'e2e', label: '耗时（E2E）', hint: '从发出到结束的总耗时', group: 'latency' },
+  { id: 'speed', label: '速度', hint: '整段吐出的请求不计入', group: 'speed' },
+  { id: 'inputLen', label: '输入长度', hint: '每次请求的输入 token（含缓存读写）', group: 'token' },
 ];
 
-export const DEFAULT_COLUMNS = [
-  'requests',
-  'successRate',
-  'failureRate',
-  'streamBreakRate',
-  'ttft.p50',
-  'tpot.p50',
-  'e2e.p50',
-  'outputTps.p50',
-  'cacheHitTokenRate',
+export const COLUMNS: Column[] = [
+  {
+    id: 'ok',
+    group: 'count',
+    label: '成功',
+    hint: '正常结束的次数（按尝试计时：一次请求回退到多个候选计多次）',
+    value: (s) => s.ok,
+    format: formatCount,
+    drill: ['ok'],
+  },
+  {
+    id: 'failed',
+    group: 'count',
+    label: '失败',
+    hint: '鉴权、限流、上游 5xx、超时、断流等；不含客户端错误',
+    value: (s) => s.failed,
+    format: formatCount,
+    tone: (_s, v) => (v ? 'danger' : undefined),
+    drill: FAILURE_OUTCOMES,
+  },
+  {
+    id: 'clientErrors',
+    group: 'count',
+    label: '客户端错误',
+    hint: '请求本身的问题：400 / 404 / 413 / 上下文超长等，默认不算供应商失败',
+    value: (s) => s.clientErrors,
+    format: formatCount,
+    drill: ['request-rejected'],
+  },
+  {
+    id: 'total',
+    group: 'count',
+    label: '总数',
+    hint: '成功 + 失败 + 客户端错误 + 取消',
+    value: (s) => s.total,
+    format: formatCount,
+    drill: 'all',
+  },
+  {
+    id: 'successRate',
+    group: 'count',
+    label: '成功率',
+    hint: '成功 ÷（总数 − 取消 − 客户端错误）；低于 95% 标红，99.5% 以上标绿',
+    value: (s) => n(s.successRate),
+    format: formatPct,
+    tone: (_s, v) =>
+      v == null ? undefined : v < 0.95 ? 'danger' : v >= 0.995 ? 'success' : undefined,
+  },
+  {
+    id: 'cacheHit',
+    group: 'count',
+    label: '缓存命中',
+    hint: '缓存读 ÷ 输入总量（按 token）',
+    value: (s) => n(s.cacheHitTokenRate),
+    format: formatPct,
+  },
+  {
+    id: 'cancelled',
+    group: 'count',
+    label: '已取消',
+    hint: '你或编程助手在结束前停止的请求',
+    value: (s) => s.cancelled,
+    format: formatCount,
+    drill: ['client-cancel'],
+  },
+  {
+    id: 'streamBreak',
+    group: 'count',
+    label: '流中断',
+    hint: '开始输出后没有正常结束（断流、空闲超时、CLI 中途退出）',
+    value: (s) => s.streamBreak,
+    format: formatCount,
+    tone: (_s, v) => (v ? 'warning' : undefined),
+    drill: BREAK_OUTCOMES,
+  },
+  ...pct3('latency', 'ttft', formatMs),
+  ...pct3('latency', 'e2e', formatMs),
+  {
+    id: 'outputTps.p50',
+    group: 'speed',
+    sub: 'tok/s',
+    hint: '输出 token ÷ 生成时长的中位数',
+    value: (s) => n(s.outputTps?.p50),
+    format: (v) => (v == null ? '—' : String(v < 10 ? v.toFixed(1) : Math.round(v))),
+    dist: (s) => s.outputTps,
+  },
+  {
+    id: 'tpot.p50',
+    group: 'speed',
+    sub: 'TPOT',
+    hint: '相邻输出 token 的间隔中位数',
+    value: (s) => n(s.tpot?.p50),
+    format: formatMs,
+    dist: (s) => s.tpot,
+  },
+  ...pct3('token', 'inputLen', formatCount),
 ];
 
-export const metricById = (id: string): MetricDef | undefined => METRICS.find((m) => m.id === id);
-
-/**
- * 分布类指标在样本不足时只给中位数（p90 / p99 / 平均值没有意义）：
- * 返回 null 表示这一格应显示「样本不足」。
- */
-export function guardedValue(m: MetricDef, s: QualityStats): number | null {
-  const v = m.value(s);
-  if (!m.dist) return v;
-  const d = m.dist(s);
-  if (d.n < MIN_SAMPLES && !m.id.endsWith('.p50')) return null;
-  return v;
+/** 分布列在样本不足时只给中位数（P95 / P99 没有意义）：返回 null 表示「样本不足」 */
+export function cellValue(c: Column, s: QualityStats): number | null {
+  const v = c.value(s);
+  if (!c.dist || c.id.endsWith('.p50') || !c.id.includes('.p')) return v;
+  return c.dist(s).n < MIN_SAMPLES ? null : v;
 }
 
-export const isSmallSample = (m: MetricDef, s: QualityStats): boolean =>
-  !!m.dist && m.dist(s).n < MIN_SAMPLES;
+/* --------------------------------- 与上一周期比 --------------------------------- */
 
 /**
- * 与上一周期比：返回带方向的变化（正 = 变好）与显示文本；任一边没有数据返回 null。
- * 比率类按百分点，其余按相对变化。
+ * 返回带方向的变化（正 = 变好）与显示文本；任一边没有数据返回 null。比率类按百分点，其余按相对变化。
  */
 export function changeOf(
-  m: MetricDef,
+  m: { higherIsBetter: boolean; rate: boolean },
   cur: number | null,
   prev: number | null,
 ): { better: boolean; worse: boolean; text: string } | null {
   if (cur == null || prev == null) return null;
-  const isRate = m.group === 'rate' || m.group === 'cache';
   const diff = cur - prev;
-  if (isRate) {
+  if (m.rate) {
     const pp = diff * 100;
     if (Math.abs(pp) < 0.05) return { better: false, worse: false, text: '±0' };
     const better = m.higherIsBetter ? pp > 0 : pp < 0;
@@ -301,7 +407,8 @@ export function changeOf(
   return { better, worse: !better, text: `${rel > 0 ? '+' : ''}${Math.round(rel)}%` };
 }
 
-/** 时间范围预设 */
+/* --------------------------------- 时间范围 --------------------------------- */
+
 export type RangeId = 'today' | '7d' | '30d' | 'custom';
 
 export function rangeOf(
@@ -318,12 +425,24 @@ export function rangeOf(
   return { from: today - (days - 1) * 86_400_000, to: now };
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
+const pad = (x: number) => String(x).padStart(2, '0');
 
 /** epoch ms → yyyy-mm-dd（日期输入框用） */
 export const toDateInput = (ts: number): string => {
   const d = new Date(ts);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+/** epoch ms → 10/24 16:30（统计区间） */
+export const formatStamp = (ts: number): string => {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** epoch ms → 10/24（区间芯片） */
+export const formatDay = (ts: number): string => {
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 };
 
 /** yyyy-mm-dd → 当天 0 点 / 23:59:59.999 的 epoch ms */
