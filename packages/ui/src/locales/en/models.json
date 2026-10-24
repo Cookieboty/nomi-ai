@@ -156,5 +156,10 @@
   "跟随默认账号": "Follow the default account",
   "未登录": "Not signed in",
   "生成标题、摘要、下一句提示等辅助请求用，通常选同一供应商里更便宜的模型": "Used for helper requests such as titles, summaries and next-prompt suggestions; usually a cheaper model from the same provider",
-  "{0} 的辅助模型（标题、摘要等）": "{0} helper model (titles, summaries, etc.)"
+  "{0} 的辅助模型（标题、摘要等）": "{0} helper model (titles, summaries, etc.)",
+  "Key 限流（留空表示不限；超出时排队，等不到就换下一个 Key）": "Key limits (leave blank for no limit; extra requests queue, then move to the next key)",
+  "并发": "Concurrent",
+  "每分钟": "Per minute",
+  "{0} 的并发上限": "{0} max concurrent requests",
+  "{0} 每分钟最多请求数": "{0} max requests per minute"
 }

@@ -50,6 +50,9 @@ export interface KeyView {
   enabled: boolean;
   lastError?: string;
   decryptable: boolean;
+  /** 并发上限 / 每分钟请求数（不设 = 不限） */
+  maxConcurrency?: number;
+  rpm?: number;
 }
 
 export interface ProviderView {
@@ -116,8 +119,18 @@ export interface ProviderInput {
     wire?: Wire;
     position?: number;
     enabled?: boolean;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
   }>;
-  keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
+  /** maxConcurrency / rpm：数字 = 设置，null = 清除，不传 = 不改 */
+  keys?: Array<{
+    id: string;
+    name?: string;
+    enabled: boolean;
+    wire?: Wire;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
+  }>;
   models?: GatewayModel[];
   /** modelMap / headers / fallback：传了就整体替换（[] / {} 清空）；userAgent 传空串清除 */
   modelMap?: Array<{ from: string; to: string }>;

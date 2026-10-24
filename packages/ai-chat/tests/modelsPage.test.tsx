@@ -616,6 +616,31 @@ describe('ModelsPage', () => {
     expect(payload.userAgent).toBe('nomi/1.1');
   });
 
+  it('per-key limits: only changed limits are sent; blank clears a saved limit', async () => {
+    const m = fakeMain();
+    m.state.providers = [
+      kimi({
+        keys: [
+          { id: 'k0', masked: 'sk-…aaaa', enabled: true, decryptable: true, rpm: 60 },
+          { id: 'k1', masked: 'sk-…bbbb', enabled: true, decryptable: true },
+        ],
+      }),
+    ];
+    render(<ModelsPage />);
+    fireEvent.click(await screen.findByTestId('provider-open-kimi'));
+    const dlg = detail();
+    fireEvent.click(within(dlg).getByTestId('pd-advanced-toggle'));
+    expect((within(dlg).getByTestId('pd-key-rpm-k0') as HTMLInputElement).value).toBe('60');
+    fireEvent.change(within(dlg).getByTestId('pd-key-rpm-k0'), { target: { value: '' } });
+    fireEvent.change(within(dlg).getByTestId('pd-key-conc-k1'), { target: { value: '2' } });
+    fireEvent.click(within(dlg).getByTestId('provider-detail-save'));
+    await waitFor(() => expect(upserts(m)).toHaveLength(1));
+    expect(upserts(m)[0]!.keys).toEqual([
+      { id: 'k0', enabled: true, rpm: null },
+      { id: 'k1', enabled: true, maxConcurrency: 2 },
+    ]);
+  });
+
   it('environment-variable providers are read-only', async () => {
     const m = fakeMain();
     m.state.providers = [

@@ -68,7 +68,17 @@ interface KeyDraft {
   value?: string;
   /** 已有 Key 正在更换成的新值（undefined = 没在更换；保存时在原位置换成新 Key，名称保留） */
   replace?: string;
+  /** 并发上限 / 每分钟请求数（输入框文本，留空 = 不限） */
+  maxConcurrency?: string;
+  rpm?: string;
 }
+
+/** 限流输入框 → 正整数；留空 / 非法 = null（不限） */
+export const limitOf = (s: string | undefined): number | null => {
+  const v = (s ?? '').trim();
+  const n = Number(v);
+  return v && Number.isInteger(n) && n > 0 && n <= 100_000 ? n : null;
+};
 
 /** 草稿里这个 Key 要写入的新明文：新增的 Key，或填了新值的「更换」 */
 const freshValue = (k: KeyDraft): string | undefined =>
@@ -93,7 +103,14 @@ interface Draft {
 
 const initDraft = (p: ProviderView): Draft => ({
   name: p.name,
-  keys: p.keys.map((k) => ({ id: k.id, name: k.name ?? '', enabled: k.enabled, wire: k.wire })),
+  keys: p.keys.map((k) => ({
+    id: k.id,
+    name: k.name ?? '',
+    enabled: k.enabled,
+    wire: k.wire,
+    maxConcurrency: k.maxConcurrency ? String(k.maxConcurrency) : '',
+    rpm: k.rpm ? String(k.rpm) : '',
+  })),
   models: p.models.map((m) => ({ ...m })),
   fallback: [...(p.fallback ?? [])],
   urls: Object.fromEntries(WIRES.map((w) => [w, p.urls[w] ?? ''])) as Record<Wire, string>,
@@ -114,6 +131,8 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
       enabled: k.enabled,
       ...(k.name.trim() ? { name: k.name.trim() } : {}),
       ...(k.wire ? { wire: k.wire } : {}),
+      ...(limitOf(k.maxConcurrency) ? { maxConcurrency: limitOf(k.maxConcurrency) } : {}),
+      ...(limitOf(k.rpm) ? { rpm: limitOf(k.rpm) } : {}),
     }));
   return {
     id: p.id,
@@ -131,6 +150,11 @@ export function buildPayload(p: ProviderView, d: Draft): ProviderInput {
         id: k.id,
         enabled: k.enabled,
         ...(k.wire ? { wire: k.wire } : {}),
+        // 限流只在改了时才带（null = 清除）
+        ...(limitOf(k.maxConcurrency) !== (orig.get(k.id)?.maxConcurrency ?? null)
+          ? { maxConcurrency: limitOf(k.maxConcurrency) }
+          : {}),
+        ...(limitOf(k.rpm) !== (orig.get(k.id)?.rpm ?? null) ? { rpm: limitOf(k.rpm) } : {}),
         // 名字留空就按顺序显示；原来有名字、现在清空时写空串
         ...(k.name.trim() || orig.get(k.id)?.name ? { name: k.name.trim() } : {}),
       })),
@@ -819,6 +843,51 @@ const ProviderDetail: React.FC<Props & { provider: ProviderView }> = ({
                                 }
                                 aria-label={t('{0} 限定的协议', label)}
                                 data-testid={`pd-key-wire-${k.id}`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {d.keys.length > 0 && (
+                      <div className={styles.advGroup}>
+                        <div className={styles.groupTitle}>
+                          {t('Key 限流（留空表示不限；超出时排队，等不到就换下一个 Key）')}
+                        </div>
+                        {d.keys.map((k, i) => {
+                          const label = keyName(
+                            { name: k.name || p.keys.find((x) => x.id === k.id)?.name },
+                            i,
+                          );
+                          return (
+                            <div key={k.id} className={styles.wireRow}>
+                              <span className={styles.keyName}>{label}</span>
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.limitInput}
+                                value={k.maxConcurrency ?? ''}
+                                onChange={(e) => setKey(i, { maxConcurrency: e.target.value })}
+                                placeholder={t('并发')}
+                                aria-label={t('{0} 的并发上限', label)}
+                                data-testid={`pd-key-conc-${k.id}`}
+                              />
+                              <Input
+                                size="sm"
+                                type="number"
+                                min={1}
+                                step={1}
+                                inputMode="numeric"
+                                className={styles.limitInput}
+                                value={k.rpm ?? ''}
+                                onChange={(e) => setKey(i, { rpm: e.target.value })}
+                                placeholder={t('每分钟')}
+                                aria-label={t('{0} 每分钟最多请求数', label)}
+                                data-testid={`pd-key-rpm-${k.id}`}
                               />
                             </div>
                           );

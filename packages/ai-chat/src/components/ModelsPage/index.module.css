@@ -655,6 +655,10 @@
   width: 150px;
 }
 
+.limitInput {
+  width: 96px;
+}
+
 .pairRow > :nth-child(1),
 .pairRow > :nth-child(3) {
   flex: 1;
