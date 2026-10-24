@@ -1,7 +1,7 @@
 /**
  * Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md）：
  * - 设置：总开关 + 按任务类型的默认编程助手（§4.7）；
- * - `/cli`：指定下一个需求交给哪个编程助手（§4.6）。渲染层先记在 nextDelegate 里（输入框上方的 chip），
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手（§4.6）。渲染层先记在 nextDelegate 里（输入框上方的 chip），
  *   发送时 consumeNextDelegate() 取出，经 `ai:delegate:pin` 钉到主进程，模型改不了。
  */
 import { t } from '@nomi-ai/ui';
@@ -61,7 +61,7 @@ const ALIASES: Record<string, DelegateCli> = {
   dsh: 'dsh',
 };
 
-/** `/cli` 后面的名字 → 编程助手 id（不区分大小写，接受别名）；认不出返回 null */
+/** `/agent` 后面的名字 → 编程助手 id（不区分大小写，接受别名）；认不出返回 null */
 export function resolveDelegateCli(name: string): DelegateCli | null {
   return ALIASES[name.trim().toLowerCase().replace(/\s+/g, '-')] ?? null;
 }

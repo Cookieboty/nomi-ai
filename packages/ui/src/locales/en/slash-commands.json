@@ -167,10 +167,12 @@
   "读取委派设置失败": "Couldn’t read the handoff settings",
   "「允许 Nomi 委派编程助手」已关闭，可在设置 →「编程助手」→「委派」里打开。": "“Let Nomi hand off tasks to coding assistants” is off. Turn it on in Settings → Coding assistants → Handoff.",
   "（没有已安装的编程助手）": "(no coding assistants installed)",
-  "用法：/cli codex 需求，或 /cli codex 后再输入需求；/cli off 取消。": "Usage: /cli codex <request>, or /cli codex and then type the request; /cli off to cancel.",
+  "用法：/agent codex 需求，或 /agent codex 后再输入需求；/agent off 取消。": "Usage: /agent codex <request>, or /agent codex and then type the request; /agent off to cancel.",
   "可用：{0}": "Available: {0}",
   "已取消指定，Nomi 会按设置选编程助手。": "Cleared. Nomi will pick a coding assistant from your settings.",
   "{0} 没有安装，可在设置 →「编程助手」里安装。": "{0} isn’t installed. You can install it in Settings → Coding assistants.",
-  "指定下一个需求交给哪个编程助手（如 /cli codex 修复登录 bug）": "Pick which coding assistant handles your next request (e.g. /cli codex fix the login bug)",
-  "名字 [需求]": "name [request]"
+  "指定下一个需求交给哪个编程助手（如 /agent codex 修复登录 bug）": "Pick which coding assistant handles your next request (e.g. /agent codex fix the login bug)",
+  "名字 [需求]": "name [request]",
+  "没有匹配的编程助手": "No matching coding agent",
+  "↑↓ 选择 · Enter / Tab 选用 · Esc 关闭": "↑↓ select · Enter / Tab choose · Esc close"
 }

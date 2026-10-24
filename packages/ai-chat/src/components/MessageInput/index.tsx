@@ -18,7 +18,7 @@ import {
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
 import { useNextDelegate } from '../../hooks/useNextDelegate';
-import { setNextDelegate } from '../../services/delegateClient';
+import { delegateClient, setNextDelegate, type DelegateCli } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
@@ -39,6 +39,7 @@ import {
   matchShortcut,
   useShortcutBindings,
 } from '../../services/shortcuts';
+import { agentArgQuery, filterAgents, type AgentOption } from '../../slash/agentComplete';
 import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
@@ -51,7 +52,7 @@ import { ErrorHint } from '../ErrorHint';
 import { ComposerChangesPill } from '../SessionWorkspace/ComposerChangesPill';
 import { ContextUsageBar } from '../SessionWorkspace/ContextUsageBar';
 import type { SettingsSection } from '../SettingsView/sections';
-import { SlashPalette } from '../SlashPalette';
+import { AgentPalette, SlashPalette } from '../SlashPalette';
 import { VoiceButtons, VoiceSettingsModal, VoiceStatusRow, useChatVoice } from '../VoiceInput';
 
 import { ImageLightbox } from './ImageLightbox';
@@ -130,6 +131,11 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const [slashIdx, setSlashIdx] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   const [isComposing, setIsComposing] = useState(false);
+  const [agentIdx, setAgentIdx] = useState(0);
+  /** 按 Esc 关掉助手列表时的输入；输入一变就重新出现 */
+  const [agentClosed, setAgentClosed] = useState<string | null>(null);
+  /** `/agent ` 补全用的已安装编程助手（委派设置里的检测结果）；null = 还没读到 */
+  const [agentInstalled, setAgentInstalled] = useState<DelegateCli[] | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // 列向 flex 里 flex:1 的基准高度是 0，行内 height 不生效，所以这里按内容写回，并封顶。
   useLayoutEffect(() => {
@@ -342,7 +348,38 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // 处理输入法组合状态
-    if (isComposing) return;
+    if (isComposing || e.nativeEvent.isComposing) return;
+
+    // `/agent ` 后选编程助手：↑↓ 选择，Enter / Tab 选用，Esc 关闭列表
+    if (agentOpen) {
+      const n = agentOptions.length;
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && n) {
+        e.preventDefault();
+        const d = e.key === 'ArrowDown' ? 1 : -1;
+        setAgentIdx((i) => (i + d + n) % n);
+        return;
+      }
+      const o = agentOptions[Math.min(agentIdx, n - 1)];
+      // 名字已经敲全（如 `/agent codex`）时 Enter 照常执行命令，不再拦下补全
+      const typed = (agentQuery ?? '').toLowerCase();
+      const exact = !!typed && agentOptions.some((x) => x.id === typed);
+      if ((e.key === 'Enter' && !e.shiftKey && !exact) || (e.key === 'Tab' && !e.shiftKey)) {
+        if (o?.installed) {
+          e.preventDefault();
+          pickAgent(o);
+          return;
+        }
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setAgentClosed(message);
+        return;
+      }
+    }
 
     // 斜杠命令：↑↓ 选择，Enter 执行（需要参数的先补全），Tab 补全，Esc 关闭
     if (slashOpen) {
@@ -410,6 +447,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
     setSlashIdx(0);
+    setAgentIdx(0);
     // 刚敲下 `/`：重新读一次项目 / 用户命令目录（文件可能刚被改过）
     if (e.target.value === '/') slash?.refresh();
   };
@@ -587,10 +625,32 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       ? slashQuery
       : undefined;
   const slashOpen = slashQuery !== null && (slashFlat.length > 0 || (!!slash && slashQuery !== ''));
+  const agentQuery = slash ? agentArgQuery(message, registry) : null;
+  const agentOptions = agentQuery === null ? [] : filterAgents(agentInstalled, agentQuery);
+  const agentOpen = agentQuery !== null && agentClosed !== message;
+  function pickAgent(o: AgentOption) {
+    const a = argPhase(message);
+    if (!a) return;
+    setMessage(`/${a.name} ${o.id} `);
+    setAgentIdx(0);
+    textareaRef.current?.focus();
+  }
+  const agentPhase = agentQuery !== null;
+  useEffect(() => {
+    if (!agentPhase || !delegateClient.available()) return;
+    let live = true;
+    void delegateClient
+      .settings()
+      .then((v) => live && setAgentInstalled(Array.isArray(v?.installed) ? v.installed : []))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [agentPhase]);
   const argState = slash ? argPhase(message) : null;
   const argCmd = argState ? findCommand(registry, argState.name) : null;
   // 命令名已定、正在输参数：显示参数提示
-  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args ? argCmd : null;
+  const argHint = argCmd?.args && !argCmd.disabled && !argState?.args && !agentOpen ? argCmd : null;
   function runCommand(c: Cmd | undefined) {
     if (!c) return;
     setMenuOpen(false);
@@ -691,6 +751,14 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
             {...(blockedSlash ? { blocked: blockedSlash } : {})}
             onPick={(c) => pickCommand(c, 'run')}
             onHover={setSlashIdx}
+          />
+        )}
+        {agentOpen && (
+          <AgentPalette
+            options={agentOptions}
+            active={Math.min(agentIdx, Math.max(0, agentOptions.length - 1))}
+            onPick={pickAgent}
+            onHover={setAgentIdx}
           />
         )}
         {argHint?.args && (

@@ -1,7 +1,7 @@
 /**
  * 设置 →「编程助手」→「委派」（docs/design/nomi-delegate-cli.md §4.7）：
  * 允许 Nomi 委派编程助手的总开关，以及按任务类型（编程开发 / PRD / 代码审查 / 调研分析）的默认编程助手。
- * 对话里可以用 `/cli 名字` 临时指定，优先于这里的默认。
+ * 对话里可以用 `/agent 名字` 临时指定，优先于这里的默认。
  */
 import { Select, SettingRow, SettingsGroup, Switch, t } from '@nomi-ai/ui';
 import React, { useEffect, useState } from 'react';
@@ -73,12 +73,12 @@ export const DelegateSettings: React.FC = () => {
       <SettingsGroup
         title={t('委派')}
         description={t(
-          'Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编程助手去做，做完把结果带回对话。对话里用 /cli 名字 可以临时指定交给谁。',
+          'Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编程助手去做，做完把结果带回对话。对话里用 /agent 名字 可以临时指定交给谁。',
         )}
       >
         <SettingRow
           title={t('允许 Nomi 委派编程助手')}
-          description={t('关闭后 Nomi 不会派出子任务，/cli 也不可用。')}
+          description={t('关闭后 Nomi 不会派出子任务，/agent 也不可用。')}
         >
           <Switch
             checked={s.enabled}
@@ -91,7 +91,7 @@ export const DelegateSettings: React.FC = () => {
       <SettingsGroup
         title={t('按任务类型的默认编程助手')}
         description={t(
-          '没有用 /cli 指定、也没有在消息里点名时，按这里选。「让 Nomi 选」时，Nomi 从已安装的编程助手里选。',
+          '没有用 /agent 指定、也没有在消息里点名时，按这里选。「让 Nomi 选」时，Nomi 从已安装的编程助手里选。',
         )}
       >
         {DELEGATE_KINDS.map((k) => (

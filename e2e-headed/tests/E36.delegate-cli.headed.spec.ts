@@ -27,7 +27,7 @@ import { safeRm } from '../fixtures/fsutil';
  *   目标含 PERMTASK 的一轮先请求权限，含 SLOWTASK 的一轮先等 20 秒（可被停止打断）；
  * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹看板娘确认）。
  * 覆盖：卡片显示与汇报、子任务在后台开标签（不抢焦点）、卡片内审批、单独停止后 Nomi 继续、
- * /cli codex 指定交给 Codex（输入栏 chip、用户消息上的标记）、助手模式下「查看」打开抽屉。
+ * /agent codex 指定交给 Codex（输入栏 chip、用户消息上的标记）、助手模式下「查看」打开抽屉。
  */
 const electronPkgDir = resolve(repoRoot(), 'packages', 'electron');
 const mainJs = resolve(electronPkgDir, 'dist', 'main.js');
@@ -212,7 +212,7 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
     safeRm(work);
   });
 
-  test('delegate, approve in the card, stop one subtask, /cli codex', async () => {
+  test('delegate, approve in the card, stop one subtask, /agent codex', async () => {
     test.setTimeout(240_000);
     test.skip(!existsSync(mainJs) || !existsSync(aiChatBuild), '需要先 pnpm build');
 
@@ -356,8 +356,8 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
         { timeout: 30_000 },
       );
 
-      // ── 4. /cli codex：输入栏 chip → 下一条交给 Codex，用户消息上有标记 ─────────
-      await send('/cli codex');
+      // ── 4. /agent codex：输入栏 chip → 下一条交给 Codex，用户消息上有标记 ─────────
+      await send('/agent codex');
       await expect(chat.getByTestId('next-delegate-chip')).toBeVisible({ timeout: 10_000 });
       await chat.screenshot({ path: join(shotDir, '05-cli-chip.png') });
       await send('DELEGATE 用 codex 做');

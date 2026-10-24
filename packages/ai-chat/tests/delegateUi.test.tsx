@@ -171,10 +171,10 @@ describe('子任务卡片', () => {
   });
 });
 
-describe('/cli 命令', () => {
-  const cli = () => nomiAdapter({} as never).find((c) => c.name === 'cli')!;
+describe('/agent 命令', () => {
+  const cli = () => nomiAdapter({} as never).find((c) => c.name === 'agent')!;
 
-  it('/cli codex 需求：指定交给 Codex 并立即发出；/cli codex：只挂 chip；/cli off 取消', async () => {
+  it('/agent codex 需求：指定交给 Codex 并立即发出；/agent codex：只挂 chip；/agent off 取消', async () => {
     mockIpc([]);
     expect(await cli().run('codex 修复登录 bug', {} as never)).toEqual({
       type: 'send',

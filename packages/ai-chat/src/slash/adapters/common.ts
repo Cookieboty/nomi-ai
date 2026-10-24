@@ -28,6 +28,7 @@ import type { SlashCommand, SlashContext, SlashKind, SlashOutcome, SlashSource }
 export interface CmdSpec {
   name: string;
   aliases?: string[];
+  hiddenAliases?: string[];
   label: string;
   description: string;
   source: SlashSource;
@@ -43,6 +44,7 @@ export function cmd(s: CmdSpec): SlashCommand {
     id: `${s.source}:${s.name}`,
     name: s.name,
     ...(s.aliases ? { aliases: s.aliases } : {}),
+    ...(s.hiddenAliases ? { hiddenAliases: s.hiddenAliases } : {}),
     label: s.label,
     description: s.description,
     source: s.source,

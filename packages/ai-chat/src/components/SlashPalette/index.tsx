@@ -5,10 +5,12 @@
 import { t } from '@nomi-ai/ui';
 import React, { useEffect, useRef } from 'react';
 
+import type { AgentOption } from '../../slash/agentComplete';
 import { kindLabel, sourceLabel } from '../../slash/cards';
 import type { SlashGroup } from '../../slash/registry';
 import type { SlashCommand } from '../../slash/types';
 import type { Range } from '../../utils/fuzzy';
+import { EndpointIcon } from '../EndpointIcon';
 
 import styles from './index.module.css';
 
@@ -101,6 +103,63 @@ export const SlashPalette: React.FC<Props> = ({
       ))}
       <div className={styles.foot} aria-hidden="true">
         {t('↑↓ 选择 · Enter 执行 · Tab 补全 · Esc 关闭')}
+      </div>
+    </div>
+  );
+};
+
+interface AgentProps {
+  options: readonly AgentOption[];
+  active: number;
+  onPick: (o: AgentOption) => void;
+  onHover: (i: number) => void;
+}
+
+/** `/agent ` 后的编程助手列表：沿用命令面板的样式；没安装的置灰、不可选 */
+export const AgentPalette: React.FC<AgentProps> = ({ options, active, onPick, onHover }) => {
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [active, options]);
+  return (
+    <div
+      className={styles.menu}
+      role="menu"
+      data-testid="slash-agent-menu"
+      aria-label={t('编程助手')}
+    >
+      <div className={styles.group}>{t('编程助手')}</div>
+      {options.length === 0 && (
+        <div className={styles.empty} data-testid="slash-agent-empty">
+          {t('没有匹配的编程助手')}
+        </div>
+      )}
+      {options.map((o, i) => {
+        const on = i === active;
+        return (
+          <button
+            key={o.id}
+            ref={on ? activeRef : undefined}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${on ? styles.on : ''}`}
+            data-testid={`slash-agent-${o.id}`}
+            aria-current={on ? 'true' : undefined}
+            disabled={!o.installed}
+            {...(o.installed ? {} : { 'data-disabled': 'true', 'aria-disabled': true })}
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseMove={() => !on && onHover(i)}
+            onClick={() => o.installed && onPick(o)}
+          >
+            <EndpointIcon backend={o.id} size={16} decorative />
+            <span className={styles.name}>{o.name}</span>
+            <span className={styles.desc}>{o.id}</span>
+            {!o.installed && <span className={styles.kind}>{t('未安装')}</span>}
+          </button>
+        );
+      })}
+      <div className={styles.foot} aria-hidden="true">
+        {t('↑↓ 选择 · Enter / Tab 选用 · Esc 关闭')}
       </div>
     </div>
   );

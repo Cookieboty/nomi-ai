@@ -128,6 +128,7 @@ export function findCommand(commands: readonly SlashCommand[], name: string): Sl
   return (
     commands.find((c) => c.name.toLowerCase() === n) ??
     commands.find((c) => c.aliases?.some((a) => a.toLowerCase() === n)) ??
+    commands.find((c) => c.hiddenAliases?.some((a) => a.toLowerCase() === n)) ??
     null
   );
 }

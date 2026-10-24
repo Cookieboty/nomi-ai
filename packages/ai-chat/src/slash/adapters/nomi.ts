@@ -16,10 +16,10 @@ import { cmd, nativeCommands, unsupportedCommands, U } from './common';
 const nameOf = (c: DelegateCli) => t(ENDPOINT_NAME[c]);
 
 /**
- * `/cli 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/design/nomi-delegate-cli.md §4.6）。
+ * `/agent 名字 [需求]`：指定下一个需求交给哪个编程助手（docs/design/nomi-delegate-cli.md §4.6）。
  * 带需求就立即发出；只有名字时在输入框上方挂一个「下一个需求交给 X」，下一条消息发出后自动取消。
  */
-async function runCli(raw: string): Promise<SlashOutcome> {
+async function runAgent(raw: string): Promise<SlashOutcome> {
   const card = (title: string, text: string, tone: 'info' | 'warn' = 'info', detail?: string) =>
     ({ type: 'card', card: notice(title, text, tone, detail ? { detail } : undefined) }) as const;
   const title = t('交给编程助手');
@@ -38,7 +38,7 @@ async function runCli(raw: string): Promise<SlashOutcome> {
   if (!first)
     return card(
       title,
-      t('用法：/cli codex 需求，或 /cli codex 后再输入需求；/cli off 取消。'),
+      t('用法：/agent codex 需求，或 /agent codex 后再输入需求；/agent off 取消。'),
       'info',
       t('可用：{0}', list),
     );
@@ -84,13 +84,15 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
   return [
     ...nativeCommands('nomi'),
     cmd({
-      name: 'cli',
+      name: 'agent',
+      // 旧名 /cli 仍可用，但不在面板和提示里出现
+      hiddenAliases: ['cli'],
       label: t('交给编程助手'),
-      description: t('指定下一个需求交给哪个编程助手（如 /cli codex 修复登录 bug）'),
+      description: t('指定下一个需求交给哪个编程助手（如 /agent codex 修复登录 bug）'),
       source: 'builtin',
       kind: 'native',
       hint: t('名字 [需求]'),
-      run: (a) => runCli(a),
+      run: (a) => runAgent(a),
     }),
     ...unsupportedCommands('nomi', [
       U.compact(() => t('Nomi 对话暂时没有「压缩上下文」功能。可以用 /clear 开新对话。')),
