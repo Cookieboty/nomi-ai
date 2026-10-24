@@ -23,7 +23,6 @@ import type { CliPlugin } from '@nomi-ai/cli-sdk';
 import { checkPlugin, type HistoryFixture } from '@nomi-ai/cli-sdk/testing';
 
 import { CliPluginHost, inRange } from '../../../src/cli/CliPluginHost';
-import { extendBuiltinPlugin } from '../../../src/cli/pluginExtensions';
 
 const FIXTURES = path.resolve(__dirname, '../../../../cli-plugins/fixtures/history');
 
@@ -52,7 +51,6 @@ describe('内置插件契约（主进程补上转录解析后）', () => {
       expect(fixtures.length).toBeGreaterThan(0);
       expect(
         await checkPlugin(plugin, {
-          extend: (impl) => extendBuiltinPlugin(id, impl),
           historyFixtures: fixtures,
         }),
       ).toEqual([]);

@@ -61,6 +61,8 @@ const MODEL_ARGS: Record<CliBackend, ModelArgs | undefined> = {
   dsh: argsOf(dsh),
   gemini: argsOf(gemini),
   grok: argsOf(grok),
+  // 外部 ACP CLI（L1）：没有模型覆盖参数，换模型按重启处理
+  external: undefined,
 };
 
 export function supportsModelOverride(backend: string): backend is CliBackend {

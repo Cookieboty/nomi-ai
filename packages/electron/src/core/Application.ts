@@ -34,7 +34,6 @@ import { initCliUpdateService } from '../cli/CliUpdateService';
 import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
 import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
-import { extendBuiltinPlugin } from '../cli/pluginExtensions';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import type { CliKind } from '../cli/types';
 import { getDesktopService } from '../desktop/DesktopService';
@@ -487,8 +486,6 @@ export class Application implements IApplication {
           const bin = await resolveCliBinAsync(id as CliKind).catch(() => null);
           return bin ? readVersionAsync(bin) : null;
         },
-        // 内置插件的转录解析仍在主进程，加载时挂到 history.parse 上
-        extend: extendBuiltinPlugin,
         // 运行中 CLI 换了版本（应用内或终端里升级）：空闲时用新版本重启续接
         onVersionChange: (id) => {
           if (isBuiltinCliId(id)) harness.restartForUpgrade(id);

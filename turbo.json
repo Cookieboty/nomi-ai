@@ -132,6 +132,20 @@
     "package:debug": {
       "cache": false,
       "dependsOn": ["build"]
+    },
+    "@nomi-ai/gateway#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "$TURBO_ROOT$/packages/cli-plugins/src/gateways.ts",
+        "$TURBO_ROOT$/packages/cli-plugins/src/**",
+        "$TURBO_ROOT$/packages/ai-runtime/src/providers/presets.ts"
+      ]
     }
   }
 }
