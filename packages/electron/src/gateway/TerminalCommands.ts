@@ -3,7 +3,7 @@
  * 打开后在 `~/.nomi/bin/` 生成 nomi-claude / nomi-codex / nomi-gemini / nomi-grok / nomi-dsh
  * （Windows 为 .cmd / .ps1）：先查网关 /health，再按 §12.1–§12.4 设好环境变量和参数，启动真正的 CLI。
  * - 注入内容和 Nomi 启动的第三方会话同源（agents/index.ts 的 agentLaunch），生成脚本时静态写入；
- * - 令牌不写进脚本，运行时从 userData/gateway/tokens/<cli> 读取。这些文件是明文（0600，shell 要能读），
+ * - 令牌不写进脚本，运行时从 userData/gateway/tokens/<cli> 读取。这些文件是明文（POSIX 0600；Windows 另收紧 ACL，shell 要能读），
  *   只在开启时存在，关闭时删除；取舍见 §15（令牌只能访问本机回环地址上的网关，可随时「重置令牌」）；
  * - 只有用户确认后才在 shell 配置文件里加一段带标记的 PATH，关闭时删掉这一段，不碰其它内容；
  *   Windows 只在确认后修改用户 PATH，关闭时只删除 Nomi 添加的项；
@@ -18,7 +18,7 @@ import type { ClientModels } from '@nomi-ai/gateway';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { shQuote } from '../security/shellEscape';
-import { writePrivateFile } from '../utils/privateFile';
+import { ensurePrivateDir, writePrivateFile } from '../utils/privateFile';
 
 import { agentLaunch, type AgentKind, type AgentLaunch, type ModelMeta } from './agents';
 import type { GatewayService } from './GatewayService';
@@ -419,7 +419,7 @@ export class TerminalCommands {
     const src = this.d.source();
     if (!src) return;
     fs.mkdirSync(this.binDir, { recursive: true });
-    fs.mkdirSync(this.tokenDir, { recursive: true, mode: 0o700 });
+    ensurePrivateDir(this.tokenDir);
     fs.mkdirSync(this.workDir, { recursive: true, mode: 0o700 });
     if (this.platform === 'win32')
       writeIfChanged(path.join(this.binDir, 'nomi-runner.cjs'), buildWindowsRunner(), 0o600);
