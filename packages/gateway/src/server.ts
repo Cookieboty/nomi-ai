@@ -39,7 +39,7 @@ import { readIntent } from './intent';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { limitsOf, Limiter } from './limits';
-import { GatewayMetrics } from './metrics';
+import { adaptiveRouteEnabled, GatewayMetrics } from './metrics';
 import { modelsBody } from './models';
 import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
@@ -580,14 +580,34 @@ export class GatewayServer {
       this.metrics.observe({
         client: event.client,
         ingress: event.ingress,
-        ...(event.wire ? { upstream: event.wire } : {}),
+        ...(event.wire ? { upstream: event.wire, upstreamWire: event.wire } : {}),
         ...(event.routeQuality ? { routeQuality: event.routeQuality } : {}),
         ...(event.losses?.length ? { losses: event.losses } : {}),
         e2eMs: event.timing.endMs,
         ...(event.timing.firstContentMs !== undefined
           ? { ttftMs: event.timing.firstContentMs }
           : {}),
+        ...(event.provider ? { provider: event.provider } : {}),
+        ...(event.keyId ? { keyId: event.keyId } : {}),
+        ...(event.outcome ? { outcome: event.outcome } : {}),
       });
+      // A2：失败尝试也记健康样本（胜出那条已在 observe 里记过，这里跳过同 key 的最后一次 ok 避免双计）
+      for (const a of event.attemptsDetail) {
+        if (!a.provider || !a.keyId || !a.upstreamWire) continue;
+        const isWinner =
+          event.provider === a.provider &&
+          event.keyId === a.keyId &&
+          event.wire === a.upstreamWire &&
+          a.outcome === event.outcome;
+        if (isWinner) continue;
+        this.metrics.recordHealth({
+          provider: a.provider,
+          keyId: a.keyId,
+          wire: a.upstreamWire,
+          ok: a.outcome === 'ok',
+          authLimited: a.outcome === 'auth' || a.outcome === 'rate-limit',
+        });
+      }
       this.hooks.onUsage?.(event);
     };
     /** 请求没走到任何候选就结束（请求体 / 模型解析失败）：只有结果与状态码 */
@@ -1052,7 +1072,8 @@ export class GatewayServer {
 
   /**
    * 冷却中的 (供应商, Key, wire) 排到队尾（没有别的可用时照样尝试，§11.1）；
-   * 会话上次成功的 (供应商, Key) 不在冷却期就排到第一（§11.2）。其余保持原顺序。
+   * A2 健康降权的候选紧挨冷却之前（仍可试，只是靠后；NOMI_ADAPTIVE_ROUTE=0 关闭）；
+   * 会话上次成功的 (供应商, Key) 不在冷却/降权期就排到第一（§11.2）。其余保持原顺序。
    */
   private ordered(
     cands: Candidate[],
@@ -1060,14 +1081,18 @@ export class GatewayServer {
   ): Candidate[] {
     const first: Candidate[] = [];
     const rest: Candidate[] = [];
+    const demoted: Candidate[] = [];
     const cooling: Candidate[] = [];
+    const adaptive = adaptiveRouteEnabled();
     for (const c of cands) {
       if (this.cooldowns.isCooling(c)) cooling.push(c);
+      else if (adaptive && this.metrics.shouldDemote(c.provider.id, c.key.id, c.wire))
+        demoted.push(c);
       else if (sticky && c.provider.id === sticky.providerId && c.key.id === sticky.keyId)
         first.push(c);
       else rest.push(c);
     }
-    return [...first, ...rest, ...cooling];
+    return [...first, ...rest, ...demoted, ...cooling];
   }
 
   /** 一次上游尝试；拿到 2xx 响应头就算成功（之后不再换候选） */

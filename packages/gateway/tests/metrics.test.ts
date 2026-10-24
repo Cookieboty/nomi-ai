@@ -15,6 +15,7 @@ describe('GatewayMetrics', () => {
       byRouteQuality: {},
       byLoss: {},
       byClientIngressUpstream: [],
+      demotionsActive: 0,
     });
   });
 
@@ -138,5 +139,139 @@ describe('GatewayMetrics', () => {
     expect(KNOWN_LOSSES).toContain('signature');
     expect(KNOWN_LOSSES).toContain('sealed-reasoning');
     expect(KNOWN_LOSSES.length).toBe(8);
+  });
+});
+
+describe('GatewayMetrics A2 adaptive demotion', () => {
+  const key = { provider: 'p', keyId: 'k1', upstreamWire: 'chat' as const };
+
+  it('样本不足 MIN 不降权', () => {
+    const m = new GatewayMetrics({ now: () => 1000 });
+    for (let i = 0; i < 9; i++) {
+      m.observe({
+        client: 'c',
+        ingress: 'chat',
+        ...key,
+        upstream: 'chat',
+        outcome: 'upstream-5xx',
+        routeQuality: 'good',
+      });
+    }
+    expect(m.shouldDemote('p', 'k1', 'chat')).toBe(false);
+    expect(m.snapshot().demotionsActive).toBe(0);
+  });
+
+  it('成功率过低 → 降权；成功清除', () => {
+    let t = 1_000;
+    const m = new GatewayMetrics({
+      now: () => t,
+      adaptive: { minSamples: 10, successFloor: 0.5, demoteMs: 60_000 },
+    });
+    for (let i = 0; i < 10; i++) {
+      m.observe({
+        client: 'c',
+        ingress: 'chat',
+        provider: 'p',
+        keyId: 'k1',
+        upstream: 'chat',
+        upstreamWire: 'chat',
+        outcome: i < 2 ? 'ok' : 'upstream-5xx',
+        routeQuality: 'good',
+      });
+    }
+    expect(m.shouldDemote('p', 'k1', 'chat')).toBe(true);
+    expect(m.demoteHint('p', 'k1', 'chat').reason).toMatch(/successRate/);
+    expect(m.snapshot().demotionsActive).toBe(1);
+
+    m.observe({
+      client: 'c',
+      ingress: 'chat',
+      provider: 'p',
+      keyId: 'k1',
+      upstream: 'chat',
+      upstreamWire: 'chat',
+      outcome: 'ok',
+      routeQuality: 'lossless',
+    });
+    expect(m.shouldDemote('p', 'k1', 'chat')).toBe(false);
+    expect(m.snapshot().demotionsActive).toBe(0);
+
+    // 到期后也不再降权
+    for (let i = 0; i < 10; i++) {
+      m.observe({
+        client: 'c',
+        ingress: 'chat',
+        provider: 'p',
+        keyId: 'k2',
+        upstream: 'chat',
+        upstreamWire: 'chat',
+        outcome: 'upstream-5xx',
+        routeQuality: 'good',
+      });
+    }
+    expect(m.shouldDemote('p', 'k2', 'chat')).toBe(true);
+    t += 60_001;
+    expect(m.shouldDemote('p', 'k2', 'chat')).toBe(false);
+  });
+
+  it('degraded 占比过高 → 降权', () => {
+    const m = new GatewayMetrics({
+      now: () => 1,
+      adaptive: { minSamples: 10, degradedCeil: 0.4 },
+    });
+    // 末尾不能是「纯成功」——单次成功会清除降权（与 Cooldowns.success 同哲学）
+    for (let i = 0; i < 10; i++) {
+      m.observe({
+        client: 'c',
+        ingress: 'chat',
+        provider: 'p',
+        keyId: 'kd',
+        upstream: 'messages',
+        upstreamWire: 'messages',
+        outcome: i < 5 ? 'ok' : 'upstream-5xx',
+        routeQuality: i < 5 ? 'degraded' : 'good',
+      });
+    }
+    expect(m.shouldDemote('p', 'kd', 'messages')).toBe(true);
+    expect(m.demoteHint('p', 'kd', 'messages').reason).toMatch(/degradedShare/);
+  });
+
+  it('NOMI_ADAPTIVE_ROUTE=0 关闭排序降权', () => {
+    const prev = process.env.NOMI_ADAPTIVE_ROUTE;
+    process.env.NOMI_ADAPTIVE_ROUTE = '0';
+    try {
+      const m = new GatewayMetrics({ now: () => 1, adaptive: { minSamples: 10 } });
+      for (let i = 0; i < 10; i++) {
+        m.observe({
+          client: 'c',
+          ingress: 'chat',
+          provider: 'p',
+          keyId: 'k0',
+          upstream: 'chat',
+          upstreamWire: 'chat',
+          outcome: 'upstream-5xx',
+        });
+      }
+      // 内部仍可记 demoteUntil，但 shouldDemote 对外关闭
+      expect(m.shouldDemote('p', 'k0', 'chat')).toBe(false);
+    } finally {
+      if (prev === undefined) delete process.env.NOMI_ADAPTIVE_ROUTE;
+      else process.env.NOMI_ADAPTIVE_ROUTE = prev;
+    }
+  });
+
+  it('recordHealth：auth 占比触发降权', () => {
+    const m = new GatewayMetrics({ now: () => 1, adaptive: { minSamples: 10 } });
+    for (let i = 0; i < 10; i++) {
+      m.recordHealth({
+        provider: 'p',
+        keyId: 'ka',
+        wire: 'chat',
+        ok: false,
+        authLimited: i < 3,
+      });
+    }
+    expect(m.shouldDemote('p', 'ka', 'chat')).toBe(true);
+    expect(m.demoteHint('p', 'ka', 'chat').reason).toMatch(/auth/);
   });
 });

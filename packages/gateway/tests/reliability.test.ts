@@ -133,7 +133,7 @@ async function setup(script: Script, hooks: Parameters<typeof createGateway>[1] 
     await r.text();
     return up.seen.slice(from).map((s) => s.key);
   };
-  return { up, clock, usage, status, chat, claude, keysOf };
+  return { up, clock, usage, status, chat, claude, keysOf, gw };
 }
 
 describe('cooldown (§11.1)', () => {
@@ -457,5 +457,51 @@ describe('non-stream first-byte timeout (thinking models)', () => {
     const r = await chat({ stream: false });
     expect(r.status).toBeGreaterThanOrEqual(500);
     expect(await r.text()).toContain('首字节前超时');
+  });
+});
+
+describe('A2 adaptive demotion (metrics → ordered)', () => {
+  it('seeds unhealthy (provider,key,wire) to the tail; success clears', async () => {
+    const t = await setup((s, res) =>
+      s.key === 'k1' || s.key === 'k2' ? ok(res) : err(res, 500, 'x'),
+    );
+    for (let i = 0; i < 10; i++) {
+      t.gw.metrics.recordHealth({
+        provider: 'zp',
+        keyId: 'k1',
+        wire: 'chat',
+        ok: false,
+      });
+    }
+    expect(t.gw.metrics.shouldDemote('zp', 'k1', 'chat')).toBe(true);
+    // k1 降权：先打 k2
+    expect(await t.keysOf(t.chat())).toEqual(['k2']);
+    expect(t.gw.metrics.snapshot().demotionsActive).toBeGreaterThanOrEqual(0);
+
+    // k2 成功后，再喂 k1 成功 → 清除降权，下一轮可再从 k1 起
+    t.gw.metrics.recordHealth({ provider: 'zp', keyId: 'k1', wire: 'chat', ok: true });
+    expect(t.gw.metrics.shouldDemote('zp', 'k1', 'chat')).toBe(false);
+    expect(await t.keysOf(t.chat())).toEqual(['k1']);
+  });
+
+  it('NOMI_ADAPTIVE_ROUTE=0 不改候选顺序', async () => {
+    const prev = process.env.NOMI_ADAPTIVE_ROUTE;
+    process.env.NOMI_ADAPTIVE_ROUTE = '0';
+    try {
+      const t = await setup((_s, res) => ok(res));
+      for (let i = 0; i < 10; i++) {
+        t.gw.metrics.recordHealth({
+          provider: 'zp',
+          keyId: 'k1',
+          wire: 'chat',
+          ok: false,
+        });
+      }
+      expect(t.gw.metrics.shouldDemote('zp', 'k1', 'chat')).toBe(false);
+      expect(await t.keysOf(t.chat())).toEqual(['k1']);
+    } finally {
+      if (prev === undefined) delete process.env.NOMI_ADAPTIVE_ROUTE;
+      else process.env.NOMI_ADAPTIVE_ROUTE = prev;
+    }
   });
 });

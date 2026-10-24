@@ -788,6 +788,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 - 回退与冷却：`src/cooldown.ts`，按 (供应商, Key, wire) 冷却，429 / 5xx / 超时 / 连接失败 60 秒或 `min(Retry-After, 10 分钟)`，401 / 403 10 分钟；冷却中的候选排到队尾仍可用，成功清除。最终错误原样转发上游的 `Retry-After`。模型在某个供应商「不存在」（404）时跳过它的其它 Key，直接试回退的供应商。
 - Key 状态：网关经 `{type:'key-status'}` 报鉴权失败 / 限流 / 恢复，主进程把原因写在 Key 的 `lastError` 上（「模型」页标红），恢复后清掉，只落盘不重推配置。
+- A2 自适应降权：`metrics.ts` 按 (供应商, Key, wire) 滚动健康样本；样本足够且成功率过低 / degraded 过高 / 近期 auth·限流多时排到冷却之前的队尾（仍可试，不删 Key）；成功清除；`NOMI_ADAPTIVE_ROUTE=0` 关闭。
 - 缓存亲和：`src/affinity.ts`，会话键与 count_tokens 校准共用一套规则（`sessionKey`）。
 - 会话归属表：`src/sessions.ts`，网关进程自己读写 `userData/gateway/sessions.json`（路径随配置下发），只认 CLI 给的会话标识，不用内容哈希。同协议透传时按它决定保留还是剥掉历史里的加密推理和签名（`src/reasoning.ts`）；带着保留的推理被以推理特征拒绝时剥掉重试一次并标为不再保留。
 - §11.3：Chat 流修正（同协议透传改为按事件处理，没触发修正的事件字节不变）、正文里写出的工具调用（`<tool_call>`、GLM `arg_key`、DSML）、复读检测（流式）、custom tool 被拒后转函数工具重试并学习、Chat 上游的工具名映射（按原名确定性映射，回程还原）。每个修正都有 `quirks.fixes.*` 开关，默认开；用到的修正记进用量的 `notes`。

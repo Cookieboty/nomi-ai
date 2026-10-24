@@ -230,3 +230,4 @@ interface AttemptRecord {
 - **CSV**：请求明细一次最多导出 1000 条。
 - **网关包不依赖 `@nomi-ai/types`**：结果类别、时间点、尝试记录在网关里按契约另写一份，electron 测试在编译期核对两份一致。
 - **RoutePlan → 质量账本与实时指标**：`UsageEvent` / `QualityRecord` 增加 `losses`、`routeQuality`（避开与 `outcome` 撞名）；主进程维度 `routeQuality` 与 `loss`（`loss` = `losses[0]` 主损失，避免组合键爆炸；完整 `losses[]` 仍落盘）。网关进程另提供 `GET /metrics`（与 `/health` 同 Host 校验、无需令牌）：进程内有界计数 + 分位数水库，按 routeQuality / loss / (client, ingress, upstream, routeQuality) 给出实时快照，重启清零。
+- **A2 自适应降权（克制）**：`observe` 额外记 `(provider, keyId, upstreamWire)` 滚动健康样本；样本 ≥10 且成功率过低 / degraded 占比过高 / 近期 auth·限流占比高时，将该候选排到冷却之前的队尾（仍可试，不删 Key）。成功观察清除降权；`NOMI_ADAPTIVE_ROUTE=0` 关闭。`GET /metrics` 含 `demotionsActive`。Key 页已有的 `lastError`（keyStatus）足够，无新设置页。
