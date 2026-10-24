@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/h"
+
+# Git LFS
+command -v git-lfs >/dev/null 2>&1 && git lfs pre-push "$@"

@@ -18,3 +18,9 @@
 
 # husky hooks 保留可执行
 .husky/*  text eol=lf
+
+# Git LFS — large Rive / mascot source assets (no history rewrite)
+*.riv filter=lfs diff=lfs merge=lfs -text
+*.rml filter=lfs diff=lfs merge=lfs -text
+rive/**/*.png filter=lfs diff=lfs merge=lfs -text
+rive/**/*.svg filter=lfs diff=lfs merge=lfs -text
