@@ -4,6 +4,8 @@ import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
 
+import { clearModelSwitch, noteModelSwitch } from './modelSwitchTip';
+
 export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
 
 export interface HarnessState {
@@ -94,6 +96,8 @@ export interface HarnessTabMessage {
   textBreaks?: number[];
   durationMs?: number;
   usage?: HarnessUsage;
+  /** 产生这条助手消息的模型（主进程在一轮结束时记下；旧消息没有） */
+  model?: string;
   stopped?: true;
   /** CLI 自发的一轮（后台子代理完成后主代理的跟进） */
   origin?: 'background';
@@ -402,11 +406,18 @@ export const harnessClient = {
     call<BackendModelCatalog | null>('model-catalog', backend, opts),
   /** 切换标签来源；第三方时 model 是网关的 `供应商/模型`（省略 = 这个 CLI 分配的默认模型） */
   setTabSource: (id: string, source: TabSource, model?: string) =>
-    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])),
+    call<HarnessTabMeta>('tab-source', id, source, ...(model ? [model] : [])).then((tab) => {
+      // 换来源同时选了模型：同样是会话中途换模型
+      if (model) noteModelSwitch(id, model);
+      return tab;
+    }),
   /** 设置标签模型覆盖；传空串清除（沿用 CLI 默认模型），非推理模型会同步清除思考深度 */
   /** expectSource：选模型时看到的目录来源；主进程发现标签来源已变就拒绝（#83） */
   setTabModel: (id: string, model: string, opts: { expectSource?: TabSource } = {}) =>
-    call<HarnessTabMeta>('tab-model', id, model, opts),
+    call<HarnessTabMeta>('tab-model', id, model, opts).then((tab) => {
+      noteModelSwitch(id, model);
+      return tab;
+    }),
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
     call<HarnessTabMeta>('tab-effort', id, effort),
@@ -423,8 +434,10 @@ export const harnessClient = {
   recentCwds: () => call<string[]>('recent-cwds'),
   pickTabCwd: (id: string) => call<HarnessTabMeta>('tab-pick-cwd', id),
   tabMessages: (id: string) => call<HarnessTabMessage[]>('tab-messages', id),
-  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) =>
-    call<HarnessSendResult>('tab-send', id, prompt, images),
+  sendTab: (id: string, prompt: string, images?: HarnessImageInput[]) => {
+    clearModelSwitch(id);
+    return call<HarnessSendResult>('tab-send', id, prompt, images);
+  },
   cancelTab: (id: string) => call<boolean>('tab-cancel', id),
   /** 单独停止一个后台子代理（Claude stop_task）；不支持时返回 false */
   stopAgent: (tabId: string, agentId: string) => call<boolean>('stop-agent', tabId, agentId),

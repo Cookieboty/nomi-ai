@@ -122,6 +122,11 @@ export interface HarnessTabMessage {
   durationMs?: number;
   /** 本轮用量（CLI 上报时才有） */
   usage?: HarnessUsage;
+  /**
+   * 产生这条助手消息的模型（展示在消息上）。第三方 = 网关模型 `供应商/模型`；
+   * 官方 = CLI 上报的实际模型，没报时取标签选的模型或 CLI 目录里的默认模型；都不知道时没有
+   */
+  model?: string;
   /** 被用户中断 */
   stopped?: true;
   /** CLI 在没有用户消息的情况下自发的一轮（后台子代理完成后主代理的跟进） */

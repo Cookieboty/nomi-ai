@@ -70,7 +70,8 @@ import { notifyConversationsChanged } from './services/conversationStore';
 import { desktopClient } from './services/desktopClient';
 import { forkCrossBackend, forkSameBackend } from './services/forkConversation';
 import { harnessClient, type ContextBreakdown } from './services/harnessClient';
-import { watchNomiModel } from './services/nomiModel';
+import { derivedSwitchTip } from './services/modelSwitchTip';
+import { nomiModelLabel, useGatewayState, watchNomiModel } from './services/nomiModel';
 import { providerClient } from './services/providerClient';
 import { screenClient, type ImageAttachment, type ScreenState } from './services/screenClient';
 import {
@@ -115,7 +116,14 @@ const NomiConversation: React.FC<Omit<React.ComponentProps<typeof ConversationVi
   props,
 ) => {
   const live = useAiChatSelector(selectNomiLive, sameLive);
-  return <ConversationView {...props} live={live} />;
+  // 换了 Nomi 的模型、还没发送：和最后一条助手消息的模型比（网关状态变化时重算）
+  useGatewayState();
+  const current = nomiModelLabel();
+  const modelSwitchTip = useMemo(
+    () => derivedSwitchTip(props.messages, current),
+    [props.messages, current],
+  );
+  return <ConversationView {...props} live={live} modelSwitchTip={modelSwitchTip} />;
 };
 
 const FILES_RAIL_W_KEY = 'nomi.filesRailWidth';

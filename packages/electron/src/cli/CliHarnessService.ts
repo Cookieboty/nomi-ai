@@ -1424,6 +1424,21 @@ export class HarnessOrchestrator {
     return m && m.vision !== undefined ? { model: m.label ?? m.id, vision: m.vision } : null;
   }
 
+  /**
+   * 这一轮消息上展示的模型（发送时调用，固定住来源与选择）：
+   * 第三方 = 这一轮发给网关的模型 `供应商/模型`（CLI 报的可能是占位名，不用）；
+   * 官方 = CLI 上报的实际模型 → 标签选的模型 → CLI 目录里的默认模型；都不知道时 undefined
+   */
+  private turnModelResolver(
+    tab: HarnessTabMeta,
+  ): (events: readonly HarnessEvent[], usage?: HarnessUsage) => string | undefined {
+    if (tab.backend === 'nomi') return () => undefined;
+    const picked = this.effectiveOverrides(tab).model ?? undefined;
+    if (this.sourceOf(tab) === 'thirdParty') return () => picked;
+    const fallback = picked ?? this.cachedCatalog(tab.backend)?.defaultModel?.id;
+    return (events, usage) => usage?.model ?? reportedModel(events) ?? fallback;
+  }
+
   /** 已缓存的模型目录（不触发读取；没有时校验放宽，由 CLI 自己报错） */
   private cachedCatalog(backend: HarnessBackend): BackendModelCatalog | null {
     return this.modelCatalogs.get(backend)?.catalog ?? null;
@@ -2088,6 +2103,8 @@ export class HarnessOrchestrator {
       this.adoptScope(tab);
       this.changed();
     }
+    // 这一轮用的模型（展示在助手消息上）：发送时定下，进行中换模型只影响下一轮
+    const modelOf = this.turnModelResolver(tab);
     const thumbs = normalized.length ? imageThumbsForMessage(normalized) : undefined;
     this.appendMessage(id, {
       id: randomUUID(),
@@ -2176,6 +2193,7 @@ export class HarnessOrchestrator {
         content: result.text,
         timestamp: Date.now(),
         durationMs,
+        ...withModel(modelOf(result.events, usage)),
         ...(usage ? { usage } : {}),
         ...(tools.length ? { tools } : {}),
         ...(trace.length ? { trace } : {}),
@@ -2200,6 +2218,7 @@ export class HarnessOrchestrator {
             timestamp: Date.now(),
             durationMs,
             stopped: true,
+            ...withModel(modelOf(part?.events ?? [], part?.context)),
             ...(trace.length ? { trace } : {}),
             ...(part?.breaks.length ? { textBreaks: part.breaks } : {}),
             ...(part?.context ? { usage: part.context } : {}),
@@ -2221,6 +2240,7 @@ export class HarnessOrchestrator {
             timestamp: Date.now(),
             error: true,
             durationMs,
+            ...withModel(modelOf(part?.events ?? [], part?.context)),
             ...(part?.context ? { usage: part.context } : {}),
             // Gemini 不信任这个文件夹：界面在错误卡片上提供「信任此文件夹」
             ...(e instanceof GeminiUntrustedError
@@ -3115,6 +3135,7 @@ export class HarnessOrchestrator {
       timestamp: Date.now(),
       durationMs: Date.now() - auto.startedAt,
       origin: 'background',
+      ...withModel(this.turnModelResolver(tab)(auto.events, usage)),
       ...(error ? { error: true as const } : {}),
       ...(stopped ? { stopped: true as const } : {}),
       ...(usage ? { usage } : {}),
@@ -4608,7 +4629,22 @@ function seedExtras(m: HarnessTabMessage): Partial<HarnessTabMessage> {
     ...(typeof m.durationMs === 'number' ? { durationMs: m.durationMs } : {}),
     ...(m.usage && typeof m.usage === 'object' ? { usage: m.usage } : {}),
     ...(m.stopped ? { stopped: true as const } : {}),
+    ...withModel(m.model),
   };
+}
+
+/** 消息上的模型字段：只收非空字符串 */
+function withModel(model: unknown): { model?: string } {
+  return typeof model === 'string' && model.trim() ? { model: model.trim().slice(0, 200) } : {};
+}
+
+/** 一轮里 CLI 最后一次报告的模型（context 事件，如 Claude assistant.message.model） */
+function reportedModel(events: readonly HarnessEvent[]): string | undefined {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const e = events[i]!;
+    if (e.type === 'context' && e.model) return e.model;
+  }
+  return undefined;
 }
 
 /** 对外名字不变：编排层的类就是 HarnessOrchestrator */

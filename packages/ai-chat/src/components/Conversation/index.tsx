@@ -5,7 +5,7 @@
  * 消息操作：复制 / 重新生成 / 编辑重发 / 停止；排队中的待发消息。
  */
 import { Icon, t } from '@nomi-ai/ui';
-import { ArrowDown, ChevronsUp, Layers, ShieldAlert, X } from 'lucide-react';
+import { ArrowDown, ArrowLeftRight, ChevronsUp, Layers, ShieldAlert, X } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import type { SlashCard } from '../../slash/types';
@@ -319,6 +319,11 @@ export interface ConversationViewProps {
   onDismissCard?: (id: string) => void;
   /** 编程助手进程因空闲被回收：显示提示，发送下一条消息会自动续接 */
   dormant?: boolean;
+  /**
+   * 会话中途换了模型、还没发送下一条消息：切换后的模型名（空串 = 默认模型），显示一条弱提示。
+   * 由来源决定（编程助手标签看切换记录，Nomi 对话比较最后一条助手消息的模型）
+   */
+  modelSwitchTip?: string | null;
   /** 仍在运行的后台子代理（跨轮次）与后台任务总数（docs/design/cli-subagents.md §5） */
   backgroundAgents?: ReadonlyArray<{
     id: string;
@@ -343,6 +348,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
   cards,
   onDismissCard,
   dormant,
+  modelSwitchTip,
   backgroundAgents,
   backgroundCount,
   onStopAgent,
@@ -582,6 +588,22 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
               </div>
             ))}
             <BackgroundBar agents={backgroundAgents} count={backgroundCount} onStop={onStopAgent} />
+            {modelSwitchTip != null && !running && (
+              <div
+                className={styles.modelTip}
+                data-testid="conv-model-switch-tip"
+                role="note"
+                aria-live="polite"
+              >
+                <Icon icon={ArrowLeftRight} size={12} />
+                <span>
+                  {t(
+                    '已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。',
+                    modelSwitchTip || t('默认模型'),
+                  )}
+                </span>
+              </div>
+            )}
             {dormant && !running && (
               <div className={styles.dormant} data-testid="conv-dormant" role="status">
                 {t('编程助手进程空闲已休眠，发送下一条消息会自动续接会话')}
