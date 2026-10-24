@@ -14,7 +14,7 @@ import {
   llmProvidersFromEnv,
   migrateStoreData,
 } from '@nomi-ai/ai-runtime';
-import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
@@ -27,6 +27,7 @@ import { registerChatAssetProtocol } from '../chat/assetProtocol';
 import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
+import { ACCOUNT_KINDS, type AccountKind } from '../cli/accounts/types';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliPluginHost } from '../cli/CliPluginHost';
 import { initCliUpdateService } from '../cli/CliUpdateService';
@@ -713,7 +714,8 @@ export class Application implements IApplication {
         },
         // Nomi 启动时记下的账号；只有一个账号时不标注
         sessionAccount: (backend, sessionId) => {
-          if (!BUILTIN_MANIFESTS[backend].capabilities.officialAccount) return undefined;
+          // 没有官方账号的 CLI（dsh）不记会话归属
+          if (!isAccountKind(backend)) return undefined;
           const a = accounts.sessionAccount(backend, sessionId);
           if (!a) return undefined;
           return accounts.list(backend).length > 1 ? a : { id: a.id };
@@ -1236,4 +1238,9 @@ export class Application implements IApplication {
       },
     };
   }
+}
+
+/** 有官方账号的编程助手（清单 capabilities.officialAccount，见 cli/accounts/types.ts） */
+function isAccountKind(k: string): k is AccountKind {
+  return (ACCOUNT_KINDS as readonly string[]).includes(k);
 }
