@@ -3139,6 +3139,65 @@ export class CliHarnessService {
     if (!this.claudeLive.size) this.stopIdleSweep();
   }
 
+  /**
+   * 这个 CLI 升级了（P9.6）：长驻进程空闲的立刻拆、正在跑的这一轮结束后再拆，下一条消息用新版本续接
+   * （--resume / session/load / thread/resume）。官方与第三方标签都算；不动模型选择、来源与账号。
+   * 新版本可能多了模型：可选模型列表下次打开时重新读。
+   */
+  restartForUpgrade(kind: HarnessBackend): { restarted: number; deferred: number } {
+    let restarted = 0;
+    let deferred = 0;
+    this.modelCatalogs.delete(kind);
+    this.modelCatalogGen.set(kind, (this.modelCatalogGen.get(kind) ?? 0) + 1);
+    this.modelCatalogInflight.delete(kind);
+    if (kind === 'gemini' || kind === 'grok') {
+      for (const [id, gl] of [...this.acpLive.entries()]) {
+        if (gl.backend !== kind) continue;
+        if (gl.turn) {
+          gl.recycleAfterTurn = true;
+          deferred++;
+        } else {
+          this.teardownAcpLive(id);
+          restarted++;
+        }
+      }
+    } else if (kind === 'codex') {
+      for (const [id, cl] of [...this.codexLive.entries()]) {
+        if (cl.turn) {
+          cl.recycleAfterTurn = true;
+          deferred++;
+        } else {
+          this.teardownCodexLive(id);
+          restarted++;
+        }
+      }
+    } else if (kind === 'claude') {
+      for (const [id, live] of [...this.claudeLive.entries()]) {
+        if (live.turn && !live.turn.settled) {
+          live.recycleAfterTurn = true;
+          deferred++;
+        } else {
+          this.teardownClaudeLive(id);
+          restarted++;
+        }
+      }
+      if (!this.claudeLive.size) this.stopIdleSweep();
+    }
+    if (restarted || deferred)
+      this.d.logger.info('cli upgraded: restarting sessions at idle', {
+        kind,
+        restarted,
+        deferred,
+      });
+    return { restarted, deferred };
+  }
+
+  /** 这个 CLI 正在进行的轮次数（Windows 上升级前要先排空：运行中的程序文件不能被替换） */
+  busyTurns(kind: HarnessBackend): number {
+    return [...this.tabs.values()].filter((x) => x.backend === kind && x.status === 'running')
+      .length;
+  }
+
   /** 改了默认官方账号：只重启「跟随默认账号」的官方标签（§5.10 S5） */
   recycleDefaultAccount(kind: AccountBackend): void {
     this.recycleBackend(kind, (tab) => !tab.accountId);

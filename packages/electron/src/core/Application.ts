@@ -14,6 +14,7 @@ import {
   llmProvidersFromEnv,
   migrateStoreData,
 } from '@nomi-ai/ai-runtime';
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
@@ -27,9 +28,13 @@ import { ChatBackgroundService } from '../chat/ChatBackgroundService';
 import { AccountLogin, broadcastLogin } from '../cli/accounts/AccountLogin';
 import { AccountService } from '../cli/accounts/AccountService';
 import { initCliHarnessService } from '../cli/CliHarnessService';
+import { initCliPluginHost } from '../cli/CliPluginHost';
 import { initCliUpdateService } from '../cli/CliUpdateService';
+import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
+import { extendBuiltinPlugin } from '../cli/pluginExtensions';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
+import type { CliKind } from '../cli/types';
 import { getDesktopService } from '../desktop/DesktopService';
 import { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
@@ -461,8 +466,44 @@ export class Application implements IApplication {
       const cliUpdate = initCliUpdateService({
         root: path.join(app.getPath('userData'), 'cli-update'),
         logger: this.logger as never,
+        // CLI 升级策略（P9.6）：Windows 上先排空（拆空闲进程，最多等 30 秒让进行中的轮次结束）；
+        // 升级成功后空闲时用新版本重启会话并续接
+        drain: async (kind) => {
+          harness.restartForUpgrade(kind);
+          for (let i = 0; i < 60 && harness.busyTurns(kind) > 0; i++)
+            await new Promise((r) => setTimeout(r, 500));
+          return harness.busyTurns(kind);
+        },
+        onUpdated: () => void cliPlugins.refreshVersions(),
       });
       cliUpdate.registerIpc();
+      // 编程助手插件宿主（docs/design/cli-plugin-architecture.md §5、§7）：清单校验、有效能力、注册表快照
+      const cliPlugins = initCliPluginHost({
+        root: path.join(app.getPath('userData'), 'cli-plugins'),
+        logger: this.logger as never,
+        version: async (id) => {
+          const bin = await resolveCliBinAsync(id as CliKind).catch(() => null);
+          return bin ? readVersionAsync(bin) : null;
+        },
+        // 内置插件的转录解析仍在主进程，加载时挂到 history.parse 上
+        extend: extendBuiltinPlugin,
+        // 运行中 CLI 换了版本（应用内或终端里升级）：空闲时用新版本重启续接
+        onVersionChange: (id) => {
+          if (isBuiltinCliId(id)) harness.restartForUpgrade(id);
+        },
+      });
+      cliPlugins.registerIpc();
+      void cliPlugins.start();
+      // 终端里升级了 CLI 也要发现：每 30 分钟重读一次版本（每个 CLI 起一次 --version）
+      const versionTimer = setInterval(() => void cliPlugins.refreshVersions(), 30 * 60_000);
+      versionTimer.unref?.();
+      this.lifecycle.register({
+        name: 'cli-plugins',
+        stop: () => {
+          clearInterval(versionTimer);
+          cliPlugins.stop();
+        },
+      });
       const cliRoot = path.join(app.getPath('userData'), 'cli-providers');
       // 统一网关（docs/design/unified-gateway.md）：首次启动从旧存储迁移，网关跑在独立的 utilityProcess 里。
       // 旧版本写进 CLI 全局配置的第三方设置在迁移后撤销（§6.3 第 7 步）；撤销全部成功之前，

@@ -277,6 +277,15 @@ export class CliUpdateService {
       silent?: boolean;
       /** 观察所有进度事件（测试 / 日志） */
       emit?: (payload: unknown) => void;
+      /** 平台（测试注入） */
+      platform?: NodeJS.Platform;
+      /**
+       * Windows 上升级前排空（P9.6）：运行中的程序文件不能被替换。拆掉这个 CLI 空闲的进程、
+       * 等进行中的轮次结束，返回仍在进行的轮次数（> 0 时不升级）。
+       */
+      drain?: (kind: UpdatableCli) => Promise<number>;
+      /** 安装 / 更新成功：编排层在空闲时用新版本重启会话并续接 */
+      onUpdated?: (kind: UpdatableCli, version: string | null) => void;
     },
   ) {
     this.probe = d.probe ?? defaultProbe;
@@ -534,6 +543,13 @@ export class CliUpdateService {
     j.status = r.ok ? 'done' : 'error';
     j.result = r;
     j.finishedAt = Date.now();
+    if (r.ok) {
+      try {
+        this.d.onUpdated?.(kind, r.version);
+      } catch (e) {
+        this.d.logger.warn('cli onUpdated hook failed', { kind, error: String(e) });
+      }
+    }
   }
 
   /**
@@ -587,6 +603,18 @@ export class CliUpdateService {
     const { plan, recipes } = planned;
     if (plan.blockers.length) {
       return { ok: false, log: plan.blockers.join('\n'), version: null };
+    }
+    if ((this.d.platform ?? process.platform) === 'win32' && this.d.drain) {
+      const busy = await this.d.drain(kind).catch(() => 0);
+      if (busy > 0)
+        return {
+          ok: false,
+          log: t(
+            '还有 {0} 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。',
+            busy,
+          ),
+          version: null,
+        };
     }
     {
       const j = this.jobs.get(kind);
@@ -723,6 +751,8 @@ export function initCliUpdateService(d: {
   logger: Logger;
   probe?: CliProbe;
   runner?: CliRunner;
+  drain?: (kind: UpdatableCli) => Promise<number>;
+  onUpdated?: (kind: UpdatableCli, version: string | null) => void;
 }): CliUpdateService {
   inst = new CliUpdateService(d);
   return inst;
