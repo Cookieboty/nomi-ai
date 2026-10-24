@@ -386,6 +386,9 @@ importers:
       '@nomi-ai/bundle-ig-mascot':
         specifier: workspace:*
         version: link:../bundle-ig-mascot
+      '@nomi-ai/cli-sdk':
+        specifier: workspace:*
+        version: link:../cli-sdk
       '@nomi-ai/gateway':
         specifier: workspace:*
         version: link:../gateway
