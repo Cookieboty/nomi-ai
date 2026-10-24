@@ -186,10 +186,23 @@ describe('S8：登录进程从不做收发记录', () => {
   });
 
   it('只有 spawnHarness 挂了记录（编排层的 CLI 进程）', () => {
-    const src = fs.readFileSync(
-      path.join(__dirname, '../../../src/cli/CliHarnessService.ts'),
-      'utf8',
+    const root = path.join(__dirname, '../../../src/cli');
+    const files: string[] = [];
+    const walk = (d: string) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (p.endsWith('.ts')) files.push(p);
+      }
+    };
+    walk(root);
+    const calls = files.flatMap((f) =>
+      (fs.readFileSync(f, 'utf8').match(/traceCliChild\(/g) ?? []).map(() => f),
     );
-    expect(src.match(/traceCliChild\(/g)).toHaveLength(1);
+    // 整个 cli/ 目录只有一处调用：harness/spawn.ts 的 spawnHarness
+    expect(calls.map((f) => path.relative(root, f))).toEqual([path.join('harness', 'spawn.ts')]);
+    const spawnSrc = fs.readFileSync(path.join(root, 'harness', 'spawn.ts'), 'utf8');
+    const body = spawnSrc.slice(spawnSrc.indexOf('export function spawnHarness('));
+    expect(body.slice(0, body.indexOf('\n}\n')).includes('traceCliChild(')).toBe(true);
   });
 });
