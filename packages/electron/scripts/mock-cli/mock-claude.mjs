@@ -15,7 +15,8 @@
  *        none 不应答；wrong-id 用别的 request_id 应答）,
  *      NOMI_MOCK_CLAUDE_MODEL_ACK（set_model 的应答：缺省 success；error 负确认）,
  *      NOMI_MOCK_INTERRUPT（interrupt 的处理：缺省与真实 CLI 一致——应答后以 error_during_execution
- *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）
+ *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）,
+ *      NOMI_MOCK_API_RETRY（先报 n 次 system/api_retry）, NOMI_MOCK_EXIT_MID（第一段正文后进程退出）
  */
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -430,6 +431,17 @@ async function runOnce(_prompt) {
     cps > 0
       ? text.match(new RegExp(`.{1,${Math.max(1, Math.round(cps / 20))}}`, 'gs')) || [text]
       : text.match(/.{1,8}/gs) || [text];
+  // NOMI_MOCK_API_RETRY=n：先报 n 次 API 重试（与真实 CLI 的 system/api_retry 一致）
+  const retries = Number(process.env.NOMI_MOCK_API_RETRY || 0);
+  for (let i = 1; i <= retries; i++)
+    emit({
+      type: 'system',
+      subtype: 'api_retry',
+      session_id: sessionId,
+      attempt: i,
+      max_retries: 10,
+      error: 'overloaded_error',
+    });
   for (const c of chunks) {
     if (cps > 0) await new Promise((r) => setTimeout(r, 50));
     emit({
@@ -437,6 +449,8 @@ async function runOnce(_prompt) {
       session_id: sessionId,
       event: { delta: { type: 'text_delta', text: c } },
     });
+    // NOMI_MOCK_EXIT_MID=1：吐出第一段正文后进程直接退出（模拟一轮中途崩溃）
+    if (process.env.NOMI_MOCK_EXIT_MID === '1') process.exit(3);
   }
   emit({
     type: 'assistant',

@@ -40,6 +40,7 @@ import {
   mergeUsage,
   stampEvent,
   ExecDriver,
+  RPC_EXITED,
   StreamJsonDriver,
   missingExternalEnv,
   renderExternalArgs,
@@ -48,6 +49,7 @@ import {
   type ExternalCliSpec,
   type TurnResult,
 } from '@nomi-ai/cli-sdk';
+import type { QualityOutcome, QualityRecord } from '@nomi-ai/types';
 import { BrowserWindow, dialog } from 'electron';
 
 import { t } from '../i18n';
@@ -347,8 +349,12 @@ export class HarnessOrchestrator {
       events: HarnessEvent[];
       /** 最近一次实时上下文占用：中断 / 失败时随消息落盘，重启后上下文环不会退回旧值 */
       context?: HarnessUsage;
+      /** 模型质量（CLI 层）：第一个内容 / 第一个正文 / 最后一个内容的时间（epoch ms）、CLI 报的重试次数 */
+      q?: TurnQuality;
     }
   >();
+  /** 这一轮里长驻 CLI 进程退出了的标签（模型质量记为 cli-exit） */
+  private readonly turnExits = new Set<string>();
   /** 用户在排队 / 运行期间点了停止的标签 */
   private readonly stopRequested = new Set<string>();
   /**
@@ -439,6 +445,11 @@ export class HarnessOrchestrator {
       accounts?: HarnessOfficialAccounts;
       /** 外部插件（§5.9）：用户添加的说 ACP 的 CLI */
       externals?: HarnessExternalPlugins;
+      /**
+       * 模型质量的 CLI 层记录（docs/design/model-quality.md §4.4）：每轮结束交出一条 layer 'cli' 的记录。
+       * 记录出错不影响这一轮。
+       */
+      quality?: { addCli(record: QualityRecord): void };
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -2143,7 +2154,9 @@ export class HarnessOrchestrator {
     const abort = new AbortController();
     this.sendAborts.set(id, abort);
     const startedAt = Date.now();
-    this.partial.set(id, { text: '', breaks: [], events: [] });
+    this.turnExits.delete(id);
+    const quality = this.qualityBase(tab);
+    this.partial.set(id, { text: '', breaks: [], events: [], q: { retries: 0 } });
     this.changed();
     const runCwd = tab.cwd;
     // 新会话的第一轮：把换目录 / 分叉时留下的前文放在用户消息前面一起发（界面上只显示用户原话）
@@ -2202,6 +2215,11 @@ export class HarnessOrchestrator {
         ...(trace.length ? { trace } : {}),
         ...(result.textBreaks?.length ? { textBreaks: result.textBreaks } : {}),
       });
+      this.recordQuality(id, quality, startedAt, {
+        outcome: this.turnExits.delete(id) ? 'cli-exit' : 'ok',
+        usage,
+        model: modelOf(result.events, usage),
+      });
       this.finish(tab, true, result.text);
       return { ...result, trace, durationMs, ...(usage ? { usage } : {}) };
     } catch (e) {
@@ -2228,6 +2246,12 @@ export class HarnessOrchestrator {
           });
           this.progress.delete(id);
           this.changed();
+          this.recordQuality(id, quality, startedAt, {
+            outcome: 'client-cancel',
+            cancelPhase: part?.q?.first ? 'during' : 'before-first',
+            usage: part?.context,
+            model: modelOf(part?.events ?? [], part?.context),
+          });
         } else {
           tab.status = 'error';
           tab.lastError = message;
@@ -2257,6 +2281,11 @@ export class HarnessOrchestrator {
             ...(trace.length ? { trace } : {}),
             ...(partText.trim() && part?.breaks.length ? { textBreaks: part.breaks } : {}),
           });
+          this.recordQuality(id, quality, startedAt, {
+            outcome: this.turnExits.delete(id) || exitedCause(e) ? 'cli-exit' : 'cli-error',
+            usage: part?.context,
+            model: modelOf(part?.events ?? [], part?.context),
+          });
           this.finish(tab, false, '', message);
         }
       }
@@ -2265,6 +2294,7 @@ export class HarnessOrchestrator {
       if (stageDir) cleanupStagedDir(stageDir);
       if (this.sendAborts.get(id) === abort) this.sendAborts.delete(id);
       this.partial.delete(id);
+      this.turnExits.delete(id);
       this.stopRequested.delete(id);
       this.release();
       // Codex / dsh / Grok 每轮一个进程：进程结束，它派生的子代理也随之结束
@@ -2276,6 +2306,81 @@ export class HarnessOrchestrator {
   private isAutoOnly(id: string): boolean {
     const live = this.claudeLive.get(id);
     return !!live?.auto && !live.turn;
+  }
+
+  /**
+   * 模型质量（CLI 层）这一轮固定的字段：发送时定下（进行中换模型 / 来源只影响下一轮）。
+   * 官方：provider 为该 CLI 的官方服务；第三方：网关模型 `供应商/模型` 的供应商。
+   */
+  private qualityBase(tab: HarnessTabMeta): QualityBase {
+    const client = tab.backend === 'external' && tab.pluginId ? tab.pluginId : String(tab.backend);
+    if (this.sourceOf(tab) === 'thirdParty') {
+      const ref = this.effectiveOverrides(tab).model ?? '';
+      const slash = ref.indexOf('/');
+      return {
+        client,
+        source: 'thirdParty',
+        ...(slash > 0 ? { provider: ref.slice(0, slash) } : {}),
+      };
+    }
+    return {
+      client,
+      source: 'official',
+      provider: OFFICIAL_PROVIDER[String(tab.backend)] ?? client,
+      ...(tab.accountId ? { accountId: tab.accountId } : {}),
+    };
+  }
+
+  /** 交出这一轮的 CLI 层质量记录；任何异常都吞掉，不影响这一轮 */
+  private recordQuality(
+    id: string,
+    base: QualityBase,
+    startedAt: number,
+    o: {
+      outcome: QualityOutcome;
+      cancelPhase?: 'before-first' | 'during';
+      usage?: HarnessUsage;
+      model?: string;
+    },
+  ): void {
+    const sink = this.d.quality;
+    if (!sink) return;
+    try {
+      const q = this.partial.get(id)?.q;
+      const rel = (t?: number) => (t === undefined ? undefined : Math.max(0, t - startedAt));
+      const output = o.usage?.outputTokens;
+      const gen = q?.first !== undefined && q.last !== undefined ? q.last - q.first : undefined;
+      const record: QualityRecord = {
+        id: randomUUID(),
+        layer: 'cli',
+        ts: startedAt,
+        ...base,
+        tabId: id,
+        ...(o.model ? { model: o.model } : {}),
+        stream: true,
+        outcome: o.outcome,
+        ...(o.cancelPhase ? { cancelPhase: o.cancelPhase } : {}),
+        timing: {
+          ...(q?.first !== undefined ? { firstContentMs: rel(q.first) } : {}),
+          ...(q?.firstText !== undefined ? { firstTextMs: rel(q.firstText) } : {}),
+          ...(q?.last !== undefined ? { lastContentMs: rel(q.last) } : {}),
+          endMs: Date.now() - startedAt,
+        },
+        tokens: {
+          ...(o.usage?.inputTokens !== undefined ? { input: o.usage.inputTokens } : {}),
+          ...(output !== undefined ? { output } : {}),
+          ...(o.usage?.cacheReadTokens !== undefined ? { cacheRead: o.usage.cacheReadTokens } : {}),
+        },
+        ...(o.usage?.costUsd !== undefined ? { cost: o.usage.costUsd } : {}),
+        ...(q?.retries ? { retries: q.retries } : {}),
+        ...(gen !== undefined && gen < BURST_MS && (output ?? 0) >= BURST_MIN_TOKENS
+          ? { burst: true }
+          : {}),
+      };
+      sink.addCli(record);
+    } catch (e) {
+      this.d.logger.warn('harness quality record failed', { error: (e as Error).message });
+    }
   }
 
   private finish(tab: HarnessTabMeta, ok: boolean, text: string, error?: string) {
@@ -2546,6 +2651,8 @@ export class HarnessOrchestrator {
       this.clearPermissionTimeouts(tab.id);
       if (!turn || turn.settled) return;
       turn.settled = true;
+      // 一轮进行中进程退出（用户停止走 interrupt / 拆进程，记为取消，不算退出）
+      if (!this.stopRequested.has(tab.id)) this.turnExits.add(tab.id);
       if (signal && !turn.text) {
         turn.reject(new Error(t('已中止')));
         return;
@@ -3632,6 +3739,7 @@ export class HarnessOrchestrator {
             if (turn.settled) return;
             turn.settled = true;
             const msg = e instanceof Error ? e.message : String(e);
+            if (msg === 'app-server process exited') this.turnExits.add(tab.id);
             reject(
               new Error(
                 msg === 'app-server process exited'
@@ -4077,6 +4185,7 @@ export class HarnessOrchestrator {
               ...(ev.model ? { model: ev.model } : {}),
             };
     }
+    if (part?.q) noteQuality(part.q, ev);
     if (part) {
       const folded = foldAssistantEvent(part.text, part.breaks, ev);
       part.text = folded.text;
@@ -4467,6 +4576,60 @@ type CodexLiveSession = {
 
 /** ACP 握手阶段进程就退出（CLI 太旧 / 不支持 ACP）：Grok 据此退回每轮一个进程的 `grok -p` */
 class AcpUnavailableError extends Error {}
+
+/* ------------------------- 模型质量（CLI 层，docs/design/model-quality.md §4.4） ------------------------- */
+
+/** 一轮里的质量计时（epoch ms）与 CLI 报的 API 重试次数 */
+interface TurnQuality {
+  first?: number;
+  firstText?: number;
+  last?: number;
+  retries: number;
+}
+
+/** 这一轮发送时定下的来源字段 */
+type QualityBase = Pick<QualityRecord, 'client' | 'source' | 'provider' | 'accountId'>;
+
+/** 官方账号标签的服务商（CLI 直连的官方接口） */
+const OFFICIAL_PROVIDER: Record<string, string> = {
+  claude: 'anthropic',
+  codex: 'openai',
+  grok: 'xai',
+  gemini: 'google',
+  dsh: 'deepseek',
+};
+
+/** 生成时长不到这么久、输出又不少：上游 / CLI 缓冲后整段吐出（§2.2 突发度） */
+const BURST_MS = 100;
+const BURST_MIN_TOKENS = 20;
+
+/**
+ * 按事件更新这一轮的计时：正文、推理、工具调用开始都算内容。逐字增量之后 CLI 往往再给一次完整正文，
+ * 那次不再推后「最后一个内容」（否则生成时长被拉到结束时刻）；只给完整正文的 CLI 以它为准。
+ */
+function noteQuality(q: TurnQuality, ev: HarnessEvent, now = Date.now()): void {
+  if (ev.type === 'status') {
+    if (ev.kind === 'retry') q.retries += 1;
+    return;
+  }
+  const isText = (ev.type === 'text-delta' || ev.type === 'text') && !!ev.text;
+  if (ev.type === 'text' && q.firstText !== undefined) return;
+  const content =
+    isText ||
+    (ev.type === 'thinking' && !!ev.text) ||
+    (ev.type === 'tool' && ev.status === 'start');
+  if (!content) return;
+  q.first ??= now;
+  q.last = now;
+  if (isText) q.firstText ??= now;
+}
+
+/** 错误链里有「长驻进程已退出」（ACP / app-server 驱动的原始错误）：一轮进行中进程退出 */
+function exitedCause(e: unknown): boolean {
+  for (let cur: unknown = e, i = 0; cur instanceof Error && i < 8; cur = cur.cause, i++)
+    if (cur.message === RPC_EXITED || cur.message === 'app-server process exited') return true;
+  return false;
+}
 
 type AcpTurn = {
   /** 这一轮里用户拒绝过工具调用（Grok 会以 cancelled 结束整轮） */
