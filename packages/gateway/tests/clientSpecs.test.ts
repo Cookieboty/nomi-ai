@@ -106,6 +106,8 @@ describe('model resolution order with a tab binding (§6.7)', () => {
     expect(pick('claude', 'p/main')).toEqual({ model: 'p/main', how: 'explicit' });
     expect(pick('claude', 'claude-opus-4')).toEqual({ model: 'p/opus', how: 'tier' });
     expect(pick('grok', 'grok-4.6')).toEqual({ model: 'p/cheap', how: 'helper' });
+    // Grok 的占位模型名（gateway 方式换模型）：按绑定的主模型解析，不记「未知模型名」
+    expect(pick('grok', 'nomi')).toEqual({ model: 'p/tab', how: 'binding' });
     expect(pick('claude', 'claude-sonnet-4')).toEqual({ model: 'p/tab', how: 'binding' });
     expect(pick('claude', 'gpt-typo')).toEqual({
       model: 'p/tab',

@@ -17,6 +17,8 @@ export const gateway: CliGatewayEntry = {
     acceptedEvents: 'spec',
     // 会话标题 / 摘要、下一句提示没配置时 Grok 用内置名（实测 grok-4.6）
     helperModels: ['^grok-4\\.6'],
+    // 占位模型名（清单 clientSpec.placeholderModel）：真实模型在标签绑定里，按主模型解析
+    builtinModels: [{ pattern: `^${String(manifest.clientSpec.placeholderModel)}$`, slot: 'main' }],
     unknownToMain: true,
     sessionKey: DEFAULT_SESSION_KEY,
     heartbeat: { kind: 'comment' },

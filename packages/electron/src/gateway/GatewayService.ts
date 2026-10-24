@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'path';
 
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
+import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
   CLIENT_IDS,
   detect,
@@ -428,7 +429,12 @@ export class GatewayService {
    * 第三方会话的进程级注入（环境变量、参数、要剔除的继承变量）。网关没在运行时返回 null，
    * 调用方报错而不是悄悄走官方。dir：这个标签的私有目录（Grok 私有 GROK_HOME、dsh 叠加文件）。
    */
-  cliLaunch(kind: AgentKind, tabId: string, model: string): AgentLaunch | null {
+  cliLaunch(
+    kind: AgentKind,
+    tabId: string,
+    model: string,
+    placeholder?: string,
+  ): AgentLaunch | null {
     const ep = this.endpoint(kind);
     if (!ep) return null;
     const metaOf = (ref: string): ModelMeta | undefined => {
@@ -454,6 +460,7 @@ export class GatewayService {
       catalog: this.cliModels().map((m) => m.ref),
       models: this.store.snapshot().clients[kind]?.models ?? {},
       dir: this.agentDir(kind, tabId),
+      ...(placeholder ? { placeholder } : {}),
     });
   }
 
@@ -470,7 +477,9 @@ export class GatewayService {
     effort?: string,
   ): Promise<(AgentLaunch & { generation: number }) | null> {
     const ep = this.endpoint(kind);
-    const launch = this.cliLaunch(kind, tabId, model);
+    // 支持 gateway 方式换模型的 CLI（清单的 clientSpec.placeholderModel，如 Grok 的 nomi）：
+    // 配置里写占位名，真实模型只在绑定里，换模型不用重启进程（§6.7）
+    const launch = this.cliLaunch(kind, tabId, model, placeholderModelOf(kind));
     if (!ep || !launch) return null;
     const reg = await this.tabs.register({
       client: kind,
@@ -976,4 +985,11 @@ export function initGatewayService(d: GatewayServiceDeps): GatewayService {
 }
 export function getGatewayService(): GatewayService | null {
   return inst;
+}
+
+/** 插件清单声明的占位模型名（gateway 方式换模型）；没有就是 undefined */
+function placeholderModelOf(kind: string): string | undefined {
+  if (!isBuiltinCliId(kind)) return undefined;
+  const v = BUILTIN_MANIFESTS[kind].clientSpec.placeholderModel;
+  return typeof v === 'string' && v ? v : undefined;
 }
