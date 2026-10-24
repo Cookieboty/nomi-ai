@@ -202,6 +202,8 @@ export function fromGateway(e: GatewayQualityEvent, o: FromGatewayOptions): Qual
   if (burst) rec.burst = true;
   if (typeof e.traceId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.traceId))
     rec.traceId = e.traceId;
+  const notes = cleanNotes(e.notes);
+  if (notes) rec.notes = notes;
   if (typeof e.tabId === 'string' && /^[A-Za-z0-9_:.-]{1,80}$/.test(e.tabId)) rec.tabId = e.tabId;
   if (Number.isInteger(e.generation) && e.generation! > 0) rec.generation = e.generation;
   const priceModel = upstreamModel ?? family ?? model;
@@ -223,4 +225,14 @@ export function sanitizeRecord(v: unknown): QualityRecord | null {
   if (!r.tokens || typeof r.tokens !== 'object') return null;
   if (r.source !== 'nomi' && r.source !== 'official' && r.source !== 'thirdParty') return null;
   return r;
+}
+
+/** 网关修正备注：网关自己生成的短文本，限条数与长度 */
+export function cleanNotes(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out = v
+    .filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+    .slice(0, 8)
+    .map((x) => x.trim().slice(0, 120));
+  return out.length ? out : undefined;
 }

@@ -230,6 +230,11 @@ const Row: React.FC<{ r: QualityRecord }> = ({ r }) => {
           </button>
         )}
       </div>
+      {r.notes?.length ? (
+        <p className={styles.reqNotes} data-testid="quality-request-notes">
+          {t('网关修正：{0}', r.notes.join('；'))}
+        </p>
+      ) : null}
       {open && r.attempts && (
         <ol
           className={styles.attempts}

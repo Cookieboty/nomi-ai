@@ -78,6 +78,7 @@ function record(i: number, over: Partial<QualityRecord> = {}): QualityRecord {
     tabId: 'tab-7f3a91c2d4',
     generation: 2,
     traceId: 'abc123def456',
+    notes: ['temperature 已去掉（模型只接受默认温度）'],
     ...over,
   };
 }
@@ -405,6 +406,9 @@ describe('QualityPanel 请求明细', () => {
     expect(within(first).getByTestId('quality-request-resolved').textContent).toBe('标签选的模型');
     expect(within(first).getByTestId('quality-request-trace').textContent).toContain(
       'abc123def456',
+    );
+    expect(within(first).getByTestId('quality-request-notes').textContent).toBe(
+      '网关修正：temperature 已去掉（模型只接受默认温度）',
     );
     fireEvent.click(within(first).getByTestId('quality-request-attempts-toggle'));
     const attempts = within(first).getByTestId('quality-request-attempts');

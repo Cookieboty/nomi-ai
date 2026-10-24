@@ -113,6 +113,8 @@ export interface QualityRecord {
   /** 生成时长 < 100 ms 且输出 ≥ 20 token：上游缓冲后整段吐出 */
   burst?: boolean;
   traceId?: string;
+  /** 网关对请求做的修正（如去掉了 temperature、压低了输出上限、省略了图片），只有网关层有 */
+  notes?: string[];
 }
 
 /** 可分组 / 筛选的维度 */

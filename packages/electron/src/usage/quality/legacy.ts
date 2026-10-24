@@ -7,7 +7,7 @@ import type { QualityRecord } from '@nomi-ai/types';
 import type { GatewayRequestEntry } from '../gatewayRequests';
 
 import { modelFamily } from './aggregate';
-import { deriveOutcome } from './fromGateway';
+import { cleanNotes, deriveOutcome } from './fromGateway';
 
 /** 旧条目 → 网关层质量记录（没有流式细节：只有首字节与总耗时） */
 export function recordFromEntry(e: GatewayRequestEntry): QualityRecord {
@@ -47,6 +47,8 @@ export function recordFromEntry(e: GatewayRequestEntry): QualityRecord {
   if (e.resolved) rec.resolved = e.resolved;
   if (e.error && rec.outcome !== 'ok') rec.errorKind = e.error.slice(0, 160);
   if (e.traceId) rec.traceId = e.traceId;
+  const notes = cleanNotes(e.notes);
+  if (notes) rec.notes = notes;
   if (e.tabId) rec.tabId = e.tabId;
   if (e.generation) rec.generation = e.generation;
   return rec;

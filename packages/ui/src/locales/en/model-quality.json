@@ -151,5 +151,6 @@
   "各供应商、模型、Key 的成功率、延迟、输出速度与缓存命中率，可按维度对比。只记录元数据，全部只存本机。": "Success rate, latency, output speed and cache hit rate per provider, model and key, comparable by dimension. Only metadata is recorded, and it stays on this computer.",
   "网关请求的成功率、延迟与逐条明细在「模型质量」里": "Gateway request success rate, latency and per-request details are in Model quality",
   "最近请求（模型质量）": "Recent requests (Model quality)",
-  "模型质量需要在桌面应用中使用": "Model quality requires the desktop app"
+  "模型质量需要在桌面应用中使用": "Model quality requires the desktop app",
+  "网关修正：{0}": "Gateway adjustments: {0}"
 }

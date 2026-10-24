@@ -112,6 +112,13 @@ describe('fromGateway', () => {
     expect(fromGateway({ ...base, client: 'nomi' }, { id: 'z' }).source).toBe('nomi');
   });
 
+  it('带上网关的修正备注（限条数与长度，丢掉非字符串）', () => {
+    const notes = ['temperature 已去掉（模型只接受默认温度）', '', 42, 'x'.repeat(300)];
+    const r = fromGateway({ ...base, notes } as typeof base, { id: 'n' });
+    expect(r.notes).toEqual(['temperature 已去掉（模型只接受默认温度）', 'x'.repeat(120)]);
+    expect(fromGateway(base, { id: 'm' }).notes).toBeUndefined();
+  });
+
   it('新事件：结果、阶段时间、尝试、突发、取消阶段；费用', () => {
     const cost = jest.fn(() => 0.0012);
     const r = fromGateway(
