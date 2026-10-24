@@ -678,6 +678,8 @@ export class Application implements IApplication {
         defaultCwd: app.getPath('documents'),
         // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
         gateway: harnessGateway(gateway),
+        // 模型质量 CLI 层：Nomi 里运行的编程助手（官方账号与第三方）每轮一条（model-quality.md §4.4）
+        quality: { addCli: (r) => void quality.addCli(r) },
         // 官方标签按账号目录启动（docs/design/cli-plugin-architecture.md §5.10）
         accounts: {
           launch: (kind, accountId) => accounts.officialLaunch(kind, accountId),
