@@ -18,10 +18,13 @@ import { USAGE_DONE } from '../shared/exec';
 import { cliHome } from '../shared/homes';
 import { modeFromNative, PERMISSION_MODES, PLAN_PROMPT_PREFIX } from '../shared/permissions';
 import { statAll, walkFiles, yieldAll } from '../shared/scan';
+import { historyParse } from '../shared/transcript';
 
 import { manifest } from './manifest';
+import { parseCodexTranscript } from './transcript';
 
 export { manifest };
+export { parseCodexTranscript };
 
 export const HOME_ENV = 'CODEX_HOME';
 
@@ -80,6 +83,7 @@ export const history: HistoryCapability = {
   roots: (env, home) => [path.join(userHome(env, home), 'sessions')],
   scan: (root) =>
     yieldAll(walkFiles(root, 4, (n) => /^rollout-.*\.jsonl(?:\.zst)?$/.test(n)).then(statAll)),
+  parse: historyParse('codex', parseCodexTranscript),
   resume: (sessionId) => ({ args: ['resume', sessionId], loadSession: true }),
 };
 

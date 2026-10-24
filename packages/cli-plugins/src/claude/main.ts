@@ -18,10 +18,13 @@ import { USAGE_DONE } from '../shared/exec';
 import { cliHome } from '../shared/homes';
 import { CLAUDE_MODE, modeFromNative, PERMISSION_MODES } from '../shared/permissions';
 import { readdir, statAll, yieldAll } from '../shared/scan';
+import { historyParse } from '../shared/transcript';
 
 import { manifest } from './manifest';
+import { parseClaudeTranscript } from './transcript';
 
 export { manifest };
+export { parseClaudeTranscript };
 
 export const HOME_ENV = 'CLAUDE_CONFIG_DIR';
 
@@ -87,6 +90,7 @@ export const history: HistoryCapability = {
         return statAll(files);
       })(),
     ),
+  parse: historyParse('claude', parseClaudeTranscript),
   resume: (sessionId) => ({ args: ['--resume', sessionId] }),
 };
 

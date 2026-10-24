@@ -30,6 +30,16 @@ export { parseCodexLine } from './codex/stream';
 export { createDshParser, parseDshLine } from './dsh/stream';
 export { createGrokParser, parseGrokLine } from './grok/stream';
 
+// 各 CLI 的历史转录解析（§5.7）：主进程的 cli/historyTranscript.ts 只转出这些
+export { HISTORY_MAX_MESSAGES, titleFromMessages } from './shared/transcript';
+export { cleanTitle } from './shared/text';
+export { foldGeminiChat, geminiText, type GeminiChat } from './gemini/chat';
+export { parseClaudeTranscript } from './claude/transcript';
+export { parseCodexTranscript } from './codex/transcript';
+export { parseDshTranscript } from './dsh/transcript';
+export { parseGeminiTranscript } from './gemini/transcript';
+export { parseGrokTranscript } from './grok/transcript';
+
 export * as claude from './claude/main';
 export * as codex from './codex/main';
 export * as dsh from './dsh/main';

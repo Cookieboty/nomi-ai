@@ -16,10 +16,13 @@ import { USAGE_DONE } from '../shared/exec';
 import { geminiRoot } from '../shared/homes';
 import { modeFromNative } from '../shared/permissions';
 import { readdir, statAll, yieldAll } from '../shared/scan';
+import { historyParse } from '../shared/transcript';
 
 import { GEMINI_MODES, geminiModeId, manifest } from './manifest';
+import { parseGeminiTranscript } from './transcript';
 
 export { manifest };
+export { parseGeminiTranscript };
 
 /** GEMINI_CLI_HOME 指向「放 .gemini 的主目录」（账号目录本身） */
 export const HOME_ENV = 'GEMINI_CLI_HOME';
@@ -78,6 +81,7 @@ export const history: HistoryCapability = {
         return statAll(files);
       })(),
     ),
+  parse: historyParse('gemini', parseGeminiTranscript),
   resume: (sessionId) => ({ args: ['--resume', sessionId], loadSession: true }),
 };
 

@@ -16,10 +16,13 @@ import {
 import { cliHome } from '../shared/homes';
 import { modeFromNative, PLAN_PROMPT_PREFIX } from '../shared/permissions';
 import { readdir, statAll, yieldAll } from '../shared/scan';
+import { historyParse } from '../shared/transcript';
 
 import { DSH_MODES, manifest } from './manifest';
+import { parseDshTranscript } from './transcript';
 
 export { manifest };
+export { parseDshTranscript };
 
 export const HOME_ENV = 'DSH_HOME';
 
@@ -60,6 +63,7 @@ export const history: HistoryCapability = {
         return statAll(files);
       })(),
     ),
+  parse: historyParse('dsh', parseDshTranscript),
   resume: (sessionId) => ({ args: ['--session-id', sessionId] }),
 };
 

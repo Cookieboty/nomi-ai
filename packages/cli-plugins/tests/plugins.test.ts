@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { checkPlugin } from '@nomi-ai/cli-sdk/testing';
+import type { CliMainHost } from '@nomi-ai/cli-sdk';
+import { checkPlugin, type HistoryFixture } from '@nomi-ai/cli-sdk/testing';
 import { describe, expect, it } from 'vitest';
 
 import { BUILTIN_CLI_IDS, BUILTIN_MANIFESTS, BUILTIN_RENDERER, terminalLine } from '../src';
@@ -20,12 +21,50 @@ const collect = async <T>(it: AsyncIterable<T>) => {
   return out;
 };
 
+const FIXTURES = path.resolve(__dirname, '../fixtures/history');
+const HOST: CliMainHost = {
+  logger: { info() {}, warn() {} },
+  dataDir: os.tmpdir(),
+  home: os.tmpdir(),
+  env: {},
+  platform: 'linux',
+};
+
+function fixturesOf(id: string): HistoryFixture[] {
+  const dir = path.join(FIXTURES, id);
+  const out: HistoryFixture[] = [];
+  for (const version of fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []) {
+    const expect = JSON.parse(fs.readFileSync(path.join(dir, version, 'expect.json'), 'utf8'));
+    for (const [file, e] of Object.entries(expect as Record<string, HistoryFixture['expect']>))
+      out.push({
+        name: `${id}/${version}/${file}`,
+        path: path.join(dir, version, file),
+        text: fs.readFileSync(path.join(dir, version, file), 'utf8'),
+        expect: e,
+      });
+  }
+  return out;
+}
+
 describe('内置插件契约（§9.1）', () => {
   for (const id of BUILTIN_CLI_IDS)
-    it(`${id}：清单、能力位与实现、启动注入、权限、账号目录`, async () => {
-      expect(await checkPlugin(BUILTIN_PLUGINS[id])).toEqual([]);
+    it(`${id}：清单、能力位与实现、启动注入、权限、账号目录、历史夹具`, async () => {
+      const historyFixtures = fixturesOf(id);
+      expect(historyFixtures.length).toBeGreaterThan(0);
+      expect(await checkPlugin(BUILTIN_PLUGINS[id], { historyFixtures })).toEqual([]);
       expect(BUILTIN_MANIFESTS[id].id).toBe(id);
       expect(BUILTIN_RENDERER[id].id).toBe(id);
+    });
+
+  // 转录解析搬进插件后逐条消息不变（快照；CLI 改格式时新增版本目录，旧快照保留）
+  for (const id of BUILTIN_CLI_IDS)
+    it(`${id}：历史夹具逐条解析结果`, async () => {
+      const parse = (await BUILTIN_PLUGINS[id].main!(HOST)).history!.parse!;
+      const out = fixturesOf(id).map((f) => ({
+        name: f.name,
+        parsed: parse(f.text, { path: f.path!, mtime: 0, size: f.text.length }),
+      }));
+      expect(out).toMatchSnapshot();
     });
 
   it("modelSwitch 'gateway' 必须有占位模型名，且与网关客户端规格一致（§6.7）", async () => {

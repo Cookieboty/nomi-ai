@@ -17,10 +17,13 @@ import { USAGE_DONE } from '../shared/exec';
 import { cliHome } from '../shared/homes';
 import { modeFromNative } from '../shared/permissions';
 import { statAll, walkFiles, yieldAll } from '../shared/scan';
+import { historyParse } from '../shared/transcript';
 
 import { GROK_MODES, grokModeArgs, grokModeId, manifest } from './manifest';
+import { parseGrokTranscript } from './transcript';
 
 export { manifest };
+export { parseGrokTranscript };
 
 export const HOME_ENV = 'GROK_HOME';
 
@@ -54,6 +57,7 @@ export const history: HistoryCapability = {
   roots: (env, home) => [path.join(userHome(env, home), 'sessions')],
   scan: (root) =>
     yieldAll(walkFiles(root, 4, (n) => n === 'updates.jsonl', { dirId: true }).then(statAll)),
+  parse: historyParse('grok', parseGrokTranscript),
   resume: (sessionId) => ({ args: ['--resume', sessionId], loadSession: true }),
 };
 
