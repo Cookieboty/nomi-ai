@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AcpDriver, AppServerDriver, type TurnResult } from '@nomi-ai/cli-sdk';
+import { AcpDriver, AppServerDriver, StreamJsonDriver, type TurnResult } from '@nomi-ai/cli-sdk';
 import { BrowserWindow, dialog } from 'electron';
 
 import { traceCliChild } from '../diagnostics/cliTrace';
@@ -2382,15 +2382,32 @@ export class CliHarnessService {
       env: this.childEnv(useNode, launch),
       tabId: tab.id,
     });
+    // stdin / stdout 与 control_request ↔ control_response 交给 cli-sdk 的 stream-json 驱动；
+    // 轮次归属（回显、自发轮次、后台任务）仍由这里按行处理
+    let onLine: (line: string, final: boolean) => void = () => undefined;
+    const driver = new StreamJsonDriver({
+      child,
+      parseLine: () => [],
+      onLine: (line, o) => {
+        onLine(line, o.final);
+        return true;
+      },
+      controlTimeoutMs: this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS,
+      messages: {
+        timeout: t('超时'),
+        notWritable: t('Claude 进程 stdin 不可写'),
+        exited: t('进程已结束'),
+      },
+      kill: killProcessTree,
+    });
     const live: ClaudeLiveSession = {
       child,
+      driver,
       parseLine: createClaudeParser(),
-      buf: '',
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
       modeChange: null,
-      controls: new Map(),
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
       launchSig: launch.sig,
@@ -2406,12 +2423,8 @@ export class CliHarnessService {
     this.dormant.delete(tab.id);
     this.startIdleSweep();
 
-    child.stdout.on('data', (chunk: Buffer) => {
-      live.buf += chunk.toString('utf8');
-      const parts = live.buf.split(/\r?\n/);
-      live.buf = parts.pop() ?? '';
-      for (const line of parts) this.onClaudeLine(tab.id, live, line, true);
-    });
+    // 进程退出时缓冲区里剩下的半行：照常解析，但不实时推给界面
+    onLine = (line, final) => this.onClaudeLine(tab.id, live, line, !final);
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness claude stderr', String(c).slice(0, 500));
     });
@@ -2421,18 +2434,15 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
-      this.failClaudeControls(live);
       turn?.reject(e);
     });
+    // 驱动先处理 close（解析最后半行、让在途的 control_request 失败），再到这里结算这一轮
     child.on('close', (code, signal) => {
-      if (live.buf.trim()) this.onClaudeLine(tab.id, live, live.buf, false);
-      live.buf = '';
       const turn = live.turn;
       live.turn = null;
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
-      this.failClaudeControls(live);
       if (!turn || turn.settled) return;
       turn.settled = true;
       if (signal && !turn.text) {
@@ -2460,31 +2470,12 @@ export class CliHarnessService {
   ) {
     if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
     const content = images?.length ? claudeContentBlocks(prompt, images) : prompt;
-    const payload = {
-      type: 'user',
-      uuid,
-      message: { role: 'user', content },
-    };
-    live.child.stdin.write(`${JSON.stringify(payload)}\n`);
+    live.driver.writeUser(content, uuid);
   }
 
-  private writeClaudeControl(
-    live: ClaudeLiveSession,
-    request: Record<string, unknown>,
-    requestId: string = randomUUID(),
-  ) {
-    if (!live.child.stdin.writable) return false;
-    const payload = {
-      type: 'control_request',
-      request_id: requestId,
-      request,
-    };
-    try {
-      live.child.stdin.write(`${JSON.stringify(payload)}\n`);
-      return true;
-    } catch {
-      return false;
-    }
+  /** 发 control_request 不等应答（如 stop_task）；写不进去返回 false */
+  private writeClaudeControl(live: ClaudeLiveSession, request: Record<string, unknown>) {
+    return live.driver.notifyControl(request);
   }
 
   /** 发 control_request 并等同 request_id 的 control_response；负确认 / 超时 / 写不进去都会 reject */
@@ -2492,41 +2483,7 @@ export class CliHarnessService {
     live: ClaudeLiveSession,
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const requestId = randomUUID();
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        live.controls.delete(requestId);
-        reject(new Error(t('超时')));
-      }, this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS);
-      live.controls.set(requestId, { resolve, reject, timer });
-      if (!this.writeClaudeControl(live, request, requestId)) {
-        clearTimeout(timer);
-        live.controls.delete(requestId);
-        reject(new Error(t('Claude 进程 stdin 不可写')));
-      }
-    });
-  }
-
-  /** 进程结束 / 拆除：在途的 control_request 一律失败，不留挂起的计时器 */
-  private failClaudeControls(live: ClaudeLiveSession) {
-    for (const w of live.controls.values()) {
-      clearTimeout(w.timer);
-      w.reject(new Error(t('进程已结束')));
-    }
-    live.controls.clear();
-  }
-
-  /** CLI 对我们 control_request 的应答（按 request_id 交给等待者；不认识的 id 直接忽略） */
-  private onClaudeControlResponse(live: ClaudeLiveSession, j: Record<string, unknown>) {
-    const r = (j.response ?? {}) as Record<string, unknown>;
-    const requestId = typeof r.request_id === 'string' ? r.request_id : '';
-    const w = live.controls.get(requestId);
-    if (!w) return;
-    live.controls.delete(requestId);
-    clearTimeout(w.timer);
-    if (r.subtype === 'success') w.resolve((r.response ?? {}) as Record<string, unknown>);
-    else
-      w.reject(new Error(typeof r.error === 'string' && r.error ? r.error : t('后端拒绝了请求')));
+    return live.driver.control(request);
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
@@ -2959,17 +2916,7 @@ export class CliHarnessService {
    * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
    */
   private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
-    if (line.includes('"control_response"')) {
-      try {
-        const j = JSON.parse(line) as Record<string, unknown>;
-        if (j.type === 'control_response') {
-          this.onClaudeControlResponse(live, j);
-          return true;
-        }
-      } catch {
-        /* 不是完整 JSON：交给解析器 */
-      }
-    }
+    // control_response 由驱动按 request_id 交给等待者，到不了这里
     const replay = line.includes('"isReplay"');
     const task = line.includes('"subtype":"task_');
     if (!replay && !task) return false;
@@ -3248,7 +3195,6 @@ export class CliHarnessService {
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
-    this.failClaudeControls(live);
     const turn = live.turn;
     live.turn = null;
     const child = live.child;
@@ -3259,18 +3205,8 @@ export class CliHarnessService {
     } catch {
       /* */
     }
-    try {
-      if (child.stdin.writable) child.stdin.end();
-    } catch {
-      /* */
-    }
-    try {
-      if (!child.killed && child.exitCode === null) {
-        killProcessTree(child);
-      }
-    } catch {
-      /* */
-    }
+    // 在途的 control_request 一律失败；关 stdin 并结束进程树
+    void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
       turn.reject(new Error(t('已中止')));
@@ -4396,13 +4332,6 @@ type LastTabSettings = {
   modelScope?: string;
 };
 
-/** 在途的 Claude control_request：等同 request_id 的 control_response */
-type ClaudeControlWaiter = {
-  resolve: (response: Record<string, unknown>) => void;
-  reject: (e: Error) => void;
-  timer: NodeJS.Timeout;
-};
-
 /** 长驻 Claude 进程上还有后台任务或自发轮次在跑（拆进程会把它们一起杀掉） */
 function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
   return live.bgTasks.size > 0 || live.auto !== null;
@@ -4414,16 +4343,15 @@ type ClaudeLiveSession = {
   /** 启动时的 TabLaunch.modelSig */
   modelSig: string;
   child: ChildProcessWithoutNullStreams;
+  /** stdin / stdout 与 control_request ↔ control_response 由 cli-sdk 的 stream-json 驱动负责 */
+  driver: StreamJsonDriver;
   parseLine: (line: string) => HarnessEvent[];
-  buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
   /** 进程已生效的权限模式：启动参数，或最近一次得到成功 control_response 的 set_permission_mode */
   permissionMode: HarnessPermissionMode;
   /** 最近一次还没得到确认的权限模式切换；确认前不复用进程跑下一轮（#72） */
   modeChange: ModeChange | null;
-  /** 在途的 control_request：request_id → 应答 */
-  controls: Map<string, ClaudeControlWaiter>;
   /** 进程当前的标签级模型 / 思考深度覆盖（启动参数或最近一次成功的 set_model；复用键的一部分） */
   modelOverride: string | null;
   reasoningEffort: string | null;

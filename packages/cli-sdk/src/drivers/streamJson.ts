@@ -28,8 +28,13 @@ export interface StreamJsonDriverOptions {
   child: ChildLike;
   /** 一行 → 事件（插件的解析器，带自己的跨行状态） */
   parseLine: (line: string) => HarnessEvent[];
-  /** 原始行钩子：返回 true 表示已处理（回显、后台任务等编排层自己管的行） */
-  onLine?: (line: string) => boolean;
+  /**
+   * 原始行钩子：返回 true 表示已处理（回显、后台任务等编排层自己管的行）。
+   * final = 进程退出时缓冲区里剩下的最后半行（编排层可以选择不实时推给界面）
+   */
+  onLine?: (line: string, o: { final: boolean }) => boolean;
+  /** 错误文案（宿主本地化） */
+  messages?: { timeout?: string; notWritable?: string; exited?: string };
   controlTimeoutMs?: number;
   /** 拒绝时给 CLI 的理由（宿主本地化） */
   denyMessage?: string;
@@ -72,11 +77,11 @@ export class StreamJsonDriver implements SessionDriver {
       this.buf += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
       const parts = this.buf.split(/\r?\n/);
       this.buf = parts.pop() ?? '';
-      for (const line of parts) this.onLine(line);
+      for (const line of parts) this.onLine(line, false);
     });
     o.child.on('error', (e) => this.onExit(null, e));
     o.child.on('close', (code) => {
-      if (this.buf.trim()) this.onLine(this.buf);
+      if (this.buf.trim()) this.onLine(this.buf, true);
       this.buf = '';
       this.onExit(code, null);
     });
@@ -105,7 +110,7 @@ export class StreamJsonDriver implements SessionDriver {
   private onExit(code: number | null, err: Error | null) {
     if (this.exited) return;
     this.exited = true;
-    this.failControls(err ?? new Error('process exited'));
+    this.failControls(err ?? new Error(this.o.messages?.exited ?? 'process exited'));
     this.asks.clear();
     const turn = this.turn;
     this.turn = null;
@@ -126,10 +131,10 @@ export class StreamJsonDriver implements SessionDriver {
     this.hub.end();
   }
 
-  private onLine(line: string) {
+  private onLine(line: string, final: boolean) {
     if (!line.trim()) return;
     if (line.includes('"control_response"') && this.onControlResponse(line)) return;
-    if (this.o.onLine?.(line)) return;
+    if (this.o.onLine?.(line, { final })) return;
     const turn = this.turn;
     for (const ev of this.o.parseLine(line)) {
       if (ev.type === 'permission') {
@@ -198,15 +203,24 @@ export class StreamJsonDriver implements SessionDriver {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.controls.delete(requestId);
-        reject(new Error('control request timed out'));
+        reject(new Error(this.o.messages?.timeout ?? 'control request timed out'));
       }, this.o.controlTimeoutMs ?? CONTROL_TIMEOUT_MS);
       timer.unref?.();
       this.controls.set(requestId, { resolve, reject, timer });
       if (!this.write({ type: 'control_request', request_id: requestId, request })) {
         clearTimeout(timer);
         this.controls.delete(requestId);
-        reject(new Error('stdin not writable'));
+        reject(new Error(this.o.messages?.notWritable ?? 'stdin not writable'));
       }
+    });
+  }
+
+  /** 发 control_request 不等应答（如 stop_task）；写不进去返回 false */
+  notifyControl(request: Record<string, unknown>): boolean {
+    return this.write({
+      type: 'control_request',
+      request_id: (this.o.newId ?? randomUUID)(),
+      request,
     });
   }
 
@@ -280,7 +294,7 @@ export class StreamJsonDriver implements SessionDriver {
   }
 
   async close(): Promise<void> {
-    this.failControls(new Error('closed'));
+    this.failControls(new Error(this.o.messages?.exited ?? 'process exited'));
     endChild(this.o.child, this.o.kill);
   }
 }
