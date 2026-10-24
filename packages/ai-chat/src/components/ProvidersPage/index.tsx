@@ -4,6 +4,7 @@
  *   下面是选中助手的分组：版本（检测 / 更新 / 安装）、官方账号、第三方模型入口。
  *   第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口。
  *   下面是「外部 CLI」：用户添加的说 ACP 的编程助手（§5.9）。
+ * - 委派：允许 Nomi 委派编程助手、按任务类型的默认编程助手（docs/design/nomi-delegate-cli.md §4.7）。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
@@ -20,6 +21,7 @@ import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { CliEndpointSection } from './CliEndpointSection';
+import { DelegateSettings } from './DelegateSettings';
 import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 
@@ -38,7 +40,7 @@ export const ProvidersPage: React.FC<{
   // 「监视与会话」时记住上次看的助手；旧的「nomi」选中值落到第一个助手
   const [lastCli, setLastCli] = useState<CliKind>(() => (isCliKind(ep) ? ep : CLIS[0]!));
   const cli: CliKind = isCliKind(ep) ? ep : lastCli;
-  const view = ep === 'monitor' ? 'monitor' : 'assistants';
+  const view = ep === 'monitor' || ep === 'delegate' ? ep : 'assistants';
   const pick = (k: CliKind) => {
     setLastCli(k);
     setEp(k);
@@ -85,14 +87,17 @@ export const ProvidersPage: React.FC<{
       <Tabs
         aria-label={t('编程助手分区')}
         value={view}
-        onChange={(v) => (v === 'monitor' ? setEp('monitor') : pick(cli))}
+        onChange={(v) => (v === 'monitor' || v === 'delegate' ? setEp(v) : pick(cli))}
         items={[
           { value: 'assistants', label: t('助手'), testId: 'providers-view-assistants' },
+          { value: 'delegate', label: t('委派'), testId: 'providers-view-delegate' },
           { value: 'monitor', label: t('监视与会话'), testId: 'providers-endpoint-monitor' },
         ]}
       />
 
-      {view === 'monitor' ? (
+      {view === 'delegate' ? (
+        <DelegateSettings />
+      ) : view === 'monitor' ? (
         <div data-testid="providers-section-monitor">
           <CodingMonitor onOpenedTab={onOpenedTab} onOpenNotify={onOpenNotify} />
         </div>

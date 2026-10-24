@@ -445,5 +445,17 @@
   "只读：可以查看文件和资料，不做任何修改": "Read-only: can look at files and data, but changes nothing",
   "写文件等修改操作，每次都先问你": "Asks you every time before writing files or making other changes",
   "按「桌面能力」里每个工具的设置询问": "Asks according to each tool’s setting in Desktop abilities",
-  "修改操作不再询问；删除等破坏性操作仍要确认": "Makes changes without asking; deletions and other destructive actions still need confirmation"
+  "修改操作不再询问；删除等破坏性操作仍要确认": "Makes changes without asking; deletions and other destructive actions still need confirmation",
+  "让 Nomi 选": "Let Nomi choose",
+  "委派": "Handoff",
+  "Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编程助手去做，做完把结果带回对话。对话里用 /cli 名字 可以临时指定交给谁。": "Nomi can hand specific coding, writing, review, and research tasks to the coding assistants on this computer and bring the results back to the chat. Type /cli followed by a name in the chat to pick one for the next request.",
+  "允许 Nomi 委派编程助手": "Let Nomi hand off tasks to coding assistants",
+  "关闭后 Nomi 不会派出子任务，/cli 也不可用。": "When off, Nomi won’t hand off subtasks and /cli is unavailable.",
+  "按任务类型的默认编程助手": "Default coding assistant by task type",
+  "没有用 /cli 指定、也没有在消息里点名时，按这里选。「让 Nomi 选」时，Nomi 从已安装的编程助手里选。": "Used when you haven’t picked one with /cli or named one in your message. With “Let Nomi choose”, Nomi picks from the installed coding assistants.",
+  "{0}默认交给": "Default for {0}",
+  "编程开发": "Coding",
+  "PRD / 需求文档": "PRD / requirements",
+  "调研分析": "Research",
+  "委派编程助手需要在桌面应用中使用": "Handing off to coding assistants needs the desktop app"
 }

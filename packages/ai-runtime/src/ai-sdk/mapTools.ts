@@ -29,8 +29,12 @@ export function toAiSdkTool(def: ToolDefinition, provider?: ToolCallProvider): T
   return tool({
     description: def.description,
     inputSchema: toFlexibleSchema(def.input),
-    execute: async (input, { abortSignal }) =>
-      def.execute(input, { signal: abortSignal, ...(provider ? { provider } : {}) }),
+    execute: async (input, { abortSignal, toolCallId }) =>
+      def.execute(input, {
+        signal: abortSignal,
+        ...(toolCallId ? { toolCallId } : {}),
+        ...(provider ? { provider } : {}),
+      }),
   });
 }
 

@@ -1,0 +1,234 @@
+/* Nomi 派给编程助手的子任务卡片（docs/design/nomi-delegate-cli.md §7） */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+}
+.groupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cd-space-2);
+  font-size: var(--cd-font-size-sm);
+  color: var(--cd-color-text-muted);
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border: 1px solid var(--cd-color-border);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-surface-raised);
+  font-size: var(--cd-font-size-sm);
+}
+.card[data-phase='waiting'] {
+  border-color: var(--cd-color-warning);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+.toggle,
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--cd-control-h-xs);
+  height: var(--cd-control-h-xs);
+  padding: 0;
+  border: none;
+  border-radius: var(--cd-radius-sm);
+  background: transparent;
+  color: var(--cd-color-text-muted);
+  cursor: pointer;
+}
+.toggle:hover,
+.iconBtn:hover:not(:disabled) {
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text);
+}
+.toggle:focus-visible,
+.iconBtn:focus-visible,
+.linkBtn:focus-visible {
+  outline: 2px solid var(--cd-color-accent-strong);
+  outline-offset: 1px;
+}
+.iconBtn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cd-space-1-5);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.name {
+  flex: none;
+  font-weight: var(--cd-font-weight-bold);
+}
+.goal {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text);
+}
+.phase {
+  flex: none;
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-full);
+  font-size: var(--cd-font-size-xs);
+  line-height: var(--cd-control-h-2xs);
+  background: var(--cd-color-hover);
+  color: var(--cd-color-text-muted);
+}
+.phase[data-phase='running'] {
+  background: var(--cd-color-accent-soft);
+  color: var(--cd-color-accent-strong);
+}
+.phase[data-phase='waiting'] {
+  background: var(--cd-color-warning-soft);
+  color: var(--cd-color-text);
+}
+.phase[data-phase='done'] {
+  background: var(--cd-color-success-soft);
+  color: var(--cd-color-text);
+}
+.phase[data-phase='error'] {
+  background: var(--cd-color-danger-soft);
+  color: var(--cd-color-danger-text);
+}
+.step {
+  padding-left: calc(var(--cd-control-h-xs) + var(--cd-space-2));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding-left: calc(var(--cd-control-h-xs) + var(--cd-space-2));
+}
+.muted {
+  color: var(--cd-color-text-muted);
+  font-size: var(--cd-font-size-xs);
+}
+.errorText {
+  color: var(--cd-color-danger-text);
+}
+.linkBtn {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--cd-color-accent-strong);
+  font: inherit;
+  font-size: var(--cd-font-size-xs);
+  cursor: pointer;
+}
+.linkBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.agents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+}
+.agentsHead {
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+}
+.agentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agent {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
+  font-size: var(--cd-font-size-xs);
+}
+.agentName {
+  flex: none;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--cd-font-weight-bold);
+}
+.agentStatus {
+  flex: none;
+  color: var(--cd-color-text-muted);
+}
+.agent[data-status='running'] .agentStatus {
+  color: var(--cd-color-accent-strong);
+}
+.agentProgress {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cd-color-text-muted);
+}
+.report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1-5);
+}
+.reportBody {
+  min-width: 0;
+}
+.reportRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+}
+.reportLabel {
+  font-size: var(--cd-font-size-xs);
+  font-weight: var(--cd-font-weight-bold);
+  color: var(--cd-color-text-muted);
+}
+.files {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-0-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--cd-font-size-xs);
+}
+.drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-3);
+}
+.drawerUser {
+  padding: var(--cd-space-2) var(--cd-space-3);
+  border-radius: var(--cd-radius-lg);
+  background: var(--cd-color-hover);
+}
+.drawerAssistant {
+  min-width: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}

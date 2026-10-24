@@ -23,6 +23,11 @@ export function cliAcceptsImages(backend: string | null | undefined): boolean {
   return !info || info.capabilities.images !== 'none';
 }
 
+/** 能单独停止某个子代理（不能时只能停整个标签） */
+export function canStopSubagent(backend: string | null | undefined): boolean {
+  return cliInfo(backend)?.capabilities.subagentStop === true;
+}
+
 /** 能列出命令 / Skills / 插件 / MCP（斜杠发现） */
 export function hasSlashCommands(backend: string | null | undefined): boolean {
   return cliInfo(backend)?.capabilities.slashCommands === true;

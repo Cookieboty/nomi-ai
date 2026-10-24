@@ -17,6 +17,8 @@ import {
   useAiChatActions,
   useAiChatSelector,
 } from '../../contexts/aiChatStore';
+import { useNextDelegate } from '../../hooks/useNextDelegate';
+import { setNextDelegate } from '../../services/delegateClient';
 import { extClient } from '../../services/extClient';
 import { kbClient } from '../../services/kbClient';
 import { memClient } from '../../services/memClient';
@@ -41,6 +43,7 @@ import { argPhase, paletteQuery } from '../../slash/parse';
 import { buildRegistry, findCommand, flattenGroups, searchCommands } from '../../slash/registry';
 import type { SlashBridge, SlashCommand } from '../../slash/types';
 import type { ConvMessage } from '../../types/conversation';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { CYCLE_PERMISSION_EVENT, type CyclePermissionDetail } from '../../utils/permissionModes';
 import { AppIcon, FEATURE_ICONS } from '../AppIcons';
 import { EndpointControls, PermissionTip } from '../EndpointControls';
@@ -161,6 +164,8 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
   const streaming = useAiChatSelector(selectStreaming);
   const chatError = useAiChatSelector(selectError);
   // 知识库问答模式（Ctrl/Cmd+Shift+K 切换），记住上次的选择
+  // `/cli 名字`：下一个需求交给哪个编程助手（输入栏上的 chip，点 × 取消）
+  const nextDelegate = useNextDelegate();
   const [kbMode, setKbMode] = useState(() => {
     try {
       return localStorage.getItem('cd.chat.kbMode') === '1';
@@ -795,6 +800,19 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
               >
                 <Icon icon={BookOpen} size={14} />
                 {tr('知识库')}
+              </button>
+            )}
+            {nextDelegate && (
+              <button
+                type="button"
+                className={styles.chip}
+                onClick={() => setNextDelegate(null)}
+                title={tr('下一个需求交给 {0}，点击取消', tr(ENDPOINT_NAME[nextDelegate]))}
+                aria-label={tr('取消：下一个需求交给 {0}', tr(ENDPOINT_NAME[nextDelegate]))}
+                data-testid="next-delegate-chip"
+              >
+                {tr('交给 {0}', tr(ENDPOINT_NAME[nextDelegate]))}
+                <Icon icon={X} size={12} />
               </button>
             )}
             {onPluginsClick && (

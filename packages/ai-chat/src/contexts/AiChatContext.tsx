@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { consumeNextDelegate, delegateDirective } from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import {
@@ -29,6 +30,7 @@ import { schedClient } from '../services/schedClient';
 import { screenClient, type ImageAttachment } from '../services/screenClient';
 import { type ChatMessage, type ChatConfig } from '../types/chat';
 import { type IPCClient } from '../types/ipc';
+import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
 
@@ -462,12 +464,15 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           if (r === 'user_denied') throw new Error(t('已取消：图片没有发送给云端模型'));
         }
 
+        // `/cli`：这条需求指定交给某个编程助手（钉到主进程，模型改不了；界面只显示一个小标记）
+        const delegateTo = await consumeNextDelegate();
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
           content,
           timestamp: Date.now(),
           modelId: nomiModelLabel(),
+          ...(delegateTo ? { delegateTo } : {}),
           ...(images?.length
             ? {
                 images: images.map((i) => ({
@@ -575,7 +580,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         };
         try {
           await client.sendStreamMessage(
-            content,
+            delegateTo
+              ? `${delegateDirective(t(ENDPOINT_NAME[delegateTo]))}\n\n${content}`
+              : content,
             (chunk: string) => {
               accumulated += chunk;
               scheduleUi();

@@ -21,9 +21,21 @@ export interface HarnessState {
 
 export type HarnessTabStatus = 'idle' | 'queued' | 'running' | 'error';
 
+/** 由 Nomi 委派开的标签（docs/design/nomi-delegate-cli.md） */
+export interface HarnessDelegation {
+  by: 'nomi';
+  /** 派出它的 Nomi 工具调用 id */
+  callId?: string;
+  goal: string;
+  takenOver?: boolean;
+  approvals: { asked: number; denied: number; timedOut: number };
+}
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
+  /** 由 Nomi 委派开的标签 */
+  delegation?: HarnessDelegation;
   backend: HarnessBackend;
   /**
    * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。

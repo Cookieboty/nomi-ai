@@ -9,6 +9,7 @@ import React, { useState } from 'react';
 import type { KbSource } from '../../services/kbClient';
 import type { ChatMessage } from '../../types/chat';
 import type { ConvMessage } from '../../types/conversation';
+import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { SourceList, SourcePreview } from './Citations';
 import styles from './Citations.module.css';
@@ -49,6 +50,11 @@ export const nomiSlots: ConvSlots = {
     if (!raw) return null;
     return (
       <>
+        {m.role === 'user' && raw.delegateTo && (
+          <span className={styles.kbTag} data-testid="message-delegate-to">
+            {t('交给 {0}', t(ENDPOINT_NAME[raw.delegateTo]))}
+          </span>
+        )}
         {m.role === 'assistant' && !!raw.memories?.length && (
           <details className={styles.stepRow} data-testid="memory-tag">
             <summary>

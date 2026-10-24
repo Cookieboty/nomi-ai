@@ -31,6 +31,7 @@ import { ACCOUNT_KINDS, type AccountKind } from '../cli/accounts/types';
 import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliPluginHost } from '../cli/CliPluginHost';
 import { initCliUpdateService } from '../cli/CliUpdateService';
+import { initDelegateService } from '../cli/delegate/DelegateService';
 import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
 import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
@@ -697,6 +698,12 @@ export class Application implements IApplication {
         const m = harness.mainPermissionMode();
         return m === 'bypass' ? 'acceptEdits' : m;
       };
+      // Nomi 把编程助手当子代理调用（工具 delegate_to_cli、/cli、设置 →「编程助手」→「委派」）
+      initDelegateService({
+        root: path.join(app.getPath('userData'), 'delegate'),
+        harness,
+        desktop: getDesktopService(this.logger),
+      }).registerIpc();
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),

@@ -162,5 +162,15 @@
   "只影响当前标签，下一条消息起生效。": "Only affects this tab, starting with the next message.",
   "没有匹配的模型。也可以输入完整的模型 id：/model <模型 id>": "No matching models. You can also enter a full model id: /model <model id>",
   "只影响当前标签，下一条消息起生效；与输入框的模型按钮是同一个设置。": "Only affects this tab, starting with the next message; this is the same setting as the model button in the input bar.",
-  "会话已关闭或已重置": "The session was closed or reset"
+  "会话已关闭或已重置": "The session was closed or reset",
+  "交给编程助手": "Hand off to a coding assistant",
+  "读取委派设置失败": "Couldn’t read the handoff settings",
+  "「允许 Nomi 委派编程助手」已关闭，可在设置 →「编程助手」→「委派」里打开。": "“Let Nomi hand off tasks to coding assistants” is off. Turn it on in Settings → Coding assistants → Handoff.",
+  "（没有已安装的编程助手）": "(no coding assistants installed)",
+  "用法：/cli codex 需求，或 /cli codex 后再输入需求；/cli off 取消。": "Usage: /cli codex <request>, or /cli codex and then type the request; /cli off to cancel.",
+  "可用：{0}": "Available: {0}",
+  "已取消指定，Nomi 会按设置选编程助手。": "Cleared. Nomi will pick a coding assistant from your settings.",
+  "{0} 没有安装，可在设置 →「编程助手」里安装。": "{0} isn’t installed. You can install it in Settings → Coding assistants.",
+  "指定下一个需求交给哪个编程助手（如 /cli codex 修复登录 bug）": "Pick which coding assistant handles your next request (e.g. /cli codex fix the login bug)",
+  "名字 [需求]": "name [request]"
 }

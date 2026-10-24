@@ -44,6 +44,8 @@ module.exports = {
     /voice\/src\/wake\.ts$/,
     /renderer\/src\/mascot\/licenseTerms\.ts$/,
     /electron\/src\/desktop\/(p2tools|p3tools|tools)\.ts$/,
+    // Nomi 委派编程助手：工具说明 / 交回模型的消息 / 发给编程助手的任务说明，与桌面工具同样保留中文
+    /electron\/src\/cli\/delegate\/(core|DelegateService)\.ts$/,
     /electron\/src\/tts\/legacy\//, // 旧版远程 TTS 测试（仅主进程日志）
     /electron\/src\/knowledge\/(tokenize|answer)\.ts$/,
     /electron\/src\/schedule\/recurrence\.ts$/,

@@ -31,6 +31,8 @@ export interface CliCapabilities {
   images?: 'native' | 'path' | 'none';
   permissionModes?: PermissionModeSpec[];
   subagents?: boolean;
+  /** 能单独停止某个子代理（Claude 的 stop_task）；不能时只能停整个标签 */
+  subagentStop?: boolean;
   slashCommands?: boolean;
   resume?: boolean;
   fork?: boolean;

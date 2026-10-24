@@ -48,6 +48,7 @@ import {
 } from '../../utils/toolTrace';
 
 import { useAgentForCall } from './agentContext';
+import { DelegateCard, DelegateGroup } from './DelegateCard';
 import { DiffView } from './DiffView';
 import { Markdown } from './Markdown';
 import styles from './Tool.module.css';
@@ -488,6 +489,29 @@ const Thinking = memo(function Thinking({
   );
 });
 
+const DELEGATE_TOOL = 'delegate_to_cli';
+type SubagentItem = Extract<TimelineItem, { type: 'subagent' }>;
+
+/** 相邻的两个及以上委派合成一个任务组（组头汇总状态、全部停止）；单个仍是普通卡片 */
+function groupDelegates(items: TimelineItem[]): Array<TimelineItem | SubagentItem[]> {
+  const out: Array<TimelineItem | SubagentItem[]> = [];
+  let run: SubagentItem[] = [];
+  const flush = () => {
+    if (run.length > 1) out.push(run);
+    else out.push(...run);
+    run = [];
+  };
+  for (const it of items) {
+    if (it.type === 'subagent' && it.call.name === DELEGATE_TOOL) run.push(it);
+    else {
+      flush();
+      out.push(it);
+    }
+  }
+  flush();
+  return out;
+}
+
 /** 顶层时间线一次最多渲染的条目数；更早的折叠成一行，点击展开（长任务不会一次渲染上千行） */
 export const TIMELINE_WINDOW = 60;
 
@@ -516,7 +540,9 @@ export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }>
           {t('显示更早的 {0} 步', hidden)}
         </button>
       )}
-      {visible.map((it) => {
+      {groupDelegates(visible).map((it) => {
+        if (Array.isArray(it))
+          return <DelegateGroup key={it[0]!.call.id} calls={it.map((x) => x.call)} />;
         switch (it.type) {
           case 'thinking':
             return (
@@ -533,6 +559,8 @@ export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }>
           case 'group':
             return <ToolGroup key={it.id} id={it.id} bucket={it.bucket} calls={it.calls} />;
           default:
+            if (it.call.name === DELEGATE_TOOL)
+              return <DelegateCard key={it.call.id} call={it.call} />;
             return (
               <Subagent key={it.call.id} call={it.call}>
                 {it.children}

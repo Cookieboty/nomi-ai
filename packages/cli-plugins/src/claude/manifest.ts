@@ -27,6 +27,7 @@ export const manifest: CliManifest = {
       modeId: CLAUDE_MODE[mode],
     })),
     subagents: true,
+    subagentStop: true,
     slashCommands: true,
     resume: true,
     fork: false,

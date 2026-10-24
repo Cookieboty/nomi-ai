@@ -286,6 +286,8 @@ const PERSIST_DEBOUNCE_MS = 200;
 const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
+/** Nomi 委派开的标签：用户多半把活交出去就离开了，审批多等一会（docs/design/nomi-delegate-cli.md §5.1） */
+export const DELEGATED_PERMISSION_TIMEOUT_MS = 600_000;
 
 const BACKENDS: readonly HarnessBackend[] = ['nomi', ...BUILTIN_CLI_IDS, 'external'];
 
@@ -882,6 +884,10 @@ export class HarnessOrchestrator {
       accountId?: string | null;
       /** backend = 'external' 时：外部插件 id（§5.9） */
       pluginId?: string;
+      /** false：在后台创建，不切到这个标签（Nomi 委派时不抢用户正在看的界面）；缺省 true */
+      activate?: boolean;
+      /** 由 Nomi 委派开的标签 */
+      delegation?: { callId?: string; goal: string };
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -915,6 +921,16 @@ export class HarnessOrchestrator {
           : this.defaultPermissionMode,
       ).mode,
       ...(opts.permissionModeSource ? { permissionModeSource: opts.permissionModeSource } : {}),
+      ...(opts.delegation
+        ? {
+            delegation: {
+              by: 'nomi' as const,
+              ...(opts.delegation.callId ? { callId: opts.delegation.callId } : {}),
+              goal: opts.delegation.goal.slice(0, 200),
+              approvals: { asked: 0, denied: 0, timedOut: 0 },
+            },
+          }
+        : {}),
     };
     // 新标签的来源：显式指定的，否则「模型」页给这个编程助手设的「新标签默认用」
     tab.source = this.defaultSource(backend, opts.source);
@@ -957,7 +973,7 @@ export class HarnessOrchestrator {
       // 分叉 / 复制出来的标签没有可续接的 CLI 会话：把预填的对话当前文带进第一轮
       if (!tab.cliSessionId) this.setCarried(tab, seeded);
     }
-    this.activeTabId = tab.id;
+    if (opts.activate !== false) this.activeTabId = tab.id;
     this.changed();
     this.prewarm(tab.id);
     return { ...tab };
@@ -2299,7 +2315,8 @@ export class HarnessOrchestrator {
           this.finish(tab, false, '', message);
         }
       }
-      throw e;
+      // 用户停止：带上停止前已生成的文字，调用方（如 Nomi 委派）能区分「停止」与「出错」
+      throw stopped ? new HarnessStoppedError(message, part?.text ?? '') : e;
     } finally {
       if (stageDir) cleanupStagedDir(stageDir);
       if (this.sendAborts.get(id) === abort) this.sendAborts.delete(id);
@@ -2712,7 +2729,7 @@ export class HarnessOrchestrator {
     let turn: ClaudeTurnWaiter | null = userTurn ?? live.auto;
     let dropAfter = false;
     for (const raw of live.parseLine(line)) {
-      let ev = withPermissionExpiry(stampEvent(raw));
+      let ev = withPermissionExpiry(stampEvent(raw), this.permissionTimeoutMs(tabId));
       if (!turn && isTurnContent(ev)) turn = this.startAutoTurn(tabId, live);
       if (turn) {
         const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
@@ -2884,7 +2901,10 @@ export class HarnessOrchestrator {
         );
       });
       this.onAcpEvents(tab.id, live, [
-        withPermissionExpiry({ type: 'permission', id: e.id, summary: e.request.summary }),
+        withPermissionExpiry(
+          { type: 'permission', id: e.id, summary: e.request.summary },
+          this.permissionTimeoutMs(tab.id),
+        ),
       ]);
     });
     child.on('close', () => {
@@ -3016,7 +3036,7 @@ export class HarnessOrchestrator {
 
   private onAcpEvents(tabId: string, live: AcpLiveSession, evs: HarnessEvent[]) {
     for (const raw of evs) {
-      let ev = withPermissionExpiry(stampEvent(raw));
+      let ev = withPermissionExpiry(stampEvent(raw), this.permissionTimeoutMs(tabId));
       const turn = live.turn;
       if (turn) {
         const folded = foldAssistantEvent(turn.text, turn.breaks, ev);
@@ -3641,7 +3661,10 @@ export class HarnessOrchestrator {
         );
       });
       this.onCodexEvents(tab.id, live, [
-        withPermissionExpiry({ type: 'permission', id: e.id, summary: e.request.summary }),
+        withPermissionExpiry(
+          { type: 'permission', id: e.id, summary: e.request.summary },
+          this.permissionTimeoutMs(tab.id),
+        ),
       ]);
     });
     child.on('close', () => {
@@ -3765,7 +3788,7 @@ export class HarnessOrchestrator {
   private onCodexEvents(tabId: string, live: CodexLiveSession, evs: HarnessEvent[]) {
     const turn = live.turn;
     for (const raw of evs) {
-      let ev = withPermissionExpiry(stampEvent(raw));
+      let ev = withPermissionExpiry(stampEvent(raw), this.permissionTimeoutMs(tabId));
       if (turn) {
         if (ev.type === 'tool' && ev.output) {
           materializeGeneratedImages(ev.output, this.home, turn.chatRoot, turn.imageAliases);
@@ -4099,7 +4122,7 @@ export class HarnessOrchestrator {
         const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
         if (text !== ev.text) ev = { ...ev, text };
       }
-      ev = withPermissionExpiry(stampEvent(ev));
+      ev = withPermissionExpiry(stampEvent(ev), this.permissionTimeoutMs(tab.id));
       const folded = foldAssistantEvent(text, breaks, ev);
       text = folded.text;
       breaks = folded.breaks;
@@ -4183,6 +4206,8 @@ export class HarnessOrchestrator {
 
   private emitEvent(tabId: string, ev: HarnessEvent) {
     this.trackProgress(tabId, ev);
+    if (ev.type === 'permission-resolved' && ev.reason !== 'allowed')
+      this.countDelegatedApproval(tabId, ev.reason === 'timeout' ? 'timedOut' : 'denied');
     const part = this.partial.get(tabId);
     let outgoing = ev;
     if (part && ev.type === 'context') {
@@ -4353,12 +4378,33 @@ export class HarnessOrchestrator {
     }
     const prev = m.get(requestId);
     if (prev) clearTimeout(prev);
+    if (!prev) this.countDelegatedApproval(tabId, 'asked');
     const timer = setTimeout(() => {
       this.replyPermission(tabId, requestId, false, 'timeout');
-    }, PERMISSION_TIMEOUT_MS);
+    }, this.permissionTimeoutMs(tabId));
     // 权限卡 120s 超时不应拖住进程退出
     (timer as { unref?: () => void }).unref?.();
     m.set(requestId, timer);
+  }
+
+  /** 审批等待时间：Nomi 委派开、用户还没接手的标签 10 分钟，其余 120 秒 */
+  permissionTimeoutMs(tabId: string): number {
+    const d = this.tabs.get(tabId)?.delegation;
+    return d && !d.takenOver ? DELEGATED_PERMISSION_TIMEOUT_MS : PERMISSION_TIMEOUT_MS;
+  }
+
+  private countDelegatedApproval(tabId: string, k: 'asked' | 'denied' | 'timedOut') {
+    const d = this.tabs.get(tabId)?.delegation;
+    if (d) d.approvals[k] += 1;
+  }
+
+  /** 用户在委派开的标签里自己发了消息：标签归用户（Nomi 不再往里发），审批等待恢复 120 秒 */
+  private markTakenOver(id: string) {
+    const d = this.tabs.get(id)?.delegation;
+    if (d && !d.takenOver) {
+      d.takenOver = true;
+      this.changed();
+    }
   }
 
   private clearOnePermissionTimeout(tabId: string, requestId: string) {
@@ -4467,15 +4513,16 @@ export class HarnessOrchestrator {
     handle('ai:harness:pick-dir', (p) => this.pickDirectory(p ? String(p) : undefined));
     handle('ai:harness:recent-cwds', () => this.recentCwds());
     handle('ai:harness:tab-messages', (id) => this.tabMessages(String(id)));
-    handle('ai:harness:tab-send', async (id, p, images) =>
-      slimResult(
+    handle('ai:harness:tab-send', async (id, p, images) => {
+      this.markTakenOver(String(id));
+      return slimResult(
         await this.sendTab(
           String(id),
           String(p ?? ''),
           Array.isArray(images) ? (images as HarnessImageInput[]) : undefined,
         ),
-      ),
-    );
+      );
+    });
     handle('ai:harness:tab-cancel', (id) => this.cancelTab(String(id)));
     handle('ai:harness:stop-agent', (id, agentId) =>
       this.stopAgent(String(id), String(agentId ?? '')),
@@ -4733,10 +4780,21 @@ type ClaudeLiveSession = {
   prewarmed?: boolean;
 };
 
+/** sendTab 被用户停止（cancelTab）：不是错误；partialText 是停止前已生成的文字 */
+export class HarnessStoppedError extends Error {
+  constructor(
+    message: string,
+    readonly partialText: string,
+  ) {
+    super(message);
+    this.name = 'HarnessStoppedError';
+  }
+}
+
 /** 权限请求带上超时时间点：界面显示倒计时，与主进程的自动拒绝同一个时钟 */
-function withPermissionExpiry(ev: HarnessEvent): HarnessEvent {
+function withPermissionExpiry(ev: HarnessEvent, timeoutMs: number): HarnessEvent {
   return ev.type === 'permission' && ev.expiresAt === undefined
-    ? { ...ev, expiresAt: Date.now() + PERMISSION_TIMEOUT_MS }
+    ? { ...ev, expiresAt: Date.now() + timeoutMs }
     : ev;
 }
 

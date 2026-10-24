@@ -87,6 +87,19 @@ export type { HarnessTabMessage, HarnessTraceEvent } from '@nomi-ai/cli-sdk';
 /** 标签来源：官方账号（CLI 自带配置）/ 第三方模型（经 Nomi 统一网关，§4.3） */
 export type HarnessTabSource = 'official' | 'thirdParty';
 
+/** 由 Nomi 委派开的标签（docs/design/nomi-delegate-cli.md） */
+export interface HarnessDelegation {
+  by: 'nomi';
+  /** 派出它的 Nomi 工具调用 id：对话里的子任务卡片据此找到标签 */
+  callId?: string;
+  /** 交给编程助手的目标（卡片标题） */
+  goal: string;
+  /** 用户在标签里自己发过消息：标签归用户，审批等待恢复 120 秒 */
+  takenOver?: boolean;
+  /** 审批统计（结果里交回 Nomi） */
+  approvals: { asked: number; denied: number; timedOut: number };
+}
+
 export interface HarnessTabMeta {
   id: string;
   title: string;
@@ -105,6 +118,8 @@ export interface HarnessTabMeta {
   lastError?: string;
   /** 权限模式（已按后端降级）；「完全放开」不跨重启保留 */
   permissionMode: HarnessPermissionMode;
+  /** 由 Nomi 委派开的标签 */
+  delegation?: HarnessDelegation;
   /** 历史会话未记录权限时，首次握手从 CLI 当前会话模式同步；同步后清除。 */
   permissionModeSource?: 'history-cli';
   /**

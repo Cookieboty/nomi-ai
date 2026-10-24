@@ -209,6 +209,8 @@ const KIND_TABLE: Record<ToolKind, readonly string[]> = {
     'killshell',
   ],
   subagent: [
+    // Nomi 派给编程助手的子任务（docs/design/nomi-delegate-cli.md）：时间线里显示成子任务卡片
+    'delegate_to_cli',
     'task',
     'agent',
     'spawn_subagent',

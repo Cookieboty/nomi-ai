@@ -89,6 +89,8 @@ export interface ToolCallProvider {
 /** 工具执行上下文 */
 export interface ToolExecContext {
   signal?: AbortSignal;
+  /** 这次工具调用的 id（模型给的）；界面据此把工具调用和它派生的东西对应起来 */
+  toolCallId?: string;
   /** 实际接收工具结果的 provider；缺失时（非 LLM 循环调用）工具应按最严格的候选处理 */
   provider?: ToolCallProvider;
 }
