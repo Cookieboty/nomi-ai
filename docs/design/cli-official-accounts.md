@@ -1,6 +1,7 @@
 # 编程助手官方账号：多账号登录与全局切换 + Gemini CLI 接入（设计稿）
 
 > 状态：设计稿 + 分阶段实现（第 9 节进度）。
+> **2026-10-24 更新**：Anthropic 的 [法务与合规](https://code.claude.com/docs/en/legal-and-compliance) 明确第三方开发者不得收集、存储或中转 Claude.ai 凭据。本稿的「保险箱存凭据 + 全局切换」随 v1.2.0 改为「一个账号一个配置目录、登录由 CLI 自己完成、Nomi 不经手凭据」，见 [编程助手插件化 §5.10](cli-plugin-architecture.md)。第 4 节（暂存目录登录）的思路沿用；第 5 节（全局切换）、第 6 节的保险箱下线。
 > 查证 2026-10-19：Claude Code 2.1.303、Codex CLI 0.163.0、Grok Build 1.0.62（本机二进制 / 非交互登录实测）、
 > Gemini CLI 0.62.0（隔离目录安装实测 + 源码）；cc-switch 4.0.15（main@adc223a 源码与 issue）。
 > 平台：macOS / Linux / Windows（第 7 节）。
