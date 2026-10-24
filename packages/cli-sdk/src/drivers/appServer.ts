@@ -119,6 +119,11 @@ export class AppServerDriver implements SessionDriver {
     return this.turn !== null;
   }
 
+  /** app-server 给这一轮的 id（turn/start 应答到达前为 null；停止要等它） */
+  get currentTurnId(): string | null {
+    return this.turn?.serverId ?? null;
+  }
+
   private emit(event: HarnessEvent) {
     const turn = this.turn;
     if (turn) turn.text = appendText(turn.text, event);
