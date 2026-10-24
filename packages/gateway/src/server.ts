@@ -8,6 +8,8 @@ import http from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
 
 import { Affinity, sessionKey } from './affinity';
+import { bridgeMode, createBridge } from './bridge';
+import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/responses';
 import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
 import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
@@ -22,12 +24,10 @@ import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
 import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
-import { completeResponsesBody, ResponsesUsagePatcher } from './responsesUsage';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { SessionTable } from './sessions';
-import { createStreamConverter, jsonToJson, jsonToSse, type StreamUsage } from './stream';
+import { jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { patchChatJson } from './stream/chatPatch';
-import { createPassthrough, passthroughFail, TerminalWatch } from './stream/passthrough';
 import {
   candidateIsReasoning,
   resolveFirstByteBudgetMs,
@@ -742,7 +742,8 @@ export class GatewayServer {
   ): Promise<StreamUsage> {
     res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
-    const passthrough = ingress.wire === cand.wire && !cand.customToolsAsFunctions;
+    const passthrough =
+      bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions) === 'passthrough';
     const isSse = (up.headers.get('content-type') ?? '').includes('text/event-stream');
     const fixes = responseFixOptions(ingress.wire, cand, body, notes);
     const convOpts = {
@@ -751,31 +752,23 @@ export class GatewayServer {
       fixes,
     };
     if (wantsStream && isSse && up.body) {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream; charset=utf-8',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      });
+      // 提交点之前可能已经发过响应头与 SSE 注释保活（§6.11.2）
+      if (!res.headersSent) res.writeHead(200, SSE_HEADERS);
       const tap = new UsageTap(cand.wire);
-      // 同协议：按事件透传，只在修正触发时改事件；跨协议：解码 → 修正 → 编码
-      const pass = passthrough ? createPassthrough(cand.wire, fixes) : null;
-      // 同协议透传：旁路看上游有没有正常结束（跨协议转换由解码器自己判定）
-      const watch = passthrough ? new TerminalWatch(cand.wire) : null;
-      const conv = passthrough ? null : createStreamConverter(cand.wire, ingress.wire, convOpts);
-      // Responses 入口：补全严格客户端要求的用量字段（同协议透传与转换都要）
-      const usageFix =
-        ingress.wire === 'responses' ? new ResponsesUsagePatcher(cand.publicModel) : null;
-      const raw = passthrough && !pass && !usageFix;
-      const write = (chunk: string) => {
-        const out = usageFix ? usageFix.push(chunk) : chunk;
-        if (out) res.write(out);
-      };
+      // 协议桥（§6.5）：同协议按事件透传，只在修正触发时改事件；跨协议 / custom 工具转换：解码 → 修正 → 编码
+      const bridge = createBridge({
+        from: cand.wire,
+        to: ingress.wire,
+        mode: bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions),
+        model: cand.publicModel,
+        customTools: convOpts.customTools,
+        fixes,
+      });
       const decoder = new TextDecoder();
       const reader = up.body.getReader();
       const idleMs = resolveStreamIdleTimeoutMs(this.hooks);
       let idle: ReturnType<typeof setTimeout> | null = null;
       let idleFired = false;
-      let stopped = false;
       const arm = () => {
         if (idle) clearTimeout(idle);
         idle = setTimeout(() => {
@@ -792,45 +785,32 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
-          watch?.push(text);
           trace?.response(up.status, text);
-          if (raw) res.write(Buffer.from(value));
-          else write(conv ? conv.push(text) : pass ? pass.push(text) : text);
-          // 复读检测触发：错误事件已经写出，不再读上游
-          if (conv?.stopped || pass?.stopped) {
-            stopped = true;
-            break;
+          const out = bridge.push(text);
+          // 背压（§6.11.4）：客户端读得慢时暂停读上游，等 drain；等待期间不算上游空闲
+          const ok = bridge.raw ? res.write(Buffer.from(value)) : out ? res.write(out) : true;
+          if (!ok) {
+            if (idle) clearTimeout(idle);
+            await drained(res);
+            arm();
           }
+          // 复读检测触发：错误事件已经写出，不再读上游
+          if (bridge.stopped) break;
         }
-        if (!stopped) {
-          const rest = decoder.decode();
-          tap.push(rest);
-          watch?.push(rest);
-          if (conv) write(conv.push(rest) + conv.end());
-          else if (pass) write(pass.push(rest) + pass.end());
-          else if (rest) write(rest);
-        }
-        if (usageFix) {
-          const tail = usageFix.end();
-          if (tail) res.write(tail);
-        }
-        // 同协议透传时上游没发结束标记就断了：补一个错误事件，客户端报错而不是空等 / 静默重试
-        if (watch && !stopped && !watch.terminated)
-          write(passthroughFail(cand.wire, 'Nomi 网关：上游没有发结束标记就断开了'));
-        if (stopped) {
+        const rest = bridge.stopped ? '' : decoder.decode();
+        tap.push(rest);
+        const tail = bridge.end(rest);
+        if (tail) res.write(tail);
+        if (bridge.stopped) {
           if (idle) clearTimeout(idle);
           await reader.cancel().catch(() => undefined);
         }
       } catch (e) {
         if (!res.destroyed) {
-          // 已收到的完整事件先写出去，再报错（Responses 补全层还缓存着的部分，#94）
-          const tail = usageFix?.end();
-          if (tail) res.write(tail);
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
-          if (conv) res.write(conv.fail(msg));
-          else write(passthroughFail(cand.wire, msg));
+          res.write(bridge.fail(msg));
         }
       } finally {
         if (idle) clearTimeout(idle);
@@ -879,7 +859,7 @@ export class GatewayServer {
       const sse = jsonToSse(cand.wire, ingress.wire, parsed, convOpts);
       if (ingress.wire !== 'responses') res.end(sse);
       else {
-        const fix = new ResponsesUsagePatcher(cand.publicModel);
+        const fix = new ResponsesCanonicalizer(cand.publicModel);
         res.end(fix.push(sse) + fix.end());
       }
       return usage;
@@ -984,4 +964,25 @@ function tapClientOutput(res: http.ServerResponse, trace: RequestTrace): void {
     if (typeof a[0] !== 'function') trace.client(text(a[0]));
     return end(...a);
   };
+}
+
+/** 流式响应头 */
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-cache',
+  Connection: 'keep-alive',
+} as const;
+
+/** 等客户端把写缓冲读走（drain），或连接关闭（§6.11.4） */
+function drained(res: http.ServerResponse): Promise<void> {
+  if (res.destroyed || !res.writableNeedDrain) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      res.off('drain', done);
+      res.off('close', done);
+      resolve();
+    };
+    res.on('drain', done);
+    res.on('close', done);
+  });
 }
