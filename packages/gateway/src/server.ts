@@ -10,6 +10,7 @@ import type { AddressInfo, Socket } from 'node:net';
 import { Affinity, sessionKey } from './affinity';
 import { bridgeMode, createBridge } from './bridge';
 import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/responses';
+import { peekCommit, type PeekResult } from './commit';
 import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
 import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
@@ -28,6 +29,7 @@ import { alternateWire, resolveCandidates, type Candidate } from './route/resolv
 import { SessionTable } from './sessions';
 import { jsonToJson, jsonToSse, type StreamUsage } from './stream';
 import { patchChatJson } from './stream/chatPatch';
+import { passthroughFail } from './stream/passthrough';
 import {
   candidateIsReasoning,
   resolveFirstByteBudgetMs,
@@ -343,7 +345,16 @@ export class GatewayServer {
       // 上游给了 Retry-After 时原样转发，CLI 自带的重试会照着等（§9.6）
       if (!res.headersSent)
         sendJson(res, e.status, e.body, retryAfter ? { 'Retry-After': retryAfter } : undefined);
+      // 提交点之前已经发过 SSE 响应头（保活）：用入口协议的错误事件结束（§6.11.2）
+      else if (sseOpen && !res.destroyed) res.end(sseFailure(ingress.wire, message));
       else res.end();
+    };
+    let sseOpen = false;
+    const keepAlive = () => {
+      if (res.headersSent || res.destroyed) return;
+      res.writeHead(200, SSE_HEADERS);
+      res.write(': keepalive\n\n');
+      sseOpen = true;
     };
     let body: unknown;
     try {
@@ -429,6 +440,30 @@ export class GatewayServer {
         abort.signal,
         trace,
       );
+      // 提交点（§6.11.2）：流式响应等到第一个内容事件才算成功；之前的错误事件还能换候选
+      if (last.kind === 'response' && wantsStream && isSseResponse(last.res)) {
+        const got = last;
+        const peek = await peekCommit(got.res, cand.wire, {
+          waitingMs: COMMIT_KEEPALIVE_MS,
+          onWaiting: keepAlive,
+        }).catch((e: unknown): PeekResult => ({
+          kind: 'error',
+          status: 502,
+          message: `上游中断（${(e as Error).message}）`,
+        }));
+        if (peek.kind === 'commit') last = { ...got, res: peek.res };
+        else {
+          trace?.attemptResult(200, peek.message);
+          last = {
+            kind: 'failed',
+            status: peek.status,
+            message: `上游在开始输出前报错：${peek.message}`,
+            retryable: !abort.signal.aborted,
+            cand,
+            ...(peek.upstreamStatus ? { upstreamStatus: peek.upstreamStatus } : {}),
+          };
+        }
+      }
       if (last.kind === 'response') {
         firstByteMs = Date.now() - startedAt;
         this.learner.success(cand);
@@ -788,7 +823,7 @@ export class GatewayServer {
           trace?.response(up.status, text);
           const out = bridge.push(text);
           // 背压（§6.11.4）：客户端读得慢时暂停读上游，等 drain；等待期间不算上游空闲
-          const ok = bridge.raw ? res.write(Buffer.from(value)) : out ? res.write(out) : true;
+          const ok = out ? res.write(out) : true;
           if (!ok) {
             if (idle) clearTimeout(idle);
             await drained(res);
@@ -985,4 +1020,19 @@ function drained(res: http.ServerResponse): Promise<void> {
     res.on('drain', done);
     res.on('close', done);
   });
+}
+
+/** 提交前等这么久还没有内容事件：先发响应头与一行 SSE 注释保持连接（§6.11.2） */
+export const COMMIT_KEEPALIVE_MS = 3_000;
+
+function isSseResponse(r: Response): boolean {
+  return Boolean(r.body) && (r.headers.get('content-type') ?? '').includes('text/event-stream');
+}
+
+/** 已开始的 SSE 流里报错：入口协议的失败事件（Responses 补齐严格客户端要求的字段） */
+function sseFailure(wire: Wire, message: string): string {
+  const ev = passthroughFail(wire, message);
+  if (wire !== 'responses') return ev;
+  const c = new ResponsesCanonicalizer();
+  return c.push(ev) + c.end();
 }
