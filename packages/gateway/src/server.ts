@@ -8,8 +8,8 @@ import http from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
 
 import { Affinity, sessionKey } from './affinity';
-import { bridgeMode, createBridge } from './bridge';
-import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/responses';
+import { bridgeJson, bridgeMode, createBridge } from './bridge';
+import { ResponsesCanonicalizer } from './canonical/responses';
 import { peekCommit, type PeekResult } from './commit';
 import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
@@ -27,8 +27,7 @@ import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from '
 import { responseFixOptions } from './responseFixes';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { SessionTable } from './sessions';
-import { jsonToJson, jsonToSse, type StreamUsage } from './stream';
-import { patchChatJson } from './stream/chatPatch';
+import type { StreamUsage } from './stream';
 import { passthroughFail } from './stream/passthrough';
 import {
   candidateIsReasoning,
@@ -885,43 +884,29 @@ export class GatewayServer {
       /* 非 JSON 原样返回 */
     }
     const usage = typeof parsed === 'object' ? usageOfJson(cand.wire, parsed) : {};
-    if (wantsStream && parsed && typeof parsed === 'object') {
-      // 客户端要流式、上游却回了普通 JSON：合成入口协议的完整 SSE
+    // 非流式路径（§6.11.1）：跨协议与「要流式」都经 NormEvent 走同一套修复，同协议只做规范补全
+    const out = bridgeJson(
+      {
+        from: cand.wire,
+        to: ingress.wire,
+        mode: passthrough ? 'passthrough' : 'convert',
+        model: cand.publicModel,
+        customTools: convOpts.customTools,
+        fixes,
+      },
+      { status: up.status, contentType: up.headers.get('content-type'), text, parsed },
+      wantsStream,
+    );
+    if (out.kind === 'sse') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache',
       });
-      const sse = jsonToSse(cand.wire, ingress.wire, parsed, convOpts);
-      if (ingress.wire !== 'responses') res.end(sse);
-      else {
-        const fix = new ResponsesCanonicalizer(cand.publicModel);
-        res.end(fix.push(sse) + fix.end());
-      }
-      return usage;
-    }
-    if (passthrough || typeof parsed !== 'object' || !parsed) {
-      res.writeHead(up.status, {
-        'Content-Type': up.headers.get('content-type') ?? 'application/json',
-      });
-      const patched =
-        passthrough && cand.wire === 'chat' && parsed && typeof parsed === 'object'
-          ? patchChatJson(parsed, fixes)
-          : parsed;
-      res.end(
-        ingress.wire === 'responses' && parsed && typeof parsed === 'object'
-          ? JSON.stringify(completeResponsesBody(parsed, cand.publicModel))
-          : patched !== parsed
-            ? JSON.stringify(patched)
-            : text,
-      );
-      return usage;
-    }
-    const r = jsonToJson(cand.wire, ingress.wire, parsed, convOpts);
-    sendJson(
-      res,
-      r.status,
-      ingress.wire === 'responses' ? completeResponsesBody(r.body, cand.publicModel) : r.body,
-    );
+      res.end(out.body);
+    } else if (out.kind === 'raw') {
+      res.writeHead(out.status, { 'Content-Type': out.contentType });
+      res.end(out.body);
+    } else sendJson(res, out.status, out.body);
     return usage;
   }
 

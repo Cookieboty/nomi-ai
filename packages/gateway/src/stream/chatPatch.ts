@@ -10,12 +10,12 @@
 import { ChatChunkNormalizer } from '../canonical/chat';
 
 import {
+  CallIds,
   addNote,
   NOTE_CHAT_STREAM,
   NOTE_REPETITION,
   NOTE_TEXT_TOOLS,
   NOTE_TOOL_NAMES,
-  textCallId,
   toolResolver,
   type ResponseFixOptions,
 } from './fixer';
@@ -41,9 +41,12 @@ export class ChatStreamPatcher {
   private template: Obj = {};
   /** 字段归一（规范化层，§6.4） */
   private readonly norm = new ChatChunkNormalizer();
+  /** 正文里识别出的工具调用的 id */
+  private readonly ids: CallIds;
   stopped = false;
 
   constructor(private readonly o: ChatPatchOptions = {}) {
+    this.ids = o.callIds ?? new CallIds();
     this.guard = o.repetition ? new RepetitionGuard() : null;
     this.extractor = o.textTools?.size
       ? new TextToolExtractor(toolResolver(o.textTools, o.toolNames))
@@ -202,7 +205,7 @@ export class ChatStreamPatcher {
           tool_calls: [
             {
               index,
-              id: textCallId(),
+              id: this.ids.next(),
               type: 'function',
               function: { name: call.name, arguments: call.args },
             },
@@ -221,6 +224,7 @@ export class ChatStreamPatcher {
  */
 export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
   if (!isObj(body) || !Array.isArray(body.choices)) return body;
+  const ids = o.callIds ?? new CallIds();
   let changed = false;
   const choices = body.choices.map((c) => {
     if (!isObj(c) || !isObj(c.message)) return c;
@@ -249,7 +253,7 @@ export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
           tool_calls: [
             ...prev,
             ...r.calls.map((call) => ({
-              id: textCallId(),
+              id: ids.next(),
               type: 'function',
               function: { name: call.name, arguments: call.args },
             })),

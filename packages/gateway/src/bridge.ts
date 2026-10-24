@@ -7,11 +7,11 @@
  * Responses 入口的输出最后都过一遍规范化（ResponsesCanonicalizer），给严格客户端补齐必填字段。
  * 输入、输出都是 SSE 文本分片；不缓存整段，只缓存当前未完整的事件（背压由调用方处理，§6.11.4）。
  */
-import { ResponsesCanonicalizer } from './canonical/responses';
+import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/responses';
 import { TerminalWatch } from './canonical/terminal';
 import type { Wire } from './ir';
-import type { ChatPatchOptions } from './stream/chatPatch';
-import { createStreamConverter, type StreamConverter } from './stream/index';
+import { patchChatJson, type ChatPatchOptions } from './stream/chatPatch';
+import { createStreamConverter, jsonToJson, jsonToSse, type StreamConverter } from './stream/index';
 import { createPassthrough, passthroughFail, type Passthrough } from './stream/passthrough';
 
 export type BridgeMode = 'passthrough' | 'convert';
@@ -120,5 +120,56 @@ export function createBridge(plan: BridgePlan): Bridge {
     get stopped() {
       return stopped();
     },
+  };
+}
+
+/** 非流式路径（§6.11.1）的输出：调用方按 kind 写回客户端 */
+export type JsonBridgeOutput =
+  /** 客户端要流式、上游回了普通 JSON：合成的完整 SSE */
+  | { kind: 'sse'; body: string }
+  /** 原样 / 修正后的上游正文（状态码与 content-type 沿用上游） */
+  | { kind: 'raw'; status: number; contentType: string; body: string }
+  /** 转换后的入口协议 JSON 对象 */
+  | { kind: 'json'; status: number; body: unknown };
+
+/**
+ * 上游非流式 JSON → 入口协议。跨协议与「要流式」都展开成 NormEvent（jsonToEvents），经同一套结构修复
+ * （EventFixer）再聚合 / 编码；同协议透传只做规范补全（Responses）与 Chat 的结构修复，没修正时正文原样。
+ */
+export function bridgeJson(
+  plan: BridgePlan,
+  up: { status: number; contentType: string | null; text: string; parsed: unknown },
+  wantsStream: boolean,
+): JsonBridgeOutput {
+  const { parsed, text } = up;
+  const isObject = Boolean(parsed) && typeof parsed === 'object';
+  const opts = { model: plan.model, customTools: plan.customTools, fixes: plan.fixes };
+  if (wantsStream && isObject) {
+    const sse = jsonToSse(plan.from, plan.to, parsed, opts);
+    if (plan.to !== 'responses') return { kind: 'sse', body: sse };
+    const c = new ResponsesCanonicalizer(plan.model);
+    return { kind: 'sse', body: c.push(sse) + c.end() };
+  }
+  const passthrough = plan.mode === 'passthrough';
+  if (passthrough || !isObject) {
+    const patched =
+      passthrough && plan.from === 'chat' && isObject ? patchChatJson(parsed, plan.fixes) : parsed;
+    return {
+      kind: 'raw',
+      status: up.status,
+      contentType: up.contentType ?? 'application/json',
+      body:
+        plan.to === 'responses' && isObject
+          ? JSON.stringify(completeResponsesBody(parsed, plan.model))
+          : patched !== parsed
+            ? JSON.stringify(patched)
+            : text,
+    };
+  }
+  const r = jsonToJson(plan.from, plan.to, parsed, opts);
+  return {
+    kind: 'json',
+    status: r.status,
+    body: plan.to === 'responses' ? completeResponsesBody(r.body, plan.model) : r.body,
   };
 }
