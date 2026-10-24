@@ -65,8 +65,13 @@ interface Row {
   s: QualityStats;
   depth: number;
   path: Array<{ dim: QualityDimension; key: string }>;
+  /** 从顶层到父级的各行（并排对比的表头显示完整路径） */
+  ancestors: QualityStats[];
   hasChildren: boolean;
 }
+
+/** 完整路径名：「OpenAI: GPT-6.1 Sol / Amux」 */
+const pathLabel = (r: Row): string => [...r.ancestors, r.s].map(rowLabel).join(' / ');
 
 /** 行路径 → 请求明细的筛选 */
 const filtersOf = (path: Row['path']): Filters => {
@@ -84,15 +89,16 @@ function visibleRows(
   depth = 0,
   parent: Row['path'] = [],
   prefix = '',
+  ancestors: QualityStats[] = [],
 ): Row[] {
   const out: Row[] = [];
   for (const s of groups) {
     const path = [...parent, { dim: s.dim ?? 'provider', key: s.key }];
     const id = `${prefix}${s.dim}:${s.key}`;
     const hasChildren = !!s.children?.length;
-    out.push({ id, s, depth, path, hasChildren });
+    out.push({ id, s, depth, path, ancestors, hasChildren });
     if (hasChildren && expanded.has(id))
-      out.push(...visibleRows(s.children!, expanded, depth + 1, path, `${id}›`));
+      out.push(...visibleRows(s.children!, expanded, depth + 1, path, `${id}›`, [...ancestors, s]));
   }
   return out;
 }
@@ -360,21 +366,38 @@ const ComparePanel: React.FC<{
         <thead>
           <tr>
             <th scope="col">{t('指标')}</th>
-            {rows.map((r) => (
-              <th key={r.id} scope="col">
-                <span className={styles.compareHead}>
-                  <span title={r.path.map((p) => p.key).join(' › ')}>{rowLabel(r.s)}</span>
-                  <button
-                    type="button"
-                    className={styles.copyBtn}
-                    aria-label={t('移除「{0}」', rowLabel(r.s))}
-                    onClick={() => onRemove(r.id)}
-                  >
-                    <Icon icon={X} size={12} />
-                  </button>
-                </span>
-              </th>
-            ))}
+            {rows.map((r) => {
+              const label = pathLabel(r);
+              const root = r.ancestors[0] ?? r.s;
+              return (
+                <th key={r.id} scope="col">
+                  <span className={styles.compareHead}>
+                    {root.vendor && (
+                      <BrandIcon
+                        brand={brandOfVendor(root.vendor)}
+                        name={root.display ?? root.label}
+                        size={16}
+                      />
+                    )}
+                    <span
+                      className={styles.compareName}
+                      title={label}
+                      data-testid="quality-compare-head"
+                    >
+                      {label}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.copyBtn}
+                      aria-label={t('移除「{0}」', label)}
+                      onClick={() => onRemove(r.id)}
+                    >
+                      <Icon icon={X} size={12} />
+                    </button>
+                  </span>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

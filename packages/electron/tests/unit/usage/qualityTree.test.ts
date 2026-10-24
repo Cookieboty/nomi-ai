@@ -4,7 +4,7 @@
  */
 import type { QualityRecord } from '@nomi-ai/types';
 
-import { facetsOf, queryQuality } from '../../../src/usage/quality/aggregate';
+import { facetsOf, listRequests, queryQuality } from '../../../src/usage/quality/aggregate';
 import { officialProviderName, prettyModel, vendorOf } from '../../../src/usage/quality/modelNames';
 
 const T0 = new Date(2026, 9, 24, 10, 0, 0).getTime();
@@ -206,5 +206,38 @@ describe('facetsOf', () => {
       count: 3,
     });
     expect(f.key!.find((x) => x.key === 'amux\u0000k1')!.label).toBe('Amux Special · k1');
+  });
+});
+
+describe('请求明细的展示名', () => {
+  it('模型「厂商 + 好读的名字」、供应商与 Key 的名字；认不出的不给', () => {
+    const { items } = listRequests(
+      [
+        rec({ provider: 'amux', keyId: 'k1' }),
+        rec({ provider: 'anthropic', keyId: undefined, model: 'claude-opus-5.5' }),
+        rec({ provider: 'mine', keyId: 'kx', model: 'mine/my-own-model' }),
+      ],
+      { ...q(), limit: 10 },
+      (dim, key) =>
+        dim === 'provider' && key === 'amux'
+          ? 'Amux'
+          : dim === 'key' && key === 'amux\u0000k1'
+            ? 'Amux · 主 Key'
+            : undefined,
+    );
+    const [mine, claude, gpt] = items;
+    expect(gpt).toMatchObject({
+      vendor: 'OpenAI',
+      display: 'GPT-6.1 Sol',
+      providerName: 'Amux',
+      keyName: 'Amux · 主 Key',
+    });
+    expect(claude).toMatchObject({ vendor: 'Anthropic', display: 'Claude Opus 5.5' });
+    expect(claude!.providerName).toBe('Anthropic');
+    expect(mine!.vendor).toBeUndefined();
+    expect(mine!.providerName).toBeUndefined();
+    expect(mine!.keyName).toBeUndefined();
+    // 原记录不变
+    expect(gpt!.model).toBe('amux/openai/gpt-6.1-sol');
   });
 });

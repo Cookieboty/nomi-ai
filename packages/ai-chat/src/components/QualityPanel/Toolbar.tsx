@@ -198,7 +198,8 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
         </span>
         {p.showHierarchy && (
           <Popover
-            label={t('层级：{0}', hierarchyLabel(p.hierarchy, p.layer))}
+            label={hierarchyLabel(p.hierarchy, p.layer)}
+            ariaLabel={t('层级：{0}', hierarchyLabel(p.hierarchy, p.layer))}
             icon={Layers}
             panelLabel={t('对比表的层级')}
             testId="quality-hierarchy"

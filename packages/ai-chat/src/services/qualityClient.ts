@@ -9,6 +9,7 @@ import type {
   QualityFacets,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -27,6 +28,7 @@ export type {
   QualityOutcome,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -58,7 +60,7 @@ void _ipcInSync;
 export const QUALITY_EXPORT_CHANNEL = QUALITY_IPC.export;
 
 export interface QualityRequestsPage {
-  items: QualityRecord[];
+  items: QualityRequestItem[];
   total: number;
 }
 

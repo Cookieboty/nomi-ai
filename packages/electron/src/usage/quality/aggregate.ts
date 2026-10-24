@@ -10,6 +10,7 @@ import type {
   QualityOutcome,
   QualityQuery,
   QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualityResult,
   QualitySeries,
@@ -547,10 +548,33 @@ export function seriesQuality(
 export function listRequests(
   records: readonly QualityRecord[],
   q: QualityRequestsQuery,
-): { items: QualityRecord[]; total: number } {
+  labelOf?: QualityLabelOf,
+): { items: QualityRequestItem[]; total: number } {
   const units = unitsOf(inRange(records, q), 'request').filter((u) => matches(u, q.filters));
   const all = units.map((u) => u.r).sort((a, b) => b.ts - a.ts);
   const offset = Math.max(0, Math.trunc(q.offset ?? 0));
   const limit = Math.min(1000, Math.max(1, Math.trunc(q.limit)));
-  return { items: all.slice(offset, offset + limit), total: all.length };
+  return {
+    items: all.slice(offset, offset + limit).map((r) => requestItem(r, labelOf)),
+    total: all.length,
+  };
+}
+
+/** 请求明细的展示名：模型「厂商: 模型」、供应商与 Key 的名字；认不出的不给，界面显示原 id */
+function requestItem(r: QualityRecord, labelOf?: QualityLabelOf): QualityRequestItem {
+  const item: QualityRequestItem = { ...r };
+  const fam = r.modelFamily ?? modelFamily(r.upstreamModel ?? r.model);
+  const v = vendorOf(fam);
+  if (v) item.vendor = v.name;
+  const pretty = prettyModel(fam);
+  if (pretty) item.display = pretty;
+  if (r.provider) {
+    const name = labelOf?.('provider', r.provider) ?? officialProviderName(r.provider);
+    if (name && name !== r.provider) item.providerName = name;
+  }
+  if (r.keyId) {
+    const name = labelOf?.('key', `${r.provider ?? ''}\u0000${r.keyId}`);
+    if (name && name !== r.keyId) item.keyName = name;
+  }
+  return item;
 }

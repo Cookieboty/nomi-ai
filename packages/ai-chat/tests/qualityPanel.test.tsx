@@ -5,7 +5,7 @@
  */
 import type {
   QualityQuery,
-  QualityRecord,
+  QualityRequestItem,
   QualityRequestsQuery,
   QualitySeriesQuery,
   QualityStats,
@@ -116,7 +116,7 @@ function tree(path: string[]): QualityStats[] {
   return models.map((m) => ({ ...m, children: second(m.key) }));
 }
 
-function record(i: number, over: Partial<QualityRecord> = {}): QualityRecord {
+function record(i: number, over: Partial<QualityRequestItem> = {}): QualityRequestItem {
   return {
     id: `r${i}`,
     layer: 'gateway',
@@ -207,6 +207,9 @@ function install() {
             items: Array.from({ length: n }, (_, i) =>
               i === 0 && off === 0
                 ? record(0, {
+                    vendor: 'OpenAI',
+                    display: 'GPT-6.1 Sol',
+                    providerName: 'Amux',
                     outcome: 'stream-break',
                     errorKind: 'upstream closed without terminal event',
                     attempts: [
@@ -321,7 +324,10 @@ describe('对比（默认）', () => {
   it('层级预设改写查询；CLI 层去掉 Key 层级与 Key 筛选', async () => {
     const r = render(<Harness />);
     await r.findByTestId('quality-tree');
-    expect(r.getByTestId('quality-hierarchy').textContent).toContain('层级：模型 → 供应商 → Key');
+    expect(r.getByTestId('quality-hierarchy').textContent).toContain('模型 → 供应商 → Key');
+    expect(r.getByTestId('quality-hierarchy').getAttribute('aria-label')).toBe(
+      '层级：模型 → 供应商 → Key',
+    );
     openChip(r, 'quality-hierarchy');
     fireEvent.click(r.getByTestId('quality-hierarchy-menu-model-client-provider'));
     await waitFor(() =>
@@ -363,6 +369,27 @@ describe('对比（默认）', () => {
     expect(checks[MAX_COMPARE]!.disabled).toBe(true);
     fireEvent.click(r.getByTestId('quality-compare-close'));
     expect(r.queryByTestId('quality-compare')).toBeNull();
+  });
+
+  it('并排对比的表头是完整路径（顶层厂商图标 + 「模型 / 供应商」），过长截断、悬停看全名', async () => {
+    const r = render(<Harness />);
+    await r.findByTestId('quality-tree');
+    fireEvent.click(r.getAllByTestId('quality-row-toggle')[0]!);
+    const checks = r.getAllByTestId('quality-row-check') as HTMLInputElement[];
+    fireEvent.click(checks[0]!);
+    fireEvent.click(checks[1]!); // 展开后的第一个子级：Amux Special
+    fireEvent.click(r.getByTestId('quality-compare-open'));
+    const heads = within(r.getByTestId('quality-compare')).getAllByTestId('quality-compare-head');
+    expect(heads.map((h) => h.textContent)).toEqual([
+      'OpenAI: GPT-6.1 Sol',
+      'OpenAI: GPT-6.1 Sol / Amux Special',
+    ]);
+    expect(heads[1]!.getAttribute('title')).toBe('OpenAI: GPT-6.1 Sol / Amux Special');
+    expect(
+      within(r.getByTestId('quality-compare')).getByLabelText(
+        '移除「OpenAI: GPT-6.1 Sol / Amux Special」',
+      ),
+    ).toBeTruthy();
   });
 
   it('顶层行分页：每页 10 项，下一页、每页条数', async () => {
@@ -571,7 +598,15 @@ describe('请求明细', () => {
     const first = rows[0]!;
     expect(within(first).getByTestId('quality-request-outcome').textContent).toContain('断流');
     expect(within(first).getByTestId('quality-request-fallback')).toBeTruthy();
-    expect(first.textContent).toContain('openai/gpt-6.1-sol');
+    // 主进程给了显示名：「厂商: 模型」+ 供应商名字；没给的行退回去掉前缀的原名与 id
+    const model = within(first).getByTestId('quality-request-model');
+    expect(model.textContent).toBe('OpenAI: GPT-6.1 Sol');
+    expect(model.getAttribute('title')).toBe('amux/openai/gpt-6.1-sol');
+    expect(first.textContent).toContain('Amux / k1');
+    expect(within(rows[1]!).getByTestId('quality-request-model').textContent).toBe(
+      'openai/gpt-6.1-sol',
+    );
+    expect(rows[1]!.textContent).toContain('amux / k1');
     expect(within(first).getByTestId('quality-request-tab').textContent).toContain('标签 tab-7f3a');
     expect(within(first).getByTestId('quality-timeline').getAttribute('aria-label')).toContain(
       '首字节',

@@ -664,7 +664,7 @@
   position: sticky;
   left: 0;
   z-index: 1;
-  min-width: 300px;
+  min-width: 260px;
   background: var(--cd-color-surface);
   border-right: 1px solid var(--cd-color-border-subtle);
 }
@@ -676,7 +676,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1-5);
-  max-width: 420px;
+  max-width: 320px;
 }
 .treeRow[data-depth='0'] .rowName {
   font-weight: var(--cd-font-weight-medium);
@@ -794,7 +794,16 @@
   display: inline-flex;
   align-items: center;
   gap: var(--cd-space-1);
+  max-width: 100%;
   color: var(--cd-color-text);
+}
+/* 完整路径名过长时截断，悬停看全名 */
+.compareName {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .compareTable tbody th {
   color: var(--cd-color-text-muted);
@@ -849,6 +858,13 @@
   gap: 1px;
   min-width: 0;
   line-height: var(--cd-line-height-sm);
+}
+/* 模型列：厂商图标 + 两行（模型 / 供应商与 Key） */
+.logModelCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  min-width: 0;
 }
 .logModel {
   max-width: 220px;

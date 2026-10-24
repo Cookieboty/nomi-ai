@@ -355,6 +355,7 @@
   "检测到快捷键冲突：{0}。在下方对应行点「修改」换一个组合键。": "Shortcut conflict detected: {0}. Click \"Edit\" on that row below to pick another combination.",
   "你的桌面 AI 助手": "Your desktop AI assistant",
   "配置说明": "About these settings",
+  "说明": "About",
   "对话窗里的组合键，可改绑，冲突会提示。": "Key combos in the chat window; rebindable, with conflict hints.",
   "系统级快捷键，Nomi 不在前台也能触发。": "System-wide hotkeys that work even when Nomi is not in front.",
   "选择 Nomi 对话、工具调用和摘要用的模型。": "Choose the models for Nomi chat, tool calls and summaries.",

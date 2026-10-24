@@ -117,6 +117,18 @@ export interface QualityRecord {
   notes?: string[];
 }
 
+/** 请求明细的一行：记录本身 + 主进程补的展示名（不落盘） */
+export interface QualityRequestItem extends QualityRecord {
+  /** 模型的厂商（「OpenAI」），认不出没有 */
+  vendor?: string;
+  /** 好读的模型名（「GPT-6.1 Sol」） */
+  display?: string;
+  /** 供应商的名字（已配置的第三方供应商 / 官方服务），认不出没有 */
+  providerName?: string;
+  /** Key 的名字，认不出没有 */
+  keyName?: string;
+}
+
 /** 可分组 / 筛选的维度 */
 export type QualityDimension =
   | 'provider'

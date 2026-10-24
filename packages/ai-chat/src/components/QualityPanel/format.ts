@@ -266,7 +266,6 @@ const pct3 = (
 
 /** 分组表头（按出现顺序） */
 export const GROUP_HEADS: Array<{ id: string; label: string; hint: string; group: ColumnGroup }> = [
-  { id: 'inputLen', label: '输入长度', hint: '每次请求的输入 token（含缓存读写）', group: 'token' },
   {
     id: 'ttft',
     label: '首字（TTFT）',
@@ -275,6 +274,7 @@ export const GROUP_HEADS: Array<{ id: string; label: string; hint: string; group
   },
   { id: 'e2e', label: '耗时（E2E）', hint: '从发出到结束的总耗时', group: 'latency' },
   { id: 'speed', label: '速度', hint: '整段吐出的请求不计入', group: 'speed' },
+  { id: 'inputLen', label: '输入长度', hint: '每次请求的输入 token（含缓存读写）', group: 'token' },
 ];
 
 export const COLUMNS: Column[] = [
@@ -352,7 +352,6 @@ export const COLUMNS: Column[] = [
     tone: (_s, v) => (v ? 'warning' : undefined),
     drill: BREAK_OUTCOMES,
   },
-  ...pct3('token', 'inputLen', formatCount),
   ...pct3('latency', 'ttft', formatMs),
   ...pct3('latency', 'e2e', formatMs),
   {
@@ -373,6 +372,7 @@ export const COLUMNS: Column[] = [
     format: formatMs,
     dist: (s) => s.tpot,
   },
+  ...pct3('token', 'inputLen', formatCount),
 ];
 
 /** 分布列在样本不足时只给中位数（P95 / P99 没有意义）：返回 null 表示「样本不足」 */

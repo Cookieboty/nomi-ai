@@ -2,7 +2,7 @@
  * 模型质量 → 请求明细（原「用量与费用 → 最近请求」）：日志式表格，一行一条请求 / 一轮；
  * 展开看各候选的尝试、网关修正、解析方式、协议、追踪 id 与错误。只有元数据，不含对话内容。
  */
-import { Badge, Icon, Select, t } from '@nomi-ai/ui';
+import { Badge, BrandIcon, Icon, Select, t } from '@nomi-ai/ui';
 import { ChevronDown, ChevronRight, FilterX, ListX } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
@@ -10,12 +10,14 @@ import {
   qualityClient,
   type QualityOutcome,
   type QualityRecord,
+  type QualityRequestItem,
   type QualityRequestsQuery,
 } from '../../services/qualityClient';
 import { formatDateTime, formatTokens } from '../UsagePanel/format';
 
 import {
   OUTCOMES,
+  brandOfVendor,
   clientLabel,
   formatMs,
   formatTps,
@@ -104,7 +106,11 @@ const formatLogTime = (ts: number): string => {
 /** 模型名去掉 `供应商/` 前缀（供应商写在下面一行） */
 const shortModel = (m: string | undefined) => (m ? m.slice(m.indexOf('/') + 1) : '—');
 
-const Row: React.FC<{ r: QualityRecord }> = ({ r }) => {
+/** 模型显示名：认得出的「厂商: 模型」，否则去掉供应商前缀的原名 */
+export const requestModelLabel = (r: QualityRequestItem): string =>
+  r.display ? (r.vendor ? `${r.vendor}: ${r.display}` : r.display) : shortModel(r.model);
+
+const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
   const [open, setOpen] = useState(false);
   const tokens = (r.tokens.input ?? 0) + (r.tokens.cacheRead ?? 0) + (r.tokens.output ?? 0);
   const fallback = (r.attempts?.length ?? 0) > 1;
@@ -157,12 +163,23 @@ const Row: React.FC<{ r: QualityRecord }> = ({ r }) => {
           </span>
         </td>
         <td>
-          <span className={styles.twoLine}>
-            <span className={styles.logModel} title={r.model}>
-              {shortModel(r.model)}
-            </span>
-            <span className={styles.logDim}>
-              {[r.provider, r.keyId].filter(Boolean).join(' / ') || t('未到达上游')}
+          <span className={styles.logModelCell}>
+            <BrandIcon
+              brand={brandOfVendor(r.vendor)}
+              name={r.display ?? r.model ?? ''}
+              size={16}
+            />
+            <span className={styles.twoLine}>
+              <span className={styles.logModel} title={r.model} data-testid="quality-request-model">
+                {requestModelLabel(r)}
+              </span>
+              <span
+                className={styles.logDim}
+                title={[r.provider, r.keyId].filter(Boolean).join(' / ')}
+              >
+                {[r.providerName ?? r.provider, r.keyName ?? r.keyId].filter(Boolean).join(' / ') ||
+                  t('未到达上游')}
+              </span>
             </span>
           </span>
         </td>

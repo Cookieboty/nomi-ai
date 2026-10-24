@@ -192,6 +192,25 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(await r.findByTestId('settings-quality')).toBeTruthy();
   });
 
+  it('宽分区（模型质量）不显示右侧说明栏，页头「说明」按钮在页头下展开同一组说明', async () => {
+    const { SECTION_HELP } = await import('../src/components/SettingsView/sectionHelp');
+    const r = render(<Harness onClose={() => undefined} start="quality" />);
+    expect(r.queryByTestId('settings-help')).toBeNull();
+    expect(r.queryByTestId('settings-help-inline')).toBeNull();
+    const toggle = r.getByTestId('settings-help-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const help = r.getByTestId('settings-help-inline');
+    expect(help.querySelectorAll('li')).toHaveLength(SECTION_HELP.quality.length);
+    fireEvent.click(toggle);
+    expect(r.queryByTestId('settings-help-inline')).toBeNull();
+    // 普通分区没有这个按钮
+    fireEvent.click(r.getByTestId('settings-nav-models'));
+    expect(r.queryByTestId('settings-help-toggle')).toBeNull();
+    expect(r.getByTestId('settings-help')).toBeTruthy();
+  });
+
   it('菜单只有合并后的 13 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r

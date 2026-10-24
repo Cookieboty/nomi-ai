@@ -24,6 +24,10 @@ export const SETTINGS_SECTIONS: Array<{
   label: string;
   /** 页头说明（i18n key）：设置页统一在右侧顶部渲染「标题 + 说明」 */
   intro: string;
+  /**
+   * 内容需要整页宽度（宽表格等）：不显示右侧「配置说明」栏，改为页头的「说明」按钮展开在页头下面
+   */
+  wide?: boolean;
 }> = [
   {
     id: 'general',
@@ -50,6 +54,7 @@ export const SETTINGS_SECTIONS: Array<{
     label: '模型质量',
     intro:
       '各供应商、模型、Key 的成功率、延迟、输出速度与缓存命中率，可按维度对比。只记录元数据，全部只存本机。',
+    wide: true,
   },
   {
     id: 'coding',

@@ -14,6 +14,7 @@ import {
   type QualityFacets,
   type QualityQuery,
   type QualityRecord,
+  type QualityRequestItem,
   type QualityRequestsQuery,
   type QualityResult,
   type QualitySeries,
@@ -237,7 +238,7 @@ export class QualityService {
     );
   }
 
-  requests(raw: unknown): { items: QualityRecord[]; total: number } {
+  requests(raw: unknown): { items: QualityRequestItem[]; total: number } {
     const base = this.cleanQuery(raw);
     const r = (raw ?? {}) as Partial<QualityRequestsQuery>;
     const q: QualityRequestsQuery = {
@@ -248,7 +249,7 @@ export class QualityService {
       limit: typeof r.limit === 'number' ? r.limit : 100,
       ...(typeof r.offset === 'number' ? { offset: r.offset } : {}),
     };
-    return listRequests(this.ledger.range(q.from, q.to), q);
+    return listRequests(this.ledger.range(q.from, q.to), q, this.d.labelOf);
   }
 
   /** 最近的 n 条（「最近请求」兼容视图用） */
