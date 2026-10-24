@@ -33,6 +33,35 @@ Electron 主进程（packages/electron）
 | `voice`                                                           | 语音输入、VAD、唤醒词                                                                                                                                                                                                                    |
 | `types`                                                           | 共享类型                                                                                                                                                                                                                                 |
 
+## 编程助手与统一网关
+
+设计与实现偏差见 [cli-plugin-architecture](../design/cli-plugin-architecture.md)。
+
+```mermaid
+flowchart LR
+  subgraph main["主进程（packages/electron）"]
+    host["CliPluginHost<br/>内置插件 + 外部 ACP 插件"]
+    orch["HarnessOrchestrator<br/>标签、来源、账号、回收"]
+    drv["cli-sdk 驱动<br/>acp / stream-json / app-server / exec"]
+    tokens["TabTokens<br/>nomi-tab- 令牌"]
+  end
+  cli["CLI 子进程"]
+  subgraph gw["网关进程（packages/gateway）"]
+    pa["供应商适配器"] --> canon["规范化"] --> ma["模型适配器"] --> bridge["协议桥"] --> ca["客户端适配器"]
+  end
+  up["上游供应商"]
+  host --> orch --> drv --> cli
+  orch -- "binding:add / ok" --> tokens --> gw
+  cli -- "带标签令牌的请求" --> gw
+  gw --> up
+```
+
+- **插件**：`@nomi-ai/cli-sdk` 定义契约（清单、能力接口、`SessionDriver`、多选项权限回答）与四种会话驱动；`@nomi-ai/cli-plugins` 是五个内置插件，按 `<cli>/{manifest,main,gateway,renderer}` 分子路径（`manifest` / `gateway` / `renderer` 是纯数据，ESLint 入口边界规则保证）。`cli/CliPluginHost.ts` 加载插件、校验清单、算有效能力（清单 ∩ 版本开关 ∩ 握手），出错隔离，注册表快照经 `ai:cli:registry` 给界面。外部 ACP 插件只有声明式清单（`userData/cli-plugins/external/*.json`），不加载代码。
+- **编排**：`cli/CliHarnessService.ts`（类名 `HarnessOrchestrator`）管标签、持久化、来源（官方 / 第三方）、官方账号目录、回收与升级重启；协议细节都在驱动里，每个 CLI 的解析（流式、历史转录、模型目录、斜杠布局）在插件里，插件文案经 cli-sdk 的 `t()` 由主进程注入翻译。
+- **网关分层**：请求方向经供应商适配器（`providers/`，按预设 / 域名匹配规格）和模型适配器（`models/`：目录、族规则、合并后的有效模型、请求规则、错误修正器）；响应方向经规范化（`canonical/`，按 `spec/` 的协议规范表补齐与检测结束）、协议桥（`bridge.ts`，透传或转换，`commit.ts` 在第一个内容事件提交）和客户端适配器（`clients/`，客户端规格由插件的 `gateway` 入口在网关进程启动时登记）。路由计划（`route/plan.ts`）默认影子模式。
+- **标签绑定**：第三方标签每启动一个 CLI 进程，主进程先签一个 `nomi-tab-` 令牌并向网关登记绑定（标签、代次、模型、思考深度），收到确认才启动；网关按绑定解析模型，请求日志带标签 id；进程退出或标签关闭时作废。
+- **诊断**：`diagnostics/` 管开关（开发版必开）、CLI 子进程收发记录（只经 `spawnHarness`，登录进程不记录）与诊断包导出；网关追踪按请求生成追踪 id（响应头 `x-nomi-trace-id`），存上游原文与给客户端输出的差异；`packages/gateway/scripts/trace-to-fixture.ts` 把追踪转成回放夹具。
+
 ## 关键约定
 
 - **数据**：全部保存在 Electron `userData` 下按功能划分的目录；密钥使用 `safeStorage`。

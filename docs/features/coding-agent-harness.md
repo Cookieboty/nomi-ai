@@ -1,6 +1,6 @@
 # 编程助手接入：监视升级、会话接管与供应商切换（设计稿）
 
-> 状态：**P0 实现中 / 已批准**（2026-10-14）。
+> 状态：本文是 v1.x 的设计与验收记录（各节保留历史原貌）。v2.0.0 起编程助手改为插件化，见文末「插件化（v2.0.0）」与设计稿 [cli-plugin-architecture](../design/cli-plugin-architecture.md)。
 > 关联：现有 [编程助手监视](agent-monitor.md)、[供应商与 Token](providers.md)、[AI 对话](chat.md)。
 
 ## 1. 产品一句话
@@ -636,3 +636,16 @@ ai-chat/src/
 
 **测试**：`ai-chat/tests/conversation*.test.tsx`、`convStatus` / `convTime` / `toolTrace` / `sendQueue` / `stopButton`、`electron/tests/unit/cli/*`；
 e2e：E24（工具时间线）、E25（统一视图：等待态 / 思考计时 / 队列 / 摘要 / 停止 / 重新生成 / 编辑 / 错误卡片 / Nomi 对话）、PERF（压测，默认跳过）。
+
+## 插件化（v2.0.0）
+
+从用户角度看，v2.0.0 的变化（设计与实现偏差见 [cli-plugin-architecture](../design/cli-plugin-architecture.md)）：
+
+- **内置插件**：Claude Code、Codex、Grok、Gemini、dsh 各是一个内置插件（`@nomi-ai/cli-plugins`），声明自己支持哪些能力（官方账号、续接、图片、斜杠命令、额度、进度监视、终端命令……）。界面按能力显示按钮，不再按 CLI 名字写死；某个插件出错不影响其它编程助手。
+- **外部 CLI**：任意支持 ACP 的编程助手可以在「设置 → 编程助手 → 外部 CLI」添加，见 [providers](providers.md#外部-cliacp)。
+- **多个官方账号同时使用**：一个账号一个配置目录，登录由 CLI 自己完成，Nomi 不经手凭据，见 [providers](providers.md#多个官方账号)。
+- **换模型**：按 CLI 能力选择不重启（只改网关绑定）、原进程切换或重启续接三种方式之一，见 [providers](providers.md#claude-code--codex--gemini--grok--dsh-用第三方模型)。
+- **标签令牌**：第三方标签的每个 CLI 进程用自己的令牌访问网关，网关先确认绑定再启动进程；网关没在运行或拒绝时这一轮直接报错，不会带着无效令牌启动。
+- **CLI 升级**：在 Nomi 里升级成功，或发现终端里把 CLI 升级了（每 30 分钟检查一次），长驻进程在空闲时用新版本重启并续接会话；Windows 上运行中的程序不能被替换，有会话在跑时会提示等它们结束再更新。
+- **网关更稳**：第三方流在出现第一段正文之前出错会自动换下一个候选；上游中途断开一定报错而不是当成完成；中转服务的保活事件转成 CLI 认的心跳；所有候选都失败时返回对应的 HTTP 状态码（如 429、502、504）。
+- **排查**：「设置 → 隐私与权限 → 诊断日志」记录 CLI 进程的收发与网关追踪（带标签 id 与追踪 id），可以导出诊断包，见 [隐私与安全](privacy-security.md#诊断日志)。
