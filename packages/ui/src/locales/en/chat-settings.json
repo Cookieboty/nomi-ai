@@ -464,5 +464,7 @@
   "批准并逐项确认": "Approve with step-by-step confirm",
   "继续修改": "Keep editing",
   "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
-  "无效的批准计划选项": "Invalid approve-plan choice"
+  "无效的批准计划选项": "Invalid approve-plan choice",
+  "当前模型无思考深度": "This model has no reasoning effort",
+  "{0} 没有文档化的思考深度控制，这里不会假装可调": "{0} has no documented reasoning-effort control; Nomi will not pretend it does"
 }

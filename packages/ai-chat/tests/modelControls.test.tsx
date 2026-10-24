@@ -204,15 +204,16 @@ describe('ModelControls', () => {
     expect((await findByTestId('model-chip')).textContent).toContain('Fable 5.1 · 高');
   });
 
-  it('非推理模型（gpt-4.1）不显示滑杆', async () => {
-    const { findByTestId, queryByTestId } = setup({
+  it('非推理模型（gpt-4.1）不显示滑杆，并说明当前模型无思考深度', async () => {
+    const { findByTestId, getByTestId, queryByTestId } = setup({
       catalog,
       tabOver: { modelOverride: 'gpt-4.1' },
     });
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-title')).toBeNull();
-    expect(queryByTestId('effort-hint')).toBeNull();
     expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
   });
 
   it('未知自定义模型仍显示滑杆，并在模型页标为当前', async () => {
@@ -382,8 +383,9 @@ describe('ModelControls', () => {
     });
     fireEvent.click(await r.findByTestId('model-chip'));
     expect(r.queryByTestId('effort-title')).toBeNull();
-    expect(r.queryByTestId('effort-hint')).toBeNull();
     expect(r.queryByTestId('effort-slider')).toBeNull();
+    expect(r.getByTestId('effort-unavailable')).toBeTruthy();
+    expect(r.getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
   });
 
   it('读不到目录：只有默认与自定义，显示原因；刷新按钮让主进程重读', async () => {
@@ -394,7 +396,7 @@ describe('ModelControls', () => {
     fireEvent.click(await findByTestId('model-chip'));
     expect(queryByTestId('effort-slider')).toBeNull();
     expect(queryByTestId('effort-title')).toBeNull();
-    expect(queryByTestId('effort-hint')).toBeNull();
+    expect(getByTestId('effort-hint').textContent).toContain('当前模型无思考深度');
     fireEvent.click(getByTestId('model-open'));
     expect(getByTestId('model-error').textContent).toContain('not authenticated');
     expect(getByTestId('model-default')).toBeTruthy();
@@ -419,5 +421,55 @@ describe('ModelControls', () => {
     resolve(claudeCatalog);
     expect((await r.findByTestId('model-chip')).textContent).toContain('Opus 5.5');
     expect(r.queryByTestId('model-chip-loading')).toBeNull();
+  });
+  it('Gemini：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+    const geminiCatalog: BackendModelCatalog = {
+      backend: 'gemini',
+      defaultModel: {
+        id: 'gemini-2.5-pro',
+        label: 'Gemini 2.5 Pro',
+        reasoning: true,
+        efforts: ['low', 'high'],
+      },
+      models: [
+        {
+          id: 'gemini-2.5-pro',
+          label: 'Gemini 2.5 Pro',
+          reasoning: true,
+          efforts: ['low', 'high'],
+        },
+      ],
+    };
+    const { findByTestId, getByTestId, queryByTestId } = setup({
+      catalog: geminiCatalog,
+      tabOver: { backend: 'gemini', modelOverride: 'gemini-2.5-pro' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+    fireEvent.click(getByTestId('model-open'));
+    expect(getByTestId('effort-hint').textContent).toMatch(/Gemini.*思考深度|不会假装/);
+  });
+
+  it('dsh：无文档化思考深度控制，浮层禁用档位并说明原因', async () => {
+    const dshCatalog: BackendModelCatalog = {
+      backend: 'dsh',
+      defaultModel: {
+        id: 'deepseek-v4',
+        label: 'DeepSeek V4',
+        reasoning: true,
+        efforts: ['medium'],
+      },
+      models: [{ id: 'deepseek-v4', label: 'DeepSeek V4', reasoning: true, efforts: ['medium'] }],
+    };
+    const { findByTestId, getByTestId, queryByTestId } = setup({
+      catalog: dshCatalog,
+      tabOver: { backend: 'dsh', modelOverride: 'deepseek-v4' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(queryByTestId('effort-slider')).toBeNull();
+    expect(getByTestId('effort-unavailable')).toBeTruthy();
+    expect(getByTestId('effort-hint').textContent).toMatch(/dsh.*思考深度|不会假装/);
   });
 });

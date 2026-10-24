@@ -68,9 +68,59 @@ export interface LlmCallLog {
   ms: number;
 }
 
-/** 认证 / 限流 / 额度类错误：换下一个 key 有意义。 */
-export function isKeyError(message: string): boolean {
-  return /\b(401|402|403|429)\b|unauthori[sz]ed|forbidden|invalid[_ ]?api[_ ]?key|incorrect api key|api key|quota|rate limit|insufficient|billing/i.test(
+/** HTTP 状态：换下一个 key 有意义（认证 / 禁止 / 限流 / 付费墙）。 */
+const KEY_STATUS = new Set([401, 402, 403, 429]);
+
+/**
+ * 从 Error / AI SDK APICallError / 字符串里取出 HTTP 状态码。
+ * 优先读 statusCode / status 字段，其次从文案里抓 `HTTP 401` / 独立的 4xx。
+ */
+export function httpStatusOf(error: unknown): number | undefined {
+  if (typeof error === 'number' && Number.isFinite(error)) return error;
+  if (error && typeof error === 'object') {
+    const o = error as Record<string, unknown>;
+    for (const k of ['statusCode', 'status', 'status_code'] as const) {
+      const v = o[k];
+      if (typeof v === 'number' && Number.isFinite(v)) return v;
+      if (typeof v === 'string' && /^\d{3}$/.test(v)) return Number(v);
+    }
+    if ('cause' in o && o.cause !== undefined && o.cause !== error) {
+      const nested = httpStatusOf(o.cause);
+      if (nested !== undefined) return nested;
+    }
+    if ('lastError' in o && o.lastError !== undefined && o.lastError !== error) {
+      const nested = httpStatusOf(o.lastError);
+      if (nested !== undefined) return nested;
+    }
+  }
+  const msg =
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : error == null
+          ? ''
+          : String(error);
+  const m = /\b(?:HTTP[/\s]*)?([45]\d{2})\b/i.exec(msg);
+  return m ? Number(m[1]) : undefined;
+}
+
+/**
+ * 认证 / 限流 / 额度类错误：换下一个 key 有意义。
+ * 优先看 HTTP 状态码（401/402/403/429）；没有状态码时才回退到文案正则。
+ */
+export function isKeyError(error: unknown): boolean {
+  const status = httpStatusOf(error);
+  if (status !== undefined) return KEY_STATUS.has(status);
+  const message =
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : error == null
+          ? ''
+          : String(error);
+  return /unauthori[sz]ed|forbidden|invalid[_ ]?api[_ ]?key|incorrect api key|api key|quota|rate limit|insufficient|billing/i.test(
     message,
   );
 }
@@ -145,7 +195,7 @@ export class TrackedProvider implements LLMProvider, WithToolsCapable {
         this.sink?.markKey?.(this.id, i, msg);
         this.logCall(req, i, startedAt, false, undefined, msg);
         const more = i < this.candidates.length - 1;
-        if (!more || !isKeyError(msg) || req.signal?.aborted) break;
+        if (!more || !isKeyError(err) || req.signal?.aborted) break;
       }
     }
     this.sink?.recordUsage(this.id, undefined, false);

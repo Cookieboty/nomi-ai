@@ -69,4 +69,25 @@ describe('describeStreamError（#78）', () => {
     expect(long.length).toBeLessThanOrEqual(501);
     expect(long.endsWith('…')).toBe(true);
   });
+
+  it('prefixes HTTP status when present so key-rotation can prefer status codes', () => {
+    expect(
+      describeStreamError(
+        Object.assign(new Error('bad key'), {
+          statusCode: 401,
+          data: { error: { message: 'nope' } },
+        }),
+      ),
+    ).toBe('HTTP 401: nope');
+    expect(
+      describeStreamError({
+        statusCode: 429,
+        data: { error: { type: 'rate_limit_exceeded', message: 'slow' } },
+      }),
+    ).toBe('HTTP 429: [rate_limit_exceeded] slow');
+    // 文案已含状态码时不重复前缀
+    expect(
+      describeStreamError(Object.assign(new Error('401 unauthorized'), { statusCode: 401 })),
+    ).toBe('401 unauthorized');
+  });
 });

@@ -141,6 +141,20 @@
   font-weight: var(--cd-font-weight-bold);
   color: var(--cd-color-text-muted);
 }
+.effortUnavailable {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cd-space-1);
+  opacity: 0.72;
+  pointer-events: none;
+}
+.effortHint {
+  margin: 0;
+  padding: 0 var(--cd-space-2);
+  font-size: var(--cd-font-size-xs);
+  color: var(--cd-color-text-muted);
+  line-height: 1.4;
+}
 /* 滑杆：细轨道 + 小圆点 + 白色滑块；点 / 滑块中心落在「轨道宽 - 滑块宽」区间里 */
 .sliderWrap {
   display: flex;

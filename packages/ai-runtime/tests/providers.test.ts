@@ -15,6 +15,7 @@ import {
   TrackedProvider,
   createSafeStorageCipher,
   estimateTokens,
+  httpStatusOf,
   isKeyError,
   maskSecret,
   plaintextCipher,
@@ -448,10 +449,30 @@ describe('TrackedProvider key fallback + usage', () => {
     );
   });
 
-  it('classifies key errors', () => {
-    expect(isKeyError('Incorrect API key provided')).toBe(true);
+  it('classifies key errors: HTTP status preferred, message regex fallback', () => {
+    // statusCode / status 字段优先
+    expect(isKeyError({ statusCode: 401, message: 'nope' })).toBe(true);
+    expect(isKeyError({ status: 403 })).toBe(true);
+    expect(isKeyError({ statusCode: 429, message: 'slow' })).toBe(true);
+    expect(isKeyError({ statusCode: 402 })).toBe(true);
+    // 有状态码时不再看文案：500 即使带 api key 也不算 key error
+    expect(isKeyError({ statusCode: 500, message: 'invalid api key' })).toBe(false);
+    expect(isKeyError({ statusCode: 404, message: 'unauthorized' })).toBe(false);
+    // Error 实例 + statusCode（AI SDK APICallError 形态）
+    const apiErr = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+    expect(isKeyError(apiErr)).toBe(true);
+    expect(httpStatusOf(apiErr)).toBe(401);
+    // 嵌套 cause / lastError
+    expect(isKeyError({ message: 'wrap', cause: { statusCode: 429 } })).toBe(true);
+    expect(isKeyError({ lastError: { status: '403' } })).toBe(true);
+    // 文案里的 HTTP 401 / 独立 4xx
+    expect(isKeyError('HTTP 401: bad key')).toBe(true);
     expect(isKeyError('429 Too Many Requests')).toBe(true);
+    // 无状态码时回退正则
+    expect(isKeyError('Incorrect API key provided')).toBe(true);
+    expect(isKeyError('rate limit exceeded')).toBe(true);
     expect(isKeyError('context length exceeded')).toBe(false);
+    expect(isKeyError('')).toBe(false);
   });
 });
 

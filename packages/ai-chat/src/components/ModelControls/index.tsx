@@ -55,6 +55,12 @@ const MODEL_SEARCH_THRESHOLD = 8;
 /** 有官方账号的编程助手 */
 const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
 
+/**
+ * 没有文档化思考深度控制的后端（Gemini ACP / dsh）：
+ * 不暴露可操作的档位 UI，避免假装可调。
+ */
+const NO_REASONING_BACKENDS = new Set(['gemini', 'dsh']);
+
 /** 档位由浅到深的顺序（只用于排序 CLI 返回的值，不代表某个模型支持哪些） */
 const EFFORT_ORDER: ReasoningEffort[] = [
   'minimal',
@@ -346,8 +352,9 @@ const ModelChip: React.FC<{
   );
   // 档位所依据的模型：选了模型用它；没选用 CLI 告诉我们的默认模型
   const info = current ? currentModel : catalog.defaultModel;
-  // CLI 明确说不支持思考深度：不显示滑杆
-  const noReasoning = !!info && !info.reasoning;
+  // Gemini / dsh：没有文档化的思考深度控制，整后端禁用；其余看 CLI 是否声明该模型支持
+  const backendBlocksEffort = NO_REASONING_BACKENDS.has(tab.backend);
+  const noReasoning = backendBlocksEffort || (!!info && !info.reasoning);
   // 档位全部来自 CLI：模型自己的 > 目录并集（自定义的未知模型 / 默认模型未知）
   const levels: ReasoningEffort[] = noReasoning
     ? []
@@ -488,26 +495,43 @@ const ModelChip: React.FC<{
         >
           {view === 'effort' ? (
             <div className={styles.effortView} data-testid="effort-view">
-              <div className={styles.effortHead}>
-                <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
-                {effort && (
-                  <button
-                    type="button"
-                    className={styles.link}
-                    data-testid="effort-default"
-                    onClick={() => pickEffort(null)}
-                  >
-                    {t('恢复默认')}
-                  </button>
-                )}
-              </div>
-              {reasoningSupported && (
-                <EffortSlider
-                  levels={levels}
-                  value={shown}
-                  onPreview={setPreview}
-                  onCommit={pickEffort}
-                />
+              {reasoningSupported ? (
+                <>
+                  <div className={styles.effortHead}>
+                    <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
+                    {effort && (
+                      <button
+                        type="button"
+                        className={styles.link}
+                        data-testid="effort-default"
+                        onClick={() => pickEffort(null)}
+                      >
+                        {t('恢复默认')}
+                      </button>
+                    )}
+                  </div>
+                  <EffortSlider
+                    levels={levels}
+                    value={shown}
+                    onPreview={setPreview}
+                    onCommit={pickEffort}
+                  />
+                </>
+              ) : (
+                <div
+                  className={`${styles.effortHead} ${styles.effortUnavailable}`}
+                  data-testid="effort-unavailable"
+                >
+                  <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
+                  <p className={styles.effortHint} data-testid="effort-hint" role="status">
+                    {backendBlocksEffort
+                      ? t(
+                          '{0} 没有文档化的思考深度控制，这里不会假装可调',
+                          backendName || tab.backend,
+                        )
+                      : t('当前模型无思考深度')}
+                  </p>
+                </div>
               )}
               <button
                 type="button"
@@ -620,6 +644,11 @@ const ModelChip: React.FC<{
               {catalog.error && (
                 <div className={styles.modelError} role="status" data-testid="model-error">
                   {t('没能从 {0} 读到模型列表：{1}', sourceName, catalog.error)}
+                </div>
+              )}
+              {backendBlocksEffort && (
+                <div className={styles.effortHint} role="status" data-testid="effort-hint">
+                  {t('{0} 没有文档化的思考深度控制，这里不会假装可调', backendName || tab.backend)}
                 </div>
               )}
               {searchable && (

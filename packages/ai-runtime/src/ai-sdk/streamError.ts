@@ -42,21 +42,42 @@ function clip(s: string): string {
   return one.length > MAX_LEN ? `${one.slice(0, MAX_LEN)}…` : one;
 }
 
+function httpStatus(e: unknown): number | undefined {
+  if (!isObj(e)) return undefined;
+  for (const k of ['statusCode', 'status', 'status_code'] as const) {
+    const v = e[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    if (typeof v === 'string' && /^\d{3}$/.test(v)) return Number(v);
+  }
+  if ('cause' in e && e.cause !== undefined && e.cause !== e) return httpStatus(e.cause);
+  if ('lastError' in e && e.lastError !== undefined && e.lastError !== e)
+    return httpStatus(e.lastError);
+  return undefined;
+}
+
 export function describeStreamError(e: unknown): string {
+  const status = httpStatus(e);
+  let body: string | undefined;
   if (isObj(e)) {
     // AI SDK 的 TypeValidationError：value 是未通过校验的原始帧
     const fromValue = 'value' in e ? upstreamError(e.value) : null;
-    if (fromValue) return format(fromValue);
+    if (fromValue) body = format(fromValue);
     // APICallError：响应体里的 { error: { code, message } }
-    const fromData = 'data' in e ? upstreamError(e.data) : null;
-    if (fromData) return format(fromData);
-    // RetryError 等包着最后一个错误
-    if ('lastError' in e && e.lastError && e.lastError !== e) {
-      const inner = describeStreamError(e.lastError);
-      if (inner.startsWith('[')) return inner;
+    else {
+      const fromData = 'data' in e ? upstreamError(e.data) : null;
+      if (fromData) body = format(fromData);
+      // RetryError 等包着最后一个错误
+      else if ('lastError' in e && e.lastError && e.lastError !== e) {
+        const inner = describeStreamError(e.lastError);
+        if (inner.startsWith('[') || /^HTTP\s+\d{3}/i.test(inner)) return inner;
+      }
     }
   }
-  return clip(e instanceof Error ? e.message : String(e));
+  if (!body) body = clip(e instanceof Error ? e.message : String(e));
+  // 把 HTTP 状态带进文案，便于 ProviderRouter.isKeyError 在只有字符串时仍优先按状态码判断
+  if (status !== undefined && !new RegExp(`\\b${status}\\b`).test(body))
+    return clip(`HTTP ${status}: ${body}`);
+  return body;
 }
 
 function format({ code, message }: { code?: string; message?: string }): string {
