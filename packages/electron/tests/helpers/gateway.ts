@@ -25,16 +25,27 @@ export function testGateway(
      */
     tabTokens?: boolean;
     bindError?: string;
+    /**
+     * 登记到网关确认之间的延迟（ms）。和 GatewayService 的 TabTokens 一样，新代次在等确认前就已是
+     * 「当前」代次：用来复现旧进程的退出事件晚于新代次登记的时序。
+     */
+    bindDelayMs?: number;
   } = {},
 ): HarnessGateway & {
   launches: Array<[string, string, string]>;
-  /** 'register <cli> <tab> <model> g<n>' / 'update <cli> <tab> <model>' / 'release <cli> <tab>' */
+  /**
+   * 'register <cli> <tab> <model> g<n>' / 'update <cli> <tab> <model>' /
+   * 'release <cli> <tab> g<n>'（进程退出，只作废那一代）/ 'release <cli> <tab>'（标签关闭）
+   */
   bindings: string[];
+  /** 这个标签当前有效的代次（已作废 = undefined）；和 TabTokens 的语义一致 */
+  live(kind: string, tabId: string): number | undefined;
 } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-agents-'));
   const launches: Array<[string, string, string]> = [];
   const bindings: string[] = [];
   const generations = new Map<string, number>();
+  const active = new Map<string, number>();
   const tabApi: Partial<HarnessGateway> = o.tabTokens
     ? {
         launchForTab: async (kind, tabId, model) => {
@@ -43,7 +54,9 @@ export function testGateway(
           const key = `${kind}:${tabId}`;
           const g = (generations.get(key) ?? 0) + 1;
           generations.set(key, g);
+          active.set(key, g);
           bindings.push(`register ${kind} ${tabId} ${model} g${g}`);
+          if (o.bindDelayMs) await new Promise((r) => setTimeout(r, o.bindDelayMs));
           const token = `nomi-tab-${tabId}-g${g}`;
           const l = agentLaunch(kind, {
             url: TEST_GATEWAY_URL,
@@ -56,8 +69,14 @@ export function testGateway(
           });
           return { env: l.env, generation: g, modelInConfig: Boolean(l.modelInConfig) };
         },
-        releaseTab: (kind, tabId) => {
-          bindings.push(`release ${kind} ${tabId}`);
+        releaseTab: (kind, tabId, generation) => {
+          bindings.push(
+            `release ${kind} ${tabId}${generation === undefined ? '' : ` g${generation}`}`,
+          );
+          const key = `${kind}:${tabId}`;
+          const cur = active.get(key);
+          if (cur === undefined || (generation !== undefined && cur !== generation)) return;
+          active.delete(key);
         },
         updateTab: async (kind, tabId, model) => {
           bindings.push(`update ${kind} ${tabId} ${model}`);
@@ -68,6 +87,7 @@ export function testGateway(
   return {
     launches,
     bindings,
+    live: (kind, tabId) => active.get(`${kind}:${tabId}`),
     ...tabApi,
     defaults: () => ({
       source: o.source ?? 'official',

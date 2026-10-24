@@ -39,6 +39,7 @@ xvfb-run -a pnpm test:e2e:headed
 假上游（按场景注入保活、缺字段、截断等毛病）→ 进程内网关 → 本机安装的 claude / codex / gemini / grok / dsh。没装的 CLI 自动跳过；每次运行用新的临时 HOME，不读写你自己的配置。
 
 - `conformance.test.ts`：每个 CLI 用 Nomi 第三方会话同样的注入方式指向网关（Gemini 无界面运行要 `GEMINI_CLI_TRUST_WORKSPACE=true`），断言毛病流经网关后能正常答完、上游中途断开时 CLI 报错而不是空回复。
+- `modelSwitch.test.ts`：真实编排器 + 真实 `GatewayService`（网关进程入口 `electron/src/gateway/worker.ts` 在测试进程里跑，编排器的网关依赖就是应用里用的 `harnessGateway`），断言第三方标签换模型后上游实际收到的模型：A → B → A、进行中换模型下一轮生效、空闲回收后保持并续接，每一轮的全部请求（含辅助请求）都是标签当时选的模型。`NOMI_E2E_SWITCH_REPORT=<文件>` 写出每轮请求数。
 - `probe.test.ts`（`NOMI_E2E_PROBE=1` 才跑，很慢）：直接对着 CLI 逐个删字段、注入未知事件，得出「这个版本要求什么」，与 `snapshots/<cli>-<版本>.json` 比对。本机版本没有快照时跳过比对并说明；`NOMI_E2E_PROBE_UPDATE=1` 写入快照（人工看过差异再提交）。Grok 按它报的 `missing field` 读必填字段；其余 CLI 看删掉字段后还能不能答出（删掉正文本身的字段必然「必填」，快照只用来发现变化）。
 - 夜间 CI：`.github/workflows/e2e-cli-nightly.yml` 每天从 npm 装最新版 CLI 跑一遍（不需要 secret）；手动触发可打开探测，`update_snapshots` 会把新版本的快照作为 artifact 上传。
 

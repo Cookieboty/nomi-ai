@@ -197,8 +197,11 @@ export interface HarnessGateway {
     /** 这次启动是否把真实模型名写进了 CLI 配置；false = 按占位模型名启动（Grok 的 nomi），换模型只改绑定 */
     modelInConfig?: boolean;
   } | null>;
-  /** 进程退出 / 标签关闭：作废这个标签的令牌 */
-  releaseTab?(kind: BuiltinBackend, tabId: string): void;
+  /**
+   * 进程退出 / 标签关闭：作废这个标签的令牌。进程退出时带上它的代次，只作废那一代
+   * （旧进程的退出可能晚于新代次的登记）；标签关闭不带代次。
+   */
+  releaseTab?(kind: BuiltinBackend, tabId: string, generation?: number): void;
   /** gateway / inplace 型换模型（§6.7）：只改绑定，不重启；没有活着的绑定返回 false */
   updateTab?(kind: BuiltinBackend, tabId: string, model: string, effort?: string): Promise<boolean>;
 }
@@ -1687,7 +1690,7 @@ export class HarnessOrchestrator {
     child.once('close', () => {
       if (this.tabBindings.get(tab.id)?.generation !== generation) return;
       this.tabBindings.delete(tab.id);
-      this.d.gateway?.releaseTab?.(tab.backend as BuiltinBackend, tab.id);
+      this.d.gateway?.releaseTab?.(tab.backend as BuiltinBackend, tab.id, generation);
     });
   }
 
