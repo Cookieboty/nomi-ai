@@ -7,6 +7,27 @@
   flex-direction: column;
   gap: var(--cd-space-4);
   min-width: 0;
+  /* 撑满设置页（宽分区）剩余高度：当前视图与表格卡片依次占满，表格在卡片里滚动 */
+  flex: 1;
+  min-height: 0;
+}
+.root > .stack,
+.root > .tableCard {
+  flex: 1;
+  min-height: 0;
+}
+.root > .stack > .tableCard,
+.root > .tableCard {
+  /* 窗口很矮时保底，退回整页滚动 */
+  min-height: 320px;
+}
+.root > .stack > .tableCard {
+  flex: 1;
+}
+.tableCard > .scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 .stack {
   display: flex;

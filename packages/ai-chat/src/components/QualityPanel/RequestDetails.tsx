@@ -356,6 +356,7 @@ export const RequestDetails: React.FC<{
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
+          menuMinWidth={160}
           aria-label={t('按结果筛选')}
           data-testid="quality-filter-outcome"
           value={outcome}
@@ -376,6 +377,7 @@ export const RequestDetails: React.FC<{
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
+          menuMinWidth={160}
           aria-label={t('排序')}
           data-testid="quality-requests-sort"
           value={`${sort.key}:${sort.desc ? 'desc' : 'asc'}`}

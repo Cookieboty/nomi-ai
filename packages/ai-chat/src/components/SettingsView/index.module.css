@@ -505,9 +505,23 @@
   min-width: 0;
   max-width: 960px;
 }
-/* 宽分区（宽表格）：没有右侧说明栏，用满内容区 */
+/* 宽分区（宽表格）：没有右侧说明栏，用满内容区；高度也撑满，让表格吃掉剩余空间、在卡片里滚动 */
+.innerWide {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-bottom: var(--cd-space-5);
+}
+.columnsWide {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
 .mainColWide {
   max-width: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .help {
   position: sticky;

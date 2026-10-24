@@ -241,6 +241,7 @@ export const Pager: React.FC<{
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
+          menuMinWidth={120}
           aria-label={t('每页条数')}
           data-testid="quality-page-size"
           value={String(pageSize)}

@@ -273,7 +273,15 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             draggable={false}
           />
         )}
-        <div className={`${styles.inner} ${section === 'general' ? styles.innerAfterBanner : ''}`}>
+        <div
+          className={[
+            styles.inner,
+            section === 'general' ? styles.innerAfterBanner : '',
+            current.wide ? styles.innerWide : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
           {section === 'general' ? (
             <>
               <h1 className={styles.srOnly} data-testid="settings-section-title">
@@ -328,7 +336,9 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               </ul>
             </aside>
           )}
-          <div className={styles.columns}>
+          <div
+            className={current.wide ? `${styles.columns} ${styles.columnsWide}` : styles.columns}
+          >
             <div
               className={current.wide ? `${styles.mainCol} ${styles.mainColWide}` : styles.mainCol}
               data-testid="settings-main-col"

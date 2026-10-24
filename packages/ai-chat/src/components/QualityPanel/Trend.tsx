@@ -279,6 +279,7 @@ export const Trend: React.FC<{
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
+          menuMinWidth={200}
           aria-label={t('指标')}
           data-testid="quality-trend-metric"
           value={metric}
@@ -289,6 +290,7 @@ export const Trend: React.FC<{
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
+          menuMinWidth={160}
           aria-label={t('分组维度')}
           data-testid="quality-trend-groupby"
           value={groupBy ?? ''}
