@@ -154,5 +154,7 @@
   "切换官方账号：{0}": "Switch official account: {0}",
   "账号": "Account",
   "跟随默认账号": "Follow the default account",
-  "未登录": "Not signed in"
+  "未登录": "Not signed in",
+  "生成标题、摘要、下一句提示等辅助请求用，通常选同一供应商里更便宜的模型": "Used for helper requests such as titles, summaries and next-prompt suggestions; usually a cheaper model from the same provider",
+  "{0} 的辅助模型（标题、摘要等）": "{0} helper model (titles, summaries, etc.)"
 }

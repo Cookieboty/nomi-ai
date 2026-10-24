@@ -865,6 +865,32 @@ describe('ModelsPage', () => {
       await waitFor(() =>
         expect(assignments(m)).toContainEqual(['claude', { models: { subagent: 'ds/flash' } }]),
       );
+      // 辅助模型（标题、摘要等）：没设时跟随主模型
+      expect((screen.getByTestId('cli-helper-claude') as HTMLSelectElement).value).toBe('follow');
+      pick('cli-helper-claude', 'ds/flash');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['claude', { models: { summary: 'ds/flash' } }]),
+      );
+    });
+
+    it('其它编程助手：「更多」里只有辅助模型，可清回跟随主模型', async () => {
+      const m = fakeMain();
+      seed(m);
+      m.state.clients.codex = { models: { main: 'ds/v4', summary: 'ds/flash' } };
+      render(<ModelsPage />);
+      fireEvent.click(await screen.findByTestId('cli-more-codex'));
+      expect(screen.getByTestId('cli-more-codex').getAttribute('aria-expanded')).toBe('true');
+      expect(screen.queryByTestId('cli-tier-haiku')).toBeNull();
+      expect(screen.queryByTestId('cli-subagent')).toBeNull();
+      await waitFor(() =>
+        expect((screen.getByTestId('cli-helper-codex') as HTMLSelectElement).value).toBe(
+          'ds/flash',
+        ),
+      );
+      pick('cli-helper-codex', 'follow');
+      await waitFor(() =>
+        expect(assignments(m)).toContainEqual(['codex', { models: { summary: null } }]),
+      );
     });
   });
 });

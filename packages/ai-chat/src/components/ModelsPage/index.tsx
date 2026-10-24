@@ -73,7 +73,8 @@ export const ModelsPage: React.FC = () => {
   const [adding, setAdding] = useState(false);
   const [showWire, setShowWire] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
-  const [claudeOpen, setClaudeOpen] = useState(false);
+  /** 展开了「各档模型 / 更多」的编程助手 */
+  const [openCli, setOpenCli] = useState<CliKind | null>(null);
   const [offer, setOffer] = useState<ProviderView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revokeSeen, setRevokeSeen] = useState(false);
@@ -252,8 +253,8 @@ export const ModelsPage: React.FC = () => {
             client={state?.clients[kind]}
             common={common}
             disabled={!picker.length}
-            open={kind === 'claude' && claudeOpen}
-            onToggle={() => setClaudeOpen((x) => !x)}
+            open={openCli === kind}
+            onToggle={() => setOpenCli((x) => (x === kind ? null : kind))}
             onAssign={(patch) => assignCli(kind, patch)}
             missing={cli.missing(kind)}
             installBusy={cli.busy}
@@ -406,20 +407,16 @@ const CliRow: React.FC<{
           aria-label={t('{0} 的第三方模型', name)}
           data-testid={`cli-main-${kind}`}
         />
-        {claude ? (
-          <button
-            type="button"
-            className={styles.expand}
-            aria-expanded={open}
-            data-testid="cli-tiers-toggle"
-            onClick={onToggle}
-          >
-            <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-            {t('各档模型')}
-          </button>
-        ) : (
-          <span />
-        )}
+        <button
+          type="button"
+          className={styles.expand}
+          aria-expanded={open}
+          data-testid={claude ? 'cli-tiers-toggle' : `cli-more-${kind}`}
+          onClick={onToggle}
+        >
+          <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+          {claude ? t('各档模型') : t('更多')}
+        </button>
         <Select
           size="sm"
           className={styles.source}
@@ -433,34 +430,56 @@ const CliRow: React.FC<{
       </div>
       {open && (
         <>
-          {CLAUDE_TIERS.map((tier) => (
-            <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
-              <span className={styles.cliName}>{t(tier.label)}</span>
+          {claude &&
+            CLAUDE_TIERS.map((tier) => (
+              <div key={tier.id} className={`${styles.cliRow} ${styles.tierRow}`}>
+                <span className={styles.cliName}>{t(tier.label)}</span>
+                <ModelPicker
+                  {...common}
+                  purpose="coding"
+                  className={styles.picker}
+                  extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
+                  value={tierValue(tier.id) ?? FOLLOW}
+                  onChange={(v) => setTier(tier.id, v)}
+                  disabled={disabled}
+                  aria-label={t('Claude Code 的{0}', t(tier.label))}
+                  data-testid={`cli-tier-${tier.id}`}
+                />
+              </div>
+            ))}
+          {claude && (
+            <div className={`${styles.cliRow} ${styles.tierRow}`}>
+              <span className={styles.cliName}>{t('子代理')}</span>
               <ModelPicker
                 {...common}
                 purpose="coding"
                 className={styles.picker}
                 extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-                value={tierValue(tier.id) ?? FOLLOW}
-                onChange={(v) => setTier(tier.id, v)}
+                value={m.subagent ?? FOLLOW}
+                onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
                 disabled={disabled}
-                aria-label={t('Claude Code 的{0}', t(tier.label))}
-                data-testid={`cli-tier-${tier.id}`}
+                aria-label={t('Claude Code 的子代理模型')}
+                data-testid="cli-subagent"
               />
             </div>
-          ))}
+          )}
           <div className={`${styles.cliRow} ${styles.tierRow}`}>
-            <span className={styles.cliName}>{t('子代理')}</span>
+            <span
+              className={styles.cliName}
+              title={t('生成标题、摘要、下一句提示等辅助请求用，通常选同一供应商里更便宜的模型')}
+            >
+              {t('辅助模型')}
+            </span>
             <ModelPicker
               {...common}
               purpose="coding"
               className={styles.picker}
               extraOptions={[{ value: FOLLOW, label: t('跟随主模型') }]}
-              value={m.subagent ?? FOLLOW}
-              onChange={(v) => onAssign({ models: { subagent: v === FOLLOW ? null : v } })}
+              value={m.summary ?? FOLLOW}
+              onChange={(v) => onAssign({ models: { summary: v === FOLLOW ? null : v } })}
               disabled={disabled}
-              aria-label={t('Claude Code 的子代理模型')}
-              data-testid="cli-subagent"
+              aria-label={t('{0} 的辅助模型（标题、摘要等）', name)}
+              data-testid={`cli-helper-${kind}`}
             />
           </div>
         </>
