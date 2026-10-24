@@ -1,19 +1,21 @@
 /**
  * 同协议 Chat 透传时的事件级修正（docs/design/unified-gateway.md §9.2、§11.3）。
  * 按 SSE 事件逐个处理：没有触发任何修正的事件原样输出（字节不变），触发了才重新序列化。
- * - Chat 流修正：去掉空的 reasoning_content / reasoning；finish_reason "" 改为 null；
- *   去掉已开始的工具调用里重复的 / 空的工具名；去掉空的 tool_calls: []；
+ * - Chat 字段归一（规范化层 canonical/chat.ts）：空 reasoning、finish_reason ""、空 tool_calls、
+ *   缺 index、对象形式的 arguments、数组形式的 content、重复的工具名；
  * - 工具名还原（§12.7.3）；
  * - 正文里写出的工具调用：从标记起扣住正文，在 finish_reason 那一块之前补发正文剩余与 tool_calls；
  * - 复读检测：发 `data: {"error":…}` 与 [DONE] 后停止。
  */
+import { ChatChunkNormalizer } from '../canonical/chat';
+
 import {
+  CallIds,
   addNote,
   NOTE_CHAT_STREAM,
   NOTE_REPETITION,
   NOTE_TEXT_TOOLS,
   NOTE_TOOL_NAMES,
-  textCallId,
   toolResolver,
   type ResponseFixOptions,
 } from './fixer';
@@ -37,9 +39,14 @@ export class ChatStreamPatcher {
   private readonly tools = new Map<number, string>();
   /** 合成分片用的 id / model / created */
   private template: Obj = {};
+  /** 字段归一（规范化层，§6.4） */
+  private readonly norm = new ChatChunkNormalizer();
+  /** 正文里识别出的工具调用的 id */
+  private readonly ids: CallIds;
   stopped = false;
 
   constructor(private readonly o: ChatPatchOptions = {}) {
+    this.ids = o.callIds ?? new CallIds();
     this.guard = o.repetition ? new RepetitionGuard() : null;
     this.extractor = o.textTools?.size
       ? new TextToolExtractor(toolResolver(o.textTools, o.toolNames))
@@ -104,19 +111,9 @@ export class ChatStreamPatcher {
     const c = choices[0];
     if (!isObj(c)) return res;
     const fixStream = this.o.chatStream !== false;
+    const touched = fixStream && this.norm.normalize(j);
     const delta = isObj(c.delta) ? c.delta : null;
-    let touched = false;
-    if (fixStream && c.finish_reason === '') {
-      c.finish_reason = null;
-      touched = true;
-    }
     if (delta) {
-      for (const k of ['reasoning_content', 'reasoning']) {
-        if (fixStream && delta[k] === '') {
-          delete delta[k];
-          touched = true;
-        }
-      }
       const reasoning =
         typeof delta.reasoning_content === 'string'
           ? delta.reasoning_content
@@ -125,39 +122,23 @@ export class ChatStreamPatcher {
             : '';
       if (reasoning && this.guard?.push('think', reasoning)) return this.trip();
       if (Array.isArray(delta.tool_calls)) {
-        if (fixStream && !delta.tool_calls.length) {
-          delete delta.tool_calls;
-          touched = true;
-        } else {
-          for (const tc of delta.tool_calls) {
-            if (!isObj(tc) || !isObj(tc.function)) continue;
-            const fn = tc.function;
-            const idx = typeof tc.index === 'number' ? tc.index : 0;
-            const seen = this.tools.get(idx);
-            if (seen !== undefined) {
-              if (
-                fixStream &&
-                typeof fn.name === 'string' &&
-                (fn.name === '' || fn.name === seen)
-              ) {
-                delete fn.name;
-                touched = true;
-              }
-              continue;
-            }
-            const name = typeof fn.name === 'string' ? fn.name : '';
-            if (!name) continue;
-            const orig = this.o.toolNames?.get(name);
-            if (orig) {
-              fn.name = orig;
-              res.changed = true;
-              addNote(this.o.notes, NOTE_TOOL_NAMES);
-            }
-            this.tools.set(idx, name);
-            // 模型已经在用真正的 tool_calls：缓存的正文原样补发（不再转换，避免和上游的 index 冲突）
-            const raw = this.extractor?.active ? this.extractor.raw() : '';
-            if (raw) res.prefix += this.chunk({ content: raw });
+        for (const tc of delta.tool_calls) {
+          if (!isObj(tc) || !isObj(tc.function)) continue;
+          const fn = tc.function;
+          const idx = typeof tc.index === 'number' ? tc.index : 0;
+          if (this.tools.has(idx)) continue;
+          const name = typeof fn.name === 'string' ? fn.name : '';
+          if (!name) continue;
+          const orig = this.o.toolNames?.get(name);
+          if (orig) {
+            fn.name = orig;
+            res.changed = true;
+            addNote(this.o.notes, NOTE_TOOL_NAMES);
           }
+          this.tools.set(idx, name);
+          // 模型已经在用真正的 tool_calls：缓存的正文原样补发（不再转换，避免和上游的 index 冲突）
+          const raw = this.extractor?.active ? this.extractor.raw() : '';
+          if (raw) res.prefix += this.chunk({ content: raw });
         }
       }
       if (typeof delta.content === 'string' && delta.content) {
@@ -224,7 +205,7 @@ export class ChatStreamPatcher {
           tool_calls: [
             {
               index,
-              id: textCallId(),
+              id: this.ids.next(),
               type: 'function',
               function: { name: call.name, arguments: call.args },
             },
@@ -243,6 +224,7 @@ export class ChatStreamPatcher {
  */
 export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
   if (!isObj(body) || !Array.isArray(body.choices)) return body;
+  const ids = o.callIds ?? new CallIds();
   let changed = false;
   const choices = body.choices.map((c) => {
     if (!isObj(c) || !isObj(c.message)) return c;
@@ -271,7 +253,7 @@ export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
           tool_calls: [
             ...prev,
             ...r.calls.map((call) => ({
-              id: textCallId(),
+              id: ids.next(),
               type: 'function',
               function: { name: call.name, arguments: call.args },
             })),

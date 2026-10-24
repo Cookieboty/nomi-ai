@@ -2,12 +2,7 @@
  * 流式协议转换入口：上游 SSE 文本分片 → 下游 SSE 文本。
  */
 import { eventsToJson, type AggregateResult } from './aggregate';
-import {
-  ChatCompletionsDecoder,
-  GeminiDecoder,
-  MessagesDecoder,
-  ResponsesDecoder,
-} from './decoders';
+import { createDecoder } from './decoders';
 import {
   ChatCompletionsEncoder,
   GeminiEncoder,
@@ -41,18 +36,7 @@ export interface ConvertOptions {
   fixes?: ResponseFixOptions;
 }
 
-function makeDecoder(f: UpstreamStreamFormat): StreamDecoder {
-  switch (f) {
-    case 'chat':
-      return new ChatCompletionsDecoder();
-    case 'responses':
-      return new ResponsesDecoder();
-    case 'gemini':
-      return new GeminiDecoder();
-    case 'messages':
-      return new MessagesDecoder();
-  }
-}
+const makeDecoder = (f: UpstreamStreamFormat): StreamDecoder => createDecoder(f);
 
 function makeEncoder(
   f: DownstreamStreamFormat,

@@ -5,16 +5,13 @@
  * 没有触发修正时输出与上游字节一致。
  */
 import { ChatStreamPatcher, type ChatPatchOptions } from './chatPatch';
-import {
-  ChatCompletionsDecoder,
-  GeminiDecoder,
-  MessagesDecoder,
-  ResponsesDecoder,
-} from './decoders';
+import { createDecoder } from './decoders';
 import type { StreamDecoder } from './events';
 import { addNote, NOTE_REPETITION } from './fixer';
 import { REPETITION_MESSAGE, RepetitionGuard } from './repetition';
 import { formatSse, SseParser } from './sse';
+
+export { TerminalWatch } from '../canonical/terminal';
 
 import { createStreamConverter, type UpstreamStreamFormat } from './index';
 
@@ -25,18 +22,7 @@ export interface Passthrough {
   readonly stopped: boolean;
 }
 
-function decoderFor(w: UpstreamStreamFormat): StreamDecoder {
-  switch (w) {
-    case 'chat':
-      return new ChatCompletionsDecoder();
-    case 'responses':
-      return new ResponsesDecoder();
-    case 'gemini':
-      return new GeminiDecoder();
-    case 'messages':
-      return new MessagesDecoder();
-  }
-}
+const decoderFor = (w: UpstreamStreamFormat): StreamDecoder => createDecoder(w);
 
 class RepetitionPassthrough implements Passthrough {
   private buf = '';
@@ -102,30 +88,6 @@ export function createPassthrough(
 ): Passthrough | null {
   if (wire === 'chat') return new ChatStreamPatcher(opts);
   return opts.repetition ? new RepetitionPassthrough(wire, opts.notes) : null;
-}
-
-/**
- * 同协议透传时旁路看上游有没有发结束标记（各协议的判定见 BaseDecoder.terminated）。
- * 透传不经过解码，上游被掐断时客户端只会看到流突然结束：调用方据此补一个入口协议的错误事件。
- */
-export class TerminalWatch {
-  private readonly parser = new SseParser();
-  private readonly dec: StreamDecoder;
-
-  constructor(wire: UpstreamStreamFormat) {
-    this.dec = decoderFor(wire);
-  }
-
-  push(chunk: string): void {
-    if (this.dec.terminated) return;
-    for (const ev of this.parser.push(chunk)) this.dec.push(ev);
-  }
-
-  /** 上游流已经读完：残留的最后一个事件也算进去 */
-  get terminated(): boolean {
-    if (!this.dec.terminated) for (const ev of this.parser.end()) this.dec.push(ev);
-    return this.dec.terminated;
-  }
 }
 
 /**

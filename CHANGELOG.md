@@ -367,6 +367,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - 移除按端信息卡及详情抽屉中容易与 CLI 默认模型混淆的模型展示，并压缩卡片高度。 (`@nomi-ai/ai-chat` patch)
 - 移除模型浮层不再使用的思考深度说明文案（英文词条）。 (`@nomi-ai/ui` patch)
 - 移除角色切换：只保留内置的 Nomi。去掉「选择角色」窗口（我的角色 / 模型商店 / 导入 VRM / 角色设置）、工具栏的「切换角色」按钮、 (`@nomi-ai/renderer` minor, `@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor, `@nomi-ai/types` minor, `@nomi-ai/bundle-ig-mascot` minor)
+- 第三方供应商更稳：中转服务先回 200、但在输出任何内容之前就报错（如过载、限流）时，网关自动换下一个 Key / 供应商重试，不再把错误直接交给编程助手；等待超过 3 秒时先发保活，连接不会被 CLI 当成卡死。上游在一个事件中间断开时，不再把半截事件发给客户端（严格客户端会因此解析失败），而是给出明确的「上游断开」错误。客户端读得慢时网关暂停读取上游，长输出不再占用大量内存。Chat 上游不带 index 的工具调用、对象形式的参数、数组形式的正文在同协议透传时也会被规范化。 (`@nomi-ai/gateway` patch)
 - 第三方供应商的已保存 Key 可以在原位置「更换」成新值；名称框里贴进像 Key 的内容时会提示并可一键改为更换。编程助手一轮 API 报错时，错误卡片不再把同一条错误显示两遍。 (`@nomi-ai/ai-chat` patch, `@nomi-ai/electron` patch)
 - 第三方供应商的流式响应更稳：上游没发结束标记就断开时（四种协议，透传与转换都算）直接报错，不再把空回复或截断的正文 / 工具参数当成正常完成，编程助手不再一直计时或静默重试；Responses 上游丢掉中转站伪装成正文增量的保活事件、给缺 `sequence_number` 的事件补序号、给 reasoning 条目补 `summary`，只在完整条目里给正文 / 工具调用的也能读出来；Chat 上游不带 `index` 的多个工具调用不再并成一个，对象形式的参数、数组形式的 `content` 也能读；Gemini 生成了非法工具调用时报错而不是空回复。Grok 历史会话按新版 CLI 的记录格式读取，历史列表恢复显示。Grok 用第三方模型时：上游 response 缺 `model` / `output` 等必填字段（以及条目、增量事件缺字段）时由网关补齐，不再报 Internal error；会话标题等辅助请求也用标签选的模型，不再落到默认模型。 (`@nomi-ai/gateway` patch, `@nomi-ai/electron` patch)
 - 精简输入栏：工作目录和供应商 / 账号切换挪到对话区右上角，输入栏只保留端点切换与权限模式；权限模式按钮改为透明底，不再在输入栏里铺出一块灰色。 (`@nomi-ai/ai-chat` minor)

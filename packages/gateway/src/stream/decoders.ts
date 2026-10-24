@@ -2,7 +2,8 @@
  * 上游 SSE → 中间事件。
  * 覆盖：OpenAI Chat Completions、OpenAI Responses、Gemini streamGenerateContent(alt=sse)、Anthropic Messages。
  */
-import { isResponsesKeepAlive } from '../responsesUsage';
+import { isResponsesKeepAlive } from '../canonical/responses';
+import { GEMINI_FAILED_FINISH } from '../spec/gemini';
 
 import {
   mergeUsage,
@@ -514,10 +515,7 @@ export class GeminiDecoder extends BaseDecoder {
         !this.sawTool
       ) {
         this.fail(out, `response blocked: ${fr}`, 'api_error');
-      } else if (
-        ['MALFORMED_FUNCTION_CALL', 'UNEXPECTED_TOOL_CALL', 'TOO_MANY_TOOL_CALLS'].includes(fr) &&
-        !this.sawTool
-      ) {
+      } else if (GEMINI_FAILED_FINISH.has(fr) && !this.sawTool) {
         // 模型想调用工具但没生成出合法的调用：按错误报，不当成一次空的正常回复
         this.fail(out, `model produced an invalid tool call: ${fr}`, 'api_error');
       }
@@ -647,5 +645,19 @@ export class MessagesDecoder extends BaseDecoder {
       default:
         return;
     }
+  }
+}
+
+/** 按上游协议建解码器 */
+export function createDecoder(wire: 'chat' | 'responses' | 'gemini' | 'messages'): StreamDecoder {
+  switch (wire) {
+    case 'chat':
+      return new ChatCompletionsDecoder();
+    case 'responses':
+      return new ResponsesDecoder();
+    case 'gemini':
+      return new GeminiDecoder();
+    case 'messages':
+      return new MessagesDecoder();
   }
 }

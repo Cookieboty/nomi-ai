@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import { customToolsToFunctions, isCustomToolRefusal } from '../src/customTools';
 import { Learner, type LearnEvent } from '../src/learn';
+import { CallIds, fixEvents } from '../src/models/rules/response';
 import { createStreamConverter, jsonToJson, SseParser } from '../src/stream';
 import { ChatStreamPatcher, patchChatJson } from '../src/stream/chatPatch';
 import { createPassthrough } from '../src/stream/passthrough';
@@ -82,6 +83,32 @@ describe('Chat stream fixes (same-wire passthrough)', () => {
 });
 
 describe('text tool calls', () => {
+  it('ids of calls recovered from text are deterministic per seed (§6.9.7)', () => {
+    const text = 'x<tool_call>{"name":"read_file","arguments":{"path":"a.ts"}}</tool_call>';
+    const evs = [
+      { type: 'start' as const },
+      { type: 'text' as const, text },
+      { type: 'finish' as const, reason: 'end_turn' as const },
+    ];
+    const ids = (seed: string) =>
+      fixEvents(evs, { textTools: new Set(['read_file']), callIds: new CallIds(seed) })
+        .filter((e) => e.type === 'tool_start')
+        .map((e) => (e as { id: string }).id);
+    expect(ids('s1')).toEqual(['call_s1_0']);
+    expect(ids('s1')).toEqual(ids('s1'));
+    // Chat 透传（chatPatch）用同一套 id
+    const p = new ChatStreamPatcher({
+      textTools: new Set(['read_file']),
+      callIds: new CallIds('s2'),
+    });
+    const out =
+      p.push(
+        `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: text } }] })}\n\n` +
+          `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`,
+      ) + p.end();
+    expect(out).toContain('"id":"call_s2_0"');
+  });
+
   it('<tool_call> JSON, held across chunk boundaries', () => {
     const ex = new TextToolExtractor(resolveIn(['read_file']));
     let shown = '';
