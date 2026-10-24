@@ -267,8 +267,10 @@ export class GatewayService {
     cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
     const traceDir = this.d.traceDir?.();
     if (traceDir) cfg.traceDir = traceDir;
-    // 路由计划默认影子模式（只比对、写日志）；NOMI_ROUTE_PLAN=active 用于测试新计划（§6.9.4）
-    if ((this.d.env ?? process.env).NOMI_ROUTE_PLAN === 'active') cfg.routePlan = 'active';
+    // 路由计划默认 active（按新计划选上游协议）；NOMI_ROUTE_PLAN=shadow 可回滚到影子模式（§6.9.4）
+    const rp = (this.d.env ?? process.env).NOMI_ROUTE_PLAN;
+    if (rp === 'shadow') cfg.routePlan = 'shadow';
+    else cfg.routePlan = 'active';
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;

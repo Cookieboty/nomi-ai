@@ -13,7 +13,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { useChatMode } from '../../hooks/useChatMode';
-import type { DelegateResult } from '../../services/delegateClient';
+import { delegateClient, type DelegateResult } from '../../services/delegateClient';
 import {
   harnessClient,
   type HarnessBackend,
@@ -82,8 +82,9 @@ export function delegateView(
   const goal = tab?.delegation?.goal ?? (typeof input?.goal === 'string' ? input.goal : '') ?? '';
   const backend = (tab?.backend ?? result?.cli ?? null) as HarnessBackend | null;
   let phase: Phase;
-  if (call.status === 'running') {
-    if (!tab) phase = 'confirming';
+  if (call.status === 'running' || result?.status === 'running') {
+    // 工具已返回但后台仍在跑（P2 异步默认）：跟标签实时状态
+    if (!tab) phase = call.status === 'running' ? 'confirming' : 'running';
     else phase = tl?.permissions?.length ? 'waiting' : 'running';
   } else if (result) phase = result.status === 'done' ? 'done' : result.status;
   else phase = error || call.status === 'error' ? 'error' : 'done';
@@ -346,14 +347,51 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
   // 只订阅自己这个标签的实时进度（别的标签每帧的输出不让这张卡片重渲染）
   const tl = useHarnessLive((l) => (tabMeta ? l[tabMeta.id] : undefined));
   const { isDev } = useChatMode();
-  const v = delegateView(call, tabMeta, tl);
+  const parsed = parseOutput(call.output);
+  const taskId = parsed.result?.taskId ?? tabMeta?.id;
+  const [liveResult, setLiveResult] = useState<DelegateResult | undefined>();
+  // 异步委派：工具输出是 running 占位，完成后主进程广播 / 可查 status
+  useEffect(() => {
+    if (!taskId) return;
+    if (parsed.result?.status !== 'running' && liveResult?.status !== 'running') return;
+    let alive = true;
+    const apply = (r: DelegateResult) => {
+      if (alive && r.taskId === taskId) setLiveResult(r);
+    };
+    const off = delegateClient.onCompleted(apply);
+    void delegateClient
+      .status(taskId)
+      .then((r) => {
+        if (r) apply(r);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+      off();
+    };
+    // liveResult 故意不进依赖：只在工具输出仍为 running 时挂订阅
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, parsed.result?.status]);
+  const callForView =
+    liveResult && liveResult.status !== 'running'
+      ? {
+          ...call,
+          status: 'done' as const,
+          output: JSON.stringify({ ok: true, data: liveResult }),
+        }
+      : call;
+  const v = delegateView(callForView, tabMeta, tl);
   const [open, setOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [stopping, setStopping] = useState(false);
   const running = v.phase === 'running' || v.phase === 'waiting';
   const elapsed = useElapsed(
     call.startedAt,
-    running ? undefined : (call.endedAt ?? call.startedAt),
+    running
+      ? undefined
+      : liveResult?.durationMs != null && call.startedAt != null
+        ? call.startedAt + liveResult.durationMs
+        : (call.endedAt ?? call.startedAt),
   );
   const step = running ? currentStep(v.live) : null;
   const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('编程助手');

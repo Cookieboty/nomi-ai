@@ -282,8 +282,8 @@ describe('GatewayService：标签令牌、预设、Key 限流、严格模式、�
     expect(cfg()).toContain('model = "ds/deepseek-v4.1-flash"');
   });
 
-  it('运行时快照带预设 id、Key 的并发 / 每分钟请求数、严格模式；路由计划可用环境变量切到 active', () => {
-    const t = service({ NOMI_ROUTE_PLAN: 'active' });
+  it('运行时快照带预设 id、Key 的并发 / 每分钟请求数、严格模式；路由计划默认 active，可用环境变量回滚 shadow', () => {
+    const t = service();
     const v = t.svc.upsertProvider({
       name: 'DeepSeek',
       presetId: 'deepseek',
@@ -294,6 +294,7 @@ describe('GatewayService：标签令牌、预设、Key 限流、严格模式、�
     expect(p.preset).toBe('deepseek');
     expect(p.keys[0]).toMatchObject({ maxConcurrency: 2, rpm: 60 });
     expect(t.lastConfig().routePlan).toBe('active');
+    expect(service({ NOMI_ROUTE_PLAN: 'shadow' }).lastConfig().routePlan).toBe('shadow');
     expect(t.lastConfig().strictParams).toBeUndefined();
     // 清掉限流（null / 非法值）
     t.svc.upsertProvider({

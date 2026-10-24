@@ -12,7 +12,7 @@
  * | default-order   | chat → responses → messages → gemini          | 兼容面最广 |
  *
  * 损失（加密推理、签名、缓存控制、自由文本工具、图片…）不参与排序，只记录；quality 由损失推出。
- * 上线方式：影子模式（默认）只算计划、与 pickWire 比对写日志；配置 routePlan: 'active' 后按计划选协议。
+ * 默认按计划选协议（routePlan active / 未设）；routePlan: 'shadow'（或 NOMI_ROUTE_PLAN=shadow）回滚为只算计划、与 pickWire 比对写日志。
  */
 import type { RuntimeProvider } from '../config';
 import type { Wire } from '../ir';

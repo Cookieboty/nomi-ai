@@ -17,7 +17,9 @@ import {
   bindNextDelegateConversation,
   clearTurnPin,
   consumeNextDelegate,
+  delegateClient,
   delegateDirective,
+  type DelegateResult,
 } from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
@@ -38,6 +40,12 @@ import { type IPCClient } from '../types/ipc';
 import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import { AiChatStoreContext, createAiChatStore } from './aiChatStore';
+
+/** 去掉交给模型时加的 <cli-output> 边界，只留编程助手原话（与 DelegateCard.plainSummary 一致） */
+function plainSummary(s: string): string {
+  const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
+  return (m ? m[1]! : s).trim();
+}
 
 export interface AiChatState {
   messages: ChatMessage[];
@@ -281,6 +289,47 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           role: 'assistant',
           content: t('**{0}**{1}\n\n{2}', r.name, r.catchUp ? t('（补上）') : '', r.text),
           timestamp: r.at,
+        };
+        dispatch({ type: 'ADD_MESSAGE', payload: m });
+        void ipcClient.saveMessage(m);
+      }),
+    [ipcClient],
+  );
+
+  // 异步委派完成 → 写进当前对话（卡片也订阅同一广播更新汇报；Nomi 下一轮能读到）
+  useEffect(
+    () =>
+      delegateClient.onCompleted((r: DelegateResult) => {
+        const name = t(ENDPOINT_NAME[r.cli] ?? r.cli);
+        let body: string;
+        if (r.status === 'cancelled') {
+          body =
+            r.cancelledBy === 'nomi'
+              ? t('**{0}** 的委派任务已随 Nomi 这一轮一起停止。', name)
+              : t('**{0}** 的委派任务已停止。', name);
+        } else if (r.status === 'error') {
+          body = t('**{0}** 的委派任务出错：{1}', name, r.error ?? '');
+        } else if (r.report) {
+          const bits = [
+            t('**{0}** 完成了委派任务。', name),
+            plainSummary(r.report.done),
+            r.report.unfinished ? t('没做完的：{0}', plainSummary(r.report.unfinished)) : '',
+            r.report.needsUser ? t('需要你决定的：{0}', plainSummary(r.report.needsUser)) : '',
+          ].filter(Boolean);
+          body = bits.join('\n\n');
+        } else {
+          body = t(
+            '**{0}** 完成了委派任务。\n\n{1}',
+            name,
+            plainSummary(r.summary) || t('（无汇报）'),
+          );
+        }
+        const m: ChatMessage = {
+          id: `delegate-${r.taskId}-${r.durationMs}`,
+          role: 'assistant',
+          content: body,
+          timestamp: Date.now(),
+          origin: 'background',
         };
         dispatch({ type: 'ADD_MESSAGE', payload: m });
         void ipcClient.saveMessage(m);

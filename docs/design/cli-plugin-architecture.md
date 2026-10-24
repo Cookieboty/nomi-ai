@@ -1559,13 +1559,13 @@ packages/gateway/src/
 
 ### 12.1 v2.0.0 明确推迟（只记档，本版本不实现）
 
-| 项                                         | 说明                                             |
-| ------------------------------------------ | ------------------------------------------------ |
-| 完整拆分 `CliHarnessService`（约 4886 行） | 已拆：`cli/harness/*` + 薄 facade（行为不变）    |
-| Permission PR3 ExitPlanMode UX             | 已落地：approve-plan 卡 + 模式回写               |
-| 异步委派 / `taken_over` 中途接手           | 见 [nomi-delegate-cli §12](nomi-delegate-cli.md) |
-| LFS / 历史 rewrite                         | 发布流程                                         |
-| `routePlan` 默认非影子                     | M3b-3：先影子再切                                |
+| 项                                         | 说明                                                                 |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| 完整拆分 `CliHarnessService`（约 4886 行） | 已拆：`cli/harness/*` + 薄 facade（行为不变）                        |
+| Permission PR3 ExitPlanMode UX             | 已落地：approve-plan 卡 + 模式回写                                   |
+| `taken_over` 中途接手打断                  | 见 [nomi-delegate-cli §12](nomi-delegate-cli.md)；异步委派 P2 已实现 |
+| LFS / 历史 rewrite                         | 发布流程                                                             |
+| `routePlan` 默认非影子                     | 已切默认 active；`NOMI_ROUTE_PLAN=shadow` 回滚（§14.1）              |
 
 **风险**
 
@@ -1631,7 +1631,7 @@ packages/gateway/src/
 | 项                         | 本稿                                        | 实现                                                                                                                | 原因                                                                                                                  |
 | -------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | 推理意图（§6.5）           | 改 IR 的 `IRReasoning` 为 `ReasoningIntent` | IR 不变，意图直接从入口请求体读（`gateway/src/intent.ts`），再由模型适配器的请求规则渲染                            | 与 C1「规则作用在请求体上」一致，改动面小                                                                             |
-| 路由计划（§6.9）           | 规则排序后直接决定协议                      | 默认影子模式：只把与 `pickWire` 不同的结论写日志；`routePlan: 'active'`（开发时 `NOMI_ROUTE_PLAN=active`）才生效    | 先积累一个版本的影子日志再切换                                                                                        |
+| 路由计划（§6.9）           | 规则排序后直接决定协议                      | **默认 active**（按 `RoutePlan` 选上游协议）；`routePlan: 'shadow'` / `NOMI_ROUTE_PLAN=shadow` 回滚影子模式         | 影子观察一个版本后切换；保留 env 回滚旋钮                                                                             |
 | 同协议非流式（§6.11.1）    | JSON 展开成事件走同一流水线再聚合           | 同协议非流式正文直通，跨协议才经 `bridgeJson`                                                                       | 展开再聚合做不到字节一致（原因写在 `bridge.ts`）                                                                      |
 | 账号目录布局（§5.10）      | 复用 cli-sdk 的 `ensureSharedHome`          | 布局数据来自插件，软链 / junction 代码仍在 `electron/src/cli/accounts/homes.ts`                                     | 已有条目、Windows junction 与失败报告的处理不同，切换要重做真机核对                                                   |
 | 模型发现与账号登录（§5.4） | 走会话驱动                                  | 走 cli-sdk 的 `JsonRpcConnection`（主进程只加本地化超时文案）                                                       | 驱动自带握手与会话 / 权限处理，这两个流程要发原始 `authenticate` / `session/new` 并拒绝所有代理请求，换驱动会改变行为 |

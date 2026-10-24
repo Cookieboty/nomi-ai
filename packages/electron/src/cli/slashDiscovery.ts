@@ -667,7 +667,26 @@ function git(cwd: string, args: string[]): Promise<string> {
         timeout: 8000,
         maxBuffer: 32 * 1024 * 1024,
         windowsHide: true,
-        env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', NO_COLOR: '1' },
+        env: (() => {
+          const env: NodeJS.ProcessEnv = {
+            ...process.env,
+            GIT_OPTIONAL_LOCKS: '0',
+            GIT_TERMINAL_PROMPT: '0',
+            NO_COLOR: '1',
+          };
+          for (const k of [
+            'GIT_DIR',
+            'GIT_WORK_TREE',
+            'GIT_COMMON_DIR',
+            'GIT_PREFIX',
+            'GIT_INDEX_FILE',
+            'GIT_OBJECT_DIRECTORY',
+            'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+          ] as const) {
+            delete env[k];
+          }
+          return env;
+        })(),
       },
       (err, stdout, stderr) => {
         if (!err) return resolve(String(stdout));

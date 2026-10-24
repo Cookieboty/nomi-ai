@@ -170,8 +170,8 @@ export interface GatewayConfig {
   /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
   strictParams?: boolean;
   /**
-   * 路由计划（§6.9.4）：shadow（默认）= 只计算新计划、与现有选协议规则比对写日志；
-   * active = 按新计划选上游协议（模型原生协议优先）。
+   * 路由计划（§6.9.4）：active（默认，未设亦同）= 按新计划选上游协议（模型原生协议优先）；
+   * shadow = 只计算新计划、与现有选协议规则比对写日志（回滚用，NOMI_ROUTE_PLAN=shadow）。
    */
   routePlan?: 'shadow' | 'active';
 }

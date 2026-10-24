@@ -88,7 +88,7 @@ export function nomiAdapter(input: AdapterInput): SlashCommand[] {
       // 旧名 /cli 仍可用，但不在面板和提示里出现
       hiddenAliases: ['cli'],
       label: t('交给编程助手'),
-      description: t('指定下一个需求交给哪个编程助手（如 /agent codex 修复登录 bug）'),
+      description: t('指定下一个需求交给哪个编程助手（后台执行，如 /agent codex 修复登录 bug）'),
       source: 'builtin',
       kind: 'native',
       hint: t('名字 [需求]'),

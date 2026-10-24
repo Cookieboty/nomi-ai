@@ -102,7 +102,10 @@ function setup(
   const svc = new DelegateService({ root, harness: harness as never, desktop: desktop as never });
   const tool = svc.tools()[0]!;
   const run = (input: Record<string, unknown>, ctx: Record<string, unknown> = {}) =>
-    tool.execute({ goal: '修复登录 bug', done_when: 'npm test 通过', ...input }, ctx) as Promise<{
+    tool.execute(
+      { goal: '修复登录 bug', done_when: 'npm test 通过', background: false, ...input },
+      ctx,
+    ) as Promise<{
       ok: boolean;
       data?: Record<string, unknown> & {
         report?: { done: string; unfinished?: string; needsUser?: string; changedFiles: string[] };
@@ -340,12 +343,132 @@ describe('DelegateService · delegate_to_cli', () => {
     const r = await setup().run({});
     expect(r.data?.status).toBe('done');
     expect(r.data).not.toHaveProperty('taken_over');
-    expect(['done', 'error', 'cancelled']).toContain(r.data?.status);
+    expect(['running', 'done', 'error', 'cancelled']).toContain(r.data?.status);
   });
 
   it('untrusted 边界格式', () => {
     expect(untrusted('x')).toMatch(/^<cli-output>\n.*\nx\n<\/cli-output>$/);
     expect(untrusted('')).toBe('');
+  });
+});
+
+describe('DelegateService · P2 异步委派', () => {
+  it('默认后台：立刻返回 running，完成后 status / 可查汇报', async () => {
+    let resolveSend!: (v: { text: string }) => void;
+    const sent = new Promise<{ text: string }>((r) => {
+      resolveSend = r;
+    });
+    const s = setup({
+      send: () => sent,
+    });
+    // 覆盖 helper 的 background:false
+    const early = await s.run({ background: true });
+    expect(early.ok).toBe(true);
+    expect(early.data).toMatchObject({ taskId: 't1', status: 'running' });
+    expect(String(early.data?.summary)).toMatch(/后台/);
+    expect(s.svc.statusOf('t1')?.status).toBe('running');
+
+    resolveSend({ text: REPORT });
+    // 等 fire-and-forget 跑完
+    await new Promise((r) => setTimeout(r, 50));
+    const done = s.svc.statusOf('t1');
+    expect(done?.status).toBe('done');
+    expect(String(done?.report?.done)).toContain('修好了登录');
+    expect(String(done?.report?.done)).toContain('<cli-output>');
+  });
+
+  it('默认（不传 background）即异步', async () => {
+    let resolveSend!: (v: { text: string }) => void;
+    const sent = new Promise<{ text: string }>((r) => {
+      resolveSend = r;
+    });
+    const s = setup({ send: () => sent });
+    // 去掉 helper 默认的 background:false
+    const tool = s.svc.tools()[0]!;
+    const early = (await tool.execute({ goal: 'x', done_when: 'y' }, { toolCallId: 'c1' })) as {
+      ok: boolean;
+      data?: { status: string };
+    };
+    expect(early.data?.status).toBe('running');
+    resolveSend({ text: 'ok' });
+    await new Promise((r) => setTimeout(r, 50));
+  });
+
+  it('delegate_status / followup：未知任务、busy、完成后跟进', async () => {
+    let resolveSend!: (v: { text: string }) => void;
+    const sent = new Promise<{ text: string }>((r) => {
+      resolveSend = r;
+    });
+    const s = setup({ send: () => sent });
+    const tools = s.svc.tools();
+    const status = tools.find((x) => x.name === 'delegate_status')!;
+    const follow = tools.find((x) => x.name === 'delegate_followup')!;
+    expect(
+      ((await status.execute({ taskId: 'nope' }, {})) as { error?: { code: string } }).error?.code,
+    ).toBe('unknown_task');
+
+    const early = await s.run({ background: true });
+    const tid = early.data!.taskId as string;
+    expect(
+      ((await status.execute({ taskId: tid }, {})) as { data?: { status: string } }).data?.status,
+    ).toBe('running');
+    expect(
+      (
+        (await follow.execute({ taskId: tid, message: '再查一下' }, {})) as {
+          error?: { code: string };
+        }
+      ).error?.code,
+    ).toBe('busy');
+
+    resolveSend({ text: REPORT });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(
+      ((await status.execute({ taskId: tid }, {})) as { data?: { status: string } }).data?.status,
+    ).toBe('done');
+
+    // 跟进：再 send 一次
+    let n = 0;
+    const s2 = setup({
+      send: async () => {
+        n += 1;
+        return { text: n === 1 ? REPORT : '跟进答复' };
+      },
+    });
+    // seed a finished task by running sync then... easier: run bg, complete, followup on s
+    const followR = (await follow.execute({ taskId: tid, message: '再查一下' }, {})) as {
+      ok: boolean;
+      data?: { status: string; summary?: string };
+    };
+    // 原 harness send 已 resolve，跟进会再调 sendTab —— mock 仍是同一个闭包的 sent promise（已 settle）
+    // 上面 setup 的 send 返回已 resolve 的 promise 会立刻再给一次同一 text；可接受
+    expect(followR.ok).toBe(true);
+    expect(followR.data?.status).toBe('done');
+  });
+
+  it('异步派出后 Nomi abort 不连带停子任务', async () => {
+    const ac = new AbortController();
+    let reject!: (e: unknown) => void;
+    let sendStarted!: () => void;
+    const entered = new Promise<void>((r) => {
+      sendStarted = r;
+    });
+    const s = setup({
+      send: () => {
+        sendStarted();
+        return new Promise((_res, rej) => {
+          reject = rej;
+        });
+      },
+    });
+    const early = await s.run({ background: true }, { signal: ac.signal });
+    expect(early.data?.status).toBe('running');
+    await entered;
+    ac.abort();
+    expect(s.cancelled).toEqual([]); // 不连带
+    reject(new HarnessStoppedError('已中止', ''));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(s.svc.statusOf('t1')?.status).toBe('cancelled');
+    expect(s.svc.statusOf('t1')?.cancelledBy).toBe('user');
   });
 });
 

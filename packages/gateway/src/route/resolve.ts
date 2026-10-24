@@ -189,8 +189,9 @@ export function alternateWire(
 }
 
 /**
- * 选上游协议：算路由计划（§6.9.4）；影子模式（默认）下仍按现有规则（pickWire）选，
- * 计划里记下现有规则的选择，两者不同时由服务端写日志；active 模式按计划选。
+ * 选上游协议：算路由计划（§6.9.4）；默认 active（按计划选上游协议）。
+ * routePlan: 'shadow'（或 NOMI_ROUTE_PLAN=shadow）时仍按现有规则（pickWire）选，
+ * 计划里记下现有规则的选择，两者不同时由服务端写日志。
  */
 function chooseWire(
   cfg: GatewayConfig,
@@ -202,7 +203,8 @@ function chooseWire(
 ): { wire: Wire; plan?: RoutePlan } | null {
   const legacy = pickWire(p, model, ingress, usable);
   const plan = makePlan(p, m, ingress, usable);
-  if (cfg.routePlan === 'active' && plan) return { wire: plan.upstream, plan };
+  // 默认 active：未设或显式 active 都按计划选；仅 shadow 回滚到 pickWire
+  if (cfg.routePlan !== 'shadow' && plan) return { wire: plan.upstream, plan };
   if (!legacy) return null;
   return {
     wire: legacy,

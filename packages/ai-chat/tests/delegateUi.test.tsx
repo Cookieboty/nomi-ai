@@ -146,6 +146,17 @@ describe('delegateView', () => {
         undefined,
       ).phase,
     ).toBe('error');
+    // P2 异步：工具已返回 running 占位，卡片仍跟标签进度
+    expect(
+      delegateView(
+        call({
+          status: 'done',
+          output: done({ status: 'running', summary: '后台' }),
+        }),
+        tab(),
+        undefined,
+      ).phase,
+    ).toBe('running');
   });
 });
 

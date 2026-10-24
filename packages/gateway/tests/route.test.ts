@@ -166,9 +166,17 @@ describe('resolve (§6.2 / §7.2)', () => {
     expect(native('gpt-6', { models: [{ id: 'gpt-6', enabled: true, wires: ['chat'] }] })).toBe(
       'chat',
     );
-    // 外部 CLI 已有入口时仍按同协议透传，不受 SDK 入口选择影响。
+    // 默认 active：gpt-6 走 model-native → responses（RoutePlan 优先原生协议）
     const external = resolveCandidates(cfg([p({ id: 'a' })]), 'codex', 'a/gpt-6', 'chat');
-    expect(external.ok && external.candidates[0]!.wire).toBe('chat');
+    expect(external.ok && external.candidates[0]!.wire).toBe('responses');
+    // shadow 回滚：仍按 pickWire 同协议透传
+    const shadow = resolveCandidates(
+      { ...cfg([p({ id: 'a' })]), routePlan: 'shadow' },
+      'codex',
+      'a/gpt-6',
+      'chat',
+    );
+    expect(shadow.ok && shadow.candidates[0]!.wire).toBe('chat');
   });
   it('a disabled provider or one without keys is not a candidate', () => {
     const r = resolveCandidates(cfg([p({ id: 'a', keys: [] })]), 'claude', 'a/x', 'chat');

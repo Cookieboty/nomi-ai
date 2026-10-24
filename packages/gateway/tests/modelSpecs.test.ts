@@ -318,6 +318,7 @@ describe('typical conversion paths (§6.9.10) with routePlan: active', () => {
     const cfg: GatewayConfig = {
       host: '127.0.0.1',
       port: 0,
+      routePlan: 'shadow',
       providers: [
         prov({
           urls: relay(['messages', 'responses']),
@@ -332,6 +333,23 @@ describe('typical conversion paths (§6.9.10) with routePlan: active', () => {
       upstream: 'responses',
       legacy: 'messages',
     });
+  });
+
+  it('default (unset routePlan) is active: plan.upstream wins', () => {
+    const cfg: GatewayConfig = {
+      host: '127.0.0.1',
+      port: 0,
+      providers: [
+        prov({
+          urls: relay(['messages', 'responses']),
+          models: [{ id: 'gpt-5.6-terra', enabled: true }],
+        }),
+      ],
+      clients: {},
+    };
+    const r = resolveCandidates(cfg, 'claude', 'p/gpt-5.6-terra', 'messages');
+    expect(r.ok && r.candidates[0]!.wire).toBe('responses');
+    expect(r.ok && r.candidates[0]!.plan?.upstream).toBe('responses');
   });
 });
 

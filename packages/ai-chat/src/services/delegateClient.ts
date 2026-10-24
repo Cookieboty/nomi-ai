@@ -28,7 +28,7 @@ export interface DelegateSettingsView extends DelegateSettings {
 export interface DelegateResult {
   taskId: string;
   cli: DelegateCli;
-  status: 'done' | 'error' | 'cancelled';
+  status: 'running' | 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi';
   report?: { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string };
   /** 汇报缺失时 git 核对到的改动文件（相对 cwd） */
@@ -71,6 +71,7 @@ export function resolveDelegateCli(name: string): DelegateCli | null {
 
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
+  on: (channel: string, fn: (payload: unknown) => void) => () => void;
 }
 
 const bridge = (): AiBridge | undefined => {
@@ -87,6 +88,8 @@ async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   return r;
 }
 
+const on = (ch: string, fn: (p: unknown) => void) => bridge()?.on(ch, fn) ?? (() => undefined);
+
 export const delegateClient = {
   available: () => !!bridge(),
   settings: () => call<DelegateSettingsView>('ai:delegate:settings'),
@@ -95,6 +98,11 @@ export const delegateClient = {
   pin: (cli: DelegateCli | null, turnId: string) =>
     call<DelegateCli | null>('ai:delegate:pin', cli, turnId),
   clearPin: (turnId: string) => call<boolean>('ai:delegate:clear-pin', turnId),
+  /** 查后台委派状态（主进程 tasks；无则 null） */
+  status: (taskId: string) => call<DelegateResult | null>('ai:delegate:status', taskId),
+  /** 后台委派完成时主进程广播 */
+  onCompleted: (fn: (r: DelegateResult) => void) =>
+    on('ai:delegate:completed', (p) => fn(p as DelegateResult)),
 };
 
 // ───────────────────────── 下一个需求交给谁（按会话；输入框上方的 chip） ─────────────────────────
@@ -158,7 +166,7 @@ export async function clearTurnPin(turnId: string): Promise<void> {
 /** 发给 Nomi 模型的消息前面加的说明（界面上只显示用户原文和「交给 X」标记） */
 export function delegateDirective(name: string): string {
   return t(
-    '用户指定把下面的需求交给 {0} 完成：请整理成具体的任务说明，调用 delegate_to_cli。',
+    '用户指定把下面的需求交给 {0} 完成：请整理成具体的任务说明，调用 delegate_to_cli（默认后台，立刻返回 taskId；完成后可用 delegate_status 查看）。',
     name,
   );
 }

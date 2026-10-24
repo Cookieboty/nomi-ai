@@ -1,6 +1,6 @@
 # Nomi 把编程助手当子代理调用（设计稿）
 
-> 状态：P1 已实现（v2.0.0，单元测试覆盖，未经真机验证）；P2、P3 待做。起草 2026-10-24。实现偏差见 §12。
+> 状态：P1 + P2（异步默认）已实现（v2.0.0）；P3 待做。起草 2026-10-24。实现偏差见 §12。
 > 相关：[编程助手权限模式](cli-permission-modes.md)（§4.1 Nomi 自己的工具）、[编程助手子代理](cli-subagents.md)、
 > [编程助手插件化](cli-plugin-architecture.md)、[模型质量](model-quality.md)。
 
@@ -64,7 +64,7 @@ delegate_to_cli({
   done_when: string,      // 完成标准：怎样算做完（如「npm test 通过」「只改登录相关文件」）
   out_of_scope?: string,  // 不要碰的范围
   cwd?: string,           // 缺省：最近使用的工作目录；必须在桌面权限已授权的范围内（§6.2）
-  background?: boolean,   // 第二阶段；第一阶段只有同步
+  background?: boolean,   // 默认 true（异步）；false 同步等到结束
 }) → DelegateResult
 
 delegate_followup({ taskId, message }) → DelegateResult   // 第二阶段：在同一个标签里接着问
@@ -178,13 +178,13 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 设置 →「编程助手」页加一个「委派」分页（与「助手」「监视与会话」并列）：
 
-| 设置项                 | 说明                                                                    |
-| ---------------------- | ----------------------------------------------------------------------- |
+| 设置项                 | 说明                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------- |
 | 允许 Nomi 委派编程助手 | 总开关，默认开；关掉后 Nomi 不注册 `delegate_to_cli`，`/agent`（及 `/cli`）提示已关闭 |
-| 编程开发               | 默认交给哪个编程助手（下拉：已安装的编程助手 +「让 Nomi 选」）          |
-| PRD / 需求文档         | 同上                                                                    |
-| 代码审查               | 同上                                                                    |
-| 调研分析               | 同上                                                                    |
+| 编程开发               | 默认交给哪个编程助手（下拉：已安装的编程助手 +「让 Nomi 选」）                        |
+| PRD / 需求文档         | 同上                                                                                  |
+| 代码审查               | 同上                                                                                  |
+| 调研分析               | 同上                                                                                  |
 
 - `delegate_to_cli` 增加参数 `kind: 'coding' | 'prd' | 'review' | 'research'`（缺省 `coding`），由 Nomi 按需求判断。
 - **选谁的优先级**：`/agent`（或 `/cli`）钉住的（§4.6）> 用户在消息里点名的（模型据此填 `cli`）> 这个任务类型的默认 >
@@ -338,11 +338,11 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 ## 9. 分阶段
 
-| 阶段 | 内容                                                                                                                                                            |
-| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1   | 同步、单个子任务；§5 权限、§6 安全、§7 卡片（含卡片内审批）与停止；助手模式与工作台模式都开放（§7.1）                                                           |
-| P2   | `background`、`delegate_followup`、`delegate_status`；完成后在 Nomi 对话里通知并让 Nomi 下一轮能读到结果。业内默认异步（派出后主代理继续工作），P1 上线后优先做 |
-| P3   | 并行：每个子任务一个 git worktree（同目录并行会互相改文件）；多个结果汇总；并发上限                                                                             |
+| 阶段 | 内容                                                                                                                                                                  |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1   | 同步、单个子任务；§5 权限、§6 安全、§7 卡片（含卡片内审批）与停止；助手模式与工作台模式都开放（§7.1）                                                                 |
+| P2   | ✅ `background`（**默认 true**）、`delegate_followup`、`delegate_status`；完成后广播 `ai:delegate:completed`，对话注入结果，卡片 live 更新。`background:false` 可同步 |
+| P3   | 并行：每个子任务一个 git worktree（同目录并行会互相改文件）；多个结果汇总；并发上限                                                                                   |
 
 ## 10. 测试
 
@@ -367,8 +367,8 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 | 编程助手的审批        | `PERMISSION_TIMEOUT_MS = 120_000`，2 分钟不答复自动拒绝                                                                                                           | **有影响**：审批必须显示在卡片里（§7），委派开的标签等待改为 10 分钟（§5.1） |
 | Gemini                | 一轮 5 分钟没有任何输出判定卡死并取消（`GEMINI_PROMPT_IDLE_MS`）                                                                                                  | 和直接用 Gemini 标签一样；结果以 `error` 返回                                |
 
-体验上的代价：同步等待期间 Nomi 这一轮一直在进行，用户不能和 Nomi 聊别的（只能停止）。P1 接受这一点；
-如果实际用起来子任务普遍很长，再把 P2 的 `background` 提前。
+P1 曾按同步实现；P2 起默认异步（`background !== false`），派出后立刻返回 `status:'running'`，
+Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传 `background:false`（abort 仍连带停子任务）。
 
 ### 11.2 待确认
 
@@ -408,14 +408,21 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 - 委派层数（§6.4）：`ctx.callerTabId` 对应标签的 `delegation.by === 'nomi'` 时拒绝（`delegation_depth`）。
 - 生产路径：`runWithToolCaller`（ALS）+ `mapTools`/`ChatRequest.extra.callerTabId`，使嵌套 `delegate_to_cli` 在 MCP/host 包一层后也能读到 caller（不仅单测显式传 ctx）。
 
+### 12.0 P2 异步委派（已实现）
+
+- **默认 `background: true`**：`delegate_to_cli` 开标签后立刻返回 `{ status:'running', taskId }`；子任务在 `BgTask` Map 里跑完，`finalize` 后广播 `ai:delegate:completed`。
+- **`background: false`**：同步等到结束；Nomi 本轮 abort 仍 `linkAbort` 连带 `cancelTab`。异步模式下派出后本轮结束**不**连带停（卡片「停止」仍可 `cancelTab`）。
+- **`delegate_status` / `delegate_followup`**：查状态；跟进时若仍 running 返回 `busy`；跟进本身同步等。
+- **UI**：`DelegateCard` 在工具输出为 running 时跟标签 live，并订阅完成广播 / `ai:delegate:status` 刷新汇报；`AiChatContext` 把完成结果注入对话（与日程结果同路径）。
+- **不变**：层数限制、pin 按 turnId、abort 孤儿清理（派出前）、`<cli-output>` untrusted 边界。
+
 ### 12.1 明确推迟（v2.0.0 不实现）
 
-| 项 | 说明 |
-| --- | --- |
-| 完整拆分 `CliHarnessService`（约 4886 行） | 归入插件化 M5；本版本不拆 |
-| Permission PR3 ExitPlanMode UX | 权限模式后续 PR |
-| 异步委派 / `taken_over` 中途接手 | 见上文「有意偏差」；需 harness 在 running 时支持接手 |
-| LFS / 历史 rewrite | 发布流程项，与委派无关 |
-| `routePlan` 默认非影子 | 网关 M3b-3：先影子一个版本再切 |
+| 项                                         | 说明                                                 |
+| ------------------------------------------ | ---------------------------------------------------- |
+| 完整拆分 `CliHarnessService`（约 4886 行） | 归入插件化 M5；本版本不拆                            |
+| Permission PR3 ExitPlanMode UX             | 权限模式后续 PR                                      |
+| `taken_over` 中途接手打断                  | 见上文「有意偏差」；需 harness 在 running 时支持接手 |
+| LFS / 历史 rewrite                         | 发布流程项，与委派无关                               |
 
 - `createTab` 与后续 await 之后、`sendTab` 之前若 `ctx.signal` 已中止：`closeTab` 清理孤儿标签并返回 `cancelledBy: 'nomi'`。

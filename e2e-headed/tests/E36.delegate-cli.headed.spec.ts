@@ -22,7 +22,7 @@ import { safeRm } from '../fixtures/fsutil';
  * E36 · 真实应用 · Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md）
  *
  * - 本地 mock 模型（OpenAI Chat Completions）：用户消息含 DELEGATE 时回一个 delegate_to_cli 工具调用，
- *   收到工具结果后回「DELEGATE-DONE」；
+ *   收到工具结果（异步默认立刻返回 running）后回「DELEGATE-DONE」；卡片等编程助手真正结束后再变 done；
  * - mock Claude / Codex（NOMI_USE_MOCK_CLI=1）：Claude 按 NOMI_MOCK_CLAUDE_REPLY 回 [nomi-report] 汇报；
  *   目标含 PERMTASK 的一轮先请求权限，含 SLOWTASK 的一轮先等 20 秒（可被停止打断）；
  * - 桌面权限预置：工作目录已授权，delegate_to_cli 策略为「总是允许」（不弹看板娘确认）。
@@ -314,9 +314,9 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
       const prompts = readFileSync(promptLog, 'utf8');
       expect(prompts).toContain('目标：修复登录 bug');
       expect(prompts).toContain('[nomi-report]');
-      // 模型拿到的工具结果是结构化汇报
+      // 异步默认：工具结果先是 running / 后台已开始；汇报在卡片与完成通知里
       const toolTurn = mock!.seen.find((s) => s.toolResult);
-      expect(toolTurn?.toolResult).toContain('修好了登录跳转');
+      expect(toolTurn?.toolResult).toMatch(/running|后台/);
       expect(mock!.seen.some((s) => s.tools.includes('delegate_to_cli'))).toBe(true);
 
       // 助手模式下「查看」：抽屉里看子任务的对话记录
