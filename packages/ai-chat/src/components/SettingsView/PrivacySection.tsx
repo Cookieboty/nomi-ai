@@ -10,6 +10,7 @@ import { useAiChatActions } from '../../contexts/aiChatStore';
 import { DesktopPanel } from '../lazyPanels';
 import type { ScreenTab } from '../ScreenPanel';
 
+import { DiagnosticsSettings } from './DiagnosticsSettings';
 import styles from './index.module.css';
 import { SectionPage } from './SectionPage';
 import { SECTION_TABS, type PrivacyTab, type SettingsSection, type SettingsTab } from './sections';
@@ -101,6 +102,7 @@ export const PrivacySection: React.FC<{
               </Button>
             </SettingRow>
           </SettingsGroup>
+          <DiagnosticsSettings />
         </div>
       ) : (
         <DesktopPanel key="desktop" isVisible onClose={noop} />

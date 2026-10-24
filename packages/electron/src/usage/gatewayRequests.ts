@@ -30,6 +30,8 @@ export interface GatewayUsageEventLike {
   attempts: number;
   error?: string;
   notes?: string[];
+  /** 诊断追踪 id（诊断日志开着时网关才给，§8.3） */
+  traceId?: string;
 }
 
 /** 请求日志的一条（只有元数据：不含提示词和回复内容，不含 Key） */
@@ -61,6 +63,8 @@ export interface GatewayRequestEntry {
   reasoning?: number;
   notes?: string[];
   error?: string;
+  /** 诊断追踪 id：对应 userData/gateway/trace 里的文件与响应头 x-nomi-trace-id */
+  traceId?: string;
 }
 
 /** 最多保留的条数 */
@@ -126,6 +130,8 @@ export function toEntry(
   if (notes.length) entry.notes = notes.slice(0, 8);
   const error = cleanError(e.error);
   if (error) entry.error = error;
+  if (typeof e.traceId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.traceId))
+    entry.traceId = e.traceId;
   return entry;
 }
 
@@ -281,6 +287,7 @@ export function sanitizeEntries(raw: unknown): GatewayRequestEntry[] {
           attempts: Number(o.attempts),
           error: typeof o.error === 'string' ? o.error : undefined,
           notes: Array.isArray(o.notes) ? (o.notes as string[]) : undefined,
+          traceId: typeof o.traceId === 'string' ? o.traceId : undefined,
         },
         o.id,
         {

@@ -16,6 +16,7 @@ import path from 'node:path';
 
 import { BrowserWindow, dialog } from 'electron';
 
+import { traceCliChild } from '../diagnostics/cliTrace';
 import { t } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { claudeConfigDir } from '../usage/cliHomes';
@@ -1429,7 +1430,7 @@ export class CliHarnessService {
         return spawnHarness(
           useNode ? process.execPath : bin,
           useNode ? [bin, ...args, ...l.args] : [...args, ...l.args],
-          { cwd: os.tmpdir(), env: this.childEnv(useNode, l) },
+          { cwd: os.tmpdir(), env: this.childEnv(useNode, l), tabId: `models:${b}` },
         );
       },
       codexConfigPath: process.env.CODEX_HOME
@@ -2389,6 +2390,7 @@ export class CliHarnessService {
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       env: this.childEnv(useNode, launch),
+      tabId: tab.id,
     });
     const live: ClaudeLiveSession = {
       child,
@@ -2646,6 +2648,7 @@ export class CliHarnessService {
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
       // 第三方：Grok 用私有 GROK_HOME、Gemini 用环境变量指向网关；官方剔除网关残留
       env: this.childEnv(useNode, launch),
+      tabId: tab.id,
     });
     let stderrTail = '';
     child.stderr.on('data', (c) => {
@@ -3393,6 +3396,7 @@ export class CliHarnessService {
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       env: this.childEnv(useNode, launch),
+      tabId: tab.id,
     });
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
@@ -3960,6 +3964,7 @@ export class CliHarnessService {
         // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
         // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
         env: this.childEnv(Boolean(opts.asNode), opts.launch ?? OFFICIAL_LAUNCH, opts.env),
+        tabId: tab.id,
       });
       this.children.set(tab.id, child);
 
@@ -4656,7 +4661,8 @@ function isScript(bin: string) {
 function spawnHarness(
   command: string,
   args: string[],
-  opts: { cwd: string; env: NodeJS.ProcessEnv },
+  /** tabId：诊断日志里按标签分组（§8.3）；登录进程不走这里，从不被记录（S8） */
+  opts: { cwd: string; env: NodeJS.ProcessEnv; tabId?: string },
 ): ChildProcessWithoutNullStreams {
   const launch = resolveHarnessLaunch(command, args, opts.env);
   const child = spawn(launch.file, launch.args, {
@@ -4665,6 +4671,8 @@ function spawnHarness(
     windowsHide: true,
     ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
   });
+  // 诊断日志开着时记录收发原文（脱敏；环境变量不记）；关着什么都不做
+  traceCliChild(child, command, args, { tabId: opts.tabId });
   // 子进程先退出时，之后的 stdin 写入（NDJSON / control_response / end）会异步 EPIPE；
   // 没有监听就成了主进程 uncaughtException。轮次的失败由 close / error 事件负责（#46）
   child.stdin.on('error', () => {});

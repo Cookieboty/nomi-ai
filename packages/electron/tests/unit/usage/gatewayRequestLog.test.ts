@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { GatewayRequestLog } from '../../../src/usage/GatewayRequestLog';
+import { GatewayRequestLog, readLegacyGatewayTrace } from '../../../src/usage/GatewayRequestLog';
 import {
   aggregateGateway,
   cacheHitRate,
@@ -189,6 +189,46 @@ describe('GatewayRequestLog', () => {
     expect(mkLog(root).log.traceDir()).toBeUndefined();
     log.dispose();
     again.dispose();
+  });
+
+  it('trace follows the diagnostics switch when given (§8.1): set delegates, legacy flag readable', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-diag-'));
+    fs.writeFileSync(path.join(root, 'observe.json'), JSON.stringify({ version: 1, trace: true }));
+    expect(readLegacyGatewayTrace(root)).toBe(true);
+    let on = false;
+    const setTraceOn = jest.fn((v: boolean) => {
+      on = v;
+    });
+    const log = new GatewayRequestLog({
+      root,
+      logger: logger(),
+      traceOn: () => on,
+      setTraceOn,
+      flushMs: 10_000,
+      pruneMs: 0,
+      broadcast: () => undefined,
+    });
+    // 旧开关只用于迁移，不再决定追踪
+    expect(log.legacyTrace()).toBe(true);
+    expect(log.traceDir()).toBeUndefined();
+    expect(log.setTrace(true)).toEqual({ enabled: true, dir: path.join(root, 'trace') });
+    expect(setTraceOn).toHaveBeenCalledWith(true);
+    expect(log.traceDir()).toBe(path.join(root, 'trace'));
+    expect(log.view().trace.enabled).toBe(true);
+    on = false;
+    expect(log.traceDir()).toBeUndefined();
+    log.dispose();
+  });
+
+  it('keeps a well-formed traceId on the entry and through persistence', () => {
+    const e = toEntry(ev({ traceId: 'abc123def456' }), 'x');
+    expect(e.traceId).toBe('abc123def456');
+    expect(toEntry(ev({ traceId: '../etc/passwd' }), 'y').traceId).toBeUndefined();
+    const { log, root } = mkLog();
+    log.add(ev({ traceId: 'abc123def456' }));
+    log.flush();
+    expect(mkLog(root).log.list()[0]?.traceId).toBe('abc123def456');
+    log.dispose();
   });
 
   it('prunes trace files older than 24 h', () => {

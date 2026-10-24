@@ -305,5 +305,17 @@
   "需要逐个文件夹授权，操作都有记录、可撤销。": "Each folder must be authorized; every action is recorded and can be undone.",
   "把聊天、记忆、日程等打包成一个 .zip 文件。": "Pack chats, memories, schedules and more into a .zip file.",
   "导出": "Export",
-  "只删除当前对话的消息，其它对话不受影响，无法撤销。": "Deletes only the current chat's messages; other chats aren't affected. This can't be undone."
+  "只删除当前对话的消息，其它对话不受影响，无法撤销。": "Deletes only the current chat's messages; other chats aren't affected. This can't be undone.",
+  "诊断日志": "Diagnostic logs",
+  "排查第三方供应商、编程助手和网关的问题时用：记录编程助手的收发原文和网关的请求 / 响应正文，只存在本机。Key、令牌和 Authorization 头会被替换掉；收发记录保留 7 天，网关正文保留 24 小时。": "For troubleshooting third-party providers, coding agents and the gateway: records the raw input and output of coding agents and gateway request / response bodies, stored only on this computer. Keys, tokens and Authorization headers are redacted; agent records are kept 7 days, gateway bodies 24 hours.",
+  "保存诊断日志": "Save diagnostic logs",
+  "开发版始终记录": "Always on in development builds",
+  "默认关闭。打开后会记下对话内容和代码，排查完记得关掉。": "Off by default. When on, conversation content and code are recorded — turn it off when you're done troubleshooting.",
+  "日志文件夹": "Log folder",
+  "打开日志文件夹": "Open log folder",
+  "导出诊断包": "Export diagnostics bundle",
+  "把最近 24 小时的日志打成一个 .zip，导出前会再脱敏一遍。诊断包包含对话内容和代码，只发给你信任的人。": "Packs the last 24 hours of logs into a .zip, redacted again before export. The bundle contains conversation content and code — only share it with people you trust.",
+  "已导出：{0}": "Exported: {0}",
+  "导出失败：{0}": "Export failed: {0}",
+  "网关正文追踪已用 NOMI_DIAG_BODY=0 单独关闭。": "Gateway body tracing is turned off separately with NOMI_DIAG_BODY=0."
 }

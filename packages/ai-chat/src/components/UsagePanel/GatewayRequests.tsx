@@ -1,10 +1,11 @@
 /**
  * 用量面板 →「最近请求」（docs/design/unified-gateway.md §4.5、§14）：
  * 统一网关最近 200 条请求（入口协议 → 上游协议、供应商 / Key 名、模型、状态、耗时、回退、修正），
- * 网关流量按供应商 / 按 Key 的分布与缓存命中率，以及「调试模式」开关。
+ * 网关流量按供应商 / 按 Key 的分布与缓存命中率，以及正文追踪状态。正文追踪的开关已并入
+ * 「设置 → 隐私与权限 → 诊断日志」（docs/design/cli-plugin-architecture.md §8.1），这里只显示状态并跳转。
  * 这里的数字只统计经过网关的请求，不计入上面的用量合计（编程助手以它们自己的会话日志为准）。
  */
-import { Badge, Button, EmptyState, ErrorState, Notice, Switch, Tabs, t } from '@nomi-ai/ui';
+import { Badge, Button, EmptyState, ErrorState, Notice, Tabs, t } from '@nomi-ai/ui';
 import { Bug, Network, Trash2 } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -86,6 +87,15 @@ const RequestRow: React.FC<{ e: GatewayRequestEntry }> = ({ e }) => {
         {e.firstByteMs !== undefined && (
           <span className={g.meta}>{t('首字节 {0}', formatMs(e.firstByteMs))}</span>
         )}
+        {e.traceId && (
+          <span
+            className={g.meta}
+            title={t('诊断追踪 id：对应日志文件夹 gateway/trace 里的文件')}
+            data-testid="gateway-request-trace"
+          >
+            {t('追踪 {0}', e.traceId)}
+          </span>
+        )}
       </div>
       {e.notes && e.notes.length > 0 && (
         <div className={g.tags} aria-label={t('网关做的修正')}>
@@ -134,7 +144,10 @@ const AggList: React.FC<{ rows: GatewayAggRow[]; by: 'provider' | 'key' }> = ({ 
   );
 };
 
-export const GatewayRequests: React.FC = () => {
+export const GatewayRequests: React.FC<{
+  /** 跳到「设置 → 隐私与权限」（诊断日志开关在那里） */
+  onOpenPrivacy?: () => void;
+}> = ({ onOpenPrivacy }) => {
   const [view, setView] = useState<GatewayRequestsView | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [dim, setDim] = useState<'provider' | 'key'>('provider');
@@ -156,18 +169,6 @@ export const GatewayRequests: React.FC = () => {
     void load();
     return usageClient.onGatewayChanged(() => void load());
   }, [load]);
-
-  const setTrace = async (on: boolean) => {
-    setBusy(true);
-    try {
-      const r = await usageClient.setGatewayTrace(on);
-      setView((v) => (v ? { ...v, trace: r } : v));
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const clear = async () => {
     setBusy(true);
@@ -273,21 +274,19 @@ export const GatewayRequests: React.FC = () => {
 
       <section className={styles.panel} data-testid="gateway-trace">
         <header className={styles.panelHead}>
-          <h3>{t('调试模式')}</h3>
+          <h3>{t('正文追踪')}</h3>
           <AppIcon icon={Bug} />
         </header>
-        <Switch
-          checked={view.trace.enabled}
-          disabled={busy}
-          onChange={(v) => void setTrace(v)}
-          label={t('记录请求和响应正文')}
-          data-testid="gateway-trace-switch"
-        />
-        <p className={styles.dim}>
-          {t(
-            '打开后，网关会把每次请求的请求体和响应正文写到本机目录，用来排查第三方供应商的问题。Key、令牌和 Authorization 头会被替换掉；文件 24 小时后自动删除。默认关闭。',
-          )}
+        <p className={styles.dim} data-testid="gateway-trace-status">
+          {view.trace.enabled
+            ? t('正在记录：每次请求的请求体与响应正文写到本机目录（24 小时后自动删除）。')
+            : t('未记录。需要排查第三方供应商的问题时，在「诊断日志」里打开。')}
         </p>
+        {onOpenPrivacy && (
+          <Button size="sm" onClick={onOpenPrivacy} data-testid="gateway-trace-open-settings">
+            {t('前往诊断日志设置')}
+          </Button>
+        )}
         {view.trace.enabled && (
           <Notice tone="warning">
             {t('正文里可能有你的代码和对话内容，排查完记得关掉。目录：{0}', view.trace.dir)}
