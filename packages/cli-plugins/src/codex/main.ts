@@ -14,6 +14,7 @@ import {
   type PermissionCapability,
 } from '@nomi-ai/cli-sdk';
 
+import { USAGE_DONE } from '../shared/exec';
 import { cliHome } from '../shared/homes';
 import { modeFromNative, PERMISSION_MODES, PLAN_PROMPT_PREFIX } from '../shared/permissions';
 import { statAll, walkFiles, yieldAll } from '../shared/scan';
@@ -94,8 +95,12 @@ export function officialLaunch(ctx: LaunchContext) {
   };
 }
 
+/** 每轮一个进程的退路（exec）怎样才算整轮完成 */
+export const execRules = USAGE_DONE;
+
 export function createMain(): CliMainImpl {
   return {
+    session: { exec: execRules },
     launch: { official: officialLaunch },
     permissions,
     accounts,

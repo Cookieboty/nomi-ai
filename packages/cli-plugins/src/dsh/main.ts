@@ -6,6 +6,7 @@ import path from 'node:path';
 import {
   defineCliPlugin,
   type CliMainImpl,
+  type ExecRules,
   type HarnessPermissionMode,
   type HistoryCapability,
   type LaunchContext,
@@ -67,8 +68,18 @@ export function officialLaunch(ctx: LaunchContext) {
   return { env: p.env, args: ['--profile', 'headless', '--json'], strip: [] as string[] };
 }
 
+/**
+ * dsh 的收尾：带用量的 done，或 final（done 且不带会话 id）算整轮完成；
+ * Node 太旧时 dsh 不报错、无输出、退出码 0，要按失败处理。
+ */
+export const execRules: ExecRules = {
+  completes: (ev) => ev.type === 'done' && (!!ev.usage || !ev.sessionId),
+  silentExitIsError: true,
+};
+
 export function createMain(): CliMainImpl {
   return {
+    session: { exec: execRules },
     launch: { official: officialLaunch },
     permissions,
     history,

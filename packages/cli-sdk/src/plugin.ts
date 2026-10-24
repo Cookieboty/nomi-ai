@@ -69,6 +69,17 @@ export interface UpdateCapability {
   command(): { command: string; args: string[] } | null;
 }
 
+/**
+ * exec 驱动的收尾规则（各 CLI 不同）：哪个事件算「整轮完成」、没有任何输出就退出算不算失败。
+ * done 事件在各 CLI 里含义不同（Codex 每条 agent_message 都带 done、会话 id 也走 done），
+ * 所以要插件给出准确的「完成」判定。
+ */
+export interface ExecRules {
+  completes(ev: HarnessEvent): boolean;
+  /** 没有任何事件就以 0 退出算失败（宿主给出原因文案，如 dsh 需要更新的 Node） */
+  silentExitIsError?: boolean;
+}
+
 /** 对共享驱动的定制（§5.4）：参数、事件映射补丁；插件不再自己实现会话 */
 export interface SessionCustomization {
   /** 驱动的启动参数（在 launch.args 之前） */
@@ -77,6 +88,8 @@ export interface SessionCustomization {
   parser?(): (line: string) => HarnessEvent[];
   /** 驱动事件进编排层之前的补丁（改写 / 丢弃） */
   mapEvent?(e: SessionEvent): SessionEvent | null;
+  /** exec 驱动（每轮一个进程）的收尾规则 */
+  exec?: ExecRules;
   /** 创建驱动（缺省按 transport 用共享驱动） */
   createDriver?(o: { launch: AgentLaunch; ctx: LaunchContext }): SessionDriver;
 }

@@ -14,7 +14,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AcpDriver, AppServerDriver, StreamJsonDriver, type TurnResult } from '@nomi-ai/cli-sdk';
+import {
+  claude as claudePlugin,
+  codex as codexPlugin,
+  dsh as dshPlugin,
+  gemini as geminiPlugin,
+  grok as grokPlugin,
+} from '@nomi-ai/cli-plugins/main';
+import {
+  AcpDriver,
+  AppServerDriver,
+  ExecDriver,
+  StreamJsonDriver,
+  type ChildLike,
+  type ExecRules,
+  type TurnResult,
+} from '@nomi-ai/cli-sdk';
 import { BrowserWindow, dialog } from 'electron';
 
 import { traceCliChild } from '../diagnostics/cliTrace';
@@ -206,6 +221,15 @@ const OFFICIAL_LAUNCH: TabLaunch = {
 
 /** 第三方来源在 modelScope / modelByScope 里的键 */
 const GATEWAY_SCOPE = 'gateway';
+
+/** 每轮一个进程（exec）的收尾规则：哪个事件算整轮完成，由各 CLI 插件给出 */
+const EXEC_RULES: Record<CliBackend, ExecRules> = {
+  claude: claudePlugin.execRules,
+  codex: codexPlugin.execRules,
+  dsh: dshPlugin.execRules,
+  gemini: geminiPlugin.execRules,
+  grok: grokPlugin.execRules,
+};
 
 export const MAIN_TAB_ID = 'main';
 const MAX_TAB_MESSAGES = 300;
@@ -3757,7 +3781,7 @@ export class CliHarnessService {
     });
   }
 
-  private spawnCollect(
+  private async spawnCollect(
     tab: HarnessTabMeta,
     opts: {
       cmd: string;
@@ -3773,134 +3797,100 @@ export class CliHarnessService {
       keepStdin?: boolean;
     },
   ): Promise<HarnessSendResult> {
-    return new Promise((resolve, reject) => {
-      const events: HarnessEvent[] = [];
-      let text = '';
-      let breaks: number[] = [];
-      let sessionId: string | null = tab.cliSessionId;
-      let buf = '';
-      let lastError: string | null = null;
-      /**
-       * 见过「整轮完成」事件。done 事件在各 CLI 里含义不同（Codex 每条 agent_message 都带 done、
-       * 会话 id 也走 done），所以只认：带用量的 done（Codex turn.completed / Grok usage）
-       * 和 dsh 的 final（done 且不带会话 id）。
-       */
-      let completed = false;
-      const chatRoot = path.join(path.dirname(this.d.root), 'chat');
-      const imageAliases = loadImageAliases(chatRoot);
-      const child = spawnHarness(opts.cmd, opts.argv, {
-        cwd: tab.cwd,
-        // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
-        // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
-        env: this.childEnv(Boolean(opts.asNode), opts.launch ?? OFFICIAL_LAUNCH, opts.env),
-        tabId: tab.id,
-      });
-      this.children.set(tab.id, child);
-
-      // Codex/dsh：stdin 管道不 EOF 会挂起；Claude 权限回传需要保持打开
-      if (!opts.keepStdin) child.stdin.end();
-
-      const take = (line: string, live: boolean) => {
-        for (const rawEv of opts.parseLine(line)) {
-          let ev = rawEv;
-          if (ev.type === 'tool' && ev.output) {
-            materializeGeneratedImages(ev.output, this.home, chatRoot, imageAliases);
-            // 某些 CLI 会先发 assistant 文本、后发 tool 完成事件；别名建立后同步修正已累计文本。
-            text = rewriteGeneratedImageLinks(text, imageAliases);
-          }
-          if (ev.type === 'text-delta' || ev.type === 'text' || ev.type === 'done') {
-            const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
-            if (text !== ev.text) ev = { ...ev, text };
-          }
-          ev = withPermissionExpiry(stampEvent(ev));
-          const folded = foldAssistantEvent(text, breaks, ev);
-          text = folded.text;
-          breaks = folded.breaks;
-          ev = folded.ev;
-          if (ev.type !== 'text-delta') events.push(ev);
-          if (live) this.emitEvent(tab.id, ev);
-          if (ev.type === 'permission') {
-            this.armPermissionTimeout(tab.id, ev.id);
-            this.allowIfBypass(tab.id, ev.id, () =>
-              this.events.emit('permission-needed', {
-                tabId: tab.id,
-                title: tab.title,
-                backend: tab.backend,
-                summary: ev.summary,
-                background: this.activeTabId !== tab.id || !anyWindowFocused(),
-              }),
-            );
-          }
-          if (ev.type === 'error') lastError = ev.message;
-          if (ev.type === 'done') {
-            if (ev.sessionId) sessionId = ev.sessionId;
-            if (ev.usage || (opts.kind === 'dsh' && !ev.sessionId)) completed = true;
-            // 一轮结束：若仍开着 stdin，补 EOF，避免 CLI 空等
-            if (opts.keepStdin && child.stdin.writable) {
-              try {
-                child.stdin.end();
-              } catch {
-                /* */
-              }
-            }
-          }
-        }
-      };
-      child.stdout.on('data', (chunk: Buffer) => {
-        buf += chunk.toString('utf8');
-        const parts = buf.split(/\r?\n/);
-        buf = parts.pop() ?? '';
-        for (const line of parts) take(line, true);
-      });
-      child.stderr.on('data', (c) => {
-        this.d.logger.warn(`harness ${opts.kind} stderr`, String(c).slice(0, 500));
-      });
-      child.on('error', (e) => {
-        this.children.delete(tab.id);
-        this.clearPermissionTimeouts(tab.id);
-        reject(e);
-      });
-      child.on('close', (code, signal) => {
-        this.children.delete(tab.id);
-        this.clearPermissionTimeouts(tab.id);
-        if (buf.trim()) take(buf, false);
-        // 用户停止 / 被信号杀死 / 非零退出：不能因为「已有部分文字」就当成功完成（见 #25）。
-        // 已见到一轮完成事件时，收尾阶段的非零退出不再翻案为失败。
-        if (!completed && (this.stopRequested.has(tab.id) || signal)) {
-          reject(new Error(t('已中止')));
-          return;
-        }
-        // dsh 在 Node < 24 下不报错、无输出、退出码 0
-        if (opts.kind === 'dsh' && events.length === 0 && !code) {
-          reject(
-            new Error(
+    const events: HarnessEvent[] = [];
+    let text = '';
+    let breaks: number[] = [];
+    let sessionId: string | null = tab.cliSessionId;
+    const chatRoot = path.join(path.dirname(this.d.root), 'chat');
+    const imageAliases = loadImageAliases(chatRoot);
+    // 进程、收发与收尾判定在 cli-sdk 的 exec 驱动里；「怎样算整轮完成」由插件给（EXEC_RULES）。
+    // 这里只做界面相关的处理：生成图片落盘、文本折叠、权限提示、实时广播。
+    const rules = EXEC_RULES[opts.kind];
+    const driver = new ExecDriver({
+      spawn: (cmd, argv, o) => {
+        const child = spawnHarness(cmd, argv, {
+          cwd: o.cwd,
+          // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
+          // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
+          env: this.childEnv(Boolean(opts.asNode), opts.launch ?? OFFICIAL_LAUNCH, opts.env),
+          tabId: tab.id,
+        });
+        this.children.set(tab.id, child);
+        return child as unknown as ChildLike;
+      },
+      command: opts.cmd,
+      cwd: tab.cwd,
+      args: () => opts.argv,
+      parser: () => opts.parseLine,
+      resumeId: tab.cliSessionId,
+      // Codex/dsh：stdin 管道不 EOF 会挂起；仅特殊 mock 需要保持打开（见到 done 再 EOF）
+      keepStdin: opts.keepStdin,
+      completes: rules.completes,
+      // dsh 在 Node < 24 下不报错、无输出、退出码 0
+      ...(rules.silentExitIsError
+        ? {
+            silentExit: () =>
               t(
                 'dsh 没有任何输出：需要 Node ≥ {0}（当前 PATH 上的 Node 为 {1}）',
                 DSH_MIN_NODE_MAJOR,
                 readPathNodeVersion() ?? t('未找到'),
               ),
-            ),
-          );
-          return;
-        }
-        if (code && code !== 0 && !completed) {
-          reject(new Error(lastError ?? t('{0} 退出码 {1}', opts.kind, code)));
-          return;
-        }
-        // 报了错、一个字也没回：按失败处理（dsh 上游 401 / 模型不存在时照样输出空的 final，
-        // 不能把它当成「无文本输出」的正常完成，否则用户看不到原因）
-        if (lastError && !text.trim()) {
-          reject(new Error(lastError));
-          return;
-        }
-        resolve({
-          text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
-          sessionId,
-          events,
-          ...(breaks.length ? { textBreaks: breaks } : {}),
-        });
-      });
+          }
+        : {}),
+      // 用户停止 / 被信号杀死：不能因为「已有部分文字」就当成功完成（见 #25）
+      stopRequested: () => this.stopRequested.has(tab.id),
+      abortedMessage: t('已中止'),
+      exitMessage: (code) => t('{0} 退出码 {1}', opts.kind, code),
+      onStderr: (c) => this.d.logger.warn(`harness ${opts.kind} stderr`, c.slice(0, 500)),
     });
+    const take = (rawEv: HarnessEvent, live: boolean) => {
+      let ev = rawEv;
+      if (ev.type === 'tool' && ev.output) {
+        materializeGeneratedImages(ev.output, this.home, chatRoot, imageAliases);
+        // 某些 CLI 会先发 assistant 文本、后发 tool 完成事件；别名建立后同步修正已累计文本。
+        text = rewriteGeneratedImageLinks(text, imageAliases);
+      }
+      if (ev.type === 'text-delta' || ev.type === 'text' || ev.type === 'done') {
+        const text = rewriteGeneratedImageLinks(ev.text, imageAliases);
+        if (text !== ev.text) ev = { ...ev, text };
+      }
+      ev = withPermissionExpiry(stampEvent(ev));
+      const folded = foldAssistantEvent(text, breaks, ev);
+      text = folded.text;
+      breaks = folded.breaks;
+      ev = folded.ev;
+      if (ev.type !== 'text-delta') events.push(ev);
+      if (live) this.emitEvent(tab.id, ev);
+      if (ev.type === 'permission') {
+        this.armPermissionTimeout(tab.id, ev.id);
+        this.allowIfBypass(tab.id, ev.id, () =>
+          this.events.emit('permission-needed', {
+            tabId: tab.id,
+            title: tab.title,
+            backend: tab.backend,
+            summary: ev.summary,
+            background: this.activeTabId !== tab.id || !anyWindowFocused(),
+          }),
+        );
+      }
+      if (ev.type === 'done' && ev.sessionId) sessionId = ev.sessionId;
+    };
+    driver.on((se) => {
+      if (se.kind === 'harness') take(se.event, !se.tail);
+    });
+    try {
+      await driver.send({ text: '' });
+    } finally {
+      this.children.delete(tab.id);
+      this.clearPermissionTimeouts(tab.id);
+      void driver.close();
+    }
+    return {
+      text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
+      sessionId,
+      events,
+      ...(breaks.length ? { textBreaks: breaks } : {}),
+    };
   }
 
   // ───────────────────────── 广播 / IPC ─────────────────────────
