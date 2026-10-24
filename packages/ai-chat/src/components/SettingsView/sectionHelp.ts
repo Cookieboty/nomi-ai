@@ -55,10 +55,10 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
   quality: [
     {
       icon: Gauge,
-      title: '总览',
-      desc: '成功率、首字延迟、输出速度、缓存命中与失败原因，和上一周期相比。',
+      title: '对比',
+      desc: '多级对比表：同一模型在不同供应商、Key、编程助手里的差别；勾选几项可并排对比。',
     },
-    { icon: BarChart3, title: '对比与趋势', desc: '按供应商、模型、Key 等维度并排比较和看走势。' },
+    { icon: BarChart3, title: '趋势', desc: '按小时 / 天看成功率、延迟、速度的走势。' },
     {
       icon: ClipboardList,
       title: '请求明细',

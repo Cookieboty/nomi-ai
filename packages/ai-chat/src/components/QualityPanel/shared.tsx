@@ -1,11 +1,17 @@
 /** 模型质量面板共用的小部件与数据加载 */
-import { Button, EmptyState, ErrorState, Icon, Notice, Skeleton, t } from '@nomi-ai/ui';
-import { Activity, ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ErrorState, Icon, Select, Skeleton, t } from '@nomi-ai/ui';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  type LucideIcon,
+} from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { qualityClient, type QualityLayer } from '../../services/qualityClient';
 
-import { changeOf, type MetricDef } from './format';
+import { changeOf } from './format';
 import styles from './index.module.css';
 
 /**
@@ -56,7 +62,6 @@ export function loadingOrError(
   if (s.data == null)
     return (
       <div className={styles.loading} role="status" aria-label={t('加载中…')}>
-        <Skeleton height={92} />
         <Skeleton height={height} />
       </div>
     );
@@ -64,12 +69,13 @@ export function loadingOrError(
 }
 
 /** 与上一周期相比的变化：箭头 + 文字（不只靠颜色） */
-export const Delta: React.FC<{ metric: MetricDef; cur: number | null; prev: number | null }> = ({
-  metric,
-  cur,
-  prev,
-}) => {
-  const c = changeOf(metric, cur, prev);
+export const Delta: React.FC<{
+  higherIsBetter: boolean;
+  rate: boolean;
+  cur: number | null;
+  prev: number | null;
+}> = ({ higherIsBetter, rate, cur, prev }) => {
+  const c = changeOf({ higherIsBetter, rate }, cur, prev);
   if (!c) return null;
   const cls = c.better ? styles.deltaGood : c.worse ? styles.deltaBad : styles.deltaFlat;
   return (
@@ -89,40 +95,57 @@ export const Delta: React.FC<{ metric: MetricDef; cur: number | null; prev: numb
   );
 };
 
-/**
- * 没有数据时的空状态。网关层没数据、但 CLI 层有（只用了官方账号）时，提示切到 CLI 层。
- */
-export const QualityEmpty: React.FC<{
-  layer: QualityLayer;
-  cliHasData: boolean;
-  onSwitchLayer?: () => void;
-}> = ({ layer, cliHasData, onSwitchLayer }) =>
-  layer === 'gateway' && cliHasData ? (
-    <Notice tone="info" data-testid="quality-empty-official">
-      <span>
-        {t(
-          '这段时间网关层没有请求：编程助手用的是官方账号，官方账号直连官方接口、不经过网关。它们在 CLI 层有记录。',
-        )}
-      </span>{' '}
-      {onSwitchLayer && (
-        <Button size="sm" onClick={onSwitchLayer} data-testid="quality-switch-cli">
-          {t('切到 CLI 层')}
-        </Button>
-      )}
-    </Notice>
-  ) : (
-    <EmptyState
-      icon={Activity}
-      title={t('这段时间还没有质量数据')}
-      description={
-        layer === 'gateway'
-          ? t('在 Nomi 对话或编程助手里使用第三方供应商后，这里会统计每次请求的质量。')
-          : t('在 Nomi 里使用编程助手（官方账号或第三方）后，这里会统计每一轮的质量。')
-      }
-    />
-  );
+/** 紧凑的空状态：小图标 + 一行标题 + 一行说明 + 可选操作，留在表格区域里 */
+export const InlineEmpty: React.FC<{
+  icon: LucideIcon;
+  title: string;
+  hint?: string;
+  action?: { label: string; onClick: () => void; testId?: string };
+  testId?: string;
+}> = ({ icon, title, hint, action, testId = 'quality-empty' }) => (
+  <div className={styles.inlineEmpty} data-testid={testId}>
+    <span className={styles.inlineEmptyIcon} aria-hidden>
+      <Icon icon={icon} size={16} />
+    </span>
+    <div className={styles.inlineEmptyText}>
+      <strong>{title}</strong>
+      {hint && <span>{hint}</span>}
+    </div>
+    {action && (
+      <button
+        type="button"
+        className={styles.textBtn}
+        onClick={action.onClick}
+        data-testid={action.testId}
+      >
+        {action.label}
+      </button>
+    )}
+  </div>
+);
 
-/** 网关层为空时，看看 CLI 层有没有数据（决定空状态的说法） */
+/** 空状态的说法：按口径与有没有筛选 */
+export const emptyCopy = (
+  layer: QualityLayer,
+  filtered: boolean,
+  unit: 'data' | 'requests' = 'data',
+): { title: string; hint: string } =>
+  filtered
+    ? {
+        title: unit === 'requests' ? t('没有匹配筛选条件的请求') : t('没有匹配筛选条件的数据'),
+        hint: t('清除筛选，或换一个时间范围。'),
+      }
+    : layer === 'gateway'
+      ? {
+          title: t('这段时间网关层还没有请求'),
+          hint: t('Nomi 对话、以及编程助手使用第三方供应商时，每次请求都会记在这里。'),
+        }
+      : {
+          title: t('这段时间 CLI 层还没有记录'),
+          hint: t('在 Nomi 里使用编程助手（官方账号或第三方）后，每一轮都会记在这里。'),
+        };
+
+/** 网关层为空时，看看 CLI 层有没有数据（只用了官方账号时提示切到 CLI 层） */
 export function useCliHasData(
   base: { from: number; to: number; layer: QualityLayer },
   empty: boolean,
@@ -148,13 +171,83 @@ export function useCliHasData(
   return need && seen?.key === key && seen.has;
 }
 
-/** 样本不足的提示徽标 */
-export const SmallSample: React.FC<{ n: number }> = ({ n }) => (
-  <span
-    className={styles.smallSample}
-    title={t('样本只有 {0} 个（少于 20），只显示中位数', n)}
-    data-testid="quality-small-sample"
-  >
-    {t('样本少')}
-  </span>
-);
+/** 分页：显示第 x–y 条，共 N 条 · 上一页 · 页码 · 下一页 · 每页 */
+export const Pager: React.FC<{
+  page: number;
+  pageSize: number;
+  total: number;
+  onPage: (p: number) => void;
+  sizes?: number[];
+  onPageSize?: (n: number) => void;
+  /** rows：对比表的顶层行（项）；requests：请求明细（条） */
+  unit?: 'rows' | 'requests';
+}> = ({ page, pageSize, total, onPage, sizes, onPageSize, unit = 'requests' }) => {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total ? page * pageSize + 1 : 0;
+  const to = Math.min(total, (page + 1) * pageSize);
+  // 页码最多 7 个：首尾 + 当前附近
+  const nums: Array<number | null> = [];
+  for (let i = 0; i < pages; i++) {
+    if (i === 0 || i === pages - 1 || Math.abs(i - page) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== null) nums.push(null);
+  }
+  return (
+    <nav className={styles.pager} aria-label={t('分页')} data-testid="quality-pager">
+      <span className={styles.meta} data-testid="quality-page">
+        {unit === 'rows'
+          ? t('显示第 {0}–{1} 项，共 {2} 项', from, to, total)
+          : t('显示第 {0}–{1} 条，共 {2} 条', from, to, total)}
+      </span>
+      <span className={styles.grow} />
+      <button
+        type="button"
+        className={styles.pageBtn}
+        disabled={page === 0}
+        onClick={() => onPage(page - 1)}
+        aria-label={t('上一页')}
+        data-testid="quality-page-prev"
+      >
+        <Icon icon={ChevronLeft} size={14} />
+      </button>
+      {nums.map((p, i) =>
+        p === null ? (
+          <span key={`gap${i}`} className={styles.meta} aria-hidden>
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            type="button"
+            className={styles.pageBtn}
+            aria-current={p === page ? 'page' : undefined}
+            onClick={() => onPage(p)}
+          >
+            {p + 1}
+          </button>
+        ),
+      )}
+      <button
+        type="button"
+        className={styles.pageBtn}
+        disabled={page + 1 >= pages}
+        onClick={() => onPage(page + 1)}
+        aria-label={t('下一页')}
+        data-testid="quality-page-next"
+      >
+        <Icon icon={ChevronRight} size={14} />
+      </button>
+      {sizes && onPageSize && (
+        <Select
+          size="sm"
+          variant="ghost"
+          className={styles.compactSelect}
+          aria-label={t('每页条数')}
+          data-testid="quality-page-size"
+          value={String(pageSize)}
+          onChange={(e) => onPageSize(Number(e.target.value))}
+          options={sizes.map((n) => ({ value: String(n), label: t('每页 {0}', n) }))}
+        />
+      )}
+    </nav>
+  );
+};

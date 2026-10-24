@@ -1,69 +1,107 @@
 /**
- * 设置 → 模型质量（docs/design/model-quality.md §5）：总览 / 对比 / 趋势 / 请求明细。
+ * 设置 → 模型质量（docs/design/model-quality.md §5）：对比（多级对比表）/ 趋势 / 请求明细。
+ * 一行工具栏（时间、口径层、层级、筛选芯片；右侧口径、刷新、导出、设置）；设置放进 ⚙ 弹层，不占内容区。
  * 数据来自主进程 QualityService（ai:quality:*）；只有元数据，全部只存本机。
- * 两种测量口径分开看：网关层（HTTP 请求）与 CLI 层（Nomi 里运行的编程助手会话），不混算。
  */
-import { EmptyState, Input, Select, Tabs, t } from '@nomi-ai/ui';
+import { EmptyState, Tabs, t } from '@nomi-ai/ui';
 import { Activity } from 'lucide-react';
 import React, { useCallback, useMemo, useState } from 'react';
 
-import { qualityClient, type QualityLayer } from '../../services/qualityClient';
+import { qualityClient, type QualityFacets, type QualityLayer } from '../../services/qualityClient';
 
-import { Compare } from './Compare';
-import { clientLabel, fromDateInput, rangeOf, toDateInput, type RangeId } from './format';
+import { CompareTable } from './CompareTable';
+import { hierarchyPath, rangeOf, type HierarchyId, type RangeId } from './format';
 import styles from './index.module.css';
-import { Overview } from './Overview';
 import { RequestDetails } from './RequestDetails';
+import { useQualityData } from './shared';
+import { Toolbar } from './Toolbar';
 import { Trend } from './Trend';
-import type { DrillFilters, QualityBase } from './types';
+import { cleanFilters, type CountOptions, type Filters, type QualityBase } from './types';
 
-export type QualityTab = 'overview' | 'compare' | 'trend' | 'requests';
-
-const CLIENTS = ['nomi', 'claude', 'codex', 'grok', 'gemini', 'dsh'];
+export type QualityTab = 'compare' | 'trend' | 'requests';
 
 export const QualityPanel: React.FC<{
-  tab: QualityTab;
+  /** 旧的深链接「总览」落到「对比」（指标卡在对比表上方） */
+  tab: QualityTab | 'overview';
   onTab: (tab: QualityTab) => void;
   /** 跳到「设置 → 隐私与权限」（诊断日志 / 正文追踪） */
   onOpenPrivacy?: () => void;
   /** 测试注入：当前时间 */
   now?: () => number;
-}> = ({ tab, onTab, onOpenPrivacy, now = Date.now }) => {
+}> = ({ tab: tabProp, onTab, onOpenPrivacy, now = Date.now }) => {
+  const tab = tabProp === 'overview' ? 'compare' : tabProp;
   const [rangeId, setRangeId] = useState<RangeId>('7d');
-  const [custom, setCustom] = useState<{ from: number; to: number }>(() => {
-    const r = rangeOf('7d', now());
-    return r;
-  });
+  const [custom, setCustom] = useState<{ from: number; to: number }>(() => rangeOf('7d', now()));
   const [layer, setLayer] = useState<QualityLayer>('gateway');
-  const [client, setClient] = useState('');
-  // 从总览 / 对比钻取到请求明细时带过去的筛选（换了范围 / 口径不清，用户可逐个移除）
-  const [drill, setDrill] = useState<DrillFilters>({});
-  // 范围固定在打开 / 切换时的时刻，避免每次渲染都算出新的 to 导致反复查询
+  const [hierarchy, setHierarchy] = useState<HierarchyId>('model-provider-key');
+  const [filters, setFilters] = useState<Filters>({});
+  const [count, setCount] = useState<CountOptions>({
+    countBy: 'attempt',
+    cancelInDenominator: false,
+    includeRejected: false,
+  });
+  const [msg, setMsg] = useState<string | null>(null);
+  // 范围固定在打开 / 切换 / 刷新时的时刻，避免每次渲染都算出新的 to 导致反复查询
   const [stamp, setStamp] = useState(() => now());
 
   const range = useMemo(
     () => rangeOf(rangeId, stamp, rangeId === 'custom' ? custom : undefined),
     [rangeId, stamp, custom],
   );
+  // CLI 层没有 Key：筛选里的 Key 不生效
+  const effective = useMemo(
+    () => cleanFilters(layer === 'gateway' ? filters : { ...filters, key: [] }),
+    [filters, layer],
+  );
+  // 对比 / 趋势不按结果筛（结果是列）；请求明细按结果筛
+  const scoped = useMemo(() => {
+    if (!effective || tab === 'requests') return effective;
+    const { outcome: _o, ...rest } = effective;
+    void _o;
+    return cleanFilters(rest);
+  }, [effective, tab]);
   const base: QualityBase = useMemo(
-    () => ({
-      from: range.from,
-      to: range.to,
-      layer,
-      ...(client ? { filters: { client: [client] } } : {}),
-    }),
-    [range.from, range.to, layer, client],
+    () => ({ from: range.from, to: range.to, layer, ...(scoped ? { filters: scoped } : {}) }),
+    [range.from, range.to, layer, scoped],
+  );
+  const filtered = !!scoped;
+  const path = hierarchyPath(hierarchy, layer);
+
+  const facets = useQualityData<QualityFacets>(JSON.stringify([range.from, range.to, layer]), () =>
+    qualityClient.facets({ from: range.from, to: range.to, layer }),
   );
 
-  const refreshStamp = useCallback(() => setStamp(now()), [now]);
-
-  const drillTo = useCallback(
-    (f: DrillFilters) => {
-      setDrill(f);
+  const refresh = useCallback(() => setStamp(now()), [now]);
+  const drill = useCallback(
+    (f: Filters) => {
+      setFilters((prev) => ({ ...prev, ...f }));
       onTab('requests');
     },
     [onTab],
   );
+
+  const exportCsv = () => {
+    setMsg(null);
+    const run =
+      tab === 'compare'
+        ? qualityClient.exportCsv('table', {
+            ...base,
+            groupPath: path,
+            countBy: layer === 'gateway' ? count.countBy : 'request',
+            ...(count.cancelInDenominator ? { cancelInDenominator: true } : {}),
+            ...(count.includeRejected ? { includeRejected: true } : {}),
+          })
+        : qualityClient.exportCsv('requests', {
+            from: base.from,
+            to: base.to,
+            layer,
+            ...(base.filters ? { filters: base.filters } : {}),
+            limit: 1000,
+          });
+    void run
+      .then((r) => setMsg(r.ok && r.path ? t('已导出到 {0}', r.path) : null))
+      .catch((e: unknown) => setMsg(e instanceof Error ? e.message : String(e)));
+  };
 
   if (!qualityClient.available())
     return (
@@ -78,118 +116,74 @@ export const QualityPanel: React.FC<{
 
   return (
     <section className={styles.root} data-testid="settings-quality">
-      <div className={styles.toolbar} role="group" aria-label={t('统计范围')}>
-        <Tabs<RangeId>
-          aria-label={t('统计时间范围')}
-          value={rangeId}
-          onChange={(v) => {
-            setRangeId(v);
-            setStamp(now());
-          }}
-          items={[
-            { value: 'today', label: t('今天') },
-            { value: '7d', label: t('7 天') },
-            { value: '30d', label: t('30 天') },
-            { value: 'custom', label: t('自定义') },
-          ]}
-        />
-        {rangeId === 'custom' && (
-          <span className={styles.dates}>
-            <Input
-              type="date"
-              aria-label={t('开始日期')}
-              data-testid="quality-from"
-              value={toDateInput(custom.from)}
-              onChange={(e) => {
-                const v = fromDateInput(e.target.value);
-                if (v != null && v <= custom.to) setCustom((c) => ({ ...c, from: v }));
-              }}
-            />
-            <span aria-hidden>—</span>
-            <Input
-              type="date"
-              aria-label={t('结束日期')}
-              data-testid="quality-to"
-              value={toDateInput(custom.to)}
-              onChange={(e) => {
-                const v = fromDateInput(e.target.value, true);
-                if (v != null && v >= custom.from) setCustom((c) => ({ ...c, to: v }));
-              }}
-            />
-          </span>
-        )}
-        <Tabs<QualityLayer>
-          aria-label={t('测量口径')}
-          value={layer}
-          onChange={setLayer}
-          items={[
-            { value: 'gateway', label: t('网关层') },
-            { value: 'cli', label: t('CLI 层') },
-          ]}
-        />
-        <Select
-          size="sm"
-          className={styles.toolbarSelect}
-          aria-label={t('按客户端筛选')}
-          data-testid="quality-client"
-          value={client}
-          onChange={(e) => setClient(e.target.value)}
-          options={[
-            { value: '', label: t('全部客户端') },
-            ...CLIENTS.map((c) => ({ value: c, label: clientLabel(c) })),
-          ]}
-        />
-      </div>
-      <p className={styles.layerNote} data-testid="quality-layer-note">
-        {layer === 'gateway'
-          ? t(
-              '网关层：经 Nomi 统一网关的每个 HTTP 请求（Nomi 对话、编程助手的第三方供应商），有首字节、Key、回退等细节，最精确。',
-            )
-          : t(
-              'CLI 层：Nomi 里运行的编程助手会话（官方账号与第三方都有），按 CLI 输出的一轮 / 一次模型调用计，时间含 CLI 自身开销，没有 Key。',
-            )}{' '}
-        {t('在终端里直接使用的 CLI 不经过 Nomi，不在统计范围内。')}
-      </p>
-
-      <Tabs<QualityTab>
+      <Toolbar
+        rangeId={rangeId}
+        onRange={(v) => {
+          setRangeId(v);
+          setStamp(now());
+        }}
+        custom={custom}
+        onCustom={setCustom}
+        layer={layer}
+        onLayer={setLayer}
+        hierarchy={hierarchy}
+        onHierarchy={setHierarchy}
+        showHierarchy={tab === 'compare'}
+        filters={tab === 'requests' ? filters : { ...filters, outcome: [] }}
+        onFilters={(f) =>
+          // 「清除全部」连同只在请求明细里显示的结果筛选一起清
+          setFilters(
+            tab === 'requests' || !Object.keys(f).length ? f : { ...f, outcome: filters.outcome },
+          )
+        }
+        facets={facets.data}
+        count={count}
+        onCount={setCount}
+        onRefresh={() => {
+          refresh();
+          facets.reload();
+        }}
+        onExport={tab === 'trend' ? undefined : exportCsv}
+        onOpenPrivacy={onOpenPrivacy}
+      />
+      {msg && (
+        <p className={styles.meta} role="status" data-testid="quality-export-msg">
+          {msg}
+        </p>
+      )}
+      <Tabs<'compare' | 'trend' | 'requests'>
+        variant="underline"
         aria-label={t('模型质量分区')}
         value={tab}
         onChange={onTab}
         items={[
-          { value: 'overview', label: t('总览') },
           { value: 'compare', label: t('对比') },
           { value: 'trend', label: t('趋势') },
           { value: 'requests', label: t('请求明细') },
         ]}
       />
-
-      {tab === 'overview' && (
-        <Overview
-          base={base}
-          onDrill={drillTo}
-          onSwitchLayer={() => setLayer('cli')}
-          onRefresh={refreshStamp}
-        />
-      )}
       {tab === 'compare' && (
-        <Compare
+        <CompareTable
           base={base}
-          onDrill={drillTo}
+          path={path}
+          count={count}
+          filtered={filtered}
+          onClearFilters={() => setFilters({})}
+          onDrill={drill}
           onSwitchLayer={() => setLayer('cli')}
-          onRange={(id) => {
-            setRangeId(id);
-            setStamp(now());
-          }}
         />
       )}
-      {tab === 'trend' && <Trend base={base} rangeDays={(range.to - range.from) / 86_400_000} />}
-      {tab === 'requests' && (
-        <RequestDetails
+      {tab === 'trend' && (
+        <Trend
           base={base}
-          drill={drill}
-          onDrill={setDrill}
-          onOpenPrivacy={onOpenPrivacy}
+          rangeDays={(range.to - range.from) / 86_400_000}
+          countBy={count.countBy}
+          filtered={filtered}
+          onClearFilters={() => setFilters({})}
         />
+      )}
+      {tab === 'requests' && (
+        <RequestDetails base={base} filters={filters} onFilters={setFilters} filtered={filtered} />
       )}
     </section>
   );

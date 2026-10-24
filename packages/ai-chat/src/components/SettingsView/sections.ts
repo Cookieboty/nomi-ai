@@ -142,7 +142,6 @@ export const SECTION_TABS = {
     { id: 'desktop', label: '桌面权限' },
   ],
   quality: [
-    { id: 'overview', label: '总览' },
     { id: 'compare', label: '对比' },
     { id: 'trend', label: '趋势' },
     { id: 'requests', label: '请求明细' },
