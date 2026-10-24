@@ -1561,8 +1561,8 @@ packages/gateway/src/
 
 | 项                                         | 说明                                             |
 | ------------------------------------------ | ------------------------------------------------ |
-| 完整拆分 `CliHarnessService`（约 4886 行） | M5                                               |
-| Permission PR3 ExitPlanMode UX             | 权限后续 PR                                      |
+| 完整拆分 `CliHarnessService`（约 4886 行） | 已拆：`cli/harness/*` + 薄 facade（行为不变）    |
+| Permission PR3 ExitPlanMode UX             | 已落地：approve-plan 卡 + 模式回写               |
 | 异步委派 / `taken_over` 中途接手           | 见 [nomi-delegate-cli §12](nomi-delegate-cli.md) |
 | LFS / 历史 rewrite                         | 发布流程                                         |
 | `routePlan` 默认非影子                     | M3b-3：先影子再切                                |

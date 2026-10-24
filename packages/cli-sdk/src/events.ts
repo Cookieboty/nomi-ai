@@ -42,6 +42,13 @@ export type HarnessEvent =
       agent?: string;
       /** 超时自动拒绝的时间点（ms），界面显示倒计时 */
       expiresAt?: number;
+      /**
+       * 权限卡种类：缺省 / tool = 普通允许/拒绝；approve-plan = ExitPlanMode「批准计划」
+       * （docs/design/cli-permission-modes.md §5 / PR3）
+       */
+      kind?: 'tool' | 'approve-plan';
+      /** 工具名（ExitPlanMode 等）；界面与编排层据此识别批准计划卡 */
+      toolName?: string;
     }
   /**
    * 子代理生命周期（docs/design/cli-subagents.md §3）：四个后端统一成这一种。
@@ -69,6 +76,8 @@ export type HarnessEvent =
       text?: string;
       attempt?: number;
       max?: number;
+      /** Claude system/status.permissionMode 等原生档位名；编排层回写标签（PR3） */
+      permissionMode?: string;
     }
   /**
    * 一轮进行中的实时上下文占用：主线程每次模型请求的输入 + 输出（与 usage.contextTokens 同口径），
