@@ -121,21 +121,23 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
     <>
       <tr className={styles.logRow} data-testid="quality-request" data-open={open ? '' : undefined}>
         <td className={styles.logTime}>
-          {hasMore ? (
-            <button
-              type="button"
-              className={styles.expand}
-              aria-expanded={open}
-              aria-label={open ? t('收起详情') : t('展开详情')}
-              onClick={() => setOpen((o) => !o)}
-              data-testid="quality-request-toggle"
-            >
-              <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
-            </button>
-          ) : (
-            <span className={styles.expandSpacer} aria-hidden />
-          )}
-          <span title={formatDateTime(r.ts)}>{formatLogTime(r.ts)}</span>
+          <span className={styles.logTimeInner}>
+            {hasMore ? (
+              <button
+                type="button"
+                className={styles.expand}
+                aria-expanded={open}
+                aria-label={open ? t('收起详情') : t('展开详情')}
+                onClick={() => setOpen((o) => !o)}
+                data-testid="quality-request-toggle"
+              >
+                <Icon icon={open ? ChevronDown : ChevronRight} size={14} />
+              </button>
+            ) : (
+              <span className={styles.expandSpacer} aria-hidden />
+            )}
+            <span title={formatDateTime(r.ts)}>{formatLogTime(r.ts)}</span>
+          </span>
         </td>
         <td>
           <span className={styles.badges}>

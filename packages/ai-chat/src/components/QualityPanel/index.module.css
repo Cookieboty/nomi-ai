@@ -836,12 +836,16 @@
 }
 
 /* ------------------------------ 请求明细 ------------------------------ */
+/* 单元格保持 table-cell（设成 flex 会脱离表格行，底色与分隔线错位），布局放在里层 */
 .logTime {
-  display: flex;
-  align-items: center;
-  gap: var(--cd-space-1);
   color: var(--cd-color-text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.logTimeInner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-1);
 }
 .logTable td {
   vertical-align: middle;
