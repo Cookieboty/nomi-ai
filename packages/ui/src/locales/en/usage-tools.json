@@ -378,5 +378,14 @@
   "正文追踪": "Body tracing",
   "正在记录：每次请求的请求体与响应正文写到本机目录（24 小时后自动删除）。": "Recording: each request's body and response are written to a local folder (deleted automatically after 24 hours).",
   "未记录。需要排查第三方供应商的问题时，在「诊断日志」里打开。": "Not recording. To troubleshoot a third-party provider, turn on Diagnostic logs.",
-  "前往诊断日志设置": "Open Diagnostic logs settings"
+  "前往诊断日志设置": "Open Diagnostic logs settings",
+  "指定的模型": "Requested model",
+  "档位映射": "Tier mapping",
+  "辅助模型": "Helper model",
+  "子代理模型": "Subagent model",
+  "标签选的模型": "Tab's model",
+  "不认识的模型名，用了主模型": "Unknown model name, used the main model",
+  "网关怎么选出这个模型": "How the gateway picked this model",
+  "来自编程助手标签 {0}（第 {1} 次启动的进程）": "From coding-agent tab {0} (process start #{1})",
+  "标签 {0}": "Tab {0}"
 }

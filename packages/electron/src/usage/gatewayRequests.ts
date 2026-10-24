@@ -32,7 +32,23 @@ export interface GatewayUsageEventLike {
   notes?: string[];
   /** 诊断追踪 id（诊断日志开着时网关才给，§8.3） */
   traceId?: string;
+  /** 请求来自哪个标签（带标签令牌的第三方会话，§6.7）与进程代次 */
+  tabId?: string;
+  generation?: number;
+  /** 模型怎么解析出来的（explicit / tier / helper / subagent / binding / unknown / default） */
+  resolved?: string;
 }
+
+/** 模型解析方式的取值（与网关 ModelResolution 一致） */
+export const MODEL_RESOLUTIONS = [
+  'explicit',
+  'tier',
+  'helper',
+  'subagent',
+  'binding',
+  'unknown',
+  'default',
+] as const;
 
 /** 请求日志的一条（只有元数据：不含提示词和回复内容，不含 Key） */
 export interface GatewayRequestEntry {
@@ -65,6 +81,9 @@ export interface GatewayRequestEntry {
   error?: string;
   /** 诊断追踪 id：对应 userData/gateway/trace 里的文件与响应头 x-nomi-trace-id */
   traceId?: string;
+  tabId?: string;
+  generation?: number;
+  resolved?: (typeof MODEL_RESOLUTIONS)[number];
 }
 
 /** 最多保留的条数 */
@@ -132,6 +151,10 @@ export function toEntry(
   if (error) entry.error = error;
   if (typeof e.traceId === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(e.traceId))
     entry.traceId = e.traceId;
+  if (typeof e.tabId === 'string' && /^[A-Za-z0-9_:.-]{1,80}$/.test(e.tabId)) entry.tabId = e.tabId;
+  if (Number.isInteger(e.generation) && e.generation! > 0) entry.generation = e.generation;
+  const resolved = MODEL_RESOLUTIONS.find((r) => r === e.resolved);
+  if (resolved) entry.resolved = resolved;
   return entry;
 }
 
@@ -288,6 +311,9 @@ export function sanitizeEntries(raw: unknown): GatewayRequestEntry[] {
           error: typeof o.error === 'string' ? o.error : undefined,
           notes: Array.isArray(o.notes) ? (o.notes as string[]) : undefined,
           traceId: typeof o.traceId === 'string' ? o.traceId : undefined,
+          tabId: typeof o.tabId === 'string' ? o.tabId : undefined,
+          generation: typeof o.generation === 'number' ? o.generation : undefined,
+          resolved: typeof o.resolved === 'string' ? o.resolved : undefined,
         },
         o.id,
         {

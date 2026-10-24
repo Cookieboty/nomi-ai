@@ -44,6 +44,18 @@ export const formatHitRate = (r: number | null | undefined): string =>
 
 const ok = (e: GatewayRequestEntry) => e.status < 400 && !e.error;
 
+/** 模型解析方式 → 显示文案（网关按这个顺序解析：显式 → 档位 → 辅助 → 绑定 → 未知名 → 默认） */
+const resolvedLabel = (r: NonNullable<GatewayRequestEntry['resolved']>): string =>
+  ({
+    explicit: t('指定的模型'),
+    tier: t('档位映射'),
+    helper: t('辅助模型'),
+    subagent: t('子代理模型'),
+    binding: t('标签选的模型'),
+    unknown: t('不认识的模型名，用了主模型'),
+    default: t('默认模型'),
+  })[r];
+
 const RequestRow: React.FC<{ e: GatewayRequestEntry }> = ({ e }) => {
   const tokens = e.input + e.cacheRead + e.cacheWrite + e.output;
   return (
@@ -76,6 +88,15 @@ const RequestRow: React.FC<{ e: GatewayRequestEntry }> = ({ e }) => {
           {[e.provider, e.key].filter(Boolean).join(' / ') || t('未到达上游')}
         </span>
         {e.model && <span className={g.model}>{e.model}</span>}
+        {e.resolved && (
+          <span
+            className={g.meta}
+            title={t('网关怎么选出这个模型')}
+            data-testid="gateway-request-resolved"
+          >
+            {resolvedLabel(e.resolved)}
+          </span>
+        )}
         <span className={styles.grow} />
         {tokens > 0 && (
           <span className={g.meta}>
@@ -86,6 +107,15 @@ const RequestRow: React.FC<{ e: GatewayRequestEntry }> = ({ e }) => {
         )}
         {e.firstByteMs !== undefined && (
           <span className={g.meta}>{t('首字节 {0}', formatMs(e.firstByteMs))}</span>
+        )}
+        {e.tabId && (
+          <span
+            className={g.meta}
+            title={t('来自编程助手标签 {0}（第 {1} 次启动的进程）', e.tabId, e.generation ?? 1)}
+            data-testid="gateway-request-tab"
+          >
+            {t('标签 {0}', e.tabId.slice(0, 8))}
+          </span>
         )}
         {e.traceId && (
           <span

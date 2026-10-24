@@ -40,6 +40,9 @@ const VIEW = {
       cacheWrite: 0,
       notes: ['省略了图片'],
       traceId: 'abc123def456',
+      tabId: 'tab-7f3a91c2d4',
+      generation: 2,
+      resolved: 'binding',
     },
     {
       id: '1',
@@ -188,6 +191,16 @@ describe('GatewayRequests', () => {
     const r = render(<GatewayRequests />);
     const tag = await r.findByTestId('gateway-request-trace');
     expect(tag.textContent).toContain('abc123def456');
+  });
+
+  it('shows which tab sent the request and how the model was resolved', async () => {
+    const r = render(<GatewayRequests />);
+    const tab = await r.findByTestId('gateway-request-tab');
+    expect(tab.textContent).toContain('tab-7f3a');
+    expect(tab.getAttribute('title')).toContain('tab-7f3a91c2d4');
+    expect(r.getByTestId('gateway-request-resolved').textContent).toBeTruthy();
+    // 没有标签 / 解析方式的请求不显示
+    expect(r.getAllByTestId('gateway-request-tab')).toHaveLength(1);
   });
 
   it('clears the log and shows the empty state', async () => {

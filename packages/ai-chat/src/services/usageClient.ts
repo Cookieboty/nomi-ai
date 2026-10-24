@@ -246,6 +246,11 @@ export interface GatewayRequestEntry {
   error?: string;
   /** 诊断追踪 id（诊断日志开着时才有） */
   traceId?: string;
+  /** 带标签令牌的第三方会话：来自哪个标签 / 进程代次（§6.7） */
+  tabId?: string;
+  generation?: number;
+  /** 模型怎么解析出来的 */
+  resolved?: 'explicit' | 'tier' | 'helper' | 'subagent' | 'binding' | 'unknown' | 'default';
 }
 
 export interface GatewayAggRow {

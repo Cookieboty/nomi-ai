@@ -231,6 +231,24 @@ describe('GatewayRequestLog', () => {
     log.dispose();
   });
 
+  it('keeps the tab id, process generation and model resolution (validated) through persistence', () => {
+    const e = toEntry(ev({ tabId: 'tab-1', generation: 3, resolved: 'helper' }), 'x');
+    expect(e).toMatchObject({ tabId: 'tab-1', generation: 3, resolved: 'helper' });
+    const bad = toEntry(ev({ tabId: 'a b/../c', generation: 0, resolved: 'magic' }), 'y');
+    expect(bad.tabId).toBeUndefined();
+    expect(bad.generation).toBeUndefined();
+    expect(bad.resolved).toBeUndefined();
+    const { log, root } = mkLog();
+    log.add(ev({ tabId: 'tab-1', generation: 3, resolved: 'tier' }));
+    log.flush();
+    expect(mkLog(root).log.list()[0]).toMatchObject({
+      tabId: 'tab-1',
+      generation: 3,
+      resolved: 'tier',
+    });
+    log.dispose();
+  });
+
   it('prunes trace files older than 24 h', () => {
     const { log, root } = mkLog();
     const dir = path.join(root, 'trace');
