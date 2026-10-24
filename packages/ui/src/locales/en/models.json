@@ -52,7 +52,6 @@
   "删除供应商「{0}」及其所有 Key？": "Delete provider “{0}” and all its keys?",
   "{0} 最近一次请求失败：{1}": "{0}: the last request failed: {1}",
   "{0} 无法解密，请重新填写": "{0} can't be decrypted. Please enter it again.",
-  "第三方供应商与模型": "Third-party providers and models",
   "打开「模型」": "Open Models",
   "这里列出设置 →「模型」里启用的模型。": "Lists the models enabled under Settings → Models.",
   "还没有可切换的模型，请先在设置 →「模型」里添加第三方供应商。": "No models to switch to yet. Add a third-party provider under Settings → Models first.",

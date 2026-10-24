@@ -150,7 +150,8 @@ test.describe('UI surfaces', () => {
     await chat.fill('textarea', '你好，帮我写一段 TypeScript 示例');
     await shot(chat, '11-chat-typing');
 
-    await chat.click('[data-testid="open-models-settings"]');
+    await chat.click('[data-testid="open-settings"]');
+    await chat.click('[data-testid="settings-nav-models"]');
     await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
     await chat.waitForTimeout(400);
     await shot(chat, '13-models-page');

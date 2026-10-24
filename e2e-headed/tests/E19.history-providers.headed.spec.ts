@@ -215,16 +215,6 @@ test.describe('E19 · endpoints · history sessions · provider page', () => {
     let chat: Page;
     ({ app, chat } = await launch(userData, home));
 
-    // ── 1. 端点下拉：纯名称 + 图标，菜单够宽 ─────────────────────────────
-    const sw = chat.locator('[data-testid="backend-switcher"]');
-    await expect(sw).toBeVisible();
-    await chat.getByRole('combobox', { name: '对话后端' }).click();
-    const names = ['Nomi', 'Claude Code', 'Codex', 'dsh'];
-    for (const n of names)
-      await expect(chat.getByRole('option', { name: new RegExp(`^${n}`) })).toBeVisible();
-    await shot(chat, '01-endpoint-dropdown');
-    await chat.keyboard.press('Escape');
-
     // ── 2. 历史会话 ─────────────────────────────────────────────────────
     const rows = chat.locator('[data-testid="history-session-item"]');
     await expect(rows).toHaveCount(seeded.dsh ? 4 : 3, { timeout: 20_000 });

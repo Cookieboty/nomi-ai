@@ -160,7 +160,7 @@ describe('EndpointControls', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} />
+          <SessionControls />
         </>
       </HarnessTabsProvider>,
     );
@@ -176,7 +176,7 @@ describe('EndpointControls', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          <SessionControls onManageNomi={() => undefined} />
+          <SessionControls />
         </>
       </HarnessTabsProvider>,
     );

@@ -80,9 +80,10 @@
 
 ## 4. 用户体验
 
-### 4.1 对话窗口：后端切换器
+### 4.1 对话窗口：后端（端点）
 
-在现有「供应商 / 模型」旁增加 **后端** 下拉：
+后端在**新建对话时**选定（侧栏 / 标签栏的「新对话」菜单 `NewChatMenu`），之后不在输入栏切换；
+输入栏工具行对所有后端一致：模型（编程助手还有权限模式）。
 
 | 后端             | 行为                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------ |
@@ -129,7 +130,7 @@ Aggregation（多上游合并）仍为 **P2**。
 
 ```
 ┌─ ai-chat ─────────────────────────────────────────────┐
-│  BackendSwitcher │ CliProviderSwitcher │ Chat transcript │
+│  NewChatMenu     │ CliProviderSwitcher │ Chat transcript │
 │  PermissionCard  │ ToolCallTimeline（只读渲染 CLI 事件） │
 └────────────┬──────────────────────────────────────────┘
              │ IPC  ai:harness:*  /  ai:cli-provider:*  /  ai:cli-update:*
@@ -346,11 +347,11 @@ _调研来源：本仓库 `packages/electron/src/agents/*`、官方 Claude Code 
 ### 12.5 普通 / 开发模式、端点隔离与分叉（HIGHLIGHT）
 
 - **对话模式**（侧栏 Nomi 标志右侧「助手 | 工作台」，默认普通，localStorage `ai-chat:chatMode`）：
-  - **普通**：仅 Nomi。隐藏标签栏、后端切换器、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件旁显示运行中的数量；切回开发恢复标签栏与未读。
+  - **普通**：仅 Nomi。隐藏标签栏、Mod+T 等编程助手 chrome。后台 CLI 标签继续跑，模式控件旁显示运行中的数量；切回开发恢复标签栏与未读。
   - **开发**：完整 chrome。选中 / 新建非 Nomi 会话会打开或聚焦对应 CLI 标签；Nomi 会话始终走主标签 + nomi 后端。
 - **会话归属**：每条 ConversationStore 元信息带 `backend: nomi|claude|codex|dsh` 与可选 `tabId`。旧行迁移为 `nomi`。侧栏列表不再混合身份——点 Nomi 只加载 Nomi；点 Claude 只聚焦该 Claude 标签。
 - **CLI 标签进侧栏**：创建 / 重命名 / 关闭 / 消息时同步一条 ConversationStore 元信息（消息仍在 `userData/harness/tabs/<id>.json`）。删除侧栏项会关闭对应标签（运行中仍走原确认）。
-- **切换后端**：有消息的会话不会静默改写身份。BackendSwitcher 会为新后端新建会话 / 标签；空会话可原地切换。跨端复制历史请用分叉。
+- **端点固定**：端点只在新建对话时选（`NewChatMenu`），输入栏不再有后端切换器；换端点就新建对话，跨端复制历史请用分叉。
 - **侧栏视图**（「全部 | 按端」，持久化）：
   - 全部：所有会话 + 端点色标（与灵动岛一致：nomi 珊瑚 / claude 橙 / codex 蓝 / dsh 蓝紫）。
   - 按端：先选端点按钮（未安装的 CLI 禁用），再只看该端。

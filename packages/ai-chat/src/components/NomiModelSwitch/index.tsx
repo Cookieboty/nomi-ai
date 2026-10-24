@@ -1,9 +1,9 @@
 /**
- * 对话区右上角：Nomi 对话的模型一键切换（统一网关的 clients.nomi.models.main，
+ * 输入栏工具行：Nomi 对话的模型一键切换（统一网关的 clients.nomi.models.main，
  * 与托盘、斜杠命令 /model、设置 →「模型」页共享，实时同步）。
+ * 与编程助手标签的模型按钮（ModelControls）同位置、同形（胶囊、ms 高）。
  */
-import { Icon, IconButton, ModelPicker, t } from '@nomi-ai/ui';
-import { Boxes } from 'lucide-react';
+import { ModelPicker, t } from '@nomi-ai/ui';
 import React, { useEffect, useMemo, useState } from 'react';
 
 import { gatewayClientAvailable } from '../../services/gatewayClient';
@@ -22,10 +22,7 @@ import {
 
 import styles from './index.module.css';
 
-export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: string }> = ({
-  onManage,
-  className,
-}) => {
+export const NomiModelSwitch: React.FC<{ className?: string }> = ({ className }) => {
   const state = useGatewayState();
   const providers = useMemo(() => pickerProviders(state?.providers ?? []), [state]);
   // NOMI_PROVIDER 环境变量锁定时，网关的分配不生效
@@ -52,8 +49,7 @@ export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: strin
       data-testid="nomi-model-switch"
     >
       <ModelPicker
-        size="sm"
-        variant="ghost"
+        variant="chip"
         className={styles.picker}
         providers={providers}
         // 锁定时不显示网关分配（实际不生效），占位显示锁定的 provider（#91）
@@ -63,13 +59,6 @@ export const NomiModelSwitch: React.FC<{ onManage: () => void; className?: strin
         placeholder={legacyLabel ?? (providers.length ? t('选择模型') : t('（未配置）'))}
         aria-label={override ? t('已被 NOMI_PROVIDER 锁定') : t('Nomi 对话的模型')}
         data-testid="nomi-model-picker"
-      />
-      <IconButton
-        size="sm"
-        data-testid="open-models-settings"
-        onClick={onManage}
-        label={t('第三方供应商与模型')}
-        icon={<Icon icon={Boxes} />}
       />
     </span>
   );

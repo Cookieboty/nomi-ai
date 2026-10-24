@@ -1,6 +1,6 @@
 /**
  * 侧栏 Nomi 标志右侧：助手模式 / 工作台模式（内部值 normal / dev）。
- * 助手模式隐藏 CLI 标签栏、后端切换与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
+ * 助手模式隐藏 CLI 标签栏与 Mod+T；后台 CLI 仍运行，徽标显示运行中的数量。
  */
 import { getLocale, t } from '@nomi-ai/ui';
 import React, { useMemo } from 'react';

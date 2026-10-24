@@ -212,7 +212,8 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       expect(legacyHit.auth).toBeUndefined();
 
       // ---- 设置 →「模型」：添加三个供应商
-      await chat.click('[data-testid="open-models-settings"]');
+      await chat.click('[data-testid="open-settings"]');
+      await chat.click('[data-testid="settings-nav-models"]');
       await expect(chat.locator('[data-testid="models-page"]')).toBeVisible();
       await chat.screenshot({ path: join(shotDir, '01-models-migrated.png') });
 

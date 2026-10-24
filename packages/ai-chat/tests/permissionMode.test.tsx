@@ -77,7 +77,7 @@ const mount = () =>
       <>
         <PermissionTip />
         <EndpointControls />
-        <SessionControls onManageNomi={() => undefined} />
+        <SessionControls />
       </>
     </HarnessTabsProvider>,
   );
@@ -275,7 +275,7 @@ describe('输入栏只留端点与权限模式', () => {
     // 输入框下方：CLI 标签没有「带上前文」时什么都不显示（供应商不在这里选）
     const below = render(
       <HarnessTabsProvider>
-        <SessionControls onManageNomi={() => undefined} />
+        <SessionControls />
       </HarnessTabsProvider>,
     );
     await waitFor(() => expect(below.queryByTestId('session-controls')).toBeNull());

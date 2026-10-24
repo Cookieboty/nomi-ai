@@ -1017,7 +1017,7 @@ const AiChatContent: React.FC = () => {
               />
               {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
               <div className="session-bar">
-                <SessionControls onManageNomi={() => openSettings('models')} />
+                <SessionControls />
               </div>
             </footer>
           </div>

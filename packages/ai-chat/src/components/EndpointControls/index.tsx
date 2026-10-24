@@ -1,11 +1,11 @@
 /**
  * 端点相关的两组控件：
  *
- * - `EndpointControls`（输入栏左侧）：端点切换 + 编程助手的权限模式，只留发消息时要用的。
+ * - `EndpointControls`（输入栏左侧）：模型（编程助手还有权限模式），只留发消息时要用的。
+ *   端点在新建对话时选定，之后不在输入栏切换。
  * - `WorkspaceControl`（对话顶栏右侧，挨着「改动 · 文件」开关）：工作目录与换目录确认。
- * - `SessionControls`（输入框左下角）：「带上前文」标记；Nomi 对话的模型切换（NomiModelSwitch，统一网关）。
+ * - `SessionControls`（输入框左下角）：「带上前文」标记。
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
- * 普通模式只有 Nomi，不显示端点切换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
 import { History, X } from 'lucide-react';
@@ -17,7 +17,6 @@ import { useHarnessState } from '../../hooks/useHarnessState';
 import { gatewayClientAvailable } from '../../services/gatewayClient';
 import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
-import { BackendSwitcher } from '../BackendSwitcher';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
 import { BypassTip, PermissionModeChip } from '../PermissionModeChip';
@@ -48,14 +47,14 @@ function useEndpoint() {
   return { isDev, tabs, harness, cli, tab };
 }
 
-/** 输入栏：端点切换 + 权限模式 */
+/** 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置） */
 export const EndpointControls: React.FC = () => {
-  const { isDev, tabs, cli, tab } = useEndpoint();
+  const { tabs, cli, tab } = useEndpoint();
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
   return (
     <>
-      {isDev && <BackendSwitcher />}
+      {!cli && gatewayClientAvailable() && <NomiModelSwitch />}
       {cli && modeTab && (
         <>
           <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />
@@ -199,40 +198,33 @@ export const WorkspaceControl: React.FC = () => {
 };
 
 /**
- * 输入框左下角：「带上前文」标记（换目录 / 换来源后才有）；Nomi 对话的模型切换。
+ * 输入框左下角：「带上前文」标记（换目录 / 换来源后才有）。
  * 编程助手的供应商在侧栏底部信息卡的「新标签默认」里设，已有会话用 `/model` 单独换。
  */
-export const SessionControls: React.FC<{ onManageNomi: () => void }> = ({ onManageNomi }) => {
+export const SessionControls: React.FC = () => {
   const { cli, tab } = useEndpoint();
   const carry = cli && tab?.carriedMessages ? tab : null;
-  const nomiProviders = !cli && gatewayClientAvailable();
-  if (!carry && !nomiProviders) return null;
+  if (!carry) return null;
 
   return (
     <div className={styles.session} data-testid="session-controls">
-      {carry ? (
-        <span
-          className={styles.carry}
-          data-testid="cli-carry-chip"
-          title={t(
-            '下一条消息会连同之前的 {0} 条对话一起发给新会话',
-            String(carry.carriedMessages),
-          )}
+      <span
+        className={styles.carry}
+        data-testid="cli-carry-chip"
+        title={t('下一条消息会连同之前的 {0} 条对话一起发给新会话', String(carry.carriedMessages))}
+      >
+        <Icon icon={History} size={14} />
+        {t('带上前文 · {0} 条', String(carry.carriedMessages))}
+        <button
+          type="button"
+          className={styles.carryX}
+          aria-label={t('不带前文')}
+          data-testid="cli-carry-clear"
+          onClick={() => void harnessClient.clearTabCarry(carry.id).catch(() => undefined)}
         >
-          <Icon icon={History} size={14} />
-          {t('带上前文 · {0} 条', String(carry.carriedMessages))}
-          <button
-            type="button"
-            className={styles.carryX}
-            aria-label={t('不带前文')}
-            data-testid="cli-carry-clear"
-            onClick={() => void harnessClient.clearTabCarry(carry.id).catch(() => undefined)}
-          >
-            <Icon icon={X} size={12} />
-          </button>
-        </span>
-      ) : null}
-      {nomiProviders && <NomiModelSwitch onManage={onManageNomi} />}
+          <Icon icon={X} size={12} />
+        </button>
+      </span>
     </div>
   );
 };
