@@ -11,7 +11,7 @@ import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/respo
 import { TerminalWatch } from './canonical/terminal';
 import type { Wire } from './ir';
 import { patchChatJson, type ChatPatchOptions } from './stream/chatPatch';
-import { heartbeat, HEARTBEAT_COMMENT } from './stream/heartbeat';
+import { heartbeat, HEARTBEAT_COMMENT, type HeartbeatKind } from './stream/heartbeat';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamConverter } from './stream/index';
 import { createPassthrough, passthroughFail, type Passthrough } from './stream/passthrough';
 
@@ -30,6 +30,8 @@ export interface BridgePlan {
   customTools?: ReadonlySet<string>;
   /** 响应方向的修正开关与备注（§11.3） */
   fixes: ChatPatchOptions;
+  /** 心跳的形式（客户端规格给出；缺省按入口协议） */
+  heartbeat?: HeartbeatKind;
 }
 
 export interface Bridge {
@@ -103,7 +105,7 @@ export function createBridge(plan: BridgePlan): Bridge {
       return sent(forward(events));
     },
     alive() {
-      return wrote ? heartbeat(plan.to) : HEARTBEAT_COMMENT;
+      return wrote ? heartbeat(plan.to, plan.heartbeat) : HEARTBEAT_COMMENT;
     },
     end(rest = '') {
       let out = '';

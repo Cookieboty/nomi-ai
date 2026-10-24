@@ -3,12 +3,14 @@
  * 从入口请求体里读出与协议无关的推理意图，再按上游协议写进上游请求体。
  * 作用在「请求体」上而不是 IR 上：跨协议时编码器不再丢掉思考强度；同协议透传不经过这里（请求体原样）。
  *
- * - 来源优先级：explicit（CLI 按用户每轮的选择显式发出）> client-default（CLI 自己合成的默认值，
- *   例如 Claude Code 启动时由 Nomi 注入的 MAX_THINKING_TOKENS 生成的 budget_tokens）。
+ * - 来源优先级：explicit（CLI 按用户每轮的选择显式发出）> binding（标签上选的思考深度）>
+ *   client-default（CLI 自己合成的默认值，例如 Claude Code 启动时由 Nomi 注入的 MAX_THINKING_TOKENS
+ *   生成的 budget_tokens；哪些字段是合成的由客户端规格的 synthesizedReasoning 给出）。
  * - effort → budget：有 max_tokens 时按比例（minimal 5%、low 20%、medium 50%、high 80%、xhigh / max 95%），
  *   夹到 [1024, max_tokens − 1]；没有 max_tokens 时用固定表（low 4096、medium 10000、high 24000、xhigh / max 32000）。
  * - budget → effort：有 max_tokens 时按比例落档；没有时 ≤ 4096 low、≤ 12000 medium、≤ 24000 high、其余 xhigh。
  */
+import { clientSpecOf } from './clients/index';
 import type { RuntimeModel } from './config';
 import type { Wire } from './ir';
 
@@ -29,7 +31,7 @@ export interface ReasoningIntent {
   effort?: Effort;
   budget?: number;
   includeThoughts?: boolean;
-  source: 'explicit' | 'client-default';
+  source: 'explicit' | 'binding' | 'client-default';
 }
 
 /** 最小思考预算（Anthropic 的下限） */
@@ -79,6 +81,25 @@ export function budgetToEffort(budget: number, maxTokens?: number): Effort {
 }
 
 /**
+ * 标签上选的思考深度（TabBinding.effort，§6.9.5 的 binding 来源）：请求里没有显式意图、
+ * 或只有 CLI 自己合成的默认值时用它。不认识的档位忽略。
+ */
+export function withBindingEffort(
+  intent: ReasoningIntent | null,
+  effort: string | undefined,
+): ReasoningIntent | null {
+  const e = asEffort(effort);
+  if (!e || (intent && intent.source === 'explicit')) return intent;
+  if (intent?.mode === 'disabled') return intent;
+  return {
+    mode: intent?.mode === 'adaptive' ? 'adaptive' : 'enabled',
+    effort: e,
+    ...(intent?.includeThoughts !== undefined ? { includeThoughts: intent.includeThoughts } : {}),
+    source: 'binding',
+  };
+}
+
+/**
  * 从入口请求体读推理意图；没有任何推理字段时返回 null（上游请求不加推理参数，保持现在的行为）。
  * client：入口客户端 id；Claude Code 的 thinking.budget_tokens 由 Nomi 启动时注入，记为 client-default。
  */
@@ -101,7 +122,9 @@ export function readIntent(wire: Wire, body: unknown, client?: string): Reasonin
       return {
         mode: 'enabled',
         ...(budget ? { budget } : {}),
-        source: client === 'claude' ? 'client-default' : 'explicit',
+        source: clientSpecOf(client)?.synthesizedReasoning?.includes('thinking.budget_tokens')
+          ? 'client-default'
+          : 'explicit',
       };
     }
     return null;

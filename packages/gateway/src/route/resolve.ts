@@ -1,6 +1,13 @@
 /**
  * 模型名 → 候选列表（docs/design/unified-gateway.md §6.2、§7.2）。
  */
+import {
+  builtinSlot,
+  clientSpecOf,
+  slotIsSet,
+  slotModel,
+  type ModelResolution,
+} from '../clients/index';
 import type {
   ClientId,
   ClientModels,
@@ -29,7 +36,12 @@ export interface Candidate {
 }
 
 export type ResolveResult =
-  | { ok: true; candidates: Candidate[] }
+  | {
+      ok: true;
+      candidates: Candidate[];
+      /** 模型是怎么解析出来的（§6.7）与要追加的请求备注 */
+      resolution?: { how: ModelResolution; note?: string };
+    }
   | { ok: false; status: 404 | 400; message: string; suggestions?: string[] };
 
 /** 按第一个 `/` 切分；没有 `/` 时 provider 为 null（裸模型名） */
@@ -45,33 +57,57 @@ export function findProvider(cfg: GatewayConfig, id: string): RuntimeProvider | 
   return enabled.find((p) => p.id === id) ?? enabled.find((p) => p.aliases?.includes(id));
 }
 
+/** 模型名映射的结果：映射到的 `供应商/模型` 与它是怎么来的（请求日志展示，§6.7） */
+export interface MappedModel {
+  ref: string;
+  how: ModelResolution;
+  /** 请求备注（未知模型名按主模型处理时） */
+  note?: string;
+}
+
 /**
- * CLI 写死的模型名映射到客户端配置（§7.2 第 1 步）：
- * Claude Code 的 claude-*（haiku → small，opus / sonnet / fable 按档位，其余 → main），Codex 的内部名 → main。
+ * CLI 写死的模型名映射到客户端配置（§6.7 第 2～5 步），规则来自客户端规格（clients/）：
+ * 内置档位名 → tiers（haiku 退到旧版 small），辅助模型名 → summary，子代理 → subagent，都退到 main；
+ * 规格不认识的名字：有标签绑定时按主模型处理并记备注（不让拼写错误被静默丢弃，G6），
+ * 没有绑定时按规格的 unknownToMain。
  */
+export function mapModel(
+  client: ClientId | string | null,
+  models: ClientModels | undefined,
+  requested: string,
+  bound = false,
+): MappedModel | null {
+  if (!models) return null;
+  const main = models.main;
+  if (!requested) return main ? { ref: main, how: bound ? 'binding' : 'default' } : null;
+  const spec = clientSpecOf(client);
+  if (!spec) return null;
+  const hit = builtinSlot(spec, requested);
+  if (hit) {
+    const ref = slotModel(models, hit.slot);
+    if (!ref) return null;
+    // 槽位没单独设、退到了主模型：按「主模型 / 绑定」记，不记成档位
+    const fellBack = hit.slot !== 'main' && !slotIsSet(models, hit.slot);
+    const how = hit.how === 'default' || fellBack ? (bound ? 'binding' : 'default') : hit.how;
+    return { ref, how };
+  }
+  if (!main) return null;
+  if (bound)
+    return {
+      ref: main,
+      how: 'unknown',
+      note: `未知模型名 ${requested}，已按标签主模型处理`,
+    };
+  return spec.unknownToMain ? { ref: main, how: 'default' } : null;
+}
+
+/** 兼容入口：只要映射到的模型名 */
 export function mapBuiltinModel(
   client: ClientId | null,
   models: ClientModels | undefined,
   requested: string,
 ): string | null {
-  if (!models) return null;
-  if (!requested) return models.main ?? null;
-  if (client === 'claude' && /claude|^(opus|sonnet|haiku|fable|default)$/i.test(requested)) {
-    const r = requested.toLowerCase();
-    for (const tier of ['opus', 'sonnet', 'haiku', 'fable'] as const) {
-      if (r.includes(tier))
-        return (
-          models.tiers?.[tier] ??
-          (tier === 'haiku' ? models.small : undefined) ??
-          models.main ??
-          null
-        );
-    }
-    return models.main ?? null;
-  }
-  if (client === 'codex' || client === 'grok' || client === 'dsh' || client === 'gemini')
-    return models.main ?? null;
-  return null;
+  return mapModel(client, models, requested)?.ref ?? null;
 }
 
 /** 解析 provider/model（§6.2 第 1～3 步）；找不到返回 null */
@@ -173,18 +209,28 @@ function expand(
   return out;
 }
 
+/**
+ * 模型名 → 候选。顺序（§6.7）：显式的 `供应商/模型`（或唯一命中的裸名）→ 规格的档位 / 辅助 / 子代理 →
+ * 标签绑定的主模型（未知名记备注）→ 客户端级的默认（终端里手动启动、没有标签绑定的 CLI）。
+ * binding：这个请求所属标签的模型（TabBinding.models），优先于客户端级配置。
+ */
 export function resolveCandidates(
   cfg: GatewayConfig,
-  client: ClientId | null,
+  client: ClientId | string | null,
   requested: string,
   ingress: Wire | null,
+  binding?: { models: ClientModels } | null,
 ): ResolveResult {
-  const models = client ? cfg.clients[client]?.models : undefined;
+  const models = binding?.models ?? (client ? cfg.clients[client as ClientId]?.models : undefined);
   const home = models?.main ? splitRef(models.main).provider : null;
   let target = requested ? resolveRef(cfg, requested, home) : null;
+  let resolution: { how: ModelResolution; note?: string } = { how: 'explicit' };
   if (!target) {
-    const mapped = mapBuiltinModel(client, models, requested);
-    if (mapped) target = resolveRef(cfg, mapped, home);
+    const mapped = mapModel(client, models, requested, Boolean(binding));
+    if (mapped) {
+      target = resolveRef(cfg, mapped.ref, home);
+      resolution = { how: mapped.how, ...(mapped.note ? { note: mapped.note } : {}) };
+    }
   }
   if (!target) {
     const suggestions = suggest(cfg, requested);
@@ -209,7 +255,7 @@ export function resolveCandidates(
       message: `Nomi 网关：供应商「${target.provider.name}」没有可用的 Key 或协议地址`,
     };
   }
-  return { ok: true, candidates };
+  return { ok: true, candidates, resolution };
 }
 
 /**

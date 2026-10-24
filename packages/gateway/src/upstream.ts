@@ -10,7 +10,7 @@ import {
   isAnthropicOfficial,
 } from './fixes';
 import { geminiModelPath } from './ingress';
-import { readIntent, renderIntent } from './intent';
+import { readIntent, renderIntent, withBindingEffort } from './intent';
 import type { Wire } from './ir';
 import { quirksOf } from './providers/index';
 import { convertRequest } from './request';
@@ -109,7 +109,14 @@ export function upstreamBody(
   ingress: Wire,
   c: Candidate,
   body: unknown,
-  opts: { stream: boolean; ingressModel?: string; notes?: string[]; client?: string },
+  opts: {
+    stream: boolean;
+    ingressModel?: string;
+    notes?: string[];
+    client?: string;
+    /** 标签上选的思考深度（TabBinding.effort）：请求里没有显式意图时用（§6.9.5） */
+    bindingEffort?: string;
+  },
 ): unknown {
   let out: unknown;
   if (ingress === c.wire) {
@@ -130,7 +137,7 @@ export function upstreamBody(
       reasoningPassback: quirksOf(c.provider, c.wire).reasoningPassback,
     });
     // 跨协议：编码器不写推理参数，按入口的推理意图渲染到上游请求体（§6.9.5）
-    const intent = readIntent(ingress, body, opts.client);
+    const intent = withBindingEffort(readIntent(ingress, body, opts.client), opts.bindingEffort);
     if (intent) out = renderIntent(c.wire, out, intent, candidateModel(c), opts.notes);
   }
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {

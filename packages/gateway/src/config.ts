@@ -18,6 +18,9 @@ export interface RuntimeKey {
   /** 只对这种协议有效 */
   wire?: Wire;
   enabled: boolean;
+  /** 这个 Key 的并发上限 / 每分钟请求数（§6.11.3）；优先于供应商规格与 quirks */
+  maxConcurrency?: number;
+  rpm?: number;
 }
 
 export interface RuntimeModel {
@@ -46,6 +49,9 @@ export interface ProviderQuirks {
   /** 多轮工具调用时必须把历史推理原样发回（DeepSeek、MiniMax 的 Chat 接口），否则 400 */
   reasoningPassback?: boolean;
   userAgent?: string;
+  /** 每个 Key 的并发上限 / 每分钟请求数（§6.11.3）；超出时排队，等不到换下一个候选 */
+  maxConcurrency?: number;
+  rpm?: number;
   /**
    * 按上游协议合并进请求体的额外字段（协议转换与请求修正之后、dropParams 之前），
    * 如 MiniMax Chat 的 reasoning_split
@@ -95,6 +101,10 @@ export interface ClientModels {
   tiers?: Partial<Record<'opus' | 'sonnet' | 'haiku' | 'fable', string>>;
   subagent?: string;
   tools?: string;
+  /**
+   * 辅助模型（§6.7，Q2）：生成标题、摘要、下一句提示等辅助请求用，通常选同一供应商里更便宜的模型；
+   * 没设时跟主模型。CLI 发的辅助模型名由客户端规格的 helperModels 识别。
+   */
   summary?: string;
 }
 

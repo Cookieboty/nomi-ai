@@ -27,6 +27,26 @@ export {
   type ProviderAdapterHooks,
   type ProviderSpec,
 } from './providers/index';
+export {
+  BUILTIN_CLIENT_SPECS,
+  ClientConformer,
+  clientSpecOf,
+  registerClientSpec,
+  type ClientAdapterHooks,
+  type ClientSpec,
+  type ModelResolution,
+} from './clients/index';
+export {
+  BINDING_WAIT_MS,
+  BindingTable,
+  hashTabToken,
+  isTabToken,
+  TAB_TOKEN_PREFIX,
+  type BindingAck,
+  type BindingMessage,
+  type TabBinding,
+} from './route/binding';
+export { Limiter, limitsOf, type Limits } from './limits';
 export { modelsBody } from './models';
 export * from './net/address';
 export * from './net/loopback';
