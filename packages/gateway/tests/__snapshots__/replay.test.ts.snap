@@ -1,0 +1,423 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`gateway replay fixtures > amux-keepalive-responses-to-messages: client output passes the messages spec and ends cleanly 1`] = `
+[
+  {
+    "data": {
+      "message": {
+        "content": [],
+        "id": "<id>",
+        "model": "gpt-5.1-codex",
+        "role": "assistant",
+        "stop_reason": null,
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+        },
+      },
+      "type": "message_start",
+    },
+    "event": "message_start",
+  },
+  {
+    "data": {
+      "content_block": {
+        "text": "",
+        "type": "text",
+      },
+      "index": 0,
+      "type": "content_block_start",
+    },
+    "event": "content_block_start",
+  },
+  {
+    "data": {
+      "delta": {
+        "text": "[text]",
+        "type": "text_delta",
+      },
+      "index": 0,
+      "type": "content_block_delta",
+    },
+    "event": "content_block_delta",
+  },
+  {
+    "data": {
+      "delta": {
+        "text": "[text]",
+        "type": "text_delta",
+      },
+      "index": 0,
+      "type": "content_block_delta",
+    },
+    "event": "content_block_delta",
+  },
+  {
+    "data": {
+      "index": 0,
+      "type": "content_block_stop",
+    },
+    "event": "content_block_stop",
+  },
+  {
+    "data": {
+      "delta": {
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+      },
+      "type": "message_delta",
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 3,
+      },
+    },
+    "event": "message_delta",
+  },
+  {
+    "data": {
+      "type": "message_stop",
+    },
+    "event": "message_stop",
+  },
+]
+`;
+
+exports[`gateway replay fixtures > chat-tool-calls-without-index: client output passes the messages spec and ends cleanly 1`] = `
+[
+  {
+    "data": {
+      "message": {
+        "content": [],
+        "id": "<id>",
+        "model": "kimi-k2",
+        "role": "assistant",
+        "stop_reason": null,
+        "stop_sequence": null,
+        "type": "message",
+        "usage": {
+          "input_tokens": 0,
+          "output_tokens": 0,
+        },
+      },
+      "type": "message_start",
+    },
+    "event": "message_start",
+  },
+  {
+    "data": {
+      "content_block": {
+        "text": "",
+        "type": "text",
+      },
+      "index": 0,
+      "type": "content_block_start",
+    },
+    "event": "content_block_start",
+  },
+  {
+    "data": {
+      "delta": {
+        "text": "[text]",
+        "type": "text_delta",
+      },
+      "index": 0,
+      "type": "content_block_delta",
+    },
+    "event": "content_block_delta",
+  },
+  {
+    "data": {
+      "index": 0,
+      "type": "content_block_stop",
+    },
+    "event": "content_block_stop",
+  },
+  {
+    "data": {
+      "content_block": {
+        "id": "<id>",
+        "input": {},
+        "name": "read_file",
+        "type": "tool_use",
+      },
+      "index": 1,
+      "type": "content_block_start",
+    },
+    "event": "content_block_start",
+  },
+  {
+    "data": {
+      "delta": {
+        "partial_json": "{"path":"a.ts"}",
+        "type": "input_json_delta",
+      },
+      "index": 1,
+      "type": "content_block_delta",
+    },
+    "event": "content_block_delta",
+  },
+  {
+    "data": {
+      "index": 1,
+      "type": "content_block_stop",
+    },
+    "event": "content_block_stop",
+  },
+  {
+    "data": {
+      "content_block": {
+        "id": "<id>",
+        "input": {},
+        "name": "read_file",
+        "type": "tool_use",
+      },
+      "index": 2,
+      "type": "content_block_start",
+    },
+    "event": "content_block_start",
+  },
+  {
+    "data": {
+      "delta": {
+        "partial_json": "{"path":"b.ts"}",
+        "type": "input_json_delta",
+      },
+      "index": 2,
+      "type": "content_block_delta",
+    },
+    "event": "content_block_delta",
+  },
+  {
+    "data": {
+      "index": 2,
+      "type": "content_block_stop",
+    },
+    "event": "content_block_stop",
+  },
+  {
+    "data": {
+      "delta": {
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+      },
+      "type": "message_delta",
+      "usage": {
+        "input_tokens": 30,
+        "output_tokens": 12,
+      },
+    },
+    "event": "message_delta",
+  },
+  {
+    "data": {
+      "type": "message_stop",
+    },
+    "event": "message_stop",
+  },
+]
+`;
+
+exports[`gateway replay fixtures > chat-truncated-to-responses: client output passes the responses spec and ends cleanly 1`] = `
+[
+  {
+    "data": {
+      "response": {
+        "created_at": "<id>",
+        "id": "<id>",
+        "model": "deepseek-chat",
+        "object": "response",
+        "output": [],
+        "status": "in_progress",
+      },
+      "sequence_number": 0,
+      "type": "response.created",
+    },
+    "event": "response.created",
+  },
+  {
+    "data": {
+      "response": {
+        "created_at": "<id>",
+        "id": "<id>",
+        "model": "deepseek-chat",
+        "object": "response",
+        "output": [],
+        "status": "in_progress",
+      },
+      "sequence_number": 1,
+      "type": "response.in_progress",
+    },
+    "event": "response.in_progress",
+  },
+  {
+    "data": {
+      "item": {
+        "content": [],
+        "id": "<id>",
+        "role": "assistant",
+        "status": "in_progress",
+        "type": "message",
+      },
+      "output_index": 0,
+      "sequence_number": 2,
+      "type": "response.output_item.added",
+    },
+    "event": "response.output_item.added",
+  },
+  {
+    "data": {
+      "content_index": 0,
+      "item_id": "<id>",
+      "output_index": 0,
+      "part": {
+        "annotations": [],
+        "text": "",
+        "type": "output_text",
+      },
+      "sequence_number": 3,
+      "type": "response.content_part.added",
+    },
+    "event": "response.content_part.added",
+  },
+  {
+    "data": {
+      "content_index": 0,
+      "delta": "[text]",
+      "item_id": "<id>",
+      "output_index": 0,
+      "sequence_number": 4,
+      "type": "response.output_text.delta",
+    },
+    "event": "response.output_text.delta",
+  },
+  {
+    "data": {
+      "content_index": 0,
+      "delta": "[text]",
+      "item_id": "<id>",
+      "output_index": 0,
+      "sequence_number": 5,
+      "type": "response.output_text.delta",
+    },
+    "event": "response.output_text.delta",
+  },
+  {
+    "data": {
+      "response": {
+        "created_at": "<id>",
+        "error": {
+          "code": "api_error",
+          "message": "upstream stream ended before completion",
+        },
+        "id": "<id>",
+        "model": "deepseek-chat",
+        "object": "response",
+        "output": [
+          {
+            "content": [
+              {
+                "annotations": [],
+                "text": "[text][text]",
+                "type": "output_text",
+              },
+            ],
+            "id": "<id>",
+            "role": "assistant",
+            "status": "completed",
+            "type": "message",
+          },
+        ],
+        "status": "failed",
+      },
+      "sequence_number": 6,
+      "type": "response.failed",
+    },
+    "event": "response.failed",
+  },
+]
+`;
+
+exports[`gateway replay fixtures > responses-missing-fields: client output passes the responses spec and ends cleanly 1`] = `
+[
+  {
+    "data": {
+      "response": {
+        "created_at": "<id>",
+        "id": "<id>",
+        "model": "up/gpt-5",
+        "object": "response",
+        "output": [],
+        "status": "in_progress",
+      },
+      "sequence_number": 0,
+      "type": "response.created",
+    },
+    "event": "response.created",
+  },
+  {
+    "data": {
+      "item": {
+        "content": [],
+        "id": "<id>",
+        "role": "assistant",
+        "status": "in_progress",
+        "type": "message",
+      },
+      "output_index": 0,
+      "sequence_number": 1,
+      "type": "response.output_item.added",
+    },
+    "event": "response.output_item.added",
+  },
+  {
+    "data": {
+      "content_index": 0,
+      "delta": "[text]",
+      "item_id": "<id>",
+      "output_index": 0,
+      "sequence_number": 2,
+      "type": "response.output_text.delta",
+    },
+    "event": "response.output_text.delta",
+  },
+  {
+    "data": {
+      "content_index": 0,
+      "delta": "[text]",
+      "item_id": "<id>",
+      "output_index": 0,
+      "sequence_number": 3,
+      "type": "response.output_text.delta",
+    },
+    "event": "response.output_text.delta",
+  },
+  {
+    "data": {
+      "response": {
+        "created_at": "<id>",
+        "id": "<id>",
+        "model": "up/gpt-5",
+        "object": "response",
+        "output": [],
+        "status": "completed",
+        "usage": {
+          "input_tokens": 4,
+          "input_tokens_details": {
+            "cached_tokens": 0,
+          },
+          "output_tokens": 2,
+          "output_tokens_details": {
+            "reasoning_tokens": 0,
+          },
+          "total_tokens": 6,
+        },
+      },
+      "sequence_number": 4,
+      "type": "response.completed",
+    },
+    "event": "response.completed",
+  },
+]
+`;

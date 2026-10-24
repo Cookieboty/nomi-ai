@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "name": "responses-missing-fields",
+  "synthetic": true,
+  "description": "合成：用现有测试场景构造的追踪，不是真实流量",
+  "client": "codex",
+  "ingress": "responses",
+  "path": "/v1/responses",
+  "request": {
+    "model": "gpt-5",
+    "input": "[text]",
+    "stream": true
+  },
+  "upstream": {
+    "wire": "responses",
+    "model": "gpt-5",
+    "status": 200,
+    "contentType": "text/event-stream",
+    "chunks": [
+      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_2\"}}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"type\":\"message\",\"content\":[]}}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"[text]\"}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"delta\":\"[text]\"}\n\n",
+      "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_2\",\"usage\":{\"input_tokens\":4,\"output_tokens\":2}}}\n\n"
+    ]
+  }
+}

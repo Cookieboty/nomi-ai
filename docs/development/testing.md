@@ -34,6 +34,19 @@ xvfb-run -a pnpm test:e2e:headed
 - 合并到同一个 Playwright 配置需要把 Vitest 用例改写为 Playwright 的 test/expect，收益只是少一个配置文件。
 - CI 里无界面 E2E 每个平台 1–2 分钟，真实应用 E2E 5–9 分钟；分成两个 job 可以并行，先给出快速信号。
 
+## 网关回放夹具（`packages/gateway/tests/fixtures/replay/`）
+
+把真实遇到的第三方上游问题固化成回归测试：诊断日志打开时网关会写追踪文件（`userData/gateway/trace/*.json`，含入口请求体、上游原始响应全文、给客户端输出的差异），用脚本转成脱敏夹具：
+
+```bash
+pnpm -F @nomi-ai/gateway exec tsx scripts/trace-to-fixture.ts <trace.json>... [--name 名字] [--keep-text]
+```
+
+- 默认去掉对话正文（正文类字段的非空字符串换成 `[text]`，结构不变；空字符串保留，保活靠 `delta: ''` 识别），并再脱敏一遍；不带任何请求头。工具参数（`arguments`、`partial_json`、参数对象）保留，里面可能有文件内容，**提交前自己看一遍**。`--keep-text` 保留正文（只用于本地排查，不要提交）。
+- 回放的是最后一次上游尝试；SSE 按事件切块逐块写出，截断在半截的事件原样保留（其中的正文字符串同样换掉）。
+- `tests/replay.test.ts` 对每个夹具：起一个按块回放的假上游，经 `createGateway` 发出录下的请求，断言给客户端的输出通过入口协议的规范校验（`src/spec`）、以结束或失败事件收尾，并对去掉 id / 时间戳的事件做快照；提交前就失败的（一个内容事件都没有）断言是 HTTP 错误。
+- 仓库里现有的 4 个夹具是用已有测试场景合成的（`"synthetic": true`），不是真实流量。
+
 ## 性能基准与体积预算
 
 先 `pnpm build && node packages/electron/scripts/copy-renderer.js`，Linux 无显示器时前面加 `xvfb-run -a`：
