@@ -29,6 +29,16 @@ export class UsageTap {
   private readonly dec: StreamDecoder;
   usage: StreamUsage = {};
   error: string | null = null;
+  /** 上游流里的错误事件类型（解码器给出） */
+  errorType: string | undefined;
+  /** 模型质量（docs/design/model-quality.md §4.1）：内容事件的时间点（epoch ms） */
+  firstContentAt: number | undefined;
+  firstTextAt: number | undefined;
+  lastContentAt: number | undefined;
+  /** 上游是否发了结束标记（或明确的错误）：end() 之前读取 */
+  get terminated(): boolean {
+    return this.dec.terminated;
+  }
 
   constructor(wire: Wire) {
     this.dec = decoderFor(wire);
@@ -36,10 +46,41 @@ export class UsageTap {
 
   private take(evs: NormEvent[]) {
     for (const e of evs) {
-      if (e.type === 'start' || e.type === 'finish' || e.type === 'usage')
-        this.usage = mergeUsage(this.usage, e.usage);
-      else if (e.type === 'error') this.error = e.message;
+      switch (e.type) {
+        case 'start':
+        case 'finish':
+        case 'usage':
+          this.usage = mergeUsage(this.usage, e.usage);
+          break;
+        case 'error':
+          // 第一个错误为准（解码器在 end() 里补的「没有结束标记」不覆盖上游明确给的错误）
+          if (this.error === null) {
+            this.error = e.message;
+            this.errorType = e.errorType;
+          }
+          break;
+        case 'text':
+          if (!e.text) break;
+          this.content();
+          this.firstTextAt ??= this.lastContentAt;
+          break;
+        case 'think':
+          if (e.text) this.content();
+          break;
+        case 'tool_start':
+        case 'tool_args':
+          this.content();
+          break;
+        default:
+      }
     }
+  }
+
+  /** 一个内容事件：一次 Date.now()，热路径上不做别的 */
+  private content() {
+    const now = Date.now();
+    this.firstContentAt ??= now;
+    this.lastContentAt = now;
   }
 
   push(text: string): void {
