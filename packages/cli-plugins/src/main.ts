@@ -23,6 +23,13 @@ export * from './shared/permissions';
 export * from './shared/terminal';
 export { BUILTIN_CLI_IDS, type BuiltinCliId } from './generated/ids';
 
+// 各 CLI 的流式输出解析（§5.4）：主进程的 cli/streamParse.ts 只转出这些
+export { acpMetaContext, inputText, outputText, parseUsage } from './shared/stream';
+export { createClaudeParser, parseClaudeLine, type ClaudeStreamState } from './claude/stream';
+export { parseCodexLine } from './codex/stream';
+export { createDshParser, parseDshLine } from './dsh/stream';
+export { createGrokParser, parseGrokLine } from './grok/stream';
+
 export * as claude from './claude/main';
 export * as codex from './codex/main';
 export * as dsh from './dsh/main';

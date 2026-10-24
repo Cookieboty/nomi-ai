@@ -25,6 +25,17 @@ module.exports = {
       importFrom: '<rel>/i18n',
       dict: 'packages/electron/src/i18n/en.json',
     },
+    // 内置插件与插件契约：文案经 cli-sdk 的 t()，由主进程注入翻译（electron/src/cli/pluginI18n.ts）
+    {
+      dir: 'packages/cli-plugins/src',
+      importFrom: '@nomi-ai/cli-sdk',
+      dict: 'packages/electron/src/i18n/en.json',
+    },
+    {
+      dir: 'packages/cli-sdk/src',
+      importFrom: './i18n',
+      dict: 'packages/electron/src/i18n/en.json',
+    },
   ],
   /** 反向（死 key）检查额外参考的源码：这些包产出的中文会在 UI 层经 t() 翻译 */
   keySources: ['packages/ai-runtime/src', 'packages/ai-sdk-client/src'],

@@ -3,6 +3,7 @@
  * 纯 Node，不依赖 Electron；主进程、插件与测试共用。
  */
 export * from './events';
+export * from './i18n';
 export * from './manifest';
 export * from './plugin';
 export * from './driver';

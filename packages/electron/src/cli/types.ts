@@ -1,6 +1,11 @@
 /** 编程助手 CLI 接入 · 共享类型 */
 import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
-import type { HarnessEvent, HarnessPermissionMode, HarnessUsage } from '@nomi-ai/cli-sdk';
+import type {
+  HarnessEvent,
+  HarnessPermissionMode,
+  HarnessTraceEvent,
+  HarnessUsage,
+} from '@nomi-ai/cli-sdk';
 
 /** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 按插件目录生成，P9.4） */
 export type HarnessBackend = 'nomi' | BuiltinCliId;
@@ -71,37 +76,8 @@ export interface HarnessImageInput {
   source?: string;
 }
 
-export interface HarnessTabMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  /** 用户附图缩略图（不存全尺寸 base64） */
-  images?: Array<{ thumb: string; width: number; height: number; source?: string }>;
-  timestamp: number;
-  error?: boolean;
-  tools?: string[];
-  /** 本轮工具调用 / 思考的结构化轨迹（会话视图据此渲染分组、diff、耗时） */
-  trace?: HarnessTraceEvent[];
-  /** 助手正文里后一段消息的起始下标 */
-  textBreaks?: number[];
-  /** 本轮耗时（ms，从发出到结束） */
-  durationMs?: number;
-  /** 本轮用量（CLI 上报时才有） */
-  usage?: HarnessUsage;
-  /** 被用户中断 */
-  stopped?: true;
-  /** CLI 在没有用户消息的情况下自发的一轮（后台子代理完成后主代理的跟进） */
-  origin?: 'background';
-  /** Gemini 因为不信任这个文件夹而拒绝运行（错误卡片上提供「信任此文件夹」） */
-  geminiTrust?: {
-    folder: string;
-    /** 范围很大的文件夹（主目录、文稿、默认对话目录等），确认时额外提醒 */
-    broad?: boolean;
-  };
-}
-
-/** 持久化到消息里的轨迹事件：HarnessEvent 里的 tool / thinking */
-export type HarnessTraceEvent = Extract<HarnessEvent, { type: 'tool' | 'thinking' }>;
+// 标签消息与轨迹事件：定义搬到 @nomi-ai/cli-sdk（插件的历史转录解析也用）
+export type { HarnessTabMessage, HarnessTraceEvent } from '@nomi-ai/cli-sdk';
 
 /**
  * 对话标签：绑定后端 + CLI 会话 + 工作目录。
