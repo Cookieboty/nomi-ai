@@ -9,10 +9,12 @@ import {
   effortToBudget,
   MIN_BUDGET,
   readIntent,
-  renderIntent,
   type Effort,
+  type ReasoningIntent,
 } from '../src/intent';
 import type { Wire } from '../src/ir';
+import { renderReasoning } from '../src/models/rules/request/reasoning';
+import type { EffectiveModel } from '../src/models/types';
 import type { Candidate } from '../src/route/resolve';
 import { upstreamBody } from '../src/upstream';
 
@@ -109,7 +111,27 @@ describe('readIntent', () => {
   });
 });
 
-describe('renderIntent', () => {
+/** 按用户设置（RuntimeModel）拼一个最小的模型规格，交给模型适配器渲染推理意图 */
+function renderIntent(
+  wire: Wire,
+  body: unknown,
+  intent: ReasoningIntent,
+  model?: RuntimeModel,
+  notes?: string[],
+): unknown {
+  const m: EffectiveModel = {
+    id: model?.id ?? '',
+    userSet: model?.reasoning === false ? ['reasoning'] : [],
+    sources: model ? ['user'] : [],
+    strict: false,
+    catalogVersion: '',
+    ...(model?.reasoning === false ? { reasoning: { control: 'none' as const } } : {}),
+    ...(model?.maxOutput ? { limits: { maxOutput: model.maxOutput } } : {}),
+  };
+  return renderReasoning(wire, body, intent, m, notes).body;
+}
+
+describe('renderReasoning（按用户设置渲染）', () => {
   it('writes each wire’s own field', () => {
     const i = { mode: 'enabled' as const, effort: 'high' as Effort, source: 'explicit' as const };
     expect(renderIntent('responses', {}, i)).toMatchObject({ reasoning: { effort: 'high' } });

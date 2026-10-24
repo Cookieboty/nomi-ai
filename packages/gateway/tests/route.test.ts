@@ -3,8 +3,11 @@ import { describe, expect, it } from 'vitest';
 import type { GatewayConfig, RuntimeProvider } from '../src/config';
 import { checkUpstream } from '../src/net/upstreamGuard';
 import { pickWire, wiresFor, WIRE_DOWN_TTL_MS } from '../src/route/native';
-import { mapBuiltinModel, preferredWire, resolveCandidates, splitRef } from '../src/route/resolve';
+import { mapModel, preferredWire, resolveCandidates, splitRef } from '../src/route/resolve';
 import { upstreamUrl } from '../src/upstream';
+
+/** 只要映射到的模型名 */
+const mapBuiltinModel = (...a: Parameters<typeof mapModel>) => mapModel(...a)?.ref ?? null;
 
 const p = (extra: Partial<RuntimeProvider> = {}): RuntimeProvider => ({
   id: 'relay',

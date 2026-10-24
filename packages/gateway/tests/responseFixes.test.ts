@@ -6,11 +6,11 @@ import { describe, expect, it } from 'vitest';
 import { customToolsToFunctions, isCustomToolRefusal } from '../src/customTools';
 import { Learner, type LearnEvent } from '../src/learn';
 import { CallIds, fixEvents } from '../src/models/rules/response';
+import { RepetitionGuard } from '../src/models/rules/response/repetition';
+import { TextToolExtractor } from '../src/models/rules/response/textTools';
 import { createStreamConverter, jsonToJson, SseParser } from '../src/stream';
 import { ChatStreamPatcher, patchChatJson } from '../src/stream/chatPatch';
 import { createPassthrough } from '../src/stream/passthrough';
-import { RepetitionGuard } from '../src/stream/repetition';
-import { TextToolExtractor } from '../src/stream/textTools';
 import {
   chatToolName,
   chatToolNameReverse,

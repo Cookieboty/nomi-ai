@@ -14,7 +14,9 @@ import {
   parseCodexLine,
   parseDshLine,
   parseGrokLine,
-} from '../../../src/cli/streamParse';
+} from '@nomi-ai/cli-plugins/main';
+
+import '../../../src/cli/pluginI18n';
 import type { HarnessEvent } from '../../../src/cli/types';
 
 describe('streamParse', () => {

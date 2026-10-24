@@ -111,15 +111,6 @@ export function mapModel(
   return spec.unknownToMain ? { ref: main, how: 'default' } : null;
 }
 
-/** 兼容入口：只要映射到的模型名 */
-export function mapBuiltinModel(
-  client: ClientId | null,
-  models: ClientModels | undefined,
-  requested: string,
-): string | null {
-  return mapModel(client, models, requested)?.ref ?? null;
-}
-
 /** 解析 provider/model（§6.2 第 1～3 步）；找不到返回 null */
 function resolveRef(
   cfg: GatewayConfig,

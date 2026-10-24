@@ -11,10 +11,7 @@
  * - budget → effort：有 max_tokens 时按比例落档；没有时 ≤ 4096 low、≤ 12000 medium、≤ 24000 high、其余 xhigh。
  */
 import { clientSpecOf } from './clients/index';
-import type { RuntimeModel } from './config';
 import type { Wire } from './ir';
-import { renderReasoning } from './models/rules/request/reasoning';
-import type { EffectiveModel } from './models/types';
 
 type Obj = Record<string, unknown>;
 
@@ -177,27 +174,4 @@ export function readIntent(wire: Wire, body: unknown, client?: string): Reasonin
     ...(includeThoughts ? { includeThoughts } : {}),
     source: 'explicit',
   };
-}
-
-/**
- * 兼容入口：把意图写进上游请求体。渲染已移到模型适配器（models/rules/request/reasoning.ts，§6.9.5），
- * 这里用 RuntimeModel（用户设置）拼一个最小的模型规格调用它。
- */
-export function renderIntent(
-  wire: Wire,
-  body: unknown,
-  intent: ReasoningIntent,
-  model?: RuntimeModel,
-  notes?: string[],
-): unknown {
-  const m: EffectiveModel = {
-    id: model?.id ?? '',
-    userSet: model?.reasoning === false ? ['reasoning'] : [],
-    sources: model ? ['user'] : [],
-    strict: false,
-    catalogVersion: '',
-    ...(model?.reasoning === false ? { reasoning: { control: 'none' as const } } : {}),
-    ...(model?.maxOutput ? { limits: { maxOutput: model.maxOutput } } : {}),
-  };
-  return renderReasoning(wire, body, intent, m, notes).body;
 }

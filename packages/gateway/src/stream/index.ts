@@ -1,6 +1,13 @@
 /**
  * 流式协议转换入口：上游 SSE 文本分片 → 下游 SSE 文本。
  */
+import {
+  EventFixer,
+  fixEvents,
+  fixesEnabled,
+  type ResponseFixOptions,
+} from '../models/rules/response/fixer';
+
 import { eventsToJson, type AggregateResult } from './aggregate';
 import { createDecoder } from './decoders';
 import {
@@ -10,7 +17,6 @@ import {
   ResponsesEncoder,
 } from './encoders';
 import type { NormEvent, StreamDecoder, StreamEncoder } from './events';
-import { EventFixer, fixEvents, fixesEnabled, type ResponseFixOptions } from './fixer';
 import { jsonToEvents } from './json';
 import { SseParser } from './sse';
 
@@ -133,4 +139,4 @@ export { SseParser, formatSse } from './sse';
 export type { NormEvent, StopReason, StreamUsage } from './events';
 export { mergeUsage } from './events';
 export { geminiErrorStatus } from './errors';
-export type { ResponseFixOptions, ResponseFixSwitches } from './fixer';
+export type { ResponseFixOptions, ResponseFixSwitches } from '../models/rules/response/fixer';

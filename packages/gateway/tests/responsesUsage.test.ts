@@ -1,13 +1,13 @@
 /**
- * Responses 入口的流式补全层（ResponsesUsagePatcher）：按事件输出，LF / CRLF 空行都认（#94）。
+ * Responses 入口的流式补全层（canonical/responses 的 ResponsesCanonicalizer，原 ResponsesUsagePatcher）：按事件输出，LF / CRLF 空行都认（#94）。
  */
 import { describe, expect, it } from 'vitest';
 
 import {
   completeResponsesBody,
-  RESPONSES_EVENTS,
-  ResponsesUsagePatcher,
-} from '../src/responsesUsage';
+  ResponsesCanonicalizer as ResponsesUsagePatcher,
+} from '../src/canonical/responses';
+import { RESPONSES_EVENTS } from '../src/spec/responses';
 
 const ev = (o: unknown, nl = '\n') => `event: x${nl}data: ${JSON.stringify(o)}${nl}${nl}`;
 const delta = {

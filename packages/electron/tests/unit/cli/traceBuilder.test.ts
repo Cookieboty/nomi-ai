@@ -1,9 +1,5 @@
-import {
-  buildTrace,
-  compactOldTraces,
-  MAX_TRACE_EVENTS,
-  stampEvent,
-} from '../../../src/cli/traceBuilder';
+import { buildTrace, compactOldTraces, MAX_TRACE_EVENTS, stampEvent } from '@nomi-ai/cli-sdk';
+
 import type { HarnessEvent } from '../../../src/cli/types';
 
 describe('traceBuilder', () => {

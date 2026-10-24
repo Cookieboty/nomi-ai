@@ -19,7 +19,7 @@ import { clientStatusOf } from '../src/errors';
 import { withBindingEffort } from '../src/intent';
 import { Limiter } from '../src/limits';
 import { BindingTable, hashTabToken, isTabToken, type TabBinding } from '../src/route/binding';
-import { mapBuiltinModel, resolveCandidates } from '../src/route/resolve';
+import { mapModel, resolveCandidates } from '../src/route/resolve';
 import { createGateway, type UsageEvent } from '../src/server';
 import { runGatewayWorker, type WorkerInbound, type WorkerOutbound } from '../src/worker';
 
@@ -53,7 +53,7 @@ describe('builtin model mapping read from client specs (unchanged behaviour)', (
   ];
   for (const [client, requested, want] of cases)
     it(`${client ?? 'legacy'}: ${requested || '(empty)'} → ${want}`, () => {
-      expect(mapBuiltinModel(client as never, m, requested)).toBe(want);
+      expect(mapModel(client as never, m, requested)?.ref ?? null).toBe(want);
     });
 
   it('legacy identity: same order as before (Messages → claude, then UA, then Gemini path)', () => {

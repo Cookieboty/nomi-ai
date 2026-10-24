@@ -7,13 +7,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { createGeminiMapper, permissionSummary, pickPermissionOption } from '@nomi-ai/cli-sdk';
+
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
 import { innermostMessage } from '../../../src/cli/gemini/acp';
-import {
-  createGeminiMapper,
-  permissionSummary,
-  pickPermissionOption,
-} from '../../../src/cli/gemini/geminiEvents';
 import { geminiModeId } from '../../../src/cli/permissionMode';
 import { TEST_GATEWAY_TOKEN, testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
