@@ -28,6 +28,18 @@ describe('内置插件契约（§9.1）', () => {
       expect(BUILTIN_RENDERER[id].id).toBe(id);
     });
 
+  it("modelSwitch 'gateway' 必须有占位模型名，且与网关客户端规格一致（§6.7）", async () => {
+    expect(BUILTIN_MANIFESTS.grok.modelSwitch).toBe('gateway');
+    const missing = await checkPlugin(BUILTIN_PLUGINS.grok, {
+      extend: (impl) => ({ ...impl, launch: { ...impl.launch, placeholderModel: undefined } }),
+    });
+    expect(missing).toContain("modelSwitch 'gateway' requires launch.placeholderModel");
+    const differ = await checkPlugin(BUILTIN_PLUGINS.grok, {
+      extend: (impl) => ({ ...impl, launch: { ...impl.launch, placeholderModel: 'other' } }),
+    });
+    expect(differ).toContain('launch.placeholderModel (other) differs from clientSpec (nomi)');
+  });
+
   it('生成的 id 列表是最新的', () => {
     const script = path.resolve(__dirname, '../scripts/gen-ids.mjs');
     expect(() => execFileSync(process.execPath, [script, '--check'])).not.toThrow();

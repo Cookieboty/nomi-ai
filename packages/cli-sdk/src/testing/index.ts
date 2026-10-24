@@ -90,6 +90,15 @@ export async function checkPlugin(plugin: CliPlugin, o: ContractOptions = {}): P
   need(caps.progressMonitor, impl.progress, 'progressMonitor (progress)');
   need(caps.usageQuota, impl.usage, 'usageQuota (usage)');
 
+  // gateway 方式换模型（§6.7）只给声明了占位模型名的插件：启动注入与网关客户端规格要用同一个名字
+  if (m.modelSwitch === 'gateway') {
+    const ph = impl.launch.placeholderModel;
+    if (!ph) problems.push("modelSwitch 'gateway' requires launch.placeholderModel");
+    const specPh = (m.clientSpec as { placeholderModel?: string } | undefined)?.placeholderModel;
+    if (ph && specPh !== undefined && specPh !== ph)
+      problems.push(`launch.placeholderModel (${ph}) differs from clientSpec (${specPh})`);
+  }
+
   // 权限档位：清单与实现一致；每档的启动注入确定
   const declared = (caps.permissionModes ?? []).map((p) => p.mode);
   if (declared.length) {
