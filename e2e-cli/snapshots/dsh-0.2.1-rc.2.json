@@ -1,0 +1,7 @@
+{
+  "cli": "dsh",
+  "version": "0.2.1-rc.2",
+  "wire": "responses",
+  "required": ["message.content"],
+  "toleratesUnknown": true
+}

@@ -17,6 +17,7 @@ export const TOKENS = {
   codex: 'nomi-gw-e2e-codex',
   grok: 'nomi-gw-e2e-grok',
   gemini: 'nomi-gw-e2e-gemini',
+  dsh: 'nomi-gw-e2e-dsh',
 } as const;
 
 export interface TestGateway {
@@ -55,6 +56,7 @@ export async function startGateway(
       codex: { token: TOKENS.codex, models: { main: `up/${model}` } },
       grok: { token: TOKENS.grok, models: { main: `up/${model}` } },
       gemini: { token: TOKENS.gemini, models: { main: `up/${model}` } },
+      dsh: { token: TOKENS.dsh, models: { main: `up/${model}` } },
     },
     allowedPrivateHosts: [up.hostPort],
   } as unknown as GatewayConfig;

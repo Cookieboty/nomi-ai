@@ -1,0 +1,7 @@
+{
+  "cli": "gemini",
+  "version": "0.65.0",
+  "wire": "gemini",
+  "required": ["candidate.content", "content.parts", "part.text", "response.candidates"],
+  "toleratesUnknown": true
+}
