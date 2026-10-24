@@ -314,7 +314,7 @@ export class DelegateService {
       ctx.signal?.removeEventListener('abort', onAbort);
     }
 
-    // 6) 汇报：解析 <nomi-report>，改动文件以 git status 核对
+    // 6) 汇报：解析 [nomi-report]，改动文件以 git status 核对
     const report = parseDelegateReport(text) ?? undefined;
     const after = before ? await gitChanged(cwd) : null;
     const git = after

@@ -212,6 +212,12 @@ const Agents: React.FC<{ v: DelegateView }> = ({ v }) => {
   );
 };
 
+/** 交给模型时包的 <cli-output> 边界与说明行去掉，只留编程助手的原话 */
+export function plainSummary(s: string): string {
+  const m = /^<cli-output>\n[^\n]*\n([\s\S]*)\n<\/cli-output>$/.exec(s.trim());
+  return (m ? m[1]! : s).trim();
+}
+
 /** 结束后的汇报 */
 const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
   const r = v.result;
@@ -268,6 +274,11 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
             </div>
           )}
         </>
+      ) : r.summary ? (
+        // 编程助手没按格式汇报：显示它最后的回复（去掉交给模型时加的边界说明）
+        <div className={styles.reportBody} data-testid="delegate-summary">
+          <Markdown text={plainSummary(r.summary)} settled />
+        </div>
       ) : null}
       {r.approvals.asked > 0 && (
         <div className={styles.muted}>
@@ -306,11 +317,12 @@ const DelegateDrawer: React.FC<{ v: DelegateView; onClose: () => void }> = ({ v,
       <Modal open onClose={onClose} title={`${name} · ${v.goal}`} data-testid="delegate-drawer">
         <div className={styles.drawer}>
           {(messages ?? []).map((m) => (
+            // 用户消息（任务说明）按原样换行显示；Markdown 会把单个换行合并成空格
             <div
               key={m.id}
               className={m.role === 'user' ? styles.drawerUser : styles.drawerAssistant}
             >
-              <Markdown text={m.content} settled />
+              {m.role === 'user' ? m.content : <Markdown text={m.content} settled />}
             </div>
           ))}
           {v.live?.text && (

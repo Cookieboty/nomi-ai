@@ -60,16 +60,16 @@ describe('delegate core', () => {
     expect(p).toContain('完成标准：npm test 通过');
     expect(p).toContain('不要碰：支付模块');
     expect(p).not.toContain('背景：');
-    expect(p.trimEnd().endsWith('</nomi-report>')).toBe(true);
+    expect(p.trimEnd().endsWith('[/nomi-report]')).toBe(true);
   });
 
-  it('解析最后一个 <nomi-report>：多行字段、「无」视为空、文件去掉列表符号', () => {
+  it('解析最后一个 [nomi-report]：多行字段、「无」视为空、文件去掉列表符号', () => {
     const text = [
       '先看了一下代码。',
-      '<nomi-report>',
+      '[nomi-report]',
       '做了什么：旧的',
-      '</nomi-report>',
-      '<nomi-report>',
+      '[/nomi-report]',
+      '[nomi-report]',
       '做了什么：修好了登录',
       '补了测试',
       '改动的文件：',
@@ -77,7 +77,7 @@ describe('delegate core', () => {
       '`tests/login.test.ts`',
       '没做完的：无',
       '需要用户决定的：要不要删旧接口',
-      '</nomi-report>',
+      '[/nomi-report]',
     ].join('\n');
     expect(parseDelegateReport(text)).toEqual({
       done: '修好了登录\n补了测试',
@@ -85,7 +85,7 @@ describe('delegate core', () => {
       needsUser: '要不要删旧接口',
     });
     expect(parseDelegateReport('没有汇报')).toBeNull();
-    expect(parseDelegateReport('<nomi-report>\n改动的文件：a.ts\n</nomi-report>')).toBeNull();
+    expect(parseDelegateReport('[nomi-report]\n改动的文件：a.ts\n[/nomi-report]')).toBeNull();
   });
 
   it('git status --porcelain：取路径，重命名取新路径', () => {

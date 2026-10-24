@@ -220,6 +220,7 @@
   gap: var(--cd-space-3);
 }
 .drawerUser {
+  white-space: pre-wrap;
   padding: var(--cd-space-2) var(--cd-space-3);
   border-radius: var(--cd-radius-lg);
   background: var(--cd-color-hover);

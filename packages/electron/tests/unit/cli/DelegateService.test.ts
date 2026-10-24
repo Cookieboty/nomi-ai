@@ -19,13 +19,13 @@ jest.mock('electron', () => ({
 type Decision = 'auto' | 'allowed' | 'denied' | 'timeout' | 'blocked';
 
 const REPORT = [
-  '<nomi-report>',
+  '[nomi-report]',
   '做了什么：修好了登录',
   '改动的文件：',
   'src/login.ts',
   '没做完的：无',
   '需要用户决定的：无',
-  '</nomi-report>',
+  '[/nomi-report]',
 ].join('\n');
 
 /** 编程助手服务与桌面能力的替身：只实现委派用到的方法 */

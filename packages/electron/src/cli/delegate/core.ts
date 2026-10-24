@@ -112,13 +112,13 @@ export function buildDelegatePrompt(b: DelegateBrief): string {
   if (b.outOfScope?.trim()) lines.push(`不要碰：${b.outOfScope.trim()}`);
   lines.push(
     '',
-    '做完后，最后一条回复只按下面的格式输出：',
-    '<nomi-report>',
+    '做完后，最后一条回复只按下面的格式输出（标记原样保留）：',
+    '[nomi-report]',
     '做了什么：…',
     '改动的文件：每行一个相对路径',
     '没做完的：…（没有就写「无」）',
     '需要用户决定的：…（没有就写「无」）',
-    '</nomi-report>',
+    '[/nomi-report]',
   );
   return lines.join('\n');
 }
@@ -139,9 +139,12 @@ const REPORT_KEYS: Array<[keyof DelegateReport, RegExp]> = [
 
 const NONE = /^(无|没有|none|n\/a|-)?[。.]?$/i;
 
-/** 解析最后一个 `<nomi-report>` 块；没有或缺「做了什么」时返回 null */
+/**
+ * 解析最后一个 `[nomi-report]` 块；没有或缺「做了什么」时返回 null。
+ * 用方括号而不用 `<nomi-report>`：对话界面的 Markdown 不渲染 HTML，尖括号标记会让整段汇报在标签里看不见。
+ */
 export function parseDelegateReport(text: string): DelegateReport | null {
-  const blocks = [...text.matchAll(/<nomi-report>([\s\S]*?)<\/nomi-report>/g)];
+  const blocks = [...text.matchAll(/\[nomi-report\]([\s\S]*?)\[\/nomi-report\]/g)];
   const body = blocks.at(-1)?.[1];
   if (!body) return null;
   const parts: Partial<Record<keyof DelegateReport, string[]>> = {};

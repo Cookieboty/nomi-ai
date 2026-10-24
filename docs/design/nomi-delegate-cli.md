@@ -124,16 +124,16 @@ interface DelegateResult {
 完成标准：{done_when}
 不要碰：{out_of_scope}
 
-做完后，最后一条回复只按下面的格式输出：
-<nomi-report>
+做完后，最后一条回复只按下面的格式输出（标记原样保留）：
+[nomi-report]
 做了什么：…
 改动的文件：每行一个相对路径
 没做完的：…（没有就写「无」）
 需要用户决定的：…（没有就写「无」）
-</nomi-report>
+[/nomi-report]
 ```
 
-`<nomi-report>` 块解析失败、或改动文件和 `git status` 对不上时，以 `git status` 为准，并在结果里注明。
+`[nomi-report]` 块解析失败、或改动文件和 `git status` 对不上时，以 `git status` 为准，并在结果里注明。
 
 ### 4.5 子任务怎么启动：编程助手的主会话 + 默认配置
 
@@ -392,6 +392,8 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 - **外部 CLI 暂不能委派**，只有内置的 Claude Code / Codex / Grok / Gemini / dsh。
 - **改动文件**：开工前后各取一次 `git status`，只算这次新出现的（开工前已改过的文件，只有编程助手汇报里提到才算）。
 - **停止子任务时未答复的审批**随这一轮一起作废（CLI 被中断、计时器清除），不单独回一个「拒绝」。
+- **汇报标记用 `[nomi-report]`** 而不是 `<nomi-report>`：对话界面的 Markdown 不渲染 HTML（`skipHtml`），
+  尖括号标记会让整段汇报在编程助手标签里看不见（真机 E2E 发现）。
 - **单独停止子代理**按插件能力位 `subagentStop` 判断（目前只有 Claude），不按名字。
 - `/cli` 钉住 10 分钟内有效，被下一次委派用掉即清除；`/cli 名字 需求` 与 `/cli 名字` 后再发消息走同一条路径
   （渲染层发送时把「下一个需求交给谁」钉到主进程）。

@@ -16,7 +16,8 @@
  *      NOMI_MOCK_CLAUDE_MODEL_ACK（set_model 的应答：缺省 success；error 负确认）,
  *      NOMI_MOCK_INTERRUPT（interrupt 的处理：缺省与真实 CLI 一致——应答后以 error_during_execution
  *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）,
- *      NOMI_MOCK_API_RETRY（先报 n 次 system/api_retry）, NOMI_MOCK_EXIT_MID（第一段正文后进程退出）
+ *      NOMI_MOCK_API_RETRY（先报 n 次 system/api_retry）, NOMI_MOCK_EXIT_MID（第一段正文后进程退出）,
+ *      NOMI_MOCK_PERMISSION_PROMPT（只有内容包含它的那一轮才请求权限）
  */
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -334,7 +335,12 @@ async function runOnce(_prompt) {
     pid: process.pid,
   });
 
-  if (process.env.NOMI_MOCK_ASK_PERMISSION === '1') {
+  // NOMI_MOCK_PERMISSION_PROMPT：只有内容包含它的那一轮才请求权限（常驻进程的环境变量启动后改不了）
+  const permMarker = process.env.NOMI_MOCK_PERMISSION_PROMPT;
+  if (
+    process.env.NOMI_MOCK_ASK_PERMISSION === '1' ||
+    (permMarker && String(_prompt ?? '').includes(permMarker))
+  ) {
     const reqId = process.env.NOMI_MOCK_PERMISSION_ID || 'mock-perm-1';
     emit({
       type: 'control_request',
