@@ -1,8 +1,11 @@
 /**
  * 上游 SSE → 中间事件。
  * 覆盖：OpenAI Chat Completions、OpenAI Responses、Gemini streamGenerateContent(alt=sse)、Anthropic Messages。
+ * 解码器只做协议翻译，假定输入是规范事件流（§6.4）：createDecoder 先接上解码前的规范化
+ * （canonical/upstream.ts：Chat 字段归一、Responses 保活 / 非规范事件、只给完整条目的展开）。
+ * 直接 new 各个类的调用方（用量旁路）只读用量，不依赖这些。
  */
-import { isResponsesKeepAlive } from '../canonical/responses';
+import { createUpstreamCanonicalizer } from '../canonical/upstream';
 import { GEMINI_FAILED_FINISH } from '../spec/gemini';
 
 import {
@@ -48,6 +51,14 @@ abstract class BaseDecoder implements StreamDecoder {
   protected usage: StreamUsage = {};
   /** 当前是否处在一段推理里（用于在推理与正文 / 工具之间切换时补 think_start） */
   protected thinking = false;
+
+  /** seed：这一轮的工具调用 id 种子（§6.9.7，按对话历史派生）；空 = 只按序号 */
+  constructor(protected readonly seed = '') {}
+
+  /** 上游没给工具调用 id 时的确定性 id */
+  protected fallbackId(prefix: string, key: string): string {
+    return this.seed ? `${prefix}_${this.seed}_${key}` : `${prefix}_${key}`;
+  }
 
   protected think(out: NormEvent[], text: string, id?: string) {
     if (!this.thinking) {
@@ -127,24 +138,6 @@ function chatFinish(r: unknown): StopReason | null {
   }
 }
 
-/** Chat 的 content 也可能是数组（Mistral 等）：拆成正文与思考 */
-function chatContent(c: unknown): { text: string; think: string } {
-  if (typeof c === 'string') return { text: c, think: '' };
-  if (!Array.isArray(c)) return { text: '', think: '' };
-  let text = '';
-  let think = '';
-  for (const p of c as unknown[]) {
-    const o = asObj(p);
-    if (o.type === 'text' && typeof o.text === 'string') text += o.text;
-    else if (o.type === 'thinking') {
-      const t = o.thinking;
-      if (typeof t === 'string') think += t;
-      else if (Array.isArray(t)) think += chatContent(t).text;
-    }
-  }
-  return { text, think };
-}
-
 export class ChatCompletionsDecoder extends BaseDecoder {
   /** 已开始的工具调用：key → 调用 id */
   private tools = new Map<string, string>();
@@ -182,24 +175,23 @@ export class ChatCompletionsDecoder extends BaseDecoder {
     const c = choices[0];
     if (!c) return;
     const delta = asObj(c.delta);
-    const content = chatContent(delta.content);
     // DeepSeek / Kimi / GLM 等的思考文本（字段名各家不一）
     const reasoning =
       typeof delta.reasoning_content === 'string'
         ? delta.reasoning_content
         : typeof delta.reasoning === 'string'
           ? delta.reasoning
-          : content.think;
+          : '';
     if (reasoning) this.think(out, reasoning);
-    if (content.text) {
+    if (typeof delta.content === 'string' && delta.content) {
       this.thinking = false;
-      out.push({ type: 'text', text: content.text });
+      out.push({ type: 'text', text: delta.content });
     }
     const calls = Array.isArray(delta.tool_calls) ? (delta.tool_calls as Obj[]) : [];
-    for (const [i, tc] of calls.entries()) {
-      // 不带 index 的上游：按在这一块里的位置；同一 index 出现了新的调用 id 并带着工具名，
-      // 就是另一个调用（只换 id 不带名字的不算：有的上游每个分片都发一个新 id）
-      const index = String(tc.index ?? i);
+    for (const tc of calls) {
+      // 同一 index 出现了新的调用 id 并带着工具名，就是另一个调用
+      // （只换 id 不带名字的不算：有的上游每个分片都发一个新 id）
+      const index = String(tc.index);
       const id = typeof tc.id === 'string' && tc.id ? tc.id : '';
       const fn = asObj(tc.function);
       let key = this.slot.get(index);
@@ -215,18 +207,12 @@ export class ChatCompletionsDecoder extends BaseDecoder {
         out.push({
           type: 'tool_start',
           key,
-          id: id || `call_${key}`,
+          id: id || this.fallbackId('call', key),
           name: String(fn.name ?? ''),
         });
       }
-      // 少数上游把参数给成对象而不是 JSON 字符串
-      const args =
-        typeof fn.arguments === 'string'
-          ? fn.arguments
-          : fn.arguments && typeof fn.arguments === 'object'
-            ? JSON.stringify(fn.arguments)
-            : '';
-      if (args) out.push({ type: 'tool_args', key, delta: args });
+      if (typeof fn.arguments === 'string' && fn.arguments)
+        out.push({ type: 'tool_args', key, delta: fn.arguments });
     }
     const r = chatFinish(c.finish_reason);
     if (r) this.pendingReason = r;
@@ -235,67 +221,9 @@ export class ChatCompletionsDecoder extends BaseDecoder {
 
 /* -------------------------------- Responses ------------------------------- */
 
-/** message 条目里的完整正文（output_text / refusal 部分） */
-function responsesItemText(item: Obj): string {
-  const parts = Array.isArray(item.content) ? (item.content as unknown[]) : [];
-  return parts
-    .map((p) => {
-      const o = asObj(p);
-      if (o.type === 'output_text' && typeof o.text === 'string') return o.text;
-      if (o.type === 'refusal' && typeof o.refusal === 'string') return o.refusal;
-      return '';
-    })
-    .join('');
-}
-
 export class ResponsesDecoder extends BaseDecoder {
   /** output_index / item_id → key */
   private toolKeys = new Map<string, string>();
-  /** 上游按增量发过正文：之后不再从完整条目补发正文（增量与条目 id 未必对得上） */
-  private streamedText = false;
-  /** 已经整条补发过的条目，完成事件里不再重复发 */
-  private emitted = new Set<string>();
-
-  /**
-   * 有些中转站不发增量事件，只在 output_item.done / response.completed 里给完整条目：
-   * 这些条目还没发过时整条补发，否则客户端收到的是空回复。
-   */
-  private emitWhole(item: Obj, out: NormEvent[]) {
-    const id = typeof item.id === 'string' ? item.id : '';
-    if (item.type === 'message') {
-      if (this.streamedText || (id && this.emitted.has(id))) return;
-      const text = responsesItemText(item);
-      if (id) this.emitted.add(id);
-      if (!text) return;
-      this.start(out);
-      this.thinking = false;
-      out.push({ type: 'text', text });
-      return;
-    }
-    if (item.type !== 'function_call') return;
-    const key = id || String(item.call_id ?? '');
-    // 上游按增量发过工具调用：条目 id 未必对得上号，不补发
-    if (!key || this.toolKeys.size || this.emitted.has(key)) return;
-    this.emitted.add(key);
-    this.start(out);
-    this.thinking = false;
-    this.sawTool = true;
-    out.push({
-      type: 'tool_start',
-      key,
-      id: String(item.call_id ?? key),
-      name: String(item.name ?? ''),
-    });
-    if (typeof item.arguments === 'string' && item.arguments)
-      out.push({ type: 'tool_args', key, delta: item.arguments });
-    out.push({ type: 'tool_end', key });
-  }
-
-  /** 完成事件里的 output：还没发过的条目补发 */
-  private emitOutput(resp: Obj, out: NormEvent[]) {
-    if (!Array.isArray(resp.output)) return;
-    for (const it of resp.output as unknown[]) this.emitWhole(asObj(it), out);
-  }
 
   private keyFor(j: Obj): string | undefined {
     if (typeof j.item_id === 'string' && this.toolKeys.has(j.item_id)) {
@@ -321,7 +249,7 @@ export class ResponsesDecoder extends BaseDecoder {
 
   protected handle(ev: { event?: string; data: string }, out: NormEvent[]) {
     const j = parseJson(ev.data);
-    if (!j || isResponsesKeepAlive(j)) return;
+    if (!j) return;
     const type = String(j.type ?? ev.event ?? '');
     switch (type) {
       case 'response.created':
@@ -339,10 +267,7 @@ export class ResponsesDecoder extends BaseDecoder {
       case 'response.refusal.delta': {
         this.start(out);
         this.thinking = false;
-        if (typeof j.delta === 'string' && j.delta) {
-          this.streamedText = true;
-          out.push({ type: 'text', text: j.delta });
-        }
+        if (typeof j.delta === 'string' && j.delta) out.push({ type: 'text', text: j.delta });
         return;
       }
       case 'response.reasoning_summary_text.delta':
@@ -392,27 +317,20 @@ export class ResponsesDecoder extends BaseDecoder {
             out.push({ type: 'sealed', by: 'responses', raw: item });
           return;
         }
-        if (type === 'response.output_item.done' && item.type === 'message') {
-          this.emitWhole(item, out);
-          return;
-        }
         if (type === 'response.output_item.done' && item.type !== 'function_call') return;
         const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
         if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
-        else if (type === 'response.output_item.done') this.emitWhole(item, out);
         return;
       }
       case 'response.completed': {
         const r = asObj(j.response);
         this.readUsage(r);
-        this.emitOutput(r, out);
         this.finish(out);
         return;
       }
       case 'response.incomplete': {
         const r = asObj(j.response);
         this.readUsage(r);
-        this.emitOutput(r, out);
         const reason = asObj(r.incomplete_details).reason;
         this.finish(out, reason === 'max_output_tokens' ? 'max_tokens' : undefined);
         return;
@@ -498,7 +416,7 @@ export class GeminiDecoder extends BaseDecoder {
         out.push({
           type: 'tool_start',
           key,
-          id: typeof fc.id === 'string' && fc.id ? fc.id : `call_gemini_${key}`,
+          id: typeof fc.id === 'string' && fc.id ? fc.id : this.fallbackId('call_gemini', key),
           name: String(fc.name ?? ''),
         });
         out.push({ type: 'tool_args', key, delta: JSON.stringify(fc.args ?? {}) });
@@ -578,7 +496,7 @@ export class MessagesDecoder extends BaseDecoder {
           out.push({
             type: 'tool_start',
             key,
-            id: String(b.id ?? `toolu_${key}`),
+            id: String(b.id ?? this.fallbackId('toolu', key)),
             name: String(b.name ?? ''),
           });
           const input = asObj(b.input);
@@ -648,16 +566,38 @@ export class MessagesDecoder extends BaseDecoder {
   }
 }
 
-/** 按上游协议建解码器 */
-export function createDecoder(wire: 'chat' | 'responses' | 'gemini' | 'messages'): StreamDecoder {
+type DecoderWire = 'chat' | 'responses' | 'gemini' | 'messages';
+
+function pureDecoder(wire: DecoderWire, seed: string): StreamDecoder {
   switch (wire) {
     case 'chat':
-      return new ChatCompletionsDecoder();
+      return new ChatCompletionsDecoder(seed);
     case 'responses':
-      return new ResponsesDecoder();
+      return new ResponsesDecoder(seed);
     case 'gemini':
-      return new GeminiDecoder();
+      return new GeminiDecoder(seed);
     case 'messages':
-      return new MessagesDecoder();
+      return new MessagesDecoder(seed);
   }
+}
+
+/**
+ * 按上游协议建解码器：先过解码前的规范化（canonical/upstream.ts），再做纯协议翻译。
+ * seed：工具调用 id 的种子（§6.9.7）。
+ */
+export function createDecoder(wire: DecoderWire, opts: { seed?: string } = {}): StreamDecoder {
+  const dec = pureDecoder(wire, opts.seed ?? '');
+  const canon = createUpstreamCanonicalizer(wire);
+  if (!canon) return dec;
+  return {
+    push(ev) {
+      const out: NormEvent[] = [];
+      for (const e of canon.push(ev)) out.push(...dec.push(e));
+      return out;
+    },
+    end: () => dec.end(),
+    get terminated() {
+      return dec.terminated;
+    },
+  };
 }

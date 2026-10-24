@@ -135,6 +135,11 @@ export type JsonBridgeOutput =
 /**
  * 上游非流式 JSON → 入口协议。跨协议与「要流式」都展开成 NormEvent（jsonToEvents），经同一套结构修复
  * （EventFixer）再聚合 / 编码；同协议透传只做规范补全（Responses）与 Chat 的结构修复，没修正时正文原样。
+ *
+ * 同协议的非流式正文**不**展开成事件：展开再聚合会丢掉上游的未知字段（`system_fingerprint`、
+ * 供应商私有的 `x_*`、Responses 的 `metadata` / `tools` 回显等），字段顺序与数字格式也会变，做不到
+ * 「没修正时字节一致」（§6.5 的承诺）。所以这条路径保持直通：Chat 的结构修复走 patchChatJson
+ * （与流式同一份规则，models/rules/response/rules.ts），Responses 只补必填字段。
  */
 export function bridgeJson(
   plan: BridgePlan,

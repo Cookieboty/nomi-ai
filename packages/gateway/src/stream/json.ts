@@ -24,6 +24,10 @@ function num(v: unknown): number | undefined {
 function defined<K extends string>(k: K, v: number | undefined): Partial<Record<K, number>> {
   return v === undefined ? {} : ({ [k]: v } as Record<K, number>);
 }
+/** 上游没给工具调用 id 时的确定性 id（§6.9.7；与流式解码器同一规则） */
+function fid(seed: string, prefix: string, key: string | number): string {
+  return seed ? `${prefix}_${seed}_${key}` : `${prefix}_${key}`;
+}
 function argsString(v: unknown): string {
   if (typeof v === 'string') return v;
   return JSON.stringify(v ?? {});
@@ -40,7 +44,7 @@ function errorEvents(e: unknown, fallbackType: string): NormEvent[] {
   ];
 }
 
-function chatJson(j: Obj): NormEvent[] {
+function chatJson(j: Obj, seed: string): NormEvent[] {
   if (j.error) return errorEvents(j.error, 'api_error');
   const out: NormEvent[] = [];
   const u = asObj(j.usage);
@@ -59,7 +63,12 @@ function chatJson(j: Obj): NormEvent[] {
   asArr(msg.tool_calls).forEach((tc, i) => {
     const fn = asObj(tc.function);
     const key = String(i);
-    out.push({ type: 'tool_start', key, id: str(tc.id) || `call_${i}`, name: str(fn.name) });
+    out.push({
+      type: 'tool_start',
+      key,
+      id: str(tc.id) || fid(seed, 'call', i),
+      name: str(fn.name),
+    });
     out.push({ type: 'tool_args', key, delta: argsString(fn.arguments) });
     out.push({ type: 'tool_end', key });
   });
@@ -119,7 +128,7 @@ function responsesJson(j: Obj): NormEvent[] {
   return out;
 }
 
-function geminiJson(j: Obj): NormEvent[] {
+function geminiJson(j: Obj, seed: string): NormEvent[] {
   if (j.error) return errorEvents(j.error, 'api_error');
   const out: NormEvent[] = [];
   const um = asObj(j.usageMetadata);
@@ -166,7 +175,7 @@ function geminiJson(j: Obj): NormEvent[] {
       out.push({
         type: 'tool_start',
         key,
-        id: str(fc.id) || `call_gemini_${key}`,
+        id: str(fc.id) || fid(seed, 'call_gemini', key),
         name: str(fc.name),
       });
       out.push({ type: 'tool_args', key, delta: argsString(fc.args) });
@@ -213,15 +222,15 @@ function messagesJson(j: Obj): NormEvent[] {
   return out;
 }
 
-export function jsonToEvents(from: UpstreamStreamFormat, body: unknown): NormEvent[] {
+export function jsonToEvents(from: UpstreamStreamFormat, body: unknown, seed = ''): NormEvent[] {
   const j = asObj(body);
   switch (from) {
     case 'chat':
-      return chatJson(j);
+      return chatJson(j, seed);
     case 'responses':
       return responsesJson(j);
     case 'gemini':
-      return geminiJson(j);
+      return geminiJson(j, seed);
     case 'messages':
       return messagesJson(j);
   }

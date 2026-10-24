@@ -3,24 +3,20 @@
  * 按 SSE 事件逐个处理：没有触发任何修正的事件原样输出（字节不变），触发了才重新序列化。
  * - Chat 字段归一（规范化层 canonical/chat.ts）：空 reasoning、finish_reason ""、空 tool_calls、
  *   缺 index、对象形式的 arguments、数组形式的 content、重复的工具名；
- * - 工具名还原（§12.7.3）；
- * - 正文里写出的工具调用：从标记起扣住正文，在 finish_reason 那一块之前补发正文剩余与 tool_calls；
- * - 复读检测：发 `data: {"error":…}` 与 [DONE] 后停止。
+ * - 结构修复（工具名还原、正文里写出的工具调用、复读检测）只调用 models/rules/response 的同一份规则，
+ *   这里只负责把 Chat 分片喂进去、把结果写回 Chat 分片：正文里的工具调用从标记起扣住正文，
+ *   在 finish_reason 那一块之前补发正文剩余与 tool_calls；复读时发 `data: {"error":…}` 与 [DONE] 后停止。
  */
 import { ChatChunkNormalizer } from '../canonical/chat';
-
+import { REPETITION_MESSAGE } from '../models/rules/response/repetition';
 import {
-  CallIds,
   addNote,
+  extractTextCalls,
   NOTE_CHAT_STREAM,
-  NOTE_REPETITION,
-  NOTE_TEXT_TOOLS,
-  NOTE_TOOL_NAMES,
-  toolResolver,
+  ResponseRules,
+  restoreToolName,
   type ResponseFixOptions,
-} from './fixer';
-import { REPETITION_MESSAGE, RepetitionGuard } from './repetition';
-import { TextToolExtractor } from './textTools';
+} from '../models/rules/response/rules';
 
 type Obj = Record<string, unknown>;
 
@@ -33,24 +29,17 @@ export interface ChatPatchOptions extends ResponseFixOptions {
 
 export class ChatStreamPatcher {
   private buf = '';
-  private readonly guard: RepetitionGuard | null;
-  private readonly extractor: TextToolExtractor | null;
+  private readonly rules: ResponseRules;
   /** 已开始的工具调用：index → 工具名 */
   private readonly tools = new Map<number, string>();
   /** 合成分片用的 id / model / created */
   private template: Obj = {};
   /** 字段归一（规范化层，§6.4） */
   private readonly norm = new ChatChunkNormalizer();
-  /** 正文里识别出的工具调用的 id */
-  private readonly ids: CallIds;
   stopped = false;
 
   constructor(private readonly o: ChatPatchOptions = {}) {
-    this.ids = o.callIds ?? new CallIds();
-    this.guard = o.repetition ? new RepetitionGuard() : null;
-    this.extractor = o.textTools?.size
-      ? new TextToolExtractor(toolResolver(o.textTools, o.toolNames))
-      : null;
+    this.rules = new ResponseRules(o);
   }
 
   push(text: string): string {
@@ -120,7 +109,7 @@ export class ChatStreamPatcher {
           : typeof delta.reasoning === 'string'
             ? delta.reasoning
             : '';
-      if (reasoning && this.guard?.push('think', reasoning)) return this.trip();
+      if (reasoning && this.rules.reasoning(reasoning)) return this.trip();
       if (Array.isArray(delta.tool_calls)) {
         for (const tc of delta.tool_calls) {
           if (!isObj(tc) || !isObj(tc.function)) continue;
@@ -129,27 +118,24 @@ export class ChatStreamPatcher {
           if (this.tools.has(idx)) continue;
           const name = typeof fn.name === 'string' ? fn.name : '';
           if (!name) continue;
-          const orig = this.o.toolNames?.get(name);
+          const orig = this.rules.toolName(name);
           if (orig) {
             fn.name = orig;
             res.changed = true;
-            addNote(this.o.notes, NOTE_TOOL_NAMES);
           }
           this.tools.set(idx, name);
-          // 模型已经在用真正的 tool_calls：缓存的正文原样补发（不再转换，避免和上游的 index 冲突）
-          const raw = this.extractor?.active ? this.extractor.raw() : '';
+          // 模型已经在用真正的 tool_calls：扣住的正文原样补发（不再转换，避免和上游的 index 冲突）
+          const raw = this.rules.releaseRaw();
           if (raw) res.prefix += this.chunk({ content: raw });
         }
       }
       if (typeof delta.content === 'string' && delta.content) {
-        if (this.guard?.push('text', delta.content)) return this.trip();
-        if (this.extractor) {
-          const t = this.extractor.push(delta.content);
-          if (t !== delta.content) {
-            res.changed = true;
-            if (t) delta.content = t;
-            else delete delta.content;
-          }
+        const t = this.rules.text(delta.content);
+        if (t === null) return this.trip();
+        if (t !== delta.content) {
+          res.changed = true;
+          if (t) delta.content = t;
+          else delete delta.content;
         }
       }
     }
@@ -180,7 +166,6 @@ export class ChatStreamPatcher {
 
   private trip() {
     this.stopped = true;
-    addNote(this.o.notes, NOTE_REPETITION);
     const text =
       this.data({ error: { message: REPETITION_MESSAGE, type: 'api_error' } }) +
       this.data('[DONE]');
@@ -191,29 +176,25 @@ export class ChatStreamPatcher {
     return this.data({ ...this.template, choices: [{ index: 0, delta, finish_reason: null }] });
   }
 
-  /** 缓存的正文 → 正文分片 + tool_calls 分片 */
+  /** 扣住的正文 → 正文分片 + tool_calls 分片 */
   private flushChunks(): { text: string; calls: number } {
-    if (!this.extractor?.active) return { text: '', calls: 0 };
-    const r = this.extractor.flush();
-    const chunk = (delta: Obj) => this.chunk(delta);
-    let text = r.text ? chunk({ content: r.text }) : '';
-    if (r.calls.length) {
-      let index = this.tools.size ? Math.max(...this.tools.keys()) + 1 : 0;
-      for (const call of r.calls) {
-        this.tools.set(index, call.name);
-        text += chunk({
-          tool_calls: [
-            {
-              index,
-              id: this.ids.next(),
-              type: 'function',
-              function: { name: call.name, arguments: call.args },
-            },
-          ],
-        });
-        index++;
-      }
-      addNote(this.o.notes, NOTE_TEXT_TOOLS);
+    if (!this.rules.holding) return { text: '', calls: 0 };
+    const r = this.rules.flush();
+    let text = r.text ? this.chunk({ content: r.text }) : '';
+    let index = this.tools.size ? Math.max(...this.tools.keys()) + 1 : 0;
+    for (const call of r.calls) {
+      this.tools.set(index, call.name);
+      text += this.chunk({
+        tool_calls: [
+          {
+            index,
+            id: call.id,
+            type: 'function',
+            function: { name: call.name, arguments: call.args },
+          },
+        ],
+      });
+      index++;
     }
     return { text, calls: r.calls.length };
   }
@@ -224,7 +205,6 @@ export class ChatStreamPatcher {
  */
 export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
   if (!isObj(body) || !Array.isArray(body.choices)) return body;
-  const ids = o.callIds ?? new CallIds();
   let changed = false;
   const choices = body.choices.map((c) => {
     if (!isObj(c) || !isObj(c.message)) return c;
@@ -233,35 +213,28 @@ export function patchChatJson(body: unknown, o: ResponseFixOptions): unknown {
     if (Array.isArray(msg.tool_calls) && o.toolNames?.size) {
       const calls = msg.tool_calls.map((tc) => {
         if (!isObj(tc) || !isObj(tc.function) || typeof tc.function.name !== 'string') return tc;
-        const orig = o.toolNames!.get(tc.function.name);
+        const orig = restoreToolName(tc.function.name, o);
         return orig ? { ...tc, function: { ...tc.function, name: orig } } : tc;
       });
-      if (calls.some((x, i) => x !== (msg.tool_calls as unknown[])[i])) {
+      if (calls.some((x, i) => x !== (msg.tool_calls as unknown[])[i]))
         msg = { ...msg, tool_calls: calls };
-        addNote(o.notes, NOTE_TOOL_NAMES);
-      }
     }
-    if (o.textTools?.size && typeof msg.content === 'string' && msg.content) {
-      const ex = new TextToolExtractor(toolResolver(o.textTools, o.toolNames));
-      const head = ex.push(msg.content);
-      const r = ex.flush();
-      if (r.calls.length) {
-        const prev = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
-        msg = {
-          ...msg,
-          content: (head + r.text).replace(/\s+$/, '') || null,
-          tool_calls: [
-            ...prev,
-            ...r.calls.map((call) => ({
-              id: ids.next(),
-              type: 'function',
-              function: { name: call.name, arguments: call.args },
-            })),
-          ],
-        };
-        if (finish === 'stop' || !finish) finish = 'tool_calls';
-        addNote(o.notes, NOTE_TEXT_TOOLS);
-      }
+    const found = typeof msg.content === 'string' ? extractTextCalls(msg.content, o) : null;
+    if (found) {
+      const prev = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+      msg = {
+        ...msg,
+        content: found.text.replace(/\s+$/, '') || null,
+        tool_calls: [
+          ...prev,
+          ...found.calls.map((call) => ({
+            id: call.id,
+            type: 'function',
+            function: { name: call.name, arguments: call.args },
+          })),
+        ],
+      };
+      if (finish === 'stop' || !finish) finish = 'tool_calls';
     }
     if (msg === c.message) return c;
     changed = true;

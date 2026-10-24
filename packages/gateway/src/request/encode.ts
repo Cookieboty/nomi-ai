@@ -3,8 +3,10 @@
  * 推理参数（reasoning）与签名 / 加密推理的去留由上游能力和会话归属决定（§9.3、§12.7），
  * 这里只按协议能表达的内容编码：Chat / Responses / Gemini 不下发历史推理（Chat 在厂商要求时写回
  * reasoning_content），Messages 只保留带签名的。
+ * 历史里的工具调用 id 按上游协议的格式改写（Messages 的字符集、Chat 的长度，§6.9.7），调用与结果同一规则。
  */
 import type { IRMessage, IRPart, IRRequest, IRToolChoice } from '../ir';
+import { callIdForWire } from '../models/rules/response/callIds';
 import { argsObject, DEFAULT_MAX_TOKENS, toDataUrl, type Json } from '../util';
 
 function systemJoined(ir: IRRequest, sep: string): string {
@@ -42,7 +44,7 @@ export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = 
       const toolCalls: Json[] = m.parts
         .filter((p) => p.kind === 'tool_call')
         .map((p) => ({
-          id: p.id ?? '',
+          id: callIdForWire('chat', p.id ?? ''),
           type: 'function',
           function: { name: p.name ?? '', arguments: p.args ?? '{}' },
         }));
@@ -65,7 +67,7 @@ export function encodeChat(ir: IRRequest, model?: string, opts: EncodeOptions = 
       if (p.kind === 'tool_result') {
         messages.push({
           role: 'tool',
-          tool_call_id: p.callId ?? '',
+          tool_call_id: callIdForWire('chat', p.callId ?? ''),
           content: p.text || '(no output)',
         });
         extraImages.push(...(p.images ?? []));
@@ -285,12 +287,17 @@ function anthropicBlock(p: IRPart): Json | null {
     case 'image':
       return anthropicImage(p);
     case 'tool_call':
-      return { type: 'tool_use', id: p.id ?? '', name: p.name ?? '', input: argsObject(p.args) };
+      return {
+        type: 'tool_use',
+        id: callIdForWire('messages', p.id ?? ''),
+        name: p.name ?? '',
+        input: argsObject(p.args),
+      };
     case 'tool_result': {
       const images = (p.images ?? []).map(anthropicImage);
       return {
         type: 'tool_result',
-        tool_use_id: p.callId ?? '',
+        tool_use_id: callIdForWire('messages', p.callId ?? ''),
         content: images.length
           ? [...(p.text ? [{ type: 'text', text: p.text }] : []), ...images]
           : (p.text ?? ''),

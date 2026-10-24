@@ -46,7 +46,11 @@ export class ChatChunkNormalizer {
         const f = flatten(delta.content);
         if (f.text) delta.content = f.text;
         else delete delta.content;
-        if (f.think && typeof delta.reasoning_content !== 'string')
+        if (
+          f.think &&
+          typeof delta.reasoning_content !== 'string' &&
+          typeof delta.reasoning !== 'string'
+        )
           delta.reasoning_content = f.think;
         touched = true;
       }

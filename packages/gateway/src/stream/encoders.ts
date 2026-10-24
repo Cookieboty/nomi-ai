@@ -1,7 +1,11 @@
 /**
  * 中间事件 → 下游 CLI 期望的 SSE。
  * Messages（Claude Code 原生）、Responses（Codex 原生）、Chat Completions（Codex chat 入口）。
+ * 工具调用 id 按入口协议的格式写（Messages 的 tool_use.id 只接受 [A-Za-z0-9_-]，§6.9.7），
+ * Responses 的条目 id 由 call_id 确定地派生（不随机），历史逐字节一致。
  */
+import { escapeCallId } from '../models/rules/response/callIds';
+
 import { customToolInput } from './aggregate';
 import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamEncoder, StreamUsage } from './events';
@@ -31,7 +35,7 @@ export class MessagesEncoder implements StreamEncoder {
         content_block:
           b.kind === 'text'
             ? { type: 'text', text: '' }
-            : { type: 'tool_use', id: b.id, name: b.name, input: {} },
+            : { type: 'tool_use', id: escapeCallId(b.id ?? ''), name: b.name, input: {} },
       });
     },
     delta: (b, d) =>
@@ -175,7 +179,9 @@ export class ResponsesEncoder implements StreamEncoder {
           const custom = this.customTools.has(b.name ?? '');
           it = {
             type: custom ? 'custom_tool_call' : 'function_call',
-            id: rid(custom ? 'ctc' : 'fc'),
+            id: b.id
+              ? `${custom ? 'ctc' : 'fc'}_${escapeCallId(b.id)}`
+              : rid(custom ? 'ctc' : 'fc'),
             call_id: b.id ?? '',
             name: b.name ?? '',
             arguments: '',
