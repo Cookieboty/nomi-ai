@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { AcpDriver, AppServerDriver, StreamJsonDriver, type TurnResult } from '@nomi-ai/cli-sdk';
 import { BrowserWindow, dialog } from 'electron';
 
 import { traceCliChild } from '../diagnostics/cliTrace';
@@ -25,15 +26,7 @@ import { writePrivateFile } from '../utils/privateFile';
 
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
-import {
-  codexApprovalSummary,
-  codexExecItem,
-  codexLastContext,
-  codexTokenTotals,
-  codexTurnPolicy,
-  codexTurnUsage,
-  type CodexTokenTotals,
-} from './codex/appServer';
+import { codexExecItem, codexTurnPolicy } from './codex/appServer';
 import { codexConfigPath, grokHomePath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import {
@@ -45,8 +38,7 @@ import {
   withCliPath,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
-import { AcpConnection, innermostMessage } from './gemini/acp';
-import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
+import { acpTimeoutMessage, innermostMessage } from './gemini/acp';
 import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
 import {
   type GeminiTrustResult,
@@ -1371,29 +1363,27 @@ export class CliHarnessService {
   /** Gemini / Grok 长驻会话即时切换：session/set_mode 成功后才更新已生效档位 */
   private switchAcpMode(id: string, gl: AcpLiveSession, mode: HarnessPermissionMode) {
     const change: ModeChange = { mode, done: Promise.resolve() };
-    change.done = gl.conn
-      .request('session/set_mode', { sessionId: gl.sessionId, modeId: acpModeId(gl.backend, mode) })
-      .then(
-        () => {
-          if (this.acpLive.get(id) === gl) gl.permissionMode = mode;
-          if (gl.modeChange === change) gl.modeChange = null;
-        },
-        (e: unknown) => {
-          if (gl.modeChange !== change) return;
-          gl.modeChange = null;
-          // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
-          if (this.acpLive.get(id) === gl) this.teardownAcpLive(id);
-          const why = innermostMessage(e instanceof Error ? e.message : String(e));
-          throw new Error(
-            gl.backend === 'grok'
-              ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
-              : t(
-                  'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
-                  why,
-                ),
-          );
-        },
-      );
+    change.done = gl.driver.setPermissionMode(acpModeId(gl.backend, mode)).then(
+      () => {
+        if (this.acpLive.get(id) === gl) gl.permissionMode = mode;
+        if (gl.modeChange === change) gl.modeChange = null;
+      },
+      (e: unknown) => {
+        if (gl.modeChange !== change) return;
+        gl.modeChange = null;
+        // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
+        if (this.acpLive.get(id) === gl) this.teardownAcpLive(id);
+        const why = innermostMessage(e instanceof Error ? e.message : String(e));
+        throw new Error(
+          gl.backend === 'grok'
+            ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
+            : t(
+                'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
+                why,
+              ),
+        );
+      },
+    );
     gl.modeChange = change;
     change.done.catch(() => undefined);
   }
@@ -2392,15 +2382,33 @@ export class CliHarnessService {
       env: this.childEnv(useNode, launch),
       tabId: tab.id,
     });
+    // stdin / stdout 与 control_request ↔ control_response 交给 cli-sdk 的 stream-json 驱动；
+    // 轮次归属（回显、自发轮次、后台任务）仍由这里按行处理
+    let onLine: (line: string, final: boolean) => void = () => undefined;
+    const driver = new StreamJsonDriver({
+      child,
+      parseLine: () => [],
+      onLine: (line, o) => {
+        onLine(line, o.final);
+        return true;
+      },
+      controlTimeoutMs: this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS,
+      messages: {
+        timeout: t('超时'),
+        notWritable: t('Claude 进程 stdin 不可写'),
+        exited: t('进程已结束'),
+        rejected: t('后端拒绝了请求'),
+      },
+      kill: killProcessTree,
+    });
     const live: ClaudeLiveSession = {
       child,
+      driver,
       parseLine: createClaudeParser(),
-      buf: '',
       turn: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
       modeChange: null,
-      controls: new Map(),
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
       launchSig: launch.sig,
@@ -2416,12 +2424,8 @@ export class CliHarnessService {
     this.dormant.delete(tab.id);
     this.startIdleSweep();
 
-    child.stdout.on('data', (chunk: Buffer) => {
-      live.buf += chunk.toString('utf8');
-      const parts = live.buf.split(/\r?\n/);
-      live.buf = parts.pop() ?? '';
-      for (const line of parts) this.onClaudeLine(tab.id, live, line, true);
-    });
+    // 进程退出时缓冲区里剩下的半行：照常解析，但不实时推给界面
+    onLine = (line, final) => this.onClaudeLine(tab.id, live, line, !final);
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness claude stderr', String(c).slice(0, 500));
     });
@@ -2431,18 +2435,15 @@ export class CliHarnessService {
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
-      this.failClaudeControls(live);
       turn?.reject(e);
     });
+    // 驱动先处理 close（解析最后半行、让在途的 control_request 失败），再到这里结算这一轮
     child.on('close', (code, signal) => {
-      if (live.buf.trim()) this.onClaudeLine(tab.id, live, live.buf, false);
-      live.buf = '';
       const turn = live.turn;
       live.turn = null;
       this.children.delete(tab.id);
       this.claudeLive.delete(tab.id);
       this.clearPermissionTimeouts(tab.id);
-      this.failClaudeControls(live);
       if (!turn || turn.settled) return;
       turn.settled = true;
       if (signal && !turn.text) {
@@ -2470,31 +2471,12 @@ export class CliHarnessService {
   ) {
     if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
     const content = images?.length ? claudeContentBlocks(prompt, images) : prompt;
-    const payload = {
-      type: 'user',
-      uuid,
-      message: { role: 'user', content },
-    };
-    live.child.stdin.write(`${JSON.stringify(payload)}\n`);
+    live.driver.writeUser(content, uuid);
   }
 
-  private writeClaudeControl(
-    live: ClaudeLiveSession,
-    request: Record<string, unknown>,
-    requestId: string = randomUUID(),
-  ) {
-    if (!live.child.stdin.writable) return false;
-    const payload = {
-      type: 'control_request',
-      request_id: requestId,
-      request,
-    };
-    try {
-      live.child.stdin.write(`${JSON.stringify(payload)}\n`);
-      return true;
-    } catch {
-      return false;
-    }
+  /** 发 control_request 不等应答（如 stop_task）；写不进去返回 false */
+  private writeClaudeControl(live: ClaudeLiveSession, request: Record<string, unknown>) {
+    return live.driver.notifyControl(request);
   }
 
   /** 发 control_request 并等同 request_id 的 control_response；负确认 / 超时 / 写不进去都会 reject */
@@ -2502,41 +2484,7 @@ export class CliHarnessService {
     live: ClaudeLiveSession,
     request: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    const requestId = randomUUID();
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        live.controls.delete(requestId);
-        reject(new Error(t('超时')));
-      }, this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS);
-      live.controls.set(requestId, { resolve, reject, timer });
-      if (!this.writeClaudeControl(live, request, requestId)) {
-        clearTimeout(timer);
-        live.controls.delete(requestId);
-        reject(new Error(t('Claude 进程 stdin 不可写')));
-      }
-    });
-  }
-
-  /** 进程结束 / 拆除：在途的 control_request 一律失败，不留挂起的计时器 */
-  private failClaudeControls(live: ClaudeLiveSession) {
-    for (const w of live.controls.values()) {
-      clearTimeout(w.timer);
-      w.reject(new Error(t('进程已结束')));
-    }
-    live.controls.clear();
-  }
-
-  /** CLI 对我们 control_request 的应答（按 request_id 交给等待者；不认识的 id 直接忽略） */
-  private onClaudeControlResponse(live: ClaudeLiveSession, j: Record<string, unknown>) {
-    const r = (j.response ?? {}) as Record<string, unknown>;
-    const requestId = typeof r.request_id === 'string' ? r.request_id : '';
-    const w = live.controls.get(requestId);
-    if (!w) return;
-    live.controls.delete(requestId);
-    clearTimeout(w.timer);
-    if (r.subtype === 'success') w.resolve((r.response ?? {}) as Record<string, unknown>);
-    else
-      w.reject(new Error(typeof r.error === 'string' && r.error ? r.error : t('后端拒绝了请求')));
+    return live.driver.control(request);
   }
 
   private onClaudeLine(tabId: string, live: ClaudeLiveSession, line: string, liveEmit: boolean) {
@@ -2627,7 +2575,7 @@ export class CliHarnessService {
       existing &&
       existing.cwd === tab.cwd &&
       existing.launchSig === launch.sig &&
-      !existing.conn.isClosed
+      !existing.driver.closed
     ) {
       await existing.ready;
       return this.confirmAcpMode(tab, existing);
@@ -2655,13 +2603,21 @@ export class CliHarnessService {
       stderrTail = (stderrTail + String(c)).slice(-4000);
       this.d.logger.warn(`harness ${backend} stderr`, String(c).slice(0, 500));
     });
+    // 协议（握手、会话、权限、取消）交给 cli-sdk 的 ACP 驱动；这里只做编排
+    const driver = new AcpDriver({
+      child,
+      permissionIdPrefix: 'gemini-perm-',
+      promptIdleMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
+      rpc: { timeoutMessage: acpTimeoutMessage },
+      kill: killProcessTree,
+    });
     const live: AcpLiveSession = {
       backend,
       model: null,
       effort: null,
       launchSig: launch.sig,
       child,
-      conn: null as unknown as AcpConnection,
+      driver,
       sessionId: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
@@ -2671,36 +2627,23 @@ export class CliHarnessService {
       ready: Promise.resolve(),
       modeChange: null,
     };
-    live.conn = new AcpConnection(child, {
-      onNotification: (method, params) => {
-        if (method !== 'session/update') return;
-        live.lastActivityAt = Date.now();
-        const u = (params.update ?? {}) as Record<string, unknown>;
-        if (live.turn) this.onAcpEvents(tab.id, live, live.turn.mapper.update(u));
-      },
-      onRequest: async (method, params) => {
-        if (method !== 'session/request_permission')
-          throw new Error(`unsupported client method ${method}`);
-        const id = `gemini-perm-${randomUUID()}`;
-        const allowed = await new Promise<boolean | null>((resolve) => {
-          live.perms.set(id, (allow) => {
-            live.perms.delete(id);
-            resolve(allow);
-          });
-          const ev = withPermissionExpiry({
-            type: 'permission',
-            id,
-            summary: permissionSummary(params),
-          });
-          this.onAcpEvents(tab.id, live, [ev]);
-        });
+    driver.on((e) => {
+      live.lastActivityAt = Date.now();
+      // 轮次之外的更新（加载历史时的回放等）不进界面
+      if (e.kind === 'harness' && e.turnId && live.turn) this.onAcpEvents(tab.id, live, [e.event]);
+      if (e.kind !== 'permission') return;
+      live.perms.set(e.id, (allow) => {
+        live.perms.delete(e.id);
         // Grok 拒绝一次调用会以 cancelled 结束整轮：记下来，不当成用户停止（见 runAcp）
-        if (allowed === false && live.turn) live.turn.denied = true;
-        const optionId = allowed === null ? null : pickPermissionOption(params.options, allowed);
-        return optionId
-          ? { outcome: { outcome: 'selected', optionId } }
-          : { outcome: { outcome: 'cancelled' } };
-      },
+        if (allow === false && live.turn) live.turn.denied = true;
+        driver.respondPermission(
+          e.id,
+          allow === null ? { decision: 'cancel' } : { decision: allow ? 'allow' : 'deny' },
+        );
+      });
+      this.onAcpEvents(tab.id, live, [
+        withPermissionExpiry({ type: 'permission', id: e.id, summary: e.request.summary }),
+      ]);
     });
     child.on('close', () => {
       if (this.acpLive.get(tab.id) === live) this.acpLive.delete(tab.id);
@@ -2713,38 +2656,15 @@ export class CliHarnessService {
     // 发起这次握手的轮次被停止时，在途的握手请求立即失败（随后会话被拆除）
     const opts = signal ? { signal } : {};
     live.ready = (async () => {
-      await live.conn.request(
-        'initialize',
-        {
-          protocolVersion: 1,
-          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
-        },
-        opts,
-      );
-      type SessionResult = { sessionId?: string; modes?: { currentModeId?: unknown } } | null;
-      let sid: string | null = null;
+      let sid: string | null;
       let modeNow: unknown;
-      if (tab.cliSessionId) {
-        sid = await live.conn
-          .request<SessionResult>(
-            'session/load',
-            { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] },
-            opts,
-          )
-          .then((r) => {
-            modeNow = r?.modes?.currentModeId;
-            return tab.cliSessionId;
-          })
-          .catch(() => null);
-      }
-      if (!sid) {
-        const r = await live.conn.request<SessionResult>(
-          'session/new',
-          { cwd: tab.cwd, mcpServers: [] },
-          opts,
-        );
-        sid = r?.sessionId ?? null;
-        modeNow = r?.modes?.currentModeId;
+      try {
+        const r = await driver.start({ cwd: tab.cwd, resumeId: tab.cliSessionId, ...opts });
+        sid = r.sessionId;
+        modeNow = r.currentModeId;
+      } catch (e) {
+        if (e instanceof Error && e.message === 'ACP agent returned no session') sid = null;
+        else throw e;
       }
       if (!sid)
         throw new Error(backend === 'grok' ? t('Grok 没有返回会话') : t('Gemini 没有返回会话'));
@@ -2778,17 +2698,15 @@ export class CliHarnessService {
       // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切。
       const want = acpModeId(backend, initMode);
       if (!adoptedHistoryMode && modeNow !== want)
-        await live.conn
-          .request('session/set_mode', { sessionId: sid, modeId: want }, opts)
-          .catch((e: unknown) => {
-            const why = innermostMessage(e instanceof Error ? e.message : String(e));
-            throw new Error(
-              backend === 'grok'
-                ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
-                : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
-              { cause: e },
-            );
-          });
+        await driver.setPermissionMode(want, opts).catch((e: unknown) => {
+          const why = innermostMessage(e instanceof Error ? e.message : String(e));
+          throw new Error(
+            backend === 'grok'
+              ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
+              : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
+            { cause: e },
+          );
+        });
       live.permissionMode = initMode;
     })();
     try {
@@ -2878,38 +2796,31 @@ export class CliHarnessService {
     // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
     if (signal?.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
-    const turn: AcpTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
+    const turn: AcpTurn = { events: [], text: '', breaks: [] };
     live.turn = turn;
     live.used = true;
     live.lastActivityAt = Date.now();
     try {
-      const r = await live.conn.request<{
+      // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）。
+      // 本轮增量经 driver.on 进 onAcpEvents；思考的尾巴在 send 返回前已发出
+      const sent = await live.driver.send({
+        text: prompt,
+        ...(images?.length ? { blocks: acpPromptParts(prompt, images) } : {}),
+        onTimeout: () => {
+          // 驱动已发 session/cancel；挂起的权限按取消处理
+          for (const done of [...live.perms.values()]) done(null);
+          // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
+          live.recycleAfterTurn = true;
+        },
+      });
+      const r = sent.raw as {
         stopReason?: string;
         _meta?: {
           quota?: { token_count?: { input_tokens?: number; output_tokens?: number } };
           /** Grok：整轮累计（inputTokens / outputTokens / cachedReadTokens） */
           usage?: unknown;
         };
-      }>(
-        'session/prompt',
-        {
-          sessionId: live.sessionId,
-          prompt: images?.length
-            ? acpPromptParts(prompt, images)
-            : [{ type: 'text', text: prompt }],
-        },
-        {
-          // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
-          idle: true,
-          timeoutMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
-          onTimeout: () => {
-            this.cancelAcpTurn(live);
-            // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
-            live.recycleAfterTurn = true;
-          },
-        },
-      );
-      this.onAcpEvents(tab.id, live, turn.mapper.flush());
+      } | null;
       // 用户拒绝了一次工具调用、Grok 随之结束这一轮：不是「已中止」，按正常结束落盘
       if (r?.stopReason === 'cancelled' && !(turn.denied && !this.stopRequested.has(tab.id)))
         throw new Error(t('已中止'));
@@ -2917,7 +2828,7 @@ export class CliHarnessService {
         turn.text = t('已拒绝这次工具调用，这一轮已结束');
       const tc = r?._meta?.quota?.token_count;
       // 上面两种都是整轮累计；当前上下文：Gemini 取最后一条 usage_update，Grok 取 _meta 的末次请求
-      const ctx = { ...acpMetaContext(r?._meta), ...turn.mapper.context() };
+      const ctx = { ...acpMetaContext(r?._meta), ...sent.usage };
       const turnUsage =
         tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
           ? {
@@ -2972,9 +2883,7 @@ export class CliHarnessService {
     if (live.model !== want.model) {
       const modelId = want.model ?? catalog?.defaultModel?.id;
       if (!modelId) return false;
-      await live.conn
-        .request('session/set_model', { sessionId: live.sessionId, modelId })
-        .catch(fail(t('模型')));
+      await live.driver.setSessionModel(modelId).catch(fail(t('模型')));
       live.model = want.model;
       // 换模型后 CLI 会换成那个模型的默认档位：思考深度覆盖要重新下发
       live.effort = null;
@@ -2984,21 +2893,15 @@ export class CliHarnessService {
       const value =
         want.effort ?? catalog?.models.find((m) => m.id === modelId)?.defaultEffort ?? null;
       if (!value) return want.effort === null;
-      await live.conn
-        .request('session/set_config_option', {
-          sessionId: live.sessionId,
-          configId: 'reasoning_effort',
-          value,
-        })
-        .catch(fail(t('思考深度')));
+      await live.driver.setConfigOption('reasoning_effort', value).catch(fail(t('思考深度')));
       live.effort = want.effort;
     }
     return true;
   }
 
   private cancelAcpTurn(live: AcpLiveSession) {
-    if (live.sessionId) live.conn.notify('session/cancel', { sessionId: live.sessionId });
-    // 规范要求：取消时挂起的权限请求按 cancelled 应答
+    // session/cancel；规范要求：取消时挂起的权限请求按 cancelled 应答
+    void live.driver.interrupt();
     for (const done of [...live.perms.values()]) done(null);
   }
 
@@ -3007,33 +2910,14 @@ export class CliHarnessService {
     if (!live) return;
     this.acpLive.delete(tabId);
     for (const done of [...live.perms.values()]) done(null);
-    try {
-      if (live.child.stdin.writable) live.child.stdin.end();
-    } catch {
-      /* */
-    }
-    try {
-      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
-    } catch {
-      /* */
-    }
+    void live.driver.close();
   }
 
   /**
    * 不产生界面事件的协议行：用户消息回显（轮次开始标记）与后台任务生命周期。返回 true 表示已处理完。
    */
   private onClaudeMeta(tabId: string, live: ClaudeLiveSession, line: string): boolean {
-    if (line.includes('"control_response"')) {
-      try {
-        const j = JSON.parse(line) as Record<string, unknown>;
-        if (j.type === 'control_response') {
-          this.onClaudeControlResponse(live, j);
-          return true;
-        }
-      } catch {
-        /* 不是完整 JSON：交给解析器 */
-      }
-    }
+    // control_response 由驱动按 request_id 交给等待者，到不了这里
     const replay = line.includes('"isReplay"');
     const task = line.includes('"subtype":"task_');
     if (!replay && !task) return false;
@@ -3312,7 +3196,6 @@ export class CliHarnessService {
     this.claudeLive.delete(tabId);
     this.children.delete(tabId);
     this.clearPermissionTimeouts(tabId);
-    this.failClaudeControls(live);
     const turn = live.turn;
     live.turn = null;
     const child = live.child;
@@ -3323,18 +3206,8 @@ export class CliHarnessService {
     } catch {
       /* */
     }
-    try {
-      if (child.stdin.writable) child.stdin.end();
-    } catch {
-      /* */
-    }
-    try {
-      if (!child.killed && child.exitCode === null) {
-        killProcessTree(child);
-      }
-    } catch {
-      /* */
-    }
+    // 在途的 control_request 一律失败；关 stdin 并结束进程树
+    void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
       turn.reject(new Error(t('已中止')));
@@ -3382,7 +3255,7 @@ export class CliHarnessService {
       existing &&
       existing.cwd === tab.cwd &&
       existing.launchSig === launch.sig &&
-      !existing.conn.isClosed
+      !existing.driver.closed
     ) {
       await existing.ready;
       return existing;
@@ -3401,9 +3274,27 @@ export class CliHarnessService {
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
     });
+    // 协议（握手、线程、轮次、审批、用量）交给 cli-sdk 的 app-server 驱动；这里只做编排
+    const driver = new AppServerDriver({
+      child,
+      permissionIdPrefix: 'codex-perm-',
+      rpc: { timeoutMessage: acpTimeoutMessage },
+      kill: killProcessTree,
+      // 线程条目 → exec --json 的条目 → 已有的 parseCodexLine：工具名与展示和每轮一个进程时一致。
+      // exec 的 agent_message 完成时附带一个 done：这里的整轮结束由 turn/completed 决定，去掉它
+      mapItem: (phase, item) => {
+        const x = codexExecItem(item);
+        if (!x) return [];
+        const line = JSON.stringify({
+          type: phase === 'started' ? 'item.started' : 'item.completed',
+          item: x,
+        });
+        return parseCodexLine(line).filter((e) => e.type !== 'done');
+      },
+    });
     const live: CodexLiveSession = {
       child,
-      conn: null as unknown as AcpConnection,
+      driver,
       threadId: null,
       cwd: tab.cwd,
       model: null,
@@ -3411,34 +3302,24 @@ export class CliHarnessService {
       launchSig: launch.sig,
       turn: null,
       perms: new Map(),
-      totals: null,
       lastActivityAt: Date.now(),
       ready: Promise.resolve(),
     };
-    live.conn = new AcpConnection(child, {
-      onNotification: (method, params) => this.onCodexNotification(tab.id, live, method, params),
-      onRequest: async (method, params) => {
-        if (
-          method !== 'item/commandExecution/requestApproval' &&
-          method !== 'item/fileChange/requestApproval'
-        )
-          throw new Error(`unsupported client method ${method}`);
-        const id = `codex-perm-${randomUUID()}`;
-        const allowed = await new Promise<boolean | null>((resolve) => {
-          live.perms.set(id, (allow) => {
-            live.perms.delete(id);
-            resolve(allow);
-          });
-          this.onCodexEvents(tab.id, live, [
-            withPermissionExpiry({
-              type: 'permission',
-              id,
-              summary: codexApprovalSummary(method, params),
-            }),
-          ]);
-        });
-        return { decision: allowed === null ? 'cancel' : allowed ? 'accept' : 'decline' };
-      },
+    driver.on((e) => {
+      live.lastActivityAt = Date.now();
+      if (e.kind === 'harness' && e.turnId && live.turn)
+        this.onCodexEvents(tab.id, live, [e.event]);
+      if (e.kind !== 'permission') return;
+      live.perms.set(e.id, (allow) => {
+        live.perms.delete(e.id);
+        driver.respondPermission(
+          e.id,
+          allow === null ? { decision: 'cancel' } : { decision: allow ? 'allow' : 'deny' },
+        );
+      });
+      this.onCodexEvents(tab.id, live, [
+        withPermissionExpiry({ type: 'permission', id: e.id, summary: e.request.summary }),
+      ]);
     });
     child.on('close', () => {
       if (this.codexLive.get(tab.id) === live) this.codexLive.delete(tab.id);
@@ -3456,20 +3337,8 @@ export class CliHarnessService {
     this.startIdleSweep();
     const opts = signal ? { signal } : {};
     live.ready = (async () => {
-      await live.conn.request(
-        'initialize',
-        { clientInfo: { name: 'nomi', title: 'Nomi', version: '1' }, capabilities: null },
-        opts,
-      );
-      live.conn.notify('initialized', {});
-      if (tab.cliSessionId) {
-        const r = await live.conn.request<{ thread?: { id?: string } } | null>(
-          'thread/resume',
-          { threadId: tab.cliSessionId, cwd: tab.cwd },
-          opts,
-        );
-        live.threadId = r?.thread?.id ?? tab.cliSessionId;
-      }
+      await driver.start({ cwd: tab.cwd, resumeId: tab.cliSessionId, ...opts });
+      live.threadId = driver.threadId;
     })();
     try {
       await live.ready;
@@ -3508,11 +3377,11 @@ export class CliHarnessService {
     if (signal.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
     if (!live.threadId) {
-      const r = await live.conn.request<{ thread?: { id?: string } } | null>('thread/start', {
-        cwd: tab.cwd,
+      live.threadId = await live.driver.ensureThread(tab.cwd).catch((e: unknown) => {
+        if (e instanceof Error && e.message === 'app-server returned no thread')
+          throw new Error(t('Codex 没有返回会话'), { cause: e });
+        throw e;
       });
-      live.threadId = r?.thread?.id ?? null;
-      if (!live.threadId) throw new Error(t('Codex 没有返回会话'));
     }
     if (signal.aborted) throw new Error(t('已中止'));
     const text = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
@@ -3521,12 +3390,9 @@ export class CliHarnessService {
     live.lastActivityAt = Date.now();
     return new Promise<HarnessSendResult>((resolve, reject) => {
       const turn: CodexTurn = {
-        id: null,
         events: [],
         text: '',
         breaks: [],
-        lastItem: null,
-        totalsBefore: live.totals,
         lastError: null,
         settled: false,
         resolve,
@@ -3535,95 +3401,39 @@ export class CliHarnessService {
         imageAliases: loadImageAliases(chatRoot),
       };
       live.turn = turn;
-      live.conn
-        .request<{ turn?: { id?: string } } | null>('turn/start', {
-          threadId: live.threadId,
-          input: staged.length
-            ? codexTurnInput(text, staged)
-            : [{ type: 'text', text, text_elements: [] }],
-          cwd: tab.cwd,
-          ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
-          ...(model ? { model } : {}),
-          ...(effort ? { effort } : {}),
+      live.driver
+        .send({
+          text,
+          ...(staged.length ? { blocks: codexTurnInput(text, staged) } : {}),
+          params: {
+            cwd: tab.cwd,
+            ...codexTurnPolicy(tab.permissionMode, { network: this.codexNetwork }),
+            ...(model ? { model } : {}),
+            ...(effort ? { effort } : {}),
+          },
         })
         .then(
           (r) => {
-            turn.id = r?.turn?.id ?? null;
+            // turn/start 已被接受：覆盖已下发
             live.model = want.model;
             live.effort = want.effort;
+            this.finishCodexTurn(tab.id, live, turn, r);
           },
           (e: unknown) => {
             if (live.turn === turn) live.turn = null;
             if (turn.settled) return;
             turn.settled = true;
-            reject(new Error(innermostMessage(e instanceof Error ? e.message : String(e))));
+            const msg = e instanceof Error ? e.message : String(e);
+            reject(
+              new Error(
+                msg === 'app-server process exited'
+                  ? (turn.lastError ?? t('Codex 进程已退出'))
+                  : innermostMessage(msg),
+              ),
+            );
           },
         );
     });
-  }
-
-  /** app-server 推送 → 这一轮的事件。只认主线程（子代理线程的条目另有 collab 事件概括） */
-  private onCodexNotification(
-    tabId: string,
-    live: CodexLiveSession,
-    method: string,
-    params: Record<string, unknown>,
-  ) {
-    live.lastActivityAt = Date.now();
-    if (method === 'thread/tokenUsage/updated' && params.threadId === live.threadId) {
-      live.totals = codexTokenTotals(params.tokenUsage) ?? live.totals;
-      const ctx = codexLastContext(params.tokenUsage);
-      live.context = ctx ?? live.context;
-      // 一轮进行中实时上报（自动压缩后的下一次请求会带上新的占用）
-      if (live.turn && ctx?.contextTokens)
-        this.onCodexEvents(tabId, live, [
-          {
-            type: 'context',
-            tokens: ctx.contextTokens,
-            ...(ctx.contextWindow ? { window: ctx.contextWindow } : {}),
-          },
-        ]);
-      return;
-    }
-    const turn = live.turn;
-    if (!turn || (params.threadId !== undefined && params.threadId !== live.threadId)) return;
-    if (method === 'item/agentMessage/delta') {
-      const itemId = typeof params.itemId === 'string' ? params.itemId : null;
-      const delta = typeof params.delta === 'string' ? params.delta : '';
-      const evs: HarnessEvent[] = [];
-      // 同一轮里的下一条消息：补段落分隔，避免两段流式文本粘在一起
-      if (itemId !== turn.lastItem && turn.text.trim())
-        evs.push({ type: 'text-delta', text: '\n\n' });
-      turn.lastItem = itemId;
-      if (delta) evs.push({ type: 'text-delta', text: delta });
-      this.onCodexEvents(tabId, live, evs);
-      return;
-    }
-    if (method === 'item/started' || method === 'item/completed') {
-      const item = codexExecItem((params.item ?? {}) as Record<string, unknown>);
-      if (!item) return;
-      const line = JSON.stringify({
-        type: method === 'item/started' ? 'item.started' : 'item.completed',
-        item,
-      });
-      // exec 的 agent_message 完成时附带一个 done：这里的整轮结束由 turn/completed 决定，去掉它
-      const evs = parseCodexLine(line).filter((e) => e.type !== 'done');
-      this.onCodexEvents(tabId, live, evs);
-      return;
-    }
-    if (method === 'error') {
-      const err = (params.error ?? {}) as { message?: unknown };
-      const message = typeof err.message === 'string' ? err.message : t('Codex 错误');
-      if (params.willRetry === true)
-        this.onCodexEvents(tabId, live, [{ type: 'status', kind: 'reconnect', text: message }]);
-      else turn.lastError = message;
-      return;
-    }
-    if (method === 'turn/completed') {
-      const done = (params.turn ?? {}) as { id?: unknown; status?: unknown; error?: unknown };
-      if (turn.id && done.id !== turn.id) return;
-      this.finishCodexTurn(tabId, live, turn, done);
-    }
   }
 
   private onCodexEvents(tabId: string, live: CodexLiveSession, evs: HarnessEvent[]) {
@@ -3663,34 +3473,22 @@ export class CliHarnessService {
     }
   }
 
-  private finishCodexTurn(
-    tabId: string,
-    live: CodexLiveSession,
-    turn: CodexTurn,
-    done: { status?: unknown; error?: unknown },
-  ) {
+  private finishCodexTurn(tabId: string, live: CodexLiveSession, turn: CodexTurn, r: TurnResult) {
     if (live.turn === turn) live.turn = null;
     live.lastActivityAt = Date.now();
     this.clearPermissionTimeouts(tabId);
     for (const fin of [...live.perms.values()]) fin(null);
     if (turn.settled) return;
     turn.settled = true;
-    if (done.status === 'interrupted') turn.reject(new Error(t('已中止')));
-    else if (done.status === 'failed') {
-      const err = done.error as { message?: unknown } | null;
-      turn.reject(
-        new Error(
-          (typeof err?.message === 'string' && err.message) || turn.lastError || t('Codex 错误'),
-        ),
-      );
-    } else {
-      const turnUsage = codexTurnUsage(turn.totalsBefore, live.totals);
-      const usage = turnUsage && live.context ? { ...turnUsage, ...live.context } : turnUsage;
+    if (r.stopReason === 'interrupted') turn.reject(new Error(t('已中止')));
+    else if (r.stopReason === 'failed')
+      turn.reject(new Error(r.error || turn.lastError || t('Codex 错误')));
+    else {
       const ev: HarnessEvent = {
         type: 'done',
         text: turn.text,
         sessionId: live.threadId ?? undefined,
-        ...(usage ? { usage } : {}),
+        ...(r.usage ? { usage: r.usage } : {}),
       };
       turn.events.push(ev);
       this.emitEvent(tabId, ev);
@@ -3718,28 +3516,8 @@ export class CliHarnessService {
         this.teardownCodexLive(id);
     };
     setTimeout(fallback, grace).unref?.();
-    const send = () => {
-      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) return;
-      if (!turn.id || !live.threadId) return;
-      live.conn
-        .request('turn/interrupt', { threadId: live.threadId, turnId: turn.id })
-        .catch(fallback);
-    };
-    if (turn.id && live.threadId) {
-      send();
-      return;
-    }
-    const poll = setInterval(() => {
-      if (turn.settled || this.codexLive.get(id) !== live || live.turn !== turn) {
-        clearInterval(poll);
-        return;
-      }
-      if (turn.id && live.threadId) {
-        clearInterval(poll);
-        send();
-      }
-    }, 20);
-    poll.unref?.();
+    // 驱动在 turn/start 的应答回来之后才发 turn/interrupt
+    live.driver.interrupt().catch(fallback);
   }
 
   private teardownCodexLive(tabId: string) {
@@ -3750,16 +3528,7 @@ export class CliHarnessService {
     this.clearPermissionTimeouts(tabId);
     const turn = live.turn;
     live.turn = null;
-    try {
-      if (live.child.stdin.writable) live.child.stdin.end();
-    } catch {
-      /* */
-    }
-    try {
-      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
-    } catch {
-      /* */
-    }
+    void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
       turn.reject(new Error(t('已中止')));
@@ -4478,15 +4247,9 @@ type ClaudeTurnWaiter = {
 type AcpBackend = 'gemini' | 'grok';
 
 type CodexTurn = {
-  /** turn/start 应答里的 turnId（停止用；应答到达前为 null） */
-  id: string | null;
   events: HarnessEvent[];
   text: string;
   breaks: number[];
-  /** 最近一段流式正文所属的消息条目：换条目时补段落分隔 */
-  lastItem: string | null;
-  /** 这一轮开始时的线程累计用量（结束时求差即这一轮的用量） */
-  totalsBefore: CodexTokenTotals | null;
   lastError: string | null;
   settled: boolean;
   resolve: (r: HarnessSendResult) => void;
@@ -4500,7 +4263,8 @@ type CodexLiveSession = {
   /** 启动时的来源注入签名（见 launchFor）：变了就不能复用 */
   launchSig: string;
   child: ChildProcessWithoutNullStreams;
-  conn: AcpConnection;
+  /** app-server 协议（线程、轮次、审批、用量）由 cli-sdk 的驱动负责 */
+  driver: AppServerDriver;
   /** 线程 id（= cliSessionId）；新会话在第一条消息时才 thread/start */
   threadId: string | null;
   cwd: string;
@@ -4510,10 +4274,6 @@ type CodexLiveSession = {
   turn: CodexTurn | null;
   /** 挂起的审批：id → 应答（true 允许 / false 拒绝 / null 取消） */
   perms: Map<string, (allow: boolean | null) => void>;
-  /** 最近一次 thread/tokenUsage/updated 的线程累计 */
-  totals: CodexTokenTotals | null;
-  /** 同一通知里的最后一次请求（当前上下文）与模型窗口 */
-  context?: { contextTokens?: number; contextWindow?: number } | null;
   lastActivityAt: number;
   ready: Promise<void>;
   used?: boolean;
@@ -4527,7 +4287,6 @@ class AcpUnavailableError extends Error {}
 type AcpTurn = {
   /** 这一轮里用户拒绝过工具调用（Grok 会以 cancelled 结束整轮） */
   denied?: boolean;
-  mapper: ReturnType<typeof createGeminiMapper>;
   events: HarnessEvent[];
   text: string;
   breaks: number[];
@@ -4541,7 +4300,8 @@ type AcpLiveSession = {
   model: string | null;
   effort: string | null;
   child: ChildProcessWithoutNullStreams;
-  conn: AcpConnection;
+  /** ACP 协议（握手、会话、权限、取消）由 cli-sdk 的驱动负责 */
+  driver: AcpDriver;
   sessionId: string | null;
   cwd: string;
   permissionMode: HarnessPermissionMode;
@@ -4573,13 +4333,6 @@ type LastTabSettings = {
   modelScope?: string;
 };
 
-/** 在途的 Claude control_request：等同 request_id 的 control_response */
-type ClaudeControlWaiter = {
-  resolve: (response: Record<string, unknown>) => void;
-  reject: (e: Error) => void;
-  timer: NodeJS.Timeout;
-};
-
 /** 长驻 Claude 进程上还有后台任务或自发轮次在跑（拆进程会把它们一起杀掉） */
 function claudeBackgroundActive(live: ClaudeLiveSession): boolean {
   return live.bgTasks.size > 0 || live.auto !== null;
@@ -4591,16 +4344,15 @@ type ClaudeLiveSession = {
   /** 启动时的 TabLaunch.modelSig */
   modelSig: string;
   child: ChildProcessWithoutNullStreams;
+  /** stdin / stdout 与 control_request ↔ control_response 由 cli-sdk 的 stream-json 驱动负责 */
+  driver: StreamJsonDriver;
   parseLine: (line: string) => HarnessEvent[];
-  buf: string;
   turn: ClaudeTurnWaiter | null;
   cwd: string;
   /** 进程已生效的权限模式：启动参数，或最近一次得到成功 control_response 的 set_permission_mode */
   permissionMode: HarnessPermissionMode;
   /** 最近一次还没得到确认的权限模式切换；确认前不复用进程跑下一轮（#72） */
   modeChange: ModeChange | null;
-  /** 在途的 control_request：request_id → 应答 */
-  controls: Map<string, ClaudeControlWaiter>;
   /** 进程当前的标签级模型 / 思考深度覆盖（启动参数或最近一次成功的 set_model；复用键的一部分） */
   modelOverride: string | null;
   reasoningEffort: string | null;

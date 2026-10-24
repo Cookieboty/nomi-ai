@@ -17,19 +17,20 @@ Electron 主进程（packages/electron）
 
 ## 包
 
-| 包                                                                | 作用                                                                                                                          |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `electron`                                                        | 主进程：窗口、托盘、IPC、各功能服务（桌面能力、知识库、记忆、日程、本机管理、屏幕记忆、更新、灵动岛……）                       |
-| `renderer`                                                        | 看板娘窗口：角色渲染（`src/mascot`）、气泡、工具栏                                                                            |
-| `ai-chat`                                                         | 对话窗口：对话、设置、引导与功能面板                                                                                          |
-| `ai-runtime`                                                      | AI 运行时：插件宿主、基于 Vercel AI SDK 的供应商路由（`src/providers`）、MCP 桥（`src/ai-sdk/mcpBridge.ts`）                  |
-| `gateway`                                                         | 统一网关内核（纯 Node，不依赖 Electron）：Messages / Responses / Chat / Gemini 的请求 IR 与流式互转；主进程的本地路由服务在用 |
-| `ai-sdk`                                                          | 主进程侧 AI 门面（`AIClient`）                                                                                                |
-| `ai-sdk-client`                                                   | 渲染进程侧客户端与 preload 桥                                                                                                 |
-| `bundle-ig-base` / `bundle-ig-electron-caps` / `bundle-ig-mascot` | 插件包：基础能力（不得依赖 electron）/ Electron 能力 / 看板娘能力                                                             |
-| `ui`                                                              | 设计令牌、4 套主题、通用组件、i18n（`src/locales/en.json`）                                                                   |
-| `voice`                                                           | 语音输入、VAD、唤醒词                                                                                                         |
-| `types`                                                           | 共享类型                                                                                                                      |
+| 包                                                                | 作用                                                                                                                                                               |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `electron`                                                        | 主进程：窗口、托盘、IPC、各功能服务（桌面能力、知识库、记忆、日程、本机管理、屏幕记忆、更新、灵动岛……）                                                            |
+| `renderer`                                                        | 看板娘窗口：角色渲染（`src/mascot`）、气泡、工具栏                                                                                                                 |
+| `ai-chat`                                                         | 对话窗口：对话、设置、引导与功能面板                                                                                                                               |
+| `ai-runtime`                                                      | AI 运行时：插件宿主、基于 Vercel AI SDK 的供应商路由（`src/providers`）、MCP 桥（`src/ai-sdk/mcpBridge.ts`）                                                       |
+| `gateway`                                                         | 统一网关内核（纯 Node，不依赖 Electron）：Messages / Responses / Chat / Gemini 的请求 IR 与流式互转；主进程的本地路由服务在用                                      |
+| `cli-sdk`                                                         | 编程助手插件契约（清单、能力接口）与共享会话驱动 acp / stream-json / app-server / exec（纯 Node，不依赖 Electron），见 `docs/design/cli-plugin-architecture.md` §5 |
+| `ai-sdk`                                                          | 主进程侧 AI 门面（`AIClient`）                                                                                                                                     |
+| `ai-sdk-client`                                                   | 渲染进程侧客户端与 preload 桥                                                                                                                                      |
+| `bundle-ig-base` / `bundle-ig-electron-caps` / `bundle-ig-mascot` | 插件包：基础能力（不得依赖 electron）/ Electron 能力 / 看板娘能力                                                                                                  |
+| `ui`                                                              | 设计令牌、4 套主题、通用组件、i18n（`src/locales/en.json`）                                                                                                        |
+| `voice`                                                           | 语音输入、VAD、唤醒词                                                                                                                                              |
+| `types`                                                           | 共享类型                                                                                                                                                           |
 
 ## 关键约定
 
