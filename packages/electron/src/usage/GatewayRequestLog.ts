@@ -6,11 +6,16 @@
  * - 追踪文件超过 24 小时自动删除：网关写入时顺带清理，这里在启动时和每小时再清一次（开关关掉后也会清）。
  *
  * 网关事件不写入用量账本，口径见 gatewayRequests.ts 顶部说明。
+ *
+ * 接了模型质量（deps.quality，docs/design/model-quality.md §4.2）之后：请求持久化在质量账本里，
+ * 旧的 requests.json 首次启动时导入一次后删除、不再写；本模块只保留本次运行的最近 200 条
+ * （含网关修正备注），启动时从质量账本补齐。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
 import { pruneTraces } from '@nomi-ai/gateway';
+import type { QualityRecord } from '@nomi-ai/types';
 import { BrowserWindow } from 'electron';
 
 import { guardedHandle } from '../security/guardedIpc';
@@ -24,6 +29,7 @@ import {
   type GatewayRequestEntry,
   type GatewayUsageEventLike,
 } from './gatewayRequests';
+import { entryFromRecord, recordFromEntry } from './quality/legacy';
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
@@ -47,6 +53,12 @@ export interface GatewayRequestLogDeps {
   /** 追踪清理间隔（ms），默认 1 小时；0 = 不定时清理（测试） */
   pruneMs?: number;
   broadcast?: (channel: string, payload: unknown) => void;
+  /** 模型质量账本：持久化改由它负责（见文件头） */
+  quality?: {
+    recent(limit: number): QualityRecord[];
+    importLegacy(records: QualityRecord[]): void;
+    clear(): Promise<void> | void;
+  };
 }
 
 const REQUESTS_FILE = 'requests.json';
@@ -76,11 +88,32 @@ export class GatewayRequestLog {
   }
 
   private load(): void {
+    const file = path.join(this.d.root, REQUESTS_FILE);
+    let legacy = false;
     try {
-      const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, REQUESTS_FILE), 'utf8'));
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
       this.entries = sanitizeEntries((raw as { requests?: unknown })?.requests);
+      legacy = true;
     } catch {
       this.entries = [];
+    }
+    if (this.d.quality) {
+      if (legacy) {
+        // 旧的 requests.json：导入质量账本一次，之后不再写
+        try {
+          if (this.entries.length) this.d.quality.importLegacy(this.entries.map(recordFromEntry));
+          fs.rmSync(file, { force: true });
+        } catch (e) {
+          this.d.logger.warn('gateway request log migration failed', {
+            error: (e as Error).message,
+          });
+        }
+      } else {
+        this.entries = this.d.quality
+          .recent(GATEWAY_REQUEST_CAP)
+          .map((r) => entryFromRecord(r, this.d.names))
+          .reverse();
+      }
     }
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, OBSERVE_FILE), 'utf8'));
@@ -97,7 +130,8 @@ export class GatewayRequestLog {
     this.entries.push(entry);
     if (this.entries.length > GATEWAY_REQUEST_CAP)
       this.entries.splice(0, this.entries.length - GATEWAY_REQUEST_CAP);
-    this.scheduleFlush();
+    // 接了模型质量时持久化由质量账本负责
+    if (!this.d.quality) this.scheduleFlush();
     this.changed();
     return entry;
   }
@@ -117,6 +151,8 @@ export class GatewayRequestLog {
 
   clear(): void {
     this.entries = [];
+    // 「最近请求」与模型质量是同一份数据：一起清
+    if (this.d.quality) void this.d.quality.clear();
     this.flush();
     this.changed();
   }
@@ -192,6 +228,8 @@ export class GatewayRequestLog {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
+    // 接了模型质量：持久化由质量账本负责，requests.json 不再写
+    if (this.d.quality) return;
     try {
       fs.mkdirSync(this.d.root, { recursive: true });
       writePrivateFile(

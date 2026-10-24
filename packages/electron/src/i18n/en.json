@@ -653,5 +653,7 @@
   "{0} 需要环境变量 {1}，请先在启动 Nomi 的环境里设置": "{0} needs the environment variables {1}. Set them in the environment you start Nomi from",
   "{0} 没有返回会话": "{0} didn’t return a session",
   "{0} 没能启动 ACP 会话：{1}": "{0} couldn’t start an ACP session: {1}",
-  "进程已退出": "the process exited"
+  "进程已退出": "the process exited",
+  "导出 CSV": "Export CSV",
+  "全部": "All"
 }
