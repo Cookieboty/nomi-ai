@@ -52,6 +52,24 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
     { icon: Boxes, title: '第三方供应商', desc: '添加供应商与 Key，Nomi 自动转换协议。' },
     { icon: SquareTerminal, title: '终端启动命令', desc: '在终端里用第三方模型启动编程助手。' },
   ],
+  quality: [
+    {
+      icon: Gauge,
+      title: '总览',
+      desc: '成功率、首字延迟、输出速度、缓存命中与失败原因，和上一周期相比。',
+    },
+    { icon: BarChart3, title: '对比与趋势', desc: '按供应商、模型、Key 等维度并排比较和看走势。' },
+    {
+      icon: ClipboardList,
+      title: '请求明细',
+      desc: '逐条请求的时间线、结果与回退；原「用量 → 最近请求」移到这里。',
+    },
+    {
+      icon: Layers,
+      title: '两种口径',
+      desc: '网关层统计经网关的请求；CLI 层统计 Nomi 里运行的编程助手（含官方账号）。',
+    },
+  ],
   coding: [
     { icon: AppWindow, title: '助手', desc: '选择要查看的编程助手，选择条上显示安装状态。' },
     { icon: Download, title: '版本与账号', desc: '检测、安装或更新 CLI，管理官方账号登录。' },
@@ -59,7 +77,7 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
   ],
   usage: [
     { icon: BarChart3, title: '概览', desc: 'Token、费用的汇总、趋势、分布和全年热力图。' },
-    { icon: ClipboardList, title: '明细与最近请求', desc: '逐条调用记录与网关最近的请求。' },
+    { icon: ClipboardList, title: '明细', desc: '逐条调用记录；网关请求的质量见「模型质量」。' },
     { icon: Gauge, title: '订阅额度', desc: '查看各编程助手官方订阅的用量窗口。' },
     { icon: ReceiptText, title: '价格', desc: '为模型设置单价，未定价的模型不计入费用。' },
     { icon: Wallet, title: '预算与隐私', desc: '设置花费提醒线与用量记录相关选项。' },

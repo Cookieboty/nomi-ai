@@ -8,6 +8,7 @@
  */
 import { Icon, type ICON_SIZE } from '@nomi-ai/ui';
 import {
+  Activity,
   AudioLines,
   Bell,
   BellRing,
@@ -54,6 +55,8 @@ export const SETTINGS_ICONS = {
   shortcuts: Keyboard,
   /** 模型：第三方供应商与模型分配 */
   models: Boxes,
+  /** 模型质量：脉搏线（成功率、延迟、速度） */
+  quality: Activity,
   /** 编程助手：终端 */
   coding: SquareTerminal,
   /** 用量与费用：硬币 */

@@ -9,7 +9,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 
 import { harnessClient } from '../../services/harnessClient';
 import { AppIcon } from '../AppIcons';
-import { ExtensionsPanel, LocalPanel, UsagePanel } from '../lazyPanels';
+import { ExtensionsPanel, LocalPanel, QualityPanel, UsagePanel } from '../lazyPanels';
 import { onboardingClient } from '../Onboarding/client';
 import { ProvidersPage } from '../ProvidersPage';
 import type { ScreenTab } from '../ScreenPanel';
@@ -162,8 +162,16 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
         ) : (
           <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>
         );
+      case 'quality':
+        return (
+          <QualityPanel
+            tab={tabOf('quality')}
+            onTab={(x) => setTab('quality', x)}
+            onOpenPrivacy={() => go('privacy', 'data')}
+          />
+        );
       case 'usage':
-        return <UsagePanel onOpenPrivacy={() => go('privacy', 'data')} />;
+        return <UsagePanel onOpenRequests={() => go('quality', 'requests')} />;
       case 'senses':
         return (
           <SensesSection

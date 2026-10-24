@@ -3,6 +3,7 @@ import cli_monitor from './cli-monitor.json';
 import foundation from './foundation.json';
 import knowledge_local from './knowledge-local.json';
 import mascot_theme from './mascot-theme.json';
+import model_quality from './model-quality.json';
 import models from './models.json';
 import providers_schedule from './providers-schedule.json';
 import session_workspace from './session-workspace.json';
@@ -22,6 +23,7 @@ const en = {
   ...usage_tools,
   ...slash_commands,
   ...models,
+  ...model_quality,
 };
 
 export default en;

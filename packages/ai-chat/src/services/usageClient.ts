@@ -221,72 +221,6 @@ export interface UsageQuotaHook {
   problem?: 'invalid-settings' | 'unsupported-statusline';
 }
 
-/** 网关请求日志的一条（主进程 usage/gatewayRequests.ts；只有元数据，不含 Key 和对话内容） */
-export interface GatewayRequestEntry {
-  id: string;
-  ts: number;
-  client: string;
-  ingress: string;
-  wire?: string;
-  providerId?: string;
-  provider?: string;
-  keyId?: string;
-  key?: string;
-  model?: string;
-  status: number;
-  ms: number;
-  firstByteMs?: number;
-  attempts: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  reasoning?: number;
-  notes?: string[];
-  error?: string;
-  /** 诊断追踪 id（诊断日志开着时才有） */
-  traceId?: string;
-  /** 带标签令牌的第三方会话：来自哪个标签 / 进程代次（§6.7） */
-  tabId?: string;
-  generation?: number;
-  /** 模型怎么解析出来的 */
-  resolved?: 'explicit' | 'tier' | 'helper' | 'subagent' | 'binding' | 'unknown' | 'default';
-}
-
-export interface GatewayAggRow {
-  key: string;
-  label: string;
-  requests: number;
-  failed: number;
-  fallbacks: number;
-  input: number;
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-  tokens: number;
-  cacheHitRate: number | null;
-  avgMs: number;
-}
-
-export interface GatewayRequestsView {
-  requests: GatewayRequestEntry[];
-  summary: {
-    requests: number;
-    failed: number;
-    fallbacks: number;
-    input: number;
-    output: number;
-    cacheRead: number;
-    cacheWrite: number;
-    cacheHitRate: number | null;
-    avgMs: number;
-    avgFirstByteMs: number | null;
-  };
-  byProvider: GatewayAggRow[];
-  byKey: GatewayAggRow[];
-  trace: { enabled: boolean; dir: string };
-}
-
 interface AiBridge {
   invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   on: (channel: string, fn: (payload: unknown) => void) => () => void;
@@ -329,13 +263,6 @@ export const usageClient = {
   quotaHook: () => call<UsageQuotaHook>('quota-hook'),
   setQuotaHook: (enabled: boolean) => call<UsageQuotaHook>('quota-hook-set', enabled),
   onChanged: (fn: () => void) => bridge()?.on('ai:usage:changed', () => fn()) ?? (() => undefined),
-  /** 统一网关最近 200 条请求 + 按供应商 / 按 Key 汇总 + 调试模式状态 */
-  gatewayRequests: () => call<GatewayRequestsView>('gateway-requests'),
-  setGatewayTrace: (enabled: boolean) =>
-    call<{ enabled: boolean; dir: string }>('gateway-trace-set', enabled),
-  clearGatewayRequests: () => call<GatewayRequestsView>('gateway-clear'),
-  onGatewayChanged: (fn: () => void) =>
-    bridge()?.on('ai:usage:gateway-changed', () => fn()) ?? (() => undefined),
 };
 
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */
