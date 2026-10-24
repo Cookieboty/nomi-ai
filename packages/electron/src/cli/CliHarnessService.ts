@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { AcpDriver } from '@nomi-ai/cli-sdk';
 import { BrowserWindow, dialog } from 'electron';
 
 import { traceCliChild } from '../diagnostics/cliTrace';
@@ -45,8 +46,7 @@ import {
   withCliPath,
 } from './detect';
 import { EventBatcher } from './eventBatcher';
-import { AcpConnection, innermostMessage } from './gemini/acp';
-import { createGeminiMapper, permissionSummary, pickPermissionOption } from './gemini/geminiEvents';
+import { AcpConnection, acpTimeoutMessage, innermostMessage } from './gemini/acp';
 import { GeminiUntrustedError, isGeminiUntrustedExit } from './gemini/trust';
 import {
   type GeminiTrustResult,
@@ -1371,29 +1371,27 @@ export class CliHarnessService {
   /** Gemini / Grok 长驻会话即时切换：session/set_mode 成功后才更新已生效档位 */
   private switchAcpMode(id: string, gl: AcpLiveSession, mode: HarnessPermissionMode) {
     const change: ModeChange = { mode, done: Promise.resolve() };
-    change.done = gl.conn
-      .request('session/set_mode', { sessionId: gl.sessionId, modeId: acpModeId(gl.backend, mode) })
-      .then(
-        () => {
-          if (this.acpLive.get(id) === gl) gl.permissionMode = mode;
-          if (gl.modeChange === change) gl.modeChange = null;
-        },
-        (e: unknown) => {
-          if (gl.modeChange !== change) return;
-          gl.modeChange = null;
-          // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
-          if (this.acpLive.get(id) === gl) this.teardownAcpLive(id);
-          const why = innermostMessage(e instanceof Error ? e.message : String(e));
-          throw new Error(
-            gl.backend === 'grok'
-              ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
-              : t(
-                  'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
-                  why,
-                ),
-          );
-        },
-      );
+    change.done = gl.driver.setPermissionMode(acpModeId(gl.backend, mode)).then(
+      () => {
+        if (this.acpLive.get(id) === gl) gl.permissionMode = mode;
+        if (gl.modeChange === change) gl.modeChange = null;
+      },
+      (e: unknown) => {
+        if (gl.modeChange !== change) return;
+        gl.modeChange = null;
+        // 切不过去（含降权失败）：停掉会话，不在未确认的档位下继续；下一轮按标签档位重新建立
+        if (this.acpLive.get(id) === gl) this.teardownAcpLive(id);
+        const why = innermostMessage(e instanceof Error ? e.message : String(e));
+        throw new Error(
+          gl.backend === 'grok'
+            ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
+            : t(
+                'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
+                why,
+              ),
+        );
+      },
+    );
     gl.modeChange = change;
     change.done.catch(() => undefined);
   }
@@ -2627,7 +2625,7 @@ export class CliHarnessService {
       existing &&
       existing.cwd === tab.cwd &&
       existing.launchSig === launch.sig &&
-      !existing.conn.isClosed
+      !existing.driver.closed
     ) {
       await existing.ready;
       return this.confirmAcpMode(tab, existing);
@@ -2655,13 +2653,21 @@ export class CliHarnessService {
       stderrTail = (stderrTail + String(c)).slice(-4000);
       this.d.logger.warn(`harness ${backend} stderr`, String(c).slice(0, 500));
     });
+    // 协议（握手、会话、权限、取消）交给 cli-sdk 的 ACP 驱动；这里只做编排
+    const driver = new AcpDriver({
+      child,
+      permissionIdPrefix: 'gemini-perm-',
+      promptIdleMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
+      rpc: { timeoutMessage: acpTimeoutMessage },
+      kill: killProcessTree,
+    });
     const live: AcpLiveSession = {
       backend,
       model: null,
       effort: null,
       launchSig: launch.sig,
       child,
-      conn: null as unknown as AcpConnection,
+      driver,
       sessionId: null,
       cwd: tab.cwd,
       permissionMode: tab.permissionMode,
@@ -2671,36 +2677,23 @@ export class CliHarnessService {
       ready: Promise.resolve(),
       modeChange: null,
     };
-    live.conn = new AcpConnection(child, {
-      onNotification: (method, params) => {
-        if (method !== 'session/update') return;
-        live.lastActivityAt = Date.now();
-        const u = (params.update ?? {}) as Record<string, unknown>;
-        if (live.turn) this.onAcpEvents(tab.id, live, live.turn.mapper.update(u));
-      },
-      onRequest: async (method, params) => {
-        if (method !== 'session/request_permission')
-          throw new Error(`unsupported client method ${method}`);
-        const id = `gemini-perm-${randomUUID()}`;
-        const allowed = await new Promise<boolean | null>((resolve) => {
-          live.perms.set(id, (allow) => {
-            live.perms.delete(id);
-            resolve(allow);
-          });
-          const ev = withPermissionExpiry({
-            type: 'permission',
-            id,
-            summary: permissionSummary(params),
-          });
-          this.onAcpEvents(tab.id, live, [ev]);
-        });
+    driver.on((e) => {
+      live.lastActivityAt = Date.now();
+      // 轮次之外的更新（加载历史时的回放等）不进界面
+      if (e.kind === 'harness' && e.turnId && live.turn) this.onAcpEvents(tab.id, live, [e.event]);
+      if (e.kind !== 'permission') return;
+      live.perms.set(e.id, (allow) => {
+        live.perms.delete(e.id);
         // Grok 拒绝一次调用会以 cancelled 结束整轮：记下来，不当成用户停止（见 runAcp）
-        if (allowed === false && live.turn) live.turn.denied = true;
-        const optionId = allowed === null ? null : pickPermissionOption(params.options, allowed);
-        return optionId
-          ? { outcome: { outcome: 'selected', optionId } }
-          : { outcome: { outcome: 'cancelled' } };
-      },
+        if (allow === false && live.turn) live.turn.denied = true;
+        driver.respondPermission(
+          e.id,
+          allow === null ? { decision: 'cancel' } : { decision: allow ? 'allow' : 'deny' },
+        );
+      });
+      this.onAcpEvents(tab.id, live, [
+        withPermissionExpiry({ type: 'permission', id: e.id, summary: e.request.summary }),
+      ]);
     });
     child.on('close', () => {
       if (this.acpLive.get(tab.id) === live) this.acpLive.delete(tab.id);
@@ -2713,38 +2706,15 @@ export class CliHarnessService {
     // 发起这次握手的轮次被停止时，在途的握手请求立即失败（随后会话被拆除）
     const opts = signal ? { signal } : {};
     live.ready = (async () => {
-      await live.conn.request(
-        'initialize',
-        {
-          protocolVersion: 1,
-          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } },
-        },
-        opts,
-      );
-      type SessionResult = { sessionId?: string; modes?: { currentModeId?: unknown } } | null;
-      let sid: string | null = null;
+      let sid: string | null;
       let modeNow: unknown;
-      if (tab.cliSessionId) {
-        sid = await live.conn
-          .request<SessionResult>(
-            'session/load',
-            { sessionId: tab.cliSessionId, cwd: tab.cwd, mcpServers: [] },
-            opts,
-          )
-          .then((r) => {
-            modeNow = r?.modes?.currentModeId;
-            return tab.cliSessionId;
-          })
-          .catch(() => null);
-      }
-      if (!sid) {
-        const r = await live.conn.request<SessionResult>(
-          'session/new',
-          { cwd: tab.cwd, mcpServers: [] },
-          opts,
-        );
-        sid = r?.sessionId ?? null;
-        modeNow = r?.modes?.currentModeId;
+      try {
+        const r = await driver.start({ cwd: tab.cwd, resumeId: tab.cliSessionId, ...opts });
+        sid = r.sessionId;
+        modeNow = r.currentModeId;
+      } catch (e) {
+        if (e instanceof Error && e.message === 'ACP agent returned no session') sid = null;
+        else throw e;
       }
       if (!sid)
         throw new Error(backend === 'grok' ? t('Grok 没有返回会话') : t('Gemini 没有返回会话'));
@@ -2778,17 +2748,15 @@ export class CliHarnessService {
       // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切。
       const want = acpModeId(backend, initMode);
       if (!adoptedHistoryMode && modeNow !== want)
-        await live.conn
-          .request('session/set_mode', { sessionId: sid, modeId: want }, opts)
-          .catch((e: unknown) => {
-            const why = innermostMessage(e instanceof Error ? e.message : String(e));
-            throw new Error(
-              backend === 'grok'
-                ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
-                : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
-              { cause: e },
-            );
-          });
+        await driver.setPermissionMode(want, opts).catch((e: unknown) => {
+          const why = innermostMessage(e instanceof Error ? e.message : String(e));
+          throw new Error(
+            backend === 'grok'
+              ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
+              : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
+            { cause: e },
+          );
+        });
       live.permissionMode = initMode;
     })();
     try {
@@ -2878,38 +2846,31 @@ export class CliHarnessService {
     // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
     if (signal?.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
-    const turn: AcpTurn = { mapper: createGeminiMapper(), events: [], text: '', breaks: [] };
+    const turn: AcpTurn = { events: [], text: '', breaks: [] };
     live.turn = turn;
     live.used = true;
     live.lastActivityAt = Date.now();
     try {
-      const r = await live.conn.request<{
+      // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）。
+      // 本轮增量经 driver.on 进 onAcpEvents；思考的尾巴在 send 返回前已发出
+      const sent = await live.driver.send({
+        text: prompt,
+        ...(images?.length ? { blocks: acpPromptParts(prompt, images) } : {}),
+        onTimeout: () => {
+          // 驱动已发 session/cancel；挂起的权限按取消处理
+          for (const done of [...live.perms.values()]) done(null);
+          // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
+          live.recycleAfterTurn = true;
+        },
+      });
+      const r = sent.raw as {
         stopReason?: string;
         _meta?: {
           quota?: { token_count?: { input_tokens?: number; output_tokens?: number } };
           /** Grok：整轮累计（inputTokens / outputTokens / cachedReadTokens） */
           usage?: unknown;
         };
-      }>(
-        'session/prompt',
-        {
-          sessionId: live.sessionId,
-          prompt: images?.length
-            ? acpPromptParts(prompt, images)
-            : [{ type: 'text', text: prompt }],
-        },
-        {
-          // 一直有输出就不算超时；等用户确认权限时也不计时（权限另有自己的超时）
-          idle: true,
-          timeoutMs: this.d.geminiPromptIdleMs ?? GEMINI_PROMPT_IDLE_MS,
-          onTimeout: () => {
-            this.cancelAcpTurn(live);
-            // 卡住的进程不再复用：这一轮结束后回收，下一轮重新拉起（session/load 接上会话）
-            live.recycleAfterTurn = true;
-          },
-        },
-      );
-      this.onAcpEvents(tab.id, live, turn.mapper.flush());
+      } | null;
       // 用户拒绝了一次工具调用、Grok 随之结束这一轮：不是「已中止」，按正常结束落盘
       if (r?.stopReason === 'cancelled' && !(turn.denied && !this.stopRequested.has(tab.id)))
         throw new Error(t('已中止'));
@@ -2917,7 +2878,7 @@ export class CliHarnessService {
         turn.text = t('已拒绝这次工具调用，这一轮已结束');
       const tc = r?._meta?.quota?.token_count;
       // 上面两种都是整轮累计；当前上下文：Gemini 取最后一条 usage_update，Grok 取 _meta 的末次请求
-      const ctx = { ...acpMetaContext(r?._meta), ...turn.mapper.context() };
+      const ctx = { ...acpMetaContext(r?._meta), ...sent.usage };
       const turnUsage =
         tc && (tc.input_tokens !== undefined || tc.output_tokens !== undefined)
           ? {
@@ -2972,9 +2933,7 @@ export class CliHarnessService {
     if (live.model !== want.model) {
       const modelId = want.model ?? catalog?.defaultModel?.id;
       if (!modelId) return false;
-      await live.conn
-        .request('session/set_model', { sessionId: live.sessionId, modelId })
-        .catch(fail(t('模型')));
+      await live.driver.setSessionModel(modelId).catch(fail(t('模型')));
       live.model = want.model;
       // 换模型后 CLI 会换成那个模型的默认档位：思考深度覆盖要重新下发
       live.effort = null;
@@ -2984,21 +2943,15 @@ export class CliHarnessService {
       const value =
         want.effort ?? catalog?.models.find((m) => m.id === modelId)?.defaultEffort ?? null;
       if (!value) return want.effort === null;
-      await live.conn
-        .request('session/set_config_option', {
-          sessionId: live.sessionId,
-          configId: 'reasoning_effort',
-          value,
-        })
-        .catch(fail(t('思考深度')));
+      await live.driver.setConfigOption('reasoning_effort', value).catch(fail(t('思考深度')));
       live.effort = want.effort;
     }
     return true;
   }
 
   private cancelAcpTurn(live: AcpLiveSession) {
-    if (live.sessionId) live.conn.notify('session/cancel', { sessionId: live.sessionId });
-    // 规范要求：取消时挂起的权限请求按 cancelled 应答
+    // session/cancel；规范要求：取消时挂起的权限请求按 cancelled 应答
+    void live.driver.interrupt();
     for (const done of [...live.perms.values()]) done(null);
   }
 
@@ -3007,16 +2960,7 @@ export class CliHarnessService {
     if (!live) return;
     this.acpLive.delete(tabId);
     for (const done of [...live.perms.values()]) done(null);
-    try {
-      if (live.child.stdin.writable) live.child.stdin.end();
-    } catch {
-      /* */
-    }
-    try {
-      if (!live.child.killed && live.child.exitCode === null) killProcessTree(live.child);
-    } catch {
-      /* */
-    }
+    void live.driver.close();
   }
 
   /**
@@ -4527,7 +4471,6 @@ class AcpUnavailableError extends Error {}
 type AcpTurn = {
   /** 这一轮里用户拒绝过工具调用（Grok 会以 cancelled 结束整轮） */
   denied?: boolean;
-  mapper: ReturnType<typeof createGeminiMapper>;
   events: HarnessEvent[];
   text: string;
   breaks: number[];
@@ -4541,7 +4484,8 @@ type AcpLiveSession = {
   model: string | null;
   effort: string | null;
   child: ChildProcessWithoutNullStreams;
-  conn: AcpConnection;
+  /** ACP 协议（握手、会话、权限、取消）由 cli-sdk 的驱动负责 */
+  driver: AcpDriver;
   sessionId: string | null;
   cwd: string;
   permissionMode: HarnessPermissionMode;
