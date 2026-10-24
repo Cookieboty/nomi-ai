@@ -19,7 +19,6 @@ import {
 } from './clients/index';
 import { peekCommit, type PeekResult } from './commit';
 import type { ClientId, GatewayConfig } from './config';
-import { CLIENT_IDS } from './config';
 import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
 import { customToolNames, isCustomToolRefusal } from './customTools';
 import {
@@ -331,9 +330,11 @@ export class GatewayServer {
     url: URL,
   ): Promise<Identity | 'unbound' | null> {
     const tokens = presentedTokens(req, url);
-    for (const id of CLIENT_IDS) {
-      const t = this.cfg.clients[id]?.token;
-      if (t && tokens.some((x) => tokenEquals(x, t))) return { client: id };
+    // 只认登记了客户端规格的 id（内核自带 + 宿主组装的插件，P9.4）
+    for (const [id, c] of Object.entries(this.cfg.clients)) {
+      const t = c?.token;
+      if (t && tokens.some((x) => tokenEquals(x, t)))
+        return clientSpecOf(id) ? { client: id } : null;
     }
     const tab = tokens.find(isTabToken);
     if (tab) {
@@ -341,8 +342,8 @@ export class GatewayServer {
         this.bindings.get(hashTabToken(tab)) ??
         (await this.bindings.lookup(tab, this.hooks.bindingWaitMs));
       if (!binding) return 'unbound';
-      const client = binding.client as ClientId;
-      return CLIENT_IDS.includes(client) ? { client, binding } : null;
+      const client: ClientId = binding.client;
+      return clientSpecOf(client) ? { client, binding } : null;
     }
     const legacy = this.cfg.legacyToken;
     if (legacy && tokens.some((x) => tokenEquals(x, legacy))) return { client: 'legacy' };

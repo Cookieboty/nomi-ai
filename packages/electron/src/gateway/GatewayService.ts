@@ -15,6 +15,7 @@ import {
   isPrivateHost,
   normalizeBases,
   preferredWire,
+  type BuiltinClientId,
   type ClientId,
   type ClientModels,
   type DetectResult,
@@ -945,14 +946,14 @@ export class GatewayService {
       this.detect((input ?? {}) as Parameters<GatewayService['detect']>[0]),
     );
     handle('ai:gateway:set-assignment', (client, patch) => {
-      if (!CLIENT_IDS.includes(client as ClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId)) throw new Error(tr('未知客户端'));
       this.setAssignment(
         client as ClientId,
         (patch ?? {}) as Parameters<GatewayService['setAssignment']>[1],
       );
     });
     handle('ai:gateway:reset-token', (client) => {
-      if (!CLIENT_IDS.includes(client as ClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId)) throw new Error(tr('未知客户端'));
       this.resetToken(client as ClientId);
     });
     handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));

@@ -6,6 +6,7 @@ export default createTsup({
   entry: {
     index: 'src/index.ts',
     main: 'src/main.ts',
+    gateways: 'src/gateways.ts',
     'claude/manifest': 'src/claude/manifest.ts',
     'claude/main': 'src/claude/main.ts',
     'claude/gateway': 'src/claude/gateway.ts',

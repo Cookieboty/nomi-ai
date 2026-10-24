@@ -40,8 +40,11 @@ export interface ClientSpec {
    * （设计稿写的是字段名列表；补值需要默认值，这里直接带上）
    */
   extraRequired?: Record<string, Record<string, unknown>>;
-  /** 这个 CLI 能接受的事件类型子集；缺省 = 规范全集 */
-  acceptedEvents?: readonly string[];
+  /**
+   * 这个 CLI 能接受的事件类型：列表 = 子集；'spec' = 入口协议规范表里的全集（规范之外的一律丢掉）；
+   * 缺省 = 不过滤
+   */
+  acceptedEvents?: readonly string[] | 'spec';
   /** 辅助请求用的模型名（标题、摘要、提示…），正则；解析到 ClientModels.summary（没设时跟主模型） */
   helperModels?: string[];
   /** 子代理默认模型名，正则；解析到 ClientModels.subagent */
