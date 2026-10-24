@@ -34,7 +34,7 @@ export interface StreamJsonDriverOptions {
    */
   onLine?: (line: string, o: { final: boolean }) => boolean;
   /** 错误文案（宿主本地化） */
-  messages?: { timeout?: string; notWritable?: string; exited?: string };
+  messages?: { timeout?: string; notWritable?: string; exited?: string; rejected?: string };
   controlTimeoutMs?: number;
   /** 拒绝时给 CLI 的理由（宿主本地化） */
   denyMessage?: string;
@@ -183,7 +183,14 @@ export class StreamJsonDriver implements SessionDriver {
     this.controls.delete(requestId);
     clearTimeout(w.timer);
     if (r.subtype === 'success') w.resolve((r.response ?? {}) as Record<string, unknown>);
-    else w.reject(new Error(typeof r.error === 'string' && r.error ? r.error : 'request rejected'));
+    else
+      w.reject(
+        new Error(
+          typeof r.error === 'string' && r.error
+            ? r.error
+            : (this.o.messages?.rejected ?? 'request rejected'),
+        ),
+      );
     return true;
   }
 

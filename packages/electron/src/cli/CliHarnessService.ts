@@ -2397,6 +2397,7 @@ export class CliHarnessService {
         timeout: t('超时'),
         notWritable: t('Claude 进程 stdin 不可写'),
         exited: t('进程已结束'),
+        rejected: t('后端拒绝了请求'),
       },
       kill: killProcessTree,
     });
