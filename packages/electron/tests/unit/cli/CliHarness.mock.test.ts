@@ -11,6 +11,9 @@ import { CliHarnessService, type HarnessGateway } from '../../../src/cli/CliHarn
 import { testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
 
+// 每个用例都起真实的假 CLI 进程：全量测试并行负载下启动可能要好几秒，默认 10 秒不够
+jest.setTimeout(30_000);
+
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { removeHandler: () => undefined, handle: () => undefined },
@@ -131,8 +134,8 @@ describe('CliHarnessService mock CLI', () => {
         if (p.event.type === 'tool' && p.event.status === 'start') started++;
       });
       const run = h.sendTab(tab.id, 'go').catch((e: Error) => e);
-      for (let i = 0; i < 100 && started < 2; i++) await new Promise((r) => setTimeout(r, 50));
-      expect(started).toBeGreaterThanOrEqual(2);
+      // 按事件等：全量测试负载下进程启动与工具事件可能远超几秒
+      await until(() => started >= 2, { timeoutMs: 15_000, what: 'two tool starts' });
       expect(h.cancelTab(tab.id)).toBe(true);
       await run;
       const msgs = h.tabMessages(tab.id);
@@ -1101,7 +1104,8 @@ describe('CliHarnessService permission modes', () => {
       const e = await p;
       expect(e).toBeInstanceOf(Error);
       expect((e as Error).message).toMatch(/进程已结束/);
-      expect(Date.now() - started).toBeLessThan(5_000);
+      // 关键是不等满 10 秒的确认超时；负载下留出余量
+      expect(Date.now() - started).toBeLessThan(8_000);
     }, 20_000);
   });
 
@@ -1338,7 +1342,7 @@ describe('CliHarnessService parallel subagent permissions (docs/design/cli-subag
     });
     const tab = h.createTab({ backend: 'claude' });
     const run = h.sendTab(tab.id, 'go');
-    for (let i = 0; i < 200 && perms.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+    await until(() => perms.length >= 2, { timeoutMs: 15_000, what: 'two permission requests' });
     expect(perms.map((p) => [p.id, p.agent])).toEqual([
       ['perm-a', 'agent A'],
       ['perm-b', 'agent B'],

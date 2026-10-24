@@ -18,6 +18,9 @@ import { geminiModeId } from '../../../src/cli/permissionMode';
 import { TEST_GATEWAY_TOKEN, testGateway } from '../../helpers/gateway';
 import { until } from '../../helpers/wait';
 
+// 每个用例都起真实的假 CLI 进程：全量测试并行负载下启动可能要好几秒，默认 10 秒不够
+jest.setTimeout(30_000);
+
 jest.mock('electron', () => ({
   BrowserWindow: { getAllWindows: () => [] },
   ipcMain: { removeHandler: () => undefined, handle: () => undefined },
@@ -135,12 +138,20 @@ describe('CliHarnessService Gemini backend', () => {
     harnesses.push(h);
     return { h, root };
   };
+  // 轮询时假 CLI 可能正写到一半：只取能解析的整行（半截的末行留到下一次读）
   const readLog = (file: string) =>
     fs
       .readFileSync(file, 'utf8')
-      .trim()
       .split('\n')
-      .map((l) => JSON.parse(l) as { method: string; params: Record<string, unknown> });
+      .flatMap((l) => {
+        try {
+          return l.trim()
+            ? [JSON.parse(l) as { method: string; params: Record<string, unknown> }]
+            : [];
+        } catch {
+          return [];
+        }
+      });
 
   it('runs turns over one ACP process and keeps the session', async () => {
     const { h, root } = mk();
@@ -169,12 +180,12 @@ describe('CliHarnessService Gemini backend', () => {
     process.env.NOMI_MOCK_GEMINI_LOG = log;
     const lives = (h as unknown as { acpLive: Map<string, { ready: Promise<void> }> }).acpLive;
     const tab = h.createTab({ backend: 'gemini' });
-    for (let i = 0; i < 100 && !lives.has(tab.id); i++) await new Promise((r) => setTimeout(r, 10));
+    // 预热要先起进程：全量测试负载下可能远超 1 秒，按事件等而不是数次数
+    await until(() => lives.has(tab.id), { timeoutMs: 15_000, what: 'prewarmed session' });
     await lives.get(tab.id)!.ready;
     expect(readLog(log).map((c) => c.method)).toContain('session/new');
     const idle = h.createTab({ backend: 'gemini' });
-    for (let i = 0; i < 100 && !lives.has(idle.id); i++)
-      await new Promise((r) => setTimeout(r, 10));
+    await until(() => lives.has(idle.id), { timeoutMs: 15_000, what: 'second prewarmed session' });
     await lives.get(idle.id)!.ready;
 
     expect((await h.sendTab(tab.id, 'hello')).text).toBe('Mock Gemini: hello');
@@ -185,7 +196,7 @@ describe('CliHarnessService Gemini backend', () => {
     const tabs = h.listTabs().tabs;
     expect(tabs.find((x) => x.id === tab.id)?.dormant).toBe(true);
     expect(tabs.find((x) => x.id === idle.id)?.dormant).toBeFalsy();
-  }, 15_000);
+  }, 30_000);
 
   it('third-party tabs get the gateway token via env (no settings files)', async () => {
     process.env.TEST_GEMINI_3P = '1';
@@ -443,7 +454,10 @@ describe('CliHarnessService Gemini backend', () => {
         const tab = h.createTab({ backend: 'gemini' });
         h.setTabPermissionMode(tab.id, 'bypass', { confirmed: true }); // 新会话需要 set_mode
         const p = h.sendTab(tab.id, 'hello').catch((e: Error) => e);
-        await until(() => fs.existsSync(log) && readLog(log).some((c) => c.method === method));
+        await until(() => fs.existsSync(log) && readLog(log).some((c) => c.method === method), {
+          timeoutMs: 15_000,
+          what: `${method} received`,
+        });
         expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.status).toBe('running');
         expect(h.cancelTab(tab.id)).toBe(true);
         expect(await p).toBeInstanceOf(Error);
@@ -478,5 +492,6 @@ describe('CliHarnessService Gemini backend', () => {
     await p;
     expect(readLog(log).some((c) => c.method === 'session/cancel')).toBe(true);
     expect(h.tabMessages(tab.id).at(-1)?.stopped).toBe(true);
-  }, 15_000);
+    // 等待本身最多 15 秒：用例超时要留出余量
+  }, 30_000);
 });
