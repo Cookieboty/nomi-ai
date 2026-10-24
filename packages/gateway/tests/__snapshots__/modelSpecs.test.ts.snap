@@ -1,0 +1,129 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`built-in catalog (models.dev) > is versioned and covers the main model families 1`] = `
+{
+  "claude-sonnet-4-6": {
+    "family": "claude-sonnet",
+    "input": {
+      "images": true,
+      "pdf": true,
+    },
+    "limits": {
+      "context": 1000000,
+      "maxOutput": 128000,
+    },
+    "reasoning": {
+      "budget": {
+        "min": 1024,
+      },
+      "control": "adaptive",
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "max",
+      ],
+    },
+    "tools": {
+      "calling": true,
+    },
+  },
+  "deepseek-v4-flash": {
+    "family": "deepseek-flash",
+    "input": {
+      "images": true,
+      "pdf": false,
+    },
+    "limits": {
+      "context": 1048576,
+      "maxOutput": 393216,
+    },
+    "reasoning": {
+      "canDisable": true,
+      "control": "effort",
+      "efforts": [
+        "low",
+        "high",
+        "max",
+      ],
+      "passback": "required",
+      "passbackField": "reasoning_content",
+    },
+    "tools": {
+      "calling": true,
+    },
+  },
+  "gemini-2.5-pro": {
+    "family": "gemini-pro",
+    "input": {
+      "images": true,
+      "pdf": true,
+    },
+    "limits": {
+      "context": 1048576,
+      "maxOutput": 65536,
+    },
+    "reasoning": {
+      "budget": {
+        "max": 32768,
+        "min": 128,
+      },
+      "control": "budget",
+    },
+    "tools": {
+      "calling": true,
+    },
+  },
+  "glm-5.3": {
+    "family": "glm",
+    "input": {
+      "images": false,
+      "pdf": false,
+    },
+    "limits": {
+      "context": 1000000,
+      "maxOutput": 131072,
+    },
+    "reasoning": {
+      "control": "effort",
+      "efforts": [
+        "low",
+        "high",
+        "max",
+      ],
+      "passback": "required",
+      "passbackField": "reasoning_content",
+    },
+    "tools": {
+      "calling": true,
+    },
+  },
+  "kimi-k3": {
+    "family": "kimi-k3",
+    "input": {
+      "images": true,
+      "pdf": false,
+    },
+    "limits": {
+      "context": 1048576,
+      "maxOutput": 1048576,
+    },
+    "reasoning": {
+      "control": "effort",
+      "efforts": [
+        "low",
+        "high",
+        "max",
+      ],
+      "passback": "required",
+      "passbackField": "reasoning_content",
+    },
+    "sampling": {
+      "temperature": false,
+    },
+    "tools": {
+      "calling": true,
+    },
+  },
+}
+`;

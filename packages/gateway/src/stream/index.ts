@@ -36,7 +36,9 @@ export interface ConvertOptions {
   fixes?: ResponseFixOptions;
 }
 
-const makeDecoder = (f: UpstreamStreamFormat): StreamDecoder => createDecoder(f);
+/** 工具调用 id 的种子与修正共用一个（§6.9.7）：没给修正时只按序号 */
+const makeDecoder = (f: UpstreamStreamFormat, opts: ConvertOptions): StreamDecoder =>
+  createDecoder(f, { seed: opts.fixes?.callIds?.seed });
 
 function makeEncoder(
   f: DownstreamStreamFormat,
@@ -61,7 +63,7 @@ export function createStreamConverter(
   opts: ConvertOptions = {},
 ): StreamConverter {
   const parser = new SseParser();
-  const dec = makeDecoder(from);
+  const dec = makeDecoder(from, opts);
   const enc = makeEncoder(to, opts.model ?? '', opts.customTools);
   const fixer = opts.fixes && fixesEnabled(opts.fixes) ? new EventFixer(opts.fixes) : null;
   const emit = (n: NormEvent): string => {
@@ -118,7 +120,7 @@ export function jsonToJson(
 }
 
 function jsonEvents(from: UpstreamStreamFormat, body: unknown, opts: ConvertOptions): NormEvent[] {
-  const evs = jsonToEvents(from, body);
+  const evs = jsonToEvents(from, body, opts.fixes?.callIds?.seed);
   // 非流式不做复读检测（整段已经生成完）
   return opts.fixes && fixesEnabled(opts.fixes)
     ? fixEvents(evs, { ...opts.fixes, repetition: false })

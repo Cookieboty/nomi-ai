@@ -10,21 +10,45 @@ import type { AddressInfo, Socket } from 'node:net';
 import { Affinity, sessionKey } from './affinity';
 import { bridgeJson, bridgeMode, createBridge } from './bridge';
 import { ResponsesCanonicalizer } from './canonical/responses';
+import {
+  clientHooksOf,
+  ClientConformer,
+  clientSpecOf,
+  legacyClientOf,
+  type ModelResolution,
+} from './clients/index';
 import { peekCommit, type PeekResult } from './commit';
 import type { ClientId, GatewayConfig } from './config';
 import { CLIENT_IDS } from './config';
 import { coolsDown, Cooldowns, type KeyStatusEvent } from './cooldown';
 import { customToolNames, isCustomToolRefusal } from './customTools';
-import { errorResponse, kindOfStatus, upstreamMessage } from './errors';
+import {
+  clientStatusOf,
+  errorResponse,
+  kindOfStatus,
+  upstreamAuthMessage,
+  upstreamMessage,
+} from './errors';
 import { applyRequestFixes, serverToolError, toolLimitError } from './fixes';
 import { ingressFromPath, type Ingress } from './ingress';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
+import { limitsOf, Limiter } from './limits';
 import { modelsBody } from './models';
+import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { ProviderStage, specOf } from './providers/index';
+import { stagedResponse } from './providers/stream';
 import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
+import {
+  BINDING_RETRY_AFTER_S,
+  BindingTable,
+  hashTabToken,
+  isTabToken,
+  type TabBinding,
+} from './route/binding';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { SessionTable } from './sessions';
 import type { StreamUsage } from './stream';
@@ -92,6 +116,11 @@ export interface UsageEvent {
   notes?: string[];
   /** 诊断追踪 id（只有开着诊断日志时才有，§8.3）：与追踪文件、响应头 x-nomi-trace-id 对应 */
   traceId?: string;
+  /** 带标签令牌的请求：所属标签与进程代次（§6.7） */
+  tabId?: string;
+  generation?: number;
+  /** 模型是怎么解析出来的（显式 / 档位 / 辅助 / 绑定 / 未知名 / 默认） */
+  resolved?: ModelResolution;
 }
 
 export interface GatewayHooks {
@@ -118,6 +147,10 @@ export interface GatewayHooks {
   streamIdleTimeoutMs?: number;
   /** 冷却与亲和用的时钟（测试注入假时钟） */
   now?: () => number;
+  /** 标签绑定表（§6.7）：由网关进程入口持有，配置重启网关时不丢；不给时网关自己建一个 */
+  bindings?: BindingTable;
+  /** 未知标签令牌等绑定的时长（默认 2 秒；测试缩短） */
+  bindingWaitMs?: number;
 }
 
 function tokenEquals(a: string, b: string): boolean {
@@ -172,19 +205,26 @@ function presentedTokens(req: http.IncomingMessage, url: URL): string[] {
   return out;
 }
 
-/** 旧版共享令牌的客户端身份：按入口路径和 User-Agent 推断，推断不了就不做场景映射（§10.2） */
+/** 旧版共享令牌的客户端身份：按客户端规格的 legacy 规则（入口路径、User-Agent）推断（§10.2、§5.5） */
 function legacyClient(ingress: Ingress | null, ua: string): ClientId | null {
-  if (ingress?.wire === 'messages') return 'claude';
-  const u = ua.toLowerCase();
-  if (u.includes('codex')) return 'codex';
-  if (u.includes('grok')) return 'grok';
-  if (u.includes('dsh')) return 'dsh';
-  if (ingress?.wire === 'gemini') return 'gemini';
-  return null;
+  return legacyClientOf(ingress?.wire ?? null, ua) as ClientId | null;
+}
+
+/** 请求的身份：客户端，以及带标签令牌时的绑定 */
+interface Identity {
+  client: GatewayClient;
+  binding?: TabBinding;
 }
 
 type Attempt =
-  | { kind: 'response'; res: Response; cand: Candidate; notes?: string[] }
+  | {
+      kind: 'response';
+      res: Response;
+      cand: Candidate;
+      notes?: string[];
+      /** 供应商预处理（§6.3）：套在了 res 上；心跳计数在这里 */
+      stage?: ProviderStage;
+    }
   | {
       kind: 'failed';
       status: number;
@@ -208,6 +248,10 @@ export class GatewayServer {
 
   private readonly learner: Learner;
   private readonly cooldowns: Cooldowns;
+  /** 标签令牌的绑定（§6.7）：主进程经 worker 消息登记，网关回应答 */
+  readonly bindings: BindingTable;
+  /** 按 (供应商, Key) 的并发与每分钟请求数（§6.11.3） */
+  private readonly limiter: Limiter;
   private readonly affinity: Affinity;
   private readonly sessions: SessionTable;
 
@@ -216,6 +260,8 @@ export class GatewayServer {
     private readonly hooks: GatewayHooks = {},
   ) {
     const now = hooks.now ?? Date.now;
+    this.limiter = new Limiter(now);
+    this.bindings = hooks.bindings ?? new BindingTable();
     this.cooldowns = new Cooldowns((e) => {
       this.hooks.logger?.info('gateway key status', e);
       this.hooks.onKeyStatus?.(e);
@@ -276,14 +322,30 @@ export class GatewayServer {
     return a ? `http://${urlHost(this.cfg.host)}:${a.port}` : null;
   }
 
-  private identify(req: http.IncomingMessage, url: URL): GatewayClient | null {
+  /**
+   * 认身份：客户端级令牌、标签令牌（§6.7）、旧版共享令牌。
+   * 标签令牌格式正确但还没登记时短暂等待绑定；等不到返回 'unbound'（503，不用 401）。
+   */
+  private async identify(
+    req: http.IncomingMessage,
+    url: URL,
+  ): Promise<Identity | 'unbound' | null> {
     const tokens = presentedTokens(req, url);
     for (const id of CLIENT_IDS) {
       const t = this.cfg.clients[id]?.token;
-      if (t && tokens.some((x) => tokenEquals(x, t))) return id;
+      if (t && tokens.some((x) => tokenEquals(x, t))) return { client: id };
+    }
+    const tab = tokens.find(isTabToken);
+    if (tab) {
+      const binding =
+        this.bindings.get(hashTabToken(tab)) ??
+        (await this.bindings.lookup(tab, this.hooks.bindingWaitMs));
+      if (!binding) return 'unbound';
+      const client = binding.client as ClientId;
+      return CLIENT_IDS.includes(client) ? { client, binding } : null;
     }
     const legacy = this.cfg.legacyToken;
-    if (legacy && tokens.some((x) => tokenEquals(x, legacy))) return 'legacy';
+    if (legacy && tokens.some((x) => tokenEquals(x, legacy))) return { client: 'legacy' };
     return null;
   }
 
@@ -305,7 +367,18 @@ export class GatewayServer {
       return;
     }
     const ingress = ingressFromPath(url.pathname);
-    const client = this.identify(req, url);
+    const who = await this.identify(req, url);
+    if (who === 'unbound') {
+      // 新进程的第一个请求比绑定先到、且等了一会儿还没到：让 CLI 稍后重试（不是 401，§6.11.5）
+      const e = errorResponse(
+        ingress?.wire ?? 'chat',
+        'overloaded',
+        'Nomi 网关：这个标签的会话还没准备好，请稍后重试',
+      );
+      sendJson(res, e.status, e.body, { 'Retry-After': String(BINDING_RETRY_AFTER_S) });
+      return;
+    }
+    const client = who?.client ?? null;
     if (!client) {
       const e = errorResponse(
         ingress?.wire ?? 'chat',
@@ -328,7 +401,7 @@ export class GatewayServer {
       sendJson(res, 404, { error: `unknown route: ${req.method} ${url.pathname}` });
       return;
     }
-    await this.proxy(req, res, cfg, client, ingress);
+    await this.proxy(req, res, cfg, client, ingress, who?.binding);
   }
 
   private async proxy(
@@ -337,8 +410,13 @@ export class GatewayServer {
     cfg: GatewayConfig,
     client: GatewayClient,
     ingress: Ingress,
+    binding?: TabBinding,
   ): Promise<void> {
     const startedAt = Date.now();
+    /** 每个用量事件都带上的标签与解析信息 */
+    const tag: Partial<UsageEvent> = binding
+      ? { tabId: binding.tabId, generation: binding.generation }
+      : {};
     const fail = (status: number, message: string, retryAfter?: string) => {
       const e = errorResponse(ingress.wire, kindOfStatus(status, message), message);
       // 上游给了 Retry-After 时原样转发，CLI 自带的重试会照着等（§9.6）
@@ -379,11 +457,25 @@ export class GatewayServer {
           : '';
     const resolveAs =
       client === 'legacy' ? legacyClient(ingress, String(req.headers['user-agent'] ?? '')) : client;
-    const r = resolveCandidates(cfg, resolveAs, requested, ingress.wire);
+    const r = resolveCandidates(cfg, resolveAs, requested, ingress.wire, binding);
     if (!r.ok) {
       fail(r.status, r.message);
       return;
     }
+    if (r.resolution) tag.resolved = r.resolution.how;
+    // 路由计划的影子模式（§6.9.4）：新计划与现有规则选的协议不同就写日志，观察一个版本再切换
+    const plan = r.candidates[0]?.plan;
+    if (plan?.legacy && plan.legacy !== plan.upstream)
+      this.hooks.logger?.info('gateway route plan (shadow) differs', {
+        model: r.candidates[0]!.publicModel,
+        ingress: ingress.wire,
+        current: plan.legacy,
+        planned: plan.upstream,
+        why: plan.why,
+        losses: plan.losses,
+      });
+    /** 模型解析的备注（未知模型名按标签主模型处理等），并进这次请求的备注 */
+    const resolveNotes = r.resolution?.note ? [r.resolution.note] : [];
     const wantsStream = ingress.wire === 'gemini' ? Boolean(ingress.stream) : b.stream === true;
     if (ingress.countTokens) {
       await this.countTokens(res, cfg, ingress, body, r.candidates[0]!);
@@ -398,6 +490,8 @@ export class GatewayServer {
     let attempts = 0;
     let last: Attempt | null = null;
     let firstByteMs: number | undefined;
+    /** 成功的那个候选占着的并发名额：写完响应再释放 */
+    let held: (() => void) | null = null;
     // 排序：被短期压制的（§7.4）和冷却中的（§11.1）排到后面，亲和的排到第一（§11.2）。
     // 学习触发的重试（换 wire / 去掉字段）插到队首，每个请求最多 2 次（§7.4）
     const session = sessionKey(ingress.wire, req.headers, body, client);
@@ -428,6 +522,23 @@ export class GatewayServer {
         });
       const sendBody =
         ingress.wire === cand.wire && !keep ? stripSealedReasoning(ingress.wire, body) : body;
+      // 并发与每分钟请求数（§6.11.3）：排队期间给客户端发保活；等不到就换下一个候选（不冷却这个 Key）
+      const release = await this.limiter.acquire(
+        `${cand.provider.id}\u0000${cand.key.id}`,
+        limitsOf(cand.provider, cand.key),
+        { ...(wantsStream ? { onWaiting: keepAlive } : {}), signal: abort.signal },
+      );
+      if (!release) {
+        last = {
+          kind: 'failed',
+          status: 429,
+          message: '这个 Key 的并发 / 每分钟请求数已满，排队超时',
+          retryable: true,
+          cand,
+        };
+        errors.push(`${cand.provider.name}·${cand.key.name ?? cand.key.id}: ${last.message}`);
+        continue;
+      }
       last = await this.attempt(
         cfg,
         resolveAs,
@@ -438,10 +549,19 @@ export class GatewayServer {
         wantsStream,
         abort.signal,
         trace,
+        binding?.effort,
       );
       // 提交点（§6.11.2）：流式响应等到第一个内容事件才算成功；之前的错误事件还能换候选
       if (last.kind === 'response' && wantsStream && isSseResponse(last.res)) {
-        const got = last;
+        let got = last;
+        // 供应商预处理（§6.3）在提交点之前：伪装成正文增量的保活不能触发提交
+        const spec = specOf(cand.provider, cand.wire);
+        if (ProviderStage.needed(spec)) {
+          const stage = new ProviderStage(spec, cand.wire);
+          const status = got.res.status;
+          const onRaw = trace ? (t: string) => trace.response(status, t) : undefined;
+          got = { ...got, res: stagedResponse(got.res, stage, onRaw), stage };
+        }
         const peek = await peekCommit(got.res, cand.wire, {
           waitingMs: COMMIT_KEEPALIVE_MS,
           onWaiting: keepAlive,
@@ -463,6 +583,8 @@ export class GatewayServer {
           };
         }
       }
+      if (last.kind !== 'response') release();
+      else held = release;
       if (last.kind === 'response') {
         firstByteMs = Date.now() - startedAt;
         this.learner.success(cand);
@@ -502,13 +624,18 @@ export class GatewayServer {
         });
       const hint =
         last.text !== undefined
-          ? this.learner.failure(cand, classifyFailure(last.status, last.text, last.sent))
+          ? this.learner.failure(
+              cand,
+              classifyFailure(last.status, last.text, last.sent, { applied: cand.rectify }),
+            )
           : null;
       const retry =
         hint && learnRetries < MAX_LEARN_RETRIES
           ? 'dropParam' in hint
             ? { ...cand, dropParams: [...(cand.dropParams ?? []), hint.dropParam] }
-            : alternateWire(cfg, cand, ingress.wire, [hint.excludeWire])
+            : 'rectify' in hint
+              ? { ...cand, rectify: [...(cand.rectify ?? []), hint.rectify] }
+              : alternateWire(cfg, cand, ingress.wire, [hint.excludeWire])
           : null;
       if (retry) {
         learnRetries++;
@@ -538,11 +665,15 @@ export class GatewayServer {
       if (!last.retryable && !hint) break;
     }
     if (!last || last.kind === 'failed') {
-      const status = last?.status ?? 502;
-      const message =
+      // 提交前的状态码矩阵（§6.11.5）：上游 401 / 403 不能原样给 CLI（会被当成要重新登录）
+      const raw = last?.status ?? 502;
+      const status = clientStatusOf(raw);
+      let message =
         errors.length > 1
           ? `Nomi 网关：所有候选都失败了 —— ${errors.join('；')}`
           : (last?.message ?? 'Nomi 网关：没有可用的候选');
+      if ((raw === 401 || raw === 403) && errors.length <= 1)
+        message = upstreamAuthMessage(raw, message);
       fail(status, message, last?.retryAfter);
       void trace?.finish({ status, ms: Date.now() - startedAt, attempts, error: message });
       this.hooks.onUsage?.({
@@ -562,24 +693,33 @@ export class GatewayServer {
         ms: Date.now() - startedAt,
         attempts,
         error: message,
+        ...(resolveNotes.length ? { notes: resolveNotes } : {}),
         ...(trace ? { traceId: trace.id } : {}),
+        ...tag,
       });
       return;
     }
-    const { res: up, cand } = last;
-    // 请求修正（attempt）之后再追加响应修正（respond，§11.3）
-    const notes = [...(last.notes ?? [])];
-    const usage = await this.respond(
-      res,
-      ingress,
-      cand,
-      up,
-      body,
-      wantsStream,
-      abort,
-      notes,
-      trace,
-    );
+    const { res: up, cand, stage } = last;
+    // 模型解析的备注、请求修正（attempt）之后再追加响应修正（respond，§11.3）
+    const notes = [...resolveNotes, ...(last.notes ?? [])];
+    let usage: StreamUsage;
+    try {
+      usage = await this.respond(
+        res,
+        ingress,
+        cand,
+        up,
+        body,
+        wantsStream,
+        abort,
+        notes,
+        trace,
+        stage,
+        resolveAs,
+      );
+    } finally {
+      held?.();
+    }
     void trace?.finish({
       status: up.status,
       ms: Date.now() - startedAt,
@@ -611,6 +751,7 @@ export class GatewayServer {
       attempts,
       ...(notes.length ? { notes } : {}),
       ...(trace ? { traceId: trace.id } : {}),
+      ...tag,
     });
   }
 
@@ -663,6 +804,7 @@ export class GatewayServer {
     wantsStream: boolean,
     signal: AbortSignal,
     trace?: RequestTrace | null,
+    bindingEffort?: string,
   ): Promise<Attempt> {
     const base = cand.provider.urls[cand.wire]!;
     const target = upstreamUrl(cand.wire, base, cand.upstreamModel, { stream: wantsStream });
@@ -682,12 +824,21 @@ export class GatewayServer {
       };
     }
     const notes: string[] = [];
-    const sent = upstreamBody(ingress.wire, cand, body, {
-      stream: wantsStream,
-      ingressModel: ingress.model,
-      notes,
-      client: client ?? undefined,
-    });
+    let sent: unknown;
+    try {
+      sent = upstreamBody(ingress.wire, cand, body, {
+        stream: wantsStream,
+        ingressModel: ingress.model,
+        notes,
+        client: client ?? undefined,
+        ...(bindingEffort ? { bindingEffort } : {}),
+      });
+    } catch (e) {
+      // 严格模式（§6.9.6）：模型不支持的参数直接报给用户，不换候选
+      if (e instanceof UnsupportedParamError)
+        return { kind: 'failed', status: 400, message: e.message, retryable: false, cand };
+      throw e;
+    }
     // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
     const tooMany = toolLimitError(cand, sent);
     if (tooMany) return { kind: 'failed', status: 400, message: tooMany, retryable: true, cand };
@@ -773,6 +924,8 @@ export class GatewayServer {
     abort: AbortController,
     notes: string[] = [],
     trace?: RequestTrace | null,
+    stage?: ProviderStage,
+    client: string | null = null,
   ): Promise<StreamUsage> {
     res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
@@ -788,6 +941,7 @@ export class GatewayServer {
     if (wantsStream && isSse && up.body) {
       // 提交点之前可能已经发过响应头与 SSE 注释保活（§6.11.2）
       if (!res.headersSent) res.writeHead(200, SSE_HEADERS);
+      const spec = clientSpecOf(client);
       const tap = new UsageTap(cand.wire);
       // 协议桥（§6.5）：同协议按事件透传，只在修正触发时改事件；跨协议 / custom 工具转换：解码 → 修正 → 编码
       const bridge = createBridge({
@@ -797,7 +951,14 @@ export class GatewayServer {
         model: cand.publicModel,
         customTools: convOpts.customTools,
         fixes,
+        ...(spec?.heartbeat ? { heartbeat: spec.heartbeat.kind } : {}),
       });
+      // 客户端校验（§6.6）：严格客户端按规格再校验一次；宽松客户端不经过
+      const conformer =
+        spec && ClientConformer.needed(spec, clientHooksOf(client))
+          ? new ClientConformer({ spec, wire: ingress.wire, notes })
+          : null;
+      const conform = (t: string) => (conformer && t ? conformer.push(t) : t);
       const decoder = new TextDecoder();
       const reader = up.body.getReader();
       const idleMs = resolveStreamIdleTimeoutMs(this.hooks);
@@ -819,9 +980,16 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
-          trace?.response(up.status, text);
-          const out = bridge.push(text);
+          // 有供应商预处理时上游原文已在预处理那一层记过（追踪存原始字节，§8.4）
+          if (!stage) trace?.response(up.status, text);
+          let out = bridge.push(text);
+          // 供应商适配器丢掉了上游的保活：给客户端发一个心跳（§6.6）
+          if (stage?.alive) {
+            stage.alive = 0;
+            out += bridge.alive();
+          }
           // 背压（§6.11.4）：客户端读得慢时暂停读上游，等 drain；等待期间不算上游空闲
+          out = conform(out);
           const ok = out ? res.write(out) : true;
           if (!ok) {
             if (idle) clearTimeout(idle);
@@ -833,7 +1001,7 @@ export class GatewayServer {
         }
         const rest = bridge.stopped ? '' : decoder.decode();
         tap.push(rest);
-        const tail = bridge.end(rest);
+        const tail = conform(bridge.end(rest)) + (conformer?.end() ?? '');
         if (tail) res.write(tail);
         if (bridge.stopped) {
           if (idle) clearTimeout(idle);
@@ -844,7 +1012,7 @@ export class GatewayServer {
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
             : `Nomi 网关：上游中断（${(e as Error).message}）`;
-          res.write(bridge.fail(msg));
+          res.write(conform(bridge.fail(msg)) + (conformer?.end() ?? ''));
         }
       } finally {
         if (idle) clearTimeout(idle);

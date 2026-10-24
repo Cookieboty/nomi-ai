@@ -4,6 +4,7 @@
  * 让「解码 → 编码」与原来的两两转换输出一致。
  */
 import type { IRMessage, IRPart, IRRequest, IRTool, IRToolChoice } from '../ir';
+import { unescapeCallId } from '../models/rules/response/callIds';
 import {
   asArr,
   asObj,
@@ -18,6 +19,9 @@ import {
 } from '../util';
 
 /* ------------------------------ 公共 ------------------------------ */
+
+/** 工具调用 id：网关回程按协议格式改写过的（§6.9.7）还原成上游原来的 id */
+const cid = (v: unknown): string => unescapeCallId(str(v));
 
 /** 合并相邻同角色消息；空的不加 */
 function pushMessage(messages: IRMessage[], role: IRMessage['role'], parts: IRPart[]) {
@@ -90,7 +94,7 @@ function anthropicToolResult(b: Obj): IRPart {
   }
   return {
     kind: 'tool_result',
-    callId: str(b.tool_use_id),
+    callId: cid(b.tool_use_id),
     text,
     ...(images.length ? { images } : {}),
     ...(b.is_error === true ? { isError: true } : {}),
@@ -106,7 +110,7 @@ function anthropicBlock(c: Obj): IRPart | null {
     case 'tool_use':
       return {
         kind: 'tool_call',
-        id: str(c.id),
+        id: cid(c.id),
         name: str(c.name),
         args: JSON.stringify(c.input ?? {}),
       };
@@ -237,7 +241,7 @@ export function decodeResponses(body: unknown): IRRequest {
       pushMessage(messages, 'assistant', [
         {
           kind: 'tool_call',
-          id: str(it.call_id) || str(it.id),
+          id: cid(it.call_id) || cid(it.id),
           name: str(it.name),
           // 先解析再序列化：与原实现经 Messages 中转时的参数规整化一致
           args: JSON.stringify(custom ? { input: str(it.input) } : parseArgs(it.arguments)),
@@ -246,7 +250,7 @@ export function decodeResponses(body: unknown): IRRequest {
       ]);
     } else if (type === 'function_call_output' || type === 'custom_tool_call_output') {
       pushMessage(messages, 'user', [
-        { kind: 'tool_result', callId: str(it.call_id), text: outputToText(it.output) },
+        { kind: 'tool_result', callId: cid(it.call_id), text: outputToText(it.output) },
       ]);
     } else if (type === 'reasoning') {
       const summary = asArr(it.summary)
@@ -339,7 +343,7 @@ export function decodeChat(body: unknown): IRRequest {
         const fn = asObj(tc.function);
         parts.push({
           kind: 'tool_call',
-          id: str(tc.id),
+          id: cid(tc.id),
           name: str(fn.name),
           args: JSON.stringify(parseArgs(fn.arguments)),
         });
@@ -347,7 +351,7 @@ export function decodeChat(body: unknown): IRRequest {
       pushMessage(messages, 'assistant', parts);
     } else if (role === 'tool') {
       pushMessage(messages, 'user', [
-        { kind: 'tool_result', callId: str(m.tool_call_id), text: textOf(chatContent(m.content)) },
+        { kind: 'tool_result', callId: cid(m.tool_call_id), text: textOf(chatContent(m.content)) },
       ]);
     } else {
       pushMessage(messages, 'user', chatContent(m.content));
@@ -443,7 +447,7 @@ export function decodeGemini(
       } else if (p.functionCall) {
         const fc = asObj(p.functionCall);
         const name = str(fc.name);
-        const id = str(fc.id) || `call_gemini_${n++}`;
+        const id = cid(fc.id) || `call_gemini_${n++}`;
         pending.set(name, [...(pending.get(name) ?? []), id]);
         parts.push({
           kind: 'tool_call',
@@ -456,7 +460,7 @@ export function decodeGemini(
         const fr = asObj(p.functionResponse);
         const name = str(fr.name);
         const queue = pending.get(name) ?? [];
-        const callId = str(fr.id) || queue.shift() || name;
+        const callId = cid(fr.id) || queue.shift() || name;
         pending.set(name, queue);
         parts.push(geminiFunctionResponse(fr, callId));
       }

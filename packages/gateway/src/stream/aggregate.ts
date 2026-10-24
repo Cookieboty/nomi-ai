@@ -1,6 +1,8 @@
 /**
  * 中间事件 → 下游 CLI 期望的非流式 JSON 响应（保留工具调用、停止原因与用量）。
  */
+import { escapeCallId } from '../models/rules/response/callIds';
+
 import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamUsage } from './events';
 
@@ -106,7 +108,7 @@ export function eventsToJson(
         content: blocks.map((b) =>
           b.kind === 'text'
             ? { type: 'text', text: b.text }
-            : { type: 'tool_use', id: b.id, name: b.name, input: parseInput(b.args) },
+            : { type: 'tool_use', id: escapeCallId(b.id), name: b.name, input: parseInput(b.args) },
         ),
         stop_reason: reason,
         stop_sequence: null,
@@ -190,7 +192,7 @@ export function eventsToJson(
     if (opts.customTools?.has(b.name)) {
       return {
         type: 'custom_tool_call',
-        id: rid('ctc'),
+        id: b.id ? `ctc_${escapeCallId(b.id)}` : rid('ctc'),
         call_id: b.id,
         name: b.name,
         input: customToolInput(b.args),
@@ -199,7 +201,7 @@ export function eventsToJson(
     }
     return {
       type: 'function_call',
-      id: rid('fc'),
+      id: b.id ? `fc_${escapeCallId(b.id)}` : rid('fc'),
       call_id: b.id,
       name: b.name,
       arguments: b.args || '{}',

@@ -62,6 +62,12 @@
       "author": "Nomi-ai project owner (Cookieboty) — provisional Edge TTS (zh-CN-XiaoyiNeural) seed; replace with project-owned recording when available",
       "source": "packages/electron/assets/tts/references/nomi/README.md",
       "notes": "Provisional product seed. See folder README for Edge TTS provenance caveats before commercial redistribution."
+    },
+    {
+      "pattern": "packages/gateway/src/models/catalog.json",
+      "license": "MIT",
+      "author": "SST / models.dev contributors (trimmed by Nomi contributors)",
+      "source": "https://models.dev/api.json via packages/gateway/scripts/build-catalog.mjs"
     }
   ],
   "firstPartyLicense": "LicenseRef-FirstParty"

@@ -3,6 +3,7 @@
  */
 import type { LearnedState, RuntimeKey, RuntimeProvider } from '../config';
 import type { Wire } from '../ir';
+import { quirksOf } from '../providers/index';
 
 const DEFAULT_ORDER: readonly Wire[] = ['chat', 'responses', 'messages', 'gemini'];
 
@@ -62,9 +63,9 @@ export function pickWire(
   // 规则 3：OpenAI 模型优先 Responses，保住加密推理
   if (isOpenAIModel(model) && usable.includes('responses')) return 'responses';
   // 规则 4：Chat 接口不报缓存用量的供应商
-  if (p.quirks?.responsesTellsCache && usable.includes('responses')) return 'responses';
+  if (quirksOf(p).responsesTellsCache && usable.includes('responses')) return 'responses';
   // 规则 4.5：厂商指定的转换目标
-  const prefer = p.quirks?.preferWire;
+  const prefer = quirksOf(p).preferWire;
   if (prefer && usable.includes(prefer)) return prefer;
   // 规则 5：默认顺序
   return DEFAULT_ORDER.find((w) => usable.includes(w)) ?? null;

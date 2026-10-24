@@ -1,0 +1,4954 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`request parity across the provider-spec migration > anthropic: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "service_tier": "auto",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "output_config": {
+   "effort": "high"
+  },
+  "context_management": {
+   "edits": []
+  },
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   },
+   {
+    "type": "web_search_20250305",
+    "name": "web_search"
+   }
+  ],
+  "messages": [
+   {
+    "role": "system",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "context-1m-2025,fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > anthropic: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "service_tier": "auto",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys\\n\\ninline system",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）",
+  "1 条对话中的 system 消息已合并进顶层 system",
+  "服务端工具 web_search 已去掉（上游不是 Anthropic 官方）",
+  "output_config 已去掉（上游不是 Anthropic 官方）",
+  "context_management 已去掉（上游不是 Anthropic 官方）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > deepseek: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "service_tier": "auto",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys\\n\\ninline system",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）",
+  "1 条对话中的 system 消息已合并进顶层 system",
+  "服务端工具 web_search 已去掉（上游不是 Anthropic 官方）",
+  "output_config 已去掉（上游不是 Anthropic 官方）",
+  "context_management 已去掉（上游不是 Anthropic 官方）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > kimi: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  },
+  "reasoning_split": true
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  },
+  "reasoning_split": true
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  },
+  "reasoning_split": true
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys\\n\\ninline system",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）",
+  "1 条对话中的 system 消息已合并进顶层 system",
+  "服务端工具 web_search 已去掉（上游不是 Anthropic 官方）",
+  "output_config 已去掉（上游不是 Anthropic 官方）",
+  "context_management 已去掉（上游不是 Anthropic 官方）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  },
+  "reasoning_split": true
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "User-Agent": "nomi-test/1.0"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > minimax: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "service_tier": "auto",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys\\n\\ninline system",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）",
+  "1 条对话中的 system 消息已合并进顶层 system",
+  "服务端工具 web_search 已去掉（上游不是 Anthropic 官方）",
+  "output_config 已去掉（上游不是 Anthropic 官方）",
+  "context_management 已去掉（上游不是 Anthropic 官方）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string",
+        "examples": [
+         "a"
+        ]
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "$schema": "http://json-schema.org/draft-07/schema#",
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string",
+         "examples": [
+          "a"
+         ]
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > openai: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "$schema": "http://json-schema.org/draft-07/schema#",
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string",
+       "examples": [
+        "a"
+       ]
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: chat → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "service_tier": "auto",
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "mcp_read_file_2149448",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "1 个工具名已映射为 Chat 接口允许的名字"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: chat → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "mcp.read/file",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: chat → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "mcp.read/file",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: chat → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "mcp.read/file",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: gemini → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: gemini → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: gemini → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": true,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: gemini → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "store": false,
+  "max_output_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: messages → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "system",
+    "content": "sys"
+   },
+   {
+    "role": "user",
+    "content": "inline system"
+   },
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: messages → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "inline system"
+     },
+     {
+      "text": "hi"
+     },
+     {
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "sys"
+    }
+   ]
+  },
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "temperature": 0.5,
+   "thinkingConfig": {
+    "thinkingBudget": 30000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 thinkingBudget=30000",
+  "maxOutputTokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: messages → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_tokens": 8000,
+  "system": "sys\\n\\ninline system",
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 6000
+  },
+  "temperature": 0.5,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     },
+     {
+      "type": "text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01",
+  "anthropic-beta": "fine-grained-tool-streaming-2025",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_tokens 20000 → 8000",
+  "thinking.budget_tokens 30000 → 6000",
+  "已省略 1 张图片（模型不支持图片输入）",
+  "1 条对话中的 system 消息已合并进顶层 system",
+  "服务端工具 web_search 已去掉（上游不是 Anthropic 官方）",
+  "output_config 已去掉（上游不是 Anthropic 官方）",
+  "context_management 已去掉（上游不是 Anthropic 官方）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: messages → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "input": [
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "inline system"
+     }
+    ]
+   },
+   {
+    "type": "message",
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     },
+     {
+      "type": "input_text",
+      "text": "[图片已省略：当前模型不支持图片输入]"
+     }
+    ]
+   }
+  ],
+  "stream": false,
+  "store": false,
+  "instructions": "sys",
+  "max_output_tokens": 8000,
+  "temperature": 0.5,
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "reasoning": {
+   "effort": "high"
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high budget=30000（explicit） → 发出 reasoning.effort=high",
+  "max_output_tokens 20000 → 8000",
+  "已省略 1 张图片（模型不支持图片输入）"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: responses → chat 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": "hi"
+   }
+  ],
+  "stream": true,
+  "max_tokens": 8000,
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "read",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "p": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  ],
+  "reasoning_effort": "high",
+  "stream_options": {
+   "include_usage": true
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 reasoning_effort=high",
+  "max_tokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: responses → gemini 1`] = `
+"{
+ "body": {
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "maxOutputTokens": 8000,
+   "thinkingConfig": {
+    "thinkingBudget": 24000
+   }
+  },
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "read",
+      "parametersJsonSchema": {
+       "type": "object",
+       "properties": {
+        "p": {
+         "type": "string"
+        }
+       }
+      }
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-goog-api-key": "sk-test-0000000000"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinkingBudget=24000",
+  "maxOutputTokens 20000 → 8000"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: responses → messages 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "messages": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "hi"
+     }
+    ]
+   }
+  ],
+  "max_tokens": 8000,
+  "stream": false,
+  "tools": [
+   {
+    "name": "read",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "thinking": {
+   "type": "enabled",
+   "budget_tokens": 7999
+  }
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "x-api-key": "sk-test-0000000000",
+  "anthropic-version": "2023-06-01"
+ },
+ "notes": [
+  "推理：请求 enabled effort=high（explicit） → 发出 thinking.budget_tokens=7999"
+ ]
+}"
+`;
+
+exports[`request parity across the provider-spec migration > relay: responses → responses 1`] = `
+"{
+ "body": {
+  "model": "m",
+  "max_output_tokens": 8000,
+  "reasoning": {
+   "effort": "high"
+  },
+  "tools": [
+   {
+    "type": "function",
+    "name": "read",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "p": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ],
+  "input": [
+   {
+    "role": "user",
+    "content": [
+     {
+      "type": "input_text",
+      "text": "hi"
+     }
+    ]
+   }
+  ]
+ },
+ "headers": {
+  "Content-Type": "application/json",
+  "Accept": "text/event-stream",
+  "Authorization": "Bearer sk-test-0000000000",
+  "User-Agent": "claude-cli/9"
+ },
+ "notes": [
+  "max_output_tokens 20000 → 8000"
+ ]
+}"
+`;

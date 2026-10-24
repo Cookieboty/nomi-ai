@@ -11,6 +11,7 @@ import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/respo
 import { TerminalWatch } from './canonical/terminal';
 import type { Wire } from './ir';
 import { patchChatJson, type ChatPatchOptions } from './stream/chatPatch';
+import { heartbeat, HEARTBEAT_COMMENT, type HeartbeatKind } from './stream/heartbeat';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamConverter } from './stream/index';
 import { createPassthrough, passthroughFail, type Passthrough } from './stream/passthrough';
 
@@ -29,6 +30,8 @@ export interface BridgePlan {
   customTools?: ReadonlySet<string>;
   /** 响应方向的修正开关与备注（§11.3） */
   fixes: ChatPatchOptions;
+  /** 心跳的形式（客户端规格给出；缺省按入口协议） */
+  heartbeat?: HeartbeatKind;
 }
 
 export interface Bridge {
@@ -41,6 +44,11 @@ export interface Bridge {
   fail(message: string): string;
   /** 修正决定提前结束（复读检测）：调用方停止读上游 */
   readonly stopped: boolean;
+  /**
+   * 给客户端的心跳（§6.6）：供应商适配器丢掉了上游的保活时调用。只在事件边界之间写
+   * （透传按完整事件转发，转换器只输出完整事件），不会插进半截事件里。
+   */
+  alive(): string;
 }
 
 /** SSE 事件的结尾：空行（LF 或 CRLF，可混用） */
@@ -81,14 +89,23 @@ export function createBridge(plan: BridgePlan): Bridge {
     return out;
   };
   const forward = (events: string) => write(pass ? pass.push(events) : events);
+  /** 已经给客户端写过内容（Messages 的 ping 只能在 message_start 之后） */
+  let wrote = false;
+  const sent = (s: string) => {
+    if (s) wrote = true;
+    return s;
+  };
   return {
     mode: plan.mode,
     push(text) {
-      if (conv) return write(conv.push(text));
+      if (conv) return sent(write(conv.push(text)));
       const events = frame(text);
       if (!events) return '';
       watch?.push(events);
-      return forward(events);
+      return sent(forward(events));
+    },
+    alive() {
+      return wrote ? heartbeat(plan.to, plan.heartbeat) : HEARTBEAT_COMMENT;
     },
     end(rest = '') {
       let out = '';
@@ -135,6 +152,11 @@ export type JsonBridgeOutput =
 /**
  * 上游非流式 JSON → 入口协议。跨协议与「要流式」都展开成 NormEvent（jsonToEvents），经同一套结构修复
  * （EventFixer）再聚合 / 编码；同协议透传只做规范补全（Responses）与 Chat 的结构修复，没修正时正文原样。
+ *
+ * 同协议的非流式正文**不**展开成事件：展开再聚合会丢掉上游的未知字段（`system_fingerprint`、
+ * 供应商私有的 `x_*`、Responses 的 `metadata` / `tools` 回显等），字段顺序与数字格式也会变，做不到
+ * 「没修正时字节一致」（§6.5 的承诺）。所以这条路径保持直通：Chat 的结构修复走 patchChatJson
+ * （与流式同一份规则，models/rules/response/rules.ts），Responses 只补必填字段。
  */
 export function bridgeJson(
   plan: BridgePlan,

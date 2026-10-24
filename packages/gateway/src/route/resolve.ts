@@ -1,6 +1,13 @@
 /**
  * 模型名 → 候选列表（docs/design/unified-gateway.md §6.2、§7.2）。
  */
+import {
+  builtinSlot,
+  clientSpecOf,
+  slotIsSet,
+  slotModel,
+  type ModelResolution,
+} from '../clients/index';
 import type {
   ClientId,
   ClientModels,
@@ -10,8 +17,13 @@ import type {
   RuntimeProvider,
 } from '../config';
 import type { Wire } from '../ir';
+import { effectiveModel } from '../models/effective';
+import type { EffectiveModel } from '../models/types';
+import { quirksOf } from '../providers/index';
 
 import { pickWire, wiresFor } from './native';
+import { makePlan, type RoutePlan } from './plan';
+import type { RectifyFix } from './rectifiers';
 
 export interface Candidate {
   provider: RuntimeProvider;
@@ -25,10 +37,21 @@ export interface Candidate {
   dropParams?: string[];
   /** Responses 上游拒绝过 custom 工具：custom 改成函数发出，回程还原（§11.3 customToolsRefused） */
   customToolsAsFunctions?: boolean;
+  /** 生效的模型规格（族 → 目录 → 供应商 → 学到的 → 用户，§6.9.3），展开候选时算好 */
+  model?: EffectiveModel;
+  /** 这次的路由计划（§6.9.4）：选协议的理由、预期损失 */
+  plan?: RoutePlan;
+  /** 这次重试要应用的错误修正（§6.9.8，每种最多一次） */
+  rectify?: RectifyFix[];
 }
 
 export type ResolveResult =
-  | { ok: true; candidates: Candidate[] }
+  | {
+      ok: true;
+      candidates: Candidate[];
+      /** 模型是怎么解析出来的（§6.7）与要追加的请求备注 */
+      resolution?: { how: ModelResolution; note?: string };
+    }
   | { ok: false; status: 404 | 400; message: string; suggestions?: string[] };
 
 /** 按第一个 `/` 切分；没有 `/` 时 provider 为 null（裸模型名） */
@@ -44,33 +67,57 @@ export function findProvider(cfg: GatewayConfig, id: string): RuntimeProvider | 
   return enabled.find((p) => p.id === id) ?? enabled.find((p) => p.aliases?.includes(id));
 }
 
+/** 模型名映射的结果：映射到的 `供应商/模型` 与它是怎么来的（请求日志展示，§6.7） */
+export interface MappedModel {
+  ref: string;
+  how: ModelResolution;
+  /** 请求备注（未知模型名按主模型处理时） */
+  note?: string;
+}
+
 /**
- * CLI 写死的模型名映射到客户端配置（§7.2 第 1 步）：
- * Claude Code 的 claude-*（haiku → small，opus / sonnet / fable 按档位，其余 → main），Codex 的内部名 → main。
+ * CLI 写死的模型名映射到客户端配置（§6.7 第 2～5 步），规则来自客户端规格（clients/）：
+ * 内置档位名 → tiers（haiku 退到旧版 small），辅助模型名 → summary，子代理 → subagent，都退到 main；
+ * 规格不认识的名字：有标签绑定时按主模型处理并记备注（不让拼写错误被静默丢弃，G6），
+ * 没有绑定时按规格的 unknownToMain。
  */
+export function mapModel(
+  client: ClientId | string | null,
+  models: ClientModels | undefined,
+  requested: string,
+  bound = false,
+): MappedModel | null {
+  if (!models) return null;
+  const main = models.main;
+  if (!requested) return main ? { ref: main, how: bound ? 'binding' : 'default' } : null;
+  const spec = clientSpecOf(client);
+  if (!spec) return null;
+  const hit = builtinSlot(spec, requested);
+  if (hit) {
+    const ref = slotModel(models, hit.slot);
+    if (!ref) return null;
+    // 槽位没单独设、退到了主模型：按「主模型 / 绑定」记，不记成档位
+    const fellBack = hit.slot !== 'main' && !slotIsSet(models, hit.slot);
+    const how = hit.how === 'default' || fellBack ? (bound ? 'binding' : 'default') : hit.how;
+    return { ref, how };
+  }
+  if (!main) return null;
+  if (bound)
+    return {
+      ref: main,
+      how: 'unknown',
+      note: `未知模型名 ${requested}，已按标签主模型处理`,
+    };
+  return spec.unknownToMain ? { ref: main, how: 'default' } : null;
+}
+
+/** 兼容入口：只要映射到的模型名 */
 export function mapBuiltinModel(
   client: ClientId | null,
   models: ClientModels | undefined,
   requested: string,
 ): string | null {
-  if (!models) return null;
-  if (!requested) return models.main ?? null;
-  if (client === 'claude' && /claude|^(opus|sonnet|haiku|fable|default)$/i.test(requested)) {
-    const r = requested.toLowerCase();
-    for (const tier of ['opus', 'sonnet', 'haiku', 'fable'] as const) {
-      if (r.includes(tier))
-        return (
-          models.tiers?.[tier] ??
-          (tier === 'haiku' ? models.small : undefined) ??
-          models.main ??
-          null
-        );
-    }
-    return models.main ?? null;
-  }
-  if (client === 'codex' || client === 'grok' || client === 'dsh' || client === 'gemini')
-    return models.main ?? null;
-  return null;
+  return mapModel(client, models, requested)?.ref ?? null;
 }
 
 /** 解析 provider/model（§6.2 第 1～3 步）；找不到返回 null */
@@ -115,7 +162,7 @@ function suggest(cfg: GatewayConfig, requested: string): string[] {
 function withDrops(c: Candidate, learned: LearnedState | undefined): Candidate {
   const drops = [
     ...new Set([
-      ...(c.provider.quirks?.dropParams ?? []),
+      ...(quirksOf(c.provider, c.wire).dropParams ?? []),
       ...(learned?.droppedParams?.[c.wire] ?? []),
     ]),
   ];
@@ -143,10 +190,33 @@ export function alternateWire(
   const model = c.publicModel.slice(c.provider.id.length + 1);
   const learned = cfg.learned?.[c.provider.id];
   const usable = wiresFor(c.provider, model, c.key, learned).filter((w) => !exclude.includes(w));
-  const wire = pickWire(c.provider, model, ingress, usable);
-  if (!wire) return null;
-  const { dropParams: _ignored, customToolsAsFunctions: _custom, ...rest } = c;
-  return withDrops({ ...rest, wire }, learned);
+  const m = c.model ?? effectiveModel(c.provider, model, learned, { strict: cfg.strictParams });
+  const chosen = chooseWire(cfg, c.provider, model, m, ingress, usable);
+  if (!chosen) return null;
+  const { dropParams: _ignored, customToolsAsFunctions: _custom, plan: _plan, ...rest } = c;
+  return withDrops({ ...rest, wire: chosen.wire, model: m, plan: chosen.plan }, learned);
+}
+
+/**
+ * 选上游协议：算路由计划（§6.9.4）；影子模式（默认）下仍按现有规则（pickWire）选，
+ * 计划里记下现有规则的选择，两者不同时由服务端写日志；active 模式按计划选。
+ */
+function chooseWire(
+  cfg: GatewayConfig,
+  p: RuntimeProvider,
+  model: string,
+  m: EffectiveModel,
+  ingress: Wire | null,
+  usable: Wire[],
+): { wire: Wire; plan?: RoutePlan } | null {
+  const legacy = pickWire(p, model, ingress, usable);
+  const plan = makePlan(p, m, ingress, usable);
+  if (cfg.routePlan === 'active' && plan) return { wire: plan.upstream, plan };
+  if (!legacy) return null;
+  return {
+    wire: legacy,
+    ...(plan ? { plan: { ...plan, legacy } } : {}),
+  };
 }
 
 /** 展开一个 (供应商, 模型) 的候选：每个可用 Key 一个，各自选 wire */
@@ -159,12 +229,21 @@ function expand(
   const out: Candidate[] = [];
   const learned = cfg.learned?.[p.id];
   const upstreamModel = upstreamName(p, model);
+  const m = effectiveModel(p, model, learned, { strict: cfg.strictParams });
   for (const key of p.keys.filter((k) => k.enabled)) {
-    const wire = pickWire(p, model, ingress, wiresFor(p, model, key, learned));
-    if (wire)
+    const chosen = chooseWire(cfg, p, model, m, ingress, wiresFor(p, model, key, learned));
+    if (chosen)
       out.push(
         withDrops(
-          { provider: p, key, publicModel: `${p.id}/${model}`, upstreamModel, wire },
+          {
+            provider: p,
+            key,
+            publicModel: `${p.id}/${model}`,
+            upstreamModel,
+            wire: chosen.wire,
+            model: m,
+            ...(chosen.plan ? { plan: chosen.plan } : {}),
+          },
           learned,
         ),
       );
@@ -172,18 +251,28 @@ function expand(
   return out;
 }
 
+/**
+ * 模型名 → 候选。顺序（§6.7）：显式的 `供应商/模型`（或唯一命中的裸名）→ 规格的档位 / 辅助 / 子代理 →
+ * 标签绑定的主模型（未知名记备注）→ 客户端级的默认（终端里手动启动、没有标签绑定的 CLI）。
+ * binding：这个请求所属标签的模型（TabBinding.models），优先于客户端级配置。
+ */
 export function resolveCandidates(
   cfg: GatewayConfig,
-  client: ClientId | null,
+  client: ClientId | string | null,
   requested: string,
   ingress: Wire | null,
+  binding?: { models: ClientModels } | null,
 ): ResolveResult {
-  const models = client ? cfg.clients[client]?.models : undefined;
+  const models = binding?.models ?? (client ? cfg.clients[client as ClientId]?.models : undefined);
   const home = models?.main ? splitRef(models.main).provider : null;
   let target = requested ? resolveRef(cfg, requested, home) : null;
+  let resolution: { how: ModelResolution; note?: string } = { how: 'explicit' };
   if (!target) {
-    const mapped = mapBuiltinModel(client, models, requested);
-    if (mapped) target = resolveRef(cfg, mapped, home);
+    const mapped = mapModel(client, models, requested, Boolean(binding));
+    if (mapped) {
+      target = resolveRef(cfg, mapped.ref, home);
+      resolution = { how: mapped.how, ...(mapped.note ? { note: mapped.note } : {}) };
+    }
   }
   if (!target) {
     const suggestions = suggest(cfg, requested);
@@ -208,7 +297,7 @@ export function resolveCandidates(
       message: `Nomi 网关：供应商「${target.provider.name}」没有可用的 Key 或协议地址`,
     };
   }
-  return { ok: true, candidates };
+  return { ok: true, candidates, resolution };
 }
 
 /**

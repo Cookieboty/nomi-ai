@@ -18,6 +18,9 @@ export interface RuntimeKey {
   /** 只对这种协议有效 */
   wire?: Wire;
   enabled: boolean;
+  /** 这个 Key 的并发上限 / 每分钟请求数（§6.11.3）；优先于供应商规格与 quirks */
+  maxConcurrency?: number;
+  rpm?: number;
 }
 
 export interface RuntimeModel {
@@ -31,6 +34,20 @@ export interface RuntimeModel {
   vision?: boolean;
   toolCalling?: boolean;
   label?: string;
+  /** 用户设置的可用思考档位（§6.9.3 第 5 级；发送前按它贴合） */
+  efforts?: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'>;
+  /** 严格模式（§6.9.6）：不支持的参数直接报错而不是丢弃；不设时跟网关配置的 strictParams */
+  strict?: boolean;
+}
+
+/** 运行时学到的、某个模型的结论（§6.9.8）：带时间与目录版本，过期或目录升级后重新验证 */
+export interface LearnedModel {
+  at: number;
+  catalogVersion?: string;
+  /** 实际接受的思考档位 */
+  efforts?: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'>;
+  /** 拒绝非默认温度 */
+  temperature?: false;
 }
 
 export interface ProbeState {
@@ -46,6 +63,9 @@ export interface ProviderQuirks {
   /** 多轮工具调用时必须把历史推理原样发回（DeepSeek、MiniMax 的 Chat 接口），否则 400 */
   reasoningPassback?: boolean;
   userAgent?: string;
+  /** 每个 Key 的并发上限 / 每分钟请求数（§6.11.3）；超出时排队，等不到换下一个候选 */
+  maxConcurrency?: number;
+  rpm?: number;
   /**
    * 按上游协议合并进请求体的额外字段（协议转换与请求修正之后、dropParams 之前），
    * 如 MiniMax Chat 的 reasoning_split
@@ -80,7 +100,12 @@ export interface RuntimeProvider {
   modelMap?: Array<{ from: string; to: string }>;
   /** 探测结果：任一 Key 可用即 ok；未探测过的协议视为可用（有地址就试） */
   detected?: Partial<Record<Wire, ProbeState>>;
+  /** 配置里的厂商差异（预设 + 用户设置）；覆盖供应商规格自带的（§6.3） */
   quirks?: ProviderQuirks;
+  /** 创建时用的预设 id（ai-runtime presets）：按它匹配供应商规格（§6.3 match.presets） */
+  preset?: string;
+  /** 用户手动指定的供应商规格 id（'generic' | 'amux' …）；优先于预设与域名匹配 */
+  spec?: string;
 }
 
 export interface ClientModels {
@@ -90,6 +115,10 @@ export interface ClientModels {
   tiers?: Partial<Record<'opus' | 'sonnet' | 'haiku' | 'fable', string>>;
   subagent?: string;
   tools?: string;
+  /**
+   * 辅助模型（§6.7，Q2）：生成标题、摘要、下一句提示等辅助请求用，通常选同一供应商里更便宜的模型；
+   * 没设时跟主模型。CLI 发的辅助模型名由客户端规格的 helperModels 识别。
+   */
   summary?: string;
 }
 
@@ -105,6 +134,8 @@ export interface LearnedState {
   droppedParams?: Record<string, string[]>;
   /** Responses 接口拒绝 custom 工具的模型：之后都从转换模式开始（§11.3） */
   customToolsRefused?: string[];
+  /** 按模型学到的结论（错误修正器，§6.9.8） */
+  models?: Record<string, LearnedModel>;
 }
 
 export interface GatewayConfig {
@@ -121,4 +152,11 @@ export interface GatewayConfig {
   sessionsFile?: string;
   /** 调试追踪目录（§14「调试模式」）：设置了才把请求 / 响应正文脱敏后写到这里，24 小时自动删除 */
   traceDir?: string;
+  /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
+  strictParams?: boolean;
+  /**
+   * 路由计划（§6.9.4）：shadow（默认）= 只计算新计划、与现有选协议规则比对写日志；
+   * active = 按新计划选上游协议（模型原生协议优先）。
+   */
+  routePlan?: 'shadow' | 'active';
 }
