@@ -57,6 +57,7 @@ import { formatAmount, formatMoney, formatTokens } from './money';
 import { PriceSync, type PriceSyncResult } from './priceSync';
 import {
   BUILTIN_PRICES,
+  costUsd,
   DEFAULT_CNY_PER_USD,
   PRICING_TABLE_DATE,
   sanitizeCustomPrices,
@@ -1444,6 +1445,27 @@ export class UsageService {
 
   private priceOf() {
     return makePriceOf(this.settings.customPrices, this.priceSync.entries());
+  }
+
+  /**
+   * 按当前价格表（内置 + 同步 + 自定义）估算一次调用的费用（USD），未定价返回 undefined。
+   * 模型质量记录用；input 为未命中缓存的输入。
+   */
+  costOf(
+    model: string,
+    t: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number },
+  ): number | undefined {
+    const m = this.priceOf()(model);
+    if (!m) return undefined;
+    return costUsd(
+      {
+        input: t.input ?? 0,
+        output: t.output ?? 0,
+        cacheRead: t.cacheRead ?? 0,
+        cacheWrite: t.cacheWrite ?? 0,
+      },
+      m.price,
+    );
   }
 
   private labels(): Labels {

@@ -243,5 +243,18 @@ export const QUALITY_IPC = {
   settingsGet: 'ai:quality:settings-get',
   settingsSet: 'ai:quality:settings-set',
   clear: 'ai:quality:clear',
+  /** 导出 CSV（弹保存对话框）：参数 QualityExportRequest，返回 QualityExportResult */
+  export: 'ai:quality:export',
   changed: 'ai:quality:changed',
 } as const;
+
+/** 导出：请求明细，或按维度分组的对比表 */
+export type QualityExportRequest =
+  { kind: 'requests'; query: QualityRequestsQuery } | { kind: 'table'; query: QualityQuery };
+
+export interface QualityExportResult {
+  /** 用户取消保存时为 false */
+  ok: boolean;
+  path?: string;
+  rows: number;
+}

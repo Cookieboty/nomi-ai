@@ -78,6 +78,7 @@ import {
   initGatewayRequestLog,
   readLegacyGatewayTrace,
 } from '../usage/GatewayRequestLog';
+import { initQualityService } from '../usage/quality/QualityService';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -542,6 +543,26 @@ export class Application implements IApplication {
           getGatewayService()?.refresh();
         },
       });
+      // 模型质量（docs/design/model-quality.md）：网关层 / CLI 层的请求质量，只存元数据，受用量总开关控制
+      const providerOf = (pid: string) =>
+        getGatewayService()
+          ?.store.providers()
+          .find((x) => x.id === pid);
+      const quality = initQualityService({
+        dir: path.join(app.getPath('userData'), 'usage', 'quality'),
+        logger: this.logger as never,
+        enabled: () => getUsageService()?.getSettings().enabled ?? true,
+        cost: (model, tokens) => getUsageService()?.costOf(model, tokens),
+        labelOf: (dim, key) => {
+          if (dim === 'provider') return providerOf(key)?.name;
+          if (dim !== 'key') return undefined;
+          const [pid = '', kid = ''] = key.split('\u0000');
+          const k = providerOf(pid)?.keys.find((x) => x.id === kid);
+          return k ? (k.name ?? k.masked) : undefined;
+        },
+      });
+      quality.registerIpc();
+      this.lifecycle.register({ name: 'model-quality', stop: () => quality.dispose() });
       // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
       const gatewayRequests = initGatewayRequestLog({
         root: path.join(app.getPath('userData'), 'gateway'),
@@ -556,6 +577,12 @@ export class Application implements IApplication {
         onTraceChange: () => getGatewayService()?.refresh(),
         traceOn: () => diagnostics.bodyTrace(),
         setTraceOn: (on) => void diagnostics.set(on),
+        // 请求的持久化改由模型质量账本负责（旧 requests.json 导入一次后删除）
+        quality: {
+          recent: (n) => quality.recent(n),
+          importLegacy: (records) => quality.importLegacy(records),
+          clear: () => quality.clear(),
+        },
       });
       gatewayRequests.registerIpc();
       diagnostics.registerIpc();
@@ -564,7 +591,10 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
-        onUsage: (e) => void gatewayRequests.add(e),
+        onUsage: (e) => {
+          gatewayRequests.add(e);
+          quality.addGateway(e);
+        },
         traceDir: () => gatewayRequests.traceDir(),
         presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
         // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
