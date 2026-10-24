@@ -4,7 +4,15 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { runClaude, runCodex, runGrok, hasCli, type CliRun } from '../helpers/cli';
+import {
+  runClaude,
+  runCodex,
+  runDsh,
+  runGemini,
+  runGrok,
+  hasCli,
+  type CliRun,
+} from '../helpers/cli';
 import { startGateway, type TestGateway } from '../helpers/gateway';
 import {
   messagesStream,
@@ -48,6 +56,7 @@ const reportedFailure = (r: CliRun) =>
 describe.each([
   ['grok', runGrok],
   ['codex', runCodex],
+  ['dsh', runDsh],
 ] as const)('%s（Responses 入口，同协议透传）', (name, run) => {
   let up: FakeUpstream;
   let gw: TestGateway;
@@ -153,4 +162,43 @@ describe('claude（Messages 入口）', () => {
       });
     },
   );
+});
+
+describe('gemini（Gemini 入口，上游 Responses：跨协议转换）', () => {
+  let up: FakeUpstream;
+  let gw: TestGateway;
+
+  beforeAll(async () => {
+    up = await startUpstream(() => ({ sse: responsesStream(ANSWER) }));
+    gw = await startGateway(up, { wires: ['responses'] });
+  });
+  afterAll(async () => {
+    await gw?.stop();
+    await up?.close();
+  });
+
+  for (const [label, defects] of DEFECTS.filter(([l]) =>
+    ['正常流', '保活伪装成正文增量', '只给完整条目', '全部毛病叠加'].includes(l),
+  )) {
+    it.skipIf(!hasCli('gemini'))(`${label} → 正常完成`, async () => {
+      up.setScenario(() => ({ sse: responsesStream(ANSWER, defects) }));
+      const r = await runGemini(gw.url, MODEL, 'say ok');
+      expect(succeeded(r), `${r.stdout}\n${r.stderr}`).toBe(true);
+    });
+  }
+
+  it.skipIf(!hasCli('gemini'))('上游中途断开 → 报错', async () => {
+    up.setScenario(() => ({ sse: responsesStream(ANSWER, { cutBeforeCompleted: true }) }));
+    const r = await runGemini(gw.url, MODEL, 'say ok');
+    expect(reportedFailure(r), `${r.stdout}\n${r.stderr}`).toBe(true);
+  });
+
+  it.skipIf(!hasCli('gemini'))('一轮里的所有请求都用标签的模型', async () => {
+    up.setScenario(() => ({ sse: responsesStream(ANSWER) }));
+    up.seen.length = 0;
+    expect(succeeded(await runGemini(gw.url, MODEL, 'say ok'))).toBe(true);
+    const posts = up.seen.filter((s) => s.method === 'POST');
+    expect(posts.length).toBeGreaterThan(0);
+    expect(new Set(posts.map((s) => s.model))).toEqual(new Set(['gpt-x']));
+  });
 });

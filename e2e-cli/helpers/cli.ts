@@ -7,9 +7,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { patchDshYaml } from '../../packages/electron/src/cli/configPatch';
+
 import { TOKENS } from './gateway';
 
-export type CliName = 'grok' | 'codex' | 'claude';
+export type CliName = 'grok' | 'codex' | 'claude' | 'gemini' | 'dsh';
 
 export interface CliRun {
   code: number | null;
@@ -35,6 +37,11 @@ export function cliVersion(name: CliName): string {
   } catch {
     return 'unknown';
   }
+}
+
+/** `--version` 输出里的版本号（`grok 1.0.67 (…)`、`2.1.310 (Claude Code)`、`codex-cli 0.163.0`…） */
+export function cliSemver(name: CliName): string {
+  return /\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?/.exec(cliVersion(name))?.[0] ?? 'unknown';
 }
 
 function tmp(prefix: string): string {
@@ -121,7 +128,13 @@ export async function runGrok(gatewayUrl: string, model: string, prompt: string)
 }
 
 /** Codex：临时 CODEX_HOME + -c 指向网关（与 Nomi 第三方会话的注入方式一致） */
-export async function runCodex(gatewayUrl: string, model: string, prompt: string): Promise<CliRun> {
+export async function runCodex(
+  gatewayUrl: string,
+  model: string,
+  prompt: string,
+  /** 追加到供应商定义里的键（探测时关掉重试：`stream_max_retries=0`…） */
+  providerExtra = '',
+): Promise<CliRun> {
   const home = tmp('codex');
   const codexHome = path.join(home, '.codex');
   fs.mkdirSync(codexHome, { recursive: true });
@@ -134,7 +147,7 @@ export async function runCodex(gatewayUrl: string, model: string, prompt: string
       '-c',
       'model_provider="nomi_gateway"',
       '-c',
-      `model_providers.nomi_gateway={ name="Nomi", base_url="${gatewayUrl}/v1", wire_api="responses", env_key="NOMI_GATEWAY_KEY" }`,
+      `model_providers.nomi_gateway={ name="Nomi", base_url="${gatewayUrl}/v1", wire_api="responses", env_key="NOMI_GATEWAY_KEY"${providerExtra ? `, ${providerExtra}` : ''} }`,
       '-m',
       model,
       prompt,
@@ -169,4 +182,40 @@ export async function runClaude(
     ['-p', prompt, '--model', model, '--tools', '', '--strict-mcp-config', '--setting-sources', ''],
     { cwd: home, env, timeoutMs: 120_000 },
   );
+}
+
+/** Gemini CLI：进程级覆盖认证方式 + 网关地址（与 Nomi 第三方会话的注入一致，agents/index.ts） */
+export async function runGemini(
+  gatewayUrl: string,
+  model: string,
+  prompt: string,
+): Promise<CliRun> {
+  const home = tmp('gemini');
+  const env = {
+    ...baseEnv(home),
+    GEMINI_CLI_HOME: home,
+    GEMINI_CLI_AUTH_OVERRIDE: 'gemini-api-key',
+    GOOGLE_GEMINI_BASE_URL: gatewayUrl,
+    GEMINI_API_KEY: TOKENS.gemini,
+    GEMINI_MODEL: model,
+    // 无界面运行要显式信任临时工作目录（官方文档的 headless 用法）
+    GEMINI_CLI_TRUST_WORKSPACE: 'true',
+  };
+  return run('gemini', ['-p', prompt, '-m', model], { cwd: home, env, timeoutMs: 120_000 });
+}
+
+/** dsh：headless 档 + 只给这个进程的叠加文件指向网关（与 Nomi 第三方会话一致） */
+export async function runDsh(gatewayUrl: string, model: string, prompt: string): Promise<CliRun> {
+  const home = tmp('dsh');
+  const patch = path.join(home, 'patch.yml');
+  fs.writeFileSync(
+    patch,
+    patchDshYaml(null, { api: 'openai-responses', baseURL: `${gatewayUrl}/v1`, model }),
+  );
+  const env = { ...baseEnv(home), NOMI_DSH_API_KEY: TOKENS.dsh };
+  return run('dsh', ['--profile', 'headless', '--patch', patch, '--json', prompt], {
+    cwd: home,
+    env,
+    timeoutMs: 120_000,
+  });
 }
