@@ -6,20 +6,21 @@
 
 pnpm 9 + Turborepo monorepo，Electron 桌面应用（React 19 + Vite）。Node ≥ 22.12（CI 用 24）。
 
-| 路径                                | 内容                                                                                                                             |
-| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/electron`                 | 主进程：`src/main.ts` → `core/Application.ts`，窗口、托盘、IPC、各功能服务                                                       |
-| `packages/renderer`                 | 看板娘窗口（角色渲染在 `src/mascot`）                                                                                            |
-| `packages/ai-chat`                  | 对话窗口：对话、设置、引导、功能面板                                                                                             |
-| `packages/ai-runtime`               | AI 运行时：插件宿主、供应商路由（`src/providers`）、MCP 桥                                                                       |
-| `packages/gateway`                  | 统一网关内核（纯 Node）：四种协议的请求 IR 与流式互转，见 `docs/design/unified-gateway.md`                                       |
-| `packages/cli-sdk`                  | 编程助手插件契约与共享会话驱动（acp / stream-json / app-server / exec，纯 Node），见 `docs/design/cli-plugin-architecture.md` §5 |
-| `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端与 preload 桥（`window.aiIPC`）                                                                   |
-| `packages/bundle-ig-*`              | 插件包：`base`（不得 import electron）、`electron-caps`、`mascot`                                                                |
-| `packages/ui`                       | 设计令牌、主题、组件、i18n（`src/locales/en.json`）                                                                              |
-| `packages/voice`、`packages/types`  | 语音、共享类型                                                                                                                   |
-| `e2e/`、`e2e-headed/`               | 无界面 E2E（Vitest）/ 真实应用 E2E（Playwright），见 [testing.md](docs/development/testing.md)                                   |
-| `scripts/`                          | doctor、dev-smoke、许可与 i18n 检查、release 脚本                                                                                |
+| 路径                                | 内容                                                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/electron`                 | 主进程：`src/main.ts` → `core/Application.ts`，窗口、托盘、IPC、各功能服务                                                                       |
+| `packages/renderer`                 | 看板娘窗口（角色渲染在 `src/mascot`）                                                                                                            |
+| `packages/ai-chat`                  | 对话窗口：对话、设置、引导、功能面板                                                                                                             |
+| `packages/ai-runtime`               | AI 运行时：插件宿主、供应商路由（`src/providers`）、MCP 桥                                                                                       |
+| `packages/gateway`                  | 统一网关内核（纯 Node）：四种协议的请求 IR 与流式互转，见 `docs/design/unified-gateway.md`                                                       |
+| `packages/cli-sdk`                  | 编程助手插件契约与共享会话驱动（acp / stream-json / app-server / exec，纯 Node），见 `docs/design/cli-plugin-architecture.md` §5                 |
+| `packages/cli-plugins`              | 内置编程助手插件（claude / codex / grok / gemini / dsh），按 `<cli>/{manifest,main,gateway,renderer}` 分子路径；`BuiltinCliId` 由 `gen:ids` 生成 |
+| `packages/ai-sdk` / `ai-sdk-client` | 主进程 AI 门面 / 渲染进程客户端与 preload 桥（`window.aiIPC`）                                                                                   |
+| `packages/bundle-ig-*`              | 插件包：`base`（不得 import electron）、`electron-caps`、`mascot`                                                                                |
+| `packages/ui`                       | 设计令牌、主题、组件、i18n（`src/locales/en.json`）                                                                                              |
+| `packages/voice`、`packages/types`  | 语音、共享类型                                                                                                                                   |
+| `e2e/`、`e2e-headed/`               | 无界面 E2E（Vitest）/ 真实应用 E2E（Playwright），见 [testing.md](docs/development/testing.md)                                                   |
+| `scripts/`                          | doctor、dev-smoke、许可与 i18n 检查、release 脚本                                                                                                |
 
 ## 命令
 
