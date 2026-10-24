@@ -433,8 +433,12 @@ export class GatewayService {
     kind: AgentKind,
     tabId: string,
     model: string,
-    placeholder?: string,
+    opts: { tabBound?: boolean } = {},
   ): AgentLaunch | null {
+    // 按标签令牌启动（tabBound）且插件支持 gateway 方式换模型（清单 clientSpec.placeholderModel，
+    // 如 Grok 的 nomi）：配置里写占位名，真实模型只在绑定里，换模型不用重启（§6.7）。
+    // 同一个标签的同步 / 异步两条路径必须写出同一份配置，否则后写的会覆盖先写的
+    const placeholder = opts.tabBound ? placeholderModelOf(kind) : undefined;
     const ep = this.endpoint(kind);
     if (!ep) return null;
     const metaOf = (ref: string): ModelMeta | undefined => {
@@ -477,9 +481,7 @@ export class GatewayService {
     effort?: string,
   ): Promise<(AgentLaunch & { generation: number }) | null> {
     const ep = this.endpoint(kind);
-    // 支持 gateway 方式换模型的 CLI（清单的 clientSpec.placeholderModel，如 Grok 的 nomi）：
-    // 配置里写占位名，真实模型只在绑定里，换模型不用重启进程（§6.7）
-    const launch = this.cliLaunch(kind, tabId, model, placeholderModelOf(kind));
+    const launch = this.cliLaunch(kind, tabId, model, { tabBound: true });
     if (!ep || !launch) return null;
     const reg = await this.tabs.register({
       client: kind,

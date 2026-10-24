@@ -648,7 +648,7 @@ export class Application implements IApplication {
         // 第三方会话经统一网关按进程注入（docs/design/unified-gateway.md §12），不写 CLI 全局配置
         gateway: {
           defaults: (kind) => gateway.cliDefaults(kind),
-          launch: (kind, tabId, model) => gateway.cliLaunch(kind, tabId, model),
+          launch: (kind, tabId, model, opts) => gateway.cliLaunch(kind, tabId, model, opts),
           officialEnv: (env) => gateway.officialEnv(env),
           models: () => gateway.cliModels(),
           releaseAgent: (kind, tabId) => gateway.releaseAgent(kind, tabId),

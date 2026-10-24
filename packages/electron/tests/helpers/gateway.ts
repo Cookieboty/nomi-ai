@@ -73,7 +73,7 @@ export function testGateway(
       source: o.source ?? 'official',
       model: o.main === undefined ? 'gw/main' : o.main,
     }),
-    launch: (kind, tabId, model) => {
+    launch: (kind, tabId, model, opts) => {
       launches.push([kind, tabId, model]);
       if (o.running === false) return null;
       return agentLaunch(kind, {
@@ -83,6 +83,8 @@ export function testGateway(
         models: {},
         dir: path.join(dir, kind, tabId),
         home: o.home,
+        // 与 GatewayService.cliLaunch 一致：按标签令牌启动的 Grok 写占位模型名
+        ...(opts?.tabBound && kind === 'grok' ? { placeholder: 'nomi' } : {}),
       });
     },
     officialEnv: (env) => {

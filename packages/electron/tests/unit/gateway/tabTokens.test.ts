@@ -169,7 +169,7 @@ function service(env: NodeJS.ProcessEnv = {}) {
         .sent.filter((m) => m.type === 'config')
         .at(-1) as { config: GatewayConfig }
     ).config;
-  return { svc, children, child, lastConfig };
+  return { svc, root, children, child, lastConfig };
 }
 
 describe('GatewayService：标签令牌、预设、Key 限流、严格模式、学习', () => {
@@ -208,6 +208,33 @@ describe('GatewayService：标签令牌、预设、Key 限流、严格模式、�
     expect(t.child().sent.map((m) => m.type)).toEqual(['config', 'binding:add']);
     t.svc.releaseTab('claude', 'tab-1');
     expect(t.child().sent.at(-1)).toMatchObject({ type: 'binding:remove' });
+  });
+
+  it('Grok 按标签令牌启动：同步与异步两条路径都写占位模型名，后写的不会把真实模型名覆盖回来', async () => {
+    const t = service();
+    t.svc.upsertProvider({
+      name: 'DS',
+      urls: { responses: 'https://api.deepseek.com/v1' },
+      newKeys: [{ value: 'sk-ds-1234567890' }],
+      models: [{ id: 'deepseek-v4.1-flash', enabled: true }],
+    });
+    const cfg = () =>
+      fs.readFileSync(path.join(t.root, 'agents', 'grok', 'tab-g', 'config.toml'), 'utf8');
+    const p = t.svc.cliLaunchForTab('grok', 'tab-g', 'ds/deepseek-v4.1-flash');
+    await new Promise((r) => setImmediate(r));
+    const add = t.child().sent.find((m) => m.type === 'binding:add') as { id: string };
+    t.child().say({ type: 'binding:ok', id: add.id });
+    expect((await p)!.modelInConfig).toBe(false);
+    expect(cfg()).toContain('model = "nomi"');
+    // 编排器随后用同步路径重算复用键（按标签令牌启动的标签带 tabBound）：配置保持占位名
+    expect(
+      t.svc.cliLaunch('grok', 'tab-g', 'ds/deepseek-v4.1-flash', { tabBound: true })!.modelInConfig,
+    ).toBe(false);
+    expect(cfg()).toContain('model = "nomi"');
+    expect(cfg()).not.toContain('deepseek-v4.1-flash');
+    // 不按标签令牌启动（终端命令等共享令牌）：仍写真实模型名
+    t.svc.cliLaunch('grok', 'tab-g', 'ds/deepseek-v4.1-flash');
+    expect(cfg()).toContain('model = "ds/deepseek-v4.1-flash"');
   });
 
   it('运行时快照带预设 id、Key 的并发 / 每分钟请求数、严格模式；路由计划可用环境变量切到 active', () => {

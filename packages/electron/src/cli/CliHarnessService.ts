@@ -16,16 +16,29 @@ import path from 'node:path';
 
 import { BUILTIN_MANIFESTS, isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
+  acpMetaContext,
   BUILTIN_CLI_IDS,
   claude as claudePlugin,
   codex as codexPlugin,
+  createClaudeParser,
+  createDshParser,
+  createGrokParser,
   dsh as dshPlugin,
   gemini as geminiPlugin,
   grok as grokPlugin,
+  parseCodexLine,
+  parseUsage,
 } from '@nomi-ai/cli-plugins/main';
 import {
   AcpDriver,
   AppServerDriver,
+  buildTrace,
+  codexExecItem,
+  codexTurnPolicy,
+  compactOldTraces,
+  MAX_TAB_FILE_BYTES,
+  mergeUsage,
+  stampEvent,
   ExecDriver,
   StreamJsonDriver,
   missingExternalEnv,
@@ -44,7 +57,6 @@ import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWrite
 import { writePrivateFile } from '../utils/privateFile';
 
 import type { AccountKind } from './accounts/types';
-import { codexExecItem, codexTurnPolicy } from './codex/appServer';
 import { codexConfigPath, grokHomePath } from './configPatch';
 import { buildCarriedContext, carriedBudget, fitCarried, withCarriedContext } from './contextCarry';
 import { DSH_MIN_NODE_MAJOR, peekCliBin, readPathNodeVersion, refreshCliBin } from './detect';
@@ -116,22 +128,8 @@ import {
   gitDiff,
   type SlashBackend,
 } from './slashDiscovery';
-import {
-  acpMetaContext,
-  createClaudeParser,
-  createDshParser,
-  createGrokParser,
-  parseCodexLine,
-  parseUsage,
-} from './streamParse';
+import './pluginI18n';
 import { foldAssistantEvent } from './textCursor';
-import {
-  MAX_TAB_FILE_BYTES,
-  buildTrace,
-  compactOldTraces,
-  mergeUsage,
-  stampEvent,
-} from './traceBuilder';
 import { claudeTranscriptContext } from './transcriptContext';
 import type {
   HarnessBackend,
@@ -169,6 +167,8 @@ export interface HarnessGateway {
     kind: BuiltinBackend,
     tabId: string,
     model: string,
+    /** tabBound：这个进程按标签令牌启动（与 launchForTab 写出同一份配置，含占位模型名） */
+    opts?: { tabBound?: boolean },
   ): {
     env: Record<string, string>;
     args: string[];
@@ -1605,7 +1605,9 @@ export class HarnessOrchestrator {
     if (this.sourceOf(tab) === 'official') return this.officialLaunch(tab.backend, tab.accountId);
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
-    const l = this.d.gateway!.launch(tab.backend as BuiltinBackend, tab.id, model);
+    const l = this.d.gateway!.launch(tab.backend as BuiltinBackend, tab.id, model, {
+      tabBound: this.needsTabBinding(tab),
+    });
     if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
     // 按标签令牌启动的进程以实际启动为准：占位模型名时配置里没有真实模型，换模型不必重启（§6.7）
     const bound = this.needsTabBinding(tab) ? this.tabBindings.get(tab.id) : undefined;
