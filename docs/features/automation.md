@@ -33,4 +33,4 @@ AI 可以运行一小段 JavaScript 或 Python，每次都要在对话框里看�
 - 文件解析在受限的子进程中进行（内存上限、超时）；PDF 用 unpdf，docx 用 fflate 解包读取。
 - 一轮对话读过文件内容后，同一轮里的任何写操作都会再次确认，防止文档内容诱导模型改文件。
 - 数据保存在 `userData/desktop/`（设置、审计日志、操作记录、回收站）；审计日志只记录参数的哈希与长度。
-- JavaScript 沙箱基于 Electron 自带 Node 的权限模型；Python 使用系统 `python3 -I`，隔离较弱，界面会说明。
+- JavaScript 沙箱基于 Electron 自带 Node 的权限模型；Python 优先走 OS 沙箱（macOS `sandbox-exec` / Linux `bwrap`），不可用或 Windows 时回落 `python3 -I` 并在结果里标 `sandbox`，界面会说明。详见 [code-sandbox-os](../development/code-sandbox-os.md)。

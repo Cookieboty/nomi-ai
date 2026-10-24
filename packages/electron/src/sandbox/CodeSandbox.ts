@@ -5,6 +5,8 @@ import * as path from 'path';
 
 import type { CodeLanguage, CodeRunResult, CodeSandboxApi } from '../desktop/p3tools';
 
+import { planPythonSandbox } from './platformSandbox';
+
 const MAX_OUT = 20_000;
 
 /** 运行环境的最小化环境变量：不继承 API key、令牌等 */
@@ -19,9 +21,9 @@ export function minimalEnv(tmp: string, extra: Record<string, string> = {}): Nod
  * 代码执行器（自研，隔离程度因语言而异）：
  * - JavaScript：用 Electron 自带的 Node（ELECTRON_RUN_AS_NODE）+ Node 权限模型 `--permission`，
  *   只允许读写本次的临时目录，禁止子进程 / worker / 原生插件
- * - Python：系统 python3，`-I`（只是 Python 自身的「隔离模式」：忽略用户 site / 环境变量，**不是**安全隔离），
- *   在临时目录里运行。**没有系统级隔离**——代码以当前用户权限运行，可读写用户文件、访问网络。
- *   真正的平台沙箱（sandbox-exec / bwrap / AppContainer）尚未实现，因此上层必须对 Python 二次确认并如实告知。
+ * - Python：系统 python3 + `-I`；优先套平台隔离（见 platformSandbox.ts）：
+ *   macOS sandbox-exec、Linux bwrap（默认可写仅 tmp、禁网）；Windows 暂无 FS jail，
+ *   结果元数据 sandbox:'none'。二进制缺失时回落裸 `-I` 并标 sandbox:'fallback'，上层继续二次确认。
  * - 共同：最小化环境变量、超时强制终止、输出截断、运行后删除临时目录
  */
 export class CodeSandbox implements CodeSandboxApi {
@@ -60,6 +62,7 @@ export class CodeSandbox implements CodeSandboxApi {
       let cmd: string;
       let args: string[];
       let env: NodeJS.ProcessEnv;
+      let sandbox: CodeRunResult['sandbox'];
       if (lang === 'javascript') {
         const file = path.join(tmp, 'main.cjs');
         fs.writeFileSync(file, code);
@@ -73,14 +76,21 @@ export class CodeSandbox implements CodeSandboxApi {
           file,
         ];
         env = minimalEnv(tmp, this.opts.runAsNode === false ? {} : { ELECTRON_RUN_AS_NODE: '1' });
+        sandbox = 'node-permission';
       } else {
         const py = this.python();
         if (!py) throw new Error('python unavailable');
         const file = path.join(tmp, 'main.py');
         fs.writeFileSync(file, code);
-        cmd = py;
-        args = ['-I', file];
+        const plan = planPythonSandbox({ python: py, scriptPath: file, tmpDir: tmp });
+        cmd = plan.cmd;
+        args = plan.args;
         env = minimalEnv(tmp, { PYTHONIOENCODING: 'utf-8' });
+        sandbox = plan.isolation;
+        if (plan.reason) {
+          // 便于主进程日志排查；不进结果正文以免污染模型上下文
+          console.warn(`[CodeSandbox] python isolation=${plan.isolation}: ${plan.reason}`);
+        }
       }
       return await new Promise<CodeRunResult>((resolve) => {
         const child = spawn(cmd, args, { cwd: tmp, env, windowsHide: true });
@@ -116,7 +126,15 @@ export class CodeSandbox implements CodeSandboxApi {
         });
         child.on('close', (codeNum) => {
           clearTimeout(timer);
-          resolve({ exitCode: codeNum, stdout, stderr, timedOut, truncated, ms: Date.now() - t0 });
+          resolve({
+            exitCode: codeNum,
+            stdout,
+            stderr,
+            timedOut,
+            truncated,
+            ms: Date.now() - t0,
+            sandbox,
+          });
         });
         // 程序不读 stdin 就退出时写入会异步 EPIPE；属正常情况，不能逃逸成主进程异常（#46）
         child.stdin.on('error', () => {});

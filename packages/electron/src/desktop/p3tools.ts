@@ -1,6 +1,7 @@
 import type { ToolCallProvider, ToolDefinition } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
+import { pythonPlatformSandboxAvailable } from '../sandbox/platformSandbox';
 import { isPrivateHost } from '../security/netGuard';
 
 import type { Danger } from './consent';
@@ -39,6 +40,9 @@ export interface AgentBrowserApi {
 }
 
 export type CodeLanguage = 'javascript' | 'python';
+export type CodeSandboxKind =
+  'node-permission' | 'sandbox-exec' | 'bwrap' | 'job' | 'none' | 'fallback';
+
 export interface CodeRunResult {
   exitCode: number | null;
   stdout: string;
@@ -46,6 +50,8 @@ export interface CodeRunResult {
   timedOut: boolean;
   truncated: boolean;
   ms: number;
+  /** 实际采用的隔离：JS=node-permission；Python=平台沙箱或 fallback/none */
+  sandbox?: CodeSandboxKind;
 }
 export interface CodeSandboxApi {
   available(): Promise<CodeLanguage[]>;
@@ -116,9 +122,13 @@ export function wrapOutput(text: string): string {
   return `<code_output trust="untrusted">\n${text.replace(/<\/code_output>/gi, '</code_output_>')}\n</code_output>`;
 }
 
-/** Python 执行的真实隔离程度（界面与工具描述都用这句，避免「沙箱」的误导） */
+/** Python 无平台隔离时的文案（fallback / Windows） */
 export const PYTHON_NO_ISOLATION =
   'Python 执行没有系统级隔离：代码以你当前用户的权限运行，可读写你账户能访问的文件并访问网络，仅有临时工作目录与精简环境变量。';
+
+/** 有 bwrap / sandbox-exec 时的说明 */
+export const PYTHON_OS_SANDBOX =
+  'Python 将在操作系统沙箱中运行（可写仅临时目录，默认禁网）；仍请核对代码后再确认。';
 
 const LANG_LABEL: Record<CodeLanguage, string> = { javascript: 'JavaScript', python: 'Python' };
 
@@ -255,7 +265,7 @@ export function createP3Tools(
     }),
     def(
       'code_run',
-      '运行一段 JavaScript 或 Python 代码（临时工作目录、精简环境变量、超时自动终止、输出截断）。JavaScript 受 Node 权限模型限制，只能读写临时目录、不能起子进程；Python 没有系统级隔离，代码以当前用户身份运行，可读写该用户有权访问的文件并访问网络。每次运行都必须由用户在对话框中查看代码并确认，Python 需要二次确认。适合计算、数据转换等。',
+      '运行一段 JavaScript 或 Python 代码（临时工作目录、精简环境变量、超时自动终止、输出截断）。JavaScript 受 Node 权限模型限制，只能读写临时目录、不能起子进程；Python 在 macOS/Linux 优先走 OS 沙箱（sandbox-exec / bwrap），不可用时回落为用户权限运行并如实标注。每次运行都必须由用户在对话框中查看代码并确认；无 OS 沙箱时 Python 需要二次确认。适合计算、数据转换等。',
       codeIn,
       async (i, signal, provider) => {
         const langs = await d.code.available();
@@ -263,22 +273,34 @@ export function createP3Tools(
           throw new ToolError('unavailable', `本机没有可用的 ${LANG_LABEL[i.language]} 运行环境`);
         await beforeSend(signal, provider);
         const lines = i.code.split('\n').length;
+        const pyIso = i.language === 'python' ? pythonPlatformSandboxAvailable() : null;
+        const pyWarn = pyIso && pyIso.available ? PYTHON_OS_SANDBOX : PYTHON_NO_ISOLATION;
         const decision = await confirm(
           'code_run',
           i.language === 'python'
-            ? `运行一段 Python 代码（${lines} 行，最长 ${i.timeoutSec} 秒）？⚠ ${PYTHON_NO_ISOLATION}`
+            ? `运行一段 Python 代码（${lines} 行，最长 ${i.timeoutSec} 秒）？⚠ ${pyWarn}`
             : `运行一段 JavaScript 代码（${lines} 行，最长 ${i.timeoutSec} 秒）？`,
-          { language: i.language, code: i.code, timeoutSec: i.timeoutSec },
+          {
+            language: i.language,
+            code: i.code,
+            timeoutSec: i.timeoutSec,
+            ...(pyIso ? { isolation: pyIso.kind } : {}),
+          },
           signal,
           i.code,
           { dialog: true },
         );
-        // Python 没有系统级隔离：第一次确认之后必须再明确确认一次风险（两次都通过才会运行）
-        if (i.language === 'python') {
+        // 无 OS 沙箱时 Python 必须二次确认；有 bwrap/sandbox-exec 则一次确认即可
+        if (i.language === 'python' && !(pyIso && pyIso.available)) {
           await confirm(
             'code_run',
             `二次确认：${PYTHON_NO_ISOLATION}确定仍要运行这段 Python 代码吗？`,
-            { language: i.language, code: i.code, timeoutSec: i.timeoutSec, isolation: 'none' },
+            {
+              language: i.language,
+              code: i.code,
+              timeoutSec: i.timeoutSec,
+              isolation: pyIso?.kind ?? 'none',
+            },
             signal,
             i.code,
             { dialog: true },
@@ -297,6 +319,7 @@ export function createP3Tools(
             timedOut: r.timedOut,
             truncated: r.truncated,
             ms: r.ms,
+            sandbox: r.sandbox,
             stdout: wrapOutput(r.stdout),
             stderr: r.stderr ? wrapOutput(r.stderr) : '',
           },
