@@ -2,21 +2,17 @@ jest.unmock('fs');
 jest.unmock('path');
 jest.unmock('node:fs');
 jest.unmock('node:path');
-jest.mock('electron', () => ({
-  BrowserWindow: { getAllWindows: () => [] },
-  ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
-}));
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import type { QualityRecord } from '@nomi-ai/types';
+
 import { GatewayRequestLog, readLegacyGatewayTrace } from '../../../src/usage/GatewayRequestLog';
 import {
-  aggregateGateway,
-  cacheHitRate,
   GATEWAY_ERROR_MAX,
-  GATEWAY_REQUEST_CAP,
+  sanitizeEntries,
   toEntry,
   type GatewayUsageEventLike,
 } from '../../../src/usage/gatewayRequests';
@@ -38,25 +34,9 @@ const ev = (o: Partial<GatewayUsageEventLike> = {}): GatewayUsageEventLike => ({
 });
 
 const logger = () => ({ info: jest.fn(), warn: jest.fn() });
+const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 
-function mkLog(root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-reqs-'))) {
-  const onTraceChange = jest.fn();
-  const log = new GatewayRequestLog({
-    root,
-    logger: logger(),
-    names: (pid, kid) => ({
-      provider: pid === 'p1' ? '智谱' : undefined,
-      key: kid === 'k1' ? '主 Key' : undefined,
-    }),
-    onTraceChange,
-    flushMs: 10_000,
-    pruneMs: 0,
-    broadcast: () => undefined,
-  });
-  return { log, root, onTraceChange };
-}
-
-describe('toEntry', () => {
+describe('toEntry（旧「最近请求」条目，迁移时解析用）', () => {
   it('normalizes OpenAI-style input (which includes cache reads) to uncached input', () => {
     const e = toEntry(ev(), 'x');
     expect(e.input).toBe(400);
@@ -91,166 +71,50 @@ describe('toEntry', () => {
     expect(e.key).toBe('主 Key');
     expect(JSON.stringify(e)).not.toContain('sk-abcdefghijklmnop1234');
   });
-});
 
-describe('aggregateGateway', () => {
-  it('groups by provider and by key with cache hit rate and fallbacks', () => {
-    const entries = [
-      toEntry(ev(), 'a', { provider: '智谱', key: '主 Key' }),
-      toEntry(ev({ keyId: 'k2', attempts: 2 }), 'b', { provider: '智谱', key: '备用' }),
-      toEntry(
-        ev({ provider: 'p2', keyId: 'k9', usage: { inputTokens: 100, outputTokens: 10 } }),
-        'c',
-        { provider: 'DeepSeek', key: 'ds' },
-      ),
-      toEntry(ev({ provider: undefined, keyId: undefined, status: 502, error: 'boom' }), 'd'),
-    ];
-    const r = aggregateGateway(entries);
-    expect(r.summary.requests).toBe(4);
-    expect(r.summary.failed).toBe(1);
-    expect(r.summary.fallbacks).toBe(1);
-    expect(r.byProvider.map((x) => x.label)).toEqual(['智谱', 'DeepSeek']);
-    expect(r.byProvider[0]!.requests).toBe(2);
-    // 智谱：输入 400+400，缓存读 600+600 → 1200 / 2000
-    expect(r.byProvider[0]!.cacheHitRate).toBeCloseTo(0.6);
-    expect(r.byKey.map((x) => x.label).sort()).toEqual([
-      'DeepSeek · ds',
-      '智谱 · 主 Key',
-      '智谱 · 备用',
-    ]);
-    expect(r.byKey.find((x) => x.key === 'p1/k2')!.fallbacks).toBe(1);
-    expect(r.summary.avgFirstByteMs).toBe(300);
-  });
-
-  it('cacheHitRate is null without input', () => {
-    expect(cacheHitRate(0, 0)).toBeNull();
-    expect(cacheHitRate(300, 100)).toBeCloseTo(0.25);
-  });
-});
-
-describe('GatewayRequestLog', () => {
-  it('keeps only the last 200 requests, newest first', () => {
-    const { log } = mkLog();
-    for (let i = 0; i < GATEWAY_REQUEST_CAP + 25; i++)
-      log.add(ev({ startedAt: i, model: `m${i}` }));
-    const list = log.list();
-    expect(list).toHaveLength(GATEWAY_REQUEST_CAP);
-    expect(list[0]!.model).toBe(`m${GATEWAY_REQUEST_CAP + 24}`);
-    expect(list[list.length - 1]!.model).toBe('m25');
-    expect(list[0]!.provider).toBe('智谱');
-    expect(list[0]!.key).toBe('主 Key');
-    log.dispose();
-  });
-
-  it('persists to requests.json with 0600 and reloads', () => {
-    const { log, root } = mkLog();
-    log.add(ev({ notes: ['省略了图片'] }));
-    log.add(ev({ attempts: 3, status: 200 }));
-    log.flush();
-    const file = path.join(root, 'requests.json');
-    if (process.platform !== 'win32') expect(fs.statSync(file).mode & 0o777).toBe(0o600);
-    const again = mkLog(root).log;
-    const list = again.list();
-    expect(list).toHaveLength(2);
-    expect(list[0]!.attempts).toBe(3);
-    expect(list[1]!.notes).toEqual(['省略了图片']);
-    // 读回时 input 不再按上游协议重复扣减缓存
-    expect(list[1]!.input).toBe(400);
-    log.dispose();
-    again.dispose();
-  });
-
-  it('flushes pending writes on dispose', () => {
-    const { log, root } = mkLog();
-    log.add(ev());
-    log.dispose();
-    const raw = JSON.parse(fs.readFileSync(path.join(root, 'requests.json'), 'utf8'));
-    expect(raw.requests).toHaveLength(1);
-  });
-
-  it('ignores a corrupt file', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-reqs-'));
-    fs.writeFileSync(path.join(root, 'requests.json'), '{not json');
-    const { log } = mkLog(root);
-    expect(log.list()).toEqual([]);
-    log.dispose();
-  });
-
-  it('debug trace is off by default, persists, and notifies the gateway', () => {
-    const { log, root, onTraceChange } = mkLog();
-    expect(log.traceDir()).toBeUndefined();
-    const r = log.setTrace(true);
-    expect(r.enabled).toBe(true);
-    expect(log.traceDir()).toBe(path.join(root, 'trace'));
-    expect(onTraceChange).toHaveBeenCalledWith(true);
-    const again = mkLog(root).log;
-    expect(again.traceEnabled()).toBe(true);
-    again.setTrace(false);
-    expect(mkLog(root).log.traceDir()).toBeUndefined();
-    log.dispose();
-    again.dispose();
-  });
-
-  it('trace follows the diagnostics switch when given (§8.1): set delegates, legacy flag readable', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-diag-'));
-    fs.writeFileSync(path.join(root, 'observe.json'), JSON.stringify({ version: 1, trace: true }));
-    expect(readLegacyGatewayTrace(root)).toBe(true);
-    let on = false;
-    const setTraceOn = jest.fn((v: boolean) => {
-      on = v;
-    });
-    const log = new GatewayRequestLog({
-      root,
-      logger: logger(),
-      traceOn: () => on,
-      setTraceOn,
-      flushMs: 10_000,
-      pruneMs: 0,
-      broadcast: () => undefined,
-    });
-    // 旧开关只用于迁移，不再决定追踪
-    expect(log.legacyTrace()).toBe(true);
-    expect(log.traceDir()).toBeUndefined();
-    expect(log.setTrace(true)).toEqual({ enabled: true, dir: path.join(root, 'trace') });
-    expect(setTraceOn).toHaveBeenCalledWith(true);
-    expect(log.traceDir()).toBe(path.join(root, 'trace'));
-    expect(log.view().trace.enabled).toBe(true);
-    on = false;
-    expect(log.traceDir()).toBeUndefined();
-    log.dispose();
-  });
-
-  it('keeps a well-formed traceId on the entry and through persistence', () => {
-    const e = toEntry(ev({ traceId: 'abc123def456' }), 'x');
-    expect(e.traceId).toBe('abc123def456');
-    expect(toEntry(ev({ traceId: '../etc/passwd' }), 'y').traceId).toBeUndefined();
-    const { log, root } = mkLog();
-    log.add(ev({ traceId: 'abc123def456' }));
-    log.flush();
-    expect(mkLog(root).log.list()[0]?.traceId).toBe('abc123def456');
-    log.dispose();
-  });
-
-  it('keeps the tab id, process generation and model resolution (validated) through persistence', () => {
-    const e = toEntry(ev({ tabId: 'tab-1', generation: 3, resolved: 'helper' }), 'x');
-    expect(e).toMatchObject({ tabId: 'tab-1', generation: 3, resolved: 'helper' });
-    const bad = toEntry(ev({ tabId: 'a b/../c', generation: 0, resolved: 'magic' }), 'y');
-    expect(bad.tabId).toBeUndefined();
-    expect(bad.generation).toBeUndefined();
-    expect(bad.resolved).toBeUndefined();
-    const { log, root } = mkLog();
-    log.add(ev({ tabId: 'tab-1', generation: 3, resolved: 'tier' }));
-    log.flush();
-    expect(mkLog(root).log.list()[0]).toMatchObject({
+  it('validates traceId, tab id, generation and model resolution, also when read back', () => {
+    const good = toEntry(
+      ev({ traceId: 'abc123def456', tabId: 'tab-1', generation: 3, resolved: 'tier' }),
+      'x',
+    );
+    expect(good).toMatchObject({
+      traceId: 'abc123def456',
       tabId: 'tab-1',
       generation: 3,
       resolved: 'tier',
     });
+    const bad = toEntry(
+      ev({ traceId: '../etc/passwd', tabId: 'a b/../c', generation: 0, resolved: 'magic' }),
+      'y',
+    );
+    expect(bad.traceId).toBeUndefined();
+    expect(bad.tabId).toBeUndefined();
+    expect(bad.generation).toBeUndefined();
+    expect(bad.resolved).toBeUndefined();
+    // 读回旧文件：逐字段校验，坏条目丢弃
+    const back = sanitizeEntries([good, { id: 'broken' }, 'nope']);
+    expect(back).toHaveLength(1);
+    expect(back[0]).toMatchObject({ traceId: 'abc123def456', tabId: 'tab-1', resolved: 'tier' });
+    expect(sanitizeEntries({ not: 'an array' })).toEqual([]);
+  });
+});
+
+describe('GatewayRequestLog（正文追踪目录与旧「最近请求」迁移）', () => {
+  it('追踪目录跟随诊断日志开关；旧「调试模式」开关只用于迁移', () => {
+    const root = tmp('nomi-gw-diag-');
+    fs.writeFileSync(path.join(root, 'observe.json'), JSON.stringify({ version: 1, trace: true }));
+    expect(readLegacyGatewayTrace(root)).toBe(true);
+    let on = false;
+    const log = new GatewayRequestLog({ root, logger: logger(), traceOn: () => on, pruneMs: 0 });
+    expect(log.traceDir()).toBeUndefined();
+    on = true;
+    expect(log.traceDir()).toBe(path.join(root, 'trace'));
     log.dispose();
+    expect(readLegacyGatewayTrace(tmp('nomi-gw-none-'))).toBe(false);
   });
 
-  it('prunes trace files older than 24 h', () => {
-    const { log, root } = mkLog();
+  it('删除超过 24 小时的追踪文件（启动时与开关变化时）', () => {
+    const root = tmp('nomi-gw-prune-');
     const dir = path.join(root, 'trace');
     fs.mkdirSync(dir);
     const old = path.join(dir, 'a.json');
@@ -259,20 +123,45 @@ describe('GatewayRequestLog', () => {
     fs.writeFileSync(fresh, '{}');
     const past = (Date.now() - 25 * 3600_000) / 1000;
     fs.utimesSync(old, past, past);
-    expect(log.prune()).toBe(1);
+    const log = new GatewayRequestLog({ root, logger: logger(), traceOn: () => true, pruneMs: 0 });
+    expect(fs.existsSync(old)).toBe(false);
     expect(fs.existsSync(fresh)).toBe(true);
+    fs.writeFileSync(old, '{}');
+    fs.utimesSync(old, past, past);
+    log.traceStateChanged();
+    expect(fs.existsSync(old)).toBe(false);
     log.dispose();
   });
 
-  it('view() includes the gateway dimensions', () => {
-    const { log } = mkLog();
-    log.add(ev());
-    const v = log.view();
-    expect(v.requests).toHaveLength(1);
-    expect(v.byProvider[0]!.label).toBe('智谱');
-    expect(v.byKey[0]!.label).toBe('智谱 · 主 Key');
-    expect(v.summary.cacheHitRate).toBeCloseTo(0.6);
-    expect(v.trace.enabled).toBe(false);
-    log.dispose();
+  it('旧 requests.json 导入一次后删除；读不懂的文件留着不动；没接质量账本时不碰它', () => {
+    const root = tmp('nomi-gw-migrate-');
+    const file = path.join(root, 'requests.json');
+    const imported: QualityRecord[][] = [];
+    const importLegacy = (r: QualityRecord[]) => void imported.push(r);
+    fs.writeFileSync(file, JSON.stringify({ version: 1, requests: [toEntry(ev(), 'old-1')] }));
+    new GatewayRequestLog({ root, logger: logger(), traceOn: () => false, pruneMs: 0 }).dispose();
+    expect(fs.existsSync(file)).toBe(true);
+    new GatewayRequestLog({
+      root,
+      logger: logger(),
+      traceOn: () => false,
+      importLegacy,
+      pruneMs: 0,
+    }).dispose();
+    expect(fs.existsSync(file)).toBe(false);
+    expect(imported).toHaveLength(1);
+    expect(imported[0]![0]).toMatchObject({ layer: 'gateway', client: 'claude', provider: 'p1' });
+    fs.writeFileSync(file, '{ not json');
+    const warn = logger();
+    new GatewayRequestLog({
+      root,
+      logger: warn,
+      traceOn: () => false,
+      importLegacy,
+      pruneMs: 0,
+    }).dispose();
+    expect(fs.existsSync(file)).toBe(true);
+    expect(warn.warn).toHaveBeenCalled();
+    expect(imported).toHaveLength(1);
   });
 });

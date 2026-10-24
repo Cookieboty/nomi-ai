@@ -235,10 +235,6 @@ export class QualityService {
   }
 
   /** 最近的 n 条（「最近请求」兼容视图用） */
-  recent(limit: number): QualityRecord[] {
-    return this.ledger.recent(limit).filter((r) => r.layer === 'gateway');
-  }
-
   private cleanQuery(raw: unknown): QualityQuery {
     const r = (raw ?? {}) as Partial<QualityQuery>;
     const { from, to } = this.range(r);

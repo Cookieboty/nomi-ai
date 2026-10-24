@@ -1,11 +1,10 @@
 /**
- * 「最近请求」与模型质量记录的互转（docs/design/model-quality.md §4.2 迁移）：
- * - 旧的 userData/gateway/requests.json 条目一次性导入质量账本；
- * - 「最近请求」兼容视图（ai:usage:gateway-requests）从质量账本取最近的记录，转回旧条目结构。
+ * 旧版「最近请求」（userData/gateway/requests.json）条目 → 模型质量记录，首次启动导入一次
+ * （docs/design/model-quality.md §4.2）。
  */
 import type { QualityRecord } from '@nomi-ai/types';
 
-import { MODEL_RESOLUTIONS, type GatewayRequestEntry } from '../gatewayRequests';
+import type { GatewayRequestEntry } from '../gatewayRequests';
 
 import { modelFamily } from './aggregate';
 import { deriveOutcome } from './fromGateway';
@@ -51,41 +50,4 @@ export function recordFromEntry(e: GatewayRequestEntry): QualityRecord {
   if (e.tabId) rec.tabId = e.tabId;
   if (e.generation) rec.generation = e.generation;
   return rec;
-}
-
-/** 质量记录 → 旧条目结构（「最近请求」兼容视图） */
-export function entryFromRecord(
-  r: QualityRecord,
-  names?: (providerId?: string, keyId?: string) => { provider?: string; key?: string },
-): GatewayRequestEntry {
-  const n = names?.(r.provider, r.keyId) ?? {};
-  const entry: GatewayRequestEntry = {
-    id: r.id,
-    ts: r.ts,
-    client: r.client,
-    ingress: r.ingress ?? 'unknown',
-    status: r.status ?? 0,
-    ms: r.timing.endMs,
-    attempts: Math.max(1, r.attempts?.length ?? 1),
-    input: r.tokens.input ?? 0,
-    output: r.tokens.output ?? 0,
-    cacheRead: r.tokens.cacheRead ?? 0,
-    cacheWrite: r.tokens.cacheWrite ?? 0,
-  };
-  if (r.wire) entry.wire = r.wire;
-  if (r.provider) entry.providerId = r.provider;
-  const provider = n.provider ?? r.provider;
-  if (provider) entry.provider = provider;
-  if (r.keyId) entry.keyId = r.keyId;
-  if (n.key) entry.key = n.key;
-  if (r.model) entry.model = r.model;
-  if (r.timing.firstContentMs !== undefined) entry.firstByteMs = r.timing.firstContentMs;
-  if (r.tokens.reasoning) entry.reasoning = r.tokens.reasoning;
-  if (r.outcome !== 'ok' && r.errorKind) entry.error = r.errorKind;
-  if (r.traceId) entry.traceId = r.traceId;
-  if (r.tabId) entry.tabId = r.tabId;
-  if (r.generation) entry.generation = r.generation;
-  const resolved = MODEL_RESOLUTIONS.find((x) => x === r.resolved);
-  if (resolved) entry.resolved = resolved;
-  return entry;
 }

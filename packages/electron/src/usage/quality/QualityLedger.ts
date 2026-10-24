@@ -174,13 +174,6 @@ export class QualityLedger {
     return out;
   }
 
-  /** 最近的 n 条（新的在前），用于「最近请求」 */
-  recent(limit: number, maxDays = CACHE_DAYS): QualityRecord[] {
-    const to = this.now() + 1;
-    const all = this.range(to - maxDays * DAY_MS, to);
-    return all.sort((a, b) => b.ts - a.ts).slice(0, limit);
-  }
-
   private evict(): void {
     for (const key of this.days.keys()) if (!this.isRecent(key)) this.days.delete(key);
   }

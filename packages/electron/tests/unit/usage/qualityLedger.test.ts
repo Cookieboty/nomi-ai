@@ -51,7 +51,6 @@ describe('QualityLedger', () => {
     fs.appendFileSync(path.join(dir, files[1]!), '{"half":\n');
     const again = new QualityLedger({ dir, now: () => clock.t });
     expect(again.range(NOW - 2 * DAY, NOW + 1).map((r) => r.ts)).toEqual([NOW - DAY, NOW - 1000]);
-    expect(again.recent(1).map((r) => r.ts)).toEqual([NOW - 1000]);
   });
 
   it('最近 7 天的缓存随追加增量更新；更早的按需读取', async () => {

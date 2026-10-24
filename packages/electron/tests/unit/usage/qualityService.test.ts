@@ -220,42 +220,31 @@ describe('「最近请求」迁移到模型质量账本', () => {
       }),
     );
     const q = new QualityService({ dir: qDir, logger, now: () => NOW, flushMs: 0 });
-    const bridge = {
-      recent: (n: number) => q.recent(n),
-      importLegacy: (r: Parameters<QualityService['importLegacy']>[0]) => q.importLegacy(r),
-      clear: () => q.clear(),
-    };
     const log = new GatewayRequestLog({
       root: gwRoot,
       logger,
       pruneMs: 0,
-      flushMs: 0,
-      quality: bridge,
+      traceOn: () => false,
+      importLegacy: (r) => q.importLegacy(r),
       now: () => NOW,
     });
+    // 旧条目导入质量账本一次，文件随即删除
     expect(fs.existsSync(path.join(gwRoot, 'requests.json'))).toBe(false);
-    // 本次运行的视图保留旧条目（含网关修正备注）
-    expect(log.view().requests[0]).toMatchObject({ id: 'old-1', notes: ['已省略图片'] });
     expect(q.query({ from: NOW - 3600_000, to: NOW + 1 }).total).toMatchObject({
       requests: 1,
       ok: 1,
     });
-    log.add(ev({ client: 'grok' }));
-    log.flush();
-    expect(fs.existsSync(path.join(gwRoot, 'requests.json'))).toBe(false);
     log.dispose();
-    // 重启：视图从质量账本补齐（只看网关层；网关事件进账本由 Application 调 addGateway）
+    // 再次启动：没有旧文件，不重复导入
     const log2 = new GatewayRequestLog({
       root: gwRoot,
       logger,
       pruneMs: 0,
-      quality: bridge,
+      traceOn: () => false,
+      importLegacy: (r) => q.importLegacy(r),
       now: () => NOW,
     });
-    expect(log2.view().requests.map((r) => r.client)).toEqual(['nomi']);
-    log2.clear();
-    await new Promise((r) => setTimeout(r, 10));
-    expect(q.query({ from: NOW - 3600_000, to: NOW + 1 }).total.requests).toBe(0);
+    expect(q.query({ from: NOW - 3600_000, to: NOW + 1 }).total.requests).toBe(1);
     log2.dispose();
   });
 });

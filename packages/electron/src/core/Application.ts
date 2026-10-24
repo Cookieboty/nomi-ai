@@ -563,38 +563,21 @@ export class Application implements IApplication {
       });
       quality.registerIpc();
       this.lifecycle.register({ name: 'model-quality', stop: () => quality.dispose() });
-      // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
+      // 网关正文追踪目录（跟随诊断日志开关）；旧「最近请求」导入模型质量账本一次后删除
       const gatewayRequests = initGatewayRequestLog({
         root: path.join(app.getPath('userData'), 'gateway'),
         logger: this.logger as never,
-        names: (pid, kid) => {
-          const p = getGatewayService()
-            ?.store.providers()
-            .find((x) => x.id === pid);
-          const k = p?.keys.find((x) => x.id === kid);
-          return { provider: p?.name, key: k ? (k.name ?? k.masked) : undefined };
-        },
-        onTraceChange: () => getGatewayService()?.refresh(),
         traceOn: () => diagnostics.bodyTrace(),
-        setTraceOn: (on) => void diagnostics.set(on),
-        // 请求的持久化改由模型质量账本负责（旧 requests.json 导入一次后删除）
-        quality: {
-          recent: (n) => quality.recent(n),
-          importLegacy: (records) => quality.importLegacy(records),
-          clear: () => quality.clear(),
-        },
+        importLegacy: (records) => quality.importLegacy(records),
       });
-      gatewayRequests.registerIpc();
       diagnostics.registerIpc();
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),
         cipher: createSafeStorageCipher(safeStorage),
         logger: this.logger as never,
-        onUsage: (e) => {
-          gatewayRequests.add(e);
-          quality.addGateway(e);
-        },
+        // 网关事件不计入用量账本（CLI 以会话日志为准），进模型质量
+        onUsage: (e) => quality.addGateway(e),
         traceDir: () => gatewayRequests.traceDir(),
         presetQuirks: (id) => findPreset(id)?.quirks as ProviderQuirks | undefined,
         // 环境变量提供的供应商（只读）：有 Key 的，以及显式设了地址 / 模型的 Ollama
