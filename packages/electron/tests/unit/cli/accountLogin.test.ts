@@ -1,5 +1,5 @@
 /**
- * 官方账号登录（docs/design/cli-official-accounts.md §4）：暂存目录里跑 CLI 登录 → 事件 → 存进保险箱。
+ * 官方账号登录（docs/design/cli-plugin-architecture.md §5.10）：在账号目录里跑 CLI 自己的登录 → 事件 → 只读身份。
  * 用 .mjs mock CLI（经 process.execPath 运行），三平台一致。
  */
 jest.unmock('fs');
@@ -13,15 +13,6 @@ jest.mock('electron', () => ({
   shell: { openExternal: jest.fn() },
   ipcMain: { handle: jest.fn(), removeHandler: jest.fn() },
   dialog: {},
-  safeStorage: {
-    isEncryptionAvailable: () => true,
-    encryptString: (s: string) => Buffer.from(`CIPHER<${s}>`),
-    decryptString: (b: Buffer) =>
-      b
-        .toString('utf8')
-        .replace(/^CIPHER</, '')
-        .replace(/>$/, ''),
-  },
 }));
 
 import fs from 'node:fs';
@@ -72,7 +63,7 @@ describe('parseLoginOutput（真机输出，码已脱敏）', () => {
   });
 });
 
-describe('AccountLogin', () => {
+describe('AccountLogin（在账号目录里走 CLI 自己的登录，§5.10）', () => {
   const keys = [
     'NOMI_CLAUDE_BIN',
     'NOMI_CODEX_BIN',
@@ -105,17 +96,29 @@ describe('AccountLogin', () => {
   ) => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'login-home-'));
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'login-root-'));
-    const adapterEnv = {
+    const accounts = new AccountService({
+      root,
+      logger: { info() {}, warn() {} },
       home,
-      env: { USER: 'tester' } as NodeJS.ProcessEnv,
-      platform: 'linux' as const,
-    };
-    const accounts = new AccountService({ root, logger: { info() {}, warn() {} }, adapterEnv });
+      env: { ...process.env, HOME: home, USER: 'tester' },
+      platform: 'linux',
+      logout: async () => undefined,
+      identity: {
+        // CLI 状态命令的替身：测试里按 mock 写出的文件判断（真实实现调用 CLI 自己的状态命令）
+        run: async (kind, _args, env) => {
+          if (kind === 'codex') {
+            const ok = fs.existsSync(path.join(env.CODEX_HOME ?? '', 'auth.json'));
+            return { code: 0, stdout: ok ? 'Logged in using ChatGPT' : 'Not logged in' };
+          }
+          return null;
+        },
+        grokAuth: async (env) =>
+          fs.existsSync(path.join(env.GROK_HOME ?? '', 'auth.json')) ? 'cached_token' : null,
+      },
+    });
     const events: LoginEvent[] = [];
     const login = new AccountLogin({
-      root,
       accounts,
-      adapterEnv,
       emit: (e) => {
         events.push(e);
         opts.onEvent?.(e, login);
@@ -128,78 +131,75 @@ describe('AccountLogin', () => {
       for (let i = 0; i < 400 && !fn(); i++) await new Promise((r) => setTimeout(r, 25));
       if (!fn()) throw new Error(`timeout: ${JSON.stringify(events.at(-1))}`);
     };
-    return { home, root, accounts, login, events, until };
+    const nonLocal = (kind: 'claude' | 'codex' | 'grok' | 'gemini') =>
+      accounts.list(kind).filter((a) => !a.local);
+    return { home, root, accounts, login, events, until, nonLocal };
   };
 
   it.each(['codex', 'grok'] as const)(
-    '%s：设备码登录 → 显示链接与码 → 存进保险箱，不改全局登录，暂存目录清掉',
+    '%s：设备码登录 → 显示链接与码 → 凭据由 CLI 写进账号目录，用户目录不动',
     async (kind) => {
-      process.env.NOMI_MOCK_LOGIN_EMAIL = `${kind}@nomi.test`;
       const t = setup();
-      const first = t.login.start(kind);
+      const first = await t.login.start(kind);
       await t.until(() => t.events.some((e) => e.state === 'waiting' && !!e.code));
       const waiting = t.events.find((e) => e.state === 'waiting' && e.code)!;
       expect(waiting.url).toMatch(/^https:\/\//);
       expect(waiting.code).toMatch(/^MOCK-/);
       await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
-      const done = t.events.at(-1)!;
-      expect(done).toMatchObject({
+      expect(t.events.at(-1)).toMatchObject({
         id: first.id,
         state: 'done',
-        account: { identity: { email: `${kind}@nomi.test` } },
+        account: { loggedIn: true },
       });
-      expect(t.accounts.list(kind)).toHaveLength(1);
-      // 全局登录没被改
+      const [acc] = t.nonLocal(kind);
+      const dir = t.accounts.officialLaunch(kind, acc!.id).dir!;
+      expect(fs.existsSync(path.join(dir, 'auth.json'))).toBe(true);
+      // 用户自己的 CLI 目录没被改
       expect(fs.existsSync(path.join(t.home, `.${kind}`, 'auth.json'))).toBe(false);
-      await t.until(() => !fs.existsSync(path.join(t.root, 'staging', first.id)));
     },
     20_000,
   );
 
-  it('Claude：等待粘贴授权码 → 写入 stdin → 成功入库；错误的码报错', async () => {
+  it('Claude：等待粘贴授权码 → 写入 stdin → 成功；身份来自 .claude.json，不读凭据', async () => {
     const t = setup();
-    const s = t.login.start('claude');
+    const s = await t.login.start('claude');
     await t.until(() => t.events.some((e) => e.needsCode));
     expect(t.events.find((e) => e.needsCode)?.url).toMatch(/^https:\/\/claude\.com\//);
     expect(t.login.input(s.id, 'CODE-OK')).toBe(true);
     await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
     expect(t.events.at(-1)).toMatchObject({
       state: 'done',
-      account: { identity: { email: 'mock@claude.ai', plan: 'max' } },
+      account: { loggedIn: true, identity: { email: 'mock@claude.ai' } },
     });
 
-    const bad = t.login.start('claude');
+    const bad = await t.login.start('claude');
     await t.until(() => t.events.some((e) => e.id === bad.id && e.needsCode));
     t.login.input(bad.id, 'nope');
     await t.until(() => t.events.some((e) => e.id === bad.id && e.state === 'error'));
     expect(t.events.find((e) => e.id === bad.id && e.state === 'error')?.message).toContain(
       'Invalid code',
     );
-    expect(t.accounts.list('claude')).toHaveLength(1);
+    // 失败的那次新建账号被删掉
+    await t.until(() => t.nonLocal('claude').length === 1);
   }, 20_000);
 
-  it('Gemini：ACP authenticate → 提示去浏览器完成 → 存进保险箱，暂存目录清掉', async () => {
+  it('Gemini：ACP authenticate → 提示去浏览器完成 → 账号目录里有登录', async () => {
     process.env.NOMI_MOCK_LOGIN_EMAIL = 'gem@nomi.test';
     const t = setup();
-    const s = t.login.start('gemini');
+    await t.login.start('gemini');
     await t.until(() => t.events.some((e) => e.state === 'waiting'));
     expect(t.events.find((e) => e.state === 'waiting')?.message).toContain('Google');
     await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
-    expect(t.events.at(-1)).toMatchObject({
-      state: 'done',
-      account: { identity: { email: 'gem@nomi.test', key: 'g-gem@nomi.test' } },
-    });
+    expect(t.events.at(-1)).toMatchObject({ state: 'done', account: { loggedIn: true } });
     expect(fs.existsSync(path.join(t.home, '.gemini', 'oauth_creds.json'))).toBe(false);
-    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
   }, 20_000);
 
-  it('Gemini：只信任空的暂存目录（cwd 即暂存目录），不碰用户工作区', async () => {
-    const t = setup();
-    const log = path.join(t.home, 'acp.log');
+  it('Gemini：只信任这次登录的账号目录，不碰用户工作区', async () => {
+    const log = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'login-log-')), 'acp.log');
     process.env.NOMI_MOCK_GEMINI_LOG = log;
-    // 开启了 folderTrust 的 Gemini：没有信任就会以 55 退出
     process.env.NOMI_MOCK_GEMINI_UNTRUSTED = '1';
-    const s = t.login.start('gemini');
+    const t = setup();
+    await t.login.start('gemini');
     await t.until(() => t.events.some((e) => e.state === 'done' || e.state === 'error'));
     expect(t.events.at(-1)?.state).toBe('done');
     const init = fs
@@ -209,95 +209,64 @@ describe('AccountLogin', () => {
       .map((l) => JSON.parse(l) as { method: string; cwd?: string; env?: { trust: string } })
       .find((c) => c.method === 'initialize')!;
     expect(init.env?.trust).toBe('true');
-    expect(fs.realpathSync(path.dirname(init.cwd!))).toBe(
-      fs.realpathSync(path.join(t.root, 'staging')),
+    const [acc] = t.nonLocal('gemini');
+    expect(fs.realpathSync(init.cwd!)).toBe(
+      fs.realpathSync(t.accounts.officialLaunch('gemini', acc!.id).dir!),
     );
-    expect(path.basename(init.cwd!)).toBe(s.id);
-    expect(init.cwd).not.toBe(process.cwd());
   }, 20_000);
 
-  it('Gemini：authenticate 失败时显示原因', async () => {
+  it('Gemini：authenticate 失败时显示原因，新建的账号被删掉', async () => {
     process.env.NOMI_MOCK_LOGIN_FAIL = '1';
     const t = setup();
-    t.login.start('gemini');
+    await t.login.start('gemini');
     await t.until(() => t.events.some((e) => e.state === 'error'));
     expect(t.events.at(-1)?.message).toContain('timed out');
+    await t.until(() => t.nonLocal('gemini').length === 0);
   }, 20_000);
 
-  it('取消：结束登录进程并清掉暂存目录', async () => {
+  it('取消 / 超时 / 退出：结束登录进程，新建的空账号连目录一起删掉', async () => {
     const t = setup();
-    const s = t.login.start('claude');
+    const s = await t.login.start('claude');
     await t.until(() => t.events.some((e) => e.needsCode));
+    const dir = t.accounts.officialLaunch('claude', s.id).dir!;
+    expect(fs.existsSync(dir)).toBe(true);
     expect(t.login.cancel(s.id)).toBe(true);
     expect(t.events.at(-1)?.state).toBe('cancelled');
-    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
-    expect(t.accounts.list('claude')).toHaveLength(0);
+    await t.until(() => t.nonLocal('claude').length === 0 && !fs.existsSync(dir));
+
+    const t2 = setup({ timeoutMs: 300 });
+    await t2.login.start('claude');
+    await t2.until(() => t2.events.some((e) => e.state === 'error'));
+    expect(t2.events.at(-1)?.message).toBe('登录超时，请重试');
+    await t2.until(() => t2.nonLocal('claude').length === 0);
+
+    const t3 = setup();
+    await t3.login.start('claude');
+    await t3.until(() => t3.events.some((e) => e.needsCode));
+    await t3.login.dispose();
+    expect(t3.events.at(-1)?.state).toBe('cancelled');
+    await t3.until(() => t3.nonLocal('claude').length === 0);
+  }, 30_000);
+
+  it('重新登录已有账号（例如从旧版本迁移来的）：取消时保留账号', async () => {
+    const t = setup();
+    const acc = t.accounts.create('claude', '工作');
+    const s = await t.login.start('claude', acc.id);
+    expect(s.id).toBe(acc.id);
+    await t.until(() => t.events.some((e) => e.needsCode));
+    t.login.cancel(s.id);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(t.nonLocal('claude').map((a) => a.label)).toEqual(['工作']);
   }, 20_000);
 
-  const posix = process.platform !== 'win32';
-
-  it('暂存目录只有当前用户可访问（0700）', async () => {
+  it('账号目录只有当前用户可访问（0700）', async () => {
     const t = setup();
-    const s = t.login.start('claude');
+    const s = await t.login.start('claude');
     await t.until(() => t.events.some((e) => e.needsCode));
-    const dir = path.join(t.root, 'staging', s.id);
-    if (posix) {
-      expect(fs.statSync(dir).mode & 0o777).toBe(0o700);
-      expect(fs.statSync(path.join(t.root, 'staging')).mode & 0o777).toBe(0o700);
-    }
+    if (process.platform !== 'win32')
+      expect(fs.statSync(t.accounts.officialLaunch('claude', s.id).dir!).mode & 0o777).toBe(0o700);
     t.login.cancel(s.id);
   }, 20_000);
-
-  it('读凭据时取消：不入库，暂存目录清掉', async () => {
-    process.env.NOMI_MOCK_LOGIN_EMAIL = 'gem@nomi.test';
-    const t = setup({
-      onEvent: (e, l) => {
-        if (e.state === 'verifying') expect(l.cancel(e.id)).toBe(true);
-      },
-    });
-    const s = t.login.start('gemini');
-    await t.until(() => t.events.some((e) => e.state === 'cancelled'));
-    // 给 collect 留时间：旧实现会在这里把账号存进去
-    await new Promise((r) => setTimeout(r, 300));
-    expect(t.events.some((e) => e.state === 'done')).toBe(false);
-    expect(t.accounts.list('gemini')).toHaveLength(0);
-    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
-  }, 20_000);
-
-  it('超时：报错、不入库、暂存目录清掉', async () => {
-    const t = setup({ timeoutMs: 300 });
-    const s = t.login.start('claude');
-    await t.until(() => t.events.some((e) => e.state === 'error'));
-    expect(t.events.at(-1)?.message).toBe('登录超时，请重试');
-    expect(t.accounts.list('claude')).toHaveLength(0);
-    await t.until(() => !fs.existsSync(path.join(t.root, 'staging', s.id)));
-  }, 20_000);
-
-  it('退出（dispose）：取消进行中的登录并等暂存目录删完', async () => {
-    const t = setup();
-    const s = t.login.start('claude');
-    await t.until(() => t.events.some((e) => e.needsCode));
-    await t.login.dispose();
-    expect(t.events.at(-1)?.state).toBe('cancelled');
-    expect(fs.existsSync(path.join(t.root, 'staging', s.id))).toBe(false);
-    expect(t.accounts.list('claude')).toHaveLength(0);
-  }, 20_000);
-
-  it('启动时清掉上次异常退出留下的暂存目录', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'login-root-'));
-    const stale = path.join(root, 'staging', 'crashed-session');
-    fs.mkdirSync(stale, { recursive: true });
-    fs.writeFileSync(path.join(stale, 'auth.json'), '{"token":"secret"}');
-    const login = new AccountLogin({
-      root,
-      accounts: {} as AccountService,
-      emit: () => undefined,
-      logger: { warn() {} },
-      adapterEnv: { home: root, env: {}, platform: 'linux' },
-    });
-    logins.push(login);
-    expect(fs.existsSync(stale)).toBe(false);
-  });
 });
 
 describe('tightenTree', () => {

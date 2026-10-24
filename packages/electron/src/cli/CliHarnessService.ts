@@ -181,6 +181,25 @@ interface TabLaunch {
   modelSig: string;
 }
 
+/**
+ * 官方账号（docs/design/cli-plugin-architecture.md §5.10，主进程 AccountService）：
+ * 官方标签用哪个账号目录、要剔除哪些会改变路由或鉴权的继承变量。没有时官方标签用 CLI 自己的目录。
+ */
+export interface HarnessOfficialAccounts {
+  launch(
+    kind: AccountBackend,
+    accountId: string | null | undefined,
+  ): { env: Record<string, string>; strip: readonly string[]; args: string[]; sig: string };
+  /** 官方标签拿到 CLI 会话 id：记下它跑在哪个账号里（历史标注、按原账号续接，§5.10 S9） */
+  noteSession?(kind: AccountBackend, sessionId: string, accountId: string | null | undefined): void;
+}
+
+/** 有官方账号的后端 */
+export type AccountBackend = 'claude' | 'codex' | 'grok' | 'gemini';
+const ACCOUNT_BACKENDS: readonly string[] = ['claude', 'codex', 'grok', 'gemini'];
+const isAccountBackend = (b: string): b is AccountBackend => ACCOUNT_BACKENDS.includes(b);
+
+/** 官方来源、没有账号服务时的启动注入（见 launchFor） */
 const OFFICIAL_LAUNCH: TabLaunch = {
   env: {},
   args: [],
@@ -510,6 +529,8 @@ export class CliHarnessService {
        * 第三方可选模型、官方标签剔除网关残留变量。没有时只有官方来源。
        */
       gateway?: HarnessGateway;
+      /** 官方账号（§5.10）：官方标签按账号目录启动；没有时用 CLI 自己的目录 */
+      accounts?: HarnessOfficialAccounts;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -927,6 +948,8 @@ export class CliHarnessService {
       reasoningEffort?: string | null;
       /** 来源；缺省按「模型」页给这个编程助手设的「新标签默认用」 */
       source?: HarnessTabSource;
+      /** 官方来源下用哪个官方账号（打开历史会话时按原账号续接） */
+      accountId?: string | null;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
@@ -959,6 +982,8 @@ export class CliHarnessService {
     };
     // 新标签的来源：显式指定的，否则「模型」页给这个编程助手设的「新标签默认用」
     tab.source = this.defaultSource(backend, opts.source);
+    if (opts.accountId && tab.source === 'official' && isAccountBackend(backend))
+      tab.accountId = String(opts.accountId);
     this.inheritSettings(
       tab,
       isPermissionMode(opts.permissionMode) && opts.permissionMode !== 'bypass',
@@ -1023,6 +1048,8 @@ export class CliHarnessService {
     permissionMode?: HarnessPermissionMode;
     permissionModeSource?: 'history-cli';
     source?: HarnessTabSource;
+    /** 会话原本所在的官方账号（Nomi 启动时记下的）：按原账号续接 */
+    accountId?: string | null;
   }): { tab: HarnessTabMeta; reused: boolean } {
     const existing = [...this.tabs.values()].find(
       (x) => x.backend === o.backend && x.cliSessionId === o.sessionId,
@@ -1044,6 +1071,7 @@ export class CliHarnessService {
       permissionMode: o.permissionMode,
       permissionModeSource: o.permissionModeSource,
       ...(o.source ? { source: o.source } : {}),
+      ...(o.accountId ? { accountId: o.accountId } : {}),
     });
     return { tab, reused: false };
   }
@@ -1396,11 +1424,13 @@ export class CliHarnessService {
         const bin = resolveHarnessBin(b);
         if (!bin) return null;
         const useNode = isScript(bin);
-        // 官方来源的目录：从 CLI 自己读，不带任何第三方注入
-        return spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...args] : args, {
-          cwd: os.tmpdir(),
-          env: this.childEnv(useNode, OFFICIAL_LAUNCH),
-        });
+        // 官方来源的目录：用默认账号从 CLI 自己读，不带任何第三方注入
+        const l = this.officialLaunch(b, null);
+        return spawnHarness(
+          useNode ? process.execPath : bin,
+          useNode ? [bin, ...args, ...l.args] : [...args, ...l.args],
+          { cwd: os.tmpdir(), env: this.childEnv(useNode, l) },
+        );
       },
       codexConfigPath: process.env.CODEX_HOME
         ? path.join(process.env.CODEX_HOME, 'config.toml')
@@ -1646,16 +1676,7 @@ export class CliHarnessService {
    * 写在配置里的模型（Gemini / Grok / dsh）变了就重启。
    */
   private launchFor(tab: HarnessTabMeta): TabLaunch {
-    if (this.sourceOf(tab) === 'official')
-      return {
-        env: {},
-        args: [],
-        strip: [],
-        official: true,
-        modelInConfig: false,
-        sig: 'official',
-        modelSig: '',
-      };
+    if (this.sourceOf(tab) === 'official') return this.officialLaunch(tab.backend, tab.accountId);
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
     const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
@@ -1672,6 +1693,36 @@ export class CliHarnessService {
       modelInConfig,
       sig: JSON.stringify(['thirdParty', stable, l.args, modelInConfig ? model : '']),
       modelSig: JSON.stringify(aux),
+    };
+  }
+
+  /** 标签绑定 CLI 会话；官方来源时把会话记到所用账号名下 */
+  private bindCliSession(tab: HarnessTabMeta, sessionId: string): void {
+    const changed = tab.cliSessionId !== sessionId;
+    tab.cliSessionId = sessionId;
+    if (!changed || this.sourceOf(tab) !== 'official' || !isAccountBackend(tab.backend)) return;
+    try {
+      this.d.accounts?.noteSession?.(tab.backend, sessionId, tab.accountId);
+    } catch {
+      /* 记录失败只影响历史标注 */
+    }
+  }
+
+  /**
+   * 官方来源的启动注入：账号目录变量（指定了非本机账号时）、剔除会改变路由或鉴权的继承变量（S3）；
+   * sig 带账号 id，换账号就重启进程。
+   */
+  private officialLaunch(backend: HarnessBackend, accountId: string | null | undefined): TabLaunch {
+    if (!this.d.accounts || !isAccountBackend(backend)) return OFFICIAL_LAUNCH;
+    const o = this.d.accounts.launch(backend, accountId);
+    return {
+      env: o.env,
+      args: o.args,
+      strip: o.strip,
+      official: true,
+      modelInConfig: false,
+      sig: o.sig,
+      modelSig: '',
     };
   }
 
@@ -2063,7 +2114,7 @@ export class CliHarnessService {
                 ? await this.runAcp(tab, toCli, abort.signal, normalized)
                 : await this.runCodexTurn(tab, toCli, abort.signal, staged);
       if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
-        tab.cliSessionId = result.sessionId;
+        this.bindCliSession(tab, result.sessionId);
       // 前文已经进了新会话：清掉，之后的轮次靠 CLI 自己续接
       if (stored) this.setCarried(tab, null);
       tab.status = this.claudeLive.get(id)?.auto ? 'running' : 'idle';
@@ -3045,7 +3096,7 @@ export class CliHarnessService {
     live.auto = null;
     const tab = this.tabs.get(tabId);
     if (!tab) return;
-    if (auto.sessionId && tab.backend === 'claude') tab.cliSessionId = auto.sessionId;
+    if (auto.sessionId && tab.backend === 'claude') this.bindCliSession(tab, auto.sessionId);
     const trace = buildTrace(auto.events);
     const usage = mergeUsage(auto.events);
     const content = error && !auto.text.trim() ? error : auto.text;
@@ -3150,7 +3201,7 @@ export class CliHarnessService {
    * 带 --resume 重拉。这一轮还在输出时先记下，等它正常结束再拆，避免「已中止」或休眠条。
    * Codex / dsh / Grok 每条消息都是新进程，下一轮自己读新配置；不杀掉正在跑的那一轮。
    */
-  recycleBackend(kind: HarnessBackend): void {
+  recycleBackend(kind: HarnessBackend, only?: (tab: HarnessTabMeta) => boolean): void {
     // 换了账号：官方可选模型跟着变，下次打开浮层重新从 CLI 读
     this.modelCatalogs.delete(kind);
     // 换账号前发出的读取作废：回来后不写缓存，下一次读取重新发起
@@ -3168,7 +3219,8 @@ export class CliHarnessService {
     // 换的是官方账号：第三方标签走网关，与官方凭据无关，不重启（§13 第 3 条）
     const official = (id: string) => {
       const tab = this.tabs.get(id);
-      return !tab || this.sourceOf(tab) === 'official';
+      if (!tab) return true;
+      return this.sourceOf(tab) === 'official' && (!only || only(tab));
     };
     if (kind === 'gemini' || kind === 'grok') {
       // 登录在会话建立时读取：空闲的直接拆，正在跑的这一轮结束后再拆
@@ -3198,6 +3250,36 @@ export class CliHarnessService {
       this.teardownClaudeLive(id);
     }
     if (!this.claudeLive.size) this.stopIdleSweep();
+  }
+
+  /** 改了默认官方账号：只重启「跟随默认账号」的官方标签（§5.10 S5） */
+  recycleDefaultAccount(kind: AccountBackend): void {
+    this.recycleBackend(kind, (tab) => !tab.accountId);
+  }
+
+  /** 官方标签上选的账号（null = 跟随默认）；账号服务据此统计使用中的标签数 */
+  officialAccountTabs(kind: AccountBackend): Array<string | null> {
+    return [...this.tabs.values()]
+      .filter((x) => x.backend === kind && this.sourceOf(x) === 'official')
+      .map((x) => x.accountId ?? null);
+  }
+
+  /**
+   * 给一个官方标签换账号（null = 跟随默认账号）：只重启这个标签的进程（进行中的这一轮结束后再重启），
+   * 会话照常续接；推理签名不认时按 §5.10.5 处理。
+   */
+  setTabAccount(id: string, accountId: string | null): HarnessTabMeta {
+    const tab = this.requireTab(id);
+    if (!isAccountBackend(tab.backend)) throw new Error(t('这个编程助手没有官方账号'));
+    const next = accountId ? String(accountId) : null;
+    if ((tab.accountId ?? null) === next) return { ...tab };
+    tab.accountId = next;
+    // 会话在新账号里续接：之后历史按新账号标注
+    if (tab.cliSessionId && this.sourceOf(tab) === 'official')
+      this.d.accounts?.noteSession?.(tab.backend, tab.cliSessionId, next);
+    this.recycleBackend(tab.backend, (x) => x.id === id);
+    this.changed();
+    return { ...tab };
   }
 
   /** 供应商已换且这一轮已经结束：拆掉长驻进程，不标记休眠、不改会话。 */
@@ -4300,6 +4382,9 @@ export class CliHarnessService {
         ...(want === 'official' || want === 'thirdParty' ? { expectSource: want } : {}),
       });
     });
+    handle('ai:harness:tab-account', (id, accountId) =>
+      this.setTabAccount(String(id), accountId ? String(accountId) : null),
+    );
     handle('ai:harness:tab-effort', (id, e) =>
       this.setTabReasoningEffort(String(id), e === null || e === undefined ? null : String(e)),
     );

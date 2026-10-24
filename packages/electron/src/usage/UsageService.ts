@@ -10,7 +10,8 @@ import path from 'node:path';
 
 import { BrowserWindow } from 'electron';
 
-import { grokAccountKey } from '../cli/accounts/adapters';
+import { officialAccountEnv } from '../cli/accounts/homes';
+import { withCliPath } from '../cli/detect';
 import { t as tr } from '../i18n';
 import { guardedHandle } from '../security/guardedIpc';
 import { writePrivateFile } from '../utils/privateFile';
@@ -48,7 +49,7 @@ import {
   SNAPSHOT_FILE,
   type HookStatus,
 } from './claudeStatusline';
-import { ClaudeUsageFetcher, type ClaudeFetcherDeps } from './claudeSubscription';
+import { ClaudeUsageFetcher, claudeUsageEnv, type ClaudeFetcherDeps } from './claudeSubscription';
 import { CodexRateLimitReader, type CodexRpcDeps } from './codexRateLimits';
 import { GrokBillingFetcher, type GrokBillingDeps } from './grokSubscription';
 import { formatAmount, formatMoney, formatTokens } from './money';
@@ -175,10 +176,18 @@ type Deps = {
   codexRpc?: Partial<CodexRpcDeps>;
   grokBilling?: GrokBillingDeps;
   /**
-   * 当前 Grok 登录的账号标识（测试注入；默认由账号模块从 Grok 的 auth.json 取 user_id / sub / email）。
+   * 当前 Grok 登录的账号标识（由账号模块给出，来自 CLI 自己报告的身份；Nomi 不读 auth.json，§5.10 S7）。
    * 只在内存里用来算加盐指纹，判断恢复 / 刷新的额度是不是同一个账号的。
    */
   grokAccountKey?: () => string | null;
+  /**
+   * 某个工具的默认官方账号（§5.10）：额度、登录方式都跟着默认账号的账号目录走。
+   * prepare = 接下来要启动官方 CLI（先补齐账号目录）。dir 为 null 是用户自己的 CLI 目录。
+   */
+  officialAccount?: (
+    kind: QuotaToolId,
+    prepare: boolean,
+  ) => { dir: string | null; args: string[] } | null;
   /** 价格同步所用的 fetch（测试注入；默认全局 fetch，只在用户点「同步价格」时调用） */
   priceFetch?: (url: string, init: RequestInit) => Promise<Response>;
 };
@@ -201,6 +210,13 @@ export interface QuotaRefreshReport {
 
 /** 本机已有的额度快照多久算「还新」：更新鲜就不拉起官方 CLI */
 export const QUOTA_FRESH_MS = 5 * 60_000;
+/** 自动刷新：同一工具至少隔这么久才在后台拉起一次官方 CLI（手动刷新仍是 60 秒节流） */
+export const QUOTA_AUTO_MS = 30 * 60_000;
+/** 面板最近这么久内读过额度才算「额度卡可见」 */
+const QUOTA_VIEW_WINDOW_MS = 2 * 60_000;
+/** 最近这么久内用过该工具才自动刷新它的额度 */
+const QUOTA_AUTO_ACTIVE_MS = 24 * 3600_000;
+const QUOTA_AUTO_CHECK_MS = 5 * 60_000;
 
 type CodexStore = {
   ts: number;
@@ -327,6 +343,9 @@ export class UsageService {
   private readonly alertsPath: string;
   private alertState: BudgetAlertState = { day: '', dayLevel: 0, month: '', monthLevel: 0 };
   private budgetTimer: ReturnType<typeof setInterval> | null = null;
+  private quotaAutoTimer: ReturnType<typeof setInterval> | null = null;
+  private lastQuotaView = 0;
+  private readonly quotaAutoAt = new Map<QuotaToolId, number>();
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly tasks = new Map<
     string,
@@ -387,16 +406,27 @@ export class UsageService {
     // 恢复完之后再挂：Claude / Grok 的额度一变就落盘，下次打开直接显示上一次的值
     this.claudeCache.setOnChange(() => this.saveQuota());
     this.grokCache.setOnChange(() => this.saveQuota());
-    this.claudeFetcher = new ClaudeUsageFetcher({ now: d.now, ...d.claudeUsage });
+    this.claudeFetcher = new ClaudeUsageFetcher({
+      now: d.now,
+      env: () => claudeUsageEnv(this.accountLaunch('claude').env),
+      ...d.claudeUsage,
+    });
     this.codexReader = new CodexRateLimitReader({
       now: d.now,
       salt: () => this.salt,
+      env: () => this.accountLaunch('codex').env,
+      extraArgs: () => this.accountLaunch('codex').args,
       ...d.codexRpc,
     });
-    this.grokFetcher = new GrokBillingFetcher({ now: d.now, ...d.grokBilling });
+    this.grokFetcher = new GrokBillingFetcher({
+      now: d.now,
+      env: () => this.accountLaunch('grok').env,
+      ...d.grokBilling,
+    });
     this.auth = new AuthModeDetector({
       home: d.home,
       env: d.env,
+      envFor: (id) => (this.d.officialAccount ? this.accountEnv(id, false) : null),
       now: d.now,
       run: d.authRun,
       salt: () => this.salt,
@@ -569,13 +599,37 @@ export class UsageService {
     this.changed();
   }
 
+  /** 默认官方账号的进程环境（账号目录变量已设好，§5.10）；prepare = 要启动 CLI，先补齐账号目录 */
+  private accountEnv(kind: QuotaToolId, prepare: boolean): NodeJS.ProcessEnv {
+    return this.officialAccountOf(kind, prepare).env;
+  }
+
+  /** 启动官方 CLI 取额度用：环境 + 账号目录追加的参数 */
+  private accountLaunch(kind: QuotaToolId): { env: NodeJS.ProcessEnv; args: string[] } {
+    return this.officialAccountOf(kind, true);
+  }
+
+  private officialAccountOf(
+    kind: QuotaToolId,
+    prepare: boolean,
+  ): { env: NodeJS.ProcessEnv; args: string[] } {
+    const base = withCliPath(this.d.env ?? process.env);
+    let a: { dir: string | null; args: string[] } | null;
+    try {
+      a = this.d.officialAccount?.(kind, prepare) ?? null;
+    } catch {
+      a = null;
+    }
+    return a
+      ? { env: officialAccountEnv(kind, base, a.dir), args: a.args }
+      : { env: base, args: [] };
+  }
+
   /** 当前 Grok 登录的加盐指纹（没登录 / 读不出 = null） */
   private currentGrokFp(): string | null {
     let key: string | null;
     try {
-      key = this.d.grokAccountKey
-        ? this.d.grokAccountKey()
-        : grokAccountKey({ home: this.d.home, env: this.d.env });
+      key = this.d.grokAccountKey ? this.d.grokAccountKey() : null;
     } catch {
       key = null;
     }
@@ -676,6 +730,37 @@ export class UsageService {
    * Nomi 对话走 API，不出现在额度卡里。
    */
   async quotaView(): Promise<QuotaEntry[]> {
+    return this.quotaEntries();
+  }
+
+  /** 面板读额度（额度卡可见）：记下时间，后台自动刷新只在卡片可见时进行 */
+  private quotaViewed(): Promise<QuotaEntry[]> {
+    this.lastQuotaView = this.now();
+    return this.quotaEntries();
+  }
+
+  /**
+   * 后台自动刷新（「先读 CLI 已有数据，读不到再低频请求一次」）：总开关 + 主动刷新开、额度卡可见、
+   * 最近 24 小时用过该工具、是订阅登录时，同一工具至少隔 30 分钟才拉起一次官方 CLI；
+   * 本机快照 / 缓存还新时 refresh 自己会直接返回，不起进程。
+   */
+  async autoRefreshQuota(): Promise<void> {
+    if (!(this.settings.enabled && this.settings.activeQuotaRefresh)) return;
+    const now = this.now();
+    if (now - this.lastQuotaView > QUOTA_VIEW_WINDOW_MS) return;
+    const due = (['claude', 'codex', 'grok'] as const).filter((tool) => {
+      if (now - (this.quotaAutoAt.get(tool) ?? -Infinity) < QUOTA_AUTO_MS) return false;
+      const last = this.ledger.lastTs(tool);
+      if (last == null || now - last > QUOTA_AUTO_ACTIVE_MS) return false;
+      return this.auth.detectPassive(tool).mode === 'subscription';
+    });
+    if (!due.length) return;
+    for (const tool of due) this.quotaAutoAt.set(tool, now);
+    await Promise.all(due.map((tool) => this.runToolRefresh(tool).catch(() => undefined)));
+    this.changed();
+  }
+
+  private async quotaEntries(): Promise<QuotaEntry[]> {
     const modes: Record<string, AuthMode> = {};
     // 被动读取：只用缓存 / 本地配置 / 已有额度数据，绝不启动官方 CLI 的登录探测进程
     for (const id of ['claude', 'codex', 'dsh', 'grok', 'nomi']) {
@@ -698,7 +783,8 @@ export class UsageService {
    * - Codex：`codex app-server` 的 `account/rateLimits/read`；
    * - Grok：官方 CLI ACP 的 `_x.ai/billing` 扩展。
    * 三者都是官方 CLI 用自己的登录态去取，Nomi 不接触凭据；每个来源 60 秒内最多真实拉取一次；
-   * 「主动刷新额度」关闭时一律不拉起 CLI。从不自动轮询，只在这里被调用时才会触发。
+   * 「主动刷新额度」关闭时一律不拉起 CLI。后台另有低频自动刷新（autoRefreshQuota，每工具至少 30 分钟一次）。
+   * 都在默认官方账号的账号目录里运行（§5.10）。
    */
   refreshQuota(tool?: QuotaToolId): Promise<QuotaRefreshReport> {
     if (tool) return this.refreshQuotaTool(tool);
@@ -1079,6 +1165,7 @@ export class UsageService {
   start(): void {
     if (!this.settings.enabled) return;
     this.startBudgetTimer();
+    this.startQuotaAutoTimer();
     if (this.scanTimer || !this.settings.readToolLogs) return;
     const ms = this.d.scanMs ?? 60_000;
     if (ms <= 0) return;
@@ -1099,6 +1186,12 @@ export class UsageService {
     (this.budgetTimer as { unref?: () => void }).unref?.();
   }
 
+  private startQuotaAutoTimer(): void {
+    if (this.quotaAutoTimer || (this.d.scanMs ?? 60_000) <= 0) return;
+    this.quotaAutoTimer = setInterval(() => void this.autoRefreshQuota(), QUOTA_AUTO_CHECK_MS);
+    (this.quotaAutoTimer as { unref?: () => void }).unref?.();
+  }
+
   private stopBudgetTimer(): void {
     if (this.budgetTimer) clearInterval(this.budgetTimer);
     this.budgetTimer = null;
@@ -1112,6 +1205,8 @@ export class UsageService {
   stop(): void {
     this.stopTimers();
     this.stopBudgetTimer();
+    if (this.quotaAutoTimer) clearInterval(this.quotaAutoTimer);
+    this.quotaAutoTimer = null;
     if (this.checkTimer) clearTimeout(this.checkTimer);
     this.checkTimer = null;
     if (this.pruneTimer) clearInterval(this.pruneTimer);
@@ -1511,7 +1606,7 @@ export class UsageService {
     handle('ai:usage:details', (q) => this.details(dq(q)));
     handle('ai:usage:csv', (q) => this.csv(dq(q)));
     handle('ai:usage:set-settings', (p) => this.setSettings((p ?? {}) as Partial<UsageSettings>));
-    handle('ai:usage:quota', () => this.quotaView());
+    handle('ai:usage:quota', () => this.quotaViewed());
     handle('ai:usage:quota-refresh', (tool) => this.refreshQuota(quotaToolOf(tool)));
     handle('ai:usage:quota-hook', () => this.quotaHookStatus());
     handle('ai:usage:quota-hook-set', (v) => this.setQuotaHook(v === true));

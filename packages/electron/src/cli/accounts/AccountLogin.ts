@@ -1,11 +1,12 @@
 /**
- * 官方账号登录（docs/design/cli-official-accounts.md §4）：在暂存目录里跑 CLI 自己的登录命令，
- * 把输出里的授权链接 / 设备码 / 「粘贴授权码」提示转成界面事件；成功后从暂存目录读出凭据存进保险箱，
- * 再删除暂存目录（macOS 上一并删除暂存用的钥匙串条目）。用户现有的全局登录全程不受影响。
+ * 官方账号登录（docs/design/cli-plugin-architecture.md §5.10）：在账号目录里跑 CLI 自己的登录命令
+ * （登录必须走官方自己的流程），把输出里的授权链接 / 设备码 / 「粘贴授权码」提示转成界面事件。
+ * 凭据由 CLI 自己写进账号目录（或按目录区分的钥匙串条目），Nomi 不读取、不保存（S7）；
+ * 登录完成后只读身份（邮箱 / 套餐）。新建账号的登录被取消或失败时，删掉这个空账号。
  */
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { BrowserWindow, shell } from 'electron';
@@ -20,8 +21,6 @@ import { geminiLoginEnv } from '../gemini/trust';
 import { killProcessTree } from '../processTree';
 
 import type { AccountService } from './AccountService';
-import { adapterFor, claudeAccountName, claudeKeychainService, type AdapterEnv } from './adapters';
-import { macKeychain } from './keychain';
 import type { AccountKind, AccountView } from './types';
 
 export type LoginState = 'starting' | 'waiting' | 'verifying' | 'done' | 'error' | 'cancelled';
@@ -67,21 +66,23 @@ export function parseLoginOutput(raw: string): { url?: string; code?: string; ne
   };
 }
 
-const LOGIN_ARGS: Record<AccountKind, { env: string; args: string[] }> = {
-  claude: { env: 'CLAUDE_CONFIG_DIR', args: ['auth', 'login', '--claudeai'] },
-  codex: {
-    env: 'CODEX_HOME',
-    args: ['login', '--device-auth', '-c', 'cli_auth_credentials_store="file"'],
-  },
-  grok: { env: 'GROK_HOME', args: ['login', '--device-auth'] },
+const LOGIN_ARGS: Record<AccountKind, string[]> = {
+  claude: ['auth', 'login', '--claudeai'],
+  codex: ['login', '--device-auth', '-c', 'cli_auth_credentials_store="file"'],
+  grok: ['login', '--device-auth'],
   // Gemini 没有 login 子命令：起 ACP 进程后调用 authenticate（oauth-personal），由 CLI 自己开浏览器
-  gemini: { env: 'GEMINI_CLI_HOME', args: ['--acp'] },
+  gemini: ['--acp'],
 };
 
 interface Session {
   id: string;
   kind: AccountKind;
-  dir: string;
+  /** 登录的账号 */
+  accountId: string;
+  /** 这次登录新建的账号：取消 / 失败时删掉 */
+  created: boolean;
+  /** 登录用的目录（账号目录；本机登录时为用户目录）作 cwd */
+  cwd: string;
   child: ChildProcessWithoutNullStreams;
   out: string;
   last: LoginEvent;
@@ -114,75 +115,51 @@ export function tightenTree(dir: string): void {
 
 export class AccountLogin {
   private readonly sessions = new Map<string, Session>();
-  /** 还没删完的暂存目录（退出时等它们删完） */
-  private readonly pendingCleanup = new Set<Promise<void>>();
 
   constructor(
     private readonly d: {
-      root: string;
       accounts: AccountService;
-      adapterEnv?: AdapterEnv;
       emit: (e: LoginEvent) => void;
       logger: { warn(m: string, d?: unknown): void };
       /** 登录超时（测试用；默认 15 分钟） */
       timeoutMs?: number;
     },
-  ) {
-    // 上次异常退出（崩溃 / 强杀）留下的暂存目录里可能有明文凭据：启动时清掉
-    this.sweepStaleStaging();
-  }
-
-  private get stagingRoot() {
-    return path.join(this.d.root, 'staging');
-  }
-
-  private sweepStaleStaging() {
-    let names: string[];
-    try {
-      names = fs.readdirSync(this.stagingRoot);
-    } catch {
-      return;
-    }
-    for (const name of names) {
-      if (this.sessions.has(name)) continue;
-      this.track(this.removeStaging('claude', path.join(this.stagingRoot, name)));
-    }
-  }
-
-  private track(p: Promise<void>) {
-    this.pendingCleanup.add(p);
-    void p.finally(() => this.pendingCleanup.delete(p));
-  }
+  ) {}
 
   private send(s: Session, e: Omit<LoginEvent, 'id' | 'kind'>) {
     s.last = { id: s.id, kind: s.kind, ...e };
     this.d.emit(s.last);
   }
 
-  start(kind: AccountKind): LoginEvent {
+  /**
+   * 开始登录。accountId 为空：新建一个账号并登录；否则在这个账号的目录里重新登录
+   * （从旧版本迁移来的「需要重新登录」，或本机登录）。
+   */
+  async start(kind: AccountKind, accountId?: string): Promise<LoginEvent> {
     const bin = resolveHarnessBin(kind);
     if (!bin) throw new Error(t('未找到 {0}，请先安装', kind));
-    const id = randomUUID();
-    const dir = path.join(this.stagingRoot, id);
-    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    // mkdir 的 mode 受 umask 影响，且 staging 可能是旧版本建的：显式收紧
-    fs.chmodSync(this.stagingRoot, 0o700);
-    fs.chmodSync(dir, 0o700);
-    const spec = LOGIN_ARGS[kind];
+    const created = !accountId;
+    const account = accountId ?? this.d.accounts.create(kind).id;
+    await this.d.accounts.prepareLogin(account);
+    const target = this.d.accounts.loginTarget(account);
+    if (target.kind !== kind) throw new Error(t('账号不存在'));
+    const id = account;
+    if (this.sessions.has(id)) this.cancel(id);
+    const cwd = target.dir ?? os.tmpdir();
+    const args = LOGIN_ARGS[kind];
     const script = bin.endsWith('.mjs') || bin.endsWith('.js');
-    const env = buildCliEnv(process.env, {
-      [spec.env]: dir,
-      // Gemini：只信任这个空的暂存目录（也是这次登录的 GEMINI_CLI_HOME，cwd 必须是它），不是用户工作区
-      ...(kind === 'gemini' ? geminiLoginEnv(dir) : {}),
+    const env = buildCliEnv(target.env, {
+      // Gemini：只信任这次登录用的目录，不是用户工作区
+      ...(kind === 'gemini' && target.dir ? geminiLoginEnv(target.dir) : {}),
       ...(script ? { ELECTRON_RUN_AS_NODE: '1' } : {}),
     });
     const launch = resolveHarnessLaunch(
       script ? process.execPath : bin,
-      script ? [bin, ...spec.args] : spec.args,
+      script ? [bin, ...args] : args,
       env,
     );
     const child = spawn(launch.file, launch.args, {
-      cwd: dir,
+      cwd,
       env: launch.env,
       windowsHide: true,
       ...(launch.verbatim ? { windowsVerbatimArguments: true } : {}),
@@ -191,7 +168,9 @@ export class AccountLogin {
     const s: Session = {
       id,
       kind,
-      dir,
+      accountId: account,
+      created,
+      cwd,
       child,
       out: '',
       last: { id, kind, state: 'starting' },
@@ -260,27 +239,18 @@ export class AccountLogin {
     })();
   }
 
-  /** 从暂存目录读出这次登录的凭据存进保险箱 */
+  /** 登录命令成功结束：只读身份（不读凭据），更新账号 */
   private async collect(s: Session) {
-    // 暂存目录就是这次登录的 CLI 配置目录：用同一个适配器从那里读凭据
-    const env = {
-      ...(this.d.adapterEnv?.env ?? process.env),
-      [LOGIN_ARGS[s.kind].env]: s.dir,
-    };
-    tightenTree(s.dir);
-    const live = await adapterFor(s.kind, { ...this.d.adapterEnv, env }).read();
-    // 读凭据期间用户取消了 / 超时了：不能再入库
     if (s.finished) return;
-    if (!live) throw new Error(t('登录完成了，但没有读到凭据'));
-    // 从这里起就要入库了：先标记结束，之后的取消不再生效（返回 false）
     s.finished = true;
     try {
-      const account = await this.d.accounts.addFromLogin(s.kind, live);
+      const account = await this.d.accounts.refresh(s.accountId);
+      if (!account.loggedIn) throw new Error(t('登录完成了，但 CLI 仍显示未登录'));
       this.send(s, { state: 'done', account });
+      this.cleanup(s, false);
     } catch (e) {
       this.send(s, { state: 'error', message: e instanceof Error ? e.message : String(e) });
-    } finally {
-      this.cleanup(s);
+      this.cleanup(s, true);
     }
   }
 
@@ -299,7 +269,7 @@ export class AccountLogin {
     s.finished = true;
     killProcessTree(s.child);
     this.send(s, { state: 'cancelled' });
-    this.cleanup(s);
+    this.cleanup(s, true);
     return true;
   }
 
@@ -308,7 +278,7 @@ export class AccountLogin {
     s.finished = true;
     killProcessTree(s.child);
     this.send(s, { state: 'error', message });
-    this.cleanup(s);
+    this.cleanup(s, true);
   }
 
   private async onExit(s: Session, code: number | null) {
@@ -332,43 +302,32 @@ export class AccountLogin {
     return stripTerminal(s.out).trim().split('\n').slice(-3).join('\n');
   }
 
-  /** 结束一次登录：立刻同步删掉暂存目录；进程退出后再删一次（被杀的 CLI 可能还在落盘） */
-  private cleanup(s: Session) {
+  /** 结束一次登录；这次新建的账号没登录成功就删掉（目录里没有凭据，不用登出） */
+  private cleanup(s: Session, failed: boolean) {
     clearTimeout(s.timer);
     this.sessions.delete(s.id);
-    this.track(this.removeStaging(s.kind, s.dir));
-    if (s.child.exitCode === null && s.child.signalCode === null)
-      s.child.once('close', () => this.track(this.removeStaging(s.kind, s.dir)));
+    if (!failed || !s.created) return;
+    const drop = () =>
+      void this.d.accounts
+        .remove(s.accountId)
+        .catch((e) => this.d.logger.warn('login account cleanup failed', String(e)));
+    if (s.child.exitCode === null && s.child.signalCode === null) s.child.once('close', drop);
+    else drop();
   }
 
-  private async removeStaging(kind: AccountKind, dir: string) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
-    } catch (e) {
-      this.d.logger.warn('login staging cleanup failed', String(e));
-    }
-    // macOS：Claude 把暂存登录写进了按目录区分的钥匙串条目，一并删除（启动清扫时不知道类型，按 Claude 试删）
-    const platform = this.d.adapterEnv?.platform ?? process.platform;
-    if (kind === 'claude' && platform === 'darwin') {
-      const keychain = this.d.adapterEnv?.keychain ?? macKeychain;
-      const env = this.d.adapterEnv?.env ?? process.env;
-      await keychain
-        .remove(claudeKeychainService({ CLAUDE_CONFIG_DIR: dir }, dir), claudeAccountName(env))
-        .catch(() => undefined);
-    }
-  }
-
-  /** 退出：取消所有进行中的登录（不入库），并等暂存目录与钥匙串条目删完 */
+  /** 退出：取消所有进行中的登录 */
   async dispose(): Promise<void> {
     for (const id of [...this.sessions.keys()]) this.cancel(id);
-    await Promise.allSettled([...this.pendingCleanup]);
   }
 
   registerIpc(): void {
     const owner = 'AccountLogin';
-    guardedHandle('ai:cli-account:login-start', (k) => this.start(String(k) as AccountKind), {
-      owner,
-    });
+    guardedHandle(
+      'ai:cli-account:login-start',
+      (k, accountId) =>
+        this.start(String(k) as AccountKind, accountId ? String(accountId) : undefined),
+      { owner },
+    );
     guardedHandle(
       'ai:cli-account:login-input',
       (id, text) => this.input(String(id), String(text)),

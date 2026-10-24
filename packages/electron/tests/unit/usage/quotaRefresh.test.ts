@@ -107,6 +107,7 @@ function setup(opts: Opts = {}) {
     env: opts.env ?? {},
     logger: { info: jest.fn(), warn: jest.fn() },
     authRun: async (kind) => auth[kind],
+    grokAccountKey: () => grokIds.get(home) ?? null,
     claudeUsage: {
       resolveBin: async () => '/fake/claude',
       run: claudeRun as never,
@@ -182,6 +183,9 @@ const writeSnapshot = (root: string, ageMs: number) => {
   const at = new Date(Date.now() - ageMs);
   fs.utimesSync(f, at, at);
 };
+
+/** 各测试 HOME 下「当前 Grok 账号」的身份键（生产里由账号模块按 CLI 报告的身份给出，不读 auth.json） */
+const grokIds = new Map<string, string | null>();
 
 describe('刷新额度 · Claude Code', () => {
   it('没有快照：点刷新才运行 claude -p /usage；来源 / 套餐正确', async () => {
@@ -623,6 +627,7 @@ describe('额度缓存跨重启保留（每次打开都先显示上一次的值�
       env: {},
       logger: { info: jest.fn(), warn: jest.fn() },
       authRun: async (kind) => t.auth[kind],
+      grokAccountKey: () => grokIds.get(t.home) ?? null,
       claudeUsage: {
         resolveBin: async () => '/fake/claude',
         run: run as never,
@@ -653,10 +658,7 @@ describe('额度缓存跨重启保留（每次打开都先显示上一次的值�
   });
 
   const grokLogin = (home: string, userId: string | null) => {
-    const dir = path.join(home, '.grok');
-    fs.mkdirSync(dir, { recursive: true });
-    if (userId === null) fs.rmSync(path.join(dir, 'auth.json'), { force: true });
-    else fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ user_id: userId }));
+    grokIds.set(home, userId);
   };
   const grokRefresh = (svc: UsageService, pct: number, at: number) =>
     (svc as unknown as GrokView).grokCache.refresh(

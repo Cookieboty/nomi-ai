@@ -29,6 +29,11 @@ import {
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+import {
+  cliAccountClient,
+  type AccountKind,
+  type CliAccount,
+} from '../../services/cliAccountClient';
 import { scopeCatalogToProvider, tabSourceOf, thirdPartyRefOf } from '../../services/cliSource';
 import { gatewayClient, gatewayClientAvailable } from '../../services/gatewayClient';
 import {
@@ -43,6 +48,9 @@ import { useGatewayState } from '../../services/nomiModel';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
+
+/** 有官方账号的编程助手 */
+const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
 
 /** 档位由浅到深的顺序（只用于排序 CLI 返回的值，不代表某个模型支持哪些） */
 const EFFORT_ORDER: ReasoningEffort[] = [
@@ -312,7 +320,8 @@ const ModelChip: React.FC<{
   onRefresh: () => void;
 }> = ({ tab, catalog, refreshing, onRefresh }) => {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<'effort' | 'model'>('effort');
+  const [view, setView] = useState<'effort' | 'model' | 'account'>('effort');
+  const [accounts, setAccounts] = useState<CliAccount[]>([]);
   const [note, setNote] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -360,6 +369,34 @@ const ModelChip: React.FC<{
   const backendName = ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME];
   // 模型列表从哪来：官方账号是 CLI 自己，第三方是网关
   const sourceName = provider?.name || backendName;
+  // 官方来源的标签可以单独选官方账号（多个账号并行，§5.10.8）
+  const accountKind =
+    !thirdParty && ACCOUNT_KINDS.includes(tab.backend as AccountKind)
+      ? (tab.backend as AccountKind)
+      : null;
+  const defaultAccount = accounts.find((a) => a.active);
+  const pinnedAccount = tab.accountId ? accounts.find((a) => a.id === tab.accountId) : undefined;
+  const accountLabel = tab.accountId
+    ? (pinnedAccount?.label ?? t('已删除的账号'))
+    : t('跟随默认（{0}）', defaultAccount?.label ?? t('本机登录'));
+
+  useEffect(() => {
+    if (!open || !accountKind) return;
+    let alive = true;
+    void cliAccountClient
+      .list(accountKind)
+      .then((l) => alive && setAccounts(l))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [open, accountKind]);
+
+  const pickAccount = (id: string | null) => {
+    setView('effort');
+    if ((tab.accountId ?? null) === id) return;
+    void run(() => harnessClient.setTabAccount(tab.id, id));
+  };
 
   useEffect(() => {
     if (!note) return;
@@ -470,7 +507,69 @@ const ModelChip: React.FC<{
                 </span>
                 <Icon icon={ChevronRight} size={14} />
               </button>
+              {accountKind && (
+                <button
+                  type="button"
+                  className={styles.modelRow}
+                  data-testid="account-open"
+                  aria-label={t('切换官方账号：{0}', accountLabel)}
+                  onClick={() => setView('account')}
+                >
+                  <span className={styles.modelRowLabel}>{t('账号')}</span>
+                  <span className={styles.modelRowValue}>
+                    <span className={styles.modelLinkText}>{accountLabel}</span>
+                  </span>
+                  <Icon icon={ChevronRight} size={14} />
+                </button>
+              )}
             </div>
+          ) : view === 'account' ? (
+            <>
+              <div className={styles.modelHead}>
+                <button
+                  type="button"
+                  className={styles.back}
+                  data-testid="account-back"
+                  onClick={() => setView('effort')}
+                >
+                  <Icon icon={ChevronLeft} size={14} />
+                  {t('官方账号')}
+                </button>
+              </div>
+              <div className={styles.models} role="listbox" aria-label={t('官方账号')}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={!tab.accountId}
+                  className={styles.item}
+                  data-testid="account-default"
+                  onClick={() => pickAccount(null)}
+                >
+                  <span className={styles.itemLabel}>{t('跟随默认账号')}</span>
+                  <span className={styles.itemHint}>{defaultAccount?.label ?? t('本机登录')}</span>
+                  {!tab.accountId && <Icon icon={Check} size={14} />}
+                </button>
+                {accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    role="option"
+                    aria-selected={tab.accountId === a.id}
+                    className={styles.item}
+                    data-testid={`account-${a.id}`}
+                    disabled={!a.loggedIn}
+                    title={a.identity?.email ?? a.label}
+                    onClick={() => pickAccount(a.id)}
+                  >
+                    <span className={styles.itemLabel}>{a.label}</span>
+                    <span className={styles.itemHint}>
+                      {a.loggedIn ? (a.identity?.plan ?? '') : t('未登录')}
+                    </span>
+                    {tab.accountId === a.id && <Icon icon={Check} size={14} />}
+                  </button>
+                ))}
+              </div>
+            </>
           ) : (
             <>
               <div className={styles.modelHead}>

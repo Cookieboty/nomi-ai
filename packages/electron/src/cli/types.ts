@@ -233,6 +233,11 @@ export interface HarnessTabMeta {
   modelByScope?: Record<string, { model: string | null; effort: string | null }>;
   /** 来源；缺省 = 官方。第三方时 modelOverride 是 `供应商/模型`（null = 「模型」页给这个编程助手分配的） */
   source?: HarnessTabSource;
+  /**
+   * 官方来源下用哪个官方账号（docs/design/cli-plugin-architecture.md §5.10）：账号 id；
+   * null / 缺省 = 跟随默认账号。账号被删除后自动回到默认账号。
+   */
+  accountId?: string | null;
   /** 仍在运行的后台子代理 / 后台任务数（仅内存、仅广播；> 0 时不回收进程，关闭 / 停止前提示） */
   background?: number;
   /** 仍在运行的后台子代理（仅内存、仅广播）；stoppable = CLI 支持单独停止（Claude stop_task） */

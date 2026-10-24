@@ -148,11 +148,21 @@ export interface SessionHistoryDeps {
     permissionModeSource?: 'history-cli';
     /** 会话原本的来源（由历史线路推断）：避免用新标签默认来源续接，官方 / 第三方互相串用 */
     source?: HarnessTabSource;
+    /** 会话原本所在的官方账号 */
+    accountId?: string;
   }) => { tab: HarnessTabMeta; reused: boolean };
   /** 会话是否经统一网关跑过（网关会话归属表）：历史里没记线路的后端（Claude）据此推断来源（#90） */
   gatewaySession?: (backend: HistoryBackend, sessionId: string) => boolean;
   /** 会话的官方账号 id → 展示用的标签（邮箱 / 名称）；对不上返回 undefined */
   accountLabel?: (backend: HistoryBackend, accountId: string) => string | undefined;
+  /**
+   * Nomi 启动这个会话时用的官方账号（会话目录在各账号间共享，文件里看不出，§5.10 S9）：
+   * label 只在需要区分时给（同一 CLI 有多个账号）；id 用来按原账号续接
+   */
+  sessionAccount?: (
+    backend: HistoryBackend,
+    sessionId: string,
+  ) => { id: string; label?: string } | undefined;
 }
 
 async function readHead(p: string, bytes: number): Promise<string> {
@@ -601,7 +611,9 @@ export class SessionHistoryService {
         // 同一会话的旧文件不再单列（只有「最新的那个文件」才是这条会话）
         if (this.byKey.get(m.key)?.path !== f.path) continue;
         const { accountId, ...rest } = m;
-        const account = accountId ? this.d.accountLabel?.(backend, accountId) : undefined;
+        const account =
+          (accountId ? this.d.accountLabel?.(backend, accountId) : undefined) ??
+          this.d.sessionAccount?.(backend, m.sessionId)?.label;
         visible.push({
           ...rest,
           ...(account ? { account } : {}),
@@ -686,6 +698,10 @@ export class SessionHistoryService {
         ...(f.meta.reasoningEffort ? { reasoningEffort: f.meta.reasoningEffort } : {}),
         ...(f.meta.permissionMode ? { permissionMode: f.meta.permissionMode } : {}),
         ...(!f.meta.permissionMode ? { permissionModeSource: 'history-cli' as const } : {}),
+        ...(() => {
+          const acct = this.d.sessionAccount?.(backend, sessionId);
+          return acct ? { accountId: acct.id } : {};
+        })(),
         // 按历史记录的线路续接，不用新标签默认来源（#90）：网关 → 第三方；官方与用户自己在
         // config.toml 配的 custom 供应商都是 CLI 原生配置 → 官方。推断不出的沿用默认。
         ...(route

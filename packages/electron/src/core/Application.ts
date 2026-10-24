@@ -414,6 +414,14 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'usage'),
         logger: this.logger as never,
         providerName: (id) => this.aiRuntime?.listProviders().find((p) => p.id === id)?.name,
+        // Grok 额度指纹用账号模块记录的身份（来自 CLI 自己报告），不读 auth.json（§5.10 S7）
+        grokAccountKey: () => accounts.identityKey('grok'),
+        // 额度跟着默认官方账号走：取额度的官方 CLI 在默认账号的账号目录里运行（§5.10）
+        officialAccount: (kind, prepare) => {
+          if (!prepare) return { dir: accounts.defaultDir(kind), args: [] };
+          const l = accounts.officialLaunch(kind, null);
+          return { dir: l.dir, args: l.args };
+        },
         // 预算 / 单任务提醒：看板娘气泡（只显示，不朗读）+ 灵动岛；免打扰中不弹，稍后重试
         alert: (a) => {
           if (desktop.notifyPolicy?.quiet() ?? false) return false;
@@ -546,6 +554,20 @@ export class Application implements IApplication {
         this.logger.warn('revoke legacy CLI config failed', e);
       }
       this.lifecycle.register({ name: 'gateway', stop: () => gateway.dispose() });
+      // 官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录，Nomi 不经手凭据。
+      // 改默认账号只重启跟随默认的官方标签；第三方标签与网关不受影响（S5、S6）
+      const accounts: AccountService = new AccountService({
+        root: path.join(app.getPath('userData'), 'cli-accounts'),
+        logger: this.logger as never,
+        onDefaultChanged: (kind) => {
+          harness.recycleDefaultAccount(kind);
+          // 换了号：上一个账号的订阅额度不能再显示
+          getUsageService()?.forgetAccountQuota(kind);
+        },
+        inUse: (kind, id) =>
+          harness.officialAccountTabs(kind).filter((a) => accounts.resolve(kind, a) === id).length,
+        onChanged: () => accounts.broadcastChanged(),
+      });
       const harness = initCliHarnessService({
         root: path.join(app.getPath('userData'), 'harness'),
         logger: this.logger as never,
@@ -558,6 +580,12 @@ export class Application implements IApplication {
           models: () => gateway.cliModels(),
           releaseAgent: (kind, tabId) => gateway.releaseAgent(kind, tabId),
         },
+        // 官方标签按账号目录启动（docs/design/cli-plugin-architecture.md §5.10）
+        accounts: {
+          launch: (kind, accountId) => accounts.officialLaunch(kind, accountId),
+          noteSession: (kind, sessionId, accountId) =>
+            accounts.noteSession(kind, sessionId, accountId),
+        },
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
         // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
@@ -565,21 +593,8 @@ export class Application implements IApplication {
         // Codex 走 app-server 长驻会话；NOMI_CODEX_APP_SERVER=0 退回每轮一个进程的 codex exec
         codexAppServer: process.env.NOMI_CODEX_APP_SERVER !== '0',
       });
-      // 官方账号（docs/design/cli-official-accounts.md）：切换后让来源为官方的长驻进程按新登录重拉。
-      // 第三方不再写全局配置，所以不再「切官方账号时停用第三方」（unified-gateway §13 第 2 条）
-      const accounts: AccountService = new AccountService({
-        root: path.join(app.getPath('userData'), 'cli-accounts'),
-        logger: this.logger as never,
-        onActivated: (kind) => {
-          harness.recycleBackend(kind);
-          // 换了号：上一个账号的订阅额度不能再显示
-          getUsageService()?.forgetAccountQuota(kind);
-        },
-        onChanged: () => accounts.broadcastChanged(),
-      });
       accounts.registerIpc();
       const accountLogin = new AccountLogin({
-        root: path.join(app.getPath('userData'), 'cli-accounts'),
         accounts,
         logger: this.logger as never,
         emit: broadcastLogin,
@@ -598,6 +613,13 @@ export class Application implements IApplication {
           if (backend !== 'codex') return undefined;
           const a = accounts.findByAccountId('codex', accountId);
           return a ? (a.identity?.email ?? a.label) : undefined;
+        },
+        // Nomi 启动时记下的账号；只有一个账号时不标注
+        sessionAccount: (backend, sessionId) => {
+          if (backend === 'dsh') return undefined;
+          const a = accounts.sessionAccount(backend, sessionId);
+          if (!a) return undefined;
+          return accounts.list(backend).length > 1 ? a : { id: a.id };
         },
       }).registerIpc();
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛

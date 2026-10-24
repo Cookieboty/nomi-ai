@@ -38,6 +38,8 @@ export interface HarnessTabMeta {
    * 切换走 setTabSource，规则由主进程执行（空标签直接切；官方 → 第三方续接；第三方 → 官方带上下文新开）。
    */
   source?: TabSource;
+  /** 官方来源下用哪个官方账号；null / 缺省 = 跟随默认账号（docs/design/cli-plugin-architecture.md §5.10） */
+  accountId?: string | null;
   /**
    * 标签级模型覆盖。官方来源：CLI 的模型 id，null/缺省 = 沿用 CLI 默认模型（进程级参数注入，不改全局配置）；
    * 第三方来源：网关的 `供应商/模型`，null = 这个 CLI 在「模型」页分配的默认模型。
@@ -400,6 +402,9 @@ export const harnessClient = {
   /** 设置标签思考深度；传 null 清除（沿用 CLI 默认档位） */
   setTabEffort: (id: string, effort: ReasoningEffort | null) =>
     call<HarnessTabMeta>('tab-effort', id, effort),
+  /** 官方标签换账号（null = 跟随默认账号）：只重启这个标签，下一条消息起生效 */
+  setTabAccount: (id: string, accountId: string | null) =>
+    call<HarnessTabMeta>('tab-account', id, accountId),
   activateTab: (id: string) => call<HarnessTabsState>('tab-activate', id),
   setTabBackend: (id: string, b: HarnessBackend) => call<HarnessTabMeta>('tab-backend', id, b),
   setTabCwd: (id: string, cwd: string, opts: { carry?: boolean } = {}) =>

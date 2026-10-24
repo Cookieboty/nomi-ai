@@ -272,6 +272,11 @@ export interface AuthDeps {
   hasSubscriptionData?: (id: 'claude' | 'codex' | 'grok') => boolean;
   /** 身份指纹用的本机随机盐（见 quotaIdentity.ts）；不给则不产生指纹 */
   salt?: () => string;
+  /**
+   * 某个工具当前默认官方账号的环境（账号目录变量已设好，§5.10）：读配置和运行登录状态命令都用它，
+   * 额度跟着默认账号走。不给就用 env / 本机进程环境。
+   */
+  envFor?: (id: 'claude' | 'codex' | 'grok') => NodeJS.ProcessEnv | null;
 }
 
 /** 登录方式 + 非敏感的身份信息（指纹 / 套餐） */
@@ -288,8 +293,11 @@ export interface AuthInfo {
 
 const TTL_MS = 5 * 60_000;
 
-async function runStatus(kind: 'claude' | 'codex' | 'grok'): Promise<string | null> {
-  if (kind === 'grok') return readGrokAuthStatus();
+async function runStatus(
+  kind: 'claude' | 'codex' | 'grok',
+  base: NodeJS.ProcessEnv = withCliPath(),
+): Promise<string | null> {
+  if (kind === 'grok') return readGrokAuthStatus({ env: () => base });
   const bin = await resolveCliBinAsync(kind);
   if (!bin) return null;
   const args = kind === 'claude' ? ['auth', 'status'] : ['login', 'status'];
@@ -300,7 +308,7 @@ async function runStatus(kind: 'claude' | 'codex' | 'grok'): Promise<string | nu
       maxBuffer: 64 * 1024,
       windowsHide: true,
       shell: process.platform === 'win32' && /\.(cmd|bat)$/i.test(bin),
-      env: { ...withCliPath(), NO_COLOR: '1' },
+      env: { ...base, NO_COLOR: '1' },
     });
     return `${r.stdout}\n${r.stderr}`;
   } catch (e) {
@@ -323,6 +331,16 @@ export class AuthModeDetector {
   private onKnownChange: (() => void) | null = null;
 
   constructor(private readonly d: AuthDeps = {}) {}
+
+  /** 读配置用的环境：默认官方账号的账号目录变量优先 */
+  private envOf(id: 'claude' | 'codex' | 'grok'): NodeJS.ProcessEnv {
+    return this.d.envFor?.(id) ?? this.d.env ?? process.env;
+  }
+
+  /** 运行登录状态命令用的环境（带 CLI 搜索路径） */
+  private cliEnv(id: 'claude' | 'codex' | 'grok'): NodeJS.ProcessEnv {
+    return this.d.envFor?.(id) ?? withCliPath();
+  }
 
   private now(): number {
     return this.d.now ? this.d.now() : Date.now();
@@ -415,7 +433,7 @@ export class AuthModeDetector {
     // Claude 退出登录有本地信号：即便缓存 / 状态栏快照还在，也不能把旧账号当成仍在订阅（#44）
     if (id === 'claude') {
       const home = this.d.home ?? os.homedir();
-      const env = this.d.env ?? process.env;
+      const env = this.envOf(id);
       if (claudeOAuthPresent(home, env) === false && claudeAuthFromConfig(home, env) !== 'api') {
         this.cache.delete(id);
         this.setKnown(id, null);
@@ -431,7 +449,7 @@ export class AuthModeDetector {
   /** 不需要（也不允许）起进程就能确定的结论：自定义 / 托管 API 配置，或本机根本没有 Grok */
   private beforeCli(id: 'claude' | 'codex' | 'grok'): AuthInfo | null {
     const home = this.d.home ?? os.homedir();
-    const env = this.d.env ?? process.env;
+    const env = this.envOf(id);
     // 自定义供应商 / API Key → 一律按 API（不再调用官方状态命令）
     if (id === 'claude' && claudeAuthFromConfig(home, env) === 'api')
       return { mode: 'api', fp: null };
@@ -447,7 +465,7 @@ export class AuthModeDetector {
   /** 官方命令没给出（或说「没登录」）之后的本地兜底：配置 → 已有额度数据；明确退出登录不被历史数据恢复 */
   private afterCli(id: 'claude' | 'codex' | 'grok', signedOut: boolean): AuthInfo {
     const home = this.d.home ?? os.homedir();
-    const env = this.d.env ?? process.env;
+    const env = this.envOf(id);
     const cfg =
       id === 'claude'
         ? claudeAuthFromConfig(home, env)
@@ -466,8 +484,8 @@ export class AuthModeDetector {
     if (pre) return pre;
     const text: string | null =
       id === 'grok'
-        ? await (this.d.grokRun ?? readGrokAuthStatus)().catch(() => null)
-        : await (this.d.run ?? runStatus)(id).catch(() => null);
+        ? await (this.d.grokRun ?? (() => runStatus('grok', this.cliEnv(id))))().catch(() => null)
+        : await (this.d.run ?? ((k) => runStatus(k, this.cliEnv(id))))(id).catch(() => null);
     const fromCli = text
       ? id === 'claude'
         ? parseClaudeAuthStatus(text)

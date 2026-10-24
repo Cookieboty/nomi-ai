@@ -1,6 +1,6 @@
 /**
- * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/design/cli-official-accounts.md）。
- * 这里只有账号身份（邮箱 / 套餐），永远拿不到凭据。
+ * 编程助手官方账号（主进程 AccountService / AccountLogin，见 docs/design/cli-plugin-architecture.md §5.10）：
+ * 一个账号 = 一个 CLI 配置目录，登录由 CLI 自己完成。这里只有账号身份（邮箱 / 套餐），Nomi 不保存凭据。
  */
 export type AccountKind = 'claude' | 'codex' | 'grok' | 'gemini';
 
@@ -16,7 +16,19 @@ export interface CliAccount {
   kind: AccountKind;
   label: string;
   identity: AccountIdentity | null;
+  /** 默认账号 */
   active: boolean;
+  /** 「本机登录」：这台电脑上 CLI 自己的目录 */
+  local: boolean;
+  loggedIn: boolean;
+  /** 从旧版本迁移来、需要重新登录 */
+  needsLogin?: boolean;
+  /** 正在使用的标签数 */
+  inUse: number;
+  /** 同一身份也登录在另一个账号里 */
+  duplicateOf?: string;
+  /** 在终端里用这个账号运行 CLI 的命令 */
+  terminalCommand?: string;
   createdAt: number;
   lastUsedAt?: number;
 }
@@ -60,19 +72,18 @@ export const cliAccountClient = {
     const r = await call<unknown>('list', kind);
     return Array.isArray(r) ? (r as CliAccount[]) : [];
   },
-  /** 终端当前登录的身份（全局凭据） */
-  live: async (kind: AccountKind) => {
-    const r = await call<unknown>('live', kind);
-    return r && typeof r === 'object' && typeof (r as AccountIdentity).key === 'string'
-      ? (r as AccountIdentity)
-      : null;
+  /** 用 CLI 自己的状态命令重新读各账号的身份（不读凭据） */
+  refresh: async (kind: AccountKind) => {
+    const r = await call<unknown>('refresh', kind);
+    return Array.isArray(r) ? (r as CliAccount[]) : [];
   },
-  importCurrent: (kind: AccountKind) => call<CliAccount>('import-current', kind),
-  /** kind：调用方以为的账号所属后端；主进程核对不一致就拒绝（不会切到别的 CLI 的全局账号） */
-  activate: (id: string, kind?: AccountKind) => call<CliAccount>('activate', id, kind),
+  /** 设为默认账号：新标签与「跟随默认」的标签用它 */
+  setDefault: (kind: AccountKind, id: string) => call<CliAccount>('set-default', kind, id),
   rename: (id: string, label: string) => call<CliAccount>('rename', id, label),
   remove: (id: string) => call<void>('remove', id),
-  loginStart: (kind: AccountKind) => call<LoginEvent>('login-start', kind),
+  /** accountId 为空：新建账号并登录；否则在这个账号的目录里（重新）登录 */
+  loginStart: (kind: AccountKind, accountId?: string) =>
+    call<LoginEvent>('login-start', kind, accountId),
   loginInput: (id: string, text: string) => call<boolean>('login-input', id, text),
   loginCancel: (id: string) => call<boolean>('login-cancel', id),
   /** 只能打开官方登录页（主进程校验） */

@@ -1,326 +1,517 @@
 /**
- * 编程助手官方账号：保险箱 + 全局切换（docs/design/cli-official-accounts.md §5–§6）。
+ * 编程助手官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录。
  *
- * - 保险箱：userData/cli-accounts/<kind>.json（0600），凭据经 safeStorage 加密；不可用时拒绝保存。
- * - 切换：回收全局凭据（同一账号且更新 → 更新保险箱；陌生账号 → 先存成新账号；判断不出新旧 → 取消）
- *   → 加密备份 → 写入 → 失败用备份还原 → 通知（停用第三方供应商、重拉 Claude 长驻进程）。
- * - 凭据只在主进程内存里出现；返回给界面的只有身份（邮箱 / 套餐）。
+ * - Nomi 不收集、不存储、不中转官方凭据（S7）：登录、登出、刷新都由 CLI 自己在账号目录里完成；
+ *   这里只记录账号的名字、目录与身份展示信息（邮箱 / 套餐），存在 userData/cli-accounts/accounts.json。
+ * - 「本机登录」= 用户自己的 CLI 目录（~/.claude 等），每个 CLI 都有这一条，Nomi 不改其中的凭据。
+ * - 「默认账号」：新标签与「跟随默认」的标签用哪个账号；改默认账号只重启跟随默认的官方标签（S5）。
+ *   取代原来的「全局切换」（改写用户目录里的凭据）。
+ * - 多个账号可以在不同标签里同时使用；同一账号的标签共用同一个目录（S10）。
+ * - 旧版本保险箱里的凭据在启动时清除，账号变成「需要重新登录」（§5.10.9）。
  */
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { BrowserWindow } from 'electron';
 
 import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
-import { decryptSecret, encryptSecret } from '../../security/secretStorage';
+import { psQuote, shQuote } from '../../security/shellEscape';
+import { runLimited, STDOUT_LIMIT } from '../../usage/limitedProcess';
 import { writePrivateFileAtomic } from '../../utils/privateFile';
+import { resolveCliBinAsync, withCliPath } from '../detect';
 
-import { adapterFor, type AdapterEnv, type CredAdapter } from './adapters';
-import type { AccountIdentity, AccountKind, AccountView, CredFiles, LiveCreds } from './types';
+import { claudeAccountName, claudeKeychainService } from './adapters';
+import {
+  accountDirFor,
+  ensureAccountHome,
+  HOME_ENV,
+  OFFICIAL_STRIP,
+  officialAccountArgs,
+  officialAccountEnv,
+  userCliHome,
+  type HomeProblem,
+} from './homes';
+import { readIdentity, type IdentityDeps, type ReadIdentity } from './identity';
+import { macKeychain, type KeychainAdapter } from './keychain';
+import type { AccountIdentity, AccountKind, AccountView } from './types';
 import { ACCOUNT_KINDS } from './types';
 
-interface StoredAccount {
+interface AccountRecord {
   id: string;
+  kind: AccountKind;
   label: string;
+  /** 账号目录；null = 用户自己的 CLI 目录（本机登录） */
+  dir: string | null;
   identity: AccountIdentity | null;
+  loggedIn: boolean;
+  /** 从旧版本迁移来、还没重新登录 */
+  needsLogin?: boolean;
   createdAt: number;
   lastUsedAt?: number;
-  /** 最近一次写入 / 回收时的新旧值 */
-  freshness: number | null;
-  credEnc: string;
 }
 
-interface KindStore {
-  accounts: StoredAccount[];
-  activeId: string | null;
+interface StoreFile {
+  version: 2;
+  accounts: AccountRecord[];
+  defaults: Partial<Record<AccountKind, string>>;
 }
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
-const MAX_BACKUPS = 10;
-const UNAVAILABLE = () =>
-  t('系统安全存储不可用，无法安全保存官方账号凭据；请在系统钥匙串可用后重试');
+const FILE = 'accounts.json';
+/** Nomi 启动的官方会话跑在哪个账号里（`<kind>:<sessionId>` → 账号 id）；不含凭据 */
+const SESSIONS_FILE = 'session-accounts.json';
+const MAX_SESSIONS = 5000;
+const LOGOUT_TIMEOUT_MS = 20_000;
 
 export class AccountError extends Error {
   constructor(
-    readonly code:
-      | 'not-found'
-      | 'not-logged-in'
-      | 'precheck'
-      | 'ambiguous'
-      | 'write-failed'
-      | 'storage-unavailable',
+    readonly code: 'not-found' | 'in-use' | 'local' | 'unsupported',
     message: string,
-    readonly reason?: string,
   ) {
     super(message);
     this.name = 'AccountError';
   }
 }
 
+/** 一个官方会话的启动注入（编排层使用） */
+export interface OfficialLaunch {
+  /** 账号目录；null = 用户自己的 CLI 目录 */
+  dir: string | null;
+  env: Record<string, string>;
+  strip: string[];
+  args: string[];
+  /** 进程复用签名：账号目录变了就重启 */
+  sig: string;
+  /** 共享条目链不上的问题（界面提示） */
+  problems: HomeProblem[];
+}
+
+export const localAccountId = (kind: AccountKind) => `local-${kind}`;
+
 export class AccountService {
-  private readonly stores = new Map<AccountKind, KindStore>();
-  /** 同一 CLI 的切换 / 导入串行执行 */
-  private readonly chains = new Map<AccountKind, Promise<unknown>>();
+  private data: StoreFile | null = null;
 
   constructor(
     private readonly d: {
       root: string;
       logger: Logger;
-      adapterEnv?: AdapterEnv;
+      env?: NodeJS.ProcessEnv;
+      home?: string;
+      platform?: NodeJS.Platform;
+      keychain?: KeychainAdapter;
       /** 测试注入 */
-      adapter?: (kind: AccountKind) => CredAdapter;
+      identity?: IdentityDeps;
       now?: () => number;
-      /** 切换成功：停用该 CLI 的第三方供应商、重拉长驻进程等 */
-      onActivated?: (kind: AccountKind) => void;
+      /** 改了默认账号：重启跟随默认账号的官方标签、作废额度缓存 */
+      onDefaultChanged?: (kind: AccountKind) => void;
+      /** 某个账号目录正被几个标签 / 进程使用（删除账号前检查） */
+      inUse?: (kind: AccountKind, accountId: string) => number;
       onChanged?: () => void;
+      /** 测试注入：CLI 的登出命令 */
+      logout?: (kind: AccountKind, env: NodeJS.ProcessEnv) => Promise<void>;
     },
   ) {
     fs.mkdirSync(d.root, { recursive: true });
   }
 
+  private sessions: Map<string, string> | null = null;
+
   private now() {
     return this.d.now?.() ?? Date.now();
   }
-  private adapter(kind: AccountKind): CredAdapter {
-    return this.d.adapter?.(kind) ?? adapterFor(kind, this.d.adapterEnv);
+  private get env(): NodeJS.ProcessEnv {
+    return this.d.env ?? process.env;
   }
-  private file(kind: AccountKind) {
-    return path.join(this.d.root, `${kind}.json`);
+  private get file() {
+    return path.join(this.d.root, FILE);
   }
-  private store(kind: AccountKind): KindStore {
-    let s = this.stores.get(kind);
-    if (!s) {
-      try {
-        const raw = JSON.parse(fs.readFileSync(this.file(kind), 'utf8')) as Partial<KindStore>;
-        s = {
-          accounts: Array.isArray(raw.accounts) ? raw.accounts : [],
-          activeId: typeof raw.activeId === 'string' ? raw.activeId : null,
-        };
-      } catch {
-        s = { accounts: [], activeId: null };
-      }
-      this.stores.set(kind, s);
+
+  private store(): StoreFile {
+    if (this.data) return this.data;
+    let s: StoreFile = { version: 2, accounts: [], defaults: {} };
+    try {
+      const raw = JSON.parse(fs.readFileSync(this.file, 'utf8')) as Partial<StoreFile>;
+      if (raw.version === 2 && Array.isArray(raw.accounts))
+        s = { version: 2, accounts: raw.accounts, defaults: raw.defaults ?? {} };
+    } catch {
+      /* 第一次 */
     }
+    // 每个 CLI 都有「本机登录」这一条
+    for (const kind of ACCOUNT_KINDS) {
+      if (!s.accounts.some((a) => a.id === localAccountId(kind)))
+        s.accounts.unshift({
+          id: localAccountId(kind),
+          kind,
+          label: t('本机登录'),
+          dir: null,
+          identity: null,
+          loggedIn: false,
+          createdAt: this.now(),
+        });
+    }
+    this.data = s;
+    this.migrateVault();
     return s;
   }
-  private save(kind: AccountKind) {
-    writePrivateFileAtomic(this.file(kind), JSON.stringify(this.store(kind), null, 2));
+
+  private save() {
+    writePrivateFileAtomic(this.file, JSON.stringify(this.store(), null, 2));
     this.d.onChanged?.();
   }
-  private serial<T>(kind: AccountKind, fn: () => Promise<T>): Promise<T> {
-    const prev = this.chains.get(kind) ?? Promise.resolve();
-    const next = prev.then(fn, fn);
-    this.chains.set(
-      kind,
-      next.catch(() => undefined),
-    );
-    return next;
+
+  /**
+   * 旧版本的保险箱（userData/cli-accounts/<kind>.json，含加密凭据）与备份：账号转成「需要重新登录」，
+   * 凭据与备份立即删除（§5.10.9）。旧的登录暂存目录里可能有明文凭据，一并删除。
+   */
+  private migrateVault() {
+    const s = this.data!;
+    let migrated = 0;
+    for (const kind of ACCOUNT_KINDS) {
+      const legacy = path.join(this.d.root, `${kind}.json`);
+      if (!fs.existsSync(legacy)) continue;
+      try {
+        const raw = JSON.parse(fs.readFileSync(legacy, 'utf8')) as {
+          accounts?: Array<{
+            label?: string;
+            identity?: AccountIdentity | null;
+            createdAt?: number;
+          }>;
+        };
+        for (const a of raw.accounts ?? []) {
+          const id = randomUUID();
+          s.accounts.push({
+            id,
+            kind,
+            label: String(a.label ?? a.identity?.email ?? t('官方账号')).slice(0, 60),
+            dir: accountDirFor(this.d.root, kind, id),
+            identity: a.identity ?? null,
+            loggedIn: false,
+            needsLogin: true,
+            createdAt: a.createdAt ?? this.now(),
+          });
+          migrated++;
+        }
+      } catch (e) {
+        this.d.logger.warn('legacy account vault unreadable', String(e));
+      }
+      fs.rmSync(legacy, { force: true });
+    }
+    for (const dir of ['backups', 'staging'])
+      fs.rmSync(path.join(this.d.root, dir), { recursive: true, force: true });
+    if (migrated) {
+      this.d.logger.info('legacy account vault migrated (credentials removed)', { migrated });
+      writePrivateFileAtomic(this.file, JSON.stringify(s, null, 2));
+    }
   }
 
-  private seal(files: CredFiles): string {
-    return encryptSecret(JSON.stringify(files), UNAVAILABLE());
-  }
-  private open(acc: StoredAccount): CredFiles {
-    const raw = decryptSecret(acc.credEnc);
-    if (!raw) throw new AccountError('storage-unavailable', UNAVAILABLE());
-    return JSON.parse(raw) as CredFiles;
+  private find(id: string): AccountRecord {
+    const a = this.store().accounts.find((x) => x.id === id);
+    if (!a) throw new AccountError('not-found', t('账号不存在'));
+    return a;
   }
 
-  private view(kind: AccountKind, a: StoredAccount): AccountView {
+  defaultId(kind: AccountKind): string {
+    const s = this.store();
+    const id = s.defaults[kind];
+    return id && s.accounts.some((a) => a.id === id && a.kind === kind) ? id : localAccountId(kind);
+  }
+
+  /** 默认账号的账号目录（null = 用户自己的 CLI 目录）；只读，不补齐目录 */
+  defaultDir(kind: AccountKind): string | null {
+    return this.store().accounts.find((a) => a.id === this.defaultId(kind))?.dir ?? null;
+  }
+
+  private view(a: AccountRecord): AccountView {
     return {
       id: a.id,
-      kind,
+      kind: a.kind,
       label: a.label,
       identity: a.identity,
-      active: this.store(kind).activeId === a.id,
+      active: this.defaultId(a.kind) === a.id,
+      local: a.dir === null,
+      loggedIn: a.loggedIn,
+      ...(a.needsLogin ? { needsLogin: true } : {}),
+      inUse: this.d.inUse?.(a.kind, a.id) ?? 0,
+      duplicateOf: this.duplicateOf(a),
+      ...(a.dir ? { terminalCommand: this.terminalCommand(a.kind, a.dir) } : {}),
       createdAt: a.createdAt,
       ...(a.lastUsedAt ? { lastUsedAt: a.lastUsedAt } : {}),
     };
   }
 
-  list(kind?: AccountKind): AccountView[] {
-    return (kind ? [kind] : ACCOUNT_KINDS).flatMap((k) =>
-      this.store(k).accounts.map((a) => this.view(k, a)),
-    );
+  /**
+   * 在终端里用这个账号运行 CLI 的命令（Anthropic 文档的多账号用法：设凭据目录变量再运行 CLI）。
+   * 只包含目录路径，不含任何凭据。
+   */
+  private terminalCommand(kind: AccountKind, dir: string): string {
+    const bin = kind;
+    if ((this.d.platform ?? process.platform) === 'win32')
+      return `$env:${HOME_ENV[kind]}=${psQuote(dir)}; ${bin}`;
+    return `${HOME_ENV[kind]}=${shQuote(dir)} ${bin}`;
   }
 
-  /**
-   * 按 CLI 记录的账号 id 反查保险箱里的账号（只返回身份元信息，不解密凭据）。
-   * Codex 的 ChatGPT account_id 存在 identity.org，复合的 identity.key 里也带着它。
-   */
+  /** S10：同一身份登录在另一个目录（两处各自刷新会让其中一处失效） */
+  private duplicateOf(a: AccountRecord): string | undefined {
+    const key = a.identity?.key;
+    if (!key || !a.loggedIn) return undefined;
+    return this.store().accounts.find(
+      (x) => x.id !== a.id && x.kind === a.kind && x.loggedIn && x.identity?.key === key,
+    )?.label;
+  }
+
+  list(kind?: AccountKind): AccountView[] {
+    return this.store()
+      .accounts.filter((a) => !kind || a.kind === kind)
+      .map((a) => this.view(a));
+  }
+
+  /** 按 CLI 会话里记录的账号 id 反查（只看身份元信息） */
   findByAccountId(kind: AccountKind, accountId: string): AccountView | undefined {
     const id = accountId.trim();
     if (!id) return undefined;
-    return this.list(kind).find(
-      (a) => a.identity?.org === id || (a.identity?.key.split('|').includes(id) ?? false),
+    const a = this.store().accounts.find(
+      (x) =>
+        x.kind === kind &&
+        (x.identity?.org === id || (x.identity?.key.split('|').includes(id) ?? false)),
+    );
+    return a ? this.view(a) : undefined;
+  }
+
+  private sessionMap(): Map<string, string> {
+    if (this.sessions) return this.sessions;
+    const m = new Map<string, string>();
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, SESSIONS_FILE), 'utf8')) as {
+        sessions?: unknown;
+      };
+      if (Array.isArray(raw.sessions))
+        for (const e of raw.sessions)
+          if (Array.isArray(e) && typeof e[0] === 'string' && typeof e[1] === 'string')
+            m.set(e[0], e[1]);
+    } catch {
+      /* 第一次 */
+    }
+    this.sessions = m;
+    return m;
+  }
+
+  /**
+   * 记下官方会话跑在哪个账号里（S9：会话目录是共享的，文件本身看不出账号）。
+   * 历史列表据此标注，打开历史会话时按原账号续接；只留最近 MAX_SESSIONS 条。
+   */
+  noteSession(kind: AccountKind, sessionId: string, accountId: string | null | undefined): void {
+    const sid = sessionId.trim();
+    if (!sid) return;
+    const id = this.resolve(kind, accountId);
+    const m = this.sessionMap();
+    const key = `${kind}:${sid}`;
+    if (m.get(key) === id) return;
+    m.delete(key);
+    m.set(key, id);
+    while (m.size > MAX_SESSIONS) m.delete(m.keys().next().value!);
+    writePrivateFileAtomic(
+      path.join(this.d.root, SESSIONS_FILE),
+      JSON.stringify({ version: 1, sessions: [...m] }),
     );
   }
 
-  /** 当前全局登录的身份（不含凭据） */
-  async live(kind: AccountKind): Promise<AccountIdentity | null> {
-    return (await this.adapter(kind).read())?.identity ?? null;
+  /** 会话所在的账号（还存在时）：id 与展示名（邮箱优先） */
+  sessionAccount(kind: AccountKind, sessionId: string): { id: string; label: string } | undefined {
+    const id = this.sessionMap().get(`${kind}:${sessionId}`);
+    const a = id ? this.store().accounts.find((x) => x.id === id && x.kind === kind) : undefined;
+    return a ? { id: a.id, label: a.identity?.email ?? a.label } : undefined;
   }
 
-  private find(id: string): { kind: AccountKind; acc: StoredAccount } {
-    for (const kind of ACCOUNT_KINDS) {
-      const acc = this.store(kind).accounts.find((a) => a.id === id);
-      if (acc) return { kind, acc };
-    }
-    throw new AccountError('not-found', t('账号不存在'));
+  /** 身份的稳定键（额度指纹用）；不读凭据 */
+  identityKey(kind: AccountKind, accountId?: string | null): string | null {
+    const a = this.store().accounts.find((x) => x.id === (accountId ?? this.defaultId(kind)));
+    return a?.identity?.key ?? null;
   }
 
-  /** 按身份存入保险箱（已有同一身份就更新凭据），返回账号 */
-  private upsert(kind: AccountKind, live: LiveCreds, label?: string): StoredAccount {
-    const s = this.store(kind);
-    const key = live.identity?.key;
-    const existing = key ? s.accounts.find((a) => a.identity?.key === key) : undefined;
-    const credEnc = this.seal(live.files);
-    if (existing) {
-      existing.credEnc = credEnc;
-      existing.identity = live.identity;
-      existing.freshness = live.freshness;
-      return existing;
-    }
-    const acc: StoredAccount = {
-      id: randomUUID(),
-      label: (label ?? live.identity?.email ?? t('官方账号')).slice(0, 60),
-      identity: live.identity,
-      createdAt: this.now(),
-      freshness: live.freshness,
-      credEnc,
-    };
-    s.accounts.push(acc);
-    return acc;
-  }
-
-  /** 把当前全局登录存成账号（第一次启用、或用户在终端里另登了号） */
-  importCurrent(kind: AccountKind, label?: string): Promise<AccountView> {
-    return this.serial(kind, async () => {
-      const live = await this.adapter(kind).read();
-      if (!live) throw new AccountError('not-logged-in', t('当前没有已登录的官方账号'));
-      const acc = this.upsert(kind, live, label);
-      this.store(kind).activeId = acc.id;
-      this.save(kind);
-      return this.view(kind, acc);
+  /** 读一次账号的身份（CLI 状态命令 / 非凭据文件），更新记录 */
+  async refresh(id: string): Promise<AccountView> {
+    const a = this.find(id);
+    const r: ReadIdentity = await readIdentity(a.kind, a.dir, {
+      ...this.d.identity,
+      env: this.d.identity?.env ?? this.env,
+      home: this.d.home,
     });
-  }
-
-  /** 登录流程拿到的新凭据（暂存目录里读出）存进保险箱，不改全局登录 */
-  addFromLogin(kind: AccountKind, live: LiveCreds, label?: string): Promise<AccountView> {
-    return this.serial(kind, async () => {
-      const acc = this.upsert(kind, live, label);
-      this.save(kind);
-      return this.view(kind, acc);
-    });
-  }
-
-  /**
-   * 回收全局凭据（§5 第 1 步）。返回 null 表示可以继续；陌生账号会先存成新账号。
-   * 判断不出新旧时抛 ambiguous：宁可不切，也不覆盖可能更新的登录。
-   */
-  private async syncBack(kind: AccountKind, adapter: CredAdapter): Promise<void> {
-    const live = await adapter.read();
-    if (!live) return;
-    const s = this.store(kind);
-    const key = live.identity?.key;
-    const mine = key ? s.accounts.find((a) => a.identity?.key === key) : undefined;
-    if (!mine) {
-      this.upsert(kind, live, t('终端登录 · {0}', live.identity?.email ?? t('未知账号')));
-      return;
+    a.loggedIn = r.loggedIn;
+    if (r.loggedIn) {
+      delete a.needsLogin;
+      const key = r.key ?? a.identity?.key ?? a.id;
+      a.identity = {
+        key,
+        ...(r.email ? { email: r.email } : {}),
+        ...(r.plan ? { plan: r.plan } : {}),
+        ...(r.org ? { org: r.org } : {}),
+      };
+      if (a.dir && r.email && (a.label === t('官方账号') || !a.label)) a.label = r.email;
     }
-    const stored = this.open(mine);
-    if (JSON.stringify(stored) === JSON.stringify(live.files)) return;
-    if (live.freshness === null || mine.freshness === null)
-      throw new AccountError(
-        'ambiguous',
-        t('无法判断「{0}」当前登录的凭据是不是更新的，为避免覆盖有效登录，已取消切换', mine.label),
+    this.save();
+    return this.view(a);
+  }
+
+  /** 刷新某个 CLI 全部账号的身份（打开官方账号区时调用） */
+  async refreshAll(kind: AccountKind): Promise<AccountView[]> {
+    for (const a of this.store().accounts.filter((x) => x.kind === kind))
+      await this.refresh(a.id).catch((e) =>
+        this.d.logger.warn('account identity refresh failed', String(e)),
       );
-    // 保险箱里的更新（例如刚在 Nomi 里重新登录过）：保留保险箱，不用旧的全局凭据覆盖
-    if (live.freshness < mine.freshness) return;
-    mine.credEnc = this.seal(live.files);
-    mine.freshness = live.freshness;
-    mine.identity = live.identity;
+    return this.list(kind);
   }
 
-  private backupDir(kind: AccountKind) {
-    return path.join(this.d.root, 'backups', kind);
+  /** 新建账号（建好账号目录；登录由 AccountLogin 在目录里跑 CLI 自己的命令） */
+  create(kind: AccountKind, label?: string): AccountView {
+    const id = randomUUID();
+    const dir = accountDirFor(this.d.root, kind, id);
+    const problems = ensureAccountHome(
+      kind,
+      dir,
+      userCliHome(kind, this.env, this.d.home),
+      this.d.platform,
+    );
+    if (problems.length)
+      this.d.logger.warn('account home shared entries not linked', { kind, problems });
+    const a: AccountRecord = {
+      id,
+      kind,
+      label: String(label ?? t('官方账号')).slice(0, 60) || t('官方账号'),
+      dir,
+      identity: null,
+      loggedIn: false,
+      createdAt: this.now(),
+    };
+    this.store().accounts.push(a);
+    this.save();
+    return this.view(a);
   }
 
-  /** 写入前把当前全局凭据加密备份（只保留最近 MAX_BACKUPS 份） */
-  private backup(kind: AccountKind, live: LiveCreds | null) {
-    if (!live) return;
-    const dir = this.backupDir(kind);
-    fs.mkdirSync(dir, { recursive: true });
-    writePrivateFileAtomic(path.join(dir, `${this.now()}.enc`), this.seal(live.files));
-    const all = fs
-      .readdirSync(dir)
-      .filter((f) => f.endsWith('.enc'))
-      .sort();
-    for (const f of all.slice(0, Math.max(0, all.length - MAX_BACKUPS)))
-      fs.rmSync(path.join(dir, f), { force: true });
+  /** 登录用的目录与环境：账号目录（或用户目录）+ 剔除 S3 变量 */
+  loginTarget(id: string): { kind: AccountKind; dir: string | null; env: NodeJS.ProcessEnv } {
+    const a = this.find(id);
+    if (a.dir)
+      ensureAccountHome(a.kind, a.dir, userCliHome(a.kind, this.env, this.d.home), this.d.platform);
+    return {
+      kind: a.kind,
+      dir: a.dir,
+      env: officialAccountEnv(a.kind, withCliPath(this.env), a.dir),
+    };
   }
 
-  /**
-   * 切换全局官方账号。expectedKind：调用方以为的所属后端（界面上正在看的编程助手）；
-   * 与账号实际所属不一致就拒绝，不会借过时的菜单切到另一个 CLI 的全局登录（#69）。
-   */
-  activate(id: string, expectedKind?: AccountKind): Promise<AccountView> {
-    const { kind } = this.find(id);
-    if (expectedKind !== undefined && expectedKind !== kind)
-      return Promise.reject(new AccountError('not-found', t('账号不存在')));
-    return this.serial(kind, async () => {
-      const { acc } = this.find(id);
-      const adapter = this.adapter(kind);
-      const reason = adapter.precheck();
-      if (reason) throw new AccountError('precheck', precheckMessage(reason), reason);
-      await this.syncBack(kind, adapter);
-      const before = await adapter.read();
-      this.backup(kind, before);
-      const target = this.open(acc);
-      try {
-        await adapter.write(target);
-      } catch (e) {
-        // 写到一半失败：用写入前的凭据还原，避免 CLI 卡在半新半旧的登录上
-        if (before) await adapter.write(before.files).catch(() => undefined);
-        this.save(kind);
-        throw new AccountError(
-          'write-failed',
-          t('写入登录凭据失败，已恢复原来的登录：{0}', e instanceof Error ? e.message : String(e)),
-        );
-      }
-      const s = this.store(kind);
-      s.activeId = acc.id;
-      acc.lastUsedAt = this.now();
-      // 以写入后的全局凭据为准（文件类的新旧值来自修改时间），下次回收才比得出新旧
-      acc.freshness = (await adapter.read())?.freshness ?? adapter.inspect(target).freshness;
-      this.save(kind);
-      this.d.logger.info('cli account activated', { kind, account: acc.id });
-      this.d.onActivated?.(kind);
-      return this.view(kind, acc);
-    });
+  setDefault(kind: AccountKind, id: string): AccountView {
+    const a = this.find(id);
+    if (a.kind !== kind) throw new AccountError('not-found', t('账号不存在'));
+    const before = this.defaultId(kind);
+    this.store().defaults[kind] = id;
+    a.lastUsedAt = this.now();
+    this.save();
+    if (before !== id) this.d.onDefaultChanged?.(kind);
+    return this.view(a);
   }
 
   rename(id: string, label: string): AccountView {
-    const { kind, acc } = this.find(id);
+    const a = this.find(id);
     const next = String(label ?? '')
       .trim()
       .slice(0, 60);
     if (!next) throw new Error(t('标题不能为空'));
-    acc.label = next;
-    this.save(kind);
-    return this.view(kind, acc);
+    a.label = next;
+    this.save();
+    return this.view(a);
   }
 
-  /** 只删保险箱里的账号；全局登录不动（要退出请用 CLI 自己的 logout） */
-  remove(id: string): void {
-    const { kind } = this.find(id);
-    const s = this.store(kind);
-    s.accounts = s.accounts.filter((a) => a.id !== id);
-    if (s.activeId === id) s.activeId = null;
-    this.save(kind);
+  /**
+   * 删除账号：确认没有标签在用 → 在账号目录里执行 CLI 自己的登出（撤销令牌）→ 删除目录。
+   * 「本机登录」不能删（那是用户自己的 CLI 目录）。
+   */
+  async remove(id: string): Promise<void> {
+    const a = this.find(id);
+    if (!a.dir)
+      throw new AccountError('local', t('「本机登录」是这台电脑上 CLI 自己的登录，不能在这里删除'));
+    const busy = this.d.inUse?.(a.kind, a.id) ?? 0;
+    if (busy > 0)
+      throw new AccountError(
+        'in-use',
+        t('这个账号还有 {0} 个标签在用，请先关闭或换成别的账号', String(busy)),
+      );
+    if (a.loggedIn) {
+      const env = officialAccountEnv(a.kind, withCliPath(this.env), a.dir);
+      await (this.d.logout ?? cliLogout)(a.kind, env).catch((e) =>
+        this.d.logger.warn('account logout failed', String(e)),
+      );
+    }
+    await this.removeKeychainEntry(a);
+    fs.rmSync(a.dir, { recursive: true, force: true });
+    const s = this.store();
+    s.accounts = s.accounts.filter((x) => x.id !== id);
+    if (s.defaults[a.kind] === id) {
+      delete s.defaults[a.kind];
+      this.save();
+      this.d.onDefaultChanged?.(a.kind);
+      return;
+    }
+    this.save();
+  }
+
+  /** macOS：Claude 按目录区分的钥匙串条目在目录删除后就无法再算出名字，先删（只删除，不读取） */
+  private async removeKeychainEntry(a: AccountRecord) {
+    if (a.kind !== 'claude' || !a.dir || (this.d.platform ?? process.platform) !== 'darwin') return;
+    const keychain = this.d.keychain ?? macKeychain;
+    await keychain
+      .remove(
+        claudeKeychainService({ CLAUDE_CONFIG_DIR: a.dir }, a.dir),
+        claudeAccountName(this.env),
+      )
+      .catch(() => undefined);
+  }
+
+  /** 登录前清掉同目录残留的钥匙串条目（旧条目会挡住新登录，claude-swap 的经验） */
+  async prepareLogin(id: string): Promise<void> {
+    await this.removeKeychainEntry(this.find(id));
+  }
+
+  /** 编排层：某个官方标签的启动注入。accountId 为空 = 跟随默认账号 */
+  officialLaunch(kind: AccountKind, accountId: string | null | undefined): OfficialLaunch {
+    const id =
+      accountId && this.store().accounts.some((a) => a.id === accountId)
+        ? accountId
+        : this.defaultId(kind);
+    const a = this.find(id);
+    let problems: HomeProblem[] = [];
+    if (a.dir)
+      problems = ensureAccountHome(
+        kind,
+        a.dir,
+        userCliHome(kind, this.env, this.d.home),
+        this.d.platform,
+      );
+    const env: Record<string, string> = {};
+    if (a.dir) {
+      env[HOME_ENV[kind]] = a.dir;
+      if (kind === 'claude') env.CLAUDE_CODE_DISABLE_AGENT_VIEW = '1';
+    }
+    // 默认（本机）账号：保留用户自己设的配置目录变量
+    const strip = OFFICIAL_STRIP[kind].filter((k) => a.dir || k !== HOME_ENV[kind]);
+    return {
+      dir: a.dir,
+      env,
+      strip,
+      args: officialAccountArgs(kind, a.dir),
+      sig: `official:${a.id}`,
+      problems,
+    };
+  }
+
+  /** 这个账号 id 解析出来的实际账号（标签上记的账号可能已被删除） */
+  resolve(kind: AccountKind, accountId: string | null | undefined): string {
+    return accountId && this.store().accounts.some((a) => a.id === accountId && a.kind === kind)
+      ? accountId
+      : this.defaultId(kind);
   }
 
   /** 通知各窗口刷新账号列表（不带任何数据） */
@@ -337,17 +528,10 @@ export class AccountService {
       throw new Error(t('未知的编程助手'));
     };
     guardedHandle('ai:cli-account:list', (k) => this.list(k ? kindOf(k) : undefined), { owner });
-    guardedHandle('ai:cli-account:live', (k) => this.live(kindOf(k)), { owner });
-    guardedHandle(
-      'ai:cli-account:import-current',
-      (k, label) => this.importCurrent(kindOf(k), label ? String(label) : undefined),
-      { owner },
-    );
-    guardedHandle(
-      'ai:cli-account:activate',
-      (id, k) => this.activate(String(id), k === undefined || k === null ? undefined : kindOf(k)),
-      { owner },
-    );
+    guardedHandle('ai:cli-account:refresh', (k) => this.refreshAll(kindOf(k)), { owner });
+    guardedHandle('ai:cli-account:set-default', (k, id) => this.setDefault(kindOf(k), String(id)), {
+      owner,
+    });
     guardedHandle('ai:cli-account:rename', (id, label) => this.rename(String(id), String(label)), {
       owner,
     });
@@ -355,17 +539,31 @@ export class AccountService {
   }
 }
 
+/** 在账号目录里执行 CLI 自己的登出（会撤销令牌）；Gemini 没有登出命令，直接删目录 */
+async function cliLogout(kind: AccountKind, env: NodeJS.ProcessEnv): Promise<void> {
+  const args: Record<AccountKind, string[] | null> = {
+    claude: ['auth', 'logout'],
+    codex: ['logout'],
+    grok: ['logout'],
+    gemini: null,
+  };
+  const a = args[kind];
+  if (!a) return;
+  const bin = await resolveCliBinAsync(kind);
+  if (!bin) return;
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-acct-logout-'));
+  try {
+    await runLimited(bin, a, { cwd, env, timeoutMs: LOGOUT_TIMEOUT_MS, maxBytes: STDOUT_LIMIT });
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
 export function precheckMessage(reason: string): string {
   switch (reason) {
-    case 'codex-keyring':
-      return t(
-        'Codex 把登录凭据存在系统钥匙串里，无法切换账号；请先在 Codex 配置里把 cli_auth_credentials_store 改成 "file"',
-      );
-    case 'grok-refreshing':
-      return t('Grok 正在刷新登录凭据，请稍后再切换');
     case 'gemini-encrypted-storage':
       return t(
-        'Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），暂不支持切换账号',
+        'Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），它不区分账号目录，暂不支持多个账号',
       );
     default:
       return reason;

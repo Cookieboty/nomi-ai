@@ -147,5 +147,12 @@
   "加入 PATH": "Add to PATH",
   "Windows 上 Nomi 不修改 PATH：请把上面的目录手动添加到用户环境变量 PATH。": "On Windows, Nomi doesn't change PATH. Add the folder above to your user PATH environment variable manually.",
   "把 ~/.nomi/bin 加入 PATH？": "Add ~/.nomi/bin to PATH?",
-  "Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。": "Nomi will append a marked block to the end of the files below that adds the command folder to PATH. The block is removed when you turn this off; nothing else is changed."
+  "Nomi 会在下面的文件末尾加一段带标记的内容，把命令所在目录加进 PATH；关闭开关时删除这一段，不改其他内容。": "Nomi will append a marked block to the end of the files below that adds the command folder to PATH. The block is removed when you turn this off; nothing else is changed.",
+  "已删除的账号": "Removed account",
+  "跟随默认（{0}）": "Follow default ({0})",
+  "本机登录": "This computer’s sign-in",
+  "切换官方账号：{0}": "Switch official account: {0}",
+  "账号": "Account",
+  "跟随默认账号": "Follow the default account",
+  "未登录": "Not signed in"
 }

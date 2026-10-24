@@ -10,6 +10,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import { CliHarnessService } from '../../../src/cli/CliHarnessService';
+import { parseTranscript } from '../../../src/cli/historyTranscript';
 import {
   parseClaudeTranscript,
   parseCodexTranscript,
@@ -843,6 +844,25 @@ describe('SessionHistoryService', () => {
     expect(arg(1)).not.toHaveProperty('source');
   });
 
+  it('official account provenance (S9): list shows the account Nomi ran it in; open resumes in it', async () => {
+    writeClaude('a', 'work task', 2_000_000);
+    writeClaude('b', 'local task', 1_000_000);
+    const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
+    const svc = mk({
+      openTab,
+      sessionAccount: (_b, id) =>
+        id === 'a' ? { id: 'claude-work', label: 'work@example.com' } : undefined,
+    });
+    const page = await svc.list('claude');
+    expect(page.items.find((x) => x.sessionId === 'a')?.account).toBe('work@example.com');
+    expect(page.items.find((x) => x.sessionId === 'b')).not.toHaveProperty('account');
+    await svc.open('claude', 'a');
+    await svc.open('claude', 'b');
+    const arg = (i: number) => (openTab.mock.calls[i] as unknown as [Record<string, unknown>])[0];
+    expect(arg(0)).toMatchObject({ sessionId: 'a', accountId: 'claude-work' });
+    expect(arg(1)).not.toHaveProperty('accountId');
+  });
+
   it('open: passes cwd / title / transcript / session id to the tab layer', async () => {
     writeClaude('a', 'task a', 1_000_000);
     const openTab = jest.fn(() => ({ tab: { id: 't1' } as never, reused: false }));
@@ -975,6 +995,48 @@ describe('SessionHistoryService', () => {
       reasoningEffort: 'high',
       permissionMode: 'acceptEdits',
     });
+  });
+
+  it('grok: ACP session/update chunks (user_message_chunk, single content block) are listed', async () => {
+    const id = 'grok-acp-1';
+    const dir = path.join(home, '.grok', 'sessions', encodeURIComponent(work), id);
+    fs.mkdirSync(dir, { recursive: true });
+    const p = path.join(dir, 'updates.jsonl');
+    const up = (update: Record<string, unknown>) => ({
+      timestamp: 1_792_763_438,
+      method: 'session/update',
+      params: { sessionId: id, update },
+    });
+    fs.writeFileSync(
+      p,
+      [
+        up({
+          sessionUpdate: 'user_message_chunk',
+          content: { type: 'text', text: '你是什么模型' },
+        }),
+        up({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: '想一想' } }),
+        up({
+          sessionUpdate: 'tool_call',
+          toolCallId: 'c1',
+          title: 'run_terminal_command',
+          rawInput: { command: 'ls' },
+          _meta: { 'x.ai/tool': { name: 'run_terminal_command' } },
+        }),
+        up({ sessionUpdate: 'tool_call_update', toolCallId: 'c1', status: 'completed' }),
+        up({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '我是 Grok' } }),
+      ]
+        .map((x) => JSON.stringify(x))
+        .join('\n') + '\n',
+    );
+    touch(p, 3_000_000);
+    const svc = mk();
+    const page = await svc.list('grok');
+    expect(page.items[0]).toMatchObject({ sessionId: id, title: '你是什么模型', cwd: work });
+    const msgs = parseTranscript('grok', fs.readFileSync(p, 'utf8'));
+    expect(msgs.map((m) => [m.role, m.content])).toEqual([
+      ['user', '你是什么模型'],
+      ['assistant', '我是 Grok'],
+    ]);
   });
 
   it('open: an unreadable transcript still opens, with a notice', async () => {

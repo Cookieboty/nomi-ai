@@ -1,6 +1,7 @@
 /**
- * 编程助手的官方账号（docs/design/cli-official-accounts.md §6）：多个官方账号登录与全局切换。
- * 切换会改写该 CLI 的全局登录：用户在终端里直接用的 CLI 也跟着切。界面只拿得到身份（邮箱 / 套餐）。
+ * 编程助手的官方账号（docs/design/cli-plugin-architecture.md §5.10）：一个账号 = 一个 CLI 配置目录，
+ * 登录由 CLI 自己完成，Nomi 不保存凭据。多个账号可以在不同标签里同时使用；「默认账号」给新标签
+ * 与跟随默认的标签用。界面只拿得到身份（邮箱 / 套餐）。
  */
 import { Badge, Button, Icon, Modal, Notice, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import { Copy, ExternalLink, LogIn, UserRound } from 'lucide-react';
@@ -8,7 +9,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   cliAccountClient,
-  type AccountIdentity,
   type AccountKind,
   type CliAccount,
   type LoginEvent,
@@ -117,7 +117,7 @@ const LoginDialog: React.FC<{
         {event.state === 'done' && (
           <Notice tone="success" data-testid="cli-account-login-done">
             {t(
-              '已登录 {0}。在列表里点「切换」就会改用这个账号。',
+              '已登录 {0}。可以把它设为默认账号，或在标签上单独选用它。',
               event.account?.identity?.email ?? event.account?.label ?? '',
             )}
           </Notice>
@@ -128,7 +128,10 @@ const LoginDialog: React.FC<{
           </Notice>
         )}
         <p className="cd-muted" style={{ fontSize: 'var(--cd-font-size-xs)' }}>
-          {t('登录在独立的临时目录里进行，你现在的登录不会受影响；凭据由系统钥匙串加密保存。')}
+          {t(
+            '登录在这个账号自己的配置目录里进行，由 {0} 的官方流程完成；Nomi 不保存登录凭据，其它账号不受影响。',
+            NAME[kind],
+          )}
         </p>
       </div>
     </Modal>
@@ -137,46 +140,42 @@ const LoginDialog: React.FC<{
 
 export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
   const [accounts, setAccounts] = useState<CliAccount[]>([]);
-  const [live, setLive] = useState<AccountIdentity | null>(null);
   const [login, setLogin] = useState<LoginEvent | null>(null);
   const [msg, setMsg] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const load = useCallback(
+  const reload = useCallback(
     () =>
-      Promise.all([
-        cliAccountClient.list(kind).catch(() => [] as CliAccount[]),
-        cliAccountClient.live(kind).catch(() => null),
-      ]),
+      cliAccountClient
+        .list(kind)
+        .then(setAccounts)
+        .catch(() => undefined),
     [kind],
   );
-  const refresh = useCallback(async () => {
-    const [list, who] = await load();
-    setAccounts(list);
-    setLive(who);
-  }, [load]);
 
   useEffect(() => {
     let alive = true;
-    const reload = () =>
-      void load().then(([list, who]) => {
-        if (!alive) return;
-        setAccounts(list);
-        setLive(who);
-      });
-    reload();
-    const off1 = cliAccountClient.onChanged(reload);
+    void cliAccountClient
+      .list(kind)
+      .then((l) => alive && setAccounts(l))
+      .catch(() => undefined);
+    // 打开时用 CLI 自己的状态命令读一次身份（不读凭据）
+    void cliAccountClient
+      .refresh(kind)
+      .then((l) => alive && setAccounts(l))
+      .catch(() => undefined);
+    const off1 = cliAccountClient.onChanged(() => void reload());
     const off2 = cliAccountClient.onLogin((e) => {
       if (e.kind !== kind) return;
       setLogin((cur) => (cur && cur.id !== e.id ? cur : e));
-      if (e.state === 'done') reload();
+      if (e.state === 'done' || e.state === 'error' || e.state === 'cancelled') void reload();
     });
     return () => {
       alive = false;
       off1();
       off2();
     };
-  }, [kind, load]);
+  }, [kind, reload]);
 
   const run = async (key: string, fn: () => Promise<unknown>, ok?: string) => {
     setBusy(key);
@@ -184,7 +183,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
     try {
       await fn();
       if (ok) setMsg({ tone: 'success', text: ok });
-      await refresh();
+      await reload();
     } catch (e) {
       setMsg({ tone: 'danger', text: errorText(e) });
     } finally {
@@ -192,55 +191,39 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
     }
   };
 
-  const liveKnown = !!live && accounts.some((a) => a.identity?.key === live.key);
-
   const loginBusy =
     !!login && login.state !== 'done' && login.state !== 'error' && login.state !== 'cancelled';
+  const startLogin = (accountId?: string) =>
+    void cliAccountClient
+      .loginStart(kind, accountId)
+      .then(setLogin)
+      .catch((e) => setMsg({ tone: 'danger', text: errorText(e) }));
 
   return (
     <SettingsGroup
       title={t('官方账号')}
       data-testid={`cli-accounts-${kind}`}
-      description={
-        <>
-          <span data-testid="cli-accounts-live">
-            {live
-              ? t('终端当前登录：{0}', live.email ?? t('未知账号'))
-              : t('终端当前没有登录官方账号')}
-          </span>
-          {' · '}
-          {t(
-            '切换会改写 {0} 的全局登录，终端里直接运行的 {0} 也会跟着切换；切换前会先备份当前凭据。',
-            NAME[kind],
-          )}
-        </>
-      }
+      description={t(
+        '每个账号一个独立的配置目录，登录由 {0} 自己完成，Nomi 不保存登录凭据。多个账号可以在不同标签里同时使用；默认账号用于新标签和跟随默认的标签。',
+        NAME[kind],
+      )}
       actions={
         <>
-          {live && !liveKnown && (
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!!busy}
-              data-testid="cli-accounts-import"
-              onClick={() =>
-                void run('import', () => cliAccountClient.importCurrent(kind), t('已导入当前登录'))
-              }
-            >
-              {t('导入当前登录')}
-            </Button>
-          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!!busy}
+            data-testid="cli-accounts-refresh"
+            onClick={() => void run('refresh', () => cliAccountClient.refresh(kind))}
+          >
+            {busy === 'refresh' ? t('正在刷新…') : t('刷新')}
+          </Button>
           <Button
             size="sm"
             variant="primary"
             disabled={!!busy || loginBusy}
             data-testid="cli-accounts-add"
-            onClick={() =>
-              void cliAccountClient
-                .loginStart(kind)
-                .then(setLogin)
-                .catch((e) => setMsg({ tone: 'danger', text: errorText(e) }))
-            }
+            onClick={() => startLogin()}
           >
             <Icon icon={LogIn} size={14} />
             {t('添加官方账号')}
@@ -265,13 +248,33 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               {a.identity?.plan && <Badge tone="neutral">{a.identity.plan}</Badge>}
               {a.active && (
                 <Badge tone="success" data-testid="cli-account-current">
-                  {t('当前')}
+                  {t('默认')}
                 </Badge>
               )}
+              {a.local && <Badge tone="neutral">{t('本机')}</Badge>}
+              {a.needsLogin ? (
+                <Badge tone="warning" data-testid="cli-account-needs-login">
+                  {t('需要重新登录')}
+                </Badge>
+              ) : (
+                !a.loggedIn && <Badge tone="warning">{t('未登录')}</Badge>
+              )}
+              {a.inUse > 0 && <Badge tone="neutral">{t('{0} 个标签在用', String(a.inUse))}</Badge>}
             </span>
           }
           description={
-            [a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') || undefined
+            <>
+              {[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') ||
+                (a.local ? t('这台电脑上 {0} 自己的登录', NAME[kind]) : undefined)}
+              {a.duplicateOf && (
+                <Notice tone="warning" data-testid="cli-account-duplicate">
+                  {t(
+                    '这个身份也登录在「{0}」里。同一账号在两处各自刷新登录会让其中一处失效，建议只保留一个。',
+                    a.duplicateOf,
+                  )}
+                </Notice>
+              )}
+            </>
           }
         >
           {!a.active && (
@@ -283,12 +286,41 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               onClick={() =>
                 void run(
                   `a:${a.id}`,
-                  () => cliAccountClient.activate(a.id, a.kind),
-                  t('已切换到 {0}', a.label),
+                  () => cliAccountClient.setDefault(kind, a.id),
+                  t('默认账号已改为 {0}，跟随默认的标签下一轮生效', a.label),
                 )
               }
             >
-              {busy === `a:${a.id}` ? t('正在切换…') : t('切换')}
+              {busy === `a:${a.id}` ? t('正在设置…') : t('设为默认')}
+            </Button>
+          )}
+          {(!a.loggedIn || a.needsLogin) && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!!busy || loginBusy}
+              data-testid="cli-account-login"
+              onClick={() => startLogin(a.id)}
+            >
+              {a.needsLogin ? t('重新登录') : t('登录')}
+            </Button>
+          )}
+          {a.terminalCommand && (
+            <Button
+              size="sm"
+              variant="ghost"
+              data-testid="cli-account-terminal"
+              title={a.terminalCommand}
+              onClick={() =>
+                void navigator.clipboard
+                  ?.writeText(a.terminalCommand!)
+                  .then(() =>
+                    setMsg({ tone: 'success', text: t('已复制终端命令：{0}', a.terminalCommand!) }),
+                  )
+              }
+            >
+              <Icon icon={Copy} size={13} />
+              {t('终端命令')}
             </Button>
           )}
           <Button
@@ -303,28 +335,34 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
           >
             {t('重命名')}
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            disabled={!!busy}
-            data-testid="cli-account-remove"
-            onClick={() => {
-              if (
-                window.confirm(
-                  t('从 Nomi 删除账号「{0}」？{1} 现在的登录不会被退出。', a.label, NAME[kind]),
+          {!a.local && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={!!busy}
+              data-testid="cli-account-remove"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t(
+                      '删除账号「{0}」？会在这个账号的目录里登出 {1}（撤销登录），然后删除这个目录；会话历史保留。',
+                      a.label,
+                      NAME[kind],
+                    ),
+                  )
                 )
-              )
-                void run(`d:${a.id}`, () => cliAccountClient.remove(a.id));
-            }}
-          >
-            {t('删除')}
-          </Button>
+                  void run(`d:${a.id}`, () => cliAccountClient.remove(a.id));
+              }}
+            >
+              {t('删除')}
+            </Button>
+          )}
         </SettingRow>
       ))}
       {accounts.length === 0 && (
         <p className={styles.empty} data-testid="cli-accounts-empty">
           <Icon icon={UserRound} size={14} />
-          {t('还没有保存的官方账号。登录后可以在多个账号之间随时切换。')}
+          {t('还没有官方账号。')}
         </p>
       )}
       {login && <LoginDialog kind={kind} event={login} onClose={() => setLogin(null)} />}
