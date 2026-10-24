@@ -208,4 +208,20 @@ describe('终端命令', () => {
       `$env:CLAUDE_CONFIG_DIR='C:\\a'; claude '--resume' 's1'`,
     );
   });
+
+  it.each([
+    {
+      platform: 'darwin' as const,
+      env: { A: "x'y", B: '$(id)' },
+      expect: `A='x'\\''y' B='$(id)' claude '--resume' 's1'`,
+    },
+    {
+      platform: 'win32' as const,
+      env: { A: "x'y", B: '$null' },
+      expect: `$env:A='x''y'; $env:B='$null'; claude '--resume' 's1'`,
+    },
+  ])('table-driven terminalLine quoting ($platform)', ({ platform, env, expect: exp }) => {
+    const c = claude.createMain().terminal!.command({ cwd: '/w', env: {}, resumeId: 's1' });
+    expect(terminalLine({ ...c, env }, platform)).toBe(exp);
+  });
 });
