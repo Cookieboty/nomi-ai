@@ -6,6 +6,7 @@
 import type { SessionDriver } from './driver';
 import type { HarnessEvent, HarnessPermissionMode, SessionEvent } from './events';
 import type { CliManifest } from './manifest';
+import type { ReasoningEffort } from './models';
 
 /** 宿主给插件的能力（日志、数据目录、用户主目录）；插件不直接碰 Electron */
 export interface CliMainHost {
@@ -55,6 +56,8 @@ export interface LaunchCapability {
   thirdParty?(ctx: ThirdPartyLaunchContext): AgentLaunch;
   /** CLI 发给网关的占位模型名（如 Grok 的 nomi）；有它才可能用 gateway 方式换模型（§6.7） */
   placeholderModel?: string;
+  /** 官方来源下标签级模型 / 思考深度覆盖的进程参数；没有 = 这个 CLI 不支持标签级覆盖 */
+  modelArgs?(o: { model?: string | null; effort?: ReasoningEffort | null }): string[];
 }
 
 export interface DetectCapability {
@@ -186,8 +189,24 @@ export interface AccountCapability {
   accountArgs?: string[];
 }
 
+/**
+ * 斜杠命令的公开目录布局（声明式数据）：宿主按它统一扫描（只读、带拒绝名单与大小上限），
+ * 插件不自己读文件。kind 决定目录里的格式（skills/<名>/SKILL.md、commands/*.md、.mcp.json 等）。
+ */
+export interface SlashSource {
+  kind: 'skills' | 'commands' | 'agents' | 'plugins' | 'workflows' | 'mcp';
+  /** 目录（mcp 是文件） */
+  path: string;
+  scope: 'project' | 'user' | 'bundled';
+  /** skills：只收显式声明可调用的（Grok 的 user-invocable） */
+  strictInvocable?: boolean;
+}
+
 export interface SlashDiscoveryCapability {
-  list(o: {
+  /** 公开布局：projectChain 是从工作目录往上的目录链（近的在前） */
+  sources?(o: { projectChain: readonly string[]; home: string }): SlashSource[];
+  /** 非公开布局的 CLI 自己列（宿主没有可扫描的目录时用） */
+  list?(o: {
     cwd: string;
     env: NodeJS.ProcessEnv;
     home: string;

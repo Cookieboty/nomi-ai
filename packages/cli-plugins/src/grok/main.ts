@@ -11,6 +11,8 @@ import {
   type HistoryCapability,
   type LaunchContext,
   type PermissionCapability,
+  type SlashDiscoveryCapability,
+  type SlashSource,
 } from '@nomi-ai/cli-sdk';
 
 import { USAGE_DONE } from '../shared/exec';
@@ -20,10 +22,12 @@ import { statAll, walkFiles, yieldAll } from '../shared/scan';
 import { historyParse } from '../shared/transcript';
 
 import { GROK_MODES, grokModeArgs, grokModeId, manifest } from './manifest';
+import { modelArgs } from './models';
 import { parseGrokTranscript } from './transcript';
 
 export { manifest };
 export { parseGrokTranscript };
+export { modelArgs, parseGrokModels } from './models';
 
 export const HOME_ENV = 'GROK_HOME';
 
@@ -72,10 +76,35 @@ export function officialLaunch(ctx: LaunchContext) {
 /** 每轮一个进程的退路（exec）怎样才算整轮完成 */
 export const execRules = USAGE_DONE;
 
+/** 斜杠命令的公开布局：项目与用户级 .grok/{skills,commands,plugins,workflows}，以及自带的 bundled */
+export const slash: SlashDiscoveryCapability = {
+  sources: ({ projectChain, home }) => {
+    const at = (base: string, scope: SlashSource['scope']): SlashSource[] => [
+      { kind: 'skills', path: path.join(base, 'skills'), scope, strictInvocable: true },
+      { kind: 'commands', path: path.join(base, 'commands'), scope },
+      { kind: 'plugins', path: path.join(base, 'plugins'), scope },
+      { kind: 'workflows', path: path.join(base, 'workflows'), scope },
+    ];
+    const bundled = path.join(home, '.grok', 'bundled');
+    return [
+      ...projectChain.flatMap((dir) => at(path.join(dir, '.grok'), 'project')),
+      ...at(path.join(home, '.grok'), 'user'),
+      {
+        kind: 'skills',
+        path: path.join(bundled, 'skills'),
+        scope: 'bundled',
+        strictInvocable: true,
+      },
+      { kind: 'workflows', path: path.join(bundled, 'workflows'), scope: 'bundled' },
+    ];
+  },
+};
+
 export function createMain(): CliMainImpl {
   return {
     session: { exec: execRules },
-    launch: { official: officialLaunch, placeholderModel: 'nomi' },
+    slash,
+    launch: { official: officialLaunch, placeholderModel: 'nomi', modelArgs },
     permissions,
     accounts,
     history,

@@ -12,6 +12,8 @@ import {
   type HistoryCapability,
   type LaunchContext,
   type PermissionCapability,
+  type SlashDiscoveryCapability,
+  type SlashSource,
 } from '@nomi-ai/cli-sdk';
 
 import { USAGE_DONE } from '../shared/exec';
@@ -21,10 +23,12 @@ import { statAll, walkFiles, yieldAll } from '../shared/scan';
 import { historyParse } from '../shared/transcript';
 
 import { manifest } from './manifest';
+import { modelArgs } from './models';
 import { parseCodexTranscript } from './transcript';
 
 export { manifest };
 export { parseCodexTranscript };
+export { modelArgs, parseCodexModels, readCodexConfigDefaults } from './models';
 
 export const HOME_ENV = 'CODEX_HOME';
 
@@ -102,10 +106,23 @@ export function officialLaunch(ctx: LaunchContext) {
 /** 每轮一个进程的退路（exec）怎样才算整轮完成 */
 export const execRules = USAGE_DONE;
 
+/** 斜杠命令的公开布局：项目与用户级 .agents/skills */
+export const slash: SlashDiscoveryCapability = {
+  sources: ({ projectChain, home }) => [
+    ...projectChain.map((dir): SlashSource => ({
+      kind: 'skills',
+      path: path.join(dir, '.agents', 'skills'),
+      scope: 'project',
+    })),
+    { kind: 'skills', path: path.join(home, '.agents', 'skills'), scope: 'user' },
+  ],
+};
+
 export function createMain(): CliMainImpl {
   return {
     session: { exec: execRules },
-    launch: { official: officialLaunch },
+    slash,
+    launch: { official: officialLaunch, modelArgs },
     permissions,
     accounts,
     history,

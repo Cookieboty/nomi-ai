@@ -6,6 +6,7 @@ export * from './events';
 export * from './i18n';
 export * from './trace';
 export * from './carry';
+export * from './models';
 export * from './manifest';
 export * from './plugin';
 export * from './driver';

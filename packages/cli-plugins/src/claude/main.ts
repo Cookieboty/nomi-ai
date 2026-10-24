@@ -12,6 +12,8 @@ import {
   type HistoryCapability,
   type LaunchContext,
   type PermissionCapability,
+  type SlashDiscoveryCapability,
+  type SlashSource,
 } from '@nomi-ai/cli-sdk';
 
 import { USAGE_DONE } from '../shared/exec';
@@ -21,10 +23,12 @@ import { readdir, statAll, yieldAll } from '../shared/scan';
 import { historyParse } from '../shared/transcript';
 
 import { manifest } from './manifest';
+import { modelArgs } from './models';
 import { parseClaudeTranscript } from './transcript';
 
 export { manifest };
 export { parseClaudeTranscript };
+export { modelArgs, parseClaudeModels } from './models';
 
 export const HOME_ENV = 'CLAUDE_CONFIG_DIR';
 
@@ -111,10 +115,26 @@ export function officialLaunch(ctx: LaunchContext) {
 /** 每轮一个进程的退路（exec）怎样才算整轮完成 */
 export const execRules = USAGE_DONE;
 
+/** 斜杠命令的公开布局：项目与用户级 .claude/{skills,commands,agents}，项目的 .mcp.json */
+export const slash: SlashDiscoveryCapability = {
+  sources: ({ projectChain, home }) => [
+    ...projectChain.flatMap((dir): SlashSource[] => [
+      { kind: 'skills', path: path.join(dir, '.claude', 'skills'), scope: 'project' },
+      { kind: 'commands', path: path.join(dir, '.claude', 'commands'), scope: 'project' },
+      { kind: 'agents', path: path.join(dir, '.claude', 'agents'), scope: 'project' },
+      { kind: 'mcp', path: path.join(dir, '.mcp.json'), scope: 'project' },
+    ]),
+    { kind: 'skills', path: path.join(home, '.claude', 'skills'), scope: 'user' },
+    { kind: 'commands', path: path.join(home, '.claude', 'commands'), scope: 'user' },
+    { kind: 'agents', path: path.join(home, '.claude', 'agents'), scope: 'user' },
+  ],
+};
+
 export function createMain(): CliMainImpl {
   return {
     session: { exec: execRules },
-    launch: { official: officialLaunch },
+    slash,
+    launch: { official: officialLaunch, modelArgs },
     permissions,
     accounts,
     history,

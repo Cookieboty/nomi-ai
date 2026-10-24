@@ -40,6 +40,11 @@ export { parseDshTranscript } from './dsh/transcript';
 export { parseGeminiTranscript } from './gemini/transcript';
 export { parseGrokTranscript } from './grok/transcript';
 
+// 各 CLI 的模型目录解析（标签级覆盖用）：主进程的 cli/modelCatalog.ts 只转出这些
+export { parseClaudeModels } from './claude/models';
+export { parseCodexModels, readCodexConfigDefaults } from './codex/models';
+export { parseGrokModels } from './grok/models';
+
 export * as claude from './claude/main';
 export * as codex from './codex/main';
 export * as dsh from './dsh/main';

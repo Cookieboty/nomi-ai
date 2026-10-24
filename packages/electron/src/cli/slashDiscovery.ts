@@ -4,14 +4,30 @@
  * 只读文件名与 frontmatter（每个文件最多读前 8 KB），不读凭据 / 配置类文件；
  * 展开时只接受发现结果里存在的 id，由这里按 id 找到路径再读那一个文件的正文——
  * 渲染进程永远不能传路径。命令文件里的 `!`cmd`` 不会被执行（原样保留并报告）。
- * 目录布局依据各 CLI 的公开文档，见 docs/design/chat-slash-commands.md §4.5。
+ * 目录布局依据各 CLI 的公开文档，见 docs/design/chat-slash-commands.md §4.5；布局由内置插件的
+ * slash.sources 给出（声明式数据），扫描、拒绝名单与大小上限都在这里（宿主统一执行）。
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export type SlashBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok';
+import { claude, codex, dsh, gemini, grok, type BuiltinCliId } from '@nomi-ai/cli-plugins/main';
+import type { SlashDiscoveryCapability } from '@nomi-ai/cli-sdk';
+
+/** 斜杠命令的后端：Nomi 自己 + 内置编程助手（有没有公开布局看插件的 slash.sources） */
+export type SlashBackend = 'nomi' | BuiltinCliId;
+
+/** 各内置插件的斜杠命令布局（没有 slash.sources 的 CLI 不做目录发现） */
+const PLUGIN_SLASH: Record<BuiltinCliId, SlashDiscoveryCapability | undefined> = {
+  claude: claude.slash,
+  codex: codex.slash,
+  dsh: (dsh as { slash?: SlashDiscoveryCapability }).slash,
+  gemini: (gemini as { slash?: SlashDiscoveryCapability }).slash,
+  grok: grok.slash,
+};
+
+const slashOf = (b: SlashBackend) => (b === 'nomi' ? undefined : PLUGIN_SLASH[b]);
 export type SlashEntryKind = 'command' | 'skill' | 'agent' | 'plugin' | 'mcp';
 export type SlashEntryScope = 'project' | 'user' | 'plugin' | 'bundled';
 
@@ -489,40 +505,20 @@ class Collector {
 
 function collect(backend: SlashBackend, cwd: string, home: string): Collector {
   const c = new Collector(cwd, home);
-  const chain = projectChain(cwd);
-  if (backend === 'claude') {
-    for (const dir of chain) {
-      c.skills(path.join(dir, '.claude', 'skills'), 'project');
-      c.commands(path.join(dir, '.claude', 'commands'), 'project');
-      c.agents(path.join(dir, '.claude', 'agents'), 'project');
-      c.mcp(path.join(dir, '.mcp.json'), 'project');
-    }
-    c.skills(path.join(home, '.claude', 'skills'), 'user');
-    c.commands(path.join(home, '.claude', 'commands'), 'user');
-    c.agents(path.join(home, '.claude', 'agents'), 'user');
-  } else if (backend === 'codex') {
-    for (const dir of chain) c.skills(path.join(dir, '.agents', 'skills'), 'project');
-    c.skills(path.join(home, '.agents', 'skills'), 'user');
-  } else if (backend === 'grok') {
-    for (const dir of chain) {
-      c.skills(path.join(dir, '.grok', 'skills'), 'project', undefined, { strictInvocable: true });
-      c.commands(path.join(dir, '.grok', 'commands'), 'project');
-      c.plugins(path.join(dir, '.grok', 'plugins'), 'project');
-      c.workflows(path.join(dir, '.grok', 'workflows'), 'project');
-    }
-    c.skills(path.join(home, '.grok', 'skills'), 'user', undefined, { strictInvocable: true });
-    c.commands(path.join(home, '.grok', 'commands'), 'user');
-    c.plugins(path.join(home, '.grok', 'plugins'), 'user');
-    c.workflows(path.join(home, '.grok', 'workflows'), 'user');
-    c.skills(path.join(home, '.grok', 'bundled', 'skills'), 'bundled', undefined, {
-      strictInvocable: true,
-    });
-    c.workflows(path.join(home, '.grok', 'bundled', 'workflows'), 'bundled');
+  const sources = slashOf(backend)?.sources?.({ projectChain: projectChain(cwd), home }) ?? [];
+  for (const src of sources) {
+    if (src.kind === 'skills')
+      c.skills(src.path, src.scope, undefined, { strictInvocable: src.strictInvocable });
+    else if (src.kind === 'commands') c.commands(src.path, src.scope);
+    else if (src.kind === 'agents') c.agents(src.path, src.scope);
+    else if (src.kind === 'mcp') c.mcp(src.path, src.scope);
+    else if (src.kind === 'plugins') c.plugins(src.path, src.scope);
+    else c.workflows(src.path, src.scope);
   }
   return c;
 }
 
-export const hasPublicLayout = (b: SlashBackend) => b === 'claude' || b === 'codex' || b === 'grok';
+export const hasPublicLayout = (b: SlashBackend) => Boolean(slashOf(b)?.sources);
 
 export function discoverSlash(
   backend: SlashBackend,

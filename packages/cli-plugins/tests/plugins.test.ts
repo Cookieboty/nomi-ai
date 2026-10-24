@@ -148,6 +148,56 @@ describe('历史会话扫描（只读目录，不读内容）', () => {
   });
 });
 
+describe('模型覆盖参数与斜杠命令布局（与迁移前主进程的结果一致）', () => {
+  it('modelArgs：Claude / Codex / Grok 各自的参数；Gemini / dsh 没有', () => {
+    expect(claude.modelArgs({ model: 'opus', effort: 'high' })).toEqual([
+      '--model',
+      'opus',
+      '--effort',
+      'high',
+    ]);
+    expect(codex.modelArgs({ model: 'gpt-"5"', effort: 'low' })).toEqual([
+      '-c',
+      'model="gpt-\\"5\\""',
+      '-c',
+      'model_reasoning_effort="low"',
+    ]);
+    expect(grok.modelArgs({ model: ' grok-4 ', effort: null })).toEqual(['-m', 'grok-4']);
+    expect('modelArgs' in gemini).toBe(false);
+    expect('modelArgs' in dsh).toBe(false);
+  });
+
+  it('slash.sources：项目目录链在前、用户级在后，Grok 带自带的 bundled', () => {
+    const o = { projectChain: ['/w/a', '/w'], home: '/h' };
+    const kinds = (s: { kind: string; path: string; scope: string }[]) =>
+      s.map((x) => `${x.scope}:${x.kind}:${x.path.replace(/\\/g, '/')}`);
+    expect(kinds(claude.slash.sources!(o))).toEqual([
+      'project:skills:/w/a/.claude/skills',
+      'project:commands:/w/a/.claude/commands',
+      'project:agents:/w/a/.claude/agents',
+      'project:mcp:/w/a/.mcp.json',
+      'project:skills:/w/.claude/skills',
+      'project:commands:/w/.claude/commands',
+      'project:agents:/w/.claude/agents',
+      'project:mcp:/w/.mcp.json',
+      'user:skills:/h/.claude/skills',
+      'user:commands:/h/.claude/commands',
+      'user:agents:/h/.claude/agents',
+    ]);
+    expect(kinds(codex.slash.sources!(o))).toEqual([
+      'project:skills:/w/a/.agents/skills',
+      'project:skills:/w/.agents/skills',
+      'user:skills:/h/.agents/skills',
+    ]);
+    const g = grok.slash.sources!(o);
+    expect(kinds(g).slice(-2)).toEqual([
+      'bundled:skills:/h/.grok/bundled/skills',
+      'bundled:workflows:/h/.grok/bundled/workflows',
+    ]);
+    expect(g.filter((x) => x.kind === 'skills').every((x) => x.strictInvocable)).toBe(true);
+  });
+});
+
 describe('终端命令', () => {
   it('POSIX / PowerShell 转义，只含路径', () => {
     const c = claude.createMain().terminal!.command({ cwd: '/w', env: {}, resumeId: 's1' });
