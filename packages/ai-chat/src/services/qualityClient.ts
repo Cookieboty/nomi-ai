@@ -3,6 +3,9 @@
  * 经 preload 的 window.aiIPC；只读元数据，不含对话内容。
  */
 import type {
+  QUALITY_IPC as QualityIpc,
+  QualityExportRequest,
+  QualityExportResult,
   QualityQuery,
   QualityRecord,
   QualityRequestsQuery,
@@ -11,12 +14,12 @@ import type {
   QualitySeriesQuery,
   QualitySettings,
 } from '@nomi-ai/types';
-import type { QUALITY_IPC as QualityIpc } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 export type {
   QualityDimension,
   QualityDist,
+  QualityExportResult,
   QualityLayer,
   QualityOutcome,
   QualityQuery,
@@ -40,6 +43,7 @@ const QUALITY_IPC = {
   settingsGet: 'ai:quality:settings-get',
   settingsSet: 'ai:quality:settings-set',
   clear: 'ai:quality:clear',
+  export: 'ai:quality:export',
   changed: 'ai:quality:changed',
 } as const satisfies typeof QualityIpc;
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : never) : never;
@@ -47,18 +51,11 @@ const _ipcInSync: Same<typeof QUALITY_IPC, typeof QualityIpc> = true;
 void _ipcInSync;
 
 /** CSV 导出（主进程弹保存对话框写文件） */
-export const QUALITY_EXPORT_CHANNEL = 'ai:quality:export';
+export const QUALITY_EXPORT_CHANNEL = QUALITY_IPC.export;
 
 export interface QualityRequestsPage {
   items: QualityRecord[];
   total: number;
-}
-
-export interface QualityExportResult {
-  ok: boolean;
-  path?: string;
-  /** 用户取消了保存对话框 */
-  canceled?: boolean;
 }
 
 interface AiBridge {
@@ -95,7 +92,7 @@ export const qualityClient = {
     kind: 'requests' | 'table',
     query: QualityQuery | QualityRequestsQuery,
   ): Promise<QualityExportResult> =>
-    call<QualityExportResult>(QUALITY_EXPORT_CHANNEL, { kind, query }),
+    call<QualityExportResult>(QUALITY_IPC.export, { kind, query } as QualityExportRequest),
   /** 订阅数据变化（已防抖）；返回取消订阅 */
   onChanged: (fn: () => void): (() => void) => {
     const b = bridge();
