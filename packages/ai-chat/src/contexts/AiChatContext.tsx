@@ -359,6 +359,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
+              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
               modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
             };
             if (turn.isActive()) dispatch({ type: 'ADD_MESSAGE', payload: aiMessage });
@@ -505,6 +506,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
               role: 'assistant',
               content: r.text,
               timestamp: Date.now(),
+              // eslint-disable-next-line nomi/no-cli-literal -- 旧对话里 Claude Code 的模型 id 记作 claude-code（兼容）
               modelId: hs.backend === 'claude' ? 'claude-code' : hs.backend,
               ...(r.trace?.length ? { trace: r.trace } : {}),
               ...(r.durationMs !== undefined ? { durationMs: r.durationMs } : {}),

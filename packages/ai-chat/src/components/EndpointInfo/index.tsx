@@ -5,6 +5,7 @@
  * CLI 版本与更新、单端刷新、跳转设置 / 用量页。设计稿见 docs/design/endpoint-info-card.md。
  * 数据都来自本机主进程；Nomi 不读取任何凭据。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import { Badge, Button, Modal, ModalHostContext, t } from '@nomi-ai/ui';
 import { KeyRound, LoaderCircle, RefreshCw, UserRound } from 'lucide-react';
 import React, { useState } from 'react';
@@ -41,9 +42,10 @@ export interface EndpointInfoProps {
 
 type Auth = { text: string; tone: 'neutral' | 'success' | 'warning' } | null;
 
-/** 登录方式：Nomi 对话 / dsh 固定 API；其余按官方登录状态 */
+/** 登录方式：Nomi 对话与没有官方账号的内置 CLI（dsh）固定 API；其余按官方登录状态 */
 function authOf(b: ConversationBackend, quota: UsageQuotaEntry | null): Auth {
-  if (b === 'nomi' || b === 'dsh') return { text: t('API 密钥'), tone: 'warning' };
+  if (b === 'nomi' || (isBuiltinCliId(b) && !hasOfficialAccount(b)))
+    return { text: t('API 密钥'), tone: 'warning' };
   return quota ? authLabel(quota) : null;
 }
 

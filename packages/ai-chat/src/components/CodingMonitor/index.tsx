@@ -3,6 +3,7 @@
  * + 活跃会话列表（按端点筛选；Nomi 标签可直接打开）。
  * 只读本地日志与进程列表，不登录、不抓取任何账号。通知样式与灵动岛在「通知 / 灵动岛」里设置。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
   Badge,
   Button,
@@ -220,9 +221,7 @@ export const CodingMonitor: React.FC<{
                     data-testid={`agents-filter-${k}`}
                     onClick={() => setAgentFilter(k)}
                   >
-                    {k === 'claude' || k === 'codex' || k === 'dsh' || k === 'grok' ? (
-                      <EndpointIcon backend={k} size={14} decorative />
-                    ) : null}
+                    {isBuiltinCliId(k) ? <EndpointIcon backend={k} size={14} decorative /> : null}
                     {k === 'all'
                       ? tr('全部')
                       : k === 'tabs'
@@ -251,10 +250,7 @@ export const CodingMonitor: React.FC<{
                       data-testid={`agents-session-${s.source ?? 'file'}`}
                       title={
                         <span className={styles.sessionTitle} title={s.cwd || s.path}>
-                          {s.kind === 'nomi' ||
-                          s.kind === 'claude' ||
-                          s.kind === 'codex' ||
-                          s.kind === 'dsh' ? (
+                          {s.kind === 'nomi' || isBuiltinCliId(s.kind) ? (
                             <EndpointIcon backend={s.kind} size={16} />
                           ) : null}
                           <span className={styles.grow}>{s.title}</span>

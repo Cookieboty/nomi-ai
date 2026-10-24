@@ -1,4 +1,4 @@
-import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+import { isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 
 export interface CliInstallInfo {
@@ -128,9 +128,7 @@ export const cliUpdateClient = {
   /** 当前正在安装 / 更新的端点（同一时刻只允许一个），没有则 null */
   busy: async (): Promise<CliUpdatableKind | null> => {
     const b = await call<unknown>('busy');
-    return b === 'claude' || b === 'codex' || b === 'dsh' || b === 'grok' || b === 'gemini'
-      ? b
-      : null;
+    return typeof b === 'string' && isBuiltinCliId(b) ? b : null;
   },
   dismiss: (kind: CliUpdatableKind) => call<boolean>('dismiss', kind),
   onEvent: (fn: (e: CliUpdateEvent) => void) =>

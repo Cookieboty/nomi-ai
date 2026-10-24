@@ -14,7 +14,7 @@ import {
   llmProvidersFromEnv,
   migrateStoreData,
 } from '@nomi-ai/ai-runtime';
-import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
+import { BUILTIN_MANIFESTS, isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ProviderQuirks } from '@nomi-ai/gateway';
 import { app, BrowserWindow, safeStorage, session } from 'electron';
 
@@ -704,16 +704,16 @@ export class Application implements IApplication {
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
         openTab: (o) => harness.openHistorySession(o),
-        gatewaySession: (backend, sessionId) =>
-          backend !== 'dsh' && gateway.servedSession(backend, sessionId),
+        gatewaySession: (backend, sessionId) => gateway.servedSession(backend, sessionId),
         accountLabel: (backend, accountId) => {
+          // eslint-disable-next-line nomi/no-cli-literal -- 只有 Codex 的历史记录了 creator_account_id
           if (backend !== 'codex') return undefined;
           const a = accounts.findByAccountId('codex', accountId);
           return a ? (a.identity?.email ?? a.label) : undefined;
         },
         // Nomi 启动时记下的账号；只有一个账号时不标注
         sessionAccount: (backend, sessionId) => {
-          if (backend === 'dsh') return undefined;
+          if (!BUILTIN_MANIFESTS[backend].capabilities.officialAccount) return undefined;
           const a = accounts.sessionAccount(backend, sessionId);
           if (!a) return undefined;
           return accounts.list(backend).length > 1 ? a : { id: a.id };

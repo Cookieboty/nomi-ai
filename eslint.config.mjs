@@ -7,6 +7,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { CLI_LITERAL_ALLOWLIST } from './scripts/eslint/cli-literal-allowlist.mjs';
+import nomiPlugin from './scripts/eslint/nomi-plugin.mjs';
+
 export default tseslint.config(
   {
     ignores: [
@@ -149,6 +152,15 @@ export default tseslint.config(
         },
       ],
     },
+  },
+
+  // 核心目录不按内置编程助手名字分支（§7.3）：差异放进插件，核心按能力位判断。
+  // electron/src/cli 是插件宿主与内置 CLI 的适配层（编排、驱动接线），不在此列。
+  {
+    files: ['packages/electron/src/**/*.ts', 'packages/ai-chat/src/**/*.{ts,tsx}'],
+    ignores: ['packages/electron/src/cli/**', ...CLI_LITERAL_ALLOWLIST],
+    plugins: { nomi: nomiPlugin },
+    rules: { 'nomi/no-cli-literal': 'error' },
   },
 
   // 测试文件放宽
