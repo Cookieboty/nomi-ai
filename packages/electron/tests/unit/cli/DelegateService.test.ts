@@ -8,6 +8,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { runWithToolCaller } from '@nomi-ai/bundle-ig-base';
+
 import { HarnessStoppedError } from '../../../src/cli/CliHarnessService';
 import { DelegateService, untrusted } from '../../../src/cli/delegate/DelegateService';
 
@@ -170,6 +172,21 @@ describe('DelegateService · delegate_to_cli', () => {
     s.svc.pin('codex', 'turn-x');
     s.svc.clearPin('turn-x');
     expect(s.svc.peekPin('turn-x')).toBeNull();
+  });
+
+  it('§6.4 生产路径：ALS runWithToolCaller 也能挡住嵌套委派（无需 ctx.callerTabId）', async () => {
+    const s = setup({
+      tabs: [
+        {
+          id: 'child',
+          delegation: { by: 'nomi', approvals: { asked: 0, denied: 0, timedOut: 0 } },
+        },
+      ],
+    });
+    const r = await runWithToolCaller('child', () => s.run({}));
+    expect(r.ok).toBe(false);
+    expect(r.error?.code).toBe('delegation_depth');
+    expect(s.created).toHaveLength(0);
   });
 
   it('§6.4 委派层数：caller 是 Nomi 派出的标签时拒绝', async () => {

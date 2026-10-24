@@ -155,16 +155,17 @@ Nomi 不另外指定：
 
 CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi，靠 §6.4 的层数限制挡住。
 
-### 4.6 用命令指定交给哪个编程助手：`/cli`
+### 4.6 用命令指定交给哪个编程助手：`/agent`（`/cli` 为隐藏别名）
 
-用户可以在 Nomi 对话里**显式指定**下一个需求交给哪个编程助手，不让 Nomi 自己选：
+用户可以在 Nomi 对话里**显式指定**下一个需求交给哪个编程助手，不让 Nomi 自己选。**规范命令是 `/agent`**；`/cli` 仍可用，行为相同，但不在帮助 / 补全里强调。
 
-| 输入                         | 效果                                                                             |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `/cli codex 修复登录 bug`    | 立即发出：Nomi 把「修复登录 bug」整理成任务说明（§4.1）交给 Codex                |
-| `/cli codex`                 | 输入框上方出现「下一个需求交给 Codex ×」；下一条消息按上一行处理，发出后自动取消 |
-| `/cli`                       | 列出可用的编程助手（已安装、可用的）与当前指定                                   |
-| `/cli off`（或点 chip 的 ×） | 取消指定                                                                         |
+| 输入                           | 效果                                                                             |
+| ------------------------------ | -------------------------------------------------------------------------------- |
+| `/agent codex 修复登录 bug`    | 立即发出：Nomi 把「修复登录 bug」整理成任务说明（§4.1）交给 Codex                |
+| `/agent codex`                 | 输入框上方出现「下一个需求交给 Codex ×」；下一条消息按上一行处理，发出后自动取消 |
+| `/agent`                       | 列出可用的编程助手（已安装、可用的）与当前指定                                   |
+| `/agent off`（或点 chip 的 ×） | 取消指定                                                                         |
+| `/cli …`                       | 与 `/agent …` 相同（隐藏别名）                                                   |
 
 - **主进程钉住**：发送时渲染层先调 `ai:delegate:pin`（编程助手 id，绑定这一轮），`delegate_to_cli` 执行时用钉住的
   编程助手覆盖模型给的 `cli` 参数，用一次即清除；这一轮结束没用上也清除。模型改不了用户的指定。
@@ -179,14 +180,14 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 | 设置项                 | 说明                                                                    |
 | ---------------------- | ----------------------------------------------------------------------- |
-| 允许 Nomi 委派编程助手 | 总开关，默认开；关掉后 Nomi 不注册 `delegate_to_cli`，`/cli` 提示已关闭 |
+| 允许 Nomi 委派编程助手 | 总开关，默认开；关掉后 Nomi 不注册 `delegate_to_cli`，`/agent`（及 `/cli`）提示已关闭 |
 | 编程开发               | 默认交给哪个编程助手（下拉：已安装的编程助手 +「让 Nomi 选」）          |
 | PRD / 需求文档         | 同上                                                                    |
 | 代码审查               | 同上                                                                    |
 | 调研分析               | 同上                                                                    |
 
 - `delegate_to_cli` 增加参数 `kind: 'coding' | 'prd' | 'review' | 'research'`（缺省 `coding`），由 Nomi 按需求判断。
-- **选谁的优先级**：`/cli` 钉住的（§4.6）> 用户在消息里点名的（模型据此填 `cli`）> 这个任务类型的默认 >
+- **选谁的优先级**：`/agent`（或 `/cli`）钉住的（§4.6）> 用户在消息里点名的（模型据此填 `cli`）> 这个任务类型的默认 >
   「编程开发」的默认 > Nomi 自己从已安装的里选。工具描述里写明：用户没点名时不要填 `cli`。
 - 默认值都是「让 Nomi 选」；设成的编程助手被卸载后，按「让 Nomi 选」处理并在设置里标出。
 - 存在主进程（`userData/delegate/settings.json`），经 `ai:delegate:settings` / `ai:delegate:set-settings` 读写。
@@ -371,17 +372,17 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 ### 11.2 待确认
 
-1. **默认派给谁**：用户可用 `/cli` 显式指定（§4.6）；没指定时 Nomi 自己选，还是设置里指定一个默认编程助手，待定。
+1. **默认派给谁**：用户可用 `/agent`（或 `/cli`）显式指定（§4.6）；没指定时 Nomi 自己选，还是设置里指定一个默认编程助手，待定。
 2. **改动文件列表的来源**：已定为编程助手的汇报（§4.4）+ 结束时 `git status --porcelain` 核对；
    目录不是 git 仓库时只用汇报，并注明未核对。
 3. **预算的维度**：§8 的「超出预算时委派失败」要先核对现有预算是按什么维度设的。
 
 ## 12. 实现记录与偏差（P1）
 
-实现：主进程 `electron/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/cli` 钉住），
+实现：主进程 `electron/src/cli/delegate/`（`core.ts` 纯逻辑、`DelegateService.ts` 工具 / 设置 / `/agent` 钉住），
 编程助手服务加了 `createTab({ activate, delegation })`、委派标签的审批等待与统计、`HarnessStoppedError`；
 渲染层 `Conversation/DelegateCard.tsx`（卡片 / 任务组 / 抽屉）、`ProvidersPage/DelegateSettings.tsx`、
-`slash/adapters/nomi.ts`（`/cli`）、`services/delegateClient.ts`。工具调用 id 经 `ToolExecContext.toolCallId` 传到工具。
+`slash/adapters/nomi.ts`（`/agent`，`/cli` 隐藏别名）、`services/delegateClient.ts`。工具调用 id 经 `ToolExecContext.toolCallId` 传到工具。
 
 与上文的差异：
 
@@ -405,4 +406,16 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
   改动文件用 `git rev-parse --show-toplevel` + `status --porcelain -z`（`core.quotepath=false`），路径相对委派 cwd；
   汇报缺失时仍通过结果里的 `changedFiles` 交回 git 列表。
 - 委派层数（§6.4）：`ctx.callerTabId` 对应标签的 `delegation.by === 'nomi'` 时拒绝（`delegation_depth`）。
+- 生产路径：`runWithToolCaller`（ALS）+ `mapTools`/`ChatRequest.extra.callerTabId`，使嵌套 `delegate_to_cli` 在 MCP/host 包一层后也能读到 caller（不仅单测显式传 ctx）。
+
+### 12.1 明确推迟（v2.0.0 不实现）
+
+| 项 | 说明 |
+| --- | --- |
+| 完整拆分 `CliHarnessService`（约 4886 行） | 归入插件化 M5；本版本不拆 |
+| Permission PR3 ExitPlanMode UX | 权限模式后续 PR |
+| 异步委派 / `taken_over` 中途接手 | 见上文「有意偏差」；需 harness 在 running 时支持接手 |
+| LFS / 历史 rewrite | 发布流程项，与委派无关 |
+| `routePlan` 默认非影子 | 网关 M3b-3：先影子一个版本再切 |
+
 - `createTab` 与后续 await 之后、`sendTab` 之前若 `ctx.signal` 已中止：`closeTab` 清理孤儿标签并返回 `cancelledBy: 'nomi'`。

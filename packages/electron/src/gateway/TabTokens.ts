@@ -5,7 +5,7 @@
  *   子进程环境；这里只留哈希与绑定，不落盘。
  * - 先登记、后启动：register() 发 binding:add，等网关回 binding:ok 才返回，调用方之后再 spawn。
  * - 同一标签再登记（闲置回收、重启型换模型、崩溃重启）就是新代次：网关作废旧代次的绑定。
- * - 网关进程重启后绑定表是空的：replay() 把还活着的绑定重新登记一遍（不等应答）。
+ * - 网关进程重启后绑定表是空的：replay() 把还活着的绑定重新登记一遍，等 binding:ok（超时/失败记日志，不抛到 spawn）。
  */
 import { randomBytes } from 'node:crypto';
 
@@ -134,11 +134,23 @@ export class TabTokens {
     else p.reject(new Error(tr('网关拒绝了标签绑定：{0}', m.message)));
   }
 
-  /** 网关进程重新拉起后：把还活着的绑定重新登记（网关的绑定表跟着进程走） */
-  replay(): void {
-    for (const binding of this.active.values())
-      this.d.send({ type: 'binding:add', id: this.nextId(), binding });
-    if (this.active.size) this.d.logger.info('gateway tab bindings replayed', this.active.size);
+  /**
+   * 网关进程重新拉起后：把还活着的绑定重新登记并等待 binding:ok。
+   * 任一失败只记日志（spawn 钩子不应被单条绑定拖垮）；调用方在 await 完成前不应假定令牌已生效。
+   */
+  async replay(): Promise<void> {
+    const bindings = [...this.active.values()];
+    if (!bindings.length) return;
+    const results = await Promise.allSettled(
+      bindings.map((binding) => this.request({ type: 'binding:add', id: this.nextId(), binding })),
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed)
+      this.d.logger.warn('gateway tab bindings replay partial failure', {
+        total: bindings.length,
+        failed,
+      });
+    else this.d.logger.info('gateway tab bindings replayed', bindings.length);
   }
 
   private nextId(): string {

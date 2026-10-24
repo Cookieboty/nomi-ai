@@ -256,11 +256,17 @@ export class AiSdkLlmProvider implements LLMProvider {
       id: this.id,
       ...(this.opts.baseURL ? { baseURL: this.opts.baseURL } : {}),
     };
-    const toolsFor = (reqId: string) =>
-      toAiSdkToolSet(defs, { provider: receiver, reqId }) as ToolSet;
+    const toolsFor = (req: { reqId: string; extra?: Record<string, unknown> }) => {
+      const caller = typeof req.extra?.callerTabId === 'string' ? req.extra.callerTabId : undefined;
+      return toAiSdkToolSet(defs, {
+        provider: receiver,
+        reqId: req.reqId,
+        ...(caller ? { callerTabId: caller } : {}),
+      }) as ToolSet;
+    };
     return {
-      chat: (req) => this.runChat(req, toolsFor(req.reqId)),
-      stream: (req) => this.runStream(req, toolsFor(req.reqId)),
+      chat: (req) => this.runChat(req, toolsFor(req)),
+      stream: (req) => this.runStream(req, toolsFor(req)),
     };
   }
 

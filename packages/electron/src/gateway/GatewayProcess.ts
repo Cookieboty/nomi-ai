@@ -105,13 +105,13 @@ export class GatewayProcess {
     else if (!this.restartTimer) this.spawn();
   }
 
-  private tabHooks: { ack?: (m: BindingAck) => void; spawn?: () => void } = {};
+  private tabHooks: { ack?: (m: BindingAck) => void; spawn?: () => void | Promise<void> } = {};
 
   /**
    * 标签绑定（§6.7）：ack = 网关的应答；spawn = 拉起了新的网关进程（配置已推送），
    * 调用方据此重新登记还活着的绑定。
    */
-  bindTabs(h: { ack: (m: BindingAck) => void; spawn: () => void }): void {
+  bindTabs(h: { ack: (m: BindingAck) => void; spawn: () => void | Promise<void> }): void {
     this.tabHooks = h;
   }
 
@@ -152,7 +152,9 @@ export class GatewayProcess {
     child.on('message', (m) => this.onMessage(child, m));
     child.on('exit', (code) => this.onExit(child, code));
     if (this.config) child.postMessage({ type: 'config', config: this.config });
-    this.tabHooks.spawn?.();
+    void Promise.resolve(this.tabHooks.spawn?.()).catch((e) =>
+      this.d.logger.warn('gateway tab bindings replay failed', String(e)),
+    );
   }
 
   private onMessage(child: GatewayChild, m: WorkerOutbound) {

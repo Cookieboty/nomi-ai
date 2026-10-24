@@ -25,7 +25,13 @@ import { TabTokens } from '../../../src/gateway/TabTokens';
 const logger = { info() {}, warn() {} };
 
 describe('TabTokens（§6.7 先登记、后启动）', () => {
-  function mk(o: { up?: boolean; timeoutMs?: number } = {}) {
+  function mk(
+    o: {
+      up?: boolean;
+      timeoutMs?: number;
+      logger?: { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
+    } = {},
+  ) {
     const sent: BindingMessage[] = [];
     const tabs = new TabTokens({
       send: (m) => {
@@ -33,7 +39,7 @@ describe('TabTokens（§6.7 先登记、后启动）', () => {
         sent.push(m);
         return true;
       },
-      logger,
+      logger: o.logger ?? logger,
       timeoutMs: o.timeoutMs ?? 200,
     });
     const ackLast = (ok = true) => {
@@ -130,14 +136,34 @@ describe('TabTokens（§6.7 先登记、后启动）', () => {
     ).rejects.toThrow();
   });
 
-  it('网关进程重启后重新登记还活着的绑定', async () => {
+  it('网关进程重启后重新登记还活着的绑定，并等待 binding:ok', async () => {
     const t = mk();
     const p = t.tabs.register({ client: 'claude', tabId: 'a', models: {} });
     t.ackLast();
     await p;
     const before = t.sent.length;
-    t.tabs.replay();
+    const replayed = t.tabs.replay();
     expect(t.sent.slice(before)).toEqual([expect.objectContaining({ type: 'binding:add' })]);
+    t.ackLast();
+    await expect(replayed).resolves.toBeUndefined();
+  });
+
+  it('replay 部分失败：allSettled 后仍 resolve，并记 warn', async () => {
+    const warns: unknown[] = [];
+    const t = mk({
+      timeoutMs: 20,
+      logger: {
+        info() {},
+        warn(m: string, d?: unknown) {
+          warns.push([m, d]);
+        },
+      },
+    });
+    const p = t.tabs.register({ client: 'claude', tabId: 'a', models: {} });
+    t.ackLast();
+    await p;
+    await expect(t.tabs.replay()).resolves.toBeUndefined();
+    expect(warns.some((w) => String((w as unknown[])[0]).includes('partial failure'))).toBe(true);
   });
 });
 

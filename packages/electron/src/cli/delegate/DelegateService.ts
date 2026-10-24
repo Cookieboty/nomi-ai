@@ -10,6 +10,7 @@ import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { getToolCallerTabId } from '@nomi-ai/bundle-ig-base';
 import type { ToolDefinition, ToolExecContext } from '@nomi-ai/bundle-ig-base';
 import { z } from 'zod';
 
@@ -240,8 +241,10 @@ export class DelegateService {
     const harness = this.d.harness;
 
     // §6.4：从 Nomi 派出的标签里再委派一律拒绝（只允许一层）
-    if (ctx.callerTabId) {
-      const caller = harness.listTabs().tabs.find((x) => x.id === ctx.callerTabId);
+    // callerTabId：ctx（mapTools/MCP 显式传入）优先，否则读 ALS（runWithToolCaller）
+    const callerTabId = ctx.callerTabId ?? getToolCallerTabId();
+    if (callerTabId) {
+      const caller = harness.listTabs().tabs.find((x) => x.id === callerTabId);
       if (caller?.delegation?.by === 'nomi')
         throw new DelegateError(
           'delegation_depth',
