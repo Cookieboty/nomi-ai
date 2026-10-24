@@ -1,5 +1,3 @@
 #!/usr/bin/env sh
-. "$(dirname "$0")/h"
-
-# Git LFS
+# Git LFS (husky v9: no source ./h — match pre-commit/commit-msg style)
 command -v git-lfs >/dev/null 2>&1 && git lfs pre-push "$@"
