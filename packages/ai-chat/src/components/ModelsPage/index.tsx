@@ -123,6 +123,21 @@ export const ModelsPage: React.FC = () => {
           <Switch checked={showWire} onChange={setShowWire} aria-label={t('显示协议')} />
           <span>{t('显示协议')}</span>
         </label>
+        <label
+          className={styles.inlineSwitch}
+          title={t(
+            '开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明',
+          )}
+        >
+          <Switch
+            checked={state?.strictParams === true}
+            onChange={(v) => run(gatewayClient.setOptions({ strictParams: v }))}
+            disabled={!state}
+            aria-label={t('严格模式')}
+            data-testid="models-strict"
+          />
+          <span>{t('严格模式')}</span>
+        </label>
       </div>
 
       {status?.state === 'failed' && (

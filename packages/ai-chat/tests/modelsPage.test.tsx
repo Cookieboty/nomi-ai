@@ -616,6 +616,25 @@ describe('ModelsPage', () => {
     expect(payload.userAgent).toBe('nomi/1.1');
   });
 
+  it('strict mode is off by default and the switch saves the gateway option', async () => {
+    const m = fakeMain({
+      extra: {
+        'ai:gateway:set-options': (patch) => {
+          m.state.strictParams = (patch as { strictParams: boolean }).strictParams;
+          return structuredClone(m.state);
+        },
+      },
+    });
+    render(<ModelsPage />);
+    const sw = await screen.findByTestId('models-strict');
+    await waitFor(() => expect((sw as HTMLButtonElement).disabled).toBe(false));
+    expect(sw.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(sw);
+    await waitFor(() =>
+      expect(m.calls).toContainEqual(['ai:gateway:set-options', [{ strictParams: true }]]),
+    );
+  });
+
   it('per-key limits: only changed limits are sent; blank clears a saved limit', async () => {
     const m = fakeMain();
     m.state.providers = [

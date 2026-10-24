@@ -161,5 +161,7 @@
   "并发": "Concurrent",
   "每分钟": "Per minute",
   "{0} 的并发上限": "{0} max concurrent requests",
-  "{0} 每分钟最多请求数": "{0} max requests per minute"
+  "{0} 每分钟最多请求数": "{0} max requests per minute",
+  "严格模式": "Strict mode",
+  "开着时，模型不支持的参数（如思考档位、温度）直接报错；关着时网关去掉或调整这些参数并在「最近请求」里注明": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests"
 }
