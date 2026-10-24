@@ -3,6 +3,7 @@
  * - 助手：一排紧凑的助手选择条（Claude Code / Codex / dsh / Grok / Gemini，带安装状态），
  *   下面是选中助手的分组：版本（检测 / 更新 / 安装）、官方账号、第三方模型入口。
  *   第三方供应商与模型分配（Nomi 对话和各编程助手）都在设置 →「模型」（统一网关），这里只留入口。
+ *   下面是「外部 CLI」：用户添加的说 ACP 的编程助手（§5.9）。
  * - 监视与会话：本机编程助手进度监视设置 + 活跃会话列表。
  * 切换标签只是换一个视图，不会改任何配置。
  */
@@ -19,6 +20,7 @@ import { CodingMonitor } from '../CodingMonitor';
 import { EndpointIcon } from '../EndpointIcon';
 
 import { CliEndpointSection } from './CliEndpointSection';
+import { ExternalClis } from './ExternalClis';
 import styles from './index.module.css';
 
 /** 助手选择条的顺序：与对话区端点顺序一致，去掉 Nomi（Nomi 的模型在「模型」页） */
@@ -35,7 +37,7 @@ export const ProvidersPage: React.FC<{
   const cliOk = harnessClient.available();
   // 「监视与会话」时记住上次看的助手；旧的「nomi」选中值落到第一个助手
   const [lastCli, setLastCli] = useState<CliKind>(() => (isCliKind(ep) ? ep : CLIS[0]!));
-  const cli: CliKind = ep === 'monitor' || ep === 'nomi' ? lastCli : ep;
+  const cli: CliKind = isCliKind(ep) ? ep : lastCli;
   const view = ep === 'monitor' ? 'monitor' : 'assistants';
   const pick = (k: CliKind) => {
     setLastCli(k);
@@ -135,7 +137,10 @@ export const ProvidersPage: React.FC<{
             })}
           </div>
           {cliOk ? (
-            <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+            <>
+              <CliEndpointSection key={cli} kind={cli} onOpenModels={onOpenModels} />
+              <ExternalClis onOpenedTab={onOpenedTab} />
+            </>
           ) : (
             <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
           )}

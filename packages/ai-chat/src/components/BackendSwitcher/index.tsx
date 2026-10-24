@@ -27,6 +27,7 @@ const LABELS: Record<HarnessBackend, () => string> = {
   dsh: () => 'dsh',
   grok: () => 'Grok',
   gemini: () => 'Gemini',
+  external: () => t('外部 CLI'),
 };
 
 export const BackendSwitcher: React.FC<{ className?: string }> = ({ className }) => {
@@ -118,12 +119,16 @@ export const BackendSwitcher: React.FC<{ className?: string }> = ({ className })
           void switchTo(e.target.value as HarnessBackend);
         }}
         options={(Object.keys(LABELS) as HarnessBackend[])
-          .filter((k) => !tab || k !== 'nomi')
+          // 外部 CLI（§5.9）要指定插件，只能在「编程助手 → 外部 CLI」里新建标签；
+          // 当前标签就是外部 CLI 时只列它自己（不能切换后端）
+          .filter((k) =>
+            value === 'external' ? k === 'external' : k !== 'external' && (!tab || k !== 'nomi'),
+          )
           .map((k) => {
-            const missing = k !== 'nomi' && !state.bins[k];
+            const missing = k !== 'nomi' && k !== 'external' && !state.bins[k];
             return {
               value: k,
-              label: LABELS[k](),
+              label: k === 'external' && tab ? tab.title : LABELS[k](),
               icon: <EndpointIcon backend={k} size={16} decorative />,
               // 未安装的 CLI 置灰，只留一个很短的后缀
               description: missing ? t('未安装') : undefined,

@@ -23,12 +23,24 @@ import type { HarnessBackend, HarnessPermissionMode } from './types';
 
 type CliBackend = Exclude<HarnessBackend, 'nomi'>;
 
+/**
+ * 外部插件（L1，§5.9）只有「逐项确认」：每次工具调用都经 ACP 的 session/request_permission
+ * 由用户批准；不发 session/set_mode（不知道对方的模式 id），也不接受历史里记的模式。
+ */
+const EXTERNAL_PERMISSIONS: PermissionCapability = {
+  supported: ['manual'],
+  launch: () => ({ args: [], env: {} }),
+  modeId: () => '',
+  fromModeId: () => null,
+};
+
 const PERMS: Record<CliBackend, PermissionCapability> = {
   claude: claude.permissions,
   codex: codex.permissions,
   dsh: dsh.permissions,
   grok: grok.permissions,
   gemini: gemini.permissions,
+  external: EXTERNAL_PERMISSIONS,
 };
 
 export const PERMISSION_MODES: readonly HarnessPermissionMode[] = MODES;
@@ -50,7 +62,12 @@ export function effectiveMode(
   backend: HarnessBackend,
   mode: HarnessPermissionMode,
 ): { mode: HarnessPermissionMode; degraded: boolean } {
-  return degradeMode(supportedModes(backend), mode);
+  const supported = supportedModes(backend);
+  const r = degradeMode(supported, mode);
+  // 降级默认落到「计划」；连计划都没有的后端（外部插件只有逐项确认）用它支持的第一档
+  if (!supported.includes(r.mode) && supported.length)
+    return { mode: supported[0]!, degraded: true };
+  return r;
 }
 
 export interface PermissionLaunch {
@@ -88,8 +105,11 @@ export function grokModeId(mode: HarnessPermissionMode): string {
   return PERMS.grok.modeId!(mode);
 }
 
-/** 长驻 ACP 会话（Gemini / Grok）的会话模式 id */
-export function acpModeId(backend: 'gemini' | 'grok', mode: HarnessPermissionMode): string {
+/** 长驻 ACP 会话（Gemini / Grok / 外部插件）的会话模式 id；外部插件为空串（不发 set_mode） */
+export function acpModeId(
+  backend: 'gemini' | 'grok' | 'external',
+  mode: HarnessPermissionMode,
+): string {
   return PERMS[backend].modeId!(mode);
 }
 

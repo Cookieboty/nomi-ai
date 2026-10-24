@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { BUILTIN_MANIFESTS } from '@nomi-ai/cli-plugins';
+import { BUILTIN_MANIFESTS, isBuiltinCliId, type BuiltinCliId } from '@nomi-ai/cli-plugins';
 import {
   BUILTIN_CLI_IDS,
   claude as claudePlugin,
@@ -28,8 +28,11 @@ import {
   AppServerDriver,
   ExecDriver,
   StreamJsonDriver,
+  missingExternalEnv,
+  renderExternalArgs,
   type ChildLike,
   type ExecRules,
+  type ExternalCliSpec,
   type TurnResult,
 } from '@nomi-ai/cli-sdk';
 import { BrowserWindow, dialog } from 'electron';
@@ -154,14 +157,16 @@ import {
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 
 type CliBackend = Exclude<HarnessBackend, 'nomi'>;
+/** 内置编程助手（有网关第三方、官方账号、exec 退路等）；外部插件（'external'）没有这些 */
+type BuiltinBackend = BuiltinCliId;
 
 /** 统一网关提供给编程助手的能力（主进程 GatewayService，§12） */
 export interface HarnessGateway {
   /** 新标签默认来源与第三方时用的模型（clients.<cli>） */
-  defaults(kind: CliBackend): { source: HarnessTabSource; model: string | null };
+  defaults(kind: BuiltinBackend): { source: HarnessTabSource; model: string | null };
   /** 第三方会话的进程级注入；网关没在运行时返回 null */
   launch(
-    kind: CliBackend,
+    kind: BuiltinBackend,
     tabId: string,
     model: string,
   ): {
@@ -175,14 +180,14 @@ export interface HarnessGateway {
   /** 第三方可选模型 */
   models(): Array<{ ref: string; provider: string; label: string; vision?: boolean }>;
   /** 标签关闭后回收它的进程级私有目录 */
-  releaseAgent(kind: CliBackend, tabId: string): void;
+  releaseAgent(kind: BuiltinBackend, tabId: string): void;
   /**
    * 第三方进程启动前：签发这个进程代次的标签令牌并在网关登记绑定（§6.7，先登记后启动），
    * 返回把共享令牌换成标签令牌后的环境变量。网关没在运行返回 null；网关拒绝 / 超时会抛出。
    * 不提供时第三方进程用客户端级令牌（旧行为）。
    */
   launchForTab?(
-    kind: CliBackend,
+    kind: BuiltinBackend,
     tabId: string,
     model: string,
     effort?: string,
@@ -193,9 +198,9 @@ export interface HarnessGateway {
     modelInConfig?: boolean;
   } | null>;
   /** 进程退出 / 标签关闭：作废这个标签的令牌 */
-  releaseTab?(kind: CliBackend, tabId: string): void;
+  releaseTab?(kind: BuiltinBackend, tabId: string): void;
   /** gateway / inplace 型换模型（§6.7）：只改绑定，不重启；没有活着的绑定返回 false */
-  updateTab?(kind: CliBackend, tabId: string, model: string, effort?: string): Promise<boolean>;
+  updateTab?(kind: BuiltinBackend, tabId: string, model: string, effort?: string): Promise<boolean>;
 }
 
 /** 一次启动的来源注入（见 launchFor） */
@@ -227,6 +232,17 @@ export interface HarnessOfficialAccounts {
   noteSession?(kind: AccountBackend, sessionId: string, accountId: string | null | undefined): void;
 }
 
+/**
+ * 外部插件（L1 声明式，§5.9，主进程 CliPluginHost）：编排层用通用 ACP 后端跑它们（backend = 'external'）。
+ * 没有时不能新建外部 CLI 标签。
+ */
+export interface HarnessExternalPlugins {
+  /** 就绪的外部插件清单；不存在 / 已删除 / 校验不过返回 undefined */
+  spec(id: string): ExternalCliSpec | undefined;
+  /** 握手报告的能力（只能关掉能力，宿主据此更新注册表） */
+  handshake?(id: string, caps: { images: boolean; resume: boolean }): void;
+}
+
 /** 有官方账号的后端 */
 export type AccountBackend = AccountKind;
 const ACCOUNT_BACKENDS: readonly string[] = ['claude', 'codex', 'grok', 'gemini'];
@@ -247,7 +263,7 @@ const OFFICIAL_LAUNCH: TabLaunch = {
 const GATEWAY_SCOPE = 'gateway';
 
 /** 每轮一个进程（exec）的收尾规则：哪个事件算整轮完成，由各 CLI 插件给出 */
-const EXEC_RULES: Record<CliBackend, ExecRules> = {
+const EXEC_RULES: Record<BuiltinBackend, ExecRules> = {
   claude: claudePlugin.execRules,
   codex: codexPlugin.execRules,
   dsh: dshPlugin.execRules,
@@ -266,7 +282,7 @@ const MAX_RECENT_CWDS = 8;
 /** 权限卡超时：与桌面能力一致，默认拒绝 */
 const PERMISSION_TIMEOUT_MS = 120_000;
 
-const BACKENDS: readonly HarnessBackend[] = ['nomi', ...BUILTIN_CLI_IDS];
+const BACKENDS: readonly HarnessBackend[] = ['nomi', ...BUILTIN_CLI_IDS, 'external'];
 
 /** Gemini 一轮 5 分钟没有任何输出：多半卡在网络或上游，取消这一轮 */
 const GEMINI_PROMPT_IDLE_MS = 5 * 60_000;
@@ -284,13 +300,15 @@ const BACKEND_TITLE: Record<HarnessBackend, string> = {
   nomi: 'Nomi',
   ...(Object.fromEntries(
     BUILTIN_CLI_IDS.map((id) => [id, BUILTIN_MANIFESTS[id].displayName]),
-  ) as Record<CliBackend, string>),
+  ) as Record<BuiltinBackend, string>),
+  // 外部 CLI 的标签标题用它清单里的名称（createTab）；这里只是兜底
+  external: 'CLI',
 };
 
 /** 模型目录缓存时长：CLI 升级 / 官方目录更新后最迟这么久会重新读到 */
 const MODEL_CATALOG_TTL_MS = 10 * 60_000;
 
-const CLI_BACKENDS: readonly CliBackend[] = BUILTIN_CLI_IDS;
+const CLI_BACKENDS: readonly BuiltinBackend[] = BUILTIN_CLI_IDS;
 
 /** 标签结束一轮 / 出错时发给主进程订阅者（看板娘、灵动岛、监视器） */
 export interface HarnessTabFinished {
@@ -416,6 +434,8 @@ export class HarnessOrchestrator {
       gateway?: HarnessGateway;
       /** 官方账号（§5.10）：官方标签按账号目录启动；没有时用 CLI 自己的目录 */
       accounts?: HarnessOfficialAccounts;
+      /** 外部插件（§5.9）：用户添加的说 ACP 的 CLI */
+      externals?: HarnessExternalPlugins;
       /** 长驻 CLI 进程空闲多久后回收（毫秒，0 = 不回收）；缺省读 NOMI_HARNESS_IDLE_MS，再缺省 30 分钟 */
       idleReclaimMs?: number;
       /** Gemini 一轮多久没有任何动静就判定卡死并取消（毫秒）；缺省 GEMINI_PROMPT_IDLE_MS */
@@ -557,6 +577,7 @@ export class HarnessOrchestrator {
       for (const tab of raw.tabs ?? []) {
         if (!tab || typeof tab.id !== 'string' || tab.id === MAIN_TAB_ID) continue;
         if (!isBackend(tab.backend) || tab.backend === 'nomi') continue;
+        if (tab.backend === 'external' && typeof tab.pluginId !== 'string') continue;
         // 重启时中断的轮次回到空闲
         const restored: HarnessTabMeta = {
           ...tab,
@@ -835,22 +856,28 @@ export class HarnessOrchestrator {
       source?: HarnessTabSource;
       /** 官方来源下用哪个官方账号（打开历史会话时按原账号续接） */
       accountId?: string | null;
+      /** backend = 'external' 时：外部插件 id（§5.9） */
+      pluginId?: string;
     } = {},
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
     if (!isBackend(backend) || backend === 'nomi') {
       throw new Error(t('新标签只能绑定编程助手后端'));
     }
+    const ext = backend === 'external' ? this.externalSpecOf(opts.pluginId) : undefined;
     const cwd = opts.cwd ? validDir(opts.cwd) : this.tabs.get(this.activeTabId)!.cwd;
     if (opts.cwd) this.rememberCwd(cwd);
     const now = Date.now();
-    const sameKind = [...this.tabs.values()].filter((x) => x.backend === backend).length;
+    const sameKind = [...this.tabs.values()].filter(
+      (x) => x.backend === backend && (!ext || x.pluginId === ext.id),
+    ).length;
+    const baseTitle = ext ? ext.displayName : BACKEND_TITLE[backend];
     const tab: HarnessTabMeta = {
       id: randomUUID(),
       title:
-        opts.title?.trim().slice(0, 60) ||
-        (sameKind ? `${BACKEND_TITLE[backend]} ${sameKind + 1}` : BACKEND_TITLE[backend]),
+        opts.title?.trim().slice(0, 60) || (sameKind ? `${baseTitle} ${sameKind + 1}` : baseTitle),
       backend,
+      ...(ext ? { pluginId: ext.id } : {}),
       cwd,
       cliSessionId: opts.cliSessionId?.trim() || null,
       status: 'idle',
@@ -1010,7 +1037,7 @@ export class HarnessOrchestrator {
     } catch {
       /* */
     }
-    if (tab.backend !== 'nomi') {
+    if (isBuiltinCliId(tab.backend)) {
       this.dropTabBinding(tab);
       this.d.gateway?.releaseAgent(tab.backend, id);
     }
@@ -1050,6 +1077,9 @@ export class HarnessOrchestrator {
     if (backend === 'nomi' && id !== MAIN_TAB_ID) {
       throw new Error(t('新标签只能绑定编程助手后端'));
     }
+    // 外部 CLI 要指定是哪个插件：只能新建标签（createTab 带 pluginId），不能把已有标签换过去
+    if (backend === 'external' || tab.backend === 'external')
+      throw new Error(t('外部 CLI 的标签不能切换后端，请新建标签'));
     if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
     const switched = backend !== tab.backend;
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
@@ -1095,8 +1125,9 @@ export class HarnessOrchestrator {
   /** 新标签的默认来源：显式要第三方且网关里给这个编程助手分配了模型才是第三方 */
   private defaultSource(backend: HarnessBackend, want?: HarnessTabSource): HarnessTabSource {
     const g = this.d.gateway;
-    if (!g || backend === 'nomi') return 'official';
-    const d = g.defaults(backend as CliBackend);
+    // 外部插件（§5.9）不接网关：永远是 CLI 自己的登录
+    if (!g || !isBuiltinCliId(backend)) return 'official';
+    const d = g.defaults(backend as BuiltinBackend);
     const source = want ?? d.source;
     return source === 'thirdParty' && (d.model || want) ? 'thirdParty' : 'official';
   }
@@ -1112,6 +1143,8 @@ export class HarnessOrchestrator {
     const tab = this.requireTab(id);
     if (tab.backend === 'nomi') throw new Error(t('Nomi 对话没有来源可选'));
     if (source !== 'official' && source !== 'thirdParty') throw new Error(t('未知来源'));
+    if (source === 'thirdParty' && tab.backend === 'external')
+      throw new Error(t('外部 CLI 只能使用它自己的登录，不能接第三方模型'));
     if (source === 'thirdParty' && !this.d.gateway) throw new Error(t('模型网关不可用'));
     if (tab.status === 'running' || tab.status === 'queued')
       throw new Error(t('这一轮结束后再切换'));
@@ -1121,7 +1154,7 @@ export class HarnessOrchestrator {
     if (
       source === 'thirdParty' &&
       !ref &&
-      !this.d.gateway?.defaults(tab.backend as CliBackend).model
+      !this.d.gateway?.defaults(tab.backend as BuiltinBackend).model
     )
       throw new Error(t('先在「模型」页给这个编程助手分配一个第三方模型'));
     const hadSession = Boolean(tab.cliSessionId) || this.tabMessages(id).length > 0;
@@ -1257,6 +1290,11 @@ export class HarnessOrchestrator {
 
   /** Gemini / Grok 长驻会话即时切换：session/set_mode 成功后才更新已生效档位 */
   private switchAcpMode(id: string, gl: AcpLiveSession, mode: HarnessPermissionMode) {
+    // 外部插件只有逐项确认、没有模式 id：不发 set_mode，标签档位就是会话档位
+    if (!acpModeId(gl.backend, mode)) {
+      gl.permissionMode = mode;
+      return;
+    }
     const change: ModeChange = { mode, done: Promise.resolve() };
     change.done = gl.driver.setPermissionMode(acpModeId(gl.backend, mode)).then(
       () => {
@@ -1295,7 +1333,9 @@ export class HarnessOrchestrator {
   ): Promise<BackendModelCatalog | null> {
     // 读目录时顺手把这个后端的标签对齐当前来源（重启后第一次打开模型按钮时也正确）
     this.adoptScopes(backend);
-    if (opts.source === 'thirdParty' && backend !== 'nomi') return this.gatewayCatalog(backend);
+    // 外部插件（§5.9）没有模型目录：换模型要 CLI 自己支持，L1 清单不声明
+    if (!isBuiltinCliId(backend)) return null;
+    if (opts.source === 'thirdParty') return this.gatewayCatalog(backend);
     if (!supportsModelOverride(backend)) return null;
     const cached = this.modelCatalogs.get(backend);
     if (!opts.refresh && cached && Date.now() - cached.at < MODEL_CATALOG_TTL_MS) {
@@ -1307,7 +1347,7 @@ export class HarnessOrchestrator {
     const current = () => (this.modelCatalogGen.get(backend) ?? 0) === gen;
     const run = discoverModels(backend, {
       spawn: (b, args) => {
-        const bin = resolveHarnessBin(b);
+        const bin = resolveHarnessBin(b as BuiltinBackend);
         if (!bin) return null;
         const useNode = isScript(bin);
         // 官方来源的目录：用默认账号从 CLI 自己读，不带任何第三方注入
@@ -1346,7 +1386,7 @@ export class HarnessOrchestrator {
   }
 
   /** 第三方来源的模型目录：网关里启用的模型（`供应商/模型`），默认 = 「模型」页给这个编程助手分配的 */
-  private gatewayCatalog(backend: CliBackend): BackendModelCatalog {
+  private gatewayCatalog(backend: BuiltinBackend): BackendModelCatalog {
     const g = this.d.gateway;
     const list = g?.models() ?? [];
     const def = g?.defaults(backend).model ?? null;
@@ -1373,7 +1413,7 @@ export class HarnessOrchestrator {
     if (tab.backend === 'nomi') return null;
     const own = tab.modelOverride?.trim() || null;
     if (this.sourceOf(tab) === 'thirdParty') {
-      const ref = own || this.d.gateway?.defaults(tab.backend as CliBackend).model;
+      const ref = own || this.d.gateway?.defaults(tab.backend as BuiltinBackend).model;
       const m = ref ? this.d.gateway?.models().find((x) => x.ref === ref) : undefined;
       return m && m.vision !== undefined
         ? { model: `${m.provider} / ${m.label}`, vision: m.vision }
@@ -1487,7 +1527,7 @@ export class HarnessOrchestrator {
 
   /** 标签的来源：第三方（经统一网关）/ 官方账号（CLI 自带配置） */
   private sourceOf(tab: HarnessTabMeta): HarnessTabSource {
-    return tab.backend !== 'nomi' && tab.source === 'thirdParty' && this.d.gateway
+    return isBuiltinCliId(tab.backend) && tab.source === 'thirdParty' && this.d.gateway
       ? 'thirdParty'
       : 'official';
   }
@@ -1548,7 +1588,7 @@ export class HarnessOrchestrator {
     if (scope) {
       const own = (tab.modelScope ?? null) === scope ? tab.modelOverride?.trim() : '';
       return {
-        model: own || this.d.gateway?.defaults(tab.backend as CliBackend).model || null,
+        model: own || this.d.gateway?.defaults(tab.backend as BuiltinBackend).model || null,
         effort: null,
       };
     }
@@ -1565,7 +1605,7 @@ export class HarnessOrchestrator {
     if (this.sourceOf(tab) === 'official') return this.officialLaunch(tab.backend, tab.accountId);
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
-    const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
+    const l = this.d.gateway!.launch(tab.backend as BuiltinBackend, tab.id, model);
     if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
     // 按标签令牌启动的进程以实际启动为准：占位模型名时配置里没有真实模型，换模型不必重启（§6.7）
     const bound = this.needsTabBinding(tab) ? this.tabBindings.get(tab.id) : undefined;
@@ -1603,7 +1643,12 @@ export class HarnessOrchestrator {
     const model = this.effectiveOverrides(tab).model;
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
     const effort = this.effectiveOverrides(tab).effort ?? undefined;
-    const r = await this.d.gateway!.launchForTab!(tab.backend as CliBackend, tab.id, model, effort);
+    const r = await this.d.gateway!.launchForTab!(
+      tab.backend as BuiltinBackend,
+      tab.id,
+      model,
+      effort,
+    );
     if (!r) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
     this.tabBindings.set(tab.id, {
       generation: r.generation,
@@ -1625,7 +1670,7 @@ export class HarnessOrchestrator {
     child.once('close', () => {
       if (this.tabBindings.get(tab.id)?.generation !== generation) return;
       this.tabBindings.delete(tab.id);
-      this.d.gateway?.releaseTab?.(tab.backend as CliBackend, tab.id);
+      this.d.gateway?.releaseTab?.(tab.backend as BuiltinBackend, tab.id);
     });
   }
 
@@ -1639,7 +1684,7 @@ export class HarnessOrchestrator {
     const o = this.effectiveOverrides(tab);
     if (!o.model || o.model === bound.model) return;
     const ok = await this.d.gateway!.updateTab?.(
-      tab.backend as CliBackend,
+      tab.backend as BuiltinBackend,
       tab.id,
       o.model,
       o.effort ?? undefined,
@@ -1650,7 +1695,24 @@ export class HarnessOrchestrator {
   /** 标签关闭 / 换成官方来源：作废它的标签令牌 */
   private dropTabBinding(tab: HarnessTabMeta): void {
     if (!this.tabBindings.delete(tab.id)) return;
-    this.d.gateway?.releaseTab?.(tab.backend as CliBackend, tab.id);
+    this.d.gateway?.releaseTab?.(tab.backend as BuiltinBackend, tab.id);
+  }
+
+  /** 外部插件的清单；不存在 / 已删除时报错（标签保留，用户可以在设置里重新添加） */
+  private externalSpecOf(id: string | undefined): ExternalCliSpec {
+    const spec = id ? this.d.externals?.spec(id) : undefined;
+    if (!spec)
+      throw new Error(
+        t('外部 CLI {0} 已被删除或清单无效，请在「设置 → 编程助手 → 添加 CLI」里检查', id ?? '?'),
+      );
+    return spec;
+  }
+
+  /** 外部插件被删除：停掉用它的标签进程（标签与对话保留，再发消息时提示） */
+  externalRemoved(pluginId: string): void {
+    for (const tab of this.tabs.values())
+      if (tab.backend === 'external' && tab.pluginId === pluginId) this.teardownAcpLive(tab.id);
+    this.changed();
   }
 
   /** 标签绑定 CLI 会话；官方来源时把会话记到所用账号名下 */
@@ -1867,7 +1929,9 @@ export class HarnessOrchestrator {
         this.d.logger.info('harness codex prewarm skipped', { error: String(e) });
       });
     } else if (
-      (tab.backend === 'gemini' || (tab.backend === 'grok' && this.usesGrokAcp())) &&
+      (tab.backend === 'gemini' ||
+        tab.backend === 'external' ||
+        (tab.backend === 'grok' && this.usesGrokAcp())) &&
       !this.acpLive.has(id)
     ) {
       // 握手失败（未受信任的文件夹 / 旧版 CLI）时会话已拆除；错误留给第一条消息照常报告
@@ -2076,7 +2140,7 @@ export class HarnessOrchestrator {
             ? await this.runDsh(tab, toCli)
             : backend === 'grok'
               ? await this.runGrokTurn(tab, toCli, abort.signal, normalized)
-              : backend === 'gemini'
+              : backend === 'gemini' || backend === 'external'
                 ? await this.runAcp(tab, toCli, abort.signal, normalized)
                 : await this.runCodexTurn(tab, toCli, abort.signal, staged);
       if (result.sessionId && tab.backend === backend && tab.cwd === runCwd)
@@ -2595,16 +2659,37 @@ export class HarnessOrchestrator {
     }
     if (existing) this.teardownAcpLive(tab.id);
     const spawnLaunch = await this.bindTabLaunch(tab, launch);
-    const backend: AcpBackend = tab.backend === 'grok' ? 'grok' : 'gemini';
-    const bin = resolveHarnessBin(backend);
-    if (!bin)
-      throw new Error(
-        backend === 'grok'
-          ? t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')
-          : t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'),
-      );
+    const backend: AcpBackend =
+      tab.backend === 'grok' ? 'grok' : tab.backend === 'external' ? 'external' : 'gemini';
+    // 外部插件（§5.9）：命令与参数来自用户的清单，参数模板只做占位符替换、不经 shell
+    const ext = backend === 'external' ? this.externalSpecOf(tab.pluginId) : undefined;
+    const name = acpDisplayName(backend, ext);
+    let bin: string;
+    let argv: string[];
+    if (ext) {
+      const missing = missingExternalEnv(ext, process.env);
+      if (missing.length)
+        throw new Error(
+          t(
+            '{0} 需要环境变量 {1}，请先在启动 Nomi 的环境里设置',
+            ext.displayName,
+            missing.join(', '),
+          ),
+        );
+      bin = ext.command;
+      argv = renderExternalArgs(ext.args, { cwd: tab.cwd, home: this.home });
+    } else {
+      const found = resolveHarnessBin(backend === 'grok' ? 'grok' : 'gemini');
+      if (!found)
+        throw new Error(
+          backend === 'grok'
+            ? t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')
+            : t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'),
+        );
+      bin = found;
+      argv = backend === 'grok' ? ['agent', 'stdio'] : ['--acp'];
+    }
     const useNode = isScript(bin);
-    const argv = backend === 'grok' ? ['agent', 'stdio'] : ['--acp'];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
@@ -2677,12 +2762,24 @@ export class HarnessOrchestrator {
         const r = await driver.start({ cwd: tab.cwd, resumeId: tab.cliSessionId, ...opts });
         sid = r.sessionId;
         modeNow = r.currentModeId;
+        // 外部插件：握手报告的能力收窄注册表里的能力位（不认图片就不显示图片按钮等）
+        if (ext)
+          this.d.externals?.handshake?.(ext.id, {
+            images: r.capabilities?.images === true,
+            resume: r.capabilities?.loadSession === true,
+          });
       } catch (e) {
         if (e instanceof Error && e.message === 'ACP agent returned no session') sid = null;
         else throw e;
       }
       if (!sid)
-        throw new Error(backend === 'grok' ? t('Grok 没有返回会话') : t('Gemini 没有返回会话'));
+        throw new Error(
+          backend === 'grok'
+            ? t('Grok 没有返回会话')
+            : backend === 'gemini'
+              ? t('Gemini 没有返回会话')
+              : t('{0} 没有返回会话', name),
+        );
       live.sessionId = sid;
       // 历史文件没有权限字段时，以 ACP 返回的 currentModeId 为准。
       // 以前这里总是把 Nomi 默认档位写回 CLI，会让打开历史会话时静默改变它原来的安全等级。
@@ -2711,8 +2808,9 @@ export class HarnessOrchestrator {
       }
       // 权限模式必须得到确认：失败 / 超时就不发送这一轮（不在未确认的档位下跑，#72）。
       // 会话本来就在目标模式（session/new / load 报告的 currentModeId）时不必再切。
+      // 外部插件没有模式 id（只有逐项确认）：不发 set_mode
       const want = acpModeId(backend, initMode);
-      if (!adoptedHistoryMode && modeNow !== want)
+      if (want && !adoptedHistoryMode && modeNow !== want)
         await driver.setPermissionMode(want, opts).catch((e: unknown) => {
           const why = innermostMessage(e instanceof Error ? e.message : String(e));
           throw new Error(
@@ -2732,6 +2830,12 @@ export class HarnessOrchestrator {
       // Grok 握手阶段就退出 / 不认识 ACP：交给 sendTab 退回 `grok -p`
       if (backend === 'grok' && e instanceof Error && e.message === 'ACP process exited')
         throw new AcpUnavailableError(t('Grok 没能启动 ACP 会话'), { cause: e });
+      // 外部 CLI 握手阶段就退出：多半是参数不对或它不说 ACP；带上 stderr 末尾方便排查
+      if (ext && e instanceof Error && e.message === 'ACP process exited')
+        throw new Error(
+          t('{0} 没能启动 ACP 会话：{1}', name, stderrTail.trim().slice(-300) || t('进程已退出')),
+          { cause: e },
+        );
       // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
       if (
         e instanceof Error &&
@@ -2786,7 +2890,7 @@ export class HarnessOrchestrator {
         this.allowIfBypass(tabId, ev.id, () =>
           this.events.emit('permission-needed', {
             tabId,
-            title: tab?.title ?? (live.backend === 'grok' ? 'Grok' : 'Gemini'),
+            title: tab?.title ?? acpDisplayName(live.backend),
             backend: live.backend as HarnessBackend,
             summary: ev.summary,
             background: this.activeTabId !== tabId || !anyWindowFocused(),
@@ -3781,7 +3885,7 @@ export class HarnessOrchestrator {
       cmd: string;
       argv: string[];
       parseLine: (line: string) => HarnessEvent[];
-      kind: CliBackend;
+      kind: BuiltinBackend;
       env?: Record<string, string>;
       /** 来源注入（第三方：网关；官方：剔除网关残留）；缺省按官方 */
       launch?: TabLaunch;
@@ -4291,7 +4395,14 @@ type ClaudeTurnWaiter = {
   settled: boolean;
 };
 
-type AcpBackend = 'gemini' | 'grok';
+type AcpBackend = 'gemini' | 'grok' | 'external';
+
+/** ACP 后端的显示名：外部插件用清单里的名称 */
+function acpDisplayName(backend: AcpBackend, ext?: ExternalCliSpec): string {
+  if (backend === 'grok') return 'Grok';
+  if (backend === 'gemini') return 'Gemini';
+  return ext?.displayName ?? 'CLI';
+}
 
 type CodexTurn = {
   events: HarnessEvent[];

@@ -31,6 +31,7 @@ import { initCliHarnessService } from '../cli/CliHarnessService';
 import { initCliPluginHost } from '../cli/CliPluginHost';
 import { initCliUpdateService } from '../cli/CliUpdateService';
 import { resolveCliBinAsync, readVersionAsync } from '../cli/detect';
+import { cliChildEnv, isScript, spawnHarness } from '../cli/harness/spawn';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { extendBuiltinPlugin } from '../cli/pluginExtensions';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
@@ -491,6 +492,19 @@ export class Application implements IApplication {
         onVersionChange: (id) => {
           if (isBuiltinCliId(id)) harness.restartForUpgrade(id);
         },
+        // 外部插件（§5.9）「测试」按钮：与标签同一套启动（Windows 垫片、诊断记录），不带网关 / 账号注入
+        spawnExternal: (command, args, cwd) => {
+          const useNode = isScript(command);
+          return spawnHarness(
+            useNode ? process.execPath : command,
+            useNode ? [command, ...args] : args,
+            {
+              cwd,
+              env: cliChildEnv(useNode),
+            },
+          );
+        },
+        onExternalRemoved: (id) => harness.externalRemoved(id),
       });
       cliPlugins.registerIpc();
       void cliPlugins.start();
@@ -663,6 +677,12 @@ export class Application implements IApplication {
           noteSession: (kind, sessionId, accountId) =>
             accounts.noteSession(kind, sessionId, accountId),
         },
+        // 外部插件（§5.9）：通用 ACP 后端；握手报告的能力只能收窄注册表里的能力位
+        externals: {
+          spec: (id) => cliPlugins.externalSpec(id),
+          handshake: (id, caps) =>
+            cliPlugins.setHandshake(id, { images: caps.images, resume: caps.resume }),
+        },
         // 新建 / 切到 Claude 会话时预先拉起长驻进程；NOMI_HARNESS_PREWARM=0 关闭
         prewarmClaude: process.env.NOMI_HARNESS_PREWARM !== '0',
         // Grok 走 ACP 长驻会话（grok agent stdio）；NOMI_GROK_ACP=0 退回每轮一个进程的 grok -p
@@ -701,10 +721,23 @@ export class Application implements IApplication {
       }).registerIpc();
       // 监视器汇总 Nomi 标签；任一标签一轮结束 → 看板娘 / 灵动岛
       agents.attachHarness({
-        tabs: () => harness.listTabs().tabs,
+        // 外部插件（§5.9）没有进度监视能力：不进监视器
+        tabs: () =>
+          harness
+            .listTabs()
+            .tabs.filter(
+              (x): x is typeof x & { backend: Exclude<typeof x.backend, 'external'> } =>
+                x.backend !== 'external',
+            ),
         onTabs: (fn) => harness.events.on('tabs', fn),
-        onFinished: (fn) => harness.events.on('tab-finished', fn),
-        onPermission: (fn) => harness.events.on('permission-needed', fn),
+        onFinished: (fn) =>
+          harness.events.on('tab-finished', (e) => {
+            if (e.backend !== 'external') fn(e);
+          }),
+        onPermission: (fn) =>
+          harness.events.on('permission-needed', (e) => {
+            if (e.backend !== 'external') fn(e);
+          }),
         progress: (id) => harness.progressHint(id),
       });
 

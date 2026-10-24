@@ -27,6 +27,8 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
   // Grok 走 ACP（grok agent stdio）：有审批请求、没有「自动」
   grok: ['plan', 'manual', 'acceptEdits', 'bypass'],
   gemini: ['plan', 'manual', 'acceptEdits', 'bypass'],
+  // 外部 CLI（L1，§5.9）只有逐项确认：每次工具调用都经 ACP 权限请求由你批准
+  external: ['manual'],
 };
 
 export const isPermissionMode = (v: unknown): v is PermissionMode =>
@@ -40,7 +42,9 @@ export function supportedModes(backend: HarnessBackend): readonly PermissionMode
 export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): PermissionMode {
   const ok = supportedModes(backend);
   if (ok.includes(mode)) return mode;
-  return mode === 'manual' ? 'plan' : 'acceptEdits';
+  const next = mode === 'manual' ? 'plan' : 'acceptEdits';
+  // 外部插件（§5.9）只有逐项确认：降不到计划 / 自动改文件时用它支持的第一档
+  return ok.includes(next) || !ok.length ? next : ok[0]!;
 }
 
 export function modeLabel(mode: PermissionMode): string {

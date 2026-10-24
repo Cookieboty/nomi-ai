@@ -4,7 +4,7 @@ import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
 
-export type HarnessBackend = 'nomi' | BuiltinCliId;
+export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
 
 export interface HarnessState {
   backend: HarnessBackend;
@@ -21,6 +21,11 @@ export interface HarnessTabMeta {
   id: string;
   title: string;
   backend: HarnessBackend;
+  /**
+   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。
+   * 插件被删除后标签保留，发消息时报错。
+   */
+  pluginId?: string;
   cwd: string;
   cliSessionId: string | null;
   status: HarnessTabStatus;
@@ -373,6 +378,8 @@ export const harnessClient = {
     cwd?: string;
     title?: string;
     messages?: HarnessTabMessage[];
+    /** backend = 'external' 时：外部插件 id（「添加 CLI」，§5.9） */
+    pluginId?: string;
   }) => call<HarnessTabMeta>('tab-create', o),
   seedTabMessages: (id: string, messages: HarnessTabMessage[]) =>
     call<HarnessTabMeta>('tab-seed', id, messages),

@@ -5,13 +5,15 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+
 import { traceCliChild } from '../../diagnostics/cliTrace';
 import { buildCliEnv } from '../cliEnv';
 import { resolveHarnessLaunch } from '../cliLaunch';
 import { peekCliBin, resolveCliBinCached, withCliPath } from '../detect';
-import type { HarnessBackend } from '../types';
 
-type CliBackend = Exclude<HarnessBackend, 'nomi'>;
+/** 内置编程助手：外部插件（'external'）的可执行文件来自它自己的清单，不走这里 */
+type CliBackend = BuiltinCliId;
 
 function mockDir(): string {
   // packages/electron/scripts/mock-cli（开发）或随包 resources

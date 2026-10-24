@@ -3,7 +3,7 @@ import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { HarnessEvent, HarnessPermissionMode, HarnessUsage } from '@nomi-ai/cli-sdk';
 
 /** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 按插件目录生成，P9.4） */
-export type HarnessBackend = 'nomi' | BuiltinCliId;
+export type HarnessBackend = 'nomi' | BuiltinCliId | 'external';
 
 /**
  * 编程助手权限模式（Nomi 统一五档，映射见 cli/permissionMode.ts）：
@@ -115,6 +115,11 @@ export interface HarnessTabMeta {
   id: string;
   title: string;
   backend: HarnessBackend;
+  /**
+   * backend 为 'external' 时：用哪个外部插件（「设置 → 编程助手 → 添加 CLI」里的 id，§5.9）。
+   * 插件被删除后标签保留，发消息时报错。
+   */
+  pluginId?: string;
   cwd: string;
   cliSessionId: string | null;
   status: HarnessTabStatus;

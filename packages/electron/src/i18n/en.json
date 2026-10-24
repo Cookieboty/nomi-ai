@@ -646,5 +646,12 @@
   "网关拒绝了标签绑定：{0}": "The gateway rejected the tab binding: {0}",
   "网关没有在运行，无法启动第三方会话": "The gateway isn't running, so the third-party session can't start",
   "网关没有确认标签绑定（超时）": "The gateway didn't confirm the tab binding (timed out)",
-  "还有 {0} 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。": "{0} session(s) are still using this CLI. Windows can’t replace a running program, so wait for them to finish before updating."
+  "还有 {0} 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。": "{0} session(s) are still using this CLI. Windows can’t replace a running program, so wait for them to finish before updating.",
+  "外部 CLI 的标签不能切换后端，请新建标签": "An external CLI tab can’t switch to another assistant. Open a new tab instead",
+  "外部 CLI 只能使用它自己的登录，不能接第三方模型": "An external CLI only uses its own sign-in and can’t use third-party models",
+  "外部 CLI {0} 已被删除或清单无效，请在「设置 → 编程助手 → 添加 CLI」里检查": "The external CLI {0} was deleted or its manifest is invalid. Check it in Settings → Coding assistants → Add CLI",
+  "{0} 需要环境变量 {1}，请先在启动 Nomi 的环境里设置": "{0} needs the environment variables {1}. Set them in the environment you start Nomi from",
+  "{0} 没有返回会话": "{0} didn’t return a session",
+  "{0} 没能启动 ACP 会话：{1}": "{0} couldn’t start an ACP session: {1}",
+  "进程已退出": "the process exited"
 }
