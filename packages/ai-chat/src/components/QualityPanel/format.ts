@@ -129,6 +129,8 @@ export const dimensionLabel = (d: QualityDimension): string =>
     protocol: t('协议'),
     resolved: t('模型解析方式'),
     outcome: t('结果'),
+    routeQuality: t('路由质量'),
+    loss: t('主损失'),
   })[d];
 
 /** 所有结果类别（顺序即筛选菜单顺序） */

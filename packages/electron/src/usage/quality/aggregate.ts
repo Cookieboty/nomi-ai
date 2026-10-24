@@ -141,6 +141,11 @@ function dimOf(u: Unit, dim: QualityDimension): string | null {
       return r.resolved ?? null;
     case 'outcome':
       return u.outcome;
+    case 'routeQuality':
+      return r.routeQuality ?? null;
+    case 'loss':
+      // 主损失 = losses[0]：有序、基数小；多损失完整列表在记录与网关 /metrics
+      return r.losses?.[0] ?? null;
   }
 }
 
@@ -451,7 +456,14 @@ export function facetsOf(
   labelOf?: QualityLabelOf,
 ): QualityFacets {
   const reqs = unitsOf(inRange(records, q), 'request');
-  const dims: QualityDimension[] = ['client', 'provider', 'modelFamily', 'key'];
+  const dims: QualityDimension[] = [
+    'client',
+    'provider',
+    'modelFamily',
+    'key',
+    'routeQuality',
+    'loss',
+  ];
   const out: QualityFacets = {};
   for (const dim of dims) {
     const by = groupUnits(reqs, dim);

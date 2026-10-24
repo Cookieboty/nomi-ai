@@ -71,3 +71,4 @@ export { UsageTap, usageOfJson } from './usageTap';
 export * from './trace';
 // 模型质量：每次请求的结果分类、时间点与尝试（docs/design/model-quality.md §4.1）
 export * from './quality';
+export * from './metrics';

@@ -115,6 +115,13 @@ export interface QualityRecord {
   traceId?: string;
   /** 网关对请求做的修正（如去掉了 temperature、压低了输出上限、省略了图片），只有网关层有 */
   notes?: string[];
+  /**
+   * RoutePlan 预期损失（网关层；字符串与 gateway Loss 对齐）。
+   * 聚合维度 `loss` 取 losses[0]（主损失），避免组合键基数爆炸；完整列表仍落盘供明细与 /metrics。
+   */
+  losses?: string[];
+  /** RoutePlan 质量档（网关层；字段名避开 outcome） */
+  routeQuality?: 'lossless' | 'good' | 'degraded';
 }
 
 /** 请求明细的一行：记录本身 + 主进程补的展示名（不落盘） */
@@ -139,7 +146,14 @@ export type QualityDimension =
   | 'source'
   | 'protocol'
   | 'resolved'
-  | 'outcome';
+  | 'outcome'
+  /** RoutePlan 质量档 lossless | good | degraded */
+  | 'routeQuality'
+  /**
+   * 主损失：取 QualityRecord.losses[0]（有序；见 lossesOf）。
+   * 不用 losses 组合当键，避免基数爆炸；多损失明细仍在记录与网关 /metrics.byLoss。
+   */
+  | 'loss';
 
 export interface QualityQuery {
   from: number;

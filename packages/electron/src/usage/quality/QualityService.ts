@@ -54,6 +54,8 @@ const DIMENSIONS: readonly QualityDimension[] = [
   'protocol',
   'resolved',
   'outcome',
+  'routeQuality',
+  'loss',
 ];
 const SERIES_METRICS: readonly QualitySeriesQuery['metric'][] = [
   'requests',

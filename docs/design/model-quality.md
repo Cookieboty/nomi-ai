@@ -229,3 +229,4 @@ interface AttemptRecord {
 - **聚合在主进程里算**：30 天 × 每天 5000 次请求时，未命中缓存的分组查询约 0.5 秒；最近 7 天常驻内存、结果有缓存。数据量再大时把聚合挪到 worker 线程。
 - **CSV**：请求明细一次最多导出 1000 条。
 - **网关包不依赖 `@nomi-ai/types`**：结果类别、时间点、尝试记录在网关里按契约另写一份，electron 测试在编译期核对两份一致。
+- **RoutePlan → 质量账本与实时指标**：`UsageEvent` / `QualityRecord` 增加 `losses`、`routeQuality`（避开与 `outcome` 撞名）；主进程维度 `routeQuality` 与 `loss`（`loss` = `losses[0]` 主损失，避免组合键爆炸；完整 `losses[]` 仍落盘）。网关进程另提供 `GET /metrics`（与 `/health` 同 Host 校验、无需令牌）：进程内有界计数 + 分位数水库，按 routeQuality / loss / (client, ingress, upstream, routeQuality) 给出实时快照，重启清零。

@@ -245,3 +245,30 @@ describe('listRequests', () => {
     expect(g.items.map((x) => x.client)).toEqual(['grok']);
   });
 });
+
+describe('routeQuality / loss 维度', () => {
+  it('按 routeQuality 分组；loss 取 losses[0] 主损失', () => {
+    const rs = [
+      rec({ routeQuality: 'lossless' }),
+      rec({ routeQuality: 'good', losses: ['signature', 'cache-control'] }),
+      rec({ routeQuality: 'good', losses: ['signature'] }),
+      rec({ routeQuality: 'degraded', losses: ['sealed-reasoning', 'images'] }),
+      rec({}), // 无 RoutePlan 字段：不进 routeQuality / loss 组
+    ];
+    expect(
+      queryQuality(rs, q({ groupBy: 'routeQuality' })).groups.map((g) => [g.key, g.requests]),
+    ).toEqual([
+      ['good', 2],
+      ['degraded', 1], // 同 n 时按 key 字典序
+      ['lossless', 1],
+    ]);
+    expect(queryQuality(rs, q({ groupBy: 'loss' })).groups.map((g) => [g.key, g.requests])).toEqual(
+      [
+        ['signature', 2],
+        ['sealed-reasoning', 1],
+      ],
+    );
+    expect(queryQuality(rs, q({ filters: { routeQuality: ['degraded'] } })).total.requests).toBe(1);
+    expect(queryQuality(rs, q({ filters: { loss: ['signature'] } })).total.requests).toBe(2);
+  });
+});

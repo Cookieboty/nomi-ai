@@ -159,6 +159,23 @@ describe('fromGateway', () => {
     expect(c2.cancelPhase).toBe('before-first');
   });
 
+  it('RoutePlan：losses / routeQuality 映射与清洗', () => {
+    const r = fromGateway(
+      {
+        ...base,
+        losses: ['signature', 'cache-control', 'evil', 'signature'],
+        routeQuality: 'good',
+      } as typeof base,
+      { id: 'rq' },
+    );
+    expect(r.routeQuality).toBe('good');
+    expect(r.losses).toEqual(['signature', 'cache-control']);
+    expect(
+      fromGateway({ ...base, routeQuality: 'nope' } as typeof base, { id: 'b' }).routeQuality,
+    ).toBeUndefined();
+    expect(fromGateway(base, { id: 'c' }).losses).toBeUndefined();
+  });
+
   it('推断结果：状态码与错误文本', () => {
     expect(deriveOutcome(401)).toBe('auth');
     expect(deriveOutcome(429)).toBe('rate-limit');

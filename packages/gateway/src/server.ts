@@ -34,6 +34,7 @@ import { readIntent } from './intent';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { limitsOf, Limiter } from './limits';
+import { GatewayMetrics } from './metrics';
 import { modelsBody } from './models';
 import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
@@ -58,6 +59,7 @@ import {
   isTabToken,
   type TabBinding,
 } from './route/binding';
+import type { Loss } from './route/plan';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
 import { SessionTable } from './sessions';
 import type { StreamUsage } from './stream';
@@ -154,6 +156,10 @@ export interface UsageEvent {
   mode?: 'passthrough' | 'convert';
   /** 上游真实模型名 */
   upstreamModel?: string;
+  /** RoutePlan 预期损失（docs/design/model-quality.md；与 outcome 无关） */
+  losses?: Loss[];
+  /** RoutePlan 质量档：lossless | good | degraded（字段名避开 outcome） */
+  routeQuality?: 'lossless' | 'good' | 'degraded';
 }
 
 export interface GatewayHooks {
@@ -305,6 +311,8 @@ export class GatewayServer {
   private readonly limiter: Limiter;
   private readonly affinity: Affinity;
   private readonly sessions: SessionTable;
+  /** 进程内实时 RoutePlan 指标（GET /metrics；重启清零） */
+  readonly metrics: GatewayMetrics;
 
   constructor(
     private cfg: GatewayConfig,
@@ -323,6 +331,7 @@ export class GatewayServer {
       this.hooks.logger?.info('gateway learned', e);
       this.hooks.onLearn?.(e);
     });
+    this.metrics = new GatewayMetrics({ now });
   }
 
   /** 换新配置：进行中的请求继续用各自拿到的旧快照 */
@@ -414,6 +423,11 @@ export class GatewayServer {
       sendJson(res, 200, { ok: true, service: 'nomi-gateway', version: GATEWAY_VERSION });
       return;
     }
+    // 实时 RoutePlan 指标：与 /health 相同 Host 校验、不需要客户端令牌
+    if (req.method === 'GET' && url.pathname === '/metrics') {
+      sendJson(res, 200, this.metrics.snapshot());
+      return;
+    }
     // 不设 CORS，浏览器发来的跨站请求一律拒绝
     if (req.headers.origin) {
       sendJson(res, 403, { error: 'browser requests are not allowed' });
@@ -488,11 +502,15 @@ export class GatewayServer {
     };
     /** 每个客户端请求恰好上报一次用量 / 质量事件（docs/design/model-quality.md §4.1） */
     let reported = false;
+    /** 解析成功后的候选；胜出候选优先，否则用第一个的 RoutePlan */
+    let resolvedCands: Candidate[] = [];
+    const win: { cand?: Candidate } = {};
     const report = (e: Omit<UsageEvent, 'client' | 'ingress' | 'startedAt' | 'ms'>) => {
       if (reported) return;
       reported = true;
       const ms = Date.now() - startedAt;
-      this.hooks.onUsage?.({
+      const plan = (win.cand ?? resolvedCands[0])?.plan;
+      const event: UsageEvent = {
         client,
         ingress: ingress.wire,
         startedAt,
@@ -500,7 +518,25 @@ export class GatewayServer {
         ...e,
         timing: { ...e.timing, endMs: ms },
         ...tag,
+        ...(plan
+          ? {
+              routeQuality: plan.quality,
+              ...(plan.losses.length ? { losses: plan.losses } : {}),
+            }
+          : {}),
+      };
+      this.metrics.observe({
+        client: event.client,
+        ingress: event.ingress,
+        ...(event.wire ? { upstream: event.wire } : {}),
+        ...(event.routeQuality ? { routeQuality: event.routeQuality } : {}),
+        ...(event.losses?.length ? { losses: event.losses } : {}),
+        e2eMs: event.timing.endMs,
+        ...(event.timing.firstContentMs !== undefined
+          ? { ttftMs: event.timing.firstContentMs }
+          : {}),
       });
+      this.hooks.onUsage?.(event);
     };
     /** 请求没走到任何候选就结束（请求体 / 模型解析失败）：只有结果与状态码 */
     const reportLocal = (status: number, message: string) =>
@@ -547,6 +583,7 @@ export class GatewayServer {
       return;
     }
     if (r.resolution) tag.resolved = r.resolution.how;
+    resolvedCands = r.candidates;
     // 路由计划的影子模式（§6.9.4）：新计划与现有规则选的协议不同就写日志，观察一个版本再切换
     const plan = r.candidates[0]?.plan;
     if (plan?.legacy && plan.legacy !== plan.upstream)
@@ -826,6 +863,7 @@ export class GatewayServer {
       return;
     }
     const { res: up, cand, stage } = last;
+    win.cand = cand;
     // 模型解析的备注、请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...resolveNotes, ...(last.notes ?? [])];
     const mode = bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions);

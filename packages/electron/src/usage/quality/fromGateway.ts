@@ -46,6 +46,8 @@ export interface GatewayQualityFields {
   reasoning?: boolean;
   mode?: string;
   upstreamModel?: string;
+  losses?: unknown;
+  routeQuality?: unknown;
 }
 
 export type GatewayQualityEvent = GatewayUsageEventLike & GatewayQualityFields;
@@ -204,6 +206,10 @@ export function fromGateway(e: GatewayQualityEvent, o: FromGatewayOptions): Qual
     rec.traceId = e.traceId;
   const notes = cleanNotes(e.notes);
   if (notes) rec.notes = notes;
+  const losses = cleanLosses(e.losses);
+  if (losses) rec.losses = losses;
+  const rq = cleanRouteQuality(e.routeQuality);
+  if (rq) rec.routeQuality = rq;
   if (typeof e.tabId === 'string' && /^[A-Za-z0-9_:.-]{1,80}$/.test(e.tabId)) rec.tabId = e.tabId;
   if (Number.isInteger(e.generation) && e.generation! > 0) rec.generation = e.generation;
   const priceModel = upstreamModel ?? family ?? model;
@@ -224,6 +230,16 @@ export function sanitizeRecord(v: unknown): QualityRecord | null {
   if (!r.timing || typeof r.timing.endMs !== 'number') return null;
   if (!r.tokens || typeof r.tokens !== 'object') return null;
   if (r.source !== 'nomi' && r.source !== 'official' && r.source !== 'thirdParty') return null;
+  if (r.routeQuality !== undefined) {
+    const rq = cleanRouteQuality(r.routeQuality);
+    if (!rq) return null;
+    r.routeQuality = rq;
+  }
+  if (r.losses !== undefined) {
+    const losses = cleanLosses(r.losses);
+    if (losses) r.losses = losses;
+    else delete r.losses;
+  }
   return r;
 }
 
@@ -235,4 +251,29 @@ export function cleanNotes(v: unknown): string[] | undefined {
     .slice(0, 8)
     .map((x) => x.trim().slice(0, 120));
   return out.length ? out : undefined;
+}
+
+/** 与 gateway Loss 对齐的白名单（未知值丢弃，防任意字符串撑爆维度） */
+const KNOWN_LOSSES = new Set([
+  'sealed-reasoning',
+  'signature',
+  'thought-signature',
+  'cache-control',
+  'freeform-tools',
+  'images',
+  'passthrough',
+  'reasoning-control',
+]);
+
+export function cleanLosses(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: string[] = [];
+  for (const x of v.slice(0, 16)) {
+    if (typeof x === 'string' && KNOWN_LOSSES.has(x) && !out.includes(x)) out.push(x);
+  }
+  return out.length ? out : undefined;
+}
+
+export function cleanRouteQuality(v: unknown): QualityRecord['routeQuality'] | undefined {
+  return v === 'lossless' || v === 'good' || v === 'degraded' ? v : undefined;
 }

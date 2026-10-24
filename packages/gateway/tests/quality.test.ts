@@ -119,7 +119,10 @@ describe('model quality · gateway capture', () => {
       mode: 'passthrough',
       upstreamModel: 'glm-5',
       attempts: 1,
+      // chat→chat 透传：RoutePlan lossless，无 losses
+      routeQuality: 'lossless',
     });
+    expect(e.losses).toBeUndefined();
     expect(e.attemptsDetail).toEqual([
       expect.objectContaining({ provider: 'zp', keyId: 'k1', outcome: 'ok', status: 200 }),
     ]);

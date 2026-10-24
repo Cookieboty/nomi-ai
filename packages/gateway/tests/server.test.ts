@@ -130,6 +130,13 @@ describe('gateway: access control', () => {
       ok: true,
       service: 'nomi-gateway',
     });
+    expect(await (await fetch(`${url}/metrics`)).json()).toMatchObject({
+      ok: true,
+      requests: 0,
+      byRouteQuality: {},
+      byLoss: {},
+      byClientIngressUpstream: [],
+    });
     const noTok = await post(url, '/v1/messages', { model: 'x' });
     expect(noTok.status).toBe(401);
     expect(await noTok.json()).toMatchObject({
