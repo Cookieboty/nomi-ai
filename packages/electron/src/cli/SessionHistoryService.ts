@@ -21,6 +21,15 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 import {
+  claude as claudePlugin,
+  codex as codexPlugin,
+  dsh as dshPlugin,
+  gemini as geminiPlugin,
+  grok as grokPlugin,
+} from '@nomi-ai/cli-plugins/main';
+import type { HistoryCapability } from '@nomi-ai/cli-sdk';
+
+import {
   foldGeminiChat,
   parseGeminiSession,
   geminiText,
@@ -46,6 +55,15 @@ import type {
   HarnessTabMeta,
   HarnessTabSource,
 } from './types';
+
+/** 各 CLI 的历史文件扫描（插件给出） */
+const HISTORY_SCAN: Record<HistoryBackend, HistoryCapability> = {
+  claude: claudePlugin.history,
+  codex: codexPlugin.history,
+  dsh: dshPlugin.history,
+  gemini: geminiPlugin.history,
+  grok: grokPlugin.history,
+};
 
 export const HISTORY_PAGE_SIZE = 20;
 /** 历史会话最多展示的条数（列表与搜索索引共同的硬上限，按 mtime 取最近的 N 条） */
@@ -202,33 +220,6 @@ async function readTailText(
   }
 }
 
-async function readdir(d: string): Promise<fs.Dirent[]> {
-  try {
-    return await fs.promises.readdir(d, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-}
-
-async function statAll(paths: Array<{ path: string; dirId?: string }>): Promise<FileEntry[]> {
-  const out: FileEntry[] = [];
-  for (let i = 0; i < paths.length; i += 128) {
-    const chunk = paths.slice(i, i + 128);
-    const res = await Promise.all(
-      chunk.map(async (c) => {
-        try {
-          const st = await fs.promises.stat(c.path);
-          return { ...c, mtime: st.mtimeMs, size: st.size } as FileEntry;
-        } catch {
-          return null;
-        }
-      }),
-    );
-    for (const r of res) if (r) out.push(r);
-  }
-  return out;
-}
-
 export function zstdDecode(buf: Buffer): Promise<string> {
   const native = (zlib as unknown as { zstdDecompressSync?: (b: Buffer) => Buffer })
     .zstdDecompressSync;
@@ -277,84 +268,37 @@ export class SessionHistoryService {
         : path.join(this.home, '.dsh'));
   }
 
+  /** 各后端会话文件的根目录（尊重各 CLI 的目录变量；Gemini / dsh 可由构造参数覆盖） */
+  private historyRoot(backend: HistoryBackend): string {
+    const env = this.d.env ?? process.env;
+    switch (backend) {
+      case 'claude':
+        return path.join(claudeConfigDir(this.home, env), 'projects');
+      case 'codex':
+        return path.join(codexHomeDir(this.home, env), 'sessions');
+      case 'gemini':
+        return path.join(this.geminiRoot(), 'tmp');
+      case 'grok':
+        return path.join(grokHomeDir(this.home, env), 'sessions');
+      default:
+        return path.join(this.dshHome, 'sessions');
+    }
+  }
+
   /** 候选文件（mtime 倒序） */
   private async candidates(backend: HistoryBackend, force: boolean): Promise<FileEntry[]> {
     const hit = this.listCache.get(backend);
     if (!force && hit && Date.now() - hit.at < LIST_TTL_MS) return hit.entries;
-    let entries: FileEntry[];
-    if (backend === 'claude') {
-      // 尊重 CLAUDE_CONFIG_DIR（与 claude 本身、用量统计一致）
-      const root = path.join(claudeConfigDir(this.home, this.d.env ?? process.env), 'projects');
-      const files: Array<{ path: string }> = [];
-      for (const dir of await readdir(root)) {
-        if (!dir.isDirectory()) continue;
-        for (const f of await readdir(path.join(root, dir.name))) {
-          if (f.isFile() && f.name.endsWith('.jsonl'))
-            files.push({ path: path.join(root, dir.name, f.name) });
-        }
-      }
-      entries = await statAll(files);
-    } else if (backend === 'codex') {
-      const files: Array<{ path: string }> = [];
-      // Codex 会把旧会话压缩成 .jsonl.zst（续接时直接读）；archived_sessions/ 里的归档会话不列出
-      const walk = async (d: string, depth: number): Promise<void> => {
-        if (depth < 0) return;
-        for (const e of await readdir(d)) {
-          const p = path.join(d, e.name);
-          if (e.isDirectory()) await walk(p, depth - 1);
-          else if (e.isFile() && /^rollout-.*\.jsonl(?:\.zst)?$/.test(e.name))
-            files.push({ path: p });
-        }
-      };
-      // 尊重 CODEX_HOME（与 codex 本身、用量统计一致）
-      const codexHome = codexHomeDir(this.home, this.d.env ?? process.env);
-      await walk(path.join(codexHome, 'sessions'), 4);
-      this.refreshCodexIndex(path.join(codexHome, 'state_5.sqlite'));
+    // 文件扫描在插件里（@nomi-ai/cli-plugins 的 history.scan，只读目录与 stat）；
+    // 根目录在这里算，测试与旧配置可以单独覆盖 Gemini / dsh 的主目录
+    const entries: FileEntry[] = [];
+    for await (const f of HISTORY_SCAN[backend].scan(this.historyRoot(backend))) entries.push(f);
+    if (backend === 'codex') {
+      this.refreshCodexIndex(
+        path.join(codexHomeDir(this.home, this.d.env ?? process.env), 'state_5.sqlite'),
+      );
       // 归档 / 删除 / 续接可能让最新 rollout 消失；重扫时不能保留失效的反查路径。
       for (const key of this.byKey.keys()) if (key.startsWith('codex:')) this.byKey.delete(key);
-      entries = await statAll(files);
-    } else if (backend === 'gemini') {
-      // 只列主会话：子代理在 chats/<父会话 id>/ 下，文件名也不带 session- 前缀
-      const root = path.join(this.geminiRoot(), 'tmp');
-      const files: Array<{ path: string }> = [];
-      for (const proj of await readdir(root)) {
-        if (!proj.isDirectory()) continue;
-        const chats = path.join(root, proj.name, 'chats');
-        for (const f of await readdir(chats)) {
-          if (f.isFile() && /^session-.*\.jsonl?$/.test(f.name))
-            files.push({ path: path.join(chats, f.name) });
-        }
-      }
-      entries = await statAll(files);
-    } else if (backend === 'grok') {
-      const root = path.join(grokHomeDir(this.home, this.d.env ?? process.env), 'sessions');
-      const files: Array<{ path: string; dirId?: string }> = [];
-      const walk = async (d: string, depth: number): Promise<void> => {
-        if (depth < 0) return;
-        for (const e of await readdir(d)) {
-          const p = path.join(d, e.name);
-          if (e.isDirectory()) await walk(p, depth - 1);
-          else if (e.isFile() && e.name === 'updates.jsonl')
-            files.push({ path: p, dirId: path.basename(path.dirname(p)) });
-        }
-      };
-      await walk(root, 4);
-      entries = await statAll(files);
-    } else {
-      const root = path.join(this.dshHome, 'sessions');
-      const files: Array<{ path: string; dirId: string }> = [];
-      for (const proj of await readdir(root)) {
-        if (!proj.isDirectory()) continue;
-        for (const s of await readdir(path.join(root, proj.name))) {
-          if (!s.isDirectory() || !s.name.startsWith('session-')) continue;
-          const dir = path.join(root, proj.name, s.name);
-          const f = (await readdir(dir)).find(
-            (x) => x.isFile() && /^session\.v\d+\.jsonl/.test(x.name),
-          );
-          if (f) files.push({ path: path.join(dir, f.name), dirId: s.name });
-        }
-      }
-      entries = await statAll(files);
     }
     entries.sort((a, b) => b.mtime - a.mtime);
     this.listCache.set(backend, { at: Date.now(), entries });

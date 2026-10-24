@@ -18,6 +18,11 @@ export const BUILTIN_PLUGINS: Readonly<Record<BuiltinCliId, CliPlugin>> = {
   grok,
 };
 
+// 与 CLI 无关的纯函数（档位降级 / 原生模式映射、终端命令转义），主进程也从这里取
+export * from './shared/permissions';
+export * from './shared/terminal';
+export { BUILTIN_CLI_IDS, type BuiltinCliId } from './generated/ids';
+
 export * as claude from './claude/main';
 export * as codex from './codex/main';
 export * as dsh from './dsh/main';

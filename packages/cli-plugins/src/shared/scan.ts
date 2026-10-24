@@ -14,26 +14,30 @@ export async function readdir(d: string): Promise<fs.Dirent[]> {
   }
 }
 
-/** 给候选路径补上 mtime / size；stat 不了的（刚被删）跳过 */
+/** 给候选路径补上 mtime / size；stat 不了的（刚被删）跳过。每批 128 个，避免一次开太多文件句柄 */
 export async function statAll(
   files: Array<{ path: string; dirId?: string }>,
 ): Promise<HistoryFileRef[]> {
-  const out = await Promise.all(
-    files.map(async (f) => {
-      try {
-        const st = await fs.promises.stat(f.path);
-        return {
-          path: f.path,
-          mtime: st.mtimeMs,
-          size: st.size,
-          ...(f.dirId ? { dirId: f.dirId } : {}),
-        };
-      } catch {
-        return null;
-      }
-    }),
-  );
-  return out.filter((x): x is HistoryFileRef => x !== null);
+  const out: HistoryFileRef[] = [];
+  for (let i = 0; i < files.length; i += 128) {
+    const res = await Promise.all(
+      files.slice(i, i + 128).map(async (f) => {
+        try {
+          const st = await fs.promises.stat(f.path);
+          return {
+            path: f.path,
+            mtime: st.mtimeMs,
+            size: st.size,
+            ...(f.dirId ? { dirId: f.dirId } : {}),
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    for (const r of res) if (r) out.push(r);
+  }
+  return out;
 }
 
 /** 递归找文件：depth 层子目录以内，文件名满足 match；dirId 取文件所在目录名（需要时） */
