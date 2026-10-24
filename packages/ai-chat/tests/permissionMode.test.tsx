@@ -56,7 +56,8 @@ function mockIpc(cli: Partial<HarnessTabMeta> = {}) {
         queued: 0,
         defaultPermissionMode: 'acceptEdits',
       } satisfies HarnessTabsState;
-    if (ch === 'ai:harness:state') return { backend: 'nomi', cwd: '/w', bins: { claude: '/c' } };
+    if (ch === 'ai:harness:state')
+      return { backend: 'nomi', cwd: '/w', permissionMode: 'manual', bins: { claude: '/c' } };
     if (ch === 'ai:harness:tab-permission-mode') {
       const mode = a[1] as string;
       const degraded = current.backend === 'dsh' && mode === 'manual';
@@ -99,7 +100,9 @@ describe('权限模式表', () => {
     expect(fallbackMode('gemini', 'auto')).toBe('acceptEdits');
     expect(nextMode('claude', 'auto')).toBe('plan');
     expect(nextMode('dsh', 'acceptEdits')).toBe('plan');
-    expect(nextMode('nomi', 'plan')).toBeNull();
+    // Nomi 没有「完全放开」，Shift+Tab 在四档间循环
+    expect(supportedModes('nomi')).toEqual(['plan', 'manual', 'acceptEdits', 'auto']);
+    expect(nextMode('nomi', 'auto')).toBe('plan');
   });
 });
 
@@ -214,12 +217,26 @@ describe('输入栏的权限模式按钮', () => {
     );
   });
 
-  it('Nomi 标签没有权限模式按钮', async () => {
+  it('Nomi 对话也有权限模式：作用在主标签上，四档、没有「完全放开」与「设为新标签默认」', async () => {
     const invoke = mockIpc({ backend: 'nomi' });
     const r = mount();
-    await waitFor(() => expect(invoke).toHaveBeenCalledWith('ai:harness:tabs'));
-    await new Promise((res) => setTimeout(res, 50));
-    expect(r.queryByTestId('permission-mode-chip')).toBeNull();
+    const chip = await r.findByTestId('permission-mode-chip');
+    expect(chip.getAttribute('data-mode')).toBe('manual');
+    fireEvent.click(chip);
+    const items = Array.from(document.querySelectorAll('[role="menuitemradio"]'));
+    expect(items.map((i) => i.getAttribute('data-testid'))).toEqual([
+      'permission-mode-plan',
+      'permission-mode-manual',
+      'permission-mode-acceptEdits',
+      'permission-mode-auto',
+    ]);
+    expect(r.queryByTestId('permission-mode-make-default')).toBeNull();
+    fireEvent.click(r.getByTestId('permission-mode-plan'));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-permission-mode', 'main', 'plan', {
+        confirmed: false,
+      }),
+    );
   });
 });
 

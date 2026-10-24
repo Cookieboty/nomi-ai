@@ -92,8 +92,14 @@ interface BypassTarget {
   title: string;
 }
 
+/** 按钮用到的标签字段（Nomi 主标签不在标签列表里，由 harness 状态拼出这几项） */
+export type PermissionTab = Pick<
+  HarnessTabMeta,
+  'id' | 'backend' | 'cwd' | 'title' | 'permissionMode'
+>;
+
 export const PermissionModeChip: React.FC<{
-  tab: HarnessTabMeta;
+  tab: PermissionTab;
   defaultMode?: PermissionMode;
 }> = ({ tab, defaultMode }) => {
   const [open, setOpen] = useState(false);
@@ -226,7 +232,7 @@ export const PermissionModeChip: React.FC<{
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('权限模式：{0}', modeLabel(mode))}
-        title={t('{0}（Shift+Tab 切换）', modeHint(mode))}
+        title={t('{0}（Shift+Tab 切换）', modeHint(mode, backend))}
         data-testid="permission-mode-chip"
         data-mode={mode}
         onClick={() => setOpen((o) => !o)}
@@ -265,7 +271,7 @@ export const PermissionModeChip: React.FC<{
                 </span>
                 <span className={styles.itemText}>
                   <span className={styles.itemLabel}>{modeLabel(m)}</span>
-                  <span className={styles.itemHint}>{modeHint(m)}</span>
+                  <span className={styles.itemHint}>{modeHint(m, backend)}</span>
                 </span>
                 {mode === m && (
                   <span className={styles.itemCheck}>
@@ -278,7 +284,8 @@ export const PermissionModeChip: React.FC<{
               <span>
                 <kbd className={styles.kbd}>Shift+Tab</kbd> {t('在输入框里切换')}
               </span>
-              {mode !== 'bypass' && mode !== defaultMode && (
+              {/* 「新标签默认」只对编程助手标签有意义：Nomi 只有一个主对话 */}
+              {backend !== 'nomi' && mode !== 'bypass' && mode !== defaultMode && (
                 <button
                   type="button"
                   className={styles.link}

@@ -440,5 +440,9 @@
   "隐藏顶部对话标签与侧栏底部的信息卡，只留会话列表和对话；在侧栏里切换会话": "Hides the conversation tabs and the sidebar info card, leaving just the conversation list and the chat; switch conversations from the sidebar",
   "{0}。只影响工作台，助手模式没有这两块。": "{0}. Only affects the workbench; assistant mode has neither.",
   "主题、界面模式、应用图标与聊天背景，即时生效。": "Theme, layout, app icon and chat background — applied instantly.",
-  "重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。": "Go through it again: language, theme, startup, layout, voice, name and tone, model providers and the privacy note."
+  "重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。": "Go through it again: language, theme, startup, layout, voice, name and tone, model providers and the privacy note.",
+  "只读：可以查看文件和资料，不做任何修改": "Read-only: can look at files and data, but changes nothing",
+  "写文件等修改操作，每次都先问你": "Asks you every time before writing files or making other changes",
+  "按「桌面能力」里每个工具的设置询问": "Asks according to each tool’s setting in Desktop abilities",
+  "修改操作不再询问；删除等破坏性操作仍要确认": "Makes changes without asking; deletions and other destructive actions still need confirmation"
 }

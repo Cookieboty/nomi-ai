@@ -756,7 +756,16 @@ export class HarnessOrchestrator {
 
   // ───────────────────────── 旧接口（main 标签） ─────────────────────────
 
-  state(): HarnessSessionState & { toolsDisabled: boolean; bins: Record<string, string | null> } {
+  /** Nomi 对话（主标签）的权限模式，给 Nomi 自己的工具用（desktop/PermissionBroker） */
+  mainPermissionMode(): HarnessPermissionMode {
+    return this.main.permissionMode;
+  }
+
+  state(): HarnessSessionState & {
+    toolsDisabled: boolean;
+    permissionMode: HarnessPermissionMode;
+    bins: Record<string, string | null>;
+  } {
     const m = this.main;
     return {
       backend: m.backend,
@@ -764,6 +773,7 @@ export class HarnessOrchestrator {
       cliSessionId: m.cliSessionId,
       busy: m.status === 'running' || m.status === 'queued',
       toolsDisabled: m.backend !== 'nomi',
+      permissionMode: m.permissionMode,
       bins: {
         claude: peekHarnessBin('claude'),
         codex: peekHarnessBin('codex'),

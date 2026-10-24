@@ -52,9 +52,15 @@ export function isPermissionMode(v: unknown): v is HarnessPermissionMode {
   return isMode(v);
 }
 
+/**
+ * Nomi 自己的工具（desktop/consent.ts）：没有「完全放开」——破坏性操作永远要确认。
+ * 档位作用在 PermissionBroker 上，见 desktop/consent.ts 顶部说明。
+ */
+const NOMI_MODES: readonly HarnessPermissionMode[] = PERMISSION_MODES.filter((m) => m !== 'bypass');
+
 /** 各后端可用的档位 */
 export function supportedModes(backend: HarnessBackend): readonly HarnessPermissionMode[] {
-  return backend === 'nomi' ? PERMISSION_MODES : PERMS[backend].supported;
+  return backend === 'nomi' ? NOMI_MODES : PERMS[backend].supported;
 }
 
 /** 后端实际使用的档位；降级时 degraded = true（只往更安全的一侧降） */

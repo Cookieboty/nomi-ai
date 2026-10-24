@@ -655,5 +655,6 @@
   "{0} 没能启动 ACP 会话：{1}": "{0} couldn’t start an ACP session: {1}",
   "进程已退出": "the process exited",
   "导出 CSV": "Export CSV",
-  "全部": "All"
+  "全部": "All",
+  "当前是「计划」（只读）权限模式，不能调用会修改内容的工具": "The permission mode is Plan (read-only), so tools that change things can’t be called"
 }

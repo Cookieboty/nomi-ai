@@ -198,6 +198,7 @@ All notable changes to Nomi. Generated from [changesets](.changeset/) by
 - Gemini 端点支持登录多个 Google 官方账号并全局切换：登录在独立的临时目录里通过 ACP 完成，不影响现有登录；切换时同时把 Gemini 的认证方式设为 Google 登录，正在使用的 Gemini 会话会在当前轮次结束后按新账号重启。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - Gemini 端点支持第三方供应商（API Key、请求地址、模型），交互与其它编程助手一致，输入栏的端点按钮也可切换 Gemini 的官方账号与供应商。启用第三方供应商不会改动 ~/.gemini：认证方式写在 Nomi 自己的设置文件里，密钥只在 Nomi 启动 Gemini 时注入，终端里直接运行的 gemini 和 Google 登录都不受影响。 (`@nomi-ai/ai-chat` minor, `@nomi-ai/electron` minor)
 - Grok 会话改为长驻进程：回复逐字显示，点「停止」不再重启进程，切换模型、思考深度和权限模式即时生效， (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
+- Nomi 对话也有权限模式（输入栏按钮或 `Shift+Tab`）：计划（只读，修改操作直接拒绝）、逐项确认（每次修改都问）、自动改文件（默认，按每个工具的设置）、自动（修改不再问）。作用在 Nomi 自己的文件、剪贴板、浏览器工具和 MCP 工具上；没有「完全放开」，删除等破坏性操作在任何档位都要确认。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
 - Nomi 对话改走本地统一网关，新增设置 →「模型」页：添加第三方供应商只需选预设或贴地址和 Key，Nomi 自动检测可用的协议和模型；对话、工具调用、摘要分别选模型。对话区右上角、托盘和 `/model` 切换的都是这里的分配。已有的供应商在升级时自动迁移（本机 Ollama 等地址无需重新确认）。旧的 Nomi 供应商面板移除，编程助手页的 Nomi 标签改为指向「模型」页。 (`@nomi-ai/ai-runtime` minor, `@nomi-ai/gateway` minor)
 - Nomi 网关对话的应用层改动，与统一网关 changeset 配套。 (`@nomi-ai/electron` minor, `@nomi-ai/ai-chat` minor)
 - Remove system speech fallback from TTS and pass the active character speed setting to the local sherpa model. TTS failures now stay silent. (`@nomi-ai/electron` patch, `@nomi-ai/renderer` patch, `@nomi-ai/types` patch)

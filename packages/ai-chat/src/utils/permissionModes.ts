@@ -1,5 +1,6 @@
 /**
- * 编程助手的权限模式（docs/design/cli-permission-modes.md §4）。
+ * 权限模式（docs/design/cli-permission-modes.md §4）：编程助手，以及 Nomi 自己的工具
+ * （主进程 desktop/consent.ts；Nomi 没有「完全放开」）。
  * 与主进程 cli/permissionMode.ts 的 SUPPORTED / 降级规则保持一致：主进程是最终裁决（返回 degraded），
  * 这里只用来决定下拉里哪些可选、Shift+Tab 怎么循环。
  */
@@ -34,8 +35,11 @@ const SUPPORTED: Record<CliBackend, readonly PermissionMode[]> = {
 export const isPermissionMode = (v: unknown): v is PermissionMode =>
   typeof v === 'string' && (PERMISSION_MODES as readonly string[]).includes(v);
 
+/** Nomi 自己的工具：破坏性操作永远要确认，所以没有「完全放开」 */
+const NOMI_MODES: readonly PermissionMode[] = ['plan', 'manual', 'acceptEdits', 'auto'];
+
 export function supportedModes(backend: HarnessBackend): readonly PermissionMode[] {
-  return backend === 'nomi' ? [] : SUPPORTED[backend];
+  return backend === 'nomi' ? NOMI_MODES : SUPPORTED[backend];
 }
 
 /** 不支持时实际使用的档位：只往更安全的一侧降（manual → plan，auto → acceptEdits） */
@@ -62,7 +66,22 @@ export function modeLabel(mode: PermissionMode): string {
   }
 }
 
-export function modeHint(mode: PermissionMode): string {
+/** 档位说明；Nomi 的档位作用在它自己的工具（文件、剪贴板、浏览器、扩展）上，说法不同 */
+export function modeHint(mode: PermissionMode, backend?: HarnessBackend): string {
+  if (backend === 'nomi') {
+    switch (mode) {
+      case 'plan':
+        return t('只读：可以查看文件和资料，不做任何修改');
+      case 'manual':
+        return t('写文件等修改操作，每次都先问你');
+      case 'acceptEdits':
+        return t('按「桌面能力」里每个工具的设置询问');
+      case 'auto':
+        return t('修改操作不再询问；删除等破坏性操作仍要确认');
+      case 'bypass':
+        break;
+    }
+  }
   switch (mode) {
     case 'plan':
       return t('只读：先给出方案，不改文件、不执行命令');

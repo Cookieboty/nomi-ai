@@ -59,6 +59,33 @@ describe('consent levels', () => {
     expect(sanitizePolicy('write', 'bogus')).toBe('session');
   });
 
+  it('permission modes: plan blocks writes, manual always asks, auto lifts default write prompts', () => {
+    const base = { sessionAllowed: false, tainted: false };
+    expect(decide({ ...base, danger: 'read', mode: 'plan' })).toMatchObject({ confirm: false });
+    for (const danger of ['write', 'destructive'] as const)
+      expect(decide({ ...base, danger, mode: 'plan' })).toMatchObject({
+        blocked: true,
+        reason: 'mode',
+      });
+    expect(
+      decide({ ...base, danger: 'write', policy: 'always', sessionAllowed: true, mode: 'manual' }),
+    ).toMatchObject({ confirm: true, rememberable: false });
+    expect(decide({ ...base, danger: 'write', mode: 'auto' })).toMatchObject({ confirm: false });
+    // 单独设过的策略在「自动」下仍然生效
+    expect(
+      decide({ ...base, danger: 'write', policy: 'ask', explicitPolicy: true, mode: 'auto' }),
+    ).toMatchObject({ confirm: true });
+    // 硬规则不受档位影响
+    expect(decide({ ...base, danger: 'write', tainted: true, mode: 'auto' })).toMatchObject({
+      confirm: true,
+      reason: 'tainted',
+    });
+    expect(decide({ ...base, danger: 'destructive', mode: 'auto' })).toMatchObject({
+      confirm: true,
+      dialog: true,
+    });
+  });
+
   it('local provider detection', () => {
     expect(isLocalBaseURL('http://127.0.0.1:11434/v1')).toBe(true);
     expect(isLocalBaseURL('http://localhost:1234')).toBe(true);

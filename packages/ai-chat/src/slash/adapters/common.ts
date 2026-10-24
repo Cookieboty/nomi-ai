@@ -176,7 +176,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   const arg = raw.trim().toLowerCase();
   const list = supportedModes(backend)
     .filter((m) => m !== 'bypass')
-    .map((m) => `${modeLabel(m)}：${modeHint(m)}`)
+    .map((m) => `${modeLabel(m)}：${modeHint(m, backend)}`)
     .join('\n');
   if (!arg)
     return card(
@@ -213,7 +213,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
             modeLabel(want),
             modeLabel(got),
           )
-        : t('已切换到「{0}」：{1}', modeLabel(got), modeHint(got)),
+        : t('已切换到「{0}」：{1}', modeLabel(got), modeHint(got, backend)),
       r.degraded ? 'warn' : 'info',
     ),
   );

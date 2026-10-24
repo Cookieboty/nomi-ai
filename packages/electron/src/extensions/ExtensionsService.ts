@@ -502,18 +502,22 @@ export class ExtensionsService {
       execute: async (input, ctx) => {
         const t0 = Date.now();
         let decision: string = 'auto';
-        if (needsConfirm(trust, def.readOnly === true)) {
+        // 权限模式：「计划」拦下非只读工具，「逐项确认」让非只读工具每次都问（即使服务器已信任）
+        const mode = broker.permissionMode();
+        const strict = def.readOnly !== true && (mode === 'plan' || mode === 'manual');
+        if (strict || needsConfirm(trust, def.readOnly === true)) {
           decision = await broker.authorize({
             tool: def.name,
-            // 信任级别已判定需要确认 → 至少按「写」处理，避免只读工具被默认策略放行
-            danger: def.dangerous ? 'destructive' : 'write',
+            // 只读工具走到这里一定是「每次询问」（下面 force 确认），按「读」处理，「计划」档不拦；
+            // 其它至少按「写」处理，避免被默认策略放行
+            danger: def.dangerous ? 'destructive' : def.readOnly === true ? 'read' : 'write',
             summary: t('扩展工具 {0}（{1}）', def.name.replace(`${serverId}__`, ''), serverName),
             args: input,
             preview: t('参数：\n{0}', JSON.stringify(input ?? {}, null, 2).slice(0, 1200)),
             signal: ctx.signal,
             ...(def.dangerous
               ? { force: { dialog: true } }
-              : trust === 'ask'
+              : trust === 'ask' || strict
                 ? { force: { dialog: false } }
                 : {}),
           });
@@ -521,7 +525,13 @@ export class ExtensionsService {
             this.audit(def.name, { server: serverId }, decision, 'denied', 'mcp');
             return {
               ok: false,
-              error: { code: 'user_denied', message: t('用户没有允许这次调用') },
+              error:
+                decision === 'blocked'
+                  ? {
+                      code: 'mode_blocked',
+                      message: t('当前是「计划」（只读）权限模式，不能调用会修改内容的工具'),
+                    }
+                  : { code: 'user_denied', message: t('用户没有允许这次调用') },
             } as never;
           }
         }

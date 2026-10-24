@@ -19,7 +19,7 @@ import { MAIN_TAB_ID, harnessClient } from '../../services/harnessClient';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { ModelControls } from '../ModelControls';
 import { NomiModelSwitch } from '../NomiModelSwitch';
-import { BypassTip, PermissionModeChip } from '../PermissionModeChip';
+import { BypassTip, PermissionModeChip, type PermissionTab } from '../PermissionModeChip';
 import { WorkspacePicker } from '../WorkspacePicker';
 
 import styles from './index.module.css';
@@ -49,12 +49,25 @@ function useEndpoint() {
 
 /** 输入栏：模型 + 权限模式（Nomi 的模型走统一网关，与编程助手的模型按钮同位置） */
 export const EndpointControls: React.FC = () => {
-  const { tabs, cli, tab } = useEndpoint();
+  const { tabs, harness, cli, tab } = useEndpoint();
   // 主对话标签切到 CLI 后端时也有权限模式（主进程里它同样是一个标签）
   const modeTab = tab ?? tabs.state?.tabs.find((x) => x.id === MAIN_TAB_ID) ?? null;
+  // Nomi 对话（主标签）：权限模式作用在 Nomi 自己的工具上；主标签不在标签列表里，用 harness 状态
+  // 等标签列表到了再判断：否则当前是 CLI 标签时会先闪一下 Nomi 的按钮
+  const nomiTab: PermissionTab | null =
+    tabs.state && !cli && harness?.backend === 'nomi'
+      ? {
+          id: MAIN_TAB_ID,
+          backend: 'nomi',
+          cwd: harness.cwd,
+          title: '',
+          permissionMode: harness.permissionMode,
+        }
+      : null;
   return (
     <>
       {!cli && gatewayClientAvailable() && <NomiModelSwitch />}
+      {nomiTab && <PermissionModeChip tab={nomiTab} />}
       {cli && modeTab && (
         <>
           <ModelControls key={`model-${modeTab.backend}`} tab={modeTab} />

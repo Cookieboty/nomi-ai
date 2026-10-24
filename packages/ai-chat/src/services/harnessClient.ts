@@ -14,6 +14,8 @@ export interface HarnessState {
   cliSessionId: string | null;
   busy: boolean;
   toolsDisabled: boolean;
+  /** 主标签（Nomi 对话）的权限模式 */
+  permissionMode?: PermissionMode;
   bins: Record<string, string | null>;
 }
 

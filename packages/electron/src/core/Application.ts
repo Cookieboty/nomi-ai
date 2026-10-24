@@ -692,6 +692,11 @@ export class Application implements IApplication {
       this.lifecycle.register({ name: 'cli-account-login', stop: () => accountLogin.dispose() });
       harness.registerIpc();
       this.lifecycle.register({ name: 'cli-harness', stop: () => harness.dispose() });
+      // Nomi 对话的权限模式（输入栏的权限按钮）作用在 Nomi 自己的工具上；「完全放开」不适用
+      getDesktopService(this.logger).broker.permissionMode = () => {
+        const m = harness.mainPermissionMode();
+        return m === 'bypass' ? 'acceptEdits' : m;
+      };
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
