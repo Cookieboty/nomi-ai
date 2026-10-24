@@ -228,7 +228,7 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       </div>
     );
   if (!r) return null;
-  const files = r.report?.changedFiles ?? [];
+  const files = (r.report?.changedFiles?.length ? r.report.changedFiles : r.changedFiles) ?? [];
   return (
     <div className={styles.report} data-testid="delegate-report">
       {r.status === 'cancelled' && (
@@ -242,35 +242,18 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       {r.report ? (
         <>
           <div className={styles.reportBody}>
-            <Markdown text={r.report.done} settled />
+            <Markdown text={plainSummary(r.report.done)} settled />
           </div>
-          {files.length > 0 && (
-            <div className={styles.reportRow}>
-              <span className={styles.reportLabel}>
-                {r.filesVerified ? t('改动的文件') : t('改动的文件（未经 git 核对）')}
-              </span>
-              <ul className={styles.files} data-testid="delegate-files">
-                {files.slice(0, 8).map((f) => (
-                  <li key={f}>
-                    <code>{f}</code>
-                  </li>
-                ))}
-                {files.length > 8 && (
-                  <li className={styles.muted}>{t('等 {0} 个', String(files.length))}</li>
-                )}
-              </ul>
-            </div>
-          )}
           {r.report.unfinished && (
             <div className={styles.reportRow}>
               <span className={styles.reportLabel}>{t('没做完的')}</span>
-              <span>{r.report.unfinished}</span>
+              <span>{plainSummary(r.report.unfinished)}</span>
             </div>
           )}
           {r.report.needsUser && (
             <div className={styles.reportRow}>
               <span className={styles.reportLabel}>{t('需要你决定的')}</span>
-              <span>{r.report.needsUser}</span>
+              <span>{plainSummary(r.report.needsUser)}</span>
             </div>
           )}
         </>
@@ -280,6 +263,23 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
           <Markdown text={plainSummary(r.summary)} settled />
         </div>
       ) : null}
+      {files.length > 0 && (
+        <div className={styles.reportRow}>
+          <span className={styles.reportLabel}>
+            {r.filesVerified ? t('改动的文件') : t('改动的文件（未经 git 核对）')}
+          </span>
+          <ul className={styles.files} data-testid="delegate-files">
+            {files.slice(0, 8).map((f) => (
+              <li key={f}>
+                <code>{f}</code>
+              </li>
+            ))}
+            {files.length > 8 && (
+              <li className={styles.muted}>{t('等 {0} 个', String(files.length))}</li>
+            )}
+          </ul>
+        </div>
+      )}
       {r.approvals.asked > 0 && (
         <div className={styles.muted}>
           {t(

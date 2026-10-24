@@ -462,10 +462,20 @@ describe('slashDiscovery', () => {
   });
 
   it('gitDiff：目录不是 git 仓库时错误信息是 git 自己的原因（界面据此不显示报错），不是「Command failed」', async () => {
+    // os.tmpdir() 在部分环境（TMPDIR 落在本仓库内、或与其它用例并发）会位于某个 .git 祖先之下，
+    // git 向上找到仓库后本用例会误判为 ok。用 GIT_CEILING_DIRECTORIES 把查找钉在临时目录本身。
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'not-git-'));
-    const r = await gitDiff(plain);
-    expect(r.ok).toBe(false);
-    expect(r.error).toMatch(/not a git repository/i);
-    expect(r.error).not.toMatch(/Command failed/);
+    const prev = process.env.GIT_CEILING_DIRECTORIES;
+    process.env.GIT_CEILING_DIRECTORIES = plain;
+    try {
+      const r = await gitDiff(plain);
+      expect(r.ok).toBe(false);
+      expect(r.error).toMatch(/not a git repository/i);
+      expect(r.error).not.toMatch(/Command failed/);
+    } finally {
+      if (prev === undefined) delete process.env.GIT_CEILING_DIRECTORIES;
+      else process.env.GIT_CEILING_DIRECTORIES = prev;
+      fs.rmSync(plain, { recursive: true, force: true });
+    }
   });
 });

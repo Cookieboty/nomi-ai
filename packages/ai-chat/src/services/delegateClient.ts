@@ -1,8 +1,9 @@
 /**
  * Nomi 把编程助手当子代理调用（docs/design/nomi-delegate-cli.md）：
  * - 设置：总开关 + 按任务类型的默认编程助手（§4.7）；
- * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手（§4.6）。渲染层先记在 nextDelegate 里（输入框上方的 chip），
- *   发送时 consumeNextDelegate() 取出，经 `ai:delegate:pin` 钉到主进程，模型改不了。
+ * - `/agent`（旧名 `/cli`）：指定下一个需求交给哪个编程助手（§4.6）。渲染层按 conversationId 记在
+ *   nextDelegatePins 里（输入框上方的 chip），发送时 consumeNextDelegate(turnId) 取出，
+ *   经 `ai:delegate:pin` 按 turnId 钉到主进程；钉住失败则中止发送。本轮结束 clearTurnPin。
  */
 import { t } from '@nomi-ai/ui';
 
@@ -30,6 +31,8 @@ export interface DelegateResult {
   status: 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi';
   report?: { done: string; changedFiles: string[]; unfinished?: string; needsUser?: string };
+  /** 汇报缺失时 git 核对到的改动文件（相对 cwd） */
+  changedFiles?: string[];
   summary: string;
   filesVerified: boolean;
   approvals: { asked: number; denied: number; timedOut: number };
@@ -88,22 +91,43 @@ export const delegateClient = {
   available: () => !!bridge(),
   settings: () => call<DelegateSettingsView>('ai:delegate:settings'),
   setSettings: (s: DelegateSettings) => call<DelegateSettings>('ai:delegate:set-settings', s),
-  pin: (cli: DelegateCli | null) => call<DelegateCli | null>('ai:delegate:pin', cli),
+  /** 按 turnId 钉到主进程；turnId 与本轮 Nomi reqId 对齐 */
+  pin: (cli: DelegateCli | null, turnId: string) =>
+    call<DelegateCli | null>('ai:delegate:pin', cli, turnId),
+  clearPin: (turnId: string) => call<boolean>('ai:delegate:clear-pin', turnId),
 };
 
-// ───────────────────────── 下一个需求交给谁（输入框上方的 chip） ─────────────────────────
+// ───────────────────────── 下一个需求交给谁（按会话；输入框上方的 chip） ─────────────────────────
 
-let nextDelegate: DelegateCli | null = null;
+/** conversationId → 钉住的编程助手（切换会话互不影响） */
+const nextDelegatePins = new Map<string, DelegateCli>();
+/** 当前输入框所属会话；未绑定时用 ''（单测 / 未开会话） */
+let activeConversationId = '';
 const listeners = new Set<() => void>();
 
+function notify(): void {
+  for (const l of listeners) l();
+}
+
+/** 绑定 chip 读的是哪个会话的钉住（会话切换 / 发送前调用） */
+export function bindNextDelegateConversation(conversationId: string | null | undefined): void {
+  const id = conversationId ?? '';
+  if (id === activeConversationId) return;
+  activeConversationId = id;
+  notify();
+}
+
 export function getNextDelegate(): DelegateCli | null {
-  return nextDelegate;
+  return nextDelegatePins.get(activeConversationId) ?? null;
 }
 
 export function setNextDelegate(cli: DelegateCli | null): void {
-  if (cli === nextDelegate) return;
-  nextDelegate = cli;
-  for (const l of listeners) l();
+  const id = activeConversationId;
+  const cur = nextDelegatePins.get(id) ?? null;
+  if (cli === cur) return;
+  if (cli) nextDelegatePins.set(id, cli);
+  else nextDelegatePins.delete(id);
+  notify();
 }
 
 export function subscribeNextDelegate(fn: () => void): () => void {
@@ -111,13 +135,24 @@ export function subscribeNextDelegate(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** 发送 Nomi 消息时取出并清除；钉到主进程失败时不影响发送（Nomi 退回按设置选） */
-export async function consumeNextDelegate(): Promise<DelegateCli | null> {
-  const cli = nextDelegate;
+/**
+ * 发送 Nomi 消息时取出并清除本会话的 chip，经 IPC 按 turnId 钉到主进程。
+ * 钉住失败抛错：调用方必须中止发送（不要附加「交给 X」继续）。
+ */
+export async function consumeNextDelegate(turnId: string): Promise<DelegateCli | null> {
+  const id = activeConversationId;
+  const cli = nextDelegatePins.get(id) ?? null;
   if (!cli) return null;
-  setNextDelegate(null);
-  await delegateClient.pin(cli).catch(() => undefined);
+  await delegateClient.pin(cli, turnId);
+  nextDelegatePins.delete(id);
+  notify();
   return cli;
+}
+
+/** 本轮结束（无论是否委派）清除主进程该 turn 的钉住 */
+export async function clearTurnPin(turnId: string): Promise<void> {
+  if (!turnId || !bridge()) return;
+  await delegateClient.clearPin(turnId).catch(() => undefined);
 }
 
 /** 发给 Nomi 模型的消息前面加的说明（界面上只显示用户原文和「交给 X」标记） */

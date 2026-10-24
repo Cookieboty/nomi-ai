@@ -94,7 +94,7 @@ Nomi 工具循环
 ```ts
 interface DelegateResult {
   taskId: string; // = 标签 id
-  status: 'done' | 'error' | 'cancelled' | 'taken_over';
+  status: 'done' | 'error' | 'cancelled';
   cancelledBy?: 'user' | 'nomi'; // 用户在卡片上停的，还是 Nomi 这一轮被停连带停的
   report?: {
     done: string; // 做了什么
@@ -110,7 +110,7 @@ interface DelegateResult {
 }
 ```
 
-- `taken_over`：用户在这期间进了标签并自己发了消息，Nomi 不再等待，只返回到那一刻为止的结果。
+- ~~`taken_over`~~：见 §12（P1 未实现；用户中途发消息时 `sendTab` 会因「上一轮尚未结束」拒绝，委派仍等到本轮结束）。
 - 大段产出（调研结论、长日志）让编程助手写进工作目录里的文件，`report` 里只给路径，不经 Nomi 的上下文传递。
 
 ### 4.4 发给编程助手的消息
@@ -345,8 +345,8 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 
 ## 10. 测试
 
-- 单元：权限映射表（§5 每一格）；cwd 未授权被拒；层数限制；`summary` 截断与边界；abort → `cancelTab`；
-  用户接手 → `taken_over`；仅本地 + 云端模型时不返回正文。
+- 单元：权限映射表（§5 每一格）；cwd 未授权被拒；层数限制；`summary` / report 字段 untrusted 边界；abort → `cancelTab` /
+  孤儿标签清理；仅本地 + 云端模型时不返回正文。用户接手 → `taken_over` 留待后续（见 §12）。
 - 无界面 E2E：用 mock CLI 后端跑一次完整委派，断言新标签、结果回到 Nomi、用量记录带 `delegatedBy`。
 - 真实应用 E2E：卡片显示、停止、跳转审批。
 
@@ -395,5 +395,14 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 - **汇报标记用 `[nomi-report]`** 而不是 `<nomi-report>`：对话界面的 Markdown 不渲染 HTML（`skipHtml`），
   尖括号标记会让整段汇报在编程助手标签里看不见（真机 E2E 发现）。
 - **单独停止子代理**按插件能力位 `subagentStop` 判断（目前只有 Claude），不按名字。
-- `/cli` 钉住 10 分钟内有效，被下一次委派用掉即清除；`/cli 名字 需求` 与 `/cli 名字` 后再发消息走同一条路径
-  （渲染层发送时把「下一个需求交给谁」钉到主进程）。
+- `/agent`（旧名 `/cli`）钉住按 **conversationId（渲染层）+ turnId/reqId（主进程）** 隔离，不再是进程级；
+  发送时先 IPC 钉住，失败则中止发送；cwd/授权通过后才 consume；本轮结束 `clearPin`（未委派也不泄漏）。
+- **`taken_over` 未实现（有意偏差）**：设计稿里用户中途在委派标签发消息应提前结束并返回 `taken_over`。
+  现状：`tab-send` 会 `markTakenOver`（只影响审批超时），但标签 `status === 'running'` 时 `sendTab` 直接抛
+  「上一轮尚未结束」，委派侧的 `await sendTab` 仍跑完本轮。结果类型与实现均无 `taken_over`；真正的中途接手
+  打断留待后续（需 harness 在 running 时支持接手并取消/结束等待中的委派 send）。
+- 汇报 `done` / `unfinished` / `needsUser` 与 `summary` 一样包 `<cli-output>` untrusted 边界（§6.1）；
+  改动文件用 `git rev-parse --show-toplevel` + `status --porcelain -z`（`core.quotepath=false`），路径相对委派 cwd；
+  汇报缺失时仍通过结果里的 `changedFiles` 交回 git 列表。
+- 委派层数（§6.4）：`ctx.callerTabId` 对应标签的 `delegation.by === 'nomi'` 时拒绝（`delegation_depth`）。
+- `createTab` 与后续 await 之后、`sendTab` 之前若 `ctx.signal` 已中止：`closeTab` 清理孤儿标签并返回 `cancelledBy: 'nomi'`。

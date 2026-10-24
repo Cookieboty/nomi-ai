@@ -13,7 +13,12 @@ import React, {
   type ReactNode,
 } from 'react';
 
-import { consumeNextDelegate, delegateDirective } from '../services/delegateClient';
+import {
+  bindNextDelegateConversation,
+  clearTurnPin,
+  consumeNextDelegate,
+  delegateDirective,
+} from '../services/delegateClient';
 import { desktopClient } from '../services/desktopClient';
 import { extClient } from '../services/extClient';
 import {
@@ -464,8 +469,15 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           if (r === 'user_denied') throw new Error(t('已取消：图片没有发送给云端模型'));
         }
 
-        // `/cli`：这条需求指定交给某个编程助手（钉到主进程，模型改不了；界面只显示一个小标记）
-        const delegateTo = await consumeNextDelegate();
+        // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
+        bindNextDelegateConversation(turn.convoId);
+        let delegateTo: Awaited<ReturnType<typeof consumeNextDelegate>> = null;
+        try {
+          delegateTo = await consumeNextDelegate(reqId);
+        } catch (pinErr) {
+          const msg = pinErr instanceof Error ? pinErr.message : t('无法钉住编程助手，消息未发送');
+          throw Object.assign(new Error(msg), { cause: pinErr });
+        }
         const userMessage: ChatMessage = {
           id: Date.now().toString(),
           role: 'user',
@@ -640,6 +652,8 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       } catch (error) {
         dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
       } finally {
+        // 本轮未委派时清掉主进程 turn pin，避免泄漏到下一轮
+        void clearTurnPin(reqId);
         if (owned && activeStream.current?.reqId === reqId) activeStream.current = null;
         dispatch({ type: 'SET_STREAMING', payload: false });
         dispatch({ type: 'SET_LOADING', payload: false });

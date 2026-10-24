@@ -22,10 +22,30 @@ function toFlexibleSchema(input: unknown) {
   });
 }
 
+export type MapToolsOpts = {
+  provider?: ToolCallProvider;
+  /** 本轮请求 id：写入 ToolExecContext，供委派钉住按 turn 消费 */
+  reqId?: string;
+};
+
+function isMapToolsOpts(v: unknown): v is MapToolsOpts {
+  return !!v && typeof v === 'object' && ('provider' in v || 'reqId' in v) && !('id' in v);
+}
+
+function normalizeOpts(opts?: MapToolsOpts | ToolCallProvider): MapToolsOpts {
+  if (!opts) return {};
+  if (isMapToolsOpts(opts)) return opts;
+  return { provider: opts as ToolCallProvider };
+}
+
 /**
- * @param provider 跑这轮工具循环的 provider：工具结果会发给它，随 ctx 交给工具做隐私判断
+ * @param providerOrOpts 跑这轮工具循环的 provider，或 `{ provider, reqId }`
  */
-export function toAiSdkTool(def: ToolDefinition, provider?: ToolCallProvider): Tool {
+export function toAiSdkTool(
+  def: ToolDefinition,
+  providerOrOpts?: MapToolsOpts | ToolCallProvider,
+): Tool {
+  const { provider, reqId } = normalizeOpts(providerOrOpts);
   return tool({
     description: def.description,
     inputSchema: toFlexibleSchema(def.input),
@@ -34,17 +54,19 @@ export function toAiSdkTool(def: ToolDefinition, provider?: ToolCallProvider): T
         signal: abortSignal,
         ...(toolCallId ? { toolCallId } : {}),
         ...(provider ? { provider } : {}),
+        ...(reqId ? { reqId } : {}),
       }),
   });
 }
 
 export function toAiSdkToolSet(
   defs: ToolDefinition[],
-  provider?: ToolCallProvider,
+  providerOrOpts?: MapToolsOpts | ToolCallProvider,
 ): Record<string, Tool> {
+  const normalized = normalizeOpts(providerOrOpts);
   const out: Record<string, Tool> = {};
   for (const def of defs) {
-    out[def.name] = toAiSdkTool(def, provider);
+    out[def.name] = toAiSdkTool(def, normalized);
   }
   return out;
 }

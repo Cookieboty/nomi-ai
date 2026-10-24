@@ -183,8 +183,28 @@ export function parseDelegateReport(text: string): DelegateReport | null {
   return { done, changedFiles: files, ...opt('unfinished'), ...opt('needsUser') };
 }
 
-/** `git status --porcelain` 的输出 → 相对路径（重命名取新路径） */
+/**
+ * `git status --porcelain` / `--porcelain -z` → 相对路径（重命名取新路径）。
+ * `-z`：条目用 NUL 分隔；普通为 `XY path\0`；重命名为 `XY new\0old\0`（先新后旧，与非 -z 的 `old -> new` 相反）。
+ * 换行格式：`XY path` 或 `XY old -> new`。
+ */
 export function parsePorcelain(out: string): string[] {
+  if (!out) return [];
+  if (out.includes('\0')) {
+    const files: string[] = [];
+    const parts = out.split('\0').filter((s) => s.length > 0);
+    for (let i = 0; i < parts.length; i++) {
+      const ent = parts[i]!;
+      if (ent.length < 3) continue;
+      const xy = ent.slice(0, 2);
+      // 标准 porcelain：XY + 空格 + path（重命名时本段已是新路径）
+      let file = ent.slice(3);
+      if ((xy[0] === 'R' || xy[0] === 'C') && i + 1 < parts.length) i += 1; // 跳过旧路径
+      file = file.replace(/^"|"$/g, '');
+      if (file) files.push(file);
+    }
+    return files;
+  }
   const files: string[] = [];
   for (const line of out.split(/\r?\n/)) {
     if (line.length < 4) continue;
