@@ -11,6 +11,7 @@ import {
   type QualityDimension,
   type QualityExportRequest,
   type QualityExportResult,
+  type QualityFacets,
   type QualityQuery,
   type QualityRecord,
   type QualityRequestsQuery,
@@ -18,6 +19,7 @@ import {
   type QualitySeries,
   type QualitySeriesQuery,
   type QualitySettings,
+  type QualityStats,
   type QualityTokens,
 } from '@nomi-ai/types';
 import { BrowserWindow, dialog } from 'electron';
@@ -26,7 +28,13 @@ import { t } from '../../i18n';
 import { guardedHandle } from '../../security/guardedIpc';
 import { writePrivateFile } from '../../utils/privateFile';
 
-import { listRequests, queryQuality, seriesQuality, type QualityLabelOf } from './aggregate';
+import {
+  facetsOf,
+  listRequests,
+  queryQuality,
+  seriesQuality,
+  type QualityLabelOf,
+} from './aggregate';
 import { requestsCsv, statsCsv } from './csv';
 import { fromGateway, isOutcome, sanitizeRecord, type GatewayQualityEvent } from './fromGateway';
 import { DEFAULT_RETENTION_DAYS, QUALITY_RETENTION_CHOICES, QualityLedger } from './QualityLedger';
@@ -55,9 +63,11 @@ const SERIES_METRICS: readonly QualitySeriesQuery['metric'][] = [
   'cacheHitTokenRate',
   'ttft.p50',
   'ttft.p90',
+  'ttft.p95',
   'tpot.p50',
   'e2e.p50',
   'e2e.p90',
+  'e2e.p95',
   'outputTps.p50',
 ];
 /** 单次查询最多跨的天数（防止渲染进程传入离谱范围） */
@@ -205,6 +215,13 @@ export class QualityService {
     return this.cached('q', q, () => queryQuality(this.records(q), q, this.d.labelOf));
   }
 
+  /** 筛选项：这段时间里出现过的客户端 / 供应商 / 模型族 / Key */
+  facets(raw: unknown): QualityFacets {
+    const base = this.cleanQuery(raw);
+    const q = { from: base.from, to: base.to, ...(base.layer ? { layer: base.layer } : {}) };
+    return this.cached('f', q, () => facetsOf(this.ledger.range(q.from, q.to), q, this.d.labelOf));
+  }
+
   series(raw: unknown): QualitySeries {
     const base = this.cleanQuery(raw);
     const r = (raw ?? {}) as Partial<QualitySeriesQuery>;
@@ -241,6 +258,10 @@ export class QualityService {
     const q: QualityQuery = { from, to };
     if (r.layer === 'cli' || r.layer === 'gateway') q.layer = r.layer;
     if (r.groupBy && DIMENSIONS.includes(r.groupBy)) q.groupBy = r.groupBy;
+    if (Array.isArray(r.groupPath)) {
+      const path = r.groupPath.filter((d): d is QualityDimension => DIMENSIONS.includes(d));
+      if (path.length) q.groupPath = [...new Set(path)].slice(0, 3);
+    }
     if (r.countBy === 'attempt') q.countBy = 'attempt';
     if (r.cancelInDenominator === true) q.cancelInDenominator = true;
     if (r.includeRejected === true) q.includeRejected = true;
@@ -311,7 +332,16 @@ export class QualityService {
     let name: string;
     if (req.kind === 'table') {
       const res = this.query(req.query);
-      const groups = res.groups.length ? res.groups : [{ ...res.total, label: t('全部') }];
+      // 多级分组按树的先序展开，名字前加层级缩进
+      const flat: Array<QualityStats & { depth: number }> = [];
+      const walk = (list: readonly QualityStats[], depth: number) => {
+        for (const g of list) {
+          flat.push({ ...g, depth });
+          if (g.children) walk(g.children, depth + 1);
+        }
+      };
+      walk(res.groups, 0);
+      const groups = flat.length ? flat : [{ ...res.total, label: t('全部'), depth: 0 }];
       csv = statsCsv(groups);
       rows = groups.length;
       name = `nomi-model-quality-${stamp}.csv`;
@@ -356,6 +386,7 @@ export class QualityService {
       return true;
     });
     handle(QUALITY_IPC.export, (r) => this.exportCsv(r));
+    handle(QUALITY_IPC.facets, (q) => this.facets(q));
   }
 
   dispose(): void {
