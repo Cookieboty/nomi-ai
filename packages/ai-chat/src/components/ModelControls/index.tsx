@@ -49,6 +49,9 @@ import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import styles from './index.module.css';
 
+/** 模型多于这个数时模型页显示搜索框（与 @nomi-ai/ui 的 Select 一致） */
+const MODEL_SEARCH_THRESHOLD = 8;
+
 /** 有官方账号的编程助手 */
 const ACCOUNT_KINDS: readonly AccountKind[] = ['claude', 'codex', 'grok', 'gemini'];
 
@@ -325,6 +328,8 @@ const ModelChip: React.FC<{
   const [note, setNote] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const [customName, setCustomName] = useState('');
+  /** 模型页的搜索词（模型多于 MODEL_SEARCH_THRESHOLD 个时显示搜索框，与共享的 Select 一致） */
+  const [query, setQuery] = useState('');
   /** 拖动滑杆时的预览档位（松手提交后清空，回到以主进程广播的 tab 为准） */
   const [preview, setPreview] = useState<ReasoningEffort | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -416,6 +421,7 @@ const ModelChip: React.FC<{
   const toggle = () => {
     setView(provider ? 'model' : 'effort');
     setCustomOpen(false);
+    setQuery('');
     setPreview(null);
     setOpen((o) => !o);
   };
@@ -423,11 +429,20 @@ const ModelChip: React.FC<{
   // 选完模型回到滑杆页，接着调档位（与 Codex 一致的「一次选完」）
   const pickModel = (model: string) => {
     setCustomOpen(false);
+    setQuery('');
     setView('effort');
     if (provider) setOpen(false);
     if (model === (current ?? '')) return;
     void run(() => harnessClient.setTabModel(tab.id, model, { expectSource: tabSourceOf(tab) }));
   };
+
+  const q = query.trim().toLowerCase();
+  const searchable = catalog.models.length > MODEL_SEARCH_THRESHOLD;
+  const shownModels = q
+    ? catalog.models.filter((m) =>
+        `${m.id} ${m.label ?? ''} ${m.description ?? ''}`.toLowerCase().includes(q),
+      )
+    : catalog.models;
 
   const pickEffort = (e: ReasoningEffort | null) => {
     setPreview(null);
@@ -607,21 +622,51 @@ const ModelChip: React.FC<{
                   {t('没能从 {0} 读到模型列表：{1}', sourceName, catalog.error)}
                 </div>
               )}
+              {searchable && (
+                <input
+                  autoFocus
+                  type="search"
+                  className={styles.customInput}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    // 回车选第一个匹配的；Esc 先清空搜索词，再按一次才关菜单
+                    if (e.key === 'Enter' && shownModels[0]) {
+                      e.preventDefault();
+                      pickModel(shownModels[0].id);
+                    } else if (e.key === 'Escape' && query) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setQuery('');
+                    }
+                  }}
+                  placeholder={t('搜索模型')}
+                  aria-label={t('搜索模型')}
+                  data-testid="model-search"
+                />
+              )}
               <div className={styles.models} role="listbox" aria-label={t('模型')}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={!current}
-                  className={styles.item}
-                  data-testid="model-default"
-                  title={t('跟随 {0} 自己的选择', sourceName)}
-                  onClick={() => pickModel('')}
-                >
-                  <span className={styles.itemLabel}>{t('默认模型')}</span>
-                  <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
-                  {!current && <Icon icon={Check} size={14} />}
-                </button>
-                {catalog.models.map((m) => (
+                {!q && (
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={!current}
+                    className={styles.item}
+                    data-testid="model-default"
+                    title={t('跟随 {0} 自己的选择', sourceName)}
+                    onClick={() => pickModel('')}
+                  >
+                    <span className={styles.itemLabel}>{t('默认模型')}</span>
+                    <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
+                    {!current && <Icon icon={Check} size={14} />}
+                  </button>
+                )}
+                {q && !shownModels.length && (
+                  <div className={styles.modelError} role="status" data-testid="model-search-empty">
+                    {t('没有匹配「{0}」的模型', query.trim())}
+                  </div>
+                )}
+                {shownModels.map((m) => (
                   <button
                     key={m.id}
                     type="button"
@@ -639,7 +684,7 @@ const ModelChip: React.FC<{
                     {current === m.id && <Icon icon={Check} size={14} />}
                   </button>
                 ))}
-                {current && !currentModel && (
+                {current && !currentModel && !q && (
                   <button
                     type="button"
                     role="option"

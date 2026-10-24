@@ -293,6 +293,59 @@ describe('ModelControls', () => {
     );
   });
 
+  it('模型多于 8 个时模型页有搜索：按 id / 名称过滤，回车选第一个，Esc 先清空搜索词', async () => {
+    const models = Array.from({ length: 12 }, (_, i) => ({
+      id: `anthropic/claude-${i}`,
+      label: i === 7 ? 'Claude Opus' : undefined,
+      reasoning: false,
+      efforts: [],
+    }));
+    models.push({ id: 'openai/gpt-6', label: undefined, reasoning: false, efforts: [] });
+    const catalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'amux', name: 'Amux' },
+      defaultModel: null,
+      models,
+    };
+    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
+    fireEvent.click(await r.findByTestId('model-chip'));
+    const menu = await r.findByTestId('model-menu');
+    const search = within(menu).getByTestId('model-search');
+    fireEvent.change(search, { target: { value: 'opus' } });
+    expect(within(menu).getByTestId('model-anthropic/claude-7')).toBeTruthy();
+    expect(within(menu).queryByTestId('model-openai/gpt-6')).toBeNull();
+    expect(within(menu).queryByTestId('model-default')).toBeNull();
+    fireEvent.change(search, { target: { value: 'nothing-here' } });
+    expect(within(menu).getByTestId('model-search-empty')).toBeTruthy();
+    fireEvent.keyDown(search, { key: 'Escape' });
+    expect((search as HTMLInputElement).value).toBe('');
+    expect(r.queryByTestId('model-menu')).not.toBeNull();
+    fireEvent.change(search, { target: { value: 'GPT' } });
+    fireEvent.keyDown(search, { key: 'Enter' });
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith('ai:harness:tab-model', 'cx', 'openai/gpt-6', {
+        expectSource: 'thirdParty',
+      }),
+    );
+  });
+
+  it('模型不多时没有搜索框', async () => {
+    const catalog: BackendModelCatalog = {
+      backend: 'codex',
+      provider: { id: 'amux', name: 'Amux' },
+      defaultModel: null,
+      models: [{ id: 'a/b', reasoning: false, efforts: [] }],
+    };
+    const invoke = vi.fn(async (ch: string) => (ch === 'ai:harness:model-catalog' ? catalog : {}));
+    (window as unknown as { aiIPC: unknown }).aiIPC = { invoke, on: () => () => undefined };
+    const r = render(<ModelControls tab={{ ...baseTab, source: 'thirdParty' }} />);
+    fireEvent.click(await r.findByTestId('model-chip'));
+    await r.findByTestId('model-menu');
+    expect(r.queryByTestId('model-search')).toBeNull();
+  });
+
   it('来源从官方切到第三方：重新按第三方要目录；官方仍不带 source', async () => {
     const invoke = vi.fn(async (ch: string) => {
       if (ch === 'ai:harness:model-catalog') return catalog;

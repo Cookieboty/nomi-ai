@@ -115,5 +115,7 @@
   "下一个需求交给 {0}，点击取消": "Your next request goes to {0}; click to cancel",
   "取消：下一个需求交给 {0}": "Cancel: next request goes to {0}",
   "用户指定把下面的需求交给 {0} 完成：请整理成具体的任务说明，调用 delegate_to_cli。": "The user wants {0} to handle the request below: write it up as a concrete task brief and call delegate_to_cli.",
-  "编程助手运行中": "Coding assistant running"
+  "编程助手运行中": "Coding assistant running",
+  "搜索模型": "Search models",
+  "没有匹配「{0}」的模型": "No models match “{0}”"
 }
