@@ -12,6 +12,7 @@ import {
 import { geminiModelPath } from './ingress';
 import { readIntent, renderIntent } from './intent';
 import type { Wire } from './ir';
+import { quirksOf } from './providers/index';
 import { convertRequest } from './request';
 import type { Candidate } from './route/resolve';
 
@@ -90,7 +91,8 @@ export function upstreamHeaders(
     if (beta) h['anthropic-beta'] = beta;
   }
   const userAgent =
-    c.provider.userAgent ?? (opts.sameWire ? header('user-agent') : c.provider.quirks?.userAgent);
+    c.provider.userAgent ??
+    (opts.sameWire ? header('user-agent') : quirksOf(c.provider, c.wire).userAgent);
   if (userAgent) h['User-Agent'] = userAgent;
   return { ...h, ...(c.provider.headers ?? {}) };
 }
@@ -125,7 +127,7 @@ export function upstreamBody(
       model: opts.ingressModel,
       stream: opts.stream,
       upstreamModel: c.upstreamModel,
-      reasoningPassback: c.provider.quirks?.reasoningPassback,
+      reasoningPassback: quirksOf(c.provider, c.wire).reasoningPassback,
     });
     // 跨协议：编码器不写推理参数，按入口的推理意图渲染到上游请求体（§6.9.5）
     const intent = readIntent(ingress, body, opts.client);

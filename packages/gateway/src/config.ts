@@ -80,7 +80,12 @@ export interface RuntimeProvider {
   modelMap?: Array<{ from: string; to: string }>;
   /** 探测结果：任一 Key 可用即 ok；未探测过的协议视为可用（有地址就试） */
   detected?: Partial<Record<Wire, ProbeState>>;
+  /** 配置里的厂商差异（预设 + 用户设置）；覆盖供应商规格自带的（§6.3） */
   quirks?: ProviderQuirks;
+  /** 创建时用的预设 id（ai-runtime presets）：按它匹配供应商规格（§6.3 match.presets） */
+  preset?: string;
+  /** 用户手动指定的供应商规格 id（'generic' | 'amux' …）；优先于预设与域名匹配 */
+  spec?: string;
 }
 
 export interface ClientModels {

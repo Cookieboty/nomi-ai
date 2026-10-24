@@ -1,12 +1,21 @@
 /**
  * 网关侧的请求修正（docs/design/unified-gateway.md §12.7.3）。
  * 作用在「真正发给上游的请求体」上：同协议透传与跨协议转换都要过一遍。
+ * 这里只剩按模型的部分（输出上限、推理、图片）；供应商部分在 providers/（§6.3），
+ * 模型部分在 P7 迁入模型适配器（§6.9.6）。
  * 只做外科式改写（浅拷贝被改动的那一层），不经过 IR，不改调用方传进来的对象。
  */
 import type { RuntimeModel } from './config';
 import type { Wire } from './ir';
+import { nativeOf, providerRequest, quirksOf, serverToolError } from './providers/index';
 import type { Candidate } from './route/resolve';
-import { mapChatToolNames } from './toolNames';
+
+export {
+  cleanToolSchema,
+  filterAnthropicBeta,
+  SERVER_TOOL_UNSUPPORTED,
+  serverToolError,
+} from './providers/index';
 
 type Obj = Record<string, unknown>;
 
@@ -17,22 +26,14 @@ const MIN_THINKING_BUDGET = 1024;
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
 
-function baseHost(c: Candidate): string {
-  try {
-    return new URL(c.provider.urls[c.wire] ?? '').hostname.toLowerCase();
-  } catch {
-    return '';
-  }
-}
-
-/** 上游是 Anthropic 官方接口 */
+/** 上游是 Anthropic 官方接口（按供应商规格，§6.3） */
 export function isAnthropicOfficial(c: Candidate): boolean {
-  return baseHost(c) === 'api.anthropic.com';
+  return nativeOf(c) === 'anthropic';
 }
 
 /** 上游是 OpenAI 官方接口 */
 export function isOpenAIOfficial(c: Candidate): boolean {
-  return baseHost(c) === 'api.openai.com';
+  return nativeOf(c) === 'openai';
 }
 
 /** 候选对应的模型元数据（按对外模型名在供应商的模型列表里找） */
@@ -61,58 +62,12 @@ export function toolLimitError(c: Candidate, body: unknown): string | null {
   // 同协议（Messages → Messages）时单独发起的服务端工具请求原样留在上游副本里，在这里拦下
   const server = serverToolError(c, c.wire, body);
   if (server) return server;
-  const max = c.provider.quirks?.maxTools;
+  const max = quirksOf(c.provider, c.wire).maxTools;
   if (!max || max <= 0) return null;
   const n = toolCount(c.wire, body);
   return n > max
     ? `当前供应商一次最多支持 ${max} 个工具，这次请求带了 ${n} 个，请减少 MCP 工具`
     : null;
-}
-
-/* ------------------------------- 服务端工具 ------------------------------- */
-
-/** Anthropic 服务端工具（在 Anthropic 那边执行）：web_search_*、web_fetch_*、code_execution_* */
-const SERVER_TOOL_RE = /^(web_search|web_fetch|code_execution)_/;
-
-export const SERVER_TOOL_UNSUPPORTED = '当前模型不支持联网搜索';
-
-function isServerTool(t: unknown): t is Obj {
-  return isObj(t) && typeof t.type === 'string' && SERVER_TOOL_RE.test(t.type);
-}
-
-/** Messages 请求是「单独发起的服务端工具请求」：工具只有服务端工具，或 tool_choice 强制用其中一个 */
-function isDedicatedServerToolRequest(o: Obj): boolean {
-  const tools = Array.isArray(o.tools) ? o.tools : [];
-  const server = tools.filter(isServerTool);
-  if (!server.length) return false;
-  if (server.length === tools.length) return true;
-  const tc = o.tool_choice;
-  return isObj(tc) && tc.type === 'tool' && server.some((t) => t.name === tc.name);
-}
-
-/**
- * 服务端工具的预检（§12.7.3）：上游不是 Anthropic 官方、而请求是单独发起的服务端工具请求时，
- * 返回给用户的错误（不发请求，避免静默返回一个没有搜索结果的回答）；否则 null。
- * body 是 Messages 协议的请求体（入口请求体，或同协议时发给上游的请求体）。
- */
-export function serverToolError(c: Candidate, ingress: Wire, body: unknown): string | null {
-  if (ingress !== 'messages' || isAnthropicOfficial(c) || !isObj(body)) return null;
-  return isDedicatedServerToolRequest(body)
-    ? `${SERVER_TOOL_UNSUPPORTED}（${c.provider.name}）`
-    : null;
-}
-
-/** 与普通工具混在一起的服务端工具：从上游副本里去掉 */
-function dropServerTools(o: Obj, notes: string[]): void {
-  if (!Array.isArray(o.tools) || isDedicatedServerToolRequest(o)) return;
-  const kept = o.tools.filter((t) => !isServerTool(t));
-  if (kept.length === o.tools.length) return;
-  const names = o.tools
-    .filter(isServerTool)
-    .map((t) => String(t.name ?? t.type))
-    .join('、');
-  o.tools = kept;
-  notes.push(`服务端工具 ${names} 已去掉（上游不是 Anthropic 官方）`);
 }
 
 /* ------------------------------- 输出上限 / 推理 ------------------------------- */
@@ -247,117 +202,6 @@ function stripImages(o: Obj, wire: Wire, notes: string[]): void {
   }
 }
 
-/* ------------------------------- 工具 schema ------------------------------- */
-
-/** 值是「名字 → schema」映射的关键字 */
-const SCHEMA_MAPS = new Set([
-  'properties',
-  'patternProperties',
-  '$defs',
-  'definitions',
-  'dependentSchemas',
-]);
-/** 值是 schema 或 schema 数组的关键字 */
-const SCHEMA_KEYS = new Set([
-  'items',
-  'prefixItems',
-  'additionalItems',
-  'additionalProperties',
-  'unevaluatedProperties',
-  'unevaluatedItems',
-  'contains',
-  'propertyNames',
-  'not',
-  'if',
-  'then',
-  'else',
-  'anyOf',
-  'oneOf',
-  'allOf',
-]);
-/** 第三方上游常拒绝的关键字 */
-const STRIP_KEYWORDS = new Set(['$schema', 'examples']);
-
-/** 去掉 schema 里第三方常拒绝的关键字（$schema、examples），只认 schema 结构，不碰属性名和取值 */
-export function cleanToolSchema(schema: unknown): unknown {
-  if (Array.isArray(schema)) return schema.map(cleanToolSchema);
-  if (!isObj(schema)) return schema;
-  const out: Obj = {};
-  for (const [k, v] of Object.entries(schema)) {
-    if (STRIP_KEYWORDS.has(k)) continue;
-    if (SCHEMA_MAPS.has(k) && isObj(v)) {
-      out[k] = Object.fromEntries(Object.entries(v).map(([n, s]) => [n, cleanToolSchema(s)]));
-    } else if (SCHEMA_KEYS.has(k)) {
-      out[k] = cleanToolSchema(v);
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
-function cleanTools(o: Obj, wire: Wire): void {
-  if (!Array.isArray(o.tools)) return;
-  const fix = (t: Obj, key: string): Obj =>
-    key in t ? { ...t, [key]: cleanToolSchema(t[key]) } : t;
-  o.tools = o.tools.map((t) => {
-    if (!isObj(t)) return t;
-    switch (wire) {
-      case 'messages':
-        return fix(t, 'input_schema');
-      case 'responses':
-        return fix(t, 'parameters');
-      case 'chat':
-        return isObj(t.function) ? { ...t, function: fix(t.function, 'parameters') } : t;
-      case 'gemini':
-        return Array.isArray(t.functionDeclarations)
-          ? {
-              ...t,
-              functionDeclarations: t.functionDeclarations.map((d) =>
-                isObj(d) ? fix(fix(d, 'parameters'), 'parametersJsonSchema') : d,
-              ),
-            }
-          : t;
-    }
-  });
-}
-
-/* ------------------------------- Messages 专有 ------------------------------- */
-
-function textOf(content: unknown): Obj[] {
-  if (typeof content === 'string') return content ? [{ type: 'text', text: content }] : [];
-  if (Array.isArray(content)) return content.filter((b): b is Obj => isObj(b) && b.type === 'text');
-  return [];
-}
-
-/** messages 里的 role:"system" 合并进顶层 system（按出现顺序追加） */
-function mergeSystemMessages(o: Obj, notes: string[]): void {
-  const msgs = o.messages;
-  if (!Array.isArray(msgs) || !msgs.some((m) => isObj(m) && m.role === 'system')) return;
-  const sys = msgs.filter((m): m is Obj => isObj(m) && m.role === 'system');
-  o.messages = msgs.filter((m) => !(isObj(m) && m.role === 'system'));
-  const allStrings =
-    (o.system === undefined || typeof o.system === 'string') &&
-    sys.every((m) => typeof m.content === 'string');
-  if (allStrings) {
-    o.system = [o.system, ...sys.map((m) => m.content)].filter((s) => s).join('\n\n');
-  } else {
-    o.system = [...textOf(o.system), ...sys.flatMap((m) => textOf(m.content))];
-  }
-  notes.push(`${sys.length} 条对话中的 system 消息已合并进顶层 system`);
-}
-
-const ANTHROPIC_ONLY_FIELDS = ['output_config', 'context_management'];
-
-/** 第三方 Messages 上游不认识的 anthropic-beta 项 */
-export function filterAnthropicBeta(beta: string): string {
-  return beta
-    .split(',')
-    .map((s) => s.trim())
-    .filter((s) => s && !/^context-1m-/i.test(s) && !/^context-management-/i.test(s))
-    .join(',');
-}
-
 /* ------------------------------- 入口 ------------------------------- */
 
 /**
@@ -374,21 +218,7 @@ export function applyRequestFixes(c: Candidate, body: unknown, notes: string[] =
   if (model?.reasoning === false) dropReasoning(o, wire, notes);
   if (wire === 'messages') fitThinkingBudget(o, notes);
   if (model?.vision === false) stripImages(o, wire, notes);
-  if (!isAnthropicOfficial(c) && !isOpenAIOfficial(c)) cleanTools(o, wire);
-  if (wire === 'messages' && !isAnthropicOfficial(c)) {
-    mergeSystemMessages(o, notes);
-    dropServerTools(o, notes);
-    for (const k of ANTHROPIC_ONLY_FIELDS) {
-      if (k in o) {
-        delete o[k];
-        notes.push(`${k} 已去掉（上游不是 Anthropic 官方）`);
-      }
-    }
-  }
-  // Chat 上游的工具名必须匹配 ^[a-zA-Z0-9_-]{1,64}$，回程在 respond 里还原（toolNames.ts）
-  if (wire === 'chat' && c.provider.quirks?.fixes?.toolNames !== false) mapChatToolNames(o, notes);
-  // 厂商要求的额外字段（quirks.extraBody），调用方随后再去掉 dropParams
-  const extra = c.provider.quirks?.extraBody?.[wire];
-  if (extra) Object.assign(o, extra);
+  // 供应商部分（工具 schema、非官方 Messages 的清理、Chat 工具名、extraBody）在供应商规格里（§6.3）
+  providerRequest(c, o, notes);
   return o;
 }

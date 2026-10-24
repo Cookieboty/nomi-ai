@@ -11,6 +11,7 @@ import { completeResponsesBody, ResponsesCanonicalizer } from './canonical/respo
 import { TerminalWatch } from './canonical/terminal';
 import type { Wire } from './ir';
 import { patchChatJson, type ChatPatchOptions } from './stream/chatPatch';
+import { heartbeat, HEARTBEAT_COMMENT } from './stream/heartbeat';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamConverter } from './stream/index';
 import { createPassthrough, passthroughFail, type Passthrough } from './stream/passthrough';
 
@@ -41,6 +42,11 @@ export interface Bridge {
   fail(message: string): string;
   /** 修正决定提前结束（复读检测）：调用方停止读上游 */
   readonly stopped: boolean;
+  /**
+   * 给客户端的心跳（§6.6）：供应商适配器丢掉了上游的保活时调用。只在事件边界之间写
+   * （透传按完整事件转发，转换器只输出完整事件），不会插进半截事件里。
+   */
+  alive(): string;
 }
 
 /** SSE 事件的结尾：空行（LF 或 CRLF，可混用） */
@@ -81,14 +87,23 @@ export function createBridge(plan: BridgePlan): Bridge {
     return out;
   };
   const forward = (events: string) => write(pass ? pass.push(events) : events);
+  /** 已经给客户端写过内容（Messages 的 ping 只能在 message_start 之后） */
+  let wrote = false;
+  const sent = (s: string) => {
+    if (s) wrote = true;
+    return s;
+  };
   return {
     mode: plan.mode,
     push(text) {
-      if (conv) return write(conv.push(text));
+      if (conv) return sent(write(conv.push(text)));
       const events = frame(text);
       if (!events) return '';
       watch?.push(events);
-      return forward(events);
+      return sent(forward(events));
+    },
+    alive() {
+      return wrote ? heartbeat(plan.to) : HEARTBEAT_COMMENT;
     },
     end(rest = '') {
       let out = '';

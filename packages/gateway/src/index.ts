@@ -16,6 +16,17 @@ export * from './cooldown';
 export * from './customTools';
 export * from './errors';
 export * from './fixes';
+export {
+  BUILTIN_SPECS,
+  mergeQuirks,
+  ProviderStage,
+  providerSpecById,
+  quirksOf,
+  registerProviderSpec,
+  specOf,
+  type ProviderAdapterHooks,
+  type ProviderSpec,
+} from './providers/index';
 export { modelsBody } from './models';
 export * from './net/address';
 export * from './net/loopback';

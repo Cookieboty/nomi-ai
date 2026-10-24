@@ -4,6 +4,7 @@
  */
 import type { Wire } from './ir';
 import { CallIds, callIdSeed } from './models/rules/response/callIds';
+import { quirksOf } from './providers/index';
 import type { Candidate } from './route/resolve';
 import type { ChatPatchOptions } from './stream/chatPatch';
 import { chatToolNameReverse, ingressToolNames } from './toolNames';
@@ -14,7 +15,7 @@ export function responseFixOptions(
   body: unknown,
   notes?: string[],
 ): ChatPatchOptions {
-  const sw = cand.provider.quirks?.fixes ?? {};
+  const sw = quirksOf(cand.provider, cand.wire).fixes ?? {};
   const fromChat = cand.wire === 'chat';
   const names = fromChat ? ingressToolNames(ingress, body) : [];
   return {

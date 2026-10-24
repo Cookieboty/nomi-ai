@@ -23,6 +23,8 @@ import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { modelsBody } from './models';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
+import { ProviderStage, specOf } from './providers/index';
+import { stagedResponse } from './providers/stream';
 import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
 import { alternateWire, resolveCandidates, type Candidate } from './route/resolve';
@@ -184,7 +186,14 @@ function legacyClient(ingress: Ingress | null, ua: string): ClientId | null {
 }
 
 type Attempt =
-  | { kind: 'response'; res: Response; cand: Candidate; notes?: string[] }
+  | {
+      kind: 'response';
+      res: Response;
+      cand: Candidate;
+      notes?: string[];
+      /** 供应商预处理（§6.3）：套在了 res 上；心跳计数在这里 */
+      stage?: ProviderStage;
+    }
   | {
       kind: 'failed';
       status: number;
@@ -441,7 +450,15 @@ export class GatewayServer {
       );
       // 提交点（§6.11.2）：流式响应等到第一个内容事件才算成功；之前的错误事件还能换候选
       if (last.kind === 'response' && wantsStream && isSseResponse(last.res)) {
-        const got = last;
+        let got = last;
+        // 供应商预处理（§6.3）在提交点之前：伪装成正文增量的保活不能触发提交
+        const spec = specOf(cand.provider, cand.wire);
+        if (ProviderStage.needed(spec)) {
+          const stage = new ProviderStage(spec, cand.wire);
+          const status = got.res.status;
+          const onRaw = trace ? (t: string) => trace.response(status, t) : undefined;
+          got = { ...got, res: stagedResponse(got.res, stage, onRaw), stage };
+        }
         const peek = await peekCommit(got.res, cand.wire, {
           waitingMs: COMMIT_KEEPALIVE_MS,
           onWaiting: keepAlive,
@@ -566,7 +583,7 @@ export class GatewayServer {
       });
       return;
     }
-    const { res: up, cand } = last;
+    const { res: up, cand, stage } = last;
     // 请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...(last.notes ?? [])];
     const usage = await this.respond(
@@ -579,6 +596,7 @@ export class GatewayServer {
       abort,
       notes,
       trace,
+      stage,
     );
     void trace?.finish({
       status: up.status,
@@ -773,6 +791,7 @@ export class GatewayServer {
     abort: AbortController,
     notes: string[] = [],
     trace?: RequestTrace | null,
+    stage?: ProviderStage,
   ): Promise<StreamUsage> {
     res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
@@ -819,8 +838,14 @@ export class GatewayServer {
           if (res.destroyed) return tap.usage;
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
-          trace?.response(up.status, text);
-          const out = bridge.push(text);
+          // 有供应商预处理时上游原文已在预处理那一层记过（追踪存原始字节，§8.4）
+          if (!stage) trace?.response(up.status, text);
+          let out = bridge.push(text);
+          // 供应商适配器丢掉了上游的保活：给客户端发一个心跳（§6.6）
+          if (stage?.alive) {
+            stage.alive = 0;
+            out += bridge.alive();
+          }
           // 背压（§6.11.4）：客户端读得慢时暂停读上游，等 drain；等待期间不算上游空闲
           const ok = out ? res.write(out) : true;
           if (!ok) {

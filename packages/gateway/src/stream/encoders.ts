@@ -9,6 +9,7 @@ import { escapeCallId } from '../models/rules/response/callIds';
 import { customToolInput } from './aggregate';
 import { geminiErrorStatus } from './errors';
 import type { NormEvent, StopReason, StreamEncoder, StreamUsage } from './events';
+import { HEARTBEAT_COMMENT, HEARTBEAT_PING } from './heartbeat';
 import { SerialBlocks, type SerialBlock, type SerialSink } from './serial';
 import { formatSse } from './sse';
 
@@ -109,6 +110,9 @@ export class MessagesEncoder implements StreamEncoder {
           type: 'error',
           error: { type: messagesErrorType(ev.errorType), message: ev.message },
         });
+      case 'alive':
+        // 官方协议的 ping 只在 message_start 之后出现；之前用 SSE 注释
+        return this.started ? HEARTBEAT_PING : HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -379,6 +383,8 @@ export class ResponsesEncoder implements StreamEncoder {
           })
         );
       }
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -485,6 +491,8 @@ export class ChatCompletionsEncoder implements StreamEncoder {
             error: { message: ev.message, type: ev.errorType ?? 'api_error' },
           }) + formatSse(undefined, '[DONE]')
         );
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }
@@ -594,6 +602,8 @@ export class GeminiEncoder implements StreamEncoder {
           error: { code: ev.status ?? code, message: ev.message, status },
         });
       }
+      case 'alive':
+        return HEARTBEAT_COMMENT;
       default:
         return '';
     }

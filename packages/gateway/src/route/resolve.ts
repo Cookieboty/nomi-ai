@@ -10,6 +10,7 @@ import type {
   RuntimeProvider,
 } from '../config';
 import type { Wire } from '../ir';
+import { quirksOf } from '../providers/index';
 
 import { pickWire, wiresFor } from './native';
 
@@ -115,7 +116,7 @@ function suggest(cfg: GatewayConfig, requested: string): string[] {
 function withDrops(c: Candidate, learned: LearnedState | undefined): Candidate {
   const drops = [
     ...new Set([
-      ...(c.provider.quirks?.dropParams ?? []),
+      ...(quirksOf(c.provider, c.wire).dropParams ?? []),
       ...(learned?.droppedParams?.[c.wire] ?? []),
     ]),
   ];
