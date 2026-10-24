@@ -267,6 +267,9 @@ Nomi 构建在这些优秀的开源项目之上：
 - [问题反馈](https://github.com/Cookieboty/nomi-ai/issues)
 - [更新日志](CHANGELOG.md) · [官网更新日志](https://withnomi.app/changelog)
 - [文档](docs/README.md)：功能说明、开发与测试
+- [Git LFS](docs/development/git-lfs.md)：`.riv` / `.rml` / `rive/**` 大资源；贡献前请 `git lfs install`
+- [委派隔离](docs/development/delegate-isolation.md)：P3 git worktree（非 Docker）
+
 - [隐私](https://withnomi.app/privacy)
 
 ---

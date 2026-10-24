@@ -517,12 +517,12 @@ describe('DelegateService · gitChanged', () => {
     );
     const s = setup({
       send: async () => {
-        fs.writeFileSync(path.join(repo, 'new.ts'), 'x');
+        // P3：委派在 worktree 里跑，改动写到 createTab 的 cwd
+        const tabCwd = String(s.created[0]?.cwd ?? repo);
+        fs.writeFileSync(path.join(tabCwd, 'new.ts'), 'x');
         return { text: '改好了但没按格式汇报' };
       },
     });
-    // 覆盖 cwd 为 git 仓库
-    (s as unknown as { cwd: string }).cwd = repo;
     // recentCwds 已闭包绑定旧 cwd — 直接传 cwd
     const r = await s.run({ cwd: repo });
     expect(r.ok).toBe(true);
@@ -530,6 +530,10 @@ describe('DelegateService · gitChanged', () => {
     expect(String(r.data?.summary)).toContain('<cli-output>');
     expect(r.data?.filesVerified).toBe(true);
     expect(r.data?.changedFiles).toEqual(expect.arrayContaining(['new.ts']));
+    // applyWorktreeToMain 后主工作区也应有文件
+    expect(fs.existsSync(path.join(repo, 'new.ts'))).toBe(true);
+    expect(String(s.created[0]?.cwd)).toContain('.nomi-delegate');
+    expect(r.data?.isolationNote).toMatch(/worktree/);
     fs.rmSync(repo, { recursive: true, force: true });
   });
 });

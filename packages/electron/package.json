@@ -9,6 +9,7 @@
     "build": "node ../../scripts/run-bin.mjs tsc && node scripts/bundle-preload.mjs",
     "copy-renderer": "node scripts/copy-renderer.js",
     "clean": "node ../../scripts/run-bin.mjs rimraf dist",
+    "typecheck": "node ../../scripts/run-bin.mjs tsc --noEmit -p tsconfig.json",
     "package": "npm run package:prod",
     "package:prod": "electron-builder build --publish never",
     "package:prod:mac": "electron-builder build --mac --publish never",

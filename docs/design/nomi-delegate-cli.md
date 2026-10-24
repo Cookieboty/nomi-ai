@@ -1,6 +1,6 @@
 # Nomi 把编程助手当子代理调用（设计稿）
 
-> 状态：P1 + P2（异步默认）已实现（v2.0.0）；P3 待做。起草 2026-10-24。实现偏差见 §12。
+> 状态：P1 + P2（异步默认）+ P3（git worktree 隔离）已实现（v2.0.0）；起草 2026-10-24。实现偏差见 §12。
 > 相关：[编程助手权限模式](cli-permission-modes.md)（§4.1 Nomi 自己的工具）、[编程助手子代理](cli-subagents.md)、
 > [编程助手插件化](cli-plugin-architecture.md)、[模型质量](model-quality.md)。
 
@@ -342,7 +342,7 @@ CLI 配置里如果接了 Nomi 的 MCP，子任务就有可能回头调用 Nomi�
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P1   | 同步、单个子任务；§5 权限、§6 安全、§7 卡片（含卡片内审批）与停止；助手模式与工作台模式都开放（§7.1）                                                                 |
 | P2   | ✅ `background`（**默认 true**）、`delegate_followup`、`delegate_status`；完成后广播 `ai:delegate:completed`，对话注入结果，卡片 live 更新。`background:false` 可同步 |
-| P3   | 并行：每个子任务一个 git worktree（同目录并行会互相改文件）；多个结果汇总；并发上限                                                                                   |
+| P3   | ✅ 并行：git 仓库内每个子任务一个 worktree（`.nomi-delegate/`）；非 git 则 shared-cwd + 提示；结束后拷回主树；并发上限 `MAX_PARALLEL_DELEGATES`（3）                  |
 
 ## 10. 测试
 
@@ -418,11 +418,21 @@ Nomi 可继续聊；完成后广播 + 对话通知。需要同步等结果时传
 
 ### 12.1 明确推迟（v2.0.0 不实现）
 
-| 项                                         | 说明                                                 |
-| ------------------------------------------ | ---------------------------------------------------- |
-| 完整拆分 `CliHarnessService`（约 4886 行） | 归入插件化 M5；本版本不拆                            |
-| Permission PR3 ExitPlanMode UX             | 权限模式后续 PR                                      |
-| `taken_over` 中途接手打断                  | 见上文「有意偏差」；需 harness 在 running 时支持接手 |
-| LFS / 历史 rewrite                         | 发布流程项，与委派无关                               |
+| 项                                                    | 说明                                                        |
+| ----------------------------------------------------- | ----------------------------------------------------------- |
+| 完整拆分 `CliHarnessService`（约 4886 行）            | 归入插件化 M5；本版本不拆                                   |
+| Permission PR3 ExitPlanMode UX                        | 权限模式后续 PR                                             |
+| `taken_over` 中途接手打断                             | 见上文「有意偏差」；需 harness 在 running 时支持接手        |
+| LFS **历史 rewrite**（filter-repo / migrate rewrite） | 不做；改用 `migrate import --no-rewrite` + `.gitattributes` |
 
 - `createTab` 与后续 await 之后、`sendTab` 之前若 `ctx.signal` 已中止：`closeTab` 清理孤儿标签并返回 `cancelledBy: 'nomi'`。
+
+### 12.2 P3 worktree 隔离（已实现）
+
+- 实现：`electron/src/cli/delegate/worktree.ts`；`DelegateService.delegate` 在 `createTab` 前 `prepareIsolation`。
+- **git 仓库内**：`git worktree add --detach <sourceCwd>/.nomi-delegate/<id> HEAD`；`createTab` 的 cwd 指向 worktree。
+  结束后（非 cancel）`applyWorktreeToMain` 把改动拷回仓库根，**保留** worktree 供 `delegate_followup`；cancel / 授权失败则 `releaseIsolation`。
+- **非 git**：`shared-cwd`，结果带 `isolationNote` 提醒并行会互相改文件。
+- **并发上限**：同时 `running` 的委派 ≤ 3（`concurrency_limit`）。
+- **不做 Docker**；子 CLI 自身 Seatbelt/沙箱仍生效。本地 `info/exclude` 写入 `.nomi-delegate/`。
+- **残留风险**：并行任务改同一文件时后完成的覆盖先完成的；`.nomi-delegate/` 在成功路径会残留直到手动清理 / 取消。

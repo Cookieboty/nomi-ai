@@ -5,6 +5,7 @@
  * - `/agent`（旧名 `/cli`）钉住：按 turnId（reqId）存主进程，用完或本轮结束即清除；
  * - 设置：总开关 + 按任务类型的默认编程助手（`ai:delegate:settings` / `ai:delegate:set-settings`）。
  * 权限：派出前按 Nomi 的权限模式确认（计划档直接拦下），子任务档位不比 Nomi 宽，工作目录必须已授权。
+ * P3：git 仓库内委派用 worktree 隔离并行写入（见 worktree.ts）；非 git 则 shared-cwd + 提示。
  */
 import { execFile } from 'child_process';
 import * as fs from 'fs';
@@ -39,6 +40,13 @@ import {
   type DelegateReport,
   type DelegateSettings,
 } from './core';
+import {
+  applyWorktreeToMain,
+  MAX_PARALLEL_DELEGATES,
+  prepareIsolation,
+  releaseIsolation,
+  type IsolationHandle,
+} from './worktree';
 
 const CLI_NAME: Record<DelegateCli, string> = {
   claude: 'Claude Code',
@@ -102,6 +110,8 @@ export interface DelegateResult {
   error?: string;
   durationMs: number;
   usage?: HarnessUsage;
+  /** P3：worktree / shared-cwd 隔离说明（给 Nomi / 用户看） */
+  isolationNote?: string;
 }
 
 /** 后台委派进行中的任务（P2） */
@@ -109,7 +119,11 @@ interface BgTask {
   taskId: string;
   cli: DelegateCli;
   goal: string;
+  /** 实际交给 createTab 的 cwd（可能是 worktree） */
   cwd: string;
+  /** 用户授权的原始目录 */
+  sourceCwd: string;
+  isolation: IsolationHandle;
   startedAt: number;
   before: string[] | null;
   status: 'running' | 'done' | 'error' | 'cancelled';
@@ -265,6 +279,7 @@ export class DelegateService {
       filesVerified: false,
       approvals: this.approvalsOf(tsk.taskId),
       durationMs: Date.now() - tsk.startedAt,
+      isolationNote: tsk.isolation.note,
     };
   }
 
@@ -389,13 +404,45 @@ export class DelegateService {
         'cwd_not_granted',
         `工作目录不可用：${g.message}。先用 desktop_request_scope 请用户授权这个文件夹`,
       );
-    const cwd = g.real;
+    const sourceCwd = g.real;
+
+    const runningCount = [...this.tasks.values()].filter((x) => x.status === 'running').length;
+    if (runningCount >= MAX_PARALLEL_DELEGATES) {
+      throw new DelegateError(
+        'concurrency_limit',
+        `同时运行的委派已达上限（${MAX_PARALLEL_DELEGATES}）。等其中一个完成后再派，或用 delegate_status 查看进度`,
+      );
+    }
+
+    const isolationKey = `del-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    let isolation: IsolationHandle;
+    try {
+      isolation = await prepareIsolation(sourceCwd, isolationKey);
+    } catch (e) {
+      throw new DelegateError(
+        'isolation_failed',
+        e instanceof Error ? e.message : `无法准备委派隔离目录：${String(e)}`,
+      );
+    }
+    let cwd = isolation.cwd;
+    if (isolation.kind === 'worktree' && isolation.cwd !== sourceCwd) {
+      const gw = await broker.guard(isolation.cwd, 'write');
+      if (!gw.ok) {
+        await releaseIsolation(isolation);
+        throw new DelegateError(
+          'cwd_not_granted',
+          `委派 worktree 目录不可用：${gw.message}。请授权工作区根目录，或串行委派`,
+        );
+      }
+      cwd = gw.real;
+      isolation = { ...isolation, cwd };
+    }
 
     const decision = await broker.authorize({
       tool: 'delegate_to_cli',
       danger: 'write',
-      summary: `让 ${CLI_NAME[cli]} 在 ${cwd} 里：${i.goal.slice(0, 80)}`,
-      args: { cli, cwd, goal: i.goal },
+      summary: `让 ${CLI_NAME[cli]} 在 ${sourceCwd} 里：${i.goal.slice(0, 80)}`,
+      args: { cli, cwd: sourceCwd, goal: i.goal, isolation: isolation.kind },
       preview: buildDelegatePrompt({
         goal: i.goal,
         context: i.context,
@@ -404,27 +451,35 @@ export class DelegateService {
       }),
       signal: ctx.signal,
     });
-    if (decision === 'blocked')
-      throw new DelegateError(
-        'mode_blocked',
-        '当前是「计划」（只读）权限模式，不能派编程助手去改东西；先给出方案，等用户切换权限模式',
-      );
-    if (decision === 'denied')
-      throw new DelegateError('user_denied', '用户没有同意这次委派，不要重试');
-    if (decision === 'timeout')
+    if (decision === 'blocked' || decision === 'denied' || decision === 'timeout') {
+      await releaseIsolation(isolation);
+      if (decision === 'blocked')
+        throw new DelegateError(
+          'mode_blocked',
+          '当前是「计划」（只读）权限模式，不能派编程助手去改东西；先给出方案，等用户切换权限模式',
+        );
+      if (decision === 'denied')
+        throw new DelegateError('user_denied', '用户没有同意这次委派，不要重试');
       throw new DelegateError('timeout_denied', '没有等到用户确认，已取消委派');
+    }
 
     this.consumePin(turnId);
 
     const nomiMode = broker.permissionMode() as HarnessPermissionMode;
-    const tab = harness.createTab({
-      backend: cli,
-      cwd,
-      title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
-      permissionMode: childPermissionMode(nomiMode, harness.listTabs().defaultPermissionMode),
-      activate: false,
-      delegation: { ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}), goal: i.goal },
-    });
+    let tab;
+    try {
+      tab = harness.createTab({
+        backend: cli,
+        cwd,
+        title: `Nomi · ${i.goal.trim().slice(0, 40)}`,
+        permissionMode: childPermissionMode(nomiMode, harness.listTabs().defaultPermissionMode),
+        activate: false,
+        delegation: { ...(ctx.toolCallId ? { callId: ctx.toolCallId } : {}), goal: i.goal },
+      });
+    } catch (e) {
+      await releaseIsolation(isolation);
+      throw e;
+    }
 
     const before = await gitChanged(cwd);
 
@@ -435,6 +490,7 @@ export class DelegateService {
       } catch {
         /* 标签可能已不存在 */
       }
+      await releaseIsolation(isolation);
       return {
         taskId: tab.id,
         cli,
@@ -444,6 +500,7 @@ export class DelegateService {
         filesVerified: false,
         approvals: { asked: 0, denied: 0, timedOut: 0 },
         durationMs: Date.now() - t0,
+        isolationNote: isolation.note,
       };
     }
 
@@ -462,6 +519,8 @@ export class DelegateService {
         cli,
         goal: i.goal,
         cwd,
+        sourceCwd,
+        isolation,
         startedAt: t0,
         before,
         status: 'running',
@@ -475,10 +534,12 @@ export class DelegateService {
         status: 'running',
         summary:
           `${CLI_NAME[cli]} 已在后台开始：${i.goal.slice(0, 80)}。` +
-          '可用 delegate_status 查询进度；完成后会在对话里通知。',
+          '可用 delegate_status 查询进度；完成后会在对话里通知。' +
+          (isolation.kind === 'worktree' ? `（${isolation.note}）` : `（注意：${isolation.note}）`),
         filesVerified: false,
         approvals: { asked: 0, denied: 0, timedOut: 0 },
         durationMs: Date.now() - t0,
+        isolationNote: isolation.note,
       };
     }
 
@@ -488,6 +549,8 @@ export class DelegateService {
       cli,
       goal: i.goal,
       cwd,
+      sourceCwd,
+      isolation,
       startedAt: t0,
       before,
       status: 'running',
@@ -562,7 +625,15 @@ export class DelegateService {
     const git = after
       ? after.filter((f) => !task.before!.includes(f) || !!report?.changedFiles.includes(f))
       : null;
-    const changedFiles = (git ?? report?.changedFiles ?? []).slice(0, 50);
+    let changedFiles = (git ?? report?.changedFiles ?? []).slice(0, 50);
+    // P3：非取消时把 worktree 改动拷回主工作树，便于用户在原目录看到结果；worktree 仍保留供 followup
+    if (o.status !== 'cancelled' && task.isolation.kind === 'worktree' && changedFiles.length) {
+      const { applied } = applyWorktreeToMain(task.isolation, changedFiles);
+      if (applied.length) changedFiles = applied.slice(0, 50);
+    }
+    if (o.status === 'cancelled') {
+      await releaseIsolation(task.isolation, (m) => console.warn(`[delegate] ${m}`));
+    }
     if (report) {
       report = wrapReport({ ...report, changedFiles });
     }
@@ -580,6 +651,7 @@ export class DelegateService {
       ...(o.error ? { error: o.error } : {}),
       durationMs: Date.now() - task.startedAt,
       ...(o.usage ? { usage: o.usage } : {}),
+      isolationNote: task.isolation.note,
     };
 
     this.d.desktop.broker.markRead(task.ctx.signal);
