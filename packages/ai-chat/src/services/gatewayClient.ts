@@ -1,9 +1,10 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 /**
  * 统一网关（主进程 GatewayService，见 docs/design/unified-gateway.md §5、§6）。
  * 返回的数据里 Key 只有掩码、没有客户端令牌；明文 Key 只在 upsertProvider / detect 的参数里单向发出。
  */
 export type Wire = 'messages' | 'responses' | 'chat' | 'gemini';
-export type ClientId = 'nomi' | 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh';
+export type ClientId = 'nomi' | BuiltinCliId;
 
 export const WIRES: readonly Wire[] = ['messages', 'responses', 'chat', 'gemini'];
 

@@ -7,6 +7,7 @@ import { Button, SettingRow, SettingsGroup, t } from '@nomi-ai/ui';
 import React from 'react';
 
 import type { CliKind } from '../../services/cliSource';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 
 import { CliVersionCard } from './CliVersionCard';
@@ -20,7 +21,7 @@ export const CliEndpointSection: React.FC<{ kind: CliKind; onOpenModels?: () => 
   <div className={styles.section} data-testid={`providers-section-${kind}`}>
     <CliVersionCard kind={kind} />
 
-    {kind !== 'dsh' && <OfficialAccounts kind={kind} />}
+    {hasOfficialAccount(kind) && <OfficialAccounts kind={kind} />}
 
     <SettingsGroup title={t('第三方模型')} data-testid={`cli-third-party-${kind}`}>
       <SettingRow

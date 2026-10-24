@@ -1,9 +1,10 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ReasoningEffort } from '@nomi-ai/types';
 import { t } from '@nomi-ai/ui';
 
 import type { PermissionMode } from '../utils/permissionModes';
 
-export type HarnessBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type HarnessBackend = 'nomi' | BuiltinCliId;
 
 export interface HarnessState {
   backend: HarnessBackend;

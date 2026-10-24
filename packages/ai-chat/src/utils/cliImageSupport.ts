@@ -15,6 +15,8 @@ import {
   type HarnessTabMeta,
 } from '../services/harnessClient';
 
+import { cliAcceptsImages } from './cliCaps';
+
 export type CliImageCapability = 'full' | 'none';
 
 export interface CliImageSupport {
@@ -25,9 +27,8 @@ export interface CliImageSupport {
 
 /** 后端本身能不能收图（不看模型） */
 export function cliImageSupport(backend: HarnessBackend | undefined | null): CliImageCapability {
-  if (!backend || backend === 'nomi') return 'full';
-  if (backend === 'dsh') return 'none';
-  return 'full';
+  // 按插件清单的 images 能力位（如 dsh 的命令行没有图片输入）
+  return cliAcceptsImages(backend) ? 'full' : 'none';
 }
 
 /** 结合模型目录判断（纯函数，便于单测） */
@@ -61,7 +62,7 @@ export function useCliImageSupport(tab: HarnessTabMeta | null | undefined): CliI
   const [catalog, setCatalog] = useState<{ key: string; value: BackendModelCatalog | null }>();
   const key = `${backend}|${source}`;
   useEffect(() => {
-    if (!backend || backend === 'nomi' || backend === 'dsh') return;
+    if (!backend || backend === 'nomi' || !cliAcceptsImages(backend)) return;
     let alive = true;
     harnessClient
       .modelCatalog(backend, source === 'thirdParty' ? { source } : {})

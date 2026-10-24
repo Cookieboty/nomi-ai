@@ -40,6 +40,7 @@ import {
 } from '../../services/gatewayClient';
 import { pickerProviders, useGatewayState } from '../../services/nomiModel';
 import { providerDisplayName } from '../../services/providerClient';
+import { hasOfficialAccount } from '../../utils/cliCaps';
 import { ENDPOINT_NAME } from '../../utils/endpointBadge';
 import { EndpointIcon } from '../EndpointIcon';
 
@@ -363,7 +364,7 @@ const CliRow: React.FC<{
   const source = client?.newTabSource ?? 'official';
   const claude = kind === 'claude';
   const sourceOptions: SelectOption[] = [
-    { value: 'official', label: kind === 'dsh' ? t('dsh 自带配置') : t('官方账号') },
+    { value: 'official', label: hasOfficialAccount(kind) ? t('官方账号') : t('dsh 自带配置') },
     {
       value: 'thirdParty',
       label: t('第三方'),

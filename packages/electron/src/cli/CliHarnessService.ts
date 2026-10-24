@@ -24,6 +24,7 @@ import { claudeConfigDir } from '../usage/cliHomes';
 import { CoalescedWriter, flushPendingWritesSync } from '../utils/coalescedWriter';
 import { writePrivateFile } from '../utils/privateFile';
 
+import type { AccountKind } from './accounts/types';
 import { buildCliEnv } from './cliEnv';
 import { resolveHarnessLaunch } from './cliLaunch';
 import { codexExecItem, codexTurnPolicy } from './codex/appServer';
@@ -188,7 +189,7 @@ export interface HarnessOfficialAccounts {
 }
 
 /** 有官方账号的后端 */
-export type AccountBackend = 'claude' | 'codex' | 'grok' | 'gemini';
+export type AccountBackend = AccountKind;
 const ACCOUNT_BACKENDS: readonly string[] = ['claude', 'codex', 'grok', 'gemini'];
 const isAccountBackend = (b: string): b is AccountBackend => ACCOUNT_BACKENDS.includes(b);
 

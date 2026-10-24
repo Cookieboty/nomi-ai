@@ -1,3 +1,5 @@
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
+
 import type { HarnessTraceEvent, HarnessUsage } from '../services/harnessClient';
 
 export interface ChatMessage {
@@ -36,7 +38,8 @@ export interface ChatMessage {
 }
 
 /** 对话所属后端：与 harness 后端一致；侧栏列表按此后端隔离 */
-export type ConversationBackend = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+/** 对话后端：Nomi 自己 + 内置编程助手（id 由 @nomi-ai/cli-plugins 生成） */
+export type ConversationBackend = 'nomi' | BuiltinCliId;
 
 export const CONVERSATION_BACKENDS: readonly ConversationBackend[] = [
   'nomi',
