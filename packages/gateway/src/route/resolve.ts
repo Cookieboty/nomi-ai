@@ -17,9 +17,13 @@ import type {
   RuntimeProvider,
 } from '../config';
 import type { Wire } from '../ir';
+import { effectiveModel } from '../models/effective';
+import type { EffectiveModel } from '../models/types';
 import { quirksOf } from '../providers/index';
 
 import { pickWire, wiresFor } from './native';
+import { makePlan, type RoutePlan } from './plan';
+import type { RectifyFix } from './rectifiers';
 
 export interface Candidate {
   provider: RuntimeProvider;
@@ -33,6 +37,12 @@ export interface Candidate {
   dropParams?: string[];
   /** Responses 上游拒绝过 custom 工具：custom 改成函数发出，回程还原（§11.3 customToolsRefused） */
   customToolsAsFunctions?: boolean;
+  /** 生效的模型规格（族 → 目录 → 供应商 → 学到的 → 用户，§6.9.3），展开候选时算好 */
+  model?: EffectiveModel;
+  /** 这次的路由计划（§6.9.4）：选协议的理由、预期损失 */
+  plan?: RoutePlan;
+  /** 这次重试要应用的错误修正（§6.9.8，每种最多一次） */
+  rectify?: RectifyFix[];
 }
 
 export type ResolveResult =
@@ -180,10 +190,33 @@ export function alternateWire(
   const model = c.publicModel.slice(c.provider.id.length + 1);
   const learned = cfg.learned?.[c.provider.id];
   const usable = wiresFor(c.provider, model, c.key, learned).filter((w) => !exclude.includes(w));
-  const wire = pickWire(c.provider, model, ingress, usable);
-  if (!wire) return null;
-  const { dropParams: _ignored, customToolsAsFunctions: _custom, ...rest } = c;
-  return withDrops({ ...rest, wire }, learned);
+  const m = c.model ?? effectiveModel(c.provider, model, learned, { strict: cfg.strictParams });
+  const chosen = chooseWire(cfg, c.provider, model, m, ingress, usable);
+  if (!chosen) return null;
+  const { dropParams: _ignored, customToolsAsFunctions: _custom, plan: _plan, ...rest } = c;
+  return withDrops({ ...rest, wire: chosen.wire, model: m, plan: chosen.plan }, learned);
+}
+
+/**
+ * 选上游协议：算路由计划（§6.9.4）；影子模式（默认）下仍按现有规则（pickWire）选，
+ * 计划里记下现有规则的选择，两者不同时由服务端写日志；active 模式按计划选。
+ */
+function chooseWire(
+  cfg: GatewayConfig,
+  p: RuntimeProvider,
+  model: string,
+  m: EffectiveModel,
+  ingress: Wire | null,
+  usable: Wire[],
+): { wire: Wire; plan?: RoutePlan } | null {
+  const legacy = pickWire(p, model, ingress, usable);
+  const plan = makePlan(p, m, ingress, usable);
+  if (cfg.routePlan === 'active' && plan) return { wire: plan.upstream, plan };
+  if (!legacy) return null;
+  return {
+    wire: legacy,
+    ...(plan ? { plan: { ...plan, legacy } } : {}),
+  };
 }
 
 /** 展开一个 (供应商, 模型) 的候选：每个可用 Key 一个，各自选 wire */
@@ -196,12 +229,21 @@ function expand(
   const out: Candidate[] = [];
   const learned = cfg.learned?.[p.id];
   const upstreamModel = upstreamName(p, model);
+  const m = effectiveModel(p, model, learned, { strict: cfg.strictParams });
   for (const key of p.keys.filter((k) => k.enabled)) {
-    const wire = pickWire(p, model, ingress, wiresFor(p, model, key, learned));
-    if (wire)
+    const chosen = chooseWire(cfg, p, model, m, ingress, wiresFor(p, model, key, learned));
+    if (chosen)
       out.push(
         withDrops(
-          { provider: p, key, publicModel: `${p.id}/${model}`, upstreamModel, wire },
+          {
+            provider: p,
+            key,
+            publicModel: `${p.id}/${model}`,
+            upstreamModel,
+            wire: chosen.wire,
+            model: m,
+            ...(chosen.plan ? { plan: chosen.plan } : {}),
+          },
           learned,
         ),
       );

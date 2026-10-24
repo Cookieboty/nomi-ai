@@ -35,6 +35,7 @@ import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { limitsOf, Limiter } from './limits';
 import { modelsBody } from './models';
+import { UnsupportedParamError } from './models/rules/request/index';
 import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
 import { ProviderStage, specOf } from './providers/index';
@@ -462,6 +463,17 @@ export class GatewayServer {
       return;
     }
     if (r.resolution) tag.resolved = r.resolution.how;
+    // 路由计划的影子模式（§6.9.4）：新计划与现有规则选的协议不同就写日志，观察一个版本再切换
+    const plan = r.candidates[0]?.plan;
+    if (plan?.legacy && plan.legacy !== plan.upstream)
+      this.hooks.logger?.info('gateway route plan (shadow) differs', {
+        model: r.candidates[0]!.publicModel,
+        ingress: ingress.wire,
+        current: plan.legacy,
+        planned: plan.upstream,
+        why: plan.why,
+        losses: plan.losses,
+      });
     /** 模型解析的备注（未知模型名按标签主模型处理等），并进这次请求的备注 */
     const resolveNotes = r.resolution?.note ? [r.resolution.note] : [];
     const wantsStream = ingress.wire === 'gemini' ? Boolean(ingress.stream) : b.stream === true;
@@ -612,13 +624,18 @@ export class GatewayServer {
         });
       const hint =
         last.text !== undefined
-          ? this.learner.failure(cand, classifyFailure(last.status, last.text, last.sent))
+          ? this.learner.failure(
+              cand,
+              classifyFailure(last.status, last.text, last.sent, { applied: cand.rectify }),
+            )
           : null;
       const retry =
         hint && learnRetries < MAX_LEARN_RETRIES
           ? 'dropParam' in hint
             ? { ...cand, dropParams: [...(cand.dropParams ?? []), hint.dropParam] }
-            : alternateWire(cfg, cand, ingress.wire, [hint.excludeWire])
+            : 'rectify' in hint
+              ? { ...cand, rectify: [...(cand.rectify ?? []), hint.rectify] }
+              : alternateWire(cfg, cand, ingress.wire, [hint.excludeWire])
           : null;
       if (retry) {
         learnRetries++;
@@ -807,13 +824,21 @@ export class GatewayServer {
       };
     }
     const notes: string[] = [];
-    const sent = upstreamBody(ingress.wire, cand, body, {
-      stream: wantsStream,
-      ingressModel: ingress.model,
-      notes,
-      client: client ?? undefined,
-      ...(bindingEffort ? { bindingEffort } : {}),
-    });
+    let sent: unknown;
+    try {
+      sent = upstreamBody(ingress.wire, cand, body, {
+        stream: wantsStream,
+        ingressModel: ingress.model,
+        notes,
+        client: client ?? undefined,
+        ...(bindingEffort ? { bindingEffort } : {}),
+      });
+    } catch (e) {
+      // 严格模式（§6.9.6）：模型不支持的参数直接报给用户，不换候选
+      if (e instanceof UnsupportedParamError)
+        return { kind: 'failed', status: 400, message: e.message, retryable: false, cand };
+      throw e;
+    }
     // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
     const tooMany = toolLimitError(cand, sent);
     if (tooMany) return { kind: 'failed', status: 400, message: tooMany, retryable: true, cand };

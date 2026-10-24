@@ -5,6 +5,7 @@
  */
 import type { ProviderQuirks, RuntimeProvider } from '../config';
 import type { Wire } from '../ir';
+import type { ModelSpecData } from '../models/types';
 import type { Candidate } from '../route/resolve';
 import type { SseEvent } from '../stream/sse';
 
@@ -27,6 +28,8 @@ export interface ProviderSpec {
     events?: Record<string, 'drop' | { rename: string }>;
   };
   hooks?: ProviderAdapterHooks;
+  /** 供应商对模型规格的覆盖（§6.9.3 第 3 级）：「这家的这个模型只走 Chat」「这家把思考参数叫什么」 */
+  models?: Array<{ match: string[]; spec: ModelSpecData }>;
 }
 
 export interface ProviderContext {

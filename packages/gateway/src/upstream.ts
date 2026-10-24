@@ -5,15 +5,17 @@ import type { AuthStyle } from './config';
 import { customToolsToFunctions } from './customTools';
 import {
   applyRequestFixes,
-  candidateModel,
+  candidateSpec,
   filterAnthropicBeta,
   isAnthropicOfficial,
 } from './fixes';
 import { geminiModelPath } from './ingress';
-import { readIntent, renderIntent, withBindingEffort } from './intent';
+import { readIntent, withBindingEffort } from './intent';
 import type { Wire } from './ir';
+import { fitLevel, renderReasoning } from './models/rules/request/index';
 import { quirksOf } from './providers/index';
 import { convertRequest } from './request';
+import { applyRectifiers } from './route/rectifiers';
 import type { Candidate } from './route/resolve';
 
 function trimSlash(u: string): string {
@@ -119,9 +121,22 @@ export function upstreamBody(
   },
 ): unknown {
   let out: unknown;
+  const m = candidateSpec(c);
+  const intent = readIntent(ingress, body, opts.client);
   if (ingress === c.wire) {
     out =
       c.wire === 'gemini' ? body : { ...(body as Record<string, unknown>), model: c.upstreamModel };
+    // 同协议：请求体原样，只在两种情况下按模型重写推理（§6.9.5）——
+    // 请求里没有显式意图、标签上选了思考深度（binding）；或请求的档位模型不支持（贴合降档）
+    const bound = withBindingEffort(intent, opts.bindingEffort);
+    const efforts = m.reasoning?.efforts;
+    const unsupported =
+      intent?.source === 'explicit' &&
+      intent.effort !== undefined &&
+      efforts?.length &&
+      fitLevel(intent.effort, efforts) !== intent.effort;
+    if (bound?.source === 'binding') out = renderReasoning(c.wire, out, bound, m, opts.notes).body;
+    else if (unsupported && intent) out = renderReasoning(c.wire, out, intent, m, opts.notes).body;
     // Responses 上游拒绝过 custom 工具：改成函数发出（§11.3），回程由 respond 还原
     if (c.customToolsAsFunctions && c.wire === 'responses') {
       const converted = customToolsToFunctions(out);
@@ -134,16 +149,22 @@ export function upstreamBody(
       model: opts.ingressModel,
       stream: opts.stream,
       upstreamModel: c.upstreamModel,
-      reasoningPassback: quirksOf(c.provider, c.wire).reasoningPassback,
+      // 推理回传是模型属性（DeepSeek、Kimi 的思考模式要回传，GPT 不要，§6.9.6 MA4）；供应商 quirks 仍可强制打开
+      reasoningPassback:
+        quirksOf(c.provider, c.wire).reasoningPassback === true ||
+        m.reasoning?.passback === 'required',
     });
-    // 跨协议：编码器不写推理参数，按入口的推理意图渲染到上游请求体（§6.9.5）
-    const intent = withBindingEffort(readIntent(ingress, body, opts.client), opts.bindingEffort);
-    if (intent) out = renderIntent(c.wire, out, intent, candidateModel(c), opts.notes);
+    // 跨协议：编码器不写推理参数，按入口的推理意图与模型规格渲染到上游请求体（§6.9.5）
+    const effective = withBindingEffort(intent, opts.bindingEffort);
+    if (effective) out = renderReasoning(c.wire, out, effective, m, opts.notes).body;
   }
   if (c.wire === 'chat' && opts.stream && out && typeof out === 'object') {
     out = { ...(out as object), stream: true, stream_options: { include_usage: true } };
   }
   out = applyRequestFixes(c, out, opts.notes);
+  // 错误修正重试（§6.9.8）：上一次被拒的地方改一处
+  if (c.rectify?.length)
+    out = applyRectifiers(c.wire, out, c.rectify, m.limits?.maxOutput, opts.notes ?? []);
   // 厂商不接受的可选字段（quirks.dropParams + 运行时学到的，§7.4）
   if (c.dropParams?.length && out && typeof out === 'object' && !Array.isArray(out)) {
     const o = { ...(out as Record<string, unknown>) };

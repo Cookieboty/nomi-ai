@@ -13,6 +13,8 @@
 import { clientSpecOf } from './clients/index';
 import type { RuntimeModel } from './config';
 import type { Wire } from './ir';
+import { renderReasoning } from './models/rules/request/reasoning';
+import type { EffectiveModel } from './models/types';
 
 type Obj = Record<string, unknown>;
 
@@ -177,33 +179,9 @@ export function readIntent(wire: Wire, body: unknown, client?: string): Reasonin
   };
 }
 
-/** 意图的 effort：显式给了就用；只有预算时按预算换算 */
-function effortOf(i: ReasoningIntent, maxTokens?: number): Effort {
-  if (i.effort) return i.effort;
-  if (i.budget) return budgetToEffort(i.budget, maxTokens);
-  return 'medium';
-}
-
-/** 意图的预算：显式给了就用；只有 effort 时按 effort 换算 */
-function budgetOf(i: ReasoningIntent, maxTokens?: number): number {
-  if (i.budget) return i.budget;
-  return effortToBudget(i.effort ?? 'medium', maxTokens);
-}
-
-/** OpenAI 系的档位没有 max：发 xhigh */
-const openaiEffort = (e: Effort): string => (e === 'max' ? 'xhigh' : e);
-
-function describe(i: ReasoningIntent): string {
-  if (i.mode === 'disabled') return 'disabled';
-  const parts: string[] = [i.mode];
-  if (i.effort) parts.push(`effort=${i.effort}`);
-  if (i.budget) parts.push(`budget=${i.budget}`);
-  return `${parts.join(' ')}（${i.source}）`;
-}
-
 /**
- * 把意图写进上游请求体（不改调用方的对象）。模型明确不支持推理（RuntimeModel.reasoning === false）时不写，
- * 交给 fixes.ts 的 dropReasoning 统一去掉。notes 里记录「请求的意图 → 发出的字段」。
+ * 兼容入口：把意图写进上游请求体。渲染已移到模型适配器（models/rules/request/reasoning.ts，§6.9.5），
+ * 这里用 RuntimeModel（用户设置）拼一个最小的模型规格调用它。
  */
 export function renderIntent(
   wire: Wire,
@@ -212,69 +190,14 @@ export function renderIntent(
   model?: RuntimeModel,
   notes?: string[],
 ): unknown {
-  if (!isObj(body) || model?.reasoning === false) return body;
-  const o: Obj = { ...body };
-  let sent: string;
-  if (wire === 'responses') {
-    delete o.reasoning;
-    if (intent.mode !== 'disabled') {
-      const effort = openaiEffort(effortOf(intent, num(o.max_output_tokens)));
-      o.reasoning = { effort, ...(intent.includeThoughts ? { summary: 'auto' } : {}) };
-      sent = `reasoning.effort=${effort}`;
-    } else sent = '不带推理参数';
-  } else if (wire === 'chat') {
-    delete o.reasoning_effort;
-    if (intent.mode !== 'disabled') {
-      const effort = openaiEffort(
-        effortOf(intent, num(o.max_tokens) ?? num(o.max_completion_tokens)),
-      );
-      o.reasoning_effort = effort;
-      sent = `reasoning_effort=${effort}`;
-    } else sent = '不带推理参数';
-  } else if (wire === 'messages') {
-    if (intent.mode === 'disabled') {
-      o.thinking = { type: 'disabled' };
-      sent = 'thinking=disabled';
-    } else {
-      const ceiling = model?.maxOutput;
-      let maxTokens = num(o.max_tokens);
-      // 没有 max_tokens 时先用固定表（避免按模型上限的比例算出过大的预算）
-      const budget = budgetOf(intent, intent.budget ? maxTokens : undefined);
-      if (!maxTokens || maxTokens <= budget) {
-        const want = budget + 4096;
-        maxTokens = ceiling ? Math.min(want, ceiling) : want;
-        o.max_tokens = maxTokens;
-      }
-      o.thinking = { type: 'enabled', budget_tokens: Math.min(budget, maxTokens - 1) };
-      // 开了思考的 Messages 请求只接受默认温度
-      delete o.temperature;
-      delete o.top_k;
-      sent = `thinking.budget_tokens=${Math.min(budget, maxTokens - 1)}`;
-    }
-  } else {
-    const gc: Obj = isObj(o.generationConfig) ? { ...o.generationConfig } : {};
-    const model3 = /gemini-3/i.test(String(o.model ?? ''));
-    if (intent.mode === 'disabled') {
-      gc.thinkingConfig = { thinkingBudget: 0 };
-      sent = 'thinkingBudget=0';
-    } else if (model3) {
-      const e = effortOf(intent, num(gc.maxOutputTokens));
-      const level = e === 'minimal' || e === 'low' ? 'low' : 'high';
-      gc.thinkingConfig = {
-        thinkingLevel: level,
-        ...(intent.includeThoughts ? { includeThoughts: true } : {}),
-      };
-      sent = `thinkingLevel=${level}`;
-    } else {
-      const budget = budgetOf(intent, intent.budget ? num(gc.maxOutputTokens) : undefined);
-      gc.thinkingConfig = {
-        thinkingBudget: budget,
-        ...(intent.includeThoughts ? { includeThoughts: true } : {}),
-      };
-      sent = `thinkingBudget=${budget}`;
-    }
-    o.generationConfig = gc;
-  }
-  notes?.push(`推理：请求 ${describe(intent)} → 发出 ${sent}`);
-  return o;
+  const m: EffectiveModel = {
+    id: model?.id ?? '',
+    userSet: model?.reasoning === false ? ['reasoning'] : [],
+    sources: model ? ['user'] : [],
+    strict: false,
+    catalogVersion: '',
+    ...(model?.reasoning === false ? { reasoning: { control: 'none' as const } } : {}),
+    ...(model?.maxOutput ? { limits: { maxOutput: model.maxOutput } } : {}),
+  };
+  return renderReasoning(wire, body, intent, m, notes).body;
 }

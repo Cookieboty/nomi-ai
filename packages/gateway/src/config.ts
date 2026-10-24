@@ -34,6 +34,20 @@ export interface RuntimeModel {
   vision?: boolean;
   toolCalling?: boolean;
   label?: string;
+  /** 用户设置的可用思考档位（§6.9.3 第 5 级；发送前按它贴合） */
+  efforts?: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'>;
+  /** 严格模式（§6.9.6）：不支持的参数直接报错而不是丢弃；不设时跟网关配置的 strictParams */
+  strict?: boolean;
+}
+
+/** 运行时学到的、某个模型的结论（§6.9.8）：带时间与目录版本，过期或目录升级后重新验证 */
+export interface LearnedModel {
+  at: number;
+  catalogVersion?: string;
+  /** 实际接受的思考档位 */
+  efforts?: Array<'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'>;
+  /** 拒绝非默认温度 */
+  temperature?: false;
 }
 
 export interface ProbeState {
@@ -120,6 +134,8 @@ export interface LearnedState {
   droppedParams?: Record<string, string[]>;
   /** Responses 接口拒绝 custom 工具的模型：之后都从转换模式开始（§11.3） */
   customToolsRefused?: string[];
+  /** 按模型学到的结论（错误修正器，§6.9.8） */
+  models?: Record<string, LearnedModel>;
 }
 
 export interface GatewayConfig {
@@ -136,4 +152,11 @@ export interface GatewayConfig {
   sessionsFile?: string;
   /** 调试追踪目录（§14「调试模式」）：设置了才把请求 / 响应正文脱敏后写到这里，24 小时自动删除 */
   traceDir?: string;
+  /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
+  strictParams?: boolean;
+  /**
+   * 路由计划（§6.9.4）：shadow（默认）= 只计算新计划、与现有选协议规则比对写日志；
+   * active = 按新计划选上游协议（模型原生协议优先）。
+   */
+  routePlan?: 'shadow' | 'active';
 }

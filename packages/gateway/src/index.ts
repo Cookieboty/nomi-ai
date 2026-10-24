@@ -47,6 +47,13 @@ export {
   type TabBinding,
 } from './route/binding';
 export { Limiter, limitsOf, type Limits } from './limits';
+export { CATALOG_VERSION, catalogEntry } from './models/catalog';
+export { effectiveModel, LEARNED_TTL_MS } from './models/effective';
+export { FAMILIES, familyOf } from './models/families';
+export { fitLevel, UnsupportedParamError } from './models/rules/request/index';
+export type { Effort, EffectiveModel, ModelSpecData, ReasoningControl } from './models/types';
+export { makePlan, type Loss, type RoutePlan } from './route/plan';
+export { applyRectifiers, rectifierFor, type RectifyFix } from './route/rectifiers';
 export { modelsBody } from './models';
 export * from './net/address';
 export * from './net/loopback';

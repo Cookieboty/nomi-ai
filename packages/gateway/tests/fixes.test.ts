@@ -226,8 +226,14 @@ describe('images on non-vision models', () => {
     const body = {
       messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: 'x' } }] }],
     };
-    expect(applyRequestFixes(cand('chat'), body)).toEqual(body);
+    // 目录没收录的模型：不知道就不动
+    const unknown = cand('chat', {});
+    unknown.provider.models[0]!.id = 'house-model';
+    unknown.publicModel = 'ds/house-model';
+    expect(applyRequestFixes(unknown, body)).toEqual(body);
+    // 用户设置优先于目录（目录说 deepseek-v4-pro 只收文本）
     expect(applyRequestFixes(cand('chat', { vision: true }), body)).toEqual(body);
+    expect(JSON.stringify(applyRequestFixes(cand('chat'), body))).toContain(IMAGE_OMITTED_TEXT);
   });
 });
 
