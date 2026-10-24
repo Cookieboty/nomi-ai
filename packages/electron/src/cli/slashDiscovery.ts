@@ -669,7 +669,16 @@ function git(cwd: string, args: string[]): Promise<string> {
         windowsHide: true,
         env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', NO_COLOR: '1' },
       },
-      (err, stdout) => (err ? reject(err) : resolve(String(stdout))),
+      (err, stdout, stderr) => {
+        if (!err) return resolve(String(stdout));
+        // 用 git 自己的原因（stderr 第一行，如「fatal: not a git repository」）当错误信息：
+        // Node 的 message 第一行只是「Command failed: git …」，界面据此认不出「不是 git 仓库」（会把命令原样显示出来）
+        const reason = String(stderr ?? '')
+          .split('\n')
+          .map((l) => l.trim())
+          .find(Boolean);
+        reject(reason ? new Error(reason) : err);
+      },
     );
   });
 }

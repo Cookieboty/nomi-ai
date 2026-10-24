@@ -460,4 +460,12 @@ describe('slashDiscovery', () => {
     const bad = await gitDiff(path.join(root, 'nope'));
     expect(bad.ok).toBe(false);
   });
+
+  it('gitDiff：目录不是 git 仓库时错误信息是 git 自己的原因（界面据此不显示报错），不是「Command failed」', async () => {
+    const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'not-git-'));
+    const r = await gitDiff(plain);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/not a git repository/i);
+    expect(r.error).not.toMatch(/Command failed/);
+  });
 });
