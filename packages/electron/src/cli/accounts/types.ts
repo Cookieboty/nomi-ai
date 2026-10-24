@@ -13,6 +13,8 @@ export interface AccountIdentity {
   plan?: string;
   /** 组织 / 工作区 */
   org?: string;
+  /** Codex：已经读过 ChatGPT 账号 id（有没有都算），不再为它向 OpenAI 发请求 */
+  accountIdChecked?: boolean;
 }
 
 export interface AccountView {

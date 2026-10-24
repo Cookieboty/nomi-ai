@@ -36,6 +36,7 @@ import {
 } from './homes';
 import { readIdentity, type IdentityDeps, type ReadIdentity } from './identity';
 import { macKeychain, type KeychainAdapter } from './keychain';
+import { liveProcesses, type LiveCheck } from './liveProcesses';
 import type { AccountIdentity, AccountKind, AccountView } from './types';
 import { ACCOUNT_KINDS } from './types';
 
@@ -66,6 +67,9 @@ const FILE = 'accounts.json';
 const SESSIONS_FILE = 'session-accounts.json';
 const MAX_SESSIONS = 5000;
 const LOGOUT_TIMEOUT_MS = 20_000;
+
+/** 身份键的主体（`|` 后是账号 id 等别名） */
+const primaryKey = (key: string) => key.split('|')[0] ?? key;
 
 export class AccountError extends Error {
   constructor(
@@ -113,6 +117,8 @@ export class AccountService {
       onChanged?: () => void;
       /** 测试注入：CLI 的登出命令 */
       logout?: (kind: AccountKind, env: NodeJS.ProcessEnv) => Promise<void>;
+      /** 测试注入：账号目录里 Nomi 之外还活着的 CLI 进程 */
+      liveProcesses?: (kind: AccountKind, dir: string) => Promise<LiveCheck>;
     },
   ) {
     fs.mkdirSync(d.root, { recursive: true });
@@ -256,10 +262,15 @@ export class AccountService {
 
   /** S10：同一身份登录在另一个目录（两处各自刷新会让其中一处失效） */
   private duplicateOf(a: AccountRecord): string | undefined {
-    const key = a.identity?.key;
+    const key = a.identity?.key ? primaryKey(a.identity.key) : '';
     if (!key || !a.loggedIn) return undefined;
     return this.store().accounts.find(
-      (x) => x.id !== a.id && x.kind === a.kind && x.loggedIn && x.identity?.key === key,
+      (x) =>
+        x.id !== a.id &&
+        x.kind === a.kind &&
+        x.loggedIn &&
+        !!x.identity?.key &&
+        primaryKey(x.identity.key) === key,
     )?.label;
   }
 
@@ -335,20 +346,27 @@ export class AccountService {
   /** 读一次账号的身份（CLI 状态命令 / 非凭据文件），更新记录 */
   async refresh(id: string): Promise<AccountView> {
     const a = this.find(id);
+    const prev = a.identity;
     const r: ReadIdentity = await readIdentity(a.kind, a.dir, {
       ...this.d.identity,
       env: this.d.identity?.env ?? this.env,
       home: this.d.home,
+      // Codex 账号 id 要额外请求一次 OpenAI：每个身份只读一次
+      withAccountId: a.kind === 'codex' && !prev?.accountIdChecked,
     });
     a.loggedIn = r.loggedIn;
     if (r.loggedIn) {
       delete a.needsLogin;
-      const key = r.key ?? a.identity?.key ?? a.id;
+      // 同一身份：沿用上次读到的账号 id 别名（这次没再读）
+      const same = !!prev && !!r.key && primaryKey(prev.key) === primaryKey(r.key);
+      const key = r.key && same && !r.accountIdChecked ? prev.key : (r.key ?? prev?.key ?? a.id);
+      const checked = r.accountIdChecked || (same && prev?.accountIdChecked);
       a.identity = {
         key,
         ...(r.email ? { email: r.email } : {}),
         ...(r.plan ? { plan: r.plan } : {}),
         ...(r.org ? { org: r.org } : {}),
+        ...(checked ? { accountIdChecked: true } : {}),
       };
       if (a.dir && r.email && (a.label === t('官方账号') || !a.label)) a.label = r.email;
     }
@@ -438,6 +456,19 @@ export class AccountService {
       throw new AccountError(
         'in-use',
         t('这个账号还有 {0} 个标签在用，请先关闭或换成别的账号', String(busy)),
+      );
+    // 终端里直接运行、用着这个账号目录的 CLI：删掉目录会让它们写到一半（查不出来时不拦）
+    const live = await (
+      this.d.liveProcesses ?? ((k, dir) => liveProcesses(k, dir, { platform: this.d.platform }))
+    )(a.kind, a.dir).catch((): LiveCheck => ({ state: 'unknown' }));
+    if (live.state === 'busy')
+      throw new AccountError(
+        'in-use',
+        t(
+          '还有 {0} 个 Nomi 之外的 CLI 进程在用这个账号（进程号 {1}），请先在终端里退出它们',
+          String(live.pids.length),
+          live.pids.slice(0, 5).join(', '),
+        ),
       );
     if (a.loggedIn) {
       const env = officialAccountEnv(a.kind, withCliPath(this.env), a.dir);
