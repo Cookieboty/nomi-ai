@@ -365,8 +365,6 @@
   "检测、安装或更新 CLI，管理官方账号登录。": "Detect, install or update CLIs and manage official account sign-in.",
   "本机编程助手的进度监视与活跃会话。": "Progress monitoring and active sessions of local coding assistants.",
   "Token、费用的汇总、趋势、分布和全年热力图。": "Token and cost totals, trends, breakdowns and a yearly heatmap.",
-  "明细与最近请求": "Details & recent requests",
-  "逐条调用记录与网关最近的请求。": "Per-call records and recent gateway requests.",
   "查看各编程助手官方订阅的用量窗口。": "Usage windows of each coding assistant’s official subscription.",
   "为模型设置单价，未定价的模型不计入费用。": "Set model prices; unpriced models are not counted in cost.",
   "设置花费提醒线与用量记录相关选项。": "Spending alert thresholds and usage-record options.",

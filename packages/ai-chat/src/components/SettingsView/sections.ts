@@ -7,6 +7,7 @@ export type SettingsSection =
   | 'general'
   | 'shortcuts'
   | 'models'
+  | 'quality'
   | 'coding'
   | 'usage'
   | 'senses'
@@ -42,6 +43,13 @@ export const SETTINGS_SECTIONS: Array<{
     label: '模型',
     intro:
       '一个第三方供应商就能同时给 Nomi 对话和各编程助手用，协议由 Nomi 自动转换。官方账号的登录与切换仍在「编程助手」页。',
+  },
+  {
+    id: 'quality',
+    icon: SETTINGS_ICONS.quality,
+    label: '模型质量',
+    intro:
+      '各供应商、模型、Key 的成功率、延迟、输出速度与缓存命中率，可按维度对比。只记录元数据，全部只存本机。',
   },
   {
     id: 'coding',
@@ -109,7 +117,7 @@ export const SETTINGS_SECTIONS: Array<{
  */
 export const SETTINGS_NAV_GROUPS: SettingsSection[][] = [
   ['general', 'shortcuts'],
-  ['models', 'coding', 'usage'],
+  ['models', 'quality', 'coding', 'usage'],
   ['senses', 'knowledge', 'schedule', 'notify'],
   ['ext', 'local', 'privacy'],
 ];
@@ -133,15 +141,23 @@ export const SECTION_TABS = {
     { id: 'data', label: '隐私与数据' },
     { id: 'desktop', label: '桌面权限' },
   ],
+  quality: [
+    { id: 'overview', label: '总览' },
+    { id: 'compare', label: '对比' },
+    { id: 'trend', label: '趋势' },
+    { id: 'requests', label: '请求明细' },
+  ],
 } as const;
 
 export type SensesTab = (typeof SECTION_TABS.senses)[number]['id'];
 export type KnowledgeTab = (typeof SECTION_TABS.knowledge)[number]['id'];
 export type ScheduleSectionTab = (typeof SECTION_TABS.schedule)[number]['id'];
 export type PrivacyTab = (typeof SECTION_TABS.privacy)[number]['id'];
+export type QualitySectionTab = (typeof SECTION_TABS.quality)[number]['id'];
 
-/** 深链接可指定的标签（属于上面四个有标签页的分区之一）。 */
-export type SettingsTab = SensesTab | KnowledgeTab | ScheduleSectionTab | PrivacyTab;
+/** 深链接可指定的标签（属于上面有标签页的分区之一）。 */
+export type SettingsTab =
+  SensesTab | KnowledgeTab | ScheduleSectionTab | PrivacyTab | QualitySectionTab;
 
 /** 某分区下 `tab` 是否是它自己的标签（用于忽略错配的深链接标签）。 */
 export function tabOf<S extends keyof typeof SECTION_TABS>(

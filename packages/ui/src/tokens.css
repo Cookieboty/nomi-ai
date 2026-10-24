@@ -171,6 +171,11 @@
   --cd-chart-3: #b88c60; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-4: #889a81; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-5: #9a90ae; /* 规范值对比度不足，按 WCAG AA 微调 */
+  /* 多系列对比图（模型质量等）：按固定顺序取，色盲与对比度经 dataviz 校验；浅色下 3、4 号对比度不足 3:1，图上必须有直接标注 / 表格 */
+  --cd-viz-1: #2a78d6;
+  --cd-viz-2: #eb6834;
+  --cd-viz-3: #1baf7a;
+  --cd-viz-4: #eda100;
   --cd-color-overlay: rgba(63, 43, 36, 0.32);
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
@@ -254,6 +259,10 @@
   --cd-chart-3: #b88c60; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-4: #889a81; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-5: #9a90ae; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-viz-1: #2a78d6;
+  --cd-viz-2: #eb6834;
+  --cd-viz-3: #1baf7a;
+  --cd-viz-4: #eda100;
   --cd-color-overlay: rgba(64, 49, 38, 0.3);
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
@@ -337,6 +346,10 @@
   --cd-chart-3: #b88c60; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-4: #889a81; /* 规范值对比度不足，按 WCAG AA 微调 */
   --cd-chart-5: #9a90ae; /* 规范值对比度不足，按 WCAG AA 微调 */
+  --cd-viz-1: #2a78d6;
+  --cd-viz-2: #eb6834;
+  --cd-viz-3: #1baf7a;
+  --cd-viz-4: #eda100;
   --cd-color-overlay: rgba(32, 52, 61, 0.3);
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
@@ -420,6 +433,10 @@
   --cd-chart-3: #c5a17d;
   --cd-chart-4: #8a9b83;
   --cd-chart-5: #a39ab5;
+  --cd-viz-1: #3987e5;
+  --cd-viz-2: #d95926;
+  --cd-viz-3: #199e70;
+  --cd-viz-4: #c98500;
   --cd-color-overlay: rgba(0, 0, 0, 0.55);
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);
@@ -503,6 +520,10 @@
   --cd-chart-3: #c5a17d;
   --cd-chart-4: #8a9b83;
   --cd-chart-5: #a39ab5;
+  --cd-viz-1: #3987e5;
+  --cd-viz-2: #d95926;
+  --cd-viz-3: #199e70;
+  --cd-viz-4: #c98500;
   --cd-color-overlay: rgba(0, 0, 0, 0.55);
   --cd-title-fill: none;
   --cd-title-color: var(--cd-color-text);

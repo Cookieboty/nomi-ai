@@ -3,7 +3,7 @@
  * 数据来自主进程 UsageService（ai:usage:*）；全部只存本机。
  */
 import { Button, EmptyState, ErrorState, Notice, Skeleton, Tabs, t } from '@nomi-ai/ui';
-import { Coins, RefreshCw } from 'lucide-react';
+import { Activity, Coins, RefreshCw } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -20,19 +20,18 @@ import { AppIcon } from '../AppIcons';
 import { Budget } from './Budget';
 import { Details, type DetailRange } from './Details';
 import { listSep } from './format';
-import { GatewayRequests } from './GatewayRequests';
 import styles from './index.module.css';
 import { Overview } from './Overview';
 import { Pricing } from './Pricing';
 import { QuotaCard } from './Quota';
 import type { Fx } from './shared';
 
-type Tab = 'overview' | 'details' | 'requests' | 'quota' | 'pricing' | 'budget';
+type Tab = 'overview' | 'details' | 'quota' | 'pricing' | 'budget';
 
 export const UsagePanel: React.FC<{
-  /** 跳到「设置 → 隐私与权限」（诊断日志） */
-  onOpenPrivacy?: () => void;
-}> = ({ onOpenPrivacy }) => {
+  /** 跳到「设置 → 模型质量 → 请求明细」（原「最近请求」） */
+  onOpenRequests?: () => void;
+}> = ({ onOpenRequests }) => {
   const [tab, setTab] = useState<Tab>('overview');
   const [range, setRange] = useState<UsageRangeId>('7d');
   const [state, setState] = useState<UsageState | null>(null);
@@ -160,19 +159,32 @@ export const UsagePanel: React.FC<{
         </Notice>
       )}
 
-      <Tabs<Tab>
-        aria-label={t('用量分区')}
-        value={tab}
-        onChange={setTab}
-        items={[
-          { value: 'overview', label: t('概览') },
-          { value: 'details', label: t('明细') },
-          { value: 'requests', label: t('最近请求') },
-          { value: 'quota', label: t('订阅额度') },
-          { value: 'pricing', label: t('价格') },
-          { value: 'budget', label: t('预算与隐私') },
-        ]}
-      />
+      <div className={styles.head}>
+        <Tabs<Tab>
+          aria-label={t('用量分区')}
+          value={tab}
+          onChange={setTab}
+          items={[
+            { value: 'overview', label: t('概览') },
+            { value: 'details', label: t('明细') },
+            { value: 'quota', label: t('订阅额度') },
+            { value: 'pricing', label: t('价格') },
+            { value: 'budget', label: t('预算与隐私') },
+          ]}
+        />
+        {onOpenRequests && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onOpenRequests}
+            data-testid="usage-open-requests"
+            title={t('网关请求的成功率、延迟与逐条明细在「模型质量」里')}
+          >
+            <AppIcon icon={Activity} />
+            {t('最近请求（模型质量）')}
+          </Button>
+        )}
+      </div>
 
       {err && !state ? (
         <ErrorState detail={err} onRetry={() => void refresh()} />
@@ -205,7 +217,6 @@ export const UsagePanel: React.FC<{
           )}
           {tab === 'quota' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
-          {tab === 'requests' && <GatewayRequests onOpenPrivacy={onOpenPrivacy} />}
           {tab === 'pricing' && (
             <Pricing
               state={state}

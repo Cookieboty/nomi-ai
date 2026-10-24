@@ -184,7 +184,15 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(r.getByTestId('settings-reopen-onboarding')).toBeTruthy();
   });
 
-  it('菜单只有合并后的 12 个分区', () => {
+  it('「模型质量」在「模型」后面，点开懒加载面板', async () => {
+    const r = render(<Harness onClose={() => undefined} start="models" />);
+    fireEvent.click(r.getByTestId('settings-nav-quality'));
+    expect(r.getByTestId('settings-nav-quality').getAttribute('aria-current')).toBe('page');
+    expect(r.getByTestId('settings-section-title').textContent).toBe('模型质量');
+    expect(await r.findByTestId('settings-quality')).toBeTruthy();
+  });
+
+  it('菜单只有合并后的 13 个分区', () => {
     const r = render(<Harness onClose={() => undefined} />);
     const ids = r
       .getAllByTestId(/^settings-nav-/)
@@ -193,6 +201,7 @@ describe('SettingsView 合并后的标签页分区', () => {
       'general',
       'shortcuts',
       'models',
+      'quality',
       'coding',
       'usage',
       'senses',

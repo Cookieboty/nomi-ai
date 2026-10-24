@@ -3,11 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { SECTION_TABS, SETTINGS_SECTIONS, tabOf } from '../src/components/SettingsView/sections';
 
 describe('设置分区：合并后的菜单', () => {
-  it('12 个分区，高频在前；没有独立的「更新」「屏幕」「语音」', () => {
+  it('13 个分区，高频在前；没有独立的「更新」「屏幕」「语音」', () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       'general',
       'shortcuts',
       'models',
+      'quality',
       'coding',
       'usage',
       'senses',
@@ -22,6 +23,7 @@ describe('设置分区：合并后的菜单', () => {
       '通用',
       '快捷键',
       '模型',
+      '模型质量',
       '编程助手',
       '用量与费用',
       '语音与屏幕',
@@ -44,6 +46,13 @@ describe('设置分区：合并后的菜单', () => {
     expect(SECTION_TABS.schedule.map((t) => t.id)).toEqual(['reminders', 'calendar']);
     expect(SECTION_TABS.privacy.map((t) => t.id)).toEqual(['data', 'desktop']);
     expect(SECTION_TABS.senses.map((t) => t.id)).toEqual(['voice', 'screen']);
+    expect(SECTION_TABS.quality.map((t) => t.id)).toEqual([
+      'overview',
+      'compare',
+      'trend',
+      'requests',
+    ]);
+    expect(tabOf('quality', 'requests')).toBe('requests');
     expect(tabOf('knowledge', 'notes')).toBe('notes');
     expect(tabOf('knowledge', 'calendar')).toBeUndefined();
     expect(tabOf('schedule', 'calendar')).toBe('calendar');
