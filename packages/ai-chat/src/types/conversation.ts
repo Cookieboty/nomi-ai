@@ -28,8 +28,10 @@ export interface ConvMessage {
   /** 本轮耗时（ms） */
   durationMs?: number;
   usage?: HarnessUsage;
-  /** 展示在元信息里的来源标签（模型 / 后端名） */
+  /** 展示在元信息里的来源标签（端点名：Claude Code / Grok / Nomi…） */
   label?: string;
+  /** 产生这条助手消息的模型（元信息里跟在端点名后面，弱化显示） */
+  model?: string;
   /** 原始消息（来源特有的扩展内容由 slots 渲染） */
   raw?: unknown;
 }

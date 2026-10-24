@@ -307,6 +307,16 @@ export const AssistantMessage = memo(function AssistantMessage({
       {slots?.after?.(message)}
       <div className={styles.meta}>
         {message.label && <span className={styles.label}>{message.label}</span>}
+        {message.model && (
+          <span
+            className={styles.model}
+            data-testid="conv-msg-model"
+            title={t('模型：{0}', message.model)}
+            aria-label={t('模型：{0}', message.model)}
+          >
+            {message.model}
+          </span>
+        )}
         {timeLabel && (
           <time dateTime={new Date(message.at).toISOString()} title={full}>
             {timeLabel}

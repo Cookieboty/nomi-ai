@@ -441,7 +441,7 @@ async function runOnce(_prompt) {
   emit({
     type: 'assistant',
     session_id: sessionId,
-    message: { role: 'assistant', content: [{ type: 'text', text }] },
+    message: { role: 'assistant', model: currentModel, content: [{ type: 'text', text }] },
   });
   emit({
     type: 'result',
@@ -449,6 +449,8 @@ async function runOnce(_prompt) {
     result: text,
     subtype: 'success',
     usage: { input_tokens: 1200, output_tokens: 340, cache_read_input_tokens: 800 },
+    // 与真实 CLI 一样按模型给用量（Nomi 据此记这一轮实际用的模型）
+    modelUsage: { [currentModel]: { inputTokens: 1200, cacheReadInputTokens: 800 } },
     total_cost_usd: 0.0123,
     duration_ms: 1500,
   });

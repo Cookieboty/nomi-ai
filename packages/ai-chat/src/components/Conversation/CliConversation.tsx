@@ -6,6 +6,7 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { useHarnessLive, useHarnessTabs } from '../../contexts/HarnessTabsContext';
 import { harnessClient } from '../../services/harnessClient';
+import { modelSwitchTipFor, useModelSwitch } from '../../services/modelSwitchTip';
 import { tabLiveToConv } from '../../utils/convAdapters';
 
 import { ConversationView } from './index';
@@ -39,6 +40,12 @@ export const CliConversation: React.FC<Props> = (props) => {
     void tabsRef.current.send(text);
   }, []);
   const scopeId = props.scopeId;
+  // 会话中途换了模型、还没发送：弱提示（发送后消失，切回原模型也消失）
+  const switchedTo = useModelSwitch(scopeId);
+  const modelSwitchTip = useMemo(
+    () => modelSwitchTipFor(props.messages, switchedTo),
+    [props.messages, switchedTo],
+  );
   const onStopAgent = useCallback(
     (agentId: string) => void harnessClient.stopAgent(scopeId, agentId).catch(() => undefined),
     [scopeId],
@@ -51,6 +58,7 @@ export const CliConversation: React.FC<Props> = (props) => {
       onRetry={onRetry}
       onEdit={onEdit}
       onStopAgent={onStopAgent}
+      modelSwitchTip={modelSwitchTip}
     />
   );
 };

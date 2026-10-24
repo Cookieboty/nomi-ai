@@ -206,5 +206,7 @@
   "新建 {0} 对话": "New {0} conversation",
   "{0} 个对话": "{0} conversations",
   "{0} 条本机历史": "{0} local sessions",
-  "本机历史": "Local history"
+  "本机历史": "Local history",
+  "模型：{0}": "Model: {0}",
+  "已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。": "Switched to {0}. Changing models mid-conversation means the new model picks up the earlier context, which may affect how it understands and reasons about this conversation."
 }

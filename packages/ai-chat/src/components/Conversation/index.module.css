@@ -242,6 +242,19 @@
 .label {
   color: var(--cd-color-text-muted);
 }
+/* 产生这条消息的模型：跟在端点名后面，弱一档，过长截断（完整名在 title） */
+.model {
+  min-width: 0;
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cd-color-text-subtle);
+}
+.label + .model::before {
+  content: '·';
+  margin-right: var(--cd-space-2);
+  color: var(--cd-color-border-strong);
+}
 .spacer {
   flex: 1;
 }
@@ -436,6 +449,23 @@
 }
 
 /* 编程助手进程已休眠的提示 */
+/* 会话中途换模型的弱提示：不打断，发送后消失 */
+.modelTip {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--cd-space-1);
+  align-self: center;
+  max-width: 100%;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  font-size: var(--conv-meta);
+  line-height: 1.5;
+  color: var(--cd-color-text-subtle);
+}
+.modelTip > svg {
+  flex: none;
+  margin-top: 0.3em;
+}
+
 .dormant {
   align-self: center;
   padding: var(--cd-space-1) var(--cd-space-3);
