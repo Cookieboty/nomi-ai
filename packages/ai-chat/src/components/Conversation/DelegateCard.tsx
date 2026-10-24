@@ -26,6 +26,7 @@ import type { LiveAgent, TabLive } from '../../utils/liveState';
 import { parseInput, type ToolCall } from '../../utils/toolTrace';
 import { EndpointIcon } from '../EndpointIcon';
 
+import { ApprovePlanCard } from './ApprovePlanCard';
 import styles from './DelegateCard.module.css';
 import { Markdown } from './Markdown';
 import { PermissionCard } from './PermissionCard';
@@ -424,17 +425,30 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
       {open && (
         <div className={styles.body}>
           {tab &&
-            (v.live?.permissions ?? []).map((p) => (
-              <PermissionCard
-                key={p.id}
-                summary={p.summary}
-                agent={p.agent}
-                expiresAt={p.expiresAt}
-                onReply={(allow) =>
-                  void harnessClient.replyPermission(tab.id, p.id, allow).catch(() => undefined)
-                }
-              />
-            ))}
+            (v.live?.permissions ?? []).map((p) =>
+              p.kind === 'approve-plan' ? (
+                <ApprovePlanCard
+                  key={p.id}
+                  summary={p.summary}
+                  agent={p.agent}
+                  expiresAt={p.expiresAt}
+                  executePlan={p.toolName === 'execute_plan'}
+                  onChoice={(choice) =>
+                    void harnessClient.replyApprovePlan(tab.id, p.id, choice).catch(() => undefined)
+                  }
+                />
+              ) : (
+                <PermissionCard
+                  key={p.id}
+                  summary={p.summary}
+                  agent={p.agent}
+                  expiresAt={p.expiresAt}
+                  onReply={(allow) =>
+                    void harnessClient.replyPermission(tab.id, p.id, allow).catch(() => undefined)
+                  }
+                />
+              ),
+            )}
           <Agents v={v} />
           {!running && <Report v={v} />}
         </div>

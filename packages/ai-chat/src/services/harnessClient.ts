@@ -184,6 +184,9 @@ export type HarnessLiveEvent =
       agent?: string;
       /** 超时自动拒绝的时间点（ms） */
       expiresAt?: number;
+      /** ExitPlanMode / 按此方案执行（PR3） */
+      kind?: 'tool' | 'approve-plan';
+      toolName?: string;
     }
   | ({ tabId: string } & LiveAgentEvent)
   | {
@@ -466,9 +469,19 @@ export const harnessClient = {
       messageId,
       { confirmed: true },
     ),
-  /** 允许/拒绝 Claude 工具权限请求 */
-  replyPermission: (tabId: string, requestId: string, allow: boolean) =>
-    call<boolean>('reply-permission', tabId, requestId, allow),
+  /** 允许/拒绝工具权限请求；approvePlan 用于 PR3「批准计划」三选一 */
+  replyPermission: (
+    tabId: string,
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) =>
+    opts
+      ? call<boolean>('reply-permission', tabId, requestId, allow, opts)
+      : call<boolean>('reply-permission', tabId, requestId, allow),
+  /** PR3：批准计划卡（批准并自动改文件 / 批准并逐项确认 / 继续修改） */
+  replyApprovePlan: (tabId: string, requestId: string, choice: 'acceptEdits' | 'manual' | 'deny') =>
+    call<boolean>('reply-approve-plan', tabId, requestId, choice),
   onTabs: (fn: (s: HarnessTabsState) => void) =>
     bridge()?.on('ai:harness:tabs', (p) => fn(p as HarnessTabsState)) ?? (() => undefined),
   onTabMessage: (fn: (e: { tabId: string; message: HarnessTabMessage }) => void) =>

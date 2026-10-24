@@ -65,7 +65,11 @@ interface HarnessTabsValue {
   queues: Record<string, string[]>;
   removeQueued: (index: number) => void;
   cancel: () => Promise<void>;
-  replyPermission: (requestId: string, allow: boolean) => Promise<void>;
+  replyPermission: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => Promise<void>;
   /** 最近使用的编程助手后端（新建标签默认） */
   lastBackend: HarnessBackend;
 }
@@ -393,9 +397,13 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
     await harnessClient.cancelTab(activeId);
   }, [isCliTab, activeId]);
   const replyPermission = useCallback(
-    async (requestId: string, allow: boolean) => {
+    async (
+      requestId: string,
+      allow: boolean,
+      opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+    ) => {
       if (!isCliTab) return;
-      await harnessClient.replyPermission(activeId, requestId, allow).catch(() => undefined);
+      await harnessClient.replyPermission(activeId, requestId, allow, opts).catch(() => undefined);
       // 主进程会再发 permission-resolved；这里先乐观移除这一项（队列里的其它请求保留）
       setLive((cur) => {
         const prev = cur[activeId];

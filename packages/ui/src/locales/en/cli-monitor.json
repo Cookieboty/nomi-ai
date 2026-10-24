@@ -206,5 +206,12 @@
   "{0} 条本机历史": "{0} local sessions",
   "本机历史": "Local history",
   "模型：{0}": "Model: {0}",
-  "已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。": "Switched to {0}. Changing models mid-conversation means the new model picks up the earlier context, which may affect how it understands and reasons about this conversation."
+  "已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。": "Switched to {0}. Changing models mid-conversation means the new model picks up the earlier context, which may affect how it understands and reasons about this conversation.",
+  "批准计划": "Approve plan",
+  "按此方案执行": "Execute this plan",
+  "批准并自动改文件": "Approve and auto-edit",
+  "批准并逐项确认": "Approve with step-by-step confirm",
+  "继续修改": "Keep editing",
+  "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
+  "无效的批准计划选项": "Invalid approve-plan choice"
 }

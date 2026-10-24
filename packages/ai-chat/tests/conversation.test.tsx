@@ -20,7 +20,11 @@ const CliConversation: React.FC<{
   tab: HarnessTabMeta;
   messages: HarnessTabMessage[];
   live?: TabLive;
-  onPermission?: (id: string, allow: boolean) => void;
+  onPermission?: (
+    id: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
   queued?: string[];
   onRetry?: (id: string) => void;
   onEdit?: (id: string, text: string) => void;
@@ -329,6 +333,81 @@ describe('CliConversation 运行中', () => {
       ['pb', false],
       ['pa', true],
     ]);
+  });
+
+  it('ExitPlanMode 渲染批准计划卡：三选一回调带 approvePlan（PR3）', () => {
+    const onPermission = vi.fn();
+    const live = {
+      ...liveBase,
+      permissions: [
+        {
+          id: 'exit-1',
+          summary: 'ExitPlanMode: ship it',
+          kind: 'approve-plan' as const,
+          toolName: 'ExitPlanMode',
+        },
+      ],
+    };
+    const { getByTestId, queryByTestId, rerender } = render(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    expect(getByTestId('conv-approve-plan-card').textContent).toContain('ship it');
+    expect(queryByTestId('conv-permission-card')).toBeNull();
+    fireEvent.click(getByTestId('conv-approve-plan-accept-edits'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', true, { approvePlan: 'acceptEdits' });
+    onPermission.mockClear();
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    fireEvent.click(getByTestId('conv-approve-plan-manual'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', true, { approvePlan: 'manual' });
+    onPermission.mockClear();
+    rerender(
+      <CliConversation
+        tab={tab({ status: 'running' })}
+        messages={[]}
+        live={live}
+        onPermission={onPermission}
+      />,
+    );
+    fireEvent.click(getByTestId('conv-approve-plan-deny'));
+    expect(onPermission).toHaveBeenCalledWith('exit-1', false, { approvePlan: 'deny' });
+  });
+
+  it('按此方案执行卡：主按钮文案与继续修改（PR3 Codex/dsh/Grok）', () => {
+    const onPermission = vi.fn();
+    const { getByTestId, queryByTestId } = render(
+      <CliConversation
+        tab={tab({ status: 'running', backend: 'codex' })}
+        messages={[]}
+        live={{
+          ...liveBase,
+          permissions: [
+            {
+              id: 'execute-plan:t1',
+              summary: '按此方案执行：切到自动改文件并继续实施',
+              kind: 'approve-plan',
+              toolName: 'execute_plan',
+            },
+          ],
+        }}
+        onPermission={onPermission}
+      />,
+    );
+    expect(getByTestId('conv-approve-plan-accept-edits').textContent).toMatch(/按此方案执行/);
+    expect(queryByTestId('conv-approve-plan-manual')).toBeNull();
+    fireEvent.click(getByTestId('conv-approve-plan-deny'));
+    expect(onPermission).toHaveBeenCalledWith('execute-plan:t1', false, { approvePlan: 'deny' });
   });
 
   it('超时自动拒绝后短暂提示（含来源子代理）', () => {

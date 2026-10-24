@@ -26,9 +26,12 @@ export const CliConversation: React.FC<Props> = (props) => {
   useLayoutEffect(() => {
     tabsRef.current = tabs;
   });
-  const onPermission = useCallback((id: string, allow: boolean) => {
-    void tabsRef.current.replyPermission(id, allow);
-  }, []);
+  const onPermission = useCallback(
+    (id: string, allow: boolean, opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' }) => {
+      void tabsRef.current.replyPermission(id, allow, opts);
+    },
+    [],
+  );
   /** 重新生成 / 重试：从这条助手消息之前的用户消息重发 */
   const onRetry = useCallback((id: string) => {
     const { messages, send } = tabsRef.current;

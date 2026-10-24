@@ -46,7 +46,14 @@ export interface ConvLive {
   /** 收到第一个输出事件的时间；undefined 表示仍在等待模型首字 */
   firstEventAt?: number;
   /** 待确认的权限请求队列（并行子代理会同时请求） */
-  permissions?: Array<{ id: string; summary: string; agent?: string; expiresAt?: number }>;
+  permissions?: Array<{
+    id: string;
+    summary: string;
+    agent?: string;
+    expiresAt?: number;
+    kind?: 'tool' | 'approve-plan';
+    toolName?: string;
+  }>;
   /** 最近一次超时自动拒绝 */
   permissionExpired?: { summary: string; agent?: string; at: number };
   /** 本轮出现过的子代理（按 id），卡片按 callId 关联到派生它的工具调用 */

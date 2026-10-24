@@ -657,5 +657,12 @@
   "导出 CSV": "Export CSV",
   "全部": "All",
   "当前是「计划」（只读）权限模式，不能调用会修改内容的工具": "The permission mode is Plan (read-only), so tools that change things can’t be called",
-  "编程助手的输出": "the coding assistant’s output"
+  "编程助手的输出": "the coding assistant’s output",
+  "批准计划": "Approve plan",
+  "按此方案执行": "Execute this plan",
+  "批准并自动改文件": "Approve and auto-edit",
+  "批准并逐项确认": "Approve with step-by-step confirm",
+  "继续修改": "Keep editing",
+  "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
+  "无效的批准计划选项": "Invalid approve-plan choice"
 }

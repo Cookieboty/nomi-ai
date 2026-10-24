@@ -17,7 +17,7 @@
  *      NOMI_MOCK_INTERRUPT（interrupt 的处理：缺省与真实 CLI 一致——应答后以 error_during_execution
  *        结束这一轮、进程继续；exit 直接退出；ignore 不应答也不结束）,
  *      NOMI_MOCK_API_RETRY（先报 n 次 system/api_retry）, NOMI_MOCK_EXIT_MID（第一段正文后进程退出）,
- *      NOMI_MOCK_PERMISSION_PROMPT（只有内容包含它的那一轮才请求权限）
+ *      NOMI_MOCK_PERMISSION_PROMPT（只有内容包含它的那一轮才请求权限）\n *      NOMI_MOCK_EXIT_PLAN_MODE=1（can_use_tool ExitPlanMode → 批准计划）
  */
 import fs, { appendFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
@@ -342,13 +342,14 @@ async function runOnce(_prompt) {
     (permMarker && String(_prompt ?? '').includes(permMarker))
   ) {
     const reqId = process.env.NOMI_MOCK_PERMISSION_ID || 'mock-perm-1';
+    const exitPlan = process.env.NOMI_MOCK_EXIT_PLAN_MODE === '1';
     emit({
       type: 'control_request',
       request_id: reqId,
       request: {
         subtype: 'can_use_tool',
-        tool_name: 'Bash',
-        input: { command: 'echo mock-permission' },
+        tool_name: exitPlan ? 'ExitPlanMode' : 'Bash',
+        input: exitPlan ? { plan: 'mock exit plan' } : { command: 'echo mock-permission' },
       },
     });
     // 长驻模式下由外层 line 循环把 control_response 投递进来；单轮模式在下面等

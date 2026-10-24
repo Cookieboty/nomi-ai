@@ -457,5 +457,12 @@
   "编程开发": "Coding",
   "PRD / 需求文档": "PRD / requirements",
   "调研分析": "Research",
-  "委派编程助手需要在桌面应用中使用": "Handing off to coding assistants needs the desktop app"
+  "委派编程助手需要在桌面应用中使用": "Handing off to coding assistants needs the desktop app",
+  "批准计划": "Approve plan",
+  "按此方案执行": "Execute this plan",
+  "批准并自动改文件": "Approve and auto-edit",
+  "批准并逐项确认": "Approve with step-by-step confirm",
+  "继续修改": "Keep editing",
+  "按此方案执行：切到自动改文件并继续实施": "Execute this plan: switch to auto-edit and continue",
+  "无效的批准计划选项": "Invalid approve-plan choice"
 }

@@ -16,6 +16,7 @@ import { buildTimeline, reduceTrace } from '../../utils/toolTrace';
 import { SystemCardView } from '../SystemCards';
 
 import { AgentsByCallContext, agentsByCall } from './agentContext';
+import { ApprovePlanCard } from './ApprovePlanCard';
 import styles from './index.module.css';
 import { AssistantBody, AssistantMessage, type ConvSlots, UserMessage } from './Messages';
 import { PermissionCard } from './PermissionCard';
@@ -153,7 +154,11 @@ const BackgroundBar: React.FC<{
 /** 待确认的权限请求队列：按到达顺序全部列出（并行子代理会同时请求），超时自动拒绝时短暂提示 */
 const PermissionQueue: React.FC<{
   live: ConvLive | null | undefined;
-  onPermission?: (requestId: string, allow: boolean) => void;
+  onPermission?: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
 }> = ({ live, onPermission }) => {
   const list = live?.permissions ?? [];
   const expired = live?.permissionExpired;
@@ -166,15 +171,26 @@ const PermissionQueue: React.FC<{
           {t('{0} 项待确认', String(list.length))}
         </div>
       )}
-      {list.map((p) => (
-        <PermissionCard
-          key={p.id}
-          summary={p.summary}
-          agent={p.agent}
-          expiresAt={p.expiresAt}
-          onReply={(allow) => onPermission(p.id, allow)}
-        />
-      ))}
+      {list.map((p) =>
+        p.kind === 'approve-plan' ? (
+          <ApprovePlanCard
+            key={p.id}
+            summary={p.summary}
+            agent={p.agent}
+            expiresAt={p.expiresAt}
+            executePlan={p.toolName === 'execute_plan'}
+            onChoice={(choice) => onPermission(p.id, choice !== 'deny', { approvePlan: choice })}
+          />
+        ) : (
+          <PermissionCard
+            key={p.id}
+            summary={p.summary}
+            agent={p.agent}
+            expiresAt={p.expiresAt}
+            onReply={(allow) => onPermission(p.id, allow)}
+          />
+        ),
+      )}
       {showExpired && expired && (
         <div className={styles.permExpired} role="status" data-testid="conv-permission-expired">
           {expired.agent
@@ -186,7 +202,6 @@ const PermissionQueue: React.FC<{
   );
 };
 
-/** 首屏最多渲染的消息条数，以及按内容体量折算的预算（超大消息会让窗口变小） */
 export const WINDOW_MESSAGES = 30;
 export const WINDOW_BUDGET = 400;
 export const LOAD_MORE_STEP = 30;
@@ -245,7 +260,11 @@ export interface ConversationViewProps {
   /** 已排队、等当前轮结束后自动发送的消息 */
   queued?: readonly string[];
   onRemoveQueued?: (index: number) => void;
-  onPermission?: (requestId: string, allow: boolean) => void;
+  onPermission?: (
+    requestId: string,
+    allow: boolean,
+    opts?: { approvePlan?: 'acceptEdits' | 'manual' | 'deny' },
+  ) => void;
   /** 重新生成 / 重试（传入出错或最后一条助手消息的 id） */
   onRetry?: (assistantId: string) => void;
   /** 编辑某条用户消息并重新发送 */

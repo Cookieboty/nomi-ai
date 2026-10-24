@@ -165,11 +165,12 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
       }),
     );
   } else if (type === 'system' && j.subtype === 'status') {
-    out.push(
+    const mode = typeof j.permissionMode === 'string' ? j.permissionMode : undefined;
+    const base =
       j.status === 'compacting'
-        ? { type: 'status', kind: 'compact' }
-        : { type: 'status', kind: 'clear' },
-    );
+        ? ({ type: 'status', kind: 'compact' } as const)
+        : ({ type: 'status', kind: 'clear' } as const);
+    out.push(mode ? { ...base, permissionMode: mode } : base);
   } else if (
     type === 'system' &&
     typeof j.subtype === 'string' &&
@@ -196,14 +197,18 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
       let detail = '';
       if (input && typeof input === 'object') {
         const o = input as Record<string, unknown>;
-        detail = String(o.command ?? o.file_path ?? o.path ?? '').slice(0, 120);
+        detail = String(o.command ?? o.file_path ?? o.path ?? o.plan ?? '').slice(0, 120);
       } else if (typeof input === 'string') {
         detail = input.slice(0, 120);
       }
+      // ExitPlanMode → 「批准计划」卡（docs/design/cli-permission-modes.md §5 / PR3）
+      const exitPlan = tool.replace(/[_\s-]/g, '').toLowerCase() === 'exitplanmode';
       out.push({
         type: 'permission',
         id: reqId,
         summary: detail ? `${tool}: ${detail}` : tool,
+        toolName: tool,
+        ...(exitPlan ? { kind: 'approve-plan' as const } : {}),
         ...(typeof req.tool_use_id === 'string' && req.tool_use_id
           ? { toolUseId: req.tool_use_id }
           : {}),

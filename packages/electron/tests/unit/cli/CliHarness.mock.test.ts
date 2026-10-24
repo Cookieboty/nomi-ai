@@ -322,6 +322,53 @@ describe('CliHarnessService mock CLI', () => {
     }
   }, 15_000);
 
+  it('ExitPlanMode → approve-plan card; replyApprovePlan acceptEdits allows (PR3)', async () => {
+    const prevAsk = process.env.NOMI_MOCK_ASK_PERMISSION;
+    const prevExit = process.env.NOMI_MOCK_EXIT_PLAN_MODE;
+    process.env.NOMI_MOCK_ASK_PERMISSION = '1';
+    process.env.NOMI_MOCK_EXIT_PLAN_MODE = '1';
+    process.env.NOMI_MOCK_PERMISSION_ID = 'exit-plan-1';
+    try {
+      const h = track(
+        new CliHarnessService({
+          root: path.join(os.tmpdir(), `harness-exit-plan-${Date.now()}`),
+          logger: { info() {}, warn() {} },
+          defaultCwd: process.cwd(),
+        }),
+      );
+      h.setBackend('claude');
+      const tab = h.createTab({ backend: 'claude' });
+      h.setTabPermissionMode(tab.id, 'plan');
+      const seen: Array<{ kind?: string; toolName?: string }> = [];
+      h.events.on(
+        'event',
+        (p: {
+          tabId: string;
+          event: { type: string; id?: string; kind?: string; toolName?: string };
+        }) => {
+          if (p.event.type === 'permission' && p.tabId === tab.id) {
+            seen.push({ kind: p.event.kind, toolName: p.event.toolName });
+            expect(h.replyApprovePlan(tab.id, p.event.id!, 'acceptEdits')).toBe(true);
+          }
+        },
+      );
+      const r = await h.sendTab(tab.id, 'hello');
+      expect(seen.some((s) => s.kind === 'approve-plan' && s.toolName === 'ExitPlanMode')).toBe(
+        true,
+      );
+      expect(r.text).toContain('Mock Claude');
+      expect(r.text).not.toContain('权限被拒绝');
+      // 批准并自动改文件 → 标签档位切到 acceptEdits
+      expect(h.listTabs().tabs.find((x) => x.id === tab.id)?.permissionMode).toBe('acceptEdits');
+    } finally {
+      if (prevAsk === undefined) delete process.env.NOMI_MOCK_ASK_PERMISSION;
+      else process.env.NOMI_MOCK_ASK_PERMISSION = prevAsk;
+      if (prevExit === undefined) delete process.env.NOMI_MOCK_EXIT_PLAN_MODE;
+      else process.env.NOMI_MOCK_EXIT_PLAN_MODE = prevExit;
+      delete process.env.NOMI_MOCK_PERMISSION_ID;
+    }
+  }, 15_000);
+
   describe('完全放开放行确认请求', () => {
     beforeEach(() => {
       process.env.NOMI_MOCK_ASK_PERMISSION = '1';
