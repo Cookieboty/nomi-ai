@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "name": "chat-tool-calls-without-index",
+  "synthetic": true,
+  "description": "合成：用现有测试场景构造的追踪，不是真实流量",
+  "client": "claude",
+  "ingress": "messages",
+  "path": "/v1/messages",
+  "request": {
+    "model": "claude-sonnet-4-5",
+    "max_tokens": 512,
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "[text]"
+      }
+    ],
+    "tools": [
+      {
+        "name": "read_file",
+        "description": "Read a file",
+        "input_schema": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": ["path"]
+        }
+      }
+    ]
+  },
+  "upstream": {
+    "wire": "chat",
+    "model": "kimi-k2",
+    "status": 200,
+    "contentType": "text/event-stream",
+    "chunks": [
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"[text]\"},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\\\"a.ts\\\"}\"}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"id\":\"call_b\",\"type\":\"function\",\"function\":{\"name\":\"read_file\",\"arguments\":{\"path\":\"b.ts\"}}}]},\"finish_reason\":null}]}\n\n",
+      "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1761264000,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}],\"usage\":{\"prompt_tokens\":30,\"completion_tokens\":12}}\n\n",
+      "data: [DONE]\n\n"
+    ]
+  }
+}

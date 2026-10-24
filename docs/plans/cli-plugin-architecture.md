@@ -164,7 +164,7 @@ P2、P6 ─► P8 cli-sdk 与共享驱动 ─► P9 内置插件 ─► P10 外�
 ## P11 收尾
 
 - 真实 CLI 一致性测试扩到五个 CLI、必填字段探测表进仓库（夜间 CI 配置）。
-- 录制回放工具：诊断日志的上游原始流 → 脱敏夹具。
+- 录制回放工具：诊断日志的上游原始流 → 脱敏夹具。**已完成**：`packages/gateway/scripts/trace-to-fixture.ts`（逻辑在 `scripts/traceFixture.ts`）+ `tests/replay.test.ts`，4 个合成夹具；用法见 [testing.md](../development/testing.md)「网关回放夹具」。回放发现并修复一个回归：Chat 上游不带 `index` 的多个工具调用（同名、不同 id）又被并成一个（`src/canonical/chat.ts` 改为按 id 补 index，`tests/chatIndexless.test.ts`）。
 - 文档：`docs/features`、`docs/development/architecture.md` 更新；设计稿状态改为「已实现」并记录偏差。
 - changeset：按包拆分用户可见的变化。
 

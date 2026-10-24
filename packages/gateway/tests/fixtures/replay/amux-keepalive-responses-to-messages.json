@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "amux-keepalive-responses-to-messages",
+  "synthetic": true,
+  "description": "合成：用现有测试场景构造的追踪，不是真实流量",
+  "client": "claude",
+  "ingress": "messages",
+  "path": "/v1/messages",
+  "request": {
+    "model": "claude-sonnet-4-5",
+    "max_tokens": 256,
+    "stream": true,
+    "messages": [
+      {
+        "role": "user",
+        "content": "[text]"
+      }
+    ]
+  },
+  "upstream": {
+    "wire": "responses",
+    "model": "gpt-5.1-codex",
+    "status": 200,
+    "contentType": "text/event-stream",
+    "chunks": [
+      "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"in_progress\",\"created_at\":1761264000,\"model\":\"gpt-5.1-codex\",\"output\":[]}}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"item_id\":\"SSE-Keep-Alive\",\"output_index\":0,\"content_index\":0,\"delta\":\"\",\"SSE-Keep-Alive\":true}\n\n",
+      "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":1,\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"in_progress\",\"content\":[]}}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":2,\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"[text]\"}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"item_id\":\"SSE-Keep-Alive\",\"output_index\":0,\"content_index\":0,\"delta\":\"\",\"SSE-Keep-Alive\":true}\n\n",
+      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":3,\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"[text]\"}\n\n",
+      "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"[text]\",\"annotations\":[]}]}}\n\n",
+      "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"created_at\":1761264000,\"model\":\"gpt-5.1-codex\",\"output\":[],\"usage\":{\"input_tokens\":12,\"output_tokens\":3,\"total_tokens\":15}}}\n\n"
+    ]
+  }
+}
