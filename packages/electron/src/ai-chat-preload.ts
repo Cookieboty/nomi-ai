@@ -57,6 +57,13 @@ const aiChatAPI = {
       };
     },
   },
+  /** 设置 → 隐私与权限 → 诊断日志（diagnostics/DiagnosticsService.ts） */
+  diagnostics: {
+    get: () => ipcRenderer.invoke('diagnostics:get'),
+    set: (on: boolean) => ipcRenderer.invoke('diagnostics:set', on),
+    openFolder: () => ipcRenderer.invoke('diagnostics:open-folder'),
+    export: () => ipcRenderer.invoke('diagnostics:export'),
+  },
   updates: {
     get: () => ipcRenderer.invoke('updates:get'),
     check: () => ipcRenderer.invoke('updates:check'),

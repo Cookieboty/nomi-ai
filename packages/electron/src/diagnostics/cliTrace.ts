@@ -1,7 +1,8 @@
 /**
  * 诊断日志：编程助手子进程的原始收发（stdin / stdout / stderr、启动参数与退出码）。
  * 只在诊断日志开着时记录（开发版必开，正式版在「设置 → 隐私与权限」里由用户打开），
- * 写到 userData/logs/cli-YYYY-MM-DD.jsonl，每行一条；单日超过上限后停写并留一行说明。
+ * 写到 userData/logs/cli-YYYY-MM-DD.jsonl，每行一条（带 tab = 标签 id，按标签分组排查，§8.3）；
+ * 单日超过上限后停写并留一行说明。
  * 文本按常见密钥格式脱敏（Bearer、sk-…等）；令牌只在子进程环境变量里，环境变量不记录。
  * 文件与 app.log 在同一目录，随旧日志清理一起删除（7 天）。
  */
@@ -78,18 +79,25 @@ function text(chunk: unknown): string {
  * 给一个刚 spawn 的 CLI 子进程挂上记录：没开诊断日志时什么都不做。
  * stdout / stderr 加的是额外的 data 监听，不影响原有的读取。
  */
-export function traceCliChild(child: TapTarget, command: string, args: readonly string[]): void {
+export function traceCliChild(
+  child: TapTarget,
+  command: string,
+  args: readonly string[],
+  meta: { tabId?: string } = {},
+): void {
   if (!enabled()) return;
   const cli = path.basename(command);
   const pid = child.pid;
-  write({ pid, cli, ev: 'spawn', args: args.map((a) => redactText(a)) });
+  const tab = meta.tabId;
+  const rec = (r: Record<string, unknown>) => write({ pid, cli, ...(tab ? { tab } : {}), ...r });
+  rec({ ev: 'spawn', args: args.map((a) => redactText(a)) });
   const stdin = child.stdin as unknown as { write: (...a: unknown[]) => boolean };
   const orig = stdin.write.bind(stdin);
   stdin.write = (...a: unknown[]) => {
-    write({ pid, cli, ev: 'in', data: text(a[0]) });
+    rec({ ev: 'in', data: text(a[0]) });
     return orig(...a);
   };
-  child.stdout.on('data', (c: unknown) => write({ pid, cli, ev: 'out', data: text(c) }));
-  child.stderr.on('data', (c: unknown) => write({ pid, cli, ev: 'err', data: text(c) }));
-  child.on('close', (code, signal) => write({ pid, cli, ev: 'exit', code, signal }));
+  child.stdout.on('data', (c: unknown) => rec({ ev: 'out', data: text(c) }));
+  child.stderr.on('data', (c: unknown) => rec({ ev: 'err', data: text(c) }));
+  child.on('close', (code, signal) => rec({ ev: 'exit', code, signal }));
 }

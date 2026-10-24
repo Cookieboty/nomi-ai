@@ -39,6 +39,7 @@ const VIEW = {
       cacheRead: 600,
       cacheWrite: 0,
       notes: ['省略了图片'],
+      traceId: 'abc123def456',
     },
     {
       id: '1',
@@ -172,14 +173,21 @@ describe('GatewayRequests', () => {
     expect(within(byKey).getByText('智谱 · 备用 Key')).toBeTruthy();
   });
 
-  it('toggles debug trace through IPC', async () => {
+  it('body trace: shows status only and links to the diagnostics settings (§8.1)', async () => {
+    const onOpenPrivacy = vi.fn();
+    const r = render(<GatewayRequests onOpenPrivacy={onOpenPrivacy} />);
+    const status = await r.findByTestId('gateway-trace-status');
+    expect(status.textContent).toContain('未记录');
+    expect(r.queryByTestId('gateway-trace-switch')).toBeNull();
+    fireEvent.click(r.getByTestId('gateway-trace-open-settings'));
+    expect(onOpenPrivacy).toHaveBeenCalledTimes(1);
+    expect(calls.some(([ch]) => ch === 'ai:usage:gateway-trace-set')).toBe(false);
+  });
+
+  it('shows the trace id of a traced request', async () => {
     const r = render(<GatewayRequests />);
-    const sw = await r.findByTestId('gateway-trace-switch');
-    expect(sw.getAttribute('aria-checked')).toBe('false');
-    fireEvent.click(sw);
-    await waitFor(() => expect(sw.getAttribute('aria-checked')).toBe('true'));
-    expect(calls.some(([ch, v]) => ch === 'ai:usage:gateway-trace-set' && v === true)).toBe(true);
-    expect(r.getByText(/\/tmp\/nomi\/gateway\/trace/)).toBeTruthy();
+    const tag = await r.findByTestId('gateway-request-trace');
+    expect(tag.textContent).toContain('abc123def456');
   });
 
   it('clears the log and shows the empty state', async () => {

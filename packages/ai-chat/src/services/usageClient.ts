@@ -244,6 +244,8 @@ export interface GatewayRequestEntry {
   reasoning?: number;
   notes?: string[];
   error?: string;
+  /** 诊断追踪 id（诊断日志开着时才有） */
+  traceId?: string;
 }
 
 export interface GatewayAggRow {

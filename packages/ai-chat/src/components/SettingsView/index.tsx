@@ -163,7 +163,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>
         );
       case 'usage':
-        return <UsagePanel />;
+        return <UsagePanel onOpenPrivacy={() => go('privacy', 'data')} />;
       case 'senses':
         return (
           <SensesSection

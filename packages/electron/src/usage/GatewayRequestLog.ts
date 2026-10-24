@@ -35,6 +35,12 @@ export interface GatewayRequestLogDeps {
   names?: (providerId?: string, keyId?: string) => { provider?: string; key?: string };
   /** 调试模式开关变化：重新给网关推一次配置 */
   onTraceChange?: (enabled: boolean) => void;
+  /**
+   * 正文追踪由诊断日志开关决定（docs/design/cli-plugin-architecture.md §8.1：「调试模式」并入）：
+   * 给了它，本模块不再自己存开关，traceOn() 为准，setTrace 转给 setTraceOn。
+   */
+  traceOn?: () => boolean;
+  setTraceOn?: (enabled: boolean) => void;
   now?: () => number;
   /** 写盘防抖（ms），默认 2000 */
   flushMs?: number;
@@ -105,7 +111,7 @@ export class GatewayRequestLog {
     return {
       requests: this.list(),
       ...aggregateGateway(this.entries),
-      trace: { enabled: this.trace, dir: this.traceDirPath() },
+      trace: { enabled: this.traceEnabled(), dir: this.traceDirPath() },
     };
   }
 
@@ -123,14 +129,29 @@ export class GatewayRequestLog {
 
   /** 调试模式打开时的追踪目录；关着返回 undefined（网关配置里就不带 traceDir） */
   traceDir(): string | undefined {
-    return this.trace ? this.traceDirPath() : undefined;
+    return this.traceEnabled() ? this.traceDirPath() : undefined;
   }
 
   traceEnabled(): boolean {
+    return this.d.traceOn ? this.d.traceOn() : this.trace;
+  }
+
+  /** 旧版「调试模式」开关是否开着（诊断日志开关首次启动时据此迁移） */
+  legacyTrace(): boolean {
     return this.trace;
   }
 
+  /** 诊断日志开关变了（由诊断模块通知）：清理过期追踪、通知界面 */
+  traceStateChanged(): void {
+    this.prune();
+    this.changed();
+  }
+
   setTrace(enabled: boolean): { enabled: boolean; dir: string } {
+    if (this.d.setTraceOn) {
+      this.d.setTraceOn(enabled);
+      return { enabled: this.traceEnabled(), dir: this.traceDirPath() };
+    }
     if (enabled !== this.trace) {
       this.trace = enabled;
       try {
@@ -215,6 +236,16 @@ export class GatewayRequestLog {
       this.clear();
       return this.view();
     });
+  }
+}
+
+/** 旧版「调试模式」开关（userData/gateway/observe.json）：诊断日志开关首次启动时据此迁移 */
+export function readLegacyGatewayTrace(root: string): boolean {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(root, OBSERVE_FILE), 'utf8'));
+    return (raw as { trace?: unknown })?.trace === true;
+  } catch {
+    return false;
   }
 }
 

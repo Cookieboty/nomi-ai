@@ -31,6 +31,7 @@ import { initCliUpdateService } from '../cli/CliUpdateService';
 import { decryptLegacyCliKey } from '../cli/legacyCliKey';
 import { initSessionHistoryService } from '../cli/SessionHistoryService';
 import { getDesktopService } from '../desktop/DesktopService';
+import { DiagnosticsService } from '../diagnostics/DiagnosticsService';
 import { initExtensionsService } from '../extensions/ExtensionsService';
 import { getGatewayService, initGatewayService } from '../gateway/GatewayService';
 import { revokeLegacyGlobalConfig, type RevokeLegacyResult } from '../gateway/revokeLegacy';
@@ -65,7 +66,11 @@ import {
 import { StartupService } from '../startup/StartupService';
 import { ThemeService } from '../theme/ThemeService';
 import { registerTtsModel } from '../tts/registerTtsModel';
-import { initGatewayRequestLog } from '../usage/GatewayRequestLog';
+import {
+  getGatewayRequestLog,
+  initGatewayRequestLog,
+  readLegacyGatewayTrace,
+} from '../usage/GatewayRequestLog';
 import { getUsageService, initUsageService } from '../usage/UsageService';
 import { GlobalErrorHandler } from '../utils/ErrorHandler';
 import { perfMark } from '../utils/perfMarks';
@@ -471,6 +476,18 @@ export class Application implements IApplication {
           return null;
         }
       };
+      // 诊断日志（docs/design/cli-plugin-architecture.md §8）：开发版必开，正式版在「隐私与权限」里开；
+      // 用量面板旧的「调试模式」并入这里（网关正文追踪跟随它，首次启动沿用旧开关）
+      const diagnostics = new DiagnosticsService({
+        userData: app.getPath('userData'),
+        logger: this.logger,
+        traceDir: path.join(app.getPath('userData'), 'gateway', 'trace'),
+        legacyEnabled: () => readLegacyGatewayTrace(path.join(app.getPath('userData'), 'gateway')),
+        onChange: () => {
+          getGatewayRequestLog()?.traceStateChanged();
+          getGatewayService()?.refresh();
+        },
+      });
       // 网关请求日志与调试追踪（unified-gateway §14）；网关事件不计入用量账本（CLI 以会话日志为准）
       const gatewayRequests = initGatewayRequestLog({
         root: path.join(app.getPath('userData'), 'gateway'),
@@ -483,8 +500,11 @@ export class Application implements IApplication {
           return { provider: p?.name, key: k ? (k.name ?? k.masked) : undefined };
         },
         onTraceChange: () => getGatewayService()?.refresh(),
+        traceOn: () => diagnostics.bodyTrace(),
+        setTraceOn: (on) => void diagnostics.set(on),
       });
       gatewayRequests.registerIpc();
+      diagnostics.registerIpc();
       this.lifecycle.register({ name: 'gateway-requests', stop: () => gatewayRequests.dispose() });
       const gateway = initGatewayService({
         root: path.join(app.getPath('userData'), 'gateway'),

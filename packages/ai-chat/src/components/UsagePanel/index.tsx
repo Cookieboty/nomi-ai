@@ -29,7 +29,10 @@ import type { Fx } from './shared';
 
 type Tab = 'overview' | 'details' | 'requests' | 'quota' | 'pricing' | 'budget';
 
-export const UsagePanel: React.FC = () => {
+export const UsagePanel: React.FC<{
+  /** 跳到「设置 → 隐私与权限」（诊断日志） */
+  onOpenPrivacy?: () => void;
+}> = ({ onOpenPrivacy }) => {
   const [tab, setTab] = useState<Tab>('overview');
   const [range, setRange] = useState<UsageRangeId>('7d');
   const [state, setState] = useState<UsageState | null>(null);
@@ -202,7 +205,7 @@ export const UsagePanel: React.FC = () => {
           )}
           {tab === 'quota' && <QuotaCard usageBySource={data.bySource} fx={fx} />}
           {tab === 'details' && <Details fx={fx} range={detailRange} onRange={setDetailRange} />}
-          {tab === 'requests' && <GatewayRequests />}
+          {tab === 'requests' && <GatewayRequests onOpenPrivacy={onOpenPrivacy} />}
           {tab === 'pricing' && (
             <Pricing
               state={state}
