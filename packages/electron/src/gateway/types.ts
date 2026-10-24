@@ -16,6 +16,9 @@ export interface GatewayKey {
   wire?: Wire;
   enabled: boolean;
   lastError?: string;
+  /** 这个 Key 的并发上限 / 每分钟请求数（§6.11.3）；不设 = 不限 */
+  maxConcurrency?: number;
+  rpm?: number;
 }
 
 export interface GatewayModel {
@@ -81,4 +84,6 @@ export interface GatewayStoreData {
   recentNomi?: string[];
   /** 一次性迁移的来源与时间（§6.3） */
   migratedFrom?: { at: number; files: string[] };
+  /** 严格模式（§6.9.6，默认关）：模型不支持的参数直接报错，而不是丢弃并记录 */
+  strictParams?: boolean;
 }

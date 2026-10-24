@@ -642,5 +642,8 @@
   "这个账号还有 {0} 个标签在用，请先关闭或换成别的账号": "{0} tab(s) still use this account. Close them or switch them to another account first",
   "还有 {0} 个 Nomi 之外的 CLI 进程在用这个账号（进程号 {1}），请先在终端里退出它们": "{0} CLI process(es) outside Nomi still use this account (PID {1}). Quit them in the terminal first",
   "Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），它不区分账号目录，暂不支持多个账号": "Gemini has encrypted credential storage turned on (GEMINI_FORCE_ENCRYPTED_FILE_STORAGE), which doesn’t separate account folders, so multiple accounts aren’t supported",
-  "导出诊断包": "Export diagnostics bundle"
+  "导出诊断包": "Export diagnostics bundle",
+  "网关拒绝了标签绑定：{0}": "The gateway rejected the tab binding: {0}",
+  "网关没有在运行，无法启动第三方会话": "The gateway isn't running, so the third-party session can't start",
+  "网关没有确认标签绑定（超时）": "The gateway didn't confirm the tab binding (timed out)"
 }

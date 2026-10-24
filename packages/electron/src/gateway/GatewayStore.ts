@@ -255,6 +255,8 @@ export class GatewayStore {
       name: p.name,
       enabled: p.enabled,
       urls: p.urls,
+      // 按创建时的预设匹配网关的供应商规格（§6.3）
+      ...(p.presetId ? { preset: p.presetId } : {}),
       // 一个 Key 都没存的（本地服务）给一个空 Key，否则路由找不到候选
       keys: !p.keys.length
         ? [{ id: 'none', value: '', enabled: true }]
@@ -269,6 +271,8 @@ export class GatewayStore {
                     value,
                     ...(k.wire ? { wire: k.wire } : {}),
                     enabled: k.enabled,
+                    ...(k.maxConcurrency ? { maxConcurrency: k.maxConcurrency } : {}),
+                    ...(k.rpm ? { rpm: k.rpm } : {}),
                   },
                 ];
           }),
@@ -305,6 +309,7 @@ export class GatewayStore {
       ...(extra.legacyToken ? { legacyToken: extra.legacyToken } : {}),
       allowedPrivateHosts: this.data.allowedPrivateHosts,
       learned: this.data.learned,
+      ...(this.data.strictParams ? { strictParams: true } : {}),
     };
   }
 }

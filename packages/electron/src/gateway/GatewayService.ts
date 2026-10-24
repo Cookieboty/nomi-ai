@@ -41,7 +41,26 @@ import {
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
 import { migrateLegacy } from './migrate';
+import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
+
+type Effort = 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+const EFFORTS: readonly Effort[] = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+
+/** Key 的并发 / 每分钟请求数：正整数才记，null / 0 / 非法值清除 */
+function withLimits(
+  key: GatewayKey,
+  input: { maxConcurrency?: number | null; rpm?: number | null },
+): GatewayKey {
+  const out: GatewayKey = { ...key };
+  for (const f of ['maxConcurrency', 'rpm'] as const) {
+    if (!(f in input)) continue;
+    const v = input[f];
+    if (typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= 100_000) out[f] = v;
+    else delete out[f];
+  }
+  return out;
+}
 
 type Logger = { info(m: string, d?: unknown): void; warn(m: string, d?: unknown): void };
 type NomiRole = 'chat' | 'agent-tools' | 'summary';
@@ -59,6 +78,7 @@ function hasLearned(l: LearnedState | undefined): l is LearnedState {
     (Object.keys(l.wireDown ?? {}).length ||
       Object.keys(l.modelWire ?? {}).length ||
       Object.keys(l.droppedParams ?? {}).length ||
+      Object.keys(l.models ?? {}).length ||
       l.customToolsRefused?.length),
   );
 }
@@ -93,9 +113,18 @@ export interface ProviderInput {
     wire?: Wire;
     position?: number;
     enabled?: boolean;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
   }>;
-  /** 已有 Key 的顺序 / 启用 / 名称（不在列表里的已有 Key 视为删除） */
-  keys?: Array<{ id: string; name?: string; enabled: boolean; wire?: Wire }>;
+  /** 已有 Key 的顺序 / 启用 / 名称 / 限流（不在列表里的已有 Key 视为删除） */
+  keys?: Array<{
+    id: string;
+    name?: string;
+    enabled: boolean;
+    wire?: Wire;
+    maxConcurrency?: number | null;
+    rpm?: number | null;
+  }>;
   models?: GatewayModel[];
   modelMap?: Array<{ from: string; to: string }>;
   headers?: Record<string, string>;
@@ -120,6 +149,8 @@ export interface GatewayStateView {
   >;
   allowedPrivateHosts: string[];
   port: number;
+  /** 严格模式（§6.9.6，默认关） */
+  strictParams: boolean;
   migratedFrom?: { at: number; files: string[] };
   /** Nomi 对话最近用过的模型（新的在前） */
   recentNomi?: string[];
@@ -162,11 +193,15 @@ export interface GatewayServiceDeps {
   presetQuirks?: (presetId: string | undefined) => ProviderQuirks | undefined;
   /** 测试注入：疑似不可用的协议用它确认 */
   detectImpl?: typeof detect;
+  /** 测试注入：环境变量（NOMI_ROUTE_PLAN）；默认 process.env */
+  env?: NodeJS.ProcessEnv;
   broadcast?: (channel: string, payload: unknown) => void;
 }
 
 export class GatewayService {
   readonly store: GatewayStore;
+  /** 第三方标签的进程级令牌与绑定（§6.7） */
+  readonly tabs: TabTokens;
   private readonly proc: GatewayProcess;
 
   constructor(private readonly d: GatewayServiceDeps) {
@@ -185,6 +220,8 @@ export class GatewayService {
         onKeyStatus: (e) => this.keyStatus(e),
         onStatus: () => this.changed(),
       });
+    this.tabs = new TabTokens({ send: (m) => this.proc.send(m), logger: d.logger });
+    this.proc.bindTabs({ ack: (m) => this.tabs.onAck(m), spawn: () => this.tabs.replay() });
   }
 
   /** 启动：迁移（只一次）→ 令牌 → 拉起网关 */
@@ -228,6 +265,8 @@ export class GatewayService {
     cfg.sessionsFile = path.join(this.d.root, 'sessions.json');
     const traceDir = this.d.traceDir?.();
     if (traceDir) cfg.traceDir = traceDir;
+    // 路由计划默认影子模式（只比对、写日志）；NOMI_ROUTE_PLAN=active 用于测试新计划（§6.9.4）
+    if ((this.d.env ?? process.env).NOMI_ROUTE_PLAN === 'active') cfg.routePlan = 'active';
     // 旧路由占着端口时先用临时端口
     if (this.d.legacy?.routeListening()) cfg.port = 0;
     return cfg;
@@ -418,6 +457,41 @@ export class GatewayService {
   }
 
   /**
+   * 同 cliLaunch，但给这个进程签一个标签令牌（`nomi-tab-`）并先在网关登记绑定（§6.7）：
+   * 网关按绑定解析这个标签的模型 / 思考深度，请求日志带标签 id。每次启动进程（含回收后重启、
+   * 重启型换模型）调一次，得到新代次；进程退出或标签关闭时调 releaseTab。
+   * 网关没在运行或不确认绑定时 reject，调用方报错而不是带着无效令牌启动。
+   */
+  async cliLaunchForTab(
+    kind: AgentKind,
+    tabId: string,
+    model: string,
+    effort?: string,
+  ): Promise<(AgentLaunch & { generation: number }) | null> {
+    const ep = this.endpoint(kind);
+    const launch = this.cliLaunch(kind, tabId, model);
+    if (!ep || !launch) return null;
+    const reg = await this.tabs.register({
+      client: kind,
+      tabId,
+      models: { ...this.store.snapshot().clients[kind]?.models, main: model },
+      ...(effort ? { effort } : {}),
+    });
+    const swap = (v: string) => v.split(ep.token).join(reg.token);
+    return {
+      ...launch,
+      env: Object.fromEntries(Object.entries(launch.env).map(([k, v]) => [k, swap(v)])),
+      args: launch.args.map(swap),
+      generation: reg.generation,
+    };
+  }
+
+  /** 第三方标签的进程退出 / 标签关闭：作废它的令牌 */
+  releaseTab(kind: AgentKind, tabId: string): void {
+    this.tabs.remove(kind, tabId);
+  }
+
+  /**
    * 标签关闭后回收它的进程级私有目录。里面只有 Nomi 生成的配置文件和指向用户 CLI 目录的软链，
    * 令牌只在子进程环境里、不落盘。rm 不跟随软链，用户的 ~/.grok 等不受影响。
    */
@@ -550,6 +624,7 @@ export class GatewayService {
       ),
       allowedPrivateHosts: data.allowedPrivateHosts,
       port: data.port,
+      strictParams: data.strictParams === true,
       ...(data.migratedFrom ? { migratedFrom: data.migratedFrom } : {}),
       ...(data.recentNomi?.length ? { recentNomi: data.recentNomi } : {}),
       ...(this.legacyRevoke ? { legacyRevoke: this.legacyRevoke } : {}),
@@ -589,12 +664,15 @@ export class GatewayService {
           const old = existing.get(k.id);
           return old
             ? [
-                {
-                  ...old,
-                  enabled: k.enabled,
-                  ...(k.name !== undefined ? { name: k.name } : {}),
-                  wire: k.wire,
-                },
+                withLimits(
+                  {
+                    ...old,
+                    enabled: k.enabled,
+                    ...(k.name !== undefined ? { name: k.name } : {}),
+                    wire: k.wire,
+                  },
+                  k,
+                ),
               ]
             : [];
         })
@@ -605,10 +683,13 @@ export class GatewayService {
       .sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity))
       // 名称留空时界面按顺序显示「主 Key / 备用 Key N」（随界面语言翻译）
       .map((k) => ({
-        key: {
-          ...this.store.makeKey(k.value, { name: k.name, wire: k.wire }),
-          enabled: k.enabled ?? true,
-        },
+        key: withLimits(
+          {
+            ...this.store.makeKey(k.value, { name: k.name, wire: k.wire }),
+            enabled: k.enabled ?? true,
+          },
+          k,
+        ),
         position: k.position,
       }));
     const keys = [...kept];
@@ -683,6 +764,18 @@ export class GatewayService {
     this.learnGen.set(providerId, (this.learnGen.get(providerId) ?? 0) + 1);
   }
 
+  /** 网关全局选项（目前只有严格模式，默认关） */
+  setOptions(patch: { strictParams?: unknown }): GatewayStateView {
+    if (typeof patch.strictParams === 'boolean') {
+      const data = this.store.snapshot();
+      if (patch.strictParams) data.strictParams = true;
+      else delete data.strictParams;
+      this.store.replace(data);
+      this.commit();
+    }
+    return this.state();
+  }
+
   clearLearned(providerId: string): void {
     this.bumpLearn(providerId);
     this.store.setLearned(providerId, {});
@@ -707,10 +800,33 @@ export class GatewayService {
       // 一个都不剩：说明判断不可靠，不学（宁可让请求照常失败）
       if (!allowed.length) return;
       cur.modelWire = { ...cur.modelWire, [e.model]: allowed };
+    } else if (e.type === 'model-efforts') {
+      // 思考档位被拒（§6.9.8）：记下这个模型实际接受的档位，带时间与目录版本（网关按它们判断过期）
+      const efforts = e.efforts.filter((x): x is Effort => (EFFORTS as string[]).includes(x));
+      if (!efforts.length || !e.model) return;
+      const prevModel = cur.models?.[e.model];
+      if (
+        prevModel?.catalogVersion === e.catalogVersion &&
+        JSON.stringify(prevModel.efforts) === JSON.stringify(efforts)
+      )
+        return;
+      cur.models = {
+        ...cur.models,
+        [e.model]: {
+          ...prevModel,
+          at: Number.isFinite(e.at) ? e.at : Date.now(),
+          catalogVersion: e.catalogVersion,
+          efforts,
+        },
+      };
     } else if (e.type === 'custom-tools-refused') {
       // 这个模型的 Responses 接口不接受 custom 工具：之后一开始就用转换模式（§11.3）
       if (cur.customToolsRefused?.includes(e.model)) return;
       cur.customToolsRefused = [...(cur.customToolsRefused ?? []), e.model];
+    } else if (e.type !== 'wire-suspect') {
+      // 新版网关可能报来本版本不认识的学习类型：忽略，不当成「协议疑似不可用」处理
+      this.d.logger.info('gateway learn event ignored', { type: (e as { type?: unknown }).type });
+      return;
     } else {
       const url = p.urls[e.wire];
       if (!url) return;
@@ -842,6 +958,9 @@ export class GatewayService {
     handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));
     handle('ai:gateway:confirm-private-host', (hp) => this.confirmPrivateHost(String(hp)));
     handle('ai:gateway:retry', () => this.proc.retry());
+    handle('ai:gateway:set-options', (patch) =>
+      this.setOptions((patch ?? {}) as { strictParams?: unknown }),
+    );
   }
 
   dispose(): void {

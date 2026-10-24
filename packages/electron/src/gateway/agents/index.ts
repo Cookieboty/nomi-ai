@@ -309,7 +309,11 @@ export function stripGatewayLeftovers(
   const urls = new Set([gateway.url, `${gateway.url}/v1`, `${gateway.url}/`]);
   for (const [k, v] of Object.entries(out)) {
     if (!v) continue;
-    if (urls.has(v) || gateway.tokens.some((t) => t && v.includes(t)) || /^nomi-gw-/.test(v))
+    if (
+      urls.has(v) ||
+      gateway.tokens.some((t) => t && v.includes(t)) ||
+      /^nomi-(?:gw|tab)-/.test(v)
+    )
       delete out[k];
   }
   return out;

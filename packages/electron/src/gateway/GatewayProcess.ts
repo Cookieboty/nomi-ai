@@ -9,6 +9,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 import type {
+  BindingAck,
+  BindingMessage,
   GatewayConfig,
   KeyStatusEvent,
   LearnEvent,
@@ -103,6 +105,23 @@ export class GatewayProcess {
     else if (!this.restartTimer) this.spawn();
   }
 
+  private tabHooks: { ack?: (m: BindingAck) => void; spawn?: () => void } = {};
+
+  /**
+   * 标签绑定（§6.7）：ack = 网关的应答；spawn = 拉起了新的网关进程（配置已推送），
+   * 调用方据此重新登记还活着的绑定。
+   */
+  bindTabs(h: { ack: (m: BindingAck) => void; spawn: () => void }): void {
+    this.tabHooks = h;
+  }
+
+  /** 发标签绑定消息；没有网关进程时返回 false（调用方报错，不启动 CLI） */
+  send(m: BindingMessage): boolean {
+    if (!this.child) return false;
+    this.child.postMessage(m);
+    return true;
+  }
+
   /** 等网关就绪（已经在运行就立即返回 true；失败 / 超时返回 false） */
   whenReady(timeoutMs = READY_TIMEOUT_MS): Promise<boolean> {
     if (this.status.state === 'running') return Promise.resolve(true);
@@ -133,6 +152,7 @@ export class GatewayProcess {
     child.on('message', (m) => this.onMessage(child, m));
     child.on('exit', (code) => this.onExit(child, code));
     if (this.config) child.postMessage({ type: 'config', config: this.config });
+    this.tabHooks.spawn?.();
   }
 
   private onMessage(child: GatewayChild, m: WorkerOutbound) {
@@ -147,6 +167,8 @@ export class GatewayProcess {
       this.d.onLearn?.(m.event);
     } else if (m.type === 'key-status') {
       this.d.onKeyStatus?.(m.event);
+    } else if (m.type === 'binding:ok' || m.type === 'binding:error') {
+      this.tabHooks.ack?.(m);
     } else if (m.type === 'error') {
       this.d.logger.warn('gateway error', m.message);
       // 端口被占用等启动失败：换配置前不再重试
