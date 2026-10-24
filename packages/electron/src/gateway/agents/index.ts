@@ -7,11 +7,13 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
+import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import type { ClientModels } from '@nomi-ai/gateway';
 
 import { patchDshYaml } from '../../cli/configPatch';
 
-export type AgentKind = 'claude' | 'codex' | 'gemini' | 'grok' | 'dsh';
+/** 有第三方注入的编程助手：就是全部内置 CLI（cli-plugins 生成的 id 表） */
+export type AgentKind = BuiltinCliId;
 
 /** 模型元数据（§12.7.1）；缺失的项按保守默认值：上下文 128K、输出 8K */
 export interface ModelMeta {
@@ -41,6 +43,12 @@ export interface LaunchContext {
   metaOf?: (ref: string) => ModelMeta | undefined;
   /** Codex 模型目录里要列出的模型（第三方可选的全部模型） */
   catalog?: string[];
+  /**
+   * 占位模型名（§6.7 gateway 方式换模型，插件清单的 launch.placeholderModel，如 Grok 的 nomi）：
+   * 只在进程按标签令牌启动、网关能按绑定解析模型时给。给了就把它写进配置代替真实模型名，
+   * 换模型只改绑定、不重启；不给（终端命令、客户端级令牌）仍写真实模型名。
+   */
+  placeholder?: string;
   /** 测试注入 */
   home?: string;
 }
@@ -259,7 +267,7 @@ function grok(c: LaunchContext): AgentLaunch {
     [
       '# Private config for a Nomi third-party session (does not affect ~/.grok)',
       '[model.nomi]',
-      `model = ${q(c.model)}`,
+      `model = ${q(c.placeholder ?? c.model)}`,
       `base_url = ${q(`${c.url}/v1`)}`,
       'name = "Nomi"',
       'env_key = "NOMI_GROK_API_KEY"',
@@ -281,7 +289,8 @@ function grok(c: LaunchContext): AgentLaunch {
     env: { GROK_HOME: c.dir, NOMI_GROK_API_KEY: c.token },
     args: [],
     strip: STRIP.grok,
-    modelInConfig: true,
+    // 占位模型名时配置里没有真实模型：换模型不必重启（复用键不带模型）
+    modelInConfig: !c.placeholder,
   };
 }
 
