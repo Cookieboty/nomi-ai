@@ -30,6 +30,7 @@ import {
 } from './errors';
 import { applyRequestFixes, serverToolError, toolLimitError } from './fixes';
 import { ingressFromPath, type Ingress } from './ingress';
+import { readIntent } from './intent';
 import type { Wire } from './ir';
 import { classifyFailure, Learner, type LearnEvent } from './learn';
 import { limitsOf, Limiter } from './limits';
@@ -39,6 +40,15 @@ import { isAllowedHostHeader, urlHost } from './net/loopback';
 import { checkUpstream, UpstreamBlockedError, type LookupAll } from './net/upstreamGuard';
 import { ProviderStage, specOf } from './providers/index';
 import { stagedResponse } from './providers/stream';
+import {
+  classifyAttemptFailure,
+  classifyPreCommit,
+  classifyStreamError,
+  isBurst,
+  type QualityAttempt,
+  type QualityOutcome,
+  type QualityTiming,
+} from './quality';
 import { hasSealedReasoning, isReasoningRejection, stripSealedReasoning } from './reasoning';
 import { responseFixOptions } from './responseFixes';
 import {
@@ -107,7 +117,10 @@ export interface UsageEvent {
   usage: StreamUsage;
   startedAt: number;
   ms: number;
-  /** 拿到上游 2xx 响应头的时间（相对 startedAt，ms）；失败的请求没有 */
+  /**
+   * 第一个内容事件的时间（相对 startedAt，ms；流式即提交点）；失败的请求没有。
+   * 保留给旧的读取方，新代码用 timing.firstContentMs
+   */
   firstByteMs?: number;
   attempts: number;
   error?: string;
@@ -120,6 +133,27 @@ export interface UsageEvent {
   generation?: number;
   /** 模型是怎么解析出来的（显式 / 档位 / 辅助 / 绑定 / 未知名 / 默认） */
   resolved?: ModelResolution;
+  /* ---- 模型质量（docs/design/model-quality.md §4.1） ---- */
+  /** 这次请求的结果（每个请求都有，按最终结果分类） */
+  outcome: QualityOutcome;
+  /** 取消发生在第一个内容之前还是输出中 */
+  cancelPhase?: 'before-first' | 'during';
+  /** 失败的简短类别（不含正文） */
+  errorKind?: string;
+  /** 各阶段时间点（相对 startedAt）；timing.firstContentMs 与旧字段 firstByteMs 相同 */
+  timing: QualityTiming;
+  /** 每个候选一次尝试（含回退前失败的）；第一次失败、后面成功 = 回退 */
+  attemptsDetail: QualityAttempt[];
+  /** 生成时长 < 100 ms 且输出 ≥ 20 token：上游缓冲后整段吐出 */
+  burst?: boolean;
+  /** 客户端要的是流式 */
+  stream: boolean;
+  /** 请求里要了推理（思考） */
+  reasoning?: boolean;
+  /** 协议桥：透传 / 转换 */
+  mode?: 'passthrough' | 'convert';
+  /** 上游真实模型名 */
+  upstreamModel?: string;
 }
 
 export interface GatewayHooks {
@@ -223,6 +257,8 @@ type Attempt =
       notes?: string[];
       /** 供应商预处理（§6.3）：套在了 res 上；心跳计数在这里 */
       stage?: ProviderStage;
+      /** 拿到上游响应头的时刻（epoch ms） */
+      headersAt?: number;
     }
   | {
       kind: 'failed';
@@ -239,7 +275,23 @@ type Attempt =
       network?: boolean;
       /** 上游的 Retry-After 原文（冷却时长；最终错误原样转发，§9.6） */
       retryAfter?: string;
+      /** 模型质量的分类（网关本地产生的失败直接给出；上游失败按状态码推断） */
+      outcome?: QualityOutcome;
+      errorKind?: string;
     };
+
+/** respond() 的结果：用量与这次输出的质量信息（时间点为 epoch ms） */
+interface Responded {
+  usage: StreamUsage;
+  outcome: QualityOutcome;
+  errorKind?: string;
+  cancelPhase?: 'during';
+  firstContentAt?: number;
+  firstTextAt?: number;
+  lastContentAt?: number;
+  /** 走了 SSE 流式输出（突发度只对它有意义） */
+  streamed: boolean;
+}
 
 export class GatewayServer {
   private server: http.Server | null = null;
@@ -434,11 +486,41 @@ export class GatewayServer {
       res.write(': keepalive\n\n');
       sseOpen = true;
     };
+    /** 每个客户端请求恰好上报一次用量 / 质量事件（docs/design/model-quality.md §4.1） */
+    let reported = false;
+    const report = (e: Omit<UsageEvent, 'client' | 'ingress' | 'startedAt' | 'ms'>) => {
+      if (reported) return;
+      reported = true;
+      const ms = Date.now() - startedAt;
+      this.hooks.onUsage?.({
+        client,
+        ingress: ingress.wire,
+        startedAt,
+        ms,
+        ...e,
+        timing: { ...e.timing, endMs: ms },
+        ...tag,
+      });
+    };
+    /** 请求没走到任何候选就结束（请求体 / 模型解析失败）：只有结果与状态码 */
+    const reportLocal = (status: number, message: string) =>
+      report({
+        status,
+        usage: {},
+        attempts: 0,
+        error: message,
+        outcome: status >= 400 && status < 500 ? 'request-rejected' : 'gateway-error',
+        timing: { endMs: 0 },
+        attemptsDetail: [],
+        stream: false,
+      });
     let body: unknown;
     try {
       body = await readBody(req);
     } catch {
-      fail(400, 'Nomi 网关：请求体不是合法的 JSON');
+      const message = 'Nomi 网关：请求体不是合法的 JSON';
+      fail(400, message);
+      reportLocal(400, message);
       return;
     }
     // 调试模式（§14）：配置里有 traceDir 才记录正文，结束时脱敏写盘
@@ -461,6 +543,7 @@ export class GatewayServer {
     const r = resolveCandidates(cfg, resolveAs, requested, ingress.wire, binding);
     if (!r.ok) {
       fail(r.status, r.message);
+      reportLocal(r.status, r.message);
       return;
     }
     if (r.resolution) tag.resolved = r.resolution.how;
@@ -478,6 +561,12 @@ export class GatewayServer {
     /** 模型解析的备注（未知模型名按标签主模型处理等），并进这次请求的备注 */
     const resolveNotes = r.resolution?.note ? [r.resolution.note] : [];
     const wantsStream = ingress.wire === 'gemini' ? Boolean(ingress.stream) : b.stream === true;
+    const intent = readIntent(ingress.wire, body, resolveAs ?? undefined);
+    const quality = {
+      stream: wantsStream,
+      ...(intent ? { reasoning: intent.mode !== 'disabled' } : {}),
+    };
+    // count_tokens 不是生成请求：不计入用量与模型质量
     if (ingress.countTokens) {
       await this.countTokens(res, cfg, ingress, body, r.candidates[0]!);
       return;
@@ -491,6 +580,26 @@ export class GatewayServer {
     let attempts = 0;
     let last: Attempt | null = null;
     let firstByteMs: number | undefined;
+    /** 每个候选一次尝试（模型质量按尝试计数，§2.1） */
+    const attemptsDetail: QualityAttempt[] = [];
+    const noteFailure = (f: Extract<Attempt, { kind: 'failed' }>, began: number) => {
+      const c =
+        f.outcome !== undefined
+          ? { outcome: f.outcome, errorKind: f.errorKind }
+          : classifyAttemptFailure(f);
+      attemptsDetail.push({
+        provider: f.cand.provider.id,
+        keyId: f.cand.key.id,
+        model: f.cand.publicModel,
+        upstreamWire: f.cand.wire,
+        status: f.upstreamStatus ?? f.status,
+        outcome: c.outcome,
+        ms: Date.now() - began,
+        ...(c.errorKind ? { errorKind: c.errorKind } : {}),
+      });
+    };
+    /** 成功那次尝试的开始时刻 */
+    let wonAt = startedAt;
     /** 成功的那个候选占着的并发名额：写完响应再释放 */
     let held: (() => void) | null = null;
     // 排序：被短期压制的（§7.4）和冷却中的（§11.1）排到后面，亲和的排到第一（§11.2）。
@@ -512,6 +621,7 @@ export class GatewayServer {
         break;
       const cand = queue.shift()!;
       attempts++;
+      const began = Date.now();
       // 同协议透传：历史里的加密推理和签名只在上一轮是同一 (供应商, Key, 协议) 时保留（§9.3）
       const keep =
         !stripAll &&
@@ -536,7 +646,10 @@ export class GatewayServer {
           message: '这个 Key 的并发 / 每分钟请求数已满，排队超时',
           retryable: true,
           cand,
+          outcome: abort.signal.aborted ? 'client-cancel' : 'rate-limit',
+          errorKind: 'local-limit',
         };
+        noteFailure(last, began);
         errors.push(`${cand.provider.name}·${cand.key.name ?? cand.key.id}: ${last.message}`);
         continue;
       }
@@ -574,6 +687,9 @@ export class GatewayServer {
         if (peek.kind === 'commit') last = { ...got, res: peek.res };
         else {
           trace?.attemptResult(200, peek.message);
+          const c: { outcome: QualityOutcome; errorKind?: string } = abort.signal.aborted
+            ? { outcome: 'client-cancel' }
+            : classifyPreCommit(peek);
           last = {
             kind: 'failed',
             status: peek.status,
@@ -581,13 +697,17 @@ export class GatewayServer {
             retryable: !abort.signal.aborted,
             cand,
             ...(peek.upstreamStatus ? { upstreamStatus: peek.upstreamStatus } : {}),
+            outcome: c.outcome,
+            ...(c.errorKind ? { errorKind: c.errorKind } : {}),
           };
         }
       }
       if (last.kind !== 'response') release();
       else held = release;
+      if (last.kind === 'failed') noteFailure(last, began);
       if (last.kind === 'response') {
         firstByteMs = Date.now() - startedAt;
+        wonAt = began;
         this.learner.success(cand);
         this.cooldowns.success(cand);
         if (session)
@@ -677,35 +797,41 @@ export class GatewayServer {
         message = upstreamAuthMessage(raw, message);
       fail(status, message, last?.retryAfter);
       void trace?.finish({ status, ms: Date.now() - startedAt, attempts, error: message });
-      this.hooks.onUsage?.({
-        client,
-        ingress: ingress.wire,
+      // 最终结果：客户端在第一个内容前断开 = 取消；否则按最后一次尝试的分类；一个候选都没有 = 网关自身
+      const lastDetail = attemptsDetail[attemptsDetail.length - 1];
+      const cancelled = abort.signal.aborted;
+      report({
         ...(last
           ? {
               wire: last.cand.wire,
               provider: last.cand.provider.id,
               keyId: last.cand.key.id,
               model: last.cand.publicModel,
+              upstreamModel: last.cand.upstreamModel,
             }
           : {}),
         status,
         usage: {},
-        startedAt,
-        ms: Date.now() - startedAt,
         attempts,
         error: message,
         ...(resolveNotes.length ? { notes: resolveNotes } : {}),
         ...(trace ? { traceId: trace.id } : {}),
-        ...tag,
+        outcome: cancelled ? 'client-cancel' : (lastDetail?.outcome ?? 'gateway-error'),
+        ...(cancelled ? { cancelPhase: 'before-first' as const } : {}),
+        ...(!cancelled && lastDetail?.errorKind ? { errorKind: lastDetail.errorKind } : {}),
+        timing: { endMs: 0 },
+        attemptsDetail,
+        ...quality,
       });
       return;
     }
     const { res: up, cand, stage } = last;
     // 模型解析的备注、请求修正（attempt）之后再追加响应修正（respond，§11.3）
     const notes = [...resolveNotes, ...(last.notes ?? [])];
-    let usage: StreamUsage;
+    const mode = bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions);
+    let out: Responded;
     try {
-      usage = await this.respond(
+      out = await this.respond(
         res,
         ingress,
         cand,
@@ -718,9 +844,29 @@ export class GatewayServer {
         stage,
         resolveAs,
       );
+    } catch (e) {
+      // 网关内部异常：照样上报一次（结果记为网关自身的错误），再交给上层处理
+      report({
+        wire: cand.wire,
+        provider: cand.provider.id,
+        keyId: cand.key.id,
+        model: cand.publicModel,
+        upstreamModel: cand.upstreamModel,
+        status: 500,
+        usage: {},
+        attempts,
+        error: (e as Error).message,
+        outcome: 'gateway-error',
+        timing: { endMs: 0 },
+        attemptsDetail,
+        mode,
+        ...quality,
+      });
+      throw e;
     } finally {
       held?.();
     }
+    const usage = out.usage;
     void trace?.finish({
       status: up.status,
       ms: Date.now() - startedAt,
@@ -737,22 +883,53 @@ export class GatewayServer {
       body,
       inputTokens: measuredInputTokens(cand.wire, usage),
     });
-    this.hooks.onUsage?.({
-      client,
-      ingress: ingress.wire,
+    // 时间点（相对 startedAt）：流式的第一个内容 = 提交点；之后的以旁路解码看到的为准，且不早于它
+    const rel = (at: number | undefined) => (at === undefined ? undefined : at - startedAt);
+    const firstContentMs = out.streamed ? firstByteMs : rel(out.firstContentAt);
+    const atLeast = (v: number | undefined) =>
+      v === undefined || firstContentMs === undefined ? v : Math.max(v, firstContentMs);
+    const firstTextMs = atLeast(rel(out.firstTextAt));
+    const lastContentMs = atLeast(rel(out.lastContentAt));
+    const headersMs = rel(last.headersAt);
+    attemptsDetail.push({
+      provider: cand.provider.id,
+      keyId: cand.key.id,
+      model: cand.publicModel,
+      upstreamWire: cand.wire,
+      status: up.status,
+      outcome: out.outcome,
+      ms: Date.now() - wonAt,
+      ...(last.headersAt !== undefined ? { headersMs: last.headersAt - wonAt } : {}),
+      ...(out.errorKind ? { errorKind: out.errorKind } : {}),
+    });
+    report({
       wire: cand.wire,
       provider: cand.provider.id,
       keyId: cand.key.id,
       model: cand.publicModel,
+      upstreamModel: cand.upstreamModel,
       status: up.status,
       usage,
-      startedAt,
-      ms: Date.now() - startedAt,
-      ...(firstByteMs !== undefined ? { firstByteMs } : {}),
+      ...(firstContentMs !== undefined ? { firstByteMs: firstContentMs } : {}),
       attempts,
       ...(notes.length ? { notes } : {}),
       ...(trace ? { traceId: trace.id } : {}),
-      ...tag,
+      outcome: out.outcome,
+      ...(out.cancelPhase ? { cancelPhase: out.cancelPhase } : {}),
+      ...(out.errorKind ? { errorKind: out.errorKind } : {}),
+      timing: {
+        ...(headersMs !== undefined ? { headersMs } : {}),
+        ...(firstContentMs !== undefined ? { firstContentMs } : {}),
+        ...(firstTextMs !== undefined ? { firstTextMs } : {}),
+        ...(lastContentMs !== undefined ? { lastContentMs } : {}),
+        endMs: 0,
+      },
+      attemptsDetail,
+      ...(out.streamed && isBurst(firstContentMs, lastContentMs, usage.outputTokens)
+        ? { burst: true }
+        : {}),
+      mode,
+      ...quality,
     });
   }
 
@@ -822,6 +999,8 @@ export class GatewayServer {
         message: (e as Error).message,
         retryable: e instanceof UpstreamBlockedError,
         cand,
+        outcome: 'gateway-error',
+        errorKind: 'blocked-upstream',
       };
     }
     const notes: string[] = [];
@@ -837,15 +1016,41 @@ export class GatewayServer {
     } catch (e) {
       // 严格模式（§6.9.6）：模型不支持的参数直接报给用户，不换候选
       if (e instanceof UnsupportedParamError)
-        return { kind: 'failed', status: 400, message: e.message, retryable: false, cand };
+        return {
+          kind: 'failed',
+          status: 400,
+          message: e.message,
+          retryable: false,
+          cand,
+          outcome: 'request-rejected',
+          errorKind: 'strict-param',
+        };
       throw e;
     }
     // 工具数超过供应商上限：不发请求，直接给出明确错误（下一个候选可能没有这个限制）
     const tooMany = toolLimitError(cand, sent);
-    if (tooMany) return { kind: 'failed', status: 400, message: tooMany, retryable: true, cand };
+    if (tooMany)
+      return {
+        kind: 'failed',
+        status: 400,
+        message: tooMany,
+        retryable: true,
+        cand,
+        outcome: 'request-rejected',
+        errorKind: 'too-many-tools',
+      };
     // 专门的联网搜索请求发给不支持服务端工具的上游：明确报错，不返回没有搜索结果的回答
     const noSearch = serverToolError(cand, ingress.wire, body);
-    if (noSearch) return { kind: 'failed', status: 400, message: noSearch, retryable: true, cand };
+    if (noSearch)
+      return {
+        kind: 'failed',
+        status: 400,
+        message: noSearch,
+        retryable: true,
+        cand,
+        outcome: 'request-rejected',
+        errorKind: 'server-tool',
+      };
     if (notes.length)
       this.hooks.logger?.info('gateway request fixes', { model: cand.publicModel, notes });
     // 只管到响应头为止：拿到响应后撤销，正文由流的空闲超时 / 用户取消管（#93）
@@ -889,11 +1094,24 @@ export class GatewayServer {
         retryable: !signal.aborted,
         cand,
         network: !signal.aborted,
+        outcome: signal.aborted
+          ? 'client-cancel'
+          : timedOut
+            ? 'first-byte-timeout'
+            : 'upstream-5xx',
+        ...(timedOut || signal.aborted ? {} : { errorKind: 'connect' }),
       };
     } finally {
       clearTimeout(timer);
     }
-    if (res.ok) return { kind: 'response', res, cand, ...(notes.length ? { notes } : {}) };
+    if (res.ok)
+      return {
+        kind: 'response',
+        res,
+        cand,
+        headersAt: Date.now(),
+        ...(notes.length ? { notes } : {}),
+      };
     const text = await res.text().catch(() => '');
     const s = res.status;
     trace?.attemptResult(s, text);
@@ -927,7 +1145,7 @@ export class GatewayServer {
     trace?: RequestTrace | null,
     stage?: ProviderStage,
     client: string | null = null,
-  ): Promise<StreamUsage> {
+  ): Promise<Responded> {
     res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
     const passthrough =
@@ -965,6 +1183,14 @@ export class GatewayServer {
       const idleMs = resolveStreamIdleTimeoutMs(this.hooks);
       let idle: ReturnType<typeof setTimeout> | null = null;
       let idleFired = false;
+      // 模型质量：这次输出怎么结束的（§2.3）
+      let outcome: QualityOutcome = 'ok';
+      let errorKind: string | undefined;
+      const timing = () => ({
+        firstContentAt: tap.firstContentAt,
+        firstTextAt: tap.firstTextAt,
+        lastContentAt: tap.lastContentAt,
+      });
       const arm = () => {
         if (idle) clearTimeout(idle);
         idle = setTimeout(() => {
@@ -978,7 +1204,14 @@ export class GatewayServer {
           const { done, value } = await reader.read();
           if (done) break;
           arm();
-          if (res.destroyed) return tap.usage;
+          if (res.destroyed)
+            return {
+              usage: tap.usage,
+              outcome: 'client-cancel',
+              cancelPhase: 'during',
+              streamed: true,
+              ...timing(),
+            };
           const text = decoder.decode(value, { stream: true });
           tap.push(text);
           // 有供应商预处理时上游原文已在预处理那一层记过（追踪存原始字节，§8.4）
@@ -1002,6 +1235,15 @@ export class GatewayServer {
         }
         const rest = bridge.stopped ? '' : decoder.decode();
         tap.push(rest);
+        // 结束标记要在 tap.end() 之前看（end() 会为没结束的流补一个错误）
+        if (bridge.stopped) {
+          outcome = 'repetition-stop';
+        } else if (tap.error !== null) {
+          ({ outcome, errorKind } = classifyStreamError(tap.error, tap.errorType));
+        } else if (!tap.terminated) {
+          outcome = 'stream-break';
+          errorKind = 'no-terminal';
+        }
         const tail = conform(bridge.end(rest)) + (conformer?.end() ?? '');
         if (tail) res.write(tail);
         if (bridge.stopped) {
@@ -1009,6 +1251,12 @@ export class GatewayServer {
           await reader.cancel().catch(() => undefined);
         }
       } catch (e) {
+        if (idleFired) outcome = 'idle-timeout';
+        else if (res.destroyed) outcome = 'client-cancel';
+        else {
+          outcome = 'stream-break';
+          errorKind = 'network';
+        }
         if (!res.destroyed) {
           const msg = idleFired
             ? `Nomi 网关：上游 ${Math.round(idleMs / 1000)} 秒没有任何输出，已中断`
@@ -1020,7 +1268,15 @@ export class GatewayServer {
         reader.releaseLock();
         if (!res.destroyed) res.end();
       }
-      return tap.end();
+      const usage = tap.end();
+      return {
+        usage,
+        outcome,
+        ...(errorKind ? { errorKind } : {}),
+        ...(outcome === 'client-cancel' ? { cancelPhase: 'during' as const } : {}),
+        streamed: true,
+        ...timing(),
+      };
     }
     let text: string;
     // 非流式正文也要有上限：上游发完响应头后卡住（不发正文也不断开）时，不能让请求永远挂着。
@@ -1041,10 +1297,19 @@ export class GatewayServer {
       const err = errorResponse(ingress.wire, kindOfStatus(502, msg), msg);
       if (!res.headersSent) sendJson(res, err.status, err.body);
       else res.end();
-      return {};
+      const cancelled = !bodyTimedOut && res.destroyed;
+      return {
+        usage: {},
+        outcome: bodyTimedOut ? 'idle-timeout' : cancelled ? 'client-cancel' : 'stream-break',
+        ...(cancelled ? { cancelPhase: 'during' as const } : {}),
+        ...(bodyTimedOut || cancelled ? {} : { errorKind: 'network' }),
+        streamed: false,
+      };
     } finally {
       clearTimeout(bodyTimer);
     }
+    // 非流式：正文整段到达，第一个与最后一个内容都是这一刻
+    const bodyAt = Date.now();
     trace?.response(up.status, text);
     let parsed: unknown = text;
     try {
@@ -1076,7 +1341,14 @@ export class GatewayServer {
       res.writeHead(out.status, { 'Content-Type': out.contentType });
       res.end(out.body);
     } else sendJson(res, out.status, out.body);
-    return usage;
+    return {
+      usage,
+      outcome: 'ok',
+      streamed: false,
+      firstContentAt: bodyAt,
+      lastContentAt: bodyAt,
+      firstTextAt: bodyAt,
+    };
   }
 
   /** count_tokens：上游是 Messages 时转发，否则（或上游不支持）本地估算（§10.1、§10.3） */
