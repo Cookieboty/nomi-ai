@@ -5,9 +5,10 @@
  * - codex：OpenAI 标志；dsh：DeepSeek 鲸鱼标志；grok：xAI 标志。路径取自 @lobehub/icons-static-svg v1.95.1
  *   （MIT © 2023 LobeHub），与 brand/icons.ts 同源；Logo 商标归各自所有者，仅作指示性使用。
  * - gemini：项目自绘的通用四角星（不用 Google 商标）。
+ * - external：用户添加的外部 CLI（§5.9），项目自绘的通用终端提示符 `>_`。
  * 灵动岛页面（packages/electron/src/island/islandPage.ts）内嵌了同一份数据，改这里请同步。
  */
-export type EndpointGlyphKey = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini';
+export type EndpointGlyphKey = 'nomi' | 'claude' | 'codex' | 'dsh' | 'grok' | 'gemini' | 'external';
 
 export interface GlyphPath {
   d: string;
@@ -97,6 +98,13 @@ export const ENDPOINT_GLYPHS: Readonly<Record<EndpointGlyphKey, EndpointGlyph>> 
       },
     ],
   },
+  external: {
+    tile: '#5b6472',
+    paths: [
+      { d: 'M4 5l3 3-3 3', fill: 'none', stroke: '#fff', strokeWidth: 1.6 },
+      { d: 'M8.5 11.5H12', fill: 'none', stroke: '#fff', strokeWidth: 1.6 },
+    ],
+  },
 };
 
 /** 各端点的代表色（徽标、边框等） */
@@ -107,4 +115,5 @@ export const ENDPOINT_COLOR: Readonly<Record<EndpointGlyphKey, string>> = {
   dsh: '#4D6BFE',
   grok: '#111111',
   gemini: '#2f5bd3',
+  external: '#5b6472',
 };

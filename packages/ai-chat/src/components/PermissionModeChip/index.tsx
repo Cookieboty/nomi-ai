@@ -62,7 +62,8 @@ function nativePermissionModes(
         : v === 'manual' || v === 'default' || v === 'ask'
           ? 'manual'
           : v === 'on-request'
-            ? backend === 'codex'
+            ? // eslint-disable-next-line nomi/no-cli-literal -- Codex 的 on-request 是自动审批，其它 CLI 的同名值是逐项确认
+              backend === 'codex'
               ? 'auto'
               : 'manual'
             : v === 'acceptedits' || v === 'autoedit' || v === 'workspace-write'

@@ -378,6 +378,7 @@ const CliRow: React.FC<{
       </div>
     );
   const source = client?.newTabSource ?? 'official';
+  // eslint-disable-next-line nomi/no-cli-literal -- 各档模型（opus / sonnet / haiku / fable）是 Claude Code 独有的配置
   const claude = kind === 'claude';
   const sourceOptions: SelectOption[] = [
     { value: 'official', label: hasOfficialAccount(kind) ? t('官方账号') : t('dsh 自带配置') },

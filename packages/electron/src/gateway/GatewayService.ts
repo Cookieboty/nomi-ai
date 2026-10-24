@@ -518,6 +518,7 @@ export class GatewayService {
    * 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）；查不到（含 30 天淘汰）返回 false。
    */
   servedSession(kind: AgentKind, sessionId: string): boolean {
+    // eslint-disable-next-line nomi/no-cli-literal -- 只有 Claude 的会话键带 CLI 会话 id（x-claude-code-session-id）
     if (kind !== 'claude' || !sessionId) return false;
     try {
       const raw = JSON.parse(fs.readFileSync(path.join(this.d.root, 'sessions.json'), 'utf8')) as {

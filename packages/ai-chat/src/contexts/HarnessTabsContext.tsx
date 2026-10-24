@@ -2,6 +2,7 @@
  * 对话标签状态：主进程是唯一数据源（标签元数据 + CLI 标签消息），这里只做订阅与缓存。
  * 标签 'main' 为原有对话（消息走 AiChatContext）；其它标签只绑定编程助手后端。
  */
+import { isBuiltinCliId } from '@nomi-ai/cli-plugins';
 import { t } from '@nomi-ai/ui';
 import React, {
   createContext,
@@ -129,7 +130,7 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const [lastBackend, setLastBackend] = useState<HarnessBackend>(() => {
     try {
       const v = localStorage.getItem(LAST_BACKEND_KEY);
-      return v === 'codex' || v === 'dsh' || v === 'grok' || v === 'gemini' ? v : 'claude';
+      return v && isBuiltinCliId(v) ? v : 'claude';
     } catch {
       return 'claude';
     }
