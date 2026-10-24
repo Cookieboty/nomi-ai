@@ -10,7 +10,12 @@ import path from 'node:path';
 import type { ProviderStoreData, SecretCipher } from '@nomi-ai/ai-runtime';
 
 import { GatewayStore } from '../../../src/gateway/GatewayStore';
-import { legacyBase, migrateLegacy } from '../../../src/gateway/migrate';
+import {
+  archiveLegacyFiles,
+  legacyBase,
+  legacyFileCandidates,
+  migrateLegacy,
+} from '../../../src/gateway/migrate';
 
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 const plaintextCipher: SecretCipher = {
@@ -142,11 +147,12 @@ function setup() {
 }
 
 describe('gateway migration (§6.3)', () => {
-  it('merges providers by host + key, maps assignments, keeps the old port, and leaves old files alone', () => {
+  it('merges providers by host + key, maps assignments, keeps the old port, and archives old files', () => {
     const t = setup();
     const before = fs.readFileSync(t.nomiFile, 'utf8');
     const r = migrateLegacy(t.store, t.sources);
     expect(r).toMatchObject({ migrated: true, providers: 5, undecryptable: 0 });
+    expect(r.archived.length).toBeGreaterThan(0);
     const data = t.store.snapshot();
     const ds = data.providers.find((p) => p.id === 'deepseek')!;
     expect(ds.urls).toEqual({
@@ -182,8 +188,11 @@ describe('gateway migration (§6.3)', () => {
     // 供应商来源：Nomi 的存储 + 有数据的 3 份 CLI 存储（routing.json 只读端口）
     expect(data.migratedFrom!.files).toHaveLength(4);
 
-    // 旧文件只读不改
-    expect(fs.readFileSync(t.nomiFile, 'utf8')).toBe(before);
+    // 成功写入后旧文件改名为 *.migrated（内容保留，不删）
+    expect(fs.existsSync(t.nomiFile)).toBe(false);
+    expect(fs.readFileSync(`${t.nomiFile}.migrated`, 'utf8')).toBe(before);
+    expect(fs.existsSync(path.join(t.sources.cliRoot, 'claude', 'store.json'))).toBe(false);
+    expect(fs.existsSync(path.join(t.sources.cliRoot, 'claude', 'store.json.migrated'))).toBe(true);
     // 新存储 0600
     if (process.platform !== 'win32') expect(fs.statSync(t.store.file).mode & 0o777).toBe(0o600);
   });
@@ -258,5 +267,80 @@ describe('gateway migration (§6.3)', () => {
     expect(legacyBase('chat', 'https://x/v1/chat/completions', true)).toBe('https://x/v1');
     expect(legacyBase('gemini', 'https://g.example/v1beta')).toBe('https://g.example/v1beta');
     expect(legacyBase('gemini', 'https://g.example')).toBe('https://g.example/v1beta');
+  });
+
+  it('empty legacy sources still mark migrated and archive nothing', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-migrate-empty-'));
+    const store = new GatewayStore({
+      file: path.join(root, 'gateway', 'store.json'),
+      cipher: plaintextCipher,
+    });
+    const sources = {
+      nomiFile: path.join(root, 'ai-providers.json'),
+      cliRoot: path.join(root, 'cli-providers'),
+      nomiCipher: plaintextCipher,
+      cliDecrypt: (e: string) => Buffer.from(e, 'base64').toString('utf8'),
+      normalizeNomi,
+    };
+    const r = migrateLegacy(store, sources);
+    expect(r).toMatchObject({
+      migrated: true,
+      providers: 0,
+      files: [],
+      archived: [],
+      undecryptable: 0,
+    });
+    expect(store.snapshot().migratedFrom).toBeDefined();
+  });
+
+  it('corrupt ai-providers.json is skipped for merge but archived after save', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-migrate-corrupt-'));
+    const nomiFile = path.join(root, 'ai-providers.json');
+    fs.writeFileSync(nomiFile, '{not json');
+    const store = new GatewayStore({
+      file: path.join(root, 'gateway', 'store.json'),
+      cipher: plaintextCipher,
+    });
+    const sources = {
+      nomiFile,
+      cliRoot: path.join(root, 'cli-providers'),
+      nomiCipher: plaintextCipher,
+      cliDecrypt: (e: string) => Buffer.from(e, 'base64').toString('utf8'),
+      normalizeNomi,
+    };
+    const r = migrateLegacy(store, sources);
+    expect(r.migrated).toBe(true);
+    expect(r.providers).toBe(0);
+    expect(fs.existsSync(nomiFile)).toBe(false);
+    expect(fs.existsSync(`${nomiFile}.migrated`)).toBe(true);
+    expect(r.archived.some((f) => f.endsWith('.migrated'))).toBe(true);
+  });
+
+  it('archiveLegacyFiles is atomic on failure and uses timestamp when .migrated exists', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gw-archive-'));
+    const a = path.join(root, 'ai-providers.json');
+    const b = path.join(root, 'cli-providers', 'claude', 'store.json');
+    fs.mkdirSync(path.dirname(b), { recursive: true });
+    fs.writeFileSync(a, '{"v":1}');
+    fs.writeFileSync(`${a}.migrated`, '{"old":true}');
+    fs.writeFileSync(b, '{"profiles":[]}');
+    const out = archiveLegacyFiles([a, b, path.join(root, 'missing.json')]);
+    expect(out).toHaveLength(2);
+    expect(fs.existsSync(a)).toBe(false);
+    expect(fs.existsSync(b)).toBe(false);
+    expect(fs.existsSync(`${a}.migrated`)).toBe(true);
+    expect(fs.readdirSync(root).some((f) => f.startsWith('ai-providers.json.migrated-'))).toBe(
+      true,
+    );
+    expect(
+      legacyFileCandidates({ nomiFile: a, cliRoot: path.join(root, 'cli-providers') }),
+    ).toEqual([
+      a,
+      path.join(root, 'cli-providers', 'claude', 'store.json'),
+      path.join(root, 'cli-providers', 'codex', 'store.json'),
+      path.join(root, 'cli-providers', 'dsh', 'store.json'),
+      path.join(root, 'cli-providers', 'grok', 'store.json'),
+      path.join(root, 'cli-providers', 'gemini', 'store.json'),
+    ]);
   });
 });

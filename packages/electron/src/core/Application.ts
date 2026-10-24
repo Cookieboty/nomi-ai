@@ -351,7 +351,6 @@ export class Application implements IApplication {
         root: path.join(app.getPath('userData'), 'local'),
         logger: this.logger as never,
         desktop,
-        providers: () => this.aiRuntime?.providers as never,
         gateway: () => getGatewayService(),
       });
       localLlm.registerIpc();

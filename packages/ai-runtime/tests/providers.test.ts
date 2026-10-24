@@ -508,8 +508,21 @@ describe('RoutedLLMRegistry routing', () => {
     const n = built.length;
     reg.resolve('summary');
     expect(built.length).toBe(n);
-    // 网关不可用：退回旧存储
+    // 网关已配置但不可用：不回退旧存储（GatewayStore 是唯一来源）
     up = false;
+    expect(reg.resolve('chat')).toBeUndefined();
+  });
+
+  it('without gateway, store routes still work (standalone / tests)', () => {
+    const store = new ProviderStore({ cipher: fakeCipher });
+    const a = store.upsert({
+      presetId: 'custom',
+      baseURL: 'http://a.test/v1',
+      apiKey: 'ka-123456',
+      defaultModel: 'm',
+    });
+    store.setActive(a.id);
+    const reg = new RoutedLLMRegistry({ store, factory });
     expect(reg.resolve('chat')!.provider.id).toBe(a.id);
   });
 

@@ -42,7 +42,7 @@ import {
 } from './agents';
 import { GatewayProcess, type GatewayStatus } from './GatewayProcess';
 import { GatewayStore, maskKey } from './GatewayStore';
-import { migrateLegacy } from './migrate';
+import { archiveLegacyFiles, legacyFileCandidates, migrateLegacy } from './migrate';
 import { TabTokens } from './TabTokens';
 import type { GatewayKey, GatewayModel, GatewayProvider, StoredProbe } from './types';
 
@@ -226,7 +226,7 @@ export class GatewayService {
     this.proc.bindTabs({ ack: (m) => this.tabs.onAck(m), spawn: () => this.tabs.replay() });
   }
 
-  /** 启动：迁移（只一次）→ 令牌 → 拉起网关 */
+  /** 启动：迁移（只一次）→ 归档残留旧文件 → 令牌 → 拉起网关 */
   init(): void {
     if (!this.store.exists() && this.d.legacy) {
       try {
@@ -247,7 +247,21 @@ export class GatewayService {
       }
     }
     if (this.store.ensureClients() || !this.store.exists()) this.store.save();
+    this.archiveLeftoverLegacy();
     this.push();
+  }
+
+  /**
+   * 已迁移（或网关已有供应商）时，把仍留在磁盘上的 ai-providers.json 与各 CLI 的 store.json
+   * 改名为 `.migrated` 后缀，避免运行时再读旧双轨存储。空且未迁移时不动，以免误归档未导入的配置。
+   */
+  private archiveLeftoverLegacy(): void {
+    if (!this.d.legacy) return;
+    const snap = this.store.snapshot();
+    if (!snap.migratedFrom && snap.providers.length === 0) return;
+    const left = legacyFileCandidates(this.d.legacy).filter((f) => fs.existsSync(f));
+    if (!left.length) return;
+    archiveLegacyFiles(left, this.d.logger);
   }
 
   private legacyRevoke: GatewayStateView['legacyRevoke'];

@@ -13,8 +13,8 @@ import type { RuntimeLogger } from '../logger';
 import { redactSecrets, type ProviderService } from './ProviderService';
 
 /**
- * 渲染进程还在用的通道：预设（添加第三方供应商时选）、状态与切换（环境变量供应商的过渡期，
- * 网关里没有分配时由旧存储路由）。供应商增删改、任务路由、Key 管理已由统一网关（ai:gateway:*）取代。
+ * 渲染进程还在用的通道：预设（添加第三方供应商时选）、只读状态与 setActive 兼容垫片。
+ * 供应商增删改、任务路由、Key 管理与 Nomi 模型分配已由统一网关（ai:gateway:*）取代。
  */
 export const PROVIDER_CHANNELS = ['presets', 'meta', 'state', 'setActive'] as const;
 

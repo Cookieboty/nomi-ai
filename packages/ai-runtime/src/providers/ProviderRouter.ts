@@ -1,13 +1,12 @@
 /**
- * RoutedLLMRegistry —— 把 env providers 与 ProviderStore 里的 providers 合成一个 LLMRegistry，
- * 并提供 `resolve(role)` 做 active provider / 按角色路由。
+ * RoutedLLMRegistry —— 把 env providers（及可选的内存 ProviderStore）合成一个 LLMRegistry，
+ * 并提供 `resolve(role)` 做角色路由。
  *
  * 选择优先级（ChatFacade 未显式指定 provider 时）：
  *   1. `NOMI_PROVIDER` 环境变量（强制覆盖，调试 / 托管部署用）
- *   2. 面板里为该角色（chat / agent-tools / summary）绑定的 provider + 模型
- *   3. 面板里的「当前 provider」
- *   4. 环境变量 providers（已配 key 的云端 → ollama → 未配 key 的）
- * 显式传 `provider: '<id>'` 时直接取该 id（store 与 env 的 id 不会冲突：store 一律 `p-` 前缀）。
+ *   2. 统一网关（`opts.gateway`）：Nomi chat / agent-tools / summary 只走网关，**不再回退旧 ProviderStore**
+ *   3. 无网关时（单测 / 独立宿主）：ProviderStore 角色路由 → active → env providers
+ * 显式传 `provider: '<id>'` 时直接取该 id。
  *
  * store 变化时增量重建对应的 AiSdkLlmProvider —— 切换即时生效，无需重启。
  */
@@ -324,8 +323,8 @@ export interface ResolvedProvider {
 
 /**
  * 统一网关给 Nomi 对话的路由（docs/design/unified-gateway.md §12.5）：
- * 按角色返回网关地址、nomi 客户端令牌、provider/model 与首选协议；网关未就绪或没配模型时返回 null，
- * 此时退回旧存储（过渡期：旧存储移除前保底，里面是迁移前的同一批供应商）。
+ * 按角色返回网关地址、nomi 客户端令牌、provider/model 与首选协议；网关未就绪或没配模型时返回 null。
+ * 配置了 gateway 时 RoutedLLMRegistry 不再回退 ProviderStore。
  */
 export interface GatewayRoute {
   resolve(role: ProviderRole): {
@@ -451,8 +450,13 @@ export class RoutedLLMRegistry implements LLMRegistry {
   resolve(role: ProviderRole = 'chat'): ResolvedProvider | undefined {
     const override = this.opts.overrideId ? this.get(this.opts.overrideId) : undefined;
     if (override) return { provider: override };
-    const viaGateway = this.opts.gateway?.resolve(role);
-    if (viaGateway) return { provider: this.gatewayProvider(viaGateway), model: viaGateway.model };
+    // 配置了网关客户端：只走网关（环境变量供应商也由网关以 env-* 暴露）。不回退旧存储。
+    if (this.opts.gateway) {
+      const viaGateway = this.opts.gateway.resolve(role);
+      if (viaGateway)
+        return { provider: this.gatewayProvider(viaGateway), model: viaGateway.model };
+      return undefined;
+    }
     const store = this.opts.store;
     if (store) {
       const route = store.route(role);

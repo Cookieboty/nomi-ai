@@ -1,8 +1,8 @@
 /**
  * TrayManager —— 系统托盘：一键切换 Nomi 对话的模型、打开对话 / 模型设置。
  *
- * 有第三方供应商时菜单由统一网关的状态生成（Nomi 对话的 main 模型）；网关里一个都没有时
- * 退回旧的 ProviderService.state()（只剩环境变量供应商的情况）。只含名称，无 key，变化即重建。
+ * 菜单由统一网关状态生成（Nomi 对话的 main 模型；环境变量供应商也在网关里以 env-* 出现）。
+ * 仅在未注入网关 models API 时退回 ProviderService（单测垫片）。只含名称，无 key，变化即重建。
  * `IG_DISABLE_TRAY=1` 可关闭（无托盘的桌面环境 / 测试）。
  */
 import * as path from 'path';
@@ -266,8 +266,8 @@ export class TrayManager {
     if (!this.tray || this.tray.isDestroyed()) return;
     const state = this.opts.providers.state();
     const gw = this.opts.models?.state();
-    const viaGateway = Boolean(gw?.providers.some((p) => p.enabled));
-    const entries = viaGateway ? gatewayMenuEntries(gw!) : providerMenuEntries(state);
+    // GatewayStore 是唯一来源：有 models API 就用网关菜单（可为空，引导去「模型」页）
+    const entries = gw ? gatewayMenuEntries(gw) : providerMenuEntries(state);
     const providerItems: MenuItemConstructorOptions[] = entries.map((e) => ({
       label: e.label,
       type: 'radio',

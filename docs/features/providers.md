@@ -72,8 +72,9 @@
 
 ## 升级与兼容
 
-- 首次启动新版本时，原有的 Nomi 供应商（`ai-providers.json`）和编程助手的第三方供应商自动迁移进网关，原文件不改动；旧配置里的本机地址视为已确认。
-- 环境变量提供的供应商（如 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY`、`OLLAMA_BASE_URL`）暂时还不在「模型」页里：「模型」页没有为 Nomi 对话分配模型时由它们提供，`/model` 里也能选。`NOMI_PROVIDER=<id>` 可强制指定供应商（此时右上角的选择器锁定）。
+- 首次启动新版本时，原有的 Nomi 供应商（`ai-providers.json`）和编程助手的第三方供应商自动迁移进 **GatewayStore**（`gateway/store.json`）；写入成功后旧文件改名为 `*.migrated`（不删除）。之后只读网关，不再读写 `ai-providers.json`。旧配置里的本机地址视为已确认。
+- Nomi 对话 / agent-tools / summary 只经网关客户端解析模型，不再回退旧 ProviderStore。
+- 环境变量提供的供应商（如 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY`、`OLLAMA_BASE_URL`）由网关以只读 `env-*` 接入；「模型」页没有为 Nomi 对话分配模型时默认用它们，`/model` 里也能选。`NOMI_PROVIDER=<id>` 可强制指定供应商（此时右上角的选择器锁定）。
 - 服务商图标来自 `@lobehub/icons-static-svg`（MIT），仅用于标识对应服务；没有图标时显示首字母头像。
 
 ## Claude Code / Codex / Gemini / Grok / dsh 用第三方模型
