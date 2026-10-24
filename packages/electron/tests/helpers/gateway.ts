@@ -19,12 +19,56 @@ export function testGateway(
     running?: boolean;
     home?: string;
     models?: string[];
+    /**
+     * 模拟按标签令牌启动（§6.7）：launchForTab 签 `nomi-tab-<标签>-g<代次>`，记录登记 / 更新 / 作废；
+     * Grok 按占位模型名启动（GatewayService.cliLaunchForTab 应给的 placeholder）。bindError：登记时抛出。
+     */
+    tabTokens?: boolean;
+    bindError?: string;
   } = {},
-): HarnessGateway & { launches: Array<[string, string, string]> } {
+): HarnessGateway & {
+  launches: Array<[string, string, string]>;
+  /** 'register <cli> <tab> <model> g<n>' / 'update <cli> <tab> <model>' / 'release <cli> <tab>' */
+  bindings: string[];
+} {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomi-gw-agents-'));
   const launches: Array<[string, string, string]> = [];
+  const bindings: string[] = [];
+  const generations = new Map<string, number>();
+  const tabApi: Partial<HarnessGateway> = o.tabTokens
+    ? {
+        launchForTab: async (kind, tabId, model) => {
+          if (o.running === false) return null;
+          if (o.bindError) throw new Error(o.bindError);
+          const key = `${kind}:${tabId}`;
+          const g = (generations.get(key) ?? 0) + 1;
+          generations.set(key, g);
+          bindings.push(`register ${kind} ${tabId} ${model} g${g}`);
+          const token = `nomi-tab-${tabId}-g${g}`;
+          const l = agentLaunch(kind, {
+            url: TEST_GATEWAY_URL,
+            token,
+            model,
+            models: {},
+            dir: path.join(dir, kind, tabId),
+            home: o.home,
+            ...(kind === 'grok' ? { placeholder: 'nomi' } : {}),
+          });
+          return { env: l.env, generation: g, modelInConfig: Boolean(l.modelInConfig) };
+        },
+        releaseTab: (kind, tabId) => {
+          bindings.push(`release ${kind} ${tabId}`);
+        },
+        updateTab: async (kind, tabId, model) => {
+          bindings.push(`update ${kind} ${tabId} ${model}`);
+          return true;
+        },
+      }
+    : {};
   return {
     launches,
+    bindings,
+    ...tabApi,
     defaults: () => ({
       source: o.source ?? 'official',
       model: o.main === undefined ? 'gw/main' : o.main,

@@ -176,6 +176,26 @@ export interface HarnessGateway {
   models(): Array<{ ref: string; provider: string; label: string; vision?: boolean }>;
   /** 标签关闭后回收它的进程级私有目录 */
   releaseAgent(kind: CliBackend, tabId: string): void;
+  /**
+   * 第三方进程启动前：签发这个进程代次的标签令牌并在网关登记绑定（§6.7，先登记后启动），
+   * 返回把共享令牌换成标签令牌后的环境变量。网关没在运行返回 null；网关拒绝 / 超时会抛出。
+   * 不提供时第三方进程用客户端级令牌（旧行为）。
+   */
+  launchForTab?(
+    kind: CliBackend,
+    tabId: string,
+    model: string,
+    effort?: string,
+  ): Promise<{
+    env: Record<string, string>;
+    generation: number;
+    /** 这次启动是否把真实模型名写进了 CLI 配置；false = 按占位模型名启动（Grok 的 nomi），换模型只改绑定 */
+    modelInConfig?: boolean;
+  } | null>;
+  /** 进程退出 / 标签关闭：作废这个标签的令牌 */
+  releaseTab?(kind: CliBackend, tabId: string): void;
+  /** gateway / inplace 型换模型（§6.7）：只改绑定，不重启；没有活着的绑定返回 false */
+  updateTab?(kind: CliBackend, tabId: string, model: string, effort?: string): Promise<boolean>;
 }
 
 /** 一次启动的来源注入（见 launchFor） */
@@ -331,6 +351,13 @@ export class HarnessOrchestrator {
    * 若 CLI 异常退出，下一轮会带 --resume 重新拉起（会话级复用 + 降级）。
    */
   private readonly claudeLive = new Map<string, ClaudeLiveSession>();
+  /** 第三方 Claude 进程正在登记绑定、还没拉起：同一标签的并发调用共用这一次（不签两个令牌） */
+  private readonly claudeStarting = new Map<string, Promise<ClaudeLiveSession>>();
+  /** 第三方标签当前进程代次与绑定里的主模型（§6.7）：换模型时据此判断要不要更新绑定 */
+  private readonly tabBindings = new Map<
+    string,
+    { generation: number; model: string; modelInConfig?: boolean }
+  >();
   /** Gemini ACP 长驻进程（docs/design/cli-official-accounts.md §8）：同一标签多轮复用 */
   private readonly acpLive = new Map<string, AcpLiveSession>();
   /** Codex app-server 长驻进程：同一标签多轮复用 */
@@ -983,7 +1010,10 @@ export class HarnessOrchestrator {
     } catch {
       /* */
     }
-    if (tab.backend !== 'nomi') this.d.gateway?.releaseAgent(tab.backend, id);
+    if (tab.backend !== 'nomi') {
+      this.dropTabBinding(tab);
+      this.d.gateway?.releaseAgent(tab.backend, id);
+    }
     if (this.activeTabId === id) {
       const rest = order.filter((x) => x !== id);
       this.activeTabId = rest[Math.max(0, idx - 1)] ?? MAIN_TAB_ID;
@@ -1537,7 +1567,9 @@ export class HarnessOrchestrator {
     if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
     const l = this.d.gateway!.launch(tab.backend as CliBackend, tab.id, model);
     if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
-    const modelInConfig = Boolean(l.modelInConfig);
+    // 按标签令牌启动的进程以实际启动为准：占位模型名时配置里没有真实模型，换模型不必重启（§6.7）
+    const bound = this.needsTabBinding(tab) ? this.tabBindings.get(tab.id) : undefined;
+    const modelInConfig = bound?.modelInConfig ?? Boolean(l.modelInConfig);
     const byModel = (k: string) => !modelInConfig && /MODEL/.test(k);
     const stable = Object.fromEntries(Object.entries(l.env).filter(([k]) => !byModel(k)));
     const aux = Object.fromEntries(Object.entries(l.env).filter(([k]) => byModel(k)));
@@ -1550,6 +1582,75 @@ export class HarnessOrchestrator {
       sig: JSON.stringify(['thirdParty', stable, l.args, modelInConfig ? model : '']),
       modelSig: JSON.stringify(aux),
     };
+  }
+
+  /** 这个标签的进程要不要按标签令牌启动（第三方 + 网关支持按标签登记，§6.7） */
+  private needsTabBinding(tab: HarnessTabMeta): boolean {
+    return (
+      tab.backend !== 'nomi' &&
+      this.sourceOf(tab) === 'thirdParty' &&
+      typeof this.d.gateway?.launchForTab === 'function'
+    );
+  }
+
+  /**
+   * 拉起新进程前（首次、闲置回收后、重启型换模型、崩溃重启）：签发新代次的标签令牌并等网关确认绑定，
+   * 把注入里的共享令牌换成标签令牌。官方标签、或网关不支持按标签登记时原样返回。
+   * sig 不变（令牌不进复用键），所以已在运行的进程照常复用、不会每轮重签。
+   */
+  private async bindTabLaunch(tab: HarnessTabMeta, launch: TabLaunch): Promise<TabLaunch> {
+    if (launch.official || !this.needsTabBinding(tab)) return launch;
+    const model = this.effectiveOverrides(tab).model;
+    if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
+    const effort = this.effectiveOverrides(tab).effort ?? undefined;
+    const r = await this.d.gateway!.launchForTab!(tab.backend as CliBackend, tab.id, model, effort);
+    if (!r) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
+    this.tabBindings.set(tab.id, {
+      generation: r.generation,
+      model,
+      ...(r.modelInConfig !== undefined ? { modelInConfig: r.modelInConfig } : {}),
+    });
+    // 复用键按这次实际的启动重算（占位模型名时不带模型），令牌只在 env 里
+    return { ...this.launchFor(tab), env: r.env };
+  }
+
+  /** 进程退出时作废它的标签令牌；已经有更新的代次（新进程已登记）时不动 */
+  private watchTabRelease(
+    tab: HarnessTabMeta,
+    child: { once(e: 'close', fn: () => void): unknown },
+  ) {
+    const bound = this.tabBindings.get(tab.id);
+    if (!bound) return;
+    const generation = bound.generation;
+    child.once('close', () => {
+      if (this.tabBindings.get(tab.id)?.generation !== generation) return;
+      this.tabBindings.delete(tab.id);
+      this.d.gateway?.releaseTab?.(tab.backend as CliBackend, tab.id);
+    });
+  }
+
+  /**
+   * 复用已在运行的第三方进程时：主模型变了就更新绑定（§6.7 的 gateway 方式；inplace 方式在驱动切换后也走这里）。
+   * 绑定已不在（网关重启后丢了）时不报错：网关重启会重放绑定。
+   */
+  private async syncTabBinding(tab: HarnessTabMeta): Promise<void> {
+    const bound = this.tabBindings.get(tab.id);
+    if (!bound || !this.needsTabBinding(tab)) return;
+    const o = this.effectiveOverrides(tab);
+    if (!o.model || o.model === bound.model) return;
+    const ok = await this.d.gateway!.updateTab?.(
+      tab.backend as CliBackend,
+      tab.id,
+      o.model,
+      o.effort ?? undefined,
+    );
+    if (ok) bound.model = o.model;
+  }
+
+  /** 标签关闭 / 换成官方来源：作废它的标签令牌 */
+  private dropTabBinding(tab: HarnessTabMeta): void {
+    if (!this.tabBindings.delete(tab.id)) return;
+    this.d.gateway?.releaseTab?.(tab.backend as CliBackend, tab.id);
   }
 
   /** 标签绑定 CLI 会话；官方来源时把会话记到所用账号名下 */
@@ -1746,10 +1847,19 @@ export class HarnessOrchestrator {
     const tab = this.tabs.get(id);
     if (!tab || tab.status === 'running' || tab.status === 'queued') return;
     if (tab.backend === 'claude' && !this.claudeLive.has(id)) {
-      try {
-        this.ensureClaudeLive(tab).prewarmed = true;
-      } catch (e) {
-        this.d.logger.warn('harness claude prewarm failed', e);
+      if (this.needsTabBinding(tab)) {
+        // 第三方：先登记绑定再拉起（异步）；这期间来的第一条消息共用同一次登记
+        this.ensureClaudeLiveBound(tab)
+          .then((live) => {
+            if (!live.turn) live.prewarmed = true;
+          })
+          .catch((e: unknown) => this.d.logger.warn('harness claude prewarm failed', e));
+      } else {
+        try {
+          this.ensureClaudeLive(tab).prewarmed = true;
+        } catch (e) {
+          this.d.logger.warn('harness claude prewarm failed', e);
+        }
       }
     } else if (tab.backend === 'codex' && this.usesCodexApp() && !this.codexLive.has(id)) {
       this.ensureCodexLive(tab).catch((e: unknown) => {
@@ -2127,7 +2237,10 @@ export class HarnessOrchestrator {
     await this.syncClaudeModel(tab);
     // 等待期间点了停止：不再拉起进程、不发送（#75）
     if (signal?.aborted) throw new Error(t('已中止'));
-    const live = this.ensureClaudeLive(tab);
+    const live = await this.ensureClaudeLiveBound(tab);
+    // 第三方原地换了模型（set_model）或复用了进程：绑定跟上标签的主模型（§6.7）
+    await this.syncTabBinding(tab);
+    if (signal?.aborted) throw new Error(t('已中止'));
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
         reject(new Error(t('上一轮尚未结束')));
@@ -2194,10 +2307,30 @@ export class HarnessOrchestrator {
     }
   }
 
-  private ensureClaudeLive(tab: HarnessTabMeta): ClaudeLiveSession {
+  /**
+   * 第三方标签：要拉起新进程时先登记绑定（§6.7）再按标签令牌启动；能复用就直接复用。
+   * 官方标签与网关不支持按标签登记时同 ensureClaudeLive。
+   */
+  private async ensureClaudeLiveBound(tab: HarnessTabMeta): Promise<ClaudeLiveSession> {
+    if (!this.needsTabBinding(tab)) return this.ensureClaudeLive(tab);
+    const launch = this.launchFor(tab);
+    const reuse = this.reusableClaude(tab, launch);
+    if (reuse) return reuse;
+    const pending = this.claudeStarting.get(tab.id);
+    if (pending) return pending;
+    const p = this.bindTabLaunch(tab, launch)
+      .then((bound) => this.ensureClaudeLive(tab, bound))
+      .finally(() => {
+        if (this.claudeStarting.get(tab.id) === p) this.claudeStarting.delete(tab.id);
+      });
+    this.claudeStarting.set(tab.id, p);
+    return p;
+  }
+
+  /** 已在运行、且能按这次的注入 / 档位 / 模型复用的 Claude 进程 */
+  private reusableClaude(tab: HarnessTabMeta, launch: TabLaunch): ClaudeLiveSession | null {
     const existing = this.claudeLive.get(tab.id);
     const overrides = this.effectiveOverrides(tab);
-    const launch = this.launchFor(tab);
     if (
       existing &&
       existing.cwd === tab.cwd &&
@@ -2218,7 +2351,19 @@ export class HarnessOrchestrator {
     ) {
       return existing;
     }
-    if (existing) this.teardownClaudeLive(tab.id);
+    return null;
+  }
+
+  /**
+   * spawnLaunch：第三方已登记绑定后的注入（标签令牌，见 ensureClaudeLiveBound）；
+   * 复用判断仍按 launchFor 的 sig（令牌不进复用键）。
+   */
+  private ensureClaudeLive(tab: HarnessTabMeta, spawnLaunch?: TabLaunch): ClaudeLiveSession {
+    const overrides = this.effectiveOverrides(tab);
+    const launch = this.launchFor(tab);
+    const reuse = this.reusableClaude(tab, launch);
+    if (reuse) return reuse;
+    if (this.claudeLive.has(tab.id)) this.teardownClaudeLive(tab.id);
 
     const bin = resolveHarnessBin('claude');
     if (!bin) throw new Error(t('未找到 Claude Code（可设 NOMI_USE_MOCK_CLI=1）'));
@@ -2244,9 +2389,10 @@ export class HarnessOrchestrator {
     if (tab.cliSessionId) argv.push('--resume', tab.cliSessionId);
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: this.childEnv(useNode, launch),
+      env: this.childEnv(useNode, spawnLaunch ?? launch),
       tabId: tab.id,
     });
+    if (spawnLaunch) this.watchTabRelease(tab, child);
     // stdin / stdout 与 control_request ↔ control_response 交给 cli-sdk 的 stream-json 驱动；
     // 轮次归属（回显、自发轮次、后台任务）仍由这里按行处理
     let onLine: (line: string, final: boolean) => void = () => undefined;
@@ -2276,8 +2422,8 @@ export class HarnessOrchestrator {
       modeChange: null,
       modelOverride: overrides.model,
       reasoningEffort: overrides.effort,
-      launchSig: launch.sig,
-      modelSig: launch.modelSig,
+      launchSig: (spawnLaunch ?? launch).sig,
+      modelSig: (spawnLaunch ?? launch).modelSig,
       turnUuid: null,
       turnStarted: false,
       replaySeen: false,
@@ -2443,9 +2589,12 @@ export class HarnessOrchestrator {
       !existing.driver.closed
     ) {
       await existing.ready;
+      // 第三方复用进程：占位模型名的 CLI（Grok）换模型只改绑定，不重启（§6.7 gateway 方式）
+      await this.syncTabBinding(tab);
       return this.confirmAcpMode(tab, existing);
     }
     if (existing) this.teardownAcpLive(tab.id);
+    const spawnLaunch = await this.bindTabLaunch(tab, launch);
     const backend: AcpBackend = tab.backend === 'grok' ? 'grok' : 'gemini';
     const bin = resolveHarnessBin(backend);
     if (!bin)
@@ -2460,9 +2609,10 @@ export class HarnessOrchestrator {
       cwd: tab.cwd,
       // 不设 GEMINI_CLI_TRUST_WORKSPACE：信任与否交给 Gemini 自己的受信任文件夹（见 gemini/trust.ts）
       // 第三方：Grok 用私有 GROK_HOME、Gemini 用环境变量指向网关；官方剔除网关残留
-      env: this.childEnv(useNode, launch),
+      env: this.childEnv(useNode, spawnLaunch),
       tabId: tab.id,
     });
+    this.watchTabRelease(tab, child);
     let stderrTail = '';
     child.stderr.on('data', (c) => {
       stderrTail = (stderrTail + String(c)).slice(-4000);
@@ -2480,7 +2630,7 @@ export class HarnessOrchestrator {
       backend,
       model: null,
       effort: null,
-      launchSig: launch.sig,
+      launchSig: spawnLaunch.sig,
       child,
       driver,
       sessionId: null,
@@ -3185,6 +3335,7 @@ export class HarnessOrchestrator {
       return existing;
     }
     if (existing) this.teardownCodexLive(tab.id);
+    const spawnLaunch = await this.bindTabLaunch(tab, launch);
     const bin = resolveHarnessBin('codex');
     if (!bin) throw new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）'));
     const useNode = isScript(bin);
@@ -3192,9 +3343,10 @@ export class HarnessOrchestrator {
     const argv = ['app-server', ...launch.args];
     const child = spawnHarness(useNode ? process.execPath : bin, useNode ? [bin, ...argv] : argv, {
       cwd: tab.cwd,
-      env: this.childEnv(useNode, launch),
+      env: this.childEnv(useNode, spawnLaunch),
       tabId: tab.id,
     });
+    this.watchTabRelease(tab, child);
     child.stderr.on('data', (c) => {
       this.d.logger.warn('harness codex stderr', String(c).slice(0, 500));
     });
@@ -3223,7 +3375,7 @@ export class HarnessOrchestrator {
       cwd: tab.cwd,
       model: null,
       effort: null,
-      launchSig: launch.sig,
+      launchSig: spawnLaunch.sig,
       turn: null,
       perms: new Map(),
       lastActivityAt: Date.now(),
@@ -3298,6 +3450,8 @@ export class HarnessOrchestrator {
       this.teardownCodexLive(tab.id);
       live = await this.ensureCodexLive(tab, signal);
     }
+    // 第三方：模型按轮下发（inplace，§6.7），绑定跟上标签的主模型
+    await this.syncTabBinding(tab);
     if (signal.aborted) throw new Error(t('已中止'));
     if (live.turn) throw new Error(t('上一轮尚未结束'));
     if (!live.threadId) {
@@ -3646,15 +3800,18 @@ export class HarnessOrchestrator {
     // 进程、收发与收尾判定在 cli-sdk 的 exec 驱动里；「怎样算整轮完成」由插件给（EXEC_RULES）。
     // 这里只做界面相关的处理：生成图片落盘、文本折叠、权限提示、实时广播。
     const rules = EXEC_RULES[opts.kind];
+    // 每轮一个进程：每次都是新进程代次，先登记绑定再启动（§6.7）
+    const launch = await this.bindTabLaunch(tab, opts.launch ?? OFFICIAL_LAUNCH);
     const driver = new ExecDriver({
       spawn: (cmd, argv, o) => {
         const child = spawnHarness(cmd, argv, {
           cwd: o.cwd,
           // 剔除 Nomi 内部变量；只有该后端自己的供应商（opts.env）才会注入额外变量
           // .mjs mock 经 Electron execPath 启动时必须 ELECTRON_RUN_AS_NODE（见 cliChildEnv）
-          env: this.childEnv(Boolean(opts.asNode), opts.launch ?? OFFICIAL_LAUNCH, opts.env),
+          env: this.childEnv(Boolean(opts.asNode), launch, opts.env),
           tabId: tab.id,
         });
+        this.watchTabRelease(tab, child);
         this.children.set(tab.id, child);
         return child as unknown as ChildLike;
       },

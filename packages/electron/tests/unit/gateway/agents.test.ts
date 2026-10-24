@@ -178,6 +178,19 @@ describe('agent launches (§12, §12.7.1)', () => {
     expect(fs.readFileSync(path.join(dir, 'config.toml'), 'utf8')).toContain('zp/glm-5-air');
   });
 
+  it('grok with a placeholder (tab-bound launch, §6.7): config carries the placeholder, not the model', () => {
+    const home = tmp('grok-ph-home-');
+    fs.mkdirSync(path.join(home, '.grok', 'sessions'), { recursive: true });
+    const dir = path.join(tmp('grok-ph-'), 'tab-1');
+    const l = agentLaunch('grok', base({ home, dir, placeholder: 'nomi' }));
+    const conf = fs.readFileSync(path.join(dir, 'config.toml'), 'utf8');
+    expect(conf).toContain('model = "nomi"');
+    expect(conf).not.toContain('zp/glm-5');
+    // 配置里没有真实模型：换模型只改绑定，复用键不带模型
+    expect(l.modelInConfig).toBe(false);
+    expect(agentLaunch('grok', base({ home, dir })).modelInConfig).toBe(true);
+  });
+
   it('official sessions drop leftovers pointing at the gateway, keep the user own values', () => {
     const out = stripGatewayLeftovers(
       {
