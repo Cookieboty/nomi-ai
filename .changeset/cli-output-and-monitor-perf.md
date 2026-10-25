@@ -1,0 +1,6 @@
+---
+'@nomi-ai/cli-sdk': patch
+'@nomi-ai/electron': patch
+---
+
+主进程减负：编程助手输出里几 MB 的单行 JSON 分片到达时不再反复整段拆分（5MB 行从约 73ms 降到 0.6ms）；编程助手监视器每 8 秒的扫描只重新解析修改过的会话文件（约 40ms 降到约 7ms）。

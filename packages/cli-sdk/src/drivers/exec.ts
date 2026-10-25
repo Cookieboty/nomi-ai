@@ -14,6 +14,7 @@ import {
   type TurnResult,
 } from '../driver';
 import type { HarnessEvent, PermissionAnswer, SessionEvent } from '../events';
+import { LineSplitter } from '../lines';
 
 export interface ExecDriverOptions {
   spawn: SpawnFn;
@@ -96,7 +97,7 @@ export class ExecDriver implements SessionDriver {
     const onAbort = () => void this.interrupt();
     input.signal?.addEventListener('abort', onAbort, { once: true });
     return new Promise<TurnResult>((resolve, reject) => {
-      let buf = '';
+      const lines = new LineSplitter();
       let text = '';
       let lastError: string | null = null;
       let usage: TurnResult['usage'];
@@ -134,10 +135,7 @@ export class ExecDriver implements SessionDriver {
         }
       };
       child.stdout.on('data', (c) => {
-        buf += typeof c === 'string' ? c : c.toString('utf8');
-        const parts = buf.split(/\r?\n/);
-        buf = parts.pop() ?? '';
-        for (const line of parts) handle(line);
+        for (const line of lines.push(typeof c === 'string' ? c : c.toString('utf8'))) handle(line);
       });
       child.stderr.on('data', (c) =>
         this.o.onStderr?.(typeof c === 'string' ? c : c.toString('utf8')),
@@ -148,8 +146,8 @@ export class ExecDriver implements SessionDriver {
         input.signal?.removeEventListener('abort', onAbort);
         if (this.child === child) this.child = null;
         // 最后一行没有换行：收尾时才解析（不算实时输出）
-        if (buf.trim()) handle(buf, true);
-        buf = '';
+        const rest = lines.take();
+        if (rest.trim()) handle(rest, true);
         if (err) return reject(err);
         const aborted = new Error(this.o.abortedMessage ?? 'aborted');
         if (strict) {

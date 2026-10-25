@@ -330,6 +330,11 @@ export class AgentProgressService {
   private readonly grokHome: string;
   /** 本轮 tick 的 flock 快照（dsh）；null = 无法判断 */
   private dshLocks: Set<number> | null = null;
+  /**
+   * 会话文件解析结果（路径 → mtime + 结果）：文件没动就不再读头尾、重新解析。
+   * 每 8 秒一轮，近 3 天的会话文件逐个读 128KB 再解析会占主进程几十毫秒。dsh 依赖本轮锁快照，不缓存。
+   */
+  private readonly inspected = new Map<string, { mtime: number; cand: Candidate }>();
   private tabs: () => WatchedTab[] = () => [];
   private tabProgress: (tabId: string) => string | undefined = () => undefined;
 
@@ -523,6 +528,15 @@ export class AgentProgressService {
         listFiles(path.join(h, '.cursor', 'chats'), (n) => /^store\.db(-wal)?$/.test(n), 3, 30),
       );
     return out;
+  }
+
+  private inspectCached(kind: AgentKind, filePath: string, mtime: number): Candidate {
+    if (kind === 'dsh') return this.inspect(kind, filePath, mtime);
+    const hit = this.inspected.get(filePath);
+    if (hit && hit.mtime === mtime && hit.cand.kind === kind) return hit.cand;
+    const cand = this.inspect(kind, filePath, mtime);
+    this.inspected.set(filePath, { mtime, cand });
+    return cand;
   }
 
   /** 解析一个文件 → 候选会话（含去重 key） */
@@ -719,7 +733,11 @@ export class AgentProgressService {
       ? (this.d.lockedInodes ?? (() => readLockedInodes(this.d.platform)))()
       : null;
     const files = this.scanFiles().filter((f) => now - f.mtime < ALIVE_LOOKBACK_MS);
-    const cands = this.dedupe(files.map((f) => this.inspect(f.kind, f.path, f.mtime)));
+    const cands = this.dedupe(files.map((f) => this.inspectCached(f.kind, f.path, f.mtime)));
+    if (this.inspected.size > files.length) {
+      const live = new Set(files.map((f) => f.path));
+      for (const p of this.inspected.keys()) if (!live.has(p)) this.inspected.delete(p);
+    }
     // 首次进程快照还没回来：先不判定（避免把所有历史会话当成在跑）
     const procs = this.procsAt === 0 ? null : this.procs;
     const alive = this.matchAlive(cands, procs);

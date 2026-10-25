@@ -299,6 +299,24 @@ describe('AgentProgressService', () => {
     expect(svc.state().sessions).toHaveLength(0);
   });
 
+  it('会话文件没变就不重读（按 mtime 缓存解析结果），变了才重新解析', () => {
+    const now = Date.parse('2026-10-14T10:00:00Z');
+    const { home, svc } = mk({ now, procs: () => [] });
+    const file = path.join(home, '.claude', 'projects', '-w-a', 's.jsonl');
+    write(file, claudeLines('s', '/w/a', '跑测试', toolUse), now - 60_000);
+    svc.tick();
+    const open = jest.spyOn(fs, 'openSync');
+    try {
+      svc.tick();
+      expect(open.mock.calls.filter(([p]) => p === file)).toHaveLength(0);
+      fs.utimesSync(file, new Date(now), new Date(now));
+      svc.tick();
+      expect(open.mock.calls.filter(([p]) => p === file).length).toBeGreaterThan(0);
+    } finally {
+      open.mockRestore();
+    }
+  });
+
   it('轮询结果没变就不广播；会话状态变化才通知渲染进程', () => {
     let now = Date.parse('2026-10-14T10:00:00Z');
     const home = tmp();

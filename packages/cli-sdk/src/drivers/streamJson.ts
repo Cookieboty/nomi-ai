@@ -20,6 +20,7 @@ import {
   type TurnResult,
 } from '../driver';
 import type { HarnessEvent, PermissionAnswer, SessionEvent } from '../events';
+import { LineSplitter } from '../lines';
 
 /** control_request 等应答的上限 */
 export const CONTROL_TIMEOUT_MS = 10_000;
@@ -66,7 +67,7 @@ export class StreamJsonDriver implements SessionDriver {
   private readonly controls = new Map<string, ControlWaiter>();
   /** CLI 发来、还没应答的 can_use_tool：request_id → 是否仍在等 */
   private readonly asks = new Set<string>();
-  private buf = '';
+  private readonly lines = new LineSplitter();
   private turn: StreamTurn | null = null;
   private sid: string | null;
   private exited = false;
@@ -74,15 +75,13 @@ export class StreamJsonDriver implements SessionDriver {
   constructor(private readonly o: StreamJsonDriverOptions) {
     this.sid = o.resumeId ?? null;
     o.child.stdout.on('data', (chunk) => {
-      this.buf += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
-      const parts = this.buf.split(/\r?\n/);
-      this.buf = parts.pop() ?? '';
-      for (const line of parts) this.onLine(line, false);
+      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+      for (const line of this.lines.push(text)) this.onLine(line, false);
     });
     o.child.on('error', (e) => this.onExit(null, e));
     o.child.on('close', (code) => {
-      if (this.buf.trim()) this.onLine(this.buf, true);
-      this.buf = '';
+      const rest = this.lines.take();
+      if (rest.trim()) this.onLine(rest, true);
       this.onExit(code, null);
     });
   }

@@ -3,6 +3,7 @@
  * 只做传输：发请求 / 通知、收通知、应答对端发来的请求（如 session/request_permission）。
  */
 import type { ChildLike } from '../child';
+import { LineSplitter } from '../lines';
 
 export type Json = Record<string, unknown>;
 
@@ -94,7 +95,7 @@ export interface RpcConnectionOptions {
 
 export class JsonRpcConnection {
   private seq = 0;
-  private buf = '';
+  private readonly lines = new LineSplitter();
   private readonly pending = new Map<number, Pending>();
   private closed = false;
   /** 对端发来、我们还没应答的请求数（> 0 时 idle 计时暂停） */
@@ -150,10 +151,8 @@ export class JsonRpcConnection {
   }
 
   private onData(chunk: Buffer | string) {
-    this.buf += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
-    const lines = this.buf.split('\n');
-    this.buf = lines.pop() ?? '';
-    for (const line of lines) {
+    const text = typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+    for (const line of this.lines.push(text)) {
       const t = line.trim();
       if (!t.startsWith('{')) continue;
       let msg: Json;
