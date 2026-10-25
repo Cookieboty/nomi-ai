@@ -204,6 +204,26 @@ describe('ModelControls', () => {
     expect((await findByTestId('model-chip')).textContent).toContain('Fable 5.1 · 高');
   });
 
+  it('未设档位且 CLI 没给默认档位：说明由 CLI 按模型决定，不留一个空滑杆', async () => {
+    const { findByTestId, getByTestId, queryByTestId, rerender } = setup({
+      catalog: claudeCatalog,
+      tabOver: { backend: 'claude' },
+    });
+    fireEvent.click(await findByTestId('model-chip'));
+    expect(getByTestId('effort-default-unknown').textContent).toBe(
+      '默认：由 Claude Code 按模型决定',
+    );
+    expect(getByTestId('effort-slider').getAttribute('aria-valuetext')).toBe('默认');
+    expect(queryByTestId('effort-default')).toBeNull();
+
+    // 知道默认档位（Fable 5.1）或已选了档位时不显示这句说明
+    rerender(<ModelControls tab={{ ...baseTab, backend: 'claude', modelOverride: 'fable' }} />);
+    expect(queryByTestId('effort-default-unknown')).toBeNull();
+    rerender(<ModelControls tab={{ ...baseTab, backend: 'claude', reasoningEffort: 'low' }} />);
+    expect(queryByTestId('effort-default-unknown')).toBeNull();
+    expect(getByTestId('effort-default')).toBeTruthy();
+  });
+
   it('非推理模型（gpt-4.1）不显示滑杆，并说明当前模型无思考深度', async () => {
     const { findByTestId, getByTestId, queryByTestId } = setup({
       catalog,

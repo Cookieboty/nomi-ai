@@ -121,6 +121,7 @@
   "ui.chat-settings.edit-note": "修改笔记",
   "ui.chat-settings.edit-skill": "编辑技能 {0}",
   "ui.chat-settings.edits-files-in-the-working-directory-automatically-other": "自动修改工作目录里的文件，其它操作按 CLI 规则询问",
+  "ui.chat-settings.effort-default-set-by-cli": "默认：由 {0} 按模型决定",
   "ui.chat-settings.end-time": "结束时间",
   "ui.chat-settings.endpoints-shown-in-the-sidebar": "侧栏显示的端点",
   "ui.chat-settings.environment-variable": "环境变量",

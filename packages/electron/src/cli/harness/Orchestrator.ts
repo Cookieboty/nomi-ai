@@ -1371,6 +1371,9 @@ export class HarnessOrchestrator {
     if (inflight) return inflight;
     const gen = this.modelCatalogGen.get(backend) ?? 0;
     const current = () => (this.modelCatalogGen.get(backend) ?? 0) === gen;
+    // Claude 的默认档位从默认账号的同一份环境里读（账号可能有自己的 CLAUDE_CONFIG_DIR）
+    const claudeEnv =
+      backend === 'claude' ? this.childEnv(false, this.officialLaunch('claude', null)) : null;
     const run = discoverModels(backend, {
       spawn: (b, args) => {
         const bin = resolveHarnessBin(b as BuiltinBackend);
@@ -1384,6 +1387,14 @@ export class HarnessOrchestrator {
           { cwd: os.tmpdir(), env: this.childEnv(useNode, l), tabId: `models:${b}` },
         );
       },
+      ...(claudeEnv
+        ? {
+            claudeDefaults: {
+              effortEnv: claudeEnv.CLAUDE_CODE_EFFORT_LEVEL,
+              settingsPath: path.join(claudeConfigDir(this.home, claudeEnv), 'settings.json'),
+            },
+          }
+        : {}),
       codexConfigPath: process.env.CODEX_HOME
         ? path.join(process.env.CODEX_HOME, 'config.toml')
         : codexConfigPath(this.home),

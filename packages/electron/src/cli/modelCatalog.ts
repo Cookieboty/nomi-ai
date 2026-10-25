@@ -38,6 +38,7 @@ export {
   parseClaudeModels,
   parseCodexModels,
   parseGrokModels,
+  readClaudeEffortSetting,
   readCodexConfigDefaults,
 } from '@nomi-ai/cli-plugins/main';
 

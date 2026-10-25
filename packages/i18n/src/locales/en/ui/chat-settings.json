@@ -121,6 +121,7 @@
   "ui.chat-settings.edit-note": "Edit note",
   "ui.chat-settings.edit-skill": "Edit skill {0}",
   "ui.chat-settings.edits-files-in-the-working-directory-automatically-other": "Edits files in the working directory automatically; other actions follow the CLI's own approval rules",
+  "ui.chat-settings.effort-default-set-by-cli": "Default: set by {0} per model",
   "ui.chat-settings.end-time": "End time",
   "ui.chat-settings.endpoints-shown-in-the-sidebar": "Endpoints shown in the sidebar",
   "ui.chat-settings.environment-variable": "Environment variable",

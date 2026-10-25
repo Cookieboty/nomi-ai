@@ -28,7 +28,7 @@ import { parseClaudeTranscript } from './transcript';
 
 export { manifest };
 export { parseClaudeTranscript };
-export { modelArgs, parseClaudeModels } from './models';
+export { modelArgs, parseClaudeModels, readClaudeEffortSetting } from './models';
 
 export const HOME_ENV = 'CLAUDE_CONFIG_DIR';
 

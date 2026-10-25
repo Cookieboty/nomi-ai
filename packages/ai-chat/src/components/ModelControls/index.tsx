@@ -511,7 +511,7 @@ const ModelChip: React.FC<{
                     <span className={styles.effortHeadLabel}>
                       {t('ui.chat-settings.reasoning-effort')}
                     </span>
-                    {effort && (
+                    {effort ? (
                       <button
                         type="button"
                         className={styles.link}
@@ -520,6 +520,16 @@ const ModelChip: React.FC<{
                       >
                         {t('ui.providers-schedule.restore-defaults')}
                       </button>
+                    ) : (
+                      // 沿用默认、CLI 又没告诉我们默认是哪一档：说明由谁决定，而不是留一个空滑块
+                      !defaultEffort && (
+                        <span className={styles.effortNote} data-testid="effort-default-unknown">
+                          {t(
+                            'ui.chat-settings.effort-default-set-by-cli',
+                            backendName || tab.backend,
+                          )}
+                        </span>
+                      )
                     )}
                   </div>
                   <EffortSlider

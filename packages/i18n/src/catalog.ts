@@ -855,6 +855,7 @@ export type TranslationKey =
   | 'ui.chat-settings.edit-note'
   | 'ui.chat-settings.edit-skill'
   | 'ui.chat-settings.edits-files-in-the-working-directory-automatically-other'
+  | 'ui.chat-settings.effort-default-set-by-cli'
   | 'ui.chat-settings.end-time'
   | 'ui.chat-settings.endpoints-shown-in-the-sidebar'
   | 'ui.chat-settings.environment-variable'
