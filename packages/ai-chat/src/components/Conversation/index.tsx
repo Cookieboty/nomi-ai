@@ -375,11 +375,14 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
 
   /** 上次贴底时内容是否已超出一屏（超出后由滚动锚定保持位置） */
   const overflowedRef = useRef(false);
+  /** 上一次看到的 scrollTop：判断这次滚动是不是用户往上滚 */
+  const lastTopRef = useRef(0);
   const scrollToBottom = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const h = el.scrollHeight;
     el.scrollTop = h;
+    lastTopRef.current = el.scrollTop;
     overflowedRef.current = h > el.clientHeight;
   }, []);
 
@@ -396,12 +399,20 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
     if (e.deltaY < 0) followRef.current = false;
   }, []);
 
+  // 只有用户往上滚（scrollTop 变小且离开底部）才停止跟随。不能只看「离底部多远」：程序贴底后
+  // scroll 事件要到下一帧才来，这期间内容又长高一大截（大段流式输出、工具 / 权限卡、图片加载完、
+  // 已完成轮次从占位高度换成真实高度）时会误判成用户滚开，从此不再跟随、停在半截。
+  // 内容变高不改 scrollTop，程序贴底只会让它变大；上方内容缩短时滚动锚定会让它变小，但离底距离不变。
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
     const near = isNearBottom(el);
-    followRef.current = near;
-    setAway((v) => (v === !near ? v : !near));
+    const scrolledUp = el.scrollTop < lastTopRef.current - 1;
+    lastTopRef.current = el.scrollTop;
+    if (near) followRef.current = true;
+    else if (scrolledUp) followRef.current = false;
+    const away = !followRef.current;
+    setAway((v) => (v === away ? v : away));
   }, []);
 
   // 首次挂载（切换会话时由外层 key 重建）：直接到底部

@@ -599,6 +599,35 @@ describe('follow-scroll is ResizeObserver-driven (no per-frame forced layout)', 
     expect(el.scrollTop).toBe(1300);
   });
 
+  it('a scroll event that lands after the content grew again does not stop following', () => {
+    const run = tab({ status: 'running' });
+    const view = (text: string) => (
+      <CliConversation
+        tab={run}
+        messages={messages.slice(0, 1)}
+        live={{ text, startedAt: Date.now() }}
+        onPermission={() => undefined}
+      />
+    );
+    const { getByTestId, queryByTestId } = render(view('a'));
+    const el = getByTestId('conv-scroll');
+    expect(el.scrollTop).toBe(1000);
+    // 程序贴底后的 scroll 事件到达时，内容已经又长高 1000px（大段输出 / 卡片 / 图片）：
+    // scrollTop 没变小，不是用户往上滚，继续跟随
+    height = 2000;
+    fireEvent.scroll(el);
+    expect(queryByTestId('conv-jump-bottom')).toBeNull();
+    fireResize();
+    expect(el.scrollTop).toBe(2000);
+    // 用户拖动滚动条往上：停止跟随
+    el.scrollTop = 500;
+    fireEvent.scroll(el);
+    height = 2600;
+    fireResize();
+    expect(el.scrollTop).toBe(500);
+    expect(queryByTestId('conv-jump-bottom')).not.toBeNull();
+  });
+
   it('completed turns get content-visibility; the live (last) turn does not', () => {
     const { getAllByTestId } = render(
       <CliConversation
