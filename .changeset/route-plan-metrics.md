@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/gateway': minor
 '@nomi-ai/electron': minor
 '@nomi-ai/types': minor
 '@nomi-ai/ai-chat': patch

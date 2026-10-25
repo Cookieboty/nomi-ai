@@ -1,5 +1,4 @@
 ---
-'@nomi-ai/cli-sdk': patch
 '@nomi-ai/electron': patch
 ---
 
