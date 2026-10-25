@@ -35,13 +35,21 @@ export class UsageTap {
   firstContentAt: number | undefined;
   firstTextAt: number | undefined;
   lastContentAt: number | undefined;
-  /** 上游是否发了结束标记（或明确的错误）：end() 之前读取 */
+  /** 上游是否发了结束标记（或明确的错误）：flushResidual/end 之后读取 */
   get terminated(): boolean {
     return this.dec.terminated;
   }
+  private residualFlushed = false;
 
   constructor(wire: Wire) {
     this.dec = decoderFor(wire);
+  }
+
+  /** 解析 SSE 尾帧，不合成缺终态错误（与协议桥 TerminalWatch 对齐，#121） */
+  flushResidual(): void {
+    if (this.residualFlushed) return;
+    this.residualFlushed = true;
+    for (const ev of this.parser.end()) this.take(this.dec.push(ev));
   }
 
   private take(evs: NormEvent[]) {
@@ -88,7 +96,7 @@ export class UsageTap {
   }
 
   end(): StreamUsage {
-    for (const ev of this.parser.end()) this.take(this.dec.push(ev));
+    this.flushResidual();
     this.take(this.dec.end());
     return this.usage;
   }

@@ -546,7 +546,10 @@ export class GatewayServer {
       else res.end();
     };
     let sseOpen = false;
+    /** Nomi 依赖 respond 时的 x-nomi-served-model（#97）；提前 writeHead 会触发 #114。其它 CLI 仍保活。 */
+    let keepAliveClient: string = client;
     const keepAlive = () => {
+      if (keepAliveClient === 'nomi') return;
       if (res.headersSent || res.destroyed) return;
       res.writeHead(200, SSE_HEADERS);
       res.write(': keepalive\n\n');
@@ -657,6 +660,7 @@ export class GatewayServer {
           : '';
     const resolveAs =
       client === 'legacy' ? legacyClient(ingress, String(req.headers['user-agent'] ?? '')) : client;
+    keepAliveClient = resolveAs ?? client;
     const r = resolveCandidates(cfg, resolveAs, requested, ingress.wire, binding);
     if (!r.ok) {
       fail(r.status, r.message);
@@ -1264,7 +1268,8 @@ export class GatewayServer {
     stage?: ProviderStage,
     client: string | null = null,
   ): Promise<Responded> {
-    res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
+    // 保活已发头时不能再 setHeader（#114）；Nomi 跳过保活所以仍能走到这里（#97）
+    if (!res.headersSent) res.setHeader(SERVED_MODEL_HEADER, cand.publicModel);
     // custom 工具转换模式（§11.3）：同协议也要走转换，回程把函数调用还原成 custom_tool_call
     const passthrough =
       bridgeMode(cand.wire, ingress.wire, cand.customToolsAsFunctions) === 'passthrough';
@@ -1353,7 +1358,8 @@ export class GatewayServer {
         }
         const rest = bridge.stopped ? '' : decoder.decode();
         tap.push(rest);
-        // 结束标记要在 tap.end() 之前看（end() 会为没结束的流补一个错误）
+        // 先解析末尾残留帧，再判终态（#121）；tap.end() 才会为缺终态合成错误
+        tap.flushResidual();
         if (bridge.stopped) {
           outcome = 'repetition-stop';
         } else if (tap.error !== null) {
