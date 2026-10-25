@@ -149,7 +149,7 @@ export const MultiSelect: React.FC<{
         <Input
           size="sm"
           value={q}
-          placeholder={t('ui.knowledge-local.search-f04090')}
+          placeholder={t('ui.knowledge-local.search-action')}
           aria-label={t('ui.model-quality.search', label)}
           onChange={(e) => setQ(e.target.value)}
           data-testid={testId ? `${testId}-search` : undefined}

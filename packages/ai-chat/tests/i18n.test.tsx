@@ -13,11 +13,11 @@ describe('i18n', () => {
     expect(resolveLocale('system', ['zh-HK'])).toBe('zh-CN');
     expect(resolveLocale('system', ['de-DE'])).toBe('en');
     expect(getLocale()).toBe('zh-CN');
-    expect(t('新对话')).toBe('新对话');
+    expect(t('ui.chat-settings.new-chat')).toBe('新对话');
     applyLocale('en');
-    expect(t('新对话')).toBe('New chat');
-    expect(t('{0} 分钟前', 5)).toBe('5 min ago');
-    expect(t('不在词典里的文字')).toBe('不在词典里的文字');
+    expect(t('ui.chat-settings.new-chat')).toBe('New chat');
+    expect(t('ui.chat-settings.min-ago', 5)).toBe('5 min ago');
+    expect(t('not-in-the-catalog')).toBe('not-in-the-catalog');
     expect(t(undefined)).toBeUndefined();
   });
 

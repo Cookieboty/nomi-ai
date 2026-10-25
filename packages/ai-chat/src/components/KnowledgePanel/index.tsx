@@ -77,7 +77,7 @@ const ProgressBox: React.FC<{ p: KbProgress }> = ({ p }) => {
           <span className={styles.hint}>
             {tr('ui.foundation.added')} {p.added} {tr('ui.foundation.updated')} {p.updated}{' '}
             {tr('ui.foundation.removed')} {p.removed}
-            {p.failed ? tr('ui.foundation.failed-0d5a94', p.failed) : ''}
+            {p.failed ? tr('ui.foundation.failed-named', p.failed) : ''}
           </span>
         )}
       </div>
@@ -193,7 +193,7 @@ const ModelSection: React.FC<{
         <Switch
           checked={ref.enabled}
           onChange={(v) => save({ enabled: v })}
-          label={tr('ui.foundation.enable-d4e9ca')}
+          label={tr('ui.foundation.enable-label')}
           data-testid={`kb-${kind}-enabled`}
         />
       </div>
@@ -608,7 +608,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                             onChange={(v) => void kbClient.toggleSource(s.id, v)}
                             label={
                               s.enabled
-                                ? tr('ui.foundation.enable-d4e9ca')
+                                ? tr('ui.foundation.enable-label')
                                 : tr('ui.knowledge-local.disable')
                             }
                           />
@@ -749,7 +749,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                         }
                         options={[4, 6, 8, 10].map((n) => ({
                           value: String(n),
-                          label: tr('ui.knowledge-local.chunks-6001f7', n),
+                          label: tr('ui.knowledge-local.chunks-count', n),
                         }))}
                         data-testid="kb-topk"
                       />
@@ -770,7 +770,7 @@ export const KnowledgePanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     onChange={(v) =>
                       void kbClient.setSettings({ ocr: { ...st.settings.ocr, enabled: v } })
                     }
-                    label={tr('ui.foundation.enable-d4e9ca')}
+                    label={tr('ui.foundation.enable-label')}
                     aria-label={tr('ui.knowledge-local.index-text-in-images-png-jpg-webp-bmp')}
                     data-testid="kb-ocr-enabled"
                   />

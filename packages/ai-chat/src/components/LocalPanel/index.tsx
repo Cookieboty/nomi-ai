@@ -216,7 +216,7 @@ export const LocalPanel: React.FC<{
   const askDownload = (m: LocalModel) =>
     setConfirm({
       id: m.id,
-      title: t('ui.knowledge-local.download-68777d', m.name),
+      title: t('ui.knowledge-local.download-named', m.name),
       license: m.license,
       licenseUrl: m.licenseUrl,
       sourceUrl: m.sourceUrl,
@@ -393,7 +393,7 @@ export const LocalPanel: React.FC<{
               </div>
               <div className={styles.meta}>
                 {m.params} · {m.quant} · {fmtBytes(m.bytes)}{' '}
-                {t('ui.knowledge-local.recommended-8a779d')} {m.minRamGb}{' '}
+                {t('ui.knowledge-local.recommended-min')} {m.minRamGb}{' '}
                 {t('ui.knowledge-local.gb-memory')} {t(m.description)}
               </div>
               {p && busy === `d:${m.id}` && <Bar p={p} />}
@@ -554,7 +554,7 @@ export const LocalPanel: React.FC<{
                 <span className={styles.hint}>{fmtBytes(m.size)}</span>
                 <IconButton
                   size="sm"
-                  label={t('ui.knowledge-local.delete-from-ollama-582c7c', m.name)}
+                  label={t('ui.knowledge-local.delete-from-ollama-action', m.name)}
                   icon={<Icon icon={Trash2} size={14} />}
                   onClick={() => {
                     if (window.confirm(t('ui.knowledge-local.delete-from-ollama', m.name)))
@@ -1157,7 +1157,7 @@ export const LocalPanel: React.FC<{
         {confirm && (
           <div className={styles.stack}>
             <p>
-              {t('ui.knowledge-local.license-3d1017')}
+              {t('ui.knowledge-local.license-prefix')}
               <b>{confirm.license}</b>（
               <a href={confirm.licenseUrl} target="_blank" rel="noreferrer">
                 {t('ui.knowledge-local.view-full-text')}

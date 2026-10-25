@@ -73,7 +73,7 @@ export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => 
   const title = [
     s.duration && t('ui.usage-tools.took', s.duration),
     s.tokens,
-    s.cost && t('ui.usage-tools.cost-c58378', s.cost),
+    s.cost && t('ui.usage-tools.cost-named', s.cost),
   ]
     .filter(Boolean)
     .join(' · ');

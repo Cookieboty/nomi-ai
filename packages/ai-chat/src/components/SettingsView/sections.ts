@@ -143,7 +143,7 @@ export const SECTION_TABS = {
   quality: [
     { id: 'compare', label: 'ui.model-quality.compare' },
     { id: 'trend', label: 'ui.usage-tools.trend' },
-    { id: 'requests', label: 'ui.model-quality.requests-09efcb' },
+    { id: 'requests', label: 'ui.model-quality.request-details' },
   ],
 } as const;
 

@@ -170,8 +170,8 @@ export function resetText(resetAt: number, now: number): string {
 export function quotaWindowShort(id: string, minutes?: number): string {
   if (!minutes)
     return id === 'secondary'
-      ? t('ui.usage-tools.long-window-f81512')
-      : t('ui.usage-tools.short-window-1a7167');
+      ? t('ui.usage-tools.long-window-short')
+      : t('ui.usage-tools.short-window-short');
   if (minutes === 10080) return t('ui.knowledge-local.weekly');
   if (minutes < 60) return t('ui.foundation.min', Math.round(minutes));
   if (minutes < 1440) return t('ui.foundation.h', Number((minutes / 60).toFixed(1)));

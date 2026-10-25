@@ -67,7 +67,7 @@ const MiniBars: React.FC<{ windows: UsageQuotaWindow[] }> = ({ windows }) => (
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={pct}
-            aria-label={t('ui.usage-tools.used-c15a4c', label)}
+            aria-label={t('ui.usage-tools.used-amount', label)}
           >
             <i style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
           </div>
@@ -289,7 +289,7 @@ const EndpointDrawer: React.FC<{
         }
       >
         <section className={styles.panel} data-testid="endpoint-drawer-overview">
-          <h3 className={styles.h3}>{t('ui.usage-tools.overview-b2096f')}</h3>
+          <h3 className={styles.h3}>{t('ui.usage-tools.overview-short')}</h3>
           <div className={styles.badges}>
             {backend === 'nomi' ? (
               <Badge tone="success">{t('ui.chat-settings.built-in')}</Badge>

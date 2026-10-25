@@ -36,7 +36,7 @@ const CitedBody: React.FC<{ message: ChatMessage }> = ({ message }) => {
         <summary>
           <Icon icon={ChevronRight} size={12} className={styles.stepIcon} />
           {message.kb ? t('ui.foundation.knowledge-base') : t('ui.knowledge-local.sources')} ·{' '}
-          {sources.length} {t('ui.providers-schedule.sources-f358a7')}
+          {sources.length} {t('ui.providers-schedule.sources-count-suffix')}
         </summary>
         <SourceList sources={sources} onPick={setPick} />
       </details>

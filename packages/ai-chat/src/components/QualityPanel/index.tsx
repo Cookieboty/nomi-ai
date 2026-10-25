@@ -99,9 +99,7 @@ export const QualityPanel: React.FC<{
             limit: 1000,
           });
     void run
-      .then((r) =>
-        setMsg(r.ok && r.path ? t('ui.knowledge-local.exported-to-8799d2', r.path) : null),
-      )
+      .then((r) => setMsg(r.ok && r.path ? t('ui.knowledge-local.exported-to-path', r.path) : null))
       .catch((e: unknown) => setMsg(e instanceof Error ? e.message : String(e)));
   };
 
@@ -161,7 +159,7 @@ export const QualityPanel: React.FC<{
         items={[
           { value: 'compare', label: t('ui.model-quality.compare') },
           { value: 'trend', label: t('ui.usage-tools.trend') },
-          { value: 'requests', label: t('ui.model-quality.requests-09efcb') },
+          { value: 'requests', label: t('ui.model-quality.request-details') },
         ]}
       />
       {tab === 'compare' && (

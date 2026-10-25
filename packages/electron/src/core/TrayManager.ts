@@ -159,7 +159,7 @@ export const TRAY_MOTIONS: Array<[string, string]> = [
   ['thumbs_up', 'electron.common.thumbs-up'],
   ['peace', 'electron.common.peace-sign'],
   ['celebrate', 'electron.common.celebrate'],
-  ['clap', 'electron.common.clap-34acfb'],
+  ['clap', 'electron.common.clap'],
   ['shy', 'electron.common.shy'],
   ['sorry', 'electron.common.apologise'],
   ['surprise', 'electron.common.surprised'],

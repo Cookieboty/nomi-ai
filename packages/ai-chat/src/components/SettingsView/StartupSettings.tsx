@@ -18,7 +18,7 @@ const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = 
   {
     id: 'mascot',
     label: () => t('ui.mascot-theme.nomi'),
-    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her-71afa5'),
+    hint: () => t('ui.mascot-theme.startup-mascot-first'),
   },
   {
     id: 'main',
@@ -172,7 +172,7 @@ export const StartupSettings: React.FC<{
           description={
             view === 'mascot'
               ? t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop')
-              : t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop-8398c1')
+              : t('ui.mascot-theme.when-off-mascot-hidden-island-ok')
           }
         >
           <Switch

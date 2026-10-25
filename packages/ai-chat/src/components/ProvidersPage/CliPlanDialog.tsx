@@ -26,7 +26,7 @@ export const CliPlanDialog: React.FC<{
     onClose={onClose}
     title={
       plan?.mode === 'install'
-        ? t('ui.cli-monitor.install-710b3a', name)
+        ? t('ui.cli-monitor.install-named', name)
         : t('ui.cli-monitor.update', name)
     }
     data-testid={`cli-version-dialog-${testKind}`}

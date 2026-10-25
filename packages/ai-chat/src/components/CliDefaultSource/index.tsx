@@ -26,7 +26,7 @@ import styles from './index.module.css';
  */
 export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) => {
   const gateway = useGatewayState();
-  const accounts = useCliAccounts(backend);
+  const { accounts, error: accountsError } = useCliAccounts(backend);
   const [err, setErr] = useState('');
   if (!gatewayClientAvailable() || !gateway) return null;
   const client = gateway.clients[backend];
@@ -52,13 +52,27 @@ export const CliDefaultSource: React.FC<{ backend: CliKind }> = ({ backend }) =>
         variant="ghost"
         className={styles.select}
         data-testid="cli-default-source-switch"
-        aria-label={t('ui.models.new-tabs-use-69b7f3', name)}
-        title={err || t('ui.chat-settings.only-affects-tabs-opened-from-now-on-existing', name)}
+        aria-label={t('ui.models.new-tabs-use-named', name)}
+        title={
+          err ||
+          (accountsError
+            ? t('ui.models.failed-to-load-accounts', accountsError)
+            : t('ui.chat-settings.only-affects-tabs-opened-from-now-on-existing', name))
+        }
         value={value}
         onChange={(e) => void pick(e.target.value)}
         menuMinWidth={240}
         options={options}
       />
+      {accountsError ? (
+        <span
+          className={styles.defaultError}
+          data-testid="cli-default-accounts-error"
+          role="status"
+        >
+          {t('ui.models.failed-to-load-accounts', accountsError)}
+        </span>
+      ) : null}
     </span>
   );
 };

@@ -100,7 +100,7 @@ export function describeRepeat(r?: RepeatRule): string {
         'ui.chat-settings.weekly-on',
         [...r.days]
           .sort()
-          .map((d) => WEEK[d])
+          .map((d) => t(WEEK[d]!))
           .join('、'),
       );
     case 'interval':
@@ -174,7 +174,7 @@ export const TOOL_LABELS: Record<string, string> = {
   fs_stat: 'ui.chat-settings.view-file-info',
   fs_search: 'ui.chat-settings.search-files',
   fs_read_text: 'ui.chat-settings.read-file-text',
-  fs_summarize: 'ui.chat-settings.summarize-file-83c32e',
+  fs_summarize: 'ui.chat-settings.summarize-file-label',
   fs_write_text: 'ui.chat-settings.write-text-file',
   fs_trash: 'ui.chat-settings.move-to-trash',
   undo_last: 'ui.chat-settings.undo-last-step',

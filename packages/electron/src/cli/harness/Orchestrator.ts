@@ -2449,11 +2449,11 @@ export class HarnessOrchestrator {
     await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     await this.syncClaudeModel(tab);
     // 等待期间点了停止：不再拉起进程、不发送（#75）
-    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (signal?.aborted) throw new Error(t('electron.common.aborted'));
     const live = await this.ensureClaudeLiveBound(tab);
     // 第三方原地换了模型（set_model）或复用了进程：绑定跟上标签的主模型（§6.7）
     await this.syncTabBinding(tab);
-    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (signal?.aborted) throw new Error(t('electron.common.aborted'));
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
         reject(new Error(t('electron.common.previous-turn-still-running')));
@@ -2673,7 +2673,7 @@ export class HarnessOrchestrator {
       // 一轮进行中进程退出（用户停止走 interrupt / 拆进程，记为取消，不算退出）
       if (!this.stopRequested.has(tab.id)) this.turnExits.add(tab.id);
       if (signal && !turn.text) {
-        turn.reject(new Error(t('electron.common.cancelled-5c1747')));
+        turn.reject(new Error(t('electron.common.aborted')));
         return;
       }
       if (code && code !== 0 && !turn.text) {
@@ -2749,7 +2749,7 @@ export class HarnessOrchestrator {
             backend: 'claude' as HarnessBackend,
             summary:
               ev.kind === 'approve-plan'
-                ? t('electron.common.approve-plan-494a3e', ev.summary)
+                ? t('electron.common.approve-plan', ev.summary)
                 : ev.agent
                   ? t('electron.common.subagent', ev.agent, ev.summary)
                   : ev.summary,
@@ -2991,7 +2991,7 @@ export class HarnessOrchestrator {
       await live.ready;
     } catch (e) {
       this.teardownAcpLive(tab.id);
-      if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'), { cause: e });
+      if (signal?.aborted) throw new Error(t('electron.common.aborted'), { cause: e });
       // Grok 握手阶段就退出 / 不认识 ACP：交给 sendTab 退回 `grok -p`
       if (backend === 'grok' && e instanceof Error && e.message === 'ACP process exited')
         throw new AcpUnavailableError(t('electron.common.grok-could-not-start-an-acp-session'), {
@@ -3089,7 +3089,7 @@ export class HarnessOrchestrator {
       live = await this.ensureAcpLive(tab, signal);
     }
     // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
-    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (signal?.aborted) throw new Error(t('electron.common.aborted'));
     if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
     const turn: AcpTurn = { events: [], text: '', breaks: [] };
     live.turn = turn;
@@ -3118,7 +3118,7 @@ export class HarnessOrchestrator {
       } | null;
       // 用户拒绝了一次工具调用、Grok 随之结束这一轮：不是「已中止」，按正常结束落盘
       if (r?.stopReason === 'cancelled' && !(turn.denied && !this.stopRequested.has(tab.id)))
-        throw new Error(t('electron.common.cancelled-5c1747'));
+        throw new Error(t('electron.common.aborted'));
       if (r?.stopReason === 'cancelled' && !turn.text.trim())
         turn.text = t('electron.common.you-denied-this-tool-call-so-this-turn');
       const tc = r?._meta?.quota?.token_count;
@@ -3568,7 +3568,7 @@ export class HarnessOrchestrator {
     void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
-      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
+      turn.reject(new Error(t('electron.common.aborted')));
     }
   }
 
@@ -3707,7 +3707,7 @@ export class HarnessOrchestrator {
       await live.ready;
     } catch (e) {
       this.teardownCodexLive(tab.id);
-      if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'), { cause: e });
+      if (signal?.aborted) throw new Error(t('electron.common.aborted'), { cause: e });
       if (e instanceof Error && e.message === 'ACP process exited')
         throw new AcpUnavailableError(t('electron.common.codex-could-not-start-the-app-server'), {
           cause: e,
@@ -3741,7 +3741,7 @@ export class HarnessOrchestrator {
     }
     // 第三方：模型按轮下发（inplace，§6.7），绑定跟上标签的主模型
     await this.syncTabBinding(tab);
-    if (signal.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (signal.aborted) throw new Error(t('electron.common.aborted'));
     if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
     if (!live.threadId) {
       live.threadId = await live.driver.ensureThread(tab.cwd).catch((e: unknown) => {
@@ -3750,7 +3750,7 @@ export class HarnessOrchestrator {
         throw e;
       });
     }
-    if (signal.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (signal.aborted) throw new Error(t('electron.common.aborted'));
     const text = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const chatRoot = path.join(path.dirname(this.d.root), 'chat');
     live.used = true;
@@ -3850,8 +3850,7 @@ export class HarnessOrchestrator {
     for (const fin of [...live.perms.values()]) fin(null);
     if (turn.settled) return;
     turn.settled = true;
-    if (r.stopReason === 'interrupted')
-      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
+    if (r.stopReason === 'interrupted') turn.reject(new Error(t('electron.common.aborted')));
     else if (r.stopReason === 'failed')
       turn.reject(new Error(r.error || turn.lastError || t('electron.common.codex-error')));
     else {
@@ -3904,7 +3903,7 @@ export class HarnessOrchestrator {
     void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
-      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
+      turn.reject(new Error(t('electron.common.aborted')));
     }
   }
 
@@ -4134,7 +4133,7 @@ export class HarnessOrchestrator {
         : {}),
       // 用户停止 / 被信号杀死：不能因为「已有部分文字」就当成功完成（见 #25）
       stopRequested: () => this.stopRequested.has(tab.id),
-      abortedMessage: t('electron.common.cancelled-5c1747'),
+      abortedMessage: t('electron.common.aborted'),
       exitMessage: (code) => t('electron.common.exit-code', opts.kind, code),
       onStderr: (c) => this.d.logger.warn(`harness ${opts.kind} stderr`, c.slice(0, 500)),
     });
@@ -4230,7 +4229,7 @@ export class HarnessOrchestrator {
     const p = this.progress.get(tabId);
     if (!p?.value.trim()) return undefined;
     const v = p.value.replace(/\s+/g, ' ').trim();
-    return p.kind === 'tool' ? t('electron.common.running-c78e69', v) : v;
+    return p.kind === 'tool' ? t('electron.common.running-named', v) : v;
   }
 
   private emitEvent(tabId: string, ev: HarnessEvent) {

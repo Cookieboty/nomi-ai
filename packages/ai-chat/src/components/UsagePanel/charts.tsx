@@ -85,8 +85,8 @@ export const TrendChart: React.FC<{
             <b>{formatBucket(hp.t, bucket)}</b>
             {metric === 'tokens' ? (
               <>
-                <span>{t('ui.usage-tools.input-e91f1e', fmt(hp.input))}</span>
-                <span>{t('ui.usage-tools.output-1004c0', fmt(hp.output))}</span>
+                <span>{t('ui.usage-tools.input-named', fmt(hp.input))}</span>
+                <span>{t('ui.usage-tools.output-named', fmt(hp.output))}</span>
               </>
             ) : (
               <span>{fmt(costOf(hp.costUsd))}</span>

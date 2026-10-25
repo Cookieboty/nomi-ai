@@ -289,7 +289,7 @@ export function createClaudeParser(): (line: string) => HarnessEvent[] {
       if (ev.type === 'permission' && ev.toolUseId) {
         const parent = parents.get(ev.toolUseId);
         const agent = parent ? agents.get(parent) : undefined;
-        return parent ? { ...ev, agent: agent || t('electron.common.subagent-232d2c') } : ev;
+        return parent ? { ...ev, agent: agent || t('electron.common.subagent-label') } : ev;
       }
       if (ev.type === 'tool' && ev.status === 'start' && ev.detail) {
         if (ev.parentId) remember(parents, ev.detail, ev.parentId);

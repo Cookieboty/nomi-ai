@@ -319,11 +319,11 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
             t('ui.session-workspace.completed-the-handoff', name),
             plainSummary(r.report.done),
             r.report.unfinished
-              ? t('ui.session-workspace.not-finished-534e7d', plainSummary(r.report.unfinished))
+              ? t('ui.session-workspace.not-finished-detail', plainSummary(r.report.unfinished))
               : '',
             r.report.needsUser
               ? t(
-                  'ui.session-workspace.needs-your-decision-1faef8',
+                  'ui.session-workspace.needs-your-decision-detail',
                   plainSummary(r.report.needsUser),
                 )
               : '',
@@ -331,7 +331,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
           body = bits.join('\n\n');
         } else {
           body = t(
-            'ui.session-workspace.completed-the-handoff-de51e7',
+            'ui.session-workspace.completed-the-handoff-with-body',
             name,
             plainSummary(r.summary) || t('ui.session-workspace.no-report'),
           );

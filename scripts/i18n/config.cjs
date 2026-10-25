@@ -17,9 +17,12 @@ module.exports = {
   ],
   // 这些模块把稳定 key 作为数据返回给 UI，虽然调用点不在 t()/tr() 里，也要纳入未知 / 死 key 检查。
   keySources: ['packages/ai-runtime/src/providers'],
+  // keepZh: intentional Chinese that must NOT be extracted as UI keys.
+  // Prefer model-facing tool schemas / prompt fragments / parsers the agent reads
+  // (DelegateService, p2/p3 tools, knowledge answer, schedule recurrence, episodes…).
+  // Do NOT list user-visible UI strings here — localize those instead.
   keepZh: [
     /voice[\\/]src[\\/]wake\.ts$/,
-    /renderer[\\/]src[\\/]mascot[\\/]licenseTerms\.ts$/,
     /electron[\\/]src[\\/]desktop[\\/](p2tools|p3tools|tools)\.ts$/,
     /electron[\\/]src[\\/]cli[\\/]delegate[\\/](core|DelegateService)\.ts$/,
     /electron[\\/]src[\\/]tts[\\/]legacy[\\/]/,

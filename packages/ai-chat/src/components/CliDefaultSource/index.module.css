@@ -17,3 +17,9 @@
   color: var(--cd-color-text-subtle);
   white-space: nowrap;
 }
+
+.defaultError {
+  color: var(--danger, #c44);
+  font-size: 12px;
+  margin-left: 6px;
+}

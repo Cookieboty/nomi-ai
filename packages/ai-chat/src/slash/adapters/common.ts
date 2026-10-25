@@ -150,7 +150,7 @@ export function nativeCommands(backend: ConversationBackend): SlashCommand[] {
       }),
       cmd({
         name: 'mode',
-        label: t('ui.chat-settings.permission-mode-e1f592'),
+        label: t('ui.chat-settings.permission-mode-label'),
         description: t('ui.chat-settings.switch-permission-mode-plan-manual-edits-auto-edit'),
         source: 'builtin',
         kind: 'native',
@@ -183,7 +183,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   if (!arg)
     return card(
       notice(
-        t('ui.chat-settings.permission-mode-e1f592'),
+        t('ui.chat-settings.permission-mode-label'),
         t('ui.chat-settings.usage-mode-plan-manual-edits-auto-you-can'),
         'info',
         {
@@ -194,7 +194,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   if (arg === 'bypass' || arg === 'yolo')
     return card(
       notice(
-        t('ui.chat-settings.permission-mode-e1f592'),
+        t('ui.chat-settings.permission-mode-label'),
         t('ui.chat-settings.full-access-has-to-be-chosen-and-confirmed'),
         'warn',
       ),
@@ -203,7 +203,7 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   if (!want)
     return card(
       notice(
-        t('ui.chat-settings.permission-mode-e1f592'),
+        t('ui.chat-settings.permission-mode-label'),
         t('ui.chat-settings.unknown-mode', raw.trim()),
         'warn',
         { detail: list },
@@ -214,10 +214,10 @@ async function runMode(raw: string, backend: ConversationBackend): Promise<Slash
   const got = r.permissionMode ?? fallbackMode(backend, want);
   return card(
     notice(
-      t('ui.chat-settings.permission-mode-e1f592'),
+      t('ui.chat-settings.permission-mode-label'),
       r.degraded
         ? t(
-            'ui.chat-settings.doesn-t-support-using-8bae5b',
+            'ui.chat-settings.doesnt-support-using-period',
             ENDPOINT_FULL[backend](),
             modeLabel(want),
             modeLabel(got),

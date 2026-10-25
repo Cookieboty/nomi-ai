@@ -533,9 +533,7 @@ export class LocalModelService {
         body: JSON.stringify({ name, stream: true }),
         signal: ctrl.signal,
       }).catch(() => {
-        throw new Error(
-          tr('electron.common.ollama-not-detected-please-install-and-start-ollama-8a8451'),
-        );
+        throw new Error(tr('electron.common.ollama-not-detected-install-first'));
       });
       if (!r.ok || !r.body)
         throw new Error(tr('electron.common.ollama-pull-failed-http', r.status));

@@ -15,7 +15,7 @@ export function buildCommitPrompt(files: readonly CommitPromptFile[], push: bool
     const mark = f.staged
       ? f.unstaged
         ? t('ui.session-workspace.partly-staged')
-        : t('ui.session-workspace.staged-bdfa5c')
+        : t('ui.session-workspace.staged-parens')
       : '';
     return `- ${f.path}${mark}`;
   });

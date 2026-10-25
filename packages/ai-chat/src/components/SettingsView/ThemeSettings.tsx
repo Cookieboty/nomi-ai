@@ -19,7 +19,7 @@ export function themeLabel(cur: ThemeState): string {
     return tr(
       'ui.chat-settings.system',
       cur.resolved === 'cream'
-        ? tr('ui.mascot-theme.cream-bbfb59')
+        ? tr('ui.mascot-theme.cream-short')
         : tr('ui.chat-settings.graphite'),
     );
   return def ? tr(def.name) : cur.pref;
@@ -49,7 +49,7 @@ export const ThemeSettings: React.FC = () => {
                   'ui.chat-settings.current',
                   tr(sel.desc),
                   cur.resolved === 'cream'
-                    ? tr('ui.mascot-theme.cream-bbfb59')
+                    ? tr('ui.mascot-theme.cream-short')
                     : tr('ui.chat-settings.graphite'),
                 )
               : tr(sel.desc)

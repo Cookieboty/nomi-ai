@@ -47,10 +47,7 @@ export function imageSupportFor(
   if (m && m.vision === false)
     return {
       capability: 'none',
-      reason: t(
-        'ui.session-workspace.the-current-model-doesn-t-support-images-remove-d5d109',
-        m.label ?? m.id,
-      ),
+      reason: t('ui.session-workspace.model-lacks-vision-pick-another', m.label ?? m.id),
     };
   return { capability: 'full' };
 }

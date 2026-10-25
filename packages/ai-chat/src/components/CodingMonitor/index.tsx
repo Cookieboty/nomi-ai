@@ -188,7 +188,7 @@ export const CodingMonitor: React.FC<{
                       {tr(AGENT_LABEL[k])}
                       <span className={styles.toolState} data-found={found ? '1' : undefined}>
                         {found
-                          ? tr('ui.providers-schedule.detected-6bc4d9')
+                          ? tr('ui.providers-schedule.detected-label')
                           : tr('ui.slash-commands.not-detected')}
                       </span>
                     </span>

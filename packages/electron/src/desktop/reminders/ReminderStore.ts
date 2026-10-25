@@ -251,7 +251,7 @@ export class ReminderStore {
     return this.mutate(id, (r) => {
       if (r.status !== 'pending')
         throw Object.assign(
-          new Error(tr('electron.common.only-reminders-that-haven-t-fired-can-be-baed09')),
+          new Error(tr('electron.common.only-unfired-reminders-can-be-changed')),
           { code: 'invalid_state' },
         );
       if (p.text?.trim()) r.text = p.text.trim().slice(0, 500);

@@ -136,7 +136,7 @@ function posixScript(i: ScriptInput): string {
   }
   const launch = i.launch;
   const needModel = say(tr('electron.common.nomi-model-must-be-followed-by-provider-model'));
-  const badModel = say(tr('electron.common.invalid-model-name-1cb39d'));
+  const badModel = say(tr('electron.common.invalid-model-name-prefix'));
   const down = say(tr('electron.common.please-start-nomi-first-the-gateway-is-not', i.url));
   const noToken = say(tr('electron.common.token-not-found-turn-terminal-commands-off-and'));
   const noBin = say(tr('electron.common.was-not-found-please-install-it-first', bin));
@@ -473,7 +473,7 @@ export class TerminalCommands {
             messages: {
               noModel: tr('electron.common.no-third-party-model-is-set-for-choose', kind),
               needModel: tr('electron.common.nomi-model-must-be-followed-by-provider-model'),
-              badModel: tr('electron.common.invalid-model-name-1cb39d'),
+              badModel: tr('electron.common.invalid-model-name-prefix'),
               down: tr('electron.common.please-start-nomi-first-the-gateway-is-not', src.url),
               noToken: tr('electron.common.token-not-found-turn-terminal-commands-off-and'),
               noBin: tr('electron.common.was-not-found-please-install-it-first', kind),

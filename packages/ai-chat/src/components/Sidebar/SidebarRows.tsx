@@ -47,7 +47,7 @@ export const RowActions: React.FC<
   RowActionHandlers & { kind: 'conv' | 'tab' | 'hist'; confirming?: boolean }
 > = ({ kind, confirming, onRename, onDelete, onCancelDelete, onMore }) => {
   const delLabel =
-    kind === 'tab' ? t('ui.mascot-theme.close-tab-118f00') : t('ui.cli-monitor.delete-chat');
+    kind === 'tab' ? t('ui.mascot-theme.close-tab-action') : t('ui.cli-monitor.delete-chat');
   return (
     <div
       className={styles.rowActions}
@@ -71,7 +71,7 @@ export const RowActions: React.FC<
             data-testid="row-delete-confirm"
             autoFocus
           >
-            {t('ui.knowledge-local.delete-3c06ab')}
+            {t('ui.knowledge-local.delete-confirm')}
           </button>
           <button
             type="button"
@@ -195,7 +195,7 @@ const ThreadItemImpl: React.FC<{
         className={cls}
         onClick={() => void onOpen(c.id)}
         onContextMenu={(e) => onCtx(c.id, e)}
-        title={tab?.dormant ? t('ui.cli-monitor.dormant-ebbe82', t(c.name)) : t(c.name)}
+        title={tab?.dormant ? t('ui.cli-monitor.named-dormant', t(c.name)) : t(c.name)}
         data-testid="history-item"
         data-backend={c.backend}
         data-conversation-id={c.id}

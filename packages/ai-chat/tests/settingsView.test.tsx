@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { ModalHostContext, Modal } from '@nomi-ai/ui';
+import { ModalHostContext, Modal, t } from '@nomi-ai/ui';
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -41,7 +41,7 @@ describe('SettingsView', () => {
     const onClose = vi.fn();
     const { getByTestId } = render(<Harness onClose={onClose} />);
     for (const s of SETTINGS_SECTIONS) expect(getByTestId(`settings-nav-${s.id}`)).toBeTruthy();
-    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('本机管理');
+    expect(SETTINGS_SECTIONS.map((s) => s.label)).toContain('ui.chat-settings.local-tools');
     expect(getByTestId('settings-privacy')).toBeTruthy();
     fireEvent.click(getByTestId('settings-nav-general'));
     expect(getByTestId('settings-nav-general').getAttribute('aria-current')).toBe('page');
@@ -113,16 +113,16 @@ describe('SettingsView 合并后的标签页分区', () => {
     expect(banner.getAttribute('src')).toContain('nomi-banner.webp');
     for (const s of SETTINGS_SECTIONS) {
       fireEvent.click(r.getByTestId(`settings-nav-${s.id}`));
-      expect(r.getByTestId('settings-section-title').textContent).toBe(s.label);
-      expect(r.getByRole('main').getAttribute('aria-label')).toBe(s.label);
+      expect(r.getByTestId('settings-section-title').textContent).toBe(t(s.label));
+      expect(r.getByRole('main').getAttribute('aria-label')).toBe(t(s.label));
       const general = s.id === 'general';
       expect(r.queryAllByTestId('settings-banner')).toHaveLength(general ? 1 : 0);
       if (general) {
         expect(r.queryByTestId('settings-page-head')).toBeNull();
       } else {
         const head = r.getByTestId('settings-page-head');
-        expect(head.querySelector('h1')!.textContent).toBe(s.label);
-        expect(head.querySelector('p')!.textContent).toBe(s.intro);
+        expect(head.querySelector('h1')!.textContent).toBe(t(s.label));
+        expect(head.querySelector('p')!.textContent).toBe(t(s.intro));
       }
     }
   });

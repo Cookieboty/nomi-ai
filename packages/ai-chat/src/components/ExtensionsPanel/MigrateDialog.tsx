@@ -97,7 +97,7 @@ export const MigrateDialog: React.FC<{
           checked={!!picked[it.key] && !it.error}
           disabled={!!it.error}
           onChange={(e) => setPicked({ ...picked, [it.key]: e.target.checked })}
-          aria-label={tr('ui.foundation.import-cdd32a', it.name)}
+          aria-label={tr('ui.foundation.import-named', it.name)}
           data-testid={`migrate-check-${it.key}`}
         />
         <b className={styles.grow}>{it.name}</b>
@@ -246,11 +246,11 @@ export const MigrateDialog: React.FC<{
             ) : (
               <div className={styles.list}>
                 {scan.mcp.length > 0 && (
-                  <b className={styles.hint}>{tr('ui.foundation.mcp-servers-ad57a8')}</b>
+                  <b className={styles.hint}>{tr('ui.foundation.mcp-servers-label')}</b>
                 )}
                 {scan.mcp.map(row)}
                 {scan.skills.length > 0 && (
-                  <b className={styles.hint}>{tr('ui.foundation.skills-53da13')}</b>
+                  <b className={styles.hint}>{tr('ui.foundation.skills-label')}</b>
                 )}
                 {scan.skills.map(row)}
               </div>

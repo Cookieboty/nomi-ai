@@ -249,7 +249,7 @@ export const ChatTabs: React.FC<{
                   className={styles.close}
                   data-testid={`chat-tab-close-${i}`}
                   aria-label={t('ui.mascot-theme.close-tab', tab.title)}
-                  title={`${t('ui.mascot-theme.close-tab-118f00')} (${formatCombo(bindings.closeTab)})`}
+                  title={`${t('ui.mascot-theme.close-tab-action')} (${formatCombo(bindings.closeTab)})`}
                   onClick={(e) => {
                     e.stopPropagation();
                     closeTab(tab);

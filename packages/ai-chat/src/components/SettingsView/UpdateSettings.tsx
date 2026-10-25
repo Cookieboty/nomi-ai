@@ -64,9 +64,9 @@ export function statusLabel(s: UpdateState): string {
     case 'error':
       return (
         s.errorStage === 'download'
-          ? t('ui.mascot-theme.update-download-failed-cc8f5e')
+          ? t('ui.mascot-theme.update-download-failed-detail')
           : s.errorStage === 'install'
-            ? t('ui.mascot-theme.update-install-failed-8ace96')
+            ? t('ui.mascot-theme.update-install-failed-detail')
             : t('ui.mascot-theme.update-check-failed')
       ).replace('{0}', s.error ?? '');
     case 'unavailable':

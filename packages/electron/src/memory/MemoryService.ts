@@ -285,10 +285,7 @@ export class MemoryService {
       this.audit('memory_summarize', { conversation: conversationId }, 'error');
       throw e instanceof MemError
         ? e
-        : new MemError(
-            'summarize-failed',
-            tr('electron.common.summary-failed-c29d0a', this.lastError),
-          );
+        : new MemError('summarize-failed', tr('electron.common.summarize-failed', this.lastError));
     } finally {
       this.busy.delete(conversationId);
       this.broadcast('ai:mem:status', { busy: [...this.busy] });

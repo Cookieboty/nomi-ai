@@ -28,7 +28,7 @@ const invoke = (): Invoke | null => {
 
 const LABEL: Record<Variant, string> = {
   sunset: 'ui.mascot-theme.sunset-orange-default',
-  cream: 'ui.mascot-theme.cream-bbfb59',
+  cream: 'ui.mascot-theme.cream-short',
   ink: 'ui.mascot-theme.ink',
 };
 

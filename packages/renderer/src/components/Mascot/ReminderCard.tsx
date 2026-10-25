@@ -71,8 +71,7 @@ export const ReminderCard: React.FC = () => {
       <div className={styles.actions}>
         {queue.length > 1 && (
           <span className={styles.more}>
-            {tr('ui.voice-mascot.and')} {queue.length - 1}{' '}
-            {tr('ui.providers-schedule.message-f7b2a6')}
+            {tr('ui.voice-mascot.and')} {queue.length - 1} {tr('ui.providers-schedule.counter-ge')}
           </span>
         )}
         <Button

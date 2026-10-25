@@ -806,7 +806,7 @@ export const ExtensionsPanel: React.FC<{ isVisible: boolean; onClose: () => void
             </label>
             {skill.files.length > 0 && (
               <p className={styles.hint}>
-                {tr('ui.foundation.attachments-25d485')}
+                {tr('ui.foundation.attachments-prefix')}
                 {skill.files.join('、')}
               </p>
             )}

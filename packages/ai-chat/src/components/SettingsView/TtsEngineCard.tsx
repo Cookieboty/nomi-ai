@@ -274,7 +274,7 @@ export const TtsEngineCard: React.FC = () => {
           data-testid="tts-engine-reset"
           onClick={() => void reset()}
         >
-          {t('ui.voice-mascot.reset-to-built-in-default-e7e147')}
+          {t('ui.voice-mascot.reset-to-built-in-default-action')}
         </Button>
       </div>
     </SettingsGroup>

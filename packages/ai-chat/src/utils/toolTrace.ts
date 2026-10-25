@@ -327,7 +327,7 @@ export function describeCall(call: ToolCall): CallDescription {
     case 'search':
       return {
         kind,
-        verb: t('ui.knowledge-local.search-f04090'),
+        verb: t('ui.knowledge-local.search-action'),
         target: pattern ? trimTarget(pattern, 80) : path ? shortPath(path) : undefined,
       };
     case 'list':

@@ -498,7 +498,7 @@ const ModelChip: React.FC<{
           label={
             provider
               ? t('ui.foundation.model')
-              : t('ui.chat-settings.model-and-reasoning-effort-70cfa8')
+              : t('ui.chat-settings.model-and-reasoning-effort-label')
           }
           testId="model-menu"
           width={300}

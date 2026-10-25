@@ -147,7 +147,7 @@ export const PluginPanel: React.FC<Props> = ({
     <Modal
       open={isVisible}
       onClose={onClose}
-      title={tr('ui.slash-commands.plugins-commands-8bea2a', ENDPOINT_FULL[backend]())}
+      title={tr('ui.slash-commands.plugins-commands-detail', ENDPOINT_FULL[backend]())}
       size="lg"
       data-testid="plugin-panel"
     >

@@ -72,7 +72,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
       title={
         <span className={styles.row}>
           {e.pinned && (
-            <span title={tr('ui.knowledge-local.pinned-d7d970')}>
+            <span title={tr('ui.knowledge-local.pinned-state')}>
               <Icon icon={Pin} size={14} />
             </span>
           )}
@@ -97,7 +97,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
                 : tr('ui.knowledge-local.pin-prioritized-when-recalling')
             }
           >
-            {e.pinned ? tr('ui.knowledge-local.unpin') : tr('ui.knowledge-local.pin-7bcf18')}
+            {e.pinned ? tr('ui.knowledge-local.unpin') : tr('ui.knowledge-local.pin-action')}
           </Button>
           <Button
             size="sm"
@@ -120,7 +120,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
               autoFocus
               data-testid="mem-delete-confirm"
             >
-              {tr('ui.knowledge-local.delete-3c06ab')}
+              {tr('ui.knowledge-local.delete-confirm')}
             </Button>
           ) : (
             <Button
@@ -376,7 +376,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setMsg(errText(e));
       return null;
     });
-    if (r?.ok) setMsg(tr('ui.knowledge-local.exported-to-8799d2', r.path));
+    if (r?.ok) setMsg(tr('ui.knowledge-local.exported-to-path', r.path));
   };
 
   const closeGuard = () => {
@@ -826,7 +826,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   {tr('ui.knowledge-local.open-memory')}{' '}
                   <span className={styles.kbd}>Alt + 1~4</span>{' '}
                   {tr('ui.knowledge-local.switch-tabs')} <span className={styles.kbd}>/</span>{' '}
-                  {tr('ui.knowledge-local.search-f04090')}
+                  {tr('ui.knowledge-local.search-action')}
                 </p>
               </div>
             )}

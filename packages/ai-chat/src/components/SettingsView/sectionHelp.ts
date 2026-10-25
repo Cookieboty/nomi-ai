@@ -85,7 +85,7 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
     },
     {
       icon: ClipboardList,
-      title: 'ui.model-quality.requests-09efcb',
+      title: 'ui.model-quality.request-details',
       desc: 'ui.model-quality.per-request-timeline-outcome-and-fallbacks-the-former',
     },
     {
@@ -189,12 +189,12 @@ export const SECTION_HELP: Record<Exclude<SettingsSection, 'general'>, HelpItem[
   ext: [
     {
       icon: Plug,
-      title: 'ui.foundation.mcp-servers-ad57a8',
+      title: 'ui.foundation.mcp-servers-label',
       desc: 'ui.chat-settings.connect-tool-servers-via-local-commands-or-remote',
     },
     {
       icon: Layers,
-      title: 'ui.foundation.skills-53da13',
+      title: 'ui.foundation.skills-label',
       desc: 'ui.chat-settings.manage-skill-packs-the-assistant-can-use',
     },
   ],

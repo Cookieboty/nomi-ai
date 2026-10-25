@@ -20,7 +20,7 @@ export interface ThemeInfo {
 export const THEMES: ThemeInfo[] = [
   {
     id: 'sunset',
-    name: 'ui.mascot-theme.sunset-orange-default-97e5ca',
+    name: 'ui.mascot-theme.sunset-orange-brand',
     desc: 'ui.mascot-theme.warm-cream-with-sunset-orange-the-signature-theme',
     swatch: ['#fff8f1', '#ffffff', '#3f332d', '#c45425'],
   },

@@ -147,7 +147,7 @@ export const ConversationMenu: React.FC<ConversationMenuProps> = ({
           onClick={act(onClose)}
           data-testid="conversation-close"
         >
-          {t('ui.mascot-theme.close-tab-118f00')}
+          {t('ui.mascot-theme.close-tab-action')}
           <span className={styles.key}>{formatCombo(bindings.closeTab)}</span>
         </button>
       )}

@@ -466,7 +466,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             onChange={(v) => void schedClient.toggleTask(t.id, v)}
                             label={
                               t.enabled
-                                ? tr('ui.foundation.enable-d4e9ca')
+                                ? tr('ui.foundation.enable-label')
                                 : tr('ui.knowledge-local.disable')
                             }
                           />
@@ -637,7 +637,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <TimeRange
                       start={st.settings.quiet.start}
                       end={st.settings.quiet.end}
-                      sep={tr('ui.providers-schedule.to-792bbe')}
+                      sep={tr('ui.providers-schedule.range-to')}
                       disabled={!st.settings.quiet.enabled}
                       onStart={(v) => set({ quiet: { start: v } })}
                       onEnd={(v) => set({ quiet: { end: v } })}

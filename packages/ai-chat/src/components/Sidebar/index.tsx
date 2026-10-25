@@ -567,7 +567,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // 「按端」时新建跟随当前筛选的端，提示里写明
   const newLabel =
     isDev && view === 'by-endpoint'
-      ? t('ui.cli-monitor.new-conversation-f26586', ENDPOINT_FULL[endpointFilter]())
+      ? t('ui.cli-monitor.new-named-conversation', ENDPOINT_FULL[endpointFilter]())
       : t('ui.chat-settings.new-chat');
   const newTip = [newLabel, formatCombo(bindings.newChat)].join(' ');
   const searchTip = [
@@ -722,7 +722,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 type="text"
                 role="searchbox"
                 value={query}
-                placeholder={t('ui.cli-monitor.search-conversations-6ede66')}
+                placeholder={t('ui.cli-monitor.search-conversations-ellipsis')}
                 aria-label={t('ui.cli-monitor.search-conversations')}
                 aria-controls="sidebar-search-results"
                 aria-activedescendant={
@@ -806,7 +806,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 aria-live="polite"
                 data-testid="sidebar-search-count"
               >
-                {t('ui.cli-monitor.search-results-8f14e4', results.length)}
+                {t('ui.cli-monitor.search-results-count', results.length)}
                 {searchIndex.loading ? ['', t('ui.cli-monitor.indexing-history')].join(' · ') : ''}
               </div>
               {shown.map(({ item, ranges }, i) => {

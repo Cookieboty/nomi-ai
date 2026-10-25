@@ -253,7 +253,7 @@ export const PermissionModeChip: React.FC<{
             className={styles.menu}
             style={pos}
             role="menu"
-            aria-label={t('ui.chat-settings.permission-mode-e1f592')}
+            aria-label={t('ui.chat-settings.permission-mode-label')}
             data-testid="permission-mode-menu"
           >
             {PERMISSION_MODES.filter((m) => supported.includes(m)).map((m) => (

@@ -156,7 +156,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
                   />
                 </label>
                 <label className={styles.popField}>
-                  <span>{t('ui.model-quality.end-76b988')}</span>
+                  <span>{t('ui.model-quality.end-label')}</span>
                   <Input
                     size="sm"
                     type="date"

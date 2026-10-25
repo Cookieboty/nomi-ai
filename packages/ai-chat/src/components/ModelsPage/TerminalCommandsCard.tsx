@@ -140,7 +140,7 @@ export const TerminalCommandsCard: React.FC = () => {
                 void apply({ enabled: true, addToPath: true });
               }}
             >
-              {t('ui.models.add-to-path-4cc95c')}
+              {t('ui.models.add-to-path-action')}
             </Button>
           </>
         }

@@ -137,7 +137,7 @@ const KPIS: Array<{
   },
   {
     id: 'tps',
-    label: 'ui.model-quality.output-speed-p50-e11b92',
+    label: 'ui.model-quality.output-speed-p50-caps',
     value: (s) => s.outputTps.p50 ?? null,
     format: formatTps,
     higherIsBetter: true,
@@ -153,7 +153,7 @@ const KPIS: Array<{
   },
   {
     id: 'break',
-    label: 'ui.model-quality.stream-break-rate-a32a24',
+    label: 'ui.model-quality.stream-interrupt-rate',
     value: (s) => s.streamBreakRate ?? null,
     format: formatPct,
     higherIsBetter: false,
@@ -274,7 +274,7 @@ const NameCell: React.FC<{
             className={styles.copyBtn}
             aria-label={t('ui.model-quality.copy-model-name', s.key)}
             title={
-              copied ? t('ui.usage-tools.copied') : t('ui.model-quality.copy-model-name-3cc922')
+              copied ? t('ui.usage-tools.copied') : t('ui.model-quality.copy-model-name-action')
             }
             onClick={() => {
               void navigator.clipboard
@@ -336,7 +336,7 @@ const COMPARE_METRICS: Array<{
     higherIsBetter: true,
   },
   {
-    label: 'ui.model-quality.stream-break-rate-a32a24',
+    label: 'ui.model-quality.stream-interrupt-rate',
     value: (s) => s.streamBreakRate ?? null,
     format: formatPct,
     higherIsBetter: false,
@@ -366,7 +366,7 @@ const COMPARE_METRICS: Array<{
     higherIsBetter: false,
   },
   {
-    label: 'ui.model-quality.output-speed-p50-e11b92',
+    label: 'ui.model-quality.output-speed-p50-caps',
     value: (s) => s.outputTps.p50 ?? null,
     format: formatTps,
     higherIsBetter: true,

@@ -46,7 +46,7 @@ export function claudeAdapter(input: AdapterInput): SlashCommand[] {
       'code-review',
       t('ui.slash-commands.code-review'),
       t('ui.slash-commands.claude-code-s-official-code-review-sent-as'),
-      t('ui.slash-commands.focus-0da78a'),
+      t('ui.slash-commands.focus-point'),
       ['review'],
     ),
     pass(

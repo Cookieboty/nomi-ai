@@ -8,7 +8,7 @@ const LABELS: Record<string, () => string> = {
   upstream_channel_error: () =>
     t('ui.chat-settings.the-upstream-channel-request-failed-try-again-later'),
   upstream_error: () => t('ui.chat-settings.the-upstream-service-returned-an-error-try-again'),
-  server_error: () => t('ui.chat-settings.the-upstream-service-returned-an-error-try-again-d7649e'),
+  server_error: () => t('ui.chat-settings.upstream-error-retry-later'),
   rate_limit_exceeded: () => t('ui.chat-settings.too-many-requests-the-upstream-is-rate-limiting'),
   insufficient_quota: () => t('ui.chat-settings.the-upstream-account-is-out-of-quota-check'),
   invalid_api_key: () => t('ui.chat-settings.the-api-key-is-invalid-check-it-in'),

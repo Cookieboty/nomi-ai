@@ -39,7 +39,7 @@ export const ComposerChangesPill: React.FC<{
       >
         <FileDiff size={12} aria-hidden />
         <span>
-          {t('ui.session-workspace.files-changed-eeeeea', summary.files)}{' '}
+          {t('ui.session-workspace.files-changed-count', summary.files)}{' '}
           <span className={styles.add}>+{summary.added}</span>{' '}
           <span className={styles.del}>−{summary.removed}</span>
         </span>

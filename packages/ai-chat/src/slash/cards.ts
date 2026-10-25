@@ -205,7 +205,7 @@ export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
           label: t('ui.foundation.model'),
           value:
             ctx.backend === 'nomi'
-              ? t('ui.providers-schedule.not-configured-63595e')
+              ? t('ui.providers-schedule.not-configured-plain')
               : t('ui.slash-commands.chosen-by-the-cli-itself'),
           tone: 'muted',
         },
@@ -214,7 +214,7 @@ export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
     ctx.backend === 'nomi'
       ? {
           label: t('ui.providers-schedule.provider'),
-          value: m.provider ?? t('ui.providers-schedule.not-configured-63595e'),
+          value: m.provider ?? t('ui.providers-schedule.not-configured-plain'),
           ...(m.provider ? {} : { tone: 'muted' as const }),
         }
       : cliSourceLine(ctx, data),
@@ -239,7 +239,7 @@ export function statusCard(ctx: SlashContext, data: SlashData): SlashCardInput {
       value: data.cli?.version ?? t('ui.slash-commands.not-detected'),
       ...(data.cli?.version ? {} : { tone: 'warn' as const }),
     });
-  if (ctx.cwd) rows.push({ label: t('ui.cli-monitor.workspace-42dfc8'), value: ctx.cwd });
+  if (ctx.cwd) rows.push({ label: t('ui.cli-monitor.workspace-label'), value: ctx.cwd });
   if (ctx.session)
     rows.push({
       label: t('ui.slash-commands.session'),
@@ -299,7 +299,7 @@ function thirdPartyChoices(ctx: SlashContext, data: SlashData, source: TabSource
   const cur =
     source === 'thirdParty' ? thirdPartyRefOf(data.cliTab, ctx.backend, data.nomiGateway) : null;
   return codingModelChoices(data.nomiGateway).map((c) => ({
-    label: t('ui.models.third-party-94671d', c.label),
+    label: t('ui.models.third-party-dot', c.label),
     provider: c.provider,
     model: c.ref,
     active: c.ref === cur,
@@ -426,7 +426,7 @@ async function tabModelCard(
       catalog.error
         ? t('ui.chat-settings.couldn-t-read-the-model-list-from', source, catalog.error)
         : '',
-      t('ui.slash-commands.only-affects-this-tab-starting-with-the-next-4110d7'),
+      t('ui.slash-commands.only-affects-this-tab-same-as-model-button'),
     ]
       .filter(Boolean)
       .join(' '),

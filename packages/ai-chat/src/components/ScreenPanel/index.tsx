@@ -266,7 +266,7 @@ export const ScreenPanel: React.FC<{
                 description={
                   st.chat
                     ? `${providerDisplayName(st.chat.name)}${model ? ` · ${model}` : ''}`
-                    : tr('ui.providers-schedule.not-configured-63595e')
+                    : tr('ui.providers-schedule.not-configured-plain')
                 }
               >
                 {st.chat && (

@@ -396,7 +396,7 @@ export class KnowledgeService {
   private allowRemote(ep: { local: boolean; name: string }, providerId: string): string | null {
     if (ep.local) return null;
     if (this.d.desktop.broker.localOnly)
-      return tr('electron.common.only-local-models-can-read-files-is-on-7f3818', ep.name);
+      return tr('electron.common.only-local-models-wont-send-to', ep.name);
     if (!this.settings.cloudConsent.includes(providerId))
       return tr('electron.common.you-haven-t-agreed-to-send-file-chunks', ep.name);
     return null;
@@ -821,10 +821,7 @@ export class KnowledgeService {
       };
     const send = await this.d.desktop.broker.checkSend(this.d.chatProvider());
     if (send === 'local_only')
-      throw new KbError(
-        'local_only',
-        tr('electron.common.only-local-models-can-read-files-is-on-7169d3'),
-      );
+      throw new KbError('local_only', tr('electron.common.only-local-models-cloud-chat-no-kb'));
     if (send === 'user_denied')
       throw new KbError(
         'user_denied',
@@ -959,7 +956,7 @@ export class KnowledgeService {
               ok: false,
               error: {
                 code: 'local_only',
-                message: tr('electron.common.only-local-models-can-read-files-is-on-9726b3'),
+                message: tr('electron.common.only-local-models-cloud-service'),
               },
             };
           if (send === 'user_denied')

@@ -103,7 +103,7 @@ export const WorkspacePicker: React.FC<{
         aria-label={t('ui.cli-monitor.workspace', value || t('ui.cli-monitor.not-set'))}
         title={
           value
-            ? [t('ui.cli-monitor.workspace-42dfc8'), value].join('\n')
+            ? [t('ui.cli-monitor.workspace-label'), value].join('\n')
             : t('ui.cli-monitor.choose-workspace')
         }
         data-testid={`${testId}-button`}
@@ -152,7 +152,7 @@ export const WorkspacePicker: React.FC<{
               <span className={styles.check}>
                 <Icon icon={FolderOpen} size={14} />
               </span>
-              {t('ui.cli-monitor.choose-folder-d4c78b')}
+              {t('ui.cli-monitor.choose-folder-ellipsis')}
             </button>
           </div>,
           document.body,

@@ -318,7 +318,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               onClick={() => startLogin(a.id)}
             >
               {a.needsLogin
-                ? t('ui.providers-schedule.sign-in-again-3f9d01')
+                ? t('ui.providers-schedule.sign-in-again-action')
                 : t('ui.providers-schedule.sign-in')}
             </Button>
           )}
@@ -329,17 +329,15 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               data-testid="cli-account-terminal"
               title={a.terminalCommand}
               onClick={() =>
-                void navigator.clipboard
-                  ?.writeText(a.terminalCommand!)
-                  .then(() =>
-                    setMsg({
-                      tone: 'success',
-                      text: t(
-                        'ui.providers-schedule.copied-the-terminal-command',
-                        a.terminalCommand!,
-                      ),
-                    }),
-                  )
+                void navigator.clipboard?.writeText(a.terminalCommand!).then(() =>
+                  setMsg({
+                    tone: 'success',
+                    text: t(
+                      'ui.providers-schedule.copied-the-terminal-command',
+                      a.terminalCommand!,
+                    ),
+                  }),
+                )
               }
             >
               <Icon icon={Copy} size={13} />

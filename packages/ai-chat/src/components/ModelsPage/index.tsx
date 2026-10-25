@@ -400,7 +400,7 @@ const CliRow: React.FC<{
 }) => {
   const m = client?.models ?? {};
   const name = ENDPOINT_NAME[kind];
-  const accounts = useCliAccounts(kind);
+  const { accounts, error: accountsError } = useCliAccounts(kind);
   if (missing)
     return (
       <div className={`${styles.cliRow} ${styles.cliMissing}`} data-testid={`cli-row-${kind}`}>
@@ -420,7 +420,7 @@ const CliRow: React.FC<{
               : undefined
           }
           onClick={onInstall}
-          aria-label={t('ui.cli-monitor.install-710b3a', name)}
+          aria-label={t('ui.cli-monitor.install-named', name)}
           data-testid={`cli-install-${kind}`}
         >
           <Icon icon={Download} size={14} />
@@ -497,11 +497,22 @@ const CliRow: React.FC<{
           options={sourceOptions}
           value={sourceValue}
           onChange={(e) => pickSource(e.target.value)}
-          aria-label={t('ui.models.new-tabs-use-69b7f3', name)}
+          aria-label={t('ui.models.new-tabs-use-named', name)}
           data-testid={`cli-source-${kind}`}
           menuMinWidth={240}
+          title={accountsError ? t('ui.models.failed-to-load-accounts', accountsError) : undefined}
         />
       </div>
+      {accountsError ? (
+        <div
+          className={`${styles.cliRow} ${styles.tierRow}`}
+          data-testid={`cli-accounts-error-${kind}`}
+        >
+          <span className={styles.muted}>
+            {t('ui.models.failed-to-load-accounts', accountsError)}
+          </span>
+        </div>
+      ) : null}
       {open && (
         <>
           {claude &&

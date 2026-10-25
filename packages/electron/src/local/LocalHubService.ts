@@ -414,7 +414,7 @@ export class LocalHubService {
     } catch (e) {
       s.lastError = (e as Error).message.replace(
         /fetch failed/,
-        'electron.common.can-t-reach-the-server-e6de45',
+        'electron.common.server-unreachable',
       );
       s.lastSync = Date.now();
       this.saveCal();

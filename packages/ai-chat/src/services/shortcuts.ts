@@ -51,7 +51,7 @@ export const SHORTCUT_DEFS: ShortcutDef[] = [
   { id: 'local', label: 'ui.chat-settings.local-tools', combo: 'Mod+Shift+J' },
   { id: 'screen', label: 'ui.chat-settings.screen-memory', combo: 'Mod+Shift+O' },
   { id: 'newTab', label: 'ui.mascot-theme.new-coding-agent-tab', combo: 'Mod+T' },
-  { id: 'closeTab', label: 'ui.mascot-theme.close-tab-118f00', combo: 'Mod+Shift+W' },
+  { id: 'closeTab', label: 'ui.mascot-theme.close-tab-action', combo: 'Mod+Shift+W' },
   { id: 'nextTab', label: 'ui.mascot-theme.next-tab', combo: 'Ctrl+Tab' },
   { id: 'prevTab', label: 'ui.cli-monitor.previous-tab', combo: 'Ctrl+Shift+Tab' },
   { id: 'renameTab', label: 'ui.cli-monitor.rename-tab', combo: 'Mod+Shift+R' },

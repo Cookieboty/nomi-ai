@@ -244,7 +244,7 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
               )}
               {r.resolved && (
                 <>
-                  <dt>{t('ui.model-quality.model-resolution-6a4282')}</dt>
+                  <dt>{t('ui.model-quality.how-model-was-chosen')}</dt>
                   <dd data-testid="quality-request-resolved">{resolvedLabel(r.resolved)}</dd>
                 </>
               )}
@@ -435,7 +435,7 @@ export const RequestDetails: React.FC<{
           <>
             {s.err && <p className={styles.err}>{s.err}</p>}
             <div className={styles.scroll}>
-              <table className={styles.logTable} aria-label={t('ui.model-quality.requests-09efcb')}>
+              <table className={styles.logTable} aria-label={t('ui.model-quality.request-details')}>
                 <thead>
                   <tr>
                     <th scope="col">{t('ui.foundation.time')}</th>
