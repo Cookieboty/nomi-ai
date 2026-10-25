@@ -79,6 +79,7 @@ export async function forkSameBackend(
       backend: meta.backend,
       createdAt: tab.createdAt,
       updatedAt: tab.updatedAt,
+      cliSessionId: tab.cliSessionId ?? undefined,
     });
     store.switchTo(created.id);
     notifyConversationsChanged();
@@ -143,6 +144,7 @@ export async function forkCrossBackend(
       backend: target,
       createdAt: tab.createdAt,
       updatedAt: tab.updatedAt,
+      cliSessionId: tab.cliSessionId ?? undefined,
     });
     store.switchTo(created.id);
     notifyConversationsChanged();

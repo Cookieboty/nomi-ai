@@ -48,6 +48,13 @@ describe('输入框工具栏结构', () => {
     expect(left?.contains(getByTestId('plugin-panel-open'))).toBe(true);
     expect(left?.contains(getByTestId('send-button'))).toBe(false);
   });
+
+  it('没有会话消息时不显示上下文用量环', () => {
+    const { queryByTestId } = render(
+      <MessageInput onSend={vi.fn()} contextMessages={[]} contextModel="codex" />,
+    );
+    expect(queryByTestId('context-usage-bar')).toBeNull();
+  });
 });
 
 describe('输入框工具栏 CSS 契约', () => {

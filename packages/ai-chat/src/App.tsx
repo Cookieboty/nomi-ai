@@ -716,7 +716,7 @@ const AiChatContent: React.FC = () => {
   }, [openSettings]);
 
   const handleNewChat = () => {
-    actions.newConversation();
+    return actions.newConversation();
   };
 
   const paletteCommands = useMemo<PaletteCommand[]>(
@@ -914,6 +914,10 @@ const AiChatContent: React.FC = () => {
                 </button>
               )}
             </ChatHeader>
+            {/* 待带入的新会话前文属于当前对话状态，放在对话区顶部，避免和输入工具混在一起。 */}
+            <div className="session-bar chat-session-bar">
+              <SessionControls />
+            </div>
             {/* 对话区域 */}
             <main className="chat-container">
               {isDev && tabs.isCliTab ? (
@@ -1029,10 +1033,6 @@ const AiChatContent: React.FC = () => {
                 onExtClick={openExt}
                 onLocalClick={openLocal}
               />
-              {/* 输入框下方：工作目录与供应商 / 账号（不再浮在消息上方压住正文） */}
-              <div className="session-bar">
-                <SessionControls />
-              </div>
             </footer>
           </div>
 

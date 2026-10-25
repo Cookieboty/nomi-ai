@@ -274,7 +274,7 @@ export class SdkIPCClient implements IPCClient {
 
   async updateConversation(
     id: string,
-    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'updatedAt'>>,
+    patch: Partial<Pick<ChatSession, 'name' | 'backend' | 'tabId' | 'cliSessionId' | 'updatedAt'>>,
   ) {
     return this.store.updateMeta(id, patch);
   }

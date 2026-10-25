@@ -460,7 +460,7 @@
   "ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks": "When off, Nomi won’t hand off subtasks and /agent is unavailable.",
   "ui.chat-settings.which-model-override-to-use-when-handing-off": "Which model override to use when handing off. default keeps the CLI’s model; cheap can use the cheap model below; tools may also pass profile / model.",
   "ui.chat-settings.window-aiipc-is-unavailable": "window.aiIPC is unavailable",
-  "ui.chat-settings.with-context": "With context · {0}",
+  "ui.chat-settings.with-context": "Pending context · {0}",
   "ui.chat-settings.working-on-it": "Working on it…",
   "ui.chat-settings.write": "Write",
   "ui.chat-settings.write-clipboard": "Write clipboard",

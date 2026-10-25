@@ -42,6 +42,8 @@ vi.mock('../src/contexts/AiChatContext', () => {
         upsertFromTab: () => undefined,
         list: () => [],
         removeByTabId: () => undefined,
+        ensureCurrent: () => currentId,
+        get: (id: string) => list.find((x) => x.id === id),
       };
       api = {
         state: {
@@ -177,6 +179,47 @@ describe('one conversation context menu', () => {
     await waitFor(() => expect(loadChatHistory).toHaveBeenCalled());
     expect(clearChatHistory).not.toHaveBeenCalled();
     expect(onNewChat).not.toHaveBeenCalled();
+  });
+
+  it('新建 Nomi 会话等待创建完成，不会把当前 CLI 条目改写成 Nomi', async () => {
+    mockIpc();
+    currentId = 'a';
+    let release!: () => void;
+    const creating = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const onNewChat = vi.fn(async () => {
+      await creating;
+      list.push({
+        id: 'n2',
+        name: '新对话',
+        backend: 'nomi',
+        createdAt: 1,
+        updatedAt: Date.now(),
+      });
+      currentId = 'n2';
+    });
+    const r = render(
+      <HarnessTabsProvider>
+        <Sidebar collapsed={false} onToggle={() => undefined} onNewChat={onNewChat} />
+      </HarnessTabsProvider>,
+    );
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(2));
+
+    fireEvent.click(r.getByTestId('new-chat'));
+    fireEvent.click(r.getByTestId('new-chat-nomi'));
+    await waitFor(() => expect(onNewChat).toHaveBeenCalledTimes(1));
+    expect(updateMeta).not.toHaveBeenCalled();
+
+    release();
+    await waitFor(() => expect(r.getAllByTestId('history-item')).toHaveLength(3));
+    expect(updateMeta).not.toHaveBeenCalled();
+    expect(
+      r.getByTestId('conversation-list').querySelector('[data-conversation-id="a"]'),
+    ).toBeTruthy();
+    expect(
+      r.getByTestId('conversation-list').querySelector('[data-conversation-id="n2"]'),
+    ).toBeTruthy();
   });
 
   it('deleting the last Nomi conversation clears the pane without creating a new one', async () => {

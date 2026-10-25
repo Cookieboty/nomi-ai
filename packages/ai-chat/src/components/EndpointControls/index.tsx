@@ -4,7 +4,7 @@
  * - `EndpointControls`（输入栏左侧）：模型（编程助手还有权限模式），只留发消息时要用的。
  *   端点在新建对话时选定，之后不在输入栏切换。
  * - `WorkspaceControl`（对话顶栏右侧，挨着「改动 · 文件」开关）：工作目录与换目录确认。
- * - `SessionControls`（输入框左下角）：「带上前文」标记。
+ * - `SessionControls`（对话区顶部）：「带上前文」标记。
  *   编程助手的供应商在侧栏底部信息卡的「新标签默认」（CliDefaultSource）里设，模型在模型按钮里换。
  */
 import { Button, Icon, Modal, t } from '@nomi-ai/ui';
@@ -214,7 +214,7 @@ export const WorkspaceControl: React.FC = () => {
 };
 
 /**
- * 输入框左下角：「带上前文」标记（换目录 / 换来源后才有）。
+ * 对话区顶部：「带上前文」标记（换目录 / 换来源后才有）。
  * 编程助手的供应商在侧栏底部信息卡的「新标签默认」里设，已有会话用 `/model` 单独换。
  */
 export const SessionControls: React.FC = () => {

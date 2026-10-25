@@ -153,6 +153,8 @@ export interface SessionHistoryDeps {
   logger?: { warn(m: string, d?: unknown): void };
   /** 已在标签里打开的会话：`${backend}:${sessionId}` */
   openKeys?: () => Set<string>;
+  /** 历史扫描发现已打开会话的新标题时，更新对应 CLI 标签（默认标题才会被替换）。 */
+  openTitle?: (backend: HistoryBackend, sessionId: string, title: string) => void;
   /** 新建 / 复用标签（由 CliHarnessService 提供） */
   openTab?: (o: {
     backend: HistoryBackend;
@@ -551,7 +553,11 @@ export class SessionHistoryService {
         const m = metas[k];
         const f = batch[k]!;
         scan++;
-        if (!m || open.has(m.key)) continue;
+        if (!m) continue;
+        if (open.has(m.key)) {
+          this.d.openTitle?.(backend, m.sessionId, m.title);
+          continue;
+        }
         // 同一会话的旧文件不再单列（只有「最新的那个文件」才是这条会话）
         if (this.byKey.get(m.key)?.path !== f.path) continue;
         const { accountId, ...rest } = m;

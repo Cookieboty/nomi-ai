@@ -733,7 +733,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
       {viewing && images.some((x) => x.id === viewing.id) && (
         <ImageLightbox image={viewing} onClose={closeViewer} />
       )}
-      {contextMessages ? <ComposerChangesPill messages={contextMessages} /> : null}
+      {contextMessages?.length ? <ComposerChangesPill messages={contextMessages} /> : null}
       <div
         className={`${styles.inputWrapper} ${dragOver ? styles.dragOver : ''}`}
         onDragOver={(e) => {
@@ -920,7 +920,7 @@ const MessageInputImpl: React.FC<MessageInputProps> = ({
           </div>
           <div className={styles.composerRight} data-zone="right">
             <VoiceButtons cv={cv} disabled={disabled} />
-            {contextMessages ? (
+            {contextMessages?.length ? (
               <ContextUsageBar messages={contextMessages} model={contextModel} />
             ) : null}
             {canStop ? (

@@ -261,6 +261,12 @@ const BACKEND_TITLE: Record<HarnessBackend, string> = {
   external: 'CLI',
 };
 
+function isGeneratedTabTitle(title: string, backend: BuiltinBackend): boolean {
+  const base = BACKEND_TITLE[backend];
+  if (title === base) return true;
+  return title.startsWith(`${base} `) && /^\d+$/.test(title.slice(base.length + 1));
+}
+
 /** 模型目录缓存时长：CLI 升级 / 官方目录更新后最迟这么久会重新读到 */
 const MODEL_CATALOG_TTL_MS = 10 * 60_000;
 
@@ -640,6 +646,19 @@ export class HarnessOrchestrator {
     else delete tab.carriedMessages;
   }
 
+  /**
+   * 工作目录切换后，当前标签代表的是一个新的 CLI 会话。
+   * 前一会话的消息可以写入 carry 文件供下一轮使用，但不能继续作为新会话的可见转录，
+   * 否则「开新会话」和「带上前文」在界面上都会看起来仍然停留在旧会话里。
+   */
+  private clearTabMessages(id: string): void {
+    if (id === MAIN_TAB_ID) return;
+    const list = this.tabMessages(id);
+    if (!list.length) return;
+    list.length = 0;
+    this.persistMessages(id);
+  }
+
   tabMessages(id: string): HarnessTabMessage[] {
     this.requireTab(id);
     if (id === MAIN_TAB_ID) return [];
@@ -930,6 +949,19 @@ export class HarnessOrchestrator {
     return out;
   }
 
+  /** 历史扫描能读到 CLI 自己生成的新标题时，替换标签的自动编号标题。 */
+  syncOpenSessionTitle(backend: BuiltinBackend, sessionId: string, title: string): void {
+    const tab = [...this.tabs.values()].find(
+      (x) => x.backend === backend && x.cliSessionId === sessionId,
+    );
+    const next = String(title ?? '')
+      .trim()
+      .slice(0, 60);
+    if (!tab || !next || tab.title === next || !isGeneratedTabTitle(tab.title, backend)) return;
+    tab.title = next;
+    this.changed();
+  }
+
   /** 打开历史会话：已有同会话标签则切过去，否则新建并预填转录 */
   openHistorySession(o: {
     backend: CliBackend;
@@ -1170,7 +1202,7 @@ export class HarnessOrchestrator {
   /**
    * 换工作目录。CLI 续接与 cwd 绑定：换目录即开新会话，并拆掉长驻进程。
    * carry=true：把当前可见对话整理成前文，下一条消息连同它一起发给新会话；
-   * 否则清掉之前留下的前文，干净地开新会话。正在跑的轮次不受影响（在原目录跑完）。
+   * 否则清掉之前留下的前文，干净地开新会话；可见转录也会重置。正在跑的轮次仍在原目录收尾。
    */
   setTabCwd(id: string, cwd: string, opts: { carry?: boolean } = {}): HarnessTabMeta {
     const tab = this.requireTab(id);
@@ -1185,6 +1217,7 @@ export class HarnessOrchestrator {
       }
       tab.cliSessionId = null;
       this.setCarried(tab, opts.carry ? this.tabMessages(id) : null, tab.cwd);
+      this.clearTabMessages(id);
     }
     tab.cwd = abs;
     if (tab.backend !== 'nomi') this.rememberCwd(abs);

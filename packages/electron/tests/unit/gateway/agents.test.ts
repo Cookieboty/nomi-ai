@@ -74,6 +74,33 @@ describe('agent launches (§12, §12.7.1)', () => {
     });
   });
 
+  it('Claude: isolates user settings routing while sharing non-credential history entries', () => {
+    const home = tmp('claude-user-home-');
+    const userDir = path.join(home, '.claude');
+    fs.mkdirSync(userDir, { recursive: true });
+    const settings = JSON.stringify({
+      theme: 'dark',
+      env: {
+        ANTHROPIC_BASE_URL: 'https://seed-code.example',
+        ANTHROPIC_AUTH_TOKEN: 'user-token-must-not-be-used',
+      },
+    });
+    fs.writeFileSync(path.join(userDir, 'settings.json'), settings);
+    const dir = path.join(tmp('claude-agent-'), 'tab-1');
+
+    const l = agentLaunch('claude', base({ home, dir }));
+
+    expect(l.env).toMatchObject({
+      CLAUDE_CONFIG_DIR: dir,
+      ANTHROPIC_BASE_URL: 'http://127.0.0.1:18721',
+      ANTHROPIC_AUTH_TOKEN: 'nomi-gw-x-token',
+      CLAUDE_CODE_DISABLE_AGENT_VIEW: '1',
+    });
+    expect(fs.readFileSync(path.join(userDir, 'settings.json'), 'utf8')).toBe(settings);
+    expect(fs.existsSync(path.join(dir, 'settings.json'))).toBe(true);
+    expect(fs.lstatSync(path.join(dir, 'projects')).isSymbolicLink()).toBe(true);
+  });
+
   it('Codex: -c provider pointing at the gateway, real context window, catalog from the user cache as template', () => {
     const home = tmp('codex-home-');
     fs.mkdirSync(path.join(home, '.codex'));

@@ -56,7 +56,7 @@ import type { Meta } from './types';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  onNewChat: () => void;
+  onNewChat: () => void | Promise<void>;
   onForkRequest?: (id: string, mode: 'same' | 'cross') => void;
   /** 打开历史会话失败 / 有提示时 */
   onNotice?: (message: string) => void;
@@ -163,10 +163,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [tabs.state]);
 
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
-  const navList = useMemo(
-    () => (isNormal ? list.filter((x) => x.backend === 'nomi') : list),
-    [list, isNormal],
-  );
+  const navList = useMemo(() => {
+    const source = isNormal ? list.filter((x) => x.backend === 'nomi') : list;
+    // 标签状态是 CLI 标题的即时来源。同步落盘在 useCliTabSync 的 effect 中完成，
+    // 这里先直接使用最新标签标题，避免侧栏短暂继续显示 Grok 1 / Codex 2。
+    return source.map((c) => {
+      const title = c.tabId ? tabById.get(c.tabId)?.title : undefined;
+      return title && title !== c.name ? { ...c, name: title } : c;
+    });
+  }, [list, isNormal, tabById]);
 
   const counts = useMemo(() => {
     const c: Record<ConversationBackend, number> = {
@@ -239,13 +244,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (backend === 'nomi') {
       if (tabs.available) await tabs.activate(MAIN_TAB_ID);
       if (harnessClient.available()) await harnessClient.setBackend('nomi').catch(() => undefined);
-      onNewChat();
-      const store = ipc.conversationStore?.();
-      if (store) {
-        const id = store.ensureCurrent();
-        const m = store.get(id);
-        if (m && m.backend !== 'nomi') store.updateMeta(id, { backend: 'nomi' });
-      }
+      // 新建是异步操作。必须等它创建并切换到新的 Nomi 会话后再刷新侧栏，
+      // 否则 ensureCurrent() 可能读到旧的 CLI 镜像项并把它改写成 Nomi。
+      await onNewChat();
       refresh();
       return;
     }
@@ -339,6 +340,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const histBackends = useMemo(() => HISTORY_BACKENDS.filter((b) => Boolean(bins[b])), [bins]);
   const tabsKey = (tabs.state?.tabs ?? []).map((x) => `${x.id}:${x.cliSessionId ?? ''}`).join('|');
   const history = useCliHistory(isDev, histBackends, tabsKey);
+  // 镜像条目与本机历史使用同一个稳定键：CLI 后端 + 原生会话 id。
+  // 主进程会尽量提前排除已打开的会话，但这里还要防住历史扫描与标签同步的竞态，
+  // 也要覆盖搜索索引返回得比侧栏列表更早的情况。
+  const openSessionKeys = useMemo(() => {
+    const keys = new Set(
+      list.filter((c) => c.tabId && c.cliSessionId).map((c) => `${c.backend}:${c.cliSessionId}`),
+    );
+    // 标签状态先于 ConversationStore 镜像到达时，也要立即隐藏本机历史。
+    for (const tab of tabs.state?.tabs ?? []) {
+      if (tab.id !== MAIN_TAB_ID && tab.cliSessionId)
+        keys.add(`${tab.backend}:${tab.cliSessionId}`);
+    }
+    return keys;
+  }, [list, tabs.state]);
+  const historyItems = useCallback(
+    (backend?: HistoryBackend) => history.items(backend).filter((h) => !openSessionKeys.has(h.key)),
+    [history, openSessionKeys],
+  );
   const histScope: HistoryBackend | undefined =
     view === 'by-endpoint' && endpointFilter !== 'nomi'
       ? (endpointFilter as HistoryBackend)
@@ -349,15 +368,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const histItems: HistorySession[] =
     !histScopeSupported || (view === 'by-endpoint' && endpointFilter === 'nomi')
       ? []
-      : history.items(histScope);
+      : historyItems(histScope);
   const [openingKey, setOpeningKey] = useState<string | null>(null);
 
   // 侧栏「按端」：对话数（CLI 标签已镜像进对话列表）+ 磁盘历史；都为 0 且没有显式设置的端点不显示
   const endpointActivity = useMemo(() => {
     const a: Partial<Record<ConversationBackend, number>> = { ...counts };
-    for (const b of histBackends) a[b] = (a[b] ?? 0) + history.items(b).length;
+    for (const b of histBackends) a[b] = (a[b] ?? 0) + historyItems(b).length;
     return a;
-  }, [counts, histBackends, history]);
+  }, [counts, histBackends, historyItems]);
   const shownEndpoints = useMemo(() => {
     const shown = visibleEndpoints(CONVERSATION_BACKENDS, endpointVisibility, endpointActivity);
     // 正在看的端点（没被显式隐藏）始终保留，避免数据还没加载完时按钮跳动
@@ -382,7 +401,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // 端点图标的悬停提示：名称 + 对话数 + 本机历史数（只列非 0 的）
   const endpointTip = (b: ConversationBackend): string => {
     const hist = (histBackends as readonly string[]).includes(b)
-      ? history.items(b as HistoryBackend).length
+      ? historyItems(b as HistoryBackend).length
       : 0;
     return [
       ENDPOINT_FULL[b](),
@@ -505,8 +524,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
     if (isDev && histScopeSupported && !(view === 'by-endpoint' && endpointFilter === 'nomi')) {
       // 已加载的分页 + 搜索索引合并，同一会话（backend:sessionId）只保留一条
-      for (const h of [...history.items(histScope), ...searchIndex.items]) {
+      for (const h of [...historyItems(histScope), ...searchIndex.items]) {
         if (histScope && h.backend !== histScope) continue;
+        if (openSessionKeys.has(h.key)) continue;
         if (seen.has(h.key)) continue;
         seen.add(h.key);
         entries.push({ kind: 'hist', id: h.key, h });
@@ -520,7 +540,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     isDev,
     view,
     endpointFilter,
-    history,
+    historyItems,
+    openSessionKeys,
     histScope,
     histScopeSupported,
     searchIndex.items,

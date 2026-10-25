@@ -11,6 +11,7 @@ import type { BuiltinCliId } from '@nomi-ai/cli-plugins';
 import { ensurePrivateHome } from '@nomi-ai/cli-sdk';
 import type { ClientModels } from '@nomi-ai/gateway';
 
+import { ensureAccountHome, userCliHome } from '../../cli/accounts/homes';
 import { patchDshYaml } from '../../cli/configPatch';
 
 /** 有第三方注入的编程助手：就是全部内置 CLI（cli-plugins 生成的 id 表） */
@@ -38,7 +39,7 @@ export interface LaunchContext {
   model: string;
   /** 客户端的模型分配（Claude 的档位 / 小模型 / 子代理） */
   models: ClientModels;
-  /** 这个标签的私有目录（叠加配置、Grok 的私有 GROK_HOME、Codex 的模型目录） */
+  /** 这个标签的私有目录（Claude 配置 / 共享历史、叠加配置、Grok 的私有 GROK_HOME、Codex 的模型目录） */
   dir: string;
   /** 按 `供应商/模型` 查元数据（档位模型、Codex 模型目录用） */
   metaOf?: (ref: string) => ModelMeta | undefined;
@@ -69,10 +70,14 @@ export const STRIP: Readonly<Record<AgentKind, readonly string[]>> = {
     'ANTHROPIC_API_KEY',
     'ANTHROPIC_MODEL',
     'ANTHROPIC_SMALL_FAST_MODEL',
+    'ANTHROPIC_PROFILE',
     'CLAUDE_CODE_USE_BEDROCK',
     'CLAUDE_CODE_USE_VERTEX',
     'CLAUDE_CODE_USE_FOUNDRY',
     'CLAUDE_CODE_OAUTH_TOKEN',
+    'CLAUDE_CODE_OAUTH_REFRESH_TOKEN',
+    'CLAUDE_CODE_SUBAGENT_MODEL',
+    'CLAUDE_CONFIG_DIR',
   ],
   codex: ['OPENAI_API_KEY', 'OPENAI_BASE_URL', 'CODEX_API_KEY'],
   gemini: [
@@ -99,11 +104,32 @@ const capabilities = (m: ModelMeta | undefined) =>
 const claudeTier = (c: LaunchContext, tier: (typeof TIERS)[number]) =>
   c.models.tiers?.[tier] ?? (tier === 'haiku' ? c.models.small : undefined) ?? c.model;
 
+/**
+ * Claude 会把配置目录里的 settings.env 合并进进程环境，而且该值会覆盖 spawn 注入的变量。
+ * 第三方会话必须使用 Nomi 自己的配置目录，才能保证用户 ~/.claude/settings.json 里的
+ * 第三方路由 / 令牌不会把请求带出本地网关；会话历史和技能等无凭据条目仍共享。
+ */
+function prepareClaudeHome(c: LaunchContext): void {
+  const userDir = userCliHome('claude', process.env, c.home ?? os.homedir());
+  // 复用官方账号目录的安全布局：共享历史 / 技能等无凭据条目，复制 settings.json 时
+  // 去掉路由、鉴权和 apiKeyHelper。这样用户的非路由设置仍可用，外部 token 不会被带入。
+  ensureAccountHome('claude', c.dir, userDir, process.platform);
+  // settings.local.json 不参与账号副本同步，清掉旧版本可能留下的路由覆盖。
+  try {
+    fs.rmSync(path.join(c.dir, 'settings.local.json'), { force: true });
+  } catch {
+    /* 清理失败时仍继续启动；CLAUDE_CONFIG_DIR 已经阻止读取用户目录。 */
+  }
+}
+
 function claude(c: LaunchContext): AgentLaunch {
+  prepareClaudeHome(c);
   const meta = c.metaOf?.(c.model);
   const ctx = meta?.ctx ?? DEFAULT_CTX;
   const maxOutput = meta?.maxOutput ?? DEFAULT_MAX_OUTPUT;
   const env: Record<string, string> = {
+    // Claude settings.json 会覆盖同名进程环境变量；指向 Nomi 私有目录，隔离用户配置。
+    CLAUDE_CONFIG_DIR: c.dir,
     ANTHROPIC_BASE_URL: c.url,
     // 用 AUTH_TOKEN 不用 API_KEY：后者会弹「是否使用这个 Key」并写进 ~/.claude.json（§12.1）
     ANTHROPIC_AUTH_TOKEN: c.token,
@@ -116,6 +142,8 @@ function claude(c: LaunchContext): AgentLaunch {
     MAX_THINKING_TOKENS: String(meta?.reasoning ? thinkingBudget(maxOutput) : 0),
     // 与模型无关的旁路请求不发到第三方
     CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1',
+    // Agent View 后台进程不一定继承 CLAUDE_CONFIG_DIR，避免它回到用户目录并读取官方配置。
+    CLAUDE_CODE_DISABLE_AGENT_VIEW: '1',
   };
   for (const tier of TIERS) {
     const ref = claudeTier(c, tier);

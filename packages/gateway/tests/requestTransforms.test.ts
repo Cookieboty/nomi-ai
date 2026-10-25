@@ -246,6 +246,31 @@ describe('Messages → Responses (Claude Code → responses upstream)', () => {
     ).toEqual({ type: 'function', name: 'ls' });
   });
 
+  it('keeps direct Claude subagents in the current directory', () => {
+    const agent = {
+      name: 'Agent',
+      description: 'Launch a subagent. `isolation: "worktree"` creates a worktree.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          description: { type: 'string' },
+          prompt: { type: 'string' },
+          isolation: { type: 'string', enum: ['worktree', 'remote'] },
+        },
+        required: ['description', 'prompt'],
+        additionalProperties: false,
+      },
+    };
+    const out = messagesToResponses({ ...messagesLoop, tools: [agent] }) as any;
+    const tool = out.tools[0];
+    expect(tool.name).toBe('Agent');
+    expect(tool.parameters.properties.isolation).toBeUndefined();
+    expect(tool.parameters.required).toEqual(['description', 'prompt']);
+    expect(tool.description).toContain('current working directory');
+    expect(tool.description).toContain('do not use worktree');
+    expect(tool.description).not.toContain('isolation: "worktree"');
+  });
+
   it('maps the multi-turn loop into function_call / function_call_output items', () => {
     expect(out.input).toEqual([
       {

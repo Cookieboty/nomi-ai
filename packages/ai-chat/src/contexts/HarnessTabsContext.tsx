@@ -123,6 +123,8 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   const available = harnessClient.available();
   const [state, setState] = useState<HarnessTabsState | null>(null);
   const [cache, setCache] = useState<Record<string, HarnessTabMessage[]>>({});
+  /** 每个标签最近一次已观察到的工作目录；换目录即丢弃旧会话的渲染缓存。 */
+  const cwdRef = useRef<Record<string, string>>({});
   const [live, setLive] = useState<LiveMap>({});
   // 提交后再发布给 useHarnessLive 的订阅方（同 aiChatStore）
   const [liveStore] = useState(createLiveStore);
@@ -224,6 +226,25 @@ export function HarnessTabsProvider({ children }: { children: React.ReactNode })
   useLayoutEffect(() => {
     stateRef.current = state;
   });
+
+  useEffect(() => {
+    if (!state) return;
+    const previous = cwdRef.current;
+    const changed = state.tabs
+      .filter((tab) => previous[tab.id] !== undefined && previous[tab.id] !== tab.cwd)
+      .map((tab) => tab.id);
+    cwdRef.current = Object.fromEntries(state.tabs.map((tab) => [tab.id, tab.cwd]));
+    if (!changed.length) return;
+    setCache((cur) => {
+      let next: Record<string, HarnessTabMessage[]> | null = null;
+      for (const id of changed) {
+        if (!cur[id]) continue;
+        next ??= { ...cur };
+        delete next[id];
+      }
+      return next ?? cur;
+    });
+  }, [state]);
 
   const activeId = state?.activeTabId ?? MAIN_TAB_ID;
   const activeTab = state?.tabs.find((t) => t.id === activeId) ?? null;

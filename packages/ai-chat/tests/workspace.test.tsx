@@ -109,7 +109,7 @@ describe('EndpointControls workspace for CLI tabs', () => {
       <HarnessTabsProvider>
         <>
           <EndpointControls />
-          {/* 工作目录在对话顶栏（WorkspaceControl），供应商在输入框左下角（SessionControls） */}
+          {/* 工作目录在对话顶栏（WorkspaceControl），待带入前文在对话区顶部（SessionControls） */}
           <WorkspaceControl />
           <SessionControls />
         </>

@@ -246,6 +246,19 @@ describe('sidebar search', () => {
     expect(keys.filter((k) => k === 'claude-1')).toHaveLength(1);
   });
 
+  it('hides local history when the same CLI session is already mirrored in conversations', async () => {
+    convs = convs.map((c) => (c.id === 'c1' ? { ...c, cliSessionId: '1' } : c));
+    const r = mount();
+    await waitFor(() => r.getAllByTestId('history-session-item'));
+    expect(
+      r.getAllByTestId('history-session-item').some((x) => x.dataset.sessionId === 'claude-1'),
+    ).toBe(false);
+
+    await type(r, 'claude task 1');
+    await waitFor(() => r.getByTestId('sidebar-search-empty'));
+    expect(r.queryAllByTestId('search-result')).toHaveLength(0);
+  });
+
   it('no match: empty state, and "搜索更早的历史" fetches the next page', async () => {
     indexPages.claude = [[h('claude', 1)], [h('claude', 7, { title: 'ancient zebra migration' })]];
     const r = mount();

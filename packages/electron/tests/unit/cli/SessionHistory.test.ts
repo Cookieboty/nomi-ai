@@ -460,8 +460,13 @@ describe('SessionHistoryService', () => {
   it('hides sessions that are already open in a Nomi tab', async () => {
     writeClaude('a', 'task a', 1_000_000);
     writeClaude('b', 'task b', 2_000_000);
-    const page = await mk({ openKeys: () => new Set(['claude:a']) }).list('claude');
+    const openTitle = jest.fn();
+    const page = await mk({
+      openKeys: () => new Set(['claude:a']),
+      openTitle,
+    }).list('claude');
     expect(page.items.map((x) => x.sessionId)).toEqual(['b']);
+    expect(openTitle).toHaveBeenCalledWith('claude', 'a', 'task a');
   });
 
   it('flags sessions whose working directory is gone, and refuses to open them', async () => {

@@ -13,6 +13,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
+import { notifyConversationsChanged } from '../services/conversationStore';
 import {
   bindNextDelegateConversation,
   clearTurnPin,
@@ -794,6 +795,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
       await stateRef.current.ipcClient.newConversation();
       historySeq.current++;
       dispatch({ type: 'CLEAR_MESSAGES' });
+      notifyConversationsChanged();
     } catch (error) {
       dispatch({ type: 'SET_ERROR', payload: errorMessage(error) });
     }

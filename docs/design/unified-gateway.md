@@ -826,6 +826,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 | 环境变量                                            | 值                                                        |
 | --------------------------------------------------- | --------------------------------------------------------- |
+| `CLAUDE_CONFIG_DIR`                                 | Nomi 为这个标签创建的私有目录                             |
 | `ANTHROPIC_BASE_URL`                                | `http://127.0.0.1:18721`（不带 `/v1`）                    |
 | `ANTHROPIC_AUTH_TOKEN`                              | `claude` 客户端令牌                                       |
 | `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL` | `clients.claude.models.tiers`，没设的档位用 `main`        |
@@ -840,7 +841,7 @@ Claude Code 用 `count_tokens` 的结果决定什么时候压缩上下文，纯�
 
 - 用 `ANTHROPIC_AUTH_TOKEN`，**不用** `ANTHROPIC_API_KEY`：后者会触发「是否使用这个 API Key」的确认，并把确认结果写进 `~/.claude.json`。
 - 环境变量里的令牌优先于钥匙串里的 OAuth 登录，所以第三方会话不会读取、刷新或改写官方凭据。同一时间另一个标签里的官方会话照常使用官方账号。
-- 不设 `CLAUDE_CONFIG_DIR`：会话历史、`CLAUDE.md`、技能、MCP 配置和官方会话共用，用户感觉不到差别。
+- 设置 `CLAUDE_CONFIG_DIR` 指向 Nomi 为该标签创建的私有目录：用户 `settings.json` 里的 `env` 不会覆盖网关地址或令牌；`projects/`、`history.jsonl`、`CLAUDE.md`、技能与命令等无凭据条目仍软链回用户目录，历史和工作习惯保持连续。
 
 ### 12.2 Codex
 

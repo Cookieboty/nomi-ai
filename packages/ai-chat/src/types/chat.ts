@@ -72,6 +72,8 @@ export interface ChatSession {
   backend: ConversationBackend;
   /** CLI 标签 id：有值时消息在 harness，侧栏只存元信息 */
   tabId?: string;
+  /** CLI 原生会话 id：用于与本机历史按 backend + sessionId 去重 */
+  cliSessionId?: string;
 }
 
 export interface StreamResponse {

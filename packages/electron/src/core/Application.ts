@@ -709,6 +709,8 @@ export class Application implements IApplication {
       initSessionHistoryService({
         logger: this.logger as never,
         openKeys: () => harness.openSessionKeys(),
+        openTitle: (backend, sessionId, title) =>
+          harness.syncOpenSessionTitle(backend, sessionId, title),
         openTab: (o) => harness.openHistorySession(o),
         gatewaySession: (backend, sessionId) => gateway.servedSession(backend, sessionId),
         accountLabel: (backend, accountId) => {

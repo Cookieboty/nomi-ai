@@ -224,6 +224,8 @@ export class ChatCompletionsDecoder extends BaseDecoder {
 export class ResponsesDecoder extends BaseDecoder {
   /** output_index / item_id → key */
   private toolKeys = new Map<string, string>();
+  /** 已经通过增量事件发给下游的参数，避免 done 事件重复追加完整 JSON。 */
+  private toolArgsEmitted = new Set<string>();
 
   private keyFor(j: Obj): string | undefined {
     if (typeof j.item_id === 'string' && this.toolKeys.has(j.item_id)) {
@@ -299,6 +301,7 @@ export class ResponsesDecoder extends BaseDecoder {
         });
         if (typeof item.arguments === 'string' && item.arguments) {
           out.push({ type: 'tool_args', key, delta: item.arguments });
+          this.toolArgsEmitted.add(key);
         }
         return;
       }
@@ -306,6 +309,7 @@ export class ResponsesDecoder extends BaseDecoder {
         const key = this.keyFor(j);
         if (key && typeof j.delta === 'string' && j.delta) {
           out.push({ type: 'tool_args', key, delta: j.delta });
+          this.toolArgsEmitted.add(key);
         }
         return;
       }
@@ -319,7 +323,22 @@ export class ResponsesDecoder extends BaseDecoder {
         }
         if (type === 'response.output_item.done' && item.type !== 'function_call') return;
         const key = this.keyFor(j) ?? (typeof item.id === 'string' ? item.id : undefined);
-        if (key && this.toolKeys.has(key)) out.push({ type: 'tool_end', key });
+        if (key && this.toolKeys.has(key)) {
+          // 某些 Responses 上游不发送 delta，只在 arguments.done / item.done 给完整参数。
+          // 如果这里不补发，Messages 下游会收到 input:{}，Claude 的 Agent 工具随后会把
+          // description / prompt 当成 unknown 而拒绝调用。
+          const finalArgs =
+            type === 'response.function_call_arguments.done' ? j.arguments : item.arguments;
+          if (
+            !this.toolArgsEmitted.has(key) &&
+            typeof finalArgs === 'string' &&
+            finalArgs.length > 0
+          ) {
+            out.push({ type: 'tool_args', key, delta: finalArgs });
+            this.toolArgsEmitted.add(key);
+          }
+          out.push({ type: 'tool_end', key });
+        }
         return;
       }
       case 'response.completed': {

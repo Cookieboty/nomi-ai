@@ -113,7 +113,7 @@ describe('S3 官方会话的环境里没有网关残留', () => {
 describe('S4 第三方会话读不到官方凭据', () => {
   it('每个 CLI 的 strip 覆盖会抢鉴权的官方变量', () => {
     expect(STRIP.claude).toEqual(
-      expect.arrayContaining(['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN']),
+      expect.arrayContaining(['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CONFIG_DIR']),
     );
     expect(STRIP.codex).toEqual(expect.arrayContaining(['OPENAI_API_KEY', 'CODEX_API_KEY']));
     expect(STRIP.grok).toEqual(expect.arrayContaining(['XAI_API_KEY', 'GROK_API_KEY']));
