@@ -274,7 +274,7 @@ interface GatewayProvider {
   fallback?: string[]; // 本供应商失败时依次尝试的 'provider/model'
   headers?: Record<string, string>; // 少数中转站需要的额外请求头（高级）
   userAgent?: string;
-  modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名（沿用 ProviderStore 的模型映射）
+  modelMap?: Array<{ from: string; to: string }>; // 对外名 → 上游真实名
   source: 'user' | 'env'; // env：来自环境变量，只读
   detected?: Partial<Record<Wire, ProbeResult>>; // §8，任一 Key 可用即 ok
   detectedByKey?: Record<string /* keyId */, Partial<Record<Wire, ProbeResult>>>;
@@ -341,7 +341,7 @@ interface ClientConfig {
     small?: string; // Claude：haiku 档和 SMALL_FAST；其他 CLI 不用
     tiers?: Partial<Record<'opus' | 'sonnet' | 'haiku' | 'fable', string>>;
     subagent?: string;
-    tools?: string; // 仅 nomi：工具调用（原 ProviderStore 的 agent-tools 角色），空表示跟随 main
+    tools?: string; // 仅 nomi：工具调用（agent-tools 角色），空表示跟随 main
     summary?: string; // 仅 nomi：摘要（原 summary 角色）
   };
 }
@@ -381,7 +381,7 @@ type TabSource = { kind: 'official' } | { kind: 'thirdParty'; model: string /* p
    **官方账号保险箱（`userData/cli-accounts/*`）不读不改。**
 4. 合并完后后台跑一次探测（§8），补齐其他协议。
 5. 旧文件改名为 `*.migrated`，**不删除**；新界面里不提供回到旧界面的入口，但迁移有问题时可以从这些文件重新迁移（设置 → 模型 → ⋯ →「重新导入旧配置」），两个版本之后清理。
-6. 用量记录：`ProviderStore` 里按供应商记的用量按新的供应商 id 改写，接入 `UsageService`。
+6. 用量记录：按供应商记的用量按新的供应商 id 改写，接入 `UsageService`。
 7. **撤销旧版本写进全局配置的第三方设置**（先备份到 `userData/gateway/backups/<时间戳>/`）：
    - Claude：只删 `~/.claude/settings.json` 的 `env` 里**值等于 Nomi 当初写入值**的 `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL`（与本地路由令牌、旧供应商的 Key、地址、模型比对）；用户自己改过的不动。
    - Codex：`unpatchCodexToml` 去掉 `[model_providers.nomi]` 和 `model_provider = "nomi"`；`auth.json` 里只删**等于 Nomi 写入值**的 `OPENAI_API_KEY` 字段，`tokens` 等官方登录字段一个字节都不动。
@@ -893,15 +893,15 @@ codex … \
 
 Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走同一条路径，回退、学习、修正、用量全部共用：
 
-- `ai-runtime` 的 provider 工厂不再读 `ProviderStore`，改为向主进程要「当前角色的模型 + 首选入口协议」。首选入口协议 = §7.3 `pickWire` 对候选列表第一项算出的 wire，这样网关那一侧是同协议透传，没有转换损失。
+- `ai-runtime` 向主进程要「当前角色的模型 + 首选入口协议」。首选入口协议 = §7.3 `pickWire` 对候选列表第一项算出的 wire，这样网关那一侧是同协议透传，没有转换损失。
 - 按首选协议选 AI SDK 的实现（现有三种，见 `protocol.ts`）：`messages` → `@ai-sdk/anthropic`，`responses` → `@ai-sdk/openai` 的 `.responses()`，`chat` → `@ai-sdk/openai-compatible`；首选 `gemini` 时退回 `chat`。baseURL 指向网关，Key 用 `nomi` 客户端令牌。
 - **就绪时序**：Nomi 启动时，在网关报告就绪之前发起的对话请求排队等待（最长 10 秒），超时再报错。网关崩溃重启期间同样排队等待。
 - 网关进程长时间不可用时，对话给出明确错误，不绕过网关直连。这样只有一条代码路径，行为可预期。
-- 原 `ProviderStore` 的多 Key 切换、模型映射、`thinking` 开关都由网关提供；`ProviderRouter.ts` 里 `RoutedLLMRegistry.resolve()` 按角色选供应商的逻辑删除，改为向网关取模型；`LLMRegistry` 接口（`bundle-ig-base/src/seams/llm.ts`）保持不变，插件宿主无感。
+- 多 Key 切换、模型映射、`thinking` 开关由网关提供；`RoutedLLMRegistry.resolve()` 向网关取模型；`LLMRegistry` 接口（`bundle-ig-base/src/seams/llm.ts`）保持不变，插件宿主无感。
 
-**实现记录（2026-10-21，M2 第 1 步；2026-10-24 去掉双轨）**：
+**实现记录（2026-10-21，M2；GatewayStore-only）**：
 
-- `RoutedLLMRegistry` 的 `gateway` 选项：`resolve(role)` **只**问网关（`GatewayService.nomiRoute`）。配置了 `gateway` 时不再回退 `ProviderStore` / `ai-providers.json`；环境变量供应商由网关以 `env-*` 暴露。迁移成功后旧文件改名为 `*.migrated`。就绪前排队 10 秒仍待补（网关未就绪时 `resolve` 返回 undefined，对话侧报未配置模型）。
+- `RoutedLLMRegistry` 的 `gateway` 选项：`resolve(role)` **只**问网关（`GatewayService.nomiRoute`）。环境变量供应商由网关以 `env-*` 暴露。就绪前排队 10 秒仍待补（网关未就绪时 `resolve` 返回 undefined，对话侧报未配置模型）。
 - 工具结果的接收者（`ToolCallProvider`）报真正的上游（网关供应商 id + 上游地址），不报网关的回环地址；首选或回退里只要有一个不在本机 / 局域网，就按云端算。桌面工具的本地 / 云端判断、云端同意都以它为准（`AIRuntimeBoot.resolveProvider / lookupProvider`）。
 - 没有 Key 的本地服务（Ollama、LM Studio、llama.cpp）在快照里带一个空 Key，路由和探测都不发鉴权头。迁移时旧配置里的本机 / 局域网地址视为用户已确认。
 - 跟着切换的入口：设置 →「模型」（正式上线，分配区先只有 Nomi 对话的 main / tools / summary）、对话区右上角的模型选择器、托盘「对话模型」、斜杠命令 `/model` `/status`、本机 llama.cpp「设为对话模型」、引导里的「添加第三方供应商」。知识库向量和云端语音识别的供应商列表合并了网关里有 Chat 地址的供应商，旧 id 继续可用。旧的 Nomi 供应商面板删除（编程助手页 Nomi 标签只留一个入口）；编程助手的第三方配置 M3 再并进来。
