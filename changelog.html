@@ -11,7 +11,7 @@
   <title>更新日志 — Nomi·诺米</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="stylesheet" href="css/styles.css?v=20261025v200r4" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v201" />
 </head>
 <body data-page="changelog" id="top">
   <header class="site-header">
@@ -56,6 +56,26 @@
 
     <section class="section section-tight">
       <div class="container changelog">
+        <article class="release" id="v201">
+          <header class="release-head">
+            <h2 data-i18n="cl.v201.title">v2.0.1 — 委派落点、网关流与质量账本修复</h2>
+            <time datetime="2026-10-25">2026-10-25</time>
+          </header>
+          <h3 class="release-group" data-i18n="cl.v201.fix">修复</h3>
+          <ul class="release-list">
+            <li data-i18n="cl.v201.fix.1">网关流式回复更稳：不再冲掉 served-model 信息，也更少误判断流。</li>
+            <li data-i18n="cl.v201.fix.2">后台委派完成结果写回发起会话，不再落错对话。</li>
+            <li data-i18n="cl.v201.fix.3">接手委派标签时先标记接管再取消，避免误删工作区。</li>
+            <li data-i18n="cl.v201.fix.4">关掉诊断日志后立刻停写 CLI 收发。</li>
+            <li data-i18n="cl.v201.fix.5">关闭标签时取消进行中的 Claude 绑定，少留孤儿进程。</li>
+            <li data-i18n="cl.v201.fix.6">Codex 质量账本 input 去掉已计入的 cacheRead。</li>
+            <li data-i18n="cl.v201.fix.7">模型质量趋势选项与并排对比选中行更可靠。</li>
+            <li data-i18n="cl.v201.fix.8">清空「省钱模型」能真正清掉。</li>
+            <li data-i18n="cl.v201.fix.9">旧请求导入质量账本写盘失败时保留源文件。</li>
+          </ul>
+          <a class="link-arrow" href="https://github.com/Cookieboty/nomi-ai/releases/tag/v2.0.1" rel="noopener noreferrer" target="_blank" data-i18n="cl.release">查看 GitHub Release →</a>
+        </article>
+
         <article class="release" id="v200">
           <header class="release-head">
             <h2 data-i18n="cl.v200.title">v2.0.0 — 委派编程助手、统一网关加深与模型质量</h2>
@@ -254,7 +274,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261025v200r"></script>
-  <script src="js/main.js?v=20261025v200r"></script>
+  <script src="js/i18n.js?v=20261025v201"></script>
+  <script src="js/main.js?v=20261025v201"></script>
 </body>
 </html>
