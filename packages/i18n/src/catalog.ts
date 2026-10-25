@@ -2457,8 +2457,6 @@ export type TranslationKey =
   | 'ui.models.claude-code'
   | 'ui.models.claude-code-subagent-model'
   | 'ui.models.clear-what-was-learned'
-  | 'ui.models.cli-own-config-without-nomi'
-  | 'ui.models.cli-own-sign-in-without-nomi'
   | 'ui.models.clis-in-your-terminal-are-back-to-your'
   | 'ui.models.command-folder'
   | 'ui.models.concurrent'
@@ -2620,6 +2618,7 @@ export type TranslationKey =
   | 'ui.models.vision'
   | 'ui.models.when-on-parameters-the-model-doesn-t-support'
   | 'ui.models.when-this-provider-s-models-all-fail-use'
+  | 'ui.models.without-nomi'
   | 'ui.providers-schedule.a-command-is-required-and-can-t-contain'
   | 'ui.providers-schedule.a-name-is-required-up-to-60-characters'
   | 'ui.providers-schedule.absolute-path-of-the-executable-or-a-name'
@@ -3760,5 +3759,14 @@ export type TranslationKey =
   | 'ui.voice-mascot.you-ve-been-sitting-a-while-get-up';
 export type Language = keyof typeof DICTIONARIES;
 
-export const getDictionary = (language: Language): Record<string, string> =>
-  Object.assign({}, ...Object.values(DICTIONARIES[language])) as Record<string, string>;
+/** 合并后的整张词典按语言缓存：t() 每次翻译都要查它，每次重新合并几千条会让界面明显卡顿 */
+const merged = new Map<Language, Record<string, string>>();
+
+export const getDictionary = (language: Language): Record<string, string> => {
+  let d = merged.get(language);
+  if (!d) {
+    d = Object.assign({}, ...Object.values(DICTIONARIES[language])) as Record<string, string>;
+    merged.set(language, d);
+  }
+  return d;
+};

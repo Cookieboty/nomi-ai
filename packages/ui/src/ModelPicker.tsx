@@ -82,14 +82,18 @@ export function splitModelRef(ref: string): { provider: string; model: string } 
   return i > 0 ? { provider: ref.slice(0, i), model: ref.slice(i + 1) } : null;
 }
 
+/** 默认值用模块级常量：参数默认值里的 [] 每次渲染都是新数组，会让下面的 useMemo 每次都重算 */
+const NO_RECENT: string[] = [];
+const NO_EXTRA: SelectOption[] = [];
+
 export const ModelPicker: React.FC<ModelPickerProps> = ({
   providers,
-  recent = [],
+  recent = NO_RECENT,
   value,
   onChange,
   purpose = 'chat',
   showWire = false,
-  extraOptions = [],
+  extraOptions = NO_EXTRA,
   placeholder,
   ...rest
 }) => {

@@ -381,7 +381,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                       onClick={() => commit(o)}
                     >
                       {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
-                      <span className="cd-dropdown__label cd-truncate" title={tr(textOf(o.label))}>
+                      <span
+                        className="cd-dropdown__label cd-truncate"
+                        title={[tr(textOf(o.label)), o.description ? tr(o.description) : '']
+                          .filter(Boolean)
+                          .join(' · ')}
+                      >
                         {tr(o.label)}
                       </span>
                       {o.description && (

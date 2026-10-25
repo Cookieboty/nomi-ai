@@ -118,6 +118,7 @@
   width: 100%;
 }
 .cd-dropdown__list {
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -152,10 +153,17 @@
   cursor: not-allowed;
 }
 .cd-dropdown__label {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
+/* 说明再长也不撑出横向滚动条：最多占一行的一半多一点，超出省略（完整内容在悬停提示里） */
 .cd-dropdown__desc {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--cd-font-size-xs);
   color: var(--cd-color-text-subtle);
 }

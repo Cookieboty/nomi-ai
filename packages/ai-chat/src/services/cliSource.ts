@@ -5,7 +5,6 @@
 import { t, type SelectOption } from '@nomi-ai/ui';
 
 import { hasOfficialAccount } from '../utils/cliCaps';
-import { ENDPOINT_NAME } from '../utils/endpointBadge';
 
 import type { CliAccount } from './cliAccountClient';
 import type { ClientId, GatewayState } from './gatewayClient';
@@ -183,15 +182,13 @@ export function newTabSelectValue(client: NewTabCtx['client'], kind: CliKind): s
 export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): SelectOption[] {
   const options: SelectOption[] = [];
   const official = hasOfficialAccount(kind);
-  const name = ENDPOINT_NAME[kind];
 
   options.push({
     value: NEWTAB_DEFAULT,
     group: t('ui.providers-schedule.default'),
     label: official ? t('ui.models.this-computer-s-sign-in') : t('ui.models.dsh-built-in-config'),
-    description: official
-      ? t('ui.models.cli-own-sign-in-without-nomi', name)
-      : t('ui.models.cli-own-config-without-nomi', name),
+    // 标签已写明「本机登录 / 自带配置」，说明只补一句不经 Nomi（太长会撑宽下拉菜单）
+    description: t('ui.models.without-nomi'),
   });
 
   if (official) {

@@ -29,8 +29,6 @@
   "ui.models.claude-code": "Claude Code {0}",
   "ui.models.claude-code-subagent-model": "Claude Code subagent model",
   "ui.models.clear-what-was-learned": "Clear what was learned",
-  "ui.models.cli-own-config-without-nomi": "{0}'s built-in config, without Nomi",
-  "ui.models.cli-own-sign-in-without-nomi": "{0}'s own sign-in, without Nomi",
   "ui.models.clis-in-your-terminal-are-back-to-your": "CLIs in your terminal are back to your own config and official login. Third-party models are now used in Nomi's tabs (pick \"Third-party\" at the top right).",
   "ui.models.command-folder": "Command folder",
   "ui.models.concurrent": "Concurrent",
@@ -191,5 +189,6 @@
   "ui.models.view": "View “{0}”",
   "ui.models.vision": "Vision",
   "ui.models.when-on-parameters-the-model-doesn-t-support": "When on, parameters the model doesn't support (such as reasoning effort or temperature) cause an error; when off, the gateway removes or adjusts them and notes it in Recent requests",
-  "ui.models.when-this-provider-s-models-all-fail-use": "When this provider's models all fail, use the models below in order."
+  "ui.models.when-this-provider-s-models-all-fail-use": "When this provider's models all fail, use the models below in order.",
+  "ui.models.without-nomi": "Without Nomi"
 }
