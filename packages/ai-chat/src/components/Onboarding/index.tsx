@@ -85,7 +85,7 @@ const LANGS: { id: LocalePref; label: () => string; hint: () => string }[] = [
     hint: () => t('ui.mascot-theme.matches-your-computer-language'),
   },
   // i18n-ignore
-  { id: 'zh-CN', label: () => 'ui.voice-mascot.chinese', hint: () => '简体中文' },
+  { id: 'zh-CN', label: () => t('ui.voice-mascot.chinese'), hint: () => '简体中文' },
   { id: 'en', label: () => 'English', hint: () => 'English' },
 ];
 

@@ -12,6 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { t } from '../../i18n';
+
 export class SherpaAddonLoadError extends Error {
   constructor(
     message: string,
@@ -134,8 +136,8 @@ export function loadSherpaAddon<T = unknown>(deps: AddonLoaderDeps = {}): T {
     if (!pkgDir) {
       lines.push(
         `未找到平台包 ${pkgName}（${resolveError ?? 'unresolved'}）。` +
-          'electron.common.reinstall-dependencies-on-this-machine-with-pnpm-install' +
-          'electron.common.don-t-disable-optionaldependencies-use-pnpm-install-force',
+          t('electron.common.reinstall-dependencies-on-this-machine-with-pnpm-install') +
+          t('electron.common.don-t-disable-optionaldependencies-use-pnpm-install-force'),
       );
       return new SherpaAddonLoadError(lines.join('\n'), detail);
     }
@@ -166,17 +168,17 @@ export function loadSherpaAddon<T = unknown>(deps: AddonLoaderDeps = {}): T {
     if (files.includes('sherpa-onnx.node')) {
       try {
         requireNode(nodeFile);
-        lines.push('electron.common.loaded-sherpa-onnx-node-directly-but-the-sherpa');
+        lines.push(t('electron.common.loaded-sherpa-onnx-node-directly-but-the-sherpa'));
       } catch (e) {
         const msg = errMsg(e);
         detail.dlopenError = msg;
         lines.push(`dlopen(${nodeFile}) 实际错误：${msg}`);
         if (platform === 'win32') {
           lines.push(
-            'electron.common.common-causes-1-microsoft-visual-c-2015-2022' +
-              'electron.common.install-https-aka-ms-vs-17-release-vc' +
-              'electron.common.2-an-older-onnxruntime-dll-under-c-windows' +
-              'electron.common.ensure-the-platform-package-folder-is-ahead-on',
+            t('electron.common.common-causes-1-microsoft-visual-c-2015-2022') +
+              t('electron.common.install-https-aka-ms-vs-17-release-vc') +
+              t('electron.common.2-an-older-onnxruntime-dll-under-c-windows') +
+              t('electron.common.ensure-the-platform-package-folder-is-ahead-on'),
           );
         }
       }

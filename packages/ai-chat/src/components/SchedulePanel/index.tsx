@@ -268,7 +268,7 @@ const Body: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     try {
       const t = await schedClient.upsertTask({
         name: tr('ui.providers-schedule.daily-briefing'),
-        prompt: BRIEFING_PROMPT,
+        prompt: tr(BRIEFING_PROMPT),
         time: '08:30',
         repeat: { kind: 'daily' },
         template: 'briefing',

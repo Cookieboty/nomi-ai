@@ -119,8 +119,8 @@ export interface TaskResult {
 }
 
 export const BRIEFING_PROMPT =
-  'electron.common.write-me-a-briefing-for-today-start-with' +
-  'electron.common.then-give-one-or-two-thoughtful-tips-based';
+  tr('electron.common.write-me-a-briefing-for-today-start-with') +
+  tr('electron.common.then-give-one-or-two-thoughtful-tips-based');
 
 const CATCH_UP_MS = 12 * 3600_000;
 const TICK_MS = 30_000;

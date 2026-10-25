@@ -127,7 +127,7 @@ export const GeneralHero: React.FC = () => {
   const ver = versionFacts(update);
   // 语言名始终用其本身的文字显示
   // i18n-ignore
-  const langName = locale === 'zh-CN' ? 'ui.voice-mascot.chinese' : 'English';
+  const langName = locale === 'zh-CN' ? '中文' : 'English';
   return (
     <section
       className={styles.hero}

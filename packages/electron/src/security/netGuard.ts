@@ -16,6 +16,8 @@ import type { LookupAddress, LookupOptions } from 'dns';
 
 import { isPrivateHost, parseIPv4, parseIPv6 } from '@nomi-ai/gateway';
 
+import { t } from '../i18n';
+
 export { isPrivateHost, parseIPv4, parseIPv6 };
 
 export function assertPublicHttpUrl(raw: string): URL {
@@ -23,16 +25,16 @@ export function assertPublicHttpUrl(raw: string): URL {
   try {
     u = new URL(String(raw).trim());
   } catch {
-    throw new Error('electron.common.invalid-audio-url');
+    throw new Error(t('electron.common.invalid-audio-url'));
   }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') {
-    throw new Error('electron.common.audio-url-must-use-http-or-https');
+    throw new Error(t('electron.common.audio-url-must-use-http-or-https'));
   }
   if (u.username || u.password) {
-    throw new Error('electron.common.audio-url-must-not-contain-credentials');
+    throw new Error(t('electron.common.audio-url-must-not-contain-credentials'));
   }
   if (isPrivateHost(u.hostname)) {
-    throw new Error('electron.common.audio-url-must-not-point-to-localhost-or');
+    throw new Error(t('electron.common.audio-url-must-not-point-to-localhost-or'));
   }
   return u;
 }
@@ -50,7 +52,7 @@ export async function assertPublicHttpUrlResolved(
   if (parseIPv4(host) || parseIPv6(host)) return u;
   const addrs = await lookupAll(host);
   if (!addrs.length || addrs.some((a) => isPrivateHost(a.address))) {
-    throw new Error('electron.common.audio-url-must-not-point-to-localhost-or');
+    throw new Error(t('electron.common.audio-url-must-not-point-to-localhost-or'));
   }
   return u;
 }
@@ -72,7 +74,7 @@ export function makeSafeLookup(base: typeof dns.lookup = dns.lookup) {
       const bad = list.find((a) => isPrivateHost(a.address));
       if (!list.length || bad) {
         const e = new Error(
-          'electron.common.audio-url-must-not-point-to-localhost-or',
+          t('electron.common.audio-url-must-not-point-to-localhost-or'),
         ) as NodeJS.ErrnoException;
         e.code = 'EPRIVATEADDR';
         return callback(e, '');

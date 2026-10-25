@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { t } from '../../i18n';
+
 const execFileAsync = promisify(execFile);
 
 /** 同时处于 running 的委派上限（含 worktree / shared-cwd） */
@@ -113,8 +115,8 @@ export async function prepareIsolation(
       cwd: sourceCwd,
       sourceCwd,
       note:
-        'electron.common.the-working-directory-is-not-a-git-repository' +
-        'electron.common.hand-off-tasks-one-at-a-time-or',
+        t('electron.common.the-working-directory-is-not-a-git-repository') +
+        t('electron.common.hand-off-tasks-one-at-a-time-or'),
     };
   }
 
