@@ -2410,40 +2410,66 @@ body[data-page="download"] .site-header {
 }
 body[data-page="download"] .site-header .logo,
 body[data-page="download"] .site-header .logo-en,
-body[data-page="download"] .site-header .nav a {
+body[data-page="download"] .site-header .nav a:not(.nav-cta):not(.nav-contact) {
   color: #fff8f1;
 }
 body[data-page="download"] .site-header .logo-zh { color: rgba(255,248,241,0.55); }
-body[data-page="download"] .site-header .nav a:hover,
-body[data-page="download"] .site-header .nav a[aria-current="page"] {
+/* Hover: light cream wash. Current: solid cream chip (wash still looked muddy). */
+body[data-page="download"] .site-header .nav a:not(.nav-cta):not(.nav-contact):hover {
   color: #fff;
-  background: rgba(251, 148, 102, 0.18);
+  background: rgba(255, 248, 241, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 248, 241, 0.35);
 }
-body[data-page="download"] .lang-btn { color: rgba(255,248,241,0.7); }
-body[data-page="download"] .lang-btn[aria-pressed="true"] {
-  background: rgba(255,248,241,0.12);
+body[data-page="download"] .site-header .nav a:not(.nav-cta):not(.nav-contact)[aria-current="page"] {
+  color: #2a211a;
+  background: #fff8f1;
+  box-shadow: none;
+  padding-inline: 0.65rem;
+  font-weight: 700;
+}
+body[data-page="download"] .nav-toggle {
+  color: #fff8f1;
+  border-color: rgba(255, 248, 241, 0.4);
+}
+/* Lang toggle: dark track; unselected side full cream text; active = cream + ink */
+body[data-page="download"] .lang-toggle {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 248, 241, 0.35);
+}
+body[data-page="download"] .lang-btn {
   color: #fff8f1;
 }
-/* Dark download header: Magpie-style light nav CTA (orange reserved for in-hero downloads) */
+body[data-page="download"] .lang-btn:hover {
+  color: #fff;
+}
+body[data-page="download"] .lang-btn[aria-pressed="true"] {
+  background: #fff8f1;
+  color: #2a211a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+/* Primary CTA: cream / dark ink (orange reserved for in-hero downloads) */
 body[data-page="download"] .nav-cta,
 body[data-page="download"] .nav a.nav-cta {
-  background: #fff8f1;
+  background: #fff8f1 !important;
   color: #2a211a !important;
+  box-shadow: none;
 }
 body[data-page="download"] .nav-cta:hover,
 body[data-page="download"] .nav a.nav-cta:hover {
-  background: #ffe8d6;
+  background: #ffe8d6 !important;
   color: #2a211a !important;
 }
+/* Contact: solid soft peach secondary (outline was too weak on dark) */
 body[data-page="download"] .nav-contact,
 body[data-page="download"] .nav a.nav-contact {
-  color: #ffd2b0 !important;
-  border-color: rgba(251, 148, 102, 0.55);
+  background: #ffe8d6 !important;
+  color: #2a211a !important;
+  border-color: transparent;
 }
 body[data-page="download"] .nav-contact:hover,
 body[data-page="download"] .nav a.nav-contact:hover {
-  background: rgba(251, 148, 102, 0.18);
-  color: #fff8f1 !important;
+  background: #ffd9c0 !important;
+  color: #2a211a !important;
 }
 
 .dl-below { background: #fff8f1; }
