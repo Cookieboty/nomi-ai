@@ -191,7 +191,7 @@ test.describe('E7 · real app · third-party providers through the gateway', () 
       await chat.waitForSelector('[data-testid="nomi-model-switch"]', { timeout: 20_000 });
 
       // ---- 迁移：旧存储照旧升级 v1 → v2；网关里有同一个供应商，本机地址已确认，main 指向它
-      expect(existsSync(join(userData, 'ai-providers.json.v1.bak'))).toBe(true);
+      expect(existsSync(join(userData, 'ai-providers.json.migrated'))).toBe(true);
       const g0 = await invoke<GwState>('ai:gateway:state');
       const legacyProvider = g0.providers.find((p) => p.name === 'Legacy v1')!;
       expect(legacyProvider.urls.chat).toBe(`http://127.0.0.1:${legacy.port}/v1`);

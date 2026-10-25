@@ -152,6 +152,26 @@ export async function prepareIsolation(
     await git(root, ['worktree', 'add', '--detach', worktreePath, 'HEAD']);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    // 空仓库（尚无 commit）HEAD 无效：与非 git 一样退回 shared-cwd，避免委派直接炸
+    if (
+      /invalid reference:\s*HEAD|unknown revision|bad revision|ambiguous argument ['"]HEAD['"]/i.test(
+        msg,
+      )
+    ) {
+      try {
+        fs.rmSync(worktreePath, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+      return {
+        kind: 'shared-cwd',
+        cwd: sourceCwd,
+        sourceCwd,
+        note:
+          t('electron.common.the-working-directory-is-not-a-git-repository') +
+          t('electron.common.hand-off-tasks-one-at-a-time-or'),
+      };
+    }
     throw new Error(`无法创建委派 worktree：${msg}`, { cause: e });
   }
 

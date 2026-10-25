@@ -108,8 +108,9 @@ describe('model quality · gateway capture', () => {
     const t = await setup((_k, res) => {
       sseHead(res);
       res.write(sse(role));
-      setTimeout(() => res.write(sse(text('Hel'))), 20);
-      setTimeout(() => res.end(sse(text('lo'), stop, usage(2), '[DONE]')), 60);
+      // Windows CI 定时器分辨率粗，20/60 常被合并成同一 tick → last−first < 20；拉开间隔
+      setTimeout(() => res.write(sse(text('Hel'))), 100);
+      setTimeout(() => res.end(sse(text('lo'), stop, usage(2), '[DONE]')), 250);
     });
     await (await t.chat()).text();
     const e = await t.one();
@@ -128,7 +129,7 @@ describe('model quality · gateway capture', () => {
     ]);
     expect(e.timing.headersMs).toBeDefined();
     expect(e.timing.firstContentMs).toBeDefined();
-    expect(e.timing.lastContentMs! - e.timing.firstContentMs!).toBeGreaterThanOrEqual(20);
+    expect(e.timing.lastContentMs! - e.timing.firstContentMs!).toBeGreaterThanOrEqual(50);
     expect(e.firstByteMs).toBe(e.timing.firstContentMs);
     expect(e.burst).toBeUndefined();
     monotonic(e);

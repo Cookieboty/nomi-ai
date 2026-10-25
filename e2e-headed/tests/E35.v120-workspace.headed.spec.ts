@@ -147,7 +147,15 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
       if (id) await b.invoke('ai:harness:tab-cwd', id, cwd, {});
     }, workDir);
 
-    // 上下文环：默认只显示环（无旁侧 % 文字）；悬停浮窗再出「当前上下文 xK / 最大」
+    const input = chat.locator('[data-testid="chat-input"]');
+    await expect(input).toBeEnabled();
+    await input.fill('检查 registerHandler 的实现并重构');
+    await input.press('Enter');
+
+    // 等本轮跑完，且 mock rich 的编辑已进入「本轮变更」（勿在工具间隙误判结束）
+    await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 120_000 });
+
+    // 上下文环：有会话消息后才渲染（空会话不占工具栏）；默认只显示环，悬停再出详情
     const bar = chat.locator('[data-testid="context-usage-bar"]');
     await expect(bar).toBeVisible({ timeout: 15_000 });
     await expect(chat.locator('[data-testid="context-usage-detail"]')).toHaveCount(0);
@@ -160,14 +168,6 @@ test.describe('E35 · v1.2.0 codex-parity · context / multi-preview / edit', ()
     );
     await shot(chat, '10-context-usage-bar');
     await chat.locator('[data-testid="chat-input"]').hover(); // 移开以收起 tip
-
-    const input = chat.locator('[data-testid="chat-input"]');
-    await expect(input).toBeEnabled();
-    await input.fill('检查 registerHandler 的实现并重构');
-    await input.press('Enter');
-
-    // 等本轮跑完，且 mock rich 的编辑已进入「本轮变更」（勿在工具间隙误判结束）
-    await expect(chat.locator('[data-testid="conv-status"]')).toHaveCount(0, { timeout: 120_000 });
 
     // 右栏默认收起、不常驻：顶栏开关带变更数；「查看变更」才展开右栏并打开中栏 Diff
     await expect(chat.locator('[data-testid="files-rail"]')).toHaveCount(0);

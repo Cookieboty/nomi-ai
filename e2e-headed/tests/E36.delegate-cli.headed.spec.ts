@@ -162,6 +162,12 @@ test.describe('E36 · real app · Nomi delegates to coding assistants', () => {
     promptLog = join(userData, 'claude-prompts.log');
     mkdirSync(shotDir, { recursive: true });
     execFileSync('git', ['init', '-q'], { cwd: work });
+    // worktree add HEAD 需要至少一个 commit；空仓库会 fatal: invalid reference: HEAD
+    execFileSync('git', ['config', 'user.email', 'e36@test'], { cwd: work });
+    execFileSync('git', ['config', 'user.name', 'e36'], { cwd: work });
+    writeFileSync(join(work, 'README.md'), 'e36\n');
+    execFileSync('git', ['add', '-A'], { cwd: work });
+    execFileSync('git', ['commit', '-qm', 'init'], { cwd: work });
     mock = await startMockModel(work);
     writeFileSync(
       join(userData, 'ai-providers.json'),
