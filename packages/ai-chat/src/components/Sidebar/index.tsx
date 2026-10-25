@@ -162,6 +162,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return m;
   }, [tabs.state]);
 
+  // 高亮项：工作台模式下当前在 CLI 标签时以标签为准。新建标签不会切换 Nomi 当前会话，
+  // 只看 currentConversationId 会让高亮停在之前打开的那一项上
+  const activeTabId = tabs.state?.activeTabId;
+  const highlightId =
+    isDev && activeTabId && activeTabId !== MAIN_TAB_ID
+      ? list.find((x) => x.tabId === activeTabId)?.id
+      : current;
+
   // 普通模式：侧栏只列 Nomi 会话（CLI 标签仍在后台运行，切回开发模式即可看到）
   const navList = useMemo(() => {
     const source = isNormal ? list.filter((x) => x.backend === 'nomi') : list;
@@ -934,7 +942,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <ThreadItem
                 key={c.id}
                 c={c}
-                active={c.id === current}
+                active={c.id === highlightId}
                 tab={c.tabId ? tabById.get(c.tabId) : undefined}
                 onOpen={open}
                 onCtx={onCtx}
@@ -955,7 +963,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 rowComponent={VirtualRow}
                 rowProps={{
                   items: visible,
-                  current,
+                  current: highlightId,
                   tabById,
                   open,
                   onCtx,
