@@ -11,8 +11,8 @@
   <title>Nomi·诺米 — 让 AI 工具协同起来</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="assets/mockup/hero-bg.webp?v=20261025v2fb" imagesrcset="assets/mockup/hero-bg.webp?v=20261025v2fb 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fb 2048w" imagesizes="100vw" fetchpriority="high" />
-  <link rel="stylesheet" href="css/styles.css?v=20261025v2fb" />
+  <link rel="preload" as="image" href="assets/mockup/hero-bg.webp?v=20261025v2fc" imagesrcset="assets/mockup/hero-bg.webp?v=20261025v2fc 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fc 2048w" imagesizes="100vw" fetchpriority="high" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v2fc" />
 </head>
 <body data-page="home" id="top">
   <header class="site-header">
@@ -49,8 +49,8 @@
     <section class="hero hero--bleed" aria-labelledby="hero-title">
       <div class="hero-bleed-media" aria-hidden="true">
         <img
-          src="assets/mockup/hero-bg.webp?v=20261025v2fb"
-          srcset="assets/mockup/hero-bg.webp?v=20261025v2fb 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fb 2048w"
+          src="assets/mockup/hero-bg.webp?v=20261025v2fc"
+          srcset="assets/mockup/hero-bg.webp?v=20261025v2fc 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fc 2048w"
           sizes="100vw"
           width="2048" height="768"
           alt=""
@@ -72,10 +72,9 @@
       </div>
     </section>
 
-    <section class="section pillars-wrap" id="pillars" aria-labelledby="pillars-title">
-      <div class="pillars-scene" aria-hidden="true"></div>
+    <section class="section pillars-flat" id="pillars" aria-labelledby="pillars-title">
       <div class="container">
-        <div class="pillars-panel">
+        <div class="pillars-head">
           <svg class="pillars-arc" viewBox="0 0 900 60" preserveAspectRatio="none" aria-hidden="true">
             <defs>
               <linearGradient id="pillarsArcGrad" x1="0" y1="0" x2="1" y2="0">
@@ -88,26 +87,27 @@
             <g transform="translate(36,18)">
               <path fill="#FB9466" d="M12 0C12.6 4.2 14 5.8 18 6.5C14 7.2 12.6 8.8 12 13C11.4 8.8 10 7.2 6 6.5C10 5.8 11.4 4.2 12 0Z"/>
             </g>
+            <g transform="translate(70,8)" opacity="0.85">
+              <path fill="#FB9466" d="M8 0C8.4 2.8 9.3 3.9 12 4.3C9.3 4.7 8.4 5.8 8 8.6C7.6 5.8 6.7 4.7 4 4.3C6.7 3.9 7.6 2.8 8 0Z"/>
+            </g>
           </svg>
-          <div class="pillars-panel-head">
-            <span class="section-label section-label--center"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">Nomi 2.0</span></span>
-            <h2 id="pillars-title" data-i18n="pillars.title">懂你 · 行动 · 相伴</h2>
-            <p class="lead" data-i18n="pillars.lead">不止是陪伴你的桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
-          </div>
-          <div class="pillars pillars--trio">
-            <article class="pillar">
-              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5v-7z"/><circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none"/></svg></div><h3 data-i18n="pillars.chat.title">日常对话</h3></div>
-              <p data-i18n="pillars.chat.desc">和 Nomi 聊天，获取信息、灵感与建议，随时陪伴。</p>
-            </article>
-            <article class="pillar">
-              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.work.title">高效工作</h3></div>
-              <p data-i18n="pillars.work.desc">连接你的工具与模型，帮你处理各类任务。</p>
-            </article>
-            <article class="pillar">
-              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div><h3 data-i18n="pillars.local.title">本地运行</h3></div>
-              <p data-i18n="pillars.local.desc">所有数据与操作都在本机，更安全、更可控。</p>
-            </article>
-          </div>
+          <span class="section-label section-label--center"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">Nomi 2.0</span></span>
+          <h2 id="pillars-title" data-i18n="pillars.title">懂你 · 行动 · 相伴</h2>
+          <p class="lead" data-i18n="pillars.lead">不止是陪伴你的桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
+        </div>
+        <div class="pillars pillars--trio">
+          <article class="pillar">
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5v-7z"/><circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none"/></svg></div><h3 data-i18n="pillars.chat.title">日常对话</h3></div>
+            <p data-i18n="pillars.chat.desc">和 Nomi 聊天，获取信息、灵感与建议，随时陪伴。</p>
+          </article>
+          <article class="pillar">
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.work.title">高效工作</h3></div>
+            <p data-i18n="pillars.work.desc">连接你的工具与模型，帮你处理各类任务。</p>
+          </article>
+          <article class="pillar">
+            <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div><h3 data-i18n="pillars.local.title">本地运行</h3></div>
+            <p data-i18n="pillars.local.desc">所有数据与操作都在本机，更安全、更可控。</p>
+          </article>
         </div>
       </div>
     </section>
@@ -199,8 +199,8 @@
     <section class="section workflow workflow--bleed" id="workflow" aria-labelledby="workflow-title">
       <div class="workflow-bleed-media" aria-hidden="true">
         <img
-          src="assets/mockup/workflow-bg.webp?v=20261025v2fb"
-          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fb 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fb 1672w"
+          src="assets/mockup/workflow-bg.webp?v=20261025v2fc"
+          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fc 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fc 1672w"
           sizes="100vw"
           width="1672" height="468"
           alt=""
@@ -228,41 +228,6 @@
       </div>
     </section>
 
-    <section class="section section-tight" id="platforms" aria-labelledby="platforms-title">
-      <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="platforms.label">更多可能</span></span>
-          <h2 id="platforms-title" data-i18n="platforms.title">支持多平台，随时随地与 Nomi 一起工作</h2>
-          <p class="lead" data-i18n="platforms.lead">桌面端现已可用；移动端敬请期待。</p>
-        </div>
-        <div class="platform-duo">
-          <article class="plat-card">
-            <div class="plat-shot">
-              <img src="assets/screenshots/coding-agent.webp?v=20261025v2fb" srcset="assets/screenshots/coding-agent-640.webp?v=20261025v2fb 640w, assets/screenshots/coding-agent.webp?v=20261025v2fb 1280w" sizes="(max-width: 800px) calc(100vw - 3rem), 420px" width="1280" height="820" data-i18n-alt="platforms.desktop.alt" alt="Nomi 桌面端工作台实机截图" loading="lazy" decoding="async" />
-            </div>
-            <div class="plat-copy">
-              <h3 data-i18n="platforms.desktop.title">桌面端</h3>
-              <p data-i18n="platforms.desktop.desc">高效的 AI 工作台，让生产力再升级。</p>
-              <a class="btn btn-primary" href="download.html" data-i18n="platforms.desktop.cta">下载桌面版 →</a>
-            </div>
-          </article>
-          <article class="plat-card plat-card--soon">
-            <div class="plat-shot plat-shot--soon" aria-hidden="true">
-              <div class="plat-soon-visual">
-                <span class="plat-soon-phone"></span>
-                <span class="star-mark plat-soon-star"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span>
-              </div>
-            </div>
-            <div class="plat-copy">
-              <h3 data-i18n="platforms.mobile.title">移动端</h3>
-              <p data-i18n="platforms.mobile.desc">随时随地，与 Nomi 一起工作。</p>
-              <span class="soon-badge" data-i18n="platforms.mobile.cta">敬请期待</span>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
     <section class="section section-tight">
       <div class="container">
         <div class="callout">
@@ -271,18 +236,6 @@
             <p data-i18n="privacy.band.desc">对话、记忆、知识库与日程都只保存在你的电脑上。可开启「仅本地模型」，敏感内容不发往云端。</p>
           </div>
           <a class="btn btn-secondary" href="privacy.html" data-i18n="nav.privacy">隐私</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section section-tight" id="download" aria-labelledby="download-title">
-      <div class="container">
-        <div class="cta-band">
-          <div>
-            <h2 id="download-title" data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
-            <p class="lead" data-i18n="cta.lead">即将迎来 v2.0.0。安装后跟着引导选语言、主题和模型，几分钟就能开始对话。</p>
-          </div>
-          <a class="btn btn-primary btn-lg" href="download.html" data-i18n="cta.download">前往下载</a>
         </div>
       </div>
     </section>
@@ -296,11 +249,11 @@
         </div>
         <div class="contact-grid">
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-author.webp?v=20261025v2fb" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261025v2fb" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-author.webp?v=20261025v2fc" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261025v2fc" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
             <figcaption data-i18n="contact.author.cap">作者微信 · Tomo</figcaption>
           </figure>
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-group.webp?v=20261025v2fb" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261025v2fb" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-group.webp?v=20261025v2fc" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261025v2fc" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
             <figcaption data-i18n="contact.group.cap">Nomi 用户交流群</figcaption>
           </figure>
         </div>
@@ -345,7 +298,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261025v2fb"></script>
-  <script src="js/main.js?v=20261025v2fb"></script>
+  <script src="js/i18n.js?v=20261025v2fc"></script>
+  <script src="js/main.js?v=20261025v2fc"></script>
 </body>
 </html>

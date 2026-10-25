@@ -62,6 +62,7 @@
       };
       set("dl-win", names(["dl-win"]));
       set("dl-mac-arm64", names(["dl-mac-arm64", "dl-mac-x64"]));
+      set("dl-mac", names(["dl-mac-arm64", "dl-mac-x64"]));
       set("dl-linux", names(["dl-linux"]));
       var rl = document.getElementById("dl-release");
       if (rl && rel.html_url) rl.setAttribute("href", rel.html_url);
