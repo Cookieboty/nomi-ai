@@ -11,8 +11,8 @@
   <title>Nomi·诺米 — 让 AI 工具协同起来</title>
   <link rel="icon" href="assets/brand/nomi-mark.svg" type="image/svg+xml" />
   <link rel="preload" href="assets/fonts/nunito-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" as="image" href="assets/mockup/hero-scene.webp" imagesrcset="assets/mockup/hero-scene.webp 550w, assets/mockup/hero-scene@2x.webp 1100w" imagesizes="(max-width: 900px) min(100vw, 520px), 520px" fetchpriority="high" />
-  <link rel="stylesheet" href="css/styles.css?v=20261025v2m2" />
+  <link rel="preload" as="image" href="assets/mockup/hero-bg.webp?v=20261025v2fb" imagesrcset="assets/mockup/hero-bg.webp?v=20261025v2fb 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fb 2048w" imagesizes="100vw" fetchpriority="high" />
+  <link rel="stylesheet" href="css/styles.css?v=20261025v2fb" />
 </head>
 <body data-page="home" id="top">
   <header class="site-header">
@@ -46,95 +46,148 @@
   </header>
 
   <main>
-    <section class="hero hero--v2" aria-labelledby="hero-title">
-      <div class="container hero-grid">
+    <section class="hero hero--bleed" aria-labelledby="hero-title">
+      <div class="hero-bleed-media" aria-hidden="true">
+        <img
+          src="assets/mockup/hero-bg.webp?v=20261025v2fb"
+          srcset="assets/mockup/hero-bg.webp?v=20261025v2fb 1024w, assets/mockup/hero-bg@2x.webp?v=20261025v2fb 2048w"
+          sizes="100vw"
+          width="2048" height="768"
+          alt=""
+          fetchpriority="high"
+          decoding="async"
+        />
+      </div>
+      <div class="hero-bleed-mask" aria-hidden="true"></div>
+      <div class="container hero-bleed-inner">
         <div class="hero-copy">
           <div class="hero-badge hero-badge--pill"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span> <span data-i18n="hero.badge">Nomi 2.0</span></div>
           <h1 id="hero-title" data-i18n="hero.title">让 AI 工具协同起来</h1>
           <p class="hero-promise" data-i18n="hero.promise">不止是桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
-          <p class="hero-slogan" data-i18n="hero.slogan">懂你的日常，也能搞定工作。</p>
           <div class="hero-actions">
-            <a class="btn btn-primary btn-lg" href="#download" data-i18n="hero.download">立即下载</a>
+            <a class="btn btn-primary btn-lg" href="download.html" data-i18n="hero.download">立即下载</a>
             <a class="btn btn-ghost-light btn-lg" href="#sixcaps" data-i18n="hero.more">了解更多 →</a>
-          </div>
-          <div class="hero-meta">
-            <span><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.mit">MIT 开源</span></span>
-            <span><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.bilingual">中文 / English</span></span>
-            <span><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="hero.meta.models">云端模型 + 本地模型</span></span>
-          </div>
-        </div>
-        <div class="hero-visual">
-          <div class="hero-scene">
-            <img src="assets/mockup/hero-scene.webp?v=20261025v2m2" srcset="assets/mockup/hero-scene.webp?v=20261025v2m2 550w, assets/mockup/hero-scene@2x.webp?v=20261025v2m2 1100w" sizes="(max-width: 900px) min(100vw - 2rem, 520px), 520px" width="550" height="324" data-i18n-alt="hero.sceneAlt" alt="Nomi 与浮标：连接多种 AI 工具" fetchpriority="high" decoding="async" />
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section section-tight" id="pillars" aria-labelledby="pillars-title">
+    <section class="section pillars-wrap" id="pillars" aria-labelledby="pillars-title">
+      <div class="pillars-scene" aria-hidden="true"></div>
       <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">Nomi 2.0</span></span>
-          <h2 id="pillars-title" data-i18n="pillars.title">懂你 · 行动 · 相伴</h2>
-          <p class="lead" data-i18n="pillars.lead">不止是陪伴你的桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
-        </div>
-        <div class="pillars pillars--trio">
-          <article class="pillar">
-            <div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5v-7z"/></svg></div>
-            <h3 data-i18n="pillars.chat.title">日常对话</h3>
-            <p data-i18n="pillars.chat.desc">和 Nomi 聊天，获取信息、灵感与建议，随时陪伴。</p>
-          </article>
-          <article class="pillar">
-            <div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M4 12h16"/></svg></div>
-            <h3 data-i18n="pillars.work.title">高效工作</h3>
-            <p data-i18n="pillars.work.desc">连接你的工具与模型，帮你处理各类任务。</p>
-          </article>
-          <article class="pillar">
-            <div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
-            <h3 data-i18n="pillars.local.title">本地运行</h3>
-            <p data-i18n="pillars.local.desc">所有数据与操作都在本机，更安全、更可控。</p>
-          </article>
+        <div class="pillars-panel">
+          <svg class="pillars-arc" viewBox="0 0 900 60" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="pillarsArcGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#FB9466" stop-opacity="0.95"/>
+                <stop offset="55%" stop-color="#FB9466" stop-opacity="0.55"/>
+                <stop offset="100%" stop-color="#FB9466" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path d="M40 48 C 220 8, 480 4, 860 36" fill="none" stroke="url(#pillarsArcGrad)" stroke-width="2.2" stroke-linecap="round"/>
+            <g transform="translate(36,18)">
+              <path fill="#FB9466" d="M12 0C12.6 4.2 14 5.8 18 6.5C14 7.2 12.6 8.8 12 13C11.4 8.8 10 7.2 6 6.5C10 5.8 11.4 4.2 12 0Z"/>
+            </g>
+          </svg>
+          <div class="pillars-panel-head">
+            <span class="section-label section-label--center"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="pillars.label">Nomi 2.0</span></span>
+            <h2 id="pillars-title" data-i18n="pillars.title">懂你 · 行动 · 相伴</h2>
+            <p class="lead" data-i18n="pillars.lead">不止是陪伴你的桌面伙伴，更是连接 AI 工具、模型与工作流的智能助手。</p>
+          </div>
+          <div class="pillars pillars--trio">
+            <article class="pillar">
+              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4 3.5V16H6.5A2.5 2.5 0 0 1 4 13.5v-7z"/><circle cx="9" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="0.9" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="0.9" fill="currentColor" stroke="none"/></svg></div><h3 data-i18n="pillars.chat.title">日常对话</h3></div>
+              <p data-i18n="pillars.chat.desc">和 Nomi 聊天，获取信息、灵感与建议，随时陪伴。</p>
+            </article>
+            <article class="pillar">
+              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="2"/><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7"/><path d="M4 12h16"/></svg></div><h3 data-i18n="pillars.work.title">高效工作</h3></div>
+              <p data-i18n="pillars.work.desc">连接你的工具与模型，帮你处理各类任务。</p>
+            </article>
+            <article class="pillar">
+              <div class="pillar-top"><div class="pillar-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div><h3 data-i18n="pillars.local.title">本地运行</h3></div>
+              <p data-i18n="pillars.local.desc">所有数据与操作都在本机，更安全、更可控。</p>
+            </article>
+          </div>
         </div>
       </div>
     </section>
 
     <section class="section section-tight bg-soft" id="sixcaps" aria-labelledby="sixcaps-title">
       <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="sixcaps.label">Nomi 2.0 六大核心能力</span></span>
-          <h2 id="sixcaps-title" data-i18n="sixcaps.title">更强的能力，更广的连接，更贴心的体验</h2>
-          <p class="lead" data-i18n="sixcaps.lead">少开窗口、少改配置，出事能看见，改文件更安心。</p>
+        <div class="section-head section-head--center">
+          <h2 id="sixcaps-title" class="sixcaps-heading"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="sixcaps.label">Nomi 2.0 六大核心能力</span></h2>
+          <p class="lead" data-i18n="sixcaps.title">更强的能力 · 更广的连接 · 更贴心的体验</p>
         </div>
         <div class="sixcaps-grid">
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16v12H4z"/><path d="M7 10l3 2-3 2M12 14h5"/></svg></div>
+            <span class="sixcap-num">01</span>
             <h3 data-i18n="sixcaps.1.t">CLI 插件化</h3>
             <p data-i18n="sixcaps.1.d">Claude Code、Codex、Gemini、Grok、dsh 等编程助手统一接入，一个窗口开工。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Claude"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span>
+              <span class="chip-ico" title="OpenAI"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M17.8 6.2l-2.1 2.1M8.3 15.7l-2.1 2.1" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+              <span class="chip-ico" title="Gemini"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c2.5 4 4 5.5 8 8-4 2.5-5.5 4-8 8-2.5-4-4-5.5-8-8 4-2.5 5.5-4 8-8z"/></svg></span>
+              <span class="chip-ico" title="X"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg></span>
+              <span class="chip-ico chip-ico--text" title="dsh">dsh</span>
+            </div>
           </article>
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12h6M12 9v6"/></svg></div>
+            <span class="sixcap-num">02</span>
             <h3 data-i18n="sixcaps.2.t">统一网关</h3>
             <p data-i18n="sixcaps.2.d">多种协议一个入口；对话与干活共用，少配少折腾。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-pill">Messages</span>
+              <span class="chip-pill">Responses</span>
+              <span class="chip-pill">Chat</span>
+              <span class="chip-pill">Gemini</span>
+            </div>
           </article>
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="7" r="1.5"/><circle cx="19" cy="7" r="1.5"/><circle cx="5" cy="17" r="1.5"/><circle cx="19" cy="17" r="1.5"/><path d="M10.2 10.5L6.2 7.8M13.8 10.5l3.8-2.7M10.2 13.5L6.2 16.2M13.8 13.5l3.8 2.7"/></svg></div>
+            <span class="sixcap-num">03</span>
             <h3 data-i18n="sixcaps.3.t">智能模型路由</h3>
             <p data-i18n="sixcaps.3.d">按任务自动选合适模型与线路，断了也能接着走。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="OpenAI"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></span>
+              <span class="chip-ico" title="Gemini"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 3c2.5 4 4 5.5 8 8-4 2.5-5.5 4-8 8-2.5-4-4-5.5-8-8 4-2.5 5.5-4 8-8z"/></svg></span>
+              <span class="chip-ico" title="X"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2"/></svg></span>
+              <span class="chip-ico" title="Claude"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"/></svg></span>
+            </div>
           </article>
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="6" ry="2.2"/><path d="M6 6v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V6"/><path d="M6 10v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/><path d="M6 14v4c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-4"/></svg></div>
+            <span class="sixcap-num">04</span>
             <h3 data-i18n="sixcaps.4.t">多供应商与多 Key</h3>
             <p data-i18n="sixcaps.4.d">官方、国内、中转、本地多源接入，多把 Key 灵活切换。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Cloud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7.5 17h10a3.5 3.5 0 0 0 .4-7 5 5 0 0 0-9.6-1.5A3.5 3.5 0 0 0 7.5 17z"/></svg></span>
+              <span class="chip-ico" title="Server"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/><circle cx="8" cy="7" r="0.9" fill="currentColor"/><circle cx="8" cy="17" r="0.9" fill="currentColor"/></svg></span>
+              <span class="chip-ico" title="Local"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+              <span class="chip-ico" title="Key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="12" r="3"/><path d="M11 12h10v3M17 12v3"/></svg></span>
+            </div>
           </article>
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 7h9l-2-2M17 17H8l2 2"/><path d="M16 7v4M8 13v4"/></svg></div>
+            <span class="sixcap-num">05</span>
             <h3 data-i18n="sixcaps.5.t">会话接管与热切换</h3>
             <p data-i18n="sixcaps.5.d">接管真实会话，换助手、升级、重连，进度不丢。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Terminal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10l3 2-3 2M12 14h5"/></svg></span>
+              <span class="chip-ico chip-ico--text" title="prompt">&gt;_</span>
+            </div>
           </article>
           <article class="sixcap-card">
             <div class="sixcap-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M8.5 13.5c.8 1.6 2 2.5 3.5 2.5s2.7-.9 3.5-2.5"/></svg></div>
+            <span class="sixcap-num">06</span>
             <h3 data-i18n="sixcaps.6.t">可观测与安全</h3>
             <p data-i18n="sixcaps.6.d">用量与链路看得见；令牌隔离，敏感操作仍需你确认。</p>
+            <div class="sixcap-chips" aria-hidden="true">
+              <span class="chip-ico" title="Lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 0 1 6 0v3"/></svg></span>
+              <span class="chip-ico" title="Chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19h16M7 16v-5M12 16V8M17 16v-8"/></svg></span>
+              <span class="chip-ico" title="Shield"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/></svg></span>
+            </div>
           </article>
         </div>
         <p class="v2caps-more">
@@ -143,16 +196,25 @@
       </div>
     </section>
 
-    <section class="section workflow" id="workflow" aria-labelledby="workflow-title">
-      <div class="container">
+    <section class="section workflow workflow--bleed" id="workflow" aria-labelledby="workflow-title">
+      <div class="workflow-bleed-media" aria-hidden="true">
+        <img
+          src="assets/mockup/workflow-bg.webp?v=20261025v2fb"
+          srcset="assets/mockup/workflow-bg.webp?v=20261025v2fb 836w, assets/mockup/workflow-bg@2x.webp?v=20261025v2fb 1672w"
+          sizes="100vw"
+          width="1672" height="468"
+          alt=""
+          loading="lazy"
+          decoding="async"
+        />
+      </div>
+      <div class="workflow-bleed-mask" aria-hidden="true"></div>
+      <div class="container workflow-bleed-inner">
         <div class="workflow-head">
           <div>
             <span class="section-label section-label--on-dark"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="workflow.label">Nomi 的工作流</span></span>
             <h2 id="workflow-title" data-i18n="workflow.title">从工具接入到任务执行，简单高效</h2>
             <p class="lead" data-i18n="workflow.lead">把分散的 CLI、模型与会话串成一条清晰路径。</p>
-          </div>
-          <div class="workflow-portrait">
-            <img src="assets/mockup/workflow-nomi.webp?v=20261025v2m2" srcset="assets/mockup/workflow-nomi.webp?v=20261025v2m2 256w, assets/mockup/workflow-nomi@2x.webp?v=20261025v2m2 512w" sizes="140px" width="256" height="250" data-i18n-alt="workflow.portraitAlt" alt="Nomi 角色立绘" loading="lazy" decoding="async" />
           </div>
         </div>
         <ol class="workflow-steps">
@@ -176,12 +238,12 @@
         <div class="platform-duo">
           <article class="plat-card">
             <div class="plat-shot">
-              <img src="assets/screenshots/coding-agent.webp?v=20261025v2m2" srcset="assets/screenshots/coding-agent-640.webp?v=20261025v2m2 640w, assets/screenshots/coding-agent.webp?v=20261025v2m2 1280w" sizes="(max-width: 800px) calc(100vw - 3rem), 420px" width="1280" height="820" data-i18n-alt="platforms.desktop.alt" alt="Nomi 桌面端工作台实机截图" loading="lazy" decoding="async" />
+              <img src="assets/screenshots/coding-agent.webp?v=20261025v2fb" srcset="assets/screenshots/coding-agent-640.webp?v=20261025v2fb 640w, assets/screenshots/coding-agent.webp?v=20261025v2fb 1280w" sizes="(max-width: 800px) calc(100vw - 3rem), 420px" width="1280" height="820" data-i18n-alt="platforms.desktop.alt" alt="Nomi 桌面端工作台实机截图" loading="lazy" decoding="async" />
             </div>
             <div class="plat-copy">
               <h3 data-i18n="platforms.desktop.title">桌面端</h3>
               <p data-i18n="platforms.desktop.desc">高效的 AI 工作台，让生产力再升级。</p>
-              <a class="btn btn-primary" href="#download" data-i18n="platforms.desktop.cta">下载桌面版 →</a>
+              <a class="btn btn-primary" href="download.html" data-i18n="platforms.desktop.cta">下载桌面版 →</a>
             </div>
           </article>
           <article class="plat-card plat-card--soon">
@@ -213,40 +275,15 @@
       </div>
     </section>
 
-    <section class="section" id="download" aria-labelledby="download-title">
+    <section class="section section-tight" id="download" aria-labelledby="download-title">
       <div class="container">
-        <div class="section-head">
-          <span class="section-label"><span class="star-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C12.8 7 14.5 9 19.5 10C14.5 11 12.8 13 12 18C11.2 13 9.5 11 4.5 10C9.5 9 11.2 7 12 2Z"/></svg></span><span data-i18n="page.download.label">下载</span></span>
-          <h2 id="download-title" data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
-          <p class="lead" data-i18n="cta.lead">安装后跟着引导选语言、主题和模型，几分钟就能开始对话。</p>
+        <div class="cta-band">
+          <div>
+            <h2 id="download-title" data-i18n="cta.title">准备好认识 Nomi 了吗？</h2>
+            <p class="lead" data-i18n="cta.lead">即将迎来 v2.0.0。安装后跟着引导选语言、主题和模型，几分钟就能开始对话。</p>
+          </div>
+          <a class="btn btn-primary btn-lg" href="download.html" data-i18n="cta.download">前往下载</a>
         </div>
-        <div class="platform-grid">
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5L10.5 4.4v7.1H3V5.5zm0 13L10.5 19.6v-7.1H3v6zm8.2-13.2L21 3v8.5h-9.8V5.3zM12.2 19.7L21 21v-8.5h-8.8v7.2z"/></svg></div>
-            <h3>Windows</h3>
-            <p class="pkg">Nomi-Setup-2.0.0.exe</p>
-            <p class="req" data-i18n="dl.windows.req">Windows 10 及以上</p>
-            <a class="btn btn-primary" id="dl-win" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
-          </article>
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.7 12.6c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.1.8-.7 0-1.7-.7-2.8-.7-1.4 0-2.8.9-3.5 2.2-1.5 2.6-.4 6.5 1.1 8.6.7 1 1.6 2.2 2.7 2.1 1.1 0 1.5-.7 2.8-.7s1.7.7 2.8.7c1.2 0 1.9-1 2.6-2 .8-1.2 1.1-2.3 1.1-2.4-.1 0-2.2-.9-2.2-3.7zM14.8 6.5c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.6.6-1.1 1.7-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/></svg></div>
-            <h3>macOS</h3>
-            <p class="pkg">Nomi-2.0.0-arm64.dmg<br />Nomi-2.0.0.dmg</p>
-            <p class="req" data-i18n="dl.mac.req">Apple Silicon / Intel</p>
-            <div class="dl-row">
-              <a class="btn btn-primary" id="dl-mac-arm64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Apple Silicon</a>
-              <a class="btn btn-primary" id="dl-mac-x64" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank">Intel</a>
-            </div>
-          </article>
-          <article class="platform-card">
-            <div class="os-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.5 2c-1.2 0-2.1 1.4-1.9 2.7.1.6.3 1.2.3 1.8 0 .4-.2.8-.3 1.2-.5 1.3-.2 2.3.7 3.2.2.2.3.5.2.8-.2.8-.5 1.5-.5 2.4 0 2.1 1.6 3.6 3.8 3.6 2.5 0 4-1.8 4-4.1 0-1.5-.6-2.7-1.1-3.7-.2-.4-.2-.8 0-1.2.5-1.1.7-2.2.4-3.4C17.8 3.1 16.4 2 14.8 2c-.8 0-1.5.3-2 .8-.1-.3-.2-.5-.3-.8zM8.6 14.2c-.9 0-1.8.4-2.4 1.1C5.2 16.3 5 17.7 5.4 19c.5 1.5 1.8 2.5 3.4 2.5.6 0 1.1-.1 1.6-.4.4 1.2 1.5 2 2.8 2 1 0 1.9-.5 2.4-1.3.6.3 1.2.4 1.9.4 1.8 0 3.3-1.2 3.7-2.9.3-1.3-.1-2.6-1-3.5-.7-.7-1.6-1.1-2.6-1.1-.5 0-1 .1-1.4.3-.5-.9-1.5-1.5-2.6-1.5-.9 0-1.7.4-2.3 1.1-.5-.7-1.3-1.1-2.1-1.1z"/></svg></div>
-            <h3>Linux</h3>
-            <p class="pkg">Nomi-2.0.0.AppImage</p>
-            <p class="req" data-i18n="dl.linux.req">x64 AppImage</p>
-            <a class="btn btn-primary" id="dl-linux" href="https://github.com/Cookieboty/nomi-ai/releases" rel="noopener noreferrer" target="_blank" data-i18n="dl.download">下载安装包</a>
-          </article>
-        </div>
-        <p class="note"><span data-i18n="dl.note">Linux、Windows 与 macOS 安装包均可下载。也可打开</span> <a id="dl-release" href="https://github.com/Cookieboty/nomi-ai/releases/latest" rel="noopener noreferrer" target="_blank" data-i18n="dl.latest">GitHub 最新 Release</a>。</p>
       </div>
     </section>
 
@@ -259,11 +296,11 @@
         </div>
         <div class="contact-grid">
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-author.webp?v=20261025v2m2" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261025v2m2" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-author.webp?v=20261025v2fb" type="image/webp" /><img src="assets/contact/qr-author.png?v=20261025v2fb" width="360" height="480" loading="lazy" decoding="async" alt="作者微信二维码" data-i18n-alt="contact.author.alt" /></picture>
             <figcaption data-i18n="contact.author.cap">作者微信 · Tomo</figcaption>
           </figure>
           <figure class="contact-card">
-            <picture><source srcset="assets/contact/qr-group.webp?v=20261025v2m2" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261025v2m2" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
+            <picture><source srcset="assets/contact/qr-group.webp?v=20261025v2fb" type="image/webp" /><img src="assets/contact/qr-group.png?v=20261025v2fb" width="360" height="480" loading="lazy" decoding="async" alt="Nomi 用户交流群二维码" data-i18n-alt="contact.group.alt" /></picture>
             <figcaption data-i18n="contact.group.cap">Nomi 用户交流群</figcaption>
           </figure>
         </div>
@@ -308,7 +345,7 @@
       </div>
     </div>
   </footer>
-  <script src="js/i18n.js?v=20261025v2m2"></script>
-  <script src="js/main.js?v=20261025v2m2"></script>
+  <script src="js/i18n.js?v=20261025v2fb"></script>
+  <script src="js/main.js?v=20261025v2fb"></script>
 </body>
 </html>
