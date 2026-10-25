@@ -17,7 +17,7 @@ export const KnowledgeSection: React.FC<{
 }> = ({ tab, onTab }) => (
   <SectionPage
     testId="settings-knowledge"
-    tabsLabel="知识与记忆分区"
+    tabsLabel="ui.chat-settings.knowledge-and-memory-sections"
     tabs={SECTION_TABS.knowledge}
     value={tab}
     onChange={onTab}

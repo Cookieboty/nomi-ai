@@ -54,10 +54,10 @@ export function sessionUsageText(
   c: UsageCurrency,
   cnyPerUsd: number,
 ): string {
-  const tokens = t('累计 {0} Token', formatTokens(u.tokens));
-  if (u.costUsd == null) return [tokens, t('未定价')].join(' · ');
+  const tokens = t('ui.usage-tools.tokens-in-total', formatTokens(u.tokens));
+  if (u.costUsd == null) return [tokens, t('ui.usage-tools.unpriced')].join(' · ');
   const cost = formatMoney(u.costUsd, c, cnyPerUsd);
-  return [tokens, u.unpriced ? t('{0}（部分模型未定价）', cost) : cost].join(' · ');
+  return [tokens, u.unpriced ? t('ui.usage-tools.some-models-unpriced', cost) : cost].join(' · ');
 }
 
 /** 单价展示（USD / 1M tokens）：保留有效位，去掉多余 0 */
@@ -150,26 +150,30 @@ export const listSep = (): string => (getLocale() === 'en' ? ', ' : '、');
 
 /** 额度窗口名：300 分钟 → 5 小时窗口，10080 → 每周窗口；未知长度用 primary / secondary 兜底 */
 export function quotaWindowLabel(id: string, minutes?: number): string {
-  if (!minutes) return id === 'secondary' ? t('长周期窗口') : t('短周期窗口');
-  if (minutes === 10080) return t('每周窗口');
-  if (minutes < 60) return t('{0} 分钟窗口', Math.round(minutes));
-  if (minutes < 1440) return t('{0} 小时窗口', Number((minutes / 60).toFixed(1)));
-  return t('{0} 天窗口', Number((minutes / 1440).toFixed(1)));
+  if (!minutes)
+    return id === 'secondary' ? t('ui.usage-tools.long-window') : t('ui.usage-tools.short-window');
+  if (minutes === 10080) return t('ui.usage-tools.weekly-window');
+  if (minutes < 60) return t('ui.usage-tools.minute-window', Math.round(minutes));
+  if (minutes < 1440) return t('ui.usage-tools.hour-window', Number((minutes / 60).toFixed(1)));
+  return t('ui.usage-tools.day-window', Number((minutes / 1440).toFixed(1)));
 }
 
 /** 距重置还有多久：「约 2 小时后重置」 */
 export function resetText(resetAt: number, now: number): string {
   const d = Math.max(0, resetAt - now);
-  if (d < 3_600_000) return t('约 {0} 分钟后重置', Math.max(1, Math.round(d / 60_000)));
-  if (d < 86_400_000) return t('约 {0} 小时后重置', Math.round(d / 3_600_000));
-  return t('约 {0} 天后重置', Math.round(d / 86_400_000));
+  if (d < 3_600_000) return t('ui.usage-tools.resets-in-min', Math.max(1, Math.round(d / 60_000)));
+  if (d < 86_400_000) return t('ui.usage-tools.resets-in-h', Math.round(d / 3_600_000));
+  return t('ui.usage-tools.resets-in-d', Math.round(d / 86_400_000));
 }
 
 /** 额度窗口短名（迷你进度条用）：300 分钟 → 5 小时，10080 → 每周 */
 export function quotaWindowShort(id: string, minutes?: number): string {
-  if (!minutes) return id === 'secondary' ? t('长周期') : t('短周期');
-  if (minutes === 10080) return t('每周');
-  if (minutes < 60) return t('{0} 分钟', Math.round(minutes));
-  if (minutes < 1440) return t('{0} 小时', Number((minutes / 60).toFixed(1)));
-  return t('{0} 天', Number((minutes / 1440).toFixed(1)));
+  if (!minutes)
+    return id === 'secondary'
+      ? t('ui.usage-tools.long-window-f81512')
+      : t('ui.usage-tools.short-window-1a7167');
+  if (minutes === 10080) return t('ui.knowledge-local.weekly');
+  if (minutes < 60) return t('ui.foundation.min', Math.round(minutes));
+  if (minutes < 1440) return t('ui.foundation.h', Number((minutes / 60).toFixed(1)));
+  return t('ui.usage-tools.d', Number((minutes / 1440).toFixed(1)));
 }

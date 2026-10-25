@@ -422,7 +422,7 @@ export class HarnessOrchestrator {
     const now = Date.now();
     this.tabs.set(MAIN_TAB_ID, {
       id: MAIN_TAB_ID,
-      title: t('对话'),
+      title: t('electron.common.chat'),
       backend: 'nomi',
       cwd: d.defaultCwd ?? process.cwd(),
       cliSessionId: null,
@@ -465,7 +465,7 @@ export class HarnessOrchestrator {
     const want = key(abs);
     for (const tab of this.tabs.values()) if (key(path.resolve(tab.cwd)) === want) return abs;
     if (this.recent.some((p) => key(p) === want)) return abs;
-    throw new Error(t('工作目录无效'));
+    throw new Error(t('electron.common.invalid-working-directory'));
   }
 
   private rememberCwd(abs: string) {
@@ -480,7 +480,7 @@ export class HarnessOrchestrator {
   /** 原生文件夹选择器（不绑定到任何标签），取消返回 null */
   async pickDirectory(defaultPath?: string): Promise<string | null> {
     const r = await dialog.showOpenDialog({
-      title: t('选择编程助手工作目录'),
+      title: t('electron.common.choose-coding-assistant-working-directory'),
       properties: ['openDirectory', 'createDirectory'],
       ...(defaultPath ? { defaultPath } : {}),
     });
@@ -767,7 +767,7 @@ export class HarnessOrchestrator {
 
   private requireTab(id: string): HarnessTabMeta {
     const tab = this.tabs.get(String(id));
-    if (!tab) throw new Error(t('标签不存在'));
+    if (!tab) throw new Error(t('electron.common.tab-not-found'));
     return tab;
   }
 
@@ -831,7 +831,7 @@ export class HarnessOrchestrator {
   ): HarnessTabMeta {
     const backend = opts.backend ?? 'claude';
     if (!isBackend(backend) || backend === 'nomi') {
-      throw new Error(t('新标签只能绑定编程助手后端'));
+      throw new Error(t('electron.common.new-tabs-can-only-use-a-coding-agent'));
     }
     const ext = backend === 'external' ? this.externalSpecOf(opts.pluginId) : undefined;
     const cwd = opts.cwd ? validDir(opts.cwd) : this.tabs.get(this.activeTabId)!.cwd;
@@ -973,7 +973,8 @@ export class HarnessOrchestrator {
   /** 用可见消息覆盖标签转录（分叉 / 导入）；不改 cliSessionId */
   seedTabMessages(id: string, messages: HarnessTabMessage[]): HarnessTabMeta {
     const tab = this.requireTab(id);
-    if (id === MAIN_TAB_ID) throw new Error(t('主对话标签不能写入 CLI 转录'));
+    if (id === MAIN_TAB_ID)
+      throw new Error(t('electron.common.cannot-write-a-cli-transcript-on-the-main'));
     const seeded = (messages ?? [])
       .filter(
         (m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string',
@@ -1001,7 +1002,8 @@ export class HarnessOrchestrator {
   }
 
   closeTab(id: string): HarnessTabsState {
-    if (id === MAIN_TAB_ID) throw new Error(t('主对话标签不能关闭'));
+    if (id === MAIN_TAB_ID)
+      throw new Error(t('electron.common.the-main-chat-tab-cannot-be-closed'));
     const tab = this.requireTab(id);
     this.cancelTab(id);
     this.teardownClaudeLive(id);
@@ -1036,7 +1038,7 @@ export class HarnessOrchestrator {
     const next = String(title ?? '')
       .trim()
       .slice(0, 60);
-    if (!next) throw new Error(t('标题不能为空'));
+    if (!next) throw new Error(t('electron.common.title-cannot-be-empty'));
     tab.title = next;
     this.changed();
     return { ...tab };
@@ -1055,14 +1057,15 @@ export class HarnessOrchestrator {
 
   setTabBackend(id: string, backend: HarnessBackend): HarnessTabMeta {
     const tab = this.requireTab(id);
-    if (!isBackend(backend)) throw new Error(t('未知后端'));
+    if (!isBackend(backend)) throw new Error(t('electron.common.unknown-backend'));
     if (backend === 'nomi' && id !== MAIN_TAB_ID) {
-      throw new Error(t('新标签只能绑定编程助手后端'));
+      throw new Error(t('electron.common.new-tabs-can-only-use-a-coding-agent'));
     }
     // 外部 CLI 要指定是哪个插件：只能新建标签（createTab 带 pluginId），不能把已有标签换过去
     if (backend === 'external' || tab.backend === 'external')
-      throw new Error(t('外部 CLI 的标签不能切换后端，请新建标签'));
-    if (tab.status === 'running' || tab.status === 'queued') throw new Error(t('上一轮尚未结束'));
+      throw new Error(t('electron.common.an-external-cli-tab-can-t-switch-to'));
+    if (tab.status === 'running' || tab.status === 'queued')
+      throw new Error(t('electron.common.previous-turn-still-running'));
     const switched = backend !== tab.backend;
     // 会话 id 只属于产生它的 CLI；切换后端即丢弃，避免把 Claude 会话交给 Codex resume
     if (switched) {
@@ -1130,22 +1133,25 @@ export class HarnessOrchestrator {
    */
   setTabSource(id: string, source: HarnessTabSource, model?: string): HarnessTabMeta {
     const tab = this.requireTab(id);
-    if (tab.backend === 'nomi') throw new Error(t('Nomi 对话没有来源可选'));
-    if (source !== 'official' && source !== 'thirdParty') throw new Error(t('未知来源'));
+    if (tab.backend === 'nomi')
+      throw new Error(t('electron.common.nomi-chat-has-no-source-to-choose'));
+    if (source !== 'official' && source !== 'thirdParty')
+      throw new Error(t('electron.common.unknown-source'));
     if (source === 'thirdParty' && tab.backend === 'external')
-      throw new Error(t('外部 CLI 只能使用它自己的登录，不能接第三方模型'));
-    if (source === 'thirdParty' && !this.d.gateway) throw new Error(t('模型网关不可用'));
+      throw new Error(t('electron.common.an-external-cli-only-uses-its-own-sign'));
+    if (source === 'thirdParty' && !this.d.gateway)
+      throw new Error(t('electron.common.the-model-gateway-is-unavailable'));
     if (tab.status === 'running' || tab.status === 'queued')
-      throw new Error(t('这一轮结束后再切换'));
+      throw new Error(t('electron.common.switch-after-this-turn-finishes'));
     const ref = model?.trim() || '';
-    if (ref && !isValidModelId(ref)) throw new Error(t('模型名不合法'));
+    if (ref && !isValidModelId(ref)) throw new Error(t('electron.common.invalid-model-name'));
     if (source === this.sourceOf(tab)) return ref ? this.setTabModel(id, ref) : { ...tab };
     if (
       source === 'thirdParty' &&
       !ref &&
       !this.d.gateway?.defaults(tab.backend as BuiltinBackend).model
     )
-      throw new Error(t('先在「模型」页给这个编程助手分配一个第三方模型'));
+      throw new Error(t('electron.common.assign-a-third-party-model-to-this-coding'));
     const hadSession = Boolean(tab.cliSessionId) || this.tabMessages(id).length > 0;
     this.teardownClaudeLive(id);
     this.teardownCodexLive(id);
@@ -1200,8 +1206,9 @@ export class HarnessOrchestrator {
     opts: { confirmed?: boolean; expect?: { backend?: string; cwd?: string } } = {},
   ): HarnessTabMeta & { degraded: boolean } {
     const tab = this.requireTab(id);
-    if (!isPermissionMode(mode)) throw new Error(t('未知权限模式'));
-    if (mode === 'bypass' && !opts.confirmed) throw new Error(t('完全放开需要先确认'));
+    if (!isPermissionMode(mode)) throw new Error(t('electron.common.unknown-permission-mode'));
+    if (mode === 'bypass' && !opts.confirmed)
+      throw new Error(t('electron.common.full-access-requires-confirmation-first'));
     const want = opts.expect;
     if (
       mode === 'bypass' &&
@@ -1209,7 +1216,7 @@ export class HarnessOrchestrator {
       ((want.backend !== undefined && want.backend !== tab.backend) ||
         (want.cwd !== undefined && want.cwd !== tab.cwd))
     )
-      throw new Error(t('标签的后端或工作目录已变化，请重新确认「完全放开」'));
+      throw new Error(t('electron.common.this-tab-s-backend-or-working-directory-changed'));
     const next = effectiveMode(tab.backend, mode);
     // 用户显式选择的档位优先于「从历史 CLI 会话同步」：首次握手不得再覆盖它
     delete tab.permissionModeSource;
@@ -1267,7 +1274,7 @@ export class HarnessOrchestrator {
         if (this.claudeLive.get(id) === live) this.teardownClaudeLive(id);
         throw new Error(
           t(
-            'Claude Code 没有确认权限模式切换（{0}），已停止当前进程，下一轮会按新模式重新启动',
+            'electron.common.claude-code-did-not-confirm-the-permission-mode',
             e instanceof Error ? e.message : String(e),
           ),
         );
@@ -1298,11 +1305,8 @@ export class HarnessOrchestrator {
         const why = innermostMessage(e instanceof Error ? e.message : String(e));
         throw new Error(
           gl.backend === 'grok'
-            ? t('Grok 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始', why)
-            : t(
-                'Gemini 没有确认权限模式切换（{0}），已停止当前会话，下一轮会按新模式重新开始',
-                why,
-              ),
+            ? t('electron.common.grok-did-not-confirm-the-permission-mode-change', why)
+            : t('electron.common.gemini-did-not-confirm-the-permission-mode-change', why),
         );
       },
     );
@@ -1390,7 +1394,7 @@ export class HarnessOrchestrator {
       backend,
       models,
       defaultModel: (def && models.find((m) => m.id === def)) || null,
-      provider: { id: GATEWAY_SCOPE, name: t('第三方模型') },
+      provider: { id: GATEWAY_SCOPE, name: t('electron.common.third-party-models') },
     };
   }
 
@@ -1448,10 +1452,11 @@ export class HarnessOrchestrator {
   ): HarnessTabMeta {
     const tab = this.requireTab(id);
     const backend = tab.backend;
-    if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
+    if (!this.canOverride(tab))
+      throw new Error(t('electron.common.this-coding-assistant-doesn-t-support-switching-models'));
     // 选择时界面看到的来源与标签当前来源不一致（期间切了来源）：不把那个来源的模型写进来（#83）
     if (opts.expectSource && opts.expectSource !== this.sourceOf(tab))
-      throw new Error(t('这个标签的模型来源已经变了，请重新选择模型'));
+      throw new Error(t('electron.common.this-tab-s-model-source-has-changed-pick'));
     const name = model.trim();
     const scope = this.adoptScope(tab);
     if (!name) {
@@ -1464,10 +1469,10 @@ export class HarnessOrchestrator {
       }
       return { ...tab };
     }
-    if (!isValidModelId(name)) throw new Error(t('模型名不合法'));
+    if (!isValidModelId(name)) throw new Error(t('electron.common.invalid-model-name'));
     // 第三方来源只能选网关里启用的模型
     if (scope && this.d.gateway && !this.d.gateway.models().some((m) => m.ref === name))
-      throw new Error(t('第三方模型里没有「{0}」，请在「模型」页启用后再选', name));
+      throw new Error(t('electron.common.isn-t-among-the-third-party-models-enable', name));
     if (tab.modelOverride !== name) {
       tab.modelOverride = name;
       tab.modelScope = scope;
@@ -1500,12 +1505,16 @@ export class HarnessOrchestrator {
       }
       return { ...tab };
     }
-    if (!this.canOverride(tab)) throw new Error(t('这个编程助手不支持切换模型'));
-    if (this.adoptScope(tab)) throw new Error(t('第三方供应商的模型不能在这里调思考深度'));
-    if (!isReasoningEffort(effort)) throw new Error(t('未知思考深度'));
+    if (!this.canOverride(tab))
+      throw new Error(t('electron.common.this-coding-assistant-doesn-t-support-switching-models'));
+    if (this.adoptScope(tab))
+      throw new Error(t('electron.common.reasoning-effort-can-t-be-set-here-for'));
+    if (!isReasoningEffort(effort)) throw new Error(t('electron.common.unknown-reasoning-effort'));
     const levels = effortsForModel(this.cachedCatalog(backend), tab.modelOverride);
-    if (levels === null) throw new Error(t('这个模型不支持思考深度'));
-    if (levels && !levels.includes(effort)) throw new Error(t('这个模型不支持该思考深度'));
+    if (levels === null)
+      throw new Error(t('electron.common.this-model-doesn-t-support-reasoning-effort'));
+    if (levels && !levels.includes(effort))
+      throw new Error(t('electron.common.this-model-doesn-t-support-that-reasoning-effort'));
     if (tab.reasoningEffort !== effort) {
       tab.reasoningEffort = effort;
       this.rememberSettings(tab);
@@ -1608,11 +1617,11 @@ export class HarnessOrchestrator {
   private launchFor(tab: HarnessTabMeta): TabLaunch {
     if (this.sourceOf(tab) === 'official') return this.officialLaunch(tab.backend, tab.accountId);
     const model = this.effectiveOverrides(tab).model;
-    if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
+    if (!model) throw new Error(t('electron.common.this-tab-has-no-third-party-model-yet'));
     const l = this.d.gateway!.launch(tab.backend as BuiltinBackend, tab.id, model, {
       tabBound: this.needsTabBinding(tab),
     });
-    if (!l) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
+    if (!l) throw new Error(t('electron.common.the-model-gateway-isn-t-running-so-third'));
     // 按标签令牌启动的进程以实际启动为准：占位模型名时配置里没有真实模型，换模型不必重启（§6.7）
     const bound = this.needsTabBinding(tab) ? this.tabBindings.get(tab.id) : undefined;
     const modelInConfig = bound?.modelInConfig ?? Boolean(l.modelInConfig);
@@ -1647,7 +1656,7 @@ export class HarnessOrchestrator {
   private async bindTabLaunch(tab: HarnessTabMeta, launch: TabLaunch): Promise<TabLaunch> {
     if (launch.official || !this.needsTabBinding(tab)) return launch;
     const model = this.effectiveOverrides(tab).model;
-    if (!model) throw new Error(t('这个标签还没有选第三方模型，请先在「模型」页给它分配一个'));
+    if (!model) throw new Error(t('electron.common.this-tab-has-no-third-party-model-yet'));
     const effort = this.effectiveOverrides(tab).effort ?? undefined;
     const r = await this.d.gateway!.launchForTab!(
       tab.backend as BuiltinBackend,
@@ -1655,7 +1664,7 @@ export class HarnessOrchestrator {
       model,
       effort,
     );
-    if (!r) throw new Error(t('模型网关没有运行，暂时不能使用第三方模型'));
+    if (!r) throw new Error(t('electron.common.the-model-gateway-isn-t-running-so-third'));
     this.tabBindings.set(tab.id, {
       generation: r.generation,
       model,
@@ -1708,9 +1717,7 @@ export class HarnessOrchestrator {
   private externalSpecOf(id: string | undefined): ExternalCliSpec {
     const spec = id ? this.d.externals?.spec(id) : undefined;
     if (!spec)
-      throw new Error(
-        t('外部 CLI {0} 已被删除或清单无效，请在「设置 → 编程助手 → 添加 CLI」里检查', id ?? '?'),
-      );
+      throw new Error(t('electron.common.the-external-cli-was-deleted-or-its-manifest', id ?? '?'));
     return spec;
   }
 
@@ -1781,8 +1788,10 @@ export class HarnessOrchestrator {
     codexNetwork?: boolean;
   }): HarnessTabsState {
     if (o.defaultPermissionMode !== undefined) {
-      if (!isPermissionMode(o.defaultPermissionMode)) throw new Error(t('未知权限模式'));
-      if (o.defaultPermissionMode === 'bypass') throw new Error(t('完全放开不能设为默认模式'));
+      if (!isPermissionMode(o.defaultPermissionMode))
+        throw new Error(t('electron.common.unknown-permission-mode'));
+      if (o.defaultPermissionMode === 'bypass')
+        throw new Error(t('electron.common.full-access-can-t-be-the-default-mode'));
       this.defaultPermissionMode = o.defaultPermissionMode;
       // 设置页改了默认档：新会话按新默认档开始，不再沿用之前标签上的选择
       for (const s of this.lastSettings.values()) delete s.permissionMode;
@@ -1954,7 +1963,7 @@ export class HarnessOrchestrator {
   async pickTabCwd(id: string): Promise<HarnessTabMeta> {
     const tab = this.requireTab(id);
     const r = await dialog.showOpenDialog({
-      title: t('选择编程助手工作目录'),
+      title: t('electron.common.choose-coding-assistant-working-directory'),
       properties: ['openDirectory', 'createDirectory'],
       defaultPath: tab.cwd,
     });
@@ -2072,11 +2081,12 @@ export class HarnessOrchestrator {
     opts: { userInitiated?: boolean } = {},
   ): Promise<HarnessSendResult> {
     const tab = this.requireTab(id);
-    if (tab.backend === 'nomi') throw new Error(t('当前为 Nomi 后端，请走原生对话'));
+    if (tab.backend === 'nomi')
+      throw new Error(t('electron.common.nomi-backend-is-active-use-the-built-in'));
     const text = String(prompt ?? '').slice(0, 100_000);
     const { images: normalized, rejected } = inspectImages(images);
     if (rejected.length) throw new Error(rejectedImagesMessage(rejected));
-    if (!text.trim() && !normalized.length) throw new Error(t('消息为空'));
+    if (!text.trim() && !normalized.length) throw new Error(t('electron.common.message-is-empty'));
     const backend = tab.backend;
     if (normalized.length && imageSupportFor(backend) === 'none') {
       throw new Error(unsupportedImageMessage(backend));
@@ -2091,7 +2101,7 @@ export class HarnessOrchestrator {
     // 只有自发轮次在跑时允许发送：CLI 会排队处理，回显到达时再切换归属（§4）
     const autoOnly = current.status === 'running' && this.isAutoOnly(id);
     if ((current.status === 'running' && !autoOnly) || current.status === 'queued')
-      throw new Error(t('上一轮尚未结束'));
+      throw new Error(t('electron.common.previous-turn-still-running'));
     // 模型来源（官方 / 第三方供应商）变了却还没收到通知：先对齐，不把别的来源的模型名发出去
     if ((current.modelScope ?? null) !== this.scopeOf(current)) {
       this.adoptScope(current);
@@ -2128,7 +2138,7 @@ export class HarnessOrchestrator {
     }
     if (!this.tabs.has(id)) {
       this.release();
-      throw new Error(t('标签已关闭'));
+      throw new Error(t('electron.common.tab-was-closed'));
     }
     current.status = 'running';
     const abort = new AbortController();
@@ -2395,7 +2405,7 @@ export class HarnessOrchestrator {
     const timeoutMs = this.permissionTimeoutMs(tab.id);
     const ev = executePlanEvent(
       `${tab.id}:${Date.now()}`,
-      t('按此方案执行：切到自动改文件并继续实施'),
+      t('electron.common.execute-this-plan-switch-to-auto-edit-and'),
       timeoutMs,
     );
     this.armPermissionTimeout(tab.id, ev.id);
@@ -2439,14 +2449,14 @@ export class HarnessOrchestrator {
     await this.claudeLive.get(tab.id)?.modeChange?.done.catch(() => undefined);
     await this.syncClaudeModel(tab);
     // 等待期间点了停止：不再拉起进程、不发送（#75）
-    if (signal?.aborted) throw new Error(t('已中止'));
+    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
     const live = await this.ensureClaudeLiveBound(tab);
     // 第三方原地换了模型（set_model）或复用了进程：绑定跟上标签的主模型（§6.7）
     await this.syncTabBinding(tab);
-    if (signal?.aborted) throw new Error(t('已中止'));
+    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
     return new Promise<HarnessSendResult>((resolve, reject) => {
       if (live.turn) {
-        reject(new Error(t('上一轮尚未结束')));
+        reject(new Error(t('electron.common.previous-turn-still-running')));
         return;
       }
       const turn: ClaudeTurnWaiter = {
@@ -2569,7 +2579,7 @@ export class HarnessOrchestrator {
     if (this.claudeLive.has(tab.id)) this.teardownClaudeLive(tab.id);
 
     const bin = resolveHarnessBin('claude');
-    if (!bin) throw new Error(t('未找到 Claude Code（可设 NOMI_USE_MOCK_CLI=1）'));
+    if (!bin) throw new Error(t('electron.common.claude-code-not-found-set-nomi-use-mock'));
     const useNode = isScript(bin);
     // 不把 prompt 放 argv：多轮都走 stdin NDJSON，进程可跨轮复用
     const argv = [
@@ -2608,10 +2618,10 @@ export class HarnessOrchestrator {
       },
       controlTimeoutMs: this.d.claudeControlTimeoutMs ?? CLAUDE_CONTROL_TIMEOUT_MS,
       messages: {
-        timeout: t('超时'),
-        notWritable: t('Claude 进程 stdin 不可写'),
-        exited: t('进程已结束'),
-        rejected: t('后端拒绝了请求'),
+        timeout: t('electron.common.timed-out'),
+        notWritable: t('electron.common.claude-process-stdin-is-not-writable'),
+        exited: t('electron.common.process-ended'),
+        rejected: t('electron.common.the-backend-rejected-the-request'),
       },
       kill: killProcessTree,
     });
@@ -2663,15 +2673,15 @@ export class HarnessOrchestrator {
       // 一轮进行中进程退出（用户停止走 interrupt / 拆进程，记为取消，不算退出）
       if (!this.stopRequested.has(tab.id)) this.turnExits.add(tab.id);
       if (signal && !turn.text) {
-        turn.reject(new Error(t('已中止')));
+        turn.reject(new Error(t('electron.common.cancelled-5c1747')));
         return;
       }
       if (code && code !== 0 && !turn.text) {
-        turn.reject(new Error(turn.lastError ?? t('{0} 退出码 {1}', 'claude', code)));
+        turn.reject(new Error(turn.lastError ?? t('electron.common.exit-code', 'claude', code)));
         return;
       }
       turn.resolve({
-        text: turn.text || t('（无文本输出）'),
+        text: turn.text || t('electron.common.no-text-output'),
         sessionId: turn.sessionId,
         events: turn.events,
       });
@@ -2685,7 +2695,8 @@ export class HarnessOrchestrator {
     uuid: string,
     images?: NormalizedImage[],
   ) {
-    if (!live.child.stdin.writable) throw new Error(t('Claude 进程 stdin 不可写'));
+    if (!live.child.stdin.writable)
+      throw new Error(t('electron.common.claude-process-stdin-is-not-writable'));
     const content = images?.length ? claudeContentBlocks(prompt, images) : prompt;
     live.driver.writeUser(content, uuid);
   }
@@ -2738,9 +2749,9 @@ export class HarnessOrchestrator {
             backend: 'claude' as HarnessBackend,
             summary:
               ev.kind === 'approve-plan'
-                ? t('批准计划：{0}', ev.summary)
+                ? t('electron.common.approve-plan-494a3e', ev.summary)
                 : ev.agent
-                  ? t('子代理「{0}」：{1}', ev.agent, ev.summary)
+                  ? t('electron.common.subagent', ev.agent, ev.summary)
                   : ev.summary,
             background: this.activeTabId !== tabId || !anyWindowFocused(),
           });
@@ -2773,7 +2784,7 @@ export class HarnessOrchestrator {
         if (!turn.settled) {
           turn.settled = true;
           turn.resolve({
-            text: turn.text || t('（无文本输出）'),
+            text: turn.text || t('electron.common.no-text-output'),
             sessionId: turn.sessionId,
             events: turn.events,
             ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
@@ -2822,7 +2833,7 @@ export class HarnessOrchestrator {
       if (missing.length)
         throw new Error(
           t(
-            '{0} 需要环境变量 {1}，请先在启动 Nomi 的环境里设置',
+            'electron.common.needs-the-environment-variables-set-them-in-the',
             ext.displayName,
             missing.join(', '),
           ),
@@ -2834,8 +2845,8 @@ export class HarnessOrchestrator {
       if (!found)
         throw new Error(
           backend === 'grok'
-            ? t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')
-            : t('未找到 Gemini CLI（可设 NOMI_USE_MOCK_CLI=1）'),
+            ? t('electron.common.grok-not-found-set-nomi-use-mock-cli')
+            : t('electron.common.gemini-cli-not-found-set-nomi-use-mock'),
         );
       bin = found;
       argv = backend === 'grok' ? ['agent', 'stdio'] : ['--acp'];
@@ -2929,10 +2940,10 @@ export class HarnessOrchestrator {
       if (!sid)
         throw new Error(
           backend === 'grok'
-            ? t('Grok 没有返回会话')
+            ? t('electron.common.grok-did-not-return-a-session')
             : backend === 'gemini'
-              ? t('Gemini 没有返回会话')
-              : t('{0} 没有返回会话', name),
+              ? t('electron.common.gemini-didn-t-return-a-session')
+              : t('electron.common.didn-t-return-a-session', name),
         );
       live.sessionId = sid;
       // 历史文件没有权限字段时，以 ACP 返回的 currentModeId 为准。
@@ -2969,8 +2980,8 @@ export class HarnessOrchestrator {
           const why = innermostMessage(e instanceof Error ? e.message : String(e));
           throw new Error(
             backend === 'grok'
-              ? t('Grok 没有确认权限模式（{0}），这条消息没有发送', why)
-              : t('Gemini 没有确认权限模式（{0}），这条消息没有发送', why),
+              ? t('electron.common.grok-did-not-confirm-the-permission-mode-so', why)
+              : t('electron.common.gemini-did-not-confirm-the-permission-mode-this', why),
             { cause: e },
           );
         });
@@ -2980,14 +2991,20 @@ export class HarnessOrchestrator {
       await live.ready;
     } catch (e) {
       this.teardownAcpLive(tab.id);
-      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
+      if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'), { cause: e });
       // Grok 握手阶段就退出 / 不认识 ACP：交给 sendTab 退回 `grok -p`
       if (backend === 'grok' && e instanceof Error && e.message === 'ACP process exited')
-        throw new AcpUnavailableError(t('Grok 没能启动 ACP 会话'), { cause: e });
+        throw new AcpUnavailableError(t('electron.common.grok-could-not-start-an-acp-session'), {
+          cause: e,
+        });
       // 外部 CLI 握手阶段就退出：多半是参数不对或它不说 ACP；带上 stderr 末尾方便排查
       if (ext && e instanceof Error && e.message === 'ACP process exited')
         throw new Error(
-          t('{0} 没能启动 ACP 会话：{1}', name, stderrTail.trim().slice(-300) || t('进程已退出')),
+          t(
+            'electron.common.couldn-t-start-an-acp-session',
+            name,
+            stderrTail.trim().slice(-300) || t('electron.common.the-process-exited'),
+          ),
           { cause: e },
         );
       // 工作区未受信任：headless 的 ACP 弹不出 Gemini 的信任对话框，以 55 退出
@@ -2999,10 +3016,9 @@ export class HarnessOrchestrator {
         throw new GeminiUntrustedError(tab.cwd, { cause: e });
       // 进程在握手阶段就退出：多半是旧版 Gemini CLI，还不认识 --acp
       if (e instanceof Error && e.message === 'ACP process exited')
-        throw new Error(
-          t('Gemini CLI 没能启动 ACP 会话，可能版本过旧。请在「编程助手 → Gemini」里更新后再试。'),
-          { cause: e },
-        );
+        throw new Error(t('electron.common.gemini-cli-couldn-t-start-an-acp-session'), {
+          cause: e,
+        });
       throw e;
     }
     return this.confirmAcpMode(tab, live);
@@ -3023,7 +3039,9 @@ export class HarnessOrchestrator {
       if (live.permissionMode === tab.permissionMode) return live;
       this.switchAcpMode(tab.id, live, tab.permissionMode);
     }
-    throw failure instanceof Error ? failure : new Error(t('Gemini 会话已结束，这条消息没有发送'));
+    throw failure instanceof Error
+      ? failure
+      : new Error(t('electron.common.the-gemini-session-ended-this-message-was-not'));
   }
 
   private onAcpEvents(tabId: string, live: AcpLiveSession, evs: HarnessEvent[]) {
@@ -3071,8 +3089,8 @@ export class HarnessOrchestrator {
       live = await this.ensureAcpLive(tab, signal);
     }
     // 握手 / 模式确认期间点了停止：即使握手随后成功，也不再发送这一轮（#75）
-    if (signal?.aborted) throw new Error(t('已中止'));
-    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
     const turn: AcpTurn = { events: [], text: '', breaks: [] };
     live.turn = turn;
     live.used = true;
@@ -3100,9 +3118,9 @@ export class HarnessOrchestrator {
       } | null;
       // 用户拒绝了一次工具调用、Grok 随之结束这一轮：不是「已中止」，按正常结束落盘
       if (r?.stopReason === 'cancelled' && !(turn.denied && !this.stopRequested.has(tab.id)))
-        throw new Error(t('已中止'));
+        throw new Error(t('electron.common.cancelled-5c1747'));
       if (r?.stopReason === 'cancelled' && !turn.text.trim())
-        turn.text = t('已拒绝这次工具调用，这一轮已结束');
+        turn.text = t('electron.common.you-denied-this-tool-call-so-this-turn');
       const tc = r?._meta?.quota?.token_count;
       // 上面两种都是整轮累计；当前上下文：Gemini 取最后一条 usage_update，Grok 取 _meta 的末次请求
       const ctx = { ...acpMetaContext(r?._meta), ...sent.usage };
@@ -3123,7 +3141,7 @@ export class HarnessOrchestrator {
       turn.events.push(done);
       this.emitEvent(tab.id, done);
       return {
-        text: turn.text || t('（无文本输出）'),
+        text: turn.text || t('electron.common.no-text-output'),
         sessionId: live.sessionId,
         events: turn.events,
         ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
@@ -3150,7 +3168,7 @@ export class HarnessOrchestrator {
     const fail = (what: string) => (e: unknown) => {
       throw new Error(
         t(
-          'Grok 没有切换{0}（{1}）',
+          'electron.common.grok-did-not-switch-the',
           what,
           innermostMessage(e instanceof Error ? e.message : String(e)),
         ),
@@ -3160,7 +3178,7 @@ export class HarnessOrchestrator {
     if (live.model !== want.model) {
       const modelId = want.model ?? catalog?.defaultModel?.id;
       if (!modelId) return false;
-      await live.driver.setSessionModel(modelId).catch(fail(t('模型')));
+      await live.driver.setSessionModel(modelId).catch(fail(t('electron.common.model')));
       live.model = want.model;
       // 换模型后 CLI 会换成那个模型的默认档位：思考深度覆盖要重新下发
       live.effort = null;
@@ -3170,7 +3188,9 @@ export class HarnessOrchestrator {
       const value =
         want.effort ?? catalog?.models.find((m) => m.id === modelId)?.defaultEffort ?? null;
       if (!value) return want.effort === null;
-      await live.driver.setConfigOption('reasoning_effort', value).catch(fail(t('思考深度')));
+      await live.driver
+        .setConfigOption('reasoning_effort', value)
+        .catch(fail(t('electron.common.reasoning-effort')));
       live.effort = want.effort;
     }
     return true;
@@ -3494,7 +3514,8 @@ export class HarnessOrchestrator {
    */
   setTabAccount(id: string, accountId: string | null): HarnessTabMeta {
     const tab = this.requireTab(id);
-    if (!isAccountBackend(tab.backend)) throw new Error(t('这个编程助手没有官方账号'));
+    if (!isAccountBackend(tab.backend))
+      throw new Error(t('electron.common.this-coding-assistant-has-no-official-accounts'));
     const next = accountId ? String(accountId) : null;
     if ((tab.accountId ?? null) === next) return { ...tab };
     tab.accountId = next;
@@ -3547,7 +3568,7 @@ export class HarnessOrchestrator {
     void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
-      turn.reject(new Error(t('已中止')));
+      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
     }
   }
 
@@ -3600,7 +3621,7 @@ export class HarnessOrchestrator {
     if (existing) this.teardownCodexLive(tab.id);
     const spawnLaunch = await this.bindTabLaunch(tab, launch);
     const bin = resolveHarnessBin('codex');
-    if (!bin) throw new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）'));
+    if (!bin) throw new Error(t('electron.common.codex-not-found-set-nomi-use-mock-cli'));
     const useNode = isScript(bin);
     // 第三方：-c 指向网关（模型按轮下发，见 runCodexLive）
     const argv = ['app-server', ...launch.args];
@@ -3671,7 +3692,7 @@ export class HarnessOrchestrator {
       live.turn = null;
       if (turn && !turn.settled) {
         turn.settled = true;
-        turn.reject(new Error(turn.lastError ?? t('Codex 进程已退出')));
+        turn.reject(new Error(turn.lastError ?? t('electron.common.the-codex-process-exited')));
       }
     });
     this.codexLive.set(tab.id, live);
@@ -3686,9 +3707,11 @@ export class HarnessOrchestrator {
       await live.ready;
     } catch (e) {
       this.teardownCodexLive(tab.id);
-      if (signal?.aborted) throw new Error(t('已中止'), { cause: e });
+      if (signal?.aborted) throw new Error(t('electron.common.cancelled-5c1747'), { cause: e });
       if (e instanceof Error && e.message === 'ACP process exited')
-        throw new AcpUnavailableError(t('Codex 没能启动 app-server'), { cause: e });
+        throw new AcpUnavailableError(t('electron.common.codex-could-not-start-the-app-server'), {
+          cause: e,
+        });
       throw new Error(innermostMessage(e instanceof Error ? e.message : String(e)), { cause: e });
     }
     return live;
@@ -3718,16 +3741,16 @@ export class HarnessOrchestrator {
     }
     // 第三方：模型按轮下发（inplace，§6.7），绑定跟上标签的主模型
     await this.syncTabBinding(tab);
-    if (signal.aborted) throw new Error(t('已中止'));
-    if (live.turn) throw new Error(t('上一轮尚未结束'));
+    if (signal.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
+    if (live.turn) throw new Error(t('electron.common.previous-turn-still-running'));
     if (!live.threadId) {
       live.threadId = await live.driver.ensureThread(tab.cwd).catch((e: unknown) => {
         if (e instanceof Error && e.message === 'app-server returned no thread')
-          throw new Error(t('Codex 没有返回会话'), { cause: e });
+          throw new Error(t('electron.common.codex-did-not-return-a-session'), { cause: e });
         throw e;
       });
     }
-    if (signal.aborted) throw new Error(t('已中止'));
+    if (signal.aborted) throw new Error(t('electron.common.cancelled-5c1747'));
     const text = (tab.permissionMode === 'plan' ? planPromptPrefix('codex') : '') + prompt;
     const chatRoot = path.join(path.dirname(this.d.root), 'chat');
     live.used = true;
@@ -3772,7 +3795,7 @@ export class HarnessOrchestrator {
             reject(
               new Error(
                 msg === 'app-server process exited'
-                  ? (turn.lastError ?? t('Codex 进程已退出'))
+                  ? (turn.lastError ?? t('electron.common.the-codex-process-exited'))
                   : innermostMessage(msg),
               ),
             );
@@ -3827,9 +3850,10 @@ export class HarnessOrchestrator {
     for (const fin of [...live.perms.values()]) fin(null);
     if (turn.settled) return;
     turn.settled = true;
-    if (r.stopReason === 'interrupted') turn.reject(new Error(t('已中止')));
+    if (r.stopReason === 'interrupted')
+      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
     else if (r.stopReason === 'failed')
-      turn.reject(new Error(r.error || turn.lastError || t('Codex 错误')));
+      turn.reject(new Error(r.error || turn.lastError || t('electron.common.codex-error')));
     else {
       const ev: HarnessEvent = {
         type: 'done',
@@ -3840,7 +3864,9 @@ export class HarnessOrchestrator {
       turn.events.push(ev);
       this.emitEvent(tabId, ev);
       turn.resolve({
-        text: rewriteGeneratedImageLinks(turn.text, turn.imageAliases) || t('（无文本输出）'),
+        text:
+          rewriteGeneratedImageLinks(turn.text, turn.imageAliases) ||
+          t('electron.common.no-text-output'),
         sessionId: live.threadId,
         events: turn.events,
         ...(turn.breaks.length ? { textBreaks: turn.breaks } : {}),
@@ -3878,7 +3904,7 @@ export class HarnessOrchestrator {
     void live.driver.close();
     if (turn && !turn.settled) {
       turn.settled = true;
-      turn.reject(new Error(t('已中止')));
+      turn.reject(new Error(t('electron.common.cancelled-5c1747')));
     }
   }
 
@@ -3888,7 +3914,8 @@ export class HarnessOrchestrator {
     staged: StagedImage[] = [],
   ): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('codex');
-    if (!bin) return Promise.reject(new Error(t('未找到 Codex（可设 NOMI_USE_MOCK_CLI=1）')));
+    if (!bin)
+      return Promise.reject(new Error(t('electron.common.codex-not-found-set-nomi-use-mock-cli')));
     const useNode = isScript(bin);
     // `exec` 默认 read-only 沙箱且禁网：沙箱 / 联网 / 自动审批都按权限模式用 -c 指定
     // （`exec resume` 不接受 --sandbox / --cd；工作目录由 spawn 的 cwd 决定，也即可写根）
@@ -3946,7 +3973,8 @@ export class HarnessOrchestrator {
    */
   private runDsh(tab: HarnessTabMeta, prompt: string): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('dsh');
-    if (!bin) return Promise.reject(new Error(t('未找到 dsh（可设 NOMI_USE_MOCK_CLI=1）')));
+    if (!bin)
+      return Promise.reject(new Error(t('electron.common.dsh-not-found-set-nomi-use-mock-cli')));
     const useNode = isScript(bin);
     // 第三方：网关地址与模型写在只给这个进程用的叠加配置里（--patch 在 profile 之后生效）
     let launch: TabLaunch;
@@ -4011,7 +4039,8 @@ export class HarnessOrchestrator {
     images?: NormalizedImage[],
   ): Promise<HarnessSendResult> {
     const bin = resolveHarnessBin('grok');
-    if (!bin) return Promise.reject(new Error(t('未找到 Grok（可设 NOMI_USE_MOCK_CLI=1）')));
+    if (!bin)
+      return Promise.reject(new Error(t('electron.common.grok-not-found-set-nomi-use-mock-cli')));
     const useNode = isScript(bin);
     let launch: TabLaunch;
     try {
@@ -4097,16 +4126,16 @@ export class HarnessOrchestrator {
         ? {
             silentExit: () =>
               t(
-                'dsh 没有任何输出：需要 Node ≥ {0}（当前 PATH 上的 Node 为 {1}）',
+                'electron.common.dsh-produced-no-output-it-needs-node-the',
                 DSH_MIN_NODE_MAJOR,
-                readPathNodeVersion() ?? t('未找到'),
+                readPathNodeVersion() ?? t('electron.common.not-found'),
               ),
           }
         : {}),
       // 用户停止 / 被信号杀死：不能因为「已有部分文字」就当成功完成（见 #25）
       stopRequested: () => this.stopRequested.has(tab.id),
-      abortedMessage: t('已中止'),
-      exitMessage: (code) => t('{0} 退出码 {1}', opts.kind, code),
+      abortedMessage: t('electron.common.cancelled-5c1747'),
+      exitMessage: (code) => t('electron.common.exit-code', opts.kind, code),
       onStderr: (c) => this.d.logger.warn(`harness ${opts.kind} stderr`, c.slice(0, 500)),
     });
     const take = (rawEv: HarnessEvent, live: boolean) => {
@@ -4154,7 +4183,7 @@ export class HarnessOrchestrator {
       void driver.close();
     }
     return {
-      text: rewriteGeneratedImageLinks(text, imageAliases) || t('（无文本输出）'),
+      text: rewriteGeneratedImageLinks(text, imageAliases) || t('electron.common.no-text-output'),
       sessionId,
       events,
       ...(breaks.length ? { textBreaks: breaks } : {}),
@@ -4201,7 +4230,7 @@ export class HarnessOrchestrator {
     const p = this.progress.get(tabId);
     if (!p?.value.trim()) return undefined;
     const v = p.value.replace(/\s+/g, ' ').trim();
-    return p.kind === 'tool' ? t('正在执行 {0}', v) : v;
+    return p.kind === 'tool' ? t('electron.common.running-c78e69', v) : v;
   }
 
   private emitEvent(tabId: string, ev: HarnessEvent) {
@@ -4369,7 +4398,7 @@ export class HarnessOrchestrator {
         request_id: requestId,
         response: allow
           ? { behavior: 'allow' }
-          : { behavior: 'deny', message: t('用户没有允许这次调用') },
+          : { behavior: 'deny', message: t('electron.common.the-user-didn-t-allow-this-call') },
       },
     };
     try {
@@ -4413,11 +4442,13 @@ export class HarnessOrchestrator {
     messageId: string,
     opts: { confirmed?: boolean } = {},
   ): Promise<GeminiTrustResult> {
-    if (!opts.confirmed) throw new Error(t('需要先确认才能信任这个文件夹'));
-    if (!this.tabs.has(tabId) || tabId === MAIN_TAB_ID) throw new Error(t('标签不存在'));
+    if (!opts.confirmed)
+      throw new Error(t('electron.common.please-confirm-before-trusting-this-folder'));
+    if (!this.tabs.has(tabId) || tabId === MAIN_TAB_ID)
+      throw new Error(t('electron.common.tab-not-found'));
     const msg = this.tabMessages(tabId).find((m) => m.id === messageId);
     const folder = msg?.geminiTrust?.folder;
-    if (!folder) throw new Error(t('这条消息没有需要信任的文件夹'));
+    if (!folder) throw new Error(t('electron.common.this-message-has-no-folder-to-trust'));
     const env = { ...process.env };
     const r = await trustGeminiFolder(folder, { home: this.home, env });
     this.d.logger.info('gemini folder trusted by user', { folder: r.folder, file: r.file });
@@ -4509,12 +4540,13 @@ export class HarnessOrchestrator {
     const delegation = tab.delegation;
     if (!delegation || delegation.takenOver) return;
     if (tab.status === 'running' || tab.status === 'queued') {
-      if (!this.cancelTab(id)) throw new Error(t('无法接手：上一轮尚未结束'));
+      if (!this.cancelTab(id))
+        throw new Error(t('electron.common.cannot-take-over-the-previous-turn-is-still'));
       await this.waitForTabIdle(id, 30_000);
     }
     const current = this.requireTab(id);
     if (current.status === 'running' || current.status === 'queued')
-      throw new Error(t('无法接手：上一轮尚未结束'));
+      throw new Error(t('electron.common.cannot-take-over-the-previous-turn-is-still'));
     this.markTakenOver(id);
   }
 
@@ -4527,7 +4559,7 @@ export class HarnessOrchestrator {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         cleanup();
-        reject(new Error(t('无法接手：上一轮在等待后仍未结束')));
+        reject(new Error(t('electron.common.cannot-take-over-the-previous-turn-did-not')));
       }, timeoutMs);
       const cleanup = () => {
         this.events.off('tabs', onTabs);
@@ -4715,7 +4747,7 @@ export class HarnessOrchestrator {
     handle('ai:harness:reply-approve-plan', (tabId, requestId, choice) => {
       const c = String(choice);
       if (c !== 'acceptEdits' && c !== 'manual' && c !== 'deny')
-        throw new Error(t('无效的批准计划选项'));
+        throw new Error(t('electron.common.invalid-approve-plan-choice'));
       return this.replyApprovePlan(String(tabId), String(requestId), c);
     });
   }
@@ -4951,7 +4983,7 @@ function isTurnContent(ev: HarnessEvent): boolean {
 function validDir(cwd: string): string {
   const abs = path.resolve(String(cwd ?? ''));
   if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) {
-    throw new Error(t('工作目录无效'));
+    throw new Error(t('electron.common.invalid-working-directory'));
   }
   return abs;
 }

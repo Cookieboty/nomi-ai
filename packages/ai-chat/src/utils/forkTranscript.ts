@@ -30,7 +30,7 @@ export function compactTranscript(
     if (!content) continue;
     // 工具结果块常见前缀：压成短注
     if (/^\[tool[:\s]/i.test(content) || content.startsWith('```tool')) {
-      content = t('[工具调用已省略]');
+      content = t('ui.cli-monitor.tool-call-omitted');
     }
     if (content.length > maxChars) content = `${content.slice(0, maxChars)}…`;
     out.push({
@@ -55,13 +55,10 @@ export function buildCliContextPreface(messages: ChatMessage[], sourceLabel: str
     return `${who}: ${m.content}`;
   });
   return [
-    t(
-      '以下是从「{0}」分叉带来的对话摘录，仅作上下文参考（并非本 CLI 的可续接会话）：',
-      sourceLabel,
-    ),
+    t('ui.cli-monitor.transcript-forked-from-for-context-only-not-a', sourceLabel),
     '',
     ...lines,
     '',
-    t('请基于以上上下文继续。'),
+    t('ui.cli-monitor.please-continue-from-the-context-above'),
   ].join('\n');
 }

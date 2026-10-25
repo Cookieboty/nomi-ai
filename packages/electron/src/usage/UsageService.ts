@@ -1305,13 +1305,13 @@ export class UsageService {
     const text = (period: string, cost: number, budget: number, lv: 80 | 100) =>
       lv === 100
         ? tr(
-            '{0}的花费已超过预算（{1} / {2}）。',
+            'electron.common.spending-has-exceeded-the-budget',
             period,
             this.money(cost),
             formatAmount(budget, s.currency),
           )
         : tr(
-            '{0}的花费已用到预算的 80%（{1} / {2}）。',
+            'electron.common.spending-has-reached-80-of-the-budget',
             period,
             this.money(cost),
             formatAmount(budget, s.currency),
@@ -1320,20 +1320,22 @@ export class UsageService {
       fire.push({
         scope: 'day',
         level: dl as 80 | 100,
-        text: text(tr('今天'), day, s.dailyBudget, dl as 80 | 100),
+        text: text(tr('electron.common.today-s'), day, s.dailyBudget, dl as 80 | 100),
       });
     if (ml > this.alertState.monthLevel && ml > 0)
       fire.push({
         scope: 'month',
         level: ml as 80 | 100,
-        text: text(tr('本月'), month, s.monthlyBudget, ml as 80 | 100),
+        text: text(tr('electron.common.this-month-s'), month, s.monthlyBudget, ml as 80 | 100),
       });
     if (!fire.length) return;
     const top = fire.some((f) => f.level === 100) ? 100 : 80;
-    const body = fire.map((f) => f.text).join(' ') + (unpriced ? tr('（未定价模型不计入）') : '');
+    const body =
+      fire.map((f) => f.text).join(' ') +
+      (unpriced ? tr('electron.common.unpriced-models-are-not-counted') : '');
     const delivered = this.d.alert?.({
       kind: top === 100 ? 'budget-100' : 'budget-80',
-      title: tr('用量预算提醒'),
+      title: tr('electron.common.usage-budget-alert'),
       text: body,
     });
     if (!delivered) return;
@@ -1373,9 +1375,9 @@ export class UsageService {
     const who = rec.project ? `${label}（${rec.project}）` : label;
     const delivered = this.d.alert?.({
       kind: 'task',
-      title: tr('单次任务花费偏高'),
+      title: tr('electron.common.a-single-task-is-costing-a-lot'),
       text: tr(
-        '{0} 这次任务已经花了约 {1}（提醒线 {2}），要不要看一眼？',
+        'electron.common.this-task-has-already-cost-about-alert-line',
         who,
         this.money(total),
         formatAmount(s.taskAlert, s.currency),
@@ -1434,11 +1436,12 @@ export class UsageService {
     const u = this.costSince(q);
     if (!u || u.tokens <= 0) return null;
     const tokens = formatTokens(u.tokens);
-    if (u.costUsd === null) return tr('本次约用 {0} Token（模型未定价，费用未计）。', tokens);
+    if (u.costUsd === null)
+      return tr('electron.common.this-task-used-about-tokens-model-unpriced-cost', tokens);
     const cost = this.money(u.costUsd);
     return u.unpriced
-      ? tr('本次约用 {0} Token，已计价部分约 {1}。', tokens, cost)
-      : tr('本次约用 {0} Token，花费约 {1}。', tokens, cost);
+      ? tr('electron.common.this-task-used-about-tokens-the-priced-part', tokens, cost)
+      : tr('electron.common.this-task-used-about-tokens-and-cost-about', tokens, cost);
   }
 
   // ---------------------------------------------------------------- 查询

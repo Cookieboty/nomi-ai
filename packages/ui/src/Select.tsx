@@ -114,7 +114,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     className,
     children,
     searchable,
-    placeholder = tr('请选择'),
+    placeholder = tr('ui.mascot-theme.please-select'),
     menuMinWidth,
     renderValue,
     value,
@@ -329,7 +329,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 <input
                   ref={searchRef}
                   className="cd-input cd-input--sm"
-                  placeholder={tr('搜索…')}
+                  placeholder={tr('ui.mascot-theme.search')}
                   value={query}
                   aria-controls={listId}
                   aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
@@ -346,7 +346,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
               className="cd-dropdown__list"
               style={{ maxHeight: pos.maxHeight - (showSearch ? 44 : 0) }}
             >
-              {filtered.length === 0 && <div className="cd-dropdown__empty">{tr('无匹配项')}</div>}
+              {filtered.length === 0 && (
+                <div className="cd-dropdown__empty">{tr('ui.mascot-theme.no-matches')}</div>
+              )}
               {filtered.map((o, i) => {
                 const header =
                   o.group && o.group !== lastGroup ? (

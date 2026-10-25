@@ -23,16 +23,16 @@ export function assertPublicHttpUrl(raw: string): URL {
   try {
     u = new URL(String(raw).trim());
   } catch {
-    throw new Error('无效的音频 URL');
+    throw new Error('electron.common.invalid-audio-url');
   }
   if (u.protocol !== 'https:' && u.protocol !== 'http:') {
-    throw new Error('音频 URL 只允许 http / https');
+    throw new Error('electron.common.audio-url-must-use-http-or-https');
   }
   if (u.username || u.password) {
-    throw new Error('音频 URL 不能包含账号密码');
+    throw new Error('electron.common.audio-url-must-not-contain-credentials');
   }
   if (isPrivateHost(u.hostname)) {
-    throw new Error('音频 URL 不能指向本机或局域网地址');
+    throw new Error('electron.common.audio-url-must-not-point-to-localhost-or');
   }
   return u;
 }
@@ -50,7 +50,7 @@ export async function assertPublicHttpUrlResolved(
   if (parseIPv4(host) || parseIPv6(host)) return u;
   const addrs = await lookupAll(host);
   if (!addrs.length || addrs.some((a) => isPrivateHost(a.address))) {
-    throw new Error('音频 URL 不能指向本机或局域网地址');
+    throw new Error('electron.common.audio-url-must-not-point-to-localhost-or');
   }
   return u;
 }
@@ -71,7 +71,9 @@ export function makeSafeLookup(base: typeof dns.lookup = dns.lookup) {
       const list = addresses as unknown as LookupAddress[];
       const bad = list.find((a) => isPrivateHost(a.address));
       if (!list.length || bad) {
-        const e = new Error(`音频 URL 不能指向本机或局域网地址`) as NodeJS.ErrnoException;
+        const e = new Error(
+          'electron.common.audio-url-must-not-point-to-localhost-or',
+        ) as NodeJS.ErrnoException;
         e.code = 'EPRIVATEADDR';
         return callback(e, '');
       }

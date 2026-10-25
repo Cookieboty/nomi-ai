@@ -110,20 +110,22 @@ export function normalizeInput(
   platform: NodeJS.Platform,
 ): string | GuardErr {
   const bad = (message: string): GuardErr => ({ ok: false, code: 'invalid_path', message });
-  if (typeof input !== 'string' || !input.trim()) return bad(t('路径为空'));
+  if (typeof input !== 'string' || !input.trim()) return bad(t('electron.common.path-is-empty'));
   let p = input.trim();
-  if (p.length > MAX_PATH) return bad(t('路径过长'));
-  if (p.includes('\0')) return bad(t('路径包含非法字符'));
-  if (/^[\\/]{2}/.test(p)) return bad(t('不支持网络 / 设备路径（UNC）'));
-  if (/^[\\/]{2}[?.][\\/]/.test(p)) return bad(t('不支持设备路径'));
+  if (p.length > MAX_PATH) return bad(t('electron.common.path-too-long'));
+  if (p.includes('\0')) return bad(t('electron.common.path-contains-invalid-characters'));
+  if (/^[\\/]{2}/.test(p))
+    return bad(t('electron.common.network-device-paths-unc-aren-t-supported'));
+  if (/^[\\/]{2}[?.][\\/]/.test(p)) return bad(t('electron.common.device-paths-aren-t-supported'));
   if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) p = home + p.slice(1);
   const P = lib(platform);
-  if (!P.isAbsolute(p)) return bad(t('必须是绝对路径或以 ~ 开头'));
-  if (platform === 'win32' && !/^[a-zA-Z]:[\\/]/.test(p)) return bad(t('Windows 路径必须带盘符'));
+  if (!P.isAbsolute(p)) return bad(t('electron.common.must-be-an-absolute-path-or-start-with'));
+  if (platform === 'win32' && !/^[a-zA-Z]:[\\/]/.test(p))
+    return bad(t('electron.common.windows-paths-must-include-a-drive-letter'));
   const norm = P.resolve(p);
   const lower = norm.replace(/\\/g, '/').toLowerCase();
   if (platform !== 'win32' && /^\/(dev|proc|sys)(\/|$)/.test(lower))
-    return bad(t('不支持设备路径'));
+    return bad(t('electron.common.device-paths-aren-t-supported'));
   return norm;
 }
 
@@ -148,13 +150,15 @@ export function denyReason(
   denyRoots: string[] = [],
 ): string | null {
   for (const root of denyRoots)
-    if (root && isInside(p, root, platform)) return t('应用私有数据目录');
+    if (root && isInside(p, root, platform)) return t('electron.common.app-private-data-folder');
   const norm = p.replace(/\\/g, '/').toLowerCase();
   const segs = norm.split('/').filter(Boolean);
-  for (const s of segs) if (DENY_SEGMENTS.includes(s)) return t('受保护目录（{0}）', s);
-  for (const f of DENY_FRAGMENTS) if (norm.includes(f)) return t('浏览器 / 系统凭据目录');
+  for (const s of segs)
+    if (DENY_SEGMENTS.includes(s)) return t('electron.common.protected-folder', s);
+  for (const f of DENY_FRAGMENTS)
+    if (norm.includes(f)) return t('electron.common.browser-system-credential-folder');
   const name = segs[segs.length - 1] ?? '';
-  for (const re of DENY_NAMES) if (re.test(name)) return t('受保护文件（{0}）', name);
+  for (const re of DENY_NAMES) if (re.test(name)) return t('electron.common.protected-file', name);
   return null;
 }
 
@@ -185,7 +189,8 @@ export async function guardPath(
   const norm = normalizeInput(input, env.home, env.platform);
   if (typeof norm !== 'string') return norm;
   const lexicalDeny = denyReason(norm, env.platform, env.denyRoots);
-  if (lexicalDeny) return { ok: false, code: 'denied', message: t('拒绝访问：{0}', lexicalDeny) };
+  if (lexicalDeny)
+    return { ok: false, code: 'denied', message: t('electron.common.access-denied', lexicalDeny) };
 
   const lexicalScope = env.scopes.find((s) =>
     s.kind === 'file'
@@ -195,16 +200,29 @@ export async function guardPath(
   const resolved = await realOrParent(norm, env);
   if (!resolved) {
     return lexicalScope
-      ? { ok: false, code: 'not_found', message: t('文件或其父目录不存在') }
-      : { ok: false, code: 'outside_scope', message: t('路径不在已授权的文件夹内') };
+      ? {
+          ok: false,
+          code: 'not_found',
+          message: t('electron.common.file-or-its-parent-folder-doesn-t-exist'),
+        }
+      : {
+          ok: false,
+          code: 'outside_scope',
+          message: t('electron.common.path-is-not-inside-a-granted-folder'),
+        };
   }
   if (!resolved.exists && !opts.allowMissing) {
     return lexicalScope
-      ? { ok: false, code: 'not_found', message: t('文件不存在') }
-      : { ok: false, code: 'outside_scope', message: t('路径不在已授权的文件夹内') };
+      ? { ok: false, code: 'not_found', message: t('electron.common.file-doesn-t-exist') }
+      : {
+          ok: false,
+          code: 'outside_scope',
+          message: t('electron.common.path-is-not-inside-a-granted-folder'),
+        };
   }
   const realDeny = denyReason(resolved.real, env.platform, env.denyRoots);
-  if (realDeny) return { ok: false, code: 'denied', message: t('拒绝访问：{0}', realDeny) };
+  if (realDeny)
+    return { ok: false, code: 'denied', message: t('electron.common.access-denied', realDeny) };
 
   for (const s of env.scopes) {
     let scopeReal: string;
@@ -220,12 +238,24 @@ export async function guardPath(
         : isInside(resolved.real, scopeReal, env.platform);
     if (!inside) continue;
     if (opts.need === 'write' && s.mode !== 'read-write') {
-      return { ok: false, code: 'read_only', message: t('该文件夹只授权了读取') };
+      return {
+        ok: false,
+        code: 'read_only',
+        message: t('electron.common.this-folder-is-granted-read-only'),
+      };
     }
     return { ok: true, real: resolved.real, scope: s, exists: resolved.exists };
   }
   if (lexicalScope) {
-    return { ok: false, code: 'symlink_escape', message: t('符号链接指向了授权范围之外') };
+    return {
+      ok: false,
+      code: 'symlink_escape',
+      message: t('electron.common.symlink-points-outside-the-granted-scope'),
+    };
   }
-  return { ok: false, code: 'outside_scope', message: t('路径不在已授权的文件夹内') };
+  return {
+    ok: false,
+    code: 'outside_scope',
+    message: t('electron.common.path-is-not-inside-a-granted-folder'),
+  };
 }

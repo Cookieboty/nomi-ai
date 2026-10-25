@@ -68,7 +68,11 @@ export function useCliInstall(onError: (message: string) => void): CliInstallSta
     cliUpdateClient
       .run(kind, scope)
       .then((r) => {
-        if (!r.ok) onError(t('{0} 没有安装 / 更新成功：', ENDPOINT_NAME[kind]) + (r.note || r.log));
+        if (!r.ok)
+          onError(
+            t('ui.cli-monitor.could-not-be-installed-updated', ENDPOINT_NAME[kind]) +
+              (r.note || r.log),
+          );
       })
       .catch((e: Error) => onError(e.message))
       .finally(() => {

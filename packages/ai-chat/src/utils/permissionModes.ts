@@ -54,15 +54,15 @@ export function fallbackMode(backend: HarnessBackend, mode: PermissionMode): Per
 export function modeLabel(mode: PermissionMode): string {
   switch (mode) {
     case 'plan':
-      return t('计划');
+      return t('ui.chat-settings.plan');
     case 'manual':
-      return t('逐项确认');
+      return t('ui.chat-settings.ask-each-time');
     case 'acceptEdits':
-      return t('自动改文件');
+      return t('ui.chat-settings.auto-edit-files');
     case 'auto':
-      return t('自动');
+      return t('ui.foundation.auto');
     case 'bypass':
-      return t('完全放开');
+      return t('ui.chat-settings.full-access');
   }
 }
 
@@ -71,28 +71,28 @@ export function modeHint(mode: PermissionMode, backend?: HarnessBackend): string
   if (backend === 'nomi') {
     switch (mode) {
       case 'plan':
-        return t('只读：可以查看文件和资料，不做任何修改');
+        return t('ui.chat-settings.read-only-can-look-at-files-and-data');
       case 'manual':
-        return t('写文件等修改操作，每次都先问你');
+        return t('ui.chat-settings.asks-you-every-time-before-writing-files-or');
       case 'acceptEdits':
-        return t('按「桌面能力」里每个工具的设置询问');
+        return t('ui.chat-settings.asks-according-to-each-tool-s-setting-in');
       case 'auto':
-        return t('修改操作不再询问；删除等破坏性操作仍要确认');
+        return t('ui.chat-settings.makes-changes-without-asking-deletions-and-other-destructive');
       case 'bypass':
         break;
     }
   }
   switch (mode) {
     case 'plan':
-      return t('只读：先给出方案，不改文件、不执行命令');
+      return t('ui.chat-settings.read-only-proposes-a-plan-without-changing-files');
     case 'manual':
-      return t('改文件、运行命令前都先问你');
+      return t('ui.chat-settings.asks-you-before-changing-files-or-running-commands');
     case 'acceptEdits':
-      return t('自动修改工作目录里的文件，其它操作按 CLI 规则询问');
+      return t('ui.chat-settings.edits-files-in-the-working-directory-automatically-other');
     case 'auto':
-      return t('由 CLI 自行判断哪些操作需要确认');
+      return t('ui.chat-settings.lets-the-cli-decide-which-actions-need-confirmation');
     case 'bypass':
-      return t('不做任何限制，可以改任何文件、运行任何命令');
+      return t('ui.chat-settings.no-restrictions-can-change-any-file-and-run');
   }
 }
 

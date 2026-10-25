@@ -41,9 +41,9 @@ export const QualitySettingsPanel: React.FC<{ onOpenPrivacy?: () => void }> = ({
   return (
     <div className={styles.popStack} data-testid="quality-settings-body">
       <div className={styles.popRow}>
-        <span>{t('数据保留')}</span>
+        <span>{t('ui.model-quality.data-retention')}</span>
         <SegmentedControl<string>
-          aria-label={t('数据保留天数')}
+          aria-label={t('ui.model-quality.retention-days')}
           data-testid="quality-retention-days"
           value={settings ? String(settings.retentionDays) : null}
           disabled={!settings}
@@ -53,15 +53,15 @@ export const QualitySettingsPanel: React.FC<{ onOpenPrivacy?: () => void }> = ({
               .then(setSettings)
               .catch(fail)
           }
-          options={[7, 30, 90].map((d) => ({ value: String(d), label: t('{0} 天', d) }))}
+          options={[7, 30, 90].map((d) => ({ value: String(d), label: t('ui.usage-tools.d', d) }))}
         />
       </div>
       {diag && (
         <div className={styles.popRow} data-testid="quality-trace">
-          <span>{t('正文追踪')}</span>
+          <span>{t('ui.usage-tools.body-tracing')}</span>
           <span className={styles.status} data-testid="quality-trace-status">
             <i className={styles.statusDot} data-on={tracing ? '' : undefined} aria-hidden />
-            {tracing ? t('在记录') : t('未记录')}
+            {tracing ? t('ui.model-quality.recording') : t('ui.model-quality.not-recording')}
             {onOpenPrivacy && (
               <button
                 type="button"
@@ -69,21 +69,25 @@ export const QualitySettingsPanel: React.FC<{ onOpenPrivacy?: () => void }> = ({
                 onClick={onOpenPrivacy}
                 data-testid="quality-trace-open-settings"
               >
-                {t('诊断日志设置')}
+                {t('ui.model-quality.diagnostics-settings')}
               </button>
             )}
           </span>
         </div>
       )}
       <p className={styles.popHint}>
-        {t('只存本机，与用量统计同一个总开关；只有元数据，不含对话内容。')}
+        {t('ui.model-quality.stored-on-this-device-only-under-the-same')}
       </p>
       <div className={styles.popFoot}>
         {confirm ? (
-          <span className={styles.confirm} role="group" aria-label={t('确认清空')}>
-            <span>{t('清空全部记录？无法撤销。')}</span>
+          <span
+            className={styles.confirm}
+            role="group"
+            aria-label={t('ui.model-quality.confirm-clearing')}
+          >
+            <span>{t('ui.model-quality.clear-all-records-this-can-t-be-undone')}</span>
             <button type="button" className={styles.textBtn} onClick={() => setConfirm(false)}>
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </button>
             <button
               type="button"
@@ -92,12 +96,12 @@ export const QualitySettingsPanel: React.FC<{ onOpenPrivacy?: () => void }> = ({
                 setConfirm(false);
                 void qualityClient
                   .clear()
-                  .then(() => setMsg(t('已清空')))
+                  .then(() => setMsg(t('ui.model-quality.cleared')))
                   .catch(fail);
               }}
               data-testid="quality-clear-confirm"
             >
-              {t('清空')}
+              {t('ui.knowledge-local.clear')}
             </button>
           </span>
         ) : (
@@ -107,7 +111,7 @@ export const QualitySettingsPanel: React.FC<{ onOpenPrivacy?: () => void }> = ({
             onClick={() => setConfirm(true)}
             data-testid="quality-clear"
           >
-            {t('清空记录')}
+            {t('ui.foundation.clear-log')}
           </button>
         )}
         {msg && (

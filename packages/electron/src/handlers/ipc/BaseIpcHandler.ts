@@ -94,7 +94,9 @@ export abstract class BaseIpcHandler {
    */
   protected validateArgs(args: any[], requiredCount: number, types?: string[]): void {
     if (args.length < requiredCount) {
-      throw new Error(t('参数不足，需要{0}个参数，实际{1}个', requiredCount, args.length));
+      throw new Error(
+        t('electron.common.not-enough-arguments-expected-got', requiredCount, args.length),
+      );
     }
 
     if (types) {
@@ -102,7 +104,14 @@ export abstract class BaseIpcHandler {
         const expectedType = types[i];
         const actualType = typeof args[i];
         if (actualType !== expectedType) {
-          throw new Error(t('参数{0}类型错误，期望{1}，实际{2}', i, expectedType, actualType));
+          throw new Error(
+            t(
+              'electron.common.argument-has-the-wrong-type-expected-got',
+              i,
+              expectedType,
+              actualType,
+            ),
+          );
         }
       }
     }

@@ -113,8 +113,8 @@ export async function prepareIsolation(
       cwd: sourceCwd,
       sourceCwd,
       note:
-        '工作目录不是 git 仓库：委派在原目录运行。若并行多个子任务，它们会互相改同一批文件；' +
-        '请串行委派，或先把该目录初始化为 git 仓库以便自动使用 worktree 隔离。',
+        'electron.common.the-working-directory-is-not-a-git-repository' +
+        'electron.common.hand-off-tasks-one-at-a-time-or',
     };
   }
 

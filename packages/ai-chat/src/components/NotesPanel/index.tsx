@@ -20,7 +20,13 @@ export const NotesPanel: React.FC<Props> = ({ isVisible, onClose }) => {
   const [msg, setMsg] = useState('');
   if (!isVisible) return null;
   return (
-    <Modal open onClose={onClose} title={tr('笔记')} size="lg" data-testid="notes-panel">
+    <Modal
+      open
+      onClose={onClose}
+      title={tr('ui.foundation.notes')}
+      size="lg"
+      data-testid="notes-panel"
+    >
       <div className={styles.stack}>
         {msg && (
           <div className={styles.msg} role="status" data-testid="notes-msg">
@@ -55,13 +61,13 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
       body: edit.body ?? '',
       tags: (edit.tags ?? []).filter(Boolean),
     });
-    onMsg(tr('已保存「{0}」', n.title));
+    onMsg(tr('ui.foundation.saved', n.title));
     setEdit(null);
     void load();
   };
   const trash = async (id: string, title: string) => {
     if (await desktopClient.trashNote(id))
-      onMsg(tr('已移到回收站：「{0}」（可在操作记录里撤销）', title));
+      onMsg(tr('ui.foundation.moved-to-trash-undo-from-the-activity-log', title));
     setEdit(null);
     void load();
   };
@@ -70,13 +76,13 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
     return (
       <div className={styles.stack} data-testid="note-editor">
         <Input
-          placeholder={tr('标题')}
+          placeholder={tr('ui.foundation.title')}
           value={edit.title ?? ''}
           onChange={(e) => setEdit({ ...edit, title: e.target.value })}
           data-testid="note-title"
         />
         <Input
-          placeholder={tr('标签（用逗号分隔）')}
+          placeholder={tr('ui.foundation.tags-comma-separated')}
           value={(edit.tags ?? []).join(', ')}
           onChange={(e) =>
             setEdit({ ...edit, tags: e.target.value.split(/[,，]/).map((t) => t.trim()) })
@@ -85,19 +91,19 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
         />
         <Textarea
           rows={10}
-          placeholder={tr('正文（markdown）')}
+          placeholder={tr('ui.foundation.body-markdown')}
           value={edit.body ?? ''}
           onChange={(e) => setEdit({ ...edit, body: e.target.value })}
           data-testid="note-body"
         />
         <div className={styles.row}>
           <Button variant="primary" onClick={() => void save()} data-testid="note-save">
-            {tr('保存')}
+            {tr('ui.foundation.save')}
           </Button>
-          <Button onClick={() => setEdit(null)}>{tr('取消')}</Button>
+          <Button onClick={() => setEdit(null)}>{tr('ui.foundation.cancel')}</Button>
           {edit.id && (
             <Button variant="danger" onClick={() => void trash(edit.id!, edit.title ?? '')}>
-              {tr('删除')}
+              {tr('ui.foundation.delete')}
             </Button>
           )}
         </div>
@@ -108,7 +114,7 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
     <div className={styles.stack}>
       <div className={styles.row}>
         <Input
-          placeholder={tr('搜索标题 / 标签 / 正文')}
+          placeholder={tr('ui.foundation.search-title-tags-body')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           data-testid="notes-search"
@@ -119,14 +125,14 @@ const NotesBody: React.FC<{ onMsg: (m: string) => void }> = ({ onMsg }) => {
           onClick={() => setEdit({ title: '', body: '', tags: [] })}
           data-testid="note-new"
         >
-          {tr('新建笔记')}
+          {tr('ui.foundation.new-note')}
         </Button>
       </div>
       {items.length === 0 ? (
         <EmptyState
           icon={NotebookPen}
-          title={query ? tr('没有匹配的笔记') : tr('还没有笔记')}
-          description={tr('可以让 Nomi 帮你记：「帮我记一下……」')}
+          title={query ? tr('ui.foundation.no-matching-notes') : tr('ui.foundation.no-notes-yet')}
+          description={tr('ui.foundation.ask-nomi-to-take-notes-for-you-note')}
         />
       ) : (
         <ul className={styles.cards} data-testid="notes-list">

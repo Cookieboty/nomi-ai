@@ -47,13 +47,13 @@ const UrlLightbox: React.FC<{
       className={styles.lightbox}
       role="dialog"
       aria-modal="true"
-      aria-label={t('查看图片')}
+      aria-label={t('ui.knowledge-local.view-image')}
       data-testid="cli-image-lightbox"
       onClick={onClose}
     >
       <img
         src={src}
-        alt={t('图片')}
+        alt={t('ui.providers-schedule.image')}
         className={styles.lightboxImg}
         style={{ transform: `scale(${zoom})`, transition: 'transform 0.15s ease' }}
         onClick={(e) => e.stopPropagation()}
@@ -68,7 +68,7 @@ const UrlLightbox: React.FC<{
             <button
               type="button"
               className={styles.lightboxBtn}
-              aria-label={t('上一张')}
+              aria-label={t('ui.session-workspace.previous')}
               data-testid="lightbox-prev"
               onClick={() => onIndex((index - 1 + images.length) % images.length)}
             >
@@ -80,7 +80,7 @@ const UrlLightbox: React.FC<{
             <button
               type="button"
               className={styles.lightboxBtn}
-              aria-label={t('下一张')}
+              aria-label={t('ui.session-workspace.next')}
               data-testid="lightbox-next"
               onClick={() => onIndex((index + 1) % images.length)}
             >
@@ -91,7 +91,7 @@ const UrlLightbox: React.FC<{
         <button
           type="button"
           className={styles.lightboxBtn}
-          aria-label={t('缩小')}
+          aria-label={t('ui.usage-tools.zoom-out')}
           onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
         >
           −
@@ -99,7 +99,7 @@ const UrlLightbox: React.FC<{
         <button
           type="button"
           className={styles.lightboxBtn}
-          aria-label={t('放大')}
+          aria-label={t('ui.usage-tools.zoom-in')}
           onClick={() => setZoom((z) => Math.min(4, z + 0.25))}
         >
           +
@@ -122,9 +122,13 @@ const ImageRow: React.FC<{ images: NonNullable<HarnessTabMessage['images']> }> =
             className={styles.imageThumbBtn}
             onClick={() => setPick(i)}
             title={`${im.width}×${im.height}`}
-            aria-label={t('查看图片')}
+            aria-label={t('ui.knowledge-local.view-image')}
           >
-            <img src={im.thumb} alt={t('图片')} className={styles.imageThumb} />
+            <img
+              src={im.thumb}
+              alt={t('ui.providers-schedule.image')}
+              className={styles.imageThumb}
+            />
           </button>
         ))}
       </div>

@@ -51,7 +51,7 @@ export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   autoSend: true,
   bargeIn: true,
   vadThreshold: 0.5,
-  wakeWord: { enabled: false, phrase: '你好，诺米', windowSec: 8 },
+  wakeWord: { enabled: false, phrase: 'electron.common.hey-nomi', windowSec: 8 },
 };
 
 const str = (v: unknown, d: string, max = 300) =>

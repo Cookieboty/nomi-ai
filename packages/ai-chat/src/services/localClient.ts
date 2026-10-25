@@ -113,7 +113,7 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(ch: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('本地中心需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.the-local-hub-requires-the-desktop-app'));
   const r = (await b.invoke(ch, ...args)) as T & { __error?: { code: string; message: string } };
   if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
   return r;
@@ -213,15 +213,15 @@ export function collectConversations(
 }
 
 export const FIT_LABEL: Record<Fit, string> = {
-  ok: '内存充足',
-  tight: '内存偏紧',
-  'too-big': '内存不足',
+  ok: 'ui.chat-settings.plenty-of-memory',
+  tight: 'ui.chat-settings.memory-is-tight',
+  'too-big': 'ui.chat-settings.not-enough-memory',
 };
 export const STATUS_LABEL: Record<ServerStatus, string> = {
-  stopped: '未运行',
-  starting: '启动中',
-  running: '运行中',
-  error: '出错',
+  stopped: 'ui.chat-settings.not-running',
+  starting: 'ui.chat-settings.starting',
+  running: 'ui.knowledge-local.running',
+  error: 'ui.chat-settings.error',
 };
 
 /** 日程时间显示（24 小时制，避免 AM/PM 本地化差异） */
@@ -230,6 +230,8 @@ export function fmtWhen(o: Pick<Occurrence, 'start' | 'end' | 'allDay'>, now = n
   const hm = (d: Date) =>
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   const same = s.toDateString() === now.toDateString();
-  const day = same ? t('今天') : t('{0}月{1}日', s.getMonth() + 1, s.getDate());
-  return o.allDay ? t('{0} 全天', day) : `${day} ${hm(s)}–${hm(new Date(o.end))}`;
+  const day = same
+    ? t('ui.chat-settings.today')
+    : t('ui.chat-settings.message', s.getMonth() + 1, s.getDate());
+  return o.allDay ? t('ui.chat-settings.all-day', day) : `${day} ${hm(s)}–${hm(new Date(o.end))}`;
 }

@@ -88,7 +88,11 @@ export async function runWhisperCli(o: {
         },
         (err, stdout, stderr) =>
           err
-            ? reject(new Error(t('whisper.cpp 运行失败：{0}', (stderr || err.message).slice(-300))))
+            ? reject(
+                new Error(
+                  t('electron.common.whisper-cpp-failed', (stderr || err.message).slice(-300)),
+                ),
+              )
             : resolve(stdout),
       );
     });

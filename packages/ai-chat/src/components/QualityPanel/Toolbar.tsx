@@ -39,14 +39,14 @@ const FILTER_DIMS: Array<{
   label: string;
   gatewayOnly?: boolean;
 }> = [
-  { dim: 'client', label: '客户端' },
-  { dim: 'provider', label: '供应商' },
-  { dim: 'modelFamily', label: '模型' },
+  { dim: 'client', label: 'ui.model-quality.client' },
+  { dim: 'provider', label: 'ui.providers-schedule.provider' },
+  { dim: 'modelFamily', label: 'ui.foundation.model' },
   { dim: 'key', label: 'Key', gatewayOnly: true },
 ];
 
 const dimLabel = (d: FilterDim): string =>
-  d === 'outcome' ? t('结果') : t(FILTER_DIMS.find((x) => x.dim === d)?.label ?? d);
+  d === 'outcome' ? t('ui.foundation.result') : t(FILTER_DIMS.find((x) => x.dim === d)?.label ?? d);
 
 /** 筛选值的显示名：客户端本地化，其余用筛选项给的名字 */
 export function valueLabel(dim: FilterDim, key: string, facets: QualityFacets | null): string {
@@ -106,9 +106,13 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
 
   return (
     <div className={styles.toolbarWrap}>
-      <div className={styles.toolbar} role="toolbar" aria-label={t('统计范围与筛选')}>
+      <div
+        className={styles.toolbar}
+        role="toolbar"
+        aria-label={t('ui.model-quality.range-and-filters')}
+      >
         <SegmentedControl<RangeId>
-          aria-label={t('统计时间范围')}
+          aria-label={t('ui.usage-tools.statistics-time-range')}
           data-testid="quality-range"
           value={p.rangeId}
           onChange={(v) => {
@@ -116,18 +120,22 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             if (v === 'custom') setCustomOpen(true);
           }}
           options={[
-            { value: 'today', label: t('今天') },
-            { value: '7d', label: t('7 天') },
-            { value: '30d', label: t('30 天') },
-            { value: 'custom', label: t('自定义'), testId: 'quality-range-custom' },
+            { value: 'today', label: t('ui.chat-settings.today') },
+            { value: '7d', label: t('ui.usage-tools.7-days') },
+            { value: '30d', label: t('ui.usage-tools.30-days') },
+            {
+              value: 'custom',
+              label: t('ui.providers-schedule.custom'),
+              testId: 'quality-range-custom',
+            },
           ]}
         />
         {p.rangeId === 'custom' && (
           <Popover
             label={`${formatDay(p.custom.from)} – ${formatDay(p.custom.to)}`}
-            ariaLabel={t('自定义日期范围')}
+            ariaLabel={t('ui.model-quality.custom-date-range')}
             icon={CalendarRange}
-            panelLabel={t('自定义日期范围')}
+            panelLabel={t('ui.model-quality.custom-date-range')}
             open={customOpen}
             onOpenChange={setCustomOpen}
             testId="quality-custom"
@@ -135,7 +143,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             {() => (
               <div className={styles.dateRow}>
                 <label className={styles.popField}>
-                  <span>{t('开始')}</span>
+                  <span>{t('ui.model-quality.start')}</span>
                   <Input
                     size="sm"
                     type="date"
@@ -148,7 +156,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
                   />
                 </label>
                 <label className={styles.popField}>
-                  <span>{t('结束')}</span>
+                  <span>{t('ui.model-quality.end-76b988')}</span>
                   <Input
                     size="sm"
                     type="date"
@@ -166,32 +174,36 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
         )}
         <span className={styles.layerGroup}>
           <SegmentedControl<QualityLayer>
-            aria-label={t('测量口径')}
+            aria-label={t('ui.model-quality.measurement-layer')}
             data-testid="quality-layer"
             value={p.layer}
             onChange={p.onLayer}
             options={[
-              { value: 'gateway', label: t('网关层'), testId: 'quality-layer-gateway' },
-              { value: 'cli', label: t('CLI 层'), testId: 'quality-layer-cli' },
+              {
+                value: 'gateway',
+                label: t('ui.model-quality.gateway-layer'),
+                testId: 'quality-layer-gateway',
+              },
+              { value: 'cli', label: t('ui.model-quality.cli-layer'), testId: 'quality-layer-cli' },
             ]}
           />
           <Tooltip
             placement="bottom-start"
             content={
               <span className={styles.tipBody}>
-                <b>{t('网关层')}</b>
-                {t(
-                  '经 Nomi 统一网关的每个 HTTP 请求（Nomi 对话、编程助手的第三方供应商），有首字节、Key、回退等细节，最精确。',
-                )}
-                <b>{t('CLI 层')}</b>
-                {t(
-                  'Nomi 里运行的编程助手（官方账号与第三方都有），按每一轮计，时间含 CLI 自身与工具执行的开销，没有 Key。',
-                )}
-                <span>{t('在终端里直接使用的 CLI 不经过 Nomi，不在统计范围内。')}</span>
+                <b>{t('ui.model-quality.gateway-layer')}</b>
+                {t('ui.model-quality.every-http-request-through-the-nomi-gateway-nomi')}
+                <b>{t('ui.model-quality.cli-layer')}</b>
+                {t('ui.model-quality.coding-agents-running-in-nomi-official-accounts-and')}
+                <span>{t('ui.model-quality.clis-used-directly-in-a-terminal-don-t')}</span>
               </span>
             }
           >
-            <button type="button" className={styles.infoBtn} aria-label={t('两种测量口径的区别')}>
+            <button
+              type="button"
+              className={styles.infoBtn}
+              aria-label={t('ui.model-quality.about-the-two-measurement-layers')}
+            >
               <Icon icon={Info} size={14} />
             </button>
           </Tooltip>
@@ -199,15 +211,15 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
         {p.showHierarchy && (
           <Popover
             label={hierarchyLabel(p.hierarchy, p.layer)}
-            ariaLabel={t('层级：{0}', hierarchyLabel(p.hierarchy, p.layer))}
+            ariaLabel={t('ui.model-quality.levels', hierarchyLabel(p.hierarchy, p.layer))}
             icon={Layers}
-            panelLabel={t('对比表的层级')}
+            panelLabel={t('ui.model-quality.table-levels')}
             testId="quality-hierarchy"
             minWidth={220}
           >
             {(close) => (
               <RadioMenu<HierarchyId>
-                label={t('对比表的层级')}
+                label={t('ui.model-quality.table-levels')}
                 value={p.hierarchy}
                 testId="quality-hierarchy-menu"
                 onChange={(v) => {
@@ -219,12 +231,12 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
                   label: hierarchyLabel(h.id, p.layer),
                   hint:
                     h.id === 'model-provider-key'
-                      ? t('同一模型在不同供应商、不同 Key 上的差别')
+                      ? t('ui.model-quality.how-the-same-model-differs-across-providers-and')
                       : h.id === 'model-client-provider'
-                        ? t('同一模型在不同编程助手里的差别')
+                        ? t('ui.model-quality.how-the-same-model-differs-across-coding-agents')
                         : h.id === 'client-model-provider'
-                          ? t('每个编程助手各用了哪些模型')
-                          : t('每个供应商各提供了哪些模型'),
+                          ? t('ui.model-quality.which-models-each-coding-agent-used')
+                          : t('ui.model-quality.which-models-each-provider-served'),
                 }))}
               />
             )}
@@ -235,7 +247,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             key={d.dim}
             label={chipLabel(d.dim, d.label)}
             active={!!p.filters[d.dim]?.length}
-            panelLabel={t('按{0}筛选', t(d.label))}
+            panelLabel={t('ui.model-quality.filter-by', t(d.label))}
             testId={`quality-filter-${d.dim}`}
             minWidth={240}
           >
@@ -252,46 +264,46 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
         ))}
         <span className={styles.toolbarEnd}>
           <Popover
-            label={t('口径')}
+            label={t('ui.model-quality.counting')}
             icon={Ruler}
             align="end"
-            panelLabel={t('统计口径')}
+            panelLabel={t('ui.model-quality.counting-options')}
             testId="quality-count"
             minWidth={280}
           >
             {() => (
               <div className={styles.popStack}>
                 <div className={styles.popRow}>
-                  <span>{t('计数口径')}</span>
+                  <span>{t('ui.model-quality.count-by')}</span>
                   <SegmentedControl<'request' | 'attempt'>
-                    aria-label={t('计数口径')}
+                    aria-label={t('ui.model-quality.count-by')}
                     data-testid="quality-count-by"
                     value={gateway ? p.count.countBy : 'request'}
                     disabled={!gateway}
                     onChange={(v) => p.onCount({ ...p.count, countBy: v })}
                     options={[
-                      { value: 'request', label: t('按请求') },
-                      { value: 'attempt', label: t('按尝试') },
+                      { value: 'request', label: t('ui.model-quality.requests') },
+                      { value: 'attempt', label: t('ui.model-quality.attempts') },
                     ]}
                   />
                 </div>
                 <p className={styles.popHint}>
                   {gateway
-                    ? t(
-                        '按尝试：成功、失败、客户端错误、总数、成功率按上游尝试计（回退到别的候选时计多次），其余各列按请求。',
-                      )
-                    : t('CLI 层没有尝试的概念，一律按每一轮计。')}
+                    ? t('ui.model-quality.by-attempt-success-failed-client-errors-total-and')
+                    : t('ui.model-quality.the-cli-layer-has-no-attempts-everything-counts')}
                 </p>
                 <Switch
                   checked={p.count.cancelInDenominator}
                   onChange={(v) => p.onCount({ ...p.count, cancelInDenominator: v })}
-                  label={t('取消计入成功率分母')}
+                  label={t(
+                    'ui.model-quality.include-cancellations-in-the-success-rate-denominator',
+                  )}
                   data-testid="quality-cancel-denom"
                 />
                 <Switch
                   checked={p.count.includeRejected}
                   onChange={(v) => p.onCount({ ...p.count, includeRejected: v })}
-                  label={t('客户端错误计入失败')}
+                  label={t('ui.model-quality.count-client-errors-as-failures')}
                   data-testid="quality-include-rejected"
                 />
               </div>
@@ -300,8 +312,8 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
           <button
             type="button"
             className={styles.iconChip}
-            aria-label={t('刷新')}
-            title={t('刷新')}
+            aria-label={t('ui.knowledge-local.refresh')}
+            title={t('ui.knowledge-local.refresh')}
             onClick={p.onRefresh}
             data-testid="quality-refresh"
           >
@@ -310,8 +322,12 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
           <button
             type="button"
             className={styles.iconChip}
-            aria-label={t('导出 CSV')}
-            title={p.onExport ? t('导出 CSV') : t('这个视图不能导出')}
+            aria-label={t('ui.usage-tools.export-csv')}
+            title={
+              p.onExport
+                ? t('ui.usage-tools.export-csv')
+                : t('ui.model-quality.this-view-can-t-be-exported')
+            }
             onClick={p.onExport}
             disabled={!p.onExport}
             data-testid="quality-export"
@@ -319,12 +335,12 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
             <Icon icon={Download} size={14} />
           </button>
           <Popover
-            label={t('设置')}
-            ariaLabel={t('模型质量设置')}
+            label={t('ui.foundation.settings')}
+            ariaLabel={t('ui.model-quality.model-quality-settings')}
             icon={Settings2}
             iconOnly
             align="end"
-            panelLabel={t('模型质量设置')}
+            panelLabel={t('ui.model-quality.model-quality-settings')}
             testId="quality-settings"
             minWidth={300}
           >
@@ -335,7 +351,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
       {active.length > 0 && (
         <ul
           className={styles.activeFilters}
-          aria-label={t('当前筛选')}
+          aria-label={t('ui.model-quality.active-filters')}
           data-testid="quality-active-filters"
         >
           {active.map(([d, v]) => (
@@ -345,7 +361,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
               </span>
               <button
                 type="button"
-                aria-label={t('移除筛选：{0}', dimLabel(d))}
+                aria-label={t('ui.model-quality.remove-filter', dimLabel(d))}
                 onClick={() => set(d, [])}
                 data-testid={`quality-remove-${d}`}
               >
@@ -360,7 +376,7 @@ export const Toolbar: React.FC<ToolbarProps> = (p) => {
               onClick={() => p.onFilters({})}
               data-testid="quality-clear-filters"
             >
-              {t('清除全部')}
+              {t('ui.knowledge-local.clear-all')}
             </button>
           </li>
         </ul>

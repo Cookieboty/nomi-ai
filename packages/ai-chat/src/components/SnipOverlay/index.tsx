@@ -34,7 +34,9 @@ export const SnipOverlay: React.FC = () => {
   useEffect(() => {
     screenClient
       .snipSource()
-      .then((s) => (s ? setSrc(s.url) : setErr(t('截图已失效，请重新截图'))))
+      .then((s) =>
+        s ? setSrc(s.url) : setErr(t('ui.chat-settings.screenshot-expired-please-take-it-again')),
+      )
       .catch((e: Error) => setErr(e.message));
   }, []);
 
@@ -105,7 +107,9 @@ export const SnipOverlay: React.FC = () => {
             <span className={styles.tip}>{err}</span>
           ) : (
             <span className={styles.tip}>
-              {ok ? t('框好了，问点什么吧') : t('拖动鼠标框选要提问的区域')}
+              {ok
+                ? t('ui.chat-settings.selected-ask-something')
+                : t('ui.chat-settings.drag-to-select-the-area-to-ask-about')}
             </span>
           )}
           <Button
@@ -115,13 +119,13 @@ export const SnipOverlay: React.FC = () => {
             onClick={() => done(sel)}
             data-testid="snip-confirm"
           >
-            {t('提问 ⏎')}
+            {t('ui.chat-settings.ask')}
           </Button>
           <Button size="sm" onClick={full} data-testid="snip-full">
-            {t('整屏 F')}
+            {t('ui.chat-settings.full-screen-f')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => done(null)} data-testid="snip-cancel">
-            {t('取消 Esc')}
+            {t('ui.chat-settings.cancel-esc')}
           </Button>
         </div>
       )}

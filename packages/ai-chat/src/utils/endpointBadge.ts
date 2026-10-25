@@ -24,7 +24,7 @@ export const ENDPOINT_FULL: Record<ConversationBackend, () => string> = {
   dsh: () => 'dsh',
   grok: () => 'Grok',
   gemini: () => 'Gemini',
-  external: () => t('外部 CLI'),
+  external: () => t('ui.providers-schedule.external-cli'),
 };
 
 /** CSS 变量友好的 data-ep 值，样式见 Sidebar / ChatModeSwitch */

@@ -150,7 +150,7 @@ function readText(file: string): string | null {
     return fs.readFileSync(file, 'utf8');
   } catch (e) {
     throw new RevokeError(
-      tr('无法读取 {0}：{1}', file, e instanceof Error ? e.message : String(e)),
+      tr('electron.common.cannot-read', file, e instanceof Error ? e.message : String(e)),
     );
   }
 }
@@ -163,7 +163,7 @@ function parseJsonObject(file: string, raw: string): Record<string, unknown> {
   } catch {
     /* 下面统一报错 */
   }
-  throw new RevokeError(tr('{0} 内容无法解析，已保留原样', file));
+  throw new RevokeError(tr('electron.common.could-not-be-parsed-and-was-left-unchanged', file));
 }
 
 function planClaude(
@@ -318,7 +318,7 @@ function apply(changes: Change[], backupDir: string): void {
     }
     throw new RevokeError(
       tr(
-        '无法写入 {0}：{1}',
+        'electron.common.cannot-write',
         changes[written.length]?.file ?? '',
         e instanceof Error ? e.message : String(e),
       ),
@@ -365,7 +365,9 @@ export function revokeLegacyGlobalConfig(opts: RevokeLegacyOptions): RevokeLegac
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       const error =
-        e instanceof RevokeError ? detail : tr('撤销 {0} 的旧配置失败：{1}', kind, detail);
+        e instanceof RevokeError
+          ? detail
+          : tr('electron.common.failed-to-revoke-the-old-configuration', kind, detail);
       opts.logger.warn('legacy global config revoke failed', { kind, error });
       result.failed.push({ kind, error });
     }

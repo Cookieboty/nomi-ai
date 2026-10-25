@@ -74,7 +74,7 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手接入需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:cli-update:${method}`, ...args)) as T & {
     __error?: { message: string };
   };

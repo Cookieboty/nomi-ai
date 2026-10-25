@@ -42,18 +42,18 @@ export const DiagnosticsSettings: React.FC = () => {
 
   return (
     <SettingsGroup
-      title={t('诊断日志')}
+      title={t('ui.knowledge-local.diagnostic-logs')}
       description={t(
-        '排查第三方供应商、编程助手和网关的问题时用：记录编程助手的收发原文和网关的请求 / 响应正文，只存在本机。Key、令牌和 Authorization 头会被替换掉；收发记录保留 7 天，网关正文保留 24 小时。',
+        'ui.knowledge-local.for-troubleshooting-third-party-providers-coding-agents-and',
       )}
       data-testid="settings-diagnostics"
     >
       <SettingRow
-        title={t('保存诊断日志')}
+        title={t('ui.knowledge-local.save-diagnostic-logs')}
         description={
           view?.forced
-            ? t('开发版始终记录')
-            : t('默认关闭。打开后会记下对话内容和代码，排查完记得关掉。')
+            ? t('ui.knowledge-local.always-on-in-development-builds')
+            : t('ui.knowledge-local.off-by-default-when-on-conversation-content-and')
         }
       >
         <Switch
@@ -64,11 +64,11 @@ export const DiagnosticsSettings: React.FC = () => {
               setView(await diagnosticsClient.set(on));
             })
           }
-          aria-label={t('保存诊断日志')}
+          aria-label={t('ui.knowledge-local.save-diagnostic-logs')}
           data-testid="diagnostics-switch"
         />
       </SettingRow>
-      <SettingRow title={t('日志文件夹')} description={view?.dir}>
+      <SettingRow title={t('ui.knowledge-local.log-folder')} description={view?.dir}>
         <Button
           size="sm"
           disabled={busy}
@@ -79,14 +79,12 @@ export const DiagnosticsSettings: React.FC = () => {
             })
           }
         >
-          {t('打开日志文件夹')}
+          {t('ui.knowledge-local.open-log-folder')}
         </Button>
       </SettingRow>
       <SettingRow
-        title={t('导出诊断包')}
-        description={t(
-          '把最近 24 小时的日志打成一个 .zip，导出前会再脱敏一遍。诊断包包含对话内容和代码，只发给你信任的人。',
-        )}
+        title={t('ui.knowledge-local.export-diagnostics-bundle')}
+        description={t('ui.knowledge-local.packs-the-last-24-hours-of-logs-into')}
       >
         <Button
           size="sm"
@@ -95,16 +93,20 @@ export const DiagnosticsSettings: React.FC = () => {
           onClick={() =>
             void run(async () => {
               const r = await diagnosticsClient.exportBundle();
-              if (r.ok) setMsg({ tone: 'success', text: t('已导出：{0}', r.path ?? '') });
-              else if (r.error) setMsg({ tone: 'danger', text: t('导出失败：{0}', r.error) });
+              if (r.ok)
+                setMsg({ tone: 'success', text: t('ui.knowledge-local.exported', r.path ?? '') });
+              else if (r.error)
+                setMsg({ tone: 'danger', text: t('ui.knowledge-local.export-failed', r.error) });
             })
           }
         >
-          {t('导出诊断包')}
+          {t('ui.knowledge-local.export-diagnostics-bundle')}
         </Button>
       </SettingRow>
       {view?.enabled && !view.bodyTrace && (
-        <Notice tone="info">{t('网关正文追踪已用 NOMI_DIAG_BODY=0 单独关闭。')}</Notice>
+        <Notice tone="info">
+          {t('ui.knowledge-local.gateway-body-tracing-is-turned-off-separately-with')}
+        </Notice>
       )}
       {msg && (
         <Notice tone={msg.tone} role="status" data-testid="diagnostics-message">

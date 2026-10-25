@@ -101,7 +101,7 @@ export class AdvancedTTSEngine {
       currentVoice: 'soft-zh-female',
       voices: {
         'soft-zh-female': {
-          name: t('柔和中文女声'),
+          name: t('electron.common.soft-chinese-female-voice'),
           systemVoice,
           platform: process.platform as 'darwin' | 'win32' | 'linux',
           language: 'zh-CN',
@@ -109,7 +109,7 @@ export class AdvancedTTSEngine {
           style: 'soft',
         },
         default: {
-          name: t('系统默认'),
+          name: t('electron.common.system-default'),
           systemVoice: process.platform === 'darwin' ? 'Meijia' : systemVoice,
           platform: process.platform as 'darwin' | 'win32' | 'linux',
           language: 'zh-CN',
@@ -376,7 +376,7 @@ export class AdvancedTTSEngine {
    */
   public async testVoice(
     voiceId: string,
-    testText: string = t('这是一个语音测试'),
+    testText: string = t('electron.common.this-is-a-voice-test'),
   ): Promise<boolean> {
     if (!this.config || !this.config.voices[voiceId]) {
       return false;

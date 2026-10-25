@@ -1,58 +1,38 @@
 /**
  * 主进程 i18n（托盘、原生对话框、系统通知、看板娘主动消息、返回给界面的错误提示）。
- * 与渲染进程同一套规则：中文原文作 key，en.json 提供英文；`ai:locale:*` 持久化并广播。
- * 新用户默认跟随系统语言（zh* → 中文，其余 → English）。
+ * 词典和稳定 key 由 @nomi-ai/i18n 统一管理；这里负责 Electron 的偏好持久化与广播。
  */
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  createTranslator,
+  getDictionary,
+  isLocalePref,
+  resolveLocale,
+  type LocalePref as CatalogLocalePref,
+} from '@nomi-ai/i18n';
 import { BrowserWindow, app } from 'electron';
 
 import { guardedHandle } from '../security/guardedIpc';
 
-import en from './en.json';
-
 export type Locale = 'zh-CN' | 'en';
-export type LocalePref = Locale | 'system';
-export const isLocalePref = (v: unknown): v is LocalePref =>
-  v === 'system' || v === 'zh-CN' || v === 'en';
+export type LocalePref = CatalogLocalePref;
+export { isLocalePref, resolveLocale };
 
-export const resolveLocale = (pref: LocalePref, system: readonly string[]): Locale =>
-  pref !== 'system'
-    ? pref
-    : String(system[0] ?? '')
-          .toLowerCase()
-          .startsWith('zh')
-      ? 'zh-CN'
-      : 'en';
-
-const EN = en as Record<string, string>;
 let locale: Locale = 'zh-CN';
 let pref: LocalePref = 'system';
 const listeners = new Set<(l: Locale) => void>();
-
-export function format(s: string, args: unknown[]): string {
-  if (!args.length) return s;
-  const named =
-    args.length === 1 && args[0] && typeof args[0] === 'object'
-      ? (args[0] as Record<string, unknown>)
-      : null;
-  return s.replace(/\{(\w+)\}/g, (m, k: string) => {
-    const v = named ? named[k] : args[Number(k)];
-    return v === undefined ? m : String(v);
-  });
-}
+const translate = createTranslator(() => locale);
 
 export function t(key: string, ...args: unknown[]): string;
 export function t<T>(key: T): T;
 export function t(key: unknown, ...args: unknown[]): unknown {
-  if (typeof key !== 'string') return key;
-  if (locale === 'zh-CN') return format(key, args);
-  // 插值参数若本身是词典里的文案（常量里的标签），一并翻译
-  const tx = args.map((a) => (typeof a === 'string' ? (EN[a] ?? a) : a));
-  return format(EN[key] ?? key, tx);
+  return translate(key, ...args);
 }
+
 export const getLocale = (): Locale => locale;
+
 /** 语言变化时回调（托盘菜单等需要重建的地方） */
 export function onLocaleChange(fn: (l: Locale) => void): () => void {
   listeners.add(fn);
@@ -110,7 +90,7 @@ export class LocaleService {
     const opts = { owner: 'LocaleService', wrapErrors: false };
     guardedHandle('ai:locale:get', () => this.get(), opts);
     guardedHandle('ai:locale:set', (p) => this.set(p), opts);
-    // 主进程常量（模型目录、预设名称等）会原样发给界面，界面用这份词典补充翻译
-    guardedHandle('ai:locale:dict', () => EN, opts);
+    // 为诊断和插件接口保留统一的英文词典查询能力。
+    guardedHandle('ai:locale:dict', () => getDictionary('en'), opts);
   }
 }

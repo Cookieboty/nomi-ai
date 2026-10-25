@@ -64,8 +64,8 @@ export const TtsModelCard: React.FC = () => {
 
   return (
     <SettingsGroup
-      title={t('朗读')}
-      description={t('Nomi 的回复用离线语音读出来，在本机合成、无需联网。')}
+      title={t('ui.knowledge-local.read-aloud')}
+      description={t('ui.knowledge-local.nomi-reads-replies-aloud-with-an-offline-voice')}
       actions={
         st.state === 'ready' && st.source === 'userData' ? (
           <Button
@@ -73,25 +73,30 @@ export const TtsModelCard: React.FC = () => {
             variant="ghost"
             data-testid="tts-model-delete"
             onClick={() => {
-              if (!window.confirm(t('删除离线语音模型？语音会关闭，之后重新开启需要再次下载。')))
+              if (
+                !window.confirm(t('ui.voice-mascot.delete-the-offline-voice-model-voice-will-be'))
+              )
                 return;
               void ttsModelClient.remove().then((s) => s && setSt(s));
             }}
           >
-            {t('删除模型')}
+            {t('ui.voice-mascot.delete-model')}
           </Button>
         ) : undefined
       }
       data-testid="settings-tts-model"
     >
       <SettingRow
-        title={t('开启语音')}
+        title={t('ui.voice-mascot.turn-on-voice')}
         description={
           st.state === 'ready' ? (
             <span data-testid="tts-model-ready">
               {st.source === 'userData'
-                ? t('离线语音模型已下载（{0}），无需联网即可朗读。', formatMB(st.installedBytes))
-                : t('离线语音模型已就绪，无需联网即可朗读。')}
+                ? t(
+                    'ui.voice-mascot.offline-voice-model-downloaded-reading-aloud-works-without',
+                    formatMB(st.installedBytes),
+                  )
+                : t('ui.voice-mascot.offline-voice-model-ready-reading-aloud-works-without')}
             </span>
           ) : undefined
         }
@@ -100,7 +105,7 @@ export const TtsModelCard: React.FC = () => {
           checked={st.voiceEnabled}
           disabled={busy && !downloading}
           onChange={(v) => void toggle(v)}
-          aria-label={t('开启语音')}
+          aria-label={t('ui.voice-mascot.turn-on-voice')}
           data-testid="tts-voice-toggle"
         />
       </SettingRow>
@@ -108,15 +113,18 @@ export const TtsModelCard: React.FC = () => {
       {missing && (
         <p className={styles.note} data-testid="tts-model-missing">
           {st.voiceEnabled
-            ? t(
-                '语音已开启，但离线语音模型还没有下载（约 {0}），下载完成前不会出声。',
+            ? t('ui.voice-mascot.voice-is-on-but-the-offline-voice-model', formatMB(st.total))
+            : t(
+                'ui.voice-mascot.turning-on-voice-downloads-the-offline-voice-model',
                 formatMB(st.total),
-              )
-            : t('开启语音时会下载离线语音模型（约 {0}），下载完成后无需联网。', formatMB(st.total))}
+              )}
           {st.partialBytes ? (
             <span data-testid="tts-model-partial">
               {' '}
-              {t('已下载 {0}，将从断点继续。', formatMB(st.partialBytes))}
+              {t(
+                'ui.voice-mascot.already-downloaded-it-will-resume-from-there',
+                formatMB(st.partialBytes),
+              )}
             </span>
           ) : null}
         </p>
@@ -129,7 +137,7 @@ export const TtsModelCard: React.FC = () => {
           data-testid="tts-model-disk"
         >
           {t(
-            '需要约 {0} 可用磁盘空间（压缩包 {1}，解压后 {2}，解压时两者同时存在）。',
+            'ui.voice-mascot.needs-about-of-free-disk-space-archive-unpacked',
             formatMB(st.diskRequired),
             formatMB(st.archiveBytes ?? st.total),
             formatMB(st.installedBytes),
@@ -138,8 +146,8 @@ export const TtsModelCard: React.FC = () => {
             <span>
               {' '}
               {diskShort
-                ? t('当前只有 {0} 可用，请先清理磁盘。', formatMB(st.diskFree))
-                : t('当前可用 {0}。', formatMB(st.diskFree))}
+                ? t('ui.voice-mascot.only-is-free-right-now-please-free-up', formatMB(st.diskFree))
+                : t('ui.voice-mascot.free', formatMB(st.diskFree))}
             </span>
           )}
         </p>
@@ -154,7 +162,7 @@ export const TtsModelCard: React.FC = () => {
             disabled={busy}
             onClick={() => void download(true)}
           >
-            {t('下载离线语音模型')}
+            {t('ui.voice-mascot.download-offline-voice-model')}
           </Button>
         </div>
       )}
@@ -164,7 +172,7 @@ export const TtsModelCard: React.FC = () => {
           <div
             className={card.bar}
             role="progressbar"
-            aria-label={t('离线语音模型下载进度')}
+            aria-label={t('ui.voice-mascot.offline-voice-model-download-progress')}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={pct}
@@ -176,8 +184,8 @@ export const TtsModelCard: React.FC = () => {
           </div>
           <span className={card.label}>
             {st.phase === 'extract'
-              ? t('正在解压…')
-              : t('下载中 {0}%（{1} / {2}）', pct, formatMB(st.received), formatMB(st.total))}
+              ? t('ui.voice-mascot.extracting')
+              : t('ui.voice-mascot.downloading', pct, formatMB(st.received), formatMB(st.total))}
           </span>
           {st.phase !== 'extract' && (
             <Button
@@ -186,7 +194,7 @@ export const TtsModelCard: React.FC = () => {
               data-testid="tts-model-cancel"
               onClick={() => void ttsModelClient.cancel().then((s) => s && setSt(s))}
             >
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </Button>
           )}
         </div>
@@ -196,15 +204,15 @@ export const TtsModelCard: React.FC = () => {
         <div className={card.error} role="alert" data-testid="tts-model-error">
           <span>
             {st.voiceEnabled
-              ? t('离线语音模型下载失败：{0}', shownError)
-              : t('离线语音模型下载失败，语音已关闭：{0}', shownError)}
+              ? t('ui.voice-mascot.couldn-t-download-the-offline-voice-model', shownError)
+              : t('ui.voice-mascot.offline-voice-model-download-failed-voice-is-off', shownError)}
           </span>
           <Button
             size="sm"
             data-testid="tts-model-retry"
             onClick={() => void download(st.voiceEnabled)}
           >
-            {t('重试')}
+            {t('ui.mascot-theme.retry')}
           </Button>
         </div>
       )}

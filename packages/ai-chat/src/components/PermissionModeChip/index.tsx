@@ -157,7 +157,7 @@ export const PermissionModeChip: React.FC<{
         setNote({
           tabId,
           text: t(
-            '{0} 不支持「{1}」，已使用「{2}」',
+            'ui.chat-settings.doesn-t-support-using',
             name,
             modeLabel(next),
             modeLabel(r.permissionMode),
@@ -231,8 +231,8 @@ export const PermissionModeChip: React.FC<{
         className={`${styles.chip} ${danger ? styles.danger : ''}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={t('权限模式：{0}', modeLabel(mode))}
-        title={t('{0}（Shift+Tab 切换）', modeHint(mode, backend))}
+        aria-label={t('ui.chat-settings.permission-mode', modeLabel(mode))}
+        title={t('ui.chat-settings.shift-tab-to-switch', modeHint(mode, backend))}
         data-testid="permission-mode-chip"
         data-mode={mode}
         onClick={() => setOpen((o) => !o)}
@@ -253,7 +253,7 @@ export const PermissionModeChip: React.FC<{
             className={styles.menu}
             style={pos}
             role="menu"
-            aria-label={t('权限模式')}
+            aria-label={t('ui.chat-settings.permission-mode-e1f592')}
             data-testid="permission-mode-menu"
           >
             {PERMISSION_MODES.filter((m) => supported.includes(m)).map((m) => (
@@ -282,7 +282,8 @@ export const PermissionModeChip: React.FC<{
             ))}
             <div className={styles.foot}>
               <span>
-                <kbd className={styles.kbd}>Shift+Tab</kbd> {t('在输入框里切换')}
+                <kbd className={styles.kbd}>Shift+Tab</kbd>{' '}
+                {t('ui.chat-settings.to-switch-in-the-input-box')}
               </span>
               {/* 「新标签默认」只对编程助手标签有意义：Nomi 只有一个主对话 */}
               {backend !== 'nomi' && mode !== 'bypass' && mode !== defaultMode && (
@@ -296,12 +297,15 @@ export const PermissionModeChip: React.FC<{
                     void harnessClient
                       .setPermissionDefaults({ defaultPermissionMode: mode })
                       .then(() =>
-                        setNote({ tabId, text: t('新标签默认使用「{0}」', modeLabel(mode)) }),
+                        setNote({
+                          tabId,
+                          text: t('ui.chat-settings.new-tabs-now-default-to', modeLabel(mode)),
+                        }),
                       )
                       .catch(() => undefined);
                   }}
                 >
-                  {t('设为新标签默认')}
+                  {t('ui.chat-settings.make-default-for-new-tabs')}
                 </button>
               )}
             </div>
@@ -333,8 +337,7 @@ export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode
     <div className={styles.tip} role="status" data-testid="permission-bypass-tip">
       <Icon icon={ShieldAlert} size={14} />
       <span className={styles.tipText}>
-        {err ??
-          t('完全放开：{0} 不再询问，可以修改任何文件、运行任何命令。只对当前标签生效。', name)}
+        {err ?? t('ui.chat-settings.full-access-won-t-ask-and-can-change', name)}
       </span>
       <button
         type="button"
@@ -347,13 +350,13 @@ export const BypassTip: React.FC<{ tab: HarnessTabMeta; exitMode: PermissionMode
             .catch((e: unknown) => setErr(e instanceof Error ? e.message : String(e)));
         }}
       >
-        {t('退出完全放开')}
+        {t('ui.chat-settings.exit-full-access')}
       </button>
       <button
         type="button"
         className={styles.tipClose}
-        aria-label={t('关闭提示')}
-        title={t('关闭提示')}
+        aria-label={t('ui.mascot-theme.dismiss')}
+        title={t('ui.mascot-theme.dismiss')}
         data-testid="permission-bypass-tip-close"
         onClick={() => setDismissed((d) => new Set(d).add(tab.id))}
       >

@@ -35,18 +35,18 @@ export type ScreenTab = 'ask' | 'memory' | 'privacy';
 type Tab = ScreenTab;
 
 const INTERVALS = [
-  { value: '30', label: '每 30 秒' },
-  { value: '60', label: '每 1 分钟' },
-  { value: '120', label: '每 2 分钟' },
-  { value: '300', label: '每 5 分钟' },
-  { value: '600', label: '每 10 分钟' },
+  { value: '30', label: 'ui.providers-schedule.every-30-seconds' },
+  { value: '60', label: 'ui.providers-schedule.every-minute' },
+  { value: '120', label: 'ui.providers-schedule.every-2-minutes' },
+  { value: '300', label: 'ui.providers-schedule.every-5-minutes' },
+  { value: '600', label: 'ui.providers-schedule.every-10-minutes' },
 ];
 const RETENTIONS = [
-  { value: '1', label: '保留 1 天' },
-  { value: '3', label: '保留 3 天' },
-  { value: '7', label: '保留 7 天' },
-  { value: '14', label: '保留 14 天' },
-  { value: '30', label: '保留 30 天' },
+  { value: '1', label: 'ui.providers-schedule.keep-1-day' },
+  { value: '3', label: 'ui.providers-schedule.keep-3-days' },
+  { value: '7', label: 'ui.providers-schedule.keep-7-days' },
+  { value: '14', label: 'ui.providers-schedule.keep-14-days' },
+  { value: '30', label: 'ui.providers-schedule.keep-30-days' },
 ];
 
 const fmt = (t: number) =>
@@ -167,7 +167,9 @@ export const ScreenPanel: React.FC<{
   const header = st && s?.enabled && (
     <div className={styles.indicator} data-testid="screen-indicator">
       <span className={paused ? styles.dotPaused : styles.dot} />
-      {paused ? tr('屏幕记忆已暂停至 {0}', fmt(s.pausedUntil)) : tr('屏幕记忆中 · 仅保存在本机')}
+      {paused
+        ? tr('ui.providers-schedule.screen-memory-paused-until', fmt(s.pausedUntil))
+        : tr('ui.providers-schedule.screen-memory-on-stored-only-on-this-device')}
     </div>
   );
 
@@ -178,7 +180,7 @@ export const ScreenPanel: React.FC<{
         if (pick) return;
         onClose();
       }}
-      title={tr('截图与屏幕记忆')}
+      title={tr('ui.knowledge-local.screenshots-screen-memory')}
       size="lg"
       data-testid="screen-panel"
     >
@@ -186,13 +188,16 @@ export const ScreenPanel: React.FC<{
         <Tabs<Tab>
           variant="underline"
           items={[
-            { value: 'ask', label: tr('截图提问') },
-            { value: 'memory', label: tr('屏幕记忆{0}', st?.count ? ` · ${st.count}` : '') },
-            { value: 'privacy', label: tr('隐私与排除') },
+            { value: 'ask', label: tr('ui.knowledge-local.ask-about-a-screenshot') },
+            {
+              value: 'memory',
+              label: tr('ui.providers-schedule.screen-memory', st?.count ? ` · ${st.count}` : ''),
+            },
+            { value: 'privacy', label: tr('ui.providers-schedule.privacy-exclusions') },
           ]}
           value={tab}
           onChange={setTab}
-          aria-label={tr('截图与屏幕记忆')}
+          aria-label={tr('ui.knowledge-local.screenshots-screen-memory')}
         />
         {header}
         {err && <ErrorState detail={err} onRetry={() => void load()} data-testid="panel-error" />}
@@ -201,10 +206,8 @@ export const ScreenPanel: React.FC<{
         {st && tab === 'ask' && (
           <div className={styles.stack}>
             <SettingsGroup
-              title={tr('截图提问')}
-              description={tr(
-                '框选屏幕上的任意区域，连同问题一起发给对话模型。也可以直接把图片粘贴或拖进输入框。',
-              )}
+              title={tr('ui.knowledge-local.ask-about-a-screenshot')}
+              description={tr('ui.providers-schedule.select-any-area-of-the-screen-and-send')}
               actions={
                 <Button
                   size="sm"
@@ -222,28 +225,33 @@ export const ScreenPanel: React.FC<{
                   data-testid="screen-panel-snip"
                 >
                   <Icon icon={Crop} size={14} />
-                  {tr('现在截图提问')}
+                  {tr('ui.providers-schedule.ask-about-a-screenshot-now')}
                 </Button>
               }
             >
-              <SettingRow title={tr('全局截图快捷键')} description={tr('在任意界面框选截图提问。')}>
+              <SettingRow
+                title={tr('ui.knowledge-local.global-screenshot-shortcut')}
+                description={tr('ui.knowledge-local.select-an-area-anywhere-on-screen-and-ask')}
+              >
                 <Keys keys={['Ctrl/⌘', 'Alt', 'A']} />
                 <Switch
                   checked={s!.snipHotkey}
                   onChange={(v) => void set({ snipHotkey: v })}
-                  aria-label={tr('启用全局截图快捷键 Ctrl/⌘+Alt+A')}
+                  aria-label={tr(
+                    'ui.providers-schedule.enable-global-screenshot-shortcut-ctrl-alt-a',
+                  )}
                 />
               </SettingRow>
-              <SettingRow title={tr('在对话窗里截图')}>
+              <SettingRow title={tr('ui.providers-schedule.screenshot-in-chat-window')}>
                 <Keys keys={['Ctrl/⌘', 'Shift', 'S']} />
               </SettingRow>
-              <SettingRow title={tr('框选时')}>
+              <SettingRow title={tr('ui.knowledge-local.while-selecting')}>
                 <span className={styles.keyHints}>
                   {(
                     [
-                      ['Enter', tr('确认')],
-                      ['F', tr('整屏')],
-                      ['Esc', tr('取消')],
+                      ['Enter', tr('ui.knowledge-local.confirm')],
+                      ['F', tr('ui.knowledge-local.full-screen')],
+                      ['Esc', tr('ui.foundation.cancel')],
                     ] as const
                   ).map(([k, label]) => (
                     <span key={k} className={styles.keyHint}>
@@ -254,34 +262,36 @@ export const ScreenPanel: React.FC<{
                 </span>
               </SettingRow>
               <SettingRow
-                title={tr('当前对话模型')}
+                title={tr('ui.knowledge-local.current-chat-model')}
                 description={
                   st.chat
                     ? `${providerDisplayName(st.chat.name)}${model ? ` · ${model}` : ''}`
-                    : tr('未配置')
+                    : tr('ui.providers-schedule.not-configured-63595e')
                 }
               >
                 {st.chat && (
                   <Badge tone={st.chat.local ? 'success' : 'neutral'}>
-                    {st.chat.local ? tr('本地') : tr('云端')}
+                    {st.chat.local ? tr('ui.providers-schedule.local') : tr('ui.foundation.cloud')}
                   </Badge>
                 )}
                 {st.chat && (
                   <Badge tone={likelyVision(model) ? 'success' : 'warning'}>
-                    {likelyVision(model) ? tr('支持看图') : tr('可能不支持看图')}
+                    {likelyVision(model)
+                      ? tr('ui.providers-schedule.supports-images')
+                      : tr('ui.providers-schedule.may-not-support-images')}
                   </Badge>
                 )}
               </SettingRow>
             </SettingsGroup>
             <Notice tone="info">
-              {tr('想完全离线看图：在「设置 → 模型」里添加 Ollama，并拉取视觉模型，例如')}
+              {tr('ui.cli-monitor.to-look-at-images-fully-offline-add-ollama')}
               <code> ollama pull qwen2.5vl:3b </code>
-              {tr('或')}
+              {tr('ui.providers-schedule.or')}
               <code> llava </code>
-              {tr('，再把它设为对话模型。')}
+              {tr('ui.providers-schedule.then-set-it-as-the-chat-model')}
               {st.localOnly
-                ? tr(' 已开启仅本地模式，图片不会发给云端。')
-                : tr(' 云端模型第一次收到图片前会先征得你的同意。')}
+                ? tr('ui.providers-schedule.local-only-mode-is-on-images-won-t')
+                : tr('ui.providers-schedule.cloud-models-ask-for-your-consent-before-receiving')}
             </Notice>
           </div>
         )}
@@ -289,16 +299,14 @@ export const ScreenPanel: React.FC<{
         {st && tab === 'memory' && (
           <div className={styles.stack}>
             <SettingsGroup
-              title={tr('屏幕记忆')}
-              description={tr(
-                '开启后按间隔识别屏幕上的文字（本地 OCR），只保存文字和小缩略图；画面没变化、电脑空闲或出现排除窗口时自动跳过。 对话里可以问“我刚才在屏幕上看到的…”。',
-              )}
+              title={tr('ui.chat-settings.screen-memory')}
+              description={tr('ui.providers-schedule.when-on-text-on-screen-is-recognized-at')}
               actions={
                 <>
                   {s!.enabled &&
                     (paused ? (
                       <Button size="sm" onClick={() => void screenClient.resume().then(load)}>
-                        {tr('继续')}
+                        {tr('ui.providers-schedule.resume')}
                       </Button>
                     ) : (
                       <Button
@@ -306,60 +314,70 @@ export const ScreenPanel: React.FC<{
                         onClick={() => void screenClient.pause(60).then(load)}
                         data-testid="screen-pause"
                       >
-                        {tr('暂停 1 小时')}
+                        {tr('ui.providers-schedule.pause-for-1-hour')}
                       </Button>
                     ))}
                   <Button
                     size="sm"
                     disabled={!st.ocrReady}
                     onClick={async () => {
-                      setMsg(tr('正在记录…'));
+                      setMsg(tr('ui.providers-schedule.recording'));
                       const r = await screenClient
                         .sampleNow()
                         .catch((e: Error) => ({ saved: false, reason: e.message }));
-                      setMsg(r.saved ? tr('已记录当前屏幕') : describeSkip(r.reason));
+                      setMsg(
+                        r.saved
+                          ? tr('ui.providers-schedule.current-screen-recorded')
+                          : describeSkip(r.reason),
+                      );
                       void search(q);
                     }}
                     data-testid="screen-sample-now"
                   >
-                    {tr('立即记录一次')}
+                    {tr('ui.providers-schedule.record-once-now')}
                   </Button>
                 </>
               }
             >
               {!st.ocrReady && (
                 <Notice tone="warning">
-                  {tr('需要先在「知识与记忆 → 知识库 → OCR」下载中文 / 英文识别语言包。')}
+                  {tr('ui.providers-schedule.download-the-chinese-english-ocr-language-data-first')}
                 </Notice>
               )}
-              <SettingRow title={tr('开启屏幕记忆')} description={tr('默认关闭。')}>
+              <SettingRow
+                title={tr('ui.knowledge-local.turn-on-screen-memory')}
+                description={tr('ui.knowledge-local.off-by-default')}
+              >
                 <Switch
                   checked={s!.enabled}
                   onChange={(v) => void set({ enabled: v, pausedUntil: 0 })}
-                  aria-label={tr('开启屏幕记忆（默认关闭）')}
+                  aria-label={tr('ui.providers-schedule.turn-on-screen-memory-off-by-default')}
                   data-testid="screen-mem-toggle"
                 />
               </SettingRow>
-              <SettingRow title={tr('记录间隔')}>
+              <SettingRow title={tr('ui.knowledge-local.capture-interval')}>
                 <div className={styles.selectBox}>
                   <Select
                     size="sm"
                     value={String(s!.intervalSec)}
                     options={INTERVALS}
                     onChange={(e) => void set({ intervalSec: Number(e.target.value) })}
-                    aria-label={tr('记录间隔')}
+                    aria-label={tr('ui.knowledge-local.capture-interval')}
                     data-testid="screen-interval"
                   />
                 </div>
               </SettingRow>
-              <SettingRow title={tr('保留时长')} description={tr('超过时长的记录会自动删除。')}>
+              <SettingRow
+                title={tr('ui.knowledge-local.keep-for')}
+                description={tr('ui.knowledge-local.older-records-are-deleted-automatically')}
+              >
                 <div className={styles.selectBox}>
                   <Select
                     size="sm"
                     value={String(s!.retentionDays)}
                     options={RETENTIONS}
                     onChange={(e) => void set({ retentionDays: Number(e.target.value) })}
-                    aria-label={tr('保留时长')}
+                    aria-label={tr('ui.knowledge-local.keep-for')}
                     data-testid="screen-retention"
                   />
                 </div>
@@ -367,12 +385,12 @@ export const ScreenPanel: React.FC<{
             </SettingsGroup>
             {(msg || st.lastSkip) && (
               <p className={styles.hint} data-testid="screen-msg">
-                {msg || tr('上次跳过：{0}', describeSkip(st.lastSkip))}
+                {msg || tr('ui.providers-schedule.last-skipped', describeSkip(st.lastSkip))}
               </p>
             )}
             <div className={styles.listHead}>
               <h3 className={styles.listTitle}>
-                {tr('记录')}
+                {tr('ui.knowledge-local.records')}
                 {st.count ? ` · ${st.count}` : ''}
               </h3>
               <Button
@@ -380,19 +398,23 @@ export const ScreenPanel: React.FC<{
                 variant="ghost"
                 disabled={!st.count}
                 onClick={async () => {
-                  if (!window.confirm(tr('清空全部 {0} 条屏幕记录？此操作不可撤销。', st.count)))
+                  if (
+                    !window.confirm(
+                      tr('ui.providers-schedule.clear-all-screen-records-this-can-t-be', st.count),
+                    )
+                  )
                     return;
                   await screenClient.clear();
                   void search(q);
                 }}
               >
-                {tr('清空全部记录')}
+                {tr('ui.providers-schedule.clear-all-records')}
               </Button>
             </div>
             <Input
               ref={searchRef}
               size="sm"
-              placeholder={tr('搜索屏幕上出现过的文字…（/ 聚焦）')}
+              placeholder={tr('ui.providers-schedule.search-text-that-appeared-on-screen-to-focus')}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               data-testid="screen-search"
@@ -402,11 +424,15 @@ export const ScreenPanel: React.FC<{
             ) : items.length === 0 ? (
               <EmptyState
                 icon={Monitor}
-                title={q ? tr('没有找到相关的屏幕记录') : tr('还没有屏幕记录')}
+                title={
+                  q
+                    ? tr('ui.providers-schedule.no-matching-screen-records')
+                    : tr('ui.providers-schedule.no-screen-records-yet')
+                }
                 description={
                   s!.enabled
-                    ? tr('开着就好，我会在后台慢慢记。')
-                    : tr('屏幕记忆默认关闭，打开上面的开关即可开始。')
+                    ? tr('ui.providers-schedule.just-leave-it-on-i-ll-record-quietly')
+                    : tr('ui.providers-schedule.screen-memory-is-off-by-default-turn-on')
                 }
               />
             ) : (
@@ -440,9 +466,9 @@ export const ScreenPanel: React.FC<{
         {st && tab === 'privacy' && (
           <div className={styles.stack}>
             <SettingsGroup
-              title={tr('排除的应用与窗口')}
+              title={tr('ui.knowledge-local.excluded-apps-and-windows')}
               description={tr(
-                '屏幕上只要出现标题包含以下关键词的应用或窗口，整帧都不会记录（不区分大小写）。截图提问只在你主动框选时发生，不受此列表影响。',
+                'ui.providers-schedule.whenever-an-app-or-window-whose-title-contains',
               )}
             >
               <div className={styles.chips} data-testid="screen-exclusions">
@@ -451,7 +477,7 @@ export const ScreenPanel: React.FC<{
                     {x}
                     <button
                       type="button"
-                      aria-label={tr('移除 {0}', x)}
+                      aria-label={tr('ui.providers-schedule.remove', x)}
                       onClick={() => void set({ exclusions: s!.exclusions.filter((y) => y !== x) })}
                     >
                       <Icon icon={X} size={12} />
@@ -472,21 +498,19 @@ export const ScreenPanel: React.FC<{
                 <div className={styles.grow}>
                   <Input
                     size="sm"
-                    placeholder={tr('应用或窗口标题关键词，例如 微信、Slack、财务')}
+                    placeholder={tr('ui.providers-schedule.app-or-window-title-keyword-e-g-wechat')}
                     value={newEx}
                     onChange={(e) => setNewEx(e.target.value)}
                     data-testid="screen-exclusion-input"
                   />
                 </div>
                 <Button size="sm" type="submit" disabled={!newEx.trim()}>
-                  {tr('添加排除')}
+                  {tr('ui.providers-schedule.add-exclusion')}
                 </Button>
               </form>
             </SettingsGroup>
             <Notice tone="info">
-              {tr(
-                '屏幕记录只保存在本机，不会上传；只有当你在对话中询问、且模型调用「屏幕记忆搜索」时，相关文字片段才会发送给当前对话模型（云端模型会先征得同意）。',
-              )}
+              {tr('ui.providers-schedule.screen-records-are-stored-only-on-this-device')}
             </Notice>
           </div>
         )}
@@ -508,7 +532,7 @@ export const ScreenPanel: React.FC<{
                   void search(q);
                 }}
               >
-                {tr('删除这条')}
+                {tr('ui.providers-schedule.delete-this')}
               </Button>
             </div>
           </div>

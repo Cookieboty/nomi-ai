@@ -1,10 +1,15 @@
 /**
- * 轻量 i18n（仅 zh-CN / en）。
- * - 以中文原文作为 key（gettext 风格）：`t('开始新对话')`；zh-CN 原样返回，en 查 locales/en/*。
- * - 插值：`t('已检测 {0} 个', n)` / `t('你好 {name}', { name })`。
- * - 语言选择：跟随系统（zh* → zh-CN，其余 → en）/ 中文 / English；桌面端经主进程 `ai:locale:*`
- *   持久化与广播（托盘、原生对话框、通知同步），切换无需重启。
+ * 渲染进程的语言状态与 React 适配器。
+ * 词典由 @nomi-ai/i18n 统一管理；这里仅负责浏览器 / Electron 的语言状态同步。
+ * 新文案使用 `project.module.message` key；运行时不接受中文原文作为 key。
  */
+import {
+  createTranslator,
+  format as formatMessage,
+  isLocalePref,
+  resolveLocale,
+  type LocalePref as CatalogLocalePref,
+} from '@nomi-ai/i18n';
 import {
   Fragment,
   createElement,
@@ -13,30 +18,9 @@ import {
   type ReactNode,
 } from 'react';
 
-import en from './locales/en';
-
 export type Locale = 'zh-CN' | 'en';
-export type LocalePref = Locale | 'system';
-
-const DICTS: Record<Locale, Record<string, string>> = {
-  'zh-CN': {},
-  en: en as Record<string, string>,
-};
-
-export const resolveLocale = (
-  pref: LocalePref,
-  system: string | readonly string[] | undefined,
-): Locale => {
-  if (pref !== 'system') return pref;
-  const first = Array.isArray(system) ? system[0] : system;
-  return String(first ?? '')
-    .toLowerCase()
-    .startsWith('zh')
-    ? 'zh-CN'
-    : 'en';
-};
-export const isLocalePref = (v: unknown): v is LocalePref =>
-  v === 'system' || v === 'zh-CN' || v === 'en';
+export type LocalePref = CatalogLocalePref;
+export { isLocalePref, resolveLocale };
 
 let pref: LocalePref = 'system';
 // 单元测试（Vitest）默认中文，断言沿用中文原文；需要英文时显式 applyLocale('en')
@@ -53,28 +37,15 @@ const sysLangs = (): readonly string[] =>
       : [];
 let locale: Locale = resolveLocale('system', sysLangs());
 const subs = new Set<() => void>();
+export const format = formatMessage;
 
-export function format(s: string, args: unknown[]): string {
-  if (!args.length) return s;
-  const named =
-    args.length === 1 && args[0] && typeof args[0] === 'object'
-      ? (args[0] as Record<string, unknown>)
-      : null;
-  return s.replace(/\{(\w+)\}/g, (m, k: string) => {
-    const v = named ? named[k] : args[Number(k)];
-    return v === undefined ? m : String(v);
-  });
-}
+const translate = createTranslator(() => locale);
 
-/** 翻译：key 为中文原文；非字符串（ReactNode / undefined）原样返回，便于在渲染处直接包裹 */
+/** 翻译稳定 key；非字符串（ReactNode / undefined）原样返回，便于在渲染处直接包裹。 */
 export function t(key: string, ...args: unknown[]): string;
 export function t<T>(key: T): T;
 export function t(key: unknown, ...args: unknown[]): unknown {
-  if (typeof key !== 'string') return key;
-  if (locale === 'zh-CN') return format(key, args);
-  // 插值参数若本身是词典里的文案（如常量里的标签），一并翻译
-  const tx = args.map((a) => (typeof a === 'string' ? (DICTS.en[a] ?? a) : a));
-  return format(DICTS.en[key] ?? key, tx);
+  return translate(key, ...args);
 }
 
 export const getLocale = (): Locale => locale;
@@ -125,16 +96,6 @@ export function initLocale(): () => void {
   applyLocale(isLocalePref(cached) ? cached : 'system');
   const b = bridge();
   if (!b) return () => undefined;
-  // 主进程词典：主进程常量（模型目录 / 预设名称等）原样发给界面，在这里补充英文
-  void b
-    .invoke('ai:locale:dict')
-    .then((d) => {
-      if (d && typeof d === 'object') {
-        DICTS.en = { ...(d as Record<string, string>), ...(en as Record<string, string>) };
-        subs.forEach((f) => f());
-      }
-    })
-    .catch(() => undefined);
   void b
     .invoke('ai:locale:get')
     .then((v) => {

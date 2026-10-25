@@ -61,7 +61,7 @@ export function loadingOrError(
   if (s.err && s.data == null) return <ErrorState detail={s.err} onRetry={reload} />;
   if (s.data == null)
     return (
-      <div className={styles.loading} role="status" aria-label={t('加载中…')}>
+      <div className={styles.loading} role="status" aria-label={t('ui.mascot-theme.loading')}>
         <Skeleton height={height} />
       </div>
     );
@@ -81,7 +81,7 @@ export const Delta: React.FC<{
   return (
     <span
       className={`${styles.delta} ${cls}`}
-      title={t('与上一个等长周期相比')}
+      title={t('ui.model-quality.compared-with-the-previous-period-of-the-same')}
       data-testid="quality-delta"
     >
       {(c.better || c.worse) && (
@@ -89,7 +89,7 @@ export const Delta: React.FC<{
       )}
       {c.text}
       <span className={styles.srOnly}>
-        {c.better ? t('（变好）') : c.worse ? t('（变差）') : ''}
+        {c.better ? t('ui.model-quality.better') : c.worse ? t('ui.model-quality.worse') : ''}
       </span>
     </span>
   );
@@ -132,17 +132,20 @@ export const emptyCopy = (
 ): { title: string; hint: string } =>
   filtered
     ? {
-        title: unit === 'requests' ? t('没有匹配筛选条件的请求') : t('没有匹配筛选条件的数据'),
-        hint: t('清除筛选，或换一个时间范围。'),
+        title:
+          unit === 'requests'
+            ? t('ui.model-quality.no-requests-match-the-filters')
+            : t('ui.model-quality.no-data-matches-the-filters'),
+        hint: t('ui.model-quality.clear-the-filters-or-pick-another-time-range'),
       }
     : layer === 'gateway'
       ? {
-          title: t('这段时间网关层还没有请求'),
-          hint: t('Nomi 对话、以及编程助手使用第三方供应商时，每次请求都会记在这里。'),
+          title: t('ui.model-quality.no-gateway-requests-in-this-range-yet'),
+          hint: t('ui.model-quality.every-request-from-nomi-chat-and-from-coding'),
         }
       : {
-          title: t('这段时间 CLI 层还没有记录'),
-          hint: t('在 Nomi 里使用编程助手（官方账号或第三方）后，每一轮都会记在这里。'),
+          title: t('ui.model-quality.no-cli-layer-records-in-this-range-yet'),
+          hint: t('ui.model-quality.every-turn-of-a-coding-agent-used-in'),
         };
 
 /** 网关层为空时，看看 CLI 层有没有数据（只用了官方账号时提示切到 CLI 层） */
@@ -192,11 +195,15 @@ export const Pager: React.FC<{
     else if (nums[nums.length - 1] !== null) nums.push(null);
   }
   return (
-    <nav className={styles.pager} aria-label={t('分页')} data-testid="quality-pager">
+    <nav
+      className={styles.pager}
+      aria-label={t('ui.model-quality.pagination')}
+      data-testid="quality-pager"
+    >
       <span className={styles.meta} data-testid="quality-page">
         {unit === 'rows'
-          ? t('显示第 {0}–{1} 项，共 {2} 项', from, to, total)
-          : t('显示第 {0}–{1} 条，共 {2} 条', from, to, total)}
+          ? t('ui.model-quality.showing-of-rows', from, to, total)
+          : t('ui.model-quality.showing-of', from, to, total)}
       </span>
       <span className={styles.grow} />
       <button
@@ -204,7 +211,7 @@ export const Pager: React.FC<{
         className={styles.pageBtn}
         disabled={page === 0}
         onClick={() => onPage(page - 1)}
-        aria-label={t('上一页')}
+        aria-label={t('ui.usage-tools.previous-page')}
         data-testid="quality-page-prev"
       >
         <Icon icon={ChevronLeft} size={14} />
@@ -231,7 +238,7 @@ export const Pager: React.FC<{
         className={styles.pageBtn}
         disabled={page + 1 >= pages}
         onClick={() => onPage(page + 1)}
-        aria-label={t('下一页')}
+        aria-label={t('ui.usage-tools.next-page')}
         data-testid="quality-page-next"
       >
         <Icon icon={ChevronRight} size={14} />
@@ -242,11 +249,14 @@ export const Pager: React.FC<{
           variant="ghost"
           className={styles.compactSelect}
           menuMinWidth={120}
-          aria-label={t('每页条数')}
+          aria-label={t('ui.model-quality.rows-per-page')}
           data-testid="quality-page-size"
           value={String(pageSize)}
           onChange={(e) => onPageSize(Number(e.target.value))}
-          options={sizes.map((n) => ({ value: String(n), label: t('每页 {0}', n) }))}
+          options={sizes.map((n) => ({
+            value: String(n),
+            label: t('ui.model-quality.per-page', n),
+          }))}
         />
       )}
     </nav>

@@ -66,10 +66,10 @@ export const BUBBLE_TIMEOUT = {
 } as const;
 
 export const AGENT_STEP_LABEL: Record<string, string> = {
-  'llm-call': '正在思考中…',
-  'tool-call': '正在动手做事…',
-  reflect: '正在自我复盘…',
-  'user-input': '在听你说…',
+  'llm-call': 'ui.chat-settings.thinking',
+  'tool-call': 'ui.chat-settings.working-on-it',
+  reflect: 'ui.chat-settings.reviewing-my-work',
+  'user-input': 'ui.chat-settings.listening',
 };
 
 export function extractAssistantText(parts: readonly BubbleMessagePart[]): string {
@@ -91,7 +91,7 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
   switch (evt.kind) {
     case 'agent:step': {
       const reason = evt.payload.reason ?? 'llm-call';
-      const label = AGENT_STEP_LABEL[reason] ?? t('正在处理…');
+      const label = AGENT_STEP_LABEL[reason] ?? t('ui.chat-settings.processing');
       const step = typeof evt.payload.step === 'number' ? evt.payload.step : 0;
       return {
         text: step > 0 ? `${label} (step ${step})` : label,
@@ -122,8 +122,8 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
     case 'tool:executed': {
       const name = evt.payload.toolName || 'tool';
       const text = evt.payload.ok
-        ? t('✅ 已完成：{0}', name)
-        : t('⚠️ {0} 失败{1}', name, evt.payload.error ? `：${evt.payload.error}` : '');
+        ? t('ui.chat-settings.done', name)
+        : t('ui.chat-settings.failed', name, evt.payload.error ? `：${evt.payload.error}` : '');
       return {
         text: truncateForBubble(text),
         priority: BUBBLE_PRIORITY.toolExecuted,
@@ -133,7 +133,7 @@ export function deriveBubble(evt: BubbleEvent): BubbleDirective | null {
     case 'live2d:touch': {
       const hit = evt.payload.hitArea || 'body';
       return {
-        text: t('摸到「{0}」了~', hit),
+        text: t('ui.chat-settings.touched', hit),
         priority: BUBBLE_PRIORITY.touch,
         timeout: BUBBLE_TIMEOUT.touch,
       };

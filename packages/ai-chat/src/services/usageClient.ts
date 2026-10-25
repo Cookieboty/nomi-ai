@@ -233,7 +233,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('用量统计需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.usage-tools.usage-statistics-require-the-desktop-app'));
   const r = (await b.invoke(`ai:usage:${method}`, ...args)) as T & {
     __error?: { message: string };
   };
@@ -267,7 +267,7 @@ export const usageClient = {
 
 /** 来源 → 展示名（Nomi 对话 / 各编程工具 / 其他） */
 export const USAGE_SOURCE_LABEL: Record<string, string> = {
-  nomi: 'Nomi 对话',
+  nomi: 'ui.usage-tools.nomi-chat',
   claude: 'Claude Code',
   codex: 'Codex',
   dsh: 'dsh',
@@ -281,5 +281,5 @@ export const USAGE_SOURCE_LABEL: Record<string, string> = {
   cline: 'Cline',
   continue: 'Continue',
   cursor: 'Cursor',
-  other: '其他供应商',
+  other: 'ui.usage-tools.other-providers',
 };

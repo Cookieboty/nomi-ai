@@ -15,7 +15,7 @@ import React, { useEffect, useState } from 'react';
 const ZH = '中文';
 
 const OPTIONS: { id: LocalePref; label: () => string }[] = [
-  { id: 'system', label: () => t('跟随系统') },
+  { id: 'system', label: () => t('ui.mascot-theme.follow-system') },
   { id: 'zh-CN', label: () => ZH },
   { id: 'en', label: () => 'English' },
 ];
@@ -33,15 +33,15 @@ export const LanguageSettings: React.FC = () => {
   return (
     <SettingRow
       data-testid="language-settings"
-      title={locale === 'zh-CN' ? t('语言') + ' · Language' : 'Language'}
+      title={locale === 'zh-CN' ? t('ui.voice-mascot.language') + ' · Language' : 'Language'}
       description={
         pref === 'system'
-          ? t('跟随系统，当前为 {0}；对话、Nomi、托盘与通知即时切换。', current)
-          : t('对话、Nomi、托盘与通知即时切换。')
+          ? t('ui.chat-settings.following-the-system-currently-chat-nomi-tray-and', current)
+          : t('ui.chat-settings.chat-nomi-tray-and-notifications-switch-instantly')
       }
     >
       <SegmentedControl
-        aria-label={t('语言')}
+        aria-label={t('ui.voice-mascot.language')}
         value={pref}
         onChange={(v) => void setLocalePref(v)}
         options={OPTIONS.map((o) => ({ value: o.id, label: o.label(), testId: `locale-${o.id}` }))}

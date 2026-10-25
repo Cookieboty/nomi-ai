@@ -56,8 +56,17 @@ export const NomiModelSwitch: React.FC<{ className?: string }> = ({ className })
         value={override ? null : nomiMainRef(state)}
         onChange={(ref) => void setNomiModel(ref).catch(() => undefined)}
         disabled={Boolean(override) || !providers.length}
-        placeholder={legacyLabel ?? (providers.length ? t('选择模型') : t('（未配置）'))}
-        aria-label={override ? t('已被 NOMI_PROVIDER 锁定') : t('Nomi 对话的模型')}
+        placeholder={
+          legacyLabel ??
+          (providers.length
+            ? t('ui.models.choose-a-model')
+            : t('ui.providers-schedule.not-configured'))
+        }
+        aria-label={
+          override
+            ? t('ui.providers-schedule.locked-by-nomi-provider')
+            : t('ui.models.model-for-nomi-chat')
+        }
         data-testid="nomi-model-picker"
       />
     </span>

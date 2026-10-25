@@ -66,10 +66,10 @@ const Timeline: React.FC<{ r: QualityRecord }> = ({ r }) => {
   if (firstContentMs != null)
     segs.push({ from: firstContentMs, to: lastContentMs ?? endMs, cls: styles.segGen! });
   const desc = [
-    ttfb != null && t('首字节 {0}', formatMs(ttfb)),
-    firstContentMs != null && t('首个内容 {0}', formatMs(firstContentMs)),
-    lastContentMs != null && t('最后一个内容 {0}', formatMs(lastContentMs)),
-    t('结束 {0}', formatMs(endMs)),
+    ttfb != null && t('ui.usage-tools.first-byte', formatMs(ttfb)),
+    firstContentMs != null && t('ui.model-quality.first-content', formatMs(firstContentMs)),
+    lastContentMs != null && t('ui.model-quality.last-content', formatMs(lastContentMs)),
+    t('ui.model-quality.end', formatMs(endMs)),
   ]
     .filter(Boolean)
     .join(' · ');
@@ -127,7 +127,9 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
                 type="button"
                 className={styles.expand}
                 aria-expanded={open}
-                aria-label={open ? t('收起详情') : t('展开详情')}
+                aria-label={
+                  open ? t('ui.model-quality.hide-details') : t('ui.model-quality.show-details')
+                }
                 onClick={() => setOpen((o) => !o)}
                 data-testid="quality-request-toggle"
               >
@@ -151,15 +153,19 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
               <Badge
                 tone="warning"
                 outline
-                title={t('尝试了 {0} 次', r.attempts!.length)}
+                title={t('ui.usage-tools.tried-times', r.attempts!.length)}
                 data-testid="quality-request-fallback"
               >
-                {t('回退')}
+                {t('ui.usage-tools.fallback')}
               </Badge>
             )}
             {r.burst && (
-              <Badge tone="neutral" outline title={t('上游缓冲后整段吐出，TPOT / tok/s 不计入')}>
-                {t('整段吐出')}
+              <Badge
+                tone="neutral"
+                outline
+                title={t('ui.model-quality.the-upstream-buffered-the-reply-and-sent-it')}
+              >
+                {t('ui.model-quality.sent-all-at-once')}
               </Badge>
             )}
           </span>
@@ -180,7 +186,7 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
                 title={[r.provider, r.keyId].filter(Boolean).join(' / ')}
               >
                 {[r.providerName ?? r.provider, r.keyName ?? r.keyId].filter(Boolean).join(' / ') ||
-                  t('未到达上游')}
+                  t('ui.usage-tools.did-not-reach-an-upstream')}
               </span>
             </span>
           </span>
@@ -191,10 +197,14 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
             {r.tabId ? (
               <span
                 className={styles.logDim}
-                title={t('来自编程助手标签 {0}（第 {1} 次启动的进程）', r.tabId, r.generation ?? 1)}
+                title={t(
+                  'ui.usage-tools.from-coding-agent-tab-process-start',
+                  r.tabId,
+                  r.generation ?? 1,
+                )}
                 data-testid="quality-request-tab"
               >
-                {t('标签 {0}', r.tabId.slice(0, 8))}
+                {t('ui.usage-tools.tab', r.tabId.slice(0, 8))}
               </span>
             ) : (
               <span className={styles.logDim}>{sourceLabel(r.source)}</span>
@@ -214,17 +224,19 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
         <tr className={styles.logDetail}>
           <td colSpan={8}>
             <dl className={styles.detailGrid}>
-              <dt>{t('来源')}</dt>
+              <dt>{t('ui.knowledge-local.sources')}</dt>
               <dd>{sourceLabel(r.source)}</dd>
               {r.ingress && (
                 <>
-                  <dt>{t('协议')}</dt>
+                  <dt>{t('ui.model-quality.protocol')}</dt>
                   <dd>
                     {wireLabel(r.ingress)} → {wireLabel(r.wire)}
                     {r.mode && (
                       <>
                         {' · '}
-                        {r.mode === 'convert' ? t('转换') : t('透传')}
+                        {r.mode === 'convert'
+                          ? t('ui.model-quality.converted')
+                          : t('ui.model-quality.passthrough')}
                       </>
                     )}
                   </dd>
@@ -232,40 +244,44 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
               )}
               {r.resolved && (
                 <>
-                  <dt>{t('模型怎么选的')}</dt>
+                  <dt>{t('ui.model-quality.model-resolution-6a4282')}</dt>
                   <dd data-testid="quality-request-resolved">{resolvedLabel(r.resolved)}</dd>
                 </>
               )}
               {tps != null && (
                 <>
-                  <dt>{t('输出速度')}</dt>
+                  <dt>{t('ui.model-quality.output-speed')}</dt>
                   <dd>{formatTps(tps)}</dd>
                 </>
               )}
               {(r.tokens.cacheRead ?? 0) > 0 && (
                 <>
-                  <dt>{t('缓存读')}</dt>
+                  <dt>{t('ui.usage-tools.cache-read')}</dt>
                   <dd>{formatTokens(r.tokens.cacheRead!)}</dd>
                 </>
               )}
               {r.retries ? (
                 <>
-                  <dt>{t('重试')}</dt>
-                  <dd>{t('{0} 次', r.retries)}</dd>
+                  <dt>{t('ui.mascot-theme.retry')}</dt>
+                  <dd>{t('ui.usage-tools.req', r.retries)}</dd>
                 </>
               ) : null}
               {r.cancelPhase && (
                 <>
-                  <dt>{t('取消')}</dt>
-                  <dd>{r.cancelPhase === 'before-first' ? t('首字前取消') : t('输出中取消')}</dd>
+                  <dt>{t('ui.foundation.cancel')}</dt>
+                  <dd>
+                    {r.cancelPhase === 'before-first'
+                      ? t('ui.model-quality.cancelled-before-first-token')
+                      : t('ui.model-quality.cancelled-during-output')}
+                  </dd>
                 </>
               )}
               {r.traceId && (
                 <>
-                  <dt>{t('追踪 id')}</dt>
+                  <dt>{t('ui.model-quality.trace-id')}</dt>
                   <dd
                     className={styles.mono}
-                    title={t('诊断追踪 id：对应日志文件夹 gateway/trace 里的文件')}
+                    title={t('ui.usage-tools.diagnostic-trace-id-matches-a-file-in-the')}
                     data-testid="quality-request-trace"
                   >
                     {r.traceId}
@@ -274,13 +290,13 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
               )}
               {r.errorKind && (
                 <>
-                  <dt>{t('错误')}</dt>
+                  <dt>{t('ui.model-quality.error')}</dt>
                   <dd className={styles.toneDanger}>{r.errorKind}</dd>
                 </>
               )}
               {r.notes?.length ? (
                 <>
-                  <dt>{t('网关修正')}</dt>
+                  <dt>{t('ui.model-quality.gateway-adjustments')}</dt>
                   <dd data-testid="quality-request-notes">{r.notes.join('；')}</dd>
                 </>
               ) : null}
@@ -288,7 +304,7 @@ const Row: React.FC<{ r: QualityRequestItem }> = ({ r }) => {
             {fallback && (
               <ol
                 className={styles.attempts}
-                aria-label={t('各候选的尝试')}
+                aria-label={t('ui.model-quality.attempts-per-candidate')}
                 data-testid="quality-request-attempts"
               >
                 {r.attempts!.map((a, i) => (
@@ -350,14 +366,16 @@ export const RequestDetails: React.FC<{
   return (
     <section className={styles.tableCard} data-testid="quality-requests">
       <div className={styles.tableBar}>
-        <span className={styles.meta}>{t('共 {0} 条 · 排序只作用于当前页', total)}</span>
+        <span className={styles.meta}>
+          {t('ui.model-quality.in-total-sorting-applies-to-the-current-page', total)}
+        </span>
         <span className={styles.grow} />
         <Select
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
           menuMinWidth={160}
-          aria-label={t('按结果筛选')}
+          aria-label={t('ui.model-quality.filter-by-outcome')}
           data-testid="quality-filter-outcome"
           value={outcome}
           onChange={(e) =>
@@ -366,7 +384,10 @@ export const RequestDetails: React.FC<{
           options={[
             {
               value: '',
-              label: filters.outcome && filters.outcome.length > 1 ? t('多个结果') : t('全部结果'),
+              label:
+                filters.outcome && filters.outcome.length > 1
+                  ? t('ui.model-quality.several-outcomes')
+                  : t('ui.model-quality.all-outcomes'),
             },
             ...OUTCOMES.filter((o) =>
               base.layer === 'gateway' ? !o.startsWith('cli-') : true,
@@ -378,7 +399,7 @@ export const RequestDetails: React.FC<{
           variant="ghost"
           className={styles.compactSelect}
           menuMinWidth={160}
-          aria-label={t('排序')}
+          aria-label={t('ui.model-quality.sort')}
           data-testid="quality-requests-sort"
           value={`${sort.key}:${sort.desc ? 'desc' : 'asc'}`}
           onChange={(e) => {
@@ -386,11 +407,11 @@ export const RequestDetails: React.FC<{
             setSort({ key, desc: dir === 'desc' });
           }}
           options={[
-            { value: 'ts:desc', label: t('最新在前') },
-            { value: 'ts:asc', label: t('最早在前') },
-            { value: 'e2e:desc', label: t('耗时最长在前') },
-            { value: 'ttft:desc', label: t('首字最慢在前') },
-            { value: 'tokens:desc', label: t('token 最多在前') },
+            { value: 'ts:desc', label: t('ui.model-quality.newest-first') },
+            { value: 'ts:asc', label: t('ui.model-quality.oldest-first') },
+            { value: 'e2e:desc', label: t('ui.model-quality.slowest-first') },
+            { value: 'ttft:desc', label: t('ui.model-quality.slowest-ttft-first') },
+            { value: 'tokens:desc', label: t('ui.model-quality.most-tokens-first') },
           ]}
         />
       </div>
@@ -403,7 +424,7 @@ export const RequestDetails: React.FC<{
             {...(filtered
               ? {
                   action: {
-                    label: t('清除筛选'),
+                    label: t('ui.model-quality.clear-filters'),
                     onClick: () => onFilters({}),
                     testId: 'quality-empty-clear',
                   },
@@ -414,23 +435,23 @@ export const RequestDetails: React.FC<{
           <>
             {s.err && <p className={styles.err}>{s.err}</p>}
             <div className={styles.scroll}>
-              <table className={styles.logTable} aria-label={t('请求明细')}>
+              <table className={styles.logTable} aria-label={t('ui.model-quality.requests-09efcb')}>
                 <thead>
                   <tr>
-                    <th scope="col">{t('时间')}</th>
-                    <th scope="col">{t('结果')}</th>
-                    <th scope="col">{t('模型 / 供应商 · Key')}</th>
-                    <th scope="col">{t('客户端')}</th>
+                    <th scope="col">{t('ui.foundation.time')}</th>
+                    <th scope="col">{t('ui.foundation.result')}</th>
+                    <th scope="col">{t('ui.model-quality.model-provider-key')}</th>
+                    <th scope="col">{t('ui.model-quality.client')}</th>
                     <th scope="col" className={styles.numHead}>
-                      {t('首字')}
+                      {t('ui.model-quality.ttft')}
                     </th>
                     <th scope="col" className={styles.numHead}>
-                      {t('耗时')}
+                      {t('ui.model-quality.e2e')}
                     </th>
                     <th scope="col" className={styles.numHead}>
                       Tokens
                     </th>
-                    <th scope="col">{t('时间线')}</th>
+                    <th scope="col">{t('ui.model-quality.timeline')}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -1128,7 +1128,7 @@ GLM Coding Plan、Kimi 的编程套餐等，Key 往往只能用专用地址，�
 ## 16. 界面与文案约定
 
 - 术语统一用「第三方供应商」。
-- 所有中文文案作为 `t()` 的 key，英文同步加到 `packages/ui/src/locales/en.json`，用 `pnpm check:i18n` 检查。
+- 所有界面文案使用 `project.module.message` 稳定 key，语言资源统一放在 `packages/i18n/src/locales`，用 `pnpm check:i18n` 检查。
 - 供应商页和编程助手页同一行的控件用同一个高度令牌（`--cd-control-h-ms`）；协议徽标用现有的 `Badge` 组件 + `variant`，不在外部覆盖样式。
 - 探测结果、回退提示要有 `aria-live`；弹窗支持 `Esc` 关闭并管理焦点。
 

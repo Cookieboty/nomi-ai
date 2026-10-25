@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   codingProviders,
+  newTabPatch,
+  newTabSelectValue,
   providerEntryRef,
   scopeCatalogToProvider,
 } from '../src/services/cliSource';
@@ -64,5 +66,57 @@ describe('第三方供应商（输入框左下角只切供应商，模型在模�
     expect(amux.defaultModel?.label).toBe('kimi-k3');
     // 没有当前模型：原样返回
     expect(scopeCatalogToProvider(catalog, null, gateway)).toBe(catalog);
+  });
+
+  it('newTabPatch：官方来源会清掉第三方主模型，第三方来源同时写入供应商模型', () => {
+    const client = {
+      models: { main: 'amux/gpt-x' },
+      newTabSource: 'thirdParty' as const,
+    };
+    expect(newTabPatch('follow', { kind: 'claude', client, gateway })).toEqual({
+      newTabSource: 'official',
+      newTabAccountId: null,
+      models: { main: null },
+    });
+    expect(newTabPatch('provider:deep', { kind: 'claude', client, gateway })).toEqual({
+      newTabSource: 'thirdParty',
+      newTabAccountId: null,
+      models: { main: 'deep/ds-v4' },
+    });
+  });
+
+  it('newTabPatch：默认使用本机配置，官方可指定账号；选择模型后来源值跟随供应商', () => {
+    const client = { models: { main: 'amux/gpt-x' }, newTabSource: 'thirdParty' as const };
+    const ctx = {
+      kind: 'claude' as const,
+      client,
+      gateway,
+      accounts: [
+        {
+          id: 'account-1',
+          kind: 'claude' as const,
+          label: '工作账号',
+          local: false,
+          loggedIn: true,
+          identity: { key: 'work@example.com', email: 'work@example.com' },
+          active: false,
+          inUse: 0,
+          createdAt: 0,
+        },
+      ],
+    };
+    expect(newTabPatch('default', ctx)).toEqual({
+      newTabSource: 'official',
+      newTabAccountId: 'local-claude',
+      models: { main: null },
+    });
+    expect(newTabPatch('account:account-1', ctx)).toEqual({
+      newTabSource: 'official',
+      newTabAccountId: 'account-1',
+      models: { main: null },
+    });
+    expect(newTabSelectValue({ models: {}, newTabAccountId: 'local-claude' }, 'claude')).toBe(
+      'default',
+    );
   });
 });

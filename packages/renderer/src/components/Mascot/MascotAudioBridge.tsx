@@ -206,7 +206,7 @@ export const MascotAudioBridge: FC = () => {
     const off = api.onReminder((r) => {
       const text = typeof r?.text === 'string' ? r.text : '';
       mascotCueService.trigger('reminder', {
-        text: text ? tr('提醒：{0}', text.slice(0, 80)) : undefined,
+        text: text ? tr('ui.usage-tools.reminder', text.slice(0, 80)) : undefined,
       });
     });
     return () => off();

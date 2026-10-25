@@ -26,12 +26,16 @@ type SeriesMetric = QualitySeriesQuery['metric'];
 export const MAX_SERIES = 4;
 
 const METRIC_OPTIONS: Array<{ value: SeriesMetric; label: string; fmt: (v: number) => string }> = [
-  { value: 'requests', label: '请求数', fmt: (v) => Math.round(v).toLocaleString('en-US') },
-  { value: 'successRate', label: '成功率', fmt: formatRate },
-  { value: 'failureRate', label: '失败率', fmt: formatRate },
-  { value: 'cancelRate', label: '取消率', fmt: formatRate },
-  { value: 'streamBreakRate', label: '断流率', fmt: formatRate },
-  { value: 'cacheHitTokenRate', label: '缓存命中（token）', fmt: formatRate },
+  {
+    value: 'requests',
+    label: 'ui.usage-tools.requests',
+    fmt: (v) => Math.round(v).toLocaleString('en-US'),
+  },
+  { value: 'successRate', label: 'ui.model-quality.success-rate', fmt: formatRate },
+  { value: 'failureRate', label: 'ui.model-quality.failure-rate', fmt: formatRate },
+  { value: 'cancelRate', label: 'ui.model-quality.cancel-rate', fmt: formatRate },
+  { value: 'streamBreakRate', label: 'ui.model-quality.stream-break-rate', fmt: formatRate },
+  { value: 'cacheHitTokenRate', label: 'ui.model-quality.cache-hit-tokens', fmt: formatRate },
   { value: 'ttft.p50', label: 'TTFT p50', fmt: formatMs },
   { value: 'ttft.p90', label: 'TTFT p90', fmt: formatMs },
   { value: 'ttft.p95', label: 'TTFT p95', fmt: formatMs },
@@ -39,7 +43,7 @@ const METRIC_OPTIONS: Array<{ value: SeriesMetric; label: string; fmt: (v: numbe
   { value: 'e2e.p50', label: 'E2E p50', fmt: formatMs },
   { value: 'e2e.p90', label: 'E2E p90', fmt: formatMs },
   { value: 'e2e.p95', label: 'E2E p95', fmt: formatMs },
-  { value: 'outputTps.p50', label: '输出速度 p50', fmt: formatTps },
+  { value: 'outputTps.p50', label: 'ui.model-quality.output-speed-p50', fmt: formatTps },
 ];
 
 const isRateMetric = (m: SeriesMetric) => m.endsWith('Rate');
@@ -111,7 +115,9 @@ export const LineChart: React.FC<{
             ))}
           </>
         ) : (
-          <span className={styles.dim}>{t('把鼠标移到图上查看各时段的数值')}</span>
+          <span className={styles.dim}>
+            {t('ui.model-quality.hover-over-the-chart-to-see-values-per')}
+          </span>
         )}
       </div>
       <svg
@@ -178,7 +184,7 @@ export const LineChart: React.FC<{
         })}
       </svg>
       {series.length >= 2 && (
-        <ul className={styles.legend} aria-label={t('图例')}>
+        <ul className={styles.legend} aria-label={t('ui.model-quality.legend')}>
           {series.map((s, i) => (
             <li key={s.key}>
               <i className={styles.swatch} style={{ background: SERIES_COLORS[i] }} aria-hidden />
@@ -190,7 +196,7 @@ export const LineChart: React.FC<{
       {data.series.length > MAX_SERIES && (
         <p className={styles.dim} data-testid="quality-series-capped">
           {t(
-            '共 {0} 项，图上只画前 {1} 项；完整数据见表格视图或「对比」。',
+            'ui.model-quality.items-the-chart-shows-the-first-see-the',
             data.series.length,
             MAX_SERIES,
           )}
@@ -209,7 +215,7 @@ const SeriesTable: React.FC<{
     <table className={styles.table} data-testid="quality-series-table">
       <thead>
         <tr>
-          <th scope="col">{t('时段')}</th>
+          <th scope="col">{t('ui.chat-settings.hours')}</th>
           {data.series.map((s) => (
             <th key={s.key} scope="col" className={styles.num}>
               {s.label}
@@ -273,14 +279,14 @@ export const Trend: React.FC<{
   return (
     <section className={styles.card} data-testid="quality-trend">
       <header className={styles.cardHead}>
-        <h3>{t('{0}趋势', t(opt.label))}</h3>
+        <h3>{t('ui.model-quality.trend', t(opt.label))}</h3>
         <span className={styles.grow} />
         <Select
           size="sm"
           variant="ghost"
           className={styles.compactSelect}
           menuMinWidth={200}
-          aria-label={t('指标')}
+          aria-label={t('ui.model-quality.metric')}
           data-testid="quality-trend-metric"
           value={metric}
           onChange={(e) => setMetric(e.target.value as SeriesMetric)}
@@ -291,34 +297,42 @@ export const Trend: React.FC<{
           variant="ghost"
           className={styles.compactSelect}
           menuMinWidth={160}
-          aria-label={t('分组维度')}
+          aria-label={t('ui.model-quality.group-by')}
           data-testid="quality-trend-groupby"
           value={groupBy ?? ''}
           onChange={(e) => setDim(e.target.value as QualityDimension | '')}
           options={[
-            { value: '', label: t('不分组') },
+            { value: '', label: t('ui.model-quality.no-grouping') },
             ...TREND_GROUPS.filter((d) => gateway || !d.gatewayOnly).map((d) => ({
               value: d.value,
-              label: t('按{0}', dimensionLabel(d.value)),
+              label: t('ui.model-quality.by', dimensionLabel(d.value)),
             })),
           ]}
         />
         <SegmentedControl<'hour' | 'day'>
-          aria-label={t('时间粒度')}
+          aria-label={t('ui.model-quality.granularity')}
           value={bucket}
           onChange={setBucket}
           options={[
-            { value: 'hour', label: t('小时') },
-            { value: 'day', label: t('天') },
+            { value: 'hour', label: t('ui.model-quality.hour') },
+            { value: 'day', label: t('ui.model-quality.day') },
           ]}
         />
         <SegmentedControl<'chart' | 'table'>
-          aria-label={t('视图')}
+          aria-label={t('ui.model-quality.view')}
           value={view}
           onChange={setView}
           options={[
-            { value: 'chart', label: t('图表'), testId: 'quality-trend-view-chart' },
-            { value: 'table', label: t('表格'), testId: 'quality-trend-view-table' },
+            {
+              value: 'chart',
+              label: t('ui.model-quality.chart'),
+              testId: 'quality-trend-view-chart',
+            },
+            {
+              value: 'table',
+              label: t('ui.model-quality.table'),
+              testId: 'quality-trend-view-table',
+            },
           ]}
         />
       </header>
@@ -328,19 +342,23 @@ export const Trend: React.FC<{
             <InlineEmpty
               icon={FilterX}
               {...emptyCopy(base.layer, true)}
-              action={{ label: t('清除筛选'), onClick: onClearFilters }}
+              action={{ label: t('ui.model-quality.clear-filters'), onClick: onClearFilters }}
               testId="quality-trend-empty"
             />
           ) : (
             <InlineEmpty
               icon={ChartLine}
-              title={points === 0 ? emptyCopy(base.layer, false).title : t('数据点不够画趋势')}
+              title={
+                points === 0
+                  ? emptyCopy(base.layer, false).title
+                  : t('ui.model-quality.not-enough-points-for-a-trend')
+              }
               hint={
                 points === 0
                   ? emptyCopy(base.layer, false).hint
                   : bucket === 'day'
-                    ? t('至少要两个时段有数据：换成按小时，或选更长的时间范围。')
-                    : t('至少要两个时段有数据：选更长的时间范围。')
+                    ? t('ui.model-quality.at-least-two-time-buckets-need-data-switch')
+                    : t('ui.model-quality.at-least-two-time-buckets-need-data-pick')
               }
               testId="quality-trend-empty"
             />
@@ -354,7 +372,7 @@ export const Trend: React.FC<{
                 bucket={bucket}
                 fmt={opt.fmt}
                 rate={isRateMetric(metric)}
-                label={t('{0}趋势', t(opt.label))}
+                label={t('ui.model-quality.trend', t(opt.label))}
               />
             ) : (
               <SeriesTable data={s.data!} bucket={bucket} fmt={opt.fmt} />

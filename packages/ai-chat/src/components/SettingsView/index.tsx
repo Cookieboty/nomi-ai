@@ -109,8 +109,8 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           <div className={styles.groups}>
             <GeneralHero />
             <SettingsGroup
-              title={t('外观')}
-              description={t('主题、界面模式、应用图标与聊天背景，即时生效。')}
+              title={t('ui.chat-settings.appearance')}
+              description={t('ui.chat-settings.theme-layout-app-icon-and-chat-background-applied')}
               id="settings-appearance"
               data-testid="settings-appearance"
             >
@@ -125,9 +125,9 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             />
             <UpdateSettings>
               <SettingRow
-                title={t('新手引导')}
+                title={t('ui.mascot-theme.getting-started-guide')}
                 description={t(
-                  '重新走一遍：语言、主题、启动方式、界面模式、声音、称呼与语气、模型供应商和隐私说明。',
+                  'ui.chat-settings.go-through-it-again-language-theme-startup-layout',
                 )}
               >
                 <Button
@@ -140,7 +140,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
                     void onboardingClient.reopen();
                   }}
                 >
-                  {t('重新打开')}
+                  {t('ui.chat-settings.reopen')}
                 </Button>
               </SettingRow>
             </UpdateSettings>
@@ -162,7 +162,9 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             onOpenModels={() => onSection('models')}
           />
         ) : (
-          <p className={styles.note}>{t('编程助手设置仅在桌面应用中可用；模型配置见「通用」。')}</p>
+          <p className={styles.note}>
+            {t('ui.cli-monitor.coding-assistant-settings-are-only-available-in-the')}
+          </p>
         );
       case 'quality':
         return (
@@ -217,12 +219,14 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
 
   return (
     <div className={styles.settings} data-testid="settings-view">
-      <nav className={styles.nav} aria-label={t('设置分区')}>
+      <nav className={styles.nav} aria-label={t('ui.chat-settings.settings-sections')}>
         <div className={styles.brand} data-testid="settings-brand">
           <NomiMark className={styles.brandMark} />
           <span className={styles.brandText}>
-            <span className={styles.brandName}>{t('Nomi · 诺米')}</span>
-            <span className={styles.brandSub}>{t('你的桌面 AI 助手')}</span>
+            <span className={styles.brandName}>{t('ui.chat-settings.nomi')}</span>
+            <span className={styles.brandSub}>
+              {t('ui.chat-settings.your-desktop-ai-assistant')}
+            </span>
           </span>
         </div>
         <button
@@ -230,10 +234,10 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
           className={styles.back}
           onClick={onClose}
           data-testid="settings-back"
-          title={t('返回对话 (Esc)')}
+          title={t('ui.chat-settings.back-to-chat-esc')}
         >
           <Icon icon={ChevronLeft} />
-          {t('返回对话')}
+          {t('ui.chat-settings.back-to-chat')}
         </button>
         {SETTINGS_NAV_GROUPS.map((group, gi) => (
           <div key={gi} className={styles.navSection}>
@@ -309,7 +313,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
                   data-testid="settings-help-toggle"
                 >
                   <Icon icon={Lightbulb} size={14} />
-                  {t('说明')}
+                  {t('ui.chat-settings.about')}
                 </button>
               )}
             </header>
@@ -318,7 +322,7 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
             <aside
               id="settings-help-inline"
               className={styles.helpInline}
-              aria-label={t('配置说明')}
+              aria-label={t('ui.chat-settings.about-these-settings')}
               data-testid="settings-help-inline"
             >
               <ul className={styles.helpList}>
@@ -346,10 +350,14 @@ export const SettingsView: React.FC<Props> = ({ section, onSection, onClose, dee
               <ModalHostContext.Provider value={inline}>{body}</ModalHostContext.Provider>
             </div>
             {section !== 'general' && !current.wide && (
-              <aside className={styles.help} aria-label={t('配置说明')} data-testid="settings-help">
+              <aside
+                className={styles.help}
+                aria-label={t('ui.chat-settings.about-these-settings')}
+                data-testid="settings-help"
+              >
                 <h2 className={styles.helpTitle}>
                   <Icon icon={Lightbulb} size={16} />
-                  {t('配置说明')}
+                  {t('ui.chat-settings.about-these-settings')}
                 </h2>
                 <ul className={styles.helpList}>
                   {SECTION_HELP[section].map((h) => (

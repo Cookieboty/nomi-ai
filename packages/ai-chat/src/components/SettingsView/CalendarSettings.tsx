@@ -14,12 +14,9 @@ import styles from './index.module.css';
 type Provider = 'macos-calendar' | 'outlook-com' | 'evolution' | null;
 
 const PROVIDER_NOTE: Record<Exclude<Provider, null>, string> = {
-  'macos-calendar':
-    '通过「日历」App 读取（含 iCloud / Google / Exchange 等已在系统里登录的账户）。首次连接时 macOS 会询问是否允许 Nomi 控制「日历」。重复日程只显示区间内的那一次；只读取前 1 天到后 30 天。',
-  'outlook-com':
-    'Windows 没有免打包即可使用的系统日历接口。这里尝试经典版 Outlook（新版 Outlook 不支持）；否则请在下方用 ICS 订阅或 CalDAV 连接 Google / iCloud / Outlook.com 日历。',
-  evolution:
-    '读取 Evolution / GNOME 日历的本地日历文件。在线账户（Google 等）请在下方用 CalDAV 或 ICS 订阅。暂不支持由 Nomi 写入。',
+  'macos-calendar': 'ui.mascot-theme.reads-through-the-calendar-app-including-icloud-google',
+  'outlook-com': 'ui.mascot-theme.windows-has-no-system-calendar-api-usable-without',
+  evolution: 'ui.mascot-theme.reads-the-local-evolution-gnome-calendar-file-for',
 };
 
 export const CalendarSettings: React.FC = () => {
@@ -58,7 +55,9 @@ export const CalendarSettings: React.FC = () => {
 
   const status = src && (
     <Badge tone={src.lastError ? 'warning' : 'success'} data-testid="cal-system-status">
-      {src.lastError ? t('未连接') : t('已连接 · {0} 个日程', String(src.count ?? 0))}
+      {src.lastError
+        ? t('ui.chat-settings.not-connected')
+        : t('ui.mascot-theme.connected-events', String(src.count ?? 0))}
     </Badge>
   );
   const connect = (
@@ -70,19 +69,19 @@ export const CalendarSettings: React.FC = () => {
       data-testid="cal-system-connect"
       onClick={() => void run(() => hubClient.calSystemConnect())}
     >
-      {src ? t('重新同步') : t('连接系统日历')}
+      {src ? t('ui.mascot-theme.sync-again') : t('ui.mascot-theme.connect-system-calendar')}
     </Button>
   );
   const supported = localClient.available() && !!info?.provider;
   return (
     <div className={styles.groups}>
       <SettingsGroup
-        title={t('系统日历')}
+        title={t('ui.mascot-theme.system-calendar')}
         description={
           !localClient.available()
-            ? t('仅在桌面应用中提供。')
+            ? t('ui.mascot-theme.available-in-the-desktop-app-only')
             : !info?.provider
-              ? t('当前系统不支持读取系统日历，请用下方的 ICS / CalDAV。')
+              ? t('ui.mascot-theme.this-system-calendar-is-not-supported-use-ics')
               : t(PROVIDER_NOTE[info.provider])
         }
         actions={
@@ -102,15 +101,15 @@ export const CalendarSettings: React.FC = () => {
         )}
         {supported && info?.canCreate && src && !src.lastError && (
           <SettingRow
-            title={t('新建系统日历事件')}
-            description={t('创建前会先请你确认；默认时长 1 小时。')}
+            title={t('ui.chat-settings.new-system-calendar-event')}
+            description={t('ui.chat-settings.you-ll-be-asked-to-confirm-before-it')}
           >
             <Input
               size="sm"
-              placeholder={t('新事件标题')}
+              placeholder={t('ui.mascot-theme.new-event-title')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              aria-label={t('新事件标题')}
+              aria-label={t('ui.mascot-theme.new-event-title')}
               data-testid="cal-system-title"
             />
             <Input
@@ -118,7 +117,7 @@ export const CalendarSettings: React.FC = () => {
               type="datetime-local"
               value={when}
               onChange={(e) => setWhen(e.target.value)}
-              aria-label={t('开始时间')}
+              aria-label={t('ui.chat-settings.start-time')}
               data-testid="cal-system-when"
             />
             <Button
@@ -135,12 +134,16 @@ export const CalendarSettings: React.FC = () => {
                     start,
                     end: start + 3_600_000,
                   });
-                  setMsg(r.ok ? t('已创建到「{0}」', r.calendar ?? '') : t('已取消'));
+                  setMsg(
+                    r.ok
+                      ? t('ui.mascot-theme.created-in', r.calendar ?? '')
+                      : t('ui.foundation.cancelled'),
+                  );
                   if (r.ok) setTitle('');
                 })
               }
             >
-              {t('创建')}
+              {t('ui.chat-settings.create')}
             </Button>
           </SettingRow>
         )}
@@ -150,7 +153,7 @@ export const CalendarSettings: React.FC = () => {
           </p>
         )}
       </SettingsGroup>
-      <SettingsGroup title={t('日历')}>
+      <SettingsGroup title={t('ui.knowledge-local.calendar')}>
         <LocalPanel isVisible onClose={() => undefined} tabs={['calendar']} />
       </SettingsGroup>
     </div>

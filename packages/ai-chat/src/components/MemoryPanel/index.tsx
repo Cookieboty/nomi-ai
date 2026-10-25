@@ -61,7 +61,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
     try {
       await memClient.updateEpisode(e.id, { title, summary });
       setEdit(false);
-      onMsg(tr('已保存，之后不会再被自动摘要覆盖'));
+      onMsg(tr('ui.knowledge-local.saved-it-won-t-be-overwritten-by-automatic'));
     } catch (err) {
       onMsg(errText(err));
     }
@@ -72,7 +72,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
       title={
         <span className={styles.row}>
           {e.pinned && (
-            <span title={tr('已置顶')}>
+            <span title={tr('ui.knowledge-local.pinned-d7d970')}>
               <Icon icon={Pin} size={14} />
             </span>
           )}
@@ -80,10 +80,10 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
         </span>
       }
       subtitle={tr(
-        '{0} · {1} 条消息{2}',
+        'ui.knowledge-local.messages',
         fmt(e.updatedAt),
         e.messageCount,
-        e.edited ? tr(' · 已手动编辑') : '',
+        e.edited ? tr('ui.knowledge-local.edited-manually') : '',
       )}
       actions={
         <>
@@ -91,9 +91,13 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
             size="sm"
             variant="ghost"
             onClick={() => void memClient.updateEpisode(e.id, { pinned: !e.pinned })}
-            title={e.pinned ? tr('取消置顶') : tr('置顶：召回时优先')}
+            title={
+              e.pinned
+                ? tr('ui.knowledge-local.unpin')
+                : tr('ui.knowledge-local.pin-prioritized-when-recalling')
+            }
           >
-            {e.pinned ? tr('取消置顶') : tr('置顶')}
+            {e.pinned ? tr('ui.knowledge-local.unpin') : tr('ui.knowledge-local.pin-7bcf18')}
           </Button>
           <Button
             size="sm"
@@ -101,20 +105,22 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
             onClick={() => setEdit((v) => !v)}
             data-testid="mem-edit"
           >
-            {edit ? tr('取消') : tr('编辑')}
+            {edit ? tr('ui.foundation.cancel') : tr('ui.foundation.edit')}
           </Button>
           {confirm ? (
             <Button
               size="sm"
               variant="danger"
               onClick={() =>
-                void memClient.remove('episode', e.id).then(() => onMsg(tr('已删除这条记忆')))
+                void memClient
+                  .remove('episode', e.id)
+                  .then(() => onMsg(tr('ui.knowledge-local.memory-deleted')))
               }
               onBlur={() => setConfirm(false)}
               autoFocus
               data-testid="mem-delete-confirm"
             >
-              {tr('确认删除')}
+              {tr('ui.knowledge-local.delete-3c06ab')}
             </Button>
           ) : (
             <Button
@@ -123,7 +129,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
               onClick={() => setConfirm(true)}
               data-testid="mem-delete"
             >
-              {tr('删除')}
+              {tr('ui.foundation.delete')}
             </Button>
           )}
         </>
@@ -155,7 +161,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
           />
           <div className={styles.row}>
             <span className={`${styles.hint} ${styles.grow}`}>
-              {tr('Ctrl/⌘ + Enter 保存 · Esc 取消')}
+              {tr('ui.knowledge-local.ctrl-enter-to-save-esc-to-cancel')}
             </span>
             <Button
               size="sm"
@@ -164,7 +170,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
               disabled={!summary.trim()}
               data-testid="mem-save"
             >
-              {tr('保存')}
+              {tr('ui.foundation.save')}
             </Button>
           </div>
         </div>
@@ -176,7 +182,7 @@ const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ 
               {e.keywords.map((k) => (
                 <Badge key={k}>{k}</Badge>
               ))}
-              {e.vec && <Badge tone="accent">{tr('向量')}</Badge>}
+              {e.vec && <Badge tone="accent">{tr('ui.foundation.vector')}</Badge>}
             </div>
           )}
         </>
@@ -222,7 +228,7 @@ const FactRow: React.FC<{ f: MemFact; onMsg: (m: string) => void }> = ({ f, onMs
             }}
           />
           <Button size="sm" variant="primary" onClick={save} disabled={!text.trim()}>
-            {tr('保存')}
+            {tr('ui.foundation.save')}
           </Button>
         </>
       ) : (
@@ -231,17 +237,23 @@ const FactRow: React.FC<{ f: MemFact; onMsg: (m: string) => void }> = ({ f, onMs
             {tr(FACT_KIND_LABEL[f.kind])}
           </Badge>
           <span className={styles.grow}>{tr(f.text)}</span>
-          <span className={styles.hint}>{f.source === 'user' ? tr('手动') : tr('自动')}</span>
+          <span className={styles.hint}>
+            {f.source === 'user' ? tr('ui.knowledge-local.manual') : tr('ui.foundation.auto')}
+          </span>
           <Button size="sm" variant="ghost" onClick={() => setEdit(true)}>
-            {tr('编辑')}
+            {tr('ui.foundation.edit')}
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => void memClient.remove('fact', f.id).then(() => onMsg(tr('已忘记这条')))}
+            onClick={() =>
+              void memClient
+                .remove('fact', f.id)
+                .then(() => onMsg(tr('ui.knowledge-local.forgotten')))
+            }
             data-testid="mem-fact-delete"
           >
-            {tr('忘记')}
+            {tr('ui.knowledge-local.forget')}
           </Button>
         </>
       )}
@@ -300,7 +312,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     if (persona === null) return;
     await memClient.setPersona(persona);
     setPersonaDirty(false);
-    setMsg(tr('用户档案已保存，之后每次对话都会参考'));
+    setMsg(tr('ui.knowledge-local.profile-saved-it-will-be-used-in-every'));
   }, [persona]);
 
   // 快捷键：/ 聚焦搜索，Ctrl/⌘+S 保存档案，Alt+1..4 切换标签
@@ -329,14 +341,18 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       .filter((m) => !m.error && (m.role === 'user' || m.role === 'assistant'))
       .map((m) => ({ role: m.role, content: m.content }));
     if (!id || msgs.length < 2) {
-      setMsg(tr('当前对话太短，至少聊两句再整理'));
+      setMsg(tr('ui.knowledge-local.this-conversation-is-too-short-chat-a-bit'));
       return;
     }
     setBusy(true);
     setMsg('');
     try {
       const r = await memClient.ingest(id, msgs, true);
-      setMsg(r.episode ? tr('已记住：「{0}」', r.episode.title) : tr('没有新的内容需要整理'));
+      setMsg(
+        r.episode
+          ? tr('ui.knowledge-local.remembered', r.episode.title)
+          : tr('ui.knowledge-local.nothing-new-to-summarize'),
+      );
       setTab('episodes');
     } catch (e) {
       setMsg(errText(e));
@@ -360,7 +376,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       setMsg(errText(e));
       return null;
     });
-    if (r?.ok) setMsg(tr('已导出到 {0}', r.path));
+    if (r?.ok) setMsg(tr('ui.knowledge-local.exported-to-8799d2', r.path));
   };
 
   const closeGuard = () => {
@@ -369,10 +385,16 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <Modal open onClose={closeGuard} title={tr('长期记忆')} size="lg" data-testid="mem-panel">
+    <Modal
+      open
+      onClose={closeGuard}
+      title={tr('ui.knowledge-local.long-term-memory')}
+      size="lg"
+      data-testid="mem-panel"
+    >
       <div className={styles.stack}>
         <Notice icon={Lock}>
-          {tr('记忆只保存在本机。整理摘要使用当前对话模型；开启知识库的向量检索后，回忆会更准确。')}
+          {tr('ui.knowledge-local.memories-are-stored-only-on-this-device-summaries')}
         </Notice>
         {err && (
           <ErrorState detail={err} onRetry={() => void refresh()} data-testid="panel-error" />
@@ -382,22 +404,22 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <>
             {!st.settings.enabled && (
               <Notice tone="warning">
-                {tr('长期记忆已关闭：不会整理新对话，也不会在回答时参考记忆。')}
+                {tr('ui.knowledge-local.long-term-memory-is-off-new-conversations-aren')}
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => void memClient.setSettings({ enabled: true })}
                 >
-                  {tr('开启')}
+                  {tr('ui.knowledge-local.turn-on')}
                 </Button>
               </Notice>
             )}
             <div className={styles.stats}>
               {[
-                [tr('对话记忆'), st.stats.episodes],
-                [tr('关于我'), st.stats.facts],
-                [tr('向量'), st.stats.vectors],
-                [tr('档案字数'), st.personaChars],
+                [tr('ui.knowledge-local.conversation-memories'), st.stats.episodes],
+                [tr('ui.knowledge-local.about-me'), st.stats.facts],
+                [tr('ui.foundation.vector'), st.stats.vectors],
+                [tr('ui.knowledge-local.profile-length'), st.personaChars],
               ].map(([l, n]) => (
                 <div key={l} className={styles.stat}>
                   <span className={styles.statNum}>{n}</span>
@@ -412,12 +434,13 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 aria-live="polite"
                 data-testid="mem-busy"
               >
-                <span className={styles.spinner} /> {tr('正在整理对话记忆…')}
+                <span className={styles.spinner} />{' '}
+                {tr('ui.knowledge-local.summarizing-conversation-memory')}
               </div>
             )}
             {st.lastError && !st.busy.length && (
               <span className={styles.err}>
-                {tr('上次整理失败：')}
+                {tr('ui.knowledge-local.last-summary-failed')}
                 {st.lastError}
               </span>
             )}
@@ -429,10 +452,10 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 setMsg('');
               }}
               items={[
-                { value: 'episodes', label: tr('对话记忆') },
-                { value: 'facts', label: tr('关于我') },
-                { value: 'persona', label: tr('用户档案') },
-                { value: 'settings', label: tr('设置与导出') },
+                { value: 'episodes', label: tr('ui.knowledge-local.conversation-memories') },
+                { value: 'facts', label: tr('ui.knowledge-local.about-me') },
+                { value: 'persona', label: tr('ui.knowledge-local.user-profile') },
+                { value: 'settings', label: tr('ui.knowledge-local.settings-export') },
               ]}
             />
             {msg && (
@@ -447,7 +470,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   ref={searchRef}
                   size="sm"
                   className={styles.grow}
-                  placeholder={tr('搜索记忆（按 / 聚焦）')}
+                  placeholder={tr('ui.knowledge-local.search-memories-press-to-focus')}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   data-testid="mem-filter"
@@ -459,7 +482,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   disabled={busy || st.busy.length > 0}
                   data-testid="mem-summarize"
                 >
-                  {tr('整理当前对话')}
+                  {tr('ui.knowledge-local.summarize-this-conversation')}
                 </Button>
               </div>
             )}
@@ -468,13 +491,15 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               (data.episodes.length === 0 ? (
                 <EmptyState
                   icon={Brain}
-                  title={filter ? tr('没有匹配的记忆') : tr('还没有对话记忆')}
+                  title={
+                    filter
+                      ? tr('ui.knowledge-local.no-matching-memories')
+                      : tr('ui.knowledge-local.no-conversation-memories-yet')
+                  }
                   description={
                     filter
-                      ? tr('换个关键词试试。')
-                      : tr(
-                          '聊上几句后，关闭窗口或新建对话时会自动整理成一条摘要；也可以点「整理当前对话」。',
-                        )
+                      ? tr('ui.knowledge-local.try-different-keywords')
+                      : tr('ui.knowledge-local.after-a-few-messages-the-conversation-is-summarized')
                   }
                 />
               ) : (
@@ -500,7 +525,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   <Input
                     size="sm"
                     className={styles.grow}
-                    placeholder={tr('手动添加一条，比如「我对花生过敏」')}
+                    placeholder={tr('ui.knowledge-local.add-one-manually-e-g-i-m-allergic')}
                     value={newFact}
                     maxLength={200}
                     onChange={(e) => setNewFact(e.target.value)}
@@ -513,15 +538,19 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     onClick={() => void addFact()}
                     disabled={!newFact.trim()}
                   >
-                    {tr('添加')}
+                    {tr('ui.foundation.add')}
                   </Button>
                 </div>
                 {data.facts.length === 0 ? (
                   <EmptyState
                     icon={UserRound}
-                    title={filter ? tr('没有匹配的条目') : tr('还不了解你')}
+                    title={
+                      filter
+                        ? tr('ui.knowledge-local.no-matching-entries')
+                        : tr('ui.knowledge-local.i-don-t-know-you-yet')
+                    }
                     description={tr(
-                      '整理对话时会自动提取你明确说过的长期信息（称呼、偏好、目标…）。也可以直接对 Nomi 说「记住…」。',
+                      'ui.knowledge-local.when-summarizing-long-term-facts-you-stated-explicitly',
                     )}
                   />
                 ) : (
@@ -537,9 +566,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {tab === 'persona' && (
               <div className={styles.stack} data-testid="mem-persona">
                 <p className={styles.hint}>
-                  {tr(
-                    '用你自己的话介绍自己：称呼、工作、习惯、希望助手怎样回答。每次对话都会参考（保存在 persona.md，可用任何编辑器修改）。',
-                  )}
+                  {tr('ui.knowledge-local.introduce-yourself-in-your-own-words-what-to')}
                 </p>
                 {persona === null ? (
                   <Skeleton height={160} />
@@ -548,9 +575,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     rows={10}
                     value={persona}
                     maxLength={8000}
-                    placeholder={tr(
-                      '例如：\n- 叫我小林，我是一名插画师\n- 回答尽量简短，代码用 TypeScript',
-                    )}
+                    placeholder={tr('ui.usage-tools.for-example-call-me-xiao-lin-i-am')}
                     onChange={(e) => {
                       setPersona(e.target.value);
                       setPersonaDirty(true);
@@ -561,11 +586,11 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <div className={styles.row}>
                   <span className={`${styles.hint} ${styles.grow}`}>
                     {persona?.length ?? 0}
-                    {tr('/8000 · Ctrl/⌘ + S 保存')}
-                    {personaDirty ? tr(' · 有未保存的修改') : ''}
+                    {tr('ui.knowledge-local.8000-ctrl-s-to-save')}
+                    {personaDirty ? tr('ui.knowledge-local.unsaved-changes') : ''}
                   </span>
                   <Button size="sm" variant="ghost" onClick={() => void memClient.openPersona()}>
-                    {tr('用编辑器打开')}
+                    {tr('ui.knowledge-local.open-in-editor')}
                   </Button>
                   <Button
                     size="sm"
@@ -574,7 +599,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     onClick={() => void savePersona()}
                     data-testid="mem-persona-save"
                   >
-                    {tr('保存')}
+                    {tr('ui.foundation.save')}
                   </Button>
                 </div>
               </div>
@@ -584,48 +609,66 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <div className={styles.stack} data-testid="mem-settings">
                 <section className={styles.section} aria-labelledby="mem-set-recall">
                   <h4 id="mem-set-recall" className={styles.sectionTitle}>
-                    {tr('记忆')}
+                    {tr('ui.foundation.memory')}
                   </h4>
                   <div className={styles.items}>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('启用长期记忆')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.enable-long-term-memory')}
+                        </span>
                         <p className={styles.hint}>
-                          {tr('关闭后不再整理新对话，回答时也不参考记忆；已有记忆保留。')}
+                          {tr(
+                            'ui.knowledge-local.when-off-new-conversations-aren-t-summarized-and',
+                          )}
                         </p>
                       </div>
                       <Switch
                         checked={st.settings.enabled}
                         onChange={(v) => void memClient.setSettings({ enabled: v })}
-                        aria-label={tr('启用长期记忆')}
+                        aria-label={tr('ui.knowledge-local.enable-long-term-memory')}
                       />
                     </div>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('自动整理对话')}</span>
-                        <p className={styles.hint}>{tr('关闭窗口、新建对话或每 10 条消息时')}</p>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.summarize-conversations-automatically')}
+                        </span>
+                        <p className={styles.hint}>
+                          {tr('ui.knowledge-local.when-the-window-closes-a-new-chat-starts')}
+                        </p>
                       </div>
                       <Switch
                         checked={st.settings.autoSummarize}
                         disabled={!st.settings.enabled}
                         onChange={(v) => void memClient.setSettings({ autoSummarize: v })}
-                        aria-label={tr('自动整理对话（关闭窗口、新建对话或每 10 条消息）')}
+                        aria-label={tr(
+                          'ui.knowledge-local.summarize-conversations-automatically-on-close-new-chat-or',
+                        )}
                       />
                     </div>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('回答时回忆相关的过往对话')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr(
+                            'ui.knowledge-local.recall-relevant-past-conversations-when-answering',
+                          )}
+                        </span>
                       </div>
                       <Switch
                         checked={st.settings.recall}
                         disabled={!st.settings.enabled}
                         onChange={(v) => void memClient.setSettings({ recall: v })}
-                        aria-label={tr('回答时回忆相关的过往对话')}
+                        aria-label={tr(
+                          'ui.knowledge-local.recall-relevant-past-conversations-when-answering',
+                        )}
                       />
                     </div>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('每次最多回忆')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.recall-at-most')}
+                        </span>
                       </div>
                       <span className={styles.selectBox}>
                         <Select
@@ -633,12 +676,12 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           value={String(st.settings.topK)}
                           options={[1, 2, 3, 5, 8].map((n) => ({
                             value: String(n),
-                            label: tr('{0} 条', n),
+                            label: tr('ui.knowledge-local.items', n),
                           }))}
                           onChange={(e) =>
                             void memClient.setSettings({ topK: Number(e.target.value) })
                           }
-                          aria-label={tr('每次最多回忆')}
+                          aria-label={tr('ui.knowledge-local.recall-at-most')}
                           data-testid="mem-topk"
                         />
                       </span>
@@ -646,10 +689,14 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div className={styles.item}>
                       <div className={styles.itemText}>
                         <span className={styles.itemTitle}>
-                          {tr('向量：')}
+                          {tr('ui.knowledge-local.vectors')}
                           {st.stats.vectors} / {st.stats.episodes + st.stats.facts}
                         </span>
-                        <p className={styles.hint}>{tr('使用知识库「向量与重排」里配置的服务')}</p>
+                        <p className={styles.hint}>
+                          {tr(
+                            'ui.knowledge-local.uses-the-service-configured-in-knowledge-base-vectors',
+                          )}
+                        </p>
                       </div>
                       <Button
                         size="sm"
@@ -660,13 +707,13 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             .then((n) =>
                               setMsg(
                                 n
-                                  ? tr('已补全 {0} 条向量', n)
-                                  : tr('没有可补全的向量（请先在知识库里开启向量服务）'),
+                                  ? tr('ui.knowledge-local.filled-in-vectors', n)
+                                  : tr('ui.knowledge-local.no-vectors-to-fill-in-enable-a-vector'),
                               ),
                             )
                         }
                       >
-                        {tr('补全向量')}
+                        {tr('ui.knowledge-local.fill-in-vectors')}
                       </Button>
                     </div>
                   </div>
@@ -674,14 +721,18 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
                 <section className={styles.section} aria-labelledby="mem-set-data">
                   <h4 id="mem-set-data" className={styles.sectionTitle}>
-                    {tr('导出与清除')}
+                    {tr('ui.knowledge-local.export-clear')}
                   </h4>
                   <div className={styles.items}>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('导出全部记忆')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.export-all-memories')}
+                        </span>
                         <p className={styles.hint}>
-                          {tr('包括对话记忆、「关于我」和回复偏好画像。')}
+                          {tr(
+                            'ui.knowledge-local.includes-conversation-memories-about-me-and-the-reply',
+                          )}
                         </p>
                       </div>
                       <div className={styles.itemCtrl}>
@@ -691,19 +742,21 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                           onClick={() => void doExport('json')}
                           data-testid="mem-export-json"
                         >
-                          {tr('导出 JSON')}
+                          {tr('ui.knowledge-local.export-json')}
                         </Button>
                         <Button size="sm" variant="secondary" onClick={() => void doExport('md')}>
-                          {tr('导出 Markdown')}
+                          {tr('ui.knowledge-local.export-markdown')}
                         </Button>
                       </div>
                     </div>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('重置偏好画像')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.reset-preference-profile')}
+                        </span>
                         <p className={styles.hint}>
                           {tr(
-                            '规则提取的回复偏好（语言 / 风格 / 语气）保存在用户画像里，也会一并导出。',
+                            'ui.knowledge-local.rule-extracted-reply-preferences-language-style-tone-are',
                           )}
                         </p>
                       </div>
@@ -711,17 +764,23 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         size="sm"
                         variant="secondary"
                         onClick={() =>
-                          void memClient.resetProfile().then(() => setMsg(tr('已重置用户画像')))
+                          void memClient
+                            .resetProfile()
+                            .then(() => setMsg(tr('ui.knowledge-local.user-profile-reset')))
                         }
                       >
-                        {tr('重置')}
+                        {tr('ui.knowledge-local.reset')}
                       </Button>
                     </div>
                     <div className={styles.item}>
                       <div className={styles.itemText}>
-                        <span className={styles.itemTitle}>{tr('清除全部记忆')}</span>
+                        <span className={styles.itemTitle}>
+                          {tr('ui.knowledge-local.clear-all-memories')}
+                        </span>
                         <p className={confirmClear ? styles.err : styles.hint}>
-                          {tr('将删除全部对话记忆和「关于我」，无法撤销')}
+                          {tr(
+                            'ui.knowledge-local.this-deletes-all-conversation-memories-and-about-me',
+                          )}
                         </p>
                       </div>
                       <div className={styles.itemCtrl}>
@@ -732,7 +791,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                               variant="ghost"
                               onClick={() => setConfirmClear(false)}
                             >
-                              {tr('取消')}
+                              {tr('ui.foundation.cancel')}
                             </Button>
                             <Button
                               size="sm"
@@ -740,11 +799,11 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                               onClick={() =>
                                 void memClient.clear().then(() => {
                                   setConfirmClear(false);
-                                  setMsg(tr('已清除全部记忆'));
+                                  setMsg(tr('ui.knowledge-local.all-memories-cleared'));
                                 })
                               }
                             >
-                              {tr('确认清除')}
+                              {tr('ui.knowledge-local.confirm-clear')}
                             </Button>
                           </>
                         ) : (
@@ -754,7 +813,7 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             onClick={() => setConfirmClear(true)}
                             data-testid="mem-clear"
                           >
-                            {tr('清除')}
+                            {tr('ui.voice-mascot.clear')}
                           </Button>
                         )}
                       </div>
@@ -762,10 +821,12 @@ const PanelBody: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   </div>
                 </section>
                 <p className={styles.hint}>
-                  {tr('快捷键：')}
-                  <span className={styles.kbd}>Ctrl/⌘ + Shift + M</span> {tr('打开记忆 ·')}{' '}
-                  <span className={styles.kbd}>Alt + 1~4</span> {tr('切换标签 ·')}{' '}
-                  <span className={styles.kbd}>/</span> {tr('搜索')}
+                  {tr('ui.knowledge-local.shortcut')}
+                  <span className={styles.kbd}>Ctrl/⌘ + Shift + M</span>{' '}
+                  {tr('ui.knowledge-local.open-memory')}{' '}
+                  <span className={styles.kbd}>Alt + 1~4</span>{' '}
+                  {tr('ui.knowledge-local.switch-tabs')} <span className={styles.kbd}>/</span>{' '}
+                  {tr('ui.knowledge-local.search-f04090')}
                 </p>
               </div>
             )}

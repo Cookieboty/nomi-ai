@@ -63,10 +63,10 @@ export function formatContext(tokens: number): string {
 /** 能力标签：推理 · 视觉 · 128K；参数未知时给编程助手的提示 */
 function capabilities(m: PickerModel, purpose: 'chat' | 'coding'): string {
   const parts: string[] = [];
-  if (m.reasoning) parts.push(t('推理'));
-  if (m.vision) parts.push(t('视觉'));
+  if (m.reasoning) parts.push(t('ui.models.reasoning'));
+  if (m.vision) parts.push(t('ui.models.vision'));
   if (m.ctx) parts.push(formatContext(m.ctx));
-  if (purpose === 'coding' && m.metaKnown === false) parts.push(t('参数未知'));
+  if (purpose === 'coding' && m.metaKnown === false) parts.push(t('ui.models.limits-unknown'));
   return parts.join(' · ');
 }
 
@@ -93,7 +93,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       for (const m of p.models) if (usable(m)) byRef.set(`${p.id}/${m.id}`, { p, m });
     const display = new Map<string, string>();
     const opts: SelectOption[] = [...extraOptions];
-    const recentGroup = t('最近使用');
+    const recentGroup = t('ui.cli-monitor.recent');
     for (const ref of recent.filter((r) => byRef.has(r)).slice(0, RECENT_MAX)) {
       const { p, m } = byRef.get(ref)!;
       opts.push({
@@ -128,7 +128,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       searchable
       options={options}
       value={value ?? ''}
-      placeholder={placeholder ?? t('选择模型')}
+      placeholder={placeholder ?? t('ui.models.choose-a-model')}
       menuMinWidth={rest.menuMinWidth ?? 300}
       renderValue={(o) => display.get(o.value) ?? o.label}
       onChange={(e) => onChange(e.target.value)}

@@ -203,7 +203,7 @@ export function parseCodexLine(line: string): HarnessEvent[] {
     if (usage) out.push({ type: 'done', text: image, usage });
     else out.push(...imageEvent(j.output ?? j.result ?? j.content));
   } else if (type === 'turn.failed' || type === 'error') {
-    const message = String(j.error ?? j.message ?? t('Codex 错误'));
+    const message = String(j.error ?? j.message ?? t('electron.common.codex-error'));
     const re = /reconnect\w*[^\d]*(\d+)\s*\/\s*(\d+)/i.exec(message);
     if (type === 'error' && (re || /reconnect/i.test(message)))
       out.push(

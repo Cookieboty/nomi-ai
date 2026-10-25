@@ -131,15 +131,15 @@ function posixScript(i: ScriptInput): string {
   const say = (msg: string) => `printf '%s\\n' ${shQuote(msg)} >&2`;
   const L: string[] = ['#!/bin/sh', `# ${header(i.kind)}`];
   if (!i.model || !i.launch) {
-    L.push(say(tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', bin)), 'exit 1');
+    L.push(say(tr('electron.common.no-third-party-model-is-set-for-choose', bin)), 'exit 1');
     return L.join('\n') + '\n';
   }
   const launch = i.launch;
-  const needModel = say(tr('--nomi-model 后面要跟 供应商/模型'));
-  const badModel = say(tr('模型名无效：'));
-  const down = say(tr('请先打开 Nomi：网关（{0}）没有响应。', i.url));
-  const noToken = say(tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。'));
-  const noBin = say(tr('没有找到 {0}：请先安装。', bin));
+  const needModel = say(tr('electron.common.nomi-model-must-be-followed-by-provider-model'));
+  const badModel = say(tr('electron.common.invalid-model-name-1cb39d'));
+  const down = say(tr('electron.common.please-start-nomi-first-the-gateway-is-not', i.url));
+  const noToken = say(tr('electron.common.token-not-found-turn-terminal-commands-off-and'));
+  const noBin = say(tr('electron.common.was-not-found-please-install-it-first', bin));
   L.push(
     `NOMI_URL=${shQuote(i.url)}`,
     `NOMI_TOKEN_FILE=${shQuote(i.tokenFile)}`,
@@ -471,13 +471,13 @@ export class TerminalCommands {
           JSON.stringify({
             ...config,
             messages: {
-              noModel: tr('还没有为 {0} 设置第三方模型：请在 Nomi 设置 → 模型 里选择。', kind),
-              needModel: tr('--nomi-model 后面要跟 供应商/模型'),
-              badModel: tr('模型名无效：'),
-              down: tr('请先打开 Nomi：网关（{0}）没有响应。', src.url),
-              noToken: tr('找不到令牌：请在 Nomi 设置 → 模型 里重新打开「终端启动命令」。'),
-              noBin: tr('没有找到 {0}：请先安装。', kind),
-              unsafeShim: tr('无法安全启动 {0}：请重新安装 CLI，或使用它的原生可执行文件。', kind),
+              noModel: tr('electron.common.no-third-party-model-is-set-for-choose', kind),
+              needModel: tr('electron.common.nomi-model-must-be-followed-by-provider-model'),
+              badModel: tr('electron.common.invalid-model-name-1cb39d'),
+              down: tr('electron.common.please-start-nomi-first-the-gateway-is-not', src.url),
+              noToken: tr('electron.common.token-not-found-turn-terminal-commands-off-and'),
+              noBin: tr('electron.common.was-not-found-please-install-it-first', kind),
+              unsafeShim: tr('electron.common.cannot-safely-launch-reinstall-the-cli-or-use', kind),
             },
           }),
         );
@@ -670,7 +670,7 @@ export function registerTerminalIpc(t: TerminalCommands): void {
     'ai:gateway:terminal-set',
     (input) => {
       const o = (input ?? {}) as { enabled?: unknown; addToPath?: unknown };
-      if (typeof o.enabled !== 'boolean') throw new Error(tr('参数无效'));
+      if (typeof o.enabled !== 'boolean') throw new Error(tr('electron.common.invalid-arguments'));
       return t.set({
         enabled: o.enabled,
         ...(typeof o.addToPath === 'boolean' ? { addToPath: o.addToPath } : {}),

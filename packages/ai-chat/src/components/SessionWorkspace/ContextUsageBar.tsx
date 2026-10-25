@@ -34,11 +34,11 @@ export const ContextUsageBar: React.FC<{
       estimateContext(
         messages,
         {
-          user: t('用户'),
-          assistant: t('助手'),
-          tools: t('工具'),
-          thinking: t('思考'),
-          system: t('系统提示 / 工具定义 / 记忆'),
+          user: t('ui.slash-commands.user'),
+          assistant: t('ui.providers-schedule.assistants'),
+          tools: t('ui.foundation.tool'),
+          thinking: t('ui.voice-mascot.think'),
+          system: t('ui.session-workspace.system-prompt-tool-defs-memory'),
         },
         { windowSize: baseWin.size },
       ),
@@ -50,16 +50,22 @@ export const ContextUsageBar: React.FC<{
   const level = over || pct >= 90 ? 'high' : pct >= 70 ? 'mid' : 'ok';
   /** 只在数字可能不准时提示一行；准确时不显示来源（「CLI 上报 / 对照表」对用户没有意义） */
   const basisRows = [
-    est.basis === 'estimate' ? t('估算值：还没有这个会话的真实用量') : null,
+    est.basis === 'estimate'
+      ? t('ui.session-workspace.estimate-no-real-usage-reported-for-this-session')
+      : null,
     win.widened
-      ? t('窗口大小是估算的，实际可能更小')
+      ? t('ui.session-workspace.the-window-size-is-an-estimate-and-may')
       : win.source === 'default'
-        ? t('未识别模型，窗口按 128K 计')
+        ? t('ui.session-workspace.unknown-model-assuming-a-128k-window')
         : null,
   ].filter((row): row is string => !!row);
   const tip = over
-    ? t('当前上下文 {0} / {1} · 已超窗口', formatTokens(est.used), formatTokens(win.size))
-    : t('当前上下文 {0} / {1}', formatTokens(est.used), formatTokens(win.size));
+    ? t(
+        'ui.session-workspace.current-context-over-the-window',
+        formatTokens(est.used),
+        formatTokens(win.size),
+      )
+    : t('ui.session-workspace.current-context', formatTokens(est.used), formatTokens(win.size));
   const dash = (pct / 100) * C;
 
   return (
@@ -77,7 +83,7 @@ export const ContextUsageBar: React.FC<{
       <button
         type="button"
         className={styles.contextRingBtn}
-        aria-label={`${t('上下文占用')} ${pct}% · ${tip}`}
+        aria-label={`${t('ui.foundation.context-usage')} ${pct}% · ${tip}`}
         title={undefined}
         data-testid="context-usage-toggle"
       >

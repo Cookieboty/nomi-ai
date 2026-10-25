@@ -134,8 +134,8 @@ export function loadSherpaAddon<T = unknown>(deps: AddonLoaderDeps = {}): T {
     if (!pkgDir) {
       lines.push(
         `未找到平台包 ${pkgName}（${resolveError ?? 'unresolved'}）。` +
-          `请在本机重新安装依赖：pnpm install（不要拷贝其它系统的 node_modules，` +
-          `不要禁用 optionalDependencies；必要时 pnpm install --force）。`,
+          'electron.common.reinstall-dependencies-on-this-machine-with-pnpm-install' +
+          'electron.common.don-t-disable-optionaldependencies-use-pnpm-install-force',
       );
       return new SherpaAddonLoadError(lines.join('\n'), detail);
     }
@@ -166,19 +166,17 @@ export function loadSherpaAddon<T = unknown>(deps: AddonLoaderDeps = {}): T {
     if (files.includes('sherpa-onnx.node')) {
       try {
         requireNode(nodeFile);
-        lines.push(
-          '直接加载 sherpa-onnx.node 成功，但 sherpa-onnx-node 入口仍失败：请检查依赖安装是否完整。',
-        );
+        lines.push('electron.common.loaded-sherpa-onnx-node-directly-but-the-sherpa');
       } catch (e) {
         const msg = errMsg(e);
         detail.dlopenError = msg;
         lines.push(`dlopen(${nodeFile}) 实际错误：${msg}`);
         if (platform === 'win32') {
           lines.push(
-            '常见原因：① 未安装 Microsoft Visual C++ 2015-2022 x64 运行库（缺 MSVCP140.dll / VCRUNTIME140_1.dll），' +
-              '请安装 https://aka.ms/vs/17/release/vc_redist.x64.exe；' +
-              '② C:\\Windows\\System32 下的旧版 onnxruntime.dll 被优先加载（版本不匹配 / OrtGetApiBase 找不到），' +
-              '请确认平台包目录在 PATH 前面；③ 目录被杀毒软件拦截或路径权限不足。',
+            'electron.common.common-causes-1-microsoft-visual-c-2015-2022' +
+              'electron.common.install-https-aka-ms-vs-17-release-vc' +
+              'electron.common.2-an-older-onnxruntime-dll-under-c-windows' +
+              'electron.common.ensure-the-platform-package-folder-is-ahead-on',
           );
         }
       }

@@ -42,12 +42,12 @@ export const ForkTargetMenu: React.FC<{
         className={styles.panel}
         role="dialog"
         aria-modal="true"
-        aria-label={t('分叉到其他端')}
+        aria-label={t('ui.cli-monitor.fork-to-another-endpoint')}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={styles.title}>{t('分叉到其他端')}</div>
+        <div className={styles.title}>{t('ui.cli-monitor.fork-to-another-endpoint')}</div>
         <p className={styles.hint}>
-          {t('复制可见对话到新会话。跨 CLI 仅作上下文参考，不能续接原会话。')}
+          {t('ui.cli-monitor.copies-visible-messages-into-a-new-chat-across')}
         </p>
         <div className={styles.list}>
           {CONVERSATION_BACKENDS.filter((b) => b !== current).map((b) => {
@@ -63,17 +63,21 @@ export const ForkTargetMenu: React.FC<{
               >
                 <EndpointIcon backend={b} size={18} decorative />
                 <span>{ENDPOINT_FULL[b]()}</span>
-                {missing && <span className={styles.miss}>{t('未安装')}</span>}
+                {missing && (
+                  <span className={styles.miss}>{t('ui.mascot-theme.not-installed')}</span>
+                )}
               </button>
             );
           })}
         </div>
         <div className={styles.ws}>
-          <span className={styles.wsLabel}>{t('目标为编程助手时的工作目录')}</span>
+          <span className={styles.wsLabel}>
+            {t('ui.cli-monitor.workspace-when-the-target-is-a-coding-agent')}
+          </span>
           <WorkspacePicker value={ws.cwd} onChange={ws.set} testId="fork-workspace" />
         </div>
         <button type="button" className={styles.cancel} onClick={onClose}>
-          {t('取消')}
+          {t('ui.foundation.cancel')}
         </button>
       </div>
     </div>

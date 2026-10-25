@@ -73,13 +73,13 @@ export const MascotContextMenu: React.FC = () => {
       ref={ref}
       className={styles.menu}
       role="menu"
-      aria-label={t('Nomi 大小')}
+      aria-label={t('ui.usage-tools.nomi-size')}
       data-mascot-ui=""
       data-testid="mascot-context-menu"
       style={{ left: pos.x, top: pos.y, width: MENU_W }}
     >
       <div className={styles.title} data-testid="ctx-scale-value">
-        {t('大小')} {scalePercent(s.scale)}%
+        {t('ui.usage-tools.size')} {scalePercent(s.scale)}%
       </div>
       <button
         type="button"
@@ -90,7 +90,7 @@ export const MascotContextMenu: React.FC = () => {
         onClick={() => scaleStore.step(1)}
       >
         <ZoomIn size={16} strokeWidth={1.75} aria-hidden />
-        <span>{t('放大')}</span>
+        <span>{t('ui.usage-tools.zoom-in')}</span>
       </button>
       <button
         type="button"
@@ -101,7 +101,7 @@ export const MascotContextMenu: React.FC = () => {
         onClick={() => scaleStore.step(-1)}
       >
         <ZoomOut size={16} strokeWidth={1.75} aria-hidden />
-        <span>{t('缩小')}</span>
+        <span>{t('ui.usage-tools.zoom-out')}</span>
       </button>
       <button
         type="button"
@@ -115,7 +115,7 @@ export const MascotContextMenu: React.FC = () => {
         }}
       >
         <RotateCcw size={16} strokeWidth={1.75} aria-hidden />
-        <span>{t('重置大小')}</span>
+        <span>{t('ui.usage-tools.reset-size')}</span>
       </button>
     </div>
   );

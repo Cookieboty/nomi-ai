@@ -228,7 +228,7 @@ export const defaultRunner: CliRunner = (argv, onLine, { timeoutMs }) =>
     child.stdout?.on('data', feed);
     child.stderr?.on('data', feed);
     const timer = setTimeout(() => {
-      output += '\n' + t('超时，已终止');
+      output += '\n' + t('electron.common.timed-out-and-stopped');
       child.kill();
     }, timeoutMs);
     child.on('error', (e) => {
@@ -438,13 +438,13 @@ export class CliUpdateService {
       id: 'node',
       ok: nodeOk,
       label: t('Node.js ≥ {0}', need),
-      detail: nodeV ? `v${nodeV}` : t('未找到'),
+      detail: nodeV ? `v${nodeV}` : t('electron.common.not-found'),
     });
     if (!nodeOk)
       blockers.push(
         nodeV
-          ? t('需要 Node.js ≥ {0}，当前是 v{1}。请先升级 Node.js 再安装。', need, nodeV)
-          : t('找不到 Node.js（需要 ≥ {0}）。请先安装 Node.js。', need),
+          ? t('electron.common.node-js-is-required-found-v-please-upgrade', need, nodeV)
+          : t('electron.common.node-js-was-not-found-please-install-node', need),
       );
 
     const npm = await this.probe.npmBin();
@@ -452,9 +452,9 @@ export class CliUpdateService {
       id: 'npm',
       ok: Boolean(npm),
       label: 'npm',
-      detail: npm ?? t('未找到'),
+      detail: npm ?? t('electron.common.not-found'),
     });
-    if (!npm) blockers.push(t('找不到 npm（随 Node.js 一起安装）。请先安装 Node.js。'));
+    if (!npm) blockers.push(t('electron.common.npm-was-not-found-it-ships-with-node'));
 
     const target =
       scope === 'user' ? userPrefix() : (await this.probe.npmPrefix()) || (npm ? '' : userPrefix());
@@ -463,18 +463,15 @@ export class CliUpdateService {
       requirements.push({
         id: 'write',
         ok: writable,
-        label: t('目录可写'),
+        label: t('electron.common.directory-writable'),
         detail: target,
       });
       if (!writable) {
         if (scope === 'global') needsUserScope = true;
         blockers.push(
           scope === 'global'
-            ? t(
-                'npm 全局目录 {0} 没有写入权限。Nomi 不会自动使用 sudo / 管理员权限；可改为安装到用户目录，或自行在终端里用管理员权限安装。',
-                target,
-              )
-            : t('用户目录 {0} 没有写入权限。', target),
+            ? t('electron.common.the-npm-global-directory-is-not-writable-nomi', target)
+            : t('electron.common.the-user-directory-is-not-writable', target),
         );
       }
     }
@@ -497,7 +494,8 @@ export class CliUpdateService {
       ? await this.checkRequirements(kind, scope)
       : { requirements: [], blockers: [], needsUserScope: false };
     const blockers = [...checks.blockers];
-    if (!isAllowedUpdateArgv(first.argv)) blockers.unshift(t('命令未通过白名单'));
+    if (!isAllowedUpdateArgv(first.argv))
+      blockers.unshift(t('electron.common.the-command-is-not-on-the-allow-list'));
     const plan: CliInstallPlan = {
       kind,
       mode,
@@ -561,7 +559,11 @@ export class CliUpdateService {
     if (cur) return cur;
     // 另一个端点正在装 / 更新：直接拒绝，不留 running 占位任务（界面已禁用，这里是兜底）
     if (this.busyWith && this.busyWith !== kind) {
-      return Promise.resolve({ ok: false, log: t('已有安装 / 更新在进行'), version: null });
+      return Promise.resolve({
+        ok: false,
+        log: t('electron.common.another-install-update-is-already-running'),
+        version: null,
+      });
     }
     this.busyWith = kind;
     this.jobs.set(kind, {
@@ -609,10 +611,7 @@ export class CliUpdateService {
       if (busy > 0)
         return {
           ok: false,
-          log: t(
-            '还有 {0} 个会话正在使用这个 CLI。Windows 上运行中的程序不能被替换，请等它们结束后再更新。',
-            busy,
-          ),
+          log: t('electron.common.session-s-are-still-using-this-cli-windows', busy),
           version: null,
         };
     }
@@ -638,7 +637,7 @@ export class CliUpdateService {
           }
         }
         if (!isAllowedUpdateArgv(recipe.argv)) {
-          logs.push(t('拒绝：命令不在白名单'));
+          logs.push(t('electron.common.rejected-command-not-on-whitelist'));
           continue;
         }
         const line = `$ ${commandLine(recipe.argv)}`;
@@ -654,7 +653,7 @@ export class CliUpdateService {
           ok = true;
           break;
         }
-        logs.push(t('命令失败（退出码 {0}）', res.code ?? '—'));
+        logs.push(t('electron.common.command-failed-exit-code', res.code ?? '—'));
       }
       const log = logs.join('\n').slice(-8000);
       let bin = await resolveCliBinAsync(kind);
@@ -678,23 +677,12 @@ export class CliUpdateService {
       let note: string | undefined;
       if (!bin) {
         note = npmBinDir
-          ? t(
-              '命令已执行完成，但在 PATH、常见目录和 npm 的全局 bin 目录（{1}）里都没有找到 {0}；请确认安装用的是同一个 npm。',
-              kind,
-              npmBinDir,
-            )
-          : t(
-              '命令已执行完成，但在 PATH 和常见目录里没有找到 {0}；请检查 npm 的全局 bin 目录是否在 PATH 里。',
-              kind,
-            );
+          ? t('electron.common.the-command-finished-but-wasn-t-found-in', kind, npmBinDir)
+          : t('electron.common.the-command-finished-but-was-not-found-on', kind);
       } else if (scope === 'user') {
         const dir = path.dirname(bin);
         const inPath = (process.env.PATH ?? '').split(path.delimiter).includes(dir);
-        if (!inPath)
-          note = t(
-            '已安装到 {0}；如需在终端直接使用，请把该目录加入 PATH（Nomi 内可直接使用）。',
-            dir,
-          );
+        if (!inPath) note = t('electron.common.installed-to-to-use-it-from-a-terminal', dir);
       }
       const result: CliRunResult = { ok: Boolean(bin), log, version, path: bin, note };
       this.finishJob(kind, result);

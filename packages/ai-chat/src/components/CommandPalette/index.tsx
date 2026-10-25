@@ -49,7 +49,12 @@ export const CommandPalette: React.FC<{
     setTimeout(c.run, 0);
   };
   return (
-    <Modal open={open} onClose={onClose} title={t('命令面板')} data-testid="command-palette">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('ui.mascot-theme.command-palette')}
+      data-testid="command-palette"
+    >
       <input
         data-autofocus
         className={styles.input}
@@ -58,8 +63,8 @@ export const CommandPalette: React.FC<{
         aria-expanded="true"
         aria-controls="palette-list"
         aria-activedescendant={items[sel] ? `palette-${items[sel]!.id}` : undefined}
-        aria-label={t('搜索命令')}
-        placeholder={t('输入以搜索命令…')}
+        aria-label={t('ui.mascot-theme.search-commands')}
+        placeholder={t('ui.mascot-theme.type-to-search-commands')}
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -96,7 +101,9 @@ export const CommandPalette: React.FC<{
             {c.hint && <kbd className={styles.kbd}>{c.hint}</kbd>}
           </li>
         ))}
-        {!items.length && <li className={styles.empty}>{t('没有匹配的命令')}</li>}
+        {!items.length && (
+          <li className={styles.empty}>{t('ui.mascot-theme.no-matching-commands')}</li>
+        )}
       </ul>
     </Modal>
   );

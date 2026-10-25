@@ -78,8 +78,7 @@ const DEFAULT_CONFIG: ChatConfig = {
   fontSize: 14,
   autoSave: true,
   maxHistoryLength: 1000,
-  systemPrompt:
-    '你是 Nomi（诺米），住在用户桌面上的 AI 伙伴，运行在用户自己的电脑上。语气温暖、专业、可信赖：先给结论，再给步骤；不确定时坦诚说明。请结合之前的对话内容，简洁、准确地回答。',
+  systemPrompt: 'ui.chat-settings.you-are-nomi-an-ai-companion-who-lives',
 };
 
 export class SdkIPCClient implements IPCClient {
@@ -140,7 +139,9 @@ export class SdkIPCClient implements IPCClient {
       return typeof resp?.content === 'string' ? resp.content : '';
     } catch (error) {
       throw Object.assign(
-        new Error(t('发送消息失败: {0}', (error as Error).message ?? String(error))),
+        new Error(
+          t('ui.chat-settings.failed-to-send-message', (error as Error).message ?? String(error)),
+        ),
         {
           cause: error,
         },
@@ -208,9 +209,14 @@ export class SdkIPCClient implements IPCClient {
       }
     } catch (error) {
       const msg = (error as Error).message ?? String(error);
-      throw Object.assign(new Error(upstreamErrorText(msg) ?? t('发送流式消息失败: {0}', msg)), {
-        cause: error,
-      });
+      throw Object.assign(
+        new Error(
+          upstreamErrorText(msg) ?? t('ui.chat-settings.failed-to-send-streaming-message', msg),
+        ),
+        {
+          cause: error,
+        },
+      );
     }
   }
 
@@ -323,11 +329,11 @@ export class SdkIPCClient implements IPCClient {
 
 export class MockIPCClient implements IPCClient {
   private history: ChatMessage[] = [
-    { id: '1', role: 'user', content: t('你好'), timestamp: Date.now() - 60000 },
+    { id: '1', role: 'user', content: t('ui.chat-settings.hello'), timestamp: Date.now() - 60000 },
     {
       id: '2',
       role: 'assistant',
-      content: t('你好！有什么可以帮助你的吗？'),
+      content: t('ui.chat-settings.hello-how-can-i-help-you'),
       timestamp: Date.now() - 50000,
     },
   ];
@@ -336,11 +342,16 @@ export class MockIPCClient implements IPCClient {
   async sendMessage(message: string, history?: ChatMessage[]): Promise<string> {
     log.info('[Mock] Send message:', message, 'history:', history?.length ?? 0);
     await new Promise((r) => setTimeout(r, 500));
-    return t('模拟回复: {0}', message);
+    return t('ui.chat-settings.mock-reply', message);
   }
 
   async sendStreamMessage(message: string, onChunk?: (chunk: string) => void): Promise<void> {
-    const chunks = [t('模拟'), t('流式'), t('回复'), t('内容')];
+    const chunks = [
+      t('ui.chat-settings.mock'),
+      t('ui.chat-settings.streaming'),
+      t('ui.chat-settings.reply'),
+      t('ui.chat-settings.content'),
+    ];
     for (const c of chunks) {
       await new Promise((r) => setTimeout(r, 200));
       onChunk?.(c + ' ');
@@ -360,7 +371,15 @@ export class MockIPCClient implements IPCClient {
   }
 
   async listConversations(): Promise<Array<Omit<ChatSession, 'messages'>>> {
-    return [{ id: 'mock', name: t('Mock 对话'), createdAt: 0, updatedAt: 0, backend: 'nomi' }];
+    return [
+      {
+        id: 'mock',
+        name: t('ui.chat-settings.mock-conversation'),
+        createdAt: 0,
+        updatedAt: 0,
+        backend: 'nomi',
+      },
+    ];
   }
 
   async newConversation(): Promise<string> {

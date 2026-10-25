@@ -66,14 +66,14 @@ export const VoiceStatus: React.FC<VoiceStatusProps> = ({
             onClick={onOpenSettings}
             data-testid="voice-error-setup"
           >
-            {t('去设置')}
+            {t('ui.mascot-theme.go-to-settings')}
           </button>
         )}
         {onDismissError && (
           <button
             type="button"
             className="cd-voice-link"
-            aria-label={t('关闭提示')}
+            aria-label={t('ui.mascot-theme.dismiss')}
             onClick={onDismissError}
           >
             ✕
@@ -103,14 +103,14 @@ export const VoiceStatus: React.FC<VoiceStatusProps> = ({
       {state.mode !== 'ptt' && state.vad === 'energy' && (
         <span
           className="cd-voice-status__hint"
-          title={t('下载 Silero VAD 可更准确地判断你何时说完')}
+          title={t('ui.mascot-theme.download-silero-vad-to-detect-more-accurately-when')}
         >
-          {t('基础检测')}
+          {t('ui.mascot-theme.basic-detection')}
         </span>
       )}
       {continuous && onStop && (
         <button type="button" className="cd-voice-link" onClick={onStop} data-testid="voice-stop">
-          {t('停止')}
+          {t('ui.foundation.stop')}
         </button>
       )}
     </div>

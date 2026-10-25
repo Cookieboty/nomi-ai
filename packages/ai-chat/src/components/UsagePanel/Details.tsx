@@ -33,14 +33,14 @@ interface Props {
 }
 
 const COLS: Array<{ id: UsageDetailSort | null; label: string; num?: boolean; col?: string }> = [
-  { id: 'ts', label: '时间' },
-  { id: 'source', label: '来源' },
-  { id: 'model', label: '模型' },
-  { id: null, label: '输入', num: true },
-  { id: null, label: '输出', num: true },
-  { id: null, label: '缓存读 / 写', num: true, col: 'colCache' },
-  { id: 'tokens', label: '合计', num: true, col: 'colTotal' },
-  { id: 'cost', label: '费用', num: true },
+  { id: 'ts', label: 'ui.foundation.time' },
+  { id: 'source', label: 'ui.knowledge-local.sources' },
+  { id: 'model', label: 'ui.foundation.model' },
+  { id: null, label: 'ui.usage-tools.input', num: true },
+  { id: null, label: 'ui.usage-tools.output', num: true },
+  { id: null, label: 'ui.usage-tools.cache-read-write', num: true, col: 'colCache' },
+  { id: 'tokens', label: 'ui.usage-tools.total', num: true, col: 'colTotal' },
+  { id: 'cost', label: 'ui.usage-tools.cost', num: true },
 ];
 
 const ALL = '';
@@ -137,7 +137,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
       <div className={styles.filters}>
         <Tabs
           className={styles.tabsSm}
-          aria-label={t('明细时间范围')}
+          aria-label={t('ui.usage-tools.details-time-range')}
           value={range.kind === 'day' ? 'day' : range.id}
           onChange={(v) => {
             if (v !== 'day') {
@@ -147,17 +147,17 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
           }}
           items={[
             ...(range.kind === 'day' ? [{ value: 'day', label: range.date }] : []),
-            { value: 'today', label: t('今日') },
-            { value: '7d', label: t('7 天') },
-            { value: '30d', label: t('30 天') },
-            { value: '90d', label: t('90 天') },
-            { value: 'year', label: t('全年') },
+            { value: 'today', label: t('ui.usage-tools.today') },
+            { value: '7d', label: t('ui.usage-tools.7-days') },
+            { value: '30d', label: t('ui.usage-tools.30-days') },
+            { value: '90d', label: t('ui.usage-tools.90-days') },
+            { value: 'year', label: t('ui.usage-tools.full-year') },
           ]}
         />
         <Select
           size="sm"
           className={styles.filterSel}
-          aria-label={t('按来源筛选')}
+          aria-label={t('ui.usage-tools.filter-by-source')}
           data-testid="usage-filter-source"
           value={source}
           onChange={(e) => {
@@ -165,7 +165,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
             resetPage();
           }}
           options={opt(
-            t('全部来源'),
+            t('ui.usage-tools.all-sources'),
             (res?.facets.sources ?? []).map((s) => ({
               value: s,
               label: t(USAGE_SOURCE_LABEL[s] ?? s),
@@ -175,7 +175,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
         <Select
           size="sm"
           className={styles.filterSel}
-          aria-label={t('按模型筛选')}
+          aria-label={t('ui.usage-tools.filter-by-model')}
           data-testid="usage-filter-model"
           value={model}
           onChange={(e) => {
@@ -183,14 +183,14 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
             resetPage();
           }}
           options={opt(
-            t('全部模型'),
+            t('ui.usage-tools.all-models'),
             (res?.facets.models ?? []).map((m) => ({ value: m, label: m })),
           )}
         />
         <Select
           size="sm"
           className={styles.filterSel}
-          aria-label={t('按会话筛选')}
+          aria-label={t('ui.usage-tools.filter-by-session')}
           data-testid="usage-filter-session"
           value={session}
           onChange={(e) => {
@@ -198,35 +198,35 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
             resetPage();
           }}
           options={opt(
-            t('全部会话'),
+            t('ui.usage-tools.all-sessions'),
             (res?.facets.sessions ?? []).map((s) => ({ value: s.id, label: s.label })),
           )}
         />
         <span className={styles.grow} />
         <Button size="sm" data-testid="usage-export" onClick={() => void exportCsv()}>
           <AppIcon icon={Download} />
-          {t('导出 CSV')}
+          {t('ui.usage-tools.export-csv')}
         </Button>
       </div>
       {err && <p className={styles.err}>{err}</p>}
       {res && (
         <p className={styles.dim} data-testid="usage-details-summary">
           {t(
-            '{0} 条记录 · {1} tokens · {2}',
+            'ui.usage-tools.records-tokens',
             formatInt(total),
             formatTokens(res.summary.total),
             money(res.summary.costUsd),
           )}
           {res.summary.unpriced.length > 0 && (
-            <> · {t('{0} 个模型未定价', res.summary.unpriced.length)}</>
+            <> · {t('ui.usage-tools.model-s-unpriced', res.summary.unpriced.length)}</>
           )}
         </p>
       )}
       {res && res.rows.length === 0 ? (
         <EmptyState
           icon={SearchX}
-          title={t('没有符合条件的记录')}
-          description={t('换个时间范围或清除筛选试试。')}
+          title={t('ui.usage-tools.no-matching-records')}
+          description={t('ui.usage-tools.try-another-time-range-or-clear-the-filters')}
         />
       ) : (
         <div className={styles.tableWrap}>
@@ -245,7 +245,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
                         type="button"
                         className={styles.sortBtn}
                         onClick={() => toggleSort(c.id as UsageDetailSort)}
-                        aria-label={t('按「{0}」排序', t(c.label))}
+                        aria-label={t('ui.usage-tools.sort-by', t(c.label))}
                         data-testid={`usage-sort-${c.id}`}
                       >
                         {t(c.label)}
@@ -277,7 +277,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
                       {r.model}
                       {r.estimated && (
                         <Badge tone="neutral" className={styles.estBadge}>
-                          {t('估算')}
+                          {t('ui.usage-tools.estimated')}
                         </Badge>
                       )}
                     </div>
@@ -311,7 +311,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
             size="sm"
             disabled={page === 0}
             onClick={() => setPage((p) => p - 1)}
-            aria-label={t('上一页')}
+            aria-label={t('ui.usage-tools.previous-page')}
           >
             <AppIcon icon={ChevronLeft} />
           </Button>
@@ -322,7 +322,7 @@ export const Details: React.FC<Props> = ({ fx, range, onRange }) => {
             size="sm"
             disabled={page + 1 >= pages}
             onClick={() => setPage((p) => p + 1)}
-            aria-label={t('下一页')}
+            aria-label={t('ui.usage-tools.next-page')}
           >
             <AppIcon icon={ChevronRight} />
           </Button>

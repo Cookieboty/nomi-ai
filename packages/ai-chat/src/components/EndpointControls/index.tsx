@@ -144,16 +144,16 @@ function useCwdSwitch() {
           <Modal
             open
             onClose={() => setPendingCwd(null)}
-            title={t('切换工作目录')}
-            closeLabel={t('取消')}
+            title={t('ui.chat-settings.switch-working-directory')}
+            closeLabel={t('ui.foundation.cancel')}
             data-testid="cli-cwd-switch"
             footer={
               <div className={styles.actions}>
                 <Button data-testid="cli-cwd-cancel" onClick={() => setPendingCwd(null)}>
-                  {t('取消')}
+                  {t('ui.foundation.cancel')}
                 </Button>
                 <Button data-testid="cli-cwd-fresh" onClick={() => choose('fresh')}>
-                  {t('开新会话')}
+                  {t('ui.chat-settings.start-a-new-session')}
                 </Button>
                 <Button
                   variant="primary"
@@ -162,27 +162,30 @@ function useCwdSwitch() {
                   data-testid="cli-cwd-carry"
                   onClick={() => choose('carry')}
                 >
-                  {t('带上当前对话')}
+                  {t('ui.chat-settings.bring-this-conversation')}
                 </Button>
               </div>
             }
           >
             <div className={styles.body}>
               <p>
-                {t('换到')} <code className={styles.path}>{pending.next}</code>
+                {t('ui.chat-settings.switch-to')}{' '}
+                <code className={styles.path}>{pending.next}</code>
               </p>
               <p className="cd-muted" data-testid="cli-cwd-switch-origin">
-                {t('标签「{0}」', pending.title)} ·{' '}
+                {t('ui.chat-settings.tab', pending.title)} ·{' '}
                 <code className={styles.path}>{pending.originCwd}</code>
               </p>
               <p className="cd-muted">
                 {t(
-                  '{0} 的会话和工作目录绑定，换目录后会开一个新会话。可以把当前对话作为前文带过去，让它接着做；也可以从头开始。',
+                  'ui.chat-settings.sessions-are-tied-to-their-working-directory-so',
                   ENDPOINT_NAME[cli ?? 'claude'],
                 )}
               </p>
               {running && (
-                <p className="cd-muted">{t('正在运行的这一轮不会中断，会在原目录跑完。')}</p>
+                <p className="cd-muted">
+                  {t('ui.chat-settings.the-turn-that-is-running-won-t-be')}
+                </p>
               )}
             </div>
           </Modal>
@@ -224,14 +227,17 @@ export const SessionControls: React.FC = () => {
       <span
         className={styles.carry}
         data-testid="cli-carry-chip"
-        title={t('下一条消息会连同之前的 {0} 条对话一起发给新会话', String(carry.carriedMessages))}
+        title={t(
+          'ui.chat-settings.your-next-message-will-be-sent-to-the',
+          String(carry.carriedMessages),
+        )}
       >
         <Icon icon={History} size={14} />
-        {t('带上前文 · {0} 条', String(carry.carriedMessages))}
+        {t('ui.chat-settings.with-context', String(carry.carriedMessages))}
         <button
           type="button"
           className={styles.carryX}
-          aria-label={t('不带前文')}
+          aria-label={t('ui.chat-settings.don-t-bring-the-context')}
           data-testid="cli-carry-clear"
           onClick={() => void harnessClient.clearTabCarry(carry.id).catch(() => undefined)}
         >

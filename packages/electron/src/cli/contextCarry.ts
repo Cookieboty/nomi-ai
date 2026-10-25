@@ -39,10 +39,7 @@ export function buildCarriedContext(
     kept = kept.slice(1);
   if (!kept.length) return null;
   const text = [
-    t(
-      '[Nomi] 以下是这个对话之前在 {0} 里的内容，工作目录已经换成当前目录。请把它当作上下文继续，不必复述：',
-      fromCwd,
-    ),
+    t('electron.common.nomi-below-is-this-conversation-so-far-from', fromCwd),
     '<previous_conversation>',
     ...kept,
     '</previous_conversation>',

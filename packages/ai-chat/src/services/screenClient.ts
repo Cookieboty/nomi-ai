@@ -59,7 +59,7 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('截图功能需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.screenshots-require-the-desktop-app'));
   const r = (await b.invoke(`ai:screen:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };
@@ -76,7 +76,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error(t('图片无法解析')));
+    img.onerror = () => reject(new Error(t('ui.chat-settings.couldn-t-decode-the-image')));
     img.src = src;
   });
 }
@@ -89,7 +89,7 @@ function draw(img: HTMLImageElement, maxSide: number, quality: number) {
   c.width = w;
   c.height = h;
   const ctx = c.getContext('2d');
-  if (!ctx) throw new Error(t('canvas 不可用'));
+  if (!ctx) throw new Error(t('ui.chat-settings.canvas-unavailable'));
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, w, h);
   ctx.drawImage(img, 0, 0, w, h);
@@ -120,12 +120,12 @@ export const MAX_FILE_BYTES = 20 * 1024 * 1024;
 
 export async function attachmentFromFile(f: File): Promise<ImageAttachment> {
   if (!/^image\/(png|jpeg|webp|gif|bmp)$/.test(f.type))
-    throw new Error(t('不支持的图片格式：{0}', f.type || f.name));
-  if (f.size > MAX_FILE_BYTES) throw new Error(t('图片太大（上限 20 MB）'));
+    throw new Error(t('ui.chat-settings.unsupported-image-format', f.type || f.name));
+  if (f.size > MAX_FILE_BYTES) throw new Error(t('ui.chat-settings.image-too-large-max-20-mb'));
   const url = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error(t('读取图片失败')));
+    r.onerror = () => reject(new Error(t('ui.chat-settings.failed-to-read-image')));
     r.readAsDataURL(f);
   });
   return attachmentFromDataUrl(url, 'paste');
@@ -172,15 +172,16 @@ export const screenClient = {
 };
 
 export const SKIP_REASONS: Record<string, string> = {
-  off: '未开启',
-  busy: '上一帧还在处理',
-  'ocr-missing': '还没下载 OCR 语言包（知识库 → OCR）',
-  idle: '电脑空闲中，已跳过',
-  unchanged: '画面没有变化',
-  'no-text': '画面上没有可识别的文字',
-  error: '采样出错',
+  off: 'ui.chat-settings.off',
+  busy: 'ui.chat-settings.previous-frame-still-processing',
+  'ocr-missing': 'ui.chat-settings.ocr-language-data-not-downloaded-yet-knowledge-base',
+  idle: 'ui.chat-settings.computer-idle-skipped',
+  unchanged: 'ui.chat-settings.screen-unchanged',
+  'no-text': 'ui.chat-settings.no-recognizable-text-on-screen',
+  error: 'ui.chat-settings.sampling-error',
 };
 export function describeSkip(r: string): string {
-  if (r.startsWith('excluded:')) return t('检测到排除窗口「{0}」，已跳过', r.slice(9));
+  if (r.startsWith('excluded:'))
+    return t('ui.chat-settings.excluded-window-detected-skipped', r.slice(9));
   return SKIP_REASONS[r] ?? r;
 }

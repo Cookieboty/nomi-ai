@@ -27,10 +27,10 @@ export interface VoiceSettingsPanelProps {
 }
 
 const LANGS = [
-  { value: 'auto', label: '自动识别' },
-  { value: 'zh', label: '中文' },
+  { value: 'auto', label: 'ui.voice-mascot.auto-detect' },
+  { value: 'zh', label: 'ui.voice-mascot.chinese' },
   { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
+  { value: 'ja', label: 'ui.voice-mascot.japanese' },
   { value: 'ko', label: '한국어' },
 ];
 
@@ -61,17 +61,17 @@ const AssetRow: React.FC<{
       <div className="cd-voice-asset__main">
         <div className="cd-voice-asset__title">
           {t(a.name)}
-          {a.installed && <Badge tone="success">{t('已安装')}</Badge>}
-          {selected && <Badge>{t('使用中')}</Badge>}
+          {a.installed && <Badge tone="success">{t('ui.knowledge-local.installed')}</Badge>}
+          {selected && <Badge>{t('ui.voice-mascot.in-use')}</Badge>}
         </div>
         <div className="cd-voice-asset__desc">
-          {t(a.description)} · {fmtBytes(a.bytes)} {t('· 许可')}{' '}
+          {t(a.description)} · {fmtBytes(a.bytes)} {t('ui.voice-mascot.license')}{' '}
           <a href={a.licenseUrl} target="_blank" rel="noreferrer">
             {a.license}
           </a>{' '}
           ·{' '}
           <a href={a.sourceUrl} target="_blank" rel="noreferrer">
-            {t('来源')}
+            {t('ui.knowledge-local.sources')}
           </a>
         </div>
         {a.downloading && (
@@ -93,7 +93,7 @@ const AssetRow: React.FC<{
           <ErrorState
             compact
             data-testid={`voice-error-${a.id}`}
-            title={t('下载失败')}
+            title={t('ui.mascot-theme.download-failed')}
             detail={error}
             // 许可已在首次下载时确认过，重试直接下载
             onRetry={() => void api.download(a.id)}
@@ -102,8 +102,9 @@ const AssetRow: React.FC<{
         )}
         {confirming && (
           <Notice className="cd-voice-asset__confirm">
-            {t('将从')} {new URL(a.sourceUrl).host} {t('下载')} {fmtBytes(a.bytes)}（{a.license}{' '}
-            {t('许可），下载后校验 SHA-256，仅保存在本机。')}
+            {t('ui.voice-mascot.will-download-from')} {new URL(a.sourceUrl).host}{' '}
+            {t('ui.knowledge-local.download')} {fmtBytes(a.bytes)}（{a.license}{' '}
+            {t('ui.voice-mascot.license-verified-with-sha-256-after-download-and')}
             <div className="cd-voice-row">
               <Button
                 size="sm"
@@ -114,10 +115,10 @@ const AssetRow: React.FC<{
                   void api.download(a.id);
                 }}
               >
-                {t('同意许可并下载')}
+                {t('ui.knowledge-local.accept-license-and-download')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
-                {t('取消')}
+                {t('ui.foundation.cancel')}
               </Button>
             </div>
           </Notice>
@@ -131,13 +132,13 @@ const AssetRow: React.FC<{
             onClick={() => void api.cancel(a.id)}
             data-testid={`voice-cancel-${a.id}`}
           >
-            {t('取消')}
+            {t('ui.foundation.cancel')}
           </Button>
         ) : a.installed ? (
           <>
             {onSelect && !selected && (
               <Button size="sm" onClick={onSelect}>
-                {t('使用')}
+                {t('ui.chat-settings.use')}
               </Button>
             )}
             <Button
@@ -146,7 +147,7 @@ const AssetRow: React.FC<{
               onClick={() => void api.remove(a.id)}
               data-testid={`voice-remove-${a.id}`}
             >
-              {t('删除')}
+              {t('ui.foundation.delete')}
             </Button>
           </>
         ) : (
@@ -157,7 +158,7 @@ const AssetRow: React.FC<{
               onClick={() => setConfirming(true)}
               data-testid={`voice-download-${a.id}`}
             >
-              {t('下载')}
+              {t('ui.knowledge-local.download')}
             </Button>
           )
         )}
@@ -201,28 +202,27 @@ const VolcSection: React.FC<{
     }
   };
   const resourceLabel = (id: string) =>
-    id.endsWith('.concurrent') ? t('2.0 并发版（{0}）', id) : t('2.0 小时版（{0}）', id);
+    id.endsWith('.concurrent')
+      ? t('ui.voice-mascot.2-0-concurrent-plan', id)
+      : t('ui.voice-mascot.2-0-hourly-plan', id);
   return (
-    <SettingsGroup title={t('豆包流式语音识别 2.0')} data-testid="voice-volc">
+    <SettingsGroup title={t('ui.voice-mascot.doubao-streaming-asr-2-0')} data-testid="voice-volc">
       <div className="cd-voice-section">
         <Notice tone="warning">
-          {t(
-            '使用时录音会通过网络实时上传到火山引擎（{0}）识别，并由服务商按用量计费。请自行在火山引擎控制台开通服务、管理额度；Nomi 不提供 Key，也不承诺免费额度。',
-            v.host,
-          )}
+          {t('ui.voice-mascot.while-in-use-your-recording-is-streamed-over', v.host)}
         </Notice>
         <div className="cd-voice-hint">
-          {t(
-            '配置步骤：① 在火山引擎「豆包语音」新版控制台创建 API Key；② 开通「豆包流式语音识别模型 2.0」（小时版或并发版）；③ 把 API Key 粘贴到下面，并选择你开通的版本。',
-          )}{' '}
+          {t('ui.voice-mascot.setup-1-create-an-api-key-in-the')}{' '}
           <a href={VOLC_DOCS} target="_blank" rel="noreferrer">
-            {t('官方文档')}
+            {t('ui.voice-mascot.official-docs')}
           </a>
         </div>
         <FormField
           label={t('API Key')}
           hint={
-            v.hasKey ? t('已保存（用系统安全存储加密，只存在本机，不会再显示）') : t('尚未保存')
+            v.hasKey
+              ? t('ui.voice-mascot.saved-encrypted-with-the-system-secure-storage-kept')
+              : t('ui.voice-mascot.not-saved-yet')
           }
         >
           <div className="cd-voice-row">
@@ -230,7 +230,11 @@ const VolcSection: React.FC<{
               type="password"
               autoComplete="off"
               value={key}
-              placeholder={v.hasKey ? t('输入新的 Key 可替换') : t('粘贴 API Key')}
+              placeholder={
+                v.hasKey
+                  ? t('ui.voice-mascot.enter-a-new-key-to-replace-it')
+                  : t('ui.voice-mascot.paste-your-api-key')
+              }
               onChange={(e) => setKey(e.target.value)}
               data-testid="voice-volc-key"
             />
@@ -244,13 +248,15 @@ const VolcSection: React.FC<{
                   if (r.ok) setKey('');
                   return {
                     ok: r.ok,
-                    text: r.ok ? t('API Key 已保存') : (r.error ?? t('保存失败')),
+                    text: r.ok
+                      ? t('ui.voice-mascot.api-key-saved')
+                      : (r.error ?? t('ui.voice-mascot.couldn-t-save')),
                   };
                 })
               }
               data-testid="voice-volc-key-save"
             >
-              {v.hasKey ? t('替换') : t('保存')}
+              {v.hasKey ? t('ui.voice-mascot.replace') : t('ui.foundation.save')}
             </Button>
             {v.hasKey && (
               <Button
@@ -260,20 +266,25 @@ const VolcSection: React.FC<{
                 onClick={() =>
                   void run(async () => {
                     await api.volcClearKey();
-                    return { ok: true, text: t('API Key 已清除') };
+                    return { ok: true, text: t('ui.voice-mascot.api-key-cleared') };
                   })
                 }
                 data-testid="voice-volc-key-clear"
               >
-                {t('清除')}
+                {t('ui.voice-mascot.clear')}
               </Button>
             )}
           </div>
         </FormField>
         {!v.canStoreKey && (
-          <Notice tone="danger">{t('系统安全存储不可用，无法保存 API Key。')}</Notice>
+          <Notice tone="danger">
+            {t('ui.voice-mascot.system-secure-storage-is-unavailable-so-the-api')}
+          </Notice>
         )}
-        <FormField label={t('资源版本')} hint={t('按你在控制台开通的版本选择；1.0 资源不适用')}>
+        <FormField
+          label={t('ui.voice-mascot.plan')}
+          hint={t('ui.voice-mascot.choose-the-plan-you-activated-in-the-console')}
+        >
           <Select
             value={s.volcResourceId}
             onChange={(e) => set({ volcResourceId: e.target.value })}
@@ -287,20 +298,20 @@ const VolcSection: React.FC<{
         <Switch
           checked={s.volcFallback}
           onChange={(on) => set({ volcFallback: on })}
-          label={t('云端识别失败时改用本地 whisper.cpp（不会自动下载）')}
+          label={t('ui.voice-mascot.if-cloud-recognition-fails-use-local-whisper-cpp')}
           data-testid="voice-volc-fallback"
         />
         {s.volcFallback && !v.fallbackReady && (
           <div className="cd-voice-hint" data-testid="voice-volc-fallback-missing">
-            {t('本地识别还没就绪：切换到「本地 whisper.cpp」下载引擎和模型后才能回退。')}
+            {t('ui.voice-mascot.local-recognition-isn-t-ready-switch-to-local')}
           </div>
         )}
-        <div className="cd-voice-hint">{t('唤醒词检测始终在本机进行，不会使用豆包。')}</div>
+        <div className="cd-voice-hint">
+          {t('ui.voice-mascot.wake-word-detection-always-runs-on-this-device')}
+        </div>
         {confirmTest ? (
           <Notice data-testid="voice-volc-test-confirm">
-            {t(
-              '将连接火山引擎并用你的 API Key 鉴权：只发送识别参数，不发送任何音频；服务商可能把这次连接计入用量或并发。',
-            )}
+            {t('ui.voice-mascot.this-connects-to-volcengine-and-authenticates-with-your')}
             <div className="cd-voice-row">
               <Button
                 size="sm"
@@ -315,10 +326,10 @@ const VolcSection: React.FC<{
                 }}
                 data-testid="voice-volc-test-go"
               >
-                {t('继续测试')}
+                {t('ui.voice-mascot.run-test')}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setConfirmTest(false)}>
-                {t('取消')}
+                {t('ui.foundation.cancel')}
               </Button>
             </div>
           </Notice>
@@ -329,7 +340,7 @@ const VolcSection: React.FC<{
             onClick={() => setConfirmTest(true)}
             data-testid="voice-volc-test"
           >
-            {t('测试连接')}
+            {t('ui.foundation.test-connection')}
           </Button>
         )}
         {msg && (
@@ -351,14 +362,21 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
   useEffect(
     () =>
       api.onProgress((e) => {
-        if (e.phase === 'error') setErrors((x) => ({ ...x, [e.id]: e.error || t('未知错误') }));
+        if (e.phase === 'error')
+          setErrors((x) => ({ ...x, [e.id]: e.error || t('ui.voice-mascot.unknown-error') }));
         if (e.phase === 'start' || e.phase === 'done') setErrors((x) => ({ ...x, [e.id]: '' }));
         onRefresh();
       }),
     [api, onRefresh],
   );
   if (!config)
-    return <LoadingState rows={4} label={t('加载语音设置…')} data-testid="voice-loading" />;
+    return (
+      <LoadingState
+        rows={4}
+        label={t('ui.voice-mascot.loading-voice-settings')}
+        data-testid="voice-loading"
+      />
+    );
   const s = config.settings;
   const set = (p: Partial<VoiceSettingsView>) => void api.setSettings(p).then(onRefresh);
   const engines = config.assets.filter((a) => a.kind === 'whisper-bin');
@@ -369,19 +387,24 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
   return (
     <div className="cd-voice-settings" data-testid="voice-settings">
       <SettingsGroup
-        title={t('语音输入')}
-        description={t(
-          '录音只在内存中处理，识别完立即丢弃，不保存音频。本地引擎完全离线；使用云端识别前会先征得你的同意。',
-        )}
+        title={t('ui.chat-settings.voice-input')}
+        description={t('ui.knowledge-local.recordings-are-processed-in-memory-only-and-discarded')}
         actions={
           <Badge tone={r.ok ? 'success' : 'warning'} data-testid="voice-readiness">
-            {r.ok ? t('可用 · {0}', r.local ? t('本地识别') : t('云端识别')) : t('尚未就绪')}
+            {r.ok
+              ? t(
+                  'ui.knowledge-local.ready',
+                  r.local
+                    ? t('ui.voice-mascot.local-recognition')
+                    : t('ui.voice-mascot.cloud-recognition'),
+                )
+              : t('ui.voice-mascot.not-ready-yet')}
           </Badge>
         }
       >
         {!r.ok && (
           <Notice tone="warning" className="cd-voice-ready">
-            <span>{r.message ?? t('尚未就绪')}</span>
+            <span>{r.message ?? t('ui.voice-mascot.not-ready-yet')}</span>
             {r.code === 'cloud_not_acked' && (
               <Button
                 size="sm"
@@ -389,35 +412,44 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
                 onClick={() => void api.ackCloud().then(onRefresh)}
                 data-testid="voice-ack-cloud"
               >
-                {t('同意发送录音')}
+                {t('ui.voice-mascot.agree-to-send-recordings')}
               </Button>
             )}
           </Notice>
         )}
-        <SettingRow title={t('识别引擎')}>
+        <SettingRow title={t('ui.voice-mascot.recognition-engine')}>
           <span className="cd-voice-ctrl">
             <Select
               size="sm"
               value={s.engine}
               onChange={(e) => set({ engine: e.target.value as VoiceSettingsView['engine'] })}
               options={[
-                { value: 'whisper-cpp', label: t('本地 whisper.cpp（离线，推荐）') },
-                { value: 'openai-compat', label: t('OpenAI 兼容服务（云端 / 本地服务）') },
-                { value: 'volc', label: t('豆包流式语音识别 2.0（云端，自带 API Key）') },
+                {
+                  value: 'whisper-cpp',
+                  label: t('ui.voice-mascot.local-whisper-cpp-offline-recommended'),
+                },
+                {
+                  value: 'openai-compat',
+                  label: t('ui.voice-mascot.openai-compatible-service-cloud-local-server'),
+                },
+                {
+                  value: 'volc',
+                  label: t('ui.voice-mascot.doubao-streaming-asr-2-0-cloud-your-own'),
+                },
               ]}
-              aria-label={t('识别引擎')}
+              aria-label={t('ui.voice-mascot.recognition-engine')}
               data-testid="voice-engine"
             />
           </span>
         </SettingRow>
-        <SettingRow title={t('语言')}>
+        <SettingRow title={t('ui.voice-mascot.language')}>
           <span className="cd-voice-ctrl">
             <Select
               size="sm"
               value={s.language}
               onChange={(e) => set({ language: e.target.value })}
               options={LANGS}
-              aria-label={t('语言')}
+              aria-label={t('ui.voice-mascot.language')}
               data-testid="voice-language"
             />
           </span>
@@ -427,24 +459,22 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
       {s.engine === 'whisper-cpp' ? (
         <>
           <SettingsGroup
-            title={t('本地引擎')}
+            title={t('ui.voice-mascot.local-engine')}
             description={
               <span data-testid="voice-cli">
                 {config.cli
                   ? t(
                       'whisper-cli：{0} · {1}',
                       config.cli.source === 'downloaded'
-                        ? t('已下载')
+                        ? t('ui.knowledge-local.downloaded')
                         : config.cli.source === 'path'
-                          ? t('系统 PATH')
-                          : t('自定义路径'),
+                          ? t('ui.voice-mascot.system-path')
+                          : t('ui.voice-mascot.custom-path'),
                       config.cli.path,
                     )
                   : engines.length
-                    ? t('还没有 whisper.cpp 引擎，下载后即可离线识别。')
-                    : t(
-                        '本平台没有官方预编译包：macOS 请 `brew install whisper-cpp`（会自动找到），或在下方填写 whisper-cli 路径。',
-                      )}
+                    ? t('ui.voice-mascot.no-whisper-cpp-engine-yet-download-it-for')
+                    : t('ui.voice-mascot.no-official-prebuilt-package-for-this-platform-on')}
               </span>
             }
           >
@@ -452,7 +482,10 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
               {engines.map((a) => (
                 <AssetRow key={a.id} a={a} api={api} error={errors[a.id]} />
               ))}
-              <FormField label={t('whisper-cli 路径（可选）')} hint={t('留空则自动查找')}>
+              <FormField
+                label={t('ui.voice-mascot.whisper-cli-path-optional')}
+                hint={t('ui.voice-mascot.leave-empty-to-auto-detect')}
+              >
                 <Input
                   defaultValue={s.whisperCliPath}
                   placeholder={
@@ -469,8 +502,8 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             </div>
           </SettingsGroup>
           <SettingsGroup
-            title={t('识别模型')}
-            description={t('模型越大越准，也越占空间和时间；下载后点选即可切换。')}
+            title={t('ui.voice-mascot.recognition-model')}
+            description={t('ui.knowledge-local.larger-models-are-more-accurate-but-use-more')}
           >
             <div className="cd-voice-section">
               {models.map((a) => (
@@ -489,16 +522,16 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
       ) : s.engine === 'volc' ? (
         <VolcSection api={api} config={config} set={set} onRefresh={onRefresh} />
       ) : (
-        <SettingsGroup title={t('OpenAI 兼容识别服务')}>
+        <SettingsGroup title={t('ui.voice-mascot.openai-compatible-recognition-service')}>
           <div className="cd-voice-section">
             <div className="cd-voice-grid">
               <FormField
-                label={t('使用供应商')}
-                hint={t('使用其 API Key 调用 /audio/transcriptions')}
+                label={t('ui.voice-mascot.use-provider')}
+                hint={t('ui.voice-mascot.calls-audio-transcriptions-with-its-api-key')}
               >
                 <Select
                   value={s.customBaseURL ? '__custom' : s.providerId}
-                  placeholder={t('选择已保存的供应商')}
+                  placeholder={t('ui.voice-mascot.choose-a-saved-provider')}
                   onChange={(e) =>
                     e.target.value === '__custom'
                       ? set({ customBaseURL: s.customBaseURL || 'http://127.0.0.1:8080/v1' })
@@ -508,14 +541,22 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
                     ...config.providers.map((p) => ({
                       value: p.id,
                       label: p.name,
-                      description: p.local ? t('本地') : t('云端'),
+                      description: p.local
+                        ? t('ui.providers-schedule.local')
+                        : t('ui.foundation.cloud'),
                     })),
-                    { value: '__custom', label: t('自定义地址（如本地 whisper.cpp server）') },
+                    {
+                      value: '__custom',
+                      label: t('ui.voice-mascot.custom-url-e-g-local-whisper-cpp-server'),
+                    },
                   ]}
                   data-testid="voice-provider"
                 />
               </FormField>
-              <FormField label={t('模型')} hint={t('如 whisper-1、gpt-4o-mini-transcribe')}>
+              <FormField
+                label={t('ui.foundation.model')}
+                hint={t('ui.voice-mascot.e-g-whisper-1-gpt-4o-mini-transcribe')}
+              >
                 <Input
                   defaultValue={s.cloudModel}
                   onBlur={(e) =>
@@ -527,8 +568,8 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             </div>
             {s.customBaseURL && (
               <FormField
-                label={t('服务地址')}
-                hint={t('填到 /v1 为止，会请求 {地址}/audio/transcriptions')}
+                label={t('ui.voice-mascot.server-url')}
+                hint={t('ui.voice-mascot.up-to-v1-requests-go-to-audio-transcriptions')}
               >
                 <Input
                   defaultValue={s.customBaseURL}
@@ -541,36 +582,41 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
         </SettingsGroup>
       )}
 
-      <SettingsGroup title={t('交互')}>
-        <SettingRow title={t('识别后自动发送')} description={t('关闭则填入输入框，便于修改。')}>
+      <SettingsGroup title={t('ui.voice-mascot.interaction')}>
+        <SettingRow
+          title={t('ui.knowledge-local.send-automatically-after-recognition')}
+          description={t('ui.knowledge-local.when-off-the-text-goes-into-the-input')}
+        >
           <Switch
             checked={s.autoSend}
             onChange={(v) => set({ autoSend: v })}
-            aria-label={t('识别后自动发送（关闭则填入输入框，便于修改）')}
+            aria-label={t(
+              'ui.voice-mascot.send-automatically-after-recognition-off-fill-the-input',
+            )}
             data-testid="voice-autosend"
           />
         </SettingRow>
         <SettingRow
-          title={t('开口即打断 Nomi 说话')}
-          description={t('Nomi 朗读时你一开口，朗读就停下（barge-in）。')}
+          title={t('ui.knowledge-local.interrupt-nomi-when-you-start-speaking')}
+          description={t('ui.knowledge-local.while-nomi-is-reading-aloud-speaking-stops-it')}
         >
           <Switch
             checked={s.bargeIn}
             onChange={(v) => set({ bargeIn: v })}
-            aria-label={t('开口即打断 Nomi 说话（barge-in）')}
+            aria-label={t('ui.voice-mascot.speaking-interrupts-nomi-barge-in')}
             data-testid="voice-bargein"
           />
         </SettingRow>
         <SettingRow
           title={t(
-            '免按键灵敏度：{0}',
+            'ui.mascot-theme.hands-free-sensitivity',
             s.vadThreshold <= 0.4
-              ? t('灵敏')
+              ? t('ui.mascot-theme.sensitive')
               : s.vadThreshold >= 0.65
-                ? t('稳妥（嘈杂环境）')
-                : t('适中'),
+                ? t('ui.mascot-theme.robust-noisy-places')
+                : t('ui.mascot-theme.moderate'),
           )}
-          description={t('越靠右越不容易被环境声误触发')}
+          description={t('ui.mascot-theme.further-right-less-likely-to-be-triggered-by')}
         >
           <input
             type="range"
@@ -580,7 +626,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             value={s.vadThreshold}
             onChange={(e) => set({ vadThreshold: Number(e.target.value) })}
             className="cd-voice-range"
-            aria-label={t('免按键灵敏度')}
+            aria-label={t('ui.knowledge-local.hands-free-sensitivity')}
             data-testid="voice-vad-threshold"
           />
         </SettingRow>
@@ -592,28 +638,30 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
       <SettingsGroup
         title={
           <>
-            {t('唤醒词')} <Badge tone="neutral">{t('实验')}</Badge>
+            {t('ui.mascot-theme.wake-word')}{' '}
+            <Badge tone="neutral">{t('ui.mascot-theme.experimental')}</Badge>
           </>
         }
-        description={t(
-          '开启后在后台持续监听麦克风（状态栏会一直显示「等待唤醒词」）。每句话只在本机用 whisper.cpp 检查是否为唤醒词，从不上传；需要先下载本地引擎与模型。',
-        )}
+        description={t('ui.mascot-theme.when-on-the-microphone-listens-continuously-in-the')}
       >
-        <SettingRow title={t('启用唤醒词')}>
+        <SettingRow title={t('ui.mascot-theme.enable-wake-word')}>
           <Switch
             checked={s.wakeWord.enabled}
             onChange={(v) => set({ wakeWord: { ...s.wakeWord, enabled: v } })}
-            aria-label={t('启用唤醒词')}
+            aria-label={t('ui.mascot-theme.enable-wake-word')}
             data-testid="voice-wake-enabled"
           />
         </SettingRow>
-        <SettingRow title={t('唤醒词')} description={t('2~8 个字，中英文都可以；避免日常高频词')}>
+        <SettingRow
+          title={t('ui.mascot-theme.wake-word')}
+          description={t('ui.mascot-theme.2-8-characters-chinese-or-english-avoid-common')}
+        >
           <span className="cd-voice-ctrl">
             <Input
               size="sm"
               defaultValue={s.wakeWord.phrase}
               maxLength={24}
-              aria-label={t('唤醒词')}
+              aria-label={t('ui.mascot-theme.wake-word')}
               onBlur={(e) =>
                 e.target.value.trim() &&
                 set({ wakeWord: { ...s.wakeWord, phrase: e.target.value.trim() } })
@@ -622,7 +670,7 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
             />
           </span>
         </SettingRow>
-        <SettingRow title={t('唤醒后等待指令')}>
+        <SettingRow title={t('ui.knowledge-local.wait-for-a-command-after-wake-word')}>
           <span className="cd-voice-ctrl cd-voice-ctrl--sm">
             <Select
               size="sm"
@@ -630,8 +678,11 @@ export const VoiceSettingsPanel: React.FC<VoiceSettingsPanelProps> = ({
               onChange={(e) =>
                 set({ wakeWord: { ...s.wakeWord, windowSec: Number(e.target.value) } })
               }
-              options={[5, 8, 12, 20].map((n) => ({ value: String(n), label: t('{0} 秒', n) }))}
-              aria-label={t('唤醒后等待指令（秒）')}
+              options={[5, 8, 12, 20].map((n) => ({
+                value: String(n),
+                label: t('ui.mascot-theme.s', n),
+              }))}
+              aria-label={t('ui.mascot-theme.wait-for-command-after-wake-seconds')}
             />
           </span>
         </SettingRow>

@@ -17,26 +17,26 @@ import base from './index.module.css';
 const OPTIONS: { id: StartupView; label: () => string; hint: () => string }[] = [
   {
     id: 'mascot',
-    label: () => t('诺米'),
-    hint: () => t('桌面上先出现 Nomi，需要时点她的「AI 对话」进入主界面（默认）。'),
+    label: () => t('ui.mascot-theme.nomi'),
+    hint: () => t('ui.mascot-theme.nomi-appears-on-your-desktop-first-click-her-71afa5'),
   },
   {
     id: 'main',
-    label: () => t('软件主界面'),
-    hint: () => t('启动后直接打开主界面；Nomi 仍在桌面待命，定时任务和提醒照常播报。'),
+    label: () => t('ui.mascot-theme.main-window'),
+    hint: () => t('ui.mascot-theme.open-the-main-window-right-after-launch-nomi'),
   },
 ];
 
 const CLOSE_OPTIONS: { id: CloseMainAction; label: () => string; hint: () => string }[] = [
   {
     id: 'hide',
-    label: () => t('隐藏到托盘'),
-    hint: () => t('只关闭主界面，Nomi 和托盘继续运行（默认）。'),
+    label: () => t('ui.mascot-theme.hide-to-tray'),
+    hint: () => t('ui.mascot-theme.only-the-main-window-closes-nomi-and-the'),
   },
   {
     id: 'quit',
-    label: () => t('退出 Nomi'),
-    hint: () => t('关闭主界面即完全退出，Nomi 和托盘一起关闭。'),
+    label: () => t('ui.mascot-theme.quit-nomi'),
+    hint: () => t('ui.mascot-theme.closing-the-main-window-quits-nomi-completely-including'),
   },
 ];
 
@@ -74,7 +74,11 @@ export const StartupSettings: React.FC<{
   }, []);
   if (!startupClient.available() || !view || !closeMain || showMascot === null)
     return language ? (
-      <SettingsGroup title={t('启动与窗口')} data-testid="settings-basic-group" id="settings-basic">
+      <SettingsGroup
+        title={t('ui.chat-settings.startup-windows')}
+        data-testid="settings-basic-group"
+        id="settings-basic"
+      >
         {language}
       </SettingsGroup>
     ) : null;
@@ -120,15 +124,19 @@ export const StartupSettings: React.FC<{
 
   return (
     <>
-      <SettingsGroup title={t('启动与窗口')} data-testid="settings-basic-group" id="settings-basic">
+      <SettingsGroup
+        title={t('ui.chat-settings.startup-windows')}
+        data-testid="settings-basic-group"
+        id="settings-basic"
+      >
         {language}
         <SettingRow
           data-testid="settings-startup"
-          title={t('启动 Nomi 后默认显示')}
-          description={[viewHint, t('下次启动生效。')].join(sep)}
+          title={t('ui.mascot-theme.show-on-startup')}
+          description={[viewHint, t('ui.mascot-theme.takes-effect-on-the-next-launch')].join(sep)}
         >
           <SegmentedControl
-            aria-label={t('启动 Nomi 后默认显示')}
+            aria-label={t('ui.mascot-theme.show-on-startup')}
             value={view}
             onChange={choose}
             options={OPTIONS.map((o) => ({
@@ -139,11 +147,13 @@ export const StartupSettings: React.FC<{
           />
         </SettingRow>
         <SettingRow
-          title={t('关闭主界面时')}
-          description={[closeHint, t('⌘Q（macOS）与托盘菜单里的「退出」始终完全退出。')].join(sep)}
+          title={t('ui.mascot-theme.when-closing-the-main-window')}
+          description={[closeHint, t('ui.chat-settings.q-macos-and-quit-in-the-tray-menu')].join(
+            sep,
+          )}
         >
           <SegmentedControl
-            aria-label={t('关闭主界面时')}
+            aria-label={t('ui.mascot-theme.when-closing-the-main-window')}
             data-testid="settings-close-main"
             value={closeMain}
             onChange={chooseClose}
@@ -156,29 +166,25 @@ export const StartupSettings: React.FC<{
         </SettingRow>
       </SettingsGroup>
 
-      <SettingsGroup title={t('桌面 Nomi')} data-testid="settings-mascot-group">
+      <SettingsGroup title={t('ui.mascot-theme.desktop-nomi')} data-testid="settings-mascot-group">
         <SettingRow
-          title={t('显示 Nomi')}
+          title={t('ui.mascot-theme.show-nomi')}
           description={
             view === 'mascot'
-              ? t(
-                  '关闭后 Nomi 从桌面隐藏、不再播放语音和监听唤醒词；启动后默认显示会自动改为「软件主界面」，保证随时能进入 Nomi。随时可在此重新打开。',
-                )
-              : t(
-                  '关闭后 Nomi 从桌面隐藏、不再播放语音和监听唤醒词；灵动岛和系统通知照常提醒。工具栏里的「关闭 Nomi」也会关掉这里，随时可在此重新打开。',
-                )
+              ? t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop')
+              : t('ui.mascot-theme.when-off-nomi-is-hidden-from-your-desktop-8398c1')
           }
         >
           <Switch
             checked={showMascot}
             onChange={toggleMascot}
-            aria-label={t('显示 Nomi')}
+            aria-label={t('ui.mascot-theme.show-nomi')}
             data-testid="startup-show-mascot"
           />
         </SettingRow>
         {switchedNotice && (
           <p className={base.muted} role="status" data-testid="startup-mascot-switched">
-            {t('Nomi 已关闭，启动后默认显示已改为「软件主界面」。')}
+            {t('ui.mascot-theme.nomi-is-closed-show-on-startup-has-been')}
           </p>
         )}
         {mascotSize?.(showMascot)}

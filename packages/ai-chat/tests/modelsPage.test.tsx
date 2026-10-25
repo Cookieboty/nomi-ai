@@ -137,18 +137,25 @@ function fakeMain(
         const p = args[1] as {
           models?: Record<string, string | null>;
           newTabSource?: 'official' | 'thirdParty';
+          newTabAccountId?: string | null;
         };
         const prev = state.clients[client] ?? { models: {} };
         const next = { ...prev.models, ...p.models } as Record<string, unknown>;
         for (const k of Object.keys(next)) if (next[k] == null) delete next[k];
+        const accountPatch = Object.prototype.hasOwnProperty.call(p, 'newTabAccountId')
+          ? { newTabAccountId: p.newTabAccountId }
+          : {};
         state.clients[client] = {
           ...prev,
           models: next,
           ...(p.newTabSource ? { newTabSource: p.newTabSource } : {}),
+          ...accountPatch,
         };
         changed?.();
         break;
       }
+      case 'ai:cli-account:list':
+        return [];
     }
     return undefined;
   });
@@ -804,33 +811,55 @@ describe('ModelsPage', () => {
       );
       pick('cli-main-codex', 'ds/v4');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['codex', { models: { main: 'ds/v4' } }]),
+        expect(assignments(m)).toContainEqual([
+          'codex',
+          {
+            models: { main: 'ds/v4' },
+            newTabSource: 'thirdParty',
+            newTabAccountId: null,
+          },
+        ]),
       );
       await waitFor(() => expect(m.state.clients.codex?.models.main).toBe('ds/v4'));
       pick('cli-main-codex', 'unset');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['codex', { models: { main: null } }]),
+        expect(assignments(m)).toContainEqual([
+          'codex',
+          { models: { main: null }, newTabSource: 'official' },
+        ]),
       );
     });
 
-    it('新标签默认用：没设主模型时「第三方」不可选；设了就能选，清掉主模型时退回官方', async () => {
+    it('新标签默认用：默认（本机登录）/ 官方账号（跟随默认或指定账号）/ 第三方供应商三组；选供应商带上模型，清主模型退回官方', async () => {
       const m = fakeMain();
       seed(m);
       render(<ModelsPage />);
       const src = (await screen.findByTestId('cli-source-grok')) as HTMLSelectElement;
-      const third = () =>
-        Array.from(src.options).find((o) => o.value === 'thirdParty') as HTMLOptionElement;
-      expect(third().disabled).toBe(true);
+      const values = () => Array.from(src.options).map((o) => o.value);
+      // 默认 = 本机登录；官方账号组有「跟随默认」；第三方组是具体供应商（不是一个笼统开关）
+      expect(values()).toContain('default');
+      expect(values()).toContain('follow');
+      expect(values()).toContain('provider:ds');
+      // 初始没有账号偏好时选中「跟随默认账号」
+      await waitFor(() => expect(src.value).toBe('follow'));
+      // 默认：本机 grok 自己的登录目录（local-grok）
+      pick('cli-source-grok', 'default');
       await waitFor(() =>
-        expect((screen.getByTestId('cli-main-grok') as HTMLSelectElement).disabled).toBe(false),
+        expect(assignments(m)).toContainEqual([
+          'grok',
+          { newTabSource: 'official', newTabAccountId: 'local-grok' },
+        ]),
       );
-      pick('cli-main-grok', 'ds/flash');
-      await waitFor(() => expect(third().disabled).toBe(false));
-      pick('cli-source-grok', 'thirdParty');
+      // 第三方供应商：自动带上该供应商第一个可用模型
+      pick('cli-source-grok', 'provider:ds');
       await waitFor(() =>
-        expect(assignments(m)).toContainEqual(['grok', { newTabSource: 'thirdParty' }]),
+        expect(assignments(m)).toContainEqual([
+          'grok',
+          { newTabSource: 'thirdParty', newTabAccountId: null, models: { main: 'ds/v4' } },
+        ]),
       );
       await waitFor(() => expect(m.state.clients.grok?.newTabSource).toBe('thirdParty'));
+      // 清掉主模型：没有可用第三方模型，回退到官方（跟随默认账号）
       pick('cli-main-grok', 'unset');
       await waitFor(() =>
         expect(assignments(m)).toContainEqual([

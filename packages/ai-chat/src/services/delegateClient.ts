@@ -62,13 +62,13 @@ export interface DelegateResult {
 export function delegateKindLabel(k: DelegateKind): string {
   switch (k) {
     case 'coding':
-      return t('编程开发');
+      return t('ui.chat-settings.coding');
     case 'prd':
-      return t('PRD / 需求文档');
+      return t('ui.chat-settings.prd-requirements');
     case 'review':
-      return t('代码审查');
+      return t('ui.slash-commands.code-review');
     case 'research':
-      return t('调研分析');
+      return t('ui.chat-settings.research');
   }
 }
 
@@ -101,7 +101,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('委派编程助手需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.handing-off-to-coding-assistants-needs-the-desktop'));
   const r = (await b.invoke(channel, ...args)) as T & { __error?: { message: string } };
   if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
   return r;
@@ -185,8 +185,5 @@ export async function clearTurnPin(turnId: string): Promise<void> {
 
 /** 发给 Nomi 模型的消息前面加的说明（界面上只显示用户原文和「交给 X」标记） */
 export function delegateDirective(name: string): string {
-  return t(
-    '用户指定把下面的需求交给 {0} 完成：请整理成具体的任务说明，调用 delegate_to_cli（默认后台，立刻返回 taskId；完成后可用 delegate_status 查看）。',
-    name,
-  );
+  return t('ui.session-workspace.the-user-wants-to-handle-the-request-below', name);
 }

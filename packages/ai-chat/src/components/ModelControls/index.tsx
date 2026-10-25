@@ -75,19 +75,19 @@ const EFFORT_ORDER: ReasoningEffort[] = [
 export function effortLabel(e: ReasoningEffort): string {
   switch (e) {
     case 'minimal':
-      return t('极简');
+      return t('ui.chat-settings.minimal');
     case 'low':
-      return t('低');
+      return t('ui.chat-settings.low');
     case 'medium':
-      return t('中');
+      return t('ui.chat-settings.medium');
     case 'high':
-      return t('高');
+      return t('ui.chat-settings.high');
     case 'xhigh':
-      return t('极高');
+      return t('ui.chat-settings.extra-high');
     case 'max':
-      return t('最高');
+      return t('ui.chat-settings.max');
     case 'ultra':
-      return t('极限');
+      return t('ui.chat-settings.ultra');
   }
 }
 
@@ -258,11 +258,11 @@ const EffortSlider: React.FC<{
         className={styles.slider}
         role="slider"
         tabIndex={0}
-        aria-label={t('思考深度')}
+        aria-label={t('ui.chat-settings.reasoning-effort')}
         aria-valuemin={0}
         aria-valuemax={levels.length - 1}
         aria-valuenow={idx < 0 ? undefined : idx}
-        aria-valuetext={value ? effortLabel(value) : t('默认')}
+        aria-valuetext={value ? effortLabel(value) : t('ui.providers-schedule.default')}
         data-testid="effort-slider"
         onKeyDown={(e) => {
           if (e.key === 'ArrowRight' || e.key === 'ArrowUp') step(idx < 0 ? 0 : idx + 1);
@@ -345,7 +345,8 @@ const ModelChip: React.FC<{
   // 第三方来源的目录：直接是模型列表，没有思考深度页
   const thirdParty = tabSourceOf(tab) === 'thirdParty';
   const provider =
-    catalog.provider ?? (thirdParty ? { id: 'gateway', name: t('第三方模型') } : null);
+    catalog.provider ??
+    (thirdParty ? { id: 'gateway', name: t('ui.models.third-party-models') } : null);
   const currentModel = useMemo(
     () => catalog.models.find((m) => m.id === current) ?? null,
     [catalog, current],
@@ -374,7 +375,9 @@ const ModelChip: React.FC<{
 
   const defaultLabel = catalog.defaultModel?.label ?? catalog.defaultModel?.id;
   // 没选模型时显示 CLI 默认用的那个模型名（浮层里再标「默认」）
-  const modelLabel = current ? (currentModel?.label ?? current) : (defaultLabel ?? t('默认模型'));
+  const modelLabel = current
+    ? (currentModel?.label ?? current)
+    : (defaultLabel ?? t('ui.providers-schedule.default-model'));
   // 没有显式覆盖时也显示 CLI 的实际默认档位，让底部按钮直接反映当前设置。
   const chipEffort = effort ?? defaultEffort;
   const shortLabel = chipEffort ? `${modelLabel} · ${effortLabel(chipEffort)}` : modelLabel;
@@ -389,8 +392,11 @@ const ModelChip: React.FC<{
   const defaultAccount = accounts.find((a) => a.active);
   const pinnedAccount = tab.accountId ? accounts.find((a) => a.id === tab.accountId) : undefined;
   const accountLabel = tab.accountId
-    ? (pinnedAccount?.label ?? t('已删除的账号'))
-    : t('跟随默认（{0}）', defaultAccount?.label ?? t('本机登录'));
+    ? (pinnedAccount?.label ?? t('ui.models.removed-account'))
+    : t(
+        'ui.models.follow-default',
+        defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in'),
+      );
 
   useEffect(() => {
     if (!open || !accountKind) return;
@@ -468,10 +474,10 @@ const ModelChip: React.FC<{
         aria-expanded={open}
         aria-label={
           provider
-            ? t('模型（{0}）：{1}', provider.name, shortLabel)
-            : t('模型与思考深度：{0}', shortLabel)
+            ? t('ui.chat-settings.model', provider.name, shortLabel)
+            : t('ui.chat-settings.model-and-reasoning-effort', shortLabel)
         }
-        title={t('下一条消息起生效，仅影响当前标签')}
+        title={t('ui.chat-settings.takes-effect-from-the-next-message-current-tab')}
         data-testid="model-chip"
         onClick={toggle}
       >
@@ -489,7 +495,11 @@ const ModelChip: React.FC<{
           btnRef={btnRef}
           menuRef={menuRef}
           onClose={() => setOpen(false)}
-          label={provider ? t('模型') : t('模型与思考深度')}
+          label={
+            provider
+              ? t('ui.foundation.model')
+              : t('ui.chat-settings.model-and-reasoning-effort-70cfa8')
+          }
           testId="model-menu"
           width={300}
         >
@@ -498,7 +508,9 @@ const ModelChip: React.FC<{
               {reasoningSupported ? (
                 <>
                   <div className={styles.effortHead}>
-                    <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
+                    <span className={styles.effortHeadLabel}>
+                      {t('ui.chat-settings.reasoning-effort')}
+                    </span>
                     {effort && (
                       <button
                         type="button"
@@ -506,7 +518,7 @@ const ModelChip: React.FC<{
                         data-testid="effort-default"
                         onClick={() => pickEffort(null)}
                       >
-                        {t('恢复默认')}
+                        {t('ui.providers-schedule.restore-defaults')}
                       </button>
                     )}
                   </div>
@@ -522,14 +534,16 @@ const ModelChip: React.FC<{
                   className={`${styles.effortHead} ${styles.effortUnavailable}`}
                   data-testid="effort-unavailable"
                 >
-                  <span className={styles.effortHeadLabel}>{t('思考深度')}</span>
+                  <span className={styles.effortHeadLabel}>
+                    {t('ui.chat-settings.reasoning-effort')}
+                  </span>
                   <p className={styles.effortHint} data-testid="effort-hint" role="status">
                     {backendBlocksEffort
                       ? t(
-                          '{0} 没有文档化的思考深度控制，这里不会假装可调',
+                          'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
                           backendName || tab.backend,
                         )
-                      : t('当前模型无思考深度')}
+                      : t('ui.chat-settings.this-model-has-no-reasoning-effort')}
                   </p>
                 </div>
               )}
@@ -537,10 +551,10 @@ const ModelChip: React.FC<{
                 type="button"
                 className={styles.modelRow}
                 data-testid="model-open"
-                aria-label={t('切换模型：{0}', modelLabel)}
+                aria-label={t('ui.chat-settings.switch-model', modelLabel)}
                 onClick={() => setView('model')}
               >
-                <span className={styles.modelRowLabel}>{t('模型')}</span>
+                <span className={styles.modelRowLabel}>{t('ui.foundation.model')}</span>
                 <span className={styles.modelRowValue}>
                   <span className={styles.modelLinkText}>{modelLabel}</span>
                 </span>
@@ -551,10 +565,10 @@ const ModelChip: React.FC<{
                   type="button"
                   className={styles.modelRow}
                   data-testid="account-open"
-                  aria-label={t('切换官方账号：{0}', accountLabel)}
+                  aria-label={t('ui.models.switch-official-account', accountLabel)}
                   onClick={() => setView('account')}
                 >
-                  <span className={styles.modelRowLabel}>{t('账号')}</span>
+                  <span className={styles.modelRowLabel}>{t('ui.models.account')}</span>
                   <span className={styles.modelRowValue}>
                     <span className={styles.modelLinkText}>{accountLabel}</span>
                   </span>
@@ -572,10 +586,14 @@ const ModelChip: React.FC<{
                   onClick={() => setView('effort')}
                 >
                   <Icon icon={ChevronLeft} size={14} />
-                  {t('官方账号')}
+                  {t('ui.chat-settings.official-accounts')}
                 </button>
               </div>
-              <div className={styles.models} role="listbox" aria-label={t('官方账号')}>
+              <div
+                className={styles.models}
+                role="listbox"
+                aria-label={t('ui.chat-settings.official-accounts')}
+              >
                 <button
                   type="button"
                   role="option"
@@ -584,8 +602,12 @@ const ModelChip: React.FC<{
                   data-testid="account-default"
                   onClick={() => pickAccount(null)}
                 >
-                  <span className={styles.itemLabel}>{t('跟随默认账号')}</span>
-                  <span className={styles.itemHint}>{defaultAccount?.label ?? t('本机登录')}</span>
+                  <span className={styles.itemLabel}>
+                    {t('ui.models.follow-the-default-account')}
+                  </span>
+                  <span className={styles.itemHint}>
+                    {defaultAccount?.label ?? t('ui.models.this-computer-s-sign-in')}
+                  </span>
                   {!tab.accountId && <Icon icon={Check} size={14} />}
                 </button>
                 {accounts.map((a) => (
@@ -602,7 +624,7 @@ const ModelChip: React.FC<{
                   >
                     <span className={styles.itemLabel}>{a.label}</span>
                     <span className={styles.itemHint}>
-                      {a.loggedIn ? (a.identity?.plan ?? '') : t('未登录')}
+                      {a.loggedIn ? (a.identity?.plan ?? '') : t('ui.models.not-signed-in')}
                     </span>
                     {tab.accountId === a.id && <Icon icon={Check} size={14} />}
                   </button>
@@ -614,7 +636,7 @@ const ModelChip: React.FC<{
               <div className={styles.modelHead}>
                 {provider ? (
                   <span className={styles.back} data-testid="model-provider">
-                    {t('{0} 的模型', provider.name)}
+                    {t('ui.chat-settings.models', provider.name)}
                   </span>
                 ) : (
                   <button
@@ -624,7 +646,7 @@ const ModelChip: React.FC<{
                     onClick={() => setView('effort')}
                   >
                     <Icon icon={ChevronLeft} size={14} />
-                    {t('模型')}
+                    {t('ui.foundation.model')}
                   </button>
                 )}
                 <button
@@ -632,8 +654,8 @@ const ModelChip: React.FC<{
                   className={styles.back}
                   data-testid="model-refresh"
                   disabled={refreshing}
-                  aria-label={t('重新从 {0} 读取模型列表', sourceName)}
-                  title={t('重新从 {0} 读取模型列表', sourceName)}
+                  aria-label={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
+                  title={t('ui.chat-settings.reload-the-model-list-from', sourceName)}
                   onClick={onRefresh}
                 >
                   <span className={refreshing ? styles.spin : undefined}>
@@ -643,12 +665,19 @@ const ModelChip: React.FC<{
               </div>
               {catalog.error && (
                 <div className={styles.modelError} role="status" data-testid="model-error">
-                  {t('没能从 {0} 读到模型列表：{1}', sourceName, catalog.error)}
+                  {t(
+                    'ui.chat-settings.couldn-t-read-the-model-list-from',
+                    sourceName,
+                    catalog.error,
+                  )}
                 </div>
               )}
               {backendBlocksEffort && (
                 <div className={styles.effortHint} role="status" data-testid="effort-hint">
-                  {t('{0} 没有文档化的思考深度控制，这里不会假装可调', backendName || tab.backend)}
+                  {t(
+                    'ui.chat-settings.has-no-documented-reasoning-effort-control-nomi-will',
+                    backendName || tab.backend,
+                  )}
                 </div>
               )}
               {searchable && (
@@ -669,12 +698,12 @@ const ModelChip: React.FC<{
                       setQuery('');
                     }
                   }}
-                  placeholder={t('搜索模型')}
-                  aria-label={t('搜索模型')}
+                  placeholder={t('ui.session-workspace.search-models')}
+                  aria-label={t('ui.session-workspace.search-models')}
                   data-testid="model-search"
                 />
               )}
-              <div className={styles.models} role="listbox" aria-label={t('模型')}>
+              <div className={styles.models} role="listbox" aria-label={t('ui.foundation.model')}>
                 {!q && (
                   <button
                     type="button"
@@ -682,17 +711,19 @@ const ModelChip: React.FC<{
                     aria-selected={!current}
                     className={styles.item}
                     data-testid="model-default"
-                    title={t('跟随 {0} 自己的选择', sourceName)}
+                    title={t('ui.chat-settings.follows-s-own-choice', sourceName)}
                     onClick={() => pickModel('')}
                   >
-                    <span className={styles.itemLabel}>{t('默认模型')}</span>
+                    <span className={styles.itemLabel}>
+                      {t('ui.providers-schedule.default-model')}
+                    </span>
                     <span className={styles.itemHint}>{defaultLabel ?? sourceName}</span>
                     {!current && <Icon icon={Check} size={14} />}
                   </button>
                 )}
                 {q && !shownModels.length && (
                   <div className={styles.modelError} role="status" data-testid="model-search-empty">
-                    {t('没有匹配「{0}」的模型', query.trim())}
+                    {t('ui.session-workspace.no-models-match', query.trim())}
                   </div>
                 )}
                 {shownModels.map((m) => (
@@ -708,7 +739,9 @@ const ModelChip: React.FC<{
                   >
                     <span className={styles.itemLabel}>{m.label ?? m.id}</span>
                     {!m.reasoning && !provider && (
-                      <span className={styles.itemHint}>{t('无思考深度')}</span>
+                      <span className={styles.itemHint}>
+                        {t('ui.chat-settings.no-reasoning-effort')}
+                      </span>
                     )}
                     {current === m.id && <Icon icon={Check} size={14} />}
                   </button>
@@ -723,7 +756,7 @@ const ModelChip: React.FC<{
                     onClick={() => pickModel(current)}
                   >
                     <span className={styles.itemLabel}>{current}</span>
-                    <span className={styles.itemHint}>{t('自定义')}</span>
+                    <span className={styles.itemHint}>{t('ui.providers-schedule.custom')}</span>
                     <Icon icon={Check} size={14} />
                   </button>
                 )}
@@ -745,8 +778,8 @@ const ModelChip: React.FC<{
                         className={styles.customInput}
                         value={customName}
                         onChange={(e) => setCustomName(e.target.value)}
-                        placeholder={t('模型 id')}
-                        aria-label={t('自定义模型 id')}
+                        placeholder={t('ui.chat-settings.model-id')}
+                        aria-label={t('ui.chat-settings.custom-model-id')}
                         maxLength={128}
                         data-testid="model-custom-input"
                       />
@@ -756,7 +789,7 @@ const ModelChip: React.FC<{
                         disabled={!customName.trim()}
                         data-testid="model-custom-ok"
                       >
-                        {t('使用')}
+                        {t('ui.chat-settings.use')}
                       </button>
                     </form>
                   ) : (
@@ -770,7 +803,7 @@ const ModelChip: React.FC<{
                       }}
                     >
                       <Icon icon={PencilLine} size={13} />
-                      {t('自定义模型 id')}
+                      {t('ui.chat-settings.custom-model-id')}
                     </button>
                   )}
                 </div>
@@ -794,7 +827,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
     return () => clearTimeout(id);
   }, []);
   if (!show) return null;
-  const label = tab.modelOverride?.trim() || t('默认模型');
+  const label = tab.modelOverride?.trim() || t('ui.providers-schedule.default-model');
   return (
     <div className={styles.wrap}>
       <button
@@ -803,7 +836,7 @@ const LoadingChip: React.FC<{ tab: HarnessTabMeta }> = ({ tab }) => {
         disabled
         aria-busy="true"
         aria-label={t(
-          '正在从 {0} 读取模型列表',
+          'ui.chat-settings.reading-the-model-list-from',
           ENDPOINT_NAME[tab.backend as keyof typeof ENDPOINT_NAME],
         )}
         data-testid="model-chip-loading"

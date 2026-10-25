@@ -21,9 +21,9 @@ import styles from './index.module.css';
 type Item = MigrateMcpItem | MigrateSkillItem;
 
 const ACTIONS = (): Array<{ value: MigrateAction; label: string }> => [
-  { value: 'skip', label: tr('跳过') },
-  { value: 'rename', label: tr('重命名导入') },
-  { value: 'overwrite', label: tr('覆盖已有') },
+  { value: 'skip', label: tr('ui.foundation.skip') },
+  { value: 'rename', label: tr('ui.foundation.import-with-a-new-name') },
+  { value: 'overwrite', label: tr('ui.foundation.overwrite-existing') },
 ];
 
 const kb = (b: number) => (b < 1024 ? `${b} B` : `${(b / 1024).toFixed(1)} KB`);
@@ -97,20 +97,20 @@ export const MigrateDialog: React.FC<{
           checked={!!picked[it.key] && !it.error}
           disabled={!!it.error}
           onChange={(e) => setPicked({ ...picked, [it.key]: e.target.checked })}
-          aria-label={tr('导入 {0}', it.name)}
+          aria-label={tr('ui.foundation.import-cdd32a', it.name)}
           data-testid={`migrate-check-${it.key}`}
         />
         <b className={styles.grow}>{it.name}</b>
         <Badge tone="neutral">{TOOL_LABEL[it.tool]}</Badge>
         <Badge tone="neutral">{tr(SCOPE_LABEL[it.scope])}</Badge>
-        {it.conflict && <Badge tone="accent">{tr('已有同名')}</Badge>}
+        {it.conflict && <Badge tone="accent">{tr('ui.foundation.name-taken')}</Badge>}
         <button
           type="button"
           className={styles.expand}
           onClick={() => setExpanded(expanded === it.key ? null : it.key)}
           aria-expanded={expanded === it.key}
         >
-          {tr('预览')}
+          {tr('ui.foundation.preview')}
         </button>
       </div>
       <div className={styles.meta}>{it.where}</div>
@@ -123,7 +123,9 @@ export const MigrateDialog: React.FC<{
       {it.conflict && picked[it.key] && !it.error && (
         <div className={styles.row}>
           <span className={styles.hint}>
-            {it.kind === 'mcp' ? tr('Nomi 里已有同名服务器：') : tr('Nomi 里已有同名技能：')}
+            {it.kind === 'mcp'
+              ? tr('ui.foundation.nomi-already-has-a-server-with-this-name')
+              : tr('ui.foundation.nomi-already-has-a-skill-with-this-name')}
           </span>
           <div className={styles.selectBox}>
             <Select
@@ -146,7 +148,7 @@ export const MigrateDialog: React.FC<{
                 it.preview.description,
                 '',
                 tr(
-                  '文件：{0}（{1}）',
+                  'ui.foundation.files',
                   ['SKILL.md', ...it.preview.files].join('、'),
                   kb(it.preview.bytes),
                 ),
@@ -163,7 +165,7 @@ export const MigrateDialog: React.FC<{
       open={open}
       onClose={onClose}
       size="lg"
-      title={tr('从其他工具导入')}
+      title={tr('ui.foundation.import-from-other-tools')}
       data-testid="migrate-dialog"
       footer={
         <div className={styles.row}>
@@ -172,10 +174,14 @@ export const MigrateDialog: React.FC<{
             disabled={busy}
             data-testid="migrate-pick-project"
           >
-            {scan?.project ? tr('更换项目文件夹…') : tr('添加项目文件夹…')}
+            {scan?.project
+              ? tr('ui.foundation.change-project-folder')
+              : tr('ui.foundation.add-project-folder')}
           </Button>
           <span className={styles.grow} />
-          <Button onClick={onClose}>{result ? tr('完成') : tr('取消')}</Button>
+          <Button onClick={onClose}>
+            {result ? tr('ui.usage-tools.done') : tr('ui.foundation.cancel')}
+          </Button>
           {!result && (
             <Button
               variant="primary"
@@ -183,7 +189,7 @@ export const MigrateDialog: React.FC<{
               onClick={() => void doImport()}
               data-testid="migrate-import"
             >
-              {tr('导入所选（{0}）', chosen.length)}
+              {tr('ui.foundation.import-selected', chosen.length)}
             </Button>
           )}
         </div>
@@ -191,19 +197,17 @@ export const MigrateDialog: React.FC<{
     >
       <div className={styles.stack}>
         <p className={styles.hint}>
-          {tr(
-            '读取本机 Claude Code（~/.claude.json、.mcp.json、~/.claude/skills）和 Codex（~/.codex/config.toml、~/.agents/skills）的配置。MCP 服务器导入后默认不连接；密钥用系统安全存储加密保存；技能会复制一份到 Nomi 的技能文件夹，原文件不受影响。',
-          )}
+          {tr('ui.foundation.reads-your-local-claude-code-claude-json-mcp')}
         </p>
         {scan?.project && (
           <p className={styles.hint}>
-            {tr('项目文件夹：{0}', scan.project)}{' '}
+            {tr('ui.foundation.project-folder', scan.project)}{' '}
             <button
               type="button"
               className={styles.expand}
               onClick={() => void doScan({ clearProject: true })}
             >
-              {tr('移除')}
+              {tr('ui.knowledge-local.remove')}
             </button>
           </p>
         )}
@@ -212,7 +216,7 @@ export const MigrateDialog: React.FC<{
         {result && (
           <Notice tone={result.failed.length ? 'warning' : 'success'} data-testid="migrate-result">
             {tr(
-              '已导入 {0} 项，跳过 {1} 项，失败 {2} 项。',
+              'ui.foundation.imported-skipped-failed',
               result.imported.length,
               result.skipped.length,
               result.failed.length,
@@ -236,14 +240,18 @@ export const MigrateDialog: React.FC<{
             {items.length === 0 ? (
               <Notice tone="info" data-testid="migrate-empty">
                 {found.length
-                  ? tr('找到了配置文件，但里面没有可导入的 MCP 服务器或技能。')
-                  : tr('没有找到 Claude Code 或 Codex 的配置。可以添加项目文件夹再试。')}
+                  ? tr('ui.foundation.found-config-files-but-there-are-no-mcp')
+                  : tr('ui.foundation.no-claude-code-or-codex-settings-found-try')}
               </Notice>
             ) : (
               <div className={styles.list}>
-                {scan.mcp.length > 0 && <b className={styles.hint}>{tr('MCP 服务器')}</b>}
+                {scan.mcp.length > 0 && (
+                  <b className={styles.hint}>{tr('ui.foundation.mcp-servers-ad57a8')}</b>
+                )}
                 {scan.mcp.map(row)}
-                {scan.skills.length > 0 && <b className={styles.hint}>{tr('技能')}</b>}
+                {scan.skills.length > 0 && (
+                  <b className={styles.hint}>{tr('ui.foundation.skills-53da13')}</b>
+                )}
                 {scan.skills.map(row)}
               </div>
             )}

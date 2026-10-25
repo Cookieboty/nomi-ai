@@ -22,13 +22,13 @@ export const DEFAULT_EXCLUSIONS = [
   'Bitwarden',
   'KeePass',
   'LastPass',
-  '密码',
+  'electron.common.password',
   'Password',
-  '无痕',
+  'electron.common.incognito',
   'InPrivate',
   'Incognito',
-  '隐私浏览',
-  '银行',
+  'electron.common.private-browsing',
+  'electron.common.bank',
   'Bank',
 ];
 

@@ -77,4 +77,4 @@ export function executePlanEvent(
 }
 
 /** 批准计划后要发给 Claude 的跟进提示（Codex/dsh/Grok 点「按此方案执行」时用） */
-export const EXECUTE_PLAN_FOLLOW_UP = '按上述计划实施';
+export const EXECUTE_PLAN_FOLLOW_UP = 'electron.common.implement-the-plan-above';

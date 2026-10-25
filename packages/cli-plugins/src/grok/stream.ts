@@ -114,7 +114,7 @@ export function parseGrokLine(line: string): HarnessEvent[] {
       ];
     }
     case 'error':
-      return [{ type: 'error', message: str(j.message) || t('Grok 错误') }];
+      return [{ type: 'error', message: str(j.message) || t('electron.common.grok-error') }];
     case 'thought': {
       const data = str(j.data) || str(j.text);
       return data ? [{ type: 'thinking', text: clip(data, MAX_THINKING) }] : [];

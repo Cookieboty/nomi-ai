@@ -27,7 +27,7 @@ async function loadSourceMessages(
   sourceId: string,
 ): Promise<{ meta: NonNullable<ReturnType<ConversationStore['get']>>; messages: ChatMessage[] }> {
   const meta = store.get(sourceId);
-  if (!meta) throw new Error(t('会话不存在'));
+  if (!meta) throw new Error(t('ui.cli-monitor.conversation-not-found'));
   if (meta.tabId) {
     const list = await harnessClient.tabMessages(meta.tabId);
     const messages: ChatMessage[] = list.map((m) => ({
@@ -58,7 +58,7 @@ export async function forkSameBackend(
   opts: { cwd?: string } = {},
 ): Promise<ForkResult> {
   const { meta, messages } = await loadSourceMessages(store, sourceId);
-  const title = t('{0} (副本)', meta.name);
+  const title = t('ui.cli-monitor.copy', meta.name);
 
   if (isCliBackend(meta.backend)) {
     // 副本默认沿用源标签的工作目录

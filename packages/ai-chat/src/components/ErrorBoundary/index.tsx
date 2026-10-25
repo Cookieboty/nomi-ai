@@ -43,12 +43,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className={styles.errorIcon}>
               <Icon icon={TriangleAlert} size={36} />
             </div>
-            <h2 className={styles.errorTitle}>{t('出现了一些问题')}</h2>
-            <p className={styles.errorMessage}>{t('AI对话应用遇到了意外错误，请尝试重新加载。')}</p>
+            <h2 className={styles.errorTitle}>{t('ui.foundation.something-went-wrong')}</h2>
+            <p className={styles.errorMessage}>
+              {t('ui.foundation.the-chat-app-ran-into-an-unexpected-error')}
+            </p>
 
             {this.state.error && (
               <details className={styles.errorDetails}>
-                <summary>{t('错误详情')}</summary>
+                <summary>{t('ui.foundation.error-details')}</summary>
                 <pre className={styles.errorStack}>
                   {this.state.error.toString()}
                   {this.state.errorInfo?.componentStack}
@@ -58,10 +60,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className={styles.errorActions}>
               <button className={styles.reloadButton} onClick={this.handleReload}>
-                {t('重新加载')}
+                {t('ui.foundation.reload')}
               </button>
               <button className={styles.refreshButton} onClick={() => window.location.reload()}>
-                {t('刷新页面')}
+                {t('ui.foundation.refresh-page')}
               </button>
             </div>
           </div>

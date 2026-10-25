@@ -183,7 +183,7 @@ export class ScreenService {
     this.reschedule();
     this.applyHotkey();
     if (!was && this.settings.enabled) {
-      this.d.desktop.say(t('好的，我会在本机记下屏幕上的文字，敏感窗口会自动跳过，随时可以暂停～'));
+      this.d.desktop.say(t('electron.common.ok-i-ll-keep-a-local-record-of'));
       broadcastMascotCommand({ type: 'motion', name: 'nod' });
     }
     this.d.desktop.audit.append({
@@ -211,7 +211,7 @@ export class ScreenService {
       thumbnailSize: { width: w, height: h },
     });
     const s = sources.find((x) => x.display_id === String(display.id)) ?? sources[0];
-    if (!s) throw new Error(t('无法读取屏幕（可能需要在系统设置里授予屏幕录制权限）'));
+    if (!s) throw new Error(t('electron.common.can-t-read-the-screen-screen-recording-permission'));
     return s.thumbnail;
   }
 
@@ -329,7 +329,7 @@ export class ScreenService {
         win.webContents.once('did-finish-load', () => setTimeout(send, 400));
       else send();
     } catch (e) {
-      this.d.desktop.say(t('截图失败：{0}', (e as Error).message));
+      this.d.desktop.say(t('electron.common.screenshot-failed', (e as Error).message));
     }
   }
 
@@ -457,23 +457,29 @@ export class ScreenService {
   /** 给模型用的工具：搜索本机屏幕记忆（仅在开启后可用） */
   tools(): ToolDefinition[] {
     const input = z
-      .object({ query: z.string().min(1).max(200).describe(t('要找的文字或话题')) })
+      .object({
+        query: z.string().min(1).max(200).describe(t('electron.common.text-or-topic-to-find')),
+      })
       .strict();
     return [
       {
         name: 'screen_memory_search',
-        description: t(
-          '搜索用户本机的「屏幕记忆」（之前屏幕上出现过的文字）。仅当用户问“我之前在屏幕上看到的…”之类问题时使用。',
-        ),
+        description: t('electron.common.search-the-user-s-local-screen-memory-text'),
         input,
         execute: async (raw: unknown, ctx?: ToolExecContext) => {
           if (!this.settings.enabled)
-            return { ok: false, error: { code: 'disabled', message: t('用户没有开启屏幕记忆') } };
+            return {
+              ok: false,
+              error: {
+                code: 'disabled',
+                message: t('electron.common.the-user-hasn-t-turned-on-screen-memory'),
+              },
+            };
           const { query } = input.parse(raw);
           const send = await this.d.desktop.checkSendAll(
             this.d.desktop.receiversFor(ctx?.provider, ['chat', 'agent-tools']),
             ctx?.signal,
-            t('屏幕记忆文字'),
+            t('electron.common.screen-memory-text'),
           );
           if (send)
             return {
@@ -481,7 +487,9 @@ export class ScreenService {
               error: {
                 code: send,
                 message:
-                  send === 'local_only' ? t('仅本地模式：不能发给云端模型') : t('用户拒绝发送'),
+                  send === 'local_only'
+                    ? t('electron.common.local-only-mode-can-t-send-to-a')
+                    : t('electron.common.the-user-declined-to-send'),
               },
             };
           const hits = this.search(query, 5).map((e) => ({
@@ -527,7 +535,7 @@ export class ScreenService {
       const r = await this.d.desktop.broker.checkSend(
         this.d.desktop.providerFor('chat'),
         undefined,
-        t('图片 / 截图'),
+        t('electron.common.images-screenshots'),
       );
       return r ?? 'ok';
     });

@@ -23,8 +23,8 @@ export const OCR_ASSETS: readonly OcrAsset[] = Object.freeze([
   {
     id: 'ocr-eng',
     lang: 'eng',
-    name: 'OCR 英文识别数据',
-    description: 'Tesseract 英文（快速版）语言模型，用于识别图片与扫描件中的英文。',
+    name: 'electron.common.ocr-english-data',
+    description: 'electron.common.tesseract-english-fast-language-model-for-recognizing-english',
     url: `${RAW}/eng.traineddata`,
     sha256: '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2',
     bytes: 4113088,
@@ -36,8 +36,8 @@ export const OCR_ASSETS: readonly OcrAsset[] = Object.freeze([
   {
     id: 'ocr-chi_sim',
     lang: 'chi_sim',
-    name: 'OCR 简体中文识别数据',
-    description: 'Tesseract 简体中文（快速版）语言模型，用于识别图片与扫描件中的中文。',
+    name: 'electron.common.ocr-simplified-chinese-data',
+    description: 'electron.common.tesseract-simplified-chinese-fast-language-model-for-recognizing',
     url: `${RAW}/chi_sim.traineddata`,
     sha256: 'a5fcb6f0db1e1d6d8522f39db4e848f05984669172e584e8d76b6b3141e1f730',
     bytes: 2469156,

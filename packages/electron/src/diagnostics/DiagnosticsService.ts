@@ -193,7 +193,7 @@ export class DiagnosticsService {
 async function pickSavePath(defaultName: string): Promise<string | null> {
   const win = BrowserWindow.getFocusedWindow();
   const opts = {
-    title: t('导出诊断包'),
+    title: t('electron.common.export-diagnostics-bundle'),
     defaultPath: defaultName,
     filters: [{ name: 'Zip', extensions: ['zip'] }],
   };

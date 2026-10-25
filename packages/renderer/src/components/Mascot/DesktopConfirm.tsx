@@ -12,15 +12,15 @@ const DANGER: Record<
   DesktopConfirmRequest['danger'],
   { label: string; tone: 'neutral' | 'warning' | 'danger' }
 > = {
-  read: { label: '读取', tone: 'neutral' },
-  write: { label: '写入', tone: 'warning' },
-  destructive: { label: '破坏性', tone: 'danger' },
+  read: { label: 'ui.chat-settings.read', tone: 'neutral' },
+  write: { label: 'ui.chat-settings.write', tone: 'warning' },
+  destructive: { label: 'ui.foundation.destructive', tone: 'danger' },
 };
 
 const REASON: Record<string, string> = {
-  tainted: '这一轮刚读过文件内容，为防止文件里的内容诱导操作，需要再次确认。',
-  destructive: '破坏性操作必须在这里确认（会移到回收站，可撤销）。',
-  'first-use': '本次运行第一次使用这个工具。',
+  tainted: 'ui.chat-settings.file-contents-were-just-read-this-turn-to',
+  destructive: 'ui.chat-settings.destructive-actions-must-be-confirmed-here-moved-to',
+  'first-use': 'ui.chat-settings.first-use-of-this-tool-this-session',
   policy: '',
 };
 
@@ -175,7 +175,7 @@ export const DesktopConfirm: React.FC = () => {
           <Badge tone={d.tone}>{tr(d.label)}</Badge>
           <span>
             {left}
-            {tr('s 后自动拒绝')}
+            {tr('ui.chat-settings.s-until-auto-deny')}
           </span>
         </div>
         <div className={styles.actions}>
@@ -186,11 +186,11 @@ export const DesktopConfirm: React.FC = () => {
               onClick={() => answer(true)}
               data-testid="desktop-confirm-allow"
             >
-              {tr('允许')}
+              {tr('ui.chat-settings.allow')}
             </Button>
           )}
           <Button size="sm" onClick={() => setDetail(true)} data-testid="desktop-confirm-details">
-            {tr('查看详情')}
+            {tr('ui.chat-settings.view-details')}
           </Button>
           <Button
             size="sm"
@@ -198,7 +198,7 @@ export const DesktopConfirm: React.FC = () => {
             onClick={() => answer(false)}
             data-testid="desktop-confirm-deny"
           >
-            {tr('拒绝')}
+            {tr('ui.chat-settings.deny')}
           </Button>
         </div>
       </div>
@@ -206,7 +206,7 @@ export const DesktopConfirm: React.FC = () => {
         <Modal
           open
           onClose={() => setDetail(false)}
-          title={tr('确认操作')}
+          title={tr('ui.chat-settings.confirm-action')}
           data-testid="desktop-confirm-dialog"
         >
           <div className={styles.dialog}>
@@ -218,13 +218,13 @@ export const DesktopConfirm: React.FC = () => {
             {REASON[cur.reason] && <p className={styles.hint}>{REASON[cur.reason]}</p>}
             {cur.preview && (
               <>
-                <div className={styles.label}>{tr('预览（尚未执行）')}</div>
+                <div className={styles.label}>{tr('ui.chat-settings.preview-not-yet-run')}</div>
                 <pre className={styles.pre} data-testid="desktop-confirm-preview">
                   {cur.preview}
                 </pre>
               </>
             )}
-            <div className={styles.label}>{tr('参数')}</div>
+            <div className={styles.label}>{tr('ui.foundation.arguments')}</div>
             <pre className={styles.pre}>{cur.argsJson}</pre>
             {cur.rememberable && (
               <label className={styles.remember}>
@@ -234,7 +234,7 @@ export const DesktopConfirm: React.FC = () => {
                   onChange={(e) => setRemember(e.target.checked)}
                   data-testid="desktop-remember"
                 />
-                {tr('本次运行不再询问这个工具')}
+                {tr('ui.chat-settings.don-t-ask-again-for-this-tool-this')}
               </label>
             )}
             <div className={styles.actions}>
@@ -243,7 +243,7 @@ export const DesktopConfirm: React.FC = () => {
                 onClick={() => answer(false)}
                 data-testid="desktop-dialog-deny"
               >
-                {tr('拒绝')}
+                {tr('ui.chat-settings.deny')}
               </Button>
               <Button
                 variant={cur.danger === 'destructive' ? 'danger' : 'primary'}
@@ -251,7 +251,9 @@ export const DesktopConfirm: React.FC = () => {
                 onClick={() => answer(true)}
                 data-testid="desktop-dialog-allow"
               >
-                {cur.danger === 'destructive' ? tr('确认执行') : tr('允许')}
+                {cur.danger === 'destructive'
+                  ? tr('ui.chat-settings.confirm')
+                  : tr('ui.chat-settings.allow')}
               </Button>
             </div>
           </div>

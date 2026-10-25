@@ -277,7 +277,7 @@ export class ConversationStore {
     const ts = this.now();
     const meta: ConversationMeta = {
       id: this.newId(),
-      name: opts.name ?? t('新对话'),
+      name: opts.name ?? t('ui.chat-settings.new-chat'),
       createdAt: ts,
       updatedAt: ts,
       backend: opts.backend ?? 'nomi',
@@ -416,7 +416,7 @@ export class ConversationStore {
     const src = this.get(sourceId);
     if (!src) throw new Error(`unknown conversation: ${sourceId}`);
     const msgs = opts.messages ?? this.getMessages(sourceId);
-    const name = opts.name ?? t('{0} (副本)', src.name);
+    const name = opts.name ?? t('ui.cli-monitor.copy', src.name);
     const meta = this.create({
       name,
       backend: opts.backend ?? src.backend,
@@ -462,7 +462,9 @@ export class ConversationStore {
       this.idx().map((c) => {
         if (c.id !== id) return c;
         const named =
-          message && message.role === 'user' && (c.name === '新对话' || c.name === t('新对话'))
+          message &&
+          message.role === 'user' &&
+          (c.name === 'ui.chat-settings.new-chat' || c.name === t('ui.chat-settings.new-chat'))
             ? message.content.slice(0, 30)
             : c.name;
         return { ...c, name: named, updatedAt: this.now(), modelId: message?.modelId ?? c.modelId };
@@ -488,7 +490,7 @@ export class ConversationStore {
     if (!legacy) return;
     this.storage.removeItem(LEGACY_HISTORY_KEY);
     if (legacy.length === 0) return;
-    const meta = this.create(t('历史对话'));
+    const meta = this.create(t('ui.chat-settings.history'));
     const messages = legacy.slice(-this.maxMessages);
     this.remember(meta.id, messages, this.write(messagesKey(meta.id), messages));
   }

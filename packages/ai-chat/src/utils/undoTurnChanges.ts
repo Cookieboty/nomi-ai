@@ -122,7 +122,8 @@ export function undoErrorText(
   translate: (zh: string) => string,
 ): string {
   if (error === 'changed')
-    return translate('文件之后又被修改过，无法安全撤销（请用版本控制或手动处理）');
-  if (error === 'no-read' || error === 'read-failed') return translate('读取当前文件失败');
+    return translate('ui.session-workspace.the-file-was-changed-afterwards-so-it-cannot');
+  if (error === 'no-read' || error === 'read-failed')
+    return translate('ui.session-workspace.could-not-read-the-current-file');
   return error || '?';
 }

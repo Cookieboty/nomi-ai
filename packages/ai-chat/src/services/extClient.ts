@@ -100,21 +100,21 @@ export interface MigrateImportResult {
 }
 export const TOOL_LABEL: Record<MigrateTool, string> = { claude: 'Claude Code', codex: 'Codex' };
 export const SCOPE_LABEL: Record<MigrateScope, string> = {
-  user: '用户级',
-  local: '本机项目级',
-  project: '项目',
+  user: 'ui.foundation.user',
+  local: 'ui.foundation.local-project',
+  project: 'ui.slash-commands.project',
 };
 
 export const TRUST_LABEL: Record<Trust, string> = {
-  ask: '每次确认',
-  'read-auto': '只读自动，其它确认',
-  auto: '全部自动（仍记录）',
+  ask: 'ui.chat-settings.confirm-every-time',
+  'read-auto': 'ui.chat-settings.auto-for-read-only-confirm-others',
+  auto: 'ui.chat-settings.all-automatic-still-logged',
 };
 export const STATUS_LABEL: Record<McpStatus, string> = {
-  off: '未连接',
-  connecting: '连接中…',
-  connected: '已连接',
-  error: '连接失败',
+  off: 'ui.chat-settings.not-connected',
+  connecting: 'ui.foundation.connecting',
+  connected: 'ui.chat-settings.connected',
+  error: 'ui.chat-settings.connection-failed',
 };
 
 interface AiBridge {
@@ -128,7 +128,7 @@ const bridge = (): AiBridge | undefined => {
 };
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('扩展功能需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.extensions-require-the-desktop-app'));
   const r = (await b.invoke(`ai:ext:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };

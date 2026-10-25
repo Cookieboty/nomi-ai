@@ -24,7 +24,7 @@ const ContextBody: React.FC<{ b: Extract<CardBody, { kind: 'context' }> }> = ({ 
         </span>
         <span className={styles.muted}>
           {t('{0} / {1} tokens', formatTokens(b.used), formatTokens(b.windowSize))}
-          {b.basis === 'estimate' && <> · {t('估算')}</>}
+          {b.basis === 'estimate' && <> · {t('ui.usage-tools.estimated')}</>}
         </span>
         {b.model && <span className={styles.chip}>{b.model}</span>}
       </div>
@@ -34,7 +34,7 @@ const ContextBody: React.FC<{ b: Extract<CardBody, { kind: 'context' }> }> = ({ 
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(total)}
-        aria-label={t('上下文用量')}
+        aria-label={t('ui.slash-commands.context-usage')}
         data-tone={tone}
         data-testid="ctx-bar"
       >
@@ -59,7 +59,7 @@ const ContextBody: React.FC<{ b: Extract<CardBody, { kind: 'context' }> }> = ({ 
         ))}
         <li>
           <i className={`${styles.dot} ${styles.seg_free}`} />
-          <span className={styles.legendLabel}>{t('剩余')}</span>
+          <span className={styles.legendLabel}>{t('ui.slash-commands.free')}</span>
           <span className={styles.muted}>
             {formatTokens(Math.max(0, b.windowSize - b.used))} · {(100 - total).toFixed(1)}%
           </span>
@@ -96,26 +96,26 @@ const CostBody: React.FC<{ b: Extract<CardBody, { kind: 'cost' }> }> = ({ b }) =
           <tr>
             <th />
             <th>{t('Token')}</th>
-            <th>{t('费用')}</th>
-            <th>{t('请求')}</th>
+            <th>{t('ui.usage-tools.cost')}</th>
+            <th>{t('ui.slash-commands.requests')}</th>
           </tr>
         </thead>
         <tbody>
           <tr data-testid="cost-session">
-            <th scope="row">{t('本会话')}</th>
+            <th scope="row">{t('ui.slash-commands.this-session')}</th>
             <td>
               {formatTokens(s.input + s.output)}
               <span className={styles.muted}>
                 {' '}
-                ({t('入 {0} / 出 {1}', formatTokens(s.input), formatTokens(s.output))}
-                {s.cacheRead ? t(' / 缓存 {0}', formatTokens(s.cacheRead)) : ''})
+                ({t('ui.slash-commands.in-out', formatTokens(s.input), formatTokens(s.output))}
+                {s.cacheRead ? t('ui.slash-commands.cache', formatTokens(s.cacheRead)) : ''})
               </span>
             </td>
             <td>{s.costUsd ? formatUsd(s.costUsd) : '—'}</td>
             <td>{s.turns - s.missing}</td>
           </tr>
-          {row(t('今日'), b.today, 'today')}
-          {row(t('近 7 天'), b.week, 'week')}
+          {row(t('ui.usage-tools.today'), b.today, 'today')}
+          {row(t('ui.usage-tools.last-7-days'), b.week, 'week')}
         </tbody>
       </table>
       {b.notes.map((n) => (
@@ -165,7 +165,7 @@ const ListBody: React.FC<{ b: Extract<CardBody, { kind: 'list' }> }> = ({ b }) =
                   >
                     {active ? (
                       <>
-                        <Icon icon={Check} size={12} /> {t('当前')}
+                        <Icon icon={Check} size={12} /> {t('ui.providers-schedule.current')}
                       </>
                     ) : (
                       it.action.label
@@ -188,9 +188,14 @@ const ListBody: React.FC<{ b: Extract<CardBody, { kind: 'list' }> }> = ({ b }) =
 };
 
 const DiffBody: React.FC<{ b: Extract<CardBody, { kind: 'diff' }> }> = ({ b }) => {
-  if (!b.ok) return <p className={`${styles.note} ${styles.err}`}>{b.error ?? t('读取失败')}</p>;
+  if (!b.ok)
+    return (
+      <p className={`${styles.note} ${styles.err}`}>
+        {b.error ?? t('ui.slash-commands.failed-to-read')}
+      </p>
+    );
   if (!b.status.trim() && !b.diff.trim())
-    return <p className={styles.note}>{t('没有未提交的更改。')}</p>;
+    return <p className={styles.note}>{t('ui.slash-commands.no-uncommitted-changes')}</p>;
   return (
     <div data-testid="slash-card-diff">
       {b.status.trim() && <pre className={styles.pre}>{b.status}</pre>}
@@ -216,7 +221,11 @@ const DiffBody: React.FC<{ b: Extract<CardBody, { kind: 'diff' }> }> = ({ b }) =
           ))}
         </pre>
       )}
-      {b.truncated && <p className={styles.note}>{t('内容过长，只显示了前面的部分。')}</p>}
+      {b.truncated && (
+        <p className={styles.note}>
+          {t('ui.slash-commands.too-long-only-the-first-part-is-shown')}
+        </p>
+      )}
     </div>
   );
 };
@@ -278,8 +287,8 @@ export const SystemCardView: React.FC<{
           <button
             type="button"
             className={styles.close}
-            aria-label={t('关闭')}
-            title={t('关闭')}
+            aria-label={t('ui.providers-schedule.close')}
+            title={t('ui.providers-schedule.close')}
             data-testid="slash-card-dismiss"
             onClick={() => onDismiss(card.id)}
           >

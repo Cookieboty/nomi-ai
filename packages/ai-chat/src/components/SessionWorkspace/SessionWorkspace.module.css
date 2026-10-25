@@ -921,14 +921,20 @@
 }
 
 /* Composer 上方变更摘要 pill（对齐 Codex「N 个文件已更改 +x −y」） */
+.composerChangesWrap {
+  position: relative;
+  align-self: center;
+  max-width: min(100%, 820px);
+  width: fit-content;
+  margin: 0 auto 8px;
+}
 .composerChangesPill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0 auto 8px;
+  margin: 0;
   max-width: 820px;
   width: fit-content;
-  align-self: center;
   background: color-mix(in srgb, var(--cd-color-surface-raised, #1a1a1a) 92%, transparent);
   border: 1px solid var(--cd-color-border, #333);
   color: var(--cd-color-text, #eee);
@@ -941,6 +947,75 @@
 .composerChangesPill:hover {
   border-color: var(--cd-color-accent-strong, #5b8def);
   background: color-mix(in srgb, var(--cd-color-accent, #5b8def) 10%, transparent);
+}
+.composerChangesWrap:hover .composerChangesPopover,
+.composerChangesWrap:focus-within .composerChangesPopover {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+.composerChangesPopover {
+  position: absolute;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(420px, 60vh);
+  overflow-y: auto;
+  padding: var(--cd-space-2);
+  border: 1px solid var(--cd-color-border, #333);
+  border-radius: var(--cd-radius-lg, 12px);
+  background: var(--cd-color-surface-raised, #202020);
+  box-shadow: var(--cd-shadow-popover, 0 12px 36px rgb(0 0 0 / 32%));
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms ease;
+  visibility: hidden;
+}
+.composerChangeFile {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3, 12px);
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: var(--cd-radius-sm, 4px);
+  font-size: var(--cd-font-size-sm);
+}
+.composerChangeFile:hover {
+  background: var(--cd-color-hover, rgb(255 255 255 / 6%));
+}
+.composerChangePath {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.composerChangeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cd-color-text, #eee);
+  font-weight: 600;
+}
+.composerChangeDir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cd-color-text-muted, #888);
+  font-family: var(--cd-font-mono, ui-monospace, monospace);
+  font-size: var(--cd-font-size-xs);
+}
+.composerChangeStats {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
 }
 .composerChangesPill .add {
   color: var(--cd-color-success, #3fb950);

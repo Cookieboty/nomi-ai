@@ -54,7 +54,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手接入需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:cli:${method}`, ...args)) as T & { __error?: { message: string } };
   if (r && typeof r === 'object' && '__error' in r && r.__error) throw new Error(r.__error.message);
   return r;
@@ -89,20 +89,26 @@ export function idFromName(name: string): string {
 
 /** 清单校验错误（主进程返回的英文短句）→ 界面文案 */
 export function describeSpecError(e: string): string {
-  if (e.startsWith('id ') && e.includes('reserved')) return t('这个 id 已被内置编程助手占用');
-  if (e.startsWith('id must')) return t('id 只能用小写字母、数字和 -，最长 40 个字符');
-  if (e.startsWith('displayName')) return t('名称必填，最长 60 个字符');
-  if (e.startsWith('command must not contain placeholders')) return t('命令里不能用占位符');
-  if (e.startsWith('command')) return t('命令必填，不能包含换行等控制字符');
+  if (e.startsWith('id ') && e.includes('reserved'))
+    return t('ui.providers-schedule.this-id-is-already-used-by-a-built');
+  if (e.startsWith('id must'))
+    return t('ui.providers-schedule.the-id-can-only-use-lowercase-letters-digits');
+  if (e.startsWith('displayName'))
+    return t('ui.providers-schedule.a-name-is-required-up-to-60-characters');
+  if (e.startsWith('command must not contain placeholders'))
+    return t('ui.providers-schedule.the-command-can-t-contain-placeholders');
+  if (e.startsWith('command'))
+    return t('ui.providers-schedule.a-command-is-required-and-can-t-contain');
   const ph = /^args\[(\d+)\] uses unknown placeholder \{(.*)\}$/.exec(e);
   if (ph)
     return t(
-      '第 {0} 个参数用了未知的占位符 {1}（只能用 {2}）',
+      'ui.providers-schedule.argument-uses-the-unknown-placeholder-only-are-allowed',
       Number(ph[1]) + 1,
       `{${ph[2]!}}`,
       '{cwd}、{home}',
     );
-  if (e.startsWith('args')) return t('参数最多 32 个，每个最长 512 个字符，不能包含换行');
-  if (e.startsWith('env')) return t('环境变量只写名字（如 MY_TOKEN），不要写值');
+  if (e.startsWith('args')) return t('ui.providers-schedule.at-most-32-arguments-each-up-to-512');
+  if (e.startsWith('env'))
+    return t('ui.providers-schedule.write-environment-variable-names-only-such-as-my');
   return e;
 }

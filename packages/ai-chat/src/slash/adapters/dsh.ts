@@ -9,7 +9,7 @@ export function dshAdapter(): SlashCommand[] {
   return [
     ...nativeCommands('dsh'),
     ...unsupportedCommands('dsh', [
-      U.compact(() => t('dsh 没有公开的压缩命令。可以用 /clear 开新标签。')),
+      U.compact(() => t('ui.slash-commands.dsh-has-no-public-compaction-command-use-clear')),
       U.review(),
       U.init('AGENTS.md'),
       U.memory('AGENTS.md'),

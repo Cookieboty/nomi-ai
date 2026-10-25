@@ -30,7 +30,10 @@ export async function transcribeOpenAICompat(o: {
     signal: o.signal,
   });
   const body = await res.text();
-  if (!res.ok) throw new Error(t('识别服务返回 {0}：{1}', res.status, body.slice(0, 200)));
+  if (!res.ok)
+    throw new Error(
+      t('electron.common.recognition-service-returned', res.status, body.slice(0, 200)),
+    );
   try {
     const j = JSON.parse(body) as { text?: string };
     return (j.text ?? '').trim();

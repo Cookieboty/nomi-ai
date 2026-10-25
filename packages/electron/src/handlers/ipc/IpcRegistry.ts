@@ -253,20 +253,20 @@ export class IpcRegistry implements IIpcRegistry {
         // 检查处理器是否正常
         const channels = handler.getRegisteredChannels();
         if (channels.length === 0) {
-          issues.push(t('处理器 {0} 没有注册任何通道', name));
+          issues.push(t('electron.common.handler-didn-t-register-any-channels', name));
         }
 
         // 检查是否有重复的通道
         const channelSet = new Set();
         for (const channel of channels) {
           if (channelSet.has(channel)) {
-            issues.push(t('发现重复的通道: {0} (处理器: {1})', channel, name));
+            issues.push(t('electron.common.duplicate-channel-found-handler', channel, name));
           }
           channelSet.add(channel);
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        issues.push(t('处理器 {0} 验证失败: {1}', name, errorMessage));
+        issues.push(t('electron.common.handler-validation-failed', name, errorMessage));
       }
     }
 

@@ -45,20 +45,20 @@ const LoginDialog: React.FC<{
     <Modal
       open
       onClose={close}
-      title={t('登录 {0} 官方账号', NAME[kind])}
-      closeLabel={ended ? t('关闭') : t('取消登录')}
+      title={t('ui.chat-settings.sign-in-to-an-official-account', NAME[kind])}
+      closeLabel={ended ? t('ui.providers-schedule.close') : t('ui.chat-settings.cancel-sign-in')}
       data-testid="cli-account-login"
     >
       <div className={ppStyles.stack} aria-live="polite">
         {event.state === 'starting' && (
-          <p className="cd-muted">{t('正在启动 {0} 的登录…', NAME[kind])}</p>
+          <p className="cd-muted">{t('ui.chat-settings.starting-sign-in', NAME[kind])}</p>
         )}
         {event.url && !ended && (
           <div className={ppStyles.inline}>
             <span className="cd-muted">
               {event.code
-                ? t('在浏览器里打开登录页，输入下面的一次性码完成授权：')
-                : t('已尝试打开浏览器；没有打开的话，点这里打开登录页：')}
+                ? t('ui.chat-settings.open-the-sign-in-page-in-your-browser')
+                : t('ui.chat-settings.a-browser-window-should-have-opened-if-not')}
             </span>
             <Button
               size="sm"
@@ -66,7 +66,7 @@ const LoginDialog: React.FC<{
               onClick={() => void cliAccountClient.openUrl(event.url!)}
             >
               <Icon icon={ExternalLink} size={13} />
-              {t('打开登录页')}
+              {t('ui.chat-settings.open-sign-in-page')}
             </Button>
           </div>
         )}
@@ -76,13 +76,13 @@ const LoginDialog: React.FC<{
             <Button
               size="sm"
               variant="ghost"
-              aria-label={t('复制一次性码')}
+              aria-label={t('ui.chat-settings.copy-one-time-code')}
               onClick={() => {
                 void navigator.clipboard?.writeText(event.code!).then(() => setCopied(true));
               }}
             >
               <Icon icon={Copy} size={13} />
-              {copied ? t('已复制') : t('复制')}
+              {copied ? t('ui.usage-tools.copied') : t('ui.knowledge-local.copy')}
             </Button>
           </div>
         )}
@@ -97,41 +97,40 @@ const LoginDialog: React.FC<{
             <input
               className="cd-input"
               data-testid="cli-account-paste"
-              aria-label={t('授权码')}
-              placeholder={t('在浏览器里授权后，把页面上的授权码粘贴到这里')}
+              aria-label={t('ui.chat-settings.authorization-code')}
+              placeholder={t('ui.chat-settings.after-authorizing-in-the-browser-paste-the-code')}
               value={code}
               autoFocus
               onChange={(e) => setCode(e.target.value)}
             />
             <Button type="submit" variant="primary" disabled={!code.trim()}>
-              {t('提交')}
+              {t('ui.chat-settings.submit')}
             </Button>
           </form>
         )}
         {event.state === 'waiting' && !event.needsCode && (
           <p className="cd-muted" data-testid="cli-account-waiting">
-            {event.message || t('等待你在浏览器里完成授权…')}
+            {event.message || t('ui.chat-settings.waiting-for-you-to-finish-authorizing-in-the')}
           </p>
         )}
-        {busy && event.state === 'verifying' && <p className="cd-muted">{t('正在验证…')}</p>}
+        {busy && event.state === 'verifying' && (
+          <p className="cd-muted">{t('ui.chat-settings.verifying')}</p>
+        )}
         {event.state === 'done' && (
           <Notice tone="success" data-testid="cli-account-login-done">
             {t(
-              '已登录 {0}。可以把它设为默认账号，或在标签上单独选用它。',
+              'ui.providers-schedule.signed-in-as-you-can-make-it-the',
               event.account?.identity?.email ?? event.account?.label ?? '',
             )}
           </Notice>
         )}
         {event.state === 'error' && (
           <Notice tone="danger" data-testid="cli-account-login-error">
-            {event.message || t('登录失败')}
+            {event.message || t('ui.chat-settings.sign-in-failed')}
           </Notice>
         )}
         <p className="cd-muted" style={{ fontSize: 'var(--cd-font-size-xs)' }}>
-          {t(
-            '登录在这个账号自己的配置目录里进行，由 {0} 的官方流程完成；Nomi 不保存登录凭据，其它账号不受影响。',
-            NAME[kind],
-          )}
+          {t('ui.providers-schedule.sign-in-happens-in-this-account-s-own', NAME[kind])}
         </p>
       </div>
     </Modal>
@@ -201,10 +200,10 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
 
   return (
     <SettingsGroup
-      title={t('官方账号')}
+      title={t('ui.chat-settings.official-accounts')}
       data-testid={`cli-accounts-${kind}`}
       description={t(
-        '每个账号一个独立的配置目录，登录由 {0} 自己完成，Nomi 不保存登录凭据。多个账号可以在不同标签里同时使用；默认账号用于新标签和跟随默认的标签。',
+        'ui.providers-schedule.each-account-has-its-own-configuration-folder-and',
         NAME[kind],
       )}
       actions={
@@ -216,7 +215,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             data-testid="cli-accounts-refresh"
             onClick={() => void run('refresh', () => cliAccountClient.refresh(kind))}
           >
-            {busy === 'refresh' ? t('正在刷新…') : t('刷新')}
+            {busy === 'refresh' ? t('ui.usage-tools.refreshing') : t('ui.knowledge-local.refresh')}
           </Button>
           <Button
             size="sm"
@@ -226,7 +225,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             onClick={() => startLogin()}
           >
             <Icon icon={LogIn} size={14} />
-            {t('添加官方账号')}
+            {t('ui.chat-settings.add-official-account')}
           </Button>
         </>
       }
@@ -238,9 +237,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
       )}
       {accounts.some((a) => (a.problems?.length ?? 0) > 0) && (
         <Notice tone="warning" data-testid="cli-accounts-home-problems">
-          {t(
-            '部分账号的共享目录软链失败（在 Windows 上常见，需要开发者模式或管理员权限）。会话历史可能不会跨账号共享；官方登录与凭据不受影响。',
-          )}
+          {t('ui.chat-settings.some-account-shared-directory-links-failed-common-on')}
         </Notice>
       )}
       {accounts.map((a) => (
@@ -255,28 +252,34 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               {a.identity?.plan && <Badge tone="neutral">{a.identity.plan}</Badge>}
               {a.active && (
                 <Badge tone="success" data-testid="cli-account-current">
-                  {t('默认')}
+                  {t('ui.providers-schedule.default')}
                 </Badge>
               )}
-              {a.local && <Badge tone="neutral">{t('本机')}</Badge>}
+              {a.local && <Badge tone="neutral">{t('ui.foundation.local')}</Badge>}
               {a.needsLogin ? (
                 <Badge tone="warning" data-testid="cli-account-needs-login">
-                  {t('需要重新登录')}
+                  {t('ui.providers-schedule.sign-in-again')}
                 </Badge>
               ) : (
-                !a.loggedIn && <Badge tone="warning">{t('未登录')}</Badge>
+                !a.loggedIn && <Badge tone="warning">{t('ui.models.not-signed-in')}</Badge>
               )}
-              {a.inUse > 0 && <Badge tone="neutral">{t('{0} 个标签在用', String(a.inUse))}</Badge>}
+              {a.inUse > 0 && (
+                <Badge tone="neutral">
+                  {t('ui.providers-schedule.used-by-tab-s', String(a.inUse))}
+                </Badge>
+              )}
             </span>
           }
           description={
             <>
               {[a.identity?.email, a.identity?.org].filter(Boolean).join(' · ') ||
-                (a.local ? t('这台电脑上 {0} 自己的登录', NAME[kind]) : undefined)}
+                (a.local
+                  ? t('ui.providers-schedule.s-own-sign-in-on-this-computer', NAME[kind])
+                  : undefined)}
               {a.duplicateOf && (
                 <Notice tone="warning" data-testid="cli-account-duplicate">
                   {t(
-                    '这个身份也登录在「{0}」里。同一账号在两处各自刷新登录会让其中一处失效，建议只保留一个。',
+                    'ui.providers-schedule.this-identity-is-also-signed-in-under-when',
                     a.duplicateOf,
                   )}
                 </Notice>
@@ -294,11 +297,16 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                 void run(
                   `a:${a.id}`,
                   () => cliAccountClient.setDefault(kind, a.id),
-                  t('默认账号已改为 {0}，跟随默认的标签下一轮生效', a.label),
+                  t(
+                    'ui.providers-schedule.default-account-changed-to-tabs-that-follow-the',
+                    a.label,
+                  ),
                 )
               }
             >
-              {busy === `a:${a.id}` ? t('正在设置…') : t('设为默认')}
+              {busy === `a:${a.id}`
+                ? t('ui.providers-schedule.setting')
+                : t('ui.providers-schedule.make-default')}
             </Button>
           )}
           {(!a.loggedIn || a.needsLogin) && (
@@ -309,7 +317,9 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
               data-testid="cli-account-login"
               onClick={() => startLogin(a.id)}
             >
-              {a.needsLogin ? t('重新登录') : t('登录')}
+              {a.needsLogin
+                ? t('ui.providers-schedule.sign-in-again-3f9d01')
+                : t('ui.providers-schedule.sign-in')}
             </Button>
           )}
           {a.terminalCommand && (
@@ -322,12 +332,18 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                 void navigator.clipboard
                   ?.writeText(a.terminalCommand!)
                   .then(() =>
-                    setMsg({ tone: 'success', text: t('已复制终端命令：{0}', a.terminalCommand!) }),
+                    setMsg({
+                      tone: 'success',
+                      text: t(
+                        'ui.providers-schedule.copied-the-terminal-command',
+                        a.terminalCommand!,
+                      ),
+                    }),
                   )
               }
             >
               <Icon icon={Copy} size={13} />
-              {t('终端命令')}
+              {t('ui.providers-schedule.terminal-command')}
             </Button>
           )}
           <Button
@@ -335,12 +351,12 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
             variant="ghost"
             disabled={!!busy}
             onClick={() => {
-              const next = window.prompt(t('账号名称'), a.label);
+              const next = window.prompt(t('ui.chat-settings.account-name'), a.label);
               if (next && next.trim() && next.trim() !== a.label)
                 void run(`r:${a.id}`, () => cliAccountClient.rename(a.id, next.trim()));
             }}
           >
-            {t('重命名')}
+            {t('ui.cli-monitor.rename')}
           </Button>
           {!a.local && (
             <Button
@@ -352,7 +368,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                 if (
                   !window.confirm(
                     t(
-                      '删除账号「{0}」？会在这个账号的目录里登出 {1}（撤销登录），然后删除这个目录；会话历史保留。',
+                      'ui.providers-schedule.remove-the-account-will-be-signed-out-in',
                       a.label,
                       NAME[kind],
                     ),
@@ -367,10 +383,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                     if (
                       /无法确认|强制删除|unknown/i.test(m) &&
                       window.confirm(
-                        t(
-                          '无法确认是否还有 CLI 在用这个账号。请先在终端退出相关 CLI。确认没有进程占用后，仍要强制删除「{0}」吗？',
-                          a.label,
-                        ),
+                        t('ui.chat-settings.nomi-could-not-confirm-whether-a-cli-is', a.label),
                       )
                     ) {
                       await cliAccountClient.remove(a.id, { force: true });
@@ -381,7 +394,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
                 });
               }}
             >
-              {t('删除')}
+              {t('ui.foundation.delete')}
             </Button>
           )}
         </SettingRow>
@@ -389,7 +402,7 @@ export const OfficialAccounts: React.FC<{ kind: AccountKind }> = ({ kind }) => {
       {accounts.length === 0 && (
         <p className={styles.empty} data-testid="cli-accounts-empty">
           <Icon icon={UserRound} size={14} />
-          {t('还没有官方账号。')}
+          {t('ui.providers-schedule.no-official-accounts-yet')}
         </p>
       )}
       {login && <LoginDialog kind={kind} event={login} onClose={() => setLogin(null)} />}

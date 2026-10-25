@@ -237,7 +237,7 @@ export class BootstrapManager implements IBootstrapManager {
       if (task.dependencies) {
         for (const dep of task.dependencies) {
           if (!this.completedTasks.has(dep)) {
-            throw new Error(tr('依赖任务未完成: {0}', dep));
+            throw new Error(tr('electron.common.dependency-task-not-finished', dep));
           }
         }
       }
@@ -261,7 +261,10 @@ export class BootstrapManager implements IBootstrapManager {
         await Promise.race([
           task.execute(),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(tr('任务超时: {0}', task.name))), task.timeout),
+            setTimeout(
+              () => reject(new Error(tr('electron.common.task-timed-out', task.name))),
+              task.timeout,
+            ),
           ),
         ]);
       } else {

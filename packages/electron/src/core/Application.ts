@@ -250,7 +250,7 @@ export class Application implements IApplication {
         chatProvider: () => desktop.providerFor('chat'),
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -270,7 +270,7 @@ export class Application implements IApplication {
         desktop,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -290,7 +290,7 @@ export class Application implements IApplication {
         desktop,
         complete: async (messages, signal) => {
           const rt = this.aiRuntime;
-          if (!rt) throw new Error(tr('AI 服务未就绪'));
+          if (!rt) throw new Error(tr('electron.common.ai-service-not-ready'));
           const resp = await rt.client.chat.sendMessage({
             role: 'chat',
             messages,
@@ -304,12 +304,14 @@ export class Application implements IApplication {
             .map((o) =>
               tr(
                 '- {0} {1}',
-                o.allDay ? tr('全天') : new Date(o.start).toTimeString().slice(0, 5),
+                o.allDay
+                  ? tr('electron.common.all-day')
+                  : new Date(o.start).toTimeString().slice(0, 5),
                 o.summary,
               ),
             )
             .join('\n');
-          return [(await mem.context(q)).text, cal && tr('今日日历：\n{0}', cal)]
+          return [(await mem.context(q)).text, cal && tr('electron.common.today-s-calendar', cal)]
             .filter(Boolean)
             .join('\n\n');
         },

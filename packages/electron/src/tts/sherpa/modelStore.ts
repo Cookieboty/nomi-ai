@@ -93,7 +93,7 @@ export function probeWritableDir(dir: string): void {
     throw new SherpaInstallError(
       'prepare',
       `model dir not writable: ${dir} (${errText(e)}) — 请检查盘符是否存在 / 目录权限，` +
-        `或用 NOMI_SHERPA_TTS_MODEL_DIR 指向已手动解压的模型目录`,
+        'electron.common.or-set-nomi-sherpa-tts-model-dir-to',
       e,
     );
   }
@@ -190,7 +190,7 @@ export async function installModel(opts: InstallOptions): Promise<string> {
       throw new SherpaInstallError(
         'download',
         `model download failed after trying ${urls.length} url(s): ${failures.slice(-3).join(' | ')}` +
-          ` — 网络慢 / GitHub 不可达时请设置 NOMI_SHERPA_TTS_MODEL_URL 镜像，或手动下载解压（见 docs/features/voice.md）`,
+          'electron.common.if-the-network-is-slow-or-github-is',
       );
     }
     opts.onProgress?.('extract', { received: 0, total: 1 });
@@ -207,7 +207,7 @@ export async function installModel(opts: InstallOptions): Promise<string> {
     if (!v.ok) {
       throw new SherpaInstallError(
         'verify',
-        t('模型文件校验失败：{0}', v.bad.slice(0, 3).join(', ')),
+        t('electron.common.voice-model-files-failed-verification', v.bad.slice(0, 3).join(', ')),
       );
     }
     try {

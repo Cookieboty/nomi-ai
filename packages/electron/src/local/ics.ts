@@ -70,7 +70,7 @@ export function parseIcs(text: string, cal: string): CalEvent[] {
         const end = cur.end ?? cur.start + (durMs || (cur.allDay ? 86_400_000 : 3_600_000));
         out.push({
           uid: cur.uid || `${cal}-${cur.start}-${out.length}`,
-          summary: cur.summary || tr('（无标题）'),
+          summary: cur.summary || tr('electron.common.untitled-d8f9b1'),
           start: cur.start,
           end,
           allDay: !!cur.allDay,

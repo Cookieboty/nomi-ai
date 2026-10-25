@@ -130,12 +130,12 @@ export class AccountLogin {
    */
   async start(kind: AccountKind, accountId?: string): Promise<LoginEvent> {
     const bin = resolveHarnessBin(kind);
-    if (!bin) throw new Error(t('未找到 {0}，请先安装', kind));
+    if (!bin) throw new Error(t('electron.common.isn-t-installed-yet-install-it-first', kind));
     const created = !accountId;
     const account = accountId ?? this.d.accounts.create(kind).id;
     await this.d.accounts.prepareLogin(account);
     const target = this.d.accounts.loginTarget(account);
-    if (target.kind !== kind) throw new Error(t('账号不存在'));
+    if (target.kind !== kind) throw new Error(t('electron.common.account-not-found'));
     const id = account;
     if (this.sessions.has(id)) this.cancel(id);
     const cwd = target.dir ?? os.tmpdir();
@@ -169,7 +169,7 @@ export class AccountLogin {
       out: '',
       last: { id, kind, state: 'starting' },
       timer: setTimeout(
-        () => this.fail(s, t('登录超时，请重试')),
+        () => this.fail(s, t('electron.common.sign-in-timed-out-try-again')),
         this.d.timeoutMs ?? LOGIN_TIMEOUT_MS,
       ),
       finished: false,
@@ -214,7 +214,7 @@ export class AccountLogin {
         if (s.finished) return;
         this.send(s, {
           state: 'waiting',
-          message: t('已在浏览器里打开 Google 登录页，请在那里完成授权（5 分钟内有效）。'),
+          message: t('electron.common.opened-the-google-sign-in-page-in-your'),
         });
         // Gemini 自己的浏览器回调 5 分钟超时；多留 1 分钟余量，整体还有 LOGIN_TIMEOUT_MS 兜底
         await conn.request(
@@ -239,7 +239,8 @@ export class AccountLogin {
     s.finished = true;
     try {
       const account = await this.d.accounts.refresh(s.accountId);
-      if (!account.loggedIn) throw new Error(t('登录完成了，但 CLI 仍显示未登录'));
+      if (!account.loggedIn)
+        throw new Error(t('electron.common.sign-in-finished-but-the-cli-still-reports'));
       this.send(s, { state: 'done', account });
       this.cleanup(s, false);
     } catch (e) {
@@ -279,11 +280,15 @@ export class AccountLogin {
     if (s.finished) return;
     if (s.kind === 'gemini') {
       // ACP 进程只在出错时自己退出；成功路径由 driveGemini 收尾
-      if (s.last.state !== 'verifying') return this.fail(s, this.tail(s) || t('登录没有完成'));
+      if (s.last.state !== 'verifying')
+        return this.fail(s, this.tail(s) || t('electron.common.sign-in-didn-t-finish'));
       return;
     }
     if (code !== 0) {
-      return this.fail(s, this.tail(s) || t('登录没有完成（退出码 {0}）', String(code)));
+      return this.fail(
+        s,
+        this.tail(s) || t('electron.common.sign-in-didn-t-finish-exit-code', String(code)),
+      );
     }
     try {
       await this.collect(s);

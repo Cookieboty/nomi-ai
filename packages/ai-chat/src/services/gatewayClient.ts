@@ -95,6 +95,11 @@ export interface ClientModels {
   summary?: string;
 }
 
+/** set-assignment 的增量写入：null 用于清掉某个模型配置。 */
+export type ClientModelsPatch = {
+  [K in keyof ClientModels]?: ClientModels[K] | null;
+};
+
 export interface GatewayState {
   status: GatewayStatus;
   providers: ProviderView[];
@@ -256,7 +261,7 @@ export const gatewayClient = {
   setAssignment: (
     client: ClientId,
     patch: {
-      models?: ClientModels;
+      models?: ClientModelsPatch;
       newTabSource?: 'official' | 'thirdParty';
       newTabAccountId?: string | null;
     },

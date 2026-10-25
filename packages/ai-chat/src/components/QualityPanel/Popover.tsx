@@ -149,14 +149,14 @@ export const MultiSelect: React.FC<{
         <Input
           size="sm"
           value={q}
-          placeholder={t('搜索')}
-          aria-label={t('搜索{0}', label)}
+          placeholder={t('ui.knowledge-local.search-f04090')}
+          aria-label={t('ui.model-quality.search', label)}
           onChange={(e) => setQ(e.target.value)}
           data-testid={testId ? `${testId}-search` : undefined}
         />
       )}
       {options.length === 0 ? (
-        <p className={styles.popHint}>{t('这段时间没有数据')}</p>
+        <p className={styles.popHint}>{t('ui.model-quality.no-data-in-this-range')}</p>
       ) : (
         <ul className={styles.optList} role="listbox" aria-multiselectable aria-label={label}>
           {list.map((o) => {
@@ -181,13 +181,15 @@ export const MultiSelect: React.FC<{
               </li>
             );
           })}
-          {list.length === 0 && <li className={styles.popHint}>{t('没有匹配的项')}</li>}
+          {list.length === 0 && (
+            <li className={styles.popHint}>{t('ui.model-quality.no-matches')}</li>
+          )}
         </ul>
       )}
       {value.length > 0 && (
         <div className={styles.popFoot}>
           <button type="button" className={styles.textBtn} onClick={() => onChange([])}>
-            {t('清除选择')}
+            {t('ui.model-quality.clear-selection')}
           </button>
         </div>
       )}

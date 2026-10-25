@@ -28,7 +28,9 @@ export function buildProviderMessages(
   for (const m of history) {
     if (m.error || ((!m.content || !m.content.trim()) && !m.images?.length)) continue;
     // 历史里的图片不再重发（只有缩略图），用文字占位让模型知道上下文
-    const tag = m.images?.length ? t('[此前附了 {0} 张图片] ', m.images.length) : '';
+    const tag = m.images?.length
+      ? t('ui.chat-settings.images-were-attached-earlier', m.images.length)
+      : '';
     out.push({ role: m.role, content: tag + m.content });
   }
   out.push(

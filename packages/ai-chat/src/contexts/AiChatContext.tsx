@@ -287,7 +287,12 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const m: ChatMessage = {
           id: `sched-${r.id}`,
           role: 'assistant',
-          content: t('**{0}**{1}\n\n{2}', r.name, r.catchUp ? t('（补上）') : '', r.text),
+          content: t(
+            '**{0}**{1}\n\n{2}',
+            r.name,
+            r.catchUp ? t('ui.chat-settings.added') : '',
+            r.text,
+          ),
           timestamp: r.at,
         };
         dispatch({ type: 'ADD_MESSAGE', payload: m });
@@ -305,23 +310,30 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (r.status === 'cancelled') {
           body =
             r.cancelledBy === 'nomi'
-              ? t('**{0}** 的委派任务已随 Nomi 这一轮一起停止。', name)
-              : t('**{0}** 的委派任务已停止。', name);
+              ? t('ui.session-workspace.s-handoff-was-stopped-with-nomi-s-turn', name)
+              : t('ui.session-workspace.s-handoff-was-stopped', name);
         } else if (r.status === 'error') {
-          body = t('**{0}** 的委派任务出错：{1}', name, r.error ?? '');
+          body = t('ui.session-workspace.s-handoff-failed', name, r.error ?? '');
         } else if (r.report) {
           const bits = [
-            t('**{0}** 完成了委派任务。', name),
+            t('ui.session-workspace.completed-the-handoff', name),
             plainSummary(r.report.done),
-            r.report.unfinished ? t('没做完的：{0}', plainSummary(r.report.unfinished)) : '',
-            r.report.needsUser ? t('需要你决定的：{0}', plainSummary(r.report.needsUser)) : '',
+            r.report.unfinished
+              ? t('ui.session-workspace.not-finished-534e7d', plainSummary(r.report.unfinished))
+              : '',
+            r.report.needsUser
+              ? t(
+                  'ui.session-workspace.needs-your-decision-1faef8',
+                  plainSummary(r.report.needsUser),
+                )
+              : '',
           ].filter(Boolean);
           body = bits.join('\n\n');
         } else {
           body = t(
-            '**{0}** 完成了委派任务。\n\n{1}',
+            'ui.session-workspace.completed-the-handoff-de51e7',
             name,
-            plainSummary(r.summary) || t('（无汇报）'),
+            plainSummary(r.summary) || t('ui.session-workspace.no-report'),
           );
         }
         const m: ChatMessage = {
@@ -368,7 +380,7 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         const userMessage: ChatMessage = {
           id: `desk-${e.at}`,
           role: 'user',
-          content: t('总结文件：{0}', e.name),
+          content: t('ui.chat-settings.summarize-file', e.name),
           timestamp: e.at,
         };
         const aiMessage: ChatMessage = {
@@ -510,12 +522,9 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         if (images?.length && screenClient.available()) {
           const r = await screenClient.checkSend();
           if (r === 'local_only')
-            throw new Error(
-              t(
-                '已开启「仅本地模型」，当前对话模型在云端，不能发送图片。可切换到本地视觉模型（如 Ollama）',
-              ),
-            );
-          if (r === 'user_denied') throw new Error(t('已取消：图片没有发送给云端模型'));
+            throw new Error(t('ui.chat-settings.local-models-only-is-on-and-the-current'));
+          if (r === 'user_denied')
+            throw new Error(t('ui.chat-settings.cancelled-the-image-wasn-t-sent-to-the'));
         }
 
         // `/agent`：按会话 chip → 按 turnId 钉到主进程；钉住失败则中止发送
@@ -524,7 +533,10 @@ export function AiChatContextProvider({ children, client }: AiChatContextProvide
         try {
           delegateTo = await consumeNextDelegate(reqId);
         } catch (pinErr) {
-          const msg = pinErr instanceof Error ? pinErr.message : t('无法钉住编程助手，消息未发送');
+          const msg =
+            pinErr instanceof Error
+              ? pinErr.message
+              : t('ui.slash-commands.couldn-t-pin-the-coding-assistant-the-message');
           throw Object.assign(new Error(msg), { cause: pinErr });
         }
         const userMessage: ChatMessage = {

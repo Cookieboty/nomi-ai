@@ -19,7 +19,7 @@ export const SourceList: React.FC<{ sources: KbSource[]; onPick: (s: KbSource) =
   <div className={styles.sources} data-testid="kb-sources-list">
     <span className={styles.sourcesLabel}>
       <Icon icon={BookOpen} size={14} />
-      {t('出处')}
+      {t('ui.providers-schedule.sources')}
     </span>
     {sources.map((s) => (
       <button
@@ -34,7 +34,7 @@ export const SourceList: React.FC<{ sources: KbSource[]; onPick: (s: KbSource) =
         <span className={styles.sourceTitle}>{t(s.title)}</span>
         {s.page ? (
           <span className={styles.sourceMeta}>
-            {t('第')} {s.page} {t('页')}
+            {t('ui.providers-schedule.p')} {s.page} {t('ui.providers-schedule.message')}
           </span>
         ) : null}
       </button>
@@ -54,7 +54,7 @@ export const SourcePreview: React.FC<{ source: KbSource | null; onClose: () => v
     setErr('');
     try {
       const r = await kbClient.open(source.docId, how);
-      if (!r.ok) setErr(r.error ?? t('打开失败'));
+      if (!r.ok) setErr(r.error ?? t('ui.foundation.couldn-t-open'));
       else if (r.note) setNote(r.note);
       else onClose();
     } catch (e) {
@@ -76,13 +76,15 @@ export const SourcePreview: React.FC<{ source: KbSource | null; onClose: () => v
       footer={
         isNote ? (
           <Button variant="primary" onClick={() => void act('preview')} disabled={!!note}>
-            {t('查看全文')}
+            {t('ui.knowledge-local.view-full-text')}
           </Button>
         ) : (
           <>
-            <Button onClick={() => void act('reveal')}>{t('在文件夹中显示')}</Button>
+            <Button onClick={() => void act('reveal')}>
+              {t('ui.providers-schedule.show-in-folder')}
+            </Button>
             <Button variant="primary" onClick={() => void act('open')} data-testid="kb-open-file">
-              {t('打开文件')}
+              {t('ui.providers-schedule.open-file')}
             </Button>
           </>
         )
@@ -90,8 +92,8 @@ export const SourcePreview: React.FC<{ source: KbSource | null; onClose: () => v
     >
       <div className={styles.previewBody}>
         <div className={styles.previewPath}>
-          {isNote ? t('本地笔记') : shortPath(source.path)}
-          {source.page ? t(' · 第 {0} 页', source.page) : ''}
+          {isNote ? t('ui.providers-schedule.local-notes') : shortPath(source.path)}
+          {source.page ? t('ui.knowledge-local.page', source.page) : ''}
         </div>
         <blockquote className={styles.previewQuote}>{note ? note.body : source.snippet}</blockquote>
         {err && <div className={styles.errorText}>{err}</div>}

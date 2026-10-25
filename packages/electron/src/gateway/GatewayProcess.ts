@@ -177,7 +177,10 @@ export class GatewayProcess {
     const fork = this.d.fork ?? defaultFork();
     const modulePath = this.d.modulePath ?? path.join(__dirname, 'worker.js');
     if (!fork || (!this.d.fork && !fs.existsSync(modulePath))) {
-      this.setStatus({ state: 'failed', error: tr('当前环境无法启动网关进程') });
+      this.setStatus({
+        state: 'failed',
+        error: tr('electron.common.the-gateway-process-can-t-be-started-in'),
+      });
       return;
     }
     this.setStatus({ state: 'starting' });
@@ -233,7 +236,7 @@ export class GatewayProcess {
       this.setStatus({
         state: 'failed',
         error: tr(
-          '网关进程在 {0} 秒内异常退出 {1} 次（最近退出码 {2}），已停止自动重启',
+          'electron.common.the-gateway-process-exited-abnormally-times-within-s',
           Math.round(this.fuseWindow() / 1000),
           this.fuseMax(),
           code,

@@ -42,26 +42,38 @@ export const IslandSettings: React.FC = () => {
   if (!invoke())
     return (
       <section className={styles.block} data-testid="settings-island">
-        <p className={styles.muted}>{t('仅在桌面应用中提供。')}</p>
+        <p className={styles.muted}>{t('ui.mascot-theme.available-in-the-desktop-app-only')}</p>
       </section>
     );
   if (!s) return null;
   const mac = s.platform === 'darwin';
   const KINDS = [
-    ['message', t('AI 主动消息'), t('Nomi 主动搭话、每日简报等')],
-    ['agent', t('编程助手进度'), t('编程助手完成、需要确认或出错时')],
-    ['reminder', t('日程提醒'), t('到点的提醒与定时任务结果')],
+    [
+      'message',
+      t('ui.mascot-theme.proactive-ai-messages'),
+      t('ui.chat-settings.nomi-starting-a-chat-daily-briefings-and-more'),
+    ],
+    [
+      'agent',
+      t('ui.mascot-theme.coding-agent-progress'),
+      t('ui.chat-settings.when-a-coding-assistant-finishes-needs-confirmation-or'),
+    ],
+    [
+      'reminder',
+      t('ui.mascot-theme.schedule-reminders'),
+      t('ui.chat-settings.due-reminders-and-scheduled-task-results'),
+    ],
   ] as const;
   return (
     <div className={styles.groups} data-testid="settings-island">
       <SettingsGroup
-        title={t('灵动岛')}
+        title={t('ui.chat-settings.dynamic-island')}
         description={
           mac
             ? s.mode === 'notch'
-              ? t('检测到刘海屏：通知会从刘海里展开，点一下打开对话。')
-              : t('当前屏幕没有刘海：通知显示为屏幕顶部居中的胶囊。')
-            : t('Windows / Linux 上为可选的顶部胶囊；关闭时沿用 Nomi 气泡与系统通知。')
+              ? t('ui.mascot-theme.notch-display-detected-notifications-expand-out-of-the')
+              : t('ui.mascot-theme.no-notch-on-this-display-notifications-appear-as')
+            : t('ui.mascot-theme.on-windows-linux-this-is-an-optional-top')
         }
         actions={
           <Button
@@ -72,35 +84,39 @@ export const IslandSettings: React.FC = () => {
             data-testid="island-test"
             onClick={() => void invoke()?.('island:test')}
           >
-            {t('预览一条通知')}
+            {t('ui.mascot-theme.preview-a-notification')}
           </Button>
         }
       >
-        <SettingRow title={t('启用灵动岛通知')} description={t('关闭后沿用 Nomi 气泡与系统通知。')}>
+        <SettingRow
+          title={t('ui.mascot-theme.enable-dynamic-island-notifications')}
+          description={t('ui.chat-settings.when-off-nomi-bubbles-and-system-notifications-are')}
+        >
           <Switch
             checked={s.enabled}
             onChange={(v) => set({ enabled: v })}
-            aria-label={t('启用灵动岛通知')}
+            aria-label={t('ui.mascot-theme.enable-dynamic-island-notifications')}
             data-testid="island-enabled"
           />
         </SettingRow>
         {mac && (
-          <SettingRow title={t('始终用顶部胶囊')} description={t('不贴刘海，在屏幕顶部居中显示。')}>
+          <SettingRow
+            title={t('ui.chat-settings.always-use-the-top-pill')}
+            description={t('ui.chat-settings.show-centered-at-the-top-of-the-screen')}
+          >
             <Switch
               checked={s.style === 'pill'}
               disabled={!s.enabled}
               onChange={(v) => set({ style: v ? 'pill' : 'auto' })}
-              aria-label={t('始终用顶部胶囊（不贴刘海）')}
+              aria-label={t('ui.mascot-theme.always-use-the-top-pill-not-the-notch')}
               data-testid="island-pill"
             />
           </SettingRow>
         )}
       </SettingsGroup>
       <SettingsGroup
-        title={t('通知类型')}
-        description={t(
-          '免打扰时段（日程与日历 → 日程提醒 → 免打扰与通知）内不会弹出。macOS 专注模式没有公开接口，无法自动感知。',
-        )}
+        title={t('ui.chat-settings.notification-types')}
+        description={t('ui.mascot-theme.nothing-pops-up-during-quiet-hours-schedule-calendar')}
       >
         {KINDS.map(([k, label, desc]) => (
           <SettingRow key={k} title={label} description={desc}>

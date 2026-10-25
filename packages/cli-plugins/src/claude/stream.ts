@@ -146,7 +146,11 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     const failed =
       j.is_error === true || (typeof j.subtype === 'string' && j.subtype.startsWith('error'));
     // 失败的一轮（限流 / 上下文超限 / 执行出错）不当作正常回答：按错误处理，界面显示错误卡片并可重试
-    if (failed) out.push({ type: 'error', message: text || String(j.subtype ?? t('Claude 错误')) });
+    if (failed)
+      out.push({
+        type: 'error',
+        message: text || String(j.subtype ?? t('electron.common.claude-error')),
+      });
     else {
       const image = imageMarkdown(j.result);
       out.push(
@@ -187,7 +191,10 @@ export function parseClaudeLine(line: string, state?: ClaudeStreamState): Harnes
     out.push({ type: 'context', tokens: post ?? null });
     if (state) state.lastContext = post;
   } else if (type === 'error' || (type === 'system' && j.subtype === 'error')) {
-    out.push({ type: 'error', message: String(j.error ?? j.message ?? t('Claude 错误')) });
+    out.push({
+      type: 'error',
+      message: String(j.error ?? j.message ?? t('electron.common.claude-error')),
+    });
   } else if (type === 'control_request') {
     const reqId = typeof j.request_id === 'string' ? j.request_id : '';
     const req = (j.request ?? {}) as Record<string, unknown>;
@@ -282,7 +289,7 @@ export function createClaudeParser(): (line: string) => HarnessEvent[] {
       if (ev.type === 'permission' && ev.toolUseId) {
         const parent = parents.get(ev.toolUseId);
         const agent = parent ? agents.get(parent) : undefined;
-        return parent ? { ...ev, agent: agent || t('子代理') } : ev;
+        return parent ? { ...ev, agent: agent || t('electron.common.subagent-232d2c') } : ev;
       }
       if (ev.type === 'tool' && ev.status === 'start' && ev.detail) {
         if (ev.parentId) remember(parents, ev.detail, ev.parentId);

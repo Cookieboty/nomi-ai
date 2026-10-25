@@ -75,15 +75,27 @@ const BUCKET_ICON: Record<Bucket, LucideIcon> = {
 
 const StatusMark: React.FC<{ status: CallStatus }> = ({ status }) =>
   status === 'running' ? (
-    <span className={`${styles.status} ${styles.spin}`} role="status" aria-label={t('运行中')}>
+    <span
+      className={`${styles.status} ${styles.spin}`}
+      role="status"
+      aria-label={t('ui.knowledge-local.running')}
+    >
       <Icon icon={LoaderCircle} size={13} />
     </span>
   ) : status === 'error' ? (
-    <span className={`${styles.status} ${styles.statusError}`} role="img" aria-label={t('失败')}>
+    <span
+      className={`${styles.status} ${styles.statusError}`}
+      role="img"
+      aria-label={t('ui.foundation.failed')}
+    >
       <Icon icon={CircleAlert} size={13} />
     </span>
   ) : (
-    <span className={`${styles.status} ${styles.statusDone}`} role="img" aria-label={t('完成')}>
+    <span
+      className={`${styles.status} ${styles.statusDone}`}
+      role="img"
+      aria-label={t('ui.usage-tools.done')}
+    >
       <Icon icon={Check} size={13} />
     </span>
   );
@@ -202,7 +214,7 @@ const CallBody: React.FC<{ call: ToolCall }> = ({ call }) => {
         )}
         <Output text={call.output} error={err} />
         {!call.output && call.status === 'done' && (
-          <div className={styles.empty}>{t('（无输出）')}</div>
+          <div className={styles.empty}>{t('ui.usage-tools.no-output')}</div>
         )}
       </>
     );
@@ -214,16 +226,24 @@ const CallBody: React.FC<{ call: ToolCall }> = ({ call }) => {
         {diffs.map((f, i) => (
           <DiffView key={i} diff={f} />
         ))}
-        {!diffs.length && <Output text={prettyInput(call.input)} label={t('参数')} />}
+        {!diffs.length && (
+          <Output text={prettyInput(call.input)} label={t('ui.foundation.arguments')} />
+        )}
         {err && <Output text={call.output} error />}
       </>
     );
   }
   return (
     <>
-      <Output text={prettyInput(call.input)} label={t('参数')} testId="tool-input" />
-      <Output text={call.output} label={t('输出')} error={err} />
-      {!call.input && !call.output && <div className={styles.empty}>{t('（无详情）')}</div>}
+      <Output
+        text={prettyInput(call.input)}
+        label={t('ui.foundation.arguments')}
+        testId="tool-input"
+      />
+      <Output text={call.output} label={t('ui.usage-tools.output')} error={err} />
+      {!call.input && !call.output && (
+        <div className={styles.empty}>{t('ui.usage-tools.no-details')}</div>
+      )}
     </>
   );
 };
@@ -299,7 +319,9 @@ const GroupSummaryMeta: React.FC<{ bucket: Bucket; calls: ToolCall[] }> = ({ buc
           <span className={styles.del}>−{s.removed}</span>
         </>
       )}
-      {s.failed > 0 && <span className={styles.failedTag}>{t('{0} 项失败', s.failed)}</span>}
+      {s.failed > 0 && (
+        <span className={styles.failedTag}>{t('ui.usage-tools.failed', s.failed)}</span>
+      )}
     </>
   );
 };
@@ -365,12 +387,12 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
     <>
       {agent?.background && (
         <span className={styles.subBadge} data-testid="subagent-background">
-          {t('后台')}
+          {t('ui.chat-settings.background')}
         </span>
       )}
       {agent?.status === 'stopped' && (
         <span className={styles.subBadge} data-testid="subagent-stopped">
-          {t('已停止')}
+          {t('ui.chat-settings.stopped')}
         </span>
       )}
       {agent?.status === 'running' && agent.progress && (
@@ -379,9 +401,11 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
         </span>
       )}
       {children.length > 0 ? (
-        <span className={styles.subCount}>{t('{0} 步', countCalls(children))}</span>
+        <span className={styles.subCount}>{t('ui.usage-tools.steps', countCalls(children))}</span>
       ) : agent?.usage?.toolUses ? (
-        <span className={styles.subCount}>{t('{0} 次工具调用', String(agent.usage.toolUses))}</span>
+        <span className={styles.subCount}>
+          {t('ui.chat-settings.tool-calls', String(agent.usage.toolUses))}
+        </span>
       ) : null}
     </>
   );
@@ -409,12 +433,12 @@ const Subagent: React.FC<{ call: ToolCall; children: TimelineItem[] }> = ({ call
       {children.length > 0 && <ToolTimeline items={children} nested />}
       {children.length === 0 && NO_INTERNAL_STEPS.has(call.name) && (
         <div className={styles.subPrompt} data-testid="subagent-no-steps">
-          {t('该编程助手不提供子代理的内部步骤，这里只显示交给它的任务和最终结果。')}
+          {t('ui.chat-settings.this-coding-agent-doesn-t-expose-a-subagent')}
         </div>
       )}
       {result && (
         <div className={styles.section}>
-          <div className={styles.sectionLabel}>{t('结果')}</div>
+          <div className={styles.sectionLabel}>{t('ui.foundation.result')}</div>
           <div className={styles.subResult} data-testid="tool-output">
             <Markdown text={result} />
           </div>
@@ -471,7 +495,7 @@ const Thinking = memo(function Thinking({
         <span className={styles.verb}>
           {running ? (
             <>
-              {t('思考中')}
+              {t('ui.usage-tools.thinking')}
               <ThinkingTimer startedAt={startedAt} />
             </>
           ) : (
@@ -537,7 +561,7 @@ export const ToolTimeline: React.FC<{ items: TimelineItem[]; nested?: boolean }>
           onClick={() => setShowAll(true)}
         >
           <Icon icon={ChevronsUp} size={13} />
-          {t('显示更早的 {0} 步', hidden)}
+          {t('ui.usage-tools.show-earlier-steps', hidden)}
         </button>
       )}
       {groupDelegates(visible).map((it) => {

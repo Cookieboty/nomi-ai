@@ -257,7 +257,7 @@ export class IslandService {
         {
           kind: 'message',
           title: tr('Nomi'),
-          body: tr('这是灵动岛通知的样子～'),
+          body: tr('electron.common.this-is-what-an-island-notification-looks-like'),
           durationMs: 4000,
         },
         true,

@@ -90,7 +90,7 @@ export const CenterChangesHost: React.FC<{
         ref={setPreviewSlot}
         className={`${styles.centerChanges} ${pane.codeScale}`}
         data-testid="center-preview-pane"
-        aria-label={t('文件预览')}
+        aria-label={t('ui.session-workspace.file-preview')}
       />
     );
   }
@@ -99,10 +99,10 @@ export const CenterChangesHost: React.FC<{
     <section
       className={`${styles.centerChanges} ${pane.codeScale}`}
       data-testid="center-changes-pane"
-      aria-label={t('变更')}
+      aria-label={t('ui.session-workspace.changed')}
     >
       <header className={pane.centerHead}>
-        <span className={pane.centerTitle}>{t('变更')}</span>
+        <span className={pane.centerTitle}>{t('ui.session-workspace.changed')}</span>
         <span className={styles.stat} data-testid="center-changes-stat">
           <span className={styles.add}>+{summary.added}</span>
           <span className={styles.del}>−{summary.removed}</span>
@@ -117,7 +117,7 @@ export const CenterChangesHost: React.FC<{
               data-active={!scopeAll || undefined}
               onClick={() => setScopeAll(false)}
             >
-              {workbench.sourceLabel || t('上一轮')}
+              {workbench.sourceLabel || t('ui.session-workspace.last-turn')}
             </button>
             <button
               type="button"
@@ -127,7 +127,7 @@ export const CenterChangesHost: React.FC<{
               data-active={scopeAll || undefined}
               onClick={() => setScopeAll(true)}
             >
-              {t('全部')}
+              {t('ui.providers-schedule.all')}
             </button>
           </span>
         ) : null}
@@ -135,7 +135,7 @@ export const CenterChangesHost: React.FC<{
         <button
           type="button"
           className={styles.iconBtn}
-          aria-label={t('关闭')}
+          aria-label={t('ui.providers-schedule.close')}
           data-testid="center-changes-close"
           onClick={closeWorkbench}
         >
@@ -144,7 +144,9 @@ export const CenterChangesHost: React.FC<{
       </header>
       <div className={styles.centerChangesBody} ref={bodyRef}>
         {!ordered.length ? (
-          <p className={styles.empty}>{t('本会话尚无文件变更')}</p>
+          <p className={styles.empty}>
+            {t('ui.session-workspace.no-file-changes-in-this-session-yet')}
+          </p>
         ) : (
           ordered.map((e) =>
             e.diff ? (

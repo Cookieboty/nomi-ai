@@ -29,7 +29,8 @@ Electron 主进程（packages/electron）
 | `ai-sdk`                                                          | 主进程侧 AI 门面（`AIClient`）                                                                                                                                                                                                           |
 | `ai-sdk-client`                                                   | 渲染进程侧客户端与 preload 桥                                                                                                                                                                                                            |
 | `bundle-ig-base` / `bundle-ig-electron-caps` / `bundle-ig-mascot` | 插件包：基础能力（不得依赖 electron）/ Electron 能力 / 看板娘能力                                                                                                                                                                        |
-| `ui`                                                              | 设计令牌、4 套主题、通用组件、i18n（`src/locales/en.json`）                                                                                                                                                                              |
+| `ui`                                                              | 设计令牌、4 套主题、通用组件与渲染层语言适配                                                                                                                                                                                             |
+| `i18n`                                                            | 统一多语言词典，按语言 / 项目 / 模块组织（`packages/i18n/src/locales`）                                                                                                                                                                  |
 | `voice`                                                           | 语音输入、VAD、唤醒词                                                                                                                                                                                                                    |
 | `types`                                                           | 共享类型                                                                                                                                                                                                                                 |
 
@@ -68,4 +69,4 @@ flowchart LR
 - **网络**：外部请求经 `netGuard` 拦截本机 / 内网地址；执行命令使用 `shellEscape`；私有文件经 `utils/privateFile` 以 0600 写入。
 - **日志**：主进程使用 `LoggerService` / `createMainLogger`，渲染进程使用 `@nomi-ai/ui` 的 `createLogger`，不直接用 `console.log`。
 - **界面**：CSS Modules + `var(--cd-*)` 设计令牌；功能面板懒加载；看板娘 Rive 场景按需加载。
-- **i18n**：界面文案以中文原文为 key，英文翻译在 `packages/ui/src/locales/en.json`；渲染进程用 `t()`，主进程用 `packages/electron/src/i18n`。
+- **i18n**：稳定 key 使用 `project.module.message` 格式，词典统一维护在 `packages/i18n`；`zh` 定义完整 key 集合，其他语言逐项对齐。渲染进程和主进程分别通过 UI / Electron 适配层调用同一运行时。

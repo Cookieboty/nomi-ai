@@ -31,7 +31,9 @@ export const ApprovePlanCard: React.FC<{
   onChoice: (choice: ApprovePlanChoice) => void;
 }> = ({ summary, agent, expiresAt, executePlan, onChoice }) => {
   const left = useSecondsLeft(expiresAt);
-  const title = executePlan ? t('按此方案执行') : t('批准计划');
+  const title = executePlan
+    ? t('ui.chat-settings.execute-this-plan')
+    : t('ui.chat-settings.approve-plan');
   return (
     <div
       className={styles.perm}
@@ -44,12 +46,12 @@ export const ApprovePlanCard: React.FC<{
         <span className={styles.permTitle}>{title}</span>
         {agent && (
           <span className={styles.permSource} data-testid="conv-approve-plan-agent">
-            {t('子代理 · {0}', agent)}
+            {t('ui.chat-settings.subagent', agent)}
           </span>
         )}
         {left !== null && (
           <span className={styles.permTimer} data-testid="conv-approve-plan-timer">
-            {t('{0} 秒后自动拒绝', String(left))}
+            {t('ui.chat-settings.auto-deny-in-s', String(left))}
           </span>
         )}
       </div>
@@ -61,7 +63,9 @@ export const ApprovePlanCard: React.FC<{
           data-testid="conv-approve-plan-accept-edits"
           onClick={() => onChoice('acceptEdits')}
         >
-          {executePlan ? t('按此方案执行') : t('批准并自动改文件')}
+          {executePlan
+            ? t('ui.chat-settings.execute-this-plan')
+            : t('ui.chat-settings.approve-and-auto-edit')}
         </button>
         {!executePlan && (
           <button
@@ -70,7 +74,7 @@ export const ApprovePlanCard: React.FC<{
             data-testid="conv-approve-plan-manual"
             onClick={() => onChoice('manual')}
           >
-            {t('批准并逐项确认')}
+            {t('ui.chat-settings.approve-with-step-by-step-confirm')}
           </button>
         )}
         <button
@@ -79,7 +83,7 @@ export const ApprovePlanCard: React.FC<{
           data-testid="conv-approve-plan-deny"
           onClick={() => onChoice('deny')}
         >
-          {t('继续修改')}
+          {t('ui.chat-settings.keep-editing')}
         </button>
       </div>
     </div>

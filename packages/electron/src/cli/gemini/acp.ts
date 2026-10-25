@@ -26,10 +26,7 @@ export type AcpRequestOptions = RpcRequestOptions;
 
 /** 超时错误的文案（驱动与连接共用） */
 export const acpTimeoutMessage = (_method: string, timeoutMs: number) =>
-  t(
-    'Gemini 响应超时（{0} 秒没有响应），已取消这次请求。请重试，若反复出现请检查网络或重启该会话。',
-    Math.round(timeoutMs / 1000),
-  );
+  t('electron.common.gemini-did-not-respond-for-seconds-so-the', Math.round(timeoutMs / 1000));
 
 export class AcpConnection extends JsonRpcConnection {
   constructor(child: ChildLike, handlers: RpcHandlers) {

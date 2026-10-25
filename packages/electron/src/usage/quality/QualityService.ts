@@ -344,7 +344,9 @@ export class QualityService {
         }
       };
       walk(res.groups, 0);
-      const groups = flat.length ? flat : [{ ...res.total, label: t('全部'), depth: 0 }];
+      const groups = flat.length
+        ? flat
+        : [{ ...res.total, label: t('electron.common.all'), depth: 0 }];
       csv = statsCsv(groups);
       rows = groups.length;
       name = `nomi-model-quality-${stamp}.csv`;
@@ -404,7 +406,7 @@ export class QualityService {
 async function pickSavePath(defaultName: string): Promise<string | null> {
   const win = BrowserWindow.getFocusedWindow();
   const opts = {
-    title: t('导出 CSV'),
+    title: t('electron.common.export-csv'),
     defaultPath: defaultName,
     filters: [{ name: 'CSV', extensions: ['csv'] }],
   };

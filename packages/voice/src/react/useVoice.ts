@@ -122,19 +122,19 @@ export function useVoice(
 export function phaseLabel(s: VoiceState, wakePhrase = ''): string {
   switch (s.phase) {
     case 'starting':
-      return t('正在打开麦克风…');
+      return t('ui.mascot-theme.opening-microphone');
     case 'recording':
-      return t('正在聆听… {0}s', (s.elapsedMs / 1000).toFixed(1));
+      return t('ui.mascot-theme.listening-s', (s.elapsedMs / 1000).toFixed(1));
     case 'listening':
-      return t('免按键：直接说话即可');
+      return t('ui.mascot-theme.hands-free-just-start-talking');
     case 'hearing':
-      return t('在听你说…');
+      return t('ui.chat-settings.listening');
     case 'transcribing':
-      return t('识别中…');
+      return t('ui.voice-mascot.recognizing');
     case 'wake-armed':
-      return t('等待唤醒词「{0}」', wakePhrase);
+      return t('ui.mascot-theme.waiting-for-wake-word', wakePhrase);
     case 'awake':
-      return t('我在，请说～');
+      return t('ui.mascot-theme.i-m-here-go-ahead');
     default:
       return '';
   }

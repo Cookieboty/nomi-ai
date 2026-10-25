@@ -107,52 +107,100 @@ export const REACTIONS: Partial<
   Record<ReactionKind, Partial<Record<BodyRegion | 'any', Reaction>>>
 > = {
   hover: {
-    face: { expression: 'surprised', lines: ['嗯？脸上有东西吗？', '靠、靠太近啦…'] },
-    skirt: { expression: 'angry', lines: ['喂！往哪儿看呢！', '不许乱看！'] },
-    hands: { expression: 'happy', lines: ['要击掌吗？', '嗨～'] },
+    face: {
+      expression: 'surprised',
+      lines: ['ui.voice-mascot.hm-something-on-my-face', 'ui.voice-mascot.t-too-close'],
+    },
+    skirt: {
+      expression: 'angry',
+      lines: ['ui.voice-mascot.hey-where-are-you-looking', 'ui.voice-mascot.no-peeking'],
+    },
+    hands: { expression: 'happy', lines: ['ui.voice-mascot.high-five', 'ui.voice-mascot.hi'] },
   },
   pat: {
     head: {
       expression: 'happy',
       motion: 'nod',
-      lines: ['嘿嘿…再摸摸～', '好舒服…', '头发要乱啦～'],
+      lines: [
+        'ui.voice-mascot.hehe-more-pats',
+        'ui.voice-mascot.that-feels-nice',
+        'ui.voice-mascot.you-ll-mess-up-my-hair',
+      ],
       expressionHold: 3,
     },
   },
   click: {
-    head: { expression: 'relaxed', motion: 'nod', lines: ['怎么啦？', '我在听～'] },
+    head: {
+      expression: 'relaxed',
+      motion: 'nod',
+      lines: ['ui.voice-mascot.what-s-up', 'ui.voice-mascot.i-m-listening'],
+    },
     face: {
       expression: 'surprised',
       motion: 'flinch',
-      lines: ['呀！别戳脸！', '鼻子要被戳扁了！'],
+      lines: [
+        'ui.voice-mascot.eek-don-t-poke-my-face',
+        'ui.voice-mascot.my-nose-is-getting-squished',
+      ],
     },
-    body: { expression: 'surprised', motion: 'poke', lines: ['好痒！', '干、干嘛戳我？'] },
-    hands: { expression: 'happy', motion: 'wave', lines: ['握手！', '你好呀～'] },
+    body: {
+      expression: 'surprised',
+      motion: 'poke',
+      lines: ['ui.voice-mascot.that-tickles', 'ui.voice-mascot.w-why-are-you-poking-me'],
+    },
+    hands: {
+      expression: 'happy',
+      motion: 'wave',
+      lines: ['ui.voice-mascot.handshake', 'ui.voice-mascot.hello-there'],
+    },
     skirt: {
       expression: 'angry',
       motion: 'shake',
-      lines: ['变态！', '再这样我要生气了！'],
+      lines: ['ui.voice-mascot.pervert', 'ui.voice-mascot.keep-that-up-and-i-ll-get-mad'],
       expressionHold: 3,
     },
-    legs: { expression: 'sad', motion: 'flinch', lines: ['别踩我脚呀…', '腿好酸…'] },
+    legs: {
+      expression: 'sad',
+      motion: 'flinch',
+      lines: ['ui.voice-mascot.don-t-step-on-my-feet', 'ui.voice-mascot.my-legs-are-sore'],
+    },
   },
   double: {
-    any: { expression: 'happy', motion: 'clap', lines: ['耶！', '精神满满！'] },
+    any: {
+      expression: 'happy',
+      motion: 'clap',
+      lines: ['ui.voice-mascot.yay', 'ui.voice-mascot.full-of-energy'],
+    },
     skirt: {
       expression: 'angry',
       motion: 'shake',
-      lines: ['够了！真的生气了！'],
+      lines: ['ui.voice-mascot.enough-i-m-really-mad-now'],
       expressionHold: 4,
     },
   },
   grab: {
-    any: { expression: 'surprised', lines: ['哇，要去哪儿？', '放、放我下来！', '飞起来啦～'] },
+    any: {
+      expression: 'surprised',
+      lines: [
+        'ui.voice-mascot.whoa-where-are-we-going',
+        'ui.voice-mascot.p-put-me-down',
+        'ui.voice-mascot.i-m-flying',
+      ],
+    },
   },
   release: { any: { expression: 'surprised', lines: [] } },
   land: {
-    any: { expression: 'sad', motion: 'flinch', lines: ['哎哟！', '屁股好痛…', '着陆成功…大概'] },
+    any: {
+      expression: 'sad',
+      motion: 'flinch',
+      lines: [
+        'ui.voice-mascot.ouch',
+        'ui.voice-mascot.my-bottom-hurts',
+        'ui.voice-mascot.landed-i-think',
+      ],
+    },
   },
-  wall: { any: { expression: 'sad', lines: ['撞到了…'] } },
+  wall: { any: { expression: 'sad', lines: ['ui.voice-mascot.bumped-into-something'] } },
 };
 
 export function reactionFor(

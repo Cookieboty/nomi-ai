@@ -113,7 +113,7 @@ const KPIS: Array<{
 }> = [
   {
     id: 'total',
-    label: '总数',
+    label: 'ui.model-quality.total',
     value: (s) => s.total,
     format: formatCount,
     higherIsBetter: true,
@@ -121,7 +121,7 @@ const KPIS: Array<{
   },
   {
     id: 'successRate',
-    label: '成功率',
+    label: 'ui.model-quality.success-rate',
     value: (s) => s.successRate ?? null,
     format: formatPct,
     higherIsBetter: true,
@@ -129,7 +129,7 @@ const KPIS: Array<{
   },
   {
     id: 'ttft',
-    label: '首字 P50',
+    label: 'ui.model-quality.ttft-p50',
     value: (s) => s.ttft.p50 ?? null,
     format: formatMs,
     higherIsBetter: false,
@@ -137,7 +137,7 @@ const KPIS: Array<{
   },
   {
     id: 'tps',
-    label: '输出速度 P50',
+    label: 'ui.model-quality.output-speed-p50-e11b92',
     value: (s) => s.outputTps.p50 ?? null,
     format: formatTps,
     higherIsBetter: true,
@@ -145,7 +145,7 @@ const KPIS: Array<{
   },
   {
     id: 'cache',
-    label: '缓存命中',
+    label: 'ui.model-quality.cache-hit',
     value: (s) => s.cacheHitTokenRate ?? null,
     format: formatPct,
     higherIsBetter: true,
@@ -153,7 +153,7 @@ const KPIS: Array<{
   },
   {
     id: 'break',
-    label: '流中断率',
+    label: 'ui.model-quality.stream-break-rate-a32a24',
     value: (s) => s.streamBreakRate ?? null,
     format: formatPct,
     higherIsBetter: false,
@@ -185,7 +185,11 @@ const Kpis: React.FC<{ r: QualityResult }> = ({ r }) => (
   </dl>
 );
 
-const TAG: Record<string, string> = { official: '官方', thirdParty: '第三方', nomi: 'Nomi' };
+const TAG: Record<string, string> = {
+  official: 'ui.models.official',
+  thirdParty: 'ui.cli-monitor.third-party',
+  nomi: 'Nomi',
+};
 
 /** 第一列：勾选、缩进、展开、图标、名字、标记、复制 */
 const NameCell: React.FC<{
@@ -212,7 +216,7 @@ const NameCell: React.FC<{
           checked={checked}
           disabled={!checked && !canCheck}
           onChange={onCheck}
-          aria-label={t('选中「{0}」用于并排对比', label)}
+          aria-label={t('ui.model-quality.select-for-side-by-side-comparison', label)}
           data-testid="quality-row-check"
         />
         {row.hasChildren ? (
@@ -220,7 +224,9 @@ const NameCell: React.FC<{
             type="button"
             className={styles.expand}
             aria-expanded={open}
-            aria-label={open ? t('收起「{0}」', label) : t('展开「{0}」', label)}
+            aria-label={
+              open ? t('ui.model-quality.collapse', label) : t('ui.model-quality.expand', label)
+            }
             onClick={onToggle}
             onKeyDown={(e) => {
               if ((e.key === 'ArrowRight' && !open) || (e.key === 'ArrowLeft' && open)) {
@@ -248,10 +254,17 @@ const NameCell: React.FC<{
         )}
         {s.burst > 0 && (
           <Tooltip
-            content={t('有 {0} 次上游缓冲后整段吐出：这些请求的 TPOT / tok/s 不计入', s.burst)}
+            content={t(
+              'ui.model-quality.responses-were-buffered-upstream-and-arrived-all-at',
+              s.burst,
+            )}
           >
-            <span className={styles.burstMark} tabIndex={0} aria-label={t('有整段吐出的请求')}>
-              {t('整段吐出')}
+            <span
+              className={styles.burstMark}
+              tabIndex={0}
+              aria-label={t('ui.model-quality.has-buffered-all-at-once-responses')}
+            >
+              {t('ui.model-quality.sent-all-at-once')}
             </span>
           </Tooltip>
         )}
@@ -259,8 +272,10 @@ const NameCell: React.FC<{
           <button
             type="button"
             className={styles.copyBtn}
-            aria-label={t('复制模型名 {0}', s.key)}
-            title={copied ? t('已复制') : t('复制模型名')}
+            aria-label={t('ui.model-quality.copy-model-name', s.key)}
+            title={
+              copied ? t('ui.usage-tools.copied') : t('ui.model-quality.copy-model-name-3cc922')
+            }
             onClick={() => {
               void navigator.clipboard
                 ?.writeText(s.key)
@@ -291,7 +306,11 @@ const toneClass = (tone: ReturnType<NonNullable<Column['tone']>>) =>
 /** 表头的说明：小图标 + 悬停提示 */
 const Hint: React.FC<{ text: string; label: string }> = ({ text, label }) => (
   <Tooltip content={text} placement="bottom">
-    <span className={styles.headHint} tabIndex={0} aria-label={t('{0}：说明', label)}>
+    <span
+      className={styles.headHint}
+      tabIndex={0}
+      aria-label={t('ui.model-quality.explanation', label)}
+    >
       <Icon icon={Info} size={12} />
     </span>
   </Tooltip>
@@ -304,36 +323,56 @@ const COMPARE_METRICS: Array<{
   format: (v: number | null) => string;
   higherIsBetter: boolean;
 }> = [
-  { label: '总数', value: (s) => s.total, format: formatCount, higherIsBetter: true },
-  { label: '成功率', value: (s) => s.successRate ?? null, format: formatPct, higherIsBetter: true },
   {
-    label: '流中断率',
+    label: 'ui.model-quality.total',
+    value: (s) => s.total,
+    format: formatCount,
+    higherIsBetter: true,
+  },
+  {
+    label: 'ui.model-quality.success-rate',
+    value: (s) => s.successRate ?? null,
+    format: formatPct,
+    higherIsBetter: true,
+  },
+  {
+    label: 'ui.model-quality.stream-break-rate-a32a24',
     value: (s) => s.streamBreakRate ?? null,
     format: formatPct,
     higherIsBetter: false,
   },
   {
-    label: '缓存命中',
+    label: 'ui.model-quality.cache-hit',
     value: (s) => s.cacheHitTokenRate ?? null,
     format: formatPct,
     higherIsBetter: true,
   },
-  { label: '首字 P50', value: (s) => s.ttft.p50 ?? null, format: formatMs, higherIsBetter: false },
   {
-    label: '首字 P95',
+    label: 'ui.model-quality.ttft-p50',
+    value: (s) => s.ttft.p50 ?? null,
+    format: formatMs,
+    higherIsBetter: false,
+  },
+  {
+    label: 'ui.model-quality.ttft-p95',
     value: (s) => (s.ttft.n >= MIN_SAMPLES ? (s.ttft.p95 ?? null) : null),
     format: formatMs,
     higherIsBetter: false,
   },
-  { label: '耗时 P50', value: (s) => s.e2e.p50 ?? null, format: formatMs, higherIsBetter: false },
   {
-    label: '输出速度 P50',
+    label: 'ui.model-quality.e2e-p50',
+    value: (s) => s.e2e.p50 ?? null,
+    format: formatMs,
+    higherIsBetter: false,
+  },
+  {
+    label: 'ui.model-quality.output-speed-p50-e11b92',
     value: (s) => s.outputTps.p50 ?? null,
     format: formatTps,
     higherIsBetter: true,
   },
   {
-    label: '输入长度 P50',
+    label: 'ui.model-quality.input-length-p50',
     value: (s) => s.inputLen?.p50 ?? null,
     format: formatCount,
     higherIsBetter: false,
@@ -345,11 +384,15 @@ const ComparePanel: React.FC<{
   onRemove: (id: string) => void;
   onClose: () => void;
 }> = ({ rows, onRemove, onClose }) => (
-  <section className={styles.card} data-testid="quality-compare" aria-label={t('并排对比')}>
+  <section
+    className={styles.card}
+    data-testid="quality-compare"
+    aria-label={t('ui.model-quality.side-by-side')}
+  >
     <header className={styles.cardHead}>
-      <h3>{t('并排对比')}</h3>
+      <h3>{t('ui.model-quality.side-by-side')}</h3>
       <span className={styles.meta}>
-        {t('每行的条按这一行的最大值等比；带星标的是这一项指标最好的')}
+        {t('ui.model-quality.bars-are-scaled-to-the-largest-value-in')}
       </span>
       <span className={styles.grow} />
       <button
@@ -358,14 +401,14 @@ const ComparePanel: React.FC<{
         onClick={onClose}
         data-testid="quality-compare-close"
       >
-        {t('收起')}
+        {t('ui.knowledge-local.collapse')}
       </button>
     </header>
     <div className={styles.scroll}>
       <table className={styles.compareTable}>
         <thead>
           <tr>
-            <th scope="col">{t('指标')}</th>
+            <th scope="col">{t('ui.model-quality.metric')}</th>
             {rows.map((r) => {
               const label = pathLabel(r);
               const root = r.ancestors[0] ?? r.s;
@@ -389,7 +432,7 @@ const ComparePanel: React.FC<{
                     <button
                       type="button"
                       className={styles.copyBtn}
-                      aria-label={t('移除「{0}」', label)}
+                      aria-label={t('ui.model-quality.remove', label)}
                       onClick={() => onRemove(r.id)}
                     >
                       <Icon icon={X} size={12} />
@@ -416,9 +459,9 @@ const ComparePanel: React.FC<{
                       <span className={styles.num}>
                         {m.format(v)}
                         {v != null && v === best && (
-                          <span className={styles.best} title={t('最佳')}>
+                          <span className={styles.best} title={t('ui.model-quality.best')}>
                             <Icon icon={Star} size={11} aria-hidden />
-                            <span className={styles.srOnly}>{t('最佳')}</span>
+                            <span className={styles.srOnly}>{t('ui.model-quality.best')}</span>
                           </span>
                         )}
                       </span>
@@ -508,10 +551,10 @@ export const CompareTable: React.FC<{
         {cliHasData ? (
           <InlineEmpty
             icon={Network}
-            title={t('网关层这段时间没有请求，CLI 层有记录')}
-            hint={t('官方账号直连官方接口，不经过网关；它们在 CLI 层按每一轮统计。')}
+            title={t('ui.model-quality.no-gateway-requests-in-this-range-but-the')}
+            hint={t('ui.model-quality.official-accounts-call-the-official-api-directly-bypassing')}
             action={{
-              label: t('切到 CLI 层'),
+              label: t('ui.model-quality.switch-to-cli-layer'),
               onClick: onSwitchLayer,
               testId: 'quality-switch-cli',
             }}
@@ -525,7 +568,7 @@ export const CompareTable: React.FC<{
             {...(filtered
               ? {
                   action: {
-                    label: t('清除筛选'),
+                    label: t('ui.model-quality.clear-filters'),
                     onClick: onClearFilters,
                     testId: 'quality-empty-clear',
                   },
@@ -545,15 +588,13 @@ export const CompareTable: React.FC<{
       <div className={styles.noteRow}>
         <p className={styles.meta} data-testid="quality-count-note">
           {gateway && count.countBy === 'attempt'
-            ? t(
-                '成功、失败、客户端错误、总数、成功率按上游尝试计（一次请求回退到多个候选时计多次）；其余各列按请求计。失败不含客户端错误。',
-              )
+            ? t('ui.model-quality.success-failed-client-errors-total-and-success-rate')
             : gateway
-              ? t('各列都按请求计。失败不含客户端错误。')
-              : t('CLI 层按每一轮计，时间含 CLI 自身与工具执行的开销。失败不含客户端错误。')}
+              ? t('ui.model-quality.all-columns-count-requests-failed-excludes-client-errors')
+              : t('ui.model-quality.the-cli-layer-counts-turns-times-include-the')}
         </p>
         <span className={styles.meta} data-testid="quality-range-note">
-          {t('统计区间 {0} – {1}', formatStamp(base.from), formatStamp(base.to))}
+          {t('ui.model-quality.range', formatStamp(base.from), formatStamp(base.to))}
         </span>
       </div>
       {selectedRows.length >= 2 && compareOpen && (
@@ -567,7 +608,7 @@ export const CompareTable: React.FC<{
         <div className={styles.tableBar}>
           {selectedRows.length > 0 ? (
             <span className={styles.selection} data-testid="quality-selection">
-              {t('已选 {0} 项', selectedRows.length)}
+              {t('ui.model-quality.selected', selectedRows.length)}
               <button
                 type="button"
                 className={styles.textBtn}
@@ -575,34 +616,42 @@ export const CompareTable: React.FC<{
                 onClick={() => setCompareOpen(true)}
                 data-testid="quality-compare-open"
               >
-                {selectedRows.length < 2 ? t('再选一项即可对比') : t('并排对比')}
+                {selectedRows.length < 2
+                  ? t('ui.model-quality.select-one-more-to-compare')
+                  : t('ui.model-quality.side-by-side')}
               </button>
               <button
                 type="button"
                 className={styles.textBtn}
                 onClick={() => setSelected(new Map())}
               >
-                {t('清除')}
+                {t('ui.voice-mascot.clear')}
               </button>
             </span>
           ) : (
-            <span className={styles.meta}>{t('勾选 2～{0} 项可以并排对比', MAX_COMPARE)}</span>
+            <span className={styles.meta}>
+              {t('ui.model-quality.select-2-rows-to-compare-side-by-side', MAX_COMPARE)}
+            </span>
           )}
           <span className={styles.grow} />
           <Popover
-            label={t('列')}
+            label={t('ui.model-quality.columns')}
             icon={Columns3}
             align="end"
-            panelLabel={t('显示哪些列')}
+            panelLabel={t('ui.model-quality.visible-columns')}
             testId="quality-columns"
           >
             {() => (
-              <div className={styles.optList} role="group" aria-label={t('显示哪些列')}>
+              <div
+                className={styles.optList}
+                role="group"
+                aria-label={t('ui.model-quality.visible-columns')}
+              >
                 {(
                   [
-                    ['token', t('Token（输入长度）')],
-                    ['latency', t('延迟（首字、耗时）')],
-                    ['speed', t('速度（tok/s、TPOT）')],
+                    ['token', t('ui.model-quality.tokens-input-length')],
+                    ['latency', t('ui.model-quality.latency-ttft-e2e')],
+                    ['speed', t('ui.model-quality.speed-tok-s-tpot')],
                   ] as Array<[ColumnGroup, string]>
                 ).map(([g, label]) => (
                   <button
@@ -639,7 +688,7 @@ export const CompareTable: React.FC<{
           <table
             className={styles.treeTable}
             data-testid="quality-tree"
-            aria-label={t('多级对比表')}
+            aria-label={t('ui.model-quality.multi-level-comparison-table')}
           >
             <thead>
               <tr>
@@ -722,14 +771,21 @@ export const CompareTable: React.FC<{
                             type="button"
                             className={styles.cellBtn}
                             onClick={() => drill(r, c)}
-                            title={t('查看这些请求')}
+                            title={t('ui.model-quality.view-these-requests')}
                             data-testid={`quality-drill-${c.id}`}
                           >
                             {text}
                           </button>
                         ) : (
                           <span
-                            title={small ? t('样本少于 {0}，只显示中位数', MIN_SAMPLES) : undefined}
+                            title={
+                              small
+                                ? t(
+                                    'ui.model-quality.fewer-than-samples-only-the-median-is-shown',
+                                    MIN_SAMPLES,
+                                  )
+                                : undefined
+                            }
                           >
                             {text}
                           </span>

@@ -10,10 +10,10 @@ export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ sr
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   if (!safe) {
-    return <span className={styles.unsafe}>[{t('不支持的图片链接')}]</span>;
+    return <span className={styles.unsafe}>[{t('ui.usage-tools.unsupported-image-link')}]</span>;
   }
   if (failed) {
-    return <span className={styles.failed}>[{t('图片加载失败')}]</span>;
+    return <span className={styles.failed}>[{t('ui.usage-tools.image-failed-to-load')}]</span>;
   }
   return (
     <>
@@ -21,8 +21,8 @@ export const MarkdownImage: React.FC<{ src: string; alt?: string }> = memo(({ sr
         type="button"
         className={styles.imgBtn}
         onClick={() => setOpen(true)}
-        aria-label={t('查看大图')}
-        title={t('查看大图')}
+        aria-label={t('ui.usage-tools.view-full-image')}
+        title={t('ui.usage-tools.view-full-image')}
         data-testid="md-img"
       >
         <img

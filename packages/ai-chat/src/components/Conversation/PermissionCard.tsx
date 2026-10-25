@@ -29,19 +29,23 @@ export const PermissionCard: React.FC<{
       className={styles.perm}
       data-testid="conv-permission-card"
       role="alertdialog"
-      aria-label={agent ? t('子代理「{0}」需要确认工具权限', agent) : t('需要确认工具权限')}
+      aria-label={
+        agent
+          ? t('ui.chat-settings.subagent-needs-permission-for-a-tool', agent)
+          : t('ui.cli-monitor.tool-permission-required')
+      }
     >
       <div className={styles.permHead}>
         <Icon icon={ShieldAlert} size={16} />
-        <span className={styles.permTitle}>{t('需要确认工具权限')}</span>
+        <span className={styles.permTitle}>{t('ui.cli-monitor.tool-permission-required')}</span>
         {agent && (
           <span className={styles.permSource} data-testid="conv-permission-agent">
-            {t('子代理 · {0}', agent)}
+            {t('ui.chat-settings.subagent', agent)}
           </span>
         )}
         {left !== null && (
           <span className={styles.permTimer} data-testid="conv-permission-timer">
-            {t('{0} 秒后自动拒绝', String(left))}
+            {t('ui.chat-settings.auto-deny-in-s', String(left))}
           </span>
         )}
       </div>
@@ -53,7 +57,7 @@ export const PermissionCard: React.FC<{
           data-testid="conv-permission-allow"
           onClick={() => onReply(true)}
         >
-          {t('允许')}
+          {t('ui.chat-settings.allow')}
         </button>
         <button
           type="button"
@@ -61,7 +65,7 @@ export const PermissionCard: React.FC<{
           data-testid="conv-permission-deny"
           onClick={() => onReply(false)}
         >
-          {t('拒绝')}
+          {t('ui.chat-settings.deny')}
         </button>
       </div>
     </div>

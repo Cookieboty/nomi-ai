@@ -26,9 +26,9 @@
 
 ## 多语言
 
-- 面向用户的中文字符串以中文原文作为 key，使用 `t()` / `tr()`；日志、模型提示词、协议字段和解析数据按 i18n 检查配置登记例外。
-- 英文词典按产品域拆分到 `packages/ui/src/locales/en/*.json`，通过 `locales/en/index.ts` 聚合。新增文案放入对应域文件，不直接编辑聚合入口。
-- 插值占位符必须与中文 key 一一对应；修改 key 时同步修改英文翻译，并运行 `pnpm check:i18n`。
+- 面向用户的文案使用 `project.module.message` 稳定 key，调用 `t()` / `tr()`；日志、模型提示词、协议字段和解析数据按 i18n 检查配置登记例外。
+- 多语言词典集中在 `packages/i18n/src/locales/<language>/<project>/<module>.json`，以 `zh` 作为基准语言。新增文案放入对应项目 / 模块文件，不在业务包新增语言文件，也不直接编辑生成的 `catalog.ts`。
+- 插值占位符必须在 `zh` 与所有语言中保持一致；修改 key 时同步修改所有语言，并运行 `pnpm check:i18n`。
 - 不在组件中缓存翻译结果。语言切换后由 `useLocale` 触发重新渲染；动态内容也必须走翻译函数。
 
 ## 性能与测试

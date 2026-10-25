@@ -72,7 +72,7 @@ interface Settings {
 
 type ServerStatus = 'stopped' | 'starting' | 'running' | 'error';
 
-const PROVIDER_NAME = 'llama.cpp（本机）';
+const PROVIDER_NAME = 'electron.common.llama-cpp-local';
 const LOCAL_PRESET_ID = 'llamacpp';
 const RUNTIME_ID = 'llama-runtime';
 
@@ -218,10 +218,10 @@ export class LocalModelService {
     const isRuntime = id === RUNTIME_ID;
     const m = LOCAL_LLMS.find((x) => x.id === id);
     const rt = runtimeFor();
-    if (!isRuntime && !m) return { ok: false, error: tr('未知模型') };
+    if (!isRuntime && !m) return { ok: false, error: tr('electron.common.unknown-model') };
     if (isRuntime && !rt)
-      return { ok: false, error: tr('这台电脑的系统 / 架构暂无预编译的 llama.cpp') };
-    if (this.downloads.has(id)) return { ok: false, error: tr('正在下载') };
+      return { ok: false, error: tr('electron.common.no-prebuilt-llama-cpp-for-this-computer-s') };
+    if (this.downloads.has(id)) return { ok: false, error: tr('electron.common.downloading') };
     const ctrl = new AbortController();
     const total = isRuntime ? rt!.bytes : m!.bytes;
     const rec = { ctrl, received: 0, total };
@@ -252,7 +252,7 @@ export class LocalModelService {
         else extractTarGz(buf, this.runtimeDir);
         fs.rmSync(dest, { force: true });
         const bin = this.serverBin();
-        if (!bin) throw new Error(tr('解包后没有找到 llama-server'));
+        if (!bin) throw new Error(tr('electron.common.llama-server-not-found-after-unpacking'));
         if (process.platform !== 'win32') fs.chmodSync(bin, 0o755);
       }
       this.audit('local_model_download', { id }, 'ok', Date.now() - t0);
@@ -260,7 +260,11 @@ export class LocalModelService {
       return { ok: true };
     } catch (e) {
       const aborted = ctrl.signal.aborted;
-      const msg = aborted ? tr('已取消') : e instanceof Error ? e.message : String(e);
+      const msg = aborted
+        ? tr('electron.common.cancelled')
+        : e instanceof Error
+          ? e.message
+          : String(e);
       if (!aborted) this.d.logger.warn('本地模型下载失败', { id, error: msg });
       return { ok: false, error: msg };
     } finally {
@@ -285,7 +289,7 @@ export class LocalModelService {
     return true;
   }
   removeRuntime() {
-    if (this.proc) throw new Error(tr('请先停止本地模型'));
+    if (this.proc) throw new Error(tr('electron.common.please-stop-the-local-model-first'));
     fs.rmSync(path.dirname(this.runtimeDir), { recursive: true, force: true });
     this.changed();
     return true;
@@ -294,9 +298,11 @@ export class LocalModelService {
   // ───────────── 推理服务 ─────────────
   async start(id: string): Promise<{ baseURL: string; providerId: string }> {
     const m = LOCAL_LLMS.find((x) => x.id === id);
-    if (!m || !this.installed(m)) throw new Error(tr('请先下载这个模型'));
+    if (!m || !this.installed(m))
+      throw new Error(tr('electron.common.please-download-this-model-first'));
     const bin = this.serverBin();
-    if (!bin) throw new Error(tr('请先下载 llama.cpp 推理引擎'));
+    if (!bin)
+      throw new Error(tr('electron.common.please-download-the-llama-cpp-inference-engine-first'));
     if (this.proc) await this.stop();
     this.status = 'starting';
     this.lastError = '';
@@ -333,7 +339,7 @@ export class LocalModelService {
       if (this.status !== 'stopped') {
         this.status = 'error';
         this.lastError = tr(
-          '推理服务意外退出（code {0}）：{1}',
+          'electron.common.the-inference-server-exited-unexpectedly-code',
           code,
           this.log.slice(-2).join(' ').slice(0, 200),
         );
@@ -342,13 +348,14 @@ export class LocalModelService {
     });
     proc.on('error', (e) => {
       this.status = 'error';
-      this.lastError = tr('无法启动 llama-server：{0}', e.message);
+      this.lastError = tr('electron.common.couldn-t-start-llama-server', e.message);
       this.changed();
     });
     const t0 = Date.now();
     const ok = await this.waitHealthy(90_000);
     if (!ok) {
-      const err = this.lastError || tr('推理服务启动超时');
+      const err =
+        this.lastError || tr('electron.common.the-inference-server-timed-out-while-starting');
       await this.stop();
       this.status = 'error';
       this.lastError = err;
@@ -362,7 +369,7 @@ export class LocalModelService {
     this.save();
     this.audit('local_model_start', { id, port: this.port }, 'ok', Date.now() - t0);
     broadcastMascotCommand({ type: 'motion', name: 'nod' });
-    this.d.desktop.say(tr('本地模型「{0}」已就绪，聊天内容不会离开这台电脑～', m.name));
+    this.d.desktop.say(tr('electron.common.local-model-is-ready-your-chats-won-t', m.name));
     this.changed();
     return { baseURL, providerId };
   }
@@ -395,7 +402,7 @@ export class LocalModelService {
   /** 网关登记（地址是本机回环，需要确认；没有 Key） */
   private registerInGateway(m: LocalLlm, baseURL: string): string {
     const gw = this.d.gateway();
-    if (!gw) throw new Error(tr('AI 服务未就绪'));
+    if (!gw) throw new Error(tr('electron.common.ai-service-not-ready'));
     try {
       const u = new URL(baseURL);
       gw.confirmPrivateHost(`${u.hostname}:${u.port || '80'}`);
@@ -449,7 +456,7 @@ export class LocalModelService {
   useAsChat() {
     const gw = this.d.gateway();
     if (!gw || !this.settings.gatewayProviderId || this.status !== 'running' || !this.running)
-      throw new Error(tr('本地模型还没有运行'));
+      throw new Error(tr('electron.common.the-local-model-isn-t-running-yet'));
     gw.setAssignment('nomi', {
       models: { main: `${this.settings.gatewayProviderId}/${this.running}` },
     });
@@ -488,9 +495,9 @@ export class LocalModelService {
     try {
       r = await f(`${this.settings.ollamaUrl}${p}`, init);
     } catch {
-      throw new Error(tr('没有检测到 Ollama：请先安装并启动 Ollama（https://ollama.com）'));
+      throw new Error(tr('electron.common.ollama-not-detected-please-install-and-start-ollama'));
     }
-    if (!r.ok) throw new Error(tr('Ollama 返回错误 HTTP {0}', r.status));
+    if (!r.ok) throw new Error(tr('electron.common.ollama-returned-http', r.status));
     return (await r.json()) as T;
   }
   async ollamaList() {
@@ -512,9 +519,10 @@ export class LocalModelService {
     }));
   }
   async ollamaPull(name: string) {
-    if (!/^[\w.\-/:]+$/.test(name)) throw new Error(tr('模型名只能包含字母、数字和 . - / :'));
+    if (!/^[\w.\-/:]+$/.test(name))
+      throw new Error(tr('electron.common.model-names-may-only-contain-letters-digits-and'));
     const id = `ollama:${name}`;
-    if (this.downloads.has(id)) throw new Error(tr('正在拉取'));
+    if (this.downloads.has(id)) throw new Error(tr('electron.common.pulling'));
     const ctrl = new AbortController();
     const rec = { ctrl, received: 0, total: 0 };
     this.downloads.set(id, rec);
@@ -525,9 +533,12 @@ export class LocalModelService {
         body: JSON.stringify({ name, stream: true }),
         signal: ctrl.signal,
       }).catch(() => {
-        throw new Error(tr('没有检测到 Ollama：请先安装并启动 Ollama'));
+        throw new Error(
+          tr('electron.common.ollama-not-detected-please-install-and-start-ollama-8a8451'),
+        );
       });
-      if (!r.ok || !r.body) throw new Error(tr('Ollama 拉取失败 HTTP {0}', r.status));
+      if (!r.ok || !r.body)
+        throw new Error(tr('electron.common.ollama-pull-failed-http', r.status));
       const reader = r.body.getReader();
       const td = new TextDecoder();
       let buf = '';
@@ -572,7 +583,7 @@ export class LocalModelService {
       method: 'DELETE',
       body: JSON.stringify({ name }),
     });
-    if (!r.ok) throw new Error(tr('删除失败 HTTP {0}', r.status));
+    if (!r.ok) throw new Error(tr('electron.common.delete-failed-http', r.status));
     this.audit('ollama_delete', { name }, 'ok');
     this.changed();
     return true;

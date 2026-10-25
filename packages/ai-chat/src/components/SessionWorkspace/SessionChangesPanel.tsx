@@ -107,14 +107,16 @@ const GitRow: React.FC<{
       {session ? (
         <span
           className={pane.sessionMark}
-          title={t('本会话里助手改过')}
-          aria-label={t('本会话里助手改过')}
+          title={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
+          aria-label={t('ui.session-workspace.edited-by-the-assistant-in-this-session')}
           data-testid="git-row-session"
         >
           <Bot size={12} />
         </span>
       ) : null}
-      {entry.untracked ? <span className={styles.badge}>{t('未跟踪')}</span> : null}
+      {entry.untracked ? (
+        <span className={styles.badge}>{t('ui.session-workspace.untracked')}</span>
+      ) : null}
       {(added != null || removed != null) && (
         <span className={styles.stat}>
           {added != null ? <span className={styles.add}>+{added}</span> : null}
@@ -127,8 +129,8 @@ const GitRow: React.FC<{
         type="button"
         className={styles.iconBtn}
         data-testid="change-locate"
-        title={t('定位到对话')}
-        aria-label={t('定位到对话')}
+        title={t('ui.session-workspace.show-in-conversation')}
+        aria-label={t('ui.session-workspace.show-in-conversation')}
         onClick={() => locateChangeMessage(session.messageId)}
       >
         <LocateFixed size={12} />
@@ -204,7 +206,7 @@ export const SessionChangesPanel: React.FC<{
       const r = await harnessClient.workspaceList(cwd);
       if (!r.ok) {
         setDiskTree([]);
-        setDiskErr(r.error || t('读取失败'));
+        setDiskErr(r.error || t('ui.slash-commands.failed-to-read'));
         return;
       }
       setDiskTree(r.entries ?? []);
@@ -448,7 +450,7 @@ export const SessionChangesPanel: React.FC<{
 
   const gitNote = (() => {
     if (!git || git.ok || isNotGitRepoError(git.error)) return null;
-    return git.error || t('无法读取 git 状态');
+    return git.error || t('ui.session-workspace.could-not-read-git-status');
   })();
 
   const pickFile = (file: string) => {
@@ -460,7 +462,7 @@ export const SessionChangesPanel: React.FC<{
         file,
         messageId: c.messageId,
         entries: changes,
-        sourceLabel: t('上一轮'),
+        sourceLabel: t('ui.session-workspace.last-turn'),
       });
     } else {
       // 没改过的文件：在中栏看内容（与本会话 Diff 互斥）
@@ -480,7 +482,7 @@ export const SessionChangesPanel: React.FC<{
     openDetail({
       entries: changes,
       file: selectedFile ?? changes[0]?.file,
-      sourceLabel: t('全部'),
+      sourceLabel: t('ui.providers-schedule.all'),
       messageId: changes[0]?.messageId,
     });
 
@@ -522,8 +524,8 @@ export const SessionChangesPanel: React.FC<{
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder={t('筛选文件…')}
-          aria-label={t('筛选文件…')}
+          placeholder={t('ui.session-workspace.filter-files')}
+          aria-label={t('ui.session-workspace.filter-files')}
           data-testid="files-rail-filter"
         />
       </label>
@@ -534,11 +536,11 @@ export const SessionChangesPanel: React.FC<{
           aria-pressed={onlySession}
           data-active={onlySession || undefined}
           data-testid="changes-only-session"
-          title={t('只看本会话里助手改过的文件')}
+          title={t('ui.session-workspace.only-files-the-assistant-edited-in-this-session')}
           onClick={() => setOnlySession((v) => !v)}
         >
           <Bot size={12} />
-          {t('本会话')}
+          {t('ui.slash-commands.this-session')}
           <span className={styles.count}>{sessionInGit}</span>
         </button>
       ) : null}
@@ -576,7 +578,11 @@ export const SessionChangesPanel: React.FC<{
     >
       {/* 一行：左侧「改动 · 文件」分段，右侧统计与操作；与 ChatHeader 同高 */}
       <header className={styles.panelHead}>
-        <div className={pane.seg} role="tablist" aria-label={t('变更栏视图')}>
+        <div
+          className={pane.seg}
+          role="tablist"
+          aria-label={t('ui.session-workspace.changes-panel-view')}
+        >
           <button
             type="button"
             role="tab"
@@ -586,12 +592,12 @@ export const SessionChangesPanel: React.FC<{
             data-testid="rail-tab-changes"
             title={
               source === 'git'
-                ? t('工作区里还没提交的改动（相对 HEAD，含未跟踪）')
-                : t('本会话里助手改过的文件')
+                ? t('ui.session-workspace.uncommitted-changes-in-the-workspace-vs-head-incl')
+                : t('ui.session-workspace.files-the-assistant-changed-in-this-session')
             }
             onClick={() => setView('changes')}
           >
-            {t('改动')}
+            {t('ui.session-workspace.changes')}
             {changesCount ? (
               <span className={styles.count} data-pulse={badgePulse || undefined}>
                 {changesCount}
@@ -608,7 +614,7 @@ export const SessionChangesPanel: React.FC<{
             title={cwd ? `${project} · ${cwd}` : undefined}
             onClick={openWorkspace}
           >
-            {t('文件')}
+            {t('ui.knowledge-local.files')}
           </button>
         </div>
         <span className={styles.wbSpacer} />
@@ -631,8 +637,8 @@ export const SessionChangesPanel: React.FC<{
               void refresh();
             }}
             disabled={refreshing}
-            aria-label={t('刷新')}
-            title={t('刷新')}
+            aria-label={t('ui.knowledge-local.refresh')}
+            title={t('ui.knowledge-local.refresh')}
             data-testid={workspaceActive ? 'files-rail-refresh' : 'git-refresh'}
           >
             <RefreshCw size={14} className={refreshing ? styles.spin : undefined} />
@@ -643,8 +649,8 @@ export const SessionChangesPanel: React.FC<{
             type="button"
             className={styles.iconBtn}
             data-testid="rail-open-fullscreen"
-            title={t('全屏审查')}
-            aria-label={t('全屏审查')}
+            title={t('ui.session-workspace.full-screen-review')}
+            aria-label={t('ui.session-workspace.full-screen-review')}
             onClick={openFullscreen}
           >
             <Expand size={14} />
@@ -654,8 +660,8 @@ export const SessionChangesPanel: React.FC<{
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label={t('收起变更栏')}
-            title={t('收起变更栏')}
+            aria-label={t('ui.session-workspace.hide-changes-panel')}
+            title={t('ui.session-workspace.hide-changes-panel')}
             data-testid="files-rail-close"
             onClick={onClose}
           >
@@ -667,7 +673,7 @@ export const SessionChangesPanel: React.FC<{
       {branch ? (
         <div
           className={styles.branchBar}
-          title={t('当前分支：{0}', branch)}
+          title={t('ui.session-workspace.current-branch', branch)}
           data-testid="rail-git-branch"
         >
           <GitBranch size={13} aria-hidden />
@@ -683,20 +689,20 @@ export const SessionChangesPanel: React.FC<{
                 size="sm"
                 variant="primary"
                 data-testid="rail-ask-commit"
-                title={t('把提交指令填进输入框，确认后发给助手')}
+                title={t('ui.session-workspace.put-a-commit-request-in-the-composer-send')}
                 onClick={() => askCommit(false)}
               >
                 <GitCommitHorizontal size={14} />
-                {t('让助手提交')}
+                {t('ui.session-workspace.ask-assistant-to-commit')}
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
                 data-testid="rail-ask-commit-push"
-                title={t('提交后再 git push（不会 force-push）')}
+                title={t('ui.session-workspace.commit-then-git-push-never-force-push')}
                 onClick={() => askCommit(true)}
               >
-                {t('提交并推送')}
+                {t('ui.session-workspace.commit-push')}
               </Button>
             </div>
           ) : null}
@@ -704,15 +710,15 @@ export const SessionChangesPanel: React.FC<{
           <div className={styles.body} data-testid="git-list">
             {!gitFiles.length ? (
               <p className={styles.empty} data-testid="git-clean">
-                {t('工作区干净，没有未提交的改动')}
+                {t('ui.session-workspace.working-tree-clean-nothing-to-commit')}
               </p>
             ) : !gitRows.length ? (
-              <p className={styles.empty}>{t('没有匹配的文件')}</p>
+              <p className={styles.empty}>{t('ui.foundation.no-matching-files')}</p>
             ) : (
               (
                 [
-                  ['staged', t('已暂存'), stagedRows],
-                  ['unstaged', t('未暂存'), unstagedRows],
+                  ['staged', t('ui.session-workspace.staged'), stagedRows],
+                  ['unstaged', t('ui.session-workspace.unstaged'), unstagedRows],
                 ] as const
               ).map(([area, label, list]) =>
                 // 没有暂存内容时不分组，和普通列表一样
@@ -745,7 +751,9 @@ export const SessionChangesPanel: React.FC<{
                 ),
               )
             )}
-            {git?.truncated ? <p className={styles.empty}>{t('diff 已截断')}</p> : null}
+            {git?.truncated ? (
+              <p className={styles.empty}>{t('ui.session-workspace.diff-truncated')}</p>
+            ) : null}
           </div>
         </>
       ) : changesActive ? (
@@ -756,7 +764,7 @@ export const SessionChangesPanel: React.FC<{
             style={{ flex: '1 1 auto', minWidth: 0, borderLeft: 'none' }}
           >
             {source === 'loading' ? (
-              <p className={styles.empty}>{t('读取 git…')}</p>
+              <p className={styles.empty}>{t('ui.session-workspace.reading-git')}</p>
             ) : (
               <>
                 {gitNote ? (
@@ -767,12 +775,12 @@ export const SessionChangesPanel: React.FC<{
                 {filterBox}
                 {!changes.length ? (
                   <div className={pane.empty} data-testid="files-rail-no-changes">
-                    <p>{t('本会话尚无文件变更')}</p>
+                    <p>{t('ui.session-workspace.no-file-changes-in-this-session-yet')}</p>
                     {cwd ? (
                       <div className={pane.emptyActions}>
                         <button type="button" className={pane.link} onClick={openWorkspace}>
                           <FolderTree size={12} />
-                          {t('浏览工作区文件')}
+                          {t('ui.session-workspace.browse-workspace-files')}
                         </button>
                       </div>
                     ) : null}
@@ -797,7 +805,11 @@ export const SessionChangesPanel: React.FC<{
                 {diskErr}
               </p>
             ) : !diskTree.length && !changes.length && !diskBusy ? (
-              <p className={styles.empty}>{cwd ? t('工作区为空') : t('当前会话没有工作目录')}</p>
+              <p className={styles.empty}>
+                {cwd
+                  ? t('ui.session-workspace.workspace-is-empty')
+                  : t('ui.session-workspace.this-session-has-no-working-directory')}
+              </p>
             ) : (
               sessionTree
             )}

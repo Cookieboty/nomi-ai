@@ -79,11 +79,13 @@ export function parseDshLine(line: string): HarnessEvent[] {
         ),
       ];
     case 'error':
-      return [{ type: 'error', message: str(j.message) || t('dsh 错误') }];
+      return [{ type: 'error', message: str(j.message) || t('electron.common.dsh-error') }];
     case 'status': {
       const reason = j.reason as { kind?: string; error?: { message?: string } } | undefined;
       if (j.phase === 'turn_end' && reason?.kind === 'error') {
-        return [{ type: 'error', message: reason.error?.message || t('dsh 错误') }];
+        return [
+          { type: 'error', message: reason.error?.message || t('electron.common.dsh-error') },
+        ];
       }
       return [];
     }

@@ -316,7 +316,7 @@ export class SessionHistoryService {
       if (firstTurn?.isSidechain === true) return null;
       const sessionId = info.sessionId ?? path.basename(f.path, '.jsonl');
       const hasUser = /"type"\s*:\s*"user"/.test(head);
-      const title = info.title ?? (hasUser ? t('（无标题会话）') : undefined);
+      const title = info.title ?? (hasUser ? t('electron.common.untitled-session') : undefined);
       if (!title) return null;
       return {
         key: `claude:${sessionId}`,
@@ -357,7 +357,7 @@ export class SessionHistoryService {
         cleanTitle(row?.title ?? undefined) ??
         info.title ??
         cleanTitle(row?.first_user_message ?? undefined) ??
-        (client === 'desktop' ? t('（无标题会话）') : undefined);
+        (client === 'desktop' ? t('electron.common.untitled-session') : undefined);
       if (!sessionId || !title) return null;
       const model = info.model ?? row?.model ?? undefined;
       const effort = info.reasoningEffort ?? row?.reasoning_effort ?? undefined;
@@ -526,7 +526,7 @@ export class SessionHistoryService {
     o: { offset?: number; limit?: number; force?: boolean },
     cheap: boolean,
   ): Promise<HistoryPage> {
-    if (!BACKENDS.includes(backend)) throw new Error(t('未知后端'));
+    if (!BACKENDS.includes(backend)) throw new Error(t('electron.common.unknown-backend'));
     const limit = Math.min(
       HISTORY_PAGE_SIZE,
       Math.max(1, Math.round(o.limit ?? HISTORY_PAGE_SIZE)),
@@ -579,7 +579,12 @@ export class SessionHistoryService {
     sessionId: string,
   ): Promise<{ messages: HarnessTabMessage[]; truncated: boolean; note?: string }> {
     const f = await this.locate(backend, sessionId);
-    if (!f) return { messages: [], truncated: false, note: t('找不到该会话的记录文件') };
+    if (!f)
+      return {
+        messages: [],
+        truncated: false,
+        note: t('electron.common.could-not-find-the-record-file-for-this'),
+      };
     try {
       let text: string;
       let truncated = false;
@@ -589,11 +594,20 @@ export class SessionHistoryService {
         ({ text, truncated } = await readTailText(f.path, MAX_TRANSCRIPT_BYTES));
       }
       const messages = parseTranscript(backend, text, f.mtime);
-      if (!messages.length) return { messages, truncated, note: t('没有解析到可显示的历史消息') };
+      if (!messages.length)
+        return {
+          messages,
+          truncated,
+          note: t('electron.common.no-displayable-history-messages-were-found'),
+        };
       return { messages, truncated };
     } catch (e) {
       this.d.logger?.warn('history transcript failed', e);
-      return { messages: [], truncated: false, note: t('读取历史消息失败，仍可继续该会话') };
+      return {
+        messages: [],
+        truncated: false,
+        note: t('electron.common.could-not-read-the-history-messages-you-can'),
+      };
     }
   }
 
@@ -617,14 +631,22 @@ export class SessionHistoryService {
 
   async open(backend: HistoryBackend, sessionId: string): Promise<HistoryOpenResult> {
     try {
-      if (!this.d.openTab) throw new Error(t('当前环境不支持打开历史会话'));
+      if (!this.d.openTab)
+        throw new Error(t('electron.common.opening-history-sessions-is-not-supported-here'));
       const f = await this.locate(backend, sessionId);
-      if (!f?.meta) return { ok: false, error: t('找不到该会话，可能已被删除') };
+      if (!f?.meta)
+        return {
+          ok: false,
+          error: t('electron.common.session-not-found-it-may-have-been-deleted'),
+        };
       const cwd = f.meta.cwd;
       if (!cwd || !isDir(cwd)) {
         return {
           ok: false,
-          error: t('原工作目录已不存在：{0}。续接需要同一目录，请先恢复该目录。', cwd ?? '?'),
+          error: t(
+            'electron.common.the-original-working-directory-no-longer-exists-resuming',
+            cwd ?? '?',
+          ),
         };
       }
       const tr = await this.transcript(backend, sessionId);
@@ -654,7 +676,10 @@ export class SessionHistoryService {
       });
       const notice = r.reused
         ? undefined
-        : (tr.note ?? (tr.truncated ? t('历史较长，只显示了最近的部分消息') : undefined));
+        : (tr.note ??
+          (tr.truncated
+            ? t('electron.common.long-history-only-the-most-recent-messages-are')
+            : undefined));
       return { ok: true, tab: r.tab, reused: r.reused, notice };
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };

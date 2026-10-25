@@ -41,9 +41,9 @@ const log = createLogger('coding-monitor');
 /** 相对时间：刚刚 / N 分钟前 / N 小时前 / 日期 */
 export function relTime(ms: number, now = Date.now()): string {
   const d = now - ms;
-  if (d < 60_000) return tr('刚刚');
-  if (d < 3_600_000) return tr('{0} 分钟前', Math.floor(d / 60_000));
-  if (d < 86_400_000) return tr('{0} 小时前', Math.floor(d / 3_600_000));
+  if (d < 60_000) return tr('ui.chat-settings.just-now');
+  if (d < 3_600_000) return tr('ui.chat-settings.min-ago', Math.floor(d / 60_000));
+  if (d < 86_400_000) return tr('ui.chat-settings.h-ago', Math.floor(d / 3_600_000));
   return new Date(ms).toLocaleString();
 }
 
@@ -90,54 +90,60 @@ export const CodingMonitor: React.FC<{
   return (
     <div className={styles.stack} data-testid="coding-monitor">
       {!agentsClient.available() && (
-        <Notice tone="warning">{tr('当前环境无法访问主进程监视器。')}</Notice>
+        <Notice tone="warning">
+          {tr('ui.providers-schedule.the-main-process-watcher-isn-t-reachable-in')}
+        </Notice>
       )}
       {agents && (
         <>
           <SettingsGroup
-            title={tr('进度监视')}
+            title={tr('ui.providers-schedule.progress-monitoring')}
             description={tr(
-              '只算「文件刚有写入且进程还在」的会话，按会话去重。只读本地日志与进程列表，不登录、不刮取任何账号。',
+              'ui.providers-schedule.only-sessions-whose-files-were-just-written-and',
             )}
           >
             <SettingRow
-              title={tr('监视编程助手进度')}
-              description={tr('任务完成、失败、卡住或等待确认时在气泡 / 灵动岛里提示。')}
+              title={tr('ui.providers-schedule.watch-coding-agent-progress')}
+              description={tr('ui.providers-schedule.show-a-bubble-dynamic-island-notice-when-a')}
             >
               <Switch
                 checked={agents.settings.enabled}
                 onChange={(v) => setSettings({ enabled: v })}
-                aria-label={tr('监视编程助手进度')}
+                aria-label={tr('ui.providers-schedule.watch-coding-agent-progress')}
                 data-testid="agents-enabled"
               />
             </SettingRow>
-            <SettingRow title={tr('任务完成 / 卡住时发送系统通知')}>
+            <SettingRow
+              title={tr('ui.cli-monitor.send-a-system-notification-when-a-task-finishes')}
+            >
               <Switch
                 checked={agents.settings.osNotify}
                 onChange={(v) => setSettings({ osNotify: v })}
-                aria-label={tr('任务完成 / 卡住时发送系统通知')}
+                aria-label={tr('ui.cli-monitor.send-a-system-notification-when-a-task-finishes')}
                 data-testid="agents-os-notify"
               />
             </SettingRow>
             <SettingRow
-              title={tr('语音播报')}
+              title={tr('ui.providers-schedule.read-aloud')}
               description={tr(
-                '任务状态和定时汇总在提示音之外再朗读一遍；关闭时只保留提示音。遵守语音开关与静音。',
+                'ui.providers-schedule.read-task-status-and-periodic-summaries-aloud-in',
               )}
             >
               <Switch
                 checked={agents.settings.summaryEnabled}
                 disabled={!agents.settings.enabled}
                 onChange={(v) => setSettings({ summaryEnabled: v })}
-                aria-label={tr('编程助手消息语音播报（Codex 等）')}
+                aria-label={tr(
+                  'ui.usage-tools.spoken-coding-assistant-notifications-codex-and-more',
+                )}
                 data-testid="agents-summary"
               />
             </SettingRow>
             {onOpenNotify && (
               <SettingRow
-                title={tr('灵动岛与免打扰')}
+                title={tr('ui.providers-schedule.dynamic-island-quiet-hours')}
                 description={tr(
-                  '通知样式、类型与免打扰时段在「通知 / 灵动岛」和「日程与日历」里设置。',
+                  'ui.providers-schedule.notification-style-types-and-quiet-hours-are-set',
                 )}
               >
                 <Button
@@ -146,20 +152,20 @@ export const CodingMonitor: React.FC<{
                   data-testid="agents-open-notify"
                   onClick={onOpenNotify}
                 >
-                  {tr('打开通知 / 灵动岛')}
+                  {tr('ui.cli-monitor.open-notifications-dynamic-island')}
                 </Button>
               </SettingRow>
             )}
           </SettingsGroup>
 
           <SettingsGroup
-            title={tr('监视哪些助手')}
+            title={tr('ui.providers-schedule.assistants-to-monitor')}
             description={
               <>
-                {tr('已检测：')}
+                {tr('ui.providers-schedule.detected')}
                 {agents.detected.length
                   ? agents.detected.map((k) => tr(AGENT_LABEL[k])).join('、')
-                  : tr('无')}
+                  : tr('ui.providers-schedule.none')}
               </>
             }
             actions={
@@ -169,7 +175,7 @@ export const CodingMonitor: React.FC<{
                 onClick={() => void agentsClient.scan().then(setAgents)}
                 data-testid="agents-scan"
               >
-                {tr('立即扫描')}
+                {tr('ui.providers-schedule.scan-now')}
               </Button>
             }
           >
@@ -181,7 +187,9 @@ export const CodingMonitor: React.FC<{
                     <span className={styles.toolName}>
                       {tr(AGENT_LABEL[k])}
                       <span className={styles.toolState} data-found={found ? '1' : undefined}>
-                        {found ? tr('已检测到') : tr('未检测到')}
+                        {found
+                          ? tr('ui.providers-schedule.detected-6bc4d9')
+                          : tr('ui.slash-commands.not-detected')}
                       </span>
                     </span>
                     <Switch
@@ -190,7 +198,7 @@ export const CodingMonitor: React.FC<{
                       onChange={(v) =>
                         setSettings({ tools: { [k]: v } as Partial<Record<AgentKind, boolean>> })
                       }
-                      aria-label={tr('监视 {0}', tr(AGENT_LABEL[k]))}
+                      aria-label={tr('ui.providers-schedule.monitor', tr(AGENT_LABEL[k]))}
                       data-testid={`agents-tool-${k}`}
                     />
                   </div>
@@ -200,16 +208,14 @@ export const CodingMonitor: React.FC<{
           </SettingsGroup>
 
           <SettingsGroup
-            title={tr('活跃会话')}
-            description={tr(
-              'Claude Code / Codex / dsh / Gemini CLI / Cursor / Aider / Cline / Continue 与 Nomi 里的编程助手标签。',
-            )}
+            title={tr('ui.cli-monitor.active-sessions')}
+            description={tr('ui.providers-schedule.claude-code-codex-dsh-gemini-cli-cursor-aider')}
           >
             {agents.sessions.length > 0 && (
               <div
                 className={styles.row}
                 role="group"
-                aria-label={tr('按端点筛选')}
+                aria-label={tr('ui.cli-monitor.filter-by-endpoint')}
                 data-testid="agents-endpoints"
               >
                 {endpointCounts(agents.sessions).map(([k, n]) => (
@@ -223,9 +229,9 @@ export const CodingMonitor: React.FC<{
                   >
                     {isBuiltinCliId(k) ? <EndpointIcon backend={k} size={14} decorative /> : null}
                     {k === 'all'
-                      ? tr('全部')
+                      ? tr('ui.providers-schedule.all')
                       : k === 'tabs'
-                        ? tr('Nomi 标签')
+                        ? tr('ui.cli-monitor.nomi-tabs')
                         : tr(AGENT_LABEL[k as AgentKind])}{' '}
                     {n}
                   </Button>
@@ -235,10 +241,8 @@ export const CodingMonitor: React.FC<{
             {agents.sessions.length === 0 ? (
               <EmptyState
                 icon={SquareTerminal}
-                title={tr('暂无活跃会话')}
-                description={tr(
-                  '启动 Claude Code、Codex、dsh 等工具或打开编程助手标签后会出现在这里。',
-                )}
+                title={tr('ui.providers-schedule.no-active-sessions')}
+                description={tr('ui.cli-monitor.sessions-show-up-here-once-you-start-claude')}
               />
             ) : (
               <div data-testid="agents-sessions">
@@ -265,7 +269,7 @@ export const CodingMonitor: React.FC<{
                           {[
                             s.label,
                             s.project,
-                            tr('最后活动 {0}', relTime(s.mtime, now)),
+                            tr('ui.mascot-theme.last-activity', relTime(s.mtime, now)),
                             s.usage ? sessionUsageText(s.usage, fx.currency, fx.rate) : '',
                             s.summary,
                           ]
@@ -297,7 +301,9 @@ export const CodingMonitor: React.FC<{
                               .catch(() => undefined)
                           }
                         >
-                          {s.unread ? tr('查看 {0} 条新结果', s.unread) : tr('打开标签')}
+                          {s.unread
+                            ? tr('ui.cli-monitor.view-new-results', s.unread)
+                            : tr('ui.cli-monitor.open-tab')}
                         </Button>
                       )}
                     </SettingRow>

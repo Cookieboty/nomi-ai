@@ -21,8 +21,16 @@ export const AppTitleBar: React.FC<{
       type="button"
       className="app-titlebar-toggle"
       onClick={onToggleSidebar}
-      title={sidebarCollapsed ? t('展开侧边栏 (⌘/Ctrl+B)') : t('收起侧边栏 (⌘/Ctrl+B)')}
-      aria-label={sidebarCollapsed ? t('展开侧边栏') : t('收起侧边栏')}
+      title={
+        sidebarCollapsed
+          ? t('ui.chat-settings.expand-sidebar-ctrl-b')
+          : t('ui.chat-settings.collapse-sidebar-ctrl-b')
+      }
+      aria-label={
+        sidebarCollapsed
+          ? t('ui.chat-settings.expand-sidebar')
+          : t('ui.chat-settings.collapse-sidebar')
+      }
       aria-pressed={!sidebarCollapsed}
       data-testid="sidebar-toggle"
     >

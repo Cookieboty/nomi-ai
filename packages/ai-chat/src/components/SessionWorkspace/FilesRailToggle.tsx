@@ -11,13 +11,15 @@ export const FilesRailToggle: React.FC<{
   count: number;
   onToggle: () => void;
 }> = ({ open, count, onToggle }) => {
-  const label = open ? t('收起变更栏') : t('展开变更栏');
+  const label = open
+    ? t('ui.session-workspace.hide-changes-panel')
+    : t('ui.session-workspace.show-changes-panel');
   return (
     <Tooltip placement="bottom" content={label}>
       <button
         type="button"
         className={styles.toggle}
-        aria-label={count ? t('{0}（{1} 个文件已更改）', label, String(count)) : label}
+        aria-label={count ? t('ui.session-workspace.files-changed', label, String(count)) : label}
         aria-pressed={open}
         data-open={open || undefined}
         data-testid="files-rail-toggle"

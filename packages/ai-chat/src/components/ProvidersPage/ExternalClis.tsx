@@ -146,7 +146,9 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
 
   const remove = async (p: CliRegistryEntry) => {
     if (
-      !window.confirm(t('删除外部 CLI「{0}」？用它的标签会保留，但不能再发消息。', p.displayName))
+      !window.confirm(
+        t('ui.providers-schedule.delete-the-external-cli-tabs-that-use-it', p.displayName),
+      )
     )
       return;
     setActionError(null);
@@ -165,13 +167,11 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
 
   return (
     <SettingsGroup
-      title={t('外部 CLI')}
-      description={t(
-        '接入任意支持 ACP（Agent Client Protocol）的编程助手。只保存命令、参数和环境变量名，不加载第三方代码。',
-      )}
+      title={t('ui.providers-schedule.external-cli')}
+      description={t('ui.providers-schedule.connect-any-coding-assistant-that-speaks-acp-agent')}
       actions={
         <Button size="sm" data-testid="external-cli-add" onClick={() => open(EMPTY, true)}>
-          {t('添加 CLI')}
+          {t('ui.providers-schedule.add-cli')}
         </Button>
       }
       data-testid="external-clis"
@@ -179,7 +179,7 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
       {actionError && <Notice tone="danger">{actionError}</Notice>}
       {list.length === 0 && (
         <p className={styles.sub} data-testid="external-cli-empty">
-          {t('还没有添加外部 CLI。')}
+          {t('ui.providers-schedule.no-external-clis-added-yet')}
         </p>
       )}
       {list.map((p) => (
@@ -190,9 +190,9 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
             <span className={styles.extTitle}>
               {p.displayName}
               {p.status === 'ready' ? (
-                <Badge tone="success">{t('就绪')}</Badge>
+                <Badge tone="success">{t('ui.providers-schedule.ready')}</Badge>
               ) : (
-                <Badge tone="danger">{t('清单无效')}</Badge>
+                <Badge tone="danger">{t('ui.providers-schedule.invalid-manifest')}</Badge>
               )}
             </span>
           }
@@ -204,7 +204,10 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
               )}
               {p.external?.missingEnv.length ? (
                 <span className={styles.extWarn}>
-                  {t('缺少环境变量：{0}', p.external.missingEnv.join(', '))}
+                  {t(
+                    'ui.providers-schedule.missing-environment-variables',
+                    p.external.missingEnv.join(', '),
+                  )}
                 </span>
               ) : null}
             </>
@@ -212,21 +215,21 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
         >
           {p.status === 'ready' && (
             <Button size="sm" variant="primary" onClick={() => void newTab(p)}>
-              {t('新建标签')}
+              {t('ui.providers-schedule.new-tab')}
             </Button>
           )}
           {p.external && (
             <Button size="sm" onClick={() => open(fromSpec(p.external!), false)}>
-              {t('编辑')}
+              {t('ui.foundation.edit')}
             </Button>
           )}
           <Button
             size="sm"
             variant="danger"
-            aria-label={t('删除 {0}', p.displayName)}
+            aria-label={t('ui.knowledge-local.delete', p.displayName)}
             onClick={() => void remove(p)}
           >
-            {t('删除')}
+            {t('ui.foundation.delete')}
           </Button>
         </SettingRow>
       ))}
@@ -234,7 +237,11 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
       <Modal
         open={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.isNew ? t('添加外部 CLI') : t('编辑外部 CLI')}
+        title={
+          editing?.isNew
+            ? t('ui.providers-schedule.add-external-cli')
+            : t('ui.providers-schedule.edit-external-cli')
+        }
         data-testid="external-cli-dialog"
         footer={
           <>
@@ -243,7 +250,7 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
               disabled={busy !== null}
               onClick={() => void runTest()}
             >
-              {busy === 'test' ? t('测试中…') : t('测试')}
+              {busy === 'test' ? t('ui.foundation.testing') : t('ui.providers-schedule.test')}
             </Button>
             <Button
               variant="primary"
@@ -251,7 +258,7 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
               disabled={busy !== null}
               onClick={() => void save()}
             >
-              {t('保存')}
+              {t('ui.foundation.save')}
             </Button>
           </>
         }
@@ -259,18 +266,19 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
         {editing && (
           <div className={styles.extForm}>
             <Notice tone="warning">
-              {t(
-                '外部 CLI 以你的身份在你的电脑上运行；只添加你信任的程序。Nomi 每次工具调用都会先问你（逐项确认）。',
-              )}
+              {t('ui.providers-schedule.an-external-cli-runs-on-your-computer-as')}
             </Notice>
-            <FormField label={t('名称')}>
+            <FormField label={t('ui.foundation.name')}>
               <Input
                 value={editing.draft.name}
                 onChange={(e) => patch({ name: e.target.value })}
                 data-testid="external-cli-name"
               />
             </FormField>
-            <FormField label="id" hint={t('只能用小写字母、数字和 -；保存后作为标签与对话的标识')}>
+            <FormField
+              label="id"
+              hint={t('ui.providers-schedule.lowercase-letters-digits-and-only-after-saving-it')}
+            >
               <Input
                 value={editing.draft.id}
                 disabled={!editing.isNew}
@@ -278,7 +286,10 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
                 data-testid="external-cli-id"
               />
             </FormField>
-            <FormField label={t('命令')} hint={t('可执行文件的绝对路径，或 PATH 里的名字')}>
+            <FormField
+              label={t('ui.foundation.command')}
+              hint={t('ui.providers-schedule.absolute-path-of-the-executable-or-a-name')}
+            >
               <Input
                 value={editing.draft.command}
                 onChange={(e) => patch({ command: e.target.value })}
@@ -286,9 +297,9 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
               />
             </FormField>
             <FormField
-              label={t('参数')}
+              label={t('ui.foundation.arguments')}
               hint={t(
-                '每行一个；可用 {0}（工作目录）与 {1}（主目录）。不经 shell，不会展开变量或通配符。',
+                'ui.providers-schedule.one-per-line-you-can-use-working-folder',
                 '{cwd}',
                 '{home}',
               )}
@@ -301,8 +312,8 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
               />
             </FormField>
             <FormField
-              label={t('需要的环境变量')}
-              hint={t('只写名字（如 MY_TOKEN），值从启动 Nomi 的环境里继承，Nomi 不保存。')}
+              label={t('ui.providers-schedule.required-environment-variables')}
+              hint={t('ui.providers-schedule.names-only-such-as-my-token-values-are')}
             >
               <Input
                 value={editing.draft.env}
@@ -318,20 +329,32 @@ export const ExternalClis: React.FC<{ onOpenedTab?: () => void }> = ({ onOpenedT
             {test?.ok && (
               <Notice tone="success" data-testid="external-cli-test-result">
                 {t(
-                  '握手成功：{0}{1}。支持续接：{2}；支持图片：{3}。',
-                  test.agent.title ?? test.agent.name ?? t('未报告名称'),
+                  'ui.providers-schedule.handshake-succeeded-resume-images',
+                  test.agent.title ??
+                    test.agent.name ??
+                    t('ui.providers-schedule.no-name-reported'),
                   test.agent.version ? ` ${test.agent.version}` : '',
-                  test.capabilities.loadSession ? t('是') : t('否'),
-                  test.capabilities.images ? t('是') : t('否'),
+                  test.capabilities.loadSession
+                    ? t('ui.providers-schedule.yes')
+                    : t('ui.providers-schedule.no'),
+                  test.capabilities.images
+                    ? t('ui.providers-schedule.yes')
+                    : t('ui.providers-schedule.no'),
                 )}
                 {test.missingEnv.length > 0 && (
                   <span className={styles.extWarn}>
-                    {t('缺少环境变量：{0}', test.missingEnv.join(', '))}
+                    {t(
+                      'ui.providers-schedule.missing-environment-variables',
+                      test.missingEnv.join(', '),
+                    )}
                   </span>
                 )}
                 {test.authMethods.length > 0 && (
                   <span className={styles.extWarn}>
-                    {t('它需要先在终端里登录（{0}）。', test.authMethods.join(', '))}
+                    {t(
+                      'ui.providers-schedule.sign-in-to-it-in-a-terminal-first',
+                      test.authMethods.join(', '),
+                    )}
                   </span>
                 )}
               </Notice>

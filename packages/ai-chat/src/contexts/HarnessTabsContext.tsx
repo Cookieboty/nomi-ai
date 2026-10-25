@@ -114,7 +114,9 @@ const LAST_BACKEND_KEY = 'nomi.tabs.lastBackend';
 function confirmStopBackground(tab: HarnessTabMeta | undefined): boolean {
   const n = tab?.background ?? 0;
   if (!n) return true;
-  return window.confirm(t('还有 {0} 个后台任务在运行，继续会一起停止它们。确定吗？', String(n)));
+  return window.confirm(
+    t('ui.chat-settings.background-tasks-are-still-running-and-will-be', String(n)),
+  );
 }
 
 export function HarnessTabsProvider({ children }: { children: React.ReactNode }) {

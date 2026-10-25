@@ -13,34 +13,55 @@ import { useUpdateState, type UpdateState } from './UpdateSettings';
 type Tone = 'ok' | 'warn' | undefined;
 
 function versionFacts(s: UpdateState | null): { value: string; sub: string; tone: Tone } {
-  if (!s) return { value: '—', sub: t('版本信息仅在桌面应用中提供'), tone: undefined };
+  if (!s)
+    return {
+      value: '—',
+      sub: t('ui.chat-settings.version-info-is-only-available-in-the-desktop'),
+      tone: undefined,
+    };
   const v = s.currentVersion;
   switch (s.status) {
     case 'not-available':
-      return { value: v, sub: t('已是最新版本'), tone: 'ok' };
+      return { value: v, sub: t('ui.mascot-theme.you-are-up-to-date'), tone: 'ok' };
     case 'available':
-      return { value: v, sub: t('发现新版本 {0}', s.availableVersion ?? ''), tone: 'warn' };
+      return {
+        value: v,
+        sub: t('ui.mascot-theme.update-is-available', s.availableVersion ?? ''),
+        tone: 'warn',
+      };
     case 'downloading':
-      return { value: v, sub: t('正在下载更新… {0}%', Math.round(s.percent ?? 0)), tone: 'warn' };
+      return {
+        value: v,
+        sub: t('ui.mascot-theme.downloading-update', Math.round(s.percent ?? 0)),
+        tone: 'warn',
+      };
     case 'downloaded':
-      return { value: v, sub: t('更新已下载，重启后安装'), tone: 'warn' };
+      return {
+        value: v,
+        sub: t('ui.mascot-theme.update-downloaded-restart-to-install'),
+        tone: 'warn',
+      };
     case 'checking':
-      return { value: v, sub: t('正在检查更新…'), tone: undefined };
+      return { value: v, sub: t('ui.mascot-theme.checking-for-updates'), tone: undefined };
     case 'error':
       return {
         value: v,
         sub:
           s.errorStage === 'download'
-            ? t('下载更新失败')
+            ? t('ui.mascot-theme.update-download-failed')
             : s.errorStage === 'install'
-              ? t('安装更新失败')
-              : t('检查更新失败'),
+              ? t('ui.mascot-theme.update-install-failed')
+              : t('ui.chat-settings.update-check-failed'),
         tone: 'warn',
       };
     case 'unavailable':
-      return { value: v, sub: t('开发版，不自动更新'), tone: undefined };
+      return {
+        value: v,
+        sub: t('ui.chat-settings.development-build-no-auto-update'),
+        tone: undefined,
+      };
     default:
-      return { value: v, sub: t('尚未检查更新'), tone: undefined };
+      return { value: v, sub: t('ui.chat-settings.not-checked-yet'), tone: undefined };
   }
 }
 
@@ -106,13 +127,17 @@ export const GeneralHero: React.FC = () => {
   const ver = versionFacts(update);
   // 语言名始终用其本身的文字显示
   // i18n-ignore
-  const langName = locale === 'zh-CN' ? '中文' : 'English';
+  const langName = locale === 'zh-CN' ? 'ui.voice-mascot.chinese' : 'English';
   return (
-    <section className={styles.hero} aria-label={t('概览')} data-testid="settings-hero">
+    <section
+      className={styles.hero}
+      aria-label={t('ui.usage-tools.overview')}
+      data-testid="settings-hero"
+    >
       <div className={styles.strip}>
         <Cell
           icon={Sparkles}
-          label={t('版本')}
+          label={t('ui.foundation.version')}
           value={ver.value}
           sub={ver.sub}
           tone={ver.tone}
@@ -121,17 +146,21 @@ export const GeneralHero: React.FC = () => {
         />
         <Cell
           icon={Palette}
-          label={t('主题')}
+          label={t('ui.chat-settings.theme')}
           value={themeLabel(theme)}
-          sub={t('外观 · 主题、图标与聊天背景')}
+          sub={t('ui.chat-settings.appearance-theme-icon-and-chat-background')}
           target="settings-appearance"
           testId="settings-hero-theme"
         />
         <Cell
           icon={Globe}
-          label={t('语言')}
-          value={pref === 'system' ? t('跟随系统') : langName}
-          sub={pref === 'system' ? t('当前为 {0}', langName) : t('对话、Nomi 与通知同步')}
+          label={t('ui.voice-mascot.language')}
+          value={pref === 'system' ? t('ui.mascot-theme.follow-system') : langName}
+          sub={
+            pref === 'system'
+              ? t('ui.chat-settings.currently', langName)
+              : t('ui.chat-settings.chat-nomi-and-notifications-follow-it')
+          }
           target="settings-basic"
           testId="settings-hero-language"
         />

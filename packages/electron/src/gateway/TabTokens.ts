@@ -131,7 +131,7 @@ export class TabTokens {
     this.pending.delete(m.id);
     clearTimeout(p.timer);
     if (m.type === 'binding:ok') p.resolve();
-    else p.reject(new Error(tr('网关拒绝了标签绑定：{0}', m.message)));
+    else p.reject(new Error(tr('electron.common.the-gateway-rejected-the-tab-binding', m.message)));
   }
 
   /**
@@ -160,12 +160,12 @@ export class TabTokens {
   private request(m: BindingMessage): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.d.send(m)) {
-        reject(new Error(tr('网关没有在运行，无法启动第三方会话')));
+        reject(new Error(tr('electron.common.the-gateway-isn-t-running-so-the-third')));
         return;
       }
       const timer = setTimeout(() => {
         this.pending.delete(m.id);
-        reject(new Error(tr('网关没有确认标签绑定（超时）')));
+        reject(new Error(tr('electron.common.the-gateway-didn-t-confirm-the-tab-binding')));
       }, this.d.timeoutMs ?? BINDING_ACK_TIMEOUT_MS);
       (timer as { unref?: () => void }).unref?.();
       this.pending.set(m.id, { resolve, reject, timer });

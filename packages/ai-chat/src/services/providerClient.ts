@@ -147,7 +147,7 @@ export const providerClientAvailable = (): boolean => Boolean(bridge());
 
 const call = async <T>(method: string, ...args: unknown[]): Promise<T> => {
   const b = bridge();
-  if (!b) throw new Error(t('window.aiIPC 不可用'));
+  if (!b) throw new Error(t('ui.chat-settings.window-aiipc-is-unavailable'));
   try {
     return (await b.invoke(`ai:providers:${method}`, ...args)) as T;
   } catch (err) {
@@ -166,7 +166,7 @@ const call = async <T>(method: string, ...args: unknown[]): Promise<T> => {
  */
 export function providerDisplayName(name: string): string {
   const env = /^(.*)（环境变量）$/.exec(name);
-  if (env) return t('{0}（环境变量）', providerDisplayName(env[1]!));
+  if (env) return t('ui.mascot-theme.env', providerDisplayName(env[1]!));
   return t(name);
 }
 

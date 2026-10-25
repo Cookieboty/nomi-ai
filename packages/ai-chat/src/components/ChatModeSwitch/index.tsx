@@ -30,13 +30,18 @@ export const ChatModeSwitch: React.FC = () => {
 
   const tip =
     mode === 'normal'
-      ? t('助手模式：只和诺米对话。切换到工作台模式可使用 Claude Code / Codex / dsh 标签。')
-      : t('工作台模式：可用编程助手标签、后端切换与监视器联动。');
+      ? t('ui.cli-monitor.assistant-mode-chat-with-nomi-only-switch-to')
+      : t('ui.cli-monitor.workbench-mode-coding-agent-tabs-backend-switcher-and');
 
   return (
     <div className={styles.wrap} data-testid="chat-mode-switch">
       {/* 侧栏 overflow: hidden 会裁掉 CSS 提示，这里用原生 title */}
-      <div className={styles.seg} role="group" aria-label={t('对话模式')} title={tip}>
+      <div
+        className={styles.seg}
+        role="group"
+        aria-label={t('ui.cli-monitor.chat-mode')}
+        title={tip}
+      >
         <button
           type="button"
           className={styles.btn}
@@ -44,7 +49,7 @@ export const ChatModeSwitch: React.FC = () => {
           data-testid="chat-mode-normal"
           onClick={() => setMode('normal')}
         >
-          {modeLabel('助手', 'Assistant') /* i18n-ignore */}
+          {modeLabel('ui.providers-schedule.assistants', 'Assistant') /* i18n-ignore */}
         </button>
         <button
           type="button"
@@ -60,7 +65,7 @@ export const ChatModeSwitch: React.FC = () => {
         <span
           className={styles.badge}
           data-testid="chat-mode-running-badge"
-          title={`${t('有编程助手标签仍在后台运行')} · ${t('{0} 运行中', runningCount)}`}
+          title={`${t('ui.foundation.coding-tabs-still-running-in-background')} · ${t('ui.session-workspace.running', runningCount)}`}
         >
           {runningCount}
         </span>

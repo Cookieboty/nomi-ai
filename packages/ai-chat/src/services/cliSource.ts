@@ -1,9 +1,13 @@
 /**
- * CLI 标签的来源（docs/design/unified-gateway.md §4.3、§13）：官方账号 / 第三方（经网关）。
+ * CLI 标签的来源（docs/design/unified-gateway.md §4.3、§13）：本机默认 / 官方账号 / 第三方（经网关）。
  * 侧栏信息卡的「新标签默认」（CliDefaultSource）、模型按钮和斜杠命令 /model、/status 共用这里的数据与切换逻辑。
  */
-import { t } from '@nomi-ai/ui';
+import { t, type SelectOption } from '@nomi-ai/ui';
 
+import { hasOfficialAccount } from '../utils/cliCaps';
+import { ENDPOINT_NAME } from '../utils/endpointBadge';
+
+import type { CliAccount } from './cliAccountClient';
 import type { ClientId, GatewayState } from './gatewayClient';
 import {
   harnessClient,
@@ -144,8 +148,163 @@ export function thirdPartyRefOf(
   return isCliKind(kind) ? (s?.clients[kind]?.models.main ?? null) : null;
 }
 
-export const THIRD_PARTY_TO_OFFICIAL = () =>
-  t('第三方的推理内容不能发给官方接口，将用带上下文的新会话继续，原会话保留。继续吗？');
+/* ------------------- 「新标签默认用」：默认 / 官方账号 / 第三方 ------------------- */
+
+/** 本机 CLI 自己的登录目录（不使用 Nomi 管理的配置），主进程 AccountService 的 local-<kind> 哨兵 */
+export const localAccountValue = (kind: CliKind) => `local-${kind}`;
+
+/** 下拉值：default=本机登录；follow=跟随默认账号；account:<id>=指定官方账号；provider:<id>=第三方供应商 */
+const NEWTAB_DEFAULT = 'default';
+const NEWTAB_FOLLOW = 'follow';
+const ACCOUNT_PREFIX = 'account:';
+const PROVIDER_PREFIX = 'provider:';
+
+export interface NewTabCtx {
+  kind: CliKind;
+  client: GatewayState['clients'][CliKind] | undefined;
+  gateway: GatewayState | null;
+  accounts: CliAccount[];
+}
+
+/** 「新标签默认用」当前应选中的下拉值 */
+export function newTabSelectValue(client: NewTabCtx['client'], kind: CliKind): string {
+  const main = client?.models.main ?? null;
+  if ((client?.newTabSource ?? 'official') === 'thirdParty' && main) {
+    const p = providerOfRef(main);
+    if (p) return `${PROVIDER_PREFIX}${p}`;
+  }
+  const accountId = client?.newTabAccountId ?? null;
+  if (!accountId) return NEWTAB_FOLLOW;
+  if (accountId === localAccountValue(kind)) return NEWTAB_DEFAULT;
+  return `${ACCOUNT_PREFIX}${accountId}`;
+}
+
+/** 「新标签默认用」三级分组下拉的选项：默认（本机登录）/ 官方账号（可指定账号）/ 第三方（供应商） */
+export function newTabOptions({ kind, client, gateway, accounts }: NewTabCtx): SelectOption[] {
+  const options: SelectOption[] = [];
+  const official = hasOfficialAccount(kind);
+  const name = ENDPOINT_NAME[kind];
+
+  options.push({
+    value: NEWTAB_DEFAULT,
+    group: t('ui.providers-schedule.default'),
+    label: official ? t('ui.models.this-computer-s-sign-in') : t('ui.models.dsh-built-in-config'),
+    description: official
+      ? t('ui.models.dont-use-nomi-config-use-this-computers-login', name)
+      : t('ui.models.dont-use-nomi-config-use-built-in-config', name),
+  });
+
+  if (official) {
+    options.push({
+      value: NEWTAB_FOLLOW,
+      group: t('ui.chat-settings.official-accounts'),
+      label: t('ui.models.follow-the-default-account'),
+    });
+    const seen = new Set<string>();
+    for (const a of accounts) {
+      if (a.local) continue;
+      seen.add(a.id);
+      options.push({
+        value: `${ACCOUNT_PREFIX}${a.id}`,
+        group: t('ui.chat-settings.official-accounts'),
+        label: a.label,
+        disabled: !a.loggedIn,
+        description: a.loggedIn
+          ? (a.identity?.plan ?? a.identity?.email)
+          : t('ui.models.not-signed-in'),
+      });
+    }
+    // 已指定的账号后来被删掉：补一个禁用项，避免下拉显示空白
+    const accountId = client?.newTabAccountId ?? null;
+    if (accountId && accountId !== localAccountValue(kind) && !seen.has(accountId)) {
+      options.push({
+        value: `${ACCOUNT_PREFIX}${accountId}`,
+        group: t('ui.chat-settings.official-accounts'),
+        label: accountId,
+        disabled: true,
+        description: t('ui.models.removed-account'),
+      });
+    }
+  }
+
+  const providers = codingProviders(gateway);
+  const present = new Set<string>();
+  for (const p of providers) {
+    present.add(p.id);
+    options.push({
+      value: `${PROVIDER_PREFIX}${p.id}`,
+      group: t('ui.cli-monitor.third-party'),
+      label: p.name,
+    });
+  }
+  // 已分配第三方模型、但供应商不在当前列表（停用 / 删除）时补一项
+  const main = client?.models.main ?? null;
+  const currentProvider = providerOfRef(main);
+  if (
+    (client?.newTabSource ?? 'official') === 'thirdParty' &&
+    currentProvider &&
+    !present.has(currentProvider)
+  ) {
+    options.push({
+      value: `${PROVIDER_PREFIX}${currentProvider}`,
+      group: t('ui.cli-monitor.third-party'),
+      label: providerLabel(gateway, currentProvider),
+      disabled: true,
+      description: t('ui.models.provider-unavailable'),
+    });
+  }
+
+  return options;
+}
+
+export interface NewTabPatch {
+  newTabSource: 'official' | 'thirdParty';
+  newTabAccountId?: string | null;
+  /** 第三方来源必须带上同一供应商的主模型；切回官方时清掉第三方模型。 */
+  models?: { main: string | null };
+}
+
+/** 下拉值 → setAssignment 的 patch；无法应用（如供应商已无可用模型）时返回 null */
+export function newTabPatch(
+  value: string,
+  { kind, client, gateway }: NewTabCtx,
+): NewTabPatch | null {
+  const main = client?.models.main ?? null;
+  if (value === NEWTAB_DEFAULT) {
+    return {
+      newTabSource: 'official',
+      newTabAccountId: localAccountValue(kind),
+      ...(main ? { models: { main: null } } : {}),
+    };
+  }
+  if (value === NEWTAB_FOLLOW) {
+    return {
+      newTabSource: 'official',
+      newTabAccountId: null,
+      ...(main ? { models: { main: null } } : {}),
+    };
+  }
+  if (value.startsWith(ACCOUNT_PREFIX)) {
+    return {
+      newTabSource: 'official',
+      newTabAccountId: value.slice(ACCOUNT_PREFIX.length),
+      ...(main ? { models: { main: null } } : {}),
+    };
+  }
+  if (value.startsWith(PROVIDER_PREFIX)) {
+    const providerId = value.slice(PROVIDER_PREFIX.length);
+    const ref = providerEntryRef(gateway, providerId, kind, main);
+    if (!ref) return null;
+    return {
+      newTabSource: 'thirdParty',
+      newTabAccountId: null,
+      ...(ref !== main ? { models: { main: ref } } : {}),
+    };
+  }
+  return null;
+}
+
+export const THIRD_PARTY_TO_OFFICIAL = () => t('ui.models.third-party-reasoning-can-t-be-sent-to');
 
 /**
  * 切换标签来源。第三方 → 官方且标签里已有对话时先确认（主进程会带上下文新开会话）。

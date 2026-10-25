@@ -282,7 +282,7 @@ export class SherpaTtsService {
     if (disk.diskFree !== undefined && disk.diskFree < (disk.diskRequired ?? 0)) {
       const mb = (b: number) => `${(b / 1024 / 1024).toFixed(0)} MB`;
       const msg = t(
-        '磁盘空间不足：下载并解压离线语音模型需要约 {0} 可用空间，当前只有 {1}。请清理磁盘后重试。',
+        'electron.common.not-enough-disk-space-downloading-and-unpacking-the',
         mb(disk.diskRequired ?? 0),
         mb(disk.diskFree),
       );

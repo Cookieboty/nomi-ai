@@ -256,7 +256,8 @@ export class GatewayService {
         this.d.logger.warn('gateway migration failed', e);
       }
     }
-    if (this.store.ensureClients() || !this.store.exists()) this.store.save();
+    const normalized = this.normalizeCliAssignments();
+    if (this.store.ensureClients() || normalized || !this.store.exists()) this.store.save();
     this.archiveLeftoverLegacy();
     this.push();
   }
@@ -329,6 +330,31 @@ export class GatewayService {
       keys: [{ id: 'env', value: e.key ?? '', enabled: true }],
       models: e.model ? [{ id: e.model, enabled: true }] : [],
     }));
+  }
+
+  /**
+   * 第三方模型引用自带供应商，不能与「新标签默认」的官方 / 其它供应商来源分离保存。
+   * 旧版本可能已经留下不一致的组合，启动时统一修正一次。
+   */
+  private normalizeCliAssignments(): boolean {
+    const data = this.store.snapshot();
+    let changed = false;
+    for (const id of CLIENT_IDS) {
+      if (id === 'nomi') continue;
+      const client = data.clients[id];
+      if (!client) continue;
+      const main = client.models.main?.trim();
+      if (main && client.newTabSource !== 'thirdParty') {
+        client.newTabSource = 'thirdParty';
+        client.newTabAccountId = undefined;
+        changed = true;
+      } else if (!main && client.newTabSource === 'thirdParty') {
+        client.newTabSource = 'official';
+        changed = true;
+      }
+    }
+    if (changed) this.store.replace(data);
+    return changed;
   }
 
   private push(): void {
@@ -706,11 +732,12 @@ export class GatewayService {
 
   upsertProvider(input: ProviderInput): ProviderView {
     const name = input.name.trim();
-    if (!name) throw new Error(tr('名称不能为空'));
+    if (!name) throw new Error(tr('electron.common.name-can-t-be-empty'));
     const now = Date.now();
     const prev = input.id ? this.store.providers().find((p) => p.id === input.id) : undefined;
-    if (input.id && !prev) throw new Error(tr('供应商不存在'));
-    if (prev?.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    if (input.id && !prev) throw new Error(tr('electron.common.provider-not-found'));
+    if (prev?.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
     const existing = new Map((prev?.keys ?? []).map((k) => [k.id, k]));
     const kept: GatewayKey[] = input.keys
       ? input.keys.flatMap((k) => {
@@ -783,7 +810,8 @@ export class GatewayService {
   removeProvider(id: string): void {
     const p = this.store.providers().find((x) => x.id === id);
     if (!p) return;
-    if (p.source === 'env') throw new Error(tr('环境变量提供的供应商是只读的'));
+    if (p.source === 'env')
+      throw new Error(tr('electron.common.providers-from-environment-variables-are-read-only'));
     this.bumpLearn(id);
     this.store.removeProvider(id);
     this.commit();
@@ -797,14 +825,50 @@ export class GatewayService {
       newTabAccountId?: string | null;
     },
   ): void {
-    this.store.setClient(client, patch);
-    const main = patch.models?.main;
+    const normalized = this.normalizeAssignmentPatch(client, patch);
+    this.store.setClient(client, normalized);
+    const main = normalized.models?.main;
     if (client === 'nomi' && main) {
       const data = this.store.snapshot();
       data.recentNomi = [main, ...(data.recentNomi ?? []).filter((r) => r !== main)].slice(0, 5);
       this.store.replace(data);
     }
     this.commit();
+  }
+
+  /** IPC / 主进程调用也走同一条联动规则，避免只靠渲染进程保证状态一致。 */
+  private normalizeAssignmentPatch(
+    client: ClientId,
+    patch: {
+      models?: ClientModels;
+      newTabSource?: 'official' | 'thirdParty';
+      newTabAccountId?: string | null;
+    },
+  ) {
+    if (client === 'nomi') return patch;
+    const hasMain = Boolean(
+      patch.models && Object.prototype.hasOwnProperty.call(patch.models, 'main'),
+    );
+    const main = patch.models?.main;
+    if (hasMain) {
+      if (main) {
+        return {
+          ...patch,
+          newTabSource: 'thirdParty' as const,
+          newTabAccountId: null,
+        };
+      }
+      // GatewayStore 用 undefined 表示从合并后的 models 中清除字段；渲染进程的 IPC
+      // 仍可传 null，进入这里后统一转换成可持久化的形状。
+      return {
+        ...patch,
+        newTabSource: 'official' as const,
+        models: { ...patch.models, main: undefined },
+      };
+    }
+    if (patch.newTabSource === 'official')
+      return { ...patch, models: { ...patch.models, main: undefined } };
+    return patch;
   }
 
   resetToken(client: ClientId): void {
@@ -940,8 +1004,8 @@ export class GatewayService {
       e.status === 'ok'
         ? undefined
         : e.status === 'auth'
-          ? tr('{0} 鉴权失败：{1}', label, e.error ?? '')
-          : tr('{0} 被限流：{1}', label, e.error ?? '');
+          ? tr('electron.common.authentication-failed', label, e.error ?? '')
+          : tr('electron.common.rate-limited', label, e.error ?? '');
     if (k.lastError === next) return;
     this.store.upsertProvider({
       ...p,
@@ -953,7 +1017,8 @@ export class GatewayService {
 
   confirmPrivateHost(hostPort: string): void {
     const hp = hostPort.trim().toLowerCase();
-    if (!/^[a-z0-9.:[\]-]+:\d{1,5}$/.test(hp)) throw new Error(tr('地址格式应为 host:port'));
+    if (!/^[a-z0-9.:[\]-]+:\d{1,5}$/.test(hp))
+      throw new Error(tr('electron.common.the-address-must-be-host-port'));
     const data = this.store.snapshot();
     if (!data.allowedPrivateHosts.includes(hp)) data.allowedPrivateHosts.push(hp);
     this.store.replace(data);
@@ -1010,14 +1075,16 @@ export class GatewayService {
       this.detect((input ?? {}) as Parameters<GatewayService['detect']>[0]),
     );
     handle('ai:gateway:set-assignment', (client, patch) => {
-      if (!CLIENT_IDS.includes(client as BuiltinClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId))
+        throw new Error(tr('electron.common.unknown-client'));
       this.setAssignment(
         client as ClientId,
         (patch ?? {}) as Parameters<GatewayService['setAssignment']>[1],
       );
     });
     handle('ai:gateway:reset-token', (client) => {
-      if (!CLIENT_IDS.includes(client as BuiltinClientId)) throw new Error(tr('未知客户端'));
+      if (!CLIENT_IDS.includes(client as BuiltinClientId))
+        throw new Error(tr('electron.common.unknown-client'));
       this.resetToken(client as ClientId);
     });
     handle('ai:gateway:clear-learned', (id) => this.clearLearned(String(id)));

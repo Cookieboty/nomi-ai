@@ -92,7 +92,7 @@ Grok 列为 ACP 长驻会话（`grok agent stdio`，2026-10-20 对照 1.0.62 实
 - 设置 → 编程助手：「新标签默认模式」（默认自动改文件）、「Codex 允许联网」（默认开）。
 - `StatusLine` 显示当前模式；`degraded` 时提示（如「dsh 不支持逐项确认，已使用计划模式」）。
 - 分叉 / 跨后端切换：渲染层把来源标签的 `permissionMode` 传给 `tab-create`（`forkConversation.ts`）。
-- 无障碍：`aria-label="权限模式：自动改文件"`，`Esc` 关闭并把焦点还给输入框；文案同步 `en.json`。
+- 无障碍：`aria-label` 使用稳定 i18n key，`Esc` 关闭并把焦点还给输入框；文案同步 `packages/i18n/src/locales`。
 
 ## 4.1 Nomi 自己的工具（已实现）
 

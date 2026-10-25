@@ -22,9 +22,9 @@ export const MotionMenu: React.FC = () => {
   const list = motions.filter((m) => m !== 'idle' && m !== 'talk');
 
   return (
-    <Modal open onClose={close} title={t('动作')} data-testid="motion-menu">
+    <Modal open onClose={close} title={t('ui.voice-mascot.motions')} data-testid="motion-menu">
       {list.length === 0 ? (
-        <p className={styles.credit}>{t('动作库尚未加载。')}</p>
+        <p className={styles.credit}>{t('ui.voice-mascot.motion-library-not-loaded-yet')}</p>
       ) : (
         <div className={styles.motionGrid}>
           {list.map((m) => (

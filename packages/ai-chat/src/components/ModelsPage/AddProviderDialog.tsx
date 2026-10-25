@@ -34,9 +34,9 @@ type Step = 1 | 2 | 3;
 type PresetGroup = 'vendor' | 'platform' | 'local';
 
 const GROUP_LABEL: Record<PresetGroup, string> = {
-  vendor: '模型厂商',
-  platform: '中转平台',
-  local: '本地服务',
+  vendor: 'ui.chat-settings.model-vendors',
+  platform: 'ui.models.relay-platforms',
+  local: 'ui.models.local-services',
 };
 
 const PROTOCOL_WIRE: Record<Protocol, Wire> = {
@@ -171,7 +171,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
     if (!isPrivateUrl(baseUrl)) return true;
     const hp = hostPortOf(baseUrl);
     if (!hp) return true;
-    if (custom && !window.confirm(t('「{0}」是本机或局域网地址，允许 Nomi 访问它吗？', hp)))
+    if (custom && !window.confirm(t('ui.models.is-a-local-or-lan-address-allow-nomi', hp)))
       return false;
     await gatewayClient.confirmPrivateHost(hp);
     return true;
@@ -236,7 +236,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
         };
       });
       const saved = await gatewayClient.upsertProvider({
-        name: name.trim() || preset?.name || t('自定义供应商'),
+        name: name.trim() || preset?.name || t('ui.models.custom-provider'),
         ...(preset ? { presetId: preset.id } : {}),
         ...(preset?.quirks ? { quirks: preset.quirks } : {}),
         urls: result.urls,
@@ -256,7 +256,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
 
   const footer = (
     <div className={styles.dialogFooter}>
-      <span className={styles.stepHint}>{t('第 {0} / 3 步', String(step))}</span>
+      <span className={styles.stepHint}>{t('ui.models.step-of-3', String(step))}</span>
       {step > 1 && (
         <Button
           variant="ghost"
@@ -264,11 +264,11 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
           onClick={() => setStep((s) => (s - 1) as Step)}
           data-testid="add-provider-back"
         >
-          {t('上一步')}
+          {t('ui.mascot-theme.back')}
         </Button>
       )}
       <Button variant="secondary" onClick={onClose}>
-        {t('取消')}
+        {t('ui.foundation.cancel')}
       </Button>
       {step === 2 && (
         <Button
@@ -277,7 +277,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
           onClick={() => void runDetect()}
           data-testid="add-provider-probe"
         >
-          {t('检测')}
+          {t('ui.models.detect')}
         </Button>
       )}
       {step === 3 && (
@@ -287,7 +287,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
           onClick={() => void save()}
           data-testid="add-provider-save"
         >
-          {t('保存')}
+          {t('ui.foundation.save')}
         </Button>
       )}
     </div>
@@ -300,7 +300,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
         open={open}
         onClose={onClose}
         size="lg"
-        title={t('添加第三方供应商')}
+        title={t('ui.models.add-third-party-provider')}
         footer={footer}
         data-testid="add-provider-dialog"
       >
@@ -311,10 +311,10 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
               <input
                 className={styles.searchInput}
                 autoFocus
-                placeholder={t('搜索厂商、中转平台或本地服务')}
+                placeholder={t('ui.models.search-vendors-relay-platforms-or-local-services')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label={t('搜索预设')}
+                aria-label={t('ui.models.search-presets')}
               />
             </div>
             {groups.map(({ g, items }) => (
@@ -344,8 +344,8 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
             >
               <Icon icon={Globe} size={18} />
               <span>
-                <strong>{t('自定义地址')}</strong>
-                <small>{t('任何兼容 Anthropic、OpenAI 或 Gemini 协议的服务')}</small>
+                <strong>{t('ui.models.custom-address')}</strong>
+                <small>{t('ui.models.any-service-compatible-with-the-anthropic-openai-or')}</small>
               </span>
             </button>
           </div>
@@ -354,17 +354,17 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
         {step === 2 && (
           <div className={styles.stepBody}>
             <label className={styles.field}>
-              <span>{t('名称')}</span>
+              <span>{t('ui.foundation.name')}</span>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={t('自定义供应商')}
+                placeholder={t('ui.models.custom-provider')}
                 data-testid="add-provider-name"
               />
             </label>
             {custom ? (
               <label className={styles.field}>
-                <span>{t('地址')}</span>
+                <span>{t('ui.models.address')}</span>
                 <Input
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
@@ -372,9 +372,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                   data-testid="add-provider-url"
                 />
                 <small className={styles.help}>
-                  {t(
-                    '根地址、/v1 或完整的 /v1/chat/completions 都可以，Nomi 会自动找到各协议的地址。',
-                  )}
+                  {t('ui.models.a-root-address-v1-or-a-full-v1')}
                 </small>
               </label>
             ) : (
@@ -395,13 +393,13 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                   rows={3}
                   value={keysText}
                   onChange={(e) => setKeysText(e.target.value)}
-                  placeholder={t('每行一个；第一个是主 Key，其余按顺序作为备用')}
+                  placeholder={t('ui.models.one-per-line-the-first-is-the-primary')}
                   data-testid="add-provider-keys"
                 />
                 {keys.length > 1 && (
                   <small className={styles.help}>
                     {t(
-                      '共 {0} 个 Key：1 个主 Key，{1} 个备用',
+                      'ui.models.keys-1-primary-backup',
                       String(keys.length),
                       String(keys.length - 1),
                     )}
@@ -409,10 +407,10 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                 )}
               </label>
             ) : (
-              <p className={styles.help}>{t('本地服务不需要 Key。')}</p>
+              <p className={styles.help}>{t('ui.models.local-services-don-t-need-a-key')}</p>
             )}
             <label className={styles.field}>
-              <span>{t('测试用模型（可选）')}</span>
+              <span>{t('ui.models.test-model-optional')}</span>
               <Input
                 value={testModel}
                 onChange={(e) => setTestModel(e.target.value)}
@@ -420,7 +418,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                 data-testid="add-provider-test-model"
               />
               <small className={styles.help}>
-                {t('服务不提供模型列表时，用这个模型名检测，并加入模型列表。')}
+                {t('ui.models.if-the-service-doesn-t-list-its-models')}
               </small>
             </label>
           </div>
@@ -460,17 +458,17 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
             </div>
             {error && <p className={styles.error}>{error}</p>}
             {result && okWires.length === 0 && (
-              <p className={styles.error}>
-                {t('所有协议都不可用，不能保存。请检查上面每一条的原因。')}
-              </p>
+              <p className={styles.error}>{t('ui.models.no-api-is-available-so-this-can-t')}</p>
             )}
             {result && okWires.length > 0 && models.length === 0 && (
-              <p className={styles.error}>{t('没有拿到模型列表。请返回上一步填写测试用模型。')}</p>
+              <p className={styles.error}>
+                {t('ui.models.no-model-list-was-returned-go-back-and')}
+              </p>
             )}
             {result && okWires.length > 0 && models.length > 0 && (
               <>
                 <div className={styles.modelsHead}>
-                  <span>{t('发现 {0} 个模型', String(models.length))}</span>
+                  <span>{t('ui.models.found-models', String(models.length))}</span>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -478,7 +476,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                       setEnabled(new Set(models.filter((x) => x.chat).map((x) => x.id)))
                     }
                   >
-                    {t('全部启用')}
+                    {t('ui.models.enable-all')}
                   </Button>
                   {models.some((x) => x.recommended) && (
                     <Button
@@ -488,7 +486,7 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                         setEnabled(new Set(models.filter((x) => x.recommended).map((x) => x.id)))
                       }
                     >
-                      {t('只启用推荐的')}
+                      {t('ui.models.enable-recommended-only')}
                     </Button>
                   )}
                 </div>
@@ -506,8 +504,14 @@ const AddProviderFlow: React.FC<Props> = ({ open, onClose, onSaved }) => {
                         }}
                       />
                       <span>{x.id}</span>
-                      {x.recommended && <span className={styles.badgeSoft}>{t('推荐')}</span>}
-                      {!x.chat && <span className={styles.badgeMuted}>{t('不支持工具调用')}</span>}
+                      {x.recommended && (
+                        <span className={styles.badgeSoft}>
+                          {t('ui.knowledge-local.recommended')}
+                        </span>
+                      )}
+                      {!x.chat && (
+                        <span className={styles.badgeMuted}>{t('ui.models.no-tool-calling')}</span>
+                      )}
                     </label>
                   ))}
                 </div>

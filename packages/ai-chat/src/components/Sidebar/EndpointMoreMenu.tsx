@@ -41,7 +41,7 @@ export const EndpointMoreMenu: React.FC<{
     };
   }, [open]);
 
-  const label = t('更多端点（{0}）', backends.length);
+  const label = t('ui.chat-settings.more-endpoints', backends.length);
   return (
     <div className={styles.epMoreWrap} ref={ref}>
       <button

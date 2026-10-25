@@ -8,9 +8,9 @@ import type { Protocol } from './protocol';
 export type PresetCategory = 'custom' | 'vendor' | 'platform';
 
 export const PRESET_CATEGORY_LABELS: Readonly<Record<PresetCategory, string>> = {
-  custom: '自定义配置',
-  vendor: '模型厂商',
-  platform: '第三方平台',
+  custom: 'ai-runtime.providers.preset-custom',
+  vendor: 'ai-runtime.providers.category-vendor',
+  platform: 'ai-runtime.providers.category-platform',
 };
 
 export interface ProviderPreset {
@@ -282,20 +282,20 @@ const P = (p: ProviderPreset): ProviderPreset => {
 export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   P({
     id: 'custom',
-    name: '自定义配置',
+    name: 'ai-runtime.providers.preset-custom',
     category: 'custom',
     protocol: 'openai-chat',
     baseURL: '',
     defaultModel: '',
     models: [],
     requiresApiKey: false,
-    hint: '手动填写请求地址和 API Key',
+    hint: 'ai-runtime.providers.hint-custom',
     verified: true,
   }),
   // ---------------------------------------------------------------- 模型厂商
   P({
     id: 'openai',
-    name: 'OpenAI',
+    name: 'ai-runtime.providers.preset-openai',
     category: 'vendor',
     protocol: 'openai-responses',
     baseURL: 'https://api.openai.com/v1',
@@ -312,7 +312,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'anthropic',
-    name: 'Anthropic',
+    name: 'ai-runtime.providers.preset-anthropic',
     category: 'vendor',
     protocol: 'anthropic',
     baseURL: 'https://api.anthropic.com',
@@ -329,7 +329,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'gemini',
-    name: 'Google Gemini',
+    name: 'ai-runtime.providers.preset-gemini',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -343,11 +343,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'gemini',
     keywords: ['google', '谷歌'],
-    hint: 'aistudio.google.com · OpenAI 兼容端点',
+    hint: 'ai-runtime.providers.hint-gemini',
   }),
   P({
     id: 'deepseek',
-    name: 'DeepSeek',
+    name: 'ai-runtime.providers.preset-deepseek',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://api.deepseek.com',
@@ -364,7 +364,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'kimi',
-    name: 'Kimi',
+    name: 'ai-runtime.providers.preset-kimi',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://api.moonshot.cn/v1',
@@ -381,7 +381,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'zhipu',
-    name: 'Zhipu GLM',
+    name: 'ai-runtime.providers.preset-zhipu',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://open.bigmodel.cn/api/paas/v4',
@@ -398,7 +398,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'qwen',
-    name: '通义千问 百炼',
+    name: 'ai-runtime.providers.preset-qwen',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1',
@@ -411,13 +411,13 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'qwen',
     keywords: ['qwen', '阿里', '百炼', 'aliyun', 'dashscope'],
-    hint: '请把 {WorkspaceId} 换成你的业务空间 ID',
+    hint: 'ai-runtime.providers.hint-qwen',
   }),
   // https://docs.bigmodel.cn/cn/coding-plan/quick-start ：Anthropic 地址与按量付费相同（Key 决定计费），
   // Chat 走 /api/coding/paas/v4；Responses 的完整路径文档没写，不预填（探测时由地址推导）
   P({
     id: 'zhipu-coding',
-    name: 'GLM Coding Plan',
+    name: 'ai-runtime.providers.preset-zhipu-coding',
     category: 'vendor',
     protocol: 'anthropic',
     baseURL: 'https://open.bigmodel.cn/api/anthropic',
@@ -430,7 +430,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'zhipu',
     keywords: ['智谱', 'glm', 'coding plan', '编程套餐'],
-    hint: '编程套餐专用 Key',
+    hint: 'ai-runtime.providers.hint-coding-plan',
     codingPlan: true,
     urls: {
       chat: 'https://open.bigmodel.cn/api/coding/paas/v4',
@@ -460,7 +460,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   // https://help.aliyun.com/zh/model-studio/coding-plan-faq ：只有 Chat 和 Anthropic，没有 Responses；专用 Key
   P({
     id: 'qwen-coding',
-    name: '百炼 Coding Plan',
+    name: 'ai-runtime.providers.preset-qwen-coding',
     category: 'vendor',
     protocol: 'anthropic',
     baseURL: 'https://coding.dashscope.aliyuncs.com/apps/anthropic',
@@ -473,7 +473,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'qwen',
     keywords: ['qwen', '通义', '百炼', 'coding plan', '编程套餐'],
-    hint: '编程套餐专用 Key',
+    hint: 'ai-runtime.providers.hint-coding-plan',
     codingPlan: true,
     urls: {
       chat: 'https://coding.dashscope.aliyuncs.com/v1',
@@ -493,7 +493,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'doubao',
-    name: '火山方舟 豆包',
+    name: 'ai-runtime.providers.preset-doubao',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
@@ -509,7 +509,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'minimax',
-    name: 'MiniMax',
+    name: 'ai-runtime.providers.preset-minimax',
     category: 'vendor',
     protocol: 'openai-chat',
     baseURL: 'https://api.minimax.cn/v1',
@@ -524,7 +524,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   }),
   P({
     id: 'xai',
-    name: 'xAI Grok',
+    name: 'ai-runtime.providers.preset-xai',
     category: 'vendor',
     protocol: 'openai-responses',
     baseURL: 'https://api.x.ai/v1',
@@ -541,7 +541,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
   // ---------------------------------------------------------------- 第三方平台
   P({
     id: 'openrouter',
-    name: 'OpenRouter',
+    name: 'ai-runtime.providers.preset-openrouter',
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'https://openrouter.ai/api/v1',
@@ -554,11 +554,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     modelsEndpoint: true,
     verified: true,
     icon: 'openrouter',
-    hint: 'openrouter.ai · 用「获取模型」选择',
+    hint: 'ai-runtime.providers.hint-openrouter',
   }),
   P({
     id: 'siliconflow',
-    name: 'SiliconFlow 硅基流动',
+    name: 'ai-runtime.providers.preset-siliconflow',
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'https://api.siliconflow.cn/v1',
@@ -578,7 +578,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     // 同一网关也提供 /v1/responses 与 Anthropic /v1/messages）；列表 GET /v1/models 见
     // https://amux.ai/api-reference/models/list-models 。官方 logo 未声明可再分发许可，故不打包图标（首字母头像）。
     id: 'amux',
-    name: 'Amux',
+    name: 'ai-runtime.providers.preset-amux',
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'https://gateway.amux.ai/v1',
@@ -597,11 +597,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     checkedAt: '2026-10-12',
     icon: 'amux',
     keywords: ['amux', 'gateway'],
-    hint: 'amux.ai · 用「获取模型」选择（ID 形如 vendor/model）',
+    hint: 'ai-runtime.providers.hint-amux',
   }),
   P({
     id: 'ollama',
-    name: 'Ollama（本地）',
+    name: 'ai-runtime.providers.preset-ollama',
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'http://localhost:11434/v1',
@@ -614,11 +614,11 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'ollama',
     keywords: ['local', '本地'],
-    hint: '本地服务 · 用「获取模型」列出已下载的模型',
+    hint: 'ai-runtime.providers.hint-ollama',
   }),
   P({
     id: 'lmstudio',
-    name: 'LM Studio（本地）',
+    name: 'ai-runtime.providers.preset-lmstudio',
     category: 'platform',
     protocol: 'openai-chat',
     baseURL: 'http://localhost:1234/v1',
@@ -631,7 +631,7 @@ export const PROVIDER_PRESETS: readonly ProviderPreset[] = Object.freeze([
     verified: true,
     icon: 'lmstudio',
     keywords: ['local', '本地'],
-    hint: '本地服务 · 用「获取模型」列出已加载的模型',
+    hint: 'ai-runtime.providers.hint-lmstudio',
   }),
 ]);
 

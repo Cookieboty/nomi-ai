@@ -19,7 +19,7 @@ export const ScheduleSection: React.FC<{
 }> = ({ tab, onTab }) => (
   <SectionPage
     testId="settings-schedule"
-    tabsLabel="日程与日历分区"
+    tabsLabel="ui.chat-settings.schedule-and-calendar-sections"
     tabs={SECTION_TABS.schedule}
     value={tab}
     onChange={onTab}

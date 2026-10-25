@@ -40,7 +40,7 @@ export function imageSupportFor(
   if (cliImageSupport(tab.backend) === 'none')
     return {
       capability: 'none',
-      reason: t('{0} 的命令行没有图片输入，不能在会话里发送图片，请去掉图片后再发。', 'dsh'),
+      reason: t('ui.session-workspace.the-cli-has-no-image-input-so-images', 'dsh'),
     };
   const own = tab.modelOverride?.trim() || null;
   const m = own ? catalog?.models.find((x) => x.id === own) : catalog?.defaultModel;
@@ -48,7 +48,7 @@ export function imageSupportFor(
     return {
       capability: 'none',
       reason: t(
-        '当前模型 {0} 不支持图片，请去掉图片，或在模型按钮里换一个能看图的模型。',
+        'ui.session-workspace.the-current-model-doesn-t-support-images-remove-d5d109',
         m.label ?? m.id,
       ),
     };

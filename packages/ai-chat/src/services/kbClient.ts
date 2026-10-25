@@ -122,7 +122,11 @@ export class KbCallError extends Error {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new KbCallError('unavailable', t('知识库需要在桌面应用中使用'));
+  if (!b)
+    throw new KbCallError(
+      'unavailable',
+      t('ui.chat-settings.the-knowledge-base-requires-the-desktop-app'),
+    );
   const r = (await b.invoke(`ai:kb:${method}`, ...args)) as T & {
     __error?: { code: string; message: string };
   };
@@ -171,7 +175,7 @@ export const fmtBytes = (n: number) =>
 
 /** 显示用：Windows / POSIX 路径都只取最后两级 */
 export function shortPath(p: string): string {
-  if (p.startsWith('note:')) return t('笔记');
+  if (p.startsWith('note:')) return t('ui.foundation.notes');
   const parts = p.split(/[\\/]+/).filter(Boolean);
   return parts.length > 2 ? `…/${parts.slice(-2).join('/')}` : p;
 }

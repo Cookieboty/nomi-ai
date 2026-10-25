@@ -99,7 +99,9 @@ export const QualityPanel: React.FC<{
             limit: 1000,
           });
     void run
-      .then((r) => setMsg(r.ok && r.path ? t('已导出到 {0}', r.path) : null))
+      .then((r) =>
+        setMsg(r.ok && r.path ? t('ui.knowledge-local.exported-to-8799d2', r.path) : null),
+      )
       .catch((e: unknown) => setMsg(e instanceof Error ? e.message : String(e)));
   };
 
@@ -108,8 +110,8 @@ export const QualityPanel: React.FC<{
       <section className={styles.root} data-testid="settings-quality">
         <EmptyState
           icon={Activity}
-          title={t('模型质量仅在桌面应用中提供')}
-          description={t('质量数据由本机主进程记录，网页预览中不可用。')}
+          title={t('ui.model-quality.model-quality-is-only-available-in-the-desktop')}
+          description={t('ui.model-quality.quality-data-is-recorded-by-the-local-main')}
         />
       </section>
     );
@@ -153,13 +155,13 @@ export const QualityPanel: React.FC<{
       )}
       <Tabs<'compare' | 'trend' | 'requests'>
         variant="underline"
-        aria-label={t('模型质量分区')}
+        aria-label={t('ui.model-quality.model-quality-sections')}
         value={tab}
         onChange={onTab}
         items={[
-          { value: 'compare', label: t('对比') },
-          { value: 'trend', label: t('趋势') },
-          { value: 'requests', label: t('请求明细') },
+          { value: 'compare', label: t('ui.model-quality.compare') },
+          { value: 'trend', label: t('ui.usage-tools.trend') },
+          { value: 'requests', label: t('ui.model-quality.requests-09efcb') },
         ]}
       />
       {tab === 'compare' && (

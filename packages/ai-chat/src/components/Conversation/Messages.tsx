@@ -50,7 +50,7 @@ const CopyAction: React.FC<{ text: string }> = ({ text }) => {
   return (
     <ActionButton
       icon={done ? Check : Copy}
-      label={done ? t('已复制') : t('复制')}
+      label={done ? t('ui.usage-tools.copied') : t('ui.knowledge-local.copy')}
       testId="msg-copy"
       onClick={() => {
         void navigator.clipboard
@@ -70,12 +70,16 @@ const CopyAction: React.FC<{ text: string }> = ({ text }) => {
 export const TurnSummary: React.FC<{ message: ConvMessage }> = ({ message }) => {
   const s = turnSummary(message);
   if (!s) return null;
-  const title = [s.duration && t('用时 {0}', s.duration), s.tokens, s.cost && t('费用 {0}', s.cost)]
+  const title = [
+    s.duration && t('ui.usage-tools.took', s.duration),
+    s.tokens,
+    s.cost && t('ui.usage-tools.cost-c58378', s.cost),
+  ]
     .filter(Boolean)
     .join(' · ');
   return (
     <span className={styles.summary} data-testid="conv-turn-summary" title={title}>
-      {s.duration && <span data-part="duration">{t('用时 {0}', s.duration)}</span>}
+      {s.duration && <span data-part="duration">{t('ui.usage-tools.took', s.duration)}</span>}
       {s.tokens && <span data-part="tokens">{s.tokens}</span>}
       {s.cost && <span data-part="cost">{s.cost}</span>}
     </span>
@@ -92,7 +96,7 @@ export const ErrorCard: React.FC<{
   <div className={styles.errorCard} role="alert" data-testid="conv-error-card">
     <div className={styles.errorHead}>
       <Icon icon={CircleAlert} size={15} />
-      <span className={styles.errorTitle}>{t('这一轮没有完成')}</span>
+      <span className={styles.errorTitle}>{t('ui.usage-tools.this-turn-didn-t-finish')}</span>
     </div>
     <pre className={styles.errorText}>{message}</pre>
     <div className={styles.errorActions}>
@@ -105,7 +109,7 @@ export const ErrorCard: React.FC<{
           data-testid="conv-error-retry"
         >
           <Icon icon={RefreshCw} size={13} />
-          {t('重试')}
+          {t('ui.mascot-theme.retry')}
         </button>
       )}
       <CopyAction text={message} />
@@ -199,7 +203,7 @@ export const UserMessage = memo(function UserMessage({
             value={draft}
             autoFocus
             rows={Math.min(8, Math.max(2, draft.split('\n').length))}
-            aria-label={t('编辑消息')}
+            aria-label={t('ui.usage-tools.edit-message')}
             data-testid="msg-edit-input"
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -216,7 +220,7 @@ export const UserMessage = memo(function UserMessage({
           />
           <div className={styles.editActions}>
             <button type="button" className={styles.errorBtn} onClick={() => setEditing(false)}>
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </button>
             <button
               type="button"
@@ -225,7 +229,7 @@ export const UserMessage = memo(function UserMessage({
               disabled={!draft.trim()}
               data-testid="msg-edit-send"
             >
-              {t('重新发送')}
+              {t('ui.usage-tools.resend')}
             </button>
           </div>
         </div>
@@ -243,7 +247,7 @@ export const UserMessage = memo(function UserMessage({
             {canEdit && onEdit && (
               <ActionButton
                 icon={Pencil}
-                label={t('编辑并重新发送')}
+                label={t('ui.usage-tools.edit-and-resend')}
                 testId="msg-edit"
                 onClick={() => {
                   setDraft(message.text);
@@ -279,7 +283,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       {message.origin === 'background' && (
         <div className={styles.stopped} data-testid="background-followup-note">
           <Icon icon={Layers} size={13} />
-          {t('后台任务完成后的跟进')}
+          {t('ui.chat-settings.follow-up-after-a-background-task-finished')}
         </div>
       )}
       {slots?.before?.(message)}
@@ -301,7 +305,7 @@ export const AssistantMessage = memo(function AssistantMessage({
       {message.stopped && (
         <div className={styles.stopped} data-testid="stopped-note">
           <Icon icon={OctagonX} size={13} />
-          {t('已停止生成')}
+          {t('ui.usage-tools.generation-stopped')}
         </div>
       )}
       {slots?.after?.(message)}
@@ -311,8 +315,8 @@ export const AssistantMessage = memo(function AssistantMessage({
           <span
             className={styles.model}
             data-testid="conv-msg-model"
-            title={t('模型：{0}', message.model)}
-            aria-label={t('模型：{0}', message.model)}
+            title={t('ui.cli-monitor.model', message.model)}
+            aria-label={t('ui.cli-monitor.model', message.model)}
           >
             {message.model}
           </span>
@@ -330,7 +334,7 @@ export const AssistantMessage = memo(function AssistantMessage({
           {retry && !message.error && (
             <ActionButton
               icon={RefreshCw}
-              label={t('重新生成')}
+              label={t('ui.usage-tools.regenerate')}
               testId="msg-retry"
               onClick={retry}
             />

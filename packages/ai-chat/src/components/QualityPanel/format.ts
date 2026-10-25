@@ -35,7 +35,7 @@ const WIRE_LABEL: Record<string, string> = {
 export const wireLabel = (w: string | undefined): string => (w ? (WIRE_LABEL[w] ?? w) : '—');
 
 export const clientLabel = (c: string): string =>
-  c === 'legacy' ? t('旧版令牌') : t(USAGE_SOURCE_LABEL[c] ?? c);
+  c === 'legacy' ? t('ui.usage-tools.legacy-token') : t(USAGE_SOURCE_LABEL[c] ?? c);
 
 /** 毫秒 → 「850 ms」/「2.4 s」 */
 export const formatMs = (ms: number | null | undefined): string =>
@@ -74,32 +74,32 @@ export const formatTps = (v: number | null | undefined): string =>
 /** 模型解析方式（网关按这个顺序：显式 → 档位 → 辅助 → 绑定 → 未知名 → 默认） */
 export const resolvedLabel = (r: string): string =>
   ({
-    explicit: t('指定的模型'),
-    tier: t('档位映射'),
-    helper: t('辅助模型'),
-    subagent: t('子代理模型'),
-    binding: t('标签选的模型'),
-    unknown: t('不认识的模型名，用了主模型'),
-    default: t('默认模型'),
+    explicit: t('ui.usage-tools.requested-model'),
+    tier: t('ui.usage-tools.tier-mapping'),
+    helper: t('ui.usage-tools.helper-model'),
+    subagent: t('ui.usage-tools.subagent-model'),
+    binding: t('ui.usage-tools.tab-s-model'),
+    unknown: t('ui.usage-tools.unknown-model-name-used-the-main-model'),
+    default: t('ui.providers-schedule.default-model'),
   })[r] ?? r;
 
 export const outcomeLabel = (o: QualityOutcome): string =>
   ({
-    ok: t('成功'),
-    'client-cancel': t('取消'),
-    auth: t('鉴权失败'),
-    'rate-limit': t('限流'),
-    'upstream-5xx': t('上游 5xx / 过载'),
-    'first-byte-timeout': t('首字超时'),
-    'pre-commit-error': t('开始输出前出错'),
-    'stream-break': t('断流'),
-    'idle-timeout': t('空闲超时'),
-    'protocol-violation': t('协议不合规'),
-    'repetition-stop': t('复读中止'),
-    'request-rejected': t('请求被拒'),
-    'gateway-error': t('网关自身错误'),
-    'cli-error': t('CLI 报错'),
-    'cli-exit': t('CLI 中途退出'),
+    ok: t('ui.model-quality.success'),
+    'client-cancel': t('ui.foundation.cancel'),
+    auth: t('ui.model-quality.auth-failed'),
+    'rate-limit': t('ui.model-quality.rate-limited'),
+    'upstream-5xx': t('ui.model-quality.upstream-5xx-overloaded'),
+    'first-byte-timeout': t('ui.model-quality.first-byte-timeout'),
+    'pre-commit-error': t('ui.model-quality.error-before-output'),
+    'stream-break': t('ui.model-quality.stream-break'),
+    'idle-timeout': t('ui.model-quality.idle-timeout'),
+    'protocol-violation': t('ui.model-quality.protocol-violation'),
+    'repetition-stop': t('ui.model-quality.stopped-for-repetition'),
+    'request-rejected': t('ui.model-quality.request-rejected'),
+    'gateway-error': t('ui.model-quality.gateway-error'),
+    'cli-error': t('ui.model-quality.cli-error'),
+    'cli-exit': t('ui.model-quality.cli-exited-mid-turn'),
   })[o];
 
 /** 结果对应的徽标色调（状态色带文字，不单靠颜色） */
@@ -113,24 +113,28 @@ export const outcomeTone = (o: QualityOutcome): 'success' | 'warning' | 'danger'
         : 'danger';
 
 export const sourceLabel = (s: string): string =>
-  ({ nomi: t('Nomi 对话'), official: t('官方账号'), thirdParty: t('第三方供应商') })[s] ?? s;
+  ({
+    nomi: t('ui.usage-tools.nomi-chat'),
+    official: t('ui.chat-settings.official-accounts'),
+    thirdParty: t('ui.models.third-party-providers'),
+  })[s] ?? s;
 
 export const layerLabel = (l: QualityLayer): string =>
-  l === 'gateway' ? t('网关层') : t('CLI 层');
+  l === 'gateway' ? t('ui.model-quality.gateway-layer') : t('ui.model-quality.cli-layer');
 
 export const dimensionLabel = (d: QualityDimension): string =>
   ({
-    provider: t('供应商'),
+    provider: t('ui.providers-schedule.provider'),
     key: 'Key',
-    model: t('模型'),
-    modelFamily: t('模型'),
-    client: t('客户端'),
-    source: t('来源'),
-    protocol: t('协议'),
-    resolved: t('模型解析方式'),
-    outcome: t('结果'),
-    routeQuality: t('路由质量'),
-    loss: t('主损失'),
+    model: t('ui.foundation.model'),
+    modelFamily: t('ui.foundation.model'),
+    client: t('ui.model-quality.client'),
+    source: t('ui.knowledge-local.sources'),
+    protocol: t('ui.model-quality.protocol'),
+    resolved: t('ui.model-quality.model-resolution'),
+    outcome: t('ui.foundation.result'),
+    routeQuality: t('ui.model-quality.routing-quality'),
+    loss: t('ui.model-quality.primary-loss'),
   })[d];
 
 /** 所有结果类别（顺序即筛选菜单顺序） */
@@ -270,21 +274,36 @@ const pct3 = (
 export const GROUP_HEADS: Array<{ id: string; label: string; hint: string; group: ColumnGroup }> = [
   {
     id: 'ttft',
-    label: '首字（TTFT）',
-    hint: '从发出到第一个内容（正文 / 推理 / 工具参数）',
+    label: 'ui.model-quality.first-token-ttft',
+    hint: 'ui.model-quality.from-send-to-the-first-content-text-reasoning',
     group: 'latency',
   },
-  { id: 'e2e', label: '耗时（E2E）', hint: '从发出到结束的总耗时', group: 'latency' },
-  { id: 'speed', label: '速度', hint: '整段吐出的请求不计入', group: 'speed' },
-  { id: 'inputLen', label: '输入长度', hint: '每次请求的输入 token（含缓存读写）', group: 'token' },
+  {
+    id: 'e2e',
+    label: 'ui.model-quality.duration-e2e',
+    hint: 'ui.model-quality.total-time-from-send-to-finish',
+    group: 'latency',
+  },
+  {
+    id: 'speed',
+    label: 'ui.model-quality.speed',
+    hint: 'ui.model-quality.buffered-all-at-once-responses-are-excluded',
+    group: 'speed',
+  },
+  {
+    id: 'inputLen',
+    label: 'ui.model-quality.input-length',
+    hint: 'ui.model-quality.input-tokens-per-request-including-cache-reads-and',
+    group: 'token',
+  },
 ];
 
 export const COLUMNS: Column[] = [
   {
     id: 'ok',
     group: 'count',
-    label: '成功',
-    hint: '正常结束的次数（按尝试计时：一次请求回退到多个候选计多次）',
+    label: 'ui.model-quality.success',
+    hint: 'ui.model-quality.completed-normally-by-attempt-a-request-that-falls',
     value: (s) => s.ok,
     format: formatCount,
     drill: ['ok'],
@@ -292,8 +311,8 @@ export const COLUMNS: Column[] = [
   {
     id: 'failed',
     group: 'count',
-    label: '失败',
-    hint: '鉴权、限流、上游 5xx、超时、断流等；不含客户端错误',
+    label: 'ui.foundation.failed',
+    hint: 'ui.model-quality.auth-rate-limits-upstream-5xx-timeouts-stream-breaks',
     value: (s) => s.failed,
     format: formatCount,
     tone: (_s, v) => (v ? 'danger' : undefined),
@@ -302,8 +321,8 @@ export const COLUMNS: Column[] = [
   {
     id: 'clientErrors',
     group: 'count',
-    label: '客户端错误',
-    hint: '请求本身的问题：400 / 404 / 413 / 上下文超长等，默认不算供应商失败',
+    label: 'ui.model-quality.client-errors',
+    hint: 'ui.model-quality.problems-with-the-request-itself-400-404-413',
     value: (s) => s.clientErrors,
     format: formatCount,
     drill: ['request-rejected'],
@@ -311,8 +330,8 @@ export const COLUMNS: Column[] = [
   {
     id: 'total',
     group: 'count',
-    label: '总数',
-    hint: '成功 + 失败 + 客户端错误 + 取消',
+    label: 'ui.model-quality.total',
+    hint: 'ui.model-quality.success-failed-client-errors-cancelled',
     value: (s) => s.total,
     format: formatCount,
     drill: 'all',
@@ -320,8 +339,8 @@ export const COLUMNS: Column[] = [
   {
     id: 'successRate',
     group: 'count',
-    label: '成功率',
-    hint: '成功 ÷（总数 − 取消 − 客户端错误）；低于 95% 标红，99.5% 以上标绿',
+    label: 'ui.model-quality.success-rate',
+    hint: 'ui.model-quality.success-total-cancelled-client-errors-red-below-95',
     value: (s) => n(s.successRate),
     format: formatPct,
     tone: (_s, v) =>
@@ -330,16 +349,16 @@ export const COLUMNS: Column[] = [
   {
     id: 'cacheHit',
     group: 'count',
-    label: '缓存命中',
-    hint: '缓存读 ÷ 输入总量（按 token）',
+    label: 'ui.model-quality.cache-hit',
+    hint: 'ui.model-quality.cache-reads-total-input-by-token',
     value: (s) => n(s.cacheHitTokenRate),
     format: formatPct,
   },
   {
     id: 'cancelled',
     group: 'count',
-    label: '已取消',
-    hint: '你或编程助手在结束前停止的请求',
+    label: 'ui.foundation.cancelled',
+    hint: 'ui.model-quality.requests-you-or-the-coding-agent-stopped-before',
     value: (s) => s.cancelled,
     format: formatCount,
     drill: ['client-cancel'],
@@ -347,8 +366,8 @@ export const COLUMNS: Column[] = [
   {
     id: 'streamBreak',
     group: 'count',
-    label: '流中断',
-    hint: '开始输出后没有正常结束（断流、空闲超时、CLI 中途退出）',
+    label: 'ui.model-quality.stream-breaks',
+    hint: 'ui.model-quality.started-output-but-didn-t-finish-normally-stream',
     value: (s) => s.streamBreak,
     format: formatCount,
     tone: (_s, v) => (v ? 'warning' : undefined),
@@ -360,7 +379,7 @@ export const COLUMNS: Column[] = [
     id: 'outputTps.p50',
     group: 'speed',
     sub: 'tok/s',
-    hint: '输出 token ÷ 生成时长的中位数',
+    hint: 'ui.model-quality.median-of-output-tokens-generation-time',
     value: (s) => n(s.outputTps?.p50),
     format: (v) => (v == null ? '—' : String(v < 10 ? v.toFixed(1) : Math.round(v))),
     dist: (s) => s.outputTps,
@@ -369,7 +388,7 @@ export const COLUMNS: Column[] = [
     id: 'tpot.p50',
     group: 'speed',
     sub: 'TPOT',
-    hint: '相邻输出 token 的间隔中位数',
+    hint: 'ui.model-quality.median-interval-between-output-tokens',
     value: (s) => n(s.tpot?.p50),
     format: formatMs,
     dist: (s) => s.tpot,

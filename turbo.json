@@ -30,6 +30,18 @@
       "outputs": ["dist/**", "build/**", ".turbo/**"],
       "inputs": ["$TURBO_DEFAULT$", "!README.md", "!CHANGELOG.md", "!coverage/**", "!dist/**"]
     },
+    "@nomi-ai/i18n#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "dist-cjs/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!README.md",
+        "!CHANGELOG.md",
+        "!coverage/**",
+        "!dist/**",
+        "!dist-cjs/**"
+      ]
+    },
     "@nomi-ai/renderer#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".turbo/**"],

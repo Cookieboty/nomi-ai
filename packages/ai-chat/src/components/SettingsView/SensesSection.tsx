@@ -28,7 +28,9 @@ const VoiceSection: React.FC = () => {
           <VoiceSettingsPanel api={v.api} config={v.config} onRefresh={() => void v.refresh()} />
         </div>
       ) : (
-        <p className={styles.note}>{t('语音服务不可用（仅在桌面应用中提供）。')}</p>
+        <p className={styles.note}>
+          {t('ui.chat-settings.voice-service-unavailable-desktop-app-only')}
+        </p>
       )}
     </div>
   );
@@ -42,7 +44,7 @@ export const SensesSection: React.FC<{
 }> = ({ tab, onTab, screenTab }) => (
   <SectionPage
     testId="settings-senses"
-    tabsLabel="语音与屏幕分区"
+    tabsLabel="ui.chat-settings.voice-and-screen-sections"
     tabs={SECTION_TABS.senses}
     value={tab}
     onChange={onTab}

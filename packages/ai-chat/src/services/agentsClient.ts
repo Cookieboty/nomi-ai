@@ -63,12 +63,12 @@ export const AGENT_LABEL: Record<AgentKind, string> = {
 };
 
 export const STATUS_LABEL: Record<AgentStatus, string> = {
-  running: '进行中',
-  completed: '已完成',
-  failed: '失败',
-  stalled: '可能卡住',
-  waiting: '等你回复',
-  idle: '已结束',
+  running: 'ui.chat-settings.in-progress',
+  completed: 'ui.foundation.done',
+  failed: 'ui.foundation.failed',
+  stalled: 'ui.chat-settings.may-be-stuck',
+  waiting: 'ui.mascot-theme.waiting-for-you',
+  idle: 'ui.mascot-theme.ended',
 };
 
 interface AiBridge {
@@ -83,7 +83,7 @@ const bridge = (): AiBridge | undefined => {
 
 async function call<T>(method: string, ...args: unknown[]): Promise<T> {
   const b = bridge();
-  if (!b) throw new Error(t('编程助手监视需要在桌面应用中使用'));
+  if (!b) throw new Error(t('ui.chat-settings.coding-agent-watching-requires-the-desktop-app'));
   const r = (await b.invoke(`ai:agents:${method}`, ...args)) as T & {
     __error?: { message: string };
   };

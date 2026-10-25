@@ -162,7 +162,7 @@ export class AccountService {
         s.accounts.unshift({
           id: localAccountId(kind),
           kind,
-          label: t('本机登录'),
+          label: t('electron.common.this-computer-s-sign-in'),
           dir: null,
           identity: null,
           loggedIn: false,
@@ -208,7 +208,9 @@ export class AccountService {
           s.accounts.push({
             id,
             kind,
-            label: String(a.label ?? a.identity?.email ?? t('官方账号')).slice(0, 60),
+            label: String(
+              a.label ?? a.identity?.email ?? t('electron.common.official-account'),
+            ).slice(0, 60),
             dir: accountDirFor(this.d.root, kind, id),
             identity: a.identity ?? null,
             loggedIn: false,
@@ -234,7 +236,10 @@ export class AccountService {
           for (let i = 0; i < n; i++) {
             const id = randomUUID();
             const email = emails[i];
-            const label = String(labels[i] ?? email ?? t('官方账号')).slice(0, 60);
+            const label = String(labels[i] ?? email ?? t('electron.common.official-account')).slice(
+              0,
+              60,
+            );
             s.accounts.push({
               id,
               kind,
@@ -296,7 +301,7 @@ export class AccountService {
 
   private find(id: string): AccountRecord {
     const a = this.store().accounts.find((x) => x.id === id);
-    if (!a) throw new AccountError('not-found', t('账号不存在'));
+    if (!a) throw new AccountError('not-found', t('electron.common.account-not-found'));
     return a;
   }
 
@@ -466,7 +471,8 @@ export class AccountService {
         ...(r.org ? { org: r.org } : {}),
         ...(checked ? { accountIdChecked: true } : {}),
       };
-      if (a.dir && r.email && (a.label === t('官方账号') || !a.label)) a.label = r.email;
+      if (a.dir && r.email && (a.label === t('electron.common.official-account') || !a.label))
+        a.label = r.email;
     }
     this.save();
     return this.view(a);
@@ -496,7 +502,9 @@ export class AccountService {
     const a: AccountRecord = {
       id,
       kind,
-      label: String(label ?? t('官方账号')).slice(0, 60) || t('官方账号'),
+      label:
+        String(label ?? t('electron.common.official-account')).slice(0, 60) ||
+        t('electron.common.official-account'),
       dir,
       identity: null,
       loggedIn: false,
@@ -521,7 +529,8 @@ export class AccountService {
 
   setDefault(kind: AccountKind, id: string): AccountView {
     const a = this.find(id);
-    if (a.kind !== kind) throw new AccountError('not-found', t('账号不存在'));
+    if (a.kind !== kind)
+      throw new AccountError('not-found', t('electron.common.account-not-found'));
     const before = this.defaultId(kind);
     this.store().defaults[kind] = id;
     a.lastUsedAt = this.now();
@@ -535,7 +544,7 @@ export class AccountService {
     const next = String(label ?? '')
       .trim()
       .slice(0, 60);
-    if (!next) throw new Error(t('标题不能为空'));
+    if (!next) throw new Error(t('electron.common.title-cannot-be-empty'));
     a.label = next;
     this.save();
     return this.view(a);
@@ -548,12 +557,12 @@ export class AccountService {
   async remove(id: string, opts?: { force?: boolean }): Promise<void> {
     const a = this.find(id);
     if (!a.dir)
-      throw new AccountError('local', t('「本机登录」是这台电脑上 CLI 自己的登录，不能在这里删除'));
+      throw new AccountError('local', t('electron.common.this-computer-s-sign-in-is-the-cli'));
     const busy = this.d.inUse?.(a.kind, a.id) ?? 0;
     if (busy > 0)
       throw new AccountError(
         'in-use',
-        t('这个账号还有 {0} 个标签在用，请先关闭或换成别的账号', String(busy)),
+        t('electron.common.tab-s-still-use-this-account-close-them', String(busy)),
       );
     // 终端里直接运行、用着这个账号目录的 CLI：忙则绝不删；查不出（Windows 非 Claude）须 force
     const live = await (
@@ -563,7 +572,7 @@ export class AccountService {
       throw new AccountError(
         'in-use',
         t(
-          '还有 {0} 个 Nomi 之外的 CLI 进程在用这个账号（进程号 {1}），请先在终端里退出它们',
+          'electron.common.cli-process-es-outside-nomi-still-use-this',
           String(live.pids.length),
           live.pids.slice(0, 5).join(', '),
         ),
@@ -571,9 +580,7 @@ export class AccountService {
     if (live.state === 'unknown' && !opts?.force)
       throw new AccountError(
         'unknown-live',
-        t(
-          '无法确认是否还有 CLI 在用这个账号（常见于 Windows）。请先在终端退出相关 CLI，或确认后强制删除。',
-        ),
+        t('electron.common.could-not-confirm-whether-a-cli-is-still'),
       );
     if (live.state === 'unknown' && opts?.force)
       this.d.logger.warn('account remove forced while liveProcesses unknown', {
@@ -666,7 +673,7 @@ export class AccountService {
     const kindOf = (v: unknown): AccountKind => {
       if (typeof v === 'string' && (ACCOUNT_KINDS as readonly string[]).includes(v))
         return v as AccountKind;
-      throw new Error(t('未知的编程助手'));
+      throw new Error(t('electron.common.unknown-coding-agent'));
     };
     guardedHandle('ai:cli-account:list', (k) => this.list(k ? kindOf(k) : undefined), { owner });
     guardedHandle('ai:cli-account:refresh', (k) => this.refreshAll(kindOf(k)), { owner });
@@ -701,9 +708,7 @@ async function cliLogout(kind: AccountKind, env: NodeJS.ProcessEnv): Promise<voi
 export function precheckMessage(reason: string): string {
   switch (reason) {
     case 'gemini-encrypted-storage':
-      return t(
-        'Gemini 开启了加密凭据存储（GEMINI_FORCE_ENCRYPTED_FILE_STORAGE），它不区分账号目录，暂不支持多个账号',
-      );
+      return t('electron.common.gemini-has-encrypted-credential-storage-turned-on-gemini');
     default:
       return reason;
   }

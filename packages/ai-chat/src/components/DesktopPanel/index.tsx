@@ -39,12 +39,12 @@ interface Props {
 type Tab = 'folders' | 'tools' | 'cloud' | 'log';
 
 const DECISION_LABEL: Record<string, string> = {
-  auto: '自动',
-  allowed: '已允许',
-  denied: '已拒绝',
-  timeout: '超时拒绝',
-  user: '用户操作',
-  error: '失败',
+  auto: 'ui.foundation.auto',
+  allowed: 'ui.foundation.allowed',
+  denied: 'ui.foundation.denied',
+  timeout: 'ui.foundation.denied-timed-out',
+  user: 'ui.foundation.user-action',
+  error: 'ui.foundation.failed',
 };
 
 const fmt = (ts: number) => new Date(ts).toLocaleString();
@@ -80,33 +80,37 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
   const grant = async (mode: 'read' | 'read-write') => {
     const s = await desktopClient.grant(mode);
-    setMsg(s ? tr('已授权：{0}', s.path) : tr('已取消'));
+    setMsg(s ? tr('ui.foundation.granted', s.path) : tr('ui.foundation.cancelled'));
     void refresh();
   };
 
   const undo = async () => {
     const r = await desktopClient.undoLast();
-    setMsg(r.ok ? tr('已撤销：{0}', r.undone) : tr('无法撤销：{0}', r.error));
+    setMsg(r.ok ? tr('ui.foundation.revoked', r.undone) : tr('ui.foundation.can-t-undo', r.error));
     void refresh();
   };
 
   return (
-    <Modal open onClose={onClose} title={tr('桌面能力')} size="lg" data-testid="desktop-panel">
+    <Modal
+      open
+      onClose={onClose}
+      title={tr('ui.foundation.desktop-abilities')}
+      size="lg"
+      data-testid="desktop-panel"
+    >
       <div className={styles.stack}>
         <Notice icon={Lock}>
-          {tr(
-            '授权、权限、操作记录都只保存在本机。Nomi 只能访问你在这里授权的文件夹；删除一律进回收站，可撤销。',
-          )}
+          {tr('ui.foundation.grants-permissions-and-the-activity-log-are-stored')}
         </Notice>
         <Tabs
           variant="underline"
           value={tab}
           onChange={(v) => setTab(v as Tab)}
           items={[
-            { value: 'folders', label: tr('授权文件夹') },
-            { value: 'tools', label: tr('工具权限') },
-            { value: 'cloud', label: tr('云端与仅本地') },
-            { value: 'log', label: tr('操作记录') },
+            { value: 'folders', label: tr('ui.foundation.granted-folders') },
+            { value: 'tools', label: tr('ui.foundation.tool-permissions') },
+            { value: 'cloud', label: tr('ui.chat-settings.cloud-local-only') },
+            { value: 'log', label: tr('ui.foundation.activity-log') },
           ]}
         />
         {msg && (
@@ -117,10 +121,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
         {tab === 'folders' && (
           <SettingsGroup
-            title={tr('已授权的文件夹')}
-            description={tr(
-              '默认 Nomi 看不到你的任何文件。始终拒绝：.ssh / .gnupg / 云凭据 / 浏览器配置 / 钥匙串 / *.kdbx / id_rsa / .env 等，以及应用自己的数据目录。',
-            )}
+            title={tr('ui.knowledge-local.authorized-folders')}
+            description={tr('ui.knowledge-local.by-default-nomi-can-t-see-any-of')}
             actions={
               <>
                 <Button
@@ -129,7 +131,7 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   data-testid="desktop-grant-rw"
                 >
                   <Icon icon={Plus} size={14} />
-                  {tr('授权（读写）')}
+                  {tr('ui.knowledge-local.authorize-read-write')}
                 </Button>
                 <Button
                   size="sm"
@@ -138,7 +140,7 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   data-testid="desktop-grant-read"
                 >
                   <Icon icon={Plus} size={14} />
-                  {tr('授权（只读）')}
+                  {tr('ui.knowledge-local.authorize-read-only')}
                 </Button>
               </>
             }
@@ -147,8 +149,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
             {state && state.scopes.length === 0 ? (
               <EmptyState
                 icon={FolderLock}
-                title={tr('还没有授权任何文件夹')}
-                description={tr('授权后，Nomi 只能在这些文件夹里读写。')}
+                title={tr('ui.foundation.no-folders-granted-yet')}
+                description={tr('ui.knowledge-local.once-authorized-nomi-can-only-read-and-write')}
               />
             ) : (
               state?.scopes.map((s) => (
@@ -157,22 +159,26 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   data-testid="desktop-scope"
                   title={<span className={styles.path}>{s.path}</span>}
                   description={tr(
-                    '{0} · {1}',
-                    s.kind === 'file' ? tr('单个文件') : tr('文件夹'),
+                    'ui.session-workspace.message',
+                    s.kind === 'file'
+                      ? tr('ui.foundation.single-file')
+                      : tr('ui.foundation.folder'),
                     fmt(s.grantedAt),
                   )}
                 >
                   <Badge tone={s.mode === 'read-write' ? 'warning' : 'neutral'}>
-                    {s.mode === 'read-write' ? tr('读写') : tr('只读')}
+                    {s.mode === 'read-write'
+                      ? tr('ui.foundation.read-write')
+                      : tr('ui.foundation.read-only')}
                   </Badge>
-                  {s.session && <Badge>{tr('仅本次运行')}</Badge>}
+                  {s.session && <Badge>{tr('ui.foundation.this-session-only')}</Badge>}
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => void desktopClient.revoke(s.id)}
                     data-testid="desktop-revoke"
                   >
-                    {tr('撤销授权')}
+                    {tr('ui.foundation.revoke')}
                   </Button>
                 </SettingRow>
               ))
@@ -182,15 +188,17 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
         {tab === 'tools' && state && (
           <SettingsGroup
-            title={tr('工具权限')}
-            description={tr('助手调用每个工具前怎么确认；破坏性操作每次都要你确认。')}
+            title={tr('ui.foundation.tool-permissions')}
+            description={tr(
+              'ui.knowledge-local.how-the-assistant-confirms-before-calling-each-tool',
+            )}
           >
             <table className={`${styles.table} ${styles.toolsTable}`} data-testid="desktop-tools">
               <thead>
                 <tr>
-                  <th>{tr('工具')}</th>
-                  <th>{tr('级别')}</th>
-                  <th>{tr('确认方式')}</th>
+                  <th>{tr('ui.foundation.tool')}</th>
+                  <th>{tr('ui.foundation.level')}</th>
+                  <th>{tr('ui.foundation.confirmation')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,12 +224,16 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                     <td>
                       {t.danger === 'destructive' ? (
                         <span className={styles.hint}>
-                          {tr('每次都需在对话框中确认（不可更改）')}
+                          {tr('ui.foundation.confirm-in-a-dialog-every-time-cannot-be')}
                         </span>
                       ) : t.name === 'desktop_request_scope' ? (
-                        <span className={styles.hint}>{tr('由你在系统文件夹选择框中决定')}</span>
+                        <span className={styles.hint}>
+                          {tr('ui.foundation.decided-by-you-in-the-system-folder-picker')}
+                        </span>
                       ) : t.locked ? (
-                        <span className={styles.hint}>{tr('每次都询问（不可更改）')}</span>
+                        <span className={styles.hint}>
+                          {tr('ui.foundation.ask-every-time-cannot-be-changed')}
+                        </span>
                       ) : (
                         <Select
                           size="sm"
@@ -246,28 +258,26 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
 
         {tab === 'cloud' && state && (
           <div className={styles.stack} data-testid="desktop-cloud">
-            <SettingsGroup title={tr('云端模型')}>
+            <SettingsGroup title={tr('ui.knowledge-local.cloud-models')}>
               <SettingRow
-                title={tr('仅本地模型可读文件')}
-                description={tr(
-                  '开启后，只有本机模型（如 Ollama，地址为 localhost）才能读取 / 总结文件内容；云端模型调用文件工具会被拒绝。',
-                )}
+                title={tr('ui.foundation.only-local-models-can-read-files')}
+                description={tr('ui.foundation.when-on-only-local-models-e-g-ollama')}
               >
                 <Switch
                   checked={state.localOnly}
                   onChange={(v) => void desktopClient.setLocalOnly(v)}
-                  aria-label={tr('仅本地模型可读文件')}
+                  aria-label={tr('ui.foundation.only-local-models-can-read-files')}
                   data-testid="desktop-local-only"
                 />
               </SettingRow>
               <SettingRow
-                title={tr('已确认可读文件的云端模型')}
+                title={tr('ui.knowledge-local.cloud-models-allowed-to-read-files')}
                 description={
                   <>
-                    {tr('第一次把文件内容发给某个云端模型时会弹出提示。')}{' '}
+                    {tr('ui.knowledge-local.you-re-asked-the-first-time-file-contents')}{' '}
                     {state.cloudAcked.length
                       ? state.cloudAcked.map((p) => <Badge key={p}>{p}</Badge>)
-                      : tr('目前没有。')}
+                      : tr('ui.knowledge-local.none-yet')}
                   </>
                 }
               >
@@ -276,24 +286,35 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   disabled={!state.cloudAcked.length}
                   onClick={() => void desktopClient.resetCloudAcks()}
                 >
-                  {tr('重新提示')}
+                  {tr('ui.foundation.ask-again')}
                 </Button>
               </SettingRow>
             </SettingsGroup>
-            <SettingsGroup title={tr('清除')}>
+            <SettingsGroup title={tr('ui.voice-mascot.clear')}>
               <SettingRow
-                title={tr('清除全部桌面能力数据')}
-                description={tr('删除所有文件夹授权、工具权限设置与操作记录，无法撤销。')}
+                title={tr('ui.knowledge-local.clear-all-desktop-capability-data')}
+                description={tr(
+                  'ui.knowledge-local.deletes-all-folder-authorizations-tool-permission-settings-and',
+                )}
               >
                 <Button
                   size="sm"
                   variant="danger"
                   onClick={() => {
-                    if (!window.confirm(tr('清除全部授权、权限设置与操作记录？'))) return;
-                    void desktopClient.resetAll().then(() => setMsg(tr('已清除全部桌面能力数据')));
+                    if (
+                      !window.confirm(
+                        tr(
+                          'ui.knowledge-local.clear-all-authorizations-permission-settings-and-activity-records',
+                        ),
+                      )
+                    )
+                      return;
+                    void desktopClient
+                      .resetAll()
+                      .then(() => setMsg(tr('ui.foundation.all-desktop-ability-data-cleared')));
                   }}
                 >
-                  {tr('清除全部')}
+                  {tr('ui.knowledge-local.clear-all')}
                 </Button>
               </SettingRow>
             </SettingsGroup>
@@ -303,8 +324,8 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
         {tab === 'log' && (
           <div className={styles.stack} data-testid="desktop-log">
             <SettingsGroup
-              title={tr('可撤销的操作')}
-              description={tr('Nomi 改动过的文件可以一步步撤销；删除的文件都在回收站里。')}
+              title={tr('ui.foundation.undoable-actions')}
+              description={tr('ui.knowledge-local.file-changes-made-by-nomi-can-be-undone')}
               actions={
                 <Button
                   size="sm"
@@ -313,7 +334,7 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   data-testid="desktop-undo"
                 >
                   <Icon icon={Undo2} size={14} />
-                  {tr('撤销上一步')}
+                  {tr('ui.chat-settings.undo-last-step')}
                 </Button>
               }
             >
@@ -321,17 +342,18 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                 <ul className={styles.list}>
                   {journal.map((j) => (
                     <li key={j.id} data-testid="desktop-journal-item">
-                      {fmt(j.ts)} · {tr(j.summary)} {j.undone && <Badge>{tr('已撤销')}</Badge>}
+                      {fmt(j.ts)} · {tr(j.summary)}{' '}
+                      {j.undone && <Badge>{tr('ui.foundation.undone')}</Badge>}
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className={styles.hint}>{tr('还没有可撤销的操作。')}</p>
+                <p className={styles.hint}>{tr('ui.knowledge-local.nothing-to-undo-yet')}</p>
               )}
             </SettingsGroup>
             <SettingsGroup
-              title={tr('审计日志')}
-              description={tr('每次调用桌面工具的时间、结果与参数。')}
+              title={tr('ui.foundation.audit-log')}
+              description={tr('ui.knowledge-local.time-result-and-arguments-of-every-desktop-tool')}
               actions={
                 <Button
                   size="sm"
@@ -339,20 +361,20 @@ export const DesktopPanel: React.FC<Props> = ({ isVisible, onClose }) => {
                   disabled={audit.length === 0}
                   onClick={() => void desktopClient.clearAudit().then(refresh)}
                 >
-                  {tr('清空记录')}
+                  {tr('ui.foundation.clear-log')}
                 </Button>
               }
             >
               {audit.length === 0 ? (
-                <EmptyState icon={ScrollText} title={tr('还没有记录')} />
+                <EmptyState icon={ScrollText} title={tr('ui.foundation.nothing-logged-yet')} />
               ) : (
                 <table className={styles.table} data-testid="desktop-audit">
                   <thead>
                     <tr>
-                      <th>{tr('时间')}</th>
-                      <th>{tr('操作')}</th>
-                      <th>{tr('结果')}</th>
-                      <th>{tr('参数')}</th>
+                      <th>{tr('ui.foundation.time')}</th>
+                      <th>{tr('ui.foundation.action')}</th>
+                      <th>{tr('ui.foundation.result')}</th>
+                      <th>{tr('ui.foundation.arguments')}</th>
                     </tr>
                   </thead>
                   <tbody>

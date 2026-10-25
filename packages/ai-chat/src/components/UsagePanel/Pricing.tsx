@@ -43,16 +43,16 @@ export function parseRows(rows: Row[]): { prices: UsageCustomPrice[] } | { error
   const seen = new Set<string>();
   for (const r of rows) {
     const model = r.model.trim();
-    if (!model) return { error: t('模型名不能为空') };
+    if (!model) return { error: t('ui.usage-tools.model-name-can-t-be-empty') };
     const key = model.toLowerCase();
-    if (seen.has(key)) return { error: t('模型「{0}」重复了', model) };
+    if (seen.has(key)) return { error: t('ui.usage-tools.model-is-duplicated', model) };
     seen.add(key);
     const input = num(r.input);
     const output = num(r.output);
     const cr = num(r.cacheRead);
     const cw = num(r.cacheWrite);
     if (input == null || output == null || [input, output, cr, cw].some((n) => Number.isNaN(n)))
-      return { error: t('「{0}」的价格需要是不小于 0 的数字（输入、输出价必填）', model) };
+      return { error: t('ui.usage-tools.prices-for-must-be-numbers-0-input-and', model) };
     out.push({
       model,
       input,
@@ -76,17 +76,20 @@ interface Props {
 export function priceSyncMessage(r: UsagePriceSyncResult): string {
   if (r.ok)
     return r.status === 'not-modified'
-      ? t('价格表已是最新（未重新下载）')
-      : t('已同步 {0} 个模型的价格', r.count);
+      ? t('ui.usage-tools.price-table-is-up-to-date-nothing-downloaded')
+      : t('ui.usage-tools.synced-prices-for-models', r.count);
   const why: Record<string, string> = {
-    network: t('网络不可用'),
-    timeout: t('连接超时'),
-    http: t('服务器返回了错误（{0}）', r.httpStatus ?? ''),
-    invalid: t('返回的价格表格式不对'),
-    'too-large': t('返回的数据过大'),
-    busy: t('正在同步中'),
+    network: t('ui.usage-tools.network-unavailable'),
+    timeout: t('ui.usage-tools.connection-timed-out'),
+    http: t('ui.usage-tools.the-server-returned-an-error', r.httpStatus ?? ''),
+    invalid: t('ui.usage-tools.the-returned-price-table-has-an-unexpected-format'),
+    'too-large': t('ui.usage-tools.the-returned-data-is-too-large'),
+    busy: t('ui.usage-tools.a-sync-is-already-running'),
   };
-  return t('同步失败：{0}。继续使用已有价格。', why[r.reason] ?? r.reason);
+  return t(
+    'ui.usage-tools.sync-failed-existing-prices-are-still-in-use',
+    why[r.reason] ?? r.reason,
+  );
 }
 
 export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState }) => {
@@ -174,7 +177,8 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
   };
   const saveRate = async () => {
     const n = Number(rate);
-    if (!(n > 0 && n < 1000)) return setErr(t('汇率需要是大于 0 的数字'));
+    if (!(n > 0 && n < 1000))
+      return setErr(t('ui.usage-tools.the-exchange-rate-must-be-a-number-greater'));
     await patch({ cnyPerUsd: n });
   };
   const sync = state.pricing.sync;
@@ -200,15 +204,15 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
     <div className={styles.stack} data-testid="usage-pricing">
       {conflict && (
         <Notice tone="warning" icon={Info} data-testid="usage-pricing-conflict">
-          {t('价格 / 汇率已在别处更新；你还没保存的修改已保留。直接保存会覆盖最新值。')}
+          {t('ui.usage-tools.prices-exchange-rates-were-updated-elsewhere-your-unsaved')}
           <button type="button" className={styles.chip} onClick={reloadLatest}>
-            {t('放弃修改并载入最新')}
+            {t('ui.usage-tools.discard-edits-and-load-latest')}
           </button>
         </Notice>
       )}
       <section className={styles.panel}>
         <header className={styles.panelHead}>
-          <h3>{t('币种与汇率')}</h3>
+          <h3>{t('ui.usage-tools.currency-exchange-rate')}</h3>
         </header>
         <div className={styles.fxRow}>
           <label className={styles.rate}>
@@ -220,7 +224,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
               min="0"
               value={rate}
               data-testid="usage-rate"
-              aria-label={t('美元兑人民币汇率')}
+              aria-label={t('ui.usage-tools.usd-to-cny-exchange-rate')}
               onChange={(e) => {
                 setRate(e.target.value);
                 setRateDirty(true);
@@ -228,34 +232,30 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
               onBlur={() => void saveRate()}
             />
             <span>CNY</span>
-            <Badge tone="neutral">{t('可自定义')}</Badge>
+            <Badge tone="neutral">{t('ui.usage-tools.customizable')}</Badge>
           </label>
         </div>
         <p className={styles.dim}>
-          {t(
-            '费用统一按 USD 计价，再按这里的汇率折算。默认汇率只是占位值，不是实时汇率，请按需修改。',
-          )}
+          {t('ui.usage-tools.costs-are-priced-in-usd-and-converted-with')}
         </p>
       </section>
 
       <section className={styles.panel} data-testid="usage-price-sync">
         <header className={styles.panelHead}>
-          <h3>{t('价格表同步')}</h3>
+          <h3>{t('ui.usage-tools.price-table-sync')}</h3>
           <span className={styles.dim} data-testid="usage-sync-status">
             {sync && sync.count > 0
               ? t(
-                  '价格表日期 {0} · 上次同步 {1} · {2} 个模型',
+                  'ui.usage-tools.price-table-date-last-synced-models',
                   sync.tableDate || '—',
                   formatDateTime(sync.fetchedAt),
                   sync.count,
                 )
-              : t('尚未同步，正在使用内置价格表（{0}）', state.pricing.date)}
+              : t('ui.usage-tools.not-synced-yet-using-the-built-in-price', state.pricing.date)}
           </span>
         </header>
         <p className={styles.dim}>
-          {t(
-            '只在你点击时才联网：从 models.dev 下载公开价格表（只取各模型厂商自己的官方价），不上传任何用量或账号信息，也没有后台自动更新。同步失败会继续使用已有价格；优先级：自定义价格 > 同步价格 > 内置价格。',
-          )}
+          {t('ui.usage-tools.goes-online-only-when-you-click-downloads-the')}
         </p>
         <div className={styles.actionsRow}>
           <Button
@@ -264,7 +264,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
             disabled={syncing}
             data-testid="usage-sync-prices"
           >
-            {syncing ? t('同步中…') : t('同步价格')}
+            {syncing ? t('ui.usage-tools.syncing') : t('ui.usage-tools.sync-prices')}
           </Button>
           {syncMsg && (
             <span className={syncMsg.ok ? styles.ok : styles.err} data-testid="usage-sync-result">
@@ -276,17 +276,15 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
 
       <section className={styles.panel}>
         <header className={styles.panelHead}>
-          <h3>{t('自定义价格')}</h3>
-          <span className={styles.dim}>{t('USD / 百万 Token')}</span>
+          <h3>{t('ui.usage-tools.custom-prices')}</h3>
+          <span className={styles.dim}>{t('ui.usage-tools.usd-1m-tokens')}</span>
         </header>
         <p className={styles.dim}>
-          {t(
-            '用来添加内置价格表没有的模型，或覆盖内置价格。缓存价留空时按输入价计算；0 是合法价格（免费模型）。支持用前缀匹配带日期后缀的模型名。',
-          )}
+          {t('ui.usage-tools.add-models-missing-from-the-built-in-table')}
         </p>
         {todo.length > 0 && (
           <Notice tone="warning" icon={Info} data-testid="usage-todo-prices">
-            {t('这些模型出现过但没有价格：')}
+            {t('ui.usage-tools.these-models-were-used-but-have-no-price')}
             {todo.slice(0, 8).map((u) => (
               <button
                 key={u.model}
@@ -305,11 +303,11 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
             <table className={styles.table} data-testid="usage-custom-table">
               <thead>
                 <tr>
-                  <th>{t('模型')}</th>
-                  <th className={styles.num}>{t('输入')}</th>
-                  <th className={styles.num}>{t('输出')}</th>
-                  <th className={styles.num}>{t('缓存读')}</th>
-                  <th className={styles.num}>{t('缓存写')}</th>
+                  <th>{t('ui.foundation.model')}</th>
+                  <th className={styles.num}>{t('ui.usage-tools.input')}</th>
+                  <th className={styles.num}>{t('ui.usage-tools.output')}</th>
+                  <th className={styles.num}>{t('ui.usage-tools.cache-read')}</th>
+                  <th className={styles.num}>{t('ui.usage-tools.cache-write')}</th>
                   <th />
                 </tr>
               </thead>
@@ -321,7 +319,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                         size="sm"
                         value={r.model}
                         placeholder="model-name"
-                        aria-label={t('模型名')}
+                        aria-label={t('ui.usage-tools.model-name')}
                         onChange={(e) => update(i, 'model', e.target.value)}
                       />
                     </td>
@@ -334,7 +332,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                           min="0"
                           className={styles.priceIn}
                           value={r[k]}
-                          aria-label={[r.model || t('模型'), k].join(' ')}
+                          aria-label={[r.model || t('ui.foundation.model'), k].join(' ')}
                           data-testid={`usage-price-${k}`}
                           onChange={(e) => update(i, k, e.target.value)}
                         />
@@ -344,7 +342,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                       <Button
                         size="sm"
                         variant="ghost"
-                        aria-label={t('删除这一行')}
+                        aria-label={t('ui.usage-tools.delete-this-row')}
                         onClick={() => {
                           setSaved(false);
                           setPricesDirty(true);
@@ -363,7 +361,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
         <div className={styles.actionsRow}>
           <Button size="sm" onClick={() => add()} data-testid="usage-add-price">
             <AppIcon icon={Plus} />
-            {t('添加模型价格')}
+            {t('ui.usage-tools.add-model-price')}
           </Button>
           <Button
             size="sm"
@@ -371,30 +369,33 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
             onClick={() => void save()}
             data-testid="usage-save-prices"
           >
-            {t('保存价格')}
+            {t('ui.usage-tools.save-prices')}
           </Button>
-          {saved && <span className={styles.ok}>{t('已保存')}</span>}
+          {saved && <span className={styles.ok}>{t('ui.voice-mascot.saved')}</span>}
         </div>
         {err && <p className={styles.err}>{err}</p>}
       </section>
 
       <section className={styles.panel}>
         <header className={styles.panelHead}>
-          <h3>{t('内置价格表')}</h3>
+          <h3>{t('ui.usage-tools.built-in-price-table')}</h3>
           <span className={styles.dim}>
-            {t('整理于 {0}，依据官方公开价目，非实时', state.pricing.date)}
+            {t(
+              'ui.usage-tools.compiled-on-from-official-public-price-lists-not',
+              state.pricing.date,
+            )}
           </span>
         </header>
         <div className={styles.tableWrap}>
           <table className={styles.table} data-testid="usage-builtin-table">
             <thead>
               <tr>
-                <th>{t('模型')}</th>
-                <th className={styles.num}>{t('输入')}</th>
-                <th className={styles.num}>{t('输出')}</th>
-                <th className={styles.num}>{t('缓存读')}</th>
-                <th className={styles.num}>{t('缓存写')}</th>
-                <th>{t('备注')}</th>
+                <th>{t('ui.foundation.model')}</th>
+                <th className={styles.num}>{t('ui.usage-tools.input')}</th>
+                <th className={styles.num}>{t('ui.usage-tools.output')}</th>
+                <th className={styles.num}>{t('ui.usage-tools.cache-read')}</th>
+                <th className={styles.num}>{t('ui.usage-tools.cache-write')}</th>
+                <th>{t('ui.providers-schedule.note')}</th>
               </tr>
             </thead>
             <tbody>
@@ -404,7 +405,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                     {p.label ?? p.model}
                     {custom.has(p.model.toLowerCase()) && (
                       <Badge tone="accent" className={styles.estBadge}>
-                        {t('已覆盖')}
+                        {t('ui.usage-tools.overridden')}
                       </Badge>
                     )}
                   </td>
@@ -417,7 +418,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
                     {p.tiers?.map((x) => (
                       <div key={x.size}>
                         {t(
-                          '单次请求超过 {0} 时 {1}',
+                          'ui.usage-tools.per-request-above',
                           formatTokens(x.size),
                           `${formatPrice(x.input)} / ${formatPrice(x.output)}`,
                         )}
@@ -429,9 +430,7 @@ export const Pricing: React.FC<Props> = ({ state, unpriced, onSettings, onState 
             </tbody>
           </table>
         </div>
-        <p className={styles.dim}>
-          {t('不在表里、又没有自定义价格的模型会显示「未定价」，不计入费用合计，也不会被猜价。')}
-        </p>
+        <p className={styles.dim}>{t('ui.usage-tools.models-that-are-neither-in-the-table-nor')}</p>
       </section>
     </div>
   );

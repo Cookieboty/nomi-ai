@@ -12,9 +12,7 @@ export function codexAdapter(input: AdapterInput): SlashCommand[] {
   return [
     ...nativeCommands('codex'),
     ...unsupportedCommands('codex', [
-      U.compact(() =>
-        t('Codex 的压缩只在交互界面里提供，非交互模式没有对应命令。可以用 /clear 开新标签。'),
-      ),
+      U.compact(() => t('ui.slash-commands.codex-only-offers-compaction-in-its-interactive-ui')),
       U.review(),
       U.init('AGENTS.md'),
       U.memory('AGENTS.md'),

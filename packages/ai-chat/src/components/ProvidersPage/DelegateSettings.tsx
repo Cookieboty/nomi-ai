@@ -80,11 +80,11 @@ export const DelegateSettings: React.FC = () => {
     const list: DelegateCli[] = [...s.installed];
     if (cur && !list.includes(cur)) list.push(cur);
     return [
-      { value: AUTO, label: t('让 Nomi 选') },
+      { value: AUTO, label: t('ui.chat-settings.let-nomi-choose') },
       ...list.map((c) => ({
         value: c,
         label: t(ENDPOINT_NAME[c]),
-        ...(s.installed.includes(c) ? {} : { description: t('未安装') }),
+        ...(s.installed.includes(c) ? {} : { description: t('ui.mascot-theme.not-installed') }),
       })),
     ];
   };
@@ -92,28 +92,24 @@ export const DelegateSettings: React.FC = () => {
   return (
     <div data-testid="providers-section-delegate">
       <SettingsGroup
-        title={t('委派')}
-        description={t(
-          'Nomi 可以把具体的开发、文档、审查、调研任务交给本机的编程助手去做，做完把结果带回对话。对话里用 /agent 名字 可以临时指定交给谁。',
-        )}
+        title={t('ui.chat-settings.handoff')}
+        description={t('ui.chat-settings.nomi-can-hand-specific-coding-writing-review-and')}
       >
         <SettingRow
-          title={t('允许 Nomi 委派编程助手')}
-          description={t('关闭后 Nomi 不会派出子任务，/agent 也不可用。')}
+          title={t('ui.chat-settings.let-nomi-hand-off-tasks-to-coding-assistants')}
+          description={t('ui.chat-settings.when-off-nomi-won-t-hand-off-subtasks')}
         >
           <Switch
             checked={s.enabled}
             onChange={(v) => save({ enabled: v })}
-            aria-label={t('允许 Nomi 委派编程助手')}
+            aria-label={t('ui.chat-settings.let-nomi-hand-off-tasks-to-coding-assistants')}
             data-testid="delegate-enabled"
           />
         </SettingRow>
       </SettingsGroup>
       <SettingsGroup
-        title={t('按任务类型的默认编程助手')}
-        description={t(
-          '没有用 /agent 指定、也没有在消息里点名时，按这里选。「让 Nomi 选」时，Nomi 从已安装的编程助手里选。',
-        )}
+        title={t('ui.chat-settings.default-coding-assistant-by-task-type')}
+        description={t('ui.chat-settings.used-when-you-haven-t-picked-one-with')}
       >
         {DELEGATE_KINDS.map((k) => (
           <SettingRow key={k} title={delegateKindLabel(k)}>
@@ -121,7 +117,7 @@ export const DelegateSettings: React.FC = () => {
               size="sm"
               value={s.defaults[k] ?? AUTO}
               disabled={!s.enabled}
-              aria-label={t('{0}默认交给', delegateKindLabel(k))}
+              aria-label={t('ui.chat-settings.default-for', delegateKindLabel(k))}
               data-testid={`delegate-default-${k}`}
               onChange={(e) => setDefault(k, e.target.value)}
               options={optionsFor(k)}
@@ -131,20 +127,20 @@ export const DelegateSettings: React.FC = () => {
         ))}
       </SettingsGroup>
       <SettingsGroup
-        title={t('默认委派模型档位')}
-        description={t(
-          '派出编程助手时默认用哪套模型覆盖。default 沿用 CLI；cheap 可用下方便宜模型；也可在工具参数里传 profile / model。',
-        )}
+        title={t('ui.chat-settings.default-handoff-model-profile')}
+        description={t('ui.chat-settings.which-model-override-to-use-when-handing-off')}
       >
         <SettingRow
-          title={t('默认档位')}
-          description={t('对应 AgentProfile：default / cheap / local（本地优先仅作标记）。')}
+          title={t('ui.chat-settings.default-profile')}
+          description={t(
+            'ui.chat-settings.agentprofile-ids-default-cheap-local-preferlocal-is-metadata',
+          )}
         >
           <Select
             size="sm"
             value={s.defaultProfileId ?? 'default'}
             disabled={!s.enabled}
-            aria-label={t('默认委派模型档位')}
+            aria-label={t('ui.chat-settings.default-handoff-model-profile')}
             data-testid="delegate-default-profile"
             onChange={(e) => save({ defaultProfileId: e.target.value })}
             options={(s.availableProfiles ?? []).map((p) => ({
@@ -155,10 +151,8 @@ export const DelegateSettings: React.FC = () => {
           />
         </SettingRow>
         <SettingRow
-          title={t('便宜模型（cheap）')}
-          description={t(
-            '档位为 cheap 且未自带 model 时使用；第三方填「供应商/模型」，官方填 CLI 模型名。',
-          )}
+          title={t('ui.chat-settings.cheap-model-cheap')}
+          description={t('ui.chat-settings.used-when-the-cheap-profile-has-no-model')}
         >
           <Input
             key={s.cheapModel ?? ''}
@@ -166,7 +160,7 @@ export const DelegateSettings: React.FC = () => {
             defaultValue={s.cheapModel ?? ''}
             disabled={!s.enabled}
             placeholder="provider/model"
-            aria-label={t('便宜模型（cheap）')}
+            aria-label={t('ui.chat-settings.cheap-model-cheap')}
             data-testid="delegate-cheap-model"
             onBlur={(e) => {
               const v = e.target.value.trim() || undefined;

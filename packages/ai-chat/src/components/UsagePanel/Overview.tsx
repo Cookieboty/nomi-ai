@@ -36,7 +36,10 @@ interface Props {
 
 const Delta: React.FC<{ cur: number; prev: number; vs: string }> = ({ cur, prev, vs }) => {
   const p = changePct(cur, prev);
-  if (p == null) return <span className={styles.dim}>{t('无上期数据')}</span>;
+  if (p == null)
+    return (
+      <span className={styles.dim}>{t('ui.usage-tools.no-data-for-the-previous-period')}</span>
+    );
   return (
     <span className={p > 0 ? styles.up : p < 0 ? styles.down : styles.dim} title={vs}>
       {formatPct(p)} <span className={styles.dim}>{vs}</span>
@@ -83,10 +86,14 @@ const BreakdownList: React.FC<{
                   <>
                     <CostCell usd={r.hasUnpriced && r.costUsd === 0 ? null : r.costUsd} fx={fx} />
                     {r.hasUnpriced && r.costUsd > 0 && (
-                      <Tooltip content={t('含未定价模型，费用不完整')}>
+                      <Tooltip
+                        content={t('ui.usage-tools.includes-unpriced-models-cost-is-incomplete')}
+                      >
                         <span
                           className={styles.warnMark}
-                          aria-label={t('含未定价模型，费用不完整')}
+                          aria-label={t(
+                            'ui.usage-tools.includes-unpriced-models-cost-is-incomplete',
+                          )}
                         >
                           *
                         </span>
@@ -117,7 +124,10 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
 
   if (!data) return null;
   const s = data.summary;
-  const vs = data.range.id === 'today' ? t('较昨日') : t('较上一周期');
+  const vs =
+    data.range.id === 'today'
+      ? t('ui.usage-tools.vs-yesterday')
+      : t('ui.usage-tools.vs-previous-period');
   const empty = s.calls === 0 && state.records === 0;
   const fmtTrend = (v: number) =>
     metric === 'tokens' ? formatTokens(v) : formatMoney(v / costOf(1), fx.currency, fx.rate);
@@ -135,20 +145,20 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
   }> = [
     {
       id: 'cost',
-      label: t('预估费用'),
+      label: t('ui.usage-tools.estimated-cost'),
       value: money(s.costUsd),
       cur: s.costUsd,
       prev: data.prev.costUsd,
       spark: data.series.map((p) => p.costUsd),
       note: s.unpriced.length ? (
         <button type="button" className={styles.link} onClick={onPricing}>
-          {t('{0} 个模型未定价，未计入', s.unpriced.length)}
+          {t('ui.usage-tools.unpriced-model-s-not-counted', s.unpriced.length)}
         </button>
       ) : undefined,
     },
     {
       id: 'total',
-      label: t('总 Token'),
+      label: t('ui.usage-tools.total-tokens'),
       value: formatTokens(s.total),
       cur: s.total,
       prev: data.prev.total,
@@ -156,7 +166,7 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
     },
     {
       id: 'input',
-      label: t('输入 Token'),
+      label: t('ui.usage-tools.input-tokens'),
       value: formatTokens(s.input),
       cur: s.input,
       prev: data.prev.input,
@@ -164,11 +174,11 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
       note:
         s.cacheRead + s.cacheWrite > 0 ? (
           <span className={styles.dim}>
-            {t('含缓存 {0}', formatTokens(s.cacheRead + s.cacheWrite))}
+            {t('ui.usage-tools.incl-cache', formatTokens(s.cacheRead + s.cacheWrite))}
             {s.cacheHitRate != null && (
               <span data-testid="usage-cache-hit">
                 {' · '}
-                {t('缓存命中率 {0}', share(s.cacheHitRate, 1))}
+                {t('ui.usage-tools.cache-hit-rate', share(s.cacheHitRate, 1))}
               </span>
             )}
           </span>
@@ -176,7 +186,7 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
     },
     {
       id: 'output',
-      label: t('输出 Token'),
+      label: t('ui.usage-tools.output-tokens'),
       value: formatTokens(s.output),
       cur: s.output,
       prev: data.prev.output,
@@ -188,13 +198,11 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
     return (
       <EmptyState
         icon={ReceiptText}
-        title={t('还没有用量数据')}
-        description={t(
-          '与 Nomi 对话，或使用 Claude Code / Codex 等编程工具后，这里会出现 Token 与费用统计。',
-        )}
+        title={t('ui.usage-tools.no-usage-data-yet')}
+        description={t('ui.usage-tools.chat-with-nomi-or-use-a-coding-tool')}
         action={
           <button type="button" className="cd-btn cd-btn--sm" onClick={onScan}>
-            {t('立即扫描本机日志')}
+            {t('ui.usage-tools.scan-local-logs-now')}
           </button>
         }
         data-testid="usage-empty"
@@ -207,23 +215,20 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
     <>
       {s.unpriced.length > 0 && (
         <Notice tone="warning" icon={TriangleAlert} data-testid="usage-unpriced-notice">
-          {t('以下模型没有价格，未计入费用合计：')}
+          {t('ui.usage-tools.these-models-have-no-price-and-are-not')}
           {s.unpriced
             .slice(0, 5)
             .map((u) => u.model)
             .join(listSep())}
-          {s.unpriced.length > 5 ? t(' 等 {0} 个', s.unpriced.length) : ''}{' '}
+          {s.unpriced.length > 5 ? t('ui.usage-tools.and-more', s.unpriced.length) : ''}{' '}
           <button type="button" className={styles.link} onClick={onPricing}>
-            {t('去添加价格')}
+            {t('ui.usage-tools.add-a-price')}
           </button>
         </Notice>
       )}
       {s.estimatedCalls > 0 && (
         <Notice tone="info" icon={Info} data-testid="usage-estimated-notice">
-          {t(
-            '{0} 次调用上游没有返回用量，Token 为按文本长度估算（明细中标「估算」）。',
-            s.estimatedCalls,
-          )}
+          {t('ui.usage-tools.call-s-came-back-without-usage-from-the', s.estimatedCalls)}
         </Notice>
       )}
 
@@ -243,18 +248,18 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
 
       <section className={styles.panel} data-testid="usage-trend-card">
         <header className={styles.panelHead}>
-          <h3>{t('趋势')}</h3>
+          <h3>{t('ui.usage-tools.trend')}</h3>
           <span className={styles.dim}>
-            {data.range.bucket === 'hour' ? t('按小时') : t('按天')}
+            {data.range.bucket === 'hour' ? t('ui.usage-tools.hourly') : t('ui.usage-tools.daily')}
           </span>
           <Tabs
             className={styles.tabsSm}
             value={metric}
             onChange={setMetric}
-            aria-label={t('趋势指标')}
+            aria-label={t('ui.usage-tools.trend-metric')}
             items={[
               { value: 'tokens', label: 'Token' },
-              { value: 'cost', label: t('费用') },
+              { value: 'cost', label: t('ui.usage-tools.cost') },
             ]}
           />
         </header>
@@ -270,15 +275,15 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
       <div className={styles.two}>
         <section className={styles.panel}>
           <header className={styles.panelHead}>
-            <h3>{t('来源分布')}</h3>
+            <h3>{t('ui.usage-tools.source-breakdown')}</h3>
             <Tabs
               className={styles.tabsSm}
               value={dist}
               onChange={setDist}
-              aria-label={t('分布维度')}
+              aria-label={t('ui.usage-tools.breakdown-by')}
               items={[
-                { value: 'source', label: t('按来源') },
-                { value: 'provider', label: t('按供应商') },
+                { value: 'source', label: t('ui.usage-tools.by-source') },
+                { value: 'provider', label: t('ui.usage-tools.by-provider') },
               ]}
             />
           </header>
@@ -290,15 +295,15 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
         </section>
         <section className={styles.panel}>
           <header className={styles.panelHead}>
-            <h3>{t('模型排行')}</h3>
+            <h3>{t('ui.usage-tools.model-ranking')}</h3>
             <Tabs
               className={styles.tabsSm}
               value={rankBy}
               onChange={setRankBy}
-              aria-label={t('排序依据')}
+              aria-label={t('ui.usage-tools.rank-by')}
               items={[
                 { value: 'tokens', label: 'Token' },
-                { value: 'cost', label: t('费用') },
+                { value: 'cost', label: t('ui.usage-tools.cost') },
               ]}
             />
           </header>
@@ -308,15 +313,15 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
 
       <section className={styles.panel} data-testid="usage-heat-card">
         <header className={styles.panelHead}>
-          <h3>{t('全年热力图')}</h3>
+          <h3>{t('ui.usage-tools.yearly-heatmap')}</h3>
           <Tabs
             className={styles.tabsSm}
             value={heatMetric}
             onChange={setHeatMetric}
-            aria-label={t('热力图指标')}
+            aria-label={t('ui.usage-tools.heatmap-metric')}
             items={[
               { value: 'tokens', label: 'Token' },
-              { value: 'cost', label: t('费用') },
+              { value: 'cost', label: t('ui.usage-tools.cost') },
             ]}
           />
         </header>
@@ -335,25 +340,22 @@ export const Overview: React.FC<Props> = ({ state, data, heat, fx, onPricing, on
             <b>{day.date}</b>
             <span>{formatTokens(day.tokens)} tokens</span>
             <span>{money(day.costUsd)}</span>
-            <span>{t('{0} 次调用', day.calls)}</span>
+            <span>{t('ui.usage-tools.call-s', day.calls)}</span>
             <button
               type="button"
               className="cd-btn cd-btn--sm"
               data-testid="usage-day-details"
               onClick={() => onDay(day.date)}
             >
-              {t('查看当日明细')}
+              {t('ui.usage-tools.view-this-day-s-details')}
             </button>
           </div>
         )}
       </section>
       {fx.currency === 'CNY' && (
         <p className={styles.dim}>
-          {t(
-            '人民币金额按 1 USD = {0} CNY 折算（汇率为占位默认值，可在「价格」中自定义）。',
-            fx.rate,
-          )}{' '}
-          <Badge tone="neutral">{t('可自定义')}</Badge>
+          {t('ui.usage-tools.cny-amounts-use-1-usd-cny-a-placeholder', fx.rate)}{' '}
+          <Badge tone="neutral">{t('ui.usage-tools.customizable')}</Badge>
         </p>
       )}
     </>

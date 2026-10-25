@@ -28,13 +28,16 @@ export function micErrorFrom(e: unknown): MicError {
   if (name === 'NotAllowedError' || name === 'SecurityError')
     return new MicError(
       'mic_denied',
-      tr('麦克风权限被拒绝。请在系统设置 → 隐私 → 麦克风中允许 Nomi。'),
+      tr('ui.voice-mascot.microphone-access-denied-allow-nomi-in-system-settings'),
     );
   if (name === 'NotFoundError' || name === 'OverconstrainedError')
-    return new MicError('mic_missing', tr('没有找到可用的麦克风。'));
+    return new MicError('mic_missing', tr('ui.voice-mascot.no-microphone-found'));
   if (name === 'NotReadableError' || name === 'AbortError')
-    return new MicError('mic_busy', tr('麦克风被其他程序占用了。'));
-  return new MicError('mic_failed', tr('无法打开麦克风：{0}', (e as Error)?.message ?? String(e)));
+    return new MicError('mic_busy', tr('ui.voice-mascot.the-microphone-is-in-use-by-another-app'));
+  return new MicError(
+    'mic_failed',
+    tr('ui.voice-mascot.couldn-t-open-the-microphone', (e as Error)?.message ?? String(e)),
+  );
 }
 
 export interface MicHandlers {

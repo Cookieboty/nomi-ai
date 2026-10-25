@@ -94,17 +94,17 @@ export function delegateView(
 function phaseLabel(p: Phase): string {
   switch (p) {
     case 'confirming':
-      return t('等待确认委派');
+      return t('ui.session-workspace.waiting-for-you-to-approve-the-handoff');
     case 'running':
-      return t('运行中');
+      return t('ui.knowledge-local.running');
     case 'waiting':
-      return t('等你确认');
+      return t('ui.session-workspace.needs-your-approval');
     case 'done':
-      return t('已完成');
+      return t('ui.foundation.done');
     case 'error':
-      return t('出错');
+      return t('ui.chat-settings.error');
     case 'cancelled':
-      return t('已停止');
+      return t('ui.chat-settings.stopped');
   }
 }
 
@@ -118,8 +118,8 @@ function useElapsed(since: number | undefined, until: number | undefined): strin
   if (since === undefined) return null;
   const s = Math.max(0, Math.floor(((until ?? now) - since) / 1000));
   return s >= 60
-    ? t('{0} 分 {1} 秒', String(Math.floor(s / 60)), String(s % 60))
-    : t('{0} 秒', String(s));
+    ? t('ui.chat-settings.m-s', String(Math.floor(s / 60)), String(s % 60))
+    : t('ui.mascot-theme.s', String(s));
 }
 
 /** 「当前」一行：运行中子代理里最近开始的一个的进度，否则主代理当前的工具 */
@@ -129,26 +129,28 @@ function currentStep(live: TabLive | undefined): string | null {
     .filter((a) => a.status === 'running')
     .sort((a, b) => b.startedAt - a.startedAt)[0];
   if (running) {
-    const who = running.label || running.agentType || t('子代理');
+    const who = running.label || running.agentType || t('ui.usage-tools.subagent');
     return running.progress ? `${who} · ${running.progress}` : who;
   }
   return live.tool ?? null;
 }
 
 const AGENT_STATUS: Record<LiveAgent['status'], string> = {
-  running: '运行中',
-  completed: '已完成',
-  failed: '出错',
-  stopped: '已停止',
+  running: 'ui.knowledge-local.running',
+  completed: 'ui.foundation.done',
+  failed: 'ui.chat-settings.error',
+  stopped: 'ui.chat-settings.stopped',
 };
 
 const AgentRow: React.FC<{ agent: LiveAgent; onStop?: () => void }> = ({ agent, onStop }) => {
   const [stopping, setStopping] = useState(false);
-  const usage = agent.usage?.toolUses ? t('{0} 次工具', String(agent.usage.toolUses)) : '';
+  const usage = agent.usage?.toolUses
+    ? t('ui.session-workspace.tool-calls', String(agent.usage.toolUses))
+    : '';
   return (
     <li className={styles.agent} data-testid="delegate-agent" data-status={agent.status}>
       <span className={styles.agentName} title={agent.label}>
-        {agent.label || agent.agentType || t('子代理')}
+        {agent.label || agent.agentType || t('ui.usage-tools.subagent')}
       </span>
       <span className={styles.agentStatus}>{t(AGENT_STATUS[agent.status])}</span>
       <span className={styles.agentProgress} title={agent.progress}>
@@ -159,14 +161,17 @@ const AgentRow: React.FC<{ agent: LiveAgent; onStop?: () => void }> = ({ agent, 
           type="button"
           className={styles.linkBtn}
           disabled={stopping}
-          aria-label={t('停止子代理「{0}」', agent.label || t('子代理'))}
+          aria-label={t(
+            'ui.chat-settings.stop-subagent',
+            agent.label || t('ui.usage-tools.subagent'),
+          )}
           data-testid="delegate-agent-stop"
           onClick={() => {
             setStopping(true);
             onStop();
           }}
         >
-          {stopping ? t('正在停止…') : t('停止')}
+          {stopping ? t('ui.chat-settings.stopping') : t('ui.foundation.stop')}
         </button>
       )}
     </li>
@@ -187,9 +192,12 @@ const Agents: React.FC<{ v: DelegateView }> = ({ v }) => {
   return (
     <div className={styles.agents}>
       <div className={styles.agentsHead}>
-        {t('子代理 {0} 个（{1} 运行中）', String(agents.length), String(running.length))}
+        {t('ui.session-workspace.subagents-running', String(agents.length), String(running.length))}
         {!stoppable && (
-          <span className={styles.muted}> · {t('该编程助手不提供子代理的内部步骤')}</span>
+          <span className={styles.muted}>
+            {' '}
+            · {t('ui.session-workspace.this-coding-assistant-doesn-t-report-subagent-steps')}
+          </span>
         )}
       </div>
       <ul className={styles.agentList}>
@@ -207,7 +215,7 @@ const Agents: React.FC<{ v: DelegateView }> = ({ v }) => {
       </ul>
       {!showDone && ended.length > 0 && (
         <button type="button" className={styles.linkBtn} onClick={() => setShowDone(true)}>
-          {t('另有 {0} 个已结束', String(ended.length))}
+          {t('ui.session-workspace.more-finished', String(ended.length))}
         </button>
       )}
     </div>
@@ -236,8 +244,8 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       {r.status === 'cancelled' && (
         <div className={styles.muted}>
           {r.cancelledBy === 'nomi'
-            ? t('Nomi 这一轮被停止，子任务一起停下了。')
-            : t('你停止了这个子任务。')}
+            ? t('ui.session-workspace.nomi-s-turn-was-stopped-so-the-subtask')
+            : t('ui.session-workspace.you-stopped-this-subtask')}
         </div>
       )}
       {r.error && <div className={styles.errorText}>{r.error}</div>}
@@ -248,13 +256,15 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
           </div>
           {r.report.unfinished && (
             <div className={styles.reportRow}>
-              <span className={styles.reportLabel}>{t('没做完的')}</span>
+              <span className={styles.reportLabel}>{t('ui.session-workspace.not-finished')}</span>
               <span>{plainSummary(r.report.unfinished)}</span>
             </div>
           )}
           {r.report.needsUser && (
             <div className={styles.reportRow}>
-              <span className={styles.reportLabel}>{t('需要你决定的')}</span>
+              <span className={styles.reportLabel}>
+                {t('ui.session-workspace.needs-your-decision')}
+              </span>
               <span>{plainSummary(r.report.needsUser)}</span>
             </div>
           )}
@@ -268,7 +278,9 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       {files.length > 0 && (
         <div className={styles.reportRow}>
           <span className={styles.reportLabel}>
-            {r.filesVerified ? t('改动的文件') : t('改动的文件（未经 git 核对）')}
+            {r.filesVerified
+              ? t('ui.session-workspace.changed-files')
+              : t('ui.session-workspace.changed-files-not-checked-against-git')}
           </span>
           <ul className={styles.files} data-testid="delegate-files">
             {files.slice(0, 8).map((f) => (
@@ -277,14 +289,18 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
               </li>
             ))}
             {files.length > 8 && (
-              <li className={styles.muted}>{t('等 {0} 个', String(files.length))}</li>
+              <li className={styles.muted}>
+                {t('ui.session-workspace.in-total', String(files.length))}
+              </li>
             )}
           </ul>
         </div>
       )}
       {r.conflictedFiles?.length ? (
         <div className={styles.reportRow} data-testid="delegate-conflicts">
-          <span className={styles.reportLabel}>{t('未自动覆盖的文件')}</span>
+          <span className={styles.reportLabel}>
+            {t('ui.session-workspace.files-not-applied-automatically')}
+          </span>
           <ul className={styles.files}>
             {r.conflictedFiles.slice(0, 8).map((f) => (
               <li key={f}>
@@ -292,7 +308,9 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
               </li>
             ))}
             {r.conflictedFiles.length > 8 && (
-              <li className={styles.muted}>{t('等 {0} 个', String(r.conflictedFiles.length))}</li>
+              <li className={styles.muted}>
+                {t('ui.session-workspace.in-total', String(r.conflictedFiles.length))}
+              </li>
             )}
           </ul>
         </div>
@@ -300,7 +318,7 @@ const Report: React.FC<{ v: DelegateView }> = ({ v }) => {
       {r.approvals.asked > 0 && (
         <div className={styles.muted}>
           {t(
-            '审批 {0} 次，拒绝 {1} 次，超时 {2} 次',
+            'ui.session-workspace.approval-requests-denied-timed-out',
             String(r.approvals.asked),
             String(r.approvals.denied),
             String(r.approvals.timedOut),
@@ -348,7 +366,7 @@ const DelegateDrawer: React.FC<{ v: DelegateView; onClose: () => void }> = ({ v,
             </div>
           )}
           {messages !== null && !messages.length && !v.live?.text && (
-            <div className={styles.muted}>{t('还没有输出')}</div>
+            <div className={styles.muted}>{t('ui.session-workspace.no-output-yet')}</div>
           )}
         </div>
       </Modal>
@@ -409,7 +427,7 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
         : (call.endedAt ?? call.startedAt),
   );
   const step = running ? currentStep(v.live) : null;
-  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('编程助手');
+  const name = v.backend ? t(ENDPOINT_NAME[v.backend]) : t('ui.providers-schedule.coding-agents');
   const tab = v.tab;
   const view = () => {
     if (!tab) return;
@@ -421,7 +439,7 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
       className={styles.card}
       data-testid="delegate-card"
       data-phase={v.phase}
-      aria-label={t('交给 {0} 的子任务：{1}', name, v.goal)}
+      aria-label={t('ui.session-workspace.subtask-for', name, v.goal)}
     >
       <div className={styles.head}>
         <button
@@ -446,8 +464,8 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
             type="button"
             className={styles.iconBtn}
             disabled={stopping}
-            aria-label={t('停止这个子任务')}
-            title={t('停止这个子任务（Nomi 会继续）')}
+            aria-label={t('ui.session-workspace.stop-this-subtask')}
+            title={t('ui.session-workspace.stop-this-subtask-nomi-keeps-going')}
             data-testid="delegate-stop"
             onClick={() => {
               setStopping(true);
@@ -461,8 +479,12 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label={t('查看子任务')}
-            title={isDev ? t('切到这个编程助手标签') : t('查看子任务的对话记录')}
+            aria-label={t('ui.session-workspace.view-subtask')}
+            title={
+              isDev
+                ? t('ui.session-workspace.switch-to-this-coding-assistant-tab')
+                : t('ui.session-workspace.view-the-subtask-s-conversation')
+            }
             data-testid="delegate-view"
             onClick={view}
           >
@@ -472,7 +494,7 @@ export const DelegateCard: React.FC<{ call: ToolCall }> = ({ call }) => {
       </div>
       {step && (
         <div className={styles.step} data-testid="delegate-step" title={step}>
-          {t('当前：{0}', step)}
+          {t('ui.session-workspace.now', step)}
         </div>
       )}
       {open && (
@@ -526,9 +548,9 @@ export const DelegateGroup: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
       <div className={styles.groupHead} aria-live="polite">
         <span>
           {[
-            t('Nomi 派出 {0} 个任务', String(calls.length)),
-            running.length ? t('{0} 运行中', String(running.length)) : '',
-            waiting ? t('{0} 等你确认', String(waiting)) : '',
+            t('ui.session-workspace.nomi-handed-off-tasks', String(calls.length)),
+            running.length ? t('ui.session-workspace.running', String(running.length)) : '',
+            waiting ? t('ui.session-workspace.need-your-approval', String(waiting)) : '',
           ]
             .filter(Boolean)
             .join(' · ')}
@@ -543,7 +565,7 @@ export const DelegateGroup: React.FC<{ calls: ToolCall[] }> = ({ calls }) => {
                 if (x.tab) void harnessClient.cancelTab(x.tab.id).catch(() => undefined);
             }}
           >
-            {t('全部停止')}
+            {t('ui.session-workspace.stop-all')}
           </button>
         )}
       </div>

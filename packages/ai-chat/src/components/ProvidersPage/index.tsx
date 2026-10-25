@@ -69,9 +69,14 @@ export const ProvidersPage: React.FC<{
   const statusOf = (b: CliKind): { label: string; tone: Tone } | null => {
     const info = infos?.find((x) => x.kind === b);
     if (!info) return null; // 主进程没报告这个端点：不猜
-    if (!info.path) return { label: t('未安装'), tone: 'off' };
-    if (info.updateAvailable) return { label: t('有新版本'), tone: 'warn' };
-    return { label: info.version ? t('已安装 {0}', info.version) : t('已安装'), tone: 'ok' };
+    if (!info.path) return { label: t('ui.mascot-theme.not-installed'), tone: 'off' };
+    if (info.updateAvailable) return { label: t('ui.cli-monitor.update-available'), tone: 'warn' };
+    return {
+      label: info.version
+        ? t('ui.chat-settings.installed', info.version)
+        : t('ui.knowledge-local.installed'),
+      tone: 'ok',
+    };
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -85,13 +90,25 @@ export const ProvidersPage: React.FC<{
   return (
     <div className={styles.page} data-testid="providers-page" data-endpoint={ep}>
       <Tabs
-        aria-label={t('编程助手分区')}
+        aria-label={t('ui.cli-monitor.coding-assistant-sections')}
         value={view}
         onChange={(v) => (v === 'monitor' || v === 'delegate' ? setEp(v) : pick(cli))}
         items={[
-          { value: 'assistants', label: t('助手'), testId: 'providers-view-assistants' },
-          { value: 'delegate', label: t('委派'), testId: 'providers-view-delegate' },
-          { value: 'monitor', label: t('监视与会话'), testId: 'providers-endpoint-monitor' },
+          {
+            value: 'assistants',
+            label: t('ui.providers-schedule.assistants'),
+            testId: 'providers-view-assistants',
+          },
+          {
+            value: 'delegate',
+            label: t('ui.chat-settings.handoff'),
+            testId: 'providers-view-delegate',
+          },
+          {
+            value: 'monitor',
+            label: t('ui.cli-monitor.monitor-sessions'),
+            testId: 'providers-endpoint-monitor',
+          },
         ]}
       />
 
@@ -105,7 +122,7 @@ export const ProvidersPage: React.FC<{
         <>
           <div
             role="tablist"
-            aria-label={t('选择编程助手')}
+            aria-label={t('ui.providers-schedule.choose-a-coding-assistant')}
             className={styles.picker}
             data-testid="providers-endpoint-tabs"
             onKeyDown={onKey}
@@ -147,7 +164,9 @@ export const ProvidersPage: React.FC<{
               <ExternalClis onOpenedTab={onOpenedTab} />
             </>
           ) : (
-            <p className={styles.sub}>{t('编程助手接入需要在桌面应用中使用')}</p>
+            <p className={styles.sub}>
+              {t('ui.mascot-theme.coding-agent-harness-requires-the-desktop-app')}
+            </p>
           )}
         </>
       )}

@@ -66,7 +66,7 @@ export function parseNote(id: string, raw: string): Note {
     title:
       typeof meta.title === 'string' && meta.title
         ? meta.title
-        : firstLine.replace(/^#+\s*/, '').slice(0, 80) || tr('无标题'),
+        : firstLine.replace(/^#+\s*/, '').slice(0, 80) || tr('electron.common.untitled'),
     tags: Array.isArray(meta.tags) ? meta.tags.filter((t) => typeof t === 'string') : [],
     created: time(meta.created),
     updated: time(meta.updated),
@@ -129,7 +129,8 @@ export class NotesStore {
   ) {}
 
   fileOf(id: string): string {
-    if (!NOTE_ID.test(id)) throw Object.assign(new Error(tr('无效的笔记 id')), { code: 'invalid' });
+    if (!NOTE_ID.test(id))
+      throw Object.assign(new Error(tr('electron.common.invalid-note-id')), { code: 'invalid' });
     return path.join(this.root, `${id}.md`);
   }
 
@@ -169,7 +170,7 @@ export class NotesStore {
     const t = this.now();
     const n: Note = {
       id: `n${t.toString(36)}${randomBytes(3).toString('hex')}`,
-      title: i.title.trim().slice(0, 200) || tr('无标题'),
+      title: i.title.trim().slice(0, 200) || tr('electron.common.untitled'),
       tags: cleanTags(i.tags),
       created: t,
       updated: t,
@@ -189,7 +190,8 @@ export class NotesStore {
     p: { title?: string; body?: string; append?: string; tags?: string[] },
   ): { before: Note; after: Note } {
     const before = this.get(id);
-    if (!before) throw Object.assign(new Error(tr('笔记不存在')), { code: 'not_found' });
+    if (!before)
+      throw Object.assign(new Error(tr('electron.common.note-not-found')), { code: 'not_found' });
     const body =
       p.append !== undefined
         ? `${before.body.replace(/\s*$/, '')}\n\n${p.append}`

@@ -148,7 +148,7 @@ export const FilePreview: React.FC<{
     if (!cwd || !activeFileKey || !activePath) {
       setDisk('');
       setBinary(false);
-      setErr(cwd ? null : t('当前会话没有工作目录'));
+      setErr(cwd ? null : t('ui.session-workspace.this-session-has-no-working-directory'));
       return;
     }
     setLoading(true);
@@ -160,10 +160,10 @@ export const FilePreview: React.FC<{
         setBinary(false);
         setErr(
           r.code === 'outside'
-            ? t('路径不在工作区内，已拒绝读取')
+            ? t('ui.session-workspace.path-outside-workspace-read-denied')
             : r.code === 'not-found'
-              ? t('文件不存在（可能尚未写入磁盘）')
-              : r.error || t('读取失败'),
+              ? t('ui.session-workspace.file-not-found-may-not-be-on-disk')
+              : r.error || t('ui.slash-commands.failed-to-read'),
         );
         return;
       }
@@ -237,7 +237,11 @@ export const FilePreview: React.FC<{
         content,
       );
       if (!r.ok) {
-        setErr(r.code === 'outside' ? t('路径不在工作区内，已拒绝写入') : r.error || t('保存失败'));
+        setErr(
+          r.code === 'outside'
+            ? t('ui.session-workspace.path-outside-workspace-write-denied')
+            : r.error || t('ui.voice-mascot.couldn-t-save'),
+        );
         return;
       }
       setDisk(content);
@@ -260,7 +264,7 @@ export const FilePreview: React.FC<{
 
   const askDiscard = () => {
     if (!cwd || !active?.change?.diff || active.change.diff.summaryOnly) {
-      setErr(t('没有可丢弃的完整 diff'));
+      setErr(t('ui.session-workspace.no-full-diff-available-to-discard'));
       return;
     }
     setErr(null);
@@ -315,7 +319,7 @@ export const FilePreview: React.FC<{
             type="button"
             className={styles.iconBtn}
             onClick={() => go(-1)}
-            aria-label={t('上一个文件')}
+            aria-label={t('ui.session-workspace.previous-file')}
             data-testid="preview-prev"
           >
             <ChevronLeft size={14} />
@@ -324,7 +328,7 @@ export const FilePreview: React.FC<{
             type="button"
             className={styles.iconBtn}
             onClick={() => go(1)}
-            aria-label={t('下一个文件')}
+            aria-label={t('ui.session-workspace.next-file')}
             data-testid="preview-next"
           >
             <ChevronRight size={14} />
@@ -333,7 +337,7 @@ export const FilePreview: React.FC<{
             {idx + 1}/{files.length}
           </span>
         </div>
-        <nav className={styles.crumbs} aria-label={t('文件路径')}>
+        <nav className={styles.crumbs} aria-label={t('ui.session-workspace.file-path')}>
           {crumbs.map((c, i) => (
             <React.Fragment key={`${c}-${i}`}>
               {i > 0 ? <span className={styles.crumbSep}>/</span> : null}
@@ -370,10 +374,10 @@ export const FilePreview: React.FC<{
                 setMode('file');
               }}
               data-testid="preview-mode-file"
-              title={t('编辑文件内容，保存后写回工作区')}
+              title={t('ui.session-workspace.edit-the-file-saving-writes-it-back-to')}
             >
               <FileCode2 size={12} />
-              {t('编辑')}
+              {t('ui.foundation.edit')}
             </button>
             {isMd ? (
               <button
@@ -389,7 +393,7 @@ export const FilePreview: React.FC<{
                 data-testid="preview-mode-render"
               >
                 <Eye size={12} />
-                {t('预览')}
+                {t('ui.foundation.preview')}
               </button>
             ) : null}
           </div>
@@ -399,8 +403,8 @@ export const FilePreview: React.FC<{
               className={styles.iconBtn}
               onClick={() => void save()}
               disabled={saving || !cwd}
-              title={t('保存到工作区')}
-              aria-label={t('保存到工作区')}
+              title={t('ui.session-workspace.save-to-workspace')}
+              aria-label={t('ui.session-workspace.save-to-workspace')}
               data-testid="preview-save"
             >
               <Save size={14} />
@@ -412,8 +416,8 @@ export const FilePreview: React.FC<{
               className={styles.iconBtn}
               onClick={askDiscard}
               disabled={saving || !cwd || confirmDiscard}
-              title={t('丢弃本轮变更')}
-              aria-label={t('丢弃本轮变更')}
+              title={t('ui.session-workspace.discard-turn-changes')}
+              aria-label={t('ui.session-workspace.discard-turn-changes')}
               data-testid="preview-discard"
             >
               <RotateCcw size={14} />
@@ -423,7 +427,7 @@ export const FilePreview: React.FC<{
             type="button"
             className={styles.iconBtn}
             onClick={onClose}
-            aria-label={t('关闭预览')}
+            aria-label={t('ui.session-workspace.close-preview')}
             data-testid="preview-close"
           >
             <X size={14} />
@@ -470,7 +474,7 @@ export const FilePreview: React.FC<{
           role="alertdialog"
           data-testid="preview-discard-confirm"
         >
-          <span>{t('丢弃本轮对该文件的变更并写回旧内容？')}</span>
+          <span>{t('ui.session-workspace.discard-this-turn-s-changes-to-this-file')}</span>
           <span className={styles.turnConfirmBtns}>
             <button
               type="button"
@@ -478,7 +482,7 @@ export const FilePreview: React.FC<{
               onClick={() => setConfirmDiscard(false)}
               data-testid="preview-discard-cancel"
             >
-              {t('取消')}
+              {t('ui.foundation.cancel')}
             </button>
             <button
               type="button"
@@ -486,7 +490,7 @@ export const FilePreview: React.FC<{
               onClick={() => void discardTurn()}
               data-testid="preview-discard-ok"
             >
-              {t('确认丢弃')}
+              {t('ui.session-workspace.confirm-discard')}
             </button>
           </span>
         </div>
@@ -510,24 +514,30 @@ export const FilePreview: React.FC<{
           ) : active.gitDiff ? (
             <DiffView diff={active.gitDiff} cwd={cwd} fill split="auto" />
           ) : (
-            <p className={styles.empty}>{t('无 diff，可切换到「文件」查看磁盘内容')}</p>
+            <p className={styles.empty}>
+              {t('ui.session-workspace.no-diff-switch-to-file-to-view-disk')}
+            </p>
           )}
         </div>
       ) : mode === 'render' ? (
         <div className={styles.previewBody} data-testid="preview-render-body">
           {loading ? (
-            <p className={styles.empty}>{t('读取中…')}</p>
+            <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
           ) : (
             <Markdown text={renderText} className={styles.mdPreview} settled />
           )}
-          {dirty ? <span className={styles.dirtyHint}>{t('未保存')}</span> : null}
+          {dirty ? (
+            <span className={styles.dirtyHint}>{t('ui.session-workspace.unsaved')}</span>
+          ) : null}
         </div>
       ) : (
         <div className={styles.previewBody} data-testid="preview-file-body">
           {loading ? (
-            <p className={styles.empty}>{t('读取中…')}</p>
+            <p className={styles.empty}>{t('ui.session-workspace.reading')}</p>
           ) : binary ? (
-            <p className={styles.empty}>{t('二进制文件，无法在预览中编辑')}</p>
+            <p className={styles.empty}>
+              {t('ui.session-workspace.binary-file-cannot-edit-in-preview')}
+            </p>
           ) : (
             <textarea
               ref={taRef}
@@ -535,7 +545,7 @@ export const FilePreview: React.FC<{
               defaultValue={disk}
               spellCheck={false}
               data-testid="preview-editor"
-              aria-label={t('编辑文件')}
+              aria-label={t('ui.session-workspace.edit-file')}
               onChange={(e) => {
                 const st = viewState.current.get(active.key) ?? {
                   scrollTop: 0,
@@ -551,7 +561,9 @@ export const FilePreview: React.FC<{
               onSelect={() => persistView()}
             />
           )}
-          {dirty ? <span className={styles.dirtyHint}>{t('未保存')}</span> : null}
+          {dirty ? (
+            <span className={styles.dirtyHint}>{t('ui.session-workspace.unsaved')}</span>
+          ) : null}
         </div>
       )}
     </div>

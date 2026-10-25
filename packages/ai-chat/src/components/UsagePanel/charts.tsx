@@ -85,23 +85,23 @@ export const TrendChart: React.FC<{
             <b>{formatBucket(hp.t, bucket)}</b>
             {metric === 'tokens' ? (
               <>
-                <span>{t('输入 {0}', fmt(hp.input))}</span>
-                <span>{t('输出 {0}', fmt(hp.output))}</span>
+                <span>{t('ui.usage-tools.input-e91f1e', fmt(hp.input))}</span>
+                <span>{t('ui.usage-tools.output-1004c0', fmt(hp.output))}</span>
               </>
             ) : (
               <span>{fmt(costOf(hp.costUsd))}</span>
             )}
-            <span>{t('{0} 次调用', hp.calls)}</span>
+            <span>{t('ui.usage-tools.call-s', hp.calls)}</span>
           </>
         ) : (
-          <span className={styles.dim}>{t('把鼠标移到柱子上查看明细')}</span>
+          <span className={styles.dim}>{t('ui.usage-tools.hover-a-bar-to-see-details')}</span>
         )}
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className={styles.trendSvg}
         role="img"
-        aria-label={t('用量趋势图')}
+        aria-label={t('ui.usage-tools.usage-trend-chart')}
         onMouseLeave={() => setHover(null)}
       >
         {ticks.map((tv, i) => (
@@ -164,11 +164,11 @@ export const TrendChart: React.FC<{
         <div className={styles.legend}>
           <span>
             <i className={styles.dotIn} />
-            {t('输入')}
+            {t('ui.usage-tools.input')}
           </span>
           <span>
             <i className={styles.dotOut} />
-            {t('输出')}
+            {t('ui.usage-tools.output')}
           </span>
         </div>
       )}
@@ -219,9 +219,9 @@ export const Heatmap: React.FC<{
           </span>
         ))}
         {[
-          [1, t('周一')],
-          [3, t('周三')],
-          [5, t('周五')],
+          [1, t('ui.usage-tools.mon')],
+          [3, t('ui.usage-tools.wed')],
+          [5, t('ui.usage-tools.fri')],
         ].map(([i, label]) => (
           <span
             key={i}
@@ -243,7 +243,7 @@ export const Heatmap: React.FC<{
                 selected === d.date ? styles.heatSel : ''
               }`}
               aria-label={`${d.date} ${fmt(val(d), metric)}`}
-              title={[d.date, fmt(val(d), metric), t('{0} 次调用', d.calls)].join(' · ')}
+              title={[d.date, fmt(val(d), metric), t('ui.usage-tools.call-s', d.calls)].join(' · ')}
               aria-pressed={selected === d.date}
               data-testid="usage-heat-cell"
               data-date={d.date}
@@ -255,11 +255,11 @@ export const Heatmap: React.FC<{
         })}
       </div>
       <div className={styles.heatLegend} aria-hidden>
-        <span>{t('少')}</span>
+        <span>{t('ui.usage-tools.less')}</span>
         {[0, 1, 2, 3, 4].map((l) => (
           <i key={l} className={`${styles.heatCell} ${styles[`lv${l}`]}`} />
         ))}
-        <span>{t('多')}</span>
+        <span>{t('ui.usage-tools.more')}</span>
       </div>
     </div>
   );

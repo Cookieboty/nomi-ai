@@ -22,15 +22,15 @@ import styles from './index.module.css';
 
 type BlurKey = 'blurLeft' | 'blurCenter' | 'blurRight';
 const BLURS: { key: BlurKey; label: string; testId: string }[] = [
-  { key: 'blurLeft', label: '左侧栏模糊', testId: 'chat-bg-blur-left' },
-  { key: 'blurCenter', label: '对话区模糊', testId: 'chat-bg-blur-center' },
-  { key: 'blurRight', label: '右侧面板模糊', testId: 'chat-bg-blur-right' },
+  { key: 'blurLeft', label: 'ui.chat-settings.sidebar-blur', testId: 'chat-bg-blur-left' },
+  { key: 'blurCenter', label: 'ui.chat-settings.chat-area-blur', testId: 'chat-bg-blur-center' },
+  { key: 'blurRight', label: 'ui.chat-settings.right-panels-blur', testId: 'chat-bg-blur-right' },
 ];
 
 const MODES: { id: ChatBgMode; label: string }[] = [
-  { id: 'default', label: '跟随主题' },
-  { id: 'solid', label: '纯色' },
-  { id: 'image', label: '图片' },
+  { id: 'default', label: 'ui.chat-settings.follow-theme' },
+  { id: 'solid', label: 'ui.chat-settings.solid-color' },
+  { id: 'image', label: 'ui.providers-schedule.image' },
 ];
 
 export const ChatBackgroundSettings: React.FC = () => {
@@ -48,8 +48,8 @@ export const ChatBackgroundSettings: React.FC = () => {
     <>
       <SettingRow
         data-testid="settings-chat-bg"
-        title={t('聊天背景')}
-        description={t('铺满整个工作台：侧栏、对话区与右侧面板都会透出背景。')}
+        title={t('ui.chat-settings.chat-background')}
+        description={t('ui.chat-settings.covers-the-whole-workbench-the-sidebar-chat-area')}
       >
         {!pristine && (
           <Button
@@ -60,11 +60,11 @@ export const ChatBackgroundSettings: React.FC = () => {
             onClick={() => void resetChatBackground().then(setS)}
           >
             <RotateCcw size={14} strokeWidth={1.75} aria-hidden />
-            {t('恢复默认')}
+            {t('ui.providers-schedule.restore-defaults')}
           </Button>
         )}
         <SegmentedControl
-          aria-label={t('聊天背景')}
+          aria-label={t('ui.chat-settings.chat-background')}
           value={s.mode}
           onChange={(mode) => patch({ mode })}
           options={MODES.map((m) => ({
@@ -76,12 +76,12 @@ export const ChatBackgroundSettings: React.FC = () => {
       </SettingRow>
 
       {s.mode === 'solid' && (
-        <SettingRow title={t('颜色')} description={s.solidColor}>
+        <SettingRow title={t('ui.chat-settings.color')} description={s.solidColor}>
           <input
             type="color"
             className={styles.colorInput}
             value={s.solidColor}
-            aria-label={t('颜色')}
+            aria-label={t('ui.chat-settings.color')}
             data-testid="chat-bg-color"
             onChange={(e) => patch({ solidColor: e.target.value })}
           />
@@ -90,12 +90,12 @@ export const ChatBackgroundSettings: React.FC = () => {
 
       {s.mode === 'image' && (
         <SettingRow
-          title={t('图片')}
+          title={t('ui.providers-schedule.image')}
           description={
             s.imageUrl ? (
-              <span data-testid="chat-bg-image-set">{t('已选择图片')}</span>
+              <span data-testid="chat-bg-image-set">{t('ui.chat-settings.image-selected')}</span>
             ) : (
-              t('尚未选择图片')
+              t('ui.chat-settings.no-image-yet')
             )
           }
         >
@@ -114,7 +114,7 @@ export const ChatBackgroundSettings: React.FC = () => {
             onClick={() => void pickChatBackgroundImage().then(setS)}
           >
             <ImagePlus size={14} strokeWidth={1.75} aria-hidden />
-            {t('选择图片…')}
+            {t('ui.chat-settings.choose-image')}
           </Button>
         </SettingRow>
       )}
@@ -137,7 +137,7 @@ export const ChatBackgroundSettings: React.FC = () => {
               <span className={styles.sizeValue}>{s[b.key]}px</span>
             </SettingRow>
           ))}
-          <SettingRow title={t('透明度')}>
+          <SettingRow title={t('ui.chat-settings.opacity')}>
             <input
               type="range"
               className={styles.range}
@@ -145,7 +145,7 @@ export const ChatBackgroundSettings: React.FC = () => {
               max={100}
               step={1}
               value={Math.round(s.opacity * 100)}
-              aria-label={t('透明度')}
+              aria-label={t('ui.chat-settings.opacity')}
               data-testid="chat-bg-opacity"
               onChange={(e) => patch({ opacity: Number(e.target.value) / 100 })}
             />

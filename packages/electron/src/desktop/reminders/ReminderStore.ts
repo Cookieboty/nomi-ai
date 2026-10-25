@@ -204,7 +204,10 @@ export class ReminderStore {
 
   private mutate(id: string, fn: (r: Reminder) => void): { before: Reminder; after: Reminder } {
     const r = this.get(id);
-    if (!r) throw Object.assign(new Error(tr('提醒不存在')), { code: 'not_found' });
+    if (!r)
+      throw Object.assign(new Error(tr('electron.common.reminder-not-found')), {
+        code: 'not_found',
+      });
     const before = { ...r };
     fn(r);
     this.save();
@@ -215,7 +218,10 @@ export class ReminderStore {
   cancel(id: string) {
     return this.mutate(id, (r) => {
       if (r.status !== 'pending')
-        throw Object.assign(new Error(tr('只能取消尚未触发的提醒')), { code: 'invalid_state' });
+        throw Object.assign(
+          new Error(tr('electron.common.only-reminders-that-haven-t-fired-can-be')),
+          { code: 'invalid_state' },
+        );
       r.status = 'cancelled';
     });
   }
@@ -224,7 +230,9 @@ export class ReminderStore {
   snooze(id: string, minutes: number) {
     return this.mutate(id, (r) => {
       if (r.status === 'cancelled')
-        throw Object.assign(new Error(tr('提醒已取消')), { code: 'invalid_state' });
+        throw Object.assign(new Error(tr('electron.common.reminder-cancelled')), {
+          code: 'invalid_state',
+        });
       r.status = 'pending';
       r.dueAt = this.now() + Math.round(minutes * 60_000);
       r.snoozes = (r.snoozes ?? 0) + 1;
@@ -242,7 +250,10 @@ export class ReminderStore {
   update(id: string, p: { text?: string; dueAt?: number; repeat?: Repeat | null }) {
     return this.mutate(id, (r) => {
       if (r.status !== 'pending')
-        throw Object.assign(new Error(tr('只能修改尚未触发的提醒')), { code: 'invalid_state' });
+        throw Object.assign(
+          new Error(tr('electron.common.only-reminders-that-haven-t-fired-can-be-baed09')),
+          { code: 'invalid_state' },
+        );
       if (p.text?.trim()) r.text = p.text.trim().slice(0, 500);
       if (typeof p.dueAt === 'number' && Number.isFinite(p.dueAt)) r.dueAt = Math.round(p.dueAt);
       if (p.repeat === null) {

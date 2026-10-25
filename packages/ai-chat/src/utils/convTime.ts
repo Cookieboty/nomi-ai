@@ -86,7 +86,7 @@ export function turnSummary(m: {
   const u = m.usage;
   if (u && (u.inputTokens !== undefined || u.outputTokens !== undefined)) {
     parts.tokens = t(
-      '输入 {0} · 输出 {1}',
+      'ui.usage-tools.in-out',
       formatTokens(u.inputTokens ?? 0),
       formatTokens(u.outputTokens ?? 0),
     );
@@ -97,8 +97,8 @@ export function turnSummary(m: {
 
 /** 完成后的思考块标题：已思考 N 秒（缺时间数据则只显示「已思考」） */
 export function thoughtLabel(ms?: number): string {
-  if (ms === undefined || ms < 0) return t('已思考');
+  if (ms === undefined || ms < 0) return t('ui.usage-tools.thought');
   const s = Math.max(1, Math.round(ms / 1000));
-  if (s < 60) return t('已思考 {0} 秒', s);
-  return t('已思考 {0} 分 {1} 秒', Math.floor(s / 60), s % 60);
+  if (s < 60) return t('ui.usage-tools.thought-for-s', s);
+  return t('ui.usage-tools.thought-for-m-s', Math.floor(s / 60), s % 60);
 }

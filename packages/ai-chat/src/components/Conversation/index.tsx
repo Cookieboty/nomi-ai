@@ -78,8 +78,8 @@ function useElapsed(since: number): string {
   }, []);
   const s = Math.max(0, Math.floor((now - since) / 1000));
   return s >= 60
-    ? t('{0} 分 {1} 秒', String(Math.floor(s / 60)), String(s % 60))
-    : t('{0} 秒', String(s));
+    ? t('ui.chat-settings.m-s', String(Math.floor(s / 60)), String(s % 60))
+    : t('ui.mascot-theme.s', String(s));
 }
 
 const BackgroundAgentRow: React.FC<{
@@ -91,7 +91,7 @@ const BackgroundAgentRow: React.FC<{
   return (
     <li className={styles.bgRow} data-testid="conv-background-agent">
       <span className={styles.bgLabel} title={agent.label}>
-        {agent.label || t('子代理')}
+        {agent.label || t('ui.usage-tools.subagent')}
       </span>
       <span className={styles.bgElapsed}>{elapsed}</span>
       {onStop && (
@@ -100,14 +100,21 @@ const BackgroundAgentRow: React.FC<{
           className={styles.bgStop}
           data-testid="conv-background-stop"
           disabled={!agent.stoppable || stopping}
-          title={agent.stoppable ? t('停止这个子代理') : t('该编程助手不支持单独停止子代理')}
-          aria-label={t('停止子代理「{0}」', agent.label || t('子代理'))}
+          title={
+            agent.stoppable
+              ? t('ui.chat-settings.stop-this-subagent')
+              : t('ui.chat-settings.this-coding-agent-can-t-stop-a-single')
+          }
+          aria-label={t(
+            'ui.chat-settings.stop-subagent',
+            agent.label || t('ui.usage-tools.subagent'),
+          )}
           onClick={() => {
             setStopping(true);
             onStop(agent.id);
           }}
         >
-          {stopping ? t('正在停止…') : t('停止')}
+          {stopping ? t('ui.chat-settings.stopping') : t('ui.foundation.stop')}
         </button>
       )}
     </li>
@@ -138,7 +145,7 @@ const BackgroundBar: React.FC<{
         }}
       >
         <Icon icon={Layers} size={13} />
-        {t('后台任务 {0} 个', String(n))}
+        {t('ui.chat-settings.background-tasks', String(n))}
       </button>
       {open && agents?.length ? (
         <ul className={styles.bgList}>
@@ -168,7 +175,7 @@ const PermissionQueue: React.FC<{
     <div className={styles.permQueue} data-testid="conv-permission-queue">
       {list.length > 1 && (
         <div className={styles.permCount} aria-live="polite">
-          {t('{0} 项待确认', String(list.length))}
+          {t('ui.chat-settings.requests-waiting', String(list.length))}
         </div>
       )}
       {list.map((p) =>
@@ -194,8 +201,12 @@ const PermissionQueue: React.FC<{
       {showExpired && expired && (
         <div className={styles.permExpired} role="status" data-testid="conv-permission-expired">
           {expired.agent
-            ? t('子代理「{0}」的请求已超时，已自动拒绝：{1}', expired.agent, expired.summary)
-            : t('请求已超时，已自动拒绝：{0}', expired.summary)}
+            ? t(
+                'ui.chat-settings.subagent-s-request-timed-out-and-was-denied',
+                expired.agent,
+                expired.summary,
+              )
+            : t('ui.chat-settings.the-request-timed-out-and-was-denied', expired.summary)}
         </div>
       )}
     </div>
@@ -453,7 +464,7 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                 }}
               >
                 <Icon icon={ChevronsUp} size={14} />
-                {t('显示更早的 {0} 条消息', start)}
+                {t('ui.usage-tools.show-earlier-messages', start)}
               </button>
             )}
             {start === 0 && renderCards(cardPlan.head)}
@@ -529,13 +540,13 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             {queued?.map((text, i) => (
               <div className={styles.pending} key={`${i}-${text}`} data-testid="conv-queued">
                 <span className={styles.pendingText}>{text}</span>
-                <span className={styles.pendingTag}>{t('已排队')}</span>
+                <span className={styles.pendingTag}>{t('ui.usage-tools.queued')}</span>
                 {onRemoveQueued && (
                   <button
                     type="button"
                     className={styles.action}
-                    aria-label={t('移出队列')}
-                    title={t('移出队列')}
+                    aria-label={t('ui.usage-tools.remove-from-queue')}
+                    title={t('ui.usage-tools.remove-from-queue')}
                     data-testid="conv-queued-remove"
                     onClick={() => onRemoveQueued(i)}
                   >
@@ -555,15 +566,15 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
                 <Icon icon={ArrowLeftRight} size={12} />
                 <span>
                   {t(
-                    '已切换到 {0}。同一会话中途换模型，新模型会接着之前的上下文继续，可能影响它对这段会话的分析与判断。',
-                    modelSwitchTip || t('默认模型'),
+                    'ui.cli-monitor.switched-to-changing-models-mid-conversation-means-the',
+                    modelSwitchTip || t('ui.providers-schedule.default-model'),
                   )}
                 </span>
               </div>
             )}
             {dormant && !running && (
               <div className={styles.dormant} data-testid="conv-dormant" role="status">
-                {t('编程助手进程空闲已休眠，发送下一条消息会自动续接会话')}
+                {t('ui.cli-monitor.the-coding-assistant-process-went-dormant-after-being')}
               </div>
             )}
           </div>
@@ -573,8 +584,8 @@ const ConversationInner: React.FC<ConversationViewProps> = ({
             type="button"
             className={styles.jump}
             data-testid="conv-jump-bottom"
-            aria-label={t('回到底部')}
-            title={t('回到底部')}
+            aria-label={t('ui.usage-tools.jump-to-latest')}
+            title={t('ui.usage-tools.jump-to-latest')}
             onClick={() => {
               followRef.current = true;
               setAway(false);

@@ -112,43 +112,27 @@ const BUILTIN_SKILLS: Array<{ meta: SkillMeta; body: string }> = [
   {
     meta: {
       name: 'weekly-report',
-      description:
-        '用户要写周报 / 工作总结时使用：按固定结构整理本周完成、进行中、问题和下周计划。',
+      description: 'electron.common.use-when-the-user-wants-a-weekly-report',
       version: '1.0',
       license: 'MIT',
       author: 'Nomi',
     },
-    body: `# 周报助手
-
-1. 先问清楚（或从对话 / 提醒里找）本周做了哪些事；信息不够时最多追问两个问题。
-2. 按下面的结构输出，每条一句话，动词开头，尽量量化：
-   - **本周完成**
-   - **进行中**（附预计完成时间）
-   - **问题与风险**（没有就写“无”）
-   - **下周计划**
-3. 总长度控制在 300 字以内；语气平实，不要夸张。
-4. 最后问一句是否需要改成英文或更正式的版本。`,
+    body: 'electron.common.weekly-report-helper-1-first-find-out-or',
   },
   {
     meta: {
       name: 'meeting-notes',
-      description:
-        '用户粘贴会议记录 / 语音转写并想要纪要时使用：提炼结论、待办（负责人 + 截止时间）和未决问题。',
+      description: 'electron.common.use-when-the-user-pastes-meeting-notes-a',
       version: '1.0',
       license: 'MIT',
       author: 'Nomi',
     },
-    body: `# 会议纪要
-
-- 输出三部分：**结论**、**待办**（表格：事项 / 负责人 / 截止时间）、**未决问题**。
-- 只根据原文整理，不要编造；原文没有负责人或时间的写“待定”。
-- 如果用户同意，可以用 reminder_create 为带截止时间的待办创建提醒（先列出来让用户确认）。
-- 详细格式示例见同目录的 template.md（需要时用 skill_read_file 读取）。`,
+    body: 'electron.common.meeting-minutes-output-three-parts-decisions-action-items',
   },
 ];
 const BUILTIN_FILES: Record<string, Record<string, string>> = {
   'meeting-notes': {
-    'template.md': `## 结论\n- …\n\n## 待办\n| 事项 | 负责人 | 截止时间 |\n| --- | --- | --- |\n| … | … | … |\n\n## 未决问题\n- …\n`,
+    'template.md': 'electron.common.decisions-action-items-item-owner-due-date-open',
   },
 };
 
@@ -225,7 +209,7 @@ export class ExtensionsService {
     );
     if (changed && !canEncryptSecrets())
       throw new McpConfigError(
-        t('系统安全存储不可用，无法安全保存 MCP 的密钥 / 令牌；请在系统钥匙串可用后重试'),
+        t('electron.common.system-secure-storage-is-unavailable-so-mcp-secrets'),
       );
   }
   /** env 按字段名判断密钥；headers 的取值一律按密钥处理（鉴权头名称不固定，如 X-Gateway-Auth） */
@@ -411,9 +395,10 @@ export class ExtensionsService {
 
   async connect(id: string): Promise<Live> {
     const s = this.servers.find((x) => x.id === id);
-    if (!s) throw new McpConfigError(t('服务器不存在'));
+    if (!s) throw new McpConfigError(t('electron.common.server-not-found'));
     const svc = this.mcp?.();
-    if (!svc || !this.registry) throw new McpConfigError(t('AI 服务还没准备好，稍后再试'));
+    if (!svc || !this.registry)
+      throw new McpConfigError(t('electron.common.the-ai-service-isn-t-ready-yet-try'));
     this.live.set(id, { status: 'connecting', tools: [] });
     this.changed();
     const t0 = Date.now();
@@ -511,9 +496,16 @@ export class ExtensionsService {
             // 只读工具走到这里一定是「每次询问」（下面 force 确认），按「读」处理，「计划」档不拦；
             // 其它至少按「写」处理，避免被默认策略放行
             danger: def.dangerous ? 'destructive' : def.readOnly === true ? 'read' : 'write',
-            summary: t('扩展工具 {0}（{1}）', def.name.replace(`${serverId}__`, ''), serverName),
+            summary: t(
+              'electron.common.extension-tool',
+              def.name.replace(`${serverId}__`, ''),
+              serverName,
+            ),
             args: input,
-            preview: t('参数：\n{0}', JSON.stringify(input ?? {}, null, 2).slice(0, 1200)),
+            preview: t(
+              'electron.common.arguments',
+              JSON.stringify(input ?? {}, null, 2).slice(0, 1200),
+            ),
             signal: ctx.signal,
             ...(def.dangerous
               ? { force: { dialog: true } }
@@ -529,9 +521,12 @@ export class ExtensionsService {
                 decision === 'blocked'
                   ? {
                       code: 'mode_blocked',
-                      message: t('当前是「计划」（只读）权限模式，不能调用会修改内容的工具'),
+                      message: t('electron.common.the-permission-mode-is-plan-read-only-so'),
                     }
-                  : { code: 'user_denied', message: t('用户没有允许这次调用') },
+                  : {
+                      code: 'user_denied',
+                      message: t('electron.common.the-user-didn-t-allow-this-call'),
+                    },
             } as never;
           }
         }
@@ -596,7 +591,7 @@ export class ExtensionsService {
   }
   private skillDir(name: string) {
     const s = this.listSkills().find((x) => x.name === name && !x.error);
-    if (!s) throw new SkillError(t('没有名为 {0} 的技能', name));
+    if (!s) throw new SkillError(t('electron.common.no-skill-named', name));
     return path.join(this.d.skillsRoot, s.dir);
   }
   getSkill(name: string) {
@@ -610,12 +605,17 @@ export class ExtensionsService {
       name: String(p.meta.name ?? '').trim(),
       description: String(p.meta.description ?? '').trim(),
     };
-    if (!validSkillName(meta.name)) throw new SkillError(t('名称只能用小写字母、数字和连字符'));
-    if (!meta.description) throw new SkillError(t('请写一句话描述：什么时候该用这个技能'));
-    if (!p.body.trim()) throw new SkillError(t('技能说明不能为空'));
+    if (!validSkillName(meta.name))
+      throw new SkillError(t('electron.common.names-may-only-use-lowercase-letters-digits-and'));
+    if (!meta.description)
+      throw new SkillError(
+        t('electron.common.write-one-sentence-describing-when-this-skill-should'),
+      );
+    if (!p.body.trim())
+      throw new SkillError(t('electron.common.skill-instructions-can-t-be-empty'));
     const existing = this.listSkills();
     if (meta.name !== p.originalName && existing.some((s) => s.name === meta.name))
-      throw new SkillError(t('已经有同名技能'));
+      throw new SkillError(t('electron.common.a-skill-with-that-name-already-exists'));
     let dir = path.join(this.d.skillsRoot, meta.name);
     if (p.originalName && p.originalName !== meta.name) {
       const old = this.skillDir(p.originalName);
@@ -646,13 +646,14 @@ export class ExtensionsService {
   /** 从文件夹导入（复制进 skills 目录；不跟随符号链接，总大小 ≤ 5 MB） */
   importSkillDir(src: string) {
     const md = path.join(src, 'SKILL.md');
-    if (!fs.existsSync(md)) throw new SkillError(t('这个文件夹里没有 SKILL.md'));
+    if (!fs.existsSync(md)) throw new SkillError(t('electron.common.this-folder-has-no-skill-md'));
     const { meta } = parseSkillMd(fs.readFileSync(md, 'utf8'));
     if (this.listSkills().some((s) => s.name === meta.name))
-      throw new SkillError(t('已经有名为 {0} 的技能', meta.name));
+      throw new SkillError(t('electron.common.a-skill-named-already-exists', meta.name));
     let total = 0;
     for (const f of listFiles(src)) total += fs.statSync(path.join(src, f)).size;
-    if (total > MAX_SKILL_BYTES) throw new SkillError(t('技能包太大（上限 5 MB）'));
+    if (total > MAX_SKILL_BYTES)
+      throw new SkillError(t('electron.common.skill-pack-too-large-max-5-mb'));
     const dest = path.join(this.d.skillsRoot, meta.name);
     for (const f of listFiles(src)) {
       const to = path.join(dest, f);
@@ -666,7 +667,7 @@ export class ExtensionsService {
   }
   async importSkillDialog() {
     const r = await dialog.showOpenDialog({
-      title: t('选择技能文件夹（包含 SKILL.md）'),
+      title: t('electron.common.choose-a-skill-folder-containing-skill-md'),
       properties: ['openDirectory'],
     });
     if (r.canceled || !r.filePaths[0]) return null;
@@ -677,24 +678,29 @@ export class ExtensionsService {
   }
 
   tools(): ToolDefinition[] {
-    const load = z.object({ name: z.string().min(1).max(64).describe(t('技能名称')) }).strict();
+    const load = z
+      .object({ name: z.string().min(1).max(64).describe(t('electron.common.skill-name')) })
+      .strict();
     const read = z
       .object({
         name: z.string().min(1).max(64),
-        path: z.string().min(1).max(200).describe(t('技能文件夹内的相对路径')),
+        path: z
+          .string()
+          .min(1)
+          .max(200)
+          .describe(t('electron.common.relative-path-inside-the-skill-folder')),
       })
       .strict();
     const enabled = (name: string) => {
       const s = this.listSkills().find((x) => x.name === name);
-      if (!s || s.error) throw new SkillError(t('没有名为 {0} 的技能', name));
-      if (!s.enabled) throw new SkillError(t('技能 {0} 已被用户停用', name));
+      if (!s || s.error) throw new SkillError(t('electron.common.no-skill-named', name));
+      if (!s.enabled)
+        throw new SkillError(t('electron.common.skill-was-disabled-by-the-user', name));
     };
     return [
       {
         name: 'skill_load',
-        description: t(
-          '读取一个已启用技能的完整说明（SKILL.md 正文和附带文件列表）。只在用户请求符合该技能描述时调用。',
-        ),
+        description: t('electron.common.read-the-full-instructions-of-an-enabled-skill'),
         input: load,
         readOnly: true,
         execute: async (raw: unknown) => {
@@ -712,7 +718,7 @@ export class ExtensionsService {
       } as unknown as ToolDefinition,
       {
         name: 'skill_read_file',
-        description: t('读取技能文件夹里的参考文件（纯文本，最多 64 KB）。'),
+        description: t('electron.common.read-a-reference-file-in-a-skill-folder'),
         input: read,
         readOnly: true,
         execute: async (raw: unknown) => {
@@ -721,9 +727,10 @@ export class ExtensionsService {
             enabled(name);
             const abs = safeJoin(this.skillDir(name), rel);
             const st = fs.lstatSync(abs);
-            if (!st.isFile()) throw new SkillError(t('不是文件'));
+            if (!st.isFile()) throw new SkillError(t('electron.common.not-a-file'));
             const buf = fs.readFileSync(abs).subarray(0, MAX_READ);
-            if (buf.includes(0)) throw new SkillError(t('只能读取文本文件'));
+            if (buf.includes(0))
+              throw new SkillError(t('electron.common.only-text-files-can-be-read'));
             this.audit('skill_read_file', { name, path: rel }, 'auto', 'ok', 'skill');
             return { ok: true, data: { content: buf.toString('utf8') } };
           } catch (e) {
@@ -769,7 +776,7 @@ export class ExtensionsService {
         warnings: [
           ...c.warnings,
           ...(c.server && argsHaveSecret(c.server)
-            ? [t('启动参数里似乎有令牌：参数会原样保存（不加密），建议改成环境变量')]
+            ? [t('electron.common.the-launch-arguments-seem-to-contain-a-token')]
             : []),
         ],
         ...(c.error ? { error: c.error } : {}),
@@ -842,7 +849,7 @@ export class ExtensionsService {
   }
 
   private async importMcpCandidate(c: McpCandidate, action: MigrateAction): Promise<string | null> {
-    if (!c.server) throw new McpConfigError(t('配置格式不正确'));
+    if (!c.server) throw new McpConfigError(t('electron.common.invalid-configuration'));
     const prev = this.mcpConflict(c.server.name);
     if (prev && action === 'skip') return null;
     const taken = new Set(
@@ -889,16 +896,19 @@ export class ExtensionsService {
     }
     // 复制前再校验一次源目录（扫描之后可能被改动）：真实路径不变、文件仍是普通文件
     const real = fs.realpathSync(c.dir);
-    if (real !== c.dir) throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+    if (real !== c.dir)
+      throw new SkillError(t('electron.common.the-skill-folder-changed-after-the-scan-please'));
     let total = 0;
     const files = ['SKILL.md', ...c.files];
     for (const f of files) {
       const abs = safeJoin(real, f);
       const st = fs.lstatSync(abs);
-      if (!st.isFile()) throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+      if (!st.isFile())
+        throw new SkillError(t('electron.common.the-skill-folder-changed-after-the-scan-please'));
       total += st.size;
     }
-    if (total > MIGRATE_MAX_SKILL_BYTES) throw new SkillError(t('技能包太大（上限 5 MB）'));
+    if (total > MIGRATE_MAX_SKILL_BYTES)
+      throw new SkillError(t('electron.common.skill-pack-too-large-max-5-mb'));
     const tmp = path.join(this.d.skillsRoot, `.import-${randomBytes(6).toString('hex')}`);
     try {
       for (const f of c.files) {
@@ -911,7 +921,9 @@ export class ExtensionsService {
         );
         try {
           if (!fs.fstatSync(fd).isFile())
-            throw new SkillError(t('技能文件夹在扫描后发生了变化，请重新扫描'));
+            throw new SkillError(
+              t('electron.common.the-skill-folder-changed-after-the-scan-please'),
+            );
           fs.writeFileSync(to, fs.readFileSync(fd), { flag: 'wx' });
         } finally {
           fs.closeSync(fd);
@@ -932,7 +944,8 @@ export class ExtensionsService {
       const backup = prev && action === 'overwrite' ? `${tmp}.old` : null;
       if (backup) fs.renameSync(path.join(this.d.skillsRoot, prev!.dir), backup);
       try {
-        if (fs.existsSync(dest)) throw new SkillError(t('已经有名为 {0} 的技能', name));
+        if (fs.existsSync(dest))
+          throw new SkillError(t('electron.common.a-skill-named-already-exists', name));
         fs.renameSync(tmp, dest);
       } catch (e) {
         if (backup) fs.renameSync(backup, path.join(this.d.skillsRoot, prev!.dir));
@@ -986,7 +999,7 @@ export class ExtensionsService {
 
 async function pickDirDialog(): Promise<string | null> {
   const r = await dialog.showOpenDialog({
-    title: t('选择项目文件夹（读取其中的 .mcp.json、.claude/skills、.agents/skills）'),
+    title: t('electron.common.choose-a-project-folder-reads-its-mcp-json'),
     properties: ['openDirectory'],
   });
   return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
@@ -1023,14 +1036,12 @@ function listFiles(root: string, rel = '', out: string[] = [], depth = 0): strin
 export function friendlyError(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err);
   if (/ENOENT|not found|spawn/i.test(m))
-    return t(
-      '启动失败：找不到命令（{0}）。请确认已安装 Node.js / uv，或填写完整路径',
-      m.slice(0, 120),
-    );
+    return t('electron.common.failed-to-start-command-not-found-make-sure', m.slice(0, 120));
   if (/ECONNREFUSED|fetch failed|ENOTFOUND/i.test(m))
-    return t('连不上服务器：{0}', m.slice(0, 120));
-  if (/401|403|unauthori[sz]ed/i.test(m)) return t('服务器拒绝访问：请检查令牌 / Authorization 头');
-  if (/timeout|timed out/i.test(m)) return t('连接超时');
+    return t('electron.common.can-t-reach-the-server', m.slice(0, 120));
+  if (/401|403|unauthori[sz]ed/i.test(m))
+    return t('electron.common.the-server-refused-access-check-the-token-authorization');
+  if (/timeout|timed out/i.test(m)) return t('electron.common.connection-timed-out');
   return m.slice(0, 200);
 }
 
