@@ -7,13 +7,15 @@
 
 把 Nomi 的对话窗口做成 **Claude Code / Codex（及后续同类 CLI）的 UI 外壳**：消息、工具确认、权限与进度都转发到本机真实 CLI；同时提供 **版本检查与看板娘一键更新**，以及 **按工具独立切换 API 供应商**（含可选本机协议路由）。Nomi 自己的 AI 运行时仍保留为「Nomi 原生」后端，可随时切回。
 
-## 2. 现状（代码事实）
+## 2. 历史基线（v1.x 起草时的代码事实，已过时）
 
-| 能力         | 现状                                                                                                                                     | 缺口                                                           |
+> **v2.0.0 现状**：第三方供应商只在 **GatewayStore**（`gateway/store.json`）；Nomi 对话经统一网关；编程助手为插件化 + 标签令牌（见文末「插件化（v2.0.0）」与 [cli-plugin-architecture](../design/cli-plugin-architecture.md)、[providers](providers.md)）。下表保留为设计推演起点，**不要当作当前架构**。
+
+| 能力         | 当时现状                                                                                                                                 | 当时缺口                                                       |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | 编程助手监视 | `AgentProgressService` 只读解析 `~/.claude`、`~/.codex`、Cursor 等本地会话 + 进程存活；设置 → 编程助手 →「监视与会话」标签展示与气泡提醒 | 无版本号、无安装路径、无更新动作                               |
-| 对话后端     | 固定走 `AIClient` → `ai-runtime`（Vercel AI SDK + ProviderStore）                                                                        | 无法把一轮对话交给外部 CLI                                     |
-| 供应商       | Nomi 自己的 `ProviderStore`（safeStorage、任务路由、多 Key）                                                                             | 不写 `~/.claude/settings.json` / `~/.codex/config.toml`        |
+| 对话后端     | 固定走 `AIClient` → `ai-runtime`（Vercel AI SDK）                                                                                        | 无法把一轮对话交给外部 CLI                                     |
+| 供应商       | Nomi 自有供应商配置（safeStorage、任务路由、多 Key），尚未写入各 CLI 配置文件                                                            | 不写 `~/.claude/settings.json` / `~/.codex/config.toml`        |
 | 本地模型     | 本机管理面板 + llama.cpp / Ollama 标签                                                                                                   | 可作无云 Key 的联调，与 CLI `--oss` / 第三方 base URL 尚未打通 |
 
 **设计原则（不可破）：**
@@ -57,14 +59,14 @@
 
 ### 3.5 CLI 供应商与本地路由（Nomi 自建）
 
-| 概念                 | 含义                          | Nomi 实现                                                                                                   |
-| -------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| 按工具的第三方供应商 | Claude / Codex 各自一组供应商 | `userData/cli-providers/claude/store.json` 与 `…/codex/store.json`，与 Nomi 原生 ProviderStore **完全隔离** |
-| 一键启用             | 只改连接字段，备份后写回      | 原子写 + `userData/cli-providers/backups/`                                                                  |
-| Direct               | CLI 直连上游（原生协议）      | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`                         |
-| 本地路由             | 本机代理做协议转换            | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商                        |
-| Aggregation          | 多上游模型列表合并            | **P2**                                                                                                      |
-| Apps 页升级          | 检测版本、安装、升级          | 对标「版本与更新」章节，由看板娘执行                                                                        |
+| 概念                 | 含义                     | Nomi 实现                                                                              |
+| -------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| 按工具的第三方供应商 | 各 CLI 选用的第三方模型  | v2 起统一在 **GatewayStore**（`gateway/store.json`）；标签来源选「第三方」时经本机网关 |
+| 一键启用             | 只改连接字段，备份后写回 | 原子写 + `userData/cli-providers/backups/`                                             |
+| Direct               | CLI 直连上游（原生协议） | 默认：Claude=`anthropic_messages`；Codex=`openai_responses`；dsh=`openai_responses`    |
+| 本地路由             | 本机代理做协议转换       | `CliRouteService` 监听 `127.0.0.1:18721`；非原生格式须开启路由后才能启用第三方供应商   |
+| Aggregation          | 多上游模型列表合并       | **P2**                                                                                 |
+| Apps 页升级          | 检测版本、安装、升级     | 对标「版本与更新」章节，由看板娘执行                                                   |
 
 **上游格式（按 CLI 不同）：**
 
@@ -211,7 +213,7 @@ Aggregation（多上游合并）仍为 **P2**。
 | 集成（本机有 CLI） | 真实 `claude` / `codex` smoke（需用户 Key 或登录）                                                    |
 | **无云 Key**       | `codex exec --oss --local-provider ollama` + 本机 Ollama 模型；Nomi 原生后端继续用 Ollama / llama.cpp |
 | E2E headed         | 后端切换器可见；选 Mock 后端发一条消息出现工具时间线；权限卡允许/拒绝                                 |
-| 回归               | 监视器、Nomi 原生对话、ProviderStore 不受影响                                                         |
+| 回归               | 监视器、Nomi 原生对话、供应商存储不受影响                                                             |
 
 ## 8. 里程碑建议
 

@@ -65,15 +65,15 @@
 
 ## 安全
 
-- API Key 用系统安全存储加密（macOS 钥匙串 / Windows DPAPI / Linux libsecret·kwallet），保存在本机 `gateway/store.json`（权限 0600）。
+- API Key 用系统安全存储加密（macOS 钥匙串 / Windows DPAPI / Linux libsecret·kwallet），保存在本机 `gateway/store.json`（权限 0600）。**GatewayStore 是第三方供应商唯一来源**。
 - 保存后界面只能拿到掩码；Key 只在主进程和网关进程的内存里解密，只随请求发往你为该供应商配置的地址，不上报、不同步。
-- 网关只监听本机，每个客户端用自己的令牌访问。
+- 网关只监听本机，每个客户端用自己的令牌访问。出站请求 **DNS 钉 IP**（防解析后被重绑定）；入站请求体默认上限 32 MiB（「模型」页高级可调）。
+- 网关进程短时间内反复崩溃会触发**熔断**并停止自动重启（避免风暴）；健康差的 Key/协议候选会被自适应排到队尾（可用 `NOMI_ADAPTIVE_ROUTE=0` 关闭）。实时快照见网关 `GET /metrics`。
 - 工具结果会发给谁按真正的上游判断：经网关访问云端供应商时按云端处理（隐私设置里的「仅本地」与云端同意照常生效）。
 
 ## 升级与兼容
 
-- 首次启动新版本时，原有的 Nomi 供应商（`ai-providers.json`）和编程助手的第三方供应商自动迁移进 **GatewayStore**（`gateway/store.json`）；写入成功后旧文件改名为 `*.migrated`（不删除）。之后只读网关，不再读写 `ai-providers.json`。旧配置里的本机地址视为已确认。
-- Nomi 对话 / agent-tools / summary 只经网关客户端解析模型，不再回退旧 ProviderStore。
+- Nomi 对话 / agent-tools / summary 只经网关客户端解析模型（**GatewayStore**）。首次升级时旧 `ai-providers.json` 与编程助手第三方店会迁入 `gateway/store.json`，成功后改名为 `*.migrated`；之后只读网关。旧配置里的本机地址视为已确认。
 - 环境变量提供的供应商（如 `DEEPSEEK_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY`、`OLLAMA_BASE_URL`）由网关以只读 `env-*` 接入；「模型」页没有为 Nomi 对话分配模型时默认用它们，`/model` 里也能选。`NOMI_PROVIDER=<id>` 可强制指定供应商（此时右上角的选择器锁定）。
 - 服务商图标来自 `@lobehub/icons-static-svg`（MIT），仅用于标识对应服务；没有图标时显示首字母头像。
 
