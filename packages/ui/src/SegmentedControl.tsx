@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { cx } from './cx';
+import { t as tr } from './i18n';
 
 export interface SegmentedOption<T extends string = string> {
   value: T;
@@ -73,7 +74,8 @@ export function SegmentedControl<T extends string = string>({
           data-testid={o.testId}
           onClick={() => o.value !== value && onChange(o.value)}
         >
-          {o.label}
+          {/* 与 Select / Tabs 一致：字符串文案可以是翻译 key */}
+          {typeof o.label === 'string' ? tr(o.label) : o.label}
         </button>
       ))}
     </div>

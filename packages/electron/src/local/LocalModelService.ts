@@ -413,7 +413,7 @@ export class LocalModelService {
         );
       const v = gw.upsertProvider({
         ...(existing ? { id: existing.id } : {}),
-        name: PROVIDER_NAME,
+        name: tr(PROVIDER_NAME),
         presetId: LOCAL_PRESET_ID,
         urls: { chat: baseURL },
         models: [{ id: m.id, enabled: true }],

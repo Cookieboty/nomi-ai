@@ -115,7 +115,8 @@ export class SdkIPCClient implements IPCClient {
     images?: Array<{ mime: string; data: string }>,
   ) {
     const { systemPrompt } = await this.getConfig();
-    const sys = [systemPrompt, extra].filter((s) => s && s.trim()).join('\n\n');
+    // 默认人设存的是翻译 key（也可能已随配置存下）：发送前按当前语言翻成正文；用户自填的原样保留
+    const sys = [systemPrompt && t(systemPrompt), extra].filter((s) => s && s.trim()).join('\n\n');
     return buildProviderMessages(history, message, sys, images);
   }
 

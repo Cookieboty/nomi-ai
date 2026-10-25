@@ -118,7 +118,8 @@ export interface TaskResult {
   catchUp?: boolean;
 }
 
-export const BRIEFING_PROMPT =
+// 用时再翻译：模块加载时界面语言还没就绪，且运行中可能切换
+export const briefingPrompt = (): string =>
   tr('electron.common.write-me-a-briefing-for-today-start-with') +
   tr('electron.common.then-give-one-or-two-thoughtful-tips-based');
 

@@ -153,8 +153,11 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return all;
+    // 选项文案可以是翻译 key：按界面上显示的文字搜，不按 key 搜
     return all.filter((o) =>
-      `${o.searchText ?? textOf(o.label)} ${o.value} ${o.group ?? ''}`.toLowerCase().includes(q),
+      `${tr(o.searchText ?? textOf(o.label))} ${o.value} ${tr(o.group ?? '')}`
+        .toLowerCase()
+        .includes(q),
     );
   }, [all, query]);
 
@@ -353,7 +356,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 const header =
                   o.group && o.group !== lastGroup ? (
                     <div className="cd-dropdown__group" role="presentation">
-                      {o.group}
+                      {tr(o.group)}
                     </div>
                   ) : null;
                 lastGroup = o.group;
@@ -378,7 +381,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                       onClick={() => commit(o)}
                     >
                       {o.icon && <span className="cd-dropdown__icon">{o.icon}</span>}
-                      <span className="cd-dropdown__label cd-truncate" title={textOf(o.label)}>
+                      <span className="cd-dropdown__label cd-truncate" title={tr(textOf(o.label))}>
                         {tr(o.label)}
                       </span>
                       {o.description && (

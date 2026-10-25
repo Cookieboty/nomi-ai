@@ -412,9 +412,8 @@ export class LocalHubService {
       this.replaceEvents(s.id, list);
       return list.length;
     } catch (e) {
-      s.lastError = (e as Error).message.replace(
-        /fetch failed/,
-        'electron.common.server-unreachable',
+      s.lastError = (e as Error).message.replace(/fetch failed/, () =>
+        tr('electron.common.server-unreachable'),
       );
       s.lastSync = Date.now();
       this.saveCal();

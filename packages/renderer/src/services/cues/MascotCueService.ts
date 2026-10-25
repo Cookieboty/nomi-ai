@@ -2,7 +2,7 @@
  * 看板娘事件台词编排：多条随机、冷却、优先级打断、尊重语音开关与音量。
  * 不修改 mascot 源文件；由桥接订阅已有事件后调用。
  */
-import { createLogger } from '@nomi-ai/ui';
+import { createLogger, t } from '@nomi-ai/ui';
 
 import { speakForActiveCharacter } from '../../mascot/characterVoice';
 import type { SoftSpeechPrefs } from '../../mascot/softSpeech';
@@ -103,7 +103,8 @@ export class MascotCueService {
     }
 
     if (wantSpeech && this.canSpeak()) {
-      const text = (opts.text?.trim() || pick(lines)).slice(0, 160);
+      // CUE_LINES 存的是 key：先翻译再截断，避免按 key 长度截断
+      const text = t(opts.text?.trim() || pick(lines)).slice(0, 160);
       if (text) {
         if (this.speaking && priority >= this.currentPriority) stopAllSpeech();
         this.speaking = true;

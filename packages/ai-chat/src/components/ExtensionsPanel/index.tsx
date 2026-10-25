@@ -51,9 +51,9 @@ type Tab = 'mcp' | 'skills';
 // 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
 const trustOptions = () =>
   (Object.keys(TRUST_LABEL) as Trust[]).map((v) => ({
-  value: v,
-  label: tr(TRUST_LABEL[v]),
-}));
+    value: v,
+    label: tr(TRUST_LABEL[v]),
+  }));
 const TRANSPORTS = [
   { value: 'stdio', label: 'ui.foundation.local-command-stdio' },
   { value: 'http', label: 'ui.foundation.remote-http' },

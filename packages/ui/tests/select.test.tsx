@@ -77,6 +77,26 @@ describe('Select (custom dropdown)', () => {
     expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 
+  it('labels and groups given as translation keys are shown and searched as translated text', () => {
+    render(
+      <Select
+        searchable
+        value="x"
+        onChange={() => {}}
+        options={[
+          { value: 'x', label: 'ui.mascot-theme.search', group: 'ui.mascot-theme.please-select' },
+          { value: 'y', label: 'Other' },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole('combobox'));
+    expect(document.querySelector('.cd-dropdown__group')?.textContent).toBe('请选择');
+    act(() => {
+      fireEvent.change(screen.getByPlaceholderText('搜索…'), { target: { value: '搜索' } });
+    });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+  });
+
   it('accepts legacy <option>/<optgroup> children and native change events', () => {
     const spy = vi.fn();
     render(

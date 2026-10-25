@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { t } from '@nomi-ai/ui';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createSpriteBackend } from '../../src/mascot/backends/sprite';
@@ -38,7 +39,8 @@ describe('action library', () => {
     expect(ACTIONS.length).toBeGreaterThanOrEqual(30);
     expect(new Set(ACTIONS.map((a) => a.id)).size).toBe(ACTIONS.length);
     for (const a of ACTIONS) {
-      expect(a.label, a.id).toMatch(/[\u4e00-\u9fff]/);
+      // label 存的是翻译 key，默认语言下显示中文
+      expect(t(a.label), a.id).toMatch(/[\u4e00-\u9fff]/);
       expect(a.trigger, a.id).toBeTruthy();
       expect(ACTION_LABELS[a.id]).toBe(a.label);
       expect(MOTION_LABELS[a.id]).toBe(a.label);
@@ -114,7 +116,7 @@ describe('docs', () => {
     );
     for (const a of ACTIONS) {
       expect(doc, a.id).toContain(`\`${a.id}\``);
-      expect(doc, a.id).toContain(a.label);
+      expect(doc, a.id).toContain(t(a.label));
     }
     expect(doc).toContain(`${ACTIONS.length} 个命名动作`);
   });

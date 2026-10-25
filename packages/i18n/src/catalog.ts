@@ -339,7 +339,6 @@ export type TranslationKey =
   | 'electron.common.long-history-only-the-most-recent-messages-are'
   | 'electron.common.macos-calendar'
   | 'electron.common.meeting-minutes-output-three-parts-decisions-action-items'
-  | 'electron.common.message'
   | 'electron.common.message-is-empty'
   | 'electron.common.missing-description'
   | 'electron.common.missing-description-one-sentence-on-when-to-use'

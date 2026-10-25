@@ -586,7 +586,7 @@ export class VoiceService {
       prompt:
         s.language === 'zh' ||
         (opts.purpose === 'wake' && /[\u4e00-\u9fff]/.test(s.wakeWord.phrase))
-          ? tr('electron.common.message')
+          ? '以下是普通话的句子。' // i18n-ignore — whisper 的中文引导词，是给模型的数据
           : undefined,
       timeoutMs: opts.purpose === 'wake' ? 20_000 : 120_000,
     });

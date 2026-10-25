@@ -50,9 +50,9 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 // 渲染时再翻译（模块加载时调用 t() 会固定在当时的语言）
 const kindOptions = () =>
   (Object.keys(FACT_KIND_LABEL) as FactKind[]).map((k) => ({
-  value: k,
-  label: tr(FACT_KIND_LABEL[k]),
-}));
+    value: k,
+    label: tr(FACT_KIND_LABEL[k]),
+  }));
 
 const EpisodeCard: React.FC<{ e: MemEpisode; onMsg: (m: string) => void }> = ({ e, onMsg }) => {
   const [edit, setEdit] = useState(false);

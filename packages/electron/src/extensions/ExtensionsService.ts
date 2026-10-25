@@ -332,7 +332,8 @@ export class ExtensionsService {
           };
         }),
       })),
-      presets: MCP_PRESETS,
+      // 预设名会被渲染进程直接填进新建表单并保存，这里先译好
+      presets: MCP_PRESETS.map((p) => ({ ...p, name: t(p.name), description: t(p.description) })),
       ready: !!svc,
     };
   }

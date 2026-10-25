@@ -1,3 +1,4 @@
+import { t } from '@nomi-ai/ui';
 import { useCallback } from 'react';
 
 import { useMascot } from '@/contexts/MascotContext';
@@ -17,8 +18,9 @@ export function useWaifuMessage() {
     ) => {
       if (!text || (Array.isArray(text) && text.length === 0)) return;
       if (!clearPrevious && state.currentMessage && state.messagePriority > priority) return;
+      // 台词常量（提示 / 互动反应 / 整点报时 / mascot:say）存的是 key，显示前晚翻译；普通文本原样返回
       const selected = toBubbleText(
-        Array.isArray(text) ? text[Math.floor(Math.random() * text.length)] : text,
+        t(Array.isArray(text) ? text[Math.floor(Math.random() * text.length)] : text),
       );
       if (!selected) return;
       if (clearPrevious) dispatch({ type: 'CLEAR_MESSAGE' });

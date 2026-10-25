@@ -1,0 +1,8 @@
+---
+'@nomi-ai/ai-chat': patch
+'@nomi-ai/electron': patch
+'@nomi-ai/renderer': patch
+'@nomi-ai/ui': patch
+---
+
+修复词典迁移后仍残留的裸 key：Nomi 对话的人设提示发给模型时是 key；看板娘气泡（提示、问候、触摸反应、整点报时）显示 key；日历同步失败信息、本地 llama.cpp 供应商名、从 MCP 预设新建的服务器名存成了 key；下拉框按 key 而不是显示文字搜索，分组标题未翻译。中文语音识别的引导词固定为中文，唤醒词保持为原文数据、不随界面语言翻译。
