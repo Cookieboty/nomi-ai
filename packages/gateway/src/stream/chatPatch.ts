@@ -18,6 +18,8 @@ import {
   type ResponseFixOptions,
 } from '../models/rules/response/rules';
 
+import { SseSplitter } from './sse';
+
 type Obj = Record<string, unknown>;
 
 const isObj = (v: unknown): v is Obj => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -28,7 +30,7 @@ export interface ChatPatchOptions extends ResponseFixOptions {
 }
 
 export class ChatStreamPatcher {
-  private buf = '';
+  private readonly split = new SseSplitter();
   private readonly rules: ResponseRules;
   /** 已开始的工具调用：index → 工具名 */
   private readonly tools = new Map<number, string>();
@@ -44,16 +46,11 @@ export class ChatStreamPatcher {
 
   push(text: string): string {
     if (this.stopped) return '';
-    this.buf += text;
     let out = '';
-    for (;;) {
-      const m = /\r?\n\r?\n/.exec(this.buf);
-      if (!m) break;
-      const block = this.buf.slice(0, m.index + m[0].length);
-      this.buf = this.buf.slice(m.index + m[0].length);
-      out += this.block(block, m[0]);
+    for (const b of this.split.push(text)) {
+      out += this.block(b.body + b.sep, b.sep);
       if (this.stopped) {
-        this.buf = '';
+        this.split.take();
         break;
       }
     }
@@ -62,8 +59,7 @@ export class ChatStreamPatcher {
 
   end(): string {
     if (this.stopped) return '';
-    const rest = this.buf;
-    this.buf = '';
+    const rest = this.split.take();
     let out = rest.trim() ? this.block(rest, '') : rest;
     // 上游没发 finish_reason 也没发 [DONE]：补发缓存
     if (!this.stopped) out += this.flushChunks().text;

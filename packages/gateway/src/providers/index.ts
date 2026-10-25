@@ -8,6 +8,7 @@
 import type { ProviderQuirks, RuntimeProvider } from '../config';
 import type { Wire } from '../ir';
 import type { Candidate } from '../route/resolve';
+import { SseSplitter } from '../stream/sse';
 
 import { BUILTIN_SPECS } from './builtin';
 import { generic, genericRequest, serverToolErrorFor } from './generic';
@@ -158,9 +159,6 @@ export function serverToolError(c: Candidate, ingress: Wire, body: unknown): str
 
 type Obj = Record<string, unknown>;
 
-/** 一个事件的结尾：空行（LF 或 CRLF，可混用） */
-const EVENT_END = /\r?\n\r?\n/;
-
 function dataOf(block: string): { data: string; event?: string } | null {
   let data = '';
   let event: string | undefined;
@@ -204,7 +202,7 @@ export function declarativePreEvent(spec: ProviderSpec, ev: RawEvent): RawEvent 
  * 没有命中任何规则的事件原样输出（字节不变）；保活计数，由调用方转成给客户端的心跳。
  */
 export class ProviderStage {
-  private buf = '';
+  private readonly split = new SseSplitter();
   /** 这一段里丢掉的保活个数（调用方读完清零） */
   alive = 0;
   /** 丢弃 / 改名的事件个数（诊断用） */
@@ -221,19 +219,13 @@ export class ProviderStage {
   }
 
   push(text: string): string {
-    this.buf += text;
     let out = '';
-    for (let m = EVENT_END.exec(this.buf); m; m = EVENT_END.exec(this.buf)) {
-      const end = m.index + m[0].length;
-      out += this.block(this.buf.slice(0, end), m[0]);
-      this.buf = this.buf.slice(end);
-    }
+    for (const b of this.split.push(text)) out += this.block(b.body + b.sep, b.sep);
     return out;
   }
 
   end(): string {
-    const rest = this.buf;
-    this.buf = '';
+    const rest = this.split.take();
     return rest ? this.block(rest, '') : '';
   }
 

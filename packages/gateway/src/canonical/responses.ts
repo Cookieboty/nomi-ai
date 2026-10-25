@@ -17,11 +17,9 @@ import {
   RESPONSES_EVENTS,
   RESPONSES_ITEM_EVENT,
 } from '../spec/responses';
+import { SseSplitter } from '../stream/sse';
 
 type Obj = Record<string, unknown>;
-
-/** 一个事件的结尾：空行（LF 或 CRLF，可混用） */
-const EVENT_END = /\r?\n\r?\n/;
 
 const isObj = (v: unknown): v is Obj => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
@@ -130,7 +128,7 @@ function statusOf(type: string): string {
 export class ResponsesCanonicalizer {
   /** 这一级做过的修正（去重；记请求备注） */
   readonly notes: string[] = [];
-  private buf = '';
+  private readonly split = new SseSplitter();
   /** response.output_item.done 收集到的条目（按 output_index） */
   private readonly items: unknown[] = [];
   /** 最近一个事件的 sequence_number（给缺序号的事件接着编） */
@@ -147,20 +145,14 @@ export class ResponsesCanonicalizer {
   constructor(private readonly model = '') {}
 
   push(text: string): string {
-    this.buf += text;
     let out = '';
     // 事件之间的空行可以是 LF 或 CRLF（与 SseParser 一致）；分隔符原样保留（#94）
-    for (let m = EVENT_END.exec(this.buf); m; m = EVENT_END.exec(this.buf)) {
-      const end = m.index + m[0].length;
-      out += this.patch(this.buf.slice(0, end));
-      this.buf = this.buf.slice(end);
-    }
+    for (const b of this.split.push(text)) out += this.patch(b.body + b.sep);
     return out;
   }
 
   end(): string {
-    const rest = this.buf;
-    this.buf = '';
+    const rest = this.split.take();
     return rest ? this.patch(rest) : '';
   }
 

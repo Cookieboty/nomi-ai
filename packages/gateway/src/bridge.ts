@@ -14,6 +14,7 @@ import { patchChatJson, type ChatPatchOptions } from './stream/chatPatch';
 import { heartbeat, HEARTBEAT_COMMENT, type HeartbeatKind } from './stream/heartbeat';
 import { createStreamConverter, jsonToJson, jsonToSse, type StreamConverter } from './stream/index';
 import { createPassthrough, passthroughFail, type Passthrough } from './stream/passthrough';
+import { SseSplitter } from './stream/sse';
 
 export type BridgeMode = 'passthrough' | 'convert';
 
@@ -51,9 +52,6 @@ export interface Bridge {
   alive(): string;
 }
 
-/** SSE 事件的结尾：空行（LF 或 CRLF，可混用） */
-const EVENT_END = /\r?\n\r?\n/g;
-
 /** 透传时上游没发结束标记就断开的说明 */
 export const TRUNCATED_MESSAGE = 'Nomi 网关：上游没有发结束标记就断开了';
 
@@ -78,16 +76,8 @@ export function createBridge(plan: BridgePlan): Bridge {
   const stopped = () => conv?.stopped === true || pass?.stopped === true;
   // 透传按完整事件转发：上游在一个事件中间断开时，半截事件不能发给客户端（后面补的失败事件会和它
   // 粘在一起，严格客户端解析失败）。事件很小，等到结尾空行再转发不影响首字时间
-  let pending = '';
-  const frame = (text: string): string => {
-    pending += text;
-    let end = -1;
-    for (const m of pending.matchAll(EVENT_END)) end = m.index + m[0].length;
-    if (end < 0) return '';
-    const out = pending.slice(0, end);
-    pending = pending.slice(end);
-    return out;
-  };
+  const framer = new SseSplitter();
+  const frame = (text: string): string => framer.pushRaw(text);
   const forward = (events: string) => write(pass ? pass.push(events) : events);
   /** 已经给客户端写过内容（Messages 的 ping 只能在 message_start 之后） */
   let wrote = false;
@@ -115,8 +105,7 @@ export function createBridge(plan: BridgePlan): Bridge {
         else {
           out += forward(frame(rest));
           // 最后一个事件可能不带结尾空行：它让流正常结束时照常转发，否则是被截断的半截，丢掉
-          const last = pending;
-          pending = '';
+          const last = framer.take();
           watch?.push(last);
           if (last.trim() && watch?.terminated) out += forward(last);
           if (pass) out += write(pass.end());
@@ -129,7 +118,7 @@ export function createBridge(plan: BridgePlan): Bridge {
       return out;
     },
     fail(message) {
-      pending = '';
+      framer.take();
       // 已收到的完整事件先写出去（Responses 规范化层还缓存着的部分，#94），再报错
       const tail = canon?.end() ?? '';
       return tail + (conv ? conv.fail(message) : write(passthroughFail(plan.from, message)));

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createStreamConverter, SseParser, type UpstreamStreamFormat } from '../src/stream';
 import { TerminalWatch } from '../src/stream/passthrough';
+import { SseSplitter } from '../src/stream/sse';
 
 const data = (o: unknown) => `data: ${typeof o === 'string' ? o : JSON.stringify(o)}\n\n`;
 const ev = (o: Record<string, unknown>) =>
@@ -192,5 +193,30 @@ describe('Gemini invalid tool call', () => {
     );
     expect(evs.at(-1)!.event).toBe('error');
     expect(evs.at(-1)!.data.error.message).toMatch(/MALFORMED_FUNCTION_CALL/);
+  });
+});
+
+describe('SseSplitter', () => {
+  it('splits at every boundary regardless of chunking (LF / CRLF across chunks)', () => {
+    const text = 'data: a\n\nevent: x\r\ndata: b\r\n\r\ndata: c\n\r\ndata: tail';
+    for (let size = 1; size <= text.length; size++) {
+      const s = new SseSplitter();
+      const blocks: string[] = [];
+      for (let i = 0; i < text.length; i += size)
+        for (const b of s.push(text.slice(i, i + size))) blocks.push(b.body + b.sep);
+      expect(blocks).toEqual(['data: a\n\n', 'event: x\r\ndata: b\r\n\r\n', 'data: c\n\r\n']);
+      expect(s.take()).toBe('data: tail');
+    }
+  });
+
+  it('one large event in many chunks stays linear', () => {
+    const s = new SseSplitter();
+    const big = `data: ${'A'.repeat(4 * 1024 * 1024)}\n\n`;
+    const t0 = performance.now();
+    let n = 0;
+    for (let i = 0; i < big.length; i += 16 * 1024) n += s.push(big.slice(i, i + 16 * 1024)).length;
+    expect(n).toBe(1);
+    // 原来逐片从头扫描 + 拼整串是 O(n²)，这里约 100ms；线性实现只要几毫秒
+    expect(performance.now() - t0).toBeLessThan(60);
   });
 });

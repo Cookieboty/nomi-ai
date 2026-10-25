@@ -5,6 +5,7 @@ import type { ClientModels } from '../config';
 import type { Wire } from '../ir';
 import { MESSAGES_EVENTS } from '../spec/messages';
 import { RESPONSES_EVENTS } from '../spec/responses';
+import { SseSplitter } from '../stream/sse';
 
 import { BUILTIN_CLIENT_SPECS, DEFAULT_SESSION_KEY } from './builtin';
 import type { ClientAdapterHooks, ClientSpec, ConformContext, ModelSlot } from './types';
@@ -114,7 +115,7 @@ const NOTE_FILLED = (spec: string, type: string) => `已按 ${spec} 的要求补
  * 按完整 SSE 事件工作；没有改动的事件原样输出。
  */
 export class ClientConformer {
-  private buf = '';
+  private readonly split = new SseSplitter();
   private readonly accepted: ReadonlySet<string> | null;
 
   constructor(private readonly ctx: ConformContext) {
@@ -128,19 +129,13 @@ export class ClientConformer {
   }
 
   push(text: string): string {
-    this.buf += text;
     let out = '';
-    for (let m = /\r?\n\r?\n/.exec(this.buf); m; m = /\r?\n\r?\n/.exec(this.buf)) {
-      const end = m.index + m[0].length;
-      out += this.block(this.buf.slice(0, end), m[0]);
-      this.buf = this.buf.slice(end);
-    }
+    for (const b of this.split.push(text)) out += this.block(b.body + b.sep, b.sep);
     return out;
   }
 
   end(): string {
-    const rest = this.buf;
-    this.buf = '';
+    const rest = this.split.take();
     return rest ? this.block(rest, '') : '';
   }
 

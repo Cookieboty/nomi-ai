@@ -10,7 +10,7 @@ import { ResponseRules } from '../models/rules/response/rules';
 import { ChatStreamPatcher, type ChatPatchOptions } from './chatPatch';
 import { createDecoder } from './decoders';
 import type { StreamDecoder } from './events';
-import { formatSse, SseParser } from './sse';
+import { formatSse, SseParser, SseSplitter } from './sse';
 
 export { TerminalWatch } from '../canonical/terminal';
 
@@ -26,7 +26,7 @@ export interface Passthrough {
 const decoderFor = (w: UpstreamStreamFormat): StreamDecoder => createDecoder(w);
 
 class RepetitionPassthrough implements Passthrough {
-  private buf = '';
+  private readonly split = new SseSplitter();
   private readonly parser = new SseParser();
   private readonly dec: StreamDecoder;
   /** 复读检测用同一份规则（§6.9.7） */
@@ -43,15 +43,11 @@ class RepetitionPassthrough implements Passthrough {
 
   push(chunk: string): string {
     if (this.stopped) return '';
-    this.buf += chunk;
     let out = '';
-    for (;;) {
-      const m = /\r?\n\r?\n/.exec(this.buf);
-      if (!m) break;
-      const block = this.buf.slice(0, m.index + m[0].length);
-      this.buf = this.buf.slice(m.index + m[0].length);
+    for (const b of this.split.push(chunk)) {
+      const block = b.body + b.sep;
       if (this.watch(block)) {
-        this.buf = '';
+        this.split.take();
         return out + this.fail();
       }
       out += block;
@@ -61,9 +57,7 @@ class RepetitionPassthrough implements Passthrough {
 
   end(): string {
     if (this.stopped) return '';
-    const rest = this.buf;
-    this.buf = '';
-    return rest;
+    return this.split.take();
   }
 
   private watch(block: string): boolean {
