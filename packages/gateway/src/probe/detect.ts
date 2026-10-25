@@ -173,14 +173,15 @@ export function listedLimits(item: unknown): ListedLimits | undefined {
   const o = item as Record<string, unknown>;
   const top = (o.top_provider ?? {}) as Record<string, unknown>;
   const first = (...vs: unknown[]) => vs.map(posInt).find((n) => n !== undefined);
+  // 明确的「最大输入」优先于总窗口（编程助手按它压缩，§12.7.1）
   const ctx = first(
+    o.max_input_tokens,
+    o.inputTokenLimit,
+    o.input_token_limit,
     o.context_length,
     o.context_window,
     o.max_context_length,
     o.max_model_len,
-    o.max_input_tokens,
-    o.inputTokenLimit,
-    o.input_token_limit,
     top.context_length,
   );
   const maxOutput = first(

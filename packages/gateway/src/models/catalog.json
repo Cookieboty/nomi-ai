@@ -1,5 +1,5 @@
 {
-  "version": "2026-10-24",
+  "version": "2026-10-25",
   "source": "models.dev",
   "license": "MIT",
   "models": {
@@ -25,6 +25,48 @@
       }
     },
     "claude-fable-5-1": {
+      "family": "claude-fable",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-fable-5.1": {
+      "family": "claude-fable",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-fable-latest": {
       "family": "claude-fable",
       "limits": {
         "context": 1000000,
@@ -85,7 +127,69 @@
         }
       }
     },
+    "claude-haiku-4.5": {
+      "family": "claude-haiku",
+      "limits": {
+        "context": 200000,
+        "maxOutput": 64000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "claude-haiku-5-5": {
+      "family": "claude-haiku",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-haiku-5.5": {
+      "family": "claude-haiku",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-haiku-latest": {
       "family": "claude-haiku",
       "limits": {
         "context": 1000000,
@@ -212,6 +316,105 @@
         "temperature": false
       }
     },
+    "claude-opus-4.1": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 200000,
+        "maxOutput": 32000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "claude-opus-4.5": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 200000,
+        "maxOutput": 64000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "claude-opus-4.6": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "adaptive",
+        "efforts": ["low", "medium", "high", "max"],
+        "canDisable": true
+      }
+    },
+    "claude-opus-4.7": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-opus-4.8": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
     "claude-opus-5": {
       "family": "claude-opus",
       "limits": {
@@ -234,6 +437,48 @@
       }
     },
     "claude-opus-5-5": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-opus-5.5": {
+      "family": "claude-opus",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-opus-latest": {
       "family": "claude-opus",
       "limits": {
         "context": 1000000,
@@ -315,6 +560,43 @@
         }
       }
     },
+    "claude-sonnet-4.5": {
+      "family": "claude-sonnet",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 64000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "claude-sonnet-4.6": {
+      "family": "claude-sonnet",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "max"],
+        "canDisable": true
+      }
+    },
     "claude-sonnet-5": {
       "family": "claude-sonnet",
       "limits": {
@@ -338,6 +620,48 @@
       }
     },
     "claude-sonnet-5-5": {
+      "family": "claude-sonnet",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-sonnet-5.5": {
+      "family": "claude-sonnet",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "claude-sonnet-latest": {
       "family": "claude-sonnet",
       "limits": {
         "context": 1000000,
@@ -420,6 +744,52 @@
         "control": "none"
       }
     },
+    "deepseek-chat": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 16000
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "deepseek-chat-v3-0324": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 115200
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "deepseek-chat-v3.1": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "deepseek-flash": {
       "family": "deepseek-flash",
       "limits": {
@@ -439,6 +809,115 @@
         "canDisable": true,
         "passback": "required",
         "passbackField": "reasoning_content"
+      }
+    },
+    "deepseek-flash-latest": {
+      "family": "deepseek-flash",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 943718
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
+    "deepseek-pro-latest": {
+      "family": "deepseek",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 393216
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
+    "deepseek-r1-0528": {
+      "family": "deepseek-thinking",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "none"
+      }
+    },
+    "deepseek-v3.1-terminus": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 147456
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "deepseek-v3.2": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "deepseek-v3.2-exp": {
+      "family": "deepseek",
+      "limits": {
+        "context": 163840,
+        "maxOutput": 147456
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
       }
     },
     "deepseek-v4-flash": {
@@ -483,6 +962,25 @@
         "passbackField": "reasoning_content"
       }
     },
+    "deepseek-v4-flash-latest": {
+      "family": "deepseek",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 943718
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
     "deepseek-v4-flash-vision-exp": {
       "family": "deepseek-flash",
       "limits": {
@@ -523,6 +1021,63 @@
         "canDisable": true,
         "passback": "required",
         "passbackField": "reasoning_content"
+      }
+    },
+    "deepseek-v4-pro-0813": {
+      "family": "deepseek-thinking",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 393216
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
+    "deepseek-v4.1-flash": {
+      "family": "deepseek-flash",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 943718
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
+    "deepseek-v4.1-flash-1017": {
+      "family": "deepseek-flash",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 393216
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
       }
     },
     "devstral-2512": {
@@ -629,6 +1184,27 @@
     },
     "gemini-2.5-pro": {
       "family": "gemini-pro",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "budget",
+        "budget": {
+          "min": 128,
+          "max": 32768
+        }
+      }
+    },
+    "gemini-2.5-pro-preview": {
+      "family": "gemini",
       "limits": {
         "context": 1048576,
         "maxOutput": 65536
@@ -900,6 +1476,62 @@
         "efforts": ["low", "medium", "high"]
       }
     },
+    "gemma-2-27b-it": {
+      "family": "gemma",
+      "limits": {
+        "context": 8192,
+        "maxOutput": 2048
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
+      }
+    },
+    "gemma-3-12b-it": {
+      "family": "gemma",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "gemma-3-27b-it": {
+      "family": "gemma",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 117964
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "gemma-3-4b-it": {
+      "family": "gemma",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 117964
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
+      }
+    },
     "gemma-4-26b-a4b-it": {
       "family": "gemma",
       "limits": {
@@ -918,7 +1550,43 @@
         "canDisable": true
       }
     },
+    "gemma-4-26b-a4b-it:free": {
+      "family": "gemma",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "gemma-4-31b-it": {
+      "family": "gemma",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "gemma-4-31b-it:free": {
       "family": "gemma",
       "limits": {
         "context": 262144,
@@ -1175,6 +1843,26 @@
         "canDisable": true
       }
     },
+    "glm-5-turbo": {
+      "family": "glm",
+      "limits": {
+        "context": 202752,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true,
+        "passback": "required",
+        "passbackField": "reasoning_content"
+      }
+    },
     "glm-5.1": {
       "family": "glm",
       "limits": {
@@ -1276,6 +1964,24 @@
         "passbackField": "reasoning_content"
       }
     },
+    "glm-5.3-prime": {
+      "family": "glm",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"]
+      }
+    },
     "glm-5v-turbo": {
       "family": "glm",
       "limits": {
@@ -1296,6 +2002,42 @@
         "passbackField": "reasoning_content"
       }
     },
+    "glm-flash-latest": {
+      "family": "glm-flash",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"]
+      }
+    },
+    "glm-latest": {
+      "family": "glm",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"]
+      }
+    },
     "gpt-3.5-turbo": {
       "family": "gpt",
       "limits": {
@@ -1308,6 +2050,34 @@
       },
       "tools": {
         "calling": false
+      }
+    },
+    "gpt-3.5-turbo-0613": {
+      "family": "gpt",
+      "limits": {
+        "context": 4095,
+        "maxOutput": 3685
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "gpt-3.5-turbo-16k": {
+      "family": "gpt",
+      "limits": {
+        "context": 16385,
+        "maxOutput": 4096
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
       }
     },
     "gpt-4": {
@@ -1450,10 +2220,25 @@
         "calling": true
       }
     },
+    "gpt-4o-mini-2024-07-18": {
+      "family": "gpt-mini",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "gpt-5": {
       "family": "gpt",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1475,6 +2260,7 @@
       "family": "gpt-mini",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1496,6 +2282,7 @@
       "family": "gpt-nano",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1517,6 +2304,7 @@
       "family": "gpt-pro",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 272000
       },
       "input": {
@@ -1538,6 +2326,7 @@
       "family": "gpt",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1553,10 +2342,77 @@
         "canDisable": true
       }
     },
+    "gpt-5.1-codex": {
+      "family": "gpt-codex",
+      "limits": {
+        "context": 400000,
+        "input": 272000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.1-codex-max": {
+      "family": "gpt-codex",
+      "limits": {
+        "context": 400000,
+        "input": 272000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.1-codex-mini": {
+      "family": "gpt-codex",
+      "limits": {
+        "context": 400000,
+        "input": 272000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
     "gpt-5.2": {
       "family": "gpt",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1572,10 +2428,50 @@
         "canDisable": true
       }
     },
+    "gpt-5.2-chat": {
+      "family": "gpt",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 32000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.2-codex": {
+      "family": "gpt-codex",
+      "limits": {
+        "context": 400000,
+        "input": 272000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
     "gpt-5.2-pro": {
       "family": "gpt-pro",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1597,6 +2493,7 @@
       "family": "gpt-codex",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1616,6 +2513,7 @@
       "family": "gpt-codex-spark",
       "limits": {
         "context": 128000,
+        "input": 100000,
         "maxOutput": 32000
       },
       "input": {
@@ -1638,6 +2536,7 @@
       "family": "gpt",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1657,6 +2556,7 @@
       "family": "gpt-mini",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1676,6 +2576,7 @@
       "family": "gpt-nano",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1695,6 +2596,7 @@
       "family": "gpt-pro",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1716,6 +2618,7 @@
       "family": "gpt",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1738,6 +2641,7 @@
       "family": "gpt-pro",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1759,6 +2663,7 @@
       "family": "gpt-sol",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1781,6 +2686,30 @@
       "family": "gpt-luna",
       "limits": {
         "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.6-luna-pro": {
+      "family": "gpt-luna",
+      "limits": {
+        "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1803,6 +2732,30 @@
       "family": "gpt-sol",
       "limits": {
         "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.6-sol-pro": {
+      "family": "gpt-sol",
+      "limits": {
+        "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1825,6 +2778,30 @@
       "family": "gpt-terra",
       "limits": {
         "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-5.6-terra-pro": {
+      "family": "gpt-terra",
+      "limits": {
+        "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1847,6 +2824,28 @@
       "family": "gpt-astra",
       "limits": {
         "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-6-astra-pro": {
+      "family": "gpt",
+      "limits": {
+        "context": 1050000,
         "maxOutput": 128000
       },
       "input": {
@@ -1866,6 +2865,29 @@
     },
     "gpt-6-luna": {
       "family": "gpt-luna",
+      "limits": {
+        "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-6-luna-pro": {
+      "family": "gpt",
       "limits": {
         "context": 1050000,
         "maxOutput": 128000
@@ -1890,6 +2912,29 @@
       "family": "gpt-sol",
       "limits": {
         "context": 1050000,
+        "input": 922000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-6-sol-pro": {
+      "family": "gpt",
+      "limits": {
+        "context": 1050000,
         "maxOutput": 128000
       },
       "input": {
@@ -1912,6 +2957,7 @@
       "family": "gpt-sol",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1929,10 +2975,98 @@
         "temperature": false
       }
     },
+    "gpt-6.1-sol-pro": {
+      "family": "gpt",
+      "limits": {
+        "context": 1050000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-astra-latest": {
+      "family": "gpt-astra",
+      "limits": {
+        "context": 1050000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-audio": {
+      "family": "gpt",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "gpt-audio-mini": {
+      "family": "gpt-mini",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "gpt-chat-latest": {
+      "family": "gpt",
+      "limits": {
+        "context": 400000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
     "gpt-daybreak-blue-latest": {
       "family": "gpt-sol",
       "limits": {
         "context": 1050000,
+        "input": 922000,
         "maxOutput": 128000
       },
       "input": {
@@ -1955,6 +3089,7 @@
       "family": "gpt",
       "limits": {
         "context": 400000,
+        "input": 272000,
         "maxOutput": 128000
       },
       "input": {
@@ -1971,6 +3106,165 @@
       },
       "sampling": {
         "temperature": false
+      }
+    },
+    "gpt-luna-latest": {
+      "family": "gpt-luna",
+      "limits": {
+        "context": 1050000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-mini-latest": {
+      "family": "gpt-mini",
+      "limits": {
+        "context": 400000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-oss-120b": {
+      "family": "gpt-oss",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
+      }
+    },
+    "gpt-oss-20b": {
+      "family": "gpt-oss",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
+      }
+    },
+    "gpt-oss-safeguard-20b": {
+      "family": "gpt-oss",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high"]
+      }
+    },
+    "gpt-sol-latest": {
+      "family": "gpt-sol",
+      "limits": {
+        "context": 1050000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "gpt-terra-latest": {
+      "family": "gpt-terra",
+      "limits": {
+        "context": 1050000,
+        "maxOutput": 128000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh", "max"],
+        "canDisable": true
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "grok-4.20": {
+      "family": "grok",
+      "limits": {
+        "context": 2000000,
+        "maxOutput": 1800000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
       }
     },
     "grok-4.20-0309-non-reasoning": {
@@ -2002,6 +3296,24 @@
       },
       "reasoning": {
         "control": "none"
+      }
+    },
+    "grok-4.20-multi-agent": {
+      "family": "grok",
+      "limits": {
+        "context": 2000000,
+        "maxOutput": 1800000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": false
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh"]
       }
     },
     "grok-4.20-multi-agent-0309": {
@@ -2110,6 +3422,91 @@
       },
       "reasoning": {
         "control": "none"
+      }
+    },
+    "grok-latest": {
+      "family": "grok",
+      "limits": {
+        "context": 500000,
+        "maxOutput": 450000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "high", "xhigh"]
+      }
+    },
+    "kimi-k2": {
+      "family": "kimi-k2",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 98304
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "kimi-k2-0905": {
+      "family": "kimi-k2",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 98304
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "kimi-k2-thinking": {
+      "family": "kimi-thinking",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 98304
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "none",
+        "passback": "required",
+        "passbackField": "reasoning_details"
+      }
+    },
+    "kimi-k2.5": {
+      "family": "kimi-k2",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true,
+        "passback": "required",
+        "passbackField": "reasoning_details"
       }
     },
     "kimi-k2.6": {
@@ -2248,6 +3645,25 @@
         "temperature": false
       }
     },
+    "kimi-latest": {
+      "family": "kimi",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 943718
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "high", "max"],
+        "canDisable": true
+      }
+    },
     "labs-devstral-small-2512": {
       "family": "devstral",
       "limits": {
@@ -2328,6 +3744,38 @@
         "canDisable": true
       }
     },
+    "minimax-01": {
+      "family": "minimax",
+      "limits": {
+        "context": 1000192,
+        "maxOutput": 40000
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
+      }
+    },
+    "minimax-m1": {
+      "family": "minimax",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 40000
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "minimax-m2": {
       "family": "minimax",
       "limits": {
@@ -2343,6 +3791,20 @@
       },
       "reasoning": {
         "control": "none"
+      }
+    },
+    "minimax-m2-her": {
+      "family": "minimax",
+      "limits": {
+        "context": 65536,
+        "maxOutput": 2048
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
       }
     },
     "minimax-m2.1": {
@@ -2536,6 +3998,34 @@
         "calling": true
       }
     },
+    "mistral-large": {
+      "family": "mistral-large",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 102400
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "mistral-large-2407": {
+      "family": "mistral-large",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 104857
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "mistral-large-2512": {
       "family": "mistral-large",
       "limits": {
@@ -2559,6 +4049,25 @@
       "input": {
         "images": true,
         "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["high"],
+        "canDisable": true
+      }
+    },
+    "mistral-large-4-0": {
+      "family": "mistral-large",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 262144
+      },
+      "input": {
+        "images": true,
+        "pdf": false
       },
       "tools": {
         "calling": true
@@ -2630,6 +4139,53 @@
         "canDisable": true
       }
     },
+    "mistral-medium-3": {
+      "family": "mistral-medium",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 104857
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "mistral-medium-3-5": {
+      "family": "mistral-medium",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 209715
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["high"],
+        "canDisable": true
+      }
+    },
+    "mistral-medium-3.1": {
+      "family": "mistral-medium",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 104857
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "mistral-medium-latest": {
       "family": "mistral-medium",
       "limits": {
@@ -2647,6 +4203,48 @@
         "control": "effort",
         "efforts": ["high"],
         "canDisable": true
+      }
+    },
+    "mistral-nemo": {
+      "family": "mistral-nemo",
+      "limits": {
+        "context": 131072,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "mistral-saba": {
+      "family": "mistral",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 26214
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "mistral-small-24b-instruct-2501": {
+      "family": "mistral-small",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
       }
     },
     "mistral-small-2506": {
@@ -2682,6 +4280,34 @@
         "canDisable": true
       }
     },
+    "mistral-small-3.1-24b-instruct": {
+      "family": "mistral-small",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 102400
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "mistral-small-3.2-24b-instruct": {
+      "family": "mistral-small",
+      "limits": {
+        "context": 256000,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "mistral-small-latest": {
       "family": "mistral-small",
       "limits": {
@@ -2699,6 +4325,20 @@
         "control": "effort",
         "efforts": ["high"],
         "canDisable": true
+      }
+    },
+    "mixtral-8x22b-instruct": {
+      "family": "mistral",
+      "limits": {
+        "context": 65536,
+        "maxOutput": 52428
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
       }
     },
     "o1": {
@@ -2785,6 +4425,27 @@
         "temperature": false
       }
     },
+    "o3-mini-high": {
+      "family": "o",
+      "limits": {
+        "context": 200000,
+        "maxOutput": 100000
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["high"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
     "o3-pro": {
       "family": "o-pro",
       "limits": {
@@ -2822,6 +4483,27 @@
       "reasoning": {
         "control": "effort",
         "efforts": ["low", "medium", "high"]
+      },
+      "sampling": {
+        "temperature": false
+      }
+    },
+    "o4-mini-high": {
+      "family": "o",
+      "limits": {
+        "context": 200000,
+        "maxOutput": 100000
+      },
+      "input": {
+        "images": true,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["high"]
       },
       "sampling": {
         "temperature": false
@@ -2870,6 +4552,48 @@
       },
       "reasoning": {
         "control": "none"
+      }
+    },
+    "qwen-2.5-72b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "qwen-2.5-7b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 29491
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "qwen-2.5-coder-32b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 29491
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
       }
     },
     "qwen-flash": {
@@ -3052,6 +4776,20 @@
         "calling": true
       }
     },
+    "qwen2.5-vl-72b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 115200
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": false
+      }
+    },
     "qwen3-14b": {
       "family": "qwen",
       "limits": {
@@ -3086,6 +4824,69 @@
       "reasoning": {
         "control": "budget",
         "canDisable": true
+      }
+    },
+    "qwen3-235b-a22b-2507": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "qwen3-235b-a22b-thinking-2507": {
+      "family": "qwen",
+      "limits": {
+        "context": 128000,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "none"
+      }
+    },
+    "qwen3-30b-a3b": {
+      "family": "qwen",
+      "limits": {
+        "context": 40960,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "qwen3-30b-a3b-instruct-2507": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
       }
     },
     "qwen3-32b": {
@@ -3124,6 +4925,20 @@
         "canDisable": true
       }
     },
+    "qwen3-coder": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "qwen3-coder-30b-a3b-instruct": {
       "family": "qwen",
       "limits": {
@@ -3157,6 +4972,20 @@
       "limits": {
         "context": 1000000,
         "maxOutput": 65536
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "qwen3-coder-next": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
       },
       "input": {
         "images": false,
@@ -3260,6 +5089,20 @@
         "control": "budget"
       }
     },
+    "qwen3-vl-235b-a22b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 32768
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
     "qwen3-vl-30b-a3b": {
       "family": "qwen",
       "limits": {
@@ -3276,6 +5119,51 @@
       "reasoning": {
         "control": "budget",
         "canDisable": true
+      }
+    },
+    "qwen3-vl-30b-a3b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 16384
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      }
+    },
+    "qwen3-vl-30b-a3b-thinking": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "none"
+      }
+    },
+    "qwen3-vl-8b-instruct": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
       }
     },
     "qwen3-vl-plus": {
@@ -3368,6 +5256,24 @@
         "canDisable": true
       }
     },
+    "qwen3.5-9b": {
+      "family": "qwen",
+      "limits": {
+        "context": 262144,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "qwen3.5-flash": {
       "family": "qwen",
       "limits": {
@@ -3391,6 +5297,24 @@
         "passbackField": "reasoning_content"
       }
     },
+    "qwen3.5-flash-02-23": {
+      "family": "qwen",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
     "qwen3.5-plus": {
       "family": "qwen",
       "limits": {
@@ -3406,6 +5330,42 @@
       },
       "reasoning": {
         "control": "budget",
+        "canDisable": true
+      }
+    },
+    "qwen3.5-plus-02-15": {
+      "family": "qwen",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
+        "canDisable": true
+      }
+    },
+    "qwen3.5-plus-20260420": {
+      "family": "qwen3.5",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 65536
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "toggle",
         "canDisable": true
       }
     },
@@ -3503,6 +5463,7 @@
       "family": "qwen",
       "limits": {
         "context": 1000000,
+        "input": 991808,
         "maxOutput": 131072
       },
       "input": {
@@ -3560,6 +5521,43 @@
         "passbackField": "reasoning_content"
       }
     },
+    "qwen3.8-2.4t-a95b": {
+      "family": "qwen",
+      "limits": {
+        "context": 1048576,
+        "maxOutput": 909000
+      },
+      "input": {
+        "images": false,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "xhigh"]
+      }
+    },
+    "qwen3.8-27b": {
+      "family": "qwen",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 235929
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["low", "medium", "xhigh"],
+        "canDisable": true
+      }
+    },
     "qwen3.8-flash": {
       "family": "qwen",
       "limits": {
@@ -3608,6 +5606,42 @@
         "passbackField": "reasoning_content"
       }
     },
+    "qwen3.8-max-0902": {
+      "family": "qwen",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["minimal", "low", "medium", "high", "xhigh"]
+      }
+    },
+    "qwen3.8-max-prime": {
+      "family": "qwen3.8-max",
+      "limits": {
+        "context": 1000000,
+        "maxOutput": 131072
+      },
+      "input": {
+        "images": true,
+        "pdf": false
+      },
+      "tools": {
+        "calling": true
+      },
+      "reasoning": {
+        "control": "effort",
+        "efforts": ["minimal", "low", "medium", "high", "xhigh"]
+      }
+    },
     "qwen3.8-omni-flash": {
       "family": "qwen",
       "limits": {
@@ -3644,6 +5678,20 @@
       },
       "reasoning": {
         "control": "none"
+      }
+    },
+    "voxtral-small-24b-2507": {
+      "family": "voxtral",
+      "limits": {
+        "context": 32768,
+        "maxOutput": 26214
+      },
+      "input": {
+        "images": false,
+        "pdf": true
+      },
+      "tools": {
+        "calling": true
       }
     },
     "voxtral-small-2507": {

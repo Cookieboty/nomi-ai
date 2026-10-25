@@ -573,7 +573,7 @@ describe('GatewayService', () => {
       models: [{ id: 'z-ai/glm-5.3', enabled: true }],
     });
     const ref = (m: string) => svc.modelMetaOf(m)!;
-    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 1_050_000, source: 'catalog' });
+    expect(ref('relay/openai/gpt-6-astra')).toMatchObject({ ctx: 922_000, source: 'catalog' });
     expect(ref('relay/acme/unknown-model')).toMatchObject({
       ctx: 128_000,
       maxOutput: 32_000,
@@ -588,7 +588,7 @@ describe('GatewayService', () => {
     });
     // 编程助手启动注入用同一份结果
     expect(svc.agentMeta('relay/openai/gpt-6-astra')).toMatchObject({
-      ctx: 1_050_000,
+      ctx: 922_000,
       maxOutput: 128_000,
       reasoning: true,
       provider: 'Relay',
@@ -605,11 +605,11 @@ describe('GatewayService', () => {
     // 「模型」页拿到生效值；回传保存时生效值不落盘
     const view = svc.state().providers.find((p) => p.id === 'relay')!;
     const astra = view.models.find((m) => m.id === 'openai/gpt-6-astra')!;
-    expect(astra.effective).toMatchObject({ ctx: 1_050_000, source: 'catalog' });
+    expect(astra.effective).toMatchObject({ ctx: 922_000, source: 'catalog' });
     svc.upsertProvider({ id: 'relay', name: 'Relay', urls: {}, models: view.models });
     const saved = svc.store.providers().find((p) => p.id === 'relay')!;
     expect(saved.models.some((m) => 'effective' in m)).toBe(false);
-    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(1_050_000);
+    expect(svc.cliModels().find((m) => m.ref === 'relay/openai/gpt-6-astra')!.ctx).toBe(922_000);
   });
 
   it('releaseAgent: removes the tab dir but does not follow symlinks into the user CLI home', () => {

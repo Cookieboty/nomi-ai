@@ -58,7 +58,9 @@ function catalogLayer(id: string): Layer | undefined {
   const c = catalogEntry(id);
   if (!c) return undefined;
   return {
-    ctx: c.limits?.context,
+    // 编程助手按「最大输入」压缩：有的模型为输出预留了一块（gpt-5：总窗口 400K、最大输入 272K），
+    // 按总窗口注入会在压缩前先撞上上游的上下文超长
+    ctx: c.limits?.input ?? c.limits?.context,
     maxOutput: c.limits?.maxOutput,
     // 目录只给会推理的模型写 reasoning；不能控制推理强度的（control: none）按非推理处理
     reasoning: c.reasoning ? c.reasoning.control !== 'none' : false,

@@ -956,7 +956,9 @@ Nomi 自己的对话也作为网关的一个客户端（`nomi`），和 CLI 走�
 - 逐字段取第一个有值的一级，上下文和输出上限可以来自不同的级；
 - 预设按当前版本实时查（已保存的供应商也能用上后来补的值），先按原 id、再按去掉中转前缀后的 id 匹配（预设写 `glm-5.3`，中转列 `z-ai/glm-5.3`）；保存时存下的预设值排在实时预设之后；
 - 模型列表接口的值在「添加供应商」和「刷新」时存成 `metaSource: 'listed'`，字段兼容 `context_length`、`context_window`、`max_model_len`、`inputTokenLimit`、`top_provider.max_completion_tokens` 等（`listedLimits`）；
+- 内置目录收原厂条目；原厂还没收录的新模型（如 deepseek-v4.1-flash，原厂条目滞后、中转先上），按 OpenRouter 的条目补（只补原厂前缀下的模型，不覆盖原厂已有的）；
 - 内置目录按去掉中转前缀、`:free` 等标签和日期后缀后的 id 查；
+- 注入的「上下文」取**最大输入**（models.dev 的 `limit.input`，模型列表接口的 `max_input_tokens` / `inputTokenLimit`），没有时才用总窗口：有的模型为输出预留了一块（gpt-5 系列总窗口 400K、最大输入 272K，与 Codex 官方配置一致；gpt-5.4 起 1.05M / 922K），按总窗口注入会在 CLI 压缩前先撞上上游的上下文超长；
 - 编程助手启动注入（`GatewayService.agentMeta`，终端命令同用）、网关快照（用户 / 预设 / 列表的上限写进 `RuntimeModel`，只来自目录的不写，网关自己读目录）、「模型」页的标签与选择器（状态里每个模型附 `effective`，保存时丢弃）用同一份结果。
 
 #### 12.7.3 网关侧的请求修正

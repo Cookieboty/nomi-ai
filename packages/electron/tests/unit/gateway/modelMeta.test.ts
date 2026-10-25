@@ -32,14 +32,26 @@ describe('resolveModelMeta (§12.7.2)', () => {
   });
 
   it('falls back to the built-in catalog by bare id, ignoring relay tags', () => {
+    // 目录写了最大输入时按它（总窗口 1.05M、为输出预留后最多输入 922K）
     expect(resolveModelMeta(undefined, 'openai/gpt-6-astra')).toMatchObject({
-      ctx: 1_050_000,
+      ctx: 922_000,
       maxOutput: 128_000,
       vision: true,
       source: 'catalog',
     });
     expect(resolveModelMeta(undefined, 'anthropic/claude-haiku-4-5:free')).toMatchObject({
       ctx: 200_000,
+      source: 'catalog',
+    });
+  });
+
+  it('400K-class GPT models inject the 272K input limit Codex itself uses, not the 400K total', () => {
+    expect(resolveModelMeta(undefined, 'relay/gpt-5.2')).toMatchObject({ ctx: 272_000 });
+  });
+
+  it('models the vendor entry lags on are filled from OpenRouter (deepseek-v4.1-flash)', () => {
+    expect(resolveModelMeta(undefined, 'amux/deepseek/deepseek-v4.1-flash')).toMatchObject({
+      ctx: 1_048_576,
       source: 'catalog',
     });
   });

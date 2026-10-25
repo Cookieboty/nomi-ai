@@ -29,7 +29,8 @@ export interface ModelReasoning {
 /** 模型规格的数据部分（每一级都只写自己知道的字段） */
 export interface ModelSpecData {
   family?: string;
-  limits?: { context?: number; maxOutput?: number };
+  /** context：总窗口；input：最大输入（有的厂商为输出预留一部分，input < context）；maxOutput：输出上限 */
+  limits?: { context?: number; input?: number; maxOutput?: number };
   /** 模型的原生协议与理由（§6.9.4 排序规则 1） */
   wires?: { prefer: Wire[]; reason?: string };
   input?: { images?: boolean; pdf?: boolean };

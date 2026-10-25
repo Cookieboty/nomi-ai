@@ -26,6 +26,23 @@ const ORIGINS = [
   'mistral',
 ];
 const EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+/**
+ * 原厂条目还没收录的新模型（如 deepseek-v4.1-flash 先上了中转、原厂条目滞后）：按 OpenRouter 的条目补，
+ * 只补这些原厂前缀下的模型；原厂已有的不覆盖。
+ */
+const FALLBACK = 'openrouter';
+const FALLBACK_VENDORS = [
+  'openai',
+  'anthropic',
+  'google',
+  'x-ai',
+  'deepseek',
+  'moonshotai',
+  'z-ai',
+  'qwen',
+  'minimax',
+  'mistralai',
+];
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const out = path.join(here, '..', 'src', 'models', 'catalog.json');
@@ -74,6 +91,8 @@ function entryOf(m) {
     ...(m.family ? { family: m.family } : {}),
     limits: {
       ...(m.limit?.context ? { context: m.limit.context } : {}),
+      // 最大输入（总窗口减去为输出预留的部分）：编程助手按它压缩，比总窗口更准
+      ...(m.limit?.input ? { input: m.limit.input } : {}),
       ...(m.limit?.output ? { maxOutput: m.limit.output } : {}),
     },
     input: { images: input.includes('image'), pdf: input.includes('pdf') },
@@ -94,6 +113,18 @@ for (const pid of ORIGINS) {
     if (!models[key]) models[key] = entryOf(m);
   }
 }
+
+let added = 0;
+for (const [id, m] of Object.entries(data[FALLBACK]?.models ?? {})) {
+  const i = id.indexOf('/');
+  if (i <= 0 || !FALLBACK_VENDORS.includes(id.slice(0, i).replace(/^~/, ''))) continue;
+  if (m.type && m.type !== 'chat') continue;
+  const key = id.slice(i + 1).toLowerCase();
+  if (models[key]) continue;
+  models[key] = entryOf(m);
+  added++;
+}
+
 const sorted = Object.fromEntries(Object.entries(models).sort(([a], [b]) => a.localeCompare(b)));
 const doc = {
   version: new Date().toISOString().slice(0, 10),
@@ -102,4 +133,6 @@ const doc = {
   models: sorted,
 };
 fs.writeFileSync(out, `${JSON.stringify(doc, null, 1)}\n`);
-console.info(`wrote ${Object.keys(sorted).length} models to ${path.relative(process.cwd(), out)}`);
+console.info(
+  `wrote ${Object.keys(sorted).length} models (${added} from ${FALLBACK}) to ${path.relative(process.cwd(), out)}`,
+);
